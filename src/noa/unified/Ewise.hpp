@@ -38,28 +38,30 @@ namespace noa::guts {
 
         if constexpr (N_OUTPUTS >= 1) {
             if constexpr (OUTPUTS_ARE_ALL_VARRAYS) {
-                noa::check(guts::are_all_same_device(output_accessors),
-                           "The output arrays should have the same device, but got devices={}",
-                           guts::forward_as_tuple_of_devices(output_accessors));
-                noa::check(guts::are_all_same_device(input_accessors), // FIXME
-                           "The input arrays should have the same device, but got devices={}",
-                           guts::forward_as_tuple_of_devices(input_accessors));
-
-                noa::check(guts::are_all_same_shape(outputs),
-                           "The output arrays should have the same shape, but got shapes={}",
-                           guts::forward_as_tuple_of_shapes(outputs));
-                noa::check(guts::are_all_same_order(outputs),
-                           "The output arrays should have the same stride order, but got strides={}",
-                           guts::forward_as_tuple_of_strides(outputs));
-
-                // TODO Do we allow strides of 0 on the outputs?
-                //      If not, check there's no non-empty dimensions with a stride of 0.
-
-                // The outputs are varrays, so we can index the tuple and safely expect a varray.
                 shape = outputs[Tag<0>{}].shape();
                 device = outputs[Tag<0>{}].device();
                 order = ni::order(outputs[Tag<0>{}].strides(), shape); // outputs have the same order
                 do_reorder = any(order != Vec4<i64>{0, 1, 2, 3});
+
+                outputs.for_each_enumerate([&]<size_t I, typename T>(const T& output) {
+                    if constexpr (I > 0 && nt::is_varray_v<T>) {
+                        check(device == output.device(),
+                              "Output arrays should be on the same device, "
+                              "but got (0)device={} and ({})=device={}",
+                              device, I, output.device());
+                        check(all(shape == output.shape()),
+                              "Output arrays should have the same shape, "
+                              "but got (0)shape={} and ({})=shape={}",
+                              shape, I, output.shape());
+
+                        // TODO Do we allow strides of 0 on the outputs?
+                        //      If not, check there's no non-empty dimensions with a stride of 0.
+                        check(all(order == ni::order(output.strides(), shape)),
+                              "Output arrays should have the same stride order, "
+                              "but got (0)strides={} and ({})=strides={}",
+                              outputs[Tag<0>{}].strides(), I, output.strides());
+                    }
+                });
 
                 // Automatic broadcasting of the inputs.
                 input_accessors.for_each_enumerate([&inputs, &shape]<size_t I, typename T>(T& accessor) {
@@ -72,31 +74,35 @@ namespace noa::guts {
                     }
                 });
             } else {
-                static_assert(nt::always_false_v<Outputs>, "Outputs should be varrays");
+                static_assert(nt::always_false_v<Outputs>, "The outputs should be varrays");
             }
         } else if constexpr (N_INPUTS >= 1) {
             if constexpr (INDEX_FIRST_INPUT_VARRAY >= 0) {
-                check(guts::are_all_same_device(inputs),
-                      "The input arrays should have the same device, but got devices={}",
-                      guts::forward_as_tuple_of_devices(inputs));
-                check(guts::are_all_same_shape(inputs), // no automatic broadcasting of the inputs.
-                      "The input arrays should have the same shape, but got shapes={}",
-                      guts::forward_as_tuple_of_shapes(inputs));
-
-                // TODO  make take the order of the input with the largest effective shape as reference?
-                //       ni::order moves empty dimensions to the left.
-                //       I think that forcing the same order is okay, but a bit too restrictive:
-                //       it effectively prevents broadcasting
-
                 const auto& first_input_array = inputs[Tag<INDEX_FIRST_INPUT_VARRAY>{}];
                 shape = first_input_array.shape();
                 device = first_input_array.device();
                 order = ni::order(first_input_array.strides(), shape);
+                do_reorder = any(order != Vec4<i64>{0, 1, 2, 3});
 
-                // Get order of the inputs and reorder.
-                // Only reorder if all the inputs have the same order.
-                do_reorder = any(order != Vec4<i64>{0, 1, 2, 3}) &&
-                             guts::are_all_same_order(input_accessors, order);
+                inputs.for_each_enumerate([&]<size_t I, typename T>(T& input) {
+                    if constexpr (I > INDEX_FIRST_INPUT_VARRAY && nt::is_varray_v<T>) {
+                        check(device == input.device(),
+                              "Input arrays should be on the same device, "
+                              "but got (0)device={} and ({})=device={}",
+                              device, I, input.device());
+                        check(all(shape == input.shape()),
+                              "Input arrays should have the same shape, "
+                              "but got (0)shape={} and ({})=shape={}",
+                              shape, I, input.shape());
+
+                        // TODO  make take the order of the input with the largest effective shape as reference?
+                        //       ni::order moves empty dimensions to the left.
+                        //       I think that forcing the same order is okay, but a bit too restrictive:
+                        //       it effectively prevents broadcasting
+                        if (do_reorder) // only reorder if all the inputs have the same order.
+                            do_reorder = all(order == ni::order(input.strides(), shape));
+                    }
+                });
             } else {
                 static_assert(nt::always_false_v<Inputs>,
                               "For cases with inputs but without outputs, there should be at least one input varray");
@@ -128,7 +134,7 @@ namespace noa::guts {
                         });
             }
         } else {
-            // reduce dimensions
+            // TODO CUDA
         }
     }
 }
@@ -146,18 +152,22 @@ namespace noa {
     ///                     The output values are explicitly casted to the \p outputs value types.
     ///
     /// \example Simple cosine map, in-place:
-    /// \code a = cos(a) ->
-    /// noa::ewise(a, a, noa::cos_t{});
-    /// noa::ewise(a, Tuple<>{}, [](f64& a) { return noa::cos(a); }); // taking a lvalue reference
-    /// noa::ewise(wrap(a), wrap(a), noa::cos_t{}); // wrap is short for noa::forward_as_tuple
+    /// \code
+    /// a = std::cos(a);
+    /// ->
+    /// noa::ewise(a, a, noa::Cos{});
+    /// noa::ewise(a, a, [](const auto& ai, auto& oi) { oi = std::cos(ai); }); // equivalent
+    /// noa::ewise(a, {}, [](f64& ai) { ai = std::cos(ai); }); // taking a lvalue reference
     /// \endcode
     ///
     /// \example More complex example showing variadic ability:
-    /// \code c = cos(a) * b + 1, d = c + a ->
-    /// noa::ewise(wrap(a, b), wrap(c, d), [](f64 ai, f64 bi) {
-    ///     auto ci = noa::cos(ai) * bi + 1;
-    ///     auto di = ci + ai;
-    ///     return Tuple{ci, di};
+    /// \code
+    /// c = cos(a) * b + 1;
+    /// d = c + a;
+    /// ->
+    /// noa::ewise(noa::wrap(a, b), noa::wrap(c, d), [](f64 ai, f64 bi, auto& ci, auto& di) {
+    ///     ci = noa::cos(ai) * bi + 1;
+    ///     di = ci + ai;
     /// });
     /// \endcode
     /// The constant value 1 can be passed as an input runtime value too,
@@ -165,22 +175,23 @@ namespace noa {
     /// the value 1 is lost and "one" can be any f64 value. The CPU backend
     /// may be able to optimize this.
     /// \code
-    /// noa::ewise(wrap(a, b, 1.), wrap(c, d), [](f64 ai, f64 bi, f64 one) {
-    ///     auto ci = noa::cos(ai) * bi + one;
-    ///     auto di = ci + ai;
-    ///     return Tuple{ci, di};
+    /// noa::ewise(wrap(a, b, 1.), wrap(c, d), [](f64 ai, f64 bi, f64 one, f64& ci, f64& di) {
+    ///     ci = noa::cos(ai) * bi + one;
+    ///     di = ci + ai;
     /// });
     /// \endcode
     ///
-    /// \note To be supported by the CUDA backend, the source of \p ewise_op needs to be added to the sources
-    ///       available to the runtime compiler. This can be set up as part of the build, but sources can also
+    /// \note To be supported by the CUDA JIT backend, the source of \p ewise_op needs to be added to the sources
+    ///       available to the JIT compiler. This can be set up as part of the build, but source code can also
     ///       be added at runtime using the noa::Session::add_cuda_sources(...) functions.
     ///
-    /// \note This function is internally relying on the iwise functions. One advantage of this function
-    ///       is that it can analyse the inputs and outputs to deduce the most efficient way to traverse
-    ///       these arrays, by reordering the dimensions, collapsing contiguous dimensions together (up to 1d),
-    ///       and can trigger the vectorization for the 1d case by checking for data contiguity and aliasing.
-    template<typename Input, typename Output, typename EwiseOp>
+    /// \note This function is internally relying on the iwise core-functions. One advantage of this function
+    ///       is that it analyses the inputs and outputs to deduce the most efficient way to traverse these arrays,
+    ///       by reordering the dimensions, collapsing contiguous dimensions together (up to 1d), and can trigger
+    ///      the vectorization for the 1d case by checking for data contiguity and aliasing.
+    template<typename Input = guts::EwiseAdaptorUnzip<>,
+             typename Output = guts::EwiseAdaptorUnzip<>,
+             typename EwiseOp> // TODO EwiseChecker
     void ewise(Input&& inputs, Output&& outputs, EwiseOp&& ewise_op) {
         if constexpr (guts::are_ewise_adaptor_v<Input, Output>) {
             guts::ewise<guts::ewise_adaptor_tags<Input, Output>()>(
@@ -206,7 +217,6 @@ namespace noa {
     }
 }
 
-//
 //namespace noa {
 //    /// Element-wise transformation using a binary \c operator()(lhs,rhs)->output.
 //    /// \param[in] lhs      Left-hand side argument.

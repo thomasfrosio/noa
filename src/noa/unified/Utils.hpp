@@ -5,7 +5,6 @@
 #if defined(NOA_IS_OFFLINE)
 #include "noa/core/types/Tuple.hpp"
 #include "noa/unified/Traits.hpp"
-#include "noa/unified/Device.hpp"
 
 namespace noa::guts {
     /// Filters the input tuple by remove non-varrays and forwards
@@ -15,41 +14,6 @@ namespace noa::guts {
         constexpr auto predicate = []<typename T>() { return nt::is_varray_v<T>; };
         constexpr auto transform = []<typename T>(T&& arg) { return forward_as_tuple(std::forward<T>(arg)); };
         return tuple_filter<decltype(predicate), decltype(transform)>(tuple);
-    }
-
-    template<typename... Varrays> requires nt::are_varray_v<Varrays...>
-    [[nodiscard]] constexpr auto forward_as_tuple_of_shapes(const Tuple<Varrays&&...>& varrays) {
-        return varrays.map([]<typename T>(const T& varray) -> decltype(auto) {
-            return varray.shape();
-        });
-    }
-
-    template<typename... Varrays> requires nt::are_varray_v<Varrays...>
-    [[nodiscard]] constexpr auto make_tuple_of_shapes(const Tuple<Varrays&&...>& varrays) {
-        return forward_as_tuple_of_shapes(varrays).decay();
-    }
-
-    template<typename... Varrays> requires nt::are_varray_v<Varrays...>
-    [[nodiscard]] constexpr auto forward_as_tuple_of_strides(const Tuple<Varrays&&...>& varrays) {
-        return varrays.map([]<typename T>(const T& varray) -> decltype(auto) {
-            return varray.strides();
-        });
-    }
-
-    template<typename... Varrays> requires nt::are_varray_v<Varrays...>
-    [[nodiscard]] constexpr auto make_tuple_of_strides(const Tuple<Varrays&&...>& varrays) {
-        return forward_as_tuple_of_strides(varrays).decay();
-    }
-
-    template<typename... Varrays>
-    [[nodiscard]] constexpr auto forward_as_tuple_of_devices(const Tuple<Varrays&&...>& varrays) {
-        return varrays.map([]<typename T>(const T& varray) -> decltype(auto) {
-            return varray.device();
-        });
-    }
-    template<typename... Varrays>
-    [[nodiscard]] constexpr auto make_tuple_of_devices(const Tuple<Varrays&&...>& varrays) {
-        return forward_as_tuple_of_devices(varrays).decay();
     }
 
     /// Extracts the accessors from the arguments in the tuple.
@@ -90,36 +54,6 @@ namespace noa::guts {
                     return (op(first, rest) && ...);
                 }(args...);
             }
-        });
-    }
-
-    /// Whether the varrays are all on the same device.
-    template<typename... Varrays> requires nt::are_varray_v<Varrays...>
-    [[nodiscard]] constexpr bool are_all_same_device(Tuple<Varrays&&...> const& varrays) {
-        return are_all_equals(varrays, [](const auto& lhs, const auto& rhs) {
-            return lhs.device() == rhs.device();
-        });
-    }
-
-    /// Whether the varrays have all the same shape.
-    template<typename... Varrays> requires nt::are_varray_v<Varrays...>
-    [[nodiscard]] constexpr bool are_all_same_shape(Tuple<Varrays&&...> const& varrays) {
-        return are_all_equals(varrays, [](const auto& lhs, const auto& rhs) {
-            return all(lhs.shape() == rhs.shape());
-        });
-    }
-
-    /// Whether the varrays have all the same dimension order.
-    template<typename... Varrays> requires nt::are_varray_v<Varrays...>
-    [[nodiscard]] constexpr bool are_all_same_order(Tuple<Varrays&&...> const& varrays) {
-        return are_all_equals(varrays, [](const auto& lhs, const auto& rhs) {
-            return all(ni::order(lhs.strides(), lhs.shape()) == ni::order(rhs.strides(), rhs.shape()));
-        });
-    }
-    template<typename... Varrays> requires nt::are_varray_v<Varrays...>
-    [[nodiscard]] constexpr bool are_all_same_order(Tuple<Varrays&&...> const& varrays, const Vec4<i64>& order) {
-        return varrays.all([&](const auto& varray) {
-            return all(order == ni::order(varray.strides(), varray.shape()));
         });
     }
 
