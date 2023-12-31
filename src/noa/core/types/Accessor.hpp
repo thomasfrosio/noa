@@ -549,18 +549,18 @@ namespace noa::traits {
     struct proclaim_is_accessor_value<AccessorValue<T, I>> : std::true_type {};
 }
 
-namespace noa {
+namespace noa::guts {
     /// Converts to 1d accessors.
-    template<bool ENFORCE_RESTRICT = false, typename TupleOfAccessors>
-    requires nt::is_tuple_of_accessor_v<TupleOfAccessors>
-    auto to_1d_accessors(TupleOfAccessors&& accessors) {
-        return std::forward<TupleOfAccessors>(accessors).map(
+    template<bool ENFORCE_RESTRICT = false, typename Accessors>
+    requires nt::is_tuple_of_accessor_v<Accessors>
+    auto to_1d_accessors(Accessors&& accessors) {
+        return std::forward<Accessors>(accessors).map(
                 []<typename T>(T&& accessor) -> decltype(auto) {
-                    using accessor_t = decltype(accessor);
-                    if constexpr (nt::is_accessor_value_v<accessor_t>) {
+                    if constexpr (nt::is_accessor_value_v<T>) {
                         // Forward the value into the new tuple, ie the caller decides whether we copy or move.
                         return std::forward<T>(accessor);
                     } else {
+                        using accessor_t = std::decay_t<T>;
                         using value_t = typename accessor_t::value_type;
                         using index_t = typename accessor_t::index_type;
                         constexpr auto pointer_trait =
