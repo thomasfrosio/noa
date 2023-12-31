@@ -95,13 +95,11 @@ namespace noa::cpu {
     /// \param op               Element-wise operator.
     template<guts::EwiseAdaptorTags tags,
              size_t PARALLEL_ELEMENTS_THRESHOLD = Iwise::PARALLEL_ELEMENTS_THRESHOLD,
-             typename... Inputs,
-             typename... Outputs,
-             typename Index,
-             typename Op>
+             typename Inputs, typename Outputs, typename Index, typename Op>
+    requires nt::are_tuple_of_accessor_v<Inputs, Outputs>
     void ewise(
-            Tuple<Inputs...>&& input_accessors,
-            Tuple<Outputs...>&& output_accessors,
+            Inputs&& input_accessors,
+            Outputs&& output_accessors,
             const Shape4<Index>& shape,
             Op&& op,
             i64 n_threads = 1
@@ -114,26 +112,26 @@ namespace noa::cpu {
         // FIXME We could try collapse contiguous dimensions to still have a contiguous loop.
         if (are_all_contiguous) {
             // In this case, check for aliasing, in the hope to force
-            if (are_accessors_aliased(input_accessors, output_accessors)) {
+            if (guts::are_accessors_aliased(input_accessors, output_accessors)) {
                 iwise<PARALLEL_ELEMENTS_THRESHOLD>(
                         Shape1<Index>{shape.elements()},
-                        ewise_to_iwise(to_1d_accessors(std::forward<Tuple<Inputs...>>(input_accessors)),
-                                       to_1d_accessors(std::forward<Tuple<Outputs...>>(output_accessors)),
+                        ewise_to_iwise(guts::to_1d_accessors(std::forward<Inputs>>(input_accessors)),
+                                       guts::to_1d_accessors(std::forward<Outputs>>(output_accessors)),
                                        std::forward<Op>(op)),
                         n_threads);
             } else {
                 constexpr bool RESTRICT = true;
                 iwise<PARALLEL_ELEMENTS_THRESHOLD>(
                         Shape1<Index>{shape.elements()},
-                        ewise_to_iwise(to_1d_accessors<RESTRICT>(std::forward<Tuple<Inputs...>>(input_accessors)),
-                                       to_1d_accessors<RESTRICT>(std::forward<Tuple<Outputs...>>(output_accessors)),
+                        ewise_to_iwise(guts::to_1d_accessors<RESTRICT>(std::forward<Inputs>>(input_accessors)),
+                                       guts::to_1d_accessors<RESTRICT>(std::forward<Outputs>>(output_accessors)),
                                        std::forward<Op>(op)),
                         n_threads);
             }
         } else {
             iwise(shape,
-                  ewise_to_iwise(std::forward<Tuple<Inputs...>>(input_accessors),
-                                 std::forward<Tuple<Outputs...>>(output_accessors),
+                  ewise_to_iwise(std::forward<Inputs>>(input_accessors),
+                                 std::forward<Outputs>>(output_accessors),
                                  std::forward<Op>(op)),
                   n_threads);
         }
