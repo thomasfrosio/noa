@@ -67,8 +67,10 @@ namespace noa::traits {
     template<bool B>
     using enable_if_bool_t = std::enable_if_t<B, bool>;
 
-    template<typename First, typename...>
-    using first_t = First;
+    template<typename T, typename... U>
+    struct first { using type = T; };
+    template<typename... T>
+    using first_t = first<T...>::type;
 
     template<typename... T>
     struct TypeList {};
