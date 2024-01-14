@@ -1,21 +1,23 @@
 #pragma once
 
-#include <cufft.h>
-
+#include "noa/core/indexing/Layout.hpp"
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
 #include "noa/gpu/cuda/fft/Exception.hpp"
 
+#if defined(NOA_IS_OFFLINE)
+#include <cufft.h>
+
 // TODO Add f16/c16 support. https://docs.nvidia.com/cuda/cufft/index.html#half-precision-transforms
 
-namespace noa::cuda::fft::details {
-    [[nodiscard]] Shared<cufftHandle> get_plan(
+namespace noa::cuda::fft::guts {
+    [[nodiscard]] std::shared_ptr<cufftHandle> get_plan(
             cufftType_t type,
             const Shape4<i64>& shape,
             i32 device,
             bool save_in_cache);
 
-    [[nodiscard]] Shared<cufftHandle> get_plan(
+    [[nodiscard]] std::shared_ptr<cufftHandle> get_plan(
             cufftType_t type,
             Strides4<i64> input_stride,
             Strides4<i64> output_stride,
@@ -59,7 +61,7 @@ namespace noa::cuda::fft {
              const Shape4<i64>& shape,
              Device device = Device::current(),
              bool save_to_cache = true
-        ) : m_plan(details::get_plan(to_cufft_type_(type), shape, device.id(), save_to_cache)) {}
+        ) : m_plan(guts::get_plan(to_cufft_type_(type), shape, device.id(), save_to_cache)) {}
 
         Plan(Type type,
              const Strides4<i64>& input_strides,
@@ -70,19 +72,19 @@ namespace noa::cuda::fft {
         ) {
             const auto input_shape = type == Type::C2R ? shape.rfft() : shape;
             const auto output_shape = type == Type::R2C ? shape.rfft() : shape;
-            if (noa::indexing::are_contiguous(input_strides, input_shape) &&
-                noa::indexing::are_contiguous(output_strides, output_shape)) {
-                m_plan = details::get_plan(
+            if (noa::are_contiguous(input_strides, input_shape) &&
+                noa::are_contiguous(output_strides, output_shape)) {
+                m_plan = guts::get_plan(
                         to_cufft_type_(type), shape, device.id(), save_to_cache);
             } else {
-                m_plan = details::get_plan(
+                m_plan = guts::get_plan(
                         to_cufft_type_(type), input_strides, output_strides, shape, device.id(), save_to_cache);
             }
         }
 
         // Gets the underlying cuFFT plan.
         [[nodiscard]] cufftHandle get() const noexcept { return *m_plan; }
-        [[nodiscard]] const Shared<cufftHandle>& share() const noexcept { return m_plan; }
+        [[nodiscard]] const std::shared_ptr<cufftHandle>& share() const noexcept { return m_plan; }
 
     private:
         // Offset the type if double precision.
@@ -92,6 +94,7 @@ namespace noa::cuda::fft {
         }
 
     private:
-        Shared<cufftHandle> m_plan{};
+        std::shared_ptr<cufftHandle> m_plan{};
     };
 }
+#endif

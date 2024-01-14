@@ -1,6 +1,8 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
+#include "noa/core/Config.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Types.hpp"
 
@@ -19,3 +21,4 @@ namespace noa::cuda {
         return version;
     }
 }
+#endif

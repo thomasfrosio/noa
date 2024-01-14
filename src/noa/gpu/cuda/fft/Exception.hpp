@@ -1,10 +1,11 @@
 #pragma once
 
+#include "noa/core/Config.hpp"
+#include "noa/gpu/cuda/Exception.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include <cufft.h>
 #include <exception>
-
-#include "noa/core/Definitions.hpp"
-#include "noa/gpu/cuda/Exception.hpp"
 
 namespace noa::cuda {
     // Formats the cufft result to a human-readable string.
@@ -15,3 +16,4 @@ namespace noa::cuda {
             std::throw_with_nested(noa::Exception(file, function, line, to_string(result)));
     }
 }
+#endif

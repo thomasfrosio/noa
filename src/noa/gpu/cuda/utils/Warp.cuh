@@ -1,17 +1,15 @@
 #pragma once
 
-#include <cuda_fp16.h>
-
-#include "noa/core/Definitions.hpp"
+#include "noa/core/Config.hpp"
 #include "noa/gpu/cuda/Types.hpp"
 
-namespace noa::cuda::utils::details {
+namespace noa::cuda::guts {
     template<typename T>
     constexpr bool is_valid_suffle_v = nt::is_numeric_v<T> || nt::is_any_v<T, half, half2>;
 }
 
-namespace noa::cuda::utils {
-    template <typename T, typename = std::enable_if_t<details::is_valid_suffle_v<T>>>
+namespace noa::cuda {
+    template<typename T, nt::enable_if_bool_t<guts::is_valid_suffle_v<T>> = true>
     NOA_FD T warp_shuffle(T value, i32 source, i32 width = 32, u32 mask = 0xffffffff) {
         if constexpr (nt::is_almost_same_v<c16, T>) {
             __half2 tmp = __shfl_sync(mask, *reinterpret_cast<__half2*>(&value), source, width);
@@ -29,7 +27,7 @@ namespace noa::cuda::utils {
         return T{}; // unreachable
     }
 
-    template <typename T, typename = std::enable_if_t<details::is_valid_suffle_v<T>>>
+    template<typename T, nt::enable_if_bool_t<guts::is_valid_suffle_v<T>> = true>
     NOA_FD T warp_suffle_down(T value, u32 delta, i32 width = 32, u32 mask = 0xffffffff) {
         if constexpr (nt::is_almost_same_v<c16, T>) {
             __half2 tmp = __shfl_down_sync(mask, *reinterpret_cast<__half2*>(&value), delta, width);
@@ -52,8 +50,7 @@ namespace noa::cuda::utils {
     // The returned value is undefined for the other threads.
     // value:       Per-thread value.
     // reduce_op:   Reduction operator.
-    template<typename Value, typename ReduceOp,
-             typename = std::enable_if_t<nt::is_numeric_v<Value>>>
+    template<typename Value, typename ReduceOp, nt::enable_if_bool_t<nt::is_numeric_v<Value>> = true>
     NOA_ID Value warp_reduce(Value value, ReduceOp reduce_op) {
         Value reduce;
         for (i32 delta = 1; delta < 32; delta *= 2) {

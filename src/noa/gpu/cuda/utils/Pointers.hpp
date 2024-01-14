@@ -1,11 +1,12 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
+#include "noa/core/Config.hpp"
 #include "noa/core/Exception.hpp"
 #include "noa/gpu/cuda/Device.hpp"
 #include "noa/gpu/cuda/Types.hpp"
 
-namespace noa::cuda::utils {
+#if defined(NOA_IS_OFFLINE)
+namespace noa::cuda {
     // Returns the pointer attributes of ptr.
     NOA_IH cudaPointerAttributes pointer_attributes(const void* ptr) {
         cudaPointerAttributes attr{};
@@ -28,8 +29,8 @@ namespace noa::cuda::utils {
             return ptr;
         return nullptr; // unreachable
     }
-    #define NOA_ASSERT_DEVICE_PTR(ptr, device) NOA_ASSERT(::noa::cuda::utils::device_pointer(ptr, device) != nullptr)
-    #define NOA_ASSERT_DEVICE_OR_NULL_PTR(ptr, device) NOA_ASSERT(ptr == nullptr || ::noa::cuda::utils::device_pointer(ptr, device) != nullptr)
+#define NOA_ASSERT_DEVICE_PTR(ptr, device) NOA_ASSERT(::noa::cuda::device_pointer(ptr, device) != nullptr)
+#define NOA_ASSERT_DEVICE_OR_NULL_PTR(ptr, device) NOA_ASSERT(ptr == nullptr || ::noa::cuda::device_pointer(ptr, device) != nullptr)
 
     // If ptr can be accessed by the host, returns ptr. Otherwise, returns nullptr.
     template<typename T>
@@ -40,14 +41,32 @@ namespace noa::cuda::utils {
 
     // Returns the address of constant_pointer on the device.
     template<typename T = void>
-    T* constant_to_device_pointer(const void* constant_pointer) {
+    NOA_IH T* constant_to_device_pointer(const void* constant_pointer) {
         void* device_pointer;
         NOA_THROW_IF(cudaGetSymbolAddress(&device_pointer, constant_pointer));
         return static_cast<T*>(device_pointer);
     }
 
+    // Collects and stores kernel argument addresses.
+    // This implies that the arguments should stay valid during the lifetime of this object.
+    template<typename... Args>
+    class CollectArgumentAddresses {
+    public:
+        // The array of pointers is initialized with the arguments (which are not copied).
+        // Const-cast is required since CUDA excepts void**, not const void**.
+        explicit CollectArgumentAddresses(Args&& ... args)
+                : m_pointers{const_cast<void*>(static_cast<const void*>(&args))...} {}
+
+        [[nodiscard]] void** pointers() const { return static_cast<void**>(m_pointers); }
+
+    private:
+        void* m_pointers[std::max(size_t{1}, sizeof...(Args))]{}; // non-empty
+    };
+}
+#endif
+
+namespace noa::cuda {
     // Aligned array that generates vectorized load/store in CUDA.
-    // It seems that the maximum load size is 16 bytes.
     template<typename T, size_t VECTOR_SIZE>
     struct alignas(sizeof(T) * VECTOR_SIZE) AlignedVector {
         T data[VECTOR_SIZE];
@@ -58,14 +77,14 @@ namespace noa::cuda::utils {
     // be vectorized, so it can be abstracted away.
     template<typename T>
     NOA_IHD constexpr i64 max_vector_count(const T* pointer) {
-        if constexpr (!noa::math::is_power_of_2(sizeof(T))) {
+        if constexpr (!is_power_of_2(sizeof(T))) {
             return 1;
         } else {
-            constexpr std::uintptr_t vec2_alignment = alignof(AlignedVector<T, 2>);
-            constexpr std::uintptr_t vec4_alignment = alignof(AlignedVector<T, 4>);
-            constexpr std::uintptr_t vec8_alignment = alignof(AlignedVector<T, 8>);
-            constexpr std::uintptr_t vec16_alignment = alignof(AlignedVector<T, 16>);
-            const auto address = reinterpret_cast<std::uintptr_t>(pointer);
+            constexpr auto vec2_alignment = alignof(AlignedVector<T, 2>);
+            constexpr auto vec4_alignment = alignof(AlignedVector<T, 4>);
+            constexpr auto vec8_alignment = alignof(AlignedVector<T, 8>);
+            constexpr auto vec16_alignment = alignof(AlignedVector<T, 16>);
+            const auto address = reinterpret_cast<decltype(vec2_alignment)>(pointer); // T* to uintptr
 
             if constexpr (sizeof(T) == 16) {
                 return 1;

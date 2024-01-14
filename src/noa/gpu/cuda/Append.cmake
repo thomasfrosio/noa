@@ -9,6 +9,8 @@ set(NOA_CUDA_HEADERS
     gpu/cuda/Stream.hpp
     gpu/cuda/Types.hpp
 
+    gpu/cuda/EwiseUnary.hpp
+
     # noa::cuda::utils
     gpu/cuda/utils/Block.cuh
     gpu/cuda/utils/EwiseBinary.cuh
