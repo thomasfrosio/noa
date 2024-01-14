@@ -88,6 +88,7 @@ namespace noa::inline types {
         using value_type = T;
         using mutable_value_type = std::remove_const_t<T>;
         using index_type = I;
+        using reference_type = T&;
         using strides_type = std::conditional_t<!IS_CONTIGUOUS, Strides<index_type, N>, Strides<index_type, N - 1>>;
         using accessor_reference_type = AccessorReference<value_type, SIZE, index_type, PointerTrait, StridesTrait>;
 
@@ -171,7 +172,7 @@ namespace noa::inline types {
         /// C-style indexing operator, decrementing the dimensionality of the accessor by 1.
         /// When done on a 1d accessor, this acts as a pointer/array indexing and dereferences the data.
         template<typename Int, nt::enable_if_bool_t<(SIZE == 1) && std::is_integral_v<Int>> = true>
-        [[nodiscard]] NOA_HD value_type& operator[](Int index) const noexcept {
+        [[nodiscard]] NOA_HD reference_type operator[](Int index) const noexcept {
             NOA_ASSERT(!is_empty());
             return m_ptr[ni::offset_at(index, stride<0>())];
         }
@@ -189,13 +190,13 @@ namespace noa::inline types {
 
         template<typename... Indexes,
                  nt::enable_if_bool_t<SIZE == sizeof...(Indexes) && nt::are_int_v<Indexes...>> = true>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(Indexes&&... indexes) const noexcept {
+        [[nodiscard]] NOA_HD constexpr reference_type operator()(Indexes&&... indexes) const noexcept {
             NOA_ASSERT(!is_empty());
             return *offset_pointer(m_ptr, std::forward<Indexes>(indexes)...);
         }
 
         template<size_t N0, typename Integer, nt::enable_if_bool_t<SIZE == N0 && nt::is_int_v<Integer>> = true>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Vec<Integer, N0>& indexes) const noexcept {
+        [[nodiscard]] NOA_HD constexpr reference_type operator()(const Vec<Integer, N0>& indexes) const noexcept {
             NOA_ASSERT(!is_empty());
             return *guts::offset_pointer(*this, m_ptr, std::make_index_sequence<N0>{}, indexes);
         }
@@ -227,6 +228,7 @@ namespace noa::inline types {
         using value_type = typename accessor_type::value_type;
         using mutable_value_type = typename accessor_type::mutable_value_type;
         using index_type = typename accessor_type::index_type;
+        using reference_type = typename accessor_type::reference_type;
         using pointer_type = typename accessor_type::pointer_type;
         using strides_type = const index_type*;
 
@@ -281,7 +283,7 @@ namespace noa::inline types {
 
         // Indexing operator, on 1D accessor. 1D -> ref
         template<typename Int, std::enable_if_t<SIZE == 1 && std::is_integral_v<Int>, bool> = true>
-        [[nodiscard]] NOA_HD value_type& operator[](Int index) const noexcept {
+        [[nodiscard]] NOA_HD reference_type operator[](Int index) const noexcept {
             NOA_ASSERT(!is_empty());
             return m_ptr[ni::offset_at(index, stride<0>())];
         }
@@ -308,13 +310,13 @@ namespace noa::inline types {
 
         template<typename... Indexes,
                  nt::enable_if_bool_t<SIZE == sizeof...(Indexes) && nt::are_int_v<Indexes...>> = true>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(Indexes&&... indexes) const noexcept {
+        [[nodiscard]] NOA_HD constexpr reference_type operator()(Indexes&&... indexes) const noexcept {
             NOA_ASSERT(!is_empty());
             return *offset_pointer(m_ptr, std::forward<Indexes>(indexes)...);
         }
 
         template<size_t N0, typename Int> // nt::enable_if_bool_t<(SIZE >= 1) && std::is_integral_v<Int>> = true>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Vec<Int, N0>& indexes) const noexcept {
+        [[nodiscard]] NOA_HD constexpr reference_type operator()(const Vec<Int, N0>& indexes) const noexcept {
             NOA_ASSERT(!is_empty());
             return *guts::offset_pointer(*this, m_ptr, std::make_index_sequence<N0>{}, indexes);
         }
@@ -363,6 +365,7 @@ namespace noa::inline types {
         using value_type = T;
         using index_type = I;
         using mutable_value_type = std::remove_const_t<T>;
+        using reference_type = T&;
         using strides_type = Strides<index_type, 0>;
         #if defined(__CUDACC__)
         using pointer_type = T* __restrict__;
@@ -412,12 +415,12 @@ namespace noa::inline types {
         }
 
         template<typename Int, nt::enable_if_bool_t<std::is_integral_v<Int>> = true>
-        [[nodiscard]] NOA_HD value_type& operator[](Int) const noexcept {
+        [[nodiscard]] NOA_HD reference_type operator[](Int) const noexcept {
             return *m_value;
         }
 
         template<typename Int, nt::enable_if_bool_t<std::is_integral_v<Int>> = true>
-        [[nodiscard]] NOA_HD value_type& operator[](Int) noexcept {
+        [[nodiscard]] NOA_HD reference_type operator[](Int) noexcept {
             return *m_value;
         }
 
@@ -428,22 +431,25 @@ namespace noa::inline types {
         }
 
         template<typename... Indexes, nt::enable_if_bool_t<nt::are_int_v<Indexes...>> = true>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(Indexes&&...) const noexcept {
+        [[nodiscard]] NOA_HD constexpr reference_type operator()(Indexes&&...) const noexcept {
             return *m_value;
         }
         template<typename... Indexes, nt::enable_if_bool_t<nt::are_int_v<Indexes...>> = true>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(Indexes&&...) noexcept {
+        [[nodiscard]] NOA_HD constexpr reference_type operator()(Indexes&&...) noexcept {
             return *m_value;
         }
 
         template<size_t N0, typename Integer, nt::enable_if_bool_t<nt::is_int_v<Integer>> = true>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Vec<Integer, N0>&) const noexcept {
+        [[nodiscard]] NOA_HD constexpr reference_type operator()(const Vec<Integer, N0>&) const noexcept {
             return *m_value;
         }
         template<size_t N0, typename Integer, nt::enable_if_bool_t<nt::is_int_v<Integer>> = true>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(const Vec<Integer, N0>&) noexcept {
+        [[nodiscard]] NOA_HD constexpr reference_type operator()(const Vec<Integer, N0>&) noexcept {
             return *m_value;
         }
+
+        [[nodiscard]] NOA_HD constexpr reference_type deref() const noexcept { return *m_value; }
+        [[nodiscard]] NOA_HD constexpr reference_type deref() noexcept { return *m_value; }
 
     private:
         mutable_value_type m_value;
