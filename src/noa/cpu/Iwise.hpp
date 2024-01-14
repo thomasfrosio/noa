@@ -18,11 +18,12 @@ namespace noa::cpu {
         /// This is a large number of elements to make sure there's enough work for each thread.
         static constexpr i64 PARALLEL_ELEMENTS_THRESHOLD = 1'048'576; // 1024x1024
 
-        static constexpr void call(auto& op, auto&&... indices) {
+        template<typename... Indices>
+        static constexpr void call(auto& op, Indices&&... indices) {
             if constexpr (requires { op(Vec{indices...}); })
-                op(Vec{indices...});
+                op(Vec{std::forward<Indices>(indices)...});
             else if constexpr (requires { op(indices...); })
-                op(indices...);
+                op(std::forward<Indices>(indices)...);
             else
                 static_assert(nt::always_false_v<decltype(op)>);
         };
@@ -113,7 +114,7 @@ namespace noa::cpu {
 
     /// Launches the loop.
     /// \param start    Starting indices, usually 0.
-    /// \param end      Ending indices, usually the shape
+    /// \param end      Ending indices, usually the shape.
     /// \param op       Operator. In the multi-threaded case, it is copied to every thread.
     ///                 (optional) op.init(thread_index) is called by each thread before the loop.
     ///                 op(vec_type) or op(index_type...) is then called within the loop.
@@ -124,8 +125,8 @@ namespace noa::cpu {
     ///                 turning off the multi-threaded implementation entirely.
     ///
     /// \note GCC and Clang are able to see and optimize through this. The operators are correctly inlined and the
-    ///       1d cases can be strongly optimized using SIMD or memset/memcopy/memmove calls. Parallelization can
-    ///       turn some of these optimizations off, as well as non-contiguous arrays.
+    ///       1d cases can be strongly optimized using SIMD or memset/memcopy/memmove calls. Parallelization,
+    ///       as well as non-contiguous arrays, can turn some of these optimizations off.
     template<i64 THRESHOLD = Iwise::PARALLEL_ELEMENTS_THRESHOLD,
              size_t N, typename Index, typename Operator>
     constexpr void iwise(

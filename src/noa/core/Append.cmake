@@ -29,6 +29,7 @@ set(NOA_CORE_HEADERS
     core/utils/Sort.hpp
     core/utils/Threadpool.hpp
     core/utils/Timer.hpp
+    core/utils/IwiseOp.hpp
 
     core/string/Format.hpp
     core/string/Parse.hpp

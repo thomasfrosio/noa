@@ -53,6 +53,7 @@ namespace noa::cpu {
         /// The ewise_operator is free to take these parameters by (const-)reference or by value,
         /// but usually the outputs are taken by reference.
         constexpr void operator()(auto... indices) {
+            // FIXME Replace with EwiseOpWrapper::call<ZIP_INPUTS, ZIP_OUTPUTS>(op, m_inputs, m_outputs, indices...)
             [this, indices...]<typename... I, typename... O>(nt::TypeList<I...>, nt::TypeList<O...>) {
                 if constexpr (tags.zip_inputs && tags.zip_outputs) {
                     m_op(forward_as_tuple(std::forward<nt::type_type_t<I>>(m_inputs.::std::type_identity_t<I>::value(indices...))...),

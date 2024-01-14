@@ -1,13 +1,21 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
-#include "noa/core/utils/ReduceChecker.hpp"
+#include "noa/core/utils/IwiseOp.hpp"
 
 #include <omp.h>
 
+/*
+ * noa::reduce_iwise(shape, device, noa::wrap(f64{}, i32{}), f32{}, op);
+ * struct Op {
+ *      void operator()(indices..., f64&, i32&); // wrap
+ *      void operator()(indices..., Tuple<f64&, i32&>); // zip
+ * };
+ */
+
 namespace noa::cpu {
     /// Index-wise reduction.
-    template<ReduceIwiseChecker c>
+    template<guts::ReduceIwiseChecker c>
     class ReduceIwise {
     public:
         using checker = decltype(c);
@@ -92,34 +100,34 @@ namespace noa::cpu {
                         for (index_type j = start[1]; j < end[1]; ++j)
                             for (index_type k = start[2]; k < end[2]; ++k)
                                 for (index_type l = start[3]; l < end[3]; ++l)
-                                    init_(op, local_reduce, i, j, k, l);
+                                    guts::ReduceIwiseOpWrapper::init<false, false>(op, local_reduce, i, j, k, l);
 
                 } else if constexpr (checker::N_DIMENSIONS == 3) {
                     #pragma omp for collapse(3)
                     for (index_type i = start[0]; i < end[0]; ++i)
                         for (index_type j = start[1]; j < end[1]; ++j)
                             for (index_type k = start[2]; k < end[2]; ++k)
-                                init_(op, local_reduce, i, j, k);
+                                guts::ReduceIwiseOpWrapper::init<false, false>(op, local_reduce, i, j, k);
 
                 } else if constexpr (checker::N_DIMENSIONS == 2) {
                     #pragma omp for collapse(2)
                     for (index_type i = start[0]; i < end[0]; ++i)
                         for (index_type j = start[1]; j < end[1]; ++j)
-                            init_(op, local_reduce, i, j);
+                            guts::ReduceIwiseOpWrapper::init<false, false>(op, local_reduce, i, j);
 
                 } else if constexpr (checker::N_DIMENSIONS == 1) {
                     #pragma omp for collapse(1)
                     for (index_type i = start[0]; i < end[0]; ++i)
-                        init_(op, local_reduce, i);
+                        guts::ReduceIwiseOpWrapper::init<false, false>(op, local_reduce, i);
                 }
 
                 #pragma omp critical
                 {
                     // Join the reduced values of each thread together.
-                    join_(op, local_reduce, reduced);
+                    guts::ReduceIwiseOpWrapper::join<false, false>(op, local_reduce, reduced);
                 }
             }
-            final_(op, reduced, output);
+            guts::ReduceIwiseOpWrapper::final<false, false>(op, reduced, output);
         }
 
         template<typename Operator, typename ReducedAccessors, typename OutputAccessors>
@@ -132,74 +140,25 @@ namespace noa::cpu {
                     for (index_type j = start[1]; j < end[1]; ++j)
                         for (index_type k = start[2]; k < end[2]; ++k)
                             for (index_type l = start[3]; l < end[3]; ++l)
-                                init_(op, reduced, i, j, k, l);
+                                guts::ReduceIwiseOpWrapper::init<false, false>(op, reduced, i, j, k, l);
 
             } else if constexpr (checker::N_DIMENSIONS == 3) {
                 for (index_type i = start[0]; i < end[0]; ++i)
                     for (index_type j = start[1]; j < end[1]; ++j)
                         for (index_type k = start[2]; k < end[2]; ++k)
-                            init_(op, reduced,i, j, k);
+                            guts::ReduceIwiseOpWrapper::init<false, false>(op, reduced, i, j, k);
 
             } else if constexpr (checker::N_DIMENSIONS == 2) {
                 for (index_type i = start[0]; i < end[0]; ++i)
                     for (index_type j = start[1]; j < end[1]; ++j)
-                        init_(op, reduced,i, j);
+                        guts::ReduceIwiseOpWrapper::init<false, false>(op, reduced, i, j);
 
             } else if constexpr (checker::N_DIMENSIONS == 1) {
                 for (index_type i = start[0]; i < end[0]; ++i)
-                    init_(op, reduced,i);
+                    guts::ReduceIwiseOpWrapper::init<false, false>(op, reduced, i);
             }
 
-            final_(op, reduced, output);
-        }
-
-        template<typename Operator, typename ReducedAccessors, typename... Indices>
-        static constexpr void init_(
-                Operator& reduce_iwise_op,
-                ReducedAccessors& reduced,
-                const Indices& ... indices
-        ) {
-            using base_list = std::remove_reference_t<ReducedAccessors>::base_list;
-            [&]<typename... R>(nt::TypeList<R...>) {
-                if constexpr (checker::is_init_packed()) {
-                    reduce_iwise_op.init(vec_type{indices...}, reduced.::std::type_identity_t<R>::value(0)...);
-                } else {
-                    reduce_iwise_op.init(indices..., reduced.::std::type_identity_t<R>::value(0)...);
-                }
-            }(base_list{});
-        }
-
-        template<typename Operator, typename ReducedAccessors>
-        static constexpr void join_(
-                Operator& reduce_iwise_op,
-                ReducedAccessors& local_reduced_accessors,
-                ReducedAccessors& global_reduced_accessors
-        ) {
-            using base_list = std::remove_reference_t<ReducedAccessors>::base_list;
-            [&]<typename... R>(nt::TypeList<R...>) {
-                reduce_iwise_op.join(local_reduced_accessors.::std::type_identity_t<R>::value(0)...,
-                                     global_reduced_accessors.::std::type_identity_t<R>::value(0)...);
-            }(base_list{});
-        }
-
-        template<typename Operator, typename ReducedAccessors, typename OutputAccessors>
-        static constexpr void final_(
-                Operator& reduce_iwise_op,
-                ReducedAccessors& reduced_accessors,
-                OutputAccessors& output_accessors
-        ) {
-            using reduced_base_list = std::remove_reference_t<ReducedAccessors>::base_list;
-            using output_base_list = std::remove_reference_t<OutputAccessors>::base_list;
-            [&]<typename... R, typename... O>(nt::TypeList<R...>, nt::TypeList<O...>) {
-                if constexpr (!checker::is_final_defaulted()) {
-                    reduce_iwise_op.final(reduced_accessors.::std::type_identity_t<R>::value(0)...,
-                                          output_accessors.::std::type_identity_t<O>::value(0)...);
-                } else {
-                    ((output_accessors.::std::type_identity_t<O>::value(0) =
-                              static_cast<nt::TypeList<O...>::value_type>(
-                                      reduced_accessors.::std::type_identity_t<R>::value(0))), ...);
-                }
-            }(reduced_base_list{}, output_base_list{});
+            guts::ReduceIwiseOpWrapper::final<false, false>(op, reduced, output);
         }
     };
 }
