@@ -25,7 +25,7 @@ namespace noa::cpu {
     template<typename T>
     struct Texture {
         Strides4<i64> strides;
-        Shared<T[]> ptr;
+        std::shared_ptr<T[]> ptr;
         T cvalue;
     };
 }
@@ -67,12 +67,12 @@ namespace noa {
         /// \param interp_mode      Interpolation mode.
         /// \param border_mode      Border mode.
         /// \param cvalue           Constant value to use for out-of-bounds coordinates.
-        ///                         Only used if \p border_mode is \c BorderMode::VALUE.
+        ///                         Only used if \p border_mode is \c Border::VALUE.
         /// \param layered          Whether the GPU texture should be a 2D layered texture.
         ///                         The number of layers is equal to the batch dimension of \p array.
         ///                         This is ignored for CPU textures, since they are always considered layered.
         /// \param prefilter        Whether the input \p array should be prefiltered first.
-        ///                         If true and if \p interp_mode is \c InterpMode::{CUBIC_BSPLINE|CUBIC_BSPLINE_FAST},
+        ///                         If true and if \p interp_mode is \c Interp::{CUBIC_BSPLINE|CUBIC_BSPLINE_FAST},
         ///                         the input is prefiltered in-place.
         ///
         /// \note If \p device_target is a GPU, a CUDA array is allocated with the same type and shape as \p array,
@@ -83,8 +83,8 @@ namespace noa {
         ///           In other words, \p array should be C-contiguous or have a valid "pitch" as defined in CUDA.\n
         ///         - \p array can be on any device, including the CPU.\n
         ///         - If \p layered is false or if \p array is a 3D array, \p array cannot be batched.\n
-        ///         - \p border_mode should be \c BorderMode::{ZERO|CLAMP|PERIODIC|MIRROR}.\n
-        ///         - \c InterpMode::{NEAREST|LINEAR_FAST} are the only modes supporting \c BorderMode::{MIRROR|PERIODIC}.
+        ///         - \p border_mode should be \c Border::{ZERO|CLAMP|PERIODIC|MIRROR}.\n
+        ///         - \c Interp::{NEAREST|LINEAR_FAST} are the only modes supporting \c Border::{MIRROR|PERIODIC}.
         /// \note If \p device_target is a CPU, no computation is performed (other the the optional pre-filtering)
         ///       and the texture simply points to \p array. Limitations:\n
         ///         - \p array should be on the CPU.\n
@@ -95,15 +95,15 @@ namespace noa {
         ///          should not modify the underlying values of \p array until the texture is created. See eval().
         template<typename VArray, typename = std::enable_if_t<
                  nt::is_varray_of_any_v<VArray, value_type>>>
-        Texture(const VArray& array, Device device_target, InterpMode interp_mode, BorderMode border_mode,
+        Texture(const VArray& array, Device device_target, Interp interp_mode, Border border_mode,
                 value_type cvalue = value_type{0}, bool layered = false, bool prefilter = true)
                 : m_shape(array.shape()), m_interp(interp_mode), m_border(border_mode) {
 
             NOA_CHECK(!array.is_empty(), "Empty array detected");
 
             if (prefilter &&
-                (interp_mode == InterpMode::CUBIC_BSPLINE ||
-                 interp_mode == InterpMode::CUBIC_BSPLINE_FAST)) {
+                (interp_mode == Interp::CUBIC_BSPLINE ||
+                 interp_mode == Interp::CUBIC_BSPLINE_FAST)) {
                 noa::geometry::cubic_bspline_prefilter(array, array);
             }
 
@@ -112,7 +112,7 @@ namespace noa {
                           "CPU textures can only be constructed/updated from CPU arrays, but got device {}",
                           array.device());
                 if constexpr (nt::is_view_v<VArray>)
-                    m_texture = cpu_texture_type{array.strides(), Shared<T[]>(array.get(), [](void*) {}), cvalue};
+                    m_texture = cpu_texture_type{array.strides(), std::shared_ptr<T[]>(array.get(), [](void*) {}), cvalue};
                 else
                     m_texture = cpu_texture_type{array.strides(), array.share(), cvalue};
                 m_options = array.options();
@@ -154,7 +154,7 @@ namespace noa {
         /// \param interp_mode      Interpolation mode.
         /// \param border_mode      Border mode.
         /// \param cvalue           Constant value to use for out-of-bounds coordinates.
-        ///                         Only used if \p border_mode is \c BorderMode::VALUE.
+        ///                         Only used if \p border_mode is \c Border::VALUE.
         /// \param layered          Whether the GPU texture should be a 2D layered texture.
         ///                         The number of layers is equal to the batch dimension of \p array.
         ///                         This is ignored for CPU textures, since they are always considered layered.
@@ -164,13 +164,13 @@ namespace noa {
         ///       uninitialized (see update()). Limitations:\n
         ///         - Double precision is not supported.\n
         ///         - If \p layered is false or if \p shape describes a 3D array, \p shape cannot be batched.\n
-        ///         - \p border_mode should be \c BorderMode::{ZERO|CLAMP|PERIODIC|MIRROR}.\n
-        ///         - \c InterpMode::{NEAREST|LINEAR_FAST} are the only modes supporting \c BorderMode::{MIRROR|PERIODIC}.
+        ///         - \p border_mode should be \c Border::{ZERO|CLAMP|PERIODIC|MIRROR}.\n
+        ///         - \c Interp::{NEAREST|LINEAR_FAST} are the only modes supporting \c Border::{MIRROR|PERIODIC}.
         ///
         /// \note If \p device_target is a CPU, no computation is performed. The texture is non-empty and valid,
         ///       but the underlying managed data (i.e. the cpu::Texture) points to a null pointer. Use update()
         ///       to set the texture to a valid memory region.
-        Texture(shape_type shape, Device device_target, InterpMode interp_mode, BorderMode border_mode,
+        Texture(shape_type shape, Device device_target, Interp interp_mode, Border border_mode,
                 value_type cvalue = value_type{0}, bool layered = false)
                 : m_shape(shape), m_interp(interp_mode), m_border(border_mode) {
 
@@ -201,7 +201,7 @@ namespace noa {
         /// Updates the texture values with \p array.
         /// \param[in,out] array    Array or mutable view to copy into the texture.
         /// \param prefilter        Whether the input \p array should be prefiltered first.
-        ///                         If true and if the texture uses \c InterpMode::CUBIC_BSPLINE(_FAST),
+        ///                         If true and if the texture uses \c Interp::CUBIC_BSPLINE(_FAST),
         ///                         the input is prefiltered in-place.
         /// \note With GPU textures, \p array should have the same shape as the texture and
         ///       a deep copy is performed from \p array to the managed texture data.
@@ -226,8 +226,8 @@ namespace noa {
                       m_shape, array.shape());
 
             if (prefilter &&
-                (m_interp == InterpMode::CUBIC_BSPLINE ||
-                 m_interp == InterpMode::CUBIC_BSPLINE_FAST)) {
+                (m_interp == Interp::CUBIC_BSPLINE ||
+                 m_interp == Interp::CUBIC_BSPLINE_FAST)) {
                 noa::geometry::cubic_bspline_prefilter(array, array);
             }
 
@@ -239,7 +239,7 @@ namespace noa {
                 cpu_texture_type& cpu_texture = cpu_();
                 cpu_texture.strides = array.strides();
                 if constexpr (nt::is_view_v<VArray>)
-                    cpu_texture.ptr = Shared<T[]>(array.get(), [](void*) {});
+                    cpu_texture.ptr = std::shared_ptr<T[]>(array.get(), [](void*) {});
                 else
                     cpu_texture.ptr = array.share();
                 m_options = array.options();
@@ -294,7 +294,7 @@ namespace noa {
         template<char ORDER = 'C'>
         [[nodiscard]] bool are_contiguous() const noexcept {
             if (device().is_cpu())
-                return noa::indexing::are_contiguous<ORDER>(cpu().strides, m_shape);
+                return noa::are_contiguous<ORDER>(cpu().strides, m_shape);
             else
                 return ORDER == 'C' || ORDER == 'c';
         }
@@ -341,8 +341,8 @@ namespace noa {
             #endif
         }
 
-        [[nodiscard]] InterpMode interp_mode() const noexcept { return m_interp; }
-        [[nodiscard]] BorderMode border_mode() const noexcept { return m_border; }
+        [[nodiscard]] Interp interp_mode() const noexcept { return m_interp; }
+        [[nodiscard]] Border border_mode() const noexcept { return m_border; }
 
         [[nodiscard]] bool is_layered() const {
             if (device().is_cpu()) {
@@ -385,8 +385,8 @@ namespace noa {
         variant_type m_texture;
         Shape4<i64> m_shape;
         ArrayOption m_options;
-        InterpMode m_interp{};
-        BorderMode m_border{};
+        Interp m_interp{};
+        Border m_border{};
     };
 }
 
