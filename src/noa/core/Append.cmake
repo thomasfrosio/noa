@@ -1,9 +1,15 @@
 set(NOA_CORE_HEADERS
+    core/AccurateSum.hpp
+    core/AccurateVariance.hpp
+    core/Arange.hpp
     core/Config.hpp
     core/Enums.hpp
     core/Exception.hpp
+    core/Linspace.hpp
     core/Namespace.hpp
+    core/Operators.hpp
     core/Traits.hpp
+    core/ArgMinMax.hpp
 
     core/Math.hpp
     core/math/Comparison.hpp
@@ -11,26 +17,24 @@ set(NOA_CORE_HEADERS
     core/math/Distribution.hpp
     core/math/Generic.hpp
     core/math/LeastSquare.hpp
-    core/math/Ops.hpp
-    core/math/ReduceOps.hpp
 
     core/Indexing.hpp
     core/indexing/Offset.hpp
     core/indexing/Layout.hpp
     core/indexing/Subregion.hpp
 
+    core/utils/Adaptor.hpp
     core/utils/Atomic.hpp
     core/utils/ClampCast.hpp
-    core/utils/EwiseAdaptor.hpp
+    core/utils/Interfaces.hpp
     core/utils/Irange.hpp
     core/utils/Misc.hpp
-    core/utils/ReduceChecker.hpp
     core/utils/SafeCast.hpp
     core/utils/Sort.hpp
     core/utils/Threadpool.hpp
     core/utils/Timer.hpp
-    core/utils/IwiseOp.hpp
 
+    core/String.hpp
     core/string/Format.hpp
     core/string/Parse.hpp
     core/string/Reflect.hpp
@@ -78,9 +82,9 @@ set(NOA_CORE_HEADERS
 
 set(NOA_CORE_SOURCES
     core/Exception.cpp
-    core/geometry/Euler.cpp
-    core/io/IO.cpp
-    core/io/BinaryFile.cpp
-    core/io/MRCFile.cpp
-    core/io/TIFFFile.cpp
+#    core/geometry/Euler.cpp
+#    core/io/IO.cpp
+#    core/io/BinaryFile.cpp
+#    core/io/MRCFile.cpp
+#    core/io/TIFFFile.cpp
     )
