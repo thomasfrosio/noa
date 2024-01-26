@@ -241,7 +241,7 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] friend NOA_HD constexpr Complex operator/(value_type lhs, Complex rhs) noexcept {
-            return Complex{lhs} / rhs;
+            return Complex::from_real(lhs) / rhs;
         }
 
         [[nodiscard]] friend NOA_HD constexpr Complex operator/(Complex lhs, value_type rhs) noexcept {
@@ -265,11 +265,11 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] friend NOA_HD constexpr bool operator==(value_type lhs, Complex rhs) noexcept {
-            return Complex{lhs} == rhs;
+            return Complex::from_real(lhs) == rhs;
         }
 
         [[nodiscard]] friend NOA_HD constexpr bool operator==(Complex lhs, value_type rhs) noexcept {
-            return lhs == Complex{rhs};
+            return lhs == Complex::from_real(rhs);
         }
 
         [[nodiscard]] friend NOA_HD constexpr bool operator!=(Complex lhs, Complex rhs) noexcept {
@@ -281,11 +281,11 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] friend NOA_HD constexpr bool operator!=(value_type lhs, Complex rhs) noexcept {
-            return Complex{lhs} != rhs;
+            return Complex::from_real(lhs) != rhs;
         }
 
         [[nodiscard]] friend NOA_HD constexpr bool operator!=(Complex lhs, value_type rhs) noexcept {
-            return lhs != Complex{rhs};
+            return lhs != Complex::from_real(rhs);
         }
 
         [[nodiscard]] friend NOA_HD constexpr bool operator==(Complex lhs, std::complex<value_type> rhs) noexcept {
