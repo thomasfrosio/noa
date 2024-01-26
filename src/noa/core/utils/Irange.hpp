@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
+#include "noa/core/math/Comparison.hpp"
 
 #if defined(NOA_IS_OFFLINE)
 #include <type_traits>

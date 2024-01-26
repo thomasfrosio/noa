@@ -25,7 +25,8 @@ namespace noa {
                     clamp_cast<typename TTo::value_type>(src.imag)};
 
         } else if constexpr(nt::is_complex_v<TTo>) {
-            return {clamp_cast<typename TTo::value_type>(src)}; // imaginary is 0.
+            return {clamp_cast<typename TTo::value_type>(src),
+                    typename TTo::value_type{0}};
 
         } else if constexpr(nt::is_real_v<TTo>) {
             // Floating-point conversions:
