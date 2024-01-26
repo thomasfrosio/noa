@@ -9,7 +9,6 @@
 namespace noa {
     /// Least squares regression for quadratic curve fitting.
     /// Returns {a, b, c}, as in ``y = ax^2 + bx + c``, where x is an integral number from 0 to size-1.
-    /// For large sizes, prefer to use the more stable lstsq().
     template<bool ACCURATE_SUM = true, typename Real, typename Int>
     constexpr NOA_HD void lstsq_fit_quadratic(const Real* y, Int size, double* a, double* b, double* c) {
         static_assert(nt::is_real_v<Real> && nt::is_int_v<Int>);

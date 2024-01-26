@@ -98,7 +98,7 @@ namespace noa {
     [[nodiscard]] NOA_FHD float pow(float base, float exponent) { return std::pow(base, exponent); }
 
     // Returns the next power of 2. If x is a power of 2 or is equal to 1, returns x.
-    template<typename Int, nt::enable_if_bool_t<std::is_integral_v<Int>> = true>
+    template<typename Int> requires std::is_integral_v<Int>
     [[nodiscard]] NOA_FHD constexpr Int next_power_of_2(Int x) {
         --x;
         x |= x >> 1;
@@ -109,13 +109,13 @@ namespace noa {
         return ++x;
     }
 
-    template<typename UInt, nt::enable_if_bool_t<std::is_unsigned_v<UInt>> = true>
+    template<typename UInt> requires std::is_unsigned_v<UInt>
     [[nodiscard]] NOA_FHD constexpr UInt next_multiple_of(UInt value, UInt base) { return (value + base - 1) / base * base; }
 
-    template<class UInt, nt::enable_if_bool_t<std::is_unsigned_v<UInt>> = true>
+    template<class UInt> requires std::is_unsigned_v<UInt>
     [[nodiscard]] NOA_FHD constexpr bool is_power_of_2(UInt value) { return (value & (value - 1)) == 0; }
 
-    template<typename Int, nt::enable_if_bool_t<std::is_integral_v<Int>> = true>
+    template<typename Int> requires std::is_integral_v<Int>
     [[nodiscard]] NOA_FHD constexpr Int divide_up(Int dividend, Int divisor) { return (dividend + divisor - 1) / divisor; }
 
     [[nodiscard]] NOA_FHD double sqrt(double x) { return std::sqrt(x); }
@@ -140,13 +140,13 @@ namespace noa {
     [[nodiscard]] NOA_FHD double round(double x) { return std::round(x); }
     [[nodiscard]] NOA_FHD float round(float x) { return std::round(x); }
 
-    template<typename Int, nt::enable_if_bool_t<std::is_integral_v<Int>> = true>
+    template<typename Int> requires std::is_integral_v<Int>
     [[nodiscard]] NOA_FHD Int round(Int x) { return x; }
 
     [[nodiscard]] NOA_FHD double rint(double x) { return std::rint(x); }
     [[nodiscard]] NOA_FHD float rint(float x) { return std::rint(x); }
 
-    template<typename Int, nt::enable_if_bool_t<std::is_integral_v<Int>> = true>
+    template<typename Int> requires std::is_integral_v<Int>
     [[nodiscard]] NOA_FHD Int rint(Int x) { return x; }
 
     [[nodiscard]] NOA_FHD double ceil(double x) { return std::ceil(x); }

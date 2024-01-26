@@ -2,47 +2,194 @@
 
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
+#include "noa/core/math/Generic.hpp"
 
 namespace noa {
-    struct distribution_t {};
-    struct uniform_t : public distribution_t {};
-    struct normal_t : public distribution_t {};
-    struct log_normal_t : public distribution_t {};
-    struct poisson_t : public distribution_t {};
+    struct Distribution {};
 
-    // The "xoshiro256** 1.0" generator.
-    // Based on the C version by David Blackman and Sebastiano Vigna (2018),
-    // https://prng.di.unimi.it/xoshiro256starstar.c
-    struct xoshiro256ss {
-        uint64_t s[4]{};
+    /// Uniform distribution.
+    template<typename T> requires nt::is_numeric_v<T>
+    class Uniform : public Distribution {
+    public:
+        using result_type = T;
+        using compute_type = std::conditional_t<nt::is_int_v<T>, f64, result_type>;
 
-        static constexpr uint64_t splitmix64(uint64_t& x) {
-            uint64_t z = (x += 0x9e3779b97f4a7c15uLL);
-            z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9uLL;
-            z = (z ^ (z >> 27)) * 0x94d049bb133111ebuLL;
-            return z ^ (z >> 31);
+        constexpr explicit Uniform(result_type min, result_type max)
+                : m_min(static_cast<compute_type>(min)),
+                  m_max(static_cast<compute_type>(max)) {}
+
+        constexpr result_type operator()(auto& generator) const noexcept requires nt::is_sint_v<result_type> {
+            const auto uniform_real = generator.template next<compute_type>(); // [0,1]
+            const auto uniform_int = round(uniform_real * (m_max - m_min) + m_min);
+            return static_cast<result_type>(uniform_int);
         }
 
-        constexpr xoshiro256ss() = default;
+        constexpr result_type operator()(auto& generator) const noexcept requires nt::is_real_v<result_type> {
+            auto uniform_real = generator.template next<compute_type>(); // [0,1]
+            return uniform_real * (m_max - m_min) + m_min;
+        }
 
-        constexpr explicit xoshiro256ss(uint64_t seed) {
+        constexpr result_type operator()(auto& generator) const noexcept requires nt::is_complex_v<result_type> {
+            using real_t = nt::value_type_t<compute_type>;
+            auto uniform_real = generator.template next<real_t>(); // [0,1]
+            auto uniform_imag = generator.template next<real_t>(); // [0,1]
+            return {.real= uniform_real * (m_max.real - m_min.real) + m_min.real,
+                    .imag= uniform_imag * (m_max.imag - m_min.imag) + m_min.imag};
+        }
+
+    private:
+        compute_type m_min;
+        compute_type m_max;
+    };
+
+    /// Normal distribution.
+    template<typename T> requires nt::is_real_v<T>
+    class Normal : public Distribution {
+    public:
+        using result_type = T;
+
+        constexpr explicit Normal(result_type mean = 0, result_type stddev = 1)
+                : m_mean(static_cast<result_type>(mean)),
+                  m_stddev(static_cast<result_type>(stddev)) {}
+
+        constexpr result_type operator()(auto& generator) noexcept {
+            result_type real = next_(generator, m_saved, m_saved_is_available);
+            return real * m_stddev + m_mean;
+        }
+
+    private:
+        static constexpr result_type next_(auto& generator, result_type& saved, bool& is_available) noexcept {
+            result_type ret;
+            if (is_available) {
+                is_available = false;
+                ret = saved;
+            } else {
+                result_type x, y, r2;
+                do {
+                    x = 2 * generator.template next<result_type>() - 1;
+                    y = 2 * generator.template next<result_type>() - 1;
+                    r2 = x * x + y * y;
+                } while (r2 > 1.0 || r2 == 0.0);
+
+                const result_type mult = sqrt(-2 * log(r2) / r2);
+                saved = x * mult;
+                is_available = true;
+                ret = y * mult;
+            }
+            return ret;
+        }
+
+    private:
+        result_type m_mean{};
+        result_type m_saved{};
+        result_type m_stddev{};
+        bool m_saved_is_available{};
+
+        template<typename>
+        friend class LogNormal;
+    };
+
+    /// Lognormal distribution.
+    template<typename T> requires nt::is_real_v<T>
+    class LogNormal : public Distribution {
+    public:
+        using result_type = T;
+
+        constexpr explicit LogNormal(result_type mean = {}, result_type stddev = 1)
+                : m_mean(static_cast<result_type>(mean)),
+                  m_stddev(static_cast<result_type>(stddev)) {}
+
+        constexpr result_type operator()(auto& generator) noexcept requires nt::is_real_v<result_type> {
+            result_type real = Normal<result_type>::next_(generator, m_saved, m_saved_is_available);
+            return exp(real * m_stddev + m_mean);
+        }
+
+    private:
+        result_type m_mean{};
+        result_type m_saved{};
+        result_type m_stddev{};
+        bool m_saved_is_available{};
+    };
+
+    /// Poisson distribution.
+    template<typename T> requires nt::is_int_v<T>
+    class Poisson : public Distribution {
+    public:
+        using result_type = T;
+        using compute_type = f64;
+
+        constexpr explicit Poisson(T mean) : m_mean(static_cast<compute_type>(mean)), m_threshold(std::exp(-m_mean)) {}
+
+        constexpr compute_type next(auto& generator) noexcept {
+            T x = 0;
+            compute_type prod = 1.0;
+            do {
+                prod *= generator.template next<compute_type>();
+                x += 1;
+            } while (prod > m_threshold);
+            return static_cast<result_type>(x - 1);
+        }
+
+    private:
+        compute_type m_mean;
+        compute_type m_threshold;
+    };
+
+    /// xoshiro256** and xoshiro256+ 64-bit pseudorandom number generators.
+    class RandomBitsGenerator {
+        constexpr RandomBitsGenerator() = default;
+
+        constexpr explicit RandomBitsGenerator(u64 seed) {
+            auto splitmix64 = [](u64& x) -> u64 {
+                u64 z = (x += 0x9e3779b97f4a7c15uLL);
+                z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9uLL;
+                z = (z ^ (z >> 27)) * 0x94d049bb133111ebuLL;
+                return z ^ (z >> 31);
+            };
             s[0] = splitmix64(seed);
-            s[1] = splitmix64(seed);
-            s[2] = splitmix64(seed);
-            s[3] = splitmix64(seed);
+            s[1] = splitmix64(s[0]);
+            s[2] = splitmix64(s[1]);
+            s[3] = splitmix64(s[2]);
         }
 
-        using result_type = uint64_t;
-        static constexpr uint64_t min() { return 0; }
-        static constexpr uint64_t max() { return uint64_t(-1); }
-
-        static constexpr uint64_t rotl(uint64_t x, int k) {
-            return (x << k) | (x >> (64 - k));
+        constexpr u64 operator()() {
+            return next_ss_();
         }
 
-        constexpr uint64_t operator()() {
-            const uint64_t result = rotl(s[1] * 5, 7) * 9;
-            const uint64_t t = s[1] << 17;
+        template<typename T>
+        constexpr auto next() {
+            if constexpr (std::is_same_v<T, u16>) {
+                return static_cast<u16>(next_ss_() >> 48);
+            } else if constexpr (std::is_same_v<T, u32>) {
+                return static_cast<u32>(next_ss_() >> 32);
+            } else if constexpr (std::is_same_v<T, u64>) {
+                return next_ss_();
+            } else if constexpr (std::is_same_v<T, f32>) {
+                // Fill the mantissa with random bits and normalise in range [0,1)
+                return static_cast<f32>(next_p_() >> 40) / static_cast<f32>(1ul << 24);
+            } else if constexpr (std::is_same_v<T, f64>) {
+                // Fill the mantissa with random bits and normalise in range [0,1)
+                return static_cast<f64>(next_p_() >> 11) / static_cast<f64>(1ul << 53);
+            } else {
+                // Getting a signed integer is more complicated, I think,
+                // and since I'm not familiar with this subject, don't support
+                // this case and use a f64 to compute the distribution and then
+                // round (which is what curand suggests doing anyway).
+                static_assert(nt::always_false_v<T>);
+            }
+        }
+
+        static constexpr u64 min() { return 0; }
+        static constexpr u64 max() { return u64(-1); }
+
+    private:
+        // https://prng.di.unimi.it/xoshiro256starstar.c
+        constexpr u64 next_ss_() {
+            auto rotl = [](u64 x, int k) -> u64 {
+                return (x << k) | (x >> (64 - k));
+            };
+            const u64 result = rotl(s[1] * 5, 7) * 9;
+            const u64 t = s[1] << 17;
             s[2] ^= s[0];
             s[3] ^= s[1];
             s[1] ^= s[2];
@@ -51,5 +198,45 @@ namespace noa {
             s[3] = rotl(s[3], 45);
             return result;
         }
+
+        // https://prng.di.unimi.it/xoshiro256plus.c
+        constexpr u64 next_p_() {
+            auto rotl = [](u64 x, int k) -> u64 {
+                return (x << k) | (x >> (64 - k));
+            };
+            const u64 result = s[0] + s[3];
+            const u64 t = s[1] << 17;
+            s[2] ^= s[0];
+            s[3] ^= s[1];
+            s[1] ^= s[2];
+            s[0] ^= s[3];
+            s[2] ^= t;
+            s[3] = rotl(s[3], 45);
+            return result;
+        }
+
+    private:
+        u64 s[4]{};
+    };
+
+    /// Element-wise randomize operator.
+    template<typename Distribution>
+    struct Randomizer {
+        constexpr explicit Randomizer(Distribution distribution)
+                : m_distribution(distribution), random_seed(static_cast<u64>(std::clock())) {}
+
+        constexpr void init(auto uid) {
+            m_generator = RandomBitsGenerator(random_seed + static_cast<u64>(uid) + 1);
+        }
+
+        template<typename T>
+        constexpr auto operator()(T& output) noexcept {
+            output = m_distribution(m_generator);
+        }
+
+    private:
+        RandomBitsGenerator m_generator;
+        Distribution m_distribution;
+        u64 random_seed{};
     };
 }

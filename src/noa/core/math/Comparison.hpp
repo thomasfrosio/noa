@@ -45,13 +45,13 @@ namespace noa {
     #endif
     }
 
-    // Whether two floating-points are "significantly" equal.
-    // For the relative epsilon, the machine epsilon has to be scaled to the magnitude of
-    // the values used and multiplied by the desired precision in ULPs. Relative epsilons
-    // and Unit in the Last Place (ULPs) comparisons are usually meaningless for close-to-zero
-    // numbers, hence the absolute comparison with epsilon, acting as a safety net.
-    // If one or both values are NaN and|or +/-Inf, returns false.
-    template<int32_t ULP, typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
+    /// Whether two floating-points are "almost" equal.
+    /// For the relative epsilon, the machine epsilon has to be scaled to the magnitude of
+    /// the values used and multiplied by the desired precision in ULPs. Relative epsilons
+    /// and Unit in the Last Place (ULPs) comparisons are usually meaningless for close-to-zero
+    /// numbers, hence the absolute comparison with epsilon, acting as a safety net.
+    /// If one or both values are NaN and|or +/-Inf, returns false.
+    template<int32_t ULP, typename Real> requires nt::is_real_v<Real>
     [[nodiscard]] NOA_IHD constexpr bool allclose(Real x, Real y, Real epsilon) {
         const Real diff(abs(x - y));
         if (!is_finite(diff))
@@ -61,7 +61,7 @@ namespace noa {
         return diff <= epsilon || diff <= (max(abs(x), abs(y)) * THRESHOLD);
     }
 
-    template<typename Real, typename = std::enable_if_t<nt::is_real_v<Real>>>
+    template<typename Real> requires nt::is_real_v<Real>
     [[nodiscard]] NOA_IHD constexpr bool allclose(Real x, Real y) {
         return allclose<4>(x, y, static_cast<Real>(1e-6));
     }

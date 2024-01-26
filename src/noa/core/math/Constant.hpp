@@ -4,13 +4,13 @@
 #include "noa/core/Traits.hpp"
 
 namespace noa {
-    template<typename Real>
+    template<typename T>
+    requires nt::is_real_v<T>
     struct Constant {
-        static_assert(nt::is_real_v<Real>);
-        static constexpr Real PI = static_cast<Real>(3.1415926535897932384626433832795);
-        static constexpr Real PLANCK = static_cast<Real>(6.62607015e-34); // J.Hz-1
-        static constexpr Real SPEED_OF_LIGHT = static_cast<Real>(299792458.0); // m.s
-        static constexpr Real ELECTRON_MASS = static_cast<Real>(9.1093837015e-31); // kg
-        static constexpr Real ELEMENTARY_CHARGE = static_cast<Real>(1.602176634e-19); // Coulombs
+        static constexpr T PI = static_cast<T>(3.1415926535897932384626433832795);
+        static constexpr T PLANCK = static_cast<T>(6.62607015e-34); // J.Hz-1
+        static constexpr T SPEED_OF_LIGHT = static_cast<T>(299792458.0); // m.s
+        static constexpr T ELECTRON_MASS = static_cast<T>(9.1093837015e-31); // kg
+        static constexpr T ELEMENTARY_CHARGE = static_cast<T>(1.602176634e-19); // Coulombs
     };
 }
