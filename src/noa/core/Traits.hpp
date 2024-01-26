@@ -99,6 +99,20 @@ namespace noa::traits {
     struct repeat<T, 0, TT> {
         using type = TT<>;
     };
+
+    template<typename T, size_t N, template<typename...> class L>
+    using repeat_t = repeat<T, N, L>::type;
+
+    template<typename Seq1, typename Seq>
+    struct cat_index_sequence;
+
+    template<std::size_t... Ints1, std::size_t... Ints2>
+    struct cat_index_sequence<std::index_sequence<Ints1...>, std::index_sequence<Ints2...>>{
+        using type = std::index_sequence<Ints1..., Ints2...>;
+    };
+    template<typename Seq1, typename Seq2>
+    using cat_index_sequence_t = typename cat_index_sequence<Seq1, Seq2>::type;
+
 }
 
 namespace noa::traits {
@@ -261,25 +275,25 @@ namespace noa::traits {
     template<typename T> struct proclaim_is_accessor : std::false_type {};
     template<typename T> using is_accessor = std::bool_constant<proclaim_is_accessor<T>::value>;
     template<typename T> constexpr bool is_accessor_v = is_accessor<std::decay_t<T>>::value;
-    template<typename... Ts> using are_accessor = bool_and<is_accessor<Ts>::value...>::value;
+    template<typename... Ts> using are_accessor = bool_and<is_accessor<Ts>::value...>;
     template<typename... Ts> constexpr bool are_accessor_v = are_accessor<std::decay_t<Ts>...>::value;
 
     template<typename T> struct proclaim_is_accessor_restrict : std::false_type {};
     template<typename T> using is_accessor_restrict = std::bool_constant<proclaim_is_accessor_restrict<T>::value>;
     template<typename T> constexpr bool is_accessor_restrict_v = is_accessor_restrict<std::decay_t<T>>::value;
-    template<typename... Ts> using are_accessor_restrict = bool_and<is_accessor_restrict<Ts>::value...>::value;
+    template<typename... Ts> using are_accessor_restrict = bool_and<is_accessor_restrict<Ts>::value...>;
     template<typename... Ts> constexpr bool are_accessor_restrict_v = are_accessor_restrict<std::decay_t<Ts>...>::value;
 
     template<typename T> struct proclaim_is_accessor_contiguous : std::false_type {};
     template<typename T> using is_accessor_contiguous = std::bool_constant<proclaim_is_accessor_contiguous<T>::value>;
     template<typename T> constexpr bool is_accessor_contiguous_v = is_accessor_contiguous<std::decay_t<T>>::value;
-    template<typename... Ts> using are_accessor_contiguous = bool_and<is_accessor_contiguous<Ts>::value...>::value;
+    template<typename... Ts> using are_accessor_contiguous = bool_and<is_accessor_contiguous<Ts>::value...>;
     template<typename... Ts> constexpr bool are_accessor_contiguous_v = are_accessor_contiguous<std::decay_t<Ts>...>::value;
 
     template<typename T, size_t N> struct proclaim_is_accessor_nd : std::false_type {};
     template<typename T, size_t N> using is_accessor_nd = std::bool_constant<proclaim_is_accessor_nd<T, N>::value>;
     template<typename T, size_t N> constexpr bool is_accessor_nd_v = is_accessor_nd<std::decay_t<T>, N>::value;
-    template<size_t N, typename... Ts> using are_accessor_nd = bool_and<is_accessor_nd<Ts, N>::value...>::value;
+    template<size_t N, typename... Ts> using are_accessor_nd = bool_and<is_accessor_nd<Ts, N>::value...>;
     template<size_t N, typename... Ts> constexpr bool are_accessor_nd_v = are_accessor_nd<N, std::decay_t<Ts>...>::value;
 
     template<typename T> constexpr bool is_accessor_1d_v = is_accessor_nd_v<T, 1>;
@@ -290,13 +304,13 @@ namespace noa::traits {
     template<typename T> struct proclaim_is_accessor_reference : std::false_type {};
     template<typename T> using is_accessor_reference = std::bool_constant<proclaim_is_accessor_reference<T>::value>;
     template<typename T> constexpr bool is_accessor_reference_v = is_accessor_reference<std::decay_t<T>>::value;
-    template<typename... Ts> using are_accessor_reference = bool_and<is_accessor_reference<Ts>::value...>::value;
+    template<typename... Ts> using are_accessor_reference = bool_and<is_accessor_reference<Ts>::value...>;
     template<typename... Ts> constexpr bool are_accessor_reference_v = are_accessor_reference<std::decay_t<Ts>...>::value;
 
     template<typename T> struct proclaim_is_accessor_value : std::false_type {};
     template<typename T> using is_accessor_value = std::bool_constant<proclaim_is_accessor_value<T>::value>;
     template<typename T> constexpr bool is_accessor_value_v = is_accessor_value<std::decay_t<T>>::value;
-    template<typename... Ts> using are_accessor_value = bool_and<is_accessor_value<Ts>::value...>::value;
+    template<typename... Ts> using are_accessor_value = bool_and<is_accessor_value<Ts>::value...>;
     template<typename... Ts> constexpr bool are_accessor_value_v = are_accessor_value<std::decay_t<Ts>...>::value;
 
     template<typename T> constexpr bool is_accessor_1d_restrict_contiguous_v =
@@ -426,16 +440,34 @@ namespace noa::traits {
     template<typename T> constexpr bool is_shape_or_strides_v = is_strides_v<T> || is_shape_v<T>;
     template<typename T, size_t N> constexpr bool is_shapeN_or_stridesN_v = is_stridesN_v<T, N> || is_shapeN_v<T, N>;
 
-    // -- Tuple --
+    // -- Tuple and Pair --
     template<typename T> struct proclaim_is_tuple : std::false_type {};
     template<typename T> using is_tuple = std::bool_constant<proclaim_is_tuple<T>::value>;
     template<typename T> constexpr bool is_tuple_v = is_tuple<std::decay_t<T>>::value;
-    template<typename... Ts> using are_tuple = bool_and<is_tuple<Ts>::value...>::value;
+    template<typename... Ts> using are_tuple = bool_and<is_tuple<Ts>::value...>;
     template<typename... Ts> constexpr bool are_tuple_v = are_tuple<std::decay_t<Ts>...>::value;
 
     template<typename T> struct proclaim_is_tuple_of_accessor : std::false_type {};
     template<typename T> using is_tuple_of_accessor = std::bool_constant<proclaim_is_tuple_of_accessor<T>::value>;
     template<typename T> constexpr bool is_tuple_of_accessor_v = is_tuple_of_accessor<std::decay_t<T>>::value;
-    template<typename... Ts> using are_tuple_of_accessor = bool_and<is_tuple_of_accessor<Ts>::value...>::value;
+    template<typename... Ts> using are_tuple_of_accessor = bool_and<is_tuple_of_accessor<Ts>::value...>;
     template<typename... Ts> constexpr bool are_tuple_of_accessor_v = are_tuple_of_accessor<std::decay_t<Ts>...>::value;
+
+    template<typename T> struct proclaim_is_tuple_of_accessor_value : std::false_type {};
+    template<typename T> using is_tuple_of_accessor_value = std::bool_constant<proclaim_is_tuple_of_accessor_value<T>::value>;
+    template<typename T> constexpr bool is_tuple_of_accessor_value_v = is_tuple_of_accessor_value<std::decay_t<T>>::value;
+    template<typename... Ts> using are_tuple_of_accessor_value = bool_and<is_tuple_of_accessor_value<Ts>::value...>;
+    template<typename... Ts> constexpr bool are_tuple_of_accessor_value_v = are_tuple_of_accessor_value<std::decay_t<Ts>...>::value;
+
+    template<typename T> struct proclaim_is_tuple_of_accessor_or_empty : std::false_type {};
+    template<typename T> using is_tuple_of_accessor_or_empty = std::bool_constant<proclaim_is_tuple_of_accessor_or_empty<T>::value>;
+    template<typename T> constexpr bool is_tuple_of_accessor_or_empty_v = is_tuple_of_accessor_or_empty<std::decay_t<T>>::value;
+    template<typename... Ts> using are_tuple_of_accessor_or_empty = bool_and<is_tuple_of_accessor_or_empty<Ts>::value...>;
+    template<typename... Ts> constexpr bool are_tuple_of_accessor_or_empty_v = are_tuple_of_accessor_or_empty<std::decay_t<Ts>...>::value;
+
+    template<typename T> struct proclaim_is_pair : std::false_type {};
+    template<typename T> using is_pair = std::bool_constant<proclaim_is_pair<T>::value>;
+    template<typename T> constexpr bool is_pair_v = is_pair<std::decay_t<T>>::value;
+    template<typename... Ts> using are_pair = bool_and<is_pair<Ts>::value...>;
+    template<typename... Ts> constexpr bool are_pair_v = are_pair<std::decay_t<Ts>...>::value;
 }
