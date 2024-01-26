@@ -42,16 +42,17 @@ namespace noa::indexing {
     }
 
     /// Checks whether all of the 4d accessors are contiguous.
-    template<char ORDER = 'C', typename... Accessors, typename Integer>
-    requires nt::are_accessor_nd_v<4, Accessors...>
+    template<char ORDER = 'C', typename Accessors, typename Integer>
+    requires nt::is_tuple_of_accessor_or_empty_v<Accessors>
     auto are_contiguous(
-            const Tuple<Accessors...>& accessors,
+            const Accessors& accessors,
             const Shape4<Integer>& shape
     ) -> bool {
         return accessors.all([&shape]<typename T>(const T& accessor) {
             if constexpr (nt::is_accessor_value_v<T>) {
                 return true;
             } else {
+                static_assert(T::SIZE == 4);
                 return are_contiguous<ORDER>(accessor.strides(), shape);
             }
         });
@@ -157,25 +158,36 @@ namespace noa::indexing {
     /// Coupled with indexing::reorder(), this effectively pushes all zeros and ones in \p shape to the left.
     /// The difference with indexing::order() is that this function does not change the order of the non-empty
     /// dimensions relative to each other. Note that the order of the empty dimensions is preserved.
-    template<typename Int, size_t N>
-    [[nodiscard]] NOA_HD constexpr auto squeeze(const Shape<Int, N>& shape) {
-        Vec<Int, N> order{};
-        int idx = N - 1;
-        for (int i = idx; i >= 0; --i) {
-            if (shape[i] > 1)
-                order[idx--] = static_cast<Int>(i);
-            else
-                order[idx - i] = static_cast<Int>(i);
+    template<typename T> requires (nt::is_intX_v<T> or nt::is_shape_v<T> or nt::is_strides_v<T>)
+    [[nodiscard]] NOA_HD constexpr auto squeeze_left(const T& shape) {
+        using value_t = T::value_type;
+        constexpr auto SIZE = static_cast<value_t>(T::SIZE);
+        Vec<value_t, T::SIZE> order{};
+        value_t index{0};
+        for (value_t i{0}; i < SIZE; ++i) { // store empty dimensions
+            if (shape[i] <= 1)
+                order[index++] = i;
         }
-        // The empty dimensions are entered in descending order.
-        // To put them back to the original ascending order, we can do:
-        if (idx) {
-            if (N >= 2 && idx == 1)
-                small_stable_sort<2>(order.data());
-            if (N >= 3 && idx == 2)
-                small_stable_sort<3>(order.data());
-            else if (N >= 4 && idx == 3)
-                small_stable_sort<4>(order.data());
+        for (value_t i{0}; i < SIZE; ++i) { // then valid dimensions
+            if (shape[i] > 1)
+                order[index++] = i;
+        }
+        return order;
+    }
+
+    template<typename T> requires (nt::is_intX_v<T> or nt::is_shape_v<T> or nt::is_strides_v<T>)
+    [[nodiscard]] NOA_HD constexpr auto squeeze_right(const T& shape) {
+        using value_t = T::value_type;
+        constexpr auto SIZE = static_cast<value_t>(T::SIZE);
+        Vec<value_t, T::SIZE> order{};
+        value_t index{0};
+        for (value_t i{0}; i < SIZE; ++i) { // store valid dimensions
+            if (shape[i] > 1)
+                order[index++] = i;
+        }
+        for (value_t i{0}; i < SIZE; ++i) { // then empty dimensions
+            if (shape[i] <= 1)
+                order[index++] = i;
         }
         return order;
     }
@@ -439,7 +451,7 @@ namespace noa::indexing {
                 check(stride[3 - are_column_major] == 1 &&
                       secondmost_strides[i] >= shape[3 - are_column_major],
                       "The innermost dimension of the matrices (before the optional transposition) "
-                      "should be contiguous and the second-most dimension cannot be broadcast. "
+                      "should be contiguous and the second-most dimension cannot be broadcasted. "
                       "Got shape={}, strides={}, layout={}",
                       shape, stride, are_column_major ? "column" : "row");
             }
