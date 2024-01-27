@@ -45,12 +45,10 @@ if (NOA_ENABLE_CPU)
         ${FFTW3_TARGETS}
         )
 
-    include(${PROJECT_SOURCE_DIR}/cmake/ext/cblas.cmake)
-    include(${PROJECT_SOURCE_DIR}/cmake/ext/lapacke.cmake)
+    include(${PROJECT_SOURCE_DIR}/cmake/ext/eigen.cmake)
     target_link_libraries(noa_private_libraries
         INTERFACE
-        CBLAS::CBLAS
-        LAPACKE::LAPACKE
+        Eigen3::Eigen
         )
 endif ()
 

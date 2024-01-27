@@ -38,35 +38,13 @@ if (@NOA_ENABLE_CPU@)
         find_dependency(OpenMP 4.5 REQUIRED)
     endif ()
 
-    if (@NOA_CPU_MATH_LIBRARY@ STREQUAL "CBLAS-LAPACKE-FFTW3")
-        set(BLA_STATIC @BLA_STATIC@ CACHE BOOL "")
-        set(BLA_VENDOR @BLA_VENDOR@ CACHE STRING "")
-        if (${BLA_VENDOR} MATCHES "Intel")
-            message(FATAL_ERROR "BLA_VENDOR=${BLA_VENDOR} is not compatible with this mode")
-        endif()
-
-        if (NOT TARGET CBLAS::CBLAS)
-            find_dependency(CBLAS REQUIRED)
-        endif ()
-
-        if (NOT TARGET LAPACKE::LAPACKE)
-            set(LAPACKE_STATIC @LAPACKE_STATIC@ CACHE BOOL "")
-            find_dependency(LAPACKE REQUIRED)
-        endif ()
-
-        set(FFTW3_THREADS @FFTW3_THREADS@ CACHE BOOL "")
-        set(FFTW3_OPENMP @FFTW3_OPENMP@ CACHE BOOL "")
-        set(FFTW3_STATIC @FFTW3_STATIC@ CACHE BOOL "")
-        if (NOT TARGET FFTW3::FFTW3_float AND NOT TARGET FFTW3::FFTW3_double)
-            find_dependency(FFTW3 REQUIRED)
-            # The threading model is encoded in the target name, so noaTargets.cmake
-            # will fail (as it should) if a different FFTW3 config is used for build and import.
-        endif ()
-
-    elseif(@NOA_CPU_MATH_LIBRARY@ STREQUAL "MKL")
-        message(FATAL_ERROR "NOA_CPU_MATH_LIBRARY: MKL is currently not supported")
-    else ()
-        message(FATAL_ERROR "NOA_CPU_MATH_LIBRARY is not recognized")
+    set(FFTW3_THREADS @FFTW3_THREADS@ CACHE BOOL "")
+    set(FFTW3_OPENMP @FFTW3_OPENMP@ CACHE BOOL "")
+    set(FFTW3_STATIC @FFTW3_STATIC@ CACHE BOOL "")
+    if (NOT TARGET FFTW3::FFTW3_float AND NOT TARGET FFTW3::FFTW3_double)
+        find_dependency(FFTW3 REQUIRED)
+        # The threading model is encoded in the target name, so noaTargets.cmake
+        # will fail (as it should) if a different FFTW3 config is used for build and import.
     endif ()
 endif ()
 

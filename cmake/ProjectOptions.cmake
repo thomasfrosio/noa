@@ -27,27 +27,10 @@ endmacro()
 macro(noa_set_options_cpu)
     option(NOA_CPU_OPENMP "Enable multithreading, using OpenMP" ON)
 
-    set(NOA_CPU_MATH_LIBRARY "CBLAS-LAPACKE-FFTW3" CACHE STRING "Maths libraries for the CPU backend. Should be CBLAS-LAPACKE-FFTW3 or MKL")
-    if (NOA_CPU_MATH_LIBRARY STREQUAL "CBLAS-LAPACKE-FFTW3")
-        option(BLA_STATIC "Whether the use the static BLAS/CBLAS library. Otherwise use the shared ones" OFF)
-        option(BLA_VENDOR "BLAS vendor. See https://cmake.org/cmake/help/latest/module/FindBLAS.html" "")
-        if (${BLA_VENDOR} MATCHES "Intel")
-            message(FATAL_ERROR "BLA_VENDOR=${BLA_VENDOR} is not compatible with this mode")
-        endif ()
-
-        # Only used if LAPACKE is not part of the LAPACK library.
-        option(LAPACKE_STATIC "Whether the use the static LAPACKE library. Otherwise use the shared ones" ${BLA_STATIC})
-
-        # FFTW
-        option(FFTW3_THREADS "Use the multi-threaded FFTW3 libraries using system threads" OFF)
-        option(FFTW3_OPENMP "Use the multi-threaded FFTW3 libraries using OpenMP. Takes precedence over FFTW3_THREADS" ${NOA_CPU_OPENMP})
-        option(FFTW3_STATIC "Use the FFTW3 static libraries" OFF)
-
-    elseif (NOA_CPU_MATH_LIBRARY STREQUAL "MKL")
-        message(FATAL_ERROR "MKL is not supported yet") # TODO Add MKL support
-    else ()
-        message(FATAL_ERROR "NOA_CPU_MATH_LIBRARY is not recognized. Should be CBLAS-LAPACKE-FFTW3 or MKL, but got ${NOA_CPU_MATH_LIBRARY}")
-    endif ()
+    # FFTW
+    option(FFTW3_THREADS "Use the multi-threaded FFTW3 libraries using system threads" OFF)
+    option(FFTW3_OPENMP "Use the multi-threaded FFTW3 libraries using OpenMP. Takes precedence over FFTW3_THREADS" ${NOA_CPU_OPENMP})
+    option(FFTW3_STATIC "Use the FFTW3 static libraries" OFF)
 endmacro()
 
 macro(noa_set_options)
