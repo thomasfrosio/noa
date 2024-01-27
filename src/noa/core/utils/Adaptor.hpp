@@ -6,13 +6,13 @@ namespace noa::guts {
     template<typename... Ts>
     struct AdaptorZip {
         static constexpr bool ZIP = true;
-        Tuple<Ts&& ...> tuple;
+        Tuple<Ts&&...> tuple;
     };
 
     template<typename... Ts>
     struct AdaptorUnzip {
         static constexpr bool ZIP = false;
-        Tuple<Ts&& ...> tuple;
+        Tuple<Ts&&...> tuple;
     };
 
     template<typename> struct proclaim_is_ewise_adaptor : std::false_type {};
@@ -29,7 +29,7 @@ namespace noa {
     /// Zips the inputs. When passing the output of zip(...) to an ewise-like function, the  in a Tuple when passing
     template<typename... T>
     constexpr auto zip(T&&... a) noexcept {
-        return guts::AdaptorZip<T&&...>{std::forward<T>(a)...};
+        return guts::AdaptorZip{.tuple=forward_as_tuple(std::forward<T>(a)...)};
     }
 
     /// Similar to zip(...) but return a Wrapper instead of a Tuple.
@@ -38,6 +38,6 @@ namespace noa {
     /// ewise functions will unwrap the elements from Wrapper, but will leave Tuple as is.
     template<typename... T>
     constexpr auto wrap(T&&... a) noexcept {
-        return guts::AdaptorUnzip<T&&...>{std::forward<T>(a)...};
+        return guts::AdaptorUnzip{.tuple=forward_as_tuple(std::forward<T>(a)...)};
     }
 }
