@@ -8,6 +8,25 @@
 /// and provide the common functionalities of zip/unzip, optional member functions
 /// and function redirections.
 
+namespace noa::traits {
+    template<typename T, typename = void>
+    struct has_remove_defaulted_final : std::false_type {};
+    template<typename T>
+    struct has_remove_defaulted_final<T, std::void_t<typename T::remove_defaulted_final>> : std::true_type {};
+
+    /// One issue with the defaulted final of the reduction interface, is that if the user provides a .final()
+    /// member function but makes an error in the reduced/output types, instead of giving a compiler error, the
+    /// interface will skip it and fall back on the default. This is a case of "it's not a bug it's a feature"
+    /// because the user can use this to their advantage and provide "specialisation" for specific types. However,
+    /// it is probably best to use function overloading in this case (and explicit write the default case). As a
+    /// result, we need a way to make sure the .final() gets used: to do so, operators can define a type-alias
+    /// named "remove_defaulted_final" (e.g. using remove_defaulted_final=bool) which the interface will detect
+    /// and turn off the defaulted final. Then, if the provided .fina() doesn't exist or is not valid, a compiler
+    /// error will be raised.
+    template<typename T>
+    constexpr bool has_remove_defaulted_final_v = has_remove_defaulted_final<std::decay_t<T>>::value;
+}
+
 namespace noa::guts {
     /// Index-wise interface.
     struct IwiseInterface {
@@ -112,8 +131,6 @@ namespace noa::guts {
 
     template<bool ZipReduced, bool ZipOutput>
     struct ReduceInterfaceFinal {
-        // TODO Add check remove_defaulted_final
-
         template<typename Op, typename Reduced, typename Output, typename... Indices>
         requires (nt::is_tuple_of_accessor_value_v<Reduced> and nt::is_tuple_of_accessor_or_empty_v<Output>)
         static constexpr void final(Op& op, Reduced& reduced, Output& output, Indices... indices) {
@@ -140,9 +157,14 @@ namespace noa::guts {
                     op.final(reduced[Tag<R>{}].deref()..., output[Tag<O>{}](indices...)...);
 
                 } else if constexpr (nt::is_tuple_of_accessor_v<Output>) { // turn off if no outputs
-                    // Default copy assignment, with explicit cast.
-                    // TODO Here we could perfectly forward the reduced values into the outputs.
-                    ((output[Tag<O>{}](indices...) = static_cast<T::mutable_value_type>(reduced[Tag<R>{}].deref())), ...);
+                    if constexpr (nt::has_remove_defaulted_final_v<Op>) {
+                        static_assert(nt::always_false_v<Op>,
+                                "Implicit .final() was removed, but no explicit .final() was detected");
+                    } else {
+                        // Default copy assignment, with explicit cast.
+                        // TODO Here we could perfectly forward the reduced values into the outputs.
+                        ((output[Tag<O>{}](indices...) = static_cast<T::mutable_value_type>(reduced[Tag<R>{}].deref())), ...);
+                    }
                 }
             }(nt::index_list_t<Reduced>{}, nt::index_list_t<Output>{}, nt::type_list_t<Output>{});
         }
