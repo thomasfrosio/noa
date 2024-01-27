@@ -1,8 +1,6 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/Exception.hpp"
-#include "noa/core/Traits.hpp"
 
 #if defined(NOA_IS_OFFLINE)
 #include <future>
@@ -12,6 +10,9 @@
 #include <queue>
 #include <tuple>
 #include <functional>
+#include "noa/core/Exception.hpp"
+#include "noa/core/Traits.hpp"
+#include "noa/core/utils/Misc.hpp"
 
 namespace noa::cpu::guts {
     // Asynchronous dispatch queue. Enqueued tasks are executed in order.
@@ -44,7 +45,9 @@ namespace noa::cpu::guts {
 
             // Copy/Move both the func and args into this lambda, thereby ensuring
             // that these objects will stay alive until the task is completed.
-            auto no_args_func = [f = std::forward<F>(func), ...a = std::forward<Args>(args)]() mutable { f(a...); };
+            auto no_args_func = [f = std::forward<F>(func), ...a = std::forward<Args>(args)]() mutable {
+                forward_like<F>(f)(forward_like<Args>(a)...);
+            };
 
             const std::scoped_lock lock(m_mutex);
             if (m_exception) {
@@ -105,7 +108,7 @@ namespace noa::cpu::guts {
                         // the queue can be empty but the task isn't done yet. is_busy() and synchronize()
                         // need to wait for the status to go back to not-busy.
                         m_is_busy = true;
-                        task = std::move(m_queue.front());
+                        std::swap(m_queue.front(), task);
                         m_queue.pop();
 
                         // If there's an exception that was thrown by the previous task,
@@ -135,10 +138,10 @@ namespace noa::cpu::guts {
         std::exception_ptr m_exception;
 
         // Synchronization to communicate back and forth with the worker.
-        // Every access to member variables are protected by a single mutex.
+        // Every access to member variables is protected by a single mutex.
         // Notifications are send while holding the lock, as explained here:
         // https://stackoverflow.com/a/66162551
-        // We may be OK using the same condition variable, but just to be sure,
+        // We may be okay using the same condition variable, but just to be sure,
         // use a different condition variable for synchronization and enqueueing.
         std::condition_variable m_condition_work;
         std::condition_variable m_condition_sync;
@@ -207,7 +210,7 @@ namespace noa::cpu {
         template<typename F, typename... Args>
         constexpr void enqueue_only_if_sync(F&& func, Args&&... args) {
             if (!m_worker)
-                func(std::forward<Args>(args)...);
+                std::forward<F>(func)(std::forward<Args>(args)...);
         }
 
         template<typename F, typename... Args>
