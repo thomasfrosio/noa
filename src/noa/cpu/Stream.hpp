@@ -38,7 +38,7 @@ namespace noa::cpu::guts {
 
         template<typename F, typename... Args>
         void enqueue(F&& func, Args&&... args) {
-            check(thread_id() == std::this_thread::get_id(),
+            check(thread_id() != std::this_thread::get_id(),
                   "The asynchronous stream was captured by an enqueued task, which is now trying to "
                   "enqueue another task. This is currently not supported and it is usually better to create "
                   "a new synchronous stream inside the original task and use this new stream instead");
@@ -201,22 +201,10 @@ namespace noa::cpu {
         template<typename F, typename... Args>
         constexpr void enqueue(F&& func, Args&&... args) {
             if (!m_worker) {
-                func(std::forward<Args>(args)...);
+                std::forward<F>(func)(std::forward<Args>(args)...);
             } else {
                 m_worker->enqueue(std::forward<F>(func), std::forward<Args>(args)...);
             }
-        }
-
-        template<typename F, typename... Args>
-        constexpr void enqueue_only_if_sync(F&& func, Args&&... args) {
-            if (!m_worker)
-                std::forward<F>(func)(std::forward<Args>(args)...);
-        }
-
-        template<typename F, typename... Args>
-        constexpr void enqueue_only_if_async(F&& func, Args&&... args) {
-            if (m_worker)
-                m_worker->enqueue(std::forward<F>(func), std::forward<Args>(args)...);
         }
 
         [[nodiscard]] auto is_sync() -> bool { return m_worker == nullptr; }

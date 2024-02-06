@@ -1,11 +1,14 @@
 set(NOA_CPU_HEADERS
     # noa::cpu
     cpu/AllocatorHeap.hpp
+    cpu/Blas.hpp
     cpu/Copy.hpp
     cpu/Device.hpp
     cpu/Event.hpp
     cpu/Ewise.hpp
     cpu/Iwise.hpp
+    cpu/Permute.hpp
+    cpu/ReduceAxesEwise.hpp
     cpu/ReduceEwise.hpp
     cpu/ReduceIwise.hpp
     cpu/Set.hpp
@@ -15,15 +18,6 @@ set(NOA_CPU_HEADERS
     # noa::cpu::fft
     cpu/fft/Plan.hpp
     cpu/fft/Transforms.hpp
-    #    cpu/fft/Remap.hpp
-    #    cpu/fft/Resize.hpp
-
-#    # noa::cpu::math
-    cpu/math/Blas.hpp
-#    cpu/math/Complex.hpp
-#    cpu/math/LinAlg.hpp
-#    cpu/math/Random.hpp
-#    cpu/math/Reduce.hpp
 
 #    # noa::cpu::signal
 #    cpu/signal/fft/Bandpass.hpp
@@ -58,19 +52,12 @@ set(NOA_CPU_HEADERS
 
 set(NOA_CPU_SOURCES
     # noa::cpu
+    cpu/Blas.cpp
     cpu/Device.cpp
 
     # noa::cpu::fft
     cpu/fft/Plan.cpp
-#    cpu/fft/Remap.cpp
-#    cpu/fft/Resize.cpp
 
-    # noa::cpu::math
-    cpu/math/Blas.cpp
-#    cpu/math/Random.cpp
-#    cpu/math/Reduce.cpp
-#    cpu/math/LinAlg.cpp
-#
 #    # noa::cpu::signal
 #    cpu/signal/fft/Bandpass.cpp
 #    cpu/signal/fft/Correlate.cpp

@@ -1,11 +1,11 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
-#include "noa/cpu/Stream.hpp"
-#include "noa/cpu/AllocatorHeap.hpp"
 
 #if defined(NOA_IS_OFFLINE)
 #include <algorithm>
+#include "noa/cpu/Stream.hpp"
+#include "noa/cpu/AllocatorHeap.hpp"
 
 namespace noa::cpu::guts::sort {
     template<typename T, typename U>
@@ -46,19 +46,19 @@ namespace noa::cpu::guts::sort {
             for (i64 j = 0; j < shape[1]; ++j) {
                 for (i64 k = 0; k < shape[2]; ++k) {
                     for (i64 l = 0; l < shape[3]; ++l, ++output) {
-                        const i64 key = noa::offset_at(
+                        const i64 key = ni::offset_at(
                                 i % tile[0], j % tile[1],
                                 k % tile[2], l % tile[3],
                                 tile_strides);
                         *output = {static_cast<u32>(key),
-                                   input[noa::offset_at(i, j, k, l, strides)]};
+                                   input[ni::offset_at(i, j, k, l, strides)]};
                     }
                 }
             }
         }
     }
 
-    // This is like memory::permute(), but working with the pair as input.
+    // This is like permute(), but working with the pair as input.
     template<typename T>
     void permute_(
             const Pair<uint, T>* src, const Strides4<i64>& src_strides, const Shape4<i64>& src_shape,
@@ -71,8 +71,8 @@ namespace noa::cpu::guts::sort {
             for (i64 j = 0; j < dst_shape[1]; ++j)
                 for (i64 k = 0; k < dst_shape[2]; ++k)
                     for (i64 l = 0; l < dst_shape[3]; ++l)
-                        dst[noa::offset_at(i, j, k, l, dst_strides)] =
-                                src[noa::offset_at(i, j, k, l, src_strides_permuted)].second;
+                        dst[ni::offset_at(i, j, k, l, dst_strides)] =
+                                src[ni::offset_at(i, j, k, l, src_strides_permuted)].second;
     }
 
     // Sorts the third dimension of "values" using std::sort.
@@ -102,7 +102,7 @@ namespace noa::cpu::guts::sort {
             for (i64 j = 0; j < shape_[1]; ++j) {
                 for (i64 k = 0; k < shape_[2]; ++k) {
 
-                    const i64 offset = noa::offset_at(i, j, k, strides_);
+                    const i64 offset = ni::offset_at(i, j, k, strides_);
                     T* values_ptr = values + offset;
 
                     // If row is strided, copy in buffer...
@@ -113,9 +113,9 @@ namespace noa::cpu::guts::sort {
                     }
 
                     if (ascending)
-                        std::sort(values_ptr, values_ptr + dim_size, noa::less_t{});
+                        std::sort(values_ptr, values_ptr + dim_size, std::less{});
                     else
-                        std::sort(values_ptr, values_ptr + dim_size, noa::greater_t{});
+                        std::sort(values_ptr, values_ptr + dim_size, std::greater{});
 
                     // ... and copy the sorted row back to the original array.
                     if (!dim_is_contiguous) {
@@ -176,7 +176,7 @@ namespace noa::cpu::guts::sort {
 
 namespace noa::cpu {
     // Sorts an array, in-place.
-    template<typename T, typename = std::enable_if_t<nt::is_restricted_scalar_v<T>>>
+    template<typename T>
     void sort(T* array, const Strides4<i64>& strides, const Shape4<i64>& shape, bool ascending, i32 dim) {
         NOA_ASSERT(array && all(shape > 0));
 

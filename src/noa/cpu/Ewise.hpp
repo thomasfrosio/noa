@@ -1,140 +1,140 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/Traits.hpp"
-#include "noa/core/types/Tuple.hpp"
-#include "noa/core/utils/Misc.hpp"
+
+#if defined(NOA_IS_OFFLINE)
+#include <omp.h>
+#include "noa/core/utils/Interfaces.hpp"
 #include "noa/core/types/Shape.hpp"
-#include "noa/core/indexing/Offset.hpp"
 #include "noa/core/indexing/Layout.hpp"
-#include "noa/cpu/Iwise.hpp"
+#include "noa/core/types/Accessor.hpp"
 
-namespace noa::cpu {
-    /// Index-wise operator that wraps an element-wise operator.
-    ///
-    /// \details The inputs and outputs should be wrapped into a Tuple. The actual types inside the tuple are not
-    ///          enforced, and while this was designed for Accessor and AccessorValue, the only type requirement
-    ///          is the definition of the operator: \code operator()(Indexes indices...) -> value_type& \endcode.
-    ///
-    /// \tparam TupleInputAccessors  Tuple of input accessors.
-    /// \tparam TupleOutputAccessors Tuple of output accessors.
-    /// \tparam Op Element-wise operator, such as:
-    ///            \code operator()(InputValueTypes&&..., OutputValueTypes&...) \endcode
-    ///            For instance, a copy operator can be something like:
-    ///            \code operator()(const f64& src, f64& dst) { dst = src; } \endcode
-    template<guts::EwiseAdaptorTags tags, typename TupleInputAccessors, typename TupleOutputAccessors, typename Op>
-    requires nt::are_tuple<TupleInputAccessors, TupleOutputAccessors>::value
-    class EwiseToIwise {
-    private:
-        TupleInputAccessors m_inputs;
-        TupleOutputAccessors m_outputs;
-
-        // We need to store the operator by value here.
-        // 1. keeping a reference will be too error-prone in the asynchronous or multithreaded case.
-        // 2. the GPU implementation stores it by value too.
-        // If the operator cannot be copied, the user can still use the index-wise operator...
-        Op m_op;
-
+namespace noa::cpu::guts {
+    template<bool ZipInput, bool ZipOutput>
+    class Ewise {
     public:
-        /// Move everything into this operator.
-        constexpr EwiseToIwise(
-                TupleInputAccessors&& inputs,
-                TupleOutputAccessors&& outputs,
-                const Op& op
-        ) : m_inputs{std::move(inputs)}, m_outputs{std::move(outputs)}, m_op{op} {}
+        using interface = ng::EwiseInterface<ZipInput, ZipOutput>;
 
-        constexpr EwiseToIwise(
-                TupleInputAccessors&& inputs,
-                TupleOutputAccessors&& outputs,
-                Op&& op
-        ) : m_inputs{std::move(inputs)}, m_outputs{std::move(outputs)}, m_op{std::move(op)} {}
+        // Take the input and output by value, a reference will be passed to each thread.
+        // Take the operator by reference since a copy will be passed to each thread.
+        template<size_t N, typename Index, typename Op, typename Input, typename Output>
+        static void parallel(const Shape<Index, N>& shape, Op& op, Input input, Output output, i64 n_threads) {
+            #pragma omp parallel default(none) num_threads(n_threads) shared(shape, input, output) firstprivate(op)
+            {
+                interface::init(op, omp_get_thread_num());
 
-        /// This does: ewise_operator(inputs(indices...)..., outputs(indices..)...);
-        /// The ewise_operator is free to take these parameters by (const-)reference or by value,
-        /// but usually the outputs are taken by reference.
-        constexpr void operator()(auto... indices) {
-            // FIXME Replace with EwiseOpWrapper::call<ZIP_INPUTS, ZIP_OUTPUTS>(op, m_inputs, m_outputs, indices...)
-            [this, indices...]<typename... I, typename... O>(nt::TypeList<I...>, nt::TypeList<O...>) {
-                if constexpr (tags.zip_inputs && tags.zip_outputs) {
-                    m_op(forward_as_tuple(std::forward<nt::type_type_t<I>>(m_inputs.::std::type_identity_t<I>::value(indices...))...),
-                         forward_as_tuple(std::forward<nt::type_type_t<O>>(m_outputs.::std::type_identity_t<O>::value(indices...))...));
-                } else if constexpr (tags.zip_inputs) {
-                    m_op(forward_as_tuple(std::forward<nt::type_type_t<I>>(m_inputs.::std::type_identity_t<I>::value(indices...))...),
-                         m_outputs.::std::type_identity_t<O>::value(indices...)...);
-                } else if constexpr (tags.zip_outputs) {
-                    m_op(m_inputs.::std::type_identity_t<I>::value(indices...)...,
-                         forward_as_tuple(std::forward<nt::type_type_t<O>>(m_outputs.::std::type_identity_t<O>::value(indices...))...));
+                if constexpr (N == 4) {
+                    #pragma omp for collapse(4)
+                    for (Index i = 0; i < shape[0]; ++i)
+                        for (Index j = 0; j < shape[1]; ++j)
+                            for (Index k = 0; k < shape[2]; ++k)
+                                for (Index l = 0; l < shape[3]; ++l)
+                                    interface::call(op, input, output, i, j, k, l);
+
+                } else if constexpr (N == 1) {
+                    #pragma omp for collapse(1)
+                    for (Index i = 0; i < shape[0]; ++i)
+                        interface::call(op, input, output, i);
+
                 } else {
-                    m_op(m_inputs.::std::type_identity_t<I>::value(indices...)...,
-                         m_outputs.::std::type_identity_t<O>::value(indices...)...);
+                    static_assert(nt::always_false_v<Op>);
                 }
-            }(typename TupleInputAccessors::base_list{},
-              typename TupleOutputAccessors::base_list{});
+
+                interface::final(op, omp_get_thread_num());
+            }
         }
 
-        template<class Index> requires requires (Index i) { m_op.init(i); }
-        constexpr void init(const Index& index) {
-            m_op.init(index);
-        }
+        template<size_t N, typename Index, typename Op, typename Input, typename Output>
+        static constexpr void serial(const Shape<Index, N>& shape, Op op, Input input, Output output) {
+            interface::init(op, 0);
 
-        template<class Index> requires requires (Index i) { m_op.final(i); }
-        constexpr void final(const Index& index) {
-            m_op.final(index);
+            if constexpr (N == 4) {
+                for (Index i = 0; i < shape[0]; ++i)
+                    for (Index j = 0; j < shape[1]; ++j)
+                        for (Index k = 0; k < shape[2]; ++k)
+                            for (Index l = 0; l < shape[3]; ++l)
+                                interface::call(op, input, output, i, j, k, l);
+
+            } else if constexpr (N == 1) {
+                for (Index i = 0; i < shape[0]; ++i)
+                    interface::call(op, input, output, i);
+
+            } else {
+                static_assert(nt::always_false_v<Op>);
+            }
+
+            interface::final(op, 0);
         }
     };
+}
 
-    template<guts::EwiseAdaptorTags tags, typename Inputs, typename Outputs, typename Op>
-    auto ewise_to_iwise(Inputs&& inputs, Outputs&& outputs, Op&& op) {
-        using op_t = EwiseToIwise<tags, Inputs, Outputs, Op>;
-        return op_t(std::forward<Inputs>(inputs), std::forward<Outputs>(outputs), std::forward<Op>(op));
-    }
+namespace noa::cpu {
+    struct EwiseConfig {
+        bool zip_input = false;
+        bool zip_output = false;
+        i64 parallel_threshold = 1'048'576; // 1024x1024
+    };
 
-    /// Launches the element-wise core-function.
-    /// \param input_accessors  Input 4d accessors or accessor-values.
-    /// \param output_accessors Output 4d accessors or accessor-values.
-    /// \param shape            4d shape.
-    /// \param op               Element-wise operator.
-    template<guts::EwiseAdaptorTags tags,
-             size_t PARALLEL_ELEMENTS_THRESHOLD = Iwise::PARALLEL_ELEMENTS_THRESHOLD,
-             typename Inputs, typename Outputs, typename Index, typename Op>
-    requires nt::are_tuple_of_accessor_v<Inputs, Outputs>
+    /// Dispatches an element-wise operator across N-dimensional (parallel) for-loops.
+    /// This is very similar to iwise, but it first tries to simplify the problem by
+    /// checking for contiguity and aliasing of the input and output.
+    /// \param shape        4d shape.
+    /// \param op           Valid element-wise operator. See core interface.
+    /// \param input        Input tuple of 4d accessors and/or accessor-values, or empty.
+    /// \param output       Output tuple of 4d accessors or empty (accessor-values are not allowed).
+    template<EwiseConfig config = EwiseConfig{},
+             typename Input, typename Output, typename Index, typename Op>
+    requires (nt::is_tuple_of_accessor_or_empty_v<Input> and
+              (nt::is_empty_tuple_v<Output> or nt::is_tuple_of_accessor_pure_v<Output>))
     void ewise(
-            Inputs&& input_accessors,
-            Outputs&& output_accessors,
             const Shape4<Index>& shape,
             Op&& op,
+            Input&& input,
+            Output&& output,
             i64 n_threads = 1
     ) {
         // Check contiguity.
+        // TODO We could try collapse contiguous dimensions first.
         const bool are_all_contiguous =
-                ni::are_contiguous(input_accessors) &&
-                ni::are_contiguous(output_accessors);
+                ni::are_contiguous(input, shape) and
+                ni::are_contiguous(output, shape);
+        const i64 elements = shape.template as<i64>().elements();
+        const i64 actual_n_threads = elements <= config.parallel_threshold ? 1 : n_threads;
 
-        // FIXME We could try collapse contiguous dimensions to still have a contiguous loop.
+        using interface = guts::Ewise<config.zip_input, config.zip_output>;
         if (are_all_contiguous) {
-            // In this case, check for aliasing, in the hope to force
-            if (guts::are_accessors_aliased(input_accessors, output_accessors)) {
-                iwise<PARALLEL_ELEMENTS_THRESHOLD>(
-                        Shape1<Index>{shape.elements()},
-                        ewise_to_iwise(guts::to_1d_accessors(std::forward<Inputs>>(input_accessors)),
-                                       guts::to_1d_accessors(std::forward<Outputs>>(output_accessors)),
-                                       std::forward<Op>(op)),
-                        n_threads);
+            auto shape_1d = Shape1<Index>{shape.elements()};
+            if (ng::are_accessors_aliased(input, output)) {
+                constexpr auto accessor_config_1d = ng::AccessorConfig{
+                    .enforce_contiguous=true,
+                    .enforce_restrict=false,
+                    .filter=Vec1<size_t>{3},
+                };
+                auto input_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Input>(input));
+                auto output_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Output>(output));
+                if (actual_n_threads > 1)
+                    interface::parallel(shape_1d, op, std::move(input_1d), std::move(output_1d), actual_n_threads);
+                else
+                    interface::serial(shape_1d, std::forward<Op>(op), std::move(input_1d), std::move(output_1d));
             } else {
-                constexpr bool RESTRICT = true;
-                iwise<PARALLEL_ELEMENTS_THRESHOLD>(
-                        Shape1<Index>{shape.elements()},
-                        ewise_to_iwise(guts::to_1d_accessors<RESTRICT>(std::forward<Inputs>>(input_accessors)),
-                                       guts::to_1d_accessors<RESTRICT>(std::forward<Outputs>>(output_accessors)),
-                                       std::forward<Op>(op)),
-                        n_threads);
+                constexpr auto accessor_config_1d = ng::AccessorConfig{
+                    .enforce_contiguous=true,
+                    .enforce_restrict=true,
+                    .filter=Vec1<size_t>{3},
+                };
+                auto input_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Input>(input));
+                auto output_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Output>(output));
+                if (actual_n_threads > 1)
+                    interface::parallel(shape_1d, op, std::move(input_1d), std::move(output_1d), actual_n_threads);
+                else
+                    interface::serial(shape_1d, std::forward<Op>(op), std::move(input_1d), std::move(output_1d));
             }
         } else {
-            iwise(shape,
-                  ewise_to_iwise(std::forward<Inputs>>(input_accessors),
-                                 std::forward<Outputs>>(output_accessors),
-                                 std::forward<Op>(op)),
-                  n_threads);
+            if (actual_n_threads > 1)
+                interface::parallel(shape, op, std::forward<Input>(input), std::forward<Output>(output), actual_n_threads);
+            else
+                interface::serial(shape, std::forward<Op>(op), std::forward<Input>(input), std::forward<Output>(output));
         }
     }
 }
+#endif

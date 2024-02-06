@@ -1,10 +1,11 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include "noa/core/Exception.hpp"
 #include "noa/core/Types.hpp"
 
-#if defined(NOA_IS_OFFLINE)
 namespace noa::cpu {
     template<typename T>
     struct AllocatorHeapDeleter {
@@ -31,7 +32,7 @@ namespace noa::cpu {
     template<typename Value>
     class AllocatorHeap {
     public:
-        static_assert(!std::is_pointer_v<Value> && !std::is_reference_v<Value> && !std::is_const_v<Value>);
+        static_assert(!std::is_pointer_v<Value> and !std::is_reference_v<Value> and !std::is_const_v<Value>);
         static constexpr size_t ALIGNMENT =
                 nt::is_real_or_complex_v<Value> ? 128 :
                 nt::is_int_v<Value> ? 64 : alignof(Value);
@@ -55,7 +56,7 @@ namespace noa::cpu {
             } else {
                 out = new(std::nothrow) value_type[static_cast<size_t>(elements)];
             }
-            NOA_CHECK(out, "Failed to allocate {} {} on the heap", elements, to_human_readable<value_type>());
+            check(out, "Failed to allocate {} {} on the heap", elements, ns::to_human_readable<value_type>());
             return {out, alloc_deleter_type{}};
         }
 
@@ -68,7 +69,7 @@ namespace noa::cpu {
             const size_t offset = ALIGNMENT - 1 + sizeof(void*);
 
             void* calloc_ptr = std::calloc(static_cast<size_t>(elements) * sizeof(value_type) + offset, 1);
-            NOA_CHECK(calloc_ptr, "Failed to allocate {} {} on the heap", elements, to_human_readable<value_type>());
+            check(calloc_ptr, "Failed to allocate {} {} on the heap", elements, ns::to_human_readable<value_type>());
 
             // Align to the requested value, leaving room for the original calloc value.
             void* aligned_ptr = reinterpret_cast<void*>(((uintptr_t)calloc_ptr + offset) & ~(ALIGNMENT - 1));

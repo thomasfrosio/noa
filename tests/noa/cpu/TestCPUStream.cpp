@@ -1,9 +1,19 @@
 #include <noa/cpu/Stream.hpp>
 #include <catch2/catch.hpp>
 
-using namespace ::noa;
+namespace {
+    struct Tracked {
+        std::array<int, 2> count{};
+        Tracked() = default;
+        Tracked(const Tracked& t) : count(t.count) { count[0] += 1; }
+        Tracked(Tracked&& t) noexcept: count(t.count) { count[1] += 1; }
+    };
+}
 
 TEST_CASE("cpu::Stream", "[noa][cpu]") {
+    using noa::cpu::Stream;
+    using noa::cpu::StreamMode;
+
     int flag = 0;
     auto task1 = []() { return 1; };
     auto task2 = [&flag](int v) {
@@ -21,7 +31,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
     };
 
     SECTION("default stream") {
-        cpu::Stream stream(cpu::StreamMode::DEFAULT, 1);
+        Stream stream(StreamMode::DEFAULT, 1);
         stream.enqueue(task1);
         stream.enqueue(task2, 3);
         stream.synchronize();
@@ -38,7 +48,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
 
     SECTION("async stream") {
         {
-            cpu::Stream stream(cpu::StreamMode::ASYNC, 1);
+            Stream stream(StreamMode::ASYNC, 1);
             stream.enqueue(task1);
             stream.enqueue(task2, 3);
             stream.synchronize();
@@ -68,7 +78,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
         };
         for (int i = 0; i < 5; ++i) {
             {
-                cpu::Stream async_stream(cpu::StreamMode::ASYNC, 1);
+                Stream async_stream(StreamMode::ASYNC, 1);
                 for (int j = 0; j < 50; ++j)
                     async_stream.enqueue(task6);
             }
@@ -78,7 +88,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
 
         count = 0;
         for (int i = 0; i < 5; ++i) {
-            cpu::Stream async_stream(cpu::StreamMode::ASYNC, 1);
+            Stream async_stream(StreamMode::ASYNC, 1);
             for (int j = 0; j < 100; ++j)
                 async_stream.enqueue(task6);
             async_stream.synchronize();
@@ -89,11 +99,41 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
 
     SECTION("nested async stream") {
         {
-            cpu::Stream async_stream(cpu::StreamMode::ASYNC, 1);
+            Stream async_stream(StreamMode::ASYNC, 1);
             async_stream.enqueue([=]() mutable {
                 async_stream.enqueue([](){});
             });
-            REQUIRE_THROWS_AS(async_stream.synchronize(), Exception);
+            REQUIRE_THROWS_AS(async_stream.synchronize(), noa::Exception);
         }
+    }
+
+    SECTION("forwarding arguments") {
+        Tracked t0{};
+        Tracked t1{};
+        Tracked t2{};
+        Stream async_stream(StreamMode::ASYNC, 1);
+        async_stream.enqueue([&t1](auto& tracked) {
+            t1.count = tracked.count;
+        }, t0);
+        async_stream.synchronize();
+        REQUIRE((t1.count[0] == 1 and t1.count[1] == 1));
+
+        async_stream.enqueue([&t1](auto tracked) {
+            t1.count = tracked.count;
+        }, t0);
+        async_stream.synchronize();
+        REQUIRE((t1.count[0] == 2 and t1.count[1] == 1));
+
+        async_stream.enqueue([&t1](auto&& tracked) {
+            t1.count = tracked.count;
+        }, std::move(t0));
+        async_stream.synchronize();
+        REQUIRE((t1.count[0] == 0 and t1.count[1] == 2));
+
+        async_stream.enqueue([&t1](auto tracked) {
+            t1.count = tracked.count;
+        }, std::move(t2));
+        async_stream.synchronize();
+        REQUIRE((t1.count[0] == 0 and t1.count[1] == 3));
     }
 }

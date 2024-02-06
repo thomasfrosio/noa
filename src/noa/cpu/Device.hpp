@@ -1,7 +1,10 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/Types.hpp"
+
+#if defined(NOA_IS_OFFLINE)
+#include <cstddef>
+#include <string>
 
 namespace noa::cpu {
     struct DeviceMemory { size_t free; size_t total; }; // bytes
@@ -29,3 +32,4 @@ namespace noa::cpu {
         static void reset();
     };
 }
+#endif
