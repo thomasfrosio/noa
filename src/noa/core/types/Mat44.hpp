@@ -1,7 +1,8 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/Math.hpp"
+#include "noa/core/math/Comparison.hpp"
+#include "noa/core/math/Generic.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Vec.hpp"
 

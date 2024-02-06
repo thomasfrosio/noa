@@ -1,14 +1,14 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/Math.hpp"
 #include "noa/core/Traits.hpp"
-#include "noa/core/string/Format.hpp"
+#include "noa/core/math/Generic.hpp"
 #include "noa/core/types/Half.hpp"
 
 #if defined(NOA_IS_OFFLINE)
 #include <complex>
 #include <cfloat>
+#include "noa/core/string/Format.hpp"
 #else
 #include <cuda/std/complex>
 #include <cuda/std/cfloat>
@@ -314,8 +314,8 @@ namespace noa::inline types {
             return {static_cast<T>(real), static_cast<T>(imag)};
         }
 
+#if defined(NOA_IS_OFFLINE)
     public:
-        #if defined(NOA_IS_OFFLINE)
         [[nodiscard]] static std::string name() {
             if constexpr (std::is_same_v<value_type, Half>)
                 return "c16";
@@ -324,7 +324,7 @@ namespace noa::inline types {
             else
                 return "c64";
         }
-        #endif
+#endif
     };
 
     using c16 = Complex<f16>;

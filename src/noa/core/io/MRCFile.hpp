@@ -1,14 +1,14 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
+
+#if defined(NOA_IS_OFFLINE)
+#include <fstream>
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Shape.hpp"
 #include "noa/core/io/IO.hpp"
 #include "noa/core/io/Stats.hpp"
 #include "noa/core/io/ImageFile.hpp"
-
-#if defined(NOA_IS_OFFLINE)
-#include <fstream>
 
 namespace noa::io {
     // File supporting the MRC format.
@@ -36,17 +36,17 @@ namespace noa::io {
     class MRCFile : public guts::ImageFile {
     public:
         MRCFile() = default;
-        MRCFile(const Path& path, open_mode_t open_mode) { open_(path, open_mode); }
+        MRCFile(const Path& path, OpenMode open_mode) { open_(path, open_mode); }
         ~MRCFile() override { close_(); }
 
     public:
         void reset() override {
             close();
-            m_open_mode = open_mode_t{};
+            m_open_mode = OpenMode{};
             m_header = HeaderData{};
         };
 
-        void open(const Path& path, open_mode_t open_mode) override { open_(path, open_mode); }
+        void open(const Path& path, OpenMode open_mode) override { open_(path, open_mode); }
         void close() override { close_(); }
 
     public:
@@ -140,7 +140,7 @@ namespace noa::io {
         [[nodiscard]] explicit operator bool() const noexcept { return is_open(); }
 
     private:
-        void open_(const Path& filename, open_mode_t mode,
+        void open_(const Path& filename, OpenMode mode,
                    const std::source_location& location = std::source_location::current());
 
         // Reads and checks the header of an existing file.
@@ -186,7 +186,7 @@ namespace noa::io {
     private:
         std::fstream m_fstream{};
         Path m_filename{};
-        open_mode_t m_open_mode{};
+        OpenMode m_open_mode{};
 
         struct HeaderData {
             // Buffer containing the 1024 bytes of the header.

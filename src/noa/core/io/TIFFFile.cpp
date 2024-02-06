@@ -49,28 +49,26 @@ namespace {
 }
 
 namespace noa::io {
-    void TIFFFile::open_(const Path& filename, open_mode_t open_mode) {
+    void TIFFFile::open_(const Path& filename, OpenMode open_mode) {
         close();
 
-        check(io::is_valid_open_mode(open_mode), "File: {}. Invalid open mode", filename);
-        const bool write = open_mode & io::WRITE;
-        m_is_read = open_mode & io::READ;
+        const bool write = open_mode.write;
+        m_is_read = open_mode.read;
         if (write) {
-            check(!m_is_read,
-                  "File: {}. Opening a TIFF file in READ|WRITE mode is not supported. "
-                  "Should be READ or WRITE", filename);
-        } else if (!m_is_read) {
-            panic("File: {}. Open mode is not supported. Should be READ or WRITE", filename);
+            check(not m_is_read,
+                  "File: {}. Opening a TIFF file in read-write mode is not supported. Should be read or write",
+                  filename);
+        } else if (not m_is_read) {
+            panic("File: {}. Open mode is not supported. Should be read or write", filename);
         }
 
         try {
-            if (write && is_file(filename))
+            if (write and is_file(filename))
                 backup(filename, true);
             else
                 mkdir(filename.parent_path());
         } catch (...) {
-            panic("File: {}. Mode: {}. Could not open the file because of an OS failure",
-                  filename, OpenModeStream{open_mode});
+            panic("File: {}. {}. Could not open the file because of an OS failure", filename, open_mode);
         }
 
         for (u32 it{0}; it < 5; ++it) {
@@ -82,8 +80,7 @@ namespace noa::io {
                     try {
                         read_header_();
                     } catch (...) {
-                        panic("File: {}. Mode:{}. Failed while reading the header",
-                              filename, OpenModeStream{open_mode});
+                        panic("File: {}. {}. Failed while reading the header", filename, open_mode);
                     }
                 }
                 m_filename = filename;
@@ -91,12 +88,9 @@ namespace noa::io {
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-        if (m_is_read && !is_file(filename)) {
-            panic("File: {}. Mode: {}. Failed to open the file. The file does not exist",
-                  filename, OpenModeStream{open_mode});
-        }
-        panic("File: {}. Mode: {}. Failed to open the file. {}",
-              filename, OpenModeStream{open_mode}, s_error_buffer);
+        if (m_is_read and not is_file(filename))
+            panic("File: {}. {}. Failed to open the file. The file does not exist", filename, open_mode);
+        panic("File: {}. {}. Failed to open the file. {}", filename, open_mode, s_error_buffer);
     }
 
     void TIFFFile::close_() {
@@ -215,7 +209,7 @@ namespace noa::io {
             return fmt::format("Shape: {}; Pixel size: {::.3f}", shape(), pixel_size());
 
         return fmt::format("Format: TIFF File\n"
-                           "Shape (batches, depth, height, width): {}\n"
+                           "Shape (batch, depth, height, width): {}\n"
                            "Pixel size (depth, height, width): {::.3f}\n"
                            "Data type: {}",
                            shape(),

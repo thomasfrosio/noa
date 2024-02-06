@@ -4,6 +4,7 @@
 #include "noa/core/Traits.hpp"
 #include "noa/core/Exception.hpp"
 #include "noa/core/string/Format.hpp"
+#include "noa/core/math/Comparison.hpp"
 
 // TODO C++20 std::span could replace this
 
@@ -13,10 +14,10 @@ namespace noa::inline types {
     template<typename Value, int64_t SIZE = -1, typename Index = int64_t>
     class Span {
     public:
-        static_assert(!std::is_reference_v<Value> &&
-                      !std::is_pointer_v<Value> &&
-                      !std::extent_v<Value> &&
-                      std::is_integral_v<Index> &&
+        static_assert(not std::is_reference_v<Value> and
+                      not std::is_pointer_v<Value> and
+                      not std::extent_v<Value> and
+                      std::is_integral_v<Index> and
                       SIZE >= -1);
 
         using value_type = Value;
@@ -41,15 +42,17 @@ namespace noa::inline types {
     public: // Empty
         NOA_HD constexpr Span() = default;
 
-        template<typename Int, typename std::enable_if_t<!IS_STATIC && std::is_integral_v<Int>, bool> = true>
+        template<typename Int> requires (not IS_STATIC and std::is_integral_v<Int>)
         NOA_HD constexpr Span(pointer data, Int size) noexcept
                 : m_data(data), m_ssize(static_cast<ssize_type>(size)) {}
 
-        template<typename Void = void, typename std::enable_if_t<IS_STATIC && std::is_void_v<Void>, bool> = true>
-        NOA_HD constexpr explicit Span(pointer data) noexcept : m_data(data) {}
+        NOA_HD constexpr explicit Span(pointer data) noexcept requires IS_STATIC : m_data(data) {}
+        NOA_HD constexpr explicit Span(
+                value_type (& data)[static_cast<size_t>(max(int64_t{1}, SIZE))]
+        ) noexcept requires IS_STATIC: m_data(data) {}
 
         // Creates a const accessor from an existing non-const accessor.
-        template<typename U, typename = std::enable_if_t<nt::is_mutable_value_type_v<U, value_type>>>
+        template<typename U> requires nt::is_mutable_value_type_v<U, value_type>
         NOA_HD constexpr /* implicit */ Span(const Span<U, SIZE, Index>& span)
                 : m_data(span.data()) {
             if constexpr (!IS_STATIC)
@@ -72,11 +75,11 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr const_iterator cend() const noexcept { return m_data + ssize(); }
 
         // Structure binding support.
-        template<int I, typename Void = void, typename = std::enable_if_t<std::is_void_v<Void> && IS_STATIC>>
+        template<int I> requires IS_STATIC
         [[nodiscard]] NOA_HD constexpr const value_type& get() const noexcept { return m_data[I]; }
 
     public:
-        [[nodiscard]] NOA_HD constexpr bool is_empty() const noexcept { return !m_data || ssize() <= 0; }
+        [[nodiscard]] NOA_HD constexpr bool is_empty() const noexcept { return not m_data or ssize() <= 0; }
         [[nodiscard]] NOA_HD constexpr auto as_const() const noexcept {
             return Span<const_value_type, SIZE, Index>(*this);
         }
@@ -92,33 +95,33 @@ namespace noa::inline types {
 
     public: // Elements access
         [[nodiscard]] NOA_HD constexpr reference front() const noexcept {
-            NOA_ASSERT(!is_empty());
+            NOA_ASSERT(not is_empty());
             return m_data[0];
         }
 
         [[nodiscard]] NOA_HD constexpr reference back() const noexcept {
-            NOA_ASSERT(!is_empty());
+            NOA_ASSERT(not is_empty());
             return m_data[ssize() - 1];
         }
 
-        template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
-        [[nodiscard]] NOA_HD constexpr reference operator[](Int index) const noexcept {
-            NOA_ASSERT(!is_empty() && index >= 0 && index < ssize());
+        [[nodiscard]] NOA_HD constexpr reference operator[](std::integral auto index) const noexcept {
+            NOA_ASSERT(not is_empty() and index >= 0 and index < ssize());
             return m_data[index];
         }
 
 #if defined(NOA_IS_OFFLINE)
-        // Guaranteed bound-check. Throws if out-of-bound.
-        template<typename Int, typename = std::enable_if_t<std::is_integral_v<Int>>>
-        [[nodiscard]] constexpr reference at(Int index) const {
-            check(!is_empty() && index >= 0 && index < ssize(),
+        /// Guaranteed bound-check. Throws if out-of-bound.
+        [[nodiscard]] constexpr reference at(std::integral auto index) const {
+            check(not is_empty() and index >= 0 and index < ssize(),
                   "Out-of-bound access. Size={}, index={}", ssize(), index);
             return m_data[index];
         }
 
         [[nodiscard]] static std::string name() {
-            return fmt::format("Span<{},{},{}>",
-                               ns::to_human_readable<value_type>(), SIZE, ns::to_human_readable<index_type>());
+            return fmt::format(
+                    "Span<{},{},{}>",
+                    ns::to_human_readable<value_type>(), SIZE,
+                    ns::to_human_readable<index_type>());
         }
 #endif
 

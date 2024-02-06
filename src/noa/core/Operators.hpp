@@ -2,10 +2,9 @@
 
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
-#include "noa/core/Math.hpp"
-#include "noa/core/types/Complex.hpp"
-#include "noa/core/Types.hpp"
+#include "noa/core/math/Comparison.hpp"
 #include "noa/core/math/Generic.hpp"
+#include "noa/core/types/Complex.hpp"
 
 namespace noa {
     #define CAST_(x) static_cast<decltype(dst)>(x)

@@ -369,12 +369,10 @@ namespace test {
                 return {real_passed && imag_passed, value_type{real_abs_diff, imag_abs_diff}};
 
             } else if constexpr (std::is_integral_v<value_type>) {
-                value_type diff = input - expected;
+                value_type diff = noa::abs(input - expected);
                 const bool is_passed = diff <= epsilon;
-                if constexpr (noa::traits::is_uint_v<value_type>)
-                    return {is_passed, diff};
-                else
-                    return {is_passed, noa::abs(diff)};
+                return {is_passed, diff};
+
             } else {
                 value_type diff = noa::abs(input - expected);
                 return {diff <= epsilon, diff};
@@ -392,12 +390,9 @@ namespace test {
                 return {real_passed && imag_passed, value_type{real_abs_diff, imag_abs_diff}};
 
             } else if constexpr (std::is_integral_v<value_type>) {
-                value_type diff = input - expected;
+                value_type diff = noa::abs(input - expected);
                 const bool is_passed = diff <= epsilon;
-                if constexpr (noa::traits::is_uint_v<value_type>)
-                    return {is_passed, diff};
-                else
-                    return {is_passed, noa::abs(diff)};
+                return {is_passed, diff};
 
             } else {
                 // Relative epsilons comparisons are usually meaningless for close-to-zero numbers,
@@ -424,12 +419,9 @@ namespace test {
 
 
             } else if constexpr (std::is_integral_v<value_type>) {
-                value_type diff = input - expected;
+                value_type diff = noa::abs(input - expected);
                 const bool is_passed = diff <= epsilon;
-                if constexpr (noa::traits::is_uint_v<value_type>)
-                    return {is_passed, diff};
-                else
-                    return {is_passed, noa::abs(diff)};
+                return {is_passed, diff};
 
             } else {
                 auto margin = epsilon * noa::max(noa::abs(input), noa::abs(expected));

@@ -4,7 +4,7 @@
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Half.hpp"
 #include "noa/core/types/Complex.hpp"
-#include "noa/core/Math.hpp"
+#include "noa/core/math/Comparison.hpp"
 
 namespace noa {
     /// Safely converts a value of a given data type to another data type. If out-of-range conditions happen,

@@ -112,6 +112,9 @@ namespace noa {
     template<typename UInt> requires std::is_unsigned_v<UInt>
     [[nodiscard]] NOA_FHD constexpr UInt next_multiple_of(UInt value, UInt base) { return (value + base - 1) / base * base; }
 
+    template<typename Int> requires std::is_integral_v<Int>
+    [[nodiscard]] NOA_FHD constexpr bool is_multiple_of(Int value, Int base) { return (value % base) == 0; }
+
     template<class UInt> requires std::is_unsigned_v<UInt>
     [[nodiscard]] NOA_FHD constexpr bool is_power_of_2(UInt value) { return (value & (value - 1)) == 0; }
 

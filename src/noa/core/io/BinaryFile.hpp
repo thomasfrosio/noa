@@ -1,14 +1,14 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/Traits.hpp"
-#include "noa/core/Exception.hpp"
-#include "noa/core/io/OS.hpp"
-#include "noa/core/string/Format.hpp"
 
 #if defined(NOA_IS_OFFLINE)
 #include <filesystem>
 #include <fstream>
+#include "noa/core/Traits.hpp"
+#include "noa/core/Exception.hpp"
+#include "noa/core/io/OS.hpp"
+#include "noa/core/string/Format.hpp"
 
 namespace noa::io {
     /// Binary file. This is also meant to be used as a temporary file.
@@ -17,52 +17,59 @@ namespace noa::io {
     ///     - the file can be automatically deleted after closing.
     class BinaryFile {
     public:
+        /// Generate an unused filename.
+        static Path generate_filename() {
+            Path out(noa::io::temporary_directory() / "");
+            while (true) {
+                const int tag = 10000 + std::rand() / (99999 / (99999 - 10000 + 1) + 1); // 5 random digits
+                out.replace_filename(fmt::format("tmp_{}.bin", tag));
+                if (not noa::io::is_file(out))
+                    break;
+            }
+            return out;
+        }
+
+    public:
         /// Creates an empty instance. Use open() to open a file.
         BinaryFile() = default;
 
-        /// Stores the path. Use open() to open the file.
-        explicit BinaryFile(Path path) : m_path(std::move(path)) {}
-
-        /// Generates a temporary filename and opens the file.
-        explicit BinaryFile(open_mode_t open_mode, bool close_delete = false)
-                : m_path(generate_filename_()), m_delete(close_delete) {
-            open_(open_mode);
-        }
-
         /// Stores the path and opens the file. \see open() for more details.
-        BinaryFile(Path path, open_mode_t open_mode, bool close_delete = false)
+        BinaryFile(Path path, OpenMode open_mode, bool close_delete = false)
                 : m_path(std::move(path)), m_delete(close_delete) {
             open_(open_mode);
         }
 
-        /// (Re)Opens the file.
+        /// Generates a temporary filename and opens the file.
+        explicit BinaryFile(OpenMode open_mode, bool close_delete = false)
+                : m_path(generate_filename()), m_delete(close_delete) {
+            open_(open_mode);
+        }
+
+        /// Close the currently opened file (if any) and opens a new file.
         /// \param path         Filename of the file to open.
-        /// \param open_mode    io::OpenMode bit mask. Should be one or a combination of the following:
-        ///                     \c READ:                File should exists.
-        ///                     \c READ|WRITE:          File should exists.     Backup copy.
-        ///                     \c WRITE, WRITE|TRUNC:  Overwrite the file.     Backup move.
-        ///                     \c READ|WRITE|TRUNC:    Overwrite the file.     Backup move.
+        /// \param open_mode    Should be one or a combination of the following ("binary" is always considered on):
+        ///                     \c read:                    File should exists.
+        ///                     \c read-write:              File should exists.     Backup copy.
+        ///                     \c write, write-truncate:   Overwrite the file.     Backup move.
+        ///                     \c read-write-truncate:     Overwrite the file.     Backup move.
         /// \param close_delete Whether the file should be deleted after closing.
         ///
         /// \throws Exception   If any of the following cases:
-        ///         - If the file does not exist and \p open_mode is \c io::READ or \c io::READ|io::WRITE.
+        ///         - If the file does not exist and \p open_mode is set to read or read-write.
         ///         - If the permissions do not match the \p open_mode.
         ///         - If failed to close the file before starting (if any).
         ///         - If an underlying OS error was raised.
-        ///
-        /// \note   Internally, the \c io::BINARY flag is always considered on.
-        void open(Path path, open_mode_t open_mode, bool close_delete = false) {
+        void open(Path path, OpenMode open_mode, bool close_delete = false) {
+            close();
             m_path = std::move(path);
             m_delete = close_delete;
             open_(open_mode);
         }
 
-        /// (Re)Opens the file.
-        /// \note If the path is not set, a temporary filename is created.
-        ///       In this case, \p open_mode should have the io::WRITE flag turned on.
-        void open(open_mode_t open_mode, bool close_delete = false) {
-            if (m_path.empty())
-                m_path = generate_filename_();
+        /// Close the currently opened file (if any) and opens a new file with a automatically generated path/name.
+        void open(OpenMode open_mode, bool close_delete = false) {
+            close();
+            m_path = generate_filename();
             m_delete = close_delete;
             open_(open_mode);
         }
@@ -121,19 +128,7 @@ namespace noa::io {
         }
 
     private:
-        // Generate an unused filename.
-        static Path generate_filename_() {
-            Path out(noa::io::temporary_directory() / "");
-            while (true) {
-                const int tag = 10000 + std::rand() / (99999 / (99999 - 10000 + 1) + 1); // 5 random digits
-                out.replace_filename(fmt::format("tmp_{}.bin", tag));
-                if (!noa::io::is_file(out))
-                    break;
-            }
-            return out;
-        }
-
-        void open_(open_mode_t open_mode, const std::source_location& location = std::source_location::current());
+        void open_(OpenMode open_mode, const std::source_location& location = std::source_location::current());
 
     private:
         std::fstream m_fstream{};

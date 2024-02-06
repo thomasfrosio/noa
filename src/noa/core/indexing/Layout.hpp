@@ -25,17 +25,17 @@ namespace noa::indexing {
         if (noa::any(shape == 0)) // guard against empty array
             return false;
 
-        if constexpr (ORDER == 'c' || ORDER == 'C') {
-            return (shape[0] == 1 || strides[0] == shape[3] * shape[2] * shape[1]) &&
-                   (shape[1] == 1 || strides[1] == shape[3] * shape[2]) &&
-                   (shape[2] == 1 || strides[2] == shape[3]) &&
-                   (shape[3] == 1 || strides[3] == 1);
+        if constexpr (ORDER == 'c' or ORDER == 'C') {
+            return (shape[0] == 1 or strides[0] == shape[3] * shape[2] * shape[1]) and
+                   (shape[1] == 1 or strides[1] == shape[3] * shape[2]) and
+                   (shape[2] == 1 or strides[2] == shape[3]) and
+                   (shape[3] == 1 or strides[3] == 1);
 
-        } else if constexpr (ORDER == 'f' || ORDER == 'F') {
-            return (shape[0] == 1 || strides[0] == shape[3] * shape[2] * shape[1]) &&
-                   (shape[1] == 1 || strides[1] == shape[3] * shape[2]) &&
-                   (shape[2] == 1 || strides[2] == 1) &&
-                   (shape[3] == 1 || strides[3] == shape[2]);
+        } else if constexpr (ORDER == 'f' or ORDER == 'F') {
+            return (shape[0] == 1 or strides[0] == shape[3] * shape[2] * shape[1]) and
+                   (shape[1] == 1 or strides[1] == shape[3] * shape[2]) and
+                   (shape[2] == 1 or strides[2] == 1) and
+                   (shape[3] == 1 or strides[3] == shape[2]);
         } else {
             static_assert(nt::always_false_v<T>);
         }
@@ -75,7 +75,7 @@ namespace noa::indexing {
 
         strides *= Strides4<T>::from_vec(shape != 1); // mark the stride of empty dimensions unusable
 
-        if constexpr (ORDER == 'c' || ORDER == 'C') {
+        if constexpr (ORDER == 'c' or ORDER == 'C') {
             // If dimension is broadcast or empty, we cannot use the stride
             // and need to use the corrected stride one dimension up.
             const auto corrected_stride_2 = strides[3] ? shape[3] * strides[3] : 1;
@@ -86,24 +86,41 @@ namespace noa::indexing {
             // Broadcast dimensions break the contiguity because the corrected_stride cannot be 0.
             // This is true for empty dimensions, but empty dimensions are contiguous by definition
             // and their strides do not matter, i.e. we skip the comparison.
-            return Vec4<bool>{shape[0] == 1 || strides[0] == corrected_stride_0,
-                              shape[1] == 1 || strides[1] == corrected_stride_1,
-                              shape[2] == 1 || strides[2] == corrected_stride_2,
-                              shape[3] == 1 || strides[3] == 1};
+            return Vec4<bool>{shape[0] == 1 or strides[0] == corrected_stride_0,
+                              shape[1] == 1 or strides[1] == corrected_stride_1,
+                              shape[2] == 1 or strides[2] == corrected_stride_2,
+                              shape[3] == 1 or strides[3] == 1};
 
-        } else if constexpr (ORDER == 'f' || ORDER == 'F') {
+        } else if constexpr (ORDER == 'f' or ORDER == 'F') {
             const auto corrected_stride_3 = strides[2] ? shape[2] * strides[2] : 1;
             const auto corrected_stride_1 = strides[3] ? shape[3] * strides[3] : corrected_stride_3;
             const auto corrected_stride_0 = strides[1] ? shape[1] * strides[1] : corrected_stride_1;
 
-            return Vec4<bool>{shape[0] == 1 || strides[0] == corrected_stride_0,
-                              shape[1] == 1 || strides[1] == corrected_stride_1,
-                              shape[2] == 1 || strides[2] == 1,
-                              shape[3] == 1 || strides[3] == corrected_stride_3};
+            return Vec4<bool>{shape[0] == 1 or strides[0] == corrected_stride_0,
+                              shape[1] == 1 or strides[1] == corrected_stride_1,
+                              shape[2] == 1 or strides[2] == 1,
+                              shape[3] == 1 or strides[3] == corrected_stride_3};
 
         } else {
             static_assert(nt::always_false_v<T>);
         }
+    }
+
+    /// Checks whether all of the 4d accessors are contiguous.
+    template<char ORDER = 'C', typename Accessors, typename Integer>
+    requires nt::is_tuple_of_accessor_or_empty_v<Accessors>
+    auto is_contiguous(
+            const Accessors& accessors,
+            const Shape4<Integer>& shape
+    ) -> Vec4<bool> {
+        auto out = Vec4<bool>::from_value(true);
+        accessors.for_each([&shape, &out]<typename T>(const T& accessor) {
+            if constexpr (not nt::is_accessor_value_v<T>) {
+                static_assert(T::SIZE == 4);
+                out = out and is_contiguous<ORDER>(accessor.strides(), shape);
+            }
+        });
+        return out;
     }
 
     template<typename T>
@@ -111,7 +128,7 @@ namespace noa::indexing {
         return shape.is_vector(can_be_batched);
     }
 
-    template<typename T, size_t N, typename = std::enable_if_t<N <= 3>>
+    template<typename T, size_t N> requires (N <= 3)
     [[nodiscard]] NOA_FHD constexpr bool is_vector(const Shape<T, N>& shape) {
         return shape.is_vector();
     }
@@ -158,7 +175,7 @@ namespace noa::indexing {
     /// Coupled with indexing::reorder(), this effectively pushes all zeros and ones in \p shape to the left.
     /// The difference with indexing::order() is that this function does not change the order of the non-empty
     /// dimensions relative to each other. Note that the order of the empty dimensions is preserved.
-    template<typename T> requires (nt::is_intX_v<T> or nt::is_shape_v<T> or nt::is_strides_v<T>)
+    template<typename T> requires (nt::is_vec_int_v<T> or nt::is_shape_or_strides_v<T>)
     [[nodiscard]] NOA_HD constexpr auto squeeze_left(const T& shape) {
         using value_t = T::value_type;
         constexpr auto SIZE = static_cast<value_t>(T::SIZE);
@@ -175,7 +192,7 @@ namespace noa::indexing {
         return order;
     }
 
-    template<typename T> requires (nt::is_intX_v<T> or nt::is_shape_v<T> or nt::is_strides_v<T>)
+    template<typename T> requires (nt::is_vec_int_v<T> or nt::is_shape_or_strides_v<T>)
     [[nodiscard]] NOA_HD constexpr auto squeeze_right(const T& shape) {
         using value_t = T::value_type;
         constexpr auto SIZE = static_cast<value_t>(T::SIZE);
@@ -193,11 +210,8 @@ namespace noa::indexing {
     }
 
     /// Reorder (i.e. sort) \p vector according to the indexes in \p order.
-    template<typename T, typename Int, size_t N,
-             nt::enable_if_bool_t<nt::is_int_v<Int> &&
-                                  (nt::is_vecN_v<T, N> ||
-                                   nt::is_shapeN_v<T, N> ||
-                                   nt::is_stridesN_v<T, N>)> = true>
+    template<typename T, typename Int, size_t N>
+    requires (nt::is_int_v<Int> and (nt::is_vec_of_size_v<T, N> or nt::is_shape_or_strides_of_size_v<T, N>))
     [[nodiscard]] NOA_FHD constexpr auto reorder(T vector, const Vec<Int, N>& order) {
         return vector.reorder(order);
     }
@@ -206,8 +220,8 @@ namespace noa::indexing {
     /// The columns are reordered, and then the rows. This can be useful to swap the axes of a matrix.
     /// \param[in] matrix   Square and (truncated) affine matrix to reorder.
     /// \param[in] order    Order of indexes. Should have the same number of elements as the matrices are rows.
-    template<typename T, typename Int, size_t N,
-             nt::enable_if_bool_t<nt::is_matXX_v<T> && T::ROWS == N> = true>
+    template<typename T, typename Int, size_t N>
+    requires (nt::is_mat_v<T> and T::ROWS == N)
     [[nodiscard]] NOA_FHD constexpr T reorder(const T& matrix, const Vec<Int, N>& order) {
         T reordered_matrix;
         for (size_t row = 0; row < N; ++row) {
@@ -222,11 +236,8 @@ namespace noa::indexing {
 
     /// (Circular) shifts \p v by a given amount.
     /// If \p shift is positive, shifts to the right, otherwise, shifts to the left.
-    template<typename T, typename Int, size_t N,
-            nt::enable_if_bool_t<nt::is_int_v<Int> &&
-                                 (nt::is_vecN_v<T, N> ||
-                                  nt::is_shapeN_v<T, N> ||
-                                  nt::is_stridesN_v<T, N>)> = true>
+    template<typename T, typename Int, size_t N>
+    requires (nt::is_int_v<Int> and (nt::is_vec_of_size_v<T, N> or nt::is_shape_or_strides_of_size_v<T, N>))
     [[nodiscard]] NOA_FHD constexpr auto circular_shift(T vector, const Vec<Int, N>& order) {
         return vector.circular_shift(order);
     }
@@ -254,7 +265,7 @@ namespace noa::indexing {
                     second = i;
             }
         }
-        return second == -1 || first == -1 || strides[second] <= strides[first];
+        return second == -1 or first == -1 or strides[second] <= strides[first];
     }
 
     /// Whether \p strides describes a row-major layout.
@@ -280,7 +291,7 @@ namespace noa::indexing {
                     second = i;
             }
         }
-        return second == -1 || first == -1 || strides[second] >= strides[first];
+        return second == -1 or first == -1 or strides[second] >= strides[first];
     }
 
     /// Sets the input stride so that the input can be iterated as if it as the same size as the output.
@@ -290,7 +301,7 @@ namespace noa::indexing {
     /// \return Whether the input and output size are compatible.
     template<typename Int>
     [[nodiscard]] NOA_IH constexpr bool broadcast(Int input_size, Int& input_stride, Int output_size) noexcept {
-        if (input_size == 1 && output_size != 1)
+        if (input_size == 1 and output_size != 1)
             input_stride = 0; // broadcast this dimension
         else if (input_size != output_size)
             return false; // dimension sizes don't match
@@ -309,7 +320,7 @@ namespace noa::indexing {
             const Shape<T, N>& output_shape
     ) noexcept {
         for (size_t i = 0; i < N; ++i) {
-            if (input_shape[i] == 1 && output_shape[i] != 1)
+            if (input_shape[i] == 1 and output_shape[i] != 1)
                 input_strides[i] = 0; // broadcast this dimension
             else if (input_shape[i] != output_shape[i])
                 return false; // dimension sizes don't match
@@ -331,7 +342,7 @@ namespace noa::indexing {
             Shape<T, NewN> new_shape, Strides<T, NewN>& new_strides
     ) noexcept {
         // from https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/TensorUtils.cpp
-        if (!old_shape.elements())
+        if (not old_shape.elements())
             return false;
 
         auto view_d = static_cast<int64_t>(NewN) - 1;
@@ -341,9 +352,9 @@ namespace noa::indexing {
         for (int64_t tensor_d = static_cast<int64_t>(OldN) - 1; tensor_d >= 0; --tensor_d) {
             tensor_numel *= old_shape[tensor_d];
             // if end of tensor size chunk, check view
-            if ((tensor_d == 0) ||
-                (old_shape[tensor_d - 1] != 1 && old_strides[tensor_d - 1] != tensor_numel * chunk_base_strides)) {
-                while (view_d >= 0 && (view_numel < tensor_numel || new_shape[view_d] == 1)) {
+            if ((tensor_d == 0) or
+                (old_shape[tensor_d - 1] != 1 and old_strides[tensor_d - 1] != tensor_numel * chunk_base_strides)) {
+                while (view_d >= 0 and (view_numel < tensor_numel or new_shape[view_d] == 1)) {
                     new_strides[view_d] = view_numel * chunk_base_strides;
                     view_numel *= new_shape[view_d];
                     --view_d;
@@ -386,7 +397,7 @@ namespace noa::indexing {
         // complete the shape.
         if (n_elements == new_size) {
             return true; // nothing to do
-        } else if (infer_dim != -1 && new_size > 0 && n_elements % new_size == 0) {
+        } else if (infer_dim != -1 and new_size > 0 and n_elements % new_size == 0) {
             shape[infer_dim] = n_elements / new_size;
             return true; // inferred
         } else {
@@ -407,10 +418,10 @@ namespace noa::indexing {
         const auto m = lhs_shape[2 + lhs_transpose];
         const auto n = rhs_shape[3 - rhs_transpose];
         const auto k = lhs_shape[3 - lhs_transpose];
-        check(lhs_shape[1] == 1 && rhs_shape[1] == 1 && output_shape[1] == 1,
+        check(lhs_shape[1] == 1 and rhs_shape[1] == 1 and output_shape[1] == 1,
               "Only 2D matrices are supported, but got shape lhs={}, rhs={} and output={}",
               lhs_shape, rhs_shape, output_shape);
-        check(m == output_shape[2] && n == output_shape[3] &&
+        check(m == output_shape[2] and n == output_shape[3] and
               k == rhs_shape[2 + rhs_transpose],
               "The matrix multiplication (MxK * KxN = MxN) is invalid. "
               "Got shape lhs={}, rhs={} and output={}",
@@ -432,7 +443,7 @@ namespace noa::indexing {
         bool is_order_found{false};
         Strides3<Int> secondmost_strides;
         for (size_t i = 0; i < 3; ++i) {
-            if (!is_vector[i]) {
+            if (not is_vector[i]) {
                 const auto& stride = *strides[i];
                 const auto& shape = *shapes[i];
 
@@ -441,14 +452,14 @@ namespace noa::indexing {
                 //  2) the innermost stride should be 1, i.e. contiguous
                 //  3) the secondmost stride should be >= than the innermost extent.
 
-                check(!is_order_found || are_column_major == is_column_major[i],
+                check(not is_order_found or are_column_major == is_column_major[i],
                       "All matrices should either be row-major or column-major");
-                if (!is_order_found)
+                if (not is_order_found)
                     are_column_major = is_column_major[i];
                 is_order_found = true;
 
                 secondmost_strides[i] = stride[2 + are_column_major];
-                check(stride[3 - are_column_major] == 1 &&
+                check(stride[3 - are_column_major] == 1 and
                       secondmost_strides[i] >= shape[3 - are_column_major],
                       "The innermost dimension of the matrices (before the optional transposition) "
                       "should be contiguous and the second-most dimension cannot be broadcasted. "
@@ -488,7 +499,7 @@ namespace noa::indexing {
             std::uintptr_t lhs_start, std::uintptr_t lhs_end,
             std::uintptr_t rhs_start, std::uintptr_t rhs_end
     ) noexcept {
-        return lhs_start <= rhs_end && lhs_end >= rhs_start;
+        return lhs_start <= rhs_end and lhs_end >= rhs_start;
     }
 
     template<typename T, typename U, typename Integer>
@@ -496,7 +507,7 @@ namespace noa::indexing {
             const T* lhs, const Integer lhs_size,
             const U* rhs, const Integer rhs_size
     ) noexcept -> bool {
-        if (lhs_size == 0 || rhs_size == 0)
+        if (lhs_size == 0 or rhs_size == 0)
             return false;
 
         const auto lhs_start = reinterpret_cast<std::uintptr_t>(lhs);
@@ -511,10 +522,10 @@ namespace noa::indexing {
             const T* lhs, const Strides<V, N>& lhs_strides, const Shape<V, N>& lhs_shape,
             const U* rhs, const Strides<V, N>& rhs_strides, const Shape<V, N>& rhs_shape
     ) noexcept -> bool {
-        if (noa::any(lhs_shape == 0) || noa::any(rhs_shape == 0))
+        if (noa::any(lhs_shape == 0) or noa::any(rhs_shape == 0))
             return false;
-        return are_overlapped(lhs, at((lhs_shape - 1).vec(), lhs_strides),
-                              rhs, at((rhs_shape - 1).vec(), rhs_strides));
+        return are_overlapped(lhs, offset_at((lhs_shape - 1).vec(), lhs_strides),
+                              rhs, offset_at((rhs_shape - 1).vec(), rhs_strides));
     }
 
     template<typename T, typename U, typename V, size_t N>
@@ -535,7 +546,7 @@ namespace noa::indexing {
     ) noexcept -> bool {
         // FIXME Check that a dimension doesn't overlap with another dimension. For now, just check for broadcasting.
         for (size_t i = 0; i < N; ++i)
-            if (strides[i] == 0 && shape[i] > 1)
+            if (strides[i] == 0 and shape[i] > 1)
                 return false;
         return true;
     }
@@ -603,7 +614,7 @@ namespace noa::indexing {
                       "The size of the innermost dimension must be divisible by {} to view a {} as a {}",
                       ratio, ns::to_human_readable<old_type>(), ns::to_human_readable<New>());
 
-                check(!(reinterpret_cast<std::uintptr_t>(ptr) % alignof(New)),
+                check(not (reinterpret_cast<std::uintptr_t>(ptr) % alignof(New)),
                       "The memory offset should be at least aligned to {} bytes to be viewed as a {}, but got {}",
                       alignof(New), ns::to_human_readable<New>(), static_cast<const void*>(ptr));
 
@@ -612,7 +623,7 @@ namespace noa::indexing {
                       ns::to_human_readable<old_type>(), ns::to_human_readable<New>());
 
                 for (int i = 0; i < 3; ++i) {
-                    check(!(out.strides[i] % ratio),
+                    check(not (out.strides[i] % ratio),
                           "The strides must be divisible by {} to view a {} as a {}",
                           ratio, ns::to_human_readable<old_type>(), ns::to_human_readable<New>());
                     out.strides[i] /= ratio;

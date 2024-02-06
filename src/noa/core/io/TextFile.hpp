@@ -18,37 +18,35 @@ namespace noa::io {
     /// Read from and write to text files.
     /// It is not copyable, but it is movable.
     template<typename Stream = std::fstream>
+    requires nt::is_any_v<Stream, std::ifstream, std::ofstream, std::fstream>
     class TextFile {
     public:
-        /// Initializes the underlying file stream.
+        /// Creates an empty file. Use .open() to open a new file.
         TextFile() = default;
 
-        /// Stores the path. Use open() to open the file.
-        explicit TextFile(Path path) : m_path(std::move(path)) {}
-
-        /// Sets and opens the associated file. See open() for more details.
-        TextFile(Path path, open_mode_t mode) : m_path(std::move(path)) {
+        /// Opens the associated file. See .open() for more details.
+        TextFile(Path path, OpenMode mode) : m_path(std::move(path)) {
             open_(mode);
         }
 
         /// (Re)Opens the file.
-        /// \param filename     Path of the file to open.
-        /// \param mode         Open mode. Should be one of the following combination:
-        ///                     1) READ                     File should exists.
-        ///                     2) READ|WRITE               File should exists.    Backup copy.
-        ///                     3) WRITE, WRITE|TRUNC       Overwrite the file.    Backup move.
-        ///                     4) READ|WRITE|TRUNC         Overwrite the file.    Backup move.
-        ///                     5) APP, WRITE|APP           Append or create file. Backup copy. Append at each write.
-        ///                     6) READ|APP, READ|WRITE|APP Append or create file. Backup copy. Append at each write.
+        /// \param filename Path of the file to open.
+        /// \param mode Open mode. Should be one of the following combination:
+        ///                 1) read                             File should exists.
+        ///                 2) read-write                       File should exists.    Backup copy.
+        ///                 3) write, write-truncate            Overwrite the file.    Backup move.
+        ///                 4) read-write-truncate              Overwrite the file.    Backup move.
+        ///                 5) append, write-append             Append or create file. Backup copy. Append at each write.
+        ///                 6) read-append, read-write-append   Append or create file. Backup copy. Append at each write.
+        ///             Additionally, at_the_end and/or binary can be turned on:
+        ///             - at_the_end: the stream go to the end of the file after opening.
+        ///             - binary: Disable text conversions.
+        ///
         /// \throws Exception   If any of the following cases:
         ///         - If failed to close the file before starting.
         ///         - If failed to open the file.
         ///         - If an underlying OS error was raised.
-        ///
-        /// \note Additionally, ATE and/or BINARY can be turned on:
-        ///         - ATE: the stream go to the end of the file after opening.
-        ///         - BINARY: Disable text conversions.
-        void open(Path path, open_mode_t mode) {
+        void open(Path path, OpenMode mode) {
             m_path = std::move(path);
             open_(mode);
         }
@@ -57,7 +55,7 @@ namespace noa::io {
         void close() {
             if (m_fstream.is_open()) {
                 m_fstream.close();
-                if (m_fstream.fail() && !m_fstream.eof())
+                if (m_fstream.fail() and not m_fstream.eof())
                     panic("File: {}. File stream error", m_path);
             }
         }
@@ -105,7 +103,7 @@ namespace noa::io {
         /// \endcode
         bool get_line_or_throw(std::string& line) {
             const bool success = get_line(line);
-            if (!success && !this->eof())
+            if (not success and not this->eof())
                 panic("File: {}. Failed to read a line", m_path);
             return success;
         }
@@ -126,7 +124,7 @@ namespace noa::io {
                 buffer.resize(static_cast<size_t>(size));
             } catch (std::length_error& e) {
                 panic("File: {}. Passed the maximum permitted size while try to load file. Got {} bytes",
-                          m_path, size);
+                      m_path, static_cast<std::streamoff>(size));
             }
 
             m_fstream.seekg(0);
@@ -174,41 +172,31 @@ namespace noa::io {
         [[nodiscard]] bool is_open() const noexcept { return m_fstream.is_open(); }
         void clear_flags() { m_fstream.clear(); }
 
-        /// Whether the instance is in a "good" state.
+        /// Whether the underlying file stream is in a "good" state.
         [[nodiscard]] explicit operator bool() const noexcept { return !m_fstream.fail(); }
 
     private:
-        static_assert(nt::is_any_v<Stream, std::ifstream, std::ofstream, std::fstream>);
-        Stream m_fstream{};
-        Path m_path{};
-
-    private:
-        void open_(open_mode_t mode) {
+        void open_(OpenMode mode) {
             close();
 
-            check(io::is_valid_open_mode(mode), "File: {}. Invalid open mode", m_path);
             if constexpr (!std::is_same_v<Stream, std::ifstream>) {
-                if (mode & io::WRITE || mode & io::APP) /* all except case 1 */ {
-                    const bool overwrite = mode & io::TRUNC || !(mode & (io::READ | io::APP)); // case 3|4
+                if (mode.write or mode.append) /* all except case 1 */ {
+                    const bool overwrite = mode.truncate or not (mode.read or mode.append); // case 3|4
                     const bool exists = is_file(m_path);
                     try {
                         if (exists)
                             backup(m_path, overwrite);
-                        else if (overwrite || mode & io::APP) /* all except case 2 */
+                        else if (overwrite or mode.append) /* all except case 2 */
                             mkdir(m_path.parent_path());
                     } catch (...) {
-                        panic("File: {}. Mode: {}. Could not open the file because of an OS failure",
-                              m_path, OpenModeStream{mode});
+                        panic("File: {}. {}. Could not open the file because of an OS failure", m_path, mode);
                     }
                 }
             }
-            const bool read_only = !(mode & (io::WRITE | io::TRUNC | io::APP));
-            const bool read_write_only = mode & io::WRITE && mode & io::READ && !(mode & (io::TRUNC | io::APP));
-            if constexpr (std::is_same_v<Stream, std::ifstream>) {
-                check(read_only,
-                      "File: {}. Mode {} is not allowed for read-only TextFile",
-                      m_path, OpenModeStream{mode});
-            }
+            const bool read_only = not (mode.write or mode.truncate or mode.append);
+            const bool read_write_only = mode.write and mode.read and not (mode.truncate or mode.append);
+            if constexpr (std::is_same_v<Stream, std::ifstream>)
+                check(read_only, "File: {}. {} is not allowed for read-only TextFile", m_path, mode);
 
             for (int it{0}; it < 5; ++it) {
                 m_fstream.open(m_path, io::to_ios_base(mode));
@@ -218,14 +206,14 @@ namespace noa::io {
             }
             m_fstream.clear();
 
-            if (read_only || read_write_only) { // case 1|2
-                check(is_file(m_path),
-                      "File: {}. Mode: {}. Trying to open a file that does not exist",
-                      m_path, OpenModeStream{mode});
-            }
-            panic("File: {}. Mode: {}. Failed to open the file. Check the permissions for that directory",
-                  m_path, OpenModeStream{mode});
+            if (read_only or read_write_only) // case 1|2
+                check(is_file(m_path), "File: {}. {}. Trying to open a file that does not exist", m_path, mode);
+            panic("File: {}. {}. Failed to open the file. Check the permissions for that directory", m_path, mode);
         }
+
+    private:
+        Stream m_fstream{};
+        Path m_path{};
     };
 
     using InputTextFile = TextFile<std::ifstream>;
@@ -233,13 +221,13 @@ namespace noa::io {
 
     /// Reads the entire text file.
     inline std::string read_text(const Path& path) {
-        InputTextFile text_file(path, noa::io::READ);
+        InputTextFile text_file(path, OpenMode{.read=true});
         return text_file.read_all();
     }
 
     /// Saves the entire text file.
     inline void save_text(std::string_view string, const Path& path) {
-        OutputTextFile text_file(path, noa::io::WRITE);
+        OutputTextFile text_file(path, OpenMode{.write=true});
         text_file.write(string);
     }
 }

@@ -345,12 +345,18 @@ TEST_CASE("core::indexing:: order(), squeeze()", "[noa][core]") {
     REQUIRE(all(order(Strides4<i64>{128, 4096, 128, 1}, Shape4<i64>{2, 32, 1, 128}) == Vec4<i64>{2, 1, 0, 3}));
     REQUIRE(all(order(Strides4<i64>{2, 2, 2, 2}, Shape4<i64>{1, 1, 1, 1}) == Vec4<i64>{0, 1, 2, 3}));
 
-    REQUIRE(all(squeeze(shape) == Vec4<u64>{0, 1, 2, 3}));
-    REQUIRE(all(squeeze(Shape4<u64>{1, 1, 3, 4}) == Vec4<u64>{0, 1, 2, 3}));
-    REQUIRE(all(squeeze(Shape4<u64>{1, 1, 3, 1}) == Vec4<u64>{0, 1, 3, 2}));
-    REQUIRE(all(squeeze(Shape4<u64>{1, 1, 1, 1}) == Vec4<u64>{0, 1, 2, 3}));
-    REQUIRE(all(squeeze(Shape4<u64>{5, 1, 3, 1}) == Vec4<u64>{1, 3, 0, 2}));
-    REQUIRE(all(squeeze(Shape4<u64>{5, 1, 1, 1}) == Vec4<u64>{1, 2, 3, 0}));
+    REQUIRE(all(squeeze_left(shape) == Vec4<u64>{0, 1, 2, 3}));
+    REQUIRE(all(squeeze_left(Shape4<u64>{1, 1, 3, 4}) == Vec4<u64>{0, 1, 2, 3}));
+    REQUIRE(all(squeeze_left(Shape4<u64>{1, 1, 3, 1}) == Vec4<u64>{0, 1, 3, 2}));
+    REQUIRE(all(squeeze_left(Shape4<u64>{1, 1, 1, 1}) == Vec4<u64>{0, 1, 2, 3}));
+    REQUIRE(all(squeeze_left(Shape4<u64>{5, 1, 3, 1}) == Vec4<u64>{1, 3, 0, 2}));
+    REQUIRE(all(squeeze_left(Shape4<u64>{5, 1, 1, 1}) == Vec4<u64>{1, 2, 3, 0}));
+
+    REQUIRE(all(squeeze_right(Shape4<u64>{1, 1, 3, 4}) == Vec4<u64>{2, 3, 0, 1}));
+    REQUIRE(all(squeeze_right(Shape4<u64>{1, 1, 3, 1}) == Vec4<u64>{2, 0, 1, 3}));
+    REQUIRE(all(squeeze_right(Shape4<u64>{1, 1, 1, 1}) == Vec4<u64>{0, 1, 2, 3}));
+    REQUIRE(all(squeeze_right(Shape4<u64>{5, 1, 3, 1}) == Vec4<u64>{0, 2, 1, 3}));
+    REQUIRE(all(squeeze_right(Shape4<u64>{5, 1, 1, 1}) == Vec4<u64>{0, 1, 2, 3}));
 }
 
 TEST_CASE("core::indexing:: memory layouts", "[noa][core]") {
@@ -389,7 +395,7 @@ TEST_CASE("core::indexing:: memory layouts", "[noa][core]") {
         REQUIRE(is_row_major(strides, shape));
         REQUIRE(is_column_major(strides, shape));
 
-        auto order = squeeze(shape);
+        auto order = squeeze_left(shape);
         shape = reorder(shape, order);
         strides = reorder(strides, order);
         REQUIRE(all(is_contiguous(strides, shape)));

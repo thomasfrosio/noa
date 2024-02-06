@@ -37,7 +37,7 @@ namespace noa::guts {
             std::index_sequence<Is...>,
             Indices... indices
     ) noexcept {
-        nt::first_t<Indices...> offset{};
+        nt::index_type_t<A> offset{};
         ((offset += ni::offset_at(indices, accessor.template stride<Is>())), ...);
         return offset;
     }
@@ -49,7 +49,7 @@ namespace noa::guts {
             std::index_sequence<Is...>,
             const Vec<Integer, sizeof...(Is)>& indexes
     ) noexcept {
-        Integer offset{};
+        nt::index_type_t<A> offset{};
         ((offset += ni::offset_at(indexes[Is], accessor.template stride<Is>())), ...);
         return offset;
     }
@@ -64,30 +64,27 @@ namespace noa::inline types {
              StridesTraits StridesTrait>
     class AccessorReference;
 
-    /// Multidimensional accessor.
-    ///
-    /// \details Wraps a pointer and nd-strides, and provides nd-indexing.
-    ///          Accessors are mostly intended for internal use, so we aim for overall good performance.
-    ///          As such:
-    ///          - The size of the dimensions are not stored, so accessors cannot bound-check the indexes against
-    ///            their dimension size. In a lot of cases, the input/output arrays have the same size/shape and
-    ///            the size/shape is often not needed by the compute kernels, leading to storing useless data.
-    ///            If the extents of the region are required, use (md)spans (which are intended for all use-cases).
-    ///
-    ///          - \b Pointer-traits. By default, the pointers are not marked with any attributes, but the "restrict"
-    ///            traits can be added. This is useful to guarantee that pointers don't alias, which helps generating
-    ///            better code.
-    ///
-    ///          - \b Strides-traits. Strides are fully dynamic (one dynamic stride per dimension) by default,
-    ///            but the rightmost dimension can be marked contiguous. Accessors (and the library internals) uses
-    ///            the rightmost convention, so that the innermost dimension is the rightmost dimension.
-    ///            As such, StridesTraits::CONTIGUOUS implies C-contiguous. F-contiguous layouts are not supported
-    ///            by the accessors, as these layouts should be reordered to C-contiguous before creating the
-    ///            contiguous accessor.
-    ///            With StridesTraits::CONTIGUOUS, the innermost/rightmost stride is fixed to 1 and is not stored,
-    ///            resulting in the strides being truncated by 1 (Strides<I,N-1>). In case of a 1d contiguous
-    ///            accessor, this mean that the strides are empty (Strides<I,0>) and the indexing is equivalent
-    ///            to pointer/array indexing.
+    /// Multidimensional accessor; wraps a pointer and nd-strides, and provides nd-indexing.
+    /// \details
+    /// Accessors are mostly intended for internal use, which affected some design choices. Noticeable features:
+    /// >>> The size of the dimensions are not stored, so accessors cannot bound-check the indexes against
+    ///     their dimension size. In a lot of cases, the input/output arrays have the same size/shape and
+    ///     the size/shape is often not needed by the compute kernels, leading to storing useless data.
+    ///     If the extents of the region are required, use (md)spans.
+    /// >>> \b Pointer-traits. By default, the pointers are not marked with any attributes, but the "restrict"
+    ///     traits can be added. This is useful to signify that pointers don't alias, which helps generating
+    ///     better code. Unfortunately, only g++ seem to acknowledge the restrict attribute on pointers
+    ///     inside structs (details below)...
+    /// >>> \b Strides-traits. Strides are fully dynamic (one dynamic stride per dimension) by default,
+    ///     but the rightmost dimension can be marked contiguous. Accessors (and the library internals) uses
+    ///     the rightmost convention, so that the innermost dimension is the rightmost dimension.
+    ///     As such, StridesTraits::CONTIGUOUS implies C-contiguous. F-contiguous layouts are not supported
+    ///     by the accessors, as these layouts should be reordered to C-contiguous before creating the
+    ///     contiguous accessor.
+    ///     With StridesTraits::CONTIGUOUS, the innermost/rightmost stride is fixed to 1 and is not stored,
+    ///     resulting in the strides being truncated by 1 (Strides<I,N-1>). In case of a 1d contiguous
+    ///     accessor, this mean that the strides are empty (Strides<I,0>) and the indexing is equivalent
+    ///     to pointer/array indexing.
     template<typename T, size_t N, typename I,
              PointerTraits PointerTrait = PointerTraits::DEFAULT,
              StridesTraits StridesTrait = StridesTraits::STRIDED>
@@ -105,6 +102,8 @@ namespace noa::inline types {
         static constexpr size_t SIZE = N;
         static constexpr int64_t SSIZE = N;
 
+        // nvcc ignores __restrict__ when applied to member variables... https://godbolt.org/z/9GY5hGEzr
+        // gcc/msvc optimizes it, but clang ignores it as well... https://godbolt.org/z/r869cb34s
         #if defined(__CUDACC__)
         using pointer_type = std::conditional_t<IS_RESTRICT, T* __restrict__, T*>;
         #else
@@ -164,17 +163,7 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr bool is_empty() const noexcept { return m_ptr == nullptr; }
         [[nodiscard]] NOA_HD constexpr explicit operator bool() const noexcept { return !is_empty(); }
 
-        [[nodiscard]] NOA_HD constexpr accessor_reference_type to_accessor_reference() const noexcept {
-            return accessor_reference_type(*this);
-        }
-
-        /// Swap the dimensions (i.e. the strides), in-place.
-        template<typename Int0, typename Int1>
-        requires (StridesTraits::STRIDED == StridesTrait && nt::are_int_v<Int0, Int1>)
-        NOA_HD constexpr Accessor& swap_dimensions(Int0 d0, Int1 d1) noexcept {
-            std::swap(strides()[d0], strides()[d1]);
-            return *this;
-        }
+        NOA_HD constexpr void reset_pointer(pointer_type new_pointer) noexcept { m_ptr = new_pointer; }
 
         template<std::integral Int>
         NOA_FHD constexpr Accessor& reorder(const Vec<Int, N>& order) noexcept {
@@ -183,15 +172,6 @@ namespace noa::inline types {
         }
 
     public:
-        /// Offsets the pointer at dimension 0, in-place.
-        /// This is often used to offset the starting batch when working in chunks.
-        template<std::integral Int>
-        NOA_HD constexpr Accessor& offset_accessor(Int index) noexcept {
-            NOA_ASSERT(!is_empty());
-            m_ptr += ni::offset_at(index, stride<0>());
-            return *this;
-        }
-
         /// C-style indexing operator, decrementing the dimensionality of the accessor by 1.
         template<typename Int> requires (SIZE > 1 && std::is_integral_v<Int>)
         [[nodiscard]] NOA_HD auto operator[](Int index) const noexcept {
@@ -210,44 +190,53 @@ namespace noa::inline types {
 
     public:
         template<typename... Indexes>
-        requires (SIZE == sizeof...(Indexes) and nt::are_int_v<Indexes...>)
-        [[nodiscard]] NOA_HD constexpr pointer_type offset_pointer(
-                pointer_type pointer,
-                Indexes... indexes
-        ) const noexcept {
-            return guts::offset_pointer(*this, pointer, std::make_index_sequence<SIZE>{}, indexes...);
+        requires ((SIZE >= sizeof...(Indexes) and nt::are_int_v<Indexes...>) or
+                  (sizeof...(Indexes) == 1 and nt::are_vec_int_v<Indexes...>))
+        NOA_HD constexpr Accessor& offset_accessor(Indexes... indexes) noexcept {
+            NOA_ASSERT(!is_empty());
+            if constexpr (nt::are_int_v<Indexes...>) {
+                m_ptr = guts::offset_pointer(*this, m_ptr, std::make_index_sequence<sizeof...(Indexes)>{}, indexes...);
+            } else {
+                constexpr size_t VEC_SIZE = nt::first_t<Indexes...>::SIZE;
+                static_assert(VEC_SIZE <= SIZE);
+                m_ptr = guts::offset_pointer(*this, m_ptr, std::make_index_sequence<VEC_SIZE>{}, indexes...);
+            }
+            return *this;
         }
 
-        template<size_t N0, typename Integer>
-        requires (SIZE == N0 and nt::is_int_v<Integer>)
-        [[nodiscard]] NOA_HD constexpr pointer_type offset_pointer(
-                pointer_type pointer,
-                const Vec<Integer, N0>& indexes
-        ) const noexcept {
-            return guts::offset_at(*this, pointer, std::make_index_sequence<SIZE>{}, indexes);
+        template<typename P, typename... Indexes>
+        requires (((SIZE >= sizeof...(Indexes) and nt::are_int_v<Indexes...>) or
+                   (sizeof...(Indexes) == 1 and nt::are_vec_int_v<Indexes...>)) and
+                  std::is_pointer_v<P>)
+        [[nodiscard]] NOA_HD constexpr P offset_pointer(P pointer, Indexes&&... indexes) const noexcept {
+            if constexpr (nt::are_int_v<Indexes...>) {
+                return guts::offset_pointer(*this, pointer, std::make_index_sequence<sizeof...(Indexes)>{}, indexes...);
+            } else {
+                constexpr size_t VEC_SIZE = nt::first_t<Indexes...>::SIZE;
+                static_assert(VEC_SIZE <= SIZE);
+                return guts::offset_pointer(*this, pointer, std::make_index_sequence<VEC_SIZE>{}, indexes...);
+            }
         }
 
         template<typename... Indexes>
-        requires (SIZE == sizeof...(Indexes) and nt::are_int_v<Indexes...>)
-        [[nodiscard]] NOA_HD constexpr auto offset_at(Indexes... indexes) const noexcept {
-            return guts::offset_at(*this, std::make_index_sequence<SIZE>{}, indexes...);
+        requires ((SIZE >= sizeof...(Indexes) and nt::are_int_v<Indexes...>) or
+                  (sizeof...(Indexes) == 1 and nt::are_vec_int_v<Indexes...>))
+        [[nodiscard]] NOA_HD constexpr index_type offset_at(Indexes&&... indexes) const noexcept {
+            if constexpr (nt::are_int_v<Indexes...>) {
+                return guts::offset_at(*this, std::make_index_sequence<sizeof...(Indexes)>{}, indexes...);
+            } else {
+                constexpr size_t VEC_SIZE = nt::first_t<Indexes...>::SIZE;
+                static_assert(VEC_SIZE <= SIZE);
+                return guts::offset_at(*this, std::make_index_sequence<VEC_SIZE>{}, indexes...);
+            }
         }
 
-        template<size_t N0, typename Integer> requires (SIZE == N0 and nt::is_int_v<Integer>)
-        [[nodiscard]] NOA_HD constexpr auto offset_at(const Vec<Integer, N0>& indexes) const noexcept {
-            return guts::offset_at(*this, std::make_index_sequence<SIZE>{}, indexes);
-        }
-
-        template<typename... Indexes> requires (SIZE == sizeof...(Indexes) and nt::are_int_v<Indexes...>)
-        [[nodiscard]] NOA_HD constexpr reference_type operator()(Indexes... indexes) const noexcept {
+        template<typename... Indexes>
+        requires ((SIZE == sizeof...(Indexes) and nt::are_int_v<Indexes...>) or
+                  (sizeof...(Indexes) == 1 and nt::are_vec_int_size_v<N, Indexes...>))
+        [[nodiscard]] NOA_HD constexpr reference_type operator()(Indexes&&... indexes) const noexcept {
             NOA_ASSERT(!is_empty());
             return *guts::offset_pointer(*this, m_ptr, std::make_index_sequence<SIZE>{}, indexes...);
-        }
-
-        template<size_t N0, typename Integer> requires (SIZE == N0 and nt::is_int_v<Integer>)
-        [[nodiscard]] NOA_HD constexpr reference_type operator()(const Vec<Integer, N0>& indexes) const noexcept {
-            NOA_ASSERT(!is_empty());
-            return *guts::offset_pointer(*this, m_ptr, std::make_index_sequence<N0>{}, indexes);
         }
 
     private:
@@ -295,7 +284,7 @@ namespace noa::inline types {
         NOA_HD constexpr explicit AccessorReference(accessor_type accessor) noexcept
                 : AccessorReference(accessor.ptr, accessor.strides().data()) {}
 
-        // Creates a const accessor from an existing non-const accessor.
+        /// Creates a const accessor from an existing non-const accessor.
         template<typename U> requires nt::is_mutable_value_type_v<U, value_type>
         NOA_HD constexpr /* implicit */ AccessorReference(
                 const AccessorReference<U, N, I, PointerTrait, StridesTrait>& accessor
@@ -319,18 +308,9 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr bool is_empty() const noexcept { return m_ptr == nullptr; }
         [[nodiscard]] NOA_HD constexpr explicit operator bool() const noexcept { return !is_empty(); }
 
-        [[nodiscard]] NOA_HD constexpr accessor_type to_accessor() const noexcept {
-            return accessor_type(*this);
-        }
+        NOA_HD constexpr void reset_pointer(pointer_type new_pointer) noexcept { m_ptr = new_pointer; }
 
     public:
-        template<typename Int> requires std::is_integral_v<Int>
-        NOA_HD AccessorReference& offset_accessor(Int index) noexcept {
-            NOA_ASSERT(!is_empty());
-            m_ptr += ni::offset_at(index, stride<0>());
-            return *this;
-        }
-
         // Indexing operator, on 1D accessor. 1D -> ref
         template<typename Int> requires (SIZE == 1 and std::is_integral_v<Int>)
         [[nodiscard]] NOA_HD reference_type operator[](Int index) const noexcept {
@@ -348,44 +328,53 @@ namespace noa::inline types {
 
     public:
         template<typename... Indexes>
-        requires (SIZE == sizeof...(Indexes) and nt::are_int_v<Indexes...>)
-        [[nodiscard]] NOA_HD constexpr pointer_type offset_pointer(
-                pointer_type pointer,
-                Indexes... indexes
-        ) const noexcept {
-            return guts::offset_pointer(*this, pointer, std::make_index_sequence<SIZE>{}, indexes...);
+        requires ((SIZE >= sizeof...(Indexes) and nt::are_int_v<Indexes...>) or
+                  (sizeof...(Indexes) == 1 and nt::are_vec_int_v<Indexes...>))
+        NOA_HD constexpr AccessorReference& offset_accessor(Indexes... indexes) noexcept {
+            NOA_ASSERT(!is_empty());
+            if constexpr (nt::are_int_v<Indexes...>) {
+                m_ptr = guts::offset_pointer(*this, m_ptr, std::make_index_sequence<sizeof...(Indexes)>{}, indexes...);
+            } else {
+                constexpr size_t VEC_SIZE = nt::first_t<Indexes...>::SIZE;
+                static_assert(VEC_SIZE <= SIZE);
+                m_ptr = guts::offset_pointer(*this, m_ptr, std::make_index_sequence<VEC_SIZE>{}, indexes...);
+            }
+            return *this;
         }
 
-        template<size_t N0, typename Integer>
-        requires (SIZE == N0 and nt::is_int_v<Integer>)
-        [[nodiscard]] NOA_HD constexpr pointer_type offset_pointer(
-                pointer_type pointer,
-                const Vec<Integer, N0>& indexes
-        ) const noexcept {
-            return guts::offset_at(*this, pointer, std::make_index_sequence<SIZE>{}, indexes);
+        template<typename P, typename... Indexes>
+        requires (((SIZE >= sizeof...(Indexes) and nt::are_int_v<Indexes...>) or
+                   (sizeof...(Indexes) == 1 and nt::are_vec_int_v<Indexes...>)) and
+                  std::is_pointer_v<P>)
+        [[nodiscard]] NOA_HD constexpr P offset_pointer(P pointer, Indexes&&... indexes) const noexcept {
+            if constexpr (nt::are_int_v<Indexes...>) {
+                return guts::offset_pointer(*this, pointer, std::make_index_sequence<sizeof...(Indexes)>{}, indexes...);
+            } else {
+                constexpr size_t VEC_SIZE = nt::first_t<Indexes...>::SIZE;
+                static_assert(VEC_SIZE <= SIZE);
+                return guts::offset_pointer(*this, pointer, std::make_index_sequence<VEC_SIZE>{}, indexes...);
+            }
         }
 
         template<typename... Indexes>
-        requires (SIZE == sizeof...(Indexes) and nt::are_int_v<Indexes...>)
-        [[nodiscard]] NOA_HD constexpr auto offset_at(Indexes... indexes) const noexcept {
-            return guts::offset_at(*this, std::make_index_sequence<SIZE>{}, indexes...);
+        requires ((SIZE >= sizeof...(Indexes) and nt::are_int_v<Indexes...>) or
+                  (sizeof...(Indexes) == 1 and nt::are_vec_int_v<Indexes...>))
+        [[nodiscard]] NOA_HD constexpr index_type offset_at(Indexes&&... indexes) const noexcept {
+            if constexpr (nt::are_int_v<Indexes...>) {
+                return guts::offset_at(*this, std::make_index_sequence<sizeof...(Indexes)>{}, indexes...);
+            } else {
+                constexpr size_t VEC_SIZE = nt::first_t<Indexes...>::SIZE;
+                static_assert(VEC_SIZE <= SIZE);
+                return guts::offset_at(*this, std::make_index_sequence<VEC_SIZE>{}, indexes...);
+            }
         }
 
-        template<size_t N0, typename Integer> requires (SIZE == N0 and nt::is_int_v<Integer>)
-        [[nodiscard]] NOA_HD constexpr auto offset_at(const Vec<Integer, N0>& indexes) const noexcept {
-            return guts::offset_at(*this, std::make_index_sequence<SIZE>{}, indexes);
-        }
-
-        template<typename... Indexes> requires (SIZE == sizeof...(Indexes) and nt::are_int_v<Indexes...>)
-        [[nodiscard]] NOA_HD constexpr reference_type operator()(Indexes... indexes) const noexcept {
+        template<typename... Indexes>
+        requires ((SIZE == sizeof...(Indexes) and nt::are_int_v<Indexes...>) or
+                  (sizeof...(Indexes) == 1 and nt::are_vec_int_size_v<N, Indexes...>))
+        [[nodiscard]] NOA_HD constexpr reference_type operator()(Indexes&&... indexes) const noexcept {
             NOA_ASSERT(!is_empty());
             return *guts::offset_pointer(*this, m_ptr, std::make_index_sequence<SIZE>{}, indexes...);
-        }
-
-        template<size_t N0, typename Integer> requires (SIZE == N0 and nt::is_int_v<Integer>)
-        [[nodiscard]] NOA_HD constexpr reference_type operator()(const Vec<Integer, N0>& indexes) const noexcept {
-            NOA_ASSERT(!is_empty());
-            return *guts::offset_pointer(*this, m_ptr, std::make_index_sequence<N0>{}, indexes);
         }
 
     private:
@@ -402,17 +391,20 @@ namespace noa::inline types {
 #endif
 
     /// Stores a value and provide an nd-accessor interface of that value.
-    ///
     /// \details This is poorly named because as opposed to Accessor(Reference), this type is the owner of the
-    ///          thing being accessed. The original goal is to provide the accessor interface so we can index
+    ///          object being accessed. The original goal is to provide the accessor interface so we can index
     ///          a value as if it was a nd-array (something like Scalar would have been have better choice),
     ///          but we want to emphasize that the goal here is to support the accessor indexing, while referring
     ///          to a single _local_ single value (we don't want to refer to a value on the heap for example).
     ///
     /// \note As opposed to the Accessor, the const-ness is also enforced by the accessor.
-    ///       With AccessorValue<const f64>, the value cannot be mutated.
+    ///       With AccessorValue<const T>, the value cannot be mutated(*).
     ///       With AccessorValue<f64>, the value can be mutated, iif the accessor itself is not const.
     ///       This is because the AccessorValue stores the value, so const-ness is transferred to the member variable.
+    ///       (*): using deref_unsafe() allows to access the stored T and bypass the const-ness of an
+    ///            AccessorValue<const T> if the accessor itself is not const. This is intended for the library
+    ///            to be able to reassign AccessorValue<const T> while still preserving the const-ness in the main
+    ///            API (notably in the core interface and operators).
     ///
     /// \note This can be treated as an Accessor of any dimension. So a(2) or a(2,3,4,5) are equivalent and
     ///       are both returning a reference of the value. The only constraint is on operator[], which always
@@ -460,6 +452,10 @@ namespace noa::inline types {
         NOA_HD constexpr explicit AccessorValue(const mutable_value_type& value) noexcept
                 : m_value{value} {}
 
+        template<typename U, typename J> requires nt::is_mutable_value_type_v<U, value_type>
+        NOA_HD constexpr /* implicit */ AccessorValue(const AccessorValue<U, J>& accessor)
+                : m_value{accessor.deref()} {}
+
     public: // Accessing strides
         template<size_t>
         [[nodiscard]] NOA_HD constexpr index_type stride() const noexcept { return 0; }
@@ -474,10 +470,7 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr bool is_empty() const noexcept { return false; }
         [[nodiscard]] NOA_HD constexpr explicit operator bool() const noexcept { return !is_empty(); }
 
-        template<typename Int0, typename Int1> requires nt::are_int_v<Int0, Int1>
-        NOA_HD constexpr AccessorValue& swap_dimensions(Int0, Int1) noexcept {
-            return *this;
-        }
+        NOA_HD constexpr void reset_pointer(pointer_type) noexcept {}
 
         template<std::integral Int, size_t N>
         NOA_FHD constexpr AccessorValue& reorder(const Vec<Int, N>&) noexcept {
@@ -485,11 +478,6 @@ namespace noa::inline types {
         }
 
     public:
-        template<typename Int> requires std::is_integral_v<Int>
-        NOA_HD constexpr AccessorValue& offset_accessor(Int) noexcept {
-            return *this;
-        }
-
         template<typename Int> requires std::is_integral_v<Int>
         [[nodiscard]] NOA_HD const_reference_type operator[](Int) const noexcept {
             return m_value;
@@ -501,6 +489,28 @@ namespace noa::inline types {
         }
 
     public:
+        template<typename... Indexes>
+        requires ((sizeof...(Indexes) < 4 and nt::are_int_v<Indexes...>) or
+                  (sizeof...(Indexes) == 1 and nt::are_vec_int_v<Indexes...>))
+        NOA_HD constexpr AccessorValue& offset_accessor(Indexes...) noexcept {
+            return *this;
+        }
+
+        template<typename P, typename... Indexes>
+        requires (((sizeof...(Indexes) < 4 and nt::are_int_v<Indexes...>) or
+                   (sizeof...(Indexes) == 1 and nt::are_vec_int_v<Indexes...>)) and
+                   std::is_pointer_v<P>)
+        [[nodiscard]] NOA_HD constexpr P offset_pointer(P pointer, Indexes&&...) const noexcept {
+            return pointer;
+        }
+
+        template<typename... Indexes>
+        requires ((sizeof...(Indexes) < 4 and nt::are_int_v<Indexes...>) or
+                  (sizeof...(Indexes) == 1 and nt::are_vec_int_v<Indexes...>))
+        [[nodiscard]] NOA_HD constexpr index_type offset_at(Indexes&&...) const noexcept {
+            return static_cast<index_type>(0);
+        }
+
         template<typename... Indexes> requires nt::are_int_v<Indexes...>
         [[nodiscard]] NOA_HD constexpr const_reference_type operator()(Indexes&&...) const noexcept {
             return m_value;
@@ -519,8 +529,13 @@ namespace noa::inline types {
             return m_value;
         }
 
+    public: // Additional methods
         [[nodiscard]] NOA_HD constexpr const_reference_type deref() const noexcept { return m_value; }
         [[nodiscard]] NOA_HD constexpr reference_type deref() noexcept { return m_value; }
+
+        // "private" method to access the underlying type without const (if the accessor is const, deref_ == deref)
+        [[nodiscard]] NOA_HD constexpr const_reference_type deref_() const noexcept { return m_value; }
+        [[nodiscard]] NOA_HD constexpr mutable_value_type& deref_() noexcept { return m_value; }
 
     private:
         mutable_value_type m_value;
@@ -593,6 +608,9 @@ namespace noa::traits {
     struct proclaim_is_accessor<Accessor<T, N, I, PointerTrait, StridesTrait>> : std::true_type {};
 
     template<typename T, size_t N, typename I, PointerTraits PointerTrait, StridesTraits StridesTrait>
+    struct proclaim_is_accessor_pure<Accessor<T, N, I, PointerTrait, StridesTrait>> : std::true_type {};
+
+    template<typename T, size_t N, typename I, PointerTraits PointerTrait, StridesTraits StridesTrait>
     struct proclaim_is_accessor_restrict<Accessor<T, N, I, PointerTrait, StridesTrait>> : std::bool_constant<PointerTrait == PointerTraits::RESTRICT> {};
 
     template<typename T, size_t N, typename I, PointerTraits PointerTrait, StridesTraits StridesTrait>
@@ -633,40 +651,52 @@ namespace noa::traits {
 }
 
 namespace noa::guts {
+    /// Reconfigures the Accessor(s).
+    /// \param enforce_contiguous   Whether the output Accessor should be made contiguous.
+    /// \param enforce_restrict     Whether the output Accessor should be made restrict.
+    /// \param ndim                 Number of output dimensions. Should be less or equal than the current ndim of the
+    ///                             input accessor(s). Zero (the default) indicates that the dimensionality should be
+    ///                             left unchanged.
+    /// \param collapse_leftmost    Collapse leftmost means that the dimensions are collapsed starting from the left.
+    ///                             Collapse rightmost means that the dimensions are collapsed starting from the right.
+    ///                             Regardless, collapsed dimensions are assumed to be C-contiguous, so the stride of
+    ///                             the resulting collapsed dimension is taken from the rightmost collapsed dimension.
+    template<size_t N = 0>
     struct AccessorConfig {
-        bool enforce_contiguous{};
-        bool enforce_restrict{};
-        bool enforce_1d{};
+        bool enforce_contiguous{false};
+        bool enforce_restrict{false};
+        Vec<size_t, N> filter{};
     };
-
     template<AccessorConfig config, typename Accessors>
     requires nt::is_tuple_of_accessor_or_empty_v<Accessors>
     auto reconfig_accessors(Accessors&& accessors) {
-        static_assert(not config.enforce_1d or config.enforce_contiguous,
-                "When collapsing to 1d, this function currently ignores the strides and assumes contiguity");
-
         return std::forward<Accessors>(accessors).map(
-                []<typename T>(T&& accessor) -> decltype(auto) {
+                []<typename T>(T&& accessor) {
                     if constexpr (nt::is_accessor_value_v<T>) {
                         // Forward the value into the new tuple, ie the caller decides whether we copy or move.
-                        // TODO We could only take a reference instead (maybe in another function)? But for this
-                        //      function it seems more correct to copy (or move).
+                        // std::forward to guarantee a move (g++ doesn't move otherwise).
                         return std::forward<T>(accessor);
                     } else if constexpr (not nt::is_accessor_reference_v<T>) {
                         using accessor_t = std::decay_t<T>;
                         using value_t = typename accessor_t::value_type;
                         using index_t = typename accessor_t::index_type;
-                        constexpr size_t ndim = config.enforce_1d ? 1 : accessor_t::SIZE;
+                        constexpr size_t original_ndim = accessor_t::SIZE;
+                        constexpr size_t vec_ndim = decltype(config.filter)::SIZE;
+                        constexpr size_t new_ndim = vec_ndim == 0 ? original_ndim : vec_ndim;
                         constexpr auto pointer_trait =
                                 config.enforce_restrict ? PointerTraits::RESTRICT : accessor_t::pointer_trait;
                         constexpr auto strides_trait =
-                                config.enforce_contiguous ? StridesTraits::CONTIGUOUS : StridesTraits::STRIDED;
-                        using new_accessor_t = Accessor<value_t, ndim, index_t, pointer_trait, strides_trait>;
+                                config.enforce_contiguous ? StridesTraits::CONTIGUOUS : accessor_t::strides_trait;
+                        using new_accessor_t = Accessor<value_t, new_ndim, index_t, pointer_trait, strides_trait>;
 
-                        if constexpr (ndim == 1 and strides_trait == StridesTraits::CONTIGUOUS)
-                            return new_accessor_t(accessor.get());
-                        else
+                        if constexpr (new_ndim == original_ndim) {
                             return new_accessor_t(accessor.get(), accessor.strides());
+                        } else if constexpr (vec_ndim > 0) { // just to help clang-tidy, because we know that vec_ndim != 0
+                            auto strides = [&accessor]<size_t... I>(std::index_sequence<I...>) {
+                                return Strides{accessor.template stride<config.filter[I]>()...};
+                            }(std::make_index_sequence<new_ndim>{});
+                            return new_accessor_t(accessor.get(), strides);
+                        }
                     } else {
                         static_assert(nt::always_false_v<T>);
                     }

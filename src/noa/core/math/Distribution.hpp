@@ -222,8 +222,8 @@ namespace noa {
     /// Element-wise randomize operator.
     template<typename Distribution>
     struct Randomizer {
-        constexpr explicit Randomizer(Distribution distribution)
-                : m_distribution(distribution), random_seed(static_cast<u64>(std::clock())) {}
+        constexpr explicit Randomizer(Distribution distribution, u64 seed)
+                : m_distribution(distribution), random_seed(seed) {}
 
         constexpr void init(auto uid) {
             m_generator = RandomBitsGenerator(random_seed + static_cast<u64>(uid) + 1);

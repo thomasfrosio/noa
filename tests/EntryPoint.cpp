@@ -1,14 +1,13 @@
 // This is the entry point to ALL tests.
 
 //#include "noa/unified/Session.hpp"
-#include <noa/core/Types.hpp>
-#include <noa/core/io/IO.hpp>
 
 #define CATCH_CONFIG_RUNNER
 #include <catch2/catch.hpp>
+#include <filesystem>
 
 namespace test {
-    noa::Path NOA_DATA_PATH;
+    std::filesystem::path NOA_DATA_PATH;
 }
 
 int main(int argc, char* argv[]) {

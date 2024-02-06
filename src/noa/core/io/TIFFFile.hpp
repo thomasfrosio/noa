@@ -11,7 +11,7 @@ namespace noa::io {
     class TIFFFile : public guts::ImageFile {
     public:
         TIFFFile();
-        TIFFFile(const Path& filename, open_mode_t open_mode) : TIFFFile() { open_(filename, open_mode); }
+        TIFFFile(const Path& filename, OpenMode open_mode) : TIFFFile() { open_(filename, open_mode); }
         ~TIFFFile() override { close_(); }
 
     public:
@@ -23,7 +23,7 @@ namespace noa::io {
             m_is_read = false;
         }
 
-        void open(const Path& filename, open_mode_t open_mode) override { open_(filename, open_mode); }
+        void open(const Path& filename, OpenMode open_mode) override { open_(filename, open_mode); }
         void close() override { close_(); }
 
     public:
@@ -57,7 +57,7 @@ namespace noa::io {
         void write_all(const void* input, DataType data_type, bool clamp) override;
 
     private:
-        void open_(const Path& filename, open_mode_t mode);
+        void open_(const Path& filename, OpenMode mode);
         void close_();
         void read_header_();
         static DataType get_dtype_(u16 sample_format, u16 bits_per_sample);

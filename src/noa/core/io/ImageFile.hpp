@@ -15,7 +15,7 @@ namespace noa::io::guts {
 
     public:
         virtual void reset() = 0;
-        virtual void open(const Path&, open_mode_t) = 0;
+        virtual void open(const Path&, OpenMode) = 0;
         virtual void close() = 0;
 
     public: // Getters

@@ -68,14 +68,14 @@ set(NOA_CORE_HEADERS
     core/signal/fft/CTF.hpp
     core/signal/Windows.hpp
 
-#    core/io/BinaryFile.hpp
-#    core/io/ImageFile.hpp
-#    core/io/IO.hpp
-#    core/io/MRCFile.hpp
-#    core/io/OS.hpp
-#    core/io/Stats.hpp
-#    core/io/TextFile.hpp
-#    core/io/TIFFFile.hpp
+    core/io/BinaryFile.hpp
+    core/io/ImageFile.hpp
+    core/io/IO.hpp
+    core/io/MRCFile.hpp
+    core/io/OS.hpp
+    core/io/Stats.hpp
+    core/io/TextFile.hpp
+    core/io/TIFFFile.hpp
 
     core/fft/Frequency.hpp
     )
@@ -83,8 +83,8 @@ set(NOA_CORE_HEADERS
 set(NOA_CORE_SOURCES
     core/Exception.cpp
 #    core/geometry/Euler.cpp
-#    core/io/IO.cpp
-#    core/io/BinaryFile.cpp
-#    core/io/MRCFile.cpp
-#    core/io/TIFFFile.cpp
+    core/io/IO.cpp
+    core/io/BinaryFile.cpp
+    core/io/MRCFile.cpp
+    core/io/TIFFFile.cpp
     )

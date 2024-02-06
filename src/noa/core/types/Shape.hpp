@@ -2,6 +2,7 @@
 
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Vec.hpp"
+#include "noa/core/types/Tuple.hpp"
 
 namespace noa::inline types {
     template<typename Int, size_t N>
@@ -994,19 +995,19 @@ namespace noa::traits {
 
 namespace noa::inline types {
     // -- Modulo Operator --
-    template<typename T> requires (nt::is_shape_or_strides_v<T> && T::SIZE > 0)
+    template<typename T> requires (nt::is_shape_or_strides_v<T> and T::SIZE > 0)
     [[nodiscard]] NOA_HD constexpr T operator%(T lhs, const T& rhs) noexcept {
         for (int64_t i = 0; i < T::SSIZE; ++i)
             lhs[i] %= rhs[i];
         return lhs;
     }
 
-    template<typename T, typename Int> requires (nt::is_int_v<Int> && nt::is_shape_or_strides_v<T> && T::SIZE > 0)
+    template<typename T, typename Int> requires (nt::is_int_v<Int> and nt::is_shape_or_strides_v<T> and T::SIZE > 0)
     [[nodiscard]] NOA_HD constexpr T operator%(const T& lhs, Int rhs) noexcept {
         return lhs % T::filled_with(rhs);
     }
 
-    template<typename T, typename Int> requires (nt::is_int_v<Int> && nt::is_shape_or_strides_v<T> && T::SIZE > 0)
+    template<typename T, typename Int> requires (nt::is_int_v<Int> and nt::is_shape_or_strides_v<T> and T::SIZE > 0)
     [[nodiscard]] NOA_HD constexpr T operator%(Int lhs, const T& rhs) noexcept {
         return T::filled_with(lhs) % rhs;
     }
@@ -1014,23 +1015,23 @@ namespace noa::inline types {
 
 namespace noa {
     // Cast Shape->Shape
-    template<typename TTo, typename TFrom, size_t N> requires nt::is_shapeN_v<TTo, N>
+    template<typename TTo, typename TFrom, size_t N> requires nt::is_shape_of_size_v<TTo, N>
     [[nodiscard]] NOA_FHD constexpr bool is_safe_cast(const Shape<TFrom, N>& src) noexcept {
         return is_safe_cast<typename TTo::vector_type>(src.vec);
     }
 
-    template<typename TTo, typename TFrom, size_t N> requires nt::is_shapeN_v<TTo, N>
+    template<typename TTo, typename TFrom, size_t N> requires nt::is_shape_of_size_v<TTo, N>
     [[nodiscard]] NOA_FHD constexpr TTo clamp_cast(const Shape<TFrom, N>& src) noexcept {
         return TTo{clamp_cast<typename TTo::vector_type>(src.vec)};
     }
 
     // Cast Strides->Strides
-    template<typename TTo, typename TFrom, size_t N> requires nt::is_stridesN_v<TTo, N>
+    template<typename TTo, typename TFrom, size_t N> requires nt::is_strides_of_size_v<TTo, N>
     [[nodiscard]] NOA_FHD constexpr bool is_safe_cast(const Strides<TFrom, N>& src) noexcept {
         return is_safe_cast<typename TTo::vector_type>(src.vec);
     }
 
-    template<typename TTo, typename TFrom, size_t N> requires nt::is_stridesN_v<TTo, N>
+    template<typename TTo, typename TFrom, size_t N> requires nt::is_strides_of_size_v<TTo, N>
     [[nodiscard]] NOA_FHD constexpr TTo clamp_cast(const Strides<TFrom, N>& src) noexcept {
         return TTo{clamp_cast<typename TTo::vector_type>(src.vec)};
     }
@@ -1040,17 +1041,17 @@ namespace noa {
         return {abs(shape.vec)};
     }
 
-    template<typename T> requires (nt::is_shape_or_strides_v<T> && T::SIZE > 0)
+    template<typename T> requires (nt::is_shape_or_strides_v<T> and T::SIZE > 0)
     [[nodiscard]] NOA_FHD constexpr auto sum(const T& shape) noexcept {
         return sum(shape.vec);
     }
 
-    template<typename T> requires (nt::is_shape_or_strides_v<T> && T::SIZE > 0)
+    template<typename T> requires (nt::is_shape_or_strides_v<T> and T::SIZE > 0)
     [[nodiscard]] NOA_FHD constexpr auto product(const T& shape) noexcept {
         return product(shape.vec);
     }
 
-    template<typename T> requires (nt::is_shape_or_strides_v<T> && T::SIZE > 0)
+    template<typename T> requires (nt::is_shape_or_strides_v<T> and T::SIZE > 0)
     [[nodiscard]] NOA_FHD constexpr auto min(const T& shape) noexcept {
         return min(shape.vec);
     }
@@ -1061,13 +1062,13 @@ namespace noa {
     }
 
     template<typename Int, typename T>
-    requires (nt::is_shape_or_strides_v<T> && nt::is_almost_same_v<nt::value_type_t<T>, Int>)
+    requires (nt::is_shape_or_strides_v<T> and nt::is_almost_same_v<nt::value_type_t<T>, Int>)
     [[nodiscard]] NOA_FHD constexpr auto min(const T& lhs, Int rhs) noexcept {
         return min(lhs, T::filled_with(rhs));
     }
 
     template<typename Int, typename T>
-    requires (nt::is_shape_or_strides_v<T> && nt::is_almost_same_v<nt::value_type_t<T>, Int>)
+    requires (nt::is_shape_or_strides_v<T> and nt::is_almost_same_v<nt::value_type_t<T>, Int>)
     [[nodiscard]] NOA_FHD constexpr auto min(Int lhs, const T& rhs) noexcept {
         return min(T::filled_with(lhs), rhs);
     }
@@ -1077,19 +1078,19 @@ namespace noa {
         return max(shape.vec);
     }
 
-    template<typename T> requires (nt::is_shape_or_strides_v<T> && T::SIZE > 0)
+    template<typename T> requires (nt::is_shape_or_strides_v<T> and T::SIZE > 0)
     [[nodiscard]] NOA_FHD constexpr T max(const T& lhs, const T& rhs) noexcept {
         return {max(lhs.vec, rhs.vec)};
     }
 
     template<typename Int, typename T>
-    requires (nt::is_shape_or_strides_v<T> && nt::is_almost_same_v<nt::value_type_t<T>, Int>)
+    requires (nt::is_shape_or_strides_v<T> and nt::is_almost_same_v<nt::value_type_t<T>, Int>)
     [[nodiscard]] NOA_FHD constexpr auto max(const T& lhs, Int rhs) noexcept {
         return max(lhs, T::filled_with(rhs));
     }
 
     template<typename Int, typename T>
-    requires (nt::is_shape_or_strides_v<T> && nt::is_almost_same_v<nt::value_type_t<T>, Int>)
+    requires (nt::is_shape_or_strides_v<T> and nt::is_almost_same_v<nt::value_type_t<T>, Int>)
     [[nodiscard]] NOA_FHD constexpr auto max(Int lhs, const T& rhs) noexcept {
         return max(T::filled_with(lhs), rhs);
     }
@@ -1100,7 +1101,7 @@ namespace noa {
     }
 
     template<typename Int, typename T>
-    requires (nt::is_shape_or_strides_v<T> && nt::is_almost_same_v<nt::value_type_t<T>, Int>)
+    requires (nt::is_shape_or_strides_v<T> and nt::is_almost_same_v<nt::value_type_t<T>, Int>)
     [[nodiscard]] NOA_FHD constexpr auto clamp(const T& lhs, Int low, Int high) noexcept {
         return min(max(lhs, low), high);
     }

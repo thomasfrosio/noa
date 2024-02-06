@@ -73,7 +73,7 @@ namespace noa::guts {
         constexpr auto operator[](Tag<I>) const && -> const T&& { return std::forward<const T>(value); }
 
         // Used to extract the type for the Ith element.
-        static auto declval(Tag<I>) -> std::type_identity<T>;
+        static constexpr auto declval(Tag<I>) -> std::type_identity<T>;
     };
 
     // The nested type that stores the TupleElements.
@@ -103,7 +103,7 @@ namespace noa::guts {
     template<typename... T>
     struct GetTypeMap {
         template<size_t... I>
-        auto operator()(std::index_sequence<I...>) -> TypeMap<TupleElement<I, T>...>;
+        constexpr auto operator()(std::index_sequence<I...>) -> TypeMap<TupleElement<I, T>...>;
     };
 
     // Constructs the tuple base type.
@@ -313,7 +313,9 @@ namespace noa::inline types {
         [[nodiscard]] constexpr Tuple decay() const noexcept { return {}; }
     };
 
-    // Deduction guide.
+    /// Deduction guide.
+    /// As opposed to std::tuple, we unwrap the std::reference_wrapper during CTAD.
+    /// As a result, Tuple{...} and noa::make_tuple(...) are equivalent.
     template<typename... Ts>
     Tuple(Ts...) -> Tuple<nt::unwrap_reference_decay_t<Ts>...>;
 }
@@ -561,8 +563,10 @@ namespace std {
 }
 
 namespace noa::traits {
+    template<>               struct proclaim_is_empty_tuple<noa::Tuple<>> : std::true_type {};
     template<typename... Ts> struct proclaim_is_tuple<noa::Tuple<Ts...>> : std::true_type {};
     template<typename... Ts> struct proclaim_is_tuple_of_accessor<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor<Ts...>::value> {};
+    template<typename... Ts> struct proclaim_is_tuple_of_accessor_pure<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor_pure<Ts...>::value> {};
     template<typename... Ts> struct proclaim_is_tuple_of_accessor_value<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor_value<Ts...>::value> {};
     template<typename... Ts> struct proclaim_is_tuple_of_accessor_or_empty<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor<Ts...>::value> {};
     template<>               struct proclaim_is_tuple_of_accessor_or_empty<noa::Tuple<>> : std::true_type {};

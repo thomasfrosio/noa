@@ -1,4 +1,5 @@
 #include <noa/core/types/Half.hpp>
+#include <noa/core/math/Comparison.hpp>
 #include <catch2/catch.hpp>
 
 TEST_CASE("core::Half", "[noa][core]") {

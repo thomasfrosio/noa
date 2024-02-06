@@ -1,15 +1,16 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/types/Half.hpp"
-#include "noa/core/types/Complex.hpp"
-#include "noa/core/types/Shape.hpp"
 
 #if defined(NOA_IS_OFFLINE)
 #include <algorithm> // std::reverse
 #include <filesystem>
 #include <ios>
 #include <ostream>
+#include "noa/core/utils/Irange.hpp"
+#include "noa/core/types/Half.hpp"
+#include "noa/core/types/Complex.hpp"
+#include "noa/core/types/Shape.hpp"
 
 namespace noa {
     namespace fs = std::filesystem;
@@ -40,15 +41,13 @@ namespace noa::io {
         PNG
     };
 
-    /// Bit masks to control file openings.
-    using open_mode_t = u32;
-    enum OpenMode : open_mode_t {
-        READ = 1U << 0,
-        WRITE = 1U << 1,
-        TRUNC = 1U << 2,
-        BINARY = 1U << 3,
-        APP = 1U << 4,
-        ATE = 1U << 5
+    struct OpenMode {
+        bool read{};
+        bool write{};
+        bool truncate{};
+        bool binary{};
+        bool append{};
+        bool at_the_end{};
     };
 
     /// Data type used for (de)serialization.
@@ -71,11 +70,6 @@ namespace noa::io {
         U4, // not "real" type
         CI16 // not "real" type
     };
-
-    inline constexpr bool is_valid_open_mode(open_mode_t open_mode) noexcept {
-        constexpr open_mode_t MASK = 0xFFFFFFC0;
-        return !(open_mode & MASK);
-    }
 
     /// Returns the range that \T values, about to be converted to \p data_type, should be in.
     /// \details (De)Serialization functions can clamp the values to fit the destination types. However, if
@@ -332,52 +326,38 @@ namespace noa::io {
         return os;
     }
 
-    struct OpenModeStream { open_mode_t mode; };
-    inline std::ostream& operator<<(std::ostream& os, OpenModeStream open_mode) {
-        // If any other than the first 6 bits are set, this is an invalid mode.
-        if (!is_valid_open_mode(open_mode.mode)) {
-            os << "OpenMode::UNKNOWN";
-            return os;
-        }
-
-        struct Modes { OpenMode mode{}; const char* string{}; };
-        constexpr std::array<Modes, 6> MODES{
-                Modes{OpenMode::READ, "READ"},
-                Modes{OpenMode::WRITE, "WRITE"},
-                Modes{OpenMode::BINARY, "BINARY"},
-                Modes{OpenMode::TRUNC, "TRUNC"},
-                Modes{OpenMode::APP, "APP"},
-                Modes{OpenMode::ATE, "ATE"}
-        };
+    inline std::ostream& operator<<(std::ostream& os, OpenMode mode) {
+        std::array flags{mode.read, mode.write, mode.truncate, mode.binary, mode.append, mode.at_the_end};
+        std::array names{"read", "write", "truncate", "binary", "append", "at_the_end"};
 
         bool add{false};
-        os << "OpenMode::(";
-        for (size_t i = 0; i < 6; ++i) {
-            if (open_mode.mode & MODES[i].mode) {
+        os << "OpenMode{";
+        for (auto i: noa::irange<size_t>(6)) {
+            if (flags[i]) {
                 if (add)
-                    os << '|';
-                os << MODES[i].string;
+                    os << '-';
+                os << names[i];
                 add = true;
             }
         }
-        os << ')';
+        os << '}';
         return os;
     }
 
     /// Switches from an OpenMode to a \c std::ios_base::openmode flag.
-    inline constexpr std::ios_base::openmode to_ios_base(open_mode_t open_mode) noexcept {
+    inline constexpr std::ios_base::openmode to_ios_base(OpenMode open_mode) noexcept {
         std::ios_base::openmode mode{};
-        if (open_mode & OpenMode::READ)
+        if (open_mode.read)
             mode |= std::ios::in;
-        if (open_mode & OpenMode::WRITE)
+        if (open_mode.write)
             mode |= std::ios::out;
-        if (open_mode & OpenMode::BINARY)
+        if (open_mode.binary)
             mode |= std::ios::binary;
-        if (open_mode & OpenMode::TRUNC)
+        if (open_mode.truncate)
             mode |= std::ios::trunc;
-        if (open_mode & OpenMode::APP)
+        if (open_mode.append)
             mode |= std::ios::app;
-        if (open_mode & OpenMode::ATE)
+        if (open_mode.at_the_end)
             mode |= std::ios::ate;
         return mode;
     }
@@ -463,7 +443,7 @@ namespace noa::io {
 // fmt 9.1.0 fix (Disabled automatic std::ostream insertion operator)
 namespace fmt {
     template<> struct formatter<noa::io::Format> : ostream_formatter {};
-    template<> struct formatter<noa::io::OpenModeStream> : ostream_formatter {};
+    template<> struct formatter<noa::io::OpenMode> : ostream_formatter {};
     template<> struct formatter<noa::io::DataType> : ostream_formatter {};
 }
 #endif

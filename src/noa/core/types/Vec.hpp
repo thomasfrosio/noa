@@ -74,10 +74,12 @@ namespace noa::inline types {
         template<typename U> requires nt::is_numeric_v<U>
         [[nodiscard]] NOA_HD static constexpr Vec from_value(U value) noexcept {
             NOA_ASSERT(is_safe_cast<value_type>(value));
-            const auto value_cast = static_cast<value_type>(value);
             Vec vec;
-            for (int64_t i = 0; i < SSIZE; ++i)
-                vec[i] = value_cast;
+            if constexpr (SIZE > 0) {
+                const auto value_cast = static_cast<value_type>(value);
+                for (int64_t i = 0; i < SSIZE; ++i)
+                    vec[i] = value_cast;
+            }
             return vec;
         }
 
@@ -95,9 +97,11 @@ namespace noa::inline types {
         template<typename U, size_t AR>
         [[nodiscard]] NOA_HD static constexpr Vec from_vector(const Vec<U, SIZE, AR>& vector) noexcept {
             Vec vec;
-            for (int64_t i = 0; i < SSIZE; ++i) {
-                NOA_ASSERT(is_safe_cast<value_type>(vector[i]));
-                vec[i] = static_cast<value_type>(vector[i]);
+            if constexpr (SIZE > 0) {
+                for (int64_t i = 0; i < SSIZE; ++i) {
+                    NOA_ASSERT(is_safe_cast<value_type>(vector[i]));
+                    vec[i] = static_cast<value_type>(vector[i]);
+                }
             }
             return vec;
         }
@@ -105,8 +109,10 @@ namespace noa::inline types {
         template<typename U> requires nt::is_numeric_v<U>
         [[nodiscard]] NOA_HD static constexpr Vec from_pointer(const U* values) noexcept {
             Vec vec;
-            for (int64_t i = 0; i < SSIZE; ++i)
-                vec[i] = static_cast<value_type>(values[i]);
+            if constexpr (SIZE > 0) {
+                for (int64_t i = 0; i < SSIZE; ++i)
+                    vec[i] = static_cast<value_type>(values[i]);
+            }
             return vec;
         }
 
@@ -116,15 +122,6 @@ namespace noa::inline types {
         template<typename U, size_t AR>
         [[nodiscard]] NOA_HD constexpr explicit operator Vec<U, SIZE, AR>() const noexcept {
             return Vec<U, SIZE, AR>::from_vector(*this);
-        }
-
-        // Explicit cast to bool for Vec<bool,N> is allowed. Equivalent to all(Vec<bool,N>).
-        [[nodiscard]] NOA_HD constexpr explicit operator bool() const noexcept
-        requires (SIZE > 0 && std::is_same_v<bool, value_type>) {
-            for (size_t i = 0; i < SIZE; ++i)
-                if (array[i] == false)
-                    return false;
-            return true;
         }
 
     public: // Accessor operators and functions
@@ -217,33 +214,41 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator-(Vec v) noexcept {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
-                auto* alias = reinterpret_cast<__half2*>(v.data());
-                for (int64_t i = 0; i < SSIZE / 2; ++i)
-                    alias[i] = -alias[i];
+            if constexpr (SIZE > 0) {
+                #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+                if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
+                    auto* alias = reinterpret_cast<__half2*>(v.data());
+                    for (int64_t i = 0; i < SSIZE / 2; ++i)
+                        alias[i] = -alias[i];
+                    return v;
+                }
+                #endif
+                for (int64_t i = 0; i < SSIZE; ++i)
+                    v[i] = -v[i];
+                return v;
+            } else {
                 return v;
             }
-            #endif
-            for (int64_t i = 0; i < SSIZE; ++i)
-                v[i] = -v[i];
-            return v;
         }
 
         // -- Binary Arithmetic Operators --
         [[nodiscard]] friend NOA_HD constexpr Vec operator+(Vec lhs, Vec rhs) noexcept {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
-                auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
-                auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
-                for (int64_t i = 0; i < SSIZE / 2; ++i)
-                    alias0[i] += alias1[i];
+            if constexpr (SIZE > 0) {
+                #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+                if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
+                    auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
+                    auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
+                    for (int64_t i = 0; i < SSIZE / 2; ++i)
+                        alias0[i] += alias1[i];
+                    return lhs;
+                }
+                #endif
+                for (int64_t i = 0; i < SSIZE; ++i)
+                    lhs[i] += rhs[i];
+                return lhs;
+            } else {
                 return lhs;
             }
-            #endif
-            for (int64_t i = 0; i < SSIZE; ++i)
-                lhs[i] += rhs[i];
-            return lhs;
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator+(const Vec& lhs, value_type rhs) noexcept {
@@ -255,18 +260,22 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator-(Vec lhs, Vec rhs) noexcept {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
-                auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
-                auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
-                for (int64_t i = 0; i < SSIZE / 2; ++i)
-                    alias0[i] -= alias1[i];
+            if constexpr (SIZE > 0) {
+                #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+                if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
+                    auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
+                    auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
+                    for (int64_t i = 0; i < SSIZE / 2; ++i)
+                        alias0[i] -= alias1[i];
+                    return lhs;
+                }
+                #endif
+                for (int64_t i = 0; i < SSIZE; ++i)
+                    lhs[i] -= rhs[i];
+                return lhs;
+            } else {
                 return lhs;
             }
-            #endif
-            for (int64_t i = 0; i < SSIZE; ++i)
-                lhs[i] -= rhs[i];
-            return lhs;
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator-(const Vec& lhs, value_type rhs) noexcept {
@@ -278,18 +287,22 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator*(Vec lhs, Vec rhs) noexcept {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
-                auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
-                auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
-                for (int64_t i = 0; i < SSIZE / 2; ++i)
-                    alias0[i] *= alias1[i];
+            if constexpr (SIZE > 0) {
+                #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+                if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
+                    auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
+                    auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
+                    for (int64_t i = 0; i < SSIZE / 2; ++i)
+                        alias0[i] *= alias1[i];
+                    return lhs;
+                }
+                #endif
+                for (int64_t i = 0; i < SSIZE; ++i)
+                    lhs[i] *= rhs[i];
+                return lhs;
+            } else {
                 return lhs;
             }
-            #endif
-            for (int64_t i = 0; i < SSIZE; ++i)
-                lhs[i] *= rhs[i];
-            return lhs;
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator*(const Vec& lhs, value_type rhs) noexcept {
@@ -301,18 +314,22 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator/(Vec lhs, Vec rhs) noexcept {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
-                auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
-                auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
-                for (int64_t i = 0; i < SSIZE / 2; ++i)
-                    alias0[i] /= alias1[i];
+            if constexpr (SIZE > 0) {
+                #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+                if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
+                    auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
+                    auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
+                    for (int64_t i = 0; i < SSIZE / 2; ++i)
+                        alias0[i] /= alias1[i];
+                    return lhs;
+                }
+                #endif
+                for (int64_t i = 0; i < SSIZE; ++i)
+                    lhs[i] /= rhs[i];
+                return lhs;
+            } else {
                 return lhs;
             }
-            #endif
-            for (int64_t i = 0; i < SSIZE; ++i)
-                lhs[i] /= rhs[i];
-            return lhs;
         }
 
         [[nodiscard]] friend NOA_HD constexpr Vec operator/(const Vec& lhs, value_type rhs) noexcept {
@@ -325,24 +342,28 @@ namespace noa::inline types {
 
         // -- Comparison Operators --
         [[nodiscard]] friend NOA_HD constexpr auto operator>(Vec lhs, Vec rhs) noexcept {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
-                auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
-                auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
-                Vec<bool, N> output;
-                #pragma unroll
-                for (int64_t i = 0; i < SSIZE / 2; ++i) {
-                    alias0[i] = __hgt2(alias0[i], alias1[i]);
-                    output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
-                    output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
+            if constexpr (SIZE > 0) {
+                #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+                if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
+                    auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
+                    auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
+                    Vec<bool, N> output;
+                    #pragma unroll
+                    for (int64_t i = 0; i < SSIZE / 2; ++i) {
+                        alias0[i] = __hgt2(alias0[i], alias1[i]);
+                        output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
+                        output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
+                    }
+                    return output;
                 }
+                #endif
+                Vec<bool, N> output;
+                for (int64_t i = 0; i < SSIZE; ++i)
+                    output[i] = lhs[i] > rhs[i];
                 return output;
+            } else {
+                return Vec<bool, 0>{};
             }
-            #endif
-            Vec<bool, N> output;
-            for (int64_t i = 0; i < SSIZE; ++i)
-                output[i] = lhs[i] > rhs[i];
-            return output;
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator>(const Vec& lhs, value_type rhs) noexcept {
@@ -354,24 +375,28 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator<(Vec lhs, Vec rhs) noexcept {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
-                auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
-                auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
-                Vec<bool, N> output;
-                #pragma unroll
-                for (int64_t i = 0; i < SSIZE / 2; ++i) {
-                    alias0[i] = __hlt2(alias0[i], alias1[i]);
-                    output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
-                    output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
+            if constexpr (SIZE > 0) {
+                #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+                if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
+                    auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
+                    auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
+                    Vec<bool, N> output;
+                    #pragma unroll
+                    for (int64_t i = 0; i < SSIZE / 2; ++i) {
+                        alias0[i] = __hlt2(alias0[i], alias1[i]);
+                        output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
+                        output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
+                    }
+                    return output;
                 }
+                #endif
+                Vec<bool, N> output;
+                for (int64_t i = 0; i < SSIZE; ++i)
+                    output[i] = lhs[i] < rhs[i];
                 return output;
+            } else {
+                return Vec<bool, 0>{};
             }
-            #endif
-            Vec<bool, N> output;
-            for (int64_t i = 0; i < SSIZE; ++i)
-                output[i] = lhs[i] < rhs[i];
-            return output;
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator<(const Vec& lhs, value_type rhs) noexcept {
@@ -383,24 +408,28 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator>=(Vec lhs, Vec rhs) noexcept {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
-                auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
-                auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
-                Vec<bool, N> output;
-                #pragma unroll
-                for (int64_t i = 0; i < SSIZE / 2; ++i) {
-                    alias0[i] = __hge2(alias0[i], alias1[i]);
-                    output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
-                    output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
+            if constexpr (SIZE > 0) {
+                #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+                if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
+                    auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
+                    auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
+                    Vec<bool, N> output;
+                    #pragma unroll
+                    for (int64_t i = 0; i < SSIZE / 2; ++i) {
+                        alias0[i] = __hge2(alias0[i], alias1[i]);
+                        output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
+                        output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
+                    }
+                    return output;
                 }
+                #endif
+                Vec<bool, N> output;
+                for (int64_t i = 0; i < SSIZE; ++i)
+                    output[i] = lhs[i] >= rhs[i];
                 return output;
+            } else {
+                return Vec<bool, 0>{};
             }
-            #endif
-            Vec<bool, N> output;
-            for (int64_t i = 0; i < SSIZE; ++i)
-                output[i] = lhs[i] >= rhs[i];
-            return output;
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator>=(const Vec& lhs, value_type rhs) noexcept {
@@ -412,24 +441,28 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator<=(Vec lhs, Vec rhs) noexcept {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
-                auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
-                auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
-                Vec<bool, N> output;
-                #pragma unroll
-                for (int64_t i = 0; i < SSIZE / 2; ++i) {
-                    alias0[i] = __hle2(alias0[i], alias1[i]);
-                    output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
-                    output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
+            if constexpr (SIZE > 0) {
+                #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+                if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
+                    auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
+                    auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
+                    Vec<bool, N> output;
+                    #pragma unroll
+                    for (int64_t i = 0; i < SSIZE / 2; ++i) {
+                        alias0[i] = __hle2(alias0[i], alias1[i]);
+                        output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
+                        output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
+                    }
+                    return output;
                 }
+                #endif
+                Vec<bool, N> output;
+                for (int64_t i = 0; i < SSIZE; ++i)
+                    output[i] = lhs[i] <= rhs[i];
                 return output;
+            } else {
+                return Vec<bool, N>{};
             }
-            #endif
-            Vec<bool, N> output;
-            for (int64_t i = 0; i < SSIZE; ++i)
-                output[i] = lhs[i] <= rhs[i];
-            return output;
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator<=(const Vec& lhs, value_type rhs) noexcept {
@@ -441,24 +474,28 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator==(Vec lhs, Vec rhs) noexcept {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
-                auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
-                auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
-                Vec<bool, N> output;
-                #pragma unroll
-                for (int64_t i = 0; i < SSIZE / 2; ++i) {
-                    alias0[i] = __heq2(alias0[i], alias1[i]);
-                    output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
-                    output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
+            if constexpr (SIZE > 0) {
+                #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+                if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
+                    auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
+                    auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
+                    Vec<bool, N> output;
+                    #pragma unroll
+                    for (int64_t i = 0; i < SSIZE / 2; ++i) {
+                        alias0[i] = __heq2(alias0[i], alias1[i]);
+                        output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
+                        output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
+                    }
+                    return output;
                 }
+                #endif
+                Vec<bool, N> output;
+                for (int64_t i = 0; i < SSIZE; ++i)
+                    output[i] = lhs[i] == rhs[i];
                 return output;
+            } else {
+                return Vec<bool, N>{};
             }
-            #endif
-            Vec<bool, N> output;
-            for (int64_t i = 0; i < SSIZE; ++i)
-                output[i] = lhs[i] == rhs[i];
-            return output;
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator==(const Vec& lhs, value_type rhs) noexcept {
@@ -470,24 +507,28 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator!=(Vec lhs, Vec rhs) noexcept {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
-                auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
-                auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
-                Vec<bool, N> output;
-                #pragma unroll
-                for (int64_t i = 0; i < SSIZE / 2; ++i) {
-                    alias0[i] = __hne2(alias0[i], alias1[i]);
-                    output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
-                    output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
+            if constexpr (SIZE > 0) {
+                #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+                if constexpr (std::is_same_v<value_type, Half> && !(SSIZE % 2)) {
+                    auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
+                    auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
+                    Vec<bool, N> output;
+                    #pragma unroll
+                    for (int64_t i = 0; i < SSIZE / 2; ++i) {
+                        alias0[i] = __hne2(alias0[i], alias1[i]);
+                        output[i * 2 + 0] = static_cast<bool>(alias0[i].x);
+                        output[i * 2 + 1] = static_cast<bool>(alias0[i].y);
+                    }
+                    return output;
                 }
+                #endif
+                Vec<bool, N> output;
+                for (int64_t i = 0; i < SSIZE; ++i)
+                    output[i] = lhs[i] != rhs[i];
                 return output;
+            } else {
+                return Vec<bool, N>{};
             }
-            #endif
-            Vec<bool, N> output;
-            for (int64_t i = 0; i < SSIZE; ++i)
-                output[i] = lhs[i] != rhs[i];
-            return output;
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator!=(const Vec& lhs, value_type rhs) noexcept {
@@ -530,15 +571,19 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr auto push_front(value_type value) const noexcept {
             Vec<value_type, N + 1> output;
             output[0] = value;
-            for (size_t i = 0; i < N; ++i)
-                output[i + 1] = array[i];
+            if constexpr (N > 0) {
+                for (size_t i = 0; i < N; ++i)
+                    output[i + 1] = array[i];
+            }
             return output;
         }
 
         [[nodiscard]] NOA_HD constexpr auto push_back(value_type value) const noexcept {
             Vec<value_type, N + 1> output;
-            for (size_t i = 0; i < N; ++i)
-                output[i] = array[i];
+            if constexpr (N > 0) {
+                for (size_t i = 0; i < N; ++i)
+                    output[i] = array[i];
+            }
             output[N] = value;
             return output;
         }
@@ -546,20 +591,28 @@ namespace noa::inline types {
         template<size_t S, size_t AR>
         [[nodiscard]] NOA_HD constexpr auto push_front(const Vec<value_type, S, AR>& vector) const noexcept {
             Vec<value_type, N + S> output;
-            for (size_t i = 0; i < S; ++i)
-                output[i] = vector[i];
-            for (size_t i = 0; i < N; ++i)
-                output[i + S] = array[i];
+            if constexpr (S > 0) {
+                for (size_t i = 0; i < S; ++i)
+                    output[i] = vector[i];
+            }
+            if constexpr (N > 0) {
+                for (size_t i = 0; i < N; ++i)
+                    output[i + S] = array[i];
+            }
             return output;
         }
 
         template<size_t S, size_t AR>
         [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, S, AR>& vector) const noexcept {
             Vec<value_type, N + S> output;
-            for (size_t i = 0; i < N; ++i)
-                output[i] = array[i];
-            for (size_t i = 0; i < S; ++i)
-                output[i + N] = vector[i];
+            if constexpr (N > 0) {
+                for (size_t i = 0; i < N; ++i)
+                    output[i] = array[i];
+            }
+            if constexpr (S > 0) {
+                for (size_t i = 0; i < S; ++i)
+                    output[i + N] = vector[i];
+            }
             return output;
         }
 
@@ -571,8 +624,10 @@ namespace noa::inline types {
 
         [[nodiscard]] NOA_HD constexpr Vec flip() const noexcept {
             Vec output;
-            for (size_t i = 0; i < SIZE; ++i)
-                output[i] = array[(N - 1) - i];
+            if constexpr (SIZE > 0) {
+                for (size_t i = 0; i < SIZE; ++i)
+                    output[i] = array[(N - 1) - i];
+            }
             return output;
         }
 
@@ -580,35 +635,37 @@ namespace noa::inline types {
         requires nt::is_int_v<Int>
         [[nodiscard]] NOA_HD constexpr Vec reorder(const Vec<Int, SIZE, AR>& order) const noexcept {
             Vec output;
-            for (size_t i = 0; i < SIZE; ++i)
-                output[i] = array[order[i]];
+            if constexpr (SIZE > 0) {
+                for (size_t i = 0; i < SIZE; ++i)
+                    output[i] = array[order[i]];
+            }
             return output;
         }
 
         // Circular shifts the vector by a given amount.
         // If "count" is positive, shift to the right, otherwise, shift to the left.
         [[nodiscard]] NOA_HD constexpr Vec circular_shift(int64_t count) {
-            if constexpr (SIZE <= 1)
+            if constexpr (SIZE <= 1) {
                 return *this;
-
-            Vec out;
-            const bool right = count >= 0;
-            if (!right)
-                count *= -1;
-            for (int64_t i = 0; i < SSIZE; ++i) {
-                const int64_t idx = (i + count) % SSIZE;
-                out[idx * right + (1 - right) * i] = array[i * right + (1 - right) * idx];
+            } else {
+                Vec out;
+                const bool right = count >= 0;
+                if (!right)
+                    count *= -1;
+                for (int64_t i = 0; i < SSIZE; ++i) {
+                    const int64_t idx = (i + count) % SSIZE;
+                    out[idx * right + (1 - right) * i] = array[i * right + (1 - right) * idx];
+                }
+                return out;
             }
-            return out;
         }
 
         [[nodiscard]] NOA_HD constexpr Vec copy() const noexcept {
             return *this;
         }
 
-        template<size_t INDEX>
+        template<size_t INDEX> requires (INDEX < SIZE)
         [[nodiscard]] NOA_HD constexpr Vec set(value_type value) const noexcept {
-            static_assert(INDEX < SIZE);
             auto output = *this;
             output[INDEX] = value;
             return output;
@@ -624,7 +681,7 @@ namespace noa::inline types {
 
     /// Deduction guide.
     template<typename T, typename... U>
-    Vec(T, U...) -> Vec<std::enable_if_t<(std::is_same_v<T, U> && ...), T>, 1 + sizeof...(U)>;
+    Vec(T, U...) -> Vec<std::enable_if_t<(std::is_same_v<T, U> and ...), T>, 1 + sizeof...(U)>;
 
     /// Type aliases.
     template<typename T> using Vec1 = Vec<T, 1>;
@@ -669,39 +726,47 @@ namespace noa::traits {
 namespace noa::inline types {
     template<size_t N, size_t A>
     [[nodiscard]] NOA_FHD constexpr auto operator!(Vec<bool, N, A> vector) noexcept {
-        for (size_t i = 0; i < N; ++i)
-            vector[i] = !vector[i];
+        if constexpr (N > 0) {
+            for (size_t i = 0; i < N; ++i)
+                vector[i] = !vector[i];
+        }
         return vector;
     }
 
     template<size_t N, size_t A>
     [[nodiscard]] NOA_FHD constexpr auto operator&&(Vec<bool, N, A> lhs, const Vec<bool, N, A>& rhs) noexcept {
-        for (size_t i = 0; i < N; ++i)
-            lhs[i] = lhs[i] && rhs[i];
+        if constexpr (N > 0) {
+            for (size_t i = 0; i < N; ++i)
+                lhs[i] = lhs[i] && rhs[i];
+        }
         return lhs;
     }
 
     template<size_t N, size_t A>
     [[nodiscard]] NOA_FHD constexpr auto operator||(Vec<bool, N, A> lhs, const Vec<bool, N, A>& rhs) noexcept {
-        for (size_t i = 0; i < N; ++i)
-            lhs[i] = lhs[i] || rhs[i];
+        if constexpr (N > 0) {
+            for (size_t i = 0; i < N; ++i)
+                lhs[i] = lhs[i] || rhs[i];
+        }
         return lhs;
     }
 
     // -- Modulo Operator --
-    template<typename Vec> requires nt::is_intX_v<Vec>
+    template<typename Vec> requires nt::is_int_v<Vec>
     [[nodiscard]] NOA_HD constexpr Vec operator%(Vec lhs, const Vec& rhs) noexcept {
-        for (int64_t i = 0; i < Vec::SSIZE; ++i)
-            lhs[i] %= rhs[i];
+        if constexpr (Vec::SSIZE > 0) {
+            for (int64_t i = 0; i < Vec::SSIZE; ++i)
+                lhs[i] %= rhs[i];
+        }
         return lhs;
     }
 
-    template<typename Vec, typename Int> requires (nt::is_intX_v<Vec> && nt::is_int_v<Int>)
+    template<typename Vec, typename Int> requires (nt::is_int_v<Vec> && nt::is_int_v<Int>)
     [[nodiscard]] NOA_HD constexpr Vec operator%(const Vec& lhs, Int rhs) noexcept {
         return lhs % Vec::filled_with(rhs);
     }
 
-    template<typename Vec, typename Int> requires (nt::is_intX_v<Vec> && nt::is_int_v<Int>)
+    template<typename Vec, typename Int> requires (nt::is_int_v<Vec> && nt::is_int_v<Int>)
     [[nodiscard]] NOA_HD constexpr Vec operator%(Int lhs, const Vec& rhs) noexcept {
         return Vec::filled_with(lhs) % rhs;
     }
@@ -718,28 +783,35 @@ namespace noa {
 
     template<size_t N, size_t A> requires (N > 0)
     [[nodiscard]] NOA_FHD constexpr bool all(const Vec<bool, N, A>& vector) noexcept {
-        return static_cast<bool>(vector);
+        for (size_t i = 0; i < N; ++i)
+            if (vector[i] == false)
+                return false;
+        return true;
     }
 
     [[nodiscard]] NOA_FHD constexpr bool any(bool v) noexcept { return v; }
     [[nodiscard]] NOA_FHD constexpr bool all(bool v) noexcept { return v; }
 
     // -- Cast--
-    template<typename TTo, typename TFrom, size_t N, size_t A> requires nt::is_vecN_v<TTo, N>
+    template<typename TTo, typename TFrom, size_t N, size_t A> requires nt::is_vec_of_size_v<TTo, N>
     [[nodiscard]] NOA_HD constexpr bool is_safe_cast(const Vec<TFrom, N, A>& src) noexcept {
-        if constexpr (N == 0)
+        if constexpr (N == 0) {
             return true;
-        bool output = is_safe_cast<typename TTo::value_type>(src[0]);
-        for (size_t i = 1; i < N; ++i)
-            output = output && is_safe_cast<typename TTo::value_type>(src[i]);
-        return output;
+        } else {
+            bool output = is_safe_cast<typename TTo::value_type>(src[0]);
+            for (size_t i = 1; i < N; ++i)
+                output = output and is_safe_cast<typename TTo::value_type>(src[i]);
+            return output;
+        }
     }
 
-    template<typename TTo, typename TFrom, size_t N, size_t A> requires nt::is_vecN_v<TTo, N>
+    template<typename TTo, typename TFrom, size_t N, size_t A> requires nt::is_vec_of_size_v<TTo, N>
     [[nodiscard]] NOA_HD constexpr TTo clamp_cast(const Vec<TFrom, N, A>& src) noexcept {
         TTo output;
-        for (size_t i = 0; i < N; ++i)
-            output[i] = clamp_cast<typename TTo::value_type>(src[i]);
+        if constexpr (N > 0) {
+            for (size_t i = 0; i < N; ++i)
+                output[i] = clamp_cast<typename TTo::value_type>(src[i]);
+        }
         return output;
     }
 
@@ -1108,7 +1180,7 @@ namespace noa {
         return output;
     }
 
-    template<typename T, size_t N, size_t A> requires nt::is_real_v<T>
+    template<typename T, size_t N, size_t A> requires (nt::is_real_v<T> and (N > 0))
     [[nodiscard]] NOA_FHD constexpr auto norm(const Vec<T, N, A>& vector) noexcept {
         if constexpr (std::is_same_v<T, Half>) {
             const auto tmp = vector.template as<typename T::arithmetic_type>();

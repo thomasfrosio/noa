@@ -70,7 +70,7 @@ namespace noa {
             ) : fmt(s), location(l) {} // check at compile time that "s" is compatible with "Ts"
 
             /*implicit*/ FormatWithLocationImp(
-                    const fmt::basic_runtime<char>& s,
+                    const fmt::runtime_format_string<char>& s,
                     const std::source_location& l = std::source_location::current()
             ) : fmt(s), location(l) {}// no checks
         };

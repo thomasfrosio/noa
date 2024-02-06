@@ -14,15 +14,15 @@ namespace noa::indexing {
     /// Returns the memory offset corresponding to the given 4D indexes.
     /// \param i0,i1,i2,i3  Multi-dimensional indexes.
     /// \param strides      Strides associated with these indexes.
-    template<typename I0, typename I1, typename I2, typename I3, typename Offset,
-             nt::enable_if_bool_t<nt::are_int_v<I0, I1, I2, I3>> = true>
+    template<typename I0, typename I1, typename I2, typename I3, typename Offset>
+    requires nt::are_int_v<I0, I1, I2, I3>
     [[nodiscard]] NOA_FHD constexpr auto offset_at(
             I0 i0, I1 i1, I2 i2, I3 i3,
             const Strides4<Offset>& strides
     ) noexcept -> Offset {
         static_assert(sizeof(Offset) >= 4, "don't compute memory offsets with less than 4 bytes values...");
-        NOA_ASSERT(is_safe_cast<Offset>(i0) && is_safe_cast<Offset>(i1) &&
-                   is_safe_cast<Offset>(i2) && is_safe_cast<Offset>(i3));
+        NOA_ASSERT(is_safe_cast<Offset>(i0) and is_safe_cast<Offset>(i1) and
+                   is_safe_cast<Offset>(i2) and is_safe_cast<Offset>(i3));
 
         return static_cast<Offset>(i0) * strides[0] +
                static_cast<Offset>(i1) * strides[1] +
@@ -42,14 +42,14 @@ namespace noa::indexing {
     /// Returns the memory offset corresponding to the given 3d indexes.
     /// \param i0,i1,i2     Multi-dimensional indexes.
     /// \param strides      Strides associated with these indexes. Only the first 3 values are used.
-    template<typename I0, typename I1, typename I2, typename Offset, size_t N,
-             nt::enable_if_bool_t<nt::are_int_v<I0, I1, I2> && (N >= 3)> = true>
+    template<typename I0, typename I1, typename I2, typename Offset, size_t N>
+    requires (nt::are_int_v<I0, I1, I2> and (N >= 3))
     [[nodiscard]] NOA_FHD constexpr auto offset_at(
             I0 i0, I1 i1, I2 i2,
             const Strides<Offset, N>& strides)
     noexcept -> Offset {
         static_assert(sizeof(Offset) >= 4, "don't compute memory offsets with less than 4 bytes values...");
-        NOA_ASSERT(is_safe_cast<Offset>(i0) && is_safe_cast<Offset>(i1) && is_safe_cast<Offset>(i2));
+        NOA_ASSERT(is_safe_cast<Offset>(i0) and is_safe_cast<Offset>(i1) and is_safe_cast<Offset>(i2));
 
         return static_cast<Offset>(i0) * strides[0] +
                static_cast<Offset>(i1) * strides[1] +
@@ -57,8 +57,8 @@ namespace noa::indexing {
     }
 
     /// Returns the memory offset corresponding to the given 3d indexes.
-    template<typename Index, typename Offset, size_t N,
-             nt::enable_if_bool_t<nt::is_int_v<Index> && (N >= 3)> = true>
+    template<typename Index, typename Offset, size_t N>
+    requires (nt::is_int_v<Index> and (N >= 3))
     [[nodiscard]] NOA_FHD constexpr auto offset_at(
             const Vec3<Index>& index,
             const Strides<Offset, N>& strides
@@ -69,22 +69,22 @@ namespace noa::indexing {
     /// Returns the memory offset corresponding to the given 2d indexes.
     /// \param i0,i1        Multi-dimensional indexes.
     /// \param strides      Strides associated with these indexes. Only the first 2 values are used.
-    template<typename I0, typename I1, typename Offset, size_t N,
-             nt::enable_if_bool_t<nt::are_int_v<I0, I1> && (N >= 2)> = true>
+    template<typename I0, typename I1, typename Offset, size_t N>
+    requires (nt::are_int_v<I0, I1> and (N >= 2))
     [[nodiscard]] NOA_FHD constexpr auto offset_at(
             I0 i0, I1 i1,
             const Strides<Offset, N>& strides)
     noexcept -> Offset {
         static_assert(sizeof(Offset) >= 4, "don't compute memory offsets with less than 4 bytes values...");
-        NOA_ASSERT(is_safe_cast<Offset>(i0) && is_safe_cast<Offset>(i1));
+        NOA_ASSERT(is_safe_cast<Offset>(i0) and is_safe_cast<Offset>(i1));
 
         return static_cast<Offset>(i0) * strides[0] +
                static_cast<Offset>(i1) * strides[1];
     }
 
     /// Returns the memory offset corresponding to the given 3d indexes.
-    template<typename Index, typename Offset, size_t N,
-             nt::enable_if_bool_t<nt::is_int_v<Index> && (N >= 2)> = true>
+    template<typename Index, typename Offset, size_t N>
+    requires (nt::is_int_v<Index> and (N >= 2))
     [[nodiscard]] NOA_FHD constexpr auto offset_at(
             const Vec2<Index>& index,
             const Strides<Offset, N>& strides
@@ -95,8 +95,8 @@ namespace noa::indexing {
     /// Returns the memory offset corresponding to the given 1D indexes.
     /// \param i0           Index.
     /// \param strides      Strides associated with these indexes. Only the first value is used.
-    template<typename Index, typename Strides,
-             nt::enable_if_bool_t<nt::is_int_v<Index> && (nt::is_stridesX_v<Strides> || nt::is_int_v<Strides>)> = true>
+    template<typename Index, typename Strides>
+    requires (nt::is_int_v<Index> and (nt::is_strides_v<Strides> or nt::is_int_v<Strides>))
     [[nodiscard]] NOA_FHD constexpr auto offset_at(Index i0, Strides strides) noexcept {
         using offset_t = nt::value_type_t<Strides>;
         static_assert(sizeof(offset_t) >= 4, "don't compute memory offsets with less than 4 bytes values...");
@@ -110,8 +110,8 @@ namespace noa::indexing {
     }
 
     /// Returns the memory offset corresponding to the given 3d indexes.
-    template<typename Index, typename Offset, size_t N,
-             nt::enable_if_bool_t<nt::is_int_v<Index> && (N >= 1)> = true>
+    template<typename Index, typename Offset, size_t N>
+    requires (nt::is_int_v<Index> and (N >= 1))
     [[nodiscard]] NOA_FHD constexpr auto offset_at(
             const Vec1<Index>& index,
             const Strides<Offset, N>& strides
@@ -121,7 +121,7 @@ namespace noa::indexing {
 
     /// If \p idx is out-of-bound, computes a valid index, i.e. [0, size-1], according to \p MODE.
     /// Otherwise, returns \p idx. \p size should be > 0.
-    template<Border MODE, typename SInt, nt::enable_if_bool_t<std::is_signed_v<SInt>> = true>
+    template<Border MODE, typename SInt> requires std::is_signed_v<SInt>
     [[nodiscard]] NOA_IHD constexpr SInt index_at(SInt idx, SInt size) {
         static_assert(MODE == Border::CLAMP || MODE == Border::PERIODIC ||
                       MODE == Border::MIRROR || MODE == Border::REFLECT);
@@ -178,7 +178,7 @@ namespace noa::indexing {
     /// \param s0,s1    DH sizes.
     template<typename T>
     [[nodiscard]] NOA_FHD constexpr Vec3<T> offset2index(T offset, T s0, T s1) noexcept {
-        NOA_ASSERT(s0 > 0 && s1 > 0);
+        NOA_ASSERT(s0 > 0 and s1 > 0);
         const auto i0 = offset / (s0 * s1);
         offset -= i0 * s0 * s1;
         const auto i1 = offset / s1;
@@ -192,7 +192,7 @@ namespace noa::indexing {
     /// \param s0,s1,s2 DHW sizes.
     template<typename T>
     [[nodiscard]] NOA_FHD constexpr Vec4<T> offset2index(T offset, T s0, T s1, T s2) noexcept {
-        NOA_ASSERT(s0 > 0 && s1 > 0 && s2 > 0);
+        NOA_ASSERT(s0 > 0 and s1 > 0 and s2 > 0);
         const auto i0 = offset / (s0 * s1 * s2);
         offset -= i0 * s0 * s1 * s2;
         const auto i1 = offset / (s1 * s2);
