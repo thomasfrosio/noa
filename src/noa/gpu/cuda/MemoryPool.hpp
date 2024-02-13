@@ -1,6 +1,8 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
+#include "noa/core/Config.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Device.hpp"
@@ -16,22 +18,20 @@
 //    See cudaMemPoolTrimTo(pool, bytesToKeep).
 //  - Memory pools are not attached to a particular stream, they can reuse memory device-wide.
 
-#if CUDART_VERSION >= 11020
-
-namespace noa::cuda::memory {
+namespace noa::cuda {
     // Memory pool.
     class Pool {
     public:
         // Gets the default memory pool of device.
         static cudaMemPool_t current(Device device) {
             cudaMemPool_t pool{};
-            NOA_THROW_IF(cudaDeviceGetDefaultMemPool(&pool, device.id()));
+            check(cudaDeviceGetDefaultMemPool(&pool, device.id()));
             return pool;
         }
 
         // Sets the default memory pool of device.
         static void set_current(Device device, cudaMemPool_t pool) {
-            NOA_THROW_IF(cudaDeviceSetMemPool(device.id(), pool));
+            check(cudaDeviceSetMemPool(device.id(), pool));
         }
 
     public:
@@ -51,7 +51,7 @@ namespace noa::cuda::memory {
         // try to release memory back to the OS on the next call to stream, event or context synchronize. The
         // default value is 0 bytes (i.e. stream synchronization frees the cached memory).
         void set_threshold(size_t threshold_bytes) const {
-            NOA_THROW_IF(cudaMemPoolSetAttribute(m_pool, cudaMemPoolAttrReleaseThreshold, &threshold_bytes));
+            check(cudaMemPoolSetAttribute(m_pool, cudaMemPoolAttrReleaseThreshold, &threshold_bytes));
         }
 
         // Releases memory back to the OS until the pool contains fewer than "bytes_to_keep" reserved bytes,
@@ -70,5 +70,4 @@ namespace noa::cuda::memory {
         cudaMemPool_t m_pool{nullptr};
     };
 }
-
 #endif

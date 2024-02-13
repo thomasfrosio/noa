@@ -28,13 +28,13 @@ namespace noa::cuda {
     public:
         // Creates an event on the current device.
         explicit Event(EventMode flags = EventMode::BUSY_TIMER) : m_device(Device::current()) {
-            NOA_THROW_IF(cudaEventCreateWithFlags(&m_event, mode2u32_(flags)));
+            check(cudaEventCreateWithFlags(&m_event, mode2u32_(flags)));
         }
 
         // Creates an event on a specific device.
         explicit Event(Device device, EventMode flags = EventMode::BUSY_TIMER) : m_device(device) {
             const DeviceGuard stream_device(m_device);
-            NOA_THROW_IF(cudaEventCreateWithFlags(&m_event, mode2u32_(flags)));
+            check(cudaEventCreateWithFlags(&m_event, mode2u32_(flags)));
         }
 
     public:
@@ -44,7 +44,7 @@ namespace noa::cuda {
         // thread will busy-wait until the event has been completed by the device.
         void synchronize() {
             const DeviceGuard stream_device(m_device);
-            NOA_THROW_IF(cudaEventSynchronize(m_event));
+            check(cudaEventSynchronize(m_event));
         }
 
         // Whether the event has completed all operations.
@@ -56,17 +56,17 @@ namespace noa::cuda {
             else if (status == cudaError_t::cudaErrorNotReady)
                 return false;
             else
-                NOA_THROW(error2string(status));
+                panic_runtime(error2string(status));
         }
 
         // Records an already existing event into a stream. They must be on the same device.
         void record(const Stream& stream) {
             if (stream.device() != m_device) {
-                NOA_THROW("Stream and event are associated to different devices. Got device {} and device {}",
-                          stream.device().id(), m_device.id());
+                panic("Stream and event are associated to different devices. Got device {} and device {}",
+                      stream.device().id(), m_device.id());
             }
             const DeviceGuard scope_device(m_device);
-            NOA_THROW_IF(cudaEventRecord(m_event, stream.id()));
+            check(cudaEventRecord(m_event, stream.id()));
         }
 
         // Computes the elapsed time between events.
@@ -74,11 +74,11 @@ namespace noa::cuda {
         // DISABLE_TIMING). Note that this measurement can be quite inaccurate.
         static double elapsed(const Event& start, const Event& end) {
             if (start.m_device != end.m_device) {
-                NOA_THROW("Events are associated to different devices. Got device {} and device {}",
-                          start.m_device.id(), end.m_device.id());
+                panic("Events are associated to different devices. Got device {} and device {}",
+                      start.m_device.id(), end.m_device.id());
             }
             float milliseconds{};
-            NOA_THROW_IF(cudaEventElapsedTime(&milliseconds, start.m_event, end.m_event));
+            check(cudaEventElapsedTime(&milliseconds, start.m_event, end.m_event));
             return static_cast<double>(milliseconds);
         }
 
@@ -90,8 +90,8 @@ namespace noa::cuda {
 
         ~Event() noexcept(false) {
             const cudaError_t err = cudaEventDestroy(m_event); // no need to be on the current device, apparently.
-            if (err != cudaSuccess && std::uncaught_exceptions() == 0)
-                NOA_THROW(error2string(err));
+            if (err != cudaSuccess and std::uncaught_exceptions() == 0)
+                panic_runtime(error2string(err));
         }
 
         [[nodiscard]] cudaEvent_t get() const noexcept { return m_event; }

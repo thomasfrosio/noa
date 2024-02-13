@@ -4,12 +4,13 @@
 #include "noa/gpu/cuda/Types.hpp"
 
 namespace noa::cuda::guts {
+    // TODO Add a way for the users to add a specialisation for wrap_reduce with their own types
     template<typename T>
-    constexpr bool is_valid_suffle_v = nt::is_numeric_v<T> || nt::is_any_v<T, half, half2>;
+    constexpr bool is_valid_suffle_v = nt::is_numeric_v<T> or nt::is_any_v<T, half, half2>;
 }
 
 namespace noa::cuda {
-    template<typename T, nt::enable_if_bool_t<guts::is_valid_suffle_v<T>> = true>
+    template<typename T> requires guts::is_valid_suffle_v<T>
     NOA_FD T warp_shuffle(T value, i32 source, i32 width = 32, u32 mask = 0xffffffff) {
         if constexpr (nt::is_almost_same_v<c16, T>) {
             __half2 tmp = __shfl_sync(mask, *reinterpret_cast<__half2*>(&value), source, width);
@@ -24,10 +25,9 @@ namespace noa::cuda {
         } else {
             return __shfl_sync(mask, value, source, width);
         }
-        return T{}; // unreachable
     }
 
-    template<typename T, nt::enable_if_bool_t<guts::is_valid_suffle_v<T>> = true>
+    template<typename T> requires guts::is_valid_suffle_v<T>
     NOA_FD T warp_suffle_down(T value, u32 delta, i32 width = 32, u32 mask = 0xffffffff) {
         if constexpr (nt::is_almost_same_v<c16, T>) {
             __half2 tmp = __shfl_down_sync(mask, *reinterpret_cast<__half2*>(&value), delta, width);
@@ -42,7 +42,6 @@ namespace noa::cuda {
         } else {
             return __shfl_down_sync(mask, value, delta, width);
         }
-        return T{}; // unreachable
     }
 
     // Reduces one warp to one element.
@@ -50,9 +49,9 @@ namespace noa::cuda {
     // The returned value is undefined for the other threads.
     // value:       Per-thread value.
     // reduce_op:   Reduction operator.
-    template<typename Value, typename ReduceOp, nt::enable_if_bool_t<nt::is_numeric_v<Value>> = true>
-    NOA_ID Value warp_reduce(Value value, ReduceOp reduce_op) {
-        Value reduce;
+    template<typename T, typename ReduceOp> requires guts::is_valid_suffle_v<T>
+    NOA_ID T warp_reduce(T value, ReduceOp reduce_op) {
+        T reduce;
         for (i32 delta = 1; delta < 32; delta *= 2) {
             reduce = warp_suffle_down(value, delta);
             value = reduce_op(reduce, value);
@@ -61,14 +60,19 @@ namespace noa::cuda {
     }
 
     // Overload for pairs.
-    template<typename Lhs, typename Rhs, typename ReduceOp>
-    NOA_ID auto warp_reduce(Pair<Lhs, Rhs> pair, ReduceOp reduce_op) {
-        using pair_t = Pair<Lhs, Rhs>;
+    template<typename Interface, typename Op, typename Reduced>
+    requires nt::is_tuple_of_accessor_value_v<Reduced>
+    NOA_ID auto warp_reduce(Op op, Reduced reduced) -> Reduced {
         for (i32 delta = 1; delta < 32; delta *= 2) {
-            pair_t reduce{warp_suffle_down(pair.first, delta),
-                          warp_suffle_down(pair.second, delta)};
-            pair = reduce_op(reduce, pair);
+            Reduced reduce = reduced.map([delta]<typename T>(T& accessor_value) {
+                // TODO If int/float, there's a faster reduction, which I forgot the name...
+                if constexpr (guts::is_valid_suffle_v<nt::value_type_t<T>>)
+                    return T(warp_suffle_down(accessor_value.deref(), delta));
+                else
+                    static_assert(nt::always_false_v<T>);
+            });
+            Interface::join(op, reduce, reduced);
         }
-        return pair;
+        return reduced;
     }
 }

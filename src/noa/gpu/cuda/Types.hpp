@@ -12,10 +12,10 @@
 
 namespace noa::cuda {
     struct LaunchConfig {
-        dim3 blocks;
-        dim3 threads;
-        size_t bytes_shared_memory{};
-        bool cooperative{};
+        dim3 n_blocks;
+        dim3 n_threads;
+        size_t n_bytes_of_shared_memory{};
+        bool is_cooperative{};
     };
 
     struct Constant {

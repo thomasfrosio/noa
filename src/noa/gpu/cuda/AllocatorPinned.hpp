@@ -1,6 +1,8 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
+#include "noa/core/Config.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 
@@ -36,7 +38,7 @@
 //      can be async. Note: In case where there's a lot of devices, we'll probably want to
 //      restrict the use of pinned memory.
 
-namespace noa::cuda::memory {
+namespace noa::cuda {
     struct AllocatorPinnedDeleter {
         void operator()(void* ptr) const noexcept {
             [[maybe_unused]] const cudaError_t err = cudaFreeHost(ptr);
@@ -51,8 +53,8 @@ namespace noa::cuda::memory {
         static_assert(!std::is_pointer_v<T> && !std::is_reference_v<T> && !std::is_const_v<T>);
         using value_type = T;
         using deleter_type = AllocatorPinnedDeleter;
-        using shared_type = Shared<value_type[]>;
-        using unique_type = Unique<value_type[], deleter_type>;
+        using shared_type = std::shared_ptr<value_type[]>;
+        using unique_type = std::unique_ptr<value_type[], deleter_type>;
         static constexpr size_t ALIGNMENT = 256; // this is guaranteed by cuda
 
     public: // static functions
@@ -61,8 +63,9 @@ namespace noa::cuda::memory {
             if (elements <= 0)
                 return {};
             void* tmp{nullptr}; // T** to void** not allowed [-fpermissive]
-            NOA_THROW_IF(cudaMallocHost(&tmp, static_cast<size_t>(elements) * sizeof(value_type)));
+            check(cudaMallocHost(&tmp, static_cast<size_t>(elements) * sizeof(value_type)));
             return unique_type(static_cast<value_type*>(tmp));
         }
     };
 }
+#endif

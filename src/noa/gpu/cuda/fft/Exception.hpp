@@ -1,19 +1,23 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/gpu/cuda/Exception.hpp"
 
 #if defined(NOA_IS_OFFLINE)
 #include <cufft.h>
 #include <exception>
+#include "noa/gpu/cuda/Exception.hpp"
 
 namespace noa::cuda {
-    // Formats the cufft result to a human-readable string.
-    std::string to_string(cufftResult_t result);
+    /// Formats the cuFFT result to a human-readable string.
+    std::string error2string(cufftResult_t result);
 
-    inline void throw_if(cufftResult_t result, const char* file, const char* function, int line) {
-        if (result != cufftResult_t::CUFFT_SUCCESS)
-            std::throw_with_nested(noa::Exception(file, function, line, to_string(result)));
+    /// Throws an Exception if the result is not CUFFT_SUCCESS.
+    constexpr void check(cufftResult_t result, const std::source_location& location = std::source_location::current()) {
+        if (result == cufftResult_t::CUFFT_SUCCESS) {
+            /*do nothing*/
+        } else {
+            panic_at_location(location, "cuFFT failed with error: {}", error2string(result));
+        }
     }
 }
 #endif

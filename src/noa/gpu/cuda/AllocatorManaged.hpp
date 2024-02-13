@@ -1,6 +1,8 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
+#include "noa/core/Config.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
@@ -25,15 +27,15 @@
 
 // TODO Add prefetching and advising.
 
-namespace noa::cuda::memory {
+namespace noa::cuda {
     struct AllocatorManagedDeleter {
         std::weak_ptr<Stream::Core> stream{};
 
         void operator()(void* ptr) const noexcept {
-            const Shared<Stream::Core> stream_ = stream.lock();
+            const std::shared_ptr<Stream::Core> stream_ = stream.lock();
             [[maybe_unused]] cudaError_t err;
             if (stream_) {
-                err = cudaStreamSynchronize(stream_->handle);
+                err = cudaStreamSynchronize(stream_->stream_handle);
                 NOA_ASSERT(err == cudaSuccess);
             }
             err = cudaFree(ptr);
@@ -47,8 +49,8 @@ namespace noa::cuda::memory {
         static_assert(!std::is_pointer_v<T> && !std::is_reference_v<T> && !std::is_const_v<T>);
         using value_type = T;
         using deleter_type = AllocatorManagedDeleter;
-        using shared_type = Shared<value_type[]>;
-        using unique_type = Unique<value_type[], deleter_type>;
+        using shared_type = std::shared_ptr<value_type[]>;
+        using unique_type = std::unique_ptr<value_type[], deleter_type>;
         static constexpr size_t ALIGNMENT = 256; // this is guaranteed by the driver
 
     public: // static functions
@@ -57,8 +59,7 @@ namespace noa::cuda::memory {
             if (elements <= 0)
                 return {};
             void* tmp{nullptr}; // X** to void** is not allowed
-            NOA_THROW_IF(cudaMallocManaged(
-                    &tmp, static_cast<size_t>(elements) * sizeof(value_type), cudaMemAttachGlobal));
+            check(cudaMallocManaged(&tmp, static_cast<size_t>(elements) * sizeof(value_type), cudaMemAttachGlobal));
             return unique_type(static_cast<value_type*>(tmp));
         }
 
@@ -79,8 +80,8 @@ namespace noa::cuda::memory {
             if (elements <= 0)
                 return {};
             void* tmp{nullptr}; // X** to void** is not allowed
-            NOA_THROW_IF(cudaMallocManaged(&tmp, static_cast<size_t>(elements) * sizeof(value_type), cudaMemAttachHost));
-            NOA_THROW_IF(cudaStreamAttachMemAsync(stream.id(), tmp));
+            check(cudaMallocManaged(&tmp, static_cast<size_t>(elements) * sizeof(value_type), cudaMemAttachHost));
+            check(cudaStreamAttachMemAsync(stream.id(), tmp));
             stream.synchronize(); // FIXME is this necessary since cudaMemAttachHost is used?
             return unique_type(static_cast<value_type*>(tmp), deleter_type{stream.core()});
         }
@@ -90,29 +91,30 @@ namespace noa::cuda::memory {
         template<typename R, std::enable_if_t<nt::is_any_v<R, shared_type, unique_type>, bool> = true>
         [[nodiscard]] cudaStream_t attached_stream_handle(const R& resource) const {
             if (resource) {
-                const Shared<Stream::Core> stream;
+                const std::shared_ptr<Stream::Core> stream;
                 if constexpr (std::is_same_v<R, shared_type>)
                     stream = std::get_deleter<AllocatorManagedDeleter>(resource)->stream.lock();
                 else
                     resource.get_deleter().stream.lock();
                 if (stream)
-                    return stream->handle;
+                    return stream->stream_handle;
             }
             return nullptr;
         }
 
         // Prefetches the memory region to the stream's GPU.
         static void prefetch_to_gpu(const value_type* pointer, i64 n_elements, Stream& stream) {
-            NOA_THROW_IF(cudaMemPrefetchAsync(
+            check(cudaMemPrefetchAsync(
                     pointer, static_cast<size_t>(n_elements) * sizeof(value_type),
                     stream.device().id(), stream.id()));
         }
 
         // Prefetches the memory region to the cpu.
         static void prefetch_to_cpu(const value_type* pointer, i64 n_elements, Stream& stream) {
-            NOA_THROW_IF(cudaMemPrefetchAsync(
+            check(cudaMemPrefetchAsync(
                     pointer, static_cast<size_t>(n_elements) * sizeof(value_type),
                     cudaCpuDeviceId, stream.id()));
         }
     };
 }
+#endif

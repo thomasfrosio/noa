@@ -1,54 +1,47 @@
 set(NOA_CUDA_HEADERS
     # noa::cuda
+    gpu/cuda/AllocatorArray.hpp
+    gpu/cuda/AllocatorDevice.hpp
+    gpu/cuda/AllocatorDevicePadded.hpp
+    gpu/cuda/AllocatorManaged.hpp
+    gpu/cuda/AllocatorPinned.hpp
+    gpu/cuda/AllocatorTexture.hpp
     gpu/cuda/Device.hpp
     gpu/cuda/Event.hpp
-    gpu/cuda/Ewise.hpp
     gpu/cuda/Exception.hpp
-    gpu/cuda/Find.hpp
-    gpu/cuda/Sort.hpp
+    gpu/cuda/MemoryPool.hpp
+    gpu/cuda/Pointers.hpp
     gpu/cuda/Stream.hpp
     gpu/cuda/Types.hpp
+    gpu/cuda/Version.hpp
 
-    gpu/cuda/EwiseUnary.hpp
+    gpu/cuda/Ewise.hpp
+    gpu/cuda/Iwise.hpp
+    gpu/cuda/ReduceAxesEwise.hpp
+    gpu/cuda/ReduceEwise.hpp
+    gpu/cuda/ReduceIwise.hpp
 
-    # noa::cuda::utils
-    gpu/cuda/utils/Block.cuh
-    gpu/cuda/utils/EwiseBinary.cuh
-    gpu/cuda/utils/EwiseTrinary.cuh
-    gpu/cuda/utils/EwiseUnary.cuh
-    gpu/cuda/utils/Iwise.cuh
-    gpu/cuda/utils/Pointers.hpp
-    gpu/cuda/utils/ReduceUnary.cuh
-    gpu/cuda/utils/ReduceBinary.cuh
-    gpu/cuda/utils/Version.hpp
-    gpu/cuda/utils/Warp.cuh
+    #    gpu/cuda/Sort.hpp
+    #    gpu/cuda/Copy.hpp
+    #    gpu/cuda/Blas.hpp
 
-    # noa::cuda::memory
-    gpu/cuda/memory/AllocatorArray.hpp
-    gpu/cuda/memory/AllocatorDevice.hpp
-    gpu/cuda/memory/AllocatorDevicePadded.hpp
-    gpu/cuda/memory/AllocatorManaged.hpp
-    gpu/cuda/memory/AllocatorPinned.hpp
-    gpu/cuda/memory/AllocatorTexture.hpp
-    gpu/cuda/memory/Copy.hpp
-    gpu/cuda/memory/MemoryPool.hpp
+    # kernels
+    gpu/cuda/kernels/Block.cuh
+    gpu/cuda/kernels/Ewise.cuh
+    gpu/cuda/kernels/Iwise.cuh
+    gpu/cuda/kernels/ReduceAxesEwise.cuh
+    gpu/cuda/kernels/ReduceEwise.cuh
+    gpu/cuda/kernels/ReduceIwise.cuh
+    gpu/cuda/kernels/Warp.cuh
 
     # noa::cuda::fft
     gpu/cuda/fft/Exception.hpp
     gpu/cuda/fft/Plan.hpp
-#    gpu/cuda/fft/Remap.hpp
-#    gpu/cuda/fft/Resize.hpp
     gpu/cuda/fft/Transforms.hpp
-
-    # noa::cuda::math
-    gpu/cuda/math/Blas.hpp
-
-
     )
 
 set(NOA_CUDA_SOURCES
     gpu/cuda/Device.cpp
-    gpu/cuda/EwiseUnary.cu
 
     # noa::cuda::fft
     gpu/cuda/fft/Exception.cpp

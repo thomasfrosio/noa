@@ -1,10 +1,9 @@
 #include "noa/gpu/cuda/Device.hpp"
 #include <catch2/catch.hpp>
 
-using namespace noa;
-
 TEST_CASE("cuda::Device", "[noa][cuda]") {
-    using namespace cuda;
+    using namespace noa::types;
+    using namespace noa::cuda;
 
     const Device a;
     REQUIRE(a.id() == 0);
@@ -17,11 +16,11 @@ TEST_CASE("cuda::Device", "[noa][cuda]") {
     REQUIRE(static_cast<i64>(devices.size()) == Device::count());
 
     {
-        Device device("cuda:0", Device::DeviceUnchecked{});
+        Device device(0, Device::DeviceUnchecked{});
         REQUIRE(device.id() == 0);
-        device = Device("cuda:1", Device::DeviceUnchecked{});
+        device = Device(1, Device::DeviceUnchecked{});
         REQUIRE(device.id() == 1);
-        device = Device("cuda:12", Device::DeviceUnchecked{});
+        device = Device(12, Device::DeviceUnchecked{});
         REQUIRE(device.id() == 12);
     }
 

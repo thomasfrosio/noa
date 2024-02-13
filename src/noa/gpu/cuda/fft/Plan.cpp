@@ -1,10 +1,11 @@
+#include <cufft.h>
 #include <deque>
 
 #include "noa/gpu/cuda/fft/Plan.hpp"
 #include "noa/core/string/Format.hpp"
 
 namespace {
-    using namespace ::noa;
+    using namespace ::noa::types;
 
     // Even values satisfying (2^a) * (3^b) * (5^c) * (7^d).
     constexpr u32 sizes_even_cufft_[315] = {
@@ -34,18 +35,18 @@ namespace {
 
         void set_cache_limit(i32 size) noexcept {
             NOA_ASSERT(size >= 0);
-            m_max_size = clamp_cast<size_t>(size);
+            m_max_size = noa::clamp_cast<size_t>(size);
             while (m_queue.size() > m_max_size)
                 m_queue.pop_back();
         }
 
         i32 clear_cache() noexcept {
-            i32 count{0};
+            i32 n_plans_destructed{0};
             while (!m_queue.empty()) {
                 m_queue.pop_back();
-                ++count;
+                ++n_plans_destructed;
             }
-            return count;
+            return n_plans_destructed;
         }
 
         [[nodiscard]] i32 cache_limit() const noexcept { return static_cast<i32>(m_max_size); }
@@ -91,12 +92,12 @@ namespace {
         size_t m_max_size{4};
     };
 
-    // Since a cufft plan can only be used by one thread at a time, for simplicity, have a per-host-thread cache.
-    // Each GPU has its own cache of course.
+    // Since a cufft plan can only be used by one thread at a time, for simplicity,
+    // have a per-host-thread cache. Each GPU has its own cache, of course.
     CufftManager& get_cache_(i32 device) {
         constexpr i32 MAX_DEVICES = 64;
-        NOA_CHECK(device < MAX_DEVICES,
-                  "Internal buffer for caching cufft plans is limited to 64 visible devices");
+        noa::cuda::check(device < MAX_DEVICES,
+                         "Internal buffer for caching cufft plans is limited to 64 visible devices");
 
         thread_local std::unique_ptr<CufftManager> g_cache[MAX_DEVICES];
         std::unique_ptr<CufftManager>& cache = g_cache[device];
@@ -104,21 +105,49 @@ namespace {
             cache = std::make_unique<CufftManager>();
         return *cache;
     }
+
+    // Offset the type if double precision.
+    cufftType_t to_cufft_type_(noa::cuda::fft::Type type, bool is_single_precision) noexcept {
+        static_assert(
+                CUFFT_Z2Z - CUFFT_C2C == 64 and
+                CUFFT_Z2D - CUFFT_C2R == 64 and
+                CUFFT_D2Z - CUFFT_R2C == 64);
+        switch (type) {
+            case noa::cuda::fft::Type::R2C:
+                return static_cast<cufftType_t>(CUFFT_R2C + (is_single_precision ? 0 : 64));
+            case noa::cuda::fft::Type::C2R:
+                return static_cast<cufftType_t>(CUFFT_C2R + (is_single_precision ? 0 : 64));
+            case noa::cuda::fft::Type::C2C:
+                return static_cast<cufftType_t>(CUFFT_C2C + (is_single_precision ? 0 : 64));
+            default:
+                noa::panic("Missing type");
+        }
+    }
+
+    template<typename Real>
+    bool is_aligned_to_complex_(Real* ptr) {
+        // This is apparently not guaranteed to work by the standard.
+        // But this should work in all modern and mainstream platforms.
+        constexpr size_t ALIGNMENT = alignof(Complex<Real>);
+        return not(reinterpret_cast<std::uintptr_t>(ptr) % ALIGNMENT);
+    }
 }
 
-namespace noa::cuda::fft::details {
-    auto get_plan(
-            cufftType_t type, const Shape4<i64>& shape, i32 device, bool save_in_cache
-    ) -> std::shared_ptr<cufftHandle> {
-        const auto s_shape = shape.as_safe<i32>();
-        const auto batch = s_shape[0];
-        auto shape_3d = s_shape.pop_front();
+namespace noa::cuda::fft::guts {
+    std::shared_ptr<void> get_plan(
+            Type type,
+            bool is_single_precision,
+            const Shape4<i64>& shape,
+            i32 device,
+            bool save_in_cache
+    ) {
+        auto [batch, shape_3d] = shape.as_safe<i32>().split_batch();
         const i32 rank = shape_3d.ndim();
-        NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
+        NOA_ASSERT(rank == 1 or not ni::is_vector(shape_3d));
         if (rank == 1 && shape_3d[2] == 1) // column vector -> row vector
             std::swap(shape_3d[1], shape_3d[2]);
 
-        const auto i_type = noa::to_underlying(type);
+        const auto i_type = to_underlying(type);
         std::string hash;
         if (rank == 2)
             hash = fmt::format("{}:{},{}:{}:{}", rank, shape_3d[1], shape_3d[2], i_type, batch);
@@ -139,13 +168,13 @@ namespace noa::cuda::fft::details {
             const auto err = ::cufftPlanMany(
                     &plan, rank, shape_3d.data() + 3 - rank,
                     nullptr, 1, 0, nullptr, 1, 0,
-                    type, batch);
+                    to_cufft_type_(type, is_single_precision), batch);
             if (err == CUFFT_SUCCESS)
                 break;
             // It may have failed because of not enough memory,
             // so clear cache and try again.
             if (i)
-                NOA_THROW("Failed to create a cuFFT plan. {}", to_string(err));
+                panic("Failed to create a cuFFT plan. {}", error2string(err));
             else
                 cache.clear_cache();
         }
@@ -155,17 +184,15 @@ namespace noa::cuda::fft::details {
             return CufftManager::share(plan);
     }
 
-    auto get_plan(
-            cufftType_t type,
+    std::shared_ptr<void> get_plan(
+            Type type, bool is_single_precision,
             Strides4<i64> input_strides, Strides4<i64> output_strides,
             const Shape4<i64>& shape, i32 device, bool save_in_cache
-    ) -> std::shared_ptr<cufftHandle> {
-        auto s_shape = shape.as_safe<i32>();
-        const auto batch = s_shape[0];
-        auto shape_3d = s_shape.pop_front();
+    ) {
+        auto [batch, shape_3d] = shape.as_safe<i32>().split_batch();
         const i32 rank = shape_3d.ndim();
 
-        NOA_ASSERT(rank == 1 || !noa::indexing::is_vector(shape_3d));
+        NOA_ASSERT(rank == 1 or not ni::is_vector(shape_3d));
         if (rank == 1 && shape_3d[2] == 1) { // column vector -> row vector
             std::swap(shape_3d[1], shape_3d[2]);
             std::swap(input_strides[2], input_strides[3]);
@@ -215,11 +242,11 @@ namespace noa::cuda::fft::details {
                     &plan, rank, shape_3d.data() + offset,
                     i_pitch.data() + offset, i_strides[3], i_strides[0],
                     o_pitch.data() + offset, o_strides[3], o_strides[0],
-                    type, batch);
+                    to_cufft_type_(type, is_single_precision), batch);
             if (err == CUFFT_SUCCESS)
                 break;
             if (i == 1)
-                NOA_THROW("Failed to create a cuFFT plan. {}", to_string(err));
+                panic("Failed to create a cuFFT plan. {}", error2string(err));
             else
                 cache.clear_cache();
         }
@@ -241,11 +268,64 @@ namespace noa::cuda::fft {
         return (size % 2 == 0) ? size : (size + 1); // fall back to next even number
     }
 
-    i32 cufft_clear_cache(i32 device) noexcept {
+    i32 clear_caches(i32 device) noexcept {
         return get_cache_(device).clear_cache();
     }
 
-    void cufft_cache_limit(i32 device, i32 count) noexcept {
+    void set_cache_limit(i32 device, i32 count) noexcept {
         get_cache_(device).set_cache_limit(count);
     }
+
+    template<typename Real>
+    void Plan<Real>::execute(Real* input, Complex<Real>* output, Stream& stream) {
+        check(is_aligned_to_complex_(input),
+              "cufft requires both the input and output to be aligned to the complex type. This might not "
+              "be the case for the real input when operating on a subregion starting at an odd offset. "
+              "Hint: copy the real array to a new array or add adequate padding.");
+
+        auto plan = *static_cast<cufftHandle*>(m_plan.get()); // int
+        check(cufftSetStream(plan, stream.get()));
+        if constexpr (is_single_precision)
+            check(cufftExecR2C(plan, input, reinterpret_cast<cufftComplex*>(output)));
+        else
+            check(cufftExecD2Z(plan, input, reinterpret_cast<cufftDoubleComplex*>(output)));
+        stream.enqueue_attach(m_plan);
+    }
+
+    template<typename Real>
+    void Plan<Real>::execute(Complex<Real>* input, Real* output, Stream& stream) {
+        check(is_aligned_to_complex_(output),
+              "cufft requires both the input and output to be aligned to the complex type. This might not "
+              "be the case for the real output when operating on a subregion starting at an odd offset. "
+              "Hint: copy the real array to a new array or add adequate padding.");
+
+        auto plan = *static_cast<cufftHandle*>(m_plan.get()); // int
+        check(cufftSetStream(plan, stream.get()));
+        if constexpr (is_single_precision)
+            check(cufftExecC2R(plan, reinterpret_cast<cufftComplex*>(input), output));
+        else
+            check(cufftExecZ2D(plan, reinterpret_cast<cufftDoubleComplex*>(input), output));
+        stream.enqueue_attach(m_plan);
+    }
+
+    template<typename Real>
+    void Plan<Real>::execute(Complex<Real>* input, Complex<Real>* output, noa::fft::Sign sign, Stream& stream) {
+        auto plan = *static_cast<cufftHandle*>(m_plan.get()); // int
+        check(cufftSetStream(plan, stream.get()));
+        if constexpr (is_single_precision) {
+            check(cufftExecC2C(plan,
+                               reinterpret_cast<cufftComplex*>(input),
+                               reinterpret_cast<cufftComplex*>(output),
+                               to_underlying(sign)));
+        } else {
+            check(cufftExecZ2Z(plan,
+                               reinterpret_cast<cufftDoubleComplex*>(input),
+                               reinterpret_cast<cufftDoubleComplex*>(output),
+                               to_underlying(sign)));
+        }
+        stream.enqueue_attach(plan);
+    }
+
+    template class Plan<f32>;
+    template class Plan<f64>;
 }

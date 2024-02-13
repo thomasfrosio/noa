@@ -1,7 +1,7 @@
 #include "noa/gpu/cuda/fft/Exception.hpp"
 
 namespace noa::cuda {
-    std::string to_string(cufftResult_t result) {
+    std::string error2string(cufftResult_t result) {
         switch (result) {
             case cufftResult_t::CUFFT_SUCCESS:
                 return "CUFFT_SUCCESS";

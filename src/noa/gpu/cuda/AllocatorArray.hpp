@@ -1,6 +1,8 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
+#include "noa/core/Config.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 
@@ -25,7 +27,7 @@ template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::f16>() { retu
 template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::c16>() { return cudaCreateChannelDesc<half2>(); }
 template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::c32>() { return cudaCreateChannelDesc<float2>(); }
 
-namespace noa::cuda::memory {
+namespace noa::cuda {
     struct AllocatorArrayDeleter {
         void operator()(cudaArray* array) const noexcept {
             [[maybe_unused]] const cudaError_t err = cudaFreeArray(array);
@@ -40,8 +42,8 @@ namespace noa::cuda::memory {
         static_assert(nt::is_any_v<Value, i32, u32, f32, c32>);
         using value_type = Value;
         using deleter_type = AllocatorArrayDeleter;
-        using shared_type = Shared<cudaArray>;
-        using unique_type = Unique<cudaArray, deleter_type>;
+        using shared_type = std::shared_ptr<cudaArray>;
+        using unique_type = std::unique_ptr<cudaArray, deleter_type>;
 
     public: // static functions
         static cudaExtent shape2extent(Shape4<i64> shape, bool is_layered) {
@@ -55,10 +57,10 @@ namespace noa::cuda::memory {
             // 1D:          111W  -> 00W
             // 2D layered:  B1HW  -> DHW
             // 1D layered:  B11W  -> D0W
-            NOA_CHECK(noa::all(shape > 0) && shape[is_layered] == 1,
-                      "The input shape cannot be converted to a CUDA array extent. "
-                      "Dimensions with a size of 0 are not allowed, and the {} should be 1. Shape: {}",
-                      is_layered ? "depth dimension (for layered arrays)" : "batch dimension", shape);
+            check(all(shape > 0) && shape[is_layered] == 1,
+                  "The input shape cannot be converted to a CUDA array extent. "
+                  "Dimensions with a size of 0 are not allowed, and the {} should be 1. Shape: {}",
+                  is_layered ? "depth dimension (for layered arrays)" : "batch dimension", shape);
 
             auto shape_3d = shape.filter(static_cast<i64>(!is_layered), 2, 3).as_safe<size_t>();
 
@@ -71,11 +73,11 @@ namespace noa::cuda::memory {
 
         static Shape4<i64> extent2shape(cudaExtent extent, bool is_layered) noexcept {
             auto u_extent = Shape3<size_t>{extent.depth, extent.height, extent.width};
-            u_extent += Shape3<size_t>(u_extent == 0); // set empty dimensions to 1
+            u_extent += Shape3<size_t>::from_vec(u_extent == 0); // set empty dimensions to 1
 
             // Column vectors are "lost" in the conversion.
             // 1D extents are interpreted as row vectors.
-            auto shape = Shape4<i64>{1, 1, u_extent[1], u_extent[2]};
+            auto shape = Shape4<i64>::from_values(1, 1, u_extent[1], u_extent[2]);
             shape[!is_layered] = static_cast<i64>(u_extent[0]);
             return shape;
         }
@@ -84,7 +86,7 @@ namespace noa::cuda::memory {
             cudaChannelFormatDesc desc{};
             cudaExtent extent{};
             u32 flags{};
-            NOA_THROW_IF(cudaArrayGetInfo(&desc, &extent, &flags, array));
+            check(cudaArrayGetInfo(&desc, &extent, &flags, array));
             return std::tuple<cudaChannelFormatDesc, cudaExtent, u32>(desc, extent, flags);
         }
 
@@ -99,8 +101,9 @@ namespace noa::cuda::memory {
 
             cudaArray* ptr{};
             cudaChannelFormatDesc desc = cudaCreateChannelDesc<value_type>();
-            NOA_THROW_IF(cudaMalloc3DArray(&ptr, &desc, extent, flag));
+            check(cudaMalloc3DArray(&ptr, &desc, extent, flag));
             return unique_type{ptr};
         }
     };
 }
+#endif

@@ -1,8 +1,9 @@
 #pragma once
 
-#include <utility> // std::exchange
+#include "noa/core/Config.hpp"
 
-#include "noa/core/Definitions.hpp"
+#if defined(NOA_IS_OFFLINE)
+#include <utility> // std::exchange
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
@@ -21,7 +22,7 @@
 //    does not implicitly synchronize in this case, so the application must insert the appropriate synchronization
 //    to ensure that all accesses to the to-be-freed memory are complete.
 
-namespace noa::cuda::memory {
+namespace noa::cuda {
     // AllocatorDevice uses RAII for allocation (allocated memory lifetime is attached to the return type).
     // This is the deleter of the return type, which needs to handle asynchronous deletes.
     struct AllocatorDeviceDeleter {
@@ -37,13 +38,7 @@ namespace noa::cuda::memory {
                 //  - with cudaMallocAsync, but the stream was deleted, so cudaFree instead
                 err = cudaFree(ptr);
             } else {
-                #if CUDART_VERSION >= 11020
-                err = cudaFreeAsync(ptr, stream_->handle);
-                #else
-                err = cudaStreamSynchronize(stream_->handle); // make sure all work is done before releasing to OS.
-                NOA_ASSERT(err == cudaSuccess);
-                err = cudaFree(ptr);
-                #endif
+                err = cudaFreeAsync(ptr, stream_->stream_handle);
             }
             NOA_ASSERT(err == cudaSuccess);
         }
@@ -58,8 +53,8 @@ namespace noa::cuda::memory {
         static_assert(!std::is_pointer_v<T> && !std::is_reference_v<T> && !std::is_const_v<T>);
         using value_type = T;
         using deleter_type = AllocatorDeviceDeleter;
-        using shared_type = Shared<value_type[]>;
-        using unique_type = Unique<value_type[], deleter_type>;
+        using shared_type = std::shared_ptr<value_type[]>;
+        using unique_type = std::unique_ptr<value_type[], deleter_type>;
         static constexpr size_t ALIGNMENT = 256; // in bytes, this is guaranteed by cuda
 
     public: // static functions
@@ -70,7 +65,7 @@ namespace noa::cuda::memory {
                 return {};
             const DeviceGuard guard(device);
             void* tmp{nullptr}; // X** to void** is not allowed
-            NOA_THROW_IF(cudaMalloc(&tmp, static_cast<size_t>(elements) * sizeof(value_type)));
+            check(cudaMalloc(&tmp, static_cast<size_t>(elements) * sizeof(value_type)));
             return unique_type(static_cast<value_type*>(tmp));
         }
 
@@ -80,31 +75,25 @@ namespace noa::cuda::memory {
             if (elements <= 0)
                 return {};
             void* tmp{nullptr}; // X** to void** is not allowed
-            #if CUDART_VERSION >= 11020
-            NOA_THROW_IF(cudaMallocAsync(&tmp, static_cast<size_t>(elements) * sizeof(value_type), stream.id()));
+            check(cudaMallocAsync(&tmp, static_cast<size_t>(elements) * sizeof(value_type), stream.id()));
             return unique_type(static_cast<value_type*>(tmp), deleter_type{stream.core()});
-            #else
-            // Async allocations didn't exist back then...
-            DeviceGuard device(stream.device());
-            NOA_THROW_IF(cudaMalloc(&tmp, static_cast<size_t>(elements) * sizeof(value_type)));
-            return unique_type(static_cast<value_type*>(tmp), deleter_type{stream.core()});
-            #endif
         }
 
         // Returns the stream handle used to allocate the resource.
         // If the data was created synchronously using allocate() or if it's empty, return the null stream.
-        template<typename R, std::enable_if_t<nt::is_any_v<R, shared_type, unique_type>, bool> = true>
+        template<typename R> requires nt::is_any_v<R, shared_type, unique_type>
         [[nodiscard]] static cudaStream_t attached_stream_handle(const R& resource) {
             if (resource) {
-                const Shared<Stream::Core> stream;
+                const std::shared_ptr<Stream::Core> stream;
                 if constexpr (std::is_same_v<R, shared_type>)
                     stream = std::get_deleter<AllocatorDeviceDeleter>(resource)->stream.lock();
                 else
                     resource.get_deleter().stream.lock();
                 if (stream)
-                    return stream->handle;
+                    return stream->stream_handle;
             }
             return nullptr;
         }
     };
 }
+#endif

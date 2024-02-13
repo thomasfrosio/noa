@@ -1,6 +1,8 @@
 #pragma once
 
-#include "noa/core/Definitions.hpp"
+#include "noa/core/Config.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include "noa/core/string/Format.hpp"
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
@@ -23,7 +25,7 @@
 //    like all devices will return a pitch divisible by at least 16 bytes, which is the maximum size allowed by
 //    AllocatorDevicePadded. As a security, AllocatorDevicePadded::allocate() will check if this assumption holds.
 
-namespace noa::cuda::memory {
+namespace noa::cuda {
     struct AllocatorDevicePaddedDeleter {
         void operator()(void* ptr) const noexcept {
             [[maybe_unused]] const cudaError_t err = cudaFree(ptr); // if nullptr, it does nothing
@@ -38,20 +40,19 @@ namespace noa::cuda::memory {
         static_assert(!std::is_pointer_v<T> && !std::is_reference_v<T> && !std::is_const_v<T> && sizeof(T) <= 16);
         using value_type = T;
         using deleter_type = AllocatorDevicePaddedDeleter;
-        using shared_type = Shared<value_type[]>;
-        using unique_type = Unique<value_type[], deleter_type>;
+        using shared_type = std::shared_ptr<value_type[]>;
+        using unique_type = std::unique_ptr<value_type[], deleter_type>;
         static constexpr size_t ALIGNMENT = 256; // this is guaranteed by cuda
 
     public: // static functions
         // Allocates device memory using cudaMalloc3D.
         // Returns 1: Unique pointer pointing to the device memory.
         //         2: Pitch, i.e. height stride, in number of elements.
-        template<typename Integer, size_t N, std::enable_if_t<(N >= 2), bool> = true>
+        template<typename Integer, size_t N> requires (N >= 2)
         static auto allocate(
                 const Shape<Integer, N>& shape, // ((B)D)HW order
                 Device device = Device::current()
-        ) -> std::pair<unique_type, Strides<Integer, N>> {
-
+        ) -> Pair<unique_type, Strides<Integer, N>> {
             if (!shape.elements())
                 return {};
 
@@ -62,20 +63,21 @@ namespace noa::cuda::memory {
             // Allocate.
             cudaPitchedPtr pitched_ptr{};
             const DeviceGuard guard(device);
-            NOA_THROW_IF(cudaMalloc3D(&pitched_ptr, extent));
+            check(cudaMalloc3D(&pitched_ptr, extent));
 
             // Make sure "pitch" can be converted to a number of elements.
             if (pitched_ptr.pitch % sizeof(value_type) != 0) {
                 cudaFree(pitched_ptr.ptr); // ignore any error at this point
-                NOA_THROW("DEV: pitch is not divisible by sizeof({}): {} % {} != 0",
-                          noa::string::human<value_type>(), pitched_ptr.pitch, sizeof(value_type));
+                panic("DEV: pitch is not divisible by sizeof({}): {} % {} != 0",
+                      ns::to_human_readable<value_type>(), pitched_ptr.pitch, sizeof(value_type));
             }
 
             // Create the strides.
             const auto pitch = static_cast<Integer>(pitched_ptr.pitch / sizeof(value_type));
             Strides<Integer, N> strides = shape.template set<N - 1>(pitch).strides();
 
-            return std::pair{unique_type(static_cast<value_type*>(pitched_ptr.ptr)), strides};
+            return {unique_type(static_cast<value_type*>(pitched_ptr.ptr)), strides};
         }
     };
 }
+#endif

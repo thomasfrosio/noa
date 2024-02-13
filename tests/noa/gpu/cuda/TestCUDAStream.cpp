@@ -4,14 +4,31 @@
 
 namespace {
     struct TestCUDAShareable {
-        const std::shared_ptr<float[]> ptr;
-        auto share() const noexcept -> const std::shared_ptr<float[]>& { return ptr; }
+        std::shared_ptr<float[]> ptr;
+        [[nodiscard]] auto share() const noexcept -> const std::shared_ptr<float[]>& { return ptr; }
     };
 
     struct TestCUDANonShareable {
-        const std::shared_ptr<float[]> ptr;
-        auto share() const noexcept -> float* { return ptr.get(); } // or without it
+        std::shared_ptr<float[]> ptr;
+        [[nodiscard]] auto share() const noexcept -> float* { return ptr.get(); }
     };
+
+    using noa::cuda::guts::is_shareable_v;
+    using noa::cuda::guts::has_share_v;
+    static_assert(is_shareable_v<std::shared_ptr<void>>);
+    static_assert(is_shareable_v<std::shared_ptr<float>>);
+    static_assert(is_shareable_v<std::shared_ptr<float[]>>);
+    static_assert(not is_shareable_v<std::unique_ptr<float>>);
+    static_assert(not is_shareable_v<float*>);
+    static_assert(not is_shareable_v<TestCUDAShareable>);
+    static_assert(not is_shareable_v<TestCUDANonShareable>);
+
+    static_assert(has_share_v<TestCUDAShareable>);
+    static_assert(not has_share_v<std::shared_ptr<void>>);
+    static_assert(not has_share_v<std::shared_ptr<float>>);
+    static_assert(not has_share_v<std::shared_ptr<float[]>>);
+    static_assert(not has_share_v<std::unique_ptr<float>>);
+    static_assert(not has_share_v<TestCUDANonShareable>);
 }
 
 TEST_CASE("cuda::Stream", "[noa][cuda]") {
@@ -23,8 +40,9 @@ TEST_CASE("cuda::Stream", "[noa][cuda]") {
     REQUIRE(resource.use_count() == 3);
 
     // In this example, the stream is immediately calling the callback...
-    auto stream = noa::cuda::Stream(noa::cuda::Device(0));
-    auto event = noa::cuda::Event();
+    using namespace noa::cuda;
+    auto stream = Stream(Device(0));
+    auto event = Event();
 
     stream.enqueue_attach(resource); // "A"
     REQUIRE(resource.use_count() == 4); // "A" adds 1 to registry
