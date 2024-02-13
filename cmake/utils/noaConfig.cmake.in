@@ -38,6 +38,7 @@ if (@NOA_ENABLE_CPU@)
         find_dependency(OpenMP 4.5 REQUIRED)
     endif ()
 
+    # FIXME If FFTW3_STATIC, no need to get FFTW3 since it's private and already inside the library.
     set(FFTW3_THREADS @FFTW3_THREADS@ CACHE BOOL "")
     set(FFTW3_OPENMP @FFTW3_OPENMP@ CACHE BOOL "")
     set(FFTW3_STATIC @FFTW3_STATIC@ CACHE BOOL "")

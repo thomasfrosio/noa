@@ -10,4 +10,4 @@
 #define NOA_URL "@PROJECT_HOMEPAGE_URL@"
 
 // After generation time, one can include this file with:
-// #include "noa/Version.hpp"
+// #include <noa/Version.hpp>

@@ -38,17 +38,17 @@ if (NOA_ENABLE_CPU)
         target_link_libraries(noa_public_libraries INTERFACE OpenMP::OpenMP_CXX)
     endif ()
 
-    include(${PROJECT_SOURCE_DIR}/cmake/ext/fftw.cmake)
     target_link_libraries(noa_public_libraries
         INTERFACE
         Threads::Threads
-        ${FFTW3_TARGETS}
         )
 
     include(${PROJECT_SOURCE_DIR}/cmake/ext/eigen.cmake)
+    include(${PROJECT_SOURCE_DIR}/cmake/ext/fftw.cmake)
     target_link_libraries(noa_private_libraries
         INTERFACE
         Eigen3::Eigen
+        ${FFTW3_TARGETS}
         )
 endif ()
 
@@ -59,74 +59,75 @@ if (NOA_ENABLE_CUDA)
     target_link_libraries(noa_public_libraries
         INTERFACE
         CUDA::cuda_driver
-        $<IF:$<BOOL:${NOA_CUDA_CUDART_STATIC}>, CUDA::cudart_static, CUDA::cudart>
-        $<IF:$<BOOL:${NOA_CUDA_CUFFT_STATIC}>, CUDA::cufft_static, CUDA::cufft>
+        $<IF:$<BOOL:${NOA_CUDA_STATIC}>, CUDA::cudart_static, CUDA::cudart>
+        $<IF:$<BOOL:${NOA_CUDA_STATIC}>, CUDA::cufft_static, CUDA::cufft>
         )
     target_link_libraries(noa_private_libraries
         INTERFACE
-        $<IF:$<BOOL:${NOA_CUDA_CURAND_STATIC}>, CUDA::curand_static, CUDA::curand>
-        $<IF:$<BOOL:${NOA_CUDA_CUBLAS_STATIC}>, CUDA::cublas_static, CUDA::cublas>
+        $<IF:$<BOOL:${NOA_CUDA_STATIC}>, CUDA::cublas_static, CUDA::cublas>
         cuda_rtc::jitify2
         )
 
     # Preprocess CUDA kernels.
-    set(noa_jit_include_directories ${CUDAToolkit_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/src)
-    list(TRANSFORM noa_jit_include_directories PREPEND -I)
+    if (NOA_CUDA_JIT)
+        set(noa_jit_include_directories ${CUDAToolkit_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/src)
+        list(TRANSFORM noa_jit_include_directories PREPEND -I)
 
-    set(noa_jit_generated_dir ${NOA_GENERATED_SOURCES_PRIVATE_DIR})
-    set(noa_jit_generated_sources ${NOA_CUDA_PREPROCESS_SOURCES})
-    list(TRANSFORM noa_jit_generated_sources PREPEND ${noa_jit_generated_dir}/)
-    list(TRANSFORM noa_jit_generated_sources APPEND .jit.cpp)
-    list(APPEND noa_jit_generated_sources ${NOA_GENERATED_SOURCES_PRIVATE_DIR}/noa_shared_headers.jit.cpp)
+        set(noa_jit_generated_dir ${NOA_GENERATED_SOURCES_PRIVATE_DIR})
+        set(noa_jit_generated_sources ${NOA_CUDA_PREPROCESS_SOURCES})
+        list(TRANSFORM noa_jit_generated_sources PREPEND ${noa_jit_generated_dir}/)
+        list(TRANSFORM noa_jit_generated_sources APPEND .jit.cpp)
+        list(APPEND noa_jit_generated_sources ${NOA_GENERATED_SOURCES_PRIVATE_DIR}/noa_shared_headers.jit.cpp)
 
-    # TODO If cuda is linked statically, let jitify parse and include the cuda headers (current behavior).
-    #      Otherwise, pass the include dir to nvrtc and check for the path at runtime e.g. using an env variable.
-    # FIXME cuda_f16.h, cuda.h, cuda_runtime.h should not be patched, or anything in the cuda toolkit include dir.
-    add_custom_command(
-        OUTPUT
-        ${noa_jit_generated_sources}
+        # TODO If cuda is linked statically, let jitify parse and include the cuda headers (current behavior).
+        #      Otherwise, pass the include dir to nvrtc and check for the path at runtime e.g. using an env variable.
+        # FIXME cuda_f16.h, cuda.h, cuda_runtime.h should not be patched, or anything in the cuda toolkit include dir.
+        add_custom_command(
+            OUTPUT
+            ${noa_jit_generated_sources}
 
-        COMMAND cuda_rtc::preprocess ${NOA_CUDA_PREPROCESS_SOURCES}
-        # preprocess
-        --output-directory ${noa_jit_generated_dir}
-        --shared-headers shared_headers
-        --namespace noa
+            COMMAND cuda_rtc::preprocess ${NOA_CUDA_PREPROCESS_SOURCES}
+            # preprocess
+            --output-directory ${noa_jit_generated_dir}
+            --shared-headers shared_headers
+            --namespace noa
 
-        # jitify2
-        ${noa_jit_include_directories}
-        --std=c++${CMAKE_CXX_STANDARD}
-        --cuda-std
-        --minify
-        --no-replace-pragma-once
-        --no-builtin-headers
+            # jitify2
+            ${noa_jit_include_directories}
+            --std=c++${CMAKE_CXX_STANDARD}
+            --cuda-std
+            --minify
+            --no-replace-pragma-once
+            --no-builtin-headers
 
-        # nvrtc options
-        --include-path=${CUDAToolkit_INCLUDE_DIRS}
+            # nvrtc options
+            --include-path=${CUDAToolkit_INCLUDE_DIRS}
 
-        # Make it depends on the core headers and the cuda headers.
-        # Some of these headers are not actually passed to nvrtc, so we might
-        # rerun this command for nothing, but it's better than missing a dependency.
-        # Note: we don't have private headers atm, so while named "public",
-                these are all the headers we have.
-        DEPENDS cuda_rtc::preprocess ${NOA_CORE_HEADERS} ${NOA_CUDA_HEADERS}
+            # Make it depends on the core headers and the cuda headers.
+            # Some of these headers are not actually passed to nvrtc, so we might
+            # rerun this command for nothing, but it's better than missing a dependency.
+            # Note: we don't have private headers atm, so while named "public",
+                    these are all the headers we have.
+            DEPENDS cuda_rtc::preprocess ${NOA_CORE_HEADERS} ${NOA_CUDA_HEADERS}
 
-        # The working directory is quite important because nvrtc includes it to resolve quoted
-        # #includes. This is a problem because we want jitify to intercept every #include statement
-        # so an implicitly included directory is not great. We could use the --no-source-include
-        # options from nvrtc, but this break transitive includes with quotes (cuda/std/type_traits
-        # doesn't compile with that option for example). The solution is to make sure the cwd cannot
-        # be used by nvrtc to resolve quoted #include statements. In noa, all of our quoted includes
-        # are to include our headers and all of them are relative to src/, eg #include "noa/Array.hpp",
-        # so we need to make sure that the working directory is not src/. Using src/noa/ is actually
-        # perfect as long as we don't do eg #include "Array.hpp", which we don't. src/noa/ also
-        # preserves the include structure in the output directory, so all good!
-        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/src/noa"
-        VERBATIM
-    )
+            # The working directory is quite important because nvrtc includes it to resolve quoted
+            # #includes. This is a problem because we want jitify to intercept every #include statement
+            # so an implicitly included directory is not great. We could use the --no-source-include
+            # options from nvrtc, but this break transitive includes with quotes (cuda/std/type_traits
+            # doesn't compile with that option for example). The solution is to make sure the cwd cannot
+            # be used by nvrtc to resolve quoted #include statements. In noa, all of our quoted includes
+            # are to include our headers and all of them are relative to src/, eg #include "noa/Array.hpp",
+            # so we need to make sure that the working directory is not src/. Using src/noa/ is actually
+            # perfect as long as we don't do eg #include "Array.hpp", which we don't. src/noa/ also
+            # preserves the include structure in the output directory, so all good!
+            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/src/noa"
+            VERBATIM
+        )
 
-    # We need to add the generated sources to the list of sources for the library.
-    # These are absolute paths, so we can just add them to the list.
-    list(APPEND NOA_SOURCES ${noa_jit_generated_shared_headers_source})
+        # We need to add the generated sources to the list of sources for the library.
+        # These are absolute paths, so we can just add them to the list.
+        list(APPEND NOA_SOURCES ${noa_jit_generated_shared_headers_source})
+    endif ()
 endif ()
 
 # Version file.
@@ -157,13 +158,8 @@ target_link_libraries(noa
 set_target_properties(noa
     PROPERTIES
     POSITION_INDEPENDENT_CODE ON)
-if (NOA_ENABLE_CUDA)
-    set_target_properties(noa
-        PROPERTIES
-        CUDA_SEPARABLE_COMPILATION ON
-#        CUDA_RESOLVE_DEVICE_SYMBOLS ON # FIXME
-        # CUDA_ARCHITECTURES defaults to CMAKE_CUDA_ARCHITECTURES, which is already set.
-        )
+if (NOA_ENABLE_CUDA AND NOT NOA_CUDA_JIT)
+    set_target_properties(noa PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 endif ()
 
 if (NOA_ENABLE_PCH)
@@ -208,7 +204,7 @@ target_compile_definitions(noa
     "$<$<BOOL:${NOA_ENABLE_CUDA}>:NOA_ENABLE_CUDA>"
     "$<$<BOOL:${NOA_ENABLE_TIFF}>:NOA_ENABLE_TIFF>"
     "$<$<BOOL:${NOA_CPU_OPENMP}>:NOA_ENABLE_OPENMP>"
-    "$<$<BOOL:${NOA_ENABLE_CHECKS_AT_RELEASE}>:NOA_ENABLE_CHECKS_AT_RELEASE>"
+    "$<$<BOOL:${NOA_CUDA_JIT}>:NOA_CUDA_JIT>"
     "$<$<BOOL:${NOA_CUDA_ENABLE_ASSERT}>:NOA_CUDA_ENABLE_ASSERT>"
     "$<$<BOOL:${FFTW3_THREADS}>:NOA_FFTW_THREADS>"
     "$<$<BOOL:${FFTW3_OPENMP}>:NOA_FFTW_THREADS>"

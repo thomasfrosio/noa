@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.24)
 
 project(noa
         LANGUAGES CXX
@@ -36,26 +36,20 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Project configuration
 # ---------------------------------------------------------------------------------------
 include(cmake/utils/PreventInSourceBuilds.cmake)
+include(cmake/utils/CompilerOptions.cmake)
 include(cmake/ProjectOptions.cmake)
 include(cmake/ProjectToolchain.cmake)
 
 noa_prevent_in_source_builds()
 noa_set_options()
-noa_set_toolchain(
-    NOA_ENABLE_CUDA
-    NOA_CUDA_FIND_ARCHITECTURE
-)
+noa_set_toolchain(NOA_ENABLE_CUDA)
 
 # These interfaces sets the project base requirements.
 # Targets should not directly modify these since they're common to multiple targets.
 add_library(prj_common_option INTERFACE)
 add_library(prj_compiler_warnings INTERFACE)
-target_compile_features(prj_common_option INTERFACE cxx_std_20)
-target_compile_options(prj_common_option INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: --extended-lambda>)
-
-# Add the warnings to the compiler(s).
+noa_set_compiler_options(prj_common_option)
 if (NOA_ENABLE_WARNINGS)
-    include(cmake/utils/CompilerWarnings.cmake)
     noa_set_cxx_compiler_warnings(prj_compiler_warnings NOA_ENABLE_WARNINGS_AS_ERRORS)
     if (NOA_ENABLE_CUDA)
         noa_set_cuda_compiler_warnings(prj_compiler_warnings NOA_ENABLE_WARNINGS_AS_ERRORS)

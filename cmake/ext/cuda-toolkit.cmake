@@ -6,7 +6,7 @@ message(STATUS "[in] NOA_CUDA_CUFFT_STATIC: ${NOA_CUDA_CUFFT_STATIC}")
 message(STATUS "[in] NOA_CUDA_CURAND_STATIC: ${NOA_CUDA_CURAND_STATIC}")
 message(STATUS "[in] NOA_CUDA_CUBLAS_STATIC: ${NOA_CUDA_CUBLAS_STATIC}")
 
-find_package(CUDAToolkit 11 REQUIRED)
+find_package(CUDAToolkit 12 REQUIRED)
 
 message(STATUS "[out] CUDA Toolkit library path: ${CUDAToolkit_LIBRARY_DIR}")
 message(STATUS "[out] CUDA Toolkit version: ${CUDAToolkit_VERSION}")

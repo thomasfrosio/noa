@@ -16,15 +16,17 @@ target_link_libraries(noa_tests
     yaml-cpp::yaml-cpp
     )
 
-target_precompile_headers(noa_tests
-    PRIVATE
-    ${PROJECT_SOURCE_DIR}/src/noa/core/Types.hpp
-    )
+#target_precompile_headers(noa_tests
+#    PRIVATE
+#    ${PROJECT_SOURCE_DIR}/src/noa/core/Types.hpp
+#    )
 
 target_include_directories(noa_tests
     PRIVATE
     ${PROJECT_SOURCE_DIR}/tests
     )
+
+set_target_properties(noa_tests PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 install(TARGETS noa_tests
     EXPORT noa

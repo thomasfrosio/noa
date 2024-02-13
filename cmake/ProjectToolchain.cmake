@@ -1,10 +1,23 @@
 # Set the build type and print some info about the toolchain.
-macro(noa_set_toolchain enable_cuda find_and_set_cuda_architecture)
+macro(noa_set_toolchain enable_cuda)
     if (${enable_cuda})
-        include(cmake/utils/CUDA.cmake)
-        noa_enable_cuda()
-        if (${find_and_set_cuda_architecture})
-            noa_cuda_find_and_set_architecture()
+        # If not specified, use native. CMake 3.24 supports passing "native".
+        # This needs to be done before enabling CUDA.
+        if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+            set(CMAKE_CUDA_ARCHITECTURES "native")
+        endif ()
+
+        include(CheckLanguage)
+        check_language(CUDA)
+        if (CMAKE_CUDA_COMPILER)
+            enable_language(CUDA)
+            # Use the same C++ standard if not specified.
+            # This is not used by noa targets directly, but can be useful for dependencies.
+            if ("${CMAKE_CUDA_STANDARD}" STREQUAL "")
+                set(CMAKE_CUDA_STANDARD "${CMAKE_CXX_STANDARD}")
+            endif ()
+        else ()
+            message(FATAL_ERROR "CUDA is required, but no CUDA support is detected")
         endif ()
     endif ()
 
@@ -38,7 +51,6 @@ macro(noa_set_toolchain enable_cuda find_and_set_cuda_architecture)
         endif ()
         message(STATUS "CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
     endif ()
-
 
     list(POP_BACK CMAKE_MESSAGE_INDENT)
     message(STATUS "Toolchain... done")

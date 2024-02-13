@@ -3,51 +3,28 @@
 # the command line or e.g. the cmake-gui. Options should be prefixed with `-D` when passed through
 # the command line, e.g. cmake -DNOA_ENABLE_CUDA=OFF.
 
-macro(noa_set_options_cuda)
-    # CUDA Toolkit
-    option(NOA_CUDA_CUDART_STATIC "Use the cuda runtime static library" OFF)
-    option(NOA_CUDA_ALL_STATIC "Link all CUDA libraries (other than the runtime) statically" OFF)
-    option(NOA_CUDA_CUFFT_STATIC "Use the cuFFT static library" ${NOA_CUDA_ALL_STATIC})
-    option(NOA_CUDA_CURAND_STATIC "Use the cuRAND static library" ${NOA_CUDA_ALL_STATIC})
-    option(NOA_CUDA_CUBLAS_STATIC "Use the cuBLAS static library" ${NOA_CUDA_ALL_STATIC})
-
-    option(NOA_CUDA_ENABLE_ASSERT
-           "Enable device assertions, which can be useful for debugging but considerably increases the device link time. This only affects Debug builds, since assertions are turned off in Release"
-           OFF)
-
-    # Note that a CUDA capable GPU is _not_ required on the system that compiles the library.
-    # However, if one or multiple GPU are available, the library will target the architecture of these GPUs by default.
-    # Turn this option OFF if this behavior is not desired.
-    # To specify the CUDA architecture, use the CMake variable CMAKE_CUDA_ARCHITECTURES.
-    option(NOA_CUDA_FIND_ARCHITECTURE
-           "Overwrite CMAKE_CUDA_ARCHITECTURES with the architecture(s) of the GPU(s) available on this system"
-           ON)
-endmacro()
-
-macro(noa_set_options_cpu)
-    option(NOA_CPU_OPENMP "Enable multithreading, using OpenMP" ON)
-
-    # FFTW
-    option(FFTW3_THREADS "Use the multi-threaded FFTW3 libraries using system threads" OFF)
-    option(FFTW3_OPENMP "Use the multi-threaded FFTW3 libraries using OpenMP. Takes precedence over FFTW3_THREADS" ${NOA_CPU_OPENMP})
-    option(FFTW3_STATIC "Use the FFTW3 static libraries" OFF)
-endmacro()
-
 macro(noa_set_options)
+    # CPU backend:
     option(NOA_ENABLE_CPU "Build the CPU backend" ON)
     if (NOA_ENABLE_CPU)
-        noa_set_options_cpu()
+        option(NOA_CPU_OPENMP "Enable multithreading, using OpenMP" ON)
+        option(FFTW3_THREADS "Use the multi-threaded FFTW3 libraries using system threads" OFF)
+        option(FFTW3_OPENMP "Use the multi-threaded FFTW3 libraries using OpenMP. Takes precedence over FFTW3_THREADS" ${NOA_CPU_OPENMP})
+        option(FFTW3_STATIC "Use the FFTW3 static libraries" OFF)
     endif ()
 
-    option(NOA_ENABLE_CUDA "Build the CUDA backend. Requires a CUDA compiler and a CUDA Toolkit" OFF)
+    # CUDA backend:
+    option(NOA_ENABLE_CUDA "Build the CUDA backend. Requires a CUDA compiler and a CUDA Toolkit" ON)
     if (NOA_ENABLE_CUDA)
-        noa_set_options_cuda()
+        option(NOA_CUDA_STATIC "Link all necessary CUDA libraries statically." OFF)
+        option(NOA_CUDA_JIT "Whether to use the JIT/online mode (runtime compilation) instead of the offline mode" OFF)
+        option(NOA_CUDA_ENABLE_ASSERT "Enable device assertions, which can be useful for debugging but considerably increases the device link time. This only affects Debug builds, since assertions are turned off in Release" OFF)
     endif ()
 
+    # Core:
     option(NOA_ENABLE_WARNINGS "Enable compiler warnings" ON)
     option(NOA_ENABLE_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
-    option(NOA_ENABLE_PCH "Build using precompiled header to speed up compilation time in Debug mode" ON)
-    option(NOA_ENABLE_CHECKS_AT_RELEASE "Whether the parameter checks in the unified API in Release mode should be enabled" ON)
+    option(NOA_ENABLE_PCH "Build using precompiled header to speed up compilation time in Debug mode" OFF)
     option(NOA_ENABLE_LTO "Enable Interprocedural Optimization, aka Link Time Optimization (LTO)" OFF)
     if (NOA_ENABLE_LTO)
         include(CheckIPOSupported)
@@ -59,15 +36,11 @@ macro(noa_set_options)
         endif()
     endif ()
 
-    # TIFF
+    # TIFF:
     option(NOA_ENABLE_TIFF "Enable support for the TIFF file format. Requires libtiff" ON)
     option(TIFF_STATIC "Use the TIFF static library instead of the shared ones." OFF)
 
-    # =====================================================================================
-    # Targets
-    # =====================================================================================
+    # Additional targets:
     option(NOA_BUILD_TESTS "Build tests" ON)
     option(NOA_BUILD_BENCHMARKS "Build benchmarks" OFF)
-    #option(NOA_BUILD_DOC "Build Doxygen-Sphinx documentation" OFF)
-    #option(NOA_PACKAGING "Generate packaging" OFF)
 endmacro()
