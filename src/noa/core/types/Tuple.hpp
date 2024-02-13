@@ -64,7 +64,7 @@ namespace noa::guts {
     struct TupleElement {
         using type = T;
         static constexpr size_t INDEX = I;
-        [[no_unique_address]] T value;
+        NOA_NO_UNIQUE_ADDRESS T value;
 
         // std::get<I>(...) equivalent.
         constexpr auto operator[](Tag<I>) & -> T& { return value; }
@@ -331,8 +331,8 @@ namespace noa::inline types {
         using decayed_type_list = nt::TypeList<>;
         using index_list = std::index_sequence<0, 1>;
 
-        [[no_unique_address]] First first;
-        [[no_unique_address]] Second second;
+        NOA_NO_UNIQUE_ADDRESS First first;
+        NOA_NO_UNIQUE_ADDRESS Second second;
 
         template<size_t I>
         constexpr auto operator[](Tag<I>) & -> std::conditional_t<I == 0, First, Second>& {
@@ -374,7 +374,7 @@ namespace noa::inline types {
                 static_assert(I < 2);
         }
 
-        NOA_HD void swap(Pair& other) noexcept(nothrow_swappable) {
+        void swap(Pair& other) noexcept(nothrow_swappable) {
             using std::swap;
             swap(first, other.first);
             swap(second, other.second);
@@ -428,25 +428,25 @@ namespace noa {
 namespace noa {
     template<size_t I, typename Tup>
     requires nt::is_tuple_v<Tup> or nt::is_pair_v<Tup>
-    inline constexpr decltype(auto) get(Tup&& tup) {
+    constexpr decltype(auto) get(Tup&& tup) {
         return std::forward<Tup>(tup)[Tag<I>{}];
     }
 
     template<typename... T>
-    inline constexpr Tuple<T& ...> tie(T&... t) { return {t...}; }
+    constexpr Tuple<T& ...> tie(T&... t) { return {t...}; }
 
     template<typename F, typename Tup>
-    inline constexpr decltype(auto) apply(F&& func, Tup&& tup) { // works for Pair too
+    constexpr decltype(auto) apply(F&& func, Tup&& tup) { // works for Pair too
         return guts::tuple_apply(std::forward<Tup>(tup), std::forward<F>(func), nt::index_list_t<Tup>{});
     }
 
     template<typename... T>
-    inline void swap(Tuple<T...>& a, Tuple<T...>& b) noexcept(Tuple<T...>::nothrow_swappable) {
+    constexpr void swap(Tuple<T...>& a, Tuple<T...>& b) noexcept(Tuple<T...>::nothrow_swappable) {
         a.swap(b);
     }
 
     template<typename A, typename B>
-    inline void swap(Pair<A, B>& a, Pair<A, B>& b) noexcept(Pair<A, B>::nothrow_swappable) {
+    constexpr void swap(Pair<A, B>& a, Pair<A, B>& b) noexcept(Pair<A, B>::nothrow_swappable) {
         a.swap(b);
     }
 
@@ -469,22 +469,22 @@ namespace noa {
 namespace noa {
     namespace guts {
         template<typename T, typename... Q>
-        inline constexpr auto tuple_repeat_type(nt::TypeList<Q...>) {
+        constexpr auto tuple_repeat_type(nt::TypeList<Q...>) {
             return nt::TypeList<nt::first_t<T, Q>...>{};
         }
         template<class... Outer>
-        inline constexpr auto tuple_get_outer_elements(nt::TypeList<Outer...>) {
+        constexpr auto tuple_get_outer_elements(nt::TypeList<Outer...>) {
             return (tuple_repeat_type<Outer>(nt::element_list_t<nt::type_type_t<Outer>>{}) + ...);
         }
         template<class... Outer>
-        inline constexpr auto tuple_get_inner_elements(nt::TypeList<Outer...>) {
+        constexpr auto tuple_get_inner_elements(nt::TypeList<Outer...>) {
             return (nt::element_list_t<nt::type_type_t<Outer>>{} + ...);
         }
 
         // This takes a forwarding tuple as a parameter. The forwarding tuple only
         // contains references, so it should just be taken by value.
         template<class T, class... Outer, class... Inner>
-        inline constexpr auto tuple_cat(
+        constexpr auto tuple_cat(
                 T tup,
                 nt::TypeList<Outer...>,
                 nt::TypeList<Inner...>
@@ -513,7 +513,7 @@ namespace noa {
     /// FIXME T will be S if tuple is moved and contains S, otherwise T is S&
     /// FIXME https://godbolt.org/z/fx3Kh3rs8
     template<typename Predicate, typename Transform, typename T> requires nt::is_tuple_v<T>
-    auto tuple_filter(T&& tuple) {
+    constexpr auto tuple_filter(T&& tuple) {
         return apply(
                 []<typename F, typename...R>(F&& first, R&& ... rest) {
                     auto filtered_rest = [&rest...] {
@@ -570,6 +570,7 @@ namespace noa::traits {
     template<typename... Ts> struct proclaim_is_tuple_of_accessor_value<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor_value<Ts...>::value> {};
     template<typename... Ts> struct proclaim_is_tuple_of_accessor_or_empty<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor<Ts...>::value> {};
     template<>               struct proclaim_is_tuple_of_accessor_or_empty<noa::Tuple<>> : std::true_type {};
+    template<size_t N, typename... Ts> struct proclaim_is_tuple_of_accessor_ndim<N, noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor_nd<N, Ts...>::value> {};
 
     template<typename T0, typename T1>
     struct proclaim_is_pair<noa::Pair<T0, T1>> : std::true_type {};

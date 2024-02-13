@@ -168,15 +168,15 @@ namespace noa::cpu {
             const auto actual_n_threads = min(n_batches, n_threads);
 
             const auto shape_2d = Shape2<Index>{n_batches, n_elements_to_reduce};
-            constexpr auto contiguous_restrict_2d = ng::AccessorConfig{
+            constexpr auto contiguous_restrict_2d = ng::AccessorConfig<2>{
                     .enforce_contiguous=true,
                     .enforce_restrict=true,
-                    .filter=Vec2<size_t>{0, 3},
+                    .filter={0, 3},
             };
 
             // Extract the batch from the output(s).
             auto output_1d = ng::reconfig_accessors
-                    <ng::AccessorConfig{.filter=Vec{size_t{0}}}>
+                    <ng::AccessorConfig<1>{.filter={0}}>
                     (std::forward<Output>(output));
 
             if (n_elements_to_reduce > config.parallel_threshold and n_batches < n_threads) {
@@ -241,7 +241,7 @@ namespace noa::cpu {
         }
 
         auto output_3d = ng::reconfig_accessors
-                <ng::AccessorConfig{.filter=Vec3<size_t>{0, 1, 2}}>
+                <ng::AccessorConfig<3>{.filter={0, 1, 2}}>
                 (std::move(output_));
 
         // This function distributes the threads on the dimensions that are not reduced.
@@ -251,7 +251,7 @@ namespace noa::cpu {
         const bool is_contiguous = ni::is_contiguous(input_, reordered_shape)[3];
 
         if (is_contiguous and not are_aliased) {
-            constexpr auto contiguous_restrict = ng::AccessorConfig{
+            constexpr auto contiguous_restrict = ng::AccessorConfig<0>{
                     .enforce_contiguous=true,
                     .enforce_restrict=true,
             };

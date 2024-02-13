@@ -124,3 +124,12 @@
 #define NOA_COMPILER_MSVC
 #endif
 
+// nvcc says it's support [[no_unique_address]], but about half the time it freaks out
+// with a internal compiler error. In order to keep the layout consistent between host
+// and device (which is necessary to pass objects to CUDA), turn of the attribute
+// entirely for now.
+#if defined(NOA_ENABLE_CUDA)
+    #define NOA_NO_UNIQUE_ADDRESS
+#else
+    #define NOA_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#endif

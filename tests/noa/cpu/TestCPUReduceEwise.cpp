@@ -19,9 +19,9 @@ TEST_CASE("cpu::reduce_ewise") {
         const auto shape = Shape4<i64>{1, 50, 1, 100};
         const auto elements = shape.elements();
 
-        const auto buffer = std::make_unique<f32[]>(elements);
+        const auto buffer = std::make_unique<f64[]>(elements);
         std::fill_n(buffer.get(), elements, 1);
-        auto input = noa::make_tuple(AccessorI64<f32, 4>(buffer.get(), shape.strides()));
+        auto input = noa::make_tuple(AccessorI64<f64, 4>(buffer.get(), shape.strides()));
         auto init = noa::make_tuple(AccessorValue<f64>(0.));
         auto output = noa::make_tuple(AccessorValue<f64>(0.));
 

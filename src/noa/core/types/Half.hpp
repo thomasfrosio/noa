@@ -43,6 +43,8 @@
 #pragma warning(pop)
 #endif
 
+// TODO Make this an aggregate, without zero-initialization (useful for CUDA shared memory).
+
 namespace noa::inline types {
     /// 16-bit precision float (IEEE-754-2008).
     /// \details This structure implements the datatype for storing half-precision floating-point numbers. Compared to
@@ -69,11 +71,11 @@ namespace noa::inline types {
         using native_type = half_float::half;
         #endif
 
-        // This can be dangerous, to have different types between GPU and CPU, so check here that
+        // This can be dangerous to have different types between GPU and CPU, so check here that
         // everything is defined as expected and that we can pass this type to the GPU and vice-versa.
-        static_assert(std::is_standard_layout<native_type>::value);
-        static_assert(std::is_nothrow_move_assignable<native_type>::value);
-        static_assert(std::is_nothrow_move_constructible<native_type>::value);
+        static_assert(std::is_standard_layout_v<native_type>);
+        static_assert(std::is_nothrow_move_assignable_v<native_type>);
+        static_assert(std::is_nothrow_move_constructible_v<native_type>);
         static_assert(sizeof(native_type) == 2);
         static_assert(alignof(native_type) == alignof(uint16_t));
 

@@ -3,18 +3,28 @@
 #include <catch2/catch.hpp>
 
 TEST_CASE("core::Span") {
+    using namespace noa::types;
+
     std::vector<double> buffer{0, 1, 2, 3, 4, 5};
-    const noa::Span<double, 2> span(buffer.data());
-    span[1] = 12;
+    const auto s0 = Span(buffer.data(), buffer.size());
+    s0[1] = 12;
     REQUIRE(buffer[1] == 12);
+    REQUIRE_THROWS(s0.at(10));
 
-    const auto const_span = span.as_const();
-    static_assert(std::is_const_v<noa::traits::value_type_t<decltype(const_span)>>);
+    int aa[2]{1, 2};
+    const int bb[11]{};
+    static_assert(std::is_same_v<Span<int, 2>, decltype(Span{aa})>);
+    static_assert(std::is_same_v<Span<const int, 11>, decltype(Span{bb})>);
 
-//    fmt::print("{}", span.as_bytes());
+    [[maybe_unused]] const Span const_span = s0.as_const();
+    static_assert(std::is_same_v<const Span<const double, -1, size_t>, decltype(const_span)>);
 
-    const auto [a, b] = span;
-    REQUIRE((a == buffer[0] && b == buffer[1]));
+    fmt::print("{}", s0.as_bytes());
 
-    [[maybe_unused]] const noa::Span<const std::byte, 16> span1 = span.as_const().as_bytes();
+    const auto s1 = Span{aa};
+    static_assert(std::is_same_v<const Span<int, 2, i64>, decltype(s1)>);
+    const auto [a, b] = s1;
+    REQUIRE((a == 1 and b == 2));
+
+    [[maybe_unused]] const noa::Span<const std::byte, 8> span1 = s1.as_const().as_bytes();
 }

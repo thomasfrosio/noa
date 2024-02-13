@@ -16,8 +16,8 @@ namespace noa::guts {
     struct VecAlignment {
     private:
         static_assert(is_power_of_2(A));
-        static constexpr size_t required = std::max(A, alignof(T));
-        static constexpr size_t max_alignment = 16;
+        static constexpr size_t required = std::max(A, alignof(T)); // requires alignment cannot be less that the type
+        static constexpr size_t default_max_alignment = 16; // default alignment clamped at 16 bytes
         static constexpr size_t size_of = std::max(size_t{1}, sizeof(T) * N); // if N=0, use alignment of 1
         static constexpr size_t align_of = alignof(T);
     public:
@@ -28,24 +28,24 @@ namespace noa::guts {
         // E.g. alignof(Vec4<f32>) == 16
         static constexpr size_t value =
                 A != 0 ? required :
-                is_power_of_2(size_of) ? std::min(size_of, max_alignment) :
+                is_power_of_2(size_of) ? std::min(size_of, default_max_alignment) :
                 align_of;
     };
 
     template<typename T, size_t N>
     struct VecStorage {
         using type = T[N];
-        template<typename I> static constexpr auto ref(type& t, I n) noexcept -> T& { return t[n]; }
-        template<typename I> static constexpr auto ref(const type& t, I n) noexcept -> const T& { return t[n]; }
-        static constexpr T* ptr(const type& t) noexcept { return const_cast<T*>(t); }
+        template<typename I> NOA_HD static constexpr auto ref(type& t, I n) noexcept -> T& { return t[n]; }
+        template<typename I> NOA_HD static constexpr auto ref(const type& t, I n) noexcept -> const T& { return t[n]; }
+        NOA_HD static constexpr T* ptr(const type& t) noexcept { return const_cast<T*>(t); }
     };
 
     template<typename T>
     struct VecStorage<T, 0> {
         struct type {};
-        template<typename I> static constexpr auto ref(type&, I) noexcept -> T& { return *static_cast<T*>(nullptr); }
-        template<typename I> static constexpr auto ref(const type&, I) noexcept -> const T& { return *static_cast<const T*>(nullptr); }
-        static constexpr T* ptr(const type&) noexcept { return nullptr; }
+        template<typename I> NOA_HD static constexpr auto ref(type&, I) noexcept -> T& { return *static_cast<T*>(nullptr); }
+        template<typename I> NOA_HD static constexpr auto ref(const type&, I) noexcept -> const T& { return *static_cast<const T*>(nullptr); }
+        NOA_HD static constexpr T* ptr(const type&) noexcept { return nullptr; }
     };
 }
 
@@ -68,7 +68,7 @@ namespace noa::inline types {
         static constexpr size_t SIZE = N;
 
     public:
-        [[no_unique_address]] array_type array;
+        NOA_NO_UNIQUE_ADDRESS array_type array;
 
     public: // Static factory functions
         template<typename U> requires nt::is_numeric_v<U>

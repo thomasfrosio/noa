@@ -41,20 +41,20 @@ namespace noa::inline types {
         row_type row[ROWS];
 
     public: // Component accesses
-        template<typename I, typename = std::enable_if_t<nt::is_int_v<I>>>
+        template<typename I> requires nt::is_int_v<I>
         NOA_HD constexpr row_type& operator[](I i) noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < ROWS);
             return row[i];
         }
 
-        template<typename I, typename = std::enable_if_t<nt::is_int_v<I>>>
+        template<typename I> requires nt::is_int_v<I>
         NOA_HD constexpr const row_type& operator[](I i) const noexcept {
             NOA_ASSERT(static_cast<size_t>(i) < ROWS);
             return row[i];
         }
 
     public: // Static factory functions
-        template<typename U, typename = std::enable_if_t<nt::is_scalar_v<U>>>
+        template<typename U> requires nt::is_scalar_v<U>
         [[nodiscard]] NOA_HD static constexpr Mat44 from_value(U s) noexcept {
             return {row_type::from_values(s, 0, 0, 0),
                     row_type::from_values(0, s, 0, 0),
@@ -62,7 +62,7 @@ namespace noa::inline types {
                     row_type::from_values(0, 0, 0, s)};
         }
 
-        template<typename U, typename = std::enable_if_t<nt::is_scalar_v<U>>>
+        template<typename U> requires nt::is_scalar_v<U>
         [[nodiscard]] NOA_HD static constexpr Mat44 from_diagonal(U s) noexcept {
             return from_value(s);
         }
@@ -75,7 +75,7 @@ namespace noa::inline types {
                     row_type::from_values(0, 0, 0, diagonal[3])};
         }
 
-        template<typename U, typename = std::enable_if_t<nt::is_scalar_v<U>>>
+        template<typename U> requires nt::is_scalar_v<U>
         [[nodiscard]] NOA_HD static constexpr Mat44 eye(U s) noexcept {
             return from_diagonal(s);
         }
@@ -109,7 +109,7 @@ namespace noa::inline types {
                     row_type::from_values(w30, w31, w32, w33)};
         }
 
-        template<typename U, typename = std::enable_if_t<nt::is_scalar_v<U>>>
+        template<typename U> requires nt::is_scalar_v<U>
         [[nodiscard]] NOA_HD static constexpr Mat44 from_pointer(U* ptr) noexcept {
             return {row_type::from_values(ptr[0], ptr[1], ptr[2], ptr[3]),
                     row_type::from_values(ptr[4], ptr[5], ptr[6], ptr[7]),
@@ -443,7 +443,7 @@ namespace noa {
     [[nodiscard]] NOA_IHD constexpr bool allclose(
             const Mat44<T>& m1,
             const Mat44<T>& m2,
-            T epsilon = 1e-6f
+            T epsilon = static_cast<T>(1e-6)
     ) noexcept {
         return noa::all(allclose<ULP>(m1[0], m2[0], epsilon)) &&
                noa::all(allclose<ULP>(m1[1], m2[1], epsilon)) &&

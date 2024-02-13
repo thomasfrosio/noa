@@ -105,10 +105,10 @@ namespace noa::cpu {
         if (are_all_contiguous) {
             auto shape_1d = Shape1<Index>{shape.elements()};
             if (ng::are_accessors_aliased(input, output)) {
-                constexpr auto accessor_config_1d = ng::AccessorConfig{
+                constexpr auto accessor_config_1d = ng::AccessorConfig<1>{
                     .enforce_contiguous=true,
                     .enforce_restrict=false,
-                    .filter=Vec1<size_t>{3},
+                    .filter={3},
                 };
                 auto input_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Input>(input));
                 auto output_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Output>(output));
@@ -117,10 +117,10 @@ namespace noa::cpu {
                 else
                     interface::serial(shape_1d, std::forward<Op>(op), std::move(input_1d), std::move(output_1d));
             } else {
-                constexpr auto accessor_config_1d = ng::AccessorConfig{
+                constexpr auto accessor_config_1d = ng::AccessorConfig<1>{
                     .enforce_contiguous=true,
                     .enforce_restrict=true,
-                    .filter=Vec1<size_t>{3},
+                    .filter={3},
                 };
                 auto input_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Input>(input));
                 auto output_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Output>(output));

@@ -103,10 +103,10 @@ namespace noa::cpu {
         if (are_all_contiguous) {
             auto shape_1d = Shape1<Index>::from_value(elements);
             if (ng::are_accessors_aliased(input, output)) {
-                constexpr auto contiguous_1d = ng::AccessorConfig{
+                constexpr auto contiguous_1d = ng::AccessorConfig<1>{
                         .enforce_contiguous=true,
                         .enforce_restrict=false,
-                        .filter=Vec1<size_t>{3},
+                        .filter={3},
                 };
                 auto input_1d = ng::reconfig_accessors<contiguous_1d>(std::forward<Input>(input));
                 if (actual_n_threads > 1) {
@@ -123,10 +123,10 @@ namespace noa::cpu {
                             output);
                 }
             } else {
-                constexpr auto contiguous_restrict_1d = ng::AccessorConfig{
+                constexpr auto contiguous_restrict_1d = ng::AccessorConfig<1>{
                         .enforce_contiguous=true,
                         .enforce_restrict=true,
-                        .filter=Vec1<size_t>{3},
+                        .filter={3},
                 };
                 auto input_1d = ng::reconfig_accessors<contiguous_restrict_1d>(std::forward<Input>(input));
                 if (actual_n_threads > 1) {

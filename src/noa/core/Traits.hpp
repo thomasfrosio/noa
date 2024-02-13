@@ -431,6 +431,12 @@ namespace noa::traits {
     template<typename... Ts> using are_tuple_of_accessor = bool_and<is_tuple_of_accessor<Ts>::value...>;
     template<typename... Ts> constexpr bool are_tuple_of_accessor_v = are_tuple_of_accessor<std::decay_t<Ts>...>::value;
 
+    template<size_t N, typename T> struct proclaim_is_tuple_of_accessor_ndim : std::false_type {};
+    template<size_t N, typename T> using is_tuple_of_accessor_ndim = std::bool_constant<proclaim_is_tuple_of_accessor_ndim<N, T>::value>;
+    template<size_t N, typename T> constexpr bool is_tuple_of_accessor_ndim_v = is_tuple_of_accessor_ndim<N, std::decay_t<T>>::value;
+    template<size_t N, typename... Ts> using are_tuple_of_accessor_ndim = bool_and<is_tuple_of_accessor_ndim<N, Ts>::value...>;
+    template<size_t N, typename... Ts> constexpr bool are_tuple_of_accessor_ndim_v = are_tuple_of_accessor_ndim<N, std::decay_t<Ts>...>::value;
+
     template<typename T> struct proclaim_is_tuple_of_accessor_pure : std::false_type {};
     template<typename T> using is_tuple_of_accessor_pure = std::bool_constant<proclaim_is_tuple_of_accessor_pure<T>::value>;
     template<typename T> constexpr bool is_tuple_of_accessor_pure_v = is_tuple_of_accessor_pure<std::decay_t<T>>::value;

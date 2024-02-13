@@ -1,5 +1,6 @@
 #pragma once
 
+#include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Vec.hpp"
 #include "noa/core/types/Tuple.hpp"
@@ -27,23 +28,118 @@ namespace noa::traits {
     constexpr bool has_remove_defaulted_final_v = has_remove_defaulted_final<std::decay_t<T>>::value;
 }
 
+// nvcc (12.0-12.3) easily breaks (or worse, give wrong results) with `if constexpr (requires...)` statements,
+// so we have to walk around eggshells and define "friendlier" structures to check these type substitutions...
+// std::declval seems necessary, as using the name of variadics seem to freak out nvcc...
+namespace noa::guts {
+    struct IwiseChecker {
+        template<typename Op, typename... I>
+        NOA_HD constexpr auto operator()(Tag<1>, Op, I...) requires requires {
+            std::declval<Op&>()(std::declval<decltype(Vec{std::declval<I>()...})&>());
+        } {}
+
+        template<typename Op, typename... I>
+        NOA_HD constexpr auto operator()(Tag<2>, Op, I...) requires requires {
+            std::declval<Op&>()(std::declval<I>()...);
+        } {}
+    };
+
+    struct ReduceJoinChecker {
+        template<typename Op, typename T, typename U, size_t... R>
+        NOA_HD constexpr auto operator()(Op, T, U, std::index_sequence<R...>) requires requires {
+            std::declval<Op>().join(std::declval<T&>()[Tag<R>{}]..., std::declval<U&>()[Tag<R>{}]...);
+        } {}
+    };
+
+    struct ReduceFinalChecker {
+        NOA_HD static constexpr size_t tag(bool zip_reduced, bool zip_output) {
+            return static_cast<size_t>(zip_reduced) * 10 + static_cast<size_t>(zip_output);
+        };
+
+        template<typename Op, typename R, typename O, size_t... R0, size_t... O0, typename... I>
+        NOA_HD constexpr auto operator()(Tag<11>, Op, R, O, std::index_sequence<R0...>, std::index_sequence<O0...>, I...) requires requires {
+            std::declval<Op>().final(
+                    std::declval<decltype(forward_as_tuple(std::declval<R&>()[Tag<R0>{}].deref()...))&>(),
+                    std::declval<decltype(forward_as_tuple(std::declval<O&>()[Tag<O0>{}](std::declval<I>()...)...))&>()
+                    );
+        } {}
+
+        template<typename Op, typename R, typename O, size_t... R0, size_t... O0, typename... I>
+        NOA_HD constexpr auto operator()(Tag<10>, Op, R, O, std::index_sequence<R0...>, std::index_sequence<O0...>, I...) requires requires {
+            std::declval<Op>().final(
+                    std::declval<decltype(forward_as_tuple(std::declval<R&>()[Tag<R0>{}].deref()...))&>(),
+                    std::declval<O&>()[Tag<O0>{}](std::declval<I>()...)...
+            );
+        } {}
+
+        template<typename Op, typename R, typename O, size_t... R0, size_t... O0, typename... I>
+        NOA_HD constexpr auto operator()(Tag<1>, Op, R, O, std::index_sequence<R0...>, std::index_sequence<O0...>, I...) requires requires {
+            std::declval<Op>().final(
+                    std::declval<R&>()[Tag<R0>{}].deref()...,
+                    std::declval<decltype(forward_as_tuple(std::declval<O&>()[Tag<O0>{}](std::declval<I>()...)...))&>()
+            );
+        } {}
+
+        template<typename Op, typename R, typename O, size_t... R0, size_t... O0, typename... I>
+        NOA_HD constexpr auto operator()(Tag<0>, Op, R, O, std::index_sequence<R0...>, std::index_sequence<O0...>, I...) requires requires {
+            std::declval<Op&>().final(
+                    std::declval<R&>()[Tag<R0>{}].deref()...,
+                    std::declval<O&>()[Tag<O0>{}](std::declval<I>()...)...
+            );
+        } {}
+    };
+
+    struct ReduceIwiseChecker {
+        template<typename Op, typename R, size_t... R0, typename... I>
+        NOA_HD constexpr auto operator()(Tag<0>, Op, R, std::index_sequence<R0...>, I...) requires requires {
+            std::declval<Op>().init(
+                    std::declval<decltype(Vec{std::declval<I>()...})&>(),
+                    std::declval<R&>()[Tag<R0>{}]...
+            );
+        } {}
+
+        template<typename Op, typename R, size_t... R0, typename... I>
+        NOA_HD constexpr auto operator()(Tag<1>, Op, R, std::index_sequence<R0...>, I...) requires requires {
+            std::declval<Op>().init(std::declval<I>()..., std::declval<R&>()[Tag<R0>{}]...);
+        } {}
+
+        template<typename Op, typename R, size_t... R0, typename... I>
+        NOA_HD constexpr auto operator()(Tag<2>, Op, R, std::index_sequence<R0...>, I...) requires requires {
+            std::declval<Op>()(
+                    std::declval<decltype(Vec{std::declval<I>()...})&>(),
+                    std::declval<R&>()[Tag<R0>{}]...
+            );
+        } {}
+
+        template<typename Op, typename R, size_t... R0, typename... I>
+        NOA_HD constexpr auto operator()(Tag<3>, Op, R, std::index_sequence<R0...>, I...) requires requires {
+            std::declval<Op>()(std::declval<I>()..., std::declval<R&>()[Tag<R0>{}]...);
+        } {}
+    };
+
+    struct ReduceEwiseChecker {
+        template<typename Op, typename Input, typename Reduced, size_t... I, size_t... R>
+        NOA_HD constexpr auto operator()(Op, Input, Reduced, std::index_sequence<I...>, std::index_sequence<R...>) requires requires {
+            std::declval<Op>().init(std::declval<Input&>()[Tag<I>{}]..., std::declval<Reduced&>()[Tag<R>{}]...);
+        } {}
+    };
+}
+
 namespace noa::guts {
     /// Index-wise interface.
     struct IwiseInterface {
-        static constexpr void init(auto& op, auto id) {
+        NOA_HD static constexpr void init(auto& op, auto id) {
             if constexpr (requires { op.init(id); }) // optional
                 op.init(id);
         }
 
         template<typename Op, typename... Indices>
         requires nt::are_int_v<Indices...>
-        static constexpr void call(Op& op, Indices... indices) {
-            using packed_indices_t = Vec<nt::first_t<Indices...>, sizeof...(indices)>;
-            if constexpr (requires { op(std::declval<packed_indices_t&>()); }) { // first try packed...
-                // Do not allow the operator to take the indices by rvalue reference.
+        NOA_FHD static constexpr void call(Op& op, Indices... indices) {
+            if constexpr (std::is_invocable_v<IwiseChecker, Tag<1>, Op, Indices...>) { // first try packed...
                 auto v = Vec{indices...};
                 op(v);
-            } else if constexpr (requires { op(indices...); }) { // ...then unpacked
+            } else if constexpr (std::is_invocable_v<IwiseChecker, Tag<2>, Op, Indices...>) { // ...then unpacked
                 op(indices...);
             } else { // this is not optional, so fail otherwise
                 static_assert(nt::always_false_v<Op>,
@@ -51,7 +147,7 @@ namespace noa::guts {
             }
         }
 
-        static constexpr void final(auto& op, auto id) {
+        NOA_HD static constexpr void final(auto& op, auto id) {
             if constexpr (requires { op.final(id); }) // optional
                 op.final(id);
         }
@@ -59,20 +155,20 @@ namespace noa::guts {
 
     template<bool ZipInput, bool ZipOutput>
     struct EwiseInterface {
-        static constexpr void init(auto& op, auto integer) {
+        NOA_FHD static constexpr void init(auto& op, auto integer) {
             if constexpr (requires { op.init(integer); }) // optional
                 op.init(integer);
         }
 
         template<typename Op, typename Input, typename Output, typename... Indices>
         requires nt::are_tuple_v<Input, Output>
-        static constexpr void call(Op& op, Input& input, Output& output, Indices... indices) {
+        NOA_FHD static constexpr void call(Op& op, Input& input, Output& output, Indices... indices) {
             [&]<size_t... I, size_t... O>(std::index_sequence<I...>, std::index_sequence<O...>) {
                 // "input" and "output" are accessors, so we know that the operator() returns a lvalue reference.
                 // forward_as_tuple will create a tuple of these lvalue references; there's nothing being
                 // moved or taken by value.
                 // Also, the zipped parameters should not be passed as rvalues.
-                if constexpr (ZipInput && ZipOutput) {
+                if constexpr (ZipInput and ZipOutput) {
                     auto pi = forward_as_tuple(input[Tag<I>{}](indices...)...);
                     auto po = forward_as_tuple(output[Tag<O>{}](indices...)...);
                     op(pi, po);
@@ -90,17 +186,17 @@ namespace noa::guts {
               nt::index_list_t<Output>{});
         }
 
-        static constexpr void final(auto& op, auto id) {
+        NOA_FHD static constexpr void final(auto& op, auto id) {
             if constexpr (requires { op.final(id); }) // optional
                 op.final(id);
         }
     };
 
     template<bool ZipReduced>
-    struct ReduceInterfaceJoin {
+    struct ReduceJoinInterface {
         template<typename Op, typename Reduced>
         requires nt::is_tuple_of_accessor_value_v<Reduced>
-        static constexpr void join(Op& op, Reduced& to_reduce, Reduced& reduced) {
+        NOA_FHD static constexpr void join(Op& op, Reduced& to_reduce, Reduced& reduced) {
             [&]<size_t... R>(std::index_sequence<R...> index_sequence) {
                 if constexpr (ZipReduced) {
                     join_or_call_(
@@ -119,9 +215,9 @@ namespace noa::guts {
         }
 
     private:
-        template<size_t... R>
-        static constexpr void join_or_call_(auto& op, auto&& to_reduce, auto&& reduced, std::index_sequence<R...>) {
-            if constexpr (requires { op.join(to_reduce[Tag<R>{}]..., reduced[Tag<R>{}]...); }) {
+        template<typename O, typename T, typename U, size_t... R>
+        NOA_FHD static constexpr void join_or_call_(O& op, T&& to_reduce, U&& reduced, std::index_sequence<R...>) {
+            if constexpr (std::is_invocable_v<ReduceJoinChecker, O, T, U, std::index_sequence<R...>>) {
                 op.join(to_reduce[Tag<R>{}]..., reduced[Tag<R>{}]...);
             } else {
                 op(to_reduce[Tag<R>{}]..., reduced[Tag<R>{}]...);
@@ -130,51 +226,77 @@ namespace noa::guts {
     };
 
     template<bool ZipReduced, bool ZipOutput>
-    struct ReduceInterfaceFinal {
+    struct ReduceFinalInterface {
         template<typename Op, typename Reduced, typename Output, typename... Indices>
         requires (nt::is_tuple_of_accessor_value_v<Reduced> and nt::is_tuple_of_accessor_or_empty_v<Output>)
-        static constexpr void final(Op& op, Reduced& reduced, Output& output, Indices... indices) {
+        NOA_FHD static constexpr void final(Op& op, Reduced& reduced, Output& output, Indices... indices) {
             [&]<size_t... R, size_t... O, typename... T>
-                    (std::index_sequence<R...>, std::index_sequence<O...>, nt::TypeList<T...>) {
+                    (std::index_sequence<R...> isr, std::index_sequence<O...> iso, nt::TypeList<T...> tl) {
 
-                using packed_reduced_t = decltype(forward_as_tuple(reduced[Tag<R>{}].deref()...));
-                using packed_output_t = decltype(forward_as_tuple(output[Tag<O>{}](indices...)...));
+                using has_final = std::is_invocable<
+                        ReduceFinalChecker, Tag<ReduceFinalChecker::tag(ZipReduced, ZipOutput)>,
+                        Op, Reduced, Output, std::index_sequence<R...>, std::index_sequence<O...>, Indices...>;
 
-                if constexpr (ZipReduced and ZipOutput and requires(packed_reduced_t pr, packed_output_t po) { op.final(pr, po); }) {
-                    auto pr = forward_as_tuple(reduced[Tag<R>{}].deref()...);
-                    auto po = forward_as_tuple(output[Tag<O>{}](indices...)...);
-                    op.final(pr, po);
-
-                } else if constexpr (ZipReduced and not ZipOutput and requires(packed_reduced_t pr) { op.final(pr, output[Tag<O>{}](indices...)...); }) {
-                    auto pr = forward_as_tuple(reduced[Tag<R>{}].deref()...);
-                    op.final(pr, output[Tag<O>{}](indices...)...);
-
-                } else if constexpr (not ZipReduced and ZipOutput and requires(packed_output_t po) { op.final(reduced[Tag<R>{}].deref()..., po); }) {
-                    auto po = forward_as_tuple(output[Tag<O>{}](indices...)...);
-                    op.final(reduced[Tag<R>{}].deref()..., po);
-
-                } else if constexpr (not ZipReduced and not ZipOutput and requires{ op.final(reduced[Tag<R>{}].deref()..., output[Tag<O>{}](indices...)...); }) {
-                    op.final(reduced[Tag<R>{}].deref()..., output[Tag<O>{}](indices...)...);
-
+                // While we could have the following "inlined", nvcc doesn't like it...
+                // so we have to split it in two different functions.
+                if constexpr (has_final::value) {
+                    final_(op, reduced, output, isr, iso, indices...);
                 } else if constexpr (nt::is_tuple_of_accessor_v<Output>) { // turn off if no outputs
-                    if constexpr (nt::has_remove_defaulted_final_v<Op>) {
-                        static_assert(nt::always_false_v<Op>,
-                                "Implicit .final() was removed, but no explicit .final() was detected");
-                    } else {
-                        // Default copy assignment, with explicit cast.
-                        // TODO Here we could perfectly forward the reduced values into the outputs.
-                        ((output[Tag<O>{}](indices...) = static_cast<T::mutable_value_type>(reduced[Tag<R>{}].deref())), ...);
-                    }
+                    default_final_<Op>(reduced, output, isr, iso, tl, indices...);
                 }
             }(nt::index_list_t<Reduced>{}, nt::index_list_t<Output>{}, nt::type_list_t<Output>{});
+        }
+
+    private:
+        template<typename Op, typename Reduced, typename Output, size_t... R, size_t... O, typename... Indices>
+        NOA_FHD static constexpr void final_(
+                Op& op, Reduced& reduced, Output& output,
+                std::index_sequence<R...>, std::index_sequence<O...>,
+                Indices... indices
+        ) {
+            if constexpr (ZipReduced and ZipOutput) {
+                auto pr = forward_as_tuple(reduced[Tag<R>{}].deref()...);
+                auto po = forward_as_tuple(output[Tag<O>{}](indices...)...);
+                op.final(pr, po);
+
+            } else if constexpr (ZipReduced and not ZipOutput) {
+                auto pr = forward_as_tuple(reduced[Tag<R>{}].deref()...);
+                op.final(pr, output[Tag<O>{}](indices...)...);
+
+            } else if constexpr (not ZipReduced and ZipOutput) {
+                auto po = forward_as_tuple(output[Tag<O>{}](indices...)...);
+                op.final(reduced[Tag<R>{}].deref()..., po);
+
+            } else {
+                op.final(reduced[Tag<R>{}].deref()..., output[Tag<O>{}](indices...)...);
+            }
+        }
+
+        template<typename Op, typename Reduced, typename Output,
+                 size_t... R, size_t... O,
+                 typename...T, typename... Indices>
+        NOA_FHD static constexpr void default_final_(
+                Reduced& reduced, Output& output,
+                std::index_sequence<R...>, std::index_sequence<O...>,
+                nt::TypeList<T...>,
+                Indices... indices
+        ) {
+            if constexpr (nt::has_remove_defaulted_final_v<Op>) {
+                static_assert(nt::always_false_v<Op>,
+                              "Defaulted .final() was removed, but no explicit .final() was detected");
+            } else {
+                // Default copy assignment, with explicit cast.
+                // TODO Here we could perfectly forward the reduced values into the outputs.
+                ((output[Tag<O>{}](indices...) = static_cast<T::mutable_value_type>(reduced[Tag<R>{}].deref())), ...);
+            }
         }
     };
 
     template<bool ZipReduced, bool ZipOutput>
-    struct ReduceIwiseInterface : ReduceInterfaceJoin<ZipReduced>, ReduceInterfaceFinal<ZipReduced, ZipOutput> {
+    struct ReduceIwiseInterface : ReduceJoinInterface<ZipReduced>, ReduceFinalInterface<ZipReduced, ZipOutput> {
         template<typename Op, typename Reduced, typename... Indices>
         requires (nt::is_tuple_of_accessor_value_v<Reduced> and nt::are_int_v<Indices...>)
-        static constexpr void init(Op& op, Reduced& reduced, Indices... indices) {
+        NOA_FHD static constexpr void init(Op& op, Reduced& reduced, Indices... indices) {
             [&]<size_t... R>(std::index_sequence<R...> index_sequence) {
                 if constexpr (ZipReduced) {
                     init_or_call_(
@@ -191,30 +313,32 @@ namespace noa::guts {
         }
 
     private:
-        template<size_t... I, size_t... R, typename... Indices>
-        static constexpr void init_or_call_(auto& op, auto&& reduced, std::index_sequence<R...>, Indices... indices) {
+        template<typename Op, typename R, size_t... R0, typename... Indices>
+        NOA_FHD static constexpr void init_or_call_(Op& op, R&& reduced, std::index_sequence<R0...>, Indices... indices) {
             using packed_indices_t = Vec<nt::first_t<Indices...>, sizeof...(indices)>;
-            if constexpr (requires (packed_indices_t packed) { op.init(packed, reduced[Tag<R>{}]...); }) {
+            if constexpr (std::is_invocable_v<ReduceIwiseChecker, Tag<0>, Op, R, std::index_sequence<R0...>, Indices...>) {
                 auto packed = packed_indices_t{indices...};
-                op.init(packed, reduced[Tag<R>{}]...);
-            } else if constexpr (requires { op.init(indices..., reduced[Tag<R>{}]...); }) {
-                op.init(indices..., reduced[Tag<R>{}]...);
-            } else if constexpr (requires (packed_indices_t packed) { op(packed, reduced[Tag<R>{}]...); }) {
+                op.init(packed, reduced[Tag<R0>{}]...);
+            } else if constexpr (std::is_invocable_v<ReduceIwiseChecker, Tag<1>, Op, R, std::index_sequence<R0...>, Indices...>) {
+                op.init(indices..., reduced[Tag<R0>{}]...);
+            } else if constexpr (std::is_invocable_v<ReduceIwiseChecker, Tag<2>, Op, R, std::index_sequence<R0...>, Indices...>) {
                 auto packed = packed_indices_t{indices...};
-                op(packed, reduced[Tag<R>{}]...);
+                op(packed, reduced[Tag<R0>{}]...);
+            } else if constexpr (std::is_invocable_v<ReduceIwiseChecker, Tag<3>, Op, R, std::index_sequence<R0...>, Indices...>) {
+                op(indices..., reduced[Tag<R0>{}]...);
             } else {
-                op(indices..., reduced[Tag<R>{}]...);
+                static_assert(nt::always_false_v<Op>);
             }
         }
     };
 
     template<bool ZipInput, bool ZipReduced, bool ZipOutput>
-    struct ReduceEwiseInterface : ReduceInterfaceJoin<ZipReduced>, ReduceInterfaceFinal<ZipReduced, ZipOutput> {
+    struct ReduceEwiseInterface : ReduceJoinInterface<ZipReduced>, ReduceFinalInterface<ZipReduced, ZipOutput> {
         template<typename Op, typename Input, typename Reduced, typename... Indices>
         requires (nt::is_tuple_of_accessor_v<Input> and
                   nt::is_tuple_of_accessor_value_v<Reduced> and
                   nt::are_int_v<Indices...>)
-        static constexpr void init(Op& op, Input& input, Reduced& reduced, Indices... indices) {
+        NOA_FHD static constexpr void init(Op& op, Input& input, Reduced& reduced, Indices... indices) {
             [&]<size_t... I, size_t... R>
             (std::index_sequence<I...> input_sequence, std::index_sequence<R...> reduced_sequence) {
                 if constexpr (ZipInput && ZipReduced) {
@@ -248,12 +372,12 @@ namespace noa::guts {
     private:
         // We don't want to perfect forward the tuples here: the operator should take the tuple elements
         // as (const) lvalue reference or by value, not by rvalue reference. As such, do not std::forward.
-        template<size_t... I, size_t... R>
-        static constexpr void init_or_call_(
-                auto& op, auto&& input, auto&& reduced,
+        template<typename Op, typename Input, typename Reduced, size_t... I, size_t... R>
+        NOA_FHD static constexpr void init_or_call_(
+                Op& op, Input&& input, Reduced&& reduced,
                 std::index_sequence<I...>, std::index_sequence<R...>
         ) {
-            if constexpr (requires { op.init(input[Tag<I>{}]..., reduced[Tag<R>{}]...); }) {
+            if constexpr (std::is_invocable_v<ReduceEwiseChecker, Op, Input, Reduced, std::index_sequence<I...>, std::index_sequence<R...>>) {
                 op.init(input[Tag<I>{}]..., reduced[Tag<R>{}]...);
             } else {
                 op(input[Tag<I>{}]..., reduced[Tag<R>{}]...);

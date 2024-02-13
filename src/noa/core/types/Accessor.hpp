@@ -146,12 +146,20 @@ namespace noa::inline types {
 
     public: // Accessing strides
         template<size_t INDEX>
-        [[nodiscard]] NOA_HD constexpr auto stride() const noexcept {
+        [[nodiscard]] NOA_HD constexpr index_type stride() const noexcept {
             static_assert(INDEX < N);
             if constexpr (IS_CONTIGUOUS && INDEX == SIZE - 1)
                 return index_type{1};
             else
                 return m_strides[INDEX];
+        }
+
+        [[nodiscard]] NOA_HD constexpr index_type stride(std::integral auto index) const noexcept {
+            NOA_ASSERT(!is_empty() and static_cast<i64>(index) < SSIZE);
+            if (IS_CONTIGUOUS and index == SIZE - 1)
+                return index_type{1};
+            else
+                return m_strides[index];
         }
 
         [[nodiscard]] NOA_HD constexpr strides_type& strides() noexcept { return m_strides; }
@@ -197,7 +205,7 @@ namespace noa::inline types {
             if constexpr (nt::are_int_v<Indexes...>) {
                 m_ptr = guts::offset_pointer(*this, m_ptr, std::make_index_sequence<sizeof...(Indexes)>{}, indexes...);
             } else {
-                constexpr size_t VEC_SIZE = nt::first_t<Indexes...>::SIZE;
+                constexpr size_t VEC_SIZE = std::decay_t<nt::first_t<Indexes...>>::SIZE;
                 static_assert(VEC_SIZE <= SIZE);
                 m_ptr = guts::offset_pointer(*this, m_ptr, std::make_index_sequence<VEC_SIZE>{}, indexes...);
             }
@@ -212,7 +220,7 @@ namespace noa::inline types {
             if constexpr (nt::are_int_v<Indexes...>) {
                 return guts::offset_pointer(*this, pointer, std::make_index_sequence<sizeof...(Indexes)>{}, indexes...);
             } else {
-                constexpr size_t VEC_SIZE = nt::first_t<Indexes...>::SIZE;
+                constexpr size_t VEC_SIZE = std::decay_t<nt::first_t<Indexes...>>::SIZE;
                 static_assert(VEC_SIZE <= SIZE);
                 return guts::offset_pointer(*this, pointer, std::make_index_sequence<VEC_SIZE>{}, indexes...);
             }
@@ -225,7 +233,7 @@ namespace noa::inline types {
             if constexpr (nt::are_int_v<Indexes...>) {
                 return guts::offset_at(*this, std::make_index_sequence<sizeof...(Indexes)>{}, indexes...);
             } else {
-                constexpr size_t VEC_SIZE = nt::first_t<Indexes...>::SIZE;
+                constexpr size_t VEC_SIZE = std::decay_t<nt::first_t<Indexes...>>::SIZE;
                 static_assert(VEC_SIZE <= SIZE);
                 return guts::offset_at(*this, std::make_index_sequence<VEC_SIZE>{}, indexes...);
             }
@@ -241,7 +249,7 @@ namespace noa::inline types {
 
     private:
         pointer_type m_ptr{};
-        [[no_unique_address]] strides_type m_strides{};
+        NOA_NO_UNIQUE_ADDRESS strides_type m_strides{};
     };
 
     /// Reference to Accessor.
@@ -292,12 +300,20 @@ namespace noa::inline types {
 
     public: // Accessing strides
         template<size_t INDEX>
-        [[nodiscard]] NOA_HD constexpr auto stride() const noexcept {
+        [[nodiscard]] NOA_HD constexpr index_type stride() const noexcept {
             static_assert(INDEX < N);
-            if constexpr (IS_CONTIGUOUS && INDEX == SIZE - 1)
+            if constexpr (IS_CONTIGUOUS and INDEX == SIZE - 1)
                 return index_type{1};
             else
                 return m_strides[INDEX];
+        }
+
+        [[nodiscard]] NOA_HD constexpr index_type stride(std::integral auto index) const noexcept {
+            NOA_ASSERT(!is_empty() and static_cast<i64>(index) < SSIZE);
+            if (IS_CONTIGUOUS and index == SIZE - 1)
+                return index_type{1};
+            else
+                return m_strides[index];
         }
 
         [[nodiscard]] NOA_HD constexpr strides_type strides() noexcept { return m_strides; }
@@ -335,7 +351,7 @@ namespace noa::inline types {
             if constexpr (nt::are_int_v<Indexes...>) {
                 m_ptr = guts::offset_pointer(*this, m_ptr, std::make_index_sequence<sizeof...(Indexes)>{}, indexes...);
             } else {
-                constexpr size_t VEC_SIZE = nt::first_t<Indexes...>::SIZE;
+                constexpr size_t VEC_SIZE = std::decay_t<nt::first_t<Indexes...>>::SIZE;
                 static_assert(VEC_SIZE <= SIZE);
                 m_ptr = guts::offset_pointer(*this, m_ptr, std::make_index_sequence<VEC_SIZE>{}, indexes...);
             }
@@ -350,7 +366,7 @@ namespace noa::inline types {
             if constexpr (nt::are_int_v<Indexes...>) {
                 return guts::offset_pointer(*this, pointer, std::make_index_sequence<sizeof...(Indexes)>{}, indexes...);
             } else {
-                constexpr size_t VEC_SIZE = nt::first_t<Indexes...>::SIZE;
+                constexpr size_t VEC_SIZE = std::decay_t<nt::first_t<Indexes...>>::SIZE;
                 static_assert(VEC_SIZE <= SIZE);
                 return guts::offset_pointer(*this, pointer, std::make_index_sequence<VEC_SIZE>{}, indexes...);
             }
@@ -363,7 +379,7 @@ namespace noa::inline types {
             if constexpr (nt::are_int_v<Indexes...>) {
                 return guts::offset_at(*this, std::make_index_sequence<sizeof...(Indexes)>{}, indexes...);
             } else {
-                constexpr size_t VEC_SIZE = nt::first_t<Indexes...>::SIZE;
+                constexpr size_t VEC_SIZE = std::decay_t<nt::first_t<Indexes...>>::SIZE;
                 static_assert(VEC_SIZE <= SIZE);
                 return guts::offset_at(*this, std::make_index_sequence<VEC_SIZE>{}, indexes...);
             }
@@ -379,7 +395,7 @@ namespace noa::inline types {
 
     private:
         pointer_type m_ptr{};
-        [[no_unique_address]] strides_type m_strides{};
+        NOA_NO_UNIQUE_ADDRESS strides_type m_strides{};
     };
 
 // Some compilers complain about the output pointer being marked restrict and say it is ignored...
@@ -459,6 +475,7 @@ namespace noa::inline types {
     public: // Accessing strides
         template<size_t>
         [[nodiscard]] NOA_HD constexpr index_type stride() const noexcept { return 0; }
+        [[nodiscard]] NOA_HD constexpr index_type stride(std::integral auto) const noexcept { return 0; }
         [[nodiscard]] NOA_HD constexpr const strides_type& strides() const noexcept { return m_strides; }
 
     public:
@@ -539,7 +556,7 @@ namespace noa::inline types {
 
     private:
         mutable_value_type m_value;
-        [[no_unique_address]] strides_type m_strides;
+        NOA_NO_UNIQUE_ADDRESS strides_type m_strides;
     };
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
@@ -669,7 +686,7 @@ namespace noa::guts {
     };
     template<AccessorConfig config, typename Accessors>
     requires nt::is_tuple_of_accessor_or_empty_v<Accessors>
-    auto reconfig_accessors(Accessors&& accessors) {
+    [[nodiscard]] constexpr auto reconfig_accessors(Accessors&& accessors) {
         return std::forward<Accessors>(accessors).map(
                 []<typename T>(T&& accessor) {
                     if constexpr (nt::is_accessor_value_v<T>) {
@@ -691,10 +708,10 @@ namespace noa::guts {
 
                         if constexpr (new_ndim == original_ndim) {
                             return new_accessor_t(accessor.get(), accessor.strides());
-                        } else if constexpr (vec_ndim > 0) { // just to help clang-tidy, because we know that vec_ndim != 0
-                            auto strides = [&accessor]<size_t... I>(std::index_sequence<I...>) {
-                                return Strides{accessor.template stride<config.filter[I]>()...};
-                            }(std::make_index_sequence<new_ndim>{});
+                        } else {
+                            auto strides = [&accessor]<size_t... I>(std::index_sequence<I...>, const auto& filter) {
+                                return Strides{accessor.stride(filter[I])...};
+                            }(std::make_index_sequence<new_ndim>{}, config.filter);
                             return new_accessor_t(accessor.get(), strides);
                         }
                     } else {
@@ -707,7 +724,7 @@ namespace noa::guts {
     /// TODO Take a shape and see if end of array doesn't overlap with other arrays? like are_overlapped
     template<typename... TuplesOfAccessors>
     requires nt::are_tuple_of_accessor_v<TuplesOfAccessors...>
-    auto are_accessors_aliased(const TuplesOfAccessors&... tuples_of_accessors) -> bool {
+    [[nodiscard]] constexpr auto are_accessors_aliased(const TuplesOfAccessors&... tuples_of_accessors) -> bool {
         auto tuple_of_pointers = tuple_cat(tuples_of_accessors.map([](const auto& accessor) {
             if constexpr (nt::is_accessor_value_v<decltype(accessor)>)
                 return nullptr;
@@ -727,5 +744,14 @@ namespace noa::guts {
                 return false;
             });
         });
+    }
+
+    /// Whether the accessors point to const data, i.e. their value_type is const.
+    template<typename T> requires nt::is_tuple_of_accessor_v<T>
+    [[nodiscard]] constexpr auto are_accessors_const() -> bool {
+        constexpr bool are_all_const = []<typename... A>(nt::TypeList<A...>) {
+            return (std::is_const_v<nt::value_type_t<A>> and ...);
+        }(nt::type_list_t<T>{});
+        return are_all_const;
     }
 }
