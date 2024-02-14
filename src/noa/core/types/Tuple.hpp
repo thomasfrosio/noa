@@ -567,6 +567,7 @@ namespace noa::traits {
     template<typename... Ts> struct proclaim_is_tuple<noa::Tuple<Ts...>> : std::true_type {};
     template<typename... Ts> struct proclaim_is_tuple_of_accessor<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor<Ts...>::value> {};
     template<typename... Ts> struct proclaim_is_tuple_of_accessor_pure<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor_pure<Ts...>::value> {};
+    template<typename... Ts> struct proclaim_is_tuple_of_accessor_reference<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor_reference<Ts...>::value> {};
     template<typename... Ts> struct proclaim_is_tuple_of_accessor_value<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor_value<Ts...>::value> {};
     template<typename... Ts> struct proclaim_is_tuple_of_accessor_or_empty<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor<Ts...>::value> {};
     template<>               struct proclaim_is_tuple_of_accessor_or_empty<noa::Tuple<>> : std::true_type {};

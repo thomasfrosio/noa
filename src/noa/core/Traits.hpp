@@ -443,6 +443,12 @@ namespace noa::traits {
     template<typename... Ts> using are_tuple_of_accessor_pure = bool_and<is_tuple_of_accessor_pure<Ts>::value...>;
     template<typename... Ts> constexpr bool are_tuple_of_accessor_pure_v = are_tuple_of_accessor_pure<std::decay_t<Ts>...>::value;
 
+    template<typename T> struct proclaim_is_tuple_of_accessor_reference : std::false_type {};
+    template<typename T> using is_tuple_of_accessor_reference = std::bool_constant<proclaim_is_tuple_of_accessor_reference<T>::value>;
+    template<typename T> constexpr bool is_tuple_of_accessor_reference_v = is_tuple_of_accessor_reference<std::decay_t<T>>::value;
+    template<typename... Ts> using are_tuple_of_accessor_reference = bool_and<is_tuple_of_accessor_reference<Ts>::value...>;
+    template<typename... Ts> constexpr bool are_tuple_of_accessor_reference_v = are_tuple_of_accessor_reference<std::decay_t<Ts>...>::value;
+
     template<typename T> struct proclaim_is_tuple_of_accessor_value : std::false_type {};
     template<typename T> using is_tuple_of_accessor_value = std::bool_constant<proclaim_is_tuple_of_accessor_value<T>::value>;
     template<typename T> constexpr bool is_tuple_of_accessor_value_v = is_tuple_of_accessor_value<std::decay_t<T>>::value;
