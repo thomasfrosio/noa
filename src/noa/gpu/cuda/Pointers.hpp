@@ -156,8 +156,8 @@ namespace noa::cuda {
         u32 vector_size = n_elements_per_thread_x; // maximum vector size
         tuple_of_4d_accessors.for_each([&](const auto& accessor) {
             if constexpr (nt::is_accessor_pure_v<decltype(accessor)>) {
-                const auto strides = accessor.strides().template as<u32>();
-                if (strides[3] == 1) {
+                if (accessor.stride(3) == 1) {
+                    const auto strides = accessor.strides().template as<u32>();
                     auto i_vector_size = static_cast<u32>(max_vector_count(accessor.get()));
 
                     // If the alignment at the start of the batch/block is not enough,

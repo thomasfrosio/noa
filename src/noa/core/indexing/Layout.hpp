@@ -63,7 +63,7 @@ namespace noa::indexing {
     ///          required in a particular dimension, this function can be useful. It supports broadcasting and
     ///          empty dimensions. It is also guarded against empty shapes.
     /// \tparam ORDER 'C' for C-contiguous (row-major) or 'F' for F-contiguous (column-major).
-    /// \note If one want to check whether the array is contiguous or not, while all(is_contiguous(...)) is valid,
+    /// \note If one want to check whether the array is contiguous, while all(is_contiguous(...)) is valid,
     ///       are_contiguous(...) is preferred simply because it is clearer and slightly more efficient.
     /// \note Broadcast dimensions are NOT contiguous. Only empty dimensions are treated as contiguous
     ///       regardless of their stride. Functions that require broadcast dimensions to be "contiguous"
@@ -117,7 +117,13 @@ namespace noa::indexing {
         accessors.for_each([&shape, &out]<typename T>(const T& accessor) {
             if constexpr (not nt::is_accessor_value_v<T>) {
                 static_assert(T::SIZE == 4);
-                out = out and is_contiguous<ORDER>(accessor.strides(), shape);
+                if constexpr (T::IS_CONTIGUOUS) {
+                    out = out and is_contiguous<ORDER>(
+                            accessor.strides().template as<Integer>().push_back(1), shape);
+                } else {
+                    out = out and is_contiguous<ORDER>(
+                            accessor.strides().template as<Integer>(), shape);
+                }
             }
         });
         return out;
