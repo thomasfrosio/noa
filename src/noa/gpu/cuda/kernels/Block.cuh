@@ -184,8 +184,19 @@ namespace noa::cuda::guts {
 
         // Final reduction within a warp.
         Reduced value;
-        if (thread_index < WARP_SIZE)
-            value = warp_reduce<Interface>(op, shared_data[thread_index]);
+        if (thread_index < WARP_SIZE) {
+            if constexpr (has_warp_reduce_v<Reduced>) {
+                value = warp_reduce<Interface>(op, shared_data[thread_index]);
+            } else {
+                // If the reduced type(s) cannot be warp reduced,
+                // let the first thread of the block do it.
+                if (thread_index == 0) {
+                    value = shared_data[0];
+                    for (i32 i = 1; i < WARP_SIZE; ++i)
+                        Interface::join(op, shared_data[i], value);
+                }
+            }
+        }
         return value;
     }
 

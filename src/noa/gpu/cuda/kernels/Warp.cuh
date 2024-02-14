@@ -4,12 +4,10 @@
 #include "noa/gpu/cuda/Types.hpp"
 
 namespace noa::cuda::guts {
-    // TODO Add a way for the users to add a specialisation for wrap_reduce with their own types
+    // TODO Add a way for the users to add a specialisation for wrap_reduce with their own types?
     template<typename T>
     constexpr bool is_valid_suffle_v = nt::is_numeric_v<T> or nt::is_any_v<T, half, half2>;
-}
 
-namespace noa::cuda {
     template<typename T> requires guts::is_valid_suffle_v<T>
     NOA_FD T warp_shuffle(T value, i32 source, i32 width = 32, u32 mask = 0xffffffff) {
         if constexpr (nt::is_almost_same_v<c16, T>) {
@@ -44,12 +42,23 @@ namespace noa::cuda {
         }
     }
 
+    template<typename Tup>
+    struct has_warp_reduce : std::bool_constant<is_valid_suffle_v<Tup>> {};
+
+    template<typename... T>
+    struct has_warp_reduce<Tuple<T...>> {
+        static constexpr bool value = nt::bool_and<is_valid_suffle_v<typename T::value_type>...>::value;
+    };
+
+    template<typename T>
+    constexpr bool has_warp_reduce_v = has_warp_reduce<T>::value;
+
     // Reduces one warp to one element.
     // The first thread of the warp returns with the reduced value.
     // The returned value is undefined for the other threads.
     // value:       Per-thread value.
     // reduce_op:   Reduction operator.
-    template<typename T, typename ReduceOp> requires guts::is_valid_suffle_v<T>
+    template<typename T, typename ReduceOp> requires has_warp_reduce_v<T>
     NOA_ID T warp_reduce(T value, ReduceOp reduce_op) {
         T reduce;
         for (i32 delta = 1; delta < 32; delta *= 2) {
@@ -61,7 +70,7 @@ namespace noa::cuda {
 
     // Overload for pairs.
     template<typename Interface, typename Op, typename Reduced>
-    requires nt::is_tuple_of_accessor_value_v<Reduced>
+    requires (nt::is_tuple_of_accessor_value_v<Reduced> and has_warp_reduce_v<Reduced>)
     NOA_ID auto warp_reduce(Op op, Reduced reduced) -> Reduced {
         for (i32 delta = 1; delta < 32; delta *= 2) {
             Reduced reduce = reduced.map([delta]<typename T>(T& accessor_value) {
