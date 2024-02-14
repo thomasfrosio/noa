@@ -46,12 +46,4 @@ set(NOA_CUDA_SOURCES
     # noa::cuda::fft
     gpu/cuda/fft/Exception.cpp
     gpu/cuda/fft/Plan.cpp
-
     )
-
-# Files to be preprocessed and runtime-compiled.
-set(NOA_CUDA_PREPROCESS_SOURCES
-    gpu/cuda/utils/EwiseBinary.cuh
-    gpu/cuda/utils/EwiseTrinary.cuh
-    gpu/cuda/utils/EwiseUnary.cuh
-)

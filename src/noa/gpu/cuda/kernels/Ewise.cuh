@@ -5,6 +5,9 @@
 #include "noa/gpu/cuda/Types.hpp"
 
 namespace noa::cuda {
+    // TODO Atm, we set the block size at compile time, and prefer smaller blocks as they tend to "waste"
+    //      less threads. We should maybe switch (or at least allow) to runtime block sizes and try to
+    //      maximize the occupancy for the target GPU...
     template<bool ZipInput = false,
              bool ZipOutput = false,
              u32 BlockSize = 128,
@@ -24,7 +27,6 @@ namespace noa::cuda::guts {
     template<typename EwiseConfig, u32 VectorSize>
     struct EwiseConfig1dBlock {
         using interface = EwiseConfig::interface;
-
         static constexpr u32 block_size = EwiseConfig::block_size;
         static constexpr u32 vector_size = VectorSize;
         static constexpr u32 n_elements_per_thread = max(EwiseConfig::n_elements_per_thread, VectorSize);
@@ -35,9 +37,9 @@ namespace noa::cuda::guts {
     struct EwiseConfig2dBlock {
         using interface = EwiseConfig::interface;
 
-        // The goal is to waste as fewer threads as possible, assuming 2D/3D/4D arrays have a
-        // similar number of elements in their two innermost dimensions. Also, here we assume
-        // there's no vectorization, so we can compute the actual block work size.
+        // The goal is to waste as fewer threads as possible, assuming 2d/3d/4d arrays have a
+        // similar number of elements in their two innermost dimensions, so make the block
+        // (and block work shape) as square as possible.
         static constexpr u32 block_size = EwiseConfig::block_size;
         static constexpr u32 block_size_x = min(block_size, Constant::WARP_SIZE);
         static constexpr u32 block_size_y = block_size / block_size_x;

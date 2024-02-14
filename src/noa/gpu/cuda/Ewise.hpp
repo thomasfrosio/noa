@@ -34,17 +34,20 @@ namespace noa::cuda {
                     is_contiguous[0] ? shape_i64.elements() : shape_i64.pop_front().elements());
 
             // Only vectorize if the inputs are not modified.
+            // Also turn off vectorization because if there are too many arguments
+            // the register pressure is expected to be too high.
+            constexpr auto n_args = std::decay_t<Input>::SIZE + std::decay_t<Output>::SIZE;
             u32 vector_size{1};
-            if constexpr (ng::are_accessors_const<Input>()) {
+            if constexpr (ng::are_accessors_const<Input>() and n_args <= 4) {
+                const auto shape_3d = Shape3<u32>{batch, 1, 1};
                 vector_size = min(
-                        maximum_vector_size(input, Config::n_elements_per_thread, Config::block_size, Shape3<Index>{shape[0], 1, 1}),
-                        maximum_vector_size(output, Config::n_elements_per_thread, Config::block_size, Shape3<Index>{shape[0], 1, 1})
+                        maximum_vector_size(input, Config::n_elements_per_thread, Config::block_size, shape_3d),
+                        maximum_vector_size(output, Config::n_elements_per_thread, Config::block_size, shape_3d)
                 );
             }
 
             // 1d|2d grid of 1d blocks.
-            const auto block_work_size = static_cast<Index>(
-                    Config::block_size * max(vector_size, Config::n_elements_per_thread));
+            const auto block_work_size = static_cast<Index>(Config::block_size * Config::n_elements_per_thread);
             const auto launch_config = LaunchConfig{
                 .n_blocks=dim3(static_cast<u32>(divide_up(n_elements, block_work_size)), batch, 1u),
                 .n_threads=dim3(Config::block_size, 1u, 1u),
