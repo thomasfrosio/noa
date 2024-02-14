@@ -105,17 +105,22 @@ namespace test {
 
 namespace test {
     template<typename T, typename U>
-    inline void randomize(T* data, noa::i64 elements, test::Randomizer<U>& randomizer) {
+    inline void randomize(T* data, noa::i64 n_elements, test::Randomizer<U>& randomizer) {
         if constexpr (std::is_same_v<T, U>) {
-            for (noa::i64 idx = 0; idx < elements; ++idx)
+            for (noa::i64 idx = 0; idx < n_elements; ++idx)
                 data[idx] = randomizer.get();
         } else if constexpr (noa::traits::is_complex_v<T>) {
             using value_t = noa::traits::value_type_t<T>;
-            randomize(reinterpret_cast<value_t*>(data), elements * 2, randomizer);
+            randomize(reinterpret_cast<value_t*>(data), n_elements * 2, randomizer);
         } else {
-            for (noa::i64 idx = 0; idx < elements; ++idx)
+            for (noa::i64 idx = 0; idx < n_elements; ++idx)
                 data[idx] = static_cast<T>(randomizer.get());
         }
+    }
+
+    template<typename T, typename U>
+    inline void randomize(T* data, noa::i64 n_elements, test::Randomizer<U>&& randomizer) {
+        randomize(data, n_elements, randomizer);
     }
 
     template<typename T, typename U>
