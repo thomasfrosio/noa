@@ -131,7 +131,7 @@ namespace noa::cuda::guts {
         });
 
         for (Index row = initial_row; row < n_rows; row += n_rows_per_grid) { // for every row (within a batch)
-            Vec3<Index> bdh = ni::offset2index(initial_row, shape_dhw[0], shape_dhw[1]);
+            Vec3<Index> bdh = ni::offset2index(row, shape_dhw[0], shape_dhw[1]);
 
             for (Index cid = 0; cid < shape_dhw[2]; cid += Config::block_work_size_x) { // consume the row
                 input_1d.for_each_enumerate([&input, &bdh, &cid]<size_t I>(auto& accessor_1d) {
@@ -165,12 +165,12 @@ namespace noa::cuda::guts {
             Reduced reduced, // Tuple of AccessorValue(s)
             Output output // Tuple of 1d Accessor(s)
     ) {
-        const Index batch = blockDim.x;
+        const Index batch = blockIdx.x;
         const Index tid = threadIdx.x;
 
         auto joined_1d = joined.map([&](auto& accessor) { return accessor[batch]; });
         for (Index cid = 0; cid < n_elements; cid += Config::block_work_size) {
-            block_reduce_ewise_1d_init
+            block_reduce_ewise_1d_join
                     <Config::block_size, Config::n_elements_per_thread, Config::vector_size, Config::interface>
                     (op, joined_1d, n_elements - cid, reduced, tid);
             joined_1d.for_each([](auto& accessor) { accessor.offset_accessor(Config::block_work_size); });

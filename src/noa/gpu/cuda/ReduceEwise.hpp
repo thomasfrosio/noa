@@ -21,8 +21,11 @@ namespace noa::cuda::guts {
         using reduced_t = std::decay_t<Reduced>;
         using output_t = std::decay_t<Output>;
 
-        const u32 vector_size = maximum_vector_size(
-                input, Config::n_elements_per_thread, Config::block_size, Shape3<Index>{shape[0], 1, 1});
+        u32 vector_size{1};
+        if constexpr (ng::are_accessors_const<Input>() and std::decay_t<Input>::SIZE <= 4) {
+            vector_size = maximum_vector_size(
+                    input, Config::n_elements_per_thread, Config::block_size, Shape3<Index>{shape[0], 1, 1});
+        }
 
         const auto launch_config = LaunchConfig{
             .n_blocks=static_cast<u32>(shape[0]),
@@ -37,8 +40,8 @@ namespace noa::cuda::guts {
             };
             auto input_2d = ng::reconfig_accessors<to_contiguous_2d>(std::forward<Input>(input));
 
-            if (vector_size == 8) {
-                using kernel_config = ReduceEwise2dConfig<Config, 8, true>;
+            if (vector_size == 2) {
+                using kernel_config = ReduceEwise2dConfig<Config, 2, true>;
                 stream.enqueue(
                         reduce_ewise_2d<kernel_config, op_t, Index, decltype(input_2d), reduced_t, output_t>,
                         launch_config, std::forward<Op>(op), std::move(input_2d), shape[1],
@@ -52,7 +55,7 @@ namespace noa::cuda::guts {
                         std::forward<Reduced>(reduced), std::forward<Output>(output)
                 );
             } else {
-                using kernel_config = ReduceEwise2dConfig<Config, 2, true>;
+                using kernel_config = ReduceEwise2dConfig<Config, 8, true>;
                 stream.enqueue(
                         reduce_ewise_2d<kernel_config, op_t, Index, decltype(input_2d), reduced_t, output_t>,
                         launch_config, std::forward<Op>(op), std::move(input_2d), shape[1],
@@ -96,19 +99,21 @@ namespace noa::cuda::guts {
         using output_t = std::decay_t<Output>;
 
         // Compute the grid and block dimensions.
-        constexpr u32 n_threads_x = Constant::WARP_SIZE; // TODO better heuristic?
+        constexpr u32 n_threads_x = Constant::WARP_SIZE;
         const u32 n_threads_y = max(Config::block_size / n_threads_x, u32{1});
         const auto n_rows = shape[2] * shape[1] * (is_per_batch ? 1 : shape[0]);
         const u32 n_blocks_x = 1; // one block to reduce n_rows
         const u32 n_blocks_y = is_per_batch ? static_cast<u32>(shape[0]) : 1;
-        const auto first_launch_config = LaunchConfig{
+        const auto launch_config = LaunchConfig{
                 .n_blocks=dim3(n_blocks_x, n_blocks_y),
                 .n_threads=dim3(n_threads_x, n_threads_y),
         };
 
-        // Compute the vector size for "input".
-        const u32 input_vector_size = maximum_vector_size(
-                input, Config::n_elements_per_thread, Config::block_size, shape.pop_back());
+        u32 input_vector_size{1};
+        if constexpr (ng::are_accessors_const<Input>() and input_t::SIZE <= 4) {
+            input_vector_size = maximum_vector_size(
+                    input, Config::n_elements_per_thread, Config::block_size, shape.pop_back());
+        }
 
         const auto shape_dhw = shape.pop_front();
         if (input_vector_size > 1) {
@@ -120,21 +125,21 @@ namespace noa::cuda::guts {
                 using kernel_config = ReduceEwise4dConfig<Config, n_threads_x, 2, true>;
                 stream.enqueue(
                         reduce_ewise_4d<kernel_config, op_t, Index, contig_input_t, reduced_t, output_t>,
-                        first_launch_config, std::forward<Op>(op), std::move(contig_input),
+                        launch_config, std::forward<Op>(op), std::move(contig_input),
                         std::forward<Reduced>(reduced), shape_dhw, n_rows, output
                 );
             } else if (input_vector_size == 4) {
                 using kernel_config = ReduceEwise4dConfig<Config, n_threads_x, 4, true>;
                 stream.enqueue(
                         reduce_ewise_4d<kernel_config, op_t, Index, contig_input_t, reduced_t, output_t>,
-                        first_launch_config, std::forward<Op>(op), std::move(contig_input),
+                        launch_config, std::forward<Op>(op), std::move(contig_input),
                         std::forward<Reduced>(reduced), shape_dhw, n_rows, output
                 );
-            } else { // clamp to 8
+            } else {
                 using kernel_config = ReduceEwise4dConfig<Config, n_threads_x, 8, true>;
                 stream.enqueue(
                         reduce_ewise_4d<kernel_config, op_t, Index, contig_input_t, reduced_t, output_t>,
-                        first_launch_config, std::forward<Op>(op), std::move(contig_input),
+                        launch_config, std::forward<Op>(op), std::move(contig_input),
                         std::forward<Reduced>(reduced), shape_dhw, n_rows, output
                 );
             }
@@ -142,7 +147,7 @@ namespace noa::cuda::guts {
             using kernel_config = ReduceEwise4dConfig<Config, n_threads_x, 1, true>;
             stream.enqueue(
                     reduce_ewise_4d<kernel_config, op_t, Index, input_t, reduced_t, output_t>,
-                    first_launch_config, std::forward<Op>(op), std::forward<Input>(input),
+                    launch_config, std::forward<Op>(op), std::forward<Input>(input),
                     std::forward<Reduced>(reduced), shape_dhw, n_rows, output
             );
         }
@@ -210,9 +215,11 @@ namespace noa::cuda::guts {
         [[maybe_unused]] auto joined_buffer = get_joined_buffer(
                 n_blocks_x, n_blocks_y, joined, joined_vector_size, stream);
 
-        // Compute the vector size for "input".
-        const u32 input_vector_size = maximum_vector_size(
-                input, Config::n_elements_per_thread, Config::block_size, Shape3<Index>{shape[0], 1, 1});
+        u32 input_vector_size{1};
+        if constexpr (ng::are_accessors_const<Input>() and std::decay_t<Input>::SIZE <= 4) {
+            input_vector_size = maximum_vector_size(
+                    input, Config::n_elements_per_thread, Config::block_size, Shape3<Index>{shape[0], 1, 1});
+        }
 
         // First kernel.
         if (Config::n_elements_per_thread > 1 and input_vector_size > 1) {
@@ -223,7 +230,7 @@ namespace noa::cuda::guts {
             };
             auto input_2d = ng::reconfig_accessors<to_contiguous_2d>(std::forward<Input>(input));
             if (input_vector_size == 2) {
-                using kernel_config = ReduceEwise2dConfig<Config, 4>;
+                using kernel_config = ReduceEwise2dConfig<Config, 2>;
                 stream.enqueue(
                         reduce_ewise_2d<kernel_config, op_t, Index, decltype(input_2d), reduced_t, joined_t>,
                         first_launch_config, op, std::move(input_2d), shape[1], reduced, joined
@@ -234,14 +241,8 @@ namespace noa::cuda::guts {
                         reduce_ewise_2d<kernel_config, op_t, Index, decltype(input_2d), reduced_t, joined_t>,
                         first_launch_config, op, std::move(input_2d), shape[1], reduced, joined
                 );
-            } else if (input_vector_size == 8) {
+            } else {
                 using kernel_config = ReduceEwise2dConfig<Config, 8>;
-                stream.enqueue(
-                        reduce_ewise_2d<kernel_config, op_t, Index, decltype(input_2d), reduced_t, joined_t>,
-                        first_launch_config, op, std::move(input_2d), shape[1], reduced, joined
-                );
-            } else if (input_vector_size == 16) {
-                using kernel_config = ReduceEwise2dConfig<Config, 16>;
                 stream.enqueue(
                         reduce_ewise_2d<kernel_config, op_t, Index, decltype(input_2d), reduced_t, joined_t>,
                         first_launch_config, op, std::move(input_2d), shape[1], reduced, joined
@@ -308,8 +309,11 @@ namespace noa::cuda::guts {
                 n_blocks_x, n_blocks_y, joined, joined_vector_size, stream);
 
         // Compute the vector size for "input".
-        const u32 input_vector_size = maximum_vector_size(
-                input, Config::n_elements_per_thread, Config::block_size, shape.pop_back());
+        u32 input_vector_size{1};
+        if constexpr (ng::are_accessors_const<input_t>() and input_t::SIZE <= 4) {
+            input_vector_size = maximum_vector_size(
+                    input, Config::n_elements_per_thread, Config::block_size, shape.pop_back());
+        }
 
         const auto shape_dhw = shape.pop_front();
         if (input_vector_size > 1) {
@@ -403,22 +407,22 @@ namespace noa::cuda {
             Output& output,
             Stream& stream
     ) {
-        const auto elements = safe_cast<Index>(shape.template as<i64>().elements());
+        const auto n_elements = safe_cast<Index>(shape.template as<i64>().elements());
         const Vec4<bool> is_contiguous = ni::is_contiguous(input, shape);
 
         constexpr auto SMALL_THRESHOLD = Config::n_elements_per_thread * Config::block_size * 4;
         if (all(is_contiguous.pop_back())) {
-            if (elements <= SMALL_THRESHOLD) {
+            if (n_elements <= SMALL_THRESHOLD) {
                 guts::launch_reduce_ewise_small_2d<Config>(
                         std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),
-                        std::forward<Output>(output), Shape2<Index>{1, elements}, stream);
+                        std::forward<Output>(output), Shape2<Index>{1, n_elements}, stream);
             } else {
                 guts::launch_reduce_ewise_large_2d<Config>(
                         std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),
-                        std::forward<Output>(output), Shape2<Index>{1, elements}, stream);
+                        std::forward<Output>(output), Shape2<Index>{1, n_elements}, stream);
             }
         } else {
-            if (elements <= SMALL_THRESHOLD) {
+            if (n_elements <= SMALL_THRESHOLD) {
                 guts::launch_reduce_ewise_small_4d<Config>(
                         std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),
                         std::forward<Output>(output), shape, false, stream);

@@ -271,7 +271,7 @@ namespace noa::cuda::guts {
     //                      when preprocess_op is a binary operator, otherwise it is ignored.
     template<i32 BLOCK_SIZE, i32 ELEMENTS_PER_THREAD, i32 VECTOR_SIZE,
              typename Interface, typename Input, typename Reduced, typename Index, typename Op>
-    requires (nt::is_tuple_of_accessor_v<Input> and
+    requires (nt::is_tuple_of_accessor_ndim_v<1, Input> and
               nt::is_tuple_of_accessor_value_v<Reduced>)
     NOA_ID void block_reduce_ewise_1d_init(
             Op op,
@@ -300,7 +300,8 @@ namespace noa::cuda::guts {
 
     template<i32 BLOCK_SIZE, i32 N_ELEMENTS_PER_THREAD, i32 LOAD_VECTOR_SIZE,
              typename Interface, typename Op, typename Index, typename Joined, typename Reduced>
-    requires (nt::is_tuple_of_accessor_pure_v<Joined> and
+    requires ((nt::is_tuple_of_accessor_pure_v<Joined> || nt::is_tuple_of_accessor_reference_v<Joined>) and
+              nt::is_tuple_of_accessor_ndim_v<1, Joined> and
               nt::is_tuple_of_accessor_value_v<Reduced>)
     NOA_ID void block_reduce_ewise_1d_join(
             Op op,
@@ -317,8 +318,9 @@ namespace noa::cuda::guts {
             for (Index i = 0; i < N_ELEMENTS_PER_THREAD; ++i) {
                 const Index tid = thread_index + BLOCK_SIZE * i;
                 if (tid < n_elements_to_reduce) {
-                    ivec_t joined = per_block_joined.map([](auto& accessor) {
-                        using accessor_value_t = AccessorValue<nt::value_type_t<decltype(accessor)>>;
+                    // We need to reconstruct the reference type, which is a tuple of AccessorValue(s).
+                    ivec_t joined = per_block_joined.map([tid]<typename T>(T& accessor) {
+                        using accessor_value_t = AccessorValue<nt::value_type_t<T>>;
                         return accessor_value_t(accessor(tid));
                     });
                     Interface::join(op, joined, reduced);
