@@ -1,7 +1,8 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/utils/Interfaces.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include "noa/gpu/cuda/AllocatorDevice.hpp"
 #include "noa/gpu/cuda/kernels/ReduceEwise.cuh"
 
@@ -434,3 +435,4 @@ namespace noa::cuda {
         }
     }
 }
+#endif
