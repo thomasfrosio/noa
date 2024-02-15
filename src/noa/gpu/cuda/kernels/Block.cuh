@@ -169,7 +169,7 @@ namespace noa::cuda::guts {
     ) {
         constexpr i32 WARP_SIZE = noa::cuda::Constant::WARP_SIZE;
         static_assert(is_multiple_of(BLOCK_SIZE, WARP_SIZE) and
-                      is_multiple_of((BLOCK_SIZE / WARP_SIZE), 2));
+                      (BLOCK_SIZE == WARP_SIZE or is_multiple_of((BLOCK_SIZE / WARP_SIZE), 2)));
 
         // Reduce shared data.
         if constexpr (BLOCK_SIZE > WARP_SIZE) {

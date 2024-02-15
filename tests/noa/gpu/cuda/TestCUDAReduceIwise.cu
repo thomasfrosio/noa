@@ -1,78 +1,83 @@
-#include <noa/gpu/cuda/ReduceEwise.hpp>
+#include <noa/gpu/cuda/ReduceIwise.hpp>
 #include <noa/gpu/cuda/AllocatorManaged.hpp>
 #include <catch2/catch.hpp>
 
+#include "Helpers.h"
+
 namespace {
-    struct Tracked {
-        std::array<int, 2> count{};
-        constexpr Tracked() = default;
-        constexpr Tracked(const Tracked& t) : count(t.count) { count[0] += 1; }
-        constexpr Tracked(Tracked&& t)  noexcept : count(t.count) { count[1] += 1; }
+    using namespace noa::types;
+
+    // 1d sum and argmax fused into one operation.
+    // In this example, we don't pay attention to taking the first or last max...
+    template<size_t N>
+    struct SumArgmax {
+        AccessorRestrictContiguousI32<f64, N> input;
+
+        constexpr void init(const auto& indices, f64& sum, Pair<f64, i32>& argmax) const {
+            const auto value = input(indices);
+            sum += value;
+            if (value > argmax.first) {
+                argmax.first = value;
+                argmax.second = input.offset_at(indices);
+            }
+        }
+
+        constexpr void join(
+                f64 isum, Pair<f64, i32> iargmax,
+                f64& osum, Pair<f64, i32>& oargmax
+        ) const {
+            osum += isum;
+            if (iargmax.first > oargmax.first)
+                oargmax = iargmax;
+        }
     };
 }
 
-TEST_CASE("cpu::reduce_ewise") {
+TEST_CASE("cuda::reduce_iwise") {
     using namespace noa::types;
-    using noa::cuda::reduce_ewise;
-    using noa::cuda::ReduceEwiseConfig;
+    using noa::cuda::reduce_iwise;
+    using noa::cuda::ReduceIwiseConfig;
     using noa::cuda::Stream;
     using noa::cuda::Device;
     using noa::cuda::AllocatorManaged;
 
     Stream stream(Device::current());
 
-    AND_THEN("simple sum") {
-        const auto shape = Shape4<i64>{1, 50, 1, 100};
-        const auto elements = shape.elements();
+    const Tuple shapes = noa::make_tuple(
+            Shape1<i64>{2451}, Shape1<i64>{524289},
+            Shape2<i64>{72, 130}, Shape2<i64>{542, 845},
+            Shape3<i64>{4, 45, 35}, Shape3<i64>{64, 64, 64},
+            Shape4<i64>{2, 3, 25, 35}, Shape4<i64>{3, 64, 64, 64},
+            Shape4<i64>{2, 128, 128, 128}
+    );
+    shapes.for_each([&]<size_t N>(const Shape<i64, N>& shape) {
+        INFO("shape=" << shape);
+        const auto n_elements = shape.elements();
+        const auto b0 = AllocatorManaged<f64>::allocate(n_elements, stream);
+        const auto b1 = AllocatorManaged<f64>::allocate(1, stream);
+        const auto b2 = AllocatorManaged<Pair<f64, i32>>::allocate(1, stream);
+        test::randomize(b0.get(), n_elements, test::Randomizer<f64>(-5, 10));
 
-        const auto input_buffer = AllocatorManaged<f64>::allocate(elements, stream);
-        const auto output_buffer = AllocatorManaged<f64>::allocate(1, stream);
-        std::fill_n(input_buffer.get(), elements, 1);
-        auto input = noa::make_tuple(AccessorRestrictI64<f64, 4>(input_buffer.get(), shape.strides()));
-        auto init = noa::make_tuple(AccessorValue<f64>(0.));
-        auto output = noa::make_tuple(AccessorRestrictContiguousI32<f64, 1>(output_buffer.get()));
+        const i32 expected_index = 1751;
+        const f64 expected_max = 16.23;
+        b0[expected_index] = expected_max;
+        const auto expected_sum = std::accumulate(b0.get(), b0.get() + n_elements, 0.);
 
-        auto reduce_op = []__device__(f64 to_reduce, f64& reduced) { reduced += to_reduce; };
-        reduce_ewise(shape, reduce_op, input, init, output, stream);
+        auto reduced = noa::make_tuple(
+                AccessorValue<f64>(0.),
+                AccessorValue<Pair<f64, i32>>({-10., 0})
+        );
+        auto output = noa::make_tuple(
+                AccessorRestrictContiguousI32<f64, 1>(b1.get()),
+                AccessorRestrictContiguousI32<Pair<f64, i32>, 1>(b2.get())
+        );
+
+        const auto shape_i32 = shape.template as<i32>();
+        auto op = SumArgmax{.input=AccessorRestrictContiguousI32<f64, N>(b0.get(), shape_i32.strides())};
+        reduce_iwise(shape_i32, op, reduced, output, stream);
         stream.synchronize();
-        REQUIRE_THAT(output[Tag<0>{}](0), Catch::WithinAbs(static_cast<f64>(elements), 1e-8));
-    }
 
-//    AND_THEN("sum-max") {
-//        const auto shape = Shape4<i64>{1, 50, 1, 100};
-//        const auto elements = shape.elements();
-//
-//        const auto buffer = std::make_unique<f32[]>(elements);
-//        std::fill_n(buffer.get(), elements, 1);
-//        buffer[234] = 12.f;
-//        auto input = noa::make_tuple(AccessorI64<f32, 4>(buffer.get(), shape.strides()));
-//        auto reduced = noa::make_tuple(AccessorValue<f64>(0.), AccessorValue<f32>(0.));
-//        auto output = noa::make_tuple(AccessorValue<f64>(0.), AccessorValue<f32>(0.));
-//
-//        struct reduce_op_t {
-//            Tracked tracked{};
-//
-//            void init(f32 input, f64& sum, f32& max) const {
-//                sum += static_cast<f64>(input);
-//                max = std::max(max, input);
-//            }
-//            void join(f64 current_sum, f32 current_max, f64& sum, f32& max) const {
-//                sum += current_sum;
-//                max = std::max(max, current_max);
-//            }
-//            void final(f64& sum, f32& max, Tuple<f64&, f32&>& output) {
-//                auto& [a, b] = output;
-//                a = sum + static_cast<f64>(tracked.count[0]);
-//                b = max + static_cast<f32>(tracked.count[1]);
-//            }
-//        } reduce_op;
-//
-//        reduce_ewise<ReduceEwiseConfig{.zip_output=true}>(shape, reduce_op, input, reduced, output);
-//        REQUIRE_THAT(output[Tag<0>{}].deref(), Catch::WithinAbs(static_cast<f64>(elements + 12), 1e-8));
-//        REQUIRE_THAT(output[Tag<1>{}].deref(), Catch::WithinAbs(12., 1e-8));
-//
-//        reduce_ewise<ReduceEwiseConfig{.zip_output=true}>(shape, std::move(reduce_op), input, reduced, output);
-//        REQUIRE_THAT(output[Tag<0>{}].deref(), Catch::WithinAbs(static_cast<f64>(elements + 11), 1e-8));
-//        REQUIRE_THAT(output[Tag<1>{}].deref(), Catch::WithinAbs(13., 1e-8));
-//    }
+        REQUIRE_THAT(b1[0], Catch::WithinRel(static_cast<f64>(expected_sum), 1e-8));
+        REQUIRE((b2[0].first == expected_max and b2[0].second == expected_index));
+    });
 }

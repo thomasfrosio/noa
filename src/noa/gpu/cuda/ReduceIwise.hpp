@@ -8,70 +8,45 @@
 #include "noa/gpu/cuda/AllocatorDevice.hpp"
 
 namespace noa::cuda::guts {
-    template<typename Config>
-    auto reduce_iwise_4d_first_config(const Shape4<u32>& shape) -> Tuple<LaunchConfig, u32, Vec2<u32>> {
-        u32 n_blocks_left = Config::max_grid_size;
-        Vec4<u32> n_blocks{};
-        Vec4<u32> block_size{Config::block_size_x, Config::block_size_y, 1, 1};
-        for (auto i: irange(4)) {
-            n_blocks[i] = min(divide_up(shape[i], block_size[i]), n_blocks_left);
-            n_blocks_left = max(1u, n_blocks_left - n_blocks[i]);
-        }
-        auto launch_config = LaunchConfig{
-                .n_blocks=dim3(n_blocks[3] * n_blocks[2], n_blocks[1], n_blocks[0]),
-                .n_threads=dim3(Config::block_size_x, Config::block_size_y),
-        };
-        return {launch_config, product(n_blocks), {n_blocks[2], n_blocks[3]}};
-    }
+    template<typename Config, size_t N>
+    auto reduce_iwise_nd_first_config(const Shape<i32, N>& shape) {
+        constexpr auto max_grid_size = static_cast<i32>(Config::max_grid_size);
+        constexpr auto block_size = [] {
+            if constexpr (N > 1) // 2d blocks
+                return Vec4<i32>::from_values(1, 1, Config::block_size_y, Config::block_size_x);
+            else // 1d blocks
+                return Vec4<i32>::from_values(1, 1, 1, Config::block_size);
+        }();
 
-    template<typename Config>
-    auto reduce_iwise_3d_first_config(const Shape3<u32>& shape) -> Tuple<LaunchConfig, u32> {
-        u32 n_blocks_left = Config::max_grid_size;
-        Vec3<u32> n_blocks{};
-        Vec3<u32> block_size{Config::block_size_x, Config::block_size_y, 1};
-        for (auto i: irange(3)) {
-            n_blocks[i] = min(divide_up(shape[i], block_size[i]), n_blocks_left);
-            n_blocks_left = max(1u, n_blocks_left - n_blocks[i]);
+        // Set the number of blocks, while keep the total number of blocks within the maximum allowed.
+        auto n_blocks = Vec4<i32>::from_value(1);
+        const auto shape_whdb = shape.flip();
+        for (i32 i = 0; i <  static_cast<i32>(N); ++i) {
+            const auto n_blocks_allowed = max_grid_size / product(n_blocks);
+            n_blocks[3 - i] = min(divide_up(shape_whdb[i], block_size[3 - i]), n_blocks_allowed);
         }
-        auto launch_config = LaunchConfig{
-                .n_blocks=dim3(n_blocks[2], n_blocks[1], n_blocks[0]),
-                .n_threads=dim3(Config::block_size_x, Config::block_size_y),
-        };
-        return {launch_config, product(n_blocks)};
-    }
 
-    template<typename Config>
-    auto reduce_iwise_2d_first_config(const Shape2<u32>& shape) -> Tuple<LaunchConfig, u32> {
-        u32 n_blocks_left = Config::max_grid_size;
-        Vec2<u32> n_blocks{};
-        Vec2<u32> block_size{Config::block_size_x, Config::block_size_y};
-        for (auto i: irange(2)) {
-            n_blocks[i] = min(divide_up(shape[i], block_size[i]), n_blocks_left);
-            n_blocks_left = max(1u, n_blocks_left - n_blocks[i]);
-        }
-        auto launch_config = LaunchConfig{
-                .n_blocks=dim3(n_blocks[1], n_blocks[0]),
-                .n_threads=dim3(Config::block_size_x, Config::block_size_y),
-        };
-        return {launch_config, product(n_blocks)};
-    }
+        const auto n_blocks_u32 = n_blocks.as<u32>();
+        const auto n_threads = dim3(block_size[3], block_size[2], 1);
+        const auto n_blocks_dim3 = [&] {
+            if constexpr (N == 4)
+                return dim3(n_blocks_u32[3] * n_blocks_u32[2], n_blocks_u32[1], n_blocks_u32[0]);
+            else
+                return dim3(n_blocks_u32[3], n_blocks_u32[2], n_blocks_u32[1]);
+        }();
 
-    template<typename Config>
-    auto reduce_iwise_1d_first_config(const Shape1<u32>& shape) -> Tuple<LaunchConfig, u32> {
-        u32 n_blocks_left = Config::max_grid_size;
-        const u32 n_blocks = min(divide_up(shape[0], Config::block_size), n_blocks_left);
-        auto launch_config = LaunchConfig{
-                .n_blocks=dim3(n_blocks),
-                .n_threads=dim3(Config::block_size_x),
-        };
-        return {launch_config, n_blocks};
+        auto launch_config = LaunchConfig{.n_blocks=n_blocks_dim3, .n_threads=n_threads};
+        auto n_blocks_yx = Vec{n_blocks_u32[2], n_blocks_u32[3]};
+        return make_tuple(launch_config, product(n_blocks_u32), n_blocks_yx);
     }
 }
 
 namespace noa::cuda {
     template<typename Config = ReduceIwiseConfig<>,
              typename Op, typename Reduced, typename Output, typename Index, size_t N>
-    requires (nt::is_tuple_of_accessor_value_v<Reduced> and nt::is_tuple_of_accessor_pure_v<Output>)
+    requires (nt::is_tuple_of_accessor_value_v<Reduced> and
+              nt::is_tuple_of_accessor_pure_v<Output> and
+              nt::is_tuple_of_accessor_ndim_v<1, Output>)
     constexpr void reduce_iwise(
             const Shape<Index, N>& shape,
             Op&& op,
@@ -118,40 +93,40 @@ namespace noa::cuda {
                 static_assert(nt::always_false_v<Op>);
             }
         } else {
-            const auto shape_u32 = shape.template as_safe<u32>();
-            using buffer_t = AllocatorDevice<Reduced>::unique_type;
+            const auto shape_i32 = shape.template as_safe<i32>();
+            using buffer_t = AllocatorDevice<reduced_t>::unique_type;
             buffer_t joined;
             Index n_joined;
             auto allocate_joined = [&](u32 n) {
-                n_joined = n;
-                joined = AllocatorDevice<Reduced>::allocate_async(n_joined, stream);
+                n_joined = static_cast<Index>(n);
+                joined = AllocatorDevice<reduced_t>::allocate_async(static_cast<i64>(n_joined), stream);
             };
 
             // First kernel.
             if constexpr (N == 1) {
                 using config_t = guts::ReduceIwise1dBlockConfig<Config>;
-                auto [launch_config, n_blocks] = guts::reduce_iwise_1d_first_config<config_t>(shape_u32);
+                auto [launch_config, n_blocks, _] = guts::reduce_iwise_nd_first_config<config_t>(shape_i32);
                 allocate_joined(n_blocks);
                 stream.enqueue(guts::reduce_iwise_1d_first<config_t, op_t, Index, reduced_t>, launch_config,
                                std::forward<Op>(op), reduced, joined.get(), shape.vec);
 
             } else if constexpr (N == 2) {
                 using config_t = guts::ReduceIwise2dBlockConfig<Config>;
-                auto [launch_config, n_blocks] = guts::reduce_iwise_2d_first_config<config_t>(shape_u32);
+                auto [launch_config, n_blocks, _] = guts::reduce_iwise_nd_first_config<config_t>(shape_i32);
                 allocate_joined(n_blocks);
                 stream.enqueue(guts::reduce_iwise_2d_first<config_t, op_t, Index, reduced_t>, launch_config,
                                std::forward<Op>(op), reduced, joined.get(), shape.vec);
 
             } else if constexpr (N == 3) {
                 using config_t = guts::ReduceIwise2dBlockConfig<Config>;
-                auto [launch_config, n_blocks] = guts::reduce_iwise_3d_first_config<config_t>(shape_u32);
+                auto [launch_config, n_blocks, _] = guts::reduce_iwise_nd_first_config<config_t>(shape_i32);
                 allocate_joined(n_blocks);
                 stream.enqueue(guts::reduce_iwise_3d_first<config_t, op_t, Index, reduced_t>, launch_config,
                                std::forward<Op>(op), reduced, joined.get(), shape.vec);
 
             } else if constexpr (N == 4) {
                 using config_t = guts::ReduceIwise2dBlockConfig<Config>;
-                auto [launch_config, n_blocks, n_blocks_hw] = guts::reduce_iwise_4d_first_config<config_t>(shape_u32);
+                auto [launch_config, n_blocks, n_blocks_hw] = guts::reduce_iwise_nd_first_config<config_t>(shape_i32);
                 allocate_joined(n_blocks);
                 stream.enqueue(guts::reduce_iwise_4d_first<config_t, op_t, Index, reduced_t>, launch_config,
                                std::forward<Op>(op), reduced, joined.get(), shape.vec, n_blocks_hw);
@@ -162,7 +137,7 @@ namespace noa::cuda {
 
             // Second kernel.
             stream.enqueue(
-                    guts::reduce_iwise_second<Config, reduced_t, output_t, Index, op_t>,
+                    guts::reduce_iwise_second<Config, op_t, Index, reduced_t, output_t>,
                     LaunchConfig{.n_blocks=1, .n_threads=Config::block_size},
                     std::forward<Op>(op), joined.get(), n_joined, std::forward<Reduced>(reduced), output
             );

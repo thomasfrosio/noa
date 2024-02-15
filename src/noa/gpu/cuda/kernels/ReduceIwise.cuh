@@ -5,9 +5,9 @@
 
 namespace noa::cuda {
     template<bool ZipReduced = false,
-            bool ZipOutput = false,
-            u32 BlockSize = 512,
-            u32 MaxGridSize = 4096>
+             bool ZipOutput = false,
+             u32 BlockSize = 512,
+             u32 MaxGridSize = 4096>
     struct ReduceIwiseConfig {
         static_assert(is_multiple_of(BlockSize, 32u) and BlockSize <= Limits::MAX_THREADS);
         using interface = ng::ReduceIwiseInterface<ZipReduced, ZipOutput>;
@@ -21,9 +21,9 @@ namespace noa::cuda::guts {
     struct ReduceIwise2dBlockConfig {
         using interface = Config::interface;
         static constexpr u32 max_grid_size = Config::max_grid_size;
-        static constexpr u32 block_size = min(Constant::WARP_SIZE, Config::block_size);
+        static constexpr u32 block_size = max(Constant::WARP_SIZE, Config::block_size);
         static constexpr u32 block_size_x = Constant::WARP_SIZE;
-        static constexpr u32 block_size_y = max(block_size / block_size_x, 1u);
+        static constexpr u32 block_size_y = block_size / block_size_x;
     };
 
     template<typename Config>
@@ -61,9 +61,9 @@ namespace noa::cuda::guts {
                         Config::interface::init(op, reduced, cb, cd, ch, cw);
 
         // Reduce to one value per block.
-        const Index lid = threadIdx.y * Config::block_size_x + threadIdx.x;
+        const Index tid = threadIdx.y * Config::block_size_x + threadIdx.x;
         const Index bid = (blockIdx.z * gridDim.y + blockIdx.y) * gridDim.x + blockIdx.x;
-        block_reduce_join<Config::interface, Config::block_size>(op, reduced, joined, lid, bid);
+        block_reduce_join<Config::interface, Config::block_size>(op, reduced, joined, tid, bid);
     }
 
     template<typename Config, typename Op, typename Index, typename Reduced>
@@ -85,9 +85,9 @@ namespace noa::cuda::guts {
                 for (Index cw = gid[2]; cw < shape[2]; cw += Config::block_size_x * gridDim.x)
                     Config::interface::init(op, reduced, cd, ch, cw);
 
-        const Index lid = threadIdx.y * Config::block_size_x + threadIdx.x;
+        const Index tid = threadIdx.y * Config::block_size_x + threadIdx.x;
         const Index bid = (blockIdx.z * gridDim.y + blockIdx.y) * gridDim.x + blockIdx.x;
-        block_reduce_join<Config::interface, Config::block_size>(op, reduced, joined, lid, bid);
+        block_reduce_join<Config::interface, Config::block_size>(op, reduced, joined, tid, bid);
     }
 
     template<typename Config, typename Op, typename Index, typename Reduced>
@@ -98,7 +98,7 @@ namespace noa::cuda::guts {
             Reduced* __restrict__ joined,
             Vec2<Index> shape
     ) {
-        const auto gid = Vec2<Index>::from_Values(
+        const auto gid = Vec2<Index>::from_values(
                 Config::block_size_y * blockIdx.y + threadIdx.y,
                 Config::block_size_x * blockIdx.x + threadIdx.x
         );
@@ -107,9 +107,9 @@ namespace noa::cuda::guts {
             for (Index cw = gid[1]; cw < shape[1]; cw += Config::block_size_x * gridDim.x)
                 Config::interface::init(op, reduced, ch, cw);
 
-        const Index lid = threadIdx.y * Config::block_size_x + threadIdx.x;
+        const Index tid = threadIdx.y * Config::block_size_x + threadIdx.x;
         const Index bid = blockIdx.y * gridDim.x + blockIdx.x;
-        block_reduce_join<Config::interface, Config::block_size>(op, reduced, joined, lid, bid);
+        block_reduce_join<Config::interface, Config::block_size>(op, reduced, joined, tid, bid);
     }
 
     template<typename Config, typename Op, typename Index, typename Reduced>
@@ -120,14 +120,14 @@ namespace noa::cuda::guts {
             Reduced* __restrict__ joined,
             Vec1<Index> shape
     ) {
-        const Index lid = threadIdx.x;
+        const Index tid = threadIdx.x;
         const Index bid = blockIdx.x;
-        const auto gid = Vec1<Index>::from_values(Config::block_size * bid + lid);
+        const auto gid = Vec1<Index>::from_values(Config::block_size * bid + tid);
 
         for (Index cw = gid[0]; cw < shape[0]; cw += Config::block_size * gridDim.x)
             Config::interface::init(op, reduced, cw);
 
-        block_reduce_join<Config::interface, Config::block_size>(op, reduced, joined, lid, bid);
+        block_reduce_join<Config::interface, Config::block_size>(op, reduced, joined, tid, bid);
     }
 
     // One 1d block to finish joining the reduced values and compute the final output.
@@ -140,10 +140,10 @@ namespace noa::cuda::guts {
             Reduced reduced,
             Output output
     ) {
-        const Index lid = threadIdx.x;
-        for (Index cid = lid; cid < n_to_join; cid += Config::block_size)
+        const Index tid = threadIdx.x;
+        for (Index cid = tid; cid < n_to_join; cid += Config::block_size)
             Config::interface::join(op, to_join[cid], reduced);
-        block_reduce_join_and_final<Config::interface, Config::block_size>(op, reduced, output, lid);
+        block_reduce_join_and_final<Config::interface, Config::block_size>(op, reduced, output, tid);
     }
 }
 
@@ -159,8 +159,8 @@ namespace noa::cuda::guts {
                     for (Index l = gid[3]; l < shape[3]; l += Config::block_size_x)
                         Config::interface::init(op, reduced, i, j, k, l);
 
-        const Index lid = threadIdx.y * Config::block_size_x + threadIdx.x;
-        block_reduce_join_and_final<Config::interface, Config::block_size>(op, reduced, output, lid);
+        const Index tid = threadIdx.y * Config::block_size_x + threadIdx.x;
+        block_reduce_join_and_final<Config::interface, Config::block_size>(op, reduced, output, tid);
     }
 
     template<typename Config, typename Op, typename Index, typename Reduced, typename Output>
@@ -173,8 +173,8 @@ namespace noa::cuda::guts {
                 for (Index k = gid[2]; k < shape[2]; k += Config::block_size_x)
                     Config::interface::init(op, reduced, i, j, k);
 
-        const Index lid = threadIdx.y * Config::block_size_x + threadIdx.x;
-        block_reduce_join_and_final<Config::interface, Config::block_size>(op, reduced, output, lid);
+        const Index tid = threadIdx.y * Config::block_size_x + threadIdx.x;
+        block_reduce_join_and_final<Config::interface, Config::block_size>(op, reduced, output, tid);
     }
 
     template<typename Config, typename Op, typename Index, typename Reduced, typename Output>
@@ -186,8 +186,8 @@ namespace noa::cuda::guts {
             for (Index j = gid[1]; j < shape[1]; j += Config::block_size_x)
                 Config::interface::init(op, reduced, i, j);
 
-        const Index lid = threadIdx.y * Config::block_size_x + threadIdx.x;
-        block_reduce_join_and_final<Config::interface, Config::block_size>(op, reduced, output, lid);
+        const Index tid = threadIdx.y * Config::block_size_x + threadIdx.x;
+        block_reduce_join_and_final<Config::interface, Config::block_size>(op, reduced, output, tid);
     }
 
     template<typename Config, typename Op, typename Index, typename Reduced, typename Output>
@@ -201,4 +201,3 @@ namespace noa::cuda::guts {
         block_reduce_join_and_final<Config::interface, Config::block_size>(op, reduced, output, gid[0]);
     }
 }
-
