@@ -182,7 +182,7 @@ namespace noa::inline types {
     public:
         /// C-style indexing operator, decrementing the dimensionality of the accessor by 1.
         template<typename Int> requires (SIZE > 1 && std::is_integral_v<Int>)
-        [[nodiscard]] NOA_HD auto operator[](Int index) const noexcept {
+        [[nodiscard]] NOA_HD constexpr auto operator[](Int index) const noexcept {
             NOA_ASSERT(!is_empty());
             using output_type = AccessorReference<value_type, (SIZE - 1), index_type, PointerTrait, StridesTrait>;
             return output_type(m_ptr + ni::offset_at(index, stride<0>()), strides().data() + 1);
@@ -191,7 +191,7 @@ namespace noa::inline types {
         /// C-style indexing operator, decrementing the dimensionality of the accessor by 1.
         /// When done on a 1d accessor, this acts as a pointer/array indexing and dereferences the data.
         template<typename Int> requires (SIZE == 1 && std::is_integral_v<Int>)
-        [[nodiscard]] NOA_HD reference_type operator[](Int index) const noexcept {
+        [[nodiscard]] NOA_HD constexpr reference_type operator[](Int index) const noexcept {
             NOA_ASSERT(!is_empty());
             return m_ptr[ni::offset_at(index, stride<0>())];
         }
@@ -329,14 +329,14 @@ namespace noa::inline types {
     public:
         // Indexing operator, on 1D accessor. 1D -> ref
         template<typename Int> requires (SIZE == 1 and std::is_integral_v<Int>)
-        [[nodiscard]] NOA_HD reference_type operator[](Int index) const noexcept {
+        [[nodiscard]] NOA_HD constexpr reference_type operator[](Int index) const noexcept {
             NOA_ASSERT(!is_empty());
             return m_ptr[ni::offset_at(index, stride<0>())];
         }
 
         // Indexing operator, multidimensional accessor. ND -> ND-1
         template<typename Int> requires (SIZE > 1 and std::is_integral_v<Int>)
-        [[nodiscard]] NOA_HD auto operator[](Int index) const noexcept {
+        [[nodiscard]] NOA_HD constexpr auto operator[](Int index) const noexcept {
             NOA_ASSERT(!is_empty());
             using output_type = AccessorReference<value_type, SIZE - 1, index_type, PointerTrait, StridesTrait>;
             return output_type(m_ptr + ni::offset_at(index, stride<0>()), m_strides + 1);
@@ -496,12 +496,12 @@ namespace noa::inline types {
 
     public:
         template<typename Int> requires std::is_integral_v<Int>
-        [[nodiscard]] NOA_HD const_reference_type operator[](Int) const noexcept {
+        [[nodiscard]] NOA_HD constexpr const_reference_type operator[](Int) const noexcept {
             return m_value;
         }
 
         template<typename Int> requires std::is_integral_v<Int>
-        [[nodiscard]] NOA_HD reference_type operator[](Int) noexcept {
+        [[nodiscard]] NOA_HD constexpr reference_type operator[](Int) noexcept {
             return m_value;
         }
 
