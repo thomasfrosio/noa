@@ -4,11 +4,11 @@
 
 #if defined(NOA_IS_OFFLINE)
 #include "noa/core/indexing/Layout.hpp"
-#include "noa/gpu/cuda/Copy.hpp"
+#include "noa/gpu/cuda/kernels/Permute.cuh"
+#include "noa/gpu/cuda/Copy.cuh"
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
 #include "noa/gpu/cuda/Types.hpp"
-#include "noa/gpu/cuda/kernels/Permute.cuh"
 
 namespace noa::cuda::guts {
     struct PermuteConfig {

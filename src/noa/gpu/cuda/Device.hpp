@@ -3,7 +3,6 @@
 #include "noa/core/Config.hpp"
 
 #if defined(NOA_IS_OFFLINE)
-#include <cuda_runtime.h>
 #include <cstddef>
 #include <string>
 #include <vector>

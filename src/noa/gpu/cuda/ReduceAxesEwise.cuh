@@ -5,7 +5,7 @@
 #if defined(NOA_IS_OFFLINE)
 #include "noa/core/utils/Interfaces.hpp"
 #include "noa/gpu/cuda/kernels/ReduceAxesEwise.cuh"
-#include "noa/gpu/cuda/ReduceEwise.hpp"
+#include "noa/gpu/cuda/ReduceEwise.cuh"
 
 namespace noa::cuda::guts {
     template<typename Index>

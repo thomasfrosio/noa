@@ -7,8 +7,6 @@
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Device.hpp"
 
-
-
 namespace noa::cuda {
     /// Memory pool. (since CUDA 11.2)
     ///  - When called without an explicit pool argument, each call to cudaMallocAsync infers the device from the

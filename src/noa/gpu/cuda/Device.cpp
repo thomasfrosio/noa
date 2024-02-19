@@ -6,7 +6,7 @@
 //  - FFT plans
 //  - cublas handles/workspaces
 #include "noa/gpu/cuda/fft/Plan.hpp"
-#include "noa/gpu/cuda/math/Blas.hpp"
+#include "noa/gpu/cuda/Blas.hpp"
 
 namespace noa::cuda {
     void Device::reset() const {
@@ -14,7 +14,7 @@ namespace noa::cuda {
         guard.synchronize(); // if called from noa::Device::reset(), the device is already synchronized
 
         noa::cuda::fft::clear_caches(id());
-//        noa::cuda::math::cublas_clear_cache(id());
+        noa::cuda::cublas_clear_cache(id());
 
         check(cudaDeviceReset());
     }

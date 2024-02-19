@@ -9,8 +9,8 @@
 #include "noa/gpu/cuda/Stream.hpp"
 #include "noa/gpu/cuda/Pointers.hpp"
 #include "noa/gpu/cuda/AllocatorArray.hpp"
-#include "noa/gpu/cuda/Ewise.hpp"
-#include "noa/gpu/cuda/Iwise.hpp"
+#include "noa/gpu/cuda/Ewise.cuh"
+#include "noa/gpu/cuda/Iwise.cuh"
 
 // TODO Add nvrtc to support any type.
 
@@ -250,31 +250,32 @@ namespace noa::cuda {
         const cudaPointerAttributes src_attr = pointer_attributes(src);
         const cudaPointerAttributes dst_attr = pointer_attributes(dst);
 
-        if (src_attr.type == 2 and dst_attr.type == 2) {
-            if (src_attr.device == dst_attr.device) {
-                auto input = make_tuple(AccessorRestrictI64<const T, 4>(src, src_strides));
-                auto output = make_tuple(AccessorRestrictI64<T, 4>(dst, dst_strides));
-                ewise(shape, Copy{}, std::move(input), std::move(output), stream);
-            } else {
-                panic("Copying strided regions, other than in the height dimension, "
-                      "between different devices is currently not supported. Trying to copy an array of "
-                      "shape {} from (device:{}, strides:{}) to (device:{}, strides:{}) ",
-                      shape, src_attr.device, src_strides, dst_attr.device, dst_strides);
-            }
+        if (src_attr.type == 2 and dst_attr.type == 2) { // within device memory
+            check(src_attr.device == dst_attr.device,
+                  "Copying strided regions, other than in the height dimension, between different devices "
+                  "is currently not supported. Trying to copy an array of shape {} from (device:{}, strides:{}) "
+                  "to (device:{}, strides:{}) ",
+                  shape, src_attr.device, src_strides, dst_attr.device, dst_strides);
 
-        } else if (src_attr.type >= 1 and dst_attr.type >= 1) {
-            if ((src_attr.type == 2 and src_attr.device != stream.device().id()) or
-                (dst_attr.type == 2 and dst_attr.device != stream.device().id()))
-                panic("Copying strided regions, other than in the height dimension, "
-                      "from or to a device that is not the stream's device is not supported");
+            auto input = make_tuple(AccessorRestrictI64<const T, 4>(src, src_strides));
+            auto output = make_tuple(AccessorRestrictI64<T, 4>(dst, dst_strides));
+            ewise(shape, Copy{}, std::move(input), std::move(output), stream);
+
+        } else if (src_attr.type >= 1 and dst_attr.type >= 1) { // between pinned/device/managed memory
+            check((src_attr.type != 2 or src_attr.device == stream.device().id()) and
+                  (dst_attr.type == 2 or dst_attr.device == stream.device().id()),
+                  "Copying strided regions, other than in the height dimension, "
+                  "from or to a device that is not the stream's device is not supported");
 
             // FIXME For managed pointers, use cudaMemPrefetchAsync()?
-            auto input = make_tuple(AccessorRestrictI64<const T, 4>(static_cast<const T*>(src_attr.devicePointer), src_strides));
-            auto output = make_tuple(AccessorRestrictI64<T, 4>(static_cast<T*>(dst_attr.devicePointer), dst_strides));
+            auto src_ptr = static_cast<const T*>(src_attr.devicePointer);
+            auto dst_ptr = static_cast<T*>(dst_attr.devicePointer);
+            auto input = make_tuple(AccessorRestrictI64<const T, 4>(src_ptr, src_strides));
+            auto output = make_tuple(AccessorRestrictI64<T, 4>(dst_ptr, dst_strides));
             ewise(shape, Copy{}, std::move(input), std::move(output), stream);
 
         } else if ((src_attr.type <= 1 or src_attr.type == 3) and
-                   (dst_attr.type <= 1 or dst_attr.type == 3)) {
+                   (dst_attr.type <= 1 or dst_attr.type == 3)) { // between unregistered-host and managed memory
             const auto src_accessor = AccessorRestrict<const T, 4, i64>(src, src_strides);
             const auto dst_accessor = AccessorRestrict<T, 4, i64>(dst, dst_strides);
             stream.synchronize(); // FIXME Use a callback instead?
@@ -301,7 +302,6 @@ namespace noa::cuda {
     }
 }
 
-// -- CUDA arrays -- //
 namespace noa::cuda {
     template<typename T>
     inline void copy(const T* src, i64 src_pitch, cudaArray* dst, const Shape3<i64>& shape) {
@@ -327,11 +327,11 @@ namespace noa::cuda {
         check(cudaMemcpy3DAsync(&params, stream.id()));
     }
 
-    // Copy an array into a CUDA array.
-    // The source can be on any device or on the host.
-    // The source BDHW shape should match the shape of the CUDA array such that:
-    //  - If the CUDA array is layered, its shape should match the BHW dimensions of the source.
-    //  - If the CUDA array is NOT layered, its shape should match the DHW dimensions of the source.
+    /// Copy an array into a CUDA array.
+    /// The source can be on any device or on the host.
+    /// The source BDHW shape should match the shape of the CUDA array such that:
+    ///  - If the CUDA array is layered, its shape should match the BHW dimensions of the source.
+    ///  - If the CUDA array is NOT layered, its shape should match the DHW dimensions of the source.
     template<typename T>
     void copy(
             const T* src, const Strides4<i64>& src_strides, cudaArray* dst,

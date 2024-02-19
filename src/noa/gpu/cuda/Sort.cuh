@@ -6,8 +6,8 @@
 #include "noa/core/Types.hpp"
 #include "noa/core/Iota.hpp"
 #include "noa/gpu/cuda/AllocatorDevice.hpp"
-#include "noa/gpu/cuda/Copy.hpp"
-#include "noa/gpu/cuda/Iwise.hpp"
+#include "noa/gpu/cuda/Copy.cuh"
+#include "noa/gpu/cuda/Iwise.cuh"
 #include "noa/gpu/cuda/Stream.hpp"
 
 // Use cub to do the actual sorting. Thrust seems to have its own merge sort, but its main API does not allow you to
