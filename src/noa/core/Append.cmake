@@ -2,14 +2,15 @@ set(NOA_CORE_HEADERS
     core/AccurateSum.hpp
     core/AccurateVariance.hpp
     core/Arange.hpp
+    core/ArgMinMax.hpp
     core/Config.hpp
     core/Enums.hpp
     core/Exception.hpp
+    core/Iota.hpp
     core/Linspace.hpp
     core/Namespace.hpp
     core/Operators.hpp
     core/Traits.hpp
-    core/ArgMinMax.hpp
 
     core/Math.hpp
     core/math/Comparison.hpp
@@ -82,7 +83,7 @@ set(NOA_CORE_HEADERS
 
 set(NOA_CORE_SOURCES
     core/Exception.cpp
-#    core/geometry/Euler.cpp
+    core/geometry/Euler.cpp
     core/io/IO.cpp
     core/io/BinaryFile.cpp
     core/io/MRCFile.cpp
