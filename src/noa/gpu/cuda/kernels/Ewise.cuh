@@ -14,7 +14,7 @@ namespace noa::cuda {
              u32 ElementsPerThread = 4>
     struct EwiseConfig {
         static_assert(is_multiple_of(ElementsPerThread, 2u) and
-                      is_multiple_of(BlockSize, 32u) and
+                      is_multiple_of(BlockSize, Constant::WARP_SIZE) and
                       BlockSize <= Limits::MAX_THREADS);
 
         using interface = ng::EwiseInterface<ZipInput, ZipOutput>;

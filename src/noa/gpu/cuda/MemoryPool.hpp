@@ -7,20 +7,20 @@
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Device.hpp"
 
-// Memory pools: (since CUDA 11.2)
-//  - When called without an explicit pool argument, each call to cudaMallocAsync infers the device from the
-//    specified stream and attempts to allocate memory from that device’s current pool.
-//  - By default, unused memory accumulated in the pool is returned to the OS during the next synchronization
-//    operation on an event, stream, or device, as the following code example shows. The application can configure
-//    a release threshold to enable unused memory to persist beyond the synchronization operation.
-//  - The pool threshold is just a hint. Memory in the pool can also be released implicitly by the CUDA driver to
-//    enable an unrelated memory allocation request in the same process to succeed.
-//    See cudaMemPoolTrimTo(pool, bytesToKeep).
-//  - Memory pools are not attached to a particular stream, they can reuse memory device-wide.
+
 
 namespace noa::cuda {
-    // Memory pool.
-    class Pool {
+    /// Memory pool. (since CUDA 11.2)
+    ///  - When called without an explicit pool argument, each call to cudaMallocAsync infers the device from the
+    ///    specified stream and attempts to allocate memory from that device’s current pool.
+    ///  - By default, unused memory accumulated in the pool is returned to the OS during the next synchronization
+    ///    operation on an event, stream, or device, as the following code example shows. The application can configure
+    ///    a release threshold to enable unused memory to persist beyond the synchronization operation.
+    ///  - The pool threshold is just a hint. Memory in the pool can also be released implicitly by the CUDA driver to
+    ///    enable an unrelated memory allocation request in the same process to succeed.
+    ///    See cudaMemPoolTrimTo(pool, bytesToKeep).
+    ///  - Memory pools are not attached to a particular stream, they can reuse memory device-wide.
+    class MemoryPool {
     public:
         // Gets the default memory pool of device.
         static cudaMemPool_t current(Device device) {
@@ -36,10 +36,10 @@ namespace noa::cuda {
 
     public:
         // Gets the default memory pool of the current device.
-        Pool() : Pool(Device::current()) {}
+        MemoryPool() : MemoryPool(Device::current()) {}
 
         // Gets the default memory pool of device.
-        explicit Pool(Device device) : m_pool(Pool::current(device)) {}
+        explicit MemoryPool(Device device) : m_pool(MemoryPool::current(device)) {}
 
         // Sets this pool as default memory pool of device.
         void attach(Device device) const {
@@ -59,8 +59,8 @@ namespace noa::cuda {
         // allocations that back outstanding asynchronous allocations. The OS allocations may happen at different
         // granularity from the user allocations. If the pool has less than this amount reserved, do nothing.
         // Otherwise, the pool will be guaranteed to have at least that amount of bytes reserved.
-        void trim(size_t bytes_to_keep) const {
-            cudaMemPoolTrimTo(m_pool, bytes_to_keep);
+        void trim(size_t n_bytes_to_keep) const {
+            cudaMemPoolTrimTo(m_pool, n_bytes_to_keep);
         }
 
         [[nodiscard]] cudaMemPool_t get() const noexcept { return m_pool; }

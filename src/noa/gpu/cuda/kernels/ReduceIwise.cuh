@@ -9,7 +9,7 @@ namespace noa::cuda {
              u32 BlockSize = 512,
              u32 MaxGridSize = 4096>
     struct ReduceIwiseConfig {
-        static_assert(is_multiple_of(BlockSize, 32u) and BlockSize <= Limits::MAX_THREADS);
+        static_assert(is_multiple_of(BlockSize, Constant::WARP_SIZE) and BlockSize <= Limits::MAX_THREADS);
         using interface = ng::ReduceIwiseInterface<ZipReduced, ZipOutput>;
         static constexpr u32 block_size = BlockSize;
         static constexpr u32 max_grid_size = MaxGridSize;

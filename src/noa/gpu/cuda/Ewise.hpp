@@ -38,7 +38,9 @@ namespace noa::cuda {
             // the register pressure is expected to be too high.
             constexpr auto n_args = std::decay_t<Input>::SIZE + std::decay_t<Output>::SIZE;
             u32 vector_size{1};
-            if constexpr (ng::are_accessors_const<Input>() and n_args <= 4) {
+            if constexpr (ng::are_accessors_const<Input>() and
+                          not ng::are_accessors_aliased(input, output) and
+                          n_args <= 4) {
                 const auto shape_3d = Shape3<u32>{batch, 1, 1};
                 vector_size = min(
                         maximum_vector_size(input, Config::n_elements_per_thread, Config::block_size, shape_3d),
