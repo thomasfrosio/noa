@@ -192,3 +192,222 @@ namespace noa {
     [[nodiscard]] NOA_FHD double fma(double x, double y, double z) { return std::fma(x, y, z); }
     [[nodiscard]] NOA_FHD float fma(float x, float y, float z) { return std::fma(x, y, z); }
 }
+
+// Some related core operators:
+namespace noa {
+    struct Copy {   NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(src); }};
+    struct Negate { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(-src); }};
+    struct Square { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(src * src); }};
+    struct Round  { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(round(src)); }};
+    struct Rint   { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(rint(src)); }};
+    struct Ceil   { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(ceil(src)); }};
+    struct Floor  { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(floor(src)); }};
+    struct Trunc  { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(trunc(src)); }};
+    struct Sqrt   { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(sqrt(src)); }};
+    struct Rsqrt  { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(rsqrt(src)); }};
+    struct Exp    { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(exp(src)); }};
+    struct Log    { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(log(src)); }};
+    struct Abs    { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(abs(src)); }};
+    struct Cos    { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(cos(src)); }};
+    struct Sin    { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(sin(src)); }};
+    struct Real   { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(real(src)); }};
+    struct Imag   { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(imag(src)); }};
+    struct Conj   { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(conj(src)); }};
+    struct OneMinus   { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(decltype(src){1} - src); }};
+    struct Inverse    { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(decltype(src){1} / src); }};
+    struct NonZero    { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(src != decltype(src){}); } };
+    struct LogicalNot { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(!src); }};
+    struct Normalize  { NOA_FHD constexpr void operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(normalize(src)); }};
+
+    struct AbsOneLog {
+        NOA_FHD constexpr void operator()(const auto& src, auto& dst) const {
+            dst = static_cast<decltype(dst)>(log(nt::value_type_t<decltype(src)>{1} + abs(src)));
+        }
+    };
+
+    struct OneLog {
+        NOA_FHD constexpr void operator()(const auto& src, auto& dst) const {
+            dst = static_cast<decltype(dst)>(log(nt::value_type_t<decltype(src)>{1} + src));
+        }
+    };
+
+    struct AbsSquared {
+        template<typename T>
+        NOA_FHD constexpr auto operator()(const T& src, auto& dst) const {
+            if constexpr (nt::is_complex_v<T>) {
+                dst = static_cast<decltype(dst)>(abs_squared(src));
+            } else {
+                auto tmp = abs(src);
+                dst = static_cast<decltype(dst)>(tmp * tmp);
+            }
+        }
+    };
+
+    struct Plus {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& dst) const { // ewise
+            dst = static_cast<decltype(dst)>(lhs + rhs);
+        }
+        NOA_FHD constexpr auto operator()(const auto& src, auto& dst) const { // reduce_ewise
+            dst += src;
+        }
+    };
+
+    struct Minus {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& dst) const {
+            dst = static_cast<decltype(dst)>(lhs - rhs);
+        }
+    };
+
+    struct Multiply {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& dst) const { // ewise
+            dst = static_cast<decltype(dst)>(lhs * rhs);
+        }
+        NOA_FHD constexpr auto operator()(const auto& src, auto& dst) const { // reduce_ewise
+            dst *= src;
+        }
+    };
+
+    struct Divide {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& dst) const {
+            dst = static_cast<decltype(dst)>(lhs / rhs);
+        }
+    };
+
+    struct Modulo {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& dst) const {
+            dst = static_cast<decltype(dst)>(lhs % rhs);
+        }
+    };
+
+    struct MultiplyConjugate {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& dst) const {
+            dst = static_cast<decltype(dst)>(lhs * conj(rhs));
+        }
+    };
+
+    // If the divisor is too close to zero, do not divide and set the output to zero instead.
+    struct DivideSafe {
+        template<typename T, typename U, typename V>
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs, V& dst) const {
+            if constexpr (nt::are_real_or_complex_v<T, U>) {
+                constexpr auto epsilon = std::numeric_limits<nt::value_type_t<U>>::epsilon();
+                dst = abs(rhs) < epsilon ? V{} : static_cast<V>(lhs / rhs);
+            } else if constexpr (nt::are_int_v<T, U>) {
+                dst = rhs == 0 ? V{} : static_cast<V>(lhs / rhs);
+            } else {
+                static_assert(nt::always_false_v<T>);
+            }
+        }
+    };
+
+    struct DistanceSquared {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& dst) const {
+            auto tmp = lhs - rhs;
+            dst = static_cast<decltype(dst)>(tmp * tmp);
+        }
+    };
+
+    struct Pow {
+        template<typename T>
+        NOA_FHD constexpr auto operator()(const T& x, const T& e, auto& dst) const {
+            dst = static_cast<decltype(dst)>(pow(x, e));
+        }
+    };
+
+    struct PlusMinus {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& mhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(lhs + mhs - rhs);
+        }
+    };
+
+    struct PlusMultiply {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& mhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>((lhs + mhs) * rhs);
+        }
+    };
+
+    struct PlusDivide {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& mhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>((lhs + mhs) / rhs);
+        }
+    };
+
+    struct MinusPlus {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& mhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(lhs - mhs + rhs);
+        }
+
+        NOA_FHD constexpr void init(const auto& lhs, const auto& rhs, auto& sum) const {
+            sum += static_cast<decltype(sum)>(lhs - rhs);
+        }
+
+        template<typename T>
+        NOA_FHD constexpr void join(const T& ireduced, T& reduced) const {
+            reduced = ireduced + reduced;
+        }
+    };
+
+    struct MinusMultiply {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& mhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>((lhs - mhs) * rhs);
+        }
+    };
+
+    struct MinusDivide {
+        template<typename T>
+        constexpr auto operator()(const auto& lhs, const auto& mhs, const auto& rhs, T& out) const {
+            out = static_cast<T>((lhs - mhs) / rhs);
+        }
+    };
+
+    struct MultiplyPlus {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& mhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(lhs * mhs + rhs);
+        }
+
+        NOA_FHD constexpr void init(const auto& value, const auto& mask, auto& sum) const {
+            sum += static_cast<decltype(sum)>(value * mask);
+        }
+
+        template<typename T>
+        NOA_FHD constexpr void join(const T& ireduced, T& reduced) const {
+            reduced = ireduced + reduced;
+        }
+    };
+
+    struct MultiplyMinus {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& mhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(lhs * mhs - rhs);
+        }
+    };
+
+    struct MultiplyDivide {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& mhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>((lhs * mhs) / rhs);
+        }
+    };
+
+    struct DividePlus {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& mhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(lhs / mhs + rhs);
+        }
+    };
+
+    struct DivideMinus {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& mhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(lhs / mhs - rhs);
+        }
+    };
+
+    struct DivideMultiply {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& mhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(lhs / mhs * rhs);
+        }
+    };
+
+    struct DivideEpsilon {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& mhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(lhs / (mhs + rhs));
+        }
+    };
+}

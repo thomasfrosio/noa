@@ -66,3 +66,83 @@ namespace noa {
         return allclose<4>(x, y, static_cast<Real>(1e-6));
     }
 }
+
+// Some related core operators:
+namespace noa {
+    struct Equal {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& dst) const { dst = static_cast<decltype(dst)>(lhs == rhs); } // ewise
+        NOA_FHD constexpr auto operator()(const auto& src, auto& dst) const { dst = static_cast<decltype(dst)>(src == dst); } // reduce
+    };
+
+    struct NotEqual {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(lhs != rhs);
+        }
+    };
+
+    struct Less {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(lhs < rhs);
+        }
+    };
+
+    struct LessEqual {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(lhs <= rhs);
+        }
+    };
+
+    struct Greater {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(lhs > rhs);
+        }
+    };
+
+    struct GreaterEqual {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(lhs >= rhs);
+        }
+    };
+
+    struct LogicalAnd {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(lhs && rhs);
+        }
+    };
+
+    struct LogicalOr {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(lhs || rhs);
+        }
+    };
+
+    struct Min {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(min(lhs, rhs));
+        }
+    };
+
+    struct Max {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& rhs, auto& out) const {
+            out = static_cast<decltype(out)>(max(lhs, rhs));
+        }
+    };
+
+    struct Within {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& low, const auto& high, auto& out) const {
+            out = static_cast<decltype(out)>(low < lhs && lhs < high);
+        }
+    };
+
+    struct WithinEqual {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& low, const auto& high, auto& out) const {
+            out = static_cast<decltype(out)>(low <= lhs && lhs <= high);
+        }
+    };
+
+    struct Clamp {
+        NOA_FHD constexpr auto operator()(const auto& lhs, const auto& low, const auto& high, auto& out) const {
+            out = static_cast<decltype(out)>(clamp(lhs, low, high));
+        }
+    };
+}
