@@ -9,9 +9,6 @@ namespace noa::geometry::guts {
     template<typename Value, typename Coord>
     constexpr bool is_valid_interp_v = nt::is_real_or_complex_v<Value> && nt::is_real_v<Coord>;
 
-    template<typename Value, typename Coord>
-    using enable_if_valid_interp_t = std::enable_if_t<is_valid_interp_v<Value, Coord>>;
-
     template<typename Coord, typename Value>
     NOA_IHD constexpr void bspline_weights(Coord ratio, Value* w0, Value* w1, Value* w2, Value* w3) {
         constexpr Coord ONE_SIXTH = static_cast<Coord>(1) / static_cast<Coord>(6);
@@ -29,20 +26,20 @@ namespace noa::geometry::guts {
 
 // Linear interpolation:
 namespace noa::geometry {
-    template<typename Value, typename Coord, typename = guts::enable_if_valid_interp_t<Value, Coord>>
+    template<typename Value, typename Coord> requires guts::is_valid_interp_v<Value, Coord>
     NOA_FHD constexpr Value lerp_1d(Value v0, Value v1, Coord r) noexcept {
         using value_t = nt::value_type_t<Value>;
         return static_cast<value_t>(r) * (v1 - v0) + v0;
     }
 
-    template<typename Value, typename Coord, typename = guts::enable_if_valid_interp_t<Value, Coord>>
+    template<typename Value, typename Coord> requires guts::is_valid_interp_v<Value, Coord>
     NOA_FHD constexpr Value lerp_2d(Value v00, Value v01, Value v10, Value v11, Coord rx, Coord ry) noexcept {
         const Value tmp1 = lerp_1d(v00, v01, rx);
         const Value tmp2 = lerp_1d(v10, v11, rx);
         return lerp_1d(tmp1, tmp2, ry); // https://godbolt.org/z/eGcThbaGG
     }
 
-    template<typename Value, typename Coord, typename = guts::enable_if_valid_interp_t<Value, Coord>>
+    template<typename Value, typename Coord> requires guts::is_valid_interp_v<Value, Coord>
     NOA_FHD constexpr Value lerp_3d(
             Value v000, Value v001, Value v010, Value v011,
             Value v100, Value v101, Value v110, Value v111,
@@ -56,14 +53,14 @@ namespace noa::geometry {
 
 // Linear interpolation with cosine weighting of the fraction:
 namespace noa::geometry {
-    template<typename Value, typename Coord, typename = guts::enable_if_valid_interp_t<Value, Coord>>
+    template<typename Value, typename Coord> requires guts::is_valid_interp_v<Value, Coord>
     NOA_IHD constexpr Value interpolate_cosine_1d(Value v0, Value v1, Coord r) noexcept {
         constexpr Coord PI = Constant<Coord>::PI;
         const Coord tmp = (static_cast<Coord>(1) - cos(r * PI)) / static_cast<Coord>(2);
         return lerp_1d(v0, v1, tmp);
     }
 
-    template<typename Value, typename Coord, typename = guts::enable_if_valid_interp_t<Value, Coord>>
+    template<typename Value, typename Coord> requires guts::is_valid_interp_v<Value, Coord>
     NOA_IHD constexpr Value interpolate_cosine_2d(Value v00, Value v01, Value v10, Value v11, Coord rx, Coord ry) noexcept {
         constexpr Coord PI = Constant<Coord>::PI;
         const Coord tmp1 = (static_cast<Coord>(1) - cos(rx * PI)) / static_cast<Coord>(2);
@@ -71,7 +68,7 @@ namespace noa::geometry {
         return lerp_2d(v00, v01, v10, v11, tmp1, tmp2);
     }
 
-    template<typename Value, typename Coord, typename = guts::enable_if_valid_interp_t<Value, Coord>>
+    template<typename Value, typename Coord> requires guts::is_valid_interp_v<Value, Coord>
     NOA_IHD constexpr Value interpolate_cosine_3d(
             Value v000, Value v001, Value v010, Value v011,
             Value v100, Value v101, Value v110, Value v111,
@@ -87,7 +84,7 @@ namespace noa::geometry {
 
 // Cubic interpolation:
 namespace noa::geometry {
-    template<typename Value, typename Coord, typename = guts::enable_if_valid_interp_t<Value, Coord>>
+    template<typename Value, typename Coord> requires guts::is_valid_interp_v<Value, Coord>
     NOA_HD constexpr Value interpolate_cubic_1d(Value v0, Value v1, Value v2, Value v3, Coord r) noexcept {
         const Value a0 = v3 - v2 - v0 + v1;
         const Value a1 = v0 - v1 - a0;
@@ -101,7 +98,7 @@ namespace noa::geometry {
         return a0 * r3 + a1 * r2 + a2 * r1 + v1;
     }
 
-    template<typename Value, typename Coord, typename = guts::enable_if_valid_interp_t<Value, Coord>>
+    template<typename Value, typename Coord> requires guts::is_valid_interp_v<Value, Coord>
     NOA_HD constexpr Value interpolate_cubic_2d(Value v[4][4], Coord rx, Coord ry) noexcept {
         const Value a0 = interpolate_cubic_1d(v[0][0], v[0][1], v[0][2], v[0][3], rx);
         const Value a1 = interpolate_cubic_1d(v[1][0], v[1][1], v[1][2], v[1][3], rx);
@@ -110,7 +107,7 @@ namespace noa::geometry {
         return interpolate_cubic_1d(a0, a1, a2, a3, ry);
     }
 
-    template<typename Value, typename Coord, typename = guts::enable_if_valid_interp_t<Value, Coord>>
+    template<typename Value, typename Coord> requires guts::is_valid_interp_v<Value, Coord>
     NOA_HD constexpr Value cubic_3d(Value v[4][4][4], Coord rx, Coord ry, Coord rz) noexcept {
         const Value a0 = interpolate_cubic_2d(v[0], rx, ry);
         const Value a1 = interpolate_cubic_2d(v[1], rx, ry);
@@ -124,7 +121,7 @@ namespace noa::geometry {
 // http://www2.cs.uregina.ca/~anima/408/Notes/Interpolation/UniformBSpline.htm
 // http://www.dannyruijters.nl/cubicinterpolation/
 namespace noa::geometry {
-    template<typename Value, typename Coord, typename = guts::enable_if_valid_interp_t<Value, Coord>>
+    template<typename Value, typename Coord> requires guts::is_valid_interp_v<Value, Coord>
     NOA_IHD constexpr Value interpolate_cubic_bspline_1d(Value v0, Value v1, Value v2, Value v3, Coord r) noexcept {
         using real_t = nt::value_type_t<Value>;
         real_t w0, w1, w2, w3;
@@ -132,7 +129,7 @@ namespace noa::geometry {
         return v0 * w0 + v1 * w1 + v2 * w2 + v3 * w3;
     }
 
-    template<typename Value, typename Coord, typename = guts::enable_if_valid_interp_t<Value, Coord>>
+    template<typename Value, typename Coord> requires guts::is_valid_interp_v<Value, Coord>
     NOA_HD constexpr Value interpolate_cubic_bspline_2d(Value v[4][4], Coord rx, Coord ry) noexcept {
         using real_t = nt::value_type_t<Value>;
         real_t w0, w1, w2, w3;
@@ -145,7 +142,7 @@ namespace noa::geometry {
         return interpolate_cubic_bspline_1d(a0, a1, a2, a3, ry);
     }
 
-    template<typename Value, typename Coord, typename = guts::enable_if_valid_interp_t<Value, Coord>>
+    template<typename Value, typename Coord> requires guts::is_valid_interp_v<Value, Coord>
     NOA_HD constexpr Value interpolate_cubic_bspline_3d(Value v[4][4][4], Coord rx, Coord ry, Coord rz) noexcept {
         using real_t = nt::value_type_t<Value>;
         real_t wx0, wx1, wx2, wx3;

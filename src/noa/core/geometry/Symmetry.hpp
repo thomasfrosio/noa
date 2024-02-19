@@ -44,7 +44,7 @@ namespace noa::geometry {
     template<typename Real, size_t N>
     class Symmetry {
     public:
-        static_assert(nt::is_real_v<Real> && (N == 2 || N == 3));
+        static_assert(nt::is_real_v<Real> and (N == 2 or N == 3));
         using value_type = Real;
         using matrix_type = std::conditional_t<N == 2, Mat22<value_type>, Mat33<value_type>>;
 
@@ -102,7 +102,7 @@ namespace noa::geometry {
 
             check(m_symbol.type == 'C' and m_symbol.order > 0, "{} symmetry is not supported", m_symbol.to_string());
             m_count = m_symbol.order - 1; // remove the identity from the matrices
-            m_data = std::make_unique<matrix_type[]>(static_cast<size_t>(m_count)); // TODO C++20 make_shared
+            m_data = std::make_shared<matrix_type[]>(static_cast<size_t>(m_count));
             set_cx_matrices_(m_data.get(), m_symbol.order);
         }
 

@@ -4,8 +4,6 @@
 #include "noa/core/types/Mat.hpp"
 #include "noa/core/math/Generic.hpp"
 
-// See docs/Usage.md for more details on the convention used for transformations.
-
 // -- 2D transformations -- //
 namespace noa::geometry {
     /// Returns a 2x2 HW scaling matrix.

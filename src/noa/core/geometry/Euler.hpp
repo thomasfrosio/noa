@@ -1,75 +1,54 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
+
+#if defined(NOA_IS_OFFLINE)
 #include "noa/core/types/Mat.hpp"
 #include "noa/core/types/Span.hpp"
 
 namespace noa::geometry {
+    struct EulerOptions {
+        std::string_view axes{"zyx"};
+        bool intrinsic{true};
+        bool right_handed{true};
+    };
+
     /// Extracts the 3x3 rotation matrix from the Euler angles.
     /// \tparam T           f32 or double.
     /// \param angles       Euler angles, in radians.
-    /// \param axes         Euler angles axes.
-    /// \param intrinsic    Whether the Euler angles are interpreted as intrinsic or extrinsic rotations.
-    /// \param right_handed Whether the Euler angles are interpreted as right or left handed rotations.
-    /// \note Rotation matrices are orthogonal, so to take the inverse, a simple transposition is enough.
+    /// \param options      Euler angles options.
     template<typename T>
-    Mat33<T> euler2matrix(Vec3<T> angles,
-                          std::string_view axes = "ZYZ",
-                          bool intrinsic = true,
-                          bool right_handed = true);
+    auto euler2matrix(Vec3<T> angles, const EulerOptions& options = {}) -> Mat33<T>;
 
     /// Derives the Euler angles, in radians, from the rotation matrix.
     /// \tparam T           f32 or f64.
     /// \param rotation     Rotation (orthogonal) matrix to decompose.
-    /// \param axes         Euler angles axes.
-    /// \param intrinsic    Whether the Euler angles are for intrinsic or extrinsic rotations.
-    /// \param right_handed Whether the Euler angles are for right or left handed rotations.
-    /// \note Rotation matrices are assumed to be orthogonal, so to take the inverse, a simple transposition is enough.
+    /// \param options      Euler angles options.
     template<typename T>
-    Vec3<T> matrix2euler(const Mat33<T>& rotation,
-                         std::string_view axes = "ZYZ",
-                         bool intrinsic = true,
-                         bool right_handed = true);
+    auto matrix2euler(const Mat33<T>& rotation, const EulerOptions& options = {}) -> Vec3<T>;
 
     /// Extracts a set of 3x3 rotation matrices from the Euler angles.
-    /// \tparam T                   f32 or f64.
-    /// \param[in] angles           Euler angles, in radians, to convert.
-    /// \param[out] matrices        Output 3x3 matrices.
-    /// \param axes                 Euler angles axes.
-    /// \param intrinsic            Whether the Euler angles are interpreted as intrinsic or extrinsic rotations.
-    /// \param right_handed         Whether the Euler angles are interpreted as right or left handed rotations.
-    /// \note Rotation matrices are orthogonal, so to take the inverse, a simple transposition is enough.
-    template<typename T>
-    void euler2matrix(
-            const Span<const Vec3<T>>& angles,
-            const Span<Mat33<T>>& matrices,
-            std::string_view axes = "ZYZ",
-            bool intrinsic = true,
-            bool right_handed = true
-    ) {
+    /// \tparam T               f32 or f64.
+    /// \param[in] angles       Euler angles, in radians, to convert.
+    /// \param[out] matrices    Output 3x3 matrices.
+    /// \param options          Euler angles options.
+    template<typename T> requires nt::is_any_v<T, f32, f64>
+    void euler2matrix(Span<const Vec3<T>> angles, Span<Mat33<T>> matrices, const EulerOptions& options = {}) {
         check(angles.size() == matrices.size(), "angles and matrices don't have the same size");
         for (size_t batch = 0; batch < angles.size(); ++batch)
-            matrices[batch] = euler2matrix(angles[batch], axes, intrinsic, right_handed);
+            matrices[batch] = euler2matrix(angles[batch], options);
     }
 
     /// Derives a set of Euler angles, in radians, from a set of rotation matrices.
-    /// \tparam T                   f32 or f64.
-    /// \param[in] matrices         3x3 matrices to convert.
-    /// \param[out] angles          Output Euler angles.
-    /// \param axes                 Euler angles axes.
-    /// \param intrinsic            Whether the Euler angles are for intrinsic or extrinsic rotations.
-    /// \param right_handed         Whether the Euler angles are for right or left handed rotations.
-    /// \note Rotation matrices are orthogonal, so to take the inverse, a simple transposition is enough.
-    template<typename T>
-    void matrix2euler(
-            const Span<const Mat33<T>>& matrices,
-            const Span<Vec3<T>>& angles,
-            std::string_view axes = "ZYZ",
-            bool intrinsic = true,
-            bool right_handed = true
-    ) {
+    /// \tparam T           f32 or f64.
+    /// \param[in] matrices 3x3 matrices to convert.
+    /// \param[out] angles  Output Euler angles.
+    /// \param options      Euler angles options.
+    template<typename T> requires nt::is_any_v<T, f32, f64>
+    void matrix2euler(Span<const Mat33<T>> matrices, Span<Vec3<T>> angles, const EulerOptions& options = {}) {
         check(angles.size() == matrices.size(), "angles and matrices don't have the same size");
         for (size_t batch = 0; batch < angles.size(); ++batch)
-            angles[batch] = matrix2euler(matrices[batch], axes, intrinsic, right_handed);
+            angles[batch] = matrix2euler(matrices[batch], options);
     }
 }
+#endif

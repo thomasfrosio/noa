@@ -5,12 +5,12 @@
 #include "noa/core/string/Format.hpp"
 
 namespace {
-    using namespace ::noa;
+    using namespace ::noa::types;
 
     bool is_valid(std::string_view axes) {
-        if (axes == "ZYZ" || axes == "ZXZ" || axes == "ZYX" || axes == "ZXY" ||
-            axes == "XYZ" || axes == "XYX" || axes == "XZX" || axes == "XZY" ||
-            axes == "YXY" || axes == "YXZ" || axes == "YZX" || axes == "YZY") {
+        if (axes == "ZYZ" or axes == "ZXZ" or axes == "ZYX" or axes == "ZXY" or
+            axes == "XYZ" or axes == "XYX" or axes == "XZX" or axes == "XZY" or
+            axes == "YXY" or axes == "YXZ" or axes == "YZX" or axes == "YZY") {
             return true;
         }
         return false;
@@ -223,11 +223,11 @@ namespace {
 
 namespace noa::geometry {
     template<typename T>
-    Mat33<T> euler2matrix(Vec3<T> angles, std::string_view axes, bool intrinsic, bool right_handed) {
-        const std::string lower_axes = ns::to_upper(ns::trim(axes));
+    Mat33<T> euler2matrix(Vec3<T> angles, const EulerOptions& options) {
+        const std::string lower_axes = ns::to_upper(ns::trim(options.axes));
         check(is_valid(lower_axes), "Axes \"{}\" are not valid", lower_axes);
 
-        const auto right_angles = right_handed ? angles : angles * -1;
+        const auto right_angles = options.right_handed ? angles : angles * -1;
         Mat33<T> r1, r2, r3;
         if (lower_axes == "ZYZ") { // TODO table lookup?
             r1 = rotate_z(right_angles[0]);
@@ -278,18 +278,18 @@ namespace noa::geometry {
             r2 = rotate_z(right_angles[1]);
             r3 = rotate_y(right_angles[2]);
         }
-        return intrinsic ? r1 * r2 * r3 : r3 * r2 * r1;
+        return options.intrinsic ? r1 * r2 * r3 : r3 * r2 * r1;
     }
 
-    template Mat33<float> euler2matrix<float>(Vec3<float>, std::string_view, bool, bool);
-    template Mat33<double> euler2matrix<double>(Vec3<double>, std::string_view, bool, bool);
+    template Mat33<float> euler2matrix<float>(Vec3<float>, const EulerOptions&);
+    template Mat33<double> euler2matrix<double>(Vec3<double>, const EulerOptions&);
 
     template<typename T>
-    Vec3<T> matrix2euler(const Mat33<T>& rotation, std::string_view axes, bool intrinsic, bool right_handed) {
-        std::string lower_axes = ns::to_upper(ns::trim(axes));
+    Vec3<T> matrix2euler(const Mat33<T>& rotation, const EulerOptions& options) {
+        std::string lower_axes = ns::to_upper(ns::trim(options.axes));
         check(is_valid(lower_axes), "Axes \"{}\" are not valid", lower_axes);
 
-        if (intrinsic)
+        if (options.intrinsic)
             lower_axes = ns::reverse(std::move(lower_axes));
 
         Vec3<T> euler;
@@ -319,13 +319,13 @@ namespace noa::geometry {
             euler = rotm2yzy(rotation);
         }
 
-        if (intrinsic)
+        if (options.intrinsic)
             euler = euler.flip();
-        if (!right_handed)
+        if (not options.right_handed)
             euler *= -1;
         return euler;
     }
 
-    template Vec3<float> matrix2euler<float>(const Mat33<float>&, std::string_view, bool, bool);
-    template Vec3<double> matrix2euler<double>(const Mat33<double>&, std::string_view, bool, bool);
+    template Vec3<float> matrix2euler<float>(const Mat33<float>&, const EulerOptions&);
+    template Vec3<double> matrix2euler<double>(const Mat33<double>&, const EulerOptions&);
 }

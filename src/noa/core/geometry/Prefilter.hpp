@@ -95,7 +95,7 @@ namespace noa::geometry {
                 const value_type* c
         ) {
             // this initialization corresponds to clamping boundaries
-            return ((POLE / (POLE - 1)) * (*c));
+            return (POLE / (POLE - 1)) * (*c);
         }
     };
 }
