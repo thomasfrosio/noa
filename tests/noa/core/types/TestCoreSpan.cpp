@@ -19,7 +19,7 @@ TEST_CASE("core::Span") {
     [[maybe_unused]] const Span const_span = s0.as_const();
     static_assert(std::is_same_v<const Span<const double, -1, size_t>, decltype(const_span)>);
 
-    fmt::print("{}", s0.as_bytes());
+//    fmt::print("{}", s0.as_bytes());
 
     const auto s1 = Span{aa};
     static_assert(std::is_same_v<const Span<int, 2, i64>, decltype(s1)>);
