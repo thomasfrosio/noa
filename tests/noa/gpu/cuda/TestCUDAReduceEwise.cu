@@ -1,4 +1,4 @@
-#include <noa/gpu/cuda/ReduceEwise.hpp>
+#include <noa/gpu/cuda/ReduceEwise.cuh>
 #include <noa/gpu/cuda/AllocatorManaged.hpp>
 #include <catch2/catch.hpp>
 

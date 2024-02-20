@@ -27,11 +27,9 @@ namespace noa::cuda {
 }
 
 namespace noa::cuda::guts {
-    template<typename Config, typename Op, typename Index, typename Vec4OrEmpty>
+    template<typename Config, typename Op, typename Index>
     __global__ __launch_bounds__(Config::block_size)
-    void iwise_4d_static(Op op, Vec4OrEmpty start, Vec2<Index> end_hw, u32 n_blocks_x) {
-        using interface = ng::IwiseInterface;
-
+    void iwise_4d_static(Op op, Vec2<Index> end_hw, u32 n_blocks_x) {
         const Vec2<u32> index = ni::offset2index(blockIdx.x, n_blocks_x);
         auto bdhw = Vec4<Index>::from_values(
                 blockIdx.z,
@@ -39,9 +37,8 @@ namespace noa::cuda::guts {
                 Config::block_work_size_y * index[0] + threadIdx.y,
                 Config::block_work_size_x * index[1] + threadIdx.x
         );
-        if constexpr (not std::is_empty_v<Vec4OrEmpty>)
-            bdhw += start;
 
+        using interface = ng::IwiseInterface;
         interface::init(op, thread_uid<3>());
 
         for (Index h = 0; h < Config::n_elements_per_thread_y; ++h) {
@@ -55,19 +52,16 @@ namespace noa::cuda::guts {
         interface::final(op, thread_uid<3>());
     }
 
-    template<typename Config, typename Op, typename Index, typename Vec3OrEmpty>
+    template<typename Config, typename Op, typename Index>
     __global__ __launch_bounds__(Config::block_size)
-    void iwise_3d_static(Op op, Vec3OrEmpty start, Vec2<Index> end_hw) {
-        using interface = ng::IwiseInterface;
-
+    void iwise_3d_static(Op op, Vec2<Index> end_hw) {
         auto dhw = Vec3<Index>::from_values(
                 blockIdx.z,
                 Config::block_work_size_y * blockIdx.y + threadIdx.y,
                 Config::block_work_size_x * blockIdx.x + threadIdx.x
         );
-        if constexpr (not std::is_empty_v<Vec3OrEmpty>)
-            dhw += start;
 
+        using interface = ng::IwiseInterface;
         interface::init(op, thread_uid<3>());
 
         for (Index h = 0; h < Config::n_elements_per_thread_y; ++h) {
@@ -81,15 +75,13 @@ namespace noa::cuda::guts {
         interface::final(op, thread_uid<3>());
     }
 
-    template<typename Config, typename Op, typename Index, typename Vec2OrEmpty>
+    template<typename Config, typename Op, typename Index>
     __global__ __launch_bounds__(Config::block_size)
-    void iwise_2d_static(Op op, Vec2OrEmpty start, Vec2<Index> end_hw) {
+    void iwise_2d_static(Op op, Vec2<Index> end_hw) {
         auto hw = Vec2<Index>::from_values(
                 Config::block_work_size_y * blockIdx.y + threadIdx.y,
                 Config::block_work_size_x * blockIdx.x + threadIdx.x
         );
-        if constexpr (not std::is_empty_v<Vec2OrEmpty>)
-            hw += start;
 
         using interface = ng::IwiseInterface;
         interface::init(op, thread_uid<2>());
@@ -105,15 +97,14 @@ namespace noa::cuda::guts {
         interface::final(op, thread_uid<2>());
     }
 
-    template<typename Config, typename Op, typename Index, typename Vec1OrEmpty>
+    template<typename Config, typename Op, typename Index>
     __global__  __launch_bounds__(Config::block_size)
-    void iwise_1d_static(Op op, Vec1OrEmpty start, Vec1<Index> end) {
+    void iwise_1d_static(Op op, Vec1<Index> end) {
         auto index = Vec1<Index>::from_values(Config::block_work_size_x * blockIdx.x + threadIdx.x);
-        if constexpr (not std::is_empty_v<Vec1OrEmpty>)
-            index += start;
 
         using interface = ng::IwiseInterface;
         interface::init(op, thread_uid<1>());
+
         for (Index w = 0; w < Config::n_elements_per_thread_x; ++w) {
             const Index iw = index[0] + Config::block_size_x * w;
             if (iw < end[0])

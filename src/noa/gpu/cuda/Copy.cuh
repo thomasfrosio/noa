@@ -3,7 +3,6 @@
 #include "noa/core/Config.hpp"
 
 #if defined(NOA_IS_OFFLINE)
-#include "noa/core/Operators.hpp"
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Stream.hpp"

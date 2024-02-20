@@ -39,15 +39,6 @@ namespace {
         return cache;
     }
 
-    // Extract size and strides from a column or row vector.
-    Pair<i64, i64> extract_vector_dim_(Strides2<i64> strides, Shape2<i64> shape) {
-        NOA_ASSERT(shape.ndim() == 1);
-        const bool is_column = shape[1] == 1;
-        const i64 n = shape[1 - is_column];
-        const i64 s = strides[1 - is_column];
-        return {n, s};
-    }
-
     template<typename T>
     void cublas_gemm_(
             bool is_column_major, bool lhs_transpose, bool rhs_transpose,

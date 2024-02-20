@@ -73,37 +73,6 @@ namespace noa::cuda::guts {
 namespace noa::cuda {
     template<size_t N, typename Config = IwiseConfigDefault<N>, typename Index, typename Op>
     void iwise(
-            const Vec<Index, N>& start,
-            const Vec<Index, N>& end,
-            Op&& op,
-            Stream& stream,
-            size_t n_bytes_of_shared_memory = 0
-    ) {
-        NOA_ASSERT(all(end >= 0) && all(end > start));
-        const auto shape = Shape{end - start};
-        if constexpr (N == 4) {
-            const auto [launch_config, n_blocks_x] = guts::iwise_4d_static_config<Config>(shape, n_bytes_of_shared_memory);
-            const auto end_2d = end.filter(2, 3);
-            stream.enqueue(guts::iwise_4d_static<Config, std::decay_t<Op>, Index, Vec4<Index>>,
-                           launch_config, std::forward<Op>(op), start, end_2d, n_blocks_x);
-        } else if constexpr (N == 3) {
-            const auto launch_config = guts::iwise_3d_static_config<Config>(shape, n_bytes_of_shared_memory);
-            const auto end_2d = end.pop_front();
-            stream.enqueue(guts::iwise_3d_static<Config, std::decay_t<Op>, Vec3<Index>>,
-                           launch_config, std::forward<Op>(op), start, end_2d);
-        } else if constexpr (N == 2) {
-            const auto launch_config = guts::iwise_2d_static_config<Config>(shape, n_bytes_of_shared_memory);
-            stream.enqueue(guts::iwise_2d_static<Config, std::decay_t<Op>, Index, Vec2<Index>>,
-                           launch_config, std::forward<Op>(op), start, end);
-        } else if constexpr (N == 1) {
-            const auto launch_config = guts::iwise_1d_static_config<Config>(shape, n_bytes_of_shared_memory);
-            stream.enqueue(guts::iwise_1d_static<Config, std::decay_t<Op>, Index, Index>,
-                           launch_config, std::forward<Op>(op), start, end);
-        }
-    }
-
-    template<size_t N, typename Config = IwiseConfigDefault<N>, typename Index, typename Op>
-    void iwise(
             const Shape<Index, N>& shape,
             Op&& op,
             Stream& stream,
@@ -112,21 +81,21 @@ namespace noa::cuda {
         if constexpr (N == 4) {
             const auto [launch_config, n_blocks_x] = guts::iwise_4d_static_config<Config>(shape, n_bytes_of_shared_memory);
             const auto end_2d = shape.filter(2, 3).vec;
-            stream.enqueue(guts::iwise_4d_static<Config, std::decay_t<Op>, Index, Empty>,
-                           launch_config, std::forward<Op>(op), Empty{}, end_2d, n_blocks_x);
+            stream.enqueue(guts::iwise_4d_static<Config, std::decay_t<Op>, Index>,
+                           launch_config, std::forward<Op>(op), end_2d, n_blocks_x);
         } else if constexpr (N == 3) {
             const auto launch_config = guts::iwise_3d_static_config<Config>(shape, n_bytes_of_shared_memory);
             const auto end_2d = shape.pop_front().vec;
-            stream.enqueue(guts::iwise_3d_static<Config, std::decay_t<Op>, Index, Empty>,
-                           launch_config, std::forward<Op>(op), Empty{}, end_2d);
+            stream.enqueue(guts::iwise_3d_static<Config, std::decay_t<Op>, Index>,
+                           launch_config, std::forward<Op>(op), end_2d);
         } else if constexpr (N == 2) {
             const auto launch_config = guts::iwise_2d_static_config<Config>(shape, n_bytes_of_shared_memory);
-            stream.enqueue(guts::iwise_2d_static<Config, std::decay_t<Op>, Index, Empty>,
-                           launch_config, std::forward<Op>(op), Empty{}, shape.vec);
+            stream.enqueue(guts::iwise_2d_static<Config, std::decay_t<Op>, Index>,
+                           launch_config, std::forward<Op>(op), shape.vec);
         } else if constexpr (N == 1) {
             const auto launch_config = guts::iwise_1d_static_config<Config>(shape, n_bytes_of_shared_memory);
-            stream.enqueue(guts::iwise_1d_static<Config, std::decay_t<Op>, Index, Empty>,
-                           launch_config, std::forward<Op>(op), Empty{}, shape.vec);
+            stream.enqueue(guts::iwise_1d_static<Config, std::decay_t<Op>, Index>,
+                           launch_config, std::forward<Op>(op), shape.vec);
         }
     }
 }

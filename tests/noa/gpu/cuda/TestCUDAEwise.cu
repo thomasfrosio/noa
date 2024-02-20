@@ -1,6 +1,6 @@
 #include <catch2/catch.hpp>
 #include <noa/gpu/cuda/AllocatorManaged.hpp>
-#include <noa/gpu/cuda/Ewise.hpp>
+#include <noa/gpu/cuda/Ewise.cuh>
 
 #include "Helpers.h"
 

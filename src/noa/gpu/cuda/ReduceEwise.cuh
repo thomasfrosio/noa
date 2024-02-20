@@ -28,8 +28,10 @@ namespace noa::cuda::guts {
                     input, Config::n_elements_per_thread, Config::block_size, Shape3<Index>{shape[0], 1, 1});
         }
 
+        const u32 n_blocks_x = 1; // one block to reduce shape[1]
+        const u32 n_blocks_y = static_cast<u32>(shape[0]);
         const auto launch_config = LaunchConfig{
-            .n_blocks=static_cast<u32>(shape[0]),
+            .n_blocks=dim3(n_blocks_x, n_blocks_y),
             .n_threads=Config::block_size
         };
 
@@ -293,7 +295,9 @@ namespace noa::cuda::guts {
         using output_t = std::decay_t<Output>;
 
         // Compute the grid and block dimensions.
-        const u32 n_threads_x = shape[3] > 512 ? 256 : 64; // TODO better heuristic?
+        u32 n_threads_x = shape[3] > 512 ? 256 : 64; // TODO better heuristic?
+        if (not is_multiple_of(Config::block_size, n_threads_x))
+            n_threads_x = Constant::WARP_SIZE;
         const u32 n_threads_y = max(Config::block_size / n_threads_x, u32{1});
         const auto n_rows = shape[2] * shape[1] * (is_per_batch ? 1 : shape[0]);
         const u32 n_blocks_x = min(static_cast<u32>(divide_up(n_rows, static_cast<Index>(n_threads_y))), Config::max_grid_size);

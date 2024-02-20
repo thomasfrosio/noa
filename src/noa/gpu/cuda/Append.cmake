@@ -7,19 +7,19 @@ set(NOA_CUDA_HEADERS
     gpu/cuda/AllocatorPinned.hpp
     gpu/cuda/AllocatorTexture.hpp
     gpu/cuda/Blas.hpp
-    gpu/cuda/Copy.hpp
+    gpu/cuda/Copy.cuh
     gpu/cuda/Device.hpp
     gpu/cuda/Event.hpp
-    gpu/cuda/Ewise.hpp
+    gpu/cuda/Ewise.cuh
     gpu/cuda/Exception.hpp
-    gpu/cuda/Iwise.hpp
+    gpu/cuda/Iwise.cuh
     gpu/cuda/MemoryPool.hpp
     gpu/cuda/Permute.cuh
     gpu/cuda/Pointers.hpp
-    gpu/cuda/ReduceAxesEwise.hpp
-    gpu/cuda/ReduceEwise.hpp
-    gpu/cuda/ReduceIwise.hpp
-    gpu/cuda/Sort.hpp
+    gpu/cuda/ReduceAxesEwise.cuh
+    gpu/cuda/ReduceEwise.cuh
+    gpu/cuda/ReduceIwise.cuh
+    gpu/cuda/Sort.cuh
     gpu/cuda/Stream.hpp
     gpu/cuda/Types.hpp
     gpu/cuda/Version.hpp

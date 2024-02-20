@@ -118,19 +118,23 @@ namespace noa::cuda::guts {
         const Index batch = blockIdx.y;
         const Index bid = blockIdx.x;
         const Index n_blocks_per_batch = gridDim.x;
-        const Index block_index = batch * n_blocks_per_batch + bid;
         const Index n_rows_per_block = blockDim.y;
         const Index n_rows_per_grid = n_blocks_per_batch * n_rows_per_block;
-        const Index initial_row = block_index * n_rows_per_block + threadIdx.y;
+        const Index initial_row = bid * n_rows_per_block + threadIdx.y;
 
-        auto input_1d = std::move(input).map([]<typename T>(T&& accessor) {
-            if constexpr (nt::is_accessor_value_v<T>)
+        auto input_1d = std::move(input).map([batch]<typename T>(T&& accessor) {
+            if constexpr (nt::is_accessor_value_v<T>) {
                 return std::forward<T>(accessor);
-            else
+            } else {
+                // Offset the input accessor to the current batch,
+                // so that it can be used later to reset the pointer.
+                accessor.offset_accessor(batch);
                 return accessor[0][0][0]; // 1d AccessorReference
+            }
         });
 
         for (Index row = initial_row; row < n_rows; row += n_rows_per_grid) { // for every row (within a batch)
+            // If there batched are fused (gridDim.y==0), bdh[0] is always 0.
             Vec3<Index> bdh = ni::offset2index(row, shape_dhw[0], shape_dhw[1]);
 
             for (Index cid = 0; cid < shape_dhw[2]; cid += Config::block_work_size_x) { // consume the row
@@ -176,6 +180,6 @@ namespace noa::cuda::guts {
             joined_1d.for_each([](auto& accessor) { accessor.offset_accessor(Config::block_work_size); });
         }
 
-        block_reduce_join_and_final<Config::interface, Config::block_size>(op, reduced, output, tid);
+        block_reduce_join_and_final<Config::interface, Config::block_size>(op, reduced, output, tid, batch);
     }
 }

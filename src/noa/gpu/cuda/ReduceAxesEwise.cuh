@@ -33,7 +33,9 @@ namespace noa::cuda::guts {
     ) {
         const auto shape_u32 = shape.template as_safe<u32>();
         const auto shape_hw = shape.filter(2, 3);
-        const u32 n_threads_x = shape_u32[3] > 512 ? 256u : 64u;
+        u32 n_threads_x = shape_u32[3] > 512 ? 256u : 64u;
+        if (not is_multiple_of(Config::block_size, n_threads_x))
+            n_threads_x = Constant::WARP_SIZE;
         const u32 n_threads_y = max(Config::block_size, n_threads_x) / n_threads_x;
         const u32 n_blocks_x = divide_up(shape_u32[2], n_threads_y);
         const auto launch_config = LaunchConfig{

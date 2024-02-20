@@ -1,7 +1,7 @@
 #include <catch2/catch.hpp>
 #include <noa/core/utils/Interfaces.hpp>
 #include <noa/gpu/cuda/AllocatorManaged.hpp>
-#include <noa/gpu/cuda/Iwise.hpp>
+#include <noa/gpu/cuda/Iwise.cuh>
 
 #include "Helpers.h"
 
