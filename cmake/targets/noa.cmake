@@ -35,7 +35,13 @@ if (NOA_ENABLE_CPU)
     if (NOA_CPU_OPENMP)
         find_package(OpenMP 4.5 REQUIRED)
         # OpenMP pragmas are included in the source files of the user, so use public visibility.
-        target_link_libraries(noa_public_libraries INTERFACE OpenMP::OpenMP_CXX)
+        # The OpenMP::OpenMP_CXX target sets INTERFACE_COMPILE_OPTIONS to CXX only, so CUDA source
+        # files will not have OpenMP. Therefore, we need to pass the flags/include/lib directly
+        # so that CMake adds OpenMP to every of our source files (as well as the application source
+        # files)
+        target_compile_options(noa_public_libraries INTERFACE ${OpenMP_CXX_FLAGS})
+        target_include_directories(noa_public_libraries INTERFACE ${OpenMP_CXX_INCLUDE_DIRS})
+        target_link_libraries(noa_public_libraries INTERFACE ${OpenMP_CXX_LIBRARIES})
     endif ()
 
     target_link_libraries(noa_public_libraries
