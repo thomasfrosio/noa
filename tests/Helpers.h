@@ -233,7 +233,7 @@ namespace test {
                       shape_type{1, 1, 1, elements}, epsilon) {}
 
         template<typename Epsilon, typename = std::enable_if_t<noa::traits::is_numeric_v<Epsilon>>>
-        Matcher(CompType comparison, const value_type* lhs, value_type rhs,
+        Matcher(CompType comparison, const value_type* lhs, const value_type& rhs,
                 index_type elements, Epsilon epsilon) noexcept
                 : Matcher(comparison,
                           lhs, shape_type{1, 1, 1, elements}.strides(),
