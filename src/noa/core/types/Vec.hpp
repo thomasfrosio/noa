@@ -73,14 +73,16 @@ namespace noa::inline types {
     public: // Static factory functions
         template<typename U> requires nt::is_numeric_v<U>
         [[nodiscard]] NOA_HD static constexpr Vec from_value(U value) noexcept {
-            NOA_ASSERT(is_safe_cast<value_type>(value));
-            Vec vec;
-            if constexpr (SIZE > 0) {
+            if constexpr (SIZE == 0) {
+                return {};
+            } else {
+                NOA_ASSERT(is_safe_cast<value_type>(value));
+                Vec vec;
                 const auto value_cast = static_cast<value_type>(value);
                 for (int64_t i = 0; i < SSIZE; ++i)
                     vec[i] = value_cast;
+                return vec;
             }
-            return vec;
         }
 
         template<typename U> requires nt::is_numeric_v<U>
@@ -96,24 +98,28 @@ namespace noa::inline types {
 
         template<typename U, size_t AR>
         [[nodiscard]] NOA_HD static constexpr Vec from_vector(const Vec<U, SIZE, AR>& vector) noexcept {
-            Vec vec;
-            if constexpr (SIZE > 0) {
+            if constexpr (SIZE == 0) {
+                return {};
+            } else {
+                Vec vec;
                 for (int64_t i = 0; i < SSIZE; ++i) {
                     NOA_ASSERT(is_safe_cast<value_type>(vector[i]));
                     vec[i] = static_cast<value_type>(vector[i]);
                 }
+                return vec;
             }
-            return vec;
         }
 
         template<typename U> requires nt::is_numeric_v<U>
         [[nodiscard]] NOA_HD static constexpr Vec from_pointer(const U* values) noexcept {
-            Vec vec;
-            if constexpr (SIZE > 0) {
+            if constexpr (SIZE == 0) {
+                return {};
+            } else {
+                Vec vec;
                 for (int64_t i = 0; i < SSIZE; ++i)
                     vec[i] = static_cast<value_type>(values[i]);
+                return vec;
             }
-            return vec;
         }
 
     public:
@@ -623,23 +629,27 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] NOA_HD constexpr Vec flip() const noexcept {
-            Vec output;
-            if constexpr (SIZE > 0) {
+            if constexpr (SIZE == 0) {
+                return {};
+            } else {
+                Vec output;
                 for (size_t i = 0; i < SIZE; ++i)
                     output[i] = array[(N - 1) - i];
+                return output;
             }
-            return output;
         }
 
         template<typename Int = std::conditional_t<nt::is_int_v<value_type>, value_type, int64_t>, size_t AR = 0>
         requires nt::is_int_v<Int>
         [[nodiscard]] NOA_HD constexpr Vec reorder(const Vec<Int, SIZE, AR>& order) const noexcept {
-            Vec output;
-            if constexpr (SIZE > 0) {
+            if constexpr (SIZE == 0) {
+                return {};
+            } else {
+                Vec output;
                 for (size_t i = 0; i < SIZE; ++i)
                     output[i] = array[order[i]];
+                return output;
             }
-            return output;
         }
 
         // Circular shifts the vector by a given amount.
@@ -807,12 +817,14 @@ namespace noa {
 
     template<typename TTo, typename TFrom, size_t N, size_t A> requires nt::is_vec_of_size_v<TTo, N>
     [[nodiscard]] NOA_HD constexpr TTo clamp_cast(const Vec<TFrom, N, A>& src) noexcept {
-        TTo output;
-        if constexpr (N > 0) {
+        if constexpr (N == 0) {
+            return {};
+        } else {
+            TTo output;
             for (size_t i = 0; i < N; ++i)
                 output[i] = clamp_cast<typename TTo::value_type>(src[i]);
+            return output;
         }
-        return output;
     }
 
     template<typename T, size_t N, size_t A> requires nt::is_real_v<T>
