@@ -23,17 +23,15 @@ namespace noa::cpu {
             const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
             T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
             T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-            i64 threads
+            i64 n_threads
     ) {
-        NOA_ASSERT(lhs && rhs && output && all(lhs_shape > 0) && all(rhs_shape > 0));
-
         const auto [mnk, secondmost_strides, are_column_major] = ni::extract_matmul_layout(
                 lhs_strides, lhs_shape, rhs_strides, rhs_shape, output_strides, output_shape,
                 lhs_transpose, rhs_transpose);
         const auto& [m, n, k] = mnk;
         const auto& [lhs_s, rhs_s, out_s] = secondmost_strides;
 
-        Eigen::setNbThreads(static_cast<int>(threads));
+        Eigen::setNbThreads(static_cast<int>(n_threads));
 
         // Eigen doesn't support our complex types, but they have the same layout and alignment so reinterpret.
         using std_complex_t = std::complex<nt::value_type_t<T>>;

@@ -11,7 +11,7 @@ namespace noa::cpu::guts {
     class Iwise {
     public:
         template<size_t N, typename Index, typename Operator>
-        static void parallel(const Vec<Index, N>& start, const Vec<Index, N>& end, Operator& op, i64 n_threads) {
+        static void parallel(const Shape<Index, N>& shape, Operator& op, i64 n_threads) {
             // firstprivate(op) vs shared(op):
             //  - We assume op is cheap to copy, so the once-per-thread call to the copy constructor with
             //    firstprivate(op) is assumed to be non-significant compared to the rest of the function.
@@ -27,35 +27,35 @@ namespace noa::cpu::guts {
             //    correctly copy-initialized from the original op. This was originally developed for random number
             //    generation, where the op() call was writing to an op member variable and needed to be initialized
             //    for every thread.
-            #pragma omp parallel default(none) num_threads(n_threads) shared(start, end) firstprivate(op)
+            #pragma omp parallel default(none) num_threads(n_threads) shared(shape) firstprivate(op)
             {
                 using interface = ng::IwiseInterface;
                 interface::init(op, omp_get_thread_num());
 
                 if constexpr (N == 4) {
                     #pragma omp for collapse(4)
-                    for (Index i = start[0]; i < end[0]; ++i)
-                        for (Index j = start[1]; j < end[1]; ++j)
-                            for (Index k = start[2]; k < end[2]; ++k)
-                                for (Index l = start[3]; l < end[3]; ++l)
+                    for (Index i = 0; i < shape[0]; ++i)
+                        for (Index j = 0; j < shape[1]; ++j)
+                            for (Index k = 0; k < shape[2]; ++k)
+                                for (Index l = 0; l < shape[3]; ++l)
                                     interface::call(op, i, j, k, l);
 
                 } else if constexpr (N == 3) {
                     #pragma omp for collapse(3)
-                    for (Index i = start[0]; i < end[0]; ++i)
-                        for (Index j = start[1]; j < end[1]; ++j)
-                            for (Index k = start[2]; k < end[2]; ++k)
+                    for (Index i = 0; i < shape[0]; ++i)
+                        for (Index j = 0; j < shape[1]; ++j)
+                            for (Index k = 0; k < shape[2]; ++k)
                                 interface::call(op, i, j, k);
 
                 } else if constexpr (N == 2) {
                     #pragma omp for collapse(2)
-                    for (Index i = start[0]; i < end[0]; ++i)
-                        for (Index j = start[1]; j < end[1]; ++j)
+                    for (Index i = 0; i < shape[0]; ++i)
+                        for (Index j = 0; j < shape[1]; ++j)
                             interface::call(op, i, j);
 
                 } else if constexpr (N == 1) {
                     #pragma omp for collapse(1)
-                    for (Index i = start[0]; i < end[0]; ++i)
+                    for (Index i = 0; i < shape[0]; ++i)
                         interface::call(op, i);
                 }
 
@@ -64,30 +64,30 @@ namespace noa::cpu::guts {
         }
 
         template<size_t N, typename Index, typename Operator>
-        static constexpr void serial(const Vec<Index, N>& start, const Vec<Index, N>& end, Operator op) {
+        static constexpr void serial(const Shape<Index, N>& shape, Operator op) {
             using interface = ng::IwiseInterface;
             interface::init(op, 0);
 
             if constexpr (N == 4) {
-                for (Index i = start[0]; i < end[0]; ++i)
-                    for (Index j = start[1]; j < end[1]; ++j)
-                        for (Index k = start[2]; k < end[2]; ++k)
-                            for (Index l = start[3]; l < end[3]; ++l)
+                for (Index i = 0; i < shape[0]; ++i)
+                    for (Index j = 0; j < shape[1]; ++j)
+                        for (Index k = 0; k < shape[2]; ++k)
+                            for (Index l = 0; l < shape[3]; ++l)
                                 interface::call(op, i, j, k, l);
 
             } else if constexpr (N == 3) {
-                for (Index i = start[0]; i < end[0]; ++i)
-                    for (Index j = start[1]; j < end[1]; ++j)
-                        for (Index k = start[2]; k < end[2]; ++k)
+                for (Index i = 0; i < shape[0]; ++i)
+                    for (Index j = 0; j < shape[1]; ++j)
+                        for (Index k = 0; k < shape[2]; ++k)
                             interface::call(op, i, j, k);
 
             } else if constexpr (N == 2) {
-                for (Index i = start[0]; i < end[0]; ++i)
-                    for (Index j = start[1]; j < end[1]; ++j)
+                for (Index i = 0; i < shape[0]; ++i)
+                    for (Index j = 0; j < shape[1]; ++j)
                         interface::call(op, i, j);
 
             } else if constexpr (N == 1) {
-                for (Index i = start[0]; i < end[0]; ++i)
+                for (Index i = 0; i < shape[0]; ++i)
                     interface::call(op, i);
             }
 
@@ -103,8 +103,7 @@ namespace noa::cpu {
 
     /// Dispatches an index-wise operator across N-dimensional (parallel) for-loops.
     /// \tparam PARALLEL_THRESHOLD  Numbers of elements above which the multithreaded implementation is chosen.
-    /// \param start                Starting indices, usually 0.
-    /// \param end                  Ending indices, usually the shape.
+    /// \param start                Shape of the N-dimensional loop.
     /// \param op                   Valid index-wise operator (see core interface). The operator is forwarded to
     ///                             the loop, which takes it by value (it is either moved or copied once by the time
     ///                             it reaches the loop). In the multi-threaded case, it is copied to every thread.
@@ -123,24 +122,14 @@ namespace noa::cpu {
     ///       1d cases can be strongly optimized using SIMD or memset/memcopy/memmove calls. Parallelization,
     ///       as well as non-contiguous arrays, can turn some of these optimizations off.
     template<IwiseConfig config = IwiseConfig{}, size_t N, typename Index, typename Op>
-    constexpr void iwise(
-            const Vec<Index, N>& start,
-            const Vec<Index, N>& end,
-            Op&& op,
-            i64 n_threads = 1
-    ) {
-        if constexpr (config.parallel_threshold > 1) {
-            const i64 elements = Shape<i64, N>::from_vec(end.template as<i64>() - start.template as<i64>()).elements();
-            const i64 actual_n_threads = elements <= config.parallel_threshold ? 1 : n_threads;
-            if (actual_n_threads > 1)
-                return guts::Iwise::parallel(start, end, op, actual_n_threads); // take op by lvalue reference
-        }
-        guts::Iwise::serial(start, end, std::forward<Op>(op));
-    }
-
-    template<IwiseConfig config = IwiseConfig{}, size_t N, typename Index, typename Op>
     constexpr void iwise(const Shape<Index, N>& shape, Op&& op, i64 n_threads = 1) {
-        iwise<config>(Vec<Index, N>{}, shape.vec, std::forward<Op>(op), n_threads);
+        if constexpr (config.parallel_threshold > 1) {
+            const i64 n_elements = shape.template as<i64>().elements();
+            const i64 actual_n_threads = n_elements <= config.parallel_threshold ? 1 : n_threads;
+            if (actual_n_threads > 1)
+                return guts::Iwise::parallel(shape, op, actual_n_threads); // take op by lvalue reference
+        }
+        guts::Iwise::serial(shape, std::forward<Op>(op));
     }
 }
 #endif

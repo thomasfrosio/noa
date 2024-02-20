@@ -81,9 +81,6 @@ namespace noa::cpu {
             const Vec4<i64>& permutation,
             i64 threads
     ) {
-        NOA_ASSERT(all(permutation <= 3) and sum(permutation) == 6);
-        NOA_ASSERT(input && output && all(input_shape > 0));
-
         if (input == output) {
             using accessor_t = AccessorI64<T, 4>;
             const auto idx = permutation[0] * 1000 + permutation[1] * 100 + permutation[2] * 10 + permutation[3];

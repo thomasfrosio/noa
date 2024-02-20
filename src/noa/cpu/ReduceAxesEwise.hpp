@@ -6,6 +6,7 @@
 #include <omp.h>
 #include "noa/core/Types.hpp"
 #include "noa/core/utils/Interfaces.hpp"
+#include "noa/cpu/ReduceEwise.hpp"
 
 namespace noa::cpu::guts {
     template<bool ZipInput, bool ZipReduced, bool ZipOutput>
@@ -160,8 +161,18 @@ namespace noa::cpu {
         const bool are_aliased = ng::are_accessors_aliased(input, output);
 
         const auto axes_empty_or_to_reduce = output_shape == 1 or axes_to_reduce;
-        if (all(axes_empty_or_to_reduce.pop_front())) {
-            // Reduce the first 3 rightmost dimensions.
+        if (all(axes_empty_or_to_reduce)) { // reduce to a single value
+            // Reduce to a single value.
+            constexpr auto to_1d = ng::AccessorConfig<1>{.enforce_contiguous=true, .filter={0}};
+            auto output_1d = ng::reconfig_accessors<to_1d>(output);
+            return reduce_ewise(
+                    input_shape,
+                    std::forward<Op>(op),
+                    std::forward<Input>(input),
+                    std::forward<Reduced>(reduced),
+                    output_1d, n_threads);
+
+        } else if (all(axes_empty_or_to_reduce.pop_front())) { // reduce to one value per batch
             const auto n_batches = output_shape[0];
             const auto n_elements_to_reduce = input_shape.pop_front().template as<i64>().elements();
             const bool are_contiguous = all(ni::is_contiguous(input, input_shape).pop_front());

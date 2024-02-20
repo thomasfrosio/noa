@@ -175,7 +175,6 @@ namespace noa::cpu::guts::sort {
 }
 
 namespace noa::cpu {
-    // Sorts an array, in-place.
     template<typename T>
     void sort(T* array, const Strides4<i64>& strides, const Shape4<i64>& shape, bool ascending, i32 dim) {
         NOA_ASSERT(array && all(shape > 0));

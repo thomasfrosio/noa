@@ -16,38 +16,38 @@ namespace noa::cpu::guts {
 
         template<typename Op, typename Reduced, typename Output, typename Index, size_t N>
         static void parallel(
-                const Vec<Index, N>& start, const Vec<Index, N>& end, Op& op,
+                const Vec<Index, N>& shape, Op& op,
                 Reduced reduced, Output& output, i64 n_threads
         ) {
-            #pragma omp parallel default(none) num_threads(n_threads) shared(start, end, reduced) firstprivate(op)
+            #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced) firstprivate(op)
             {
                 // Local copy of the reduced values.
                 auto local_reduce = reduced;
 
                 if constexpr (N == 4) {
                     #pragma omp for collapse(4)
-                    for (Index i = start[0]; i < end[0]; ++i)
-                        for (Index j = start[1]; j < end[1]; ++j)
-                            for (Index k = start[2]; k < end[2]; ++k)
-                                for (Index l = start[3]; l < end[3]; ++l)
+                    for (Index i = 0; i < shape[0]; ++i)
+                        for (Index j = 0; j < shape[1]; ++j)
+                            for (Index k = 0; k < shape[2]; ++k)
+                                for (Index l = 0; l < shape[3]; ++l)
                                     interface::init(op, local_reduce, i, j, k, l);
 
                 } else if constexpr (N == 3) {
                     #pragma omp for collapse(3)
-                    for (Index i = start[0]; i < end[0]; ++i)
-                        for (Index j = start[1]; j < end[1]; ++j)
-                            for (Index k = start[2]; k < end[2]; ++k)
+                    for (Index i = 0; i < shape[0]; ++i)
+                        for (Index j = 0; j < shape[1]; ++j)
+                            for (Index k = 0; k < shape[2]; ++k)
                                 interface::init(op, local_reduce, i, j, k);
 
                 } else if constexpr (N == 2) {
                     #pragma omp for collapse(2)
-                    for (Index i = start[0]; i < end[0]; ++i)
-                        for (Index j = start[1]; j < end[1]; ++j)
+                    for (Index i = 0; i < shape[0]; ++i)
+                        for (Index j = 0; j < shape[1]; ++j)
                             interface::init(op, local_reduce, i, j);
 
                 } else if constexpr (N == 1) {
                     #pragma omp for collapse(1)
-                    for (Index i = start[0]; i < end[0]; ++i)
+                    for (Index i = 0; i < shape[0]; ++i)
                         interface::init(op, local_reduce, i);
                 }
 
@@ -62,29 +62,29 @@ namespace noa::cpu::guts {
 
         template<typename Op, typename Reduced, typename Output, typename Index, size_t N>
         static constexpr void serial(
-                const Vec<Index, N>& start, const Vec<Index, N>& end, Op op,
+                const Vec<Index, N>& shape, Op op,
                 Reduced reduced, Output& output
         ) {
             if constexpr (N == 4) {
-                for (Index i = start[0]; i < end[0]; ++i)
-                    for (Index j = start[1]; j < end[1]; ++j)
-                        for (Index k = start[2]; k < end[2]; ++k)
-                            for (Index l = start[3]; l < end[3]; ++l)
+                for (Index i = 0; i < shape[0]; ++i)
+                    for (Index j = 0; j < shape[1]; ++j)
+                        for (Index k = 0; k < shape[2]; ++k)
+                            for (Index l = 0; l < shape[3]; ++l)
                                 interface::init(op, reduced, i, j, k, l);
 
             } else if constexpr (N == 3) {
-                for (Index i = start[0]; i < end[0]; ++i)
-                    for (Index j = start[1]; j < end[1]; ++j)
-                        for (Index k = start[2]; k < end[2]; ++k)
+                for (Index i = 0; i < shape[0]; ++i)
+                    for (Index j = 0; j < shape[1]; ++j)
+                        for (Index k = 0; k < shape[2]; ++k)
                             interface::init(op, reduced, i, j, k);
 
             } else if constexpr (N == 2) {
-                for (Index i = start[0]; i < end[0]; ++i)
-                    for (Index j = start[1]; j < end[1]; ++j)
+                for (Index i = 0; i < shape[0]; ++i)
+                    for (Index j = 0; j < shape[1]; ++j)
                         interface::init(op, reduced, i, j);
 
             } else if constexpr (N == 1) {
-                for (Index i = start[0]; i < end[0]; ++i)
+                for (Index i = 0; i < shape[0]; ++i)
                     interface::init(op, reduced, i);
             }
 
@@ -118,8 +118,7 @@ namespace noa::cpu {
              typename Op, typename Reduced, typename Output, typename Index, size_t N>
     requires (nt::is_tuple_of_accessor_value_v<Reduced> and nt::is_tuple_of_accessor_v<Output>)
     constexpr void reduce_iwise(
-            const Vec<Index, N>& start,
-            const Vec<Index, N>& end,
+            const Shape<Index, N>& shape,
             Op&& op,
             Reduced&& reduced,
             Output& output,
@@ -127,25 +126,11 @@ namespace noa::cpu {
     )  {
         using core = guts::ReduceIwise<config.zip_reduced, config.zip_output>;
         if constexpr (config.parallel_threshold > 1) {
-            const auto shape = Shape<i64, N>::from_vec(end.template as<i64>() - start.template as<i64>());
-            const i64 actual_n_threads = shape.elements() <= config.parallel_threshold ? 1 : n_threads;
+            const i64 actual_n_threads = shape.template as<i64>().elements() <= config.parallel_threshold ? 1 : n_threads;
             if (actual_n_threads > 1)
-                return core::parallel(start, end, op, std::forward<Reduced>(reduced), output, actual_n_threads);
+                return core::parallel(shape.vec, op, std::forward<Reduced>(reduced), output, actual_n_threads);
         }
-        core::serial(start, end, std::forward<Op>(op), std::forward<Reduced>(reduced), output);
-    }
-
-    template<ReduceIwiseConfig config = ReduceIwiseConfig{},
-             typename Op, typename Reduced, typename Output, typename Index, size_t N>
-    constexpr void reduce_iwise(
-            const Shape<Index, N>& shape,
-            Op&& op,
-            Reduced&& reduced,
-            Output& output,
-            i64 n_threads = 1
-    ) {
-        reduce_iwise<config>(
-                Vec<Index, N>{}, shape.vec, std::forward<Op>(op), std::forward<Reduced>(reduced), output, n_threads);
+        core::serial(shape.vec, std::forward<Op>(op), std::forward<Reduced>(reduced), output);
     }
 }
 #endif
