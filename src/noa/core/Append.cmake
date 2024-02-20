@@ -9,7 +9,6 @@ set(NOA_CORE_HEADERS
     core/Iota.hpp
     core/Linspace.hpp
     core/Namespace.hpp
-    core/Operators.hpp
     core/Traits.hpp
 
     core/Math.hpp
