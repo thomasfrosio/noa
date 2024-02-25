@@ -3,7 +3,7 @@
 #include <noa/core/Types.hpp>
 #include <noa/core/Math.hpp>
 #include <noa/core/io/IO.hpp>
-//#include <noa/unified/Array.hpp>
+#include <noa/unified/Traits.hpp>
 
 #include <random>
 #include <cstdlib>
@@ -190,7 +190,6 @@ namespace test {
         using strides_type = noa::Strides4<index_type>;
         using shape_type = noa::Shape4<index_type>;
         using index4_type = noa::Vec4<index_type>;
-//        using array_type = noa::Array<value_type>;
 
     public:
         Matcher() = default;
@@ -224,7 +223,7 @@ namespace test {
             check_();
         }
 
-        template<typename Epsilon, typename = std::enable_if_t<noa::traits::is_numeric_v<Epsilon>>>
+        template<typename Epsilon> requires noa::traits::is_numeric_v<Epsilon>
         Matcher(CompType comparison, const value_type* lhs, const value_type* rhs,
                 index_type elements, Epsilon epsilon) noexcept
             : Matcher(comparison,
@@ -232,7 +231,7 @@ namespace test {
                       rhs, shape_type{1, 1, 1, elements}.strides(),
                       shape_type{1, 1, 1, elements}, epsilon) {}
 
-        template<typename Epsilon, typename = std::enable_if_t<noa::traits::is_numeric_v<Epsilon>>>
+        template<typename Epsilon> requires noa::traits::is_numeric_v<Epsilon>
         Matcher(CompType comparison, const value_type* lhs, const value_type& rhs,
                 index_type elements, Epsilon epsilon) noexcept
                 : Matcher(comparison,
@@ -240,31 +239,36 @@ namespace test {
                           rhs,
                           shape_type{1, 1, 1, elements}, epsilon) {}
 
-//        template<typename Epsilon, typename = std::enable_if_t<noa::traits::is_numeric_v<Epsilon>>>
-//        Matcher(CompType comparison, const array_type& lhs, const array_type& rhs, Epsilon epsilon) noexcept
-//                : m_shape(lhs.shape()),
-//                  m_lhs_strides(lhs.strides()),
-//                  m_rhs_strides(rhs.strides()),
-//                  m_lhs(lhs.eval().get()),
-//                  m_rhs(rhs.eval().get()),
-//                  m_comparison(comparison) {
-//            NOA_ASSERT(noa::all(lhs.shape() == rhs.shape()));
-//            NOA_ASSERT(lhs.is_dereferenceable() && rhs.is_dereferenceable());
-//            set_epsilon_(epsilon);
-//            check_();
-//        }
-//
-//        template<typename Epsilon, typename = std::enable_if_t<noa::traits::is_numeric_v<Epsilon>>>
-//        Matcher(CompType comparison, const array_type& lhs, const value_type& rhs, Epsilon epsilon) noexcept
-//                : m_shape(lhs.shape()),
-//                  m_lhs_strides(lhs.strides()),
-//                  m_lhs(lhs.eval().get()),
-//                  m_rhs(&rhs),
-//                  m_comparison(comparison) {
-//            NOA_ASSERT(lhs.is_dereferenceable());
-//            set_epsilon_(epsilon);
-//            check_();
-//        }
+        template<typename Lhs, typename Rhs, typename Epsilon>
+        requires (noa::traits::is_varray_of_almost_any_v<Lhs, value_type> and
+                  noa::traits::is_varray_of_almost_any_v<Rhs, value_type> and
+                  noa::traits::is_numeric_v<Epsilon>)
+        Matcher(CompType comparison, const Lhs& lhs, const Rhs& rhs, Epsilon epsilon) noexcept
+                : m_shape(lhs.shape()),
+                  m_lhs_strides(lhs.strides()),
+                  m_rhs_strides(rhs.strides()),
+                  m_lhs(lhs.eval().get()),
+                  m_rhs(rhs.eval().get()),
+                  m_comparison(comparison) {
+            NOA_ASSERT(noa::all(lhs.shape() == rhs.shape()));
+            NOA_ASSERT(lhs.is_dereferenceable() && rhs.is_dereferenceable());
+            set_epsilon_(epsilon);
+            check_();
+        }
+
+        template<typename Lhs, typename Epsilon>
+        requires (noa::traits::is_varray_of_almost_any_v<Lhs, value_type> and
+                  noa::traits::is_numeric_v<Epsilon>)
+        Matcher(CompType comparison, const Lhs& lhs, const value_type& rhs, Epsilon epsilon) noexcept
+                : m_shape(lhs.shape()),
+                  m_lhs_strides(lhs.strides()),
+                  m_lhs(lhs.eval().get()),
+                  m_rhs(&rhs),
+                  m_comparison(comparison) {
+            NOA_ASSERT(lhs.is_dereferenceable());
+            set_epsilon_(epsilon);
+            check_();
+        }
 
         explicit operator bool() const noexcept {
             return m_match;

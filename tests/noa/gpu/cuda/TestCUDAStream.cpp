@@ -13,8 +13,8 @@ namespace {
         [[nodiscard]] auto share() const noexcept -> float* { return ptr.get(); }
     };
 
-    using noa::cuda::guts::is_shareable_v;
-    using noa::cuda::guts::has_share_v;
+    using noa::traits::is_shareable_v;
+    using noa::traits::has_share_v;
     static_assert(is_shareable_v<std::shared_ptr<void>>);
     static_assert(is_shareable_v<std::shared_ptr<float>>);
     static_assert(is_shareable_v<std::shared_ptr<float[]>>);

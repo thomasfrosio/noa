@@ -47,7 +47,7 @@ TEST_CASE("cuda::reduce_ewise") {
             auto reduced = noa::make_tuple(AccessorValue<i64>(0.));
             auto output = noa::make_tuple(AccessorRestrictContiguousI64<i64, 1>(b1.get()));
             auto reduce_op = []__device__(i64 to_reduce, i64& reduced) { reduced += to_reduce; };
-            const auto expected_sum = (n_elements / 2) * (n_elements - 1);
+            const auto expected_sum = static_cast<i64>(static_cast<f64>(n_elements) / 2) * (n_elements - 1);
 
             { // no vectorization
                 auto input = noa::make_tuple(AccessorI64<i64, 4>(b0.get(), shape.strides()));
@@ -81,7 +81,7 @@ TEST_CASE("cuda::reduce_ewise") {
             auto reduced = noa::make_tuple(AccessorValue<i64>(0.));
             auto output = noa::make_tuple(AccessorRestrictContiguousI64<i64, 1>(b1.get()));
             auto reduce_op = []__device__(i64 to_reduce, i64& reduced) { reduced += to_reduce; };
-            const auto expected_sum = (n_elements / 2) * (n_elements - 1);
+            const auto expected_sum = static_cast<i64>(static_cast<f64>(n_elements) / 2) * (n_elements - 1);
 
             { // no vectorization
                 auto input = noa::make_tuple(AccessorI64<i64, 4>(b0.get(), broadcasted_strides));

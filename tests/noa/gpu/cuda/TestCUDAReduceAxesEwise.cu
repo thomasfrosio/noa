@@ -15,8 +15,10 @@ TEST_CASE("cuda::reduce_axes_ewise") {
     Stream stream(Device::current());
 
     AND_THEN("sum over one axis") {
-        const std::array input_shapes{Shape4<i64>{10, 34, 65, 130}, test::get_random_shape4(4)};
-        for (const auto& input_shape: input_shapes) {
+        std::array input_shapes{Shape4<i64>{10, 34, 65, 130}, test::get_random_shape4_batched(4)};
+        for (auto& input_shape: input_shapes) {
+            if (input_shape[0] == 1)
+                input_shape[0] += 1; // make sure there's something to reduce
             const auto input_n_elements = input_shape.elements();
 
             const auto input_buffer = AllocatorManaged<f32>::allocate(input_n_elements, stream);
