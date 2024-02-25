@@ -7,7 +7,7 @@
     #include <cstdlib>
     #include "cuda.h"
     #include "noa/gpu/cuda/fft/Plan.hpp"
-    #include "noa/gpu/cuda/math/Blas.hpp"
+    #include "noa/gpu/cuda/Blas.hpp"
 #endif
 
 #include "noa/Session.hpp"
@@ -15,7 +15,7 @@
 
 noa::i64 noa::Session::m_thread_limit = 0;
 
-namespace noa {
+namespace noa::inline types {
     void Session::set_thread_limit(i64 n_threads) {
         if (n_threads > 0) {
             m_thread_limit = n_threads;
@@ -52,8 +52,8 @@ namespace noa {
 
         // Check whether lazy mode is already enabled.
         CUmoduleLoadingMode mode;
-        NOA_CHECK(cuInit(0) == CUDA_SUCCESS && cuModuleGetLoadingMode(&mode) == CUDA_SUCCESS,
-                  "Failed to initialize and query the CUDA driver");
+        if (cuInit(0) != CUDA_SUCCESS or cuModuleGetLoadingMode(&mode) != CUDA_SUCCESS)
+            panic("Failed to initialize and query the CUDA driver");
         return mode == CU_MODULE_LAZY_LOADING;
         #else
         return false;
@@ -62,9 +62,9 @@ namespace noa {
 
     i64 Session::clear_fft_cache(Device device) {
         if (device.is_cpu())
-            return noa::cpu::fft::fftw_clear_cache();
+            return noa::cpu::fft::clear_caches();
         #ifdef NOA_ENABLE_CUDA
-        return noa::cuda::fft::cufft_clear_cache(device.id());
+        return noa::cuda::fft::clear_caches(device.id());
         #else
         return 0;
         #endif
@@ -74,7 +74,9 @@ namespace noa {
         if (device.is_cpu())
             return; // TODO we could have a more flexible caching mechanism for FFTW
         #ifdef NOA_ENABLE_CUDA
-        noa::cuda::fft::cufft_cache_limit(clamp_cast<i32>(count), device.id());
+        noa::cuda::fft::set_cache_limit(clamp_cast<i32>(count), device.id());
+        #else
+        (void) count;
         #endif
     }
 
@@ -82,8 +84,9 @@ namespace noa {
         #ifdef NOA_ENABLE_CUDA
         if (device.is_cpu())
             return;
-        noa::cuda::math::cublas_clear_cache(device.id());
+        noa::cuda::cublas_clear_cache(device.id());
+        #else
+        (void) device;
         #endif
     }
 }
-

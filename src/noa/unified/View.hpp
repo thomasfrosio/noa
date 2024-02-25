@@ -14,76 +14,87 @@
 #include "noa/unified/Indexing.hpp"
 
 #include "noa/cpu/Copy.hpp"
-#include "noa/cpu/memory/Permute.hpp"
+#include "noa/cpu/Permute.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/Copy.hpp"
-#include "noa/gpu/cuda/memory/Permute.hpp"
+#include "noa/gpu/cuda/Copy.cuh"
+#include "noa/gpu/cuda/Permute.cuh"
+#include "noa/gpu/cuda/AllocatorManaged.hpp"
 #endif
 
-namespace noa {
+namespace noa::inline types {
     template<typename T>
     class Array;
+}
 
+namespace noa {
     /// (Deep-)Copies arrays.
     /// \details Contiguous regions of memory have no copy restrictions and can be copied to any device. This is
     ///          also true for pitched layouts and colum or row vectors. However, other non-contiguous memory
     ///          layouts can only be copied if the source and destination are both on the same GPU or on the CPU.
     /// \param[in] input    Source.
     /// \param[out] output  Destination. It should not overlap with \p input.
-    template<typename Input, typename Output, typename = std::enable_if_t<
-            nt::are_varray_v<Input, Output> &&
-            nt::are_almost_same_value_type_v<Input, Output>>>
+    template<typename Input, typename Output>
+    requires (nt::are_varray_v<Input, Output> and
+              nt::are_almost_same_value_type_v<Input, Output>)
     void copy(const Input& input, const Output& output) {
-        noa::check(!input.is_empty() && !output.is_empty(), "Empty array detected");
-        noa::check(!ni::are_overlapped(input, output), "The input and output should not overlap");
+        check(not input.is_empty() and not output.is_empty(), "Empty array detected");
+        check(not ni::are_overlapped(input, output), "The input and output should not overlap");
 
         auto input_strides = input.strides();
-        if (!ni::broadcast(input.shape(), input_strides, output.shape())) {
-            noa::panic("Cannot broadcast an array of shape {} into an array of shape {}",
-                       input.shape(), output.shape());
+        if (not ni::broadcast(input.shape(), input_strides, output.shape())) {
+            panic("Cannot broadcast an array of shape {} into an array of shape {}",
+                  input.shape(), output.shape());
         }
 
         const Device input_device = input.device();
         const Device output_device = output.device();
-        if (input_device.is_cpu() && output_device.is_cpu()) {
+        if (input_device.is_cpu() and output_device.is_cpu()) {
             auto& cpu_stream = Stream::current(input_device).cpu();
-            const auto threads = cpu_stream.thread_limit();
-            // FIXME
-//            cpu_stream.enqueue([=](){
-//                cpu::memory::copy(input.get(), input_strides,
-//                                  output.get(), output.strides(),
-//                                  output.shape(), threads);
-//            });
+            const auto n_threads = cpu_stream.thread_limit();
+            if ((nt::is_array_v<Input> or nt::is_array_v<Output>) and cpu_stream.is_async()) {
+                cpu_stream.enqueue([=]() { // capture the arrays
+                    noa::cpu::copy(
+                            input.get(), input_strides,
+                            output.get(), output.strides(),
+                            output.shape(), n_threads);
+                });
+            } else {
+                noa::cpu::copy(
+                        input.get(), input_strides,
+                        output.get(), output.strides(),
+                        output.shape(), n_threads);
+            }
         } else if (output_device.is_cpu()) { // gpu -> cpu
             #ifdef NOA_ENABLE_CUDA
             Stream::current(output_device).synchronize();
             auto& cuda_stream = Stream::current(input_device).cuda();
-            cuda::memory::copy(input.get(), input_strides,
-                               output.get(), output.strides(),
-                               output.shape(), cuda_stream);
+            noa::cuda::copy(input.get(), input_strides,
+                            output.get(), output.strides(),
+                            output.shape(), cuda_stream);
             cuda_stream.enqueue_attach(input, output);
             cuda_stream.synchronize();
             #else
-            noa::panic("No GPU backend detected");
+            panic("No GPU backend detected");
             #endif
         } else { // gpu -> gpu or cpu -> gpu
             #ifdef NOA_ENABLE_CUDA
             if (input_device != output_device)
                 Stream::current(input_device).synchronize(); // wait for the input
             auto& cuda_stream = Stream::current(output_device).cuda();
-            cuda::memory::copy(input.get(), input_strides,
-                               output.get(), output.strides(),
-                               output.shape(), cuda_stream);
+            noa::cuda::copy(input.get(), input_strides,
+                            output.get(), output.strides(),
+                            output.shape(), cuda_stream);
             cuda_stream.enqueue_attach(input, output);
             #else
-            noa::panic("No GPU backend detected");
+            panic("No GPU backend detected");
             #endif
         }
     }
 
     /// Permutes the input by reordering its dimensions. The returned object points to the same data.
-    template<typename Input, typename = std::enable_if_t<nt::is_varray_v<Input>>>
+    template<typename Input> requires nt::is_varray_v<Input>
     Input permute(const Input& input, const Vec4<i64>& permutation) {
+        check(all(permutation <= 3) and sum(permutation) == 6, "Permutation {} is not valid", permutation);
         const auto permuted_shape = ni::reorder(input.shape(), permutation);
         const auto permuted_strides = ni::reorder(input.strides(), permutation);
         return Input(input.share(), permuted_shape, permuted_strides, input.options());
@@ -100,52 +111,58 @@ namespace noa {
     ///       The in-place 0321 permutation requires the axis 3 and 1 to have the same size.
     /// \note On the GPU, the following permutations are optimized: 0123, 0132, 0312, 0321, 0213, 0231.
     ///       Anything else calls copy(), which is slower.
-    template<typename Input, typename Output, typename = std::enable_if_t<
-             nt::are_varray_of_numeric_v<Input, Output> &&
-             nt::are_almost_same_value_type_v<Input, Output>>>
+    template<typename Input, typename Output>
+    requires (nt::are_varray_v<Input, Output> and nt::are_almost_same_value_type_v<Input, Output>)
     void permute_copy(const Input& input, const Output& output, const Vec4<i64>& permutation) {
-        noa::check(!input.is_empty() && !output.is_empty(), "Empty array detected");
+        check(not input.is_empty() and not output.is_empty(), "Empty array detected");
+        check(all(permutation <= 3) and sum(permutation) == 6, "Permutation {} is not valid", permutation);
 
         // To enable broadcasting, we need to permute the input.
         auto input_strides = input.strides();
         auto input_shape = input.shape();
         for (i64 i = 0; i < 4; ++i) {
             const i64 d = permutation[i];
-            if (input.shape()[d] == 1 && output.shape()[i] != 1) {
+            if (input.shape()[d] == 1 and output.shape()[i] != 1) {
                 input_strides[d] = 0; // broadcast this dimension
                 input_shape[d] = output.shape()[i];
             } else if (input.shape()[d] != output.shape()[i]) {
-                noa::panic("Cannot broadcast an array of shape {} into an array of shape {}",
-                           ni::reorder(input.shape(), permutation), output.shape());
+                panic("Cannot broadcast an array of shape {} into an array of shape {}",
+                      ni::reorder(input.shape(), permutation), output.shape());
             }
         }
 
         const Device device = output.device();
-        noa::check(device == input.device(),
+        check(device == input.device(),
                    "The input and output arrays must be on the same device, but got input:{} and output:{}",
                    input.device(), device);
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
-            noa::cpu::Stream& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.thread_limit();
-            // FIXME
-//            cpu_stream.enqueue([=](){
-//                noa::cpu::memory::permute(
-//                        input.get(), input_strides, input_shape,
-//                        output.get(), output.strides(),
-//                        permutation, threads);
-//            });
+            auto& cpu_stream = stream.cpu();
+            const auto n_threads = cpu_stream.thread_limit();
+            if ((nt::is_array_v<Input> or nt::is_array_v<Output>) and cpu_stream.is_async()) {
+                cpu_stream.enqueue([=]() { // capture the arrays
+                    noa::cpu::permute_copy(
+                            input.get(), input_strides, input_shape,
+                            output.get(), output.strides(),
+                            permutation, n_threads);
+                });
+            } else {
+                noa::cpu::permute_copy(
+                        input.get(), input_strides, input_shape,
+                        output.get(), output.strides(),
+                        permutation, n_threads);
+            }
         } else {
             #ifdef NOA_ENABLE_CUDA
             noa::cuda::Stream& cuda_stream = stream.cuda();
-            noa::cuda::memory::permute(
+            noa::cuda::permute_copy(
                     input.get(), input_strides, input_shape,
                     output.get(), output.strides(),
                     permutation, cuda_stream);
             cuda_stream.enqueue_attach(input, output);
             #else
-            noa::panic("No GPU backend detected");
+            panic("No GPU backend detected");
             #endif
         }
     }
@@ -153,7 +170,7 @@ namespace noa {
     /// Permutes the input by performing a deep-copy. The returned Array is a new C-contiguous array.
     /// \param[in] input    VArray to permute.
     /// \param permutation  Permutation with the axes numbered from 0 to 3.
-    template<typename Input, typename = std::enable_if_t<nt::is_varray_of_numeric_v<Input>>>
+    template<typename Input> requires nt::is_varray_v<Input>
     auto permute_copy(const Input& input, const Vec4<i64>& permutation) {
         using mutable_value_type = nt::mutable_value_type_t<Input>;
         const auto permuted_shape = ni::reorder(input.shape(), permutation);
@@ -163,12 +180,12 @@ namespace noa {
     }
 }
 
-namespace noa {
-    /// View of an Array or memory region.
+namespace noa::inline types {
+    /// View of an Array or other memory region.
     /// \details
-    ///   It behaves like an Array, but its value type can be const-qualified. More importantly, it does not own
-    ///   the memory region it points to. This makes it more lightweight than an Array, but is slightly more
-    ///   difficult to use correctly.\n
+    ///   Views have a similar interface as the Array interface, but their value type can be const-qualified.
+    ///   More importantly, Views do not own the memory region they point to. This makes it more lightweight
+    ///   than an Array, but is slightly more difficult to use correctly.\n
     /// - \b Deferred-destruction: As opposed to Arrays, when passing Views to a function, the stream cannot keep
     ///   a reference of the input/output memory-regions, because Views are not reference-counted (this is what
     ///   makes them more lightweight than Arrays). As such, users should make sure that the memory-regions
@@ -187,78 +204,78 @@ namespace noa {
         using strides_type = typename accessor_type::strides_type;
         using mutable_value_type = std::remove_const_t<value_type>;
 
-        static_assert(!std::is_pointer_v<value_type>);
-        static_assert(!std::is_reference_v<value_type>);
+        static_assert(not std::is_pointer_v<value_type>);
+        static_assert(not std::is_reference_v<value_type>);
 
     public: // Constructors
-        // Creates an empty view.
-        NOA_HD constexpr View() = default;
+        /// Creates an empty view.
+        constexpr View() = default;
 
-        // Creates a view of a contiguous row-vector.
-        template<typename Index, typename = std::enable_if_t<std::is_integral_v<Index>>>
-        NOA_HD constexpr View(T* data, Index elements, ArrayOption options = {})
-                : m_accessor(data, strides_type{elements, elements, elements, 1}),
-                  m_shape{1, 1, 1, elements}, m_options(options) {}
+        /// Creates a view of a contiguous row-vector.
+        constexpr View(T* data, i64 n_elements, ArrayOption options = {})
+                : m_accessor(data, strides_type{n_elements, n_elements, n_elements, 1}),
+                  m_shape{1, 1, 1, n_elements}, m_options(options) {}
 
-        template<size_t S, typename I>
-        NOA_HD constexpr explicit View(const Span<T, S, I>& span, ArrayOption options = {})
+        /// Creates a view of a span.
+        template<i64 S, typename I>
+        constexpr explicit View(const Span<T, S, I>& span, ArrayOption options = {})
                 : View(span.data(), span.size(), options) {}
 
-        // Creates a view.
-        NOA_HD constexpr View(T* data, const shape_type& shape, const strides_type& strides, ArrayOption options = {})
+        /// Creates a view of a strided memory region.
+        constexpr View(T* data, const shape_type& shape, const strides_type& strides, ArrayOption options = {})
                 : m_accessor(data, strides), m_shape(shape), m_options(options) {}
 
-        // Creates a view, assuming the data is C-contiguous.
-        NOA_HD constexpr View(T* data, const shape_type& shape, ArrayOption options = {})
+        /// Creates a view, assuming the data is C-contiguous.
+        constexpr View(T* data, const shape_type& shape, ArrayOption options = {})
                 : m_accessor(data, shape.strides()), m_shape(shape), m_options(options) {}
 
-        // Creates a const view from an existing non-const view.
-        template<typename U, typename = std::enable_if_t<nt::is_mutable_value_type_v<U, value_type>>>
-        NOA_HD constexpr /*implicit*/ View(const View<U>& view)
+        /// Creates a const view from an existing non-const view.
+        template<typename U> requires nt::is_mutable_value_type_v<U, value_type>
+        constexpr /*implicit*/ View(const View<U>& view)
                 : m_accessor(view.data(), view.strides()), m_shape(view.shape()), m_options(view.options()) {}
 
-        // Creates a view from an Array.
-        template<typename U, typename = std::enable_if_t<nt::is_almost_same_v<U, value_type>>>
+        /// Creates a view of an Array.
+        template<typename U> requires nt::is_almost_same_v<U, value_type>
         constexpr explicit View(const Array<U>& array)
                 : m_accessor(array.get(), array.strides()), m_shape(array.shape()), m_options(array.options()) {}
 
     public: // Getters
         /// Returns the options used to create the viewed array.
-        [[nodiscard]] NOA_HD constexpr const ArrayOption& options() const noexcept { return m_options; }
+        [[nodiscard]] constexpr const ArrayOption& options() const noexcept { return m_options; }
 
         /// Returns the device used to create the viewed array.
-        [[nodiscard]] NOA_HD constexpr Device device() const noexcept { return options().device(); }
+        [[nodiscard]] constexpr Device device() const noexcept { return options().device; }
 
         /// Returns the memory resource used to create the viewed array.
-        [[nodiscard]] NOA_HD constexpr Allocator allocator() const noexcept { return options().allocator(); }
+        [[nodiscard]] constexpr Allocator allocator() const noexcept { return options().allocator; }
 
         /// Whether the managed data can be accessed by CPU threads.
-        [[nodiscard]] NOA_HD constexpr bool is_dereferenceable() const noexcept { return options().is_dereferenceable(); }
+        [[nodiscard]] constexpr bool is_dereferenceable() const noexcept { return options().is_dereferenceable(); }
 
         /// Returns the BDHW shape of the viewed array.
-        [[nodiscard]] NOA_HD const shape_type& shape() const noexcept { return m_shape; }
+        [[nodiscard]] const shape_type& shape() const noexcept { return m_shape; }
 
         /// Returns the BDHW strides of the viewed array.
-        [[nodiscard]] NOA_HD const strides_type& strides() const noexcept { return m_accessor.strides(); }
+        [[nodiscard]] const strides_type& strides() const noexcept { return m_accessor.strides(); }
 
         /// Returns the number of elements in the viewed array.
-        [[nodiscard]] NOA_HD constexpr index_type elements() const noexcept { return shape().elements(); }
-        [[nodiscard]] NOA_HD constexpr index_type ssize() const noexcept { return elements(); }
-        [[nodiscard]] NOA_HD constexpr size_t size() const noexcept { return static_cast<size_t>(elements()); }
+        [[nodiscard]] constexpr index_type elements() const noexcept { return shape().elements(); }
+        [[nodiscard]] constexpr index_type ssize() const noexcept { return elements(); }
+        [[nodiscard]] constexpr size_t size() const noexcept { return static_cast<size_t>(elements()); }
 
         template<char ORDER = 'C'>
-        [[nodiscard]] NOA_HD constexpr bool are_contiguous() const noexcept {
+        [[nodiscard]] constexpr bool are_contiguous() const noexcept {
             return are_contiguous<ORDER>(m_accessor.strides(), shape());
         }
 
         template<char ORDER = 'C'>
-        [[nodiscard]] NOA_HD constexpr auto is_contiguous() const noexcept {
+        [[nodiscard]] constexpr auto is_contiguous() const noexcept {
             return is_contiguous<ORDER>(m_accessor.strides(), shape());
         }
 
         /// Whether the view is empty. A View is empty if not initialized,
         /// or if the viewed data is null, or if one of its dimension is 0.
-        [[nodiscard]] NOA_HD constexpr bool is_empty() const noexcept { return !get() || noa::any(shape() == 0); }
+        [[nodiscard]] constexpr bool is_empty() const noexcept { return not get() or any(shape() == 0); }
 
     public: // Accessors
         /// Synchronizes the current stream of the view's device.
@@ -273,33 +290,33 @@ namespace noa {
         /// Returns the pointer to the data.
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing to this pointer may be illegal or create a data race.
-        [[nodiscard]] NOA_HD constexpr pointer_type get() const noexcept { return m_accessor.get(); }
+        [[nodiscard]] constexpr pointer_type get() const noexcept { return m_accessor.get(); }
 
         /// Returns the pointer to the data.
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing to this pointer may be illegal or create a data race.
-        [[nodiscard]] NOA_HD constexpr pointer_type data() const noexcept { return m_accessor.data(); }
+        [[nodiscard]] constexpr pointer_type data() const noexcept { return m_accessor.data(); }
 
         /// Returns the pointer to the data.
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing to this pointer may be illegal or create a data race.
-        [[nodiscard]] NOA_HD constexpr pointer_type share() const noexcept { return get(); }
+        [[nodiscard]] constexpr pointer_type share() const noexcept { return get(); }
 
         /// Returns a (const-)span of the array.
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing through this Span may be illegal or create a data race.
-        template<typename U = value_type, i64 SIZE = -1, typename I = index_type,
-                 typename = std::enable_if_t<nt::is_almost_same_v<U, value_type> && std::is_integral_v<I>>>
-        [[nodiscard]] constexpr Span<U, SIZE, I> span() const noexcept {
-            noa::check(are_contiguous(),
-                       "Cannot create a Span from a non-contiguous view (shape={}, strides={})",
-                       shape(), strides());
+        template<typename U = value_type, i64 SIZE = -1, typename I = index_type>
+        requires (nt::is_almost_same_v<U, value_type> and std::is_integral_v<I>)
+        [[nodiscard]] constexpr auto span() const noexcept {
+            check(are_contiguous(),
+                  "Cannot create a Span from a non-contiguous view (shape={}, strides={})",
+                  shape(), strides());
             if constexpr (SIZE >= 0) {
-                noa::check(elements() == SIZE,
-                           "Cannot create a Span with a static size of {} from a view with {} elements",
-                           SIZE, elements());
+                check(elements() >= SIZE,
+                      "Cannot create a Span with a static size of {} from a view with only {} elements",
+                      SIZE, elements());
             }
-            return Span<U, SIZE, I>(get(), elements());
+            return Span<U, SIZE, I>(get(), safe_cast<I>(ssize()));
         }
 
         /// Returns a new Accessor and its corresponding shape.
@@ -313,7 +330,7 @@ namespace noa {
             using output_shape_t = Shape<I, N>;
             using output_strides_t = Strides<I, N>;
             using output_accessor_t = Accessor<U, N, I, PointerTrait, StridesTrait>;
-            using output_t = std::pair<output_accessor_t, output_shape_t>;
+            using output_t = Pair<output_accessor_t, output_shape_t>;
 
             const auto reinterpreted = ni::ReinterpretLayout(shape(), strides(), get()).template as<U>();
             // FIXME If StridesTraits::CONTIGUOUS, assert(strides[3] == 1) ?
@@ -326,23 +343,23 @@ namespace noa {
                 constexpr i64 OFFSET = 4 - N;
                 auto new_shape = Shape4<i64>::filled_with(1);
                 for (i64 i = 0; i < 4; ++i)
-                    new_shape[noa::max(i, OFFSET)] *= reinterpreted.shape[i];
+                    new_shape[max(i, OFFSET)] *= reinterpreted.shape[i];
 
                 // Reshape.
                 Strides4<i64> new_stride{};
-                noa::check(ni::reshape(reinterpreted.shape, reinterpreted.strides, new_shape, new_stride),
-                           "A view of shape {} and strides {} cannot be reshaped to shape {}",
-                           reinterpreted.shape, reinterpreted.strides, new_shape);
+                check(ni::reshape(reinterpreted.shape, reinterpreted.strides, new_shape, new_stride),
+                      "A view of shape {} and strides {} cannot be reshaped to shape {}",
+                      reinterpreted.shape, reinterpreted.strides, new_shape);
 
                 // Ignore the outer empty dimensions.
-                output_shape_t output_shape(new_shape.template pop_front<OFFSET>().template as_safe<I>());
-                output_strides_t output_strides(new_stride.template pop_front<OFFSET>().template as_safe<I>());
+                output_shape_t output_shape{new_shape.template pop_front<OFFSET>().template as_safe<I>()};
+                output_strides_t output_strides{new_stride.template pop_front<OFFSET>().template as_safe<I>()};
                 return output_t{output_accessor_t(reinterpreted.ptr, output_strides),
                                 output_shape};
             }
         }
 
-        [[nodiscard]] NOA_HD constexpr const accessor_type& accessor() const { return m_accessor; }
+        [[nodiscard]] constexpr const accessor_type& accessor() const { return m_accessor; }
 
         template<typename U, size_t N = 4, typename I = index_type,
                  PointerTraits PointerTrait = PointerTraits::DEFAULT,
@@ -370,11 +387,10 @@ namespace noa {
         ///          reshaped to the aforementioned layouts. However, other non-contiguous memory layouts can only
         ///          be copied if the source and destination are both on the same GPU or on the CPU.
         /// \param[out] output  Destination. It should not overlap with this view.
-        template<typename Output, typename = std::enable_if_t<
-                 nt::is_varray_v<Output> &&
-                 nt::are_almost_same_value_type_v<View, Output>>>
+        template<typename Output>
+        requires (nt::is_varray_v<Output> and nt::are_almost_same_value_type_v<View, Output>)
         void to(const Output& output) const {
-            copy(*this, output);
+            noa::copy(*this, output);
         }
 
         /// Performs a deep copy of the view according \p option.
@@ -393,7 +409,7 @@ namespace noa {
 
         /// Performs a deep copy of the array to the CPU.
         [[nodiscard]] Array<mutable_value_type> to_cpu() const {
-            return to(Device{});
+            return to(ArrayOption{});
         }
 
         /// Performs a deep copy of the view preserving the view's options.
@@ -422,53 +438,53 @@ namespace noa {
         ///                 and/or to "move" the memory from the original to the target device. The prefetching is
         ///                 enqueued to the GPU stream, and as always, concurrent access from both CPU and GPU is illegal.
         [[nodiscard]] View as(DeviceType type, [[maybe_unused]] bool prefetch = false) const {
-            const Allocator alloc = m_options.allocator();
-            if (device().is_gpu() && type == DeviceType::CPU) { // GPU -> CPU
-                noa::check(alloc == Allocator::PINNED ||
-                           alloc == Allocator::MANAGED ||
-                           alloc == Allocator::MANAGED_GLOBAL,
-                           "GPU memory-region with the allocator {} cannot be reinterpreted as a CPU memory-region. "
-                           "This is only supported for pinned and managed memory-regions", alloc);
+            const MemoryResource alloc = m_options.allocator.resource();
+            if (device().is_gpu() and type == DeviceType::CPU) { // GPU -> CPU
+                check(alloc == MemoryResource::PINNED or
+                      alloc == MemoryResource::MANAGED or
+                      alloc == MemoryResource::MANAGED_GLOBAL,
+                      "GPU memory {} cannot be reinterpreted as a CPU memory-region. "
+                      "This is only supported for pinned and managed memory-regions", alloc);
                 #ifdef NOA_ENABLE_CUDA
-                if (prefetch && (alloc == Allocator::MANAGED || alloc == Allocator::MANAGED_GLOBAL)) {
-                    noa::cuda::memory::AllocatorManaged<value_type>::prefetch_to_cpu(
+                if (prefetch and (alloc == MemoryResource::MANAGED or alloc == MemoryResource::MANAGED_GLOBAL)) {
+                    noa::cuda::AllocatorManaged<value_type>::prefetch_to_cpu(
                             get(), shape().elements(), Stream::current(device()).cuda());
                 }
                 #endif
-                return View(get(), shape(), strides(), ArrayOption(m_options).set_device(Device(type)));
+                return View(get(), shape(), strides(), ArrayOption{.device=Device(type), .allocator=m_options.allocator});
 
-            } else if (device().is_cpu() && type == DeviceType::GPU) { // CPU -> GPU
-                noa::check(Device::is_any(DeviceType::GPU), "No GPU detected");
-                noa::check(alloc == Allocator::PINNED ||
-                           alloc == Allocator::MANAGED ||
-                           alloc == Allocator::MANAGED_GLOBAL,
-                           "CPU memory-region with the allocator {} cannot be reinterpreted as a GPU memory-region. "
-                           "This is only supported for pinned and managed memory-regions", alloc);
+            } else if (device().is_cpu() and type == DeviceType::GPU) { // CPU -> GPU
+                check(Device::is_any(DeviceType::GPU), "No GPU detected");
+                check(alloc == MemoryResource::PINNED ||
+                      alloc == MemoryResource::MANAGED ||
+                      alloc == MemoryResource::MANAGED_GLOBAL,
+                      "CPU memory-region with the allocator {} cannot be reinterpreted as a GPU memory-region. "
+                      "This is only supported for pinned and managed memory-regions", alloc);
                 #ifdef NOA_ENABLE_CUDA
                 Device gpu;
-                if (alloc == Allocator::PINNED || alloc == Allocator::MANAGED) {
+                if (alloc == MemoryResource::PINNED or alloc == MemoryResource::MANAGED) {
                     // NOTE: CUDA doesn't document what the attr.device is for managed memory.
                     //       Hopefully this is the device against which the allocation was performed
                     //       and not the current device.
                     // NOTE: With "stream-attached" managed memory, it is up to the user to know what
                     //       stream was used to perform the allocation.
-                    const cudaPointerAttributes attr = cuda::utils::pointer_attributes(get());
+                    const cudaPointerAttributes attr = noa::cuda::pointer_attributes(get());
                     gpu = Device(DeviceType::GPU, attr.device, Device::DeviceUnchecked{});
-                    NOA_ASSERT((alloc == Allocator::PINNED && attr.type == cudaMemoryTypeHost) ||
-                               (alloc == Allocator::MANAGED && attr.type == cudaMemoryTypeManaged));
+                    NOA_ASSERT((alloc == MemoryResource::PINNED and attr.type == cudaMemoryTypeHost) or
+                               (alloc == MemoryResource::MANAGED and attr.type == cudaMemoryTypeManaged));
 
-                } else if (alloc == Allocator::MANAGED_GLOBAL) {
+                } else if (alloc == MemoryResource::MANAGED_GLOBAL) {
                     // NOTE: This can be accessed from any stream and any GPU. It seems to be better to return the
                     //       current device and not the original device against which the allocation was performed.
                     gpu = Device::current(DeviceType::GPU);
                 }
-                if (prefetch && (alloc == Allocator::MANAGED || alloc == Allocator::MANAGED_GLOBAL)) {
-                    noa::cuda::memory::AllocatorManaged<value_type>::prefetch_to_gpu(
+                if (prefetch && (alloc == MemoryResource::MANAGED or alloc == MemoryResource::MANAGED_GLOBAL)) {
+                    noa::cuda::AllocatorManaged<value_type>::prefetch_to_gpu(
                             get(), shape().elements(), Stream::current(gpu).cuda());
                 }
-                return View(get(), shape(), strides(), ArrayOption(m_options).set_device(gpu));
+                return View(get(), shape(), strides(), ArrayOption{.device=gpu, .allocator=m_options.allocator});
                 #else
-                noa::panic("No GPU backend detected");
+                panic("No GPU backend detected");
                 #endif
             } else {
                 return *this;
@@ -477,17 +493,16 @@ namespace noa {
 
         /// Reshapes the view (must have the same number of elements as the current view).
         [[nodiscard]] View reshape(shape_type new_shape) const {
-            // Infer the size -1 if needed.
-            const auto n_elements = ssize();
-            noa::check(ni::infer_size(new_shape, n_elements),
-                       "The desired shape {} is not compatible with the current shape of the array {}, "
-                       "or the size inference is invalid or ambiguous", new_shape, shape());
+            // Infer the size, if needed.
+            check(ni::infer_size(new_shape, ssize()),
+                  "The desired shape {} is not compatible with the current shape of the array {}, "
+                  "or the size inference is invalid or ambiguous", new_shape, shape());
 
             // Then reshape.
             strides_type new_stride;
-            noa::check(ni::reshape(shape(), strides(), new_shape, new_stride),
-                       "An array of shape {} and stride {} cannot be reshaped to an array of shape {}",
-                       shape(), strides(), new_shape);
+            check(ni::reshape(shape(), strides(), new_shape, new_stride),
+                  "An array of shape {} and stride {} cannot be reshaped to an array of shape {}",
+                  shape(), strides(), new_shape);
 
             return View(get(), new_shape, new_stride, options());
         }
@@ -495,6 +510,7 @@ namespace noa {
         /// Reshapes the array in a vector along a particular axis.
         /// Returns a row vector by default (axis = 3).
         [[nodiscard]] View flat(i32 axis = 3) const {
+            check(axis >= 0 and axis < 4);
             auto output_shape = shape_type::filled_with(1);
             output_shape[axis] = shape().elements();
             return reshape(output_shape);
@@ -502,7 +518,7 @@ namespace noa {
 
         /// Permutes the dimensions of the view.
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
-        [[nodiscard]] NOA_HD constexpr View permute(const Vec4<i64>& permutation) const {
+        [[nodiscard]] constexpr View permute(const Vec4<i64>& permutation) const {
             return View(get(),
                         ni::reorder(shape(), permutation),
                         ni::reorder(strides(), permutation),
@@ -510,12 +526,12 @@ namespace noa {
         }
 
         /// See permute().
-        [[nodiscard]] NOA_HD constexpr View reorder(const Vec4<i64>& permutation) const {
+        [[nodiscard]] constexpr View reorder(const Vec4<i64>& permutation) const {
             return permute(permutation);
         }
 
         [[nodiscard]] Array<mutable_value_type> permute_copy(const Vec4<i64>& permutation) const {
-            return permute_copy(*this, permutation);
+            return noa::permute_copy(*this, permutation);
         }
 
     public: // Assignment operators
@@ -527,23 +543,28 @@ namespace noa {
 
     public:
         /// Element access. For efficient access, prefer to use Span or Accessor.
-        template<typename I0, typename I1, typename I2, typename I3>
-        [[nodiscard]] NOA_HD constexpr value_type& operator()(I0 i0, I1 i1, I2 i2, I3 i3) const noexcept {
-            NOA_ASSERT(is_dereferenceable());
-            NOA_ASSERT(clamp_cast<i64>(i0) >= 0 && clamp_cast<i64>(i0) < shape()[0] &&
-                       clamp_cast<i64>(i1) >= 0 && clamp_cast<i64>(i1) < shape()[1] &&
-                       clamp_cast<i64>(i2) >= 0 && clamp_cast<i64>(i2) < shape()[2] &&
-                       clamp_cast<i64>(i3) >= 0 && clamp_cast<i64>(i3) < shape()[3]);
+        [[nodiscard]] constexpr value_type& operator()(auto i0, auto i1, auto i2, auto i3) const noexcept {
+            check(is_dereferenceable(), "Memory buffer cannot be accessed from the CPU");
+            check(clamp_cast<i64>(i0) >= 0 and clamp_cast<i64>(i0) < shape()[0] and
+                  clamp_cast<i64>(i1) >= 0 and clamp_cast<i64>(i1) < shape()[1] and
+                  clamp_cast<i64>(i2) >= 0 and clamp_cast<i64>(i2) < shape()[2] and
+                  clamp_cast<i64>(i3) >= 0 and clamp_cast<i64>(i3) < shape()[3],
+                  "Indices are out of bound");
             return m_accessor(i0, i1, i2, i3);
         }
 
-        /// Subregion indexing. Extracts a subregion from the current array.
+        /// Subregion indexing. Extracts a subregion from the current view.
+        [[nodiscard]] constexpr View subregion(const ni::SubregionIndexer& indexer) const {
+            return View(get() + indexer.offset, indexer.shape, indexer.strides, options());
+        }
+
+        /// Subregion indexing. Extracts a subregion from the current view.
         /// \see noa::indexing::Subregion for more details on the variadic parameters to enter.
         template<typename... Ts>
-        [[nodiscard]] constexpr View subregion(Ts&&... indexes) const {
+        [[nodiscard]] constexpr View subregion(Ts&&... indices) const {
             const auto indexer = ni::SubregionIndexer(shape(), strides())
-                    .extract_subregion(std::forward<Ts>(indexes)...);
-            return View(get() + indexer.offset, indexer.shape, indexer.strides, options());
+                    .extract_subregion(std::forward<Ts>(indices)...);
+            return subregion(indexer);
         }
 
     private:
@@ -556,5 +577,4 @@ namespace noa {
 namespace noa::traits {
     template<typename T> struct proclaim_is_view<View<T>> : std::true_type {};
 }
-
 #endif

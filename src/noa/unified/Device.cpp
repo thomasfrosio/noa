@@ -1,6 +1,5 @@
 #include "noa/unified/Device.hpp"
 #include "noa/unified/Stream.hpp"
-#include "noa/cpu/Device.hpp"
 
 namespace noa {
     void Device::synchronize() const {

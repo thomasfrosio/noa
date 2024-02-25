@@ -7,7 +7,7 @@
 #include "noa/core/Types.hpp"
 #include "noa/unified/Device.hpp"
 
-namespace noa {
+namespace noa::inline types {
     /// The session is used to initialise and control the library initialization and static data.
     /// Note that these utilities are entirely optional, already managed automatically by the library,
     /// and can therefore be ignored by users. However, in some cases, users may want to tweaks a few

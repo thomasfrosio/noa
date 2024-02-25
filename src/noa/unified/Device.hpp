@@ -8,14 +8,14 @@
 #include "noa/core/utils/Irange.hpp"
 #include "noa/core/string/Format.hpp"
 #include "noa/core/string/Parse.hpp"
-#include "noa/cpu/Device.hpp"
 
+#include "noa/cpu/Device.hpp"
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/Device.hpp"
-#include "noa/gpu/cuda/memory/MemoryPool.hpp"
+#include "noa/gpu/cuda/MemoryPool.hpp"
 #endif
 
-namespace noa {
+namespace noa::inline types {
     struct DeviceMemory { size_t total; size_t free; };
 
     enum class DeviceType { CPU, GPU };
@@ -44,15 +44,12 @@ namespace noa {
             m_id = id;
         }
 
-        /// Creates a device, but don't check that the corresponding device exists on the system.
+        /// Creates a device from a string literal.
+        /* implicit */ Device(const char* name) : Device(std::string_view(name)) {}
+
+        /// "Private constructor" to creates a device, without checking that the actual device exists on the system.
         constexpr explicit Device(DeviceType type, i32 id, DeviceUnchecked)
                 : m_id(type == DeviceType::CPU ? -1 : id) {}
-
-        /// Creates a device, but don't check that the corresponding device exists on the system.
-        explicit Device(std::string_view name, DeviceUnchecked) {
-            const auto [type, id] = parse_type_and_id_(name);
-            m_id = id;
-        }
 
     public:
         /// Suspends execution until all previously-scheduled tasks on the specified device have concluded.
@@ -62,7 +59,7 @@ namespace noa {
 
         /// Explicitly synchronizes, destroys and cleans up all resources associated with the current device in the
         /// current process. The current stream for that device is synchronized and reset to the default stream.
-        /// \warning for CUDA devices: It is the caller's responsibility to ensure that resources in all host threads
+        /// \warning for CUDA devices, it is the caller's responsibility to ensure that resources in all host threads
         ///          (streams and pinned|device arrays) attached to that device are destructed before calling this
         ///          function. The library's internal data will be handled automatically, e.g. FFT plans.
         void reset() const;
@@ -70,10 +67,10 @@ namespace noa {
         /// Returns a brief printable summary about the device.
         [[nodiscard]] std::string summary() const {
             if (is_cpu()) {
-                return cpu::Device::summary();
+                return noa::cpu::Device::summary();
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                return cuda::Device(this->id(), cuda::Device::DeviceUnchecked{}).summary();
+                return noa::cuda::Device(this->id(), noa::cuda::Device::DeviceUnchecked{}).summary();
                 #else
                 return {};
                 #endif
@@ -84,11 +81,12 @@ namespace noa {
         /// If CPU, returns system memory capacity.
         [[nodiscard]] DeviceMemory memory_capacity() const {
             if (is_cpu()) {
-                const cpu::DeviceMemory mem_info = cpu::Device::memory();
+                const noa::cpu::DeviceMemory mem_info = noa::cpu::Device::memory();
                 return {mem_info.total, mem_info.free};
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                const cuda::DeviceMemory mem_info = cuda::Device(this->id(), cuda::Device::DeviceUnchecked{}).memory();
+                const auto device = noa::cuda::Device(this->id(), noa::cuda::Device::DeviceUnchecked{});
+                const auto mem_info = device.memory();
                 return {mem_info.total, mem_info.free};
                 #else
                 return {};
@@ -101,11 +99,11 @@ namespace noa {
         /// \note This has no effect on the CPU.
         void set_cache_threshold(size_t threshold_bytes) const {
             if (is_gpu()) {
-                #if defined(NOA_ENABLE_CUDA) && CUDART_VERSION >= 11020
-                cuda::memory::Pool(cuda::Device(id(), cuda::Device::DeviceUnchecked{})).set_threshold(threshold_bytes);
+                #if defined(NOA_ENABLE_CUDA) and CUDART_VERSION >= 11020
+                const auto device = noa::cuda::Device(id(), noa::cuda::Device::DeviceUnchecked{});
+                noa::cuda::MemoryPool(device).set_threshold(threshold_bytes);
                 #else
                 (void) threshold_bytes;
-            return;
                 #endif
             }
         }
@@ -116,8 +114,9 @@ namespace noa {
         /// \note This has no effect on the CPU.
         void trim_cache(size_t bytes_to_keep) const {
             if (is_gpu()) {
-                #if defined(NOA_ENABLE_CUDA) && CUDART_VERSION >= 11020
-                cuda::memory::Pool(cuda::Device(id(), cuda::Device::DeviceUnchecked{})).trim(bytes_to_keep);
+                #if defined(NOA_ENABLE_CUDA) and CUDART_VERSION >= 11020
+                const auto device = noa::cuda::Device(id(), noa::cuda::Device::DeviceUnchecked{});
+                noa::cuda::MemoryPool(device).trim(bytes_to_keep);
                 #else
                 (void) bytes_to_keep;
             return;
@@ -150,9 +149,9 @@ namespace noa {
             if (type == DeviceType::CPU)
                 return Device{};
             #ifdef NOA_ENABLE_CUDA
-            return Device(DeviceType::GPU, cuda::Device::current().id(), DeviceUnchecked{});
+            return Device(DeviceType::GPU, noa::cuda::Device::current().id(), DeviceUnchecked{});
             #else
-            noa::panic("No GPU backend detected");
+            panic("No GPU backend detected");
             #endif
         }
 
@@ -163,9 +162,9 @@ namespace noa {
         static void set_current(Device device) {
             if (device.is_gpu()) {
                 #ifdef NOA_ENABLE_CUDA
-                cuda::Device::set_current(cuda::Device(device.id(), cuda::Device::DeviceUnchecked{}));
+                noa::cuda::Device::set_current(noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{}));
                 #else
-                noa::panic("No GPU backend detected");
+                panic("No GPU backend detected");
                 #endif
             }
         }
@@ -177,7 +176,7 @@ namespace noa {
                 return 1;
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                return cuda::Device::count();
+                return noa::cuda::Device::count();
                 #else
                 return 0;
                 #endif
@@ -198,7 +197,7 @@ namespace noa {
             } else {
                 #ifdef NOA_ENABLE_CUDA
                 std::vector<Device> devices;
-                const i32 count = cuda::Device::count();
+                const i32 count = noa::cuda::Device::count();
                 devices.reserve(static_cast<size_t>(count));
                 for (auto id: irange(count))
                     devices.emplace_back(DeviceType::GPU, id, DeviceUnchecked{});
@@ -215,9 +214,9 @@ namespace noa {
                 return Device(DeviceType::CPU);
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                return Device(DeviceType::GPU, cuda::Device::most_free().id(), DeviceUnchecked{});
+                return Device(DeviceType::GPU, noa::cuda::Device::most_free().id(), DeviceUnchecked{});
                 #else
-                noa::panic("GPU backend is not detected");
+                panic("GPU backend is not detected");
                 #endif
             }
         }
@@ -241,7 +240,7 @@ namespace noa {
             } else if (ns::starts_with(str_, "gpu")) {
                 if (length == 3) {
                     id = 0;
-                } else if (length >= 5 && str_[3] == ':') {
+                } else if (length >= 5 and str_[3] == ':') {
                     id = ns::parse<i32>(std::string(str_.data() + 4), error);
                 } else {
                     panic("GPU device name \"{}\" is not supported", str_);
@@ -251,44 +250,46 @@ namespace noa {
             } else if (ns::starts_with(str_, "cuda")) {
                 if (length == 4) {
                     id = 0;
-                } else if (length >= 6 && str_[4] == ':') {
+                } else if (length >= 6 and str_[4] == ':') {
                     id = ns::parse<i32>(std::string(str_.data() + 5), error);
                 } else {
                     panic("CUDA device name \"{}\" is not supported", str_);
                 }
                 type = DeviceType::GPU;
             } else {
-                panic("Failed to parse \"{}\" as a valid device name", str_);
+                panic("\"{}\" is not a valid device name", str_);
             }
 
             if (error)
-                panic("Failed to parse the device ID. {}", ns::parse_error_message<i32>(str_, error));
+                panic("Failed to parse the device ID: {}", ns::parse_error_message<i32>(str_, error));
             return {type, id};
         }
 
         static void validate_(DeviceType type, i32 id) {
-            if (type == DeviceType::CPU) {
-                if (id != -1)
-                    panic("The device ID for the CPU should be -1, but got {}", id);
-                return;
-            } else if (type == DeviceType::GPU) {
-                if (id < 0)
-                    panic("GPU device ID should be positive, but got {}", id);
+            switch (type) {
+                case DeviceType::CPU: {
+                    if (id != -1)
+                        panic("The device ID for the CPU should be -1, but got {}", id);
+                    break;
+                }
+                case DeviceType::GPU: {
+                    if (id < 0)
+                        panic("GPU device ID should be positive, but got {}", id);
 
-                #ifdef NOA_ENABLE_CUDA
-                const i32 count = cuda::Device::count();
-                if (id + 1 > count)
-                    panic("CUDA device ID {} does not match any of CUDA device(s) detected (count:{})", id, count);
-                #else
-                panic("GPU backend is not detected");
-                #endif
-            } else {
-                panic("DEV: Missing type");
+                    #ifdef NOA_ENABLE_CUDA
+                    const i32 count = noa::cuda::Device::count();
+                    if (id + 1 > count)
+                        panic("CUDA device ID \"{}\" does not match any of CUDA device(s) detected (count:{})", id, count);
+                    break;
+                    #else
+                    panic("GPU backend is not detected");
+                    #endif
+                }
             }
         }
 
     private:
-        i32 m_id{-1}; // cpu
+        i32 m_id{-1}; // defaults to cpu
     };
 
     inline bool operator==(Device lhs, Device rhs) { return lhs.id() == rhs.id(); }
@@ -301,9 +302,7 @@ namespace noa {
             os << "gpu" << ':' << device.id();
         return os;
     }
-}
 
-namespace noa {
     /// A device that sets itself as the current device for the remainder of the scope.
     /// \note CPU guards have no effect since they simply refer to the CPU and CPU devices
     ///       have no state (there's only one CPU). Really, this is only useful to switch

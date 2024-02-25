@@ -4,13 +4,13 @@
 
 #if defined(NOA_IS_OFFLINE)
 #include <ostream>
+#include "noa/core/Exception.hpp"
 #include "noa/core/string/Format.hpp"
 
-namespace noa {
-    /// Memory allocators.
+namespace noa::inline types {
     /// Memory allocation depends on the device used for the allocation.
-    enum class Allocator {
-        /// No allocation is performed.
+    enum class MemoryResource {
+        /// No allocation can be performed.
         NONE = 0,
 
         /// The device default allocator.
@@ -32,6 +32,7 @@ namespace noa {
         ///   should make sure the memory is accessed in the appropriate stream-order after allocation since
         ///   the memory is only valid when the stream reaches the allocation event.
         DEFAULT_ASYNC = 2,
+        ASYNC = DEFAULT_ASYNC,
 
         /// "Pitch" allocator.
         /// - \b Allocation: This is equivalent to DEFAULT, except for CUDA-capable devices. In this case,
@@ -63,6 +64,7 @@ namespace noa {
         ///   was the NULL stream, this is equivalent to MANAGED_GLOBAL. Otherwise, the allocated memory on
         ///   the GPU side is private to the stream and the GPU that performed the allocation.
         MANAGED = 16,
+        UNIFIED_PRIVATE = MANAGED,
 
         /// Managed memory allocator.
         /// - \b Allocation: Managed memory can be allocated by a CPU or a GPU device. Allocation does not
@@ -70,6 +72,7 @@ namespace noa {
         ///   allocation with MANAGED.
         /// - \b Accessibility: Can be accessed by any stream and any device (CPU and GPU).
         MANAGED_GLOBAL = 32,
+        UNIFIED = MANAGED_GLOBAL,
 
         /// CUDA array.
         /// - \b Allocation: This is only supported by CUDA-capable devices and is only used for textures.
@@ -77,32 +80,77 @@ namespace noa {
         CUDA_ARRAY = 64
     };
 
-    inline std::ostream& operator<<(std::ostream& os, Allocator resource) {
-        switch (resource) {
-            case Allocator::NONE:
-                return os << "Allocator::NONE";
-            case Allocator::DEFAULT:
-                return os << "Allocator::DEFAULT";
-            case Allocator::DEFAULT_ASYNC:
-                return os << "Allocator::DEFAULT_ASYNC";
-            case Allocator::PITCHED:
-                return os << "Allocator::PITCHED";
-            case Allocator::PINNED:
-                return os << "Allocator::PINNED";
-            case Allocator::MANAGED:
-                return os << "Allocator::MANAGED";
-            case Allocator::MANAGED_GLOBAL:
-                return os << "Allocator::MANAGED_GLOBAL";
-            case Allocator::CUDA_ARRAY:
-                return os << "Allocator::CUDA_ARRAY";
+    /// Memory allocator.
+    class Allocator {
+    public:
+        Allocator() = default;
+        constexpr explicit     Allocator(MemoryResource memory_resource) : m_memory_resource(memory_resource) {}
+        explicit     Allocator(std::string_view name) : m_memory_resource(parse_memory_resource_(name)) {}
+        /*implicit*/ Allocator(const char* name) : Allocator(std::string_view(name)) {}
+
+        [[nodiscard]] constexpr MemoryResource resource() const noexcept { return m_memory_resource; }
+
+    private:
+        static MemoryResource parse_memory_resource_(std::string_view name) {
+            std::string str_ = ns::to_lower(ns::trim(name));
+            std::replace(str_.begin(), str_.end(), '-', '_');
+
+            if (str_ == "default") {
+                return MemoryResource::DEFAULT;
+            } else if (str_ == "default_async" or str_ == "async") {
+                return MemoryResource::DEFAULT_ASYNC;
+            } else if (str_ == "pitched") {
+                return MemoryResource::PITCHED;
+            } else if (str_ == "pinned") {
+                return MemoryResource::PINNED;
+            } else if (str_ == "managed" or str_ == "unified_private") {
+                return MemoryResource::MANAGED;
+            } else if (str_ == "managed_global" or str_ == "unified") {
+                return MemoryResource::MANAGED_GLOBAL;
+            } else if (str_ == "cuda_array") {
+                return MemoryResource::CUDA_ARRAY;
+            } else if (str_ == "none" or str_.empty()) {
+                return MemoryResource::NONE;
+            } else {
+                panic("{} is not a valid memory resource", str_);
+            }
         }
+
+    private:
+        MemoryResource m_memory_resource{MemoryResource::DEFAULT};
+    };
+
+    inline std::ostream& operator<<(std::ostream& os, MemoryResource memory_resource) {
+        switch (memory_resource) {
+            case MemoryResource::NONE:
+                return os << "MemoryResource::NONE";
+            case MemoryResource::DEFAULT:
+                return os << "MemoryResource::DEFAULT";
+            case MemoryResource::ASYNC:
+                return os << "MemoryResource::ASYNC";
+            case MemoryResource::PITCHED:
+                return os << "MemoryResource::PITCHED";
+            case MemoryResource::PINNED:
+                return os << "MemoryResource::PINNED";
+            case MemoryResource::UNIFIED_PRIVATE:
+                return os << "MemoryResource::UNIFIED_PRIVATE";
+            case MemoryResource::UNIFIED:
+                return os << "MemoryResource::UNIFIED";
+            case MemoryResource::CUDA_ARRAY:
+                return os << "MemoryResource::CUDA_ARRAY";
+        }
+        return os;
+    }
+
+    inline std::ostream& operator<<(std::ostream& os, Allocator allocator) {
+        os << "Allocator{.resource=" << allocator.resource() << "}";
         return os;
     }
 }
 
 // fmt 9.1.0 fix (Disabled automatic std::ostream insertion operator (operator<<))
 namespace fmt {
+    template<> struct formatter<noa::MemoryResource> : ostream_formatter {};
     template<> struct formatter<noa::Allocator> : ostream_formatter {};
 }
-
 #endif

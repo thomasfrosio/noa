@@ -15,7 +15,7 @@ namespace noa::cuda {
     class Stream {
     public:
         void synchronize() const {}
-        [[nodiscard]] bool is_busy() const {}
+        [[nodiscard]] bool is_busy() const { return false; }
     };
 }
 #endif
@@ -24,7 +24,7 @@ namespace noa::gpu {
     using Stream = noa::cuda::Stream;
 }
 
-namespace noa {
+namespace noa::inline types {
     /// Stream mode. DEFAULT refers to the NULL stream. ASYNC creates an actual asynchronous queue.
     /// On the CPU, ASYNC launches a new thread which waits to execute work. On the GPU, ASYNC launches
     /// a new "concurrent" stream which is not implicitly synchronized with the NULL stream.
@@ -139,7 +139,7 @@ namespace noa {
         [[nodiscard]] cuda_stream& cuda() {
             #ifdef NOA_ENABLE_CUDA
             auto* stream = std::get_if<cuda_stream>(&m_stream);
-            NOA_CHECK(stream != nullptr, "The stream is not a GPU stream");
+            check(stream != nullptr, "The stream is not a GPU stream");
             return *stream;
             #else
             noa::panic("No GPU backend detected");
@@ -150,9 +150,7 @@ namespace noa {
         std::variant<cpu_stream, gpu_stream> m_stream{};
         Device m_device;
     };
-}
 
-namespace noa {
     /// A stream that sets itself as the current stream for the remainder of the scope.
     class StreamGuard : public Stream {
     public:

@@ -3,19 +3,27 @@ set(NOA_UNIFIED_HEADERS
     unified/Allocator.hpp
     unified/Array.hpp
     unified/ArrayOption.hpp
+    unified/Cast.hpp
+    unified/CopyBatches.hpp
     unified/Device.hpp
     unified/Ewise.hpp
-    unified/Iwise.hpp
-#    unified/Find.hpp
     unified/Indexing.hpp
-#    unified/Reduce.hpp
+    unified/Iwise.hpp
+    unified/ReduceAxesEwise.hpp
+    unified/ReduceEwise.hpp
+    unified/ReduceIwise.hpp
+    unified/Resize.hpp
     unified/Session.hpp
-#    unified/Sort.hpp
     unified/Stream.hpp
+    unified/Subregion.hpp
     unified/Traits.hpp
-#    unified/Texture.hpp
+    unified/Utilities.hpp
     unified/View.hpp
-    unified/Utils.hpp
+
+    #    unified/Texture.hpp
+    #    unified/Find.hpp
+    unified/Sort.hpp
+
 
 #    # noa::io
 #    unified/io/ImageFile.hpp

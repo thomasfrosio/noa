@@ -1,52 +1,22 @@
 #pragma once
 
-#include "noa/cpu/memory/Arange.hpp"
-#include "noa/cpu/memory/Linspace.hpp"
-#include "noa/cpu/memory/Iota.hpp"
-#include "noa/cpu/memory/AllocatorHeap.hpp"
-#include "noa/cpu/memory/Set.hpp"
-
-#ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/memory/Arange.hpp"
-#include "noa/gpu/cuda/memory/Linspace.hpp"
-#include "noa/gpu/cuda/memory/Iota.hpp"
-#include "noa/gpu/cuda/memory/Set.hpp"
-#endif
-
+#include "noa/core/Arange.hpp"
+#include "noa/core/Iota.hpp"
+#include "noa/core/Linspace.hpp"
 #include "noa/unified/Array.hpp"
+#include "noa/unified/Ewise.hpp"
+#include "noa/unified/Iwise.hpp"
 
-namespace noa::memory {
+namespace noa {
     /// Sets an array with a given value.
     /// \tparam Value       Any data type.
     /// \param[out] output  Array with evenly spaced values.
     /// \param value        The value to assign.
-    template<typename Output, typename Value, typename = std::enable_if_t<
-             nt::is_varray_v<Output> &&
-             std::is_same_v<nt::value_type_t<Output>, Value>>>
+    template<typename Output, typename Value>
+    requires (nt::is_varray_v<Output> and std::is_same_v<nt::value_type_t<Output>, Value>)
     void fill(const Output& output, Value value) {
-        NOA_CHECK(!output.is_empty(), "Empty array detected");
-
-        const Device device = output.device();
-        Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.thread_limit();
-            cpu_stream.enqueue([=](){
-                cpu::memory::set(output.get(), output.strides(), output.shape(), value, threads);
-            });
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            if constexpr (cuda::memory::details::is_valid_set_v<Value>) {
-                auto& cuda_stream = stream.cuda();
-                cuda::memory::set(output.get(), output.strides(), output.shape(), value, cuda_stream);
-                cuda_stream.enqueue_attach(output);
-            } else {
-                NOA_THROW("The CUDA backend does not support this type ({})", noa::string::human<Value>());
-            }
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
-        }
+        check(not output.is_empty(), "Empty array detected");
+        ewise({}, forward_as_tuple(output), Fill{static_cast<nt::value_type_t<Output>>(value)});
     }
 
     /// Returns an array filled with a given value.
@@ -56,15 +26,12 @@ namespace noa::memory {
     /// \param option   Options of the created array.
     template<typename Value>
     [[nodiscard]] Array<Value> fill(const Shape4<i64>& shape, Value value, ArrayOption option = {}) {
-        // Try to shortcut with calloc().
-        if constexpr (nt::is_numeric_v<Value> ||
-                      nt::is_vecX_v<Value> ||
-                      nt::is_matXX_v<Value>) {
-            if (value == Value{0} && option.device().is_cpu() &&
-                (!Device::is_any(DeviceType::GPU) || (option.allocator() == Allocator::DEFAULT ||
-                                                      option.allocator() == Allocator::DEFAULT_ASYNC ||
-                                                      option.allocator() == Allocator::PITCHED))) {
-                return Array<Value>(cpu::memory::AllocatorHeap<Value>::calloc(shape.elements()),
+        if constexpr (nt::is_numeric_v<Value> or nt::is_vec_v<Value> or nt::is_mat_v<Value>) {
+            if (value == Value{0} and option.device.is_cpu() and
+                (not Device::is_any(DeviceType::GPU) or (option.allocator.resource() == MemoryResource::DEFAULT or
+                                                         option.allocator.resource() == MemoryResource::DEFAULT_ASYNC or
+                                                         option.allocator.resource() == MemoryResource::PITCHED))) {
+                return Array<Value>(noa::cpu::AllocatorHeap<Value>::calloc(shape.elements()),
                                     shape, shape.strides(), option);
             }
         }
@@ -133,37 +100,21 @@ namespace noa::memory {
     }
 }
 
-namespace noa::memory {
+namespace noa {
     /// Returns evenly spaced values within a given interval, in the BDHW order.
     /// \tparam Value       Any data type.
     /// \param[out] output  Array with evenly spaced values.
     /// \param start        Start of interval.
     /// \param step         Spacing between values.
-    template<typename Output, typename Value = nt::value_type_t<Output>,
-             typename = std::enable_if_t<nt::is_varray_of_any_v<Output, Value>>>
+    template<typename Output, typename Value = nt::value_type_t<Output>>
+    requires nt::is_varray_of_any_v<Output, Value>
     void arange(const Output& output, Value start = Value{0}, Value step = Value{1}) {
-        NOA_CHECK(!output.is_empty(), "Empty array detected");
-
-        const Device device = output.device();
-        Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.thread_limit();
-            cpu_stream.enqueue([=](){
-                cpu::memory::arange(output.get(), output.strides(), output.shape(), start, step, threads);
-            });
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            if constexpr (traits::is_restricted_numeric_v<Value>) {
-                auto& cuda_stream = stream.cuda();
-                cuda::memory::arange(output.get(), output.strides(), output.shape(), start, step, cuda_stream);
-                cuda_stream.enqueue_attach(output);
-            } else {
-                NOA_THROW("The CUDA backend does not support this type ({})", noa::string::human<Value>());
-            }
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
+        check(not output.is_empty(), "Empty array detected");
+        if (output.are_contiguous())
+            iwise(output.shape(), output.device(), Arange4d(output.accessor(), output.shape(), start, step));
+        else {
+            const auto n_elements = output.elements();
+            iwise(Shape{n_elements}, output.device(), Arange1d(output.accessor_contiguous_1d(), start, step));
         }
     }
 
@@ -177,7 +128,8 @@ namespace noa::memory {
     [[nodiscard]] Array<Value> arange(
             const Shape4<i64>& shape,
             Value start = Value{0}, Value step = Value{1},
-            ArrayOption option = {}) {
+            ArrayOption option = {}
+    ) {
         Array<Value> out(shape, option);
         arange(out, start, step);
         return out;
@@ -193,14 +145,15 @@ namespace noa::memory {
     [[nodiscard]] Array<Value> arange(
             i64 elements,
             Value start = Value{0}, Value step = Value{1},
-            ArrayOption option = {}) {
+            ArrayOption option = {}
+    ) {
         Array<Value> out(elements, option);
         arange(out, start, step);
         return out;
     }
 }
 
-namespace noa::memory {
+namespace noa {
     /// Returns evenly spaced values within a given interval, in the BDHW order.
     /// \tparam Value       Any data type.
     /// \param[out] output  Array with evenly spaced values.
@@ -210,32 +163,21 @@ namespace noa::memory {
     template<typename Output, typename Value, typename = std::enable_if_t<
              nt::is_varray_of_any_v<Output, Value>>>
     Value linspace(const Output& output, Value start, Value stop, bool endpoint = true) {
-        NOA_CHECK(!output.is_empty(), "Empty array detected");
+        check(not output.is_empty(), "Empty array detected");
 
-        const Device device = output.device();
-        Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.thread_limit();
-            cpu_stream.enqueue([=](){
-                cpu::memory::linspace(output.get(), output.strides(), output.shape(),
-                                      start, stop, endpoint, threads);
-            });
+        const auto n_elements = output.elements();
+        const auto linspace = Linspace<Value, i64>::from_range(start, stop, n_elements, endpoint);
+
+        if (output.are_contiguous()) {
+            iwise(output.shape(), output.device(),
+                  Linspace4d(output.accessor(), output.shape(), linspace));
         } else {
-            #ifdef NOA_ENABLE_CUDA
-            if constexpr (traits::is_restricted_numeric_v<Value>) {
-                auto& cuda_stream = stream.cuda();
-                cuda::memory::linspace(output.get(), output.strides(), output.shape(),
-                                       start, stop, endpoint, cuda_stream);
-                cuda_stream.enqueue_attach(output);
-            } else {
-                NOA_THROW("The CUDA backend does not support this type ({})", noa::string::human<Value>());
-            }
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
+
+            iwise(Shape{n_elements}, output.device(),
+                  Linspace1d(output.accessor_contiguous_1d(), linspace));
         }
-        return noa::algorithm::memory::linspace_step(output.shape().elements(), start, stop, endpoint);
+
+        return linspace.step;
     }
 
     /// Returns an array with evenly spaced values within a given interval, in the BDHW order.
@@ -247,8 +189,11 @@ namespace noa::memory {
     /// \param option   Options of the created array.
     template<typename Value>
     [[nodiscard]] Array<Value> linspace(
-            const Shape4<i64>& shape, Value start, Value stop,
-            bool endpoint = true, ArrayOption option = {}) {
+            const Shape4<i64>& shape,
+            Value start, Value stop,
+            bool endpoint = true,
+            ArrayOption option = {}
+    ) {
         Array<Value> out(shape, option);
         linspace(out, start, stop, endpoint);
         return out;
@@ -264,14 +209,16 @@ namespace noa::memory {
     template<typename Value>
     [[nodiscard]] Array<Value> linspace(
             i64 elements, Value start, Value stop,
-            bool endpoint = true, ArrayOption option = {}) {
+            bool endpoint = true,
+            ArrayOption option = {}
+    ) {
         Array<Value> out(elements, option);
         linspace(out, start, stop, endpoint);
         return out;
     }
 }
 
-namespace noa::memory {
+namespace noa {
     /// Returns a tiled sequence [0, elements), in the rightmost order.
     /// \param[out] output  Array with the tiled sequence.
     /// \param tile         Tile shape in each dimension.
@@ -279,29 +226,15 @@ namespace noa::memory {
     ///                     this is equivalent to `arange` with a start of 0 and step of 1.
     template<typename Output, typename = std::enable_if_t<nt::is_varray_v<Output>>>
     void iota(const Output& output, const Vec4<i64>& tile) {
-        NOA_CHECK(!output.is_empty(), "Empty array detected");
+        check(not output.is_empty(), "Empty array detected");
 
-        const Device device = output.device();
-        Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.thread_limit();
-            cpu_stream.enqueue([=](){
-                cpu::memory::iota(output.get(), output.strides(), output.shape(), tile, threads);
-            });
+        if (output.are_contiguous()) {
+            iwise(output.shape(), output.device(),
+                  Iota4d(output.accessor(), output.shape(), tile));
         } else {
-            #ifdef NOA_ENABLE_CUDA
-            if constexpr (nt::is_varray_of_numeric_v<Output>) {
-                auto& cuda_stream = stream.cuda();
-                cuda::memory::iota(output.get(), output.strides(), output.shape(), tile, cuda_stream);
-                cuda_stream.enqueue_attach(output);
-            } else {
-                NOA_THROW("The CUDA backend does not support this type ({})",
-                          noa::string::human<nt::value_type_t<Output>>());
-            }
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
+            const auto n_elements = output.elements();
+            iwise(Shape{n_elements}, output.device(),
+                  Iota1d(output.accessor_contiguous_1d(), tile));
         }
     }
 
