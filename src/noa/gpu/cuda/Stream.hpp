@@ -10,6 +10,7 @@
 
 #include "noa/core/Traits.hpp"
 #include "noa/core/utils/Misc.hpp"
+#include "noa/core/utils/ShareHandles.hpp"
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Device.hpp"
@@ -19,32 +20,6 @@
 //      should be useful. Update the documentation to reflect that?
 
 namespace noa::cuda::guts {
-    template<typename T> struct proclaim_is_unique_ptr : std::false_type {};
-    template<typename T> struct proclaim_is_unique_ptr<std::unique_ptr<T>> : std::true_type {};
-    template<typename T> constexpr bool is_unique_ptr_v = proclaim_is_unique_ptr<std::decay_t<T>>::value;
-
-    template<typename T>
-    constexpr bool is_shareable_v =
-            requires(T t) { std::shared_ptr<const void>(t); } and
-            not std::is_pointer_v<std::decay_t<T>> and
-            not is_unique_ptr_v<T>;
-
-    template<typename T>
-    constexpr bool has_share() {
-        if constexpr (requires(T t) { std::shared_ptr<const void>(t.share()); }) {
-            using shared_t = std::decay_t<decltype(std::declval<T>().share())>;
-            return not std::is_pointer_v<shared_t> and not is_unique_ptr_v<T>;
-        } else {
-            return false;
-        }
-    }
-
-    template<typename T>
-    constexpr bool has_share_v = has_share<T>();
-
-    template<typename... Ts>
-    constexpr bool are_registrable_v = nt::bool_or<(is_shareable_v<Ts> || has_share_v<Ts>)...>::value;
-
     // Registry to attach a shared_ptr to a stream, using a FIFO buffer.
     //
     // Kernel execution is asynchronous relative to the host. As such, we need a way to know when the
@@ -88,16 +63,16 @@ namespace noa::cuda::guts {
             const std::scoped_lock lock(m_mutex);
             clear_unused_();
 
-            if constexpr (are_registrable_v<Args...>) {
+            if constexpr (nt::bool_or<(nt::is_shareable_v<Args> || nt::has_share_v<Args>)...>::value) {
                 i64 key = [this]() {
                     if (m_key == std::numeric_limits<i64>::max())
                         m_key = 0;
                     return m_key++;
                 }();
                 ([&, this]<typename T>(T&& arg) {
-                    if constexpr (is_shareable_v<T>)
+                    if constexpr (nt::is_shareable_v<T>)
                         m_registry.emplace_back(key, std::forward<T>(arg));
-                    else if constexpr (has_share_v<T>)
+                    else if constexpr (nt::has_share_v<T>)
                         m_registry.emplace_back(key, std::forward<T>(arg).share());
                     // else: do nothing?
                 }(std::forward<Args>(args)), ...);
