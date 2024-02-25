@@ -13,8 +13,8 @@
 namespace noa::cuda::guts {
     struct PermuteConfig {
         static constexpr u32 tile_size = Constant::WARP_SIZE;
-        static constexpr u32 block_size = tile_size;
-        static constexpr u32 block_size_x = 256;
+        static constexpr u32 block_size = 256;
+        static constexpr u32 block_size_x = tile_size;
         static constexpr u32 block_size_y = block_size / block_size_x;
     };
 
