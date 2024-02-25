@@ -42,7 +42,7 @@ namespace noa::inline types {
 
         template<typename T, size_t A> requires nt::is_int_v<T>
         [[nodiscard]] NOA_HD static constexpr Shape from_vec(const Vec<T, SIZE, A>& vector) noexcept {
-            return {vector_type::from_vector(vector)};
+            return {vector_type::from_vec(vector)};
         }
 
         template<typename T>
@@ -303,12 +303,14 @@ namespace noa::inline types {
             return Shape<value_type, SIZE - S>::from_pointer(data());
         }
 
+        template<size_t S = 1>
         [[nodiscard]] NOA_HD constexpr auto push_front(value_type value) const noexcept {
-            return Shape<value_type, SIZE + 1>{vec.push_front(value)};
+            return Shape<value_type, SIZE + S>{vec.template push_front<S>(value)};
         }
 
+        template<size_t S = 1>
         [[nodiscard]] NOA_HD constexpr auto push_back(value_type value) const noexcept {
-            return Shape<value_type, SIZE + 1>{vec.push_back(value)};
+            return Shape<value_type, SIZE + S>{vec.template push_back<S>(value)};
         }
 
         template<size_t S, size_t A>
@@ -547,7 +549,7 @@ namespace noa::inline types {
 
         template<typename T, size_t A> requires nt::is_int_v<T>
         [[nodiscard]] NOA_HD static constexpr Strides from_vec(const Vec<T, SIZE, A>& vector) noexcept {
-            return {vector_type::from_vector(vector)};
+            return {vector_type::from_vec(vector)};
         }
 
         template<typename T>
@@ -808,12 +810,14 @@ namespace noa::inline types {
             return Strides<value_type, SIZE - S>::from_pointer(data());
         }
 
+        template<size_t S = 1>
         [[nodiscard]] NOA_HD constexpr auto push_front(value_type value) const noexcept {
-            return Strides<value_type, SIZE + 1>{vec.push_front(value)};
+            return Strides<value_type, SIZE + S>{vec.template push_front<S>(value)};
         }
 
+        template<size_t S = 1>
         [[nodiscard]] NOA_HD constexpr auto push_back(value_type value) const noexcept {
-            return Strides<value_type, SIZE + 1>{vec.push_back(value)};
+            return Strides<value_type, SIZE + S>{vec.template push_back<S>(value)};
         }
 
         template<size_t S, size_t A>

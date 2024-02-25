@@ -97,7 +97,7 @@ namespace noa::inline types {
         }
 
         template<typename U, size_t AR>
-        [[nodiscard]] NOA_HD static constexpr Vec from_vector(const Vec<U, SIZE, AR>& vector) noexcept {
+        [[nodiscard]] NOA_HD static constexpr Vec from_vec(const Vec<U, SIZE, AR>& vector) noexcept {
             if constexpr (SIZE == 0) {
                 return {};
             } else {
@@ -122,12 +122,26 @@ namespace noa::inline types {
             }
         }
 
+        [[nodiscard]] NOA_HD static constexpr Vec arange(
+                value_type start = 0,
+                value_type step = 1
+        ) noexcept requires nt::is_int_v<value_type> {
+            if constexpr (SIZE == 0) {
+                return {};
+            } else {
+                Vec vec;
+                for (int64_t i = 0; i < SSIZE; ++i, start += step)
+                    vec[i] = start;
+                return vec;
+            }
+        }
+
     public:
         // Allow explicit conversion constructor (while still being an aggregate)
         // and add support for static_cast<Vec<U>>(Vec<T>{}).
         template<typename U, size_t AR>
         [[nodiscard]] NOA_HD constexpr explicit operator Vec<U, SIZE, AR>() const noexcept {
-            return Vec<U, SIZE, AR>::from_vector(*this);
+            return Vec<U, SIZE, AR>::from_vec(*this);
         }
 
     public: // Accessor operators and functions
@@ -574,23 +588,27 @@ namespace noa::inline types {
             return Vec<value_type, N - S, AR>::from_pointer(data());
         }
 
+        template<size_t S = 1>
         [[nodiscard]] NOA_HD constexpr auto push_front(value_type value) const noexcept {
-            Vec<value_type, N + 1> output;
-            output[0] = value;
+            Vec<value_type, N + S> output;
+            for (size_t i = 0; i < S; ++i)
+                output[i] = value;
             if constexpr (N > 0) {
                 for (size_t i = 0; i < N; ++i)
-                    output[i + 1] = array[i];
+                    output[i + S] = array[i];
             }
             return output;
         }
 
+        template<size_t S = 1>
         [[nodiscard]] NOA_HD constexpr auto push_back(value_type value) const noexcept {
-            Vec<value_type, N + 1> output;
+            Vec<value_type, N + S> output;
             if constexpr (N > 0) {
                 for (size_t i = 0; i < N; ++i)
                     output[i] = array[i];
             }
-            output[N] = value;
+            for (size_t i = 0; i < S; ++i)
+                output[N + i] = value;
             return output;
         }
 
