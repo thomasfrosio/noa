@@ -302,6 +302,11 @@ namespace noa::traits {
     template<typename... Ts> using are_accessor_pure = bool_and<is_accessor_pure<Ts>::value...>;
     template<typename... Ts> constexpr bool are_accessor_pure_v = are_accessor_pure<std::decay_t<Ts>...>::value;
 
+    template<typename T, size_t N> using is_accessor_pure_nd = std::bool_constant<is_accessor_pure<T>::value and is_accessor_nd<T, N>::value>;
+    template<typename T, size_t N>  constexpr bool is_accessor_pure_nd_v = is_accessor_pure_nd<std::decay_t<T>, N>::value;
+    template<size_t N, typename... Ts> using are_accessor_pure_nd = bool_and<is_accessor_pure_nd<Ts, N>::value...>;
+    template<size_t N, typename... Ts> constexpr bool are_accessor_pure_nd_v = are_accessor_pure_nd<N, std::decay_t<Ts>...>::value;
+
     template<typename T> struct proclaim_is_accessor_reference : std::false_type {};
     template<typename T> using is_accessor_reference = std::bool_constant<proclaim_is_accessor_reference<T>::value>;
     template<typename T> constexpr bool is_accessor_reference_v = is_accessor_reference<std::decay_t<T>>::value;
@@ -466,4 +471,52 @@ namespace noa::traits {
     template<typename T> constexpr bool is_pair_v = is_pair<std::decay_t<T>>::value;
     template<typename... Ts> using are_pair = bool_and<is_pair<Ts>::value...>;
     template<typename... Ts> constexpr bool are_pair_v = are_pair<std::decay_t<Ts>...>::value;
+
+    // Geometry
+    template<typename T> struct proclaim_is_quaternion : std::false_type {};
+    template<typename T> using is_quaternion = std::bool_constant<proclaim_is_quaternion<T>::value>;
+    template<typename T> constexpr bool is_quaternion_v = is_quaternion<std::decay_t<T>>::value;
+    template<typename... Ts> using are_quaternion = bool_and<is_quaternion<Ts>::value...>;
+    template<typename... Ts> constexpr bool are_quaternion_v = are_quaternion<std::decay_t<Ts>...>::value;
+
+    template<typename T> constexpr bool is_quaternion_f32_v = is_quaternion_v<T> and std::is_same_v<value_type_t<T>, f32>;
+    template<typename T> constexpr bool is_quaternion_f64_v = is_quaternion_v<T> and std::is_same_v<value_type_t<T>, f64>;
+
+    template<typename T> struct proclaim_is_interpolator : std::false_type {};
+    template<typename T> using is_interpolator = std::bool_constant<proclaim_is_interpolator<T>::value>;
+    template<typename T> constexpr bool is_interpolator_v = is_interpolator<std::decay_t<T>>::value;
+    template<typename... Ts> using are_interpolator = bool_and<is_interpolator<Ts>::value...>;
+    template<typename... Ts> constexpr bool are_interpolator_v = are_interpolator<std::decay_t<Ts>...>::value;
+
+    template<typename T, size_t N> struct proclaim_is_interpolator_nd : std::false_type {};
+    template<typename T, size_t N> using is_interpolator_nd = std::bool_constant<proclaim_is_interpolator_nd<T, N>::value>;
+    template<typename T, size_t N> constexpr bool is_interpolator_nd_v = is_interpolator_nd<std::decay_t<T>, N>::value;
+    template<size_t N, typename... Ts> using are_interpolator_nd = bool_and<is_interpolator_nd<Ts, N>::value...>;
+    template<size_t N, typename... Ts> constexpr bool are_interpolator_nd_v = are_interpolator_nd<N, std::decay_t<Ts>...>::value;
+
+    // Signal
+    template<typename T> struct proclaim_is_ctf : std::false_type {};
+    template<typename T> using is_ctf = std::bool_constant<proclaim_is_ctf<T>::value>;
+    template<typename T> constexpr bool is_ctf_v = is_ctf<std::decay_t<T>>::value;
+    template<typename... Ts> using are_ctf = bool_and<is_ctf<Ts>::value...>;
+    template<typename... Ts> constexpr bool are_ctf_v = are_ctf<std::decay_t<Ts>...>::value;
+
+    template<typename T> struct proclaim_is_ctf_isotropic : std::false_type {};
+    template<typename T> using is_ctf_isotropic = std::bool_constant<proclaim_is_ctf_isotropic<T>::value>;
+    template<typename T> constexpr bool is_ctf_isotropic_v = is_ctf_isotropic<std::decay_t<T>>::value;
+    template<typename... Ts> using are_ctf_isotropic = bool_and<is_ctf_isotropic<Ts>::value...>;
+    template<typename... Ts> constexpr bool are_ctf_isotropic_v = are_ctf_isotropic<std::decay_t<Ts>...>::value;
+
+    template<typename T> struct proclaim_is_ctf_anisotropic : std::false_type {};
+    template<typename T> using is_ctf_anisotropic = std::bool_constant<proclaim_is_ctf_anisotropic<T>::value>;
+    template<typename T> constexpr bool is_ctf_anisotropic_v = is_ctf_anisotropic<std::decay_t<T>>::value;
+    template<typename... Ts> using are_ctf_anisotropic = bool_and<is_ctf_anisotropic<Ts>::value...>;
+    template<typename... Ts> constexpr bool are_ctf_anisotropic_v = are_ctf_anisotropic<std::decay_t<Ts>...>::value;
+
+    template<typename T> constexpr bool is_ctf_f32_v = is_ctf_v<T> and std::is_same_v<value_type_t<T>, f32>;
+    template<typename T> constexpr bool is_ctf_f64_v = is_ctf_v<T> and std::is_same_v<value_type_t<T>, f64>;
+    template<typename T> constexpr bool is_ctf_isotropic_f32_v = is_ctf_isotropic_v<T> and std::is_same_v<value_type_t<T>, f32>;
+    template<typename T> constexpr bool is_ctf_isotropic_f64_v = is_ctf_isotropic_v<T> and std::is_same_v<value_type_t<T>, f64>;
+    template<typename T> constexpr bool is_ctf_anisotropic_f32_v = is_ctf_anisotropic_v<T> and std::is_same_v<value_type_t<T>, f32>;
+    template<typename T> constexpr bool is_ctf_anisotropic_f64_v = is_ctf_anisotropic_v<T> and std::is_same_v<value_type_t<T>, f64>;
 }
