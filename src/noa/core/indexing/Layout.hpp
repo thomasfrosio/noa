@@ -232,7 +232,7 @@ namespace noa::indexing {
         T reordered_matrix;
         for (size_t row = 0; row < N; ++row) {
             using row_t = typename T::row_type;
-            row_t reordered_row;
+            row_t reordered_row{}; // no need to initialize, but g++ warn it may be uninitialized before use...
             for (size_t column = 0; column < N; ++column)
                 reordered_row[column] = matrix[row][order[column]];
             reordered_matrix[order[row]] = reordered_row;
@@ -390,7 +390,7 @@ namespace noa::indexing {
             if (shape[dim] == -1) {
                 if (infer_dim != -1)
                     return false; // only one dimension can be inferred
-                infer_dim = dim;
+                infer_dim = static_cast<T>(dim);
             } else if (shape[dim] >= 0) {
                 new_size *= shape[dim];
             } else {
