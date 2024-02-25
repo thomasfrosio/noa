@@ -189,3 +189,86 @@ namespace noa::geometry {
                  {affine[2][0], affine[2][1], affine[2][2], affine[2][3]}}};
     }
 }
+
+namespace noa::geometry {
+    /// Iwise operator computing 2d or 3d affine transformations:
+    ///  * Works on real and complex arrays.
+    ///  * The interpolated value is static_cast to OutputAccessor::value_type.
+    ///  * The floating-point precision of the transformation and interpolation is set by Xform.
+    ///  * Use (truncated) affine matrices to transform coordinates.
+    ///    A single matrix can be used for every output batch. Otherwise, an array of matrices
+    ///    is expected. In this case, there should be as many matrices as they are output batches.
+    ///  * The matrices should be inverted since the inverse transformation is performed.
+    ///  * Multiple batches can be processed. The operator expects a "batch" index, which is passed
+    ///    to the interpolator. It is up to the interpolator to decide what to do with this index.
+    ///    The interpolator can ignore that batch index, effectively broadcasting the input to
+    ///    every dimension of the output.
+    template<size_t N, typename Index, typename Xform, typename Interpolator, typename OutputAccessor>
+    requires ((N == 2 or N == 3) and nt::is_int_v<Index> and
+              nt::is_interpolator_nd<Interpolator, N>::value and
+              nt::is_accessor_pure_nd<OutputAccessor, N + 1>::value)
+    class Transform {
+    public:
+        using index_type = Index;
+        using interpolator_type = Interpolator;
+        using output_accessor_type = OutputAccessor;
+        using input_value_type = interpolator_type::mutable_value_type;
+        using output_value_type = output_accessor_type::mutable_value_type;
+
+        using xform_ = std::decay_t<Xform>;
+        using xform_single_type = std::remove_const_t<std::remove_pointer<xform_>>;
+        using xform_pointer_type = const xform_single_type*;
+        static_assert((N == 2 and (nt::is_mat23_v<xform_single_type> or nt::is_mat33_v<xform_single_type>)) or
+                      (N == 3 and (nt::is_mat34_v<xform_single_type> or nt::is_mat44_v<xform_single_type>)));
+
+        using coord_type = nt::value_type_t<xform_single_type>;
+        using truncated_xform_type = std::conditional_t<N == 2, Mat23<coord_type>, Mat34<coord_type>>;
+        static constexpr bool xform_is_pointer = std::is_pointer_v<xform_>;
+        using xform_type = std::conditional_t<xform_is_pointer, xform_pointer_type, xform_single_type>;
+        using xform_store_type = std::conditional_t<xform_is_pointer, xform_pointer_type, truncated_xform_type>;
+
+    public:
+        Transform(
+                const interpolator_type& input,
+                const output_accessor_type& output,
+                const xform_type& inv_matrix
+        ) : m_interpolator(input), m_output(output), m_inv_matrix(inv_matrix) {
+            if constexpr (xform_is_pointer or std::is_same_v<truncated_xform_type, xform_single_type>) {
+                m_inv_matrix = inv_matrix;
+            } else {
+                m_inv_matrix = affine2truncated(inv_matrix); // store the truncated
+            }
+        }
+
+        NOA_HD constexpr void operator()(index_type batch, index_type y, index_type x) const requires (N == 2) {
+            const auto coordinates = Vec3<coord_type>::from_values(y, x, coord_type{1});
+            const input_value_type interpolated_value = transform_and_interpolate(batch, coordinates);
+            m_output(batch, y, x) = static_cast<output_value_type>(interpolated_value);
+        }
+
+        NOA_HD constexpr void operator()(index_type batch, index_type z, index_type y, index_type x) const requires (N == 3) {
+            const auto coordinates = Vec4<coord_type>(z, y, x, coord_type{1});
+            const input_value_type interpolated_value = transform_and_interpolate(batch, coordinates);
+            m_output(batch, z, y, x) = static_cast<output_value_type>(interpolated_value);
+        }
+
+    private:
+        NOA_HD constexpr auto transform_and_interpolate(index_type batch, const auto& coordinates) -> input_value_type {
+            if constexpr (xform_is_pointer) {
+                if constexpr (nt::is_mat23_v<xform_single_type> or nt::is_mat34_v<xform_single_type>) {
+                    return m_interpolator(m_inv_matrix[batch] * coordinates, batch);
+                } else {
+                    const auto inv_matrix = affine2truncated(m_inv_matrix[batch]);
+                    return m_interpolator(inv_matrix * coordinates, batch);
+                }
+            } else {
+                return m_interpolator(m_inv_matrix * coordinates, batch);
+            }
+        }
+
+    private:
+        interpolator_type m_interpolator;
+        output_accessor_type m_output;
+        xform_store_type m_inv_matrix;
+    };
+}

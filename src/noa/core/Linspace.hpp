@@ -71,6 +71,12 @@ namespace noa {
     public:
         constexpr Linspace1d(
                 const accessor_type& accessor,
+                linspace_t linspace
+        ) : m_output(accessor),
+            m_linspace(linspace) {}
+
+        constexpr Linspace1d(
+                const accessor_type& accessor,
                 const index_type& size,
                 value_type start,
                 value_type stop,
@@ -108,6 +114,14 @@ namespace noa {
         using strides4_type = Strides4<Index>;
 
     public:
+        constexpr Linspace4d(
+                const accessor_type& accessor,
+                const shape4_type& shape,
+                linspace_t linspace
+        ) : m_output(accessor),
+            m_contiguous_strides(shape.strides()),
+            m_linspace(linspace) {}
+
         constexpr Linspace4d(
                 const accessor_type& accessor,
                 const shape4_type& shape,

@@ -1,15 +1,52 @@
 set(NOA_CORE_HEADERS
-    core/AccurateSum.hpp
-    core/AccurateVariance.hpp
     core/Arange.hpp
-    core/ArgMinMax.hpp
     core/Config.hpp
     core/Enums.hpp
     core/Exception.hpp
     core/Iota.hpp
     core/Linspace.hpp
     core/Namespace.hpp
+    core/Operators.hpp
+    core/Resize.hpp
+    core/Subregion.hpp
     core/Traits.hpp
+
+    core/fft/Frequency.hpp
+    core/fft/Remap.hpp
+    core/fft/Resize.hpp
+
+    core/geometry/Euler.hpp
+    core/geometry/FourierExtract.hpp
+    core/geometry/FourierGriddingCorrection.hpp
+    core/geometry/FourierInsertExtract.hpp
+    core/geometry/FourierInsertInterpolate.hpp
+    core/geometry/FourierInsertRasterize.hpp
+    core/geometry/FourierPolar.hpp
+    core/geometry/FourierTransform.hpp
+    core/geometry/FourierUtilities.hpp
+    core/geometry/Interpolate.hpp
+    core/geometry/Interpolator.hpp
+    core/geometry/Polar.hpp
+    core/geometry/Prefilter.hpp
+    core/geometry/Quaternion.hpp
+    core/geometry/RotationalAverage.hpp
+    core/geometry/Shape.hpp
+    core/geometry/Symmetry.hpp
+    core/geometry/Transform.hpp
+
+    core/Indexing.hpp
+    core/indexing/Offset.hpp
+    core/indexing/Layout.hpp
+    core/indexing/Subregion.hpp
+
+    core/io/BinaryFile.hpp
+    core/io/ImageFile.hpp
+    core/io/IO.hpp
+    core/io/MRCFile.hpp
+    core/io/OS.hpp
+    core/io/Stats.hpp
+    core/io/TextFile.hpp
+    core/io/TIFFFile.hpp
 
     core/Math.hpp
     core/math/Comparison.hpp
@@ -18,21 +55,12 @@ set(NOA_CORE_HEADERS
     core/math/Generic.hpp
     core/math/LeastSquare.hpp
 
-    core/Indexing.hpp
-    core/indexing/Offset.hpp
-    core/indexing/Layout.hpp
-    core/indexing/Subregion.hpp
-
-    core/utils/Adaptor.hpp
-    core/utils/Atomic.hpp
-    core/utils/ClampCast.hpp
-    core/utils/Interfaces.hpp
-    core/utils/Irange.hpp
-    core/utils/Misc.hpp
-    core/utils/SafeCast.hpp
-    core/utils/Sort.hpp
-    core/utils/Threadpool.hpp
-    core/utils/Timer.hpp
+    core/signal/Bandpass.hpp
+    core/signal/CorrelationPeak.hpp
+    core/signal/CTF.hpp
+    core/signal/FSC.hpp
+    core/signal/PhaseShift.hpp
+    core/signal/Windows.hpp
 
     core/String.hpp
     core/string/Format.hpp
@@ -50,34 +78,23 @@ set(NOA_CORE_HEADERS
     core/types/Mat33.hpp
     core/types/Mat34.hpp
     core/types/Mat44.hpp
+    core/types/Pair.hpp
     core/types/Shape.hpp
     core/types/Span.hpp
     core/types/Tuple.hpp
     core/types/Vec.hpp
 
-    core/geometry/Euler.hpp
-    core/geometry/Interpolate.hpp
-    core/geometry/Interpolator.hpp
-    core/geometry/Polar.hpp
-    core/geometry/Prefilter.hpp
-    core/geometry/Quaternion.hpp
-    core/geometry/Shape.hpp
-    core/geometry/Symmetry.hpp
-    core/geometry/Transform.hpp
-
-    core/signal/fft/CTF.hpp
-    core/signal/Windows.hpp
-
-    core/io/BinaryFile.hpp
-    core/io/ImageFile.hpp
-    core/io/IO.hpp
-    core/io/MRCFile.hpp
-    core/io/OS.hpp
-    core/io/Stats.hpp
-    core/io/TextFile.hpp
-    core/io/TIFFFile.hpp
-
-    core/fft/Frequency.hpp
+    core/utils/Adaptor.hpp
+    core/utils/Atomic.hpp
+    core/utils/ClampCast.hpp
+    core/utils/Interfaces.hpp
+    core/utils/Irange.hpp
+    core/utils/Misc.hpp
+    core/utils/SafeCast.hpp
+    core/utils/ShareHandles.hpp
+    core/utils/Sort.hpp
+    core/utils/Threadpool.hpp
+    core/utils/Timer.hpp
     )
 
 set(NOA_CORE_SOURCES

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "noa/algorithms/geometry/FourierUtilities.hpp"
+#include "noa/core/geometry/FourierUtilities.hpp"
 
 namespace noa::geometry {
-    /// Type parser/checker for FourierInsertRasterizeOp.
+    /// Type parser/checker for FourierInsertRasterize.
     /// \tparam REMAP                               Remap operator. H(C)2H(C).
     /// \tparam Index                               Input index type. A signed integer.
     /// \tparam Coord                               Coordinate type. f32 or f64.
@@ -28,15 +28,15 @@ namespace noa::geometry {
         static constexpr bool IS_SLICE_CENTERED = u8_REMAP & noa::fft::Layout::SRC_CENTERED;
         static constexpr bool IS_VOLUME_CENTERED = u8_REMAP & noa::fft::Layout::DST_CENTERED;
         static constexpr bool IS_VALID_REMAP =
-                (u8_REMAP & noa::fft::Layout::SRC_HALF) &&
+                (u8_REMAP & noa::fft::Layout::SRC_HALF) and
                 (u8_REMAP & noa::fft::Layout::DST_HALF);
 
         static constexpr bool IS_VALID_COORD_INDEX =
-                nt::is_sint_v<Index> && nt::is_any_v<Coord, f32, f64>;
+                nt::is_sint_v<Index> and nt::is_any_v<Coord, f32, f64>;
 
-        static constexpr bool HAS_INPUT_WEIGHT = !std::is_empty_v<InputWeightAccessorOrValueOrEmpty>;
-        static constexpr bool HAS_OUTPUT_WEIGHT = !std::is_empty_v<OutputWeightAccessorOrEmpty>;
-        static constexpr bool HAS_WEIGHTS = HAS_INPUT_WEIGHT && HAS_OUTPUT_WEIGHT;
+        static constexpr bool HAS_INPUT_WEIGHT = not std::is_empty_v<InputWeightAccessorOrValueOrEmpty>;
+        static constexpr bool HAS_OUTPUT_WEIGHT = not std::is_empty_v<OutputWeightAccessorOrEmpty>;
+        static constexpr bool HAS_WEIGHTS = HAS_INPUT_WEIGHT and HAS_OUTPUT_WEIGHT;
 
         static constexpr bool IS_INPUT_SLICE_A_VALUE = nt::is_real_or_complex_v<InputSliceAccessorOrValue>;
         static constexpr bool IS_INPUT_WEIGHT_A_VALUE = nt::is_real_or_complex_v<InputWeightAccessorOrValueOrEmpty>;
@@ -53,40 +53,40 @@ namespace noa::geometry {
         using output_weight_type = nt::value_type_t<OutputWeightAccessorOrEmpty>;
 
         static constexpr bool IS_VALID_INPUT_SLICE =
-                (IS_INPUT_SLICE_A_VALUE || nt::is_accessor_nd_v<InputSliceAccessorOrValue, 3>) &&
+                (IS_INPUT_SLICE_A_VALUE or nt::is_accessor_nd_v<InputSliceAccessorOrValue, 3>) and
                 nt::is_real_or_complex_v<input_value_type>;
 
         static constexpr bool IS_VALID_INPUT_WEIGHT =
-                !HAS_WEIGHTS ||
-                ((IS_INPUT_WEIGHT_A_VALUE || nt::is_accessor_nd_v<InputWeightAccessorOrValueOrEmpty, 3>) &&
+                not HAS_WEIGHTS or
+                ((IS_INPUT_WEIGHT_A_VALUE or nt::is_accessor_nd_v<InputWeightAccessorOrValueOrEmpty, 3>) and
                  nt::is_real_or_complex_v<input_weight_type>);
 
         static constexpr bool IS_VALID_OUTPUT_VOLUME =
-                nt::is_accessor_nd_v<OutputVolumeAccessor, 3> &&
-                !std::is_const_v<output_value_type> &&
-                (nt::are_complex_v<output_value_type, input_value_type> ||
-                 (nt::is_real_v<output_value_type> && nt::is_real_or_complex_v<input_value_type>));
+                nt::is_accessor_nd_v<OutputVolumeAccessor, 3> and
+                not std::is_const_v<output_value_type> and
+                (nt::are_complex_v<output_value_type, input_value_type> or
+                 (nt::is_real_v<output_value_type> and nt::is_real_or_complex_v<input_value_type>));
 
         static constexpr bool IS_VALID_OUTPUT_WEIGHT =
-                !HAS_WEIGHTS ||
-                (nt::is_accessor_nd_v<OutputWeightAccessorOrEmpty, 3> &&
-                 !std::is_const_v<output_weight_type> &&
-                 (nt::are_complex_v<output_weight_type, input_weight_type> ||
-                  (nt::is_real_v<output_weight_type> && nt::is_real_or_complex_v<input_weight_type>)));
+                not HAS_WEIGHTS or
+                (nt::is_accessor_nd_v<OutputWeightAccessorOrEmpty, 3> and
+                 not std::is_const_v<output_weight_type> and
+                 (nt::are_complex_v<output_weight_type, input_weight_type> or
+                  (nt::is_real_v<output_weight_type> and nt::is_real_or_complex_v<input_weight_type>)));
 
         static constexpr bool IS_VALID_SCALE =
-                std::is_empty_v<ScaleOrEmpty> || nt::is_mat22_v<ScaleOrEmpty> ||
-                ((nt::is_accessor_1d_v<ScaleOrEmpty> || std::is_pointer_v<ScaleOrEmpty>) &&
+                std::is_empty_v<ScaleOrEmpty> or nt::is_mat22_v<ScaleOrEmpty> or
+                ((nt::is_accessor_nd_v<ScaleOrEmpty, 1> or std::is_pointer_v<ScaleOrEmpty>) and
                   nt::is_mat22_v<std::remove_pointer_t<nt::value_type_t<ScaleOrEmpty>>>);
 
         static constexpr bool IS_VALID_INPUT_ROTATION =
-                (nt::is_mat33_v<Rotate> || nt::is_quaternion_v<Rotate>) ||
-                ((nt::is_accessor_1d_v<Rotate> || std::is_pointer_v<Rotate>) &&
-                 (nt::is_mat33_v<std::remove_pointer_t<nt::value_type_t<Rotate>>> ||
+                (nt::is_mat33_v<Rotate> or nt::is_quaternion_v<Rotate>) or
+                ((nt::is_accessor_nd_v<Rotate, 1> or std::is_pointer_v<Rotate>) and
+                 (nt::is_mat33_v<std::remove_pointer_t<nt::value_type_t<Rotate>>> or
                   nt::is_quaternion_v<std::remove_pointer_t<nt::value_type_t<Rotate>>>));
 
         static constexpr bool IS_VALID_EWS =
-                std::is_empty_v<EWSOrEmpty> ||
+                std::is_empty_v<EWSOrEmpty> or
                 nt::is_any_v<EWSOrEmpty, Coord, Vec2<Coord>>;
     };
 
@@ -99,7 +99,7 @@ namespace noa::geometry {
              typename InputWeightAccessorOrValueOrEmpty,
              typename OutputVolumeAccessor,
              typename OutputWeightAccessorOrEmpty>
-    class FourierInsertRasterizeOp {
+    class FourierInsertRasterize {
         using concept_type = FourierInsertRasterizeConcept<
                 REMAP, Index, Coord, ScaleOrEmpty, Rotate, EWSOrEmpty,
                 InputSliceAccessorOrValue, InputWeightAccessorOrValueOrEmpty,
@@ -129,10 +129,10 @@ namespace noa::geometry {
         using coord2_type = Vec2<coord_type>;
         using coord3_type = Vec3<coord_type>;
         using shape3_type = Shape3<index_type>;
-        using input_value_type = typename concept_type::input_value_type;
-        using output_value_type = typename concept_type::output_value_type;
-        using input_weight_type = typename concept_type::input_weight_type;
-        using output_weight_type = typename concept_type::output_weight_type;
+        using input_value_type = concept_type::input_value_type;
+        using output_value_type = concept_type::output_value_type;
+        using input_weight_type = concept_type::input_weight_type;
+        using output_weight_type = concept_type::output_weight_type;
         using input_value_real_type = nt::value_type_t<input_value_type>;
         using input_weight_real_type = nt::value_type_t<input_weight_type>;
         using output_value_real_type = nt::value_type_t<output_value_type>;
@@ -145,7 +145,7 @@ namespace noa::geometry {
         static constexpr bool HAS_WEIGHTS = concept_type::HAS_WEIGHTS;
 
     public:
-        FourierInsertRasterizeOp(
+        FourierInsertRasterize(
                 const input_slice_accessor_or_value_type& input_slices,
                 const input_weight_accessor_or_value_or_empty_type& input_weights,
                 const Shape4<index_type>& input_slice_shape,
@@ -157,29 +157,28 @@ namespace noa::geometry {
                 coord_type fftfreq_cutoff,
                 const Shape4<index_type>& target_shape,
                 const ews_or_empty_type& ews_radius
-        )
-                : m_input_slices(input_slices),
-                  m_output_volume(output_volume),
-                  m_fwd_rotation(fwd_rotation),
-                  m_grid_shape(output_volume_shape.pop_front()),
-                  m_input_weights(input_weights),
-                  m_output_weights(output_weights),
-                  m_inv_scaling(inv_scaling)
+        ) : m_input_slices(input_slices),
+            m_output_volume(output_volume),
+            m_fwd_rotation(fwd_rotation),
+            m_grid_shape(output_volume_shape.pop_front()),
+            m_input_weights(input_weights),
+            m_output_weights(output_weights),
+            m_inv_scaling(inv_scaling)
         {
             const auto slice_shape_2d = input_slice_shape.filter(2, 3);
             m_slice_size_y = slice_shape_2d[0];
-            m_f_slice_shape = coord2_type(slice_shape_2d.vec());
+            m_f_slice_shape = coord2_type::from_vec(slice_shape_2d.vec);
 
             // Use the grid shape as backup.
-            const auto target_shape_3d = noa::any(target_shape == 0) ? m_grid_shape : target_shape.pop_front();
-            m_f_target_shape = coord3_type(target_shape_3d.vec());
+            const auto target_shape_3d = any(target_shape == 0) ? m_grid_shape : target_shape.pop_front();
+            m_f_target_shape = coord3_type::from_vec(target_shape_3d.vec);
 
             // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
             // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
-            if constexpr (!std::is_empty_v<ews_or_empty_type>)
-                m_ews_diam_inv = noa::any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_or_empty_type{};
+            if constexpr (not std::is_empty_v<ews_or_empty_type>)
+                m_ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_or_empty_type{};
 
-            m_fftfreq_cutoff_sqd = noa::math::max(fftfreq_cutoff, coord_type{0});
+            m_fftfreq_cutoff_sqd = max(fftfreq_cutoff, coord_type{0});
             m_fftfreq_cutoff_sqd *= m_fftfreq_cutoff_sqd;
         }
 
@@ -188,19 +187,19 @@ namespace noa::geometry {
             // We compute the forward transformation and use normalized frequencies.
             // The oversampling is implicitly handled when scaling back to the target shape.
             const index_type v = noa::fft::index2frequency<IS_SLICE_CENTERED>(y, m_slice_size_y);
-            const auto frequency_2d = coord2_type{v, u} / m_f_slice_shape;
+            const auto frequency_2d = coord2_type::from_values(v, u) / m_f_slice_shape;
             coord3_type frequency_3d = details::transform_slice2grid(
                     frequency_2d, m_inv_scaling, m_fwd_rotation, batch, m_ews_diam_inv);
 
             // The frequency rate won't change from that point, so check for the cutoff.
-            if (noa::math::dot(frequency_3d, frequency_3d) > m_fftfreq_cutoff_sqd)
+            if (dot(frequency_3d, frequency_3d) > m_fftfreq_cutoff_sqd)
                 return;
 
             // Handle the non-redundancy in x.
             coord_type conjugate = 1;
             if (frequency_3d[2] < 0) {
                 frequency_3d = -frequency_3d;
-                if constexpr (nt::is_complex_v<input_value_type> ||
+                if constexpr (nt::is_complex_v<input_value_type> or
                               nt::is_complex_v<input_weight_type>) {
                     conjugate = -1;
                 }
@@ -227,8 +226,8 @@ namespace noa::geometry {
             else
                 value = m_input_slices(batch, y, u);
 
-            if constexpr (nt::is_complex_v<input_value_type> && nt::is_real_v<output_value_type>) {
-                return static_cast<output_value_type>(noa::abs_squared_t{}(value));
+            if constexpr (nt::is_complex_v<input_value_type> and nt::is_real_v<output_value_type>) {
+                return static_cast<output_value_type>(abs_squared(value));
             } else {
                 if constexpr (nt::is_complex_v<input_value_type>)
                     value.imag *= static_cast<input_value_real_type>(conjugate);
@@ -246,8 +245,8 @@ namespace noa::geometry {
                 else
                     weight = m_input_weights(batch, y, u);
 
-                if constexpr (nt::is_complex_v<input_weight_type> && nt::is_real_v<output_weight_type>) {
-                    return static_cast<output_weight_type>(noa::abs_squared_t{}(weight));
+                if constexpr (nt::is_complex_v<input_weight_type> and nt::is_real_v<output_weight_type>) {
+                    return static_cast<output_weight_type>(abs_squared(weight));
                 } else {
                     if constexpr (nt::is_complex_v<input_weight_type>)
                         weight.imag *= static_cast<input_weight_real_type>(conjugate);
@@ -283,7 +282,7 @@ namespace noa::geometry {
                 Pair<output_value_type, output_weight_type> value_and_weight,
                 const Vec3<Coord>& frequency // in samples
         ) const noexcept {
-            const auto base0 = noa::math::floor(frequency).template as<index_type>();
+            const auto base0 = floor(frequency).template as<index_type>();
 
             Coord kernel[2][2][2]; // 2x2x2 trilinear weights
             set_rasterization_weights_(base0, frequency, kernel);
@@ -296,16 +295,16 @@ namespace noa::geometry {
                         const index_type idx_v = frequency2index<IS_VOLUME_CENTERED>(base0[1] + v, m_grid_shape[1]);
                         const index_type idx_u = base0[2] + u;
 
-                        if (idx_w >= 0 && idx_w < m_grid_shape[0] &&
-                            idx_v >= 0 && idx_v < m_grid_shape[1] &&
-                            idx_u >= 0 && idx_u < m_grid_shape[2]) {
+                        if (idx_w >= 0 and idx_w < m_grid_shape[0] and
+                            idx_v >= 0 and idx_v < m_grid_shape[1] and
+                            idx_u >= 0 and idx_u < m_grid_shape[2]) {
                             const auto fraction = kernel[w][v][u];
-                            noa::details::atomic_add(
+                            ng::atomic_add(
                                     m_output_volume,
                                     value_and_weight.first * static_cast<output_value_real_type>(fraction),
                                     idx_w, idx_v, idx_u);
                             if constexpr (HAS_WEIGHTS) {
-                                noa::details::atomic_add(
+                                ng::atomic_add(
                                         m_output_weights,
                                         value_and_weight.second * static_cast<output_weight_real_type>(fraction),
                                         idx_w, idx_v, idx_u);
@@ -320,7 +319,7 @@ namespace noa::geometry {
             if (base0[2] == 0) {
                 if constexpr (nt::is_complex_v<output_value_type>)
                     value_and_weight.first.imag = -value_and_weight.first.imag;
-                if constexpr (HAS_WEIGHTS && nt::is_complex_v<output_weight_type>)
+                if constexpr (HAS_WEIGHTS and nt::is_complex_v<output_weight_type>)
                     value_and_weight.second.imag = -value_and_weight.second.imag;
 
                 for (index_type w = 0; w < 2; ++w) {
@@ -328,15 +327,15 @@ namespace noa::geometry {
                         const index_type idx_w = frequency2index<IS_VOLUME_CENTERED>(-(base0[0] + w), m_grid_shape[0]);
                         const index_type idx_v = frequency2index<IS_VOLUME_CENTERED>(-(base0[1] + v), m_grid_shape[1]);
 
-                        if (idx_w >= 0 && idx_w < m_grid_shape[0] &&
-                            idx_v >= 0 && idx_v < m_grid_shape[1]) {
+                        if (idx_w >= 0 and idx_w < m_grid_shape[0] and
+                            idx_v >= 0 and idx_v < m_grid_shape[1]) {
                             const auto fraction = kernel[w][v][0];
-                            noa::details::atomic_add(
+                            ng::atomic_add(
                                     m_output_volume,
                                     value_and_weight.first * static_cast<output_value_real_type>(fraction),
                                     idx_w, idx_v, index_type{0});
                             if constexpr (HAS_WEIGHTS) {
-                                noa::details::atomic_add(
+                                ng::atomic_add(
                                         m_output_weights,
                                         value_and_weight.second * static_cast<output_weight_real_type>(fraction),
                                         idx_w, idx_v, index_type{0});
@@ -363,33 +362,4 @@ namespace noa::geometry {
         NOA_NO_UNIQUE_ADDRESS scale_or_empty_type m_inv_scaling;
         NOA_NO_UNIQUE_ADDRESS ews_or_empty_type m_ews_diam_inv{};
     };
-
-    /// Factory function for FourierInsertRasterizeOp.
-    template<noa::fft::Remap REMAP,
-             typename Index, typename Coord,
-             typename ScaleOrEmpty, typename Rotate,
-             typename EWSOrEmpty,
-             typename InputSliceAccessorOrValue,
-             typename InputWeightAccessorOrValueOrEmpty,
-             typename OutputVolumeAccessor,
-             typename OutputWeightAccessorOrEmpty>
-    auto fourier_insert_rasterize_op(
-            const InputSliceAccessorOrValue& input_slices,
-            const InputWeightAccessorOrValueOrEmpty& input_weights,
-            const Shape4<Index>& input_slice_shape,
-            const OutputVolumeAccessor& output_volume,
-            const OutputWeightAccessorOrEmpty& output_weights,
-            const Shape4<Index>& output_volume_shape,
-            const ScaleOrEmpty& inv_scaling, const Rotate& fwd_rotation,
-            Coord fftfreq_cutoff, const Shape4<Index>& target_shape, EWSOrEmpty ews_radius
-    ) {
-        using op_t = FourierInsertRasterizeOp<
-                REMAP, Index, Coord, ScaleOrEmpty, Rotate, EWSOrEmpty,
-                InputSliceAccessorOrValue, InputWeightAccessorOrValueOrEmpty,
-                OutputVolumeAccessor, OutputWeightAccessorOrEmpty>;
-        return op_t(
-                input_slices, input_weights, input_slice_shape,
-                output_volume, output_weights, output_volume_shape,
-                inv_scaling, fwd_rotation, fftfreq_cutoff, target_shape, ews_radius);
-    }
 }

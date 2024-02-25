@@ -655,20 +655,15 @@ namespace noa::geometry {
 }
 
 namespace noa::traits {
-    template<typename T> struct proclaim_is_interpolator_2d : std::false_type {};
-    template<typename T> struct proclaim_is_interpolator_3d : std::false_type {};
-
-    template<typename T> using is_interpolator_2d = std::bool_constant<proclaim_is_interpolator_2d<T>::value>;
-    template<typename T> using is_interpolator_3d = std::bool_constant<proclaim_is_interpolator_3d<T>::value>;
-
-    template<typename T> constexpr bool is_interpolator_2d_v = is_interpolator_2d<std::decay_t<T>>::value;
-    template<typename T> constexpr bool is_interpolator_3d_v = is_interpolator_3d<std::decay_t<T>>::value;
-    template<typename T> constexpr bool is_interpolator_v = is_interpolator_2d_v<T> or is_interpolator_3d_v<T>;
-    template<typename... Ts> constexpr bool are_interpolator_v = bool_and<is_interpolator_v<Ts>...>::value;
+    template<Border BORDER, Interp INTERP, typename Accessor>
+    struct proclaim_is_interpolator<noa::geometry::Interpolator2d<BORDER, INTERP, Accessor>> : std::true_type {};
 
     template<Border BORDER, Interp INTERP, typename Accessor>
-    struct proclaim_is_interpolator_2d<noa::geometry::Interpolator2d<BORDER, INTERP, Accessor>> : std::true_type {};
+    struct proclaim_is_interpolator<noa::geometry::Interpolator3d<BORDER, INTERP, Accessor>> : std::true_type {};
 
     template<Border BORDER, Interp INTERP, typename Accessor>
-    struct proclaim_is_interpolator_3d<noa::geometry::Interpolator3d<BORDER, INTERP, Accessor>> : std::true_type {};
+    struct proclaim_is_interpolator_nd<noa::geometry::Interpolator2d<BORDER, INTERP, Accessor>, 2> : std::true_type {};
+
+    template<Border BORDER, Interp INTERP, typename Accessor>
+    struct proclaim_is_interpolator_nd<noa::geometry::Interpolator3d<BORDER, INTERP, Accessor>, 3> : std::true_type {};
 }

@@ -23,7 +23,7 @@ namespace noa::geometry {
         value_type z, y, x, w;
 
     public: // Factory functions
-        /// Converts a 3x3 special orthogonal matrix to a quaternion.
+        /// Converts a 3x3 orthogonal matrix to a quaternion.
         /// \warning Only pure rotations are supported, ie no scaling, no reflection.
         template<typename T>
         [[nodiscard]] NOA_HD static constexpr Quaternion from_matrix(const Mat33<T>& matrix) noexcept {
@@ -185,13 +185,5 @@ namespace noa::geometry {
 }
 
 namespace noa::traits {
-    template<typename T> struct proclaim_is_quaternion : std::false_type {};
     template<typename T> struct proclaim_is_quaternion<noa::geometry::Quaternion<T>> : std::true_type {};
-
-    template<typename T> using is_quaternion = std::bool_constant<proclaim_is_quaternion<remove_ref_cv_t<T>>::value>;
-    template<typename T> constexpr bool is_quaternion_v = is_quaternion<T>::value;
-    template<typename... Ts> constexpr bool are_quaternion_v = bool_and<is_quaternion_v<Ts>...>::value;
-
-    template<typename T> constexpr bool is_quaternion_f32_v = is_quaternion_v<T> and std::is_same_v<value_type_t<T>, f32>;
-    template<typename T> constexpr bool is_quaternion_f64_v = is_quaternion_v<T> and std::is_same_v<value_type_t<T>, f64>;
 }

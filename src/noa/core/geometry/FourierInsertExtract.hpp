@@ -1,7 +1,7 @@
 #pragma once
 
-#include "noa/algorithms/geometry/FourierUtilities.hpp"
-#include "noa/core/traits/Interpolator.hpp"
+#include "noa/core/geometry/FourierUtilities.hpp"
+#include "noa/core/geometry/Interpolator.hpp"
 
 namespace noa::geometry {
     /// Type parser/checker for FourierInsertExtractOp.
@@ -29,18 +29,18 @@ namespace noa::geometry {
     class FourierInsertExtractConcept {
     public:
         static constexpr bool IS_VALID_REMAP =
-                REMAP == noa::fft::Remap::HC2H ||
+                REMAP == noa::fft::Remap::HC2H or
                 REMAP == noa::fft::Remap::HC2HC;
 
         static constexpr auto u8_REMAP = static_cast<uint8_t>(REMAP);
         static constexpr bool IS_OUTPUT_SLICE_CENTERED = u8_REMAP & noa::fft::Layout::DST_CENTERED;
 
         static constexpr bool IS_VALID_COORD_INDEX =
-                nt::is_sint_v<Index> && nt::is_any_v<Coord, f32, f64>;
+                nt::is_sint_v<Index> and nt::is_any_v<Coord, f32, f64>;
 
         static constexpr bool HAS_INPUT_WEIGHT = !std::is_empty_v<InputWeightInterpolatorOrEmpty>;
         static constexpr bool HAS_OUTPUT_WEIGHT = !std::is_empty_v<OutputWeightAccessorOrEmpty>;
-        static constexpr bool HAS_WEIGHTS = HAS_INPUT_WEIGHT && HAS_OUTPUT_WEIGHT;
+        static constexpr bool HAS_WEIGHTS = HAS_INPUT_WEIGHT and HAS_OUTPUT_WEIGHT;
 
         using input_value_type = nt::mutable_value_type_t<InputSliceInterpolator>;
         using output_value_type = nt::value_type_t<OutputSliceAccessor>;
@@ -48,60 +48,60 @@ namespace noa::geometry {
         using output_weight_type = nt::value_type_t<OutputWeightAccessorOrEmpty>;
 
         static constexpr bool IS_VALID_INPUT_SLICE =
-                nt::is_interpolator_2d_v<InputSliceInterpolator> &&
+                nt::is_interpolator_nd_v<InputSliceInterpolator, 2> and
                 nt::is_real_or_complex_v<input_value_type>;
 
         static constexpr bool IS_VALID_INPUT_WEIGHT =
-                !HAS_WEIGHTS ||
-                (nt::is_interpolator_2d_v<InputWeightInterpolatorOrEmpty> &&
+                not HAS_WEIGHTS or
+                (nt::is_interpolator_nd_v<InputWeightInterpolatorOrEmpty, 2> and
                  nt::is_real_or_complex_v<input_weight_type>);
 
         static constexpr bool IS_VALID_OUTPUT_SLICE =
-                nt::is_accessor_nd_v<OutputSliceAccessor, 3> &&
-                !std::is_const_v<output_value_type> &&
-                (nt::are_complex_v<output_value_type, input_value_type> ||
-                 (nt::is_real_v<output_value_type> && nt::is_real_or_complex_v<input_value_type>));
+                nt::is_accessor_nd_v<OutputSliceAccessor, 3> and
+                not std::is_const_v<output_value_type> and
+                (nt::are_complex_v<output_value_type, input_value_type> or
+                 (nt::is_real_v<output_value_type> and nt::is_real_or_complex_v<input_value_type>));
 
         static constexpr bool IS_VALID_OUTPUT_WEIGHT =
-                !HAS_WEIGHTS ||
-                (nt::is_accessor_nd_v<OutputWeightAccessorOrEmpty, 3> &&
-                 !std::is_const_v<output_weight_type> &&
-                 (nt::are_complex_v<output_weight_type, input_weight_type> ||
-                  (nt::is_real_v<output_weight_type> && nt::is_real_or_complex_v<input_weight_type>)));
+                not HAS_WEIGHTS or
+                (nt::is_accessor_nd_v<OutputWeightAccessorOrEmpty, 3> and
+                 not std::is_const_v<output_weight_type> and
+                 (nt::are_complex_v<output_weight_type, input_weight_type> or
+                  (nt::is_real_v<output_weight_type> and nt::is_real_or_complex_v<input_weight_type>)));
 
         static constexpr bool IS_VALID_INPUT_SCALE =
-                std::is_empty_v<InputScaleOrEmpty> || nt::is_mat22_v<InputScaleOrEmpty> ||
-                ((nt::is_accessor_1d_v<InputScaleOrEmpty> || std::is_pointer_v<InputScaleOrEmpty>) &&
+                std::is_empty_v<InputScaleOrEmpty> or nt::is_mat22_v<InputScaleOrEmpty> or
+                ((nt::is_accessor_nd_v<InputScaleOrEmpty, 1> or std::is_pointer_v<InputScaleOrEmpty>) and
                  nt::is_mat22_v<std::remove_pointer_t<nt::value_type_t<InputScaleOrEmpty>>>);
 
         static constexpr bool IS_VALID_OUTPUT_SCALE =
-                std::is_empty_v<OutputScaleOrEmpty> || nt::is_mat22_v<OutputScaleOrEmpty> ||
-                ((nt::is_accessor_1d_v<OutputScaleOrEmpty> || std::is_pointer_v<OutputScaleOrEmpty>) &&
+                std::is_empty_v<OutputScaleOrEmpty> or nt::is_mat22_v<OutputScaleOrEmpty> or
+                ((nt::is_accessor_nd_v<OutputScaleOrEmpty, 1> or std::is_pointer_v<OutputScaleOrEmpty>) and
                  nt::is_mat22_v<std::remove_pointer_t<nt::value_type_t<OutputScaleOrEmpty>>>);
 
         // For CUDA, we need to reinterpret a __constant__ array to the input rotation type,
         // so generate the correct type here.
         static constexpr bool IS_INPUT_ROTATION_A_VALUE_ =
-                nt::is_mat33_v<InputRotate> || nt::is_quaternion_v<InputRotate>;
+                nt::is_mat33_v<InputRotate> or nt::is_quaternion_v<InputRotate>;
         using input_rotate_array_type = std::conditional_t<
                 IS_INPUT_ROTATION_A_VALUE_,
                 const nt::remove_ref_cv_t<InputRotate>*,
                 const std::remove_pointer_t<nt::value_type_t<InputRotate>>*>;
 
         static constexpr bool IS_VALID_INPUT_ROTATION =
-                IS_INPUT_ROTATION_A_VALUE_ ||
-                ((nt::is_accessor_1d_v<InputRotate> || std::is_pointer_v<InputRotate>) &&
-                 (nt::is_mat33_v<std::remove_pointer_t<nt::value_type_t<InputRotate>>> ||
+                IS_INPUT_ROTATION_A_VALUE_ or
+                ((nt::is_accessor_nd_v<InputRotate, 1> or std::is_pointer_v<InputRotate>) and
+                 (nt::is_mat33_v<std::remove_pointer_t<nt::value_type_t<InputRotate>>> or
                   nt::is_quaternion_v<std::remove_pointer_t<nt::value_type_t<InputRotate>>>));
 
         static constexpr bool IS_VALID_OUTPUT_ROTATION =
-                (nt::is_mat33_v<OutputRotate> || nt::is_quaternion_v<OutputRotate>) ||
-                ((nt::is_accessor_1d_v<OutputRotate> || std::is_pointer_v<OutputRotate>) &&
-                 (nt::is_mat33_v<std::remove_pointer_t<nt::value_type_t<OutputRotate>>> ||
+                (nt::is_mat33_v<OutputRotate> or nt::is_quaternion_v<OutputRotate>) or
+                ((nt::is_accessor_nd_v<OutputRotate, 1> or std::is_pointer_v<OutputRotate>) and
+                 (nt::is_mat33_v<std::remove_pointer_t<nt::value_type_t<OutputRotate>>> or
                   nt::is_quaternion_v<std::remove_pointer_t<nt::value_type_t<OutputRotate>>>));
 
         static constexpr bool IS_VALID_EWS =
-                std::is_empty_v<EWSOrEmpty> ||
+                std::is_empty_v<EWSOrEmpty> or
                 nt::is_any_v<EWSOrEmpty, Coord, Vec2<Coord>>;
     };
 
@@ -161,10 +161,10 @@ namespace noa::geometry {
 
         using coord2_type = Vec2<coord_type>;
         using coord3_type = Vec3<coord_type>;
-        using input_value_type = typename concept_type::input_value_type;
-        using output_value_type = typename concept_type::output_value_type;
-        using input_weight_type = typename concept_type::input_weight_type;
-        using output_weight_type = typename concept_type::output_weight_type;
+        using input_value_type = concept_type::input_value_type;
+        using output_value_type = concept_type::output_value_type;
+        using input_weight_type = concept_type::input_weight_type;
+        using output_weight_type = concept_type::output_weight_type;
         using input_value_real_type = nt::value_type_t<input_value_type>;
         using input_weight_real_type = nt::value_type_t<input_weight_type>;
         using output_value_real_type = nt::value_type_t<output_value_type>;
@@ -208,26 +208,26 @@ namespace noa::geometry {
             const auto l_input_shape = input_shape.filter(2, 3);
             const auto l_output_shape = output_shape.filter(2, 3);
 
-            m_f_input_shape = coord2_type(l_input_shape.vec());
-            m_f_output_shape = coord2_type(l_output_shape.vec());
+            m_f_input_shape = coord2_type::from_vec(l_input_shape.vec);
+            m_f_output_shape = coord2_type::from_vec(l_output_shape.vec);
             m_output_slice_size_y = l_output_shape[0];
             m_f_input_center_y = static_cast<coord_type>(l_input_shape[0] / 2); // slice Y center
 
             // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
             // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
-            if constexpr (!std::is_empty_v<ews_or_empty_type>)
-                m_ews_diam_inv = noa::any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_or_empty_type{};
+            if constexpr (not std::is_empty_v<ews_or_empty_type>)
+                m_ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_or_empty_type{};
 
-            m_fftfreq_cutoff_sqd = noa::math::max(fftfreq_cutoff, coord_type{0});
+            m_fftfreq_cutoff_sqd = max(fftfreq_cutoff, coord_type{0});
             m_fftfreq_cutoff_sqd *= m_fftfreq_cutoff_sqd;
 
             // Of course, we have no z here, but the smallest axis is a good fallback.
-            m_volume_z = static_cast<coord_type>(noa::math::min(l_output_shape));
-            m_insert_fftfreq_sinc = noa::math::max(insert_fftfreq_sinc, 1 / m_volume_z);
-            m_insert_fftfreq_blackman = noa::math::max(insert_fftfreq_blackman, 1 / m_volume_z);
-            m_extract_fftfreq_sinc = noa::math::max(extract_fftfreq_sinc, 1 / m_volume_z);
-            m_extract_fftfreq_blackman = noa::math::max(extract_fftfreq_blackman, 1 / m_volume_z);
-            std::tie(m_extract_blackman_size, m_extract_window_total_weight) = details::z_window_spec<index_type>(
+            m_volume_z = static_cast<coord_type>(min(l_output_shape));
+            m_insert_fftfreq_sinc = max(insert_fftfreq_sinc, 1 / m_volume_z);
+            m_insert_fftfreq_blackman = max(insert_fftfreq_blackman, 1 / m_volume_z);
+            m_extract_fftfreq_sinc = max(extract_fftfreq_sinc, 1 / m_volume_z);
+            m_extract_fftfreq_blackman = max(extract_fftfreq_blackman, 1 / m_volume_z);
+            tie(m_extract_blackman_size, m_extract_window_total_weight) = details::z_window_spec<index_type>(
                     m_extract_fftfreq_sinc, m_extract_fftfreq_blackman, m_volume_z);
         }
 
@@ -245,7 +245,7 @@ namespace noa::geometry {
         NOA_HD void operator()(index_type batch, index_type y, index_type u) const noexcept {
             const coord3_type fftfreq_3d = compute_fftfreq_in_volume_(batch, y, u);
 
-            if (noa::math::dot(fftfreq_3d, fftfreq_3d) > m_fftfreq_cutoff_sqd) {
+            if (dot(fftfreq_3d, fftfreq_3d) > m_fftfreq_cutoff_sqd) {
                 if (!m_add_to_output)
                     m_output_slices(batch, y, u) = output_value_type{0};
                 return;
@@ -274,7 +274,7 @@ namespace noa::geometry {
                     w, m_extract_blackman_size, m_volume_z);
             fftfreq_3d[0] += fftfreq_z_offset;
 
-            if (noa::math::dot(fftfreq_3d, fftfreq_3d) > m_fftfreq_cutoff_sqd)
+            if (dot(fftfreq_3d, fftfreq_3d) > m_fftfreq_cutoff_sqd)
                 return;
 
             const auto value_and_weight = sample_virtual_volume_(fftfreq_3d);
@@ -285,12 +285,12 @@ namespace noa::geometry {
                     m_extract_window_total_weight; // convolution sum is 1
 
             // Add the contribution for this z-offset. The z-convolution is essentially a simple weighted mean.
-            noa::details::atomic_add(
+            ng::atomic_add(
                     m_output_slices,
                     value_and_weight.first * static_cast<output_value_real_type>(convolution_weight),
                     batch, y, u);
             if constexpr (HAS_WEIGHTS) {
-                noa::details::atomic_add(
+                ng::atomic_add(
                         m_output_weights,
                         value_and_weight.second * static_cast<output_weight_real_type>(convolution_weight),
                         batch, y, u);
@@ -304,7 +304,7 @@ namespace noa::geometry {
                 index_type batch, index_type y, index_type u
         ) const noexcept {
             const index_type v = noa::fft::index2frequency<IS_OUTPUT_SLICE_CENTERED>(y, m_output_slice_size_y);
-            auto fftfreq_2d = coord2_type{v, u} / m_f_output_shape;
+            auto fftfreq_2d = coord2_type::from_values(v, u) / m_f_output_shape;
             return details::transform_slice2grid(
                     fftfreq_2d, m_extract_inv_scaling, m_extract_fwd_rotation,
                     batch, m_ews_diam_inv);
@@ -322,14 +322,6 @@ namespace noa::geometry {
             output_weight_type weight{};
             multiplicity_t multiplicity{0};
 
-//            #if defined(__CUDA_ARCH__)
-//            using input_rotate_array_type = typename concept_type::input_rotate_array_type;
-//            const auto insert_inv_rotation = reinterpret_cast<input_rotate_array_type>(
-//                    CUDA_FOURIER_INSERT_EXTRACT_CONSTANT_ARRAY_NAME);
-//            #else
-//            const auto& insert_inv_rotation = m_insert_inv_rotation;
-//            #endif
-
             // For every slice to insert...
             for (index_type i = 0; i < m_input_count; ++i) {
                 // 1. Project the 3d frequency onto that input-slice.
@@ -345,7 +337,7 @@ namespace noa::geometry {
 
                 // Compute only if voxel is affected by this slice.
                 // If we fall exactly at the blackman cutoff, the value is 0, so exclude the equality case too.
-                if (noa::math::abs(fftfreq_z) < m_insert_fftfreq_blackman) {
+                if (abs(fftfreq_z) < m_insert_fftfreq_blackman) {
                     i_multiplicity = static_cast<multiplicity_t>(details::windowed_sinc(
                             fftfreq_z, m_insert_fftfreq_sinc, m_insert_fftfreq_blackman));
 
@@ -370,7 +362,7 @@ namespace noa::geometry {
             // by the total weight (resulting in a weighted mean). If the total weight is less than 1, we need to
             // leave it down-weighted, so don't divide by the total weight.
             if (m_correct_multiplicity) {
-                multiplicity = noa::math::max(multiplicity_t{1}, multiplicity);
+                multiplicity = max(multiplicity_t{1}, multiplicity);
                 value /= static_cast<input_value_real_type>(multiplicity);
                 if constexpr (HAS_WEIGHTS)
                     weight /= static_cast<input_weight_real_type>(multiplicity);
@@ -410,48 +402,4 @@ namespace noa::geometry {
         NOA_NO_UNIQUE_ADDRESS output_scale_or_empty_type m_extract_inv_scaling;
         NOA_NO_UNIQUE_ADDRESS ews_or_empty_type m_ews_diam_inv{};
     };
-
-    /// Factory function for FourierInsertExtractOp.
-    template<noa::fft::Remap REMAP,
-             typename Index, typename Coord,
-             typename InputScaleOrEmpty, typename InputRotate,
-             typename OutputScaleOrEmpty, typename OutputRotate,
-             typename EWSOrEmpty,
-             typename InputSliceInterpolator,
-             typename InputWeightInterpolatorOrEmpty,
-             typename OutputSliceAccessor,
-             typename OutputWeightAccessorOrEmpty>
-    auto fourier_insert_and_extract_op(
-            const InputSliceInterpolator& input_slices,
-            const InputWeightInterpolatorOrEmpty& input_weights,
-            const Shape4<Index>& input_shape,
-            const OutputSliceAccessor& output_slices,
-            const OutputWeightAccessorOrEmpty& output_weights,
-            const Shape4<Index>& output_shape,
-            const InputScaleOrEmpty& insert_fwd_scaling,
-            const InputRotate& insert_inv_rotation,
-            const OutputScaleOrEmpty& extract_inv_scaling,
-            const OutputRotate& extract_fwd_rotation,
-            Coord insert_fftfreq_sinc,
-            Coord insert_fftfreq_blackman,
-            Coord extract_fftfreq_sinc,
-            Coord extract_fftfreq_blackman,
-            Coord fftfreq_cutoff,
-            bool add_to_output, bool correct_multiplicity,
-            EWSOrEmpty ews_radius
-    ) {
-        using op_t = FourierInsertExtractOp<
-                REMAP, Index, Coord, InputScaleOrEmpty, InputRotate, OutputScaleOrEmpty, OutputRotate, EWSOrEmpty,
-                InputSliceInterpolator, InputWeightInterpolatorOrEmpty,
-                OutputSliceAccessor, OutputWeightAccessorOrEmpty>;
-        return op_t(
-                input_slices, input_weights, input_shape,
-                output_slices, output_weights, output_shape,
-                insert_fwd_scaling, insert_inv_rotation,
-                extract_inv_scaling, extract_fwd_rotation,
-                insert_fftfreq_sinc, insert_fftfreq_blackman,
-                extract_fftfreq_sinc, extract_fftfreq_blackman,
-                fftfreq_cutoff, add_to_output, correct_multiplicity, ews_radius
-        );
-    }
 }
