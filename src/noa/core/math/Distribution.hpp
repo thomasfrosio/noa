@@ -33,8 +33,8 @@ namespace noa {
             using real_t = nt::value_type_t<compute_type>;
             auto uniform_real = generator.template next<real_t>(); // [0,1]
             auto uniform_imag = generator.template next<real_t>(); // [0,1]
-            return {.real= uniform_real * (m_max.real - m_min.real) + m_min.real,
-                    .imag= uniform_imag * (m_max.imag - m_min.imag) + m_min.imag};
+            return {.real=uniform_real * (m_max.real - m_min.real) + m_min.real,
+                    .imag=uniform_imag * (m_max.imag - m_min.imag) + m_min.imag};
         }
 
     private:
@@ -222,7 +222,7 @@ namespace noa {
     /// Element-wise randomize operator.
     template<typename Distribution>
     struct Randomizer {
-        constexpr explicit Randomizer(Distribution distribution, u64 seed)
+        constexpr explicit Randomizer(const Distribution& distribution, u64 seed)
                 : m_distribution(distribution), random_seed(seed) {}
 
         constexpr void init(auto uid) {
@@ -231,7 +231,7 @@ namespace noa {
 
         template<typename T>
         constexpr auto operator()(T& output) noexcept {
-            output = m_distribution(m_generator);
+            output = static_cast<T>(m_distribution(m_generator));
         }
 
     private:

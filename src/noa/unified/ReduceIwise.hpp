@@ -81,10 +81,10 @@ namespace noa::guts {
             Output&& outputs
     ) {
         []<typename... T>(nt::TypeList<T...>){
-            static_assert(nt::bool_and<not std::is_const_v<std::remove_reference_t<T>>...>::value,
-                          "The initial reduced or the output values should not be const qualified");
-            static_assert(nt::bool_and<not nt::is_varray_v<std::remove_reference_t<T>>...>::value,
+            static_assert(nt::bool_and<(not nt::is_varray_v<std::remove_reference_t<T>>)...>::value,
                           "The initial reduced or the output values should not be varrays");
+            static_assert(nt::bool_and<(not std::is_const_v<std::remove_reference_t<T>>)...>::value,
+                          "The initial reduced or the output values should not be const qualified");
         }(nt::type_list_t<Reduced>{} + nt::type_list_t<Output>{});
 
         Tuple reduced_accessors = guts::to_tuple_of_accessors(std::forward<Reduced>(reduced));

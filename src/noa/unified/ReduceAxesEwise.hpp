@@ -105,41 +105,60 @@ namespace noa::guts {
     constexpr void reduce_axes_ewise(
             Inputs&& inputs,
             Reduced&& reduced,
-            Outputs& outputs,
+            Outputs&& outputs,
             Op&& reduce_operator
     ) {
-        constexpr i64 index_of_first_varray = guts::index_of_first_varray(inputs);
+        constexpr i64 index_of_first_varray = guts::index_of_first_varray<Inputs>();
         static_assert(index_of_first_varray >= 0, "There should be at least one input varray");
+        constexpr auto index = static_cast<size_t>(index_of_first_varray);
 
-        constexpr bool are_all_outputs_varrays =
-                []<typename... T>(nt::TypeList<T...>) {
-                    return nt::are_varray_v<T...>;
-                }(nt::type_list_t<Outputs>{});
-        static_assert(are_all_outputs_varrays, "All of the outputs should be varrays");
+        static_assert(guts::are_all_varrays<Outputs>(), "All of the outputs should be varrays");
         static_assert(std::tuple_size_v<Outputs> > 0, "There should be at least one output");
 
-        // TODO If all axes are reduced, i.e. a single output value is saved, try to reorder the inputs,
-        //      like reduce_ewise?
+        Tuple input_accessors = guts::to_tuple_of_accessors(std::forward<Inputs>(inputs));
+        Tuple reduced_accessors = guts::to_tuple_of_accessors(std::forward<Reduced>(reduced));
+        Tuple output_accessors = guts::to_tuple_of_accessors(std::forward<Outputs>(outputs));
 
-        // TODO Check no aliasing between input and outputs?
-
-        // Parse the inputs.
-        const auto& first_input_array = inputs[Tag<index_of_first_varray>{}];
-        const auto device = first_input_array.device();
+        const auto& first_input_array = inputs[Tag<index>{}];
         auto input_shape = first_input_array.shape();
+        auto output_shape = outputs[Tag<0>{}].shape();
+        const auto device = outputs[Tag<0>{}].device();
+
+        // If reduce to one element or one element per batch, and if the inputs have the same stride order,
+        // then try to reorder the input(s) to the rightmost order. Don't reorder the batch axis if it is
+        // not reduced.
+        const Vec4<bool> reduced_dimensions = output_shape == 1 or input_shape != output_shape;
+        bool do_reorder{};
+        Vec4<i64> order;
+        if (all(reduced_dimensions.pop_front())) {
+            auto strides = first_input_array.strides();
+            if (not reduced_dimensions[0])
+                strides[0] = std::numeric_limits<i64>::max(); // keep batch to leftmost
+            order = ni::order(strides, input_shape);
+            do_reorder = any(order != Vec4<i64>{0, 1, 2, 3});
+        }
 
         inputs.for_each_enumerate([&]<size_t I, typename T>(T& input) {
-            if constexpr (I > index_of_first_varray and nt::is_varray_v<T>) {
+            if constexpr (nt::is_varray_v<T>) {
                 check(device == input.device(),
-                      "Input arrays should be on the same device, but got device:0={} and device:{}={}",
+                      "Input arrays should be on the same device as the output(s), but got output device={} and device:{}={}",
                       device, I, input.device());
+            }
+            if constexpr (I > index and nt::is_varray_v<T>) {
                 check(all(input_shape == input.shape()),
                       "Input arrays should have the same shape, but got shape:0={} and shape:{}={}",
                       input_shape, I, input.shape());
+
+                // Only reorder if all the inputs have the same order.
+                if (do_reorder) {
+                    auto strides = input.strides();
+                    if (not reduced_dimensions[0])
+                        strides[0] = std::numeric_limits<i64>::max(); // keep batch to leftmost
+                    do_reorder = all(order == ni::order(strides, input_shape));
+                }
             }
         });
 
-        auto output_shape = outputs[Tag<0>{}].shape();
         outputs.for_each_enumerate([&]<size_t I, typename T>(T& output) {
             if constexpr (I > 0) {
                 check(device == output.device(),
@@ -151,6 +170,12 @@ namespace noa::guts {
             }
         });
 
+        // No need to reorder the output shape, since we only reorder axes that are empty in the output.
+        if (do_reorder) {
+            input_shape = input_shape.reorder(order);
+            guts::reorder_accessors(order, input_accessors);
+        }
+
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
@@ -160,14 +185,11 @@ namespace noa::guts {
                 .zip_reduced=ZipReduced,
                 .zip_output=ZipOutput
             };
-            Tuple input_accessors = guts::to_tuple_of_accessors(std::forward<Inputs>(inputs));
-            Tuple reduced_accessors = guts::to_tuple_of_accessors(std::forward<Reduced>(reduced));
-            Tuple output_accessors = guts::to_tuple_of_accessors(std::forward<Outputs>(outputs));
 
             if (cpu_stream.is_sync()) {
                 noa::cpu::reduce_axes_ewise<config>(
                         input_shape, output_shape,
-                        std::move(reduce_operator),
+                        std::forward<Op>(reduce_operator),
                         std::move(input_accessors),
                         std::move(reduced_accessors),
                         std::move(output_accessors),
@@ -194,9 +216,9 @@ namespace noa::guts {
             noa::cuda::reduce_axes_ewise<config>(
                     input_shape, output_shape,
                     std::forward<Op>(reduce_operator),
-                    guts::to_tuple_of_accessors(std::forward<Inputs>(inputs)),
-                    guts::to_tuple_of_accessors(std::forward<Reduced>(reduced)),
-                    guts::to_tuple_of_accessors(std::forward<Outputs>(outputs)),
+                    std::move(input_accessors),
+                    std::move(reduced_accessors),
+                    std::move(output_accessors),
                     cuda_stream);
 
             // Enqueue the shared handles. See ewise() for more details.

@@ -19,6 +19,9 @@ set(NOA_UNIFIED_HEADERS
     unified/Traits.hpp
     unified/Utilities.hpp
     unified/View.hpp
+    unified/Complex.hpp
+    unified/Random.hpp
+    unified/Reduce.hpp
 
     #    unified/Texture.hpp
     #    unified/Find.hpp

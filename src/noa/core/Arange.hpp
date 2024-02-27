@@ -32,7 +32,7 @@ namespace noa {
         constexpr Arange1d(const accessor_type& accessor, value_type start, value_type step)
                 : m_output(accessor), m_arange{start, step} {}
 
-        constexpr void operator()(auto i) const { m_output[i] = m_arange(i); }
+        constexpr void operator()(std::integral auto i) const { m_output[i] = m_arange(i); }
 
     private:
         accessor_type m_output;

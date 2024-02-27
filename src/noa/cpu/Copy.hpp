@@ -6,7 +6,7 @@
 #include <algorithm>
 
 #include "noa/core/indexing/Layout.hpp"
-#include "noa/core/math/Generic.hpp"
+#include "noa/core/Operators.hpp"
 #include "noa/core/Types.hpp"
 #include "noa/cpu/Ewise.hpp"
 

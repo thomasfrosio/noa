@@ -23,19 +23,23 @@ namespace noa {
     /// Generic element-wise transformation.
     /// \param[in] inputs       Input varray(s) and/or values to transform.
     /// \param[out] outputs     Output varray(s).
-    /// \param ewise_operator   Operator satisfying the iwise core interface.
-    ///                         The operator is perfectly forwarded to the backend, but not than more than
+    /// \param ewise_operator   Operator satisfying the ewise core interface.
+    ///                         The operator is perfectly forwarded to the backend, but note than more than
     ///                         one move can happen by the time the operator reaches the compute kernel.
     ///
-    /// \note The advantage of this function compared to iwise is that it allows backend to analyse the inputs and
-    ///       outputs to deduce the most efficient way to traverse these arrays, e.g. by reordering the dimensions,
-    ///       collapsing contiguous dimensions together (up to 1d), and can trigger the vectorization for the 1d case
-    ///       by checking for data contiguity and aliasing.
+    /// \note The advantage of this function compared to iwise is that it can analyse the inputs and outputs to deduce
+    ///       the most efficient way to traverse these arrays, e.g. by reordering the dimensions, collapsing contiguous
+    ///       dimensions together (up to 1d), and can trigger the vectorization for the 1d case by checking for data
+    ///       contiguity and aliasing.
+    ///       Note that because the core interface allows the operator to modify the inputs and allows the inputs/outputs
+    ///       to alias, GPU vectorization can only be triggered if the input varrays have a const value type and if the
+    ///       inputs/outputs don't alias. Note that the core interface also allows the output values to be read/updated,
+    ///       which greatly simplifies some operations.
     ///
     /// \note Views or Arrays (i.e. varrays) are supported and handled separately from other types. Varrays are
     ///       parsed, wrapped into Accessors and sent to the backends' ewise core function. For asynchronous cases
     ///       (async CPU stream or GPU), the shared handle of every Array (see Array::share()) is copied and will
-    ///       be released (i.e. destructed) when the core function completes, thus ensuring that the Array's resource
+    ///       be released (i.e. destructed) when the core function finishes, thus ensuring that the Array's resource
     ///       stays alive during the processing. Other types (so everything that is not a varray) are moved/copied
     ///       into a wrapper (AccessorValue) which will pass a (const) lvalue reference of the moved/copied value
     ///       to the operator. No other actions are performed on these types, so it is the responsibility of the
@@ -84,154 +88,152 @@ namespace noa {
 
 namespace noa::guts {
     template<bool ZipInput, bool ZipOutput, typename Inputs, typename Outputs, typename EwiseOp>
-    requires nt::are_tuple_v<Inputs, Outputs>
     void ewise(Inputs&& inputs, Outputs&& outputs, EwiseOp&& ewise_op) {
-        constexpr size_t N_INPUTS = std::tuple_size_v<Inputs>();
-        constexpr size_t N_OUTPUTS = std::tuple_size_v<Outputs>();
-        if constexpr (N_INPUTS == 0 and N_OUTPUTS == 0)
+        constexpr size_t N_INPUTS = std::tuple_size_v<std::decay_t<Inputs>>;
+        constexpr size_t N_OUTPUTS = std::tuple_size_v<std::decay_t<Outputs>>;
+        if constexpr (N_INPUTS == 0 and N_OUTPUTS == 0) {
             return; // valid, do nothing
+        } else {
+            // While these are forwarded, varrays are actually never moved, it simply returns the .accessor().
+            // For anything other than varrays, it can be moved thus left in an unspecified state,
+            // i.e. we shouldn't read from these elements again.
+            Tuple input_accessors = guts::to_tuple_of_accessors(std::forward<Inputs>(inputs));
+            Tuple output_accessors = guts::to_tuple_of_accessors(std::forward<Outputs>(outputs));
 
-        // While these are forwarded, varrays are actually never moved, it simply returns the .accessor().
-        // For anything other than varrays, it can be moved thus left in an unspecified state,
-        // i.e. we shouldn't read from these elements again.
-        Tuple input_accessors = guts::to_tuple_of_accessors(std::forward<Inputs>(inputs));
-        Tuple output_accessors = guts::to_tuple_of_accessors(std::forward<Outputs>(outputs));
+            Shape4<i64> shape;
+            Device device;
+            Vec4<i64> order;
+            bool do_reorder{};
 
-        Shape4<i64> shape;
-        Device device;
-        Vec4<i64> order;
-        bool do_reorder{};
+            if constexpr (N_OUTPUTS >= 1) {
+                if constexpr (guts::are_all_varrays<Outputs>()) {
+                    const auto& first_output = outputs[Tag<0>{}];
+                    shape = first_output.shape();
+                    device = first_output.device();
+                    order = ni::order(first_output.strides(), shape);
+                    do_reorder = any(order != Vec4<i64>{0, 1, 2, 3});
 
-        if constexpr (N_OUTPUTS >= 1) {
-            constexpr bool outputs_are_all_varrays = outputs.all([]<typename T>(const T&) {
-                return nt::is_varray_v<T>;
-            });
-            if constexpr (outputs_are_all_varrays) {
-                const auto& first_output = outputs[Tag<0>{}];
-                shape = first_output.shape();
-                device = first_output.device();
-                order = ni::order(first_output.strides(), shape);
-                do_reorder = any(order != Vec4<i64>{0, 1, 2, 3});
-
-                outputs.for_each_enumerate([&]<size_t I, typename T>(const T& output) {
-                    if constexpr (I > 0 and nt::is_varray_v<T>) {
-                        check(device == output.device(),
-                              "Output arrays should be on the same device, but got device:0={} and device:{}={}",
-                              device, I, output.device());
-                        check(all(shape == output.shape()),
-                              "Output arrays should have the same shape, but got shape:0={} and shape:{}={}",
-                              shape, I, output.shape());
-
-                        check(all(order == ni::order(output.strides(), shape)),
-                              "Output arrays should have the same stride order, but got strides:0={} and strides:{}={}",
-                              first_output.strides(), I, output.strides());
-                    }
-                    if constexpr (nt::is_varray_v<T>) {
+                    outputs.for_each_enumerate([&]<size_t I, typename T>(const T& output) {
+                        check(not output.is_empty(), "Empty output array detected (index={})", I);
                         check(all(output.strides() > 0),
                               "Output arrays cannot be broadcasted, i.e. strides should not be 0, but got strides:{}={}",
                               I, output.strides());
-                    }
-                });
-
-                // Automatic broadcasting of the inputs.
-                // "inputs" is used after forward, but as mentioned above "to_tuple_of_accessors" doesn't
-                // actually move varrays (they are not mutated) and here we only read varrays.
-                input_accessors.for_each_enumerate([&inputs, &shape]<size_t I, typename T>(T& accessor) {
-                    if constexpr (nt::is_varray_v<decltype(inputs[Tag<I>{}])>) {
-                        static_assert(nt::is_accessor_pure_v<T>);
-                        const auto& input_shape = inputs[Tag<I>{}].shape();
-                        if (not ni::broadcast(input_shape.shape(), accessor.strides(), shape)) {
-                            panic("Cannot broadcast an array of shape {} into an array of shape {}",
-                                  input_shape.shape(), shape);
+                        if constexpr (I > 0) {
+                            check(device == output.device(),
+                                  "Output arrays should be on the same device, but got device:0={} and device:{}={}",
+                                  device, I, output.device());
+                            check(all(shape == output.shape()),
+                                  "Output arrays should have the same shape, but got shape:0={} and shape:{}={}",
+                                  shape, I, output.shape());
+                            check(all(order == ni::order(output.strides(), shape)),
+                                  "Output arrays should have the same stride order, but got strides:0={} and strides:{}={}",
+                                  first_output.strides(), I, output.strides());
                         }
-                    }
-                });
-            } else {
-                static_assert(nt::always_false_v<Outputs>, "The outputs should be varrays");
+                    });
+
+                    // Automatic broadcasting of the inputs.
+                    // "inputs" is used after forward, but as mentioned above "to_tuple_of_accessors"
+                    // doesn't actually move varrays and here we only read varrays.
+                    input_accessors.for_each_enumerate([&inputs, &shape]<size_t I, typename T>(T& accessor) {
+                        if constexpr (nt::is_varray_v<decltype(inputs[Tag<I>{}])>) {
+                            static_assert(nt::is_accessor_pure_v<T>);
+                            const auto& input_shape = inputs[Tag<I>{}].shape();
+                            if (not ni::broadcast(input_shape, accessor.strides(), shape)) {
+                                panic("Cannot broadcast an array of shape {} into an array of shape {}",
+                                      input_shape, shape);
+                            }
+                        }
+                    });
+                } else {
+                    static_assert(nt::always_false_v<Outputs>, "The outputs should be varrays");
+                }
+            } else { // N_INPUTS >= 1
+                constexpr i64 index_of_first_varray = guts::index_of_first_varray<Inputs>();
+                if constexpr (index_of_first_varray >= 0) {
+                    constexpr auto index = static_cast<size_t>(index_of_first_varray);
+                    const auto& first_input_array = inputs[Tag<index>{}];
+                    shape = first_input_array.shape();
+                    device = first_input_array.device();
+                    order = ni::order(first_input_array.strides(), shape);
+                    do_reorder = any(order != Vec4<i64>{0, 1, 2, 3});
+
+                    inputs.for_each_enumerate([&]<size_t I, typename T>(T& input) {
+                        if constexpr (nt::is_varray_v<T>)
+                            check(not input.is_empty(), "Empty input array detected (index={})", I);
+                        if constexpr (I > index and nt::is_varray_v<T>) {
+                            check(device == input.device(),
+                                  "Input arrays should be on the same device, but got device:0={} and device:{}={}",
+                                  device, I, input.device());
+                            check(all(shape == input.shape()),
+                                  "Input arrays should have the same shape, but got shape:0={} and shape:{}={}",
+                                  shape, I, input.shape());
+
+                            // Only reorder if all the inputs have the same order.
+                            if (do_reorder)
+                                do_reorder = all(order == ni::order(input.strides(), shape));
+                            // TODO Forcing the same order is okay, but may be a bit too restrictive since it effectively
+                            //      prevents automatic broadcasting (the caller can still explicitly broadcast though).
+                            //      We may instead find the input with the largest effective shape and use it as
+                            //      as reference for reordering the inputs?
+                        }
+                    });
+                } else {
+                    static_assert(nt::always_false_v<Inputs>,
+                                  "For cases with inputs but without outputs, there should be at least one input varray");
+                }
             }
-        } else { // N_INPUTS >= 1
-            constexpr i64 index_of_first_varray = guts::index_of_first_varray(inputs);
-            if constexpr (index_of_first_varray >= 0) {
-                const auto& first_input_array = inputs[Tag<index_of_first_varray>{}];
-                shape = first_input_array.shape();
-                device = first_input_array.device();
-                order = ni::order(first_input_array.strides(), shape);
-                do_reorder = any(order != Vec4<i64>{0, 1, 2, 3});
 
-                inputs.for_each_enumerate([&]<size_t I, typename T>(T& input) {
-                    if constexpr (I > index_of_first_varray and nt::is_varray_v<T>) {
-                        check(device == input.device(),
-                              "Input arrays should be on the same device, but got device:0={} and device:{}={}",
-                              device, I, input.device());
-                        check(all(shape == input.shape()),
-                              "Input arrays should have the same shape, but got shape:0={} and shape:{}={}",
-                              shape, I, input.shape());
-
-                        // Only reorder if all the inputs have the same order.
-                        if (do_reorder)
-                            do_reorder = all(order == ni::order(input.strides(), shape));
-                        // TODO Forcing the same order is okay, but may be a bit too restrictive since it effectively
-                        //      prevents automatic broadcasting (the caller can still explicitly broadcast though).
-                        //      We may instead find the input with the largest effective shape and use it as
-                        //      as reference for reordering the inputs?
-                    }
-                });
-            } else {
-                static_assert(nt::always_false_v<Inputs>,
-                              "For cases with inputs but without outputs, there should be at least one input varray");
+            if (do_reorder) {
+                shape = shape.reorder(order);
+                guts::reorder_accessors(order, input_accessors, output_accessors);
             }
-        }
 
-        if (do_reorder) {
-            shape = shape.reorder(order);
-            guts::reorder_accessors(order, input_accessors, output_accessors);
-        }
+            Stream& stream = Stream::current(device);
+            if (device.is_cpu()) {
+                auto& cpu_stream = stream.cpu();
+                auto n_threads = cpu_stream.thread_limit();
+                constexpr auto config = noa::cpu::EwiseConfig{.zip_input=ZipInput, .zip_output=ZipOutput};
 
-        Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            auto& cpu_stream = stream.cpu();
-            auto n_threads = cpu_stream.thread_limit();
-            constexpr auto config = noa::cpu::EwiseConfig{.zip_input=ZipInput, .zip_output=ZipOutput};
-
-            if (cpu_stream.is_sync()) {
-                noa::cpu::ewise<config>(
+                if (cpu_stream.is_sync()) {
+                    noa::cpu::ewise<config>(
+                            shape, std::forward<EwiseOp>(ewise_op),
+                            std::move(input_accessors),
+                            std::move(output_accessors),
+                            n_threads);
+                } else {
+                    cpu_stream.enqueue(
+                            [=,
+                             op = std::forward<EwiseOp>(ewise_op),
+                             ia = std::move(input_accessors),
+                             oa = std::move(output_accessors),
+                             ih = guts::extract_shared_handle_from_arrays(inputs),
+                             oh = guts::extract_shared_handle_from_arrays(outputs)
+                            ]() {
+                                noa::cpu::ewise<config>(shape, std::move(op), std::move(ia), std::move(oa), n_threads);
+                            });
+                }
+            } else {
+                #ifdef NOA_ENABLE_CUDA
+                auto& cuda_stream = Stream::current(device).cuda();
+                noa::cuda::ewise(
                         shape, std::forward<EwiseOp>(ewise_op),
                         std::move(input_accessors),
                         std::move(output_accessors),
-                        n_threads);
-            } else {
-                cpu_stream.enqueue(
-                        [=,
-                         op = std::forward<EwiseOp>(ewise_op),
-                         ia = std::move(input_accessors),
-                         oa = std::move(output_accessors),
-                         ih = guts::extract_shared_handle_from_arrays(inputs),
-                         oh = guts::extract_shared_handle_from_arrays(outputs)
-                        ]() {
-                            noa::cpu::ewise<config>(shape, std::move(op), std::move(ia), std::move(oa), n_threads);
-                        });
-            }
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            auto& cuda_stream = Stream::current(device).cuda();
-            noa::cuda::ewise(
-                    shape, std::forward<EwiseOp>(ewise_op),
-                    std::move(input_accessors),
-                    std::move(output_accessors),
-                    cuda_stream);
+                        cuda_stream);
 
-            // Enqueue the shared handles. Doing it using a single call to enqueue_attach is slightly more efficient.
-            [&]<size_t... I, size_t... O>(std::index_sequence<I...>, std::index_sequence<O...>) {
-                // "enqueue_attach" saves shared_ptr types and anything with a .share() that returns a shared_ptr,
-                // and ignores everything else. As such, we could directly pass the values of "inputs" and "outputs",
-                // but here we explicitly only want to save the shared_ptr from arrays.
-                auto ih = guts::extract_shared_handle_from_arrays(inputs);
-                auto oh = guts::extract_shared_handle_from_arrays(outputs);
-                cuda_stream.enqueue_attach(std::move(ih)[Tag<I>{}]..., std::move(oh)[Tag<O>{}]...);
-            }(nt::index_list_t<Inputs>{}, nt::index_list_t<Outputs>{});
-            #else
-            panic("No GPU backend detected");
-            #endif
+                // Enqueue the shared handles. Doing it using a single call to enqueue_attach is slightly more efficient.
+                [&]<size_t... I, size_t... O>(std::index_sequence<I...>, std::index_sequence<O...>) {
+                    // "enqueue_attach" saves shared_ptr types and anything with a .share() that returns a shared_ptr,
+                    // and ignores everything else. As such, we could directly pass the values of "inputs" and "outputs",
+                    // but here we explicitly only want to save the shared_ptr from arrays.
+                    auto ih = guts::extract_shared_handle_from_arrays(inputs);
+                    auto oh = guts::extract_shared_handle_from_arrays(outputs);
+                    cuda_stream.enqueue_attach(std::move(ih)[Tag<I>{}]..., std::move(oh)[Tag<O>{}]...);
+                }(nt::index_list_t<Inputs>{}, nt::index_list_t<Outputs>{});
+                #else
+                panic("No GPU backend detected");
+                #endif
+            }
         }
     }
 }

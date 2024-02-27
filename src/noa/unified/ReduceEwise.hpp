@@ -101,23 +101,24 @@ namespace noa::guts {
     constexpr void reduce_ewise(
             Inputs&& inputs,
             Reduced&& reduced,
-            Outputs& outputs,
+            Outputs&& outputs,
             Op&& op
     ) {
-        constexpr i64 index_of_first_varray = guts::index_of_first_varray(inputs);
+        constexpr i64 index_of_first_varray = guts::index_of_first_varray<Inputs>();
         static_assert(index_of_first_varray >= 0, "There should be at least one input varray");
+        constexpr auto index = static_cast<size_t>(index_of_first_varray);
 
         Tuple input_accessors = guts::to_tuple_of_accessors(std::forward<Inputs>(inputs));
         Tuple reduced_accessors = guts::to_tuple_of_accessors(std::forward<Reduced>(reduced));
 
-        const auto& first_input_array = inputs[Tag<index_of_first_varray>{}];
+        const auto& first_input_array = inputs[Tag<index>{}];
         auto shape = first_input_array.shape();
         const auto device = first_input_array.device();
         const auto order = ni::order(first_input_array.strides(), shape);
         bool do_reorder = any(order != Vec4<i64>{0, 1, 2, 3});
 
         inputs.for_each_enumerate([&]<size_t I, typename T>(T& input) {
-            if constexpr (I > index_of_first_varray and nt::is_varray_v<T>) {
+            if constexpr (I > index and nt::is_varray_v<T>) {
                 check(device == input.device(),
                       "Input arrays should be on the same device, but got device:0={} and device:{}={}",
                       device, I, input.device());
@@ -157,7 +158,7 @@ namespace noa::guts {
                     shape, std::forward<Op>(op),
                     std::move(input_accessors),
                     std::move(reduced_accessors),
-                    std::move(output_accessors),
+                    output_accessors,
                     cpu_stream.thread_limit());
 
         } else {

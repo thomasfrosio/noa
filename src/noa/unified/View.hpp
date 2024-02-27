@@ -265,12 +265,12 @@ namespace noa::inline types {
 
         template<char ORDER = 'C'>
         [[nodiscard]] constexpr bool are_contiguous() const noexcept {
-            return are_contiguous<ORDER>(m_accessor.strides(), shape());
+            return ni::are_contiguous<ORDER>(m_accessor.strides(), shape());
         }
 
         template<char ORDER = 'C'>
         [[nodiscard]] constexpr auto is_contiguous() const noexcept {
-            return is_contiguous<ORDER>(m_accessor.strides(), shape());
+            return ni::is_contiguous<ORDER>(m_accessor.strides(), shape());
         }
 
         /// Whether the view is empty. A View is empty if not initialized,

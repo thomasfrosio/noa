@@ -45,7 +45,8 @@ namespace noa::cuda::guts {
 
         // Load-vectorize every row.
         u32 input_vector_size{1};
-        if constexpr (ng::are_accessors_const<Input>() and std::decay_t<Input>::SIZE <= 4) {
+        if constexpr ((nt::has_allow_vectorization_v<Op> or ng::are_accessors_const<Input>())
+                      and std::decay_t<Input>::SIZE <= 4) {
             input_vector_size = maximum_vector_size(
                     input, Config::n_elements_per_thread, n_threads_x, shape_u32.pop_back());
         }

@@ -109,7 +109,8 @@ namespace noa::cuda::guts {
                     input_1d, vectorized_input, threadIdx.x);
 
             // Call the operator, store the results in the output buffer.
-            // This implies that the operator does not modify the input(s).
+            // This implies that the operator does not write to the input(s)
+            // and does not read from the output(s).
             using ovec_t = vectorized_tuple_t<Output>;
             ovec_t vectorized_output[Config::n_elements_per_thread];
             for (Index i = 0; i < Config::n_elements_per_thread; ++i)

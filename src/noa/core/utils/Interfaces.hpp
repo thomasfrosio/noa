@@ -11,6 +11,19 @@
 
 namespace noa::traits {
     template<typename T, typename = void>
+    struct has_allow_vectorization : std::false_type {};
+    template<typename T>
+    struct has_allow_vectorization<T, std::void_t<typename T::allow_vectorization>> : std::true_type {};
+
+    /// By default, the element-wise interfaces (ewise, reduce_ewise and reduce_axes_ewise) allow the operators
+    /// to write from the inputs and read from the outputs. While this can be useful for some operations, it may also
+    /// constrains some backends when it comes to vectorization (e.g. vectorized load/write on CUDA). Operators can
+    /// define the optional type alias "allow_vectorization" to indicate that the input values are only read from and
+    /// that output values are only written to, which can help backends to generate vectorized code.
+    template<typename T>
+    constexpr bool has_allow_vectorization_v = has_allow_vectorization<std::decay_t<T>>::value;
+
+    template<typename T, typename = void>
     struct has_remove_defaulted_final : std::false_type {};
     template<typename T>
     struct has_remove_defaulted_final<T, std::void_t<typename T::remove_defaulted_final>> : std::true_type {};

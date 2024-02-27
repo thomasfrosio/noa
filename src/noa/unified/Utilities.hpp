@@ -12,14 +12,23 @@
 namespace noa::guts {
     /// Extracts the accessors from the varrays in the tuple.
     /// For types other than varrays, forward the object into an AccessorValue.
-    template<typename T> requires nt::is_tuple_v<T>
+    template<bool EnforceConst = false, typename T> requires nt::is_tuple_v<T>
     [[nodiscard]] constexpr auto to_tuple_of_accessors(T&& tuple) {
         return std::forward<T>(tuple).map([]<typename U>(U&& v) {
             if constexpr (nt::is_varray_v<U>) {
-                return std::forward<U>(v).accessor();
+                if constexpr (EnforceConst) {
+                    using value_type = nt::mutable_value_type_t<U>;
+                    return std::forward<U>(v).template accessor<const value_type>();
+                } else {
+                    return std::forward<U>(v).accessor();
+                }
             } else {
-                using value_type = std::remove_reference_t<U>; // preserve the constness
-                return AccessorValue<value_type>(std::forward<U>(v));
+                if constexpr (EnforceConst) {
+                    return AccessorValue<const std::decay_t<U>>(std::forward<U>(v));
+                } else {
+                    using value_type = std::remove_reference_t<U>; // preserve the constness
+                    return AccessorValue<value_type>(std::forward<U>(v));
+                }
             }
         });
     }
@@ -33,17 +42,28 @@ namespace noa::guts {
         }), ...);
     }
 
+    template<typename Tup>
+    [[nodiscard]] constexpr bool are_all_varrays() {
+        return []<typename... T>(nt::TypeList<T...>) {
+            return nt::are_varray_v<T...>;
+        }(nt::type_list_t<Tup>{});
+    };
+
     /// Returns the index of the first varray in the tuple.
     /// Returns -1 if there's no varray in the tuple.
-    [[nodiscard]] constexpr i64 index_of_first_varray(auto&& tuple) requires nt::is_tuple_v<decltype(tuple)> {
+    template<typename T> requires nt::is_tuple_v<T>
+    [[nodiscard]] constexpr i64 index_of_first_varray() {
         i64 index{-1};
-        tuple.any_enumerate([&]<size_t I>(auto& arg) {
-            if constexpr (nt::is_varray_v<decltype(arg)>) {
+        auto is_varray = [&]<size_t I>() {
+            if constexpr (nt::is_varray_v<decltype(std::declval<T>()[Tag<I>{}])>) {
                 index = I;
                 return true;
             }
             return false;
-        });
+        };
+        [&is_varray]<size_t... I>(std::index_sequence<I...>) {
+            (is_varray.template operator()<I>() or ...);
+        }(nt::index_list_t<T>{});
         return index;
     }
 

@@ -115,6 +115,12 @@ namespace noa {
     template<typename Int> requires std::is_integral_v<Int>
     [[nodiscard]] NOA_FHD constexpr bool is_multiple_of(Int value, Int base) { return (value % base) == 0; }
 
+    template<typename Int> requires std::is_integral_v<Int>
+    [[nodiscard]] NOA_FHD constexpr bool is_even(Int value) { return !(value % 2); }
+
+    template<typename Int> requires std::is_integral_v<Int>
+    [[nodiscard]] NOA_FHD constexpr bool is_odd(Int value) { return value % 2; }
+
     template<class UInt> requires std::is_unsigned_v<UInt>
     [[nodiscard]] NOA_FHD constexpr bool is_power_of_2(UInt value) { return (value & (value - 1)) == 0; }
 
@@ -188,7 +194,29 @@ namespace noa {
             return std::abs(x);
         }
     }
+    template<typename T>
+    [[nodiscard]] NOA_FHD auto abs_squared(T x) {
+        auto t = abs(x);
+        return t * t;
+    }
 
     [[nodiscard]] NOA_FHD double fma(double x, double y, double z) { return std::fma(x, y, z); }
     [[nodiscard]] NOA_FHD float fma(float x, float y, float z) { return std::fma(x, y, z); }
+
+    template<typename T> requires nt::is_real_or_complex_v<T>
+    NOA_IHD void kahan_sum(T value, T& sum, T& error) {
+        auto sum_value = value + sum;
+        if constexpr (nt::is_real_v<T>) {
+            error += abs(sum) >= abs(value) ?
+                     (sum - sum_value) + value :
+                     (value - sum_value) + sum;
+        } else if constexpr (nt::is_complex_v<T>) {
+            for (i64 i = 0; i < 2; ++i) {
+                error[i] += abs(sum[i]) >= abs(value[i]) ?
+                            (sum[i] - sum_value[i]) + value[i] :
+                            (value[i] - sum_value[i]) + sum[i];
+            }
+        }
+        sum = sum_value;
+    }
 }

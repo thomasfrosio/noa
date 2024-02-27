@@ -23,7 +23,8 @@ namespace noa::cuda::guts {
         using output_t = std::decay_t<Output>;
 
         u32 vector_size{1};
-        if constexpr (ng::are_accessors_const<Input>() and std::decay_t<Input>::SIZE <= 4) {
+        if constexpr ((nt::has_allow_vectorization_v<Op> or ng::are_accessors_const<Input>())
+                      and std::decay_t<Input>::SIZE <= 4) {
             vector_size = maximum_vector_size(
                     input, Config::n_elements_per_thread, Config::block_size, Shape3<Index>{shape[0], 1, 1});
         }
@@ -113,7 +114,7 @@ namespace noa::cuda::guts {
         };
 
         u32 input_vector_size{1};
-        if constexpr (ng::are_accessors_const<Input>() and input_t::SIZE <= 4) {
+        if constexpr ((nt::has_allow_vectorization_v<Op> or ng::are_accessors_const<Input>()) and input_t::SIZE <= 4) {
             input_vector_size = maximum_vector_size(
                     input, Config::n_elements_per_thread, Config::block_size, shape.pop_back());
         }
@@ -219,7 +220,8 @@ namespace noa::cuda::guts {
                 n_blocks_x, n_blocks_y, joined, joined_vector_size, stream);
 
         u32 input_vector_size{1};
-        if constexpr (ng::are_accessors_const<Input>() and std::decay_t<Input>::SIZE <= 4) {
+        if constexpr ((nt::has_allow_vectorization_v<Op> or ng::are_accessors_const<Input>())
+                      and std::decay_t<Input>::SIZE <= 4) {
             input_vector_size = maximum_vector_size(
                     input, Config::n_elements_per_thread, Config::block_size, Shape3<Index>{shape[0], 1, 1});
         }
@@ -315,7 +317,7 @@ namespace noa::cuda::guts {
 
         // Compute the vector size for "input".
         u32 input_vector_size{1};
-        if constexpr (ng::are_accessors_const<input_t>() and input_t::SIZE <= 4) {
+        if constexpr ((nt::has_allow_vectorization_v<Op> or ng::are_accessors_const<Input>()) and input_t::SIZE <= 4) {
             input_vector_size = maximum_vector_size(
                     input, Config::n_elements_per_thread, Config::block_size, shape.pop_back());
         }

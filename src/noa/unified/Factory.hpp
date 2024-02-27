@@ -12,11 +12,9 @@ namespace noa {
     /// \tparam Value       Any data type.
     /// \param[out] output  Array with evenly spaced values.
     /// \param value        The value to assign.
-    template<typename Output, typename Value>
-    requires (nt::is_varray_v<Output> and std::is_same_v<nt::value_type_t<Output>, Value>)
+    template<typename Output, typename Value> requires nt::is_varray_of_any_v<Output, Value>
     void fill(const Output& output, Value value) {
-        check(not output.is_empty(), "Empty array detected");
-        ewise({}, forward_as_tuple(output), Fill{static_cast<nt::value_type_t<Output>>(value)});
+        ewise({}, output, Fill{static_cast<nt::value_type_t<Output>>(value)});
     }
 
     /// Returns an array filled with a given value.
@@ -106,8 +104,7 @@ namespace noa {
     /// \param[out] output  Array with evenly spaced values.
     /// \param start        Start of interval.
     /// \param step         Spacing between values.
-    template<typename Output, typename Value = nt::value_type_t<Output>>
-    requires nt::is_varray_of_any_v<Output, Value>
+    template<typename Output, typename Value> requires nt::is_varray_of_any_v<Output, Value>
     void arange(const Output& output, Value start = Value{0}, Value step = Value{1}) {
         check(not output.is_empty(), "Empty array detected");
         if (output.are_contiguous())
@@ -160,8 +157,7 @@ namespace noa {
     /// \param start        Start of interval.
     /// \param stop         The end value of the sequence, unless \p endpoint is false.
     /// \param endpoint     Whether the stop is the last simple. Otherwise, it is not included.
-    template<typename Output, typename Value, typename = std::enable_if_t<
-             nt::is_varray_of_any_v<Output, Value>>>
+    template<typename Output, typename Value> requires nt::is_varray_of_any_v<Output, Value>
     Value linspace(const Output& output, Value start, Value stop, bool endpoint = true) {
         check(not output.is_empty(), "Empty array detected");
 
@@ -224,7 +220,7 @@ namespace noa {
     /// \param tile         Tile shape in each dimension.
     ///                     If the tile is equal to the shape of \p output,
     ///                     this is equivalent to `arange` with a start of 0 and step of 1.
-    template<typename Output, typename = std::enable_if_t<nt::is_varray_v<Output>>>
+    template<typename Output> requires nt::is_varray_v<Output>
     void iota(const Output& output, const Vec4<i64>& tile) {
         check(not output.is_empty(), "Empty array detected");
 
