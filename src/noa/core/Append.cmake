@@ -57,10 +57,11 @@ set(NOA_CORE_HEADERS
     core/math/LeastSquare.hpp
 
     core/signal/Bandpass.hpp
-    core/signal/CorrelationPeak.hpp
+    core/signal/Correlation.hpp
     core/signal/CTF.hpp
     core/signal/FSC.hpp
     core/signal/PhaseShift.hpp
+    core/signal/StandardizeIFFT.hpp
     core/signal/Windows.hpp
 
     core/String.hpp

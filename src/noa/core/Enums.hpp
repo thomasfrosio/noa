@@ -289,6 +289,8 @@ namespace noa::fft {
                 return os << "Remap::FC2F";
             case Remap::FC2FC:
                 return os << "Remap::FC2FC";
+            case Remap::NONE:
+                return os << "Remap::NONE";
         }
         return os;
     }
