@@ -218,7 +218,6 @@ namespace noa {
 namespace noa {
     struct ReduceSum {
         using allow_vectorization = bool;
-        using remove_defaulted_final = bool;
 
         template<typename T>
         NOA_FHD constexpr void init(const auto& value, T& sum) const {

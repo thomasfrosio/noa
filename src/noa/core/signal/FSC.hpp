@@ -4,34 +4,33 @@
 #include "noa/core/utils/Atomic.hpp"
 #include "noa/core/fft/Frequency.hpp"
 
-namespace noa::algorithm::signal {
-    // Isotropic FSC implementation.
-    // * A lerp is used to add frequencies in its two neighbour shells, instead of rounding to the nearest shell.
-    // * The frequencies are normalized, so rectangular volumes can be passed.
-    // * The number of shells is fixed by the shape: min(shape) // 2 + 1
-    template<noa::fft::Remap REMAP, typename Coord, typename Index, typename Offset, typename Real>
-    class IsotropicFSC {
+namespace noa::signal {
+    /// 4d iwise operator to compute an isotropic FSC.
+    /// * A lerp is used to add frequencies in its two neighbour shells, instead of rounding to the nearest shell.
+    /// * The frequencies are normalized, so rectangular volumes can be passed.
+    /// * The number of shells is fixed by the input shape: min(shape) // 2 + 1
+    template<noa::fft::Remap REMAP, typename Coord, typename Index, typename InputAccessor, typename OutputAccessor>
+    requires (nt::is_accessor_pure_nd<InputAccessor, 4>::value and nt::is_accessor_pure_nd<OutputAccessor, 2>::value)
+    class FSCIsotropic {
     public:
-        static_assert(REMAP == noa::fft::H2H || REMAP == noa::fft::HC2HC);
-        static_assert(nt::is_sint_v<Index>);
-        static_assert(nt::is_int_v<Offset>);
-        static_assert(nt::is_real_v<Coord>);
-        static_assert(nt::is_real_v<Real>);
+        static_assert(REMAP == noa::fft::Remap::H2H or REMAP == noa::fft::Remap::HC2HC);
+        static_assert(nt::is_sint_v<Index> and nt::is_real_v<Coord>);
         static constexpr bool IS_CENTERED = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_CENTERED;
 
         using index_type = Index;
-        using offset_type = Offset;
         using coord_type = Coord;
-        using real_type = Real;
-        using complex_type = Complex<Real>;
         using coord3_type = Vec3<coord_type>;
         using shape2_type = Shape2<index_type>;
         using shape3_type = Shape3<index_type>;
-        using input_accessor_type = AccessorRestrict<const complex_type, 4, offset_type>;
-        using output_accessor_type = AccessorRestrictContiguous<real_type, 2, offset_type>;
+        using input_accessor_type = InputAccessor;
+        using output_accessor_type = OutputAccessor;
+        using input_value_type = nt::mutable_value_type_t<input_accessor_type>;
+        using input_real_type = nt::value_type_t<input_value_type>;
+        using output_value_type = nt::value_type_t<output_accessor_type>;
+        static_assert(nt::is_complex_v<input_value_type> and nt::is_real_v<output_value_type>);
 
     public:
-        IsotropicFSC(
+        FSCIsotropic(
                 const input_accessor_type& lhs,
                 const input_accessor_type& rhs, const shape3_type& shape,
                 const output_accessor_type& numerator_and_output,
@@ -66,7 +65,7 @@ namespace noa::algorithm::signal {
             // Compute lerp weights.
             const auto shell_low = static_cast<index_type>(floor(radius));
             const auto shell_high = min(m_max_shell_index, shell_low + 1); // clamp for oob
-            const auto fraction_high = static_cast<real_type>(radius - fraction);
+            const auto fraction_high = static_cast<input_real_type>(radius - fraction);
             const auto fraction_low = 1 - fraction_high;
 
             // Preliminary shell values.
@@ -78,18 +77,13 @@ namespace noa::algorithm::signal {
 
             // Atomic save.
             // TODO In CUDA, we could do the atomic reduction in shared memory to reduce global memory transfers.
-            ng::atomic_add(m_numerator_and_output, numerator * fraction_low, batch, shell_low);
-            ng::atomic_add(m_numerator_and_output, numerator * fraction_high, batch, shell_high);
-            ng::atomic_add(m_denominator_lhs, denominator_lhs * fraction_low, batch, shell_low);
-            ng::atomic_add(m_denominator_lhs, denominator_lhs * fraction_high, batch, shell_high);
-            ng::atomic_add(m_denominator_rhs, denominator_rhs * fraction_low, batch, shell_low);
-            ng::atomic_add(m_denominator_rhs, denominator_rhs * fraction_high, batch, shell_high);
-        }
-
-        // Post-processing.
-        NOA_HD void operator()(real_type lhs, real_type rhs, real_type& output) const {
-            constexpr auto EPSILON = static_cast<real_type>(1e-6);
-            output /= max(EPSILON, sqrt(lhs * rhs));
+            using oreal_t = output_value_type;
+            ng::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_low), batch, shell_low);
+            ng::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_high), batch, shell_high);
+            ng::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_low), batch, shell_low);
+            ng::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_high), batch, shell_high);
+            ng::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_low), batch, shell_low);
+            ng::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_high), batch, shell_high);
         }
 
     private:
@@ -105,37 +99,43 @@ namespace noa::algorithm::signal {
         index_type m_max_shell_index;
     };
 
-    // Anisotropic/Conical FSC implementation.
-    // * Implementation is same as isotropic FSC expect that there's an additional step where
-    //   we compute the cone mask. Multiple cones can be defined and the innermost loop go through
-    //   the cones.
-    // * Cones are described by their orientation (3D vector) and the cone aperture.
-    //   The aperture is fixed for every batch and the angular distance from the cone is
-    //   used to compute the cone mask.
-    template<noa::fft::Remap REMAP, typename Coord, typename Index, typename Offset, typename Real>
-    class AnisotropicFSC {
+    /// Anisotropic/Conical FSC implementation.
+    /// * Implementation is same as isotropic FSC expect that there's an additional step where
+    ///   we compute the cone mask. Multiple cones can be defined and the innermost loop go through
+    ///   the cones.
+    /// * Cones are described by their orientation (a 3d vector) and the cone aperture.
+    ///   The aperture is fixed for every batch and the angular distance from the cone is
+    ///   used to compute the cone mask.
+    template<noa::fft::Remap REMAP, typename Coord, typename Index,
+             typename InputAccessor, typename OutputAccessor, typename DirectionAccessor>
+    requires (nt::is_accessor_pure_nd<InputAccessor, 4>::value and
+              nt::is_accessor_pure_nd<OutputAccessor, 3>::value and
+              nt::is_accessor_pure_nd<DirectionAccessor, 1>::value)
+    class FSCAnisotropic {
     public:
-        static_assert(REMAP == noa::fft::H2H || REMAP == noa::fft::HC2HC);
-        static_assert(nt::is_sint_v<Index>);
-        static_assert(nt::is_int_v<Offset>);
-        static_assert(nt::is_real_v<Coord>);
-        static_assert(nt::is_real_v<Real>);
+        static_assert(REMAP == noa::fft::Remap::H2H || REMAP == noa::fft::Remap::HC2HC);
+        static_assert(nt::is_sint_v<Index> and nt::is_real_v<Coord>);
         static constexpr bool IS_CENTERED = static_cast<u8>(REMAP) & noa::fft::Layout::SRC_CENTERED;
 
         using index_type = Index;
-        using offset_type = Offset;
         using coord_type = Coord;
-        using real_type = Real;
-        using complex_type = noa::Complex<Real>;
         using coord3_type = Vec3<coord_type>;
         using shape2_type = Shape2<index_type>;
         using shape3_type = Shape3<index_type>;
-        using input_accessor_type = AccessorRestrict<const complex_type, 4, offset_type>;
-        using output_accessor_type = AccessorRestrictContiguous<real_type, 3, offset_type>;
-        using direction_accessor_type = AccessorRestrictContiguous<const coord3_type, 1, offset_type>;
+
+        using input_accessor_type = InputAccessor;
+        using output_accessor_type = OutputAccessor;
+        using direction_accessor_type = DirectionAccessor;
+        using input_value_type = nt::mutable_value_type_t<input_accessor_type>;
+        using input_real_type = nt::value_type_t<input_value_type>;
+        using output_value_type = nt::value_type_t<output_accessor_type>;
+        using direction_value_type = nt::mutable_value_type_t<direction_accessor_type>;
+        static_assert(nt::is_complex_v<input_value_type> and
+                      nt::is_real_v<output_value_type> and
+                      nt::is_vec_real_size_v<direction_value_type, 3>);
 
     public:
-        AnisotropicFSC(
+        FSCAnisotropic(
                 const input_accessor_type& lhs,
                 const input_accessor_type& rhs, const shape3_type& shape,
                 const output_accessor_type& numerator_and_output,
@@ -176,7 +176,7 @@ namespace noa::algorithm::signal {
             // Compute lerp weights.
             const auto shell_low = static_cast<index_type>(floor(radius));
             const auto shell_high = min(m_max_shell_index, shell_low + 1); // clamp for oob
-            const auto fraction_high = static_cast<real_type>(radius - fraction);
+            const auto fraction_high = static_cast<input_real_type>(radius - fraction);
             const auto fraction_low = 1 - fraction_high;
 
             // Preliminary shell values.
@@ -188,33 +188,27 @@ namespace noa::algorithm::signal {
 
             const auto normalized_direction = coord3_type::from_values(z, y, x) / radius;
             for (index_type cone = 0; cone < m_cone_count; ++cone) {
-
                 // angular_difference = acos(dot(a,b))
                 // We could compute the angular difference between the current frequency and the cone direction.
                 // However, we only want to know if the frequency is inside or outside the cone, so skip the arccos
                 // and check abs(cos(angle)) > cos(cone_aperture).
 
                 // TODO In CUDA, try constant memory for the directions, or the less appropriate shared memory.
-                const auto normalized_direction_cone = m_normalized_cone_directions[cone];
+                const auto normalized_direction_cone = m_normalized_cone_directions[cone].template as<coord_type>();
                 const auto cos_angle_difference = dot(normalized_direction, normalized_direction_cone);
                 if (abs(cos_angle_difference) > m_cos_cone_aperture)
                     continue;
 
                 // Atomic save.
                 // TODO In CUDA, we could do the atomic reduction in shared memory to reduce global memory transfers.
-                ng::atomic_add(m_numerator_and_output, numerator * fraction_low, batch, cone, shell_low);
-                ng::atomic_add(m_numerator_and_output, numerator * fraction_high, batch, cone, shell_high);
-                ng::atomic_add(m_denominator_lhs, denominator_lhs * fraction_low, batch, cone, shell_low);
-                ng::atomic_add(m_denominator_lhs, denominator_lhs * fraction_high, batch, cone, shell_high);
-                ng::atomic_add(m_denominator_rhs, denominator_rhs * fraction_low, batch, cone, shell_low);
-                ng::atomic_add(m_denominator_rhs, denominator_rhs * fraction_high, batch, cone, shell_high);
+                using oreal_t = output_value_type;
+                ng::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_low), batch, cone, shell_low);
+                ng::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_high), batch, cone, shell_high);
+                ng::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_low), batch, cone, shell_low);
+                ng::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_high), batch, cone, shell_high);
+                ng::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_low), batch, cone, shell_low);
+                ng::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_high), batch, cone, shell_high);
             }
-        }
-
-        // Post-processing.
-        NOA_HD void operator()(real_type lhs, real_type rhs, real_type& output) const {
-            constexpr auto EPSILON = static_cast<real_type>(1e-6);
-            output /= max(EPSILON, sqrt(lhs * rhs));
         }
 
     private:
@@ -231,5 +225,15 @@ namespace noa::algorithm::signal {
         shape2_type m_shape;
         index_type m_max_shell_index;
         index_type m_cone_count;
+    };
+
+    struct FSCNormalization {
+        using allow_vectorization = bool;
+
+        template<typename T>
+        NOA_HD void operator()(T lhs, T rhs, T& output) const {
+            constexpr auto EPSILON = static_cast<T>(1e-6);
+            output /= max(EPSILON, sqrt(lhs * rhs));
+        }
     };
 }

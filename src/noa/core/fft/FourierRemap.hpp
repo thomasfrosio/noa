@@ -5,10 +5,48 @@
 #include "noa/core/fft/Frequency.hpp"
 
 namespace noa::fft {
-    using Remap = noa::fft::Remap;
+    template<Remap REMAP, typename Index, typename Accessor>
+    requires (nt::is_accessor_pure_nd<Accessor, 4>::value and nt::is_sint<Index>::value)
+    class FourierRemapInplace {
+    public:
+        using index_type = Index;
+        using dhw_shape_type = Shape3<index_type>;
+        using accessor_type = Accessor;
+        using value_type = accessor_type::mutable_value_type;
+        static_assert(nt::is_real_or_complex_v<value_type>);
+
+        FourierRemapInplace(
+                const accessor_type& array,
+                const Shape3<index_type>& shape
+        ) : m_array(array),
+            m_shape(shape) {}
+
+        NOA_HD constexpr void operator()(index_type oi, index_type oj, index_type ok, index_type ol) const noexcept {
+            index_type ij;
+            index_type ik;
+            if constexpr (REMAP == Remap::H2HC) {
+                ij = ifftshift(oj, m_shape[0]);
+                ik = ifftshift(ok, m_shape[1]);
+            } else if constexpr (REMAP == Remap::HC2H) {
+                ij = fftshift(oj, m_shape[0]);
+                ik = fftshift(ok, m_shape[1]);
+            } else {
+                static_assert(nt::always_false_v<index_type>);
+            }
+
+            // Swap
+            auto tmp = m_array(oi, oj, ok, ol);
+            m_array(oi, oj, ok, ol) = m_array(oi, ij, ik, ol);
+            m_array(oi, ij, ik, ol) = tmp;
+        }
+
+    private:
+        accessor_type m_array;
+        dhw_shape_type m_shape;
+    };
 
     template<Remap REMAP, typename Index, typename InputAccessor, typename OutputAccessor>
-    requires (nt::are_accessor_pure_nd<4, InputAccessor, OutputAccessor>::value and nt::is_sint_v<Index>)
+    requires (nt::are_accessor_pure_nd<4, InputAccessor, OutputAccessor>::value and nt::is_sint<Index>::value)
     class FourierRemap {
     public:
         using index_type = Index;

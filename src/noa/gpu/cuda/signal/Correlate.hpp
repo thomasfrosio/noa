@@ -2,106 +2,142 @@
 
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
+#include "noa/gpu/cuda/kernels/SubpixelRegistration.cuh"
 
-namespace noa::cuda::signal::fft::details {
-    using Remap = ::noa::fft::Remap;
-
-    template<typename Real>
-    void xcorr(const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
-               const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
-               const Shape4<i64>& shape, Real* coefficients, Stream& stream);
-
-    template<typename Real>
-    Real xcorr(const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
-               const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
-               const Shape4<i64>& shape, Stream& stream);
-
-    template<Remap REMAP, typename Real>
-    constexpr bool is_valid_xmap_v =
-            nt::is_any_v<Real, f32, f64> &&
-            (REMAP == Remap::H2F || REMAP == Remap::H2FC);
-
-    template<Remap REMAP, typename Real>
-    constexpr bool is_valid_xpeak_v =
-            nt::is_any_v<Real, f32, f64> &&
-            (REMAP == Remap::F2F || REMAP == Remap::FC2FC);
-
-    template<Remap REMAP, typename Real>
-    constexpr bool is_valid_xcorr_v =
-            nt::is_any_v<Real, f32, f64> &&
-            (REMAP == Remap::H2H || REMAP == Remap::HC2HC ||
-             REMAP == Remap::F2F || REMAP == Remap::FC2FC);
-}
-
-namespace noa::cuda::signal::fft {
-    using Remap = ::noa::fft::Remap;
-    using Norm = ::noa::fft::Norm;
-    using CorrelationMode = ::noa::signal::CorrelationMode;
-    using PeakMode = ::noa::signal::PeakMode;
-
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xmap_v<REMAP, Real>>>
-    void xmap(const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
-              Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
-              Real* output, const Strides4<i64>& output_strides,
-              const Shape4<i64>& shape, CorrelationMode correlation_mode, Norm norm,
-              Complex<Real>* tmp, Strides4<i64> tmp_strides, Stream& stream);
-
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xcorr_v<REMAP, Real>>>
-    void xcorr(const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
-               const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
-               const Shape4<i64>& shape, Real* coefficients, Stream& stream) {
-        constexpr bool SRC_IS_HALF = noa::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
-        const auto shape_fft = SRC_IS_HALF ? shape.rfft() : shape;
-        details::xcorr(lhs, lhs_strides, rhs, rhs_strides, shape_fft, coefficients, stream);
-    }
-
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xcorr_v<REMAP, Real>>>
-    Real xcorr(const Complex<Real>* lhs, const Strides4<i64>& lhs_strides,
-               const Complex<Real>* rhs, const Strides4<i64>& rhs_strides,
-               const Shape4<i64>& shape, Stream& stream) {
-        constexpr bool SRC_IS_HALF = noa::to_underlying(REMAP) & noa::fft::Layout::SRC_HALF;
-        const auto shape_fft = SRC_IS_HALF ? shape.rfft() : shape;
-        return details::xcorr(lhs, lhs_strides, rhs, rhs_strides, shape_fft, stream);
-    }
-}
-
-namespace noa::cuda::signal::fft {
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
+namespace noa::cuda::signal {
+    template<noa::fft::Remap REMAP, typename Real, typename Coord>
     void xpeak_1d(
-            Real* xmap, const Strides4<i64>& strides,
-            const Shape4<i64>& shape, Vec1<f32> xmap_ellipse_radius,
-            Vec1<f32>* output_peak_coordinates, Real* output_peak_values,
-            PeakMode peak_mode, Vec1<i64> peak_radius, Stream& stream);
+            Real* xmap, const Strides4<i64>& strides, const Shape4<i64>& shape,
+            const i64* xmap_max_offsets,
+            Vec1<Coord>* output_peak_coordinates, Real* output_peak_values,
+            noa::signal::CorrelationRegistration peak_mode, Vec1<i64> peak_radius,
+            Stream& stream
+    ) {
+        const bool is_column = shape[3] == 1;
+        const auto u_shape = shape.as_safe<u32>();
+        const auto u_strides = strides.as_safe<u32>();
+        const auto u_strides_1d = u_strides.filter(0, 3 - is_column);
+        const auto i_shape_1d = u_shape.filter(3 - is_column).as_safe<i32>();
 
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    auto xpeak_1d(
-            Real* xmap, const Strides4<i64>& strides,
-            const Shape4<i64>& shape, Vec1<f32> xmap_ellipse_radius,
-            PeakMode peak_mode, Vec1<i64> peak_radius, Stream& stream) -> std::pair<Vec1<f32>, Real>;
+        const auto peak_window_size = (peak_radius * 2 + 1).as_clamp<u32>()[0];
+        const auto xmap_accessor = AccessorRestrict<const Real, 2, u32>(xmap, u_strides_1d);
+        const auto peak_offsets_accessor = AccessorRestrictContiguousI32<const i64, 1>(xmap_max_offsets);
+        const auto output_peak_coordinates_accessor = AccessorRestrictContiguousI32<Vec<Coord, 1>, 1>(output_peak_coordinates);
+        const auto output_peak_values_accessor = AccessorRestrictContiguousI32<Real, 1>(output_peak_values);
 
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
+        switch (peak_mode) {
+            case noa::signal::CorrelationRegistration::PARABOLA_1D: {
+                const u32 n_threads = next_multiple_of(peak_window_size, Constant::WARP_SIZE);
+                const auto config = LaunchConfig{
+                        .n_blocks=u_shape[0], .n_threads=n_threads,
+                        .n_bytes_of_shared_memory=n_threads * sizeof(Real),
+                };
+                stream.enqueue(guts::subpixel_registration_parabola_1d<1, REMAP, Real>, config,
+                               xmap_accessor, i_shape_1d, peak_offsets_accessor, peak_radius.as<i32>(),
+                               output_peak_coordinates_accessor, output_peak_values_accessor);
+                break;
+            }
+            case noa::signal::CorrelationRegistration::COM: {
+                const auto config = LaunchConfig{
+                        .n_blocks=u_shape[0], .n_threads=Constant::WARP_SIZE,
+                        .n_bytes_of_shared_memory=peak_window_size * sizeof(Real),
+                };
+                stream.enqueue(guts::subpixel_registration_com<1, REMAP, Real>, config,
+                               xmap_accessor, i_shape_1d, peak_offsets_accessor, peak_radius.as<i32>(),
+                               output_peak_coordinates_accessor, output_peak_values_accessor);
+                break;
+            }
+        }
+    }
+
+    template<noa::fft::Remap REMAP, typename Real, typename Coord>
     void xpeak_2d(
-            Real* xmap, const Strides4<i64>& strides,
-            const Shape4<i64>& shape, const Vec2<f32>& xmap_ellipse_radius,
-            Vec2<f32>* output_peak_coordinates, Real* output_peak_values,
-            PeakMode peak_mode, const Vec2<i64>& peak_radius, Stream& stream);
+            Real* xmap, const Strides4<i64>& strides, const Shape4<i64>& shape,
+            const i64* xmap_max_offsets,
+            Vec2<Coord>* output_peak_coordinates, Real* output_peak_values,
+            noa::signal::CorrelationRegistration peak_mode, const Vec2<i64>& peak_radius,
+            Stream& stream
+    ) {
+        const auto u_shape = shape.as_safe<u32>();
+        const auto u_strides = strides.as_safe<u32>();
+        const auto u_strides_2d = u_strides.filter(0, 2, 3);
+        const auto i_shape_2d = u_shape.filter(2, 3).as_safe<i32>();
 
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    auto xpeak_2d(
-            Real* xmap, const Strides4<i64>& strides,
-            const Shape4<i64>& shape, const Vec2<f32>& xmap_ellipse_radius,
-            PeakMode peak_mode, const Vec2<i64>& peak_radius, Stream& stream) -> std::pair<Vec2<f32>, Real>;
+        const auto peak_window_shape = (peak_radius * 2 + 1).as_clamp<u32>();
+        const auto xmap_accessor = AccessorRestrict<const Real, 3, u32>(xmap, u_strides_2d);
+        const auto peak_offsets_accessor = AccessorRestrictContiguousI32<const i64, 1>(xmap_max_offsets);
+        const auto output_peak_coordinates_accessor = AccessorRestrictContiguousI32<Vec<Coord, 2>, 1>(output_peak_coordinates);
+        const auto output_peak_values_accessor = AccessorRestrictContiguousI32<Real, 1>(output_peak_values);
 
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
+        switch (peak_mode) {
+            case noa::signal::CorrelationRegistration::PARABOLA_1D: {
+                const u32 threads = next_multiple_of(max(peak_window_shape), Constant::WARP_SIZE);
+                const u32 size_shared_memory = max(threads, peak_window_shape[1]) + peak_window_shape[0];
+                const u32 blocks = u_shape[0];
+                const LaunchConfig config{blocks, threads, size_shared_memory * sizeof(Real)};
+                return stream.enqueue(
+                        guts::subpixel_registration_parabola_1d<2, REMAP, Real>, config,
+                        xmap_accessor, i_shape_2d, peak_offsets_accessor, peak_radius.as<i32>(),
+                        output_peak_coordinates_accessor, output_peak_values_accessor);
+            }
+            case noa::signal::CorrelationRegistration::COM: {
+                const u32 threads = Constant::WARP_SIZE;
+                const u32 blocks = u_shape[0];
+                const u32 size_shared_memory = product(peak_window_shape);
+                const LaunchConfig config{blocks, threads, size_shared_memory * sizeof(Real)};
+                return stream.enqueue(
+                        guts::subpixel_registration_com<2, REMAP, Real>, config,
+                        xmap_accessor, i_shape_2d, peak_offsets_accessor, peak_radius.as<i32>(),
+                        output_peak_coordinates_accessor, output_peak_values_accessor);
+            }
+        }
+    }
+
+    template<noa::fft::Remap REMAP, typename Real, typename Coord>
     void xpeak_3d(
-            Real* xmap, const Strides4<i64>& strides,
-            const Shape4<i64>& shape, const Vec3<f32>& xmap_ellipse_radius,
-            Vec3<f32>* output_peak_coordinates, Real* output_peak_values,
-            PeakMode peak_mode, const Vec3<i64>& peak_radius, Stream& stream);
+            Real* xmap, const Strides4<i64>& strides, const Shape4<i64>& shape,
+            const i64* xmap_max_offsets,
+            Vec3<Coord>* output_peak_coordinates, Real* output_peak_values,
+            noa::signal::CorrelationRegistration peak_mode, const Vec3<i64>& peak_radius,
+            Stream& stream
+    ) {
+        const auto u_shape = shape.as_safe<u32>();
+        const auto u_strides = strides.as_safe<u32>();
+        const auto i_shape_3d = u_shape.filter(1, 2, 3).as_safe<i32>();
 
-    template<Remap REMAP, typename Real, typename = std::enable_if_t<details::is_valid_xpeak_v<REMAP, Real>>>
-    auto xpeak_3d(
-            Real* xmap, const Strides4<i64>& strides,
-            const Shape4<i64>& shape, const Vec3<f32>& xmap_ellipse_radius,
-            PeakMode peak_mode, const Vec3<i64>& peak_radius, Stream& stream) -> std::pair<Vec3<f32>, Real>;
+        const auto peak_window_shape = (peak_radius * 2 + 1).as_clamp<u32>();
+        const auto xmap_accessor = AccessorRestrict<const Real, 4, u32>(xmap, u_strides);
+        const auto peak_offsets_accessor = AccessorRestrictContiguousI32<const i64, 1>(xmap_max_offsets);
+        const auto output_peak_coordinates_accessor = AccessorRestrictContiguousI32<Vec3<Coord>, 1>(output_peak_coordinates);
+        const auto output_peak_values_accessor = AccessorRestrictContiguousI32<Real, 1>(output_peak_values);
+
+        switch (peak_mode) {
+            case noa::signal::CorrelationRegistration::PARABOLA_1D: {
+                const u32 n_threads = next_multiple_of(max(peak_window_shape), Constant::WARP_SIZE);
+                const u32 size_shared_memory =
+                        max(n_threads, peak_window_shape[2]) +
+                        peak_window_shape[1] +
+                        peak_window_shape[0];
+                const auto config = LaunchConfig{
+                    .n_blocks=u_shape[0], .n_threads=n_threads,
+                    .n_bytes_of_shared_memory=size_shared_memory * sizeof(Real),
+                };
+                return stream.enqueue(
+                        guts::subpixel_registration_parabola_1d<3, REMAP, Real>, config,
+                        xmap_accessor, i_shape_3d, peak_offsets_accessor, peak_radius.as<i32>(),
+                        output_peak_coordinates_accessor, output_peak_values_accessor);
+            }
+            case noa::signal::CorrelationRegistration::COM: {
+                NOA_ASSERT(all(peak_radius <= 2));
+                const u32 threads = Constant::WARP_SIZE;
+                const u32 blocks = u_shape[0];
+                const u32 size_shared_memory = product(peak_window_shape);
+                const LaunchConfig config{blocks, threads, size_shared_memory * sizeof(Real)};
+                return stream.enqueue(
+                        guts::subpixel_registration_com<3, REMAP, Real>, config,
+                        xmap_accessor, i_shape_3d, peak_offsets_accessor, peak_radius.as<i32>(),
+                        output_peak_coordinates_accessor, output_peak_values_accessor);
+            }
+        }
+    }
 }

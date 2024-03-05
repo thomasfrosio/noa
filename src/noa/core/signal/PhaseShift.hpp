@@ -89,6 +89,7 @@ namespace noa::signal {
         using coord_type = nt::value_type_t<shift_single_type>;
         using vec_nd_type = Vec<coord_type, NDIM>;
         static_assert(std::is_same_v<shift_single_type, Vec<coord_type, NDIM>>);
+        static_assert(nt::is_any_v<coord_type, f32, f64>);
 
         using input_accessor_type = InputAccessor;
         using output_accessor_type = OutputAccessor;

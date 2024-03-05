@@ -405,7 +405,7 @@ namespace noa::signal {
     /// \tparam CTFAccessor     AccessorRestrictContiguous<const CTF,1> or CTF, where CTF is satisfies nt::is_ctf.
     template<noa::fft::Remap REMAP, size_t NDIM, typename Coord, typename Index,
              typename InputAccessor, typename OutputAccessor, typename CTFAccessor>
-    class CTF {
+    class CTFGenerator {
     public:
         static constexpr bool IS_VALID_CTF =
                 nt::is_ctf_v<CTFAccessor> or
@@ -462,7 +462,7 @@ namespace noa::signal {
                 (nt::is_accessor_v<ctf_type> and nt::is_ctf_isotropic_v<nt::value_type_t<ctf_type>>);
 
     public:
-        CTF(
+        CTFGenerator(
                 const input_type& input,
                 const output_type& output,
                 const shape_nd_type& shape,
@@ -478,14 +478,15 @@ namespace noa::signal {
                 m_ctf_abs(ctf_abs),
                 m_ctf_squared(ctf_squared) {}
 
-        CTF(const output_type& output,
-              const shape_nd_type& shape,
-              const ctf_type& ctf,
-              bool ctf_abs,
-              bool ctf_squared,
-              const frequency_range_type& frequency_range,
-              bool frequency_range_endpoint
-        ) noexcept requires (not HAS_INPUT) :
+        CTFGenerator(
+                const output_type& output,
+                const shape_nd_type& shape,
+                const ctf_type& ctf,
+                bool ctf_abs,
+                bool ctf_squared,
+                const frequency_range_type& frequency_range,
+                bool frequency_range_endpoint
+        ) noexcept requires (not HAS_INPUT):
                 m_ctf(ctf),
                 m_output(output),
                 m_shape(shape),

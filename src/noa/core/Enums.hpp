@@ -144,6 +144,8 @@ namespace noa::fft {
     /// \note With H2H, HC2HC, F2F and FC2FC, there's actually no remapping.
     /// \note F2FC is fftshift and FC2F is ifftshift.
     enum Remap : uint8_t {
+        NONE = 0,
+
         H2H = Layout::SRC_HALF | Layout::SRC_NON_CENTERED | Layout::DST_HALF | Layout::DST_NON_CENTERED,
         H2HC = Layout::SRC_HALF | Layout::SRC_NON_CENTERED | Layout::DST_HALF | Layout::DST_CENTERED,
         H2F = Layout::SRC_HALF | Layout::SRC_NON_CENTERED | Layout::DST_FULL | Layout::DST_NON_CENTERED,

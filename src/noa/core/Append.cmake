@@ -11,9 +11,10 @@ set(NOA_CORE_HEADERS
     core/Subregion.hpp
     core/Traits.hpp
 
+    core/fft/FourierRemap.hpp
+    core/fft/FourierResize.hpp
     core/fft/Frequency.hpp
-    core/fft/Remap.hpp
-    core/fft/Resize.hpp
+    core/fft/RemapInterface.hpp
 
     core/geometry/Euler.hpp
     core/geometry/FourierExtract.hpp

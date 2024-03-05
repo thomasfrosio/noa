@@ -13,6 +13,7 @@ set(NOA_CUDA_HEADERS
     gpu/cuda/Ewise.cuh
     gpu/cuda/Exception.hpp
     gpu/cuda/Iwise.cuh
+    gpu/cuda/Median.cuh
     gpu/cuda/MemoryPool.hpp
     gpu/cuda/Permute.cuh
     gpu/cuda/Pointers.hpp
@@ -35,11 +36,17 @@ set(NOA_CUDA_HEADERS
     gpu/cuda/kernels/ReduceIwise.cuh
     gpu/cuda/kernels/Warp.cuh
     gpu/cuda/kernels/Permute.cuh
+    gpu/cuda/kernels/Convolve.cuh
+    gpu/cuda/kernels/SubpixelRegistration.cuh
 
     # noa::cuda::fft
     gpu/cuda/fft/Exception.hpp
     gpu/cuda/fft/Plan.hpp
     gpu/cuda/fft/Transforms.hpp
+
+    # noa::cuda::signal
+    gpu/cuda/signal/Convolve.hpp
+    gpu/cuda/signal/Correlate.hpp
     )
 
 set(NOA_CUDA_SOURCES

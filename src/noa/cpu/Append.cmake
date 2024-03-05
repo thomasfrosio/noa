@@ -7,8 +7,10 @@ set(NOA_CPU_HEADERS
     cpu/Event.hpp
     cpu/Ewise.hpp
     cpu/Iwise.hpp
+    cpu/Median.hpp
     cpu/Permute.hpp
     cpu/ReduceAxesEwise.hpp
+    cpu/ReduceAxesIwise.hpp
     cpu/ReduceEwise.hpp
     cpu/ReduceIwise.hpp
     cpu/Set.hpp
@@ -18,6 +20,10 @@ set(NOA_CPU_HEADERS
     # noa::cpu::fft
     cpu/fft/Plan.hpp
     cpu/fft/Transforms.hpp
+
+    # noa::cuda::signal
+    cpu/signal/Convolve.hpp
+    cpu/signal/Correlate.hpp
     )
 
 set(NOA_CPU_SOURCES
