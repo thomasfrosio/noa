@@ -94,10 +94,11 @@ namespace noa::cpu::guts {
 }
 
 namespace noa::cpu {
+    template<bool ZipReduced = false, bool ZipOutput = false, i64 ParallelThreshold = 1'048'576>
     struct ReduceIwiseConfig {
-        bool zip_reduced = false;
-        bool zip_output = false;
-        i64 parallel_threshold = 1'048'576; // 1024x1024
+        static constexpr bool zip_reduced = ZipReduced;
+        static constexpr bool zip_output = ZipOutput;
+        static constexpr i64 parallel_threshold = ParallelThreshold;
     };
 
     /// Dispatches a index-wise reduction operator across N-dimensional (parallel) for-loops.
@@ -114,7 +115,7 @@ namespace noa::cpu {
     ///                     should reduce the amount of generated code because the parallel version can
     ///                     be omitted. In this case, it is even better to set \p PARALLEL_THRESHOLD to 1,
     ///                     turning off the multi-threaded implementation entirely.
-    template<ReduceIwiseConfig config = ReduceIwiseConfig{},
+    template<typename Config = ReduceIwiseConfig<>,
              typename Op, typename Reduced, typename Output, typename Index, size_t N>
     requires (nt::is_tuple_of_accessor_value_v<Reduced> and nt::is_tuple_of_accessor_v<Output>)
     constexpr void reduce_iwise(
@@ -124,9 +125,9 @@ namespace noa::cpu {
             Output& output,
             i64 n_threads = 1
     )  {
-        using core = guts::ReduceIwise<config.zip_reduced, config.zip_output>;
-        if constexpr (config.parallel_threshold > 1) {
-            const i64 actual_n_threads = shape.template as<i64>().elements() <= config.parallel_threshold ? 1 : n_threads;
+        using core = guts::ReduceIwise<Config::zip_reduced, Config::zip_output>;
+        if constexpr (Config::parallel_threshold > 1) {
+            const i64 actual_n_threads = shape.template as<i64>().elements() <= Config::parallel_threshold ? 1 : n_threads;
             if (actual_n_threads > 1)
                 return core::parallel(shape.vec, op, std::forward<Reduced>(reduced), output, actual_n_threads);
         }

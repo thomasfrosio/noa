@@ -19,39 +19,48 @@ namespace noa::cpu::guts {
                 const Shape<Index, N>& shape, Op& op,
                 Input input, Reduced reduced, Output output, i64 threads
         ) {
-            #pragma omp parallel default(none) num_threads(threads) shared(shape, input, reduced, output) firstprivate(op)
+            auto original_reduced = reduced;
+            #pragma omp parallel default(none) num_threads(threads) shared(shape, input, reduced, output, original_reduced) firstprivate(op)
             {
                 if constexpr (MODE == 3 and N == 4) {
                     // The first 3 rightmost dimensions to reduce contain many elements,
                     // and there are fewer batches than threads.
                     for (Index i = 0; i < shape[0]; ++i) {
-                        auto joined = reduced;
                         auto local = reduced;
                         #pragma omp for collapse(3)
                         for (Index j = 0; j < shape[1]; ++j)
                             for (Index k = 0; k < shape[2]; ++k)
                                 for (Index l = 0; l < shape[3]; ++l)
                                     interface::init(op, input, local, i, j, k, l);
+
                         #pragma omp critical
+                        interface::join(op, local, reduced);
+
+                        #pragma omp barrier
+                        #pragma omp single
                         {
-                            interface::join(op, local, joined);
+                            interface::final(op, reduced, output, i);
+                            reduced = original_reduced;
                         }
-                        interface::final(op, joined, output, i);
                     }
                 } else if constexpr (MODE == 3 and N == 2) {
                     // Same as above, but the 3 dimensions to reduce are collapsed
                     // for cases where the inputs are contiguous.
                     for (Index i = 0; i < shape[0]; ++i) {
-                        auto joined = reduced;
                         auto local = reduced;
                         #pragma omp for
                         for (Index j = 0; j < shape[1]; ++j)
                             interface::init(op, input, local, i, j);
+
                         #pragma omp critical
+                        interface::join(op, local, reduced);
+
+                        #pragma omp barrier
+                        #pragma omp single
                         {
-                            interface::join(op, local, joined);
+                            interface::final(op, reduced, output, i);
+                            reduced = original_reduced;
                         }
-                        interface::final(op, joined, output, i);
                     }
                 } else if constexpr (MODE == 2 and N == 4) {
                     // There are more batches than threads, so distribute to one thread per reduction,
@@ -134,14 +143,15 @@ namespace noa::cpu::guts {
 }
 
 namespace noa::cpu {
+    template<bool ZipInput = false, bool ZipReduced = false, bool ZipOutput = false, i64 ParallelThreshold = 1'048'576>
     struct ReduceAxesEwiseConfig {
-        bool zip_input = false;
-        bool zip_reduced = false;
-        bool zip_output = false;
-        i64 parallel_threshold = 1'048'576; // 1024x1024
+        static constexpr bool zip_input = ZipInput;
+        static constexpr bool zip_reduced = ZipReduced;
+        static constexpr bool zip_output = ZipOutput;
+        static constexpr i64 parallel_threshold = ParallelThreshold;
     };
 
-    template<ReduceAxesEwiseConfig config = ReduceAxesEwiseConfig{},
+    template<typename Config = ReduceAxesEwiseConfig<>,
              typename Op, typename Input, typename Reduced, typename Output, typename Index>
     requires (nt::is_tuple_of_accessor_v<Input> and
               not nt::is_tuple_of_accessor_value_v<Input> and // at least one varray
@@ -156,7 +166,7 @@ namespace noa::cpu {
             Output&& output,
             i64 n_threads = 1
     )  {
-        using reduce_axes_ewise_core = guts::ReduceAxesEwise<config.zip_input, config.zip_reduced, config.zip_output>;
+        using reduce_axes_ewise_core = guts::ReduceAxesEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
         const Vec axes_to_reduce = guts::get_reduced_axes(input_shape, output_shape);
         const bool are_aliased = ng::are_accessors_aliased(input, output);
 
@@ -190,7 +200,7 @@ namespace noa::cpu {
                     <ng::AccessorConfig<1>{.filter={0}}>
                     (std::forward<Output>(output));
 
-            if (n_elements_to_reduce > config.parallel_threshold and n_batches < n_threads) {
+            if (n_elements_to_reduce > Config::parallel_threshold and n_batches < n_threads) {
                 if (are_contiguous and not are_aliased) {
                     auto input_2d = ng::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
                     reduce_axes_ewise_core::template parallel<3>(

@@ -70,14 +70,15 @@ namespace noa::cpu::guts {
 }
 
 namespace noa::cpu {
+    template<bool ZipInput = false, bool ZipReduced = false, bool ZipOutput = false, i64 ParallelThreshold = 1'048'576>
     struct ReduceEwiseConfig {
-        bool zip_input = false;
-        bool zip_reduced = false;
-        bool zip_output = false;
-        i64 parallel_threshold = 1'048'576; // 1024x1024
+        static constexpr bool zip_input = ZipInput;
+        static constexpr bool zip_reduced = ZipReduced;
+        static constexpr bool zip_output = ZipOutput;
+        static constexpr i64 parallel_threshold = ParallelThreshold;
     };
 
-    template<ReduceEwiseConfig config = ReduceEwiseConfig{},
+    template<typename Config = ReduceEwiseConfig<>,
              typename Input, typename Reduced, typename Output, typename Index, typename Op>
     requires (nt::are_tuple_of_accessor_v<Input, Output> and
               not nt::is_tuple_of_accessor_value_v<Input> and // at least one varray
@@ -93,9 +94,9 @@ namespace noa::cpu {
         // Check contiguity.
         const bool are_all_contiguous = ni::are_contiguous(input, shape);
         const i64 elements = shape.template as<i64>().elements();
-        const i64 actual_n_threads = elements <= config.parallel_threshold ? 1 : n_threads;
+        const i64 actual_n_threads = elements <= Config::parallel_threshold ? 1 : n_threads;
 
-        using reduce_ewise_core = guts::ReduceEwise<config.zip_input, config.zip_reduced, config.zip_output>;
+        using reduce_ewise_core = guts::ReduceEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
 
         // FIXME We could try collapse contiguous dimensions to still have a contiguous loop.
         // FIXME In most cases, the inputs are not expected to be aliases of each other, so only

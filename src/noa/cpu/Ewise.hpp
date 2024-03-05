@@ -69,10 +69,11 @@ namespace noa::cpu::guts {
 }
 
 namespace noa::cpu {
+    template<bool ZipInput = false, bool ZipOutput = false, i64 ParallelThreshold = 1'048'576>
     struct EwiseConfig {
-        bool zip_input = false;
-        bool zip_output = false;
-        i64 parallel_threshold = 1'048'576; // 1024x1024
+        static constexpr bool zip_input = ZipInput;
+        static constexpr bool zip_output = ZipOutput;
+        static constexpr i64 parallel_threshold = ParallelThreshold;
     };
 
     /// Dispatches an element-wise operator across N-dimensional (parallel) for-loops.
@@ -82,7 +83,7 @@ namespace noa::cpu {
     /// \param op           Valid element-wise operator. See core interface.
     /// \param input        Input tuple of 4d accessors and/or accessor-values, or empty.
     /// \param output       Output tuple of 4d accessors or empty (accessor-values are not allowed).
-    template<EwiseConfig config = EwiseConfig{},
+    template<typename Config = EwiseConfig<>,
              typename Input, typename Output, typename Index, typename Op>
     requires (nt::is_tuple_of_accessor_or_empty_v<Input> and
               (nt::is_empty_tuple_v<Output> or nt::is_tuple_of_accessor_pure_v<Output>))
@@ -99,9 +100,9 @@ namespace noa::cpu {
                 ni::are_contiguous(input, shape) and
                 ni::are_contiguous(output, shape);
         const i64 elements = shape.template as<i64>().elements();
-        const i64 actual_n_threads = elements <= config.parallel_threshold ? 1 : n_threads;
+        const i64 actual_n_threads = elements <= Config::parallel_threshold ? 1 : n_threads;
 
-        using interface = guts::Ewise<config.zip_input, config.zip_output>;
+        using interface = guts::Ewise<Config::zip_input, Config::zip_output>;
         if (are_all_contiguous) {
             auto shape_1d = Shape1<Index>{shape.elements()};
             if (ng::are_accessors_aliased(input, output)) {

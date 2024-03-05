@@ -97,8 +97,9 @@ namespace noa::cpu::guts {
 }
 
 namespace noa::cpu {
+    template<i64 ParallelThreshold = 1'048'576>
     struct IwiseConfig {
-        i64 parallel_threshold = 1'048'576; // 1024x1024
+        static constexpr i64 parallel_threshold = ParallelThreshold;
     };
 
     /// Dispatches an index-wise operator across N-dimensional (parallel) for-loops.
@@ -121,11 +122,11 @@ namespace noa::cpu {
     /// \note GCC and Clang are able to see and optimize through this. The operators are correctly inlined and the
     ///       1d cases can be strongly optimized using SIMD or memset/memcopy/memmove calls. Parallelization,
     ///       as well as non-contiguous arrays, can turn some of these optimizations off.
-    template<IwiseConfig config = IwiseConfig{}, size_t N, typename Index, typename Op>
+    template<typename Config = IwiseConfig<>, size_t N, typename Index, typename Op>
     constexpr void iwise(const Shape<Index, N>& shape, Op&& op, i64 n_threads = 1) {
-        if constexpr (config.parallel_threshold > 1) {
+        if constexpr (Config::parallel_threshold > 1) {
             const i64 n_elements = shape.template as<i64>().elements();
-            const i64 actual_n_threads = n_elements <= config.parallel_threshold ? 1 : n_threads;
+            const i64 actual_n_threads = n_elements <= Config::parallel_threshold ? 1 : n_threads;
             if (actual_n_threads > 1)
                 return guts::Iwise::parallel(shape, op, actual_n_threads); // take op by lvalue reference
         }

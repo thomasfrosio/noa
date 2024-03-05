@@ -59,11 +59,11 @@ TEST_CASE("cpu::reduce_ewise") {
             }
         } reduce_op;
 
-        reduce_ewise<ReduceEwiseConfig{.zip_output=true}>(shape, reduce_op, input, reduced, output);
+        reduce_ewise<ReduceEwiseConfig<false, false, true>>(shape, reduce_op, input, reduced, output);
         REQUIRE_THAT(output[Tag<0>{}].deref(), Catch::WithinAbs(static_cast<f64>(elements + 12), 1e-8));
         REQUIRE_THAT(output[Tag<1>{}].deref(), Catch::WithinAbs(12., 1e-8));
 
-        reduce_ewise<ReduceEwiseConfig{.zip_output=true}>(shape, std::move(reduce_op), input, reduced, output);
+        reduce_ewise<ReduceEwiseConfig<false, false, true>>(shape, std::move(reduce_op), input, reduced, output);
         REQUIRE_THAT(output[Tag<0>{}].deref(), Catch::WithinAbs(static_cast<f64>(elements + 11), 1e-8));
         REQUIRE_THAT(output[Tag<1>{}].deref(), Catch::WithinAbs(13., 1e-8));
     }

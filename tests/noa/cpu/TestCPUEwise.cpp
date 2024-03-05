@@ -96,7 +96,7 @@ TEST_CASE("cpu::ewise") {
             e = 1.4;
         REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 1e-8));
 
-        ewise<EwiseConfig{.zip_input=true}>(shape, [](Tuple<f64&> e) { e[Tag<0>{}] = 1.5; }, input, Tuple<>{});
+        ewise<EwiseConfig<true>>(shape, [](Tuple<f64&> e) { e[Tag<0>{}] = 1.5; }, input, Tuple<>{});
         for (auto& e: Span(expected.get(), elements))
             e = 1.5;
         REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 1e-8));
@@ -115,7 +115,7 @@ TEST_CASE("cpu::ewise") {
 
         auto input = noa::make_tuple(value);
         auto output = noa::make_tuple(Accessor<f64, 4, i64>(buffer.get(), shape.strides()));
-        ewise<EwiseConfig{.zip_input=true}>(shape, [](Tuple<f64&> i, f64& o) { o = i[Tag<0>{}]; }, input, output);
+        ewise<EwiseConfig<true>>(shape, [](Tuple<f64&> i, f64& o) { o = i[Tag<0>{}]; }, input, output);
         REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 1e-8));
 
         std::fill_n(buffer.get(), elements, 0.);
