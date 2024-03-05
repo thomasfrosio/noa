@@ -146,6 +146,7 @@ namespace noa::traits {
     template<typename T> using value_type_t = typename value_type<std::decay_t<T>>::type;
     template<typename T> using value_type_twice_t = value_type_t<value_type_t<T>>;
     template<typename T> using mutable_value_type_t = typename mutable_value_type<std::decay_t<T>>::type;
+    template<typename T> using mutable_value_type_twice_t = mutable_value_type_t<mutable_value_type_t<T>>;
     template<typename T> using element_type_t = typename element_type<std::decay_t<T>>::type;
     template<typename T> using index_type_t = typename index_type<std::decay_t<T>>::type;
     template<typename T> using pointer_type_t = typename pointer_type<std::decay_t<T>>::type;

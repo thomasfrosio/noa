@@ -296,7 +296,7 @@ namespace noa::guts {
         ) {
             if constexpr (nt::has_remove_defaulted_final_v<Op>) {
                 static_assert(nt::always_false_v<Op>,
-                              "Defaulted .final() was removed, but no explicit .final() was detected");
+                              "Defaulted .final() was removed using the remove_defaulted_final flag, but no explicit .final() was detected");
             } else {
                 // Default copy assignment, with explicit cast.
                 // TODO Here we could perfectly forward the reduced values into the outputs.

@@ -18,7 +18,7 @@ namespace noa::fft {
 
     /// Returns the highest normalized frequency (in cycle/pix) that a dimension with a given size can have.
     template<std::floating_point T>
-    [[nodiscard]] NOA_FHD constexpr Real highest_fftfreq(std::integral auto size) noexcept {
+    [[nodiscard]] NOA_FHD constexpr auto highest_fftfreq(std::integral auto size) noexcept {
         return highest_normalized_frequency(size);
     }
 

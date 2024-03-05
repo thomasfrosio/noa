@@ -231,7 +231,7 @@ namespace noa::indexing {
             const Strides<T, N>& strides,
             const Shape<T, N>& shape
     ) noexcept {
-        NOA_ASSERT(noa::all(shape > 0));
+        NOA_ASSERT(all(shape > 0));
         Vec<T, N> out{0};
         T remain = offset;
 

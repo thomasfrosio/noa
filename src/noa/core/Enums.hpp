@@ -184,9 +184,8 @@ namespace noa::signal {
         MUTUAL
     };
 
-
     /// Subpixel registration method.
-    enum Peak {
+    enum CorrelationRegistration {
         /// Updates the pixel location by fitting a 1D parabola along axis.
         /// The peak value is average of the vertex height along each dimension.
         PARABOLA_1D,
@@ -308,12 +307,12 @@ namespace noa::signal {
         return os;
     }
 
-    inline std::ostream& operator<<(std::ostream& os, Peak peak_mode) {
-        switch (peak_mode) {
-            case Peak::PARABOLA_1D:
-                return os << "Peak::PARABOLA_1D";
-            case Peak::COM:
-                return os << "Peak::COM";
+    inline std::ostream& operator<<(std::ostream& os, CorrelationRegistration mode) {
+        switch (mode) {
+            case CorrelationRegistration::PARABOLA_1D:
+                return os << "CorrelationRegistration::PARABOLA_1D";
+            case CorrelationRegistration::COM:
+                return os << "CorrelationRegistration::COM";
         }
         return os;
     }
@@ -326,6 +325,6 @@ namespace fmt {
     template<> struct formatter<noa::Norm> : ostream_formatter {};
     template<> struct formatter<noa::fft::Remap> : ostream_formatter {};
     template<> struct formatter<noa::signal::Correlation> : ostream_formatter {};
-    template<> struct formatter<noa::signal::Peak> : ostream_formatter {};
+    template<> struct formatter<noa::signal::CorrelationRegistration> : ostream_formatter {};
 }
 #endif

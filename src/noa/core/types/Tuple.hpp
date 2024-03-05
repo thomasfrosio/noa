@@ -164,14 +164,7 @@ namespace noa::inline types {
         using decayed_tuple = Tuple<std::decay_t<T>...>;
         using index_list = std::make_index_sequence<SIZE>;
 
-    public: // Whole tuple assignment
-        template<typename U>
-        requires (!std::is_same_v<std::decay_t<Tuple>, std::decay_t<U>>) // preserves default assignments
-        constexpr auto& operator=(U&& tup) {
-            assign_tuple_(std::forward<U>(tup), index_list{});
-            return *this;
-        }
-
+    public:
         template<typename... U>
         constexpr auto& assign(U&&... values) {
             assign_value_(index_list{}, std::forward<U>(values)...);
@@ -249,11 +242,6 @@ namespace noa::inline types {
         constexpr void swap_(Tuple& other, std::index_sequence<I...>) noexcept(nothrow_swappable) {
             using std::swap;
             (swap((*this)[Tag<I>{}], other[Tag<I>{}]), ...);
-        }
-
-        template<typename U, size_t... I>
-        constexpr void assign_tuple_(U&& tuple, std::index_sequence<I...>) {
-            (((*this)[Tag<I>{}] = std::forward<U>(tuple)[Tag<I>{}]), ...);
         }
 
         template<size_t... I, class... U>

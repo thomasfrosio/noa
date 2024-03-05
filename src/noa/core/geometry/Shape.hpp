@@ -50,7 +50,7 @@ namespace noa::geometry {
                 coord_type radius,
                 value_type cvalue,
                 bool is_inverted
-        ) noexcept requires is_smooth
+        ) noexcept requires (not is_smooth)
                 : m_cvalue(cvalue), m_center(center), m_radius(radius), m_is_inverted(is_inverted) {}
 
         NOA_HD constexpr Line(
@@ -59,7 +59,7 @@ namespace noa::geometry {
                 coord_type edge_size,
                 value_type cvalue,
                 bool is_inverted
-        ) noexcept requires (not is_smooth)
+        ) noexcept requires is_smooth
                 : m_cvalue(cvalue), m_center(center), m_radius(radius),
                   m_edge_size(edge_size), m_is_inverted(is_inverted) {}
 
@@ -404,7 +404,7 @@ namespace noa::geometry {
                 coord_type edge_size,
                 value_type cvalue,
                 bool is_inverted
-        ) noexcept requires (not is_smooth)
+        ) noexcept requires is_smooth
                 : m_center(center), m_radius(radius * radius), m_cvalue(cvalue),
                   m_edge_size(edge_size), m_is_inverted(is_inverted) {}
 
