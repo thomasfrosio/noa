@@ -201,57 +201,50 @@ namespace noa::cuda::guts {
     }
 
     template<typename Interface, u32 BLOCK_SIZE,
-             typename Op, typename Reduced, typename Index>
-    NOA_ID void block_reduce_join(
-            Op op,
-            Reduced& reduced, // Tuple of AccessorValue(s); reduced value(s) of the current thread
-            Reduced* __restrict__ joined, // per-block reduced value(s)
-            Index index_within_block,
-            Index index_within_grid
-    ) {
-        __shared__ Reduced shared[BLOCK_SIZE];
-        shared[index_within_block] = reduced;
-        block_synchronize();
-        reduced = block_reduce_shared<Interface, BLOCK_SIZE>(op, shared, index_within_block);
-        if (index_within_block == 0)
-            joined[index_within_grid] = reduced;
-    }
-
-    template<typename Interface, u32 BLOCK_SIZE,
              typename Op, typename Reduced, typename Joined, typename Index, typename... Indices>
     NOA_ID void block_reduce_join(
             Op op,
             Reduced& reduced, // Tuple of AccessorValue(s); e.g. Tuple<AccessorValue<i32>, AccessorValue<f64>>
-            Joined& joined, // Tuple of Accessor(s), corresponding to Reduced, e.g. Tuple<Accessor<i32, 1>, Accessor<f64, 1>>
+            Joined& joined,
             Index index_within_block,
-            Indices... indices_within_grid // per block nd-indices where to save the per-block reduced value
+            Indices... indices_within_grid // per block nd-indices where to save the per-block reduced value in joined
     ) {
         __shared__ Reduced shared[BLOCK_SIZE];
         shared[index_within_block] = reduced;
         block_synchronize();
         reduced = block_reduce_shared<Interface, BLOCK_SIZE>(op, shared, index_within_block);
         if (index_within_block == 0) {
-            joined.for_each_enumerate([&]<size_t I>(auto& accessor){
-                accessor(indices_within_grid...) = reduced[Tag<I>{}].deref();
-            });
+            if constexpr (nt::is_tuple_of_accessor_v<Joined>) {
+                // Tuple of Accessor(s), corresponding to Reduced, e.g. Tuple<Accessor<i32, 1>, Accessor<f64, 1>>
+                joined.for_each_enumerate([&]<size_t I>(auto& accessor) {
+                    accessor(indices_within_grid...) = reduced[Tag<I>{}].deref();
+                });
+            } else if constexpr (nt::is_accessor_v<Joined>) {
+                joined(indices_within_grid...) = reduced;
+            } else if constexpr (std::is_pointer_v<Joined> and sizeof...(Indices) == 1) {
+                auto index = forward_as_tuple(indices_within_grid...)[Tag<0>{}]; // TODO C++23 should fix that
+                joined[index] = reduced;
+            } else {
+                static_assert(nt::always_false_v<Joined>);
+            }
         }
     }
 
     template<typename Interface, u32 BLOCK_SIZE,
-             typename Op, typename Reduced, typename Output, typename Index>
+             typename Op, typename Reduced, typename Output, typename Index, typename... Indices>
     NOA_ID void block_reduce_join_and_final(
             Op op,
             Reduced& reduced, // Tuple of AccessorValue(s)
             Output& output, // Tuple of 1d Accessor(s)
             Index index_within_block,
-            Index index_within_output = 0
+            Indices... indices_within_output
     ) {
         __shared__ Reduced shared[BLOCK_SIZE];
         shared[index_within_block] = reduced;
         block_synchronize();
         reduced = block_reduce_shared<Interface, BLOCK_SIZE>(op, shared, index_within_block);
         if (index_within_block == 0)
-            Interface::final(op, reduced, output, index_within_output);
+            Interface::final(op, reduced, output, indices_within_output...);
     }
 
     // Reduces min(BLOCK_SIZE * ELEMENTS_PER_THREAD, elements) elements from input.

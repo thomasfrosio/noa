@@ -18,7 +18,7 @@ namespace noa::cuda::guts {
         } else if constexpr (nt::is_complex_v<T>) {
             return T(__shfl_sync(mask, value.real, source, width),
                      __shfl_sync(mask, value.imag, source, width));
-        } else if (nt::is_int_v<T> && sizeof(T) < 4) {
+        } else if (nt::is_int_v<T> and sizeof(T) < 4) {
             return static_cast<T>(__shfl_sync(mask, static_cast<i32>(value), source, width));
         } else {
             return __shfl_sync(mask, value, source, width);
@@ -35,15 +35,15 @@ namespace noa::cuda::guts {
         } else if constexpr (nt::is_complex_v<T>) {
             return T(__shfl_down_sync(mask, value.real, delta, width),
                      __shfl_down_sync(mask, value.imag, delta, width));
-        } else if (nt::is_int_v<T> && sizeof(T) < 4) {
+        } else if (nt::is_int_v<T> and sizeof(T) < 4) {
             return static_cast<T>(__shfl_down_sync(mask, static_cast<i32>(value), delta, width));
         } else {
             return __shfl_down_sync(mask, value, delta, width);
         }
     }
 
-    template<typename Tup>
-    struct has_warp_reduce : std::bool_constant<is_valid_suffle_v<Tup>> {};
+    template<typename T>
+    struct has_warp_reduce : std::bool_constant<is_valid_suffle_v<T>> {};
 
     template<typename... T>
     struct has_warp_reduce<Tuple<T...>> {
@@ -56,29 +56,26 @@ namespace noa::cuda::guts {
     // Reduces one warp to one element.
     // The first thread of the warp returns with the reduced value.
     // The returned value is undefined for the other threads.
-    // value:       Per-thread value.
-    // reduce_op:   Reduction operator.
-    template<typename T, typename ReduceOp> requires has_warp_reduce_v<T>
-    NOA_ID T warp_reduce(T value, ReduceOp reduce_op) {
+    template<typename BinaryOp, typename T> requires has_warp_reduce_v<T>
+    NOA_ID auto warp_reduce(BinaryOp op, T value) -> T {
         T reduce;
         for (i32 delta = 1; delta < 32; delta *= 2) {
             reduce = warp_suffle_down(value, delta);
-            value = reduce_op(reduce, value);
+            value = op(reduce, value);
         }
         return value;
     }
 
-    // Overload for pairs.
+    // Reduces one warp to one element.
+    // The first thread of the warp returns with the reduced value.
+    // The returned value is undefined for the other threads.
     template<typename Interface, typename Op, typename Reduced>
     requires (nt::is_tuple_of_accessor_value_v<Reduced> and has_warp_reduce_v<Reduced>)
     NOA_ID auto warp_reduce(Op op, Reduced reduced) -> Reduced {
         for (i32 delta = 1; delta < 32; delta *= 2) {
             Reduced reduce = reduced.map([delta]<typename T>(T& accessor_value) {
                 // TODO If int/float, there's a faster reduction, which I forgot the name...
-                if constexpr (guts::is_valid_suffle_v<nt::value_type_t<T>>)
-                    return T(warp_suffle_down(accessor_value.deref(), delta));
-                else
-                    static_assert(nt::always_false_v<T>);
+                return T(warp_suffle_down(accessor_value.deref(), delta));
             });
             Interface::join(op, reduce, reduced);
         }

@@ -17,6 +17,7 @@ set(NOA_CUDA_HEADERS
     gpu/cuda/Permute.cuh
     gpu/cuda/Pointers.hpp
     gpu/cuda/ReduceAxesEwise.cuh
+    gpu/cuda/ReduceAxesIwise.cuh
     gpu/cuda/ReduceEwise.cuh
     gpu/cuda/ReduceIwise.cuh
     gpu/cuda/Sort.cuh
@@ -29,6 +30,7 @@ set(NOA_CUDA_HEADERS
     gpu/cuda/kernels/Ewise.cuh
     gpu/cuda/kernels/Iwise.cuh
     gpu/cuda/kernels/ReduceAxesEwise.cuh
+    gpu/cuda/kernels/ReduceAxesIwise.cuh
     gpu/cuda/kernels/ReduceEwise.cuh
     gpu/cuda/kernels/ReduceIwise.cuh
     gpu/cuda/kernels/Warp.cuh

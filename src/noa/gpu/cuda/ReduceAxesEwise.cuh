@@ -8,20 +8,6 @@
 #include "noa/gpu/cuda/ReduceEwise.cuh"
 
 namespace noa::cuda::guts {
-    template<typename Index>
-    constexpr auto get_reduced_axes(
-            const Shape4<Index>& input_shape,
-            const Shape4<Index>& output_shape
-    ) -> Vec4<bool> {
-        const auto axes_to_reduce = input_shape != output_shape;
-        if (any(axes_to_reduce and (output_shape != 1))) {
-            panic("Dimensions should match the input shape, or be 1, "
-                  "indicating the dimension should be reduced to one element. "
-                  "Got shape input={}, output={}", input_shape, output_shape);
-        }
-        return axes_to_reduce;
-    }
-
     template<typename Config, typename Op, typename Input, typename Reduced, typename Output, typename Index>
     void launch_reduce_ewise_width(
             const Shape4<Index>& shape,
@@ -104,7 +90,7 @@ namespace noa::cuda::guts {
             } else {
                 using kernel_config = ReduceAxesEwiseWidthConfig<Config, 64, 1>;
                 stream.enqueue(
-                        guts::reduce_width_ewise<kernel_config, op_t, Index, input_t, reduced_t, output_3d_t>,
+                        reduce_width_ewise<kernel_config, op_t, Index, input_t, reduced_t, output_3d_t>,
                         launch_config, std::forward<Op>(op), std::forward<Input>(input), shape_hw, reduced, output_3d
                 );
             }
@@ -179,7 +165,12 @@ namespace noa::cuda {
             Output&& output,
             Stream& stream
     ) {
-        const Vec axes_to_reduce = guts::get_reduced_axes(input_shape, output_shape);
+        const auto axes_to_reduce = input_shape != output_shape;
+        if (any(axes_to_reduce and (output_shape != 1))) {
+            panic("Dimensions should match the input shape, or be 1, "
+                  "indicating the dimension should be reduced to one element. "
+                  "Got shape input={}, output={}", input_shape, output_shape);
+        }
 
         const auto axes_empty_or_to_reduce = output_shape == 1 or axes_to_reduce;
         if (all(axes_empty_or_to_reduce.pop_front())) { // reduce to one value or one value per batch

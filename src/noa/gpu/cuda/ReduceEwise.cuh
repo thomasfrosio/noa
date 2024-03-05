@@ -411,7 +411,7 @@ namespace noa::cuda {
             Op&& op,
             Input&& input,
             Reduced&& reduced,
-            Output& output,
+            Output&& output,
             Stream& stream
     ) {
         const auto n_elements = safe_cast<Index>(shape.template as<i64>().elements());
