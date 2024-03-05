@@ -144,11 +144,7 @@ namespace noa::guts {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            constexpr auto config = noa::cpu::ReduceEwiseConfig{
-                .zip_input=ZipInput,
-                .zip_reduced=ZipReduced,
-                .zip_output=ZipOutput
-            };
+            using config = noa::cpu::ReduceEwiseConfig<ZipInput, ZipReduced, ZipOutput>;
 
             Tuple output_accessors = outputs.map([]<typename U>(U& v) {
                 return AccessorRestrictContiguous<U, 1, i32>(&v);

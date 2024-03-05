@@ -180,11 +180,7 @@ namespace noa::guts {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             auto n_threads = cpu_stream.thread_limit();
-            constexpr auto config = noa::cpu::ReduceAxesEwiseConfig{
-                .zip_input=ZipInput,
-                .zip_reduced=ZipReduced,
-                .zip_output=ZipOutput
-            };
+            using config = noa::cpu::ReduceAxesEwiseConfig<ZipInput, ZipReduced, ZipOutput>;
 
             if (cpu_stream.is_sync()) {
                 noa::cpu::reduce_axes_ewise<config>(

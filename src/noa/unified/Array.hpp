@@ -199,7 +199,12 @@ namespace noa::inline types {
         /// Returns a reference of the managed resource.
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing to this pointer may be illegal or create a data race.
-        [[nodiscard]] constexpr const shared_type& share() const noexcept { return m_shared; }
+        [[nodiscard]] constexpr const shared_type& share() const& noexcept { return m_shared; }
+        [[nodiscard]] constexpr shared_type share() && noexcept {
+            shared_type out{};
+            m_shared.swap(out);
+            return out;
+        }
 
         /// Returns a (const-)span of the array.
         template<typename U = value_type, i64 SIZE = -1, typename I = index_type>

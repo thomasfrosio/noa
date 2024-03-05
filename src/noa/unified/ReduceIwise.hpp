@@ -96,10 +96,8 @@ namespace noa::guts {
                 return AccessorRestrictContiguous<U, 1, I>(&v);
             });
             cpu_stream.synchronize();
-            constexpr auto config = noa::cpu::ReduceIwiseConfig{
-                .zip_reduced=ZipReduced, .zip_output=ZipOutput
-            };
-            noa::cpu::reduce_iwise<config>(
+            using config_t = noa::cpu::ReduceIwiseConfig<ZipReduced, ZipOutput>;
+            noa::cpu::reduce_iwise<config_t>(
                     shape, std::forward<Op>(op),
                     reduced_accessors, output_accessors,
                     cpu_stream.thread_limit());

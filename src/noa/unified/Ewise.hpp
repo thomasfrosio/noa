@@ -192,7 +192,7 @@ namespace noa::guts {
             if (device.is_cpu()) {
                 auto& cpu_stream = stream.cpu();
                 auto n_threads = cpu_stream.thread_limit();
-                constexpr auto config = noa::cpu::EwiseConfig{.zip_input=ZipInput, .zip_output=ZipOutput};
+                using config = noa::cpu::EwiseConfig<ZipInput, ZipOutput>;
 
                 if (cpu_stream.is_sync()) {
                     noa::cpu::ewise<config>(
@@ -215,7 +215,8 @@ namespace noa::guts {
             } else {
                 #ifdef NOA_ENABLE_CUDA
                 auto& cuda_stream = Stream::current(device).cuda();
-                noa::cuda::ewise(
+                using config = noa::cuda::EwiseConfig<ZipInput, ZipOutput>;
+                noa::cuda::ewise<config>(
                         shape, std::forward<EwiseOp>(ewise_op),
                         std::move(input_accessors),
                         std::move(output_accessors),

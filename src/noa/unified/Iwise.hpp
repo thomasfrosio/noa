@@ -42,7 +42,7 @@ namespace noa {
             const auto n_threads =  cpu_stream.thread_limit();
             if constexpr (sizeof...(Ts) == 0) {
                 cpu_stream.enqueue(
-                        noa::cpu::iwise<noa::cpu::IwiseConfig{}, N, I, Op>,
+                        noa::cpu::iwise<noa::cpu::IwiseConfig<>, N, I, Op>,
                         shape, std::forward<Op>(op),
                         n_threads);
             } else {

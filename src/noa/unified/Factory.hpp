@@ -14,7 +14,8 @@ namespace noa {
     /// \param value        The value to assign.
     template<typename Output, typename Value> requires nt::is_varray_of_any_v<Output, Value>
     void fill(const Output& output, Value value) {
-        ewise({}, output, Fill{static_cast<nt::value_type_t<Output>>(value)});
+        // TODO If trival, contiguous and value=0, cudaMemset could be used?
+        ewise({}, output, Fill{static_cast<nt::mutable_value_type_t<Output>>(value)});
     }
 
     /// Returns an array filled with a given value.

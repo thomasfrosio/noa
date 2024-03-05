@@ -81,10 +81,11 @@ namespace noa::guts {
     }
 
     /// Extracts the shared handles from Arrays.
-    [[nodiscard]] auto extract_shared_handle_from_arrays(auto&& tuple) requires nt::is_tuple_v<decltype(tuple)> {
-        return tuple.map([](auto&& value) {
-            if constexpr (nt::is_array_v<decltype(value)>) {
-                return value.share();
+    template<typename T>
+    [[nodiscard]] auto extract_shared_handle_from_arrays(T&& tuple) requires nt::is_tuple_v<T> {
+        return std::forward<T>(tuple).map([]<typename U>(U&& value) {
+            if constexpr (nt::is_array_v<U>) {
+                return std::forward<U>(value).share();
             } else {
                 return Empty{};
             }

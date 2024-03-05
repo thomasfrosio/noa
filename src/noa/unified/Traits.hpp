@@ -13,18 +13,19 @@ namespace noa::traits {
     template<typename T> constexpr bool is_view_v = is_view<std::decay_t<T>>::value;
     template<typename... Ts> constexpr bool are_view_v = bool_and<is_view_v<Ts>...>::value;
 
-    template<typename T> using is_varray = std::bool_constant<is_array<T>::value || is_view<T>::value>;
+    template<typename T> using is_varray = std::bool_constant<is_array<T>::value or is_view<T>::value>;
     template<typename T> constexpr bool is_varray_v = is_varray<std::decay_t<T>>::value;
     template<typename... Ts> constexpr bool are_varray_v = bool_and<is_varray_v<Ts>...>::value;
 
-    template<typename T> constexpr bool is_varray_of_real_v = is_varray_v<T> && is_real_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_varray_of_complex_v = is_varray_v<T> && is_complex_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_varray_of_real_or_complex_v = is_varray_v<T> && is_real_or_complex_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_varray_of_numeric_v = is_varray_v<T> && is_numeric_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_varray_of_scalar_v = is_varray_v<T> && is_scalar_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_varray_of_int_v = is_varray_v<T> && is_int_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_varray_of_sint_v = is_varray_v<T> && is_sint_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_varray_of_uint_v = is_varray_v<T> && is_uint_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_varray_of_real_v = is_varray_v<T> and is_real_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_varray_of_complex_v = is_varray_v<T> and is_complex_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_varray_of_real_or_complex_v = is_varray_v<T> and is_real_or_complex_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_varray_of_numeric_v = is_varray_v<T> and is_numeric_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_varray_of_scalar_v = is_varray_v<T> and is_scalar_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_varray_of_int_v = is_varray_v<T> and is_int_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_varray_of_sint_v = is_varray_v<T> and is_sint_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_varray_of_uint_v = is_varray_v<T> and is_uint_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_varray_of_mutable_v = is_varray_v<T> and not std::is_const_v<value_type_t<T>>;
 
     template<typename... Ts> constexpr bool are_varray_of_real_v = bool_and<is_varray_of_real_v<Ts>...>::value;
     template<typename... Ts> constexpr bool are_varray_of_complex_v = bool_and<is_varray_of_complex_v<Ts>...>::value;
@@ -34,9 +35,10 @@ namespace noa::traits {
     template<typename... Ts> constexpr bool are_varray_of_int_v = bool_and<is_varray_of_int_v<Ts>...>::value;
     template<typename... Ts> constexpr bool are_varray_of_sint_v = bool_and<is_varray_of_sint_v<Ts>...>::value;
     template<typename... Ts> constexpr bool are_varray_of_uint_v = bool_and<is_varray_of_uint_v<Ts>...>::value;
+    template<typename... Ts> constexpr bool are_varray_of_mutable_v = bool_and<is_varray_of_mutable_v<Ts>...>::value;
 
-    template<typename T, typename... Ts> constexpr bool is_varray_of_any_v = is_varray_v<T> && is_any_v<value_type_t<T>, Ts...>;
-    template<typename T, typename... Ts> constexpr bool is_varray_of_almost_any_v = is_varray_v<T> && is_almost_any_v<value_type_t<T>, Ts...>;
+    template<typename T, typename... Ts> constexpr bool is_varray_of_any_v = is_varray_v<T> and is_any_v<value_type_t<T>, Ts...>;
+    template<typename T, typename... Ts> constexpr bool is_varray_of_almost_any_v = is_varray_v<T> and is_almost_any_v<value_type_t<T>, Ts...>;
 }
 
 namespace noa::traits {
@@ -45,14 +47,14 @@ namespace noa::traits {
     template<typename T> constexpr bool is_texture_v = is_texture<std::decay_t<T>>::value;
     template<typename... Ts> constexpr bool are_texture_v = bool_and<is_texture_v<Ts>...>::value;
 
-    template<typename T> constexpr bool is_texture_of_real_v = is_texture_v<T> && is_real_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_texture_of_complex_v = is_texture_v<T> && is_complex_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_texture_of_real_or_complex_v = is_texture_v<T> && is_real_or_complex_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_texture_of_numeric_v = is_texture_v<T> && is_numeric_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_texture_of_scalar_v = is_texture_v<T> && is_scalar_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_texture_of_int_v = is_texture_v<T> && is_int_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_texture_of_sint_v = is_texture_v<T> && is_sint_v<value_type_t<T>>;
-    template<typename T> constexpr bool is_texture_of_uint_v = is_texture_v<T> && is_uint_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_texture_of_real_v = is_texture_v<T> and is_real_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_texture_of_complex_v = is_texture_v<T> and is_complex_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_texture_of_real_or_complex_v = is_texture_v<T> and is_real_or_complex_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_texture_of_numeric_v = is_texture_v<T> and is_numeric_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_texture_of_scalar_v = is_texture_v<T> and is_scalar_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_texture_of_int_v = is_texture_v<T> and is_int_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_texture_of_sint_v = is_texture_v<T> and is_sint_v<value_type_t<T>>;
+    template<typename T> constexpr bool is_texture_of_uint_v = is_texture_v<T> and is_uint_v<value_type_t<T>>;
 
     template<typename... Ts> constexpr bool are_texture_of_real_v = bool_and<is_texture_of_real_v<Ts>...>::value;
     template<typename... Ts> constexpr bool are_texture_of_complex_v = bool_and<is_texture_of_complex_v<Ts>...>::value;
@@ -63,6 +65,6 @@ namespace noa::traits {
     template<typename... Ts> constexpr bool are_texture_of_sint_v = bool_and<is_texture_of_sint_v<Ts>...>::value;
     template<typename... Ts> constexpr bool are_texture_of_uint_v = bool_and<is_texture_of_uint_v<Ts>...>::value;
 
-    template<typename T, typename... Ts> constexpr bool is_texture_of_any_v = is_texture_v<T> && is_any_v<value_type_t<T>, Ts...>;
-    template<typename T, typename... Ts> constexpr bool is_texture_of_almost_any_v = is_texture_v<T> && is_almost_any_v<value_type_t<T>, Ts...>;
+    template<typename T, typename... Ts> constexpr bool is_texture_of_any_v = is_texture_v<T> and is_any_v<value_type_t<T>, Ts...>;
+    template<typename T, typename... Ts> constexpr bool is_texture_of_almost_any_v = is_texture_v<T> and is_almost_any_v<value_type_t<T>, Ts...>;
 }
