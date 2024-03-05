@@ -8,6 +8,7 @@ set(TEST_CPU_SOURCES
     noa/cpu/TestCPUReduceIwise.cpp
     noa/cpu/TestCPUReduceEwise.cpp
     noa/cpu/TestCPUReduceAxesEwise.cpp
+    noa/cpu/TestCPUReduceAxesIwise.cpp
     noa/cpu/TestCPUDevice.cpp
     noa/cpu/TestCPUStream.cpp
     )
