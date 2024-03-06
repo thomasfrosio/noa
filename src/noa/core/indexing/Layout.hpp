@@ -411,7 +411,7 @@ namespace noa::indexing {
         }
     }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
     template<typename Int>
     [[nodiscard]] auto extract_matmul_layout(
             const Strides4<Int>& lhs_strides, const Shape4<Int>& lhs_shape,
@@ -557,7 +557,7 @@ namespace noa::indexing {
         return true;
     }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
     /// Reinterprets (i.e. casts) a 4D array.
     /// \usage 1. Create an object with the original shape, strides and pointer of the array to reinterpret.\n
     ///        2. Call the as<New> method to reinterpret the Old array as a New array.

@@ -198,7 +198,7 @@ namespace noa::signal {
     };
 }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 namespace noa {
     inline std::ostream& operator<<(std::ostream& os, Border border) {
         switch (border) {

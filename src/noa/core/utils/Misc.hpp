@@ -43,7 +43,7 @@ namespace noa {
     }
 }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <algorithm>
 
 namespace noa {

@@ -2,8 +2,8 @@
 
 #include "noa/core/Config.hpp"
 
-#if defined(NOA_IS_OFFLINE)
-#include "noa/core/utils/Interfaces.hpp"
+#ifdef NOA_IS_OFFLINE
+#include "noa/core/Interfaces.hpp"
 #include "noa/gpu/cuda/kernels/ReduceAxesEwise.cuh"
 #include "noa/gpu/cuda/ReduceEwise.cuh"
 
@@ -149,7 +149,22 @@ namespace noa::cuda::guts {
 }
 
 namespace noa::cuda {
-    template<typename Config = ReduceEwiseConfig<>,
+    template<bool ZipInput = false,
+             bool ZipReduced = false,
+             bool ZipOutput = false,
+             u32 ElementsPerThread = 8,
+             u32 BlockSize = 512,
+             u32 MaxGridSize = 4096>
+    struct ReduceAxesEwiseConfig {
+        static_assert(is_multiple_of(BlockSize, Constant::WARP_SIZE) and BlockSize <= Limits::MAX_THREADS);
+        using interface = ng::ReduceEwiseInterface<ZipInput, ZipReduced, ZipOutput>;
+        static constexpr u32 max_grid_size = MaxGridSize;
+        static constexpr u32 block_size = BlockSize;
+        static constexpr u32 n_elements_per_thread = ElementsPerThread;
+        static constexpr u32 block_work_size = block_size * n_elements_per_thread;
+    };
+
+    template<typename Config = ReduceAxesEwiseConfig<>,
              typename Op, typename Input, typename Reduced, typename Output, typename Index>
     requires (nt::is_tuple_of_accessor_v<Input> and
               nt::is_tuple_of_accessor_pure_v<Output> and

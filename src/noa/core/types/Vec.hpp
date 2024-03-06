@@ -7,7 +7,7 @@
 #include "noa/core/utils/SafeCast.hpp"
 #include "noa/core/utils/Sort.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <algorithm>
 #endif
 
@@ -570,7 +570,7 @@ namespace noa::inline types {
             return clamp_cast<Vec<U, SIZE, AR>>(*this);
         }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
         template<typename U, size_t AR = 0> requires nt::is_numeric_v<U>
         [[nodiscard]] constexpr auto as_safe() const {
             return safe_cast<Vec<U, SIZE, AR>>(*this);
@@ -699,7 +699,7 @@ namespace noa::inline types {
             return output;
         }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
     public:
         [[nodiscard]] static std::string name() {
             return fmt::format("Vec<{},{}>", ns::to_human_readable<value_type>(), SIZE);
@@ -717,7 +717,7 @@ namespace noa::inline types {
     template<typename T> using Vec3 = Vec<T, 3>;
     template<typename T> using Vec4 = Vec<T, 4>;
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
     /// Support for output stream:
     template<typename T, size_t N, size_t A>
     inline std::ostream& operator<<(std::ostream& os, const Vec<T, N, A>& v) {
@@ -1416,7 +1416,7 @@ namespace noa {
         return vector;
     }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
     template<typename T, size_t N, size_t A, typename Comparison> requires (N > 4)
     [[nodiscard]] auto stable_sort(Vec<T, N, A> vector, Comparison&& comp) noexcept {
         std::stable_sort(vector.begin(), vector.end(), std::forward<Comparison>(comp));

@@ -6,7 +6,7 @@
 #include "noa/core/io/OS.hpp"
 #include "noa/core/Traits.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <ios> // std::streamsize
 #include <fstream>
 #include <memory>

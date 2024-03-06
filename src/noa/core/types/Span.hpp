@@ -107,7 +107,7 @@ namespace noa::inline types {
             return m_data[index];
         }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
         /// Guaranteed bound-check. Throws if out-of-bound.
         [[nodiscard]] constexpr reference at(std::integral auto index) const {
             check(not is_empty() and index >= 0 and index < ssize(),
@@ -132,7 +132,7 @@ namespace noa::inline types {
     template<typename T, size_t N>
     Span(T(&)[N]) -> Span<T, static_cast<i64>(N)>;
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
     template<typename T>
     inline std::ostream& operator<<(std::ostream& os, const Span<T>& v) {
         if constexpr (nt::is_real_or_complex_v<T>)

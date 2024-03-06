@@ -1,27 +1,8 @@
 #pragma once
 
-#include "noa/core/utils/Interfaces.hpp"
+#include "noa/core/Interfaces.hpp"
 #include "noa/gpu/cuda/kernels/Block.cuh"
 #include "noa/gpu/cuda/Types.hpp"
-
-namespace noa::cuda {
-    // TODO Atm, we set the block size at compile time, and prefer smaller blocks as they tend to "waste"
-    //      less threads. We should maybe switch (or at least allow) to runtime block sizes and try to
-    //      maximize the occupancy for the target GPU...
-    template<bool ZipInput = false,
-             bool ZipOutput = false,
-             u32 BlockSize = 128,
-             u32 ElementsPerThread = 4>
-    struct EwiseConfig {
-        static_assert(is_multiple_of(ElementsPerThread, 2u) and
-                      is_multiple_of(BlockSize, Constant::WARP_SIZE) and
-                      BlockSize <= Limits::MAX_THREADS);
-
-        using interface = ng::EwiseInterface<ZipInput, ZipOutput>;
-        static constexpr u32 block_size = BlockSize;
-        static constexpr u32 n_elements_per_thread = ElementsPerThread;
-    };
-}
 
 namespace noa::cuda::guts {
     template<typename EwiseConfig, u32 VectorSize>

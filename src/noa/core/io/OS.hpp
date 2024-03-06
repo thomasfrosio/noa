@@ -4,7 +4,7 @@
 #include "noa/core/Exception.hpp"
 #include "noa/core/utils/ClampCast.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <filesystem>
 #include <cstddef>
 #include <cstdint>

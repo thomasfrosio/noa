@@ -2,7 +2,7 @@
 
 #include "noa/core/Config.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include "noa/core/utils/Adaptor.hpp"
 #include "noa/unified/Traits.hpp"
 #include "noa/unified/Stream.hpp"
@@ -117,7 +117,7 @@ namespace noa::guts {
 
             constexpr bool use_device_memory =
                     nt::has_allow_vectorization_v<Op> and
-                    ng::are_all_value_types_trivially_copyable<decltype(output_accessors)>;
+                    ng::are_all_value_types_trivially_copyable<decltype(output_accessors)>();
 
             // Allocate and initialize the output values for the device.
             [[maybe_unused]] auto buffers = output_accessors.map_enumerate([&]<size_t J, typename A>(A& accessor) {

@@ -2,10 +2,10 @@
 
 #include "noa/core/Config.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <omp.h>
 #include "noa/core/Types.hpp"
-#include "noa/core/utils/Interfaces.hpp"
+#include "noa/core/Interfaces.hpp"
 #include "noa/cpu/ReduceEwise.hpp"
 
 namespace noa::cpu::guts {
@@ -167,7 +167,14 @@ namespace noa::cpu {
             i64 n_threads = 1
     )  {
         using reduce_axes_ewise_core = guts::ReduceAxesEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
-        const Vec axes_to_reduce = guts::get_reduced_axes(input_shape, output_shape);
+        const auto axes_to_reduce = input_shape != output_shape;
+        if (any(axes_to_reduce and (output_shape != 1))) {
+            panic("Dimensions should match the input shape, or be 1, "
+                  "indicating the dimension should be reduced to one element. "
+                  "Got shape input={}, output={}", input_shape, output_shape);
+        } else if (all(axes_to_reduce == false)) {
+            return; // nothing to reduce
+        }
         const bool are_aliased = ng::are_accessors_aliased(input, output);
 
         const auto axes_empty_or_to_reduce = output_shape == 1 or axes_to_reduce;

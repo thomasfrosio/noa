@@ -2,7 +2,7 @@
 
 #include "noa/core/Config.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include "noa/unified/Allocator.hpp"
 #include "noa/unified/Device.hpp"
 

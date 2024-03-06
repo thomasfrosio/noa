@@ -2,7 +2,7 @@
 
 #include "noa/core/Config.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <algorithm>
 
 #include "noa/core/indexing/Layout.hpp"

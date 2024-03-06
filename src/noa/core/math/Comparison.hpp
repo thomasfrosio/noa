@@ -5,7 +5,7 @@
 #include "noa/core/math/Constant.hpp"
 #include "noa/core/math/Generic.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <algorithm> // clamp
 #endif
 

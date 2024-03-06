@@ -2,11 +2,13 @@ set(NOA_CORE_HEADERS
     core/Arange.hpp
     core/Config.hpp
     core/Enums.hpp
+    core/Ewise.hpp
     core/Exception.hpp
+    core/Interfaces.hpp
     core/Iota.hpp
     core/Linspace.hpp
     core/Namespace.hpp
-    core/Operators.hpp
+    core/Reduce.hpp
     core/Resize.hpp
     core/Subregion.hpp
     core/Traits.hpp
@@ -89,7 +91,6 @@ set(NOA_CORE_HEADERS
     core/utils/Adaptor.hpp
     core/utils/Atomic.hpp
     core/utils/ClampCast.hpp
-    core/utils/Interfaces.hpp
     core/utils/Irange.hpp
     core/utils/Misc.hpp
     core/utils/SafeCast.hpp

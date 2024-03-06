@@ -2,10 +2,10 @@
 
 #include "noa/core/Config.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <omp.h>
 #include "noa/core/Types.hpp"
-#include "noa/core/utils/Interfaces.hpp"
+#include "noa/core/Interfaces.hpp"
 
 namespace noa::cpu::guts {
     /// Index-wise reduction.

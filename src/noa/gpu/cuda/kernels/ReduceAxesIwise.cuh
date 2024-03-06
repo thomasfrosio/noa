@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/core/utils/Interfaces.hpp"
+#include "noa/core/Interfaces.hpp"
 #include "noa/gpu/cuda/kernels/Block.cuh"
 
 namespace noa::cuda::guts {

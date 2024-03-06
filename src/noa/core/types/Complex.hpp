@@ -5,7 +5,7 @@
 #include "noa/core/math/Generic.hpp"
 #include "noa/core/types/Half.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <complex>
 #include <cfloat>
 #include "noa/core/string/Format.hpp"
@@ -314,7 +314,7 @@ namespace noa::inline types {
             return {static_cast<T>(real), static_cast<T>(imag)};
         }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
     public:
         [[nodiscard]] static std::string name() {
             if constexpr (std::is_same_v<value_type, Half>)
@@ -414,7 +414,7 @@ namespace noa::traits {
     template<> struct proclaim_is_std_complex<std::complex<f64>> : std::true_type {};
 }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 namespace fmt {
     template<typename T>
     struct formatter<noa::Complex<T>> : formatter<T> {

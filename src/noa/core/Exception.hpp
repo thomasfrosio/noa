@@ -3,7 +3,7 @@
 #include "noa/core/Config.hpp"
 #include "noa/core/string/Format.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <exception>
 #include <filesystem>
 #include <source_location>

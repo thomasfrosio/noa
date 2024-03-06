@@ -88,7 +88,7 @@ namespace noa {
         return false;
     }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
     /// Casts src to type TTo, with bound-checks. Throws if there is a loss of range.
     /// This should be very similar to boost::numeric_cast.
     /// If the output type has a wider range than the input type, this function should have no runtime

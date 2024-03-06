@@ -5,7 +5,7 @@
 #ifdef NOA_IS_OFFLINE
 #include <omp.h>
 #include "noa/core/Types.hpp"
-#include "noa/core/utils/Interfaces.hpp"
+#include "noa/core/Interfaces.hpp"
 #include "noa/cpu/ReduceIwise.hpp"
 
 namespace noa::cpu::guts {
@@ -289,20 +289,6 @@ namespace noa::cpu::guts {
             }
         }
     };
-
-    template<typename Index>
-    constexpr auto get_reduced_axes(
-            const Shape4<Index>& input_shape,
-            const Shape4<Index>& output_shape
-    ) -> Vec4<bool> {
-        const auto axes_to_reduce = input_shape != output_shape;
-        if (any(axes_to_reduce and (output_shape != 1))) {
-            panic("Dimensions should match the input shape, or be 1, "
-                  "indicating the dimension should be reduced to one element. "
-                  "Got shape input={}, output={}", input_shape, output_shape);
-        }
-        return axes_to_reduce;
-    }
 }
 
 namespace noa::cpu {

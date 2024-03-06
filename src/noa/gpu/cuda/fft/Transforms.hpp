@@ -2,7 +2,7 @@
 
 #include "noa/core/Config.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
 #include "noa/gpu/cuda/fft/Plan.hpp"

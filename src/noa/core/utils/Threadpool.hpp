@@ -3,7 +3,7 @@
 #include "noa/core/Config.hpp"
 #include "noa/core/Exception.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <future>
 #include <thread>
 #include <mutex>

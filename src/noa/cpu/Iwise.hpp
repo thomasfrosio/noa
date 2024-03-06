@@ -2,9 +2,9 @@
 
 #include "noa/core/Config.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <omp.h>
-#include "noa/core/utils/Interfaces.hpp"
+#include "noa/core/Interfaces.hpp"
 #include "noa/core/types/Shape.hpp"
 
 namespace noa::cpu::guts {
@@ -102,26 +102,6 @@ namespace noa::cpu {
         static constexpr i64 parallel_threshold = ParallelThreshold;
     };
 
-    /// Dispatches an index-wise operator across N-dimensional (parallel) for-loops.
-    /// \tparam PARALLEL_THRESHOLD  Numbers of elements above which the multithreaded implementation is chosen.
-    /// \param start                Shape of the N-dimensional loop.
-    /// \param op                   Valid index-wise operator (see core interface). The operator is forwarded to
-    ///                             the loop, which takes it by value (it is either moved or copied once by the time
-    ///                             it reaches the loop). In the multi-threaded case, it is copied to every thread.
-    /// \param n_threads            Maximum number of threads. Note that passing a literal 1 (the default value)
-    ///                             should reduce the amount of generated code because the parallel version can
-    ///                             be optimized away. In this case, it is even better to set the THRESHOLD to 1,
-    ///                             turning off the multi-threaded implementation entirely.
-    ///
-    /// \note This is done in the rightmost order, i.e. the innermost loop is assumed to be the rightmost dimension.
-    ///       In the parallel case, the order is not specified (although the rightmost order is still respected
-    ///       within a thread), and the operator should ensure there's no data race. Furthermore, still in the
-    ///       multithreaded case, the operator is copied to every thread, which can add a big performance hit
-    ///       if the operator is expensive to copy.
-    ///
-    /// \note GCC and Clang are able to see and optimize through this. The operators are correctly inlined and the
-    ///       1d cases can be strongly optimized using SIMD or memset/memcopy/memmove calls. Parallelization,
-    ///       as well as non-contiguous arrays, can turn some of these optimizations off.
     template<typename Config = IwiseConfig<>, size_t N, typename Index, typename Op>
     constexpr void iwise(const Shape<Index, N>& shape, Op&& op, i64 n_threads = 1) {
         if constexpr (Config::parallel_threshold > 1) {

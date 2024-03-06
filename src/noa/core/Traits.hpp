@@ -3,7 +3,7 @@
 #include "noa/core/Config.hpp"
 #include "noa/core/Namespace.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <climits>
 #include <cstddef>
 #include <cstdint>

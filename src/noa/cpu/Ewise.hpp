@@ -2,9 +2,9 @@
 
 #include "noa/core/Config.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <omp.h>
-#include "noa/core/utils/Interfaces.hpp"
+#include "noa/core/Interfaces.hpp"
 #include "noa/core/types/Shape.hpp"
 #include "noa/core/indexing/Layout.hpp"
 #include "noa/core/types/Accessor.hpp"
@@ -76,13 +76,6 @@ namespace noa::cpu {
         static constexpr i64 parallel_threshold = ParallelThreshold;
     };
 
-    /// Dispatches an element-wise operator across N-dimensional (parallel) for-loops.
-    /// This is very similar to iwise, but it first tries to simplify the problem by
-    /// checking for contiguity and aliasing of the input and output.
-    /// \param shape        4d shape.
-    /// \param op           Valid element-wise operator. See core interface.
-    /// \param input        Input tuple of 4d accessors and/or accessor-values, or empty.
-    /// \param output       Output tuple of 4d accessors or empty (accessor-values are not allowed).
     template<typename Config = EwiseConfig<>,
              typename Input, typename Output, typename Index, typename Op>
     requires (nt::is_tuple_of_accessor_or_empty_v<Input> and
@@ -112,11 +105,11 @@ namespace noa::cpu {
                     .filter={3},
                 };
                 auto input_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Input>(input));
-                auto output_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Output>(output));
+                auto output_1d = ng::reconfig_accessors<accessor_config_1d>(output);
                 if (actual_n_threads > 1)
-                    interface::parallel(shape_1d, op, std::move(input_1d), std::move(output_1d), actual_n_threads);
+                    interface::parallel(shape_1d, op, std::move(input_1d), output_1d, actual_n_threads);
                 else
-                    interface::serial(shape_1d, std::forward<Op>(op), std::move(input_1d), std::move(output_1d));
+                    interface::serial(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d);
             } else {
                 constexpr auto accessor_config_1d = ng::AccessorConfig<1>{
                     .enforce_contiguous=true,
@@ -124,17 +117,17 @@ namespace noa::cpu {
                     .filter={3},
                 };
                 auto input_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Input>(input));
-                auto output_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Output>(output));
+                auto output_1d = ng::reconfig_accessors<accessor_config_1d>(output);
                 if (actual_n_threads > 1)
-                    interface::parallel(shape_1d, op, std::move(input_1d), std::move(output_1d), actual_n_threads);
+                    interface::parallel(shape_1d, op, std::move(input_1d), output_1d, actual_n_threads);
                 else
-                    interface::serial(shape_1d, std::forward<Op>(op), std::move(input_1d), std::move(output_1d));
+                    interface::serial(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d);
             }
         } else {
             if (actual_n_threads > 1)
-                interface::parallel(shape, op, std::forward<Input>(input), std::forward<Output>(output), actual_n_threads);
+                interface::parallel(shape, op, std::forward<Input>(input), output, actual_n_threads);
             else
-                interface::serial(shape, std::forward<Op>(op), std::forward<Input>(input), std::forward<Output>(output));
+                interface::serial(shape, std::forward<Op>(op), std::forward<Input>(input), output);
         }
     }
 }

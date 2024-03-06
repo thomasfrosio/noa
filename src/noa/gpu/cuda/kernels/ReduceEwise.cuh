@@ -1,29 +1,12 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/utils/Interfaces.hpp"
+#include "noa/core/Interfaces.hpp"
 #include "noa/gpu/cuda/kernels/Block.cuh"
 
 // These reduction kernels are adapted from different sources, but the main logic comes from:
 //  - https://github.com/NVIDIA/cuda-samples/tree/master/Samples/reduction
 //  - https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
-
-namespace noa::cuda {
-    template<bool ZipInput = false,
-             bool ZipReduced = false,
-             bool ZipOutput = false,
-             u32 ElementsPerThread = 8,
-             u32 BlockSize = 512,
-             u32 MaxGridSize = 4096>
-    struct ReduceEwiseConfig {
-        static_assert(is_multiple_of(BlockSize, Constant::WARP_SIZE) and BlockSize <= Limits::MAX_THREADS);
-        using interface = ng::ReduceEwiseInterface<ZipInput, ZipReduced, ZipOutput>;
-        static constexpr u32 max_grid_size = MaxGridSize;
-        static constexpr u32 block_size = BlockSize;
-        static constexpr u32 n_elements_per_thread = ElementsPerThread;
-        static constexpr u32 block_work_size = block_size * n_elements_per_thread;
-    };
-}
 
 namespace noa::cuda::guts {
     // 1d grid of 1d blocks.

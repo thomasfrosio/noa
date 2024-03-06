@@ -5,7 +5,7 @@
 #include "noa/core/Exception.hpp"
 #include "noa/core/string/Parse.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <array>
 #include <cstddef>
 #include <utility>  // std::move

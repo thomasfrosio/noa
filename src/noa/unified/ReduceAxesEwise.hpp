@@ -2,7 +2,7 @@
 
 #include "noa/core/Config.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include "noa/core/utils/Adaptor.hpp"
 #include "noa/unified/Traits.hpp"
 #include "noa/unified/Stream.hpp"
@@ -208,7 +208,7 @@ namespace noa::guts {
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = Stream::current(device).cuda();
-            using config = noa::cuda::ReduceEwiseConfig<ZipInput, ZipReduced, ZipOutput>;
+            using config = noa::cuda::ReduceAxesEwiseConfig<ZipInput, ZipReduced, ZipOutput>;
             noa::cuda::reduce_axes_ewise<config>(
                     input_shape, output_shape,
                     std::forward<Op>(reduce_operator),

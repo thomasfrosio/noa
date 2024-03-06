@@ -1,30 +1,9 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/utils/Interfaces.hpp"
+#include "noa/core/Interfaces.hpp"
 #include "noa/gpu/cuda/kernels/Block.cuh"
 #include "noa/gpu/cuda/Types.hpp"
-
-namespace noa::cuda {
-    template<u32 BlockSizeX, u32 BlockSizeY,
-             u32 ElementsPerThreadX = 1,
-             u32 ElementsPerThreadY = 1>
-    struct IwiseConfig {
-        static constexpr u32 block_size_x = BlockSizeX;
-        static constexpr u32 block_size_y = BlockSizeY;
-        static constexpr u32 block_size = block_size_x * block_size_y;
-        static constexpr u32 n_elements_per_thread_x = ElementsPerThreadX;
-        static constexpr u32 n_elements_per_thread_y = ElementsPerThreadY;
-        static constexpr u32 block_work_size_y = block_size_y * n_elements_per_thread_y;
-        static constexpr u32 block_work_size_x = block_size_x * n_elements_per_thread_x;
-        static_assert(block_size_x * block_size_y <= Limits::MAX_THREADS);
-    };
-
-    template<size_t N>
-    using IwiseConfigDefault = std::conditional_t<N == 1,
-            IwiseConfig<Constant::WARP_SIZE * 8, 1, 1, 1>,
-            IwiseConfig<Constant::WARP_SIZE, 256 / Constant::WARP_SIZE, 1, 1>>;
-}
 
 namespace noa::cuda::guts {
     template<typename Config, typename Op, typename Index>

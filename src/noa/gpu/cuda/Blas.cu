@@ -3,6 +3,11 @@
 #include "noa/gpu/cuda/Blas.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 
+#include "noa/gpu/cuda/signal/Convolve.hpp"
+#include "noa/gpu/cuda/signal/Correlate.hpp"
+#include "noa/gpu/cuda/ReduceAxesIwise.cuh"
+#include "noa/gpu/cuda/ReduceAxesEwise.cuh"
+
 namespace {
     using namespace noa::types;
     using noa::check;

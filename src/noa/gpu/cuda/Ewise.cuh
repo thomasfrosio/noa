@@ -2,13 +2,30 @@
 
 #include "noa/core/Config.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include "noa/gpu/cuda/kernels/Ewise.cuh"
 #include "noa/gpu/cuda/Pointers.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
 #include "noa/gpu/cuda/Types.hpp"
 
 namespace noa::cuda {
+    // TODO Atm, we set the block size at compile time, and prefer smaller blocks as they tend to "waste"
+    //      less threads. We should maybe switch (or at least allow) to runtime block sizes and try to
+    //      maximize the occupancy for the target GPU...
+    template<bool ZipInput = false,
+             bool ZipOutput = false,
+             u32 BlockSize = 128,
+             u32 ElementsPerThread = 4>
+    struct EwiseConfig {
+        static_assert(is_multiple_of(ElementsPerThread, 2u) and
+                      is_multiple_of(BlockSize, Constant::WARP_SIZE) and
+                      BlockSize <= Limits::MAX_THREADS);
+
+        using interface = ng::EwiseInterface<ZipInput, ZipOutput>;
+        static constexpr u32 block_size = BlockSize;
+        static constexpr u32 n_elements_per_thread = ElementsPerThread;
+    };
+
     template<typename Config = EwiseConfig<>,
              typename Input, typename Output, typename Index, typename Op>
     requires (nt::is_tuple_of_accessor_or_empty_v<Input> and

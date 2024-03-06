@@ -9,7 +9,7 @@ namespace noa::traits {
     template<typename T> constexpr bool is_string_v = is_string<T>::value;
 }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
     #pragma GCC diagnostic push

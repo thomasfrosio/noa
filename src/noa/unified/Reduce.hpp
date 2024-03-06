@@ -1,13 +1,16 @@
 #pragma once
 
+#include "noa/core/Reduce.hpp"
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Ewise.hpp"
 #include "noa/unified/ReduceEwise.hpp"
 #include "noa/unified/ReduceAxesEwise.hpp"
+#include "noa/unified/ReduceIwise.hpp"
+#include "noa/unified/ReduceAxesIwise.hpp"
 
 #include "noa/cpu/Median.hpp"
 #if defined(NOA_ENABLE_CUDA)
-#include "noa/gpu/cuda/Median.hpp"
+#include "noa/gpu/cuda/Median.cuh"
 #endif
 
 // TODO We used to have a backend specific kernel to compute the variance along an axis, add it back?
@@ -236,6 +239,39 @@ namespace noa {
         else
             reduce_ewise(wrap(lhs, rhs), real_t{}, output, ReduceRMSD{static_cast<real_t>(lhs.ssize())});
         return output;
+    }
+
+    /// Returns {offset, maximum} of the input array.
+    /// \note If the maximum value appears more than once, this function makes no guarantee to which one is selected.
+    /// \note To get the corresponding 4d indices, noa::indexing::offset2index(offset, input) can be used.
+    template<typename Input> requires nt::is_varray_of_scalar_v<Input>
+    [[nodiscard]] auto arg_max(const Input& input) {
+        using value_t = nt::mutable_value_type_t<Input>;
+        using pair_t = Pair<value_t, i64>;
+        pair_t reduced{std::numeric_limits<value_t>::lowest(), i64{0}};
+        value_t output_value;
+        i64 output_offset;
+        reduce_iwise(input.shape(), input.device(), reduced,
+                     wrap(output_value, output_offset),
+                     ReduceFirstMax{input.accessor()});
+        return Pair{output_value, output_offset};
+    }
+
+    /// Returns {offset, minimum} of the input array.
+    /// \note If the minimum value appears more than once, this function makes no guarantee to which one is selected.
+    /// \note To get the corresponding 4d indices, noa::indexing::offset2index(offset, input) can be used.
+    template<typename Input> requires nt::is_varray_of_scalar_v<Input>
+    [[nodiscard]] auto arg_min(const Input& input) {
+        using value_t = nt::mutable_value_type_t<Input>;
+        using pair_t = Pair<value_t, i64>;
+        pair_t reduced{std::numeric_limits<value_t>::max(), i64{0}};
+        pair_t output;
+        value_t output_value;
+        i64 output_offset;
+        reduce_iwise(input.shape(), input.device(), reduced,
+                     wrap(output_value, output_offset),
+                     ReduceFirstMin{input.accessor()});
+        return Pair{output_value, output_offset};
     }
 }
 
@@ -569,9 +605,124 @@ namespace noa::math {
         stddev(input, stddevs, ddof);
         return stddevs;
     }
+
+    /// Reduces an array along some dimensions by taking the maximum value along the reduce axis/axes.
+    /// \details Dimensions of the output arrays should match the input shape, or be 1, indicating the dimension
+    ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
+    ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
+    /// \param[in] input            Array to reduce.
+    /// \param[out] output_values   Array where to save the maximum values, or empty.
+    /// \param[out] output_offsets  Array where to save the offsets of the maximum values, or empty.
+    /// \note If the maximum value appears more than once, this function makes no guarantee to which one is selected.
+    template<typename Input,
+             typename Values = View<nt::mutable_value_type_t<Input>>,
+             typename Offsets = View<i64>>
+    requires (nt::are_varray_of_scalar_v<Input, Values, Offsets> and
+              nt::are_varray_of_mutable_v<Values, Offsets>)
+    void arg_max(
+            const Input& input,
+            const Values& output_values,
+            const Offsets& output_offsets
+    ) {
+        const bool has_offsets = not output_offsets.is_empty();
+        const bool has_values = not output_values.is_empty();
+        if (not has_offsets and not has_values)
+            return;
+
+        check(not input.is_empty(), "Empty array detected");
+        using value_t = nt::mutable_value_type_t<Input>;
+        using pair_t = Pair<value_t, i64>;
+        pair_t reduced{std::numeric_limits<value_t>::lowest(), i64{0}};
+
+        // Reorder DHW to rightmost.
+        auto shape = input.shape();
+        auto accessor = input.accessor();
+        auto arg_values = output_values.view();
+        auto arg_offsets = output_offsets.view();
+        const auto order_3d = ni::order(input.strides().pop_front(), shape.pop_front());
+        if (any(order_3d != Vec4<i64>{0, 1, 2})) {
+            auto order_4d = (order_3d + 1).push_front(0);
+            shape = shape.reorder(order_4d);
+            accessor.reorder(order_4d);
+            arg_values.reorder(order_4d);
+            arg_offsets.reorder(order_4d);
+        }
+        auto op = ReduceFirstMax{accessor};
+
+        auto device = input.device();
+        if (has_offsets and has_values) {
+            reduce_axes_iwise(
+                    shape, device, reduced, wrap(arg_values, arg_offsets),
+                    op, input, output_values, output_offsets);
+        } else if (has_offsets) {
+            reduce_axes_iwise(shape, device, reduced, arg_offsets, op, input, output_offsets);
+        } else {
+            reduce_axes_iwise(shape, device, reduced, arg_values, op, input, output_values);
+        }
+    }
+
+    /// Reduces an array along some dimensions by taking the minimum value along the reduce axis/axes.
+    /// \details Dimensions of the output arrays should match the input shape, or be 1, indicating the dimension
+    ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
+    ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
+    /// \param[in] input            Array to reduce.
+    /// \param[out] output_values   Array where to save the minimum values, or empty.
+    /// \param[out] output_offsets  Array where to save the offsets of the minimum values, or empty.
+    /// \note If the minimum value appears more than once, this function makes no guarantee to which one is selected.
+    template<typename Input,
+             typename Values = View<nt::mutable_value_type_t<Input>>,
+             typename Offsets = View<i64>>
+    requires (nt::are_varray_of_scalar_v<Input, Values, Offsets> and
+              nt::are_varray_of_mutable_v<Values, Offsets>)
+    void arg_min(
+            const Input& input,
+            const Values& output_values,
+            const Offsets& output_offsets
+    ) {
+        const bool has_offsets = not output_offsets.is_empty();
+        const bool has_values = not output_values.is_empty();
+        if (not has_offsets and not has_values)
+            return;
+
+        check(not input.is_empty(), "Empty array detected");
+        using value_t = nt::mutable_value_type_t<Input>;
+        using pair_t = Pair<value_t, i64>;
+        pair_t reduced{std::numeric_limits<value_t>::max(), i64{0}};
+
+        // Reorder DHW to rightmost.
+        auto shape = input.shape();
+        auto accessor = input.accessor();
+        auto arg_values = output_values.view();
+        auto arg_offsets = output_offsets.view();
+        const auto order_3d = ni::order(input.strides().pop_front(), shape.pop_front());
+        if (any(order_3d != Vec4<i64>{0, 1, 2})) {
+            auto order_4d = (order_3d + 1).push_front(0);
+            shape = shape.reorder(order_4d);
+            accessor.reorder(order_4d);
+            arg_values.reorder(order_4d);
+            arg_offsets.reorder(order_4d);
+        }
+        auto op = ReduceFirstMin{accessor};
+
+        auto device = input.device();
+        if (has_offsets and has_values) {
+            reduce_axes_iwise(
+                    shape, device, reduced, wrap(arg_values, arg_offsets),
+                    op, input, output_values, output_offsets);
+        } else if (has_offsets) {
+            reduce_axes_iwise(shape, device, reduced, arg_offsets, op, input, output_offsets);
+        } else {
+            reduce_axes_iwise(shape, device, reduced, arg_values, op, input, output_values);
+        }
+    }
 }
 
 namespace noa {
+    struct NormalizeOptions {
+        Norm mode = Norm::MEAN_STD;
+        i64 ddof = 0;
+    };
+
     /// Normalizes an array, according to a normalization mode.
     /// Can be in-place or out-of-place.
     template<typename Input, typename Output>
@@ -580,17 +731,16 @@ namespace noa {
     void normalize(
             const Input& input,
             const Output& output,
-            Norm normalization_mode = Norm::MEAN_STD,
-            i64 ddof = 0
+            const NormalizeOptions& options = {}
     ) {
-        switch (normalization_mode) {
+        switch (options.mode) {
             case Norm::MIN_MAX: {
                 const auto [min, max] = min_max(input);
                 ewise(wrap(input, min, max), output, MinusDivide{});
                 break;
             }
             case Norm::MEAN_STD: {
-                const auto [mean, stddev] = mean_std(input, ddof);
+                const auto [mean, stddev] = mean_std(input, options.ddof);
                 ewise(wrap(input, mean, stddev), output, MinusDivide{});
                 break;
             }
@@ -610,22 +760,21 @@ namespace noa {
     void normalize_per_batch(
             const Input& input,
             const Output& output,
-            Norm normalization_mode = Norm::MEAN_STD,
-            i64 ddof = 0
+            const NormalizeOptions& options = {}
     ) {
         check(all(input.shape() == output.shape()),
               "The input and output arrays should have the same shape, but got input={} and output={}",
               input.shape(), output.shape());
 
         const auto axes_to_reduced = ReduceAxes{false, true, true, true};
-        switch (normalization_mode) {
+        switch (options.mode) {
             case Norm::MIN_MAX: {
                 const auto mins_maxs = min_max(input, axes_to_reduced);
                 ewise(wrap(input, mins_maxs.first, mins_maxs.second), output, NormalizeMinMax{});
                 break;
             }
             case Norm::MEAN_STD: {
-                const auto [means, stddevs] = mean_stddev(input, axes_to_reduced, ddof);
+                const auto [means, stddevs] = mean_stddev(input, axes_to_reduced, options.ddof);
                 ewise(wrap(input, means, stddevs), output, NormalizeMeanStddev{});
                 break;
             }

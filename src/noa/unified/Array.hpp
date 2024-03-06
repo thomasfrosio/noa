@@ -2,7 +2,7 @@
 
 #include "noa/core/Config.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include "noa/core/Exception.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/Types.hpp"

@@ -285,7 +285,7 @@ namespace noa::inline types {
             return clamp_cast<Shape<TTo, SIZE>>(*this);
         }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
         template<typename TTo> requires nt::is_int_v<TTo>
         [[nodiscard]] constexpr auto as_safe() const {
             return safe_cast<Shape<TTo, SIZE>>(*this);
@@ -505,7 +505,7 @@ namespace noa::inline types {
             return {batch(), pop_front()};
         }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
     public:
         [[nodiscard]] static std::string name() {
             return fmt::format("Shape<{},{}>", ns::to_human_readable<value_type>(), SIZE);
@@ -792,7 +792,7 @@ namespace noa::inline types {
             return clamp_cast<Strides<TTo, SIZE>>(*this);
         }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
         template<typename TTo> requires nt::is_int_v<TTo>
         [[nodiscard]] constexpr auto as_safe() const {
             return safe_cast<Strides<TTo, SIZE>>(*this);
@@ -917,7 +917,7 @@ namespace noa::inline types {
             return {batch(), pop_front()};
         }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
     public:
         [[nodiscard]] static std::string name() {
             return fmt::format("Strides<{},{}>", ns::to_human_readable<value_type>(), SIZE);
@@ -957,7 +957,7 @@ namespace std {
     struct tuple_element<I, const noa::Strides<T, N>> { using type = const T; };
 }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 // Support for output stream:
 namespace noa::inline types {
     template<typename T, size_t N>

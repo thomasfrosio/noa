@@ -2,7 +2,7 @@
 
 #include "noa/core/Config.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <string_view>
 #include "noa/core/Exception.hpp"
 #include "noa/core/utils/Irange.hpp"

@@ -1,20 +1,8 @@
 #pragma once
 
-#include "noa/core/utils/Interfaces.hpp"
+#include "noa/core/Config.hpp"
+#include "noa/core/Interfaces.hpp"
 #include "noa/gpu/cuda/kernels/Block.cuh"
-
-namespace noa::cuda {
-    template<bool ZipReduced = false,
-             bool ZipOutput = false,
-             u32 BlockSize = 512,
-             u32 MaxGridSize = 4096>
-    struct ReduceIwiseConfig {
-        static_assert(is_multiple_of(BlockSize, Constant::WARP_SIZE) and BlockSize <= Limits::MAX_THREADS);
-        using interface = ng::ReduceIwiseInterface<ZipReduced, ZipOutput>;
-        static constexpr u32 block_size = BlockSize;
-        static constexpr u32 max_grid_size = MaxGridSize;
-    };
-}
 
 namespace noa::cuda::guts {
     template<typename Config>

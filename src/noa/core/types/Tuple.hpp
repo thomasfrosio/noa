@@ -4,7 +4,7 @@
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Pair.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include "noa/core/string/Format.hpp"
 #endif
 
@@ -443,7 +443,7 @@ namespace noa::traits {
     #pragma warning(pop)
 #endif
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 namespace fmt {
     template<typename... T>
     struct formatter<noa::Tuple<T...>> {

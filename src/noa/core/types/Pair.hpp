@@ -3,7 +3,7 @@
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <cstddef>
 #include <utility>
 #include <functional> // reference_wrapper

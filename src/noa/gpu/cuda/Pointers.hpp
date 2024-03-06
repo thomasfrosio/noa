@@ -11,7 +11,7 @@ namespace noa::cuda {
     };
 }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Device.hpp"
 #include "noa/gpu/cuda/Types.hpp"

@@ -5,9 +5,8 @@
 #include "noa/core/types/Vec.hpp"
 #include "noa/core/types/Tuple.hpp"
 
-/// These interfaces define the expected interface (duh) for each type of operators,
-/// and provide the common functionalities of zip/unzip, optional member functions
-/// and function redirections.
+/// These define the expected interface for each type of operators, and provide the common functionalities
+/// of zip/unzip, optional member functions and function redirections.
 
 namespace noa::traits {
     template<typename T, typename = void>
@@ -18,8 +17,8 @@ namespace noa::traits {
     /// By default, the element-wise interfaces (ewise, reduce_ewise and reduce_axes_ewise) allow the operators
     /// to write from the inputs and read from the outputs. While this can be useful for some operations, it may also
     /// constrains some backends when it comes to vectorization (e.g. vectorized load/write on CUDA). Operators can
-    /// define the optional type alias "allow_vectorization" to indicate that the input values are only read from and
-    /// that output values are only written to, which can help backends to generate vectorized code.
+    /// define the optional type alias "allow_vectorization" to indicate that the input values are read-only and
+    /// that output values are write-only, which can help backends to generate vectorized code.
     template<typename T>
     constexpr bool has_allow_vectorization_v = has_allow_vectorization<std::decay_t<T>>::value;
 

@@ -6,7 +6,7 @@
 
 #include "noa/core/Types.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <memory>
 #endif
 
@@ -28,7 +28,7 @@ namespace noa::cuda {
         static constexpr u32 MAX_YZ_BLOCKS = 65535;
     };
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
     template<typename T>
     struct OwnedTexture {
         using value_type = T;

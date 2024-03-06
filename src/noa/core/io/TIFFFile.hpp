@@ -5,7 +5,7 @@
 #include "noa/core/io/ImageFile.hpp"
 
 #if NOA_ENABLE_TIFF
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 
 namespace noa::io {
     class TIFFFile : public guts::ImageFile {

@@ -4,7 +4,7 @@
 #include "noa/core/Traits.hpp"
 #include "noa/core/math/Constant.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <cstdlib>
 #include <cmath>
 #else

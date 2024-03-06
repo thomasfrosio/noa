@@ -10,7 +10,7 @@
 #include "noa/core/types/Mat33.hpp"
 #include "noa/core/types/Span.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include <string_view>
 #include <algorithm> // std::copy
 #include <memory>

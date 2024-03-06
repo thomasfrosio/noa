@@ -298,7 +298,7 @@ namespace noa::inline types {
             return noa::inverse(*this);
         }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
     public:
         [[nodiscard]] static std::string name() {
             if constexpr (std::is_same_v<value_type, float>)

@@ -6,7 +6,7 @@
 #include "noa/core/io/IO.hpp"
 #include "noa/core/io/Stats.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 namespace noa::io::guts {
     class ImageFile {
     public:

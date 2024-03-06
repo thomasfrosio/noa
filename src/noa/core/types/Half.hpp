@@ -725,7 +725,7 @@ namespace std {
     };
 }
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 namespace noa::string {
     template<>
     [[nodiscard]] NOA_IH std::string to_human_readable<Half>() { return "f16"; }

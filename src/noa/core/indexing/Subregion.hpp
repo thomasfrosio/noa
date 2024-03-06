@@ -7,7 +7,7 @@
 #include "noa/core/utils/ClampCast.hpp"
 #include "noa/core/utils/SafeCast.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 namespace noa::indexing {
     /// Ellipsis or "..." operator, which selects the full extent of the remaining outermost dimension(s).
     struct Ellipsis {};

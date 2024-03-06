@@ -2,7 +2,7 @@
 
 #include "noa/core/Config.hpp"
 
-#if defined(NOA_IS_OFFLINE)
+#ifdef NOA_IS_OFFLINE
 #include "noa/core/types/Shape.hpp"
 #include "noa/unified/Device.hpp"
 #include "noa/unified/Stream.hpp"
