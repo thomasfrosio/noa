@@ -1,4 +1,4 @@
-#include <noa/core/utils/Interfaces.hpp>
+#include <noa/core/Interfaces.hpp>
 #include <noa/core/utils/Irange.hpp>
 #include <catch2/catch.hpp>
 
