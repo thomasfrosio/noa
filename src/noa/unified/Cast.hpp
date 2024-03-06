@@ -1,7 +1,7 @@
 #pragma once
 
+#include "noa/core/Ewise.hpp"
 #include "noa/unified/Ewise.hpp"
-#include "noa/core/Operators.hpp"
 
 namespace noa {
     /// Casts an array.

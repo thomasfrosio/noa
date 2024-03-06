@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
-#include "noa/core/Operators.hpp"
+#include "noa/core/Ewise.hpp"
 #include "noa/core/utils/Misc.hpp"
 #include "noa/cpu/AllocatorHeap.hpp"
 #include "noa/cpu/Iwise.hpp"
