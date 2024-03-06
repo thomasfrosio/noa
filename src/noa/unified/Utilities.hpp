@@ -49,6 +49,13 @@ namespace noa::guts {
         }(nt::type_list_t<Tup>{});
     };
 
+    template<typename Tup>
+    [[nodiscard]] constexpr bool are_all_value_types_trivially_copyable() {
+        return []<typename... T>(nt::TypeList<T...>) {
+            return (std::is_trivially_copyable_v<nt::value_type_t<T>> and ...);
+        }(nt::type_list_t<Tup>{});
+    };
+
     /// Returns the index of the first varray in the tuple.
     /// Returns -1 if there's no varray in the tuple.
     template<typename T> requires nt::is_tuple_v<T>

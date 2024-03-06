@@ -11,6 +11,7 @@
 
 #include "noa/cpu/ReduceEwise.hpp"
 #ifdef NOA_ENABLE_CUDA
+#include "noa/gpu/cuda/AllocatorDevice.hpp"
 #include "noa/gpu/cuda/AllocatorManaged.hpp"
 #include "noa/gpu/cuda/Copy.cuh"
 #include "noa/gpu/cuda/ReduceEwise.cuh"
@@ -22,17 +23,14 @@ namespace noa::guts {
 }
 
 namespace noa {
-    /// Dispatches a index-wise reduction operator across N-dimensional (parallel) for-loops.
-    /// \param shape            Shape of the N-dimensional loop. Between 1d and 4d.
-    /// \param device           Device on which to dispatch the reduction. When this function returns,
-    ///                         the current stream of that device is guaranteed to be synchronized.
-    /// \param[in] op           Operator satisfying the reduce_iwise core interface. The operator is perfectly
+    /// Dispatches a element-wise reduction operator.
+    /// \param[in,out] inputs   Input varray or an adaptor containing at least one varray.
+    ///                         If multiple varrays are entered, there should have the same shape and same device.
+    /// \param[in] reduced      Initial reduced value, or an adaptor containing the initial reduced value(s).
+    /// \param[in,out] outputs  Output value, or an adaptor containing (a reference of) the output value(s).
+    ///                         When this function returns, the output values will have been updated.
+    /// \param[in] op           Operator satisfying the reduce_ewise core interface. The operator is perfectly
     ///                         forwarded to the backend (it is moved or copied to the backend compute kernel).
-    /// \param[in] reduced      Initial reduced value, or an adaptor (see wrap() and zip()) containing
-    ///                         the initial reduced value(s).
-    /// \param[in,out] outputs  Output value, or an adaptor (see wrap() and zip()) containing (reference of)
-    ///                         the output value(s). When this function returns, the output values will have
-    ///                         been updated.
     template<typename Inputs = guts::AdaptorUnzip<>,
              typename Reduced = guts::AdaptorUnzip<>,
              typename Outputs = guts::AdaptorUnzip<>,
@@ -43,6 +41,9 @@ namespace noa {
             Outputs&& outputs,
             Operator&& op
     ) {
+        static_assert(guts::is_adaptor_v<Outputs> or std::is_lvalue_reference_v<Outputs>,
+                      "Output values should be lvalue references");
+
         if constexpr (guts::are_adaptor_v<Inputs, Reduced, Outputs>) {
             guts::reduce_ewise<Inputs::ZIP, Reduced::ZIP, Outputs::ZIP>(
                     std::forward<Inputs>(inputs).tuple,
@@ -166,17 +167,30 @@ namespace noa::guts {
                 return AccessorRestrictContiguous<T, 1, i32>();
             });
 
+            constexpr bool use_device_memory =
+                    nt::has_allow_vectorization_v<Op> and
+                    ng::are_all_value_types_trivially_copyable<decltype(output_accessors)>;
+
             // Allocate and initialize the output values for the device.
             [[maybe_unused]] auto buffers = output_accessors.map_enumerate([&]<size_t J, typename A>(A& accessor) {
-                // We use managed memory to do the copy on the host, allowing us to support non-trivially copyable
-                // types (such types cannot be safely copied between unregistered host and device memory).
-                auto buffer = noa::cuda::AllocatorManaged<typename A::value_type>::allocate(1, cuda_stream);
-                accessor.reset_pointer(buffer.get());
+                using value_t = typename A::value_type;
+                if constexpr (use_device_memory) {
+                    auto buffer = noa::cuda::AllocatorDevice<value_t>::allocate_async(1, cuda_stream);
+                    accessor.reset_pointer(buffer.get());
+                    return buffer;
+                } else {
+                    // We use managed memory to do the copy on the host, allowing us to support non-trivially copyable
+                    // types (such types cannot be safely copied between unregistered host and device memory).
+                    auto buffer = noa::cuda::AllocatorManaged<value_t>::allocate(1, cuda_stream);
+                    accessor.reset_pointer(buffer.get());
 
-                // In the case of a defined final() operator member function, the core interface requires
-                // the output values to be correctly initialized so that the operator can read from them.
-                accessor[0] = outputs[Tag<J>{}];
-                return buffer;
+                    // In the case of a defined final() operator member function, the core interface requires
+                    // the output values to be correctly initialized so that the operator can read from them.
+                    // This is turned off using the "allow_vectorization" flag.
+                    if constexpr (not nt::has_allow_vectorization_v<Op>)
+                        accessor[0] = outputs[Tag<J>{}]; // TODO else prefetch to device?
+                    return buffer;
+                }
             });
 
             // Compute the reduction.
@@ -185,15 +199,22 @@ namespace noa::guts {
                     shape, std::forward<Op>(op),
                     std::move(input_accessors),
                     std::move(reduced_accessors),
-                    std::move(output_accessors),
+                    output_accessors,
                     cuda_stream);
-            cuda_stream.synchronize();
+            if constexpr (not use_device_memory)
+                cuda_stream.synchronize();
 
             // Copy the results back to the output values.
             output_accessors.for_each_enumerate([&]<size_t J>(auto& accessor) {
-                outputs[Tag<J>{}] = accessor[0];
+                if constexpr (use_device_memory) {
+                    auto& output = outputs[Tag<J>{}];
+                    noa::cuda::copy(accessor.get(), &output, cuda_stream);
+                } else {
+                    outputs[Tag<J>{}] = accessor[0];
+                }
             });
-
+            if constexpr (use_device_memory)
+                cuda_stream.synchronize();
             #else
             panic("No GPU backend detected");
             #endif

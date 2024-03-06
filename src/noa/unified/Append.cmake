@@ -10,6 +10,7 @@ set(NOA_UNIFIED_HEADERS
     unified/Indexing.hpp
     unified/Iwise.hpp
     unified/ReduceAxesEwise.hpp
+    unified/ReduceAxesIwise.hpp
     unified/ReduceEwise.hpp
     unified/ReduceIwise.hpp
     unified/Resize.hpp
