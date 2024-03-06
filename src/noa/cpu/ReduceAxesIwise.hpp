@@ -349,13 +349,13 @@ namespace noa::cpu {
                     reducer::template single_axis<3>(input_shape, op, reduced, output_3d, n_threads);
                 } else if (axes_to_reduce[2]) {
                     auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter={0, 1, 3}}>(output);
-                    reducer::template single_axis<2>(input_shape, op, reduced, output_3d, n_threads);
+                    reducer::template single_axis<2>(input_shape.filter(0, 1, 3, 2), op, reduced, output_3d, n_threads);
                 } else if (axes_to_reduce[1]) {
                     auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter={0, 2, 3}}>(output);
-                    reducer::template single_axis<1>(input_shape, op, reduced, output_3d, n_threads);
+                    reducer::template single_axis<1>(input_shape.filter(0, 2, 3, 1), op, reduced, output_3d, n_threads);
                 } else {
                     auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter={1, 2, 3}}>(output);
-                    reducer::template single_axis<0>(input_shape, op, reduced, output_3d, n_threads);
+                    reducer::template single_axis<0>(input_shape.filter(1, 2, 3, 0), op, reduced, output_3d, n_threads);
                 }
             }
         } else if constexpr (N == 3) {
@@ -374,15 +374,15 @@ namespace noa::cpu {
                     reducer::template single_axis<2>(input_shape, op, reduced, output_2d, n_threads);
                 } else if (axes_to_reduce[1]) {
                     auto output_2d = ng::reconfig_accessors<ng::AccessorConfig<2>{.filter={0, 2}}>(output);
-                    reducer::template single_axis<1>(input_shape, op, reduced, output_2d, n_threads);
+                    reducer::template single_axis<1>(input_shape.filter(0, 2, 1), op, reduced, output_2d, n_threads);
                 } else {
                     auto output_2d = ng::reconfig_accessors<ng::AccessorConfig<2>{.filter={1, 2}}>(output);
-                    reducer::template single_axis<0>(input_shape, op, reduced, output_2d, n_threads);
+                    reducer::template single_axis<0>(input_shape.filter(1, 2, 0), op, reduced, output_2d, n_threads);
                 }
             }
         } else if constexpr (N == 2) {
-            auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter={0}}>(output);
             if (axes_to_reduce[1]) {
+                auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter={0}}>(output);
                 if (is_small or n_threads <= 1) {
                     reducer::serial_2d(input_shape, op, reduced, output_1d);
                 } else if (n_batches < n_threads) {
@@ -391,7 +391,8 @@ namespace noa::cpu {
                     reducer::template parallel_2d<reducer::SerialReduction>(input_shape, op, reduced, output_1d, n_threads);
                 }
             } else {
-                reducer::template single_axis<0>(input_shape, op, reduced, output_1d, n_threads);
+                auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter={1}}>(output);
+                reducer::template single_axis<0>(input_shape.filter(1, 0), op, reduced, output_1d, n_threads);
             }
         }
     }
