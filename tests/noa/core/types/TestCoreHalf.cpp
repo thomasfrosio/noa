@@ -2,28 +2,34 @@
 #include <noa/core/math/Comparison.hpp>
 #include <catch2/catch.hpp>
 
+namespace {
+    struct b16 {
+        uint16_t data;
+    };
+}
+
 TEST_CASE("core::Half", "[noa][core]") {
     using namespace ::noa;
 
     static_assert(sizeof(Half) == 2);
-    static_assert(traits::is_numeric_v<Half>);
+    static_assert(nt::is_numeric_v<Half> and std::is_same_v<f16, Half>);
 
-    Half ha;
-    REQUIRE(ha == Half{0});
+    f16 ha{};
+    REQUIRE(ha == f16{0});
     auto* mem = reinterpret_cast<char*>(&ha);
     REQUIRE((mem[0] == 0 && mem[1] == 0));
 
-    ha = Half{};
-    ha += Half{1}; REQUIRE(ha == Half(1));
-    ha -= Half{3}; REQUIRE(ha == Half(-2));
-    ha *= Half{4.5}; REQUIRE(ha == Half(-9));
-    ha /= Half{-3}; REQUIRE(ha == Half(3));
+    ha = f16{};
+    ha += f16{1}; REQUIRE(ha == f16(1));
+    ha -= f16{3}; REQUIRE(ha == f16(-2));
+    ha *= f16{4.5}; REQUIRE(ha == f16(-9));
+    ha /= f16{-3}; REQUIRE(ha == f16(3));
 
-    ha = Half{};
-    ha += 1; REQUIRE(ha == Half(1));
-    ha -= 3; REQUIRE(ha == Half(-2));
-    ha *= 4.5; REQUIRE(ha == Half(-9));
-    ha /= -3; REQUIRE(ha == Half(3));
+    ha = f16{};
+    ha += 1; REQUIRE(ha == f16(1));
+    ha -= 3; REQUIRE(ha == f16(-2));
+    ha *= 4.5; REQUIRE(ha == f16(-9));
+    ha /= -3; REQUIRE(ha == f16(3));
 
     // Bug was found for int2half with min values. I've contacted the author,
     // but in the meantime added a fix on the Half cast functions.

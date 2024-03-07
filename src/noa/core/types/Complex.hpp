@@ -23,8 +23,8 @@ namespace noa::inline types {
     class alignas(sizeof(Real) * 2) Complex {
     public:
         static_assert(nt::is_real<Real>::value);
-        Real real;
-        Real imag;
+        Real real{};
+        Real imag{};
 
     public:
         using value_type = Real;

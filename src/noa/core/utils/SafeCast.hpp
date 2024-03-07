@@ -50,8 +50,8 @@ namespace noa {
             constexpr bool IS_WIDER_THAN_HALF = sizeof(TTo) > 2 || (sizeof(TTo) == 2 && std::is_unsigned_v<TTo>);
             if constexpr (std::is_same_v<TFrom, Half> && IS_WIDER_THAN_HALF) {
                 if (is_nan(src) ||
-                    src == Half(Half::Mode::BINARY, 0x7C00) ||
-                    src == Half(Half::Mode::BINARY, 0xFC00)) {
+                    src == Half::from_bits(0x7C00) ||
+                    src == Half::from_bits(0xFC00)) {
                     return false;
                 } else {
                     if constexpr (std::is_unsigned_v<TTo>)

@@ -30,7 +30,7 @@
 
 // For device code, use __half. For host code, use half_float::float.
 // Their underlying type is uint16_t, and they can be used interchangeably.
-#if defined(NOA_IS_GPU_CODE)
+#ifdef __CUDA_ARCH__
 #include <cuda_runtime_api.h>
 #include <cuda_fp16.h>
 #else
@@ -43,7 +43,7 @@
 #pragma warning(pop)
 #endif
 
-// TODO Make this an aggregate, without zero-initialization (useful for CUDA shared memory).
+// TODO C++23 replace with has std::float16_t and std::bfloat16_t
 
 namespace noa::inline types {
     /// 16-bit precision float (IEEE-754-2008).
@@ -65,7 +65,7 @@ namespace noa::inline types {
     public: // --- typedefs --- //
         using arithmetic_type = HALF_ARITHMETIC_TYPE;
 
-        #if defined(__CUDA_ARCH__)
+        #ifdef __CUDA_ARCH__
         using native_type = __half;
         #else
         using native_type = half_float::half;
@@ -79,108 +79,95 @@ namespace noa::inline types {
         static_assert(sizeof(native_type) == 2);
         static_assert(alignof(native_type) == alignof(uint16_t));
 
-    public: // --- Constructors --- //
-        // Default constructor, with initialization to 0.
-        NOA_HD constexpr Half() noexcept = default;
+    public:
+        constexpr Half() noexcept = default;
 
-        // Conversion constructor. Any explicit initialization from a built-in type goes through that constructor.
-        // No conversion warnings will be raised. Works with native_type, Half, float, double, (u)char, (u)short,
-        // (u)int, (u)long, (u)long long.
-        // Note that the value can overflow. Use clamp_cast or safe_cast to have a well-defined overflow behavior.
+        /// Conversion constructor.
+        /// \details Any explicit initialization from a builtin type goes through that constructor. No conversion
+        ///          warnings will be raised. Supported types are: native_type, f16, float, double, (u)char, (u)short,
+        ///          (u)int, (u)long, (u)long long.
+        /// \note This is equivalent to static_cast, so the value can overflow during the conversion.
+        ///       Use clamp_cast or safe_cast to have a well-defined overflow behavior.
+        /// FIXME Ideally, we would make it implicit, but the issue is that the compiler will not generate a loss
+        ///       of precision warning, so f16 a = 100000 would never warn. The issue with explicit however, is that
+        ///       something like c16{1, 0} is not allowed and we have to write c16{f16{1}, f16{0}}...
         template<typename T>
-        NOA_HD constexpr explicit Half(T x) : m_data(cast_<native_type>(x)) {}
-
-        enum class Mode { BINARY };
-
-        // Conversion constructor. Reinterprets the bits as Half.
-        #if defined(__CUDA_ARCH__)
-        NOA_DEVICE Half(Mode, uint16_t bits) noexcept
-                : m_data(__half_raw{bits}) {}
-        #else
-        constexpr Half(Mode, uint16_t bits) noexcept
-        // This function is not native to the half_float namespace. It was added to our version
-        // to allow reinterpretation from bits to half_float::half in constexpr context.
-                : m_data(half_float::reinterpret_as_half(bits)) {}
-        #endif
+        NOA_HD constexpr explicit Half(T x) : m_data(from_value<native_type>(x)) {}
 
     public:
-        // Returns a copy of the native type.
-        // On the host, it is half_float::half. On CUDA devices, it is __half.
-        [[nodiscard]] NOA_HD constexpr native_type native() const noexcept { return m_data; }
+        [[nodiscard]] static NOA_HD constexpr Half from_bits(uint16_t bits) noexcept { return Half(Empty{}, bits); }
 
-    private:
-        // Cast to/from native_type. Most built-in type are supported.
-        // Clang requires this function to be defined before the cast operator X()
+        // Cast to/from native_type. Most builtin types are supported.
+        // Clang < 15 required this function to be defined before the cast operator X().
         template<typename T, typename U>
-        [[nodiscard]] NOA_HD static constexpr T cast_(U arg) {
-            #if defined(__CUDA_ARCH__)
+        [[nodiscard]] static NOA_HD constexpr T from_value(U value) {
+            #ifdef __CUDA_ARCH__
             if constexpr (std::is_same_v<T, U>) {
-                return arg;
+                return value;
             } else if constexpr (std::is_same_v<T, native_type>) { // built-in -> native_type
                 if constexpr (std::is_same_v<U, float>) {
-                    return __float2half_rn(arg);
+                    return __float2half_rn(value);
                 } else if constexpr (std::is_same_v<U, double>) {
-                    return __double2half(arg);
+                    return __double2half(value);
                 } else if constexpr (std::is_same_v<U, signed char> ||
                                      std::is_same_v<U, char> ||
                                      std::is_same_v<U, bool>) {
-                    return __short2half_rn(static_cast<short>(arg));
+                    return __short2half_rn(static_cast<short>(value));
                 } else if constexpr (std::is_same_v<U, unsigned char>) {
-                    return __ushort2half_rn(static_cast<unsigned short>(arg));
+                    return __ushort2half_rn(static_cast<unsigned short>(value));
                 } else if constexpr (std::is_same_v<U, short>) {
-                    return __short2half_rn(arg);
+                    return __short2half_rn(value);
                 } else if constexpr (std::is_same_v<U, ushort>) {
-                    return __ushort2half_rn(arg);
+                    return __ushort2half_rn(value);
                 } else if constexpr (std::is_same_v<U, int> || (std::is_same_v<U, long> && sizeof(long) == 4)) {
-                    return __int2half_rn(arg);
+                    return __int2half_rn(value);
                 } else if constexpr (std::is_same_v<U, uint> || (std::is_same_v<U, ulong> && sizeof(long) == 4)) {
-                    return __uint2half_rn(arg);
+                    return __uint2half_rn(value);
                 } else if constexpr (std::is_same_v<U, long long> || std::is_same_v<U, long>) {
-                    return __ll2half_rn(arg);
+                    return __ll2half_rn(value);
                 } else if constexpr (std::is_same_v<U, unsigned long long> || std::is_same_v<U, ulong>) {
-                    return __ull2half_rn(arg);
+                    return __ull2half_rn(value);
                 } else {
                     static_assert(nt::always_false_v<T>);
                 }
             } else if constexpr (std::is_same_v<U, native_type>) { // native_type -> built-in
                 if constexpr (std::is_same_v<T, float>) {
-                    return __half2float(arg);
+                    return __half2float(value);
                 } else if constexpr (std::is_same_v<T, double>) {
-                    return static_cast<double>(__half2float(arg));
+                    return static_cast<double>(__half2float(value));
                 } else if constexpr (std::is_same_v<T, bool>) {
-                    return static_cast<bool>(__half2short_rn(arg));
+                    return static_cast<bool>(__half2short_rn(value));
                 } else if constexpr (std::is_same_v<T, signed char>) {
-                    return static_cast<signed char>(__half2short_rn(arg));
+                    return static_cast<signed char>(__half2short_rn(value));
                 } else if constexpr (std::is_same_v<T, char>) {
-                    return static_cast<char>(__half2short_rn(arg));
+                    return static_cast<char>(__half2short_rn(value));
                 } else if constexpr (std::is_same_v<T, unsigned char>) {
-                    return static_cast<unsigned char>(__half2ushort_rn(arg));
+                    return static_cast<unsigned char>(__half2ushort_rn(value));
                 } else if constexpr (std::is_same_v<T, short>) {
-                    return __half2short_rn(arg);
+                    return __half2short_rn(value);
                 } else if constexpr (std::is_same_v<T, ushort>) {
-                    return __half2ushort_rn(arg);
+                    return __half2ushort_rn(value);
                 } else if constexpr (std::is_same_v<T, int> || (std::is_same_v<T, long> && sizeof(long) == 4)) {
-                    return static_cast<T>(__half2int_rn(arg));
+                    return static_cast<T>(__half2int_rn(value));
                 } else if constexpr (std::is_same_v<T, uint> || (std::is_same_v<T, ulong> && sizeof(long) == 4)) {
-                    return static_cast<T>(__half2uint_rn(arg));
+                    return static_cast<T>(__half2uint_rn(value));
                 } else if constexpr (std::is_same_v<T, long long> || std::is_same_v<T, long>) {
-                    return static_cast<T>(__half2ll_rn(arg));
+                    return static_cast<T>(__half2ll_rn(value));
                 } else if constexpr (std::is_same_v<T, unsigned long long> || std::is_same_v<T, ulong>) {
-                    return static_cast<T>(__half2ull_rn(arg));
+                    return static_cast<T>(__half2ull_rn(value));
                 } else {
                     static_assert(nt::always_false_v<T>);
                 }
             } else {
                 static_assert(nt::always_false_v<T>);
             }
-            return T(0); // unreachable
             #else
             if constexpr (std::is_same_v<T, U>) {
-                return arg;
+                return value;
             } else if constexpr (std::is_same_v<T, native_type> || std::is_same_v<U, native_type>) {
                 // half_float::half_cast has a bug in int2half for the min value so check it beforehand.
                 if constexpr (std::is_integral_v<U> && std::is_signed_v<U>) {
-                    if (arg == std::numeric_limits<U>::min()) {
+                    if (value == std::numeric_limits<U>::min()) {
                         if constexpr (sizeof(U) == 1)
                             return half_float::reinterpret_as_half(0xD800); // -128
                         else if constexpr(sizeof(U) == 2)
@@ -189,56 +176,59 @@ namespace noa::inline types {
                             return half_float::reinterpret_as_half(0xFC00); // -inf
                     }
                 }
-                return half_float::half_cast<T>(arg);
+                return half_float::half_cast<T>(value);
             } else {
                 static_assert(nt::always_false_v<T>);
             }
-            return T(0); // unreachable
             #endif
         }
 
+        // Returns a copy of the native type.
+        // On the host, it is half_float::half. On CUDA devices, it is __half.
+        [[nodiscard]] NOA_HD constexpr native_type native() const noexcept { return m_data; }
+
     public: // --- Conversion to built-in types --- //
         NOA_HD explicit constexpr operator float() const {
-            return cast_<float>(m_data);
+            return from_value<float>(m_data);
         }
         NOA_HD explicit constexpr operator double() const {
-            return cast_<double>(m_data);
+            return from_value<double>(m_data);
         }
         NOA_HD explicit constexpr operator bool() const {
-            return cast_<bool>(m_data);
+            return from_value<bool>(m_data);
         }
         NOA_HD explicit constexpr operator char() const {
-            return cast_<char>(m_data);
+            return from_value<char>(m_data);
         }
         NOA_HD explicit constexpr operator signed char() const {
-            return cast_<signed char>(m_data);
+            return from_value<signed char>(m_data);
         }
         NOA_HD explicit constexpr operator unsigned char() const {
-            return cast_<unsigned char>(m_data);
+            return from_value<unsigned char>(m_data);
         }
         NOA_HD explicit constexpr operator short() const {
-            return cast_<short>(m_data);
+            return from_value<short>(m_data);
         }
         NOA_HD explicit constexpr operator unsigned short() const {
-            return cast_<unsigned short>(m_data);
+            return from_value<unsigned short>(m_data);
         }
         NOA_HD explicit constexpr operator int() const {
-            return cast_<int>(m_data);
+            return from_value<int>(m_data);
         }
         NOA_HD explicit constexpr operator unsigned int() const {
-            return cast_<unsigned int>(m_data);
+            return from_value<unsigned int>(m_data);
         }
         NOA_HD explicit constexpr operator long() const {
-            return cast_<long>(m_data);
+            return from_value<long>(m_data);
         }
         NOA_HD explicit constexpr operator unsigned long() const {
-            return cast_<unsigned long>(m_data);
+            return from_value<unsigned long>(m_data);
         }
         NOA_HD explicit constexpr operator long long() const {
-            return cast_<long long>(m_data);
+            return from_value<long long>(m_data);
         }
         NOA_HD explicit constexpr operator unsigned long long() const {
-            return cast_<unsigned long long>(m_data);
+            return from_value<unsigned long long>(m_data);
         }
 
     public: // --- Arithmetic operators --- //
@@ -384,7 +374,17 @@ namespace noa::inline types {
         }
 
     private:
-        native_type m_data{};
+        // Private constructor reinterpreting the bits. Used by f16::from_bits(u16).
+        #if defined(__CUDA_ARCH__)
+        constexpr Half(Empty, uint16_t bits) noexcept : m_data(__half_raw{bits}) {}
+        #else
+        constexpr Half(Empty, uint16_t bits) noexcept : m_data(half_float::reinterpret_as_half(bits)) {}
+        // reinterpret_as_half is not native to the half_float namespace. It was added to our version
+        // to allow reinterpretation from bits to half_float::half in constexpr context.
+        #endif
+
+    private:
+        native_type m_data;
     };
 
     using f16 = Half;
@@ -688,39 +688,39 @@ namespace std {
         static constexpr int max_exponent10 = 4;
 
         static constexpr noa::Half min() noexcept {
-            return {noa::Half::Mode::BINARY, 0x0400};
+            return noa::Half::from_bits(0x0400);
         }
 
         static constexpr noa::Half lowest() noexcept {
-            return {noa::Half::Mode::BINARY, 0xFBFF};
+            return noa::Half::from_bits(0xFBFF);
         }
 
         static constexpr noa::Half max() noexcept {
-            return {noa::Half::Mode::BINARY, 0x7BFF};
+            return noa::Half::from_bits(0x7BFF);
         }
 
         static constexpr noa::Half epsilon() noexcept {
-            return {noa::Half::Mode::BINARY, 0x1400};
+            return noa::Half::from_bits(0x1400);
         }
 
         static constexpr noa::Half round_error() noexcept {
-            return {noa::Half::Mode::BINARY, 0x3800}; // nearest
+            return noa::Half::from_bits(0x3800); // nearest
         }
 
         static constexpr noa::Half infinity() noexcept {
-            return {noa::Half::Mode::BINARY, 0x7C00};
+            return noa::Half::from_bits(0x7C00);
         }
 
         static constexpr noa::Half quiet_NaN() noexcept {
-            return {noa::Half::Mode::BINARY, 0x7FFF};
+            return noa::Half::from_bits(0x7FFF);
         }
 
         static constexpr noa::Half signaling_NaN() noexcept {
-            return {noa::Half::Mode::BINARY, 0x7DFF};
+            return noa::Half::from_bits(0x7DFF);
         }
 
         static constexpr noa::Half denorm_min() noexcept {
-            return {noa::Half::Mode::BINARY, 0x0001};
+            return noa::Half::from_bits(0x0001);
         }
     };
 }
