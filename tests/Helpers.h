@@ -378,7 +378,7 @@ namespace test {
                 return {real_passed && imag_passed, value_type{real_abs_diff, imag_abs_diff}};
 
             } else if constexpr (std::is_integral_v<value_type>) {
-                value_type diff = noa::abs(input - expected);
+                value_type diff = static_cast<value_type>(noa::abs(input - expected));
                 const bool is_passed = diff <= epsilon;
                 return {is_passed, diff};
 
@@ -399,7 +399,7 @@ namespace test {
                 return {real_passed && imag_passed, value_type{real_abs_diff, imag_abs_diff}};
 
             } else if constexpr (std::is_integral_v<value_type>) {
-                value_type diff = noa::abs(input - expected);
+                value_type diff = static_cast<value_type>(noa::abs(input - expected));
                 const bool is_passed = diff <= epsilon;
                 return {is_passed, diff};
 
@@ -428,7 +428,7 @@ namespace test {
 
 
             } else if constexpr (std::is_integral_v<value_type>) {
-                value_type diff = noa::abs(input - expected);
+                value_type diff = static_cast<value_type>(noa::abs(input - expected));
                 const bool is_passed = diff <= epsilon;
                 return {is_passed, diff};
 
