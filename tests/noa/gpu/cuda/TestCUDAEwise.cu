@@ -1,4 +1,5 @@
 #include <catch2/catch.hpp>
+#include <noa/core/Ewise.hpp>
 #include <noa/gpu/cuda/AllocatorManaged.hpp>
 #include <noa/gpu/cuda/Ewise.cuh>
 
@@ -21,6 +22,15 @@ namespace {
             o0 = t0.count;
             o1 = t1.count;
         }
+    };
+
+    struct Op1 {
+        using allow_vectorization = bool;
+        constexpr void operator()(const f32& i0, const f32& i1, Tuple<f32&, i32&> o) const {
+            auto& [lhs, rhs] = o;
+            lhs = i0 + i1;
+            rhs = static_cast<i32>(i0 - i1);
+        };
     };
 }
 
@@ -83,7 +93,7 @@ TEST_CASE("cuda::ewise") {
         std::fill_n(expected.get(), elements, value);
 
         {
-            // This is not vectorized because the input is mutable.
+            // This is not vectorized.
             const auto input = noa::make_tuple(Accessor<f64, 4, i64>(buffer.get(), shape.strides()));
             ewise(shape, [value]__device__(f64& i) { i = value; }, input, Tuple<>{}, stream);
             stream.synchronize();
@@ -92,7 +102,7 @@ TEST_CASE("cuda::ewise") {
             std::fill_n(buffer.get(), elements, 0.);
 
             // This is vectorized.
-            ewise(shape, [value]__device__(f64& i) { i = value; }, Tuple<>{}, input, stream);
+            ewise(shape, noa::Fill{value}, Tuple<>{}, input, stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 1e-8));
         }
@@ -103,7 +113,7 @@ TEST_CASE("cuda::ewise") {
             const auto output = noa::make_tuple(Accessor<f64, 4, i64>(expected.get(), shape.strides()));
 
             std::fill_n(expected.get(), elements, 0.);
-            ewise(shape, []__device__(f64 i, f64& o) { o = i; }, input, output, stream);
+            ewise(shape, noa::Copy{}, input, output, stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 1e-8));
         }
@@ -116,7 +126,7 @@ TEST_CASE("cuda::ewise") {
             std::fill_n(expected.get(), elements, 0.);
 
             using config = noa::cuda::EwiseConfig<true, true>;
-            ewise<config>(shape, []__device__(Tuple<const f64&> i, Tuple<f64&> o) { o = i; }, input, output, stream);
+            ewise<config>(shape, []__device__(Tuple<const f64&> i, Tuple<f64&> o) { o[Tag<0>{}] = i[Tag<0>{}]; }, input, output, stream);
             stream.synchronize();
             REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 1e-8));
         }
@@ -203,16 +213,59 @@ TEST_CASE("cuda::ewise") {
                 AccessorRestrictContiguousU32<i32, 4>(b3.get(), strides_u32)
         );
 
-        const auto op = []__device__(const f32& i0, const f32& i1, Tuple<f32&, i32&> o) {
-            auto& [lhs, rhs] = o;
-            lhs = i0 + i1;
-            rhs = static_cast<i32>(i0 - i1);
-        };
-
-        ewise<EwiseConfig<false, true>>(shape, op, input, output, stream); // expected vec size of 4
+        ewise<EwiseConfig<false, true>>(shape, Op1{}, input, output, stream); // expected vec size of 4
         stream.synchronize();
 
         REQUIRE(test::Matcher(test::MATCH_ABS, b2.get(), e2.get(), n_elements, 1e-6));
         REQUIRE(test::Matcher(test::MATCH_ABS, b3.get(), e3.get(), n_elements, 1e-6));
+    }
+}
+
+TEMPLATE_TEST_CASE("cuda::ewise - copy", "[noa][cuda]", i8, i16, i32, i64, c16, c32, c64) {
+    using namespace noa::types;
+    using noa::cuda::ewise;
+    using noa::cuda::EwiseConfig;
+    using noa::cuda::Stream;
+    using noa::cuda::Device;
+    using noa::cuda::AllocatorManaged;
+    using value_t = TestType;
+
+    Stream stream(Device::current());
+
+    const auto shapes = std::array{
+        Shape4<i64>{1, 1, 1, 512},
+        Shape4<i64>{2, 6, 40, 65},
+        test::get_random_shape4_batched(1),
+        test::get_random_shape4_batched(2),
+        test::get_random_shape4_batched(3),
+        test::get_random_shape4_batched(4)};
+
+    for (const auto& shape: shapes) {
+        const auto n_elements = shape.elements();
+
+        const auto buffer = AllocatorManaged<value_t>::allocate(n_elements, stream);
+        const auto expected = AllocatorManaged<value_t>::allocate(n_elements, stream);
+        test::randomize(buffer.get(), n_elements, test::Randomizer<value_t>(-128, 127));
+
+        auto input = noa::make_tuple(Accessor<const value_t, 4, i64>(buffer.get(), shape.strides()));
+        auto output = noa::make_tuple(Accessor<value_t, 4, i64>(expected.get(), shape.strides()));
+
+        ewise(shape, noa::Copy{}, input, output, stream);
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), n_elements, 1e-6));
+
+        test::memset(buffer.get(), n_elements, value_t{});
+        ewise(shape, []__device__(auto i, auto& o) { o = i; }, input, output, stream);
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), n_elements, 1e-6));
+
+        // Trigger strided implementation.
+        input[Tag<0>{}].strides()[0] = 0;
+        output[Tag<0>{}].strides()[0] = 0;
+
+        test::memset(buffer.get(), n_elements, value_t{});
+        ewise(shape, noa::Copy{}, input, output, stream);
+        stream.synchronize();
+        REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), n_elements, 1e-6));
     }
 }

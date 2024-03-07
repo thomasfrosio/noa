@@ -194,14 +194,14 @@ namespace noa::cuda::guts {
             const auto reordered_shape_u32 = reordered_shape.template as<u32>();
             constexpr u32 n_threads_x = Constant::WARP_SIZE;
             constexpr u32 n_threads_y = max(Config::block_size, n_threads_x) / n_threads_x;
-            const u32 n_blocks_x = divide_up(reordered_shape_u32[3], n_threads_x);
+            const u32 n_blocks_x = divide_up(reordered_shape_u32[2], n_threads_x);
             const auto launch_config = LaunchConfig{
-                    .n_blocks=dim3(n_blocks_x, reordered_shape_u32[1], reordered_shape_u32[0]),
+                    .n_blocks=dim3(n_blocks_x, reordered_shape_u32[0], 1),
                     .n_threads=dim3(n_threads_x, n_threads_y),
             };
 
             using kernel_config = ReduceAxesIwiseHeightConfig<Config, n_threads_x>;
-            auto shape_2d = reordered_shape.template pop_front<2>();
+            auto shape_2d = reordered_shape.template pop_front<1>();
             if (axes_to_reduce[1]) {
                 stream.enqueue(
                         reduce_height_iwise<3, 1, kernel_config, op_t, Index, reduced_t, reordered_output_2d_t>,
@@ -238,7 +238,7 @@ namespace noa::cuda::guts {
                     .n_threads=dim3(n_threads_x, n_threads_y),
             };
 
-            constexpr auto to_1d = ng::AccessorConfig<2>{.filter={1}};
+            constexpr auto to_1d = ng::AccessorConfig<1>{.filter={1}};
             auto output_1d = ng::reconfig_accessors<to_1d>(output);
             using output_1d_t = decltype(output_1d);
 
@@ -281,7 +281,6 @@ namespace noa::cuda {
     )  {
         using op_t = std::decay_t<Op>;
         using reduced_t = std::decay_t<Reduced>;
-        using output_t = std::decay_t<Output>;
 
         const auto axes_to_reduce = input_shape != output_shape;
         if (any(axes_to_reduce and (output_shape != 1))) {
