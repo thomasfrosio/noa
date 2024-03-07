@@ -5,12 +5,12 @@ detailed below. If the dependencies are installed in common locations, no input 
 
 ## `CMake`
 
-The minimum version is `3.18`. Note that CMake has almost no dependencies and can be installed without root privileges.
+The minimum version is `3.24`. Note that CMake has almost no dependencies and can be installed without root privileges.
 
 
 ## `C++ compiler`
 
-The supported C++ compilers are `gcc >= 9.3` and `clang >= 10`. The C++ compiler can be
+The supported C++ compilers are `gcc >= 11.4` and `clang >= 15`. The C++ compiler can be
 specified to ensure that the correct host compiler is selected, or if the compiler is not installed in the default
 paths and is not found, by setting the `CMAKE_CXX_COMPILER` variable.
 
@@ -55,29 +55,11 @@ instead of the system threads, set the CMake variable `FFTW3_OPENMP` to `ON`. By
 `NOA_CPU_OPENMP`.
 
 
-## `CBLAS` and `LAPACKE` _(CPU backend)_
-
-The CBLAS and LAPACKE libraries are required for the CPU backend. The library searches for the BLAS library and makes
-sure the CBLAS API is present. The same thing is done with LAPACK for the LAPACKE API, however, we do allow the LAPACKE
-to be a different standalone library (which is often the case).
-By default, the common installation directories are used but the search can be guided by setting the CMake variable
-and environment variable `BLAS_ROOT` or `LAPACKE_ROOT` or by adding the path(s) to CMake variable `CMAKE_PREFIX_PATH`.
-
-To search specifically for the static libraries, set the CMake variable `BLA_STATIC` to `ON`.
-If the LAPACKE library is a different library, `LAPACKE_STATIC` should be used (it defaults to `BLA_STATIC`).
-
-To search specifically for some vendors, see
-[BLA_VENDOR](https://cmake.org/cmake/help/latest/module/FindBLAS.html#blas-lapack-vendors).
-If `OpenBLAS` is used, some additional diagnostic regarding the threading model used by the library will be printed 
-during configuration. These are only for you to help select the threading model than you want. We recommend using
-the OpenBLAS libraries built with OpenMP if `NOA_CPU_OPENMP` is `ON`.
-
-
 ## `CUDA` and `CUDAToolkit` (CUDA backend)
 
 If the CUDA backend is built, the CUDA compiler `nvcc` is required. It comes with the
 [CUDA toolkit](https://docs.nvidia.com/cuda/index.html), which is also required. We support any version starting from
-11, although version 11.2 or any newer version is recommended.
+12, although version 12.4 or any newer version is recommended.
 
 The CUDA compiler can be specified to ensure that the correct compiler is selected, or if the compiler is not
 installed in the default paths and is not found, by setting the `CMAKE_CUDA_COMPILER` variable.
