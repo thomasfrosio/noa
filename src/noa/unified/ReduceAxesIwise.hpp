@@ -165,6 +165,9 @@ namespace noa::guts {
             [&]<size_t... O>(std::index_sequence<O...>) {
                 auto oh = guts::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs));
                 cuda_stream.enqueue_attach(std::move(oh)[Tag<O>{}]..., std::forward<Ts>(attachments)...);
+
+                // Work-around to remove spurious warning of set but unused variable (g++11).
+                if constexpr (sizeof...(O) == 0) (void) oh;
             }(nt::index_list_t<Outputs>{});
             #else
             panic("No GPU backend detected");

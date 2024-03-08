@@ -206,8 +206,8 @@ namespace noa::guts {
                              op = std::forward<EwiseOp>(ewise_op),
                              ia = std::move(input_accessors),
                              oa = std::move(output_accessors),
-                             ih = guts::extract_shared_handle_from_arrays(inputs),
-                             oh = guts::extract_shared_handle_from_arrays(outputs)
+                             ih = guts::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs)),
+                             oh = guts::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs))
                             ]() {
                                 noa::cpu::ewise<config>(shape, std::move(op), std::move(ia), std::move(oa), n_threads);
                             });
@@ -227,9 +227,13 @@ namespace noa::guts {
                     // "enqueue_attach" saves shared_ptr types and anything with a .share() that returns a shared_ptr,
                     // and ignores everything else. As such, we could directly pass the values of "inputs" and "outputs",
                     // but here we explicitly only want to save the shared_ptr from arrays.
-                    auto ih = guts::extract_shared_handle_from_arrays(inputs);
-                    auto oh = guts::extract_shared_handle_from_arrays(outputs);
+                    auto ih = guts::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs));
+                    auto oh = guts::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs));
                     cuda_stream.enqueue_attach(std::move(ih)[Tag<I>{}]..., std::move(oh)[Tag<O>{}]...);
+
+                    // Work-around to remove spurious warning of set but unused variable (g++11).
+                    if constexpr (sizeof...(I) == 0) (void) ih;
+                    if constexpr (sizeof...(O) == 0) (void) oh;
                 }(nt::index_list_t<Inputs>{}, nt::index_list_t<Outputs>{});
                 #else
                 panic("No GPU backend detected");
