@@ -375,6 +375,12 @@ namespace noa::inline types {
             return accessor_reference_type(get(), strides().data())(i0, i1, i2, i3);
         }
 
+        /// Element access. For efficient access, prefer to use Span or Accessor.
+        template<typename I>
+        [[nodiscard]] constexpr value_type& operator()(const Vec4<I>& indices) const noexcept {
+            return (*this)(indices[0], indices[1], indices[2], indices[3]);
+        }
+
         /// Subregion indexing. Extracts a subregion from the current array.
         [[nodiscard]] constexpr Array subregion(const ni::SubregionIndexer& indexer) const {
             return Array(shared_type(share(), get() + indexer.offset), indexer.shape, indexer.strides, options());
