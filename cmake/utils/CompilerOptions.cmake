@@ -2,7 +2,7 @@ function(noa_get_cxx_compiler_warnings enable_warnings_as_errors)
     set(_clang_warnings
         -Wall
         -Wextra # reasonable and standard
-        # -Wunused # warn on anything being unused
+        -Wunused # warn on anything being unused
         -Wshadow # warn the user if a variable declaration shadows one from a parent context
         -Wnon-virtual-dtor # warn the user if a class with virtual functions has a non-virtual destructor.
         # This helps catch hard to track down memory errors

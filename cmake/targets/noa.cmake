@@ -113,7 +113,7 @@ if (NOA_ENABLE_CUDA)
             # Some of these headers are not actually passed to nvrtc, so we might
             # rerun this command for nothing, but it's better than missing a dependency.
             # Note: we don't have private headers atm, so while named "public",
-                    these are all the headers we have.
+            #        these are all the headers we have.
             DEPENDS cuda_rtc::preprocess ${NOA_CORE_HEADERS} ${NOA_CUDA_HEADERS}
 
             # The working directory is quite important because nvrtc includes it to resolve quoted
@@ -130,8 +130,8 @@ if (NOA_ENABLE_CUDA)
             VERBATIM
         )
 
-        # We need to add the generated sources to the list of sources for the library.
-        # These are absolute paths, so we can just add them to the list.
+        # We need to add the generated sources to the list of sources for the library so that they can be
+        # embedded into the binary. These are absolute paths, so we can just add them to the list.
         list(APPEND NOA_SOURCES ${noa_jit_generated_shared_headers_source})
     endif ()
 endif ()
