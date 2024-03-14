@@ -84,8 +84,8 @@ namespace noa::inline types {
     class Allocator {
     public:
         Allocator() = default;
-        constexpr explicit     Allocator(MemoryResource memory_resource) : m_memory_resource(memory_resource) {}
-        explicit     Allocator(std::string_view name) : m_memory_resource(parse_memory_resource_(name)) {}
+        constexpr /*implicit*/ Allocator(MemoryResource memory_resource) : m_memory_resource(memory_resource) {}
+        explicit Allocator(std::string_view name) : m_memory_resource(parse_memory_resource_(name)) {}
         /*implicit*/ Allocator(const char* name) : Allocator(std::string_view(name)) {}
 
         [[nodiscard]] constexpr MemoryResource resource() const noexcept { return m_memory_resource; }

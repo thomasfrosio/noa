@@ -22,18 +22,26 @@ namespace noa {
     };
 
     template<typename S> requires nt::is_scalar_v<S>
-    struct ReduceMean : ReduceSum {
+    struct ReduceMean {
         using allow_vectorization = bool;
         using remove_defaulted_final = bool;
         S size;
 
+        template<typename T>
+        NOA_FHD constexpr void init(const auto& value, T& sum) const {
+            sum += static_cast<T>(value);
+        }
+        template<typename T>
+        NOA_FHD constexpr void join(const T& ireduced, T& reduced) const {
+            reduced += ireduced;
+        }
         template<typename T, typename U>
         NOA_FHD constexpr void final(const T& sum, U& mean) const {
             mean = static_cast<U>(sum / size);
         }
     };
 
-    struct ReduceL2Norm : ReduceSum {
+    struct ReduceL2Norm {
         using allow_vectorization = bool;
         using remove_defaulted_final = bool;
 
@@ -41,7 +49,10 @@ namespace noa {
         NOA_FHD constexpr void init(const auto& value, T& sum) const {
             sum += static_cast<T>(abs_squared(value));
         }
-
+        template<typename T>
+        NOA_FHD constexpr void join(const T& ireduced, T& reduced) const {
+            reduced += ireduced;
+        }
         template<typename T>
         NOA_FHD constexpr void final(const auto& sum, T& norm) const {
             norm = static_cast<T>(sqrt(sum));
@@ -105,7 +116,7 @@ namespace noa {
         R size{};
 
         template<typename T, typename U>
-        NOA_FHD constexpr void init(const T& value, const U& mean, R& reduced) const noexcept {
+        NOA_FHD constexpr void init(const T& value, const U& mean, R& reduced) const {
             if constexpr (nt::is_complex_v<T>) {
                 const auto distance = abs(static_cast<U>(value) - mean);
                 reduced += static_cast<R>(distance * distance);
@@ -114,23 +125,37 @@ namespace noa {
                 reduced += static_cast<R>(distance * distance);
             }
         }
-        NOA_FHD constexpr void join(const R& ireduced, R& reduced) const noexcept {
+        NOA_FHD constexpr void join(const R& ireduced, R& reduced) const {
             reduced += ireduced;
         }
         template<typename T>
-        NOA_FHD constexpr void final(const R& reduced, T& variance) const noexcept {
+        NOA_FHD constexpr void final(const R& reduced, T& variance) const {
             variance = static_cast<T>(reduced / size);
         }
     };
 
     template<typename R>
-    struct ReduceStddev : ReduceVariance<R> {
+    struct ReduceStddev {
         using allow_vectorization = bool;
         using remove_defaulted_final = bool;
+        R size{};
 
+        template<typename T, typename U>
+        NOA_FHD constexpr void init(const T& value, const U& mean, R& reduced) const {
+            if constexpr (nt::is_complex_v<T>) {
+                const auto distance = abs(static_cast<U>(value) - mean);
+                reduced += static_cast<R>(distance * distance);
+            } else {
+                const auto distance = static_cast<U>(value) - mean;
+                reduced += static_cast<R>(distance * distance);
+            }
+        }
+        NOA_FHD constexpr void join(const R& ireduced, R& reduced) const {
+            reduced += ireduced;
+        }
         template<typename T>
-        NOA_FHD constexpr void final(const R& reduced, T& stddev) const noexcept {
-            auto variance = reduced / this->size;
+        NOA_FHD constexpr void final(const R& reduced, T& stddev) const {
+            auto variance = reduced / size;
             stddev = static_cast<T>(sqrt(variance));
         }
     };
@@ -175,79 +200,82 @@ namespace noa {
         using allow_vectorization = bool;
         using remove_defaulted_final = bool;
         using reduced_type = std::conditional_t<nt::is_real_v<T>, f64, c64>;
+        using pair_type = Pair<reduced_type, reduced_type>;
 
-        NOA_FHD constexpr void init(const auto& input, reduced_type& sum, reduced_type& error) const noexcept {
+        NOA_FHD constexpr void init(const auto& input, pair_type& sum) const {
             auto value = static_cast<reduced_type>(input);
-            kahan_sum(value, sum, error);
+            kahan_sum(value, sum.first, sum.second);
         }
-
-        NOA_FHD constexpr void join(
-                const reduced_type& local_sum, const reduced_type& local_error,
-                reduced_type& global_sum, reduced_type& global_error
-        ) const noexcept {
-            global_sum += local_sum;
-            global_error += local_error;
+        NOA_FHD constexpr void join(const pair_type& local_sum, pair_type& global_sum) const {
+            global_sum.first += local_sum.first;
+            global_sum.second += local_sum.second;
         }
-
         template<typename F>
-        NOA_FHD constexpr void final(const reduced_type& global_sum, const reduced_type& global_error, F& final) {
-            final = static_cast<F>(global_sum + global_error);
+        NOA_FHD constexpr void final(const pair_type& global_sum, F& final) const {
+            final = static_cast<F>(global_sum.first + global_sum.second);
         }
     };
 
     template<typename T>
-    struct ReduceAccurateMean : ReduceAccurateSum<T> {
+    struct ReduceAccurateMean {
         using allow_vectorization = bool;
         using remove_defaulted_final = bool;
-        using reduced_type = ReduceAccurateSum<T>::reduced_type;
+        using reduced_type = std::conditional_t<nt::is_real_v<T>, f64, c64>;
+        using pair_type = Pair<reduced_type, reduced_type>;
         using mean_type = nt::value_type_t<reduced_type>;
-        mean_type mean;
+        mean_type size;
 
+        NOA_FHD constexpr void init(const auto& input, pair_type& sum) const {
+            auto value = static_cast<reduced_type>(input);
+            kahan_sum(value, sum.first, sum.second);
+        }
+        NOA_FHD constexpr void join(const pair_type& local_sum, pair_type& global_sum) const {
+            global_sum.first += local_sum.first;
+            global_sum.second += local_sum.second;
+        }
         template<typename F>
-        NOA_FHD constexpr void final(const reduced_type& global_sum, const reduced_type& global_error, F& final) {
-            final = static_cast<F>((global_sum + global_error) / mean);
+        NOA_FHD constexpr void final(const pair_type& global_sum, F& final) const {
+            final = static_cast<F>((global_sum.first + global_sum.second) / size);
         }
     };
 
     struct ReduceAccurateL2Norm {
         using allow_vectorization = bool;
         using remove_defaulted_final = bool;
+        using pair_type = Pair<f64, f64>;
 
-        NOA_FHD constexpr void init(const auto& input, f64& sum, f64& error) const noexcept {
-            kahan_sum(static_cast<f64>(abs_squared(input)), sum, error);
+        NOA_FHD constexpr void init(const auto& input, pair_type& sum) const {
+            kahan_sum(static_cast<f64>(abs_squared(input)), sum.first, sum.second);
         }
-
-        NOA_FHD constexpr void join(
-                const f64& local_sum, const f64& local_error, f64& global_sum, f64& global_error
-        ) const noexcept {
-            global_sum += local_sum;
-            global_error += local_error;
+        NOA_FHD constexpr void join(const pair_type& local_sum, pair_type& global_sum) const {
+            global_sum.first += local_sum.first;
+            global_sum.second += local_sum.second;
         }
-
         template<typename F>
-        NOA_FHD constexpr void final(const f64& global_sum, const f64& global_error, F& final) {
-            final = static_cast<F>(sqrt(global_sum + global_error));
+        NOA_FHD constexpr void final(const pair_type& global_sum, F& final) const {
+            final = static_cast<F>(sqrt(global_sum.first + global_sum.second));
         }
     };
 }
 
 namespace noa {
-    template<typename Accessor, typename Offset, bool SaveValue>
+    template<typename Accessor, typename Offset, bool SaveValue, typename Reducer>
     struct ReduceArg {
         using accessor_type = Accessor;
-        using value_type = accessor_type::value_type;
+        using value_type = accessor_type::mutable_value_type;
         using offset_type = Offset;
         using reduced_type = Pair<value_type, offset_type>;
         accessor_type accessor;
 
     public:
-        constexpr void init(const auto& indices, reduced_type& reduced) const noexcept {
-            reduced.first = accessor(indices);
-            reduced.second = static_cast<offset_type>(accessor.offset_at(indices));
+        constexpr void init(const auto& indices, reduced_type& reduced) const {
+            // TODO Add option for per batch offsets?
+            reduced_type current{accessor(indices), static_cast<offset_type>(accessor.offset_at(indices))};
+            static_cast<const Reducer&>(*this).join(current, reduced);
         }
 
         template<typename T>
-        constexpr void final(const reduced_type& reduced, T& output) const noexcept {
+        constexpr void final(const reduced_type& reduced, T& output) const {
             if constexpr (SaveValue)
                 output = static_cast<T>(reduced.first);
             else
@@ -255,59 +283,63 @@ namespace noa {
         }
 
         template<typename T, typename U>
-        constexpr void final(const reduced_type& reduced, T& value, U& offset) const noexcept {
+        constexpr void final(const reduced_type& reduced, T& value, U& offset) const {
             value = static_cast<T>(reduced.first);
             offset = static_cast<U>(reduced.second);
         }
     };
 
     template<typename Accessor, typename Offset = i64, bool SaveValue = false>
-    struct ReduceFirstMin : ReduceArg<Accessor, Offset, SaveValue> {
-        using base_type = ReduceArg<Accessor, Offset, SaveValue>;
+    struct ReduceFirstMin : ReduceArg<Accessor, Offset, SaveValue, ReduceFirstMin<Accessor, Offset, SaveValue>> {
+        using base_type = ReduceArg<Accessor, Offset, SaveValue, ReduceFirstMin<Accessor, Offset, SaveValue>>;
         using remove_defaulted_final = bool;
+        using allow_vectorization = bool;
         using accessor_type = base_type::accessor_type;
         using reduced_type = base_type::reduced_type;
 
-        constexpr void join(const reduced_type& current, reduced_type& reduced) const noexcept {
+        constexpr void join(const reduced_type& current, reduced_type& reduced) const {
             if (current.first < reduced.first or (current.first == reduced.first and current.second < reduced.second))
                 reduced = current;
         }
     };
 
     template<typename Accessor, typename Offset = i64, bool SaveValue = false>
-    struct ReduceFirstMax : ReduceArg<Accessor, Offset, SaveValue> {
-        using base_type = ReduceArg<Accessor, Offset, SaveValue>;
+    struct ReduceFirstMax : ReduceArg<Accessor, Offset, SaveValue, ReduceFirstMax<Accessor, Offset, SaveValue>> {
+        using base_type = ReduceArg<Accessor, Offset, SaveValue, ReduceFirstMax<Accessor, Offset, SaveValue>>;
         using remove_defaulted_final = bool;
+        using allow_vectorization = bool;
         using accessor_type = base_type::accessor_type;
         using reduced_type = base_type::reduced_type;
 
-        constexpr void join(const reduced_type& current, reduced_type& reduced) const noexcept {
+        constexpr void join(const reduced_type& current, reduced_type& reduced) const {
             if (current.first > reduced.first or (reduced.first == current.first and current.second < reduced.second))
                 reduced = current;
         }
     };
 
     template<typename Accessor, typename Offset = i64, bool SaveValue = false>
-    struct ReduceLastMin : ReduceArg<Accessor, Offset, SaveValue> {
-        using base_type = ReduceArg<Accessor, Offset, SaveValue>;
+    struct ReduceLastMin : ReduceArg<Accessor, Offset, SaveValue, ReduceFirstMax<Accessor, Offset, SaveValue>> {
+        using base_type = ReduceArg<Accessor, Offset, SaveValue, ReduceFirstMax<Accessor, Offset, SaveValue>>;
         using remove_defaulted_final = bool;
+        using allow_vectorization = bool;
         using accessor_type = base_type::accessor_type;
         using reduced_type = base_type::reduced_type;
 
-        constexpr void join(const reduced_type& current, reduced_type& reduced) const noexcept {
+        constexpr void join(const reduced_type& current, reduced_type& reduced) const {
             if (current.first < reduced.first or (current.first == reduced.first and current.second > reduced.second))
                 reduced = current;
         }
     };
 
     template<typename Accessor, typename Offset = i64, bool SaveValue = false>
-    struct ReduceLastMax : ReduceArg<Accessor, Offset, SaveValue> {
-        using base_type = ReduceArg<Accessor, Offset, SaveValue>;
+    struct ReduceLastMax : ReduceArg<Accessor, Offset, SaveValue, ReduceFirstMax<Accessor, Offset, SaveValue>> {
+        using base_type = ReduceArg<Accessor, Offset, SaveValue, ReduceFirstMax<Accessor, Offset, SaveValue>>;
         using remove_defaulted_final = bool;
+        using allow_vectorization = bool;
         using accessor_type = base_type::accessor_type;
         using reduced_type = base_type::reduced_type;
 
-        constexpr void join(const reduced_type& current, reduced_type& reduced) const noexcept {
+        constexpr void join(const reduced_type& current, reduced_type& reduced) const {
             if (current.first > reduced.first or (reduced.first == current.first and current.second > reduced.second))
                 reduced = current;
         }

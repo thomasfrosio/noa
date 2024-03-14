@@ -4,6 +4,10 @@
 
 #include "Helpers.h"
 
+#include "noa/gpu/cuda/Copy.cuh"
+#include "noa/gpu/cuda/Permute.cuh"
+#include "noa/gpu/cuda/Sort.cuh"
+
 TEST_CASE("cuda::reduce_axes_ewise") {
     using namespace noa::types;
     using noa::cuda::reduce_axes_ewise;

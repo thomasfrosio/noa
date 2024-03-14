@@ -24,19 +24,19 @@ namespace noa {
     // ::isnormal is not a device function, but constexpr __host__. Requires --expr-relaxed-constexpr.
     // Since it is not currently used, remove it from device code.
 
-    template<typename T>
+    template<typename T> requires nt::is_scalar_v<T>
     [[nodiscard]] NOA_FHD constexpr T min(T x, T y) { return (y < x) ? y : x; }
 
     template<typename T>
     [[nodiscard]] NOA_IH constexpr T min(std::initializer_list<T> list) { return std::min(list); }
 
-    template<typename T>
+    template<typename T> requires nt::is_scalar_v<T>
     [[nodiscard]] NOA_FHD constexpr T max(T x, T y) { return (y > x) ? y : x; }
 
     template<typename T>
     [[nodiscard]] NOA_IH constexpr T max(std::initializer_list<T> list) { return std::max(list); }
 
-    template<typename T>
+    template<typename T> requires nt::is_scalar_v<T>
     [[nodiscard]] NOA_FHD constexpr T clamp(T val, T low, T high) {
     #ifdef __CUDA_ARCH__
         return min(high, max(val, low));

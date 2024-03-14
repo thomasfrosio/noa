@@ -16,7 +16,7 @@ namespace noa::cpu::guts {
 
         template<i32 MODE, typename Op, typename Input, typename Reduced, typename Output, typename Index, size_t N>
         static void parallel(
-                const Shape<Index, N>& shape, Op& op,
+                const Shape<Index, N>& shape, Op op,
                 Input input, Reduced reduced, Output output, i64 threads
         ) {
             auto original_reduced = reduced;
@@ -143,12 +143,12 @@ namespace noa::cpu::guts {
 }
 
 namespace noa::cpu {
-    template<bool ZipInput = false, bool ZipReduced = false, bool ZipOutput = false, i64 ParallelThreshold = 1'048'576>
+    template<bool ZipInput = false, bool ZipReduced = false, bool ZipOutput = false, i64 ElementsPerThread = 1'048'576>
     struct ReduceAxesEwiseConfig {
         static constexpr bool zip_input = ZipInput;
         static constexpr bool zip_reduced = ZipReduced;
         static constexpr bool zip_output = ZipOutput;
-        static constexpr i64 parallel_threshold = ParallelThreshold;
+        static constexpr i64 n_elements_per_thread = ElementsPerThread;
     };
 
     template<typename Config = ReduceAxesEwiseConfig<>,
@@ -207,12 +207,12 @@ namespace noa::cpu {
                     <ng::AccessorConfig<1>{.filter={0}}>
                     (std::forward<Output>(output));
 
-            if (n_elements_to_reduce > Config::parallel_threshold and n_batches < n_threads) {
+            if (n_elements_to_reduce > Config::n_elements_per_thread and n_batches < n_threads) {
                 if (are_contiguous and not are_aliased) {
                     auto input_2d = ng::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
                     reduce_axes_ewise_core::template parallel<3>(
                             shape_2d,
-                            op, // taken by lvalue reference
+                            std::forward<Op>(op),
                             std::move(input_2d),
                             std::forward<Reduced>(reduced),
                             std::move(output_1d),
@@ -220,7 +220,7 @@ namespace noa::cpu {
                 } else {
                     reduce_axes_ewise_core::template parallel<3>(
                             input_shape,
-                            op, // taken by lvalue reference
+                            std::forward<Op>(op),
                             std::forward<Input>(input),
                             std::forward<Reduced>(reduced),
                             std::move(output_1d),
@@ -231,7 +231,7 @@ namespace noa::cpu {
                     auto input_2d = ng::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
                     reduce_axes_ewise_core::template parallel<2>(
                             shape_2d,
-                            op, // taken by lvalue reference
+                            std::forward<Op>(op),
                             std::move(input_2d),
                             std::forward<Reduced>(reduced),
                             std::move(output_1d),
@@ -239,7 +239,7 @@ namespace noa::cpu {
                 } else {
                     reduce_axes_ewise_core::template parallel<2>(
                             input_shape,
-                            op, // taken by lvalue reference
+                            std::forward<Op>(op),
                             std::forward<Input>(input),
                             std::forward<Reduced>(reduced),
                             std::move(output_1d),
@@ -287,7 +287,7 @@ namespace noa::cpu {
             if (actual_n_threads > 1) {
                 reduce_axes_ewise_core::template parallel<1>(
                         reordered_shape,
-                        op, // taken by lvalue reference
+                        std::forward<Op>(op),
                         std::move(contiguous_input),
                         std::forward<Reduced>(reduced),
                         std::move(output_3d),
@@ -304,7 +304,7 @@ namespace noa::cpu {
             if (actual_n_threads > 1) {
                 reduce_axes_ewise_core::template parallel<1>(
                         reordered_shape,
-                        op, // taken by lvalue reference
+                        std::forward<Op>(op),
                         std::move(input_),
                         std::forward<Reduced>(reduced),
                         std::move(output_3d),

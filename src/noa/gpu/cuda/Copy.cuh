@@ -8,7 +8,7 @@
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
 #include "noa/gpu/cuda/Pointers.hpp"
-#include "noa/gpu/cuda/AllocatorArray.hpp"
+#include "noa/gpu/cuda/AllocatorTexture.hpp"
 #include "noa/gpu/cuda/Ewise.cuh"
 #include "noa/gpu/cuda/Iwise.cuh"
 
@@ -337,9 +337,9 @@ namespace noa::cuda {
             const T* src, const Strides4<i64>& src_strides, cudaArray* dst,
             const Shape4<i64>& shape, Stream& stream
     ) {
-        const auto[desc_, actual_extent, flags] = AllocatorArray<T>::info(dst);
+        const auto[desc_, actual_extent, flags] = AllocatorTexture<T>::array_info(dst);
         const bool is_layered = flags & cudaArrayLayered;
-        const cudaExtent expected_extent = AllocatorArray<T>::shape2extent(shape, is_layered);
+        const cudaExtent expected_extent = AllocatorTexture<T>::shape2extent(shape, is_layered);
 
         check(expected_extent.depth == actual_extent.depth and
               expected_extent.height == actual_extent.height and
@@ -370,9 +370,9 @@ namespace noa::cuda {
 
     template<typename T>
     void copy(cudaArray* src, T* dst, const Strides4<i64>& dst_strides, const Shape4<i64>& shape, Stream& stream) {
-        const auto[desc_, actual_extent, flags] = AllocatorArray<T>::info(src);
+        const auto[desc_, actual_extent, flags] = AllocatorTexture<T>::array_info(src);
         const bool is_layered = flags & cudaArrayLayered;
-        const cudaExtent expected_extent = AllocatorArray<T>::shape2extent(shape, is_layered);
+        const cudaExtent expected_extent = AllocatorTexture<T>::shape2extent(shape, is_layered);
 
         check(expected_extent.depth == actual_extent.depth and
               expected_extent.height == actual_extent.height and

@@ -189,6 +189,10 @@ namespace noa::inline types {
             return Device::count(type) != 0;
         }
 
+        [[nodiscard]] static bool is_any_gpu() {
+            return Device::count(DeviceType::GPU) != 0;
+        }
+
         /// Gets all devices of a given type.
         /// Always returns a single device if \p type is CPU.
         [[nodiscard]] static std::vector<Device> all(DeviceType type) {

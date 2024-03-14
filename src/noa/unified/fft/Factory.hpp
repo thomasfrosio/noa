@@ -1,12 +1,12 @@
 #pragma once
 
-#include "noa/cpu/fft/Transforms.hpp"
-#ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/fft/Transforms.hpp"
-#endif
-
 #include "noa/unified/Array.hpp"
-#include "noa/unified/memory/Factory.hpp"
+#include "noa/unified/Factory.hpp"
+
+#include "noa/cpu/fft/Plan.hpp"
+#ifdef NOA_ENABLE_CUDA
+#include "noa/gpu/cuda/fft/Plan.hpp"
+#endif
 
 namespace noa::fft {
     /// Returns the optimum even size, greater or equal than \p size.
@@ -22,8 +22,8 @@ namespace noa::fft {
     }
 
     /// Returns the next optimum BDHW shape.
-    /// \note Dimensions of size 0 or 1 are ignored as well as the batch dimension, e.g. {3,1,53,53}
-    ///       is rounded up to {3,1,54,54}.
+    /// \note Dimensions of size 0 or 1 are ignored as well as the batch dimension,
+    ///       e.g. {3,1,53,53} is rounded up to {3,1,54,54}.
     template<size_t N>
     [[nodiscard]] inline Shape<i64, N> next_fast_shape(Shape<i64, N> shape) {
         constexpr size_t START_INDEX = N == 4 ? 1 : 0; // BDHW -> ignore batch
@@ -36,12 +36,12 @@ namespace noa::fft {
     /// Returns the real-valued alias of \p rfft.
     /// \param[in] rfft VArray of the rfft(s) to alias.
     /// \param shape    BDHW logical shape of \p rfft.
-    template<typename Complex, typename = std::enable_if_t<nt::is_varray_of_complex_v<Complex>>>
+    template<typename Complex> requires nt::is_varray_of_complex_v<Complex>
     [[nodiscard]] auto alias_to_real(const Complex& rfft, const Shape4<i64>& shape) {
-        NOA_CHECK(noa::all(rfft.shape() == shape.rfft()),
-                  "Given the {} logical shape, the rfft should have a shape of {}, but got {}",
-                  shape, rfft.shape(), shape.rfft());
-        using real_t = nt::value_type_t<typename Complex::value_type>;
+        check(all(rfft.shape() == shape.rfft()),
+              "Given the {} logical shape, the rfft should have a shape of {}, but got {}",
+              shape, rfft.shape(), shape.rfft());
+        using real_t = nt::mutable_value_type_twice_t<Complex>;
         auto tmp = rfft.template as<real_t>();
         return decltype(tmp)(tmp.share(), shape, tmp.strides(), tmp.options());
     }
@@ -51,10 +51,10 @@ namespace noa::fft {
     /// \param option   Options of the created array.
     /// \return         The allocated array. Both the real and complex view are pointing to the same memory,
     ///                 i.e. the real array has enough padding and alignment to supports inplace r2c transforms.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, f32, f64>>>
-    [[nodiscard]] std::pair<Array<T>, Array<Complex<T>>> zeros(const Shape4<i64>& shape, ArrayOption option = {}) {
-        Array out1 = noa::memory::zeros<Complex<T>>(shape.rfft(), option);
-        Array out0 = fft::alias_to_real(out1, shape);
+    template<typename T> requires nt::is_any_v<T, f32, f64>
+    [[nodiscard]] Pair<Array<T>, Array<Complex<T>>> zeros(const Shape4<i64>& shape, ArrayOption option = {}) {
+        Array out1 = noa::zeros<Complex<T>>(shape.rfft(), option);
+        Array out0 = alias_to_real(out1, shape);
         return {out0, out1};
     }
 
@@ -63,10 +63,10 @@ namespace noa::fft {
     /// \param option   Options of the created array.
     /// \return         The allocated array. Both the real and complex view are pointing to the same memory,
     ///                 i.e. the real array has enough padding and alignment to supports inplace r2c transforms.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, f32, f64>>>
-    [[nodiscard]] std::pair<Array<T>, Array<Complex<T>>> ones(const Shape4<i64>& shape, ArrayOption option = {}) {
-        Array out1 = noa::memory::ones<Complex<T>>(shape.rfft(), option);
-        Array out0 = fft::alias_to_real(out1, shape);
+    template<typename T> requires nt::is_any_v<T, f32, f64>
+    [[nodiscard]] Pair<Array<T>, Array<Complex<T>>> ones(const Shape4<i64>& shape, ArrayOption option = {}) {
+        Array out1 = noa::ones<Complex<T>>(shape.rfft(), option);
+        Array out0 = alias_to_real(out1, shape);
         return {out0, out1};
     }
 
@@ -75,10 +75,10 @@ namespace noa::fft {
     /// \param option   Options of the created array.
     /// \return         The allocated array. Both the real and complex view are pointing to the same memory,
     ///                 i.e. the real array has enough padding and alignment to supports inplace r2c transforms.
-    template<typename T, typename = std::enable_if_t<traits::is_any_v<T, f32, f64>>>
-    [[nodiscard]] std::pair<Array<T>, Array<Complex<T>>> empty(const Shape4<i64>& shape, ArrayOption option = {}) {
-        Array out1 = noa::memory::empty<Complex<T>>(shape.rfft(), option);
-        Array out0 = fft::alias_to_real(out1, shape);
+    template<typename T> requires nt::is_any_v<T, f32, f64>
+    [[nodiscard]] Pair<Array<T>, Array<Complex<T>>> empty(const Shape4<i64>& shape, ArrayOption option = {}) {
+        Array out1 = noa::empty<Complex<T>>(shape.rfft(), option);
+        Array out0 = alias_to_real(out1, shape);
         return {out0, out1};
     }
 }

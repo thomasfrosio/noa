@@ -134,10 +134,17 @@ namespace noa::guts {
                     // Automatic broadcasting of the inputs.
                     // "inputs" is used after forward, but as mentioned above "to_tuple_of_accessors"
                     // doesn't actually move varrays and here we only read varrays.
-                    input_accessors.for_each_enumerate([&inputs, &shape]<size_t I, typename T>(T& accessor) {
+                    input_accessors.for_each_enumerate([&inputs, &shape, &device]<size_t I, typename T>(T& accessor) {
                         if constexpr (nt::is_varray_v<decltype(inputs[Tag<I>{}])>) {
                             static_assert(nt::is_accessor_pure_v<T>);
-                            const auto& input_shape = inputs[Tag<I>{}].shape();
+
+                            const auto& input = inputs[Tag<I>{}];
+                            check(not input.is_empty(), "Empty input array detected (index={})", I);
+                            check(device == input.device(),
+                                  "Input arrays should be on the output device, but got device={} and input:{}:device={}",
+                                  device, I, input.device());
+
+                            const auto& input_shape = input.shape();
                             if (not ni::broadcast(input_shape, accessor.strides(), shape)) {
                                 panic("Cannot broadcast an array of shape {} into an array of shape {}",
                                       input_shape, shape);

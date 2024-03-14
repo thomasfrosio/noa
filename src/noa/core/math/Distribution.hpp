@@ -4,6 +4,12 @@
 #include "noa/core/Traits.hpp"
 #include "noa/core/math/Generic.hpp"
 
+namespace noa::traits {
+    template<typename> struct proclaim_is_distribution : std::false_type {};
+    template<typename T> using is_distribution = std::bool_constant<proclaim_is_distribution<T>::value>;
+    template<typename T> constexpr bool is_distribution_v = is_distribution<std::decay_t<T>>::value;
+}
+
 namespace noa {
     struct Distribution {};
 
@@ -18,7 +24,7 @@ namespace noa {
                 : m_min(static_cast<compute_type>(min)),
                   m_max(static_cast<compute_type>(max)) {}
 
-        constexpr result_type operator()(auto& generator) const noexcept requires nt::is_sint_v<result_type> {
+        constexpr result_type operator()(auto& generator) const noexcept requires nt::is_int_v<result_type> {
             const auto uniform_real = generator.template next<compute_type>(); // [0,1]
             const auto uniform_int = round(uniform_real * (m_max - m_min) + m_min);
             return static_cast<result_type>(uniform_int);
@@ -49,8 +55,7 @@ namespace noa {
         using result_type = T;
 
         constexpr explicit Normal(result_type mean = 0, result_type stddev = 1)
-                : m_mean(static_cast<result_type>(mean)),
-                  m_stddev(static_cast<result_type>(stddev)) {}
+                : m_mean(mean), m_stddev(stddev) {}
 
         constexpr result_type operator()(auto& generator) noexcept {
             result_type real = next_(generator, m_saved, m_saved_is_available);
@@ -69,7 +74,7 @@ namespace noa {
                     x = 2 * generator.template next<result_type>() - 1;
                     y = 2 * generator.template next<result_type>() - 1;
                     r2 = x * x + y * y;
-                } while (r2 > 1.0 || r2 == 0.0);
+                } while (r2 > 1 || r2 == 0);
 
                 const result_type mult = sqrt(-2 * log(r2) / r2);
                 saved = x * mult;
@@ -85,8 +90,9 @@ namespace noa {
         result_type m_stddev{};
         bool m_saved_is_available{};
 
-        template<typename>
-        friend class LogNormal;
+        template<typename> requires nt::is_real_v<T>
+        friend
+        class LogNormal;
     };
 
     /// Lognormal distribution.
@@ -96,8 +102,7 @@ namespace noa {
         using result_type = T;
 
         constexpr explicit LogNormal(result_type mean = {}, result_type stddev = 1)
-                : m_mean(static_cast<result_type>(mean)),
-                  m_stddev(static_cast<result_type>(stddev)) {}
+                : m_mean(mean), m_stddev(stddev) {}
 
         constexpr result_type operator()(auto& generator) noexcept requires nt::is_real_v<result_type> {
             result_type real = Normal<result_type>::next_(generator, m_saved, m_saved_is_available);
@@ -134,9 +139,19 @@ namespace noa {
         compute_type m_mean;
         compute_type m_threshold;
     };
+}
 
+namespace noa::traits {
+    template<typename T> struct proclaim_is_distribution<Uniform<T>> : std::true_type {};
+    template<typename T> struct proclaim_is_distribution<Normal<T>> : std::true_type {};
+    template<typename T> struct proclaim_is_distribution<LogNormal<T>> : std::true_type {};
+    template<typename T> struct proclaim_is_distribution<Poisson<T>> : std::true_type {};
+}
+
+namespace noa {
     /// xoshiro256** and xoshiro256+ 64-bit pseudorandom number generators.
     class RandomBitsGenerator {
+    public:
         constexpr RandomBitsGenerator() = default;
 
         constexpr explicit RandomBitsGenerator(u64 seed) {
@@ -222,6 +237,8 @@ namespace noa {
     /// Element-wise randomize operator.
     template<typename Distribution>
     struct Randomizer {
+        using allow_vectorization = bool;
+
         constexpr explicit Randomizer(const Distribution& distribution, u64 seed)
                 : m_distribution(distribution), random_seed(seed) {}
 

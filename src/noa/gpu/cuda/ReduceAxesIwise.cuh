@@ -71,13 +71,13 @@ namespace noa::cuda::guts {
                 using kernel_config = guts::ReduceAxesIwiseWidthConfig<Config, 256>;
                 stream.enqueue(
                         guts::reduce_width_iwise<4, kernel_config, op_t, Index, reduced_t, output_3d_t>,
-                        launch_config, std::forward<Op>(op), shape_hw, reduced, output_3d
+                        launch_config, std::forward<Op>(op), shape_hw, std::forward<Reduced>(reduced), output_3d
                 );
             } else {
                 using kernel_config = guts::ReduceAxesIwiseWidthConfig<Config, 64>;
                 stream.enqueue(
                         guts::reduce_width_iwise<4, kernel_config, op_t, Index, reduced_t, output_3d_t>,
-                        launch_config, std::forward<Op>(op), shape_hw, reduced, output_3d
+                        launch_config, std::forward<Op>(op), shape_hw, std::forward<Reduced>(reduced), output_3d
                 );
             }
         } else {
@@ -163,13 +163,13 @@ namespace noa::cuda::guts {
                 using kernel_config = guts::ReduceAxesIwiseWidthConfig<Config, 256>;
                 stream.enqueue(
                         guts::reduce_width_iwise<3, kernel_config, op_t, Index, reduced_t, output_2d_t>,
-                        launch_config, std::forward<Op>(op), shape_hw, reduced, output_2d
+                        launch_config, std::forward<Op>(op), shape_hw, std::forward<Reduced>(reduced), output_2d
                 );
             } else {
                 using kernel_config = guts::ReduceAxesIwiseWidthConfig<Config, 64>;
                 stream.enqueue(
                         guts::reduce_width_iwise<3, kernel_config, op_t, Index, reduced_t, output_2d_t>,
-                        launch_config, std::forward<Op>(op), shape_hw, reduced, output_2d
+                        launch_config, std::forward<Op>(op), shape_hw, std::forward<Reduced>(reduced), output_2d
                 );
             }
         } else {
@@ -287,6 +287,8 @@ namespace noa::cuda {
             panic("Dimensions should match the input shape, or be 1, "
                   "indicating the dimension should be reduced to one element. "
                   "Got shape input:shape={}, output:shape={}", input_shape, output_shape);
+        } else if (all(axes_to_reduce == false)) {
+            return; // nothing to reduce
         }
 
         const auto axes_empty_or_to_reduce = output_shape == 1 or axes_to_reduce;
@@ -294,8 +296,6 @@ namespace noa::cuda {
             constexpr auto to_1d = ng::AccessorConfig<1>{.enforce_contiguous=true, .filter={0}};
             const auto output_1d = ng::reconfig_accessors<to_1d>(output);
             return reduce_iwise(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, stream);
-        } else if (all(axes_to_reduce == false)) {
-            return; // nothing to reduce
         }
 
         if constexpr (N > 1) {
@@ -342,15 +342,15 @@ namespace noa::cuda {
                     if constexpr (N == 4) {
                         stream.enqueue(
                                 guts::reduce_axes_iwise_4d_first<config_t, op_t, Index, reduced_t, joined_t>,
-                                launch_config, std::forward<Op>(op), reduced, joined, shape_to_reduce.vec, n_blocks_hw);
+                                launch_config, op, reduced, joined, shape_to_reduce.vec, n_blocks_hw);
                     } else if constexpr (N == 3) {
                         stream.enqueue(
                                 guts::reduce_axes_iwise_3d_first<config_t, op_t, Index, reduced_t, joined_t>,
-                                launch_config, std::forward<Op>(op), reduced, joined, shape_to_reduce.vec);
+                                launch_config, op, reduced, joined, shape_to_reduce.vec);
                     } else {
                         stream.enqueue(
                                 guts::reduce_axes_iwise_2d_first<config_t, op_t, Index, reduced_t, joined_t>,
-                                launch_config, std::forward<Op>(op), reduced, joined, shape_to_reduce.vec);
+                                launch_config, op, reduced, joined, shape_to_reduce.vec);
                     }
                     stream.enqueue(
                             guts::reduce_axes_iwise_second<Config, op_t, Index, joined_t, reduced_t, output_1d_t>,

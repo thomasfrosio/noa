@@ -1,21 +1,20 @@
 #include <noa/unified/Stream.hpp>
 
 #include "catch2/catch.hpp"
-#include "noa/unified/Device.hpp"
 
 TEST_CASE("unified::Stream", "[noa][unified]") {
-    using namespace ::noa;
+    using namespace ::noa::types;
 
     AND_THEN("parse") {
         const Device cpu;
         Stream a(cpu);
         REQUIRE(a.device() == cpu);
         REQUIRE(a.device().is_cpu());
-        cpu::Stream& cpu_a = a.cpu();
+        noa::cpu::Stream& cpu_a = a.cpu();
 
         Stream b = a;
 
-        cpu::Stream& cpu_b = b.cpu();
+        noa::cpu::Stream& cpu_b = b.cpu();
         cpu_b.enqueue([]() { std::this_thread::sleep_for(std::chrono::seconds(2)); });
         REQUIRE(cpu_a.is_busy()); // cpu_a and cpu_b points to the same worker
 
@@ -27,10 +26,10 @@ TEST_CASE("unified::Stream", "[noa][unified]") {
             Stream c(device);
             REQUIRE(c.device().is_gpu());
             REQUIRE(c.device().id() == 0);
-            [[maybe_unused]] const gpu::Stream& gpu_c = c.gpu();
+            [[maybe_unused]] const noa::gpu::Stream& gpu_c = c.gpu();
             c = a;
             REQUIRE_THROWS_AS(c.gpu(), noa::Exception);
-            [[maybe_unused]] const cpu::Stream& cpu_c = c.cpu();
+            [[maybe_unused]] const noa::cpu::Stream& cpu_c = c.cpu();
         }
     }
 

@@ -11,7 +11,7 @@
 #include <algorithm>
 
 namespace noa::cpu {
-    template<typename Value, typename>
+    template<typename Value>
     Value median(Value* input, Strides4<i64> strides, Shape4<i64> shape, bool overwrite) {
         // Make it in rightmost order.
         const auto order = ni::order(strides, shape);

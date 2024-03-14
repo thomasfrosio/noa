@@ -21,9 +21,12 @@ set(NOA_CPU_HEADERS
     cpu/fft/Plan.hpp
     cpu/fft/Transforms.hpp
 
-    # noa::cuda::signal
+    # noa::cpu::signal
     cpu/signal/Convolve.hpp
     cpu/signal/Correlate.hpp
+
+    # noa::cpu::geometry
+    cpu/geometry/Prefilter.hpp
     )
 
 set(NOA_CPU_SOURCES

@@ -99,6 +99,20 @@ namespace noa::guts {
         });
     }
 
+    /// Whether accessor indexing is safe using a certain offset precision.
+    /// \note Accessors increment the pointer on dimension at a time! So the offset of each dimension
+    ///       is converted to ptrdiff_t (by the compiler) and added to the pointer. This makes it less
+    ///       likely to reach the integer upper limit.
+    template<typename Int, typename I, size_t N>
+    [[nodiscard]] constexpr bool is_accessor_access_safe(const Strides<I, N>& strides, const Shape<I, N>& shape) {
+        for (size_t i = 0; i < N; ++i) {
+            const auto end = static_cast<i64>(shape[i] - 1) * static_cast<i64>(strides[i]);
+            if (not is_safe_cast<Int>(end))
+                return false;
+        }
+        return true;
+    }
+
     /// Filters the input tuple by remove non-varrays and forwards
     /// the varrays (i.e. store references) into the new tuple.
     template<typename... Ts>

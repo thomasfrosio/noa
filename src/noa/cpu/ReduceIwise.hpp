@@ -16,7 +16,7 @@ namespace noa::cpu::guts {
 
         template<typename Op, typename Reduced, typename Output, typename Index, size_t N>
         static void parallel(
-                const Vec<Index, N>& shape, Op& op,
+                const Vec<Index, N>& shape, Op op,
                 Reduced reduced, Output& output, i64 n_threads
         ) {
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced) firstprivate(op)
@@ -94,27 +94,13 @@ namespace noa::cpu::guts {
 }
 
 namespace noa::cpu {
-    template<bool ZipReduced = false, bool ZipOutput = false, i64 ParallelThreshold = 1'048'576>
+    template<bool ZipReduced = false, bool ZipOutput = false, i64 ElementsPerThread = 1'048'576>
     struct ReduceIwiseConfig {
         static constexpr bool zip_reduced = ZipReduced;
         static constexpr bool zip_output = ZipOutput;
-        static constexpr i64 parallel_threshold = ParallelThreshold;
+        static constexpr i64 n_elements_per_thread = ElementsPerThread;
     };
 
-    /// Dispatches a index-wise reduction operator across N-dimensional (parallel) for-loops.
-    /// \param start        Starting indices, usually 0.
-    /// \param end          Ending indices, usually the shape.
-    /// \param op           Valid reduce index-wise operator (see core interface). The operator is forwarded to
-    ///                     the kernel, which takes it by value (it is either moved or copied once by the time
-    ///                     it reaches the kernel). In the multi-threaded case, it is copied to every thread.
-    /// \param reduced      Tuple of accessor-values, initialized with the values to start the reduction.
-    ///                     These are moved/copied into the kernel, or copied to every thread in the parallel case.
-    /// \param output       Tuple of accessors or accessor-values. These are taken by reference to the kernel
-    ///                     and never moved/copied, so the caller can read the updated values from accessor-values.
-    /// \param n_threads    Maximum number of threads. Note that passing a literal 1 (the default value)
-    ///                     should reduce the amount of generated code because the parallel version can
-    ///                     be omitted. In this case, it is even better to set \p PARALLEL_THRESHOLD to 1,
-    ///                     turning off the multi-threaded implementation entirely.
     template<typename Config = ReduceIwiseConfig<>,
              typename Op, typename Reduced, typename Output, typename Index, size_t N>
     requires (nt::is_tuple_of_accessor_value_v<Reduced> and nt::is_tuple_of_accessor_v<Output>)
@@ -126,10 +112,16 @@ namespace noa::cpu {
             i64 n_threads = 1
     )  {
         using core = guts::ReduceIwise<Config::zip_reduced, Config::zip_output>;
-        if constexpr (Config::parallel_threshold > 1) {
-            const i64 actual_n_threads = shape.template as<i64>().elements() <= Config::parallel_threshold ? 1 : n_threads;
+        if constexpr (Config::n_elements_per_thread > 1) {
+            const i64 n_elements = shape.template as<i64>().elements();
+            i64 actual_n_threads = n_elements <= Config::n_elements_per_thread ? 1 : n_threads;
             if (actual_n_threads > 1)
-                return core::parallel(shape.vec, op, std::forward<Reduced>(reduced), output, actual_n_threads);
+                actual_n_threads = min(n_threads, n_elements / Config::n_elements_per_thread);
+
+            if (actual_n_threads > 1) {
+                return core::parallel(
+                        shape.vec, std::forward<Op>(op), std::forward<Reduced>(reduced), output, actual_n_threads);
+            }
         }
         core::serial(shape.vec, std::forward<Op>(op), std::forward<Reduced>(reduced), output);
     }

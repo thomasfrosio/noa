@@ -35,7 +35,7 @@ namespace noa {
               nt::is_varray_of_real_v<I>)
     void imag(const C& input, const I& imag) {
         check(not ni::are_overlapped(imag, input), "The arrays should not overlap");
-        ewise(input, real, Imag{});
+        ewise(input, imag, Imag{});
     }
 
     /// Fuses the real and imaginary components.

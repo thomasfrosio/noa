@@ -56,13 +56,15 @@ namespace noa::cuda::guts {
                     using kernel_config = ReduceAxesEwiseWidthConfig<Config, 256, 2>;
                     stream.enqueue(
                             reduce_width_ewise<kernel_config, op_t, Index, input_contig_t, reduced_t, output_3d_t>,
-                            launch_config, std::forward<Op>(op), std::move(input_contiguous), shape_hw, reduced, output_3d
+                            launch_config, std::forward<Op>(op), std::move(input_contiguous), shape_hw,
+                            std::forward<Reduced>(reduced), output_3d
                     );
                 } else {
                     using kernel_config = ReduceAxesEwiseWidthConfig<Config, 256, 4>;
                     stream.enqueue(
                             reduce_width_ewise<kernel_config, op_t, Index, input_contig_t, reduced_t, output_3d_t>,
-                            launch_config, std::forward<Op>(op), std::move(input_contiguous), shape_hw, reduced, output_3d
+                            launch_config, std::forward<Op>(op), std::move(input_contiguous), shape_hw,
+                            std::forward<Reduced>(reduced), output_3d
                     );
                 }
             } else {
@@ -70,13 +72,15 @@ namespace noa::cuda::guts {
                     using kernel_config = ReduceAxesEwiseWidthConfig<Config, 64, 2>;
                     stream.enqueue(
                             reduce_width_ewise<kernel_config, op_t, Index, input_contig_t, reduced_t, output_3d_t>,
-                            launch_config, std::forward<Op>(op), std::move(input_contiguous), shape_hw, reduced, output_3d
+                            launch_config, std::forward<Op>(op), std::move(input_contiguous), shape_hw,
+                            std::forward<Reduced>(reduced), output_3d
                     );
                 } else {
                     using kernel_config = ReduceAxesEwiseWidthConfig<Config, 64, 4>;
                     stream.enqueue(
                             reduce_width_ewise<kernel_config, op_t, Index, input_contig_t, reduced_t, output_3d_t>,
-                            launch_config, std::forward<Op>(op), std::move(input_contiguous), shape_hw, reduced, output_3d
+                            launch_config, std::forward<Op>(op), std::move(input_contiguous), shape_hw,
+                            std::forward<Reduced>(reduced), output_3d
                     );
                 }
             }
@@ -85,13 +89,15 @@ namespace noa::cuda::guts {
                 using kernel_config = ReduceAxesEwiseWidthConfig<Config, 256, 1>;
                 stream.enqueue(
                         reduce_width_ewise<kernel_config, op_t, Index, input_t, reduced_t, output_3d_t>,
-                        launch_config, std::forward<Op>(op), std::forward<Input>(input), shape_hw, reduced, output_3d
+                        launch_config, std::forward<Op>(op), std::forward<Input>(input), shape_hw,
+                        std::forward<Reduced>(reduced), output_3d
                 );
             } else {
                 using kernel_config = ReduceAxesEwiseWidthConfig<Config, 64, 1>;
                 stream.enqueue(
                         reduce_width_ewise<kernel_config, op_t, Index, input_t, reduced_t, output_3d_t>,
-                        launch_config, std::forward<Op>(op), std::forward<Input>(input), shape_hw, reduced, output_3d
+                        launch_config, std::forward<Op>(op), std::forward<Input>(input), shape_hw,
+                        std::forward<Reduced>(reduced), output_3d
                 );
             }
         }
@@ -185,6 +191,8 @@ namespace noa::cuda {
             panic("Dimensions should match the input shape, or be 1, "
                   "indicating the dimension should be reduced to one element. "
                   "Got shape input={}, output={}", input_shape, output_shape);
+        } else if (all(axes_to_reduce == false)) {
+            return; // nothing to reduce
         }
 
         const auto axes_empty_or_to_reduce = output_shape == 1 or axes_to_reduce;

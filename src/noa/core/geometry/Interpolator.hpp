@@ -652,6 +652,10 @@ namespace noa::geometry {
         index3_type m_shape{};
         NOA_NO_UNIQUE_ADDRESS value_or_empty_type m_cvalue{};
     };
+
+    template<size_t N, Border BORDER, Interp INTERP, typename Accessor>
+    using InterpolatorNd = std::conditional_t<
+            N == 2, Interpolator2d<BORDER, INTERP, Accessor>, Interpolator3d<BORDER, INTERP, Accessor>>;
 }
 
 namespace noa::traits {

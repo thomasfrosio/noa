@@ -43,6 +43,7 @@ namespace noa::cuda {
 
         using op_t = std::decay_t<Op>;
 
+        // TODO or 2d unbatched
         if (is_contiguous[1] and is_contiguous[2]) { // 2d-like
             // Keep batches separated in a different grid.y if they're not contiguous.
             const auto batch = is_contiguous[0] ? 1u : static_cast<u32>(shape[0]);

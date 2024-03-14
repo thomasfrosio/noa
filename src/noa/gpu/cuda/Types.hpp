@@ -27,21 +27,4 @@ namespace noa::cuda {
         static constexpr u32 MAX_X_BLOCKS = (1U << 31) - 1U;
         static constexpr u32 MAX_YZ_BLOCKS = 65535;
     };
-
-#ifdef NOA_IS_OFFLINE
-    template<typename T>
-    struct OwnedTexture {
-        using value_type = T;
-        std::shared_ptr<cudaArray> array{nullptr};
-        std::shared_ptr<cudaTextureObject_t> texture{};
-    };
-#endif
-
-    template<typename T>
-    struct ViewedTexture {
-        using value_type = T;
-        cudaArray_t array{nullptr};
-        cudaTextureObject_t texture{};
-        Interp interp_mode{};
-    };
 }

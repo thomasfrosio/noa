@@ -8,33 +8,29 @@
 
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/Types.hpp"
-#include "noa/gpu/cuda/memory/AllocatorArray.hpp"
-#include "noa/gpu/cuda/memory/AllocatorTexture.hpp"
-#include "noa/gpu/cuda/memory/Copy.hpp"
-#else
-namespace noa::cuda {
-    template<typename T>
-    struct Texture {};
-
-    template<typename T>
-    struct TextureObject {};
-}
+#include "noa/gpu/cuda/AllocatorArray.hpp"
+#include "noa/gpu/cuda/AllocatorTexture.hpp"
+#include "noa/gpu/cuda/Copy.cuh"
 #endif
 
 namespace noa::cpu {
     template<typename T>
     struct Texture {
-        Strides4<i64> strides;
-        std::shared_ptr<T[]> ptr;
-        T cvalue;
+        Strides4<i64> strides{};
+        Array<T>::shared_type handle{};
+        const T* pointer{};
+        T cvalue{};
     };
 }
 
 namespace noa::gpu {
+    #ifdef NOA_ENABLE_CUDA
     template<typename T>
-    using Texture = noa::cuda::Texture<T>;
+    using Texture = noa::cuda::AllocatorTexture<T>::shared_type;
+    #else
     template<typename T>
-    using TextureObject = noa::cuda::TextureObject<T>;
+    using Texture = std::shared_ptr<void>;
+    #endif
 }
 
 namespace noa {
@@ -53,9 +49,27 @@ namespace noa {
         using mutable_value_type = T;
         using shape_type = Shape4<i64>;
         using strides_type = Strides4<i64>;
-        using cpu_texture_type = cpu::Texture<value_type>;
-        using gpu_texture_type = gpu::Texture<value_type>;
+        using cpu_texture_type = noa::cpu::Texture<value_type>;
+        using gpu_texture_type = noa::gpu::Texture<value_type>;
         using variant_type = std::variant<std::monostate, cpu_texture_type, gpu_texture_type>;
+
+        struct Options {
+            Border border{Border::ZERO};
+
+            /// Constant value to use for out-of-bounds coordinates.
+            /// Only used if border is Border::VALUE.
+            value_type cvalue{0};
+
+            /// Whether the GPU texture should be a 2d layered texture.
+            /// The number of layers is equal to the batch dimension of the provided array or shape.
+            /// This is ignored for CPU textures, since they are always considered layered.
+            bool layered{false};
+
+            /// Whether the input array should be prefiltered.
+            /// If true and if the interpolation is Interp::{CUBIC_BSPLINE|CUBIC_BSPLINE_FAST},
+            /// the input is prefiltered in-place before creating/updating the texture.
+            bool prefilter{true};
+        };
 
     public:
         /// Creates an empty texture.
@@ -65,15 +79,7 @@ namespace noa {
         /// \param[in,out] array    Array or mutable view to transform into the new texture.
         /// \param device_target    Device where the texture should be constructed.
         /// \param interp_mode      Interpolation mode.
-        /// \param border_mode      Border mode.
-        /// \param cvalue           Constant value to use for out-of-bounds coordinates.
-        ///                         Only used if \p border_mode is \c Border::VALUE.
-        /// \param layered          Whether the GPU texture should be a 2D layered texture.
-        ///                         The number of layers is equal to the batch dimension of \p array.
-        ///                         This is ignored for CPU textures, since they are always considered layered.
-        /// \param prefilter        Whether the input \p array should be prefiltered first.
-        ///                         If true and if \p interp_mode is \c Interp::{CUBIC_BSPLINE|CUBIC_BSPLINE_FAST},
-        ///                         the input is prefiltered in-place.
+        /// \param options          Texture options.
         ///
         /// \note If \p device_target is a GPU, a CUDA array is allocated with the same type and shape as \p array,
         ///       a texture is attached to the new array's memory and the new CUDA array is initialized with
@@ -82,8 +88,8 @@ namespace noa {
         ///         - \p array should be in the rightmost order and its depth and width dimensions should be C-contiguous.
         ///           In other words, \p array should be C-contiguous or have a valid "pitch" as defined in CUDA.\n
         ///         - \p array can be on any device, including the CPU.\n
-        ///         - If \p layered is false or if \p array is a 3D array, \p array cannot be batched.\n
-        ///         - \p border_mode should be \c Border::{ZERO|CLAMP|PERIODIC|MIRROR}.\n
+        ///         - If \p options.layered is false or if \p array is a 3D array, \p array cannot be batched.\n
+        ///         - \p options.border should be \c Border::{ZERO|CLAMP|PERIODIC|MIRROR}.\n
         ///         - \c Interp::{NEAREST|LINEAR_FAST} are the only modes supporting \c Border::{MIRROR|PERIODIC}.
         /// \note If \p device_target is a CPU, no computation is performed (other the the optional pre-filtering)
         ///       and the texture simply points to \p array. Limitations:\n
@@ -93,57 +99,70 @@ namespace noa {
         ///          from a CPU array. Note however that while the API will make sure that stream ordering will be
         ///          respected (by possibly synchronizing the current stream of the \p array device), the caller
         ///          should not modify the underlying values of \p array until the texture is created. See eval().
-        template<typename VArray, typename = std::enable_if_t<
-                 nt::is_varray_of_any_v<VArray, value_type>>>
-        Texture(const VArray& array, Device device_target, Interp interp_mode, Border border_mode,
-                value_type cvalue = value_type{0}, bool layered = false, bool prefilter = true)
-                : m_shape(array.shape()), m_interp(interp_mode), m_border(border_mode) {
+        template<typename VArray> requires nt::is_varray_of_any_v<VArray, value_type>
+        Texture(
+                const VArray& array,
+                Device device_target,
+                Interp interp_mode,
+                const Options& options = {}
+        ) : m_shape(array.shape()),
+            m_interp(interp_mode),
+            m_border(options.border)
+        {
+            check(not array.is_empty(), "Empty array detected");
 
-            NOA_CHECK(!array.is_empty(), "Empty array detected");
-
-            if (prefilter &&
-                (interp_mode == Interp::CUBIC_BSPLINE ||
+            if (options.prefilter and
+                (interp_mode == Interp::CUBIC_BSPLINE or
                  interp_mode == Interp::CUBIC_BSPLINE_FAST)) {
                 noa::geometry::cubic_bspline_prefilter(array, array);
             }
 
             if (device_target.is_cpu()) {
-                NOA_CHECK(array.device() == device_target,
-                          "CPU textures can only be constructed/updated from CPU arrays, but got device {}",
-                          array.device());
-                if constexpr (nt::is_view_v<VArray>)
-                    m_texture = cpu_texture_type{array.strides(), std::shared_ptr<T[]>(array.get(), [](void*) {}), cvalue};
-                else
-                    m_texture = cpu_texture_type{array.strides(), array.share(), cvalue};
+                check(array.device() == device_target,
+                      "CPU textures can only be constructed/updated from CPU arrays, but got device {}",
+                      array.device());
+                if constexpr (nt::is_view_v<VArray>) {
+                    m_texture = cpu_texture_type{
+                            .strides=array.strides(),
+                            .pointer=array.get(),
+                            .cvalue=options.cvalue,
+                    };
+                } else {
+                    m_texture = cpu_texture_type{
+                            .strides=array.strides(),
+                            .handle=array.share(),
+                            .pointer=array.get(),
+                            .cvalue=options.cvalue,
+                    };
+                }
                 m_options = array.options();
 
             } else {
                 #ifdef NOA_ENABLE_CUDA
                 if constexpr (sizeof(nt::value_type_t<value_type>) >= 8) {
-                    NOA_THROW("Double-precision textures are not supported by the CUDA backend");
+                    panic("Double-precision textures are not supported by the CUDA backend");
                 } else {
                     const auto guard = DeviceGuard(device_target);
+                    auto texture = noa::cuda::AllocatorTexture<value_type>::allocate(
+                            array.shape(), interp_mode, options.border,
+                            options.layered ? cudaArrayLayered : cudaArrayDefault
+                    );
 
-                    gpu_texture_type texture;
-                    texture.array = noa::cuda::memory::AllocatorArray<value_type>::allocate(
-                            array.shape(), layered ? cudaArrayLayered : cudaArrayDefault);
-                    texture.texture = noa::cuda::memory::AllocatorTexture::allocate(
-                            texture.array.get(), interp_mode, border_mode);
-
+                    // Copy input to CUDA array.
                     if (device_target != array.device())
                         array.eval();
                     auto& cuda_stream = Stream::current(device_target).cuda();
-                    noa::cuda::memory::copy(
+                    noa::cuda::copy(
                             array.get(), array.strides(),
-                            texture.array.get(), array.shape(),
+                            texture->array, array.shape(),
                             cuda_stream);
-                    cuda_stream.enqueue_attach(array, texture.array);
+                    cuda_stream.enqueue_attach(array, texture);
 
-                    m_texture = texture;
-                    m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
+                    m_texture = std::move(texture);
+                    m_options = ArrayOption{device_target, Allocator(MemoryResource::CUDA_ARRAY)};
                 }
                 #else
-                NOA_THROW("No GPU backend detected");
+                panic("No GPU backend detected");
                 #endif
             }
         }
@@ -152,47 +171,37 @@ namespace noa {
         /// \param shape            BDHW shape of the new texture.
         /// \param device_target    Device where the texture should be constructed.
         /// \param interp_mode      Interpolation mode.
-        /// \param border_mode      Border mode.
-        /// \param cvalue           Constant value to use for out-of-bounds coordinates.
-        ///                         Only used if \p border_mode is \c Border::VALUE.
-        /// \param layered          Whether the GPU texture should be a 2D layered texture.
-        ///                         The number of layers is equal to the batch dimension of \p array.
-        ///                         This is ignored for CPU textures, since they are always considered layered.
+        /// \param options          Texture options (prefilter is ignored).
         ///
         /// \note If \p device_target is a GPU, a CUDA array is allocated of \p T type and \p shape,
         ///       a texture is attached to the new array's memory. The new CUDA array is left
         ///       uninitialized (see update()). Limitations:\n
         ///         - Double precision is not supported.\n
-        ///         - If \p layered is false or if \p shape describes a 3D array, \p shape cannot be batched.\n
-        ///         - \p border_mode should be \c Border::{ZERO|CLAMP|PERIODIC|MIRROR}.\n
+        ///         - If \p options.layered is false or if \p shape describes a 3d array, \p shape cannot be batched.\n
+        ///         - \p options.border should be \c Border::{ZERO|CLAMP|PERIODIC|MIRROR}.\n
         ///         - \c Interp::{NEAREST|LINEAR_FAST} are the only modes supporting \c Border::{MIRROR|PERIODIC}.
         ///
         /// \note If \p device_target is a CPU, no computation is performed. The texture is non-empty and valid,
         ///       but the underlying managed data (i.e. the cpu::Texture) points to a null pointer. Use update()
         ///       to set the texture to a valid memory region.
-        Texture(shape_type shape, Device device_target, Interp interp_mode, Border border_mode,
-                value_type cvalue = value_type{0}, bool layered = false)
-                : m_shape(shape), m_interp(interp_mode), m_border(border_mode) {
+        Texture(shape_type shape, Device device_target, Interp interp_mode, const Options& options = {})
+                : m_shape(shape), m_interp(interp_mode), m_border(options.border) {
 
             if (device_target.is_cpu()) {
-                m_texture = cpu_texture_type{{}, nullptr, cvalue};
+                m_texture = cpu_texture_type{.cvalue=options.cvalue};
             } else {
                 #ifdef NOA_ENABLE_CUDA
                 if constexpr (sizeof(nt::value_type_t<value_type>) >= 8) {
-                    NOA_THROW("Double-precision textures are not supported by the CUDA backend");
+                    panic("Double-precision textures are not supported by the CUDA backend");
                 } else {
                     const auto guard = DeviceGuard(device_target);
-
-                    gpu_texture_type texture;
-                    texture.array = noa::cuda::memory::AllocatorArray<value_type>::allocate(
-                            shape, layered ? cudaArrayLayered : cudaArrayDefault);
-                    texture.texture = noa::cuda::memory::AllocatorTexture::allocate(
-                            texture.array.get(), interp_mode, border_mode);
-                    m_texture = texture;
-                    m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
+                    m_texture = noa::cuda::AllocatorTexture<value_type>::allocate(
+                            shape, interp_mode, options.border,
+                            options.layered ? cudaArrayLayered : cudaArrayDefault);
+                    m_options = ArrayOption{device_target, Allocator(MemoryResource::CUDA_ARRAY)};
                 }
                 #else
-                NOA_THROW("No GPU backend detected");
+                panic("No GPU backend detected");
                 #endif
             }
         }
@@ -216,26 +225,25 @@ namespace noa {
         ///          from a CPU array. Note however that while the API will make sure that stream ordering will be
         ///          respected (by possibly synchronizing the current stream of the \p array device), the caller
         ///          should not modify the underlying values of \p array until the texture is updated. See eval().
-        template<typename VArray, typename = std::enable_if_t<
-                 nt::is_varray_of_any_v<VArray, value_type>>>
+        template<typename VArray> requires nt::is_varray_of_any_v<VArray, value_type>
         void update(const VArray& array, bool prefilter = true) {
-            NOA_CHECK(!is_empty(), "Trying to update an empty texture is not allowed. Create a valid the texture first");
-            NOA_CHECK(!array.is_empty(), "Empty array detected");
-            NOA_CHECK(noa::all(array.shape() == m_shape), // TODO Broadcast?
-                      "The input array should have the same shape as the texture {}, but got {}",
-                      m_shape, array.shape());
+            check(not is_empty(), "Trying to update an empty texture is not allowed. Create a valid the texture first");
+            check(not array.is_empty(), "Empty array detected");
+            check(all(array.shape() == m_shape),
+                  "The input array should have the same shape as the texture, but got texture:shape={} and array:shape={}",
+                  m_shape, array.shape());
 
-            if (prefilter &&
-                (m_interp == Interp::CUBIC_BSPLINE ||
+            if (prefilter and
+                (m_interp == Interp::CUBIC_BSPLINE or
                  m_interp == Interp::CUBIC_BSPLINE_FAST)) {
                 noa::geometry::cubic_bspline_prefilter(array, array);
             }
 
             const Device device_target = device();
             if (device_target.is_cpu()) {
-                NOA_CHECK(array.device() == device_target,
-                          "CPU textures can only be constructed/updated from CPU arrays, but got device {}",
-                          array.device());
+                check(array.device() == device_target,
+                      "CPU textures can only be constructed/updated from CPU arrays, but got array:device={}",
+                      array.device());
                 cpu_texture_type& cpu_texture = cpu_();
                 cpu_texture.strides = array.strides();
                 if constexpr (nt::is_view_v<VArray>)
@@ -247,21 +255,21 @@ namespace noa {
             } else {
                 #ifdef NOA_ENABLE_CUDA
                 if constexpr (sizeof(nt::value_type_t<value_type>) >= 8) {
-                    NOA_THROW("Double-precision textures are not supported by the CUDA backend");
+                    panic("Double-precision textures are not supported by the CUDA backend");
                 } else {
                     if (device_target != array.device())
                         array.eval();
 
                     gpu_texture_type& cuda_texture = cuda_();
                     auto& cuda_stream = Stream::current(device_target).cuda();
-                    noa::cuda::memory::copy(
+                    noa::cuda::copy(
                             array.get(), array.strides(),
-                            cuda_texture.array.get(),
+                            cuda_texture->array,
                             m_shape, cuda_stream);
-                    cuda_stream.enqueue_attach(array, cuda_texture.array);
+                    cuda_stream.enqueue_attach(array, cuda_texture->array);
                 }
                 #else
-                NOA_THROW("No GPU backend detected");
+                panic("No GPU backend detected");
                 #endif
             }
         }
@@ -271,10 +279,10 @@ namespace noa {
         [[nodiscard]] constexpr ArrayOption options() const noexcept { return m_options; }
 
         /// Returns the device used to create the array.
-        [[nodiscard]] constexpr Device device() const noexcept { return m_options.device(); }
+        [[nodiscard]] constexpr Device device() const noexcept { return m_options.device; }
 
         /// Returns the device used to create the array.
-        [[nodiscard]] constexpr Allocator allocator() const noexcept { return m_options.allocator(); }
+        [[nodiscard]] constexpr Allocator allocator() const noexcept { return m_options.allocator; }
 
         /// Whether the array is empty.
         [[nodiscard]] bool is_empty() const noexcept { return std::holds_alternative<std::monostate>(m_texture); }
@@ -294,9 +302,9 @@ namespace noa {
         template<char ORDER = 'C'>
         [[nodiscard]] bool are_contiguous() const noexcept {
             if (device().is_cpu())
-                return noa::are_contiguous<ORDER>(cpu().strides, m_shape);
+                return ni::are_contiguous<ORDER>(cpu().strides, m_shape);
             else
-                return ORDER == 'C' || ORDER == 'c';
+                return ORDER == 'C' or ORDER == 'c';
         }
 
         /// Synchronizes the current stream of the Texture's device.
@@ -311,11 +319,34 @@ namespace noa {
             return std::exchange(*this, Texture<value_type>{});
         }
 
+        /// Returns the underlying pointer of CPU array.
+        /// This is used to provide an Array-like API.
+        [[nodiscard]] constexpr const value_type* get() const noexcept {
+            return cpu().pointer;
+        }
+
+        /// Returns the underlying CPU array as a View.
+        /// This is used to provide an Array-like API.
+        [[nodiscard]] constexpr View<const value_type> view() const noexcept {
+            const auto& cpu_texture = cpu();
+            return View<const value_type>(cpu_texture.pointer, shape(), cpu_texture.strides, options());
+        }
+
+        /// Returns a reference of the managed resource.
+        /// This is used to provide an Array-like API.
+        /// \warning Depending on the current stream of this array's device,
+        ///          reading/writing to this pointer may be illegal or create a data race.
+        [[nodiscard]] std::shared_ptr<void> share() const noexcept {
+            return std::visit(m_texture,
+                       [](const cpu_texture_type& texture ){ return texture.handle; },
+                       [](const gpu_texture_type& texture ){ return texture; });
+        }
+
         /// Gets the underlying texture, assuming it is a CPU texture (i.e. device is CPU).
         /// Otherwise, throws an exception.
         [[nodiscard]] const cpu_texture_type& cpu() const {
             auto* ptr = std::get_if<cpu_texture_type>(&m_texture);
-            NOA_CHECK(ptr, "Texture is not initialized or trying to retrieve at CPU texture from a GPU texture");
+            check(ptr, "Texture is not initialized or trying to retrieve at CPU texture from a GPU texture");
             return *ptr;
         }
 
@@ -325,7 +356,7 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             return this->cuda();
             #else
-            NOA_THROW("No GPU backend detected");
+            panic("No GPU backend detected");
             #endif
         }
 
@@ -334,22 +365,29 @@ namespace noa {
         [[nodiscard]] const gpu_texture_type& cuda() const {
             #ifdef NOA_ENABLE_CUDA
             auto* ptr = std::get_if<gpu_texture_type>(&m_texture);
-            NOA_CHECK(ptr, "Texture is not initialized or trying to retrieve at GPU texture from a CPU texture");
+            check(ptr, "Texture is not initialized or trying to retrieve at GPU texture from a CPU texture");
             return *ptr;
             #else
-            NOA_THROW("No GPU backend detected");
+            panic("No GPU backend detected");
             #endif
         }
 
         [[nodiscard]] Interp interp_mode() const noexcept { return m_interp; }
         [[nodiscard]] Border border_mode() const noexcept { return m_border; }
 
+        [[nodiscard]] value_type cvalue() const noexcept {
+            if (device().is_cpu())
+                return cpu().cvalue;
+            else
+                return {}; // GPU textures do not support Border::VALUE
+        }
+
         [[nodiscard]] bool is_layered() const {
             if (device().is_cpu()) {
                 return true;
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                return noa::cuda::memory::AllocatorArray<value_type>::is_layered(this->cuda().array.get());
+                return noa::cuda::AllocatorTexture<value_type>::is_layered(this->cuda()->array);
                 #else
                 return false;
                 #endif
@@ -359,7 +397,7 @@ namespace noa {
     private: // For now, keep the right to modify the underlying textures to yourself
         [[nodiscard]] cpu_texture_type& cpu_() {
             auto* ptr = std::get_if<cpu_texture_type>(&m_texture);
-            NOA_CHECK(ptr, "Texture is not initialized or trying to retrieve at CPU texture from a GPU texture");
+            check(ptr, "Texture is not initialized or trying to retrieve at CPU texture from a GPU texture");
             return *ptr;
         }
 
@@ -367,23 +405,23 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             return this->cuda();
             #else
-            NOA_THROW("No GPU backend detected");
+            panic("No GPU backend detected");
             #endif
         }
 
         [[nodiscard]] gpu_texture_type& cuda_() {
             #ifdef NOA_ENABLE_CUDA
             auto* ptr = std::get_if<gpu_texture_type>(&m_texture);
-            NOA_CHECK(ptr, "Texture is not initialized or trying to retrieve at GPU texture from a CPU texture");
+            check(ptr, "Texture is not initialized or trying to retrieve at GPU texture from a CPU texture");
             return *ptr;
             #else
-            NOA_THROW("No GPU backend detected");
+            panic("No GPU backend detected");
             #endif
         }
 
     private:
         variant_type m_texture;
-        Shape4<i64> m_shape;
+        Shape4<i64> m_shape{};
         ArrayOption m_options;
         Interp m_interp{};
         Border m_border{};

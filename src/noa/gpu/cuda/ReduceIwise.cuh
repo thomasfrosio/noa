@@ -119,28 +119,28 @@ namespace noa::cuda {
                 auto [launch_config, n_blocks, _] = guts::reduce_iwise_nd_first_config<config_t>(shape_i32);
                 allocate_joined(n_blocks);
                 stream.enqueue(guts::reduce_iwise_1d_first<config_t, op_t, Index, reduced_t>, launch_config,
-                               std::forward<Op>(op), reduced, joined.get(), shape.vec);
+                               op, reduced, joined.get(), shape.vec);
 
             } else if constexpr (N == 2) {
                 using config_t = guts::ReduceIwise2dBlockConfig<Config>;
                 auto [launch_config, n_blocks, _] = guts::reduce_iwise_nd_first_config<config_t>(shape_i32);
                 allocate_joined(n_blocks);
                 stream.enqueue(guts::reduce_iwise_2d_first<config_t, op_t, Index, reduced_t>, launch_config,
-                               std::forward<Op>(op), reduced, joined.get(), shape.vec);
+                               op, reduced, joined.get(), shape.vec);
 
             } else if constexpr (N == 3) {
                 using config_t = guts::ReduceIwise2dBlockConfig<Config>;
                 auto [launch_config, n_blocks, _] = guts::reduce_iwise_nd_first_config<config_t>(shape_i32);
                 allocate_joined(n_blocks);
                 stream.enqueue(guts::reduce_iwise_3d_first<config_t, op_t, Index, reduced_t>, launch_config,
-                               std::forward<Op>(op), reduced, joined.get(), shape.vec);
+                               op, reduced, joined.get(), shape.vec);
 
             } else if constexpr (N == 4) {
                 using config_t = guts::ReduceIwise2dBlockConfig<Config>;
                 auto [launch_config, n_blocks, n_blocks_hw] = guts::reduce_iwise_nd_first_config<config_t>(shape_i32);
                 allocate_joined(n_blocks);
                 stream.enqueue(guts::reduce_iwise_4d_first<config_t, op_t, Index, reduced_t>, launch_config,
-                               std::forward<Op>(op), reduced, joined.get(), shape.vec, n_blocks_hw);
+                               op, reduced, joined.get(), shape.vec, n_blocks_hw);
 
             } else {
                 static_assert(nt::always_false_v<Op>);

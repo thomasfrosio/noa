@@ -112,7 +112,7 @@ namespace noa::guts {
         Tuple output_accessors = guts::to_tuple_of_accessors(outputs);
 
         // Backends expect the output accessors to have N dimensions, i.e. we need to remove the leftmost axes.
-        constexpr auto filter_nd = []() -> Vec<i64, N> {
+        constexpr auto filter_nd = []() -> Vec<size_t, N> {
             if constexpr (N == 1)
                 return {3};
             else if constexpr (N == 2)
@@ -121,7 +121,7 @@ namespace noa::guts {
                 return {1, 2, 3};
             else if constexpr (N == 4)
                 return {0, 1, 2, 3};
-        };
+        }();
         Tuple output_accessors_nd = ng::reconfig_accessors<ng::AccessorConfig<N>{.filter=filter_nd}>(output_accessors);
 
         Stream& stream = Stream::current(device);

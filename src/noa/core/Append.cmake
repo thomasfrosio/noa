@@ -25,7 +25,6 @@ set(NOA_CORE_HEADERS
     core/geometry/FourierInsertInterpolate.hpp
     core/geometry/FourierInsertRasterize.hpp
     core/geometry/FourierPolar.hpp
-    core/geometry/FourierTransform.hpp
     core/geometry/FourierUtilities.hpp
     core/geometry/Interpolate.hpp
     core/geometry/Interpolator.hpp
@@ -36,6 +35,7 @@ set(NOA_CORE_HEADERS
     core/geometry/Shape.hpp
     core/geometry/Symmetry.hpp
     core/geometry/Transform.hpp
+    core/geometry/TransformSpectrum.hpp
 
     core/Indexing.hpp
     core/indexing/Offset.hpp

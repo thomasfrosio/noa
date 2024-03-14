@@ -1,11 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(noa
-        LANGUAGES CXX
-        VERSION 0.1.0
-        HOMEPAGE_URL https://github.com/thomasfrosio/noa
-        )
-
 # Friendly heads up. The library only supports static linking:
 if (BUILD_SHARED_LIBS)
     message(STATUS "BUILD_SHARED_LIBS is ON, but dynamic linking is not supported. This will be ignored for noa.")
@@ -16,9 +10,6 @@ endif ()
 if (NOT DEFINED CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 20)
 endif()
-
-# Add the local modules.
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules)
 
 # Make sure debug configuration doesn't collide with release.
 set(CMAKE_DEBUG_POSTFIX "d")
@@ -31,6 +22,15 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # -Wpedantic being enabled and -std=c++20 and -std=gnu++20 for example
 # when compiling with PCH enabled.
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+project(noa
+    LANGUAGES CXX
+    VERSION 0.1.0
+    HOMEPAGE_URL https://github.com/thomasfrosio/noa
+)
+
+# Add the local modules.
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules)
 
 # ---------------------------------------------------------------------------------------
 # Project configuration

@@ -28,7 +28,7 @@ namespace noa::geometry {
         using real_type = nt::value_type_t<value_type>;
         using sint_type = std::make_signed<Int>;
 
-        // math::sqrt(3.0f)-2.0f; pole for cubic b-spline
+        // sqrt(3.0f)-2.0f; pole for cubic b-spline
         static constexpr real_type POLE = static_cast<real_type>(-0.2679491924311228);
         static constexpr real_type LAMBDA = (1 - POLE) * (1 - 1 / POLE); // compute the overall gain
 

@@ -108,7 +108,7 @@ namespace noa::geometry {
     }
 
     template<typename Value, typename Coord> requires guts::is_valid_interp_v<Value, Coord>
-    NOA_HD constexpr Value cubic_3d(Value v[4][4][4], Coord rx, Coord ry, Coord rz) noexcept {
+    NOA_HD constexpr Value interpolate_cubic_3d(Value v[4][4][4], Coord rx, Coord ry, Coord rz) noexcept {
         const Value a0 = interpolate_cubic_2d(v[0], rx, ry);
         const Value a1 = interpolate_cubic_2d(v[1], rx, ry);
         const Value a2 = interpolate_cubic_2d(v[2], rx, ry);

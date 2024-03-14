@@ -37,7 +37,7 @@ namespace noa::geometry {
     requires (nt::is_accessor_pure_nd<OutputAccessor, N + 1>::value and
               nt::is_interpolator_nd<Interpolator, N>::value and
               (REMAP == Remap::HC2H or REMAP == Remap::HC2HC))
-    class FourierTransform {
+    class TransformSpectrum {
     public:
         static constexpr bool is_output_centered = static_cast<uint8_t>(REMAP) & noa::fft::Layout::DST_CENTERED;
 
@@ -69,7 +69,7 @@ namespace noa::geometry {
         using postshift_type = std::conditional_t<has_postshifts, std::conditional_t<has_multiple_postshifts, const vec_type*, vec_type>, Empty>;
 
     public:
-        FourierTransform(
+        TransformSpectrum(
                 const interpolator_type& input,
                 const output_accessor_type& output,
                 const Shape4<index_type>& shape,
@@ -81,7 +81,7 @@ namespace noa::geometry {
             m_inverse_rotation(inverse_rotation),
             m_post_forward_shift(post_forward_shift)
         {
-            const auto shape_nd = Shape<index_type, N>(shape.data() + 4 - N);
+            const auto shape_nd = Shape<index_type, N>::from_pointer(shape.data() + 4 - N);
             m_f_shape = vec_type::from_vec(shape_nd.vec);
             m_shape = shape_nd.pop_back();
             m_center = center_type::from_vec(m_shape.vec / 2);

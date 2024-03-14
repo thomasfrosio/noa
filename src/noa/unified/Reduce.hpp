@@ -9,7 +9,7 @@
 #include "noa/unified/ReduceAxesIwise.hpp"
 
 #include "noa/cpu/Median.hpp"
-#if defined(NOA_ENABLE_CUDA)
+#ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/Median.cuh"
 #endif
 
@@ -24,6 +24,19 @@ namespace noa {
         bool depth{};
         bool height{};
         bool width{};
+
+        static constexpr ReduceAxes from_shape(const Shape4<i64>& output_shape) {
+            ReduceAxes axes{};
+            if (output_shape[0] == 1)
+                axes.batch = true;
+            if (output_shape[1] == 1)
+                axes.depth = true;
+            if (output_shape[2] == 1)
+                axes.height = true;
+            if (output_shape[3] == 1)
+                axes.width = true;
+            return axes;
+        }
     };
 }
 
@@ -56,7 +69,7 @@ namespace noa {
     /// Returns the minimum value of the input array.
     template<typename Input> requires nt::is_varray_of_scalar_v<Input>
     [[nodiscard]] auto min(const Input& array) {
-        using value_type = nt::value_type_t<Input>;
+        using value_type = nt::mutable_value_type_t<Input>;
         auto init = std::numeric_limits<value_type>::max();
         value_type output;
         reduce_ewise(array, init, output, ReduceMin{});
@@ -66,7 +79,7 @@ namespace noa {
     /// Returns the maximum value of the input array.
     template<typename Input> requires nt::is_varray_of_scalar_v<Input>
     [[nodiscard]] auto max(const Input& array) {
-        using value_type = nt::value_type_t<Input>;
+        using value_type = nt::mutable_value_type_t<Input>;
         auto init = std::numeric_limits<value_type>::lowest();
         value_type output;
         reduce_ewise(array, init, output, ReduceMax{});
@@ -76,7 +89,7 @@ namespace noa {
     /// Returns a pair with the minimum and maximum value of the input array.
     template<typename Input> requires nt::is_varray_of_scalar_v<Input>
     [[nodiscard]] auto min_max(const Input& array) {
-        using value_type = nt::value_type_t<Input>;
+        using value_type = nt::mutable_value_type_t<Input>;
         auto init_min = std::numeric_limits<value_type>::max();
         auto init_max = std::numeric_limits<value_type>::lowest();
         value_type output_min, output_max;
@@ -117,8 +130,8 @@ namespace noa {
         if constexpr (nt::is_real_or_complex_v<value_t>) {
             if (array.device().is_cpu()) {
                 using op_t = ReduceAccurateSum<value_t>;
-                using reduced_t = op_t::reduced_type;
-                reduce_ewise(array, Pair<reduced_t, reduced_t>{}, output, op_t{});
+                using pair_t = op_t::pair_type;
+                reduce_ewise(array, pair_t{}, output, op_t{});
                 return output;
             }
         }
@@ -136,15 +149,14 @@ namespace noa {
         if constexpr (nt::is_real_or_complex_v<value_t>) {
             if (array.device().is_cpu()) {
                 using op_t = ReduceAccurateMean<value_t>;
-                using reduced_t = op_t::reduced_type;
-                using pair_t = Pair<reduced_t, reduced_t>;
+                using pair_t = op_t::pair_type;
                 using mean_t = op_t::mean_type;
-                reduce_ewise(array, pair_t{}, output, op_t{static_cast<mean_t>(array.ssize())});
+                reduce_ewise(array, pair_t{}, output, op_t{.size=static_cast<mean_t>(array.ssize())});
                 return output;
             }
         }
         using mean_t = nt::value_type_t<value_t>;
-        reduce_ewise(array, value_t{}, output, ReduceMean{static_cast<mean_t>(array.ssize())});
+        reduce_ewise(array, value_t{}, output, ReduceMean{.size=static_cast<mean_t>(array.ssize())});
         return output;
     }
 
@@ -155,11 +167,9 @@ namespace noa {
         using real_t = nt::value_type_t<value_t>;
         real_t output;
 
-        if constexpr (nt::is_real_or_complex_v<value_t>) {
-            if (array.device().is_cpu()) {
-                reduce_ewise(array, Pair<f64, f64>{}, output, ReduceAccurateL2Norm{});
-                return output;
-            }
+        if (array.device().is_cpu()) {
+            reduce_ewise(array, Pair<f64, f64>{}, output, ReduceAccurateL2Norm{});
+            return output;
         }
         reduce_ewise(array, real_t{}, output, ReduceL2Norm{});
         return output;
@@ -172,7 +182,7 @@ namespace noa {
     ///                     of the variance for normally distributed variables.
     /// \param[in] array    Array to reduce.
     template<typename Input> requires nt::is_varray_of_real_or_complex_v<Input>
-    [[nodiscard]] auto mean_var(const Input& array, i64 ddof = 0) {
+    [[nodiscard]] auto mean_variance(const Input& array, i64 ddof = 0) {
         auto mean = noa::mean(array);
         using value_t = nt::mutable_value_type_t<Input>;
         using real_t = nt::value_type_t<value_t>;
@@ -181,11 +191,11 @@ namespace noa {
         if (array.device().is_cpu()) {
             using double_t = std::conditional_t<nt::is_real_v<value_t>, f64, c64>;
             auto mean_double = static_cast<double_t>(mean);
-            auto size = static_cast<f64>(array.size() - ddof);
+            auto size = static_cast<f64>(array.ssize() - ddof);
             reduce_ewise(wrap(array, mean_double), f64{}, variance, ReduceVariance{size});
-            return variance;
+            return Pair{mean, variance};
         }
-        auto size = static_cast<real_t>(array.size() - ddof);
+        auto size = static_cast<real_t>(array.ssize() - ddof);
         reduce_ewise(wrap(array, mean), real_t{}, variance, ReduceVariance{size});
         return Pair{mean, variance};
     }
@@ -197,8 +207,8 @@ namespace noa {
     ///                     of the variance for normally distributed variables.
     /// \param[in] array    Array to reduce.
     template<typename Input> requires nt::is_varray_of_real_or_complex_v<Input>
-    [[nodiscard]] auto mean_std(const Input& array, i64 ddof = 0) {
-        auto pair = mean_var(array, ddof);
+    [[nodiscard]] auto mean_stddev(const Input& array, i64 ddof = 0) {
+        auto pair = mean_variance(array, ddof);
         pair.second = sqrt(pair.second);
         return pair;
     }
@@ -210,8 +220,8 @@ namespace noa {
     ///                     of the variance for normally distributed variables.
     /// \param[in] array    Array to reduce.
     template<typename Input> requires nt::is_varray_of_real_or_complex_v<Input>
-    [[nodiscard]] auto var(const Input& array, i64 ddof = 0) {
-        auto& [mean, variance] = mean_var(array, ddof);
+    [[nodiscard]] auto variance(const Input& array, i64 ddof = 0) {
+        const auto& [mean, variance] = mean_variance(array, ddof);
         return variance;
     }
 
@@ -223,7 +233,7 @@ namespace noa {
     ///                     of the variance for normally distributed variables.
     template<typename Input> requires nt::is_varray_of_real_or_complex_v<Input>
     [[nodiscard]] auto stddev(const Input& array, i64 ddof = 0) {
-        return sqrt(var(array, ddof));
+        return sqrt(variance(array, ddof));
     }
 
     /// Returns the root-mean-square deviation.
@@ -245,15 +255,16 @@ namespace noa {
     /// \note If the maximum value appears more than once, this function makes no guarantee to which one is selected.
     /// \note To get the corresponding 4d indices, noa::indexing::offset2index(offset, input) can be used.
     template<typename Input> requires nt::is_varray_of_scalar_v<Input>
-    [[nodiscard]] auto arg_max(const Input& input) {
+    [[nodiscard]] auto argmax(const Input& input) {
         using value_t = nt::mutable_value_type_t<Input>;
         using pair_t = Pair<value_t, i64>;
+        using op_t = ReduceFirstMax<AccessorI64<const value_t, 4>, i64, false>;
         pair_t reduced{std::numeric_limits<value_t>::lowest(), i64{0}};
-        value_t output_value;
-        i64 output_offset;
+        value_t output_value{};
+        i64 output_offset{};
         reduce_iwise(input.shape(), input.device(), reduced,
                      wrap(output_value, output_offset),
-                     ReduceFirstMax{input.accessor()});
+                     op_t{{input.accessor()}});
         return Pair{output_value, output_offset};
     }
 
@@ -261,36 +272,36 @@ namespace noa {
     /// \note If the minimum value appears more than once, this function makes no guarantee to which one is selected.
     /// \note To get the corresponding 4d indices, noa::indexing::offset2index(offset, input) can be used.
     template<typename Input> requires nt::is_varray_of_scalar_v<Input>
-    [[nodiscard]] auto arg_min(const Input& input) {
+    [[nodiscard]] auto argmin(const Input& input) {
         using value_t = nt::mutable_value_type_t<Input>;
         using pair_t = Pair<value_t, i64>;
+        using op_t = ReduceFirstMin<AccessorI64<const value_t, 4>, i64, false>;
         pair_t reduced{std::numeric_limits<value_t>::max(), i64{0}};
-        pair_t output;
-        value_t output_value;
-        i64 output_offset;
+        value_t output_value{};
+        i64 output_offset{};
         reduce_iwise(input.shape(), input.device(), reduced,
                      wrap(output_value, output_offset),
-                     ReduceFirstMin{input.accessor()});
+                     op_t{{input.accessor()}});
         return Pair{output_value, output_offset};
     }
 }
 
-namespace noa::math {
+namespace noa {
     /// Reduces an array along some dimensions by taking the minimum value.
     /// \details Dimensions of the output array should match the input shape, or be 1, indicating the dimension
     ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
     ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
     /// \param[in] input    Input array to reduce.
     /// \param[out] output  Reduced array of minimum values.
-    template<typename Input, typename Output> requires nt::are_varray_v<Input, Output>
+    template<typename Input, typename Output> requires nt::are_varray_of_scalar_v<Input, Output>
     void min(const Input& input, const Output& output) {
-        using value_type = nt::value_type_t<Input>;
+        using value_type = nt::mutable_value_type_t<Input>;
         auto init = std::numeric_limits<value_type>::max();
         reduce_axes_ewise(input, init, output, ReduceMin{});
     }
 
     /// Reduces an array along some dimension by taking the minimum value.
-    template<typename Input> requires nt::is_varray_v<Input>
+    template<typename Input> requires nt::is_varray_of_scalar_v<Input>
     [[nodiscard]] auto min(const Input& input, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
         Array<value_t> output(guts::axes_to_output_shape(input, axes), input.options());
@@ -304,15 +315,15 @@ namespace noa::math {
     ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
     /// \param[in] input    Input array to reduce.
     /// \param[out] output  Reduced array of maximum values.
-    template<typename Input, typename Output> requires nt::are_varray_v<Input, Output>
+    template<typename Input, typename Output> requires nt::are_varray_of_scalar_v<Input, Output>
     void max(const Input& input, const Output& output) {
-        using value_type = nt::value_type_t<Input>;
+        using value_type = nt::mutable_value_type_t<Input>;
         auto init = std::numeric_limits<value_type>::lowest();
         reduce_axes_ewise(input, init, output, ReduceMax{});
     }
 
     /// Reduces an array along some dimension by taking the maximum value.
-    template<typename Input> requires nt::is_varray_v<Input>
+    template<typename Input> requires nt::is_varray_of_scalar_v<Input>
     [[nodiscard]] auto max(const Input& input, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
         Array<value_t> output(guts::axes_to_output_shape(input, axes), input.options());
@@ -321,22 +332,25 @@ namespace noa::math {
     }
 
     /// Reduces an array along some dimension(s) by taking the minimum and maximum values.
-    template<typename Input, typename Min, typename Max> requires nt::are_varray_v<Input, Min, Max>
+    template<typename Input, typename Min, typename Max> requires nt::are_varray_of_scalar_v<Input, Min, Max>
     void min_max(const Input& array, const Min& min, const Max& max) {
-        using value_type = nt::value_type_t<Input>;
+        using value_type = nt::mutable_value_type_t<Input>;
         auto init_min = std::numeric_limits<value_type>::max();
         auto init_max = std::numeric_limits<value_type>::lowest();
         reduce_axes_ewise(array, wrap(init_min, init_max), wrap(min, max), ReduceMinMax{});
     }
 
     /// Reduces an array along some dimension(s) by taking the minimum and maximum values.
-    template<typename Input> requires nt::is_varray_v<Input>
+    template<typename Input> requires nt::is_varray_of_scalar_v<Input>
     [[nodiscard]] auto min_max(const Input& array, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
         auto output_shape = guts::axes_to_output_shape(array, axes);
-        Array<value_t> min(output_shape, array.options());
-        Array<value_t> max(output_shape, array.options());
-        min_max(array, min, max);
+        Pair output{
+                Array<value_t>(output_shape, array.options()),
+                Array<value_t>(output_shape, array.options()),
+        };
+        min_max(array, output.first, output.second);
+        return output;
     }
 
     // TODO Add median()
@@ -348,20 +362,18 @@ namespace noa::math {
     /// \param[in] input        Input array to reduce.
     /// \param[out] output      Reduced sums.
     template<typename Input, typename Output>
-    requires nt::are_varray_v<Input, Output>
+    requires (nt::are_varray_v<Input, Output> and nt::is_varray_of_mutable_v<Output>)
     void sum(const Input& input, const Output& output) {
         using input_value_t = nt::mutable_value_type_t<Input>;
 
         if constexpr (nt::is_real_or_complex_v<input_value_t>) {
             if (input.device().is_cpu()) {
                 using op_t = ReduceAccurateSum<input_value_t>;
-                using reduced_t = op_t::reduced_type;
-                reduce_ewise(input, Pair<reduced_t, reduced_t>{}, output, op_t{});
-                return output;
+                using pair_t = op_t::pair_type;
+                return reduce_axes_ewise(input, pair_t{}, output, op_t{});
             }
         }
         reduce_axes_ewise(input, input_value_t{}, output, ReduceSum{});
-        return output;
     }
 
     /// Reduces an array along some dimensions by taking the sum.
@@ -380,7 +392,7 @@ namespace noa::math {
     /// \param[in] input        Input array to reduce.
     /// \param[out] output      Reduced means.
     template<typename Input, typename Output>
-    requires nt::are_varray_v<Input, Output>
+    requires (nt::are_varray_v<Input, Output> and nt::is_varray_of_mutable_v<Output>)
     void mean(const Input& input, const Output& output) {
         using input_value_t = nt::mutable_value_type_t<Input>;
         using scalar_t = nt::value_type_t<input_value_t>;
@@ -388,16 +400,14 @@ namespace noa::math {
         if constexpr (nt::is_real_or_complex_v<input_value_t>) {
             if (input.device().is_cpu()) {
                 using op_t = ReduceAccurateMean<input_value_t>;
-                using reduced_t = op_t::reduced_type;
+                using pair_t = op_t::pair_type;
                 using mean_t = op_t::mean_type;
                 auto mean = static_cast<mean_t>(input.ssize());
-                reduce_axes_ewise(input, Pair<reduced_t, reduced_t>{}, output, op_t{mean});
-                return output;
+                return reduce_axes_ewise(input, pair_t{}, output, op_t{.size=mean});
             }
         }
         auto mean = static_cast<scalar_t>(input.ssize());
-        reduce_axes_ewise(input, input_value_t{}, output, ReduceMean{mean});
-        return output;
+        reduce_axes_ewise(input, input_value_t{}, output, ReduceMean{.size=mean});
     }
 
     /// Reduces an array along some dimensions by taking the average.
@@ -416,26 +426,26 @@ namespace noa::math {
     /// \param[in] input        Input array to reduce.
     /// \param[out] output      Reduced norms.
     template<typename Input, typename Output>
-    requires nt::is_varray_of_real_or_complex_v<Input>
+    requires (nt::is_varray_of_real_or_complex_v<Input> and
+              nt::is_varray_of_real_v<Output> and
+              nt::is_varray_of_mutable_v<Output>)
     void l2_norm(const Input& input, const Output& output) {
         using value_t = nt::mutable_value_type_t<Input>;
         using real_t = nt::value_type_t<value_t>;
 
         if constexpr (nt::is_real_or_complex_v<value_t>) {
-            if (input.device().is_cpu()) {
-                reduce_axes_ewise(input, Pair<f64, f64>{}, output, ReduceAccurateL2Norm{});
-                return output;
-            }
+            if (input.device().is_cpu())
+                return reduce_axes_ewise(input, Pair<f64, f64>{}, output, ReduceAccurateL2Norm{});
         }
         reduce_axes_ewise(input, real_t{}, output, ReduceL2Norm{});
-        return output;
     }
 
     /// Reduces an array along some dimensions by taking the norm.
-    template<typename Input> requires nt::is_varray_v<Input>
+    template<typename Input> requires nt::is_varray_of_real_or_complex_v<Input>
     [[nodiscard]] auto l2_norm(const Input& input, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
-        Array<value_t> output(guts::axes_to_output_shape(input, axes), input.options());
+        using real_t = nt::value_type_t<value_t>;
+        Array<real_t> output(guts::axes_to_output_shape(input, axes), input.options());
         l2_norm(input, output);
         return output;
     }
@@ -457,14 +467,16 @@ namespace noa::math {
     ///                         of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
     ///                         of the variance for normally distributed variables.
     template<typename Input, typename Mean, typename Variance>
-    requires nt::are_varray_of_real_or_complex_v<Input, Mean, Variance>
-    void mean_var(const Input& input, const Mean& means, const Variance& variances, i64 ddof = 0) {
+    requires (nt::are_varray_of_real_or_complex_v<Input, Mean> and
+              nt::is_varray_of_real_v<Variance> and
+              nt::are_varray_of_mutable_v<Mean, Variance>)
+    void mean_variance(const Input& input, const Mean& means, const Variance& variances, i64 ddof = 0) {
         check(all(means.shape() == variances.shape()),
               "The means and variances should have the same shape, but got means={} and variances={}",
               means.shape(), variances.shape());
 
         mean(input, means);
-        auto n_reduced = n_elements_to_reduce(input.shape(), means.shape()) - ddof;
+        auto n_reduced = guts::n_elements_to_reduce(input.shape(), means.shape()) - ddof;
 
         if (input.device().is_cpu()) {
             auto op = ReduceVariance{static_cast<f64>(n_reduced)};
@@ -479,15 +491,17 @@ namespace noa::math {
     /// Reduces an array along some dimensions by taking the mean and variance.
     template<typename Input>
     requires nt::is_varray_of_real_or_complex_v<Input>
-    [[nodiscard]] auto mean_var(const Input& input, ReduceAxes axes, i64 ddof = 0) {
+    [[nodiscard]] auto mean_variance(const Input& input, ReduceAxes axes, i64 ddof = 0) {
         using mean_t = nt::mutable_value_type_t<Input>;
-        using variance_t = nt::value_type_twice_t<Input>;
+        using variance_t = nt::mutable_value_type_twice_t<Input>;
 
         auto output_shape = guts::axes_to_output_shape(input, axes);
-        Array<mean_t> mean(output_shape, input.options());
-        Array<variance_t> variance(output_shape, input.options());
-        mean_var(input, mean, variance, ddof);
-        return Pair{mean, variance};
+        Pair output{
+                Array<mean_t>(output_shape, input.options()),
+                Array<variance_t>(output_shape, input.options()),
+        };
+        mean_variance(input, output.first, output.second, ddof);
+        return output;
     }
 
     /// Reduces an array along some dimensions by taking the mean and standard deviation.
@@ -507,20 +521,22 @@ namespace noa::math {
     ///                         of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
     ///                         of the variance for normally distributed variables.
     template<typename Input, typename Mean, typename Stddev>
-    requires nt::are_varray_of_real_or_complex_v<Input, Mean, Stddev>
+    requires (nt::are_varray_of_real_or_complex_v<Input, Mean> and
+              nt::is_varray_of_real_v<Stddev> and
+              nt::are_varray_of_mutable_v<Mean, Stddev>)
     void mean_stddev(const Input& input, const Mean& means, const Stddev& stddevs, i64 ddof = 0) {
         check(all(means.shape() == stddevs.shape()),
               "The means and stddevs should have the same shape, but got means={} and stddevs={}",
               means.shape(), stddevs.shape());
 
         mean(input, means);
-        auto n_reduced = n_elements_to_reduce(input.shape(), means.shape()) - ddof;
+        auto n_reduced = guts::n_elements_to_reduce(input.shape(), means.shape()) - ddof;
 
         if (input.device().is_cpu()) {
             auto op = ReduceStddev<f64>{static_cast<f64>(n_reduced)};
             reduce_axes_ewise(wrap(input, means), f64{}, stddevs, op);
         } else {
-            using real_t = nt::value_type_t<nt::mutable_value_type_t<Input>>;
+            using real_t = nt::mutable_value_type_twice_t<Input>;
             auto op = ReduceStddev<real_t>{static_cast<real_t>(n_reduced)};
             reduce_axes_ewise(wrap(input, means), real_t{}, stddevs, op);
         }
@@ -534,10 +550,12 @@ namespace noa::math {
         using variance_t = nt::value_type_t<mean_t>;
 
         auto output_shape = guts::axes_to_output_shape(input, axes);
-        Array<mean_t> means(output_shape, input.options());
-        Array<variance_t> stddevs(output_shape, input.options());
-        mean_stddev(input, means, stddevs, ddof);
-        return Pair{means, stddevs};
+        Pair output{
+                Array<mean_t>(output_shape, input.options()),
+                Array<variance_t>(output_shape, input.options()),
+        };
+        mean_stddev(input, output.first, output.second, ddof);
+        return output;
     }
 
     /// Reduces an array along some dimensions by taking the variance.
@@ -555,21 +573,23 @@ namespace noa::math {
     ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
     ///                     of the variance for normally distributed variables.
     template<typename Input, typename Output>
-    requires nt::is_varray_of_real_or_complex_v<Input>
-    void var(const Input& input, const Output& output, i64 ddof = 0) {
+    requires (nt::is_varray_of_real_or_complex_v<Input> and
+              nt::is_varray_of_real_v<Output> and
+              nt::are_varray_of_mutable_v<Output>)
+    void variance(const Input& input, const Output& output, i64 ddof = 0) {
         using mean_t = nt::mutable_value_type_t<Input>;
         Array<mean_t> means(output.shape(), output.options());
-        mean_var(input, means, output, ddof);
+        mean_variance(input, means, output, ddof);
     }
 
     /// Reduces an array along some dimensions by taking the variance.
     template<typename Input>
     requires nt::is_varray_of_real_or_complex_v<Input>
-    [[nodiscard]] auto var(const Input& input, ReduceAxes axes, i64 ddof = 0) {
+    [[nodiscard]] auto variance(const Input& input, ReduceAxes axes, i64 ddof = 0) {
         using value_t = nt::mutable_value_type_t<Input>;
         using variance_t = nt::value_type_t<value_t>;
         Array<variance_t> variances(guts::axes_to_output_shape(input, axes), input.options());
-        var(input, variances, ddof);
+        variance(input, variances, ddof);
         return variances;
     }
 
@@ -588,7 +608,9 @@ namespace noa::math {
     ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
     ///                     of the variance for normally distributed variables.
     template<typename Input, typename Output>
-    requires nt::is_varray_of_real_or_complex_v<Input>
+    requires (nt::is_varray_of_real_or_complex_v<Input> and
+              nt::is_varray_of_real_v<Output> and
+              nt::are_varray_of_mutable_v<Output>)
     void stddev(const Input& input, const Output& output, i64 ddof = 0) {
         using mean_t = nt::mutable_value_type_t<Input>;
         Array<mean_t> means(output.shape(), output.options());
@@ -619,7 +641,7 @@ namespace noa::math {
              typename Offsets = View<i64>>
     requires (nt::are_varray_of_scalar_v<Input, Values, Offsets> and
               nt::are_varray_of_mutable_v<Values, Offsets>)
-    void arg_max(
+    void argmax(
             const Input& input,
             const Values& output_values,
             const Offsets& output_offsets
@@ -630,30 +652,34 @@ namespace noa::math {
             return;
 
         check(not input.is_empty(), "Empty array detected");
-        using value_t = nt::mutable_value_type_t<Input>;
-        using pair_t = Pair<value_t, i64>;
-        pair_t reduced{std::numeric_limits<value_t>::lowest(), i64{0}};
+        using input_value_t = nt::mutable_value_type_t<Input>;
+        using offset_t = nt::value_type_t<Offsets>;
+        using pair_t = Pair<input_value_t, offset_t>;
+        using op_t = ReduceFirstMax<AccessorI64<const input_value_t, 4>, offset_t, false>;
 
-        // Reorder DHW to rightmost.
+        // Reorder DHW to rightmost if offsets are not computed.
         auto shape = input.shape();
         auto accessor = input.accessor();
         auto arg_values = output_values.view();
         auto arg_offsets = output_offsets.view();
-        const auto order_3d = ni::order(input.strides().pop_front(), shape.pop_front());
-        if (any(order_3d != Vec4<i64>{0, 1, 2})) {
-            auto order_4d = (order_3d + 1).push_front(0);
-            shape = shape.reorder(order_4d);
-            accessor.reorder(order_4d);
-            arg_values.reorder(order_4d);
-            arg_offsets.reorder(order_4d);
+        if (not has_offsets) {
+            const auto order_3d = ni::order(input.strides().pop_front(), shape.pop_front());
+            if (any(order_3d != Vec3<i64>{0, 1, 2})) {
+                auto order_4d = (order_3d + 1).push_front(0);
+                shape = shape.reorder(order_4d);
+                accessor.reorder(order_4d);
+                arg_values = arg_values.reorder(order_4d);
+                arg_offsets = arg_offsets.reorder(order_4d);
+            }
         }
-        auto op = ReduceFirstMax{accessor};
+        auto op = op_t{{accessor}};
+        auto reduced = pair_t{std::numeric_limits<input_value_t>::lowest(), offset_t{0}};
 
         auto device = input.device();
         if (has_offsets and has_values) {
             reduce_axes_iwise(
-                    shape, device, reduced, wrap(arg_values, arg_offsets),
-                    op, input, output_values, output_offsets);
+                    shape, device, reduced, wrap(arg_values, arg_offsets), op,
+                    input, output_values, output_offsets);
         } else if (has_offsets) {
             reduce_axes_iwise(shape, device, reduced, arg_offsets, op, input, output_offsets);
         } else {
@@ -674,10 +700,10 @@ namespace noa::math {
              typename Offsets = View<i64>>
     requires (nt::are_varray_of_scalar_v<Input, Values, Offsets> and
               nt::are_varray_of_mutable_v<Values, Offsets>)
-    void arg_min(
+    void argmin(
             const Input& input,
             const Values& output_values,
-            const Offsets& output_offsets
+            const Offsets& output_offsets = {}
     ) {
         const bool has_offsets = not output_offsets.is_empty();
         const bool has_values = not output_values.is_empty();
@@ -685,30 +711,34 @@ namespace noa::math {
             return;
 
         check(not input.is_empty(), "Empty array detected");
-        using value_t = nt::mutable_value_type_t<Input>;
-        using pair_t = Pair<value_t, i64>;
-        pair_t reduced{std::numeric_limits<value_t>::max(), i64{0}};
+        using input_value_t = nt::mutable_value_type_t<Input>;
+        using offset_t = nt::value_type_t<Offsets>;
+        using pair_t = Pair<input_value_t, offset_t>;
+        using op_t = ReduceFirstMin<AccessorI64<const input_value_t, 4>, offset_t, false>;
 
-        // Reorder DHW to rightmost.
+        // Reorder DHW to rightmost if offsets are not computed.
         auto shape = input.shape();
         auto accessor = input.accessor();
         auto arg_values = output_values.view();
         auto arg_offsets = output_offsets.view();
-        const auto order_3d = ni::order(input.strides().pop_front(), shape.pop_front());
-        if (any(order_3d != Vec4<i64>{0, 1, 2})) {
-            auto order_4d = (order_3d + 1).push_front(0);
-            shape = shape.reorder(order_4d);
-            accessor.reorder(order_4d);
-            arg_values.reorder(order_4d);
-            arg_offsets.reorder(order_4d);
+        if (not has_offsets) {
+            const auto order_3d = ni::order(input.strides().pop_front(), shape.pop_front());
+            if (any(order_3d != Vec3<i64>{0, 1, 2})) {
+                auto order_4d = (order_3d + 1).push_front(0);
+                shape = shape.reorder(order_4d);
+                accessor.reorder(order_4d);
+                arg_values = arg_values.reorder(order_4d);
+                arg_offsets = arg_offsets.reorder(order_4d);
+            }
         }
-        auto op = ReduceFirstMin{accessor};
+        auto op = op_t{{accessor}};
+        auto reduced = pair_t{std::numeric_limits<input_value_t>::max(), offset_t{0}};
 
         auto device = input.device();
         if (has_offsets and has_values) {
             reduce_axes_iwise(
-                    shape, device, reduced, wrap(arg_values, arg_offsets),
-                    op, input, output_values, output_offsets);
+                    shape, device, reduced, wrap(arg_values, arg_offsets), op,
+                    input, output_values, output_offsets);
         } else if (has_offsets) {
             reduce_axes_iwise(shape, device, reduced, arg_offsets, op, input, output_offsets);
         } else {

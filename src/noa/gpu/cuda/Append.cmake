@@ -1,6 +1,5 @@
 set(NOA_CUDA_HEADERS
     # noa::cuda
-    gpu/cuda/AllocatorArray.hpp
     gpu/cuda/AllocatorDevice.hpp
     gpu/cuda/AllocatorDevicePadded.hpp
     gpu/cuda/AllocatorManaged.hpp
@@ -28,16 +27,17 @@ set(NOA_CUDA_HEADERS
 
     # kernels
     gpu/cuda/kernels/Block.cuh
+    gpu/cuda/kernels/Convolve.cuh
+    gpu/cuda/kernels/CubicBSplinePrefilter.cuh
     gpu/cuda/kernels/Ewise.cuh
     gpu/cuda/kernels/Iwise.cuh
+    gpu/cuda/kernels/Permute.cuh
     gpu/cuda/kernels/ReduceAxesEwise.cuh
     gpu/cuda/kernels/ReduceAxesIwise.cuh
     gpu/cuda/kernels/ReduceEwise.cuh
     gpu/cuda/kernels/ReduceIwise.cuh
-    gpu/cuda/kernels/Warp.cuh
-    gpu/cuda/kernels/Permute.cuh
-    gpu/cuda/kernels/Convolve.cuh
     gpu/cuda/kernels/SubpixelRegistration.cuh
+    gpu/cuda/kernels/Warp.cuh
 
     # noa::cuda::fft
     gpu/cuda/fft/Exception.hpp
@@ -47,6 +47,9 @@ set(NOA_CUDA_HEADERS
     # noa::cuda::signal
     gpu/cuda/signal/Convolve.hpp
     gpu/cuda/signal/Correlate.hpp
+
+    gpu/cuda/geometry/Interpolator.hpp
+    gpu/cuda/geometry/Prefilter.cuh
     )
 
 set(NOA_CUDA_SOURCES

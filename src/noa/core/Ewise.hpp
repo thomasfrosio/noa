@@ -63,7 +63,7 @@ namespace noa {
         }                                                                               \
         template<typename T, typename U, typename V>                                    \
         NOA_HD constexpr void operator()(const T& lhs, const U& rhs, V& dst) const {    \
-            dst = static_cast<U>((*this)(lhs, rhs));                                    \
+            dst = static_cast<V>((*this)(lhs, rhs));                                    \
         }                                                                               \
     }
     NOA_BINARY_OP_(Equal, return lhs == rhs);
@@ -103,7 +103,7 @@ namespace noa {
         }                                                                                           \
         template<typename T, typename U, typename V, typename W>                                    \
         NOA_HD constexpr void operator()(const T& lhs, const U& mhs, const V& rhs, W& dst) const {  \
-            dst = static_cast<U>((*this)(lhs, mhs, rhs));                                           \
+            dst = static_cast<W>((*this)(lhs, mhs, rhs));                                           \
         }                                                                                           \
     }
     NOA_TRINARY_OP_(Within, return mhs < lhs and lhs < rhs);
@@ -126,7 +126,7 @@ namespace noa {
 
     template<typename T>
     struct Fill {
-        using allow_vectorization = bool;
+        using allow_vectorization = bool; // meaning this cannot be used to modify the input
         T value;
 
         template<typename U>

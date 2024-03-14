@@ -11,7 +11,7 @@ namespace noa::cpu::guts {
     class Iwise {
     public:
         template<size_t N, typename Index, typename Operator>
-        static void parallel(const Shape<Index, N>& shape, Operator& op, i64 n_threads) {
+        static void parallel(const Shape<Index, N>& shape, Operator op, i64 n_threads) {
             // firstprivate(op) vs shared(op):
             //  - We assume op is cheap to copy, so the once-per-thread call to the copy constructor with
             //    firstprivate(op) is assumed to be non-significant compared to the rest of the function.
@@ -97,18 +97,21 @@ namespace noa::cpu::guts {
 }
 
 namespace noa::cpu {
-    template<i64 ParallelThreshold = 1'048'576>
+    template<i64 ElementsPerThread = 1'048'576>
     struct IwiseConfig {
-        static constexpr i64 parallel_threshold = ParallelThreshold;
+        static constexpr i64 n_elements_per_thread = ElementsPerThread;
     };
 
     template<typename Config = IwiseConfig<>, size_t N, typename Index, typename Op>
     constexpr void iwise(const Shape<Index, N>& shape, Op&& op, i64 n_threads = 1) {
-        if constexpr (Config::parallel_threshold > 1) {
+        if constexpr (Config::n_elements_per_thread > 1) {
             const i64 n_elements = shape.template as<i64>().elements();
-            const i64 actual_n_threads = n_elements <= Config::parallel_threshold ? 1 : n_threads;
+            i64 actual_n_threads = n_elements <= Config::n_elements_per_thread ? 1 : n_threads;
             if (actual_n_threads > 1)
-                return guts::Iwise::parallel(shape, op, actual_n_threads); // take op by lvalue reference
+                actual_n_threads = min(n_threads, n_elements / Config::n_elements_per_thread);
+
+            if (actual_n_threads > 1)
+                return guts::Iwise::parallel(shape, std::forward<Op>(op), actual_n_threads);
         }
         guts::Iwise::serial(shape, std::forward<Op>(op));
     }

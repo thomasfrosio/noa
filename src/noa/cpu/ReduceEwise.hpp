@@ -14,7 +14,7 @@ namespace noa::cpu::guts {
 
         template<typename Op, typename Input, typename Reduced, typename Output, typename Index, size_t N>
         static void parallel(
-                const Shape<Index, N>& shape, Op& op,
+                const Shape<Index, N>& shape, Op op,
                 Input input, Reduced reduced, Output& output, i64 threads
         ) {
             #pragma omp parallel default(none) num_threads(threads) shared(shape, input, reduced) firstprivate(op)
@@ -70,12 +70,12 @@ namespace noa::cpu::guts {
 }
 
 namespace noa::cpu {
-    template<bool ZipInput = false, bool ZipReduced = false, bool ZipOutput = false, i64 ParallelThreshold = 1'048'576>
+    template<bool ZipInput = false, bool ZipReduced = false, bool ZipOutput = false, i64 ElementsPerThread = 1'048'576>
     struct ReduceEwiseConfig {
         static constexpr bool zip_input = ZipInput;
         static constexpr bool zip_reduced = ZipReduced;
         static constexpr bool zip_output = ZipOutput;
-        static constexpr i64 parallel_threshold = ParallelThreshold;
+        static constexpr i64 n_elements_per_thread = ElementsPerThread;
     };
 
     template<typename Config = ReduceEwiseConfig<>,
@@ -93,8 +93,10 @@ namespace noa::cpu {
     ) {
         // Check contiguity.
         const bool are_all_contiguous = ni::are_contiguous(input, shape);
-        const i64 elements = shape.template as<i64>().elements();
-        const i64 actual_n_threads = elements <= Config::parallel_threshold ? 1 : n_threads;
+        const i64 n_elements = shape.template as<i64>().elements();
+        i64 actual_n_threads = n_elements <= Config::n_elements_per_thread ? 1 : n_threads;
+        if (actual_n_threads > 1)
+            actual_n_threads = min(n_threads, n_elements / Config::n_elements_per_thread);
 
         using reduce_ewise_core = guts::ReduceEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
 
@@ -102,7 +104,7 @@ namespace noa::cpu {
         // FIXME In most cases, the inputs are not expected to be aliases of each other, so only
         //       optimise for the 1d-contig restrict case? remove 1d-contig non-restrict case
         if (are_all_contiguous) {
-            auto shape_1d = Shape1<Index>::from_value(elements);
+            auto shape_1d = Shape1<Index>::from_value(n_elements);
             if (ng::are_accessors_aliased(input, output)) {
                 constexpr auto contiguous_1d = ng::AccessorConfig<1>{
                         .enforce_contiguous=true,
@@ -112,13 +114,15 @@ namespace noa::cpu {
                 auto input_1d = ng::reconfig_accessors<contiguous_1d>(std::forward<Input>(input));
                 if (actual_n_threads > 1) {
                     reduce_ewise_core::parallel(
-                            shape_1d, op,
+                            shape_1d,
+                            std::forward<Op>(op),
                             std::move(input_1d),
                             std::forward<Reduced>(reduced),
                             output, actual_n_threads);
                 } else {
                     reduce_ewise_core::serial(
-                            shape_1d, std::forward<Op>(op),
+                            shape_1d,
+                            std::forward<Op>(op),
                             std::move(input_1d),
                             std::forward<Reduced>(reduced),
                             output);
@@ -132,13 +136,15 @@ namespace noa::cpu {
                 auto input_1d = ng::reconfig_accessors<contiguous_restrict_1d>(std::forward<Input>(input));
                 if (actual_n_threads > 1) {
                     reduce_ewise_core::parallel(
-                            shape_1d, op,
+                            shape_1d,
+                            std::forward<Op>(op),
                             std::move(input_1d),
                             std::forward<Reduced>(reduced),
                             output, actual_n_threads);
                 } else {
                     reduce_ewise_core::serial(
-                            shape_1d, std::forward<Op>(op),
+                            shape_1d,
+                            std::forward<Op>(op),
                             std::move(input_1d),
                             std::forward<Reduced>(reduced),
                             output);
@@ -147,13 +153,15 @@ namespace noa::cpu {
         } else {
             if (actual_n_threads > 1) {
                 reduce_ewise_core::parallel(
-                        shape, op,
+                        shape,
+                        std::forward<Op>(op),
                         std::forward<Input>(input),
                         std::forward<Reduced>(reduced),
                         output, actual_n_threads);
             } else {
                 reduce_ewise_core::serial(
-                        shape, std::forward<Op>(op),
+                        shape,
+                        std::forward<Op>(op),
                         std::forward<Input>(input),
                         std::forward<Reduced>(reduced),
                         output);

@@ -31,6 +31,10 @@ namespace noa::cpu {
             T* dst, const Strides4<i64>& dst_strides,
             const Shape4<i64>& shape, i64 n_threads
     ) {
+        if (shape.elements() == 1) {
+            *dst = *src;
+            return;
+        }
         ewise(shape, Copy{},
               make_tuple(AccessorRestrictI64<const T, 4>(src, src_strides)),
               make_tuple(AccessorRestrictI64<T, 4>(dst, dst_strides)),
