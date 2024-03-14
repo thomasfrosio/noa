@@ -2,7 +2,7 @@
 
 ## `Objectives`
 
-This is a `C++17` static library, aiming to provide basic signal and image processing tools for
+This is a `C++20` static library, aiming to provide basic signal and image processing tools for
 cryoEM software development. One goal is to retain reasonable efficiency so that it can be used in production code, 
 while offering a relatively simple API.
 
@@ -13,12 +13,4 @@ __This library should be considered an experiment__ and is a way for me to learn
 
 ## `Licence`
 
-While currently under GPLv3, it is likely to change to a more permissive licence once FFTW3 is hidden from the API.
-
-## `Documentation`
-
-- [Build & Installation](docs/Build.md)
-- [Testing](docs/Testing.md)
-- [Code Tree](docs/CodeTree.md)
-- [Random thoughts](docs/RandomThoughts.md)
-- [TODO list](docs/TODO.md)
+This will be moved to a more permissive licence in the future...
