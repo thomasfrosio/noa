@@ -324,6 +324,8 @@ namespace noa::geometry {
     /// \param options              Interpolation and border options.
     ///
     /// \note The floating-point precision of the transformation and interpolation is set by \p inverse_matrices.
+    /// \note This function is optimized for rightmost arrays. Passing anything else will likely result in a
+    ///       significant performance loss.
     /// \see The core operator performing the index-wise transformation is noa::geometry::Transform.
     template<typename Input, typename Output, typename Matrix, typename CValue = nt::value_type_t<Input>>
     requires ((nt::are_varray_of_real_v<Input, Output> or nt::are_varray_of_complex_v<Input, Output>) and
@@ -396,6 +398,8 @@ namespace noa::geometry {
     /// \param options              Interpolation and border options.
     ///
     /// \note The floating-point precision of the transformation and interpolation is set by \p inverse_matrices.
+    /// \note This function is optimized for rightmost arrays. Passing anything else will likely result in a
+    ///       significant performance loss.
     /// \see The core operator performing the index-wise transformation is noa::geometry::Transform.
     template<typename Input, typename Output, typename Matrix, typename CValue = nt::value_type_t<Input>>
     requires ((nt::are_varray_of_real_v<Input, Output> or nt::are_varray_of_complex_v<Input, Output>) and
@@ -754,6 +758,8 @@ namespace noa::geometry {
     ///                         If an empty array is entered or if \p input is real, it is ignored.
     /// \param options          Transformation options.
     ///
+    /// \note This function is optimized for rightmost arrays. Passing anything else will likely result in a
+    ///       significant performance loss.
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.
@@ -852,6 +858,8 @@ namespace noa::geometry {
     ///                         If an empty array is entered or if \p input is real, it is ignored.
     /// \param options          Transformation options.
     ///
+    /// \note This function is optimized for rightmost arrays. Passing anything else will likely result in a
+    ///       significant performance loss.
     /// \bug In this implementation, rotating non-redundant FFTs will not generate exactly the same results as if
     ///      redundant FFTs were used. This bug affects only a few elements at the Nyquist frequencies (the ones on
     ///      the central axes, e.g. x=0) on the input and weights the interpolated values towards zero.

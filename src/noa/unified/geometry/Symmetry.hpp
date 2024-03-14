@@ -345,6 +345,8 @@ namespace noa::geometry {
     /// \param[in] post_inverse_matrix  HW inverse truncated affine matrix to apply after the symmetry.
     ///
     /// \note During transformation, out-of-bound elements are set to 0, i.e. Border::ZERO is used.
+    /// \note This function is optimized for rightmost arrays. Passing anything else will likely result in a
+    ///       significant performance loss.
     template<typename Input, typename Output, typename Coord,
              typename PreMatrix = Empty, typename PostMatrix = Empty>
     requires ((nt::are_varray_of_real_v<Input, Output> or nt::are_varray_of_complex_v<Input, Output>) and
@@ -437,6 +439,8 @@ namespace noa::geometry {
     /// \param[in] post_inverse_matrix  DHW inverse truncated affine matrix to apply after the symmetry.
     ///
     /// \note During transformation, out-of-bound elements are set to 0, i.e. Border::ZERO is used.
+    /// \note This function is optimized for rightmost arrays. Passing anything else will likely result in a
+    ///       significant performance loss.
     template<typename Input, typename Output, typename Coord,
              typename PreMatrix = Empty, typename PostMatrix = Empty>
     requires ((nt::are_varray_of_real_v<Input, Output> or nt::are_varray_of_complex_v<Input, Output>) and
