@@ -37,7 +37,7 @@ namespace noa::geometry::guts {
 
 namespace noa::geometry {
     template<typename Value, typename Coord, bool IsSmooth>
-    class Line {
+    class DrawLine {
     public:
         static constexpr bool is_smooth = IsSmooth;
         using value_type = Value;
@@ -45,7 +45,7 @@ namespace noa::geometry {
         using coord_or_empty_type = std::conditional_t<is_smooth, coord_type, Empty>;
 
     public:
-        NOA_HD constexpr Line(
+        NOA_HD constexpr DrawLine(
                 coord_type center,
                 coord_type radius,
                 value_type cvalue,
@@ -53,7 +53,7 @@ namespace noa::geometry {
         ) noexcept requires (not is_smooth)
                 : m_cvalue(cvalue), m_center(center), m_radius(radius), m_is_inverted(is_inverted) {}
 
-        NOA_HD constexpr Line(
+        NOA_HD constexpr DrawLine(
                 coord_type center,
                 coord_type radius,
                 coord_type edge_size,
@@ -100,7 +100,7 @@ namespace noa::geometry {
     };
 
     template<size_t NDIM, typename Value, typename Coord, bool IsSmooth>
-    class Sphere {
+    class DrawSphere {
     public:
         static constexpr bool is_smooth = IsSmooth;
         using value_type = Value;
@@ -108,7 +108,7 @@ namespace noa::geometry {
         using coord_or_empty_type = std::conditional_t<is_smooth, coord_type, Empty>;
         using vector_type = Vec<coord_type, NDIM>;
 
-        NOA_HD constexpr Sphere(
+        NOA_HD constexpr DrawSphere(
                 vector_type center,
                 coord_type radius,
                 value_type cvalue,
@@ -119,7 +119,7 @@ namespace noa::geometry {
                   m_cvalue(cvalue),
                   m_is_inverted(is_inverted) {}
 
-        NOA_HD constexpr Sphere(
+        NOA_HD constexpr DrawSphere(
                 vector_type center,
                 coord_type radius,
                 coord_type edge_size,
@@ -178,7 +178,7 @@ namespace noa::geometry {
     };
 
     template<typename Value, typename Coord, bool IsSmooth>
-    class Cylinder {
+    class DrawCylinder {
     public:
         static constexpr bool is_smooth = IsSmooth;
         using value_type = Value;
@@ -187,7 +187,7 @@ namespace noa::geometry {
         using vector3_type = Vec3<coord_type>;
         using vector2_type = Vec2<coord_type>;
 
-        NOA_HD constexpr Cylinder(
+        NOA_HD constexpr DrawCylinder(
                 vector3_type center,
                 coord_type radius,
                 coord_type length,
@@ -200,7 +200,7 @@ namespace noa::geometry {
                   m_cvalue(cvalue),
                   m_is_inverted(is_inverted) {}
 
-        NOA_HD constexpr Cylinder(
+        NOA_HD constexpr DrawCylinder(
                 vector3_type center,
                 coord_type radius,
                 coord_type length,
@@ -218,37 +218,37 @@ namespace noa::geometry {
                   m_length_edge(length + edge_size),
                   m_is_inverted(is_inverted) {}
 
-        NOA_HD constexpr Cylinder(
+        NOA_HD constexpr DrawCylinder(
                 vector3_type center,
                 vector2_type length_radius,
                 value_type cvalue,
                 bool is_inverted
         ) noexcept requires (not is_smooth)
-                : Cylinder(center, length_radius[1], length_radius[0], cvalue, is_inverted) {}
+                : DrawCylinder(center, length_radius[1], length_radius[0], cvalue, is_inverted) {}
 
-        NOA_HD constexpr Cylinder(
+        NOA_HD constexpr DrawCylinder(
                 vector3_type center,
                 vector3_type length_radius,
                 value_type cvalue,
                 bool is_inverted
         ) noexcept requires (not is_smooth)
-                : Cylinder(center, length_radius[1], length_radius[0], cvalue, is_inverted) {
+                : DrawCylinder(center, length_radius[1], length_radius[0], cvalue, is_inverted) {
             NOA_ASSERT(length_radius[1] == length_radius[2]);
         }
 
-        NOA_HD constexpr Cylinder(
+        NOA_HD constexpr DrawCylinder(
                 vector3_type center, vector2_type length_radius,
                 coord_type edge_size, value_type cvalue,
                 bool is_inverted
         ) noexcept requires is_smooth
-                : Cylinder(center, length_radius[1], length_radius[0], edge_size, cvalue, is_inverted) {}
+                : DrawCylinder(center, length_radius[1], length_radius[0], edge_size, cvalue, is_inverted) {}
 
-        NOA_HD constexpr Cylinder(
+        NOA_HD constexpr DrawCylinder(
                 vector3_type center, vector3_type length_radius,
                 coord_type edge_size, value_type cvalue,
                 bool is_inverted
         ) noexcept requires is_smooth
-                : Cylinder(center, length_radius[1], length_radius[0], edge_size, cvalue, is_inverted) {
+                : DrawCylinder(center, length_radius[1], length_radius[0], edge_size, cvalue, is_inverted) {
             NOA_ASSERT(length_radius[1] == length_radius[2]);
         }
 
@@ -309,7 +309,7 @@ namespace noa::geometry {
     };
 
     template<size_t NDIM, typename Value, typename Coord, bool IsSmooth>
-    class Rectangle {
+    class DrawRectangle {
     public:
         static constexpr bool is_smooth = IsSmooth;
         using value_type = Value;
@@ -318,12 +318,12 @@ namespace noa::geometry {
         using coord_or_empty_type = std::conditional_t<is_smooth, coord_type, Empty>;
         using vector_or_empty_type = std::conditional_t<is_smooth, vector_type, Empty>;
 
-        NOA_HD constexpr Rectangle(
+        NOA_HD constexpr DrawRectangle(
                 vector_type center, vector_type radius, value_type cvalue, bool is_inverted
         ) noexcept requires (not is_smooth)
                 : m_center(center), m_radius(radius), m_cvalue(cvalue), m_is_inverted(is_inverted) {}
 
-        NOA_HD constexpr Rectangle(
+        NOA_HD constexpr DrawRectangle(
                 vector_type center,
                 vector_type radius,
                 coord_type edge_size,
@@ -385,7 +385,7 @@ namespace noa::geometry {
     };
 
     template<size_t NDIM, typename Value, typename Coord, bool IsSmooth>
-    class Ellipse {
+    class DrawEllipse {
     public:
         static constexpr bool is_smooth = IsSmooth;
         using value_type = Value;
@@ -393,12 +393,12 @@ namespace noa::geometry {
         using vector_type = Vec<coord_type, NDIM>;
         using coord_or_empty_type = std::conditional_t<is_smooth, coord_type, Empty>;
 
-        NOA_HD constexpr Ellipse(
+        NOA_HD constexpr DrawEllipse(
                 vector_type center, vector_type radius, value_type cvalue, bool is_inverted
         ) noexcept requires (not is_smooth)
                 : m_center(center), m_radius(radius), m_cvalue(cvalue), m_is_inverted(is_inverted) {}
 
-        NOA_HD constexpr Ellipse(
+        NOA_HD constexpr DrawEllipse(
                 vector_type center,
                 vector_type radius,
                 coord_type edge_size,
@@ -477,27 +477,21 @@ namespace noa::geometry {
 }
 
 namespace noa::geometry {
-    using Remap = ::noa::fft::Remap;
-
-    template<size_t N, Remap REMAP,
+    template<size_t N,
              typename Index, typename Coord,
-             typename GeometricShape, typename Xform, typename BinaryOp,
+             typename DrawOp, typename Xform, typename BinaryOp,
              typename InputAccessor, typename OutputAccessor>
     requires ((N == 2 or N == 3) and
-              (REMAP == Remap::F2F or REMAP == Remap::FC2FC or
-               REMAP == Remap::FC2F or REMAP == Remap::F2FC) and
               nt::is_sint_v<Index> and nt::is_any_v<Coord, f32, f64> and
               nt::are_accessor_pure_nd<N + 1, InputAccessor, OutputAccessor>::value)
-    class DrawGeometricShape {
+    class DrawShape {
     public:
-        static constexpr bool is_src_centered = REMAP == Remap::FC2FC or REMAP == Remap::FC2F;
-
         using index_type = Index;
         using coord_type = Coord;
         using input_accessor_type = InputAccessor;
         using output_accessor_type = OutputAccessor;
         using output_value_type = nt::value_type_t<output_accessor_type>;
-        using geometric_shape_type = GeometricShape;
+        using draw_op_type = DrawOp;
         using binary_op_type = BinaryOp;
 
         using xform_single_type = std::remove_const_t<std::remove_pointer_t<Xform>>;
@@ -505,22 +499,19 @@ namespace noa::geometry {
         using xform_type = std::conditional_t<has_multiple_xforms, const xform_single_type*, xform_single_type>;
 
         using index_nd_type = Vec<index_type, N>;
-        using shape_nd_type = Shape<index_type, N>;
         using coord_nd_type = Vec<coord_type, N>;
 
     public:
-        DrawGeometricShape(
+        DrawShape(
                 const input_accessor_type& input,
                 const output_accessor_type& output,
-                const shape_nd_type& shape,
-                const geometric_shape_type& geom_shape,
+                const draw_op_type& draw_op,
                 const xform_type& inverse_xform,
                 const binary_op_type& binary_op
         ) : m_input(input),
             m_output(output),
             m_inverse_xform(inverse_xform),
-            m_geometric_shape(geom_shape),
-            m_shape(shape),
+            m_draw_op(draw_op),
             m_binary_op(binary_op) {}
 
         NOA_HD constexpr void operator()(index_type batch, index_type ik, index_type il) const noexcept requires (N == 2) {
@@ -532,33 +523,29 @@ namespace noa::geometry {
         }
 
     private:
-        NOA_HD constexpr auto get_mask_(index_type batch, const index_nd_type& centered_indices) {
+        NOA_HD constexpr auto get_shape_(index_type batch, const index_nd_type& indices) {
             if constexpr (has_multiple_xforms) {
-               return m_geometric_shape(coord_nd_type::from_vec(centered_indices), m_inverse_xform[batch]);
+               return m_draw_op(coord_nd_type::from_vec(indices), m_inverse_xform[batch]);
             } else {
-               return m_geometric_shape(coord_nd_type::from_vec(centered_indices), m_inverse_xform);
+               return m_draw_op(coord_nd_type::from_vec(indices), m_inverse_xform);
             }
         }
 
-        NOA_HD constexpr auto draw_(index_type batch, const index_nd_type& input_indices) {
-            const auto centered_indices = noa::fft::to_centered_indexes<is_src_centered>(input_indices, m_shape);
-            const auto output_indices = noa::fft::remap_indexes<REMAP>(input_indices, m_shape).push_front(batch);
-
-            const auto mask = get_mask_(batch, centered_indices);
+        NOA_HD constexpr auto draw_(index_type batch, const index_nd_type& indices) {
+            const auto shape = get_shape_(batch, indices);
             if (m_input) {
-                const auto value = m_binary_op(m_input(centered_indices.push_front(batch)), mask);
-                m_output(output_indices) = static_cast<output_value_type>(value);
+                auto value = m_binary_op(m_input(indices.push_front(batch)), shape);
+                m_output(indices) = static_cast<output_value_type>(value);
             } else {
-                m_output(output_indices) = static_cast<output_value_type>(mask);
+                m_output(indices) = static_cast<output_value_type>(shape);
             }
         }
 
     private:
         input_accessor_type m_input;
         output_accessor_type m_output;
-        xform_type m_inverse_xform;
-        geometric_shape_type m_geometric_shape;
-        shape_nd_type m_shape;
+        draw_op_type m_draw_op;
         binary_op_type m_binary_op;
+        NOA_NO_UNIQUE_ADDRESS xform_type m_inverse_xform;
     };
 }

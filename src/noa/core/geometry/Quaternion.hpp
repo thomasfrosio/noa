@@ -131,6 +131,13 @@ namespace noa::geometry {
             return mat;
         }
 
+        [[nodiscard]] friend NOA_HD constexpr auto operator==(const Quaternion& lhs, const Quaternion& rhs) noexcept -> bool {
+            return lhs.z == rhs.z and lhs.y == rhs.y and lhs.x == rhs.x and lhs.w == rhs.w;
+        }
+        [[nodiscard]] friend NOA_HD constexpr auto operator!=(const Quaternion& lhs, const Quaternion& rhs) noexcept -> bool {
+            return lhs.z != rhs.z or lhs.y != rhs.y or lhs.x != rhs.x or lhs.w != rhs.w;
+        }
+
         /// Rotates a vector (this is equivalent but faster than \c v'=q*v*q.conj())
         /// \warning The quaternion should be normalized, otherwise the result is undefined.
         /// \remarks If the quaternion is used to rotate more than one point, then it is more efficient to first

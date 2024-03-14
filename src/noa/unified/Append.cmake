@@ -49,13 +49,11 @@ set(NOA_UNIFIED_HEADERS
 #    # noa::geometry
 #    unified/geometry/fft/Polar.hpp
 #    unified/geometry/fft/Project.hpp
-#    unified/geometry/fft/Shape.hpp
-#    unified/geometry/fft/Transform.hpp
 #    unified/geometry/Polar.hpp
     unified/geometry/Prefilter.hpp
     unified/geometry/Transform.hpp
     unified/geometry/Symmetry.hpp
-#    unified/geometry/Shape.hpp
+    unified/geometry/Shape.hpp
     )
 
 set(NOA_UNIFIED_SOURCES

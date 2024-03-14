@@ -1,387 +1,461 @@
 #pragma once
 
 #include "noa/core/geometry/Transform.hpp"
+#include "noa/core/geometry/Shape.hpp"
+#include "noa/core/Ewise.hpp"
+#include "noa/unified/Iwise.hpp"
+#include "noa/unified/View.hpp"
 
-#include "noa/cpu/geometry/Shape.hpp"
-#ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/geometry/Shape.hpp"
-#endif
-
-#include "noa/unified/Array.hpp"
-
-namespace noa::geometry::details {
-    using namespace ::noa::fft;
-    template<i32 NDIM, typename Value, typename Matrix, typename Functor, typename CValue>
-    constexpr bool is_valid_shape_v =
-            nt::is_any_v<Value, f32, f64, c32, c64> &&
-            std::is_same_v<CValue, nt::value_type_t<Value>> &&
-            nt::is_any_v<Functor, noa::multiply_t, noa::plus_t> &&
-            (NDIM == 2 &&
-             (nt::is_any_v<Matrix, Float22, Float23, Float33> ||
-              nt::is_varray_of_almost_any_v<Matrix, Float22, Float23>) ||
-             NDIM == 3 &&
-             (nt::is_any_v<Matrix, Float33, Float34, Float44> ||
-              nt::is_varray_of_almost_any_v<Matrix, Float33, Float34>));
-
-    template<i32 NDIM, typename Matrix>
-    constexpr auto extract_linear_or_truncated_matrix(const Matrix& matrix) noexcept {
-        if constexpr ((NDIM == 2 && nt::is_mat33_v<Matrix>) ||
-                      (NDIM == 3 && nt::is_mat44_v<Matrix>)) {
-            return noa::geometry::affine2truncated(matrix);
-        } else if constexpr (nt::is_varray_of_almost_any_v<Matrix, Float22, Float23, Float33, Float34>) {
-            using const_ptr_t = const typename Matrix::mutable_value_type*;
-            return const_ptr_t(matrix.get());
-        } else {
-            return matrix;
-        }
-    }
-
-    template<i32 NDIM, typename Input, typename Output, typename Matrix>
-    auto check_shape_parameters(
+namespace noa::geometry::guts {
+    template<size_t N, typename Input, typename Output, typename Transform>
+    auto check_draw_shape_parameters(
             const Input& input,
             const Output& output,
-            const Matrix inv_matrices
-    ) -> std::tuple<Strides4<i64>, Strides4<i64>, Shape4<i64>> {
-        NOA_CHECK(!output.is_empty(), "Empty array detected");
-        NOA_CHECK(output.shape().ndim() <= static_cast<i64>(NDIM),
-                  "3D arrays are not supported with 2D geometric shapes. "
-                  "Use 3D geometric shapes to support 2D and 3D arrays");
-        const bool is_empty = input.is_empty();
-        const bool is_output_batched = output.shape().is_batched();
-
-        // Input is valid:
-        //  - 1) both are batched -> broadcast input, and check matrix size is equal to the number of batches.
-        //  - 2) both are not batched (reduce) -> broadcast input/output, matrix defines the number of batches.
-        //  - 3) input is batched -> error.
-        //  - 4) output is batched -> same as both are batched.
-        // Otherwise:
-        //  - 5) output is batched -> it defines the number of batches.
-        //  - 6) output is not batched (reduce) -> matrix defines the number of batches.
-        auto final_shape = output.shape();
-        auto input_strides = input.strides();
-        auto output_strides = output.strides();
-
-        if (!is_empty) {
-            // case 3 fails here.
-            NOA_CHECK(noa::indexing::broadcast(input.shape(), input_strides, output.shape()),
-                      "Cannot broadcast an array of shape {} into an array of shape {}",
-                      input.shape(), output.shape());
-        }
-        if constexpr (nt::is_varray_v<Matrix>) {
-            if (!is_output_batched) { // case 2, 6
-                final_shape[0] = inv_matrices.elements();
-                input_strides[0] = 0;
-                output_strides[0] = 0;
-            }
-        }
-
+            const Transform transform
+    ) {
         const Device device = output.device();
-        NOA_CHECK(is_empty || device == input.device(),
+        check(output.shape().ndim() <= static_cast<i64>(N),
+              "3d arrays are not supported with 2d geometric shapes. Use 3d overload to support 2d and 3d arrays");
+
+        if (input.is_empty()) {
+            check(not output.is_empty(), "Empty array detected");
+        } else {
+            check(not output.is_empty() and not input.is_empty(), "Empty array detected");
+            check(N == 3 or (input.shape()[1] == 1 and output.shape()[1] == 1),
+                  "The input and output arrays should be 2d, but got input:shape={}, output:shape={}",
+                  input.shape(), output.shape());
+            check(input.shape()[0] == 1 or input.shape()[0] == output.shape()[0],
+                  "The number of batch in the input ({}) is not compatible with the number of batch in the output ({})",
+                  input.shape()[0], output.shape()[0]);
+            check(device == input.device(),
                   "The input and output arrays must be on the same device, but got input:{}, output:{}",
                   input.device(), device);
-
-        if constexpr (nt::is_varray_v<Matrix>) {
-            NOA_CHECK(!inv_matrices.is_empty(), "Empty array detected");
-            NOA_CHECK(inv_matrices.device() == device,
-                      "The input and output arrays must be on the same device, but got inv_matrices:{}, output:{}",
-                      inv_matrices.device(), device);
-            NOA_CHECK(noa::indexing::is_contiguous_vector(inv_matrices) && inv_matrices.elements() == final_shape[0],
-                      "The matrices should be specified as a contiguous vector of {} elements, "
-                      "but got shape={} and strides={}",
-                      final_shape[0], inv_matrices.shape(), inv_matrices.strides());
         }
 
-        return {input_strides, output_strides, final_shape};
+        if constexpr (nt::is_varray_v<Transform>) {
+            check(not transform.is_empty(), "Empty array detected");
+            check(transform.device() == device,
+                  "The input and output arrays must be on the same device, but got transform:device={}, output:device={}",
+                  transform.device(), device);
+            check(ni::is_contiguous_vector(transform) and transform.elements() == output.shape()[0],
+                  "The transforms (matrices or quaternions) should be specified as a contiguous vector of size {}, "
+                  "but got transforms:shape={} and transforms:strides={}",
+                  output.shape()[0], transform.shape(), transform.strides());
+        }
     }
+
+    template<size_t N, typename Index, typename Coord,
+             typename DrawOp, typename DrawOpSmooth,
+             typename Input, typename Output, typename Transform, typename BinaryOp, typename Radius, typename CValue>
+    void launch_draw_shape(
+            const Input& input, const Output& output, const Transform& inverse_transform, const BinaryOp& binary_op,
+            const Vec<Coord, N>& center, const Radius& radius, Coord smoothness, CValue cvalue, bool invert
+    ) {
+        using input_accessor_t = Accessor<const nt::mutable_value_type_t<Input>, N + 1, Index>;
+        using output_accessor_t = Accessor<nt::value_type_t<Output>, N + 1, Index>;
+
+        auto get_strides = [](const auto& array) {
+            if constexpr (N == 2)
+                return array.strides().filter(0, 2, 3).template as<Index>();
+            else
+                return array.strides().template as<Index>();
+        };
+
+        auto input_accessor = input_accessor_t(input, get_strides(input));
+        auto output_accessor = output_accessor_t(output, get_strides(output));
+        auto shape = [&]() {
+            if constexpr (N == 2)
+                return output.shape().filter(0, 2, 3).template as<Index>();
+            else
+                return output.shape().template as<Index>();
+        };
+
+        // Broadcast the input to every output batch.
+        if (input.shape()[0] == 1)
+            input_accessor.strides()[0] = 0;
+
+        bool has_transform{};
+        if constexpr (nt::is_varray_v<Transform>)
+            has_transform = not inverse_transform.is_empty();
+        else if constexpr (nt::is_quaternion_v<Transform>)
+            has_transform = inverse_transform != Transform{.z=0, .y=0, .x=0, .w=1};
+        else
+            has_transform = inverse_transform != Transform::eye(1);
+
+        auto extract_transform = [&] {
+            if constexpr ((N == 2 and nt::is_mat33_v<Transform>) or
+                          (N == 3 and nt::is_mat44_v<Transform>)) {
+                return affine2truncated(inverse_transform);
+            } else if constexpr (nt::is_varray_v<Transform>) {
+                using const_ptr_t = const Transform::mutable_value_type*;
+                return const_ptr_t(inverse_transform.get());
+            } else {
+                return inverse_transform;
+            }
+        };
+
+        auto launch_for_each_matrix = [&](auto draw_op) {
+            if (has_transform) {
+                using transform_t = decltype(extract_transform(inverse_transform));
+                using op_t = DrawShape<2, Index, Coord, decltype(draw_op), transform_t, BinaryOp, input_accessor_t, output_accessor_t>;
+                auto op = op_t(input_accessor, output_accessor, draw_op, extract_transform(inverse_transform), binary_op);
+                return iwise(shape, output.device(), std::move(op));
+            } else {
+                using op_t = DrawShape<2, Index, Coord, decltype(draw_op), Empty, BinaryOp, input_accessor_t, output_accessor_t>;
+                auto op = op_t(input_accessor, output_accessor, draw_op, Empty{}, binary_op);
+                return iwise(shape, output.device(), std::move(op));
+            }
+        };
+
+        if (smoothness > static_cast<Coord>(1e-8)) {
+            launch_for_each_matrix(DrawOpSmooth(center, radius, smoothness, cvalue, invert));
+        } else {
+            launch_for_each_matrix(DrawOp(center, radius, cvalue, invert));
+        }
+    }
+
+    template<typename T, size_t N>
+    constexpr bool is_valid_draw_transform_v =
+            (N == 2 and (nt::is_mat22_v<T> or nt::is_mat23_v<T> or nt::is_mat33_v<T>)) or
+            (N == 3 and (nt::is_mat33_v<T> or nt::is_mat34_v<T> or nt::is_mat44_v<T> or nt::is_quaternion_v<T>));
+
+    template<typename Output, typename Input, typename BinaryOp>
+    constexpr bool is_valid_draw_binary_op_v = requires {
+        static_cast<nt::value_type_t<Output>>(std::declval<BinaryOp>()(
+                std::declval<nt::value_type_t<Input>>(),
+                std::declval<nt::value_type_t<Input>>()
+        ));
+    };
+
+    template<size_t N, typename Output, typename Input, typename CValue, typename Matrix, typename BinaryOp>
+    concept ValidDrawShape =
+            (nt::are_varray_of_scalar_v<Input, Output> or nt::are_varray_of_complex_v<Input, Output>) and
+            nt::is_varray_of_mutable_v<Output> and
+            std::is_same_v<CValue, nt::mutable_value_type_twice_t<Input>> and
+            (is_valid_draw_transform_v<Matrix, 2> or
+             (nt::is_varray_v<Matrix> and is_valid_draw_transform_v<nt::value_type_t<Matrix>, 2>)) and
+            is_valid_draw_binary_op_v<Output, Input, BinaryOp>;
 }
 
 namespace noa::geometry {
-    /// Returns or applies an elliptical mask.
-    /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
+    template<typename T, size_t N>
+    requires (N == 2 or N == 3)
+    struct Ellipse {
+        /// (D)HW center of the ellipse.
+        Vec<f64, N> center;
+
+        /// (D)HW radius of the ellipse.
+        Vec<f64, N> radius;
+
+        /// Size, in pixels, of the raised cosine smooth edge.
+        /// This is the number pixels that will be used to compute the (1,0] taper range.
+        f64 smoothness{0};
+
+        /// Value of the pixels inside the object.
+        /// Pixels outside the object are set to 0.
+        T cvalue{1};
+
+        /// Whether the object should be inverted, i.e. elements inside the object are set to 0,
+        /// and elements outside the object are set to cvalue.
+        bool invert{false};
+    };
+
+    /// Returns or draws an ellipse.
+    /// \details The mask can be directly saved in \p output or applied (\p see binary_op) to \p input and
     ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inv_matrix). Additionally, if \p input and \p output are
-    ///          not batched, multiple matrices can still be passed to generate multiple geometric shapes within
-    ///          the same array. In this case, multiple "masks" are computed, reduced to a single "mask",
-    ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
-    ///          if \p invert is false or multiplied together if \p invert is true.
+    ///          one transformation per batch (\p see inverse_matrices).
     ///
-    /// \tparam Matrix      2D case: Float22, Float23, Float33 or an varray of Float22 or Float23.
-    ///                     3D case: Float33, Float34, Float44 or an varray of Float33 or Float34.
-    /// \tparam Functor     noa::multiply_t, noa::plus_t.
-    /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
-    /// \param[out] output  Masked array(s).
-    /// \param center       (D)HW center of the ellipse.
-    /// \param radius       (D)HW radius, in elements, of the ellipse.
-    /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
-    /// \param inv_matrix   Inverse (D)HW (affine) matrix to apply on the ellipse.
-    ///                     For non-affine matrices, the rotation center is located at \p center.
-    /// \param functor      Operator defining how to apply the mask onto \p input.
-    ///                     This is ignored if \p input is empty.
-    /// \param cvalue       Real value of the mask. Elements outside the mask are set to 0.
-    /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
-    ///                     and elements outside the mask are set to \p cvalue.
-    template<typename Output,
+    /// \tparam Transform           2d case: Mat22, Mat23, Mat33 or an varray of either one of these types.
+    ///                             3d case: Mat33, Mat34, Mat44, Quaternion or an varray of either one of these types.
+    /// \param[in] input            2d or 3d array(s). If empty, write directly in \p output.
+    /// \param[out] output          2d or 3d array(s). Can be equal to \p input for in-place drawing.
+    /// \param ellipse              Ellipse to draw, with the \p input value type.
+    /// \param inverse_transforms   Inverse (D)HW (affine) matrix/matrices or quaternion(s) to apply on the ellipse.
+    ///                             For non-affine matrices and quaternion(s), the rotation center is the center of
+    ///                             the ellipse. Note that the identity transformation (the default), as well as an
+    ///                             empty array is explicitly checked and not passed to the backends.
+    /// \param binary_op            Binary operator used to draw the ellipse onto the input values:
+    ///                             (input_value, ellipse_value) -> value ("value" is casted to the actual output type).
+    ///                             This is ignored if \p input is empty.
+    ///
+    /// \note The floating-point precision of the drawing operator is set by the transformation floating-point type,
+    ///       which defaults to double precision.
+    /// \note This function is optimized for rightmost arrays. Passing anything else will likely result in a
+    ///       significant performance loss.
+    template<size_t N,
+             typename Output,
              typename Input = View<nt::value_type_t<Output>>,
-             typename Matrix = Float33, typename Functor = noa::multiply_t,
-             typename CValue = nt::value_type_twice_t<Output>, size_t N,
-             typename = std::enable_if_t<
-                     nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-                     nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-                     nt::are_almost_same_value_type_v<Input, Output> &&
-                     details::is_valid_shape_v<N, nt::value_type_t<Output>, Matrix, Functor, CValue>>>
-    void ellipse(const Input& input, const Output& output,
-                 const Vec<f32, N>& center, const Vec<f32, N>& radius, f32 edge_size,
-                 const Matrix& inv_matrix = {}, Functor functor = {},
-                 CValue cvalue = CValue{1}, bool invert = false) {
+             typename CValue = nt::mutable_value_type_twice_t<Input>,
+             typename Transform = std::conditional_t<N == 2, Mat22<f64>, Mat33<f64>>,
+             typename BinaryOp = Multiply>
+    requires guts::ValidDrawShape<N, Output, Input, CValue, Transform, BinaryOp>
+    void draw_ellipse(
+            const Input& input,
+            const Output& output,
+            const Ellipse<CValue, N>& ellipse,
+            const Transform& inverse_transforms = {},
+            BinaryOp binary_op = {}
+    ) {
+        guts::check_draw_shape_parameters<N>(input, output, inverse_transforms);
 
-        // FIXME Use std::tie because clangd? doesn't like auto[] elements captured in lambdas. Compiler is fine...
-        Strides4<i64> input_strides, output_strides;
-        Shape4<i64> final_shape;
-        std::tie(input_strides, output_strides, final_shape) =
-                details::check_shape_parameters<N>(input, output, inv_matrix);
+        using input_value_t = nt::mutable_value_type_t<Input>;
+        using coord_t = nt::mutable_value_type_twice_t<Transform>;
+        using smooth_ellipse_t = DrawEllipse<N, input_value_t, coord_t, true>;
+        using ellipse_t = DrawEllipse<N, input_value_t, coord_t, false>;
+        auto center = ellipse.center.template as<coord_t>();
+        auto radius = ellipse.radius.template as<coord_t>();
+        auto smoothness = static_cast<coord_t>(ellipse.smoothness);
 
-        const Device device = output.device();
-        Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.thread_limit();
-            cpu_stream.enqueue([=](){
-                cpu::geometry::ellipse(
-                        input.get(), input_strides,
-                        output.get(), output_strides, final_shape,
-                        center, radius, edge_size,
-                        details::extract_linear_or_truncated_matrix<N>(inv_matrix),
-                        functor, cvalue, invert, threads);
-            });
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            auto& cuda_stream = stream.cuda();
-            cuda::geometry::ellipse(
-                    input.get(), input_strides,
-                    output.get(), output_strides, final_shape,
-                    center, radius, edge_size,
-                    details::extract_linear_or_truncated_matrix<N>(inv_matrix),
-                    functor, cvalue, invert, cuda_stream);
-            cuda_stream.enqueue_attach(input, output, inv_matrix);
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
+        if (output.device().is_gpu() and
+            ng::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
+            ng::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
+            return guts::launch_draw_shape<N, i32, coord_t, ellipse_t, smooth_ellipse_t>(
+                    input, output, inverse_transforms, binary_op,
+                    center, radius, smoothness, ellipse.cvalue, ellipse.invert);
         }
+        return guts::launch_draw_shape<N, i64, coord_t, ellipse_t, smooth_ellipse_t>(
+                input, output, inverse_transforms, binary_op,
+                center, radius, smoothness, ellipse.cvalue, ellipse.invert);
     }
 
-    /// Returns or applies a spherical mask.
-    /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
+    template<typename T, size_t N>
+    requires (N == 2 or N == 3)
+    struct Sphere {
+        /// (D)HW center of the sphere/circle.
+        Vec<f64, N> center;
+
+        /// Radius of the sphere/circle.
+        f64 radius;
+
+        /// Size, in pixels, of the raised cosine smooth edge.
+        /// This is the number pixels that will be used to compute the (1,0] taper range.
+        f64 smoothness{0};
+
+        /// Value of the pixels inside the object.
+        /// Pixels outside the object are set to 0.
+        T cvalue{1};
+
+        /// Whether the object should be inverted, i.e. elements inside the object are set to 0,
+        /// and elements outside the object are set to cvalue.
+        bool invert{false};
+    };
+
+    /// Returns or draws a sphere.
+    /// \details The mask can be directly saved in \p output or applied (\p see binary_op) to \p input and
     ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inv_matrix). Additionally, if \p input and \p output are
-    ///          not batched, multiple matrices can still be passed to generate multiple geometric shapes within
-    ///          the same array. In this case, multiple "masks" are computed, reduced to a single "mask",
-    ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
-    ///          if \p invert is false or multiplied together if \p invert is true.
+    ///          one transformation per batch (\p see inverse_matrices).
     ///
-    /// \tparam Matrix      2D case: Float22, Float23, Float33 or an varray of Float22 or Float23.
-    ///                     3D case: Float33, Float34, Float44 or an varray of Float33 or Float34.
-    /// \tparam Functor     noa::multiply_t, noa::plus_t.
-    /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
-    /// \param[out] output  Masked array(s). Can be equal to \p input.
-    /// \param center       (D)HW center of the sphere.
-    /// \param radius       Radius, in elements, of the sphere.
-    /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
-    /// \param inv_matrix   Inverse (D)HW (affine) matrix to apply on the ellipse.
-    ///                     For non-affine matrices, the rotation center is located at \p center.
-    /// \param functor      Operator defining how to apply the mask onto \p input. This is ignored if \p input is empty.
-    /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
-    /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
-    ///                     and elements outside the mask are set to \p cvalue.
-    template<typename Output,
+    /// \tparam Transform           2d case: Mat22, Mat23, Mat33 or an varray of either one of these types.
+    ///                             3d case: Mat33, Mat34, Mat44, Quaternion or an varray of either one of these types.
+    /// \param[in] input            2d or 3d array(s). If empty, write directly in \p output.
+    /// \param[out] output          2d or 3d array(s). Can be equal to \p input for in-place drawing.
+    /// \param sphere               Sphere to draw, with the \p input value type.
+    /// \param inverse_transforms   Inverse (D)HW (affine) matrix/matrices or quaternion(s) to apply on the sphere.
+    ///                             For non-affine matrices and quaternion(s), the rotation center is the center of
+    ///                             the sphere. Note that the identity transformation (the default), as well as an
+    ///                             empty array is explicitly checked and not passed to the backends.
+    /// \param binary_op            Binary operator used to draw the sphere onto the input values:
+    ///                             (input_value, sphere_value) -> value ("value" is casted to the actual output type).
+    ///                             This is ignored if \p input is empty.
+    ///
+    /// \note The floating-point precision of the drawing operator is set by the transformation floating-point type,
+    ///       which defaults to double precision.
+    /// \note This function is optimized for rightmost arrays. Passing anything else will likely result in a
+    ///       significant performance loss.
+    template<size_t N,
+             typename Output,
              typename Input = View<nt::value_type_t<Output>>,
-             typename Matrix = Float33, typename Functor = noa::multiply_t,
-             typename CValue = nt::value_type_twice_t<Output>, size_t N,
-             typename = std::enable_if_t<
-                     nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-                     nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-                     nt::are_almost_same_value_type_v<Input, Output> &&
-                     details::is_valid_shape_v<N, nt::value_type_t<Output>, Matrix, Functor, CValue>>>
-    void sphere(const Input& input, const Output& output,
-                const Vec<f32, N>& center, f32 radius, f32 edge_size,
-                const Matrix& inv_matrix = {}, Functor functor = {},
-                CValue cvalue = CValue{1}, bool invert = false) {
+             typename CValue = nt::mutable_value_type_twice_t<Input>,
+             typename Transform = std::conditional_t<N == 2, Mat22<f64>, Mat33<f64>>,
+             typename BinaryOp = Multiply>
+    requires guts::ValidDrawShape<N, Output, Input, CValue, Transform, BinaryOp>
+    void draw_sphere(
+            const Input& input,
+            const Output& output,
+            const Sphere<CValue, N>& sphere,
+            const Transform& inverse_transforms = {},
+            BinaryOp binary_op = {}
+    ) {
+        guts::check_draw_shape_parameters<N>(input, output, inverse_transforms);
 
-        // FIXME Use std::tie because clangd? doesn't like auto[] elements captured in lambdas. Compiler is fine...
-        Strides4<i64> input_strides, output_strides;
-        Shape4<i64> final_shape;
-        std::tie(input_strides, output_strides, final_shape) =
-                details::check_shape_parameters<N>(input, output, inv_matrix);
+        using input_value_t = nt::mutable_value_type_t<Input>;
+        using coord_t = nt::mutable_value_type_twice_t<Transform>;
+        using smooth_sphere_t = DrawSphere<N, input_value_t, coord_t, true>;
+        using sphere_t = DrawSphere<N, input_value_t, coord_t, false>;
+        auto center = sphere.center.template as<coord_t>();
+        auto radius = static_cast<coord_t>(sphere.radius);
+        auto smoothness = static_cast<coord_t>(sphere.smoothness);
 
-        const Device device = output.device();
-        Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.thread_limit();
-            cpu_stream.enqueue([=](){
-                cpu::geometry::sphere(
-                        input.get(), input_strides,
-                        output.get(), output_strides, final_shape,
-                        center, radius, edge_size,
-                        details::extract_linear_or_truncated_matrix<N>(inv_matrix),
-                        functor, cvalue, invert, threads);
-            });
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            auto& cuda_stream = stream.cuda();
-            cuda::geometry::sphere(
-                    input.get(), input_strides,
-                    output.get(), output_strides, final_shape,
-                    center, radius, edge_size,
-                    details::extract_linear_or_truncated_matrix<N>(inv_matrix),
-                    functor, cvalue, invert, cuda_stream);
-            cuda_stream.enqueue_attach(input, output, inv_matrix);
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
+        if (output.device().is_gpu() and
+            ng::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
+            ng::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
+            return guts::launch_draw_shape<N, i32, coord_t, sphere_t, smooth_sphere_t>(
+                    input, output, inverse_transforms, binary_op,
+                    center, radius, smoothness, sphere.cvalue, sphere.invert);
         }
+        return guts::launch_draw_shape<N, i64, coord_t, sphere_t, smooth_sphere_t>(
+                input, output, inverse_transforms, binary_op,
+                center, radius, smoothness, sphere.cvalue, sphere.invert);
     }
 
-    /// Returns or applies a rectangular mask.
-    /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
+    template<typename T, size_t N>
+    requires (N == 2 or N == 3)
+    struct Rectangle {
+        /// (D)HW center of the rectangle.
+        Vec<f64, N> center;
+
+        /// (D)HW radius of the rectangle.
+        Vec<f64, N> radius;
+
+        /// Size, in pixels, of the raised cosine smooth edge.
+        /// This is the number pixels that will be used to compute the (1,0] taper range.
+        f64 smoothness{0};
+
+        /// Value of the pixels inside the object.
+        /// Pixels outside the object are set to 0.
+        T cvalue{1};
+
+        /// Whether the object should be inverted, i.e. elements inside the object are set to 0,
+        /// and elements outside the object are set to cvalue.
+        bool invert{false};
+    };
+
+    /// Returns or draws a rectangle.
+    /// \details The mask can be directly saved in \p output or applied (\p see binary_op) to \p input and
     ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inv_matrix). Additionally, if \p input and \p output are
-    ///          not batched, multiple matrices can still be passed to generate multiple geometric shapes within
-    ///          the same array. In this case, multiple "masks" are computed, reduced to a single "mask",
-    ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
-    ///          if \p invert is false or multiplied together if \p invert is true.
+    ///          one transformation per batch (\p see inverse_matrices).
     ///
-    /// \tparam Matrix      2D case: Float22, Float23, Float33 or an varray of Float22 or Float23.
-    ///                     3D case: Float33, Float34, Float44 or an varray of Float33 or Float34.
-    /// \tparam Functor     noa::multiply_t, noa::plus_t.
-    /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
-    /// \param[out] output  Masked array(s). Can be equal to \p input.
-    /// \param center       (D)HW center of the rectangle.
-    /// \param radius       (D)HW radius, in elements, of the rectangle.
-    /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
-    /// \param inv_matrix   Inverse (D)HW (affine) matrix to apply on the ellipse.
-    ///                     For non-affine matrices, the rotation center is located at \p center.
-    /// \param functor      Operator defining how to apply the mask onto \p input. This is ignored if \p input is empty.
-    /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
-    /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
-    ///                     and elements outside the mask are set to \p cvalue.
-    template<typename Output,
+    /// \tparam Transform           2d case: Mat22, Mat23, Mat33 or an varray of either one of these types.
+    ///                             3d case: Mat33, Mat34, Mat44, Quaternion or an varray of either one of these types.
+    /// \param[in] input            2d or 3d array(s). If empty, write directly in \p output.
+    /// \param[out] output          2d or 3d array(s). Can be equal to \p input for in-place drawing.
+    /// \param rectangle            Rectangle to draw, with the \p input value type.
+    /// \param inverse_transforms   Inverse (D)HW (affine) matrix/matrices or quaternion(s) to apply on the rectangle.
+    ///                             For non-affine matrices and quaternion(s), the rotation center is the center of
+    ///                             the rectangle. Note that the identity transformation (the default), as well as an
+    ///                             empty array is explicitly checked and not passed to the backends.
+    /// \param binary_op            Binary operator used to draw the rectangle onto the input values:
+    ///                             (input_value, rectangle_value) -> value ("value" is casted to the actual output type).
+    ///                             This is ignored if \p input is empty.
+    ///
+    /// \note The floating-point precision of the drawing operator is set by the transformation floating-point type,
+    ///       which defaults to double precision.
+    /// \note This function is optimized for rightmost arrays. Passing anything else will likely result in a
+    ///       significant performance loss.
+    template<size_t N,
+             typename Output,
              typename Input = View<nt::value_type_t<Output>>,
-             typename Matrix = Float33, typename Functor = noa::multiply_t,
-             typename CValue = nt::value_type_twice_t<Output>, size_t N,
-             typename = std::enable_if_t<
-                     nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-                     nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-                     nt::are_almost_same_value_type_v<Input, Output> &&
-                     details::is_valid_shape_v<N, nt::value_type_t<Output>, Matrix, Functor, CValue>>>
-    void rectangle(const Input& input, const Output& output,
-                   const Vec<f32, N>& center, const Vec<f32, N>& radius, f32 edge_size,
-                   const Matrix& inv_matrix = {}, Functor functor = {},
-                   CValue cvalue = CValue{1}, bool invert = false) {
+             typename CValue = nt::mutable_value_type_twice_t<Input>,
+             typename Transform = std::conditional_t<N == 2, Mat22<f64>, Mat33<f64>>,
+             typename BinaryOp = Multiply>
+    requires guts::ValidDrawShape<N, Output, Input, CValue, Transform, BinaryOp>
+    void draw_rectangle(
+            const Input& input,
+            const Output& output,
+            const Rectangle<CValue, N>& rectangle,
+            const Transform& inverse_transforms = {},
+            BinaryOp binary_op = {}
+    ) {
+        guts::check_draw_shape_parameters<N>(input, output, inverse_transforms);
 
-        // FIXME Use std::tie because clangd? doesn't like auto[] elements captured in lambdas. Compiler is fine...
-        Strides4<i64> input_strides, output_strides;
-        Shape4<i64> final_shape;
-        std::tie(input_strides, output_strides, final_shape) =
-                details::check_shape_parameters<N>(input, output, inv_matrix);
+        using input_value_t = nt::mutable_value_type_t<Input>;
+        using coord_t = nt::mutable_value_type_twice_t<Transform>;
+        using smooth_rectangle_t = DrawRectangle<N, input_value_t, coord_t, true>;
+        using rectangle_t = DrawRectangle<N, input_value_t, coord_t, false>;
+        auto center = rectangle.center.template as<coord_t>();
+        auto radius = rectangle.radius.template as<coord_t>();
+        auto smoothness = static_cast<coord_t>(rectangle.smoothness);
 
-        const Device device = output.device();
-        Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.thread_limit();
-            cpu_stream.enqueue([=](){
-                cpu::geometry::rectangle(
-                        input.get(), input_strides,
-                        output.get(), output_strides, final_shape,
-                        center, radius, edge_size,
-                        details::extract_linear_or_truncated_matrix<N>(inv_matrix),
-                        functor, cvalue, invert, threads);
-            });
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            auto& cuda_stream = stream.cuda();
-            cuda::geometry::rectangle(
-                    input.get(), input_strides,
-                    output.get(), output_strides, final_shape,
-                    center, radius, edge_size,
-                    details::extract_linear_or_truncated_matrix<N>(inv_matrix),
-                    functor, cvalue, invert, cuda_stream);
-            cuda_stream.enqueue_attach(input, output, inv_matrix);
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
+        if (output.device().is_gpu() and
+            ng::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
+            ng::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
+            return guts::launch_draw_shape<N, i32, rectangle_t, smooth_rectangle_t>(
+                    input, output, inverse_transforms, binary_op,
+                    center, radius, smoothness, rectangle.cvalue, rectangle.invert);
         }
+        return guts::launch_draw_shape<N, i64, rectangle_t, smooth_rectangle_t>(
+                input, output, inverse_transforms, binary_op,
+                center, radius, smoothness, rectangle.cvalue, rectangle.invert);
     }
 
-    /// Returns or applies a cylindrical mask.
-    /// \details The mask can be directly saved in \p output or applied (\p see functor) to \p input and
+    template<typename T>
+    struct Cylinder {
+        /// DHW center of the cylinder.
+        Vec3<f64> center;
+
+        /// Radius of the cylinder.
+        f64 radius;
+
+        /// Length of the cylinder.
+        f64 length;
+
+        /// Size, in pixels, of the raised cosine smooth edge.
+        /// This is the number pixels that will be used to compute the (1,0] taper range.
+        f64 smoothness{0};
+
+        /// Value of the pixels inside the object.
+        /// Pixels outside the object are set to 0.
+        T cvalue{1};
+
+        /// Whether the object should be inverted, i.e. elements inside the object are set to 0,
+        /// and elements outside the object are set to cvalue.
+        bool invert{false};
+    };
+
+    /// Returns or draws a cylinder.
+    /// \details The mask can be directly saved in \p output or applied (\p see binary_op) to \p input and
     ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inv_matrix). Additionally, if \p input and \p output are
-    ///          not batched, multiple matrices can still be passed to generate multiple geometric shapes within
-    ///          the same array. In this case, multiple "masks" are computed, reduced to a single "mask",
-    ///          which is then applied to \p input and/or saved in \p output. These "masks" are sum-reduced
-    ///          if \p invert is false or multiplied together if \p invert is true.
+    ///          one transformation per batch (\p see inverse_matrices).
     ///
-    /// \tparam Matrix      Float33, Float34, Float44 or an varray of Float33 or Float34.
-    /// \tparam Functor     noa::multiply_t, noa::plus_t.
-    /// \param[in] input    2D or 3D array(s) to mask. If empty, write the mask in \p output.
-    /// \param[out] output  Masked array(s). Can be equal to \p input.
-    /// \param center       DHW center of the cylinder, in \p T elements.
-    /// \param radius       Radius of the cylinder.
-    /// \param length       Length of the cylinder along the depth dimension.
-    /// \param edge_size    Width, in elements, of the cosine edge, including the zero.
-    /// \param inv_matrix   Inverse DHW (affine) matrix to apply on the ellipse.
-    ///                     For non-affine matrices, the rotation center is located at \p center.
-    /// \param functor      Operator defining how to apply the mask onto \p input. This is ignored if \p input is empty.
-    /// \param cvalue       Value of the mask. Elements outside the mask are set to 0.
-    /// \param invert       Whether the mask should be inverted, i.e. elements inside the mask are set to 0,
-    ///                     and elements outside the mask are set to \p cvalue.
+    /// \tparam Transform           Mat33, Mat34, Mat44, Quaternion or an varray of either one of these types.
+    /// \param[in] input            3d array(s). If empty, write directly in \p output.
+    /// \param[out] output          3d array(s). Can be equal to \p input for in-place drawing.
+    /// \param cylinder             Cylinder to draw, with the \p input value type.
+    /// \param inverse_transforms   Inverse DHW (affine) matrix/matrices or quaternion(s) to apply on the cylinder.
+    ///                             For non-affine matrices and quaternion(s), the rotation center is the center of
+    ///                             the cylinder. Note that the identity transformation (the default), as well as an
+    ///                             empty array is explicitly checked and not passed to the backends.
+    /// \param binary_op            Binary operator used to draw the cylinder onto the input values:
+    ///                             (input_value, cylinder_value) -> value ("value" is casted to the actual output type).
+    ///                             This is ignored if \p input is empty.
+    ///
+    /// \note The floating-point precision of the drawing operator is set by the transformation floating-point type,
+    ///       which defaults to double precision.
+    /// \note This function is optimized for rightmost arrays. Passing anything else will likely result in a
+    ///       significant performance loss.
     template<typename Output,
              typename Input = View<nt::value_type_t<Output>>,
-             typename Matrix = Float33, typename Functor = noa::multiply_t,
-             typename CValue = nt::value_type_twice_t<Output>,
-             typename = std::enable_if_t<
-                     nt::is_varray_of_almost_any_v<Input, f32, f64, c32, c64> &&
-                     nt::is_varray_of_any_v<Output, f32, f64, c32, c64> &&
-                     nt::are_almost_same_value_type_v<Input, Output> &&
-                     details::is_valid_shape_v<3, nt::value_type_t<Output>, Matrix, Functor, CValue>>>
-    void cylinder(const Input& input, const Output& output,
-                  const Vec3<f32>& center, f32 radius, f32 length, f32 edge_size,
-                  const Matrix& inv_matrix = {}, Functor functor = {},
-                  CValue cvalue = CValue{1}, bool invert = false) {
+             typename CValue = nt::mutable_value_type_twice_t<Input>,
+             typename Transform = Mat33<f64>,
+             typename BinaryOp = Multiply>
+    requires guts::ValidDrawShape<3, Output, Input, CValue, Transform, BinaryOp>
+    void draw_cylinder(
+            const Input& input,
+            const Output& output,
+            const Cylinder<CValue>& cylinder,
+            const Transform& inverse_transforms = {},
+            BinaryOp binary_op = {}
+    ) {
+        guts::check_draw_shape_parameters<3>(input, output, inverse_transforms);
 
-        // FIXME Use std::tie because clangd? doesn't like auto[] elements captured in lambdas. Compiler is fine...
-        Strides4<i64> input_strides, output_strides;
-        Shape4<i64> final_shape;
-        std::tie(input_strides, output_strides, final_shape) =
-                details::check_shape_parameters<3>(input, output, inv_matrix);
+        using input_value_t = nt::mutable_value_type_t<Input>;
+        using coord_t = nt::mutable_value_type_twice_t<Transform>;
+        using smooth_cylinder_t = DrawCylinder<input_value_t, coord_t, true>;
+        using cylinder_t = DrawCylinder<input_value_t, coord_t, false>;
 
-        const Device device = output.device();
-        Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.thread_limit();
-            cpu_stream.enqueue([=](){
-                cpu::geometry::cylinder(
-                        input.get(), input_strides,
-                        output.get(), output_strides, final_shape,
-                        center, radius, length, edge_size,
-                        details::extract_linear_or_truncated_matrix<3>(inv_matrix),
-                        functor, cvalue, invert, threads);
-            });
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            auto& cuda_stream = stream.cuda();
-            cuda::geometry::cylinder(
-                    input.get(), input_strides,
-                    output.get(), output_strides, final_shape,
-                    center, radius, length, edge_size,
-                    details::extract_linear_or_truncated_matrix<3>(inv_matrix),
-                    functor, cvalue, invert, cuda_stream);
-            cuda_stream.enqueue_attach(input, output, inv_matrix);
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
+        auto center = cylinder.center.template as<coord_t>();
+        auto radius = Vec2<coord_t>::from_values(cylinder.radius, cylinder.length);
+        auto smoothness = static_cast<coord_t>(cylinder.smoothness);
+
+        if (output.device().is_gpu() and
+            ng::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
+            ng::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
+            return guts::launch_draw_shape<3, i32, cylinder_t, smooth_cylinder_t>(
+                    input, output, inverse_transforms, binary_op,
+                    center, radius, smoothness, cylinder.cvalue, cylinder.invert);
         }
+        return guts::launch_draw_shape<3, i64, cylinder_t, smooth_cylinder_t>(
+                input, output, inverse_transforms, binary_op,
+                center, radius, smoothness, cylinder.cvalue, cylinder.invert);
     }
 }
