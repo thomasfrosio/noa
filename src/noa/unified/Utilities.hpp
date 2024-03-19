@@ -112,6 +112,23 @@ namespace noa::guts {
         }
         return true;
     }
+    template<typename Int, typename A, typename I, size_t N> requires nt::is_accessor_nd_v<A, N>
+    [[nodiscard]] constexpr bool is_accessor_access_safe(const A& accessor, const Shape<I, N>& shape) {
+        for (size_t i = 0; i < N; ++i) {
+            const auto end = static_cast<i64>(shape[i] - 1) * static_cast<i64>(accessor.stride(i));
+            if (not is_safe_cast<Int>(end))
+                return false;
+        }
+        return true;
+    }
+    template<typename Int, typename T> requires (nt::is_varray_v<T> or nt::is_texture_v<T>)
+    [[nodiscard]] constexpr bool is_accessor_access_safe(const T& array, const Shape4<i64>& shape) {
+        return ng::is_accessor_access_safe<i32>(array.strides(), shape);
+    }
+    template<typename Int, typename T, typename I, size_t N> requires (std::is_empty_v<T> or nt::is_numeric_v<T>)
+    [[nodiscard]] constexpr bool is_accessor_access_safe(const T&, const Shape<I, N>&) {
+        return true;
+    }
 
     /// Filters the input tuple by remove non-varrays and forwards
     /// the varrays (i.e. store references) into the new tuple.

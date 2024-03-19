@@ -8,7 +8,6 @@
 
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/Types.hpp"
-#include "noa/gpu/cuda/AllocatorArray.hpp"
 #include "noa/gpu/cuda/AllocatorTexture.hpp"
 #include "noa/gpu/cuda/Copy.cuh"
 #endif
@@ -60,11 +59,6 @@ namespace noa {
             /// Only used if border is Border::VALUE.
             value_type cvalue{0};
 
-            /// Whether the GPU texture should be a 2d layered texture.
-            /// The number of layers is equal to the batch dimension of the provided array or shape.
-            /// This is ignored for CPU textures, since they are always considered layered.
-            bool layered{false};
-
             /// Whether the input array should be prefiltered.
             /// If true and if the interpolation is Interp::{CUBIC_BSPLINE|CUBIC_BSPLINE_FAST},
             /// the input is prefiltered in-place before creating/updating the texture.
@@ -88,7 +82,6 @@ namespace noa {
         ///         - \p array should be in the rightmost order and its depth and width dimensions should be C-contiguous.
         ///           In other words, \p array should be C-contiguous or have a valid "pitch" as defined in CUDA.\n
         ///         - \p array can be on any device, including the CPU.\n
-        ///         - If \p options.layered is false or if \p array is a 3D array, \p array cannot be batched.\n
         ///         - \p options.border should be \c Border::{ZERO|CLAMP|PERIODIC|MIRROR}.\n
         ///         - \c Interp::{NEAREST|LINEAR_FAST} are the only modes supporting \c Border::{MIRROR|PERIODIC}.
         /// \note If \p device_target is a CPU, no computation is performed (other the the optional pre-filtering)
@@ -145,7 +138,7 @@ namespace noa {
                     const auto guard = DeviceGuard(device_target);
                     auto texture = noa::cuda::AllocatorTexture<value_type>::allocate(
                             array.shape(), interp_mode, options.border,
-                            options.layered ? cudaArrayLayered : cudaArrayDefault
+                            array.shape().ndim() == 2 ? cudaArrayLayered : cudaArrayDefault
                     );
 
                     // Copy input to CUDA array.
@@ -177,7 +170,6 @@ namespace noa {
         ///       a texture is attached to the new array's memory. The new CUDA array is left
         ///       uninitialized (see update()). Limitations:\n
         ///         - Double precision is not supported.\n
-        ///         - If \p options.layered is false or if \p shape describes a 3d array, \p shape cannot be batched.\n
         ///         - \p options.border should be \c Border::{ZERO|CLAMP|PERIODIC|MIRROR}.\n
         ///         - \c Interp::{NEAREST|LINEAR_FAST} are the only modes supporting \c Border::{MIRROR|PERIODIC}.
         ///
@@ -197,7 +189,7 @@ namespace noa {
                     const auto guard = DeviceGuard(device_target);
                     m_texture = noa::cuda::AllocatorTexture<value_type>::allocate(
                             shape, interp_mode, options.border,
-                            options.layered ? cudaArrayLayered : cudaArrayDefault);
+                            shape.ndim() == 2 ? cudaArrayLayered : cudaArrayDefault);
                     m_options = ArrayOption{device_target, Allocator(MemoryResource::CUDA_ARRAY)};
                 }
                 #else
@@ -380,18 +372,6 @@ namespace noa {
                 return cpu().cvalue;
             else
                 return {}; // GPU textures do not support Border::VALUE
-        }
-
-        [[nodiscard]] bool is_layered() const {
-            if (device().is_cpu()) {
-                return true;
-            } else {
-                #ifdef NOA_ENABLE_CUDA
-                return noa::cuda::AllocatorTexture<value_type>::is_layered(this->cuda()->array);
-                #else
-                return false;
-                #endif
-            }
         }
 
     private: // For now, keep the right to modify the underlying textures to yourself

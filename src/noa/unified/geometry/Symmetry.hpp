@@ -251,63 +251,57 @@ namespace noa::geometry::guts {
         using coord_t = nt::value_type_twice_t<PreMatrix>;
         auto cuda_texture = input.cuda();
         cudaTextureObject_t texture = input.cuda()->texture;
+        constexpr bool is_layered = N == 2;
 
-        auto launch_for_each_interp = [&]<bool IsLayered> {
-            switch (input.interp_mode()) {
-                case Interp::NEAREST: {
-                    using interpolator_t = InterpolatorNd<N, Interp::NEAREST, Value, false, IsLayered, coord_t>;
-                    using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
-                    auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
-                    return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
-                }
-                case Interp::LINEAR: {
-                    using interpolator_t = InterpolatorNd<N, Interp::LINEAR, Value, false, IsLayered, coord_t>;
-                    using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
-                    auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
-                    return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
-                }
-                case Interp::COSINE: {
-                    using interpolator_t = InterpolatorNd<N, Interp::COSINE, Value, false, IsLayered, coord_t>;
-                    using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
-                    auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
-                    return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
-                }
-                case Interp::CUBIC: {
-                    using interpolator_t = InterpolatorNd<N, Interp::CUBIC, Value, false, IsLayered, coord_t>;
-                    using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
-                    auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
-                    return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
-                }
-                case Interp::CUBIC_BSPLINE: {
-                    using interpolator_t = InterpolatorNd<N, Interp::CUBIC_BSPLINE, Value, false, IsLayered, coord_t>;
-                    using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
-                    auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
-                    return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
-                }
-                case Interp::LINEAR_FAST: {
-                    using interpolator_t = InterpolatorNd<N, Interp::LINEAR_FAST, Value, false, IsLayered, coord_t>;
-                    using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
-                    auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
-                    return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
-                }
-                case Interp::COSINE_FAST: {
-                    using interpolator_t = InterpolatorNd<N, Interp::COSINE_FAST, Value, false, IsLayered, coord_t>;
-                    using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
-                    auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
-                    return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
-                }
-                case Interp::CUBIC_BSPLINE_FAST: {
-                    using interpolator_t = InterpolatorNd<N, Interp::CUBIC_BSPLINE_FAST, Value, false, IsLayered, coord_t>;
-                    using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
-                    auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
-                    return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
-                }
+        switch (input.interp_mode()) {
+            case Interp::NEAREST: {
+                using interpolator_t = InterpolatorNd<N, Interp::NEAREST, Value, false, is_layered, coord_t>;
+                using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
+                auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
+                return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
             }
-        };
-        if (N == 2 and input.is_layered()) { // 3d texture cannot be layered
-            launch_for_each_interp.template operator()<true>();
-        } else {
-            launch_for_each_interp.template operator()<false>();
+            case Interp::LINEAR: {
+                using interpolator_t = InterpolatorNd<N, Interp::LINEAR, Value, false, is_layered, coord_t>;
+                using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
+                auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
+                return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
+            }
+            case Interp::COSINE: {
+                using interpolator_t = InterpolatorNd<N, Interp::COSINE, Value, false, is_layered, coord_t>;
+                using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
+                auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
+                return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
+            }
+            case Interp::CUBIC: {
+                using interpolator_t = InterpolatorNd<N, Interp::CUBIC, Value, false, is_layered, coord_t>;
+                using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
+                auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
+                return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
+            }
+            case Interp::CUBIC_BSPLINE: {
+                using interpolator_t = InterpolatorNd<N, Interp::CUBIC_BSPLINE, Value, false, is_layered, coord_t>;
+                using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
+                auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
+                return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
+            }
+            case Interp::LINEAR_FAST: {
+                using interpolator_t = InterpolatorNd<N, Interp::LINEAR_FAST, Value, false, is_layered, coord_t>;
+                using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
+                auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
+                return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
+            }
+            case Interp::COSINE_FAST: {
+                using interpolator_t = InterpolatorNd<N, Interp::COSINE_FAST, Value, false, is_layered, coord_t>;
+                using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
+                auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
+                return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
+            }
+            case Interp::CUBIC_BSPLINE_FAST: {
+                using interpolator_t = InterpolatorNd<N, Interp::CUBIC_BSPLINE_FAST, Value, false, is_layered, coord_t>;
+                using op_t = Symmetrize<N, Index, symmetry_span_t, interpolator_t, output_accessor_t, PreMatrix, PostMatrix>;
+                auto op = op_t(interpolator_t(texture), output_accessor, symmetry_matrices, symmetry_center, symmetry_scaling, pre_matrix, post_matrix);
+                return iwise(output_shape, output.device(), std::move(op), input, output, symmetry);
+            }
         }
     }
     #endif

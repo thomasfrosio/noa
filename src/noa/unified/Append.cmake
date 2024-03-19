@@ -48,9 +48,9 @@ set(NOA_UNIFIED_HEADERS
 
 #    # noa::geometry
 #    unified/geometry/fft/Polar.hpp
-#    unified/geometry/fft/Project.hpp
 #    unified/geometry/Polar.hpp
     unified/geometry/Prefilter.hpp
+    unified/geometry/Project.hpp
     unified/geometry/Transform.hpp
     unified/geometry/Symmetry.hpp
     unified/geometry/Shape.hpp

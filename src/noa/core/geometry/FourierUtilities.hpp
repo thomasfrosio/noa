@@ -4,31 +4,89 @@
 #include "noa/core/fft/Frequency.hpp"
 #include "noa/core/geometry/Interpolate.hpp"
 #include "noa/core/geometry/Quaternion.hpp"
-#include "noa/core/utils/Atomic.hpp"
 
-namespace noa::geometry::details {
-    using Remap = ::noa::fft::Remap;
+namespace noa::geometry::guts {
+    template<typename Scale, typename Coord, typename Value = nt::value_type_t<Scale>>
+    constexpr bool is_valid_fourier_scaling_v =
+            std::is_empty_v<Scale> or
+            (nt::is_accessor_nd_v<Scale, 1> and nt::is_any_v<Value, Mat22<Coord>>);
+
+    template<typename Rotate, typename Matrix = nt::value_type_t<Rotate>>
+    constexpr bool is_valid_fourier_rotate_v =
+            nt::is_accessor_nd_v<Rotate, 1> and (nt::is_mat33_v<Matrix> or nt::is_quaternion_v<Matrix>);
+
+    template<typename Input, typename Output,
+             typename InputValue = nt::value_type_t<Input>,
+             typename OutputValue = nt::value_type_t<Output>>
+    constexpr bool is_valid_fourier_value_type_v =
+            nt::are_complex_v<InputValue, OutputValue> or
+            nt::are_real_v<InputValue, OutputValue> or
+            (nt::is_complex_v<InputValue> and nt::is_real_v<OutputValue>);
+
+    template<typename Input, typename Output,
+             typename InputValue = nt::value_type_t<Input>,
+             typename OutputValue = nt::value_type_t<Output>>
+    constexpr bool is_valid_fourier_weight_type_v =
+            nt::are_real_v<InputValue, OutputValue> or
+            (std::is_empty_v<Input> and nt::is_real_v<OutputValue>) or
+            (std::is_empty_v<Input> and std::is_empty_v<Output>);
+
+    template<typename Coord, typename Rotate, typename Integer>
+    NOA_FHD constexpr auto fourier_apply_rotate(
+            const Vec3<Coord>& fftfreq_3d,
+            const Rotate& rotation, // Accessor(Value)<Mat33|Quaternion>, Mat33|Quaternion
+            Integer index
+    ) -> Vec3<Coord> {
+        if constexpr (nt::is_accessor_nd_v<Rotate, 1>) {
+            using rotate_value_t = nt::value_type_t<Rotate>;
+            if constexpr (nt::is_mat33_v<rotate_value_t>) {
+                return rotation[index] * fftfreq_3d;
+            } else if constexpr (nt::is_quaternion_v<rotate_value_t>) {
+                return rotation[index].rotate(fftfreq_3d);
+            } else {
+                static_assert(nt::always_false_v<Rotate>);
+            }
+        } else if constexpr (nt::is_mat33_v<Rotate>) {
+            return rotation * fftfreq_3d;
+        } else if constexpr (nt::is_quaternion_v<Rotate>) {
+            return rotation.rotate(fftfreq_3d);
+        } else {
+            static_assert(nt::always_false_v<Rotate>);
+        }
+    }
+
+    template<typename Coord, typename ScaleOrEmpty, typename Integer>
+    NOA_FHD constexpr auto fourier_apply_scaling(
+            const Vec2<Coord>& fftfreq_2d,
+            const ScaleOrEmpty& scaling_matrix, // Accessor<Mat22>, AccessorValue<Mat22|Empty>, Mat22|Empty
+            Integer index
+    ) -> Vec2<Coord> {
+        if constexpr (nt::is_accessor_nd_v<ScaleOrEmpty, 1> and nt::is_mat22_v<nt::value_type_t<ScaleOrEmpty>>)
+            return scaling_matrix[index] * fftfreq_2d;
+        else if constexpr (nt::is_mat22_v<ScaleOrEmpty>)
+            return scaling_matrix * fftfreq_2d;
+        else if constexpr (std::is_empty_v<ScaleOrEmpty>)
+            return fftfreq_2d;
+        else
+            static_assert(nt::always_false_v<ScaleOrEmpty>);
+    }
 
     // Transforms a 3d fftfreq representing the slice, to its 3d fftfreq in the grid.
     // This is a forward transformation of the frequency, but because it is in Fourier-space,
     // the real-space scaling is inverted.
-    template<typename Coord, typename ScaleOrEmtpy, typename Rotate, typename Integer, typename EWSOrEmpty>
-    constexpr NOA_IHD auto
-    transform_slice2grid(
+    template<typename Coord, typename ScaleOrEmpty, typename Rotate, typename Integer, typename EWSOrEmpty>
+    NOA_IHD constexpr auto fourier_slice2grid(
             Vec2<Coord> fftfreq,
-            const ScaleOrEmtpy& inv_scaling, // 2x2 matrix
-            const Rotate& fwd_rotation, // 3x3
+            const ScaleOrEmpty& inv_scaling, // Accessor<Mat22>, AccessorValue<Mat22|Empty>, Mat22|Empty
+            const Rotate& fwd_rotation,      // Accessor(Value)<Mat33|Quaternion>, Mat33|Quaternion
             Integer batch_index,
-            EWSOrEmpty inv_ews_diameter
+            EWSOrEmpty inv_ews_diameter      // Vec2|Empty
     ) -> Vec3<Coord> {
         // If we apply the EWS curvature, the scaling factors should be corrected
         // before applying the curvature, and therefore before applying the rotation.
         // That way, we use the correct frequencies to compute the EWS, e.g., resulting
         // in a spherical EWS even under anisotropic magnification.
-        if constexpr (std::is_pointer_v<ScaleOrEmtpy> or nt::is_accessor_nd_v<ScaleOrEmtpy, 1>)
-            fftfreq = inv_scaling[batch_index] * fftfreq;
-        else if constexpr (nt::is_mat22_v<ScaleOrEmtpy>)
-            fftfreq = inv_scaling * fftfreq;
+        fftfreq = fourier_apply_scaling(fftfreq, inv_scaling, batch_index);
 
         // TODO We use the Small Angle Approximation to compute the EWS curvature,
         //      so the frequency (u,v) is unchanged. Look at the cisTEM implementation
@@ -38,48 +96,19 @@ namespace noa::geometry::details {
         if constexpr (not std::is_empty_v<EWSOrEmpty>)
             fftfreq_3d[0] = sum(inv_ews_diameter * fftfreq * fftfreq);
 
-        // TODO C++20 requires{fwd_rotation[batch_index]}
-        if constexpr (std::is_pointer_v<Rotate> or nt::is_accessor_nd_v<Rotate, 1>) {
-            using rotate_value_t = std::remove_pointer_t<nt::value_type_t<Rotate>>;
-            if constexpr (nt::is_mat33_v<rotate_value_t>) {
-                return fwd_rotation[batch_index] * fftfreq_3d;
-            } else if constexpr (nt::is_quaternion_v<rotate_value_t>) {
-                return fwd_rotation[batch_index].rotate(fftfreq_3d);
-            } else {
-                static_assert(nt::always_false_v<Rotate>);
-            }
-        } else if constexpr (nt::is_mat33_v<Rotate>) {
-            return fwd_rotation * fftfreq_3d;
-        } else if constexpr (nt::is_quaternion_v<Rotate>) {
-            return fwd_rotation.rotate(fftfreq_3d);
-        } else {
-            static_assert(nt::always_false_v<Rotate>);
-        }
+        return fourier_apply_rotate(fftfreq_3d, fwd_rotation, batch_index);
     }
 
     // Same as above, but in the other direction.
-    template<typename Coord, typename ScaleOrEmpty, typename Rotate, typename Int, typename EWSOrEmpty>
-    constexpr NOA_IHD auto
-    transform_grid2slice(
+    template<typename Coord, typename ScaleOrEmpty, typename Rotate, typename Integer, typename EWSOrEmpty>
+    NOA_IHD constexpr auto fourier_grid2slice(
             Vec3<Coord> frequency,
-            const ScaleOrEmpty& fwd_scaling_matrices,
-            const Rotate& inv_rotation,
-            Int index, EWSOrEmpty inv_ews_diameter
+            const ScaleOrEmpty& fwd_scaling_matrices, // Accessor<Mat22>, AccessorValue<Mat22|Empty>, Mat22|Empty
+            const Rotate& inv_rotation,               // Accessor(Value)<Mat33|Quaternion>, Mat33|Quaternion
+            Integer index,
+            EWSOrEmpty inv_ews_diameter               // Vec2|Empty
     ) -> Pair<Coord, Vec2<Coord>> {
-        if constexpr (std::is_pointer_v<Rotate> or nt::is_accessor_nd_v<Rotate, 1>) {
-            using rotate_value_t = std::remove_pointer_t<nt::value_type_t<Rotate>>;
-            if constexpr (nt::is_mat33_v<rotate_value_t>)
-                frequency = inv_rotation[index] * frequency;
-            else  if constexpr (nt::is_quaternion_v<rotate_value_t>)
-                frequency = inv_rotation[index].rotate(frequency);
-            else
-                static_assert(nt::always_false_v<Rotate>);
-        } else if constexpr (nt::is_mat33_v<Rotate>)
-            frequency = inv_rotation * frequency;
-        else if constexpr (nt::is_quaternion_v<Rotate>)
-            frequency = inv_rotation.rotate(frequency);
-        else
-            static_assert(nt::always_false_v<Rotate>);
+        frequency = fourier_apply_rotate(frequency, inv_rotation, index);
 
         Vec2<Coord> freq_2d{frequency[1], frequency[2]};
         Coord freq_z = frequency[0];
@@ -89,17 +118,13 @@ namespace noa::geometry::details {
         // Same reason as for the forward transformation.
         // Here the grid is correct, so rotate the EWS, then compute
         // the curvature and only then we can scale the slice.
-        if constexpr (std::is_pointer_v<ScaleOrEmpty>)
-            freq_2d = fwd_scaling_matrices[index] * freq_2d;
-        else if constexpr (nt::is_mat22_v<ScaleOrEmpty>)
-            freq_2d = fwd_scaling_matrices * freq_2d;
-
+        freq_2d = fourier_apply_scaling(freq_2d, fwd_scaling_matrices, index);
         return {freq_z, freq_2d};
     }
 
     // Interpolates the value at a given frequency, in cycle per pixel.
     template<typename Interpolator, typename Int, typename Coord>
-    constexpr NOA_HD auto interpolate_slice_value(
+    NOA_HD constexpr auto interpolate_slice_value(
             Vec2<Coord> frequency, const Vec2<Coord>& slice_shape, Coord center_y,
             const Interpolator& interpolator, Int batch
     ) {
@@ -127,7 +152,7 @@ namespace noa::geometry::details {
 
     // Interpolates the value at a given frequency, in cycle per pixel.
     template<typename Interpolator, typename Coord>
-    constexpr NOA_HD auto interpolate_grid_value(
+    NOA_HD constexpr auto interpolate_grid_value(
             Vec3<Coord> frequency, const Vec3<Coord>& target_shape,
             const Vec2<Coord>& grid_center_zy, const Interpolator& interpolator
     ) {
@@ -154,8 +179,8 @@ namespace noa::geometry::details {
     }
 
     template<typename Dst, typename Src>
-    constexpr NOA_FHD auto cast_or_power_spectrum(Src value) {
-        if constexpr (nt::is_complex_v<Src> && nt::is_real_v<Dst>) {
+    NOA_FHD constexpr auto cast_or_power_spectrum(Src value) {
+        if constexpr (nt::is_complex_v<Src> and nt::is_real_v<Dst>) {
             return static_cast<Dst>(abs_squared(value));
         } else {
             return static_cast<Dst>(value);

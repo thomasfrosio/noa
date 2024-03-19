@@ -197,89 +197,83 @@ namespace noa::geometry::guts {
         using coord_t = nt::value_type_twice_t<Matrix>;
         auto cuda_texture = input.cuda();
         cudaTextureObject_t texture = input.cuda()->texture;
+        constexpr bool is_layered = N == 2;
 
-        auto launch_for_each_interp = [&]<bool IsLayered>{
-            if (input.border_mode() == Border::PERIODIC or input.border_mode() == Border::MIRROR) { // normalized coords
-                const auto f_shape = [&input] {
-                    if constexpr (N == 2)
-                        return input.shape().filter(2, 3).vec.template as<coord_t>();
-                    else
-                        return input.shape().filter(1, 2, 3).vec.template as<coord_t>();
-                }();
-                if (input.interp_mode() == Interp::NEAREST) {
-                    using interpolator_t = InterpolatorNd<N, Interp::NEAREST, Value, true, IsLayered, coord_t>;
-                    using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
-                    auto interpolator = interpolator_t(texture, f_shape);
-                    auto op = op_t(interpolator, output_accessor, extract_transform(inv_matrices));
-                    return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
+        if (input.border_mode() == Border::PERIODIC or input.border_mode() == Border::MIRROR) { // normalized coords
+            const auto f_shape = [&input] {
+                if constexpr (N == 2)
+                    return input.shape().filter(2, 3).vec.template as<coord_t>();
+                else
+                    return input.shape().filter(1, 2, 3).vec.template as<coord_t>();
+            }();
+            if (input.interp_mode() == Interp::NEAREST) {
+                using interpolator_t = InterpolatorNd<N, Interp::NEAREST, Value, true, is_layered, coord_t>;
+                using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
+                auto interpolator = interpolator_t(texture, f_shape);
+                auto op = op_t(interpolator, output_accessor, extract_transform(inv_matrices));
+                return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
 
-                } else if (input.interp_mode() == Interp::LINEAR_FAST) {
-                    using interpolator_t = InterpolatorNd<N, Interp::LINEAR_FAST, Value, true, IsLayered, coord_t>;
-                    using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
-                    auto interpolator = interpolator_t(texture, f_shape);
-                    auto op = op_t(interpolator, output_accessor, extract_transform(inv_matrices));
-                    return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
+            } else if (input.interp_mode() == Interp::LINEAR_FAST) {
+                using interpolator_t = InterpolatorNd<N, Interp::LINEAR_FAST, Value, true, is_layered, coord_t>;
+                using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
+                auto interpolator = interpolator_t(texture, f_shape);
+                auto op = op_t(interpolator, output_accessor, extract_transform(inv_matrices));
+                return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
 
-                } else {
-                    panic("{} is not supported with {}", input.interp_mode(), input.border_mode());
-                }
             } else {
-                switch (input.interp_mode()) {
-                    case Interp::NEAREST: {
-                        using interpolator_t = InterpolatorNd<N, Interp::NEAREST, Value, false, IsLayered, coord_t>;
-                        using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
-                        auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
-                        return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
-                    }
-                    case Interp::LINEAR: {
-                        using interpolator_t = InterpolatorNd<N, Interp::LINEAR, Value, false, IsLayered, coord_t>;
-                        using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
-                        auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
-                        return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
-                    }
-                    case Interp::COSINE: {
-                        using interpolator_t = InterpolatorNd<N, Interp::COSINE, Value, false, IsLayered, coord_t>;
-                        using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
-                        auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
-                        return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
-                    }
-                    case Interp::CUBIC: {
-                        using interpolator_t = InterpolatorNd<N, Interp::CUBIC, Value, false, IsLayered, coord_t>;
-                        using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
-                        auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
-                        return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
-                    }
-                    case Interp::CUBIC_BSPLINE: {
-                        using interpolator_t = InterpolatorNd<N, Interp::CUBIC_BSPLINE, Value, false, IsLayered, coord_t>;
-                        using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
-                        auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
-                        return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
-                    }
-                    case Interp::LINEAR_FAST: {
-                        using interpolator_t = InterpolatorNd<N, Interp::LINEAR_FAST, Value, false, IsLayered, coord_t>;
-                        using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
-                        auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
-                        return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
-                    }
-                    case Interp::COSINE_FAST: {
-                        using interpolator_t = InterpolatorNd<N, Interp::COSINE_FAST, Value, false, IsLayered, coord_t>;
-                        using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
-                        auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
-                        return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
-                    }
-                    case Interp::CUBIC_BSPLINE_FAST: {
-                        using interpolator_t = InterpolatorNd<N, Interp::CUBIC_BSPLINE_FAST, Value, false, IsLayered, coord_t>;
-                        using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
-                        auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
-                        return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
-                    }
+                panic("{} is not supported with {}", input.interp_mode(), input.border_mode());
+            }
+        } else {
+            switch (input.interp_mode()) {
+                case Interp::NEAREST: {
+                    using interpolator_t = InterpolatorNd<N, Interp::NEAREST, Value, false, is_layered, coord_t>;
+                    using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
+                    auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
+                    return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
+                }
+                case Interp::LINEAR: {
+                    using interpolator_t = InterpolatorNd<N, Interp::LINEAR, Value, false, is_layered, coord_t>;
+                    using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
+                    auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
+                    return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
+                }
+                case Interp::COSINE: {
+                    using interpolator_t = InterpolatorNd<N, Interp::COSINE, Value, false, is_layered, coord_t>;
+                    using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
+                    auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
+                    return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
+                }
+                case Interp::CUBIC: {
+                    using interpolator_t = InterpolatorNd<N, Interp::CUBIC, Value, false, is_layered, coord_t>;
+                    using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
+                    auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
+                    return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
+                }
+                case Interp::CUBIC_BSPLINE: {
+                    using interpolator_t = InterpolatorNd<N, Interp::CUBIC_BSPLINE, Value, false, is_layered, coord_t>;
+                    using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
+                    auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
+                    return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
+                }
+                case Interp::LINEAR_FAST: {
+                    using interpolator_t = InterpolatorNd<N, Interp::LINEAR_FAST, Value, false, is_layered, coord_t>;
+                    using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
+                    auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
+                    return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
+                }
+                case Interp::COSINE_FAST: {
+                    using interpolator_t = InterpolatorNd<N, Interp::COSINE_FAST, Value, false, is_layered, coord_t>;
+                    using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
+                    auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
+                    return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
+                }
+                case Interp::CUBIC_BSPLINE_FAST: {
+                    using interpolator_t = InterpolatorNd<N, Interp::CUBIC_BSPLINE_FAST, Value, false, is_layered, coord_t>;
+                    using op_t = Transform<N, Index, matrix_t, interpolator_t, output_accessor_t>;
+                    auto op = op_t(interpolator_t(texture), output_accessor, extract_transform(inv_matrices));
+                    return iwise(output_shape, output.device(), std::move(op), cuda_texture, output, inv_matrices);
                 }
             }
-        };
-        if (N == 2 and input.is_layered()) { // 3d textures cannot be layered
-            launch_for_each_interp.template operator()<true>();
-        } else {
-            launch_for_each_interp.template operator()<false>();
         }
     }
 #endif
