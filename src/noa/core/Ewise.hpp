@@ -135,6 +135,15 @@ namespace noa {
         }
     };
 
+    struct ZeroInitialize {
+        using allow_vectorization = bool; // meaning this cannot be used to modify the input
+
+        template<typename... U>
+        NOA_HD constexpr void operator()(U&... dst) const {
+            ((dst = U{}), ...);
+        }
+    };
+
     struct Cast {
         using allow_vectorization = bool;
         bool clamp{};
