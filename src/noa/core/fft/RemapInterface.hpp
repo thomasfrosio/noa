@@ -1,16 +1,24 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/Enums.hpp"
 
+#ifdef NOA_IS_OFFLINE
+#include <string_view>
+#endif
+
 namespace noa::fft {
-    struct RemapInterface {
+    class RemapInterface {
+    public:
+        using underlying_type = std::underlying_type_t<Remap>;
+        using Layout = noa::fft::Layout;
+
         Remap remap;
 
+    public:
         constexpr /*implicit*/ RemapInterface(Remap remap_) : remap(remap_) {}
 
+#ifdef NOA_IS_OFFLINE
         template<size_t N>
         constexpr /*implicit*/ RemapInterface(const char (& name)[N]) {
             std::string_view name_(name);
@@ -54,6 +62,32 @@ namespace noa::fft {
                 remap = Remap::NONE;
             }
         }
+#endif
+
+        [[nodiscard]] constexpr bool is_any(auto... remaps) const noexcept {
+            return ((remap == remaps) or ...);
+        }
+
+        [[nodiscard]] constexpr bool is_hx2xx()  const noexcept { return layout_() & Layout::SRC_HALF; }
+        [[nodiscard]] constexpr bool is_fx2xx()  const noexcept { return layout_() & Layout::SRC_FULL; }
+        [[nodiscard]] constexpr bool is_xx2hx()  const noexcept { return layout_() & Layout::DST_HALF; }
+        [[nodiscard]] constexpr bool is_xx2fx()  const noexcept { return layout_() & Layout::DST_FULL; }
+
+        [[nodiscard]] constexpr bool is_xc2xx()  const noexcept { return layout_() & Layout::SRC_CENTERED; }
+        [[nodiscard]] constexpr bool is_xx2xc()  const noexcept { return layout_() & Layout::DST_CENTERED; }
+
+        [[nodiscard]] constexpr bool is_hc2xx() const noexcept { return (layout_() & Layout::SRC_HALF) and (layout_() & Layout::SRC_CENTERED); }
+        [[nodiscard]] constexpr bool is_h2xx()  const noexcept { return (layout_() & Layout::SRC_HALF) and (layout_() & Layout::SRC_NON_CENTERED); }
+        [[nodiscard]] constexpr bool is_fc2xx() const noexcept { return (layout_() & Layout::SRC_FULL) and (layout_() & Layout::SRC_CENTERED); }
+        [[nodiscard]] constexpr bool is_f2xx()  const noexcept { return (layout_() & Layout::SRC_FULL) and (layout_() & Layout::SRC_NON_CENTERED); }
+        [[nodiscard]] constexpr bool is_xx2hc() const noexcept { return (layout_() & Layout::DST_HALF) and (layout_() & Layout::DST_CENTERED); }
+        [[nodiscard]] constexpr bool is_xx2h()  const noexcept { return (layout_() & Layout::DST_HALF) and (layout_() & Layout::DST_NON_CENTERED); }
+        [[nodiscard]] constexpr bool is_xx2fc() const noexcept { return (layout_() & Layout::DST_FULL) and (layout_() & Layout::DST_CENTERED); }
+        [[nodiscard]] constexpr bool is_xx2f()  const noexcept { return (layout_() & Layout::DST_FULL) and (layout_() & Layout::DST_NON_CENTERED); }
+
+    private:
+        [[nodiscard]] constexpr underlying_type layout_() const noexcept {
+            return static_cast<underlying_type>(remap);
+        }
     };
 }
-#endif
