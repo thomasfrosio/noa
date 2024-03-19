@@ -476,7 +476,7 @@ namespace noa::inline types {
         template<size_t>
         [[nodiscard]] NOA_HD constexpr index_type stride() const noexcept { return 0; }
         [[nodiscard]] NOA_HD constexpr index_type stride(std::integral auto) const noexcept { return 0; }
-        [[nodiscard]] NOA_HD constexpr const strides_type& strides() const noexcept { return m_strides; }
+        [[nodiscard]] NOA_HD constexpr strides_type strides() const noexcept { return strides_type{}; }
 
     public:
         // Note: restrict is a type qualifier and is ignored in the return type? -Wignored-qualifiers
@@ -555,8 +555,7 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr mutable_value_type& deref_() noexcept { return m_value; }
 
     private:
-        mutable_value_type m_value;
-        NOA_NO_UNIQUE_ADDRESS strides_type m_strides;
+        NOA_NO_UNIQUE_ADDRESS mutable_value_type m_value;
     };
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
