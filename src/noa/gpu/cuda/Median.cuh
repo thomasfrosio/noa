@@ -38,7 +38,7 @@ namespace noa::cuda {
         sort(to_sort, shape_1d.strides(), shape_1d, true, -1, stream);
 
         // Retrieve the median.
-        const bool is_even = is_even(n_elements);
+        const bool is_even = noa::is_even(n_elements);
         Value out[2];
         copy(to_sort + (n_elements - is_even) / 2, out, 1 + is_even, stream);
         stream.synchronize();
