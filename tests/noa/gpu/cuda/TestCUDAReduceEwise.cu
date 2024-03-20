@@ -35,7 +35,7 @@ TEST_CASE("cuda::reduce_ewise") {
     Stream stream(Device::current());
 
     AND_THEN("simple sum, contiguous") {
-        const std::array shapes = {Shape4<i64>{1, 50, 1, 100}, test::get_random_shape4_batched(4)};
+        const std::array shapes = {Shape4<i64>{1, 50, 1, 100}, test::get_random_shape4_batched(4, true)};
         for (const auto& shape: shapes) {
             INFO("shape=" << shape);
             const auto n_elements = shape.elements();
