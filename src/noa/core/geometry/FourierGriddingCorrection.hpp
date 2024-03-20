@@ -15,9 +15,7 @@ namespace noa::geometry {
         using output_accessor_type = OutputAccessor;
         using output_value_type = nt::value_type_t<output_accessor_type>;
         using input_value_type = nt::value_type_t<input_accessor_type>;
-        using input_real_type = nt::value_type_t<input_value_type>;
-        static_assert(nt::are_complex_v<input_value_type, output_value_type> or
-                      nt::are_real_v<input_value_type, output_value_type>);
+        static_assert(nt::are_real_v<input_value_type, output_value_type>);
 
     public:
         template<typename T>
@@ -41,7 +39,7 @@ namespace noa::geometry {
             constexpr coord_type PI = Constant<coord_type>::PI;
             const coord_type radius = sqrt(dot(dist, dist));
             const coord_type sinc = sinc(PI * radius);
-            const auto sinc2 = static_cast<input_real_type>(sinc * sinc); // > 0.05
+            const auto sinc2 = static_cast<input_value_type>(sinc * sinc); // > 0.05
 
             const auto value = m_input(batch, j, k, l);
             if constexpr (POST_CORRECTION) {

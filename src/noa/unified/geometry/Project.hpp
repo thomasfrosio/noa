@@ -130,13 +130,8 @@ namespace noa::geometry::guts {
                   input_shape, output_shape);
         }
 
-        auto check_transform = [&]<bool IsOptional>(const auto& transform, i64 required_size, std::string_view name) {
-            if constexpr (IsOptional) {
-                if (transform.is_empty())
-                    return;
-            } else {
-                check(not transform.is_empty(), "{} should not be empty", name);
-            }
+        auto check_transform = [&](const auto& transform, i64 required_size, std::string_view name) {
+            check(not transform.is_empty(), "{} should not be empty", name);
             check(ni::is_contiguous_vector(transform) and transform.elements() == required_size,
                   "{} should be a contiguous vector of n_slices={}, but got {}:shape={}, {}:strides={}",
                   name, required_size, name, transform.shape(), name, transform.strides());
@@ -145,15 +140,15 @@ namespace noa::geometry::guts {
 
         const auto required_count = DIRECTION == ProjectionType::EXTRACT ? output_shape[0] : input_shape[0];
         if constexpr (nt::is_varray_v<InputScale>)
-            check_transform<true>(input_scaling, required_count, "input_scaling");
+            check_transform(input_scaling, required_count, "input_scaling");
         if constexpr (nt::is_varray_v<InputRotate>)
-            check_transform<false>(input_rotation, required_count, "input_rotation");
+            check_transform(input_rotation, required_count, "input_rotation");
 
         // Only for INSERT_EXTRACT.
         if constexpr (nt::is_varray_v<OutputScale>)
-            check_transform<true>(output_scaling, output_shape[0], "output_scaling");
+            check_transform(output_scaling, output_shape[0], "output_scaling");
         if constexpr (nt::is_varray_v<OutputRotate>)
-            check_transform<false>(output_rotation, output_shape[0], "output_rotation");
+            check_transform(output_rotation, output_shape[0], "output_rotation");
     }
 
     auto fourier_insert_extract_interp_mode(const auto& input, const auto& input_weight) -> Interp {
@@ -234,8 +229,8 @@ namespace noa::geometry::guts {
             typename Output, typename OutputWeight,
             typename Scale, typename Rotate>
     void launch_fourier_insert_rasterize_3d(
-            const Input& slice, const InputWeight& slice_weight, const Shape4<i64> slice_shape,
-            const Output& volume, const OutputWeight& volume_weight, const Shape4<i64> volume_shape,
+            const Input& slice, const InputWeight& slice_weight, const Shape4<i64>& slice_shape,
+            const Output& volume, const OutputWeight& volume_weight, const Shape4<i64>& volume_shape,
             const Scale& scaling, const Rotate& rotation,
             f64 fftfreq_cutoff, Shape4<i64> target_shape, Vec2<f64> ews_radius
     ) {
@@ -288,8 +283,8 @@ namespace noa::geometry::guts {
              typename Output, typename OutputWeight,
              typename Scale, typename Rotate>
     void launch_fourier_insert_interpolate_3d(
-            const Input& slice, const InputWeight& slice_weight, const Shape4<i64> slice_shape,
-            const Output& volume, const OutputWeight& volume_weight, const Shape4<i64> volume_shape,
+            const Input& slice, const InputWeight& slice_weight, const Shape4<i64>& slice_shape,
+            const Output& volume, const OutputWeight& volume_weight, const Shape4<i64>& volume_shape,
             const Scale& scaling, const Rotate& rotation, Interp interp_mode,
             f64 fftfreq_sinc, f64 fftfreq_blackman, f64 fftfreq_cutoff,
             Shape4<i64> target_shape, Vec2<f64> ews_radius
@@ -357,8 +352,8 @@ namespace noa::geometry::guts {
              typename Output, typename OutputWeight,
              typename Scale, typename Rotate>
     void launch_fourier_extract_3d(
-            const Input& volume, const InputWeight& volume_weight, const Shape4<i64> volume_shape,
-            const Output& slice, const OutputWeight& slice_weight, const Shape4<i64> slice_shape,
+            const Input& volume, const InputWeight& volume_weight, const Shape4<i64>& volume_shape,
+            const Output& slice, const OutputWeight& slice_weight, const Shape4<i64>& slice_shape,
             const Scale& scaling, const Rotate& rotation, Interp interp_mode,
             f64 fftfreq_sinc, f64 fftfreq_blackman, f64 fftfreq_cutoff,
             Shape4<i64> target_shape, Vec2<f64> ews_radius
@@ -438,6 +433,118 @@ namespace noa::geometry::guts {
             launch(input_volume_interpolator, input_volume_weight_interpolator);
         }
     }
+
+    template<noa::fft::RemapInterface Remap, typename Index, bool IsCPU,
+             typename Input, typename InputWeight,
+             typename Output, typename OutputWeight,
+             typename InputScale, typename InputRotate,
+             typename OutputScale, typename OutputRotate>
+    void launch_fourier_insert_interpolate_extract_3d(
+            const Input& input_slice, const InputWeight& input_weight, const Shape4<i64>& input_shape,
+            const Output& output_slice, const OutputWeight& output_weight, const Shape4<i64>& output_shape,
+            const InputScale& input_scaling, const InputRotate& input_rotation,
+            const OutputScale& output_scaling, const OutputRotate& output_rotation,
+            Interp interp_mode, bool add_to_output, bool correct_multiplicity,
+            f64 fftfreq_sinc, f64 fftfreq_blackman, f64 w_fftfreq_sinc, f64 w_fftfreq_blackman,
+            f64 fftfreq_cutoff, Vec2<f64> ews_radius
+    ) {
+        using coord_t = nt::value_type_twice_t<InputRotate>;
+        auto output_slice_accessor = fourier_insert_extract_to_accessor<false, false, 3, Index>(output_slice, 0, 2, 3);
+        auto output_weight_accessor = fourier_insert_extract_to_accessor<false, false, 3, Index>(output_weight, 0, 2, 3);
+        auto input_scaling_accessor = fourier_insert_extract_to_accessor<true, true, 1, Index>(input_scaling);
+        auto input_rotation_accessor = fourier_insert_extract_to_accessor<true, true, 1, Index>(input_rotation);
+        auto output_scaling_accessor = fourier_insert_extract_to_accessor<true, true, 1, Index>(output_scaling);
+        auto output_rotation_accessor = fourier_insert_extract_to_accessor<true, true, 1, Index>(output_rotation);
+
+        using slice_at = decltype(output_slice_accessor);
+        using weight_at = decltype(output_weight_accessor);
+        using iscale_at = decltype(input_scaling_accessor);
+        using irotate_at = decltype(input_rotation_accessor);
+        using oscale_at = decltype(output_scaling_accessor);
+        using orotate_at = decltype(output_rotation_accessor);
+
+        const auto s_input_shape = input_shape.as<Index>();
+        const auto s_output_shape = output_shape.as<Index>();
+        const auto fftfreq_sinc_ = static_cast<coord_t>(fftfreq_sinc);
+        const auto fftfreq_blackman_ = static_cast<coord_t>(fftfreq_blackman);
+        const auto w_fftfreq_sinc_ = static_cast<coord_t>(w_fftfreq_sinc);
+        const auto w_fftfreq_blackman_ = static_cast<coord_t>(w_fftfreq_blackman);
+        const auto fftfreq_cutoff_ = static_cast<coord_t>(fftfreq_cutoff);
+        const auto ews_radius_ = ews_radius.template as<coord_t>();
+        const auto has_ews = any(ews_radius != 0);
+        const bool has_scale = fourier_project_has_scale(input_scaling) or fourier_project_has_scale(output_scaling);
+        const auto device = output_slice.device();
+
+        auto fill_with_zeros = [&]{
+            if constexpr (std::is_empty_v<OutputWeight>)
+                ewise({}, wrap(output_slice), ZeroInitialize{});
+            else
+                ewise({}, wrap(output_slice, output_weight), ZeroInitialize{});
+        };
+
+        auto launch = [&]<typename T, typename U>(const T& input_interpolator, const U& input_weight_interpolator) {
+            if (has_ews or has_scale) {
+                auto op = FourierInsertExtract
+                        <Remap.remap, Index, iscale_at, irotate_at, oscale_at, orotate_at, Vec2<coord_t>, T, U, slice_at, weight_at>
+                        (input_interpolator, input_weight_interpolator, s_input_shape,
+                         output_slice_accessor, output_weight_accessor, s_output_shape,
+                         input_scaling_accessor, input_rotation_accessor,
+                         output_scaling_accessor, output_rotation_accessor,
+                         fftfreq_sinc_, fftfreq_blackman_, w_fftfreq_sinc_, w_fftfreq_blackman_,
+                         fftfreq_cutoff_, add_to_output, correct_multiplicity, ews_radius_);
+                if (op.is_iwise_4d()) {
+                    check(not correct_multiplicity, "");
+                    if (not add_to_output)
+                        fill_with_zeros();
+                    const auto iwise_shape = s_output_shape.set<1>(op.output_window_size()).rfft();
+                    iwise(iwise_shape, device, op,
+                          input_slice, input_weight, output_slice, output_weight,
+                          input_scaling, input_rotation, output_scaling, output_rotation);
+                } else {
+                    const auto iwise_shape = s_output_shape.filter(0, 2, 3).rfft();
+                    iwise(iwise_shape, device, op,
+                          input_slice, input_weight, output_slice, output_weight,
+                          input_scaling, input_rotation, output_scaling, output_rotation);
+                }
+            } else {
+                auto op = FourierInsertExtract
+                        <Remap.remap, Index, Empty, irotate_at, Empty, orotate_at, Empty, T, U, slice_at, weight_at>
+                        (input_interpolator, input_weight_interpolator, s_input_shape,
+                         output_slice_accessor, output_weight_accessor, s_output_shape,
+                         {}, input_rotation_accessor, {}, output_rotation_accessor,
+                         fftfreq_sinc_, fftfreq_blackman_, w_fftfreq_sinc_, w_fftfreq_blackman_,
+                         fftfreq_cutoff_, add_to_output, correct_multiplicity, {});
+                if (op.is_iwise_4d()) {
+                    if (not add_to_output)
+                        fill_with_zeros();
+                    const auto iwise_shape = s_output_shape.set<1>(op.output_window_size()).rfft();
+                    iwise(iwise_shape, device, op,
+                          input_slice, input_weight, output_slice, output_weight,
+                          input_rotation, output_rotation);
+                } else {
+                    const auto iwise_shape = s_output_shape.filter(0, 2, 3).rfft();
+                    iwise(iwise_shape, device, op,
+                          input_slice, input_weight, output_slice, output_weight,
+                          input_rotation, output_rotation);
+                }
+            }
+        };
+
+        auto input_shape_3d = input_slice.filter(0, 2, 3);
+        if (interp_mode == Interp::LINEAR) {
+            auto input_slice_interpolator = fourier_insert_extract_to_interpolator
+                    <IsCPU, Index, Interp::LINEAR, coord_t>(input_slice, input_shape_3d, 0, 2, 3);
+            auto input_weight_interpolator = fourier_insert_extract_to_interpolator
+                    <IsCPU, Index, Interp::LINEAR, coord_t>(input_weight, input_shape_3d, 0, 2, 3);
+            launch(input_slice_interpolator, input_weight_interpolator);
+        } else {
+            auto input_slice_interpolator = fourier_insert_extract_to_interpolator
+                    <IsCPU, Index, Interp::LINEAR_FAST, coord_t>(input_slice, input_shape_3d, 0, 2, 3);
+            auto input_weight_interpolator = fourier_insert_extract_to_interpolator
+                    <IsCPU, Index, Interp::LINEAR_FAST, coord_t>(input_weight, input_shape_3d, 0, 2, 3);
+            launch(input_slice_interpolator, input_weight_interpolator);
+        }
+    }
 }
 
 namespace noa::geometry {
@@ -491,9 +598,8 @@ namespace noa::geometry {
     /// \param[out] volume_weight   (optional) Varray associated with \p volume.
     /// \param volume_shape         BDHW logical shape of \p volume.
     /// \param[in] inv_scaling      2x2 HW \e inverse real-space scaling matrix to apply to the slices
-    ///                             before the rotation. If an array is passed, it can be empty or have
-    ///                             one matrix per slice. Otherwise the same scaling matrix is applied
-    ///                             to every slice.
+    ///                             before the rotation. If an array is passed, it should have one element per slice.
+    ///                             Otherwise the same scaling matrix is applied to every slice.
     /// \param[in] fwd_rotation     3x3 DHW \e forward rotation-matrices or quaternions to apply to the slices.
     ///                             If an array is passed, it should have one element per slice.
     ///                             Otherwise the same rotation is applied to every slice.
@@ -515,10 +621,10 @@ namespace noa::geometry {
     void fourier_insert_rasterize_3d(
             const Input& slice,
             const InputWeight& slice_weight,
-            const Shape4<i64> slice_shape,
+            const Shape4<i64>& slice_shape,
             const Output& volume,
             const OutputWeight& volume_weight,
-            const Shape4<i64> volume_shape,
+            const Shape4<i64>& volume_shape,
             const Scale& inv_scaling,
             const Rotate& fwd_rotation,
             const FourierInsertRasterizeOptions& options = {}
@@ -616,9 +722,8 @@ namespace noa::geometry {
     /// \param[out] volume_weight   (options) Varray associated with \p volume.
     /// \param volume_shape         BDHW logical shape of \p volume.
     /// \param[in] fwd_scaling      2x2 HW \e forward real-space scaling matrix to apply to the slices
-    ///                             before the rotation. If an array is passed, it can be empty or have
-    ///                             one matrix per slice. Otherwise the same scaling matrix is applied
-    ///                             to every slice.
+    ///                             before the rotation. If an array is passed, it should have one matrix per slice.
+    ///                             Otherwise the same scaling matrix is applied to every slice.
     /// \param[in] inv_rotation     3x3 DHW \e inverse rotation-matrices or quaternions to apply to the slices.
     ///                             If an array is passed, it should have one rotation per slice.
     ///                             Otherwise the same rotation is applied to every slice.
@@ -634,10 +739,10 @@ namespace noa::geometry {
     void insert_interpolate_3d(
             const Input& slice,
             const InputWeight& slice_weight,
-            const Shape4<i64> slice_shape,
+            const Shape4<i64>& slice_shape,
             const Output& volume,
             const OutputWeight& volume_weight,
-            const Shape4<i64> volume_shape,
+            const Shape4<i64>& volume_shape,
             const Scale& fwd_scaling,
             const Rotate& inv_rotation,
             const FourierInsertInterpolateOptions& options = {}
@@ -715,7 +820,7 @@ namespace noa::geometry {
     /// \param[out] slice_weight    (optional) Varray associated with \p slice.
     /// \param slice_shape          BDHW logical shape of \p slice.
     /// \param[in] inv_scaling      2x2 HW \e inverse real-space scaling to apply to the slices before the rotation.
-    ///                             If an array is passed, it can be empty or have one matrix per slice.
+    ///                             If an array is passed, it should have one matrix per slice.
     ///                             Otherwise the same scaling matrix is applied to every slice.
     /// \param[in] fwd_rotation     3x3 DHW \e forward rotation-matrices or quaternions to apply to the slices.
     ///                             If an array is passed, it should have one rotation per slice.
@@ -732,10 +837,10 @@ namespace noa::geometry {
     void fourier_extract_3d(
             const Input& volume,
             const InputWeight& volume_weight,
-            const Shape4<i64> volume_shape,
+            const Shape4<i64>& volume_shape,
             const Output& slice,
             const OutputWeight& slice_weight,
-            const Shape4<i64> slice_shape,
+            const Shape4<i64>& slice_shape,
             const Scale& inv_scaling,
             const Rotate& fwd_rotation,
             const FourierExtractOptions& options = {}
@@ -815,38 +920,43 @@ namespace noa::geometry {
     ///
     /// \tparam REMAP                   Remapping from the input slice to the output slice layout. Should be HC2H or HC2HC.
     /// \tparam Input                   A varray|texture of (const) f32|f64|c32|c64.
-    /// \tparam InputWeight             A varray|texture of (const) f32|f64|c32|c64, or empty.
+    /// \tparam InputWeight             A varray|texture of (const) f32|f64, or empty.
     /// \tparam Output                  VArray of type f32|f64|c32|c64.
-    /// \tparam OutputWeight            VArray of type f32|f64|c32|c64, or empty.
-    /// \tparam InputScale              Mat22 or a varray of this type.
+    /// \tparam OutputWeight            VArray of type f32|f64, or empty.
+    /// \tparam InputScale              Mat22 or a varray of this type, or Empty
     /// \tparam InputRotate             Mat33|Quaternion, or a varray of this type.
-    /// \tparam OutputScale             Mat22 or a varray of this type.
+    /// \tparam OutputScale             Mat22 or a varray of this type, or Empty
     /// \tparam OutputRotate            Mat33|Quaternion, or a varray of this type.
     ///
     /// \param[in] input_slice          2d-rfft central-slice(s) to insert (can be a constant value).
-    /// \param[in] input_weight         Another optional varray|texture|value associated with \p input_slice.
+    /// \param[in] input_weight         (optional) Varray|texture|value associated with \p input_slice. Defaults to ones.
     /// \param input_slice_shape        BDHW logical shape of \p input_slice.
     /// \param[in,out] output_slice     2d-rfft central-slice(s) to extract. See \p add_to_output.
-    /// \param[in,out] output_weight    Another optional varray|value associated with \p output_slice.
+    /// \param[in,out] output_weight    (optional) Varray associated with \p output_slice.
     /// \param output_slice_shape       BDHW logical shape of \p output_slice.
     /// \param[in] input_fwd_scaling    2x2 HW \e forward real-space scaling matrix to apply to the input slices
-    ///                                 before the rotation. If an array is passed, it can be empty or have one matrix
-    ///                                 per slice. Otherwise the same scaling matrix is applied to every slice.
+    ///                                 before the rotation. If an array is passed, it should have one matrix per slice.
+    ///                                 Otherwise the same scaling matrix is applied to every slice.
     /// \param[in] input_inv_rotation   3x3 DHW \e inverse rotation-matrices or quaternions to apply to the input slices.
     ///                                 If an array is passed, it should have one rotation per slice.
     ///                                 Otherwise the same rotation is applied to every slice.
     /// \param[in] output_inv_scaling   2x2 HW \e inverse real-space scaling matrix to apply to the output slices
-    ///                                 before the rotation. If an array is passed, it can be empty or have one matrix
-    ///                                 per slice. Otherwise the same scaling matrix is applied to every slice.
+    ///                                 before the rotation. If an array is passed, it should have one matrix per slice.
+    ///                                 Otherwise the same scaling matrix is applied to every slice.
     /// \param[in] output_fwd_rotation  3x3 DHW \e forward rotation-matrices or quaternions to apply to the output slices.
     ///                                 If an array is passed, it should have one rotation per slice.
     ///                                 Otherwise the same rotation is applied to every slice.
     /// \param options                  Operator options.
-    template<noa::fft::RemapInterface REMAP,
+    template<noa::fft::RemapInterface Remap,
              typename Input, typename InputWeight = Empty,
              typename Output, typename OutputWeight = Empty,
-             typename InputScale, typename InputRotate,
-             typename OutputScale, typename OutputRotate>
+             typename InputScale = Empty, typename InputRotate,
+             typename OutputScale = Empty, typename OutputRotate>
+    requires (guts::is_valid_projection_input_output_v<Input, Output, true, false> and
+              guts::is_valid_projection_input_output_weight_v<InputWeight, OutputWeight, true, false> and
+              guts::is_valid_projection_transform_v<InputScale, InputRotate> and
+              guts::is_valid_projection_transform_v<OutputScale, OutputRotate> and
+              Remap.is_hc2xx() and Remap.is_xx2hx())
     void fourier_insert_interpolate_and_extract_3d(
             const Input& input_slice,
             const InputWeight& input_weight,
@@ -860,8 +970,45 @@ namespace noa::geometry {
             const OutputRotate& output_fwd_rotation,
             const FourierInsertExtractOptions& options = {}
     ) {
+        guts::fourier_projection_check_parameters<guts::ProjectionType::INSERT_EXTRACT>(
+               input_slice, input_weight, input_slice_shape, output_slice, output_weight, output_slice_shape,
+               {}, input_fwd_scaling, input_inv_rotation, output_inv_scaling, output_fwd_rotation);
 
-        // check correct_multiplicity is false if w_window is more than 1 or if add_to_output=true
+        const Interp interp_mode = guts::fourier_insert_extract_interp_mode(input_slice, input_weight);
+
+        using coord_t = nt::value_type_twice_t<OutputRotate>;
+        const auto volume_z = static_cast<coord_t>(min(output_slice_shape));
+        const auto fftfreq_blackman = static_cast<coord_t>(options.w_windowed_sinc.fftfreq_blackman);
+        const auto w_blackman_size = guts::blackman_window_size<i64>(fftfreq_blackman, volume_z);
+        check(not options.correct_multiplicity or (not options.add_to_output and w_blackman_size == 1),
+              "correct_multiplicity=true is not compatible with add_to_output=true and w_blackman_size={} pixels",
+              w_blackman_size);
+
+        if (output_slice.device().is_gpu()) {
+            check(ng::is_accessor_access_safe<i32>(input_slice, input_slice.shape()) and
+                  ng::is_accessor_access_safe<i32>(input_weight, input_weight.shape()) and
+                  ng::is_accessor_access_safe<i32>(output_slice, output_slice.shape()) and
+                  ng::is_accessor_access_safe<i32>(output_weight, output_weight.shape()),
+                  "GPU backend only instantiate i32-based accessor indexing, "
+                  "which is unsafe for the given input and output arrays. "
+                  "Please report this.");
+
+            guts::launch_fourier_insert_interpolate_extract_3d<Remap, i32, false>(
+                    input_slice, input_weight, input_slice_shape, output_slice, output_weight, output_slice_shape,
+                    input_fwd_scaling, input_inv_rotation, output_inv_scaling, output_fwd_rotation, interp_mode,
+                    options.add_to_output, options.correct_multiplicity,
+                    options.input_windowed_sinc.fftfreq_sinc, options.input_windowed_sinc.fftfreq_blackman,
+                    options.w_windowed_sinc.fftfreq_sinc, options.w_windowed_sinc.fftfreq_blackman,
+                    options.fftfreq_cutoff, options.ews_radius);
+        } else {
+            guts::launch_fourier_insert_interpolate_extract_3d<Remap, i64, true>(
+                    input_slice, input_weight, input_slice_shape, output_slice, output_weight, output_slice_shape,
+                    input_fwd_scaling, input_inv_rotation, output_inv_scaling, output_fwd_rotation, interp_mode,
+                    options.add_to_output, options.correct_multiplicity,
+                    options.input_windowed_sinc.fftfreq_sinc, options.input_windowed_sinc.fftfreq_blackman,
+                    options.w_windowed_sinc.fftfreq_sinc, options.w_windowed_sinc.fftfreq_blackman,
+                    options.fftfreq_cutoff, options.ews_radius);
+        }
     }
 
     /// Corrects for the gridding, assuming the Fourier insertion was done using tri-linear rasterization.
@@ -884,11 +1031,46 @@ namespace noa::geometry {
     ///                         Post correction is meant to be applied on the volume that was just back-projected,
     ///                         whereas pre-correction is meant to be applied on the volume that is about to be
     ///                         forward projected.
-    template<typename Input, typename Output, typename = std::enable_if_t<
-             nt::is_varray_of_almost_any_v<Input, f32, f64> &&
-             nt::is_varray_of_any_v<Output, f32, f64> &&
-             nt::are_almost_same_value_type_v<Input, Output>>>
+    template<typename Input, typename Output>
+    requires (nt::is_varray_of_almost_any_v<Input, f32, f64> and
+              nt::is_varray_of_any_v<Output, f32, f64>)
     void gridding_correction(const Input& input, const Output& output, bool post_correction) {
+        using input_value_t = nt::mutable_value_type_t<Input>;
+        using output_value_t = nt::value_type_t<Output>;
+        using coord_t = std::conditional_t<nt::is_any_v<f64, input_value_t, output_value_t>, f64, f32>;
 
+        const auto output_shape = output.shape();
+        auto input_strides = input.strides();
+        check(ni::broadcast(input.shape(), input_strides, output_shape),
+              "Cannot broadcast an array of shape {} into an array of shape {}",
+              input.shape(), output_shape);
+
+        auto launch = [&]<typename IA, typename OA>(const IA& input_accessor, const OA& output_accessor){
+            if (post_correction) {
+                const auto op = GriddingCorrection<true, coord_t, IA, OA>(
+                        input_accessor, output_accessor, output_shape);
+                iwise(output_shape, output.device(), op);
+            } else {
+                const auto op = GriddingCorrection<false, coord_t, IA, OA>(
+                        input_accessor, output_accessor, output_shape);
+                iwise(output_shape, output.device(), op);
+            }
+        };
+
+        if (output.device().is_gpu()) {
+            check(ng::is_accessor_access_safe<i32>(input, input.shape()) and
+                  ng::is_accessor_access_safe<i32>(output, output.shape()),
+                  "GPU backend only instantiate i32-based accessor indexing, "
+                  "which is unsafe for the given input and output arrays. "
+                  "Please report this.");
+
+            const auto input_accessor = Accessor<const input_value_t, 4, i32>(input.get(), input_strides.template as<i32>());
+            const auto output_accessor = Accessor<output_value_t, 4, i32>(output.get(), output.strides().template as<i32>());
+            launch(input_accessor, output_accessor);
+        } else {
+            const auto input_accessor = Accessor<const input_value_t, 4, i64>(input.get(), input_strides.template as<i64>());
+            const auto output_accessor = Accessor<output_value_t, 4, i64>(output.get(), output.strides().template as<i64>());
+            launch(input_accessor, output_accessor);
+        }
     }
 }
