@@ -90,9 +90,8 @@ namespace noa {
         result_type m_stddev{};
         bool m_saved_is_available{};
 
-        template<typename> requires nt::is_real_v<T>
-        friend
-        class LogNormal;
+        template<typename U> requires nt::is_real_v<U>
+        friend class LogNormal;
     };
 
     /// Lognormal distribution.
