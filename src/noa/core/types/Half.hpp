@@ -43,7 +43,7 @@
 #pragma warning(pop)
 #endif
 
-// TODO C++23 replace with has std::float16_t and std::bfloat16_t
+// TODO C++23 replace with std::float16_t and std::bfloat16_t
 
 namespace noa::inline types {
     /// 16-bit precision float (IEEE-754-2008).
@@ -80,6 +80,8 @@ namespace noa::inline types {
         static_assert(alignof(native_type) == alignof(uint16_t));
 
     public:
+        /// Default constructor.
+        /// FIXME half_float zero-initializes, CUDA's __half doesn't.
         constexpr Half() noexcept = default;
 
         /// Conversion constructor.

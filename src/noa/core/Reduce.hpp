@@ -16,6 +16,10 @@ namespace noa {
             sum += static_cast<T>(value);
         }
         template<typename T>
+        NOA_FHD constexpr void init(const auto& lhs, const auto& rhs, T& sum) const { // dot
+            sum += static_cast<T>(lhs + rhs);
+        }
+        template<typename T>
         NOA_FHD constexpr void join(const T& ireduced, T& reduced) const {
             reduced += ireduced;
         }
@@ -73,7 +77,7 @@ namespace noa {
 
         template<typename T>
         NOA_FHD constexpr void operator()(const T& value, T& min) const {
-            min = noa::min(value, min);
+            min = noa::max(value, min);
         }
     };
 
@@ -204,6 +208,10 @@ namespace noa {
 
         NOA_FHD constexpr void init(const auto& input, pair_type& sum) const {
             auto value = static_cast<reduced_type>(input);
+            kahan_sum(value, sum.first, sum.second);
+        }
+        NOA_FHD constexpr void init(const auto& lhs, const auto& rhs, pair_type& sum) const { // dot
+            auto value = static_cast<reduced_type>(lhs + rhs);
             kahan_sum(value, sum.first, sum.second);
         }
         NOA_FHD constexpr void join(const pair_type& local_sum, pair_type& global_sum) const {

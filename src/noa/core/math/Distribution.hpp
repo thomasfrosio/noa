@@ -11,11 +11,9 @@ namespace noa::traits {
 }
 
 namespace noa {
-    struct Distribution {};
-
     /// Uniform distribution.
     template<typename T> requires nt::is_numeric_v<T>
-    class Uniform : public Distribution {
+    class Uniform {
     public:
         using result_type = T;
         using compute_type = std::conditional_t<nt::is_int_v<T>, f64, result_type>;
@@ -50,7 +48,7 @@ namespace noa {
 
     /// Normal distribution.
     template<typename T> requires nt::is_real_v<T>
-    class Normal : public Distribution {
+    class Normal {
     public:
         using result_type = T;
 
@@ -96,7 +94,7 @@ namespace noa {
 
     /// Lognormal distribution.
     template<typename T> requires nt::is_real_v<T>
-    class LogNormal : public Distribution {
+    class LogNormal {
     public:
         using result_type = T;
 
@@ -117,7 +115,7 @@ namespace noa {
 
     /// Poisson distribution.
     template<typename T> requires nt::is_int_v<T>
-    class Poisson : public Distribution {
+    class Poisson {
     public:
         using result_type = T;
         using compute_type = f64;
