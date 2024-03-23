@@ -24,15 +24,18 @@ namespace noa::cpu {
         }
     };
 
-    // Allocates memory from the heap.
-    // Also provides memory-aligned alloc and calloc functions.
-    // Floating-points and complex floating-points are aligned to 128 bytes.
-    // Integral types are aligned to 64 bytes.
-    // Anything else uses the type's alignment as reported by alignof().
+    /// Allocates memory from the heap.
+    /// \details Also provides memory-aligned alloc and calloc functions.
+    ///          Floating-points and complex floating-points are aligned to 128 bytes.
+    ///          Integral types are aligned to 64 bytes.
+    ///          Anything else uses the type's alignment as reported by alignof().
     template<typename Value>
     class AllocatorHeap {
     public:
-        static_assert(!std::is_pointer_v<Value> and !std::is_reference_v<Value> and !std::is_const_v<Value>);
+        static_assert(not std::is_pointer_v<Value> and
+                      not std::is_reference_v<Value> and
+                      not std::is_const_v<Value>);
+
         static constexpr size_t ALIGNMENT =
                 nt::is_real_or_complex_v<Value> ? 128 :
                 nt::is_int_v<Value> ? 64 : alignof(Value);
@@ -45,7 +48,7 @@ namespace noa::cpu {
         using calloc_unique_type = std::unique_ptr<value_type[], calloc_deleter_type>;
 
     public:
-        // Allocates some elements of uninitialized storage. Throws if the allocation fails.
+        /// Allocates some elements of uninitialized storage. Throws if the allocation fails.
         static alloc_unique_type allocate(i64 elements) {
             if (elements <= 0)
                 return {};
@@ -60,7 +63,7 @@ namespace noa::cpu {
             return {out, alloc_deleter_type{}};
         }
 
-        // Allocates some elements, all initialized to 0. Throws if the allocation fails.
+        /// Allocates some elements, all initialized to 0. Throws if the allocation fails.
         static calloc_unique_type calloc(i64 elements) {
             if (elements <= 0)
                 return {};
