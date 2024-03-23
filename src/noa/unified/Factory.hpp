@@ -26,7 +26,7 @@ namespace noa {
     template<typename Value>
     [[nodiscard]] Array<Value> fill(const Shape4<i64>& shape, Value value, ArrayOption option = {}) {
         if constexpr (nt::is_numeric_v<Value> or nt::is_vec_v<Value> or nt::is_mat_v<Value>) {
-            if (value == Value{0} and option.device.is_cpu() and
+            if (value == Value{} and option.device.is_cpu() and
                 (not Device::is_any(DeviceType::GPU) or (option.allocator.resource() == MemoryResource::DEFAULT or
                                                          option.allocator.resource() == MemoryResource::DEFAULT_ASYNC or
                                                          option.allocator.resource() == MemoryResource::PITCHED))) {

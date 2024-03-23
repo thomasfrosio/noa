@@ -3,6 +3,7 @@ set(NOA_UNIFIED_HEADERS
     unified/Allocator.hpp
     unified/Array.hpp
     unified/ArrayOption.hpp
+    unified/Blas.hpp
     unified/Cast.hpp
     unified/Complex.hpp
     unified/CopyBatches.hpp
@@ -46,14 +47,16 @@ set(NOA_UNIFIED_HEADERS
     unified/signal/Median.hpp
     unified/signal/Windows.hpp
 
-#    # noa::geometry
-#    unified/geometry/fft/Polar.hpp
-#    unified/geometry/Polar.hpp
-    unified/geometry/Prefilter.hpp
-    unified/geometry/Project.hpp
-    unified/geometry/Transform.hpp
+    # noa::geometry
+    unified/geometry/CubicBSplinePrefilter.hpp
+    unified/geometry/DrawShape.hpp
+    unified/geometry/FourierProject.hpp
+    unified/geometry/PolarTransform.hpp
+    unified/geometry/PolarTransformSpectrum.hpp
+    unified/geometry/RotationalAverage.hpp
     unified/geometry/Symmetry.hpp
-    unified/geometry/Shape.hpp
+    unified/geometry/Transform.hpp
+    unified/geometry/TransformSpectrum.hpp
     )
 
 set(NOA_UNIFIED_SOURCES

@@ -97,10 +97,11 @@ namespace noa::inline types {
         /// \param[in,out] data Data to encapsulate.
         /// \param n_elements   Number of elements in \p data.
         /// \param option       Options of \p data.
-        constexpr Array(const shared_type& data, i64 n_elements, ArrayOption option = {})
+        template<typename SharedPtr> requires nt::is_almost_same_v<SharedPtr, shared_type>
+        constexpr Array(SharedPtr&& data, i64 n_elements, ArrayOption option = {})
                 : m_shape{1, 1, 1, n_elements},
                   m_strides{n_elements, n_elements, n_elements, 1},
-                  m_shared(data),
+                  m_shared(std::forward<SharedPtr>(data)),
                   m_options(option) {
             validate_(m_shared.get(), option);
         }
@@ -110,9 +111,17 @@ namespace noa::inline types {
         /// \param shape        BDHW shape of \p data.
         /// \param strides      BDHW strides of \p data.
         /// \param option       Options of \p data.
-        constexpr Array(const shared_type& data, const shape_type& shape,
-                        const strides_type& strides, ArrayOption option = {})
-                : m_shape(shape), m_strides(strides), m_shared(data), m_options(option) {
+        template<typename SharedPtr> requires nt::is_almost_same_v<SharedPtr, shared_type>
+        constexpr Array(
+                SharedPtr&& data,
+                const shape_type& shape,
+                const strides_type& strides,
+                ArrayOption option = {}
+        ) : m_shape(shape),
+            m_strides(strides),
+            m_shared(std::forward<SharedPtr>(data)),
+            m_options(option)
+        {
             validate_(m_shared.get(), option);
         }
 
@@ -133,7 +142,7 @@ namespace noa::inline types {
                 // Freeing memory in CUDA GPUs will either synchronize the device, synchronize the stream or
                 // enqueue an asynchronous free, all of which guarantees that the GPU is done using the memory
                 // region of the Array. As such, only synchronize CPU arrays.
-                if (std::uncaught_exceptions() > 0 && device().is_cpu())
+                if (std::uncaught_exceptions() > 0 and device().is_cpu())
                     eval();
             } catch (...) {} // ignore new exception thrown by eval()
         }
@@ -200,11 +209,7 @@ namespace noa::inline types {
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing to this pointer may be illegal or create a data race.
         [[nodiscard]] constexpr const shared_type& share() const& noexcept { return m_shared; }
-        [[nodiscard]] constexpr shared_type share() && noexcept {
-            shared_type out{};
-            m_shared.swap(out);
-            return out;
-        }
+        [[nodiscard]] constexpr shared_type&& share() && noexcept { return std::move(m_shared); }
 
         /// Returns a (const-)span of the array.
         template<typename U = value_type, i64 SIZE = -1, typename I = index_type>
@@ -231,7 +236,7 @@ namespace noa::inline types {
         }
 
         /// Releases the array. *this is left empty.
-        /// \note Moving an array using std::move() is effectively equivalent.
+        /// \note This effectively does a move with a guaranteed reset of the array.
         Array release() noexcept {
             return std::exchange(*this, Array{});
         }
@@ -268,8 +273,13 @@ namespace noa::inline types {
         /// \param[out] output  Destination. It should not overlap with this array.
         template<typename Output>
         requires (nt::is_varray_v<Output> and nt::are_almost_same_value_type_v<Array, Output>)
-        void to(const Output& output) const {
+        void to(const Output& output) const& {
             noa::copy(*this, output);
+        }
+        template<typename Output>
+        requires (nt::is_varray_v<Output> and nt::are_almost_same_value_type_v<Array, Output>)
+        void to(const Output& output) && {
+            noa::copy(std::move(*this), output);
         }
 
         /// Performs a deep copy of the array according \p option.
@@ -280,20 +290,31 @@ namespace noa::inline types {
         ///          be copied if the source and destination are both on the same GPU or on the CPU.
         /// \param option   Output device and resource to perform the allocation of the new array.
         ///                 The current stream for that device is used to perform the copy.
-        [[nodiscard]] Array to(ArrayOption option) const {
+        [[nodiscard]] Array to(ArrayOption option) const& {
             Array out(shape(), option);
             to(out);
             return out;
         }
+        [[nodiscard]] Array to(ArrayOption option) && {
+            Array out(shape(), option);
+            std::move(*this).to(out);
+            return out;
+        }
 
         /// Performs a deep copy of the array to the CPU.
-        [[nodiscard]] Array to_cpu() const {
+        [[nodiscard]] Array to_cpu() const& {
             return to(ArrayOption{});
+        }
+        [[nodiscard]] Array to_cpu() && {
+            return std::move(*this).to(ArrayOption{});
         }
 
         /// Performs a deep copy of the array preserving the array's options.
-        [[nodiscard]] Array copy() const {
+        [[nodiscard]] Array copy() const& {
             return to(options());
+        }
+        [[nodiscard]] Array copy() && {
+            return std::move(*this).to(options());
         }
 
     public: // Data reinterpretation
@@ -302,9 +323,14 @@ namespace noa::inline types {
         ///       when \p U is a unsigned char or std::byte to represent any data type as an array of bytes,
         ///       or to switch between complex and real floating-point numbers with the same precision.
         template<typename U>
-        [[nodiscard]] Array<U> as() const {
+        [[nodiscard]] Array<U> as() const& {
             const auto out = ni::ReinterpretLayout(shape(), strides(), get()).template as<U>();
             return Array<U>(std::shared_ptr<U[]>(m_shared, out.ptr), out.shape, out.strides, options());
+        }
+        template<typename U>
+        [[nodiscard]] Array<U> as() && {
+            const auto out = ni::ReinterpretLayout(shape(), strides(), get()).template as<U>();
+            return Array<U>(std::shared_ptr<U[]>(std::move(m_shared), out.ptr), out.shape, out.strides, options());
         }
 
         /// Changes the device type (CPU<->GPU) on which the memory should be accessed.
@@ -316,8 +342,13 @@ namespace noa::inline types {
         ///                 memory and should be used to anticipate access of that memory region by the target device,
         ///                 and/or to "move" the memory from the original to the target device. The prefetching is
         ///                 enqueued to the GPU stream, and as always, concurrent access from both CPU and GPU is illegal.
-        [[nodiscard]] Array as(DeviceType type, bool prefetch = false) const {
-            return Array(share(), shape(), strides(), options().set_device(view().as(type, prefetch).device()));
+        [[nodiscard]] Array as(DeviceType type, bool prefetch = false) const& {
+            const auto new_device = view().as(type, prefetch).device();
+            return Array(m_shared, shape(), strides(), options().set_device(new_device));
+        }
+        [[nodiscard]] Array as(DeviceType type, bool prefetch = false) && {
+            const auto new_device = view().as(type, prefetch).device();
+            return Array(std::move(m_shared), shape(), strides(), options().set_device(new_device));
         }
 
         /// Reshapes the array.
@@ -327,24 +358,40 @@ namespace noa::inline types {
         ///          If one wants to assign an array to an arbitrary new shape and new strides, one can use the
         ///          alias Array constructor instead.
         /// \return An alias of the array with the new shape and strides.
-        [[nodiscard]] Array reshape(const shape_type& new_shape) const {
+        [[nodiscard]] Array reshape(const shape_type& new_shape) const& {
             auto v = View<value_type>(nullptr, shape(), strides()).reshape(new_shape);
-            return Array(share(), v.shape(), v.strides(), options());
+            return Array(m_shared, v.shape(), v.strides(), options());
+        }
+        [[nodiscard]] Array reshape(const shape_type& new_shape) && {
+            auto v = View<value_type>(nullptr, shape(), strides()).reshape(new_shape);
+            return Array(std::move(m_shared), v.shape(), v.strides(), options());
         }
 
         /// Reshapes the array in a vector along a particular axis.
         /// Returns a row vector by default (axis = 3).
-        [[nodiscard]] Array flat(i32 axis = 3) const {
+        [[nodiscard]] Array flat(i32 axis = 3) const& {
             check(axis >= 0 and axis < 4);
             auto output_shape = shape_type::filled_with(1);
             output_shape[axis] = shape().elements();
             return reshape(output_shape);
         }
+        [[nodiscard]] Array flat(i32 axis = 3) && {
+            check(axis >= 0 and axis < 4);
+            auto output_shape = shape_type::filled_with(1);
+            output_shape[axis] = shape().elements();
+            return std::move(*this).reshape(output_shape);
+        }
 
         /// Permutes the dimensions of the view.
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
-        [[nodiscard]] constexpr Array permute(const Vec4<i64>& permutation) const {
-            return Array(share(),
+        [[nodiscard]] constexpr Array permute(const Vec4<i64>& permutation) const& {
+            return Array(m_shared,
+                         ni::reorder(shape(), permutation),
+                         ni::reorder(strides(), permutation),
+                         options());
+        }
+        [[nodiscard]] constexpr Array permute(const Vec4<i64>& permutation) && {
+            return Array(std::move(m_shared),
                          ni::reorder(shape(), permutation),
                          ni::reorder(strides(), permutation),
                          options());
@@ -352,8 +399,11 @@ namespace noa::inline types {
 
         /// Permutes the array by performing a deep-copy. The returned Array is a new C-contiguous array.
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
-        [[nodiscard]] Array permute_copy(const Vec4<i64>& permutation) const {
+        [[nodiscard]] Array permute_copy(const Vec4<i64>& permutation) const& {
             return noa::permute_copy(*this, permutation);
+        }
+        [[nodiscard]] Array permute_copy(const Vec4<i64>& permutation) && {
+            return noa::permute_copy(std::move(*this), permutation);
         }
 
     public: // Assignment operators
@@ -382,108 +432,35 @@ namespace noa::inline types {
         }
 
         /// Subregion indexing. Extracts a subregion from the current array.
-        [[nodiscard]] constexpr Array subregion(const ni::SubregionIndexer& indexer) const {
-            return Array(shared_type(share(), get() + indexer.offset), indexer.shape, indexer.strides, options());
+        [[nodiscard]] constexpr Array subregion(const ni::SubregionIndexer& indexer) const& {
+            return Array(shared_type(m_shared, get() + indexer.offset), indexer.shape, indexer.strides, options());
+        }
+        [[nodiscard]] constexpr Array subregion(const ni::SubregionIndexer& indexer) && {
+            return Array(shared_type(std::move(m_shared), get() + indexer.offset), indexer.shape, indexer.strides, options());
         }
 
         /// Subregion indexing. Extracts a subregion from the current array.
         /// \see noa::indexing::Subregion for more details on the variadic parameters to enter.
         template<typename... Ts>
-        [[nodiscard]] constexpr Array subregion(Ts&&... indices) const {
+        [[nodiscard]] constexpr Array subregion(Ts&&... indices) const& {
             const auto indexer = ni::SubregionIndexer(shape(), strides())
                     .extract_subregion(std::forward<Ts>(indices)...);
             return subregion(indexer);
         }
+        template<typename... Ts>
+        [[nodiscard]] constexpr Array subregion(Ts&&... indices) && {
+            const auto indexer = ni::SubregionIndexer(shape(), strides())
+                    .extract_subregion(std::forward<Ts>(indices)...);
+            return std::move(*this).subregion(indexer);
+        }
 
     private:
         void allocate_() {
-            const auto n_elements = m_shape.elements();
-            if (!n_elements) {
-                m_shape = 0;
-                m_shared = nullptr;
-                return;
-            }
-
-            const Device device = m_options.device;
-            switch (m_options.allocator.resource()) {
-                case MemoryResource::NONE:
-                    break;
-                case MemoryResource::DEFAULT:
-                    if (device.is_cpu()) {
-                        m_shared = noa::cpu::AllocatorHeap<value_type>::allocate(n_elements);
-                    } else {
-                        #ifdef NOA_ENABLE_CUDA
-                        const DeviceGuard guard(device);
-                        m_shared = noa::cuda::AllocatorDevice<value_type>::allocate(n_elements);
-                        #endif
-                    }
-                    break;
-                case MemoryResource::DEFAULT_ASYNC:
-                    if (device.is_cpu()) {
-                        m_shared = noa::cpu::AllocatorHeap<value_type>::allocate(n_elements);
-                    } else {
-                        #ifdef NOA_ENABLE_CUDA
-                        m_shared = noa::cuda::AllocatorDevice<value_type>::allocate_async(
-                                n_elements, Stream::current(device).cuda());
-                        #endif
-                    }
-                    break;
-                case MemoryResource::PITCHED:
-                    if (device.is_cpu()) {
-                        m_shared = noa::cpu::AllocatorHeap<value_type>::allocate(n_elements);
-                    } else {
-                        #ifdef NOA_ENABLE_CUDA
-                        const DeviceGuard guard(device);
-                        // AllocatorDevicePadded requires sizeof(T) <= 16 bytes.
-                        if constexpr (nt::is_numeric_v<value_type>) {
-                            auto [ptr, strides] = noa::cuda::AllocatorDevicePadded<value_type>::allocate(m_shape);
-                            m_shared = std::move(ptr);
-                            m_strides = strides;
-                        } else {
-                            m_shared = noa::cuda::AllocatorDevice<value_type>::allocate(n_elements);
-                        }
-                        #endif
-                    }
-                    break;
-                case MemoryResource::PINNED: {
-                    if (device.is_cpu() and not Device::is_any(DeviceType::GPU)) {
-                        m_shared = noa::cpu::AllocatorHeap<value_type>::allocate(n_elements);
-                    } else {
-                        #ifdef NOA_ENABLE_CUDA
-                        const DeviceGuard guard(device.is_gpu() ? device : Device::current(DeviceType::GPU));
-                        m_shared = noa::cuda::AllocatorPinned<value_type>::allocate(n_elements);
-                        #endif
-                    }
-                    break;
-                }
-                case MemoryResource::MANAGED: {
-                    if (device.is_cpu() and not Device::is_any(DeviceType::GPU)) {
-                        m_shared = noa::cpu::AllocatorHeap<value_type>::allocate(n_elements);
-                    } else {
-                        #ifdef NOA_ENABLE_CUDA
-                        const Device gpu = device.is_gpu() ? device : Device::current(DeviceType::GPU);
-                        const DeviceGuard guard(gpu); // could be helpful when retrieving device
-                        auto& cuda_stream = Stream::current(gpu).cuda();
-                        m_shared = noa::cuda::AllocatorManaged<value_type>::allocate(n_elements, cuda_stream);
-                        #endif
-                    }
-                    break;
-                }
-                case MemoryResource::MANAGED_GLOBAL: {
-                    if (device.is_cpu() and not Device::is_any(DeviceType::GPU)) {
-                        m_shared = noa::cpu::AllocatorHeap<value_type>::allocate(n_elements);
-                    } else {
-                        #ifdef NOA_ENABLE_CUDA
-                        const DeviceGuard guard(device.is_gpu() ? device : Device::current(DeviceType::GPU));
-                        m_shared = noa::cuda::AllocatorManaged<value_type>::allocate_global(n_elements);
-                        #endif
-                    }
-                    break;
-                }
-                case MemoryResource::CUDA_ARRAY:
-                    panic("CUDA arrays are not supported by the Array's allocator. Use Texture instead");
-                default:
-                    panic("Allocator {} is not supported by the Array's allocator", m_options.allocator);
+            const auto memory_resource = allocator().resource();
+            if (memory_resource == MemoryResource::PITCHED) {
+                tie(m_shared, m_strides) = Allocator::allocate_pitched<value_type>(shape(), device(), memory_resource);
+            } else {
+                m_shared = Allocator::allocate<value_type>(elements(), device(), memory_resource);
             }
         }
 

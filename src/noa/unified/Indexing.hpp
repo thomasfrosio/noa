@@ -7,15 +7,19 @@
 #include "noa/core/Indexing.hpp"
 #include "noa/unified/Traits.hpp"
 
-namespace noa::indexing {
+namespace noa {
     /// Broadcasts an array to a given shape.
     template<typename Input> requires nt::is_varray_v<Input>
-    [[nodiscard]] Input broadcast(const Input& input, const Shape4<i64>& shape) {
+    [[nodiscard]] auto broadcast(Input&& input, const Shape4<i64>& shape) {
         auto strides = input.strides();
-        if (not broadcast(input.shape(), strides, shape))
+        if (not ni::broadcast(input.shape(), strides, shape))
             panic("Cannot broadcast an array of shape {} into an array of shape {}", input.shape(), shape);
-        return Input(input.share(), shape, strides, input.options());
+        return std::decay_t<Input>(std::forward<Input>(input).share(), shape, strides, input.options());
     }
+}
+
+namespace noa::indexing {
+    using noa::broadcast;
 
     /// Whether \p lhs and \p rhs overlap in memory.
     template<typename Lhs, typename Rhs> requires nt::are_varray_v<Lhs, Rhs>

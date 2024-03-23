@@ -4,7 +4,7 @@
 
 #include "noa/unified/Array.hpp"
 #include "noa/unified/ArrayOption.hpp"
-#include "noa/unified/geometry/Prefilter.hpp"
+#include "noa/unified/geometry/CubicBSplinePrefilter.hpp"
 
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/Types.hpp"
@@ -57,7 +57,7 @@ namespace noa {
 
             /// Constant value to use for out-of-bounds coordinates.
             /// Only used if border is Border::VALUE.
-            value_type cvalue{0};
+            value_type cvalue{};
 
             /// Whether the input array should be prefiltered.
             /// If true and if the interpolation is Interp::{CUBIC_BSPLINE|CUBIC_BSPLINE_FAST},

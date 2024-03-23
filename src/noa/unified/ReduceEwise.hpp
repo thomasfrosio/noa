@@ -25,7 +25,7 @@ namespace noa::guts {
 namespace noa {
     /// Dispatches a element-wise reduction operator.
     /// \param[in,out] inputs   Input varray or an adaptor containing at least one varray.
-    ///                         If multiple varrays are entered, there should have the same shape and same device.
+    ///                         If multiple varrays are entered, they should have the same shape and device.
     /// \param[in] reduced      Initial reduced value, or an adaptor containing the initial reduced value(s).
     /// \param[in,out] outputs  Output value, or an adaptor containing (a reference of) the output value(s).
     ///                         When this function returns, the output values will have been updated.

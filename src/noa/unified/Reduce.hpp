@@ -55,7 +55,7 @@ namespace noa::guts {
         return output_shape;
     }
 
-    auto n_elements_to_reduce(const Shape4<i64>& input_shape, const Shape4<i64>& output_shape) -> i64 {
+    inline auto n_elements_to_reduce(const Shape4<i64>& input_shape, const Shape4<i64>& output_shape) -> i64 {
         i64 n_elements_to_reduce{1};
         for (size_t i = 0; i < 4; ++i) {
             if (input_shape[i] > 1 and output_shape[i] == 1)
@@ -259,7 +259,7 @@ namespace noa {
         using value_t = nt::mutable_value_type_t<Input>;
         using pair_t = Pair<value_t, i64>;
         using op_t = ReduceFirstMax<AccessorI64<const value_t, 4>, i64, false>;
-        pair_t reduced{std::numeric_limits<value_t>::lowest(), i64{0}};
+        pair_t reduced{std::numeric_limits<value_t>::lowest(), i64{}};
         value_t output_value{};
         i64 output_offset{};
         reduce_iwise(input.shape(), input.device(), reduced,
@@ -276,7 +276,7 @@ namespace noa {
         using value_t = nt::mutable_value_type_t<Input>;
         using pair_t = Pair<value_t, i64>;
         using op_t = ReduceFirstMin<AccessorI64<const value_t, 4>, i64, false>;
-        pair_t reduced{std::numeric_limits<value_t>::max(), i64{0}};
+        pair_t reduced{std::numeric_limits<value_t>::max(), i64{}};
         value_t output_value{};
         i64 output_offset{};
         reduce_iwise(input.shape(), input.device(), reduced,
@@ -397,16 +397,17 @@ namespace noa {
         using input_value_t = nt::mutable_value_type_t<Input>;
         using scalar_t = nt::value_type_t<input_value_t>;
 
+        const auto n_elements_to_reduce = guts::n_elements_to_reduce(input.shape(), output.shape());
         if constexpr (nt::is_real_or_complex_v<input_value_t>) {
             if (input.device().is_cpu()) {
                 using op_t = ReduceAccurateMean<input_value_t>;
                 using pair_t = op_t::pair_type;
                 using mean_t = op_t::mean_type;
-                auto mean = static_cast<mean_t>(input.ssize());
-                return reduce_axes_ewise(input, pair_t{}, output, op_t{.size=mean});
+                auto size = static_cast<mean_t>(n_elements_to_reduce);
+                return reduce_axes_ewise(input, pair_t{}, output, op_t{.size=size});
             }
         }
-        auto mean = static_cast<scalar_t>(input.ssize());
+        auto mean = static_cast<scalar_t>(n_elements_to_reduce);
         reduce_axes_ewise(input, input_value_t{}, output, ReduceMean{.size=mean});
     }
 
@@ -480,11 +481,11 @@ namespace noa {
 
         if (input.device().is_cpu()) {
             auto op = ReduceVariance{static_cast<f64>(n_reduced)};
-            reduce_axes_ewise(wrap(input, means), f64{}, variances, op);
+            reduce_axes_ewise(wrap(input, ni::broadcast(means, input.shape())), f64{}, variances, op);
         } else {
             using real_t = nt::value_type_t<nt::mutable_value_type_t<Input>>;
             auto op = ReduceVariance{static_cast<real_t>(n_reduced)};
-            reduce_axes_ewise(wrap(input, means), real_t{}, variances, op);
+            reduce_axes_ewise(wrap(input, ni::broadcast(means, input.shape())), real_t{}, variances, op);
         }
     }
 
@@ -534,11 +535,11 @@ namespace noa {
 
         if (input.device().is_cpu()) {
             auto op = ReduceStddev<f64>{static_cast<f64>(n_reduced)};
-            reduce_axes_ewise(wrap(input, means), f64{}, stddevs, op);
+            reduce_axes_ewise(wrap(input, ni::broadcast(means, input.shape())), f64{}, stddevs, op);
         } else {
             using real_t = nt::mutable_value_type_twice_t<Input>;
             auto op = ReduceStddev<real_t>{static_cast<real_t>(n_reduced)};
-            reduce_axes_ewise(wrap(input, means), real_t{}, stddevs, op);
+            reduce_axes_ewise(wrap(input, ni::broadcast(means, input.shape())), real_t{}, stddevs, op);
         }
     }
 
@@ -673,7 +674,7 @@ namespace noa {
             }
         }
         auto op = op_t{{accessor}};
-        auto reduced = pair_t{std::numeric_limits<input_value_t>::lowest(), offset_t{0}};
+        auto reduced = pair_t{std::numeric_limits<input_value_t>::lowest(), offset_t{}};
 
         auto device = input.device();
         if (has_offsets and has_values) {
@@ -732,7 +733,7 @@ namespace noa {
             }
         }
         auto op = op_t{{accessor}};
-        auto reduced = pair_t{std::numeric_limits<input_value_t>::max(), offset_t{0}};
+        auto reduced = pair_t{std::numeric_limits<input_value_t>::max(), offset_t{}};
 
         auto device = input.device();
         if (has_offsets and has_values) {

@@ -34,9 +34,8 @@ namespace noa {
     /// \param[in] input    Source.
     /// \param[out] output  Destination. It should not overlap with \p input.
     template<typename Input, typename Output>
-    requires (nt::are_varray_v<Input, Output> and
-              nt::are_almost_same_value_type_v<Input, Output>)
-    void copy(const Input& input, const Output& output) {
+    requires (nt::are_varray_v<Input, Output> and nt::are_almost_same_value_type_v<Input, Output>)
+    void copy(Input&& input, Output&& output) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         check(not ni::are_overlapped(input, output), "The input and output should not overlap");
 
@@ -52,12 +51,16 @@ namespace noa {
             auto& cpu_stream = Stream::current(input_device).cpu();
             const auto n_threads = cpu_stream.thread_limit();
             if ((nt::is_array_v<Input> or nt::is_array_v<Output>) and cpu_stream.is_async()) {
-                cpu_stream.enqueue([=]() { // capture the arrays
-                    noa::cpu::copy(
-                            input.get(), input_strides,
-                            output.get(), output.strides(),
-                            output.shape(), n_threads);
-                });
+                cpu_stream.enqueue(
+                        [=,
+                         input_ = std::forward<Input>(input),
+                         output_ = std::forward<Output>(output)
+                        ] {
+                            noa::cpu::copy(
+                                    input_.get(), input_strides,
+                                    output_.get(), output_.strides(),
+                                    output_.shape(), n_threads);
+                        });
             } else {
                 noa::cpu::copy(
                         input.get(), input_strides,
@@ -71,7 +74,7 @@ namespace noa {
             noa::cuda::copy(input.get(), input_strides,
                             output.get(), output.strides(),
                             output.shape(), cuda_stream);
-            cuda_stream.enqueue_attach(input, output);
+            cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             cuda_stream.synchronize();
             #else
             panic("No GPU backend detected");
@@ -84,7 +87,7 @@ namespace noa {
             noa::cuda::copy(input.get(), input_strides,
                             output.get(), output.strides(),
                             output.shape(), cuda_stream);
-            cuda_stream.enqueue_attach(input, output);
+            cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             #else
             panic("No GPU backend detected");
             #endif
@@ -93,11 +96,13 @@ namespace noa {
 
     /// Permutes the input by reordering its dimensions. The returned object points to the same data.
     template<typename Input> requires nt::is_varray_v<Input>
-    Input permute(const Input& input, const Vec4<i64>& permutation) {
+    auto permute(Input&& input, const Vec4<i64>& permutation) {
         check(all(permutation <= 3) and sum(permutation) == 6, "Permutation {} is not valid", permutation);
         const auto permuted_shape = ni::reorder(input.shape(), permutation);
         const auto permuted_strides = ni::reorder(input.strides(), permutation);
-        return Input(input.share(), permuted_shape, permuted_strides, input.options());
+        return std::decay_t<Input>(
+                std::forward<Input>(input).share(),
+                permuted_shape, permuted_strides, input.options());
     }
 
     /// Permutes, in memory, the axes of an array.
@@ -113,7 +118,7 @@ namespace noa {
     ///       Anything else calls copy(), which is slower.
     template<typename Input, typename Output>
     requires (nt::are_varray_v<Input, Output> and nt::are_almost_same_value_type_v<Input, Output>)
-    void permute_copy(const Input& input, const Output& output, const Vec4<i64>& permutation) {
+    void permute_copy(Input&& input, Output&& output, const Vec4<i64>& permutation) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         check(all(permutation <= 3) and sum(permutation) == 6, "Permutation {} is not valid", permutation);
 
@@ -133,20 +138,24 @@ namespace noa {
 
         const Device device = output.device();
         check(device == input.device(),
-                   "The input and output arrays must be on the same device, but got input:{} and output:{}",
-                   input.device(), device);
+              "The input and output arrays must be on the same device, but got input:{} and output:{}",
+              input.device(), device);
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             const auto n_threads = cpu_stream.thread_limit();
             if ((nt::is_array_v<Input> or nt::is_array_v<Output>) and cpu_stream.is_async()) {
-                cpu_stream.enqueue([=]() { // capture the arrays
-                    noa::cpu::permute_copy(
-                            input.get(), input_strides, input_shape,
-                            output.get(), output.strides(),
-                            permutation, n_threads);
-                });
+                cpu_stream.enqueue(
+                        [=,
+                         input_ = std::forward<Input>(input),
+                         output_ = std::forward<Output>(output)
+                        ]() { // capture the arrays
+                            noa::cpu::permute_copy(
+                                    input_.get(), input_strides, input_shape,
+                                    output_.get(), output_.strides(),
+                                    permutation, n_threads);
+                        });
             } else {
                 noa::cpu::permute_copy(
                         input.get(), input_strides, input_shape,
@@ -160,7 +169,7 @@ namespace noa {
                     input.get(), input_strides, input_shape,
                     output.get(), output.strides(),
                     permutation, cuda_stream);
-            cuda_stream.enqueue_attach(input, output);
+            cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             #else
             panic("No GPU backend detected");
             #endif
@@ -171,11 +180,11 @@ namespace noa {
     /// \param[in] input    VArray to permute.
     /// \param permutation  Permutation with the axes numbered from 0 to 3.
     template<typename Input> requires nt::is_varray_v<Input>
-    auto permute_copy(const Input& input, const Vec4<i64>& permutation) {
+    auto permute_copy(Input&& input, const Vec4<i64>& permutation) {
         using mutable_value_type = nt::mutable_value_type_t<Input>;
         const auto permuted_shape = ni::reorder(input.shape(), permutation);
         auto output = Array<mutable_value_type>(permuted_shape, input.options());
-        permute_copy(input, output, permutation);
+        permute_copy(std::forward<Input>(input), output, permutation);
         return output;
     }
 }
@@ -378,6 +387,12 @@ namespace noa::inline types {
                  PointerTraits PointerTrait = PointerTraits::DEFAULT>
         [[nodiscard]] constexpr auto accessor_contiguous_1d() const noexcept {
             return accessor_contiguous<U, 1, I, PointerTrait>();
+        }
+
+        /// Returns a (const-)view of the view.
+        template<typename U = value_type> requires nt::is_almost_same_v<U, value_type>
+        [[nodiscard]] constexpr View<U> view() const noexcept {
+            return View<U>(get(), shape(), strides(), options());
         }
 
     public: // Deep copy

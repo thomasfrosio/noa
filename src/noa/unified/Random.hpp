@@ -1,5 +1,8 @@
 #pragma once
 
+#include "noa/core/Config.hpp"
+
+#ifdef NOA_IS_OFFLINE
 #include "noa/core/math/Distribution.hpp"
 #include "noa/unified/Ewise.hpp"
 #include "noa/unified/Array.hpp"
@@ -7,7 +10,7 @@
 
 namespace noa {
     /// Randomizes an array with uniform random values.
-    /// \param[in] distribution
+    /// \param[in] distribution A value distribution, such as Uniform, Normal, LogNormal or Poisson.
     /// \param[out] output      Array to randomize.
     template<typename Distribution, typename Output>
     requires (nt::is_distribution_v<Distribution> and nt::is_varray_v<Output>)
@@ -33,3 +36,4 @@ namespace noa {
         return out;
     }
 }
+#endif

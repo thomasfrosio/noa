@@ -1,5 +1,8 @@
 #pragma once
 
+#include "noa/core/Config.hpp"
+
+#ifdef NOA_IS_OFFLINE
 #include "noa/core/Ewise.hpp"
 #include "noa/unified/Ewise.hpp"
 
@@ -15,3 +18,4 @@ namespace noa {
         ewise(input, output, Cast{clamp});
     }
 }
+#endif

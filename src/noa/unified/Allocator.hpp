@@ -7,6 +7,17 @@
 #include "noa/core/Exception.hpp"
 #include "noa/core/string/Format.hpp"
 
+#include "noa/cpu/AllocatorHeap.hpp"
+#if defined(NOA_ENABLE_CUDA)
+#include "noa/gpu/cuda/AllocatorDevice.hpp"
+#include "noa/gpu/cuda/AllocatorDevicePadded.hpp"
+#include "noa/gpu/cuda/AllocatorManaged.hpp"
+#include "noa/gpu/cuda/AllocatorPinned.hpp"
+#endif
+
+#include "noa/unified/Device.hpp"
+#include "noa/unified/Stream.hpp"
+
 namespace noa::inline types {
     /// Memory allocation depends on the device used for the allocation.
     enum class MemoryResource {
@@ -64,7 +75,7 @@ namespace noa::inline types {
         ///   was the NULL stream, this is equivalent to MANAGED_GLOBAL. Otherwise, the allocated memory on
         ///   the GPU side is private to the stream and the GPU that performed the allocation.
         MANAGED = 16,
-        UNIFIED_PRIVATE = MANAGED,
+        UNIFIED = MANAGED,
 
         /// Managed memory allocator.
         /// - \b Allocation: Managed memory can be allocated by a CPU or a GPU device. Allocation does not
@@ -72,7 +83,7 @@ namespace noa::inline types {
         ///   allocation with MANAGED.
         /// - \b Accessibility: Can be accessed by any stream and any device (CPU and GPU).
         MANAGED_GLOBAL = 32,
-        UNIFIED = MANAGED_GLOBAL,
+        UNIFIED_GLOBAL = MANAGED_GLOBAL,
 
         /// CUDA array.
         /// - \b Allocation: This is only supported by CUDA-capable devices and is only used for textures.
@@ -80,6 +91,35 @@ namespace noa::inline types {
         CUDA_ARRAY = 64
     };
 
+    inline std::ostream& operator<<(std::ostream& os, MemoryResource memory_resource) {
+        switch (memory_resource) {
+            case MemoryResource::NONE:
+                return os << "none";
+            case MemoryResource::DEFAULT:
+                return os << "default";
+            case MemoryResource::ASYNC:
+                return os << "async";
+            case MemoryResource::PITCHED:
+                return os << "pitched";
+            case MemoryResource::PINNED:
+                return os << "pinned";
+            case MemoryResource::UNIFIED:
+                return os << "unified";
+            case MemoryResource::UNIFIED_GLOBAL:
+                return os << "unified_global";
+            case MemoryResource::CUDA_ARRAY:
+                return os << "cuda_array";
+        }
+        return os;
+    }
+}
+
+// fmt 9.1.0 fix (Disabled automatic std::ostream insertion operator (operator<<))
+namespace fmt {
+    template<> struct formatter<noa::MemoryResource> : ostream_formatter {};
+}
+
+namespace noa::inline types {
     /// Memory allocator.
     class Allocator {
     public:
@@ -89,6 +129,127 @@ namespace noa::inline types {
         /*implicit*/ Allocator(const char* name) : Allocator(std::string_view(name)) {}
 
         [[nodiscard]] constexpr MemoryResource resource() const noexcept { return m_memory_resource; }
+
+    public:
+        /// Allocates \p n_elements from the given \p memory_resource.
+        /// \note This is intended to be used as part of the Array allocation, as the allocated resource is
+        ///       converted to a shared_ptr. This is because the underlying allocators return different types
+        ///       (they have different deleters), so we have to type erase them with the shared_ptr.
+        template<typename T>
+        static auto allocate(
+                i64 n_elements,
+                const Device& device,
+                MemoryResource memory_resource
+        ) -> std::shared_ptr<T> {
+            if (!n_elements)
+                return nullptr;
+
+            switch (memory_resource) {
+                case MemoryResource::NONE:
+                    break;
+                case MemoryResource::DEFAULT: {
+                    if (device.is_cpu()) {
+                        return noa::cpu::AllocatorHeap<T>::allocate(n_elements);
+                    } else {
+                        #ifdef NOA_ENABLE_CUDA
+                        const DeviceGuard guard(device);
+                        return noa::cuda::AllocatorDevice<T>::allocate(n_elements);
+                        #endif
+                    }
+                }
+                case MemoryResource::DEFAULT_ASYNC: {
+                    if (device.is_cpu()) {
+                        return noa::cpu::AllocatorHeap<T>::allocate(n_elements);
+                    } else {
+                        #ifdef NOA_ENABLE_CUDA
+                        return noa::cuda::AllocatorDevice<T>::allocate_async(
+                                n_elements, Stream::current(device).cuda());
+                        #endif
+                    }
+                }
+                case MemoryResource::PITCHED: {
+                    if (device.is_cpu()) {
+                        return noa::cpu::AllocatorHeap<T>::allocate(n_elements);
+                    } else {
+                        #ifdef NOA_ENABLE_CUDA
+                        const DeviceGuard guard(device);
+                        // AllocatorDevicePadded requires sizeof(T) <= 16 bytes.
+                        if constexpr (nt::is_numeric_v<T>) {
+                            return noa::cuda::AllocatorDevicePadded<T>::allocate({1, 1, 1, n_elements}).first;
+                        } else {
+                            return noa::cuda::AllocatorDevice<T>::allocate(n_elements);
+                        }
+                        #endif
+                    }
+                }
+                case MemoryResource::PINNED: {
+                    if (device.is_cpu() and not Device::is_any(DeviceType::GPU)) {
+                        return noa::cpu::AllocatorHeap<T>::allocate(n_elements);
+                    } else {
+                        #ifdef NOA_ENABLE_CUDA
+                        const DeviceGuard guard(device.is_gpu() ? device : Device::current(DeviceType::GPU));
+                        return noa::cuda::AllocatorPinned<T>::allocate(n_elements);
+                        #endif
+                    }
+                }
+                case MemoryResource::MANAGED: {
+                    if (device.is_cpu() and not Device::is_any(DeviceType::GPU)) {
+                        return noa::cpu::AllocatorHeap<T>::allocate(n_elements);
+                    } else {
+                        #ifdef NOA_ENABLE_CUDA
+                        const Device gpu = device.is_gpu() ? device : Device::current(DeviceType::GPU);
+                        const DeviceGuard guard(gpu); // could be helpful when retrieving device
+                        auto& cuda_stream = Stream::current(gpu).cuda();
+                        return noa::cuda::AllocatorManaged<T>::allocate(n_elements, cuda_stream);
+                        #endif
+                    }
+                }
+                case MemoryResource::MANAGED_GLOBAL: {
+                    if (device.is_cpu() and not Device::is_any(DeviceType::GPU)) {
+                        return noa::cpu::AllocatorHeap<T>::allocate(n_elements);
+                    } else {
+                        #ifdef NOA_ENABLE_CUDA
+                        const DeviceGuard guard(device.is_gpu() ? device : Device::current(DeviceType::GPU));
+                        return noa::cuda::AllocatorManaged<T>::allocate_global(n_elements);
+                        #endif
+                    }
+                }
+                case MemoryResource::CUDA_ARRAY:
+                    panic("CUDA arrays are not supported by this allocator. Use Texture instead");
+                default:
+                    panic("{} is not supported by this allocator", memory_resource);
+            }
+        }
+
+        template<typename T>
+        static auto allocate_pitched(
+                const Shape4<i64>& shape,
+                const Device& device,
+                MemoryResource memory_resource
+        ) -> Pair<std::shared_ptr<T>, Strides4<i64>> {
+            switch (memory_resource) {
+                case MemoryResource::NONE:
+                    break;
+                case MemoryResource::PITCHED: {
+                    if (device.is_cpu()) {
+                        return {noa::cpu::AllocatorHeap<T>::allocate(shape.elements()), shape.strides()};
+                    } else {
+                        #ifdef NOA_ENABLE_CUDA
+                        const DeviceGuard guard(device);
+                        // AllocatorDevicePadded requires sizeof(T) <= 16 bytes.
+                        if constexpr (nt::is_numeric_v<T>) {
+                            auto [ptr, strides] = noa::cuda::AllocatorDevicePadded<T>::allocate(shape);
+                            return {std::move(ptr), strides};
+                        } else {
+                            return {noa::cuda::AllocatorDevice<T>::allocate(shape.elements()), shape.strides()};
+                        }
+                        #endif
+                    }
+                }
+                default:
+                    return {allocate<T>(shape.elements(), device, memory_resource), shape.strides()};
+            }
+        }
 
     private:
         static MemoryResource parse_memory_resource_(std::string_view name) {
@@ -119,38 +280,5 @@ namespace noa::inline types {
     private:
         MemoryResource m_memory_resource{MemoryResource::DEFAULT};
     };
-
-    inline std::ostream& operator<<(std::ostream& os, MemoryResource memory_resource) {
-        switch (memory_resource) {
-            case MemoryResource::NONE:
-                return os << "MemoryResource::NONE";
-            case MemoryResource::DEFAULT:
-                return os << "MemoryResource::DEFAULT";
-            case MemoryResource::ASYNC:
-                return os << "MemoryResource::ASYNC";
-            case MemoryResource::PITCHED:
-                return os << "MemoryResource::PITCHED";
-            case MemoryResource::PINNED:
-                return os << "MemoryResource::PINNED";
-            case MemoryResource::UNIFIED_PRIVATE:
-                return os << "MemoryResource::UNIFIED_PRIVATE";
-            case MemoryResource::UNIFIED:
-                return os << "MemoryResource::UNIFIED";
-            case MemoryResource::CUDA_ARRAY:
-                return os << "MemoryResource::CUDA_ARRAY";
-        }
-        return os;
-    }
-
-    inline std::ostream& operator<<(std::ostream& os, Allocator allocator) {
-        os << "Allocator{.resource=" << allocator.resource() << "}";
-        return os;
-    }
-}
-
-// fmt 9.1.0 fix (Disabled automatic std::ostream insertion operator (operator<<))
-namespace fmt {
-    template<> struct formatter<noa::MemoryResource> : ostream_formatter {};
-    template<> struct formatter<noa::Allocator> : ostream_formatter {};
 }
 #endif

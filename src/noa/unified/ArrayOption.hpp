@@ -7,7 +7,7 @@
 #include "noa/unified/Device.hpp"
 
 namespace noa::inline types {
-    /// Options for Array(s).
+    /// Options for Array; simple utility aggregate of a Device and an Allocator.
     class ArrayOption {
     public:
         Device device{};
