@@ -258,39 +258,39 @@ namespace noa::fft {
     inline std::ostream& operator<<(std::ostream& os, Remap remap) {
         switch (remap) {
             case Remap::H2H:
-                return os << "Remap::H2H";
+                return os << "h2h";
             case Remap::H2HC:
-                return os << "Remap::H2HC";
+                return os << "h2hc";
             case Remap::H2F:
-                return os << "Remap::H2F";
+                return os << "h2f";
             case Remap::H2FC:
-                return os << "Remap::H2FC";
+                return os << "h2fc";
             case Remap::HC2H:
-                return os << "Remap::HC2H";
+                return os << "hc2h";
             case Remap::HC2HC:
-                return os << "Remap::HC2HC";
+                return os << "hc2hc";
             case Remap::HC2F:
-                return os << "Remap::HC2F";
+                return os << "hc2f";
             case Remap::HC2FC:
-                return os << "Remap::HC2FC";
+                return os << "hc2fc";
             case Remap::F2H:
-                return os << "Remap::F2H";
+                return os << "f2h";
             case Remap::F2HC:
-                return os << "Remap::F2HC";
+                return os << "f2hc";
             case Remap::F2F:
-                return os << "Remap::F2F";
+                return os << "f2f";
             case Remap::F2FC:
-                return os << "Remap::F2FC";
+                return os << "f2fc";
             case Remap::FC2H:
-                return os << "Remap::FC2H";
+                return os << "fc2h";
             case Remap::FC2HC:
-                return os << "Remap::FC2HC";
+                return os << "fc2hc";
             case Remap::FC2F:
-                return os << "Remap::FC2F";
+                return os << "fc2f";
             case Remap::FC2FC:
-                return os << "Remap::FC2FC";
+                return os << "fc2fc";
             case Remap::NONE:
-                return os << "Remap::NONE";
+                return os << "none";
         }
         return os;
     }

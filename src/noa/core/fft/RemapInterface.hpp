@@ -91,3 +91,14 @@ namespace noa::fft {
         }
     };
 }
+
+#ifdef NOA_IS_OFFLINE
+namespace noa::fft {
+    inline std::ostream& operator<<(std::ostream& os, RemapInterface remap) {
+        return os << remap.remap;
+    }
+}
+namespace fmt {
+    template<> struct formatter<noa::fft::RemapInterface> : ostream_formatter {};
+}
+#endif
