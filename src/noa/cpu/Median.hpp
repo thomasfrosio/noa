@@ -32,7 +32,7 @@ namespace noa::cpu {
 
         std::nth_element(to_sort, to_sort + n_elements / 2, to_sort + n_elements);
         Value half = to_sort[n_elements / 2];
-        if (is_even(n_elements)) {
+        if (is_odd(n_elements)) {
             return half;
         } else {
             std::nth_element(to_sort, to_sort + (n_elements - 1) / 2, to_sort + n_elements);
