@@ -1,5 +1,6 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/Reduce.hpp>
+#include <noa/unified/Factory.hpp>
 
 #include <noa/unified/io/ImageFile.hpp>
 
@@ -203,7 +204,7 @@ TEMPLATE_TEST_CASE("unified:: reductions, cpu vs gpu", "[noa][unified]", i64, f3
     REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, &cpu_mean, &gpu_mean, 1, eps));
 }
 
-TEST_CASE("unified::math:: batched reductions vs numpy", "[assets][noa][unified]") {
+TEST_CASE("unified:: batched reductions vs numpy", "[assets][noa][unified]") {
     const auto path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
 
@@ -268,7 +269,7 @@ TEST_CASE("unified::math:: batched reductions vs numpy", "[assets][noa][unified]
     }
 }
 
-TEMPLATE_TEST_CASE("unified::math:: batched reductions, cpu vs gpu", "[noa][unified]", i64, f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified:: batched reductions, cpu vs gpu", "[noa][unified]", i64, f32, f64, c32, c64) {
     if (!Device::is_any_gpu())
         return;
 
@@ -363,7 +364,7 @@ TEMPLATE_TEST_CASE("unified::math:: batched reductions, cpu vs gpu", "[noa][unif
     REQUIRE(test::Matcher<TestType>(test::MATCH_ABS_SAFE, cpu_results, gpu_results, eps));
 }
 
-TEST_CASE("unified::math:: axis reductions vs numpy", "[assets][noa][unified]") {
+TEST_CASE("unified:: axis reductions vs numpy", "[assets][noa][unified]") {
     const auto path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
 
@@ -438,7 +439,7 @@ TEST_CASE("unified::math:: axis reductions vs numpy", "[assets][noa][unified]") 
     }
 }
 
-TEMPLATE_TEST_CASE("unified::math:: axis reductions, cpu vs gpu", "[noa][unified]", i64, f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified:: axis reductions, cpu vs gpu", "[noa][unified]", i64, f32, f64, c32, c64) {
     if (!Device::is_any_gpu())
         return;
 
@@ -552,7 +553,7 @@ TEMPLATE_TEST_CASE("unified::math:: axis reductions, cpu vs gpu", "[noa][unified
 
 TEST_CASE("unified::argmax/argmin()", "[noa][unified]") {
     const bool small = GENERATE(true, false);
-    const auto shape = small ? Shape4<i64>{3, 64, 128, 128} : Shape4<i64>{3, 256, 256, 300};
+    const auto shape = small ? Shape4<i64>{3, 8, 41, 65} : Shape4<i64>{3, 256, 256, 300};
     const auto n_elements_per_batch = shape.pop_front().template as<u32>().elements();
 
     std::vector<Device> devices{Device{}};
@@ -563,8 +564,11 @@ TEST_CASE("unified::argmax/argmin()", "[noa][unified]") {
         Array<f32> input(shape);
         test::randomize(input.get(), input.elements(), test::Randomizer<f32>(-100., 100.));
 
-        const u32 expected_min_offset = 145728u;
-        const u32 expected_max_offset = 2145728u;
+        auto expected_min_offset = test::Randomizer<u32>(i64{}, input.elements() - 2).get();
+        auto expected_max_offset = test::Randomizer<u32>(i64{}, input.elements() - 2).get();
+        if (expected_min_offset == expected_max_offset)
+            expected_max_offset += 1;
+
         input.span()[expected_min_offset] = -101;
         input.span()[expected_max_offset] = 101;
         for (auto& device: devices) {
@@ -575,7 +579,7 @@ TEST_CASE("unified::argmax/argmin()", "[noa][unified]") {
             const auto [min, min_offset] = noa::argmin(input);
             REQUIRE((min == -101 and min_offset == expected_min_offset));
             const auto [max, max_offset] = noa::argmax(input);
-            REQUIRE((max == 101 and max_offset == expected_min_offset));
+            REQUIRE((max == 101 and max_offset == expected_max_offset));
         }
     }
 
@@ -583,20 +587,20 @@ TEST_CASE("unified::argmax/argmin()", "[noa][unified]") {
         Array<f32> input(shape);
         test::randomize(input.get(), input.elements(), test::Randomizer<f32>(-100., 100.));
 
-        Array<f64> min_values(shape.batch());
-        Array<i32> min_offsets(shape.batch());
-        Array<f64> expected_min_values(shape.batch());
-        Array<i32> expected_min_offsets(shape.batch());
+        Array min_values = noa::empty<f32>({shape.batch(), 1, 1, 1});
+        Array min_offsets = noa::like<i32>(min_values);
+        Array expected_min_values = noa::like<f32>(min_values);
+        Array expected_min_offsets = noa::like<i32>(min_values);
 
         test::randomize(expected_min_values.get(), expected_min_values.elements(),
-                        test::Randomizer<u32>(102, 202));
+                        test::Randomizer<f32>(-200, -101));
         test::randomize(expected_min_offsets.get(), expected_min_offsets.elements(),
-                        test::Randomizer<u32>(0u, n_elements_per_batch - 200u));
+                        test::Randomizer<i32>(0u, n_elements_per_batch - 1));
 
-        const auto input_2d = input.reshape({shape.batch(), 1, 1, n_elements_per_batch});
+        const auto input_2d = input.reshape({shape.batch(), 1, 1, -1});
         for (i64 batch = 0; batch < shape.batch(); ++batch) {
-            auto& offset = expected_min_offsets(0, 0, 0, batch);
-            input_2d(batch, 0, 0, offset) = static_cast<f32>(expected_min_values(0, 0, 0, batch));
+            auto& offset = expected_min_offsets(batch, 0, 0, 0);
+            input_2d(batch, 0, 0, offset) = expected_min_values(batch, 0, 0, 0);
         }
 
         for (auto& device: devices) {
@@ -609,7 +613,7 @@ TEST_CASE("unified::argmax/argmin()", "[noa][unified]") {
             }
 
             noa::argmin(input, min_values, min_offsets);
-            REQUIRE(test::Matcher<f64>(test::MATCH_ABS, min_values, expected_min_values, 1e-7));
+            REQUIRE(test::Matcher<f32>(test::MATCH_ABS, min_values, expected_min_values, 1e-7));
 
             // Offsets are not relative to each batch...
             for (i64 batch = 0; auto& value: expected_min_offsets.span()) {
@@ -617,64 +621,6 @@ TEST_CASE("unified::argmax/argmin()", "[noa][unified]") {
                 ++batch;
             }
             REQUIRE(test::Matcher<i32>(test::MATCH_ABS, min_offsets, expected_min_offsets, 1e-7));
-        }
-    }
-}
-
-TEMPLATE_TEST_CASE("unified::find_offset(), padded", "[noa][unified]",
-                   (std::tuple<i32, i32, first_min_t>),
-                   (std::tuple<f32, u64, last_min_t>),
-                   (std::tuple<i32, i64, first_max_t>),
-                   (std::tuple<f64, u32, last_max_t>)) {
-    using value_t = std::tuple_element_t<0, TestType>;
-    using offset_t = std::tuple_element_t<1, TestType>;
-    using op_t = std::tuple_element_t<2, TestType>;
-
-    const auto subregion_shape = test::get_random_shape4(3) + 10;
-    auto shape = subregion_shape;
-    shape[1] += 20;
-    shape[2] += 20;
-    shape[3] += 20;
-
-    const bool reduce_batch = GENERATE(true, false);
-    const i64 output_size = reduce_batch ? 1 : shape.batch();
-    INFO(output_size);
-    INFO(subregion_shape);
-
-    std::vector<Device> devices = {Device{}};
-    if (Device::is_any(DeviceType::GPU))
-        devices.emplace_back("gpu");
-
-    for (auto& device: devices) {
-        INFO(device);
-        const auto options = ArrayOption(device, Allocator::MANAGED);
-
-        Array<value_t> data(shape, options);
-        const auto data_padded = data.subregion(
-                noa::indexing::FullExtent{},
-                noa::indexing::Slice{0, subregion_shape[1]},
-                noa::indexing::Slice{0, subregion_shape[2]},
-                noa::indexing::Slice{0, subregion_shape[3]});
-        test::Randomizer<value_t> randomizer(-100., 100.);
-        test::randomize(data.get(), data.elements(), randomizer);
-        data = data_padded.copy();
-        data.eval();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, data, data_padded, 1e-6));
-
-        const Array<offset_t> offset_expected(output_size, options);
-        const Array<offset_t> offset_result(output_size, options);
-        find_offsets(op_t{}, data, offset_expected, reduce_batch);
-        find_offsets(op_t{}, data_padded, offset_result, reduce_batch);
-        data.eval();
-
-        for (i64 i = 0; i < output_size; ++i) {
-            const auto index_expected = indexing::offset2index(static_cast<i64>(offset_expected(0, 0, 0, i)), data);
-            const auto index_result = indexing::offset2index(static_cast<i64>(offset_result(0, 0, 0, i)), data_padded);
-            INFO(offset_expected(0, 0, 0, i));
-            INFO(offset_result(0, 0, 0, i));
-            INFO(index_expected);
-            INFO(index_result);
-            REQUIRE(noa::all(index_expected == index_result));
         }
     }
 }

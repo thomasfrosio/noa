@@ -8,7 +8,7 @@ set(TEST_UNIFIED_SOURCES
     noa/unified/TestUnifiedEwise.cpp
     noa/unified/TestUnifiedReduceIwise.cpp
     noa/unified/TestUnifiedReduceEwise.cpp
-#    noa/unified/TestUnifiedReduce.cpp
+    noa/unified/TestUnifiedReduce.cpp
     noa/unified/TestUnifiedRandom.cpp
 
 #    noa/unified/TestUnifiedFind.cpp
