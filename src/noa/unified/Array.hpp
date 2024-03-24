@@ -317,6 +317,12 @@ namespace noa::inline types {
             return std::move(*this).to(options());
         }
 
+        /// Returns a copy of the first value in the array.
+        /// Note that the stream of the array's device is synchronized when this functions returs.
+        [[nodiscard]] value_type first() const {
+            return view().first();
+        }
+
     public: // Data reinterpretation
         /// Reinterprets the value type.
         /// \note This is only well defined in cases where reinterpret_cast<U*>(T*) is well defined, for instance,

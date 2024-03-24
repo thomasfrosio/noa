@@ -5,7 +5,7 @@
 #include "noa/core/Linspace.hpp"
 #include "noa/core/math/Constant.hpp"
 #include "noa/core/geometry/Interpolator.hpp"
-#include "noa/core/geometry/FourierPolar.hpp"
+#include "noa/core/geometry/PolarTransformSpectrum.hpp"
 
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/geometry/Interpolator.hpp"

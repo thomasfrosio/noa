@@ -558,6 +558,9 @@ namespace noa::inline types {
         NOA_NO_UNIQUE_ADDRESS mutable_value_type m_value;
     };
 
+    template<typename T>
+    AccessorValue(T&& value) -> AccessorValue<std::decay_t<T>>;
+
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #pragma GCC diagnostic pop
 #elif defined(NOA_COMPILER_MSVC)

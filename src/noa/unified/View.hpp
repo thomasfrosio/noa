@@ -221,7 +221,7 @@ namespace noa::inline types {
         constexpr View() = default;
 
         /// Creates a view of a contiguous row-vector.
-        constexpr View(T* data, i64 n_elements, ArrayOption options = {})
+        constexpr explicit View(T* data, i64 n_elements = 1, ArrayOption options = {})
                 : m_accessor(data, strides_type{n_elements, n_elements, n_elements, 1}),
                   m_shape{1, 1, 1, n_elements}, m_options(options) {}
 
@@ -430,6 +430,21 @@ namespace noa::inline types {
         /// Performs a deep copy of the view preserving the view's options.
         [[nodiscard]] Array<mutable_value_type> copy() const {
             return to(options());
+        }
+
+        /// Returns a copy of the first value in the array.
+        /// Note that the stream of the array's device is synchronized when this functions returs.
+        [[nodiscard]] value_type first() const {
+            check(not is_empty());
+            if (is_dereferenceable()) {
+                eval();
+                return get()[0];
+            } else {
+                value_type output;
+                View(get(), 1, options()).to(View(&output));
+                eval(); // protect against async cpu stream
+                return output;
+            }
         }
 
     public: // Data reinterpretation

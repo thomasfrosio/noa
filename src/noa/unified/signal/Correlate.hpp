@@ -1,12 +1,14 @@
 #pragma once
 
 #include "noa/core/signal/Correlation.hpp"
-#include "noa/core/geometry/Shape.hpp"
+#include "noa/core/geometry/DrawShape.hpp"
 #include "noa/unified/Array.hpp"
 #include "noa/unified/fft/Transform.hpp"
 #include "noa/unified/signal/PhaseShift.hpp"
+#include "noa/unified/Reduce.hpp"
 #include "noa/unified/ReduceEwise.hpp"
 #include "noa/unified/ReduceAxesEwise.hpp"
+#include "noa/unified/geometry/DrawShape.hpp"
 
 #include "noa/cpu/signal/Correlate.hpp"
 #ifdef NOA_ENABLE_CUDA
@@ -115,7 +117,7 @@ namespace noa::signal {
         }
     }
 
-    /// Computes the cross-correlation coefficient.
+    /// Computes the cross-correlation score.
     /// \param[in] lhs      Left-hand side.
     /// \param[in] rhs      Right-hand side.
     /// \param normalize    Whether the inputs should be L2-norm normalized before computing the score.
@@ -296,77 +298,106 @@ namespace noa::signal {
 
     template<size_t N>
     struct CrossCorrelationPeakOptions {
+        /// Registration mode to use for subpixel accuracy.
         CorrelationRegistration mode = CorrelationRegistration::PARABOLA_1D;
+
+        /// ((D)H)W radius of the registration window, centered on the peak.
         Vec<i64, N> registration_radius{1};
+
+        /// ((D)H)W maximum lag allowed, i.e. the peak is selected within this elliptical radius.
+        /// If negative or 0, it is ignored. Otherwise, an elliptical mask is applied, in-place, on the
+        /// centered cross-correlation map before selecting the peak.
         Vec<f64, N> maximum_lag{-1};
     };
 
-    /// Find the highest peak in a cross-correlation line.
-    /// \tparam REMAP                   Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \param[in,out] xmap             1d, 2d or 3d cross-correlation map.
-    ///                                 It can be overwritten depending on \p xmap_radius.
-    /// \param[out] peak_coordinates    Output ((D)H)W coordinate of the highest peak. One per batch or empty.
-    /// \param[out] peak_values         Output value of the highest peak. One per batch or empty.
-    /// \param xmap_radius              ((D)H)W radius of the smooth elliptic mask to apply (in-place) to \p xmap.
-    ///                                 This is used to restrict the peak position relative to the center of \p xmap.
-    ///                                 If negative or 0, it is ignored.
-    /// \param peak_mode                Registration mode to use for subpixel accuracy.
-    /// \param peak_radius              ((D)H)W radius of the registration window, centered on the peak.
-    /// \note On the GPU, \p peak_radius is limited to 64 (1d), 8 (2d), or 2 (3d) with \p peak_mode PeakMode::COM.
+    /// Find the cross-correlation peak(s) of the cross-correlation map(s).
+    /// \tparam REMAP                           Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \param[in,out] cross_correlation_map    1d, 2d or 3d cross-correlation map.
+    ///                                         It can be overwritten depending on options.maximum_lag.
+    /// \param[out] peak_coordinates            Output ((D)H)W coordinate of the highest peak. One per batch or empty.
+    /// \param[out] peak_values                 Output value of the highest peak. One per batch or empty.
+    /// \param options                          Picking and registration options.
     template<noa::fft::RemapInterface REMAP, size_t N, typename Input,
              typename PeakCoord = View<Vec<f32, N>>,
              typename PeakValue = View<nt::mutable_value_type_t<Input>>>
     requires (nt::is_varray_of_almost_any_v<Input, f32, f64> &&
-              nt::is_varray_of_any_v<PeakCoord, Vec<f32, N>> &&
+              nt::is_varray_of_any_v<PeakCoord, Vec<f32, N>, Vec<f64, N>> &&
               nt::is_varray_of_any_v<PeakValue, f32, f64> &&
               nt::are_almost_same_value_type_v<Input, PeakValue>)
     void cross_correlation_peak(
-            const Input& xmap,
+            const Input& cross_correlation_map,
             const PeakCoord& peak_coordinates,
             const PeakValue& peak_values = {},
             const CrossCorrelationPeakOptions<N>& options = {}
     ) {
-        guts::check_xpeak_parameters(xmap, options.registration_radius, options.mode, peak_coordinates, peak_values);
+        guts::check_xpeak_parameters(
+                cross_correlation_map, options.registration_radius, options.mode,
+                peak_coordinates, peak_values);
 
-        const Device& device = xmap.device();
-        const auto shape = xmap.shape();
+        const Device& device = cross_correlation_map.device();
+        const auto shape = cross_correlation_map.shape();
+        const auto view = cross_correlation_map.view();
 
-        using value_t = nt::mutable_value_type_t<Input>;
+        // Mask the cross-correlation map to restrict the maximum lag.
         if (options.maximum_lag >= 0) {
-            using ellipse_t = noa::geometry::Ellipse<N, value_t, f32, true>;
-            using accessor_t = AccessorI64<value_t, 4>;
-            using op_t = noa::geometry::DrawGeometricShape<
-                    N, REMAP.remap, i64, f32, ellipse_t, Empty, Multiply, accessor_t, accessor_t>;
+            check(REMAP.is_fc2xx(),
+                  "In order to restrict the maximum allowed lag, the cross-correlation map should be centered");
 
-            ellipse_t ellipse();
-            iwise(xmap.shape(), device, op_t{xmap.accessor(), xmap.accessor(), shape.pop_front(), ellipse, {}, {}});
+            using namespace noa::geometry;
+            if constexpr (N == 1) {
+                // We could use a 1d window, but this works too.
+                const size_t dim = shape[2] > 1 ? 2 : 3;
+                auto center = Vec2<f64>{};
+                center[dim] = static_cast<f64>(shape[dim] / 2);
+                draw_shape(view, view, Sphere<2>{
+                        .center=center, // 0 lag position
+                        .radius=options.maximum_lag,
+                });
+            } else if constexpr (N == 2) {
+                draw_shape(view, view, Ellipse<N>{
+                        .center=(shape.filter(2, 3) / 2).vec.template as<f64>(), // 0 lag position
+                        .radius=options.maximum_lag,
+                });
+            } else {
+                draw_shape(view, view, Ellipse<N>{
+                        .center=(shape.filter(1, 2, 3) / 2).vec.template as<f64>(), // 0 lag position
+                        .radius=options.maximum_lag,
+                });
+            }
+
+            // TODO Select cross_correlation_map subregion within options.maximum_lag.
+            //      This would require to add an offset to the peaks though...
         }
-        // TODO If centered, select xmap subregion within options.maximum_lag.
 
-        // FIXME Mask xmap with maximum_lag
-        Array<i64> peak_offsets;
-        reduce_axes_iwise(xmap, i64{}, peak_offsets, ReduceFirstMax{});
+        // Find the peaks.
+        Array peak_offsets = noa::empty<i64>({shape[0], 1, 1, 1}, ArrayOption{device, MemoryResource::ASYNC});
+        argmax(view, {}, peak_offsets.view());
 
-
+        // Subpixel registration.
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=]() {
                 using namespace noa::cpu::signal;
                 if constexpr (N == 1) {
-                    subpixel_registration_1d<REMAP.remap>(
-                            xmap.get(), xmap.strides(), xmap.shape(),
+                    subpixel_registration_1d<REMAP.remap>( // FIXME Check offsets are not relative to the batch
+                            cross_correlation_map.get(),
+                            cross_correlation_map.strides(),
+                            cross_correlation_map.shape(),
                             peak_offsets.get(), peak_coordinates.get(), peak_values.get(),
                             options.mode, options.registration_radius);
                 } else if constexpr (N == 2) {
                     subpixel_registration_2d<REMAP.remap>(
-                            xmap.get(), xmap.strides(), xmap.shape(),
+                            cross_correlation_map.get(),
+                            cross_correlation_map.strides(),
+                            cross_correlation_map.shape(),
                             peak_offsets.get(), peak_coordinates.get(), peak_values.get(),
                             options.mode, options.registration_radius);
                 } else {
                     subpixel_registration_3d<REMAP.remap>(
-                            xmap.get(), xmap.strides(), xmap.shape(),
+                            cross_correlation_map.get(),
+                            cross_correlation_map.strides(),
+                            cross_correlation_map.shape(),
                             peak_offsets.get(), peak_coordinates.get(), peak_values.get(),
                             options.mode, options.registration_radius);
                 }
@@ -377,24 +408,55 @@ namespace noa::signal {
             using namespace noa::cuda::signal;
             if constexpr (N == 1) {
                 subpixel_registration_1d<REMAP.remap>(
-                        xmap.get(), xmap.strides(), xmap.shape(),
+                        cross_correlation_map.get(),
+                        cross_correlation_map.strides(),
+                        cross_correlation_map.shape(),
                         peak_offsets.get(), peak_values.get(),
-                        options.mode, options.registration_radius, cuda_stream);
+                        options.mode, options.registration_radius,
+                        cuda_stream);
             } else if constexpr (N == 2) {
                 subpixel_registration_2d<REMAP.remap>(
-                        xmap.get(), xmap.strides(), xmap.shape(),
+                        cross_correlation_map.get(),
+                        cross_correlation_map.strides(),
+                        cross_correlation_map.shape(),
                         peak_offsets.get(), peak_values.get(),
-                        options.mode, options.registration_radius, cuda_stream);
+                        options.mode, options.registration_radius,
+                        cuda_stream);
             } else {
                 subpixel_registration_3d<REMAP.remap>(
-                        xmap.get(), xmap.strides(), xmap.shape(),
+                        cross_correlation_map.get(),
+                        cross_correlation_map.strides(),
+                        cross_correlation_map.shape(),
                         peak_offsets.get(), peak_values.get(),
-                        options.mode, options.registration_radius, cuda_stream);
+                        options.mode, options.registration_radius,
+                        cuda_stream);
             }
-            cuda_stream.enqueue_attach(xmap, peak_offsets, peak_coordinates, peak_values);
+            cuda_stream.enqueue_attach(cross_correlation_map, peak_offsets, peak_coordinates, peak_values);
             #else
             panic("No GPU backend detected");
             #endif
+        }
+    }
+
+    template<noa::fft::RemapInterface REMAP, size_t N, typename Input>
+    auto cross_correlation_peak(const Input& xmap, const CrossCorrelationPeakOptions<N>& options = {}) {
+        using value_t = nt::value_type_t<Input>;
+        using coord_t = Vec<f64, N>;
+        using pair_t = Pair<value_t, i64>;
+        if (xmap.device().is_cpu()) {
+            pair_t pair{};
+            cross_correlation_peak<REMAP>(xmap, View(&pair.first), View(&pair.second), options);
+            xmap.eval();
+            return pair;
+        } else {
+            const auto array_options = ArrayOption{xmap.device(), MemoryResource::ASYNC};
+            Array pair = noa::zeros<pair_t>(1, array_options);
+            cross_correlation_peak<REMAP>(
+                    xmap.view(),
+                    View(&(pair.get()->first), array_options),
+                    View(&(pair.get()->second), array_options),
+                    options);
+            return pair.first();
         }
     }
 
@@ -407,9 +469,8 @@ namespace noa::signal {
             const PeakValue& peak_values = {},
             const CrossCorrelationPeakOptions<1>& options = {}
     ) {
-        cross_correlation_peak<REMAP, 1>(xmap, peak_coordinates, peak_values, options);
+        cross_correlation_peak<REMAP>(xmap, peak_coordinates, peak_values, options);
     }
-
     template<noa::fft::RemapInterface REMAP, typename Input,
              typename PeakCoord = View<Vec2<f32>>,
              typename PeakValue = View<nt::mutable_value_type_t<Input>>>
@@ -417,11 +478,10 @@ namespace noa::signal {
             const Input& xmap,
             const PeakCoord& peak_coordinates,
             const PeakValue& peak_values = {},
-            const CrossCorrelationPeakOptions<3>& options = {}
+            const CrossCorrelationPeakOptions<2>& options = {}
     ) {
-        cross_correlation_peak<REMAP, 3>(xmap, peak_coordinates, peak_values, options);
+        cross_correlation_peak<REMAP>(xmap, peak_coordinates, peak_values, options);
     }
-
     template<noa::fft::RemapInterface REMAP, typename Input,
              typename PeakCoord = View<Vec3<f32>>,
              typename PeakValue = View<nt::mutable_value_type_t<Input>>>
@@ -431,98 +491,19 @@ namespace noa::signal {
             const PeakValue& peak_values = {},
             const CrossCorrelationPeakOptions<3>& options = {}
     ) {
-        cross_correlation_peak<REMAP, 3>(xmap, peak_coordinates, peak_values, options);
+        cross_correlation_peak<REMAP>(xmap, peak_coordinates, peak_values, options);
     }
 
-    /// Returns a pair of the ((D)H)W coordinate and the value of the highest peak in a cross-correlation map.
-    /// \tparam REMAP       Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \param[in,out] xmap 1d, 2d, or 3d cross-correlation map. It can be overwritten depending on \p xmap_radius.
-    /// \param xmap_radius  ((D)H)W radius of the smooth elliptic mask to apply (in-place) to \p xmap.
-    ///                     This is used to restrict the peak position relative to the center of \p xmap.
-    ///                     If negative or 0, it is ignored.
-    /// \param peak_mode    Registration mode to use for subpixel accuracy.
-    /// \param peak_radius  ((D)H)W radius of the registration window, centered on the peak.
-    /// \note On the GPU, \p peak_radius is limited to 64 (1d), 8 (2d), or 2 (3d) with \p peak_mode PeakMode::COM.
-    template<Remap REMAP, size_t N, typename Input, typename = std::enable_if_t<
-             nt::is_varray_of_any_v<Input, f32, f64> &&
-             details::is_valid_xpeak_v<REMAP, N>>>
-    [[nodiscard]] auto xpeak(const Input& xmap,
-                             const Vec<f32, N>& xmap_radius = Vec<f32, N>{0},
-                             PeakMode peak_mode = PeakMode::PARABOLA_1D,
-                             const Vec<i64, N>& peak_radius = Vec<i64, N>{1}) {
-        details::check_xpeak_parameters(xmap, peak_radius, peak_mode);
-        NOA_CHECK(!xmap.shape().is_batched(),
-                  "The input cross-correlation cannot be batched, but got shape {}",
-                  xmap.shape());
-
-        const Device& device = xmap.device();
-        Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            auto& cpu_stream = stream.cpu();
-            cpu_stream.synchronize();
-            const auto threads = cpu_stream.thread_limit();
-            if constexpr (N == 1) {
-                return cpu::signal::fft::xpeak_1d<REMAP>(
-                        xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
-                        peak_mode, peak_radius, threads);
-            } else if constexpr (N == 2) {
-                return cpu::signal::fft::xpeak_2d<REMAP>(
-                        xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
-                        peak_mode, peak_radius, threads);
-            } else {
-                return cpu::signal::fft::xpeak_3d<REMAP>(
-                        xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
-                        peak_mode, peak_radius, threads);
-            }
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            auto& cuda_stream = stream.cuda();
-            if constexpr (N == 1) {
-                return cuda::signal::fft::xpeak_1d<REMAP>(
-                        xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
-                        peak_mode, peak_radius, cuda_stream);
-            } else if constexpr (N == 2) {
-                return cuda::signal::fft::xpeak_2d<REMAP>(
-                        xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
-                        peak_mode, peak_radius, cuda_stream);
-            } else {
-                return cuda::signal::fft::xpeak_3d<REMAP>(
-                        xmap.get(), xmap.strides(), xmap.shape(), xmap_radius,
-                        peak_mode, peak_radius, cuda_stream);
-            }
-            #else
-            NOA_THROW("No GPU backend detected");
-            #endif
-        }
+    template<noa::fft::RemapInterface REMAP, typename Input>
+    auto cross_correlation_peak_1d(const Input& xmap, const CrossCorrelationPeakOptions<1>& options = {}) {
+        return cross_correlation_peak<REMAP>(xmap, options);
     }
-
-    template<Remap REMAP, typename Input, typename = std::enable_if_t<
-             nt::is_varray_of_any_v<Input, f32, f64> &&
-             details::is_valid_xpeak_v<REMAP, 1>>>
-    [[nodiscard]] auto xpeak_1d(const Input& xmap,
-                                const Vec1<f32>& xmap_radius = Vec1<f32>{0},
-                                PeakMode peak_mode = PeakMode::PARABOLA_1D,
-                                const Vec1<i64>& peak_radius = Vec1<i64>{1}) {
-        return xpeak<REMAP, 1>(xmap, xmap_radius, peak_mode, peak_radius);
+    template<noa::fft::RemapInterface REMAP, typename Input>
+    auto cross_correlation_peak_2d(const Input& xmap, const CrossCorrelationPeakOptions<2>& options = {}) {
+        return cross_correlation_peak<REMAP>(xmap, options);
     }
-
-    template<Remap REMAP, typename Input, typename = std::enable_if_t<
-             nt::is_varray_of_any_v<Input, f32, f64> &&
-             details::is_valid_xpeak_v<REMAP, 2>>>
-    [[nodiscard]] auto xpeak_2d(const Input& xmap,
-                                const Vec2<f32>& xmap_radius = Vec2<f32>{0},
-                                PeakMode peak_mode = PeakMode::PARABOLA_1D,
-                                const Vec2<i64>& peak_radius = Vec2<i64>{1}) {
-        return xpeak<REMAP, 2>(xmap, xmap_radius, peak_mode, peak_radius);
-    }
-
-    template<Remap REMAP, typename Input, typename = std::enable_if_t<
-             nt::is_varray_of_any_v<Input, f32, f64> &&
-             details::is_valid_xpeak_v<REMAP, 3>>>
-    [[nodiscard]] auto xpeak_3d(const Input& xmap,
-                                const Vec3<f32>& xmap_radius = Vec3<f32>{0},
-                                PeakMode peak_mode = PeakMode::PARABOLA_1D,
-                                const Vec3<i64>& peak_radius = Vec3<i64>{1}) {
-        return xpeak<REMAP, 3>(xmap, xmap_radius, peak_mode, peak_radius);
+    template<noa::fft::RemapInterface REMAP, typename Input>
+    auto cross_correlation_peak_3d(const Input& xmap, const CrossCorrelationPeakOptions<3>& options = {}) {
+        return cross_correlation_peak<REMAP>(xmap, options);
     }
 }

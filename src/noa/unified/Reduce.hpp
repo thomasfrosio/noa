@@ -670,7 +670,6 @@ namespace noa {
                 shape = shape.reorder(order_4d);
                 accessor.reorder(order_4d);
                 arg_values = arg_values.reorder(order_4d);
-                arg_offsets = arg_offsets.reorder(order_4d);
             }
         }
         auto op = op_t{{accessor}};
@@ -729,7 +728,6 @@ namespace noa {
                 shape = shape.reorder(order_4d);
                 accessor.reorder(order_4d);
                 arg_values = arg_values.reorder(order_4d);
-                arg_offsets = arg_offsets.reorder(order_4d);
             }
         }
         auto op = op_t{{accessor}};

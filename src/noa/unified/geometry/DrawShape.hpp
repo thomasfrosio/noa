@@ -1,12 +1,125 @@
 #pragma once
 
 #include "noa/core/geometry/Transform.hpp"
-#include "noa/core/geometry/Shape.hpp"
+#include "noa/core/geometry/DrawShape.hpp"
 #include "noa/core/Ewise.hpp"
 #include "noa/unified/Iwise.hpp"
 #include "noa/unified/View.hpp"
 
+namespace noa::geometry {
+    template<size_t N>
+    requires (N == 2 or N == 3)
+    struct Ellipse {
+        static constexpr size_t SIZE = N;
+
+        /// (D)HW center of the ellipse.
+        Vec<f64, N> center;
+
+        /// (D)HW radius of the ellipse.
+        Vec<f64, N> radius;
+
+        /// Size, in pixels, of the raised cosine smooth edge.
+        /// This is the number pixels that will be used to compute the (1,0] taper range.
+        f64 smoothness{0};
+
+        /// Value of the pixels inside the object.
+        /// Pixels outside the object are set to 0.
+        f64 cvalue{1};
+
+        /// Whether the object should be inverted, i.e. elements inside the object are set to 0,
+        /// and elements outside the object are set to cvalue.
+        bool invert{false};
+    };
+
+    template<size_t N>
+    requires (N == 2 or N == 3)
+    struct Sphere {
+        static constexpr size_t SIZE = N;
+
+        /// (D)HW center of the sphere/circle.
+        Vec<f64, N> center;
+
+        /// Radius of the sphere/circle.
+        f64 radius;
+
+        /// Size, in pixels, of the raised cosine smooth edge.
+        /// This is the number pixels that will be used to compute the (1,0] taper range.
+        f64 smoothness{0};
+
+        /// Value of the pixels inside the object.
+        /// Pixels outside the object are set to 0.
+        f64 cvalue{1};
+
+        /// Whether the object should be inverted, i.e. elements inside the object are set to 0,
+        /// and elements outside the object are set to cvalue.
+        bool invert{false};
+    };
+
+    template<size_t N>
+    requires (N == 2 or N == 3)
+    struct Rectangle {
+        static constexpr size_t SIZE = N;
+
+        /// (D)HW center of the rectangle.
+        Vec<f64, N> center;
+
+        /// (D)HW radius of the rectangle.
+        Vec<f64, N> radius;
+
+        /// Size, in pixels, of the raised cosine smooth edge.
+        /// This is the number pixels that will be used to compute the (1,0] taper range.
+        f64 smoothness{0};
+
+        /// Value of the pixels inside the object.
+        /// Pixels outside the object are set to 0.
+        f64 cvalue{1};
+
+        /// Whether the object should be inverted, i.e. elements inside the object are set to 0,
+        /// and elements outside the object are set to cvalue.
+        bool invert{false};
+    };
+
+    struct Cylinder {
+        static constexpr size_t SIZE = 2;
+
+        /// DHW center of the cylinder.
+        Vec3<f64> center;
+
+        /// Radius of the cylinder.
+        f64 radius;
+
+        /// Length of the cylinder.
+        f64 length;
+
+        /// Size, in pixels, of the raised cosine smooth edge.
+        /// This is the number pixels that will be used to compute the (1,0] taper range.
+        f64 smoothness{0};
+
+        /// Value of the pixels inside the object.
+        /// Pixels outside the object are set to 0.
+        f64 cvalue{1};
+
+        /// Whether the object should be inverted, i.e. elements inside the object are set to 0,
+        /// and elements outside the object are set to cvalue.
+        bool invert{false};
+    };
+}
+
 namespace noa::geometry::guts {
+    template<typename T> struct proclaim_is_ellipse : std::false_type {};
+    template<typename T> struct proclaim_is_sphere : std::false_type {};
+    template<typename T> struct proclaim_is_rectangle : std::false_type {};
+    template<typename T> struct proclaim_is_cylinder : std::false_type {};
+    template<size_t N> struct proclaim_is_ellipse<Ellipse<N>> : std::true_type {};
+    template<size_t N> struct proclaim_is_sphere<Sphere<N>> : std::true_type {};
+    template<size_t N> struct proclaim_is_rectangle<Rectangle<N>> : std::true_type {};
+    template<> struct proclaim_is_cylinder<Cylinder> : std::true_type {};
+
+    template<typename T> constexpr bool is_ellipse_v = proclaim_is_ellipse<std::decay_t<T>>::value;
+    template<typename T> constexpr bool is_sphere_v = proclaim_is_sphere<std::decay_t<T>>::value;
+    template<typename T> constexpr bool is_rectangle_v = proclaim_is_rectangle<std::decay_t<T>>::value;
+    template<typename T> constexpr bool is_cylinder_v = proclaim_is_cylinder<std::decay_t<T>>::value;
+
     template<size_t N, typename Input, typename Output, typename Transform>
     auto check_draw_shape_parameters(
             const Input& input,
@@ -44,418 +157,192 @@ namespace noa::geometry::guts {
         }
     }
 
-    template<size_t N, typename Index, typename Coord,
-             typename DrawOp, typename DrawOpSmooth,
-             typename Input, typename Output, typename Transform, typename BinaryOp, typename Radius, typename CValue>
+    template<typename Index, typename Input, typename Output, typename Shape, typename Transform, typename BinaryOp>
     void launch_draw_shape(
-            const Input& input, const Output& output, const Transform& inverse_transform, const BinaryOp& binary_op,
-            const Vec<Coord, N>& center, const Radius& radius, Coord smoothness, CValue cvalue, bool invert
-    ) {
-        using input_accessor_t = Accessor<const nt::mutable_value_type_t<Input>, N + 1, Index>;
-        using output_accessor_t = Accessor<nt::value_type_t<Output>, N + 1, Index>;
+            const Input& input, const Output& output, const Shape& shape,
+            const Transform& inverse_transform, const BinaryOp& binary_op
 
+    ) {
+        constexpr size_t N = Shape::SIZE;
+        using input_value_t = nt::mutable_value_type_t<Input>;
+        using input_real_t = nt::value_type_t<input_value_t>;
+        using output_value_t = nt::value_type_t<Output>;
+
+        // Prepare the input/output accessors.
+        using input_accessor_t = Accessor<const input_value_t, N + 1, Index>;
+        using output_accessor_t = Accessor<output_value_t, N + 1, Index>;
         auto get_strides = [](const auto& array) {
             if constexpr (N == 2)
                 return array.strides().filter(0, 2, 3).template as<Index>();
             else
                 return array.strides().template as<Index>();
         };
-
-        auto input_accessor = input_accessor_t(input, get_strides(input));
-        auto output_accessor = output_accessor_t(output, get_strides(output));
-        auto shape = [&]() {
-            if constexpr (N == 2)
-                return output.shape().filter(0, 2, 3).template as<Index>();
-            else
-                return output.shape().template as<Index>();
-        };
+        auto input_accessor = input_accessor_t(input.get(), get_strides(input));
+        auto output_accessor = output_accessor_t(output.get(), get_strides(output));
 
         // Broadcast the input to every output batch.
         if (input.shape()[0] == 1)
             input_accessor.strides()[0] = 0;
 
-        bool has_transform{};
+        // Skip the transform if possible.
+        bool has_transform{}; // default: Empty
         if constexpr (nt::is_varray_v<Transform>)
             has_transform = not inverse_transform.is_empty();
         else if constexpr (nt::is_quaternion_v<Transform>)
             has_transform = inverse_transform != Transform{.z=0, .y=0, .x=0, .w=1};
-        else
+        else if constexpr (nt::is_mat_v<Transform>)
             has_transform = inverse_transform != Transform::eye(1);
 
+        // Wrap the transform if necessary.
         auto extract_transform = [&] {
             if constexpr ((N == 2 and nt::is_mat33_v<Transform>) or
                           (N == 3 and nt::is_mat44_v<Transform>)) {
-                return affine2truncated(inverse_transform);
+                return AccessorValue(affine2truncated(inverse_transform));
             } else if constexpr (nt::is_varray_v<Transform>) {
-                using const_ptr_t = const Transform::mutable_value_type*;
-                return const_ptr_t(inverse_transform.get());
-            } else {
+                using value_t = Transform::mutable_value_type;
+                using accessor_t = AccessorRestrictContiguousI64<const value_t, 1>;
+                return accessor_t(inverse_transform.get());
+            } else if constexpr (nt::is_mat_v<Transform> or nt::is_quaternion_v<Transform>) {
+                return AccessorValue(inverse_transform);
+            } else { // Empty
                 return inverse_transform;
             }
         };
 
-        auto launch_for_each_matrix = [&](auto draw_op) {
-            if (has_transform) {
-                using transform_t = decltype(extract_transform(inverse_transform));
-                using op_t = DrawShape<2, Index, Coord, decltype(draw_op), transform_t, BinaryOp, input_accessor_t, output_accessor_t>;
-                auto op = op_t(input_accessor, output_accessor, draw_op, extract_transform(inverse_transform), binary_op);
-                return iwise(shape, output.device(), std::move(op));
+        // Get the drawing operator. Use the fp precision of the input,
+        // fall back to double if input is not real or complex.
+        using coord_t = std::conditional_t<nt::is_any_v<input_real_t, f32, f64>, input_real_t, f64>;
+        auto extract_drawing_operator = [&]<bool is_smooth>() {
+            auto cvalue = static_cast<coord_t>(shape.cvalue);
+            auto center = shape.center.template as<coord_t>();
+            auto smoothness = static_cast<coord_t>(shape.smoothness);
+            if constexpr (is_ellipse_v<Shape>) {
+                auto radius = shape.radius.template as<coord_t>();
+                using ellipse_t = DrawEllipse<N, coord_t, is_smooth>;
+                return ellipse_t(center, radius, cvalue, shape.invert, smoothness);
+            } else if constexpr (is_sphere_v<Shape>) {
+                auto radius = static_cast<coord_t>(shape.radius);
+                using sphere_t = DrawSphere<N, coord_t, is_smooth>;
+                return sphere_t(center, radius, cvalue, shape.invert, smoothness);
+            } else if constexpr (is_rectangle_v<Shape>) {
+                auto radius = shape.radius.template as<coord_t>();
+                using rectangle_t = DrawRectangle<N, coord_t, is_smooth>;
+                return rectangle_t(center, radius, cvalue, shape.invert, smoothness);
+            } else if constexpr (is_cylinder_v<Shape>) {
+                auto radius_length = Vec2<coord_t>::from_values(shape.radius, shape.length);
+                using cylinder_t = DrawCylinder<coord_t, is_smooth>;
+                return cylinder_t(center, radius_length, cvalue, shape.invert, smoothness);
             } else {
-                using op_t = DrawShape<2, Index, Coord, decltype(draw_op), Empty, BinaryOp, input_accessor_t, output_accessor_t>;
-                auto op = op_t(input_accessor, output_accessor, draw_op, Empty{}, binary_op);
-                return iwise(shape, output.device(), std::move(op));
+                static_assert(nt::always_false_v<Shape>);
             }
         };
 
-        if (smoothness > static_cast<Coord>(1e-8)) {
-            launch_for_each_matrix(DrawOpSmooth(center, radius, smoothness, cvalue, invert));
+        // Loop through every element of the output.
+        auto iwise_shape = [&]() {
+            if constexpr (N == 2)
+                return output.shape().filter(0, 2, 3).template as<Index>();
+            else
+                return output.shape().template as<Index>();
+        }();
+
+        // Launch, with or without transformation.
+        auto launch = [&]<typename T>(T draw_op) {
+            if (has_transform) {
+                using transform_t = decltype(extract_transform());
+                using op_t = DrawShape<N, Index, T, transform_t, BinaryOp, input_accessor_t, output_accessor_t>;
+                auto op = op_t(input_accessor, output_accessor, draw_op, extract_transform(), binary_op);
+                return iwise(iwise_shape, output.device(), std::move(op));
+            } else {
+                using op_t = DrawShape<N, Index, T, Empty, BinaryOp, input_accessor_t, output_accessor_t>;
+                auto op = op_t(input_accessor, output_accessor, draw_op, Empty{}, binary_op);
+                return iwise(iwise_shape, output.device(), std::move(op));
+            }
+        };
+
+        if (shape.smoothness > 1e-8) {
+            launch(extract_drawing_operator.template operator()<true>());
         } else {
-            launch_for_each_matrix(DrawOp(center, radius, cvalue, invert));
+            launch(extract_drawing_operator.template operator()<false>());
         }
     }
 
-    template<typename T, size_t N>
+    template<typename T, size_t N, typename Coord>
     constexpr bool is_valid_draw_transform_v =
-            (N == 2 and (nt::is_mat22_v<T> or nt::is_mat23_v<T> or nt::is_mat33_v<T>)) or
-            (N == 3 and (nt::is_mat33_v<T> or nt::is_mat34_v<T> or nt::is_mat44_v<T> or nt::is_quaternion_v<T>));
+            std::is_same_v<nt::value_type_t<T>, Coord> and
+            ((N == 2 and (nt::is_mat22_v<T> or nt::is_mat23_v<T> or nt::is_mat33_v<T>)) or
+             (N == 3 and (nt::is_mat33_v<T> or nt::is_mat34_v<T> or nt::is_mat44_v<T> or nt::is_quaternion_v<T>)));
 
-    template<typename Output, typename Input, typename BinaryOp>
-    constexpr bool is_valid_draw_binary_op_v = requires {
-        static_cast<nt::value_type_t<Output>>(std::declval<BinaryOp>()(
-                std::declval<nt::value_type_t<Input>>(),
-                std::declval<nt::value_type_t<Input>>()
-        ));
+    template<typename T>
+    constexpr bool is_valid_draw_shape_v =
+            is_ellipse_v<T> or is_sphere_v<T> or is_rectangle_v<T> or is_rectangle_v<T>;
+
+    template<typename Output, typename Lhs, typename Rhs, typename BinaryOp>
+    constexpr bool is_valid_draw_binary_op_v = std::is_empty_v<BinaryOp> or requires {
+        static_cast<nt::value_type_t<Output>>(std::declval<BinaryOp>()(std::declval<Lhs>(), std::declval<Rhs>()));
     };
 
-    template<size_t N, typename Output, typename Input, typename CValue, typename Matrix, typename BinaryOp>
+    template<typename Input, typename Output, typename Shape, typename Transform, typename BinaryOp,
+             typename InputValue = nt::mutable_value_type_t<Input>,
+             typename InputScalar = nt::mutable_value_type_twice_t<Input>,
+             typename Coord = std::conditional_t<nt::is_real_v<InputScalar>, InputScalar, f64>,
+             typename TransformValue = nt::value_type_t<Transform>>
     concept ValidDrawShape =
-            (nt::are_varray_of_scalar_v<Input, Output> or nt::are_varray_of_complex_v<Input, Output>) and
+            nt::are_varray_of_numeric_v<Input, Output> and
             nt::is_varray_of_mutable_v<Output> and
-            std::is_same_v<CValue, nt::mutable_value_type_twice_t<Input>> and
-            (is_valid_draw_transform_v<Matrix, 2> or
-             (nt::is_varray_v<Matrix> and is_valid_draw_transform_v<nt::value_type_t<Matrix>, 2>)) and
-            is_valid_draw_binary_op_v<Output, Input, BinaryOp>;
+            is_valid_draw_shape_v<Shape> and
+            (std::is_empty_v<Transform> or is_valid_draw_transform_v<Transform, Shape::SIZE, Coord> or
+             (nt::is_varray_v<Transform> and is_valid_draw_transform_v<TransformValue, Shape::SIZE, Coord>)) and
+            is_valid_draw_binary_op_v<Output, InputValue, Coord, BinaryOp>;
 }
 
 namespace noa::geometry {
-    template<typename T, size_t N>
-    requires (N == 2 or N == 3)
-    struct Ellipse {
-        /// (D)HW center of the ellipse.
-        Vec<f64, N> center;
-
-        /// (D)HW radius of the ellipse.
-        Vec<f64, N> radius;
-
-        /// Size, in pixels, of the raised cosine smooth edge.
-        /// This is the number pixels that will be used to compute the (1,0] taper range.
-        f64 smoothness{0};
-
-        /// Value of the pixels inside the object.
-        /// Pixels outside the object are set to 0.
-        T cvalue{1};
-
-        /// Whether the object should be inverted, i.e. elements inside the object are set to 0,
-        /// and elements outside the object are set to cvalue.
-        bool invert{false};
-    };
-
-    /// Returns or draws an ellipse.
-    /// \details The mask can be directly saved in \p output or applied (\p see binary_op) to \p input and
-    ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inverse_matrices).
+    /// Returns or draws a geometric shape (ellipse, sphere, cylinder or rectangle).
+    /// \details The shape can be directly saved in \p output or applied (\p see binary_op) to \p input and
+    ///          then saved in \p output. The same transformation can be applied to every batch or there can be
+    ///          one transformation per batch (\p see inverse_transforms).
     ///
     /// \tparam Transform           2d case: Mat22, Mat23, Mat33 or an varray of either one of these types.
     ///                             3d case: Mat33, Mat34, Mat44, Quaternion or an varray of either one of these types.
     /// \param[in] input            2d or 3d array(s). If empty, write directly in \p output.
     /// \param[out] output          2d or 3d array(s). Can be equal to \p input for in-place drawing.
-    /// \param ellipse              Ellipse to draw, with the \p input value type.
-    /// \param inverse_transforms   Inverse (D)HW (affine) matrix/matrices or quaternion(s) to apply on the ellipse.
+    /// \param shape                Geometric shape to draw.
+    /// \param inverse_transforms   Inverse (D)HW (affine) matrix/matrices or quaternion(s) to apply on the shape.
     ///                             For non-affine matrices and quaternion(s), the rotation center is the center of
-    ///                             the ellipse. Note that the identity transformation (the default), as well as an
+    ///                             the shape. Note that the identity transformation (the default), as well as an
     ///                             empty array is explicitly checked and not passed to the backends.
-    /// \param binary_op            Binary operator used to draw the ellipse onto the input values:
-    ///                             (input_value, ellipse_value) -> value ("value" is casted to the actual output type).
+    /// \param binary_op            Binary operator used to draw the shape onto the input values:
+    ///                             (input_value, drawn_value) -> value ("value" is then casted to the actual output type).
+    ///                             The default operator multiplies both values; if the input is an integer, drawn_value
+    ///                             if first rounded to the nearest integer; if the input is complex and the output is
+    ///                             real, abs(input_value)^2 (the power-spectrum) is first computed.
     ///                             This is ignored if \p input is empty.
     ///
-    /// \note The floating-point precision of the drawing operator is set by the transformation floating-point type,
-    ///       which defaults to double precision.
-    /// \note This function is optimized for rightmost arrays. Passing anything else will likely result in a
-    ///       significant performance loss.
-    template<size_t N,
-             typename Output,
+    /// \note The floating-point precision of the computed geometric shape is set by the input value type (which
+    ///       defaults to the output if no input is provided). If the input value type is not a (complex)
+    ///       floating-point, f64 is used. If a transformation is provided, it should have the same floating-point type.
+    ///
+    /// \note This function is optimized for rightmost arrays.
+    ///       Passing anything else will likely result in a significant performance loss.
+    template<typename Output, typename Shape,
              typename Input = View<nt::value_type_t<Output>>,
-             typename CValue = nt::mutable_value_type_twice_t<Input>,
-             typename Transform = std::conditional_t<N == 2, Mat22<f64>, Mat33<f64>>,
-             typename BinaryOp = Multiply>
-    requires guts::ValidDrawShape<N, Output, Input, CValue, Transform, BinaryOp>
-    void draw_ellipse(
+             typename Transform = Empty,
+             typename BinaryOp = Empty>
+    requires guts::ValidDrawShape<Input, Output, Shape, Transform, BinaryOp>
+    void draw_shape(
             const Input& input,
             const Output& output,
-            const Ellipse<CValue, N>& ellipse,
+            const Shape& shape,
             const Transform& inverse_transforms = {},
             BinaryOp binary_op = {}
     ) {
+        constexpr size_t N = Shape::SIZE;
         guts::check_draw_shape_parameters<N>(input, output, inverse_transforms);
 
-        using input_value_t = nt::mutable_value_type_t<Input>;
-        using coord_t = nt::mutable_value_type_twice_t<Transform>;
-        using smooth_ellipse_t = DrawEllipse<N, input_value_t, coord_t, true>;
-        using ellipse_t = DrawEllipse<N, input_value_t, coord_t, false>;
-        auto center = ellipse.center.template as<coord_t>();
-        auto radius = ellipse.radius.template as<coord_t>();
-        auto smoothness = static_cast<coord_t>(ellipse.smoothness);
-
         if (output.device().is_gpu() and
             ng::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
             ng::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
-            return guts::launch_draw_shape<N, i32, coord_t, ellipse_t, smooth_ellipse_t>(
-                    input, output, inverse_transforms, binary_op,
-                    center, radius, smoothness, ellipse.cvalue, ellipse.invert);
+            return guts::launch_draw_shape<i32>(input, output, shape, inverse_transforms, binary_op);
         }
-        return guts::launch_draw_shape<N, i64, coord_t, ellipse_t, smooth_ellipse_t>(
-                input, output, inverse_transforms, binary_op,
-                center, radius, smoothness, ellipse.cvalue, ellipse.invert);
-    }
-
-    template<typename T, size_t N>
-    requires (N == 2 or N == 3)
-    struct Sphere {
-        /// (D)HW center of the sphere/circle.
-        Vec<f64, N> center;
-
-        /// Radius of the sphere/circle.
-        f64 radius;
-
-        /// Size, in pixels, of the raised cosine smooth edge.
-        /// This is the number pixels that will be used to compute the (1,0] taper range.
-        f64 smoothness{0};
-
-        /// Value of the pixels inside the object.
-        /// Pixels outside the object are set to 0.
-        T cvalue{1};
-
-        /// Whether the object should be inverted, i.e. elements inside the object are set to 0,
-        /// and elements outside the object are set to cvalue.
-        bool invert{false};
-    };
-
-    /// Returns or draws a sphere.
-    /// \details The mask can be directly saved in \p output or applied (\p see binary_op) to \p input and
-    ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inverse_matrices).
-    ///
-    /// \tparam Transform           2d case: Mat22, Mat23, Mat33 or an varray of either one of these types.
-    ///                             3d case: Mat33, Mat34, Mat44, Quaternion or an varray of either one of these types.
-    /// \param[in] input            2d or 3d array(s). If empty, write directly in \p output.
-    /// \param[out] output          2d or 3d array(s). Can be equal to \p input for in-place drawing.
-    /// \param sphere               Sphere to draw, with the \p input value type.
-    /// \param inverse_transforms   Inverse (D)HW (affine) matrix/matrices or quaternion(s) to apply on the sphere.
-    ///                             For non-affine matrices and quaternion(s), the rotation center is the center of
-    ///                             the sphere. Note that the identity transformation (the default), as well as an
-    ///                             empty array is explicitly checked and not passed to the backends.
-    /// \param binary_op            Binary operator used to draw the sphere onto the input values:
-    ///                             (input_value, sphere_value) -> value ("value" is casted to the actual output type).
-    ///                             This is ignored if \p input is empty.
-    ///
-    /// \note The floating-point precision of the drawing operator is set by the transformation floating-point type,
-    ///       which defaults to double precision.
-    /// \note This function is optimized for rightmost arrays. Passing anything else will likely result in a
-    ///       significant performance loss.
-    template<size_t N,
-             typename Output,
-             typename Input = View<nt::value_type_t<Output>>,
-             typename CValue = nt::mutable_value_type_twice_t<Input>,
-             typename Transform = std::conditional_t<N == 2, Mat22<f64>, Mat33<f64>>,
-             typename BinaryOp = Multiply>
-    requires guts::ValidDrawShape<N, Output, Input, CValue, Transform, BinaryOp>
-    void draw_sphere(
-            const Input& input,
-            const Output& output,
-            const Sphere<CValue, N>& sphere,
-            const Transform& inverse_transforms = {},
-            BinaryOp binary_op = {}
-    ) {
-        guts::check_draw_shape_parameters<N>(input, output, inverse_transforms);
-
-        using input_value_t = nt::mutable_value_type_t<Input>;
-        using coord_t = nt::mutable_value_type_twice_t<Transform>;
-        using smooth_sphere_t = DrawSphere<N, input_value_t, coord_t, true>;
-        using sphere_t = DrawSphere<N, input_value_t, coord_t, false>;
-        auto center = sphere.center.template as<coord_t>();
-        auto radius = static_cast<coord_t>(sphere.radius);
-        auto smoothness = static_cast<coord_t>(sphere.smoothness);
-
-        if (output.device().is_gpu() and
-            ng::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
-            ng::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
-            return guts::launch_draw_shape<N, i32, coord_t, sphere_t, smooth_sphere_t>(
-                    input, output, inverse_transforms, binary_op,
-                    center, radius, smoothness, sphere.cvalue, sphere.invert);
-        }
-        return guts::launch_draw_shape<N, i64, coord_t, sphere_t, smooth_sphere_t>(
-                input, output, inverse_transforms, binary_op,
-                center, radius, smoothness, sphere.cvalue, sphere.invert);
-    }
-
-    template<typename T, size_t N>
-    requires (N == 2 or N == 3)
-    struct Rectangle {
-        /// (D)HW center of the rectangle.
-        Vec<f64, N> center;
-
-        /// (D)HW radius of the rectangle.
-        Vec<f64, N> radius;
-
-        /// Size, in pixels, of the raised cosine smooth edge.
-        /// This is the number pixels that will be used to compute the (1,0] taper range.
-        f64 smoothness{0};
-
-        /// Value of the pixels inside the object.
-        /// Pixels outside the object are set to 0.
-        T cvalue{1};
-
-        /// Whether the object should be inverted, i.e. elements inside the object are set to 0,
-        /// and elements outside the object are set to cvalue.
-        bool invert{false};
-    };
-
-    /// Returns or draws a rectangle.
-    /// \details The mask can be directly saved in \p output or applied (\p see binary_op) to \p input and
-    ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inverse_matrices).
-    ///
-    /// \tparam Transform           2d case: Mat22, Mat23, Mat33 or an varray of either one of these types.
-    ///                             3d case: Mat33, Mat34, Mat44, Quaternion or an varray of either one of these types.
-    /// \param[in] input            2d or 3d array(s). If empty, write directly in \p output.
-    /// \param[out] output          2d or 3d array(s). Can be equal to \p input for in-place drawing.
-    /// \param rectangle            Rectangle to draw, with the \p input value type.
-    /// \param inverse_transforms   Inverse (D)HW (affine) matrix/matrices or quaternion(s) to apply on the rectangle.
-    ///                             For non-affine matrices and quaternion(s), the rotation center is the center of
-    ///                             the rectangle. Note that the identity transformation (the default), as well as an
-    ///                             empty array is explicitly checked and not passed to the backends.
-    /// \param binary_op            Binary operator used to draw the rectangle onto the input values:
-    ///                             (input_value, rectangle_value) -> value ("value" is casted to the actual output type).
-    ///                             This is ignored if \p input is empty.
-    ///
-    /// \note The floating-point precision of the drawing operator is set by the transformation floating-point type,
-    ///       which defaults to double precision.
-    /// \note This function is optimized for rightmost arrays. Passing anything else will likely result in a
-    ///       significant performance loss.
-    template<size_t N,
-             typename Output,
-             typename Input = View<nt::value_type_t<Output>>,
-             typename CValue = nt::mutable_value_type_twice_t<Input>,
-             typename Transform = std::conditional_t<N == 2, Mat22<f64>, Mat33<f64>>,
-             typename BinaryOp = Multiply>
-    requires guts::ValidDrawShape<N, Output, Input, CValue, Transform, BinaryOp>
-    void draw_rectangle(
-            const Input& input,
-            const Output& output,
-            const Rectangle<CValue, N>& rectangle,
-            const Transform& inverse_transforms = {},
-            BinaryOp binary_op = {}
-    ) {
-        guts::check_draw_shape_parameters<N>(input, output, inverse_transforms);
-
-        using input_value_t = nt::mutable_value_type_t<Input>;
-        using coord_t = nt::mutable_value_type_twice_t<Transform>;
-        using smooth_rectangle_t = DrawRectangle<N, input_value_t, coord_t, true>;
-        using rectangle_t = DrawRectangle<N, input_value_t, coord_t, false>;
-        auto center = rectangle.center.template as<coord_t>();
-        auto radius = rectangle.radius.template as<coord_t>();
-        auto smoothness = static_cast<coord_t>(rectangle.smoothness);
-
-        if (output.device().is_gpu() and
-            ng::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
-            ng::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
-            return guts::launch_draw_shape<N, i32, rectangle_t, smooth_rectangle_t>(
-                    input, output, inverse_transforms, binary_op,
-                    center, radius, smoothness, rectangle.cvalue, rectangle.invert);
-        }
-        return guts::launch_draw_shape<N, i64, rectangle_t, smooth_rectangle_t>(
-                input, output, inverse_transforms, binary_op,
-                center, radius, smoothness, rectangle.cvalue, rectangle.invert);
-    }
-
-    template<typename T>
-    struct Cylinder {
-        /// DHW center of the cylinder.
-        Vec3<f64> center;
-
-        /// Radius of the cylinder.
-        f64 radius;
-
-        /// Length of the cylinder.
-        f64 length;
-
-        /// Size, in pixels, of the raised cosine smooth edge.
-        /// This is the number pixels that will be used to compute the (1,0] taper range.
-        f64 smoothness{0};
-
-        /// Value of the pixels inside the object.
-        /// Pixels outside the object are set to 0.
-        T cvalue{1};
-
-        /// Whether the object should be inverted, i.e. elements inside the object are set to 0,
-        /// and elements outside the object are set to cvalue.
-        bool invert{false};
-    };
-
-    /// Returns or draws a cylinder.
-    /// \details The mask can be directly saved in \p output or applied (\p see binary_op) to \p input and
-    ///          save in \p output. The same transformation can be applied to every batch or there can be
-    ///          one transformation per batch (\p see inverse_matrices).
-    ///
-    /// \tparam Transform           Mat33, Mat34, Mat44, Quaternion or an varray of either one of these types.
-    /// \param[in] input            3d array(s). If empty, write directly in \p output.
-    /// \param[out] output          3d array(s). Can be equal to \p input for in-place drawing.
-    /// \param cylinder             Cylinder to draw, with the \p input value type.
-    /// \param inverse_transforms   Inverse DHW (affine) matrix/matrices or quaternion(s) to apply on the cylinder.
-    ///                             For non-affine matrices and quaternion(s), the rotation center is the center of
-    ///                             the cylinder. Note that the identity transformation (the default), as well as an
-    ///                             empty array is explicitly checked and not passed to the backends.
-    /// \param binary_op            Binary operator used to draw the cylinder onto the input values:
-    ///                             (input_value, cylinder_value) -> value ("value" is casted to the actual output type).
-    ///                             This is ignored if \p input is empty.
-    ///
-    /// \note The floating-point precision of the drawing operator is set by the transformation floating-point type,
-    ///       which defaults to double precision.
-    /// \note This function is optimized for rightmost arrays. Passing anything else will likely result in a
-    ///       significant performance loss.
-    template<typename Output,
-             typename Input = View<nt::value_type_t<Output>>,
-             typename CValue = nt::mutable_value_type_twice_t<Input>,
-             typename Transform = Mat33<f64>,
-             typename BinaryOp = Multiply>
-    requires guts::ValidDrawShape<3, Output, Input, CValue, Transform, BinaryOp>
-    void draw_cylinder(
-            const Input& input,
-            const Output& output,
-            const Cylinder<CValue>& cylinder,
-            const Transform& inverse_transforms = {},
-            BinaryOp binary_op = {}
-    ) {
-        guts::check_draw_shape_parameters<3>(input, output, inverse_transforms);
-
-        using input_value_t = nt::mutable_value_type_t<Input>;
-        using coord_t = nt::mutable_value_type_twice_t<Transform>;
-        using smooth_cylinder_t = DrawCylinder<input_value_t, coord_t, true>;
-        using cylinder_t = DrawCylinder<input_value_t, coord_t, false>;
-
-        auto center = cylinder.center.template as<coord_t>();
-        auto radius = Vec2<coord_t>::from_values(cylinder.radius, cylinder.length);
-        auto smoothness = static_cast<coord_t>(cylinder.smoothness);
-
-        if (output.device().is_gpu() and
-            ng::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
-            ng::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
-            return guts::launch_draw_shape<3, i32, cylinder_t, smooth_cylinder_t>(
-                    input, output, inverse_transforms, binary_op,
-                    center, radius, smoothness, cylinder.cvalue, cylinder.invert);
-        }
-        return guts::launch_draw_shape<3, i64, cylinder_t, smooth_cylinder_t>(
-                input, output, inverse_transforms, binary_op,
-                center, radius, smoothness, cylinder.cvalue, cylinder.invert);
+        return guts::launch_draw_shape<i64>(input, output, shape, inverse_transforms, binary_op);
     }
 }

@@ -24,15 +24,16 @@ set(NOA_CORE_HEADERS
     core/geometry/FourierInsertExtract.hpp
     core/geometry/FourierInsertInterpolate.hpp
     core/geometry/FourierInsertRasterize.hpp
-    core/geometry/FourierPolar.hpp
     core/geometry/FourierUtilities.hpp
     core/geometry/Interpolate.hpp
     core/geometry/Interpolator.hpp
     core/geometry/Polar.hpp
+    core/geometry/PolarTransform.hpp
+    core/geometry/PolarTransformSpectrum.hpp
     core/geometry/Prefilter.hpp
     core/geometry/Quaternion.hpp
     core/geometry/RotationalAverage.hpp
-    core/geometry/Shape.hpp
+    core/geometry/DrawShape.hpp
     core/geometry/Symmetry.hpp
     core/geometry/Transform.hpp
     core/geometry/TransformSpectrum.hpp
