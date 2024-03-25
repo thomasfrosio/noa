@@ -31,6 +31,7 @@ set(NOA_CUDA_HEADERS
     gpu/cuda/kernels/CubicBSplinePrefilter.cuh
     gpu/cuda/kernels/Ewise.cuh
     gpu/cuda/kernels/Iwise.cuh
+    gpu/cuda/kernels/MedianFilter.cuh
     gpu/cuda/kernels/Permute.cuh
     gpu/cuda/kernels/ReduceAxesEwise.cuh
     gpu/cuda/kernels/ReduceAxesIwise.cuh
@@ -47,7 +48,9 @@ set(NOA_CUDA_HEADERS
     # noa::cuda::signal
     gpu/cuda/signal/Convolve.hpp
     gpu/cuda/signal/Correlate.hpp
+    gpu/cuda/signal/MedianFilter.cuh
 
+    # noa::cuda::geometry
     gpu/cuda/geometry/Interpolator.hpp
     gpu/cuda/geometry/Prefilter.cuh
     )

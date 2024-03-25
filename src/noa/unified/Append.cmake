@@ -44,7 +44,7 @@ set(NOA_UNIFIED_HEADERS
     unified/signal/PhaseShift.hpp
     unified/signal/Standardize.hpp
     unified/signal/Convolve.hpp
-    unified/signal/Median.hpp
+    unified/signal/MedianFilter.hpp
     unified/signal/Windows.hpp
 
     # noa::geometry

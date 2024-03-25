@@ -1,0 +1,196 @@
+#pragma once
+
+#include "noa/cpu/signal/MedianFilter.hpp"
+#ifdef NOA_ENABLE_CUDA
+#include "noa/gpu/cuda/signal/MedianFilter.cuh"
+#endif
+
+#include "noa/unified/Array.hpp"
+#include "noa/unified/Utilities.hpp"
+
+namespace noa::signal {
+    struct MedianFilterOptions {
+        /// Number of elements to consider for the computation of the median. Only odd numbers are supported.
+        /// 1d: This corresponds to the width dimension. On the GPU, this is limited to 21.
+        /// 2d: This corresponds to the height and width dimension. On the GPU, this is limited to 11.
+        /// 3d: This corresponds to the depth, height and width dimensions.  On the GPU, this is limited to 5.
+        i64 window_size;
+
+        /// Border mode used for the "implicit padding".
+        /// Either Border::ZERO or Border::REFLECT.
+        /// With Border::REFLECT, the filtered dimensions should be larger or equal than `window_size/2+1`.
+        Border border_mode{Border::REFLECT};
+    };
+
+    /// Computes the median filter using a 1D window.
+    /// \param[in] input    Array to filter.
+    /// \param[out] output  Filtered array. Should not overlap with \p input.
+    /// \param options      Filter options.
+    template<typename Input, typename Output>
+    requires nt::are_varray_of_scalar_v<Input, Output>
+    void median_filter_1d(const Input& input, const Output& output, const MedianFilterOptions& options) {
+        if (options.window_size <= 1)
+            return input.to(output);
+
+        check(not input.is_empty() and not output.is_empty(), "Empty array detected");
+        check(not ni::are_overlapped(input, output), "The input and output array should not overlap");
+
+        auto input_strides = input.strides();
+        check(ni::broadcast(input.shape(), input_strides, output.shape()),
+              "Cannot broadcast an array of shape {} into an array of shape {}",
+              input.shape(), output.shape());
+
+        check(is_odd(options.window_size), "Only odd windows are currently supported");
+        check(options.border_mode == Border::ZERO or output.shape()[3] >= options.window_size / 2 + 1,
+              "With Border::REFLECT and a window of {}, the width should be larger or equal than {}, but got {}",
+              options.window_size, options.window_size / 2 + 1, output.shape()[3]);
+
+        const Device device = output.device();
+        check(device == input.device(),
+              "The input and output arrays must be on the same device, but got input:device={}, output:device={}",
+              input.device(), device);
+
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto n_threads = cpu_stream.thread_limit();
+            cpu_stream.enqueue([=]() {
+                noa::cpu::signal::median_filter_1d(
+                        input.get(), input_strides,
+                        output.get(), output.strides(), output.shape(),
+                        options.border_mode, options.window_size, n_threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            check(ng::is_accessor_access_safe<i32>(input, output.shape()) and
+                  ng::is_accessor_access_safe<i32>(output, output.shape()),
+                  "GPU backend only instantiate i32-based accessor indexing, "
+                  "which is unsafe for the given input and output arrays. "
+                  "Please report this.");
+            auto& cuda_stream = stream.cuda();
+            noa::cuda::signal::median_filter_1d(
+                    input.get(), input_strides.template as<i32>(),
+                    output.get(), output.strides().template as<i32>(), output.shape(),
+                    options.border_mode, options.window_size, cuda_stream);
+            cuda_stream.enqueue_attach(input, output);
+            #else
+            panic("No GPU backend detected");
+            #endif
+        }
+    }
+
+    /// Computes the median filter using a 2d square window.
+    /// \param[in] input    Array to filter.
+    /// \param[out] output  Filtered array. Should not overlap with \p input.
+    /// \param options      Filter options.
+    template<typename Input, typename Output>
+    requires nt::are_varray_of_scalar_v<Input, Output>
+    void median_filter_2d(const Input& input, const Output& output, const MedianFilterOptions& options) {
+        if (options.window_size <= 1)
+            return input.to(output);
+
+        check(not input.is_empty() and not output.is_empty(), "Empty array detected");
+        check(not ni::are_overlapped(input, output), "The input and output array should not overlap");
+
+        auto input_strides = input.strides();
+        check(ni::broadcast(input.shape(), input_strides, output.shape()),
+              "Cannot broadcast an array of shape {} into an array of shape {}",
+              input.shape(), output.shape());
+
+        check(is_odd(options.window_size), "Only odd windows are currently supported");
+        check(options.border_mode == Border::ZERO or
+              (output.shape()[3] >= options.window_size / 2 + 1 and output.shape()[2] >= options.window_size / 2 + 1),
+              "With Border::REFLECT and a window of {}, the height and width should be larger or equal than {}, but got {}",
+              options.window_size, options.window_size / 2 + 1, output.shape().filter(2, 3));
+
+        const Device device = output.device();
+        check(device == input.device(),
+              "The input and output arrays must be on the same device, but got input:{}, output:{}",
+              input.device(), device);
+
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.thread_limit();
+            cpu_stream.enqueue([=]() {
+                noa::cpu::signal::median_filter_2d(
+                        input.get(), input_strides,
+                        output.get(), output.strides(), output.shape(),
+                        options.border_mode, options.window_size, threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            check(ng::is_accessor_access_safe<i32>(input, output.shape()) and
+                  ng::is_accessor_access_safe<i32>(output, output.shape()),
+                  "GPU backend only instantiate i32-based accessor indexing, "
+                  "which is unsafe for the given input and output arrays. "
+                  "Please report this.");
+            auto& cuda_stream = stream.cuda();
+            noa::cuda::signal::median_filter_2d(
+                    input.get(), input_strides.template as<i32>(),
+                    output.get(), output.strides().template as<i32>(), output.shape(),
+                    options.border_mode, options.window_size, cuda_stream);
+            cuda_stream.enqueue_attach(input, output);
+            #else
+            panic("No GPU backend detected");
+            #endif
+        }
+    }
+
+    /// Computes the median filter using a 3d cubic window.
+    /// \param[in] input    Array to filter.
+    /// \param[out] output  Filtered array. Should not overlap with \p input.
+    /// \param options      Filter options.
+    template<typename Input, typename Output>
+    requires nt::are_varray_of_scalar_v<Input, Output>
+    void median_filter_3d(const Input& input, const Output& output, const MedianFilterOptions& options) {
+        if (options.window_size <= 1)
+            return input.to(output);
+
+        check(not input.is_empty() and not output.is_empty(), "Empty array detected");
+        check(not ni::are_overlapped(input, output), "The input and output array should not overlap");
+
+        auto input_strides = input.strides();
+        check(ni::broadcast(input.shape(), input_strides, output.shape()),
+              "Cannot broadcast an array of shape {} into an array of shape {}",
+              input.shape(), output.shape());
+
+        check(is_odd(options.window_size), "Only odd windows are currently supported");
+        check(options.border_mode == Border::ZERO or all(output.shape().pop_front() >= options.window_size / 2 + 1),
+              "With Border::REFLECT and a window of {}, the depth, height and width should be >= than {}, but got {}",
+              options.window_size, options.window_size / 2 + 1, output.shape().pop_front());
+
+        const Device device = output.device();
+        check(device == input.device(),
+              "The input and output arrays must be on the same device, but got input:{}, output:{}",
+              input.device(), device);
+
+        Stream& stream = Stream::current(device);
+        if (device.is_cpu()) {
+            auto& cpu_stream = stream.cpu();
+            const auto threads = cpu_stream.thread_limit();
+            cpu_stream.enqueue([=]() {
+                noa::cpu::signal::median_filter_3d(
+                        input.get(), input_strides,
+                        output.get(), output.strides(), output.shape(),
+                        options.border_mode, options.window_size, threads);
+            });
+        } else {
+            #ifdef NOA_ENABLE_CUDA
+            check(ng::is_accessor_access_safe<i32>(input, output.shape()) and
+                  ng::is_accessor_access_safe<i32>(output, output.shape()),
+                  "GPU backend only instantiate i32-based accessor indexing, "
+                  "which is unsafe for the given input and output arrays. "
+                  "Please report this.");
+            auto& cuda_stream = stream.cuda();
+            noa::cuda::signal::median_filter_3d(
+                    input.get(), input_strides.template as<i32>(),
+                    output.get(), output.strides().template as<i32>(), output.shape(),
+                    options.border_mode, options.window_size, cuda_stream);
+            cuda_stream.enqueue_attach(input, output);
+            #else
+            panic("No GPU backend detected");
+            #endif
+        }
+    }
+}
