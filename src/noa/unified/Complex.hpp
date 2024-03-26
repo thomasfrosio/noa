@@ -21,7 +21,7 @@ namespace noa {
     /// Extracts the real part of complex numbers.
     /// \param[in] input    Complex array to decompose.
     /// \param[out] real    Real elements.
-    template<typename C, typename R, typename>
+    template<typename C, typename R>
     requires (nt::is_varray_of_complex_v<C> and nt::is_varray_of_real_v<R>)
     void real(const C& input, const R& real) {
         check(not ni::are_overlapped(real, input), "The arrays should not overlap");

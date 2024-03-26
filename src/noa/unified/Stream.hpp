@@ -50,6 +50,8 @@ namespace noa::inline types {
         using cpu_stream = noa::cpu::Stream;
         using gpu_stream = noa::gpu::Stream;
         using cuda_stream = noa::cuda::Stream;
+        using StreamMode::ASYNC;
+        using StreamMode::DEFAULT;
 
     public:
         /// Creates a new stream on the given device.

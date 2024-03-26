@@ -25,17 +25,25 @@ namespace noa {
         bool height{};
         bool width{};
 
-        static constexpr ReduceAxes from_shape(const Shape4<i64>& output_shape) {
+        static constexpr ReduceAxes all() {
+            return {true, true, true, true};
+        }
+
+        static constexpr ReduceAxes from_vec(const Vec4<bool>& reduce_axes) {
             ReduceAxes axes{};
-            if (output_shape[0] == 1)
+            if (reduce_axes[0] == 1)
                 axes.batch = true;
-            if (output_shape[1] == 1)
+            if (reduce_axes[1] == 1)
                 axes.depth = true;
-            if (output_shape[2] == 1)
+            if (reduce_axes[2] == 1)
                 axes.height = true;
-            if (output_shape[3] == 1)
+            if (reduce_axes[3] == 1)
                 axes.width = true;
             return axes;
+        }
+
+        static constexpr ReduceAxes from_shape(const Shape4<i64>& output_shape) {
+            return from_vec(output_shape == 1);
         }
     };
 }

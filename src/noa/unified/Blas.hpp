@@ -79,11 +79,9 @@ namespace noa {
                 using op_t = ReduceAccurateSum<value_t>;
                 using pair_t = op_t::pair_type;
                 reduce_axes_ewise(std::move(inputs), pair_t{}, output, op_t{});
-                return output;
             }
         }
         reduce_axes_ewise(std::move(inputs), value_t{}, output, ReduceSum{});
-        return output;
     }
 
     /// Computes a scalar-matrix-matrix product, with general matrices and adds the result to a scalar-matrix product.
