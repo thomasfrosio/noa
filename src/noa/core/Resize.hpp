@@ -17,7 +17,7 @@ namespace noa {
 
         using input_accessor_type = InputAccessor;
         using output_accessor_type = OutputAccessor;
-        using output_value_type = output_accessor_type;
+        using output_value_type = nt::value_type_t<output_accessor_type>;
         using index_type = Index;
         using index4_type = Vec4<Index>;
         using shape4_type = Shape4<Index>;
@@ -42,7 +42,7 @@ namespace noa {
         {
             if constexpr (MODE == Border::VALUE || MODE == Border::ZERO) {
                 const auto pad_right = max(border_right, index_type{0});
-                m_right = output_shape.vec() - pad_right;
+                m_right = output_shape.vec - pad_right;
             } else {
                 (void) border_right;
                 (void) output_shape;
@@ -74,10 +74,10 @@ namespace noa {
                 }
             } else { // CLAMP || PERIODIC || MIRROR || REFLECT
                 const index4_type indices_bounded{
-                        ni::offset_at<MODE>(input_indices[0], m_input_shape[0]),
-                        ni::offset_at<MODE>(input_indices[1], m_input_shape[1]),
-                        ni::offset_at<MODE>(input_indices[2], m_input_shape[2]),
-                        ni::offset_at<MODE>(input_indices[3], m_input_shape[3]),
+                        ni::index_at<MODE>(input_indices[0], m_input_shape[0]),
+                        ni::index_at<MODE>(input_indices[1], m_input_shape[1]),
+                        ni::index_at<MODE>(input_indices[2], m_input_shape[2]),
+                        ni::index_at<MODE>(input_indices[3], m_input_shape[3]),
                 };
                 m_output(output_indices) = static_cast<output_value_type>(m_input(indices_bounded));
             }

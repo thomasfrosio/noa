@@ -39,6 +39,8 @@ namespace noa::traits {
 
     template<typename T, typename... Ts> constexpr bool is_varray_of_any_v = is_varray_v<T> and is_any_v<value_type_t<T>, Ts...>;
     template<typename T, typename... Ts> constexpr bool is_varray_of_almost_any_v = is_varray_v<T> and is_almost_any_v<value_type_t<T>, Ts...>;
+
+    template<typename... Ts> constexpr bool are_varray_of_almost_same_v = are_varray_v<Ts...> and are_almost_same_value_type_v<Ts...>;
 }
 
 namespace noa::traits {

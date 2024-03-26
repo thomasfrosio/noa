@@ -165,6 +165,13 @@ namespace noa::inline types {
         using index_list = std::make_index_sequence<SIZE>;
 
     public:
+        template<typename U>
+        requires (not std::is_same_v<std::decay_t<Tuple>, std::decay_t<U>>) // preserves default assignments
+        constexpr auto& operator=(U&& tup) {
+            assign_tuple_(std::forward<U>(tup), index_list{});
+            return *this;
+        }
+
         template<typename... U>
         constexpr auto& assign(U&&... values) {
             assign_value_(index_list{}, std::forward<U>(values)...);
@@ -244,6 +251,11 @@ namespace noa::inline types {
             (swap((*this)[Tag<I>{}], other[Tag<I>{}]), ...);
         }
 
+        template<typename U, size_t... I>
+        constexpr void assign_tuple_(U&& tuple, std::index_sequence<I...>) {
+            (((*this)[Tag<I>{}] = std::forward<U>(tuple)[Tag<I>{}]), ...);
+        }
+
         template<size_t... I, class... U>
         constexpr void assign_value_(std::index_sequence<I...>, U&&... values) {
             (((*this)[Tag<I>{}] = std::forward<U>(values)), ...);
@@ -315,7 +327,7 @@ namespace noa {
 
 namespace noa {
     template<typename... T>
-    constexpr Tuple<T& ...> tie(T&... t) { return {t...}; }
+    constexpr Tuple<T&...> tie(T&... t) { return {t...}; }
 
     template<typename F, typename Tup>
     constexpr decltype(auto) apply(F&& func, Tup&& tup) { // works for Pair too

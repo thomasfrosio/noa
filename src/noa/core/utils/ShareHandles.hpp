@@ -7,8 +7,12 @@
 
 namespace noa::traits {
     template<typename T> struct proclaim_is_unique_ptr : std::false_type {};
-    template<typename T> struct proclaim_is_unique_ptr<std::unique_ptr<T>> : std::true_type {};
+    template<typename T, typename D> struct proclaim_is_unique_ptr<std::unique_ptr<T, D>> : std::true_type {};
     template<typename T> constexpr bool is_unique_ptr_v = proclaim_is_unique_ptr<std::decay_t<T>>::value;
+
+    template<typename T> struct proclaim_is_shared_ptr : std::false_type {};
+    template<typename T> struct proclaim_is_shared_ptr<std::shared_ptr<T>> : std::true_type {};
+    template<typename T> constexpr bool is_shared_ptr_v = proclaim_is_shared_ptr<std::decay_t<T>>::value;
 
     template<typename T>
     constexpr bool is_shareable_v =

@@ -7,6 +7,7 @@
 #include "noa/core/Traits.hpp"
 #include "noa/core/Types.hpp"
 #include "noa/core/Indexing.hpp"
+#include "noa/core/utils/ShareHandles.hpp"
 
 #include "noa/cpu/AllocatorHeap.hpp"
 #if defined(NOA_ENABLE_CUDA)
@@ -97,7 +98,8 @@ namespace noa::inline types {
         /// \param[in,out] data Data to encapsulate.
         /// \param n_elements   Number of elements in \p data.
         /// \param option       Options of \p data.
-        template<typename SharedPtr> requires nt::is_almost_same_v<SharedPtr, shared_type>
+        template<typename SharedPtr>
+        requires (nt::is_unique_ptr_v<SharedPtr> or nt::is_shared_ptr_v<SharedPtr>)
         constexpr Array(SharedPtr&& data, i64 n_elements, ArrayOption option = {})
                 : m_shape{1, 1, 1, n_elements},
                   m_strides{n_elements, n_elements, n_elements, 1},
@@ -111,7 +113,8 @@ namespace noa::inline types {
         /// \param shape        BDHW shape of \p data.
         /// \param strides      BDHW strides of \p data.
         /// \param option       Options of \p data.
-        template<typename SharedPtr> requires nt::is_almost_same_v<SharedPtr, shared_type>
+        template<typename SharedPtr>
+        requires (nt::is_unique_ptr_v<SharedPtr> or nt::is_shared_ptr_v<SharedPtr>)
         constexpr Array(
                 SharedPtr&& data,
                 const shape_type& shape,
@@ -464,7 +467,7 @@ namespace noa::inline types {
         void allocate_() {
             const auto memory_resource = allocator().resource();
             if (memory_resource == MemoryResource::PITCHED) {
-                tie(m_shared, m_strides) = Allocator::allocate_pitched<value_type>(shape(), device(), memory_resource);
+                noa::tie(m_shared, m_strides) = Allocator::allocate_pitched<value_type>(shape(), device(), memory_resource);
             } else {
                 m_shared = Allocator::allocate<value_type>(elements(), device(), memory_resource);
             }

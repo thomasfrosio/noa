@@ -38,7 +38,7 @@ namespace noa {
             Vec4<i64> border_left,
             Vec4<i64> border_right,
             Border border_mode = Border::ZERO,
-            Value border_value = Value{0}
+            Value border_value = Value{}
     ) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         check(not ni::are_overlapped(input, output), "The input and output arrays should not overlap");

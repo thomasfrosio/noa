@@ -98,10 +98,10 @@ namespace noa {
 
             } else {
                 const index4_type bounded_indices{
-                        ni::offset_at<MODE>(input_indices[0], m_input_shape[0]),
-                        ni::offset_at<MODE>(input_indices[1], m_input_shape[1]),
-                        ni::offset_at<MODE>(input_indices[2], m_input_shape[2]),
-                        ni::offset_at<MODE>(input_indices[3], m_input_shape[3]),
+                        ni::index_at<MODE>(input_indices[0], m_input_shape[0]),
+                        ni::index_at<MODE>(input_indices[1], m_input_shape[1]),
+                        ni::index_at<MODE>(input_indices[2], m_input_shape[2]),
+                        ni::index_at<MODE>(input_indices[3], m_input_shape[3]),
                 };
                 m_subregions(output_indices) = static_cast<subregion_value_type>(m_input(bounded_indices));
             }
@@ -150,7 +150,7 @@ namespace noa {
             m_output_shape(output_shape),
             m_order(order) {}
 
-        NOA_HD constexpr void operator()(const index_type& input_indices) const noexcept {
+        NOA_HD constexpr void operator()(const index4_type& input_indices) const noexcept {
             // TODO For CUDA, the origins could copied to constant memory.
             //      Although these can be loaded in a single vectorized instruction.
             const auto corner_left = m_subregion_origins[input_indices[0]].reorder(m_order).template as<index_type>();

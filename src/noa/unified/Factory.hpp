@@ -105,7 +105,8 @@ namespace noa {
     /// \param[out] output  Array with evenly spaced values.
     /// \param start        Start of interval.
     /// \param step         Spacing between values.
-    template<typename Output, typename Value> requires nt::is_varray_of_any_v<Output, Value>
+    template<typename Output, typename Value = nt::value_type_t<Output>>
+    requires nt::is_varray_of_any_v<Output, Value>
     void arange(const Output& output, Value start = Value{0}, Value step = Value{1}) {
         check(not output.is_empty(), "Empty array detected");
         if (output.are_contiguous())
