@@ -28,15 +28,15 @@ set(NOA_HEADERS
     ${NOA_CUDA_HEADERS}
     ${NOA_UNIFIED_HEADERS}
 
-    #    Array.hpp
-    #    FFT.hpp
-    #    Geometry.hpp
-    #    IO.hpp
-    #    Math.hpp
-    #    Memory.hpp
-    #    Session.hpp
-    #    Signal.hpp
-    #    String.hpp
+    Array.hpp
+    FFT.hpp
+    Geometry.hpp
+    IO.hpp
+    Math.hpp
+    Memory.hpp
+    Session.hpp
+    Signal.hpp
+    String.hpp
 )
 
 # Create and set up the main target.

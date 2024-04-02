@@ -1,7 +1,7 @@
 #include <noa/unified/fft/Transform.hpp>
 #include <noa/unified/fft/Factory.hpp>
 #include <noa/unified/fft/Remap.hpp>
-#include <noa/unified/geometry/Shape.hpp>
+#include <noa/unified/geometry/DrawShape.hpp>
 #include <noa/unified/memory/Factory.hpp>
 #include <noa/unified/math/Random.hpp>
 #include <noa/unified/math/Reduce.hpp>

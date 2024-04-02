@@ -8,6 +8,12 @@
 #include "noa/unified/View.hpp"
 
 #include "noa/unified/Ewise.hpp"
-#include "noa/unified/Find.hpp"
 #include "noa/unified/Reduce.hpp"
 #include "noa/unified/Sort.hpp"
+
+#include "noa/unified/Cast.hpp"
+#include "noa/unified/Copy.hpp"
+#include "noa/unified/CopyBatches.hpp"
+#include "noa/unified/Factory.hpp"
+#include "noa/unified/Resize.hpp"
+#include "noa/unified/Subregion.hpp"

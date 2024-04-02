@@ -1,12 +1,12 @@
-#include <noa/unified/math/Complex.hpp>
-#include <noa/unified/math/Random.hpp>
+#include <noa/unified/Complex.hpp>
+#include <noa/unified/Random.hpp>
 
 #include "Helpers.h"
 #include <catch2/catch.hpp>
 
-using namespace noa;
+using namespace noa::types;
 
-TEMPLATE_TEST_CASE("unified::math::decompose() and complex()", "[noa][unified]", f32, f64) {
+TEMPLATE_TEST_CASE("unified::decompose() and complex()", "[noa][unified]", f32, f64) {
     const auto pad = GENERATE(true, false);
     const auto subregion_shape = test::get_random_shape4_batched(3);
     auto shape = subregion_shape;
@@ -16,7 +16,7 @@ TEMPLATE_TEST_CASE("unified::math::decompose() and complex()", "[noa][unified]",
         shape[3] += 10;
     }
 
-    std::vector<Device> devices = {Device{}};
+    std::vector<Device> devices{"cpu"};
     if (Device::is_any(DeviceType::GPU))
         devices.emplace_back("gpu");
 
@@ -27,24 +27,25 @@ TEMPLATE_TEST_CASE("unified::math::decompose() and complex()", "[noa][unified]",
 
     for (auto& device: devices) {
         const auto stream = StreamGuard(device);
-        const auto options = ArrayOption(device, Allocator::MANAGED);
+        const auto options = ArrayOption(device, MemoryResource::MANAGED);
         INFO(device);
         data = device == data.device() ? data : data.to(options);
 
+        using namespace noa::indexing;
         const auto subregion = data.subregion(
-                noa::indexing::FullExtent{},
-                noa::indexing::Slice{0, subregion_shape[1]},
-                noa::indexing::Slice{0, subregion_shape[2]},
-                noa::indexing::Slice{0, subregion_shape[3]});
+                FullExtent{},
+                Slice{0, subregion_shape[1]},
+                Slice{0, subregion_shape[2]},
+                Slice{0, subregion_shape[3]});
 
-        const auto [d_real, d_imag] = math::decompose(subregion.eval());
-        const auto real = math::real(subregion.eval());
-        const auto imag = math::imag(subregion.eval());
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, d_real, real, 1e-9));
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, d_imag, imag, 1e-9));
+        const auto [d_real, d_imag] = noa::decompose(subregion.eval());
+        const auto real = noa::real(subregion.eval());
+        const auto imag = noa::imag(subregion.eval());
+        REQUIRE(test::allclose_abs_safe(d_real, real, 1e-9));
+        REQUIRE(test::allclose_abs_safe(d_imag, imag, 1e-9));
 
-        const auto fused = math::complex(real, imag);
+        const auto fused = noa::complex(real, imag);
         fused.eval();
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, subregion, fused, 1e-9));
+        REQUIRE(test::allclose_abs_safe(subregion, fused, 1e-9));
     }
 }

@@ -1,5 +1,5 @@
 #include <noa/core/Math.hpp>
-#include <noa/unified/geometry/Prefilter.hpp>
+#include <noa/unified/geometry/CubicBSplinePrefilter.hpp>
 #include <noa/unified/geometry/Transform.hpp>
 #include <noa/unified/io/ImageFile.hpp>
 #include <noa/unified/memory/Factory.hpp>

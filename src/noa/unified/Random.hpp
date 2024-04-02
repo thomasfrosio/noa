@@ -35,5 +35,24 @@ namespace noa {
         randomize(distribution, out);
         return out;
     }
+
+    /// Returns a random value generator.
+    /// Use the call operator to get a value.
+    template<typename T, typename Distribution>
+    requires (nt::is_distribution_v<Distribution> and nt::is_numeric_v<T>)
+    [[nodiscard]] Array<T> random_generator(const Distribution& distribution) {
+        RandomBitsGenerator m_generator;
+        Distribution m_distribution;
+        static_cast<T>(m_distribution(m_generator));
+    }
+
+    /// Returns a random value generator.
+    template<typename T, typename Distribution>
+    requires (nt::is_distribution_v<Distribution> and nt::is_numeric_v<T>)
+    [[nodiscard]] Array<T> random_value(const Distribution& distribution) {
+        RandomBitsGenerator m_generator;
+        Distribution m_distribution;
+        static_cast<T>(m_distribution(m_generator));
+    }
 }
 #endif

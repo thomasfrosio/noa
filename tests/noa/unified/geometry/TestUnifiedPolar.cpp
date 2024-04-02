@@ -1,5 +1,5 @@
-#include <noa/unified/geometry/Polar.hpp>
-#include <noa/unified/geometry/Shape.hpp>
+#include <noa/unified/geometry/PolarTransform.hpp>
+#include <noa/unified/geometry/DrawShape.hpp>
 #include <noa/unified/memory/Factory.hpp>
 #include <noa/unified/io/ImageFile.hpp>
 

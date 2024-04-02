@@ -1,7 +1,7 @@
 #include <noa/unified/memory/Factory.hpp>
 #include <noa/unified/math/Random.hpp>
 #include <noa/unified/io/ImageFile.hpp>
-#include <noa/unified/signal/Median.hpp>
+#include <noa/unified/signal/MedianFilter.hpp>
 
 #include <catch2/catch.hpp>
 #include "Assets.h"

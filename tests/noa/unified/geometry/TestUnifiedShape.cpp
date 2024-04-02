@@ -1,5 +1,5 @@
 #include <noa/core/geometry/Euler.hpp>
-#include <noa/unified/geometry/Shape.hpp>
+#include <noa/unified/geometry/DrawShape.hpp>
 #include <noa/unified/math/Random.hpp>
 #include <noa/unified/memory/Factory.hpp>
 #include <noa/unified/io/ImageFile.hpp>

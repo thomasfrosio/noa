@@ -456,4 +456,16 @@ namespace test {
         CompType m_comparison{};
         bool m_match{false};
     };
+
+    template<typename Lhs, typename Rhs, typename T = noa::traits::value_type_t<Lhs>, typename Epsilon = T>
+    requires noa::traits::are_varray_of_almost_same_v<Lhs, Rhs>
+    auto allclose_abs(const Lhs& lhs, const Rhs& rhs, Epsilon epsilon = Epsilon{}) -> Matcher<T> {
+        return Matcher<T>(CompType::MATCH_ABS, lhs, rhs, epsilon);
+    }
+
+    template<typename Lhs, typename Rhs, typename T = noa::traits::value_type_t<Lhs>, typename Epsilon = T>
+    requires noa::traits::are_varray_of_almost_same_v<Lhs, Rhs>
+    auto allclose_abs_safe(const Lhs& lhs, const Rhs& rhs, Epsilon epsilon = Epsilon{}) -> Matcher<T> {
+        return Matcher<T>(CompType::MATCH_ABS_SAFE, lhs, rhs, epsilon);
+    }
 }

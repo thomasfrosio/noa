@@ -26,19 +26,18 @@ set(TEST_UNIFIED_SOURCES
 #    noa/unified/signal/TestUnifiedMedian.cpp
 #    noa/unified/signal/TestUnifiedConvolve.cpp
 #
-#    noa/unified/math/TestUnifiedBlas.cpp
-#    noa/unified/math/TestUnifiedComplex.cpp
+    noa/unified/math/TestUnifiedBlas.cpp
+    noa/unified/math/TestUnifiedComplex.cpp
 #    noa/unified/math/TestUnifiedLinalg.cpp
 #    noa/unified/math/TestUnifiedRandom.cpp
 #    noa/unified/math/TestUnifiedReduce.cpp
-#
-#    noa/unified/memory/TestUnifiedCast.cpp
-#    noa/unified/memory/TestUnifiedCopy.cpp
-#    noa/unified/memory/TestUnifiedFactory.cpp
-#    noa/unified/memory/TestUnifiedIndex.cpp
-#    noa/unified/memory/TestUnifiedPermute.cpp
-#    noa/unified/memory/TestUnifiedResize.cpp
-#    noa/unified/memory/TestUnifiedSubregion.cpp
+
+    noa/unified/memory/TestUnifiedCast.cpp
+    noa/unified/memory/TestUnifiedCopy.cpp
+    noa/unified/memory/TestUnifiedFactory.cpp
+    noa/unified/memory/TestUnifiedPermute.cpp
+    noa/unified/memory/TestUnifiedResize.cpp
+    noa/unified/memory/TestUnifiedSubregion.cpp
 #
 #    noa/unified/fft/TestUnifiedFFT.cpp
 #    noa/unified/fft/TestUnifiedRemap.cpp
@@ -55,6 +54,7 @@ set(TEST_UNIFIED_SOURCES
 #    noa/unified/geometry/TestUnifiedTransform.cpp
 #
 #    noa/unified/geometry/TestUnifiedTileExtraction.cpp
+    noa/unified/TestViva.cpp
 
     )
 
