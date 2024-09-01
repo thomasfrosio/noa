@@ -42,16 +42,16 @@ namespace noa::cpu::guts::sort {
             const Shape4<i64>& tile, KeyValPair<u32, T>* output
     ) {
         const auto tile_strides = tile.strides();
-        for (i64 i = 0; i < shape[0]; ++i) {
-            for (i64 j = 0; j < shape[1]; ++j) {
-                for (i64 k = 0; k < shape[2]; ++k) {
-                    for (i64 l = 0; l < shape[3]; ++l, ++output) {
+        for (i64 i{}; i < shape[0]; ++i) {
+            for (i64 j{}; j < shape[1]; ++j) {
+                for (i64 k{}; k < shape[2]; ++k) {
+                    for (i64 l{}; l < shape[3]; ++l, ++output) {
                         const i64 key = ni::offset_at(
+                                tile_strides,
                                 i % tile[0], j % tile[1],
-                                k % tile[2], l % tile[3],
-                                tile_strides);
+                                k % tile[2], l % tile[3]);
                         *output = {static_cast<u32>(key),
-                                   input[ni::offset_at(i, j, k, l, strides)]};
+                                   input[ni::offset_at(strides, i, j, k, l)]};
                     }
                 }
             }
@@ -67,12 +67,12 @@ namespace noa::cpu::guts::sort {
         const auto dst_shape = src_shape.reorder(permutation);
         const auto src_strides_permuted = src_strides.reorder(permutation);
 
-        for (i64 i = 0; i < dst_shape[0]; ++i)
-            for (i64 j = 0; j < dst_shape[1]; ++j)
-                for (i64 k = 0; k < dst_shape[2]; ++k)
-                    for (i64 l = 0; l < dst_shape[3]; ++l)
-                        dst[ni::offset_at(i, j, k, l, dst_strides)] =
-                                src[ni::offset_at(i, j, k, l, src_strides_permuted)].second;
+        for (i64 i{}; i < dst_shape[0]; ++i)
+            for (i64 j{}; j < dst_shape[1]; ++j)
+                for (i64 k{}; k < dst_shape[2]; ++k)
+                    for (i64 l{}; l < dst_shape[3]; ++l)
+                        dst[ni::offset_at(dst_strides, i, j, k, l)] =
+                                src[ni::offset_at(src_strides_permuted, i, j, k, l)].second;
     }
 
     // Sorts the third dimension of "values" using std::sort.
@@ -84,8 +84,8 @@ namespace noa::cpu::guts::sort {
 
         Strides3<i64> shape_;
         Strides3<i64> strides_;
-        int count = 0;
-        for (int i = 0; i < 4; ++i) {
+        i32 count{};
+        for (i32 i{}; i < 4; ++i) {
             if (i != dim) {
                 shape_[count] = shape[i];
                 strides_[count] = strides[i];
@@ -98,15 +98,15 @@ namespace noa::cpu::guts::sort {
         const i64 dim_stride = strides[dim];
 
         const auto buffer = AllocatorHeap<T>::allocate(dim_is_contiguous ? 0 : dim_size);
-        for (i64 i = 0; i < shape_[0]; ++i) {
-            for (i64 j = 0; j < shape_[1]; ++j) {
-                for (i64 k = 0; k < shape_[2]; ++k) {
+        for (i64 i{}; i < shape_[0]; ++i) {
+            for (i64 j{}; j < shape_[1]; ++j) {
+                for (i64 k{}; k < shape_[2]; ++k) {
 
-                    const i64 offset = ni::offset_at(i, j, k, strides_);
+                    const i64 offset = ni::offset_at(strides_, i, j, k);
                     T* values_ptr = values + offset;
 
                     // If row is strided, copy in buffer...
-                    if (!dim_is_contiguous) {
+                    if (not dim_is_contiguous) {
                         for (i64 l = 0; l < dim_size; ++l)
                             buffer.get()[l] = values_ptr[l * dim_stride];
                         values_ptr = buffer.get();
@@ -118,8 +118,8 @@ namespace noa::cpu::guts::sort {
                         std::sort(values_ptr, values_ptr + dim_size, std::greater{});
 
                     // ... and copy the sorted row back to the original array.
-                    if (!dim_is_contiguous) {
-                        for (i64 l = 0; l < dim_size; ++l, ++values_ptr)
+                    if (not dim_is_contiguous) {
+                        for (i64 l{}; l < dim_size; ++l, ++values_ptr)
                             values[offset + l * dim_stride] = values_ptr[l];
                     }
                 }
@@ -135,7 +135,7 @@ namespace noa::cpu::guts::sort {
         using keypair_t = KeyValPair<u32, T>;
         auto tile = shape;
         tile[dim] = 1; // mark elements with their original axis.
-        std::vector<keypair_t> key_val(static_cast<size_t>(shape.elements()));
+        std::vector<keypair_t> key_val(static_cast<size_t>(shape.n_elements()));
         iota_(values, strides, shape, tile, key_val.data());
 
         // Sort the entire array based on the values, but update the original indexes.
@@ -162,8 +162,8 @@ namespace noa::cpu::guts::sort {
         // dim=0 -> {1,2,3,0} {3,0,1,2}
         auto input_shape = Shape4<i64>::filled_with(shape[dim]);
         auto permutation = Vec4<i64>::filled_with(3);
-        i64 count = 0;
-        for (i32 i = 0; i < 4; ++i) {
+        i64 count{};
+        for (i32 i{}; i < 4; ++i) {
             if (i != dim) {
                 input_shape[count] = shape[i];
                 permutation[i] = count;
@@ -177,12 +177,12 @@ namespace noa::cpu::guts::sort {
 namespace noa::cpu {
     template<typename T>
     void sort(T* array, const Strides4<i64>& strides, const Shape4<i64>& shape, bool ascending, i32 dim) {
-        NOA_ASSERT(array && all(shape > 0));
+        NOA_ASSERT(array and all(shape > 0));
 
         // Allow dim = -1 to specify the first non-empty dimension in the rightmost order.
         if (dim == -1)
             dim = shape[3] > 1 ? 3 : shape[2] > 1 ? 2 : shape[1] > 1 ? 1 : 0;
-        NOA_ASSERT(dim >= 0 && dim <= 3);
+        NOA_ASSERT(dim >= 0 and dim <= 3);
 
         if (strides[dim] == 0)
             return; // there's only one value in the dimension to sort...
@@ -192,7 +192,7 @@ namespace noa::cpu {
         // but uses 2 sorts (1 being a stable sort), and a permutation/copy, for the entire array.
         auto shape_4d = shape;
         shape_4d[dim] = 1;
-        const auto iterations = shape_4d.elements();
+        const auto iterations = shape_4d.n_elements();
         if (iterations < 100)
             guts::sort::sort_iterative_(array, strides, shape, dim, ascending);
         else

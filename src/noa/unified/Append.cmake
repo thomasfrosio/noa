@@ -9,6 +9,7 @@ set(NOA_UNIFIED_HEADERS
     unified/CopyBatches.hpp
     unified/Device.hpp
     unified/Ewise.hpp
+    unified/Factory.hpp
     unified/Indexing.hpp
     unified/Iwise.hpp
     unified/Random.hpp
@@ -22,7 +23,7 @@ set(NOA_UNIFIED_HEADERS
     unified/Sort.hpp
     unified/Stream.hpp
     unified/Subregion.hpp
-    unified/Texture.hpp
+#    unified/Texture.hpp
     unified/Traits.hpp
     unified/Utilities.hpp
     unified/View.hpp
@@ -38,25 +39,25 @@ set(NOA_UNIFIED_HEADERS
 
     # noa::signal
     unified/signal/Bandpass.hpp
+    unified/signal/Convolve.hpp
     unified/signal/Correlate.hpp
     unified/signal/CTF.hpp
     unified/signal/FSC.hpp
+    unified/signal/MedianFilter.hpp
     unified/signal/PhaseShift.hpp
     unified/signal/Standardize.hpp
-    unified/signal/Convolve.hpp
-    unified/signal/MedianFilter.hpp
     unified/signal/Windows.hpp
 
     # noa::geometry
     unified/geometry/CubicBSplinePrefilter.hpp
     unified/geometry/DrawShape.hpp
-    unified/geometry/FourierProject.hpp
-    unified/geometry/PolarTransform.hpp
-    unified/geometry/PolarTransformSpectrum.hpp
-    unified/geometry/RotationalAverage.hpp
-    unified/geometry/Symmetry.hpp
-    unified/geometry/Transform.hpp
-    unified/geometry/TransformSpectrum.hpp
+#    unified/geometry/FourierProject.hpp
+#    unified/geometry/PolarTransform.hpp
+#    unified/geometry/PolarTransformSpectrum.hpp
+#    unified/geometry/RotationalAverage.hpp
+#    unified/geometry/Symmetry.hpp
+#    unified/geometry/Transform.hpp
+#    unified/geometry/TransformSpectrum.hpp
     )
 
 set(NOA_UNIFIED_SOURCES

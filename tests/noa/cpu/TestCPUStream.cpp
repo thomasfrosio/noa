@@ -72,14 +72,14 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
             REQUIRE(flag == 5);
         }
 
-        int count{0};
+        int count{};
         auto task6 = [&count]() {
             ++count;
         };
-        for (int i = 0; i < 5; ++i) {
+        for (int i{}; i < 5; ++i) {
             {
                 Stream async_stream(StreamMode::ASYNC, 1);
-                for (int j = 0; j < 50; ++j)
+                for (int j{}; j < 50; ++j)
                     async_stream.enqueue(task6);
             }
             REQUIRE(count == (i + 1) * 50);
@@ -87,9 +87,9 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
         REQUIRE(count == 250);
 
         count = 0;
-        for (int i = 0; i < 5; ++i) {
+        for (int i{}; i < 5; ++i) {
             Stream async_stream(StreamMode::ASYNC, 1);
-            for (int j = 0; j < 100; ++j)
+            for (int j{}; j < 100; ++j)
                 async_stream.enqueue(task6);
             async_stream.synchronize();
             REQUIRE(count == (i + 1) * 100);

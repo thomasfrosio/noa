@@ -13,8 +13,7 @@ namespace noa {
     /// \note For floating-point to integral types, NaN returns 0, -/+Inf returns the min/max integral value.
     /// \note If the output type has a wider range than the input type, this function should have no runtime
     ///       overhead compared to static_cast.
-    template<typename TTo, typename TFrom,
-             nt::enable_if_bool_t<nt::is_numeric_v<TTo> && nt::is_numeric_v<TFrom>> = true>
+    template<nt::numeric TTo, nt::numeric TFrom>
     [[nodiscard]] NOA_FHD constexpr TTo clamp_cast(const TFrom& src) noexcept {
         if constexpr (std::is_same_v<TTo, TFrom>) {
             return src;
@@ -26,7 +25,7 @@ namespace noa {
 
         } else if constexpr(nt::is_complex_v<TTo>) {
             return {clamp_cast<typename TTo::value_type>(src),
-                    typename TTo::value_type{0}};
+                    typename TTo::value_type{}};
 
         } else if constexpr(nt::is_real_v<TTo>) {
             // Floating-point conversions:
@@ -49,20 +48,20 @@ namespace noa {
             //        the casting to be non-reversible (e.g. int(32767) -> Half -> int(32768)). For larger integral
             //        or floating-point types, full clamping is required.
             if constexpr (std::is_same_v<TTo, Half>) {
-                if constexpr (sizeof(TFrom) == 1 || (sizeof(TFrom) == 2 && std::is_signed_v<TFrom>)) {
+                if constexpr (sizeof(TFrom) == 1 or (sizeof(TFrom) == 2 and std::is_signed_v<TFrom>)) {
                     return TTo(src); // (u)int8_t/int16_t -> Half
                 } else if constexpr (std::is_unsigned_v<TFrom>) {
                     return TTo(min(src, TFrom(std::numeric_limits<TTo>::max()))); // uint(16|32|64)_t -> Half
                 } else { // int(32|64)_t -> Half, float/double -> Half
                     return TTo(clamp(src, TFrom(std::numeric_limits<TTo>::lowest()), TFrom(std::numeric_limits<TTo>::max())));
                 }
-            } else if constexpr (std::is_integral_v<TFrom> || (sizeof(TFrom) < sizeof(TTo))) {
+            } else if constexpr (std::is_integral_v<TFrom> or (sizeof(TFrom) < sizeof(TTo))) {
                 return TTo(src); // implicit integral/Half->float/double conversion or float->double
             } else { // double->float
                 return TTo(clamp(src, TFrom(std::numeric_limits<TTo>::lowest()), TFrom(std::numeric_limits<TTo>::max())));
             }
 
-        } else if constexpr (std::is_integral_v<TTo> && nt::is_real_v<TFrom>) {
+        } else if constexpr (std::is_integral_v<TTo> and nt::is_real_v<TFrom>) {
             // Floating-point to integral conversions:
             //      - Floating-point type can be converted to any integer type. The fractional part is truncated.
             //      - If bool, this is a bool conversion, i.e. a value of zero gives false, anything else gives true.
@@ -73,7 +72,7 @@ namespace noa {
             //      - Half is an exception since some integral types have a wider range. In these cases, no need to
             //        clamp, but still check for NaN and +/-Inf.
             using int_limits = std::numeric_limits<TTo>;
-            constexpr bool IS_WIDER_THAN_HALF = sizeof(TTo) > 2 || (sizeof(TTo) == 2 && std::is_unsigned_v<TTo>);
+            constexpr bool IS_WIDER_THAN_HALF = sizeof(TTo) > 2 or (sizeof(TTo) == 2 and std::is_unsigned_v<TTo>);
             if constexpr (std::is_same_v<TFrom, Half> && IS_WIDER_THAN_HALF) {
                 if (is_nan(src)) {
                     return 0;

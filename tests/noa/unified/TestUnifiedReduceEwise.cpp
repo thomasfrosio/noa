@@ -5,7 +5,7 @@
 
 #include <catch2/catch.hpp>
 
-#include "Helpers.h"
+#include "Utils.hpp"
 
 using namespace noa::types;
 
@@ -32,17 +32,17 @@ TEMPLATE_TEST_CASE("unified::reduce_ewise - simple", "[noa][unified]", i32, f64)
     auto randomizer = test::Randomizer<TestType>(-50, 100);
 
     f64 sum{};
-    for (auto& value: input.span()) {
+    for (auto& value: input.span_1d_contiguous()) {
         value = randomizer.get();
         sum += static_cast<f64>(value);
     }
 
     std::vector<Device> devices{"cpu"};
-    if (Device::is_any(DeviceType::GPU))
+    if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
-        auto stream = StreamGuard(device, StreamMode::DEFAULT);
+        auto stream = StreamGuard(device, Stream::DEFAULT);
         const auto options = ArrayOption{device, "managed"};
         INFO(device);
 

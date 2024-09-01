@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/string/Format.hpp"
+#include "noa/core/utils/Strings.hpp"
 
 #ifdef NOA_IS_OFFLINE
 #include <exception>
@@ -12,8 +12,21 @@
 #include <vector>
 
 namespace noa {
-    /// Global (within ::noa) exception.
+    /// Exception type used in ::noa.
     class Exception : public std::exception {
+    public:
+        /// Returns the message of all of the nested exceptions, from the newest to the oldest exception.
+        /// \details This gets the current exception and gets its message using what(). Then if the exception is
+        ///          a std::nested_exception, i.e. it was thrown using std::throw_with_nested, it gets the nested
+        ///          exceptions' messages until it reaches the last exception. These exceptions should inherit from
+        ///          std::exception, otherwise we have no way to retrieve its message and a generic message is
+        ///          returned instead saying that an unknown exception was thrown and the backtrace stops.
+        [[nodiscard]] static std::vector<std::string> backtrace() noexcept {
+            std::vector<std::string> message;
+            backtrace_(message);
+            return message;
+        }
+
     public:
         /// Format the error message, which is then accessible with what().
         /// \param[in] file      File name.
@@ -28,29 +41,17 @@ namespace noa {
             return m_buffer.data();
         }
 
-        /// Returns the message of all of the nested exceptions, from the newest to the oldest exception.
-        /// \details This gets the current exception and gets its message using what(). Then if the exception is
-        ///          a std::nested_exception, i.e. it was thrown using std::throw_with_nested, it gets the nested
-        ///          exceptions' messages until it reaches the last exception. These exceptions should inherit from
-        ///          std::exception, otherwise we have no way to retrieve its message and a generic message is
-        ///          returned instead saying that an unknown exception was thrown and the backtrace stops.
-        [[nodiscard]] static std::vector<std::string> backtrace() noexcept {
-            std::vector<std::string> message;
-            backtrace_(message);
-            return message;
-        }
-
     protected:
         static std::string format_(
-                const char* file,
-                const char* function,
-                std::uint_least32_t line,
-                const std::string_view& message
+            const char* file,
+            const char* function,
+            std::uint_least32_t line,
+            const std::string_view& message
         );
 
         static void backtrace_(
-                std::vector<std::string>& message,
-                const std::exception_ptr& exception_ptr = std::current_exception()
+            std::vector<std::string>& message,
+            const std::exception_ptr& exception_ptr = std::current_exception()
         );
 
     protected:
@@ -59,25 +60,21 @@ namespace noa {
 
     namespace guts {
         template<typename... Ts>
-        struct FormatWithLocationImp {
+        struct FormatWithLocation {
             fmt::format_string<Ts...> fmt;
             std::source_location location;
 
             template<typename T>
-            consteval /*implicit*/ FormatWithLocationImp(
+            consteval /*implicit*/ FormatWithLocation(
                     const T& s,
                     const std::source_location& l = std::source_location::current()
             ) : fmt(s), location(l) {} // check at compile time that "s" is compatible with "Ts"
 
-            /*implicit*/ FormatWithLocationImp(
+            /*implicit*/ FormatWithLocation(
                     const fmt::runtime_format_string<char>& s,
                     const std::source_location& l = std::source_location::current()
             ) : fmt(s), location(l) {}// no checks
         };
-
-        // std::type_identity is used to establish non-deduced contexts in template argument deduction.
-        template<typename... Args>
-        using FormatWithLocation = guts::FormatWithLocationImp<std::type_identity_t<Args>...>;
     }
 
     /// Throws an Exception with an error message and a specific, i.e. non-defaulted, source location.
@@ -85,9 +82,9 @@ namespace noa {
     /// (the return type of fmt::runtime) is passed.
     template<typename... Ts>
     [[noreturn]] constexpr void panic_at_location(
-            const std::source_location& location,
-            fmt::format_string<Ts...> fmt,
-            Ts&&... args
+        const std::source_location& location,
+        fmt::format_string<Ts...> fmt,
+        Ts&&... args
     ) {
         std::throw_with_nested(
                 Exception(location.file_name(), location.function_name(), location.line(),
@@ -98,8 +95,8 @@ namespace noa {
     /// Throws an Exception with an error message already formatted.
     /// This is be equivalent to panic(fmt::runtime(message));
     [[noreturn]] inline void panic_runtime(
-            std::string_view message,
-            const std::source_location& location = std::source_location::current()
+        std::string_view message,
+        const std::source_location& location = std::source_location::current()
     ) {
         panic_at_location(location, fmt::runtime(message));
     }
@@ -111,16 +108,16 @@ namespace noa {
 
     /// Throws an Exception with an error message and the current source location.
     template<typename... Ts>
-    [[noreturn]] constexpr void panic(guts::FormatWithLocation<Ts...> fmt, Ts&&... args) {
+    [[noreturn]] constexpr void panic(guts::FormatWithLocation<std::type_identity_t<Ts>...> fmt, Ts&&... args) {
         panic_at_location(fmt.location, fmt.fmt, std::forward<Ts>(args)...);
     }
 
-    template<typename C, typename... Ts>
+    template<typename... Ts>
     constexpr void check_at_location(
-            const std::source_location& location,
-            C&& expression,
-            fmt::format_string<Ts...> fmt,
-            Ts&&... args
+        const std::source_location& location,
+        auto&& expression,
+        fmt::format_string<Ts...> fmt,
+        Ts&&... args
     ) {
         if (expression) {
             /*do nothing*/
@@ -132,9 +129,9 @@ namespace noa {
     /// Throws an Exception with an error message already formatted.
     /// This is be equivalent to panic(fmt::runtime(message));
     inline void check_runtime(
-            auto&& expression,
-            std::string_view message,
-            const std::source_location& location = std::source_location::current()
+        auto&& expression,
+        std::string_view message,
+        const std::source_location& location = std::source_location::current()
     ) {
         if (expression) {
             /*do nothing*/
@@ -144,8 +141,7 @@ namespace noa {
     }
 
     /// If the expression evaluates to false, throw an exception with no error message. Otherwise, do nothing.
-    template<typename C, typename... Ts>
-    constexpr void check(C&& expression, const std::source_location& location = std::source_location::current()) {
+    constexpr void check(auto&& expression, const std::source_location& location = std::source_location::current()) {
         if (expression) {
             /*do nothing*/
         } else {
@@ -154,8 +150,8 @@ namespace noa {
     }
 
     /// Throws an Exception if the expression evaluates to false.
-    template<typename C, typename... Ts>
-    constexpr void check(C&& expression, guts::FormatWithLocation<Ts...> fmt, Ts&&... args) {
+    template<typename... Ts>
+    constexpr void check(auto&& expression, guts::FormatWithLocation<std::type_identity_t<Ts>...> fmt, Ts&&... args) {
         if (expression) {
             /*do nothing*/
         } else {
@@ -164,4 +160,4 @@ namespace noa {
     }
 }
 
-#endif // NOA_IS_CPU_CODE
+#endif

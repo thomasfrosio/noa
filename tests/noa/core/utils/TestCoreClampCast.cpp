@@ -1,7 +1,6 @@
 #include <noa/core/utils/ClampCast.hpp>
 #include <catch2/catch.hpp>
-
-#include "Helpers.h"
+#include "Utils.hpp"
 
 using namespace ::noa;
 

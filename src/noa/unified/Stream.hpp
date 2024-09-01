@@ -25,14 +25,6 @@ namespace noa::gpu {
 }
 
 namespace noa::inline types {
-    /// Stream mode. DEFAULT refers to the NULL stream. ASYNC creates an actual asynchronous queue.
-    /// On the CPU, ASYNC launches a new thread which waits to execute work. On the GPU, ASYNC launches
-    /// a new "concurrent" stream which is not implicitly synchronized with the NULL stream.
-    enum class StreamMode {
-        DEFAULT,
-        ASYNC
-    };
-
     /// Unified stream, i.e. (asynchronous) dispatch queue, and its associated device.
     /// \details
     ///   - Streams are reference counted. While they can be moved and copied around, the actual
@@ -50,15 +42,22 @@ namespace noa::inline types {
         using cpu_stream = noa::cpu::Stream;
         using gpu_stream = noa::gpu::Stream;
         using cuda_stream = noa::cuda::Stream;
-        using StreamMode::ASYNC;
-        using StreamMode::DEFAULT;
+
+        /// Stream mode. DEFAULT refers to the NULL stream. ASYNC creates an actual asynchronous queue.
+        /// On the CPU, ASYNC launches a new thread which waits to execute work. On the GPU, ASYNC launches
+        /// a new "concurrent" stream which is not implicitly synchronized with the NULL stream.
+        enum class Mode {
+            DEFAULT,
+            ASYNC
+        };
+        using enum Mode;
 
     public:
         /// Creates a new stream on the given device.
-        explicit Stream(Device device, StreamMode mode = StreamMode::ASYNC) : m_device(device) {
+        explicit Stream(Device device, Mode mode = Mode::ASYNC) : m_device(device) {
             if (m_device.is_cpu()) {
                 m_stream = cpu_stream(
-                        mode == StreamMode::ASYNC ?
+                        mode == Mode::ASYNC ?
                         noa::cpu::StreamMode::ASYNC :
                         noa::cpu::StreamMode::DEFAULT,
                         static_cast<i32>(Session::thread_limit()));
@@ -70,7 +69,7 @@ namespace noa::inline types {
                         noa::cuda::StreamMode::ASYNC :
                         noa::cuda::StreamMode::DEFAULT);
                 #else
-                noa::panic("No GPU backend detected");
+                panic("No GPU backend detected");
                 #endif
             }
         }
@@ -122,7 +121,7 @@ namespace noa::inline types {
         /// Otherwise, throws an exception.
         [[nodiscard]] cpu_stream& cpu() {
             auto* stream = std::get_if<cpu_stream>(&m_stream);
-            noa::check(stream != nullptr, "The stream is not a CPU stream");
+            check(stream != nullptr, "The stream is not a CPU stream");
             return *stream;
         }
 
@@ -132,7 +131,7 @@ namespace noa::inline types {
             #ifdef NOA_ENABLE_CUDA
             return cuda();
             #else
-            noa::panic("No GPU backend detected");
+            panic("No GPU backend detected");
             #endif
         }
 
@@ -144,7 +143,7 @@ namespace noa::inline types {
             check(stream != nullptr, "The stream is not a GPU stream");
             return *stream;
             #else
-            noa::panic("No GPU backend detected");
+            panic("No GPU backend detected");
             #endif
         }
 
@@ -171,5 +170,4 @@ namespace noa::inline types {
         Stream m_previous_current;
     };
 }
-
 #endif

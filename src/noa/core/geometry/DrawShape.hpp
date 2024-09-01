@@ -1,188 +1,160 @@
 #pragma once
 
 #include "noa/core/geometry/Polar.hpp"
-#include "noa/core/geometry/Quaternion.hpp"
 #include "noa/core/math/Constant.hpp"
 #include "noa/core/math/Generic.hpp"
 #include "noa/core/types/Mat.hpp"
 #include "noa/core/types/Vec.hpp"
-#include "noa/core/fft/Frequency.hpp"
+#include "noa/core/geometry/Transform.hpp"
 
 namespace noa::geometry::guts {
     template<typename GeometricShape, size_t N, typename Coord, typename Xform>
-    [[nodiscard]] NOA_FHD constexpr auto draw_geometric_shape_at(
-            const GeometricShape& geometric_shape,
-            const Vec<Coord, N>& coordinates,
-            const Vec<Coord, N>& center,
-            const Xform& inverse_transform = Xform{}
-    ) noexcept {
-        if constexpr (std::is_empty_v<Xform>) {
-            return geometric_shape.draw_at(coordinates - center);
-        } else if constexpr ((N == 2 and std::is_same_v<Xform, Mat22<Coord>>) or
-                             (N == 3 and std::is_same_v<Xform, Mat33<Coord>>)) {
-            return geometric_shape.draw_at(inverse_transform * (coordinates - center));
-        } else if constexpr ((N == 2 and nt::is_any_v<Xform, Mat23<Coord>>) or
-                             (N == 3 and nt::is_any_v<Xform, Mat34<Coord>>)) {
-            return geometric_shape.draw_at(inverse_transform * coordinates.push_back(1) - center);
-        } else if constexpr ((N == 2 and nt::is_any_v<Xform, Mat33<Coord>>) or
-                             (N == 3 and nt::is_any_v<Xform, Mat44<Coord>>)) {
-            return geometric_shape.draw_at((inverse_transform * coordinates.push_back(1)).pop_back() - center);
-        } else if constexpr (N == 3 and nt::is_any_v<Xform, Quaternion<Coord>>) {
-            return geometric_shape.draw_at(inverse_transform.rotate(coordinates - center));
+    [[nodiscard]] constexpr auto draw_geometric_shape_at(
+        const GeometricShape& geometric_shape,
+        const Vec<Coord, N>& coordinates,
+        const Vec<Coord, N>& center,
+        const Xform& inverse_transform = Xform{}
+    ) {
+        if constexpr (nt::empty<Xform> or nt::mat_of_shape<Xform, N, N> or nt::quaternion<Xform>) {
+            return geometric_shape.draw_at(transform_vector(inverse_transform, coordinates - center));
+        } else if constexpr (nt::mat_of_shape<Xform, N, N + 1> or nt::mat_of_shape<Xform, N + 1, N + 1>) {
+            return geometric_shape.draw_at(transform_vector(inverse_transform, coordinates) - center);
         } else {
-            static_assert(nt::always_false_v<Xform>, "Transformation type is not supported");
+            static_assert(nt::always_false<>, "Transformation type is not supported");
         }
     }
-}
 
-namespace noa::geometry {
-    template<size_t N, typename Index,
+    template<size_t N,
+             nt::sinteger Index,
              typename DrawOp,
-             typename Xform,
              typename BinaryOp,
-             typename InputAccessor,
-             typename OutputAccessor>
-    requires ((N == 2 or N == 3) and nt::is_sint_v<Index> and
-              nt::are_accessor_pure_nd<N + 1, InputAccessor, OutputAccessor>::value and
-              (nt::is_accessor_nd<Xform, 1>::value or std::is_empty_v<Xform>))
+             nt::batched_parameter Xform,
+             nt::readable_nd_optional<N + 1> Input,
+             nt::writable_nd<N + 1> Output>
+    requires (N == 2 or N == 3)
     class DrawShape {
     public:
         using index_type = Index;
-        using input_accessor_type = InputAccessor;
-        using output_accessor_type = OutputAccessor;
+        using input_type = Input;
+        using output_type = Output;
         using draw_op_type = DrawOp;
         using binary_op_type = BinaryOp;
         using xform_type = Xform;
 
-        using output_value_type = nt::value_type_t<output_accessor_type>;
-        using coord_type = draw_op_type::value_type;
-        using index_nd_type = Vec<index_type, N>;
-        using coord_nd_type = Vec<coord_type, N>;
+        using output_value_type = nt::value_type_t<output_type>;
+        using draw_vec_type = Vec<nt::value_type_t<draw_op_type>, N>;
 
     public:
-        DrawShape(
-                const input_accessor_type& input,
-                const output_accessor_type& output,
-                const draw_op_type& draw_op,
-                const xform_type& inverse_xform,
-                const binary_op_type& binary_op
-        ) : m_input(input),
+        constexpr DrawShape(
+            const input_type& input,
+            const output_type& output,
+            const draw_op_type& draw_op,
+            const xform_type& inverse_xform,
+            const binary_op_type& binary_op
+        ) :
+            m_input(input),
             m_output(output),
             m_draw_op(draw_op),
             m_inverse_xform(inverse_xform),
             m_binary_op(binary_op) {}
 
-        NOA_HD constexpr void operator()(index_type batch, index_type ik, index_type il) const requires (N == 2) {
-            draw_(batch, ik, il);
-        }
-
-        NOA_HD constexpr void operator()(index_type batch, index_type ij, index_type ik, index_type il) const requires (N == 3) {
-            draw_(batch, ij, ik, il);
+        template<nt::same_as<index_type>... I> requires (N == sizeof...(I))
+        NOA_HD constexpr void operator()(index_type batch, I... indices) const {
+            draw_(batch, indices...);
         }
 
     private:
-        NOA_HD constexpr auto get_shape_(index_type batch, const index_nd_type& indices) const {
-            if constexpr (std::is_empty_v<Xform>) {
-                return m_draw_op(coord_nd_type::from_vec(indices));
-            } else {
-                return m_draw_op(coord_nd_type::from_vec(indices), m_inverse_xform[batch]);
-            }
-        }
-
-        NOA_HD constexpr auto default_op_(const auto& input, auto shape) const {
-            using value_t = decltype(input);
-            using scalar_t = nt::value_type_t<value_t>;
-            if constexpr (nt::is_complex_v<value_t> and nt::is_real_v<output_value_type>) {
+        template<typename T>
+        NOA_HD constexpr auto default_op_(const T& input, auto shape) const {
+            using scalar_t = nt::value_type_t<T>;
+            if constexpr (nt::complex<T> and nt::real<output_value_type>) {
                 return abs_squared(input) * static_cast<scalar_t>(shape);
-            } else if constexpr (nt::is_real_or_complex_v<value_t>) {
+            } else if constexpr (nt::real_or_complex<T>) {
                 return input * static_cast<scalar_t>(shape);
-            } else if constexpr (nt::is_int_v<value_t>) {
+            } else if constexpr (nt::integer<T>) {
                 return input * static_cast<scalar_t>(round(shape));
             } else {
-                static_assert(nt::always_false_v<value_t>,
-                              "Default operator does not support this input value type. "
-                              "Please provide an operator to support this type. "
-                              "Note that the shape type is f64 for non-default-supported types");
+                static_assert(nt::always_false<>);
             }
         }
 
         NOA_HD constexpr auto draw_(index_type batch, auto... indices) const {
-            const auto shape = get_shape_(batch, index_nd_type{indices...});
+            const auto shape = m_draw_op(draw_vec_type::from_values(indices...), m_inverse_xform[batch]);
             if (m_input) {
                 auto input = m_input(batch, indices...);
-                if constexpr (std::is_empty_v<BinaryOp>) {
+                if constexpr (nt::empty<BinaryOp>) {
                     m_output(batch, indices...) = static_cast<output_value_type>(default_op_(input, shape));
                 } else {
                     m_output(batch, indices...) = static_cast<output_value_type>(m_binary_op(input, shape));
                 }
             } else {
-                m_output(batch, indices...) = static_cast<output_value_type>(shape);
+                m_output(batch, indices...) = static_cast<nt::value_type_t<output_value_type>>(shape);
             }
         }
 
     private:
-        input_accessor_type m_input;
-        output_accessor_type m_output;
+        input_type m_input;
+        output_type m_output;
         draw_op_type m_draw_op;
         NOA_NO_UNIQUE_ADDRESS xform_type m_inverse_xform;
         NOA_NO_UNIQUE_ADDRESS binary_op_type m_binary_op;
     };
-}
 
-namespace noa::geometry {
-    template<typename Value, bool IsSmooth>
-    requires nt::is_any<Value, f32, f64>::value
+    template<nt::any_of<f32, f64> Value, bool IsSmooth>
     class DrawLine {
     public:
-        static constexpr bool is_smooth = IsSmooth;
+        static constexpr bool IS_SMOOTH = IsSmooth;
         using value_type = Value;
-        using value_or_empty_type = std::conditional_t<is_smooth, value_type, Empty>;
+        using value_or_empty_type = std::conditional_t<IS_SMOOTH, value_type, Empty>;
 
     public:
-        NOA_HD constexpr DrawLine(
-                value_type center,
-                value_type radius,
-                value_type cvalue,
-                bool is_inverted,
-                value_type = {}
-        ) noexcept requires (not is_smooth)
-                : m_cvalue(cvalue), m_center(center), m_radius(radius), m_is_inverted(is_inverted) {}
+        constexpr DrawLine() = default;
 
-        NOA_HD constexpr DrawLine(
-                value_type center,
-                value_type radius,
-                value_type cvalue,
-                bool is_inverted,
-                value_type smoothness
-        ) noexcept requires is_smooth
-                : m_cvalue(cvalue), m_center(center), m_radius(radius),
-                  m_smoothness(smoothness), m_is_inverted(is_inverted) {}
+        constexpr DrawLine(
+            value_type center,
+            value_type radius,
+            value_type cvalue,
+            bool is_inverted,
+            value_type = {}
+        ) requires (not IS_SMOOTH):
+            m_cvalue(cvalue),
+            m_center(center),
+            m_radius(radius),
+            m_is_inverted(is_inverted) {}
 
-        [[nodiscard]] NOA_HD constexpr value_type operator()(std::integral auto index, Empty = {}) const noexcept {
+        constexpr DrawLine(
+            value_type center,
+            value_type radius,
+            value_type cvalue,
+            bool is_inverted,
+            value_type smoothness
+        ) requires IS_SMOOTH:
+            m_cvalue(cvalue),
+            m_center(center),
+            m_radius(radius),
+            m_smoothness(smoothness),
+            m_is_inverted(is_inverted) {}
+
+        [[nodiscard]] constexpr value_type operator()(nt::integer auto index, Empty = {}) const {
             return draw_at(static_cast<value_type>(index) - m_center);
         }
 
-        [[nodiscard]] NOA_HD constexpr value_type draw_at(value_type centered_coordinate) const noexcept {
+        [[nodiscard]] constexpr value_type draw_at(value_type centered_coordinate) const {
             const auto dst = abs(centered_coordinate);
-
-            if constexpr (is_smooth) {
+            if constexpr (IS_SMOOTH) {
                 constexpr auto PI = Constant<value_type>::PI;
-                if (dst > m_radius + m_smoothness) {
+                if (dst > m_radius + m_smoothness)
                     return static_cast<value_type>(m_is_inverted) * m_cvalue;
-                } else if (dst <= m_radius) {
+                if (dst <= m_radius)
                     return static_cast<value_type>(not m_is_inverted) * m_cvalue;
-                } else {
-                    const auto weight = cos(PI * (dst - m_radius) / m_smoothness);
-                    if (m_is_inverted)
-                        return (value_type{1} - weight) * value_type{0.5} * m_cvalue;
-                    else
-                        return (value_type{1} + weight) * value_type{0.5} * m_cvalue;
-                }
+                auto weight = cos(PI * (dst - m_radius) / m_smoothness);
+                if (m_is_inverted)
+                    weight *= -1;
+                return (value_type{1} + weight) * value_type{0.5} * m_cvalue;
             } else {
                 if (dst > m_radius)
                     return static_cast<value_type>(m_is_inverted) * m_cvalue;
-                else
-                    return static_cast<value_type>(not m_is_inverted) * m_cvalue;
+                return static_cast<value_type>(not m_is_inverted) * m_cvalue;
             }
         }
 
@@ -194,72 +166,68 @@ namespace noa::geometry {
         bool m_is_inverted;
     };
 
-    template<size_t NDIM, typename Value, bool IsSmooth>
-    requires nt::is_any<Value, f32, f64>::value
+    template<size_t N, nt::any_of<f32, f64> T, bool IsSmooth>
     class DrawSphere {
     public:
-        static constexpr bool is_smooth = IsSmooth;
-        using value_type = Value;
-        using value_or_empty_type = std::conditional_t<is_smooth, value_type, Empty>;
-        using vector_type = Vec<value_type, NDIM>;
+        static constexpr bool IS_SMOOTH = IsSmooth;
+        using value_type = T;
+        using value_or_empty_type = std::conditional_t<IS_SMOOTH, value_type, Empty>;
+        using vector_type = Vec<value_type, N>;
 
-        NOA_HD constexpr DrawSphere(
-                vector_type center,
-                value_type radius,
-                value_type cvalue,
-                bool is_inverted,
-                value_type = {}
-        ) noexcept requires (not is_smooth)
-                : m_center(center),
-                  m_radius_sqd(radius * radius),
-                  m_cvalue(cvalue),
-                  m_is_inverted(is_inverted) {}
+        constexpr DrawSphere() = default;
 
-        NOA_HD constexpr DrawSphere(
-                vector_type center,
-                value_type radius,
-                value_type cvalue,
-                bool is_inverted,
-                value_type smoothness
-        ) noexcept requires is_smooth
-                : m_center(center),
-                  m_radius_sqd(radius * radius),
-                  m_cvalue(cvalue),
-                  m_radius(radius),
-                  m_smoothness(smoothness),
-                  m_radius_edge_sqd((radius + smoothness) * (radius + smoothness)),
-                  m_is_inverted(is_inverted) {}
+        constexpr DrawSphere(
+            vector_type center,
+            value_type radius,
+            value_type cvalue,
+            bool is_inverted,
+            value_type = {}
+        ) requires (not IS_SMOOTH):
+            m_center(center),
+            m_radius_sqd(radius * radius),
+            m_cvalue(cvalue),
+            m_is_inverted(is_inverted) {}
+
+        constexpr DrawSphere(
+            vector_type center,
+            value_type radius,
+            value_type cvalue,
+            bool is_inverted,
+            value_type smoothness
+        ) requires IS_SMOOTH:
+            m_center(center),
+            m_radius_sqd(radius * radius),
+            m_cvalue(cvalue),
+            m_radius(radius),
+            m_smoothness(smoothness),
+            m_radius_edge_sqd((radius + smoothness) * (radius + smoothness)),
+            m_is_inverted(is_inverted) {}
 
     public:
-        template<typename T = Empty>
-        [[nodiscard]] NOA_HD constexpr value_type operator()(
-                vector_type coordinates,
-                const T& inverse_transform = T{}
-        ) const noexcept {
+        template<typename X = Empty>
+        [[nodiscard]] constexpr value_type operator()(
+            vector_type coordinates,
+            const X& inverse_transform = X{}
+        ) const {
             return guts::draw_geometric_shape_at(*this, coordinates, m_center, inverse_transform);
         }
 
-        [[nodiscard]] NOA_HD constexpr value_type draw_at(vector_type centered_coordinates) const noexcept {
+        [[nodiscard]] constexpr value_type draw_at(vector_type centered_coordinates) const {
             const auto dst_sqd = dot(centered_coordinates, centered_coordinates);
-            if constexpr (is_smooth) {
+            if constexpr (IS_SMOOTH) {
                 constexpr auto PI = Constant<value_type>::PI;
-                if (dst_sqd > m_radius_edge_sqd) {
+                if (dst_sqd > m_radius_edge_sqd)
                     return static_cast<value_type>(m_is_inverted) * m_cvalue;
-                } else if (dst_sqd <= m_radius_sqd) {
+                if (dst_sqd <= m_radius_sqd)
                     return static_cast<value_type>(not m_is_inverted) * m_cvalue;
-                } else {
-                    const auto dst = sqrt(dst_sqd);
-                    const auto weight = cos(PI * (dst - m_radius) / m_smoothness);
-                    if (m_is_inverted)
-                        return (value_type{1} - weight) * value_type{0.5} * m_cvalue;
-                    else
-                        return (value_type{1} + weight) * value_type{0.5} * m_cvalue;
-                }
+                auto weight = cos(PI * (sqrt(dst_sqd) - m_radius) / m_smoothness);
+                if (m_is_inverted)
+                    weight *= -1;
+                return (value_type{1} + weight) * value_type{0.5} * m_cvalue;
             } else {
                 if (dst_sqd > m_radius_sqd)
                     return static_cast<value_type>(m_is_inverted) * m_cvalue;
-                else
-                    return static_cast<value_type>(not m_is_inverted) * m_cvalue;
+                return static_cast<value_type>(not m_is_inverted) * m_cvalue;
             }
         }
 
@@ -273,87 +241,86 @@ namespace noa::geometry {
         bool m_is_inverted;
     };
 
-    template<typename Value, bool IsSmooth>
-    requires nt::is_any<Value, f32, f64>::value
+    template<nt::any_of<f32, f64> Value, bool IsSmooth>
     class DrawCylinder {
     public:
-        static constexpr bool is_smooth = IsSmooth;
+        static constexpr bool IS_SMOOTH = IsSmooth;
         using value_type = Value;
-        using value_or_empty_type = std::conditional_t<is_smooth, value_type, Empty>;
+        using value_or_empty_type = std::conditional_t<IS_SMOOTH, value_type, Empty>;
         using vector3_type = Vec3<value_type>;
         using vector2_type = Vec2<value_type>;
 
-        NOA_HD constexpr DrawCylinder(
-                vector3_type center,
-                vector2_type radius_length,
-                value_type cvalue,
-                bool is_inverted,
-                value_type = {}
-        ) noexcept requires (not is_smooth)
-                : m_center(center),
-                  m_radius_sqd(radius_length[0] * radius_length[0]),
-                  m_length(radius_length[1]),
-                  m_cvalue(cvalue),
-                  m_is_inverted(is_inverted) {}
+        constexpr DrawCylinder() = default;
 
-        NOA_HD constexpr DrawCylinder(
-                vector3_type center,
-                vector2_type radius_length,
-                value_type cvalue,
-                bool is_inverted,
-                value_type smoothness
-        ) noexcept requires is_smooth
-                : m_center(center),
-                  m_radius_sqd(radius_length[0] * radius_length[0]),
-                  m_length(radius_length[1]),
-                  m_cvalue(cvalue),
-                  m_radius(radius_length[0]),
-                  m_radius_edge_sqd((radius_length[0] + smoothness) * (radius_length[0] + smoothness)),
-                  m_edge_size(smoothness),
-                  m_length_edge(radius_length[1] + smoothness),
-                  m_is_inverted(is_inverted) {}
+        constexpr DrawCylinder(
+            vector3_type center,
+            vector2_type radius_length,
+            value_type cvalue,
+            bool is_inverted,
+            value_type = {}
+        ) requires (not IS_SMOOTH):
+            m_center(center),
+            m_radius_sqd(radius_length[0] * radius_length[0]),
+            m_length(radius_length[1]),
+            m_cvalue(cvalue),
+            m_is_inverted(is_inverted) {}
+
+        constexpr DrawCylinder(
+            vector3_type center,
+            vector2_type radius_length,
+            value_type cvalue,
+            bool is_inverted,
+            value_type smoothness
+        ) requires IS_SMOOTH:
+            m_center(center),
+            m_radius_sqd(radius_length[0] * radius_length[0]),
+            m_length(radius_length[1]),
+            m_cvalue(cvalue),
+            m_radius(radius_length[0]),
+            m_radius_edge_sqd((radius_length[0] + smoothness) * (radius_length[0] + smoothness)),
+            m_edge_size(smoothness),
+            m_length_edge(radius_length[1] + smoothness),
+            m_is_inverted(is_inverted) {}
 
         template<typename T = Empty>
-        [[nodiscard]] NOA_HD constexpr value_type operator()(
-                vector3_type coordinates,
-                const T& inverse_transform = T{}
-        ) const noexcept {
+        [[nodiscard]] constexpr value_type operator()(
+            vector3_type coordinates,
+            const T& inverse_transform = T{}
+        ) const {
             return guts::draw_geometric_shape_at(*this, coordinates, m_center, inverse_transform);
         }
 
-        [[nodiscard]] NOA_HD constexpr value_type draw_at(vector3_type centered_coordinates) const noexcept {
+        [[nodiscard]] constexpr value_type draw_at(vector3_type centered_coordinates) const {
             const auto dst_z = abs(centered_coordinates[0]);
             vector2_type tmp{centered_coordinates[1], centered_coordinates[2]};
             const value_type dst_yx_sqd = dot(tmp, tmp);
 
-            if constexpr (is_smooth) {
-                if (dst_z > m_length_edge or dst_yx_sqd > m_radius_edge_sqd) {
+            if constexpr (IS_SMOOTH) {
+                if (dst_z > m_length_edge or dst_yx_sqd > m_radius_edge_sqd)
                     return static_cast<value_type>(m_is_inverted) * m_cvalue;
+
+                constexpr auto PI = Constant<value_type>::PI;
+                value_type mask;
+                if (dst_yx_sqd <= m_radius_sqd) {
+                    mask = value_type{1};
                 } else {
-                    constexpr auto PI = Constant<value_type>::PI;
-                    value_type mask;
-                    if (dst_yx_sqd <= m_radius_sqd) {
-                        mask = value_type{1};
-                    } else {
-                        const auto dst_yx = (sqrt(dst_yx_sqd) - m_radius) / m_edge_size;
-                        mask = (value_type{1} + cos(PI * dst_yx)) * value_type{0.5};
-                    }
-
-                    if (dst_z > m_length) {
-                        const auto dst = (dst_z - m_length) / m_edge_size;
-                        mask *= (value_type{1} + cos(PI * dst)) * value_type{0.5};
-                    }
-
-                    if (m_is_inverted)
-                        return (value_type{1} - mask) * m_cvalue;
-                    else
-                        return mask * m_cvalue;
+                    const auto dst_yx = (sqrt(dst_yx_sqd) - m_radius) / m_edge_size;
+                    mask = (value_type{1} + cos(PI * dst_yx)) * value_type{0.5};
                 }
+
+                if (dst_z > m_length) {
+                    const auto dst = (dst_z - m_length) / m_edge_size;
+                    mask *= (value_type{1} + cos(PI * dst)) * value_type{0.5};
+                }
+
+                if (m_is_inverted)
+                    return (value_type{1} - mask) * m_cvalue;
+                return mask * m_cvalue;
+
             } else {
                 if (dst_z > m_length or dst_yx_sqd > m_radius_sqd)
                     return static_cast<value_type>(m_is_inverted) * m_cvalue;
-                else
-                    return static_cast<value_type>(not m_is_inverted) * m_cvalue;
+                return static_cast<value_type>(not m_is_inverted) * m_cvalue;
             }
         }
 
@@ -369,74 +336,76 @@ namespace noa::geometry {
         bool m_is_inverted;
     };
 
-    template<size_t NDIM, typename Value, bool IsSmooth>
-    requires nt::is_any<Value, f32, f64>::value
+    template<size_t N, nt::any_of<f32, f64> Value, bool IsSmooth>
     class DrawRectangle {
     public:
-        static constexpr bool is_smooth = IsSmooth;
+        static constexpr bool IS_SMOOTH = IsSmooth;
         using value_type = Value;
-        using vector_type = Vec<value_type, NDIM>;
-        using value_or_empty_type = std::conditional_t<is_smooth, value_type, Empty>;
-        using vector_or_empty_type = std::conditional_t<is_smooth, vector_type, Empty>;
+        using vector_type = Vec<value_type, N>;
+        using value_or_empty_type = std::conditional_t<IS_SMOOTH, value_type, Empty>;
+        using vector_or_empty_type = std::conditional_t<IS_SMOOTH, vector_type, Empty>;
 
-        NOA_HD constexpr DrawRectangle(
-                vector_type center,
-                vector_type radius,
-                value_type cvalue,
-                bool is_inverted,
-                value_type = {}
-        ) noexcept requires (not is_smooth)
-                : m_center(center), m_radius(radius), m_cvalue(cvalue), m_is_inverted(is_inverted) {}
+        constexpr DrawRectangle() = default;
 
-        NOA_HD constexpr DrawRectangle(
-                vector_type center,
-                vector_type radius,
-                value_type cvalue,
-                bool is_inverted,
-                value_type smoothness
-        ) noexcept requires is_smooth
-                : m_center(center),
-                  m_radius(radius),
-                  m_cvalue(cvalue),
-                  m_radius_edge(radius + smoothness),
-                  m_smoothness(smoothness),
-                  m_is_inverted(is_inverted) {}
+        constexpr DrawRectangle(
+            vector_type center,
+            vector_type radius,
+            value_type cvalue,
+            bool is_inverted,
+            value_type = {}
+        ) requires (not IS_SMOOTH):
+            m_center(center),
+            m_radius(radius),
+            m_cvalue(cvalue),
+            m_is_inverted(is_inverted) {}
+
+        constexpr DrawRectangle(
+            vector_type center,
+            vector_type radius,
+            value_type cvalue,
+            bool is_inverted,
+            value_type smoothness
+        ) requires IS_SMOOTH:
+            m_center(center),
+            m_radius(radius),
+            m_cvalue(cvalue),
+            m_radius_edge(radius + smoothness),
+            m_smoothness(smoothness),
+            m_is_inverted(is_inverted) {}
 
         template<typename T = Empty>
-        [[nodiscard]] NOA_HD constexpr value_type operator()(
+        [[nodiscard]] constexpr value_type operator()(
                 vector_type coordinates,
                 const T& inverse_transform = T{}
-        ) const noexcept {
+        ) const {
             return guts::draw_geometric_shape_at(*this, coordinates, m_center, inverse_transform);
         }
 
-        [[nodiscard]] NOA_HD constexpr value_type draw_at(vector_type coords) const noexcept {
+        [[nodiscard]] constexpr value_type draw_at(vector_type coords) const {
             coords = abs(coords);
 
-            if constexpr (IsSmooth) {
-                if (any(m_radius_edge < coords)) {
+            if constexpr (IS_SMOOTH) {
+                if (any(m_radius_edge < coords))
                     return static_cast<value_type>(m_is_inverted) * m_cvalue;
-                } else if (all(coords <= m_radius)) {
+                if (all(coords <= m_radius))
                     return static_cast<value_type>(not m_is_inverted) * m_cvalue;
-                } else {
-                    value_type mask_value{1};
-                    for (size_t i = 0; i < NDIM; ++i) {
-                        if (m_radius[i] < coords[i] and coords[i] <= m_radius_edge[i]) {
-                            constexpr auto PI = Constant<value_type>::PI;
-                            const auto distance = (coords[i] - m_radius[i]) / m_smoothness;
-                            mask_value *= (value_type{1} + cos(PI * distance)) * value_type{0.5};
-                        }
+
+                value_type mask_value{1};
+                for (size_t i{}; i < N; ++i) {
+                    if (m_radius[i] < coords[i] and coords[i] <= m_radius_edge[i]) {
+                        constexpr auto PI = Constant<value_type>::PI;
+                        const auto distance = (coords[i] - m_radius[i]) / m_smoothness;
+                        mask_value *= (value_type{1} + cos(PI * distance)) * value_type{0.5};
                     }
-                    if (m_is_inverted)
-                        return (value_type{1} - mask_value) * m_cvalue;
-                    else
-                        return mask_value * m_cvalue;
                 }
+                if (m_is_inverted)
+                    return (value_type{1} - mask_value) * m_cvalue;
+                return mask_value * m_cvalue;
+
             } else {
                 if (all(coords <= m_radius))
                     return static_cast<value_type>(not m_is_inverted) * m_cvalue;
-                else
-                    return static_cast<value_type>(m_is_inverted) * m_cvalue;
+                return static_cast<value_type>(m_is_inverted) * m_cvalue;
             }
         }
 
@@ -449,47 +418,54 @@ namespace noa::geometry {
         bool m_is_inverted;
     };
 
-    template<size_t NDIM, typename Value, bool IsSmooth>
-    requires nt::is_any<Value, f32, f64>::value
+    template<size_t N, nt::any_of<f32, f64> Value, bool IsSmooth>
     class DrawEllipse {
     public:
-        static constexpr bool is_smooth = IsSmooth;
+        static constexpr bool IS_SMOOTH = IsSmooth;
         using value_type = Value;
-        using vector_type = Vec<value_type, NDIM>;
-        using value_or_empty_type = std::conditional_t<is_smooth, value_type, Empty>;
+        using vector_type = Vec<value_type, N>;
+        using value_or_empty_type = std::conditional_t<IS_SMOOTH, value_type, Empty>;
 
-        NOA_HD constexpr DrawEllipse(
-                vector_type center,
-                vector_type radius,
-                value_type cvalue,
-                bool is_inverted,
-                value_type = {}
-        ) noexcept requires (not is_smooth)
-                : m_center(center), m_radius(radius), m_cvalue(cvalue), m_is_inverted(is_inverted) {}
+        constexpr DrawEllipse() = default;
 
-        NOA_HD constexpr DrawEllipse(
-                vector_type center,
-                vector_type radius,
-                value_type cvalue,
-                bool is_inverted,
-                value_type smoothness
-        ) noexcept requires is_smooth
-                : m_center(center), m_radius(radius * radius), m_cvalue(cvalue),
-                  m_smoothness(smoothness), m_is_inverted(is_inverted) {}
+        constexpr DrawEllipse(
+            vector_type center,
+            vector_type radius,
+            value_type cvalue,
+            bool is_inverted,
+            value_type = {}
+        ) requires (not IS_SMOOTH):
+            m_center(center),
+            m_radius(radius),
+            m_cvalue(cvalue),
+            m_is_inverted(is_inverted) {}
+
+        constexpr DrawEllipse(
+            vector_type center,
+            vector_type radius,
+            value_type cvalue,
+            bool is_inverted,
+            value_type smoothness
+        ) requires IS_SMOOTH:
+            m_center(center),
+            m_radius(radius * radius),
+            m_cvalue(cvalue),
+            m_smoothness(smoothness),
+            m_is_inverted(is_inverted) {}
 
         // TODO for 2d we could also accept the rotation angle and add it to phi.
         template<typename T = Empty>
-        [[nodiscard]] NOA_HD constexpr value_type operator()(
-                vector_type coordinates,
-                const T& inverse_transform = T{}
-        ) const noexcept {
+        [[nodiscard]] constexpr value_type operator()(
+            vector_type coordinates,
+            const T& inverse_transform = T{}
+        ) const {
             return guts::draw_geometric_shape_at(*this, coordinates, m_center, inverse_transform);
         }
 
-        [[nodiscard]] NOA_HD constexpr value_type draw_at(vector_type coordinates) const noexcept {
-            if constexpr (IsSmooth) {
+        [[nodiscard]] constexpr value_type draw_at(vector_type coordinates) const {
+            if constexpr (IS_SMOOTH) {
                 value_type irho, erho;
-                if constexpr (NDIM == 2) {
+                if constexpr (N == 2) {
                     // Current spherical coordinate:
                     irho = cartesian2rho(coordinates);
                     const value_type iphi = cartesian2phi<false>(coordinates);
@@ -514,25 +490,22 @@ namespace noa::geometry {
                 }
 
                 constexpr value_type PI = Constant<value_type>::PI;
-                if (irho > erho + m_smoothness) {
+                if (irho > erho + m_smoothness)
                     return static_cast<value_type>(m_is_inverted) * m_cvalue;
-                } else if (irho <= erho) {
+                if (irho <= erho)
                     return static_cast<value_type>(not m_is_inverted) * m_cvalue;
-                } else {
-                    const auto distance = (irho - erho) / m_smoothness;
-                    if (m_is_inverted) {
-                        return (value_type{1} - cos(PI * distance)) * value_type{0.5} * m_cvalue;
-                    } else {
-                        return (value_type{1} + cos(PI * distance)) * value_type{0.5} * m_cvalue;
-                    }
-                }
+
+                const auto distance = (irho - erho) / m_smoothness;
+                if (m_is_inverted)
+                    return (value_type{1} - cos(PI * distance)) * value_type{0.5} * m_cvalue;
+                return (value_type{1} + cos(PI * distance)) * value_type{0.5} * m_cvalue;
+
             } else {
                 coordinates /= m_radius;
                 const value_type rho = dot(coordinates, coordinates);
                 if (m_is_inverted)
                     return static_cast<value_type>(rho > 1) * m_cvalue;
-                else
-                    return static_cast<value_type>(rho <= 1) * m_cvalue;
+                return static_cast<value_type>(rho <= 1) * m_cvalue;
             }
         }
 

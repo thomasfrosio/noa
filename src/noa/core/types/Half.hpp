@@ -4,7 +4,7 @@
 #include "noa/core/Traits.hpp"
 #include "noa/core/math/Constant.hpp"
 #include "noa/core/math/Generic.hpp"
-#include "noa/core/string/Format.hpp"
+#include "noa/core/utils/Strings.hpp"
 
 #if defined(NOA_COMPILER_GCC)
 #pragma GCC diagnostic push
@@ -56,8 +56,6 @@ namespace noa::inline types {
     ///          This structure can be used on host code (using the "half" library from Christian Rau) and CUDA device
     ///          code (using the __half precision intrinsics from CUDA). Both implementations are using an unsigned
     ///          short as underlying type.
-    /// \note For type-safety, they are no implicit constructors. This may be annoying sometimes, since it differs
-    ///       from built-in floating-point types but it could potentially save us hours of debugging in the future.
     /// \note For device code, arithmetic operators and some math functions are only supported for devices with
     ///       compute capability >= 5.3 or 8.0. For devices with compute capability lower than that, higher precision
     ///       overloads are used internally (see HALF_ARITHMETIC_TYPE).
@@ -130,7 +128,7 @@ namespace noa::inline types {
                 } else if constexpr (std::is_same_v<U, unsigned long long> || std::is_same_v<U, ulong>) {
                     return __ull2half_rn(value);
                 } else {
-                    static_assert(nt::always_false_v<T>);
+                    static_assert(nt::always_false<>);
                 }
             } else if constexpr (std::is_same_v<U, native_type>) { // native_type -> built-in
                 if constexpr (std::is_same_v<T, float>) {
@@ -158,10 +156,10 @@ namespace noa::inline types {
                 } else if constexpr (std::is_same_v<T, unsigned long long> || std::is_same_v<T, ulong>) {
                     return static_cast<T>(__half2ull_rn(value));
                 } else {
-                    static_assert(nt::always_false_v<T>);
+                    static_assert(nt::always_false<>);
                 }
             } else {
-                static_assert(nt::always_false_v<T>);
+                static_assert(nt::always_false<>);
             }
             #else
             if constexpr (std::is_same_v<T, U>) {
@@ -180,7 +178,7 @@ namespace noa::inline types {
                 }
                 return half_float::half_cast<T>(value);
             } else {
-                static_assert(nt::always_false_v<T>);
+                static_assert(nt::always_false<T>);
             }
             #endif
         }
@@ -368,11 +366,6 @@ namespace noa::inline types {
             #else
             return lhs.m_data <= rhs.m_data;
             #endif
-        }
-
-    public:
-        NOA_HOST friend std::ostream& operator<<(std::ostream& os, Half half) {
-            return os << static_cast<float>(half);
         }
 
     private:
@@ -730,7 +723,15 @@ namespace std {
 #ifdef NOA_IS_OFFLINE
 namespace noa::string {
     template<>
-    [[nodiscard]] NOA_IH std::string to_human_readable<Half>() { return "f16"; }
+    struct Stringify<Half> {
+        static auto get() -> std::string { return "f16"; }
+    };
+}
+
+namespace noa {
+    inline std::ostream& operator<<(std::ostream& os, Half half) {
+        return os << static_cast<float>(half);
+    }
 }
 
 namespace fmt {

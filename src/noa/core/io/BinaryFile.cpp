@@ -2,7 +2,7 @@
 #include "noa/core/io/BinaryFile.hpp"
 
 namespace noa::io {
-    void BinaryFile::open_(OpenMode mode, const std::source_location& location) {
+    void BinaryFile::open_(Open mode, const std::source_location& location) {
         close();
 
         const bool overwrite = mode.truncate or not (mode.read or mode.append);
@@ -21,7 +21,7 @@ namespace noa::io {
 
         mode.binary = true;
         for (i32 it = 0; it < 5; ++it) {
-            m_fstream.open(m_path, io::to_ios_base(mode));
+            m_fstream.open(m_path, mode.to_ios_base());
             if (m_fstream.is_open())
                 return;
             std::this_thread::sleep_for(std::chrono::milliseconds(10));

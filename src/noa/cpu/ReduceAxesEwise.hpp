@@ -100,7 +100,7 @@ namespace noa::cpu::guts {
                         }
                     }
                 } else {
-                    static_assert(nt::always_false_v<Op>);
+                    static_assert(nt::always_false<>);
                 }
             }
         }
@@ -122,7 +122,7 @@ namespace noa::cpu::guts {
                     }
                 }
             } else {
-                static_assert(nt::always_false_v<Op>);
+                static_assert(nt::always_false<>);
             }
         }
     };
@@ -153,10 +153,10 @@ namespace noa::cpu {
 
     template<typename Config = ReduceAxesEwiseConfig<>,
              typename Op, typename Input, typename Reduced, typename Output, typename Index>
-    requires (nt::is_tuple_of_accessor_v<Input> and
-              not nt::is_tuple_of_accessor_value_v<Input> and // at least one varray
-              nt::is_tuple_of_accessor_pure_v<Output> and
-              nt::is_tuple_of_accessor_value_v<Reduced>)
+    requires (nt::tuple_of_accessor<std::decay_t<Input>> and
+              not nt::tuple_of_accessor_value<std::decay_t<Input>> and // at least one varray
+              nt::tuple_of_accessor_pure<std::decay_t<Output>> and
+              nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
     constexpr void reduce_axes_ewise(
             const Shape4<Index>& input_shape,
             const Shape4<Index>& output_shape,
@@ -191,7 +191,7 @@ namespace noa::cpu {
 
         } else if (all(axes_empty_or_to_reduce.pop_front())) { // reduce to one value per batch
             const auto n_batches = output_shape[0];
-            const auto n_elements_to_reduce = input_shape.pop_front().template as<i64>().elements();
+            const auto n_elements_to_reduce = input_shape.pop_front().template as<i64>().n_elements();
             const bool are_contiguous = all(ni::is_contiguous(input, input_shape).pop_front());
             const auto actual_n_threads = min(n_batches, n_threads);
 
@@ -263,7 +263,7 @@ namespace noa::cpu {
         // Move the reduced dimension to the rightmost dimension.
         const auto order = ni::squeeze_left(axes_to_reduce.template as<i32>() + 1);
         auto reordered_shape = input_shape.reorder(order);
-        if (any(order != Vec{0, 1, 2, 3})) {
+        if (not all(order == Vec{0, 1, 2, 3})) {
             input_.for_each([&order](auto& accessor) { accessor.reorder(order); });
             output_.for_each([&order](auto& accessor) { accessor.reorder(order); });
         }
@@ -274,7 +274,7 @@ namespace noa::cpu {
 
         // This function distributes the threads on the dimensions that are not reduced.
         // In other words, the reduction is done by the same thread.
-        const i64 n_iterations = reordered_shape.pop_back().template as<i64>().elements();
+        const i64 n_iterations = reordered_shape.pop_back().template as<i64>().n_elements();
         const i64 actual_n_threads = n_iterations > 1024 ? n_threads : 1; // TODO Improve this heuristic
         const bool is_contiguous = ni::is_contiguous(input_, reordered_shape)[3];
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/core/fft/RemapInterface.hpp"
+#include "noa/core/fft/Remap.hpp"
 #include "noa/core/geometry/Interpolator.hpp"
 #include "noa/core/geometry/TransformSpectrum.hpp"
 #include "noa/unified/Array.hpp"

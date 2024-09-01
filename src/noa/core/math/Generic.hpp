@@ -98,7 +98,7 @@ namespace noa {
     [[nodiscard]] NOA_FHD float pow(float base, float exponent) { return std::pow(base, exponent); }
 
     // Returns the next power of 2. If x is a power of 2 or is equal to 1, returns x.
-    template<typename Int> requires std::is_integral_v<Int>
+    template<nt::integer Int>
     [[nodiscard]] NOA_FHD constexpr Int next_power_of_2(Int x) {
         --x;
         x |= x >> 1;
@@ -109,23 +109,23 @@ namespace noa {
         return ++x;
     }
 
-    template<typename UInt> requires std::is_unsigned_v<UInt>
-    [[nodiscard]] NOA_FHD constexpr UInt next_multiple_of(UInt value, UInt base) { return (value + base - 1) / base * base; }
+    template<nt::uinteger T>
+    [[nodiscard]] NOA_FHD constexpr T next_multiple_of(T value, T base) { return (value + base - 1) / base * base; }
 
-    template<typename Int> requires std::is_integral_v<Int>
-    [[nodiscard]] NOA_FHD constexpr bool is_multiple_of(Int value, Int base) { return (value % base) == 0; }
+    template<nt::integer T>
+    [[nodiscard]] NOA_FHD constexpr bool is_multiple_of(T value, T base) { return (value % base) == 0; }
 
-    template<typename Int> requires std::is_integral_v<Int>
-    [[nodiscard]] NOA_FHD constexpr bool is_even(Int value) { return !(value % 2); }
+    template<nt::integer T>
+    [[nodiscard]] NOA_FHD constexpr bool is_even(T value) { return !(value % 2); }
 
-    template<typename Int> requires std::is_integral_v<Int>
-    [[nodiscard]] NOA_FHD constexpr bool is_odd(Int value) { return value % 2; }
+    template<nt::integer T>
+    [[nodiscard]] NOA_FHD constexpr bool is_odd(T value) { return value % 2; }
 
-    template<class UInt> requires std::is_unsigned_v<UInt>
-    [[nodiscard]] NOA_FHD constexpr bool is_power_of_2(UInt value) { return (value & (value - 1)) == 0; }
+    template<nt::uinteger T>
+    [[nodiscard]] NOA_FHD constexpr bool is_power_of_2(T value) { return (value & (value - 1)) == 0; }
 
-    template<typename Int> requires std::is_integral_v<Int>
-    [[nodiscard]] NOA_FHD constexpr Int divide_up(Int dividend, Int divisor) { return (dividend + divisor - 1) / divisor; }
+    template<nt::integer T>
+    [[nodiscard]] NOA_FHD constexpr T divide_up(T dividend, T divisor) { return (dividend + divisor - 1) / divisor; }
 
     [[nodiscard]] NOA_FHD double sqrt(double x) { return std::sqrt(x); }
     [[nodiscard]] NOA_FHD float sqrt(float x) { return std::sqrt(x); }
@@ -149,14 +149,14 @@ namespace noa {
     [[nodiscard]] NOA_FHD double round(double x) { return std::round(x); }
     [[nodiscard]] NOA_FHD float round(float x) { return std::round(x); }
 
-    template<typename Int> requires std::is_integral_v<Int>
-    [[nodiscard]] NOA_FHD Int round(Int x) { return x; }
+    template<nt::integer T>
+    [[nodiscard]] NOA_FHD T round(T x) { return x; }
 
     [[nodiscard]] NOA_FHD double rint(double x) { return std::rint(x); }
     [[nodiscard]] NOA_FHD float rint(float x) { return std::rint(x); }
 
-    template<typename Int> requires std::is_integral_v<Int>
-    [[nodiscard]] NOA_FHD Int rint(Int x) { return x; }
+    template<nt::integer T>
+    [[nodiscard]] NOA_FHD T rint(T x) { return x; }
 
     [[nodiscard]] NOA_FHD double ceil(double x) { return std::ceil(x); }
     [[nodiscard]] NOA_FHD float ceil(float x) { return std::ceil(x); }
@@ -178,18 +178,19 @@ namespace noa {
 
     template<typename T>
     [[nodiscard]] NOA_FHD T abs(T x) {
-        if constexpr (nt::is_uint_v<T>) {
+        if constexpr (nt::uinteger<T>) {
             return x;
-        } else if constexpr (nt::is_int_v<T>) {
-            if constexpr (nt::is_almost_same_v<T, long>)
+        } else if constexpr (nt::integer<T>) {
+            if constexpr (nt::almost_same_as<T, long>)
                 return std::labs(x);
-            else if constexpr (nt::is_almost_same_v<T, long long>)
+            else if constexpr (nt::almost_same_as<T, long long>)
                 return std::llabs(x);
-            else if constexpr (nt::is_almost_same_v<T, int8_t>)
+            else if constexpr (nt::almost_same_as<T, int8_t>)
                 return static_cast<int8_t>(::abs(x));
-            else if constexpr (nt::is_almost_same_v<T, int16_t>)
+            else if constexpr (nt::almost_same_as<T, int16_t>)
                 return static_cast<int16_t>(::abs(x));
-            return std::abs(x);
+            else
+                return std::abs(x);
         } else {
             return std::abs(x);
         }
@@ -200,17 +201,25 @@ namespace noa {
         return t * t;
     }
 
+    template<typename T, typename U>
+    [[nodiscard]] NOA_FHD constexpr T cast_or_abs_squared(const U& value) {
+        if constexpr (nt::complex<U> and nt::real<T>)
+            return static_cast<T>(abs_squared(value));
+        else
+            return static_cast<T>(value);
+    }
+
     [[nodiscard]] NOA_FHD double fma(double x, double y, double z) { return std::fma(x, y, z); }
     [[nodiscard]] NOA_FHD float fma(float x, float y, float z) { return std::fma(x, y, z); }
 
-    template<typename T> requires nt::is_real_or_complex_v<T>
+    template<nt::real_or_complex T>
     NOA_IHD void kahan_sum(T value, T& sum, T& error) {
         auto sum_value = value + sum;
-        if constexpr (nt::is_real_v<T>) {
+        if constexpr (nt::real<T>) {
             error += abs(sum) >= abs(value) ?
                      (sum - sum_value) + value :
                      (value - sum_value) + sum;
-        } else if constexpr (nt::is_complex_v<T>) {
+        } else if constexpr (nt::complex<T>) {
             for (i64 i = 0; i < 2; ++i) {
                 error[i] += abs(sum[i]) >= abs(value[i]) ?
                             (sum[i] - sum_value[i]) + value[i] :

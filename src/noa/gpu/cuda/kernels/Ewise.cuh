@@ -80,8 +80,8 @@ namespace noa::cuda::guts {
             }
         } else {
             // Offset the accessors to the start of the block workspace.
-            input_1d.for_each([=](auto& accessor){ accessor.offset_accessor(block_offset); });
-            output_1d.for_each([=](auto& accessor){ accessor.offset_accessor(block_offset); });
+            input_1d.for_each([=](auto& accessor){ accessor.offset_inplace(block_offset); });
+            output_1d.for_each([=](auto& accessor){ accessor.offset_inplace(block_offset); });
 
             // Load the inputs.
             using ivec_t = vectorized_tuple_t<Input>;

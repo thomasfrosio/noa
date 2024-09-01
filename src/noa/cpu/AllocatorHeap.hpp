@@ -10,7 +10,7 @@ namespace noa::cpu {
     template<typename T>
     struct AllocatorHeapDeleter {
         void operator()(T* ptr) noexcept {
-            if constexpr(nt::is_numeric_v<T>)
+            if constexpr(nt::numeric<T>)
                 std::free(ptr);
             else
                 delete[] ptr;
@@ -25,57 +25,54 @@ namespace noa::cpu {
     };
 
     /// Allocates memory from the heap.
-    /// \details Also provides memory-aligned alloc and calloc functions.
-    ///          Floating-points and complex floating-points are aligned to 128 bytes.
-    ///          Integral types are aligned to 64 bytes.
-    ///          Anything else uses the type's alignment as reported by alignof().
-    template<typename Value>
+    /// \details This allocator is designed to allocate medium to large memory regions, as it enforces an alignment
+    ///          of 256 bytes by default (or more if the type requires it). Moreover, the allocation is done with
+    ///          malloc-like functions, thus returns uninitialized memory regions, i.e. it is undefined behavior to
+    ///          directly read from this memory.
+    template<typename T>
     class AllocatorHeap {
     public:
-        static_assert(not std::is_pointer_v<Value> and
-                      not std::is_reference_v<Value> and
-                      not std::is_const_v<Value>);
+        static_assert(not std::is_pointer_v<T> and
+                      not std::is_reference_v<T> and
+                      not std::is_const_v<T>);
 
-        static constexpr size_t ALIGNMENT =
-                nt::is_real_or_complex_v<Value> ? 128 :
-                nt::is_int_v<Value> ? 64 : alignof(Value);
-
-        using value_type = Value;
+        using value_type = T;
         using shared_type = std::shared_ptr<value_type[]>;
         using alloc_deleter_type = AllocatorHeapDeleter<value_type>;
         using calloc_deleter_type = AllocatorHeapDeleterCalloc<value_type>;
         using alloc_unique_type = std::unique_ptr<value_type[], alloc_deleter_type>;
         using calloc_unique_type = std::unique_ptr<value_type[], calloc_deleter_type>;
+        static constexpr size_t SIZEOF = sizeof(value_type);
+        static constexpr size_t ALIGNOF = alignof(value_type);
 
     public:
         /// Allocates some elements of uninitialized storage. Throws if the allocation fails.
-        static alloc_unique_type allocate(i64 elements) {
-            if (elements <= 0)
+        template<size_t Alignment = 256>
+        static alloc_unique_type allocate(i64 n_elements) {
+            if (n_elements <= 0)
                 return {};
-            value_type* out;
-            if constexpr (nt::is_numeric_v<value_type>) {
-                out = static_cast<value_type*>(std::aligned_alloc(
-                        ALIGNMENT, static_cast<size_t>(elements) * sizeof(value_type)));
-            } else {
-                out = new(std::nothrow) value_type[static_cast<size_t>(elements)];
-            }
-            check(out, "Failed to allocate {} {} on the heap", elements, ns::to_human_readable<value_type>());
+
+            constexpr size_t alignment = std::max(ALIGNOF, Alignment);
+            auto out = static_cast<value_type*>(std::aligned_alloc(alignment, static_cast<size_t>(n_elements) * SIZEOF));
+            check(out, "Failed to allocate {} {} on the heap", n_elements, ns::stringify<value_type>());
             return {out, alloc_deleter_type{}};
         }
 
-        /// Allocates some elements, all initialized to 0. Throws if the allocation fails.
-        static calloc_unique_type calloc(i64 elements) {
-            if (elements <= 0)
+        /// Allocates some elements, with the underlying bytes initialized to 0. Throws if the allocation fails.
+        template<size_t Alignment = 256>
+        static calloc_unique_type calloc(i64 n_elements) {
+            if (n_elements <= 0)
                 return {};
 
             // Make sure we have enough space to store the original value returned by calloc.
-            const size_t offset = ALIGNMENT - 1 + sizeof(void*);
+            constexpr size_t alignment = std::max(ALIGNOF, Alignment);
+            const size_t offset = alignment - 1 + sizeof(void*);
 
-            void* calloc_ptr = std::calloc(static_cast<size_t>(elements) * sizeof(value_type) + offset, 1);
-            check(calloc_ptr, "Failed to allocate {} {} on the heap", elements, ns::to_human_readable<value_type>());
+            void* calloc_ptr = std::calloc(static_cast<size_t>(n_elements) * SIZEOF + offset, 1);
+            check(calloc_ptr, "Failed to allocate {} {} on the heap", n_elements, ns::stringify<value_type>());
 
             // Align to the requested value, leaving room for the original calloc value.
-            void* aligned_ptr = reinterpret_cast<void*>(((uintptr_t)calloc_ptr + offset) & ~(ALIGNMENT - 1));
+            void* aligned_ptr = reinterpret_cast<void*>(((uintptr_t)calloc_ptr + offset) & ~(alignment - 1));
             reinterpret_cast<void**>(aligned_ptr)[-1] = calloc_ptr;
             return {static_cast<value_type*>(aligned_ptr), calloc_deleter_type{}};
         }

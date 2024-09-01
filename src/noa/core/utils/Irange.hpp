@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
 #include "noa/core/math/Comparison.hpp"
 
 #ifdef NOA_IS_OFFLINE
@@ -13,7 +14,7 @@
 
 // Adapted from https://github.com/pytorch/pytorch/blob/master/c10/util/irange.h
 namespace noa::guts {
-    template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+    template<nt::integer I>
     struct IntIterator {
     public:
         // iterator traits
@@ -48,7 +49,7 @@ namespace noa::guts {
 }
 
 namespace noa {
-    template<typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
+    template<nt::integer I>
     struct IntRange {
     public:
         constexpr IntRange(I begin, I end) noexcept: m_begin(begin), m_end(end) {}
@@ -63,7 +64,7 @@ namespace noa {
     /// If end<=begin, then the range is empty.
     /// The range has the type of the `end` integer; `begin` integer is
     /// cast to this type.
-    template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+    template<nt::integer T>
     constexpr IntRange<T> irange(T begin, T end) noexcept {
         // If end<=begin then the range is empty; we can achieve this effect by
         // choosing the larger of {begin, end} as the loop terminator
@@ -72,7 +73,7 @@ namespace noa {
 
     /// Creates an integer range for the half-open interval [0, end)
     /// If end<=begin, then the range is empty
-    template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+    template<nt::integer T>
     constexpr IntRange<T> irange(T end) noexcept {
         // If end<=begin then the range is empty; we can achieve this effect by
         // choosing the larger of {0, end} as the loop terminator

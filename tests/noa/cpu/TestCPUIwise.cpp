@@ -1,7 +1,7 @@
 #include <noa/cpu/Iwise.hpp>
 #include <catch2/catch.hpp>
 
-#include "Helpers.h"
+#include "Utils.hpp"
 
 namespace {
     struct Tracked {
@@ -41,60 +41,60 @@ TEST_CASE("cpu::iwise") {
 
     AND_THEN("1d") {
         const auto shape = Shape1<i64>{100};
-        const auto elements = shape.elements();
+        const auto elements = shape.n_elements();
 
-        const auto buffer = std::make_unique<i32[]>(elements);
+        const auto buffer = std::make_unique<i32[]>(static_cast<size_t>(elements));
         iwise(shape, [ptr = buffer.get()](i64 i) { ptr[i] = static_cast<i32>(i); });
 
-        const auto expected = std::make_unique<i32[]>(elements);
-        for (i32 i{0}; auto& e: Span(expected.get(), elements))
+        const auto expected = std::make_unique<i32[]>(static_cast<size_t>(elements));
+        for (i32 i{}; auto& e: Span(expected.get(), elements))
             e = i++;
 
-        REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 1e-6));
+        REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 1e-6));
     }
 
     AND_THEN("2d") {
         const auto shape = Shape2<i64>{10, 10};
-        const auto elements = shape.elements();
+        const auto elements = shape.n_elements();
 
-        const auto buffer = std::make_unique<i32[]>(elements);
+        const auto buffer = std::make_unique<i32[]>(static_cast<size_t>(elements));
         const auto accessor = AccessorContiguousI64<i32, 2>(buffer.get(), shape.strides());
         iwise(shape, [=](i64 i, i64 j) { accessor(i, j) = static_cast<i32>(i * 10 + j); });
 
-        const auto expected = std::make_unique<i32[]>(elements);
-        for (i32 i{0}; auto& e: Span(expected.get(), elements))
+        const auto expected = std::make_unique<i32[]>(static_cast<size_t>(elements));
+        for (i32 i{}; auto& e: Span(expected.get(), elements))
             e = i++;
 
-        REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 0));
+        REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 0));
     }
 
     AND_THEN("3d") {
         const auto shape = Shape3<i64>{10, 10, 10};
-        const auto elements = shape.elements();
+        const auto elements = shape.n_elements();
 
-        const auto buffer = std::make_unique<i32[]>(elements);
+        const auto buffer = std::make_unique<i32[]>(static_cast<size_t>(elements));
         const auto accessor = AccessorContiguousI64<i32, 3>(buffer.get(), shape.strides());
-        iwise(shape, [=, i = int{0}](Vec3<i64> indices) mutable { accessor(indices) = i++; });
+        iwise(shape, [=, i = int{}](Vec3<i64> indices) mutable { accessor(indices) = i++; });
 
-        const auto expected = std::make_unique<i32[]>(elements);
-        for (i32 i{0}; auto& e: Span(expected.get(), elements))
+        const auto expected = std::make_unique<i32[]>(static_cast<size_t>(elements));
+        for (i32 i{}; auto& e: Span(expected.get(), elements))
             e = i++;
 
-        REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 0));
+        REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 0));
     }
 
     AND_THEN("4d") {
         const auto shape = Shape4<i64>{10, 10, 10, 10};
-        const auto elements = shape.elements();
+        const auto elements = shape.n_elements();
 
-        const auto buffer = std::make_unique<i32[]>(elements);
+        const auto buffer = std::make_unique<i32[]>(static_cast<size_t>(elements));
         const auto accessor = AccessorContiguousI64<i32, 4>(buffer.get(), shape.strides());
-        iwise(shape, [=, i = int{0}](Vec4<i64> indices) mutable { accessor(indices) = i++; });
+        iwise(shape, [=, i = int{}](Vec4<i64> indices) mutable { accessor(indices) = i++; });
 
-        const auto expected = std::make_unique<i32[]>(elements);
-        for (i32 i{0}; auto& e: Span(expected.get(), elements))
+        const auto expected = std::make_unique<i32[]>(static_cast<size_t>(elements));
+        for (i32 i{}; auto& e: Span(expected.get(), elements))
             e = i++;
 
-        REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 0));
+        REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 0));
     }
 }

@@ -75,7 +75,7 @@ namespace noa::cpu::fft {
     template<typename T>
     class Plan {
     public:
-        static_assert(nt::is_any_v<T, f32, f64>);
+        static_assert(nt::any_of<T, f32, f64>);
         using real_type = T;
         using complex_type = Complex<T>;
 

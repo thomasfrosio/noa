@@ -2,11 +2,13 @@
 #include <noa/core/utils/Irange.hpp>
 #include <catch2/catch.hpp>
 
-#include "Helpers.h"
+#include "Utils.hpp"
 
 TEST_CASE("core::IwiseInterface", "[core]") {
     using namespace noa::types;
     using namespace noa::guts;
+
+
 
     const size_t size = 1000;
     const std::unique_ptr b0 = std::make_unique<i32[]>(size);
@@ -19,9 +21,9 @@ TEST_CASE("core::IwiseInterface", "[core]") {
             IwiseInterface::call(op0, i);
             b1[i] = static_cast<i32>(i);
         }
-        REQUIRE(test::Matcher(test::MATCH_ABS, b0.get(), b1.get(), size, 1e-6));
-        test::memset(b0.get(), size, 0);
-        test::memset(b1.get(), size, 0);
+        REQUIRE(test::allclose_abs(b0.get(), b1.get(), size, 1e-6));
+        test::fill(b0.get(), size, 0);
+        test::fill(b1.get(), size, 0);
     }
 
     AND_THEN("simple 3d") {
@@ -42,8 +44,8 @@ TEST_CASE("core::IwiseInterface", "[core]") {
                 }
             }
         }
-        REQUIRE(test::Matcher(test::MATCH_ABS, b0.get(), b1.get(), size, 1e-6));
-        REQUIRE(test::Matcher(test::MATCH_ABS, b0.get(), b2.get(), size, 1e-6));
+        REQUIRE(test::allclose_abs(b0.get(), b1.get(), size, 1e-6));
+        REQUIRE(test::allclose_abs(b0.get(), b2.get(), size, 1e-6));
     }
 }
 
@@ -66,7 +68,7 @@ TEST_CASE("core::EwiseInterface", "[core]") {
             EwiseInterface<false, false>::call(op0, input, output, i);
             b1[i] = 1;
         }
-        REQUIRE(test::Matcher(test::MATCH_ABS, b0.get(), b1.get(), size, 1e-6));
+        REQUIRE(test::allclose_abs(b0.get(), b1.get(), size, 1e-6));
     }
 
     AND_THEN("simple 1d") {
@@ -87,7 +89,7 @@ TEST_CASE("core::EwiseInterface", "[core]") {
                 b2[i * 50 + j] = 2;
             }
         }
-        REQUIRE(test::Matcher(test::MATCH_ABS, b0.get(), b1.get(), size, 1e-6));
+        REQUIRE(test::allclose_abs(b0.get(), b1.get(), size, 1e-6));
     }
 }
 

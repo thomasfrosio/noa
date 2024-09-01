@@ -58,10 +58,10 @@ namespace noa::cuda::guts {
 }
 #else
 namespace noa::cpu::guts {
-    // FIXME C++20 atomic_ref, but clang doesn't support it yet
+    // FIXME C++20 atomic_ref, but lib clang doesn't support it yet
     template<typename Pointer, typename Value>
     NOA_FD void atomic_add(Pointer pointer, Value value) {
-        if constexpr (nt::is_complex_v<Value>) {
+        if constexpr (nt::complex<Value>) {
             #pragma omp atomic
             (*pointer)[0] += value[0];
             #pragma omp atomic
@@ -76,10 +76,8 @@ namespace noa::cpu::guts {
 
 namespace noa::guts {
     // Atomic add for CUDA and OpenMP.
-    template<typename Pointer, typename Value,
-             nt::enable_if_bool_t<
-                     std::is_pointer_v<Pointer> && nt::is_numeric_v<Value> &&
-                     nt::is_almost_same_v<std::remove_pointer_t<Pointer>, Value>> = true>
+    template<nt::pointer_numeric Pointer,
+             nt::almost_same_as_value_type_of<Pointer> Value>
     NOA_FHD void atomic_add(Pointer pointer, Value value) {
         #if defined(NOA_IS_GPU_CODE)
         ::noa::cuda::guts::atomic_add(pointer, value);
@@ -88,14 +86,13 @@ namespace noa::guts {
         #endif
     }
 
-    template<size_t N, typename Accessor, typename Value, typename... Indexes,
-             nt::enable_if_bool_t<
-                     nt::is_accessor_nd_v<Accessor, sizeof...(Indexes)> &&
-                     std::is_same_v<nt::value_type_t<Accessor>, Value> &&
-                     nt::are_int_v<Indexes...> &&
-                     nt::is_numeric_v<Value>> = true>
-    NOA_FHD void atomic_add(const Accessor& accessor, Value value, Indexes... indexes) {
-        auto pointer = accessor.offset_pointer(accessor.get(), indexes...);
+    template<size_t N,
+             nt::atomic_addable_nd<N> T,
+             nt::almost_same_as_value_type_of<T> Value,
+             typename... I>
+    requires (nt::offset_indexing<N, I...>)
+    NOA_FHD void atomic_add(const T& input, Value value, I... indices) {
+        auto pointer = input.offset_pointer(input.get(), indices...);
         atomic_add(pointer, value);
     }
 }

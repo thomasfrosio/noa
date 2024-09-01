@@ -30,8 +30,8 @@ namespace noa::cpu::fft {
         // Since it is in-place, the physical width (in real elements):
         //  1: is even, since complex elements take 2 real elements.
         //  2: has at least 1 (if odd) or 2 (if even) extract real element.
-        NOA_ASSERT(not(strides.physical_shape()[2] % 2));
-        NOA_ASSERT(strides.physical_shape()[2] >= shape[3] + 1 + static_cast<i64>(not(shape[3] % 2)));
+        NOA_ASSERT(is_even(strides.physical_shape()[2]));
+        NOA_ASSERT(strides.physical_shape()[2] >= shape[3] + 1 + static_cast<i64>(is_even(shape[3])));
 
         const auto complex_strides = Strides4<i64>{strides[0] / 2, strides[1] / 2, strides[2] / 2, strides[3]};
         r2c(data, strides, reinterpret_cast<Complex<T>*>(data), complex_strides, shape, flag, n_threads);

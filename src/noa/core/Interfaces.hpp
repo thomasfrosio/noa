@@ -2,11 +2,12 @@
 
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
+#include "noa/core/types/Accessor.hpp"
 #include "noa/core/types/Vec.hpp"
 #include "noa/core/types/Tuple.hpp"
 
 /// These define the expected interface for each type of operators, and provide the common functionalities
-/// of zip/unzip, optional member functions and function redirections.
+/// of zip/unzip, optional member functions, and function redirections.
 
 namespace noa::traits {
     template<typename T, typename = void>
@@ -16,7 +17,7 @@ namespace noa::traits {
 
     /// By default, the element-wise interfaces (ewise, reduce_ewise and reduce_axes_ewise) allow the operators
     /// to write from the inputs and read from the outputs. While this can be useful for some operations, it may also
-    /// constrains some backends when it comes to vectorization (e.g. vectorized load/write on CUDA). Operators can
+    /// constrain some backends when it comes to vectorization (e.g. vectorized load/write on CUDA). Operators can
     /// define the optional type alias "allow_vectorization" to indicate that the input values are read-only and
     /// that output values are write-only, which can help backends to generate vectorized code.
     template<typename T>
@@ -41,7 +42,7 @@ namespace noa::traits {
 }
 
 // nvcc (12.0-12.3) easily breaks (or worse, give wrong results) with `if constexpr (requires...)` statements,
-// so we have to walk around eggshells and define "friendlier" structures to check these type substitutions...
+// so we have to walk on eggshells and define "friendlier" structures to check these type substitutions...
 // std::declval seems necessary, as using the name of variadics seem to freak out nvcc...
 namespace noa::guts {
     struct IwiseChecker {
@@ -145,8 +146,7 @@ namespace noa::guts {
                 op.init(id);
         }
 
-        template<typename Op, typename... Indices>
-        requires nt::are_int_v<Indices...>
+        template<typename Op, nt::integer... Indices>
         NOA_FHD static constexpr void call(Op& op, Indices... indices) {
             if constexpr (std::is_invocable_v<IwiseChecker, Tag<1>, Op, Indices...>) { // first try packed...
                 auto v = Vec{indices...};
@@ -154,7 +154,7 @@ namespace noa::guts {
             } else if constexpr (std::is_invocable_v<IwiseChecker, Tag<2>, Op, Indices...>) { // ...then unpacked
                 op(indices...);
             } else { // this is not optional, so fail otherwise
-                static_assert(nt::always_false_v<Op>,
+                static_assert(nt::always_false<Op>,
                         "The provided index-wise operator is not compatible with the provided indices");
             }
         }
@@ -172,8 +172,7 @@ namespace noa::guts {
                 op.init(integer);
         }
 
-        template<typename Op, typename Input, typename Output, typename... Indices>
-        requires nt::are_tuple_v<Input, Output>
+        template<typename Op, nt::tuple Input, nt::tuple Output, nt::integer... Indices>
         NOA_FHD static constexpr void call(Op& op, Input& input, Output& output, Indices... indices) {
             [&]<size_t... I, size_t... O>(std::index_sequence<I...>, std::index_sequence<O...>) {
                 // "input" and "output" are accessors, so we know that the operator() returns a lvalue reference.
@@ -206,8 +205,7 @@ namespace noa::guts {
 
     template<bool ZipReduced>
     struct ReduceJoinInterface {
-        template<typename Op, typename Reduced>
-        requires nt::is_tuple_of_accessor_value_v<Reduced>
+        template<typename Op, nt::tuple_of_accessor_value Reduced>
         NOA_FHD static constexpr void join(Op& op, Reduced& to_reduce, Reduced& reduced) {
             [&]<size_t... R>(std::index_sequence<R...> index_sequence) {
                 if constexpr (ZipReduced) {
@@ -239,8 +237,10 @@ namespace noa::guts {
 
     template<bool ZipReduced, bool ZipOutput>
     struct ReduceFinalInterface {
-        template<typename Op, typename Reduced, typename Output, typename... Indices>
-        requires (nt::is_tuple_of_accessor_value_v<Reduced> and nt::is_tuple_of_accessor_or_empty_v<Output>)
+        template<typename Op,
+                 nt::tuple_of_accessor_value Reduced,
+                 nt::tuple_of_accessor_or_empty Output,
+                 nt::integer... Indices>
         NOA_FHD static constexpr void final(Op& op, Reduced& reduced, Output& output, Indices... indices) {
             [&]<size_t... R, size_t... O, typename... T>
                     (std::index_sequence<R...> isr, std::index_sequence<O...> iso, nt::TypeList<T...> tl) {
@@ -253,7 +253,7 @@ namespace noa::guts {
                 // so we have to split it in two different functions.
                 if constexpr (has_final::value) {
                     final_(op, reduced, output, isr, iso, indices...);
-                } else if constexpr (nt::is_tuple_of_accessor_v<Output>) { // turn off if no outputs
+                } else if constexpr (nt::tuple_of_accessor<Output>) { // turn off if no outputs
                     default_final_<Op>(reduced, output, isr, iso, tl, indices...);
                 }
             }(nt::index_list_t<Reduced>{}, nt::index_list_t<Output>{}, nt::type_list_t<Output>{});
@@ -294,20 +294,19 @@ namespace noa::guts {
                 Indices... indices
         ) {
             if constexpr (nt::has_remove_defaulted_final_v<Op>) {
-                static_assert(nt::always_false_v<Op>,
+                static_assert(nt::always_false<Op>,
                               "Defaulted .final() was removed using the remove_defaulted_final flag, but no explicit .final() was detected");
             } else {
                 // Default copy assignment, with explicit cast.
                 // TODO Here we could perfectly forward the reduced values into the outputs.
-                ((output[Tag<O>{}](indices...) = static_cast<T::mutable_value_type>(reduced[Tag<R>{}].deref())), ...);
+                ((output[Tag<O>{}](indices...) = static_cast<typename T::mutable_value_type>(reduced[Tag<R>{}].deref())), ...);
             }
         }
     };
 
     template<bool ZipReduced, bool ZipOutput>
     struct ReduceIwiseInterface : ReduceJoinInterface<ZipReduced>, ReduceFinalInterface<ZipReduced, ZipOutput> {
-        template<typename Op, typename Reduced, typename... Indices>
-        requires (nt::is_tuple_of_accessor_value_v<Reduced> and nt::are_int_v<Indices...>)
+        template<typename Op, nt::tuple_of_accessor_value Reduced, nt::integer... Indices>
         NOA_FHD static constexpr void init(Op& op, Reduced& reduced, Indices... indices) {
             [&]<size_t... R>(std::index_sequence<R...> index_sequence) {
                 if constexpr (ZipReduced) {
@@ -339,17 +338,14 @@ namespace noa::guts {
             } else if constexpr (std::is_invocable_v<ReduceIwiseChecker, Tag<3>, Op, R, std::index_sequence<R0...>, Indices...>) {
                 op(indices..., reduced[Tag<R0>{}]...);
             } else {
-                static_assert(nt::always_false_v<Op>);
+                static_assert(nt::always_false<Op>);
             }
         }
     };
 
     template<bool ZipInput, bool ZipReduced, bool ZipOutput>
     struct ReduceEwiseInterface : ReduceJoinInterface<ZipReduced>, ReduceFinalInterface<ZipReduced, ZipOutput> {
-        template<typename Op, typename Input, typename Reduced, typename... Indices>
-        requires (nt::is_tuple_of_accessor_v<Input> and
-                  nt::is_tuple_of_accessor_value_v<Reduced> and
-                  nt::are_int_v<Indices...>)
+        template<typename Op, nt::tuple_of_accessor Input, nt::tuple_of_accessor_value Reduced, nt::integer... Indices>
         NOA_FHD static constexpr void init(Op& op, Input& input, Reduced& reduced, Indices... indices) {
             [&]<size_t... I, size_t... R>
             (std::index_sequence<I...> input_sequence, std::index_sequence<R...> reduced_sequence) {

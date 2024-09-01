@@ -11,6 +11,10 @@
 namespace noa {
     class Timer {
     public:
+        using time_point_type = std::chrono::time_point<std::chrono::steady_clock>;
+        using duration_type = std::chrono::duration<double, std::milli>;
+
+    public:
         /// Starts the timer.
         Timer& start() noexcept {
             m_start = std::chrono::steady_clock::now();
@@ -28,19 +32,15 @@ namespace noa {
         /// Returns the elapsed time, in milliseconds, between the last start() and stop().
         /// If the timer is still running (stop() was not called), elapsed() takes the current time
         /// and uses it, but does not stop the timer.
-        double elapsed() noexcept {
-            time_point_t end = m_running ? std::chrono::steady_clock::now() : m_end;
-            duration_t diff = end - m_start;
-            return diff.count();
+        auto elapsed() noexcept -> duration_type {
+            time_point_type end = m_running ? std::chrono::steady_clock::now() : m_end;
+            duration_type diff = end - m_start;
+            return diff; // use .count() to get the double
         }
 
     private:
-        using time_point_t = std::chrono::time_point<std::chrono::steady_clock>;
-        using duration_t = std::chrono::duration<double, std::milli>;
-        using microseconds_t = std::chrono::milliseconds;
-
-        time_point_t m_start;
-        time_point_t m_end;
-        bool m_running{false};
+        time_point_type m_start;
+        time_point_type m_end;
+        bool m_running{};
     };
 }

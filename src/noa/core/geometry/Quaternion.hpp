@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/core/types/Vec.hpp"
-#include "noa/core/types/Mat33.hpp"
+#include "noa/core/types/Mat.hpp"
 
 namespace noa::geometry {
     /// Quaternion type to represent 3d rotations. The coefficients are saved in the z, y, x, w order.
@@ -10,11 +10,10 @@ namespace noa::geometry {
     ///       to a quaternion which requires a single load.vec4.f32 instruction for single precision or two
     ///       load.vec2.f64 instruction for double precision. This can have a major performance benefit, especially
     ///       when multiple 3d rotations need to be loaded.
-    template<typename Real>
-    requires nt::is_any_v<Real, f32, f64>
+    template<nt::real T>
     class alignas(16) Quaternion {
     public:
-        using value_type = Real;
+        using value_type = T;
         using vec4_type = Vec4<value_type>;
         using vec3_type = Vec3<value_type>;
         using mat33_type = Mat33<value_type>;
@@ -24,9 +23,9 @@ namespace noa::geometry {
 
     public: // Factory functions
         /// Converts a 3x3 orthogonal matrix to a quaternion.
-        /// \warning Only pure rotations are supported, ie no scaling, no reflection.
-        template<typename T>
-        [[nodiscard]] NOA_HD static constexpr Quaternion from_matrix(const Mat33<T>& matrix) noexcept {
+        /// \warning Only pure rotations are supported, ie \p matrix should have no scaling and no reflection.
+        template<typename U>
+        [[nodiscard]] NOA_HD static constexpr Quaternion from_matrix(const Mat33<U>& matrix) noexcept {
             // This is also interesting, to handle the case with a scaling factor:
             // https://github.com/scipy/scipy/blob/main/scipy/spatial/transform/_rotation.pyx#L978-L1001
 
@@ -44,8 +43,8 @@ namespace noa::geometry {
             return q;
         }
 
-        template<typename T>
-        [[nodiscard]] NOA_HD static constexpr Quaternion from_coefficients(const Vec4<T>& zyxw) noexcept {
+        template<typename U, size_t A>
+        [[nodiscard]] NOA_HD static constexpr Quaternion from_coefficients(const Vec<U, 4, A>& zyxw) noexcept {
             return {static_cast<value_type>(zyxw[0]),
                     static_cast<value_type>(zyxw[1]),
                     static_cast<value_type>(zyxw[2]),
@@ -60,8 +59,9 @@ namespace noa::geometry {
         }
 
     public: // Access
-        [[nodiscard]] NOA_HD constexpr auto vec() const noexcept -> vec4_type { return {z, y, x, w}; }
         [[nodiscard]] NOA_HD constexpr auto imag() const noexcept -> vec3_type { return {z, y, x}; }
+        [[nodiscard]] NOA_HD constexpr auto vec() const noexcept -> vec4_type { return {z, y, x, w}; }
+        [[nodiscard]] NOA_HD constexpr auto coefficients() const noexcept -> vec4_type { return vec(); }
 
         [[nodiscard]] NOA_HD constexpr auto operator[](auto i) noexcept -> value_type& { return vec()[i]; }
         [[nodiscard]] NOA_HD constexpr auto operator[](auto i) const noexcept -> const value_type& { return vec()[i]; }
@@ -172,9 +172,9 @@ namespace noa::geometry {
             return {-z, -y, -x, w};
         }
 
-        template<typename T> requires nt::is_real_v<T>
+        template<nt::real U>
         [[nodiscard]] NOA_HD constexpr auto as() const noexcept -> Quaternion<T> {
-            return {static_cast<T>(z), static_cast<T>(y), static_cast<T>(x), static_cast<T>(w)};
+            return {static_cast<U>(z), static_cast<U>(y), static_cast<U>(x), static_cast<U>(w)};
         }
     };
 }

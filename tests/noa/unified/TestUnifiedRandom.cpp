@@ -1,15 +1,15 @@
 #include <noa/unified/Random.hpp>
 #include <noa/unified/Reduce.hpp>
-
-#include "Helpers.h"
 #include <catch2/catch.hpp>
+
+#include "Utils.hpp"
 
 using namespace noa::types;
 
 TEMPLATE_TEST_CASE("unified::randomize()", "[noa][unified]", f32, f64) {
     using value_t = noa::traits::value_type_t<TestType>;
     const auto pad = GENERATE(true, false);
-    const auto subregion_shape = test::get_random_shape4_batched(3);
+    const auto subregion_shape = test::random_shape_batched(3);
     auto shape = subregion_shape;
     if (pad) {
         shape[1] += 8;
@@ -17,12 +17,12 @@ TEMPLATE_TEST_CASE("unified::randomize()", "[noa][unified]", f32, f64) {
         shape[2] += 10;
     }
 
-    std::vector<Device> devices{Device{}};
-    if (Device::is_any(DeviceType::GPU))
+    std::vector<Device> devices{"cpu"};
+    if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
     auto data = Array<TestType>(shape);
-    test::memset(data.get(), data.elements(), 20);
+    test::fill(data.get(), data.n_elements(), 20);
 
     for (auto& device: devices) {
         const auto stream = StreamGuard(device);
@@ -44,12 +44,24 @@ TEMPLATE_TEST_CASE("unified::randomize()", "[noa][unified]", f32, f64) {
         REQUIRE(max <= value_t{10});
         REQUIRE_THAT(mean, Catch::WithinAbs(0, 0.1));
 
-        test::memset(data.get(), data.elements(), 20);
+        test::fill(data.get(), data.n_elements(), 20);
 
         noa::randomize(noa::Normal<value_t>{5, 2}, subregion);
         mean = noa::mean(subregion);
         const auto stddev = noa::stddev(subregion);
         REQUIRE_THAT(mean, Catch::WithinAbs(5, 0.1));
         REQUIRE_THAT(stddev, Catch::WithinAbs(2, 0.1));
+    }
+}
+
+TEST_CASE("core::random_generator(), random_value()") {
+    auto distribution = noa::Uniform(-10., 10.);
+    auto random_generator = noa::random_generator(distribution);
+
+    for ([[maybe_unused]] auto _: noa::irange(1000)) {
+        auto random_value = noa::random_value(distribution);
+        auto value = random_generator();
+        REQUIRE((random_value >= -10. and random_value <= 10.));
+        REQUIRE((value >= -10. and value <= 10.));
     }
 }

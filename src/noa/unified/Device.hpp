@@ -6,8 +6,7 @@
 #include <string_view>
 #include "noa/core/Exception.hpp"
 #include "noa/core/utils/Irange.hpp"
-#include "noa/core/string/Format.hpp"
-#include "noa/core/string/Parse.hpp"
+#include "noa/core/utils/Strings.hpp"
 
 #include "noa/cpu/Device.hpp"
 #ifdef NOA_ENABLE_CUDA
@@ -16,14 +15,14 @@
 #endif
 
 namespace noa::inline types {
-    struct DeviceMemory { size_t total; size_t free; };
-
-    enum class DeviceType { CPU, GPU };
-
     /// Unified device/workers. Can either point to a CPU or a GPU.
     class Device {
     public:
-        struct DeviceUnchecked {};
+        struct Memory { size_t total; size_t free; };
+        struct Unchecked {};
+        enum class Type { CPU, GPU };
+        using enum Type;
+
     public:
         /// Creates the CPU device.
         Device() = default;
@@ -31,8 +30,8 @@ namespace noa::inline types {
         /// Creates a device.
         /// \param type     CPU or GPU.
         /// \param id       Device ID. This is ignored for the CPU device.
-        constexpr explicit Device(DeviceType type, i32 id = 0)
-                : m_id(type == DeviceType::CPU ? -1 : id) {
+        constexpr explicit Device(Type type, i32 id = 0)
+                : m_id(type == Type::CPU ? -1 : id) {
             validate_(type, m_id);
         }
 
@@ -48,8 +47,8 @@ namespace noa::inline types {
         /* implicit */ Device(const char* name) : Device(std::string_view(name)) {}
 
         /// "Private constructor" to creates a device, without checking that the actual device exists on the system.
-        constexpr explicit Device(DeviceType type, i32 id, DeviceUnchecked)
-                : m_id(type == DeviceType::CPU ? -1 : id) {}
+        constexpr explicit Device(Type type, i32 id, Unchecked)
+                : m_id(type == Type::CPU ? -1 : id) {}
 
     public:
         /// Suspends execution until all previously-scheduled tasks on the specified device have concluded.
@@ -70,7 +69,7 @@ namespace noa::inline types {
                 return noa::cpu::Device::summary();
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                return noa::cuda::Device(this->id(), noa::cuda::Device::DeviceUnchecked{}).summary();
+                return noa::cuda::Device(this->id(), noa::cuda::Device::Unchecked{}).summary();
                 #else
                 return {};
                 #endif
@@ -79,13 +78,13 @@ namespace noa::inline types {
 
         /// Returns the memory capacity of the device.
         /// If CPU, returns system memory capacity.
-        [[nodiscard]] DeviceMemory memory_capacity() const {
+        [[nodiscard]] Memory memory_capacity() const {
             if (is_cpu()) {
                 const noa::cpu::DeviceMemory mem_info = noa::cpu::Device::memory();
                 return {mem_info.total, mem_info.free};
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                const auto device = noa::cuda::Device(this->id(), noa::cuda::Device::DeviceUnchecked{});
+                const auto device = noa::cuda::Device(this->id(), noa::cuda::Device::Unchecked{});
                 const auto mem_info = device.memory();
                 return {mem_info.total, mem_info.free};
                 #else
@@ -100,7 +99,7 @@ namespace noa::inline types {
         void set_cache_threshold(size_t threshold_bytes) const {
             if (is_gpu()) {
                 #if defined(NOA_ENABLE_CUDA) and CUDART_VERSION >= 11020
-                const auto device = noa::cuda::Device(id(), noa::cuda::Device::DeviceUnchecked{});
+                const auto device = noa::cuda::Device(id(), noa::cuda::Device::Unchecked{});
                 noa::cuda::MemoryPool(device).set_threshold(threshold_bytes);
                 #else
                 (void) threshold_bytes;
@@ -115,7 +114,7 @@ namespace noa::inline types {
         void trim_cache(size_t bytes_to_keep) const {
             if (is_gpu()) {
                 #if defined(NOA_ENABLE_CUDA) and CUDART_VERSION >= 11020
-                const auto device = noa::cuda::Device(id(), noa::cuda::Device::DeviceUnchecked{});
+                const auto device = noa::cuda::Device(id(), noa::cuda::Device::Unchecked{});
                 noa::cuda::MemoryPool(device).trim(bytes_to_keep);
                 #else
                 (void) bytes_to_keep;
@@ -125,8 +124,8 @@ namespace noa::inline types {
         }
 
         /// Returns the type of device this instance is pointing to.
-        [[nodiscard]] constexpr DeviceType type() const noexcept {
-            return m_id == -1 ? DeviceType::CPU : DeviceType::GPU;
+        [[nodiscard]] constexpr Type type() const noexcept {
+            return m_id == -1 ? Type::CPU : Type::GPU;
         }
 
         /// Whether this device is the CPU.
@@ -145,14 +144,17 @@ namespace noa::inline types {
         ///          If \p type is GPU, this function returns the current GPU for the calling host thread.
         ///          If \p type is CPU, this function is not very useful since it simply returns the CPU,
         ///          as would do the default Device constructor.
-        [[nodiscard]] static Device current(DeviceType type) {
-            if (type == DeviceType::CPU)
+        [[nodiscard]] static Device current(Type type) {
+            if (type == Type::CPU)
                 return Device{};
             #ifdef NOA_ENABLE_CUDA
-            return Device(DeviceType::GPU, noa::cuda::Device::current().id(), DeviceUnchecked{});
+            return Device(Type::GPU, noa::cuda::Device::current().id(), Unchecked{});
             #else
             panic("No GPU backend detected");
             #endif
+        }
+        [[nodiscard]] static Device current_gpu() {
+            return current(Type::GPU);
         }
 
         /// Sets \p device as the current device for the calling thread.
@@ -162,7 +164,7 @@ namespace noa::inline types {
         static void set_current(Device device) {
             if (device.is_gpu()) {
                 #ifdef NOA_ENABLE_CUDA
-                noa::cuda::Device::set_current(noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{}));
+                noa::cuda::Device::set_current(noa::cuda::Device(device.id(), noa::cuda::Device::Unchecked{}));
                 #else
                 panic("No GPU backend detected");
                 #endif
@@ -171,8 +173,8 @@ namespace noa::inline types {
 
         /// Gets the number of devices of a given type.
         /// Always returns 1 if \p type is CPU.
-        [[nodiscard]] static i32 count(DeviceType type) {
-            if (type == DeviceType::CPU) {
+        [[nodiscard]] static i32 count(Type type) {
+            if (type == Type::CPU) {
                 return 1;
             } else {
                 #ifdef NOA_ENABLE_CUDA
@@ -182,29 +184,32 @@ namespace noa::inline types {
                 #endif
             }
         }
+        [[nodiscard]] static i32 count_gpus() {
+            return count(Type::GPU);
+        }
 
         /// Whether there's any device available of this type.
         /// Always returns true if \p type is CPU.
-        [[nodiscard]] static bool is_any(DeviceType type) {
+        [[nodiscard]] static bool is_any(Type type) {
             return Device::count(type) != 0;
         }
 
         [[nodiscard]] static bool is_any_gpu() {
-            return Device::count(DeviceType::GPU) != 0;
+            return Device::count(Type::GPU) != 0;
         }
 
         /// Gets all devices of a given type.
         /// Always returns a single device if \p type is CPU.
-        [[nodiscard]] static std::vector<Device> all(DeviceType type) {
-            if (type == DeviceType::CPU) {
-                return {Device(DeviceType::CPU)};
+        [[nodiscard]] static std::vector<Device> all(Type type) {
+            if (type == Type::CPU) {
+                return {Device(Type::CPU)};
             } else {
                 #ifdef NOA_ENABLE_CUDA
                 std::vector<Device> devices;
                 const i32 count = noa::cuda::Device::count();
                 devices.reserve(static_cast<size_t>(count));
                 for (auto id: irange(count))
-                    devices.emplace_back(DeviceType::GPU, id, DeviceUnchecked{});
+                    devices.emplace_back(Type::GPU, id, Unchecked{});
                 return devices;
                 #else
                 return {};
@@ -213,12 +218,12 @@ namespace noa::inline types {
         }
 
         /// Gets the device of this type with the most free memory.
-        [[nodiscard]] static Device most_free(DeviceType type) {
-            if (type == DeviceType::CPU) {
-                return Device(DeviceType::CPU);
+        [[nodiscard]] static Device most_free(Type type) {
+            if (type == Type::CPU) {
+                return Device(Type::CPU);
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                return Device(DeviceType::GPU, noa::cuda::Device::most_free().id(), DeviceUnchecked{});
+                return Device(Type::GPU, noa::cuda::Device::most_free().id(), Unchecked{});
                 #else
                 panic("GPU backend is not detected");
                 #endif
@@ -226,57 +231,57 @@ namespace noa::inline types {
         }
 
     private:
-        static std::pair<DeviceType, i32> parse_type_and_id_(std::string_view name) {
-            std::string str_ = ns::to_lower(ns::trim(name));
-            const size_t length = name.length();
+        static std::pair<Type, i32> parse_type_and_id_(std::string_view name) {
+            std::string string = ns::to_lower(ns::trim(name));
+            const size_t length = string.length();
 
             i32 id{};
-            DeviceType type{};
-            i32 error{0};
-            if (ns::starts_with(str_, "cpu")) {
+            Type type{};
+            if (ns::starts_with(string, "cpu")) {
                 if (length == 3) {
                     id = -1;
-                    type = DeviceType::CPU;
+                    type = Type::CPU;
                 } else {
-                    panic("CPU device name \"{}\" is not supported", str_);
+                    panic("CPU device name \"{}\" is not supported", string);
                 }
 
-            } else if (ns::starts_with(str_, "gpu")) {
+            } else if (ns::starts_with(string, "gpu")) {
                 if (length == 3) {
                     id = 0;
-                } else if (length >= 5 and str_[3] == ':') {
-                    id = ns::parse<i32>(std::string(str_.data() + 4), error);
+                } else if (length >= 5 and string[3] == ':') {
+                    auto result = ns::parse<i32>(ns::offset_by(string, 4));
+                    check(result, "Failed to parse the device ID: \"{}\"", string);
+                    id = *result;
                 } else {
-                    panic("GPU device name \"{}\" is not supported", str_);
+                    panic("GPU device name \"{}\" is not supported", string);
                 }
-                type = DeviceType::GPU;
+                type = Type::GPU;
 
-            } else if (ns::starts_with(str_, "cuda")) {
+            } else if (ns::starts_with(string, "cuda")) {
                 if (length == 4) {
                     id = 0;
-                } else if (length >= 6 and str_[4] == ':') {
-                    id = ns::parse<i32>(std::string(str_.data() + 5), error);
+                } else if (length >= 6 and string[4] == ':') {
+                    auto result = ns::parse<i32>(ns::offset_by(string, 5));
+                    check(result, "Failed to parse the device ID: \"{}\"", string);
+                    id = *result;
                 } else {
-                    panic("CUDA device name \"{}\" is not supported", str_);
+                    panic("CUDA device name \"{}\" is not supported", string);
                 }
-                type = DeviceType::GPU;
+                type = Type::GPU;
             } else {
-                panic("\"{}\" is not a valid device name", str_);
+                panic("\"{}\" is not a valid device name", string);
             }
-
-            if (error)
-                panic("Failed to parse the device ID: {}", ns::parse_error_message<i32>(str_, error));
             return {type, id};
         }
 
-        static void validate_(DeviceType type, i32 id) {
+        static constexpr void validate_(Type type, i32 id) {
             switch (type) {
-                case DeviceType::CPU: {
+                case Type::CPU: {
                     if (id != -1)
                         panic("The device ID for the CPU should be -1, but got {}", id);
                     break;
                 }
-                case DeviceType::GPU: {
+                case Type::GPU: {
                     if (id < 0)
                         panic("GPU device ID should be positive, but got {}", id);
 

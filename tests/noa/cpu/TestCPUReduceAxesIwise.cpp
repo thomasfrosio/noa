@@ -1,7 +1,8 @@
 #include <noa/cpu/ReduceAxesIwise.hpp>
+#include <noa/core/utils/Irange.hpp>
 #include <catch2/catch.hpp>
 
-#include "Helpers.h"
+#include "Utils.hpp"
 
 TEST_CASE("cpu::reduce_axes_iwise - 4d") {
     using namespace noa::types;
@@ -22,10 +23,9 @@ TEST_CASE("cpu::reduce_axes_iwise - 4d") {
     };
 
     AND_THEN("sum one axis") {
-        auto input_shape = test::get_random_shape4_batched(4);
-        input_shape[0] += 1; // make sure there's something to reduce
+        auto input_shape = test::random_shape(3, {.batch_range{2, 10}});
         const auto input_strides = input_shape.strides();
-        const auto n_elements = input_shape.elements();
+        const auto n_elements = input_shape.n_elements();
 
         const auto buffer = std::make_unique<i64[]>(static_cast<size_t>(n_elements));
         test::arange(buffer.get(), n_elements);
@@ -38,15 +38,15 @@ TEST_CASE("cpu::reduce_axes_iwise - 4d") {
             auto output_shape = input_shape;
             output_shape[axis] = 1;
             const auto output_strides = output_shape.strides();
-            const auto output_elements = output_shape.elements();
+            const auto output_elements = output_shape.n_elements();
 
             const auto expected_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));
             auto compute_expected_reduction = [](Shape4<i64> shape, const auto& input, const auto& expected) {
-                for (i64 i = 0; i < shape[0]; ++i) {
-                    for (i64 j = 0; j < shape[1]; ++j) {
-                        for (i64 k = 0; k < shape[2]; ++k) {
-                            i64 tmp = 0;
-                            for (i64 l = 0; l < shape[3]; ++l)
+                for (i64 i{}; i < shape[0]; ++i) {
+                    for (i64 j{}; j < shape[1]; ++j) {
+                        for (i64 k{}; k < shape[2]; ++k) {
+                            i64 tmp{};
+                            for (i64 l{}; l < shape[3]; ++l)
                                 tmp += input(i, j, k, l);
                             expected(i, j, k) = tmp + 1; // +1: add to output
                         }
@@ -82,25 +82,25 @@ TEST_CASE("cpu::reduce_axes_iwise - 4d") {
             for (i64 n_threads: std::array{1, 4}) {
                 std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
                 reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, n_threads);
-                REQUIRE(test::Matcher(test::MATCH_ABS, output_buffer.get(), expected_buffer.get(), output_elements, 0));
+                REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
             }
         }
     }
 
     AND_THEN("per batch") {
         const auto input_shapes = std::array{
-                test::get_random_shape4(1),
-                test::get_random_shape4(2),
-                test::get_random_shape4(3),
-                test::get_random_shape4(4),
-                test::get_random_shape4_batched(1),
-                test::get_random_shape4_batched(2),
-                test::get_random_shape4_batched(3),
-                test::get_random_shape4_batched(4)
+                test::random_shape(1),
+                test::random_shape(2),
+                test::random_shape(3),
+                test::random_shape(4),
+                test::random_shape(1, {.batch_range={2, 10}}),
+                test::random_shape(2, {.batch_range={2, 10}}),
+                test::random_shape(3, {.batch_range={2, 10}}),
+                test::random_shape(4, {.batch_range={2, 10}})
         };
         for (const auto& input_shape: input_shapes) {
             const auto input_strides = input_shape.strides();
-            const auto n_elements = input_shape.elements();
+            const auto n_elements = input_shape.n_elements();
 
             const auto buffer = std::make_unique<i64[]>(static_cast<size_t>(n_elements));
             test::arange(buffer.get(), n_elements);
@@ -109,24 +109,24 @@ TEST_CASE("cpu::reduce_axes_iwise - 4d") {
             auto sum_op = SumOp{.accessor={buffer.get(), input_strides}};
 
             const auto expected_buffer = std::make_unique<i64[]>(static_cast<size_t>(input_shape[0]));
-            const auto per_batch_n_elements = input_shape.pop_front().elements();
-            for (i64 i = 0; i < input_shape[0]; ++i) {
+            const auto per_batch_n_elements = input_shape.pop_front().n_elements();
+            for (i64 i{}; i < input_shape[0]; ++i) {
                 const i64* input = buffer.get() + input_strides[0] * i;
-                i64 tmp = 0;
-                for (i64 j = 0; j < per_batch_n_elements; ++j)
+                i64 tmp{};
+                for (i64 j{}; j < per_batch_n_elements; ++j)
                     tmp += input[j];
                 expected_buffer.get()[i] = tmp + 1;
             }
 
             const auto output_shape = Shape4<i64>{input_shape[0], 1, 1, 1};
-            const auto output_elements = output_shape.elements();
+            const auto output_elements = output_shape.n_elements();
             const auto output_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));
             const auto output = noa::make_tuple(AccessorI64<i64, 4>(output_buffer.get(), output_shape.strides()));
 
             for (i64 n_threads: std::array{1, 4}) {
                 std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
                 reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, n_threads);
-                REQUIRE(test::Matcher(test::MATCH_ABS, output_buffer.get(), expected_buffer.get(), output_elements, 0));
+                REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
             }
         }
     }
@@ -151,9 +151,9 @@ TEST_CASE("cpu::reduce_axes_iwise - 3d") {
     };
 
     AND_THEN("sum one axis") {
-        const auto input_shape = test::get_random_shape4_batched(4).filter(1, 2, 3);
+        const auto input_shape = test::random_shape<i64, 3>(3);
         const auto input_strides = input_shape.strides();
-        const auto n_elements = input_shape.elements();
+        const auto n_elements = input_shape.n_elements();
 
         const auto buffer = std::make_unique<i64[]>(static_cast<size_t>(n_elements));
         test::arange(buffer.get(), n_elements);
@@ -166,14 +166,14 @@ TEST_CASE("cpu::reduce_axes_iwise - 3d") {
             auto output_shape = input_shape;
             output_shape[axis] = 1;
             const auto output_strides = output_shape.strides();
-            const auto output_elements = output_shape.elements();
+            const auto output_elements = output_shape.n_elements();
 
             const auto expected_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));
             auto compute_expected_reduction = [](Shape3<i64> shape, const auto& input, const auto& expected) {
-                for (i64 i = 0; i < shape[0]; ++i) {
-                    for (i64 j = 0; j < shape[1]; ++j) {
-                        i64 tmp = 0;
-                        for (i64 k = 0; k < shape[2]; ++k)
+                for (i64 i{}; i < shape[0]; ++i) {
+                    for (i64 j{}; j < shape[1]; ++j) {
+                        i64 tmp{};
+                        for (i64 k{}; k < shape[2]; ++k)
                             tmp += input(i, j, k);
                         expected(i, j) = tmp + 1; // +1: add to output
                     }
@@ -203,21 +203,20 @@ TEST_CASE("cpu::reduce_axes_iwise - 3d") {
             for (i64 n_threads: std::array{1, 4}) {
                 std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
                 reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, n_threads);
-                REQUIRE(test::Matcher(test::MATCH_ABS, output_buffer.get(), expected_buffer.get(), output_elements, 0));
+                REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
             }
         }
     }
 
     AND_THEN("per batch") {
         const auto input_shapes = std::array{
-                test::get_random_shape4(1).pop_front(),
-                test::get_random_shape4(2).pop_front(),
-                test::get_random_shape4(3).pop_front(),
-                test::get_random_shape4(4).pop_front()
+                test::random_shape<i64, 3>(1),
+                test::random_shape<i64, 3>(2),
+                test::random_shape<i64, 3>(3)
         };
         for (const auto& input_shape: input_shapes) {
             const auto input_strides = input_shape.strides();
-            const auto n_elements = input_shape.elements();
+            const auto n_elements = input_shape.n_elements();
 
             const auto buffer = std::make_unique<i64[]>(static_cast<size_t>(n_elements));
             test::arange(buffer.get(), n_elements);
@@ -226,7 +225,7 @@ TEST_CASE("cpu::reduce_axes_iwise - 3d") {
             auto sum_op = SumOp{.accessor={buffer.get(), input_strides}};
 
             const auto expected_buffer = std::make_unique<i64[]>(static_cast<size_t>(input_shape[0]));
-            const auto per_batch_n_elements = input_shape.pop_front().elements();
+            const auto per_batch_n_elements = input_shape.pop_front().n_elements();
             for (i64 i = 0; i < input_shape[0]; ++i) {
                 const i64* input = buffer.get() + input_strides[0] * i;
                 i64 tmp = 0;
@@ -236,14 +235,14 @@ TEST_CASE("cpu::reduce_axes_iwise - 3d") {
             }
 
             const auto output_shape = Shape3<i64>{input_shape[0], 1, 1};
-            const auto output_elements = output_shape.elements();
+            const auto output_elements = output_shape.n_elements();
             const auto output_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));
             const auto output = noa::make_tuple(AccessorI64<i64, 3>(output_buffer.get(), output_shape.strides()));
 
             for (i64 n_threads: std::array{1, 4}) {
                 std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
                 reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, n_threads);
-                REQUIRE(test::Matcher(test::MATCH_ABS, output_buffer.get(), expected_buffer.get(), output_elements, 0));
+                REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
             }
         }
     }
@@ -268,9 +267,9 @@ TEST_CASE("cpu::reduce_axes_iwise - 2d") {
     };
 
     AND_THEN("sum one axis") {
-        const auto input_shape = test::get_random_shape4_batched(4).filter(2, 3);
+        const auto input_shape = test::random_shape<i64, 2>(2);
         const auto input_strides = input_shape.strides();
-        const auto n_elements = input_shape.elements();
+        const auto n_elements = input_shape.n_elements();
 
         const auto buffer = std::make_unique<i64[]>(static_cast<size_t>(n_elements));
         test::arange(buffer.get(), n_elements);
@@ -283,7 +282,7 @@ TEST_CASE("cpu::reduce_axes_iwise - 2d") {
             auto output_shape = input_shape;
             output_shape[axis] = 1;
             const auto output_strides = output_shape.strides();
-            const auto output_elements = output_shape.elements();
+            const auto output_elements = output_shape.n_elements();
 
             const auto expected_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));
             auto compute_expected_reduction = [](Shape2<i64> shape, const auto& input, const auto& expected) {
@@ -313,7 +312,7 @@ TEST_CASE("cpu::reduce_axes_iwise - 2d") {
             for (i64 n_threads: std::array{1, 4}) {
                 std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
                 reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, n_threads);
-                REQUIRE(test::Matcher(test::MATCH_ABS, output_buffer.get(), expected_buffer.get(), output_elements, 0));
+                REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
             }
         }
     }
@@ -337,9 +336,9 @@ TEST_CASE("cpu::reduce_axes_iwise - 1d") {
         }
     };
 
-    const auto input_shape = test::get_random_shape4(1).filter(3) * 50;
+    const auto input_shape = test::random_shape<i64, 1>(1) * 50;
     const auto input_strides = input_shape.strides();
-    const auto n_elements = input_shape.elements();
+    const auto n_elements = input_shape.n_elements();
 
     const auto buffer = std::make_unique<i64[]>(static_cast<size_t>(n_elements));
     test::arange(buffer.get(), n_elements);

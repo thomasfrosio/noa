@@ -2,11 +2,6 @@
 #include <noa/core/math/Comparison.hpp>
 #include <catch2/catch.hpp>
 
-namespace {
-    struct b16 {
-        uint16_t data;
-    };
-}
 
 TEST_CASE("core::Half", "[noa][core]") {
     using namespace ::noa;

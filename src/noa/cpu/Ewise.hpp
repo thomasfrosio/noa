@@ -37,7 +37,7 @@ namespace noa::cpu::guts {
                         interface::call(op, input, output, i);
 
                 } else {
-                    static_assert(nt::always_false_v<Op>);
+                    static_assert(nt::always_false<>);
                 }
 
                 interface::final(op, omp_get_thread_num());
@@ -60,7 +60,7 @@ namespace noa::cpu::guts {
                     interface::call(op, input, output, i);
 
             } else {
-                static_assert(nt::always_false_v<Op>);
+                static_assert(nt::always_false<>);
             }
 
             interface::final(op, 0);
@@ -78,8 +78,9 @@ namespace noa::cpu {
 
     template<typename Config = EwiseConfig<>,
              typename Input, typename Output, typename Index, typename Op>
-    requires (nt::is_tuple_of_accessor_or_empty_v<Input> and
-              (nt::is_empty_tuple_v<Output> or nt::is_tuple_of_accessor_pure_v<Output>))
+    requires (nt::tuple_of_accessor_or_empty<std::decay_t<Input>> and
+              (nt::empty_tuple<std::decay_t<Output>> or
+               nt::tuple_of_accessor_pure<std::decay_t<Output>>))
     void ewise(
             const Shape4<Index>& shape,
             Op&& op,
@@ -93,14 +94,14 @@ namespace noa::cpu {
                 ni::are_contiguous(input, shape) and
                 ni::are_contiguous(output, shape);
 
-        const i64 elements = shape.template as<i64>().elements();
+        const i64 elements = shape.template as<i64>().n_elements();
         i64 actual_n_threads = elements <= Config::n_elements_per_thread ? 1 : n_threads;
         if (actual_n_threads > 1)
             actual_n_threads = min(n_threads, elements / Config::n_elements_per_thread);
 
         using interface = guts::Ewise<Config::zip_input, Config::zip_output>;
         if (are_all_contiguous) {
-            auto shape_1d = Shape1<Index>{shape.elements()};
+            auto shape_1d = Shape1<Index>{shape.n_elements()};
             if (ng::are_accessors_aliased(input, output)) {
                 constexpr auto accessor_config_1d = ng::AccessorConfig<1>{
                     .enforce_contiguous=true,

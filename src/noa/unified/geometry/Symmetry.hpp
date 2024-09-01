@@ -74,7 +74,7 @@ namespace noa::geometry {
                 set_cx_symmetry_matrices(m_buffer.span(), m_code.order);
             } else {
                 // Create a new sync stream so that the final copy doesn't sync the default cpu stream of the user.
-                const StreamGuard guard(Device{}, StreamMode::DEFAULT);
+                const StreamGuard guard(Device{}, Stream::DEFAULT);
                 Array<matrix_type> cpu_matrices(n_matrices);
                 set_cx_symmetry_matrices(cpu_matrices.span(), m_code.order);
 

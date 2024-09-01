@@ -4,36 +4,41 @@
 #include "noa/core/Traits.hpp"
 #include "noa/core/math/Generic.hpp"
 
-namespace noa::traits {
-    template<typename> struct proclaim_is_distribution : std::false_type {};
-    template<typename T> using is_distribution = std::bool_constant<proclaim_is_distribution<T>::value>;
-    template<typename T> constexpr bool is_distribution_v = is_distribution<std::decay_t<T>>::value;
-}
+#ifdef NOA_IS_OFFLINE
+#include <random>
+#else
+#include <cuda/std/random>
+#endif
 
 namespace noa {
     /// Uniform distribution.
-    template<typename T> requires nt::is_numeric_v<T>
+    template<nt::numeric T>
     class Uniform {
     public:
-        using result_type = T;
-        using compute_type = std::conditional_t<nt::is_int_v<T>, f64, result_type>;
+        using value_type = T;
+        using real_type = nt::value_type_t<value_type>;
+        using compute_type = std::conditional_t<nt::integer<T>, f64, value_type>;
 
-        constexpr explicit Uniform(result_type min, result_type max)
+        constexpr explicit Uniform(value_type min, value_type max)
                 : m_min(static_cast<compute_type>(min)),
                   m_max(static_cast<compute_type>(max)) {}
 
-        constexpr result_type operator()(auto& generator) const noexcept requires nt::is_int_v<result_type> {
+        constexpr explicit Uniform(real_type min, real_type max) requires nt::complex<value_type>
+                : m_min{min, min},
+                  m_max{max, max} {}
+
+        constexpr auto operator()(auto& generator) const noexcept -> value_type requires nt::integer<value_type> {
             const auto uniform_real = generator.template next<compute_type>(); // [0,1]
             const auto uniform_int = round(uniform_real * (m_max - m_min) + m_min);
-            return static_cast<result_type>(uniform_int);
+            return static_cast<value_type>(uniform_int);
         }
 
-        constexpr result_type operator()(auto& generator) const noexcept requires nt::is_real_v<result_type> {
+        constexpr auto operator()(auto& generator) const noexcept -> value_type requires nt::real<value_type> {
             auto uniform_real = generator.template next<compute_type>(); // [0,1]
             return uniform_real * (m_max - m_min) + m_min;
         }
 
-        constexpr result_type operator()(auto& generator) const noexcept requires nt::is_complex_v<result_type> {
+        constexpr auto operator()(auto& generator) const noexcept -> value_type requires nt::complex<value_type> {
             using real_t = nt::value_type_t<compute_type>;
             auto uniform_real = generator.template next<real_t>(); // [0,1]
             auto uniform_imag = generator.template next<real_t>(); // [0,1]
@@ -47,34 +52,34 @@ namespace noa {
     };
 
     /// Normal distribution.
-    template<typename T> requires nt::is_real_v<T>
+    template<nt::real T>
     class Normal {
     public:
-        using result_type = T;
+        using value_type = T;
 
-        constexpr explicit Normal(result_type mean = 0, result_type stddev = 1)
+        constexpr explicit Normal(value_type mean = 0, value_type stddev = 1)
                 : m_mean(mean), m_stddev(stddev) {}
 
-        constexpr result_type operator()(auto& generator) noexcept {
-            result_type real = next_(generator, m_saved, m_saved_is_available);
+        constexpr value_type operator()(auto& generator) noexcept {
+            value_type real = next_(generator, m_saved, m_saved_is_available);
             return real * m_stddev + m_mean;
         }
 
     private:
-        static constexpr result_type next_(auto& generator, result_type& saved, bool& is_available) noexcept {
-            result_type ret;
+        static constexpr value_type next_(auto& generator, value_type& saved, bool& is_available) noexcept {
+            value_type ret;
             if (is_available) {
                 is_available = false;
                 ret = saved;
             } else {
-                result_type x, y, r2;
+                value_type x, y, r2;
                 do {
-                    x = 2 * generator.template next<result_type>() - 1;
-                    y = 2 * generator.template next<result_type>() - 1;
+                    x = 2 * generator.template next<value_type>() - 1;
+                    y = 2 * generator.template next<value_type>() - 1;
                     r2 = x * x + y * y;
                 } while (r2 > 1 || r2 == 0);
 
-                const result_type mult = sqrt(-2 * log(r2) / r2);
+                const value_type mult = sqrt(-2 * log(r2) / r2);
                 saved = x * mult;
                 is_available = true;
                 ret = y * mult;
@@ -83,41 +88,41 @@ namespace noa {
         }
 
     private:
-        result_type m_mean{};
-        result_type m_saved{};
-        result_type m_stddev{};
+        value_type m_mean{};
+        value_type m_saved{};
+        value_type m_stddev{};
         bool m_saved_is_available{};
 
-        template<typename U> requires nt::is_real_v<U>
+        template<nt::real U>
         friend class LogNormal;
     };
 
     /// Lognormal distribution.
-    template<typename T> requires nt::is_real_v<T>
+    template<nt::real T>
     class LogNormal {
     public:
-        using result_type = T;
+        using value_type = T;
 
-        constexpr explicit LogNormal(result_type mean = {}, result_type stddev = 1)
+        constexpr explicit LogNormal(value_type mean = {}, value_type stddev = 1)
                 : m_mean(mean), m_stddev(stddev) {}
 
-        constexpr result_type operator()(auto& generator) noexcept requires nt::is_real_v<result_type> {
-            result_type real = Normal<result_type>::next_(generator, m_saved, m_saved_is_available);
+        constexpr value_type operator()(auto& generator) noexcept requires nt::real<value_type> {
+            value_type real = Normal<value_type>::next_(generator, m_saved, m_saved_is_available);
             return exp(real * m_stddev + m_mean);
         }
 
     private:
-        result_type m_mean{};
-        result_type m_saved{};
-        result_type m_stddev{};
+        value_type m_mean{};
+        value_type m_saved{};
+        value_type m_stddev{};
         bool m_saved_is_available{};
     };
 
     /// Poisson distribution.
-    template<typename T> requires nt::is_int_v<T>
+    template<nt::integer T>
     class Poisson {
     public:
-        using result_type = T;
+        using value_type = T;
         using compute_type = f64;
 
         constexpr explicit Poisson(T mean) : m_mean(static_cast<compute_type>(mean)), m_threshold(std::exp(-m_mean)) {}
@@ -129,7 +134,7 @@ namespace noa {
                 prod *= generator.template next<compute_type>();
                 x += 1;
             } while (prod > m_threshold);
-            return static_cast<result_type>(x - 1);
+            return static_cast<value_type>(x - 1);
         }
 
     private:
@@ -139,10 +144,16 @@ namespace noa {
 }
 
 namespace noa::traits {
+    template<typename> struct proclaim_is_distribution : std::false_type {};
+    template<typename T> using is_distribution = std::bool_constant<proclaim_is_distribution<T>::value>;
+    template<typename T> constexpr bool is_distribution_v = is_distribution<T>::value;
+    template<typename T> concept distribution = is_distribution_v<T>;
+
     template<typename T> struct proclaim_is_distribution<Uniform<T>> : std::true_type {};
     template<typename T> struct proclaim_is_distribution<Normal<T>> : std::true_type {};
     template<typename T> struct proclaim_is_distribution<LogNormal<T>> : std::true_type {};
     template<typename T> struct proclaim_is_distribution<Poisson<T>> : std::true_type {};
+    // FIXME Add STL distributions?
 }
 
 namespace noa {
@@ -153,9 +164,9 @@ namespace noa {
 
         constexpr explicit RandomBitsGenerator(u64 seed) {
             auto splitmix64 = [](u64& x) -> u64 {
-                u64 z = (x += 0x9e3779b97f4a7c15uLL);
-                z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9uLL;
-                z = (z ^ (z >> 27)) * 0x94d049bb133111ebuLL;
+                u64 z = (x += 0x9e3779b97f4a7c15ull);
+                z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
+                z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
                 return z ^ (z >> 31);
             };
             s[0] = splitmix64(seed);
@@ -164,7 +175,7 @@ namespace noa {
             s[3] = splitmix64(s[2]);
         }
 
-        constexpr u64 operator()() {
+        constexpr auto operator()() -> u64 {
             return next_ss_();
         }
 
@@ -187,16 +198,16 @@ namespace noa {
                 // and since I'm not familiar with this subject, don't support
                 // this case and use a f64 to compute the distribution and then
                 // round (which is what curand suggests doing anyway).
-                static_assert(nt::always_false_v<T>);
+                static_assert(nt::always_false<>);
             }
         }
 
-        static constexpr u64 min() { return 0; }
-        static constexpr u64 max() { return u64(-1); }
+        static constexpr auto min() -> u64 { return 0; }
+        static constexpr auto max() -> u64 { return u64(-1); }
 
     private:
         // https://prng.di.unimi.it/xoshiro256starstar.c
-        constexpr u64 next_ss_() {
+        constexpr auto next_ss_() -> u64 {
             auto rotl = [](u64 x, int k) -> u64 {
                 return (x << k) | (x >> (64 - k));
             };
@@ -212,7 +223,7 @@ namespace noa {
         }
 
         // https://prng.di.unimi.it/xoshiro256plus.c
-        constexpr u64 next_p_() {
+        constexpr auto next_p_() -> u64 {
             auto rotl = [](u64 x, int k) -> u64 {
                 return (x << k) | (x >> (64 - k));
             };
@@ -236,7 +247,7 @@ namespace noa {
     struct Randomizer {
         using allow_vectorization = bool;
 
-        constexpr explicit Randomizer(const Distribution& distribution, u64 seed)
+        constexpr explicit Randomizer(const Distribution& distribution, u64 seed = 0)
                 : m_distribution(distribution), random_seed(seed) {}
 
         constexpr void init(auto uid) {
@@ -245,7 +256,15 @@ namespace noa {
 
         template<typename T>
         constexpr auto operator()(T& output) noexcept {
-            output = static_cast<T>(m_distribution(m_generator));
+            if constexpr (nt::complex<T> and not nt::complex<nt::value_type_t<Distribution>>) {
+                output = static_cast<T::value_type>(m_distribution(m_generator));
+            } else {
+                output = static_cast<T>(m_distribution(m_generator));
+            }
+        }
+
+        constexpr auto operator()() noexcept {
+            return m_distribution(m_generator);
         }
 
     private:
@@ -253,4 +272,19 @@ namespace noa {
         Distribution m_distribution;
         u64 random_seed{};
     };
+
+    /// Returns a random value generator.
+    /// Use the call operator to get a value.
+    template<nt::distribution T>
+    [[nodiscard]] auto random_generator(const T& distribution) -> Randomizer<T> {
+        Randomizer randomizer(distribution);
+        randomizer.init(std::random_device{}());
+        return randomizer;
+    }
+
+    /// Returns a random value.
+    template<nt::distribution T>
+    [[nodiscard]] auto random_value(const T& distribution) -> T::value_type {
+        return random_generator(distribution)();
+    }
 }

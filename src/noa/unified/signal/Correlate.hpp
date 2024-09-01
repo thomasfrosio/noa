@@ -1,31 +1,22 @@
 #pragma once
 
 #include "noa/core/signal/Correlation.hpp"
-#include "noa/core/geometry/DrawShape.hpp"
 #include "noa/unified/Array.hpp"
 #include "noa/unified/fft/Transform.hpp"
 #include "noa/unified/signal/PhaseShift.hpp"
-#include "noa/unified/Reduce.hpp"
 #include "noa/unified/ReduceEwise.hpp"
 #include "noa/unified/ReduceAxesEwise.hpp"
-#include "noa/unified/geometry/DrawShape.hpp"
-
-#include "noa/cpu/signal/Correlate.hpp"
-#ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/signal/Correlate.hpp"
-#endif
+#include "noa/unified/ReduceAxesIwise.hpp"
 
 namespace noa::signal::guts {
-    template<size_t NDIM, typename Input, typename PeakCoord = Empty, typename PeakValue = Empty>
-    void check_xpeak_parameters(
-            const Input& xmap,
-            const Vec<i64, NDIM>& peak_radius,
-            CorrelationRegistration peak_mode,
-            const PeakCoord& peak_coordinates = {},
-            const PeakValue& peak_values = {}
+    template<size_t NDIM, typename Input, typename PeakCoord, typename PeakValue>
+    void check_cross_correlation_peak_parameters(
+        const Input& xmap,
+        const PeakCoord& peak_coordinates = {},
+        const PeakValue& peak_values = {}
     ) {
         check(not xmap.is_empty(), "Empty array detected");
-        check(all(xmap.strides() > 0), "The cross-correlation map should not be broadcasted");
+        check(not xmap.strides().is_broadcast(), "The cross-correlation map should not be broadcasted");
         check(xmap.shape().ndim() == NDIM,
               "The cross-correlation map(s) shape doesn't match the ndim. Got shape={} and expected ndim={}",
               xmap.shape(), NDIM);
@@ -33,13 +24,13 @@ namespace noa::signal::guts {
         if constexpr (nt::is_varray_v<PeakCoord>) {
             if (not peak_coordinates.is_empty()) {
                 check(ni::is_contiguous_vector(peak_coordinates) and
-                      peak_coordinates.elements() == xmap.shape()[0],
+                      peak_coordinates.n_elements() == xmap.shape()[0],
                       "The number of peak coordinates, specified as a contiguous vector, should be equal to "
                       "the batch size of the cross-correlation map. Got n_peaks={} and batch={}",
-                      peak_coordinates.elements(), xmap.shape()[0]);
+                      peak_coordinates.n_elements(), xmap.shape()[0]);
                 check(xmap.device() == peak_coordinates.device(),
                       "The cross-correlation map and output peak coordinates must be on the same device, "
-                      "but got xmap:device={} and peak_coordinates:device={}",
+                      "but got cross_correlation_map:device={} and peak_coordinates:device={}",
                       xmap.device(), peak_coordinates.device());
             }
         }
@@ -47,22 +38,16 @@ namespace noa::signal::guts {
         if constexpr (nt::is_varray_v<PeakValue>) {
             if (not peak_values.is_empty()) {
                 check(ni::is_contiguous_vector(peak_values) and
-                      peak_values.elements() == xmap.shape()[0],
+                      peak_values.n_elements() == xmap.shape()[0],
                       "The number of peak values, specified as a contiguous vector, should be equal to "
                       "the batch size of the cross-correlation map. Got n_peaks={} and batch={}",
-                      peak_values.elements(), xmap.shape()[0]);
+                      peak_values.n_elements(), xmap.shape()[0]);
                 check(xmap.device() == peak_values.device(),
                       "The cross-correlation map and output peak values must be on the same device, "
-                      "but got xmap:device={} and peak_values:device={}",
+                      "but got cross_correlation_map:device={} and peak_values:device={}",
                       xmap.device(), peak_values.device());
             }
         }
-
-        constexpr i64 GPU_LIMIT = NDIM == 1 ? 64 : NDIM == 2 ? 8 : 2;
-        const i64 peak_radius_limit = xmap.device().is_gpu() and peak_mode == CorrelationRegistration::COM ? GPU_LIMIT : 64;
-        check(all(peak_radius > 0 and peak_radius <= peak_radius_limit),
-              "The registration radius should be a small positive value (less than {}), but got {}",
-              peak_radius_limit, peak_radius);
     }
 }
 
@@ -72,13 +57,17 @@ namespace noa::signal {
     /// \param[in] rhs      Right-hand side.
     /// \param[out] scores  Cross-correlation scores(s). One per batch.
     /// \param normalize    Whether the inputs should be L2-norm normalized before computing the scores.
-    template<typename Lhs, typename Rhs, typename Output>
-    requires ((nt::are_varray_of_real_v<Lhs, Rhs, Output> or
-               nt::are_varray_of_complex_v<Lhs, Rhs, Output>) and
-              nt::is_varray_of_mutable_v<Output>)
-    void cross_correlation_score(const Lhs& lhs, const Rhs& rhs, const Output& scores, bool normalize = false) {
+    template<typename Lhs, typename Rhs, nt::writable_varray_decay Output>
+    requires (nt::varray_decay_of_real<Lhs, Rhs, Output> or
+              nt::varray_decay_of_complex<Lhs, Rhs, Output>)
+    void cross_correlation_score(
+        Lhs&& lhs,
+        Rhs&& rhs,
+        Output&& scores,
+        bool normalize = false
+    ) {
         check(not lhs.is_empty() and not rhs.is_empty() and not scores.is_empty(), "Empty array detected");
-        check(all(lhs.shape() == rhs.shape()),
+        check(vall(Equal{}, lhs.shape(), rhs.shape()),
               "Inputs should have the same shape, but got lhs:shape={}, rhs:shape={}",
               lhs.shape(), rhs.shape());
         check(lhs.device() == rhs.device() and rhs.device() == scores.device(),
@@ -86,7 +75,7 @@ namespace noa::signal {
               lhs.device(), rhs.device(), scores.device());
 
         const auto batch = lhs.shape()[0];
-        check(ni::is_contiguous_vector(scores) and scores.elements() == batch,
+        check(ni::is_contiguous_vector(scores) and scores.n_elements() == batch,
               "The number of scores, specified as a contiguous vector, should be equal to the batch size. "
               "Got scores:shape={}, scores:strides={}, and batch={}",
               scores.shape(), scores.strides(), batch);
@@ -95,25 +84,25 @@ namespace noa::signal {
         using lhs_real_t = nt::mutable_value_type_twice_t<Lhs>;
         using rhs_real_t = nt::mutable_value_type_twice_t<Rhs>;
         if (normalize) {
-            const auto options = ArrayOption{lhs.device(), Allocator(MemoryResource::DEFAULT_ASYNC)};
-            Array<lhs_real_t> lhs_norms({batch, 1, 1, 1}, options);
-            Array<rhs_real_t> rhs_norms({batch, 1, 1, 1}, options);
+            const auto options = ArrayOption{.device = lhs.device(), .allocator = Allocator::DEFAULT_ASYNC};
+            auto lhs_norms = Array<lhs_real_t>({batch, 1, 1, 1}, options);
+            auto rhs_norms = Array<rhs_real_t>({batch, 1, 1, 1}, options);
             reduce_axes_ewise(
-                    wrap(lhs, rhs),
-                    wrap(f64{}, f64{}),
-                    wrap(lhs_norms.view(), rhs_norms.view()),
-                    guts::CrossCorrelationL2Norm{});
+                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(f64{}, f64{}),
+                wrap(lhs_norms.view(), rhs_norms.view()),
+                guts::CrossCorrelationL2Norm{});
             reduce_axes_ewise(
-                    wrap(lhs, rhs, std::move(lhs_norms), std::move(rhs_norms)),
-                    wrap(output_t{}),
-                    wrap(scores.flat(0)),
-                    guts::CrossCorrelationScore{});
+                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), std::move(lhs_norms), std::move(rhs_norms)),
+                wrap(output_t{}),
+                wrap(std::forward<Output>(scores).flat(0)),
+                guts::CrossCorrelationScore{});
         } else {
             reduce_axes_ewise(
-                    wrap(lhs, rhs),
-                    wrap(output_t{}),
-                    wrap(scores.flat(0)),
-                    guts::CrossCorrelationScore{});
+                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(output_t{}),
+                wrap(std::forward<Output>(scores).flat(0)),
+                guts::CrossCorrelationScore{});
         }
     }
 
@@ -122,17 +111,17 @@ namespace noa::signal {
     /// \param[in] rhs      Right-hand side.
     /// \param normalize    Whether the inputs should be L2-norm normalized before computing the score.
     template<typename Lhs, typename Rhs>
-    requires (nt::are_varray_of_real_v<Lhs, Rhs> or nt::are_varray_of_complex_v<Lhs, Rhs>)
-    [[nodiscard]] auto cross_correlation_score(const Lhs& lhs, const Rhs& rhs, bool normalize = false) {
+    requires (nt::varray_decay_of_real<Lhs, Rhs> or nt::varray_decay_of_complex<Lhs, Rhs>)
+    [[nodiscard]] auto cross_correlation_score(Lhs&& lhs, Rhs&& rhs, bool normalize = false) {
         check(not lhs.is_empty() and not rhs.is_empty(), "Empty array detected");
-        check(all(lhs.shape() == rhs.shape()) and not rhs.shape().is_batched(),
+        check(vall(Equal{}, lhs.shape(), rhs.shape()) and not rhs.shape().is_batched(),
               "Arrays should have the same shape and should not be batched, but got lhs:shape={}, rhs:shape={}",
               lhs.shape(), rhs.shape());
         check(lhs.device() == rhs.device(),
-              "The lhs and rhs input arrays should be on the same device, but got lhs:{} and rhs:{}",
+              "The lhs and rhs input arrays should be on the same device, but got lhs:device={} and rhs:device={}",
               lhs.device(), rhs.device());
 
-        using output_t = std::conditional_t<nt::is_complex_v<Lhs>, c64, f64>;
+        using output_t = std::conditional_t<nt::complex<Lhs>, c64, f64>;
         using lhs_real_t = nt::mutable_value_type_twice_t<Lhs>;
         using rhs_real_t = nt::mutable_value_type_twice_t<Rhs>;
 
@@ -141,326 +130,263 @@ namespace noa::signal {
             lhs_real_t lhs_norm;
             rhs_real_t rhs_norm;
             reduce_ewise(
-                    wrap(lhs, rhs),
-                    wrap(f64{}, f64{}),
-                    wrap(lhs_norm, rhs_norm),
-                    guts::CrossCorrelationL2Norm{});
+                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(f64{}, f64{}),
+                wrap(lhs_norm, rhs_norm),
+                guts::CrossCorrelationL2Norm{});
             reduce_ewise(
-                    wrap(lhs, rhs, lhs_norm, rhs_norm),
-                    wrap(output_t{}),
-                    wrap(score),
-                    guts::CrossCorrelationScore{});
+                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), lhs_norm, rhs_norm),
+                wrap(output_t{}),
+                wrap(score),
+                guts::CrossCorrelationScore{});
         } else {
             reduce_ewise(
-                    wrap(lhs, rhs),
-                    wrap(output_t{}),
-                    wrap(score),
-                    guts::CrossCorrelationScore{});
+                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(output_t{}),
+                wrap(score),
+                guts::CrossCorrelationScore{});
         }
+        return score;
     }
 
     struct CrossCorrelationMapOptions {
-        /// Correlation mode to use. Remember that DOUBLE_PHASE_CORRELATION doubles the shifts.
+        /// Correlation mode to use. Remember that DOUBLE_PHASE_CORRELATION doubles the lags/shifts.
         Correlation mode = Correlation::CONVENTIONAL;
 
         /// Normalization mode to use for the C2R transform producing the final output.
         /// This should match the mode that was used to compute the input transforms.
         noa::fft::Norm ifft_norm = noa::fft::NORM_DEFAULT;
 
-        /// Whether the C2T transform should be cached.
+        /// Whether the C2R transform should be cached.
         bool ifft_cache_plan{true};
     };
 
     /// Computes the cross-correlation map.
     /// \tparam REMAP       Whether the output map should be centered. Should be H2F or H2FC.
-    /// \tparam Real        float or double.
     /// \param[in] lhs      Non-centered rFFT of the signal to cross-correlate.
     /// \param[in,out] rhs  Non-centered rFFT of the signal to cross-correlate.
     ///                     Overwritten by default (see \p buffer).
     /// \param[out] output  Cross-correlation map.
-    ///                     If REMAP is H2F, the zero lag is at {n, 0, 0, 0}.
-    ///                     If REMAP is H2FC, the zero lag is at {n, shape[1]/2, shape[2]/2, shape[3]/2}.
+    ///                     If \p REMAP is H2F, the zero lag is at {n, 0, 0, 0}.
+    ///                     If \p REMAP is H2FC, the zero lag is at {n, shape[1]/2, shape[2]/2, shape[3]/2}.
     /// \param options      Correlation mode and ifft options.
-    /// \param[out] buffer  Buffer that can fit \p shape.rfft() complex elements. It is overwritten.
-    ///                     Can be \p lhs or \p rhs. If empty, use \p rhs instead.
+    /// \param[out] buffer  Buffer of the same shape as the inputs (no broadcasting allowed). It is overwritten.
+    ///                     Can be \p lhs or \p rhs. If empty, use \p rhs instead (the default).
     ///
     /// \note As mentioned above, this function takes the rFFT of the real inputs to correlate.
-    ///       The score with zero lag can be computed more efficiently wth cross_correlation_score.
+    ///       The score with zero lag can be computed more efficiently with the cross_correlation_score function.
     ///       If other lags are to be selected (which is the entire point of this function), the inputs
-    ///       should be zero-padded before taking the irfft to cancel the circular convolution effect of
-    ///       the DFT.
-    template<noa::fft::RemapInterface REMAP, typename Lhs, typename Rhs, typename Output,
+    ///       should be zero-padded before taking the irFFT to cancel the circular convolution effect of
+    ///       the DFT. The amount of padding along a dimension is equal to the maximum lag allowed.
+    ///
+    /// \note As opposed to the cross_correlation_score function, this function does not take a normalization flag.
+    ///       To get the normalized cross-correlation scores, simply L2 normalize the inputs before computing their
+    ///       rFFT.
+    template<Remap REMAP, typename Lhs, typename Rhs, typename Output,
              typename Buffer = View<nt::mutable_value_type_t<Rhs>>>
-    requires(nt::are_varray_of_complex_v<Lhs, Rhs, Buffer> and
-             nt::are_almost_same_value_type_v<Lhs, Rhs, Buffer> and
-             nt::are_varray_of_mutable_v<Rhs, Buffer> and
-             nt::is_varray_of_any_v<Output, nt::value_type_t<Rhs>> and
-             (REMAP.remap == noa::fft::Remap::H2F or REMAP.remap == noa::fft::Remap::H2FC))
+    requires(nt::varray_decay_of_complex<Lhs, Rhs, Buffer> and
+             nt::varray_decay_of_almost_same_type<Lhs, Rhs, Buffer> and
+             nt::writable_varray_decay<Rhs, Buffer> and
+             nt::writable_varray_decay_of_any<Output, nt::value_type_twice_t<Rhs>> and
+             (REMAP == Remap::H2F or REMAP == Remap::H2FC))
     void cross_correlation_map(
-            const Lhs& lhs, const Rhs& rhs, const Output& output,
-            const CrossCorrelationMapOptions& options = {},
-            const Buffer& buffer = {}
+        Lhs&& lhs, Rhs&& rhs, Output&& output,
+        const CrossCorrelationMapOptions& options = {},
+        Buffer&& buffer = {}
     ) {
         check(not lhs.is_empty() and not rhs.is_empty() and not output.is_empty(), "Empty array detected");
 
         const auto expected_shape = output.shape().rfft();
-        auto lhs_strides = lhs.strides();
-        check(ni::broadcast(lhs.shape(), lhs_strides, expected_shape),
-              "Cannot broadcast an array of shape {} into an array of shape {}",
-              lhs.shape(), expected_shape
-        );
-        auto rhs_strides = rhs.strides();
-        check(ni::broadcast(rhs.shape(), rhs_strides, expected_shape),
-              "Cannot broadcast an array of shape {} into an array of shape {}",
-              rhs.shape(), expected_shape
-        );
+        check(vall(Equal{}, lhs.shape(), expected_shape) and vall(Equal{}, rhs.shape(), expected_shape),
+              "Given an output map of shape {}, the input transforms should be of shape {}, "
+              "but got lhs:shape={}, rhs:shape={}",
+              output.shape(), expected_shape, lhs.shape(), rhs.shape());
 
         const Device device = output.device();
         check(device == lhs.device() and device == rhs.device(),
-              "The lhs, rhs and output arrays must be on the same device, but got lhs:{}, rhs:{} and output:{}",
+              "The lhs, rhs and output arrays must be on the same device, "
+              "but got lhs:device={}, rhs:device={} and output:device={}",
               lhs.device(), rhs.device(), device);
 
         using complex_t = nt::value_type_t<Buffer>;
-        using real_t = nt::value_type_t<complex_t>;
         View<complex_t> tmp;
         if (buffer.is_empty()) {
-            check(all(rhs_strides >= 0),
-                  "Since no temporary buffer is passed, the rhs input will be overwritten and "
-                  "should not have any strides equal to 0, but got {}", rhs_strides);
-            tmp = View<complex_t>(rhs.get(), rhs.shape(), rhs.strides(), rhs.options());
+            check(ni::are_elements_unique(rhs.strides(), rhs.shape()),
+                  "Since no temporary buffer is passed, the rhs input is used as buffer, "
+                  "thus should have unique elements (e.g. no broadcasting), "
+                  "but got rhs:shape={}, rhs:strides={}", rhs.shape(), rhs.strides());
+            tmp = rhs.view();
         } else {
             check(device == buffer.device(),
-                  "The temporary and output arrays must be on the same device, buffer:{} and output:{}",
+                  "The temporary and output arrays must be on the same device, buffer:device={} and output:device={}",
                   buffer.device(), device);
-            check(all(buffer.shape() >= expected_shape) and all(buffer.strides() >= 0),
-                  "The temporary buffer should be able to fit an array of shape {}, but got effective shape of {}",
-                  expected_shape, ni::effective_shape(buffer.shape(), buffer.strides()));
-            tmp = View<complex_t>(buffer.get(), buffer.shape(), buffer.strides(), buffer.options());
+            check(vall(Equal{}, buffer.shape(), expected_shape) and
+                  ni::are_elements_unique(buffer.strides(), buffer.shape()),
+                  "Given an output map of shape {}, the buffer should be of shape {} and have unique elements, "
+                  "but got buffer:shape={}, buffer:strides={}",
+                  output.shape(), expected_shape, buffer.shape(), buffer.strides());
+            tmp = buffer.view();
         }
-
-        constexpr auto EPSILON = static_cast<real_t>(1e-13);
 
         // TODO Add normalization with auto-correlation?
         //      IMO it's always simpler to normalize the real inputs,
         //      so not sure how useful this would be.
         switch (options.mode) {
             case Correlation::CONVENTIONAL:
-                ewise(wrap(lhs, rhs), tmp, MultiplyConjugate{});
+                ewise(wrap(std::forward<Lhs>(lhs), rhs), tmp,
+                      guts::CrossCorrelationMap<Correlation::CONVENTIONAL>{});
                 break;
             case Correlation::PHASE:
-                ewise(wrap(lhs, rhs), tmp,
-                      []NOA_HD<typename R>(const Complex<R>& l, const Complex<R>& r, Complex<R>& o) {
-                          const Complex<R> product = l * conj(r);
-                          const R magnitude = abs(product);
-                          o = product / (magnitude + EPSILON);
-                          // The epsilon could be scaled by the max(abs(rhs)), but this seems to be useful only
-                          // for input values close to zero (less than 1e-10). In most cases, this is fine.
-                      });
+                ewise(wrap(std::forward<Lhs>(lhs), rhs), tmp,
+                      guts::CrossCorrelationMap<Correlation::PHASE>{});
                 break;
             case Correlation::DOUBLE_PHASE:
-                ewise(wrap(lhs, rhs), tmp,
-                      []NOA_HD<typename R>(const Complex<R>& l, const Complex<R>& r, Complex<R>& o) {
-                          const Complex<R> product = l * conj(r);
-                          const Complex<R> product_sqd = {product.real * product.real, product.imag * product.imag};
-                          const R magnitude = sqrt(product_sqd.real + product_sqd.imag) + EPSILON;
-                          o = {(product_sqd.real - product_sqd.imag) / magnitude,
-                               (2 * product.real * product.imag) / magnitude};
-                      });
+                ewise(wrap(std::forward<Lhs>(lhs), rhs), tmp,
+                      guts::CrossCorrelationMap<Correlation::DOUBLE_PHASE>{});
                 break;
             case Correlation::MUTUAL:
-                ewise(wrap(lhs, rhs), tmp,
-                      []NOA_HD<typename R>(const Complex<R>& l, const Complex<R>& r, Complex<R>& o) {
-                          const Complex<R> product = l * conj(r);
-                          const R magnitude_sqrt = sqrt(abs(product));
-                          o = product / (magnitude_sqrt + EPSILON);
-                      });
+                ewise(wrap(std::forward<Lhs>(lhs), rhs), tmp,
+                      guts::CrossCorrelationMap<Correlation::MUTUAL>{});
                 break;
         }
 
-        using namespace noa::fft;
-        if constexpr (REMAP.remap == Remap::H2FC) {
-            const auto shape = output.shape();
-            const auto shape_3d = shape.pop_front();
-            if (shape_3d.ndim() == 3) {
-                phase_shift_3d<Remap::H2H>(tmp, tmp, shape, (shape_3d / 2).vec.template as<f32>());
+        if constexpr (REMAP == Remap::H2FC) {
+            using real_t = nt::value_type_t<complex_t>;
+            const Shape4<i64> shape = output.shape();
+            if (shape.ndim() == 3) {
+                phase_shift_3d<Remap::H2H>(tmp, tmp, shape, (shape.pop_front<1>() / 2).vec.as<real_t>());
             } else {
-                phase_shift_2d<Remap::H2H>(tmp, tmp, shape, (shape_3d.pop_front() / 2).vec.template as<f32>());
+                phase_shift_2d<Remap::H2H>(tmp, tmp, shape, (shape.pop_front<2>() / 2).vec.as<real_t>());
             }
         }
 
-        // In case this is an Array, pass the original object.
         if (buffer.is_empty())
-            c2r(rhs, output, {.norm=options.ifft_norm, .cache_plan=options.ifft_cache_plan});
+            noa::fft::c2r(std::forward<Rhs>(rhs), std::forward<Output>(output),
+                          {.norm = options.ifft_norm, .cache_plan = options.ifft_cache_plan});
         else {
-            c2r(buffer, output, {.norm=options.ifft_norm, .cache_plan=options.ifft_cache_plan});
+            noa::fft::c2r(std::forward<Buffer>(buffer), std::forward<Output>(output),
+                          {.norm = options.ifft_norm, .cache_plan = options.ifft_cache_plan});
         }
     }
 
     template<size_t N>
     struct CrossCorrelationPeakOptions {
-        /// Registration mode to use for subpixel accuracy.
-        CorrelationRegistration mode = CorrelationRegistration::PARABOLA_1D;
-
         /// ((D)H)W radius of the registration window, centered on the peak.
-        Vec<i64, N> registration_radius{1};
+        Vec<i64, N> registration_radius{Vec<i64, N>::from_value(1)};
 
         /// ((D)H)W maximum lag allowed, i.e. the peak is selected within this elliptical radius.
         /// If negative or 0, it is ignored. Otherwise, an elliptical mask is applied, in-place, on the
         /// centered cross-correlation map before selecting the peak.
-        Vec<f64, N> maximum_lag{-1};
+        Vec<f64, N> maximum_lag{Vec<f64, N>::from_value(-1)};
     };
 
     /// Find the cross-correlation peak(s) of the cross-correlation map(s).
     /// \tparam REMAP                           Whether \p xmap is centered. Should be F2F or FC2FC.
     /// \param[in,out] cross_correlation_map    1d, 2d or 3d cross-correlation map.
-    ///                                         It can be overwritten depending on options.maximum_lag.
     /// \param[out] peak_coordinates            Output ((D)H)W coordinate of the highest peak. One per batch or empty.
     /// \param[out] peak_values                 Output value of the highest peak. One per batch or empty.
     /// \param options                          Picking and registration options.
-    template<noa::fft::RemapInterface REMAP, size_t N, typename Input,
-             typename PeakCoord = View<Vec<f32, N>>,
-             typename PeakValue = View<nt::mutable_value_type_t<Input>>>
-    requires (nt::is_varray_of_almost_any_v<Input, f32, f64> &&
-              nt::is_varray_of_any_v<PeakCoord, Vec<f32, N>, Vec<f64, N>> &&
-              nt::is_varray_of_any_v<PeakValue, f32, f64> &&
-              nt::are_almost_same_value_type_v<Input, PeakValue>)
+    template<Remap REMAP, size_t N,
+             nt::readable_varray_decay_of_almost_any<f32, f64> Input,
+             nt::writable_varray_decay_of_any<Vec<f32, N>, Vec<f64, N>> PeakCoord = View<Vec<f64, N>>,
+             nt::writable_varray_decay_of_almost_same_type<Input> PeakValue = View<nt::mutable_value_type_t<Input>>>
+    requires (1 <= N and N <= 3)
     void cross_correlation_peak(
-            const Input& cross_correlation_map,
-            const PeakCoord& peak_coordinates,
-            const PeakValue& peak_values = {},
-            const CrossCorrelationPeakOptions<N>& options = {}
+        Input&& cross_correlation_map,
+        PeakCoord&& peak_coordinates,
+        PeakValue&& peak_values = {},
+        const CrossCorrelationPeakOptions<N>& options = {}
     ) {
-        guts::check_xpeak_parameters(
-                cross_correlation_map, options.registration_radius, options.mode,
-                peak_coordinates, peak_values);
+        constexpr size_t REGISTRATION_RADIUS_LIMIT = 4;
+        guts::check_cross_correlation_peak_parameters<N>(cross_correlation_map, peak_coordinates, peak_values);
+        check(all(options.registration_radius > 0 and options.registration_radius <= REGISTRATION_RADIUS_LIMIT),
+              "The registration radius should be a small positive value (less than {}), but got {}",
+              REGISTRATION_RADIUS_LIMIT, options.registration_radius);
 
         const Device& device = cross_correlation_map.device();
         const auto shape = cross_correlation_map.shape();
-        const auto view = cross_correlation_map.view();
+        auto filter_nd = [&shape](auto v) {
+            if constexpr (N == 1) return v.filter(0, shape[2] > 1 ? 2 : 3);
+            if constexpr (N == 2) return v.filter(0, 2, 3);
+            if constexpr (N == 3) return v;
+        };
 
-        // Mask the cross-correlation map to restrict the maximum lag.
-        if (options.maximum_lag >= 0) {
-            check(REMAP.is_fc2xx(),
-                  "In order to restrict the maximum allowed lag, the cross-correlation map should be centered");
+        using value_t = nt::mutable_value_type_t<Input>;
+        using index_t = nt::index_type_t<Input>;
+        using input_accessor_t = AccessorRestrictI64<const value_t, N + 1>;
+        using peak_values_accessor_t = AccessorRestrictContiguousI64<value_t, 1>;
+        using peak_coordinates_accessor_t = AccessorRestrictContiguousI64<nt::value_type_t<PeakCoord>, 1>;
 
-            using namespace noa::geometry;
-            if constexpr (N == 1) {
-                // We could use a 1d window, but this works too.
-                const size_t dim = shape[2] > 1 ? 2 : 3;
-                auto center = Vec2<f64>{};
-                center[dim] = static_cast<f64>(shape[dim] / 2);
-                draw_shape(view, view, Sphere<2>{
-                        .center=center, // 0 lag position
-                        .radius=options.maximum_lag,
-                });
-            } else if constexpr (N == 2) {
-                draw_shape(view, view, Ellipse<N>{
-                        .center=(shape.filter(2, 3) / 2).vec.template as<f64>(), // 0 lag position
-                        .radius=options.maximum_lag,
-                });
-            } else {
-                draw_shape(view, view, Ellipse<N>{
-                        .center=(shape.filter(1, 2, 3) / 2).vec.template as<f64>(), // 0 lag position
-                        .radius=options.maximum_lag,
-                });
-            }
+        auto input_accessor = input_accessor_t(cross_correlation_map.get(), filter_nd(cross_correlation_map.strides()));
+        auto peak_values_accessor = peak_values_accessor_t(peak_values.get());
+        auto peak_coordinates_accessor = peak_coordinates_accessor_t(peak_coordinates.get());
+        auto shape_nd = filter_nd(cross_correlation_map.shape());
+        auto initial_reduction_value = Pair{std::numeric_limits<value_t>::min(), index_t{}};
 
-            // TODO Select cross_correlation_map subregion within options.maximum_lag.
-            //      This would require to add an offset to the peaks though...
-        }
+        auto reduce_axes = ReduceAxes::all();
+        reduce_axes[3 - N] = false; // batch equivalent
 
-        // Find the peaks.
-        Array peak_offsets = noa::empty<i64>({shape[0], 1, 1, 1}, ArrayOption{device, MemoryResource::ASYNC});
-        argmax(view, {}, peak_offsets.view());
+        if (all(options.maximum_lag <= 0)) {
+            using reducer_t = guts::ReducePeak<
+                N, REMAP.is_xc2xx(), false, REGISTRATION_RADIUS_LIMIT,
+                input_accessor_t, peak_coordinates_accessor_t, peak_values_accessor_t>;
 
-        // Subpixel registration.
-        Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            auto& cpu_stream = stream.cpu();
-            cpu_stream.enqueue([=]() {
-                using namespace noa::cpu::signal;
-                if constexpr (N == 1) {
-                    subpixel_registration_1d<REMAP.remap>( // FIXME Check offsets are not relative to the batch
-                            cross_correlation_map.get(),
-                            cross_correlation_map.strides(),
-                            cross_correlation_map.shape(),
-                            peak_offsets.get(), peak_coordinates.get(), peak_values.get(),
-                            options.mode, options.registration_radius);
-                } else if constexpr (N == 2) {
-                    subpixel_registration_2d<REMAP.remap>(
-                            cross_correlation_map.get(),
-                            cross_correlation_map.strides(),
-                            cross_correlation_map.shape(),
-                            peak_offsets.get(), peak_coordinates.get(), peak_values.get(),
-                            options.mode, options.registration_radius);
-                } else {
-                    subpixel_registration_3d<REMAP.remap>(
-                            cross_correlation_map.get(),
-                            cross_correlation_map.strides(),
-                            cross_correlation_map.shape(),
-                            peak_offsets.get(), peak_coordinates.get(), peak_values.get(),
-                            options.mode, options.registration_radius);
-                }
-            });
+            reduce_axes_iwise(
+                shape_nd, device, initial_reduction_value, reduce_axes,
+                reducer_t(input_accessor, peak_coordinates_accessor, peak_values_accessor,
+                          shape_nd, options.registration_radius)
+            );
         } else {
-            #ifdef NOA_ENABLE_CUDA
-            auto& cuda_stream = stream.cuda();
-            using namespace noa::cuda::signal;
-            if constexpr (N == 1) {
-                subpixel_registration_1d<REMAP.remap>(
-                        cross_correlation_map.get(),
-                        cross_correlation_map.strides(),
-                        cross_correlation_map.shape(),
-                        peak_offsets.get(), peak_values.get(),
-                        options.mode, options.registration_radius,
-                        cuda_stream);
-            } else if constexpr (N == 2) {
-                subpixel_registration_2d<REMAP.remap>(
-                        cross_correlation_map.get(),
-                        cross_correlation_map.strides(),
-                        cross_correlation_map.shape(),
-                        peak_offsets.get(), peak_values.get(),
-                        options.mode, options.registration_radius,
-                        cuda_stream);
-            } else {
-                subpixel_registration_3d<REMAP.remap>(
-                        cross_correlation_map.get(),
-                        cross_correlation_map.strides(),
-                        cross_correlation_map.shape(),
-                        peak_offsets.get(), peak_values.get(),
-                        options.mode, options.registration_radius,
-                        cuda_stream);
+            auto maximum_allowed_lag = shape_nd.vec.pop_front() / 2;
+            Vec<index_t, N> maximum_lag;
+            for (size_t i{}; i < N; ++i) {
+                auto tmp = static_cast<index_t>(ceil(options.maximum_lag[i]));
+                maximum_lag[i] = tmp <= 0 or tmp > maximum_allowed_lag[i] ? maximum_allowed_lag[i] : tmp;
             }
-            cuda_stream.enqueue_attach(cross_correlation_map, peak_offsets, peak_coordinates, peak_values);
-            #else
-            panic("No GPU backend detected");
-            #endif
+
+            // The reduction is done within the subregion up to the maximum lag.
+            auto subregion_offset = (maximum_allowed_lag - maximum_lag); // center is preserved
+            auto subregion_shape = Shape{maximum_lag * 2 + 1}.push_front(shape[0]);
+
+            using reducer_t = guts::ReducePeak<
+                N, REMAP.is_xc2xx(), true, REGISTRATION_RADIUS_LIMIT,
+                input_accessor_t, peak_coordinates_accessor_t, peak_values_accessor_t>;
+
+            reduce_axes_iwise(
+                subregion_shape, device, initial_reduction_value, reduce_axes,
+                reducer_t(input_accessor, peak_coordinates_accessor, peak_values_accessor,
+                          shape_nd, options.registration_radius,
+                          subregion_offset, maximum_lag.template as<f32>())
+            );
         }
     }
 
-    template<noa::fft::RemapInterface REMAP, size_t N, typename Input>
-    auto cross_correlation_peak(const Input& xmap, const CrossCorrelationPeakOptions<N>& options = {}) {
-        using value_t = nt::value_type_t<Input>;
+    template<Remap REMAP, size_t N, nt::readable_varray_decay_of_almost_any<f32, f64> Input>
+    auto cross_correlation_peak(
+        const Input& cross_correlation_map,
+        const CrossCorrelationPeakOptions<N>& options = {}
+    ) {
+        using value_t = nt::mutable_value_type_t<Input>;
         using coord_t = Vec<f64, N>;
-        using pair_t = Pair<value_t, i64>;
-        if (xmap.device().is_cpu()) {
+        using pair_t = Pair<coord_t, value_t>;
+        if (cross_correlation_map.device().is_cpu()) {
             pair_t pair{};
-            cross_correlation_peak<REMAP>(xmap, View(&pair.first), View(&pair.second), options);
-            xmap.eval();
+            cross_correlation_peak<REMAP, N>(cross_correlation_map.view(), View(&pair.first), View(&pair.second), options);
+            cross_correlation_map.eval();
             return pair;
         } else {
-            const auto array_options = ArrayOption{xmap.device(), MemoryResource::ASYNC};
-            Array pair = noa::zeros<pair_t>(1, array_options);
-            cross_correlation_peak<REMAP>(
-                    xmap.view(),
-                    View(&(pair.get()->first), array_options),
-                    View(&(pair.get()->second), array_options),
+            const auto array_options = ArrayOption{cross_correlation_map.device(), Allocator::ASYNC};
+            Array pair = noa::empty<pair_t>(1, array_options);
+            cross_correlation_peak<REMAP, N>(
+                    cross_correlation_map.view(),
+                    View(&(pair.get()->first), 1, array_options),
+                    View(&(pair.get()->second), 1, array_options),
                     options);
             return pair.first();
         }
     }
 
-    template<noa::fft::RemapInterface REMAP, typename Input,
+    template<Remap REMAP, typename Input,
              typename PeakCoord = View<Vec1<f32>>,
              typename PeakValue = View<nt::mutable_value_type_t<Input>>>
     void cross_correlation_peak_1d(
@@ -471,9 +397,9 @@ namespace noa::signal {
     ) {
         cross_correlation_peak<REMAP>(xmap, peak_coordinates, peak_values, options);
     }
-    template<noa::fft::RemapInterface REMAP, typename Input,
-             typename PeakCoord = View<Vec2<f32>>,
-             typename PeakValue = View<nt::mutable_value_type_t<Input>>>
+    template<Remap REMAP, typename Input,
+             nt::varray_decay PeakCoord = View<Vec2<f32>>,
+             nt::varray_decay PeakValue = View<nt::mutable_value_type_t<Input>>>
     void cross_correlation_peak_2d(
             const Input& xmap,
             const PeakCoord& peak_coordinates,
@@ -482,7 +408,7 @@ namespace noa::signal {
     ) {
         cross_correlation_peak<REMAP>(xmap, peak_coordinates, peak_values, options);
     }
-    template<noa::fft::RemapInterface REMAP, typename Input,
+    template<Remap REMAP, typename Input,
              typename PeakCoord = View<Vec3<f32>>,
              typename PeakValue = View<nt::mutable_value_type_t<Input>>>
     void cross_correlation_peak_3d(
@@ -494,15 +420,15 @@ namespace noa::signal {
         cross_correlation_peak<REMAP>(xmap, peak_coordinates, peak_values, options);
     }
 
-    template<noa::fft::RemapInterface REMAP, typename Input>
+    template<Remap REMAP, typename Input>
     auto cross_correlation_peak_1d(const Input& xmap, const CrossCorrelationPeakOptions<1>& options = {}) {
         return cross_correlation_peak<REMAP>(xmap, options);
     }
-    template<noa::fft::RemapInterface REMAP, typename Input>
+    template<Remap REMAP, typename Input>
     auto cross_correlation_peak_2d(const Input& xmap, const CrossCorrelationPeakOptions<2>& options = {}) {
         return cross_correlation_peak<REMAP>(xmap, options);
     }
-    template<noa::fft::RemapInterface REMAP, typename Input>
+    template<Remap REMAP, typename Input>
     auto cross_correlation_peak_3d(const Input& xmap, const CrossCorrelationPeakOptions<3>& options = {}) {
         return cross_correlation_peak<REMAP>(xmap, options);
     }

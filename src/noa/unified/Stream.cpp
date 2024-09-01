@@ -13,7 +13,7 @@ namespace noa {
             if (current_stream.device() == device)
                 return current_stream;
         // Since the current for this device doesn't exist, create the stream and set it as current.
-        g_current.emplace_front(device, StreamMode::DEFAULT);
+        g_current.emplace_front(device, Stream::DEFAULT);
         return g_current.front();
     }
 

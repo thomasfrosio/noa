@@ -8,7 +8,7 @@
 #ifdef NOA_IS_OFFLINE
 #include <complex>
 #include <cfloat>
-#include "noa/core/string/Format.hpp"
+#include "noa/core/utils/Strings.hpp"
 #else
 #include <cuda/std/complex>
 #include <cuda/std/cfloat>
@@ -19,35 +19,39 @@ namespace noa::inline types {
     class Vec;
 
     /// Complex number (aggregate type of two floating-point values).
-    template<typename Real>
-    class alignas(sizeof(Real) * 2) Complex {
+    /// \details This type differs/expands on std::complex in the following ways:
+    ///     - it works on CUDA by default (although, std::complex is less of any issue with recent CUDA version).
+    ///     - it is an aggregate, with the member variables .real and .imag.
+    ///     - it supports the subscript operator[] to access the real and imaginary components.
+    /// \note While we could tend to prefer leaving this type uninitialized, in order to support direct initialization
+    ///       from a scalar, e.g. Complex{1.}, we need to have the member variables zero-initialized (same as std::complex).
+    template<nt::real T>
+    class alignas(sizeof(T) * 2) Complex {
     public:
-        static_assert(nt::is_real<Real>::value);
-        Real real{};
-        Real imag{};
+        T real{};
+        T imag{};
 
     public:
-        using value_type = Real;
-        using mutable_value_type = Real;
+        using value_type = T;
+        using mutable_value_type = T;
 
     public: // Component accesses
-        static constexpr size_t COUNT = 2;
         static constexpr size_t SIZE = 2;
         static constexpr int64_t SSIZE = 2;
 
-        template<typename I, typename = std::enable_if_t<nt::is_int_v<I>>>
-        NOA_HD constexpr value_type& operator[](I i) noexcept {
-            NOA_ASSERT(static_cast<size_t>(i) < COUNT);
-            if (i == I(1))
+        template<std::integral I>
+        NOA_HD constexpr auto operator[](I i) noexcept -> value_type& {
+            NOA_ASSERT(static_cast<size_t>(i) < SIZE);
+            if (i == I{1})
                 return this->imag;
             else
                 return this->real;
         }
 
-        template<typename I, typename = std::enable_if_t<nt::is_int_v<I>>>
-        NOA_HD constexpr const value_type& operator[](I i) const noexcept {
-            NOA_ASSERT(static_cast<size_t>(i) < COUNT);
-            if (i == I(1))
+        template<std::integral I>
+        NOA_HD constexpr auto operator[](I i) const noexcept -> const value_type& {
+            NOA_ASSERT(static_cast<size_t>(i) < SIZE);
+            if (i == I{1})
                 return this->imag;
             else
                 return this->real;
@@ -56,28 +60,28 @@ namespace noa::inline types {
     public: // Factory static functions
         template<typename U>
         [[nodiscard]] NOA_HD static constexpr Complex from_real(U u) noexcept {
-            return {static_cast<value_type>(u), value_type{}}; // imag{0}
+            return {static_cast<value_type>(u), value_type{}};
         }
 
         template<typename U, typename V>
-        [[nodiscard]] NOA_HD static constexpr Complex from_values(U u, V v) noexcept {
-            return {static_cast<value_type>(u), static_cast<value_type>(v)};
+        [[nodiscard]] NOA_HD static constexpr Complex from_values(U r, V i) noexcept {
+            return {static_cast<value_type>(r), static_cast<value_type>(i)};
         }
 
         template<typename U>
-        [[nodiscard]] NOA_HD static constexpr Complex from_complex(Complex<U> v) noexcept {
+        [[nodiscard]] NOA_HD static constexpr Complex from_complex(const Complex<U>& v) noexcept {
             return {static_cast<value_type>(v.real),
                     static_cast<value_type>(v.imag)};
         }
 
         template<typename U>
-        [[nodiscard]] NOA_HD static constexpr Complex from_complex(std::complex<U> v) noexcept {
+        [[nodiscard]] NOA_HD static constexpr Complex from_complex(const std::complex<U>& v) noexcept {
             return {static_cast<value_type>(reinterpret_cast<const U(&)[2]>(v)[0]),
                     static_cast<value_type>(reinterpret_cast<const U(&)[2]>(v)[1])};
         }
 
-        template<typename U>
-        [[nodiscard]] NOA_HD static constexpr Complex from_vec(Vec<U, 2, 0> v) noexcept {
+        template<typename U, size_t A>
+        [[nodiscard]] NOA_HD static constexpr Complex from_vec(const Vec<U, 2, A>& v) noexcept {
             return {static_cast<value_type>(v[0]),
                     static_cast<value_type>(v[1])};
         }
@@ -88,9 +92,9 @@ namespace noa::inline types {
                     static_cast<value_type>(ptr[1])};
         }
 
-    public:
-        // Allow explicit conversion constructor (while still being an aggregate)
-        // and add support for static_cast<Complex<U>>(Complex<T>{}).
+    public: // Conversion operators
+        /// Explicit conversion constructor to a Complex with different precision:
+        /// \c static_cast<Complex<U>>(Complex<T>{})
         template<typename U>
         [[nodiscard]] NOA_HD constexpr explicit operator Complex<U>() const noexcept {
             return Complex<U>::from_complex(*this);
@@ -309,33 +313,15 @@ namespace noa::inline types {
             return Vec<value_type, 2, 0>{real, imag};
         }
 
-        template<typename T>
-        [[nodiscard]] NOA_HD constexpr Complex<T> as() const noexcept {
-            return {static_cast<T>(real), static_cast<T>(imag)};
+        template<typename U>
+        [[nodiscard]] NOA_HD constexpr Complex<U> as() const noexcept {
+            return {static_cast<U>(real), static_cast<U>(imag)};
         }
-
-#ifdef NOA_IS_OFFLINE
-    public:
-        [[nodiscard]] static std::string name() {
-            if constexpr (std::is_same_v<value_type, Half>)
-                return "c16";
-            else if constexpr (std::is_same_v<value_type, float>)
-                return "c32";
-            else
-                return "c64";
-        }
-#endif
     };
 
     using c16 = Complex<f16>;
     using c32 = Complex<f32>;
     using c64 = Complex<f64>;
-    static_assert(sizeof(c16) == sizeof(f16) * 2); // no padding
-    static_assert(sizeof(c32) == sizeof(f32) * 2);
-    static_assert(sizeof(c64) == sizeof(f64) * 2);
-    static_assert(alignof(c16) == 4);
-    static_assert(alignof(c32) == 8);
-    static_assert(alignof(c64) == 16);
 }
 
 namespace noa {
@@ -351,7 +337,7 @@ namespace noa {
     template<typename T>
     [[nodiscard]] NOA_FHD constexpr T imag(std::complex<T> x) noexcept { return x.imag(); }
 
-    // Returns the phase angle (in radians) of the complex number z.
+    /// Returns the phase angle (in radians) of the complex number z.
     template<typename T>
     [[nodiscard]] NOA_FHD T arg(Complex<T> x) {
         return atan2(x.imag, x.real);
@@ -362,13 +348,13 @@ namespace noa {
         return arg(x);
     }
 
-    // Returns the magnitude of the complex number x.
+    /// Returns the magnitude of the complex number x.
     template<typename T>
     [[nodiscard]] NOA_FHD T abs(Complex<T> x) {
         return hypot(x.real, x.imag);
     }
 
-    // Returns the length-normalized of the complex number x to 1, reducing it to its phase.
+    /// Returns the length-normalized of the complex number x to 1, reducing it to its phase.
     template<typename T>
     [[nodiscard]] NOA_FHD Complex<T> normalize(Complex<T> x) {
         if constexpr (std::is_same_v<T, Half>)
@@ -379,7 +365,7 @@ namespace noa {
         return x * magnitude;
     }
 
-    // Returns the squared magnitude of the complex number x.
+    /// Returns the squared magnitude of the complex number x.
     template<typename T>
     NOA_IHD T abs_squared(Complex<T> x) {
         if constexpr (std::is_same_v<T, Half>)
@@ -392,7 +378,7 @@ namespace noa {
         return {x.real, -x.imag};
     }
 
-    // Returns a complex number with magnitude length (should be positive) and phase angle theta.
+    /// Returns a complex number with magnitude length (should be positive) and phase angle theta.
     template<typename T>
     [[nodiscard]] NOA_FHD Complex<T> polar(T length, T theta) {
         return {length * cos(theta), length * sin(theta)};
@@ -410,8 +396,6 @@ namespace noa::traits {
     template<> struct proclaim_is_complex<c16> : std::true_type {};
     template<> struct proclaim_is_complex<c32> : std::true_type {};
     template<> struct proclaim_is_complex<c64> : std::true_type {};
-    template<> struct proclaim_is_std_complex<std::complex<f32>> : std::true_type {};
-    template<> struct proclaim_is_std_complex<std::complex<f64>> : std::true_type {};
 }
 
 #ifdef NOA_IS_OFFLINE
@@ -452,5 +436,19 @@ namespace noa::inline types {
         os << fmt::format("({:.3f},{:.3f})", z.real, z.imag);
         return os;
     }
+}
+
+namespace noa::string {
+    template<typename T>
+    struct Stringify<Complex<T>> {
+        static auto get() -> std::string {
+            if constexpr (std::is_same_v<T, Half>)
+                return "c16";
+            else if constexpr (std::is_same_v<T, float>)
+                return "c32";
+            else
+                return "c64";
+        }
+    };
 }
 #endif

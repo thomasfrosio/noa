@@ -1,35 +1,36 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/Ewise.hpp>
 #include <noa/unified/Factory.hpp>
-
 #include <catch2/catch.hpp>
 
-#include "Helpers.h"
+#include "Utils.hpp"
+#include "noa/unified/io/ImageFile.hpp"
+
 
 using namespace noa::types;
 
 TEMPLATE_TEST_CASE("unified::ewise - simple", "[noa][unified]", i32, f64) {
-    auto shape = test::get_random_shape4_batched(3);
-    auto lhs = noa::empty<TestType>(shape);
-    auto rhs = noa::like(lhs);
-    auto expected = noa::like<i64>(lhs);
+    auto shape = test::random_shape_batched(3);
+    Array lhs = noa::empty<TestType>(shape);
+    Array rhs = noa::like(lhs);
+    Array expected = noa::like<i64>(lhs);
 
     auto randomizer = test::Randomizer<TestType>(-50, 50);
-    auto lhs_span = lhs.span();
-    auto rhs_span = rhs.span();
-    auto expected_span = expected.span();
-    for (i64 i = 0; i < lhs.elements(); ++i) {
+    Span lhs_span = lhs.span_1d_contiguous();
+    Span rhs_span = rhs.span_1d_contiguous();
+    Span expected_span = expected.span_1d_contiguous();
+    for (i64 i{}; i < lhs.n_elements(); ++i) {
         lhs_span[i] = randomizer.get();
         rhs_span[i] = randomizer.get();
         expected_span[i] = static_cast<i64>(lhs_span[i] + rhs_span[i]);
     }
 
     std::vector<Device> devices{"cpu"};
-    if (Device::is_any(DeviceType::GPU))
+    if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
-        auto stream = StreamGuard(device, StreamMode::DEFAULT);
+        auto stream = StreamGuard(device, Stream::DEFAULT);
         const auto options = ArrayOption{device, "managed"};
         INFO(device);
 
@@ -40,18 +41,18 @@ TEMPLATE_TEST_CASE("unified::ewise - simple", "[noa][unified]", i32, f64) {
         auto output = noa::like<i64>(lhs);
 
         noa::ewise(noa::wrap(lhs, rhs), output, noa::Plus{});
-        REQUIRE(test::Matcher<i64>(test::MATCH_ABS, output, expected, 0));
+        REQUIRE(test::allclose_abs(output, expected, 0));
     }
 }
 
 TEMPLATE_TEST_CASE("unified::ewise - broadcast", "[noa][unified]", i32, f32, f64, c32) {
     std::vector<Device> devices{"cpu"};
-    if (Device::is_any(DeviceType::GPU))
+    if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
     using value_t = TestType;
     value_t lhs_value, rhs_value;
-    if constexpr (noa::traits::is_complex_v<value_t>) {
+    if constexpr (noa::traits::complex<value_t>) {
         lhs_value = {1, 1};
         rhs_value = {2, 2};
     } else {
@@ -60,58 +61,58 @@ TEMPLATE_TEST_CASE("unified::ewise - broadcast", "[noa][unified]", i32, f32, f64
     }
 
     const auto shapes = std::array{
-            test::get_random_shape4_batched(1),
-            test::get_random_shape4_batched(2),
-            test::get_random_shape4_batched(3),
-            test::get_random_shape4_batched(4)};
+            test::random_shape_batched(1),
+            test::random_shape_batched(2),
+            test::random_shape_batched(3),
+            test::random_shape_batched(4)};
 
     for (const auto& shape: shapes) {
         for (auto& device: devices) {
-            const auto stream = StreamGuard(device, StreamMode::DEFAULT);
+            const auto stream = StreamGuard(device, Stream::DEFAULT);
             const auto options = ArrayOption(device, "managed");
 
             const Array<TestType> lhs(shape, options);
             const Array<TestType> rhs(shape, options);
-            test::memset(lhs.get(), lhs.elements(), lhs_value);
-            test::memset(rhs.get(), rhs.elements(), rhs_value);
+            test::fill(lhs.get(), lhs.n_elements(), lhs_value);
+            test::fill(rhs.get(), rhs.n_elements(), rhs_value);
             const auto expected = noa::like(lhs);
             noa::ewise(noa::wrap(lhs, rhs), expected, noa::Minus{});
 
             // Test passing a single value.
             const Array<TestType> output(shape, options);
             noa::ewise(noa::wrap(lhs, rhs_value), output, noa::Minus{});
-            REQUIRE(test::Matcher<value_t>(test::MATCH_ABS, expected, output, 1e-6));
-            test::memset(output.get(), output.elements(), value_t{});
+            REQUIRE(test::allclose_abs(expected, output, 1e-6));
+            test::fill(output.get(), output.n_elements(), value_t{});
 
             // Test passing a single value.
             noa::ewise(noa::wrap(lhs_value, rhs), output, noa::Minus{});
-            REQUIRE(test::Matcher<value_t>(test::MATCH_ABS, expected, output, 1e-6));
-            test::memset(output.get(), output.elements(), value_t{});
+            REQUIRE(test::allclose_abs(expected, output, 1e-6));
+            test::fill(output.get(), output.n_elements(), value_t{});
 
             // Test broadcasting all dimensions.
             noa::ewise(noa::wrap(lhs, View(&rhs_value, 1).to(options)), output, noa::Minus{});
-            REQUIRE(test::Matcher<value_t>(test::MATCH_ABS, expected, output, 1e-6));
-            test::memset(output.get(), output.elements(), value_t{});
+            REQUIRE(test::allclose_abs(expected, output, 1e-6));
+            test::fill(output.get(), output.n_elements(), value_t{});
 
             // Test broadcasting all dimensions.
             const Array<TestType> lhs_(1, options);
             lhs_.get()[0] = lhs_value;
             noa::ewise(noa::wrap(lhs_.view(), rhs), output, noa::Minus{});
-            REQUIRE(test::Matcher<value_t>(test::MATCH_ABS, expected, output, 1e-6));
+            REQUIRE(test::allclose_abs(expected, output, 1e-6));
         }
     }
 }
 
 TEST_CASE("unified::ewise - zip vs wrap", "[noa][unified]") {
     std::vector<Device> devices{"cpu"};
-    if (Device::is_any(DeviceType::GPU))
+    if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
     const auto shapes = std::array{
-            test::get_random_shape4_batched(1),
-            test::get_random_shape4_batched(2),
-            test::get_random_shape4_batched(3),
-            test::get_random_shape4_batched(4)};
+            test::random_shape_batched(1),
+            test::random_shape_batched(2),
+            test::random_shape_batched(3),
+            test::random_shape_batched(4)};
 
     for (const auto& shape: shapes) {
         auto lhs = noa::empty<i64>(shape);
@@ -119,21 +120,21 @@ TEST_CASE("unified::ewise - zip vs wrap", "[noa][unified]") {
         auto rhs = noa::like(lhs);
 
         test::Randomizer<i64> randomizer(-100, 30);
-        test::randomize(lhs.get(), lhs.elements(), randomizer);
-        test::randomize(mhs.get(), mhs.elements(), randomizer);
-        test::randomize(rhs.get(), rhs.elements(), randomizer);
+        test::randomize(lhs.get(), lhs.n_elements(), randomizer);
+        test::randomize(mhs.get(), mhs.n_elements(), randomizer);
+        test::randomize(rhs.get(), rhs.n_elements(), randomizer);
 
         // Generate the expected results.
         auto expected0 = noa::like<f64>(lhs);
         auto expected1 = noa::like<f64>(lhs);
-        for (i64 i{0}; i < lhs.elements(); ++i) {
+        for (i64 i{}; i < lhs.n_elements(); ++i) {
             auto sum = lhs.get()[i] + mhs.get()[i] + rhs.get()[i];
             expected0.get()[i] = static_cast<f64>(sum);
             expected1.get()[i] = static_cast<f64>(noa::abs(sum));
         }
 
         for (auto& device: devices) {
-            const auto stream = StreamGuard(device, StreamMode::DEFAULT);
+            const auto stream = StreamGuard(device, Stream::DEFAULT);
             const auto options = ArrayOption(device, "managed");
 
             if (device != lhs.device()) {
@@ -153,20 +154,20 @@ TEST_CASE("unified::ewise - zip vs wrap", "[noa][unified]") {
                            o1 = static_cast<f64>(noa::abs(sum));
                        });
 
-            test::Matcher<f64>(test::MATCH_ABS_SAFE, output0, expected0, 1e-8);
-            test::Matcher<f64>(test::MATCH_ABS_SAFE, output1, expected1, 1e-8);
+            test::allclose_abs(output0, expected0, 1e-8);
+            test::allclose_abs(output1, expected1, 1e-8);
         }
     }
 }
 
 TEST_CASE("unified::ewise - no inputs/outputs", "[noa][unified]") {
     std::vector<Device> devices{"cpu"};
-    if (Device::is_any(DeviceType::GPU))
+    if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    const auto shape = test::get_random_shape4_batched(4);
+    const auto shape = test::random_shape_batched(4);
     for (auto& device: devices) {
-        const auto stream = StreamGuard(device, StreamMode::ASYNC);
+        const auto stream = StreamGuard(device, Stream::ASYNC);
         const auto options = ArrayOption(device, "managed");
         INFO(device);
 
@@ -174,12 +175,26 @@ TEST_CASE("unified::ewise - no inputs/outputs", "[noa][unified]") {
 
         const auto array = noa::empty<i64>(shape, options);
         noa::ewise(2, array, noa::Copy{});
-        REQUIRE(test::Matcher<i64>(test::MATCH_ABS_SAFE, array, 2, 1e-8));
+        REQUIRE(test::allclose_abs(array, 2, 1e-8));
 
         noa::ewise({}, array, noa::Fill{3});
-        REQUIRE(test::Matcher<i64>(test::MATCH_ABS_SAFE, array, 3, 1e-8));
+        REQUIRE(test::allclose_abs(array, 3, 1e-8));
 
         noa::ewise(array,  {}, []NOA_HD(i64& i) { i = 4; });
-        REQUIRE(test::Matcher<i64>(test::MATCH_ABS_SAFE, array, 4, 1e-8));
+        REQUIRE(test::allclose_abs(array, 4, 1e-8));
     }
+}
+
+TEST_CASE("unified::ewise debug", "[noa][unified]") {
+
+    Stream::set_current(Stream(Device(), Stream::ASYNC));
+    auto array = noa::empty<i64>({1, 2, 3, 4});
+    // auto w = noa::wrap(noa::broadcast(array, {1, 2, 3, 4})); //
+    // static_assert(std::same_as<decltype(w.tuple), Tuple<Array<i64>&&>>);
+    // static_assert(std::same_as<decltype(noa::broadcast(array, {1, 2, 3, 4})), Array<i64>>);
+    //
+    noa::ewise(noa::zip(array, array.copy(), int{2}), {}, [](Tuple<i64&, i64&, int&> b) {
+
+    });
+    // noa::io::write(array, test::NOA_DATA_PATH / "test.mrc");
 }

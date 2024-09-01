@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/core/Types.hpp"
-#include "noa/core/Math.hpp"
+#include "noa/core/math/Generic.hpp"
 
 namespace noa::signal::guts {
     template<typename Derived> // CRTP
@@ -16,9 +16,9 @@ namespace noa::signal::guts {
         [[nodiscard]] constexpr auto offset() const noexcept -> i64 { return m_offset; }
         [[nodiscard]] constexpr auto center() const noexcept -> f64 { return m_center; }
 
-        template<typename Real> requires nt::is_real_v<Real>
+        template<nt::real Real>
         constexpr void generate(Real* output, bool normalize = true) const noexcept {
-            f64 sum{0};
+            f64 sum{};
             for (i64 i = m_offset; i < m_elements; ++i) {
                 const f64 n = static_cast<f64>(i);
                 const f64 window = static_cast<const Derived*>(this)->window(n, m_center);
@@ -100,7 +100,7 @@ namespace noa::signal {
     /// \param normalize    Whether to normalize the sum of the full-window to 1.
     /// \param half_window  Whether to only compute the second half of the window.
     ///                     If true, only (elements-1)//2+1 are written in \p output.
-    template<typename Real> requires nt::is_real_v<Real>
+    template<nt::real Real>
     constexpr void window_gaussian(
             Real* output, i64 elements, f64 stddev,
             bool normalize = false, bool half_window = false
@@ -127,7 +127,7 @@ namespace noa::signal {
     /// \param normalize    Whether to normalize the sum of the full-window to 1.
     /// \param half_window  Whether to only compute the second half of the window.
     ///                     If true, only (elements-1)//2+1 are written in \p output.
-    template<typename Real>
+    template<nt::real Real>
     constexpr void window_blackman(Real* output, i64 elements, bool normalize = false, bool half_window = false) {
         if (elements <= 0)
             return;
@@ -151,7 +151,7 @@ namespace noa::signal {
     /// \param normalize    Whether to normalize the sum of the full-window to 1.
     /// \param half_window  Whether to only compute the second half of the window.
     ///                     If true, only (elements-1)//2+1 are written in \p output.
-    template<typename Real>
+    template<nt::real Real>
     constexpr void window_sinc(
             Real* output, i64 elements, f64 constant,
             bool normalize = false, bool half_window = false

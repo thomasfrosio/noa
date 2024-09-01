@@ -38,14 +38,10 @@ write_basic_package_version_file(
     COMPATIBILITY SameMajorVersion)
 
 # Install the config files.
-# Our modules are used by noaConfig.cmake, so install them as well.
 install(FILES
     ${NOA_GENERATED_CONFIG_DIR}/noaConfig.cmake
     ${NOA_GENERATED_CONFIG_DIR}/noaConfigVersion.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/noa)
-install(DIRECTORY
-    ${PROJECT_SOURCE_DIR}/cmake/modules
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/)
 
 # ---------------------------------------------------------------------------------------
 # Export

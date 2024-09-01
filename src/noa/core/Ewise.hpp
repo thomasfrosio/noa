@@ -2,11 +2,9 @@
 
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Complex.hpp"
-#include "noa/core/types/Pair.hpp"
 #include "noa/core/math/Comparison.hpp"
 #include "noa/core/math/Generic.hpp"
 
-// Core element-wise operators
 namespace noa {
     #define NOA_UNARY_OP_(name, src_op)                                     \
     struct name {                                                           \
@@ -40,13 +38,14 @@ namespace noa {
     NOA_UNARY_OP_(Conj, return conj(src));
     NOA_UNARY_OP_(OneMinus, return T{1} - src);
     NOA_UNARY_OP_(Inverse, return T{1} / src);
+    NOA_UNARY_OP_(Zero, return src == T{});
     NOA_UNARY_OP_(NonZero, return src != T{});
     NOA_UNARY_OP_(LogicalNot, return !src);
     NOA_UNARY_OP_(Normalize, return normalize(src));
     NOA_UNARY_OP_(AbsOneLog, return log(nt::value_type_t<T>{1} + abs(src)));
     NOA_UNARY_OP_(OneLog, return log(nt::value_type_t<T>{1} + src));
     NOA_UNARY_OP_(AbsSquared,
-                  if constexpr (nt::is_complex_v<T>) {
+                  if constexpr (nt::complex<T>) {
                       return abs_squared(src);
                   } else {
                       auto tmp = abs(src);
@@ -84,13 +83,13 @@ namespace noa {
     NOA_BINARY_OP_(MultiplyConjugate, return lhs * conj(rhs));
     NOA_BINARY_OP_(DistanceSquared, auto tmp = lhs - rhs; return tmp * tmp);
     NOA_BINARY_OP_(DivideSafe,
-                   if constexpr (nt::are_real_or_complex_v<T, U>) {
+                   if constexpr (nt::real_or_complex<T, U>) {
                        constexpr auto epsilon = std::numeric_limits<nt::value_type_t<U>>::epsilon();
                        return abs(rhs) < epsilon ? T{} : lhs / rhs;
-                   } else if constexpr (nt::are_int_v<T, U>) {
+                   } else if constexpr (nt::integer<T, U>) {
                        return rhs == 0 ? T{} : lhs / rhs;
                    } else {
-                       static_assert(nt::always_false_v<T>);
+                       static_assert(nt::always_false<T>);
                    });
     #undef NOA_BINARY_OP_
 
@@ -135,6 +134,17 @@ namespace noa {
         }
     };
 
+    template<typename T>
+    struct Scale {
+        using allow_vectorization = bool; // meaning this cannot be used to modify the input
+        T value;
+
+        template<typename U>
+        NOA_HD constexpr void operator()(U& dst) const {
+            dst *= value;
+        }
+    };
+
     struct ZeroInitialize {
         using allow_vectorization = bool; // meaning this cannot be used to modify the input
 
@@ -148,9 +158,14 @@ namespace noa {
         using allow_vectorization = bool;
         bool clamp{};
 
-        template<typename T>
-        NOA_HD constexpr void operator()(const auto& src, T& dst) const {
-            dst = clamp ? clamp_cast<T>(src) : static_cast<T>(src);
+        template<typename T, typename U> requires nt::compatible_or_spectrum_types<T, U>
+        NOA_HD constexpr void operator()(const T& src, U& dst) const {
+            if constexpr (nt::complex<T> and nt::real<U>) {
+                auto ps = abs_squared(src);
+                dst = clamp ? clamp_cast<U>(ps) : static_cast<U>(ps);
+            } else {
+                dst = clamp ? clamp_cast<U>(src) : static_cast<U>(src);
+            }
         }
     };
 

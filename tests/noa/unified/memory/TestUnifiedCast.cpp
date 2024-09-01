@@ -2,13 +2,13 @@
 #include <noa/unified/Cast.hpp>
 
 #include <catch2/catch.hpp>
-#include "Helpers.h"
+#include "Utils.hpp"
 
 using namespace ::noa::types;
 
 TEMPLATE_TEST_CASE("unified::memory::cast", "[noa][unified]", i32, f32, f64) {
     const bool pad = GENERATE(false, true);
-    const auto subregion_shape = test::get_random_shape4_batched(3);
+    const auto subregion_shape = test::random_shape_batched(3);
     auto shape = subregion_shape;
     if (pad) {
         shape[1] += 10;
@@ -17,7 +17,7 @@ TEMPLATE_TEST_CASE("unified::memory::cast", "[noa][unified]", i32, f32, f64) {
     }
 
     std::vector<Device> devices{"cpu"};
-    if (Device::is_any(DeviceType::GPU))
+    if (Device::is_any(Device::GPU))
         devices.emplace_back("gpu");
 
     for (const auto& device: devices) {
@@ -32,7 +32,7 @@ TEMPLATE_TEST_CASE("unified::memory::cast", "[noa][unified]", i32, f32, f64) {
                 Slice{0, subregion_shape[2]},
                 Slice{0, subregion_shape[3]});
 
-        const Array data0 = noa::random<i32>(noa::Uniform(-50, 50), results.shape(), options);
+        const Array data0 = noa::random(noa::Uniform(-50, 50), results.shape(), options);
         noa::cast(data0, results);
 
         const Array<i32> data1(results.shape(), options);

@@ -65,7 +65,7 @@ namespace noa::cpu::geometry::guts {
     ) {
         using bspline = noa::geometry::BSplinePrefilter1d<T, i64>;
         constexpr i64 OMP_THRESHOLD = 1048576; // 1024*1024
-        const i64 iterations = shape.pop_back().elements();
+        const i64 iterations = shape.pop_back().n_elements();
 
         if (input == output) {
             #pragma omp parallel num_threads(threads) default(none) if(iterations > OMP_THRESHOLD) \
@@ -76,7 +76,7 @@ namespace noa::cpu::geometry::guts {
                     for (i64 z = 0; z < shape[1]; ++z)
                         for (i64 y = 0; y < shape[2]; ++y)
                             bspline::filter_inplace(
-                                    output + ni::offset_at(i, z, y, output_strides),
+                                    output + ni::offset_at(output_strides, i, z, y),
                                     output_strides[3], shape[3]); // every row
                 #pragma omp for collapse(3)
                 for (i64 i = 0; i < shape[0]; ++i)
@@ -102,8 +102,8 @@ namespace noa::cpu::geometry::guts {
                     for (i64 z = 0; z < shape[1]; ++z)
                         for (i64 y = 0; y < shape[2]; ++y)
                             bspline::filter(
-                                    input + ni::offset_at(i, z, y, input_strides), input_strides[3],
-                                    output + ni::offset_at(i, z, y, output_strides), output_strides[3],
+                                    input + ni::offset_at(input_strides, i, z, y), input_strides[3],
+                                    output + ni::offset_at(output_strides, i, z, y), output_strides[3],
                                     shape[3]); // every row
                 #pragma omp for collapse(3)
                 for (i64 i = 0; i < shape[0]; ++i)

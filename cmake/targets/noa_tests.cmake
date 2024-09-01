@@ -7,6 +7,7 @@ include(${PROJECT_SOURCE_DIR}/cmake/ext/yaml-cpp.cmake)
 # Treat the unified source as CUDA sources if CUDA is enabled
 if (NOA_ENABLE_CUDA)
     set_source_files_properties(${TEST_UNIFIED_SOURCES} PROPERTIES LANGUAGE CUDA)
+    set_source_files_properties(${TEST_COMMON_SOURCES} PROPERTIES LANGUAGE CUDA)
 endif ()
 
 add_executable(noa_tests ${TEST_SOURCES})

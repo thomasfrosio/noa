@@ -5,7 +5,7 @@
 #include "noa/core/types/Pair.hpp"
 
 #ifdef NOA_IS_OFFLINE
-#include "noa/core/string/Format.hpp"
+#include "noa/core/utils/Strings.hpp"
 #endif
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
@@ -15,7 +15,7 @@
     #pragma warning(push, 0)
 #endif
 
-/// Original implementation: https://github.com/codeinred/tuplet
+/// Original implementation at https://github.com/codeinred/tuplet, plus some changes:
 /// - Change the way the elements are accessed to properly match std::tuple.
 /// - Use std::forward/move, instead of a direct cast.
 /// - Type names, namespaces and code-format are changed, just to have this code fully integrated into noa.
@@ -29,11 +29,11 @@
 ///   (aggregates are (apparently) easier to optimize).
 /// - Controlling the layout of the tuple and being able to easily manipulate the internals is very useful to
 ///   add efficient functions to manipulate the tuple elements.
-/// - One issue with the Tuple implementation is that aggregate initialization triggers the pedantic warning
+/// - One issue with this Tuple implementation is that aggregate initialization triggers the pedantic warning
 ///   -Wmissing-braces. Braces can be added to acknowledge the fact that each tuple element is from a separate
 ///   base class, but this is a bit annoying as it exposes an implementation detail. This warning could be useful
 ///   in other places so it's probably best to keep it. If adding the extra braces is unacceptable, using the
-///   make_tuple() or forward_as_tuple() template functions is the recommended solution.
+///   make_tuple() or forward_as_tuple() factory functions is the recommended solution.
 
 namespace noa::inline types {
     template<class... T>
@@ -91,7 +91,7 @@ namespace noa::guts {
     // This alias is simply here to create the index sequence.
     // FIXME don't think we need the type_identity here, but better safe than sorry.
     template<typename... T>
-    using TupleBase = typename std::invoke_result_t<
+    using TupleBase = std::invoke_result_t<
             guts::GetTypeMap<std::type_identity_t<T>...>,
             std::index_sequence_for<T...>>;
 }
@@ -150,7 +150,7 @@ namespace noa::guts {
 
 namespace noa::inline types {
     /// Efficient tuple aggregate-type.
-    template<class... T>
+    template<typename... T>
     struct Tuple : guts::TupleBase<T...> {
         constexpr static size_t SIZE = sizeof...(T);
         constexpr static bool nothrow_swappable = (std::is_nothrow_swappable_v<T> && ...);
@@ -165,8 +165,7 @@ namespace noa::inline types {
         using index_list = std::make_index_sequence<SIZE>;
 
     public:
-        template<typename U>
-        requires (not std::is_same_v<std::decay_t<Tuple>, std::decay_t<U>>) // preserves default assignments
+        template<typename U> requires (not nt::almost_same_as<Tuple, U>) // preserves default assignments
         constexpr auto& operator=(U&& tup) {
             assign_tuple_(std::forward<U>(tup), index_list{});
             return *this;
@@ -273,8 +272,7 @@ namespace noa::inline types {
         using decayed_tuple = Tuple<>;
         using index_list = std::make_index_sequence<SIZE>;
 
-        template<typename U>
-        requires (!std::is_same_v<std::decay_t<Tuple>, std::decay_t<U>>)
+        template<typename U> requires (not nt::almost_same_as<Tuple, U>)
         constexpr auto& operator=(U&&) noexcept {
             return *this;
         }
@@ -340,18 +338,44 @@ namespace noa {
     }
 
     /// Copies the arguments in a tuple.
-    /// Use std::move(arg) to move it into the tuple.
-    /// Use std::ref(arg) to save a reference instead.
+    /// Use std::move(arg) to move arg into the tuple.
+    /// Use std::ref(arg) to save a lvalue reference of arg instead.
+    /// Use std::cref(arg) to save a const lvalue reference of arg instead.
+    /// \code
+    /// const int a{1};
+    /// auto t0 = noa::make_tuple(a, std::ref(a), std::move(a), 1);
+    /// auto t1 = std::make_tuple(a, std::ref(a), std::move(a), 1); // same as std::tuple
+    /// static_assert(std::same_as<decltype(t0), noa::Tuple<int, const int&, int, int>>);
+    /// static_assert(std::same_as<decltype(t1), std::tuple<int, const int&, int, int>>);
+    /// \endcode
     template<typename... Ts>
     constexpr auto make_tuple(Ts&&... args) {
         return Tuple<nt::unwrap_reference_decay_t<Ts>...>{std::forward<Ts>(args)...};
     }
 
-    /// Saves references of arguments in a tuple.
-    /// rvalues have their lifetime extended.
+    /// Saves references of arguments in a tuple (see lifetime extension).
+    /// \code
+    /// const int a{1};
+    /// auto t0 = noa::forward_as_tuple(a, std::move(a), 1);
+    /// auto t1 = std::forward_as_tuple(a, std::move(a), 1); // same as std::tuple
+    /// static_assert(std::same_as<decltype(t0), noa::Tuple<const int&, const int&&, int&&>>);
+    /// static_assert(std::same_as<decltype(t1), std::tuple<const int&, const int&&, int&&>>);
+    /// \endcode
     template<typename... Ts>
     constexpr auto forward_as_tuple(Ts&&... args) noexcept {
         return Tuple<Ts&&...>{std::forward<Ts>(args)...};
+    }
+
+    /// Saves rvalue references as value and preserves lvalue references.
+    /// This is similar to make_tuple, but lvalue references are implicitly wrapped into ref()
+    /// \code
+    /// const int a{1};
+    /// auto t0 = noa::forward_as_final_tuple(a, std::move(a), 1);
+    /// static_assert(std::same_as<decltype(t0), noa::Tuple<const int&, int, int>>);
+    /// \endcode
+    template<typename... T>
+    constexpr auto forward_as_final_tuple(T&&... v) {
+        return Tuple<std::conditional_t<std::is_lvalue_reference_v<T>, T, std::decay_t<T>>...>{std::forward<T>(v)...};
     }
 }
 
@@ -401,7 +425,7 @@ namespace noa {
     /// Transform is an optional operator used to transform the argument before saving it into the new tuple.
     /// FIXME T will be S if tuple is moved and contains S, otherwise T is S&
     /// FIXME https://godbolt.org/z/fx3Kh3rs8
-    template<typename Predicate, typename Transform, typename T> requires nt::is_tuple_v<T>
+    template<typename Predicate, typename Transform, typename T> requires nt::tuple<std::decay_t<T>>
     constexpr auto tuple_filter(T&& tuple) {
         return apply(
                 []<typename F, typename...R>(F&& first, R&& ... rest) {
@@ -438,15 +462,15 @@ namespace std {
 }
 
 namespace noa::traits {
-    template<>               struct proclaim_is_empty_tuple<noa::Tuple<>> : std::true_type {};
-    template<typename... Ts> struct proclaim_is_tuple<noa::Tuple<Ts...>> : std::true_type {};
-    template<typename... Ts> struct proclaim_is_tuple_of_accessor<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor<Ts...>::value> {};
-    template<typename... Ts> struct proclaim_is_tuple_of_accessor_pure<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor_pure<Ts...>::value> {};
-    template<typename... Ts> struct proclaim_is_tuple_of_accessor_reference<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor_reference<Ts...>::value> {};
-    template<typename... Ts> struct proclaim_is_tuple_of_accessor_value<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor_value<Ts...>::value> {};
-    template<typename... Ts> struct proclaim_is_tuple_of_accessor_or_empty<noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor<Ts...>::value> {};
-    template<>               struct proclaim_is_tuple_of_accessor_or_empty<noa::Tuple<>> : std::true_type {};
-    template<size_t N, typename... Ts> struct proclaim_is_tuple_of_accessor_ndim<N, noa::Tuple<Ts...>> : std::bool_constant<nt::are_accessor_nd<N, Ts...>::value> {};
+    template<>              struct proclaim_is_empty_tuple<noa::Tuple<>> : std::true_type {};
+    template<typename... T> struct proclaim_is_tuple<noa::Tuple<T...>> : std::true_type {};
+    template<typename... T> struct proclaim_is_tuple_of_accessor<noa::Tuple<T...>> : std::bool_constant<nt::are_accessor<T...>::value> {};
+    template<typename... T> struct proclaim_is_tuple_of_accessor_pure<noa::Tuple<T...>> : std::bool_constant<nt::are_accessor_pure<T...>::value> {};
+    template<typename... T> struct proclaim_is_tuple_of_accessor_reference<noa::Tuple<T...>> : std::bool_constant<nt::are_accessor_reference<T...>::value> {};
+    template<typename... T> struct proclaim_is_tuple_of_accessor_value<noa::Tuple<T...>> : std::bool_constant<nt::are_accessor_value<T...>::value> {};
+    template<typename... T> struct proclaim_is_tuple_of_accessor_or_empty<noa::Tuple<T...>> : std::bool_constant<nt::are_accessor<T...>::value> {};
+    template<>              struct proclaim_is_tuple_of_accessor_or_empty<noa::Tuple<>> : std::true_type {};
+    template<size_t N, typename... T> struct proclaim_is_tuple_of_accessor_nd<noa::Tuple<T...>, N> : std::bool_constant<nt::are_accessor_nd<N, T...>::value> {};
 }
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)

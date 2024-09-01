@@ -35,12 +35,12 @@ namespace noa::cpu {
 
         // Eigen doesn't support our complex types, but they have the same layout and alignment so reinterpret.
         using std_complex_t = std::complex<nt::value_type_t<T>>;
-        using value_t = std::conditional_t<nt::is_complex_v<T>, std_complex_t, T>;
+        using value_t = std::conditional_t<nt::complex<T>, std_complex_t, T>;
         auto* lhs_ = reinterpret_cast<const value_t*>(lhs);
         auto* rhs_ = reinterpret_cast<const value_t*>(rhs);
         auto* out_ = reinterpret_cast<value_t*>(output);
         auto cast_or_copy = [](T v) {
-            if constexpr (nt::is_complex_v<T>)
+            if constexpr (nt::complex<T>)
                 return std_complex_t{v[0], v[1]};
             else
                 return v;

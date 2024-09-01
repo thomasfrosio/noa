@@ -3,118 +3,134 @@
 #include "noa/core/Config.hpp"
 #include "noa/core/Exception.hpp"
 #include "noa/core/types/Shape.hpp"
-#include "noa/core/Traits.hpp"
+#include "noa/core/types/Tuple.hpp"
 #include "noa/core/utils/ClampCast.hpp"
-#include "noa/core/utils/SafeCast.hpp"
 
-#ifdef NOA_IS_OFFLINE
 namespace noa::indexing {
     /// Ellipsis or "..." operator, which selects the full extent of the remaining outermost dimension(s).
     struct Ellipsis {};
 
-    /// Selects the entire the dimension.
+    /// Selects the entire dimension.
     struct FullExtent {};
 
     /// Slice operator.
-    /// Negative indexes are valid and starts from the end like in python.
+    /// Negative indexes are valid and start from the end like in python.
     /// Indexes will be clamped to the dimension size.
     /// The step must be non-zero positive (negative strides are not supported).
     struct Slice {
-        template<typename T = int64_t, typename U = int64_t, typename V = int64_t>
+        template<nt::integer T = i64, nt::integer U = i64, nt::integer V = i64>
         constexpr explicit Slice(
                 T start_ = 0,
-                U end_ = std::numeric_limits<int64_t>::max(),
+                U end_ = std::numeric_limits<i64>::max(),
                 V step_ = V{1})
-                : start(static_cast<int64_t>(start_)),
-                  end(static_cast<int64_t>(end_)),
-                  step(static_cast<int64_t>(step_)) {}
+                : start{static_cast<i64>(start_)},
+                  end{static_cast<i64>(end_)},
+                  step{static_cast<i64>(step_)} {}
 
-        int64_t start{};
-        int64_t end{};
-        int64_t step{};
+        i64 start{};
+        i64 end{};
+        i64 step{};
+    };
+}
+
+namespace noa::indexing::guts {
+    template<size_t N, typename... T>
+    struct SubregionParser {
+        template<typename U>
+        static consteval auto is_subregion_indexer_no_ellipsis() {
+            return nt::integer<std::remove_reference_t<U>> or
+                   nt::almost_same_as<U, FullExtent> or
+                   nt::almost_same_as<U, Slice>;
+        }
+
+        template<typename... U>
+        static consteval auto are_subregion_indexer_no_ellipsis() {
+            return (is_subregion_indexer_no_ellipsis<U>() and ...);
+        }
+
+        template<typename U, typename... V>
+        static consteval auto parse() {
+            return (nt::almost_same_as<U, Ellipsis> or is_subregion_indexer_no_ellipsis<U>()) and
+                   are_subregion_indexer_no_ellipsis<V...>();
+        }
+
+        static constexpr bool value = sizeof...(T) <= N and (sizeof...(T) == 0 or parse<T...>());
+    };
+}
+
+namespace noa::traits {
+    template<size_t N, typename... T>
+    concept subregion_indexing = ni::guts::SubregionParser<N, T...>::value;
+}
+
+namespace noa::indexing {
+    template<typename T, size_t N>
+    struct SubregionResult {
+        Shape<T, N> shape;
+        Strides<T, N> strides;
+        std::uintptr_t offset;
     };
 
-    template<typename U>
-    static constexpr bool is_subregion_indexer_v = std::bool_constant<
-            nt::is_int_v<U> ||
-            nt::is_almost_same_v<U, FullExtent> ||
-            nt::is_almost_same_v<U, Slice>
-    >::value;
-    template<typename... Ts> using are_subregion_indexers = nt::bool_and<is_subregion_indexer_v<Ts>...>;
-    template<typename... Ts> static constexpr bool are_subregion_indexers_v = are_subregion_indexers<Ts...>::value;
-
-    /// Subregion object, i.e. a capture of the indexing object for each dimension.
-    template<typename B = FullExtent, typename D = FullExtent, typename H = FullExtent, typename W = FullExtent,
-             typename = std::enable_if_t<are_subregion_indexers_v<B, D, H, W>>>
-    struct Subregion {
-        B batch{};
-        D depth{};
-        H height{};
-        W width{};
-
-    public:
-        constexpr explicit Subregion(B batch_ = {}, D depth_ = {}, H height_ = {}, W width_ = {})
-                : batch(batch_), depth(depth_), height(height_), width(width_) {}
-
-        constexpr explicit Subregion(Ellipsis)                       : Subregion(FullExtent{}, FullExtent{}, FullExtent{}, FullExtent{}) {}
-        constexpr Subregion(Ellipsis, W width_)                      : Subregion(FullExtent{}, FullExtent{}, FullExtent{}, width_) {}
-        constexpr Subregion(Ellipsis, H height_, W width_)           : Subregion(FullExtent{}, FullExtent{}, height_, width_) {}
-        constexpr Subregion(Ellipsis, D depth_, H height_, W width_) : Subregion(FullExtent{}, depth_, height_, width_) {}
-    };
-
-    /// Utility to create indexing subregions.
+#ifdef NOA_IS_OFFLINE
+    /// Utility to create and extract subregions.
     /// Dimensions can be extracted using either:
     /// -   A single index value: This is bound-checked. Negative values are allowed.
-    /// -   FullExtent: Selects the entire dimension.
+    /// -   FullExtent: Select the entire dimension.
     /// -   Slice: Slice operator. Slices are clamped to the dimension size. Negative values are allowed.
     /// -   Ellipsis: Fills all unspecified dimensions with FullExtent.
-    struct SubregionIndexer {
-    public:
-        using index_type = int64_t;
-        using offset_type = int64_t;
-        using shape_type = Shape4<index_type>;
-        using strides_type = Strides4<offset_type>;
+    template<size_t N, typename... T> requires nt::subregion_indexing<N, T...>
+    struct Subregion {
+        /// Creates a new subregion.
+        constexpr explicit Subregion(const T&... indices) : m_ops{make_tuple(indices...)} {}
 
-    public:
-        shape_type shape{};
-        strides_type strides{};
-        offset_type offset{0};
-
-    public:
-        constexpr SubregionIndexer() = default;
-
-        template<typename T, typename U, typename V = int64_t>
-        constexpr SubregionIndexer(
-                const Shape4<T>& start_shape,
-                const Strides4<U>& start_strides,
-                V start_offset = V{0}
-        ) noexcept
-                : shape(start_shape.template as_safe<index_type>()),
-                  strides(start_strides.template as_safe<offset_type>()),
-                  offset(start_offset) {}
-
-        template<typename... Ts>
-        [[nodiscard]] constexpr SubregionIndexer extract_subregion(Ts&&... indexes) const {
-            Subregion subregion(std::forward<Ts>(indexes)...);
-            SubregionIndexer out{};
-            extract_dim_(subregion.batch,  0, shape[0], strides[0], out.shape[0], out.strides[0], out.offset);
-            extract_dim_(subregion.depth,  1, shape[1], strides[1], out.shape[1], out.strides[1], out.offset);
-            extract_dim_(subregion.height, 2, shape[2], strides[2], out.shape[2], out.strides[2], out.offset);
-            extract_dim_(subregion.width,  3, shape[3], strides[3], out.shape[3], out.strides[3], out.offset);
-            return out;
+        /// Extracts the subregion from the provided layout.
+        template<nt::sinteger I>
+        [[nodiscard]] constexpr auto extract_from(
+            const Shape<I, N>& shape,
+            const Strides<I, N>& strides,
+            std::uintptr_t offset = 0
+        ) const {
+            return [&, this]<I... J>(std::integer_sequence<I, J...>) {
+                SubregionResult<I, N> output{};
+                (this->extract_dim_(dim<J>(), J, shape[J], strides[J], output.shape[J], output.strides[J], offset), ...);
+                output.offset = offset;
+                return output;
+            }(std::make_integer_sequence<I, N>{});
         }
 
     private:
-        // Compute the new size, strides and offset, for one dimension, given an indexing mode (integral, slice or full).
-        template<typename IndexMode>
+        template<size_t I>
+        constexpr decltype(auto) dim() const {
+            constexpr size_t COUNT = sizeof...(T);
+            if constexpr (COUNT == N) {
+                return m_ops[Tag<I>{}];
+            } else if constexpr (COUNT < N) {
+                constexpr size_t J = N - COUNT;
+                if constexpr (nt::almost_same_as<decltype(m_ops[Tag<0>{}]), Ellipsis>) {
+                    if constexpr (I <= J)
+                        return FullExtent{};
+                    else
+                        return m_ops[Tag<I - J>{}];
+                } else {
+                    if constexpr (I < COUNT)
+                        return m_ops[Tag<I>{}];
+                    else
+                        return FullExtent{};
+                }
+            }
+        }
+
+        // Compute the new size, strides and offset, for one dimension,
+        // given an indexing mode (integral, slice or full).
+        template<typename Op, nt::integer I>
         static constexpr void extract_dim_(
-                IndexMode idx_mode, int64_t dim,
-                int64_t old_size, int64_t old_strides,
-                int64_t& new_size, int64_t& new_strides, int64_t& new_offset
+                Op op, I dim,
+                I old_size, I old_strides,
+                I& new_size, I& new_strides, std::uintptr_t& new_offset
         ) {
-            if constexpr (nt::is_int_v<IndexMode>) {
-                auto index = clamp_cast<int64_t>(idx_mode);
-                check(!(index < -old_size || index >= old_size),
+            if constexpr (nt::integer<Op>) {
+                auto index = clamp_cast<I>(op);
+                check(-old_size <= index and index < old_size,
                       "Index {} is out of range for a size of {} at dimension {}",
                       index, old_size, dim);
 
@@ -122,34 +138,41 @@ namespace noa::indexing {
                     index += old_size;
                 new_strides = old_strides; // or 0
                 new_size = 1;
-                new_offset += old_strides * index;
+                new_offset += safe_cast<std::uintptr_t>(old_strides * index);
 
-            } else if constexpr(std::is_same_v<FullExtent, IndexMode>) {
+            } else if constexpr(nt::any_of<Op, Ellipsis, FullExtent>) {
                 new_strides = old_strides;
                 new_size = old_size;
                 new_offset += 0;
-                (void) idx_mode;
+                (void) op;
                 (void) dim;
 
-            } else if constexpr(std::is_same_v<Slice, IndexMode>) {
-                check(idx_mode.step > 0, "Slice step must be positive, got {}", idx_mode.step);
+            } else if constexpr(nt::same_as<Slice, Op>) {
+                check(op.step > 0, "Slice step must be positive, got {}", op.step);
 
-                if (idx_mode.start < 0)
-                    idx_mode.start += old_size;
-                if (idx_mode.end < 0)
-                    idx_mode.end += old_size;
+                if (op.start < 0)
+                    op.start += old_size;
+                if (op.end < 0)
+                    op.end += old_size;
 
-                idx_mode.start = clamp(idx_mode.start, int64_t{0}, old_size);
-                idx_mode.end = clamp(idx_mode.end, idx_mode.start, old_size);
+                op.start = clamp(op.start, I{}, old_size);
+                op.end = clamp(op.end, op.start, old_size);
 
-                new_size = divide_up(idx_mode.end - idx_mode.start, idx_mode.step);
-                new_strides = old_strides * idx_mode.step;
-                new_offset += idx_mode.start * old_strides;
+                new_size = divide_up(op.end - op.start, op.step);
+                new_strides = old_strides * op.step;
+                new_offset += safe_cast<std::uintptr_t>(op.start * old_strides);
                 (void) dim;
             } else {
-                static_assert(nt::always_false_v<IndexMode>);
+                static_assert(nt::always_false<Op>);
             }
         }
+
+        Tuple<std::decay_t<T>...> m_ops{};
     };
-}
+
+    template<size_t N, typename... T> requires nt::subregion_indexing<N, T...>
+    auto make_subregion(const T&... indices) {
+        return Subregion<N, T...>(indices...);
+    }
 #endif
+}

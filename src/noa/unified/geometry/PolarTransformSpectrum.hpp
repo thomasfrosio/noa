@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/core/fft/RemapInterface.hpp"
+#include "noa/core/fft/Remap.hpp"
 #include "noa/core/fft/Frequency.hpp"
 #include "noa/core/Linspace.hpp"
 #include "noa/core/math/Constant.hpp"

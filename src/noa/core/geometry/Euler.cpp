@@ -2,19 +2,10 @@
 #include "noa/core/math/Generic.hpp"
 #include "noa/core/geometry/Euler.hpp"
 #include "noa/core/geometry/Transform.hpp"
-#include "noa/core/string/Format.hpp"
+#include "noa/core/utils/Strings.hpp"
 
 namespace {
     using namespace ::noa::types;
-
-    bool is_valid(std::string_view axes) {
-        if (axes == "ZYZ" or axes == "ZXZ" or axes == "ZYX" or axes == "ZXY" or
-            axes == "XYZ" or axes == "XYX" or axes == "XZX" or axes == "XZY" or
-            axes == "YXY" or axes == "YXZ" or axes == "YZX" or axes == "YZY") {
-            return true;
-        }
-        return false;
-    }
 
     template<typename T>
     Vec3<T> rotm2xyx(Mat33<T> rotm) {
@@ -222,12 +213,11 @@ namespace {
 }
 
 namespace noa::geometry {
-    template<typename T>
+    template<nt::any_of<f32, f64> T>
     Mat33<T> euler2matrix(Vec3<T> angles, const EulerOptions& options) {
         const std::string lower_axes = ns::to_upper(ns::trim(options.axes));
-        check(is_valid(lower_axes), "Axes \"{}\" are not valid", lower_axes);
-
         const auto right_angles = options.right_handed ? angles : angles * -1;
+
         Mat33<T> r1, r2, r3;
         if (lower_axes == "ZYZ") { // TODO table lookup?
             r1 = rotate_z(right_angles[0]);
@@ -277,18 +267,18 @@ namespace noa::geometry {
             r1 = rotate_y(right_angles[0]);
             r2 = rotate_z(right_angles[1]);
             r3 = rotate_y(right_angles[2]);
+        } else {
+            panic("Axes \"{}\" are not valid", lower_axes);
         }
         return options.intrinsic ? r1 * r2 * r3 : r3 * r2 * r1;
     }
 
-    template Mat33<float> euler2matrix<float>(Vec3<float>, const EulerOptions&);
-    template Mat33<double> euler2matrix<double>(Vec3<double>, const EulerOptions&);
+    template Mat33<f32> euler2matrix<f32>(Vec3<f32>, const EulerOptions&);
+    template Mat33<f64> euler2matrix<f64>(Vec3<f64>, const EulerOptions&);
 
-    template<typename T>
+    template<nt::any_of<f32, f64> T>
     Vec3<T> matrix2euler(const Mat33<T>& rotation, const EulerOptions& options) {
         std::string lower_axes = ns::to_upper(ns::trim(options.axes));
-        check(is_valid(lower_axes), "Axes \"{}\" are not valid", lower_axes);
-
         if (options.intrinsic)
             lower_axes = ns::reverse(std::move(lower_axes));
 
@@ -317,6 +307,8 @@ namespace noa::geometry {
             euler = rotm2yzx(rotation);
         } else if (lower_axes == "YZY") {
             euler = rotm2yzy(rotation);
+        } else {
+            panic("Axes \"{}\" are not valid", lower_axes);
         }
 
         if (options.intrinsic)
@@ -326,6 +318,6 @@ namespace noa::geometry {
         return euler;
     }
 
-    template Vec3<float> matrix2euler<float>(const Mat33<float>&, const EulerOptions&);
-    template Vec3<double> matrix2euler<double>(const Mat33<double>&, const EulerOptions&);
+    template Vec3<f32> matrix2euler<f32>(const Mat33<f32>&, const EulerOptions&);
+    template Vec3<f64> matrix2euler<f64>(const Mat33<f64>&, const EulerOptions&);
 }

@@ -6,28 +6,29 @@
 #include <memory>
 
 namespace noa::traits {
-    template<typename T> struct proclaim_is_unique_ptr : std::false_type {};
+    NOA_GENERATE_PROCLAIM_FULL(unique_ptr);
     template<typename T, typename D> struct proclaim_is_unique_ptr<std::unique_ptr<T, D>> : std::true_type {};
-    template<typename T> constexpr bool is_unique_ptr_v = proclaim_is_unique_ptr<std::decay_t<T>>::value;
 
-    template<typename T> struct proclaim_is_shared_ptr : std::false_type {};
+    NOA_GENERATE_PROCLAIM_FULL(shared_ptr);
     template<typename T> struct proclaim_is_shared_ptr<std::shared_ptr<T>> : std::true_type {};
-    template<typename T> constexpr bool is_shared_ptr_v = proclaim_is_shared_ptr<std::decay_t<T>>::value;
+
+    template<typename T> using is_smart_ptr = std::disjunction<is_unique_ptr<T>, is_shared_ptr<T>>;
+    template<typename T> constexpr bool is_smart_ptr_v = is_smart_ptr<T>::value;
+    template<typename... T> constexpr bool are_smart_ptr_v = std::conjunction_v<is_smart_ptr<T>...>;
+    template<typename... T> concept smart_ptr = are_smart_ptr_v<T...>;
+
+    template<typename T> using is_smart_ptr_decay = is_smart_ptr<std::decay_t<T>>;
+    template<typename T> constexpr bool is_smart_ptr_decay_v = is_smart_ptr_decay<T>::value;
+    template<typename... T> constexpr bool are_smart_ptr_decay_v = std::conjunction_v<is_smart_ptr_decay<T>...>;
+    template<typename... T> concept smart_ptr_decay = are_smart_ptr_decay_v<T...>;
 
     template<typename T>
-    constexpr bool is_shareable_v =
+    concept shareable =
             requires(T t) { std::shared_ptr<const void>(t); } and
-            not std::is_pointer_v<std::decay_t<T>> and
-            not is_unique_ptr_v<T>;
+            not pointer<std::decay_t<T>> and
+            not unique_ptr<std::decay_t<T>>;
 
     template<typename T>
-    constexpr bool has_share_v = []() {
-        if constexpr (requires(T t) { std::shared_ptr<const void>(t.share()); }) {
-            using shared_t = std::decay_t<decltype(std::declval<T>().share())>;
-            return not std::is_pointer_v<shared_t> and not is_unique_ptr_v<T>;
-        } else {
-            return false;
-        }
-    }();
+    concept shareable_using_share = shareable<decltype(std::declval<T>().share())>;
 }
 #endif

@@ -3,8 +3,8 @@
 #include "noa/core/Config.hpp"
 
 #ifdef NOA_IS_OFFLINE
-#include <omp.h>
-#include "noa/core/Types.hpp"
+#include "noa/core/types/Accessor.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/core/Interfaces.hpp"
 #include "noa/cpu/ReduceIwise.hpp"
 
@@ -39,7 +39,7 @@ namespace noa::cpu::guts {
                                         } else if constexpr (R == 3) {
                                             interface::init(op, local, i, j, k, l);
                                         } else {
-                                            static_assert(nt::always_false_v<Index>);
+                                            static_assert(nt::always_false<>);
                                         }
                                     }
                                     interface::final(op, local, output, i, j, k);
@@ -59,7 +59,7 @@ namespace noa::cpu::guts {
                                     } else if constexpr (R == 2) {
                                         interface::init(op, local, i, j, k);
                                     } else {
-                                        static_assert(nt::always_false_v<Index>);
+                                        static_assert(nt::always_false<>);
                                     }
                                 }
                                 interface::final(op, local, output, i, j);
@@ -73,13 +73,13 @@ namespace noa::cpu::guts {
                                 if constexpr (R == 0) {
                                     interface::init(op, local, j, i);
                                 } else {
-                                    static_assert(nt::always_false_v<Index>);
+                                    static_assert(nt::always_false<>);
                                 }
                             }
                             interface::final(op, local, output, i);
                         }
                     } else {
-                        static_assert(nt::always_false_v<Index>);
+                        static_assert(nt::always_false<>);
                     }
                 }
             } else {
@@ -98,7 +98,7 @@ namespace noa::cpu::guts {
                                     } else if constexpr (R == 3) {
                                         interface::init(op, local, i, j, k, l);
                                     } else {
-                                        static_assert(nt::always_false_v<Index>);
+                                        static_assert(nt::always_false<>);
                                     }
                                 }
                                 interface::final(op, local, output, i, j, k);
@@ -117,7 +117,7 @@ namespace noa::cpu::guts {
                                 } else if constexpr (R == 2) {
                                     interface::init(op, local, i, j, k);
                                 } else {
-                                    static_assert(nt::always_false_v<Index>);
+                                    static_assert(nt::always_false<>);
                                 }
                             }
                             interface::final(op, local, output, i, j);
@@ -130,13 +130,13 @@ namespace noa::cpu::guts {
                             if constexpr (R == 0) {
                                 interface::init(op, local, j, i);
                             } else {
-                                static_assert(nt::always_false_v<Index>);
+                                static_assert(nt::always_false<>);
                             }
                         }
                         interface::final(op, local, output, i);
                     }
                 } else {
-                    static_assert(nt::always_false_v<Index>);
+                    static_assert(nt::always_false<>);
                 }
             }
         }
@@ -147,9 +147,9 @@ namespace noa::cpu::guts {
         };
 
         template<ReductionMode MODE, typename Index>
-        static void parallel_4d(const Shape4<Index>& shape, auto op, auto reduced, auto output, i64 threads) {
+        static void parallel_4d(const Shape4<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
             auto original_reduced = reduced;
-            #pragma omp parallel default(none) num_threads(threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
+            #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
             {
                 if constexpr (MODE == ReductionMode::SerialReduction) {
                     #pragma omp for
@@ -196,9 +196,9 @@ namespace noa::cpu::guts {
         }
 
         template<ReductionMode MODE, typename Index>
-        static void parallel_3d(const Shape3<Index>& shape, auto op, auto reduced, auto output, i64 threads) {
+        static void parallel_3d(const Shape3<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
             auto original_reduced = reduced;
-            #pragma omp parallel default(none) num_threads(threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
+            #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
             {
                 if constexpr (MODE == ReductionMode::SerialReduction) {
                     #pragma omp for
@@ -227,7 +227,7 @@ namespace noa::cpu::guts {
                         }
                     }
                 } else {
-                    static_assert(nt::always_false_v<Index>);
+                    static_assert(nt::always_false<>);
                 }
             }
         }
@@ -244,9 +244,9 @@ namespace noa::cpu::guts {
         }
 
         template<ReductionMode MODE, typename Index>
-        static void parallel_2d(const Shape2<Index>& shape, auto op, auto reduced, auto output, i64 threads) {
+        static void parallel_2d(const Shape2<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
             auto original_reduced = reduced;
-            #pragma omp parallel default(none) num_threads(threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
+            #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
             {
                 if constexpr (MODE == ReductionMode::SerialReduction) {
                     #pragma omp for
@@ -273,7 +273,7 @@ namespace noa::cpu::guts {
                         }
                     }
                 } else {
-                    static_assert(nt::always_false_v<Index>);
+                    static_assert(nt::always_false<>);
                 }
             }
         }
@@ -300,9 +300,9 @@ namespace noa::cpu {
 
     template<typename Config = ReduceAxesIwiseConfig<>,
             typename Op, size_t N, typename Reduced, typename Output, typename Index>
-    requires (nt::is_tuple_of_accessor_pure_v<Output> and
-              nt::is_tuple_of_accessor_ndim_v<N, Output> and
-              nt::is_tuple_of_accessor_value_v<Reduced>)
+    requires (nt::tuple_of_accessor_pure<std::decay_t<Output>> and
+              nt::tuple_of_accessor_nd<std::decay_t<Output>, N> and
+              nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
     constexpr void reduce_axes_iwise(
             const Shape<Index, N>& input_shape,
             const Shape<Index, N>& output_shape,
@@ -316,7 +316,8 @@ namespace noa::cpu {
             panic("Dimensions should match the input shape, or be 1, "
                   "indicating the dimension should be reduced to one element. "
                   "Got shape input={}, output={}", input_shape, output_shape);
-        } else if (all(axes_to_reduce == false)) {
+        }
+        if (all(axes_to_reduce == false)) {
             return; // nothing to reduce
         }
 
@@ -327,10 +328,10 @@ namespace noa::cpu {
                     input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
         }
 
-        using reducer = typename guts::ReduceAxesIwise<Config::zip_reduced, Config::zip_output>;
+        using reducer = guts::ReduceAxesIwise<Config::zip_reduced, Config::zip_output>;
         const auto shape = input_shape.template as<i64>();
         const auto n_batches = shape[0];
-        const i64 n_elements_to_reduce = input_shape.template as<i64>().elements();
+        const i64 n_elements_to_reduce = input_shape.template as<i64>().n_elements();
         const bool is_small = n_elements_to_reduce <= Config::n_elements_per_thread;
 
         if constexpr (N == 4) {

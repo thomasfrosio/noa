@@ -1,22 +1,22 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/Sort.hpp>
 #include <noa/unified/io/ImageFile.hpp>
-
-#include "Helpers.h"
-#include "Assets.h"
 #include <catch2/catch.hpp>
 
-using namespace noa;
+#include "Utils.hpp"
+#include "Assets.h"
 
-TEST_CASE("unified::sort()", "[assets][noa][unified]") {
+using namespace noa::types;
+
+TEST_CASE("unified::sort", "[assets][noa][unified]") {
     const auto path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["sort"];
 
-    std::vector<Device> devices = {Device{}};
-    if (Device::is_any(DeviceType::GPU))
+    std::vector<Device> devices{"cpu"};
+    if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    for (size_t nb = 0; nb < tests["tests"].size(); ++nb) {
+    for (size_t nb{}; nb < tests["tests"].size(); ++nb) {
         INFO(nb);
         const YAML::Node test = tests["tests"][nb];
 
@@ -26,9 +26,9 @@ TEST_CASE("unified::sort()", "[assets][noa][unified]") {
         const auto axis = test["axis"].as<i32>();
         const auto ascending = test["ascending"].as<bool>();
 
-        Array input = noa::io::load_data<f32>(input_filename);
-        Array expected = noa::io::load_data<f32>(output_filename);
-        REQUIRE((noa::all(input.shape() == shape) && noa::all(expected.shape() == shape)));
+        Array input = noa::io::read_data<f32>(input_filename);
+        Array expected = noa::io::read_data<f32>(output_filename);
+        REQUIRE((noa::all(input.shape() == shape) and noa::all(expected.shape() == shape)));
 
         for (auto& device: devices) {
             const auto options = ArrayOption(device, Allocator::MANAGED);
@@ -36,8 +36,8 @@ TEST_CASE("unified::sort()", "[assets][noa][unified]") {
             expected = expected.device().is_gpu() ? expected.to(options) : expected;
 
             const auto result = input.to(options);
-            sort(result, ascending, axis);
-            REQUIRE(test::Matcher(test::MATCH_ABS, expected, result, 1e-7));
+            noa::sort(result, {ascending, axis});
+            REQUIRE(test::allclose_abs(expected, result, 1e-7));
         }
     }
 }

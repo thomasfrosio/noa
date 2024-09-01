@@ -11,7 +11,7 @@
 #endif
 
 #include "noa/Session.hpp"
-#include "noa/core/string/Parse.hpp"
+#include "noa/core/utils/Strings.hpp"
 
 noa::i64 noa::Session::m_thread_limit = 0;
 
@@ -20,31 +20,26 @@ namespace noa::inline types {
         if (n_threads > 0) {
             m_thread_limit = n_threads;
         } else {
-            i64 max_threads{};
-            const char* str{};
-            try {
-                str = std::getenv("NOA_THREADS");
-                if (str) {
-                    max_threads = ns::parse<i64>(str);
-                } else {
-                    #ifdef NOA_ENABLE_OPENMP
-                    str = std::getenv("OMP_NUM_THREADS");
-                    if (str)
-                        max_threads = ns::parse<i64>(str);
-                    else
-                        max_threads = static_cast<i64>(omp_get_max_threads());
-                    #else
-                    max_threads = std::thread::hardware_concurrency();
-                    #endif
-                }
-            } catch (...) {
-                max_threads = 1;
+            i64 max_threads;
+            const char* str = std::getenv("NOA_THREADS");
+            if (str) {
+                max_threads = ns::parse<i64>(str).value_or(1);
+            } else {
+                #ifdef NOA_ENABLE_OPENMP
+                str = std::getenv("OMP_NUM_THREADS");
+                if (str)
+                    max_threads = ns::parse<i64>(str).value_or(1);
+                else
+                    max_threads = static_cast<i64>(omp_get_max_threads());
+                #else
+                max_threads = std::thread::hardware_concurrency();
+                #endif
             }
             m_thread_limit = std::max(max_threads, i64{1});
         }
     }
 
-    bool Session::set_cuda_lazy_loading() {
+    bool Session::set_gpu_lazy_loading() {
         #if defined(NOA_ENABLE_CUDA) && CUDART_VERSION >= 11070
         // It seems that CUDA_MODULE_LOADING is only read once during cuInit().
         // Try lazy loading if not explicitly set already.
@@ -80,7 +75,7 @@ namespace noa::inline types {
         #endif
     }
 
-    void Session::clear_cublas_cache(Device device) {
+    void Session::clear_blas_cache(Device device) {
         #ifdef NOA_ENABLE_CUDA
         if (device.is_cpu())
             return;

@@ -2,10 +2,9 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/ReduceIwise.hpp>
-
 #include <catch2/catch.hpp>
 
-#include "Helpers.h"
+#include "Utils.hpp"
 
 using namespace noa::types;
 
@@ -32,21 +31,21 @@ TEMPLATE_TEST_CASE("unified::reduce_iwise - simple", "[noa][unified]", i32, f64)
 
     auto input = noa::empty<TestType>(shape);
     auto randomizer = test::Randomizer<TestType>(-50, 50);
-    for (auto& value: input.span())
+    for (auto& value: input.span_1d_contiguous())
         value = randomizer.get();
     input(min_indices) = -51;
     input(max_indices) = 51;
 
     f64 sum{};
-    for (auto& value: input.span())
+    for (auto& value: input.span_1d_contiguous())
         sum += static_cast<f64>(value);
 
     std::vector<Device> devices{"cpu"};
-    if (Device::is_any(DeviceType::GPU))
+    if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
-        auto stream = StreamGuard(device, StreamMode::DEFAULT);
+        auto stream = StreamGuard(device, Stream::DEFAULT);
         const auto options = ArrayOption{device, "managed"};
         INFO(device);
 
@@ -56,7 +55,7 @@ TEMPLATE_TEST_CASE("unified::reduce_iwise - simple", "[noa][unified]", i32, f64)
         using accessor_t = AccessorI64<const TestType, 4>;
         using op_t = noa::ReduceFirstMax<accessor_t>;
         using reduce_t = op_t::reduced_type;
-        auto op = op_t{input.accessor()};
+        auto op = op_t{noa::guts::to_accessor(input)};
         auto initial = reduce_t{std::numeric_limits<TestType>::lowest(), 0};
 
         i64 output_max_offset{};
@@ -67,8 +66,8 @@ TEMPLATE_TEST_CASE("unified::reduce_iwise - simple", "[noa][unified]", i32, f64)
         REQUIRE(output_max_value == 51);
 
         TestType output_sum{1};
-        noa::reduce_iwise(Shape{shape.elements()}, device, f64{}, noa::wrap(output_sum),
-                          SumAdd{input.accessor_contiguous_1d()});
+        noa::reduce_iwise(Shape{shape.n_elements()}, device, f64{}, noa::wrap(output_sum),
+                          SumAdd{input.span_1d_contiguous()});
         REQUIRE_THAT(output_sum, Catch::WithinRel(sum + 1, 1e-6));
     }
 }

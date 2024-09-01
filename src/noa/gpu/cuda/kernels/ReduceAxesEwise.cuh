@@ -40,7 +40,7 @@ namespace noa::cuda::guts {
                     (op, input_row, shape_hw[1] - cid, reduced, tid[1]);
 
             // Offset to the next work space.
-            input_row.for_each([](auto& accessor) { accessor.offset_accessor(Config::block_work_size_x); });
+            input_row.for_each([](auto& accessor) { accessor.offset_inplace(Config::block_work_size_x); });
         }
 
         // Share the threads' initial reduction with the rest of the block.
@@ -74,7 +74,7 @@ namespace noa::cuda::guts {
         const bool is_valid_column = gid[3] < shape_hw[1];
 
         // Process every row.
-        input.for_each([&](auto& accessor) { accessor.offset_accessor(gid[0], gid[1]); });
+        input.for_each([&](auto& accessor) { accessor.offset_inplace(gid[0], gid[1]); });
         for (Index tidy = gid[2]; tidy < shape_hw[0] and is_valid_column; tidy += Config::block_size_y)
             Config::interface::init(op, input, reduced, 0, 0, tidy, gid[3]);
 

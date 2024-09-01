@@ -17,9 +17,9 @@ TEST_CASE("cpu::reduce_ewise") {
 
     AND_THEN("simple sum") {
         const auto shape = Shape4<i64>{1, 50, 1, 100};
-        const auto elements = shape.elements();
+        const auto elements = shape.n_elements();
 
-        const auto buffer = std::make_unique<f64[]>(elements);
+        const auto buffer = std::make_unique<f64[]>(static_cast<size_t>(elements));
         std::fill_n(buffer.get(), elements, 1);
         auto input = noa::make_tuple(AccessorI64<f64, 4>(buffer.get(), shape.strides()));
         auto init = noa::make_tuple(AccessorValue<f64>(0.));
@@ -32,9 +32,9 @@ TEST_CASE("cpu::reduce_ewise") {
 
     AND_THEN("sum-max") {
         const auto shape = Shape4<i64>{1, 50, 1, 100};
-        const auto elements = shape.elements();
+        const auto elements = shape.n_elements();
 
-        const auto buffer = std::make_unique<f32[]>(elements);
+        const auto buffer = std::make_unique<f32[]>(static_cast<size_t>(elements));
         std::fill_n(buffer.get(), elements, 1);
         buffer[234] = 12.f;
         auto input = noa::make_tuple(AccessorI64<f32, 4>(buffer.get(), shape.strides()));

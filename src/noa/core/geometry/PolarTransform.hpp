@@ -1,38 +1,32 @@
 #pragma once
 
-#include "noa/core/Linspace.hpp"
+#include "noa/core/Iwise.hpp"
 #include "noa/core/math/Generic.hpp"
-#include "noa/core/types/Accessor.hpp"
-#include "noa/core/types/Complex.hpp"
 #include "noa/core/types/Shape.hpp"
-#include "noa/core/types/Vec.hpp"
 #include "noa/core/geometry/Polar.hpp"
 
-namespace noa::geometry {
+namespace noa::geometry::guts {
     /// 3d iwise operator to compute 2d cartesian->polar transformation(s).
-    template<typename Index, typename Coord, typename Interpolator, typename OutputAccessor>
-    requires (nt::is_interpolator_nd<Interpolator, 2>::value and
-              nt::is_accessor_pure_nd<OutputAccessor, 3>::value and
-              nt::is_sint<Index>::value and
-              nt::is_any<Coord, f32, f64>::value)
+    template<nt::sinteger Index,
+             nt::any_of<f32, f64> Coord,
+             nt::interpolator_nd<2> Input,
+             nt::writable_nd<3> Output>
     class Polar2Cartesian {
     public:
         using index_type = Index;
-        using interpolator_type = Interpolator;
-        using output_accessor_type = OutputAccessor;
-        using input_value_type = interpolator_type::mutable_value_type;
-        using output_value_type = output_accessor_type::value_type;
+        using input_type = Input;
+        using output_type = Output;
+        using input_value_type = nt::mutable_value_type_t<input_type>;
+        using output_value_type = nt::value_type_t<output_type>;
         using coord_type = Coord;
         using coord2_type = Vec2<coord_type>;
-        static_assert(nt::are_real_v<input_value_type, output_value_type> or
-                      nt::are_complex_v<input_value_type, output_value_type> or
-                      (nt::is_complex_v<input_value_type> and nt::is_real_v<output_value_type>));
+        static_assert(nt::are_power_spectrum_value_types_v<input_value_type, output_value_type>);
 
     public:
         Polar2Cartesian(
-                const interpolator_type& polar,
+                const input_type& polar,
                 const Shape4<index_type>& polar_shape,
-                const output_accessor_type& cartesian,
+                const output_type& cartesian,
                 const coord2_type& cartesian_center,
                 const coord2_type& radius_range,
                 bool radius_range_endpoint,
@@ -44,9 +38,8 @@ namespace noa::geometry {
             NOA_ASSERT(polar_shape[1] == 1);
             NOA_ASSERT(radius_range[1] - radius_range[0] >= 0);
 
-            using linspace_t = Linspace<coord_type, index_type>;
-            m_step_angle = linspace_t::from_range(angle_range[0], angle_range[1], polar_shape[2], angle_range_endpoint).step;
-            m_step_radius = linspace_t::from_range(radius_range[0], radius_range[1], polar_shape[3], radius_range_endpoint).step;
+            m_step_angle = Linspace{angle_range[0], angle_range[1], angle_range_endpoint}.for_size(polar_shape[2]).step;
+            m_step_radius = Linspace{radius_range[0], radius_range[1], radius_range_endpoint}.for_size(polar_shape[3]).step;
         }
 
         NOA_HD constexpr void operator()(index_type batch, index_type y, index_type x) const {
@@ -60,17 +53,13 @@ namespace noa::geometry {
                     (rho - m_start_radius) / m_step_radius
             };
 
-            auto value = m_polar(polar_coordinate, batch);
-            if (nt::is_complex_v<input_value_type> and nt::is_real_v<output_value_type>) {
-                m_cartesian(batch, y, x) = static_cast<output_value_type>(abs_squared(value));
-            } else {
-                m_cartesian(batch, y, x) = static_cast<output_value_type>(value);
-            }
+            auto value = m_polar.interpolate_at(polar_coordinate, batch);
+            m_cartesian(batch, y, x) = cast_or_abs_squared<output_value_type>(value);
         }
 
     private:
-        interpolator_type m_polar;
-        output_accessor_type m_cartesian;
+        input_type m_polar;
+        output_type m_cartesian;
         coord2_type m_center;
         coord_type m_step_angle;
         coord_type m_step_radius;
@@ -79,28 +68,25 @@ namespace noa::geometry {
     };
 
     /// 3d iwise operator to compute 2d polar->cartesian transformation(s).
-    template<typename Index, typename Coord, typename Interpolator, typename OutputAccessor>
-    requires (nt::is_interpolator_nd<Interpolator, 2>::value and
-              nt::is_accessor_pure_nd<OutputAccessor, 3>::value and
-              nt::is_sint<Index>::value and
-              nt::is_any<Coord, f32, f64>::value)
+    template<nt::sinteger Index,
+             nt::any_of<f32, f64> Coord,
+             nt::interpolator_nd<2> Input,
+             nt::writable_nd<3> Output>
     class Cartesian2Polar {
     public:
         using index_type = Index;
-        using interpolator_type = Interpolator;
-        using output_accessor_type = OutputAccessor;
-        using input_value_type = interpolator_type::mutable_value_type;
-        using output_value_type = output_accessor_type::value_type;
+        using input_type = Input;
+        using output_type = Output;
+        using input_value_type = nt::mutable_value_type_t<input_type>;
+        using output_value_type = nt::value_type_t<output_type>;
         using coord_type = Coord;
         using coord2_type = Vec2<coord_type>;
-        static_assert(nt::are_real_v<input_value_type, output_value_type> or
-                      nt::are_complex_v<input_value_type, output_value_type> or
-                      (nt::is_complex_v<input_value_type> and nt::is_real_v<output_value_type>));
+        static_assert(nt::are_power_spectrum_value_types_v<input_value_type, output_value_type>);
 
     public:
         Cartesian2Polar(
-                const interpolator_type& cartesian,
-                const output_accessor_type& polar,
+                const input_type& cartesian,
+                const output_type& polar,
                 const Shape4<index_type>& polar_shape,
                 const coord2_type& cartesian_center,
                 const coord2_type& radius_range,
@@ -114,9 +100,8 @@ namespace noa::geometry {
             NOA_ASSERT(radius_range[1] - radius_range[0] >= 0);
 
             // We could use polar2phi() and polar2rho() in the loop, but instead, precompute the step here.
-            using linspace_t = Linspace<coord_type, index_type>;
-            m_step_angle = linspace_t::from_range(angle_range[0], angle_range[1], polar_shape[2], angle_range_endpoint).step;
-            m_step_radius = linspace_t::from_range(radius_range[0], radius_range[1], polar_shape[3], radius_range_endpoint).step;
+            m_step_angle = Linspace{angle_range[0], angle_range[1], angle_range_endpoint}.for_size(polar_shape[2]).step;
+            m_step_radius = Linspace{radius_range[0], radius_range[1], radius_range_endpoint}.for_size(polar_shape[3]).step;
         }
 
         NOA_HD constexpr void operator()(index_type batch, index_type y, index_type x) const {
@@ -128,17 +113,13 @@ namespace noa::geometry {
             cartesian_coordinate *= rho;
             cartesian_coordinate += m_center;
 
-            auto value = m_cartesian(cartesian_coordinate, batch);
-            if (nt::is_complex_v<input_value_type> and nt::is_real_v<output_value_type>) {
-                m_polar(batch, y, x) = static_cast<output_value_type>(abs_squared(value));
-            } else {
-                m_polar(batch, y, x) = static_cast<output_value_type>(value);
-            }
+            auto value = m_cartesian.interpolate_at(cartesian_coordinate, batch);
+            m_polar(batch, y, x) = cast_or_abs_squared<output_value_type>(value);
         }
 
     private:
-        interpolator_type m_cartesian;
-        output_accessor_type m_polar;
+        input_type m_cartesian;
+        output_type m_polar;
         coord2_type m_center;
         coord_type m_step_angle;
         coord_type m_step_radius;

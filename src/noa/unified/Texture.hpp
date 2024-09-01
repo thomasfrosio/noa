@@ -38,12 +38,10 @@ namespace noa {
     ///          and/or multidimensional caching. On the CPU, this simply points to an array. However, on the GPU,
     ///          it allocates and initializes a proper GPU texture. If multiple calls with the same input or even
     ///          the same input type and shape, it is more likely to be more efficient to create and reuse textures.
-    /// \tparam Value f32, f64, c32, c64.
-    template<typename T>
+    /// \tparam T f32, f64, c32, c64.
+    template<nt::any_of<f32, f64, c32, c64> T>
     class Texture {
     public:
-        static_assert(nt::is_any_v<T, f32, f64, c32, c64>);
-
         using value_type = T;
         using mutable_value_type = T;
         using shape_type = Shape4<i64>;
@@ -92,13 +90,14 @@ namespace noa {
         ///          from a CPU array. Note however that while the API will make sure that stream ordering will be
         ///          respected (by possibly synchronizing the current stream of the \p array device), the caller
         ///          should not modify the underlying values of \p array until the texture is created. See eval().
-        template<typename VArray> requires nt::is_varray_of_any_v<VArray, value_type>
+        template<nt::varray_decay_of_any<value_type> VArray>
         Texture(
-                const VArray& array,
-                Device device_target,
-                Interp interp_mode,
-                const Options& options = {}
-        ) : m_shape(array.shape()),
+            const VArray& array,
+            Device device_target,
+            Interp interp_mode,
+            const Options& options = {}
+        ) :
+            m_shape(array.shape()),
             m_interp(interp_mode),
             m_border(options.border)
         {
@@ -114,20 +113,13 @@ namespace noa {
                 check(array.device() == device_target,
                       "CPU textures can only be constructed/updated from CPU arrays, but got device {}",
                       array.device());
-                if constexpr (nt::is_view_v<VArray>) {
-                    m_texture = cpu_texture_type{
-                            .strides=array.strides(),
-                            .pointer=array.get(),
-                            .cvalue=options.cvalue,
-                    };
-                } else {
-                    m_texture = cpu_texture_type{
-                            .strides=array.strides(),
-                            .handle=array.share(),
-                            .pointer=array.get(),
-                            .cvalue=options.cvalue,
-                    };
-                }
+                m_texture = cpu_texture_type{
+                    .strides = array.strides(),
+                    .pointer = array.get(),
+                    .cvalue = options.cvalue,
+                };
+                if constexpr (nt::view_decay<VArray>)
+                    m_texture.handle = array.share();
                 m_options = array.options();
 
             } else {

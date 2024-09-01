@@ -25,7 +25,7 @@ namespace noa::io {
         TextFile() = default;
 
         /// Opens the associated file. See .open() for more details.
-        TextFile(Path path, OpenMode mode) : m_path(std::move(path)) {
+        TextFile(Path path, Open mode) : m_path(std::move(path)) {
             open_(mode);
         }
 
@@ -46,7 +46,7 @@ namespace noa::io {
         ///         - If failed to close the file before starting.
         ///         - If failed to open the file.
         ///         - If an underlying OS error was raised.
-        void open(Path path, OpenMode mode) {
+        void open(Path path, Open mode) {
             m_path = std::move(path);
             open_(mode);
         }
@@ -79,14 +79,14 @@ namespace noa::io {
         /// \code
         /// TextFile file("some_file.txt");
         /// std::string line;
-        /// while(file.get_line(line)) {
+        /// while(file.next_line(line)) {
         ///     // do something with the line
         /// }
         /// if (file.bad())
         ///     // error while reading the file
         /// // file.eof() == true; everything is OK, the end of the file was reached without error.
         /// \endcode
-        bool get_line(std::string& line) {
+        bool next_line(std::string& line) {
             return static_cast<bool>(std::getline(m_fstream, line));
         }
 
@@ -96,13 +96,13 @@ namespace noa::io {
         /// \code
         /// TextFile file("some_file.txt");
         /// std::string line;
-        /// while(file.get_line_or_throw(line)) {
+        /// while(file.next_line_or_throw(line)) {
         ///     // do something with the line
         /// }
         /// // file.eof() == true; end of file reached successfully
         /// \endcode
-        bool get_line_or_throw(std::string& line) {
-            const bool success = get_line(line);
+        bool next_line_or_throw(std::string& line) {
+            bool success = next_line(line);
             if (not success and not this->eof())
                 panic("File: {}. Failed to read a line", m_path);
             return success;
@@ -163,7 +163,10 @@ namespace noa::io {
         [[nodiscard]] Stream& fstream() noexcept { return m_fstream; }
 
         /// Gets the size (in bytes) of the file. Symlinks are followed.
-        i64 size() { return noa::io::file_size(m_path); }
+        [[nodiscard]] i64 size() {
+            m_fstream.flush();
+            return noa::io::file_size(m_path);
+        }
 
         [[nodiscard]] const Path& path() const noexcept { return m_path; }
         [[nodiscard]] bool bad() const noexcept { return m_fstream.bad(); }
@@ -173,13 +176,13 @@ namespace noa::io {
         void clear_flags() { m_fstream.clear(); }
 
         /// Whether the underlying file stream is in a "good" state.
-        [[nodiscard]] explicit operator bool() const noexcept { return !m_fstream.fail(); }
+        [[nodiscard]] explicit operator bool() const noexcept { return not m_fstream.fail(); }
 
     private:
-        void open_(OpenMode mode) {
+        void open_(Open mode) {
             close();
 
-            if constexpr (!std::is_same_v<Stream, std::ifstream>) {
+            if constexpr (not std::is_same_v<Stream, std::ifstream>) {
                 if (mode.write or mode.append) /* all except case 1 */ {
                     const bool overwrite = mode.truncate or not (mode.read or mode.append); // case 3|4
                     const bool exists = is_file(m_path);
@@ -198,8 +201,8 @@ namespace noa::io {
             if constexpr (std::is_same_v<Stream, std::ifstream>)
                 check(read_only, "File: {}. {} is not allowed for read-only TextFile", m_path, mode);
 
-            for (int it{0}; it < 5; ++it) {
-                m_fstream.open(m_path, io::to_ios_base(mode));
+            for (i32 it{}; it < 5; ++it) {
+                m_fstream.open(m_path, mode.to_ios_base());
                 if (m_fstream.is_open())
                     return;
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -221,13 +224,13 @@ namespace noa::io {
 
     /// Reads the entire text file.
     inline std::string read_text(const Path& path) {
-        InputTextFile text_file(path, OpenMode{.read=true});
+        InputTextFile text_file(path, Open{.read=true});
         return text_file.read_all();
     }
 
     /// Saves the entire text file.
     inline void save_text(std::string_view string, const Path& path) {
-        OutputTextFile text_file(path, OpenMode{.write=true});
+        OutputTextFile text_file(path, Open{.write=true});
         text_file.write(string);
     }
 }

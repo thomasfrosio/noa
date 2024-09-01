@@ -54,7 +54,8 @@ if (NOA_ENABLE_CPU)
     target_link_libraries(noa_private_libraries
         INTERFACE
         Eigen3::Eigen
-        ${FFTW3_TARGETS}
+        FFTW3::fftw3
+        FFTW3::fftw3f
         )
 endif ()
 
@@ -212,8 +213,7 @@ target_compile_definitions(noa
     "$<$<BOOL:${NOA_CPU_OPENMP}>:NOA_ENABLE_OPENMP>"
     "$<$<BOOL:${NOA_CUDA_JIT}>:NOA_CUDA_JIT>"
     "$<$<BOOL:${NOA_CUDA_ENABLE_ASSERT}>:NOA_CUDA_ENABLE_ASSERT>"
-    "$<$<BOOL:${FFTW3_THREADS}>:NOA_FFTW_THREADS>"
-    "$<$<BOOL:${FFTW3_OPENMP}>:NOA_FFTW_THREADS>"
+    "$<$<BOOL:${NOA_MULTITHREADED_FFTW3}>:NOA_MULTITHREADED_FFTW3>"
     )
 
 # Since it is static library only, the SOVERSION shouldn't matter.

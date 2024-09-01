@@ -8,7 +8,7 @@
 
 namespace noa::cpu::signal::guts {
     // If index is out of bound, apply mirror (d c b | a b c d | c b a).
-    // This requires shape >= window/2+1. noa::indexing::at() would work, but this
+    // This requires shape >= window/2+1. noa::indexing::index_at() would work, but this
     // is slightly more efficient because we know the size of the halo is less than the size.
     i64 median_filter_get_mirror_index(i64 index, i64 size) {
         if (index < 0)
@@ -42,14 +42,14 @@ namespace noa::cpu::signal::guts {
 
             // Gather the window.
             if constexpr (MODE == Border::REFLECT) {
-                for (i64 wl = 0; wl < m_window; ++wl) {
+                for (i64 wl{}; wl < m_window; ++wl) {
                     const i64 il = median_filter_get_mirror_index(l - m_window_half + wl, m_width);
                     m_buffer[wl] = static_cast<compute_type>(m_input(i, j, k, il));
                 }
             } else { // Border::ZERO
-                for (i64 wl = 0; wl < m_window; ++wl) {
+                for (i64 wl{}; wl < m_window; ++wl) {
                     const i64 il = l - m_window_half + wl;
-                    if (il < 0 || il >= m_width)
+                    if (il < 0 or il >= m_width)
                         m_buffer[wl] = compute_type{};
                     else
                         m_buffer[wl] = static_cast<compute_type>(m_input(i, j, k, il));
@@ -96,19 +96,19 @@ namespace noa::cpu::signal::guts {
             using output_type = OutputAccessor::value_type;
 
             if constexpr (MODE == Border::REFLECT) {
-                for (i64 wk = 0; wk < m_window_1d; ++wk) {
+                for (i64 wk{}; wk < m_window_1d; ++wk) {
                     const i64 ik = median_filter_get_mirror_index(k - m_window_1d_half + wk, m_shape[0]);
-                    for (i64 wl = 0; wl < m_window_1d; ++wl) {
+                    for (i64 wl{}; wl < m_window_1d; ++wl) {
                         const i64 il = median_filter_get_mirror_index(l - m_window_1d_half + wl, m_shape[1]);
                         m_buffer[wk * m_window_1d + wl] = static_cast<compute_type>(m_input(i, j, ik, il));
                     }
                 }
             } else { // Border::ZERO
-                for (i64 wk = 0; wk < m_window_1d; ++wk) {
+                for (i64 wk{}; wk < m_window_1d; ++wk) {
                     const i64 ik = k - m_window_1d_half + wk;
-                    for (i64 wl = 0; wl < m_window_1d; ++wl) {
+                    for (i64 wl{}; wl < m_window_1d; ++wl) {
                         const i64 il = l - m_window_1d_half + wl;
-                        if (ik < 0 || ik >= m_shape[0] || il < 0 || il >= m_shape[1]) {
+                        if (ik < 0 or ik >= m_shape[0] or il < 0 or il >= m_shape[1]) {
                             m_buffer[wk * m_window_1d + wl] = compute_type{};
                         } else {
                             m_buffer[wk * m_window_1d + wl] = static_cast<compute_type>(m_input(i, j, ik, il));
@@ -151,7 +151,7 @@ namespace noa::cpu::signal::guts {
 
         void init(i64 thread) noexcept {
             // Before starting the loop, offset to the thread buffer.
-            m_buffer = buffer_accessor_type(m_buffer.get() + thread * m_window_size);
+            m_buffer = BufferAccessor(m_buffer.get() + thread * m_window_size);
         }
 
         void operator()(i64 i, i64 j, i64 k, i64 l) const noexcept {
@@ -159,11 +159,11 @@ namespace noa::cpu::signal::guts {
             using output_type = OutputAccessor::value_type;
 
             if constexpr (MODE == Border::REFLECT) {
-                for (i64 wj = 0; wj < m_window_1d; ++wj) {
+                for (i64 wj{}; wj < m_window_1d; ++wj) {
                     const i64 ij = median_filter_get_mirror_index(j - m_window_1d_half + wj, m_shape[0]);
-                    for (i64 wk = 0; wk < m_window_1d; ++wk) {
+                    for (i64 wk{}; wk < m_window_1d; ++wk) {
                         const i64 ik = median_filter_get_mirror_index(k - m_window_1d_half + wk, m_shape[1]);
-                        for (i64 wl = 0; wl < m_window_1d; ++wl) {
+                        for (i64 wl{}; wl < m_window_1d; ++wl) {
                             const i64 il = median_filter_get_mirror_index(l - m_window_1d_half + wl, m_shape[2]);
                             m_buffer[(wj * m_window_1d + wk) * m_window_1d + wl] =
                                     static_cast<compute_type>(m_input(i, ij, ik, il));
@@ -171,16 +171,16 @@ namespace noa::cpu::signal::guts {
                     }
                 }
             } else { // Border::ZERO
-                for (i64 wj = 0; wj < m_window_1d; ++wj) {
+                for (i64 wj{}; wj < m_window_1d; ++wj) {
                     const i64 ij = j - m_window_1d_half + wj;
-                    for (i64 wk = 0; wk < m_window_1d; ++wk) {
+                    for (i64 wk{}; wk < m_window_1d; ++wk) {
                         const i64 ik = k - m_window_1d_half + wk;
-                        for (i64 wl = 0; wl < m_window_1d; ++wl) {
+                        for (i64 wl{}; wl < m_window_1d; ++wl) {
                             const i64 il = l - m_window_1d_half + wl;
                             const i64 idx = (wj * m_window_1d + wk) * m_window_1d + wl;
-                            if (ij < 0 || ij >= m_shape[0] ||
-                                ik < 0 || ik >= m_shape[1] ||
-                                il < 0 || il >= m_shape[2]) {
+                            if (ij < 0 or ij >= m_shape[0] or
+                                ik < 0 or ik >= m_shape[1] or
+                                il < 0 or il >= m_shape[2]) {
                                 m_buffer[idx] = compute_type{};
                             } else {
                                 m_buffer[idx] = static_cast<compute_type>(m_input(i, ij, ik, il));

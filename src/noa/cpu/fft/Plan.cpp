@@ -1,15 +1,11 @@
 #include <mutex>
+#include <fftw3/fftw3.h>
 
-#include <fftw3.h>
 #include "noa/core/Exception.hpp"
-#include "noa/core/Indexing.hpp"
+#include "noa/core/indexing/Layout.hpp"
 #include "noa/core/utils/Irange.hpp"
 #include "noa/core/utils/Misc.hpp"
 #include "noa/cpu/fft/Plan.hpp"
-
-#if defined(NOA_ENABLE_OPENMP)
-#include "omp.h"
-#endif
 
 namespace {
     using namespace ::noa;
@@ -53,6 +49,15 @@ namespace {
             16380, 16384, 16464, 16500, 16632, 16640, 16800, 16848, 16896
     };
 
+    // Just makes sure OMP launches the exact number of necessary threads, as opposed to:
+    // https://github.com/FFTW/fftw3/blob/master/threads/openmp.c#L77
+    // See https://www.fftw.org/fftw3_doc/Usage-of-Multi_002dthreaded-FFTW.html
+    void fftw_callback_(void *(*work)(char *), char *jobdata, size_t elsize, i32 njobs, void*) {
+        #pragma omp parallel for num_threads(njobs)
+        for (size_t i = 0; i < static_cast<size_t>(njobs); ++i)
+            work(jobdata + elsize * i);
+    }
+
     template<typename T>
     class fftw {
     public:
@@ -68,7 +73,7 @@ namespace {
                 i32 batch, const Shape3<i32>& shape_3d, i32 rank, i64 max_n_threads, u32 flags
         ) {
             const std::scoped_lock lock(mutex);
-            set_n_threads_(batch, shape_3d, max_n_threads);
+            set_planner_(batch, shape_3d, max_n_threads);
             plan_t plan;
             auto optr = reinterpret_cast<fftw_complex_t*>(output);
             if constexpr (is_single_precision) {
@@ -94,7 +99,7 @@ namespace {
                 i32 batch, const Shape3<i32>& shape_3d, i32 rank, i64 max_n_threads, u32 flags
         ) {
             const std::scoped_lock lock(mutex);
-            set_n_threads_(batch, shape_3d, max_n_threads);
+            set_planner_(batch, shape_3d, max_n_threads);
             plan_t plan;
 
             const auto inembed = input_strides.physical_shape();
@@ -126,7 +131,7 @@ namespace {
                 i32 batch, const Shape3<i32>& shape_3d, i32 rank, i64 max_n_threads, u32 flags
         ) {
             const std::scoped_lock lock(mutex);
-            set_n_threads_(batch, shape_3d, max_n_threads);
+            set_planner_(batch, shape_3d, max_n_threads);
             plan_t plan;
             auto iptr = reinterpret_cast<fftw_complex_t*>(input);
             if constexpr (is_single_precision) {
@@ -150,7 +155,7 @@ namespace {
                 i32 batch, const Shape3<i32>& shape_3d, i32 rank, i64 max_n_threads, u32 flags
         ) {
             const std::scoped_lock lock(mutex);
-            set_n_threads_(batch, shape_3d, max_n_threads);
+            set_planner_(batch, shape_3d, max_n_threads);
             plan_t plan;
 
             const auto inembed = input_strides.physical_shape();
@@ -186,7 +191,7 @@ namespace {
                 i32 batch, const Shape3<i32>& shape_3d, i32 rank, i64 max_n_threads, u32 flags
         ) {
             const std::scoped_lock lock(mutex);
-            set_n_threads_(batch, shape_3d, max_n_threads);
+            set_planner_(batch, shape_3d, max_n_threads);
             plan_t plan;
             auto iptr = reinterpret_cast<fftw_complex_t*>(input);
             auto optr = reinterpret_cast<fftw_complex_t*>(output);
@@ -217,7 +222,7 @@ namespace {
                 i32 batch, const Shape3<i32>& shape_3d, i32 rank, i64 max_n_threads, u32 flags
         ) {
             const std::scoped_lock lock(mutex);
-            set_n_threads_(batch, shape_3d, max_n_threads);
+            set_planner_(batch, shape_3d, max_n_threads);
             plan_t plan;
 
             const auto inembed = input_strides.physical_shape();
@@ -330,7 +335,7 @@ namespace {
                 const auto n_elements = static_cast<f64>(shape[2] * batch);
                 geom_size = (std::sqrt(n_elements) + static_cast<f64>(batch)) / 2.;
             } else {
-                const auto n_elements = static_cast<f64>(shape.elements());
+                const auto n_elements = static_cast<f64>(shape.n_elements());
                 geom_size = std::pow(n_elements, 1. / static_cast<f64>(rank));
             }
 
@@ -341,31 +346,25 @@ namespace {
 
         // All subsequent plans will use this number of threads.
         // This function is not thread-safe; it should be called in a thread-safe environment.
-        static void set_n_threads_(i32 batch, const Shape3<i32>& shape, i64 max_threads) {
-            #if defined(NOA_FFTW_THREADS)
+        static void set_planner_(i32 batch, const Shape3<i32>& shape, i64 max_threads) {
+            #ifdef NOA_MULTITHREADED_FFTW3
+            // Initialize (once)...
             static bool is_initialized = false;
-            if (is_initialized)
-                return;
-            if constexpr (is_single_precision)
-                noa::check(fftwf_init_threads(), "Failed to initialize the single precision FFTW-threads");
-            else
-                noa::check(fftw_init_threads(), "Failed to initialize the single precision FFTW-threads");
-            is_initialized = true;
+            if (not is_initialized) {
+                if constexpr (is_single_precision)
+                    check(fftwf_init_threads(), "Failed to initialize the single precision FFTW-threads");
+                else
+                    check(fftw_init_threads(), "Failed to initialize the single precision FFTW-threads");
+
+                fftw_threads_set_callback(fftw_callback_, nullptr);
+                fftwf_threads_set_callback(fftw_callback_, nullptr);
+
+                is_initialized = true;
+            }
 
             if (max_threads > 1) {
                 const i32 suggested_n_threads = suggest_n_threads_(batch, shape, shape.ndim());
                 const i32 actual_n_threads = std::min(suggested_n_threads, static_cast<i32>(max_threads));
-
-                // The ffw3-omp version seems to be quite primitive regarding the thread distribution using OpenMP.
-                // See https://github.com/FFTW/fftw3/blob/master/threads/openmp.c#L77
-                // We need to set the maximum number of OpenMP threads here, because they don't seem to use
-                // the num_threads directive. The number of threads we pass in fftw_plan_with_nthreads only seems
-                // to set the number of iterations in the main loop (one per thread).
-                // Also note that omp_set_num_threads is thread_local, so setting it in the main thread would
-                // not necessarily affect the workers from the Stream.
-                #ifdef NOA_ENABLE_OPENMP
-                omp_set_num_threads(actual_n_threads);
-                #endif
 
                 if constexpr (is_single_precision)
                     fftwf_plan_with_nthreads(actual_n_threads);
@@ -405,8 +404,8 @@ namespace noa::cpu::fft {
     Plan<T>::Plan(T* input, Complex<T>* output, const Shape4<i64>& shape, u32 flag, i64 max_n_threads) {
         auto [batch, shape_3d] = shape.as_safe<i32>().split_batch();
         const i32 rank = shape_3d.ndim();
-        const i32 odist = shape_3d.rfft().elements();
-        const i32 idist = is_inplace_(input, output) ? odist * 2 : shape_3d.elements();
+        const i32 odist = shape_3d.rfft().n_elements();
+        const i32 idist = is_inplace_(input, output) ? odist * 2 : shape_3d.n_elements();
 
         NOA_ASSERT(rank == 1 || !ni::is_vector(shape_3d));
         if (rank == 1 and shape_3d[2] == 1) // column vector -> row vector
@@ -439,8 +438,8 @@ namespace noa::cpu::fft {
     Plan<T>::Plan(Complex<T>* input, T* output, const Shape4<i64>& shape, u32 flag, i64 max_threads) {
         auto [batch, shape_3d] = shape.as_safe<i32>().split_batch();
         const i32 rank = shape_3d.ndim();
-        const i32 idist = shape_3d.rfft().elements();
-        const i32 odist = is_inplace_(input, output) ? idist * 2 : shape_3d.elements();
+        const i32 idist = shape_3d.rfft().n_elements();
+        const i32 odist = is_inplace_(input, output) ? idist * 2 : shape_3d.n_elements();
 
         NOA_ASSERT(rank == 1 or not ni::is_vector(shape_3d));
         if (rank == 1 and shape_3d[2] == 1) // column vector -> row vector
@@ -476,7 +475,7 @@ namespace noa::cpu::fft {
     ) {
         auto [batch, shape_3d] = shape.as_safe<i32>().split_batch();
         const i32 rank = shape_3d.ndim();
-        const i32 dist = shape_3d.elements();
+        const i32 dist = shape_3d.n_elements();
 
         NOA_ASSERT(rank == 1 or not ni::is_vector(shape_3d));
         if (rank == 1 and shape_3d[2] == 1) // column vector -> row vector

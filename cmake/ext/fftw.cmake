@@ -1,40 +1,33 @@
-message(STATUS "FFTW3: searching for existing libraries...")
+message(STATUS "FFTW3: fetching static dependency...")
 list(APPEND CMAKE_MESSAGE_INDENT "   ")
 
-if (TARGET FFTW3::FFTW3_float  AND
-    TARGET FFTW3::FFTW3_double AND
-    (NOT FFTW3_OPENMP OR  (TARGET FFTW3::FFTW3_float_openmp  AND FFTW3::FFTW3_double_openmp)) AND
-    (NOT FFTW3_THREADS OR (TARGET FFTW3::FFTW3_float_threads AND FFTW3::FFTW3_double_threads)))
-
-    message(STATUS "Target already exists: FFTW3::FFTW3_float")
-    message(STATUS "Target already exists: FFTW3::FFTW3_double")
-    if (TARGET FFTW3::FFTW3_threads)
-        message(STATUS "Target already exists: FFTW3::FFTW3_float_threads")
-        message(STATUS "Target already exists: FFTW3::FFTW3_double_threads")
-    endif ()
-    if (TARGET FFTW3::FFTW3_openmp)
-        message(STATUS "Target already exists: FFTW3::FFTW3_float_openmp")
-        message(STATUS "Target already exists: FFTW3::FFTW3_double_openmp")
-    endif ()
+if (TARGET FFTW3::fftw3)
+    message(STATUS "Target already exists: FFTW3::fftw3")
 else ()
-    message(STATUS "[in] FFTW3_THREADS: ${FFTW3_THREADS}")
-    message(STATUS "[in] FFTW3_OPENMP: ${FFTW3_OPENMP}")
-    message(STATUS "[in] FFTW3_STATIC: ${FFTW3_STATIC}")
+    set(FFTW3_REPOSITORY https://github.com/thomasfrosio/fftw3)
+    set(FFTW3_TAG main)
 
-    find_package(FFTW3 REQUIRED)
+    message(STATUS "Repository: ${FFTW3_REPOSITORY}")
+    message(STATUS "Git tag: ${FFTW3_TAG}")
+
+    include(FetchContent)
+    FetchContent_Declare(
+        FFTW3
+        GIT_REPOSITORY ${FFTW3_REPOSITORY}
+        GIT_TAG ${FFTW3_TAG}
+    )
+
+    # Build with optimizations, regardless of our build mode.
+    set(CMAKE_BUILD_TYPE_ ${CMAKE_BUILD_TYPE})
+    set(CMAKE_BUILD_TYPE Release)
+
+    option(FFTW3_ENABLE_OPENMP "Use OpenMP for multithreading" ON)
+    FetchContent_MakeAvailable(FFTW3)
+
+    set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE_})
+
+    message(STATUS "New imported target available: FFTW3::fftw3, FFTW3::fftw3f")
 endif ()
 
-if (FFTW3_OPENMP_FOUND)
-    set(FFTW3_TARGETS FFTW3::FFTW3_float_openmp FFTW3::FFTW3_double_openmp)
-elseif(FFTW3_THREADS_FOUND)
-    set(FFTW3_TARGETS FFTW3::FFTW3_float_threads FFTW3::FFTW3_double_threads)
-else()
-    set(FFTW3_TARGETS FFTW3::FFTW3_float FFTW3::FFTW3_double)
-endif()
-
 list(POP_BACK CMAKE_MESSAGE_INDENT)
-message(STATUS "FFTW3: searching for existing libraries... done")
-
-# Note: FetchContent is not very practical with non-CMake projects.
-#       FFTW added CMake support in 3.3.7 but it seems to be experimental even in 3.3.8.
-# TODO: Add support for FetchContent or ExternalProject_Add.
+message(STATUS "FFTW3: fetching static dependency... done")

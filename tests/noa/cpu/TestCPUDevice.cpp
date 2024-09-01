@@ -1,6 +1,5 @@
 #include <noa/core/utils/Irange.hpp>
 #include <noa/cpu/Device.hpp>
-
 #include <catch2/catch.hpp>
 
 TEST_CASE("cpu::Device", "[noa][cpu]") {

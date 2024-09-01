@@ -6,7 +6,6 @@
 #include "noa/core/utils/Adaptor.hpp"
 #include "noa/unified/Traits.hpp"
 #include "noa/unified/Stream.hpp"
-#include "noa/unified/Indexing.hpp"
 #include "noa/unified/Utilities.hpp"
 
 #include "noa/cpu/ReduceIwise.hpp"
@@ -23,14 +22,14 @@ namespace noa::guts {
 }
 
 namespace noa {
-    /// Dispatches a index-wise reduction operator across N-dimensional (parallel) for-loops.
-    /// \param shape            Shape of the N-dimensional loop. Between 1d and 4d.
-    /// \param device           Device on which to dispatch the reduction. When this function returns,
-    ///                         the current stream of that device is guaranteed to be synchronized.
-    /// \param[in] reduced      Initial reduced value, or an adaptor (see wrap() and zip()) containing
-    ///                         the initial reduced value(s).
-    /// \param[in,out] outputs  Output value, or an adaptor (see wrap() and zip()) containing (a reference of)
-    ///                         the output value(s). When this function returns, the output values will have
+    /// Dispatches an index-wise reduction operator across N-dimensional (parallel) for-loops.
+    /// \param shape            Shape of the 1-, 2-, 3- or 4-dimensional loop.
+    /// \param device           Device on which to dispatch the reduction. When this function returns, the current
+    ///                         stream of that device is synchronized.
+    /// \param[in] reduced      Initial reduction value, or an adaptor (see wrap() and zip()) containing the initial
+    ///                         reduction value(s).
+    /// \param[in,out] outputs  Output value, an adaptor (see wrap() and zip()) containing (a reference of) the output
+    ///                         value(s), or an empty adaptor. When this function returns, the output values will have
     ///                         been updated.
     /// \param[in] op           Operator satisfying the reduce_iwise core interface. The operator is perfectly
     ///                         forwarded to the backend (it is moved or copied to the backend compute kernel).
@@ -45,22 +44,22 @@ namespace noa {
             Outputs&& outputs,
             Operator&& op
     ) {
-        static_assert(guts::is_adaptor_v<Outputs> or std::is_lvalue_reference_v<Outputs>,
-                      "Output value(s) should be a lvalue reference");
+        static_assert(guts::adaptor<Outputs> or std::is_lvalue_reference_v<Outputs>,
+                      "Output value(s) should be reference(s)");
 
-        if constexpr (guts::are_adaptor_v<Reduced, Outputs>) {
+        if constexpr (guts::adaptor<Reduced, Outputs>) {
             guts::reduce_iwise<Reduced::ZIP, Outputs::ZIP>(
                     shape, device, std::forward<Operator>(op),
                     std::forward<Reduced>(reduced).tuple,
                     std::forward<Outputs>(outputs).tuple);
 
-        } else if constexpr (guts::is_adaptor_v<Reduced>) {
+        } else if constexpr (guts::adaptor<Reduced>) {
             guts::reduce_iwise<Reduced::ZIP, false>(
                     shape, device, std::forward<Operator>(op),
                     std::forward<Reduced>(reduced).tuple,
                     forward_as_tuple(std::forward<Outputs>(outputs)));
 
-        } else if constexpr (guts::is_adaptor_v<Outputs>) {
+        } else if constexpr (guts::adaptor<Outputs>) {
             guts::reduce_iwise<false, Outputs::ZIP>(
                     shape, device, std::forward<Operator>(op),
                     forward_as_tuple(std::forward<Reduced>(reduced)),
@@ -75,7 +74,7 @@ namespace noa {
 }
 
 namespace noa::guts {
-    template<bool ZipReduced, bool ZipOutput,
+    template<bool ZIP_REDUCED, bool ZIP_OUTPUT,
              typename Op, typename Reduced, typename Output, typename I, size_t N>
     constexpr void reduce_iwise(
             const Shape<I, N>& shape,
@@ -85,9 +84,9 @@ namespace noa::guts {
             Output&& outputs
     ) {
         []<typename... T>(nt::TypeList<T...>){
-            static_assert(nt::bool_and<(not nt::is_varray_v<std::remove_reference_t<T>>)...>::value,
+            static_assert(((not nt::varray<std::remove_reference_t<T>>) and ...),
                           "The initial reduced or the output values should not be varrays");
-            static_assert(nt::bool_and<(not std::is_const_v<std::remove_reference_t<T>>)...>::value,
+            static_assert(((not std::is_const_v<std::remove_reference_t<T>>) and ...),
                           "The initial reduced or the output values should not be const qualified");
         }(nt::type_list_t<Reduced>{} + nt::type_list_t<Output>{});
 
@@ -100,7 +99,7 @@ namespace noa::guts {
                 return AccessorRestrictContiguous<U, 1, I>(&v);
             });
             cpu_stream.synchronize();
-            using config_t = noa::cpu::ReduceIwiseConfig<ZipReduced, ZipOutput>;
+            using config_t = noa::cpu::ReduceIwiseConfig<ZIP_REDUCED, ZIP_OUTPUT>;
             noa::cpu::reduce_iwise<config_t>(
                     shape, std::forward<Op>(op),
                     std::move(reduced_accessors), output_accessors,
@@ -142,7 +141,7 @@ namespace noa::guts {
             });
 
             // Compute the reduction.
-            using config = noa::cuda::ReduceIwiseConfig<ZipReduced, ZipOutput>;
+            using config = noa::cuda::ReduceIwiseConfig<ZIP_REDUCED, ZIP_OUTPUT>;
             noa::cuda::reduce_iwise<config>(
                     shape, std::forward<Op>(op),
                     std::move(reduced_accessors),

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "noa/core/fft/RemapInterface.hpp"
+#include "noa/core/Remap.hpp"
+#include "noa/core/utils/BatchedParameter.hpp"
 #include "noa/core/signal/PhaseShift.hpp"
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Iwise.hpp"
@@ -8,60 +9,54 @@
 #include "noa/unified/fft/Remap.hpp"
 
 namespace noa::signal::guts {
-    template<noa::fft::Remap REMAP, typename Input, typename Output, typename Shift>
+    template<Remap REMAP, typename Input, typename Output, typename Shift>
     void check_phase_shift_parameters(
-            const Input& input, const Output& output,
-            const Shape4<i64>& shape, const Shift& shifts
+        const Input& input, const Output& output,
+        const Shape4<i64>& shape, const Shift& shifts
     ) {
         check(not output.is_empty(), "Empty array detected");
-        check(all(output.shape() == shape.rfft()),
+        check(vall(Equal{}, output.shape(), shape.rfft()),
               "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
               shape, shape.rfft(), output.shape());
 
         if (not input.is_empty()) {
             check(output.device() == input.device(),
-                  "The input and output arrays must be on the same device, but got input:{}, output:{}",
+                  "The input and output arrays must be on the same device, but got input:device={}, output:device={}",
                   input.device(), output.device());
-            check(REMAP == noa::fft::Remap::H2H or
-                  REMAP == noa::fft::Remap::HC2HC or
-                  input.get() != output.get(),
+            check(not REMAP.has_layout_change() or input.get() != output.get(),
                   "In-place remapping is not allowed");
         }
 
-        if constexpr (nt::is_varray_v<Shift>) {
-            check(ni::is_contiguous_vector(shifts) and shifts.elements() == output.shape()[0],
-                  "The input shift(s) should be entered as a 1D contiguous vector, with one shift per output batch, "
+        if constexpr (nt::varray<Shift>) {
+            check(ni::is_contiguous_vector(shifts) and shifts.n_elements() == output.shape()[0],
+                  "The input shift(s) should be entered as a 1d contiguous vector, with one shift per output batch, "
                   "but got shift {} and output {}", shifts.shape(), output.shape());
             check(output.device() == shifts.device(),
-                  "The shift and output arrays must be on the same device, but got shifts:{}, output:{}",
+                  "The shift and output arrays must be on the same device, but got shifts:device={}, output:device={}",
                   shifts.device(), output.device());
         }
     }
 
-    template<noa::fft::Remap REMAP, typename Input, typename Output>
-    void no_phase_shift(const Input& input, const Output& output, const Shape4<i64>& shape) {
-        using Layout = noa::fft::Layout;
-        constexpr auto u8_REMAP = static_cast<uint8_t>(REMAP);
-        constexpr bool NO_REMAP = bool(u8_REMAP & Layout::SRC_CENTERED) == bool(u8_REMAP & Layout::DST_CENTERED);
-
+    template<Remap REMAP, typename Input, typename Output>
+    void no_phase_shift(Input&& input, Output&& output, const Shape4<i64>& shape) {
         if (input.is_empty()) {
             using value_t = nt::value_type_t<Output>;
-            fill(output, value_t{1, 0});
+            fill(std::forward<Output>(output), value_t{1, 0});
         } else {
-            if constexpr (NO_REMAP)
-                copy(input, output);
+            if constexpr (not REMAP.has_layout_change())
+                copy(std::forward<Input>(input), std::forward<Output>(output));
             else
-                noa::fft::remap(REMAP, input, output, shape);
+                noa::fft::remap(REMAP, std::forward<Input>(input), std::forward<Output>(output), shape);
         }
     }
 
-    template<typename Shift>
-    auto extract_shift(const Shift& shift) {
-        if constexpr (nt::is_vec_v<Shift>) {
-            return shift;
+    template<typename T>
+    auto extract_shift(const T& shift) {
+        if constexpr (nt::vec<T>) {
+            return BatchedParameter{shift};
         } else {
-            using ptr_t = const nt::value_type_t<Shift>*;
-            return ptr_t(shift.get());
+            using ptr_t = nt::const_value_type_t<T>*;
+            return BatchedParameter<ptr_t>{shift.get()};
         }
     }
 }
@@ -77,56 +72,57 @@ namespace noa::signal {
     /// \param fftfreq_cutoff   Maximum output frequency to consider, in cycle/pix.
     ///                         Values are usually from 0 (DC) to 0.5 (Nyquist).
     ///                         Frequencies higher than this value are not phase-shifted.
-    /// \note \p input and \p output can be equal if no remapping is done, i.e. H2H or HC2HC.
-    template<noa::fft::RemapInterface REMAP, typename Output, typename Shift,
-             typename Input = View<const nt::value_type_t<Output>>>
-    requires (nt::are_varray_of_complex_v<Input, Output> and
-              (nt::is_varray_of_almost_any_v<Shift, Vec2<f32>, Vec2<f64>> or nt::is_vec_real_size_v<Shift, 2>) and
-              (REMAP.remap == noa::fft::Remap::H2H or
-               REMAP.remap == noa::fft::Remap::H2HC or
-               REMAP.remap == noa::fft::Remap::HC2H or
-               REMAP.remap == noa::fft::Remap::HC2HC))
+    /// \note \p input and \p output can be equal as long as the layout is unchanged.
+    template<Remap REMAP,
+             nt::writable_varray_decay_of_complex Output,
+             nt::readable_varray_decay_of_complex Input = View<nt::const_value_type_t<Output>>,
+             nt::varray_decay_or_value_of_almost_any<Vec2<f32>, Vec2<f64>> Shift>
+    requires (REMAP.is_hx2hx() or REMAP.is_fx2fx())
     void phase_shift_2d(
-            const Input& input,
-            const Output& output,
-            const Shape4<i64>& shape,
-            const Shift& shifts,
-            f64 fftfreq_cutoff = 1
+        Input&& input,
+        Output&& output,
+        const Shape4<i64>& shape,
+        Shift&& shifts,
+        f64 fftfreq_cutoff = 1
     ) {
-        using input_value_t = nt::mutable_value_type_t<Input>;
-        using output_value_t = nt::value_type_t<Output>;
-        guts::check_phase_shift_parameters<REMAP.remap>(input, output, shape, shifts);
+        using coord_t = nt::mutable_value_type_twice_t<Shift>;
+        using input_accessor_t = Accessor<nt::const_value_type_t<Input>, 3, i64>;
+        using output_accessor_t = Accessor<nt::value_type_t<Output>, 3, i64>;
+
+        guts::check_phase_shift_parameters<REMAP>(input, output, shape, shifts);
 
         auto input_strides = input.strides();
         if (not input.is_empty() and not ni::broadcast(input.shape(), input_strides, output.shape())) {
             panic("Cannot broadcast an array of shape {} into an array of shape {}",
                   input.shape(), output.shape());
         }
+        const auto iwise_shape = REMAP.is_hx2hx() ? shape.filter(0, 2, 3).rfft() : shape.filter(0, 2, 3);
+        const auto input_accessor = input_accessor_t(input.get(), input_strides.filter(0, 2, 3));
+        const auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0, 2, 3));
 
-        if constexpr (nt::is_varray_v<Shift>) {
-            if (all(shifts == 0))
-                return guts::no_phase_shift<REMAP.remap>(input, output, shape);
+        if constexpr (not nt::varray_decay<Shift>) { // single shift
+            if (vall(Zero{}, shifts))
+                return guts::no_phase_shift<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape);
 
-            const bool is_half_shift = all(allclose(abs(shifts), shape.filter(2, 3).vec.as<f32>() / 2));
-            if (is_half_shift and fftfreq_cutoff >= sqrt(0.5)) {
-                auto input_accessor = Accessor<const input_value_t, 4, i64>(input, input_strides);
-                auto output_accessor = Accessor<output_value_t, 4, i64>(output, output.strides());
-                using op_t = PhaseShiftHalf<REMAP.remap, i64, decltype(input_accessor), decltype(output_accessor)>;
-                auto op = op_t(input_accessor, output_accessor, shape);
-                return iwise(shape.rfft(), output.device(), op, input, output, shifts);
+            const auto shape_2d = shape.filter(2, 3);
+            const auto half_shift = shape_2d.vec.as<coord_t>() / 2;
+            const auto is_half_shift = [](auto shift, auto half) { return allclose(abs(shift), half); };
+            if (vall(is_half_shift, shifts, half_shift) and fftfreq_cutoff >= sqrt(0.5)) {
+                using op_t = guts::PhaseShiftHalf<REMAP, 2, i64, input_accessor_t, output_accessor_t>;
+                return iwise(iwise_shape, output.device(), op_t(input_accessor, output_accessor, shape_2d),
+                             std::forward<Input>(input), std::forward<Output>(output));
             }
         }
 
-        using input_accessor_t = Accessor<const input_value_t, 3, i64>;
-        using output_accessor_t = Accessor<output_value_t, 3, i64>;
         using shift_t = decltype(guts::extract_shift(shifts));
-        using coord_t = nt::mutable_value_type_twice_t<Shift>;
-        using op_t = PhaseShift<REMAP.remap, 2, i64, shift_t, input_accessor_t, output_accessor_t>;
-        auto op = op_t(input_accessor_t(input, input_strides.filter(0, 2, 3)),
-                       output_accessor_t(output, output.strides().filter(0, 2, 3)),
+        using op_t = guts::PhaseShift<REMAP, 2, i64, shift_t, input_accessor_t, output_accessor_t>;
+        auto op = op_t(input_accessor, output_accessor,
                        shape.filter(2, 3), guts::extract_shift(shifts),
                        static_cast<coord_t>(fftfreq_cutoff));
-        iwise(shape.filter(0, 2, 3).rfft(), output.device(), op, input, output, shifts);
+        iwise(iwise_shape, output.device(), op,
+              std::forward<Input>(input),
+              std::forward<Output>(output),
+              std::forward<Shift>(shifts));
     }
 
     /// Phase-shifts 3d rfft(s).
@@ -139,55 +135,56 @@ namespace noa::signal {
     /// \param fftfreq_cutoff   Maximum output frequency to consider, in cycle/pix.
     ///                         Values are usually from 0 (DC) to 0.5 (Nyquist).
     ///                         Frequencies higher than this value are not phase-shifted.
-    /// \note \p input and \p output can be equal if no remapping is done, i.e. H2H or HC2HC.
-    template<noa::fft::RemapInterface REMAP, typename Output, typename Shift,
-             typename Input = View<const nt::value_type_t<Output>>>
-    requires (nt::are_varray_of_complex_v<Input, Output> and
-              (nt::is_varray_of_almost_any_v<Shift, Vec3<f32>, Vec3<f64>> or nt::is_vec_real_size_v<Shift, 3>) and
-              (REMAP.remap == noa::fft::Remap::H2H or
-               REMAP.remap == noa::fft::Remap::H2HC or
-               REMAP.remap == noa::fft::Remap::HC2H or
-               REMAP.remap == noa::fft::Remap::HC2HC))
+    /// \note \p input and \p output can be equal as long as the layout is unchanged.
+    template<Remap REMAP,
+             nt::writable_varray_decay_of_complex Output,
+             nt::readable_varray_decay_of_complex Input = View<nt::const_value_type_t<Output>>,
+             nt::varray_decay_or_value_of_almost_any<Vec3<f32>, Vec3<f64>> Shift>
+    requires (REMAP.is_hx2hx() or REMAP.is_fx2fx())
     void phase_shift_3d(
-            const Input& input,
-            const Output& output,
-            const Shape4<i64>& shape,
-            const Shift& shifts,
-            f64 fftfreq_cutoff = 1
+        Input&& input,
+        Output&& output,
+        const Shape4<i64>& shape,
+        Shift&& shifts,
+        f64 fftfreq_cutoff = 1
     ) {
-        using input_value_t = nt::mutable_value_type_t<Input>;
-        using output_value_t = nt::value_type_t<Output>;
-        guts::check_phase_shift_parameters<REMAP.remap>(input, output, shape, shifts);
+        using coord_t = nt::mutable_value_type_twice_t<Shift>;
+        using input_accessor_t = Accessor<nt::const_value_type_t<Input>, 4, i64>;
+        using output_accessor_t = Accessor<nt::value_type_t<Output>, 4, i64>;
+
+        guts::check_phase_shift_parameters<REMAP>(input, output, shape, shifts);
 
         auto input_strides = input.strides();
         if (not input.is_empty() and not ni::broadcast(input.shape(), input_strides, output.shape())) {
             panic("Cannot broadcast an array of shape {} into an array of shape {}",
                   input.shape(), output.shape());
         }
+        const auto iwise_shape = REMAP.is_hx2hx() ? shape.rfft() : shape;
+        const auto input_accessor = input_accessor_t(input.get(), input_strides);
+        const auto output_accessor = output_accessor_t(output.get(), output.strides());
 
-        if constexpr (nt::is_varray_v<Shift>) {
-            if (all(shifts == 0))
-                return guts::no_phase_shift<REMAP.remap>(input, output, shape);
+        if constexpr (not nt::varray_decay<Shift>) { // single shift
+            if (vall(Zero{}, shifts))
+                return guts::no_phase_shift<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape);
 
-            const bool is_half_shift = all(allclose(abs(shifts), shape.filter(1, 2, 3).vec.as<f32>() / 2));
-            if (is_half_shift and fftfreq_cutoff >= sqrt(0.5)) {
-                auto input_accessor = Accessor<const input_value_t, 4, i64>(input, input_strides);
-                auto output_accessor = Accessor<output_value_t, 4, i64>(output, output.strides());
-                using op_t = PhaseShiftHalf<REMAP.remap, i64, decltype(input_accessor), decltype(output_accessor)>;
-                auto op = op_t(input_accessor, output_accessor, shape);
-                return iwise(shape.rfft(), output.device(), op, input, output, shifts);
+            const auto shape_3d = shape.filter(1, 2, 3);
+            const auto half_shift = shape_3d.vec.as<coord_t>() / 2;
+            const auto is_half_shift = [](auto shift, auto half) { return allclose(abs(shift), half); };
+            if (vall(is_half_shift, shifts, half_shift) and fftfreq_cutoff >= sqrt(0.5)) {
+                using op_t = guts::PhaseShiftHalf<REMAP, 3, i64, input_accessor_t, output_accessor_t>;
+                return iwise(iwise_shape, output.device(), op_t(input_accessor, output_accessor, shape_3d),
+                             std::forward<Input>(input), std::forward<Output>(output));
             }
         }
 
-        using input_accessor_t = Accessor<const input_value_t, 4, i64>;
-        using output_accessor_t = Accessor<output_value_t, 4, i64>;
         using shift_t = decltype(guts::extract_shift(shifts));
-        using coord_t = nt::mutable_value_type_twice_t<Shift>;
-        using op_t = PhaseShift<REMAP.remap, 2, i64, shift_t, input_accessor_t, output_accessor_t>;
-        auto op = op_t(input_accessor_t(input, input_strides),
-                       output_accessor_t(output, output.strides()),
+        using op_t = guts::PhaseShift<REMAP, 3, i64, shift_t, input_accessor_t, output_accessor_t>;
+        auto op = op_t(input_accessor, output_accessor,
                        shape.filter(1, 2, 3), guts::extract_shift(shifts),
                        static_cast<coord_t>(fftfreq_cutoff));
-        iwise(shape.rfft(), output.device(), op, input, output, shifts);
+        iwise(iwise_shape, output.device(), op,
+              std::forward<Input>(input),
+              std::forward<Output>(output),
+              std::forward<Shift>(shifts));
     }
 }

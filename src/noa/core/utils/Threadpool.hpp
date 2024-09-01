@@ -2,6 +2,7 @@
 
 #include "noa/core/Config.hpp"
 #include "noa/core/Exception.hpp"
+#include "noa/core/utils/Misc.hpp"
 
 #ifdef NOA_IS_OFFLINE
 #include <future>
@@ -27,7 +28,7 @@ namespace noa {
         // synchronization
         std::mutex queue_mutex;
         std::condition_variable condition;
-        bool stop{false};
+        bool stop{};
 
     public:
         /// Launches \a threads threads.
@@ -41,16 +42,15 @@ namespace noa {
         ///          multiple tasks can be executed at the same time (by different threads).
         explicit ThreadPool(size_t threads) {
             if (threads == 0)
-                NOA_THROW("Threads should be a positive non-zero number, got 0");
+                panic("Threads should be a positive non-zero number, got 0");
 
             auto waiting_room = [this] {
                 while (true) {
                     std::packaged_task<void()> task;
                     {
                         std::unique_lock<std::mutex> lock(this->queue_mutex);
-                        this->condition.wait(lock,
-                                             [this] { return this->stop || !this->tasks.empty(); });
-                        if (this->stop && this->tasks.empty())
+                        this->condition.wait(lock, [this] { return this->stop or not this->tasks.empty(); });
+                        if (this->stop and this->tasks.empty())
                             return; // join only if there's no task left.
                         task = std::move(this->tasks.front());
                         this->tasks.pop();
@@ -60,7 +60,7 @@ namespace noa {
             };
 
             workers.reserve(threads);
-            for (size_t i = 0; i < threads; ++i) {
+            for (size_t i{}; i < threads; ++i) {
                 workers.emplace_back(waiting_room); // launch threads into the pool.
             }
         }
@@ -79,19 +79,13 @@ namespace noa {
         ///               });
         /// int result = future.get(); // throws std::runtime_error("aie")
         /// \endcode
-        ///
-        /// \note It looks like gcc and clang can see through std::bind and generate identical code to
-        ///       the lambda version. Nevertheless, I'd rather use the lambda version since it is
-        ///       recommended to not use std::bind (since C++14). Unfortunately, since perfect
-        ///       capture with variadic lambdas are a C++20 feature, a workaround with std::make_tuple
-        ///       and std::apply is required in C++17. See: https://stackoverflow.com/questions/47496358
         template<class F, class... Args>
         decltype(auto) enqueue(F&& f, Args&& ... args) {
             using return_type = std::invoke_result_t<F, Args...>;
 
             std::packaged_task<return_type()> task(
-                    [f_ = std::forward<F>(f), args_ = std::make_tuple(std::forward<Args>(args)...)]()
-                            mutable { return std::apply(std::move(f_), std::move(args_)); }
+                    [f_ = std::forward<F>(f), ...args_ = std::forward<Args>(args)]()
+                            mutable { return forward_like<F>(f_)(forward_like<Args>(args_)...); }
             );
 
             std::future<return_type> res = task.get_future(); // res.valid() will work as expected.

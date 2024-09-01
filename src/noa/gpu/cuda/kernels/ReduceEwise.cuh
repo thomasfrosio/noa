@@ -52,7 +52,7 @@ namespace noa::cuda::guts {
             } else if constexpr (nt::is_accessor_nd_v<T, 2>) {
                 // Offset the input accessor to the current batch,
                 // so that it can be used later to reset the pointer.
-                accessor.offset_accessor(batch);
+                accessor.offset_inplace(batch);
                 return accessor[0]; // 1d AccessorReference
             } else {
                 static_assert(nt::always_false_v<T>);
@@ -62,7 +62,7 @@ namespace noa::cuda::guts {
         for (Index cid = starting_index; cid < n_elements_per_batch; cid += grid_work_size) {
             input_1d.for_each_enumerate([&input, cid]<size_t I>(auto& accessor) {
                 accessor.reset_pointer(input[Tag<I>{}].get());
-                accessor.offset_accessor(cid);
+                accessor.offset_inplace(cid);
             });
             block_reduce_ewise_1d_init
                     <Config::block_size, Config::n_elements_per_thread, Config::vector_size, Config::interface>
@@ -111,7 +111,7 @@ namespace noa::cuda::guts {
             } else {
                 // Offset the input accessor to the current batch,
                 // so that it can be used later to reset the pointer.
-                accessor.offset_accessor(batch);
+                accessor.offset_inplace(batch);
                 return accessor[0][0][0]; // 1d AccessorReference
             }
         });
@@ -160,7 +160,7 @@ namespace noa::cuda::guts {
             block_reduce_ewise_1d_join
                     <Config::block_size, Config::n_elements_per_thread, Config::vector_size, Config::interface>
                     (op, joined_1d, n_elements - cid, reduced, tid);
-            joined_1d.for_each([](auto& accessor) { accessor.offset_accessor(Config::block_work_size); });
+            joined_1d.for_each([](auto& accessor) { accessor.offset_inplace(Config::block_work_size); });
         }
 
         block_reduce_join_and_final<Config::interface, Config::block_size>(op, reduced, output, tid, batch);

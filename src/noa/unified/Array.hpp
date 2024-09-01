@@ -6,7 +6,6 @@
 #include "noa/core/Exception.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/Types.hpp"
-#include "noa/core/Indexing.hpp"
 #include "noa/core/utils/ShareHandles.hpp"
 
 #include "noa/cpu/AllocatorHeap.hpp"
@@ -60,15 +59,23 @@ namespace noa::inline types {
     template<typename T>
     class Array {
     public: // typedefs
-        using shape_type = Shape<i64, 4>;
-        using accessor_type = Accessor<T, 4, i64>;
-        using accessor_reference_type = AccessorReference<T, 4, i64>;
-        using pointer_type = typename accessor_type::pointer_type;
-        using value_type = typename accessor_type::value_type;
-        using mutable_value_type = value_type;
-        using index_type = typename accessor_type::index_type;
-        using strides_type = typename accessor_type::strides_type;
+        using pointer_type = T*;
+        using value_type = T;
+        using mutable_value_type = std::remove_const_t<T>;
+        using const_value_type = std::add_const_t<mutable_value_type>;
+        using index_type = i64;
+        using strides_type = Strides<index_type, 4>;
+        using view_type = View<value_type>;
+        using shape_type = Shape<index_type, 4>;
+        using span_type = Span<value_type, 4, index_type>;
         using shared_type = std::shared_ptr<value_type[]>;
+
+        static constexpr StridesTraits STRIDES_TRAIT = view_type::STRIDES_TRAIT;
+        static constexpr PointerTraits POINTER_TRAIT = view_type::POINTER_TRAIT;
+        static constexpr bool IS_CONTIGUOUS = view_type::IS_CONTIGUOUS;
+        static constexpr bool IS_RESTRICT = view_type::IS_RESTRICT;
+        static constexpr size_t SIZE = 4;
+        static constexpr int64_t SSIZE = 4;
 
         static_assert(not std::is_const_v<value_type>);
         static_assert(not std::is_pointer_v<value_type>);
@@ -85,27 +92,29 @@ namespace noa::inline types {
         constexpr explicit Array(i64 n_elements, ArrayOption option = {})
                 : m_shape{1, 1, 1, n_elements},
                   m_strides{n_elements, n_elements, n_elements, 1},
-                  m_options(option) { allocate_(); }
+                  m_options{option} { allocate_(); }
 
         /// Creates a contiguous array.
         /// \param shape    BDHW shape of the array.
         /// \param option   Options of the created array.
         /// \see Allocator for more details.
         constexpr explicit Array(const shape_type& shape, ArrayOption option = {})
-                : m_shape(shape), m_strides(shape.strides()), m_options(option) { allocate_(); }
+                : m_shape(shape),
+                  m_strides(shape.strides()),
+                  m_options{option} { allocate_(); }
 
         /// Creates a contiguous row vector from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
         /// \param n_elements   Number of elements in \p data.
         /// \param option       Options of \p data.
-        template<typename SharedPtr>
-        requires (nt::is_unique_ptr_v<SharedPtr> or nt::is_shared_ptr_v<SharedPtr>)
+        template<nt::smart_ptr_decay SharedPtr>
         constexpr Array(SharedPtr&& data, i64 n_elements, ArrayOption option = {})
                 : m_shape{1, 1, 1, n_elements},
                   m_strides{n_elements, n_elements, n_elements, 1},
                   m_shared(std::forward<SharedPtr>(data)),
-                  m_options(option) {
-            validate_(m_shared.get(), option);
+                  m_options{option}
+        {
+            validate_(get(), option);
         }
 
         /// Creates an array from an existing allocated memory region.
@@ -113,19 +122,18 @@ namespace noa::inline types {
         /// \param shape        BDHW shape of \p data.
         /// \param strides      BDHW strides of \p data.
         /// \param option       Options of \p data.
-        template<typename SharedPtr>
-        requires (nt::is_unique_ptr_v<SharedPtr> or nt::is_shared_ptr_v<SharedPtr>)
+        template<nt::smart_ptr_decay SharedPtr>
         constexpr Array(
                 SharedPtr&& data,
                 const shape_type& shape,
                 const strides_type& strides,
                 ArrayOption option = {}
-        ) : m_shape(shape),
-            m_strides(strides),
+        ) : m_shape{shape},
+            m_strides{strides},
             m_shared(std::forward<SharedPtr>(data)),
-            m_options(option)
+            m_options{option}
         {
-            validate_(m_shared.get(), option);
+            validate_(get(), option);
         }
 
         /// If an exception is thrown, make sure to synchronize the stream to guarantee that functions called
@@ -133,9 +141,9 @@ namespace noa::inline types {
         ~Array() noexcept {
             // This should slow down the exception path due to the extra synchronization, but given
             // that exception are used as non-recoverable errors that will ultimately end up terminating
-            // the program, we don't really care about performance in the exception path.
+            // the program, we don't really care about performance here.
 
-            // While we could record the number of alive exceptions at construction time, to correctly
+            // While we could record the number of living exceptions at construction time to correctly
             // detect the case where an Array is created during stack unwinding, it doesn't seem worth it:
             // 1) we would need to keep track of a "count".
             // 2) creating an Array during stack unwinding is weird/rare.
@@ -151,49 +159,36 @@ namespace noa::inline types {
         }
 
     public: // Queries
-        /// Returns the options used to create the array.
-        [[nodiscard]] constexpr ArrayOption options() const noexcept { return m_options; }
-
-        /// Returns the device used to create the array.
-        [[nodiscard]] constexpr Device device() const noexcept { return options().device; }
-
-        /// Returns the memory resource used to create the array.
-        [[nodiscard]] constexpr Allocator allocator() const noexcept { return options().allocator; }
-
-        /// Whether the managed data can be accessed by CPU threads.
-        [[nodiscard]] constexpr bool is_dereferenceable() const noexcept { return options().is_dereferenceable(); }
-
-        /// Returns the BDHW shape of the array.
-        [[nodiscard]] constexpr const shape_type& shape() const noexcept { return m_shape; }
-
-        /// Returns the BDHW strides of the array.
-        [[nodiscard]] constexpr const strides_type& strides() const noexcept { return m_strides; }
-
-        /// Returns the number of elements in the array.
-        [[nodiscard]] constexpr index_type elements() const noexcept { return shape().elements(); }
-        [[nodiscard]] constexpr index_type ssize() const noexcept { return shape().elements(); }
-        [[nodiscard]] constexpr size_t size() const noexcept { return static_cast<size_t>(ssize()); }
+        [[nodiscard]] constexpr auto options() const -> ArrayOption { return m_options; }
+        [[nodiscard]] constexpr auto device() const -> Device { return options().device; }
+        [[nodiscard]] constexpr auto allocator() const -> Allocator { return options().allocator; }
+        [[nodiscard]] constexpr auto is_dereferenceable() const -> bool { return options().is_dereferenceable(); }
+        [[nodiscard]] constexpr auto shape() const -> const shape_type& { return m_shape; }
+        [[nodiscard]] constexpr auto strides() const -> const strides_type& { return m_strides; }
+        [[nodiscard]] constexpr auto strides_full() const -> const strides_type& { return m_strides; }
+        [[nodiscard]] constexpr auto n_elements() const -> index_type { return shape().n_elements(); }
+        [[nodiscard]] constexpr auto ssize() const -> index_type { return shape().n_elements(); }
+        [[nodiscard]] constexpr auto size() const -> size_t { return static_cast<size_t>(ssize()); }
 
         /// Whether the dimensions of the array are C or F contiguous.
         template<char ORDER = 'C'>
-        [[nodiscard]] constexpr bool are_contiguous() const noexcept {
+        [[nodiscard]] constexpr bool are_contiguous() const {
             return ni::are_contiguous<ORDER>(strides(), shape());
         }
 
         template<char ORDER = 'C'>
-        [[nodiscard]] constexpr auto is_contiguous() const noexcept {
+        [[nodiscard]] constexpr auto is_contiguous() const {
             return ni::is_contiguous<ORDER>(strides(), shape());
         }
 
         /// Whether the array is empty. An array is empty if not initialized or if one of its dimension is 0.
-        [[nodiscard]] constexpr bool is_empty() const noexcept { return not get() or any(shape() == 0); }
+        [[nodiscard]] constexpr bool is_empty() const { return not get() or shape().is_empty(); }
 
     public: // Accessors
-        /// Synchronizes the current stream of the Array's device.
-        /// \details It guarantees safe access to the memory region using get(), data(), operator(...), and accessor().
-        ///          Note that stream-ordered access (i.e. passing this to the library API) is safe and doesn't need
-        ///          synchronization.
-        const Array& eval() const {
+        /// Synchronizes the current stream of the array's device.
+        /// \details It guarantees safe access to the memory region. Note that stream-ordered access (i.e. passing
+        ///          this to the library API) is safe and doesn't need synchronization.
+        auto eval() const -> const Array& {
             Stream::current(device()).synchronize();
             return *this;
         }
@@ -201,70 +196,39 @@ namespace noa::inline types {
         /// Returns the pointer to the data.
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing to this pointer may be illegal or create a data race.
-        [[nodiscard]] constexpr pointer_type get() const noexcept { return m_shared.get(); }
+        [[nodiscard]] constexpr auto get() const -> pointer_type { return m_shared.get(); }
+        [[nodiscard]] constexpr auto data() const -> pointer_type { return m_shared.get(); }
+        [[nodiscard]] constexpr auto share() const& -> const shared_type& { return m_shared; }
+        [[nodiscard]] constexpr auto share() && -> shared_type&& { return std::move(m_shared); }
 
-        /// Returns the pointer to the data.
-        /// \warning Depending on the current stream of this array's device,
-        ///          reading/writing to this pointer may be illegal or create a data race.
-        [[nodiscard]] constexpr pointer_type data() const noexcept { return m_shared.get(); }
-
-        /// Returns a reference of the managed resource.
-        /// \warning Depending on the current stream of this array's device,
-        ///          reading/writing to this pointer may be illegal or create a data race.
-        [[nodiscard]] constexpr const shared_type& share() const& noexcept { return m_shared; }
-        [[nodiscard]] constexpr shared_type&& share() && noexcept { return std::move(m_shared); }
-
-        /// Returns a (const-)span of the array.
-        template<typename U = value_type, i64 SIZE = -1, typename I = index_type>
-        requires (nt::is_almost_same_v<U, value_type> and std::is_integral_v<I>)
-        [[nodiscard]] constexpr Span<U, SIZE, I> span() const noexcept {
-            return view().template span<U, SIZE, I>();
+        /// Returns a span of the array.
+        /// \warning Depending on the current stream of this view's device,
+        ///          reading/writing through this Span may be illegal or create a data race.
+        [[nodiscard]] constexpr auto span() const -> span_type {
+            return span_type(get(), shape(), strides());
         }
 
-        /// Returns a new Accessor and its corresponding shape.
-        /// \details While constructing the accessor, this function can also reinterpret the current value type.
-        ///          This is only well defined in cases where View::as<U>() is well defined.
-        ///          If N < 4, the outer-dimensions are stacked together.
-        template<typename U, size_t N = 4, typename I = index_type,
-                 PointerTraits PointerTrait = PointerTraits::DEFAULT,
-                 StridesTraits StridesTrait = StridesTraits::STRIDED>
-        [[nodiscard]] constexpr auto accessor_and_shape() const noexcept {
-            return view().template accessor_and_shape<U, N, I, PointerTrait, StridesTrait>();
+        template<typename NewT,
+                 size_t NewN = 4,
+                 typename NewI = index_type,
+                 StridesTraits NewStridesTrait = STRIDES_TRAIT>
+        [[nodiscard]] constexpr auto span() const {
+            return span().template span<NewT, NewN, NewI, NewStridesTrait>();
+        }
+        [[nodiscard]] constexpr auto span_contiguous() const {
+            return span<value_type, 4, index_type, StridesTraits::CONTIGUOUS>();
+        }
+        [[nodiscard]] constexpr auto span_1d() const {
+            return span<value_type, 1>();
+        }
+        [[nodiscard]] constexpr auto span_1d_contiguous() const {
+            return span<value_type, 1, index_type, StridesTraits::CONTIGUOUS>();
         }
 
         /// Returns a (const-)view of the array.
-        template<typename U = value_type> requires nt::is_almost_same_v<U, value_type>
-        [[nodiscard]] constexpr View<U> view() const noexcept {
+        template<nt::almost_same_as<value_type> U = value_type>
+        [[nodiscard]] constexpr auto view() const -> View<U> {
             return View<U>(get(), shape(), strides(), options());
-        }
-
-        /// Releases the array. *this is left empty.
-        /// \note This effectively does a move with a guaranteed reset of the array.
-        Array release() noexcept {
-            return std::exchange(*this, Array{});
-        }
-
-        [[nodiscard]] constexpr accessor_type accessor() const noexcept {
-            return accessor_type(get(), strides());
-        }
-
-        template<typename U, size_t N = 4, typename I = index_type,
-                 PointerTraits PointerTrait = PointerTraits::DEFAULT,
-                 StridesTraits StridesTrait = StridesTraits::STRIDED>
-        [[nodiscard]] constexpr auto accessor() const {
-            return accessor_and_shape<U, N, I, PointerTrait, StridesTrait>().first;
-        }
-
-        template<typename U = value_type, size_t N = 4, typename I = index_type,
-                 PointerTraits PointerTrait = PointerTraits::DEFAULT>
-        [[nodiscard]] constexpr auto accessor_contiguous() const noexcept {
-            return accessor<U, N, I, PointerTrait, StridesTraits::CONTIGUOUS>();
-        }
-
-        template<typename U = value_type, typename I = index_type,
-                 PointerTraits PointerTrait = PointerTraits::DEFAULT>
-        [[nodiscard]] constexpr auto accessor_contiguous_1d() const noexcept {
-            return accessor_contiguous<U, 1, I, PointerTrait>();
         }
 
     public: // Deep copy
@@ -274,15 +238,13 @@ namespace noa::inline types {
         ///          reshaped to the aforementioned layouts. However, other non-contiguous memory layouts can only
         ///          be copied if the source and destination are both on the same GPU or on the CPU.
         /// \param[out] output  Destination. It should not overlap with this array.
-        template<typename Output>
-        requires (nt::is_varray_v<Output> and nt::are_almost_same_value_type_v<Array, Output>)
-        void to(const Output& output) const& {
-            noa::copy(*this, output);
+        template<nt::varray_decay_of_almost_same_type<Array> Output>
+        void to(Output&& output) const& {
+            noa::copy(*this, std::forward<Output>(output));
         }
-        template<typename Output>
-        requires (nt::is_varray_v<Output> and nt::are_almost_same_value_type_v<Array, Output>)
-        void to(const Output& output) && {
-            noa::copy(std::move(*this), output);
+        template<nt::varray_decay_of_almost_same_type<Array> Output>
+        void to(Output&& output) && {
+            noa::copy(std::move(*this), std::forward<Output>(output));
         }
 
         /// Performs a deep copy of the array according \p option.
@@ -293,36 +255,36 @@ namespace noa::inline types {
         ///          be copied if the source and destination are both on the same GPU or on the CPU.
         /// \param option   Output device and resource to perform the allocation of the new array.
         ///                 The current stream for that device is used to perform the copy.
-        [[nodiscard]] Array to(ArrayOption option) const& {
+        [[nodiscard]] auto to(ArrayOption option) const& -> Array {
             Array out(shape(), option);
             to(out);
             return out;
         }
-        [[nodiscard]] Array to(ArrayOption option) && {
+        [[nodiscard]] auto to(ArrayOption option) && -> Array {
             Array out(shape(), option);
             std::move(*this).to(out);
             return out;
         }
 
         /// Performs a deep copy of the array to the CPU.
-        [[nodiscard]] Array to_cpu() const& {
+        [[nodiscard]] auto to_cpu() const& -> Array {
             return to(ArrayOption{});
         }
-        [[nodiscard]] Array to_cpu() && {
+        [[nodiscard]] auto to_cpu() && -> Array {
             return std::move(*this).to(ArrayOption{});
         }
 
         /// Performs a deep copy of the array preserving the array's options.
-        [[nodiscard]] Array copy() const& {
+        [[nodiscard]] auto copy() const& -> Array {
             return to(options());
         }
-        [[nodiscard]] Array copy() && {
+        [[nodiscard]] auto copy() && -> Array {
             return std::move(*this).to(options());
         }
 
         /// Returns a copy of the first value in the array.
         /// Note that the stream of the array's device is synchronized when this functions returs.
-        [[nodiscard]] value_type first() const {
+        [[nodiscard]] auto first() const -> value_type {
             return view().first();
         }
 
@@ -332,12 +294,12 @@ namespace noa::inline types {
         ///       when \p U is a unsigned char or std::byte to represent any data type as an array of bytes,
         ///       or to switch between complex and real floating-point numbers with the same precision.
         template<typename U>
-        [[nodiscard]] Array<U> as() const& {
+        [[nodiscard]] auto as() const& -> Array<U> {
             const auto out = ni::ReinterpretLayout(shape(), strides(), get()).template as<U>();
             return Array<U>(std::shared_ptr<U[]>(m_shared, out.ptr), out.shape, out.strides, options());
         }
         template<typename U>
-        [[nodiscard]] Array<U> as() && {
+        [[nodiscard]] auto as() && -> Array<U> {
             const auto out = ni::ReinterpretLayout(shape(), strides(), get()).template as<U>();
             return Array<U>(std::shared_ptr<U[]>(std::move(m_shared), out.ptr), out.shape, out.strides, options());
         }
@@ -351,11 +313,11 @@ namespace noa::inline types {
         ///                 memory and should be used to anticipate access of that memory region by the target device,
         ///                 and/or to "move" the memory from the original to the target device. The prefetching is
         ///                 enqueued to the GPU stream, and as always, concurrent access from both CPU and GPU is illegal.
-        [[nodiscard]] Array as(DeviceType type, bool prefetch = false) const& {
+        [[nodiscard]] auto as(Device::Type type, bool prefetch = false) const& -> Array {
             const auto new_device = view().as(type, prefetch).device();
             return Array(m_shared, shape(), strides(), options().set_device(new_device));
         }
-        [[nodiscard]] Array as(DeviceType type, bool prefetch = false) && {
+        [[nodiscard]] auto as(Device::Type type, bool prefetch = false) && -> Array {
             const auto new_device = view().as(type, prefetch).device();
             return Array(std::move(m_shared), shape(), strides(), options().set_device(new_device));
         }
@@ -367,39 +329,39 @@ namespace noa::inline types {
         ///          If one wants to assign an array to an arbitrary new shape and new strides, one can use the
         ///          alias Array constructor instead.
         /// \return An alias of the array with the new shape and strides.
-        [[nodiscard]] Array reshape(const shape_type& new_shape) const& {
-            auto v = View<value_type>(nullptr, shape(), strides()).reshape(new_shape);
-            return Array(m_shared, v.shape(), v.strides(), options());
+        [[nodiscard]] constexpr auto reshape(const shape_type& new_shape) const& -> Array {
+            auto new_span = span_type(nullptr, shape(), strides()).reshape(new_shape);
+            return Array(m_shared, new_span.shape(), new_span.strides(), options());
         }
-        [[nodiscard]] Array reshape(const shape_type& new_shape) && {
-            auto v = View<value_type>(nullptr, shape(), strides()).reshape(new_shape);
-            return Array(std::move(m_shared), v.shape(), v.strides(), options());
+        [[nodiscard]] constexpr auto reshape(const shape_type& new_shape) && -> Array {
+            auto new_span = span_type(nullptr, shape(), strides()).reshape(new_shape);
+            return Array(std::move(m_shared), new_span.shape(), new_span.strides(), options());
         }
 
         /// Reshapes the array in a vector along a particular axis.
         /// Returns a row vector by default (axis = 3).
-        [[nodiscard]] Array flat(i32 axis = 3) const& {
+        [[nodiscard]] constexpr auto flat(i32 axis = 3) const& -> Array {
             check(axis >= 0 and axis < 4);
             auto output_shape = shape_type::filled_with(1);
-            output_shape[axis] = shape().elements();
+            output_shape[axis] = shape().n_elements();
             return reshape(output_shape);
         }
-        [[nodiscard]] Array flat(i32 axis = 3) && {
+        [[nodiscard]] constexpr auto flat(i32 axis = 3) && -> Array {
             check(axis >= 0 and axis < 4);
             auto output_shape = shape_type::filled_with(1);
-            output_shape[axis] = shape().elements();
+            output_shape[axis] = shape().n_elements();
             return std::move(*this).reshape(output_shape);
         }
 
         /// Permutes the dimensions of the view.
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
-        [[nodiscard]] constexpr Array permute(const Vec4<i64>& permutation) const& {
+        [[nodiscard]] constexpr auto permute(const Vec4<i64>& permutation) const& -> Array {
             return Array(m_shared,
                          ni::reorder(shape(), permutation),
                          ni::reorder(strides(), permutation),
                          options());
         }
-        [[nodiscard]] constexpr Array permute(const Vec4<i64>& permutation) && {
+        [[nodiscard]] constexpr auto permute(const Vec4<i64>& permutation) && -> Array {
             return Array(std::move(m_shared),
                          ni::reorder(shape(), permutation),
                          ni::reorder(strides(), permutation),
@@ -415,52 +377,54 @@ namespace noa::inline types {
             return noa::permute_copy(std::move(*this), permutation);
         }
 
-    public: // Assignment operators
+    public:
         /// Clears the array. Equivalent to assigning *this with an empty array.
         Array& operator=(std::nullptr_t) {
             *this = Array{};
             return *this;
         }
 
-    public:
-        /// Element access. For efficient access, prefer to use Span or Accessor.
-        [[nodiscard]] constexpr value_type& operator()(auto i0, auto i1, auto i2, auto i3) const noexcept {
-            check(is_dereferenceable(), "Memory buffer cannot be accessed from the CPU");
-            check(clamp_cast<i64>(i0) >= 0 and clamp_cast<i64>(i0) < shape()[0] and
-                  clamp_cast<i64>(i1) >= 0 and clamp_cast<i64>(i1) < shape()[1] and
-                  clamp_cast<i64>(i2) >= 0 and clamp_cast<i64>(i2) < shape()[2] and
-                  clamp_cast<i64>(i3) >= 0 and clamp_cast<i64>(i3) < shape()[3],
-                  "Indices are out of bound");
-            return accessor_reference_type(get(), strides().data())(i0, i1, i2, i3);
+        /// Releases the array. *this is left empty.
+        /// \note This effectively does a move with a guaranteed reset of the array.
+        Array release() noexcept {
+            return std::exchange(*this, Array{});
         }
 
-        /// Element access. For efficient access, prefer to use Span or Accessor.
-        template<typename I>
-        [[nodiscard]] constexpr value_type& operator()(const Vec4<I>& indices) const noexcept {
-            return (*this)(indices[0], indices[1], indices[2], indices[3]);
+    public:
+        /// Element access (unsafe if not synchronized). For efficient access, prefer to use Span.
+        template<typename... U> requires nt::iwise_general_indexing<SIZE, U...>
+        [[nodiscard]] constexpr auto at(const U&... indices) const -> value_type& {
+            check(is_dereferenceable(), "Memory buffer cannot be accessed from the CPU");
+            return span().at(indices...);
+        }
+
+        /// Element access (unsafe). For efficient access, prefer to use Span or Accessor.
+        template<typename... U> requires nt::iwise_general_indexing<SIZE, U...>
+        [[nodiscard]] constexpr auto operator()(const U&... indices) const -> value_type& {
+            return span()(indices...);
         }
 
         /// Subregion indexing. Extracts a subregion from the current array.
-        [[nodiscard]] constexpr Array subregion(const ni::SubregionIndexer& indexer) const& {
-            return Array(shared_type(m_shared, get() + indexer.offset), indexer.shape, indexer.strides, options());
+        template<typename... U>
+        [[nodiscard]] constexpr auto subregion(const ni::Subregion<4, U...>& subregion) const& -> Array {
+            auto [new_shape, new_strides, offset] = subregion.extract_from(shape(), strides());
+            return Array(shared_type(m_shared, get() + offset), new_shape, new_strides, options());
         }
-        [[nodiscard]] constexpr Array subregion(const ni::SubregionIndexer& indexer) && {
-            return Array(shared_type(std::move(m_shared), get() + indexer.offset), indexer.shape, indexer.strides, options());
+        template<typename... U>
+        [[nodiscard]] constexpr auto subregion(const ni::Subregion<4, U...>& subregion) && -> Array {
+            auto [new_shape, new_strides, offset] = subregion.extract_from(shape(), strides());
+            return Array(shared_type(std::move(m_shared), get() + offset), new_shape, new_strides, options());
         }
 
         /// Subregion indexing. Extracts a subregion from the current array.
         /// \see noa::indexing::Subregion for more details on the variadic parameters to enter.
-        template<typename... Ts>
-        [[nodiscard]] constexpr Array subregion(Ts&&... indices) const& {
-            const auto indexer = ni::SubregionIndexer(shape(), strides())
-                    .extract_subregion(std::forward<Ts>(indices)...);
-            return subregion(indexer);
+        template<typename... U> requires nt::subregion_indexing<4, U...>
+        [[nodiscard]] constexpr auto subregion(const U&... indices) const& -> Array {
+            return subregion(ni::Subregion<4, U...>(indices...));
         }
-        template<typename... Ts>
-        [[nodiscard]] constexpr Array subregion(Ts&&... indices) && {
-            const auto indexer = ni::SubregionIndexer(shape(), strides())
-                    .extract_subregion(std::forward<Ts>(indices)...);
-            return std::move(*this).subregion(indexer);
+        template<typename... U> requires nt::subregion_indexing<4, U...>
+        [[nodiscard]] constexpr auto subregion(const U&... indices) && -> Array {
+            return std::move(*this).subregion(ni::Subregion<4, U...>(indices...));
         }
 
     private:
@@ -469,7 +433,7 @@ namespace noa::inline types {
             if (memory_resource == MemoryResource::PITCHED) {
                 noa::tie(m_shared, m_strides) = Allocator::allocate_pitched<value_type>(shape(), device(), memory_resource);
             } else {
-                m_shared = Allocator::allocate<value_type>(elements(), device(), memory_resource);
+                m_shared = Allocator::allocate<value_type>(n_elements(), device(), memory_resource);
             }
         }
 
@@ -481,7 +445,7 @@ namespace noa::inline types {
                   "{} is for nullptr only", MemoryResource::NONE);
 
             if (option.device.is_cpu()) {
-                if (not Device::is_any(DeviceType::GPU))
+                if (not Device::is_any_gpu())
                     return; // Everything is allocated using AllocatorHeap
                 #ifdef NOA_ENABLE_CUDA
                 const cudaPointerAttributes attr = noa::cuda::pointer_attributes(ptr);
@@ -546,8 +510,8 @@ namespace noa::inline types {
     private:
         shape_type m_shape{};
         strides_type m_strides{};
-        shared_type m_shared;
-        ArrayOption m_options;
+        shared_type m_shared{};
+        ArrayOption m_options{};
     };
 }
 

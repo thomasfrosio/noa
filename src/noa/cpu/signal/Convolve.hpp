@@ -30,38 +30,39 @@ namespace noa::cpu::signal::guts {
             m_shape(shape), m_filter_shape(filter_shape),
             m_halo(filter_shape / 2) {}
 
-        constexpr void operator()(i64 i, i64 j, i64 k, i64 l) const noexcept {
-            filter_value_type conv{0};
+        constexpr void operator()(i64 i, i64 j, i64 k, i64 l) const {
+            filter_value_type conv{};
+
             if constexpr (DIM == 1) {
-                for (i64 wl = 0; wl < m_filter_shape[0]; ++wl) {
+                for (i64 wl{}; wl < m_filter_shape[0]; ++wl) {
                     const i64 il = l - m_halo[0] + wl;
                     if (il >= 0 and il < m_shape[0])
                         conv += static_cast<filter_value_type>(m_input(i, j, k, il)) * m_filter[wl];
                 }
             } else if constexpr (DIM == 2) {
-                for (i64 wk = 0; wk < m_filter_shape[0]; ++wk) {
+                for (i64 wk{}; wk < m_filter_shape[0]; ++wk) {
                     const i64 ik = k - m_halo[0] + wk;
                     if (ik < 0 or ik >= m_shape[0])
                         continue;
                     const i64 tmp = wk * m_filter_shape[1];
-                    for (i64 wl = 0; wl < m_filter_shape[1]; ++wl) {
+                    for (i64 wl{}; wl < m_filter_shape[1]; ++wl) {
                         const i64 il = l - m_halo[1] + wl;
                         if (il >= 0 and il < m_shape[1])
                             conv += static_cast<filter_value_type>(m_input(i, j, ik, il)) * m_filter[tmp + wl];
                     }
                 }
             } else if constexpr (DIM == 3) {
-                for (i64 wj = 0; wj < m_filter_shape[0]; ++wj) {
+                for (i64 wj{}; wj < m_filter_shape[0]; ++wj) {
                     const i64 ij = j - m_halo[0] + wj;
                     if (ij < 0 or ij >= m_shape[0])
                         continue;
                     const i64 tmp_z = wj * m_filter_shape[1] * m_filter_shape[2];
-                    for (i64 wk = 0; wk < m_filter_shape[1]; ++wk) {
+                    for (i64 wk{}; wk < m_filter_shape[1]; ++wk) {
                         const i64 ik = k - m_halo[1] + wk;
                         if (ik < 0 or ik >= m_shape[1])
                             continue;
                         const i64 tmp = tmp_z + wk * m_filter_shape[2];
-                        for (i64 wl = 0; wl < m_filter_shape[2]; ++wl) {
+                        for (i64 wl{}; wl < m_filter_shape[2]; ++wl) {
                             const i64 il = l - m_halo[2] + wl;
                             if (il >= 0 and il < m_shape[2])
                                 conv += static_cast<filter_value_type>(m_input(i, ij, ik, il)) * m_filter[tmp + wl];
@@ -69,7 +70,7 @@ namespace noa::cpu::signal::guts {
                     }
                 }
             } else {
-                static_assert(nt::always_false_v<filter_value_type>);
+                static_assert(nt::always_false<>);
             }
             m_output(i, j, k, l) = static_cast<output_value_type>(conv);
         }
@@ -107,22 +108,23 @@ namespace noa::cpu::signal::guts {
             m_dim_size(dim_size), m_filter_size(filter_size),
             m_halo(filter_size / 2) {}
 
-        constexpr void operator()(i64 i, i64 j, i64 k, i64 l) const noexcept {
-            filter_value_type conv = 0;
+        constexpr void operator()(i64 i, i64 j, i64 k, i64 l) const {
+            filter_value_type conv{};
+
             if constexpr (DIM == ConvolutionSeparableDim::WIDTH) {
-                for (i64 wl = 0; wl < m_filter_size; ++wl) {
+                for (i64 wl{}; wl < m_filter_size; ++wl) {
                     const i64 il = l - m_halo + wl;
                     if (il >= 0 and il < m_dim_size)
                         conv += static_cast<filter_value_type>(m_input(i, j, k, il)) * m_filter[wl];
                 }
             } else if constexpr (DIM == ConvolutionSeparableDim::HEIGHT) {
-                for (i64 wk = 0; wk < m_filter_size; ++wk) {
+                for (i64 wk{}; wk < m_filter_size; ++wk) {
                     const i64 ik = k - m_halo + wk;
                     if (ik >= 0 and ik < m_dim_size)
                         conv += static_cast<filter_value_type>(m_input(i, j, ik, l)) * m_filter[wk];
                 }
             } else if constexpr (DIM == ConvolutionSeparableDim::DEPTH) {
-                for (i64 wj = 0; wj < m_filter_size; ++wj) {
+                for (i64 wj{}; wj < m_filter_size; ++wj) {
                     const i64 ij = j - m_halo + wj;
                     if (ij >= 0 and ij < m_dim_size)
                         conv += static_cast<filter_value_type>(m_input(i, ij, k, l)) * m_filter[wj];
@@ -151,7 +153,7 @@ namespace noa::cpu::signal::guts {
 
         if constexpr (std::is_same_v<f16, T>) {
             buffer = AllocatorHeap<compute_t>::allocate(filter_size);
-            for (size_t i = 0; i < static_cast<size_t>(filter_size); ++i)
+            for (size_t i{}; i < static_cast<size_t>(filter_size); ++i)
                 buffer[i] = static_cast<compute_t>(filter[i]);
             return Pair{accessor_t(buffer.get()), std::move(buffer)};
         } else {
@@ -205,7 +207,7 @@ namespace noa::cpu::signal {
             const auto filter_shape_2d = filter_shape.pop_front();
             const auto input_accessor = AccessorRestrict<const T, 4, i64>(input, input_strides);
             const auto output_accessor = AccessorRestrict<U, 4, i64>(output, output_strides);
-            const auto [filter_accessor, filter_buffer] = guts::get_filter(filter, filter_shape_2d.elements());
+            const auto [filter_accessor, filter_buffer] = guts::get_filter(filter, filter_shape_2d.n_elements());
             const auto shape_2d = shape.filter(2, 3);
             auto kernel = guts::Convolution(input_accessor, output_accessor, filter_accessor, shape_2d, filter_shape_2d);
             iwise(shape, kernel, threads);
@@ -213,21 +215,21 @@ namespace noa::cpu::signal {
         } else if (ndim == 3) {
             const auto input_accessor = AccessorRestrict<const T, 4, i64>(input, input_strides);
             const auto output_accessor = AccessorRestrict<U, 4, i64>(output, output_strides);
-            const auto [filter_accessor, filter_buffer] = guts::get_filter(filter, filter_shape.elements());
+            const auto [filter_accessor, filter_buffer] = guts::get_filter(filter, filter_shape.n_elements());
             const auto shape_3d = shape.filter(1, 2, 3);
-            auto kernel = Convolution(input_accessor, output_accessor, filter_accessor, shape_3d, filter_shape);
+            auto kernel = guts::Convolution(input_accessor, output_accessor, filter_accessor, shape_3d, filter_shape);
             iwise(shape, kernel, threads);
 
         } else if (all(filter_shape == 1)) {
             auto order = ni::order(output_strides, shape);
-            if (any(order != Vec4<i64>{0, 1, 2, 3})) {
+            if (vany(NotEqual{}, order, Vec4<i64>{0, 1, 2, 3})) {
                 input_strides = ni::reorder(input_strides, order);
                 output_strides = ni::reorder(output_strides, order);
             }
             const auto input_accessor = AccessorRestrict<const T, 4, i64>(input, input_strides);
             const auto output_accessor = AccessorRestrict<U, 4, i64>(output, output_strides);
             const auto value = AccessorValue<T>(static_cast<T>(filter[0]));
-            return ewise(shape, Multiply{}, make_tuple(input, value), make_tuple(output), threads);
+            return ewise(shape, Multiply{}, make_tuple(input_accessor, value), make_tuple(output_accessor), threads);
 
         } else {
             panic("unreachable");
@@ -261,7 +263,7 @@ namespace noa::cpu::signal {
         using allocator_t = noa::cpu::AllocatorHeap<V>;
         typename allocator_t::alloc_unique_type buffer{};
         if (not tmp and count > 1) {
-            buffer = allocator_t::allocate(shape.elements());
+            buffer = allocator_t::allocate(shape.n_elements());
             tmp = buffer.get();
             tmp_strides = shape.strides();
         }

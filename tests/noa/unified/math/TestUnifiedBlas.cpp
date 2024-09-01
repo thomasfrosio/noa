@@ -5,7 +5,7 @@
 #include <noa/unified/Ewise.hpp>
 
 #include <catch2/catch.hpp>
-#include "Helpers.h"
+#include "Utils.hpp"
 
 using namespace ::noa::types;
 
@@ -16,17 +16,17 @@ namespace {
                 lhs.strides(), lhs.shape(), rhs.strides(), rhs.shape(), out.strides(), out.shape(),
                 false, false);
 
-        const auto accessor_lhs = lhs.template accessor<T, 3>();
-        const auto accessor_rhs = rhs.template accessor<T, 3>();
-        const auto accessor_out = out.template accessor<T, 3>();
+        const auto span_lhs = lhs.template span<T, 3>();
+        const auto span_rhs = rhs.template span<T, 3>();
+        const auto span_out = out.template span<T, 3>();
 
-        for (i64 batch = 0; batch < out.shape()[0]; ++batch) {
-            for (i64 m = 0; m < mnk[0]; ++m) {
-                for (i64 n = 0; n < mnk[1]; ++n) {
-                    for (i64 k = 0; k < mnk[2]; ++k) {
-                        accessor_out(batch, m, n) +=
-                                accessor_lhs(batch, m, k) *
-                                accessor_rhs(batch, k, n);
+        for (i64 batch{}; batch < out.shape()[0]; ++batch) {
+            for (i64 m{}; m < mnk[0]; ++m) {
+                for (i64 n{}; n < mnk[1]; ++n) {
+                    for (i64 k{}; k < mnk[2]; ++k) {
+                        span_out.at(batch, m, n) +=
+                                span_lhs.at(batch, m, k) *
+                                span_rhs.at(batch, k, n);
                     }
                 }
             }
@@ -43,16 +43,16 @@ TEMPLATE_TEST_CASE("unified::dot()", "[noa][unified]", f32, f64, c32, c64) {
     const auto reduced_shape = Shape4<i64>{batches, 1, 1, 1};
 
     std::vector<Device> devices{"cpu"};
-    if (Device::is_any(DeviceType::GPU))
+    if (Device::is_any(Device::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
-        const auto stream = StreamGuard(device, StreamMode::DEFAULT);
+        const auto stream = StreamGuard(device, Stream::DEFAULT);
         const auto options = ArrayOption(device, MemoryResource::MANAGED);
         INFO(device);
 
-        const auto lhs = noa::random<TestType>(noa::Uniform{-5, 5}, shape, options);
-        const auto rhs = noa::random<TestType>(noa::Uniform{-5, 5}, shape, options);
+        const auto lhs = noa::random(noa::Uniform<TestType>{-5, 5}, shape, options);
+        const auto rhs = noa::random(noa::Uniform<TestType>{-5, 5}, shape, options);
         const auto output = noa::empty<TestType>(reduced_shape, options);
 
         // Compute output:
@@ -63,11 +63,11 @@ TEMPLATE_TEST_CASE("unified::dot()", "[noa][unified]", f32, f64, c32, c64) {
         noa::ewise(noa::wrap(lhs, rhs), lhs, noa::Multiply{});
         noa::sum(lhs, expected);
 
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output, expected, std::is_same_v<real_t, f64> ? 1e-7 : 5e-3));
+        REQUIRE(test::allclose_abs_safe(output, expected, std::is_same_v<real_t, f64> ? 1e-7 : 5e-3));
     }
 }
 
-TEMPLATE_TEST_CASE("unified::math::dot() vs matmul", "[noa][unified]", f32, f64) {
+TEMPLATE_TEST_CASE("unified::dot() vs matmul", "[noa][unified]", f32, f64) {
     using real_t = noa::traits::value_type_t<TestType>;
 
     test::Randomizer<i64> randomizer(4096, 1048576);
@@ -76,17 +76,17 @@ TEMPLATE_TEST_CASE("unified::math::dot() vs matmul", "[noa][unified]", f32, f64)
     const auto rhs_shape = Shape4<i64>{1, 1, n, 1};
     const auto out_shape = Shape4<i64>{1, 1, 1, 1};
 
-    std::vector<Device> devices{Device{"cpu"}};
-    if (Device::is_any(DeviceType::GPU))
+    std::vector<Device> devices{"cpu"};
+    if (Device::is_any(Device::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
-        const auto stream = StreamGuard(device, StreamMode::DEFAULT);
+        const auto stream = StreamGuard(device, Stream::DEFAULT);
         const auto options = ArrayOption(device, MemoryResource::MANAGED);
         INFO(device);
 
-        const auto lhs = noa::random<TestType>(noa::Uniform{-5, 5}, lhs_shape, options);
-        const auto rhs = noa::random<TestType>(noa::Uniform{-5, 5}, rhs_shape, options);
+        const auto lhs = noa::random(noa::Uniform<TestType>{-5, 5}, lhs_shape, options);
+        const auto rhs = noa::random(noa::Uniform<TestType>{-5, 5}, rhs_shape, options);
         const auto out_dot = noa::dot(lhs, rhs);
 
         const auto output_matmul = noa::empty<TestType>(out_shape, options);
@@ -94,13 +94,13 @@ TEMPLATE_TEST_CASE("unified::math::dot() vs matmul", "[noa][unified]", f32, f64)
 
         output_matmul.eval();
         REQUIRE_THAT(out_dot,
-                     Catch::WithinRel(static_cast<f64>(output_matmul(0, 0, 0, 0)),
+                     Catch::WithinRel(static_cast<f64>(output_matmul.first()),
                                       std::is_same_v<real_t, f64> ? 1e-7 : 5e-3));
     }
 }
 
-TEMPLATE_TEST_CASE("unified::math::matmul()", "[noa][unified]", f32) { //, f64, c32, c64
-    using real_t = traits::value_type_t<TestType>;
+TEMPLATE_TEST_CASE("unified::matmul()", "[noa][unified]", f32, f64, c32, c64) {
+    using real_t = noa::traits::value_type_t<TestType>;
     const i64 batches = test::Randomizer<i64>(1, 4).get();
 
     test::Randomizer<i64> randomizer(8, 256);
@@ -112,27 +112,26 @@ TEMPLATE_TEST_CASE("unified::math::matmul()", "[noa][unified]", f32) { //, f64, 
     INFO(rhs_shape);
     INFO(out_shape);
 
-    std::vector<Device> devices{Device{"cpu"}};
-    if (Device::is_any(DeviceType::GPU))
+    std::vector<Device> devices{"cpu"};
+    if (Device::is_any(Device::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
-        const auto stream = StreamGuard(device, StreamMode::DEFAULT);
+        const auto stream = StreamGuard(device, Stream::DEFAULT);
         const auto options = ArrayOption(device, MemoryResource::MANAGED);
         INFO(device);
 
-        const auto lhs = noa::math::random<TestType>(math::uniform_t{}, lhs_shape, real_t{-5}, real_t{5}, options);
-        const auto rhs = noa::math::random<TestType>(math::uniform_t{}, rhs_shape, real_t{-5}, real_t{5}, options);
-        const auto output = noa::memory::empty<TestType>(out_shape, options);
+        const auto lhs = noa::random(noa::Uniform<TestType>{-5, 5}, lhs_shape, options);
+        const auto rhs = noa::random(noa::Uniform<TestType>{-5, 5}, rhs_shape, options);
+        const auto output = noa::empty<TestType>(out_shape, options);
 
         // Compute output:
-        noa::math::matmul(lhs, rhs, output);
-        output.eval();
+        noa::matmul(lhs, rhs, output);
 
         // Compute expected:
-        const auto expected = noa::memory::zeros<TestType>(out_shape);
+        const auto expected = noa::zeros<TestType>(out_shape);
         naive_matmul_(lhs, rhs, expected);
 
-        REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, output, expected, std::is_same_v<real_t, f64> ? 1e-7 : 5e-3));
+        REQUIRE(test::allclose_abs_safe(output, expected, std::is_same_v<real_t, f64> ? 1e-7 : 5e-3));
     }
 }

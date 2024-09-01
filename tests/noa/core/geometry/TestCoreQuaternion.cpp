@@ -12,9 +12,9 @@ TEST_CASE("core::geometry::Quaternion") {
 
     AND_THEN("") {
         auto q0 = Quaternion<f64>::from_coefficients(1, 2, 3, 4);
-        REQUIRE(noa::all(q0.coefficients == Vec4<f64>{1, 2, 3, 4}));
-        REQUIRE((q0.z() == 1 && q0.y() == 2 && q0.x() == 3 && q0.w() == 4));
-
+        REQUIRE(noa::all(q0.coefficients() == Vec4<f64>{1, 2, 3, 4}));
+        REQUIRE((q0.z == 1 and q0.y == 2 and q0.x == 3 and q0.w == 4));
+        REQUIRE((q0 == Quaternion<f64>{.z=1, .y=2, .x=3, .w=4}));
     }
 
     AND_THEN("rotate") {
@@ -28,7 +28,7 @@ TEST_CASE("core::geometry::Quaternion") {
         auto a1 = q1 * Quaternion<f64>::from_coefficients(v.push_back(0)) * q1.conj();
         auto a2 = q1.rotate(v);
 
-        REQUIRE(noa::all(allclose(a1.coefficients, Vec4<f64>{0, 1, 0, 0})));
+        REQUIRE(noa::all(allclose(a1.coefficients(), Vec4<f64>{0, 1, 0, 0})));
         REQUIRE(noa::all(allclose(a2, Vec3<f64>{0, 1, 0})));
     }
 
@@ -45,7 +45,8 @@ TEST_CASE("core::geometry::Quaternion") {
             const auto v = Vec3<f64>{distribution(rng), distribution(rng), distribution(rng)};
             const auto v0 = rotation_matrix * v;
             const auto v1 = quaternion.rotate(v);
-            const auto v2 = (quaternion * Quaternion<f64>{v.push_back(0)} * quaternion.conj()).coefficients.pop_back();
+            const auto v2 = (quaternion * Quaternion<f64>::from_coefficients(v.push_back(0)) * quaternion.conj())
+                    .coefficients().pop_back();
             const auto v3 = quaternion.to_matrix() * v;
 
             REQUIRE(noa::all(allclose(v0, v1)));

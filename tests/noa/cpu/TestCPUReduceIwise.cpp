@@ -16,9 +16,9 @@ TEST_CASE("cpu::reduce_iwise") {
 
     AND_THEN("simple 1d") {
         const auto shape = Shape1<i64>{100};
-        const auto elements = shape.elements();
+        const auto elements = shape.n_elements();
 
-        const auto buffer = std::make_unique<f32[]>(elements);
+        const auto buffer = std::make_unique<f32[]>(static_cast<size_t>(elements));
         std::fill_n(buffer.get(), elements, 1);
         auto reduced = noa::make_tuple(AccessorValue<f64>(0.));
         auto output0 = noa::make_tuple(AccessorValue<Pair<i32, i32>>({0, 0}));

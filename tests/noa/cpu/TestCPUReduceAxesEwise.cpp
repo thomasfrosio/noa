@@ -1,7 +1,8 @@
 #include <noa/cpu/ReduceAxesEwise.hpp>
+#include <noa/core/utils/Irange.hpp>
 #include <catch2/catch.hpp>
 
-#include "Helpers.h"
+#include "Utils.hpp"
 
 namespace {
     struct Tracked {
@@ -19,7 +20,7 @@ TEST_CASE("cpu::reduce_axes_ewise") {
 
     AND_THEN("sum over one axis") {
         const auto input_shape = Shape4<i64>{6, 7, 8, 9};
-        const auto input_elements = input_shape.elements();
+        const auto input_elements = input_shape.n_elements();
 
         const auto input_buffer = std::make_unique<f32[]>(static_cast<size_t>(input_elements));
         std::fill_n(input_buffer.get(), input_elements, 1);
@@ -32,22 +33,22 @@ TEST_CASE("cpu::reduce_axes_ewise") {
             INFO("axis=" << i);
             auto output_shape = input_shape;
             output_shape[i] = 1;
-            const auto output_elements = output_shape.elements();
+            const auto output_elements = output_shape.n_elements();
             const auto output_buffer = std::make_unique<f32[]>(static_cast<size_t>(output_elements));
             auto output = noa::make_tuple(AccessorI64<f32, 4>(output_buffer.get(), output_shape.strides()));
 
             reduce_axes_ewise(input_shape, output_shape, reduce_op, input, init, output);
 
             const f32 expected_value = static_cast<f32>(input_shape[i]);
-            REQUIRE(test::Matcher(test::MATCH_ABS, output_buffer.get(), expected_value, output_elements, 1e-5));
+            REQUIRE(test::allclose_abs(output_buffer.get(), expected_value, output_elements, 1e-5));
         }
     }
 
     AND_THEN("sum per batch") {
         const auto input_shape = Shape4<i64>{6, 7, 8, 9};
         const auto output_shape = Shape4<i64>{6, 1, 1, 1};
-        const auto input_elements = input_shape.elements();
-        const auto output_elements = output_shape.elements();
+        const auto input_elements = input_shape.n_elements();
+        const auto output_elements = output_shape.n_elements();
 
         const auto input_buffer = std::make_unique<f32[]>(static_cast<size_t>(input_elements));
         const auto output_buffer = std::make_unique<f32[]>(static_cast<size_t>(output_elements));
@@ -60,7 +61,7 @@ TEST_CASE("cpu::reduce_axes_ewise") {
 
         reduce_axes_ewise(input_shape, output_shape, reduce_op, input, init, output);
 
-        const f32 expected_value = static_cast<f32>(input_shape.pop_front().elements());
-        REQUIRE(test::Matcher(test::MATCH_ABS, output_buffer.get(), expected_value, output_elements, 1e-5));
+        const f32 expected_value = static_cast<f32>(input_shape.pop_front().n_elements());
+        REQUIRE(test::allclose_abs(output_buffer.get(), expected_value, output_elements, 1e-5));
     }
 }

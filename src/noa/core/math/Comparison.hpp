@@ -24,20 +24,20 @@ namespace noa {
     // ::isnormal is not a device function, but constexpr __host__. Requires --expr-relaxed-constexpr.
     // Since it is not currently used, remove it from device code.
 
-    template<typename T> requires nt::is_scalar_v<T>
+    template<nt::scalar T>
     [[nodiscard]] NOA_FHD constexpr T min(T x, T y) { return (y < x) ? y : x; }
 
     template<typename T>
     [[nodiscard]] NOA_IH constexpr T min(std::initializer_list<T> list) { return std::min(list); }
 
-    template<typename T> requires nt::is_scalar_v<T>
+    template<nt::scalar T>
     [[nodiscard]] NOA_FHD constexpr T max(T x, T y) { return (y > x) ? y : x; }
 
     template<typename T>
     [[nodiscard]] NOA_IH constexpr T max(std::initializer_list<T> list) { return std::max(list); }
 
-    template<typename T> requires nt::is_scalar_v<T>
-    [[nodiscard]] NOA_FHD constexpr T clamp(T val, T low, T high) {
+    template<nt::scalar T>
+    [[nodiscard]] NOA_FHD constexpr T clamp(T val, std::type_identity_t<T> low, std::type_identity_t<T> high) {
     #ifdef __CUDA_ARCH__
         return min(high, max(val, low));
     #else
@@ -51,18 +51,18 @@ namespace noa {
     /// and Unit in the Last Place (ULPs) comparisons are usually meaningless for close-to-zero
     /// numbers, hence the absolute comparison with epsilon, acting as a safety net.
     /// If one or both values are NaN and|or +/-Inf, returns false.
-    template<int32_t ULP, typename Real> requires nt::is_real_v<Real>
-    [[nodiscard]] NOA_IHD constexpr bool allclose(Real x, Real y, Real epsilon) {
-        const Real diff(abs(x - y));
-        if (!is_finite(diff))
+    template<i32 ULP = 2, nt::real T>
+    [[nodiscard]] NOA_IHD constexpr bool allclose(T x, T y, std::type_identity_t<T> epsilon) {
+        const T diff(abs(x - y));
+        if (not is_finite(diff))
             return false;
 
-        constexpr auto THRESHOLD = std::numeric_limits<Real>::epsilon() * static_cast<Real>(ULP);
-        return diff <= epsilon || diff <= (max(abs(x), abs(y)) * THRESHOLD);
+        constexpr auto THRESHOLD = std::numeric_limits<T>::epsilon() * static_cast<T>(ULP);
+        return diff <= epsilon or diff <= (max(abs(x), abs(y)) * THRESHOLD);
     }
 
-    template<typename Real> requires nt::is_real_v<Real>
-    [[nodiscard]] NOA_IHD constexpr bool allclose(Real x, Real y) {
-        return allclose<4>(x, y, static_cast<Real>(1e-6));
+    template<nt::real T>
+    [[nodiscard]] NOA_IHD constexpr bool allclose(T x, T y) {
+        return allclose<2>(x, y, static_cast<T>(1e-6));
     }
 }

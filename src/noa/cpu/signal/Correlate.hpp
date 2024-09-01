@@ -2,25 +2,23 @@
 
 #include "noa/core/signal/Correlation.hpp"
 #include "noa/core/fft/Frequency.hpp"
-#include "noa/core/math/LeastSquare.hpp"
 
 namespace noa::cpu::signal::guts {
     // Fits (in the least-square sense) the peak values to a parabola to compute the vertex subpixel position and value.
     // The "xmap" (and therefore the "peak_index") can be non-centered (F2F case). The "peak_radius" defines the window
     // of the elements, around the original "peak_index" position, that should be included in the fit.
     // Returns the (fft-centered) peak position and value.
-    template<noa::fft::Remap REMAP, typename Real, size_t N>
+    template<Remap REMAP, typename Real, size_t N>
     constexpr auto subpixel_registration_parabola_1d_(
             const Real* xmap, const Strides<i64, N>& xmap_strides, const Shape<i64, N>& xmap_shape,
             Vec<i64, N> peak_index, const Vec<i64, N>& peak_radius
     ) {
-        using Remap = noa::fft::Remap;
-        static_assert(REMAP == Remap::F2F or REMAP == Remap::FC2FC);
+        static_assert(REMAP.is_any(Remap::F2F, Remap::FC2FC));
 
         // Prepare buffer:
         constexpr size_t STATIC_BUFFER_SIZE = 64;
-        size_t peak_window_elements{0};
-        for (size_t i = 0; i < N; ++i)
+        size_t peak_window_elements{};
+        for (size_t i{}; i < N; ++i)
             peak_window_elements += static_cast<size_t>(peak_radius[i] * 2 + 1);
         std::array<Real, STATIC_BUFFER_SIZE> static_buffer{0}; // TODO Replace with flat_vector
         std::vector<Real> dynamic_buffer;
@@ -34,21 +32,20 @@ namespace noa::cpu::signal::guts {
 
         if constexpr (REMAP == Remap::F2F) {
             Real* current_output = output;
-            for (size_t dim = 0; dim < N; ++dim) {
+            for (size_t dim{}; dim < N; ++dim) {
                 // Offset to peak location, except for the current dimension.
                 const Real* current_xmap = xmap;
-                for (size_t i = 0; i < N; ++i)
+                for (size_t i{}; i < N; ++i)
                     current_xmap += ni::offset_at(peak_index[i], xmap_strides[i]) * (dim != i);
 
-                // The peak window can be split across two separate quadrant.
+                // The peak window can be split across two separate quadrants.
                 // Retrieve the frequency and if it is a valid frequency,
                 // convert back to an index and compute the memory offset.
                 const i64 dim_size = xmap_shape[dim];
                 const i64 peak_frequency = noa::fft::index2frequency<false>(peak_index[dim], dim_size);
                 for (i64 index = -peak_radius[dim]; index <= peak_radius[dim]; ++index, ++current_output) {
                     const i64 current_frequency = peak_frequency + index;
-                    if (-dim_size / 2 <= current_frequency and
-                        current_frequency <= (dim_size - 1) / 2) {
+                    if (-dim_size / 2 <= current_frequency and current_frequency <= (dim_size - 1) / 2) {
                         const i64 current_index = noa::fft::frequency2index<false>(current_frequency, dim_size);
                         *current_output = current_xmap[ni::offset_at(current_index, xmap_strides[dim])];
                     }
@@ -65,7 +62,7 @@ namespace noa::cpu::signal::guts {
             // Collect values in the peak window.
             // These loops can be fully unrolled.
             Real* current_output = output;
-            for (size_t dim = 0; dim < N; ++dim) {
+            for (size_t dim{}; dim < N; ++dim) {
                 for (i64 index = -peak_radius[dim]; index <= peak_radius[dim]; ++index, ++current_output) {
                     const i64 offset = peak_index[dim] + index;
                     if (offset >= 0 and offset < xmap_shape[dim])
@@ -76,14 +73,14 @@ namespace noa::cpu::signal::guts {
 
         // At this point, the peak window is saved in row-major order in output.
         // Also, the peak index is centered, so we can simply add the subpixel offset and compute the value.
-        const auto [peak_value, peak_subpixel_coordinate] = peak_parabola_1d(output, peak_radius);
+        const auto [peak_value, peak_subpixel_coordinate] = noa::signal::guts::peak_parabola_1d(output, peak_radius);
         const auto peak_coordinate = peak_subpixel_coordinate + peak_index.template as<f64>();
         return Pair{peak_coordinate, static_cast<Real>(peak_value)};
     }
 
     // Compute the center of mass around the peak and use it to adjust the peak coordinate.
     // TODO The peak value is NOT adjusted, and it simply returns the value at "peak_index".
-    template<fft::Remap REMAP, typename Real>
+    template<Remap REMAP, typename Real>
     constexpr auto subpixel_registration_com_(
             const Accessor<const Real, 3, i64>& xmap, const Shape3<i64>& xmap_shape,
             Vec3<i64> peak_index, const Vec3<i64>& peak_radius
@@ -103,16 +100,16 @@ namespace noa::cpu::signal::guts {
 
         // Collect the elements within the peak window. Out-of-bound values are 0.
         // At the same time, find the min value.
-        Real peak_window_min{0};
-        if constexpr (REMAP == noa::fft::Remap::F2F) {
-            // The peak window can be split across two separate quadrant.
+        Real peak_window_min{};
+        if constexpr (REMAP == Remap::F2F) {
+            // The peak window can be split across two separate quadrants.
             // Retrieve the frequency and if it is a valid frequency,
             // convert back to an index and compute the memory offset.
             const auto frequency_min = -xmap_shape.vec / 2;
             const auto frequency_max = (xmap_shape.vec - 1) / 2;
-            const auto peak_frequency = noa::fft::index2frequency<false>(peak_index, xmap_shape);
+            const auto peak_frequency = noa::fft::index2frequency<false, true>(peak_index, xmap_shape);
 
-            i64 count{0};
+            i64 count{};
             for (i64 j = -peak_radius[0]; j <= peak_radius[0]; ++j) {
                 for (i64 k = -peak_radius[1]; k <= peak_radius[1]; ++k) {
                     for (i64 l = -peak_radius[2]; l <= peak_radius[2]; ++l, ++count) {
@@ -120,7 +117,7 @@ namespace noa::cpu::signal::guts {
                         const auto current_frequency = peak_frequency + relative_offset;
 
                         if (all(frequency_min <= current_frequency and current_frequency <= frequency_max)) {
-                            const auto current_index = noa::fft::frequency2index<false>(current_frequency, xmap_shape);
+                            const auto current_index = noa::fft::frequency2index<false, true>(current_frequency, xmap_shape);
                             const auto value = xmap(current_index);
                             peak_window_values[count] = value;
                             peak_window_min = std::min(value, peak_window_min);
@@ -131,8 +128,8 @@ namespace noa::cpu::signal::guts {
             NOA_ASSERT(static_cast<i64>(peak_window_elements) == count);
             peak_index = noa::fft::fftshift(peak_index, xmap_shape);
 
-        } else if constexpr (REMAP == noa::fft::Remap::FC2FC) {
-            i64 count{0};
+        } else if constexpr (REMAP == Remap::FC2FC) {
+            i64 count{};
             for (i64 j = -peak_radius[0]; j <= peak_radius[0]; ++j) {
                 for (i64 k = -peak_radius[1]; k <= peak_radius[1]; ++k) {
                     for (i64 l = -peak_radius[2]; l <= peak_radius[2]; ++l, ++count) {
@@ -149,14 +146,14 @@ namespace noa::cpu::signal::guts {
             }
             NOA_ASSERT(static_cast<i64>(peak_window_elements) == count);
         } else {
-            static_assert(nt::always_false_v<Real>);
+            static_assert(nt::always_false<>);
         }
 
         // Deal with negative values by setting the min to 0.
         // Compute the center-of-mass.
-        Vec3<f64> com{0};
-        f64 com_total{0};
-        i64 count{0};
+        Vec3<f64> com{};
+        f64 com_total{};
+        i64 count{};
         for (i64 j = -peak_radius[0]; j <= peak_radius[0]; ++j) {
             for (i64 k = -peak_radius[1]; k <= peak_radius[1]; ++k) {
                 for (i64 l = -peak_radius[2]; l <= peak_radius[2]; ++l, ++count) {
@@ -171,13 +168,13 @@ namespace noa::cpu::signal::guts {
 
         // Finally, get the peak value.
         const auto peak_window_strides = Shape3<i64>(peak_radius * 2 + 1).strides();
-        const auto peak_value = peak_window_values[ni::offset_at(peak_radius, peak_window_strides)];
+        const auto peak_value = peak_window_values[ni::offset_at(peak_window_strides, peak_radius)];
         return Pair{peak_coordinate, peak_value};
     }
 }
 
 namespace noa::cpu::signal {
-    template<noa::fft::Remap REMAP, typename Real, typename Coord>
+    template<Remap REMAP, typename Real, typename Coord>
     void subpixel_registration_1d(
             Real* xmap, const Strides4<i64>& strides, const Shape4<i64>& shape,
             const i64* xmap_peak_offsets,
@@ -189,7 +186,7 @@ namespace noa::cpu::signal {
         const auto stride = strides.filter(3 - is_column);
         const auto size = shape.filter(3 - is_column);
 
-        for (size_t batch = 0; batch < batches; ++batch) {
+        for (size_t batch{}; batch < batches; ++batch) {
             const auto peak_indices = ni::offset2index(xmap_peak_offsets[batch], stride[0]);
             NOA_ASSERT(peak_indices[0] == batch); // peak should belong to the batch
             const auto peak_index = peak_indices.pop_front();
@@ -222,7 +219,7 @@ namespace noa::cpu::signal {
         }
     }
 
-    template<noa::fft::Remap REMAP, typename Real, typename Coord>
+    template<Remap REMAP, typename Real, typename Coord>
     void subpixel_registration_2d(
             Real* xmap, const Strides4<i64>& strides, const Shape4<i64>& shape,
             const i64* xmap_peak_offsets,
@@ -232,7 +229,7 @@ namespace noa::cpu::signal {
         const auto shape_2d = shape.filter(2, 3);
         const auto strides_2d = strides.filter(2, 3);
 
-        for (i64 batch = 0; batch < shape[0]; ++batch) {
+        for (i64 batch{}; batch < shape[0]; ++batch) {
             const auto peak_index = ni::offset2index(xmap_peak_offsets[batch], strides_2d, shape_2d);
             const Real* imap = xmap + strides[0] * batch;
 
@@ -260,7 +257,7 @@ namespace noa::cpu::signal {
         }
     }
 
-    template<noa::fft::Remap REMAP, typename Real, typename Coord>
+    template<Remap REMAP, typename Real, typename Coord>
     void subpixel_registration_3d(
             Real* xmap, const Strides4<i64>& strides, const Shape4<i64>& shape,
             const i64* xmap_peak_offsets,
@@ -270,7 +267,7 @@ namespace noa::cpu::signal {
         const auto shape_3d = shape.pop_front();
         const auto strides_3d = strides.pop_front();
 
-        for (i64 batch = 0; batch < shape[0]; ++batch) {
+        for (i64 batch{}; batch < shape[0]; ++batch) {
             const auto peak = ni::offset2index(xmap_peak_offsets[batch], strides_3d, shape_3d);
             const Real* imap = xmap + strides[0] * batch;
 

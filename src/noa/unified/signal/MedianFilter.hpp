@@ -6,7 +6,6 @@
 #endif
 
 #include "noa/unified/Array.hpp"
-#include "noa/unified/Utilities.hpp"
 
 namespace noa::signal {
     struct MedianFilterOptions {
@@ -26,9 +25,9 @@ namespace noa::signal {
     /// \param[in] input    Array to filter.
     /// \param[out] output  Filtered array. Should not overlap with \p input.
     /// \param options      Filter options.
-    template<typename Input, typename Output>
-    requires nt::are_varray_of_scalar_v<Input, Output>
-    void median_filter_1d(const Input& input, const Output& output, const MedianFilterOptions& options) {
+    template<nt::readable_varray_decay_of_scalar Input,
+             nt::writable_varray_decay_of_scalar Output>
+    void median_filter_1d(Input&& input, Output&& output, const MedianFilterOptions& options) {
         if (options.window_size <= 1)
             return input.to(output);
 
@@ -54,10 +53,10 @@ namespace noa::signal {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             const auto n_threads = cpu_stream.thread_limit();
-            cpu_stream.enqueue([=]() {
+            cpu_stream.enqueue([=, i = std::forward<Input>(input), o = std::forward<Output>(output)] {
                 noa::cpu::signal::median_filter_1d(
-                        input.get(), input_strides,
-                        output.get(), output.strides(), output.shape(),
+                        i.get(), input_strides,
+                        o.get(), o.strides(), o.shape(),
                         options.border_mode, options.window_size, n_threads);
             });
         } else {
@@ -72,7 +71,7 @@ namespace noa::signal {
                     input.get(), input_strides.template as<i32>(),
                     output.get(), output.strides().template as<i32>(), output.shape(),
                     options.border_mode, options.window_size, cuda_stream);
-            cuda_stream.enqueue_attach(input, output);
+            cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             #else
             panic("No GPU backend detected");
             #endif
@@ -83,9 +82,9 @@ namespace noa::signal {
     /// \param[in] input    Array to filter.
     /// \param[out] output  Filtered array. Should not overlap with \p input.
     /// \param options      Filter options.
-    template<typename Input, typename Output>
-    requires nt::are_varray_of_scalar_v<Input, Output>
-    void median_filter_2d(const Input& input, const Output& output, const MedianFilterOptions& options) {
+    template<nt::readable_varray_decay_of_scalar Input,
+             nt::writable_varray_decay_of_scalar Output>
+    void median_filter_2d(Input&& input, Output&& output, const MedianFilterOptions& options) {
         if (options.window_size <= 1)
             return input.to(output);
 
@@ -112,10 +111,10 @@ namespace noa::signal {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.thread_limit();
-            cpu_stream.enqueue([=]() {
+            cpu_stream.enqueue([=, i = std::forward<Input>(input), o = std::forward<Output>(output)] {
                 noa::cpu::signal::median_filter_2d(
-                        input.get(), input_strides,
-                        output.get(), output.strides(), output.shape(),
+                        i.get(), input_strides,
+                        o.get(), o.strides(), o.shape(),
                         options.border_mode, options.window_size, threads);
             });
         } else {
@@ -130,7 +129,7 @@ namespace noa::signal {
                     input.get(), input_strides.template as<i32>(),
                     output.get(), output.strides().template as<i32>(), output.shape(),
                     options.border_mode, options.window_size, cuda_stream);
-            cuda_stream.enqueue_attach(input, output);
+            cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             #else
             panic("No GPU backend detected");
             #endif
@@ -141,9 +140,9 @@ namespace noa::signal {
     /// \param[in] input    Array to filter.
     /// \param[out] output  Filtered array. Should not overlap with \p input.
     /// \param options      Filter options.
-    template<typename Input, typename Output>
-    requires nt::are_varray_of_scalar_v<Input, Output>
-    void median_filter_3d(const Input& input, const Output& output, const MedianFilterOptions& options) {
+    template<nt::readable_varray_decay_of_scalar Input,
+             nt::writable_varray_decay_of_scalar Output>
+    void median_filter_3d(Input&& input, Output&& output, const MedianFilterOptions& options) {
         if (options.window_size <= 1)
             return input.to(output);
 
@@ -169,10 +168,10 @@ namespace noa::signal {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.thread_limit();
-            cpu_stream.enqueue([=]() {
+            cpu_stream.enqueue([=, i = std::forward<Input>(input), o = std::forward<Output>(output)] {
                 noa::cpu::signal::median_filter_3d(
-                        input.get(), input_strides,
-                        output.get(), output.strides(), output.shape(),
+                        i.get(), input_strides,
+                        o.get(), o.strides(), o.shape(),
                         options.border_mode, options.window_size, threads);
             });
         } else {
@@ -187,7 +186,7 @@ namespace noa::signal {
                     input.get(), input_strides.template as<i32>(),
                     output.get(), output.strides().template as<i32>(), output.shape(),
                     options.border_mode, options.window_size, cuda_stream);
-            cuda_stream.enqueue_attach(input, output);
+            cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             #else
             panic("No GPU backend detected");
             #endif

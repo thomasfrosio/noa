@@ -34,8 +34,8 @@ namespace noa::inline types {
     struct Pair {
         constexpr static size_t SIZE = 2;
         constexpr static bool nothrow_swappable =
-                std::is_nothrow_swappable_v<First>
-                && std::is_nothrow_swappable_v<Second>;
+                std::is_nothrow_swappable_v<First> and
+                std::is_nothrow_swappable_v<Second>;
         using type_list = nt::TypeList<First, Second>;
         using decayed_type_list = nt::TypeList<std::decay_t<First>, std::decay_t<Second>>;
         using index_list = std::index_sequence<0, 1>;
@@ -89,8 +89,7 @@ namespace noa::inline types {
             swap(second, other.second);
         }
 
-        template<typename T>
-        requires (!std::is_same_v<std::decay_t<Pair>, std::decay_t<T>>)
+        template<typename T> requires (not nt::almost_same_as<Pair, T>)
         constexpr auto& operator=(T&& tup) {
             static_assert(std::decay_t<T>::SIZE == 2);
             first = std::forward<T>(tup)[Tag<0>{}];
@@ -112,7 +111,7 @@ namespace noa::inline types {
 
 namespace noa {
     template<size_t I, typename Tup>
-    requires nt::is_tuple_v<Tup> or nt::is_pair_v<Tup>
+    requires (nt::tuple<std::decay_t<Tup>> or nt::pair<std::decay_t<Tup>>)
     constexpr decltype(auto) get(Tup&& tup) {
         return std::forward<Tup>(tup)[Tag<I>{}];
     }
@@ -124,6 +123,6 @@ namespace noa {
 }
 
 namespace noa::traits {
-    template<typename T0, typename T1>
-    struct proclaim_is_pair<noa::Pair<T0, T1>> : std::true_type {};
+    template<typename T, typename U>
+    struct proclaim_is_pair<noa::Pair<T, U>> : std::true_type {};
 }

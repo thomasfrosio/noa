@@ -51,7 +51,7 @@ namespace noa::cpu::guts {
 
             const std::scoped_lock lock(m_mutex);
             if (m_exception) {
-                while (!m_queue.empty())
+                while (not m_queue.empty())
                     m_queue.pop();
                 std::rethrow_exception(std::exchange(m_exception, nullptr));
             }
@@ -62,16 +62,16 @@ namespace noa::cpu::guts {
         bool is_busy() {
             const std::scoped_lock lock_worker(m_mutex);
             if (m_exception) {
-                while (!m_queue.empty())
+                while (not m_queue.empty())
                     m_queue.pop();
                 std::rethrow_exception(std::exchange(m_exception, nullptr));
             }
-            return !m_queue.empty() || m_is_busy;
+            return not m_queue.empty() or m_is_busy;
         }
 
         void synchronize() {
             std::unique_lock lock(m_mutex);
-            m_condition_sync.wait(lock, [this] { return m_queue.empty() && !m_is_busy; });
+            m_condition_sync.wait(lock, [this] { return m_queue.empty() and not m_is_busy; });
             if (m_exception)
                 std::rethrow_exception(std::exchange(m_exception, nullptr));
         }
@@ -96,7 +96,7 @@ namespace noa::cpu::guts {
                     // If the predicate is false, we release the lock and go to sleep.
                     // If we get notified (or spurious awakenings), we'll lock again and check the predicate.
                     // If the predicate is true, we continue while still holding the lock.
-                    m_condition_work.wait(lock, [this] { return m_stop || !m_queue.empty(); });
+                    m_condition_work.wait(lock, [this] { return m_stop or not m_queue.empty(); });
 
                     if (m_queue.empty()) {
                         // The predicate was true and the lock was acquired this entire time, so at this point
@@ -200,7 +200,7 @@ namespace noa::cpu {
         // overhead and has also a clearer intent.
         template<typename F, typename... Args>
         constexpr void enqueue(F&& func, Args&&... args) {
-            if (!m_worker) {
+            if (not m_worker) {
                 std::forward<F>(func)(std::forward<Args>(args)...);
             } else {
                 m_worker->enqueue(std::forward<F>(func), std::forward<Args>(args)...);
@@ -208,12 +208,12 @@ namespace noa::cpu {
         }
 
         [[nodiscard]] auto is_sync() -> bool { return m_worker == nullptr; }
-        [[nodiscard]] auto is_async() -> bool { return !is_sync(); }
+        [[nodiscard]] auto is_async() -> bool { return not is_sync(); }
 
         // Whether the stream is busy running tasks.
         // This function may also throw an exception from previous asynchronous tasks.
         bool is_busy() {
-            if (!m_worker)
+            if (not m_worker)
                 return false;
             return m_worker->is_busy();
         }
@@ -221,7 +221,7 @@ namespace noa::cpu {
         // Blocks until the stream has completed all operations.
         // This function may also throw an exception from previous asynchronous tasks.
         void synchronize() {
-            if (!m_worker)
+            if (not m_worker)
                 return;
             m_worker->synchronize();
         }

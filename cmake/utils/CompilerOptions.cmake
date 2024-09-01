@@ -75,6 +75,6 @@ endfunction()
 function(noa_set_compiler_options target)
     target_compile_features(prj_common_option INTERFACE cxx_std_20) # All of our targets are C++20
 
-    set(_cuda_options --expt-relaxed-constexpr --extended-lambda)
+    set(_cuda_options --expt-relaxed-constexpr --extended-lambda -ccbin /usr/bin/g++-13)
     target_compile_options(prj_common_option INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: ${_cuda_options}>)
 endfunction()

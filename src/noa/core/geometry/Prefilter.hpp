@@ -2,6 +2,7 @@
 
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
+#include "noa/core/math/Comparison.hpp"
 
 namespace noa::geometry {
     /// BSpline prefilter utility.
@@ -20,10 +21,9 @@ namespace noa::geometry {
     ///  - const was added when appropriate.
     ///  - In-place filtering was added.
     ///  - Support for double precision and complex types.
-    template<typename Value, typename Int>
+    template<nt::real_or_complex Value, nt::integer Int>
     class BSplinePrefilter1d {
     public:
-        static_assert(nt::is_real_or_complex_v<Value> && nt::is_int_v<Int>);
         using value_type = Value;
         using real_type = nt::value_type_t<value_type>;
         using sint_type = std::make_signed<Int>;

@@ -8,9 +8,7 @@ macro(noa_set_options)
     option(NOA_ENABLE_CPU "Build the CPU backend" ON)
     if (NOA_ENABLE_CPU)
         option(NOA_CPU_OPENMP "Enable multithreading, using OpenMP" ON)
-        option(FFTW3_THREADS "Use the multi-threaded FFTW3 libraries using system threads" OFF)
-        option(FFTW3_OPENMP "Use the multi-threaded FFTW3 libraries using OpenMP. Takes precedence over FFTW3_THREADS" ${NOA_CPU_OPENMP})
-        option(FFTW3_STATIC "Use the FFTW3 static libraries" OFF)
+        option(NOA_MULTITHREADED_FFTW3 "Use the multi-threaded FFTW3 libraries using system threads" ${NOA_CPU_OPENMP})
     endif ()
 
     # CUDA backend:
@@ -37,8 +35,7 @@ macro(noa_set_options)
     endif ()
 
     # TIFF:
-    option(NOA_ENABLE_TIFF "Enable support for the TIFF file format. Requires libtiff" ON)
-    option(TIFF_STATIC "Use the TIFF static library instead of the shared ones." OFF)
+    option(NOA_ENABLE_TIFF "Enable support for the TIFF file format. Requires static libtiff" ON)
 
     # Additional targets:
     option(NOA_BUILD_TESTS "Build tests" ON)

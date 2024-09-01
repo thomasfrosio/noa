@@ -1,7 +1,6 @@
 #include <noa/cpu/Ewise.hpp>
 #include <catch2/catch.hpp>
-
-#include "Helpers.h"
+#include "Utils.hpp"
 
 namespace {
     struct Tracked {
@@ -64,62 +63,62 @@ TEST_CASE("cpu::ewise") {
 
     AND_THEN("simply fill and copy") {
         const auto shape = Shape4<i64>{1, 1, 1, 100};
-        const auto elements = shape.elements();
+        const auto elements = shape.n_elements();
 
-        const auto buffer = std::make_unique<f64[]>(elements);
-        const auto expected = std::make_unique<f64[]>(elements);
-        for (i64 i{0}; auto& e: Span(expected.get(), elements))
+        const auto buffer = std::make_unique<f64[]>(static_cast<size_t>(elements));
+        const auto expected = std::make_unique<f64[]>(static_cast<size_t>(elements));
+        for (i64 i{}; auto& e: Span(expected.get(), elements))
             e = static_cast<f64>(i++);
 
         const auto input = noa::make_tuple(Accessor<f64, 4, i64>(buffer.get(), shape.strides()));
         const auto output = noa::make_tuple(Accessor<f64, 4, i64>(expected.get(), shape.strides()));
 
-        ewise(shape, [i = i64{0}](f64& e) mutable { e = static_cast<f64>(i++); }, input, Tuple<>{});
-        REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 1e-8));
+        ewise(shape, [i = i64{}](f64& e) mutable { e = static_cast<f64>(i++); }, input, Tuple<>{});
+        REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 1e-8));
 
         std::fill_n(expected.get(), elements, 0.);
         ewise(shape, [](f64 i, f64& o) mutable { o = i; }, input, output);
-        REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 1e-8));
+        REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 1e-8));
     }
 
     AND_THEN("no outputs, simple memset") {
         const auto shape = Shape4<i64>{1, 1, 1, 100};
-        const auto elements = shape.elements();
+        const auto elements = shape.n_elements();
 
-        const auto buffer = std::make_unique<f64[]>(elements);
-        const auto expected = std::make_unique<f64[]>(elements);
+        const auto buffer = std::make_unique<f64[]>(static_cast<size_t>(elements));
+        const auto expected = std::make_unique<f64[]>(static_cast<size_t>(elements));
 
         const auto input = noa::make_tuple(Accessor<f64, 4, i64>(buffer.get(), shape.strides()));
 
         ewise(shape, [](f64& e) { e = 1.4; }, input, Tuple<>{});
         for (auto& e: Span(expected.get(), elements))
             e = 1.4;
-        REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 1e-8));
+        REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 1e-8));
 
         ewise<EwiseConfig<true>>(shape, [](Tuple<f64&> e) { e[Tag<0>{}] = 1.5; }, input, Tuple<>{});
         for (auto& e: Span(expected.get(), elements))
             e = 1.5;
-        REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 1e-8));
+        REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 1e-8));
     }
 
     AND_THEN("fill using runtime value") {
         const auto shape = Shape4<i64>{1, 1, 1, 100};
-        const auto elements = shape.elements();
+        const auto elements = shape.n_elements();
 
         auto value = AccessorValue<f64>(1.57);
 
-        const auto buffer = std::make_unique<f64[]>(elements);
-        const auto expected = std::make_unique<f64[]>(elements);
+        const auto buffer = std::make_unique<f64[]>(static_cast<size_t>(elements));
+        const auto expected = std::make_unique<f64[]>(static_cast<size_t>(elements));
         for (auto& e: Span(expected.get(), elements))
             e = value.deref();
 
         auto input = noa::make_tuple(value);
         auto output = noa::make_tuple(Accessor<f64, 4, i64>(buffer.get(), shape.strides()));
         ewise<EwiseConfig<true>>(shape, [](Tuple<f64&> i, f64& o) { o = i[Tag<0>{}]; }, input, output);
-        REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 1e-8));
+        REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 1e-8));
 
         std::fill_n(buffer.get(), elements, 0.);
         ewise(shape, [](f64 i, f64& o) { o = i; }, input, output);
-        REQUIRE(test::Matcher(test::MATCH_ABS, buffer.get(), expected.get(), elements, 1e-8));
+        REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 1e-8));
     }
 }

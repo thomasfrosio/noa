@@ -1,7 +1,8 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/string/Format.hpp"
+#include "noa/core/Traits.hpp"
+#include "noa/core/utils/Strings.hpp"
 
 namespace noa {
     /// Border mode, i.e. how out of bounds coordinates are handled. It is compatible with cudaTextureAddressMode.
@@ -38,40 +39,6 @@ namespace noa {
         NOTHING
     };
 
-    /// Interpolation methods.
-    enum class Interp {
-        /// Nearest neighbour interpolation.
-        /// Corresponds to cudaFilterModePoint.
-        NEAREST = 0,
-
-        /// (bi|tri)linear interpolation.
-        LINEAR = 1,
-
-        /// (bi|tri)linear interpolation with cosine smoothing.
-        COSINE,
-
-        /// (bi|tri)cubic interpolation.
-        CUBIC,
-
-        /// (bi|tri)cubic B-spline interpolation.
-        CUBIC_BSPLINE,
-
-        /// (bi|tri)linear interpolation, using CUDA textures in linear mode.
-        /// Faster than LINEAR, but at the cost of precision.
-        /// Corresponds to cudaFilterModeLinear. Only used in the CUDA backend.
-        LINEAR_FAST,
-
-        /// (bi|tri)linear interpolation, using CUDA textures in linear mode.
-        /// Faster than COSINE, but at the cost of precision.
-        /// Only used in the CUDA backend.
-        COSINE_FAST,
-
-        /// (bi|tri)linear interpolation, using CUDA textures in linear mode.
-        /// Faster than CUBIC_BSPLINE, but at the cost of precision.
-        /// Only used in the CUDA backend.
-        CUBIC_BSPLINE_FAST
-    };
-
     enum class Norm {
         /// Set [min,max] range to [0,1].
         MIN_MAX,
@@ -87,7 +54,7 @@ namespace noa {
 namespace noa::fft {
     /// Sign of the exponent in the formula that defines the c2c Fourier transform.
     /// Either FORWARD (-1) for the forward/direct transform, or BACKWARD (+1) for the backward/inverse transform.
-    enum class Sign : int32_t {
+    enum class Sign : i32 {
         FORWARD = -1,
         BACKWARD = 1
     };
@@ -99,72 +66,6 @@ namespace noa::fft {
         ORTHO,
         BACKWARD,
         NONE
-    };
-
-    /// Bitmask encoding a FFT layout.
-    /// \details
-    /// \e Centering:
-    ///     The "non-centered" (or native) layout is used by fft functions, with the origin (the DC) at index 0.
-    ///     The "centered" layout is often used in files or for geometric transformations, with the origin at index n//2.
-    /// \e Redundancy:
-    ///     It refers to non-redundant Fourier transforms of real inputs (aka rfft). For a {D,H,W} logical/real shape,
-    ///     rffts have a shape of {D,H,W//2+1}. Note that with even dimensions, the Nyquist frequency is real and
-    ///     the c2r (aka irfft) functions will assume its imaginary part is zero.
-    ///
-    /// \example
-    /// \code
-    /// n=8: non-centered, redundant     u=[ 0, 1, 2, 3,-4,-3,-2,-1]
-    ///      non-centered, non-redundant u=[ 0, 1, 2, 3, 4]
-    ///      centered,     redundant     u=[-4,-3,-2,-1, 0, 1, 2, 3]
-    ///      centered,     non-redundant u=[ 0, 1, 2, 3, 4]
-    ///      note: frequency -4 is real, so -4 = 4
-    ///
-    /// n=9  non-centered, redundant     u=[ 0, 1, 2, 3, 4,-4,-3,-2,-1]
-    ///      non-centered, non-redundant u=[ 0, 1, 2, 3, 4]
-    ///      centered,     redundant     u=[-4,-3,-2,-1, 0, 1, 2, 3, 4]
-    ///      centered,     non-redundant u=[ 0, 1, 2, 3, 4]
-    ///      note: frequency 4 is complex (it's not nyquist), -4 = conj(4)
-    /// \endcode
-    enum Layout : uint8_t {
-        SRC_HALF =          0b00000001,
-        SRC_FULL =          0b00000010,
-        DST_HALF =          0b00000100,
-        DST_FULL =          0b00001000,
-        SRC_CENTERED =      0b00010000,
-        SRC_NON_CENTERED =  0b00100000,
-        DST_CENTERED =      0b01000000,
-        DST_NON_CENTERED =  0b10000000,
-    };
-
-    /// FFT remapping.
-    /// \b F = redundant, non-centered
-    /// \b FC = redundant, centered
-    /// \b H = non-redundant, non-centered
-    /// \b HC = non-redundant, centered
-    /// \note With H2H, HC2HC, F2F and FC2FC, there's actually no remapping.
-    /// \note F2FC is fftshift and FC2F is ifftshift.
-    enum Remap : uint8_t {
-        NONE = 0,
-
-        H2H = Layout::SRC_HALF | Layout::SRC_NON_CENTERED | Layout::DST_HALF | Layout::DST_NON_CENTERED,
-        H2HC = Layout::SRC_HALF | Layout::SRC_NON_CENTERED | Layout::DST_HALF | Layout::DST_CENTERED,
-        H2F = Layout::SRC_HALF | Layout::SRC_NON_CENTERED | Layout::DST_FULL | Layout::DST_NON_CENTERED,
-        H2FC = Layout::SRC_HALF | Layout::SRC_NON_CENTERED | Layout::DST_FULL | Layout::DST_CENTERED,
-
-        HC2H = Layout::SRC_HALF | Layout::SRC_CENTERED | Layout::DST_HALF | Layout::DST_NON_CENTERED,
-        HC2HC = Layout::SRC_HALF | Layout::SRC_CENTERED | Layout::DST_HALF | Layout::DST_CENTERED,
-        HC2F = Layout::SRC_HALF | Layout::SRC_CENTERED | Layout::DST_FULL | Layout::DST_NON_CENTERED,
-        HC2FC = Layout::SRC_HALF | Layout::SRC_CENTERED | Layout::DST_FULL | Layout::DST_CENTERED,
-
-        F2H = Layout::SRC_FULL | Layout::SRC_NON_CENTERED | Layout::DST_HALF | Layout::DST_NON_CENTERED,
-        F2HC = Layout::SRC_FULL | Layout::SRC_NON_CENTERED | Layout::DST_HALF | Layout::DST_CENTERED,
-        F2F = Layout::SRC_FULL | Layout::SRC_NON_CENTERED | Layout::DST_FULL | Layout::DST_NON_CENTERED,
-        F2FC = Layout::SRC_FULL | Layout::SRC_NON_CENTERED | Layout::DST_FULL | Layout::DST_CENTERED,
-
-        FC2H = Layout::SRC_FULL | Layout::SRC_CENTERED | Layout::DST_HALF | Layout::DST_NON_CENTERED,
-        FC2HC = Layout::SRC_FULL | Layout::SRC_CENTERED | Layout::DST_HALF | Layout::DST_CENTERED,
-        FC2F = Layout::SRC_FULL | Layout::SRC_CENTERED | Layout::DST_FULL | Layout::DST_NON_CENTERED,
-        FC2FC = Layout::SRC_FULL | Layout::SRC_CENTERED | Layout::DST_FULL | Layout::DST_CENTERED
     };
 }
 
@@ -187,7 +88,7 @@ namespace noa::signal {
     };
 
     /// Subpixel registration method.
-    enum CorrelationRegistration {
+    enum class CorrelationRegistration {
         /// Updates the pixel location by fitting a 1D parabola along axis.
         /// The peak value is average of the vertex height along each dimension.
         PARABOLA_1D,
@@ -219,27 +120,6 @@ namespace noa {
         }
         return os;
     }
-    inline std::ostream& operator<<(std::ostream& os, Interp interp) {
-        switch (interp) {
-            case Interp::NEAREST:
-                return os << "Interp::NEAREST";
-            case Interp::LINEAR:
-                return os << "Interp::LINEAR";
-            case Interp::COSINE:
-                return os << "Interp::COSINE";
-            case Interp::CUBIC:
-                return os << "Interp::CUBIC";
-            case Interp::CUBIC_BSPLINE:
-                return os << "Interp::CUBIC_BSPLINE";
-            case Interp::LINEAR_FAST:
-                return os << "Interp::LINEAR_FAST";
-            case Interp::COSINE_FAST:
-                return os << "Interp::COSINE_FAST";
-            case Interp::CUBIC_BSPLINE_FAST:
-                return os << "Interp::CUBIC_BSPLINE_FAST";
-        }
-        return os;
-    }
 
     inline std::ostream& operator<<(std::ostream& os, Norm norm) {
         switch (norm) {
@@ -249,48 +129,6 @@ namespace noa {
                 return os << "Norm::MEAN_STD";
             case Norm::L2:
                 return os << "Norm::L2";
-        }
-        return os;
-    }
-}
-
-namespace noa::fft {
-    inline std::ostream& operator<<(std::ostream& os, Remap remap) {
-        switch (remap) {
-            case Remap::H2H:
-                return os << "h2h";
-            case Remap::H2HC:
-                return os << "h2hc";
-            case Remap::H2F:
-                return os << "h2f";
-            case Remap::H2FC:
-                return os << "h2fc";
-            case Remap::HC2H:
-                return os << "hc2h";
-            case Remap::HC2HC:
-                return os << "hc2hc";
-            case Remap::HC2F:
-                return os << "hc2f";
-            case Remap::HC2FC:
-                return os << "hc2fc";
-            case Remap::F2H:
-                return os << "f2h";
-            case Remap::F2HC:
-                return os << "f2hc";
-            case Remap::F2F:
-                return os << "f2f";
-            case Remap::F2FC:
-                return os << "f2fc";
-            case Remap::FC2H:
-                return os << "fc2h";
-            case Remap::FC2HC:
-                return os << "fc2hc";
-            case Remap::FC2F:
-                return os << "fc2f";
-            case Remap::FC2FC:
-                return os << "fc2fc";
-            case Remap::NONE:
-                return os << "none";
         }
         return os;
     }
@@ -325,9 +163,7 @@ namespace noa::signal {
 // fmt 9.1.0 fix (Disabled automatic std::ostream insertion operator)
 namespace fmt {
     template<> struct formatter<noa::Border> : ostream_formatter {};
-    template<> struct formatter<noa::Interp> : ostream_formatter {};
     template<> struct formatter<noa::Norm> : ostream_formatter {};
-    template<> struct formatter<noa::fft::Remap> : ostream_formatter {};
     template<> struct formatter<noa::signal::Correlation> : ostream_formatter {};
     template<> struct formatter<noa::signal::CorrelationRegistration> : ostream_formatter {};
 }

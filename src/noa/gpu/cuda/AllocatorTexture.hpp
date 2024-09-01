@@ -53,6 +53,61 @@ template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::c16>() { retu
 template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::c32>() { return cudaCreateChannelDesc<float2>(); }
 
 namespace noa::cuda {
+    /*
+     * Texture
+     * TextureAllocator
+     * TextureHandle
+     * TextureObject
+     * TextureInterp
+     *
+     */
+
+
+    /// Texture object used to interpolate data.
+    /// This type is supported by the Interpolator and the interpolate(_spectrum)_using_texture_at functions.
+    template<size_t N,
+             Interp InterpMode,
+             typename Value,
+             typename Coord,
+             bool IsNormalized,
+             bool IsLayered>
+    class Texture {
+        static_assert(nt::is_any_v<Value, f32, c32> and nt::is_any_v<Coord, f32, f64>);
+        static_assert(not IsNormalized or (InterpMode == Interp::NEAREST or InterpMode == Interp::LINEAR_FAST));
+
+        using value_type = Value;
+        using mutable_value_type = Value;
+        using real_type = nt::value_type_t<value_type>;
+        using real2_type = Vec2<real_type>;
+        using coord_type = Coord;
+        using coord2_type = Vec2<coord_type>;
+        using f_shape_type = std::conditional_t<IsNormalized, coord2_type, Empty>;
+
+        cudaTextureObject_t texture; // size_t
+        NOA_NO_UNIQUE_ADDRESS f_shape_type shape;
+        NOA_NO_UNIQUE_ADDRESS i32 layer;
+
+        // These assume the coordinate is within the [0-N] coordinate system.
+        // They will add the 0.5 offset and normalize the coordinates if/when necessary.
+        // fetch
+        // lerp
+        // nearest
+
+        // These assume the coordinate is already matching the texture coordinate system,
+        // i.e. the 0.5 offset is applied and the coordinate is normalized if the texture is normalized.
+        // fetch_raw
+        // lerp_raw
+        // nearest_raw
+
+        // equivalent to nearest(static_cast<int>(coord))
+        // read_at
+
+        // change the layer
+        // operator[](int) -> Texture
+        // set_layer(int)
+    };
+
+
     /// Creates and manages a 1d, 2d or 3d texture object bounded to a CUDA array.
     /// \note While textures can map pitch memory (2d only) and linear memory (1d only), but we don't support these
     ///       use cases as they are either less performant or are very limited compared to a CUDA array.

@@ -3,16 +3,16 @@
 //#include <noa/unified/io/ImageFile.hpp>
 
 #include <catch2/catch.hpp>
-#include "Helpers.h"
+#include "Utils.hpp"
 
 using namespace ::noa::types;
 
 TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", i32, f32, c32, Vec4<i32>, Mat22<f64>) {
-    StreamGuard guard(Device{}, StreamMode::DEFAULT);
+    auto guard = StreamGuard(Device{}, Stream::DEFAULT);
     Array<TestType> a;
     REQUIRE(a.is_empty());
 
-    const auto shape = test::get_random_shape4_batched(2);
+    const auto shape = test::random_shape(2);
     const auto memory_resource = GENERATE(
             MemoryResource::DEFAULT,
             MemoryResource::DEFAULT_ASYNC,
@@ -23,7 +23,7 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", i32, f32, c32, 
     const auto allocator = Allocator(memory_resource);
 
     // CPU
-    a = Array<TestType>(shape, ArrayOption{.device=Device{}, .allocator=allocator});
+    a = Array<TestType>(shape, {.device=Device{}, .allocator=allocator});
     REQUIRE(a.device().is_cpu());
     REQUIRE(a.allocator().resource() == memory_resource);
     REQUIRE(all(a.shape() == shape));
@@ -31,10 +31,10 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", i32, f32, c32, 
     REQUIRE_FALSE(a.is_empty());
 
     // GPU
-    if (not Device::is_any(DeviceType::GPU))
+    if (not Device::is_any_gpu())
         return;
 
-    Array<TestType> b(shape, ArrayOption{"gpu:0", allocator});
+    Array<TestType> b(shape, {"gpu:0", allocator});
     REQUIRE(b.device().is_gpu());
     REQUIRE(b.allocator().resource() == memory_resource);
     REQUIRE(all(b.shape() == shape));
@@ -44,19 +44,19 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", i32, f32, c32, 
     if (memory_resource == MemoryResource::PINNED or
         memory_resource == MemoryResource::MANAGED or
         memory_resource == MemoryResource::MANAGED_GLOBAL) {
-        Array<TestType> c = a.as(DeviceType::GPU, /*prefetch=*/ true);
+        Array<TestType> c = a.as(Device::GPU, /*prefetch=*/ true);
         REQUIRE(c.device().is_gpu());
-        c = b.as(DeviceType::CPU, /*prefetch=*/ true);
+        c = b.as(Device::CPU, /*prefetch=*/ true);
         REQUIRE(c.device() == Device{});
     } else {
-        REQUIRE_THROWS_AS(a.as(DeviceType::GPU), noa::Exception);
-        REQUIRE_THROWS_AS(b.as(DeviceType::CPU), noa::Exception);
+        REQUIRE_THROWS_AS(a.as(Device::GPU), noa::Exception);
+        REQUIRE_THROWS_AS(b.as(Device::CPU), noa::Exception);
     }
 }
 
 TEMPLATE_TEST_CASE("unified::Array, copy metadata", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
-    StreamGuard guard(Device{}, StreamMode::DEFAULT);
-    const auto shape = test::get_random_shape4_batched(2);
+    StreamGuard guard(Device{}, Stream::DEFAULT);
+    const auto shape = test::random_shape(2);
     const auto memory_resource = GENERATE(
             MemoryResource::DEFAULT,
             MemoryResource::DEFAULT_ASYNC,
@@ -65,22 +65,22 @@ TEMPLATE_TEST_CASE("unified::Array, copy metadata", "[noa][unified]", i32, u64, 
             MemoryResource::MANAGED,
             MemoryResource::MANAGED_GLOBAL);
     const auto allocator = Allocator(memory_resource);
-    INFO(allocator);
+    INFO(allocator.resource());
 
     // CPU
-    Array<TestType> a(shape, ArrayOption{Device{}, allocator});
+    Array<TestType> a(shape, {Device{}, allocator});
     REQUIRE(a.device().is_cpu());
     REQUIRE(a.allocator().resource() == memory_resource);
     REQUIRE(a.get());
 
-    Array<TestType> b = a.to(ArrayOption{.device=Device(DeviceType::CPU)});
+    Array<TestType> b = a.to({.device=Device(Device::CPU)});
     REQUIRE(b.device().is_cpu());
     REQUIRE(b.allocator().resource() == MemoryResource::DEFAULT);
     REQUIRE(b.get());
     REQUIRE(b.get() != a.get());
 
     // GPU
-    if (!Device::is_any(DeviceType::GPU))
+    if (!Device::is_any(Device::GPU))
         return;
     const Device gpu("gpu:0");
     a = Array<TestType>(shape, ArrayOption{}.set_device(gpu).set_allocator(allocator));
@@ -94,7 +94,7 @@ TEMPLATE_TEST_CASE("unified::Array, copy metadata", "[noa][unified]", i32, u64, 
     REQUIRE(b.get());
     REQUIRE(b.get() != a.get());
 
-    a = b.to(ArrayOption{.device=Device(DeviceType::CPU)});
+    a = b.to(ArrayOption{.device=Device(Device::CPU)});
     REQUIRE(a.device().is_cpu());
     REQUIRE(a.allocator().resource() == MemoryResource::DEFAULT);
     REQUIRE(a.get());
@@ -108,50 +108,46 @@ TEMPLATE_TEST_CASE("unified::Array, copy metadata", "[noa][unified]", i32, u64, 
 }
 
 TEMPLATE_TEST_CASE("unified::Array, copy values", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
-    StreamGuard guard(Device{}, StreamMode::DEFAULT);
-    const auto shape = test::get_random_shape4_batched(3);
-    const auto input = Array<TestType>(shape, ArrayOption{.allocator="managed"});
+    StreamGuard guard(Device{}, Stream::DEFAULT);
+    const auto shape = test::random_shape(3);
+    const auto input = Array<TestType>(shape, {.allocator="managed"});
 
     // arange
     using real_t = noa::traits::value_type_t<TestType>;
-    const auto input_accessor_1d = input.accessor_contiguous_1d();
-    for (i64 i = 0; i < input.elements(); ++i)
-        input_accessor_1d[i] = static_cast<real_t>(i);
+    for (i64 i{}; auto& e: input.span_1d())
+        e = static_cast<real_t>(i++);
 
     AND_THEN("cpu -> cpu") {
         const auto output = input.copy();
-        REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, input, output, 1e-10));
+        REQUIRE(test::allclose_abs(input, output, 1e-10));
     }
 
     AND_THEN("cpu -> gpu") {
-        if (Device::is_any(DeviceType::GPU)) {
-            const auto dst_options = ArrayOption{.device="gpu", .allocator="managed"};
-            const auto output = input.to(dst_options);
-            REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, input, output, 1e-10));
+        if (Device::is_any(Device::GPU)) {
+            const auto output = input.to({.device="gpu", .allocator="managed"});
+            REQUIRE(test::allclose_abs(input, output, 1e-10));
         }
     }
 
     AND_THEN("gpu -> gpu") {
-        if (Device::is_any(DeviceType::GPU)) {
-            const auto dst_options = ArrayOption{.device="gpu", .allocator="managed"};
-            const auto output0 = input.to(dst_options);
+        if (Device::is_any(Device::GPU)) {
+            const auto output0 = input.to({.device="gpu", .allocator="managed"});
             const auto output1 = output0.copy();
-            REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, output0, output1, 1e-10));
+            REQUIRE(test::allclose_abs(output0, output1, 1e-10));
         }
     }
 
     AND_THEN("gpu -> cpu") {
-        if (Device::is_any(DeviceType::GPU)) {
-            const auto dst_options = ArrayOption{.device="gpu", .allocator="managed"};
-            const auto output0 = input.to(dst_options);
+        if (Device::is_any(Device::GPU)) {
+            const auto output0 = input.to({.device="gpu", .allocator="managed"});
             const auto output1 = output0.to_cpu();
-            REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, output0, output1, 1e-10));
+            REQUIRE(test::allclose_abs(output0, output1, 1e-10));
         }
     }
 }
 
 TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
-    StreamGuard guard(Device{}, StreamMode::DEFAULT);
+    StreamGuard guard(Device{}, Stream::DEFAULT);
     AND_THEN("as another type") {
         Array<f64> c({2, 3, 4, 5});
         Array<unsigned char> d = c.as<unsigned char>();
@@ -232,22 +228,21 @@ TEST_CASE("unified::Array, overlap", "[noa][unified]") {
     REQUIRE(ni::are_overlapped(rhs, lhs));
 }
 
-TEST_CASE("unified::Array, accessor", "[noa][unified]") {
-    StreamGuard guard(Device{"cpu"}, StreamMode::DEFAULT);
+TEST_CASE("unified::Array, span", "[noa][unified]") {
+    StreamGuard guard(Device{"cpu"}, Stream::DEFAULT);
     Array<f32> lhs({9, 10, 11, 12});
 
-    const auto accessor_1d = lhs.accessor_contiguous_1d();
-    for (i64 i = 0; i < lhs.elements(); ++i)
-        accessor_1d[i] = static_cast<f32>(i);
+    for (i64 i{}; auto& e: lhs.span_1d_contiguous())
+        e = static_cast<f32>(i++);
 
-    const i64 offset = noa::indexing::offset_at(3, 5, 1, 10, lhs.strides());
-    REQUIRE(accessor_1d(offset) == static_cast<f32>(offset));
+    const i64 offset = noa::indexing::offset_at(lhs.strides(), 3, 5, 1, 10);
+    REQUIRE(lhs.span_1d()[offset] == static_cast<f32>(offset));
 
-    const auto [accessor_byte, a_shape] = lhs.accessor_and_shape<unsigned char, 4>();
-    for (i64 i = 0; i < a_shape[0]; ++i)
-        for (i64 j = 0; j < a_shape[1]; ++j)
-            for (i64 k = 0; k < a_shape[2]; ++k)
-                for (i64 l = 0; l < a_shape[3]; ++l)
-                    accessor_byte[i][j][k][l] = 0;
-    REQUIRE(test::Matcher(test::MATCH_ABS, lhs, 0.f, 1e-10));
+    const auto span = lhs.span<unsigned char, 4>();
+    for (i64 i{}; i < span.shape()[0]; ++i)
+        for (i64 j{}; j < span.shape()[1]; ++j)
+            for (i64 k{}; k < span.shape()[2]; ++k)
+                for (i64 l{}; l < span.shape()[3]; ++l)
+                    span(i, j, k, l) = 0;
+    REQUIRE(test::allclose_abs(lhs, 0.f, 1e-10));
 }

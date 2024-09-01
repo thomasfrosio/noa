@@ -3,12 +3,11 @@
 #include "noa/core/Config.hpp"
 
 #ifdef NOA_IS_OFFLINE
-#include <omp.h>
-#include "noa/core/Types.hpp"
+#include "noa/core/types/Accessor.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/core/Interfaces.hpp"
 
 namespace noa::cpu::guts {
-    /// Index-wise reduction.
     template<bool ZipReduced, bool ZipOutput>
     class ReduceIwise {
     public:
@@ -21,7 +20,6 @@ namespace noa::cpu::guts {
         ) {
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced) firstprivate(op)
             {
-                // Local copy of the reduced values.
                 auto local_reduce = reduced;
 
                 if constexpr (N == 4) {
@@ -53,7 +51,6 @@ namespace noa::cpu::guts {
 
                 #pragma omp critical
                 {
-                    // Join the reduced values of each thread together.
                     interface::join(op, local_reduce, reduced);
                 }
             }
@@ -103,17 +100,17 @@ namespace noa::cpu {
 
     template<typename Config = ReduceIwiseConfig<>,
              typename Op, typename Reduced, typename Output, typename Index, size_t N>
-    requires (nt::is_tuple_of_accessor_value_v<Reduced> and nt::is_tuple_of_accessor_v<Output>)
+    requires (nt::tuple_of_accessor_value<std::decay_t<Reduced>> and nt::tuple_of_accessor_or_empty<Output>)
     constexpr void reduce_iwise(
             const Shape<Index, N>& shape,
             Op&& op,
             Reduced&& reduced,
             Output& output,
             i64 n_threads = 1
-    )  {
+    ) {
         using core = guts::ReduceIwise<Config::zip_reduced, Config::zip_output>;
         if constexpr (Config::n_elements_per_thread > 1) {
-            const i64 n_elements = shape.template as<i64>().elements();
+            const i64 n_elements = shape.template as<i64>().n_elements();
             i64 actual_n_threads = n_elements <= Config::n_elements_per_thread ? 1 : n_threads;
             if (actual_n_threads > 1)
                 actual_n_threads = min(n_threads, n_elements / Config::n_elements_per_thread);

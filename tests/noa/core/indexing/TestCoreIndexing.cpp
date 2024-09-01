@@ -1,13 +1,17 @@
+#include <noa/core/types/Mat.hpp>
+#include <noa/core/types/Shape.hpp>
 #include <noa/core/types/Vec.hpp>
-#include <noa/core/Indexing.hpp>
+#include <noa/core/indexing/Offset.hpp>
+#include <noa/core/indexing/Layout.hpp>
+#include <noa/core/indexing/Subregion.hpp>
 
-#include "Helpers.h"
+#include "Utils.hpp"
 #include <catch2/catch.hpp>
 
 using namespace ::noa;
 using namespace ::noa::indexing;
 
-TEST_CASE("core::indexing::at<Border>()", "[noa][core]") {
+TEST_CASE("core::indexing::index_at()", "[noa][core]") {
     AND_THEN("Border::PERIODIC") {
         int expected_odd[55] = {0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4,
                                 0, 1, 2, 3, 4,
@@ -18,8 +22,7 @@ TEST_CASE("core::indexing::at<Border>()", "[noa][core]") {
         for (size_t idx = 0; idx < data.size(); ++idx)
             data[idx] = index_at<Border::PERIODIC>(static_cast<int>(idx) - starts_at, len);
 
-        int diff = test::get_difference(expected_odd, data.data(), static_cast<i64>(data.size()));
-        REQUIRE(diff == 0);
+        REQUIRE(test::allclose_abs(expected_odd, data.data(), static_cast<i64>(data.size())));
 
         int expected_even[36] = {0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3,
                                  0, 1, 2, 3,
@@ -30,8 +33,7 @@ TEST_CASE("core::indexing::at<Border>()", "[noa][core]") {
         for (size_t idx = 0; idx < data.size(); ++idx)
             data[idx] = index_at<Border::PERIODIC>(static_cast<int>(idx) - starts_at, len);
 
-        diff = test::get_difference(expected_even, data.data(), static_cast<i64>(data.size()));
-        REQUIRE(diff == 0);
+        REQUIRE(test::allclose_abs(expected_even, data.data(), static_cast<i64>(data.size())));
     }
 
     AND_THEN("Border::CLAMP") {
@@ -44,8 +46,7 @@ TEST_CASE("core::indexing::at<Border>()", "[noa][core]") {
         for (size_t idx = 0; idx < data.size(); ++idx)
             data[idx] = index_at<Border::CLAMP>(static_cast<int>(idx) - starts_at, len);
 
-        int diff = test::get_difference(expected_odd, data.data(), static_cast<i64>(data.size()));
-        REQUIRE(diff == 0);
+        REQUIRE(test::allclose_abs(expected_odd, data.data(), static_cast<i64>(data.size())));
 
         int expected_even[34] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                  0, 1, 2, 3,
@@ -56,8 +57,7 @@ TEST_CASE("core::indexing::at<Border>()", "[noa][core]") {
         for (size_t idx = 0; idx < data.size(); ++idx)
             data[idx] = index_at<Border::CLAMP>(static_cast<int>(idx) - starts_at, len);
 
-        diff = test::get_difference(expected_even, data.data(), static_cast<i64>(data.size()));
-        REQUIRE(diff == 0);
+        REQUIRE(test::allclose_abs(expected_even, data.data(), static_cast<i64>(data.size())));
     }
 
     AND_THEN("Border::MIRROR") {
@@ -70,8 +70,7 @@ TEST_CASE("core::indexing::at<Border>()", "[noa][core]") {
         for (size_t idx = 0; idx < data.size(); ++idx)
             data[idx] = index_at<Border::MIRROR>(static_cast<int>(idx) - starts_at, len);
 
-        int diff = test::get_difference(expected_odd, data.data(), static_cast<i64>(data.size()));
-        REQUIRE(diff == 0);
+        REQUIRE(test::allclose_abs(expected_odd, data.data(), static_cast<i64>(data.size())));
 
         int expected_even[52] = {0, 1, 2, 3, 3, 2, 1, 0, 0, 1, 2, 3, 3, 2, 1, 0, 0, 1, 2, 3, 3, 2, 1, 0,
                                  0, 1, 2, 3,
@@ -82,8 +81,7 @@ TEST_CASE("core::indexing::at<Border>()", "[noa][core]") {
         for (size_t idx = 0; idx < data.size(); ++idx)
             data[idx] = index_at<Border::MIRROR>(static_cast<int>(idx) - starts_at, len);
 
-        diff = test::get_difference(expected_even, data.data(), static_cast<i64>(data.size()));
-        REQUIRE(diff == 0);
+        REQUIRE(test::allclose_abs(expected_even, data.data(), static_cast<i64>(data.size())));
     }
 
     AND_THEN("Border::REFLECT") {
@@ -96,8 +94,7 @@ TEST_CASE("core::indexing::at<Border>()", "[noa][core]") {
         for (size_t idx = 0; idx < data.size(); ++idx)
             data[idx] = index_at<Border::REFLECT>(static_cast<int>(idx) - starts_at, len);
 
-        int diff = test::get_difference(expected_odd, data.data(), static_cast<i64>(data.size()));
-        REQUIRE(diff == 0);
+        REQUIRE(test::allclose_abs(expected_odd, data.data(), static_cast<i64>(data.size())));
 
         int expected_even[40] = {0, 1, 2, 3, 2, 1, 0, 1, 2, 3, 2, 1, 0, 1, 2, 3, 2, 1,
                                  0, 1, 2, 3,
@@ -108,8 +105,7 @@ TEST_CASE("core::indexing::at<Border>()", "[noa][core]") {
         for (size_t idx = 0; idx < data.size(); ++idx)
             data[idx] = index_at<Border::REFLECT>(static_cast<int>(idx) - starts_at, len);
 
-        diff = test::get_difference(expected_even, data.data(), static_cast<i64>(data.size()));
-        REQUIRE(diff == 0);
+        REQUIRE(test::allclose_abs(expected_even, data.data(), static_cast<i64>(data.size())));
     }
 }
 
@@ -265,7 +261,7 @@ TEST_CASE("core:: shape, strides", "[noa][core]") {
     AND_THEN("physical shape") {
         const uint ndim = GENERATE(1u, 2u, 3u);
         for (size_t i = 0; i < 20; ++i) {
-            auto shape = test::get_random_shape4_batched(ndim);
+            auto shape = test::random_shape(ndim, {.batch_range={1, 5}});
             auto strides = shape.strides();
             REQUIRE(all(shape.pop_front() == strides.physical_shape()));
 
@@ -403,7 +399,7 @@ TEST_CASE("core::indexing:: memory layouts", "[noa][core]") {
 }
 
 TEST_CASE("core::indexing:: Reinterpret", "[noa][core]") {
-    const auto shape = test::get_random_shape4_batched(3);
+    const auto shape = test::random_shape(3, {.batch_range={1, 10}});
     auto strides = shape.strides();
     c32* ptr = nullptr;
     auto real = ReinterpretLayout(shape, strides, ptr).as<float>();
@@ -426,7 +422,7 @@ TEMPLATE_TEST_CASE("core::indexing::offset2index(), 4D", "[noa][core]", Vec4<i64
     test::Randomizer<value_t> idx_randomizer(0, 50);
 
     for (int i = 0; i < 20; ++i) {
-        const auto shape = test::get_random_shape4_batched(ndim).as<value_t>();
+        const auto shape = test::random_shape<value_t>(ndim, {.batch_range={1, 10}});
         const auto strides = shape.strides() * randomizer.get();
 
         // Generate a random 4D index.
@@ -435,7 +431,7 @@ TEMPLATE_TEST_CASE("core::indexing::offset2index(), 4D", "[noa][core]", Vec4<i64
             idx_expected[j] = std::clamp(idx_expected[j] - idx_randomizer.get(), value_t{0}, shape[j] - 1);
 
         // Now find the 4D index of the offset.
-        const value_t offset = offset_at(idx_expected, strides);
+        const value_t offset = offset_at(strides, idx_expected);
         const auto idx_result = offset2index(offset, strides, shape);
         INFO(strides);
         INFO(shape);
@@ -454,20 +450,8 @@ TEMPLATE_TEST_CASE("core::indexing::offset2index()", "[noa][core]",
     test::Randomizer<value_t> randomizer(2, 3);
     test::Randomizer<value_t> idx_randomizer(0, 50);
 
-    auto get_shape_nd = [](const Shape4<i64>& shape) {
-        if constexpr (N == 1)
-            return shape.filter(3);
-        else if constexpr (N == 2)
-            return shape.filter(2, 3);
-        else if constexpr (N == 3)
-            return shape.filter(1, 2, 3);
-        else
-            return shape;
-    };
-
     for (i32 i = 0; i < 100; ++i) {
-        const auto shape_4d = test::get_random_shape4_batched(N).as<value_t>();
-        const auto shape_nd = get_shape_nd(shape_4d);
+        const auto shape_nd = test::random_shape<value_t, N>(3, {.batch_range={1, 10}});
 
         // Generate a random nd index and its memory offset.
         auto idx_expected = (shape_nd - 1).vec;
@@ -476,8 +460,8 @@ TEMPLATE_TEST_CASE("core::indexing::offset2index()", "[noa][core]",
 
         const auto strides_strided = shape_nd.strides() * randomizer.get();
         const auto strides_contiguous = shape_nd.strides();
-        const auto offset_strided = offset_at(idx_expected, strides_strided);
-        const auto offset_contiguous = offset_at(idx_expected, strides_contiguous);
+        const auto offset_strided = offset_at(strides_strided, idx_expected);
+        const auto offset_contiguous = offset_at(strides_contiguous, idx_expected);
 
         INFO(strides_strided);
         INFO(shape_nd);
@@ -576,4 +560,25 @@ TEST_CASE("core::indexing::reshape, broadcasting", "[noa][indexing]") {
     success = reshape(shape2, strides2, new_shape, new_strides);
     REQUIRE(success);
     REQUIRE(all(new_strides == new_shape.strides()));
+}
+
+TEST_CASE("core::indexing::Subregion", "[noa][indexing]") {
+    constexpr auto shape = Shape4<i64>{30, 20, 10, 5};
+    constexpr auto strides = shape.strides();
+    constexpr std::uintptr_t offset = 5;
+
+    auto subregion = make_subregion<4>(0, 0).extract_from(shape, strides, offset);
+    REQUIRE(all(subregion.shape == Shape4<i64>{1, 1, 10, 5}));
+    REQUIRE(all(subregion.strides == strides));
+    REQUIRE(all(subregion.offset == offset));
+
+    subregion = make_subregion<4>(Ellipsis{}, 5, 2).extract_from(shape, strides, offset);
+    REQUIRE(all(subregion.shape == Shape4<i64>{30, 20, 1, 1}));
+    REQUIRE(all(subregion.strides == strides));
+    REQUIRE(all(subregion.offset == offset + offset_at(strides, 0, 0, 5, 2)));
+
+    subregion = make_subregion<4>(Slice{10, 20}, FullExtent{}, Slice{2, 5}, 3).extract_from(shape, strides, offset);
+    REQUIRE(all(subregion.shape == Shape4<i64>{10, 20, 3, 1}));
+    REQUIRE(all(subregion.strides == strides));
+    REQUIRE(all(subregion.offset == offset + offset_at(strides, 10, 0, 2, 3)));
 }

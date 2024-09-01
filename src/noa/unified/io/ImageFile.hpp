@@ -5,6 +5,7 @@
 #ifdef NOA_IS_OFFLINE
 #include <memory>
 #include <utility>
+#include <variant>
 #include "noa/core/io/IO.hpp"
 #include "noa/core/io/MRCFile.hpp"
 #include "noa/core/io/TIFFFile.hpp"
@@ -26,15 +27,24 @@ namespace noa::io {
     ///   and encoded in the strides of the output array.\n
     class ImageFile {
     public:
+#ifdef NOA_ENABLE_TIFF
+        using variant_type = std::variant<MrcFile, TiffFile>;
+#else
+        using variant_type = std::variant<MrcFile>;
+#endif
+        enum class Format { MRC, TIFF };
+        using enum Format;
+
+    public:
         /// Creates an empty instance. Use open(), otherwise all other function calls will be ignored.
         ImageFile() = default;
 
         /// Opens the image file.
         /// \param filename Path of the image file to open. The file format is deduced from the extension.
         /// \param mode     Open mode. See open() for more details.
-        ImageFile(const Path& filename, OpenMode mode)
-                : m_header_format(extension2format_(filename.extension())) {
-            allocate_header_(filename, m_header_format);
+        ImageFile(const Path& filename, Open mode)
+                : m_file_format(extension2format_(filename.extension())) {
+            reset_header_(m_file_format);
             open_(filename, mode);
         }
 
@@ -48,8 +58,7 @@ namespace noa::io {
 
         ~ImageFile() noexcept(false) {
             try {
-                if (m_header)
-                    m_header->close();
+                close_();
             } catch (...) {
                 if (std::uncaught_exceptions() == 0)
                     std::rethrow_exception(std::current_exception());
@@ -59,7 +68,7 @@ namespace noa::io {
     public:
         /// (Re)Opens the file.
         /// \param filename     Path of the file to open.
-        /// \param mode         Open mode bitflag. Should be one of the following combination:
+        /// \param mode         Open mode. Should be one of the following combination:
         ///                     (internally, binary is always on, append and at_the_end are always off)
         ///                     1) read:                    File should exists.
         ///                     2) read-write:              File should exists. Backup copy.
@@ -70,20 +79,20 @@ namespace noa::io {
         ///         - If the file does not exist and \p mode is read or read-write.
         ///         - If the permissions do not match the \p mode.
         ///         - If the file format is not recognized, nor supported.
-        ///         - If failed to close the file before starting (if any).
+        ///         - If failed to close the current file before (if any).
         ///         - If an underlying OS error was raised.
-        ///         - If the file header could not be read.
+        ///         - If the file metadata could not be read.
         ///
         /// \note TIFF files don't support modes 2 and 4.
-        void open(const Path& filename, OpenMode mode) {
+        void open(const Path& filename, Open mode) {
             close();
-            const auto old_format = m_header_format;
-            m_header_format = extension2format_(filename.extension());
-            if (!m_header || m_header_format != old_format) {
-                allocate_header_(filename, m_header_format);
-            } else {
-                m_header->reset();
-            }
+
+            // Try to not reset the underlying file.
+            const auto old_format = m_file_format;
+            m_file_format = extension2format_(filename.extension());
+            if (is_empty() or m_file_format != old_format)
+                reset_header_(m_file_format);
+
             open_(filename, mode);
         }
 
@@ -93,81 +102,82 @@ namespace noa::io {
             close_();
         }
 
-        /// Whether the file is open.
         [[nodiscard]] bool is_open() const noexcept { return m_is_open; }
         explicit operator bool() const noexcept { return m_is_open; }
+        bool is_empty() const { return m_file.valueless_by_exception(); }
 
         /// Returns the file format.
-        [[nodiscard]] Format format() const noexcept { return m_header_format; }
-        [[nodiscard]] bool is_mrc() const noexcept { return m_header_format == Format::MRC; }
-        [[nodiscard]] bool is_tiff() const noexcept { return m_header_format == Format::TIFF; }
-        [[nodiscard]] bool is_eer() const noexcept { return m_header_format == Format::EER; }
-        [[nodiscard]] bool is_jpeg() const noexcept { return m_header_format == Format::JPEG; }
-        [[nodiscard]] bool is_png() const noexcept { return m_header_format == Format::PNG; }
+        [[nodiscard]] Format format() const noexcept { return m_file_format; }
+        [[nodiscard]] bool is_mrc() const noexcept { return m_file_format == Format::MRC; }
+        [[nodiscard]] bool is_tiff() const noexcept { return m_file_format == Format::TIFF; }
 
         /// Gets the path.
-        [[nodiscard]] const Path& filename() const noexcept {
+        [[nodiscard]] auto filename() const -> const Path& {
             check(is_open(), "The file should be opened");
-            NOA_ASSERT(m_header);
-            return m_header->filename();
+            return std::visit([](auto&& file) -> const Path& { return file.filename(); }, m_file);
         }
 
         /// Returns a (brief) description of the file data.
-        [[nodiscard]] std::string info(bool brief) const noexcept {
+        [[nodiscard]] auto info(bool brief) const -> std::string {
             check(is_open(), "The file should be opened");
-            NOA_ASSERT(m_header);
-            return m_header->info_string(brief);
+            return std::visit([brief](auto&& file) { return file.info_string(brief); }, m_file);
         }
 
         /// Gets the shape of the data.
-        [[nodiscard]] Shape4<i64> shape() const noexcept { return m_header ? m_header->shape() : Shape4<i64>{}; }
+        [[nodiscard]] auto shape() const -> Shape4<i64> {
+            if (is_empty())
+                return {};
+            return std::visit([](auto&& file) { return file.shape(); }, m_file);
+        }
 
         /// Sets the shape of the data. In pure read mode, this is usually not allowed
         /// and is likely to throw an exception because the file cannot be modified.
         void set_shape(const Shape4<i64>& shape) {
             check(is_open(), "The file should be opened");
-            NOA_ASSERT(m_header);
-            m_header->set_shape(shape);
+            return std::visit([&](auto&& file) { return file.set_shape(shape); }, m_file);
         }
 
         /// Gets the pixel size of the data (the batch dimension does not have a pixel size).
-        [[nodiscard]] Vec3<f32> pixel_size() const noexcept {
-            return m_header ? m_header->pixel_size() : Vec3<f32>{};
+        [[nodiscard]] auto pixel_size() const -> Vec3<f64> {
+            if (is_empty())
+                return {};
+            return std::visit([](auto&& file) { return file.pixel_size(); }, m_file);
         }
 
         /// Sets the pixel size of the data. In pure read mode, this is usually not allowed
         /// and is likely to throw an exception. Passing 0 for one or more dimensions is allowed.
-        void set_pixel_size(const Vec3<f32>& pixel_size) {
+        void set_pixel_size(const Vec3<f64>& pixel_size) {
             check(is_open(), "The file should be opened");
-            NOA_ASSERT(m_header);
-            m_header->set_pixel_size(pixel_size);
+            return std::visit([&](auto&& file) { return file.set_pixel_size(pixel_size); }, m_file);
         }
 
-        /// Gets the type of the serialized data.
-        [[nodiscard]] DataType dtype() const noexcept {
-            return m_header ? m_header->dtype() : DataType::UNKNOWN;
+        /// Gets the encoding format of the serialized data.
+        [[nodiscard]] auto encoding_format() const -> Encoding::Format {
+            if (is_empty())
+                return Encoding::UNKNOWN;
+            return std::visit([](auto&& file) { return file.encoding_format(); }, m_file);
         }
 
-        /// Sets the type of the serialized data. This will affect all future writing operation.
+        /// Sets the encoding format of the serialized data. This will affect all future writing operation.
         /// In read mode, this is usually not allowed and is likely to throw an exception.
-        void set_dtype(DataType data_type) {
+        void set_encoding_format(Encoding::Format encoding_format) {
             check(is_open(), "The file should be opened");
-            NOA_ASSERT(m_header);
-            m_header->set_dtype(data_type);
+            return std::visit([&](auto&& file) { return file.set_encoding_format(encoding_format); }, m_file);
         }
 
         /// Gets the statistics of the data.
         /// Some fields might be unset (one should use the has_*() methods of Stats before getting the values).
-        [[nodiscard]] Stats<f32> stats() const noexcept {
-            return m_header ? m_header->stats() : Stats<f32>{};
+        [[nodiscard]] auto stats() const -> Stats<f64> {
+            if (is_empty())
+                return {};
+            return std::visit([](auto&& file) { return file.stats(); }, m_file);
         }
 
         /// Sets the statistics of the data. Depending on the open mode and
         /// file format, this might have no effect on the file.
-        void stats(const Stats<f32>& stats) {
+        void set_stats(const Stats<f64>& stats) {
             check(is_open(), "The file should be opened");
-            NOA_ASSERT(m_header);
-            m_header->set_stats(stats);
+            return std::visit([&](auto&& file) { return file.set_stats(stats); }, m_file);
         }
 
     public: // Read
@@ -176,18 +186,17 @@ namespace noa::io {
         ///                     Should match the shape of the file.
         /// \param clamp        Whether the deserialized values should be clamped to fit the output type \p T.
         ///                     If false, out of range values are undefined.
-        template<typename Output, typename = std::enable_if_t<nt::is_varray_of_numeric_v<Output>>>
-        void read(const Output& output, bool clamp = true) {
+        template<nt::writable_varray_decay_of_numeric Output>
+        void read(Output&& output, bool clamp = true) {
             check(is_open(), "The file should be opened");
-            NOA_ASSERT(m_header);
             using value_t = nt::value_type_t<Output>;
 
             if (output.is_dereferenceable()) {
-                m_header->read_all(output.eval().get(), output.strides(), output.shape(), io::dtype<value_t>(), clamp);
+                std::visit([&](auto&& file) { file.read_all(output.eval().span(), clamp); }, m_file);
             } else {
-                Array<value_t> tmp(output.shape());
-                m_header->read_all(tmp.get(), tmp.strides(), tmp.shape(), io::dtype<value_t>(), clamp);
-                tmp.to(output);
+                auto tmp = Array<value_t>(output.shape());
+                std::visit([&](auto&& file) { file.read_all(tmp.span(), clamp); }, m_file);
+                std::move(tmp).to(std::forward<Output>(output));
             }
         }
 
@@ -196,18 +205,17 @@ namespace noa::io {
         /// \param clamp    Whether the deserialized values should be clamped to fit the output type \p T.
         ///                 If false, out of range values are undefined.
         template<typename T>
-        Array<T> read(ArrayOption option = {}, bool clamp = true) {
+        [[nodiscard]] auto read(ArrayOption option = {}, bool clamp = true) -> Array<T> {
             check(is_open(), "The file should be opened");
-            NOA_ASSERT(m_header);
 
             if (option.is_dereferenceable()) {
-                Array<T> out(shape(), option);
-                m_header->read_all(out.eval().get(), out.strides(), out.shape(), io::dtype<T>(), clamp);
-                return out;
+                auto output = Array<T>(shape(), option);
+                std::visit([&](auto&& file) { file.read_all(output.eval().span(), clamp); }, m_file);
+                return output;
             } else {
-                Array<T> tmp(shape());
-                m_header->read_all(tmp.get(), tmp.strides(), tmp.shape(), io::dtype<T>(), clamp);
-                return tmp.to(option);
+                auto tmp = Array<T>(shape());
+                std::visit([&](auto&& file) { file.read_all(tmp.span(), clamp); }, m_file);
+                return std::move(tmp).to(option);
             }
         }
 
@@ -219,22 +227,17 @@ namespace noa::io {
         /// \param start        Index of the slice, in the file, where the deserialization starts.
         /// \param clamp        Whether the deserialized values should be clamped to fit the output type \p T.
         ///                     If false, out of range values are undefined.
-        template<typename Output, typename = std::enable_if_t<nt::is_varray_of_numeric_v<Output>>>
-        void read_slice(const Output& output, i64 start, bool clamp = true) {
+        template<nt::writable_varray_decay_of_numeric Output>
+        void read_slice(Output&& output, i64 start, bool clamp = true) {
             check(is_open(), "The file should be opened");
-            NOA_ASSERT(m_header);
             using value_t = nt::value_type_t<Output>;
 
             if (output.is_dereferenceable()) {
-                m_header->read_slice(
-                        output.eval().get(), output.strides(), output.shape(),
-                        io::dtype<value_t>(), start, clamp);
+                std::visit([&](auto&& file) { file.read_slice(output.eval().span(), start, clamp); }, m_file);
             } else {
-                Array<value_t> tmp(output.shape());
-                m_header->read_slice(
-                        tmp.get(), tmp.strides(), tmp.shape(),
-                        io::dtype<value_t>(), start, clamp);
-                tmp.to(output);
+                auto tmp = Array<value_t>(output.shape());
+                std::visit([&](auto&& file) { file.read_slice(tmp.span(), start, clamp); }, m_file);
+                return std::move(tmp).to(std::forward<Output>(output));
             }
         }
 
@@ -247,17 +250,15 @@ namespace noa::io {
         /// \param[in] input    VArray, of any numeric type, to serialize.
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
         ///                     If false, out of range values are undefined.
-        template<typename Input, typename = std::enable_if_t<nt::is_varray_of_numeric_v<Input>>>
+        template<nt::readable_varray_of_numeric Input>
         void write(const Input& input, bool clamp = true) {
             check(is_open(), "The file should be opened");
-            NOA_ASSERT(m_header);
-            using value_t = nt::value_type_t<Input>;
+            using value_t = nt::const_value_type_t<Input>;
 
-            if (!input.is_dereferenceable()) {
-                Array tmp = input.to_cpu();
-                m_header->write_all(tmp.eval().get(), tmp.strides(), tmp.shape(), io::dtype<value_t>(), clamp);
+            if (not input.is_dereferenceable()) {
+                std::visit([&](auto&& file) { file.write_all(input.to_cpu().template span<value_t>(), clamp); }, m_file);
             } else {
-                m_header->write_all(input.eval().get(), input.strides(), input.shape(), io::dtype<value_t>(), clamp);
+                std::visit([&](auto&& file) { file.write_all(input.eval().template span<value_t>(), clamp); }, m_file);
             }
         }
 
@@ -272,68 +273,62 @@ namespace noa::io {
         /// \param start        Index of the slice, in the file, where the serialization starts.
         /// \param clamp        Whether the input values should be clamped to fit the file data type.
         ///                     If false, out of range values are undefined.
-        template<typename Input, typename = std::enable_if_t<nt::is_varray_of_numeric_v<Input>>>
+        template<nt::readable_varray_of_numeric Input>
         void write_slice(const Input& input, i64 start, bool clamp = true) {
             check(is_open(), "The file should be opened");
-            NOA_ASSERT(m_header);
-            using value_t = nt::value_type_t<Input>;
+            using value_t = nt::const_value_type_t<Input>;
 
-            if (!input.is_dereferenceable()) {
-                Array tmp = input.to_cpu();
-                m_header->write_slice(
-                        tmp.eval().get(), tmp.strides(), tmp.shape(),
-                        io::dtype<value_t>(), start, clamp);
+            if (not input.is_dereferenceable()) {
+                std::visit([&](auto&& file) { file.write_slice(input.to_cpu().template span<value_t>(), start, clamp); }, m_file);
             } else {
-                m_header->write_slice(
-                        input.eval().get(), input.strides(), input.shape(),
-                        io::dtype<value_t>(), start, clamp);
+                std::visit([&](auto&& file) { file.write_slice(input.eval().template span<value_t>(), start, clamp); }, m_file);
             }
         }
 
     private:
-        std::unique_ptr<guts::ImageFile> m_header{};
-        Format m_header_format{};
-        bool m_is_open{};
-
-    private:
-        void allocate_header_(const Path& filename, Format new_format) {
+        void reset_header_(Format new_format) {
             switch (new_format) {
                 case Format::MRC:
-                    m_header = std::make_unique<MRCFile>();
+                    m_file.emplace<MrcFile>();
                     break;
                 case Format::TIFF:
                     #if NOA_ENABLE_TIFF
-                    m_header = std::make_unique<TIFFFile>();
+                    m_file.emplace<TiffFile>();
                     break;
                     #else
                     panic("File {}: TIFF files are not supported in this build. See CMake option NOA_ENABLE_TIFF");
                     #endif
-                default:
-                    panic("File: {}. File format {} is not supported", filename, new_format);
             }
         }
 
-        static Format extension2format_(const Path& extension) noexcept {
-            if (extension == ".mrc" || extension == ".st" || extension == ".rec" || extension == ".mrcs")
+        static Format extension2format_(const Path& extension) {
+            if (MrcFile::is_supported_extension(extension.string()))
                 return Format::MRC;
-            else if (extension == ".tif" || extension == ".tiff")
+            #if NOA_ENABLE_TIFF
+            else if (TiffFile::is_supported_extension(extension.string()))
                 return Format::TIFF;
+            #endif
             else
-                return Format::UNKNOWN;
+                panic("Image file extension \"{}\" not recognized", extension);
         }
 
-        void open_(const Path& filename, OpenMode mode) {
-            NOA_ASSERT(m_header);
-            m_header->open(filename, mode);
+        void open_(const Path& filename, Open mode) {
+            check(not is_empty());
+            std::visit([&](auto&& file) { file.open(filename, mode); }, m_file);
             m_is_open = true;
         }
 
         void close_() {
-            if (!m_header)
+            if (is_empty())
                 return;
-            m_header->close();
+            std::visit([](auto&& file) { file.close(); }, m_file);
             m_is_open = false;
         }
+
+    private:
+        variant_type m_file{};
+        Format m_file_format{};
+        bool m_is_open{};
     };
 }
 
@@ -344,7 +339,7 @@ namespace noa::io {
     };
 
     struct WriteOption {
-        DataType data_type{DataType::UNKNOWN};
+        Encoding::Format encoding_format{Encoding::UNKNOWN};
         bool clamp{true};
     };
 
@@ -362,13 +357,13 @@ namespace noa::io {
             const Path& filename,
             ReadOption read_option = {},
             ArrayOption array_option = {}
-    ) -> Pair<Array<T>, Vec3<f32>> {
-        auto file = ImageFile(filename, OpenMode{.read=true});
+    ) -> Pair<Array<T>, Vec3<f64>> {
+        auto file = ImageFile(filename, Open{.read=true});
         Array data = file.read<T>(array_option, read_option.clamp);
-        Vec3<f32> pixel_size = file.pixel_size();
+        Vec3<f64> pixel_size = file.pixel_size();
         const auto& shape = data.shape();
         if (read_option.enforce_2d_stack and (not shape.is_batched() and shape.height() > 1))
-            data = data.reshape(shape.filter(1, 0, 2, 3)); // TODO Use to_batched()?
+            data = std::move(data).reshape(shape.filter(1, 0, 2, 3)); // TODO Use to_batched()?
         return {data, pixel_size};
     }
 
@@ -380,46 +375,44 @@ namespace noa::io {
             ReadOption read_option = {},
             ArrayOption array_option = {}
     ) -> Array<T> {
-        Array data = ImageFile(filename, OpenMode{.read=true}).read<T>(array_option, read_option.clamp);
+        Array data = ImageFile(filename, Open{.read=true}).read<T>(array_option, read_option.clamp);
         const auto& shape = data.shape();
         if (read_option.enforce_2d_stack and (not shape.is_batched() and shape.height() > 1))
-            data = data.reshape(shape.filter(1, 0, 2, 3)); // TODO Use to_batched()?
+            data = std::move(data).reshape(shape.filter(1, 0, 2, 3)); // TODO Use to_batched()?
         return data;
     }
 
     /// Saves the input array into a new file.
-    /// \param[in] input    Array to serialize.
-    /// \param pixel_size   (D)HW pixel size \p input.
-    /// \param[in] filename Path of the new file.
-    /// \param data_type    Data type of the file. If DataType::UNKNOWN, let the file format
-    ///                     decide the best data type given the input value type, so that no
-    ///                     truncation or loss of precision happens.
-    template<typename Input, typename PixelSize>
-    requires (nt::is_varray_of_numeric_v<Input> and
-              (nt::is_vec_real_size_v<PixelSize, 2> or nt::is_vec_real_size_v<PixelSize, 3>))
+    /// \param[in] input        Array to serialize.
+    /// \param pixel_size       (D)HW pixel size of \p input.
+    /// \param[in] filename     Path of the new file.
+    /// \param encoding_format  Encoding format used for the serialization.
+    ///                         If Encoding::UNKNOWN, let the file decide the best format given the input value type,
+    ///                         so that no truncation or loss of precision happens.
+    template<nt::varray_of_numeric Input, nt::vec_real_size<2, 3> PixelSize>
     void write(
             const Input& input,
             const PixelSize& pixel_size,
             const Path& filename,
             WriteOption write_option = {}
     ) {
-        auto file = ImageFile(filename, OpenMode{.write=true});
-        if constexpr (nt::is_vec_of_size_v<PixelSize, 2>)
-            file.set_pixel_size(pixel_size.push_front(1).template as<f32>());
+        auto file = ImageFile(filename, Open{.write=true});
+        if constexpr (nt::vec_of_size<PixelSize, 2>)
+            file.set_pixel_size(pixel_size.push_front(1).template as<f64>());
         else
-            file.set_pixel_size(pixel_size.template as<f32>());
-        if (write_option.data_type != DataType::UNKNOWN)
-            file.set_dtype(write_option.data_type);
+            file.set_pixel_size(pixel_size.template as<f64>());
+        if (write_option.encoding_format != Encoding::UNKNOWN)
+            file.set_encoding_format(write_option.encoding_format);
         file.write(input, write_option.clamp);
     }
 
     /// Saves the input array into a new file.
     /// Same as the above overload, but without setting a pixel size.
-    template<typename Input> requires nt::is_varray_of_numeric_v<Input>
+    template<nt::varray_of_numeric Input>
     void write(const Input& input, const Path& filename, WriteOption write_option = {}) {
-        auto file = ImageFile(filename, OpenMode{.write=true});
-        if (write_option.data_type != DataType::UNKNOWN)
-            file.set_dtype(write_option.data_type);
+        auto file = ImageFile(filename, Open{.write=true});
+        if (write_option.encoding_format != Encoding::UNKNOWN)
+            file.set_encoding_format(write_option.encoding_format);
         file.write(input);
     }
 }

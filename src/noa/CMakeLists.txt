@@ -2,13 +2,13 @@
 # Note: All of these file-paths should be relative to this directory!
 
 include(${PROJECT_SOURCE_DIR}/src/noa/core/Append.cmake)
-if (NOA_ENABLE_CPU)
-    include(${PROJECT_SOURCE_DIR}/src/noa/cpu/Append.cmake)
-endif ()
-if (NOA_ENABLE_CUDA)
-    include(${PROJECT_SOURCE_DIR}/src/noa/gpu/cuda/Append.cmake)
-endif ()
-include(${PROJECT_SOURCE_DIR}/src/noa/unified/Append.cmake)
+#if (NOA_ENABLE_CPU)
+#    include(${PROJECT_SOURCE_DIR}/src/noa/cpu/Append.cmake)
+#endif ()
+#if (NOA_ENABLE_CUDA)
+#    include(${PROJECT_SOURCE_DIR}/src/noa/gpu/cuda/Append.cmake)
+#endif ()
+#include(${PROJECT_SOURCE_DIR}/src/noa/unified/Append.cmake)
 
 # Library sources.
 # Note: use quotes in case these are empty.
@@ -28,15 +28,15 @@ set(NOA_HEADERS
     ${NOA_CUDA_HEADERS}
     ${NOA_UNIFIED_HEADERS}
 
-    Array.hpp
-    FFT.hpp
-    Geometry.hpp
-    IO.hpp
-    Math.hpp
-    Memory.hpp
-    Session.hpp
-    Signal.hpp
-    String.hpp
+#    Array.hpp
+#    FFT.hpp
+#    Geometry.hpp
+#    IO.hpp
+#    Math.hpp
+#    Memory.hpp
+#    Session.hpp
+#    Signal.hpp
+#    String.hpp
 )
 
 # Create and set up the main target.

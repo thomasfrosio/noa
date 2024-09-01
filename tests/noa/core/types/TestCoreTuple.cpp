@@ -51,6 +51,9 @@ TEST_CASE("core::Tuple") {
         [[maybe_unused]] auto s1 = std::forward_as_tuple(1, a, std::move(b), c, std::move(c));
         static_assert(std::is_same_v<decltype(t1), Tuple<int&&, int&, std::vector<int>&&, const float&, const float&&>>);
         static_assert(std::is_same_v<decltype(s1), std::tuple<int&&, int&, std::vector<int>&&, const float&, const float&&>>);
+
+        [[maybe_unused]] auto t2 = noa::forward_as_final_tuple(1, a, std::move(b), c, std::move(c));
+        static_assert(std::is_same_v<decltype(t2), Tuple<int, int&, std::vector<int>, const float&, float>>);
     }
 
     Tuple t0 = noa::make_tuple(1, 2);

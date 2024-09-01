@@ -6,9 +6,9 @@
 
 #include <catch2/catch.hpp>
 #include "Assets.h"
-#include "Helpers.h"
+#include "Utils.hpp"
 
-using namespace ::noa;
+using namespace ::noa::types;
 
 TEST_CASE("unified::memory::resize()", "[asset][noa][unified]") {
     constexpr bool COMPUTE_ASSETS = false;
@@ -18,7 +18,7 @@ TEST_CASE("unified::memory::resize()", "[asset][noa][unified]") {
     INFO("pad=" << pad);
 
     std::vector<Device> devices{"cpu"};
-    if (Device::is_any(DeviceType::GPU))
+    if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
@@ -33,7 +33,7 @@ TEST_CASE("unified::memory::resize()", "[asset][noa][unified]") {
             const auto expected_filename = path_base / test["expected"].as<Path>();
             const auto is_centered = test["is_centered"].as<bool>();
             const auto input_shape = test["shape"].as<Shape4<i64>> ();
-            const auto border_mode = test["border"].as<Border>();
+            const auto border_mode = test["border"].as<noa::Border>();
             const auto border_value = test["border_value"].as<f32>();
 
             Shape4<i64> output_shape;
@@ -43,7 +43,7 @@ TEST_CASE("unified::memory::resize()", "[asset][noa][unified]") {
             } else {
                 left = test["left"].as<Vec4 <i64>>();
                 right = test["right"].as<Vec4<i64>>();
-                output_shape = Shape4<i64>(input_shape.vec + left + right);
+                output_shape = Shape{input_shape.vec + left + right};
             }
 
             auto padded_shape = input_shape;
@@ -79,10 +79,10 @@ TEST_CASE("unified::memory::resize()", "[asset][noa][unified]") {
                 noa::resize(input, output, left, right, border_mode, border_value);
 
             if (COMPUTE_ASSETS) {
-                noa::io::save(output, expected_filename);
+                noa::io::write(output, expected_filename);
             } else {
-                const auto expected = noa::io::load_data<f32>(expected_filename).reshape(output_shape);
-                REQUIRE(test::Matcher(test::MATCH_ABS_SAFE, expected, output, 1e-6));
+                const auto expected = noa::io::read_data<f32>(expected_filename).reshape(output_shape);
+                REQUIRE(test::allclose_abs_safe(expected, output, 1e-6));
             }
         }
     }
@@ -91,8 +91,8 @@ TEST_CASE("unified::memory::resize()", "[asset][noa][unified]") {
 TEMPLATE_TEST_CASE("unified::memory::resize() - edge cases", "[noa][unified]", i32, u32, i64, u64, f32, f64) {
     const i64 ndim = GENERATE(2, 3);
 
-    std::vector<Device> devices{Device("cpu")};
-    if (Device::is_any(DeviceType::GPU))
+    std::vector<Device> devices{"cpu"};
+    if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
@@ -101,38 +101,37 @@ TEMPLATE_TEST_CASE("unified::memory::resize() - edge cases", "[noa][unified]", i
         INFO(device);
 
         AND_THEN("copy") {
-            const auto shape = test::get_random_shape4_batched(ndim);
-            const auto input = noa::random<TestType>(noa::math::uniform_t{}, shape, 0, 50, options);
+            const auto shape = test::random_shape_batched(ndim);
+            const auto input = noa::random(noa::Uniform<TestType>{0, 50}, shape, options);
             const auto output = noa::empty<TestType>(shape, options);
-            noa::resize(input, output, Border::VALUE, TestType{0});
-            REQUIRE(test::Matcher(test::MATCH_ABS, input, output, 1e-8));
+            noa::resize(input, output, noa::Border::VALUE, 0);
+            REQUIRE(test::allclose_abs(input, output, 1e-8));
         }
     }
 }
 
-
 TEMPLATE_TEST_CASE("unified::memory::resize(), borders", "[noa][unified]", i32, f32, f64) {
     const i64 ndim = GENERATE(2, 3);
-    const auto shape = test::get_random_shape4(ndim);
+    const auto shape = test::random_shape(ndim);
 
-    const auto border_mode = GENERATE(Border::VALUE, Border::PERIODIC);
+    const auto border_mode = GENERATE(noa::Border::VALUE, noa::Border::PERIODIC);
     const auto border_value = TestType{2};
     const auto border_left = Vec4<i64>{1, 10, -5, 20};
     const auto border_right = Vec4<i64>{1, -3, 25, 41};
-    const auto output_shape = Shape4<i64>(shape.vec + border_left + border_right);
+    const auto output_shape = Shape{shape.vec + border_left + border_right};
 
-    auto data = noa::random<TestType>(noa::Uniform{-5, 5}, shape);
+    auto data = noa::random(noa::Uniform<TestType>{-5, 5}, shape);
     const auto expected = Array<TestType>(output_shape);
     noa::resize(data, expected, border_left, border_right, border_mode, border_value);
     expected.eval();
 
     std::vector<Device> devices{"cpu"};
-    if (Device::is_any(DeviceType::GPU))
+    if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
-        const auto stream = StreamGuard(device, StreamMode::DEFAULT);
-        const auto options = ArrayOption(device, MemoryResource::MANAGED);
+        const auto stream = StreamGuard(device, Stream::DEFAULT);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
         if (device != data.device())
@@ -140,6 +139,6 @@ TEMPLATE_TEST_CASE("unified::memory::resize(), borders", "[noa][unified]", i32, 
 
         const auto result = noa::resize(data, border_left, border_right, border_mode, border_value);
         REQUIRE(noa::all(result.shape() == output_shape));
-        REQUIRE(test::Matcher(test::MATCH_ABS, expected, result, 1e-8));
+        REQUIRE(test::allclose_abs(expected, result, 1e-8));
     }
 }

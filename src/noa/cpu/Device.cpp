@@ -3,8 +3,7 @@
 #include "noa/core/io/IO.hpp"
 #include "noa/core/io/TextFile.hpp"
 #include "noa/core/io/OS.hpp"
-#include "noa/core/string/Format.hpp"
-#include "noa/core/string/Parse.hpp"
+#include "noa/core/utils/Strings.hpp"
 #include "noa/cpu/Device.hpp"
 
 // Internal data to reset:
@@ -87,16 +86,18 @@ namespace {
 
     size_t parse_size_from_line(const std::string& line) {
         const size_t colon_id = line.find_first_of(':');
-        std::string value{line.c_str() + colon_id + 1};
-        return ns::parse<size_t>(value);
+        const auto start = std::string_view(line.c_str() + colon_id + 1);
+        auto size = ns::parse<size_t>(start);
+        check(size, "Could not retrieve file size. Line={}", start);
+        return *size;
     }
 
     cpu::DeviceMemory get_memory_info_linux() {
         cpu::DeviceMemory ret{};
 
         std::string line;
-        io::InputTextFile mem_info("/proc/meminfo", io::OpenMode{.read=true});
-        while (mem_info.get_line(line)) {
+        io::InputTextFile mem_info("/proc/meminfo", {.read=true});
+        while (mem_info.next_line(line)) {
             if (ns::starts_with(line, "MemTotal"))
                 ret.total = parse_size_from_line(line) * 1024; // in bytes
             else if (ns::starts_with(line, "MemAvailable"))
@@ -107,9 +108,9 @@ namespace {
     }
 
     std::string get_cpu_name_linux() {
-        io::InputTextFile cpu_info("/proc/cpuinfo", io::OpenMode{.read=true});
+        io::InputTextFile cpu_info("/proc/cpuinfo", {.read=true});
         std::string line;
-        while (cpu_info.get_line(line)) {
+        while (cpu_info.next_line(line)) {
             if (ns::starts_with(line, "model name")) {
                 const size_t colon_id = line.find_first_of(':');
                 const size_t nonspace_id = line.find_first_not_of(" \t", colon_id + 1);
@@ -124,17 +125,17 @@ namespace {
         bool got_logical{};
         bool got_physical{};
 
-        io::InputTextFile cpu_info("/proc/cpuinfo", io::OpenMode{.read=true});
+        io::InputTextFile cpu_info("/proc/cpuinfo", {.read=true});
         std::string line;
-        while (cpu_info.get_line(line)) {
-            if (!got_logical && ns::starts_with(line, "siblings")) {
+        while (cpu_info.next_line(line)) {
+            if (not got_logical and ns::starts_with(line, "siblings")) {
                 out.logical = parse_size_from_line(line);
                 got_logical = true;
-            } else if (!got_physical && ns::starts_with(line, "cpu cores")) {
+            } else if (not got_physical and ns::starts_with(line, "cpu cores")) {
                 out.physical = parse_size_from_line(line);
                 got_physical = true;
             }
-            if (got_logical && got_physical)
+            if (got_logical and got_physical)
                 break;
         }
         check(not cpu_info.bad() and got_logical and got_physical,
@@ -150,7 +151,7 @@ namespace {
 
         Path cache_size_path = prefix / "size";
         if (io::is_file(cache_size_path)) {
-            cache_info.open(cache_size_path, io::OpenMode{.read=true});
+            cache_info.open(cache_size_path, {.read=true});
             char suffix;
             cache_info.fstream() >> out.size >> suffix;
             switch (suffix) {
@@ -167,7 +168,7 @@ namespace {
 
         cache_size_path = prefix / "coherency_line_size";
         if (io::is_file(cache_size_path)) {
-            cache_info.open(cache_size_path, io::OpenMode{.read=true});
+            cache_info.open(cache_size_path, {.read=true});
             cache_info.fstream() >> out.line_size;
         }
         return out;

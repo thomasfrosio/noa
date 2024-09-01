@@ -14,7 +14,7 @@ namespace noa {
         synchronize();
 
         // Set the current stream to the default/null stream, potentially freeing user-created streams.
-        const Stream stream(*this, StreamMode::DEFAULT);
+        const Stream stream(*this, Stream::DEFAULT);
         Stream::set_current(stream);
 
         if (is_cpu()) {

@@ -34,7 +34,7 @@ namespace noa::cpu::guts {
                     for (Index i = 0; i < shape[0]; ++i)
                         interface::init(op, input, local_reduce, i);
                 } else {
-                    static_assert(nt::always_false_v<Op>);
+                    static_assert(nt::always_false<>);
                 }
 
                 #pragma omp critical
@@ -47,7 +47,7 @@ namespace noa::cpu::guts {
         }
 
         template<typename Op, typename Input, typename Reduced, typename Output, typename Index, size_t N>
-        static constexpr void serial(
+        static void serial(
                 const Shape<Index, N>& shape, Op op,
                 Input input, Reduced reduced, Output& output
         ) {
@@ -61,7 +61,7 @@ namespace noa::cpu::guts {
                 for (Index i = 0; i < shape[0]; ++i)
                     interface::init(op, input, reduced, i);
             } else {
-                static_assert(nt::always_false_v<Op>);
+                static_assert(nt::always_false<>);
             }
 
             interface::final(op, reduced, output, 0);
@@ -80,9 +80,9 @@ namespace noa::cpu {
 
     template<typename Config = ReduceEwiseConfig<>,
              typename Input, typename Reduced, typename Output, typename Index, typename Op>
-    requires (nt::are_tuple_of_accessor_v<Input, Output> and
-              not nt::is_tuple_of_accessor_value_v<Input> and // at least one varray
-              nt::is_tuple_of_accessor_value_v<Reduced>)
+    requires (nt::are_tuple_of_accessor_v<std::decay_t<Input>, Output> and
+              not nt::tuple_of_accessor_value<std::decay_t<Input>> and // at least one varray
+              nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
     void reduce_ewise(
             const Shape4<Index>& shape,
             Op&& op,
@@ -93,7 +93,7 @@ namespace noa::cpu {
     ) {
         // Check contiguity.
         const bool are_all_contiguous = ni::are_contiguous(input, shape);
-        const i64 n_elements = shape.template as<i64>().elements();
+        const i64 n_elements = shape.template as<i64>().n_elements();
         i64 actual_n_threads = n_elements <= Config::n_elements_per_thread ? 1 : n_threads;
         if (actual_n_threads > 1)
             actual_n_threads = min(n_threads, n_elements / Config::n_elements_per_thread);

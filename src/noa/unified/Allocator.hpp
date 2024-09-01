@@ -5,7 +5,7 @@
 #ifdef NOA_IS_OFFLINE
 #include <ostream>
 #include "noa/core/Exception.hpp"
-#include "noa/core/string/Format.hpp"
+#include "noa/core/utils/Strings.hpp"
 
 #include "noa/cpu/AllocatorHeap.hpp"
 #if defined(NOA_ENABLE_CUDA)
@@ -123,6 +123,9 @@ namespace noa::inline types {
     /// Memory allocator.
     class Allocator {
     public:
+        using enum MemoryResource;
+
+    public:
         Allocator() = default;
         constexpr /*implicit*/ Allocator(MemoryResource memory_resource) : m_memory_resource(memory_resource) {}
         explicit Allocator(std::string_view name) : m_memory_resource(parse_memory_resource_(name)) {}
@@ -130,8 +133,24 @@ namespace noa::inline types {
 
         [[nodiscard]] constexpr MemoryResource resource() const noexcept { return m_memory_resource; }
 
+        [[nodiscard]] constexpr auto is_any(const auto&... values) const {
+            auto get_resource = []<typename T>(const T& value) {
+                if constexpr (nt::any_of<T, Allocator, MemoryResource>) {
+                    return value;
+                } else if constexpr (std::convertible_to<decltype(value), std::string_view>) {
+                    return parse_memory_resource_(value);
+                } else {
+                    static_assert(nt::always_false<>);
+                }
+            };
+            return ((resource() == get_resource(values)) or ...);
+        }
+
     public:
         /// Allocates \p n_elements from the given \p memory_resource.
+        /// \warning The underlying allocators are using malloc-like functions, thus return uninitialized memory
+        ///          with the appropriate alignment requirement and size, i.e. it is undefined behavior to directly
+        ///          read from these memory regions.
         /// \note This is intended to be used as part of the Array allocation, as the allocated resource is
         ///       converted to a shared_ptr. This is because the underlying allocators return different types
         ///       (they have different deleters), so we have to type erase them with the shared_ptr.
@@ -178,7 +197,7 @@ namespace noa::inline types {
                         #ifdef NOA_ENABLE_CUDA
                         const DeviceGuard guard(device);
                         // AllocatorDevicePadded requires sizeof(T) <= 16 bytes.
-                        if constexpr (nt::is_numeric_v<T>) {
+                        if constexpr (nt::numeric<T>) {
                             return noa::cuda::AllocatorDevicePadded<T>::allocate({1, 1, 1, n_elements}).first;
                         } else {
                             return noa::cuda::AllocatorDevice<T>::allocate(n_elements);
@@ -189,11 +208,11 @@ namespace noa::inline types {
                     }
                 }
                 case MemoryResource::PINNED: {
-                    if (device.is_cpu() and not Device::is_any(DeviceType::GPU)) {
+                    if (device.is_cpu() and not Device::is_any(Device::GPU)) {
                         return noa::cpu::AllocatorHeap<T>::allocate(n_elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
-                        const DeviceGuard guard(device.is_gpu() ? device : Device::current(DeviceType::GPU));
+                        const DeviceGuard guard(device.is_gpu() ? device : Device::current_gpu());
                         return noa::cuda::AllocatorPinned<T>::allocate(n_elements);
                         #else
                         break;
@@ -201,11 +220,11 @@ namespace noa::inline types {
                     }
                 }
                 case MemoryResource::MANAGED: {
-                    if (device.is_cpu() and not Device::is_any(DeviceType::GPU)) {
+                    if (device.is_cpu() and not Device::is_any(Device::GPU)) {
                         return noa::cpu::AllocatorHeap<T>::allocate(n_elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
-                        const Device gpu = device.is_gpu() ? device : Device::current(DeviceType::GPU);
+                        const Device gpu = device.is_gpu() ? device : Device::current_gpu();
                         const DeviceGuard guard(gpu); // could be helpful when retrieving device
                         auto& cuda_stream = Stream::current(gpu).cuda();
                         return noa::cuda::AllocatorManaged<T>::allocate(n_elements, cuda_stream);
@@ -215,11 +234,11 @@ namespace noa::inline types {
                     }
                 }
                 case MemoryResource::MANAGED_GLOBAL: {
-                    if (device.is_cpu() and not Device::is_any(DeviceType::GPU)) {
+                    if (device.is_cpu() and not Device::is_any(Device::GPU)) {
                         return noa::cpu::AllocatorHeap<T>::allocate(n_elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
-                        const DeviceGuard guard(device.is_gpu() ? device : Device::current(DeviceType::GPU));
+                        const DeviceGuard guard(device.is_gpu() ? device : Device::current_gpu());
                         return noa::cuda::AllocatorManaged<T>::allocate_global(n_elements);
                         #else
                         break;
@@ -243,16 +262,16 @@ namespace noa::inline types {
                     return {};
                 case MemoryResource::PITCHED: {
                     if (device.is_cpu()) {
-                        return {noa::cpu::AllocatorHeap<T>::allocate(shape.elements()), shape.strides()};
+                        return {noa::cpu::AllocatorHeap<T>::allocate(shape.n_elements()), shape.strides()};
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         const DeviceGuard guard(device);
                         // AllocatorDevicePadded requires sizeof(T) <= 16 bytes.
-                        if constexpr (nt::is_numeric_v<T>) {
+                        if constexpr (nt::numeric<T>) {
                             auto [ptr, strides] = noa::cuda::AllocatorDevicePadded<T>::allocate(shape);
                             return {std::move(ptr), strides};
                         } else {
-                            return {noa::cuda::AllocatorDevice<T>::allocate(shape.elements()), shape.strides()};
+                            return {noa::cuda::AllocatorDevice<T>::allocate(shape.n_elements()), shape.strides()};
                         }
                         #else
                         break;
@@ -260,7 +279,7 @@ namespace noa::inline types {
                     }
                 }
                 default:
-                    return {allocate<T>(shape.elements(), device, memory_resource), shape.strides()};
+                    return {allocate<T>(shape.n_elements(), device, memory_resource), shape.strides()};
             }
             panic("{} is not supported by this allocator", memory_resource);
         }

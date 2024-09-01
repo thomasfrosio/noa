@@ -27,8 +27,6 @@ endif ()
 
 # TIFF:
 if (@NOA_ENABLE_TIFF@ AND NOT TARGET TIFF::TIFF)
-    # TIFF_STATIC can be changed.
-    set(TIFF_STATIC @TIFF_STATIC@ CACHE BOOL "")
     find_dependency(TIFF REQUIRED)
 endif ()
 
@@ -36,16 +34,6 @@ endif ()
 if (@NOA_ENABLE_CPU@)
     if (NOT TARGET OpenMP::OpenMP_CXX AND @NOA_CPU_OPENMP@)
         find_dependency(OpenMP 4.5 REQUIRED)
-    endif ()
-
-    # FIXME If FFTW3_STATIC, no need to get FFTW3 since it's private and already inside the library.
-    set(FFTW3_THREADS @FFTW3_THREADS@ CACHE BOOL "")
-    set(FFTW3_OPENMP @FFTW3_OPENMP@ CACHE BOOL "")
-    set(FFTW3_STATIC @FFTW3_STATIC@ CACHE BOOL "")
-    if (NOT TARGET FFTW3::FFTW3_float AND NOT TARGET FFTW3::FFTW3_double)
-        find_dependency(FFTW3 REQUIRED)
-        # The threading model is encoded in the target name, so noaTargets.cmake
-        # will fail (as it should) if a different FFTW3 config is used for build and import.
     endif ()
 endif ()
 

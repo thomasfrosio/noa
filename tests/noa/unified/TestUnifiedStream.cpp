@@ -1,6 +1,6 @@
 #include <noa/unified/Stream.hpp>
+#include <catch2/catch.hpp>
 
-#include "catch2/catch.hpp"
 
 TEST_CASE("unified::Stream", "[noa][unified]") {
     using namespace ::noa::types;
@@ -21,8 +21,8 @@ TEST_CASE("unified::Stream", "[noa][unified]") {
         a = Stream(cpu);
         a = std::move(b);
 
-        if (Device::is_any(DeviceType::GPU)) {
-            const Device device(DeviceType::GPU, 0);
+        if (Device::is_any_gpu()) {
+            const Device device(Device::GPU, 0);
             Stream c(device);
             REQUIRE(c.device().is_gpu());
             REQUIRE(c.device().id() == 0);
@@ -34,11 +34,11 @@ TEST_CASE("unified::Stream", "[noa][unified]") {
     }
 
     AND_THEN("current, guard") {
-        if (!Device::is_any(DeviceType::GPU))
+        if (!Device::is_any_gpu())
             return;
 
         Device::set_current(Device("gpu"));
-        Stream& current_stream = Stream::current(Device::current(DeviceType::GPU));
+        Stream& current_stream = Stream::current(Device::current_gpu());
         REQUIRE(current_stream.device().is_gpu());
         REQUIRE(current_stream.device().id() == 0);
         Stream::set_current(current_stream); // does nothing since it is already the current stream
@@ -47,7 +47,7 @@ TEST_CASE("unified::Stream", "[noa][unified]") {
         REQUIRE(a.device().is_cpu());
         Stream::set_current(a);
 
-        const Device gpu(DeviceType::GPU, Device::count(DeviceType::GPU) - 1);
+        const Device gpu(Device::GPU, Device::count_gpus() - 1);
         Device::set_current(gpu);
 
         Stream c(gpu); // new stream on the current device

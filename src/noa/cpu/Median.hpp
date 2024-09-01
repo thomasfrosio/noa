@@ -19,7 +19,7 @@ namespace noa::cpu {
         shape = ni::reorder(shape, order);
 
         // Allocate buffer only if necessary.
-        const auto n_elements = shape.elements();
+        const auto n_elements = shape.n_elements();
         Value* to_sort;
         typename AllocatorHeap<Value>::alloc_unique_type buffer;
         if (overwrite and ni::are_contiguous(strides, shape)) {

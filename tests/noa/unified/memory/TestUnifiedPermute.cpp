@@ -5,9 +5,10 @@
 
 #include <catch2/catch.hpp>
 #include "Assets.h"
-#include "Helpers.h"
+#include "Utils.hpp"
 
-using namespace ::noa;
+using namespace ::noa::types;
+using Path = std::filesystem::path;
 
 TEST_CASE("unified::permute()", "[asset][noa][unified]") {
     const Path path_base = test::NOA_DATA_PATH / "memory";
@@ -16,15 +17,15 @@ TEST_CASE("unified::permute()", "[asset][noa][unified]") {
     INFO("pad=" << pad);
 
     std::vector<Device> devices{"cpu"};
-    if (Device::is_any(DeviceType::GPU))
+    if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
         const auto stream = StreamGuard(device);
-        const auto options = ArrayOption(device, MemoryResource::MANAGED);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
-        for (size_t nb = 0; nb < tests.size(); ++nb) {
+        for (size_t nb{}; nb < tests.size(); ++nb) {
             INFO("test number = " << nb);
 
             const YAML::Node& test = tests[nb];
@@ -51,26 +52,28 @@ TEST_CASE("unified::permute()", "[asset][noa][unified]") {
 }
 
 TEMPLATE_TEST_CASE("unified::memory::permute", "[noa][unified]", i32, f32, f64, c32) {
-    const std::array permutations{Vec4<i64>{0, 1, 2, 3},
-                                  Vec4<i64>{0, 1, 3, 2},
-                                  Vec4<i64>{0, 3, 1, 2},
-                                  Vec4<i64>{0, 3, 2, 1},
-                                  Vec4<i64>{0, 2, 1, 3},
-                                  Vec4<i64>{0, 2, 3, 1}};
+    constexpr std::array permutations{
+        Vec4<i64>{0, 1, 2, 3},
+        Vec4<i64>{0, 1, 3, 2},
+        Vec4<i64>{0, 3, 1, 2},
+        Vec4<i64>{0, 3, 2, 1},
+        Vec4<i64>{0, 2, 1, 3},
+        Vec4<i64>{0, 2, 3, 1}
+    };
     const i64 ndim = GENERATE(2, 3);
     const bool pad = GENERATE(false, true);
     INFO("pad=" << pad);
 
     std::vector<Device> devices{"cpu"};
-    if (Device::is_any(DeviceType::GPU))
+    if (Device::is_any(Device::GPU))
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
         const auto stream = StreamGuard(device);
-        const auto options = ArrayOption(device, MemoryResource::MANAGED);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
-        const auto shape = test::get_random_shape4_batched(ndim);
+        const auto shape = test::random_shape_batched(ndim);
         auto padded_shape = shape;
         if (pad) {
             padded_shape[1] += 10;
@@ -96,22 +99,24 @@ TEMPLATE_TEST_CASE("unified::memory::permute", "[noa][unified]", i32, f32, f64, 
 }
 
 TEST_CASE("unified::permute, broadcast", "[noa][unified]") {
-    const std::array permutations{Vec4<i64>{0, 1, 2, 3},
-                                  Vec4<i64>{0, 1, 3, 2},
-                                  Vec4<i64>{0, 3, 1, 2},
-                                  Vec4<i64>{0, 3, 2, 1},
-                                  Vec4<i64>{0, 2, 1, 3},
-                                  Vec4<i64>{0, 2, 3, 1}};
-    const auto shape = Shape4<i64>{1, 20, 50, 60};
+    constexpr std::array permutations{
+        Vec4<i64>{0, 1, 2, 3},
+        Vec4<i64>{0, 1, 3, 2},
+        Vec4<i64>{0, 3, 1, 2},
+        Vec4<i64>{0, 3, 2, 1},
+        Vec4<i64>{0, 2, 1, 3},
+        Vec4<i64>{0, 2, 3, 1}
+    };
+    constexpr auto shape = Shape4<i64>{1, 20, 50, 60};
 
     std::vector<Device> devices{"cpu"};
-    if (Device::is_any(DeviceType::GPU))
+    if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
         INFO(device);
-        auto stream = StreamGuard(device, StreamMode::DEFAULT);
-        const auto options = ArrayOption(device, MemoryResource::MANAGED);
+        auto stream = StreamGuard(device, Stream::DEFAULT);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
 
         for (const auto& permutation: permutations) {
             INFO(permutation);
@@ -119,7 +124,7 @@ TEST_CASE("unified::permute, broadcast", "[noa][unified]") {
             const Array<f32> result0(permuted_shape, options);
             const Array<f32> result1(permuted_shape, options);
 
-            const Array<f32> data0 = noa::arange<f32>({1, 1, 50, 60}, 0, 1, options);
+            const Array<f32> data0 = noa::arange<f32>({1, 1, 50, 60}, noa::Arange{0, 1}, options);
             const Array<f32> data1({1, 20, 50, 60}, options);
             noa::copy(data0, data1);
 

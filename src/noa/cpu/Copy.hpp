@@ -5,7 +5,6 @@
 #ifdef NOA_IS_OFFLINE
 #include <algorithm>
 
-#include "noa/core/indexing/Layout.hpp"
 #include "noa/core/Ewise.hpp"
 #include "noa/core/Types.hpp"
 #include "noa/cpu/Ewise.hpp"
@@ -31,7 +30,7 @@ namespace noa::cpu {
             T* dst, const Strides4<i64>& dst_strides,
             const Shape4<i64>& shape, i64 n_threads
     ) {
-        if (shape.elements() == 1) {
+        if (shape.n_elements() == 1) {
             *dst = *src;
             return;
         }

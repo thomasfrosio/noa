@@ -1,15 +1,14 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/View.hpp>
-
 #include <catch2/catch.hpp>
-#include "Helpers.h"
+#include "Utils.hpp"
 
 using namespace ::noa::types;
 
 TEMPLATE_TEST_CASE("unified::View, copy metadata", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
-    const StreamGuard guard(Device{}, StreamMode::DEFAULT);
+    const auto guard = StreamGuard(Device{}, Stream::DEFAULT);
 
-    const auto shape = test::get_random_shape4_batched(2);
+    const auto shape = test::random_shape(2);
     const MemoryResource resource = GENERATE(
             MemoryResource::DEFAULT,
             MemoryResource::DEFAULT_ASYNC,
@@ -19,71 +18,70 @@ TEMPLATE_TEST_CASE("unified::View, copy metadata", "[noa][unified]", i32, u64, f
             MemoryResource::MANAGED_GLOBAL);
 
     const auto allocator = Allocator(resource);
-    INFO(allocator);
+    INFO(allocator.resource());
 
     // CPU
-    Array<TestType> a(shape, ArrayOption{.device={}, .allocator=allocator});
+    auto a = Array<TestType>(shape, {.device={}, .allocator=allocator});
     View va = a.view();
     REQUIRE(va.device().is_cpu());
     REQUIRE(va.allocator().resource() == allocator.resource());
     REQUIRE(va.get());
 
-    Array b = va.to(ArrayOption{.device="cpu"});
+    Array b = va.to({.device="cpu"});
     REQUIRE(b.device().is_cpu());
     REQUIRE(b.allocator().resource() == MemoryResource::DEFAULT);
     REQUIRE(b.get());
     REQUIRE(b.get() != a.get());
 
     // GPU
-    if (not Device::is_any(DeviceType::GPU))
+    if (not Device::is_any_gpu())
         return;
 
-    const Device gpu("gpu:0");
-    a = Array<TestType>(shape, ArrayOption{.device="gpu", .allocator=allocator});
+    const auto gpu = Device("gpu:0");
+    a = Array<TestType>(shape, {.device="gpu", .allocator=allocator});
     va = a.view();
     b.to(va);
-    REQUIRE(va.device().is_gpu());
+    REQUIRE(va.device() == gpu);
     REQUIRE(va.allocator().resource() == allocator.resource());
     REQUIRE(va.get());
 }
 
 TEMPLATE_TEST_CASE("unified::View, copy values", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
-    StreamGuard guard(Device{}, StreamMode::ASYNC);
-    const auto shape = test::get_random_shape4_batched(3);
-    const auto input = Array<TestType>(shape, ArrayOption{.allocator="managed"});
+    auto guard = StreamGuard(Device{}, Stream::ASYNC);
+    const auto shape = test::random_shape(3);
+    const auto input = Array<TestType>(shape, {.allocator="managed"});
     const auto view = input.view();
 
     // arange
     using real_t = noa::traits::value_type_t<TestType>;
-    const auto input_accessor_1d = view.accessor_contiguous_1d();
-    for (i64 i = 0; i < view.elements(); ++i)
-        input_accessor_1d[i] = static_cast<real_t>(i);
+    for (i64 i{}; auto& e: view.span_1d())
+        e = static_cast<real_t>(i++);
 
     AND_THEN("cpu -> cpu") {
         const auto output = view.copy();
-        REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, input, output, 1e-10));
+        REQUIRE(test::allclose_abs(input, output, 1e-10));
     }
 
     AND_THEN("cpu -> gpu") {
-        if (Device::is_any(DeviceType::GPU)) {
-            const auto output = view.to(ArrayOption{.device="gpu", .allocator="managed"});
-            REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, input, output, 1e-10));
+        if (Device::is_any(Device::GPU)) {
+            const auto output = view.to({.device="gpu", .allocator="managed"});
+            REQUIRE(test::allclose_abs(input, output, 1e-10));
         }
     }
 
     AND_THEN("gpu -> gpu") {
-        if (Device::is_any(DeviceType::GPU)) {
-            const auto output0 = view.to(ArrayOption{.device="gpu", .allocator="managed"});
+        if (Device::is_any(Device::GPU)) {
+            const auto output0 = view.to({.device="gpu", .allocator="managed"});
             const auto output1 = output0.copy();
-            REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, output0, output1, 1e-10));
+            REQUIRE(test::allclose_abs(output0, output1, 1e-10));
         }
     }
 
     AND_THEN("gpu -> cpu") {
-        if (Device::is_any(DeviceType::GPU)) {
-            const auto output0 = view.to(ArrayOption{.device="gpu", .allocator="managed"});
+        if (Device::is_any(Device::GPU)) {
+            const auto output0 = view.to({.device="gpu", .allocator="managed"});
             const auto output1 = output0.to_cpu();
-            REQUIRE(test::Matcher<TestType>(test::MATCH_ABS, output0, output1, 1e-10));
+            REQUIRE(test::allclose_abs(output0, output1, 1e-10));
         }
     }
 }
@@ -111,7 +109,7 @@ TEMPLATE_TEST_CASE("unified::View, shape manipulation", "[noa][unified]", i32, u
         auto a = buffer.view();
         a = a.flat();
         REQUIRE(all(a.strides() == a.shape().strides()));
-        REQUIRE((a.shape().is_vector() && a.shape().ndim() == 1));
+        REQUIRE((a.shape().is_vector() and a.shape().ndim() == 1));
         a = a.reshape({4, 10, 50, 30});
         REQUIRE(all(a.strides() == a.shape().strides()));
         a = a.reshape({10, 4, 30, 50});

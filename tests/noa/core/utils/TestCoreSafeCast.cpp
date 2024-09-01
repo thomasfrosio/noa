@@ -2,7 +2,7 @@
 #include <catch2/catch.hpp>
 #include <iostream>
 
-#include "Helpers.h"
+#include "Utils.hpp"
 
 using namespace ::noa;
 
