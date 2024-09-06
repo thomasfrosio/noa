@@ -33,7 +33,7 @@ namespace noa {
 // Static for each
 namespace noa {
     template<size_t... I, typename Integer = size_t, typename Op, typename... Args>
-    void static_for_each(std::integer_sequence<Integer, I...>, Op&& op, Args&... args) {
+    void static_for_each(std::integer_sequence<Integer, I...>, Op&& op, Args&&... args) {
         (op.template operator()<I>(args...), ...);
     }
 
@@ -47,7 +47,7 @@ namespace noa {
 #include <algorithm>
 
 namespace noa {
-    template<typename T, typename... Args>
+    template<typename T>
     constexpr bool any(T value, std::initializer_list<T> args) noexcept {
         return std::any_of(args.begin(), args.end(), [value](T x) { return value == x; });
     }

@@ -2,9 +2,8 @@
 
 #include "noa/core/Config.hpp"
 #include "noa/core/Exception.hpp"
-#include "noa/core/math/Comparison.hpp"
 #include "noa/core/Traits.hpp"
-#include "noa/core/types/Complex.hpp"
+#include "noa/core/math/Comparison.hpp"
 #include "noa/core/types/Half.hpp"
 
 namespace noa {

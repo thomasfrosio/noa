@@ -35,7 +35,7 @@ namespace noa::fft::guts {
                 ij = fftshift(oj, m_shape[0]);
                 ik = fftshift(ok, m_shape[1]);
             } else {
-                static_assert(nt::always_false<>);
+                static_assert(nt::always_false<output_type>);
             }
 
             auto& o = m_array(oi, oj, ok, ol);
@@ -165,7 +165,7 @@ namespace noa::fft::guts {
                     m_output(oi, ooj, ook, ool) = cast_or_abs_squared<output_value_type>(value);
                 }
             } else {
-                static_assert(nt::always_false<>);
+                static_assert(nt::always_false<input_type>);
             }
         }
 

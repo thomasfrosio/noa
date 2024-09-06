@@ -48,8 +48,8 @@ TEST_CASE("cpu::ewise") {
         // Create a non-contiguous case by broadcasting.
         auto shape_strided = Shape4<i64>{1, 1, 1, 2};
         auto output_strided = noa::make_tuple(
-                AccessorI64<std::array<int, 2>, 4>(buffer + 0, Strides4<i64>{}),
-                AccessorI64<std::array<int, 2>, 4>(buffer + 1, Strides4<i64>{}));
+            AccessorI64<std::array<int, 2>, 4>(buffer + 0, Strides4<i64>{}),
+            AccessorI64<std::array<int, 2>, 4>(buffer + 1, Strides4<i64>{}));
 
         ewise(shape_strided, op1, input, output_strided);
         REQUIRE((buffer[0][0] == 1 and buffer[0][1] == 0)); // input is copied once*

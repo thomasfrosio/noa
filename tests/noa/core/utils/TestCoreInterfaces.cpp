@@ -1,5 +1,6 @@
 #include <noa/core/Interfaces.hpp>
 #include <noa/core/utils/Irange.hpp>
+#include <noa/core/types/Accessor.hpp>
 #include <catch2/catch.hpp>
 
 #include "Utils.hpp"
@@ -7,8 +8,6 @@
 TEST_CASE("core::IwiseInterface", "[core]") {
     using namespace noa::types;
     using namespace noa::guts;
-
-
 
     const size_t size = 1000;
     const std::unique_ptr b0 = std::make_unique<i32[]>(size);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "noa/core/Traits.hpp"
 #include "noa/core/types/Tuple.hpp"
 
 namespace noa::guts {
@@ -15,15 +16,9 @@ namespace noa::guts {
         Tuple<T...> tuple;
     };
 
-    template<typename> struct proclaim_is_adaptor : std::false_type {};
+    NOA_GENERATE_PROCLAIM_FULL(adaptor);
     template<typename... T> struct proclaim_is_adaptor<AdaptorZip<T...>> : std::true_type {};
     template<typename... T> struct proclaim_is_adaptor<AdaptorUnzip<T...>> : std::true_type {};
-
-    template<typename T> using is_adaptor = proclaim_is_adaptor<T>;
-    template<typename T> constexpr bool is_adaptor_v = is_adaptor<T>::value;
-    template<typename... T> using are_adaptor = std::conjunction<is_adaptor<T>...>;
-    template<typename... T> constexpr bool are_adaptor_v = are_adaptor<T...>::value;
-    template<typename... T> concept adaptor = are_adaptor_v<T...>;
 }
 
 namespace noa {

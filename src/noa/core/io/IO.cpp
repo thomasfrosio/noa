@@ -7,9 +7,9 @@ namespace {
 
     template<typename Output, typename Input>
     void serialize_1d_(
-            SpanContiguous<const Input, 1> input,
-            SpanContiguous<Byte, 1> output,
-            bool clamp, bool swap_endian
+        SpanContiguous<const Input, 1> input,
+        SpanContiguous<Byte, 1> output,
+        bool clamp, bool swap_endian
     ) {
         const i64 n_elements = input.ssize();
         const size_t n_bytes = static_cast<size_t>(n_elements) * sizeof(Output);
@@ -42,10 +42,10 @@ namespace {
 
     template<typename Output, typename Input>
     void serialize_4d_(
-            const Span<const Input, 4>& input,
-            const SpanContiguous<Byte, 1>& output,
-            bool clamp,
-            bool swap_endian
+        const Span<const Input, 4>& input,
+        const SpanContiguous<Byte, 1>& output,
+        bool clamp,
+        bool swap_endian
     ) {
         if (input.are_contiguous())
             return serialize_1d_<Output>(input.as_contiguous_1d(), output, clamp, swap_endian);
@@ -90,9 +90,9 @@ namespace {
 
     template<typename Input, typename Output>
     void deserialize_1d_(
-            SpanContiguous<const Byte, 1> input,
-            SpanContiguous<Output, 1> output,
-            bool clamp, bool swap_endian
+        SpanContiguous<const Byte, 1> input,
+        SpanContiguous<Output, 1> output,
+        bool clamp, bool swap_endian
     ) {
         const auto n_elements = output.ssize();
         if constexpr (nt::same_as<Output, Input>) {
@@ -118,10 +118,10 @@ namespace {
 
     template<typename Input, typename Output>
     void deserialize_4d_(
-            const SpanContiguous<const Byte, 1>& input,
-            const Span<Output, 4>& output,
-            bool clamp,
-            bool swap_endian
+        const SpanContiguous<const Byte, 1>& input,
+        const Span<Output, 4>& output,
+        bool clamp,
+        bool swap_endian
     ) {
         if (output.are_contiguous())
             return deserialize_1d_<Input>(input, output.as_contiguous_1d(), clamp, swap_endian);
@@ -199,9 +199,9 @@ namespace {
 namespace noa::io {
     template<nt::numeric T>
     void serialize(
-            const Span<const T, 4>& input,
-            const SpanContiguous<Byte, 1>& output,
-            Encoding encoding
+        const Span<const T, 4>& input,
+        const SpanContiguous<Byte, 1>& output,
+        Encoding encoding
     ) {
         switch (encoding.format) {
             case Encoding::U4:
@@ -300,9 +300,9 @@ namespace noa::io {
 
     template<nt::numeric T>
     void serialize(
-            const Span<const T, 4>& input,
-            std::ostream& output,
-            Encoding encoding
+        const Span<const T, 4>& input,
+        std::ostream& output,
+        Encoding encoding
     ) {
         // Ignore all previous errors on that stream. If these errors cannot be recovered from,
         // the failbit will be reset by write() anyway and an exception will be thrown.
@@ -318,8 +318,6 @@ namespace noa::io {
                 output.clear();
                 panic("Stream error. Failed while writing {} bytes", n_bytes_per_elements * n_elements);
             }
-            return;
-
         } else if (encoding.format == Encoding::U4) {
             const i64 n_bytes = encoding.encoded_size(n_elements, input.shape()[3]);
             const auto buffer = std::make_unique<Byte[]>(static_cast<size_t>(n_bytes));
@@ -329,7 +327,6 @@ namespace noa::io {
                 output.clear();
                 panic("Stream error. Failed while writing {} bytes", n_bytes);
             }
-
         } else if (are_contiguous) {
             constexpr i64 bytes_per_batch = 1 << 26; // 67MB
             const i64 bytes_per_element = encoding.encoded_size(1);
@@ -354,7 +351,6 @@ namespace noa::io {
 
                 input_ptr += n_elements_buffer;
             }
-
         } else {
             const i64 n_elements_per_slice = input.shape().filter(2, 3).n_elements();
             const i64 n_bytes_per_slice = encoding.encoded_size(n_elements_per_slice);
@@ -377,9 +373,9 @@ namespace noa::io {
 
     template<nt::numeric T>
     void deserialize(
-            const SpanContiguous<const Byte, 1>& input,
-            Encoding encoding,
-            const Span<T, 4>& output
+        const SpanContiguous<const Byte, 1>& input,
+        Encoding encoding,
+        const Span<T, 4>& output
     ) {
         switch (encoding.format) {
             case Encoding::U4:
@@ -474,9 +470,9 @@ namespace noa::io {
 
     template<nt::numeric T>
     void deserialize(
-            std::istream& input,
-            Encoding encoding,
-            const Span<T, 4>& output
+        std::istream& input,
+        Encoding encoding,
+        const Span<T, 4>& output
     ) {
         input.clear();
         const bool are_contiguous = output.are_contiguous();
@@ -494,8 +490,6 @@ namespace noa::io {
                 else
                     swap_endian(reinterpret_cast<Byte*>(output.get()), n_elements, SIZEOF_T);
             }
-            return;
-
         } else if (encoding.format == Encoding::U4) {
             const auto n_bytes = encoding.encoded_size(n_elements, output.shape()[3]);
             const auto buffer = std::make_unique<Byte[]>(static_cast<size_t>(n_bytes));

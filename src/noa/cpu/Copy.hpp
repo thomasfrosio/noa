@@ -6,7 +6,6 @@
 #include <algorithm>
 
 #include "noa/core/Ewise.hpp"
-#include "noa/core/Types.hpp"
 #include "noa/cpu/Ewise.hpp"
 
 namespace noa::cpu {
@@ -26,9 +25,9 @@ namespace noa::cpu {
     /// Copies all logical elements from src to dst.
     template<typename T>
     void copy(
-            const T* src, const Strides4<i64>& src_strides,
-            T* dst, const Strides4<i64>& dst_strides,
-            const Shape4<i64>& shape, i64 n_threads
+        const T* src, const Strides4<i64>& src_strides,
+        T* dst, const Strides4<i64>& dst_strides,
+        const Shape4<i64>& shape, i64 n_threads
     ) {
         if (shape.n_elements() == 1) {
             *dst = *src;

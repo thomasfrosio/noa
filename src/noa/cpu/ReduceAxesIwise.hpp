@@ -16,9 +16,9 @@ namespace noa::cpu::guts {
 
         template<size_t R, size_t N, typename Index, typename Op>
         static void single_axis(
-                const Shape<Index, N>& shape,
-                Op op, auto reduced, auto output,
-                i64 n_threads
+            const Shape<Index, N>& shape,
+            Op op, auto reduced, auto output,
+            i64 n_threads
         ) {
             if (n_threads > 1) {
                 #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output) firstprivate(op)
@@ -39,7 +39,7 @@ namespace noa::cpu::guts {
                                         } else if constexpr (R == 3) {
                                             interface::init(op, local, i, j, k, l);
                                         } else {
-                                            static_assert(nt::always_false<>);
+                                            static_assert(nt::always_false<Op>);
                                         }
                                     }
                                     interface::final(op, local, output, i, j, k);
@@ -59,7 +59,7 @@ namespace noa::cpu::guts {
                                     } else if constexpr (R == 2) {
                                         interface::init(op, local, i, j, k);
                                     } else {
-                                        static_assert(nt::always_false<>);
+                                        static_assert(nt::always_false<Op>);
                                     }
                                 }
                                 interface::final(op, local, output, i, j);
@@ -73,13 +73,13 @@ namespace noa::cpu::guts {
                                 if constexpr (R == 0) {
                                     interface::init(op, local, j, i);
                                 } else {
-                                    static_assert(nt::always_false<>);
+                                    static_assert(nt::always_false<Op>);
                                 }
                             }
                             interface::final(op, local, output, i);
                         }
                     } else {
-                        static_assert(nt::always_false<>);
+                        static_assert(nt::always_false<Op>);
                     }
                 }
             } else {
@@ -98,7 +98,7 @@ namespace noa::cpu::guts {
                                     } else if constexpr (R == 3) {
                                         interface::init(op, local, i, j, k, l);
                                     } else {
-                                        static_assert(nt::always_false<>);
+                                        static_assert(nt::always_false<Op>);
                                     }
                                 }
                                 interface::final(op, local, output, i, j, k);
@@ -117,7 +117,7 @@ namespace noa::cpu::guts {
                                 } else if constexpr (R == 2) {
                                     interface::init(op, local, i, j, k);
                                 } else {
-                                    static_assert(nt::always_false<>);
+                                    static_assert(nt::always_false<Op>);
                                 }
                             }
                             interface::final(op, local, output, i, j);
@@ -130,13 +130,13 @@ namespace noa::cpu::guts {
                             if constexpr (R == 0) {
                                 interface::init(op, local, j, i);
                             } else {
-                                static_assert(nt::always_false<>);
+                                static_assert(nt::always_false<Op>);
                             }
                         }
                         interface::final(op, local, output, i);
                     }
                 } else {
-                    static_assert(nt::always_false<>);
+                    static_assert(nt::always_false<Op>);
                 }
             }
         }
@@ -227,7 +227,7 @@ namespace noa::cpu::guts {
                         }
                     }
                 } else {
-                    static_assert(nt::always_false<>);
+                    static_assert(nt::always_false<Index>);
                 }
             }
         }
@@ -273,7 +273,7 @@ namespace noa::cpu::guts {
                         }
                     }
                 } else {
-                    static_assert(nt::always_false<>);
+                    static_assert(nt::always_false<Index>);
                 }
             }
         }
@@ -304,13 +304,13 @@ namespace noa::cpu {
               nt::tuple_of_accessor_nd<std::decay_t<Output>, N> and
               nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
     constexpr void reduce_axes_iwise(
-            const Shape<Index, N>& input_shape,
-            const Shape<Index, N>& output_shape,
-            Op&& op,
-            Reduced&& reduced,
-            Output&& output,
-            i64 n_threads = 1
-    )  {
+        const Shape<Index, N>& input_shape,
+        const Shape<Index, N>& output_shape,
+        Op&& op,
+        Reduced&& reduced,
+        Output&& output,
+        i64 n_threads = 1
+    ) {
         const Vec<bool, N> axes_to_reduce = input_shape != output_shape;
         if (any(axes_to_reduce and (output_shape != 1))) {
             panic("Dimensions should match the input shape, or be 1, "
@@ -323,9 +323,10 @@ namespace noa::cpu {
 
         const auto axes_empty_or_to_reduce = output_shape == 1 or axes_to_reduce;
         if (all(axes_empty_or_to_reduce)) { // reduce to a single value
-            auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.enforce_contiguous=true, .filter={0}}>(output);
+            constexpr auto config = ng::AccessorConfig<1>{.enforce_contiguous = true, .filter = {0}};
+            auto output_1d = ng::reconfig_accessors<config>(output);
             return reduce_iwise<Config>(
-                    input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
+                input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
         }
 
         using reducer = guts::ReduceAxesIwise<Config::zip_reduced, Config::zip_output>;
@@ -336,37 +337,37 @@ namespace noa::cpu {
 
         if constexpr (N == 4) {
             if (all(axes_empty_or_to_reduce.pop_front())) { // reduce to one value per batch
-                auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter={0}}>(output);
+                auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter = {0}}>(output);
                 if (is_small or n_threads <= 1) {
                     reducer::serial_4d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
                 } else if (n_batches < n_threads) {
                     reducer::template parallel_4d<reducer::ParallelReduction>(
-                            input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
+                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
                 } else {
                     reducer::template parallel_4d<reducer::SerialReduction>(
-                            input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
+                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
                 }
             } else {
                 if (axes_to_reduce[3]) {
-                    auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter={0, 1, 2}}>(output);
+                    auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter = {0, 1, 2}}>(output);
                     reducer::template single_axis<3>(
-                            input_shape, std::forward<Op>(op),
-                            std::forward<Reduced>(reduced), output_3d, n_threads);
+                        input_shape, std::forward<Op>(op),
+                        std::forward<Reduced>(reduced), output_3d, n_threads);
                 } else if (axes_to_reduce[2]) {
-                    auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter={0, 1, 3}}>(output);
+                    auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter = {0, 1, 3}}>(output);
                     reducer::template single_axis<2>(
-                            input_shape.filter(0, 1, 3, 2), std::forward<Op>(op),
-                            std::forward<Reduced>(reduced), output_3d, n_threads);
+                        input_shape.filter(0, 1, 3, 2), std::forward<Op>(op),
+                        std::forward<Reduced>(reduced), output_3d, n_threads);
                 } else if (axes_to_reduce[1]) {
-                    auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter={0, 2, 3}}>(output);
+                    auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter = {0, 2, 3}}>(output);
                     reducer::template single_axis<1>(
-                            input_shape.filter(0, 2, 3, 1), std::forward<Op>(op),
-                            std::forward<Reduced>(reduced), output_3d, n_threads);
+                        input_shape.filter(0, 2, 3, 1), std::forward<Op>(op),
+                        std::forward<Reduced>(reduced), output_3d, n_threads);
                 } else {
-                    auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter={1, 2, 3}}>(output);
+                    auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter = {1, 2, 3}}>(output);
                     reducer::template single_axis<0>(
-                            input_shape.filter(1, 2, 3, 0), std::forward<Op>(op),
-                            std::forward<Reduced>(reduced), output_3d, n_threads);
+                        input_shape.filter(1, 2, 3, 0), std::forward<Op>(op),
+                        std::forward<Reduced>(reduced), output_3d, n_threads);
                 }
             }
         } else if constexpr (N == 3) {
@@ -376,46 +377,46 @@ namespace noa::cpu {
                     reducer::serial_3d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
                 } else if (n_batches < n_threads) {
                     reducer::template parallel_3d<reducer::ParallelReduction>(
-                            input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
+                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
                 } else {
                     reducer::template parallel_3d<reducer::SerialReduction>(
-                            input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
+                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
                 }
             } else {
                 if (axes_to_reduce[2]) {
-                    auto output_2d = ng::reconfig_accessors<ng::AccessorConfig<2>{.filter={0, 1}}>(output);
+                    auto output_2d = ng::reconfig_accessors<ng::AccessorConfig<2>{.filter = {0, 1}}>(output);
                     reducer::template single_axis<2>(
-                            input_shape, std::forward<Op>(op),
-                            std::forward<Reduced>(reduced), output_2d, n_threads);
+                        input_shape, std::forward<Op>(op),
+                        std::forward<Reduced>(reduced), output_2d, n_threads);
                 } else if (axes_to_reduce[1]) {
-                    auto output_2d = ng::reconfig_accessors<ng::AccessorConfig<2>{.filter={0, 2}}>(output);
+                    auto output_2d = ng::reconfig_accessors<ng::AccessorConfig<2>{.filter = {0, 2}}>(output);
                     reducer::template single_axis<1>(
-                            input_shape.filter(0, 2, 1), std::forward<Op>(op),
-                            std::forward<Reduced>(reduced), output_2d, n_threads);
+                        input_shape.filter(0, 2, 1), std::forward<Op>(op),
+                        std::forward<Reduced>(reduced), output_2d, n_threads);
                 } else {
-                    auto output_2d = ng::reconfig_accessors<ng::AccessorConfig<2>{.filter={1, 2}}>(output);
+                    auto output_2d = ng::reconfig_accessors<ng::AccessorConfig<2>{.filter = {1, 2}}>(output);
                     reducer::template single_axis<0>(
-                            input_shape.filter(1, 2, 0), std::forward<Op>(op),
-                            std::forward<Reduced>(reduced), output_2d, n_threads);
+                        input_shape.filter(1, 2, 0), std::forward<Op>(op),
+                        std::forward<Reduced>(reduced), output_2d, n_threads);
                 }
             }
         } else if constexpr (N == 2) {
             if (axes_to_reduce[1]) {
-                auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter={0}}>(output);
+                auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter = {0}}>(output);
                 if (is_small or n_threads <= 1) {
                     reducer::serial_2d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
                 } else if (n_batches < n_threads) {
                     reducer::template parallel_2d<reducer::ParallelReduction>(
-                            input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
+                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
                 } else {
                     reducer::template parallel_2d<reducer::SerialReduction>(
-                            input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
+                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
                 }
             } else {
-                auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter={1}}>(output);
+                auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter = {1}}>(output);
                 reducer::template single_axis<0>(
-                        input_shape.filter(1, 0), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_1d, n_threads);
+                    input_shape.filter(1, 0), std::forward<Op>(op),
+                    std::forward<Reduced>(reduced), output_1d, n_threads);
             }
         }
     }

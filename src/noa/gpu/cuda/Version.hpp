@@ -4,18 +4,18 @@
 
 #ifdef NOA_IS_OFFLINE
 #include "noa/gpu/cuda/Exception.hpp"
-#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Runtime.hpp"
 
 namespace noa::cuda {
     // Gets the latest version of CUDA supported by the driver. Format 1000 * major + 10 * minor.
-    NOA_IH i32 version_driver() {
+    inline i32 version_driver() {
         i32 version;
         check(cudaDriverGetVersion(&version));
         return version;
     }
 
     // Gets the CUDA runtime version. Format 1000 * major + 10 * minor.
-    NOA_IH i32 version_runtime() {
+    inline i32 version_runtime() {
         i32 version;
         check(cudaRuntimeGetVersion(&version));
         return version;

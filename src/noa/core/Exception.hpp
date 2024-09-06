@@ -33,8 +33,8 @@ namespace noa {
         /// \param[in] function  Function name.
         /// \param[in] line      Line number.
         /// \param[in] message   Error message.
-        Exception(const char* file, const char* function, std::uint_least32_t line, std::string_view message)
-                : m_buffer(format_(file, function, line, message)) {}
+        Exception(const char* file, const char* function, std::uint_least32_t line, std::string_view message) :
+            m_buffer(format_(file, function, line, message)) {}
 
         /// Returns the formatted error message of this exception.
         [[nodiscard]] const char* what() const noexcept override {
@@ -66,14 +66,14 @@ namespace noa {
 
             template<typename T>
             consteval /*implicit*/ FormatWithLocation(
-                    const T& s,
-                    const std::source_location& l = std::source_location::current()
-            ) : fmt(s), location(l) {} // check at compile time that "s" is compatible with "Ts"
+                const T& s,
+                const std::source_location& l = std::source_location::current()
+            ) : fmt(s), location(l) {} // fmt checks at compile time that "s" is compatible with "Ts"
 
             /*implicit*/ FormatWithLocation(
-                    const fmt::runtime_format_string<char>& s,
-                    const std::source_location& l = std::source_location::current()
-            ) : fmt(s), location(l) {}// no checks
+                const fmt::runtime_format_string<char>& s,
+                const std::source_location& l = std::source_location::current()
+            ) : fmt(s), location(l) {} // no checks
         };
     }
 
@@ -128,7 +128,7 @@ namespace noa {
 
     /// Throws an Exception with an error message already formatted.
     /// This is be equivalent to panic(fmt::runtime(message));
-    inline void check_runtime(
+    void check_runtime(
         auto&& expression,
         std::string_view message,
         const std::source_location& location = std::source_location::current()

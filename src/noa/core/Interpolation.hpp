@@ -51,25 +51,21 @@ namespace noa {
             LINEAR = 1,
             LINEAR_FAST = 101,
 
-            /// Linear interpolation with cosine smoothing.
-            COSINE = 2,
-            COSINE_FAST = 102,
-
             /// Cubic interpolation.
-            CUBIC = 3,
-            CUBIC_FAST = 103,
+            CUBIC = 2,
+            CUBIC_FAST = 102,
 
             /// Cubic B-spline interpolation.
-            CUBIC_BSPLINE = 4,
-            CUBIC_BSPLINE_FAST = 104,
+            CUBIC_BSPLINE = 3,
+            CUBIC_BSPLINE_FAST = 103,
 
-            /// Windowed-sinc interpolation, with Lanczos window of size 4, 6, or 8.
-            LANCZOS4 = 5,
-            LANCZOS6 = 6,
-            LANCZOS8 = 7,
-            LANCZOS4_FAST = 105,
-            LANCZOS6_FAST = 106,
-            LANCZOS8_FAST = 107,
+            /// Windowed-sinc interpolation, with a Lanczos window of size 4, 6, or 8.
+            LANCZOS4 = 4,
+            LANCZOS6 = 5,
+            LANCZOS8 = 6,
+            LANCZOS4_FAST = 104,
+            LANCZOS6_FAST = 105,
+            LANCZOS8_FAST = 106,
         } value;
 
     public: // simplify Interp::Method into Interp
@@ -102,10 +98,8 @@ namespace noa {
             switch (value) {
                 case NEAREST:
                 case LINEAR:
-                case COSINE:
                 case NEAREST_FAST:
                 case LINEAR_FAST:
-                case COSINE_FAST:
                     return 2;
                 case CUBIC:
                 case CUBIC_FAST:
@@ -135,10 +129,6 @@ namespace noa {
                 return os << "Interp::LINEAR";
             case Interp::LINEAR_FAST:
                 return os << "Interp::LINEAR_FAST";
-            case Interp::COSINE:
-                return os << "Interp::COSINE";
-            case Interp::COSINE_FAST:
-                return os << "Interp::COSINE_FAST";
             case Interp::CUBIC:
                 return os << "Interp::CUBIC";
             case Interp::CUBIC_FAST:
@@ -234,7 +224,7 @@ namespace noa {
         const auto f = static_cast<Weight>(fraction);
 
         if constexpr (INTERP.is_almost_any(Interp::NEAREST)) {
-            // This is not used by the Interpolator.
+            // This is not used by the interpolation functions.
             // In practice, the rounding is done by the interpolation function
             // and only the correct element (with weight=1) is read/fetched.
             Vec<Weight, 2> coefficients{};
@@ -248,10 +238,6 @@ namespace noa {
 
         } else if constexpr (INTERP.is_almost_any(Interp::LINEAR)) {
             return Vec{1 - f, f};
-
-        } else if constexpr (INTERP.is_almost_any(Interp::COSINE)) {
-            const auto t = (1 - cos(fraction * Constant<real_t>::PI)) / static_cast<real_t>(2);
-            return Vec{1 - t, t};
 
         } else if constexpr (INTERP.is_almost_any(Interp::CUBIC)) {
             // https://stackoverflow.com/a/26828782, some use A=-0.75
@@ -278,13 +264,14 @@ namespace noa {
             constexpr size_t SIZE = INTERP.window_size();
             constexpr size_t CENTER = SIZE / 2 - 1;
 
-            // Shortcut for identity transform, i.e. x ~= 0.
-            // FIXME
-            if (vall([](auto fi){ return abs(fi) < std::numeric_limits<real_t>::epsilon(); }, f)) {
-                Vec<Weight, SIZE> coefficients{};
-                coefficients[CENTER] = 1;
-                return coefficients;
-            }
+            // Note that we could try to shortcut for cases where the fraction is 0. This can happen with
+            // identity transforms, shift by integral value or multiple of 90deg rotation. However, this seems
+            // to be a quite rare scenario, so ignore this shortcut for now.
+            // if (vall([](auto fi){ return abs(fi) < std::numeric_limits<real_t>::epsilon(); }, f)) {
+            //     Vec<Weight, SIZE> coefficients{};
+            //     coefficients[CENTER] = 1;
+            //     return coefficients;
+            // }
 
             // Instead of computing the windowed-sinc for every point in the nd-window, use this trick from OpenCV
             // to only compute one sin and cos per dimension, regardless of the window size. See:
@@ -297,7 +284,7 @@ namespace noa {
             const auto c0 = cos(y0);
 
             constexpr auto s45 = static_cast<real_t>(0.7071067811865475); // sin(Constant<real_t>::PI / 4);
-            constexpr real_t cs[][2]=
+            constexpr real_t cs[][2] =
                     {{1, 0}, {-s45, -s45}, {0, 1}, {s45, -s45}, {-1, 0}, {s45, s45}, {0, -1}, {-s45, s45}};
 
             Weight sum{};
@@ -332,10 +319,10 @@ namespace noa {
              size_t A0, size_t A1, typename C>
     requires (1 <= N and N <= 3 and (BORDER != Border::VALUE or nt::same_as_mutable_value_type_of<C, T>))
     NOA_HD constexpr auto interpolate(
-            const T& input,
-            const Vec<Coord, N, A0>& coordinate,
-            const Shape<SInt, N, A1>& shape,
-            const C& cvalue
+        const T& input,
+        const Vec<Coord, N, A0>& coordinate,
+        const Shape<SInt, N, A1>& shape,
+        const C& cvalue
     ) noexcept -> nt::mutable_value_type_t<T> {
         using value_t = nt::mutable_value_type_t<T>;
         using real_t = nt::value_type_t<value_t>;
@@ -344,6 +331,7 @@ namespace noa {
 
         // Utility to read from the input while accounting for the border mode.
         auto value_at = [&](const auto& indices) {
+            // TODO Add support for a readable input that can do its own addressing?
             if constexpr (BORDER == Border::ZERO or BORDER == Border::VALUE) {
                 if (ni::is_inbound(shape, indices))
                     return input(indices);
@@ -431,12 +419,11 @@ namespace noa {
              nt::any_of<f32, f64> R>
     requires (1 <= N and N <= 3 and INTERP.is_fast())
     NOA_HD constexpr auto interpolate_using_texture(
-            const T& input,
-            const Vec<R, N, A>& coordinate
+        const T& input,
+        const Vec<R, N, A>& coordinate
     ) noexcept -> nt::mutable_value_type_t<T> {
-        if constexpr (INTERP == Interp::NEAREST_FAST and nt::nearestable_nd<T, BORDER, N>) {
-            // Special case for nearest-neighbor interpolation in fast mode. Let the texture do everything.
-            return input.fetch(coordinate);
+        if constexpr (INTERP == T::INTERP) {
+            return input.fetch(coordinate); // the texture can handle both the interpolation and addressing
 
         } else if constexpr (INTERP.is_almost_any(Interp::NEAREST)) {
             // Special case for nearest-neighbor interpolation in accurate mode. Here the "interpolation"
@@ -451,8 +438,8 @@ namespace noa {
             using weight_t = Vec<real_t, N, next_power_of_2(alignof(real_t) * N)>;
 
             constexpr i32 SIZE = INTERP.window_size();
-            const coordn_t indices = floor(coordinate);
-            const coordn_t fraction = coordinate - indices;
+            const coordn_t floored = floor(coordinate);
+            const coordn_t fraction = coordinate - floored;
             const Vec<weight_t, static_cast<size_t>(SIZE)> weights = interpolation_weights<INTERP, weight_t>(fraction);
 
             if constexpr (INTERP.is_fast() and nt::lerpable_nd<T, BORDER, N>) {
@@ -461,6 +448,7 @@ namespace noa {
 
                 // This was expanded from the original implementation of Daniel Ruijters
                 // for Cubic B-spline interpolation in CUDA: http://www.dannyruijters.nl/cubicinterpolation/
+
                 // Compute the adjusted coordinates for the lerp and the weights.
                 constexpr i32 HALF = SIZE / 2;
                 Vec<weight_t, static_cast<size_t>(HALF)> lerp_weight;
@@ -471,7 +459,7 @@ namespace noa {
                     lerp_weight[i] = weights[index] + weights[index + 1];
                     lerp_coord[i] = input.fetch_preprocess(
                             static_cast<coord_t>(weights[index + 1] / lerp_weight[i]) +
-                            indices + static_cast<coord_t>(offset));
+                            floored + static_cast<coord_t>(offset));
                 }
 
                 // Lerp at the adjusted coordinates and correct for the interpolation weights.
@@ -514,13 +502,13 @@ namespace noa {
                 value_t value{};
                 if constexpr (N == 1) {
                     for (i32 x{START}; x <= END; ++x)
-                        value += input.fetch(indices + x) * weights[x - START][0];
+                        value += input.fetch(floored + x) * weights[x - START][0];
 
                 } else if constexpr (N == 2) {
                     for (i32 y{START}; y <= END; ++y) {
                         value_t value_y{};
                         for (i32 x{START}; x <= END; ++x)
-                            value_y += input.fetch(indices + coordn_t::from_values(y, x)) * weights[x - START][1];
+                            value_y += input.fetch(floored + coordn_t::from_values(y, x)) * weights[x - START][1];
                         value += value_y * weights[y - START][0];
                     }
                 } else if constexpr (N == 3) {
@@ -529,7 +517,7 @@ namespace noa {
                         for (i32 y{START}; y <= END; ++y) {
                             value_t value_y{};
                             for (i32 x{START}; x <= END; ++x)
-                                value_y += input.fetch(indices + coordn_t::from_values(z, y, x)) * weights[x - START][2];
+                                value_y += input.fetch(floored + coordn_t::from_values(z, y, x)) * weights[x - START][2];
                             value_z += value_y * weights[y - START][1];
                         }
                         value += value_z * weights[z - START][0];
@@ -552,9 +540,9 @@ namespace noa {
              nt::sinteger Int,
              size_t A0, size_t A1>
     NOA_HD constexpr auto interpolate_spectrum(
-            const T& input,
-            const Vec<Coord, N, A0>& frequency,
-            const Shape<Int, N, A1>& shape
+        const T& input,
+        const Vec<Coord, N, A0>& frequency,
+        const Shape<Int, N, A1>& shape
     ) noexcept -> nt::mutable_value_type_t<T> {
         using value_t = nt::mutable_value_type_t<T>;
         using real_t = nt::value_type_t<value_t>;
@@ -667,9 +655,9 @@ namespace noa {
              size_t A0, size_t A1>
     requires (REMAP.is_xc2xx() or not INTERP.is_fast())
     NOA_HD constexpr auto interpolate_spectrum_using_texture(
-            const T& input,
-            const Vec<Coord, N, A0>& frequency,
-            const Shape<Int, N, A1>& shape
+        const T& input,
+        const Vec<Coord, N, A0>& frequency,
+        const Shape<Int, N, A1>& shape
     ) noexcept -> nt::mutable_value_type_t<T> {
         using value_t = nt::mutable_value_type_t<T>;
         using real_t = nt::value_type_t<value_t>;
@@ -693,8 +681,8 @@ namespace noa {
         }
 
         value_t value;
-        if constexpr (INTERP == Interp::NEAREST_FAST and nt::nearestable_nd<T, Border::ZERO, N>) {
-            // Special case for nearest-neighbor interpolation in fast mode. Let the texture do everything.
+        if constexpr (INTERP == T::INTERP) {
+            // The texture can handle both the interpolation and the addressing.
             value = input.fetch(ng::interp_frequency_to_index<REMAP>(frequency, shape));
 
         } else if constexpr (INTERP.is_almost_any(Interp::NEAREST)) {
@@ -726,6 +714,8 @@ namespace noa {
             const Vec<weight_t, SIZE> weights = interpolation_weights<INTERP, weight_t>(fraction);
 
             if constexpr (INTERP.is_fast() and nt::lerpable_nd<T, Border::ZERO>) {
+                static_assert(REMAP.is_hc2xx());
+
                 // This was expanded from the original implementation of Daniel Ruijters
                 // for Cubic B-spline interpolation in CUDA: http://www.dannyruijters.nl/cubicinterpolation/
                 // Compute the adjusted coordinates for the lerp.
@@ -867,12 +857,12 @@ namespace noa {
         /// can then be used to interpolate the nd-data (as described in the interpolate function).
         template<size_t A> requires (not is_textureable)
         NOA_HD constexpr Interpolator(
-                const input_type& input,
-                const Shape<index_type, N, A>& shape,
-                mutable_value_type cvalue = mutable_value_type{}
-        ) noexcept:
-                m_input(input),
-                m_shape(shape_nd_type::from_shape(shape))
+            const input_type& input,
+            const Shape<index_type, N, A>& shape,
+            mutable_value_type cvalue = mutable_value_type{}
+        ) noexcept :
+            m_input(input),
+            m_shape(shape_nd_type::from_shape(shape))
         {
             if constexpr (not std::is_empty_v<value_or_empty_type>)
                 m_cvalue = cvalue;
@@ -884,11 +874,11 @@ namespace noa {
         /// to match the constructor taking accessors.
         template<size_t A> requires is_textureable
         NOA_HD constexpr explicit Interpolator(
-                const input_type& input,
-                const Shape<index_type, N, A>& = {},
-                mutable_value_type = mutable_value_type{}
-        ) noexcept:
-                m_input(input) {}
+            const input_type& input,
+            const Shape<index_type, N, A>& = {},
+            mutable_value_type = mutable_value_type{}
+        ) noexcept :
+            m_input(input) {}
 
     public:
         /// N-d interpolation of the data at a given batch.

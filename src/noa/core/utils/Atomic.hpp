@@ -9,15 +9,15 @@
 
 #if defined(NOA_IS_GPU_CODE)
 namespace noa::cuda::guts {
-    NOA_FD int32_t atomic_add(int32_t* address, int32_t val) {
+    NOA_FD i32 atomic_add(i32* address, i32 val) {
         return ::atomicAdd(address, val);
     }
 
-    NOA_FD uint32_t atomic_add(uint32_t* address, uint32_t val) {
+    NOA_FD u32 atomic_add(u32* address, u32 val) {
         return ::atomicAdd(address, val);
     }
 
-    NOA_FD uint64_t atomic_add(uint64_t* address, uint64_t val) {
+    NOA_FD u64 atomic_add(u64* address, u64 val) {
         return ::atomicAdd(reinterpret_cast<unsigned long long*>(address), val);
     }
 
@@ -43,7 +43,7 @@ namespace noa::cuda::guts {
         do {
             assumed = old;
             old = ::atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
-        } while (assumed != old); // uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
+        } while (assumed != old); // uses integer comparison to avoid hanging in case of NaN (since NaN != NaN)
 
         return __longlong_as_double(old); // like every other atomicAdd, return old
         #else

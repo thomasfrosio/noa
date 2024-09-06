@@ -88,12 +88,12 @@ namespace noa::inline types {
 
     public: // Constructors
         /// Creates an empty span.
-        NOA_HD constexpr Span() = default;
+        constexpr Span() = default;
 
         /// Creates a span of contiguous 1d data.
         NOA_HD constexpr Span(
-                pointer_type data,
-                index_type size
+            pointer_type data,
+            index_type size
         ) noexcept
                 : m_ptr{data},
                   m_shape{shape_type::from_value(1).template set<N - 1>(size)},
@@ -102,16 +102,16 @@ namespace noa::inline types {
         /// Creates a span of rightmost contiguous nd data.
         template<size_t A>
         NOA_HD constexpr Span(
-                pointer_type data,
-                const Shape<index_type, SIZE, A>& shape
+            pointer_type data,
+            const Shape<index_type, SIZE, A>& shape
         ) noexcept : Span(data, shape, shape.strides()) {}
 
         /// Creates a span of nd data.
         template<size_t A, size_t B> requires IS_CONTIGUOUS
         NOA_HD constexpr Span(
-                pointer_type pointer,
-                const Shape<index_type, SIZE, A>& shape,
-                const Strides<index_type, SIZE - IS_CONTIGUOUS, B>& strides
+            pointer_type pointer,
+            const Shape<index_type, SIZE, A>& shape,
+            const Strides<index_type, SIZE - IS_CONTIGUOUS, B>& strides
         ) noexcept
                 : m_ptr{pointer},
                   m_shape{shape_type::from_shape(shape)},
@@ -121,9 +121,9 @@ namespace noa::inline types {
         /// If the span is contiguous, the width stride (strides[N-1]) is ignored and assumed to be 1.
         template<size_t A, size_t B>
         NOA_HD constexpr Span(
-                pointer_type pointer,
-                const Shape<index_type, SIZE, A>& shape,
-                const Strides<index_type, SIZE, B>& strides
+            pointer_type pointer,
+            const Shape<index_type, SIZE, A>& shape,
+            const Strides<index_type, SIZE, B>& strides
         ) noexcept
                 : m_ptr{pointer},
                   m_shape{shape_type::from_shape(shape)},
@@ -202,7 +202,7 @@ namespace noa::inline types {
 
         /// C-style indexing operator, decrementing the dimensionality of the span by 1.
         [[nodiscard]] NOA_HD constexpr auto operator[](
-                nt::integer auto index
+            nt::integer auto index
         ) const noexcept requires (N > 1) {
             NOA_ASSERT(not is_empty() and index >= 0 and static_cast<index_type>(index) < shape()[0]);
             using output_t = Span<value_type, N - 1, index_type, STRIDES_TRAIT>;
@@ -212,7 +212,7 @@ namespace noa::inline types {
         /// C-style indexing operator, decrementing the dimensionality of the accessor by 1.
         /// When done on a 1d accessor, this acts as a pointer/array indexing and dereferences the data.
         [[nodiscard]] NOA_HD constexpr auto& operator[](
-                nt::integer auto index
+            nt::integer auto index
         ) const noexcept requires (N == 1 and not std::is_void_v<value_type>) {
             NOA_ASSERT(not is_empty() and index >= 0 and static_cast<size_t>(index) < size());
             return get()[ni::offset_at(stride<0>(), index)];
@@ -261,9 +261,9 @@ namespace noa::inline types {
 
             if constexpr (NewN == N) {
                 return output_span_t(
-                        reinterpreted.ptr,
-                        reinterpreted.shape.template as_safe<NewI>(),
-                        reinterpreted.strides.template as_safe<NewI>());
+                    reinterpreted.ptr,
+                    reinterpreted.shape.template as_safe<NewI>(),
+                    reinterpreted.strides.template as_safe<NewI>());
             } else if constexpr (NewN > N) {
                 // Add empty dimensions on the left.
                 constexpr size_t n_dimensions_to_add = NewN - N;
@@ -271,9 +271,9 @@ namespace noa::inline types {
                 auto new_truncated_strides = reinterpreted.strides.template as_safe<NewI>();
                 auto new_leftmost_stride = new_truncated_strides[0] * new_truncated_shape[0];
                 return output_span_t(
-                        reinterpreted.ptr,
-                        new_truncated_shape.template push_front<n_dimensions_to_add>(1),
-                        new_truncated_strides.template push_front<n_dimensions_to_add>(new_leftmost_stride));
+                    reinterpreted.ptr,
+                    new_truncated_shape.template push_front<n_dimensions_to_add>(1),
+                    new_truncated_strides.template push_front<n_dimensions_to_add>(new_leftmost_stride));
             } else {
                 // Construct the new shape by stacking the outer dimensions together.
                 constexpr size_t OFFSET = N - NewN;
@@ -289,9 +289,9 @@ namespace noa::inline types {
 
                 // Then remove the outer empty dimensions.
                 return output_span_t(
-                        reinterpreted.ptr,
-                        new_shape.template pop_front<OFFSET>().template as_safe<NewI>(),
-                        new_stride.template pop_front<OFFSET>().template as_safe<NewI>());
+                    reinterpreted.ptr,
+                    new_shape.template pop_front<OFFSET>().template as_safe<NewI>(),
+                    new_stride.template pop_front<OFFSET>().template as_safe<NewI>());
             }
         }
 

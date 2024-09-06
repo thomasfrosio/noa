@@ -38,8 +38,8 @@ namespace noa::cpu::guts::sort {
     // Maybe this could be nice in the main API? Probably too specialized.
     template<typename T>
     void iota_(
-            T* input, const Strides4<i64>& strides, const Shape4<i64>& shape,
-            const Shape4<i64>& tile, KeyValPair<u32, T>* output
+        T* input, const Strides4<i64>& strides, const Shape4<i64>& shape,
+        const Shape4<i64>& tile, KeyValPair<u32, T>* output
     ) {
         const auto tile_strides = tile.strides();
         for (i64 i{}; i < shape[0]; ++i) {
@@ -47,11 +47,13 @@ namespace noa::cpu::guts::sort {
                 for (i64 k{}; k < shape[2]; ++k) {
                     for (i64 l{}; l < shape[3]; ++l, ++output) {
                         const i64 key = ni::offset_at(
-                                tile_strides,
-                                i % tile[0], j % tile[1],
-                                k % tile[2], l % tile[3]);
-                        *output = {static_cast<u32>(key),
-                                   input[ni::offset_at(strides, i, j, k, l)]};
+                            tile_strides,
+                            i % tile[0], j % tile[1],
+                            k % tile[2], l % tile[3]);
+                        *output = {
+                            static_cast<u32>(key),
+                            input[ni::offset_at(strides, i, j, k, l)]
+                        };
                     }
                 }
             }
@@ -61,8 +63,8 @@ namespace noa::cpu::guts::sort {
     // This is like permute(), but working with the pair as input.
     template<typename T>
     void permute_(
-            const Pair<uint, T>* src, const Strides4<i64>& src_strides, const Shape4<i64>& src_shape,
-            T* dst, const Strides4<i64>& dst_strides, const Vec4<i64>& permutation
+        const Pair<uint, T>* src, const Strides4<i64>& src_strides, const Shape4<i64>& src_shape,
+        T* dst, const Strides4<i64>& dst_strides, const Vec4<i64>& permutation
     ) {
         const auto dst_shape = src_shape.reorder(permutation);
         const auto src_strides_permuted = src_strides.reorder(permutation);

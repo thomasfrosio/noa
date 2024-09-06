@@ -10,7 +10,7 @@ namespace noa::cpu::signal::guts {
     // If index is out of bound, apply mirror (d c b | a b c d | c b a).
     // This requires shape >= window/2+1. noa::indexing::index_at() would work, but this
     // is slightly more efficient because we know the size of the halo is less than the size.
-    i64 median_filter_get_mirror_index(i64 index, i64 size) {
+    constexpr i64 median_filter_get_mirror_index(i64 index, i64 size) {
         if (index < 0)
             index *= -1;
         else if (index >= size)
@@ -22,11 +22,11 @@ namespace noa::cpu::signal::guts {
     class MedianFilter1d {
     public:
         MedianFilter1d(
-                const InputAccessor& input,
-                const OutputAccessor& output,
-                BufferAccessor buffer,
-                const Shape4<i64>& shape,
-                i64 window
+            const InputAccessor& input,
+            const OutputAccessor& output,
+            BufferAccessor buffer,
+            const Shape4<i64>& shape,
+            i64 window
         ) : m_input(input), m_output(output), m_buffer(buffer),
             m_width(shape.width()), m_window(window),
             m_window_half(window / 2) {}
@@ -74,11 +74,11 @@ namespace noa::cpu::signal::guts {
     class MedianFilter2d {
     public:
         MedianFilter2d(
-                const InputAccessor& input,
-                const OutputAccessor& output,
-                BufferAccessor buffer,
-                const Shape4<i64>& shape,
-                i64 window
+            const InputAccessor& input,
+            const OutputAccessor& output,
+            BufferAccessor buffer,
+            const Shape4<i64>& shape,
+            i64 window
         ) : m_input(input), m_output(output), m_buffer(buffer),
             m_shape(shape.filter(2, 3)),
             m_window_1d(window),
@@ -137,11 +137,11 @@ namespace noa::cpu::signal::guts {
     class MedianFilter3d {
     public:
         MedianFilter3d(
-                const InputAccessor& input,
-                const OutputAccessor& output,
-                const BufferAccessor& buffer,
-                const Shape4<i64>& shape,
-                i64 window
+            const InputAccessor& input,
+            const OutputAccessor& output,
+            const BufferAccessor& buffer,
+            const Shape4<i64>& shape,
+            i64 window
         ) : m_input(input), m_output(output), m_buffer(buffer),
             m_shape(shape.pop_front()),
             m_window_1d(window),
@@ -210,10 +210,10 @@ namespace noa::cpu::signal::guts {
 namespace noa::cpu::signal {
     template<typename T, typename U>
     void median_filter_1d(
-            const T* input, const Strides4<i64>& input_strides,
-            U* output, const Strides4<i64>& output_strides,
-            const Shape4<i64>& shape, Border border_mode,
-            i64 window_size, i64 n_threads
+        const T* input, const Strides4<i64>& input_strides,
+        U* output, const Strides4<i64>& output_strides,
+        const Shape4<i64>& shape, Border border_mode,
+        i64 window_size, i64 n_threads
     ) {
         using compute_t = std::conditional_t<std::is_same_v<f16, T>, f32, T>;
         const auto buffer = AllocatorHeap<compute_t>::allocate(window_size * n_threads);
@@ -226,18 +226,18 @@ namespace noa::cpu::signal {
             case Border::REFLECT: {
                 NOA_ASSERT(window_size / 2 + 1 <= shape[3]);
                 auto op = guts::MedianFilter1d<Border::REFLECT, input_accessor_t, output_accessor_t, buffer_accessor_t>(
-                        input_accessor_t(input, input_strides),
-                        output_accessor_t(output, output_strides),
-                        buffer_accessor_t(buffer.get()),
-                        shape, window_size);
+                    input_accessor_t(input, input_strides),
+                    output_accessor_t(output, output_strides),
+                    buffer_accessor_t(buffer.get()),
+                    shape, window_size);
                 return iwise(shape, op, n_threads);
             }
             case Border::ZERO: {
                 auto op = guts::MedianFilter1d<Border::ZERO, input_accessor_t, output_accessor_t, buffer_accessor_t>(
-                        input_accessor_t(input, input_strides),
-                        output_accessor_t(output, output_strides),
-                        buffer_accessor_t(buffer.get()),
-                        shape, window_size);
+                    input_accessor_t(input, input_strides),
+                    output_accessor_t(output, output_strides),
+                    buffer_accessor_t(buffer.get()),
+                    shape, window_size);
                 return iwise(shape, op, n_threads);
             }
             default:
@@ -248,9 +248,9 @@ namespace noa::cpu::signal {
 
     template<typename T, typename U>
     void median_filter_2d(
-            const T* input, Strides4<i64> input_strides,
-            U* output, Strides4<i64> output_strides,
-            Shape4<i64> shape, Border border_mode, i64 window_size, i64 n_threads
+        const T* input, Strides4<i64> input_strides,
+        U* output, Strides4<i64> output_strides,
+        Shape4<i64> shape, Border border_mode, i64 window_size, i64 n_threads
     ) {
         const auto order_2d = ni::order(output_strides.filter(2, 3), shape.filter(2, 3));
         if (any(order_2d != Vec2<i64>{0, 1})) {
@@ -269,20 +269,20 @@ namespace noa::cpu::signal {
         switch (border_mode) {
             case Border::REFLECT: {
                 auto op = guts::MedianFilter2d<Border::REFLECT, input_accessor_t, output_accessor_t, buffer_accessor_t>(
-                        input_accessor_t(input, input_strides),
-                        output_accessor_t(output, output_strides),
-                        buffer_accessor_t(buffer.get()),
-                        shape, window_size);
+                    input_accessor_t(input, input_strides),
+                    output_accessor_t(output, output_strides),
+                    buffer_accessor_t(buffer.get()),
+                    shape, window_size);
                 return iwise(shape, op, n_threads);
             }
             case Border::ZERO: {
                 NOA_ASSERT(window_size / 2 + 1 <= shape[2]);
                 NOA_ASSERT(window_size / 2 + 1 <= shape[3]);
                 auto op = guts::MedianFilter2d<Border::ZERO, input_accessor_t, output_accessor_t, buffer_accessor_t>(
-                        input_accessor_t(input, input_strides),
-                        output_accessor_t(output, output_strides),
-                        buffer_accessor_t(buffer.get()),
-                        shape, window_size);
+                    input_accessor_t(input, input_strides),
+                    output_accessor_t(output, output_strides),
+                    buffer_accessor_t(buffer.get()),
+                    shape, window_size);
                 return iwise(shape, op, n_threads);
             }
             default:
@@ -293,9 +293,9 @@ namespace noa::cpu::signal {
 
     template<typename T, typename U>
     void median_filter_3d(
-            const T* input, Strides4<i64> input_strides,
-            U* output, Strides4<i64> output_strides,
-            Shape4<i64> shape, Border border_mode, i64 window_size, i64 n_threads
+        const T* input, Strides4<i64> input_strides,
+        U* output, Strides4<i64> output_strides,
+        Shape4<i64> shape, Border border_mode, i64 window_size, i64 n_threads
     ) {
         const auto order_3d = ni::order(output_strides.pop_front(), shape.pop_front());
         if (any(order_3d != Vec3<i64>{0, 1, 2})) {
@@ -318,18 +318,18 @@ namespace noa::cpu::signal {
                 NOA_ASSERT(window_size / 2 + 1 <= shape[2]);
                 NOA_ASSERT(window_size / 2 + 1 <= shape[3]);
                 auto op = guts::MedianFilter3d<Border::REFLECT, input_accessor_t, output_accessor_t, buffer_accessor_t>(
-                        input_accessor_t(input, input_strides),
-                        output_accessor_t(output, output_strides),
-                        buffer_accessor_t(buffer.get()),
-                        shape, window_size);
+                    input_accessor_t(input, input_strides),
+                    output_accessor_t(output, output_strides),
+                    buffer_accessor_t(buffer.get()),
+                    shape, window_size);
                 return iwise(shape, op, n_threads);
             }
             case Border::ZERO: {
                 auto op = guts::MedianFilter3d<Border::ZERO, input_accessor_t, output_accessor_t, buffer_accessor_t>(
-                        input_accessor_t(input, input_strides),
-                        output_accessor_t(output, output_strides),
-                        buffer_accessor_t(buffer.get()),
-                        shape, window_size);
+                    input_accessor_t(input, input_strides),
+                    output_accessor_t(output, output_strides),
+                    buffer_accessor_t(buffer.get()),
+                    shape, window_size);
                 return iwise(shape, op, n_threads);
             }
             default:

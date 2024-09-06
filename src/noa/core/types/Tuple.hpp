@@ -166,7 +166,7 @@ namespace noa::inline types {
 
     public:
         template<typename U> requires (not nt::almost_same_as<Tuple, U>) // preserves default assignments
-        constexpr auto& operator=(U&& tup) {
+        constexpr auto& operator=(U&& tup) { // TODO noexcept
             assign_tuple_(std::forward<U>(tup), index_list{});
             return *this;
         }

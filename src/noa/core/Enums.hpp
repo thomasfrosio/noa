@@ -86,17 +86,6 @@ namespace noa::signal {
         /// Good general alternative. Sharper than the conventional approach.
         MUTUAL
     };
-
-    /// Subpixel registration method.
-    enum class CorrelationRegistration {
-        /// Updates the pixel location by fitting a 1D parabola along axis.
-        /// The peak value is average of the vertex height along each dimension.
-        PARABOLA_1D,
-
-        /// Updates the pixel location by adding the center-of-mass (COM).
-        /// The peak value is currently not modified and the original max value is returned.
-        COM
-    };
 }
 
 #ifdef NOA_IS_OFFLINE
@@ -148,16 +137,6 @@ namespace noa::signal {
         }
         return os;
     }
-
-    inline std::ostream& operator<<(std::ostream& os, CorrelationRegistration mode) {
-        switch (mode) {
-            case CorrelationRegistration::PARABOLA_1D:
-                return os << "CorrelationRegistration::PARABOLA_1D";
-            case CorrelationRegistration::COM:
-                return os << "CorrelationRegistration::COM";
-        }
-        return os;
-    }
 }
 
 // fmt 9.1.0 fix (Disabled automatic std::ostream insertion operator)
@@ -165,6 +144,5 @@ namespace fmt {
     template<> struct formatter<noa::Border> : ostream_formatter {};
     template<> struct formatter<noa::Norm> : ostream_formatter {};
     template<> struct formatter<noa::signal::Correlation> : ostream_formatter {};
-    template<> struct formatter<noa::signal::CorrelationRegistration> : ostream_formatter {};
 }
 #endif

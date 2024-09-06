@@ -11,13 +11,9 @@
 #include "noa/core/Traits.hpp"
 #include "noa/core/utils/Misc.hpp"
 #include "noa/core/utils/ShareHandles.hpp"
-#include "noa/gpu/cuda/Types.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Device.hpp"
-
-// TODO cudaFree(Async) is synchronizing the device/stream or is stream-ordered, so this shouldn't be necessary
-//      for CUDA-managed memory. For unregistered memory that the stream depends on (e.g. CPU<->GPU copies), this
-//      should be useful. Update the documentation to reflect that?
+#include "noa/gpu/cuda/Runtime.hpp"
 
 namespace noa::cuda::guts {
     // Registry to attach a shared_ptr to a stream, using a FIFO buffer.
@@ -45,11 +41,15 @@ namespace noa::cuda::guts {
     // try_insert() is meant to be called with a bunch of different types at once, and as mentioned above, it will
     // filter the types that can be added to the registry from the types that cannot. It is indeed more efficient
     // to call try_insert() once with many types than to call it once for every type.
+    //
+    // TODO cudaFree(Async) is synchronizing the device/stream or is stream-ordered, so this shouldn't be necessary
+    //      for CUDA-managed memory. For unregistered memory that the stream depends on (e.g. CPU<->GPU copies), this
+    //      should be useful. Update the documentation to reflect that?
     class StreamResourceRegistry {
     private:
         std::mutex m_mutex;
         std::vector<std::pair<i64, std::shared_ptr<const void>>> m_registry;
-        i64 m_key{0};
+        i64 m_key{};
 
     public:
         std::atomic<i32> callback_count{0};
@@ -63,16 +63,16 @@ namespace noa::cuda::guts {
             const std::scoped_lock lock(m_mutex);
             clear_unused_();
 
-            if constexpr (nt::bool_or<(nt::is_shareable_v<Args> || nt::has_share_v<Args>)...>::value) {
+            if constexpr (((nt::shareable<Args> or nt::shareable_using_share<Args>) or ...)) {
                 i64 key = [this]() {
                     if (m_key == std::numeric_limits<i64>::max())
                         m_key = 0;
                     return m_key++;
                 }();
                 ([&, this]<typename T>(T&& arg) {
-                    if constexpr (nt::is_shareable_v<T>)
+                    if constexpr (nt::shareable<T>)
                         m_registry.emplace_back(key, std::forward<T>(arg));
-                    else if constexpr (nt::has_share_v<T>)
+                    else if constexpr (nt::shareable_using_share<T>)
                         m_registry.emplace_back(key, std::forward<T>(arg).share());
                     // else: do nothing?
                 }(std::forward<Args>(args)), ...);
@@ -140,6 +140,13 @@ namespace noa::cuda::guts {
 }
 
 namespace noa::cuda {
+    struct LaunchConfig {
+        dim3 n_blocks;
+        dim3 n_threads;
+        size_t n_bytes_of_shared_memory{};
+        bool is_cooperative{};
+    };
+
     enum class StreamMode : u32 {
         // Work running in the created stream is implicitly synchronized with the NULL stream.
         SERIAL = cudaStreamDefault,
@@ -176,15 +183,19 @@ namespace noa::cuda {
         constexpr explicit Stream() = default;
 
         /// Creates a new stream on the current device.
-        explicit Stream(StreamMode mode = StreamMode::ASYNC)
-                : m_core(std::make_shared<Core>()), m_device(Device::current()) {
+        explicit Stream(StreamMode mode = StreamMode::ASYNC) :
+            m_core(std::make_shared<Core>()),
+            m_device(Device::current())
+        {
             if (mode != StreamMode::DEFAULT)
                 check(cudaStreamCreateWithFlags(&m_core->stream_handle, to_underlying(mode)));
         }
 
         /// Creates a new stream on a given device.
-        explicit Stream(Device device, StreamMode mode = StreamMode::ASYNC)
-                : m_core(std::make_shared<Core>()), m_device(device) {
+        explicit Stream(Device device, StreamMode mode = StreamMode::ASYNC) :
+            m_core(std::make_shared<Core>()),
+            m_device(device)
+        {
             if (mode != StreamMode::DEFAULT) {
                 const DeviceGuard guard(m_device);
                 check(cudaStreamCreateWithFlags(&m_core->stream_handle, to_underlying(mode)));
@@ -199,11 +210,9 @@ namespace noa::cuda {
                      [[maybe_unused]] LaunchConfig config,
                      [[maybe_unused]] Args&& ... args) {
             #ifndef __CUDACC__
-            panic("To launch kernels, the compilation must be steered by nvcc or nvc++, "
-                  "i.e. this function should be called from CUDA C++ files");
+            panic("To launch kernels, the compilation must be steered by nvcc or nvc++, in CUDA mode");
             #else
             NOA_ASSERT(m_core);
-            // Cooperative kernels are not supported by the triple-chevron syntax.
             const DeviceGuard guard(m_device);
             if (config.is_cooperative) {
                 panic("Cooperative kernels are not supported yet");
@@ -255,10 +264,9 @@ namespace noa::cuda {
             const cudaError_t status = cudaStreamQuery(m_core->stream_handle);
             if (status == cudaError_t::cudaSuccess)
                 return false;
-            else if (status == cudaError_t::cudaErrorNotReady)
+            if (status == cudaError_t::cudaErrorNotReady)
                 return true;
-            else
-                panic_runtime(error2string(status));
+            panic_runtime(error2string(status));
         }
 
         // Blocks until the stream has completed all operations. See Device::synchronize().

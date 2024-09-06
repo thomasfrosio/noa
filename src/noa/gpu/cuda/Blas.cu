@@ -3,11 +3,6 @@
 #include "noa/gpu/cuda/Blas.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 
-#include "noa/gpu/cuda/signal/Convolve.hpp"
-#include "noa/gpu/cuda/signal/Correlate.hpp"
-#include "noa/gpu/cuda/ReduceAxesIwise.cuh"
-#include "noa/gpu/cuda/ReduceAxesEwise.cuh"
-
 namespace {
     using namespace noa::types;
     using noa::check;
@@ -39,16 +34,16 @@ namespace {
         thread_local std::unique_ptr<CuBlasHandle> g_cache[MAX_DEVICES];
 
         auto& cache = g_cache[device];
-        if (!cache)
+        if (not cache)
             cache = std::make_unique<CuBlasHandle>();
         return cache;
     }
 
     template<typename T>
     void cublas_gemm_(
-            bool is_column_major, bool lhs_transpose, bool rhs_transpose,
-            Shape3<int> mnk, Vec3<i32> labc, Vec3<i64> sabc, int batches, T alpha, T beta,
-            const T* lhs, const T* rhs, T* output, noa::cuda::Stream& stream
+        bool is_column_major, bool lhs_transpose, bool rhs_transpose,
+        Shape3<int> mnk, Vec3<i32> labc, Vec3<i64> sabc, int batches, T alpha, T beta,
+        const T* lhs, const T* rhs, T* output, noa::cuda::Stream& stream
     ) {
         // OpenBlas GEMM is slower than its DOT function, so we check for this condition and
         // redirect to dot if necessary. Here, cublas GEMM is about as fast as the dot function,
@@ -73,32 +68,32 @@ namespace {
 
         if constexpr (std::is_same_v<f32, T>) {
             cublasSgemmStridedBatched(
-                    handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2], &alpha,
-                    lhs, labc[0], sabc[0],
-                    rhs, labc[1], sabc[1], &beta,
-                    output, labc[2], sabc[2], batches);
+                handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2], &alpha,
+                lhs, labc[0], sabc[0],
+                rhs, labc[1], sabc[1], &beta,
+                output, labc[2], sabc[2], batches);
         } else if constexpr (std::is_same_v<f64, T>) {
             cublasDgemmStridedBatched(
-                    handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2], &alpha,
-                    lhs, labc[0], sabc[0],
-                    rhs, labc[1], sabc[1], &beta,
-                    output, labc[2], sabc[2], batches);
+                handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2], &alpha,
+                lhs, labc[0], sabc[0],
+                rhs, labc[1], sabc[1], &beta,
+                output, labc[2], sabc[2], batches);
         } else if constexpr (std::is_same_v<c32, T>) {
             cublasCgemmStridedBatched(
-                    handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2],
-                    reinterpret_cast<const cuComplex*>(&alpha),
-                    reinterpret_cast<const cuComplex*>(lhs), labc[0], sabc[0],
-                    reinterpret_cast<const cuComplex*>(rhs), labc[1], sabc[1],
-                    reinterpret_cast<const cuComplex*>(&beta),
-                    reinterpret_cast<cuComplex*>(output), labc[2], sabc[2], batches);
+                handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2],
+                reinterpret_cast<const cuComplex*>(&alpha),
+                reinterpret_cast<const cuComplex*>(lhs), labc[0], sabc[0],
+                reinterpret_cast<const cuComplex*>(rhs), labc[1], sabc[1],
+                reinterpret_cast<const cuComplex*>(&beta),
+                reinterpret_cast<cuComplex*>(output), labc[2], sabc[2], batches);
         } else if constexpr (std::is_same_v<c64, T>) {
             cublasZgemmStridedBatched(
-                    handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2],
-                    reinterpret_cast<const cuDoubleComplex*>(&alpha),
-                    reinterpret_cast<const cuDoubleComplex*>(lhs), labc[0], sabc[0],
-                    reinterpret_cast<const cuDoubleComplex*>(rhs), labc[1], sabc[1],
-                    reinterpret_cast<const cuDoubleComplex*>(&beta),
-                    reinterpret_cast<cuDoubleComplex*>(output), labc[2], sabc[2], batches);
+                handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2],
+                reinterpret_cast<const cuDoubleComplex*>(&alpha),
+                reinterpret_cast<const cuDoubleComplex*>(lhs), labc[0], sabc[0],
+                reinterpret_cast<const cuDoubleComplex*>(rhs), labc[1], sabc[1],
+                reinterpret_cast<const cuDoubleComplex*>(&beta),
+                reinterpret_cast<cuDoubleComplex*>(output), labc[2], sabc[2], batches);
         }
     }
 }
@@ -111,11 +106,11 @@ namespace noa::cuda {
 
     template<typename T>
     void matmul(
-            const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-            const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
-            T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
-            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-            Stream& stream
+        const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
+        const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+        T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
+        T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+        Stream& stream
     ) {
         auto [mnk, secondmost_strides, are_column_major] = ni::extract_matmul_layout(
                 lhs_strides, lhs_shape, rhs_strides, rhs_shape, output_strides, output_shape,

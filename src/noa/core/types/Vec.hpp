@@ -127,8 +127,8 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] NOA_HD static constexpr Vec arange(
-                value_type start = 0,
-                value_type step = 1
+            value_type start = 0,
+            value_type step = 1
         ) noexcept requires nt::numeric<value_type> {
             if constexpr (SIZE == 0) {
                 return {};
@@ -528,7 +528,7 @@ namespace noa::traits {
 
 namespace noa::inline types {
     template<typename T, size_t N, size_t A> requires (nt::boolean<T> or nt::vec<T>)
-    [[nodiscard]] NOA_FHD constexpr auto operator!(Vec<T, N, A> vector) noexcept {
+    [[nodiscard]] NOA_HD constexpr auto operator!(Vec<T, N, A> vector) noexcept {
         if constexpr (N > 0) {
             for (size_t i{}; i < N; ++i)
                 vector[i] = !vector[i];
@@ -537,7 +537,7 @@ namespace noa::inline types {
     }
 
     template<typename T, size_t N, size_t A> requires (nt::boolean<T> or nt::vec<T>)
-    [[nodiscard]] NOA_FHD constexpr auto operator&&(Vec<T, N, A> lhs, const Vec<T, N, A>& rhs) noexcept {
+    [[nodiscard]] NOA_HD constexpr auto operator&&(Vec<T, N, A> lhs, const Vec<T, N, A>& rhs) noexcept {
         if constexpr (N > 0) {
             for (size_t i{}; i < N; ++i)
                 lhs[i] = lhs[i] && rhs[i];
@@ -546,7 +546,7 @@ namespace noa::inline types {
     }
 
     template<typename T, size_t N, size_t A> requires (nt::boolean<T> or nt::vec<T>)
-    [[nodiscard]] NOA_FHD constexpr auto operator||(Vec<T, N, A> lhs, const Vec<T, N, A>& rhs) noexcept {
+    [[nodiscard]] NOA_HD constexpr auto operator||(Vec<T, N, A> lhs, const Vec<T, N, A>& rhs) noexcept {
         if constexpr (N > 0) {
             for (size_t i{}; i < N; ++i)
                 lhs[i] = lhs[i] || rhs[i];
@@ -601,7 +601,7 @@ namespace noa {
     }
 
     template<nt::real T>
-    [[nodiscard]] NOA_FHD auto sincos(T x) -> Vec<T, 2> {
+    [[nodiscard]] NOA_HD auto sincos(T x) noexcept -> Vec<T, 2> {
         Vec<T, 2> sin_cos;
         sincos(x, sin_cos.data(), sin_cos.data() + 1);
         return sin_cos;
@@ -610,7 +610,7 @@ namespace noa {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
     #define NOA_VEC_MATH_GEN_(name, cuda_name, cpt)                                \
     template<typename T, size_t N, size_t A> requires (nt::cpt<T> or nt::vec<T>)   \
-    [[nodiscard]] NOA_FHD constexpr auto name(Vec<T, N, A> vector) noexcept {      \
+    [[nodiscard]] NOA_HD constexpr auto name(Vec<T, N, A> vector) noexcept {       \
         if constexpr (std::same_as<T, f16> and is_even(N)) {                       \
             auto* alias = reinterpret_cast<__half2*>(vector.data());               \
             for (size_t i{}; i < N / 2; ++i)                                       \
@@ -624,7 +624,7 @@ namespace noa {
 #else
     #define NOA_VEC_MATH_GEN_(name, cuda_name, cpt)                                \
     template<typename T, size_t N, size_t A> requires (nt::cpt<T> or nt::vec<T>)   \
-    [[nodiscard]] NOA_FHD constexpr auto name(Vec<T, N, A> vector) noexcept {      \
+    [[nodiscard]] NOA_HD constexpr auto name(Vec<T, N, A> vector) noexcept {       \
         for (size_t i{}; i < N; ++i)                                               \
             vector[i] = name(vector[i]);                                           \
         return vector;                                                             \
@@ -647,7 +647,7 @@ namespace noa {
 
     #define NOA_VEC_MATH_GEN_(func)                                                             \
     template<typename T, size_t N, size_t A> requires (nt::real<T> or nt::vec<T>)               \
-    [[nodiscard]] NOA_FHD constexpr auto func(Vec<T, N, A> vector) noexcept {                   \
+    [[nodiscard]] NOA_HD constexpr auto func(Vec<T, N, A> vector) noexcept {                    \
         if constexpr (std::same_as<T, f16>) {                                                   \
             return func(vector.template as<typename T::arithmetic_type>()).template as<T, A>(); \
         }                                                                                       \
@@ -672,7 +672,7 @@ namespace noa {
     #undef NOA_VEC_MATH_GEN_
 
     template<typename T, size_t N, size_t A> requires (N > 0)
-    [[nodiscard]] NOA_FHD constexpr auto sum(const Vec<T, N, A>& vector) noexcept {
+    [[nodiscard]] NOA_HD constexpr auto sum(const Vec<T, N, A>& vector) noexcept {
         if constexpr (std::same_as<T, f16>)
             return sum(vector.template as<typename T::arithmetic_type>()).template as<T, A>();
 
@@ -682,14 +682,14 @@ namespace noa {
     }
 
     template<typename T, size_t N, size_t A>
-    [[nodiscard]] NOA_FHD constexpr auto mean(const Vec<T, N, A>& vector) noexcept {
+    [[nodiscard]] NOA_HD constexpr auto mean(const Vec<T, N, A>& vector) noexcept {
         if constexpr (std::same_as<T, f16>)
             return mean(vector.template as<typename T::arithmetic_type>()).template as<T, A>();
         return sum(vector) / 2;
     }
 
     template<typename T, size_t N, size_t A> requires (N > 0)
-    [[nodiscard]] NOA_FHD constexpr auto product(const Vec<T, N, A>& vector) noexcept {
+    [[nodiscard]] NOA_HD constexpr auto product(const Vec<T, N, A>& vector) noexcept {
         if constexpr (std::same_as<T, f16>)
             return product(vector.template as<typename T::arithmetic_type>()).template as<T, A>();
 
@@ -699,7 +699,7 @@ namespace noa {
     }
 
     template<typename T, size_t N, size_t A0, size_t A1> requires (N > 0)
-    [[nodiscard]] NOA_FHD constexpr auto dot(const Vec<T, N, A0>& lhs, const Vec<T, N, A1>& rhs) noexcept {
+    [[nodiscard]] NOA_HD constexpr auto dot(const Vec<T, N, A0>& lhs, const Vec<T, N, A1>& rhs) noexcept {
         if constexpr (std::same_as<T, f16>) {
             return static_cast<T>(dot(lhs.template as<typename T::arithmetic_type>(),
                                       rhs.template as<typename T::arithmetic_type>()));
@@ -711,7 +711,7 @@ namespace noa {
     }
 
     template<typename T, size_t N, size_t A> requires ((nt::real<T> or nt::vec<T>) and (N > 0))
-    [[nodiscard]] NOA_FHD constexpr auto norm(const Vec<T, N, A>& vector) noexcept {
+    [[nodiscard]] NOA_HD constexpr auto norm(const Vec<T, N, A>& vector) noexcept {
         if constexpr (std::same_as<T, f16>) {
             const auto tmp = vector.template as<typename T::arithmetic_type>();
             return norm(tmp).template as<T, A>();
@@ -721,7 +721,7 @@ namespace noa {
     }
 
     template<typename T, size_t N, size_t A> requires (nt::real<T> or nt::vec<T>)
-    [[nodiscard]] NOA_FHD constexpr auto normalize(const Vec<T, N, A>& vector) noexcept {
+    [[nodiscard]] NOA_HD constexpr auto normalize(const Vec<T, N, A>& vector) noexcept {
         if constexpr (std::same_as<T, f16>) {
             const auto tmp = vector.template as<typename T::arithmetic_type>();
             return normalize(tmp).template as<T, A>();
@@ -731,7 +731,7 @@ namespace noa {
     }
 
     template<nt::scalar T, size_t A>
-    [[nodiscard]] NOA_FHD constexpr auto cross_product(const Vec<T, 3, A>& lhs, const Vec<T, 3, A>& rhs) noexcept {
+    [[nodiscard]] NOA_HD constexpr auto cross_product(const Vec<T, 3, A>& lhs, const Vec<T, 3, A>& rhs) noexcept {
         if constexpr (std::same_as<T, f16>) {
             using arithmetic_type = typename T::arithmetic_type;
             return cross_product(lhs.template as<arithmetic_type>(),
@@ -747,7 +747,7 @@ namespace noa {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
     #define NOA_VEC_MATH_GEN_(name)                                         \
     template<typename T, size_t N, size_t A> requires (N > 0)               \
-    [[nodiscard]] NOA_FHD constexpr T name(Vec<T, N, A> vector) noexcept {  \
+    [[nodiscard]] NOA_HD constexpr T name(Vec<T, N, A> vector) noexcept {   \
         if constexpr (N == 1) {                                             \
             return vector[0];                                               \
         } else {                                                            \
@@ -770,9 +770,9 @@ namespace noa {
         }                                                                   \
     }                                                                       \
     template<typename T, size_t N, size_t A>                                \
-    [[nodiscard]] NOA_FHD constexpr auto name(                              \
-            Vec<T, N, A> lhs,                                               \
-            const Vec<T, N, A>& rhs                                         \
+    [[nodiscard]] NOA_HD constexpr auto name(                               \
+        Vec<T, N, A> lhs,                                                   \
+        const Vec<T, N, A>& rhs                                             \
     ) noexcept {                                                            \
         if constexpr (std::same_as<T, f16> and is_even(N)) {                \
             auto* alias0 = reinterpret_cast<__half2*>(lhs.data());          \
@@ -789,7 +789,7 @@ namespace noa {
 #else
     #define NOA_VEC_MATH_GEN_(name)                                         \
     template<typename T, size_t N, size_t A> requires (N > 0)               \
-    [[nodiscard]] NOA_FHD constexpr T name(Vec<T, N, A> vector) noexcept {  \
+    [[nodiscard]] NOA_HD constexpr T name(Vec<T, N, A> vector) noexcept {   \
         if constexpr (N == 1) {                                             \
             return vector[0];                                               \
         } else {                                                            \
@@ -800,9 +800,9 @@ namespace noa {
         }                                                                   \
     }                                                                       \
     template<typename T, size_t N, size_t A>                                \
-    [[nodiscard]] NOA_FHD constexpr auto name(                              \
-            Vec<T, N, A> lhs,                                               \
-            const Vec<T, N, A>& rhs                                         \
+    [[nodiscard]] NOA_HD constexpr auto name(                              \
+        Vec<T, N, A> lhs,                                                   \
+        const Vec<T, N, A>& rhs                                             \
     ) noexcept {                                                            \
         for (size_t i{}; i < N; ++i)                                        \
             lhs[i] = name(lhs[i], rhs[i]);                                  \
@@ -852,7 +852,7 @@ namespace noa {
     }
 
     template<i32 ULP = 2, nt::real T, size_t N, size_t A>
-    [[nodiscard]] NOA_IHD constexpr auto allclose(
+    [[nodiscard]] NOA_HD constexpr auto allclose(
             const Vec<T, N, A>& lhs,
             const Vec<T, N, A>& rhs,
             std::type_identity_t<T> epsilon = static_cast<T>(1e-6)
@@ -864,31 +864,31 @@ namespace noa {
     }
 
     template<i32 ULP = 2, nt::real T, size_t N, size_t A>
-    [[nodiscard]] NOA_IHD constexpr auto allclose(
-            const Vec<T, N, A>& lhs,
-            std::type_identity_t<T> rhs,
-            std::type_identity_t<T> epsilon = static_cast<T>(1e-6)
-    ) {
+    [[nodiscard]] NOA_FHD constexpr auto allclose(
+        const Vec<T, N, A>& lhs,
+        std::type_identity_t<T> rhs,
+        std::type_identity_t<T> epsilon = static_cast<T>(1e-6)
+    ) noexcept {
         return allclose<ULP>(lhs, Vec<T, N, A>::filled_with(rhs), epsilon);
     }
 
     template<i32 ULP = 2, nt::real T, size_t N, size_t A>
-    [[nodiscard]] NOA_IHD constexpr auto allclose(
-            std::type_identity_t<T> lhs,
-            const Vec<T, N, A>& rhs,
-            std::type_identity_t<T> epsilon = static_cast<T>(1e-6)
-    ) {
+    [[nodiscard]] NOA_FHD constexpr auto allclose(
+        std::type_identity_t<T> lhs,
+        const Vec<T, N, A>& rhs,
+        std::type_identity_t<T> epsilon = static_cast<T>(1e-6)
+    ) noexcept {
         return allclose<ULP>(Vec<T, N, A>::filled_with(lhs), rhs, epsilon);
     }
 
     template<typename T, size_t N, size_t A, typename Op = Less> requires (N <= 4)
-    [[nodiscard]] NOA_IHD constexpr auto stable_sort(Vec<T, N, A> vector, Op&& comp = {}) noexcept {
+    [[nodiscard]] constexpr auto stable_sort(Vec<T, N, A> vector, Op&& comp = {}) noexcept {
         small_stable_sort<N>(vector.data(), std::forward<Op>(comp));
         return vector;
     }
 
     template<typename T, size_t N, size_t A, typename Op = Less> requires (N <= 4)
-    [[nodiscard]] NOA_IHD constexpr auto sort(Vec<T, N, A> vector, Op&& comp = {}) noexcept {
+    [[nodiscard]] constexpr auto sort(Vec<T, N, A> vector, Op&& comp = {}) noexcept {
         small_stable_sort<N>(vector.data(), std::forward<Op>(comp));
         return vector;
     }
@@ -942,7 +942,7 @@ namespace noa {
     /// \endcode
     template<typename Op, typename... Args>
     requires (nt::vec_shape_or_strides<std::decay_t<Args>...> and nt::have_same_size_v<std::decay_t<Args>...>)
-    constexpr bool vall(Op&& op, Args&&... args) noexcept {
+    constexpr bool vall(Op&& op, Args&&... args) {
         if constexpr (sizeof...(Args) > 0) {
             auto indexer = [&]<size_t I>() {
                 return static_cast<bool>(op(args[I]...));
@@ -958,7 +958,7 @@ namespace noa {
     }
     template<typename Op, typename... Args>
     requires nt::numeric<std::decay_t<Args>...>
-    constexpr bool vall(Op&& op, Args&&... args) noexcept {
+    constexpr bool vall(Op&& op, Args&&... args) {
         return static_cast<bool>(op(args...));
     }
 
@@ -966,7 +966,7 @@ namespace noa {
     /// to the operator as the first template parameter.
     template<typename Op, typename... Args>
     requires (nt::vec_shape_or_strides<std::decay_t<Args>...> and nt::have_same_size_v<std::decay_t<Args>...>)
-    constexpr bool vall_enumerate(Op&& op, Args&&... args) noexcept {
+    constexpr bool vall_enumerate(Op&& op, Args&&... args) {
         if constexpr (sizeof...(Args) > 0) {
             auto indexer = [&]<size_t I>() {
                 return static_cast<bool>(op.template operator()<I>(args[I]...));
@@ -982,14 +982,14 @@ namespace noa {
     }
     template<typename Op, typename... Args>
     requires nt::numeric<std::decay_t<Args>...>
-    constexpr bool vall_enumerate(Op&& op, Args&&... args) noexcept {
+    constexpr bool vall_enumerate(Op&& op, Args&&... args) {
         return static_cast<bool>(op.template operator()<0>(args...));
     }
 
     /// Similar to vall, except that it returns true at the first application that returns true, otherwise returns false.
     template<typename Op, typename... Args>
     requires (nt::vec_shape_or_strides<std::decay_t<Args>...> and nt::have_same_size_v<std::decay_t<Args>...>)
-    constexpr bool vany(Op&& op, Args&&... args) noexcept {
+    constexpr bool vany(Op&& op, Args&&... args) {
         if constexpr (sizeof...(Args) > 0) {
             auto indexer = [&]<size_t I>() {
                 return static_cast<bool>(op(args[I]...));
@@ -1005,7 +1005,7 @@ namespace noa {
     }
     template<typename Op, typename... Args>
     requires nt::numeric<std::decay_t<Args>...>
-    constexpr bool vany(Op&& op, Args&&... args) noexcept {
+    constexpr bool vany(Op&& op, Args&&... args) {
         return static_cast<bool>(op(args...));
     }
 
@@ -1013,7 +1013,7 @@ namespace noa {
     /// to the operator as the first template parameter.
     template<typename Op, typename... Args>
     requires (nt::vec_shape_or_strides<std::decay_t<Args>...> and nt::have_same_size_v<std::decay_t<Args>...>)
-    constexpr bool vany_enumerate(Op&& op, Args&&... args) noexcept {
+    constexpr bool vany_enumerate(Op&& op, Args&&... args) {
         if constexpr (sizeof...(Args) > 0) {
             auto indexer = [&]<size_t I>() {
                 return static_cast<bool>(op.template operator()<I>(args[I]...));
@@ -1029,7 +1029,7 @@ namespace noa {
     }
     template<typename Op, typename... Args>
     requires nt::numeric<std::decay_t<Args>...>
-    constexpr bool vany_enumerate(Op&& op, Args&&... args) noexcept {
+    constexpr bool vany_enumerate(Op&& op, Args&&... args) {
         return static_cast<bool>(op.template operator()<0>(args...));
     }
 }

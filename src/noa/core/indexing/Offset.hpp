@@ -13,12 +13,12 @@ namespace noa::inline types {
 
 namespace noa::indexing {
     /// Returns the memory offset corresponding to the given indices.
-    /// \param strides  Strides associated with these indexes.
-    /// \param indices  Multi-dimensional indexes.
+    /// \param strides  Strides associated with these indices.
+    /// \param indices  Multi-dimensional indices.
     template<nt::integer T, size_t N, size_t A, nt::integer... I> requires (N >= sizeof...(I))
     [[nodiscard]] NOA_FHD constexpr auto offset_at(
-            const Strides<T, N, A>& strides,
-            I... indices
+        const Strides<T, N, A>& strides,
+        I... indices
     ) noexcept -> T {
         NOA_ASSERT((is_safe_cast<T>(indices) and ...));
         return [&]<size_t... J>(std::index_sequence<J...>) {
@@ -26,10 +26,13 @@ namespace noa::indexing {
         }(std::make_index_sequence<sizeof...(I)>{});
     }
 
+    /// Returns the memory offset corresponding to the given indices.
+    /// \param strides  Strides associated with these indices.
+    /// \param indices  Multi-dimensional indices.
     template<nt::integer T, size_t N0, size_t A0, nt::integer U, size_t N1, size_t A1> requires (N0 >= N1)
     [[nodiscard]] NOA_FHD constexpr auto offset_at(
-            const Strides<T, N0, A0>& strides,
-            const Vec<U, N1, A1>& indices
+        const Strides<T, N0, A0>& strides,
+        const Vec<U, N1, A1>& indices
     ) noexcept -> T {
         NOA_ASSERT((is_safe_cast<Vec<T, N1>>(indices)));
         return [&]<size_t... I>(std::index_sequence<I...>) {
@@ -37,12 +40,10 @@ namespace noa::indexing {
         }(std::make_index_sequence<N1>{});
     }
 
-    /// Returns the memory offset corresponding to the given 1D indexes.
-    /// \param i0           Index.
-    /// \param strides      Strides associated with these indexes. Only the first value is used.
+    /// Returns the memory offset corresponding to the given 1D indices.
     [[nodiscard]] NOA_FHD constexpr auto offset_at(
-            nt::integer auto stride,
-            nt::integer auto index
+        nt::integer auto stride,
+        nt::integer auto index
     ) noexcept {
         using int_t = decltype(stride);
         NOA_ASSERT(is_safe_cast<int_t>(index));
@@ -51,8 +52,8 @@ namespace noa::indexing {
 
     template<nt::integer... I, nt::indexer_compatible<sizeof...(I)> T>
     [[nodiscard]] NOA_FHD constexpr auto offset_at(
-            const T& indexable,
-            I... indices
+        const T& indexable,
+        I... indices
     ) noexcept {
         return [&]<size_t... J>(std::index_sequence<J...>) {
             typename T::index_type offset{};
@@ -63,8 +64,8 @@ namespace noa::indexing {
 
     template<nt::integer I, size_t N, size_t A, nt::indexer_compatible<N> T>
     [[nodiscard]] NOA_FHD constexpr auto offset_at(
-            const T& indexable,
-            const Vec<I, N, A>& indexes
+        const T& indexable,
+        const Vec<I, N, A>& indexes
     ) noexcept {
         return [&]<size_t... J>(std::index_sequence<J...>) {
             typename T::index_type offset{};
@@ -75,9 +76,9 @@ namespace noa::indexing {
 
     template<nt::integer... I, nt::indexer_compatible<sizeof...(I)> T, typename P> // BUGREPORT
     [[nodiscard]] NOA_FHD constexpr auto offset_pointer(
-            const T& indexable,
-            P* pointer,
-            I... indices
+        const T& indexable,
+        P* pointer,
+        I... indices
     ) noexcept {
         return [&]<size_t... J>(std::index_sequence<J...>) {
             ((pointer += ni::offset_at(indexable.template stride<J>(), indices)), ...);
@@ -87,9 +88,9 @@ namespace noa::indexing {
 
     template<nt::integer I, size_t N, size_t A, nt::indexer_compatible<N> T, typename P>
     [[nodiscard]] NOA_FHD constexpr auto offset_pointer(
-            const T& indexable,
-            P* pointer,
-            const Vec<I, N, A>& indices
+        const T& indexable,
+        P* pointer,
+        const Vec<I, N, A>& indices
     ) noexcept {
         return [&]<size_t... J>(std::index_sequence<J...>) {
             ((pointer += ni::offset_at(indexable.template stride<J>(), indices[J])), ...);
@@ -102,9 +103,7 @@ namespace noa::indexing {
     struct Indexer {
         template<typename... I>
         requires nt::offset_indexing<N, I...>
-        NOA_HD constexpr auto& offset_inplace(
-                const I&... indices
-        ) noexcept {
+        NOA_HD constexpr auto& offset_inplace(const I&... indices) noexcept {
             auto& self = static_cast<T&>(*this);
             NOA_ASSERT(not self.is_empty());
             self.reset_pointer(ni::offset_pointer(self, self.get(), indices...));
@@ -113,28 +112,21 @@ namespace noa::indexing {
 
         template<typename... I>
         requires nt::offset_indexing<N, I...>
-        [[nodiscard]] NOA_HD constexpr auto offset_pointer(
-                auto* pointer,
-                const I&... indices
-        ) const noexcept {
+        [[nodiscard]] NOA_HD constexpr auto offset_pointer(auto* pointer, const I&... indices) const noexcept {
             auto& self = static_cast<const T&>(*this);
             return ni::offset_pointer(self, pointer, indices...);
         }
 
         template<typename... I>
         requires nt::offset_indexing<N, I...>
-        [[nodiscard]] NOA_HD constexpr auto offset_at(
-                const I&... indices
-        ) const noexcept {
+        [[nodiscard]] NOA_HD constexpr auto offset_at(const I&... indices) const noexcept {
             auto& self = static_cast<const T&>(*this);
             return ni::offset_at(self, indices...);
         }
 
         template<typename... I>
         requires nt::iwise_general_indexing<N, I...>
-        [[nodiscard]] NOA_HD constexpr auto& operator()(
-                const I&... indices
-        ) const noexcept {
+        [[nodiscard]] NOA_HD constexpr auto& operator()(const I&... indices) const noexcept {
             auto& self = static_cast<const T&>(*this);
             NOA_ASSERT(not self.is_empty()); // TODO Check is_inbound if self.shape() is valid?
             return *ni::offset_pointer(self, self.get(), indices...);
@@ -146,7 +138,7 @@ namespace noa::indexing {
     /// If \p idx is out-of-bound, computes a valid index, i.e. [0, size-1], according to \p MODE.
     /// Otherwise, returns \p idx. \p size should be > 0.
     template<Border MODE, nt::sinteger T>
-    [[nodiscard]] NOA_IHD constexpr T index_at(T idx, T size) {
+    [[nodiscard]] NOA_HD constexpr T index_at(T idx, T size) noexcept {
         static_assert(MODE == Border::CLAMP or MODE == Border::PERIODIC or
                       MODE == Border::MIRROR or MODE == Border::REFLECT);
         NOA_ASSERT(size > 0);
@@ -187,10 +179,10 @@ namespace noa::indexing {
     }
 
     template<Border MODE, nt::sinteger T, size_t N, size_t A0, size_t A1>
-    [[nodiscard]] NOA_IHD constexpr auto index_at(
-            const Vec<T, N, A0>& indices,
-            const Shape<T, N, A1>& shape
-    ) {
+    [[nodiscard]] NOA_HD constexpr auto index_at(
+        const Vec<T, N, A0>& indices,
+        const Shape<T, N, A1>& shape
+    ) noexcept {
         Vec<T, N, A0> out;
         for (size_t i{}; i < N; ++i)
             out[i] = index_at<MODE>(indices[i], shape[i]);
@@ -200,7 +192,7 @@ namespace noa::indexing {
     /// Returns the 2d rightmost indexes corresponding to
     /// the given memory offset in a contiguous layout.
     template<nt::integer T>
-    [[nodiscard]] NOA_FHD constexpr auto offset2index(T offset, T size) -> Vec2<T> {
+    [[nodiscard]] NOA_HD constexpr auto offset2index(T offset, T size) noexcept -> Vec2<T> {
         NOA_ASSERT(size > 0);
         const auto i0 = offset / size;
         const auto i1 = offset - i0 * size;
@@ -212,7 +204,7 @@ namespace noa::indexing {
     /// \param offset   Linear memory offset.
     /// \param s0,s1    DH sizes.
     template<nt::integer T>
-    [[nodiscard]] NOA_FHD constexpr auto offset2index(T offset, T s0, T s1) -> Vec3<T> {
+    [[nodiscard]] NOA_HD constexpr auto offset2index(T offset, T s0, T s1) noexcept -> Vec3<T> {
         NOA_ASSERT(s0 > 0 and s1 > 0);
         const auto i0 = offset / (s0 * s1);
         offset -= i0 * s0 * s1;
@@ -226,7 +218,7 @@ namespace noa::indexing {
     /// \param offset   Linear memory offset.
     /// \param s0,s1,s2 DHW sizes.
     template<nt::integer T>
-    [[nodiscard]] NOA_FHD constexpr auto offset2index(T offset, T s0, T s1, T s2) -> Vec4<T> {
+    [[nodiscard]] NOA_HD constexpr auto offset2index(T offset, T s0, T s1, T s2) noexcept -> Vec4<T> {
         NOA_ASSERT(s0 > 0 and s1 > 0 and s2 > 0);
         const auto i0 = offset / (s0 * s1 * s2);
         offset -= i0 * s0 * s1 * s2;
@@ -242,9 +234,9 @@ namespace noa::indexing {
     /// \param shape    Shape of the array.
     template<nt::integer T, size_t N>
     [[nodiscard]] NOA_FHD constexpr auto offset2index(
-            std::type_identity_t<T> offset,
-            const Shape<T, N>& shape
-    ) -> Vec<T, N> {
+        std::type_identity_t<T> offset,
+        const Shape<T, N>& shape
+    ) noexcept -> Vec<T, N> {
         if constexpr (N == 1) {
             return Vec<T, N>{offset};
         } else if constexpr (N == 2) {
@@ -264,11 +256,11 @@ namespace noa::indexing {
     /// \param strides  Strides of the array.
     /// \param shape    Shape of the array.
     template<bool ASSUME_RIGHTMOST = false, nt::integer T, size_t N>
-    [[nodiscard]] NOA_IHD constexpr auto offset2index(
-            std::type_identity_t<T> offset,
-            const Strides<T, N>& strides,
-            const Shape<T, N>& shape
-    ) -> Vec<T, N> {
+    [[nodiscard]] NOA_HD constexpr auto offset2index(
+        std::type_identity_t<T> offset,
+        const Strides<T, N>& strides,
+        const Shape<T, N>& shape
+    ) noexcept -> Vec<T, N> {
         NOA_ASSERT(not shape.is_empty());
         Vec<T, N> out{};
         T remain = offset;
@@ -300,9 +292,9 @@ namespace noa::indexing {
     /// Whether the indices are in-bound, i.e. 0 <= indices < shape.
     template<nt::integer T, size_t N0, size_t N1, size_t A0, size_t A1> requires (N1 <= N0)
     [[nodiscard]] NOA_FHD constexpr bool is_inbound(
-            const Shape<T, N0, A0>& shape,
-            const Vec<T, N1, A1>& indices
-    ) {
+        const Shape<T, N0, A0>& shape,
+        const Vec<T, N1, A1>& indices
+    ) noexcept {
         if constexpr (nt::sinteger<T>) {
             for (size_t i{}; i < N1; ++i)
                 if (indices[i] < T{} or indices[i] >= shape[i])
@@ -318,9 +310,9 @@ namespace noa::indexing {
     /// Whether the indices are in-bound, i.e. 0 <= indices < shape.
     template<nt::integer T, size_t N, size_t A, nt::same_as<T>... U> requires (sizeof...(U) <= N)
     [[nodiscard]] NOA_FHD constexpr bool is_inbound(
-            const Shape<T, N, A>& shape,
-            const U&... indices
-    ) {
+        const Shape<T, N, A>& shape,
+        const U&... indices
+    ) noexcept {
         if constexpr (nt::sinteger<T>) {
             return [&]<size_t... I>(std::index_sequence<I...>) {
                 return ((indices >= T{} or indices < shape[I]) and ...);

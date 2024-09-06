@@ -3,7 +3,7 @@
 #include "noa/core/Config.hpp"
 
 #ifdef NOA_IS_OFFLINE
-#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Runtime.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Device.hpp"
 
@@ -37,7 +37,7 @@ namespace noa::cuda {
         MemoryPool() : MemoryPool(Device::current()) {}
 
         // Gets the default memory pool of device.
-        explicit MemoryPool(Device device) : m_pool(MemoryPool::current(device)) {}
+        explicit MemoryPool(Device device) : m_pool(current(device)) {}
 
         // Sets this pool as default memory pool of device.
         void attach(Device device) const {

@@ -118,7 +118,7 @@ namespace noa::guts {
                     shape = first_output.shape();
                     device = first_output.device();
                     order = ni::order(first_output.strides(), shape);
-                    do_reorder = any(order != Vec4<i64>{0, 1, 2, 3});
+                    do_reorder = vany(NotEqual{}, order, Vec{0, 1, 2, 3});
 
                     outputs.for_each_enumerate([&]<size_t I>(const nt::varray auto& output) {
                         check(not output.is_empty(), "Empty output array detected (index={})", I);
@@ -171,7 +171,7 @@ namespace noa::guts {
                     shape = first_input_array.shape();
                     device = first_input_array.device();
                     order = ni::order(first_input_array.strides(), shape);
-                    do_reorder = vany(NotEqual{}, order, Vec4<i64>{0, 1, 2, 3});
+                    do_reorder = vany(NotEqual{}, order, Vec{0, 1, 2, 3});
 
                     inputs.for_each_enumerate([&]<size_t I, typename T>(T& input) {
                         if constexpr (nt::varray<T>)

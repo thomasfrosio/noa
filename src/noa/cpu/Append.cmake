@@ -23,7 +23,6 @@ set(NOA_CPU_HEADERS
 
     # noa::cpu::signal
     cpu/signal/Convolve.hpp
-    cpu/signal/Correlate.hpp
     cpu/signal/MedianFilter.hpp
 
     # noa::cpu::geometry

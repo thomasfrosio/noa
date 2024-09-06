@@ -20,12 +20,13 @@ namespace noa::indexing {
     struct Slice {
         template<nt::integer T = i64, nt::integer U = i64, nt::integer V = i64>
         constexpr explicit Slice(
-                T start_ = 0,
-                U end_ = std::numeric_limits<i64>::max(),
-                V step_ = V{1})
-                : start{static_cast<i64>(start_)},
-                  end{static_cast<i64>(end_)},
-                  step{static_cast<i64>(step_)} {}
+            T start_ = 0,
+            U end_ = std::numeric_limits<i64>::max(),
+            V step_ = V{1}
+        ) noexcept :
+            start{static_cast<i64>(start_)},
+            end{static_cast<i64>(end_)},
+            step{static_cast<i64>(step_)} {}
 
         i64 start{};
         i64 end{};
@@ -81,7 +82,7 @@ namespace noa::indexing {
     template<size_t N, typename... T> requires nt::subregion_indexing<N, T...>
     struct Subregion {
         /// Creates a new subregion.
-        constexpr explicit Subregion(const T&... indices) : m_ops{make_tuple(indices...)} {}
+        constexpr explicit Subregion(const T&... indices) noexcept : m_ops{make_tuple(indices...)} {}
 
         /// Extracts the subregion from the provided layout.
         template<nt::sinteger I>
@@ -124,9 +125,9 @@ namespace noa::indexing {
         // given an indexing mode (integral, slice or full).
         template<typename Op, nt::integer I>
         static constexpr void extract_dim_(
-                Op op, I dim,
-                I old_size, I old_strides,
-                I& new_size, I& new_strides, std::uintptr_t& new_offset
+            Op op, I dim,
+            I old_size, I old_strides,
+            I& new_size, I& new_strides, std::uintptr_t& new_offset
         ) {
             if constexpr (nt::integer<Op>) {
                 auto index = clamp_cast<I>(op);
@@ -171,7 +172,7 @@ namespace noa::indexing {
     };
 
     template<size_t N, typename... T> requires nt::subregion_indexing<N, T...>
-    auto make_subregion(const T&... indices) {
+    constexpr auto make_subregion(const T&... indices) noexcept {
         return Subregion<N, T...>(indices...);
     }
 #endif

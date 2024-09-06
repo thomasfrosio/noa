@@ -44,7 +44,7 @@ namespace noa::inline types {
         NOA_NO_UNIQUE_ADDRESS Second second;
 
         template<size_t I>
-        constexpr auto operator[](Tag<I>) & -> std::conditional_t<I == 0, First, Second>& {
+        constexpr auto operator[](Tag<I>) & noexcept -> std::conditional_t<I == 0, First, Second>& {
             if constexpr (I == 0)
                 return first;
             else if constexpr (I == 1)
@@ -54,7 +54,7 @@ namespace noa::inline types {
         }
 
         template<size_t I>
-        constexpr auto operator[](Tag<I>) const& -> std::conditional_t<I == 0, First, Second> const& {
+        constexpr auto operator[](Tag<I>) const& noexcept -> std::conditional_t<I == 0, First, Second> const& {
             if constexpr (I == 0)
                 return first;
             else if constexpr (I == 1)
@@ -64,7 +64,7 @@ namespace noa::inline types {
         }
 
         template<size_t I>
-        constexpr auto operator[](Tag<I>) && -> std::conditional_t<I == 0, First, Second>&& {
+        constexpr auto operator[](Tag<I>) && noexcept -> std::conditional_t<I == 0, First, Second>&& {
             if constexpr (I == 0)
                 return std::forward<Pair>(*this).first;
             else if constexpr (I == 1)
@@ -74,7 +74,7 @@ namespace noa::inline types {
         }
 
         template<size_t I>
-        constexpr auto operator[](Tag<I>) const && -> std::conditional_t<I == 0, First, Second> const && {
+        constexpr auto operator[](Tag<I>) const && noexcept -> std::conditional_t<I == 0, First, Second> const && {
             if constexpr (I == 0)
                 return std::forward<const Pair>(*this).first;
             else if constexpr (I == 1)
@@ -90,7 +90,7 @@ namespace noa::inline types {
         }
 
         template<typename T> requires (not nt::almost_same_as<Pair, T>)
-        constexpr auto& operator=(T&& tup) {
+        constexpr auto& operator=(T&& tup) { // TODO noexcept
             static_assert(std::decay_t<T>::SIZE == 2);
             first = std::forward<T>(tup)[Tag<0>{}];
             second = std::forward<T>(tup)[Tag<1>{}];

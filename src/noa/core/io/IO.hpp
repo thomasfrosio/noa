@@ -23,12 +23,12 @@ namespace noa {
 
 namespace noa::io::guts {
     template<i64 BYTES_IN_ELEMENTS>
-    inline void reverse(std::byte* element) noexcept {
+    void reverse(std::byte* element) noexcept {
         std::reverse(element, element + BYTES_IN_ELEMENTS);
     }
 
     template<i64 BYTES_PER_ELEMENTS>
-    inline void swap_endian(std::byte* ptr, i64 elements) noexcept {
+    void swap_endian(std::byte* ptr, i64 elements) noexcept {
         for (i64 i{}; i < elements * BYTES_PER_ELEMENTS; i += BYTES_PER_ELEMENTS)
             reverse<BYTES_PER_ELEMENTS>(ptr + i);
     }
@@ -107,48 +107,48 @@ namespace noa::io {
         [[nodiscard]] constexpr auto value_range() const -> Pair<T, T> {
             if constexpr (nt::scalar<T>) {
                 switch (format) {
-                    case Encoding::U4:
+                    case U4:
                         return {T{0}, T{15}};
-                    case Encoding::I8:
+                    case I8:
                         return {clamp_cast<T>(std::numeric_limits<i8>::min()),
                                 clamp_cast<T>(std::numeric_limits<i8>::max())};
-                    case Encoding::U8:
+                    case U8:
                         return {clamp_cast<T>(std::numeric_limits<u8>::min()),
                                 clamp_cast<T>(std::numeric_limits<u8>::max())};
-                    case Encoding::I16:
+                    case I16:
                         return {clamp_cast<T>(std::numeric_limits<i16>::min()),
                                 clamp_cast<T>(std::numeric_limits<i16>::max())};
-                    case Encoding::U16:
+                    case U16:
                         return {clamp_cast<T>(std::numeric_limits<u16>::min()),
                                 clamp_cast<T>(std::numeric_limits<u16>::max())};
-                    case Encoding::I32:
+                    case I32:
                         return {clamp_cast<T>(std::numeric_limits<i32>::min()),
                                 clamp_cast<T>(std::numeric_limits<i32>::max())};
-                    case Encoding::U32:
+                    case U32:
                         return {clamp_cast<T>(std::numeric_limits<u32>::min()),
                                 clamp_cast<T>(std::numeric_limits<u32>::max())};
-                    case Encoding::I64:
+                    case I64:
                         return {clamp_cast<T>(std::numeric_limits<i64>::min()),
                                 clamp_cast<T>(std::numeric_limits<i64>::max())};
-                    case Encoding::U64:
+                    case U64:
                         return {clamp_cast<T>(std::numeric_limits<u64>::min()),
                                 clamp_cast<T>(std::numeric_limits<u64>::max())};
-                    case Encoding::CI16:
+                    case CI16:
                         return {clamp_cast<T>(std::numeric_limits<i16>::min()),
                                 clamp_cast<T>(std::numeric_limits<i16>::max())};
-                    case Encoding::F16:
-                    case Encoding::C16:
+                    case F16:
+                    case C16:
                         return {clamp_cast<T>(std::numeric_limits<f16>::lowest()),
                                 clamp_cast<T>(std::numeric_limits<f16>::max())};
-                    case Encoding::F32:
-                    case Encoding::C32:
+                    case F32:
+                    case C32:
                         return {clamp_cast<T>(std::numeric_limits<f32>::lowest()),
                                 clamp_cast<T>(std::numeric_limits<f32>::max())};
-                    case Encoding::F64:
-                    case Encoding::C64:
+                    case F64:
+                    case C64:
                         return {clamp_cast<T>(std::numeric_limits<f64>::lowest()),
                                 clamp_cast<T>(std::numeric_limits<f64>::max())};
-                    case Encoding::UNKNOWN:
+                    case UNKNOWN:
                         panic("Encoding format is not set");
                 }
                 return {}; // unreachable
@@ -162,43 +162,42 @@ namespace noa::io {
         }
 
         [[nodiscard]] static constexpr auto encoded_size(
-                Encoding::Format format,
-                i64 n_elements,
-                i64 n_elements_per_row = 0
+            Format format,
+            i64 n_elements,
+            i64 n_elements_per_row = 0
         ) noexcept -> i64 {
             switch (format) {
-                case Encoding::U4: {
-                    if (n_elements_per_row == 0 or is_even(n_elements_per_row)) {
+                case U4: {
+                    if (n_elements_per_row == 0 or is_even(n_elements_per_row))
                         return n_elements / 2;
-                    } else {
-                        check(is_multiple_of(n_elements, n_elements_per_row),
-                              "The number of elements is not compatible with the size of the rows");
-                        const auto rows = n_elements / n_elements_per_row;
-                        const auto bytes_per_row = (n_elements_per_row + 1) / 2;
-                        return bytes_per_row * rows;
-                    }
+
+                    check(is_multiple_of(n_elements, n_elements_per_row),
+                          "The number of elements is not compatible with the size of the rows");
+                    const auto rows = n_elements / n_elements_per_row;
+                    const auto bytes_per_row = (n_elements_per_row + 1) / 2;
+                    return bytes_per_row * rows;
                 }
-                case Encoding::I8:
-                case Encoding::U8:
+                case I8:
+                case U8:
                     return n_elements;
-                case Encoding::I16:
-                case Encoding::U16:
-                case Encoding::F16:
+                case I16:
+                case U16:
+                case F16:
                     return n_elements * 2;
-                case Encoding::I32:
-                case Encoding::U32:
-                case Encoding::F32:
-                case Encoding::CI16:
-                case Encoding::C16:
+                case I32:
+                case U32:
+                case F32:
+                case CI16:
+                case C16:
                     return n_elements * 4;
-                case Encoding::I64:
-                case Encoding::U64:
-                case Encoding::F64:
-                case Encoding::C32:
+                case I64:
+                case U64:
+                case F64:
+                case C32:
                     return n_elements * 8;
-                case Encoding::C64:
+                case C64:
                     return n_elements * 16;
-                case Encoding::UNKNOWN:
+                case UNKNOWN:
                     return 0;
             }
             return 0; // unreachable
@@ -212,43 +211,43 @@ namespace noa::io {
         ///                             If 0, the number of elements per row is assumed to be even.
         ///                             Otherwise, \p n_elements should be a multiple of \p n_elements_per_row.
         [[nodiscard]] constexpr auto encoded_size(
-                i64 n_elements,
-                i64 n_elements_per_row = 0
+            i64 n_elements,
+            i64 n_elements_per_row = 0
         ) const noexcept -> i64 {
             return encoded_size(format, n_elements, n_elements_per_row);
         }
 
         /// Returns the encoding format corresponding to the type \p T.
         template<typename T>
-        static constexpr auto to_format() noexcept -> Encoding::Format {
+        static constexpr auto to_format() noexcept -> Format {
             if constexpr (nt::almost_same_as<T, i8>) {
-                return Encoding::I8;
+                return I8;
             } else if constexpr (nt::almost_same_as<T, u8>) {
-                return Encoding::U8;
+                return U8;
             } else if constexpr (nt::almost_same_as<T, i16>) {
-                return Encoding::I16;
+                return I16;
             } else if constexpr (nt::almost_same_as<T, u16>) {
-                return Encoding::U16;
+                return U16;
             } else if constexpr (nt::almost_same_as<T, i32>) {
-                return Encoding::I32;
+                return I32;
             } else if constexpr (nt::almost_same_as<T, u32>) {
-                return Encoding::U32;
+                return U32;
             } else if constexpr (nt::almost_same_as<T, i64>) {
-                return Encoding::I64;
+                return I64;
             } else if constexpr (nt::almost_same_as<T, u64>) {
-                return Encoding::U64;
+                return U64;
             } else if constexpr (nt::almost_same_as<T, f16>) {
-                return Encoding::F16;
+                return F16;
             } else if constexpr (nt::almost_same_as<T, f32>) {
-                return Encoding::F32;
+                return F32;
             } else if constexpr (nt::almost_same_as<T, f64>) {
-                return Encoding::F64;
+                return F64;
             } else if constexpr (nt::almost_same_as<T, c16>) {
-                return Encoding::C16;
+                return C16;
             } else if constexpr (nt::almost_same_as<T, c32>) {
-                return Encoding::C32;
+                return C32;
             } else if constexpr (nt::almost_same_as<T, c64>) {
-                return Encoding::C64;
+                return C64;
             } else {
                 static_assert(nt::always_false<T>);
             }
@@ -256,30 +255,30 @@ namespace noa::io {
     };
 
     /// Whether this code was compiled for big-endian.
-    inline constexpr bool is_big_endian() noexcept {
+    constexpr bool is_big_endian() noexcept {
         return std::endian::native == std::endian::big;
     }
 
     /// Changes the endianness of the elements in an array, in-place.
     /// \param[in] ptr              Array of bytes to swap. Should contain at least (elements * bytes_per_element).
-    /// \param elements             How many elements to swap.
-    /// \param bytes_per_element    Size, in bytes, of one element. If not 2, 4, or 8, do nothing.
-    inline void swap_endian(std::byte* ptr, i64 elements, i64 bytes_per_elements) noexcept {
+    /// \param n_elements           How many elements to swap.
+    /// \param bytes_per_elements   Size, in bytes, of one element. If not 2, 4, or 8, do nothing.
+    inline void swap_endian(std::byte* ptr, i64 n_elements, i64 bytes_per_elements) noexcept {
         if (bytes_per_elements == 2) {
-            guts::swap_endian<2>(ptr, elements);
+            guts::swap_endian<2>(ptr, n_elements);
         } else if (bytes_per_elements == 4) {
-            guts::swap_endian<4>(ptr, elements);
+            guts::swap_endian<4>(ptr, n_elements);
         } else if (bytes_per_elements == 8) {
-            guts::swap_endian<8>(ptr, elements);
+            guts::swap_endian<8>(ptr, n_elements);
         }
     }
 
     /// Changes the endianness of the elements in an array, in-place.
-    /// \param[in] ptr  Array of bytes to swap.
-    /// \param elements How many elements to swap.
+    /// \param[in] ptr      Array of bytes to swap.
+    /// \param n_elements   How many elements to swap.
     template<typename T>
-    inline void swap_endian(T* ptr, i64 elements) noexcept {
-        swap_endian(reinterpret_cast<std::byte*>(ptr), elements, sizeof(T));
+    void swap_endian(T* ptr, i64 n_elements) noexcept {
+        swap_endian(reinterpret_cast<std::byte*>(ptr), n_elements, sizeof(T));
     }
 }
 

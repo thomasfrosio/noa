@@ -8,7 +8,7 @@
 
 namespace noa::indexing {
     template<typename T, size_t N>
-    [[nodiscard]] NOA_FHD constexpr bool is_rightmost(const Strides<T, N>& strides) {
+    [[nodiscard]] NOA_FHD constexpr bool is_rightmost(const Strides<T, N>& strides) noexcept {
         return strides.is_rightmost();
     }
 
@@ -17,7 +17,7 @@ namespace noa::indexing {
     /// \note Empty dimensions are contiguous by definition since their strides are not used.
     ///       Broadcast dimensions are NOT contiguous.
     template<char ORDER = 'C', typename T>
-    [[nodiscard]] NOA_FHD constexpr bool are_contiguous(const Strides4<T>& strides, const Shape4<T>& shape) {
+    [[nodiscard]] NOA_HD constexpr bool are_contiguous(const Strides4<T>& strides, const Shape4<T>& shape) noexcept {
         if (shape.is_empty()) // guard against empty array
             return false;
 
@@ -39,10 +39,10 @@ namespace noa::indexing {
 
     /// Checks whether all of the 4d accessors are contiguous.
     template<char ORDER = 'C', nt::tuple_of_accessor_or_empty T, nt::integer I>
-    auto are_contiguous(
-            const T& accessors,
-            const Shape4<I>& shape
-    ) -> bool {
+    NOA_HD constexpr auto are_contiguous(
+        const T& accessors,
+        const Shape4<I>& shape
+    ) noexcept -> bool {
         return accessors.all([&shape]<typename U>(const U& accessor) {
             if constexpr (nt::accessor_value<U>) {
                 return true;
@@ -64,7 +64,7 @@ namespace noa::indexing {
     ///       regardless of their stride. Functions that require broadcast dimensions to be "contiguous"
     ///       should call effective_shape() first, to "cancel" the broadcasting and mark the dimension as empty.
     template<char ORDER = 'C', typename T>
-    [[nodiscard]] NOA_IHD constexpr auto is_contiguous(Strides4<T> strides, const Shape4<T>& shape) {
+    [[nodiscard]] NOA_HD constexpr auto is_contiguous(Strides4<T> strides, const Shape4<T>& shape) noexcept {
         if (shape.is_empty()) // guard against empty array
             return Vec4<bool>{};
 
@@ -104,9 +104,9 @@ namespace noa::indexing {
     /// Checks whether all of the 4d accessors are contiguous.
     template<char ORDER = 'C', nt::tuple_of_accessor_or_empty T, nt::integer I>
     auto is_contiguous(
-            const T& accessors,
-            const Shape4<I>& shape
-    ) -> Vec4<bool> {
+        const T& accessors,
+        const Shape4<I>& shape
+    ) noexcept -> Vec4<bool> {
         auto out = Vec4<bool>::from_value(true);
         accessors.for_each([&shape, &out]<typename U>(const U& accessor) {
             if constexpr (not nt::accessor_value<U>) {
@@ -118,18 +118,18 @@ namespace noa::indexing {
     }
 
     template<typename T>
-    [[nodiscard]] NOA_FHD constexpr bool is_vector(const Shape<T, 4>& shape, bool can_be_batched = false) {
+    [[nodiscard]] NOA_FHD constexpr bool is_vector(const Shape<T, 4>& shape, bool can_be_batched = false) noexcept {
         return shape.is_vector(can_be_batched);
     }
 
     template<typename T, size_t N> requires (N <= 3)
-    [[nodiscard]] NOA_FHD constexpr bool is_vector(const Shape<T, N>& shape) {
+    [[nodiscard]] NOA_FHD constexpr bool is_vector(const Shape<T, N>& shape) noexcept {
         return shape.is_vector();
     }
 
     /// Returns the effective shape: if a dimension has a stride of 0, the effective size is 1 (empty dimension).
     template<typename T, typename U, size_t N>
-    [[nodiscard]] NOA_IH constexpr auto effective_shape(Shape<T, N> shape, const Strides<U, N>& strides) noexcept {
+    [[nodiscard]] NOA_FHD constexpr auto effective_shape(Shape<T, N> shape, const Strides<U, N>& strides) noexcept {
         for (size_t i{}; i < N; ++i)
             shape[i] = strides[i] ? shape[i] : 1;
         return shape;
@@ -138,7 +138,7 @@ namespace noa::indexing {
     /// Returns the index of the first non-empty dimension, excluding the batch dimension, going from left to right.
     /// If all dimensions are empty, the index of the width dimension is returned, ie 3.
     template<typename T>
-    [[nodiscard]] NOA_IHD constexpr T non_empty_dhw_dimension(const Shape4<T>& shape) noexcept {
+    [[nodiscard]] NOA_FHD constexpr T non_empty_dhw_dimension(const Shape4<T>& shape) noexcept {
         for (T i{1}; i < 4; ++i)
             if (shape[i] > 1)
                 return i;
@@ -152,7 +152,7 @@ namespace noa::indexing {
     /// This is mostly intended to find the fastest way through an array using nested loops in the rightmost order.
     /// \see indexing::reorder(...).
     template<typename T, size_t N>
-    [[nodiscard]] NOA_IHD constexpr auto order(Strides<T, N> strides, const Shape<T, N>& shape) {
+    [[nodiscard]] NOA_HD constexpr auto order(Strides<T, N> strides, const Shape<T, N>& shape) noexcept {
         Vec<T, N> order;
         for (size_t i{}; i < N; ++i) {
             order[i] = static_cast<T>(i);
@@ -170,7 +170,7 @@ namespace noa::indexing {
     /// The difference with indexing::order() is that this function does not change the order of the non-empty
     /// dimensions relative to each other. Note that the order of the empty dimensions is preserved.
     template<typename T> requires (nt::vec_integer<T> or nt::shape_or_strides<T>)
-    [[nodiscard]] NOA_HD constexpr auto squeeze_left(const T& shape) {
+    [[nodiscard]] NOA_HD constexpr auto squeeze_left(const T& shape) noexcept {
         using value_t = T::value_type;
         constexpr auto SIZE = static_cast<value_t>(T::SIZE);
         Vec<value_t, T::SIZE> order{};
@@ -187,7 +187,7 @@ namespace noa::indexing {
     }
 
     template<typename T> requires (nt::vec_integer<T> or nt::shape_or_strides<T>)
-    [[nodiscard]] NOA_HD constexpr auto squeeze_right(const T& shape) {
+    [[nodiscard]] NOA_HD constexpr auto squeeze_right(const T& shape) noexcept {
         using value_t = T::value_type;
         constexpr auto SIZE = static_cast<value_t>(T::SIZE);
         Vec<value_t, T::SIZE> order{};
@@ -205,7 +205,7 @@ namespace noa::indexing {
 
     /// Reorder (i.e. sort) \p vector according to the indexes in \p order.
     template<typename T, nt::integer I, size_t N> requires nt::vec_shape_or_strides_of_size<T, N>
-    [[nodiscard]] NOA_FHD constexpr auto reorder(T vector, const Vec<I, N>& order) {
+    [[nodiscard]] NOA_FHD constexpr auto reorder(T vector, const Vec<I, N>& order) noexcept {
         return vector.reorder(order);
     }
 
@@ -214,7 +214,7 @@ namespace noa::indexing {
     /// \param[in] matrix   Square and (truncated) affine matrix to reorder.
     /// \param[in] order    Order of indexes. Should have the same number of elements as the matrices are rows.
     template<nt::mat T, nt::integer I, size_t N> requires (T::ROWS == N)
-    [[nodiscard]] NOA_FHD constexpr T reorder(const T& matrix, const Vec<I, N>& order) {
+    [[nodiscard]] NOA_HD constexpr T reorder(const T& matrix, const Vec<I, N>& order) noexcept {
         T reordered_matrix;
         for (size_t row{}; row < N; ++row) {
             typename T::row_type reordered_row{}; // no need to initialize, but g++ warn it may be uninitialized before use...
@@ -228,14 +228,14 @@ namespace noa::indexing {
     /// (Circular) shifts \p v by a given amount.
     /// If \p shift is positive, shifts to the right, otherwise, shifts to the left.
     template<typename T, nt::integer I, size_t N> requires nt::vec_shape_or_strides_of_size<T, N>
-    [[nodiscard]] NOA_FHD constexpr auto circular_shift(T vector, const Vec<I, N>& order) {
+    [[nodiscard]] NOA_FHD constexpr auto circular_shift(T vector, const Vec<I, N>& order) noexcept {
         return vector.circular_shift(order);
     }
 
     /// Whether \p strides describes a column-major layout.
     /// Note that this functions assumes BDHW order, where H is the number of rows and W is the number of columns.
     template<typename T, size_t N>
-    [[nodiscard]] NOA_FHD constexpr bool is_column_major(const Strides<T, N>& strides) {
+    [[nodiscard]] NOA_FHD constexpr bool is_column_major(const Strides<T, N>& strides) noexcept {
         constexpr size_t COL = N - 2;
         constexpr size_t ROW = N - 1;
         return strides[COL] <= strides[ROW];
@@ -245,7 +245,10 @@ namespace noa::indexing {
     /// This function effectively squeezes the shape before checking the order.
     /// Furthermore, strides of empty dimensions are ignored and are contiguous by definition.
     template<typename T, size_t N>
-    [[nodiscard]] NOA_FHD constexpr bool is_column_major(const Strides<T, N>& strides, const Shape<T, N>& shape) {
+    [[nodiscard]] NOA_FHD constexpr bool is_column_major(
+        const Strides<T, N>& strides,
+        const Shape<T, N>& shape
+    ) noexcept {
         i32 second{-1}, first{-1};
         for (i32 i = N - 1; i >= 0; --i) {
             if (shape[i] > 1) {
@@ -261,7 +264,7 @@ namespace noa::indexing {
     /// Whether \p strides describes a row-major layout.
     /// Note that this functions assumes BDHW order, where H is the number of rows and W is the number of columns.
     template<typename T, size_t N>
-    [[nodiscard]] NOA_FHD constexpr bool is_row_major(const Strides<T, N>& strides) {
+    [[nodiscard]] NOA_FHD constexpr bool is_row_major(const Strides<T, N>& strides) noexcept {
         constexpr size_t COL = N - 2;
         constexpr size_t ROW = N - 1;
         return strides[COL] >= strides[ROW];
@@ -271,7 +274,10 @@ namespace noa::indexing {
     /// This function effectively squeezes the shape before checking the order.
     /// Furthermore, strides of empty dimensions are ignored and are contiguous by definition.
     template<typename T, size_t N>
-    [[nodiscard]] NOA_FHD constexpr bool is_row_major(const Strides<T, N>& strides, const Shape<T, N>& shape) {
+    [[nodiscard]] NOA_HD constexpr bool is_row_major(
+        const Strides<T, N>& strides,
+        const Shape<T, N>& shape
+    ) noexcept {
         i32 second{-1}, first{-1};
         for (i32 i = N - 1; i >= 0; --i) {
             if (shape[i] > 1) {
@@ -290,7 +296,7 @@ namespace noa::indexing {
     /// \param output_size          Size of the output.
     /// \return Whether the input and output size are compatible.
     template<nt::integer I>
-    [[nodiscard]] NOA_IH constexpr bool broadcast(I input_size, I& input_stride, I output_size) noexcept {
+    [[nodiscard]] NOA_FHD constexpr bool broadcast(I input_size, I& input_stride, I output_size) noexcept {
         if (input_size == 1 and output_size != 1)
             input_stride = 0; // broadcast this dimension
         else if (input_size != output_size)
@@ -304,10 +310,10 @@ namespace noa::indexing {
     /// \param output_shape         Shape of the output.
     /// \return Whether the input and output shape are compatible.
     template<typename T, size_t N>
-    [[nodiscard]] NOA_IH constexpr bool broadcast(
-            const Shape<T, N>& input_shape,
-            Strides<T, N>& input_strides,
-            const Shape<T, N>& output_shape
+    [[nodiscard]] NOA_FHD constexpr bool broadcast(
+        const Shape<T, N>& input_shape,
+        Strides<T, N>& input_strides,
+        const Shape<T, N>& output_shape
     ) noexcept {
         for (size_t i{}; i < N; ++i) {
             if (input_shape[i] == 1 and output_shape[i] != 1)
@@ -327,11 +333,11 @@ namespace noa::indexing {
     ///         If false, \p new_strides is left in an undefined state.
     /// \note Zero strides are allowed.
     template<typename T, size_t OldN, size_t NewN>
-    [[nodiscard]] NOA_IH constexpr bool reshape(
-            const Shape<T, OldN>& old_shape,
-            const Strides<T, OldN>& old_strides,
-            const Shape<T, NewN>& new_shape,
-            Strides<T, NewN>& new_strides
+    [[nodiscard]] constexpr bool reshape(
+        const Shape<T, OldN>& old_shape,
+        const Strides<T, OldN>& old_strides,
+        const Shape<T, NewN>& new_shape,
+        Strides<T, NewN>& new_strides
     ) noexcept {
         // from https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/TensorUtils.cpp
         if (old_shape.is_empty())
@@ -368,7 +374,7 @@ namespace noa::indexing {
     /// Also checks that new shape is compatible with the number of elements.
     /// If the inference failed or if the inferred shape isn't correct, returns false.
     template<typename T, size_t N> requires (N > 0)
-    [[nodiscard]] NOA_IH constexpr bool infer_size(Shape<T, N>& shape, T n_elements) noexcept {
+    [[nodiscard]] constexpr bool infer_size(Shape<T, N>& shape, T n_elements) noexcept {
         // Adapted from https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/InferSize.h
         T infer_dim{-1};
         T new_size{1};
@@ -398,7 +404,7 @@ namespace noa::indexing {
     }
 
     /// Whether the range [lhs_start, lhs_end] overlaps with the range [rhs_start, rhs_end].
-    [[nodiscard]] constexpr inline bool are_overlapped(
+    [[nodiscard]] constexpr bool are_overlapped(
             std::uintptr_t lhs_start, std::uintptr_t lhs_end,
             std::uintptr_t rhs_start, std::uintptr_t rhs_end
     ) noexcept {
@@ -407,8 +413,8 @@ namespace noa::indexing {
 
     template<typename T, typename U, nt::integer I>
     [[nodiscard]] constexpr auto are_overlapped(
-            const T* lhs, const I lhs_size,
-            const U* rhs, const I rhs_size
+        const T* lhs, const I lhs_size,
+        const U* rhs, const I rhs_size
     ) noexcept -> bool {
         if (lhs_size == 0 or rhs_size == 0)
             return false;
@@ -422,8 +428,8 @@ namespace noa::indexing {
 
     template<typename T, typename U, typename V, size_t N>
     [[nodiscard]] constexpr auto are_overlapped(
-            const T* lhs, const Strides<V, N>& lhs_strides, const Shape<V, N>& lhs_shape,
-            const U* rhs, const Strides<V, N>& rhs_strides, const Shape<V, N>& rhs_shape
+        const T* lhs, const Strides<V, N>& lhs_strides, const Shape<V, N>& lhs_shape,
+        const U* rhs, const Strides<V, N>& rhs_strides, const Shape<V, N>& rhs_shape
     ) noexcept -> bool {
         if (lhs_shape.is_empty() or rhs_shape.is_empty())
             return false;
@@ -433,9 +439,9 @@ namespace noa::indexing {
 
     template<typename T, typename U, typename V, size_t N>
     [[nodiscard]] constexpr auto are_overlapped(
-            const T* lhs, const Strides<V, N>& lhs_strides,
-            const U* rhs, const Strides<V, N>& rhs_strides,
-            const Shape<V, N>& shape
+        const T* lhs, const Strides<V, N>& lhs_strides,
+        const U* rhs, const Strides<V, N>& rhs_strides,
+        const Shape<V, N>& shape
     ) noexcept -> bool {
         return are_overlapped(lhs, lhs_strides, shape, rhs, rhs_strides, shape);
     }
@@ -445,8 +451,8 @@ namespace noa::indexing {
     /// FIXME this is not perfect, as it return false when dimensions are intertwined
     template<typename T, size_t N> requires (N > 0)
     [[nodiscard]] constexpr auto are_elements_unique(
-            Strides<T, N> strides,
-            Shape<T, N> shape
+        Strides<T, N> strides,
+        Shape<T, N> shape
     ) noexcept -> bool {
         auto rightmost_order = order(strides, shape);
         if (vany(NotEqual{}, rightmost_order, Vec<T, N>::arange())) {
@@ -463,10 +469,10 @@ namespace noa::indexing {
 #ifdef NOA_IS_OFFLINE
     template<typename Int>
     [[nodiscard]] auto extract_matmul_layout(
-            const Strides4<Int>& lhs_strides, const Shape4<Int>& lhs_shape,
-            const Strides4<Int>& rhs_strides, const Shape4<Int>& rhs_shape,
-            const Strides4<Int>& output_strides, const Shape4<Int>& output_shape,
-            bool lhs_transpose, bool rhs_transpose
+        const Strides4<Int>& lhs_strides, const Shape4<Int>& lhs_shape,
+        const Strides4<Int>& rhs_strides, const Shape4<Int>& rhs_shape,
+        const Strides4<Int>& output_strides, const Shape4<Int>& output_shape,
+        bool lhs_transpose, bool rhs_transpose
     ) -> std::tuple<Shape3<Int>, Strides3<Int>, bool> {
 
         // First extract and check the shape: MxK @ KxN = MxN
@@ -561,13 +567,13 @@ namespace noa::indexing {
 
     public:
         constexpr ReinterpretLayout(
-                const Shape<index_type, N>& a_shape,
-                const Strides<index_type, N>& a_strides,
-                old_type* a_ptr
-        ) noexcept
-                : shape{a_shape},
-                  strides{a_strides},
-                  ptr{a_ptr} {}
+            const Shape<index_type, N>& a_shape,
+            const Strides<index_type, N>& a_strides,
+            old_type* a_ptr
+        ) noexcept :
+            shape{a_shape},
+            strides{a_strides},
+            ptr{a_ptr} {}
 
     public:
         template<typename New>

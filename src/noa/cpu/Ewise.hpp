@@ -37,7 +37,7 @@ namespace noa::cpu::guts {
                         interface::call(op, input, output, i);
 
                 } else {
-                    static_assert(nt::always_false<>);
+                    static_assert(nt::always_false<Op>);
                 }
 
                 interface::final(op, omp_get_thread_num());
@@ -60,7 +60,7 @@ namespace noa::cpu::guts {
                     interface::call(op, input, output, i);
 
             } else {
-                static_assert(nt::always_false<>);
+                static_assert(nt::always_false<Op>);
             }
 
             interface::final(op, 0);
@@ -82,11 +82,11 @@ namespace noa::cpu {
               (nt::empty_tuple<std::decay_t<Output>> or
                nt::tuple_of_accessor_pure<std::decay_t<Output>>))
     void ewise(
-            const Shape4<Index>& shape,
-            Op&& op,
-            Input&& input,
-            Output&& output,
-            i64 n_threads = 1
+        const Shape4<Index>& shape,
+        Op&& op,
+        Input&& input,
+        Output&& output,
+        i64 n_threads = 1
     ) {
         // Check contiguity.
         // TODO We could try collapse contiguous dimensions first.

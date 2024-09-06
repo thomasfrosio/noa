@@ -251,10 +251,6 @@ namespace noa::inline types {
             }
         }
 
-        [[deprecated]] [[nodiscard]] NOA_HD constexpr value_type elements() const noexcept {
-            return n_elements();
-        }
-
         /// Whether the shape has at least one dimension equal to 0.
         [[nodiscard]] NOA_HD constexpr bool is_empty() const noexcept {
             for (size_t i{}; i < SIZE; ++i)
@@ -270,7 +266,7 @@ namespace noa::inline types {
         /// if the depth dimension is greater than 1, ndim() == 3 even if both the
         /// height and width are 1.
         [[nodiscard]] NOA_HD constexpr value_type ndim() const noexcept {
-            NOA_ASSERT(!is_empty());
+            NOA_ASSERT(not is_empty());
             if constexpr (SIZE <= 1) {
                 return static_cast<value_type>(SIZE);
             } else if constexpr (SIZE == 2) {
@@ -290,7 +286,7 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr auto strides() const noexcept {
             using output_strides = Strides<value_type, SIZE, A>;
 
-            if constexpr (ORDER == 'C' || ORDER == 'c') {
+            if constexpr (ORDER == 'C' or ORDER == 'c') {
                 if constexpr (SIZE == 4) {
                     return output_strides{vec[3] * vec[2] * vec[1],
                                           vec[3] * vec[2],
@@ -305,7 +301,7 @@ namespace noa::inline types {
                 } else {
                     return output_strides{1};
                 }
-            } else if constexpr (ORDER == 'F' || ORDER == 'f') {
+            } else if constexpr (ORDER == 'F' or ORDER == 'f') {
                 if constexpr (SIZE == 4) {
                     return output_strides{vec[3] * vec[2] * vec[1],
                                           vec[3] * vec[2],
@@ -338,7 +334,7 @@ namespace noa::inline types {
         /// By this definition, the shapes {1,1,1,1}, {5,1,1,1} and {1,1,1,5} are all vectors.
         /// If "can_be_batched" is true, the shape can describe a batch of vectors,
         /// e.g. {4,1,1,5} is describing 4 row vectors with a length of 5.
-        [[nodiscard]]  NOA_FHD constexpr bool is_vector(bool can_be_batched = false) const noexcept requires (SIZE == 4) {
+        [[nodiscard]] NOA_FHD constexpr bool is_vector(bool can_be_batched = false) const noexcept requires (SIZE == 4) {
             int non_empty_dimension = 0;
             for (size_t i{}; i < SIZE; ++i) {
                 if (vec[i] == 0)
@@ -392,7 +388,7 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] NOA_HD constexpr auto split_batch() const noexcept
-        -> Pair<value_type, Shape<value_type, 3>> requires (SIZE == 4) {
+            -> Pair<value_type, Shape<value_type, 3>> requires (SIZE == 4) {
             return {batch(), pop_front()};
         }
     };
@@ -481,8 +477,8 @@ namespace noa::inline types {
 
         [[nodiscard]] NOA_HD constexpr auto data()   const noexcept -> const value_type* { return vec.data(); }
         [[nodiscard]] NOA_HD constexpr auto data()         noexcept -> value_type* { return vec.data(); }
-        [[nodiscard]] NOA_HD static constexpr auto size()  noexcept -> size_t { return SIZE; };
-        [[nodiscard]] NOA_HD static constexpr auto ssize() noexcept -> i64 { return SSIZE; };
+        [[nodiscard]] NOA_HD static constexpr auto size()  noexcept -> size_t { return SIZE; }
+        [[nodiscard]] NOA_HD static constexpr auto ssize() noexcept -> i64 { return SSIZE; }
 
     public: // Iterators -- support for range loops
         [[nodiscard]] NOA_HD constexpr       value_type* begin()        noexcept { return vec.begin(); }
@@ -858,13 +854,13 @@ namespace noa {
 #ifdef NOA_IS_OFFLINE
 namespace noa::inline types {
     template<typename T, size_t N>
-    NOA_IH std::ostream& operator<<(std::ostream& os, const Shape<T, N>& v) {
+    std::ostream& operator<<(std::ostream& os, const Shape<T, N>& v) {
         os << fmt::format("{}", v.vec);
         return os;
     }
 
     template<typename T, size_t N>
-    NOA_IH std::ostream& operator<<(std::ostream& os, const Strides<T, N>& v) {
+    std::ostream& operator<<(std::ostream& os, const Strides<T, N>& v) {
         os << fmt::format("{}", v.vec);
         return os;
     }

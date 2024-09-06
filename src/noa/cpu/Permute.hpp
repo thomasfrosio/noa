@@ -13,10 +13,10 @@
 namespace noa::cpu::guts {
     template<typename T>
     void permute_copy(
-            const T* input, const Strides4<i64>& input_strides,
-            const Shape4<i64>& input_shape,
-            T* output, const Strides4<i64>& output_strides,
-            const Vec4<i64>& permutation, i64 threads
+        const T* input, const Strides4<i64>& input_strides,
+        const Shape4<i64>& input_shape,
+        T* output, const Strides4<i64>& output_strides,
+        const Vec4<i64>& permutation, i64 threads
     ) {
         NOA_ASSERT(input != output);
         const auto output_shape = ni::reorder(input_shape, permutation);
@@ -73,13 +73,13 @@ namespace noa::cpu::guts {
 namespace noa::cpu {
     template<typename T>
     void permute_copy(
-            const T* input,
-            const Strides4<i64>& input_strides,
-            const Shape4<i64>& input_shape,
-            T* output,
-            const Strides4<i64>& output_strides,
-            const Vec4<i64>& permutation,
-            i64 threads
+        const T* input,
+        const Strides4<i64>& input_strides,
+        const Shape4<i64>& input_shape,
+        T* output,
+        const Strides4<i64>& output_strides,
+        const Vec4<i64>& permutation,
+        i64 threads
     ) {
         if (input == output) {
             using accessor_t = AccessorI64<T, 4>;

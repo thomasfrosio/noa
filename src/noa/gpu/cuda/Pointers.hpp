@@ -12,9 +12,10 @@ namespace noa::cuda {
 }
 
 #ifdef NOA_IS_OFFLINE
-#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/gpu/cuda/Device.hpp"
-#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Runtime.hpp"
 
 namespace noa::cuda {
     /// Returns the pointer attributes of ptr.
@@ -64,13 +65,13 @@ namespace noa::cuda {
     public:
         /// The array of pointers is initialized with the arguments (which are not copied).
         /// Const-cast is required since CUDA expects void**.
-        explicit CollectArgumentAddresses(Args&& ... args)
-                : m_pointers{const_cast<void*>(static_cast<const void*>(&args))...} {}
+        explicit CollectArgumentAddresses(Args&& ... args) :
+            m_pointers{const_cast<void*>(static_cast<const void*>(&args))...} {}
 
         [[nodiscard]] void** pointers() { return static_cast<void**>(m_pointers); }
 
     private:
-        void* m_pointers[max(size_t{1}, sizeof...(Args))]{}; // non-empty
+        void* m_pointers[max(size_t{1}, sizeof...(Args))]{};
     };
 
     /// Returns the number of T elements that can be vectorized to one load/store call.
@@ -79,7 +80,7 @@ namespace noa::cuda {
     /// instantiation away.
     template<typename T>
     constexpr i64 max_vector_count(const T* pointer) {
-        if constexpr (!is_power_of_2(sizeof(T))) {
+        if constexpr (not is_power_of_2(sizeof(T))) {
             return 1;
         } else {
             constexpr auto vec2_alignment = alignof(AlignedVector<T, 2>);
@@ -93,41 +94,37 @@ namespace noa::cuda {
             } else if constexpr (sizeof(T) == 8) {
                 if (address % vec2_alignment == 0)
                     return 2;
-                else
-                    return 1;
+                return 1;
             } else if constexpr (sizeof(T) == 4) {
                 if (address % vec4_alignment == 0)
                     return 4;
-                else if (address % vec2_alignment == 0)
+                if (address % vec2_alignment == 0)
                     return 2;
-                else
-                    return 1;
+                return 1;
             } else if constexpr (sizeof(T) == 2) {
                 if (address % vec8_alignment == 0)
                     return 8;
-                else if (address % vec4_alignment == 0)
+                if (address % vec4_alignment == 0)
                     return 4;
-                else if (address % vec2_alignment == 0)
+                if (address % vec2_alignment == 0)
                     return 2;
-                else
-                    return 1;
+                return 1;
             } else {
                 if (address % vec16_alignment == 0)
                     return 16;
-                else if (address % vec8_alignment == 0)
+                if (address % vec8_alignment == 0)
                     return 8;
-                else if (address % vec4_alignment == 0)
+                if (address % vec4_alignment == 0)
                     return 4;
-                else if (address % vec2_alignment == 0)
+                if (address % vec2_alignment == 0)
                     return 2;
-                else
-                    return 1;
+                return 1;
             }
         }
     }
 
     /// Returns the maximum vector size (used for vectorized load/store) for the given accessors.
-    /// \details The vectorization happens along the width, so vectorization is turned off is any of the
+    /// \details The vectorization happens along the width, so vectorization is turned off if any of the
     ///          width stride is not 1. This function checks that the alignment is preserved at the beginning
     ///          of every block work size and at the beginning of every row.
     /// \param tuple_of_4d_accessors    Tuple of 4d accessors, as this is intended for the *ewise core functions.
@@ -139,23 +136,22 @@ namespace noa::cuda {
     ///                                 exceed this value. If it is not a power of 2, the vectorization is turned
     ///                                 off.
     /// \param block_size_x             Number of threads per block assigned to process the row(s).
-    /// \param shape                    BDH shape. Empty dimensions do not affect the alignment and thus the
+    /// \param shape_bdh                BDH shape. Empty dimensions do not affect the alignment and thus the
     ///                                 vectorization. For instance, cases where the inputs are all contiguous,
     ///                                 all dimensions can be set to 1.
-    template<typename T, typename Index>
-    requires nt::is_tuple_of_accessor_ndim_v<4, T>
+    template<nt::tuple_of_accessor_nd<4> T, typename Index>
     constexpr auto maximum_vector_size(
-            const T& tuple_of_4d_accessors,
-            u32 n_elements_per_thread_x,
-            u32 block_size_x,
-            const Shape3<Index>& shape_bdh
+        const T& tuple_of_4d_accessors,
+        u32 n_elements_per_thread_x,
+        u32 block_size_x,
+        const Shape3<Index>& shape_bdh
     ) -> u32 {
         if (n_elements_per_thread_x == 1 or not is_power_of_2(n_elements_per_thread_x))
             return 1;
 
         u32 vector_size = n_elements_per_thread_x; // maximum vector size
         tuple_of_4d_accessors.for_each([&](const auto& accessor) {
-            if constexpr (nt::is_accessor_pure_v<decltype(accessor)>) {
+            if constexpr (nt::accessor_pure<decltype(accessor)>) {
                 if (accessor.stride(3) == 1) {
                     const auto strides = accessor.strides().template as<u32>();
                     auto i_vector_size = static_cast<u32>(max_vector_count(accessor.get()));

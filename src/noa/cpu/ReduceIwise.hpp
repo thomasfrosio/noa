@@ -15,8 +15,8 @@ namespace noa::cpu::guts {
 
         template<typename Op, typename Reduced, typename Output, typename Index, size_t N>
         static void parallel(
-                const Vec<Index, N>& shape, Op op,
-                Reduced reduced, Output& output, i64 n_threads
+            const Vec<Index, N>& shape, Op op,
+            Reduced reduced, Output& output, i64 n_threads
         ) {
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced) firstprivate(op)
             {
@@ -59,8 +59,8 @@ namespace noa::cpu::guts {
 
         template<typename Op, typename Reduced, typename Output, typename Index, size_t N>
         static constexpr void serial(
-                const Vec<Index, N>& shape, Op op,
-                Reduced reduced, Output& output
+            const Vec<Index, N>& shape, Op op,
+            Reduced reduced, Output& output
         ) {
             if constexpr (N == 4) {
                 for (Index i = 0; i < shape[0]; ++i)
@@ -102,11 +102,11 @@ namespace noa::cpu {
              typename Op, typename Reduced, typename Output, typename Index, size_t N>
     requires (nt::tuple_of_accessor_value<std::decay_t<Reduced>> and nt::tuple_of_accessor_or_empty<Output>)
     constexpr void reduce_iwise(
-            const Shape<Index, N>& shape,
-            Op&& op,
-            Reduced&& reduced,
-            Output& output,
-            i64 n_threads = 1
+        const Shape<Index, N>& shape,
+        Op&& op,
+        Reduced&& reduced,
+        Output& output,
+        i64 n_threads = 1
     ) {
         using core = guts::ReduceIwise<Config::zip_reduced, Config::zip_output>;
         if constexpr (Config::n_elements_per_thread > 1) {

@@ -16,8 +16,8 @@ namespace noa::cpu::guts {
 
         template<i32 MODE, typename Op, typename Input, typename Reduced, typename Output, typename Index, size_t N>
         static void parallel(
-                const Shape<Index, N>& shape, Op op,
-                Input input, Reduced reduced, Output output, i64 threads
+            const Shape<Index, N>& shape, Op op,
+            Input input, Reduced reduced, Output output, i64 threads
         ) {
             auto original_reduced = reduced;
             #pragma omp parallel default(none) num_threads(threads) shared(shape, input, reduced, output, original_reduced) firstprivate(op)
@@ -100,15 +100,15 @@ namespace noa::cpu::guts {
                         }
                     }
                 } else {
-                    static_assert(nt::always_false<>);
+                    static_assert(nt::always_false<Op>);
                 }
             }
         }
 
         template<i32 MODE, typename Op, typename Input, typename Reduced, typename Output, typename Index>
         static constexpr void serial(
-                const Shape4<Index>& shape, Op op,
-                Input input, Reduced reduced, Output output
+            const Shape4<Index>& shape, Op op,
+            Input input, Reduced reduced, Output output
         ) {
             if constexpr (MODE == 1) {
                 for (Index i = 0; i < shape[0]; ++i) {
@@ -122,15 +122,15 @@ namespace noa::cpu::guts {
                     }
                 }
             } else {
-                static_assert(nt::always_false<>);
+                static_assert(nt::always_false<Op>);
             }
         }
     };
 
     template<typename Index>
     constexpr auto get_reduced_axes(
-            const Shape4<Index>& input_shape,
-            const Shape4<Index>& output_shape
+        const Shape4<Index>& input_shape,
+        const Shape4<Index>& output_shape
     ) -> Vec4<bool> {
         const auto axes_to_reduce = input_shape != output_shape;
         if (any(axes_to_reduce and (output_shape != 1))) {
@@ -158,14 +158,14 @@ namespace noa::cpu {
               nt::tuple_of_accessor_pure<std::decay_t<Output>> and
               nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
     constexpr void reduce_axes_ewise(
-            const Shape4<Index>& input_shape,
-            const Shape4<Index>& output_shape,
-            Op&& op,
-            Input&& input,
-            Reduced&& reduced,
-            Output&& output,
-            i64 n_threads = 1
-    )  {
+        const Shape4<Index>& input_shape,
+        const Shape4<Index>& output_shape,
+        Op&& op,
+        Input&& input,
+        Reduced&& reduced,
+        Output&& output,
+        i64 n_threads = 1
+    ) {
         using reduce_axes_ewise_core = guts::ReduceAxesEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
         const auto axes_to_reduce = input_shape != output_shape;
         if (any(axes_to_reduce and (output_shape != 1))) {
@@ -183,11 +183,11 @@ namespace noa::cpu {
             constexpr auto to_1d = ng::AccessorConfig<1>{.enforce_contiguous=true, .filter={0}};
             auto output_1d = ng::reconfig_accessors<to_1d>(output);
             return reduce_ewise(
-                    input_shape,
-                    std::forward<Op>(op),
-                    std::forward<Input>(input),
-                    std::forward<Reduced>(reduced),
-                    output_1d, n_threads);
+                input_shape,
+                std::forward<Op>(op),
+                std::forward<Input>(input),
+                std::forward<Reduced>(reduced),
+                output_1d, n_threads);
 
         } else if (all(axes_empty_or_to_reduce.pop_front())) { // reduce to one value per batch
             const auto n_batches = output_shape[0];
@@ -211,39 +211,39 @@ namespace noa::cpu {
                 if (are_contiguous and not are_aliased) {
                     auto input_2d = ng::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
                     reduce_axes_ewise_core::template parallel<3>(
-                            shape_2d,
-                            std::forward<Op>(op),
-                            std::move(input_2d),
-                            std::forward<Reduced>(reduced),
-                            std::move(output_1d),
-                            actual_n_threads);
+                        shape_2d,
+                        std::forward<Op>(op),
+                        std::move(input_2d),
+                        std::forward<Reduced>(reduced),
+                        std::move(output_1d),
+                        actual_n_threads);
                 } else {
                     reduce_axes_ewise_core::template parallel<3>(
-                            input_shape,
-                            std::forward<Op>(op),
-                            std::forward<Input>(input),
-                            std::forward<Reduced>(reduced),
-                            std::move(output_1d),
-                            actual_n_threads);
+                        input_shape,
+                        std::forward<Op>(op),
+                        std::forward<Input>(input),
+                        std::forward<Reduced>(reduced),
+                        std::move(output_1d),
+                        actual_n_threads);
                 }
             } else {
                 if (are_contiguous and not are_aliased) {
                     auto input_2d = ng::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
                     reduce_axes_ewise_core::template parallel<2>(
-                            shape_2d,
-                            std::forward<Op>(op),
-                            std::move(input_2d),
-                            std::forward<Reduced>(reduced),
-                            std::move(output_1d),
-                            actual_n_threads);
+                        shape_2d,
+                        std::forward<Op>(op),
+                        std::move(input_2d),
+                        std::forward<Reduced>(reduced),
+                        std::move(output_1d),
+                        actual_n_threads);
                 } else {
                     reduce_axes_ewise_core::template parallel<2>(
-                            input_shape,
-                            std::forward<Op>(op),
-                            std::forward<Input>(input),
-                            std::forward<Reduced>(reduced),
-                            std::move(output_1d),
-                            actual_n_threads);
+                        input_shape,
+                        std::forward<Op>(op),
+                        std::forward<Input>(input),
+                        std::forward<Reduced>(reduced),
+                        std::move(output_1d),
+                        actual_n_threads);
                 }
             }
             return;
@@ -263,14 +263,14 @@ namespace noa::cpu {
         // Move the reduced dimension to the rightmost dimension.
         const auto order = ni::squeeze_left(axes_to_reduce.template as<i32>() + 1);
         auto reordered_shape = input_shape.reorder(order);
-        if (not all(order == Vec{0, 1, 2, 3})) {
+        if (vany(NotEqual{}, order, Vec{0, 1, 2, 3})) {
             input_.for_each([&order](auto& accessor) { accessor.reorder(order); });
             output_.for_each([&order](auto& accessor) { accessor.reorder(order); });
         }
 
         auto output_3d = ng::reconfig_accessors
-                <ng::AccessorConfig<3>{.filter={0, 1, 2}}>
-                (std::move(output_));
+            <ng::AccessorConfig<3>{.filter={0, 1, 2}}>
+            (std::move(output_));
 
         // This function distributes the threads on the dimensions that are not reduced.
         // In other words, the reduction is done by the same thread.
@@ -286,36 +286,36 @@ namespace noa::cpu {
             auto contiguous_input = ng::reconfig_accessors<contiguous_restrict>(std::move(input_));
             if (actual_n_threads > 1) {
                 reduce_axes_ewise_core::template parallel<1>(
-                        reordered_shape,
-                        std::forward<Op>(op),
-                        std::move(contiguous_input),
-                        std::forward<Reduced>(reduced),
-                        std::move(output_3d),
-                        actual_n_threads);
+                    reordered_shape,
+                    std::forward<Op>(op),
+                    std::move(contiguous_input),
+                    std::forward<Reduced>(reduced),
+                    std::move(output_3d),
+                    actual_n_threads);
             } else {
                 reduce_axes_ewise_core::template serial<1>(
-                        reordered_shape,
-                        std::forward<Op>(op),
-                        std::move(contiguous_input),
-                        std::forward<Reduced>(reduced),
-                        std::move(output_3d));
+                    reordered_shape,
+                    std::forward<Op>(op),
+                    std::move(contiguous_input),
+                    std::forward<Reduced>(reduced),
+                    std::move(output_3d));
             }
         } else {
             if (actual_n_threads > 1) {
                 reduce_axes_ewise_core::template parallel<1>(
-                        reordered_shape,
-                        std::forward<Op>(op),
-                        std::move(input_),
-                        std::forward<Reduced>(reduced),
-                        std::move(output_3d),
-                        actual_n_threads);
+                    reordered_shape,
+                    std::forward<Op>(op),
+                    std::move(input_),
+                    std::forward<Reduced>(reduced),
+                    std::move(output_3d),
+                    actual_n_threads);
             } else {
                 reduce_axes_ewise_core::template serial<1>(
-                        reordered_shape,
-                        std::forward<Op>(op),
-                        std::move(input_),
-                        std::forward<Reduced>(reduced),
-                        std::move(output_3d));
+                    reordered_shape,
+                    std::forward<Op>(op),
+                    std::move(input_),
+                    std::forward<Reduced>(reduced),
+                    std::move(output_3d));
             }
         }
     }

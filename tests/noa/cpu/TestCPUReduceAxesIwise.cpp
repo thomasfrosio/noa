@@ -56,24 +56,24 @@ TEST_CASE("cpu::reduce_axes_iwise - 4d") {
             using expected_t = AccessorI64<const i64, 4>;
             if (axis == 0) {
                 compute_expected_reduction(
-                        input_shape.filter(1, 2, 3, 0),
-                        expected_t(buffer.get(), input_strides.filter(1, 2, 3, 0)),
-                        AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(1, 2, 3)));
+                    input_shape.filter(1, 2, 3, 0),
+                    expected_t(buffer.get(), input_strides.filter(1, 2, 3, 0)),
+                    AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(1, 2, 3)));
             } else if (axis == 1) {
                 compute_expected_reduction(
-                        input_shape.filter(0, 2, 3, 1),
-                        expected_t(buffer.get(), input_strides.filter(0, 2, 3, 1)),
-                        AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(0, 2, 3)));
+                    input_shape.filter(0, 2, 3, 1),
+                    expected_t(buffer.get(), input_strides.filter(0, 2, 3, 1)),
+                    AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(0, 2, 3)));
             } else if (axis == 2) {
                 compute_expected_reduction(
-                        input_shape.filter(0, 1, 3, 2),
-                        expected_t(buffer.get(), input_strides.filter(0, 1, 3, 2)),
-                        AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(0, 1, 3)));
+                    input_shape.filter(0, 1, 3, 2),
+                    expected_t(buffer.get(), input_strides.filter(0, 1, 3, 2)),
+                    AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(0, 1, 3)));
             } else {
                 compute_expected_reduction(
-                        input_shape,
-                        expected_t(buffer.get(), input_strides),
-                        AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(0, 1, 2)));
+                    input_shape,
+                    expected_t(buffer.get(), input_strides),
+                    AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(0, 1, 2)));
             }
 
             const auto output_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));
@@ -182,19 +182,19 @@ TEST_CASE("cpu::reduce_axes_iwise - 3d") {
             using expected_t = AccessorI64<const i64, 3>;
             if (axis == 0) {
                 compute_expected_reduction(
-                        input_shape.filter(1, 2, 0),
-                        expected_t(buffer.get(), input_strides.filter(1, 2, 0)),
-                        AccessorI64<i64, 2>(expected_buffer.get(), output_strides.filter(1, 2)));
+                    input_shape.filter(1, 2, 0),
+                    expected_t(buffer.get(), input_strides.filter(1, 2, 0)),
+                    AccessorI64<i64, 2>(expected_buffer.get(), output_strides.filter(1, 2)));
             } else if (axis == 1) {
                 compute_expected_reduction(
-                        input_shape.filter(0, 2, 1),
-                        expected_t(buffer.get(), input_strides.filter(0, 2, 1)),
-                        AccessorI64<i64, 2>(expected_buffer.get(), output_strides.filter(0, 2)));
+                    input_shape.filter(0, 2, 1),
+                    expected_t(buffer.get(), input_strides.filter(0, 2, 1)),
+                    AccessorI64<i64, 2>(expected_buffer.get(), output_strides.filter(0, 2)));
             } else {
                 compute_expected_reduction(
-                        input_shape,
-                        expected_t(buffer.get(), input_strides),
-                        AccessorI64<i64, 2>(expected_buffer.get(), output_strides.filter(0, 1)));
+                    input_shape,
+                    expected_t(buffer.get(), input_strides),
+                    AccessorI64<i64, 2>(expected_buffer.get(), output_strides.filter(0, 1)));
             }
 
             const auto output_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));
@@ -296,14 +296,14 @@ TEST_CASE("cpu::reduce_axes_iwise - 2d") {
             using expected_t = AccessorI64<const i64, 2>;
             if (axis == 0) {
                 compute_expected_reduction(
-                        input_shape.filter(1, 0),
-                        expected_t(buffer.get(), input_strides.filter(1, 0)),
-                        AccessorI64<i64, 1>(expected_buffer.get(), output_strides.filter(1)));
-            } else  {
+                    input_shape.filter(1, 0),
+                    expected_t(buffer.get(), input_strides.filter(1, 0)),
+                    AccessorI64<i64, 1>(expected_buffer.get(), output_strides.filter(1)));
+            } else {
                 compute_expected_reduction(
-                        input_shape,
-                        expected_t(buffer.get(), input_strides),
-                        AccessorI64<i64, 1>(expected_buffer.get(), output_strides.filter(0)));
+                    input_shape,
+                    expected_t(buffer.get(), input_strides),
+                    AccessorI64<i64, 1>(expected_buffer.get(), output_strides.filter(0)));
             }
 
             const auto output_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));

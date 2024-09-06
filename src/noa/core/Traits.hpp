@@ -93,22 +93,22 @@ namespace noa::traits {
 }
 
 namespace noa::traits {
-    #define NOA_TRAITS_(name, default_type, special_type)           \
-    namespace guts {                                                \
-        template<typename T, typename = void>                       \
-        struct name {                                               \
-            using type = default_type;                              \
-        };                                                          \
-        template<typename T>                                        \
-        struct name<T, std::void_t<typename special_type>> {        \
-            using type = special_type;                              \
-        };                                                          \
-    }                                                               \
-    template<typename T>                                            \
-    struct name {                                                   \
-        using type = guts::name<std::decay_t<T>>::type;  \
-    };                                                              \
-    template<typename T>                                            \
+    #define NOA_TRAITS_(name, default_type, special_type)       \
+    namespace guts {                                            \
+        template<typename T, typename = void>                   \
+        struct name {                                           \
+            using type = default_type;                          \
+        };                                                      \
+        template<typename T>                                    \
+        struct name<T, std::void_t<typename special_type>> {    \
+            using type = special_type;                          \
+        };                                                      \
+    }                                                           \
+    template<typename T>                                        \
+    struct name {                                               \
+        using type = guts::name<std::decay_t<T>>::type;         \
+    };                                                          \
+    template<typename T>                                        \
     using name##_t = name<T>::type
 
     NOA_TRAITS_(type_type, T, T::type);
@@ -119,6 +119,7 @@ namespace noa::traits {
     NOA_TRAITS_(const_value_type, std::add_const_t<mutable_value_type_t<T>>, T::const_value_type);
     NOA_TRAITS_(reference_type, std::add_lvalue_reference_t<value_type_t<T>>, T::reference_type);
     NOA_TRAITS_(pointer_type, std::add_pointer_t<value_type_t<T>>, T::pointer_type);
+    #undef NOA_TRAITS_
     template<typename T> using value_type_twice_t         = value_type_t<value_type_t<T>>;
     template<typename T> using mutable_value_type_twice_t = mutable_value_type_t<mutable_value_type_t<T>>;
 
@@ -155,7 +156,7 @@ namespace noa::traits {
 }
 
 namespace noa::traits {
-    template<typename T, size_t S, typename = void>
+    template<typename, size_t S, typename = void>
     struct size_or {
         static constexpr size_t value = S;
     };
@@ -259,8 +260,8 @@ namespace noa::traits {
     #define NOA_TRAITS_POINTER(name)                                                                                    \
     template<typename T> using is_pointer_##name = std::conjunction<is_pointer<T>, is_##name<std::remove_pointer_t<T>>>;\
     template<typename T> constexpr bool is_pointer_##name##_v = is_pointer_##name<T>::value;                            \
-    template<typename... T> using are_pointer_##name = std::conjunction<is_pointer_##name<T>...>;                     \
-    template<typename... T> constexpr bool are_pointer_##name##_v = are_pointer_##name<T...>::value;                  \
+    template<typename... T> using are_pointer_##name = std::conjunction<is_pointer_##name<T>...>;                       \
+    template<typename... T> constexpr bool are_pointer_##name##_v = are_pointer_##name<T...>::value;                    \
     template<typename... T> concept pointer_##name = pointer<T...> and are_pointer_##name##_v<T...>
     NOA_TRAITS_POINTER(integer);
     NOA_TRAITS_POINTER(sinteger);
@@ -272,7 +273,7 @@ namespace noa::traits {
 }
 
 namespace noa::traits {
-    // -- Accessor --
+    // Accessor
     NOA_GENERATE_PROCLAIM_FULL(accessor);
 
     NOA_GENERATE_PROCLAIM(accessor_restrict);
@@ -299,7 +300,7 @@ namespace noa::traits {
     template<size_t N, typename... T> using are_accessor_pure_nd = std::conjunction<is_accessor_pure_nd<T, N>...>;
     template<size_t N, typename... T> constexpr bool are_accessor_pure_nd_v = are_accessor_pure_nd<N, T...>::value;
 
-    // -- Matrices --
+    // Mat
     NOA_GENERATE_PROCLAIM_FULL(mat);
 
     template<typename, size_t, size_t> struct proclaim_is_mat_of_shape : std::false_type {};
@@ -319,7 +320,7 @@ namespace noa::traits {
     NOA_TRAITS_MAT_(3, 4);
     NOA_TRAITS_MAT_(4, 4);
 
-    // -- Vec --
+    // Vec
     NOA_GENERATE_PROCLAIM_FULL(vec);
 
     template<typename, typename> struct proclaim_is_vec_of_type : std::false_type {};
@@ -355,7 +356,7 @@ namespace noa::traits {
     NOA_TRAITS_VEC_(numeric);
     #undef NOA_TRAITS_VEC_
 
-    // -- Shape and Strides --
+    // Shape and Strides
     #define NOA_TRAITS_SHAPE_(name)                                                                                                         \
     NOA_GENERATE_PROCLAIM_FULL(name);                                                                                                       \
     template<typename, typename> struct proclaim_is_##name##_of_type : std::false_type {};                                                  \
@@ -380,7 +381,7 @@ namespace noa::traits {
     template<typename T, size_t... N> concept vec_shape_or_strides_of_size =
             vec_of_size<T, N...> or shape_of_size<T, N...> or strides_of_size<T, N...>;
 
-    // -- Tuple and Pair --
+    // Tuple and Pair
     NOA_GENERATE_PROCLAIM_FULL(pair);
     NOA_GENERATE_PROCLAIM_FULL(tuple);
     NOA_GENERATE_PROCLAIM_FULL(empty_tuple);

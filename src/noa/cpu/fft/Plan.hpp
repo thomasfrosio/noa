@@ -102,10 +102,10 @@ namespace noa::cpu::fft {
              const Shape4<i64>& shape, noa::fft::Sign sign, u32 flags, i64 max_n_threads);
 
     public:
-        Plan(const Plan<T>&) = delete;
-        Plan<T>& operator=(const Plan<T>&) = delete;
-        Plan(Plan<T>&&) noexcept = default;
-        Plan<T>& operator=(Plan<T>&&) noexcept = default;
+        Plan(const Plan&) = delete;
+        Plan& operator=(const Plan&) = delete;
+        Plan(Plan&&) noexcept = default;
+        Plan& operator=(Plan&&) noexcept = default;
         ~Plan() noexcept;
 
         void execute() noexcept;

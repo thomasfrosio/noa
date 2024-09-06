@@ -35,11 +35,13 @@ namespace noa::inline types {
     /// \endcode
     class Remap {
     public:
-        enum Bitset : u8 {
-            SRC_FULL =     0b00000001, // defaults to half
-            DST_FULL =     0b00000010, // defaults to half
-            SRC_CENTERED = 0b00000100, // defaults to non-centered
-            DST_CENTERED = 0b00001000, // defaults to non-centered
+        struct Bitset {
+            enum : u8 {
+                SRC_FULL =     0b00000001, // defaults to half
+                DST_FULL =     0b00000010, // defaults to half
+                SRC_CENTERED = 0b00000100, // defaults to non-centered
+                DST_CENTERED = 0b00001000, // defaults to non-centered
+            };
         };
 
         enum class Enum : u8 {
@@ -66,7 +68,7 @@ namespace noa::inline types {
 
     public: // behave like an enum class
         using enum Enum;
-        constexpr /*implicit*/ Remap(Enum value_) : value(value_) {}
+        constexpr /*implicit*/ Remap(Enum value_) noexcept : value(value_) {}
         constexpr /*implicit*/ operator Enum() const noexcept { return value; }
 
     public: // additional constructors and member functions
@@ -76,40 +78,40 @@ namespace noa::inline types {
         constexpr /*implicit*/ Remap(const char (& name)[N]) {
             std::string_view name_(name);
             if (name_ == "h2h" or name_ == "H2H") {
-                value = Enum::H2H;
+                value = H2H;
             } else if (name_ == "h2hc" or name_ == "H2HC") {
-                value = Enum::H2HC;
+                value = H2HC;
             } else if (name_ == "h2f" or name_ == "H2F") {
-                value = Enum::H2F;
+                value = H2F;
             } else if (name_ == "h2fc" or name_ == "H2FC") {
-                value = Enum::H2FC;
+                value = H2FC;
 
             } else if (name_ == "hc2h" or name_ == "HC2H") {
-                value = Enum::HC2H;
+                value = HC2H;
             } else if (name_ == "hc2hc" or name_ == "HC2HC") {
-                value = Enum::HC2HC;
+                value = HC2HC;
             } else if (name_ == "hc2f" or name_ == "HC2F") {
-                value = Enum::HC2F;
+                value = HC2F;
             } else if (name_ == "hc2fc" or name_ == "HC2FC") {
-                value = Enum::HC2FC;
+                value = HC2FC;
 
             } else if (name_ == "f2h" or name_ == "F2H") {
-                value = Enum::F2H;
+                value = F2H;
             } else if (name_ == "f2hc" or name_ == "F2HC") {
-                value = Enum::F2HC;
+                value = F2HC;
             } else if (name_ == "f2f" or name_ == "F2F") {
-                value = Enum::F2F;
+                value = F2F;
             } else if (name_ == "f2fc" or name_ == "F2FC") {
-                value = Enum::F2FC;
+                value = F2FC;
 
             } else if (name_ == "fc2h" or name_ == "FC2H") {
-                value = Enum::FC2H;
+                value = FC2H;
             } else if (name_ == "fc2hc" or name_ == "FC2HC") {
-                value = Enum::FC2HC;
+                value = FC2HC;
             } else if (name_ == "fc2f" or name_ == "FC2F") {
-                value = Enum::FC2F;
+                value = FC2F;
             } else if (name_ == "fc2fc" or name_ == "FC2FC") {
-                value = Enum::FC2FC;
+                value = FC2FC;
 
             } else {
                 // If it is a constant expression, this creates a compile time error because throwing
@@ -126,7 +128,7 @@ namespace noa::inline types {
 
         /// Whether the layout changes between the input and output.
         [[nodiscard]] constexpr bool has_layout_change() const noexcept {
-            return not is_any(Remap::H2H, Remap::HC2HC, Remap::F2F, Remap::FC2FC);
+            return not is_any(H2H, HC2HC, F2F, FC2FC);
         }
 
         [[nodiscard]] constexpr bool is_fx2xx()  const noexcept { return to_u8_() & Bitset::SRC_FULL; }
@@ -173,39 +175,39 @@ namespace noa::inline types {
 
         [[nodiscard]] constexpr Remap flip() const noexcept {
             u8 set{};
-            if (to_u8_() & SRC_FULL)
-                set |= DST_FULL;
-            if (to_u8_() & DST_FULL)
-                set |= SRC_FULL;
-            if (to_u8_() & SRC_CENTERED)
-                set |= DST_CENTERED;
-            if (to_u8_() & DST_CENTERED)
-                set |= SRC_CENTERED;
+            if (to_u8_() & Bitset::SRC_FULL)
+                set |= Bitset::DST_FULL;
+            if (to_u8_() & Bitset::DST_FULL)
+                set |= Bitset::SRC_FULL;
+            if (to_u8_() & Bitset::SRC_CENTERED)
+                set |= Bitset::DST_CENTERED;
+            if (to_u8_() & Bitset::DST_CENTERED)
+                set |= Bitset::SRC_CENTERED;
             return static_cast<Enum>(set);
         }
 
         [[nodiscard]] constexpr Remap erase_input() const noexcept {
             u8 set{};
-            if (to_u8_() & DST_FULL) {
-                set |= SRC_FULL;
-                set |= DST_FULL;
+            if (to_u8_() & Bitset::DST_FULL) {
+                set |= Bitset::SRC_FULL;
+                set |= Bitset::DST_FULL;
             }
-            if (to_u8_() & DST_CENTERED) {
-                set |= SRC_CENTERED;
-                set |= DST_CENTERED;
+            if (to_u8_() & Bitset::DST_CENTERED) {
+                set |= Bitset::SRC_CENTERED;
+                set |= Bitset::DST_CENTERED;
             }
             return static_cast<Enum>(set);
         }
 
         [[nodiscard]] constexpr Remap erase_output() const noexcept {
             u8 set{};
-            if (to_u8_() & SRC_FULL) {
-                set |= SRC_FULL;
-                set |= DST_FULL;
+            if (to_u8_() & Bitset::SRC_FULL) {
+                set |= Bitset::SRC_FULL;
+                set |= Bitset::DST_FULL;
             }
-            if (to_u8_() & SRC_CENTERED) {
-                set |= SRC_CENTERED;
-                set |= DST_CENTERED;
+            if (to_u8_() & Bitset::SRC_CENTERED) {
+                set |= Bitset::SRC_CENTERED;
+                set |= Bitset::DST_CENTERED;
             }
             return static_cast<Enum>(set);
         }

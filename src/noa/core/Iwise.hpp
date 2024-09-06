@@ -91,21 +91,21 @@ namespace noa::guts {
 
     public:
         constexpr IwiseRange(
-                const output_type& accessor,
-                const shape_type& shape,
-                const range_type& range
-        ) requires (not CONTIGUOUS_1D):
-                m_output(accessor),
-                m_contiguous_strides(shape.strides()),
-                m_range{range} {}
+            const output_type& accessor,
+            const shape_type& shape,
+            const range_type& range
+        ) requires (not CONTIGUOUS_1D) :
+            m_output(accessor),
+            m_contiguous_strides(shape.strides()),
+            m_range{range} {}
 
         constexpr IwiseRange(
-                const output_type& accessor,
-                const shape_type&, // for CTAD
-                const range_type& range
-        ) requires CONTIGUOUS_1D:
-                m_output(accessor),
-                m_range{range} {}
+            const output_type& accessor,
+            const shape_type&, // for CTAD
+            const range_type& range
+        ) requires CONTIGUOUS_1D :
+            m_output(accessor),
+            m_range{range} {}
 
         template<typename... U> requires nt::iwise_core_indexing<N, index_type, U...>
         NOA_HD constexpr void operator()(U... indices) const {
@@ -135,21 +135,21 @@ namespace noa::guts {
 
     public:
         constexpr Iota(
-                const output_type& accessor,
-                const shape_type& shape,
-                const indices_type& tile
-        ) requires (not CONTIGUOUS_1D):
-                m_output(accessor),
-                m_tile(tile),
-                m_contiguous_strides(shape.strides()) {}
+            const output_type& accessor,
+            const shape_type& shape,
+            const indices_type& tile
+        ) requires (not CONTIGUOUS_1D) :
+            m_output(accessor),
+            m_tile(tile),
+            m_contiguous_strides(shape.strides()) {}
 
         constexpr Iota(
-                const output_type& accessor,
-                const shape_type&, // for CTAD
-                const indices_type& tile
-        ) requires CONTIGUOUS_1D:
-                m_output(accessor),
-                m_tile(tile) {}
+            const output_type& accessor,
+            const shape_type&, // for CTAD
+            const indices_type& tile
+        ) requires CONTIGUOUS_1D :
+            m_output(accessor),
+            m_tile(tile) {}
 
         NOA_HD constexpr void operator()(const indices_type& indices) const {
             if constexpr (CONTIGUOUS_1D) {
@@ -193,14 +193,15 @@ namespace noa::guts {
         using subregion_value_or_empty_type = std::conditional_t<MODE == Border::VALUE, subregion_value_type, Empty>;
 
     public:
-        ExtractSubregion(
-                const input_accessor_type& input_accessor,
-                const subregion_accessor_type& subregion_accessor,
-                const shape4_type& input_shape,
-                origins_pointer_type origins,
-                subregion_value_type cvalue,
-                const origins_type& order
-        ) : m_input(input_accessor),
+        constexpr ExtractSubregion(
+            const input_accessor_type& input_accessor,
+            const subregion_accessor_type& subregion_accessor,
+            const shape4_type& input_shape,
+            origins_pointer_type origins,
+            subregion_value_type cvalue,
+            const origins_type& order
+        ) :
+            m_input(input_accessor),
             m_subregions(subregion_accessor),
             m_subregion_origins(origins),
             m_input_shape(input_shape),
@@ -212,7 +213,7 @@ namespace noa::guts {
                 (void) cvalue;
         }
 
-        NOA_HD constexpr void operator()(const index4_type& output_indices) const {
+        constexpr void operator()(const index4_type& output_indices) const {
             // TODO For CUDA, the origins could copied to constant memory.
             //      Although these can be loaded in a single vectorized instruction.
             const auto corner_left = m_subregion_origins[output_indices[0]].reorder(m_order).template as<index_type>();
@@ -287,19 +288,20 @@ namespace noa::guts {
         using shape4_type = Shape4<Index>;
 
     public:
-        InsertSubregion(
-                const subregion_accessor_type& subregion_accessor,
-                const output_accessor_type& output_accessor,
-                const shape4_type& output_shape,
-                origins_pointer_type origins,
-                const origins_type& order
-        ) : m_output(output_accessor),
+        constexpr InsertSubregion(
+            const subregion_accessor_type& subregion_accessor,
+            const output_accessor_type& output_accessor,
+            const shape4_type& output_shape,
+            origins_pointer_type origins,
+            const origins_type& order
+        ) :
+            m_output(output_accessor),
             m_subregions(subregion_accessor),
             m_subregion_origins(origins),
             m_output_shape(output_shape),
             m_order(order) {}
 
-        NOA_HD constexpr void operator()(const index4_type& input_indices) const noexcept {
+        constexpr void operator()(const index4_type& input_indices) const {
             // TODO For CUDA, the origins could copied to constant memory.
             //      Although these can be loaded in a single vectorized instruction.
             const auto corner_left = m_subregion_origins[input_indices[0]].reorder(m_order).template as<index_type>();
@@ -360,14 +362,16 @@ namespace noa::guts {
         using index4_or_empty_type = std::conditional_t<IS_BOUNDLESS, Empty, indices_type>;
 
     public:
-        Resize(const input_accessor_type& input_accessor,
-               const output_accessor_type& output_accessor,
-               const shape_type& input_shape,
-               const shape_type& output_shape,
-               const indices_type& border_left,
-               const indices_type& border_right,
-               output_value_type cvalue
-        ) : m_input(input_accessor),
+        constexpr Resize(
+            const input_accessor_type& input_accessor,
+            const output_accessor_type& output_accessor,
+            const shape_type& input_shape,
+            const shape_type& output_shape,
+            const indices_type& border_left,
+            const indices_type& border_right,
+            output_value_type cvalue
+        ) :
+            m_input(input_accessor),
             m_output(output_accessor),
             m_input_shape(input_shape),
             m_crop_left(min(border_left, index_type{}) * -1),
@@ -387,7 +391,7 @@ namespace noa::guts {
                 (void) cvalue;
         }
 
-        NOA_HD constexpr void operator()(const indices_type& output_indices) const noexcept {
+        constexpr void operator()(const indices_type& output_indices) const {
             const auto input_indices = output_indices - m_pad_left + m_crop_left;
 
             if constexpr (MODE == Border::VALUE or MODE == Border::ZERO) {
@@ -419,11 +423,11 @@ namespace noa::guts {
 
     /// Computes the common subregions between the input and output.
     /// These can then be used to copy the input subregion into the output subregion.
-    [[nodiscard]] inline auto extract_common_subregion(
+    [[nodiscard]] constexpr auto extract_common_subregion(
             const Shape4<i64>& input_shape, const Shape4<i64>& output_shape,
             const Vec4<i64>& border_left, const Vec4<i64>& border_right
-    ) -> Pair<ni::Subregion<4, ni::Slice, ni::Slice, ni::Slice, ni::Slice>,
-              ni::Subregion<4, ni::Slice, ni::Slice, ni::Slice, ni::Slice>> {
+    ) noexcept -> Pair<ni::Subregion<4, ni::Slice, ni::Slice, ni::Slice, ni::Slice>,
+                       ni::Subregion<4, ni::Slice, ni::Slice, ni::Slice, ni::Slice>> {
         // Exclude the regions in the input that don't end up in the output.
         const auto crop_left = min(border_left, i64{}) * -1;
         const auto crop_right = min(border_right, i64{}) * -1;

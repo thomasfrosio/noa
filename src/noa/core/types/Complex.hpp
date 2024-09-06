@@ -25,9 +25,10 @@ namespace noa::inline types {
     ///     - it supports the subscript operator[] to access the real and imaginary components.
     /// \note While we could tend to prefer leaving this type uninitialized, in order to support direct initialization
     ///       from a scalar, e.g. Complex{1.}, we need to have the member variables zero-initialized (same as std::complex).
-    template<nt::real T>
+    template<typename T>
     class alignas(sizeof(T) * 2) Complex {
     public:
+        static_assert(nt::real<T>);
         T real{};
         T imag{};
 
@@ -339,24 +340,24 @@ namespace noa {
 
     /// Returns the phase angle (in radians) of the complex number z.
     template<typename T>
-    [[nodiscard]] NOA_FHD T arg(Complex<T> x) {
+    [[nodiscard]] NOA_FHD T arg(Complex<T> x) noexcept {
         return atan2(x.imag, x.real);
     }
 
     template<typename T>
-    [[nodiscard]] NOA_FHD T phase(Complex<T> x) {
+    [[nodiscard]] NOA_FHD T phase(Complex<T> x) noexcept {
         return arg(x);
     }
 
     /// Returns the magnitude of the complex number x.
     template<typename T>
-    [[nodiscard]] NOA_FHD T abs(Complex<T> x) {
+    [[nodiscard]] NOA_FHD T abs(Complex<T> x) noexcept {
         return hypot(x.real, x.imag);
     }
 
     /// Returns the length-normalized of the complex number x to 1, reducing it to its phase.
     template<typename T>
-    [[nodiscard]] NOA_FHD Complex<T> normalize(Complex<T> x) {
+    [[nodiscard]] NOA_FHD Complex<T> normalize(Complex<T> x) noexcept {
         if constexpr (std::is_same_v<T, Half>)
             return Complex<T>(normalize(x.template as<Half::arithmetic_type>()));
         T magnitude = abs(x);
@@ -367,7 +368,7 @@ namespace noa {
 
     /// Returns the squared magnitude of the complex number x.
     template<typename T>
-    NOA_IHD T abs_squared(Complex<T> x) {
+    NOA_IHD T abs_squared(Complex<T> x) noexcept {
         if constexpr (std::is_same_v<T, Half>)
             return Half(abs_squared(x.template as<Half::arithmetic_type>()));
         return x.real * x.real + x.imag * x.imag;
@@ -380,7 +381,7 @@ namespace noa {
 
     /// Returns a complex number with magnitude length (should be positive) and phase angle theta.
     template<typename T>
-    [[nodiscard]] NOA_FHD Complex<T> polar(T length, T theta) {
+    [[nodiscard]] NOA_FHD Complex<T> polar(T length, T theta) noexcept {
         return {length * cos(theta), length * sin(theta)};
     }
 

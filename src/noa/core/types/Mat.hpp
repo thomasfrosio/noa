@@ -14,14 +14,14 @@ namespace noa::inline types {
 
 namespace noa {
     template<typename T, size_t R, size_t C>
-    NOA_IHD constexpr auto transpose(const Mat<T, R, C>& m) noexcept -> Mat<T, C, R> {
+    NOA_HD constexpr auto transpose(const Mat<T, R, C>& m) noexcept -> Mat<T, C, R> {
         return [&]<size_t... I>(std::index_sequence<I...>) {
             return Mat<T, C, R>::from_columns(m[I]...);
         }(std::make_index_sequence<R>{});
     }
 
     template<typename T, size_t R0, size_t C0, size_t R1, size_t C1> requires (C0 == R1)
-    NOA_IHD constexpr auto matmul(const Mat<T, R0, C0>& m0, const Mat<T, R1, C1>& m1) noexcept -> Mat<T, R0, C1> {
+    NOA_HD constexpr auto matmul(const Mat<T, R0, C0>& m0, const Mat<T, R1, C1>& m1) noexcept -> Mat<T, R0, C1> {
         using output_t = Mat<T, R0, C1>;
         output_t out{};
         for (size_t r{}; r < R0; ++r)
@@ -31,7 +31,7 @@ namespace noa {
     }
 
     template<typename T, size_t R, size_t C> requires (R == C)
-    [[nodiscard]] NOA_IHD constexpr auto determinant(const Mat<T, R, C>& m) noexcept -> T {
+    [[nodiscard]] NOA_HD constexpr auto determinant(const Mat<T, R, C>& m) noexcept -> T {
         if constexpr (R == 2) {
             return m[0][0] * m[1][1] - m[0][1] * m[1][0];
 
@@ -56,12 +56,12 @@ namespace noa {
             return m[0][0] * c[0] + m[1][0] * c[1] +
                    m[2][0] * c[2] + m[3][0] * c[3];
         } else {
-            static_assert(nt::always_false<>);
+            static_assert(nt::always_false<T>);
         }
     }
 
     template<typename T, size_t R, size_t C> requires (R == C)
-    NOA_IHD constexpr auto inverse(const Mat<T, R, C>& m) noexcept -> Mat<T, R, C> {
+    NOA_HD constexpr auto inverse(const Mat<T, R, C>& m) noexcept -> Mat<T, R, C> {
         if constexpr (R == 2) {
             const auto det = determinant(m);
             NOA_ASSERT(not allclose(det, T{})); // non singular
@@ -130,14 +130,14 @@ namespace noa {
                     det * -(m[0][0] * A1213 - m[0][1] * A0213 + m[0][2] * A0113),
                     det * +(m[0][0] * A1212 - m[0][1] * A0212 + m[0][2] * A0112));
         } else {
-            static_assert(nt::always_false<>);
+            static_assert(nt::always_false<T>);
         }
     }
 
     template<typename T, size_t R, size_t C>
-    [[nodiscard]] NOA_IHD constexpr auto ewise_multiply(
-            Mat<T, R, C> m1,
-            const Mat<T, R, C>& m2
+    [[nodiscard]] NOA_HD constexpr auto ewise_multiply(
+        Mat<T, R, C> m1,
+        const Mat<T, R, C>& m2
     ) noexcept -> Mat<T, R, C> {
         for (size_t i{}; i < R; ++i)
             m1[i] *= m2[i];
@@ -145,9 +145,9 @@ namespace noa {
     }
 
     template<typename T, size_t C, size_t R, size_t A0, size_t A1>
-    [[nodiscard]] NOA_IHD constexpr auto outer_product(
-            const Vec<T, R, A0>& column,
-            const Vec<T, C, A1>& row
+    [[nodiscard]] NOA_HD constexpr auto outer_product(
+        const Vec<T, R, A0>& column,
+        const Vec<T, C, A1>& row
     ) noexcept -> Mat<T, R, C> {
         Mat<T, R, C> out;
         for (size_t i{}; i < R; ++i)
@@ -156,10 +156,10 @@ namespace noa {
     }
 
     template<i32 ULP = 2, typename T, size_t C, size_t R>
-    [[nodiscard]] NOA_IHD constexpr bool allclose(
-            const Mat<T, R, C>& m1,
-            const Mat<T, R, C>& m2,
-            std::type_identity_t<T> epsilon = static_cast<T>(1e-6)
+    [[nodiscard]] NOA_HD constexpr bool allclose(
+        const Mat<T, R, C>& m1,
+        const Mat<T, R, C>& m2,
+        std::type_identity_t<T> epsilon = static_cast<T>(1e-6)
     ) noexcept {
         for (size_t r{}; r < R; ++r)
             for (size_t c{}; c < C; ++c)
@@ -173,7 +173,7 @@ namespace noa::inline types {
     /// Aggregate type representing a RxC geometric (row-major) matrix.
     template<typename T, size_t R, size_t C>
     class alignas(16) Mat {
-    public: // Type definitions
+    public:
         static_assert(nt::real<T> and R > 0 and C > 0);
         using value_type = T;
         using mutable_value_type = value_type;
@@ -231,9 +231,7 @@ namespace noa::inline types {
         }
 
         template<nt::scalar... U> requires (sizeof...(U) == ROWS * COLS)
-        [[nodiscard]] NOA_HD static constexpr Mat from_values(
-                U... values
-        ) noexcept {
+        [[nodiscard]] NOA_HD static constexpr Mat from_values(U... values) noexcept {
             Mat mat;
             auto op = [&mat, v = forward_as_tuple(values...)]<size_t I, size_t... J>(){
                 ((mat[I][J] = static_cast<value_type>(v[Tag<I * COLS + J>{}])), ...);
@@ -251,18 +249,14 @@ namespace noa::inline types {
         }
 
         template<nt::vec_scalar_size<COLS>... V> requires (sizeof...(V) == ROWS)
-        [[nodiscard]] NOA_HD static constexpr Mat from_rows(
-                const V&... r
-        ) noexcept {
+        [[nodiscard]] NOA_HD static constexpr Mat from_rows(const V&... r) noexcept {
             return {r.template as<value_type>()...};
         }
 
         template<nt::vec_scalar_size<ROWS>... V> requires (sizeof...(V) == COLS)
-        [[nodiscard]] NOA_HD static constexpr Mat from_columns(
-                const V&... c
-        ) noexcept {
+        [[nodiscard]] NOA_HD static constexpr Mat from_columns(const V&... c) noexcept {
             Mat mat;
-            auto op = [&mat, v = forward_as_tuple(c...)]<size_t I, size_t... J>{
+            auto op = [&mat, v = forward_as_tuple(c...)]<size_t I, size_t... J>(){
                 ((mat[I][J] = static_cast<value_type>(v[Tag<J>{}][I])), ...);
             };
             [&op]<size_t...I, size_t...J>(std::index_sequence<I...>, std::index_sequence<J...>) {

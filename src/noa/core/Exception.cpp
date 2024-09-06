@@ -2,10 +2,10 @@
 
 namespace noa {
     std::string Exception::format_(
-            const char* file,
-            const char* function,
-            std::uint_least32_t line,
-            const std::string_view& message
+        const char* file,
+        const char* function,
+        std::uint_least32_t line,
+        const std::string_view& message
     ) {
         namespace fs = std::filesystem;
         size_t idx = std::string(file).rfind(std::string("noa") + fs::path::preferred_separator);
@@ -15,9 +15,9 @@ namespace noa {
     }
 
     void Exception::backtrace_(
-            std::vector<std::string>& message,
-            const std::exception_ptr& exception_ptr
-            ) {
+        std::vector<std::string>& message,
+        const std::exception_ptr& exception_ptr
+    ) {
         static auto get_nested = [](auto& e) -> std::exception_ptr {
             try {
                 return dynamic_cast<const std::nested_exception&>(e).nested_ptr();

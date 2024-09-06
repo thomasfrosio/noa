@@ -109,8 +109,8 @@ namespace noa::inline types {
                     return __float2half_rn(value);
                 } else if constexpr (std::is_same_v<U, double>) {
                     return __double2half(value);
-                } else if constexpr (std::is_same_v<U, signed char> ||
-                                     std::is_same_v<U, char> ||
+                } else if constexpr (std::is_same_v<U, signed char> or
+                                     std::is_same_v<U, char> or
                                      std::is_same_v<U, bool>) {
                     return __short2half_rn(static_cast<short>(value));
                 } else if constexpr (std::is_same_v<U, unsigned char>) {
@@ -119,13 +119,13 @@ namespace noa::inline types {
                     return __short2half_rn(value);
                 } else if constexpr (std::is_same_v<U, ushort>) {
                     return __ushort2half_rn(value);
-                } else if constexpr (std::is_same_v<U, int> || (std::is_same_v<U, long> && sizeof(long) == 4)) {
+                } else if constexpr (std::is_same_v<U, int> or (std::is_same_v<U, long> && sizeof(long) == 4)) {
                     return __int2half_rn(value);
-                } else if constexpr (std::is_same_v<U, uint> || (std::is_same_v<U, ulong> && sizeof(long) == 4)) {
+                } else if constexpr (std::is_same_v<U, uint> or (std::is_same_v<U, ulong> && sizeof(long) == 4)) {
                     return __uint2half_rn(value);
-                } else if constexpr (std::is_same_v<U, long long> || std::is_same_v<U, long>) {
+                } else if constexpr (std::is_same_v<U, long long> or std::is_same_v<U, long>) {
                     return __ll2half_rn(value);
-                } else if constexpr (std::is_same_v<U, unsigned long long> || std::is_same_v<U, ulong>) {
+                } else if constexpr (std::is_same_v<U, unsigned long long> or std::is_same_v<U, ulong>) {
                     return __ull2half_rn(value);
                 } else {
                     static_assert(nt::always_false<>);
@@ -147,13 +147,13 @@ namespace noa::inline types {
                     return __half2short_rn(value);
                 } else if constexpr (std::is_same_v<T, ushort>) {
                     return __half2ushort_rn(value);
-                } else if constexpr (std::is_same_v<T, int> || (std::is_same_v<T, long> && sizeof(long) == 4)) {
+                } else if constexpr (std::is_same_v<T, int> or (std::is_same_v<T, long> && sizeof(long) == 4)) {
                     return static_cast<T>(__half2int_rn(value));
-                } else if constexpr (std::is_same_v<T, uint> || (std::is_same_v<T, ulong> && sizeof(long) == 4)) {
+                } else if constexpr (std::is_same_v<T, uint> or (std::is_same_v<T, ulong> && sizeof(long) == 4)) {
                     return static_cast<T>(__half2uint_rn(value));
-                } else if constexpr (std::is_same_v<T, long long> || std::is_same_v<T, long>) {
+                } else if constexpr (std::is_same_v<T, long long> or std::is_same_v<T, long>) {
                     return static_cast<T>(__half2ll_rn(value));
-                } else if constexpr (std::is_same_v<T, unsigned long long> || std::is_same_v<T, ulong>) {
+                } else if constexpr (std::is_same_v<T, unsigned long long> or std::is_same_v<T, ulong>) {
                     return static_cast<T>(__half2ull_rn(value));
                 } else {
                     static_assert(nt::always_false<>);
@@ -164,9 +164,9 @@ namespace noa::inline types {
             #else
             if constexpr (std::is_same_v<T, U>) {
                 return value;
-            } else if constexpr (std::is_same_v<T, native_type> || std::is_same_v<U, native_type>) {
+            } else if constexpr (std::is_same_v<T, native_type> or std::is_same_v<U, native_type>) {
                 // half_float::half_cast has a bug in int2half for the min value so check it beforehand.
-                if constexpr (std::is_integral_v<U> && std::is_signed_v<U>) {
+                if constexpr (std::is_integral_v<U> and std::is_signed_v<U>) {
                     if (value == std::numeric_limits<U>::min()) {
                         if constexpr (sizeof(U) == 1)
                             return half_float::reinterpret_as_half(0xD800); // -128

@@ -4,7 +4,7 @@ namespace noa::gpu {
     class Backend {
     public:
         enum Type {
-            NONE, CUDA, VULKAN, METAL
+            NONE, CUDA
         };
 
         static constexpr Type type() noexcept {
@@ -17,7 +17,5 @@ namespace noa::gpu {
 
         static constexpr bool null() noexcept { return type() == Type::NONE; }
         static constexpr bool cuda() noexcept { return type() == Type::CUDA; }
-        static constexpr bool vulkan() noexcept { return type() == Type::VULKAN; }
-        static constexpr bool metal() noexcept { return type() == Type::METAL; }
     };
 }

@@ -143,7 +143,7 @@ namespace noa::guts {
             if (not reduced_dimensions[0])
                 strides[0] = std::numeric_limits<i64>::max(); // keep batch to leftmost
             order = ni::order(strides, input_shape);
-            do_reorder = vany(NotEqual{}, order, Vec4<i64>{0, 1, 2, 3});
+            do_reorder = vany(NotEqual{}, order, Vec{0, 1, 2, 3});
         }
 
         inputs.for_each_enumerate([&]<size_t I, typename T>(T& input) {
@@ -162,7 +162,7 @@ namespace noa::guts {
                     auto strides = input.strides();
                     if (not reduced_dimensions[0])
                         strides[0] = std::numeric_limits<i64>::max(); // keep batch to leftmost
-                    do_reorder = vany(Equal{}, order, ni::order(strides, input_shape));
+                    do_reorder = vall(Equal{}, order, ni::order(strides, input_shape));
                 }
             }
         });

@@ -21,11 +21,11 @@ namespace noa::cpu::signal::guts {
 
     public:
         Convolution(
-                const input_accessor_type& input,
-                const output_accessor_type& output,
-                const filter_accessor_type& filter,
-                const shape_type& shape,
-                const shape_type& filter_shape
+            const input_accessor_type& input,
+            const output_accessor_type& output,
+            const filter_accessor_type& filter,
+            const shape_type& shape,
+            const shape_type& filter_shape
         ) : m_input(input), m_output(output), m_filter(filter),
             m_shape(shape), m_filter_shape(filter_shape),
             m_halo(filter_shape / 2) {}
@@ -100,10 +100,10 @@ namespace noa::cpu::signal::guts {
 
     public:
         ConvolutionSeparable(
-                const input_accessor_type& input,
-                const output_accessor_type& output,
-                const filter_accessor_type& filter,
-                i64 dim_size, i64 filter_size
+            const input_accessor_type& input,
+            const output_accessor_type& output,
+            const filter_accessor_type& filter,
+            i64 dim_size, i64 filter_size
         ) : m_input(input), m_output(output), m_filter(filter),
             m_dim_size(dim_size), m_filter_size(filter_size),
             m_halo(filter_size / 2) {}
@@ -163,9 +163,9 @@ namespace noa::cpu::signal::guts {
 
     template<ConvolutionSeparableDim DIM, typename T, typename U, typename V>
     void launch_convolve_separable(
-            const T* input, const Strides4<i64>& input_strides,
-            U* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-            const V* filter, i64 filter_size, i64 threads
+        const T* input, const Strides4<i64>& input_strides,
+        U* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+        const V* filter, i64 filter_size, i64 threads
     ) {
         using input_accessor_t = AccessorRestrict<const T, 4, i64>;
         using output_accessor_t = AccessorRestrict<U, 4, i64>;
@@ -173,9 +173,9 @@ namespace noa::cpu::signal::guts {
         const auto dim_size = shape.filter(to_underlying(DIM))[0];
 
         auto kernel = ConvolutionSeparable<DIM, input_accessor_t, output_accessor_t, decltype(filter_accessor)>(
-                input_accessor_t(input, input_strides),
-                output_accessor_t(output, output_strides),
-                filter_accessor, dim_size, filter_size);
+            input_accessor_t(input, input_strides),
+            output_accessor_t(output, output_strides),
+            filter_accessor, dim_size, filter_size);
         iwise(shape, kernel, threads);
     }
 }
@@ -183,25 +183,25 @@ namespace noa::cpu::signal::guts {
 namespace noa::cpu::signal {
     template<typename T, typename U, typename V>
     void convolve(
-            const T* input, Strides4<i64> input_strides,
-            U* output, Strides4<i64> output_strides, const Shape4<i64>& shape,
-            const V* filter, const Shape3<i64>& filter_shape, i64 threads
+        const T* input, Strides4<i64> input_strides,
+        U* output, Strides4<i64> output_strides, const Shape4<i64>& shape,
+        const V* filter, const Shape3<i64>& filter_shape, i64 threads
     ) {
         const auto n_dimensions_to_convolve = sum(filter_shape > 1);
         const auto ndim = filter_shape.ndim();
         if (n_dimensions_to_convolve == 1) {
             if (filter_shape[0] > 1) {
                 guts::launch_convolve_separable<guts::ConvolutionSeparableDim::DEPTH>(
-                        input, input_strides, output, output_strides, shape,
-                        filter, filter_shape[0], threads);
+                    input, input_strides, output, output_strides, shape,
+                    filter, filter_shape[0], threads);
             } else if (filter_shape[1] > 1) {
                 guts::launch_convolve_separable<guts::ConvolutionSeparableDim::HEIGHT>(
-                        input, input_strides, output, output_strides, shape,
-                        filter, filter_shape[1], threads);
+                    input, input_strides, output, output_strides, shape,
+                    filter, filter_shape[1], threads);
             } else {
                 guts::launch_convolve_separable<guts::ConvolutionSeparableDim::WIDTH>(
-                        input, input_strides, output, output_strides, shape,
-                        filter, filter_shape[2], threads);
+                    input, input_strides, output, output_strides, shape,
+                    filter, filter_shape[2], threads);
             }
         } else if (ndim == 2) {
             const auto filter_shape_2d = filter_shape.pop_front();
@@ -222,7 +222,7 @@ namespace noa::cpu::signal {
 
         } else if (all(filter_shape == 1)) {
             auto order = ni::order(output_strides, shape);
-            if (vany(NotEqual{}, order, Vec4<i64>{0, 1, 2, 3})) {
+            if (vany(NotEqual{}, order, Vec{0, 1, 2, 3})) {
                 input_strides = ni::reorder(input_strides, order);
                 output_strides = ni::reorder(output_strides, order);
             }
@@ -232,18 +232,18 @@ namespace noa::cpu::signal {
             return ewise(shape, Multiply{}, make_tuple(input_accessor, value), make_tuple(output_accessor), threads);
 
         } else {
-            panic("unreachable");
+            panic();
         }
     }
 
     template<typename T, typename U, typename V> requires nt::are_real_v<T, U, V>
     void convolve_separable(
-            const T* input, const Strides4<i64>& input_strides,
-            U* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-            const V* filter_depth, i64 filter_depth_size,
-            const V* filter_height, i64 filter_height_size,
-            const V* filter_width, i64 filter_width_size,
-            V* tmp, Strides4<i64> tmp_strides, i64 threads
+        const T* input, const Strides4<i64>& input_strides,
+        U* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
+        const V* filter_depth, i64 filter_depth_size,
+        const V* filter_height, i64 filter_height_size,
+        const V* filter_width, i64 filter_width_size,
+        V* tmp, Strides4<i64> tmp_strides, i64 threads
     ) {
         if (filter_depth_size <= 0)
             filter_depth = nullptr;
@@ -270,51 +270,51 @@ namespace noa::cpu::signal {
 
         if (filter_depth and filter_height and filter_width) {
             guts::launch_convolve_separable<guts::ConvolutionSeparableDim::DEPTH>(
-                    input, input_strides, output, output_strides, shape,
-                    filter_depth, filter_depth_size, threads);
+                input, input_strides, output, output_strides, shape,
+                filter_depth, filter_depth_size, threads);
             guts::launch_convolve_separable<guts::ConvolutionSeparableDim::HEIGHT>(
-                    output, output_strides, tmp, tmp_strides, shape,
-                    filter_height, filter_height_size, threads);
+                output, output_strides, tmp, tmp_strides, shape,
+                filter_height, filter_height_size, threads);
             guts::launch_convolve_separable<guts::ConvolutionSeparableDim::WIDTH>(
-                    tmp, tmp_strides, output, output_strides, shape,
-                    filter_width, filter_width_size, threads);
+                tmp, tmp_strides, output, output_strides, shape,
+                filter_width, filter_width_size, threads);
 
         } else if (filter_depth and filter_height) {
             guts::launch_convolve_separable<guts::ConvolutionSeparableDim::DEPTH>(
-                    input, input_strides, tmp, tmp_strides, shape,
-                    filter_depth, filter_depth_size, threads);
+                input, input_strides, tmp, tmp_strides, shape,
+                filter_depth, filter_depth_size, threads);
             guts::launch_convolve_separable<guts::ConvolutionSeparableDim::HEIGHT>(
-                    tmp, tmp_strides, output, output_strides, shape,
-                    filter_height, filter_height_size, threads);
+                tmp, tmp_strides, output, output_strides, shape,
+                filter_height, filter_height_size, threads);
 
         } else if (filter_height and filter_width) {
             guts::launch_convolve_separable<guts::ConvolutionSeparableDim::HEIGHT>(
-                    input, input_strides, tmp, tmp_strides, shape,
-                    filter_height, filter_height_size, threads);
+                input, input_strides, tmp, tmp_strides, shape,
+                filter_height, filter_height_size, threads);
             guts::launch_convolve_separable<guts::ConvolutionSeparableDim::WIDTH>(
-                    tmp, tmp_strides, output, output_strides, shape,
-                    filter_width, filter_width_size, threads);
+                tmp, tmp_strides, output, output_strides, shape,
+                filter_width, filter_width_size, threads);
 
         } else if (filter_depth and filter_width) {
             guts::launch_convolve_separable<guts::ConvolutionSeparableDim::DEPTH>(
-                    input, input_strides, tmp, tmp_strides, shape,
-                    filter_depth, filter_depth_size, threads);
+                input, input_strides, tmp, tmp_strides, shape,
+                filter_depth, filter_depth_size, threads);
             guts::launch_convolve_separable<guts::ConvolutionSeparableDim::WIDTH>(
-                    tmp, tmp_strides, output, output_strides, shape,
-                    filter_width, filter_width_size, threads);
+                tmp, tmp_strides, output, output_strides, shape,
+                filter_width, filter_width_size, threads);
 
         } else if (filter_depth) {
             guts::launch_convolve_separable<guts::ConvolutionSeparableDim::DEPTH>(
-                    input, input_strides, output, output_strides, shape,
-                    filter_depth, filter_depth_size, threads);
+                input, input_strides, output, output_strides, shape,
+                filter_depth, filter_depth_size, threads);
         } else if (filter_height) {
             guts::launch_convolve_separable<guts::ConvolutionSeparableDim::HEIGHT>(
-                    input, input_strides, output, output_strides, shape,
-                    filter_height, filter_height_size, threads);
+                input, input_strides, output, output_strides, shape,
+                filter_height, filter_height_size, threads);
         } else if (filter_width) {
             guts::launch_convolve_separable<guts::ConvolutionSeparableDim::WIDTH>(
-                    input, input_strides, output, output_strides, shape,
-                    filter_width, filter_width_size, threads);
+                input, input_strides, output, output_strides, shape,
+                filter_width, filter_width_size, threads);
         }
     }
 }

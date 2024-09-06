@@ -6,9 +6,8 @@
 #include <cstddef>
 #include <string>
 #include <vector>
-#include "noa/core/string/Format.hpp"
-#include "noa/core/string/Parse.hpp"
-#include "noa/gpu/cuda/Types.hpp"
+#include "noa/core/utils/Strings.hpp"
+#include "noa/gpu/cuda/Runtime.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Version.hpp"
 
@@ -23,7 +22,7 @@ namespace noa::cuda {
 
     public:
         /// Creates the current device.
-        Device() : m_id(Device::current().m_id) {}
+        Device() : m_id(current().m_id) {}
 
         /// Creates a CUDA device from an ID.
         constexpr explicit Device(std::integral auto id) : m_id(static_cast<i32>(id)) {
@@ -43,10 +42,10 @@ namespace noa::cuda {
         /// increase the performance of CPU threads performing work in parallel with the device. Spinning is the
         /// other way around.
         void synchronize() const {
-            const Device previous_current = Device::current();
-            Device::set_current(*this);
+            const Device previous_current = current();
+            set_current(*this);
             check(cudaDeviceSynchronize());
-            Device::set_current(previous_current);
+            set_current(previous_current);
         }
 
         /// Explicitly synchronizes, destroys and cleans up all resources associated with the current device in the
@@ -93,9 +92,9 @@ namespace noa::cuda {
             size_t mem_free, mem_total;
 
             const Device previous_current = Device::current();
-            Device::set_current(*this);
+            set_current(*this);
             check(cudaMemGetInfo(&mem_free, &mem_total));
-            Device::set_current(previous_current);
+            set_current(previous_current);
             return {mem_free, mem_total};
         }
 
@@ -128,10 +127,10 @@ namespace noa::cuda {
         /// Gets resource limits for the current device.
         [[nodiscard]] size_t limit(cudaLimit resource_limit) const {
             size_t limit;
-            const Device previous_current = Device::current();
-            Device::set_current(*this);
+            const Device previous_current = current();
+            set_current(*this);
             check(cudaDeviceGetLimit(&limit, resource_limit));
-            Device::set_current(previous_current);
+            set_current(previous_current);
             return limit;
         }
 
@@ -184,7 +183,7 @@ namespace noa::cuda {
         /// Gets the device with the most free memory available for allocation.
         static Device most_free() {
             Device most_free(0, DeviceUnchecked{});
-            size_t available_mem{0};
+            size_t available_mem{};
             for (auto& device: all()) {
                 const size_t dev_available_mem = device.memory().free;
                 if (dev_available_mem > available_mem) {
@@ -214,14 +213,15 @@ namespace noa::cuda {
     class DeviceGuard : public Device {
     public:
         template<typename ... Args>
-        explicit DeviceGuard(Args&& ...args)
-                : Device(std::forward<Args>(args)...),
-                  m_previous_current(Device::current()) {
-            Device::set_current(*static_cast<Device*>(this));
+        explicit DeviceGuard(Args&& ...args) :
+            Device(std::forward<Args>(args)...),
+            m_previous_current(current())
+        {
+            set_current(*static_cast<Device*>(this));
         }
 
         ~DeviceGuard() {
-            Device::set_current(m_previous_current);
+            set_current(m_previous_current);
         }
 
     private:

@@ -13,9 +13,9 @@ namespace noa::cpu::fft {
 
     template<typename T>
     void r2c(
-            T* input, const Strides4<i64>& input_strides,
-            Complex<T>* output, const Strides4<i64>& output_strides,
-            const Shape4<i64>& shape, u32 flag, i64 n_threads
+        T* input, const Strides4<i64>& input_strides,
+        Complex<T>* output, const Strides4<i64>& output_strides,
+        const Shape4<i64>& shape, u32 flag, i64 n_threads
     ) {
         Plan(input, input_strides, output, output_strides, shape, flag, n_threads).execute();
     }
@@ -44,9 +44,9 @@ namespace noa::cpu::fft {
 
     template<typename T>
     void c2r(
-            Complex<T>* input, const Strides4<i64>& input_strides,
-            T* output, const Strides4<i64>& output_strides,
-            const Shape4<i64>& shape, u32 flag, i64 n_threads
+        Complex<T>* input, const Strides4<i64>& input_strides,
+        T* output, const Strides4<i64>& output_strides,
+        const Shape4<i64>& shape, u32 flag, i64 n_threads
     ) {
         Plan(input, input_strides, output, output_strides, shape, flag, n_threads).execute();
     }
@@ -64,17 +64,17 @@ namespace noa::cpu::fft {
 
     template<typename T>
     void c2c(
-            Complex<T>* input, Complex<T>* output, const Shape4<i64>& shape,
-            noa::fft::Sign sign, u32 flag, i64 n_threads
+        Complex<T>* input, Complex<T>* output, const Shape4<i64>& shape,
+        noa::fft::Sign sign, u32 flag, i64 n_threads
     ) {
         Plan(input, output, shape, sign, flag, n_threads).execute();
     }
 
     template<typename T>
     void c2c(
-            Complex<T>* input, const Strides4<i64>& input_strides,
-            Complex<T>* output, const Strides4<i64>& output_strides,
-            const Shape4<i64>& shape, noa::fft::Sign sign, u32 flag, i64 n_threads
+        Complex<T>* input, const Strides4<i64>& input_strides,
+        Complex<T>* output, const Strides4<i64>& output_strides,
+        const Shape4<i64>& shape, noa::fft::Sign sign, u32 flag, i64 n_threads
     ) {
         Plan(input, input_strides, output, output_strides, shape, sign, flag, n_threads).execute();
     }
@@ -86,8 +86,8 @@ namespace noa::cpu::fft {
 
     template<typename T>
     void c2c(
-            Complex<T>* data, const Strides4<i64>& strides, const Shape4<i64>& shape,
-            noa::fft::Sign sign, u32 flag, i64 n_threads
+        Complex<T>* data, const Strides4<i64>& strides, const Shape4<i64>& shape,
+        noa::fft::Sign sign, u32 flag, i64 n_threads
     ) {
         c2c(data, strides, data, strides, shape, sign, flag, n_threads);
     }

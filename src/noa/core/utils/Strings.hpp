@@ -4,10 +4,7 @@
 #include "noa/core/Traits.hpp"
 
 namespace noa::traits {
-    template<typename> struct proclaim_is_string : std::false_type {};
-    template<typename T> using is_string = proclaim_is_string<T>;
-    template<typename T> constexpr bool is_string_v = is_string<T>::value;
-    template<typename T> concept string = is_string_v<T>;
+    NOA_GENERATE_PROCLAIM_FULL(string);
 }
 
 #ifdef NOA_IS_OFFLINE
@@ -176,11 +173,11 @@ namespace noa::string {
     ///             bool: same as integer, plus recognizes true={"y", "yes", "true"} and false={"n", "no", "false"}
     ///                   as valid matches (ignoring trailing whitespaces and case-insensitive).
     ///             floating-point: same as from_chars, with provided \p fmt.
-    ///             std::string: remove trailing whitespaces and convert to lower case.
+    ///             std::string: remove trailing whitespaces and convert to lowercase.
     template<typename T>
     auto parse(
-            std::string_view string,
-            std::chars_format fmt = std::chars_format::general
+        std::string_view string,
+        std::chars_format fmt = std::chars_format::general
     ) noexcept -> std::optional<T> {
         string = trim_left(string);
 

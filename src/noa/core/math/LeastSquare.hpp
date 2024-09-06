@@ -2,6 +2,7 @@
 
 #include "noa/core/math/Generic.hpp"
 #include "noa/core/types/Pair.hpp"
+#include "noa/core/types/Span.hpp"
 
 // More details at: https://www.codeproject.com/Articles/63170/Least-Squares-Regression-for-Quadratic-Curve-Fitti
 
@@ -15,7 +16,7 @@ namespace noa {
     /// Least squares regression for quadratic curve fitting.
     /// Returns {a, b, c}, as in ``y(x) = ax^2 + bx + c``, where x is an integral number from 0 to y.size()-1.
     template<nt::real T, nt::integer I>
-    constexpr auto lstsq_fit_quadratic(SpanContiguous<const T, 1, I> y) -> QuadraticCurve<f64> {
+    NOA_HD constexpr auto lstsq_fit_quadratic(SpanContiguous<const T, 1, I> y) -> QuadraticCurve<f64> {
         if (not y or y.size() < 3)
             return {};
 
@@ -62,18 +63,17 @@ namespace noa {
     /// this fits a parabola to the values and returns the offset of the peak from the center position,
     /// a number between -0.5 and 0.5.
     template<nt::real T>
-    constexpr auto lstsq_fit_quadratic_vertex_3points(T y0, T y1, T y2) noexcept {
+    NOA_IHD constexpr auto lstsq_fit_quadratic_vertex_3points(T y0, T y1, T y2) noexcept {
         // https://stackoverflow.com/a/717791
         const T a = 2 * y1 - y0 - y2;
         const T b = y0 - y2;
         const T c = y1;
 
-        if (abs(a) < static_cast<T>(1e-6)) {
+        if (abs(a) < static_cast<T>(1e-6))
             return Pair{T{}, y1};
-        } else {
-            const T x = -b / (2 * a);
-            const T y = c + b * b / (8 * a);
-            return Pair{x, y};
-        }
+
+        const T x = -b / (2 * a);
+        const T y = c + b * b / (8 * a);
+        return Pair{x, y};
     }
 }

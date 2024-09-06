@@ -36,6 +36,7 @@ TEST_CASE("core::Span") {
     {
         f32* p0{};
         auto s0 = Span{p0, u32{10}};
+        (void) s0; // nvcc unused warning
         static_assert(std::is_same_v<decltype(s0), Span<f32, 1, u32, StridesTraits::CONTIGUOUS>>);
 
         i32 p1[10]{};

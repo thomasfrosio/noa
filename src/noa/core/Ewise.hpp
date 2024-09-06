@@ -125,7 +125,7 @@ namespace noa {
 
     template<typename T>
     struct Fill {
-        using allow_vectorization = bool; // meaning this cannot be used to modify the input
+        using allow_vectorization = bool;
         T value;
 
         template<typename U>
@@ -136,7 +136,7 @@ namespace noa {
 
     template<typename T>
     struct Scale {
-        using allow_vectorization = bool; // meaning this cannot be used to modify the input
+        using allow_vectorization = bool;
         T value;
 
         template<typename U>
@@ -146,7 +146,7 @@ namespace noa {
     };
 
     struct ZeroInitialize {
-        using allow_vectorization = bool; // meaning this cannot be used to modify the input
+        using allow_vectorization = bool;
 
         template<typename... U>
         NOA_HD constexpr void operator()(U&... dst) const {

@@ -6,7 +6,8 @@
 
 #include <catch2/catch.hpp>
 
-using namespace ::noa;
+using namespace ::noa::types;
+namespace io = ::noa::io;
 
 #define CREATE_FILE(filename, string) {                                         \
 std::ofstream ofstream_(filename, std::ios::out | std::ios::trunc);             \

@@ -14,10 +14,10 @@ namespace noa::cpu::guts {
 
         template<typename Op, typename Input, typename Reduced, typename Output, typename Index, size_t N>
         static void parallel(
-                const Shape<Index, N>& shape, Op op,
-                Input input, Reduced reduced, Output& output, i64 threads
+            const Shape<Index, N>& shape, Op op,
+            Input input, Reduced reduced, Output& output, i64 n_threads
         ) {
-            #pragma omp parallel default(none) num_threads(threads) shared(shape, input, reduced) firstprivate(op)
+            #pragma omp parallel default(none) num_threads(n_threads) shared(shape, input, reduced) firstprivate(op)
             {
                 // Local copy of the reduced values.
                 auto local_reduce = reduced;
@@ -34,7 +34,7 @@ namespace noa::cpu::guts {
                     for (Index i = 0; i < shape[0]; ++i)
                         interface::init(op, input, local_reduce, i);
                 } else {
-                    static_assert(nt::always_false<>);
+                    static_assert(nt::always_false<Op>);
                 }
 
                 #pragma omp critical
@@ -48,8 +48,8 @@ namespace noa::cpu::guts {
 
         template<typename Op, typename Input, typename Reduced, typename Output, typename Index, size_t N>
         static void serial(
-                const Shape<Index, N>& shape, Op op,
-                Input input, Reduced reduced, Output& output
+            const Shape<Index, N>& shape, Op op,
+            Input input, Reduced reduced, Output& output
         ) {
             if constexpr (N == 4) {
                 for (Index i = 0; i < shape[0]; ++i)
@@ -61,7 +61,7 @@ namespace noa::cpu::guts {
                 for (Index i = 0; i < shape[0]; ++i)
                     interface::init(op, input, reduced, i);
             } else {
-                static_assert(nt::always_false<>);
+                static_assert(nt::always_false<Op>);
             }
 
             interface::final(op, reduced, output, 0);
@@ -84,12 +84,12 @@ namespace noa::cpu {
               not nt::tuple_of_accessor_value<std::decay_t<Input>> and // at least one varray
               nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
     void reduce_ewise(
-            const Shape4<Index>& shape,
-            Op&& op,
-            Input&& input,
-            Reduced&& reduced,
-            Output& output,
-            i64 n_threads = 1
+        const Shape4<Index>& shape,
+        Op&& op,
+        Input&& input,
+        Reduced&& reduced,
+        Output& output,
+        i64 n_threads = 1
     ) {
         // Check contiguity.
         const bool are_all_contiguous = ni::are_contiguous(input, shape);
@@ -107,64 +107,64 @@ namespace noa::cpu {
             auto shape_1d = Shape1<Index>::from_value(n_elements);
             if (ng::are_accessors_aliased(input, output)) {
                 constexpr auto contiguous_1d = ng::AccessorConfig<1>{
-                        .enforce_contiguous=true,
-                        .enforce_restrict=false,
-                        .filter={3},
+                    .enforce_contiguous = true,
+                    .enforce_restrict = false,
+                    .filter = {3},
                 };
                 auto input_1d = ng::reconfig_accessors<contiguous_1d>(std::forward<Input>(input));
                 if (actual_n_threads > 1) {
                     reduce_ewise_core::parallel(
-                            shape_1d,
-                            std::forward<Op>(op),
-                            std::move(input_1d),
-                            std::forward<Reduced>(reduced),
-                            output, actual_n_threads);
+                        shape_1d,
+                        std::forward<Op>(op),
+                        std::move(input_1d),
+                        std::forward<Reduced>(reduced),
+                        output, actual_n_threads);
                 } else {
                     reduce_ewise_core::serial(
-                            shape_1d,
-                            std::forward<Op>(op),
-                            std::move(input_1d),
-                            std::forward<Reduced>(reduced),
-                            output);
+                        shape_1d,
+                        std::forward<Op>(op),
+                        std::move(input_1d),
+                        std::forward<Reduced>(reduced),
+                        output);
                 }
             } else {
                 constexpr auto contiguous_restrict_1d = ng::AccessorConfig<1>{
-                        .enforce_contiguous=true,
-                        .enforce_restrict=true,
-                        .filter={3},
+                    .enforce_contiguous = true,
+                    .enforce_restrict = true,
+                    .filter = {3},
                 };
                 auto input_1d = ng::reconfig_accessors<contiguous_restrict_1d>(std::forward<Input>(input));
                 if (actual_n_threads > 1) {
                     reduce_ewise_core::parallel(
-                            shape_1d,
-                            std::forward<Op>(op),
-                            std::move(input_1d),
-                            std::forward<Reduced>(reduced),
-                            output, actual_n_threads);
+                        shape_1d,
+                        std::forward<Op>(op),
+                        std::move(input_1d),
+                        std::forward<Reduced>(reduced),
+                        output, actual_n_threads);
                 } else {
                     reduce_ewise_core::serial(
-                            shape_1d,
-                            std::forward<Op>(op),
-                            std::move(input_1d),
-                            std::forward<Reduced>(reduced),
-                            output);
+                        shape_1d,
+                        std::forward<Op>(op),
+                        std::move(input_1d),
+                        std::forward<Reduced>(reduced),
+                        output);
                 }
             }
         } else {
             if (actual_n_threads > 1) {
                 reduce_ewise_core::parallel(
-                        shape,
-                        std::forward<Op>(op),
-                        std::forward<Input>(input),
-                        std::forward<Reduced>(reduced),
-                        output, actual_n_threads);
+                    shape,
+                    std::forward<Op>(op),
+                    std::forward<Input>(input),
+                    std::forward<Reduced>(reduced),
+                    output, actual_n_threads);
             } else {
                 reduce_ewise_core::serial(
-                        shape,
-                        std::forward<Op>(op),
-                        std::forward<Input>(input),
-                        std::forward<Reduced>(reduced),
-                        output);
+                    shape,
+                    std::forward<Op>(op),
+                    std::forward<Input>(input),
+                    std::forward<Reduced>(reduced),
+                    output);
             }
         }
     }

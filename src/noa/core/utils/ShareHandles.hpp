@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
 
 #ifdef NOA_IS_OFFLINE
 #include <memory>
@@ -24,9 +25,9 @@ namespace noa::traits {
 
     template<typename T>
     concept shareable =
-            requires(T t) { std::shared_ptr<const void>(t); } and
-            not pointer<std::decay_t<T>> and
-            not unique_ptr<std::decay_t<T>>;
+        requires(T t) { std::shared_ptr<const void>(t); } and
+        not pointer<std::decay_t<T>> and
+        not unique_ptr<std::decay_t<T>>;
 
     template<typename T>
     concept shareable_using_share = shareable<decltype(std::declval<T>().share())>;

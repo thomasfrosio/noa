@@ -12,9 +12,9 @@ namespace {
     };
 }
 
-TEST_CASE("core::Tuple") {
-    using namespace noa::types;
+using namespace noa::types;
 
+TEST_CASE("core::Tuple") {
     // Element access.
     using tt = std::tuple<int, int&, int&&, const int, const int&, const int&&>;
     using tn = Tuple<int, int&, int&&, const int, const int&, const int&&>;
@@ -103,8 +103,6 @@ TEST_CASE("core::Tuple") {
 }
 
 TEST_CASE("core::tuple_cat") {
-    using namespace noa::types;
-
     constexpr Tuple<i32, i32> a = noa::make_tuple(1, 2);
     constexpr Tuple<f32, f64> b = noa::make_tuple(3.f, 4.);
     constexpr Tuple<i32, i32, f32, f64> c = noa::tuple_cat(a, b);
@@ -125,7 +123,6 @@ TEST_CASE("core::tuple_cat") {
 }
 
 TEST_CASE("core::Tuple of c-arrays") {
-    using namespace noa::types;
     using t0 = std::tuple<int[10]>;
     using t1 = Tuple<int[10]>;
     static_assert(std::is_same_v<std::tuple_element_t<0, t0>, std::tuple_element_t<0, t1>>);

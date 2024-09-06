@@ -3,7 +3,6 @@
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Half.hpp"
-#include "noa/core/types/Complex.hpp"
 #include "noa/core/math/Comparison.hpp"
 
 namespace noa {

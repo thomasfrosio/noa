@@ -5,10 +5,8 @@
 #include "noa/core/math/Comparison.hpp"
 
 #ifdef NOA_IS_OFFLINE
-#include <type_traits>
 #include <iterator>
 #else
-#include <cuda/std/type_traits>
 #include <cuda/std/iterator>
 #endif
 

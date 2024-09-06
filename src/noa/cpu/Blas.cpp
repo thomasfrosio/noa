@@ -19,11 +19,11 @@
 namespace noa::cpu {
     template<typename T>
     void matmul(
-            const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-            const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
-            T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
-            T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-            i64 n_threads
+        const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
+        const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+        T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
+        T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+        i64 n_threads
     ) {
         const auto [mnk, secondmost_strides, are_column_major] = ni::extract_matmul_layout(
                 lhs_strides, lhs_shape, rhs_strides, rhs_shape, output_strides, output_shape,

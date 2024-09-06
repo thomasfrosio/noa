@@ -2,15 +2,15 @@ set(TEST_COMMON_SOURCES
     noa/core/TestCoreRemap.cpp
     noa/core/TestCoreInterpolation.cpp
 
-#    noa/core/geometry/TestCoreEuler.cpp
-#    noa/core/geometry/TestCoreQuaternion.cpp
-#    noa/core/indexing/TestCoreIndexing.cpp
-#    noa/core/io/TestCoreIO.cpp
-#    noa/core/io/TestBinaryFile.cpp
-#    noa/core/io/TestCoreMRCFile.cpp
-#    noa/core/io/TestCoreOS.cpp
-#    noa/core/io/TestCoreTextFile.cpp
-#    noa/core/signal/TestCoreWindows.cpp
+    noa/core/geometry/TestCoreEuler.cpp
+    noa/core/geometry/TestCoreQuaternion.cpp
+    noa/core/indexing/TestCoreIndexing.cpp
+    noa/core/io/TestCoreIO.cpp
+    noa/core/io/TestBinaryFile.cpp
+    noa/core/io/TestCoreMRCFile.cpp
+    noa/core/io/TestCoreOS.cpp
+    noa/core/io/TestCoreTextFile.cpp
+    noa/core/signal/TestCoreWindows.cpp
 
     noa/core/types/TestCoreAccessor.cpp
     noa/core/types/TestCoreComplex.cpp

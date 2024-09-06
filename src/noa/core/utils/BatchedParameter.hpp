@@ -10,8 +10,7 @@ namespace noa {
         static constexpr bool IS_BATCHED = nt::pointer<type> or nt::accessor_nd<type, 1>;
         using value_type = std::conditional_t<IS_BATCHED, nt::value_type_t<T>, T>;
 
-    public:
-        constexpr decltype(auto) operator[](nt::integer auto batch) const noexcept {
+        constexpr const value_type& operator[](nt::integer auto batch) const noexcept {
             if constexpr (IS_BATCHED)
                 return value[batch];
             else

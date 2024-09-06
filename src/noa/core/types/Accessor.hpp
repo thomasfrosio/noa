@@ -78,28 +78,28 @@ namespace noa::inline types {
 
         /// Creates a strided or contiguous accessor.
         /// If the accessor is contiguous, the width stride (strides[SIZE-1]) is ignored and assumed to be 1.
-        NOA_HD constexpr Accessor(pointer_type pointer, const Strides<index_type, SIZE>& strides) noexcept
-                : m_ptr{pointer},
-                  m_strides{strides_type::from_pointer(strides.data())} {}
+        NOA_HD constexpr Accessor(pointer_type pointer, const Strides<index_type, SIZE>& strides) noexcept :
+            m_ptr{pointer},
+            m_strides{strides_type::from_pointer(strides.data())} {}
 
         /// Creates a contiguous accessor from contiguous strides.
-        NOA_HD constexpr Accessor(pointer_type pointer, const strides_type& strides) noexcept requires IS_CONTIGUOUS
-                : m_ptr{pointer},
-                  m_strides{strides} {}
+        NOA_HD constexpr Accessor(pointer_type pointer, const strides_type& strides) noexcept requires IS_CONTIGUOUS :
+            m_ptr{pointer},
+            m_strides{strides} {}
 
         /// Creates an accessor from an accessor reference.
-        NOA_HD constexpr explicit Accessor(accessor_reference_type accessor_reference) noexcept
-                : m_ptr{accessor_reference.get()},
-                  m_strides{strides_type::from_pointer(accessor_reference.strides())} {}
+        NOA_HD constexpr explicit Accessor(accessor_reference_type accessor_reference) noexcept :
+            m_ptr{accessor_reference.get()},
+            m_strides{strides_type::from_pointer(accessor_reference.strides())} {}
 
         /// Creates a contiguous 1d accessor, assuming the stride is 1.
-        NOA_HD constexpr explicit Accessor(pointer_type pointer) noexcept requires (SIZE == 1 and IS_CONTIGUOUS)
-                : m_ptr{pointer} {}
+        NOA_HD constexpr explicit Accessor(pointer_type pointer) noexcept requires (SIZE == 1 and IS_CONTIGUOUS) :
+            m_ptr{pointer} {}
 
         /// Implicitly creates a const accessor from an existing non-const accessor.
         template<nt::mutable_of<value_type> U>
-        NOA_HD constexpr Accessor(const Accessor<U, N, index_type, STRIDES_TRAIT, POINTER_TRAIT>& accessor)
-                : m_ptr{accessor.get()}, m_strides{accessor.strides()} {}
+        NOA_HD constexpr Accessor(const Accessor<U, N, index_type, STRIDES_TRAIT, POINTER_TRAIT>& accessor) noexcept :
+            m_ptr{accessor.get()}, m_strides{accessor.strides()} {}
 
     public: // Accessing strides
         template<size_t INDEX> requires (INDEX < N)
@@ -196,16 +196,16 @@ namespace noa::inline types {
         /// For the contiguous case, the rightmost stride is ignored and never read from
         /// the \p strides strides pointer (so \p strides[N-1] is never accessed).
         /// As such, in the 1d contiguous case, a nullptr can be passed.
-        NOA_HD constexpr AccessorReference(pointer_type pointer, strides_type strides) noexcept
-                : m_ptr(pointer), m_strides(strides) {}
+        NOA_HD constexpr AccessorReference(pointer_type pointer, strides_type strides) noexcept :
+            m_ptr(pointer), m_strides(strides) {}
 
-        NOA_HD constexpr explicit AccessorReference(accessor_type accessor) noexcept
-                : AccessorReference(accessor.ptr, accessor.strides().data()) {}
+        NOA_HD constexpr explicit AccessorReference(accessor_type accessor) noexcept :
+            AccessorReference(accessor.ptr, accessor.strides().data()) {}
 
         /// Creates a const accessor from an existing non-const accessor.
         template<nt::mutable_of<value_type> U>
-        NOA_HD constexpr AccessorReference(const AccessorReference<U, N, I, STRIDES_TRAIT, POINTER_TRAIT>& accessor
-        ) : m_ptr(accessor.get()), m_strides(accessor.strides()) {}
+        NOA_HD constexpr AccessorReference(const AccessorReference<U, N, I, STRIDES_TRAIT, POINTER_TRAIT>& accessor) :
+            m_ptr(accessor.get()), m_strides(accessor.strides()) {}
 
     public: // Accessing strides
         template<size_t INDEX> requires (INDEX < N)
@@ -320,15 +320,15 @@ namespace noa::inline types {
     public: // Constructors
         NOA_HD constexpr AccessorValue() = default;
 
-        NOA_HD constexpr explicit AccessorValue(mutable_value_type&& value) noexcept
-                : m_value{std::move(value)} {}
+        NOA_HD constexpr explicit AccessorValue(mutable_value_type&& value) : // TODO noexcept
+            m_value{std::move(value)} {}
 
-        NOA_HD constexpr explicit AccessorValue(const mutable_value_type& value) noexcept
-                : m_value{value} {}
+        NOA_HD constexpr explicit AccessorValue(const mutable_value_type& value) : // TODO noexcept
+            m_value{value} {}
 
         template<nt::mutable_of<value_type> U, nt::integer J>
-        NOA_HD constexpr AccessorValue(const AccessorValue<U, J>& accessor)
-                : m_value{accessor.deref()} {}
+        NOA_HD constexpr AccessorValue(const AccessorValue<U, J>& accessor) : // TODO noexcept
+            m_value{accessor.deref()} {}
 
     public: // Accessing strides
         template<size_t>

@@ -1,7 +1,8 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/gpu/cuda/Types.hpp"
+#include "noa/core/types/Tuple.hpp"
+#include "noa/gpu/cuda/Constants.hpp"
 #include "noa/gpu/cuda/Pointers.hpp"
 #include "noa/gpu/cuda/kernels/Warp.cuh"
 
@@ -18,7 +19,7 @@ namespace noa::cuda::guts {
     template<typename... T>
     struct vectorized_tuple<Tuple<T...>> { using type = Tuple<AccessorValue<typename T::value_type>...>; };
 
-    /// Convert a tuple of accessors to AccessorValue.
+    /// Convert a tuple of accessors to a tuple of AccessorValue.
     /// This is used to store the values for vectorized load/stores, while preserving compatibility with the core
     /// interfaces. Note that the constness is preserved, so to access the values from the AccessorValue,
     /// .deref_() should be used.
@@ -34,7 +35,7 @@ namespace noa::cuda::guts {
     };
 
     /// Convert a tuple of AccessorValue(s) to a tuple of N-d AccessorsContiguousRestrict.
-    /// This is used to store the reduced values of reduce_ewise or reduce_axes_ewise in an struct of arrays,
+    /// This is used to store the reduced values of reduce_ewise or reduce_axes_ewise in a struct of arrays,
     /// which can then be loaded as an input using vectorized loads. Note that the constness of the AccessorValue(s)
     /// has to be dropped (because kernels do expect to write then read from these accessors), but this is fine since
     /// the reduced AccessorValue(s) should not be const anyway.
@@ -75,17 +76,16 @@ namespace noa::cuda::guts {
     /// \param per_thread_output    Per thread output tuple of AccessorValue(s).
     /// \param thread_index         Thread index in the 1d block. Usually threadIdx.x.
     template<i32 BLOCK_SIZE, i32 VECTOR_SIZE, i32 ELEMENTS_PER_THREAD, typename Input, typename Output>
-    requires ((nt::is_tuple_of_accessor_v<Input> and nt::is_tuple_of_accessor_value_v<Output>) or
-               nt::are_empty_tuple_v<Input, Output>)
+    requires ((nt::tuple_of_accessor<Input> and nt::tuple_of_accessor_value<Output>) or nt::empty_tuple<Input, Output>)
     NOA_ID void block_load(
-            const Input& per_block_input,
-            Output* __restrict__ per_thread_output,
-            i32 thread_index
+        const Input& per_block_input,
+        Output* __restrict__ per_thread_output,
+        i32 thread_index
     ) {
         per_block_input.for_each_enumerate([&]<size_t I, typename T>(T& accessor) {
             if constexpr (nt::is_accessor_value_v<T>) {
                 auto& input_value = accessor.deref();
-                for (size_t i{0}; i < ELEMENTS_PER_THREAD; ++i) {
+                for (size_t i{}; i < ELEMENTS_PER_THREAD; ++i) {
                     // Use .deref_() to be able to write into AccessorValue<const V> types.
                     // We want to keep the const on the core interfaces, but here we actually
                     // need to initialize the underlying values.
@@ -97,20 +97,20 @@ namespace noa::cuda::guts {
                 using value_t = T::mutable_value_type;
                 using aligned_vector_t = AlignedVector<value_t, VECTOR_SIZE>; // TODO use Vec<value_t, VECTOR_SIZE, sizeof(value_t) * VECTOR_SIZE>?
                 const auto* vectorized_input = reinterpret_cast<const aligned_vector_t*>(accessor.get());
-                NOA_ASSERT(!(reinterpret_cast<std::uintptr_t>(per_block_input) % alignof(aligned_vector_t)));
+                NOA_ASSERT(is_multiple_of(reinterpret_cast<std::uintptr_t>(per_block_input), alignof(aligned_vector_t)));
 
                 // If we need more than one vectorized load, we offset the input by
                 // the entire block size and offset the output by the vector size.
                 static_assert(ELEMENTS_PER_THREAD >= VECTOR_SIZE);
                 static_assert(is_multiple_of(ELEMENTS_PER_THREAD, VECTOR_SIZE));
                 constexpr i32 VECTORIZED_LOADS = ELEMENTS_PER_THREAD / VECTOR_SIZE;
-                for (i32 i = 0; i < VECTORIZED_LOADS; ++i) {
+                for (i32 i{}; i < VECTORIZED_LOADS; ++i) {
                     aligned_vector_t loaded_vector = vectorized_input[i * BLOCK_SIZE + thread_index];
-                    for (i32 j = 0; j < VECTOR_SIZE; ++j)
+                    for (i32 j{}; j < VECTOR_SIZE; ++j)
                         per_thread_output[VECTOR_SIZE * i + j][Tag<I>{}].deref_() = loaded_vector.data[j];
                 }
             } else {
-                static_assert(nt::always_false_v<T>);
+                static_assert(nt::always_false<T>);
             }
         });
     }
@@ -125,32 +125,32 @@ namespace noa::cuda::guts {
     //                      the first element of the block's work space. It should be aligned to VECTOR_SIZE.
     // thread_index:        Thread index in the 1D block. Usually threadIdx.x.
     template<i32 BLOCK_SIZE, i32 VECTOR_SIZE, i32 ELEMENTS_PER_THREAD, typename Input, typename Output>
-    requires ((nt::is_tuple_of_accessor_value_v<Input> and
-               (nt::is_tuple_of_accessor_v<Output> and not nt::is_tuple_of_accessor_value_v<Output>)) or
-              nt::are_empty_tuple_v<Input, Output>)
+    requires ((nt::tuple_of_accessor_value<Input> and
+               (nt::tuple_of_accessor<Output> and not nt::tuple_of_accessor_value<Output>)) or
+              nt::empty_tuple<Input, Output>)
     NOA_ID void block_store(
-            Input* __restrict__ per_thread_input,
-            const Output& per_block_output,
-            i32 thread_index
+        Input* __restrict__ per_thread_input,
+        const Output& per_block_output,
+        i32 thread_index
     ) {
         per_block_output.for_each_enumerate([&]<size_t I, typename T>(T& accessor) {
             if constexpr (nt::is_accessor_v<T>) {
                 using value_t = T::mutable_value_type; // or value_type since output is mutable
                 using aligned_vector_t = AlignedVector<value_t, VECTOR_SIZE>;
                 auto* vectorized_output = reinterpret_cast<aligned_vector_t*>(accessor.get());
-                NOA_ASSERT(!(reinterpret_cast<std::uintptr_t>(per_block_output) % alignof(aligned_vector_t)));
+                NOA_ASSERT(is_multiple_of(reinterpret_cast<std::uintptr_t>(per_block_output), alignof(aligned_vector_t)));
 
                 static_assert(ELEMENTS_PER_THREAD >= VECTOR_SIZE);
                 static_assert(is_multiple_of(ELEMENTS_PER_THREAD, VECTOR_SIZE));
                 constexpr i32 VECTORIZED_LOADS = ELEMENTS_PER_THREAD / VECTOR_SIZE;
-                for (i32 i = 0; i < VECTORIZED_LOADS; i++) {
+                for (i32 i{}; i < VECTORIZED_LOADS; i++) {
                     aligned_vector_t vector_to_store;
-                    for (i32 j = 0; j < VECTOR_SIZE; j++)
+                    for (i32 j{}; j < VECTOR_SIZE; j++)
                         vector_to_store.data[j] = per_thread_input[VECTOR_SIZE * i + j][Tag<I>{}].deref();
                     vectorized_output[i * BLOCK_SIZE + thread_index] = vector_to_store;
                 }
             } else {
-                static_assert(nt::always_false_v<T>);
+                static_assert(nt::always_false<T>);
             }
         });
     }
@@ -163,11 +163,11 @@ namespace noa::cuda::guts {
     // reduce_op:       Reduction operator.
     template<typename Interface, i32 BLOCK_SIZE, typename Reduced, typename Op>
     NOA_ID Reduced block_reduce_shared(
-            Op op,
-            Reduced* __restrict__ shared_data,
-            i32 thread_index
+        Op op,
+        Reduced* __restrict__ shared_data,
+        i32 thread_index
     ) {
-        constexpr i32 WARP_SIZE = noa::cuda::Constant::WARP_SIZE;
+        constexpr i32 WARP_SIZE = Constant::WARP_SIZE;
         static_assert(is_multiple_of(BLOCK_SIZE, WARP_SIZE) and
                       (BLOCK_SIZE == WARP_SIZE or is_multiple_of((BLOCK_SIZE / WARP_SIZE), 2)));
 
@@ -185,7 +185,7 @@ namespace noa::cuda::guts {
         // Final reduction within a warp.
         Reduced value;
         if (thread_index < WARP_SIZE) {
-            if constexpr (has_warp_reduce_v<Reduced>) {
+            if constexpr (wrap_reduceable<Reduced>) {
                 value = warp_reduce<Interface>(op, shared_data[thread_index]);
             } else {
                 // If the reduced type(s) cannot be warp reduced,
@@ -203,11 +203,11 @@ namespace noa::cuda::guts {
     template<typename Interface, u32 BLOCK_SIZE,
              typename Op, typename Reduced, typename Joined, typename Index, typename... Indices>
     NOA_ID void block_reduce_join(
-            Op op,
-            Reduced& reduced, // Tuple of AccessorValue(s); e.g. Tuple<AccessorValue<i32>, AccessorValue<f64>>
-            Joined& joined,
-            Index index_within_block,
-            Indices... indices_within_grid // per block nd-indices where to save the per-block reduced value in joined
+        Op op,
+        Reduced& reduced, // Tuple of AccessorValue(s); e.g. Tuple<AccessorValue<i32>, AccessorValue<f64>>
+        Joined& joined,
+        Index index_within_block,
+        Indices... indices_within_grid // per block nd-indices where to save the per-block reduced value in joined
     ) {
         __shared__ Reduced shared[BLOCK_SIZE];
         shared[index_within_block] = reduced;
@@ -225,7 +225,7 @@ namespace noa::cuda::guts {
                 auto index = forward_as_tuple(indices_within_grid...)[Tag<0>{}]; // TODO C++23 should fix that
                 joined[index] = reduced;
             } else {
-                static_assert(nt::always_false_v<Joined>);
+                static_assert(nt::always_false<Joined>);
             }
         }
     }
@@ -233,11 +233,11 @@ namespace noa::cuda::guts {
     template<typename Interface, u32 BLOCK_SIZE,
              typename Op, typename Reduced, typename Output, typename Index, typename... Indices>
     NOA_ID void block_reduce_join_and_final(
-            Op op,
-            Reduced& reduced, // Tuple of AccessorValue(s)
-            Output& output, // Tuple of 1d Accessor(s)
-            Index index_within_block,
-            Indices... indices_within_output
+        Op op,
+        Reduced& reduced, // Tuple of AccessorValue(s)
+        Output& output, // Tuple of 1d Accessor(s)
+        Index index_within_block,
+        Indices... indices_within_output
     ) {
         __shared__ Reduced shared[BLOCK_SIZE];
         shared[index_within_block] = reduced;
@@ -262,20 +262,20 @@ namespace noa::cuda::guts {
     // global_offset:       Per block offset corresponding to the beginning of per_block_input.
     //                      This is used to compute the memory offset of each reduced elements
     //                      when preprocess_op is a binary operator, otherwise it is ignored.
-    template<i32 BLOCK_SIZE, i32 ELEMENTS_PER_THREAD, i32 VECTOR_SIZE,
-             typename Interface, typename Input, typename Reduced, typename Index, typename Op>
-    requires (nt::is_tuple_of_accessor_ndim_v<1, Input> and
-              nt::is_tuple_of_accessor_value_v<Reduced>)
+    template<i32 BLOCK_SIZE, i32 ELEMENTS_PER_THREAD, i32 VECTOR_SIZE, typename Interface,
+             nt::tuple_of_accessor_nd<1> Input,
+             nt::tuple_of_accessor_value Reduced,
+             typename Index, typename Op>
     NOA_ID void block_reduce_ewise_1d_init(
-            Op op,
-            const Input& per_block_input,
-            Index n_elements_to_reduce,
-            Reduced& reduced,
-            Index thread_index
+        Op op,
+        const Input& per_block_input,
+        Index n_elements_to_reduce,
+        Reduced& reduced,
+        Index thread_index
     ) {
         if (VECTOR_SIZE == 1 or n_elements_to_reduce < ELEMENTS_PER_THREAD * BLOCK_SIZE) {
             #pragma unroll
-            for (Index i = 0; i < ELEMENTS_PER_THREAD; ++i) {
+            for (Index i{}; i < ELEMENTS_PER_THREAD; ++i) {
                 const Index tid = thread_index + BLOCK_SIZE * i;
                 if (tid < n_elements_to_reduce)
                     Interface::init(op, per_block_input, reduced, tid);
@@ -286,29 +286,29 @@ namespace noa::cuda::guts {
             block_load<BLOCK_SIZE, VECTOR_SIZE, ELEMENTS_PER_THREAD>(per_block_input, vectorized_input, thread_index);
 
             #pragma unroll
-            for (Index i = 0; i < ELEMENTS_PER_THREAD; ++i)
+            for (Index i{}; i < ELEMENTS_PER_THREAD; ++i)
                 Interface::init(op, vectorized_input[i], reduced, 0);
         }
     }
 
     template<i32 BLOCK_SIZE, i32 N_ELEMENTS_PER_THREAD, i32 LOAD_VECTOR_SIZE,
-             typename Interface, typename Op, typename Index, typename Joined, typename Reduced>
-    requires ((nt::is_tuple_of_accessor_pure_v<Joined> || nt::is_tuple_of_accessor_reference_v<Joined>) and
-              nt::is_tuple_of_accessor_ndim_v<1, Joined> and
-              nt::is_tuple_of_accessor_value_v<Reduced>)
+             typename Interface, typename Op, typename Index,
+             nt::tuple_of_accessor_nd<1> Joined,
+             nt::tuple_of_accessor_value Reduced>
+    requires (nt::tuple_of_accessor_pure<Joined> or nt::tuple_of_accessor_reference<Joined>)
     NOA_ID void block_reduce_ewise_1d_join(
-            Op op,
-            const Joined& per_block_joined,
-            Index n_elements_to_reduce,
-            Reduced& reduced,
-            Index thread_index
+        Op op,
+        const Joined& per_block_joined,
+        Index n_elements_to_reduce,
+        Reduced& reduced,
+        Index thread_index
     ) {
         // Tuple<Accessor, ...>(soa) -> Tuple<AccessorValue, ...>(aos)
         using ivec_t = vectorized_tuple_t<Joined>;
 
         if (LOAD_VECTOR_SIZE == 1 or n_elements_to_reduce < N_ELEMENTS_PER_THREAD * BLOCK_SIZE) {
             #pragma unroll
-            for (Index i = 0; i < N_ELEMENTS_PER_THREAD; ++i) {
+            for (Index i{}; i < N_ELEMENTS_PER_THREAD; ++i) {
                 const Index tid = thread_index + BLOCK_SIZE * i;
                 if (tid < n_elements_to_reduce) {
                     // We need to reconstruct the reference type, which is a tuple of AccessorValue(s).
@@ -322,10 +322,10 @@ namespace noa::cuda::guts {
         } else {
             ivec_t vectorized_joined[N_ELEMENTS_PER_THREAD];
             block_load<BLOCK_SIZE, LOAD_VECTOR_SIZE, N_ELEMENTS_PER_THREAD>(
-                    per_block_joined, vectorized_joined, thread_index);
+                per_block_joined, vectorized_joined, thread_index);
 
             #pragma unroll
-            for (Index i = 0; i < N_ELEMENTS_PER_THREAD; ++i)
+            for (Index i{}; i < N_ELEMENTS_PER_THREAD; ++i)
                 Interface::join(op, vectorized_joined[i], reduced);
         }
     }

@@ -83,7 +83,7 @@ namespace noa::fft::guts {
                 m_output(i, oj, ok, ol) = cast_or_abs_squared<output_value_type>(m_input(i, j, k, l));
 
             } else {
-                static_assert(nt::always_false<Index>);
+                static_assert(nt::always_false<index_type>);
             }
         }
 

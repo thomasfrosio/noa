@@ -152,7 +152,7 @@ namespace noa::cpu::guts {
 }
 
 namespace noa::cpu {
-    enum StreamMode {
+    enum class StreamMode {
         // Uses the current thread as working thread. Task-execution is synchronous. Creating a stream with
         // this mode is trivial, doesn't require any dynamic allocation, and doesn't spawn any thread.
         CURRENT = 0,
@@ -177,9 +177,9 @@ namespace noa::cpu {
         explicit Stream() = default;
 
         // Creates a stream.
-        explicit Stream(StreamMode mode, i32 omp_thread_limit)
-                : m_worker(mode == StreamMode::ASYNC ? std::make_shared<async_queue>() : nullptr),
-                  m_omp_thread_limit(omp_thread_limit) {}
+        explicit Stream(StreamMode mode, i32 omp_thread_limit) :
+            m_worker(mode == StreamMode::ASYNC ? std::make_shared<async_queue>() : nullptr),
+            m_omp_thread_limit(omp_thread_limit) {}
 
     public:
         // Enqueues a task.

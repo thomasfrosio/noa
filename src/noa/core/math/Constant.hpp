@@ -1,6 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
 
 namespace noa {

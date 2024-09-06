@@ -2,12 +2,12 @@
 # Note: All of these file-paths should be relative to this directory!
 
 include(${PROJECT_SOURCE_DIR}/src/noa/core/Append.cmake)
-#if (NOA_ENABLE_CPU)
-#    include(${PROJECT_SOURCE_DIR}/src/noa/cpu/Append.cmake)
-#endif ()
-#if (NOA_ENABLE_CUDA)
-#    include(${PROJECT_SOURCE_DIR}/src/noa/gpu/cuda/Append.cmake)
-#endif ()
+if (NOA_ENABLE_CPU)
+    include(${PROJECT_SOURCE_DIR}/src/noa/cpu/Append.cmake)
+endif ()
+if (NOA_ENABLE_CUDA)
+    include(${PROJECT_SOURCE_DIR}/src/noa/gpu/cuda/Append.cmake)
+endif ()
 #include(${PROJECT_SOURCE_DIR}/src/noa/unified/Append.cmake)
 
 # Library sources.

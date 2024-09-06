@@ -3,10 +3,13 @@
 #include "noa/core/Config.hpp"
 
 #ifdef NOA_IS_OFFLINE
+#include <memory>
 #include "noa/core/indexing/Layout.hpp"
-#include "noa/gpu/cuda/Types.hpp"
+#include "noa/core/types/Complex.hpp"
+#include "noa/core/types/Shape.hpp"
+#include "noa/core/Enums.hpp"
+#include "noa/gpu/cuda/Device.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
-#include "noa/gpu/cuda/fft/Exception.hpp"
 
 // TODO Add f16/c16 support. https://docs.nvidia.com/cuda/cufft/index.html#half-precision-transforms
 
@@ -30,21 +33,23 @@ namespace noa::cuda::fft {
 }
 
 namespace noa::cuda::fft::guts {
-    [[nodiscard]] std::shared_ptr<void> get_plan(
-            Type type,
-            bool is_single_precision,
-            const Shape4<i64>& shape,
-            i32 device,
-            bool save_in_cache);
+    [[nodiscard]] auto get_plan(
+        Type type,
+        bool is_single_precision,
+        const Shape4<i64>& shape,
+        i32 device,
+        bool save_in_cache
+    ) -> std::shared_ptr<void>;
 
-    [[nodiscard]] std::shared_ptr<void> get_plan(
-            Type type,
-            bool is_single_precision,
-            Strides4<i64> input_stride,
-            Strides4<i64> output_stride,
-            const Shape4<i64>& shape,
-            i32 device,
-            bool save_in_cache);
+    [[nodiscard]] auto get_plan(
+        Type type,
+        bool is_single_precision,
+        Strides4<i64> input_stride,
+        Strides4<i64> output_stride,
+        const Shape4<i64>& shape,
+        i32 device,
+        bool save_in_cache
+    ) -> std::shared_ptr<void>;
 }
 
 namespace noa::cuda::fft {
@@ -55,14 +60,14 @@ namespace noa::cuda::fft {
     /// \note In-place r2c/c2r transforms are allowed. In this case, the input requires extra padding, like in FFTW.
     ///       If strides are provided, this padding should be reflected in the strides.
     /// \note Plan creation (and the cuFFT APIs in general) is thread safe. However, plans and output data
-    ///       should only be accessed by one (host) thread at a time. As such and for simplicity, we hold a per-host-
-    ///      thread cache (and each GPU has its own cache of course).
+    ///       should only be accessed by one (host) thread at a time. As such and for simplicity, we hold a per host-
+    ///       thread cache (and each GPU has its own cache, of course).
     /// \note For c2c, column-major is also supported.
     ///       If strides are not provided, arrays are assumed to be C-contiguous.
-    template<typename Real>
+    template<typename T>
     class Plan {
-        static_assert(nt::is_any_v<Real, f32, f64>);
-        static constexpr bool is_single_precision = std::is_same_v<Real, f32>;
+        static_assert(nt::any_of<T, f32, f64>);
+        static constexpr bool is_single_precision = std::same_as<T, f32>;
 
     public:
         Plan(Type type,
@@ -83,17 +88,17 @@ namespace noa::cuda::fft {
             if (ni::are_contiguous(input_strides, input_shape) and
                 ni::are_contiguous(output_strides, output_shape)) {
                 m_plan = guts::get_plan(
-                        type, is_single_precision, shape, device.id(), save_to_cache);
+                    type, is_single_precision, shape, device.id(), save_to_cache);
             } else {
                 m_plan = guts::get_plan(
-                        type, is_single_precision, input_strides, output_strides, shape, device.id(), save_to_cache);
+                    type, is_single_precision, input_strides, output_strides, shape, device.id(), save_to_cache);
             }
         }
 
         /// The shape, strides, alignment and type (that includes in-place or not) should match the plan.
-        void execute(Real* input, Complex<Real>* output, Stream& stream);
-        void execute(Complex<Real>* input, Real* output, Stream& stream);
-        void execute(Complex<Real>* input, Complex<Real>* output, noa::fft::Sign sign, Stream& stream);
+        void execute(T* input, Complex<T>* output, Stream& stream);
+        void execute(Complex<T>* input, T* output, Stream& stream);
+        void execute(Complex<T>* input, Complex<T>* output, noa::fft::Sign sign, Stream& stream);
 
     private:
         std::shared_ptr<void> m_plan{};
