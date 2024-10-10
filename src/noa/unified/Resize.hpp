@@ -55,7 +55,7 @@ namespace noa {
               "The output shape {} does not match the expected shape (input:shape={}, left:shape={}, right:shape={})",
               output_shape, input.shape(), border_left, border_right);
 
-        if (vall(Zero{}, border_left) and vall(Zero{}, border_right)) {
+        if (vall(IsZero{}, border_left) and vall(IsZero{}, border_right)) {
             // Nothing to pad or crop.
             if constexpr (nt::same_mutable_value_type<Input, Output>)
                 return copy(std::forward<Input>(input), std::forward<Output>(output));

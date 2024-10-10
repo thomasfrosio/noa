@@ -16,7 +16,7 @@ namespace noa::cuda::geometry::guts {
         if (batch >= shape[0])
             return;
         input += batch * strides[0];
-        noa::geometry::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[1], shape[1]);
+        noa::geometry::guts::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[1], shape[1]);
     }
 
     template<typename T>
@@ -31,7 +31,7 @@ namespace noa::cuda::geometry::guts {
             return;
         input += batch * input_strides[0];
         output += batch * output_strides[0];
-        noa::geometry::BSplinePrefilter1d<T, i32>::filter(
+        noa::geometry::guts::BSplinePrefilter1d<T, i32>::filter(
             input, input_strides[1], output, output_strides[1], shape[1]);
     }
 
@@ -42,7 +42,7 @@ namespace noa::cuda::geometry::guts {
         if (y >= shape[0])
             return;
         const auto input_1d = input[blockIdx.y][y]; // blockIdx.y == batch
-        noa::geometry::BSplinePrefilter1d<T, i32>::filter_inplace(
+        noa::geometry::guts::BSplinePrefilter1d<T, i32>::filter_inplace(
             input_1d.get(), input_1d.template stride<0>(), shape[1]);
     }
 
@@ -58,7 +58,7 @@ namespace noa::cuda::geometry::guts {
             return;
         const auto input_1d = input[blockIdx.y][y];
         const auto output_1d = output[blockIdx.y][y];
-        noa::geometry::BSplinePrefilter1d<T, i32>::filter(
+        noa::geometry::guts::BSplinePrefilter1d<T, i32>::filter(
             input_1d.get(), input_1d.template stride<0>(),
             output.get(), output_1d.template stride<0>(), shape[1]);
     }
@@ -70,7 +70,7 @@ namespace noa::cuda::geometry::guts {
         if (x >= shape[1])
             return;
         input += blockIdx.y * strides[0] + x * strides[2];
-        noa::geometry::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[1], shape[0]);
+        noa::geometry::guts::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[1], shape[0]);
     }
 
     template<typename T>
@@ -81,7 +81,7 @@ namespace noa::cuda::geometry::guts {
         if (z >= shape[0] or y >= shape[1])
             return;
         const auto input_1d = input[blockIdx.z][z][y];
-        noa::geometry::BSplinePrefilter1d<T, i32>::filter_inplace(
+        noa::geometry::guts::BSplinePrefilter1d<T, i32>::filter_inplace(
             input_1d.get(), input_1d.template stride<0>(), shape[2]);
     }
 
@@ -98,7 +98,7 @@ namespace noa::cuda::geometry::guts {
             return;
         const auto input_1d = input[blockIdx.z][z][y];
         const auto output_1d = output[blockIdx.z][z][y];
-        noa::geometry::BSplinePrefilter1d<T, i32>::filter(
+        noa::geometry::guts::BSplinePrefilter1d<T, i32>::filter(
             input_1d.get(), input_1d.template stride<0>(),
             output_1d.get(), output_1d.template stride<0>(), shape[2]);
     }
@@ -111,7 +111,7 @@ namespace noa::cuda::geometry::guts {
         if (z >= shape[0] or x >= shape[2])
             return;
         input += ni::offset_at(strides, blockIdx.z, z) + x * strides[3];
-        noa::geometry::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[2], shape[1]);
+        noa::geometry::guts::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[2], shape[1]);
     }
 
     template<typename T>
@@ -122,7 +122,7 @@ namespace noa::cuda::geometry::guts {
         if (y >= shape[1] or x >= shape[2])
             return;
         input += blockIdx.z * strides[0] + y * strides[2] + x * strides[3];
-        noa::geometry::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[1], shape[0]);
+        noa::geometry::guts::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[1], shape[0]);
     }
 }
 

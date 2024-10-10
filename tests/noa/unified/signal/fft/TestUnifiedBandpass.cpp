@@ -10,6 +10,7 @@
 #include "Utils.hpp"
 
 using namespace noa::types;
+using Remap = noa::Remap;
 
 TEST_CASE("unified::signal::lowpass()", "[asset][noa][unified]") {
     constexpr bool COMPUTE_ASSETS = false;

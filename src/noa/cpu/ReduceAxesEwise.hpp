@@ -173,7 +173,8 @@ namespace noa::cpu {
                   "indicating the dimension should be reduced to one element. "
                   "Got shape input={}, output={}", input_shape, output_shape);
         } else if (all(axes_to_reduce == false)) {
-            return; // nothing to reduce
+            panic("No reduction to compute. Got shape input={}, output={}. Please use ewise instead.",
+                  input_shape, output_shape);
         }
         const bool are_aliased = ng::are_accessors_aliased(input, output);
 
@@ -197,15 +198,15 @@ namespace noa::cpu {
 
             const auto shape_2d = Shape2<Index>{n_batches, n_elements_to_reduce};
             constexpr auto contiguous_restrict_2d = ng::AccessorConfig<2>{
-                    .enforce_contiguous=true,
-                    .enforce_restrict=true,
-                    .filter={0, 3},
+                .enforce_contiguous = true,
+                .enforce_restrict = true,
+                .filter = {0, 3},
             };
 
             // Extract the batch from the output(s).
             auto output_1d = ng::reconfig_accessors
-                    <ng::AccessorConfig<1>{.filter={0}}>
-                    (std::forward<Output>(output));
+                <ng::AccessorConfig<1>{.filter = {0}}>
+                (std::forward<Output>(output));
 
             if (n_elements_to_reduce > Config::n_elements_per_thread and n_batches < n_threads) {
                 if (are_contiguous and not are_aliased) {
@@ -280,8 +281,8 @@ namespace noa::cpu {
 
         if (is_contiguous and not are_aliased) {
             constexpr auto contiguous_restrict = ng::AccessorConfig<0>{
-                    .enforce_contiguous=true,
-                    .enforce_restrict=true,
+                .enforce_contiguous = true,
+                .enforce_restrict = true,
             };
             auto contiguous_input = ng::reconfig_accessors<contiguous_restrict>(std::move(input_));
             if (actual_n_threads > 1) {

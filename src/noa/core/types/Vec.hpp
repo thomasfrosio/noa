@@ -927,6 +927,17 @@ namespace noa {
     }
     [[nodiscard]] constexpr bool all(bool v) noexcept { return v; }
 
+    namespace guts { // nvcc workaround
+        template<size_t I, typename Op, typename... Args>
+        constexpr bool vec_indexer(Op&& op, Args&&... args) {
+            return static_cast<bool>(op(args[I]...));
+        }
+        template<size_t I, typename Op, typename... Args>
+        constexpr bool vec_enumerate_indexer(Op&& op, Args&&... args) {
+            return static_cast<bool>(op.template operator()<I>(args[I]...));
+        }
+    }
+
     /// Successively applies a function to each element of the vector(s), until one application returns false.
     /// Returns true if every application returned true, otherwise returns false.
     /// The arguments can be Vec|Shape|Strides of the same size or numeric(s).
@@ -944,14 +955,10 @@ namespace noa {
     requires (nt::vec_shape_or_strides<std::decay_t<Args>...> and nt::have_same_size_v<std::decay_t<Args>...>)
     constexpr bool vall(Op&& op, Args&&... args) {
         if constexpr (sizeof...(Args) > 0) {
-            auto indexer = [&]<size_t I>() {
-                return static_cast<bool>(op(args[I]...));
-            };
             using first_t = nt::first_t<std::remove_reference_t<Args>...>;
-            using sequence_t = std::make_index_sequence<first_t::SIZE>;
-            return [&]<size_t... I>(std::index_sequence<I...>) {
-                return (indexer.template operator()<I>() and ...);
-            }(sequence_t{});
+            return [&]<size_t... I>(std::index_sequence<I...>, auto& op_, auto&... args_) {
+                return (guts::vec_indexer<I>(op_, args_...) and ...);
+            }(std::make_index_sequence<first_t::SIZE>{}, op, args...); // nvcc bug - no capture
         } else {
             return true;
         }
@@ -968,14 +975,10 @@ namespace noa {
     requires (nt::vec_shape_or_strides<std::decay_t<Args>...> and nt::have_same_size_v<std::decay_t<Args>...>)
     constexpr bool vall_enumerate(Op&& op, Args&&... args) {
         if constexpr (sizeof...(Args) > 0) {
-            auto indexer = [&]<size_t I>() {
-                return static_cast<bool>(op.template operator()<I>(args[I]...));
-            };
             using first_t = nt::first_t<std::remove_reference_t<Args>...>;
-            using sequence_t = std::make_index_sequence<first_t::SIZE>;
-            return [&]<size_t... I>(std::index_sequence<I...>) {
-                return (indexer.template operator()<I>() and ...);
-            }(sequence_t{});
+            return []<size_t... I>(std::index_sequence<I...>, auto& op_, auto&... args_) {
+                return (guts::vec_enumerate_indexer<I>(op_, args_...) and ...);
+            }(std::make_index_sequence<first_t::SIZE>{}, op, args...); // nvcc bug - no capture
         } else {
             return true;
         }
@@ -991,14 +994,10 @@ namespace noa {
     requires (nt::vec_shape_or_strides<std::decay_t<Args>...> and nt::have_same_size_v<std::decay_t<Args>...>)
     constexpr bool vany(Op&& op, Args&&... args) {
         if constexpr (sizeof...(Args) > 0) {
-            auto indexer = [&]<size_t I>() {
-                return static_cast<bool>(op(args[I]...));
-            };
             using first_t = nt::first_t<std::remove_reference_t<Args>...>;
-            using sequence_t = std::make_index_sequence<first_t::SIZE>;
-            return [&]<size_t... I>(std::index_sequence<I...>) {
-                return (indexer.template operator()<I>() or ...);
-            }(sequence_t{});
+            return []<size_t... I>(std::index_sequence<I...>, auto& op_, auto&... args_) {
+                return (guts::vec_indexer<I>(op_, args_...) or ...);
+            }(std::make_index_sequence<first_t::SIZE>{}, op, args...); // nvcc bug - no capture
         } else {
             return true;
         }
@@ -1015,14 +1014,10 @@ namespace noa {
     requires (nt::vec_shape_or_strides<std::decay_t<Args>...> and nt::have_same_size_v<std::decay_t<Args>...>)
     constexpr bool vany_enumerate(Op&& op, Args&&... args) {
         if constexpr (sizeof...(Args) > 0) {
-            auto indexer = [&]<size_t I>() {
-                return static_cast<bool>(op.template operator()<I>(args[I]...));
-            };
             using first_t = nt::first_t<std::remove_reference_t<Args>...>;
-            using sequence_t = std::make_index_sequence<first_t::SIZE>;
-            return [&]<size_t... I>(std::index_sequence<I...>) {
-                return (indexer.template operator()<I>() or ...);
-            }(sequence_t{});
+            return []<size_t... I>(std::index_sequence<I...>, auto& op_, auto&... args_) {
+                return (guts::vec_enumerate_indexer<I>(op_, args_...) or ...);
+            }(std::make_index_sequence<first_t::SIZE>{}, op, args...); // nvcc bug - no capture
         } else {
             return true;
         }

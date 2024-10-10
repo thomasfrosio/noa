@@ -1,6 +1,6 @@
 ## `Dependencies`
 
-The library as very few dependencies, most of which should be installed before starting to build the library. Take a look at the [dependencies](Dependencies.md) for more details.
+The library as very few dependencies, most of which should be installed before starting to build the library. Take a look at the [dependencies](000_dependencies.md) for more details.
 
 
 ## `Build options`
@@ -25,7 +25,7 @@ cmake --build . --target install -- -j 16           # (4)
 1. Clone the repository.
 2. Go inside the repository and create the build directory. Go to the build directory.
 3. Configure and generate the project. This is also where the build options should be entered. It is usually useful to specify the installation directory using `CMAKE_INSTALL_PREFIX`. Note that this step requires a working internet 
-   connection to download the dependencies (see [dependencies](Dependencies.md)).
+   connection to download the dependencies (see [dependencies](000_dependencies.md)).
 4. Once the generation is done, we can build and install the project.
 
 The installation directory will look something like this:

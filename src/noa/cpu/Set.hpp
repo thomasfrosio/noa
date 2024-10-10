@@ -30,11 +30,11 @@ namespace noa::cpu {
 
     // Fills an array with a given value.
     template<typename T>
-    void fill(T* src, const Strides4<i64>& strides, const Shape4<i64>& shape, T value, i64 threads) {
+    void fill(T* src, const Strides4<i64>& strides, const Shape4<i64>& shape, T value, i64 n_threads) {
         ewise(shape, Fill<T>{value},
               make_tuple(),
               make_tuple(AccessorI64<T, 4>(src, strides)),
-              threads);
+              n_threads);
     }
 }
 #endif

@@ -4,7 +4,7 @@
 #include "noa/core/Interfaces.hpp"
 #include "noa/core/types/Vec.hpp"
 #include "noa/gpu/cuda/Allocators.hpp"
-#include "noa/gpu/cuda/kernels/Block.cuh"
+#include "noa/gpu/cuda/Block.cuh"
 
 namespace noa::cuda::guts {
     template<typename Config>
@@ -239,7 +239,7 @@ namespace noa::cuda {
 
     template<typename Config = ReduceIwiseConfig<>,
              typename Op, typename Reduced, typename Output, typename Index, size_t N>
-    requires (nt::tuple_of_accessor_value<Reduced> and
+    requires (nt::tuple_of_accessor_value<std::decay_t<Reduced>> and
               nt::tuple_of_accessor_pure<Output> and
               nt::tuple_of_accessor_nd<Output, 1>)
     constexpr void reduce_iwise(
@@ -253,7 +253,7 @@ namespace noa::cuda {
         using reduced_t = std::decay_t<Reduced>;
         using output_t = std::decay_t<Output>;
 
-        const auto n_elements = shape.template as<i64>().elements();
+        const auto n_elements = shape.template as<i64>().n_elements();
         constexpr auto SMALL_THRESHOLD = static_cast<i64>(Config::block_size * 32);
 
         if (n_elements <= SMALL_THRESHOLD) {

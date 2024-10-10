@@ -1,10 +1,11 @@
 #pragma once
 
-#include "noa/core/Remap.hpp"
-#include "noa/core/Interpolation.hpp"
+#include "noa/core/Enums.hpp"
+#include "noa/core/fft/Frequency.hpp"
 #include "noa/core/geometry/FourierUtilities.hpp"
+#include "noa/core/types/Shape.hpp"
 
-namespace noa::geometry {
+namespace noa::geometry::guts {
     template<Remap REMAP,
              nt::sinteger Index,
              nt::batched_parameter Scale,
@@ -38,7 +39,7 @@ namespace noa::geometry {
         static constexpr bool has_output_weights = not nt::empty<output_weight_type>;
         using output_weight_value_type = nt::value_type_t<output_weight_type>;
         using input_weight_value_type = std::conditional_t<
-                has_input_weights, nt::mutable_value_type_t<input_weight_type>, output_weight_type>;
+            has_input_weights, nt::mutable_value_type_t<input_weight_type>, output_weight_type>;
 
         static_assert(guts::fourier_projection_transform_types<scale_type, rotate_type, ews_type> and
                       guts::fourier_projection_types<input_type, output_type> and
@@ -46,27 +47,27 @@ namespace noa::geometry {
 
     public:
         FourierInsertInterpolate(
-                const input_type& input_slices,
-                const input_weight_type& input_weights,
-                const Shape4<index_type>& input_slice_shape,
-                const output_type& output_volume,
-                const output_weight_type& output_weights,
-                const Shape4<index_type>& output_volume_shape,
-                const scale_type& fwd_scaling,
-                const rotate_type& inv_rotation,
-                coord_type fftfreq_sinc,
-                coord_type fftfreq_blackman,
-                coord_type fftfreq_cutoff,
-                const Shape4<index_type>& target_shape,
-                const ews_type& ews_radius
-        )
-                : m_input_slices(input_slices),
-                  m_output_volume(output_volume),
-                  m_inv_rotation(inv_rotation),
-                  m_slice_count(input_slice_shape[0]),
-                  m_input_weights(input_weights),
-                  m_output_weights(output_weights),
-                  m_fwd_scaling(fwd_scaling)
+            const input_type& input_slices,
+            const input_weight_type& input_weights,
+            const Shape4<index_type>& input_slice_shape,
+            const output_type& output_volume,
+            const output_weight_type& output_weights,
+            const Shape4<index_type>& output_volume_shape,
+            const scale_type& fwd_scaling,
+            const rotate_type& inv_rotation,
+            coord_type fftfreq_sinc,
+            coord_type fftfreq_blackman,
+            coord_type fftfreq_cutoff,
+            const Shape4<index_type>& target_shape,
+            const ews_type& ews_radius
+        ) :
+            m_input_slices(input_slices),
+            m_output_volume(output_volume),
+            m_inv_rotation(inv_rotation),
+            m_slice_count(input_slice_shape[0]),
+            m_input_weights(input_weights),
+            m_output_weights(output_weights),
+            m_fwd_scaling(fwd_scaling)
         {
             const auto slice_shape_2d = input_slice_shape.filter(2, 3);
             m_f_slice_shape = coord2_type::from_vec(slice_shape_2d.vec);
@@ -93,7 +94,7 @@ namespace noa::geometry {
         // For every voxel of the grid.
         NOA_HD void operator()(index_type oz, index_type oy, index_type ox) const noexcept {
             const auto frequency = noa::fft::index2frequency<IS_VOLUME_CENTERED, IS_VOLUME_RFFT>(
-                    Vec{oz, oy, ox}, m_grid_shape);
+                Vec{oz, oy, ox}, m_grid_shape);
             const auto fftfreq = coord3_type::from_vec(frequency) / m_f_target_shape;
             if (dot(fftfreq, fftfreq) > m_fftfreq_cutoff_sqd)
                 return;
@@ -103,7 +104,7 @@ namespace noa::geometry {
 
             for (index_type i{}; i < m_slice_count; ++i) {
                 const auto [fftfreq_z, fftfreq_2d] = guts::fourier_grid2slice(
-                        fftfreq, m_fwd_scaling, m_inv_rotation, i, m_ews_diam_inv);
+                    fftfreq, m_fwd_scaling, m_inv_rotation, i, m_ews_diam_inv);
 
                 input_value_type i_value{};
                 input_weight_value_type i_weights{};
@@ -119,7 +120,7 @@ namespace noa::geometry {
                             i_weights = m_input_weights.interpolate_spectrum_at(frequency_2d, i) *
                                         static_cast<input_weight_value_type>(window);
                         } else {
-                            i_weights = static_cast<input_weight_value_type>(window);
+                            i_weights = static_cast<input_weight_value_type>(window); // input_weight=1
                         }
                     }
                 }

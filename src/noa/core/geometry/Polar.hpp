@@ -24,8 +24,8 @@ namespace noa::geometry {
         NOA_ASSERT(radius_range[1] - radius_range[0] > 1);
         const T effective_size = static_cast<T>(polar_size - 1);
         if (log) {
-            const T step = log(radius_range[1] - radius_range[0]) / effective_size;
-            return exp(polar_coordinate * step) - 1 + radius_range[0];
+            const T step = noa::log(radius_range[1] - radius_range[0]) / effective_size;
+            return noa::exp(polar_coordinate * step) - 1 + radius_range[0];
         } else {
             const T step = (radius_range[1] - radius_range[0]) / effective_size;
             return polar_coordinate * step + radius_range[0];
@@ -106,8 +106,8 @@ namespace noa::geometry {
     [[nodiscard]] NOA_IHD constexpr T rho2polar(T rho, I polar_size, const Vec<T, 2, A>& radius_range, bool log) {
         const T effective_size = static_cast<T>(polar_size - 1);
         if (log) {
-            const T step = log(radius_range[1] - radius_range[0]) / effective_size;
-            return log(rho + 1 - radius_range[0]) / step;
+            const T step = noa::log(radius_range[1] - radius_range[0]) / effective_size;
+            return noa::log(rho + 1 - radius_range[0]) / step;
         } else {
             const T step = (radius_range[1] - radius_range[0]) / effective_size;
             return (rho - radius_range[0]) / step;

@@ -9,6 +9,7 @@
 #include "Utils.hpp"
 
 using namespace noa::types;
+using Remap = noa::Remap;
 
 TEST_CASE("unified::signal::phase_shift_2d()", "[assets][noa][unified]") {
     const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";

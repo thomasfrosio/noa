@@ -10,7 +10,7 @@ namespace noa {
     /// \param[out] output  Array with evenly spaced values.
     /// \param value        The value to assign.
     template<nt::writable_varray_decay Output>
-    void fill(Output&& output, std::type_identity_t<nt::mutable_value_type_t<Output>> value) {
+    void fill(Output&& output, nt::mutable_value_type_t<Output> value) {
         // TODO If trival, contiguous and value=0, cudaMemset could be used?
         ewise({}, std::forward<Output>(output), Fill{value});
     }
@@ -22,6 +22,7 @@ namespace noa {
     /// \param option   Options of the created array.
     template<typename T>
     [[nodiscard]] auto fill(const Shape4<i64>& shape, T value, ArrayOption option = {}) -> Array<T> {
+        // Trivial types can be zeroed with calloc. Complex isn't trivial due to the zero-init
         if constexpr (nt::numeric<T> or nt::vec<T> or nt::mat<T>) { // TODO zero-initialize-able
             if (all(value == T{}) and option.device.is_cpu() and
                 (not Device::is_any_gpu() or
@@ -104,12 +105,16 @@ namespace noa {
     void arange(Output&& output, Arange<T> params = {}) {
         check(not output.is_empty(), "Empty array detected");
         if (output.are_contiguous()) {
+            auto accessor = ng::to_accessor_contiguous_1d(output);
+            using op_t = ng::IwiseRange<1, decltype(accessor), i64, Arange<T>>;
             iwise(Shape{output.n_elements()}, output.device(),
-                  ng::IwiseRange(ng::to_accessor_contiguous_1d(output), Shape<i64, 1>{}, params),
+                  op_t(accessor, Shape<i64, 1>{}, params),
                   std::forward<Output>(output));
         } else {
+            auto accessor = ng::to_accessor(output);
+            using op_t = ng::IwiseRange<4, decltype(accessor), i64, Arange<T>>;
             iwise(output.shape(), output.device(),
-                  ng::IwiseRange(ng::to_accessor(output), output.shape(), params),
+                  op_t(accessor, output.shape(), params),
                   std::forward<Output>(output));
         }
     }
@@ -121,9 +126,9 @@ namespace noa {
     /// \param option   Options of the created array.
     template<typename T = void, typename U = T>
     [[nodiscard]] auto arange(
-            const Shape4<i64>& shape,
-            Arange<U> params = Arange<U>{},
-            ArrayOption option = {}
+        const Shape4<i64>& shape,
+        Arange<U> params = Arange<U>{},
+        ArrayOption option = {}
     ) {
         using type = std::conditional_t<std::is_void_v<T>, U, T>;
         auto out = Array<type>(shape, option);
@@ -138,9 +143,9 @@ namespace noa {
     /// \param option       Options of the created array.
     template<typename T = void, typename U = T>
     [[nodiscard]] auto arange(
-            i64 n_elements,
-            Arange<U> params = Arange<U>{},
-            ArrayOption option = {}
+        i64 n_elements,
+        Arange<U> params = Arange<U>{},
+        ArrayOption option = {}
     ) {
         using type = std::conditional_t<std::is_void_v<T>, U, T>;
         auto out = Array<type>(n_elements, option);
@@ -159,15 +164,19 @@ namespace noa {
         check(not output.is_empty(), "Empty array detected");
 
         const auto n_elements = output.n_elements();
-        const auto linspace = params.for_size(n_elements);
+        auto linspace = params.for_size(n_elements);
 
         if (output.are_contiguous()) {
+            auto accessor = ng::to_accessor_contiguous_1d(output);
+            using op_t = ng::IwiseRange<1, decltype(accessor), i64, decltype(linspace)>;
             iwise(Shape{n_elements}, output.device(),
-                  ng::IwiseRange(ng::to_accessor_contiguous_1d(output), Shape<i64, 1>{}, linspace),
+                  op_t(accessor, Shape<i64, 1>{}, linspace),
                   std::forward<Output>(output));
         } else {
+            auto accessor = ng::to_accessor(output);
+            using op_t = ng::IwiseRange<4, decltype(accessor), i64, decltype(linspace)>;
             iwise(output.shape(), output.device(),
-                  ng::IwiseRange(ng::to_accessor(output), output.shape(), linspace),
+                  op_t(accessor, output.shape(), linspace),
                   std::forward<Output>(output));
         }
         return static_cast<nt::mutable_value_type_t<Output>>(linspace.step);
@@ -180,9 +189,9 @@ namespace noa {
     /// \param option   Options of the created array.
     template<typename T = void, typename U = T>
     [[nodiscard]] auto linspace(
-            const Shape4<i64>& shape,
-            Linspace<U> params,
-            ArrayOption option = {}
+        const Shape4<i64>& shape,
+        Linspace<U> params,
+        ArrayOption option = {}
     ) {
         using type = std::conditional_t<std::is_void_v<T>, U, T>;
         auto out = Array<type>(shape, option);
@@ -197,9 +206,9 @@ namespace noa {
     /// \param option       Options of the created array.
     template<typename T = void, typename U = T>
     [[nodiscard]] auto linspace(
-            i64 n_elements,
-            Linspace<U> params,
-            ArrayOption option = {}
+        i64 n_elements,
+        Linspace<U> params,
+        ArrayOption option = {}
     ) {
         using type = std::conditional_t<std::is_void_v<T>, U, T>;
         auto out = Array<type>(n_elements, option);
@@ -220,12 +229,16 @@ namespace noa {
 
         auto shape = output.shape().template as_safe<T>();
         if (output.are_contiguous()) {
+            auto accessor = ng::to_accessor_contiguous(output);
+            using op_t = ng::Iota<4, decltype(accessor), T>;
             iwise(shape, output.device(),
-                  ng::Iota(ng::to_accessor_contiguous(output), shape, tile),
+                  op_t(accessor, shape, tile),
                   std::forward<Output>(output));
         } else {
+            auto accessor = ng::to_accessor(output);
+            using op_t = ng::Iota<4, decltype(accessor), T>;
             iwise(shape, output.device(),
-                  ng::Iota(ng::to_accessor(output), shape, tile),
+                  op_t(accessor, shape, tile),
                   std::forward<Output>(output));
         }
     }

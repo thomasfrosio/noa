@@ -22,18 +22,18 @@ namespace noa::cuda::guts {
     }
 
     #if __CUDA_ARCH__ >= 700
-    NOA_FD Half atomic_add(Half* address, Half val) {
-        return Half(::atomicAdd(reinterpret_cast<__half*>(address), val.native()));
+    NOA_FD f16 atomic_add(f16* address, f16 val) {
+        return f16(::atomicAdd(reinterpret_cast<__half*>(address), val.native()));
         // atomicCAS for ushort requires 700 as well, so I don't think there's an easy way to do atomics
         // on 16-bits values on 5.3 and 6.X devices...
     }
     #endif
 
-    NOA_FD float atomic_add(float* address, float val) {
+    NOA_FD f32 atomic_add(f32* address, f32 val) {
         return ::atomicAdd(address, val);
     }
 
-    NOA_ID double atomic_add(double* address, double val) {
+    NOA_ID f64 atomic_add(f64* address, f64 val) {
         #if __CUDA_ARCH__ < 600
         using ull = unsigned long long;
         auto* address_as_ull = (ull*) address;
@@ -76,9 +76,8 @@ namespace noa::cpu::guts {
 
 namespace noa::guts {
     // Atomic add for CUDA and OpenMP.
-    template<nt::pointer_numeric Pointer,
-             nt::almost_same_as_value_type_of<Pointer> Value>
-    NOA_FHD void atomic_add(Pointer pointer, Value value) {
+    template<nt::pointer_numeric P>
+    NOA_FHD void atomic_add(P pointer, nt::mutable_value_type_t<P> value) {
         #if defined(NOA_IS_GPU_CODE)
         ::noa::cuda::guts::atomic_add(pointer, value);
         #else
@@ -86,12 +85,8 @@ namespace noa::guts {
         #endif
     }
 
-    template<size_t N,
-             nt::atomic_addable_nd<N> T,
-             nt::almost_same_as_value_type_of<T> Value,
-             typename... I>
-    requires (nt::offset_indexing<N, I...>)
-    NOA_FHD void atomic_add(const T& input, Value value, I... indices) {
+    template<typename... I, nt::atomic_addable_nd<sizeof...(I)> T>
+    NOA_FHD void atomic_add(const T& input, nt::mutable_value_type_t<T> value, I... indices) {
         auto pointer = input.offset_pointer(input.get(), indices...);
         atomic_add(pointer, value);
     }

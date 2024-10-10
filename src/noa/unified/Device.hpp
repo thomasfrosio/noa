@@ -30,8 +30,7 @@ namespace noa::inline types {
         /// Creates a device.
         /// \param type     CPU or GPU.
         /// \param id       Device ID. This is ignored for the CPU device.
-        constexpr explicit Device(Type type, i32 id = 0)
-                : m_id(type == Type::CPU ? -1 : id) {
+        constexpr explicit Device(Type type, i32 id = 0) : m_id(type == Type::CPU ? -1 : id) {
             validate_(type, m_id);
         }
 
@@ -47,8 +46,7 @@ namespace noa::inline types {
         /* implicit */ Device(const char* name) : Device(std::string_view(name)) {}
 
         /// "Private constructor" to creates a device, without checking that the actual device exists on the system.
-        constexpr explicit Device(Type type, i32 id, Unchecked)
-                : m_id(type == Type::CPU ? -1 : id) {}
+        constexpr explicit Device(Type type, i32 id, Unchecked) : m_id(type == Type::CPU ? -1 : id) {}
 
     public:
         /// Suspends execution until all previously-scheduled tasks on the specified device have concluded.
@@ -69,7 +67,7 @@ namespace noa::inline types {
                 return noa::cpu::Device::summary();
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                return noa::cuda::Device(this->id(), noa::cuda::Device::Unchecked{}).summary();
+                return noa::cuda::Device(this->id(), noa::cuda::Device::DeviceUnchecked{}).summary();
                 #else
                 return {};
                 #endif
@@ -84,7 +82,7 @@ namespace noa::inline types {
                 return {mem_info.total, mem_info.free};
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                const auto device = noa::cuda::Device(this->id(), noa::cuda::Device::Unchecked{});
+                const auto device = noa::cuda::Device(this->id(), noa::cuda::Device::DeviceUnchecked{});
                 const auto mem_info = device.memory();
                 return {mem_info.total, mem_info.free};
                 #else
@@ -98,8 +96,8 @@ namespace noa::inline types {
         /// \note This has no effect on the CPU.
         void set_cache_threshold(size_t threshold_bytes) const {
             if (is_gpu()) {
-                #if defined(NOA_ENABLE_CUDA) and CUDART_VERSION >= 11020
-                const auto device = noa::cuda::Device(id(), noa::cuda::Device::Unchecked{});
+                #if defined(NOA_ENABLE_CUDA) && CUDART_VERSION >= 11020
+                const auto device = noa::cuda::Device(id(), noa::cuda::Device::DeviceUnchecked{});
                 noa::cuda::MemoryPool(device).set_threshold(threshold_bytes);
                 #else
                 (void) threshold_bytes;
@@ -113,12 +111,11 @@ namespace noa::inline types {
         /// \note This has no effect on the CPU.
         void trim_cache(size_t bytes_to_keep) const {
             if (is_gpu()) {
-                #if defined(NOA_ENABLE_CUDA) and CUDART_VERSION >= 11020
-                const auto device = noa::cuda::Device(id(), noa::cuda::Device::Unchecked{});
+                #if defined(NOA_ENABLE_CUDA) && CUDART_VERSION >= 11020
+                const auto device = noa::cuda::Device(id(), noa::cuda::Device::DeviceUnchecked{});
                 noa::cuda::MemoryPool(device).trim(bytes_to_keep);
                 #else
                 (void) bytes_to_keep;
-            return;
                 #endif
             }
         }
@@ -164,7 +161,7 @@ namespace noa::inline types {
         static void set_current(Device device) {
             if (device.is_gpu()) {
                 #ifdef NOA_ENABLE_CUDA
-                noa::cuda::Device::set_current(noa::cuda::Device(device.id(), noa::cuda::Device::Unchecked{}));
+                noa::cuda::Device::set_current(noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{}));
                 #else
                 panic("No GPU backend detected");
                 #endif
@@ -191,11 +188,11 @@ namespace noa::inline types {
         /// Whether there's any device available of this type.
         /// Always returns true if \p type is CPU.
         [[nodiscard]] static bool is_any(Type type) {
-            return Device::count(type) != 0;
+            return count(type) != 0;
         }
 
         [[nodiscard]] static bool is_any_gpu() {
-            return Device::count(Type::GPU) != 0;
+            return count(Type::GPU) != 0;
         }
 
         /// Gets all devices of a given type.
@@ -288,7 +285,7 @@ namespace noa::inline types {
                     #ifdef NOA_ENABLE_CUDA
                     const i32 count = noa::cuda::Device::count();
                     if (id + 1 > count)
-                        panic("CUDA device ID \"{}\" does not match any of CUDA device(s) detected (count:{})", id, count);
+                        panic("CUDA device ID \"{}\" does not match any of CUDA device(s) detected (count={})", id, count);
                     break;
                     #else
                     panic("GPU backend is not detected");
@@ -307,9 +304,7 @@ namespace noa::inline types {
     inline std::ostream& operator<<(std::ostream& os, Device device) {
         if (device.is_cpu())
             return os << "cpu";
-        else
-            os << "gpu" << ':' << device.id();
-        return os;
+        return os << "gpu" << ':' << device.id();
     }
 
     /// A device that sets itself as the current device for the remainder of the scope.
@@ -319,14 +314,15 @@ namespace noa::inline types {
     class DeviceGuard : public Device {
     public:
         template<typename ... Args>
-        explicit DeviceGuard(Args&& ...args)
-                : Device(std::forward<Args>(args)...),
-                  m_previous_current(Device::current(this->type())) {
-            Device::set_current(*static_cast<Device*>(this));
+        explicit DeviceGuard(Args&& ...args) :
+            Device(std::forward<Args>(args)...),
+            m_previous_current(current(this->type()))
+        {
+            set_current(*static_cast<Device*>(this));
         }
 
         ~DeviceGuard() {
-            Device::set_current(m_previous_current);
+            set_current(m_previous_current);
         }
 
     private:
@@ -342,9 +338,7 @@ namespace noa::inline types {
     inline std::ostream& operator<<(std::ostream& os, const DeviceGuard& device) {
         if (device.is_cpu())
             return os << "cpu";
-        else
-            os << "gpu" << ':' << device.id();
-        return os;
+        return os << "gpu" << ':' << device.id();
     }
 }
 

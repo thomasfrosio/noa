@@ -1,13 +1,13 @@
 #ifdef NOA_ENABLE_OPENMP
-    #include <omp.h>
+#include <omp.h>
 #endif
 
 #include "noa/cpu/fft/Plan.hpp"
 #ifdef NOA_ENABLE_CUDA
-    #include <cstdlib>
-    #include "cuda.h"
-    #include "noa/gpu/cuda/fft/Plan.hpp"
-    #include "noa/gpu/cuda/Blas.hpp"
+#include <cstdlib>
+#include <cuda.h>
+#include "noa/gpu/cuda/fft/Plan.hpp"
+#include "noa/gpu/cuda/Blas.hpp"
 #endif
 
 #include "noa/Session.hpp"

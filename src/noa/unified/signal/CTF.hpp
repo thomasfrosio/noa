@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/core/Remap.hpp"
+#include "noa/core/Enums.hpp"
 #include "noa/core/utils/BatchedParameter.hpp"
 #include "noa/core/signal/CTF.hpp"
 #include "noa/unified/Array.hpp"
@@ -263,12 +263,11 @@ namespace noa::signal {
 
                 using input_accessor_t = Accessor<input_value_t, 4, i64>;
                 using output_accessor_t = Accessor<output_value_t, 4, i64>;
-                using op_t = guts::CTF<REMAP, 3, coord_t, i64, Empty, output_accessor_t, ctf_t>;
+                using op_t = guts::CTF<REMAP, 3, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
                 auto op = op_t(input_accessor_t(input.get(), input_strides),
                                output_accessor_t(output.get(), output_strides),
                                shape.pop_front(), guts::extract_ctf(ctf),
-                               options.ctf_abs, options.ctf_squared,
-                               options.fftfreq_range, options.fftfreq_range_endpoint);
+                               options.ctf_abs, options.ctf_squared);
 
                 auto iwise_shape = shape;
                 if constexpr (REMAP.is_xx2hx())

@@ -15,15 +15,17 @@
 #include "noa/core/utils/Misc.hpp"
 
 namespace noa::cpu::guts {
-    // Asynchronous dispatch queue. Enqueued tasks are executed in order.
-    struct AsyncDispatchQueue {
-        AsyncDispatchQueue() {
-            // Spawn the thread. It is important to have the member variable already initialized
-            // correctly before spawning the thread, so don't use the member initializer list here.
-            m_thread = std::thread(&AsyncDispatchQueue::waiting_room_, this);
+    // (Asynchronous) dispatch queue. Enqueued tasks are executed in order.
+    struct DispatchQueue {
+        explicit DispatchQueue(bool async) {
+            if (async)
+                m_thread = std::thread(&DispatchQueue::waiting_room_, this); // spawn thread
         }
 
-        ~AsyncDispatchQueue() {
+        ~DispatchQueue() {
+            if (is_sync())
+                return;
+
             // Send notification to despawn when all tasks are done.
             // Writing to "stop" should be protected by the mutex.
             {
@@ -38,10 +40,10 @@ namespace noa::cpu::guts {
 
         template<typename F, typename... Args>
         void enqueue(F&& func, Args&&... args) {
-            check(thread_id() != std::this_thread::get_id(),
-                  "The asynchronous stream was captured by an enqueued task, which is now trying to "
-                  "enqueue another task. This is currently not supported and it is usually better to create "
-                  "a new synchronous stream inside the original task and use this new stream instead");
+            if (is_sync()) {
+                std::forward<F>(func)(std::forward<Args>(args)...);
+                return;
+            }
 
             // Copy/Move both the func and args into this lambda, thereby ensuring
             // that these objects will stay alive until the task is completed.
@@ -60,6 +62,9 @@ namespace noa::cpu::guts {
         }
 
         bool is_busy() {
+            if (is_sync())
+                return false;
+
             const std::scoped_lock lock_worker(m_mutex);
             if (m_exception) {
                 while (not m_queue.empty())
@@ -70,6 +75,9 @@ namespace noa::cpu::guts {
         }
 
         void synchronize() {
+            if (is_sync())
+                return;
+
             std::unique_lock lock(m_mutex);
             m_condition_sync.wait(lock, [this] { return m_queue.empty() and not m_is_busy; });
             if (m_exception)
@@ -78,6 +86,10 @@ namespace noa::cpu::guts {
 
         [[nodiscard]] std::thread::id thread_id() const noexcept {
             return m_thread.get_id();
+        }
+
+        [[nodiscard]] bool is_sync() const noexcept {
+            return not m_thread.joinable();
         }
 
     private:
@@ -152,98 +164,82 @@ namespace noa::cpu::guts {
 }
 
 namespace noa::cpu {
-    enum class StreamMode {
-        // Uses the current thread as working thread. Task-execution is synchronous. Creating a stream with
-        // this mode is trivial, doesn't require any dynamic allocation, and doesn't spawn any thread.
-        CURRENT = 0,
-        DEFAULT = 0,
-
-        // Spawns a new thread when the stream is created. Enqueued tasks are sent to this thread.
-        // This mode is more expensive, but allows asynchronous execution of enqueued tasks.
-        // The same thread is reused throughout the lifetime of the stream, and order of execution
-        // is of course guaranteed. The stream is automatically synchronized when destructed,
-        // but potential captured exceptions are ignored. To properly rethrow exceptions, it is
-        // then best to explicitly synchronize the stream before the destructor is called.
-        ASYNC = 1
-    };
-
-    // (A)synchronous dispatch queue.
+    // Shared (a)synchronous dispatch queue.
     class Stream {
     public:
-        using async_queue = guts::AsyncDispatchQueue;
+        enum class Mode {
+            // Uses the current thread as working thread. Task-execution is synchronous.
+            SYNC = 0,
+
+            // Spawns a new thread when the stream is created. Enqueued tasks are sent to this thread.
+            // The same thread is reused throughout the lifetime of the stream, and order of execution
+            // is of course guaranteed. The stream is automatically synchronized when destructed,
+            // but potential captured exceptions are ignored. To properly rethrow exceptions, it is
+            // thus best to explicitly synchronize the stream before the destructor is called.
+            ASYNC = 1
+        };
+        using enum Mode;
+
+        struct Core {
+            Core(bool async, i64 thread_limit) : worker(async), omp_thread_limit(thread_limit) {}
+
+            guts::DispatchQueue worker;
+
+            // Number of "internal" threads that OpenMP is allowed to use.
+            // This has nothing to do with the number of workers (there's only one worker).
+            i64 omp_thread_limit;
+        };
 
     public:
-        // Synchronous stream, without multithreading enabled.
-        explicit Stream() = default;
-
         // Creates a stream.
-        explicit Stream(StreamMode mode, i32 omp_thread_limit) :
-            m_worker(mode == StreamMode::ASYNC ? std::make_shared<async_queue>() : nullptr),
-            m_omp_thread_limit(omp_thread_limit) {}
+        explicit Stream(Mode mode = SYNC, i64 omp_thread_limit = 1) :
+            m_core(std::make_shared<Core>(mode == ASYNC, omp_thread_limit)) {}
 
     public:
         // Enqueues a task.
         // While the current implementation relies on std::function, which requires copyable objects,
-        // perfect forwarding is guaranteed (the functor and its arguments are not copied).
+        // perfect forwarding is guaranteed (the function and its arguments are not copied).
         //
-        // If the stream uses StreamMode::CURRENT, the functor is immediately executed by the current thread.
-        // If the stream uses StreamMode::ASYNC, the functor will be executed asynchronously, on the working thread.
+        // If the stream uses Stream::SYNC, the function is immediately executed by the current thread.
+        // If the stream uses Stream::ASYNC, the function is executed asynchronously, on the working thread.
         // If an enqueued task throws an exception, the stream flushes its queue. The exception will be
         // correctly rethrown on the current thread making the next enquiry (e.g. enqueue, synchronization).
         // As such, this call may also rethrow exceptions from previous asynchronous tasks.
         //
-        // WARNING: In StreamMode::ASYNC, it is NOT allowed for the functor to capture the stream. The reason is that
-        // it can create a scenario where the functor becomes the last owner of the stream, making it difficult
-        // to safely despawn the work thread. Furthermore, the only case where capturing a stream could be
-        // useful is when the functor needs to call a function taking a stream. In this case, the best solution
-        // is to create a new StreamMode::CURRENT stream in the functor and use this stream instead. This has no
-        // overhead and has also a clearer intent.
+        // WARNING: In Stream::ASYNC, the function should not capture the stream as it could create a scenario
+        // where the function becomes the last owner of the stream, which may result in a segfault.
         template<typename F, typename... Args>
         constexpr void enqueue(F&& func, Args&&... args) {
-            if (not m_worker) {
-                std::forward<F>(func)(std::forward<Args>(args)...);
-            } else {
-                m_worker->enqueue(std::forward<F>(func), std::forward<Args>(args)...);
-            }
+            m_core->worker.enqueue(std::forward<F>(func), std::forward<Args>(args)...);
         }
 
-        [[nodiscard]] auto is_sync() -> bool { return m_worker == nullptr; }
-        [[nodiscard]] auto is_async() -> bool { return not is_sync(); }
+        [[nodiscard]] auto is_sync() const -> bool { return m_core->worker.is_sync(); }
+        [[nodiscard]] auto is_async() const -> bool { return not is_sync(); }
 
         // Whether the stream is busy running tasks.
         // This function may also throw an exception from previous asynchronous tasks.
-        bool is_busy() {
-            if (not m_worker)
-                return false;
-            return m_worker->is_busy();
+        [[nodiscard]] bool is_busy() const {
+            return m_core->worker.is_busy();
         }
 
         // Blocks until the stream has completed all operations.
         // This function may also throw an exception from previous asynchronous tasks.
-        void synchronize() {
-            if (not m_worker)
-                return;
-            m_worker->synchronize();
+        void synchronize() const {
+            m_core->worker.synchronize();
         }
 
         // Sets the number of internal threads that enqueued functions are allowed to use.
-        // When the stream is created, this value is set to the corresponding value of the current session.
-        void set_thread_limit(i64 n_threads) noexcept {
-            m_omp_thread_limit = n_threads ? n_threads : 1;
+        void set_thread_limit(i64 n_threads) const noexcept {
+            m_core->omp_thread_limit = n_threads ? n_threads : 1;
         }
 
         // Returns the number of internal threads that enqueued functions are allowed to use.
-        // When the stream is created, this value is set to the corresponding value of the current session.
         [[nodiscard]] i64 thread_limit() const noexcept {
-            return m_omp_thread_limit;
+            return m_core->omp_thread_limit;
         }
 
     private:
-        std::shared_ptr<async_queue> m_worker{nullptr};
-
-        // Number of "internal" threads that OpenMP is allowed to use.
-        // This has nothing to do with the number of workers (there's only one worker).
-        i64 m_omp_thread_limit{1};
+        std::shared_ptr<Core> m_core;
     };
 }
 #endif

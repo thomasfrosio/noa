@@ -2,7 +2,7 @@
 
 #include "noa/cpu/signal/Convolve.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/signal/Convolve.hpp"
+#include "noa/gpu/cuda/signal/Convolve.cuh"
 #endif
 
 #include "noa/unified/Array.hpp"
@@ -60,13 +60,13 @@ namespace noa::signal {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
             noa::cuda::signal::convolve(
-                    input.get(), input_strides,
-                    output.get(), output.strides(), output.shape(),
-                    filter.get(), filter_shape, cuda_stream);
+                input.get(), input_strides,
+                output.get(), output.strides(), output.shape(),
+                filter.get(), filter_shape, cuda_stream);
             cuda_stream.enqueue_attach(
-                    std::forward<Input>(input),
-                    std::forward<Output>(output),
-                    std::forward<Filter>(filter));
+                std::forward<Input>(input),
+                std::forward<Output>(output),
+                std::forward<Filter>(filter));
             #else
             panic("No GPU backend detected");
             #endif
@@ -114,25 +114,25 @@ namespace noa::signal {
               "The input and output arrays must be on the same device, but got input={}, output={}",
               input.device(), device);
 
-        auto check_separable_filter = [&](
-                const auto& filter,
-                std::source_location location = std::source_location::current()
+        auto check_separable_filter = [&]<typename T>(
+            const T& filter,
+            std::source_location location
         ) {
             if (filter.is_empty())
                 return;
             check_at_location(
-                    location, ni::is_contiguous_vector(filter) and is_odd(filter.n_elements()),
-                    "The input filters should be contiguous vectors with an odd number of elements, "
-                    "but got a filter with a shape {} and strides {}", filter.shape(), filter.strides());
+                location, ni::is_contiguous_vector(filter) and is_odd(filter.n_elements()),
+                "The input filters should be contiguous vectors with an odd number of elements, "
+                "but got a filter with a shape {} and strides {}", filter.shape(), filter.strides());
             check_at_location(
-                    location, filter.device() == device,
-                    "The input filters must be on the same device as the compute device, "
-                    "but got output:device={}, filter:device={}",
-                    device, filter.device());
+                location, filter.device() == device,
+                "The input filters must be on the same device as the compute device, "
+                "but got output:device={}, filter:device={}",
+                device, filter.device());
         };
-        check_separable_filter(filter_depth);
-        check_separable_filter(filter_height);
-        check_separable_filter(filter_width);
+        check_separable_filter(filter_depth, std::source_location::current());
+        check_separable_filter(filter_height, std::source_location::current());
+        check_separable_filter(filter_width, std::source_location::current());
 
         if (not buffer.is_empty()) {
             check(all(buffer.shape() == output.shape()) and all(buffer.strides() > 1),
@@ -167,19 +167,19 @@ namespace noa::signal {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
             noa::cuda::signal::convolve_separable(
-                    input.get(), input_strides,
-                    output.get(), output.strides(), output.shape(),
-                    filter_depth.get(), filter_depth.elements(),
-                    filter_height.get(), filter_height.elements(),
-                    filter_width.get(), filter_width.elements(),
-                    buffer.get(), buffer.strides(), cuda_stream);
+                input.get(), input_strides,
+                output.get(), output.strides(), output.shape(),
+                filter_depth.get(), filter_depth.n_elements(),
+                filter_height.get(), filter_height.n_elements(),
+                filter_width.get(), filter_width.n_elements(),
+                buffer.get(), buffer.strides(), cuda_stream);
             cuda_stream.enqueue_attach(
-                    std::forward<Input>(input),
-                    std::forward<Output>(output),
-                    std::forward<FilterDepth>(filter_depth),
-                    std::forward<FilterHeight>(filter_height),
-                    std::forward<FilterWidth>(filter_width),
-                    std::forward<Buffer>(buffer));
+                std::forward<Input>(input),
+                std::forward<Output>(output),
+                std::forward<FilterDepth>(filter_depth),
+                std::forward<FilterHeight>(filter_height),
+                std::forward<FilterWidth>(filter_width),
+                std::forward<Buffer>(buffer));
             #else
             panic("No GPU backend detected");
             #endif

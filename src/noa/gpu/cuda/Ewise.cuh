@@ -5,18 +5,25 @@
 #include "noa/core/types/Accessor.hpp"
 #include "noa/core/types/Shape.hpp"
 #include "noa/core/indexing/Layout.hpp"
+#include "noa/gpu/cuda/Block.cuh"
 #include "noa/gpu/cuda/Constants.hpp"
 #include "noa/gpu/cuda/Pointers.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
-#include "noa/gpu/cuda/kernels/Block.cuh"
+
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wduplicated-branches"
+#elif defined(NOA_COMPILER_MSVC)
+#pragma warning(push, 0)
+#endif
 
 namespace noa::cuda::guts {
-    template<typename EwiseConfig, u32 VectorSize>
+    template<typename EwiseConfig, u32 MaxVectorSize>
     struct EwiseConfig1dBlock {
         using interface = EwiseConfig::interface;
         static constexpr u32 block_size = EwiseConfig::block_size;
-        static constexpr u32 vector_size = VectorSize;
-        static constexpr u32 n_elements_per_thread = max(EwiseConfig::n_elements_per_thread, VectorSize);
+        static constexpr u32 vector_size = MaxVectorSize;
+        static constexpr u32 n_elements_per_thread = max(EwiseConfig::n_elements_per_thread, MaxVectorSize);
         static constexpr u32 block_work_size = block_size * n_elements_per_thread;
     };
 
@@ -55,7 +62,9 @@ namespace noa::cuda::guts {
         Config::interface::final(op, thread_uid<2>());
     }
 
-    template<typename Config, typename Op, typename Input, typename Output, typename Index>
+    template<typename Config, typename Op, typename Index,
+             typename Input, typename InputAlignedBuffer,
+             typename Output, typename OutputAlignedBuffer>
     __global__ __launch_bounds__(Config::block_size)
     void ewise_2d_vectorized(Op op, Input input, Output output, Index width) {
         Config::interface::init(op, thread_uid<2>());
@@ -92,7 +101,7 @@ namespace noa::cuda::guts {
             // Load the inputs.
             using ivec_t = vectorized_tuple_t<Input>;
             ivec_t vectorized_input[Config::n_elements_per_thread];
-            block_load<Config::block_size, Config::vector_size, Config::n_elements_per_thread>(
+            block_load<Config::block_size, Config::n_elements_per_thread, InputAlignedBuffer>(
                 input_1d, vectorized_input, threadIdx.x);
 
             // Call the operator, store the results in the output buffer.
@@ -104,7 +113,7 @@ namespace noa::cuda::guts {
                 Config::interface::call(op, vectorized_input[i], vectorized_output[i], 0);
 
             // Store the output values back to global memory.
-            block_store<Config::block_size, Config::vector_size, Config::n_elements_per_thread>(
+            block_store<Config::block_size, Config::n_elements_per_thread, OutputAlignedBuffer>(
                 vectorized_output, output_1d, threadIdx.x);
         }
 
@@ -147,28 +156,74 @@ namespace noa::cuda::guts {
 }
 
 #ifdef NOA_IS_OFFLINE
+namespace noa::cuda::guts {
+    // nvcc bug - this could be a lambda, but nvcc <=12.6 is broken...
+    template<size_t ALIGNMENT, typename Config, typename Input, typename Output,  typename Op, typename Index>
+    void launch_ewise_2d(
+        Op&& op,
+        Input&& input,
+        Output&& output,
+        Stream& stream,
+        Index n_elements,
+        u32 batch
+    ) {
+        using op_t = std::decay_t<Op>;
+        constexpr size_t VEC_SIZE = maximum_allowed_aligned_buffer_size<ALIGNMENT, Input, Output>();
+        using iv_t = to_aligned_buffer_t<Input, ALIGNMENT, VEC_SIZE>;
+        using ov_t = to_aligned_buffer_t<Output, ALIGNMENT, VEC_SIZE>;
+        constexpr bool VECTORIZE = is_vectorized<iv_t, ov_t>();
+
+        constexpr auto to_2d = ng::AccessorConfig<2>{
+            .enforce_contiguous = VECTORIZE,
+            .enforce_restrict = false,
+            .filter = {0, 3},
+        };
+        auto input_2d = ng::reconfig_accessors<to_2d>(std::forward<Input>(input));
+        auto output_2d = ng::reconfig_accessors<to_2d>(std::forward<Output>(output));
+
+        using config_t = EwiseConfig1dBlock<Config, VEC_SIZE>;
+        const auto n_blocks_x = divide_up(n_elements, static_cast<Index>(config_t::block_work_size));
+        const auto launch_config = LaunchConfig{
+            .n_blocks = dim3(static_cast<u32>(n_blocks_x), batch, 1u),
+            .n_threads = dim3(config_t::block_size, 1u, 1u),
+        };
+
+        if constexpr (VECTORIZE) {
+            stream.enqueue(
+                guts::ewise_2d_vectorized
+                <config_t, op_t, Index, decltype(input_2d), iv_t, decltype(output_2d), ov_t>,
+                launch_config, std::forward<Op>(op), std::move(input_2d), std::move(output_2d), n_elements);
+        } else {
+            stream.enqueue(
+                guts::ewise_2d<config_t, op_t, decltype(input_2d), decltype(output_2d), Index>,
+                launch_config, std::forward<Op>(op), std::move(input_2d), std::move(output_2d), n_elements);
+        }
+    }
+}
+
 namespace noa::cuda {
     // TODO Atm, we set the block size at compile time, and prefer smaller blocks as they tend to "waste"
-    //      less threads. We should maybe switch (or at least allow) to runtime block sizes and try to
+    //      less threads. We should maybe switch to (or at least allow) runtime block sizes and try to
     //      maximize the occupancy for the target GPU...
     template<bool ZipInput = false,
              bool ZipOutput = false,
              u32 BlockSize = 128,
-             u32 ElementsPerThread = 4>
+             u32 ElementsPerThread = 4,
+             bool EnableVectorization = true>
     struct EwiseConfig {
-        static_assert(is_multiple_of(ElementsPerThread, 2u) and
-                      is_multiple_of(BlockSize, Constant::WARP_SIZE) and
-                      BlockSize <= Limits::MAX_THREADS);
+        static_assert(is_power_of_2(ElementsPerThread));
+        static_assert(is_power_of_2(BlockSize) and BlockSize <= Limits::MAX_THREADS);
 
         using interface = ng::EwiseInterface<ZipInput, ZipOutput>;
         static constexpr u32 block_size = BlockSize;
         static constexpr u32 n_elements_per_thread = ElementsPerThread;
+        static constexpr bool enable_vectorization = EnableVectorization;
     };
 
     template<typename Config = EwiseConfig<>,
              typename Input, typename Output, typename Index, typename Op>
-    requires (nt::tuple_of_accessor_or_empty<Input> and
-              (nt::empty_tuple<Output> or nt::tuple_of_accessor_pure<Output>))
+    requires (nt::tuple_of_accessor_or_empty<std::decay_t<Input>> and
+              (nt::empty_tuple<std::decay_t<Output>> or nt::tuple_of_accessor_pure<std::decay_t<Output>>))
     void ewise(
         const Shape4<Index>& shape,
         Op&& op,
@@ -180,91 +235,71 @@ namespace noa::cuda {
             ni::is_contiguous(input, shape) and
             ni::is_contiguous(output, shape);
 
+        using input_t = std::decay_t<Input>;
+        using output_t = std::decay_t<Output>;
         using op_t = std::decay_t<Op>;
 
-        // TODO or 2d unbatched
-        if (is_contiguous[1] and is_contiguous[2]) { // 2d-like
-            // Keep batches separated in a different grid.y if they're not contiguous.
+        // TODO fused contiguous dimensions together, e.g. 2d unbatched should be ok here
+        if (is_contiguous[1] and is_contiguous[2]) {
+            // 2d-like
+            // If batches are not contiguous to each other, keep them separated in a different grid.y.
             const auto batch = is_contiguous[0] ? 1u : static_cast<u32>(shape[0]);
             const auto shape_i64 = shape.template as<i64>();
             const auto n_elements = safe_cast<Index>(
-                is_contiguous[0] ? shape_i64.elements() : shape_i64.pop_front().elements());
+                is_contiguous[0] ? shape_i64.n_elements() : shape_i64.pop_front().n_elements());
 
-            // Only vectorize if the inputs are not modified.
-            // Also turn off vectorization because if there are too many arguments
-            // the register pressure is expected to be too high.
-            constexpr auto n_args = std::decay_t<Input>::SIZE + std::decay_t<Output>::SIZE;
-            u32 vector_size{1};
-            if constexpr (nt::has_allow_vectorization_v<Op> and n_args <= 4) {
-                if (not ng::are_accessors_aliased(input, output)) {
-                    const auto shape_3d = Shape3<u32>{batch, 1, 1};
-                    vector_size = min(
-                        maximum_vector_size(input, Config::n_elements_per_thread, Config::block_size, shape_3d),
-                        maximum_vector_size(output, Config::n_elements_per_thread, Config::block_size, shape_3d)
-                    );
+            if constexpr (Config::enable_vectorization and
+                          (nt::has_allow_vectorization_v<Op> or
+                           (output_t::SIZE == 0 and ng::are_accessors_const<input_t>()))) {
+                const auto shape_3d = Shape3<u32>{batch, 1, 1};
+                size_t alignment = min(
+                    min_address_alignment(input, shape_3d),
+                    min_address_alignment(output, shape_3d)
+                );
+                if (alignment == 16) {
+                    return guts::launch_ewise_2d<16, Config>(
+                        std::forward<Op>(op),
+                        std::forward<Input>(input),
+                        std::forward<Output>(output),
+                        stream, n_elements, batch);
+                } else if (alignment == 8) {
+                    return guts::launch_ewise_2d<8, Config>(
+                        std::forward<Op>(op),
+                        std::forward<Input>(input),
+                        std::forward<Output>(output),
+                        stream, n_elements, batch);
+                } else if (alignment == 4) {
+                    return guts::launch_ewise_2d<4, Config>(
+                        std::forward<Op>(op),
+                        std::forward<Input>(input),
+                        std::forward<Output>(output),
+                        stream, n_elements, batch);
+                } else if (alignment == 2) {
+                    return guts::launch_ewise_2d<2, Config>(
+                        std::forward<Op>(op),
+                        std::forward<Input>(input),
+                        std::forward<Output>(output),
+                        stream, n_elements, batch);
                 }
             }
 
-            // 1d|2d grid of 1d blocks.
-            const auto block_work_size = static_cast<Index>(Config::block_size * Config::n_elements_per_thread);
-            const auto launch_config = LaunchConfig{
-                .n_blocks = dim3(static_cast<u32>(divide_up(n_elements, block_work_size)), batch, 1u),
-                .n_threads = dim3(Config::block_size, 1u, 1u),
-            };
+            guts::launch_ewise_2d<1, Config>(
+                std::forward<Op>(op),
+                std::forward<Input>(input),
+                std::forward<Output>(output),
+                stream, n_elements, batch);
 
-            if (Config::n_elements_per_thread == 1 or vector_size == 1) {
-                constexpr auto accessor_config_2d = ng::AccessorConfig<2>{
-                    .enforce_contiguous = false,
-                    .enforce_restrict = false,
-                    .filter = {0, 3},
-                };
-                auto input_2d = ng::reconfig_accessors<accessor_config_2d>(std::forward<Input>(input));
-                auto output_2d = ng::reconfig_accessors<accessor_config_2d>(std::forward<Output>(output));
-                using input_t = decltype(input_2d);
-                using output_t = decltype(output_2d);
-                return stream.enqueue(
-                    guts::ewise_2d<guts::EwiseConfig1dBlock<Config, 1>, op_t, input_t, output_t, Index>,
-                    launch_config, std::forward<Op>(op), std::move(input_2d), std::move(output_2d), n_elements);
-
-            } else {
-                constexpr auto accessor_config_2d = ng::AccessorConfig<2>{
-                    .enforce_contiguous = true,
-                    .enforce_restrict = false,
-                    .filter = {0, 3},
-                };
-                auto input_2d = ng::reconfig_accessors<accessor_config_2d>(std::forward<Input>(input));
-                auto output_2d = ng::reconfig_accessors<accessor_config_2d>(std::forward<Output>(output));
-                using input_t = decltype(input_2d);
-                using output_t = decltype(output_2d);
-
-                if (vector_size == 2) {
-                    return stream.enqueue(
-                        guts::ewise_2d_vectorized<guts::EwiseConfig1dBlock<Config, 2>, op_t, input_t, output_t, Index>,
-                        launch_config, std::forward<Op>(op), std::move(input_2d), std::move(output_2d), n_elements);
-                } else if (vector_size == 4) {
-                    return stream.enqueue(
-                        guts::ewise_2d_vectorized<guts::EwiseConfig1dBlock<Config, 4>, op_t, input_t, output_t, Index>,
-                        launch_config, std::forward<Op>(op), std::move(input_2d), std::move(output_2d), n_elements);
-                } else {
-                    return stream.enqueue(
-                        guts::ewise_2d_vectorized<guts::EwiseConfig1dBlock<Config, 8>, op_t, input_t, output_t, Index>,
-                        launch_config, std::forward<Op>(op), std::move(input_2d), std::move(output_2d), n_elements);
-                }
-            }
         } else {
-            using kernel_config = guts::EwiseConfig2dBlock<Config>;
-            using input_t = std::decay_t<Input>;
-            using output_t = std::decay_t<Output>;
-
+            using config_t = guts::EwiseConfig2dBlock<Config>;
             const auto shape_u32 = shape.template as<u32>();
-            const u32 n_blocks_x = divide_up(shape_u32[3], kernel_config::block_work_size_x);
-            const u32 n_blocks_y = divide_up(shape_u32[2], kernel_config::block_work_size_y);
+            const u32 n_blocks_x = divide_up(shape_u32[3], config_t::block_work_size_x);
+            const u32 n_blocks_y = divide_up(shape_u32[2], config_t::block_work_size_y);
             const auto launch_config = LaunchConfig{
                 .n_blocks = dim3(n_blocks_x * n_blocks_y, shape_u32[1], shape_u32[0]),
-                .n_threads = dim3(kernel_config::block_size_x, kernel_config::block_size_y, 1u),
+                .n_threads = dim3(config_t::block_size_x, config_t::block_size_y, 1u),
             };
             stream.enqueue(
-                guts::ewise_4d<kernel_config, op_t, input_t, output_t, Index>,
+                guts::ewise_4d<config_t, op_t, input_t, output_t, Index>,
                 launch_config,
                 std::forward<Op>(op),
                 std::forward<Input>(input),
@@ -273,4 +308,10 @@ namespace noa::cuda {
         }
     }
 }
+#endif
+
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+#pragma GCC diagnostic pop
+#elif defined(NOA_COMPILER_MSVC)
+#pragma warning(pop)
 #endif

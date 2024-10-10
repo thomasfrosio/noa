@@ -42,8 +42,8 @@ TEST_CASE("cpu::reduce_iwise") {
         } reduce_op{accessor_t(buffer.get())};
 
         reduce_iwise(shape, reduce_op, reduced, output0);
-        REQUIRE(((output0[Tag<0>{}].deref().first == elements + 1) and
-                 (output0[Tag<0>{}].deref().second == elements + 0)));
+        REQUIRE(((output0[Tag<0>{}].ref().first == elements + 1) and
+                 (output0[Tag<0>{}].ref().second == elements + 0)));
 
         reduce_iwise(shape, std::move(reduce_op), reduced, output1);
         REQUIRE(((output1[Tag<0>{}](0).first == elements + 0) and

@@ -196,14 +196,8 @@ namespace noa::geometry::guts {
         // TODO Reorder to rightmost? Only possible with zero or one transform.
         using input_accessor_t = Accessor<nt::const_value_type_t<Input>, N + 1, Index>;
         using output_accessor_t = Accessor<nt::value_type_t<Output>, N + 1, Index>;
-        auto get_strides = [](const auto& array) {
-            if constexpr (N == 2)
-                return array.strides().filter(0, 2, 3).template as<Index>();
-            else
-                return array.strides().template as<Index>();
-        };
-        auto input_accessor = input_accessor_t(input.get(), get_strides(input));
-        auto output_accessor = output_accessor_t(output.get(), get_strides(output));
+        auto input_accessor = input_accessor_t(input.get(), input.strides().template filter_nd<N>().template as<Index>());
+        auto output_accessor = output_accessor_t(output.get(), output.strides().template filter_nd<N>().template as<Index>());
 
         // Broadcast the input to every output batch.
         if (input.shape()[0] == 1)
@@ -228,19 +222,19 @@ namespace noa::geometry::guts {
             auto cvalue = static_cast<coord_t>(geometric_shape.cvalue);
             auto center = geometric_shape.center.template as<coord_t>();
             auto smoothness = static_cast<coord_t>(geometric_shape.smoothness);
-            if constexpr (nt::same_as<Shape, Ellipse<N>>) {
+            if constexpr (nt::is_same_v<Shape, Ellipse<N>>) {
                 auto radius = geometric_shape.radius.template as<coord_t>();
                 using ellipse_t = DrawEllipse<N, coord_t, is_smooth>;
                 return ellipse_t(center, radius, cvalue, geometric_shape.invert, smoothness);
-            } else if constexpr (nt::same_as<Shape, Sphere<N>>) {
+            } else if constexpr (nt::is_same_v<Shape, Sphere<N>>) {
                 auto radius = static_cast<coord_t>(geometric_shape.radius);
                 using sphere_t = DrawSphere<N, coord_t, is_smooth>;
                 return sphere_t(center, radius, cvalue, geometric_shape.invert, smoothness);
-            } else if constexpr (nt::same_as<Shape, Rectangle<N>>) {
+            } else if constexpr (nt::is_same_v<Shape, Rectangle<N>>) {
                 auto radius = geometric_shape.radius.template as<coord_t>();
                 using rectangle_t = DrawRectangle<N, coord_t, is_smooth>;
                 return rectangle_t(center, radius, cvalue, geometric_shape.invert, smoothness);
-            } else if constexpr (nt::same_as<Shape, Cylinder>) {
+            } else if constexpr (nt::is_same_v<Shape, Cylinder>) {
                 auto radius_length = Vec2<coord_t>::from_values(geometric_shape.radius, geometric_shape.length);
                 using cylinder_t = DrawCylinder<coord_t, is_smooth>;
                 return cylinder_t(center, radius_length, cvalue, geometric_shape.invert, smoothness);
@@ -252,12 +246,7 @@ namespace noa::geometry::guts {
         // Launch, with or without transformation.
         auto launch = [&]<typename T>(T draw_op) {
             // Loop through every element of the output.
-            auto iwise_shape = [&] {
-                if constexpr (N == 2)
-                    return output.shape().filter(0, 2, 3).template as<Index>();
-                else
-                    return output.shape().template as<Index>();
-            }();
+            auto iwise_shape = output.shape().template filter_nd<N>().template as<Index>();
 
             // Wrap the transform (only called if there is a transform).
             auto extract_transform = [&] {
@@ -327,9 +316,6 @@ namespace noa::geometry {
     ///       If no transforms are provided (Empty), the precision is the one of the input value type (which
     ///       defaults to the output if no input is provided). If the input value type is not a (complex)
     ///       floating-point, f64 is used.
-    ///
-    /// \note This function is optimized for rightmost arrays.
-    ///       Passing anything else will likely result in a significant performance loss.
     template<typename Output, typename Shape,
              typename Input = View<nt::value_type_t<Output>>,
              typename Transform = Empty,
@@ -348,12 +334,16 @@ namespace noa::geometry {
         if (output.device().is_gpu() and
             ng::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
             ng::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
+            #ifdef NOA_ENABLE_CUDA
             return guts::launch_draw_shape<IwiseOptions{.generate_cpu = false}, i32>(
                 std::forward<Input>(input),
                 std::forward<Output>(output),
                 geometric_shape,
                 std::forward<Transform>(inverse_transforms),
                 binary_op);
+            #else
+            std::terminate(); // unreachable
+            #endif
         }
         return guts::launch_draw_shape<IwiseOptions{}, i64>(
             std::forward<Input>(input),

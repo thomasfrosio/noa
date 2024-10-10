@@ -1,9 +1,8 @@
 #pragma once
 
 #include "noa/core/types/Shape.hpp"
-#include "noa/core/fft/Frequency.hpp"
 
-namespace noa::geometry {
+namespace noa::geometry::guts {
     /// Pre/post gridding correction, assuming linear interpolation.
     template<bool POST_CORRECTION,
              nt::real Coord,
@@ -16,17 +15,17 @@ namespace noa::geometry {
         using output_type = Output;
         using output_value_type = nt::value_type_t<output_type>;
         using input_value_type = nt::value_type_t<input_type>;
-        static_assert(nt::are_real_v<input_value_type, output_value_type>);
+        static_assert(nt::real<input_value_type, output_value_type>);
 
     public:
         template<typename T>
         constexpr GriddingCorrection(
-                const input_type& input,
-                const output_type& output,
-                const Shape4<T>& shape
+            const input_type& input,
+            const output_type& output,
+            const Shape4<T>& shape
         ) :
-                m_input(input),
-                m_output(output)
+            m_input(input),
+            m_output(output)
         {
             const auto l_shape = shape.pop_front();
             m_f_shape = coord3_type::from_vec(l_shape.vec);

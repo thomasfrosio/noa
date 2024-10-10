@@ -457,23 +457,25 @@ namespace noa::signal::guts {
         using input_value_type = nt::value_type_t<input_type>;
         using input_real_type = nt::value_type_t<input_value_type>;
         using output_value_type = nt::value_type_t<output_type>;
-        static_assert(nt::spectrum_types<input_value_type, output_value_type>);
+        static_assert(nt::spectrum_types<input_value_type, output_value_type> or
+                      (nt::empty<input_type> and nt::real_or_complex<output_value_type>));
 
         using ctf_parameter_type = CTFParameter;
         using ctf_type = nt::value_type_t<ctf_parameter_type>;
         static_assert(nt::ctf<ctf_type>);
 
-        using index_type = Index;
-        using coord_type = Coord;
-        using coord_or_empty_type = std::conditional_t<nt::empty<input_type>, coord_type, Empty>;
-        using shape_nd_type = Shape<index_type, N>;
-        using coord_nd_type = Vec<coord_type, N>;
-        using frequency_range_type = Vec2<coord_type>;
-
         static constexpr bool HAS_INPUT = not nt::empty<input_type>;
         static constexpr bool IS_RFFT = REMAP.is_hx2hx();
         static constexpr bool IS_DST_CENTERED = REMAP.is_xx2xc();
         static constexpr bool IS_ISOTROPIC = nt::ctf_isotropic<ctf_type>;
+
+        using index_type = Index;
+        using coord_type = Coord;
+        using coord_or_empty_type = std::conditional_t<nt::empty<input_type>, coord_type, Empty>;
+        using shape_nd_type = Shape<index_type, N>;
+        using shape_type = Shape<index_type, N - IS_RFFT>;
+        using coord_nd_type = Vec<coord_type, N>;
+        using frequency_range_type = Vec2<coord_type>;
 
     public:
         constexpr CTF(
@@ -513,13 +515,13 @@ namespace noa::signal::guts {
             for (size_t i{}; i < N; ++i) {
                 const auto max_sample_size = shape[i] / 2 + 1;
                 const auto frequency_end =
-                        frequency_range[1] < 0 ?
-                        noa::fft::highest_normalized_frequency<coord_type>(shape[i]) :
-                        frequency_range[1];
+                    frequency_range[1] < 0 ?
+                    noa::fft::highest_normalized_frequency<coord_type>(shape[i]) :
+                    frequency_range[1];
                 m_frequency_step[i] = Linspace{
-                    .start=frequency_range[0],
-                    .stop=frequency_end,
-                    .endpoint=frequency_range_endpoint
+                    .start = frequency_range[0],
+                    .stop = frequency_end,
+                    .endpoint = frequency_range_endpoint
                 }.for_size(max_sample_size).step;
             }
         }
@@ -551,7 +553,7 @@ namespace noa::signal::guts {
             if constexpr (HAS_INPUT) {
                 const auto input_indices = noa::fft::remap_indices<REMAP, true>(Vec{output_indices...}, m_shape);
                 m_output(batch, output_indices...) = cast_or_abs_squared<output_value_type>(
-                        m_input(batch, input_indices) * static_cast<input_real_type>(ctf));
+                    m_input(input_indices.push_front(batch)) * static_cast<input_real_type>(ctf));
             } else {
                 m_output(batch, output_indices...) = static_cast<output_value_type>(ctf);
             }
@@ -560,7 +562,7 @@ namespace noa::signal::guts {
     private:
         ctf_parameter_type m_ctf;
         output_type m_output;
-        shape_nd_type m_shape;
+        shape_type m_shape;
         coord_nd_type m_frequency_step;
         NOA_NO_UNIQUE_ADDRESS input_type m_input{};
         NOA_NO_UNIQUE_ADDRESS coord_or_empty_type m_frequency_start{};

@@ -9,27 +9,24 @@ TEMPLATE_TEST_CASE("unified::View, copy metadata", "[noa][unified]", i32, u64, f
     const auto guard = StreamGuard(Device{}, Stream::DEFAULT);
 
     const auto shape = test::random_shape(2);
-    const MemoryResource resource = GENERATE(
-            MemoryResource::DEFAULT,
-            MemoryResource::DEFAULT_ASYNC,
-            MemoryResource::PITCHED,
-            MemoryResource::PINNED,
-            MemoryResource::MANAGED,
-            MemoryResource::MANAGED_GLOBAL);
-
-    const auto allocator = Allocator(resource);
-    INFO(allocator.resource());
+    const Allocator allocator = GENERATE(as<Allocator>(),
+        Allocator::DEFAULT,
+        Allocator::DEFAULT_ASYNC,
+        Allocator::PITCHED,
+        Allocator::PINNED,
+        Allocator::MANAGED,
+        Allocator::MANAGED_GLOBAL);
 
     // CPU
     auto a = Array<TestType>(shape, {.device={}, .allocator=allocator});
     View va = a.view();
     REQUIRE(va.device().is_cpu());
-    REQUIRE(va.allocator().resource() == allocator.resource());
+    REQUIRE(va.allocator() == allocator);
     REQUIRE(va.get());
 
     Array b = va.to({.device="cpu"});
     REQUIRE(b.device().is_cpu());
-    REQUIRE(b.allocator().resource() == MemoryResource::DEFAULT);
+    REQUIRE(b.allocator() == Allocator::DEFAULT);
     REQUIRE(b.get());
     REQUIRE(b.get() != a.get());
 
@@ -42,7 +39,7 @@ TEMPLATE_TEST_CASE("unified::View, copy metadata", "[noa][unified]", i32, u64, f
     va = a.view();
     b.to(va);
     REQUIRE(va.device() == gpu);
-    REQUIRE(va.allocator().resource() == allocator.resource());
+    REQUIRE(va.allocator() == allocator);
     REQUIRE(va.get());
 }
 

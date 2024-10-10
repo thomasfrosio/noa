@@ -158,6 +158,8 @@ namespace noa {
             panic_at_location(fmt.location, fmt.fmt, std::forward<Ts>(args)...);
         }
     }
+
+    static constexpr std::string_view NO_GPU_MESSAGE = "Built without GPU support";
 }
 
 #endif

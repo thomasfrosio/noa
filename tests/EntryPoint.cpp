@@ -1,6 +1,6 @@
 // This is the entry point to ALL tests.
 
-// #include "noa/unified/Session.hpp"
+#include "noa/unified/Session.hpp"
 
 #define CATCH_CONFIG_RUNNER
 #include <catch2/catch.hpp>
@@ -21,14 +21,14 @@ int main(int argc, char* argv[]) {
     }
     test::NOA_DATA_PATH = path;
     test::NOA_DATA_PATH /= "assets";
+    // TODO If path not found, remove tests that have the [asset] tag and run the rest?
 
-    const int returnCode = catch_session.applyCommandLine(argc, argv);
-    if (returnCode != 0) // Indicates a command line error
-        return returnCode;
+    const int err = catch_session.applyCommandLine(argc, argv);
+    if (err != 0) // Indicates a command line error
+        return err;
 
-    // noa::Session::set_gpu_lazy_loading();
-    // noa::Session::set_thread_limit(4);
+    noa::Session::set_gpu_lazy_loading();
+    noa::Session::set_thread_limit(6);
 
-    const int numFailed = catch_session.run();
-    return numFailed;
+    return catch_session.run();
 }

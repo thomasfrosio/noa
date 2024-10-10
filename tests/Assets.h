@@ -1,7 +1,9 @@
 #pragma once
 
-#include <noa/core/Types.hpp>
-#include <noa/core/Interpolation.hpp>
+#include <noa/core/types/Vec.hpp>
+#include <noa/core/types/Shape.hpp>
+#include <noa/core/io/IO.hpp>
+#include <noa/core/Enums.hpp>
 #include <ostream>
 
 #if defined(NOA_COMPILER_CLANG)
@@ -27,7 +29,7 @@ namespace YAML {
         }
 
         static bool decode(const Node& node, noa::Shape<T, N>& rhs) {
-            if (!node.IsSequence() || node.size() != N)
+            if (not node.IsSequence() or node.size() != N)
                 return false;
             for (size_t i = 0; i < N; ++i)
                 rhs[i] = node[i].as<T>();
@@ -46,7 +48,7 @@ namespace YAML {
         }
 
         static bool decode(const Node& node, noa::Strides<T, N>& rhs) {
-            if (!node.IsSequence() || node.size() != N)
+            if (not node.IsSequence() or node.size() != N)
                 return false;
             for (size_t i = 0; i < N; ++i)
                 rhs[i] = node[i].as<T>();
@@ -65,7 +67,7 @@ namespace YAML {
         }
 
         static bool decode(const Node& node, noa::Vec<T, N>& rhs) {
-            if (!node.IsSequence() || node.size() != N)
+            if (not node.IsSequence() or node.size() != N)
                 return false;
             for (size_t i = 0; i < N; ++i)
                 rhs[i] = node[i].as<T>();
@@ -96,27 +98,38 @@ namespace YAML {
         }
 
         static bool decode(const Node& node, noa::Interp& rhs) {
-            if (!node.IsScalar())
+            if (not node.IsScalar())
                 return false;
             const std::string& buffer = node.Scalar();
 
-            using namespace ::noa;
             if (buffer == "INTERP_NEAREST")
-                rhs = Interp::NEAREST;
+                rhs = noa::Interp::NEAREST;
+            else if (buffer == "INTERP_NEAREST_FAST")
+                rhs = noa::Interp::NEAREST_FAST;
             else if (buffer == "INTERP_LINEAR")
-                rhs = Interp::LINEAR;
-            else if (buffer == "INTERP_COSINE")
-                rhs = Interp::COSINE;
-            else if (buffer == "INTERP_CUBIC")
-                rhs = Interp::CUBIC;
-            else if (buffer == "INTERP_CUBIC_BSPLINE")
-                rhs = Interp::CUBIC_BSPLINE;
+                rhs = noa::Interp::LINEAR;
             else if (buffer == "INTERP_LINEAR_FAST")
-                rhs = Interp::LINEAR_FAST;
-            else if (buffer == "INTERP_COSINE_FAST")
-                rhs = Interp::COSINE_FAST;
+                rhs = noa::Interp::LINEAR_FAST;
+            else if (buffer == "INTERP_CUBIC")
+                rhs = noa::Interp::CUBIC;
+            else if (buffer == "INTERP_CUBIC_FAST")
+                rhs = noa::Interp::CUBIC_FAST;
+            else if (buffer == "INTERP_CUBIC_BSPLINE")
+                rhs = noa::Interp::CUBIC_BSPLINE;
             else if (buffer == "INTERP_CUBIC_BSPLINE_FAST")
-                rhs = Interp::CUBIC_BSPLINE_FAST;
+                rhs = noa::Interp::CUBIC_BSPLINE_FAST;
+            else if (buffer == "INTERP_LANCZOS4")
+                rhs = noa::Interp::LANCZOS4;
+            else if (buffer == "INTERP_LANCZOS4_FAST")
+                rhs = noa::Interp::LANCZOS4_FAST;
+            else if (buffer == "INTERP_LANCZOS6")
+                rhs = noa::Interp::LANCZOS6;
+            else if (buffer == "INTERP_LANCZOS6_FAST")
+                rhs = noa::Interp::LANCZOS6_FAST;
+            else if (buffer == "INTERP_LANCZOS8")
+                rhs = noa::Interp::LANCZOS8;
+            else if (buffer == "INTERP_LANCZOS8_FAST")
+                rhs = noa::Interp::LANCZOS8_FAST;
             else
                 return false;
             return true;
@@ -136,21 +149,20 @@ namespace YAML {
                 return false;
             const std::string& buffer = node.Scalar();
 
-            using namespace ::noa;
             if (buffer == "BORDER_NOTHING")
-                rhs = Border::NOTHING;
+                rhs = noa::Border::NOTHING;
             else if (buffer == "BORDER_ZERO")
-                rhs = Border::ZERO;
+                rhs = noa::Border::ZERO;
             else if (buffer == "BORDER_VALUE")
-                rhs = Border::VALUE;
+                rhs = noa::Border::VALUE;
             else if (buffer == "BORDER_CLAMP")
-                rhs = Border::CLAMP;
+                rhs = noa::Border::CLAMP;
             else if (buffer == "BORDER_REFLECT")
-                rhs = Border::REFLECT;
+                rhs = noa::Border::REFLECT;
             else if (buffer == "BORDER_MIRROR")
-                rhs = Border::MIRROR;
+                rhs = noa::Border::MIRROR;
             else if (buffer == "BORDER_PERIODIC")
-                rhs = Border::PERIODIC;
+                rhs = noa::Border::PERIODIC;
             else
                 return false;
             return true;
@@ -166,39 +178,38 @@ namespace YAML {
         }
 
         static bool decode(const Node& node, noa::Remap& rhs) {
-            if (!node.IsScalar())
+            if (not node.IsScalar())
                 return false;
             const std::string& buffer = node.Scalar();
 
-            using namespace ::noa;
             if (buffer == "H2H")
-                rhs = Remap::H2H;
+                rhs = noa::Remap::H2H;
             else if (buffer == "HC2HC")
-                rhs = Remap::HC2HC;
+                rhs = noa::Remap::HC2HC;
             else if (buffer == "H2HC")
-                rhs = Remap::H2HC;
+                rhs = noa::Remap::H2HC;
             else if (buffer == "HC2H")
-                rhs = Remap::HC2H;
+                rhs = noa::Remap::HC2H;
             else if (buffer == "H2F")
-                rhs = Remap::H2F;
+                rhs = noa::Remap::H2F;
             else if (buffer == "F2H")
-                rhs = Remap::F2H;
+                rhs = noa::Remap::F2H;
             else if (buffer == "F2FC")
-                rhs = Remap::F2FC;
+                rhs = noa::Remap::F2FC;
             else if (buffer == "FC2F")
-                rhs = Remap::FC2F;
+                rhs = noa::Remap::FC2F;
             else if (buffer == "HC2F")
-                rhs = Remap::HC2F;
+                rhs = noa::Remap::HC2F;
             else if (buffer == "F2HC")
-                rhs = Remap::F2HC;
+                rhs = noa::Remap::F2HC;
             else if (buffer == "H2FC")
-                rhs = Remap::H2FC;
+                rhs = noa::Remap::H2FC;
             else if (buffer == "FC2H")
-                rhs = Remap::FC2H;
+                rhs = noa::Remap::FC2H;
             else if (buffer == "F2F")
-                rhs = Remap::F2F;
+                rhs = noa::Remap::F2F;
             else if (buffer == "FC2FC")
-                rhs = Remap::FC2FC;
+                rhs = noa::Remap::FC2FC;
             else
                 return false;
             return true;

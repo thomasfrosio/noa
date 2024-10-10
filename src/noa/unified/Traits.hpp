@@ -43,6 +43,7 @@ namespace noa::traits {
     NOA_TRAITS_GENERATE_VARRAY(scalar);
     NOA_TRAITS_GENERATE_VARRAY(numeric);
     NOA_TRAITS_GENERATE_VARRAY(boolean);
+    #undef NOA_TRAITS_GENERATE_VARRAY
 
     #define NOA_TRAITS_GENERATE_VARRAY_SAME_AS(suffix, constrain)                                                                                               \
     template<typename T, typename... U> concept varray_of_##suffix = varray<T> and constrain<value_type_t<T>, U...>;                                            \
@@ -56,6 +57,7 @@ namespace noa::traits {
 
     NOA_TRAITS_GENERATE_VARRAY_SAME_AS(any, any_of);
     NOA_TRAITS_GENERATE_VARRAY_SAME_AS(almost_any, almost_any_of);
+    #undef NOA_TRAITS_GENERATE_VARRAY_SAME_AS
 
     template<typename T, typename... U> concept varray_of_almost_same_type = varray<T, U...> and almost_same_as<value_type_t<T>, value_type_t<U>...>;
     template<typename T, typename... U> concept varray_decay_of_almost_same_type = varray_decay<T, U...> and almost_same_as<value_type_t<T>, value_type_t<std::decay_t<U>>...>;
@@ -74,24 +76,49 @@ namespace noa::traits {
 
 namespace noa::traits {
     NOA_GENERATE_PROCLAIM_FULL(texture);
-//    template<typename T> constexpr bool is_texture_of_real_v = is_texture_v<T> and is_real_v<value_type_t<T>>;
-//    template<typename T> constexpr bool is_texture_of_complex_v = is_texture_v<T> and is_complex_v<value_type_t<T>>;
-//    template<typename T> constexpr bool is_texture_of_real_or_complex_v = is_texture_v<T> and is_real_or_complex_v<value_type_t<T>>;
-//    template<typename T> constexpr bool is_texture_of_numeric_v = is_texture_v<T> and is_numeric_v<value_type_t<T>>;
-//    template<typename T> constexpr bool is_texture_of_scalar_v = is_texture_v<T> and is_scalar_v<value_type_t<T>>;
-//    template<typename T> constexpr bool is_texture_of_int_v = is_texture_v<T> and is_int_v<value_type_t<T>>;
-//    template<typename T> constexpr bool is_texture_of_sint_v = is_texture_v<T> and is_sint_v<value_type_t<T>>;
-//    template<typename T> constexpr bool is_texture_of_uint_v = is_texture_v<T> and is_uint_v<value_type_t<T>>;
-//
-//    template<typename... Ts> constexpr bool are_texture_of_real_v = bool_and<is_texture_of_real_v<Ts>...>::value;
-//    template<typename... Ts> constexpr bool are_texture_of_complex_v = bool_and<is_texture_of_complex_v<Ts>...>::value;
-//    template<typename... Ts> constexpr bool are_texture_of_real_or_complex_v = bool_and<is_texture_of_real_or_complex_v<Ts>...>::value;
-//    template<typename... Ts> constexpr bool are_texture_of_numeric_v = bool_and<is_texture_of_numeric_v<Ts>...>::value;
-//    template<typename... Ts> constexpr bool are_texture_of_scalar_v = bool_and<is_texture_of_scalar_v<Ts>...>::value;
-//    template<typename... Ts> constexpr bool are_texture_of_int_v = bool_and<is_texture_of_int_v<Ts>...>::value;
-//    template<typename... Ts> constexpr bool are_texture_of_sint_v = bool_and<is_texture_of_sint_v<Ts>...>::value;
-//    template<typename... Ts> constexpr bool are_texture_of_uint_v = bool_and<is_texture_of_uint_v<Ts>...>::value;
-//
-//    template<typename T, typename... Ts> constexpr bool is_texture_of_any_v = is_texture_v<T> and is_any_v<value_type_t<T>, Ts...>;
-//    template<typename T, typename... Ts> constexpr bool is_texture_of_almost_any_v = is_texture_v<T> and is_almost_any_v<value_type_t<T>, Ts...>;
+
+    template<typename T> using is_texture_decay = is_texture<std::decay_t<T>>;
+    NOA_GENERATE_PROCLAIM_UTILS(texture_decay);
+    template<typename... T> concept texture_decay = are_texture_decay_v<T...>;
+
+    #define NOA_TRAITS_GENERATE_TEXTURE(name)                                                           \
+    template<typename... T> concept texture_of_##name = texture<T...> and name<value_type_t<T>...>;     \
+    template<typename... T> concept texture_decay_of_##name = texture_decay<T...> and name<value_type_t<T>...>
+    NOA_TRAITS_GENERATE_TEXTURE(real);
+    NOA_TRAITS_GENERATE_TEXTURE(complex);
+    NOA_TRAITS_GENERATE_TEXTURE(real_or_complex);
+    #undef NOA_TRAITS_GENERATE_TEXTURE
+
+    #define NOA_TRAITS_GENERATE_TEXTURE_SAME_AS(suffix, constrain)                                                                  \
+    template<typename T, typename... U> concept texture_of_##suffix = texture<T> and constrain<value_type_t<T>, U...>;              \
+    template<typename T, typename... U> concept texture_decay_of_##suffix = texture_decay<T> and constrain<value_type_t<T>, U...>;  \
+    template<typename T, typename... U> concept texture_or_value_of_##suffix = texture_of_##suffix<T, U...> or constrain<T, U...>;  \
+    template<typename T, typename... U> concept texture_decay_or_value_of_##suffix = texture_decay_of_##suffix<T, U...> or constrain<T, U...>
+    NOA_TRAITS_GENERATE_TEXTURE_SAME_AS(any, any_of);
+    NOA_TRAITS_GENERATE_TEXTURE_SAME_AS(almost_any, almost_any_of);
+    #undef NOA_TRAITS_GENERATE_TEXTURE_SAME_AS
+
+    template<typename... T>
+    concept varray_or_texture = ((varray<T> or texture<T>) and ...);
+
+    template<typename... T>
+    concept varray_or_texture_decay = ((varray_decay<T> or texture_decay<T>) and ...);
+
+    template<typename T, typename... U>
+    concept varray_or_texture_with_spectrum_types =
+        (varray<T, U...> or (texture<T> and varray<U...>)) and
+        (spectrum_types<value_type_t<T>, value_type_t<U>> and ...);
+
+    template<typename T, typename... U>
+    concept varray_or_texture_decay_with_spectrum_types =
+        (varray_decay<T, U...> or (texture_decay<T> and varray_decay<U...>)) and
+        (spectrum_types<value_type_t<T>, value_type_t<U>> and ...);
+
+    #define NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE(name)                                                         \
+    template<typename... T> concept varray_or_texture_of_##name = varray_or_texture<T...> and name<value_type_t<T>...>;    \
+    template<typename... T> concept varray_or_texture_decay_of_##name = varray_or_texture_decay<T...> and name<value_type_t<T>...>
+    NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE(real);
+    NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE(complex);
+    NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE(real_or_complex);
+    #undef NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE
 }

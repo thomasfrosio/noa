@@ -76,7 +76,7 @@ namespace noa::cuda::guts {
         for (i32 delta = 1; delta < 32; delta *= 2) {
             Reduced reduce = reduced.map([delta]<typename T>(T& accessor_value) {
                 // TODO If int/float, there's a faster reduction, which I forgot the name...
-                return T(warp_suffle_down(accessor_value.deref(), delta));
+                return T(warp_suffle_down(accessor_value.ref(), delta));
             });
             Interface::join(op, reduce, reduced);
         }

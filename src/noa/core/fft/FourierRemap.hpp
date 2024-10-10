@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/core/Remap.hpp"
+#include "noa/core/Enums.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/fft/Frequency.hpp"
 #include "noa/core/types/Shape.hpp"

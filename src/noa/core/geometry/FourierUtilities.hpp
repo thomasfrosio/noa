@@ -1,37 +1,31 @@
 #pragma once
 
 #include "noa/core/types/Shape.hpp"
-#include "noa/core/fft/Frequency.hpp"
 #include "noa/core/geometry/Quaternion.hpp"
 #include "noa/core/geometry/Transform.hpp"
 
 namespace noa::geometry::guts {
-    template<typename ScaleParameter, typename RotateParameter, typename Ews,
-             typename ScaleValue = nt::value_type_t<ScaleParameter>,
-             typename RotateValue = nt::value_type_t<RotateParameter>,
+    template<typename ScaleBatched, typename RotateBatched, typename Ews,
+             typename ScaleValue = nt::mutable_value_type_t<ScaleBatched>,
+             typename RotateValue = nt::mutable_value_type_t<RotateBatched>,
              typename Coord = nt::value_type_t<RotateValue>>
     concept fourier_projection_transform_types =
-            nt::real<Coord> and
-            nt::any_of<ScaleValue, Empty, Mat22<Coord>> and
-            nt::any_of<RotateValue, Mat33<Coord>, Quaternion<Coord>> and
-            nt::any_of<Ews, Empty, Coord, Vec2<Coord>>;
+        nt::real<Coord> and
+        nt::any_of<ScaleValue, Empty, Mat22<Coord>> and
+        nt::any_of<RotateValue, Mat33<Coord>, Quaternion<Coord>> and
+        nt::any_of<Ews, Empty, Coord, Vec2<Coord>>;
 
-    template<typename Input, typename Output,
-             typename InputValue = nt::value_type_t<Input>,
-             typename OutputValue = nt::value_type_t<Output>>
-    concept fourier_projection_types =
-            nt::complex<InputValue, OutputValue> or
-            nt::real<InputValue, OutputValue> or
-            (nt::complex<InputValue> and nt::real<OutputValue>);
+    template<typename Input, typename Output>
+    concept fourier_projection_types = nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>;
 
     template<typename Input, typename Output,
              typename InputValue = nt::value_type_t<Input>,
              typename OutputValue = nt::value_type_t<Output>>
     concept fourier_projection_weight_types =
-            nt::real<InputValue, OutputValue> or
-            (nt::empty<Input> and nt::real<OutputValue>) or
-            (nt::real<InputValue> and nt::empty<OutputValue>) or
-            (nt::empty<Input> and nt::empty<Output>);
+        nt::real<InputValue, OutputValue> or
+        (nt::empty<Input> and nt::real<OutputValue>) or
+        (nt::real<InputValue> and nt::empty<OutputValue>) or
+        (nt::empty<Input> and nt::empty<Output>);
 
     // Transforms a 3d fftfreq representing the slice, to its 3d fftfreq in the grid.
     // This is a forward transformation of the frequency, but because it is in Fourier-space,
@@ -42,17 +36,17 @@ namespace noa::geometry::guts {
              nt::integer Integer,
              typename EWSOrEmpty>
     NOA_IHD constexpr auto fourier_slice2grid(
-            Vec2<Coord> fftfreq,
-            const ScaleOrEmpty& inv_scaling,
-            const Rotate& fwd_rotation,
-            Integer batch_index,
-            EWSOrEmpty inv_ews_diameter
+        Vec2<Coord> fftfreq,
+        const ScaleOrEmpty& inv_scaling,
+        const Rotate& fwd_rotation,
+        Integer batch,
+        EWSOrEmpty inv_ews_diameter
     ) -> Vec3<Coord> {
         // If we apply the EWS curvature, the scaling factors should be corrected
         // before applying the curvature, and therefore before applying the rotation.
         // That way, we use the correct frequencies to compute the EWS, e.g., resulting
         // in a spherical EWS even under anisotropic magnification.
-        fftfreq = transform_vector(fftfreq, inv_scaling[batch_index]);
+        fftfreq = transform_vector(inv_scaling[batch], fftfreq);
 
         // TODO We use the Small Angle Approximation to compute the EWS curvature,
         //      so the frequency (u,v) is unchanged. Look at the cisTEM implementation
@@ -62,7 +56,7 @@ namespace noa::geometry::guts {
         if constexpr (not nt::empty<EWSOrEmpty>)
             fftfreq_3d[0] = sum(inv_ews_diameter * fftfreq * fftfreq);
 
-        return transform_vector(fftfreq_3d, fwd_rotation[batch_index]);
+        return transform_vector(fwd_rotation[batch], fftfreq_3d);
     }
 
     // Same as above, but in the other direction.
@@ -72,13 +66,13 @@ namespace noa::geometry::guts {
              nt::integer Integer,
              typename EWSOrEmpty>
     NOA_IHD constexpr auto fourier_grid2slice(
-            Vec3<Coord> frequency,
-            const ScaleOrEmpty& fwd_scaling_matrices,
-            const Rotate& inv_rotation,
-            Integer index,
-            EWSOrEmpty inv_ews_diameter
+        Vec3<Coord> frequency,
+        const ScaleOrEmpty& fwd_scaling_matrices,
+        const Rotate& inv_rotation,
+        Integer batch,
+        EWSOrEmpty inv_ews_diameter
     ) -> Pair<Coord, Vec2<Coord>> {
-        frequency = transform_vector(frequency, inv_rotation[index]);
+        frequency = transform_vector(inv_rotation[batch], frequency);
 
         Vec2<Coord> freq_2d{frequency[1], frequency[2]};
         Coord freq_z = frequency[0];
@@ -88,7 +82,7 @@ namespace noa::geometry::guts {
         // Same reason as for the forward transformation.
         // Here the grid is correct, so rotate the EWS, then compute
         // the curvature and only then we can scale the slice.
-        freq_2d = transform_vector(freq_2d, fwd_scaling_matrices[index]);
+        freq_2d = transform_vector(fwd_scaling_matrices[batch], freq_2d);
         return {freq_z, freq_2d};
     }
 

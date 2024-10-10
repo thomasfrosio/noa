@@ -1,8 +1,9 @@
+#include <noa/core/types/Accessor.hpp>
 #include <noa/gpu/cuda/ReduceIwise.cuh>
-#include <noa/gpu/cuda/AllocatorManaged.hpp>
+#include <noa/gpu/cuda/Allocators.hpp>
 #include <catch2/catch.hpp>
 
-#include "Helpers.h"
+#include "Utils.hpp"
 
 namespace {
     using namespace noa::types;
@@ -23,8 +24,8 @@ namespace {
         }
 
         constexpr void join(
-                f64 isum, Pair<f64, i32> iargmax,
-                f64& osum, Pair<f64, i32>& oargmax
+            f64 isum, Pair<f64, i32> iargmax,
+            f64& osum, Pair<f64, i32>& oargmax
         ) const {
             osum += isum;
             if (iargmax.first > oargmax.first)
@@ -44,15 +45,15 @@ TEST_CASE("cuda::reduce_iwise") {
     Stream stream(Device::current());
 
     const Tuple shapes = noa::make_tuple(
-            Shape1<i64>{2451}, Shape1<i64>{524289},
-            Shape2<i64>{72, 130}, Shape2<i64>{542, 845},
-            Shape3<i64>{4, 45, 35}, Shape3<i64>{64, 64, 64},
-            Shape4<i64>{2, 3, 25, 35}, Shape4<i64>{3, 64, 64, 64},
-            Shape4<i64>{2, 128, 128, 128}
+        Shape1<i64>{2451}, Shape1<i64>{524289},
+        Shape2<i64>{72, 130}, Shape2<i64>{542, 845},
+        Shape3<i64>{4, 45, 35}, Shape3<i64>{64, 64, 64},
+        Shape4<i64>{2, 3, 25, 35}, Shape4<i64>{3, 64, 64, 64},
+        Shape4<i64>{2, 128, 128, 128}
     );
     shapes.for_each([&]<size_t N>(const Shape<i64, N>& shape) {
         INFO("shape=" << shape);
-        const auto n_elements = shape.elements();
+        const auto n_elements = shape.n_elements();
         const auto b0 = AllocatorManaged<f64>::allocate(n_elements, stream);
         const auto b1 = AllocatorManaged<f64>::allocate(1, stream);
         const auto b2 = AllocatorManaged<Pair<f64, i32>>::allocate(1, stream);
@@ -64,12 +65,12 @@ TEST_CASE("cuda::reduce_iwise") {
         const auto expected_sum = std::accumulate(b0.get(), b0.get() + n_elements, 0.);
 
         auto reduced = noa::make_tuple(
-                AccessorValue<f64>(0.),
-                AccessorValue<Pair<f64, i32>>({-10., 0})
+            AccessorValue<f64>(0.),
+            AccessorValue<Pair<f64, i32>>({-10., 0})
         );
         auto output = noa::make_tuple(
-                AccessorRestrictContiguousI32<f64, 1>(b1.get()),
-                AccessorRestrictContiguousI32<Pair<f64, i32>, 1>(b2.get())
+            AccessorRestrictContiguousI32<f64, 1>(b1.get()),
+            AccessorRestrictContiguousI32<Pair<f64, i32>, 1>(b2.get())
         );
 
         const auto shape_i32 = shape.template as<i32>();

@@ -8,7 +8,7 @@ endif ()
 if (NOA_ENABLE_CUDA)
     include(${PROJECT_SOURCE_DIR}/src/noa/gpu/cuda/Append.cmake)
 endif ()
-#include(${PROJECT_SOURCE_DIR}/src/noa/unified/Append.cmake)
+include(${PROJECT_SOURCE_DIR}/src/noa/unified/Append.cmake)
 
 # Library sources.
 # Note: use quotes in case these are empty.

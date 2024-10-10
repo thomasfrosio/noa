@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/core/Remap.hpp"
+#include "noa/core/Enums.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Shape.hpp"
 #include "noa/core/types/Vec.hpp"
@@ -85,14 +85,15 @@ namespace noa::fft {
     /// value is ignored and can be omitted from the shape.
     template<bool IS_CENTERED, bool IS_RFFT,
              nt::sinteger T, size_t N0, size_t N1, size_t A0, size_t A1>
-    requires (1 < N0 and N0 <= 3 and ((N0 == N1) or (IS_RFFT and N0 - 1 == N1)))
+    requires (1 <= N0 and N0 <= 3 and ((N0 == N1) or (IS_RFFT and N0 - 1 == N1)))
     [[nodiscard]] constexpr auto index2frequency(
         Vec<T, N0, A0> indices,
         const Shape<T, N1, A1>& shape
     ) noexcept {
-        for (size_t i{}; i < N0; ++i)
-            if (not (IS_RFFT and i == N0 - 1)) // if width of rfft, frequency == index
-                indices[i] = index2frequency<IS_CENTERED>(indices[i], shape[i]);
+        static_for_each<N0>([&]<size_t I>(){
+            if constexpr (not (IS_RFFT and I == N0 - 1)) // if width of rfft, frequency == index
+                indices[I] = index2frequency<IS_CENTERED>(indices[I], shape[I]);
+        });
         return indices;
     }
 
@@ -115,14 +116,15 @@ namespace noa::fft {
     /// value is ignored and can be omitted from the shape.
     template<bool IS_CENTERED, bool IS_RFFT,
              nt::sinteger T, size_t N0, size_t N1, size_t A0, size_t A1>
-    requires (1 < N0 and N0 <= 3 and ((N0 == N1) or (IS_RFFT and N0 - 1 == N1)))
+    requires (1 <= N0 and N0 <= 3 and ((N0 == N1) or (IS_RFFT and N0 - 1 == N1)))
     [[nodiscard]] constexpr auto frequency2index(
         Vec<T, N0, A0> frequency,
         const Shape<T, N1, A1>& shape
     ) noexcept {
-        for (size_t i{}; i < N0; ++i)
-            if (not (IS_RFFT and i == N0 - 1)) // if width of rfft, frequency == index
-                frequency[i] = frequency2index<IS_CENTERED>(frequency[i], shape[i]);
+        static_for_each<N0>([&]<size_t I>(){
+            if constexpr (not (IS_RFFT and I == N0 - 1)) // if width of rfft, frequency == index
+                frequency[I] = frequency2index<IS_CENTERED>(frequency[I], shape[I]);
+        });
         return frequency;
     }
 
@@ -139,16 +141,16 @@ namespace noa::fft {
     /// For rffts, the centering doesn't apply to the width (ie rightmost dimension) and the index is left unchanged.
     template<bool IS_CENTERED, bool IS_RFFT,
              nt::sinteger T, size_t N0, size_t N1, size_t A0, size_t A1>
-    requires (1 < N0 and N0 <= 3 and ((N0 == N1) or (IS_RFFT and N0 - 1 == N1)))
+    requires (1 <= N0 and N0 <= 3 and ((N0 == N1) or (IS_RFFT and N0 - 1 == N1)))
     constexpr auto to_centered_indices(
         Vec<T, N0, A0> indices,
         const Shape<T, N1, A1>& shape
     ) noexcept -> Vec<T, N0> {
         if constexpr (not IS_CENTERED) {
-            for (size_t i{}; i < N0; ++i) {
-                if (not (IS_RFFT and i == N0 - 1))
-                    indices[i] = fftshift(indices[i], shape[i]);
-            }
+            static_for_each<N0>([&]<size_t I>(){
+                if constexpr (not (IS_RFFT and I == N0 - 1))
+                    indices[I] = fftshift(indices[I], shape[I]);
+            });
         }
         return indices;
     }
@@ -172,24 +174,26 @@ namespace noa::fft {
     /// For rffts, the centering doesn't apply to the width (ie rightmost dimension) and the index is left unchanged.
     template<Remap REMAP, bool FLIP_REMAP = false,
              nt::integer T, size_t N0, size_t N1, size_t A0, size_t A1>
+    requires (1 <= N0 and N0 <= 3)
     constexpr auto remap_indices(
         Vec<T, N0, A0> indices,
         const Shape<T, N1, A1>& shape
     ) noexcept -> Vec<T, N0, A0> {
-        constexpr Remap remap = FLIP_REMAP ? REMAP.flip() : REMAP;
-        constexpr bool IS_RFFT = remap.is_hx2hx();
-        static_assert(IS_RFFT or remap.is_fx2fx());
+        constexpr Remap ACTUAL_REMAP = FLIP_REMAP ? REMAP.flip() : REMAP;
+        constexpr bool IS_RFFT = ACTUAL_REMAP.is_hx2hx();
+        constexpr bool IS_INPUT_CENTERED = ACTUAL_REMAP.is_xc2xx(); // nvcc bug, needs to be outside lambda
+        static_assert(IS_RFFT or ACTUAL_REMAP.is_fx2fx());
         static_assert((N0 == N1) or (IS_RFFT and N0 - 1 == N1));
 
-        if constexpr (remap.is_xc2xx() != remap.is_xx2xc()) {
-            for (size_t i{}; i < N0; ++i) {
-                if (not (IS_RFFT and i == N0 - 1)) {
-                    if constexpr (remap.is_xc2xx()) // input is centered, output isn't
-                        indices[i] = ifftshift(indices[i], shape[i]);
+        if constexpr (REMAP.is_xc2xx() != REMAP.is_xx2xc()) {
+            static_for_each<N0>([&]<size_t I>(){
+                if constexpr (not (IS_RFFT and I == N0 - 1)) {
+                    if constexpr (IS_INPUT_CENTERED) // input is centered, output isn't
+                        indices[I] = ifftshift(indices[I], shape[I]);
                     else // input is not centered, output is centered
-                        indices[i] = fftshift(indices[i], shape[i]);
+                        indices[I] = fftshift(indices[I], shape[I]);
                 }
-            }
+            });
         }
         return indices;
     }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/core/Remap.hpp"
+#include "noa/core/Enums.hpp"
 #include "noa/core/signal/FSC.hpp"
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Ewise.hpp"
@@ -90,7 +90,7 @@ namespace noa::signal::fft {
         using output_accessor_t = AccessorRestrictContiguousI32<real_t, 2>;
 
         const auto options = lhs.options().set_allocator(Allocator::DEFAULT_ASYNC);
-        const auto denominator = Array<real_t>(fsc.shape().set<1>(2), options);
+        const auto denominator = Array<real_t>(fsc.shape().template set<1>(2), options);
         auto denominator_lhs = denominator.subregion(ni::FullExtent{}, 0);
         auto denominator_rhs = denominator.subregion(ni::FullExtent{}, 1);
 
@@ -163,7 +163,7 @@ namespace noa::signal::fft {
         using direction_accessor_t = AccessorRestrictContiguousI32<nt::const_value_type_t<Cones>, 1>;
 
         const auto options = lhs.options().set_allocator(Allocator::DEFAULT_ASYNC);
-        const auto denominator = Array<real_t>(fsc.shape().set<1>(2), options);
+        const auto denominator = Array<real_t>(fsc.shape().template set<1>(2), options);
         auto denominator_lhs = denominator.subregion(ni::FullExtent{}, 0);
         auto denominator_rhs = denominator.subregion(ni::FullExtent{}, 1);
 

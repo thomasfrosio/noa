@@ -34,8 +34,8 @@ namespace test {
         distributor_type distribution;
 
     public:
-        template<typename U>
-        constexpr Randomizer(U range_from, U range_to)
+        template<typename U, typename V>
+        constexpr Randomizer(U range_from, V range_to)
                 : generator(rand_dev()),
                   distribution(static_cast<gen_scalar_type>(range_from),
                                static_cast<gen_scalar_type>(range_to)) {}
@@ -120,8 +120,8 @@ namespace test {
 
         if (N == 4) {
             shape[0] = Randomizer<T>( // FIXME
-                    options.batch_range.first,
-                    options.batch_range.second).get();
+                options.batch_range.first,
+                options.batch_range.second).get();
         }
         return shape;
     }
@@ -220,15 +220,14 @@ namespace test {
 
     public:
         constexpr Match(
-                const value_type* lhs, const strides_type& lhs_strides,
-                const value_type* rhs, const strides_type& rhs_strides,
-                const shape_type& shape
-        ) :
-                m_shape{shape},
-                m_lhs_strides{lhs_strides},
-                m_rhs_strides{rhs_strides},
-                m_lhs{lhs},
-                m_rhs{rhs} {}
+            const value_type* lhs, const strides_type& lhs_strides,
+            const value_type* rhs, const strides_type& rhs_strides,
+            const shape_type& shape
+        ) : m_shape{shape},
+            m_lhs_strides{lhs_strides},
+            m_rhs_strides{rhs_strides},
+            m_lhs{lhs},
+            m_rhs{rhs} {}
 
         constexpr auto check(MatchMode mode, auto epsilon) -> result_type {
             value_type epsilon_ = get_epsilon_(epsilon);
@@ -306,9 +305,9 @@ namespace test {
 
         template<typename U>
         static constexpr auto check_abs_(
-                U input,
-                U expected,
-                U epsilon
+            U input,
+            U expected,
+            U epsilon
         ) -> std::pair<bool, U> {
             if constexpr (nt::complex<U>) {
                 const auto [real_passed, real_abs_diff] = check_abs_(input.real, expected.real, epsilon.real);
@@ -328,9 +327,9 @@ namespace test {
 
         template<typename U>
         static constexpr auto check_abs_safe_(
-                U input,
-                U expected,
-                U epsilon
+            U input,
+            U expected,
+            U epsilon
         ) -> std::pair<bool, U> {
             if constexpr (nt::complex<U>) {
                 const auto [real_passed, real_abs_diff] = check_abs_safe_(input.real, expected.real, epsilon.real);
@@ -349,17 +348,17 @@ namespace test {
                 if (not noa::is_finite(diff))
                     return {false, diff};
                 const bool is_passed =
-                        diff <= epsilon or
-                        diff <= noa::max(noa::abs(input), noa::abs(expected)) * epsilon;
+                    diff <= epsilon or
+                    diff <= noa::max(noa::abs(input), noa::abs(expected)) * epsilon;
                 return {is_passed, diff};
             }
         }
 
         template<typename U>
         static constexpr auto check_rel_(
-                U input,
-                U expected,
-                U epsilon
+            U input,
+            U expected,
+            U epsilon
         ) -> std::pair<bool, U> {
             if constexpr (nt::complex<U>) {
                 const auto [real_passed, real_abs_diff] = check_rel_(input.real, expected.real, epsilon.real);
@@ -376,8 +375,8 @@ namespace test {
                 if (noa::is_inf(margin))
                     margin = U{0};
                 const bool is_passed =
-                        (input + margin >= expected) and
-                        (expected + margin >= input); // abs(a-b) <= epsilon
+                    (input + margin >= expected) and
+                    (expected + margin >= input); // abs(a-b) <= epsilon
                 return {is_passed, noa::abs(input - expected)};
             }
         }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/core/Remap.hpp"
+#include "noa/core/Enums.hpp"
 #include "noa/core/signal/Bandpass.hpp"
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Iwise.hpp"

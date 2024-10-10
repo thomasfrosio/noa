@@ -3,9 +3,9 @@
 #include "noa/core/Config.hpp"
 #include "noa/core/Interfaces.hpp"
 #include "noa/core/types/Shape.hpp"
+#include "noa/gpu/cuda/Block.cuh"
 #include "noa/gpu/cuda/Constants.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
-#include "noa/gpu/cuda/kernels/Block.cuh"
 
 namespace noa::cuda::guts {
     template<typename Config, typename Op, typename Index>

@@ -1,27 +1,26 @@
+#include <iostream>
 #include <noa/unified/Array.hpp>
-#include <noa/unified/Reduce.hpp>
+#include <noa/core/Enums.hpp>
+
+using namespace noa::types;
 
 namespace test1 {
-    auto get_min0(float* ptr, size_t size) -> float {
-        float min = std::numeric_limits<float>::max();
-        for (size_t i{}; i < size; ++i) {
-            min = std::min(ptr[i], min);
-        }
-        return min;
-    }
+    void test() {
+        using T = noa::AccessorRestrictContiguous<int, 2, int>;
+        static_assert(noa::traits::atomic_addable_nd<T, 2>);
+        static_assert(noa::traits::readable_nd<T, 2, 3>);
+        static_assert(T::SIZE == 2);
+        static_assert(noa::traits::pointer<decltype(std::declval<const T&>().get())>);
+        static_assert(noa::traits::same_as<
+            decltype(std::declval<const T&>().offset_pointer(std::declval<const T&>().get(), 0, 1)),
+            decltype(std::declval<const T&>().get())>);
+        static_assert(noa::traits::same_as<
+            decltype(std::declval<const T&>().offset_pointer(std::declval<const T&>().get(), Vec<i32, 2>{})),
+            decltype(std::declval<const T&>().get())>);
 
-    auto get_min1(float* ptr, noa::Shape<noa::i64, 4> shape, int n_threads) -> float {
-        float o{};
-        auto output_accessor = noa::make_tuple(noa::AccessorRestrictContiguous<float, 1, noa::i64>(&o));
-        noa::cpu::reduce_ewise<noa::cpu::ReduceEwiseConfig<>>(
-            shape, noa::ReduceMin{},
-            noa::make_tuple(noa::AccessorRestrict<float, 4, noa::i64>(ptr, shape.strides())),
-            noa::make_tuple(noa::AccessorValue(std::numeric_limits<float>::max())),
-            output_accessor, n_threads);
-        return o;
-    }
+        Vec<i64, 4> a{};
+        vany(noa::NotEqual{}, a, Vec{1, 2, 3, 4});
 
-    auto get_min2(noa::View<float> ptr) -> float {
-        return noa::min_max(ptr).first;
+        check(true, "{}", noa::Remap::H2F);
     }
 }

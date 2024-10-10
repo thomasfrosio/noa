@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/core/Remap.hpp"
+#include "noa/core/Enums.hpp"
 #include "noa/core/math/Generic.hpp"
 #include "noa/core/types/Vec.hpp"
 #include "noa/core/types/Shape.hpp"
@@ -92,8 +92,11 @@ namespace noa::signal::guts {
 
             // Compute the index of the current frequency in the output:
             const auto output_indices = noa::fft::remap_indices<REMAP>(Vec{ij, ik, il}, m_dh_shape);
-            const auto value = m_input ? m_input(ii, ij, ik, il) * filter : filter;
-            m_output(output_indices.push_front(ii)) = cast_or_abs_squared<output_value_type>(value);
+            auto& output = m_output(output_indices.push_front(ii));
+            if (m_input)
+                output = cast_or_abs_squared<output_value_type>(m_input(ii, ij, ik, il) * filter);
+            else
+                output = static_cast<output_value_type>(filter);
         }
 
     private:

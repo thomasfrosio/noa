@@ -4,10 +4,10 @@
 
 
 TEST_CASE("core::Half", "[noa][core]") {
-    using namespace ::noa;
+    using namespace ::noa::types;
 
-    static_assert(sizeof(Half) == 2);
-    static_assert(nt::is_numeric_v<Half> and std::is_same_v<f16, Half>);
+    static_assert(sizeof(f16) == 2);
+    static_assert(noa::traits::is_numeric_v<f16> and std::is_same_v<f16, f16>);
 
     f16 ha{};
     REQUIRE(ha == f16{0});
@@ -27,25 +27,25 @@ TEST_CASE("core::Half", "[noa][core]") {
     ha /= -3; REQUIRE(ha == f16(3));
 
     // Bug was found for int2half with min values. I've contacted the author,
-    // but in the meantime added a fix on the Half cast functions.
-    REQUIRE(Half(std::numeric_limits<int8_t>::min()) == Half(double(std::numeric_limits<int8_t>::min())));
-    REQUIRE(Half(std::numeric_limits<int16_t>::min()) == Half(double(std::numeric_limits<int16_t>::min())));
-    REQUIRE(Half(std::numeric_limits<int32_t>::min()) == Half(double(std::numeric_limits<int32_t>::min())));
-    REQUIRE(Half(std::numeric_limits<int64_t>::min()) == Half(double(std::numeric_limits<int64_t>::min())));
+    // but in the meantime added a fix on the f16 cast functions.
+    REQUIRE(f16(std::numeric_limits<int8_t>::min()) == f16(f64(std::numeric_limits<int8_t>::min())));
+    REQUIRE(f16(std::numeric_limits<int16_t>::min()) == f16(f64(std::numeric_limits<int16_t>::min())));
+    REQUIRE(f16(std::numeric_limits<int32_t>::min()) == f16(f64(std::numeric_limits<int32_t>::min())));
+    REQUIRE(f16(std::numeric_limits<int64_t>::min()) == f16(f64(std::numeric_limits<int64_t>::min())));
 
-    REQUIRE((Half(2000), noa::clamp(Half(3000), Half(0), Half(2000))));
+    REQUIRE((f16(2000), noa::clamp(f16(3000), f16(0), f16(2000))));
 
-    Half hb(4);
+    f16 hb(4);
     REQUIRE(true == static_cast<bool>(hb));
-    REQUIRE(short{4} == static_cast<short>(hb));
-    REQUIRE(ushort{4} == static_cast<ushort>(hb));
-    REQUIRE(int{4} == static_cast<int>(hb));
-    REQUIRE(uint{4} == static_cast<uint>(hb));
-    REQUIRE(int64_t{4} == static_cast<int64_t>(hb));
-    REQUIRE(uint64_t{4} == static_cast<uint64_t>(hb));
-    REQUIRE(float{4} == static_cast<float>(hb));
-    REQUIRE(double{4} == static_cast<double>(hb));
+    REQUIRE(i16{4} == static_cast<i16>(hb));
+    REQUIRE(u16{4} == static_cast<u16>(hb));
+    REQUIRE(i32{4} == static_cast<i32>(hb));
+    REQUIRE(u32{4} == static_cast<u32>(hb));
+    REQUIRE(i64{4} == static_cast<i64>(hb));
+    REQUIRE(u64{4} == static_cast<u64>(hb));
+    REQUIRE(f32{4} == static_cast<f32>(hb));
+    REQUIRE(f64{4} == static_cast<f64>(hb));
 
-    Half hc(2.5);
+    f16 hc(2.5);
     REQUIRE(fmt::format("{:.2}", hc) == "2.5");
 }

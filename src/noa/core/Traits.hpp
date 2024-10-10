@@ -64,7 +64,7 @@ namespace noa::traits {
     struct TypeList {};
 
     template<typename... Ls, typename... Rs>
-    inline constexpr auto operator+(TypeList<Ls...>, TypeList<Rs...>) {
+    constexpr auto operator+(TypeList<Ls...>, TypeList<Rs...>) {
         return TypeList<Ls..., Rs...>{};
     }
 
@@ -200,6 +200,14 @@ namespace noa::traits {
     NOA_GENERATE_PROCLAIM(name);            \
     template<typename... T> concept name = are_##name##_v<T...>
 
+#define NOA_GENERATE_PROCLAIM_FULL_ND(name)                                                                               \
+    template<typename T, size_t N> struct proclaim_is_##name : std::false_type {};                                        \
+    template<typename T, size_t... N> using is_##name = std::disjunction<proclaim_is_##name<std::remove_cv_t<T>, N>...>;  \
+    template<typename T, size_t... N> constexpr bool is_##name##_v = is_##name<T, N...>::value;                           \
+    template<typename T, size_t... N> concept name = is_##name##_v<T, N...>;                                              \
+    template<size_t N, typename... T> using are_##name = std::conjunction<is_##name<T, N>...>;                            \
+    template<size_t N, typename... T> constexpr bool are_##name##_v = are_##name<N, T...>::value;
+
 namespace noa::traits {
     NOA_GENERATE_PROCLAIM_FULL(integer);
     template<> struct proclaim_is_integer<bool> : std::true_type {};
@@ -287,13 +295,7 @@ namespace noa::traits {
     template<typename... T> concept accessor_reference = accessor<T...> and are_accessor_reference_v<T...>;
     template<typename... T> concept accessor_value = accessor<T...> and are_accessor_value_v<T...>;
 
-    template<typename T, size_t N> struct proclaim_is_accessor_nd : std::false_type {};
-    template<typename T, size_t... N> using is_accessor_nd = std::disjunction<proclaim_is_accessor_nd<std::remove_cv_t<T>, N>...>;
-    template<typename T, size_t... N> constexpr bool is_accessor_nd_v = is_accessor_nd<T, N...>::value;
-    template<typename T, size_t... N> concept accessor_nd = accessor<T> and is_accessor_nd_v<T, N...>;
-    template<size_t N, typename... T> using are_accessor_nd = std::conjunction<is_accessor_nd<T, N>...>;
-    template<size_t N, typename... T> constexpr bool are_accessor_nd_v = are_accessor_nd<N, T...>::value;
-
+    NOA_GENERATE_PROCLAIM_FULL_ND(accessor_nd);
     template<typename T, size_t... N> using is_accessor_pure_nd = std::conjunction<is_accessor_pure<T>, is_accessor_nd<T, N...>>;
     template<typename T, size_t... N>  constexpr bool is_accessor_pure_nd_v = is_accessor_pure_nd<T, N...>::value;
     template<typename T, size_t... N> concept accessor_pure_nd = accessor_nd<T, N...> and accessor_pure<T>;
@@ -322,6 +324,7 @@ namespace noa::traits {
 
     // Vec
     NOA_GENERATE_PROCLAIM_FULL(vec);
+    NOA_GENERATE_PROCLAIM_FULL_ND(vec_of_size);
 
     template<typename, typename> struct proclaim_is_vec_of_type : std::false_type {};
     template<typename T, typename U> using is_vec_of_type = proclaim_is_vec_of_type<std::remove_cv_t<T>, U>;
@@ -329,13 +332,6 @@ namespace noa::traits {
     template<typename T, typename U> concept vec_of_type = vec<T> and is_vec_of_type_v<T, U>;
     template<typename T, typename... U> using are_vec_of_type = std::conjunction<is_vec_of_type<T, U>...>;
     template<typename T, typename... U> constexpr bool are_vec_of_type_v = are_vec_of_type<T, U...>::value;
-
-    template<typename, size_t> struct proclaim_is_vec_of_size : std::false_type {};
-    template<typename T, size_t... N> using is_vec_of_size = std::disjunction<proclaim_is_vec_of_size<std::remove_cv_t<T>, N>...>;
-    template<typename T, size_t... N> constexpr bool is_vec_of_size_v = is_vec_of_size<T, N...>::value;
-    template<typename T, size_t... N> concept vec_of_size = vec<T> and is_vec_of_size_v<T, N...>;
-    template<size_t N, typename... T> using are_vec_of_size = std::conjunction<is_vec_of_size<T, N>...>;
-    template<size_t N, typename... T> constexpr bool are_vec_of_size_v = are_vec_of_size<N, T...>::value;
 
     #define NOA_TRAITS_VEC_(name)                                                                                                           \
     template<typename T> using is_vec_##name = std::conjunction<is_vec<T>, is_##name<value_type_t<T>>>;                                     \
@@ -398,12 +394,7 @@ namespace noa::traits {
     template<typename... T> concept pair_decay = are_pair_decay_v<T...>;
     template<typename... T> concept tuple_decay = are_tuple_decay_v<T...>;
 
-    template<typename T, size_t N> struct proclaim_is_tuple_of_accessor_nd : std::false_type {};
-    template<typename T, size_t... N> using is_tuple_of_accessor_nd = std::disjunction<proclaim_is_tuple_of_accessor_nd<std::remove_cv_t<T>, N>...>;
-    template<typename T, size_t... N> constexpr bool is_tuple_of_accessor_nd_v = is_tuple_of_accessor_nd<T, N...>::value;
-    template<typename T, size_t... N> concept tuple_of_accessor_nd = is_tuple_of_accessor_nd_v<T, N...>;
-    template<size_t N, typename... T> using are_tuple_of_accessor_nd = std::conjunction<is_tuple_of_accessor_nd<T, N>...>;
-    template<size_t N, typename... T> constexpr bool are_tuple_of_accessor_nd_v = are_tuple_of_accessor_nd<N, T...>::value;
+    NOA_GENERATE_PROCLAIM_FULL_ND(tuple_of_accessor_nd);
 
     // Geometry
     NOA_GENERATE_PROCLAIM_FULL(quaternion);
@@ -446,6 +437,11 @@ namespace noa::traits {
     template<typename... T> concept ctf_anisotropic_f64 = ctf_anisotropic<T...> and same_as<f64, value_type_t<T>...>;
 
     NOA_GENERATE_PROCLAIM_FULL(batched_parameter);
+
+    NOA_GENERATE_PROCLAIM_FULL(span);
+    NOA_GENERATE_PROCLAIM_FULL(span_contiguous);
+    NOA_GENERATE_PROCLAIM_FULL_ND(span_nd);
+    NOA_GENERATE_PROCLAIM_FULL_ND(span_contiguous_nd);
 }
 
 namespace noa::inline types {
@@ -468,9 +464,9 @@ namespace noa::traits {
 
     template<typename T, size_t N>
     concept indexer_compatible =
-            nt::integer<typename T::index_type> and
-            std::convertible_to<decltype(T::SIZE), size_t> and
-            std::convertible_to<decltype(std::declval<const T&>().template stride<N - 1>()), size_t>;
+        nt::integer<typename T::index_type> and
+        std::convertible_to<decltype(T::SIZE), size_t> and
+        std::convertible_to<decltype(std::declval<const T&>().template stride<N - 1>()), size_t>;
 
     template<size_t N, typename... T>
     concept offset_indexing =
@@ -487,39 +483,44 @@ namespace noa::traits {
         ((sizeof...(T) == N and same_as<I, T...>) or
          (sizeof...(T) == 1 and nt::are_vec_of_type_v<I, T...> and nt::are_vec_of_size_v<N, T...>));
 
-    namespace guts {
-        template<typename T, size_t... N>
-        struct atomic_addable_nd_t {
-            template<size_t S, i32... J>
-            static consteval bool has_op(std::integer_sequence<i32, J...>) {
-                return requires(const T& t) {
-                    requires std::is_pointer_v<decltype(t.get())>;
-                    requires numeric<std::remove_pointer_t<decltype(t.get())>>;
-                    requires same_as<decltype(t.offset_pointer(t.get(), J...)), decltype(t.get())>;
-                    requires same_as<decltype(t.offset_pointer(t.get(), t(Vec<i32, S, 0>{}))), decltype(t.get())>;
-                };
-            }
-            static constexpr bool value = (has_op<N>(std::make_integer_sequence<i32, N>{}) or ...);
-        };
+    namespace guts { // nvcc workaround
+        template<typename T, size_t S, typename I, I... J>
+        concept readable_nd_c =
+            std::convertible_to<decltype(std::declval<const T&>()(J...)), mutable_value_type_t<T>> and
+            std::convertible_to<decltype(std::declval<const T&>()(Vec<I, S, 0>{})), mutable_value_type_t<T>>;
 
         template<typename T, typename I, size_t... N>
         struct readable_nd_t {
             template<size_t S, I... J>
-            static consteval bool has_op(std::integer_sequence<I, J...>) {
-                return std::convertible_to<decltype(std::declval<const T&>()(J...)), mutable_value_type_t<T>> and
-                       std::convertible_to<decltype(std::declval<const T&>()(Vec<I, S, 0>{})), mutable_value_type_t<T>>;
-            }
+            static consteval bool has_op(std::integer_sequence<I, J...>) { return readable_nd_c<T, S, I, J...>; }
             static constexpr bool value = (has_op<N>(std::make_integer_sequence<I, N>{}) or ...);
         };
+
+        template<typename T, size_t S, typename I, I... J>
+        concept writable_nd_c =
+            std::same_as<decltype(std::declval<T&>()(J...)), reference_type_t<T>> and
+            std::same_as<decltype(std::declval<T&>()(Vec<I, S, 0>{})), reference_type_t<T>>;
 
         template<typename T, typename I, size_t... N>
         struct writable_nd_t {
             template<size_t S, I... J>
-            static consteval bool has_op(std::integer_sequence<I, J...>) {
-                return std::same_as<decltype(std::declval<T&>()(J...)), reference_type_t<T>> and
-                       std::same_as<decltype(std::declval<T&>()(Vec<I, S, 0>{})), reference_type_t<T>>;
-            }
+            static consteval bool has_op(std::integer_sequence<I, J...>) { return writable_nd_c<T, S, I, J...>; }
             static constexpr bool value = (has_op<N>(std::make_integer_sequence<I, N>{}) or ...);
+        };
+
+        template<typename T, size_t S, i32... J>
+        concept atomic_addable_nd_c =
+            pointer<decltype(std::declval<const T&>().get())> and
+            same_as<decltype(std::declval<const T&>().offset_pointer(std::declval<const T&>().get(), J...)),
+                    decltype(std::declval<const T&>().get())> and
+            same_as<decltype(std::declval<const T&>().offset_pointer(std::declval<const T&>().get(), Vec<i32, S, 0>{})),
+                    decltype(std::declval<const T&>().get())>;
+
+        template<typename T, size_t... N>
+        struct atomic_addable_nd_t {
+            template<size_t S, i32... J>
+            static consteval bool has_op(std::integer_sequence<i32, J...>) { return atomic_addable_nd_c<T, S, J...>; }
+            static constexpr bool value = (has_op<N>(std::make_integer_sequence<i32, N>{}) or ...);
         };
     }
 
@@ -538,9 +539,9 @@ namespace noa::traits {
 
     template<typename T, size_t... N>
     concept writable_nd = readable_nd<T, N...> and
-            not std::is_const_v<value_type_t<T>> and
-            not std::is_const_v<mutable_value_type_t<T>> and
-            guts::writable_nd_t<T, typename T::index_type, N...>::value;
+        not std::is_const_v<value_type_t<T>> and
+        not std::is_const_v<mutable_value_type_t<T>> and
+        guts::writable_nd_t<T, typename T::index_type, N...>::value;
 
     template<typename T, size_t... N>
     concept writable_nd_optional = writable_nd<T, N...> and static_castable_to<decltype(std::declval<const T&>()), bool>;
@@ -550,9 +551,9 @@ namespace noa::traits {
 
     template<typename T, size_t... N>
     concept atomic_addable_nd =
-            std::copyable<std::remove_cv_t<T>> and
-            numeric<typename T::value_type> and
-            guts::atomic_addable_nd_t<T, N...>::value;
+        std::copyable<std::remove_cv_t<T>> and
+        numeric<typename T::value_type> and
+        guts::atomic_addable_nd_t<T, N...>::value;
 
     template<typename T, size_t... N>
     concept atomic_addable_nd_optional = atomic_addable_nd<T, N...> and static_castable_to<decltype(std::declval<const T&>()), bool>;
@@ -562,13 +563,13 @@ namespace noa::traits {
 
     template<typename T>
     concept readable_pointer_like =
-            std::copyable<std::remove_cv_t<T>> and
-            std::convertible_to<decltype(std::declval<const T&>()[size_t{}]), mutable_value_type_t<T>>;
+        std::copyable<std::remove_cv_t<T>> and
+        std::convertible_to<decltype(std::declval<const T&>()[size_t{}]), mutable_value_type_t<T>>;
 
     template<typename T>
     concept writable_pointer_like =
-            readable_pointer_like<T> and
-            std::same_as<decltype(std::declval<T&>()[size_t{}]), reference_type_t<T>>;
+        readable_pointer_like<T> and
+        std::same_as<decltype(std::declval<T&>()[size_t{}]), reference_type_t<T>>;
 
     template<typename T> concept marked_contiguous = same_as<std::remove_cv_t<decltype(T::IS_CONTIGUOUS)>, bool> and T::IS_CONTIGUOUS == true;
     template<typename T> concept marked_restrict =   same_as<std::remove_cv_t<decltype(T::IS_RESTRICT)>,   bool> and T::IS_RESTRICT   == true;

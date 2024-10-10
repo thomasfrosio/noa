@@ -1,4 +1,4 @@
-#include <noa/core/Remap.hpp>
+#include <noa/core/Enums.hpp>
 #include <catch2/catch.hpp>
 
 namespace {
@@ -32,7 +32,7 @@ TEST_CASE("core::Remap", "[noa][core]") {
     static_assert(r1.to_xx2xc() == noa::Remap::HC2FC);
     static_assert(r1.flip() == noa::Remap::F2HC);
 
-    // constexpr auto a1 = noa::Remap("h2hF"); // fails to compile
+    // constexpr auto a1 = noa::Remap("h2hF"); // rightfully fails to compile
     REQUIRE_THROWS_AS(noa::Remap("h2hF"), noa::Exception);
     REQUIRE(fmt::format("{}", r1) == "hc2f");
 }

@@ -17,10 +17,10 @@ namespace noa::memory {
              nt::readable_varray_decay_of_almost_any<i32, i64> Indexes>
     requires nt::varray_decay_of_almost_same_type<Input, Output>
     void copy_batches(
-            Input&& input,
-            Output&& output,
-            Indexes&& batch_indices,
-            i64 group_copy_at_count = 3
+        Input&& input,
+        Output&& output,
+        Indexes&& batch_indices,
+        i64 group_copy_at_count = 3
     ) {
         check(not input.is_empty() and not output.is_empty() and not batch_indices.is_empty(), "Empty array detected");
         check(all(input.shape().pop_front() == output.shape().pop_front() or input.shape().pop_front() == 1),
@@ -60,8 +60,8 @@ namespace noa::memory {
         if (index > 0) {
             NOA_ASSERT(batch_indices_1d[0] + n_batches_to_copy == index);
             return std::forward<Input>(input)
-                    .subregion(ni::Slice{batch_indices_1d[0], index})
-                    .to(std::forward<Output>(output));
+                   .subregion(ni::Slice{batch_indices_1d[0], index})
+                   .to(std::forward<Output>(output));
         }
 
         // Otherwise, if the arrays are on the same device, we can use extract_subregions (only one iwise call).
@@ -73,7 +73,7 @@ namespace noa::memory {
             for (size_t i{}; i < n_batches_to_copy; ++i)
                 batch_origins(0, 0, 0, i) = {safe_cast<i32>(batch_indices_1d[i]), 0, 0, 0};
             if (device.is_gpu())
-                batch_origins = batch_origins.to(ArrayOption{device, MemoryResource::DEFAULT_ASYNC});
+                batch_origins = batch_origins.to(ArrayOption{device, Allocator::DEFAULT_ASYNC});
             return extract_subregions(
                     std::forward<Input>(input), std::forward<Output>(output), batch_origins, Border::NOTHING);
         }
@@ -82,7 +82,7 @@ namespace noa::memory {
         for (i64 i{}; i < n_batches_to_copy - 1; ++i)
             input.view().subregion(batch_indices_1d[i]).to(output.view().subregion(i));
         std::forward<Input>(input)
-                .subregion(batch_indices_1d[n_batches_to_copy - 1])
-                .to(std::forward<Output>(output).subregion(n_batches_to_copy - 1));
+            .subregion(batch_indices_1d[n_batches_to_copy - 1])
+            .to(std::forward<Output>(output).subregion(n_batches_to_copy - 1));
     }
 }

@@ -64,7 +64,7 @@ namespace noa {
             order_4d = (order_2d + 2).push_front(Vec2<i64>{0, 1});
             order = indice_t::from_vec(order_2d);
         }
-        if (vany(NotEqual{}, order_4d, Vec4<i64>{0, 1, 2, 3})) {
+        if (vany(NotEqual{}, order_4d, Vec{0, 1, 2, 3})) {
             input_strides = ni::reorder(input_strides, order_4d);
             input_shape = ni::reorder(input_shape, order_4d);
             subregion_strides = ni::reorder(subregion_strides, order_4d);
@@ -148,7 +148,7 @@ namespace noa {
             order_4d = (order_2d + 2).push_front(Vec2<i64>{0, 1});
             order = indice_t::from_vec(order_2d);
         }
-        if (any(order_4d != Vec4<i64>{0, 1, 2, 3})) {
+        if (vany(NotEqual{}, order_4d, Vec{0, 1, 2, 3})) {
             output_strides = ni::reorder(output_strides, order_4d);
             output_shape = ni::reorder(output_shape, order_4d);
             subregion_strides = ni::reorder(subregion_strides, order_4d);
@@ -161,7 +161,7 @@ namespace noa {
         const auto output_accessor = output_accessor_t(output.get(), output_strides);
 
         auto op = ng::InsertSubregion<i64, indice_t, subregion_accessor_t, output_accessor_t>(
-                subregion_accessor, output_accessor, output_shape, origins.get(), order);
+            subregion_accessor, output_accessor, output_shape, origins.get(), order);
         iwise(subregion_shape, device, std::move(op),
               std::forward<Subregion>(subregions),
               std::forward<Output>(output),
@@ -196,10 +196,11 @@ namespace noa {
         const auto columns = static_cast<i64>(ceil(sqrt(static_cast<f32>(subregion_shape[0]))));
         const i64 rows = (subregion_shape[0] + columns - 1) / columns;
         const auto atlas_shape = Shape4<i64>{
-                1,
-                subregion_shape[1],
-                rows * subregion_shape[2],
-                columns * subregion_shape[3]};
+            1,
+            subregion_shape[1],
+            rows * subregion_shape[2],
+            columns * subregion_shape[3]
+        };
 
         output_origins.eval();
         const auto origins_1d = output_origins.span_1d_contiguous();
@@ -218,8 +219,9 @@ namespace noa {
     }
 
     /// Given a set of subregions, compute an atlas layout (atlas shape + subregion origins).
-    /// \example Construct an atlas of maps.
+    /// \example
     /// \code
+    /// // Constructs an atlas of maps.
     /// auto maps = ...;
     /// auto [atlas_shape, atlas_origins] = noa::atlas_layout<i32, 2>(maps.shape());
     /// auto atlas = noa::zeros<f32>(atlas_shape);

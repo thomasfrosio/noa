@@ -35,7 +35,7 @@ namespace noa {
             if (rhs.device().is_cpu()) {
                 using op_t = ReduceAccurateSum<value_t>;
                 using pair_t = op_t::pair_type;
-                reduce_ewise<{.generate_gpu = false}>(
+                reduce_ewise<ReduceEwiseOptions{.generate_gpu = false}>(
                     std::move(inputs), pair_t{}, output, op_t{});
                 return output;
             }
@@ -80,7 +80,7 @@ namespace noa {
             if (rhs.device().is_cpu()) {
                 using op_t = ReduceAccurateSum<value_t>;
                 using pair_t = op_t::pair_type;
-                reduce_axes_ewise<{.generate_gpu = false}>(
+                reduce_axes_ewise<ReduceAxesEwiseOptions{.generate_gpu = false}>(
                     std::move(inputs), pair_t{}, output, op_t{});
                 return;
             }
@@ -116,7 +116,7 @@ namespace noa {
     ///
     /// \note The memory layout is restricted: \p lhs and \p rhs should not overlap with \p output. All matrices should
     ///       either be row-major or column-major (before transposition). The innermost dimension of the matrices
-    ///       (before transposition) should be contiguous, and the second-most dimension cannot be broadcast.
+    ///       (before transposition) should be contiguous, and the second-most dimension cannot be broadcasted.
     template<nt::readable_varray_decay Lhs,
              nt::readable_varray_decay Rhs,
              nt::writable_varray_decay Output>
@@ -147,20 +147,22 @@ namespace noa {
                 r = std::forward<Rhs>(rhs),
                 o = std::forward<Output>(output)
             ] {
-                noa::cpu::matmul(l.get(), l.strides(), l.shape(),
-                                 r.get(), r.strides(), r.shape(),
-                                 options.alpha, options.beta, options.lhs_transpose, options.rhs_transpose,
-                                 o.get(), o.strides(), o.shape(),
-                                 n_threads);
+                noa::cpu::matmul(
+                    l.get(), l.strides(), l.shape(),
+                    r.get(), r.strides(), r.shape(),
+                    options.alpha, options.beta, options.lhs_transpose, options.rhs_transpose,
+                    o.get(), o.strides(), o.shape(),
+                    n_threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
-            noa::cuda::matmul(lhs.get(), lhs.strides(), lhs.shape(),
-                              rhs.get(), rhs.strides(), rhs.shape(),
-                              options.alpha, options.beta, options.lhs_transpose, options.rhs_transpose,
-                              output.get(), output.strides(), output.shape(),
-                              cuda_stream);
+            noa::cuda::matmul(
+                lhs.get(), lhs.strides(), lhs.shape(),
+                rhs.get(), rhs.strides(), rhs.shape(),
+                options.alpha, options.beta, options.lhs_transpose, options.rhs_transpose,
+                output.get(), output.strides(), output.shape(),
+                cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), std::forward<Output>(output));
             #else
             panic("No GPU backend detected");

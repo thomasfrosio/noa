@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/core/Remap.hpp"
+#include "noa/core/Enums.hpp"
 #include "noa/core/fft/FourierResize.hpp"
 #include "noa/unified/Resize.hpp"
 #include "noa/unified/Factory.hpp"

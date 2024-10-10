@@ -8,6 +8,7 @@
 #include "Utils.hpp"
 
 using namespace ::noa::types;
+using Remap = noa::Remap;
 using Path = std::filesystem::path;
 
 TEST_CASE("unified::fft::(i)fftshift -- vs numpy", "[asset][noa][unified]") {

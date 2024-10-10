@@ -13,19 +13,18 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", i32, f32, c32, 
     REQUIRE(a.is_empty());
 
     const auto shape = test::random_shape(2);
-    const auto memory_resource = GENERATE(
-            MemoryResource::DEFAULT,
-            MemoryResource::DEFAULT_ASYNC,
-            MemoryResource::PITCHED,
-            MemoryResource::PINNED,
-            MemoryResource::MANAGED,
-            MemoryResource::MANAGED_GLOBAL);
-    const auto allocator = Allocator(memory_resource);
+    const Allocator allocator = GENERATE(as<Allocator>(),
+        Allocator::DEFAULT,
+        Allocator::DEFAULT_ASYNC,
+        Allocator::PITCHED,
+        Allocator::PINNED,
+        Allocator::MANAGED,
+        Allocator::MANAGED_GLOBAL);
 
     // CPU
     a = Array<TestType>(shape, {.device=Device{}, .allocator=allocator});
     REQUIRE(a.device().is_cpu());
-    REQUIRE(a.allocator().resource() == memory_resource);
+    REQUIRE(a.allocator() == allocator);
     REQUIRE(all(a.shape() == shape));
     REQUIRE(a.get());
     REQUIRE_FALSE(a.is_empty());
@@ -36,14 +35,12 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", i32, f32, c32, 
 
     Array<TestType> b(shape, {"gpu:0", allocator});
     REQUIRE(b.device().is_gpu());
-    REQUIRE(b.allocator().resource() == memory_resource);
+    REQUIRE(b.allocator() == allocator);
     REQUIRE(all(b.shape() == shape));
     REQUIRE(b.get());
     REQUIRE_FALSE(b.is_empty());
 
-    if (memory_resource == MemoryResource::PINNED or
-        memory_resource == MemoryResource::MANAGED or
-        memory_resource == MemoryResource::MANAGED_GLOBAL) {
+    if (allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL)) {
         Array<TestType> c = a.as(Device::GPU, /*prefetch=*/ true);
         REQUIRE(c.device().is_gpu());
         c = b.as(Device::CPU, /*prefetch=*/ true);
@@ -57,25 +54,23 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", i32, f32, c32, 
 TEMPLATE_TEST_CASE("unified::Array, copy metadata", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
     StreamGuard guard(Device{}, Stream::DEFAULT);
     const auto shape = test::random_shape(2);
-    const auto memory_resource = GENERATE(
-            MemoryResource::DEFAULT,
-            MemoryResource::DEFAULT_ASYNC,
-            MemoryResource::PITCHED,
-            MemoryResource::PINNED,
-            MemoryResource::MANAGED,
-            MemoryResource::MANAGED_GLOBAL);
-    const auto allocator = Allocator(memory_resource);
-    INFO(allocator.resource());
+    const auto allocator = GENERATE(as<Allocator>(),
+        Allocator::DEFAULT,
+        Allocator::DEFAULT_ASYNC,
+        Allocator::PITCHED,
+        Allocator::PINNED,
+        Allocator::MANAGED,
+        Allocator::MANAGED_GLOBAL);
 
     // CPU
     Array<TestType> a(shape, {Device{}, allocator});
     REQUIRE(a.device().is_cpu());
-    REQUIRE(a.allocator().resource() == memory_resource);
+    REQUIRE(a.allocator() == allocator);
     REQUIRE(a.get());
 
     Array<TestType> b = a.to({.device=Device(Device::CPU)});
     REQUIRE(b.device().is_cpu());
-    REQUIRE(b.allocator().resource() == MemoryResource::DEFAULT);
+    REQUIRE(b.allocator() == Allocator::DEFAULT);
     REQUIRE(b.get());
     REQUIRE(b.get() != a.get());
 
@@ -85,24 +80,24 @@ TEMPLATE_TEST_CASE("unified::Array, copy metadata", "[noa][unified]", i32, u64, 
     const Device gpu("gpu:0");
     a = Array<TestType>(shape, ArrayOption{}.set_device(gpu).set_allocator(allocator));
     REQUIRE(a.device().is_gpu());
-    REQUIRE(a.allocator().resource() == memory_resource);
+    REQUIRE(a.allocator() == allocator);
     REQUIRE(a.get());
 
     b = a.to(ArrayOption{.device=gpu});
     REQUIRE(b.device().is_gpu());
-    REQUIRE(b.allocator().resource() == MemoryResource::DEFAULT);
+    REQUIRE(b.allocator() == Allocator::DEFAULT);
     REQUIRE(b.get());
     REQUIRE(b.get() != a.get());
 
     a = b.to(ArrayOption{.device=Device(Device::CPU)});
     REQUIRE(a.device().is_cpu());
-    REQUIRE(a.allocator().resource() == MemoryResource::DEFAULT);
+    REQUIRE(a.allocator() == Allocator::DEFAULT);
     REQUIRE(a.get());
     REQUIRE(a.get() != b.get());
 
-    a = b.to(ArrayOption{}.set_device(gpu).set_allocator(Allocator(MemoryResource::PITCHED)));
+    a = b.to(ArrayOption{}.set_device(gpu).set_allocator(Allocator::PITCHED));
     REQUIRE(a.device().is_gpu());
-    REQUIRE(a.allocator().resource() == MemoryResource::PITCHED);
+    REQUIRE(a.allocator() == Allocator::PITCHED);
     REQUIRE(a.get());
     REQUIRE(b.get() != a.get());
 }

@@ -4,18 +4,17 @@
 
 #ifdef NOA_IS_OFFLINE
 #include "noa/Version.hpp"
-#include "noa/core/Types.hpp"
 #include "noa/unified/Device.hpp"
 
 namespace noa::inline types {
-    /// The session is used to initialise and control the library initialization and static data.
+    /// The session is used to initialize and control the library initialization and static data.
     /// Note that these utilities are entirely optional, already managed automatically by the library,
     /// and can therefore be ignored by users. However, in some cases, users may want to tweaks a few
     /// things that are internally managed by the library and Session does just that.
     ///
     /// \details \b Threads:
     /// The CPU backend uses OpenMP's multithreading to process large arrays and increase hardware usage.
-    /// Streams control the maximum amount of threads OpenMP can use for a given task. This value can be changed
+    /// Streams control the maximum number of threads OpenMP can use for a given task. This value can be changed
     /// at any point during the program's lifetime and is per stream. If a stream has a thread limit of 1,
     /// multithreading is turned off for tasks enqueued to that specific stream. When creating a stream,
     /// the initial thread limit is set by the Session. By default, when creating the session, the thread limit
@@ -40,7 +39,7 @@ namespace noa::inline types {
     /// to as "plans". The backends save these plans so that users don't need to keep track of them. The cache is
     /// per device (for CUDA, it is also per host-thread). Since these plans can take a lot of memory, and users
     /// may want to control the maximum number of plans that can be cached or may want to reset the cache. Note that
-    /// the library's FFT API also offers a more granular control on the cache.
+    /// the library's FFT API also offers more granular control on the cache.
     ///
     /// \details \b CUDA's-cuBLAS:
     /// The CUDA backend uses the cuBLAS library for matrix-matrix multiplication. The library caches cuBLAS
@@ -75,7 +74,7 @@ namespace noa::inline types {
         /// Clears the FFT cache for a given device.
         /// Returns how many plans were cleared from the cache.
         /// \warning This function doesn't synchronize before clearing the cache, so the caller should make sure
-        ///          that none of plans are being used. This can be easily done by synchronizing the relevant
+        ///          that none of the plans are being used. This can be easily done by synchronizing the relevant
         ///          streams or the device.
         static i64 clear_fft_cache(Device device = Device::current_gpu());
 
@@ -84,11 +83,10 @@ namespace noa::inline types {
 
         /// Clears the BLAS cache for a given device.
         /// \warning This function doesn't synchronize before clearing the cache, so the caller should make sure
-        ///          that none of plans are being used. This can be easily done by synchronizing the relevant
+        ///          that none of the plans are being used. This can be easily done by synchronizing the relevant
         ///          streams or the device.
         static void clear_blas_cache(Device device = Device::current_gpu());
 
-    public:
         static std::string version() { return NOA_VERSION; }
         static std::string url() { return NOA_URL; }
 

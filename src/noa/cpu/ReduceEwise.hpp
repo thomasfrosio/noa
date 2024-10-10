@@ -101,7 +101,7 @@ namespace noa::cpu {
         using reduce_ewise_core = guts::ReduceEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
 
         // FIXME We could try collapse contiguous dimensions to still have a contiguous loop.
-        // FIXME In most cases, the inputs are not expected to be aliases of each other, so only
+        //       In most cases, the inputs are not expected to be aliases of each other, so only
         //       optimise for the 1d-contig restrict case? remove 1d-contig non-restrict case
         if (are_all_contiguous) {
             auto shape_1d = Shape1<Index>::from_value(n_elements);

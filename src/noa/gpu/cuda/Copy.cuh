@@ -12,8 +12,6 @@
 #include "noa/gpu/cuda/Ewise.cuh"
 #include "noa/gpu/cuda/Iwise.cuh"
 
-// TODO Add nvrtc to support any type.
-
 // Since we assume Compute Capability >= 2.0, all devices support the Unified Virtual Address Space, so
 // the CUDA driver can determine, for each pointer, where the data is located, and one does not have to
 // specify the cudaMemcpyKind. In the documentation they don't explicitly say that cudaMemcpyDefault allows

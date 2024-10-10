@@ -17,7 +17,7 @@ TEMPLATE_TEST_CASE("unified::arange(), cpu", "[noa][unified]", i32, i64, u32, u6
         c32 a;
         a = 1;
 
-        noa::arange(results, noa::Arange<TestType>{.start={0}, .step={1}});
+        noa::arange(results, noa::Arange<TestType>{.start=0, .step=1});
         for (i64 i{}; auto& e: expected.span_1d_contiguous())
             e = static_cast<real_t>(i++);
 
@@ -29,7 +29,7 @@ TEMPLATE_TEST_CASE("unified::arange(), cpu", "[noa][unified]", i32, i64, u32, u6
         const Array<TestType> results(n_elements);
         const Array<TestType> expected(n_elements);
 
-        noa::arange(results, noa::Arange<TestType>{.start={3}, .step={5}});
+        noa::arange(results, noa::Arange<TestType>{.start=3, .step=5});
         for (i64 i{}; auto& e: expected.span_1d_contiguous())
             e = real_t(3) + static_cast<real_t>(i++) * real_t(5);
 
@@ -41,7 +41,7 @@ TEMPLATE_TEST_CASE("unified::arange(), cpu", "[noa][unified]", i32, i64, u32, u6
         const Array<TestType> results(shape);
         const Array<TestType> expected(shape);
 
-        noa::arange(results, noa::Arange<TestType>{.start={3}, .step={5}});
+        noa::arange(results, noa::Arange<TestType>{.start=3, .step=5});
         for (i64 i{}; auto& e: expected.span_1d_contiguous())
             e = real_t(3) + static_cast<real_t>(i++) * real_t(5);
 

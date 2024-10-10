@@ -323,10 +323,10 @@ namespace noa {
         auto init_min = std::numeric_limits<value_type>::max();
         auto init_max = std::numeric_limits<value_type>::lowest();
         reduce_axes_ewise(
-                std::forward<Input>(input),
-                wrap(init_min, init_max),
-                wrap(std::forward<Min>(min), std::forward<Max>(max)),
-                ReduceMinMax{});
+            std::forward<Input>(input),
+            wrap(init_min, init_max),
+            wrap(std::forward<Min>(min), std::forward<Max>(max)),
+            ReduceMinMax{});
     }
 
     /// Reduces an array along some dimension(s) by taking the minimum and maximum values.
@@ -335,8 +335,8 @@ namespace noa {
         using value_t = nt::mutable_value_type_t<Input>;
         auto output_shape = guts::axes_to_output_shape(input, axes);
         Pair output{
-                Array<value_t>(output_shape, input.options()),
-                Array<value_t>(output_shape, input.options()),
+            Array<value_t>(output_shape, input.options()),
+            Array<value_t>(output_shape, input.options()),
         };
         min_max(std::forward<Input>(input), output.first, output.second);
         return output;
@@ -398,10 +398,10 @@ namespace noa {
             }
         }
         reduce_axes_ewise(
-                std::forward<Input>(input),
-                input_value_t{},
-                std::forward<Output>(output),
-                ReduceMean{.size=static_cast<scalar_t>(n_elements_to_reduce)});
+            std::forward<Input>(input),
+            input_value_t{},
+            std::forward<Output>(output),
+            ReduceMean{.size = static_cast<scalar_t>(n_elements_to_reduce)});
     }
 
     /// Reduces an array along some dimensions by taking the average.
@@ -492,8 +492,8 @@ namespace noa {
 
         auto output_shape = guts::axes_to_output_shape(input, axes);
         Pair output{
-                Array<mean_t>(output_shape, input.options()),
-                Array<variance_t>(output_shape, input.options()),
+            Array<mean_t>(output_shape, input.options()),
+            Array<variance_t>(output_shape, input.options()),
         };
         mean_variance(std::forward<Input>(input), output.first, output.second, ddof);
         return output;
@@ -547,8 +547,8 @@ namespace noa {
 
         auto output_shape = guts::axes_to_output_shape(input, axes);
         Pair output{
-                Array<mean_t>(output_shape, input.options()),
-                Array<variance_t>(output_shape, input.options()),
+            Array<mean_t>(output_shape, input.options()),
+            Array<variance_t>(output_shape, input.options()),
         };
         mean_stddev(std::forward<Input>(input), output.first, output.second, ddof);
         return output;
@@ -630,9 +630,9 @@ namespace noa {
              nt::writable_varray_decay_of_scalar Values = View<nt::mutable_value_type_t<Input>>,
              nt::writable_varray_decay_of_integer Offsets = View<i64>>
     void argmax(
-            Input&& input,
-            Values&& output_values,
-            Offsets&& output_offsets
+        Input&& input,
+        Values&& output_values,
+        Offsets&& output_offsets
     ) {
         const bool has_offsets = not output_offsets.is_empty();
         const bool has_values = not output_values.is_empty();
@@ -667,7 +667,7 @@ namespace noa {
         } else {
             // Reorder DHW to rightmost if offsets are not computed.
             const auto order_3d = ni::order(input.strides().pop_front(), shape.pop_front());
-            if (vany(NotEqual{}, order_3d, Vec3<i64>{0, 1, 2})) {
+            if (vany(NotEqual{}, order_3d, Vec{0, 1, 2})) {
                 auto order_4d = (order_3d + 1).push_front(0);
                 shape = shape.reorder(order_4d);
                 accessor.reorder(order_4d);
@@ -694,9 +694,9 @@ namespace noa {
              nt::writable_varray_decay_of_scalar Values = View<nt::mutable_value_type_t<Input>>,
              nt::writable_varray_decay_of_integer Offsets = View<i64>>
     void argmin(
-            Input&& input,
-            Values&& output_values,
-            Offsets&& output_offsets = {}
+        Input&& input,
+        Values&& output_values,
+        Offsets&& output_offsets = {}
     ) {
         const bool has_offsets = not output_offsets.is_empty();
         const bool has_values = not output_values.is_empty();
@@ -731,7 +731,7 @@ namespace noa {
         } else {
             // Reorder DHW to rightmost if offsets are not computed.
             const auto order_3d = ni::order(input.strides().pop_front(), shape.pop_front());
-            if (vany(NotEqual{}, order_3d, Vec3<i64>{0, 1, 2})) {
+            if (vany(NotEqual{}, order_3d, Vec{0, 1, 2})) {
                 auto order_4d = (order_3d + 1).push_front(0);
                 shape = shape.reorder(order_4d);
                 accessor.reorder(order_4d);
@@ -759,9 +759,9 @@ namespace noa {
     requires (nt::varray_decay_of_complex<Input, Output> or
               nt::varray_decay_of_real<Input, Output>)
     void normalize(
-            Input&& input,
-            Output&& output,
-            const NormalizeOptions& options = {}
+        Input&& input,
+        Output&& output,
+        const NormalizeOptions& options = {}
     ) {
         switch (options.mode) {
             case Norm::MIN_MAX: {
@@ -788,9 +788,9 @@ namespace noa {
     requires (nt::varray_decay_of_complex<Input, Output> or
               nt::varray_decay_of_real<Input, Output>)
     void normalize_per_batch(
-            Input&& input,
-            Output&& output,
-            const NormalizeOptions& options = {}
+        Input&& input,
+        Output&& output,
+        const NormalizeOptions& options = {}
     ) {
         check(vall(Equal{}, input.shape(), output.shape()),
               "The input and output arrays should have the same shape, but got input={} and output={}",

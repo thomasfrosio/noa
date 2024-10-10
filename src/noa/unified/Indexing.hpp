@@ -6,6 +6,7 @@
 #include "noa/core/Types.hpp"
 #include "noa/core/indexing/Layout.hpp"
 #include "noa/unified/Traits.hpp"
+#include "noa/unified/Utilities.hpp"
 
 namespace noa {
     /// Broadcasts an array to a given shape.

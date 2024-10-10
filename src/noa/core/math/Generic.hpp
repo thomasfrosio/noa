@@ -110,10 +110,10 @@ namespace noa {
     }
 
     template<nt::uinteger T>
-    [[nodiscard]] NOA_FHD constexpr T next_multiple_of(T value, T base) noexcept { return (value + base - 1) / base * base; }
+    [[nodiscard]] NOA_FHD constexpr T next_multiple_of(T value, std::type_identity_t<T> base) noexcept { return (value + base - 1) / base * base; }
 
     template<nt::integer T>
-    [[nodiscard]] NOA_FHD constexpr bool is_multiple_of(T value, T base) noexcept { return (value % base) == 0; }
+    [[nodiscard]] NOA_FHD constexpr bool is_multiple_of(T value, std::type_identity_t<T> base) noexcept { return (value % base) == 0; }
 
     template<nt::integer T>
     [[nodiscard]] NOA_FHD constexpr bool is_even(T value) noexcept { return !(value % 2); }

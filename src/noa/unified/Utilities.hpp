@@ -7,6 +7,7 @@
 #include "noa/core/types/Tuple.hpp"
 #include "noa/core/types/Vec.hpp"
 #include "noa/core/utils/ShareHandles.hpp"
+#include "noa/core/utils/BatchedParameter.hpp"
 #include "noa/unified/Traits.hpp"
 
 namespace noa::guts {
@@ -16,7 +17,7 @@ namespace noa::guts {
     [[nodiscard]] constexpr auto to_tuple_of_accessors(T&& tuple) {
         return std::forward<T>(tuple).map([]<typename U>(U&& v) {
             if constexpr (nt::varray_decay<U>) {
-                return to_accessor<EnforceConst>(v);
+                return to_accessor<AccessorConfig{.enforce_const = EnforceConst}>(v);
             } else {
                 return to_accessor_value<EnforceConst>(std::forward<U>(v));
             }
@@ -93,53 +94,22 @@ namespace noa::guts {
     /// \note Accessors increment the pointer on dimension at a time! So the offset of each dimension
     ///       is converted to ptrdiff_t (by the compiler) and added to the pointer. This makes it less
     ///       likely to reach the integer upper limit.
-    template<typename Int, typename I, size_t N>
-    [[nodiscard]] constexpr bool is_accessor_access_safe(const Strides<I, N>& strides, const Shape<I, N>& shape) {
-        for (size_t i{}; i < N; ++i) {
-            const auto end = static_cast<i64>(shape[i] - 1) * static_cast<i64>(strides[i]);
-            if (not is_safe_cast<Int>(end))
-                return false;
-        }
-        return true;
-    }
-    template<typename Int, typename A, typename I, size_t N> requires nt::is_accessor_nd_v<A, N>
-    [[nodiscard]] constexpr bool is_accessor_access_safe(const A& accessor, const Shape<I, N>& shape) {
-        for (size_t i{}; i < N; ++i) {
-            const auto end = static_cast<i64>(shape[i] - 1) * static_cast<i64>(accessor.stride(i));
-            if (not is_safe_cast<Int>(end))
-                return false;
-        }
-        return true;
-    }
-    template<typename T> requires (nt::varray<T> or nt::texture<T>)
-    [[nodiscard]] constexpr bool is_accessor_access_safe(const T& array, const Shape4<i64>& shape) {
-        return ng::is_accessor_access_safe<i32>(array.strides(), shape);
-    }
-    template<typename T, typename I, size_t N> requires (nt::empty<T> or nt::numeric<T>)
-    [[nodiscard]] constexpr bool is_accessor_access_safe(const T&, const Shape<I, N>&) {
-        return true;
-    }
-
-    /// Filters the input tuple by removing non-varrays and
-    /// forwards the varrays (i.e. store references) into the new tuple.
-    template<typename... Ts>
-    [[nodiscard]] constexpr auto filter_and_forward_varrays(const Tuple<Ts&&...>& tuple) {
-        constexpr auto predicate = []<typename T>() { return nt::varray_decay<T>; };
-        constexpr auto transform = []<typename T>(T&& arg) { return forward_as_tuple(std::forward<T>(arg)); };
-        return tuple_filter<decltype(predicate), decltype(transform)>(tuple);
-    }
-
-    template<typename... Ts, typename Op>
-    [[nodiscard]] constexpr bool are_all_equals(Tuple<Ts&&...> const& varrays, Op&& op) {
-        return varrays.apply([&]<typename... Args>(const Args&... args) {
-            if constexpr (sizeof...(Args) <= 1) {
-                return true;
-            } else {
-                return [&](auto const& first, auto const& ... rest) {
-                    return (op(first, rest) and ...);
-                }(args...);
+    template<typename Int, typename T, typename I, size_t N>
+    [[nodiscard]] constexpr bool is_accessor_access_safe(const T& input, const Shape<I, N>& shape) {
+        if constexpr (nt::same_as<Strides<I, N>, T>) {
+            for (size_t i{}; i < N; ++i) {
+                const auto end = static_cast<i64>(shape[i] - 1) * static_cast<i64>(input[i]);
+                if (not is_safe_cast<Int>(end))
+                    return false;
             }
-        });
+            return true;
+        } else if constexpr (nt::accessor_nd<T, N> or (nt::varray_or_texture<T> and N == 4 and nt::same_as<I, i64>)) {
+            return is_accessor_access_safe<Int>(input.strides_full(), shape);
+        } else if constexpr (nt::empty<T> or nt::numeric<T>) {
+            return true;
+        } else {
+            static_assert(nt::always_false<T>);
+        }
     }
 
     template<nt::varray_decay Input, nt::varray_decay Output>
@@ -169,5 +139,47 @@ namespace noa::guts {
         }
         return input_strides;
     }
+
+    template<bool ALLOW_EMPTY = false, bool ENFORCE_EMPTY = false, typename Xform>
+    auto to_batched_transform(const Xform& xform) {
+        using value_t = nt::const_value_type_t<Xform>;
+        if constexpr (nt::mat<Xform> or nt::vec<Xform> or nt::quaternion<Xform> or (ALLOW_EMPTY and nt::empty<Xform>)) {
+            if constexpr (ENFORCE_EMPTY)
+                return BatchedParameter<Empty>{};
+            else
+                return BatchedParameter{xform};
+        } else if constexpr (nt::varray<Xform> and (nt::mat<value_t> or nt::vec<value_t> or nt::quaternion<value_t>)) {
+            if constexpr (ENFORCE_EMPTY)
+                return BatchedParameter<Empty>{};
+            else {
+                NOA_ASSERT(xform.are_contiguous());
+                return BatchedParameter<value_t*>{xform.get()};
+            }
+        } else {
+            static_assert(nt::always_false<Xform>);
+        }
+    }
 }
 #endif
+
+// /// Filters the input tuple by removing non-varrays and
+// /// forwards the varrays (i.e. store references) into the new tuple.
+// template<typename... Ts>
+// [[nodiscard]] constexpr auto filter_and_forward_varrays(const Tuple<Ts&&...>& tuple) {
+//     constexpr auto predicate = []<typename T>() { return nt::varray_decay<T>; };
+//     constexpr auto transform = []<typename T>(T&& arg) { return forward_as_tuple(std::forward<T>(arg)); };
+//     return tuple_filter<decltype(predicate), decltype(transform)>(tuple);
+// }
+//
+// template<typename... Ts, typename Op>
+// [[nodiscard]] constexpr bool are_all_equals(Tuple<Ts&&...> const& varrays, Op&& op) {
+//     return varrays.apply([&]<typename... Args>(const Args&... args) {
+//         if constexpr (sizeof...(Args) <= 1) {
+//             return true;
+//         } else {
+//             return [&](auto const& first, auto const&... rest) {
+//                 return (op(first, rest) and ...);
+//             }(args...);
+//         }
+//     });
+// }

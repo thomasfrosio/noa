@@ -4,7 +4,7 @@
 #include "noa/core/Interfaces.hpp"
 #include "noa/core/utils/Irange.hpp"
 #include "noa/gpu/cuda/Allocators.hpp"
-#include "noa/gpu/cuda/kernels/Block.cuh"
+#include "noa/gpu/cuda/Block.cuh"
 #include "noa/gpu/cuda/ReduceIwise.cuh"
 
 namespace noa::cuda::guts {
@@ -528,7 +528,7 @@ namespace noa::cuda {
 
     template<typename Config = ReduceAxesIwiseConfig<>,
              typename Op, typename Reduced, typename Output, typename Index, size_t N>
-    requires (nt::tuple_of_accessor_value<Reduced> and
+    requires (nt::tuple_of_accessor_value<std::decay_t<Reduced>> and
               nt::tuple_of_accessor_pure<Output> and
               nt::tuple_of_accessor_nd<Output, N>)
     constexpr void reduce_axes_iwise(
@@ -548,7 +548,8 @@ namespace noa::cuda {
                   "indicating the dimension should be reduced to one element. "
                   "Got shape input:shape={}, output:shape={}", input_shape, output_shape);
         } else if (all(axes_to_reduce == false)) {
-            return; // nothing to reduce
+            panic("No reduction to compute. Got shape input={}, output={}. Please use iwise instead.",
+                  input_shape, output_shape);
         }
 
         const auto axes_empty_or_to_reduce = output_shape == 1 or axes_to_reduce;

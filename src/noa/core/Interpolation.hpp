@@ -8,12 +8,10 @@
 #include "noa/core/types/Vec.hpp"
 #include "noa/core/types/Shape.hpp"
 #include "noa/core/Enums.hpp"
-#include "noa/core/Remap.hpp"
 #include "noa/core/fft/Frequency.hpp"
-#include "noa/core/utils/Misc.hpp"
 
 namespace noa::guts {
-    template<Remap REMAP, typename T, nt::integer I, size_t N, size_t A0, size_t A1>
+    template<Remap REMAP, nt::scalar T, nt::integer I, size_t N, size_t A0, size_t A1>
     requires (REMAP.is_xc2xx() or nt::integer<T>)
     constexpr auto interp_frequency_to_index(Vec<T, N, A0> frequency, const Shape<I, N, A1>& shape) {
         auto to_index = [](const auto& f, const auto& s) {
@@ -30,132 +28,6 @@ namespace noa::guts {
             frequency[N - 1] = to_index(frequency[N - 1], shape[N - 1]);
         return frequency;
     }
-}
-
-namespace noa {
-    /// Enum-class-like object encoding an interpolation method.
-    /// \note "_FAST" methods allow the use of lerp fetches (e.g. CUDA textures in linear mode) to accelerate the
-    ///       interpolation. If textures are not provided to the Interpolator (see below), these methods are equivalent to the non-
-    ///       "_FAST" methods. Textures provide multidimensional caching, hardware interpolation (nearest or lerp) and
-    ///       addressing (see Border). While it may result in faster computation, textures usually encodes the
-    ///       floating-point coordinates (usually f32 or f64 values) at which to interpolate using low precision
-    ///       representations (e.g. CUDA's textures use 8 bits decimals), thus leading to an overall lower precision
-    ///       operation than software interpolation.
-    struct Interp {
-        enum class Method : i32 {
-            /// Nearest neighbour interpolation.
-            NEAREST = 0,
-            NEAREST_FAST = 100,
-
-            /// Linear interpolation (lerp).
-            LINEAR = 1,
-            LINEAR_FAST = 101,
-
-            /// Cubic interpolation.
-            CUBIC = 2,
-            CUBIC_FAST = 102,
-
-            /// Cubic B-spline interpolation.
-            CUBIC_BSPLINE = 3,
-            CUBIC_BSPLINE_FAST = 103,
-
-            /// Windowed-sinc interpolation, with a Lanczos window of size 4, 6, or 8.
-            LANCZOS4 = 4,
-            LANCZOS6 = 5,
-            LANCZOS8 = 6,
-            LANCZOS4_FAST = 104,
-            LANCZOS6_FAST = 105,
-            LANCZOS8_FAST = 106,
-        } value;
-
-    public: // simplify Interp::Method into Interp
-        using enum Method;
-        NOA_HD constexpr /*implicit*/ Interp(Method value_) noexcept: value(value_) {}
-        NOA_HD constexpr /*implicit*/ operator Method() const noexcept { return value; }
-
-    public: // additional methods
-        /// Whether the interpolation method is equal to any of the entered values.
-        [[nodiscard]] NOA_HD constexpr bool is_any(auto... values) const noexcept {
-            return ((value == values) or ...);
-        }
-
-        /// Whether the interpolation method, or its (non-)fast alternative, is equal to any of the entered values.
-        [[nodiscard]] NOA_HD constexpr bool is_almost_any(auto... values) const noexcept {
-            auto underlying = to_underlying(value);
-            if (underlying >= 100)
-                underlying -= 100;
-            auto v = static_cast<Method>(underlying);
-            return ((v == values) or ...);
-        }
-
-        /// Whether the interpolation method allows fast computation using texture-lerp.
-        [[nodiscard]] NOA_HD constexpr bool is_fast() const noexcept {
-            return to_underlying(value) >= 100;
-        }
-
-        /// Get the size of the interpolation window.
-        [[nodiscard]] NOA_HD constexpr auto window_size() const noexcept -> i32 {
-            switch (value) {
-                case NEAREST:
-                case LINEAR:
-                case NEAREST_FAST:
-                case LINEAR_FAST:
-                    return 2;
-                case CUBIC:
-                case CUBIC_FAST:
-                case CUBIC_BSPLINE:
-                case CUBIC_BSPLINE_FAST:
-                case LANCZOS4:
-                case LANCZOS4_FAST:
-                    return 4;
-                case LANCZOS6:
-                case LANCZOS6_FAST:
-                    return 6;
-                case LANCZOS8:
-                case LANCZOS8_FAST:
-                    return 8;
-            }
-            return 0; // unreachable
-        }
-    };
-
-    inline std::ostream& operator<<(std::ostream& os, Interp interp) {
-        switch (interp) {
-            case Interp::NEAREST:
-                return os << "Interp::NEAREST";
-            case Interp::NEAREST_FAST:
-                return os << "Interp::NEAREST_FAST";
-            case Interp::LINEAR:
-                return os << "Interp::LINEAR";
-            case Interp::LINEAR_FAST:
-                return os << "Interp::LINEAR_FAST";
-            case Interp::CUBIC:
-                return os << "Interp::CUBIC";
-            case Interp::CUBIC_FAST:
-                return os << "Interp::CUBIC_FAST";
-            case Interp::CUBIC_BSPLINE:
-                return os << "Interp::CUBIC_BSPLINE";
-            case Interp::CUBIC_BSPLINE_FAST:
-                return os << "Interp::CUBIC_BSPLINE_FAST";
-            case Interp::LANCZOS4:
-                return os << "Interp::LANCZOS4";
-            case Interp::LANCZOS6:
-                return os << "Interp::LANCZOS6";
-            case Interp::LANCZOS8:
-                return os << "Interp::LANCZOS8";
-            case Interp::LANCZOS4_FAST:
-                return os << "Interp::LANCZOS4_FAST";
-            case Interp::LANCZOS6_FAST:
-                return os << "Interp::LANCZOS6_FAST";
-            case Interp::LANCZOS8_FAST:
-                return os << "Interp::LANCZOS8_FAST";
-        }
-        return os;
-    }
-}
-
-namespace fmt {
-    template<> struct formatter<noa::Interp> : ostream_formatter {};
 }
 
 namespace noa::traits {
@@ -183,11 +55,6 @@ namespace noa::traits {
         typename T::index_type;
     } and guts::fetchable_nd_t<T, N...>::value;
 
-    template<typename T, Remap REMAP, Interp INTERP, size_t... N>
-    concept textureable_spectrum_nd =
-        textureable_nd<T, Border::ZERO, N...> and
-        (REMAP.is_xc2xx() or not INTERP.is_fast());
-
     template<typename T, Border BORDER, size_t... N>
     concept lerpable_nd = textureable_nd<T, BORDER, N...> and T::INTERP == Interp::LINEAR_FAST;
 
@@ -201,13 +68,6 @@ namespace noa::traits {
         nt::any_of<typename T::index_type, i32, u32, i64, u64> and
         (readable_nd<std::remove_reference_t<decltype(std::declval<const T&>()[0])>, N...> or
          textureable_nd<std::remove_reference_t<decltype(std::declval<const T&>()[0])>, BORDER, N...>);
-
-    template<typename T, Remap REMAP, Interp INTERP, size_t... N>
-    concept interpable_spectrum_nd = std::copyable<std::remove_cv_t<T>> and
-        nt::real_or_complex<typename T::value_type> and
-        nt::any_of<typename T::index_type, i32, u32, i64, u64> and
-        (readable_nd<std::remove_reference_t<decltype(std::declval<const T&>()[0])>, N...> or
-         textureable_spectrum_nd<std::remove_reference_t<decltype(std::declval<const T&>()[0])>, REMAP, INTERP, N...>);
 }
 
 namespace noa {
@@ -264,15 +124,6 @@ namespace noa {
             constexpr size_t SIZE = INTERP.window_size();
             constexpr size_t CENTER = SIZE / 2 - 1;
 
-            // Note that we could try to shortcut for cases where the fraction is 0. This can happen with
-            // identity transforms, shift by integral value or multiple of 90deg rotation. However, this seems
-            // to be a quite rare scenario, so ignore this shortcut for now.
-            // if (vall([](auto fi){ return abs(fi) < std::numeric_limits<real_t>::epsilon(); }, f)) {
-            //     Vec<Weight, SIZE> coefficients{};
-            //     coefficients[CENTER] = 1;
-            //     return coefficients;
-            // }
-
             // Instead of computing the windowed-sinc for every point in the nd-window, use this trick from OpenCV
             // to only compute one sin and cos per dimension, regardless of the window size. See:
             // https://github.com/opencv/opencv/blob/master/modules/imgproc/src/imgwarp.cpp#L162
@@ -285,14 +136,29 @@ namespace noa {
 
             constexpr auto s45 = static_cast<real_t>(0.7071067811865475); // sin(Constant<real_t>::PI / 4);
             constexpr real_t cs[][2] =
-                    {{1, 0}, {-s45, -s45}, {0, 1}, {s45, -s45}, {-1, 0}, {s45, s45}, {0, -1}, {-s45, s45}};
+                {{1, 0}, {-s45, -s45}, {0, 1}, {s45, -s45}, {-1, 0}, {s45, s45}, {0, -1}, {-s45, s45}};
 
             Weight sum{};
             Vec<Weight, SIZE> coefficients{};
             for (size_t i{}; i < SIZE; i++) {
                 const auto fi = -(f + CENTER - static_cast<real_t>(i));
                 const auto y = fi * Constant<real_t>::PI * static_cast<real_t>(0.25);
-                coefficients[i] = (cs[i][0] * s0 + cs[i][1] * c0) / (y * y);
+
+                // Prevent division by zero, which happens when the fraction is 0.
+                if constexpr (nt::real<Weight>) {
+                    if (abs(fi) < std::numeric_limits<real_t>::epsilon())
+                        coefficients[i] = std::numeric_limits<real_t>::max();
+                    else
+                        coefficients[i] = (cs[i][0] * s0 + cs[i][1] * c0) / (y * y);
+                } else {
+                    for (size_t j{}; j < Weight::SIZE; ++j) {
+                        if (abs(fi[j]) < std::numeric_limits<real_t>::epsilon())
+                            coefficients[i][j] = std::numeric_limits<real_t>::max();
+                        else
+                            coefficients[i][j] = (cs[i][0] * s0[j] + cs[i][1] * c0[j]) / (y[j] * y[j]);
+                    }
+                }
+
                 sum += coefficients[i];
             }
 
@@ -327,7 +193,7 @@ namespace noa {
         using value_t = nt::mutable_value_type_t<T>;
         using real_t = nt::value_type_t<value_t>;
         using indices_t = Vec<SInt, N, A1>;
-        using weight_t = Vec<real_t, N, next_power_of_2(alignof(real_t) * N)>;
+        using weight_t = Vec<real_t, N, min(size_t{16}, next_power_of_2(alignof(real_t) * N))>; // FIXME
 
         // Utility to read from the input while accounting for the border mode.
         auto value_at = [&](const auto& indices) {
@@ -344,7 +210,7 @@ namespace noa {
             }
         };
 
-        if constexpr (INTERP == Interp::NEAREST) {
+        if constexpr (INTERP.is_almost_any(Interp::NEAREST)) {
             // For nearest, the compiler cannot optimize away the second read with weight=0,
             // so keep a compile-time branch for this case reading only one value from the input.
             return value_at(round(coordinate).template as<SInt, A1>());
@@ -360,7 +226,7 @@ namespace noa {
 
             const auto floored = floor(coordinate);
             const auto indices = floored.template as<SInt, A1>();
-            const auto fraction = coordinate - floored; // TODO increase alignment
+            const auto fraction = coordinate - floored; // TODO increase alignment?
 
             // If indices are inbound, no need to interpolate in the case of AccessorValue.
             if constexpr (nt::accessor_value<T>) {
@@ -404,7 +270,7 @@ namespace noa {
     /// \details This function computes the interpolated value by computing a series of intermediate lerps. If these
     ///          lerps are hardware accelerated (e.g. CUDA textures), this reduces the number of reads by a factor of 2
     ///          in each dimension. For instance, for 4x4x4 cubic 3d windows, instead of needing 64 reads, only 8 lerp
-    ///          fetches are needed. If these fetches are hardware accelerated, it can speedup the overall computation.
+    ///          fetches are necessary. If these fetches are hardware accelerated, it can speed up the overall computation.
     ///          In the case of Interp::NEAREST_FAST, nearest-neighbor fetches are used instead, if available.
     ///
     /// \tparam INTERP      Interpolation method. Only fast modes are supported, indicating that a low precision is
@@ -417,7 +283,7 @@ namespace noa {
     template<Interp INTERP, Border BORDER, size_t N, size_t A,
              nt::textureable_nd<BORDER, N> T,
              nt::any_of<f32, f64> R>
-    requires (1 <= N and N <= 3 and INTERP.is_fast())
+    requires (1 <= N and N <= 3)
     NOA_HD constexpr auto interpolate_using_texture(
         const T& input,
         const Vec<R, N, A>& coordinate
@@ -458,8 +324,8 @@ namespace noa {
                     const i32 offset = -(HALF - 1 - index);
                     lerp_weight[i] = weights[index] + weights[index + 1];
                     lerp_coord[i] = input.fetch_preprocess(
-                            static_cast<coord_t>(weights[index + 1] / lerp_weight[i]) +
-                            floored + static_cast<coord_t>(offset));
+                        static_cast<coord_t>(weights[index + 1] / lerp_weight[i]) +
+                        floored + static_cast<coord_t>(offset));
                 }
 
                 // Lerp at the adjusted coordinates and correct for the interpolation weights.
@@ -541,22 +407,27 @@ namespace noa {
              size_t A0, size_t A1>
     NOA_HD constexpr auto interpolate_spectrum(
         const T& input,
-        const Vec<Coord, N, A0>& frequency,
+        Vec<Coord, N, A0> frequency,
         const Shape<Int, N, A1>& shape
     ) noexcept -> nt::mutable_value_type_t<T> {
         using value_t = nt::mutable_value_type_t<T>;
         using real_t = nt::value_type_t<value_t>;
         using indices_t = Vec<Int, N, A1>;
-        using weight_t = Vec<value_t, N, next_power_of_2(alignof(real_t) * N)>;
+        using weight_t = Vec<real_t, N>; // TODO benchmark vec alignment?
 
         // Handle non-redundant inputs by switching to the complex conjugate.
-        // For windows of size 2, we can flip the frequency at this point because the window doesn't have negative
-        // offsets, so if the frequency is flipped, we know that all indices will be on the right side of the DC.
-        // For larger windows, this is not the case and flipping needs to be done for each index in the window.
+        // For windows of size 2 (LINEAR), we can flip the frequency at this point because the window doesn't have
+        // negative offsets, so if the frequency is flipped, we know that all indices will be on the right side of
+        // the DC. For larger windows, this is not the case and flipping needs to be done for each index in the window.
+        //
+        // Note, however, that this early flip results in slight error with non-redundant transforms with even sizes.
+        // This affects only a few elements at the Nyquist frequencies (the ones on the central axes, e.g. x=0) on the
+        // input and weights the interpolated values towards zero. We can fix this by enforcing FLIP_PER_INDEX=true
+        // for LINEAR too, but leave it like this for now as this error is realistically negligible...
         constexpr Int SIZE = INTERP.window_size();
         constexpr bool FLIP = REMAP.is_hx2xx();
-        constexpr bool FLIP_PER_INDEX = SIZE > 2;
-        real_t conjugate{};
+        constexpr bool FLIP_PER_INDEX = SIZE > 2; // TODO try benchmarking with FLIP_PER_INDEX=true
+        real_t conjugate{1};
         if constexpr (FLIP and not FLIP_PER_INDEX) {
             if (frequency[N - 1] < 0) {
                 frequency *= -1;
@@ -565,9 +436,11 @@ namespace noa {
             }
         }
 
-        const auto left = -shape.vec / 2;
-        const auto right = (shape.vec - 1) / 2;
-        auto update_at = [&](auto freq, auto weight, auto& output) {
+        auto update_at = [
+            &input, &shape,
+            left = -shape.vec / 2,
+            right = (shape.vec - 1) / 2
+        ] (auto freq, auto weight, auto& output) {
             real_t conj{1};
             if constexpr (FLIP and FLIP_PER_INDEX) {
                 if (freq[N - 1] < 0) {
@@ -584,7 +457,7 @@ namespace noa {
             }, left, right, freq);
 
             if (is_inside_spectrum) {
-                auto value = input(ng::interp_frequency_to_index<REMAP>(freq));
+                auto value = input(ng::interp_frequency_to_index<REMAP>(freq, shape));
                 if constexpr (FLIP and FLIP_PER_INDEX and nt::complex<value_t>)
                     value.imag *= conj;
                 output += value * weight;
@@ -646,17 +519,16 @@ namespace noa {
     ///                     accurate interpolation modes.
     /// \tparam INTERP      Interpolation method.
     /// \param frequency    Centered ((D)H)W frequency, in samples (i.e. not normalized).
-    /// \param texture      Textureable type mapping the input spectrum, using Border::ZERO addressing.
+    /// \param input        Textureable type mapping the input spectrum, using Border::ZERO addressing.
     /// \param shape        ((D)H)W (logical) shape of the input spectrum.
     template<Remap REMAP, Interp INTERP, size_t N,
              nt::textureable_nd<Border::ZERO, N> T,
              nt::any_of<f32, f64> Coord,
              nt::sinteger Int,
              size_t A0, size_t A1>
-    requires (REMAP.is_xc2xx() or not INTERP.is_fast())
     NOA_HD constexpr auto interpolate_spectrum_using_texture(
         const T& input,
-        const Vec<Coord, N, A0>& frequency,
+        Vec<Coord, N, A0> frequency,
         const Shape<Int, N, A1>& shape
     ) noexcept -> nt::mutable_value_type_t<T> {
         using value_t = nt::mutable_value_type_t<T>;
@@ -671,7 +543,7 @@ namespace noa {
         constexpr Int SIZE = INTERP.window_size();
         constexpr bool FLIP = REMAP.is_hx2xx();
         constexpr bool FLIP_PER_INDEX = SIZE > 2;
-        real_t conjugate{};
+        real_t conjugate{1};
         if constexpr (FLIP and not FLIP_PER_INDEX) {
             if (frequency[N - 1] < 0) {
                 frequency *= -1;
@@ -710,12 +582,10 @@ namespace noa {
 
             const coordn_t floored = floor(frequency);
             const coordn_t fraction = frequency - floored;
-            using weight_t = Vec<real_t, N, next_power_of_2(alignof(real_t) * N)>;
+            using weight_t = Vec<real_t, N>; // TODO , next_power_of_2(alignof(real_t) * N)
             const Vec<weight_t, SIZE> weights = interpolation_weights<INTERP, weight_t>(fraction);
 
-            if constexpr (INTERP.is_fast() and nt::lerpable_nd<T, Border::ZERO>) {
-                static_assert(REMAP.is_hc2xx());
-
+            if constexpr (REMAP.is_hc2xx() and INTERP.is_fast() and nt::lerpable_nd<T, Border::ZERO>) {
                 // This was expanded from the original implementation of Daniel Ruijters
                 // for Cubic B-spline interpolation in CUDA: http://www.dannyruijters.nl/cubicinterpolation/
                 // Compute the adjusted coordinates for the lerp.
@@ -754,8 +624,8 @@ namespace noa {
                     }
                 }
             } else {
-                // Hardware interpolation is not allowed, but we can still use the texture addressing
-                // and do the interpolation in software. This mode allows for non-redundant spectra.
+                // Hardware interpolation is not allowed or possible, but we can still use the texture addressing
+                // and do the interpolation in software. Note that this mode also allows for non-centered spectra.
                 constexpr Int START = -(SIZE - 1) / 2;
                 constexpr Int END = SIZE / 2;
                 const auto indices = static_cast<indices_t>(floored);
@@ -802,7 +672,7 @@ namespace noa {
     /// Out-of-bounds:
     ///     - One of the main differences between these interpolations and what we can find in other cryoEM packages,
     ///       is that the interpolation window can be partially out-of-bound (OOB), that is, elements that are OOB
-    ///       are replaced according to a Border. cryoEM packages usually check that all elements are in-bound
+    ///       are replaced according to a Border. cryoEM packages usually check that all elements are inbound,
     ///       and if there's even one element OOB, they don't interpolate.
     ///     - In texture mode, the texture is responsible for the addressing, so some Border modes may not be supported.
     ///       See `interpolate_using_texture` for more details. If the texture does not have the required mode, i.e.
@@ -837,7 +707,7 @@ namespace noa {
         using input_type = Input;
         using value_type = input_type::value_type;
         using offset_type = input_type::index_type;
-        using mutable_value_type = nt::mutable_value_type_t<value_type>;
+        using mutable_value_type = nt::mutable_value_type_t<input_type>;
         using index_type = std::make_signed_t<offset_type>;
 
         static constexpr size_t SIZE = N;
@@ -845,11 +715,12 @@ namespace noa {
             { t[0] } -> nt::textureable_nd<BORDER, N>;
         };
 
-        using shape_nd_type = Shape<index_type, N, next_power_of_2(sizeof(index_type) * N)>;
+        using shape_nd_type = Shape<index_type, N>;
         using shape_nd_or_empty_type = std::conditional_t<is_textureable, Empty, shape_nd_type>;
         using value_or_empty_type = std::conditional_t<BORDER == Border::VALUE, mutable_value_type, Empty>;
 
     public:
+        /// Unsafe default construction...
         constexpr Interpolator() = default;
 
         /// Constructs an interpolator from an accessor-like object.
@@ -869,9 +740,9 @@ namespace noa {
         }
 
         /// Constructs an interpolator from a texture-like object.
-        /// This stores a copy of the input texture. Note that the addressing is handled by the texture (as described
+        /// This stores a copy of the input texture. Note that the texture handles the addressing (as described
         /// in the interpolate_using_texture function), so the shape and cvalue are ignored and only provided here
-        /// to match the constructor taking accessors.
+        /// to match the constructor taking readable inputs.
         template<size_t A> requires is_textureable
         NOA_HD constexpr explicit Interpolator(
             const input_type& input,
@@ -881,17 +752,16 @@ namespace noa {
             m_input(input) {}
 
     public:
-        /// N-d interpolation of the data at a given batch.
+        /// N-d interpolation of the input data at a given coordinate and batch.
         /// \param coordinates  Un-normalized coordinates.
         /// \param batch        Optional batch index. The input object is allowed to ignore the batch
         ///                     and can thus effectively broadcast the input along the batch dimension.
         template<nt::any_of<f32, f64> T, size_t A, nt::integer I = index_type>
         NOA_HD constexpr auto interpolate_at(const Vec<T, N, A>& coordinates, I batch = I{}) const -> mutable_value_type {
-            using vec_t = Vec<T, N, next_power_of_2(alignof(T) * N)>;
             if constexpr (is_textureable) {
-                return noa::interpolate_using_texture<INTERP, BORDER>(m_input[batch], vec_t::from_vec(coordinates));
+                return noa::interpolate_using_texture<INTERP, BORDER>(m_input[batch], coordinates);
             } else { // readable
-                return noa::interpolate<INTERP, BORDER>(m_input[batch], vec_t::from_vec(coordinates), m_shape, m_cvalue);
+                return noa::interpolate<INTERP, BORDER>(m_input[batch], coordinates, m_shape, m_cvalue);
             }
         }
 
@@ -909,15 +779,15 @@ namespace noa {
         }
 
         template<nt::integer I, size_t S, size_t A>
-        requires (N == S and nt::readable_nd<input_type, N + 1>)
-        NOA_HD constexpr auto operator()(const Vec<I, S, A>& indices) const -> mutable_value_type {
-            return m_input(indices.push_front(1));
-        }
-
-        template<nt::integer I, size_t S, size_t A>
         requires (N + 1 == S and nt::readable_nd<input_type, N + 1>)
         NOA_HD constexpr auto operator()(const Vec<I, S, A>& indices) const -> mutable_value_type {
             return m_input(indices);
+        }
+
+        template<nt::integer I, size_t S, size_t A>
+        requires (N == S and nt::readable_nd<input_type, N + 1>)
+        NOA_HD constexpr auto operator()(const Vec<I, S, A>& indices) const -> mutable_value_type {
+            return m_input(indices.push_front(1));
         }
 
     private:
@@ -926,36 +796,43 @@ namespace noa {
         NOA_NO_UNIQUE_ADDRESS value_or_empty_type m_cvalue{};
     };
 
-    template<size_t N, Remap REMAP, Interp INTERP, nt::interpable_spectrum_nd<REMAP, INTERP, N> Input>
+    /// Interpolates {1|2|3}d (power) spectra with a given FFT layout, using a given interpolation.
+    /// \tparam N       Number of dimensions of the data. Between 1 and 3.
+    /// \tparam REMAP   FFT layout of the input. The output layout is ignored.
+    /// \tparam INTERP  Interpolation method.
+    /// \tparam Input   Batched input data. Readable or textureable.
+    template<size_t N, Remap REMAP, Interp INTERP, nt::interpable_nd<Border::ZERO, N> Input>
     class InterpolatorSpectrum {
     public:
         using input_type = Input;
         using value_type = input_type::value_type;
         using offset_type = input_type::index_type;
-        using mutable_value_type = nt::mutable_value_type_t<value_type>;
+        using mutable_value_type = nt::mutable_value_type_t<input_type>;
         using index_type = std::make_signed_t<offset_type>;
         using shape_nd_type = Shape<index_type, N>;
 
         static constexpr size_t SIZE = N;
         static constexpr bool is_textureable = requires(const input_type& t) {
-            { t[0] } -> nt::textureable_spectrum_nd<REMAP, INTERP, N>;
+            { t[0] } -> nt::textureable_nd<Border::ZERO, N>;
         };
 
     public:
+        /// Unsafe default construction...
         constexpr InterpolatorSpectrum() = default;
 
         /// Constructs an interpolator.
-        /// The created instance can then be used to interpolate the nd-data (as described in the interpolate function).
+        /// The created instance can then be used to interpolate the nd-spectrum
+        /// (as described in the interpolate_spectrum(_using_texture) function(s)).
         NOA_HD constexpr InterpolatorSpectrum(
-                const input_type& input,
-                shape_nd_type shape
-        ) noexcept:
-                m_input(input),
-                m_shape(shape) {}
+            const input_type& input,
+            shape_nd_type shape
+        ) noexcept :
+            m_input(input),
+            m_shape(shape) {}
 
     public:
-        /// N-d interpolation of the data at a given batch.
-        /// \param frequency    Un-normalized centered frequency.
+        /// N-d interpolation of the input spectrum at a given frequency and batch.
+        /// \param frequency    Unnormalized and centered frequency.
         /// \param batch        Optional batch index. The input object is allowed to ignore the batch
         ///                     and can thus effectively broadcast the input along the batch dimension.
         template<nt::any_of<f32, f64> T, size_t A, nt::integer I = index_type>
@@ -969,15 +846,27 @@ namespace noa {
 
     public: // independently, make it readable if input supports it
         template<nt::integer... I>
-        requires (nt::readable_nd<input_type, sizeof...(I)> and (N == sizeof...(I) or N + 1 == sizeof...(I)))
+        requires (N + 1 == sizeof...(I) and nt::readable_nd<input_type, N + 1>)
         NOA_HD constexpr auto operator()(I... indices) const -> mutable_value_type {
             return m_input(indices...);
         }
 
+        template<nt::integer... I>
+        requires (N == sizeof...(I) and nt::readable_nd<input_type, N + 1>)
+        NOA_HD constexpr auto operator()(I... indices) const -> mutable_value_type {
+            return m_input(0, indices...);
+        }
+
         template<nt::integer I, size_t S, size_t A>
-        requires (nt::readable_nd<input_type, N> and (N == S or N + 1 == S))
+        requires (N + 1 == S and nt::readable_nd<input_type, N + 1>)
         NOA_HD constexpr auto operator()(const Vec<I, S, A>& indices) const -> mutable_value_type {
             return m_input(indices);
+        }
+
+        template<nt::integer I, size_t S, size_t A>
+        requires (N == S and nt::readable_nd<input_type, N + 1>)
+        NOA_HD constexpr auto operator()(const Vec<I, S, A>& indices) const -> mutable_value_type {
+            return m_input(indices.push_front(1));
         }
 
     private:

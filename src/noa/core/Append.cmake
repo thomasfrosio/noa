@@ -8,7 +8,6 @@ set(NOA_CORE_HEADERS
     core/Iwise.hpp
     core/Namespace.hpp
     core/Reduce.hpp
-    core/Remap.hpp
     core/Traits.hpp
 
     core/fft/FourierRemap.hpp
@@ -85,6 +84,7 @@ set(NOA_CORE_HEADERS
     )
 
 set(NOA_CORE_SOURCES
+    core/Enums.cpp
     core/Exception.cpp
     core/geometry/Euler.cpp
     core/io/IO.cpp

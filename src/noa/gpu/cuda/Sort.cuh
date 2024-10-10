@@ -118,7 +118,7 @@ namespace noa::cuda::guts {
         for (i64 i = 0; i < iter_shape[0]; ++i) {
             for (i64 j = 0; j < iter_shape[1]; ++j) {
                 for (i64 k = 0; k < iter_shape[2]; ++k) {
-                    T* values_iter = values + ni::offset_at(i, j, k, iter_strides);
+                    T* values_iter = values + ni::offset_at(iter_strides, i, j, k);
 
                     // (Re)set the buffers.
                     keys.selector = 0;
@@ -170,7 +170,7 @@ namespace noa::cuda::guts {
         const auto key_buffer_alt = AllocatorDevice<u32>::allocate_async(n_elements, stream);
         Vec4<i32> tile = shape_i32.vec;
         tile[dim] = 1; // mark elements with their original line.
-        iwise(shape, ng::Iota(AccessorContiguousI32<u32, 4>(key_buffer.get(), shape_i32.strides()), shape_i32, tile), stream);
+        iwise(shape_i32, ng::Iota(AccessorContiguousI32<u32, 4>(key_buffer.get(), shape_i32.strides()), shape_i32, tile), stream);
 
         // Prepare the values.
         using unique_t = typename AllocatorDevice<T>::unique_type;
@@ -259,9 +259,9 @@ namespace noa::cuda {
         shape_4d[dim] = 1;
         const auto n_iterations = shape_4d.n_elements();
         if (n_iterations < 10)
-            sort_iterative_(array, strides, shape, dim, ascending, stream);
+            guts::sort_iterative_(array, strides, shape, dim, ascending, stream);
         else
-            sort_batched_(array, strides, shape, dim, ascending, stream);
+            guts::sort_batched_(array, strides, shape, dim, ascending, stream);
     }
 }
 #endif

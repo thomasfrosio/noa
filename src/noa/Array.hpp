@@ -12,7 +12,6 @@
 #include "noa/unified/Sort.hpp"
 
 #include "noa/unified/Cast.hpp"
-#include "noa/unified/Copy.hpp"
 #include "noa/unified/CopyBatches.hpp"
 #include "noa/unified/Factory.hpp"
 #include "noa/unified/Resize.hpp"

@@ -55,7 +55,7 @@ namespace {
         auto lhs_op = lhs_transpose ? CUBLAS_OP_T : CUBLAS_OP_N;
         auto rhs_op = rhs_transpose ? CUBLAS_OP_T : CUBLAS_OP_N;
 
-        // cublas thinks everything is column-major (-_-), so if we are row-major we need to compute B.T @ A.T = C.T
+        // cublas thinks everything is column-major, so if we are row-major we need to compute B.T @ A.T = C.T
         // https://stackoverflow.com/questions/56043539/cublassgemm-row-major-multiplication
         // https://peterwittek.com/cublas-matrix-c-style.html
         if (not is_column_major) {
@@ -67,33 +67,33 @@ namespace {
         }
 
         if constexpr (std::is_same_v<f32, T>) {
-            cublasSgemmStridedBatched(
+            check(cublasSgemmStridedBatched(
                 handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2], &alpha,
                 lhs, labc[0], sabc[0],
                 rhs, labc[1], sabc[1], &beta,
-                output, labc[2], sabc[2], batches);
+                output, labc[2], sabc[2], batches));
         } else if constexpr (std::is_same_v<f64, T>) {
-            cublasDgemmStridedBatched(
+            check(cublasDgemmStridedBatched(
                 handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2], &alpha,
                 lhs, labc[0], sabc[0],
                 rhs, labc[1], sabc[1], &beta,
-                output, labc[2], sabc[2], batches);
+                output, labc[2], sabc[2], batches));
         } else if constexpr (std::is_same_v<c32, T>) {
-            cublasCgemmStridedBatched(
+            check(cublasCgemmStridedBatched(
                 handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2],
                 reinterpret_cast<const cuComplex*>(&alpha),
                 reinterpret_cast<const cuComplex*>(lhs), labc[0], sabc[0],
                 reinterpret_cast<const cuComplex*>(rhs), labc[1], sabc[1],
                 reinterpret_cast<const cuComplex*>(&beta),
-                reinterpret_cast<cuComplex*>(output), labc[2], sabc[2], batches);
+                reinterpret_cast<cuComplex*>(output), labc[2], sabc[2], batches));
         } else if constexpr (std::is_same_v<c64, T>) {
-            cublasZgemmStridedBatched(
+            check(cublasZgemmStridedBatched(
                 handle, lhs_op, rhs_op, mnk[0], mnk[1], mnk[2],
                 reinterpret_cast<const cuDoubleComplex*>(&alpha),
                 reinterpret_cast<const cuDoubleComplex*>(lhs), labc[0], sabc[0],
                 reinterpret_cast<const cuDoubleComplex*>(rhs), labc[1], sabc[1],
                 reinterpret_cast<const cuDoubleComplex*>(&beta),
-                reinterpret_cast<cuDoubleComplex*>(output), labc[2], sabc[2], batches);
+                reinterpret_cast<cuDoubleComplex*>(output), labc[2], sabc[2], batches));
         }
     }
 }
@@ -113,8 +113,8 @@ namespace noa::cuda {
         Stream& stream
     ) {
         auto [mnk, secondmost_strides, are_column_major] = ni::extract_matmul_layout(
-                lhs_strides, lhs_shape, rhs_strides, rhs_shape, output_strides, output_shape,
-                lhs_transpose, rhs_transpose);
+            lhs_strides, lhs_shape, rhs_strides, rhs_shape, output_strides, output_shape,
+            lhs_transpose, rhs_transpose);
 
         const auto labc = secondmost_strides.vec.as_safe<i32>();
         const auto sabc = Vec3<i64>{lhs_strides[0], rhs_strides[0], output_strides[0]};

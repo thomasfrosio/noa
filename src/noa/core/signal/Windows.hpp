@@ -1,32 +1,32 @@
 #pragma once
 
-#include "noa/core/Types.hpp"
+#include "noa/core/math/Constant.hpp"
 #include "noa/core/math/Generic.hpp"
 
 namespace noa::signal::guts {
-    template<typename Derived> // CRTP
+    template<typename Derived>
     class Window {
     public:
-        constexpr explicit Window(i64 elements, bool half_window = false) :
-                m_elements(elements),
-                m_offset(half_window ? elements / 2 : 0),
-                m_center(window_center_coordinate_(elements)) {}
+        constexpr explicit Window(i64 n_elements, bool half_window = false) :
+            m_n_elements(n_elements),
+            m_offset(half_window ? n_elements / 2 : 0),
+            m_center(window_center_coordinate_(n_elements)) {}
 
-        [[nodiscard]] constexpr auto elements() const noexcept -> i64 { return m_elements; }
+        [[nodiscard]] constexpr auto n_elements() const noexcept -> i64 { return m_n_elements; }
         [[nodiscard]] constexpr auto offset() const noexcept -> i64 { return m_offset; }
         [[nodiscard]] constexpr auto center() const noexcept -> f64 { return m_center; }
 
         template<nt::real Real>
         constexpr void generate(Real* output, bool normalize = true) const noexcept {
             f64 sum{};
-            for (i64 i = m_offset; i < m_elements; ++i) {
+            for (i64 i = m_offset; i < m_n_elements; ++i) {
                 const f64 n = static_cast<f64>(i);
                 const f64 window = static_cast<const Derived*>(this)->window(n, m_center);
                 sum += window;
                 output[i - m_offset] = static_cast<Real>(window);
             }
             if (normalize)
-                window_normalize_(output, m_elements - m_offset, sum);
+                window_normalize_(output, m_n_elements - m_offset, sum);
         }
 
         [[nodiscard]] constexpr f64 sample(i64 index) const noexcept {
@@ -35,30 +35,30 @@ namespace noa::signal::guts {
         }
 
     private:
-        [[nodiscard]] static constexpr f64 window_center_coordinate_(i64 elements) noexcept {
-            auto half = static_cast<f64>(elements / 2);
-            if (is_multiple_of(elements, i64{2})) // even
+        [[nodiscard]] static constexpr f64 window_center_coordinate_(i64 n_elements) noexcept {
+            auto half = static_cast<f64>(n_elements / 2);
+            if (is_even(n_elements))
                 half -= 0.5;
             return half;
         }
 
         template<typename Real>
-        static constexpr void window_normalize_(Real* output, i64 elements, f64 sum) noexcept {
+        static constexpr void window_normalize_(Real* output, i64 n_elements, f64 sum) noexcept {
             const auto sum_real = static_cast<Real>(sum);
-            for (i64 i = 0; i < elements; ++i)
+            for (i64 i = 0; i < n_elements; ++i)
                 output[i] /= sum_real;
         }
 
     private:
-        i64 m_elements;
+        i64 m_n_elements;
         i64 m_offset;
         f64 m_center;
     };
 
-    struct WindowGaussian : public Window<WindowGaussian> {
+    struct WindowGaussian : Window<WindowGaussian> {
         f64 sig2;
-        constexpr explicit WindowGaussian(i64 elements, bool half_window, f64 stddev)
-                : Window(elements, half_window), sig2(2 * stddev * stddev) {}
+        constexpr explicit WindowGaussian(i64 elements, bool half_window, f64 stddev) :
+            Window(elements, half_window), sig2(2 * stddev * stddev) {}
 
         [[nodiscard]] f64 window(f64 i, f64 center) const noexcept {
             i -= center;
@@ -66,23 +66,23 @@ namespace noa::signal::guts {
         }
     };
 
-    struct WindowBlackman : public Window<WindowBlackman> {
-        constexpr explicit WindowBlackman(i64 elements, bool half_window)
-                : Window(elements, half_window) {}
+    struct WindowBlackman : Window<WindowBlackman> {
+        constexpr explicit WindowBlackman(i64 elements, bool half_window) :
+            Window(elements, half_window) {}
 
         [[nodiscard]] f64 window(f64 i, f64) const noexcept {
             constexpr auto PI = Constant<f64>::PI;
-            const auto norm = static_cast<f64>(elements() - 1);
+            const auto norm = static_cast<f64>(n_elements() - 1);
             return 0.42 -
                    0.5 * cos(2 * PI * i / norm) +
                    0.08 * cos(4 * PI * i / norm);
         }
     };
 
-    struct WindowSinc : public Window<WindowSinc> {
+    struct WindowSinc : Window<WindowSinc> {
         f64 constant;
-        constexpr explicit WindowSinc(i64 elements, bool half_window, f64 constant_)
-                : Window(elements, half_window), constant(constant_) {}
+        constexpr explicit WindowSinc(i64 elements, bool half_window, f64 constant_) :
+            Window(elements, half_window), constant(constant_) {}
 
         [[nodiscard]] f64 window(f64 i, f64 center) const noexcept {
             constexpr auto PI = Constant<f64>::PI;
@@ -93,82 +93,79 @@ namespace noa::signal::guts {
 }
 
 namespace noa::signal {
+    struct WindowOptions {
+        /// Whether to normalize the sum of the full-window to 1.
+        bool normalize{};
+
+        /// Whether to only compute the second half of the window.
+        /// If true, the output array only has \c (n_elements-1)//2+1 n_elements.
+        bool half_window{};
+    };
+
     /// Computes the gaussian window.
     /// \param[out] output  Output array where to save the (half-)window.
     /// \param elements     Number of elements in the full-window.
     /// \param stddev       Standard deviation of the gaussian.
-    /// \param normalize    Whether to normalize the sum of the full-window to 1.
-    /// \param half_window  Whether to only compute the second half of the window.
-    ///                     If true, only (elements-1)//2+1 are written in \p output.
-    template<nt::real Real>
-    constexpr void window_gaussian(
-            Real* output, i64 elements, f64 stddev,
-            bool normalize = false, bool half_window = false
-    ) {
+    /// \param options      Window options.
+    template<nt::real T>
+    constexpr void window_gaussian(T* output, i64 elements, f64 stddev, WindowOptions options = {}) {
         if (elements <= 0)
             return;
-        guts::WindowGaussian(elements, half_window, stddev).generate(output, normalize);
+        guts::WindowGaussian(elements, options.half_window, stddev).generate(output, options.normalize);
     }
 
     /// Samples the gaussian window at a particular index.
     /// \param index        Index where to sample.
     /// \param elements     Number of elements in the window.
     /// \param stddev       Standard deviation of the gaussian.
-    /// \param half_window  Whether to compute the second half of the window.
-    [[nodiscard]] constexpr f64 window_gaussian(i64 index, i64 elements, f64 stddev, bool half_window = false) {
+    /// \param options      Window options. Note that `normalize` is ignored.
+    [[nodiscard]] constexpr f64 window_gaussian(i64 index, i64 elements, f64 stddev, WindowOptions options = {}) {
         if (elements <= 0)
             return 0.;
-        return guts::WindowGaussian(elements, half_window, stddev).sample(index);
+        return guts::WindowGaussian(elements, options.half_window, stddev).sample(index);
     }
 
     /// Computes the blackman window.
     /// \param[out] output  Output array where to save the (half-)window.
     /// \param elements     Number of elements in the full-window.
-    /// \param normalize    Whether to normalize the sum of the full-window to 1.
-    /// \param half_window  Whether to only compute the second half of the window.
-    ///                     If true, only (elements-1)//2+1 are written in \p output.
-    template<nt::real Real>
-    constexpr void window_blackman(Real* output, i64 elements, bool normalize = false, bool half_window = false) {
+    /// \param options      Window options.
+    template<nt::real T>
+    constexpr void window_blackman(T* output, i64 elements, WindowOptions options = {}) {
         if (elements <= 0)
             return;
-        guts::WindowBlackman(elements, half_window).generate(output, normalize);
+        guts::WindowBlackman(elements, options.half_window).generate(output, options.normalize);
     }
 
     /// Samples the blackman window at a particular index.
     /// \param index        Index where to sample.
     /// \param elements     Number of elements in the window.
-    /// \param half_window  Whether to compute the second half of the window.
-    [[nodiscard]] constexpr f64 window_blackman(i64 index, i64 elements, bool half_window = false) {
+    /// \param options      Window options. Note that `normalize` is ignored.
+    [[nodiscard]] constexpr f64 window_blackman(i64 index, i64 elements, WindowOptions options = {}) {
         if (elements <= 0)
             return 0;
-        return guts::WindowBlackman(elements, half_window).sample(index);
+        return guts::WindowBlackman(elements, options.half_window).sample(index);
     }
 
     /// Computes the sinc window.
     /// \param[out] output  Output array where to save the (half-)window.
     /// \param elements     Number of elements in the full-window.
     /// \param constant     Additional constant factor. \c sin(constant*pi*x)/(pi*x) is computed.
-    /// \param normalize    Whether to normalize the sum of the full-window to 1.
-    /// \param half_window  Whether to only compute the second half of the window.
-    ///                     If true, only (elements-1)//2+1 are written in \p output.
-    template<nt::real Real>
-    constexpr void window_sinc(
-            Real* output, i64 elements, f64 constant,
-            bool normalize = false, bool half_window = false
-    ) {
+    /// \param options      Window options.
+    template<nt::real T>
+    constexpr void window_sinc(T* output, i64 elements, f64 constant, WindowOptions options = {}) {
         if (elements <= 0)
             return;
-        guts::WindowSinc(elements, half_window, constant).generate(output, normalize);
+        guts::WindowSinc(elements, options.half_window, constant).generate(output, options.normalize);
     }
 
     /// Samples the sinc window at a particular index.
     /// \param index        Index where to sample.
     /// \param elements     Number of elements in the window. Should be >= 1.
     /// \param constant     Additional constant factor. \c sin(constant*pi*x)/(pi*x) is computed.
-    /// \param half_window  Whether to compute the second half of the window.
-    [[nodiscard]] constexpr f64 window_sinc(i64 index, i64 elements, f64 constant, bool half_window = false) {
+    /// \param options      Window options. Note that `normalize` is ignored.
+    [[nodiscard]] constexpr f64 window_sinc(i64 index, i64 elements, f64 constant, WindowOptions options = {}) {
         if (elements <= 0)
             return 0;
-        return guts::WindowSinc(elements, half_window, constant).sample(index);
+        return guts::WindowSinc(elements, options.half_window, constant).sample(index);
     }
 }

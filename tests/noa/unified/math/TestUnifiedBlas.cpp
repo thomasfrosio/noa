@@ -12,12 +12,12 @@ using namespace ::noa::types;
 namespace {
     template<typename T>
     void naive_matmul_(const Array<T>& lhs, const Array<T>& rhs, const Array<T>& out) {
-        const auto [mnk, secondmost_strides, are_column_major] = noa::indexing::extract_matmul_layout(
-                lhs.strides(), lhs.shape(), rhs.strides(), rhs.shape(), out.strides(), out.shape(),
-                false, false);
+        const auto [mnk, t0, t1] = noa::indexing::extract_matmul_layout(
+            lhs.strides(), lhs.shape(), rhs.strides(), rhs.shape(), out.strides(), out.shape(),
+            false, false);
 
-        const auto span_lhs = lhs.template span<T, 3>();
-        const auto span_rhs = rhs.template span<T, 3>();
+        const auto span_lhs = lhs.template span<const T, 3>();
+        const auto span_rhs = rhs.template span<const T, 3>();
         const auto span_out = out.template span<T, 3>();
 
         for (i64 batch{}; batch < out.shape()[0]; ++batch) {
@@ -25,8 +25,8 @@ namespace {
                 for (i64 n{}; n < mnk[1]; ++n) {
                     for (i64 k{}; k < mnk[2]; ++k) {
                         span_out.at(batch, m, n) +=
-                                span_lhs.at(batch, m, k) *
-                                span_rhs.at(batch, k, n);
+                            span_lhs.at(batch, m, k) *
+                            span_rhs.at(batch, k, n);
                     }
                 }
             }
@@ -48,7 +48,7 @@ TEMPLATE_TEST_CASE("unified::dot()", "[noa][unified]", f32, f64, c32, c64) {
 
     for (auto& device: devices) {
         const auto stream = StreamGuard(device, Stream::DEFAULT);
-        const auto options = ArrayOption(device, MemoryResource::MANAGED);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
         const auto lhs = noa::random(noa::Uniform<TestType>{-5, 5}, shape, options);
@@ -82,7 +82,7 @@ TEMPLATE_TEST_CASE("unified::dot() vs matmul", "[noa][unified]", f32, f64) {
 
     for (auto& device: devices) {
         const auto stream = StreamGuard(device, Stream::DEFAULT);
-        const auto options = ArrayOption(device, MemoryResource::MANAGED);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
         const auto lhs = noa::random(noa::Uniform<TestType>{-5, 5}, lhs_shape, options);
@@ -92,7 +92,6 @@ TEMPLATE_TEST_CASE("unified::dot() vs matmul", "[noa][unified]", f32, f64) {
         const auto output_matmul = noa::empty<TestType>(out_shape, options);
         noa::matmul(lhs, rhs, output_matmul);
 
-        output_matmul.eval();
         REQUIRE_THAT(out_dot,
                      Catch::WithinRel(static_cast<f64>(output_matmul.first()),
                                       std::is_same_v<real_t, f64> ? 1e-7 : 5e-3));
@@ -118,7 +117,7 @@ TEMPLATE_TEST_CASE("unified::matmul()", "[noa][unified]", f32, f64, c32, c64) {
 
     for (auto& device: devices) {
         const auto stream = StreamGuard(device, Stream::DEFAULT);
-        const auto options = ArrayOption(device, MemoryResource::MANAGED);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
         const auto lhs = noa::random(noa::Uniform<TestType>{-5, 5}, lhs_shape, options);

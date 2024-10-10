@@ -110,7 +110,7 @@ TEST_CASE("cpu::ewise") {
         const auto buffer = std::make_unique<f64[]>(static_cast<size_t>(elements));
         const auto expected = std::make_unique<f64[]>(static_cast<size_t>(elements));
         for (auto& e: Span(expected.get(), elements))
-            e = value.deref();
+            e = value.ref();
 
         auto input = noa::make_tuple(value);
         auto output = noa::make_tuple(Accessor<f64, 4, i64>(buffer.get(), shape.strides()));

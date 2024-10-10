@@ -219,7 +219,7 @@ namespace noa::geometry {
         const auto right_angles = options.right_handed ? angles : angles * -1;
 
         Mat33<T> r1, r2, r3;
-        if (lower_axes == "ZYZ") { // TODO table lookup?
+        if (lower_axes == "ZYZ") {
             r1 = rotate_z(right_angles[0]);
             r2 = rotate_y(right_angles[1]);
             r3 = rotate_z(right_angles[2]);
@@ -283,7 +283,7 @@ namespace noa::geometry {
             lower_axes = ns::reverse(std::move(lower_axes));
 
         Vec3<T> euler;
-        if (lower_axes == "ZYZ") { // TODO table lookup?
+        if (lower_axes == "ZYZ") {
             euler = rotm2zyz(rotation);
         } else if (lower_axes == "ZXZ") {
             euler = rotm2zxz(rotation);

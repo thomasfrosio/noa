@@ -38,6 +38,6 @@ macro(noa_set_options)
     option(NOA_ENABLE_TIFF "Enable support for the TIFF file format. Requires static libtiff" ON)
 
     # Additional targets:
-    option(NOA_BUILD_TESTS "Build tests" ON)
+    option(NOA_BUILD_TESTS "Build tests" OFF)
     option(NOA_BUILD_BENCHMARKS "Build benchmarks" OFF)
 endmacro()

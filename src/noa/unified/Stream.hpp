@@ -14,8 +14,8 @@
 namespace noa::cuda {
     class Stream {
     public:
-        void synchronize() const {}
-        [[nodiscard]] bool is_busy() const { return false; }
+        static void synchronize() {}
+        [[nodiscard]] static bool is_busy() { return false; }
     };
 }
 #endif
@@ -25,15 +25,15 @@ namespace noa::gpu {
 }
 
 namespace noa::inline types {
-    /// Unified stream, i.e. (asynchronous) dispatch queue, and its associated device.
+    /// Unified stream, i.e. shared (asynchronous) dispatch queue, and its associated device.
     /// \details
     ///   - Streams are reference counted. While they can be moved and copied around, the actual
     ///     machinery stays at the same location, unaffected by these changes, and is destructed
     ///     once the reference count drops to zero.
-    ///   - Each device has a "current" stream (this state is per host-thread). The current stream
-    ///     is queried very frequently by the library to know where to enqueue function calls. By default,
-    ///     the current streams are the NULL streams. For the CPU, this refers to the host thread being the
-    ///     worker (all execution using the CPU device is synchronous, like if there was no streams at all).
+    ///   - Each device has a "current" stream (this state is per host-thread). The library frequently queries
+    ///     the current stream to know where to enqueue functions. By default, the current streams are the
+    ///     NULL streams. For the CPU, this refers to the host thread (all executions using the CPU device
+    ///     are synchronous, like if there were no streams at all).
     ///   - While streams allow for asynchronous execution relative to the host thread, the streams
     ///     are not thread-safe (this is also why the "current" stream is per host-thread). Enqueuing
     ///     or querying a stream, or any of its references, should be done in a thread-safe manner.
@@ -47,8 +47,9 @@ namespace noa::inline types {
         /// On the CPU, ASYNC launches a new thread which waits to execute work. On the GPU, ASYNC launches
         /// a new "concurrent" stream which is not implicitly synchronized with the NULL stream.
         enum class Mode {
-            DEFAULT,
-            ASYNC
+            DEFAULT = 0,
+            SYNC = DEFAULT,
+            ASYNC = 1,
         };
         using enum Mode;
 
@@ -58,16 +59,16 @@ namespace noa::inline types {
             if (m_device.is_cpu()) {
                 m_stream = cpu_stream(
                         mode == Mode::ASYNC ?
-                        noa::cpu::StreamMode::ASYNC :
-                        noa::cpu::StreamMode::DEFAULT,
-                        static_cast<i32>(Session::thread_limit()));
+                        noa::cpu::Stream::ASYNC :
+                        noa::cpu::Stream::SYNC,
+                        Session::thread_limit());
             } else {
                 #ifdef NOA_ENABLE_CUDA
                 m_stream = gpu_stream(
                         noa::cuda::Device(m_device.id()),
-                        mode == StreamMode::ASYNC ?
-                        noa::cuda::StreamMode::ASYNC :
-                        noa::cuda::StreamMode::DEFAULT);
+                        mode == Mode::ASYNC ?
+                        noa::cuda::Stream::ASYNC :
+                        noa::cuda::Stream::SYNC);
                 #else
                 panic("No GPU backend detected");
                 #endif
@@ -156,14 +157,15 @@ namespace noa::inline types {
     class StreamGuard : public Stream {
     public:
         template<typename ... Args>
-        explicit StreamGuard(Args&& ...args)
-                : Stream(std::forward<Args>(args)...),
-                  m_previous_current(Stream::current(this->device())) {
-            Stream::set_current(*static_cast<Stream*>(this));
+        explicit StreamGuard(Args&& ...args) :
+            Stream(std::forward<Args>(args)...),
+            m_previous_current(current(this->device()))
+        {
+            set_current(*static_cast<Stream*>(this));
         }
 
         ~StreamGuard() {
-            Stream::set_current(m_previous_current);
+            set_current(m_previous_current);
         }
 
     private:

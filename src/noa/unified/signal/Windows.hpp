@@ -4,15 +4,6 @@
 #include "noa/unified/Array.hpp"
 
 namespace noa::signal {
-    struct WindowOptions {
-        /// Whether to normalize the sum of the full-window to 1.
-        bool normalize{};
-
-        /// Whether to only compute the second half of the window.
-        /// If true, the output array only has \c (n_elements-1)//2+1 n_elements.
-        bool half_window{};
-    };
-
     /// Computes the gaussian (half-)window.
     /// \param n_elements   Number of elements in the full-window.
     /// \param stddev       Standard deviation of the gaussian.

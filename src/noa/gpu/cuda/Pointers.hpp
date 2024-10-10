@@ -9,6 +9,14 @@ namespace noa::cuda {
     struct alignas(sizeof(T) * VECTOR_SIZE) AlignedVector {
         T data[VECTOR_SIZE];
     };
+
+    /// Aligned array used to generate vectorized load/store in CUDA.
+    template<typename T, size_t N, size_t A>
+    struct alignas(A) AlignedBuffer {
+        using value_type = T;
+        constexpr static size_t SIZE = N;
+        T data[N];
+    };
 }
 
 #ifdef NOA_IS_OFFLINE
@@ -74,109 +82,133 @@ namespace noa::cuda {
         void* m_pointers[max(size_t{1}, sizeof...(Args))]{};
     };
 
-    /// Returns the number of T elements that can be vectorized to one load/store call.
-    /// CUDA vectorized load/store stops at 16bytes/128bits, so return early if the type cannot
-    /// be vectorized, in the hope that it will help the compiler optimize the vectorized kernel
-    /// instantiation away.
-    template<typename T>
-    constexpr i64 max_vector_count(const T* pointer) {
-        if constexpr (not is_power_of_2(sizeof(T))) {
-            return 1;
-        } else {
-            constexpr auto vec2_alignment = alignof(AlignedVector<T, 2>);
-            constexpr auto vec4_alignment = alignof(AlignedVector<T, 4>);
-            constexpr auto vec8_alignment = alignof(AlignedVector<T, 8>);
-            constexpr auto vec16_alignment = alignof(AlignedVector<T, 16>);
-            const auto address = reinterpret_cast<decltype(vec2_alignment)>(pointer); // T* to uintptr
-
-            if constexpr (sizeof(T) == 16) {
-                return 1;
-            } else if constexpr (sizeof(T) == 8) {
-                if (address % vec2_alignment == 0)
-                    return 2;
-                return 1;
-            } else if constexpr (sizeof(T) == 4) {
-                if (address % vec4_alignment == 0)
-                    return 4;
-                if (address % vec2_alignment == 0)
-                    return 2;
-                return 1;
-            } else if constexpr (sizeof(T) == 2) {
-                if (address % vec8_alignment == 0)
-                    return 8;
-                if (address % vec4_alignment == 0)
-                    return 4;
-                if (address % vec2_alignment == 0)
-                    return 2;
-                return 1;
-            } else {
-                if (address % vec16_alignment == 0)
-                    return 16;
-                if (address % vec8_alignment == 0)
-                    return 8;
-                if (address % vec4_alignment == 0)
-                    return 4;
-                if (address % vec2_alignment == 0)
-                    return 2;
-                return 1;
-            }
-        }
-    }
-
-    /// Returns the maximum vector size (used for vectorized load/store) for the given accessors.
+    /// Returns the minimum address alignment for the given accessors.
     /// \details The vectorization happens along the width, so vectorization is turned off if any of the
     ///          width stride is not 1. This function checks that the alignment is preserved at the beginning
-    ///          of every block work size and at the beginning of every row.
-    /// \param tuple_of_4d_accessors    Tuple of 4d accessors, as this is intended for the *ewise core functions.
-    ///                                 AccessorValue is supported and preserves the vector size. It's probably a good
-    ///                                 idea to turn off the vectorization if every accessor is an AccessorValue, but
-    ///                                 this function cannot do it, since the vectorization may depend on other
-    ///                                 accessors.
-    /// \param n_elements_per_thread_x  The number of elements per thread along the width. The vector size will not
-    ///                                 exceed this value. If it is not a power of 2, the vectorization is turned
-    ///                                 off.
-    /// \param block_size_x             Number of threads per block assigned to process the row(s).
-    /// \param shape_bdh                BDH shape. Empty dimensions do not affect the alignment and thus the
-    ///                                 vectorization. For instance, cases where the inputs are all contiguous,
-    ///                                 all dimensions can be set to 1.
+    ///          of every row. The block size and number of elements per thread is assumed to be a power of two
+    ///          (in which case if the rows are aligned, the beginning of every block will be too).
+    /// \param accessors    Tuple of 4d accessors, as this is intended for the *ewise core functions.
+    ///                     AccessorValue is supported and preserves the vector size. Passing an empty
+    ///                     tuple returns the maximum alignment (for global memory word-count), 16-byte.
+    /// \param shape_bdh    BDH shape. Empty dimensions do not affect the alignment, so if certain
+    ///                     dimensions are known to be contiguous, the dimension size can be set to 1
+    ///                     to skip it.
     template<nt::tuple_of_accessor_nd<4> T, typename Index>
-    constexpr auto maximum_vector_size(
-        const T& tuple_of_4d_accessors,
-        u32 n_elements_per_thread_x,
-        u32 block_size_x,
+    constexpr auto min_address_alignment(
+        const T& accessors,
         const Shape3<Index>& shape_bdh
-    ) -> u32 {
-        if (n_elements_per_thread_x == 1 or not is_power_of_2(n_elements_per_thread_x))
+    ) -> size_t {
+        auto get_alignment = [](const void* pointer) -> size_t{
+            // Global memory instructions support reading or
+            // writing words of size equal to 1, 2, 4, 8, or 16 bytes.
+            const auto address = reinterpret_cast<uintptr_t>(pointer);
+            if (is_multiple_of(address, 16))
+                return 16;
+            if (is_multiple_of(address, 8))
+                return 8;
+            if (is_multiple_of(address, 4))
+                return 4;
+            if (is_multiple_of(address, 2))
+                return 2;
             return 1;
+        };
 
-        u32 vector_size = n_elements_per_thread_x; // maximum vector size
-        tuple_of_4d_accessors.for_each([&](const auto& accessor) {
-            if constexpr (nt::accessor_pure<decltype(accessor)>) {
+        size_t alignment = 16;
+        accessors.for_each([&]<typename U>(const U& accessor) {
+            if constexpr (nt::accessor_pure<U>) {
                 if (accessor.stride(3) == 1) {
-                    const auto strides = accessor.strides().template as<u32>();
-                    auto i_vector_size = static_cast<u32>(max_vector_count(accessor.get()));
+                    size_t i_alignment = get_alignment(accessor.get());
+                    const auto strides = accessor.strides().template as_safe<size_t>();
 
-                    // If the alignment at the start of the batch/block is not enough,
-                    // decrease the vector size. Repeat until vector
-                    for (; i_vector_size >= 2; i_vector_size /= 2) {
-                        // Make sure all blocks are aligned (block_size_x is usually a multiple of 32,
-                        // so it is usually okay).
-                        const auto block_work_size_x = block_size_x * max(n_elements_per_thread_x, i_vector_size);
-                        if (is_multiple_of(block_work_size_x, i_vector_size) and
-                            (shape_bdh[2] == 1 or is_multiple_of(strides[2], i_vector_size)) and
-                            (shape_bdh[1] == 1 or is_multiple_of(strides[1], i_vector_size)) and
-                            (shape_bdh[0] == 1 or is_multiple_of(strides[0], i_vector_size)))
+                    // Make sure every row is aligned to the current alignment.
+                    // If not, try to decrease the alignment until reaching the minimum
+                    // alignment for this type.
+                    constexpr auto SIZE = sizeof(typename U::value_type);
+                    for (; i_alignment >= 2; i_alignment /= 2) {
+                        if ((shape_bdh[2] == 1 or is_multiple_of(strides[2] * SIZE, i_alignment)) and
+                            (shape_bdh[1] == 1 or is_multiple_of(strides[1] * SIZE, i_alignment)) and
+                            (shape_bdh[0] == 1 or is_multiple_of(strides[0] * SIZE, i_alignment)))
                             break;
                     }
-                    vector_size = min(vector_size, i_vector_size);
+                    alignment = min(alignment, i_alignment);
                 } else {
-                    vector_size = 1; // turn off vectorization
+                    // Since the vectorization is set up at compile time, we have no choice but
+                    // to turn off the vectorization for everyone if one accessor is strided.
+                    alignment = 1;
                 }
             }
         });
+        return alignment;
+    }
 
-        // min may help the compiler see that vector_size <= n_elements_per_thread_x.
-        return min(vector_size, n_elements_per_thread_x);
+    /// Computes the maximum vector size allowed for the given inputs/outputs.
+    template<size_t ALIGNMENT, typename... T>
+    consteval size_t maximum_allowed_aligned_buffer_size() {
+        size_t size{ALIGNMENT};
+        auto get_size = [&]<typename V>() {
+            using value_t = nt::mutable_value_type_t<V>;
+            if constexpr (nt::accessor_value<V>) {
+                return size; // AccessorValue shouldn't affect the vector size
+            } else if constexpr (nt::accessor_pure<V> and is_power_of_2(sizeof(value_t))) {
+                constexpr size_t RATIO = sizeof(value_t) / alignof(value_t); // non naturally aligned types
+                constexpr size_t N = (ALIGNMENT / alignof(value_t)) / RATIO;
+                return max(size_t{1}, N); // clamp to one for cases where ALIGNMENT < alignof(value_t)
+            } else {
+                static_assert(nt::accessor_pure<V>);
+                // If size is not a power of two, memory accesses cannot fully coalesce;
+                // there's no point in increasing the word count.
+                return 1;
+            }
+        };
+
+        // To fully coalesce and to ensure that threads work on the same elements,
+        // we have to use the same vector size for all inputs/outputs.
+        constexpr auto accessors = (nt::type_list_t<T>{} + ...);
+        [&]<typename... U>(nt::TypeList<U...>) {
+            ((size = min(size, get_size.template operator()<U>())), ...);
+        }(accessors);
+        return size;
+    }
+
+    template<typename T, size_t ALIGNMENT, size_t N>
+    struct to_aligned_buffer {
+        template<typename U>
+        static constexpr auto get_type() {
+            using value_t = nt::mutable_value_type_t<U>;
+            if constexpr (nt::accessor_pure<U> and is_power_of_2(sizeof(value_t))) {
+                constexpr size_t RATIO = sizeof(value_t) / alignof(value_t); // non naturally aligned types
+                constexpr size_t AA = min(alignof(value_t) * N * RATIO, ALIGNMENT);
+                constexpr size_t A = max(AA, alignof(value_t));
+                return std::type_identity<AlignedBuffer<value_t, N, A>>{};
+            } else {
+                return std::type_identity<AlignedBuffer<value_t, N, alignof(value_t)>>{};
+            }
+        }
+
+        template<typename... U>
+        static constexpr auto get(nt::TypeList<U...>) {
+            return std::type_identity<Tuple<typename decltype(get_type<U>())::type...>>{};
+        }
+
+        using type = decltype(get(nt::type_list_t<T>{}))::type;
+    };
+    template<typename T, size_t ALIGNMENT, size_t N>
+    using to_aligned_buffer_t = to_aligned_buffer<T, ALIGNMENT, N>::type;
+
+    /// Whether the aligned buffers are actually over-aligned compared to the original type.
+    /// In other words, whether using vectorized loads/stores is useful.
+    /// This is used to fall back on a non-vectorized implementation at compile time,
+    /// thus reducing the number of kernels that need to be generated.
+    template<typename... T>
+    constexpr size_t is_vectorized() {
+        constexpr auto aligned_buffers = (nt::type_list_t<T>{} + ...);
+        if constexpr (nt::empty_tuple<T...>) {
+            return false; // no inputs and no outputs
+        } else {
+            return []<typename... U>(nt::TypeList<U...>) {
+                return ((alignof(U) > alignof(typename U::value_type)) or ...);
+            }(aligned_buffers);
+        }
     }
 }
 #endif

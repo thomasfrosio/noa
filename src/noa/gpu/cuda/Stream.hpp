@@ -147,21 +147,23 @@ namespace noa::cuda {
         bool is_cooperative{};
     };
 
-    enum class StreamMode : u32 {
-        // Work running in the created stream is implicitly synchronized with the NULL stream.
-        SERIAL = cudaStreamDefault,
-
-        // Work running in the created stream may run concurrently with work in stream 0 (the
-        // NULL stream) and there is no implicit synchronization performed between it and stream 0.
-        ASYNC = cudaStreamNonBlocking,
-
-        // Default (NULL) stream.
-        DEFAULT = 2
-    };
-
     // A CUDA stream (and its associated device).
     class Stream {
     public:
+        enum class Mode : u32 {
+            // Work running in the created stream is implicitly synchronized with the NULL stream.
+            SERIAL = cudaStreamDefault,
+
+            // Work running in the created stream may run concurrently with work in stream 0 (the
+            // NULL stream) and there is no implicit synchronization performed between it and stream 0.
+            ASYNC = cudaStreamNonBlocking,
+
+            // Default (NULL) stream.
+            DEFAULT = 2,
+            SYNC = DEFAULT,
+        };
+        using enum Mode;
+
         struct Core {
             guts::StreamResourceRegistry resource_registry{};
             cudaStream_t stream_handle{};
@@ -183,20 +185,20 @@ namespace noa::cuda {
         constexpr explicit Stream() = default;
 
         /// Creates a new stream on the current device.
-        explicit Stream(StreamMode mode = StreamMode::ASYNC) :
+        explicit Stream(Mode mode = Mode::ASYNC) :
             m_core(std::make_shared<Core>()),
             m_device(Device::current())
         {
-            if (mode != StreamMode::DEFAULT)
+            if (mode != Mode::DEFAULT)
                 check(cudaStreamCreateWithFlags(&m_core->stream_handle, to_underlying(mode)));
         }
 
         /// Creates a new stream on a given device.
-        explicit Stream(Device device, StreamMode mode = StreamMode::ASYNC) :
+        explicit Stream(Device device, Mode mode = Mode::ASYNC) :
             m_core(std::make_shared<Core>()),
             m_device(device)
         {
-            if (mode != StreamMode::DEFAULT) {
+            if (mode != Mode::DEFAULT) {
                 const DeviceGuard guard(m_device);
                 check(cudaStreamCreateWithFlags(&m_core->stream_handle, to_underlying(mode)));
             }

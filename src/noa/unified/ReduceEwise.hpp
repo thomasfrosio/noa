@@ -11,16 +11,24 @@
 
 #include "noa/cpu/ReduceEwise.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/AllocatorDevice.hpp"
-#include "noa/gpu/cuda/AllocatorManaged.hpp"
+#include "noa/gpu/cuda/Allocators.hpp"
 #include "noa/gpu/cuda/Copy.cuh"
 #include "noa/gpu/cuda/ReduceEwise.cuh"
 #endif
 
 namespace noa {
     struct ReduceEwiseOptions {
+        /// Whether to compile for the CPU compute device.
         bool generate_cpu{true};
+
+        /// Whether to compile for the GPU compute device.
         bool generate_gpu{true};
+
+        /// GPU kernel configurations.
+        u32 gpu_n_elements_per_thread{8};
+        u32 gpu_block_size{512};
+        u32 gpu_max_grid_size{4096};
+        bool gpu_enable_vectorization{true};
     };
 }
 
@@ -38,7 +46,7 @@ namespace noa {
     ///                         When this function returns, the output values will have been updated.
     /// \param[in] op           Operator satisfying the reduce_ewise core interface. The operator is perfectly
     ///                         forwarded to the backend (it is moved or copied to the backend compute kernel).
-    template<ReduceEwiseOptions OPTIONS = {},
+    template<ReduceEwiseOptions OPTIONS = ReduceEwiseOptions{},
              typename Inputs = ng::AdaptorUnzip<>,
              typename Reduced = ng::AdaptorUnzip<>,
              typename Outputs = ng::AdaptorUnzip<>,
@@ -182,8 +190,8 @@ namespace noa::guts {
                 });
 
                 constexpr bool use_device_memory =
-                        nt::has_allow_vectorization_v<Op> and
-                        ng::are_all_value_types_trivially_copyable<decltype(output_accessors)>();
+                    nt::has_allow_vectorization_v<Op> and
+                    ng::are_all_value_types_trivially_copyable<decltype(output_accessors)>();
 
                 // Allocate and initialize the output values for the device.
                 [[maybe_unused]] auto buffers = output_accessors.map_enumerate([&]<size_t J, typename A>(A& accessor) {
@@ -193,14 +201,14 @@ namespace noa::guts {
                         accessor.reset_pointer(buffer.get());
                         return buffer;
                     } else {
-                        // We use managed memory to do the copy on the host, allowing us to support non-trivially copyable
-                        // types (such types cannot be safely copied between unregistered host and device memory).
+                        // We use managed memory to do the copy on the host, allowing us to support non-trivially
+                        // copyable types (which cannot be safely copied between unregistered host and device memory).
                         auto buffer = noa::cuda::AllocatorManaged<value_t>::allocate(1, cuda_stream);
                         accessor.reset_pointer(buffer.get());
 
-                        // In the case of a defined final() operator member function, the core interface requires
-                        // the output values to be correctly initialized so that the operator can read from them.
-                        // This is turned off using the "allow_vectorization" flag.
+                        // In case the final() function is defined, the core interface requires the output values
+                        // to be correctly initialized so that the operator can read from them.
+                        // This requirement is removed by the "allow_vectorization" flag.
                         if constexpr (not nt::has_allow_vectorization_v<Op>)
                             accessor[0] = outputs[Tag<J>{}]; // TODO else prefetch to device?
                         return buffer;
@@ -208,7 +216,12 @@ namespace noa::guts {
                 });
 
                 // Compute the reduction.
-                using config = noa::cuda::ReduceEwiseConfig<ZIP_INPUTS, ZIP_REDUCED, ZIP_OUTPUTS>;
+                using config = noa::cuda::ReduceEwiseConfig<
+                    ZIP_INPUTS, ZIP_REDUCED, ZIP_OUTPUTS,
+                    OPTIONS.gpu_n_elements_per_thread,
+                    OPTIONS.gpu_block_size,
+                    OPTIONS.gpu_max_grid_size,
+                    OPTIONS.gpu_enable_vectorization>;
                 noa::cuda::reduce_ewise<config>(
                         shape, std::forward<Op>(op),
                         std::move(input_accessors),

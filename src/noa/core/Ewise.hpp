@@ -38,9 +38,9 @@ namespace noa {
     NOA_UNARY_OP_(Conj, return conj(src));
     NOA_UNARY_OP_(OneMinus, return T{1} - src);
     NOA_UNARY_OP_(Inverse, return T{1} / src);
-    NOA_UNARY_OP_(Zero, return src == T{});
-    NOA_UNARY_OP_(NonZero, return src != T{});
-    NOA_UNARY_OP_(LogicalNot, return !src);
+    NOA_UNARY_OP_(IsZero, return src == T{});
+    NOA_UNARY_OP_(IsNonZero, return src != T{});
+    NOA_UNARY_OP_(IsNot, return !src);
     NOA_UNARY_OP_(Normalize, return normalize(src));
     NOA_UNARY_OP_(AbsOneLog, return log(nt::value_type_t<T>{1} + abs(src)));
     NOA_UNARY_OP_(OneLog, return log(nt::value_type_t<T>{1} + src));
@@ -71,8 +71,8 @@ namespace noa {
     NOA_BINARY_OP_(LessEqual, return lhs <= rhs);
     NOA_BINARY_OP_(Greater, return lhs > rhs);
     NOA_BINARY_OP_(GreaterEqual, return lhs >= rhs);
-    NOA_BINARY_OP_(LogicalAnd, return lhs && rhs);
-    NOA_BINARY_OP_(LogicalOr, return lhs || rhs);
+    NOA_BINARY_OP_(LogicalAnd, return lhs && rhs);  // TODO And
+    NOA_BINARY_OP_(LogicalOr, return lhs || rhs);   // TODO Or
     NOA_BINARY_OP_(Min, return min(lhs, rhs));
     NOA_BINARY_OP_(Max, return max(lhs, rhs));
     NOA_BINARY_OP_(Plus, return lhs + rhs);
@@ -145,7 +145,7 @@ namespace noa {
         }
     };
 
-    struct ZeroInitialize {
+    struct Zero {
         using allow_vectorization = bool;
 
         template<typename... U>

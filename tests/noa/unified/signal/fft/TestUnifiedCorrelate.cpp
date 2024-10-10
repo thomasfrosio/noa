@@ -13,6 +13,7 @@
 #include "Utils.hpp"
 
 using namespace ::noa::types;
+using Remap = noa::Remap;
 
 namespace {
     constexpr std::array cross_correlation_modes{

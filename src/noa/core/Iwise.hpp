@@ -25,6 +25,8 @@ namespace noa {
     template<nt::numeric T>
     struct Linspace {
         using value_type = T;
+        using real_type = nt::value_type_t<value_type>;
+
         value_type start;
         value_type stop;
         bool endpoint{true};
@@ -33,7 +35,6 @@ namespace noa {
         struct Op {
             using value_type = T;
             using index_type = I;
-            using real_type = nt::value_type_t<value_type>;
 
             value_type start;
             value_type step;
@@ -62,8 +63,8 @@ namespace noa {
 
         template<nt::integer I>
         auto for_size(const I& size) -> Op<I> requires nt::complex<value_type> {
-            auto real = Linspace{start.real, stop.real, endpoint}.for_size(size);
-            auto imag = Linspace{start.imag, stop.imag, endpoint}.for_size(size);
+            auto real = Linspace<real_type>{start.real, stop.real, endpoint}.for_size(size);
+            auto imag = Linspace<real_type>{start.imag, stop.imag, endpoint}.for_size(size);
             return Op{
                 .start = {real.start, imag.start},
                 .step = {real.step, imag.step},
@@ -429,8 +430,8 @@ namespace noa::guts {
     ) noexcept -> Pair<ni::Subregion<4, ni::Slice, ni::Slice, ni::Slice, ni::Slice>,
                        ni::Subregion<4, ni::Slice, ni::Slice, ni::Slice, ni::Slice>> {
         // Exclude the regions in the input that don't end up in the output.
-        const auto crop_left = min(border_left, i64{}) * -1;
-        const auto crop_right = min(border_right, i64{}) * -1;
+        const auto crop_left = min(border_left, 0) * -1;
+        const auto crop_right = min(border_right, 0) * -1;
         const auto cropped_input = ni::make_subregion<4>(
                     ni::Slice{crop_left[0], input_shape[0] - crop_right[0]},
                     ni::Slice{crop_left[1], input_shape[1] - crop_right[1]},
@@ -438,8 +439,8 @@ namespace noa::guts {
                     ni::Slice{crop_left[3], input_shape[3] - crop_right[3]});
 
         // Exclude the regions in the output that are not from the input.
-        const auto pad_left = max(border_left, i64{});
-        const auto pad_right = max(border_right, i64{});
+        const auto pad_left = max(border_left, 0);
+        const auto pad_right = max(border_right, 0);
         const auto cropped_output = ni::make_subregion<4>(
                     ni::Slice{pad_left[0], output_shape[0] - pad_right[0]},
                     ni::Slice{pad_left[1], output_shape[1] - pad_right[1]},

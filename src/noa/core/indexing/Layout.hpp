@@ -486,29 +486,32 @@ namespace noa::indexing {
               n == output_shape[3] and
               k == rhs_shape[2 + rhs_transpose],
               "The matrix multiplication (MxK * KxN = MxN) is invalid. "
-              "Got lhs:shape={}, rhs:shape={} and output:shape={}",
-              lhs_shape.filter(2, 3), rhs_shape.filter(2, 3), output_shape.filter(2, 3));
+              "Got lhs:shape={}, rhs:shape={} and output:shape={}, lhs_transpose={}, rhs_transpose={}",
+              lhs_shape.filter(2, 3), rhs_shape.filter(2, 3), output_shape.filter(2, 3),
+              lhs_transpose, rhs_transpose);
 
         const std::array strides{&lhs_strides, &rhs_strides, &output_strides};
         const std::array shapes{&lhs_shape, &rhs_shape, &output_shape};
-        const auto is_vector = Vec3<bool>{
-                ni::is_vector(lhs_shape, true),
-                ni::is_vector(rhs_shape, true),
-                ni::is_vector(output_shape, true)};
-        const auto is_column_major = Vec3<bool>{
-                ni::is_column_major(lhs_strides),
-                ni::is_column_major(rhs_strides),
-                ni::is_column_major(output_strides)};
+        const Vec is_vector{
+            ni::is_vector(lhs_shape, true),
+            ni::is_vector(rhs_shape, true),
+            ni::is_vector(output_shape, true)
+        };
+        const Vec is_column_major{
+            ni::is_column_major(lhs_strides),
+            ni::is_column_major(rhs_strides),
+            ni::is_column_major(output_strides)
+        };
 
-        // Enforce common order and extract the pitch, aka secondmost stride
+        // Enforce common order and extract the secondmost stride (lda, ldb, ldc).
         bool are_column_major{true};
         bool is_order_found{false};
         Strides3<Int> secondmost_strides;
         for (size_t i = 0; i < 3; ++i) {
-            const auto& stride = *strides[i];
-            const auto& shape = *shapes[i];
-
             if (not is_vector[i]) {
+                const auto& stride = *strides[i];
+                const auto& shape = *shapes[i];
+
                 // OpenBLAS and cublas require:
                 //  1) the matrices should be either all row major or all column major.
                 //  2) the innermost stride should be 1, i.e. contiguous
@@ -527,12 +530,25 @@ namespace noa::indexing {
                       "should be contiguous and the second-most dimension cannot be broadcasted. "
                       "Got shape={}, strides={}, layout={}",
                       shape, stride, are_column_major ? "column" : "row");
-            } else {
-                // For vectors, just enforce contiguity...
+            }
+        }
+
+        for (size_t i = 0; i < 3; ++i) {
+            if (is_vector[i]) {
+                const auto& stride = *strides[i];
+                const auto& shape = *shapes[i];
+
+                // For vectors, it is more difficult here, so for now enforce contiguity.
                 check(are_contiguous(stride, shape),
                       "Only contiguous vectors are currently supported, but got shape={} and strides={}",
                       shape, stride);
-                secondmost_strides[i] = 1;
+
+                const bool is_column_vector = shape[2] >= shape[3];
+                if (is_column_vector == are_column_major) {
+                    secondmost_strides[i] = shape[3 - is_column_vector];
+                } else {
+                    secondmost_strides[i] = 1;
+                }
             }
         }
 

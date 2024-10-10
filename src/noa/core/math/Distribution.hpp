@@ -272,7 +272,7 @@ namespace noa {
     /// Returns a random value generator.
     /// Use the call operator to get a value.
     template<nt::distribution T>
-    [[nodiscard]] NOA_HD auto random_generator(const T& distribution) noexcept -> Randomizer<T> {
+    [[nodiscard]] auto random_generator(const T& distribution) noexcept -> Randomizer<T> {
         Randomizer randomizer(distribution);
         randomizer.init(std::random_device{}());
         return randomizer;
@@ -280,7 +280,7 @@ namespace noa {
 
     /// Returns a random value.
     template<nt::distribution T>
-    [[nodiscard]] NOA_FHD auto random_value(const T& distribution) noexcept -> T::value_type {
+    [[nodiscard]] auto random_value(const T& distribution) noexcept -> T::value_type {
         return random_generator(distribution)();
     }
 }

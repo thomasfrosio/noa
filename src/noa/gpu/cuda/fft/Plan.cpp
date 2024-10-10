@@ -5,7 +5,7 @@
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/fft/Plan.hpp"
 
-namespace noa::cuda::fft {
+namespace noa::cuda {
     std::string error2string(cufftResult_t result) {
         switch (result) {
             case CUFFT_SUCCESS:

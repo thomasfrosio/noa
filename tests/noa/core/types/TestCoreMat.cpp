@@ -1,7 +1,6 @@
 #include <noa/core/types/Mat.hpp>
 #include <catch2/catch.hpp>
 
-
 using namespace ::noa::types;
 
 TEMPLATE_TEST_CASE("core::Mat", "[noa][core]", f32, f64) {
@@ -178,14 +177,14 @@ TEMPLATE_TEST_CASE("core::Mat", "[noa][core]", f32, f64) {
         REQUIRE(noa::allclose(tmp2 * tmp3, mat22_t::from_values(9, 15, 41, 75)));
         REQUIRE(noa::allclose(tmp2 * real_t(2.7), mat22_t::from_values(2.7, 5.4, 24.3, 21.6)));
         REQUIRE(noa::allclose(real_t(2.7) * tmp2, mat22_t::from_values(2.7, 5.4, 24.3, 21.6)));
-        REQUIRE(all(noa::allclose(tmp2 * vec2_t::from_values(1.4, 1.5), vec2_t::from_values(4.4, 24.6))));
-        REQUIRE(all(noa::allclose(vec2_t::from_values(1.4, 1.5) * tmp2, vec2_t::from_values(14.9, 14.8))));
+        REQUIRE(noa::all(noa::allclose(tmp2 * vec2_t::from_values(1.4, 1.5), vec2_t::from_values(4.4, 24.6))));
+        REQUIRE(noa::all(noa::allclose(vec2_t::from_values(1.4, 1.5) * tmp2, vec2_t::from_values(14.9, 14.8))));
 
         REQUIRE(noa::allclose(tmp2 / tmp3, mat22_t::from_values(0.33333333, 0.16666667, -3.66666667, 3.16666667)));
         REQUIRE(noa::allclose(tmp2 / real_t(2.8), mat22_t::from_values(0.35714286, 0.71428571, 3.21428571, 2.85714286)));
         REQUIRE(noa::allclose(real_t(-2.8) / tmp2, mat22_t::from_values(-2.8, -1.4, -0.31111111, -0.35)));
-        REQUIRE(all(noa::allclose(tmp3 / vec2_t::from_values(1.4, 1.5), vec2_t::from_values(-0.65, 0.68333333))));
-        REQUIRE(all(noa::allclose(vec2_t::from_values(1.4, 1.5) / tmp3, vec2_t::from_values(-0.4, 0.45))));
+        REQUIRE(noa::all(noa::allclose(tmp3 / vec2_t::from_values(1.4, 1.5), vec2_t::from_values(-0.65, 0.68333333))));
+        REQUIRE(noa::all(noa::allclose(vec2_t::from_values(1.4, 1.5) / tmp3, vec2_t::from_values(-0.4, 0.45))));
     }
 
     AND_THEN("Boolean operators") {

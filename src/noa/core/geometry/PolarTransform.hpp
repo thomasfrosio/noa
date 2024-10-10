@@ -20,26 +20,30 @@ namespace noa::geometry::guts {
         using output_value_type = nt::value_type_t<output_type>;
         using coord_type = Coord;
         using coord2_type = Vec2<coord_type>;
-        static_assert(nt::are_power_spectrum_value_types_v<input_value_type, output_value_type>);
+        using shape2_type = Shape2<index_type>;
+        static_assert(nt::spectrum_types<input_value_type, output_value_type>);
 
     public:
         Polar2Cartesian(
-                const input_type& polar,
-                const Shape4<index_type>& polar_shape,
-                const output_type& cartesian,
-                const coord2_type& cartesian_center,
-                const coord2_type& radius_range,
-                bool radius_range_endpoint,
-                const coord2_type& angle_range,
-                bool angle_range_endpoint
-        ) : m_polar(polar), m_cartesian(cartesian), m_center(cartesian_center),
-            m_start_angle(angle_range[0]), m_start_radius(radius_range[0])
+            const input_type& polar,
+            const shape2_type& polar_shape,
+            const output_type& cartesian,
+            const coord2_type& cartesian_center,
+            const coord2_type& radius_range,
+            bool radius_range_endpoint,
+            const coord2_type& angle_range,
+            bool angle_range_endpoint
+        ) :
+            m_polar(polar),
+            m_cartesian(cartesian),
+            m_center(cartesian_center),
+            m_start_angle(angle_range[0]),
+            m_start_radius(radius_range[0])
         {
-            NOA_ASSERT(polar_shape[1] == 1);
             NOA_ASSERT(radius_range[1] - radius_range[0] >= 0);
 
-            m_step_angle = Linspace{angle_range[0], angle_range[1], angle_range_endpoint}.for_size(polar_shape[2]).step;
-            m_step_radius = Linspace{radius_range[0], radius_range[1], radius_range_endpoint}.for_size(polar_shape[3]).step;
+            m_step_angle = Linspace{angle_range[0], angle_range[1], angle_range_endpoint}.for_size(polar_shape[0]).step;
+            m_step_radius = Linspace{radius_range[0], radius_range[1], radius_range_endpoint}.for_size(polar_shape[1]).step;
         }
 
         NOA_HD constexpr void operator()(index_type batch, index_type y, index_type x) const {
@@ -49,8 +53,8 @@ namespace noa::geometry::guts {
             const coord_type phi = cartesian2phi(cartesian_coordinate);
             const coord_type rho = cartesian2rho(cartesian_coordinate);
             const coord2_type polar_coordinate{
-                    (phi - m_start_angle) / m_step_angle,
-                    (rho - m_start_radius) / m_step_radius
+                (phi - m_start_angle) / m_step_angle,
+                (rho - m_start_radius) / m_step_radius
             };
 
             auto value = m_polar.interpolate_at(polar_coordinate, batch);
@@ -81,27 +85,31 @@ namespace noa::geometry::guts {
         using output_value_type = nt::value_type_t<output_type>;
         using coord_type = Coord;
         using coord2_type = Vec2<coord_type>;
-        static_assert(nt::are_power_spectrum_value_types_v<input_value_type, output_value_type>);
+        using shape2_type = Shape2<index_type>;
+        static_assert(nt::spectrum_types<input_value_type, output_value_type>);
 
     public:
         Cartesian2Polar(
-                const input_type& cartesian,
-                const output_type& polar,
-                const Shape4<index_type>& polar_shape,
-                const coord2_type& cartesian_center,
-                const coord2_type& radius_range,
-                bool radius_range_endpoint,
-                const coord2_type& angle_range,
-                bool angle_range_endpoint
-        ) : m_cartesian(cartesian), m_polar(polar), m_center(cartesian_center),
-            m_start_angle(angle_range[0]), m_start_radius(radius_range[0])
+            const input_type& cartesian,
+            const output_type& polar,
+            const shape2_type& polar_shape,
+            const coord2_type& cartesian_center,
+            const coord2_type& radius_range,
+            bool radius_range_endpoint,
+            const coord2_type& angle_range,
+            bool angle_range_endpoint
+        ) :
+            m_cartesian(cartesian),
+            m_polar(polar),
+            m_center(cartesian_center),
+            m_start_angle(angle_range[0]),
+            m_start_radius(radius_range[0])
         {
-            NOA_ASSERT(polar_shape[1] == 1);
             NOA_ASSERT(radius_range[1] - radius_range[0] >= 0);
 
             // We could use polar2phi() and polar2rho() in the loop, but instead, precompute the step here.
-            m_step_angle = Linspace{angle_range[0], angle_range[1], angle_range_endpoint}.for_size(polar_shape[2]).step;
-            m_step_radius = Linspace{radius_range[0], radius_range[1], radius_range_endpoint}.for_size(polar_shape[3]).step;
+            m_step_angle = Linspace{angle_range[0], angle_range[1], angle_range_endpoint}.for_size(polar_shape[0]).step;
+            m_step_radius = Linspace{radius_range[0], radius_range[1], radius_range_endpoint}.for_size(polar_shape[1]).step;
         }
 
         NOA_HD constexpr void operator()(index_type batch, index_type y, index_type x) const {

@@ -10,7 +10,7 @@ namespace noa::cpu::geometry::guts {
         T* output, const Strides2<i64>& output_strides,
         const Shape2<i64>& shape
     ) {
-        using bspline = noa::geometry::BSplinePrefilter1d<T, i64>;
+        using bspline = noa::geometry::guts::BSplinePrefilter1d<T, i64>;
 
         if (input == output) {
             for (i64 i = 0; i < shape[0]; ++i)
@@ -29,7 +29,7 @@ namespace noa::cpu::geometry::guts {
         T* output, const Strides3<i64>& output_strides,
         const Shape3<i64>& shape
     ) {
-        using bspline = noa::geometry::BSplinePrefilter1d<T, i64>;
+        using bspline = noa::geometry::guts::BSplinePrefilter1d<T, i64>;
         if (input == output) {
             for (i64 i = 0; i < shape[0]; ++i)
                 for (i64 y = 0; y < shape[1]; ++y) // every row
@@ -63,7 +63,7 @@ namespace noa::cpu::geometry::guts {
         T* output, const Strides4<i64>& output_strides,
         const Shape4<i64>& shape, i64 threads
     ) {
-        using bspline = noa::geometry::BSplinePrefilter1d<T, i64>;
+        using bspline = noa::geometry::guts::BSplinePrefilter1d<T, i64>;
         constexpr i64 OMP_THRESHOLD = 1048576; // 1024*1024
         const i64 n_iterations = shape.pop_back().n_elements();
 
@@ -129,7 +129,7 @@ namespace noa::cpu::geometry {
     void cubic_bspline_prefilter(
         const Value* input, Strides4<i64> input_strides,
         Value* output, Strides4<i64> output_strides,
-        Shape4<i64> shape, i64 threads
+        Shape4<i64> shape, i64 n_threads
     ) {
         // Reorder to rightmost.
         const auto order = ni::order(output_strides.pop_front(), shape.pop_front());
@@ -142,7 +142,7 @@ namespace noa::cpu::geometry {
 
         const auto ndim = shape.ndim();
         if (ndim == 3) {
-            guts::cubic_bspline_prefilter_3d(input, input_strides, output, output_strides, shape, threads);
+            guts::cubic_bspline_prefilter_3d(input, input_strides, output, output_strides, shape, n_threads);
         } else if (ndim == 2) {
             guts::cubic_bspline_prefilter_2d(
                 input, input_strides.filter(0, 2, 3),

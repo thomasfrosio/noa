@@ -12,7 +12,7 @@
 #include "noa/gpu/cuda/ReduceAxesIwise.cuh"
 #endif
 
-namespace noa {
+namespace noa::inline types {
     struct ReduceAxes {
         bool batch{};
         bool depth{};
@@ -84,11 +84,11 @@ namespace noa {
     ///          N=1 -> W    (BDH are ignored)
     ///
     /// \details The size of each output axis should match the input shape, or be 1, indicating the axis
-    ///          should be reduced. Currently, reducing more than one axis at a time is only supported if the
-    ///          reduction results to having one value or one value per leftmost dimension, i.e. if the DHW
-    ///          axes for N=4, or the HW axes for N==3, are empty after reduction. As opposed to reduce_iwise, this
-    ///          function is asynchronous and does not perform any synchronization. If all axes are reduced, it is
-    ///          otherwise equivalent to reduce_iwise.
+    ///          should be reduced. There should be at least one axis being reduced. Currently, reducing more than
+    ///          one axis at a time is only supported if the reduction results to having one value or one value per
+    ///          leftmost dimension. Or in other words, if the DHW axes for N=4, or the HW axes for N==3, are empty
+    ///          after reduction. As opposed to reduce_iwise, this function is asynchronous and does not perform any
+    ///          synchronization. If all axes are reduced, it is otherwise equivalent to reduce_iwise.
     ///
     /// \param shape            Shape of the 1-, 2-, 3- or 4-dimensional loop.
     /// \param device           Device on which to dispatch the reduction. Should match the outputs.

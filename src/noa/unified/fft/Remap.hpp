@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/core/fft/FourierRemap.hpp"
-#include "noa/core/Remap.hpp"
+#include "noa/core/Enums.hpp"
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Iwise.hpp"
 #include "noa/unified/Cast.hpp"

@@ -11,6 +11,7 @@
 #include "Assets.h"
 
 using namespace noa::types;
+using Remap = noa::Remap;
 
 TEST_CASE("unified::signal::ctf_isotropic, assets", "[noa][unified][assets]") {
     constexpr bool COMPUTE_ASSETS = false;
@@ -37,6 +38,8 @@ TEST_CASE("unified::signal::ctf_isotropic, assets", "[noa][unified][assets]") {
         const auto bfactor = test["bfactor"].as<f64>();
 
         const auto ctf = CTFIsotropic64(pixel_size, defocus, voltage, amplitude, cs, phase_shift, bfactor, 1);
+
+        static_assert(noa::traits::spectrum_types<float, float>);
 
         if constexpr (COMPUTE_ASSETS) {
             const auto input = noa::empty<f32>(shape.rfft());
@@ -176,9 +179,9 @@ TEST_CASE("unified::signal::ctf_isotropic, range", "[noa][unified]") {
     const auto output_range = noa::empty<f32>(trimmed_size / 2 + 1);
     noa::signal::ctf_isotropic<Remap::H2H>(
         output_range, {1, 1, 1, trimmed_size}, ctf, {
-            .ctf_squared = true,
             .fftfreq_range = (ctf.pixel_size() / trimmed_resolution_range).as<f64>(),
             .fftfreq_range_endpoint = true,
+            .ctf_squared = true,
         });
 
     REQUIRE(test::allclose_abs(output_truncated, output_range, 1e-4));

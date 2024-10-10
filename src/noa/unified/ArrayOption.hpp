@@ -28,12 +28,9 @@ namespace noa::inline types {
         ///       how the managed data is used. This choice is purely made on the device currently associated with
         ///       the allocated data. For instance, pinned memory can be dereferenced by the CPU, so this function will
         ///       returned true, but if the device is a GPU, the library will refer to the memory region as a
-        ///       GPU-own region and will therefore prioritizing GPU access.
+        ///       GPU-own region and will therefore prioritize GPU access.
         [[nodiscard]] constexpr bool is_dereferenceable() const noexcept {
-            return device.is_cpu() or
-                   allocator.resource() == MemoryResource::PINNED or
-                   allocator.resource() == MemoryResource::MANAGED or
-                   allocator.resource() == MemoryResource::MANAGED_GLOBAL;
+            return device.is_cpu() or allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL);
         }
     };
 }

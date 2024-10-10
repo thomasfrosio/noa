@@ -13,7 +13,7 @@ TEMPLATE_TEST_CASE("core:: Accessor", "[noa]", i32, i64, u32, u64) {
     const auto strides = shape.strides().as<TestType>();
     const auto elements = shape.n_elements();
 
-    std::unique_ptr raw_data = std::make_unique<i32[]>(elements);
+    auto raw_data = std::make_unique<i32[]>(elements);
     auto accessor = Accessor<i32, 4, TestType>(raw_data.get(), strides);
     for (auto i: noa::irange(4))
         REQUIRE(accessor.strides()[i] == static_cast<TestType>(strides[i]));
@@ -96,17 +96,17 @@ TEMPLATE_TEST_CASE("core:: Accessor", "[noa]", i32, i64, u32, u64) {
 TEMPLATE_TEST_CASE("core:: AccessorValue", "[noa]", i32, i64, u32, u64) {
     AccessorValue<TestType> accessor_value; // uninitialized
     accessor_value(0) = 1;
-    REQUIRE(accessor_value.deref() == 1);
+    REQUIRE(accessor_value.ref() == 1);
     accessor_value(0, 0, 0, 0) = 2;
-    REQUIRE(accessor_value.deref() == 2);
+    REQUIRE(accessor_value.ref() == 2);
     accessor_value[2] = 3; // behave like an array broadcasted to any dimension
-    REQUIRE(accessor_value.deref() == 3);
+    REQUIRE(accessor_value.ref() == 3);
     REQUIRE(accessor_value.template stride<0>() == 0);
 
     AccessorValue<const TestType> accessor_value0 = accessor_value;
     // AccessorValue<TestType> accessor_value1 = accessor_value0; // rightfully does not compile
-    REQUIRE(accessor_value.deref() == accessor_value0.deref());
-    // accessor_value0.deref() = 4; // rightfully does not compile
-    accessor_value0.deref_() = 4; // "private" function to "bypass" the const
+    REQUIRE(accessor_value.ref() == accessor_value0.ref());
+    // accessor_value0.ref() = 4; // rightfully does not compile
+    accessor_value0.ref_() = 4; // "private" function to "bypass" the const
     REQUIRE(accessor_value0(0) == 4);
 }

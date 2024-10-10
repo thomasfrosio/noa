@@ -18,7 +18,7 @@
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/Copy.cuh"
 #include "noa/gpu/cuda/Permute.cuh"
-#include "noa/gpu/cuda/AllocatorManaged.hpp"
+#include "noa/gpu/cuda/Allocators.hpp"
 #endif
 
 namespace noa::inline types {
@@ -39,12 +39,7 @@ namespace noa {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         check(not ni::are_overlapped(input, output), "The input and output should not overlap");
 
-        auto input_strides = input.strides();
-        if (not ni::broadcast(input.shape(), input_strides, output.shape())) {
-            panic("Cannot broadcast an array of shape {} into an array of shape {}",
-                  input.shape(), output.shape());
-        }
-
+        const auto input_strides = ng::broadcast_strides(input, output);
         const Device input_device = input.device();
         const Device output_device = output.device();
         if (input_device.is_cpu() and output_device.is_cpu()) {
@@ -52,20 +47,20 @@ namespace noa {
             const auto n_threads = cpu_stream.thread_limit();
             if ((nt::array_decay<Input> or nt::array_decay<Output>) and cpu_stream.is_async()) {
                 cpu_stream.enqueue(
-                        [=,
-                         input_ = std::forward<Input>(input),
-                         output_ = std::forward<Output>(output)
-                        ] {
-                            noa::cpu::copy(
-                                    input_.get(), input_strides,
-                                    output_.get(), output_.strides(),
-                                    output_.shape(), n_threads);
-                        });
+                    [=,
+                     input_ = std::forward<Input>(input),
+                     output_ = std::forward<Output>(output)
+                    ] {
+                        noa::cpu::copy(
+                            input_.get(), input_strides,
+                            output_.get(), output_.strides(),
+                            output_.shape(), n_threads);
+                    });
             } else {
                 noa::cpu::copy(
-                        input.get(), input_strides,
-                        output.get(), output.strides(),
-                        output.shape(), n_threads);
+                    input.get(), input_strides,
+                    output.get(), output.strides(),
+                    output.shape(), n_threads);
             }
         } else if (output_device.is_cpu()) { // gpu -> cpu
             #ifdef NOA_ENABLE_CUDA
@@ -101,8 +96,8 @@ namespace noa {
         auto permuted_shape = ni::reorder(input.shape(), permutation);
         auto permuted_strides = ni::reorder(input.strides(), permutation);
         return std::decay_t<Input>(
-                std::forward<Input>(input).share(),
-                permuted_shape, permuted_strides, input.options());
+            std::forward<Input>(input).share(),
+            permuted_shape, permuted_strides, input.options());
     }
 
     /// Permutes, in memory, the axes of an array.
@@ -147,28 +142,28 @@ namespace noa {
             const auto n_threads = cpu_stream.thread_limit();
             if ((nt::array_decay<Input> or nt::array_decay<Output>) and cpu_stream.is_async()) {
                 cpu_stream.enqueue(
-                        [=,
-                         input_ = std::forward<Input>(input),
-                         output_ = std::forward<Output>(output)
-                        ]() { // capture the arrays
-                            noa::cpu::permute_copy(
-                                    input_.get(), input_strides, input_shape,
-                                    output_.get(), output_.strides(),
-                                    permutation, n_threads);
-                        });
+                    [=,
+                     input_ = std::forward<Input>(input),
+                     output_ = std::forward<Output>(output)
+                    ] {
+                        noa::cpu::permute_copy(
+                            input_.get(), input_strides, input_shape,
+                            output_.get(), output_.strides(),
+                            permutation, n_threads);
+                    });
             } else {
                 noa::cpu::permute_copy(
-                        input.get(), input_strides, input_shape,
-                        output.get(), output.strides(),
-                        permutation, n_threads);
+                    input.get(), input_strides, input_shape,
+                    output.get(), output.strides(),
+                    permutation, n_threads);
             }
         } else {
             #ifdef NOA_ENABLE_CUDA
             noa::cuda::Stream& cuda_stream = stream.cuda();
             noa::cuda::permute_copy(
-                    input.get(), input_strides, input_shape,
-                    output.get(), output.strides(),
-                    permutation, cuda_stream);
+                input.get(), input_strides, input_shape,
+                output.get(), output.strides(),
+                permutation, cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             #else
             panic("No GPU backend detected");
@@ -226,16 +221,16 @@ namespace noa::inline types {
         constexpr View() = default;
 
         /// Creates a view of a contiguous row-vector.
-        constexpr explicit View(pointer_type data, i64 n_elements = 1, ArrayOption options = {})
-                : m_shape{1, 1, 1, n_elements},
-                  m_strides{n_elements, n_elements, n_elements, 1},
-                  m_ptr{data},
-                  m_options{options} {}
+        constexpr explicit View(pointer_type data, i64 n_elements = 1, ArrayOption options = {}) noexcept :
+            m_shape{1, 1, 1, n_elements},
+            m_strides{n_elements, n_elements, n_elements, 1},
+            m_ptr{data},
+            m_options{options} {}
 
         /// Creates a view of a 1d (contiguous) span.
         template<StridesTraits StridesTrait>
-        constexpr explicit View(const Span<value_type, 1, index_type, StridesTrait>& span, ArrayOption options = {})
-                :  m_ptr{span.data()}, m_options{options}
+        constexpr explicit View(const Span<value_type, 1, index_type, StridesTrait>& span, ArrayOption options = {}) :
+            m_ptr{span.data()}, m_options{options}
         {
             auto span_4d = span.as_4d(); // row vector
             m_shape = span_4d.shape();
@@ -244,73 +239,73 @@ namespace noa::inline types {
 
         /// Creates a view of a 4d (contiguous) span.
         template<StridesTraits StridesTrait>
-        constexpr explicit View(const Span<value_type, 4, index_type, StridesTrait>& span, ArrayOption options = {})
-                : m_shape{span.shape()},
-                  m_strides{span.strides()},
-                  m_ptr{span.data()},
-                  m_options{options} {}
+        constexpr explicit View(const Span<value_type, 4, index_type, StridesTrait>& span, ArrayOption options = {}) noexcept :
+            m_shape{span.shape()},
+            m_strides{span.strides()},
+            m_ptr{span.data()},
+            m_options{options} {}
 
         /// Creates a view of a strided 4d memory region.
-        constexpr View(T* data, const shape_type& shape, const strides_type& strides, ArrayOption options = {})
-                : m_shape{shape},
-                  m_strides{strides},
-                  m_ptr{data},
-                  m_options{options} {}
+        constexpr View(T* data, const shape_type& shape, const strides_type& strides, ArrayOption options = {}) noexcept :
+            m_shape{shape},
+            m_strides{strides},
+            m_ptr{data},
+            m_options{options} {}
 
         /// Creates a view of a strided 4d memory region, assuming the data is C-contiguous.
-        constexpr View(T* data, const shape_type& shape, ArrayOption options = {})
-                : m_shape{shape},
-                  m_strides{shape.strides()},
-                  m_ptr{data},
-                  m_options{options} {}
+        constexpr View(T* data, const shape_type& shape, ArrayOption options = {}) noexcept :
+            m_shape{shape},
+            m_strides{shape.strides()},
+            m_ptr{data},
+            m_options{options} {}
 
         /// Creates a const view from an existing non-const view.
         template<nt::mutable_of<value_type> U>
-        constexpr /*implicit*/ View(const View<U>& view)
-                : m_shape{view.shape()},
-                  m_strides{view.strides()},
-                  m_ptr{view.data()},
-                  m_options{view.options()} {}
+        constexpr /*implicit*/ View(const View<U>& view) noexcept :
+            m_shape{view.shape()},
+            m_strides{view.strides()},
+            m_ptr{view.data()},
+            m_options{view.options()} {}
 
         /// Creates a view of an Array.
         template<nt::almost_same_as<value_type> U>
-        constexpr explicit View(const Array<U>& array)
-                : m_shape{array.shape()},
-                  m_strides{array.strides()},
-                  m_ptr{array.data()},
-                  m_options{array.options()} {}
+        constexpr explicit View(const Array<U>& array) noexcept :
+            m_shape{array.shape()},
+            m_strides{array.strides()},
+            m_ptr{array.data()},
+            m_options{array.options()} {}
 
     public: // Getters
-        [[nodiscard]] constexpr auto options() const -> const ArrayOption& { return m_options; }
-        [[nodiscard]] constexpr auto device() const -> Device { return options().device; }
-        [[nodiscard]] constexpr auto allocator() const -> Allocator { return options().allocator; }
-        [[nodiscard]] constexpr auto is_dereferenceable() const -> bool { return options().is_dereferenceable(); }
-        [[nodiscard]] constexpr auto shape() const -> const shape_type& { return m_shape; }
-        [[nodiscard]] constexpr auto strides() const -> const strides_type& { return m_strides; }
-        [[nodiscard]] constexpr auto strides_full() const -> const strides_type& { return m_strides; }
-        [[nodiscard]] constexpr auto n_elements() const -> index_type { return shape().n_elements(); }
-        [[nodiscard]] constexpr auto ssize() const -> index_type { return n_elements(); }
-        [[nodiscard]] constexpr auto size() const -> size_t { return static_cast<size_t>(n_elements()); }
+        [[nodiscard]] constexpr auto options() const noexcept -> const ArrayOption& { return m_options; }
+        [[nodiscard]] constexpr auto device() const noexcept -> Device { return options().device; }
+        [[nodiscard]] constexpr auto allocator() const noexcept -> Allocator { return options().allocator; }
+        [[nodiscard]] constexpr auto is_dereferenceable() const noexcept -> bool { return options().is_dereferenceable(); }
+        [[nodiscard]] constexpr auto shape() const noexcept -> const shape_type& { return m_shape; }
+        [[nodiscard]] constexpr auto strides() const noexcept -> const strides_type& { return m_strides; }
+        [[nodiscard]] constexpr auto strides_full() const noexcept -> const strides_type& { return m_strides; }
+        [[nodiscard]] constexpr auto n_elements() const noexcept -> index_type { return shape().n_elements(); }
+        [[nodiscard]] constexpr auto ssize() const noexcept -> index_type { return n_elements(); }
+        [[nodiscard]] constexpr auto size() const noexcept -> size_t { return static_cast<size_t>(n_elements()); }
 
         template<char ORDER = 'C'>
-        [[nodiscard]] constexpr bool are_contiguous() const {
+        [[nodiscard]] constexpr bool are_contiguous() const noexcept {
             return ni::are_contiguous<ORDER>(strides(), shape());
         }
 
         template<char ORDER = 'C'>
-        [[nodiscard]] constexpr auto is_contiguous() const {
+        [[nodiscard]] constexpr auto is_contiguous() const noexcept {
             return ni::is_contiguous<ORDER>(strides(), shape());
         }
 
         /// Whether the view is empty. A View is empty if not initialized,
-        /// or if the viewed data is null, or if one of its dimension is 0.
-        [[nodiscard]] constexpr bool is_empty() const { return not get() or shape().is_empty(); }
+        /// or if the viewed data is null, or if one of its dimensions is 0.
+        [[nodiscard]] constexpr bool is_empty() const noexcept { return not get() or shape().is_empty(); }
 
     public:
         /// Synchronizes the current stream of the view's device.
         /// \details It guarantees safe access to the memory region. Note that stream-ordered access (i.e. passing
         ///          this to the library API) is safe and doesn't need synchronization.
-        auto eval() const -> const View& {
+        auto& eval() const {
             Stream::current(device()).synchronize();
             return *this;
         }
@@ -318,9 +313,9 @@ namespace noa::inline types {
         /// Returns the pointer to the data.
         /// \warning Depending on the current stream of this view's device,
         ///          reading/writing to this pointer may be illegal or create a data race.
-        [[nodiscard]] constexpr auto get() const -> pointer_type { return m_ptr; }
-        [[nodiscard]] constexpr auto data() const -> pointer_type { return get(); }
-        [[nodiscard]] constexpr auto share() const -> pointer_type { return get(); }
+        [[nodiscard]] constexpr auto get() const noexcept -> pointer_type { return m_ptr; }
+        [[nodiscard]] constexpr auto data() const noexcept -> pointer_type { return get(); }
+        [[nodiscard]] constexpr auto share() const noexcept -> pointer_type { return get(); }
 
         /// Returns a span of the view.
         /// \warning Depending on the current stream of this view's device,
@@ -329,30 +324,33 @@ namespace noa::inline types {
             return span_type(get(), shape(), strides());
         }
 
-        template<typename NewT,
-                 size_t NewN = 4,
-                 typename NewI = index_type,
-                 StridesTraits NewStridesTrait = STRIDES_TRAIT>
+        template<typename U, size_t N = 4, typename I = index_type, StridesTraits STRIDES_TRAIT = STRIDES_TRAIT>
         [[nodiscard]] constexpr auto span() const {
-            return span().template span<NewT, NewN, NewI, NewStridesTrait>();
+            return span().template span<U, N, I, STRIDES_TRAIT>();
         }
+
+        template<typename U = value_type, size_t N = 4, typename I = index_type>
         [[nodiscard]] constexpr auto span_contiguous() const {
-            return span<value_type, 4, index_type, StridesTraits::CONTIGUOUS>();
+            return span<U, N, I, StridesTraits::CONTIGUOUS>();
         }
+
+        template<typename U = value_type, typename I = index_type, StridesTraits STRIDES_TRAIT = STRIDES_TRAIT>
         [[nodiscard]] constexpr auto span_1d() const {
-            return span<value_type, 1>();
+            return span<U, 1, I, STRIDES_TRAIT>();
         }
+
+        template<typename U = value_type, typename I = index_type>
         [[nodiscard]] constexpr auto span_1d_contiguous() const {
-            return span<value_type, 1, index_type, StridesTraits::CONTIGUOUS>();
+            return span<U, 1, I, StridesTraits::CONTIGUOUS>();
         }
 
         /// Returns a (const-)view of the view.
         template<nt::almost_same_as<value_type> U = value_type>
-        [[nodiscard]] constexpr auto view() const -> View<U> {
+        [[nodiscard]] constexpr auto view() const noexcept -> View<U> {
             return *this;
         }
 
-        [[nodiscard]] constexpr auto as_const() const -> View<const_value_type> {
+        [[nodiscard]] constexpr auto as_const() const noexcept -> View<const_value_type> {
             return *this;
         }
 
@@ -409,8 +407,8 @@ namespace noa::inline types {
 
     public: // Data reinterpretation
         /// Reinterprets the value type.
-        /// \note This is only well defined in cases where reinterpret_cast<U*>(T*) is well defined, for instance,
-        ///       when \p U is a unsigned char or std::byte to represent any data type as an array of bytes,
+        /// \note This is only well-defined in cases where reinterpret_cast<U*>(T*) is well-defined, for instance,
+        ///       when \p U is an unsigned char or std::byte to represent any data type as an array of bytes,
         ///       or to switch between complex and real floating-point numbers with the same precision.
         template<typename U>
         [[nodiscard]] auto as() const -> View<U> {
@@ -428,31 +426,26 @@ namespace noa::inline types {
         ///                 and/or to "move" the memory from the original to the target device. The prefetching is
         ///                 enqueued to the GPU stream, and as always, concurrent access from both CPU and GPU is illegal.
         [[nodiscard]] auto as(Device::Type type, [[maybe_unused]] bool prefetch = false) const -> View {
-            const MemoryResource alloc = m_options.allocator.resource();
             if (device().is_gpu() and type == Device::CPU) { // GPU -> CPU
-                check(alloc == MemoryResource::PINNED or
-                      alloc == MemoryResource::MANAGED or
-                      alloc == MemoryResource::MANAGED_GLOBAL,
+                check(m_options.allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL),
                       "GPU memory {} cannot be reinterpreted as a CPU memory-region. "
-                      "This is only supported for pinned and managed memory-regions", alloc);
+                      "This is only supported for pinned and managed memory-regions", m_options.allocator);
                 #ifdef NOA_ENABLE_CUDA
-                if (prefetch and (alloc == MemoryResource::MANAGED or alloc == MemoryResource::MANAGED_GLOBAL)) {
+                if (prefetch and (m_options.allocator.is_any(Allocator::MANAGED, Allocator::MANAGED_GLOBAL))) {
                     noa::cuda::AllocatorManaged<value_type>::prefetch_to_cpu(
-                            get(), shape().n_elements(), Stream::current(device()).cuda());
+                        get(), shape().n_elements(), Stream::current(device()).cuda());
                 }
                 #endif
                 return View(get(), shape(), strides(), {.device=Device(type), .allocator=m_options.allocator});
 
             } else if (device().is_cpu() and type == Device::GPU) { // CPU -> GPU
                 check(Device::is_any(Device::GPU), "No GPU detected");
-                check(alloc == MemoryResource::PINNED or
-                      alloc == MemoryResource::MANAGED or
-                      alloc == MemoryResource::MANAGED_GLOBAL,
+                check(m_options.allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL),
                       "CPU memory-region with the allocator {} cannot be reinterpreted as a GPU memory-region. "
-                      "This is only supported for pinned and managed memory-regions", alloc);
+                      "This is only supported for pinned and managed memory-regions", m_options.allocator);
                 #ifdef NOA_ENABLE_CUDA
                 Device gpu;
-                if (alloc == MemoryResource::PINNED or alloc == MemoryResource::MANAGED) {
+                if (m_options.allocator.is_any(Allocator::PINNED, Allocator::MANAGED)) {
                     // NOTE: CUDA doesn't document what the attr.device is for managed memory.
                     //       Hopefully this is the device against which the allocation was performed
                     //       and not the current device.
@@ -460,17 +453,17 @@ namespace noa::inline types {
                     //       stream was used to perform the allocation.
                     const cudaPointerAttributes attr = noa::cuda::pointer_attributes(get());
                     gpu = Device(Device::GPU, attr.device, Device::Unchecked{});
-                    NOA_ASSERT((alloc == MemoryResource::PINNED and attr.type == cudaMemoryTypeHost) or
-                               (alloc == MemoryResource::MANAGED and attr.type == cudaMemoryTypeManaged));
+                    NOA_ASSERT((m_options.allocator == Allocator::PINNED and attr.type == cudaMemoryTypeHost) or
+                               (m_options.allocator == Allocator::MANAGED and attr.type == cudaMemoryTypeManaged));
 
-                } else if (alloc == MemoryResource::MANAGED_GLOBAL) {
+                } else if (m_options.allocator == Allocator::MANAGED_GLOBAL) {
                     // NOTE: This can be accessed from any stream and any GPU. It seems to be better to return the
                     //       current device and not the original device against which the allocation was performed.
                     gpu = Device::current(Device::GPU);
                 }
-                if (prefetch && (alloc == MemoryResource::MANAGED or alloc == MemoryResource::MANAGED_GLOBAL)) {
+                if (prefetch and (m_options.allocator.is_any(Allocator::MANAGED, Allocator::MANAGED_GLOBAL))) {
                     noa::cuda::AllocatorManaged<value_type>::prefetch_to_gpu(
-                            get(), shape().n_elements(), Stream::current(gpu).cuda());
+                        get(), shape().n_elements(), Stream::current(gpu).cuda());
                 }
                 return View(get(), shape(), strides(), {.device=gpu, .allocator=m_options.allocator});
                 #else

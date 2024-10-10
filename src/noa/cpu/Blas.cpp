@@ -25,13 +25,19 @@ namespace noa::cpu {
         T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
         i64 n_threads
     ) {
-        const auto [mnk, secondmost_strides, are_column_major] = ni::extract_matmul_layout(
-                lhs_strides, lhs_shape, rhs_strides, rhs_shape, output_strides, output_shape,
-                lhs_transpose, rhs_transpose);
-        const auto& [m, n, k] = mnk;
-        const auto& [lhs_s, rhs_s, out_s] = secondmost_strides;
+        auto [mnk, labc, are_column_major] = ni::extract_matmul_layout(
+            lhs_strides, lhs_shape, rhs_strides, rhs_shape, output_strides, output_shape,
+            lhs_transpose, rhs_transpose);
+        auto sabc = Strides{lhs_strides[0], rhs_strides[0], output_strides[0]};
 
-        Eigen::setNbThreads(static_cast<int>(n_threads));
+        // We use column major matrices in Eigen, so if the inputs are row-major, we need to compute B.T @ A.T = C.T
+        if (not are_column_major) {
+            std::swap(lhs_transpose, rhs_transpose);
+            std::swap(mnk[0], mnk[1]);
+            std::swap(lhs, rhs);
+            std::swap(labc[0], labc[1]);
+            std::swap(sabc[0], sabc[1]);
+        }
 
         // Eigen doesn't support our complex types, but they have the same layout and alignment so reinterpret.
         using std_complex_t = std::complex<nt::value_type_t<T>>;
@@ -51,15 +57,17 @@ namespace noa::cpu {
         // TODO We cannot really guarantee the alignment, but we could check for it (as it is likely to be aligned)
         //      and compile for this case? Benchmarks would be required and this may end up taking too much time to
         //      compile.
-        using matrix_t = Eigen::Matrix<value_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+        using matrix_t = Eigen::Matrix<value_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
         using strides_t = Eigen::Stride<Eigen::Dynamic, 1>;
         using imap_t = Eigen::Map<const matrix_t, Eigen::Unaligned, strides_t>;
         using omap_t = Eigen::Map<matrix_t, Eigen::Unaligned, strides_t>;
 
+        Eigen::setNbThreads(static_cast<int>(n_threads));
+
         for (i64 batch = 0; batch < output_shape[0]; ++batch) {
-            imap_t lhs_matrix(lhs_ + lhs_strides[0]    * batch, m, k, strides_t(lhs_s, 1));
-            imap_t rhs_matrix(rhs_ + rhs_strides[0]    * batch, k, n, strides_t(rhs_s, 1));
-            omap_t out_matrix(out_ + output_strides[0] * batch, m, n, strides_t(out_s, 1));
+            imap_t lhs_matrix(lhs_ + sabc[0] * batch, mnk[0], mnk[2], strides_t(labc[0], 1));
+            imap_t rhs_matrix(rhs_ + sabc[1] * batch, mnk[2], mnk[1], strides_t(labc[1], 1));
+            omap_t out_matrix(out_ + sabc[2] * batch, mnk[0], mnk[1], strides_t(labc[2], 1));
 
             // FIXME Is there a better way to do this?
             if (beta == T{}) {

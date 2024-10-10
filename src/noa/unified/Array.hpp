@@ -8,12 +8,7 @@
 #include "noa/core/Types.hpp"
 #include "noa/core/utils/ShareHandles.hpp"
 
-#include "noa/cpu/AllocatorHeap.hpp"
 #if defined(NOA_ENABLE_CUDA)
-#include "noa/gpu/cuda/AllocatorDevice.hpp"
-#include "noa/gpu/cuda/AllocatorDevicePadded.hpp"
-#include "noa/gpu/cuda/AllocatorManaged.hpp"
-#include "noa/gpu/cuda/AllocatorPinned.hpp"
 #include "noa/gpu/cuda/Pointers.hpp"
 #endif
 
@@ -25,11 +20,11 @@ namespace noa::inline types {
     /// 4-dimensional owning array.
     /// \details
     /// - \b Type: Arrays are usually managing "numeric" types, i.e. integers, (complex) floating-points.
-    ///   However, other types are supported, such as, Vec or Matrices. Array of non-numeric types are limited to be
-    ///   simple containers and most free functions in the library will not be available for these types.
+    ///   However, other types are supported, such as, Vec or Matrices. Arrays of non-numeric types are limited to be
+    ///   simple containers, and most free functions in the library will not be available for these types.
     ///   The managed type cannot be const-qualified, nor can it be a reference, a pointer or an extent.\n
     /// - \b Resource: Arrays manage a reference-counted resource, which can be shared, moved and copied.
-    ///   The resource type and location depends on the ArrayOption used to create the array. Arrays are therefore
+    ///   The resource type and location depend on the ArrayOption used to create the array. Arrays are therefore
     ///   attached to a device, either the CPU or a GPU. Depending on the resource (thus the allocator used to create
     ///   the array), arrays can be interpreted as CPU or GPU arrays and it is possible to create aliases of the same
     ///   resource for the CPU and the GPU (see as() for more details).\n
@@ -89,30 +84,30 @@ namespace noa::inline types {
         /// \param n_elements   Number of elements.
         /// \param option       Options of the created array.
         /// \see Allocator for more details.
-        constexpr explicit Array(i64 n_elements, ArrayOption option = {})
-                : m_shape{1, 1, 1, n_elements},
-                  m_strides{n_elements, n_elements, n_elements, 1},
-                  m_options{option} { allocate_(); }
+        constexpr explicit Array(i64 n_elements, ArrayOption option = {}) :
+            m_shape{1, 1, 1, n_elements},
+            m_strides{n_elements, n_elements, n_elements, 1},
+            m_options{option} { allocate_(); }
 
         /// Creates a contiguous array.
         /// \param shape    BDHW shape of the array.
         /// \param option   Options of the created array.
         /// \see Allocator for more details.
-        constexpr explicit Array(const shape_type& shape, ArrayOption option = {})
-                : m_shape(shape),
-                  m_strides(shape.strides()),
-                  m_options{option} { allocate_(); }
+        constexpr explicit Array(const shape_type& shape, ArrayOption option = {}) :
+            m_shape(shape),
+            m_strides(shape.strides()),
+            m_options{option} { allocate_(); }
 
         /// Creates a contiguous row vector from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
         /// \param n_elements   Number of elements in \p data.
         /// \param option       Options of \p data.
         template<nt::smart_ptr_decay SharedPtr>
-        constexpr Array(SharedPtr&& data, i64 n_elements, ArrayOption option = {})
-                : m_shape{1, 1, 1, n_elements},
-                  m_strides{n_elements, n_elements, n_elements, 1},
-                  m_shared(std::forward<SharedPtr>(data)),
-                  m_options{option}
+        constexpr Array(SharedPtr&& data, i64 n_elements, ArrayOption option = {}) :
+            m_shape{1, 1, 1, n_elements},
+            m_strides{n_elements, n_elements, n_elements, 1},
+            m_shared(std::forward<SharedPtr>(data)),
+            m_options{option}
         {
             validate_(get(), option);
         }
@@ -124,11 +119,12 @@ namespace noa::inline types {
         /// \param option       Options of \p data.
         template<nt::smart_ptr_decay SharedPtr>
         constexpr Array(
-                SharedPtr&& data,
-                const shape_type& shape,
-                const strides_type& strides,
-                ArrayOption option = {}
-        ) : m_shape{shape},
+            SharedPtr&& data,
+            const shape_type& shape,
+            const strides_type& strides,
+            ArrayOption option = {}
+        ) :
+            m_shape{shape},
             m_strides{strides},
             m_shared(std::forward<SharedPtr>(data)),
             m_options{option}
@@ -159,36 +155,36 @@ namespace noa::inline types {
         }
 
     public: // Queries
-        [[nodiscard]] constexpr auto options() const -> ArrayOption { return m_options; }
-        [[nodiscard]] constexpr auto device() const -> Device { return options().device; }
-        [[nodiscard]] constexpr auto allocator() const -> Allocator { return options().allocator; }
-        [[nodiscard]] constexpr auto is_dereferenceable() const -> bool { return options().is_dereferenceable(); }
-        [[nodiscard]] constexpr auto shape() const -> const shape_type& { return m_shape; }
-        [[nodiscard]] constexpr auto strides() const -> const strides_type& { return m_strides; }
-        [[nodiscard]] constexpr auto strides_full() const -> const strides_type& { return m_strides; }
-        [[nodiscard]] constexpr auto n_elements() const -> index_type { return shape().n_elements(); }
-        [[nodiscard]] constexpr auto ssize() const -> index_type { return shape().n_elements(); }
-        [[nodiscard]] constexpr auto size() const -> size_t { return static_cast<size_t>(ssize()); }
+        [[nodiscard]] constexpr auto options() const noexcept -> ArrayOption { return m_options; }
+        [[nodiscard]] constexpr auto device() const noexcept -> Device { return options().device; }
+        [[nodiscard]] constexpr auto allocator() const noexcept -> Allocator { return options().allocator; }
+        [[nodiscard]] constexpr auto is_dereferenceable() const noexcept -> bool { return options().is_dereferenceable(); }
+        [[nodiscard]] constexpr auto shape() const noexcept -> const shape_type& { return m_shape; }
+        [[nodiscard]] constexpr auto strides() const noexcept -> const strides_type& { return m_strides; }
+        [[nodiscard]] constexpr auto strides_full() const noexcept -> const strides_type& { return m_strides; }
+        [[nodiscard]] constexpr auto n_elements() const noexcept -> index_type { return shape().n_elements(); }
+        [[nodiscard]] constexpr auto ssize() const noexcept -> index_type { return shape().n_elements(); }
+        [[nodiscard]] constexpr auto size() const noexcept -> size_t { return static_cast<size_t>(ssize()); }
 
         /// Whether the dimensions of the array are C or F contiguous.
         template<char ORDER = 'C'>
-        [[nodiscard]] constexpr bool are_contiguous() const {
+        [[nodiscard]] constexpr bool are_contiguous() const noexcept {
             return ni::are_contiguous<ORDER>(strides(), shape());
         }
 
         template<char ORDER = 'C'>
-        [[nodiscard]] constexpr auto is_contiguous() const {
+        [[nodiscard]] constexpr auto is_contiguous() const noexcept {
             return ni::is_contiguous<ORDER>(strides(), shape());
         }
 
         /// Whether the array is empty. An array is empty if not initialized or if one of its dimension is 0.
-        [[nodiscard]] constexpr bool is_empty() const { return not get() or shape().is_empty(); }
+        [[nodiscard]] constexpr bool is_empty() const noexcept { return not get() or shape().is_empty(); }
 
     public: // Accessors
         /// Synchronizes the current stream of the array's device.
         /// \details It guarantees safe access to the memory region. Note that stream-ordered access (i.e. passing
         ///          this to the library API) is safe and doesn't need synchronization.
-        auto eval() const -> const Array& {
+        auto& eval() const {
             Stream::current(device()).synchronize();
             return *this;
         }
@@ -196,10 +192,10 @@ namespace noa::inline types {
         /// Returns the pointer to the data.
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing to this pointer may be illegal or create a data race.
-        [[nodiscard]] constexpr auto get() const -> pointer_type { return m_shared.get(); }
-        [[nodiscard]] constexpr auto data() const -> pointer_type { return m_shared.get(); }
-        [[nodiscard]] constexpr auto share() const& -> const shared_type& { return m_shared; }
-        [[nodiscard]] constexpr auto share() && -> shared_type&& { return std::move(m_shared); }
+        [[nodiscard]] constexpr auto get() const noexcept -> pointer_type { return m_shared.get(); }
+        [[nodiscard]] constexpr auto data() const noexcept -> pointer_type { return m_shared.get(); }
+        [[nodiscard]] constexpr auto share() const& noexcept -> const shared_type& { return m_shared; }
+        [[nodiscard]] constexpr auto share() && noexcept -> shared_type&& { return std::move(m_shared); }
 
         /// Returns a span of the array.
         /// \warning Depending on the current stream of this view's device,
@@ -208,26 +204,29 @@ namespace noa::inline types {
             return span_type(get(), shape(), strides());
         }
 
-        template<typename NewT,
-                 size_t NewN = 4,
-                 typename NewI = index_type,
-                 StridesTraits NewStridesTrait = STRIDES_TRAIT>
+        template<typename U, size_t N = 4, typename I = index_type, StridesTraits STRIDES_TRAIT = STRIDES_TRAIT>
         [[nodiscard]] constexpr auto span() const {
-            return span().template span<NewT, NewN, NewI, NewStridesTrait>();
+            return span().template span<U, N, I, STRIDES_TRAIT>();
         }
+
+        template<typename U = value_type, size_t N = 4, typename I = index_type>
         [[nodiscard]] constexpr auto span_contiguous() const {
-            return span<value_type, 4, index_type, StridesTraits::CONTIGUOUS>();
+            return span<U, N, I, StridesTraits::CONTIGUOUS>();
         }
+
+        template<typename U = value_type, typename I = index_type, StridesTraits STRIDES_TRAIT = STRIDES_TRAIT>
         [[nodiscard]] constexpr auto span_1d() const {
-            return span<value_type, 1>();
+            return span<U, 1, I, STRIDES_TRAIT>();
         }
+
+        template<typename U = value_type, typename I = index_type>
         [[nodiscard]] constexpr auto span_1d_contiguous() const {
-            return span<value_type, 1, index_type, StridesTraits::CONTIGUOUS>();
+            return span<U, 1, I, StridesTraits::CONTIGUOUS>();
         }
 
         /// Returns a (const-)view of the array.
         template<nt::almost_same_as<value_type> U = value_type>
-        [[nodiscard]] constexpr auto view() const -> View<U> {
+        [[nodiscard]] constexpr auto view() const noexcept -> View<U> {
             return View<U>(get(), shape(), strides(), options());
         }
 
@@ -290,8 +289,8 @@ namespace noa::inline types {
 
     public: // Data reinterpretation
         /// Reinterprets the value type.
-        /// \note This is only well defined in cases where reinterpret_cast<U*>(T*) is well defined, for instance,
-        ///       when \p U is a unsigned char or std::byte to represent any data type as an array of bytes,
+        /// \note This is only well-defined in cases where reinterpret_cast<U*>(T*) is well-defined, for instance,
+        ///       when \p U is an unsigned char or std::byte to represent any data type as an array of bytes,
         ///       or to switch between complex and real floating-point numbers with the same precision.
         template<typename U>
         [[nodiscard]] auto as() const& -> Array<U> {
@@ -429,20 +428,18 @@ namespace noa::inline types {
 
     private:
         void allocate_() {
-            const auto memory_resource = allocator().resource();
-            if (memory_resource == MemoryResource::PITCHED) {
-                noa::tie(m_shared, m_strides) = Allocator::allocate_pitched<value_type>(shape(), device(), memory_resource);
+            if (allocator() == Allocator::PITCHED) {
+                noa::tie(m_shared, m_strides) = allocator().template allocate_pitched<value_type>(shape(), device());
             } else {
-                m_shared = Allocator::allocate<value_type>(n_elements(), device(), memory_resource);
+                m_shared = allocator().template allocate<value_type>(n_elements(), device());
             }
         }
 
-        static void validate_(void* ptr, ArrayOption option) {
-            const MemoryResource memory_resource = option.allocator.resource();
-            check(memory_resource != MemoryResource::CUDA_ARRAY,
+        static void validate_(const void* ptr, ArrayOption option) {
+            check(option.allocator != Allocator::CUDA_ARRAY,
                   "CUDA arrays are not supported by the Array class. Use a Texture instead");
-            check(memory_resource != MemoryResource::NONE or ptr == nullptr,
-                  "{} is for nullptr only", MemoryResource::NONE);
+            check(option.allocator != Allocator::NONE or ptr == nullptr,
+                  "{} is for nullptr only", Allocator::NONE);
 
             if (option.device.is_cpu()) {
                 if (not Device::is_any_gpu())
@@ -451,28 +448,25 @@ namespace noa::inline types {
                 const cudaPointerAttributes attr = noa::cuda::pointer_attributes(ptr);
                 switch (attr.type) {
                     case cudaMemoryTypeUnregistered:
-                        if (memory_resource != MemoryResource::DEFAULT and
-                            memory_resource != MemoryResource::DEFAULT_ASYNC and
-                            memory_resource != MemoryResource::PITCHED) {
+                        if (not option.allocator.is_any(
+                            Allocator::DEFAULT, Allocator::DEFAULT_ASYNC, Allocator::PITCHED)) {
                             panic("Attempting to create a CPU array with {} from a CPU-only "
-                                  "(CUDA unregistered) memory region", memory_resource);
+                                  "(CUDA unregistered) memory region", option.allocator);
                         }
                         break;
                     case cudaMemoryTypeHost:
-                        if (memory_resource != MemoryResource::PINNED)
+                        if (option.allocator != Allocator::PINNED)
                             panic("Attempting to create a CPU array with {} from a pinned memory region",
-                                  memory_resource);
+                                  option.allocator);
                         break;
                     case cudaMemoryTypeDevice:
                         panic("Attempting to create an CPU array that points to a GPU-only memory region");
                     case cudaMemoryTypeManaged:
-                        if (memory_resource != MemoryResource::DEFAULT and
-                            memory_resource != MemoryResource::DEFAULT_ASYNC and
-                            memory_resource != MemoryResource::PITCHED and
-                            memory_resource != MemoryResource::MANAGED and
-                            memory_resource != MemoryResource::MANAGED_GLOBAL)
+                        if (not option.allocator.is_any(
+                            Allocator::DEFAULT, Allocator::DEFAULT_ASYNC, Allocator::PITCHED,
+                            Allocator::MANAGED, Allocator::MANAGED_GLOBAL))
                             panic("Attempting to create an CPU array with {} from a (CUDA) managed pointer",
-                                  memory_resource);
+                                  option.allocator);
                         break;
                 }
                 #endif
@@ -484,9 +478,9 @@ namespace noa::inline types {
                     case cudaMemoryTypeUnregistered:
                         panic("Attempting to create GPU array from a CPU-only (CUDA unregistered) memory region");
                     case cudaMemoryTypeHost:
-                        if (memory_resource != MemoryResource::PINNED)
+                        if (option.allocator != Allocator::PINNED)
                             panic("Attempting to create a GPU array with {} from a pinned memory region",
-                                  memory_resource);
+                                  option.allocator);
                         break;
                     case cudaMemoryTypeDevice:
                         if (attr.device != option.device.id())
@@ -494,13 +488,11 @@ namespace noa::inline types {
                                   "located on another device (ID={})", option.device.id(), attr.device);
                         break;
                     case cudaMemoryTypeManaged:
-                        if (memory_resource != MemoryResource::DEFAULT and
-                            memory_resource != MemoryResource::DEFAULT_ASYNC and
-                            memory_resource != MemoryResource::PITCHED and
-                            memory_resource != MemoryResource::MANAGED and
-                            memory_resource != MemoryResource::MANAGED_GLOBAL)
+                        if (not option.allocator.is_any(
+                            Allocator::DEFAULT, Allocator::DEFAULT_ASYNC, Allocator::PITCHED,
+                            Allocator::MANAGED, Allocator::MANAGED_GLOBAL))
                             panic("Attempting to create a GPU array with {} from a (CUDA) managed pointer",
-                                  memory_resource);
+                                  option.allocator);
                         break;
                 }
                 #endif

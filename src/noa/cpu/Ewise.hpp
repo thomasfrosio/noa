@@ -91,8 +91,8 @@ namespace noa::cpu {
         // Check contiguity.
         // TODO We could try collapse contiguous dimensions first.
         const bool are_all_contiguous =
-                ni::are_contiguous(input, shape) and
-                ni::are_contiguous(output, shape);
+            ni::are_contiguous(input, shape) and
+            ni::are_contiguous(output, shape);
 
         const i64 elements = shape.template as<i64>().n_elements();
         i64 actual_n_threads = elements <= Config::n_elements_per_thread ? 1 : n_threads;

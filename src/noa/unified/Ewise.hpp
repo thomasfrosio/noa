@@ -16,8 +16,16 @@
 
 namespace noa {
     struct EwiseOptions {
+        /// Whether to compile for the CPU compute device.
         bool generate_cpu{true};
+
+        /// Whether to compile for the GPU compute device.
         bool generate_gpu{true};
+
+        /// GPU kernel configuration.
+        u32 gpu_block_size{128};
+        u32 gpu_n_elements_per_thread{4};
+        bool gpu_vectorize{true};
     };
 }
 
@@ -64,7 +72,7 @@ namespace noa {
     /// \note To be supported by the CUDA JIT backend, the source of \p ewise_operator needs to be added to the sources
     ///       available to the JIT compiler. This can be set up as part of the build, but source code can also
     ///       be added at runtime using the noa::Session::add_cuda_sources(...) functions. TODO
-    template<EwiseOptions OPTIONS = {},
+    template<EwiseOptions OPTIONS = EwiseOptions{},
              typename Input = guts::AdaptorUnzip<>,
              typename Output = guts::AdaptorUnzip<>,
              typename EwiseOperator> // TODO EwiseChecker
@@ -234,23 +242,29 @@ namespace noa::guts {
                 if (device.is_gpu()) {
                     #ifdef NOA_ENABLE_CUDA
                     auto& cuda_stream = Stream::current(device).cuda();
-                    using config = noa::cuda::EwiseConfig<ZIP_INPUT, ZIP_OUTPUT>;
+                    using config = noa::cuda::EwiseConfig<
+                        ZIP_INPUT, ZIP_OUTPUT,
+                        OPTIONS.gpu_block_size,
+                        OPTIONS.gpu_n_elements_per_thread,
+                        OPTIONS.gpu_vectorize>;
                     noa::cuda::ewise<config>(
-                            shape, std::forward<EwiseOp>(ewise_op),
-                            std::move(input_accessors),
-                            std::move(output_accessors),
-                            cuda_stream);
+                        shape, std::forward<EwiseOp>(ewise_op),
+                        std::move(input_accessors),
+                        std::move(output_accessors),
+                        cuda_stream);
 
-                    // Enqueue the shared handles. Doing it using a single call to enqueue_attach is slightly more efficient.
+                    // Enqueue the shared handles.
+                    // Doing it using a single call to enqueue_attach is slightly more efficient.
                     [&]<size_t... I, size_t... O>(std::index_sequence<I...>, std::index_sequence<O...>) {
-                        // "enqueue_attach" saves shared_ptr types and anything with a .share() that returns a shared_ptr,
-                        // and ignores everything else. As such, we could directly pass the values of "inputs" and "outputs",
-                        // but here we explicitly only want to save the shared_ptr from arrays.
+                        // "enqueue_attach" saves shared_ptr types and anything with a .share() that returns
+                        // a shared_ptr, and ignores everything else. As such, we could directly pass the values
+                        // of "inputs" and "outputs", but here we explicitly only want to save the shared_ptr
+                        // from arrays.
                         auto ih = guts::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs));
                         auto oh = guts::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs));
                         cuda_stream.enqueue_attach(std::move(ih)[Tag<I>{}]..., std::move(oh)[Tag<O>{}]...);
 
-                        // Work-around to remove spurious warning of set but unused variable (g++11).
+                        // Work-around to remove spurious "set but unused variable" warning (g++11).
                         if constexpr (sizeof...(I) == 0) (void) ih;
                         if constexpr (sizeof...(O) == 0) (void) oh;
                     }(nt::index_list_t<Inputs>{}, nt::index_list_t<Outputs>{});

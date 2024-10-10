@@ -10,6 +10,7 @@
 
 using namespace ::noa::types;
 using Norm = noa::fft::Norm;
+using Remap = noa::Remap;
 
 TEST_CASE("unified::signal::standardize_ifft(), rfft", "[noa][unified]") {
     constexpr auto shape = Shape4<i64>{1, 1, 128, 128};

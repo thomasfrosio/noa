@@ -4,8 +4,6 @@
 #include <catch2/catch.hpp>
 
 #include "Utils.hpp"
-#include "noa/unified/io/ImageFile.hpp"
-
 
 using namespace noa::types;
 
@@ -183,18 +181,4 @@ TEST_CASE("unified::ewise - no inputs/outputs", "[noa][unified]") {
         noa::ewise(array,  {}, []NOA_HD(i64& i) { i = 4; });
         REQUIRE(test::allclose_abs(array, 4, 1e-8));
     }
-}
-
-TEST_CASE("unified::ewise debug", "[noa][unified]") {
-
-    Stream::set_current(Stream(Device(), Stream::ASYNC));
-    auto array = noa::empty<i64>({1, 2, 3, 4});
-    // auto w = noa::wrap(noa::broadcast(array, {1, 2, 3, 4})); //
-    // static_assert(std::same_as<decltype(w.tuple), Tuple<Array<i64>&&>>);
-    // static_assert(std::same_as<decltype(noa::broadcast(array, {1, 2, 3, 4})), Array<i64>>);
-    //
-    noa::ewise(noa::zip(array, array.copy(), int{2}), {}, [](Tuple<i64&, i64&, int&> b) {
-
-    });
-    // noa::io::write(array, test::NOA_DATA_PATH / "test.mrc");
 }

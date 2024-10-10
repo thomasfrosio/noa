@@ -1,10 +1,9 @@
 #pragma once
 
-#include "noa/gpu/cuda/Types.hpp"
-#include "noa/gpu/cuda/Stream.hpp"
-#include "noa/gpu/cuda/Copy.cuh"
 #include "noa/gpu/cuda/Allocators.hpp"
-#include "noa/gpu/cuda/kernels/Block.cuh"
+#include "noa/gpu/cuda/Block.cuh"
+#include "noa/gpu/cuda/Copy.cuh"
+#include "noa/gpu/cuda/Stream.hpp"
 
 namespace noa::cuda::guts {
     struct ConvolveConfig {
@@ -118,7 +117,7 @@ namespace noa::cuda::guts {
         constexpr i32 HALO = FILTER_LEN / 2;
         constexpr auto SHARED_SHAPE = Shape3<i32>::from_values(
             FILTER_LEN, Config::block_size_y + PADDING, Config::block_size_x + PADDING);
-        constexpr auto SHARED_SIZE = SHARED_SHAPE.elements();
+        constexpr auto SHARED_SIZE = SHARED_SHAPE.n_elements();
 
         const auto index = ni::offset2index(blockIdx.x, blocks_x);
         const auto tid = Vec2<i32>::from_values(threadIdx.y, threadIdx.x);
@@ -246,13 +245,12 @@ namespace noa::cuda::guts {
             const i32 padding = filter_size - 1;
             const i32 halo = padding / 2;
             const i32 shared_len = static_cast<i32>(Config::block_size_x) + padding;
-            shared += tid[0] * shared_len; // focus on current row
+            auto row = shared + tid[0] * shared_len; // focus on current row
 
             // Load shared memory. Loop to take into account padding.
             for (i32 lx = tid[1], gx = gid[3]; lx < shared_len; lx += Config::block_size_x, gx += Config::block_size_x) {
                 const i32 i_x = gx - halo;
-                shared[lx] = i_x >= 0 and i_x < shape_yx[1] ?
-                             static_cast<filter_value_t>(input_x[i_x]) : filter_value_t{};
+                row[lx] = i_x >= 0 and i_x < shape_yx[1] ? static_cast<filter_value_t>(input_x[i_x]) : filter_value_t{};
             }
             block_synchronize();
 
@@ -260,7 +258,7 @@ namespace noa::cuda::guts {
                 // Weighted sum.
                 filter_value_t result{};
                 for (i32 idx = 0; idx < filter_size; ++idx)
-                    result += shared[tid[1] + idx] * filter[idx];
+                    result += row[tid[1] + idx] * filter[idx];
                 output(gid) = static_cast<output_value_t>(result);
             }
         }
@@ -377,7 +375,8 @@ namespace noa::cuda::signal::guts {
                        launch_config,
                        input_accessor_t(input, input_strides.as_safe<u32>()),
                        output_accessor_t(output, output_strides.as_safe<u32>()),
-                       filter_accessor_t(filter), shape.filter(2, 3).as<i32>(), filter_size, n_blocks_x);
+                       filter_accessor_t(filter), shape.filter(2, 3).as<i32>(),
+                       static_cast<i32>(filter_size), n_blocks_x);
     }
 
     template<typename T, typename U, typename V>
@@ -404,7 +403,8 @@ namespace noa::cuda::signal::guts {
                        launch_config,
                        input_accessor_t(input, input_strides.as_safe<u32>()),
                        output_accessor_t(output, output_strides.as_safe<u32>()),
-                       filter_accessor_t(filter), shape.filter(2, 3).as<i32>(), filter_size, n_blocks_x);
+                       filter_accessor_t(filter), shape.filter(2, 3).as<i32>(),
+                       static_cast<i32>(filter_size), n_blocks_x);
     }
 
     template<typename T, typename U, typename V>
@@ -431,7 +431,8 @@ namespace noa::cuda::signal::guts {
                        launch_config,
                        input_accessor_t(input, input_strides.as_safe<u32>()),
                        output_accessor_t(output, output_strides.as_safe<u32>()),
-                       filter_accessor_t(filter), shape.filter(1, 3).as<i32>(), filter_size, n_blocks_x);
+                       filter_accessor_t(filter), shape.filter(1, 3).as<i32>(),
+                       static_cast<i32>(filter_size), n_blocks_x);
     }
 }
 
@@ -455,35 +456,35 @@ namespace noa::cuda::signal {
                 guts::launch_convolve_separable_z(
                     input, input_strides.as_safe<u32>(),
                     output, output_strides.as_safe<u32>(), shape.as_safe<u32>(),
-                    filter, filter_shape[0], stream);
+                    filter, static_cast<u32>(filter_shape[0]), stream);
             } else if (filter_shape[1] > 1) {
                 guts::launch_convolve_separable_y(
                     input, input_strides.as_safe<u32>(),
                     output, output_strides.as_safe<u32>(), shape.as_safe<u32>(),
-                    filter, filter_shape[1], stream);
+                    filter, static_cast<u32>(filter_shape[1]), stream);
             } else {
                 guts::launch_convolve_separable_x(
                     input, input_strides.as_safe<u32>(),
                     output, output_strides.as_safe<u32>(), shape.as_safe<u32>(),
-                    filter, filter_shape[2], stream);
+                    filter, static_cast<u32>(filter_shape[2]), stream);
             }
         } else if (ndim == 2) {
-            const auto filter_shape_2d = filter_shape.pop_front();
+            const auto filter_shape_2d = filter_shape.pop_front().as<i32>();
             const auto shape_2d = shape.filter(2, 3).as_safe<i32>();
             const u32 n_blocks_x = divide_up(static_cast<u32>(shape_2d[1]), config::block_size_x);
             const u32 n_blocks_y = divide_up(static_cast<u32>(shape_2d[0]), config::block_size_y);
             const auto launch_config = LaunchConfig{
-                    .n_blocks=dim3(n_blocks_x * n_blocks_y, shape[1], shape[0]),
+                    .n_blocks=dim3(n_blocks_x * n_blocks_y, static_cast<u32>(shape[1]), static_cast<u32>(shape[0])),
                     .n_threads=dim3(config::block_size_x, config::block_size_y),
                     .n_bytes_of_shared_memory=
-                        (config::block_size_x + filter_shape_2d[1] - 1) *
-                        (config::block_size_y + filter_shape_2d[0] - 1) * sizeof(V),
+                        (config::block_size_x + static_cast<u32>(filter_shape_2d[1]) - 1) *
+                        (config::block_size_y + static_cast<u32>(filter_shape_2d[0]) - 1) * sizeof(V),
             };
             stream.enqueue(convolve_2d<config, input_accessor_t, output_accessor_t, filter_accessor_t>,
                            launch_config,
                            input_accessor_t(input, input_strides.as_safe<u32>()),
                            output_accessor_t(output, output_strides.as_safe<u32>()),
-                           filter_accessor_t(filter), shape_2d, filter_shape_2d.as_safe<i32>(), n_blocks_x);
+                           filter_accessor_t(filter), shape_2d, filter_shape_2d, n_blocks_x);
 
         } else if (ndim == 3) {
             const auto shape_3d = shape.pop_front().as_safe<i32>();
@@ -510,18 +511,18 @@ namespace noa::cuda::signal {
                     filter_accessor_t(filter), shape_3d, n_blocks_x);
             } else {
                 launch_config.n_bytes_of_shared_memory =
-                    (config::block_size_x + filter_shape[2] - 1) *
-                    (config::block_size_y + filter_shape[1] - 1) *
-                    filter_shape[0] * sizeof(V);
+                    (config::block_size_x + static_cast<u32>(filter_shape[2]) - 1) *
+                    (config::block_size_y + static_cast<u32>(filter_shape[1]) - 1) *
+                    static_cast<u32>(filter_shape[0]) * sizeof(V);
                 stream.enqueue(convolve_3d<config, input_accessor_t, output_accessor_t, filter_accessor_t>,
                                launch_config,
                                input_accessor_t(input, input_strides.as_safe<u32>()),
                                output_accessor_t(output, output_strides.as_safe<u32>()),
                                filter_accessor_t(filter), shape_3d,
-                               filter_shape.as_safe<i32>(), n_blocks_x);
+                               filter_shape.as<i32>(), n_blocks_x);
             }
         } else if (all(filter_shape == 1)) {
-            T filter_value;
+            V filter_value;
             copy(filter, &filter_value, 1, stream);
 
             auto order = ni::order(output_strides, shape);
@@ -531,8 +532,11 @@ namespace noa::cuda::signal {
             }
             const auto input_accessor = input_accessor_t(input, input_strides.as_safe<u32>());
             const auto output_accessor = output_accessor_t(output, output_strides.as_safe<u32>());
-            const auto value = AccessorValue<T>(static_cast<T>(filter[0]));
-            return ewise(shape, Multiply{}, make_tuple(input, value), make_tuple(output), stream);
+            const auto value = AccessorValue<T>(static_cast<T>(filter_value));
+            return ewise(shape.as_safe<i32>(), Multiply{},
+                         make_tuple(input_accessor, value),
+                         make_tuple(output_accessor),
+                         stream);
         } else {
             panic("unreachable");
         }
@@ -550,12 +554,15 @@ namespace noa::cuda::signal {
         const auto u_input_strides = input_strides.as_safe<u32>();
         const auto u_output_strides = output_strides.as_safe<u32>();
         const auto u_shape = shape.as_safe<u32>();
+        const auto u_filter_depth_size = static_cast<u32>(filter_depth_size);
+        const auto u_filter_height_size = static_cast<u32>(filter_height_size);
+        const auto u_filter_width_size = static_cast<u32>(filter_width_size);
 
-        if (filter_depth_size <= 0)
+        if (u_filter_depth_size <= 0)
             filter_depth = nullptr;
-        if (filter_height_size <= 0)
+        if (u_filter_height_size <= 0)
             filter_height = nullptr;
-        if (filter_width_size <= 0)
+        if (u_filter_width_size <= 0)
             filter_width = nullptr;
 
         // Allocate temp buffer if necessary.
@@ -577,50 +584,50 @@ namespace noa::cuda::signal {
         if (filter_depth and filter_height and filter_width) {
             guts::launch_convolve_separable_z(
                 input, u_input_strides, output, u_output_strides, u_shape,
-                filter_depth, filter_depth_size, stream);
+                filter_depth, u_filter_depth_size, stream);
             guts::launch_convolve_separable_y(
                 output, u_output_strides, tmp, u_tmp_strides, u_shape,
-                filter_height, filter_height_size, stream);
+                filter_height, u_filter_height_size, stream);
             guts::launch_convolve_separable_x(
                 tmp, u_tmp_strides, output, u_output_strides, u_shape,
-                filter_width, filter_width_size, stream);
+                filter_width, u_filter_width_size, stream);
 
         } else if (filter_depth and filter_height) {
             guts::launch_convolve_separable_z(
                 input, u_input_strides, tmp, u_tmp_strides, u_shape,
-                filter_depth, filter_depth_size, stream);
+                filter_depth, u_filter_depth_size, stream);
             guts::launch_convolve_separable_y(
                 tmp, u_tmp_strides, output, u_output_strides, u_shape,
-                filter_height, filter_height_size, stream);
+                filter_height, u_filter_height_size, stream);
 
         } else if (filter_depth and filter_width) {
             guts::launch_convolve_separable_z(
                 input, u_input_strides, tmp, u_tmp_strides, u_shape,
-                filter_depth, filter_depth_size, stream);
+                filter_depth, u_filter_depth_size, stream);
             guts::launch_convolve_separable_x(
                 tmp, u_tmp_strides, output, u_output_strides, u_shape,
-                filter_width, filter_width_size, stream);
+                filter_width, u_filter_width_size, stream);
 
         } else if (filter_height and filter_width) {
             guts::launch_convolve_separable_y(
                 input, u_input_strides, tmp, u_tmp_strides, u_shape,
-                filter_height, filter_height_size, stream);
+                filter_height, u_filter_height_size, stream);
             guts::launch_convolve_separable_x(
                 tmp, u_tmp_strides, output, u_output_strides, u_shape,
-                filter_width, filter_width_size, stream);
+                filter_width, u_filter_width_size, stream);
 
         } else if (filter_depth) {
             guts::launch_convolve_separable_z(
                 input, u_input_strides, output, u_output_strides, u_shape,
-                filter_depth, filter_depth_size, stream);
+                filter_depth, u_filter_depth_size, stream);
         } else if (filter_height) {
             guts::launch_convolve_separable_y(
                 input, u_input_strides, output, u_output_strides, u_shape,
-                filter_height, filter_height_size, stream);
+                filter_height, u_filter_height_size, stream);
         } else if (filter_width) {
             guts::launch_convolve_separable_x(
                 input, u_input_strides, output, u_output_strides, u_shape,
-                filter_width, filter_width_size, stream);
+                filter_width, u_filter_width_size, stream);
         }
     }
 }

@@ -1,7 +1,9 @@
 #pragma once
 
-#include "noa/core/Remap.hpp"
+#include "noa/core/Enums.hpp"
+#include "noa/core/fft/Frequency.hpp"
 #include "noa/core/geometry/FourierUtilities.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/core/utils/Atomic.hpp"
 
 namespace noa::geometry::guts {
@@ -33,6 +35,7 @@ namespace noa::geometry::guts {
         using input_weight_type = InputWeight;
         using output_weight_type = OutputWeight;
         using input_value_type = nt::mutable_value_type_t<input_type>;
+        using input_real_type = nt::value_type_t<input_value_type>;
         using output_value_type = nt::value_type_t<output_type>;
         using output_real_type = nt::value_type_t<output_value_type>;
         using output_weight_value_type = nt::value_type_t<output_weight_type>;
@@ -43,25 +46,25 @@ namespace noa::geometry::guts {
 
     public:
         constexpr FourierInsertRasterize(
-                const input_type& input_slices,
-                const input_weight_type& input_weights,
-                const Shape4<index_type>& input_slice_shape,
-                const output_type& output_volume,
-                const output_weight_type& output_weights,
-                const Shape4<index_type>& output_volume_shape,
-                const scale_type& inv_scaling,
-                const rotate_type& fwd_rotation,
-                coord_type fftfreq_cutoff,
-                const Shape4<index_type>& target_shape,
-                const ews_type& ews_radius
+            const input_type& input_slices,
+            const input_weight_type& input_weights,
+            const Shape4<index_type>& input_slice_shape,
+            const output_type& output_volume,
+            const output_weight_type& output_weights,
+            const Shape4<index_type>& output_volume_shape,
+            const scale_type& inv_scaling,
+            const rotate_type& fwd_rotation,
+            coord_type fftfreq_cutoff,
+            const Shape4<index_type>& target_shape,
+            const ews_type& ews_radius
         ) :
-                m_input_slices(input_slices),
-                m_output_volume(output_volume),
-                m_fwd_rotation(fwd_rotation),
-                m_grid_shape(output_volume_shape.pop_front()),
-                m_input_weights(input_weights),
-                m_output_weights(output_weights),
-                m_inv_scaling(inv_scaling)
+            m_input_slices(input_slices),
+            m_output_volume(output_volume),
+            m_fwd_rotation(fwd_rotation),
+            m_grid_shape(output_volume_shape.pop_front()),
+            m_input_weights(input_weights),
+            m_output_weights(output_weights),
+            m_inv_scaling(inv_scaling)
         {
             const auto slice_shape_2d = input_slice_shape.filter(2, 3);
             m_slice_size_y = slice_shape_2d[0];
@@ -87,14 +90,14 @@ namespace noa::geometry::guts {
             const index_type v = noa::fft::index2frequency<ARE_SLICES_CENTERED>(y, m_slice_size_y);
             const auto fftfreq_2d = coord2_type::from_values(v, u) / m_f_slice_shape;
             coord3_type fftfreq_3d = guts::fourier_slice2grid(
-                    fftfreq_2d, m_inv_scaling, m_fwd_rotation, batch, m_ews_diam_inv);
+                fftfreq_2d, m_inv_scaling, m_fwd_rotation, batch, m_ews_diam_inv);
 
             // The frequency rate won't change from that point, so check for the cutoff.
             if (dot(fftfreq_3d, fftfreq_3d) > m_fftfreq_cutoff_sqd)
                 return;
 
             // Handle the non-redundancy in x.
-            coord_type conjugate = 1;
+            input_real_type conjugate = 1;
             if (fftfreq_3d[2] < 0) {
                 fftfreq_3d = -fftfreq_3d;
                 if constexpr (nt::complex<input_value_type>)
@@ -106,14 +109,14 @@ namespace noa::geometry::guts {
 
             // At this point, we know we are going to use the input, so load everything.
             Pair value_and_weight{
-                    get_input_value_(conjugate, batch, y, u),
-                    get_input_weight_(batch, y, u),
+                get_input_value_(conjugate, batch, y, u),
+                get_input_weight_(batch, y, u),
             };
             rasterize_on_3d_grid_(value_and_weight, frequency_3d);
         }
 
     private:
-        NOA_HD constexpr auto get_input_value_(coord_type conjugate, auto... input_indices) const {
+        NOA_HD constexpr auto get_input_value_(input_real_type conjugate, auto... input_indices) const {
             auto value = m_input_slices(input_indices...);
             if constexpr (nt::complex<input_value_type, output_value_type>) {
                 return static_cast<output_value_type>(value * conjugate);
@@ -134,9 +137,9 @@ namespace noa::geometry::guts {
         // The gridding/rasterization kernel is a trilinear pulse.
         // The total weight within the 2x2x2 cube is 1.
         NOA_HD static constexpr void set_rasterization_weights_(
-                const Vec3<index_type>& base0,
-                const Vec3<coord_type>& freq,
-                coord_type o_weights[2][2][2]
+            const Vec3<index_type>& base0,
+            const Vec3<coord_type>& freq,
+            coord_type o_weights[2][2][2]
         ) noexcept {
             // So if the coordinate is centered in the bottom left corner of the cube (base0),
             // i.e., its decimal is 0, the corresponding fraction for this element should be 1.
@@ -153,8 +156,8 @@ namespace noa::geometry::guts {
         // This is called gridding, but is also referred as rasterization with antialiasing.
         // "frequency" is the frequency, in samples, centered on DC, with negative frequencies on the left.
         NOA_HD void rasterize_on_3d_grid_(
-                Pair<output_value_type, output_weight_value_type> value_and_weight,
-                const Vec3<coord_type>& frequency // in samples
+            Pair<output_value_type, output_weight_value_type> value_and_weight,
+            const Vec3<coord_type>& frequency // in samples
         ) const noexcept {
             const auto base0 = floor(frequency).template as<index_type>();
 
@@ -176,14 +179,14 @@ namespace noa::geometry::guts {
                             idx_u >= 0 and idx_u < m_grid_shape[2]) {
                             const auto fraction = kernel[w][v][u];
                             ng::atomic_add(
-                                    m_output_volume,
-                                    value_and_weight.first * static_cast<output_real_type>(fraction),
-                                    idx_w, idx_v, idx_u);
+                                m_output_volume,
+                                value_and_weight.first * static_cast<output_real_type>(fraction),
+                                idx_w, idx_v, idx_u);
                             if constexpr (has_weights) {
                                 ng::atomic_add(
-                                        m_output_weights,
-                                        value_and_weight.second * static_cast<output_weight_value_type>(fraction),
-                                        idx_w, idx_v, idx_u);
+                                    m_output_weights,
+                                    value_and_weight.second * static_cast<output_weight_value_type>(fraction),
+                                    idx_w, idx_v, idx_u);
                             }
                         }
                     }
@@ -193,7 +196,7 @@ namespace noa::geometry::guts {
             // The gridding doesn't preserve the hermitian symmetry, so enforce it on the redundant X==0 ZY plane.
             // So if a side of this plane was modified, add the conjugate at (x=0, -y, -z) with the same fraction.
             if (base0[2] == 0) {
-                if constexpr (nt::is_complex_v<output_value_type>)
+                if constexpr (nt::complex<output_value_type>)
                     value_and_weight.first.imag = -value_and_weight.first.imag;
 
                 for (index_type w{}; w < 2; ++w) {
@@ -205,14 +208,14 @@ namespace noa::geometry::guts {
                             idx_v >= 0 and idx_v < m_grid_shape[1]) {
                             const auto fraction = kernel[w][v][0];
                             ng::atomic_add(
-                                    m_output_volume,
-                                    value_and_weight.first * static_cast<output_real_type>(fraction),
-                                    idx_w, idx_v, index_type{});
+                                m_output_volume,
+                                value_and_weight.first * static_cast<output_real_type>(fraction),
+                                idx_w, idx_v, index_type{});
                             if constexpr (has_weights) {
                                 ng::atomic_add(
-                                        m_output_weights,
-                                        value_and_weight.second * static_cast<output_weight_value_type>(fraction),
-                                        idx_w, idx_v, index_type{});
+                                    m_output_weights,
+                                    value_and_weight.second * static_cast<output_weight_value_type>(fraction),
+                                    idx_w, idx_v, index_type{});
                             }
                         }
                     }

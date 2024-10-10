@@ -1,8 +1,9 @@
+#include <noa/core/types/Accessor.hpp>
 #include <noa/gpu/cuda/ReduceAxesIwise.cuh>
-#include <noa/gpu/cuda/AllocatorManaged.hpp>
+#include <noa/gpu/cuda/Allocators.hpp>
 #include <catch2/catch.hpp>
 
-#include "Helpers.h"
+#include "Utils.hpp"
 
 namespace {
     using namespace noa::types;
@@ -14,10 +15,10 @@ namespace {
         NOA_HD void init(const Vec<i64, N>& indices, i64& reduced) const {
             reduced += accessor(indices);
         }
-        NOA_HD void join(i64 to_reduce, i64& reduced) const {
+        NOA_HD static void join(i64 to_reduce, i64& reduced) {
             reduced += to_reduce;
         }
-        NOA_HD void final(i64 reduced, i64& output) const {
+        NOA_HD static void final(i64 reduced, i64& output) {
             output += reduced;
         }
     };
@@ -32,11 +33,11 @@ TEST_CASE("cuda::reduce_axes_iwise - 4d") {
 
     Stream stream(Device{});
 
-    AND_THEN("sum one axis") {
-        auto input_shape = test::get_random_shape4_batched(4);
+    SECTION("sum one axis") {
+        auto input_shape = test::random_shape_batched(4);
         input_shape[0] += 1; // make sure there's something to reduce
         const auto input_strides = input_shape.strides();
-        const auto n_elements = input_shape.elements();
+        const auto n_elements = input_shape.n_elements();
 
         const auto buffer = AllocatorManaged<i64>::allocate(n_elements, stream);
         test::arange(buffer.get(), n_elements);
@@ -49,7 +50,7 @@ TEST_CASE("cuda::reduce_axes_iwise - 4d") {
             auto output_shape = input_shape;
             output_shape[axis] = 1;
             const auto output_strides = output_shape.strides();
-            const auto output_elements = output_shape.elements();
+            const auto output_elements = output_shape.n_elements();
 
             const auto expected_buffer = AllocatorManaged<i64>::allocate(output_elements, stream);
             auto compute_expected_reduction = [](Shape4<i64> shape, const auto& input, const auto& expected) {
@@ -67,24 +68,24 @@ TEST_CASE("cuda::reduce_axes_iwise - 4d") {
             using expected_t = AccessorI64<const i64, 4>;
             if (axis == 0) {
                 compute_expected_reduction(
-                        input_shape.filter(1, 2, 3, 0),
-                        expected_t(buffer.get(), input_strides.filter(1, 2, 3, 0)),
-                        AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(1, 2, 3)));
+                    input_shape.filter(1, 2, 3, 0),
+                    expected_t(buffer.get(), input_strides.filter(1, 2, 3, 0)),
+                    AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(1, 2, 3)));
             } else if (axis == 1) {
                 compute_expected_reduction(
-                        input_shape.filter(0, 2, 3, 1),
-                        expected_t(buffer.get(), input_strides.filter(0, 2, 3, 1)),
-                        AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(0, 2, 3)));
+                    input_shape.filter(0, 2, 3, 1),
+                    expected_t(buffer.get(), input_strides.filter(0, 2, 3, 1)),
+                    AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(0, 2, 3)));
             } else if (axis == 2) {
                 compute_expected_reduction(
-                        input_shape.filter(0, 1, 3, 2),
-                        expected_t(buffer.get(), input_strides.filter(0, 1, 3, 2)),
-                        AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(0, 1, 3)));
+                    input_shape.filter(0, 1, 3, 2),
+                    expected_t(buffer.get(), input_strides.filter(0, 1, 3, 2)),
+                    AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(0, 1, 3)));
             } else {
                 compute_expected_reduction(
-                        input_shape,
-                        expected_t(buffer.get(), input_strides),
-                        AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(0, 1, 2)));
+                    input_shape,
+                    expected_t(buffer.get(), input_strides),
+                    AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(0, 1, 2)));
             }
 
             const auto output_buffer = AllocatorManaged<i64>::allocate(output_elements, stream);
@@ -92,24 +93,24 @@ TEST_CASE("cuda::reduce_axes_iwise - 4d") {
             std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
             reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, stream);
             stream.synchronize();
-            REQUIRE(test::Matcher(test::MATCH_ABS, output_buffer.get(), expected_buffer.get(), output_elements, 0));
+            REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
         }
     }
 
-    AND_THEN("per batch") {
+    SECTION("per batch") {
         const auto input_shapes = std::array{
-                test::get_random_shape4(1),
-                test::get_random_shape4(2),
-                test::get_random_shape4(3),
-                test::get_random_shape4(4),
-                test::get_random_shape4_batched(1),
-                test::get_random_shape4_batched(2),
-                test::get_random_shape4_batched(3),
-                test::get_random_shape4_batched(4)
+            test::random_shape(1),
+            test::random_shape(2),
+            test::random_shape(3),
+            test::random_shape(4),
+            test::random_shape_batched(1),
+            test::random_shape_batched(2),
+            test::random_shape_batched(3),
+            test::random_shape_batched(4)
         };
         for (const auto& input_shape: input_shapes) {
             const auto input_strides = input_shape.strides();
-            const auto n_elements = input_shape.elements();
+            const auto n_elements = input_shape.n_elements();
 
             const auto buffer = AllocatorManaged<i64>::allocate(n_elements, stream);
             test::arange(buffer.get(), n_elements);
@@ -118,7 +119,7 @@ TEST_CASE("cuda::reduce_axes_iwise - 4d") {
             auto sum_op = SumOp<4>{.accessor={buffer.get(), input_strides}};
 
             const auto expected_buffer = AllocatorManaged<i64>::allocate(input_shape[0], stream);
-            const auto per_batch_n_elements = input_shape.pop_front().elements();
+            const auto per_batch_n_elements = input_shape.pop_front().n_elements();
             for (i64 i = 0; i < input_shape[0]; ++i) {
                 const i64* input = buffer.get() + input_strides[0] * i;
                 i64 tmp = 0;
@@ -128,14 +129,14 @@ TEST_CASE("cuda::reduce_axes_iwise - 4d") {
             }
 
             const auto output_shape = Shape4<i64>{input_shape[0], 1, 1, 1};
-            const auto output_elements = output_shape.elements();
+            const auto output_elements = output_shape.n_elements();
             const auto output_buffer = AllocatorManaged<i64>::allocate(output_elements, stream);
             const auto output = noa::make_tuple(AccessorI64<i64, 4>(output_buffer.get(), output_shape.strides()));
 
             std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
             reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, stream);
             stream.synchronize();
-            REQUIRE(test::Matcher(test::MATCH_ABS, output_buffer.get(), expected_buffer.get(), output_elements, 0));
+            REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
         }
     }
 }
@@ -149,10 +150,10 @@ TEST_CASE("cuda::reduce_axes_iwise - 3d") {
 
     Stream stream(Device{});
 
-    AND_THEN("sum one axis") {
-        const auto input_shape = test::get_random_shape4_batched(4).filter(1, 2, 3);
+    SECTION("sum one axis") {
+        const auto input_shape = test::random_shape<i64, 3>(3);
         const auto input_strides = input_shape.strides();
-        const auto n_elements = input_shape.elements();
+        const auto n_elements = input_shape.n_elements();
 
         const auto buffer = AllocatorManaged<i64>::allocate(n_elements, stream);
         test::arange(buffer.get(), n_elements);
@@ -165,7 +166,7 @@ TEST_CASE("cuda::reduce_axes_iwise - 3d") {
             auto output_shape = input_shape;
             output_shape[axis] = 1;
             const auto output_strides = output_shape.strides();
-            const auto output_elements = output_shape.elements();
+            const auto output_elements = output_shape.n_elements();
 
             const auto expected_buffer = AllocatorManaged<i64>::allocate(output_elements, stream);
             auto compute_expected_reduction = [](Shape3<i64> shape, const auto& input, const auto& expected) {
@@ -181,19 +182,19 @@ TEST_CASE("cuda::reduce_axes_iwise - 3d") {
             using expected_t = AccessorI64<const i64, 3>;
             if (axis == 0) {
                 compute_expected_reduction(
-                        input_shape.filter(1, 2, 0),
-                        expected_t(buffer.get(), input_strides.filter(1, 2, 0)),
-                        AccessorI64<i64, 2>(expected_buffer.get(), output_strides.filter(1, 2)));
+                    input_shape.filter(1, 2, 0),
+                    expected_t(buffer.get(), input_strides.filter(1, 2, 0)),
+                    AccessorI64<i64, 2>(expected_buffer.get(), output_strides.filter(1, 2)));
             } else if (axis == 1) {
                 compute_expected_reduction(
-                        input_shape.filter(0, 2, 1),
-                        expected_t(buffer.get(), input_strides.filter(0, 2, 1)),
-                        AccessorI64<i64, 2>(expected_buffer.get(), output_strides.filter(0, 2)));
+                    input_shape.filter(0, 2, 1),
+                    expected_t(buffer.get(), input_strides.filter(0, 2, 1)),
+                    AccessorI64<i64, 2>(expected_buffer.get(), output_strides.filter(0, 2)));
             } else {
                 compute_expected_reduction(
-                        input_shape,
-                        expected_t(buffer.get(), input_strides),
-                        AccessorI64<i64, 2>(expected_buffer.get(), output_strides.filter(0, 1)));
+                    input_shape,
+                    expected_t(buffer.get(), input_strides),
+                    AccessorI64<i64, 2>(expected_buffer.get(), output_strides.filter(0, 1)));
             }
 
             const auto output_buffer = AllocatorManaged<i64>::allocate(output_elements, stream);
@@ -202,20 +203,20 @@ TEST_CASE("cuda::reduce_axes_iwise - 3d") {
             std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
             reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, stream);
             stream.synchronize();
-            REQUIRE(test::Matcher(test::MATCH_ABS, output_buffer.get(), expected_buffer.get(), output_elements, 0));
+            REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
         }
     }
 
-    AND_THEN("per batch") {
+    SECTION("per batch") {
         const auto input_shapes = std::array{
-                test::get_random_shape4(1).pop_front(),
-                test::get_random_shape4(2).pop_front(),
-                test::get_random_shape4(3).pop_front(),
-                test::get_random_shape4(4).pop_front()
+            test::random_shape<i64, 3>(1),
+            test::random_shape<i64, 3>(2),
+            test::random_shape<i64, 3>(3),
+            test::random_shape<i64, 3>(4),
         };
         for (const auto& input_shape: input_shapes) {
             const auto input_strides = input_shape.strides();
-            const auto n_elements = input_shape.elements();
+            const auto n_elements = input_shape.n_elements();
 
             const auto buffer = AllocatorManaged<i64>::allocate(n_elements, stream);
             test::arange(buffer.get(), n_elements);
@@ -224,7 +225,7 @@ TEST_CASE("cuda::reduce_axes_iwise - 3d") {
             auto sum_op = SumOp<3>{.accessor={buffer.get(), input_strides}};
 
             const auto expected_buffer = AllocatorManaged<i64>::allocate(input_shape[0], stream);
-            const auto per_batch_n_elements = input_shape.pop_front().elements();
+            const auto per_batch_n_elements = input_shape.pop_front().n_elements();
             for (i64 i = 0; i < input_shape[0]; ++i) {
                 const i64* input = buffer.get() + input_strides[0] * i;
                 i64 tmp = 0;
@@ -234,14 +235,14 @@ TEST_CASE("cuda::reduce_axes_iwise - 3d") {
             }
 
             const auto output_shape = Shape3<i64>{input_shape[0], 1, 1};
-            const auto output_elements = output_shape.elements();
+            const auto output_elements = output_shape.n_elements();
             const auto output_buffer = AllocatorManaged<i64>::allocate(output_elements, stream);
             const auto output = noa::make_tuple(AccessorI64<i64, 3>(output_buffer.get(), output_shape.strides()));
 
             std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
             reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, stream);
             stream.synchronize();
-            REQUIRE(test::Matcher(test::MATCH_ABS, output_buffer.get(), expected_buffer.get(), output_elements, 0));
+            REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
         }
     }
 }
@@ -255,10 +256,10 @@ TEST_CASE("cuda::reduce_axes_iwise - 2d") {
 
     Stream stream(Device{});
 
-    AND_THEN("sum one axis") {
-        const auto input_shape = test::get_random_shape4_batched(4).filter(2, 3);
+    SECTION("sum one axis") {
+        const auto input_shape = test::random_shape<i64, 2>(2);
         const auto input_strides = input_shape.strides();
-        const auto n_elements = input_shape.elements();
+        const auto n_elements = input_shape.n_elements();
 
         const auto buffer = AllocatorManaged<i64>::allocate(n_elements, stream);
         test::arange(buffer.get(), n_elements);
@@ -271,7 +272,7 @@ TEST_CASE("cuda::reduce_axes_iwise - 2d") {
             auto output_shape = input_shape;
             output_shape[axis] = 1;
             const auto output_strides = output_shape.strides();
-            const auto output_elements = output_shape.elements();
+            const auto output_elements = output_shape.n_elements();
 
             const auto expected_buffer = AllocatorManaged<i64>::allocate(output_elements, stream);
             auto compute_expected_reduction = [](Shape2<i64> shape, const auto& input, const auto& expected) {
@@ -285,23 +286,23 @@ TEST_CASE("cuda::reduce_axes_iwise - 2d") {
             using expected_t = AccessorI64<const i64, 2>;
             if (axis == 0) {
                 compute_expected_reduction(
-                        input_shape.filter(1, 0),
-                        expected_t(buffer.get(), input_strides.filter(1, 0)),
-                        AccessorI64<i64, 1>(expected_buffer.get(), output_strides.filter(1)));
-            } else  {
+                    input_shape.filter(1, 0),
+                    expected_t(buffer.get(), input_strides.filter(1, 0)),
+                    AccessorI64<i64, 1>(expected_buffer.get(), output_strides.filter(1)));
+            } else {
                 compute_expected_reduction(
-                        input_shape,
-                        expected_t(buffer.get(), input_strides),
-                        AccessorI64<i64, 1>(expected_buffer.get(), output_strides.filter(0)));
+                    input_shape,
+                    expected_t(buffer.get(), input_strides),
+                    AccessorI64<i64, 1>(expected_buffer.get(), output_strides.filter(0)));
             }
 
             const auto output_buffer = AllocatorManaged<i64>::allocate(output_elements, stream);
             auto output = noa::make_tuple(AccessorI64<i64, 2>(output_buffer.get(), output_strides));
 
-            std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
+            std::fill_n(output_buffer.get(), output_elements, 1);
             reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, stream);
             stream.synchronize();
-            REQUIRE(test::Matcher(test::MATCH_ABS, output_buffer.get(), expected_buffer.get(), output_elements, 0));
+            REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
         }
     }
 }
@@ -315,9 +316,9 @@ TEST_CASE("cuda::reduce_axes_iwise - 1d") {
 
     Stream stream(Device{});
 
-    const auto input_shape = test::get_random_shape4(1).filter(3) * 50;
+    const auto input_shape = test::random_shape<i64, 1>(1) * 50;
     const auto input_strides = input_shape.strides();
-    const auto n_elements = input_shape.elements();
+    const auto n_elements = input_shape.n_elements();
 
     const auto buffer = AllocatorManaged<i64>::allocate(n_elements, stream);
     test::arange(buffer.get(), n_elements);

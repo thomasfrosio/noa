@@ -10,8 +10,7 @@
 
 #include "noa/cpu/ReduceIwise.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/AllocatorDevice.hpp"
-#include "noa/gpu/cuda/AllocatorManaged.hpp"
+#include "noa/gpu/cuda/Allocators.hpp"
 #include "noa/gpu/cuda/Copy.cuh"
 #include "noa/gpu/cuda/ReduceIwise.cuh"
 #endif

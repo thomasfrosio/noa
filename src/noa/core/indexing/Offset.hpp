@@ -21,9 +21,9 @@ namespace noa::indexing {
         I... indices
     ) noexcept -> T {
         NOA_ASSERT((is_safe_cast<T>(indices) and ...));
-        return [&]<size_t... J>(std::index_sequence<J...>) {
-            return ((static_cast<T>(indices) * strides[J]) + ...);
-        }(std::make_index_sequence<sizeof...(I)>{});
+        return [&strides]<size_t... J>(std::index_sequence<J...>, auto&... indices_) {
+            return ((static_cast<T>(indices_) * strides[J]) + ...);
+        }(std::make_index_sequence<sizeof...(I)>{}, indices...); // nvcc bug - capture indices fails
     }
 
     /// Returns the memory offset corresponding to the given indices.
@@ -55,11 +55,11 @@ namespace noa::indexing {
         const T& indexable,
         I... indices
     ) noexcept {
-        return [&]<size_t... J>(std::index_sequence<J...>) {
+        return [&indexable]<size_t... J>(std::index_sequence<J...>, auto&... indices_) {
             typename T::index_type offset{};
-            ((offset += ni::offset_at(indexable.template stride<J>(), indices)), ...);
+            ((offset += ni::offset_at(indexable.template stride<J>(), indices_)), ...);
             return offset;
-        }(std::make_index_sequence<sizeof...(indices)>{});
+        }(std::make_index_sequence<sizeof...(indices)>{}, indices...);
     }
 
     template<nt::integer I, size_t N, size_t A, nt::indexer_compatible<N> T>
@@ -74,22 +74,22 @@ namespace noa::indexing {
         }(std::make_index_sequence<N>{});
     }
 
-    template<nt::integer... I, nt::indexer_compatible<sizeof...(I)> T, typename P> // BUGREPORT
-    [[nodiscard]] NOA_FHD constexpr auto offset_pointer(
+    template<nt::integer... I, nt::indexer_compatible<sizeof...(I)> T, nt::pointer P>
+    [[nodiscard]] NOA_FHD constexpr P offset_pointer(
         const T& indexable,
-        P* pointer,
+        P pointer,
         I... indices
     ) noexcept {
-        return [&]<size_t... J>(std::index_sequence<J...>) {
-            ((pointer += ni::offset_at(indexable.template stride<J>(), indices)), ...);
+        return [&]<size_t... J>(std::index_sequence<J...>, auto&... indices_) {
+            ((pointer += ni::offset_at(indexable.template stride<J>(), indices_)), ...);
             return pointer;
-        }(std::make_index_sequence<sizeof...(I)>{});
+        }(std::make_index_sequence<sizeof...(I)>{}, indices...);
     }
 
-    template<nt::integer I, size_t N, size_t A, nt::indexer_compatible<N> T, typename P>
-    [[nodiscard]] NOA_FHD constexpr auto offset_pointer(
+    template<nt::integer I, size_t N, size_t A, nt::indexer_compatible<N> T, nt::pointer P>
+    [[nodiscard]] NOA_FHD constexpr P offset_pointer(
         const T& indexable,
-        P* pointer,
+        P pointer,
         const Vec<I, N, A>& indices
     ) noexcept {
         return [&]<size_t... J>(std::index_sequence<J...>) {
@@ -101,8 +101,7 @@ namespace noa::indexing {
     /// CRTP-type adding indexing related member functions to the type T.
     template<typename T, size_t N>
     struct Indexer {
-        template<typename... I>
-        requires nt::offset_indexing<N, I...>
+        template<typename... I> requires nt::offset_indexing<N, I...>
         NOA_HD constexpr auto& offset_inplace(const I&... indices) noexcept {
             auto& self = static_cast<T&>(*this);
             NOA_ASSERT(not self.is_empty());
@@ -110,22 +109,19 @@ namespace noa::indexing {
             return self;
         }
 
-        template<typename... I>
-        requires nt::offset_indexing<N, I...>
-        [[nodiscard]] NOA_HD constexpr auto offset_pointer(auto* pointer, const I&... indices) const noexcept {
+        template<nt::pointer P, typename... I> requires nt::offset_indexing<N, I...>
+        [[nodiscard]] NOA_HD constexpr P offset_pointer(P pointer, const I&... indices) const noexcept {
             auto& self = static_cast<const T&>(*this);
             return ni::offset_pointer(self, pointer, indices...);
         }
 
-        template<typename... I>
-        requires nt::offset_indexing<N, I...>
+        template<typename... I> requires nt::offset_indexing<N, I...>
         [[nodiscard]] NOA_HD constexpr auto offset_at(const I&... indices) const noexcept {
             auto& self = static_cast<const T&>(*this);
             return ni::offset_at(self, indices...);
         }
 
-        template<typename... I>
-        requires nt::iwise_general_indexing<N, I...>
+        template<typename... I> requires nt::iwise_general_indexing<N, I...>
         [[nodiscard]] NOA_HD constexpr auto& operator()(const I&... indices) const noexcept {
             auto& self = static_cast<const T&>(*this);
             NOA_ASSERT(not self.is_empty()); // TODO Check is_inbound if self.shape() is valid?
@@ -152,7 +148,7 @@ namespace noa::indexing {
                 idx = size - 1;
         } else if constexpr (MODE == Border::PERIODIC) {
             // 0 1 2 3 0 1 2 3 0 1 2 3 |  0 1 2 3  | 0 1 2 3 0 1 2 3 0 1 2 3
-            T rem = idx % size; // FIXME maybe enclose this, at the expense of two jumps?
+            T rem = idx % size;
             idx = rem < 0 ? rem + size : rem;
         } else if constexpr (MODE == Border::MIRROR) {
             // 0 1 2 3 3 2 1 0 0 1 2 3 3 2 1 0 |  0 1 2 3  | 3 2 1 0 0 1 2 3 3 2 1 0
@@ -314,13 +310,13 @@ namespace noa::indexing {
         const U&... indices
     ) noexcept {
         if constexpr (nt::sinteger<T>) {
-            return [&]<size_t... I>(std::index_sequence<I...>) {
-                return ((indices >= T{} or indices < shape[I]) and ...);
-            }(std::make_index_sequence<sizeof...(U)>{});
+            return [&shape]<size_t... I>(std::index_sequence<I...>, auto&... indices_) {
+                return ((indices_ >= T{} or indices_ < shape[I]) and ...);
+            }(std::make_index_sequence<sizeof...(U)>{}, indices...);
         } else {
-            return [&]<size_t... I>(std::index_sequence<I...>) {
-                return ((indices < shape[I]) and ...);
-            }(std::make_index_sequence<sizeof...(U)>{});
+            return [&shape]<size_t... I>(std::index_sequence<I...>, auto&... indices_) {
+                return ((indices_ < shape[I]) and ...);
+            }(std::make_index_sequence<sizeof...(U)>{}, indices...);
         }
     }
 }

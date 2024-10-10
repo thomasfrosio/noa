@@ -11,6 +11,7 @@ set(NOA_UNIFIED_HEADERS
     unified/Ewise.hpp
     unified/Factory.hpp
     unified/Indexing.hpp
+    unified/Interpolation.hpp
     unified/Iwise.hpp
     unified/Random.hpp
     unified/Reduce.hpp
@@ -23,7 +24,7 @@ set(NOA_UNIFIED_HEADERS
     unified/Sort.hpp
     unified/Stream.hpp
     unified/Subregion.hpp
-#    unified/Texture.hpp
+    unified/Texture.hpp
     unified/Traits.hpp
     unified/Utilities.hpp
     unified/View.hpp
@@ -51,16 +52,17 @@ set(NOA_UNIFIED_HEADERS
     # noa::geometry
     unified/geometry/CubicBSplinePrefilter.hpp
     unified/geometry/DrawShape.hpp
-#    unified/geometry/FourierProject.hpp
-#    unified/geometry/PolarTransform.hpp
-#    unified/geometry/PolarTransformSpectrum.hpp
-#    unified/geometry/RotationalAverage.hpp
-#    unified/geometry/Symmetry.hpp
-#    unified/geometry/Transform.hpp
-#    unified/geometry/TransformSpectrum.hpp
+    unified/geometry/FourierProject.hpp
+    unified/geometry/PolarTransform.hpp
+    unified/geometry/PolarTransformSpectrum.hpp
+    unified/geometry/RotationalAverage.hpp
+    unified/geometry/Symmetry.hpp
+    unified/geometry/Transform.hpp
+    unified/geometry/TransformSpectrum.hpp
     )
 
 set(NOA_UNIFIED_SOURCES
+    unified/Allocator.cpp
     unified/Device.cpp
     unified/Session.cpp
     unified/Stream.cpp

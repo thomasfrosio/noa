@@ -4,7 +4,7 @@
 #include "noa/core/Traits.hpp"
 #include "noa/core/math/Comparison.hpp"
 
-namespace noa::geometry {
+namespace noa::geometry::guts {
     /// BSpline prefilter utility.
     /// \details Cubic B-spline curves are not constrained to pass through the data, i.e. data points are simply
     /// referred to as control points. As such, these curves are not really interpolating. For instance, a ratio of 0
@@ -26,7 +26,7 @@ namespace noa::geometry {
     public:
         using value_type = Value;
         using real_type = nt::value_type_t<value_type>;
-        using sint_type = std::make_signed<Int>;
+        using sint_type = std::make_signed_t<Int>;
 
         // sqrt(3.0f)-2.0f; pole for cubic b-spline
         static constexpr real_type POLE = static_cast<real_type>(-0.2679491924311228);
@@ -52,9 +52,9 @@ namespace noa::geometry {
         }
 
         NOA_HD static constexpr void filter(
-                const value_type* input, sint_type input_stride,
-                value_type* output, sint_type output_stride,
-                sint_type size
+            const value_type* input, sint_type input_stride,
+            value_type* output, sint_type output_stride,
+            sint_type size
         ) {
             // causal initialization and recursion
             value_type* c = output;
@@ -76,7 +76,7 @@ namespace noa::geometry {
 
     private:
         [[nodiscard]] NOA_HD static constexpr value_type initial_causal_coefficient_(
-                const value_type* c, sint_type stride, sint_type size
+            const value_type* c, sint_type stride, sint_type size
         ) {
             const sint_type horizon = min(sint_type{12}, size);
 
@@ -92,7 +92,7 @@ namespace noa::geometry {
         }
 
         [[nodiscard]] NOA_HD static constexpr value_type initial_anticausal_coefficient_(
-                const value_type* c
+            const value_type* c
         ) {
             // this initialization corresponds to clamping boundaries
             return (POLE / (POLE - 1)) * (*c);

@@ -316,9 +316,9 @@ namespace noa::cpu {
             panic("Dimensions should match the input shape, or be 1, "
                   "indicating the dimension should be reduced to one element. "
                   "Got shape input={}, output={}", input_shape, output_shape);
-        }
-        if (all(axes_to_reduce == false)) {
-            return; // nothing to reduce
+        } else if (all(axes_to_reduce == false)) {
+            panic("No reduction to compute. Got shape input={}, output={}. Please use iwise instead.",
+                  input_shape, output_shape);
         }
 
         const auto axes_empty_or_to_reduce = output_shape == 1 or axes_to_reduce;

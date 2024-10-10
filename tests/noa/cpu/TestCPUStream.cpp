@@ -12,7 +12,6 @@ namespace {
 
 TEST_CASE("cpu::Stream", "[noa][cpu]") {
     using noa::cpu::Stream;
-    using noa::cpu::StreamMode;
 
     int flag = 0;
     auto task1 = []() { return 1; };
@@ -31,7 +30,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
     };
 
     SECTION("default stream") {
-        Stream stream(StreamMode::DEFAULT, 1);
+        Stream stream(Stream::SYNC, 1);
         stream.enqueue(task1);
         stream.enqueue(task2, 3);
         stream.synchronize();
@@ -48,7 +47,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
 
     SECTION("async stream") {
         {
-            Stream stream(StreamMode::ASYNC, 1);
+            Stream stream(Stream::ASYNC, 1);
             stream.enqueue(task1);
             stream.enqueue(task2, 3);
             stream.synchronize();
@@ -78,7 +77,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
         };
         for (int i{}; i < 5; ++i) {
             {
-                Stream async_stream(StreamMode::ASYNC, 1);
+                Stream async_stream(Stream::ASYNC, 1);
                 for (int j{}; j < 50; ++j)
                     async_stream.enqueue(task6);
             }
@@ -88,7 +87,7 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
 
         count = 0;
         for (int i{}; i < 5; ++i) {
-            Stream async_stream(StreamMode::ASYNC, 1);
+            Stream async_stream(Stream::ASYNC, 1);
             for (int j{}; j < 100; ++j)
                 async_stream.enqueue(task6);
             async_stream.synchronize();
@@ -97,21 +96,11 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
         REQUIRE(count == 500);
     }
 
-    SECTION("nested async stream") {
-        {
-            Stream async_stream(StreamMode::ASYNC, 1);
-            async_stream.enqueue([=]() mutable {
-                async_stream.enqueue([](){});
-            });
-            REQUIRE_THROWS_AS(async_stream.synchronize(), noa::Exception);
-        }
-    }
-
     SECTION("forwarding arguments") {
         Tracked t0{};
         Tracked t1{};
         Tracked t2{};
-        Stream async_stream(StreamMode::ASYNC, 1);
+        Stream async_stream(Stream::ASYNC, 1);
         async_stream.enqueue([&t1](auto& tracked) {
             t1.count = tracked.count;
         }, t0);

@@ -10,7 +10,7 @@ namespace {
     struct Arange4d {
         Span<f32, 4> span;
 
-        void operator()(const Vec<i64, 4>& indices) {
+        constexpr void operator()(const Vec<i64, 4>& indices) {
             span(indices) = static_cast<f32>(noa::indexing::offset_at(span.strides(), indices));
         }
     };

@@ -215,6 +215,18 @@ namespace noa::inline types {
             return Shape<value_type, sizeof...(U)>{(*this)[ts]...};
         }
 
+        template<size_t S> requires (S < N and N == 4)
+        [[nodiscard]] constexpr auto filter_nd() const noexcept {
+            if constexpr (S == 1)
+                return filter(0, 3);
+            else if constexpr (S == 2)
+                return filter(0, 2, 3);
+            else if constexpr (S == 3)
+                return *this;
+            else
+                static_assert(nt::always_false<T>);
+        }
+
         [[nodiscard]] NOA_HD constexpr Shape flip() const noexcept {
             return {vec.flip()};
         }
@@ -224,7 +236,7 @@ namespace noa::inline types {
             return {vec.reorder(order)};
         }
 
-        [[nodiscard]] NOA_HD constexpr Shape circular_shift(i64 count) {
+        [[nodiscard]] NOA_HD constexpr Shape circular_shift(i64 count) const noexcept {
             return {vec.circular_shift(count)};
         }
 
@@ -579,6 +591,18 @@ namespace noa::inline types {
             return Strides<value_type, sizeof...(U)>{(*this)[ts]...};
         }
 
+        template<size_t S> requires (S < N and N == 4)
+        [[nodiscard]] constexpr auto filter_nd() const noexcept {
+            if constexpr (S == 1)
+                return filter(0, 3);
+            else if constexpr (S == 2)
+                return filter(0, 2, 3);
+            else if constexpr (S == 3)
+                return *this;
+            else
+                static_assert(nt::always_false<T>);
+        }
+
         [[nodiscard]] NOA_HD constexpr Strides flip() const noexcept {
             return {vec.flip()};
         }
@@ -588,7 +612,7 @@ namespace noa::inline types {
             return {vec.reorder(order)};
         }
 
-        [[nodiscard]] NOA_HD constexpr Strides circular_shift(i64 count) {
+        [[nodiscard]] NOA_HD constexpr Strides circular_shift(i64 count) const noexcept {
             return {vec.circular_shift(count)};
         }
 

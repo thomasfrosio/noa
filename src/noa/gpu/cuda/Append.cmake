@@ -2,6 +2,7 @@ set(NOA_CUDA_HEADERS
     # noa::cuda
     gpu/cuda/Allocators.hpp
     gpu/cuda/Blas.hpp
+    gpu/cuda/Block.cuh
     gpu/cuda/Constants.hpp
     gpu/cuda/Copy.cuh
     gpu/cuda/Device.hpp
@@ -23,10 +24,7 @@ set(NOA_CUDA_HEADERS
     gpu/cuda/Texture.hpp
     gpu/cuda/Types.hpp
     gpu/cuda/Version.hpp
-
-    # kernels
-    gpu/cuda/kernels/Block.cuh
-    gpu/cuda/kernels/Warp.cuh
+    gpu/cuda/Warp.cuh
 
     # noa::cuda::fft
     gpu/cuda/fft/Plan.hpp

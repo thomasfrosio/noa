@@ -133,3 +133,9 @@
 #else
     #define NOA_NO_UNIQUE_ADDRESS [[no_unique_address]]
 #endif
+
+#if defined(__CUDACC__)
+    #define NOA_RESTRICT_ATTRIBUTE __restrict__
+#else
+    #define NOA_RESTRICT_ATTRIBUTE __restrict
+#endif

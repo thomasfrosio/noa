@@ -37,7 +37,7 @@ namespace noa {
     ///       is done executing the loop, the shared_ptr will be deleted. The CPU backend deletes the shared_ptr
     ///       immediately, but note that other backends (e.g. CUDA) may not destroy these shared_ptr right away and
     ///       instead delay the destruction to the next synchronization or enqueueing call.
-    template<IwiseOptions OPTIONS = {}, typename Op, typename I, size_t N, typename... Ts>
+    template<IwiseOptions OPTIONS = IwiseOptions{}, typename Op, typename I, size_t N, typename... Ts>
     void iwise(const Shape<I, N>& shape, const Device& device, Op&& op, Ts&&... attachments) {
         Stream& stream = Stream::current(device);
         if constexpr (OPTIONS.generate_cpu) {

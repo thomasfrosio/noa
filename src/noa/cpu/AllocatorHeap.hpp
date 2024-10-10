@@ -10,10 +10,7 @@ namespace noa::cpu {
     template<typename T>
     struct AllocatorHeapDeleter {
         void operator()(T* ptr) noexcept {
-            if constexpr(nt::numeric<T>)
-                std::free(ptr);
-            else
-                delete[] ptr;
+            std::free(ptr);
         }
     };
 
@@ -47,25 +44,25 @@ namespace noa::cpu {
 
     public:
         /// Allocates some elements of uninitialized storage. Throws if the allocation fails.
-        template<size_t Alignment = 256>
+        template<size_t ALIGNMENT = 256>
         static alloc_unique_type allocate(i64 n_elements) {
             if (n_elements <= 0)
                 return {};
 
-            constexpr size_t alignment = std::max(ALIGNOF, Alignment);
+            constexpr size_t alignment = std::max(ALIGNOF, ALIGNMENT);
             auto out = static_cast<value_type*>(std::aligned_alloc(alignment, static_cast<size_t>(n_elements) * SIZEOF));
             check(out, "Failed to allocate {} {} on the heap", n_elements, ns::stringify<value_type>());
             return {out, alloc_deleter_type{}};
         }
 
         /// Allocates some elements, with the underlying bytes initialized to 0. Throws if the allocation fails.
-        template<size_t Alignment = 256>
+        template<size_t ALIGNMENT = 256>
         static calloc_unique_type calloc(i64 n_elements) {
             if (n_elements <= 0)
                 return {};
 
             // Make sure we have enough space to store the original value returned by calloc.
-            constexpr size_t alignment = std::max(ALIGNOF, Alignment);
+            constexpr size_t alignment = std::max(ALIGNOF, ALIGNMENT);
             const size_t offset = alignment - 1 + sizeof(void*);
 
             void* calloc_ptr = std::calloc(static_cast<size_t>(n_elements) * SIZEOF + offset, 1);

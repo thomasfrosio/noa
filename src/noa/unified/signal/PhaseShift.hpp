@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/core/Remap.hpp"
+#include "noa/core/Enums.hpp"
 #include "noa/core/utils/BatchedParameter.hpp"
 #include "noa/core/signal/PhaseShift.hpp"
 #include "noa/unified/Array.hpp"
@@ -101,13 +101,12 @@ namespace noa::signal {
         const auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0, 2, 3));
 
         if constexpr (not nt::varray_decay<Shift>) { // single shift
-            if (vall(Zero{}, shifts))
+            if (vall(IsZero{}, shifts))
                 return guts::no_phase_shift<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape);
 
             const auto shape_2d = shape.filter(2, 3);
-            const auto half_shift = shape_2d.vec.as<coord_t>() / 2;
-            const auto is_half_shift = [](auto shift, auto half) { return allclose(abs(shift), half); };
-            if (vall(is_half_shift, shifts, half_shift) and fftfreq_cutoff >= sqrt(0.5)) {
+            const auto is_half_shift = [](auto shift, auto half_shift) { return allclose(abs(shift), half_shift); };
+            if (vall(is_half_shift, shifts, shape_2d.vec.as<coord_t>() / 2) and fftfreq_cutoff >= sqrt(0.5)) {
                 using op_t = guts::PhaseShiftHalf<REMAP, 2, i64, input_accessor_t, output_accessor_t>;
                 return iwise(iwise_shape, output.device(), op_t(input_accessor, output_accessor, shape_2d),
                              std::forward<Input>(input), std::forward<Output>(output));
@@ -164,13 +163,12 @@ namespace noa::signal {
         const auto output_accessor = output_accessor_t(output.get(), output.strides());
 
         if constexpr (not nt::varray_decay<Shift>) { // single shift
-            if (vall(Zero{}, shifts))
+            if (vall(IsZero{}, shifts))
                 return guts::no_phase_shift<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape);
 
             const auto shape_3d = shape.filter(1, 2, 3);
-            const auto half_shift = shape_3d.vec.as<coord_t>() / 2;
-            const auto is_half_shift = [](auto shift, auto half) { return allclose(abs(shift), half); };
-            if (vall(is_half_shift, shifts, half_shift) and fftfreq_cutoff >= sqrt(0.5)) {
+            const auto is_half_shift = [](auto shift, auto half_shift) { return allclose(abs(shift), half_shift); };
+            if (vall(is_half_shift, shifts, shape_3d.vec.as<coord_t>() / 2) and fftfreq_cutoff >= sqrt(0.5)) {
                 using op_t = guts::PhaseShiftHalf<REMAP, 3, i64, input_accessor_t, output_accessor_t>;
                 return iwise(iwise_shape, output.device(), op_t(input_accessor, output_accessor, shape_3d),
                              std::forward<Input>(input), std::forward<Output>(output));

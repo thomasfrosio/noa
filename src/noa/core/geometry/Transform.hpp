@@ -4,7 +4,6 @@
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Mat.hpp"
 #include "noa/core/math/Generic.hpp"
-#include "noa/core/Interpolation.hpp"
 
 namespace noa::geometry {
     /// Returns a 2x2 HW scaling matrix.
@@ -199,8 +198,8 @@ namespace noa::geometry::guts {
              typename X>
     requires (N == 2 or N == 3)
     constexpr auto transform_vector(
-            const X& xform,
-            const Vec<T, N, A>& vector
+        const X& xform,
+        const Vec<T, N, A>& vector
     ) -> Vec<T, N, A> {
         if constexpr (nt::mat_of_shape<X, N, N>) {
             return xform * vector; // linear
@@ -213,7 +212,7 @@ namespace noa::geometry::guts {
         } else if constexpr (nt::empty<X>) {
             return vector;
         } else {
-            static_assert(nt::always_false<>);
+            static_assert(nt::always_false<X>);
         }
     }
 
@@ -250,15 +249,18 @@ namespace noa::geometry::guts {
 
     public:
         Transform(
-                const input_type& input,
-                const output_type& output,
-                const xform_parameter_type& inverse_xform
-        ) : m_input(input), m_output(output), m_inverse_xform(inverse_xform) {}
+            const input_type& input,
+            const output_type& output,
+            const xform_parameter_type& inverse_xform
+        ) :
+            m_input(input),
+            m_output(output),
+            m_inverse_xform(inverse_xform) {}
 
-        template<nt::same_as<index_type>... I>
-        NOA_HD constexpr void operator()(index_type batch, I... indices) const requires (sizeof...(I) == N) {
+        template<nt::same_as<index_type>... I> requires (sizeof...(I) == N)
+        NOA_HD constexpr void operator()(index_type batch, I... indices) const {
             auto coordinates = Vec<coord_type, N>::from_values(indices...);
-            coordinates = transform_vector(coordinates, m_inverse_xform[batch]);
+            coordinates = transform_vector(m_inverse_xform[batch], coordinates);
             m_output(batch, indices...) = static_cast<output_value_type>(m_input.interpolate_at(coordinates, batch));
         }
 
