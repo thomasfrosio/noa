@@ -28,8 +28,8 @@ namespace noa::cuda::fft {
     };
 
     /// Manages FFT plans.
-    i32 clear_caches(i32 device) noexcept;
-    void set_cache_limit(i32 device, i32 count) noexcept;
+    i32 clear_caches(Device device) noexcept;
+    void set_cache_limit(Device device, i32 count) noexcept;
 }
 
 namespace noa::cuda::fft::guts {
@@ -37,7 +37,7 @@ namespace noa::cuda::fft::guts {
         Type type,
         bool is_single_precision,
         const Shape4<i64>& shape,
-        i32 device,
+        Device device,
         bool save_in_cache
     ) -> std::shared_ptr<void>;
 
@@ -47,7 +47,7 @@ namespace noa::cuda::fft::guts {
         Strides4<i64> input_stride,
         Strides4<i64> output_stride,
         const Shape4<i64>& shape,
-        i32 device,
+        Device device,
         bool save_in_cache
     ) -> std::shared_ptr<void>;
 }
@@ -72,26 +72,26 @@ namespace noa::cuda::fft {
     public:
         Plan(Type type,
              const Shape4<i64>& shape,
-             Device device = Device::current(),
-             bool save_to_cache = true
-        ) : m_plan(guts::get_plan(type, is_single_precision, shape, device.id(), save_to_cache)) {}
+             Device device,
+             bool save_to_cache
+        ) : m_plan(guts::get_plan(type, is_single_precision, shape, device, save_to_cache)) {}
 
         Plan(Type type,
              const Strides4<i64>& input_strides,
              const Strides4<i64>& output_strides,
              const Shape4<i64>& shape,
-             Device device = Device::current(),
-             bool save_to_cache = true
+             Device device,
+             bool save_to_cache
         ) {
             const auto input_shape = type == Type::C2R ? shape.rfft() : shape;
             const auto output_shape = type == Type::R2C ? shape.rfft() : shape;
             if (ni::are_contiguous(input_strides, input_shape) and
                 ni::are_contiguous(output_strides, output_shape)) {
                 m_plan = guts::get_plan(
-                    type, is_single_precision, shape, device.id(), save_to_cache);
+                    type, is_single_precision, shape, device, save_to_cache);
             } else {
                 m_plan = guts::get_plan(
-                    type, is_single_precision, input_strides, output_strides, shape, device.id(), save_to_cache);
+                    type, is_single_precision, input_strides, output_strides, shape, device, save_to_cache);
             }
         }
 

@@ -69,10 +69,10 @@ namespace noa::fft {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
             noa::cuda::fft::r2c(
-                    input.get(), input.strides(),
-                    output.get(), output.strides(),
-                    input.shape(), options.cache_plan,
-                    cuda_stream);
+                input.get(), input.strides(),
+                output.get(), output.strides(),
+                input.shape(), options.cache_plan,
+                cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), output);
             #else
             panic("No GPU backend detected");
@@ -119,17 +119,17 @@ namespace noa::fft {
             cpu_stream.enqueue([=, complex = std::forward<Input>(input)] {
                 constexpr auto flags = noa::cpu::fft::ESTIMATE;
                 noa::cpu::fft::c2r(
-                        complex.get(), complex.strides(),
-                        output.get(), output.strides(),
-                        output.shape(), flags, threads);
+                    complex.get(), complex.strides(),
+                    output.get(), output.strides(),
+                    output.shape(), flags, threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
             noa::cuda::fft::c2r(
-                    input.get(), input.strides(),
-                    output.get(), output.strides(),
-                    output.shape(), options.cache_plan, cuda_stream);
+                input.get(), input.strides(),
+                output.get(), output.strides(),
+                output.shape(), options.cache_plan, cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), output);
             #else
             panic("No GPU backend detected");
@@ -178,17 +178,17 @@ namespace noa::fft {
             cpu_stream.enqueue([=, i = std::forward<Input>(input)] {
                 constexpr auto flags = noa::cpu::fft::ESTIMATE | noa::cpu::fft::PRESERVE_INPUT;
                 noa::cpu::fft::c2c(
-                        i.get(), i.strides(),
-                        output.get(), output.strides(),
-                        i.shape(), sign, flags, threads);
+                    i.get(), i.strides(),
+                    output.get(), output.strides(),
+                    i.shape(), sign, flags, threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
             noa::cuda::fft::c2c(
-                    input.get(), input.strides(),
-                    output.get(), output.strides(),
-                    input.shape(), sign, options.cache_plan, cuda_stream);
+                input.get(), input.strides(),
+                output.get(), output.strides(),
+                input.shape(), sign, options.cache_plan, cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), output);
             #else
             panic("No GPU backend detected");

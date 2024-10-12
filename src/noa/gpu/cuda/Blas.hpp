@@ -7,7 +7,7 @@
 #include "noa/gpu/cuda/Stream.hpp"
 
 namespace noa::cuda {
-    void cublas_clear_cache(i32 device);
+    void cublas_clear_cache(Device device);
 
     // Computes a scalar-matrix-matrix product and add the result to a scalar-matrix product, with general matrices.
     template<typename T> // requires nt::is_any_v<f32, f64, c32, c64>

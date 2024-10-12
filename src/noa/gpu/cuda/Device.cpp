@@ -13,8 +13,8 @@ namespace noa::cuda {
         const DeviceGuard guard(*this);
         guard.synchronize(); // if called from noa::Device::reset(), the device is already synchronized
 
-        noa::cuda::fft::clear_caches(id());
-        noa::cuda::cublas_clear_cache(id());
+        noa::cuda::fft::clear_caches(*this);
+        noa::cuda::cublas_clear_cache(*this);
 
         check(cudaDeviceReset());
     }

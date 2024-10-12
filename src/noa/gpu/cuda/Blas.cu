@@ -29,11 +29,11 @@ namespace {
         }
     };
 
-    std::unique_ptr<CuBlasHandle>& cublas_cache_handle_(int device) {
+    std::unique_ptr<CuBlasHandle>& cublas_cache_handle_(noa::cuda::Device device) {
         constexpr size_t MAX_DEVICES = 16;
         thread_local std::unique_ptr<CuBlasHandle> g_cache[MAX_DEVICES];
 
-        auto& cache = g_cache[device];
+        auto& cache = g_cache[device.id()];
         if (not cache)
             cache = std::make_unique<CuBlasHandle>();
         return cache;
@@ -48,7 +48,7 @@ namespace {
         // OpenBlas GEMM is slower than its DOT function, so we check for this condition and
         // redirect to dot if necessary. Here, cublas GEMM is about as fast as the dot function,
         // so let it do a matrix-matrix product even if it is a dot product.
-        cublasHandle_t handle = cublas_cache_handle_(stream.device().id())->handle;
+        cublasHandle_t handle = cublas_cache_handle_(stream.device())->handle;
         check(cublasSetStream_v2(handle, stream.id()));
         check(cublasSetPointerMode_v2(handle, CUBLAS_POINTER_MODE_HOST));
 
@@ -99,7 +99,7 @@ namespace {
 }
 
 namespace noa::cuda {
-    void cublas_clear_cache(i32 device) {
+    void cublas_clear_cache(Device device) {
         std::unique_ptr<CuBlasHandle>& cached_handle = cublas_cache_handle_(device);
         cached_handle = nullptr;
     }

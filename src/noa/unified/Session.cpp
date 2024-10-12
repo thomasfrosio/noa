@@ -59,7 +59,8 @@ namespace noa::inline types {
         if (device.is_cpu())
             return noa::cpu::fft::clear_caches();
         #ifdef NOA_ENABLE_CUDA
-        return noa::cuda::fft::clear_caches(device.id());
+        auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+        return noa::cuda::fft::clear_caches(cuda_device);
         #else
         return 0;
         #endif
@@ -69,7 +70,8 @@ namespace noa::inline types {
         if (device.is_cpu())
             return; // TODO we could have a more flexible caching mechanism for FFTW
         #ifdef NOA_ENABLE_CUDA
-        noa::cuda::fft::set_cache_limit(clamp_cast<i32>(count), device.id());
+        auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+        noa::cuda::fft::set_cache_limit(cuda_device, clamp_cast<i32>(count));
         #else
         (void) count;
         #endif
@@ -79,7 +81,8 @@ namespace noa::inline types {
         #ifdef NOA_ENABLE_CUDA
         if (device.is_cpu())
             return;
-        noa::cuda::cublas_clear_cache(device.id());
+        auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+        noa::cuda::cublas_clear_cache(cuda_device);
         #else
         (void) device;
         #endif
