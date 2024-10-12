@@ -90,10 +90,14 @@ namespace noa::fft {
         Vec<T, N0, A0> indices,
         const Shape<T, N1, A1>& shape
     ) noexcept {
-        static_for_each<N0>([&]<size_t I>(){
-            if constexpr (not (IS_RFFT and I == N0 - 1)) // if width of rfft, frequency == index
-                indices[I] = index2frequency<IS_CENTERED>(indices[I], shape[I]);
-        });
+        if constexpr (N0 == 1 and not IS_RFFT) {
+            indices[0] = index2frequency<IS_CENTERED>(indices[0], shape[0]);
+        } else if constexpr (N0 > 1) {
+            for (size_t i{}; i < N0; ++i) {
+                if (not (IS_RFFT and i == N0 - 1)) // if width of rfft, frequency == index
+                    indices[i] = index2frequency<IS_CENTERED>(indices[i], shape[i]);
+            }
+        }
         return indices;
     }
 
@@ -121,10 +125,14 @@ namespace noa::fft {
         Vec<T, N0, A0> frequency,
         const Shape<T, N1, A1>& shape
     ) noexcept {
-        static_for_each<N0>([&]<size_t I>(){
-            if constexpr (not (IS_RFFT and I == N0 - 1)) // if width of rfft, frequency == index
-                frequency[I] = frequency2index<IS_CENTERED>(frequency[I], shape[I]);
-        });
+        if constexpr (N0 == 1 and not IS_RFFT) {
+            frequency[0] = frequency2index<IS_CENTERED>(frequency[0], shape[0]);
+        } else if constexpr (N0 > 1) {
+            for (size_t i{}; i < N0; ++i) {
+                if (not (IS_RFFT and i == N0 - 1)) // if width of rfft, frequency == index
+                    frequency[i] = frequency2index<IS_CENTERED>(frequency[i], shape[i]);
+            }
+        }
         return frequency;
     }
 
@@ -147,10 +155,14 @@ namespace noa::fft {
         const Shape<T, N1, A1>& shape
     ) noexcept -> Vec<T, N0> {
         if constexpr (not IS_CENTERED) {
-            static_for_each<N0>([&]<size_t I>(){
-                if constexpr (not (IS_RFFT and I == N0 - 1))
-                    indices[I] = fftshift(indices[I], shape[I]);
-            });
+            if constexpr (N0 == 1 and not IS_RFFT) {
+                indices[0] = fftshift(indices[0], shape[0]);
+            } else if constexpr (N0 > 1) {
+                for (size_t i{}; i < N0; ++i) {
+                    if (not (IS_RFFT and i == N0 - 1))
+                        indices[i] = fftshift(indices[i], shape[i]);
+                }
+            }
         }
         return indices;
     }
@@ -181,19 +193,26 @@ namespace noa::fft {
     ) noexcept -> Vec<T, N0, A0> {
         constexpr Remap ACTUAL_REMAP = FLIP_REMAP ? REMAP.flip() : REMAP;
         constexpr bool IS_RFFT = ACTUAL_REMAP.is_hx2hx();
-        constexpr bool IS_INPUT_CENTERED = ACTUAL_REMAP.is_xc2xx(); // nvcc bug, needs to be outside lambda
+        constexpr bool IS_INPUT_CENTERED = ACTUAL_REMAP.is_xc2xx();
         static_assert(IS_RFFT or ACTUAL_REMAP.is_fx2fx());
         static_assert((N0 == N1) or (IS_RFFT and N0 - 1 == N1));
 
         if constexpr (REMAP.is_xc2xx() != REMAP.is_xx2xc()) {
-            static_for_each<N0>([&]<size_t I>(){
-                if constexpr (not (IS_RFFT and I == N0 - 1)) {
-                    if constexpr (IS_INPUT_CENTERED) // input is centered, output isn't
-                        indices[I] = ifftshift(indices[I], shape[I]);
-                    else // input is not centered, output is centered
-                        indices[I] = fftshift(indices[I], shape[I]);
+            if constexpr (N0 == 1 and not IS_RFFT) {
+                if constexpr (IS_INPUT_CENTERED) // input is centered, output isn't
+                    indices[0] = ifftshift(indices[0], shape[0]);
+                else // input is not centered, output is centered
+                    indices[0] = fftshift(indices[0], shape[0]);
+            } else if constexpr (N0 > 1) {
+                for (size_t i{}; i < N0; ++i) {
+                    if (not (IS_RFFT and i == N0 - 1)) {
+                        if constexpr (IS_INPUT_CENTERED) // input is centered, output isn't
+                            indices[i] = ifftshift(indices[i], shape[i]);
+                        else // input is not centered, output is centered
+                            indices[i] = fftshift(indices[i], shape[i]);
+                    }
                 }
-            });
+            }
         }
         return indices;
     }
