@@ -136,7 +136,6 @@ namespace noa {
 
     template<typename T>
     struct Scale {
-        using allow_vectorization = bool;
         T value;
 
         template<typename U>
