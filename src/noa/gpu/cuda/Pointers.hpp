@@ -145,7 +145,7 @@ namespace noa::cuda {
     template<size_t ALIGNMENT, typename... T>
     consteval size_t maximum_allowed_aligned_buffer_size() {
         size_t size{ALIGNMENT};
-        auto get_size = [&]<typename V>() {
+        auto get_size = [&]<typename V>() -> size_t {
             using value_t = nt::mutable_value_type_t<V>;
             if constexpr (nt::accessor_value<V>) {
                 return size; // AccessorValue shouldn't affect the vector size
