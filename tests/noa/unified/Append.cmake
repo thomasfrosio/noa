@@ -10,7 +10,7 @@ set(TEST_UNIFIED_SOURCES
 #    noa/unified/TestUnifiedReduceIwise.cpp
 #    noa/unified/TestUnifiedReduceEwise.cpp
 #    noa/unified/TestUnifiedReduce.cpp
-#    noa/unified/TestUnifiedReduceAxes.cpp
+    noa/unified/TestUnifiedReduceAxes.cpp
 #    noa/unified/TestUnifiedReduceBatch.cpp
 #    noa/unified/TestUnifiedRandom.cpp
 #    noa/unified/TestUnifiedImageFile.cpp
@@ -46,7 +46,7 @@ set(TEST_UNIFIED_SOURCES
 #    noa/unified/geometry/TestUnifiedSymmetry.cpp
 #    noa/unified/geometry/TestUnifiedTransform.cpp
 
-    noa/unified/test.cpp
+#    noa/unified/test.cpp
     )
 
 set(TEST_SOURCES ${TEST_SOURCES} ${TEST_UNIFIED_SOURCES})

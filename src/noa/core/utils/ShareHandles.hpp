@@ -15,12 +15,12 @@ namespace noa::traits {
 
     template<typename T> using is_smart_ptr = std::disjunction<is_unique_ptr<T>, is_shared_ptr<T>>;
     template<typename T> constexpr bool is_smart_ptr_v = is_smart_ptr<T>::value;
-    template<typename... T> constexpr bool are_smart_ptr_v = std::conjunction_v<is_smart_ptr<T>...>;
+    template<typename... T> constexpr bool are_smart_ptr_v = conjunction_or_false<is_smart_ptr<T>...>::value;
     template<typename... T> concept smart_ptr = are_smart_ptr_v<T...>;
 
     template<typename T> using is_smart_ptr_decay = is_smart_ptr<std::decay_t<T>>;
     template<typename T> constexpr bool is_smart_ptr_decay_v = is_smart_ptr_decay<T>::value;
-    template<typename... T> constexpr bool are_smart_ptr_decay_v = std::conjunction_v<is_smart_ptr_decay<T>...>;
+    template<typename... T> constexpr bool are_smart_ptr_decay_v = conjunction_or_false<is_smart_ptr_decay<T>...>::value;
     template<typename... T> concept smart_ptr_decay = are_smart_ptr_decay_v<T...>;
 
     template<typename T>

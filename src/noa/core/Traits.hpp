@@ -90,6 +90,10 @@ namespace noa::traits {
 
     template<typename T, size_t N, template<typename...> class L>
     using repeat_t = repeat<T, N, L>::type;
+
+    // std::conjunction equivalent that default to false_type if no types are specified.
+    template<typename... T> struct conjunction_or_false : std::conjunction<T...> {};
+    template<> struct conjunction_or_false<> : std::false_type {};
 }
 
 namespace noa::traits {
@@ -125,31 +129,34 @@ namespace noa::traits {
 
     template<typename T, typename U> struct is_same : std::is_same<T, U> {};
     template<typename T, typename U> constexpr bool is_same_v = is_same<T, U>::value;
-    template<typename T, typename... U> struct are_same : std::conjunction<std::is_same<T, U>...> {};
+    template<typename T, typename... U> struct are_same : conjunction_or_false<std::is_same<T, U>...> {};
     template<typename T, typename... U> constexpr bool are_same_v = are_same<T, U...>::value;
-    template<typename T, typename... U> concept same_as = (std::same_as<T, U> and ...);
+    template<typename T, typename... U> concept same_as = are_same_v<T, U...>;
+    // std::same_as can be used to disambiguate overloads when the T/U types are entered in the reverse order.
+    // nt::same_as cannot, but we never use that feature (if we end up relying on it, it won't compile anyway,
+    // it's not a silent killer) and prefer being able to compare multiple types with T in a simple syntax.
 
     template<typename T, typename U> struct is_almost_same : std::is_same<std::decay_t<T>, std::decay_t<U>> {};
     template<typename T, typename U> constexpr bool is_almost_same_v = is_almost_same<T, U>::value;
-    template<typename T, typename... U> struct are_almost_same : std::conjunction<is_almost_same<T, U>...> {};
+    template<typename T, typename... U> struct are_almost_same : conjunction_or_false<is_almost_same<T, U>...> {};
     template<typename T, typename... U> constexpr bool are_almost_same_v = are_almost_same<T, U...>::value;
-    template<typename T, typename... U> concept almost_same_as = (std::same_as<std::decay_t<T>, std::decay_t<U>> and ...);
+    template<typename T, typename... U> concept almost_same_as = are_almost_same_v<T, U...>;
 
     template<typename T, typename... U> struct is_any : std::disjunction<std::is_same<T, U>...> {};
     template<typename T, typename... U> constexpr bool is_any_v = is_any<T, U...>::value;
-    template<typename T, typename... U> concept any_of = (same_as<T, U> or ...);
+    template<typename T, typename... U> concept any_of = (same_as<T, U> or ...); // "fold or" defaults to false
 
     template<typename T, typename... U> struct is_almost_any : std::disjunction<is_almost_same<T, U>...> {};
     template<typename T, typename... U> constexpr bool is_almost_any_v = is_almost_any<T, U...>::value;
-    template<typename T, typename... U> concept almost_any_of = (almost_same_as<T, U> or ...);
+    template<typename T, typename... U> concept almost_any_of = (almost_same_as<T, U> or ...); // "fold or" defaults to false
 
-    template<typename T, typename U> concept same_as_value_type_of = same_as<T, nt::value_type_t<U>>;
-    template<typename T, typename U> concept same_as_mutable_value_type_of = same_as<T, nt::mutable_value_type_t<U>>;
-    template<typename T, typename U> concept almost_same_as_value_type_of = almost_same_as<T, nt::value_type_t<U>>;
-    template<typename T, typename U> concept almost_same_as_mutable_value_type_of = almost_same_as<T, nt::mutable_value_type_t<U>>;
+    template<typename T, typename U> concept same_as_value_type_of = same_as<T, value_type_t<U>>;
+    template<typename T, typename U> concept same_as_mutable_value_type_of = same_as<T, mutable_value_type_t<U>>;
+    template<typename T, typename U> concept almost_same_as_value_type_of = almost_same_as<T, value_type_t<U>>;
+    template<typename T, typename U> concept almost_same_as_mutable_value_type_of = almost_same_as<T, mutable_value_type_t<U>>;
 
-    template<typename T, typename... U> concept same_value_type = (same_as<nt::value_type_t<T>, nt::value_type_t<U>> and ...);
-    template<typename T, typename... U> concept same_mutable_value_type = (same_as<nt::mutable_value_type_t<T>, nt::mutable_value_type_t<U>> and ...);
+    template<typename T, typename... U> concept same_value_type = (same_as<value_type_t<T>, value_type_t<U>> and ...);
+    template<typename T, typename... U> concept same_mutable_value_type = (same_as<mutable_value_type_t<T>, mutable_value_type_t<U>> and ...);
 
     template<typename Input, typename Output>
     concept mutable_of = std::same_as<Input, std::remove_const_t<Output>> and std::is_const_v<Output>;
@@ -169,12 +176,12 @@ namespace noa::traits {
 
     template<typename... Ts>
     struct have_same_size {
-        static constexpr size_t N = nt::first_t<std::remove_reference_t<Ts>...>::SIZE;
+        static constexpr size_t N = first_t<std::remove_reference_t<Ts>...>::SIZE;
         static constexpr bool value = ((N == std::remove_reference_t<Ts>::SIZE) and ...);
     };
     template<typename T>
     struct have_same_size<T> {
-        static constexpr size_t N = nt::first_t<std::remove_reference_t<T>>::SIZE;
+        static constexpr size_t N = first_t<std::remove_reference_t<T>>::SIZE;
         static constexpr bool value = true;
     };
     template<>
@@ -186,9 +193,9 @@ namespace noa::traits {
     constexpr bool have_same_size_v = have_same_size<Ts...>::value;
 }
 
-#define NOA_GENERATE_PROCLAIM_UTILS(name)                                           \
-    template<typename T> constexpr bool is_##name##_v = is_##name<T>::value;        \
-    template<typename... T> using are_##name = std::conjunction<is_##name<T>...>;   \
+#define NOA_GENERATE_PROCLAIM_UTILS(name)                                                           \
+    template<typename T> constexpr bool is_##name##_v = is_##name<T>::value;                        \
+    template<typename... T> using are_##name = noa::traits::conjunction_or_false<is_##name<T>...>;  \
     template<typename... T> constexpr bool are_##name##_v = are_##name<T...>::value
 
 #define NOA_GENERATE_PROCLAIM(name)                                                 \
@@ -205,7 +212,7 @@ namespace noa::traits {
     template<typename T, size_t... N> using is_##name = std::disjunction<proclaim_is_##name<std::remove_cv_t<T>, N>...>;  \
     template<typename T, size_t... N> constexpr bool is_##name##_v = is_##name<T, N...>::value;                           \
     template<typename T, size_t... N> concept name = is_##name##_v<T, N...>;                                              \
-    template<size_t N, typename... T> using are_##name = std::conjunction<is_##name<T, N>...>;                            \
+    template<size_t N, typename... T> using are_##name = noa::traits::conjunction_or_false<is_##name<T, N>...>;           \
     template<size_t N, typename... T> constexpr bool are_##name##_v = are_##name<N, T...>::value;
 
 namespace noa::traits {
@@ -268,7 +275,7 @@ namespace noa::traits {
     #define NOA_TRAITS_POINTER(name)                                                                                    \
     template<typename T> using is_pointer_##name = std::conjunction<is_pointer<T>, is_##name<std::remove_pointer_t<T>>>;\
     template<typename T> constexpr bool is_pointer_##name##_v = is_pointer_##name<T>::value;                            \
-    template<typename... T> using are_pointer_##name = std::conjunction<is_pointer_##name<T>...>;                       \
+    template<typename... T> using are_pointer_##name = conjunction_or_false<is_pointer_##name<T>...>;                   \
     template<typename... T> constexpr bool are_pointer_##name##_v = are_pointer_##name<T...>::value;                    \
     template<typename... T> concept pointer_##name = pointer<T...> and are_pointer_##name##_v<T...>
     NOA_TRAITS_POINTER(integer);
@@ -299,7 +306,7 @@ namespace noa::traits {
     template<typename T, size_t... N> using is_accessor_pure_nd = std::conjunction<is_accessor_pure<T>, is_accessor_nd<T, N...>>;
     template<typename T, size_t... N>  constexpr bool is_accessor_pure_nd_v = is_accessor_pure_nd<T, N...>::value;
     template<typename T, size_t... N> concept accessor_pure_nd = accessor_nd<T, N...> and accessor_pure<T>;
-    template<size_t N, typename... T> using are_accessor_pure_nd = std::conjunction<is_accessor_pure_nd<T, N>...>;
+    template<size_t N, typename... T> using are_accessor_pure_nd = conjunction_or_false<is_accessor_pure_nd<T, N>...>;
     template<size_t N, typename... T> constexpr bool are_accessor_pure_nd_v = are_accessor_pure_nd<N, T...>::value;
 
     // Mat
@@ -309,7 +316,7 @@ namespace noa::traits {
     template<typename T, size_t R, size_t C> using is_mat_of_shape = proclaim_is_mat_of_shape<std::remove_cv_t<T>, R, C>;
     template<typename T, size_t R, size_t C> constexpr bool is_mat_of_shape_v = is_mat_of_shape<T, R, C>::value;
     template<typename T, size_t R, size_t C> concept mat_of_shape = mat<T> and is_mat_of_shape_v<T, R, C>;
-    template<size_t R, size_t C, typename... T> using are_mat_of_shape = std::conjunction<is_mat_of_shape<T, R, C>...>;
+    template<size_t R, size_t C, typename... T> using are_mat_of_shape = conjunction_or_false<is_mat_of_shape<T, R, C>...>;
     template<size_t R, size_t C, typename... T> constexpr bool are_mat_of_shape_v = are_mat_of_shape<R, C, std::decay_t<T>...>::value;
 
     #define NOA_TRAITS_MAT_(R, C)                                                   \
@@ -330,18 +337,18 @@ namespace noa::traits {
     template<typename T, typename U> using is_vec_of_type = proclaim_is_vec_of_type<std::remove_cv_t<T>, U>;
     template<typename T, typename U> constexpr bool is_vec_of_type_v = is_vec_of_type<T, U>::value;
     template<typename T, typename U> concept vec_of_type = vec<T> and is_vec_of_type_v<T, U>;
-    template<typename T, typename... U> using are_vec_of_type = std::conjunction<is_vec_of_type<T, U>...>;
+    template<typename T, typename... U> using are_vec_of_type = conjunction_or_false<is_vec_of_type<T, U>...>;
     template<typename T, typename... U> constexpr bool are_vec_of_type_v = are_vec_of_type<T, U...>::value;
 
     #define NOA_TRAITS_VEC_(name)                                                                                                           \
     template<typename T> using is_vec_##name = std::conjunction<is_vec<T>, is_##name<value_type_t<T>>>;                                     \
     template<typename T> constexpr bool is_vec_##name##_v = is_vec_##name<T>::value;                                                        \
     template<typename... T> concept vec_##name = vec<T...> and name<value_type_t<T>...>;                                                    \
-    template<typename... T> constexpr bool are_vec_##name##_v = std::conjunction<is_vec_##name<T>...>::value;                               \
+    template<typename... T> constexpr bool are_vec_##name##_v = conjunction_or_false<is_vec_##name<T>...>::value;                               \
     template<typename T, size_t... N> using is_vec_##name##_size = std::conjunction<is_vec_of_size<T, N...>, is_##name<value_type_t<T>>>;   \
     template<typename T, size_t... N> constexpr bool is_vec_##name##_size_v = is_vec_##name##_size<T, N...>::value;                         \
     template<typename T, size_t... N> concept vec_##name##_size = vec_of_size<T, N...> and name<value_type_t<T>>;                           \
-    template<size_t N, typename... T> constexpr bool are_vec_##name##_size_v = std::conjunction<is_vec_##name##_size<T, N>...>::value
+    template<size_t N, typename... T> constexpr bool are_vec_##name##_size_v = conjunction_or_false<is_vec_##name##_size<T, N>...>::value
 
     NOA_TRAITS_VEC_(integer);
     NOA_TRAITS_VEC_(sinteger);
@@ -368,14 +375,14 @@ namespace noa::traits {
 
     template<typename T> using is_shape_or_strides = std::disjunction<is_strides<T>, is_shape<T>>;
     NOA_GENERATE_PROCLAIM_UTILS(shape_or_strides);
-    template<typename... T> concept shape_or_strides = ((shape<T> or strides<T>) and ...);
+    template<typename... T> concept shape_or_strides = conjunction_or_false<is_shape_or_strides<T>...>::value;
 
     template<typename T> using is_vec_shape_or_strides = std::disjunction<is_strides<T>, is_shape<T>, is_vec<T>>;
     NOA_GENERATE_PROCLAIM_UTILS(vec_shape_or_strides);
-    template<typename... T> concept vec_shape_or_strides = ((shape<T> or strides<T> or vec<T>) and ...);
+    template<typename... T> concept vec_shape_or_strides = conjunction_or_false<is_vec_shape_or_strides<T>...>::value;
 
     template<typename T, size_t... N> concept vec_shape_or_strides_of_size =
-            vec_of_size<T, N...> or shape_of_size<T, N...> or strides_of_size<T, N...>;
+        vec_of_size<T, N...> or shape_of_size<T, N...> or strides_of_size<T, N...>;
 
     // Tuple and Pair
     NOA_GENERATE_PROCLAIM_FULL(pair);
@@ -396,6 +403,17 @@ namespace noa::traits {
 
     NOA_GENERATE_PROCLAIM_FULL_ND(tuple_of_accessor_nd);
 
+    template<typename T, size_t... N> concept tuple_of_accessor_nd_or_empty = empty_tuple<T> or tuple_of_accessor_nd<T, N...>;
+    template<typename T, size_t... N> concept tuple_of_accessor_pure_nd = tuple_of_accessor_pure<T> and tuple_of_accessor_nd<T, N...>;
+    template<typename T, size_t... N> concept tuple_of_accessor_pure_nd_or_empty = empty_tuple<T> or tuple_of_accessor_pure_nd<T, N...>;
+
+    template<typename T> using is_tuple_of_accessor_pure_or_empty = std::disjunction<is_empty_tuple<T>, is_tuple_of_accessor_pure<T>>;
+    template<typename T> using is_tuple_of_accessor_value_or_empty = std::disjunction<is_empty_tuple<T>, is_tuple_of_accessor_value<T>>;
+    NOA_GENERATE_PROCLAIM_UTILS(tuple_of_accessor_pure_or_empty);
+    NOA_GENERATE_PROCLAIM_UTILS(tuple_of_accessor_value_or_empty);
+    template<typename... T> concept tuple_of_accessor_pure_or_empty = conjunction_or_false<is_tuple_of_accessor_pure_or_empty<T>...>::value;
+    template<typename... T> concept tuple_of_accessor_value_or_empty = conjunction_or_false<is_tuple_of_accessor_value_or_empty<T>...>::value;
+
     // Geometry
     NOA_GENERATE_PROCLAIM_FULL(quaternion);
     template<typename... T> concept quaternion_f32 = quaternion<T...> and same_as<f32, value_type_t<T>...>;
@@ -406,7 +424,7 @@ namespace noa::traits {
     template<typename T, size_t... N> using is_interpolator_nd = std::disjunction<proclaim_is_interpolator_nd<std::remove_cv_t<T>, N>...>;
     template<typename T, size_t... N> constexpr bool is_interpolator_nd_v = is_interpolator_nd<T, N...>::value;
     template<typename T, size_t... N> concept interpolator_nd = interpolator<T> and is_interpolator_nd<T, N...>::value;
-    template<size_t N, typename... T> using are_interpolator_nd = std::conjunction<is_interpolator_nd<T, N>...>;
+    template<size_t N, typename... T> using are_interpolator_nd = conjunction_or_false<is_interpolator_nd<T, N>...>;
     template<size_t N, typename... T> constexpr bool are_interpolator_nd_v = are_interpolator_nd<N, T...>::value;
 
     NOA_GENERATE_PROCLAIM_FULL(interpolator_spectrum);
@@ -414,11 +432,11 @@ namespace noa::traits {
     template<typename T, size_t... N> using is_interpolator_spectrum_nd = std::disjunction<proclaim_is_interpolator_spectrum_nd<std::remove_cv_t<T>, N>...>;
     template<typename T, size_t... N> constexpr bool is_interpolator_spectrum_nd_v = is_interpolator_spectrum_nd<T, N...>::value;
     template<typename T, size_t... N> concept interpolator_spectrum_nd = interpolator_spectrum<T> and is_interpolator_spectrum_nd<T, N...>::value;
-    template<size_t N, typename... T> using are_interpolator_spectrum_nd = std::conjunction<is_interpolator_spectrum_nd<T, N>...>;
+    template<size_t N, typename... T> using are_interpolator_spectrum_nd = conjunction_or_false<is_interpolator_spectrum_nd<T, N>...>;
     template<size_t N, typename... T> constexpr bool are_interpolator_spectrum_nd_v = are_interpolator_spectrum_nd<N, T...>::value;
 
-    template<typename... T> concept interpolator_or_empty = ((interpolator<T> or empty<T>) and ...);
-    template<typename... T> concept interpolator_spectrum_or_empty = ((interpolator_spectrum<T> or empty<T>) and ...);
+    template<typename... T> concept interpolator_or_empty = conjunction_or_false<std::disjunction<is_interpolator<T>, std::is_empty<T>>...>::value;
+    template<typename... T> concept interpolator_spectrum_or_empty = conjunction_or_false<std::disjunction<is_interpolator_spectrum<T>, std::is_empty<T>>...>::value;
     template<typename T, size_t... N> concept interpolator_nd_or_empty = interpolator_nd<T, N...> or empty<T>;
     template<typename T, size_t... N> concept interpolator_spectrum_nd_or_empty = interpolator_spectrum_nd<T, N...> or empty<T>;
 

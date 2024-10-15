@@ -57,7 +57,7 @@ TEMPLATE_TEST_CASE("unified::signal::median_filter(), cpu vs gpu", "[noa][unifie
     const i64 ndim = GENERATE(1, 2, 3);
     const noa::Border mode = GENERATE(noa::Border::ZERO, noa::Border::REFLECT);
     i64 window = test::Randomizer<i64>(2, 11).get();
-    if (noa::is_odd(window))
+    if (noa::is_even(window))
         window -= 1;
     if (ndim == 3 and window > 5)
         window = 3;

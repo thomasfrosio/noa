@@ -19,7 +19,7 @@ namespace noa::geometry {
         Vec<f64, N> radius;
 
         /// Size, in pixels, of the raised cosine smooth edge.
-        /// This is the number pixels that will be used to compute the (1,0] taper range.
+        /// This is the number of pixels that will be used to compute the (cvalue,0] taper range.
         f64 smoothness{0};
 
         /// Value of the pixels inside the object.
@@ -43,7 +43,7 @@ namespace noa::geometry {
         f64 radius;
 
         /// Size, in pixels, of the raised cosine smooth edge.
-        /// This is the number pixels that will be used to compute the (1,0] taper range.
+        /// This is the number of pixels that will be used to compute the (cvalue,0] taper range.
         f64 smoothness{0};
 
         /// Value of the pixels inside the object.
@@ -67,7 +67,7 @@ namespace noa::geometry {
         Vec<f64, N> radius;
 
         /// Size, in pixels, of the raised cosine smooth edge.
-        /// This is the number pixels that will be used to compute the (1,0] taper range.
+        /// This is the number of pixels that will be used to compute the (cvalue,0] taper range.
         f64 smoothness{0};
 
         /// Value of the pixels inside the object.
@@ -92,7 +92,7 @@ namespace noa::geometry {
         f64 length;
 
         /// Size, in pixels, of the raised cosine smooth edge.
-        /// This is the number pixels that will be used to compute the (1,0] taper range.
+        /// This is the number of pixels that will be used to compute the (cvalue,0] taper range.
         f64 smoothness{0};
 
         /// Value of the pixels inside the object.
@@ -250,12 +250,12 @@ namespace noa::geometry::guts {
 
             // Wrap the transform (only called if there is a transform).
             auto extract_transform = [&] {
-                if constexpr (nt::mat_of_shape<xform_t, N + 1, N + 1>) {
+                if constexpr (nt::is_mat_of_shape_v<xform_t, N + 1, N + 1>) {
                     return BatchedParameter{affine2truncated(inverse_transform)};
-                } else if constexpr (nt::varray<xform_t>) {
+                } else if constexpr (nt::is_varray_v<xform_t>) {
                     using accessor_t = AccessorRestrictContiguousI64<nt::const_value_type_t<xform_t>, 1>;
                     return BatchedParameter{accessor_t(inverse_transform.get())}; // inverse_transform is contiguous
-                } else if constexpr (nt::mat<xform_t> or nt::quaternion<xform_t> or nt::empty<xform_t>) {
+                } else if constexpr (nt::is_mat_v<xform_t> or nt::is_quaternion_v<xform_t> or std::is_empty_v<xform_t>) {
                     return BatchedParameter{inverse_transform};
                 } else {
                     static_assert(nt::always_false<>);

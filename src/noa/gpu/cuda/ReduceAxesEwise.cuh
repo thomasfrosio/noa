@@ -326,9 +326,8 @@ namespace noa::cuda {
     template<typename Config = ReduceAxesEwiseConfig<>,
              typename Op, typename Input, typename Reduced, typename Output, typename Index>
     requires (nt::tuple_of_accessor_nd<std::decay_t<Input>, 4> and
-              nt::tuple_of_accessor_pure<std::decay_t<Output>> and
-              nt::tuple_of_accessor_nd<std::decay_t<Output>, 4> and
               not nt::tuple_of_accessor_value<std::decay_t<Input>> and // at least one varray
+              nt::tuple_of_accessor_pure_nd<std::decay_t<Output>, 4> and
               nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
     constexpr void reduce_axes_ewise(
         const Shape4<Index>& input_shape,

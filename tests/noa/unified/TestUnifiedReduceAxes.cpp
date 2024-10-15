@@ -203,11 +203,6 @@ TEST_CASE("unified::argmax/argmin()", "[noa][unified]") {
     const auto shape = small ? Shape4<i64>{3, 8, 41, 65} : Shape4<i64>{3, 256, 256, 300};
     const auto n_elements_per_batch = shape.pop_front().as<u32>().n_elements();
 
-    Stream::current(Device{}).set_thread_limit(4);
-    auto stream = Stream(Device{}, Stream::DEFAULT);
-    stream.set_thread_limit(1);
-    Stream::set_current(stream);
-
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -226,7 +221,7 @@ TEST_CASE("unified::argmax/argmin()", "[noa][unified]") {
         for (auto& device: devices) {
             INFO(device);
             const auto options = ArrayOption{device, "managed"};
-            input = input.device().is_cpu() ? input : input.to(options);
+            input = input.device().is_cpu() ? std::move(input) : std::move(input).to(options);
 
             const auto [min, min_offset] = noa::argmin(input);
             REQUIRE((min == -101 and min_offset == expected_min_offset));
@@ -239,10 +234,8 @@ TEST_CASE("unified::argmax/argmin()", "[noa][unified]") {
         Array<f32> input(shape);
         test::randomize(input.get(), input.n_elements(), test::Randomizer<f32>(-100., 100.));
 
-        Array min_values = noa::empty<f32>({shape.batch(), 1, 1, 1});
-        Array min_offsets = noa::like<i32>(min_values);
-        Array expected_min_values = noa::like<f32>(min_values);
-        Array expected_min_offsets = noa::like<i32>(min_values);
+        Array expected_min_values = noa::empty<f32>({shape.batch(), 1, 1, 1});
+        Array expected_min_offsets = noa::like<i32>(expected_min_values);
 
         test::randomize(expected_min_values.get(), expected_min_values.n_elements(),
                         test::Randomizer<f32>(-200, -101));
@@ -259,14 +252,22 @@ TEST_CASE("unified::argmax/argmin()", "[noa][unified]") {
         for (auto& device: devices) {
             INFO(device);
             const auto options = ArrayOption{device, "managed"};
-            if (input.device() != device) {
-                input = input.to(options);
-                min_values = min_values.to(options);
-                min_offsets = min_offsets.to(options);
-            }
+            Array min_values = noa::empty<f32>(expected_min_values.shape(), options);
+            Array min_offsets = noa::empty<i32>(expected_min_values.shape(), options);
+
+            if (input.device() != device)
+                input = std::move(input).to(options);
 
             noa::argmin(input, min_values, min_offsets);
             REQUIRE(test::allclose_abs(min_values, expected_min_values, 1e-7));
+            REQUIRE(test::allclose_abs(min_offsets, expected_min_offsets, 1e-7));
+
+            noa::fill(min_values, {});
+            noa::argmin(input, min_values, {});
+            REQUIRE(test::allclose_abs(min_values, expected_min_values, 1e-7));
+
+            noa::fill(min_offsets, {});
+            noa::argmin(input, {}, min_offsets);
             REQUIRE(test::allclose_abs(min_offsets, expected_min_offsets, 1e-7));
         }
     }

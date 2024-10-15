@@ -656,11 +656,9 @@ namespace noa::cuda {
 
     template<typename Config = ReduceEwiseConfig<>,
              typename Input, typename Reduced, typename Output, typename Index, typename Op>
-    requires (nt::tuple_of_accessor<std::decay_t<Input>> and
-              nt::tuple_of_accessor_nd<std::decay_t<Input>, 4> and
+    requires (nt::tuple_of_accessor_nd<std::decay_t<Input>, 4> and
               not nt::tuple_of_accessor_value<std::decay_t<Input>> and // at least one varray
-              nt::tuple_of_accessor_pure<std::decay_t<Output>> and
-              nt::tuple_of_accessor_nd<std::decay_t<Output>, 1> and
+              nt::tuple_of_accessor_pure_nd<std::decay_t<Output>, 1> and
               nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
     void reduce_ewise(
         const Shape4<Index>& shape,

@@ -78,9 +78,8 @@ namespace noa::cpu {
 
     template<typename Config = EwiseConfig<>,
              typename Input, typename Output, typename Index, typename Op>
-    requires (nt::tuple_of_accessor_or_empty<std::decay_t<Input>> and
-              (nt::empty_tuple<std::decay_t<Output>> or
-               nt::tuple_of_accessor_pure<std::decay_t<Output>>))
+    requires (nt::tuple_of_accessor_nd_or_empty<std::decay_t<Input>, 4> and
+              nt::tuple_of_accessor_pure_nd_or_empty<std::decay_t<Output>, 4>)
     void ewise(
         const Shape4<Index>& shape,
         Op&& op,

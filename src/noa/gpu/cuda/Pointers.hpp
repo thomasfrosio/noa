@@ -93,7 +93,8 @@ namespace noa::cuda {
     /// \param shape_bdh    BDH shape. Empty dimensions do not affect the alignment, so if certain
     ///                     dimensions are known to be contiguous, the dimension size can be set to 1
     ///                     to skip it.
-    template<nt::tuple_of_accessor_nd<4> T, typename Index>
+    template<typename T, typename Index>
+    requires (nt::tuple_of_accessor_nd<T, 4> or nt::empty_tuple<T>)
     constexpr auto min_address_alignment(
         const T& accessors,
         const Shape3<Index>& shape_bdh

@@ -31,27 +31,27 @@ TEMPLATE_TEST_CASE("unified::fft::r2c() -> c2r()", "[noa][unified]", f32, f64) {
         const auto stream = StreamGuard(device);
         const auto options = ArrayOption(device, Allocator::MANAGED);
 
-        AND_THEN("out-of-place") {
+        SECTION("out-of-place") {
             Array expected = noa::random(noa::Uniform<TestType>{-5, 5}, shape, options);
             expected = expected.subregion(
-                    noa::indexing::Ellipsis{},
-                    noa::indexing::Slice{0, subregion_shape[1]},
-                    noa::indexing::Slice{0, subregion_shape[2]},
-                    noa::indexing::Slice{0, subregion_shape[3]});
+                noa::indexing::Ellipsis{},
+                noa::indexing::Slice{0, subregion_shape[1]},
+                noa::indexing::Slice{0, subregion_shape[2]},
+                noa::indexing::Slice{0, subregion_shape[3]});
 
             Array fft = noa::empty<Complex<TestType>>(shape.rfft(), options);
             fft = fft.subregion(
-                    noa::indexing::Ellipsis{},
-                    noa::indexing::Slice{0, subregion_shape[1]},
-                    noa::indexing::Slice{0, subregion_shape[2]},
-                    noa::indexing::Slice{0, subregion_shape[3] / 2 + 1});
+                noa::indexing::Ellipsis{},
+                noa::indexing::Slice{0, subregion_shape[1]},
+                noa::indexing::Slice{0, subregion_shape[2]},
+                noa::indexing::Slice{0, subregion_shape[3] / 2 + 1});
 
             noa::fft::r2c(expected, fft);
             const auto result = noa::fft::c2r(fft, expected.shape());
             REQUIRE(test::allclose_abs_safe(expected, result, abs_epsilon));
         }
 
-        AND_THEN("in-place") {
+        SECTION("in-place") {
             const auto [real, fft] = noa::fft::empty<TestType>(shape, options);
             noa::randomize(noa::Uniform<TestType>{-5, 5}, real);
             const auto expected = real.copy();
@@ -84,28 +84,30 @@ TEMPLATE_TEST_CASE("unified::fft::r2c/c2r(), cpu vs gpu", "[noa][unified]", f32,
     // Ensure CPU and GPU compute the FFTs concurrently.
     const auto guard = StreamGuard(Device{}, Stream::ASYNC);
 
-    AND_THEN("out-of-place") {
+    { // SECTION("out-of-place")
         const auto cpu_real = noa::random(noa::Uniform<TestType>{-5, 5}, subregion_shape);
         const auto gpu_buffer = noa::empty<TestType>(shape, ArrayOption("gpu", Allocator::MANAGED));
         const auto gpu_real = gpu_buffer.view().subregion(
-                noa::indexing::Ellipsis{},
-                noa::indexing::Slice{0, subregion_shape[1]},
-                noa::indexing::Slice{0, subregion_shape[2]},
-                noa::indexing::Slice{0, subregion_shape[3]});
+            noa::indexing::Ellipsis{},
+            noa::indexing::Slice{0, subregion_shape[1]},
+            noa::indexing::Slice{0, subregion_shape[2]},
+            noa::indexing::Slice{0, subregion_shape[3]});
         cpu_real.to(gpu_real);
 
-        const auto cpu_fft = noa::fft::r2c(cpu_real);
-        auto gpu_fft = noa::fft::r2c(gpu_real);
-        REQUIRE(test::allclose_abs_safe(cpu_fft, gpu_fft, abs_epsilon));
+        const auto cpu_rfft = noa::fft::r2c(cpu_real);
+        auto gpu_rfft = noa::fft::r2c(gpu_real);
+        REQUIRE(test::allclose_abs_safe(cpu_rfft, gpu_rfft, abs_epsilon));
 
         // c2r:
-        gpu_fft = cpu_fft.to(ArrayOption("gpu", Allocator::MANAGED)).eval(); // wait because c2r overwrites cpu_fft
-        const auto cpu_result = noa::fft::c2r(cpu_fft, cpu_real.shape());
-        const auto gpu_result = noa::fft::c2r(gpu_fft, cpu_real.shape());
+        gpu_rfft = cpu_rfft.to(ArrayOption("gpu", Allocator::MANAGED)).eval(); // wait because c2r overwrites cpu_rfft
+        const auto cpu_result = noa::fft::c2r(cpu_rfft, cpu_real.shape());
+        const auto gpu_result = noa::fft::c2r(gpu_rfft, cpu_real.shape());
+        noa::io::write(cpu_result.subregion(0), test::NOA_DATA_PATH / "test_cpu.mrc");
+        noa::io::write(gpu_result.subregion(0), test::NOA_DATA_PATH / "test_gpu.mrc");
         REQUIRE(test::allclose_abs_safe(cpu_result, gpu_result, abs_epsilon));
     }
 
-    AND_THEN("in-place") {
+    { // SECTION("in-place")
         const auto [cpu_real, cpu_fft] = noa::fft::empty<TestType>(shape);
         const auto [gpu_real, gpu_fft] = noa::fft::empty<TestType>(shape, {"gpu", Allocator::MANAGED});
         noa::randomize(noa::Uniform<TestType>{-5, 5}, cpu_real);
@@ -147,7 +149,7 @@ TEMPLATE_TEST_CASE("unified::fft::c2c()", "[noa][unified]", f32, f64) {
         const auto options = ArrayOption(device, Allocator::MANAGED);
         using complex_t = Complex<TestType>;
 
-        AND_THEN("out-of-place") {
+        SECTION("out-of-place") {
             Array expected = noa::random(noa::Uniform<complex_t>{-5, 5}, shape, options);
             expected = expected.subregion(
                     noa::indexing::Ellipsis{},
@@ -159,7 +161,7 @@ TEMPLATE_TEST_CASE("unified::fft::c2c()", "[noa][unified]", f32, f64) {
             REQUIRE(test::allclose_abs_safe(expected, result, abs_epsilon));
         }
 
-        AND_THEN("in-place") {
+        SECTION("in-place") {
             const Array input = noa::random(noa::Uniform<complex_t>{-5, 5}, shape, options);
             const auto expected = input.copy();
             noa::fft::c2c(expected, expected, noa::fft::Sign::FORWARD);

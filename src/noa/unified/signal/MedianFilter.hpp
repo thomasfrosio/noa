@@ -55,9 +55,9 @@ namespace noa::signal {
             const auto n_threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=, i = std::forward<Input>(input), o = std::forward<Output>(output)] {
                 noa::cpu::signal::median_filter_1d(
-                        i.get(), input_strides,
-                        o.get(), o.strides(), o.shape(),
-                        options.border_mode, options.window_size, n_threads);
+                    i.get(), input_strides,
+                    o.get(), o.strides(), o.shape(),
+                    options.border_mode, options.window_size, n_threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -68,9 +68,9 @@ namespace noa::signal {
                   "Please report this.");
             auto& cuda_stream = stream.cuda();
             noa::cuda::signal::median_filter_1d(
-                    input.get(), input_strides.template as<i32>(),
-                    output.get(), output.strides().template as<i32>(), output.shape(),
-                    options.border_mode, options.window_size, cuda_stream);
+                input.get(), input_strides.template as<i32>(),
+                output.get(), output.strides().template as<i32>(), output.shape(),
+                options.border_mode, options.window_size, cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             #else
             panic("No GPU backend detected");
@@ -113,9 +113,9 @@ namespace noa::signal {
             const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=, i = std::forward<Input>(input), o = std::forward<Output>(output)] {
                 noa::cpu::signal::median_filter_2d(
-                        i.get(), input_strides,
-                        o.get(), o.strides(), o.shape(),
-                        options.border_mode, options.window_size, threads);
+                    i.get(), input_strides,
+                    o.get(), o.strides(), o.shape(),
+                    options.border_mode, options.window_size, threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -126,9 +126,9 @@ namespace noa::signal {
                   "Please report this.");
             auto& cuda_stream = stream.cuda();
             noa::cuda::signal::median_filter_2d(
-                    input.get(), input_strides.template as<i32>(),
-                    output.get(), output.strides().template as<i32>(), output.shape(),
-                    options.border_mode, options.window_size, cuda_stream);
+                input.get(), input_strides.template as<i32>(),
+                output.get(), output.strides().template as<i32>(), output.shape(),
+                options.border_mode, options.window_size, cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             #else
             panic("No GPU backend detected");
@@ -170,9 +170,9 @@ namespace noa::signal {
             const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=, i = std::forward<Input>(input), o = std::forward<Output>(output)] {
                 noa::cpu::signal::median_filter_3d(
-                        i.get(), input_strides,
-                        o.get(), o.strides(), o.shape(),
-                        options.border_mode, options.window_size, threads);
+                    i.get(), input_strides,
+                    o.get(), o.strides(), o.shape(),
+                    options.border_mode, options.window_size, threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -183,9 +183,9 @@ namespace noa::signal {
                   "Please report this.");
             auto& cuda_stream = stream.cuda();
             noa::cuda::signal::median_filter_3d(
-                    input.get(), input_strides.template as<i32>(),
-                    output.get(), output.strides().template as<i32>(), output.shape(),
-                    options.border_mode, options.window_size, cuda_stream);
+                input.get(), input_strides.template as<i32>(),
+                output.get(), output.strides().template as<i32>(), output.shape(),
+                options.border_mode, options.window_size, cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             #else
             panic("No GPU backend detected");

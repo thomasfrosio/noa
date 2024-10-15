@@ -34,11 +34,13 @@ namespace noa::inline types {
     struct Pair {
         constexpr static size_t SIZE = 2;
         constexpr static bool nothrow_swappable =
-                std::is_nothrow_swappable_v<First> and
-                std::is_nothrow_swappable_v<Second>;
+            std::is_nothrow_swappable_v<First> and
+            std::is_nothrow_swappable_v<Second>;
         using type_list = nt::TypeList<First, Second>;
         using decayed_type_list = nt::TypeList<std::decay_t<First>, std::decay_t<Second>>;
         using index_list = std::index_sequence<0, 1>;
+        using first_type = First;
+        using second_type = Second;
 
         NOA_NO_UNIQUE_ADDRESS First first;
         NOA_NO_UNIQUE_ADDRESS Second second;

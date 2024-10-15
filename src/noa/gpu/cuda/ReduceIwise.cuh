@@ -240,8 +240,7 @@ namespace noa::cuda {
     template<typename Config = ReduceIwiseConfig<>,
              typename Op, typename Reduced, typename Output, typename Index, size_t N>
     requires (nt::tuple_of_accessor_value<std::decay_t<Reduced>> and
-              nt::tuple_of_accessor_pure<Output> and
-              nt::tuple_of_accessor_nd<Output, 1>)
+              nt::tuple_of_accessor_pure_nd_or_empty<Output, 1>)
     constexpr void reduce_iwise(
         const Shape<Index, N>& shape,
         Op&& op,

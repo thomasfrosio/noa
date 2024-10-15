@@ -583,7 +583,7 @@ namespace noa::guts {
 
     /// Whether the accessors are aliases of each others.
     /// TODO Take a shape and see if end of array doesn't overlap with other arrays? like are_overlapped
-    template<nt::tuple_of_accessor... T>
+    template<nt::tuple_of_accessor_or_empty... T>
     [[nodiscard]] constexpr auto are_accessors_aliased(const T&... tuples_of_accessors) -> bool {
         auto tuple_of_pointers = tuple_cat(tuples_of_accessors.map([]<typename U>(const U& accessor) {
             if constexpr (nt::accessor_value<std::remove_reference_t<U>>)
@@ -607,7 +607,7 @@ namespace noa::guts {
     }
 
     /// Whether the accessors point to const data, i.e. their value_type is const.
-    template<nt::tuple_of_accessor T>
+    template<nt::tuple_of_accessor_or_empty T>
     [[nodiscard]] consteval auto are_accessors_const() -> bool {
         return []<typename... A>(nt::TypeList<A...>) {
             return (std::is_const_v<nt::value_type_t<A>> and ...);

@@ -220,7 +220,7 @@ namespace noa::fft {
     /// Computes the phase shift at a given normalized-frequency.
     template<nt::complex T, nt::any_of<f32, f64> R, size_t N, size_t A0, size_t A1>
     requires (N == 2 or N == 3)
-    [[nodiscard]] auto phase_shift(
+    [[nodiscard]] constexpr auto phase_shift(
         const Vec<R, N, A0>& shift,
         const Vec<R, N, A1>& fftfreq
     ) noexcept -> T {

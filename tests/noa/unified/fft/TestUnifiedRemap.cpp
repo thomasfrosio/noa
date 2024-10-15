@@ -132,9 +132,9 @@ TEMPLATE_TEST_CASE("unified::fft::remap(), cpu vs gpu", "[noa][unified]", f32, f
 
     const i64 ndim = GENERATE(1, 2, 3);
     const Remap remap = GENERATE(
-            Remap::H2H, Remap::HC2HC, Remap::F2F, Remap::FC2FC, Remap::H2HC,
-            Remap::HC2H, Remap::H2F, Remap::F2H, Remap::F2FC, Remap::FC2F, Remap::HC2F,
-            Remap::F2HC, Remap::FC2H, Remap::FC2HC, Remap::HC2FC, Remap::H2FC);
+        Remap::H2H, Remap::HC2HC, Remap::F2F, Remap::FC2FC, Remap::H2HC,
+        Remap::HC2H, Remap::H2F, Remap::F2H, Remap::F2FC, Remap::FC2F, Remap::HC2F,
+        Remap::F2HC, Remap::FC2H, Remap::FC2HC, Remap::HC2FC, Remap::H2FC);
 
     INFO("ndim: " << ndim);
     INFO("remap: " << remap);

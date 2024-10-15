@@ -300,8 +300,7 @@ namespace noa::cpu {
 
     template<typename Config = ReduceAxesIwiseConfig<>,
             typename Op, size_t N, typename Reduced, typename Output, typename Index>
-    requires (nt::tuple_of_accessor_pure<std::decay_t<Output>> and
-              nt::tuple_of_accessor_nd<std::decay_t<Output>, N> and
+    requires (nt::tuple_of_accessor_pure_nd_or_empty<std::decay_t<Output>, N> and
               nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
     constexpr void reduce_axes_iwise(
         const Shape<Index, N>& input_shape,

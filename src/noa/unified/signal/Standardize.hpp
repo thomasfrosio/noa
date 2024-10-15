@@ -46,10 +46,10 @@ namespace noa::signal {
         const auto options = ArrayOption{input.device(), Allocator::DEFAULT_ASYNC};
 
         auto dc_position = ni::make_subregion<4>(
-                ni::FullExtent{},
-                is_centered ? noa::fft::fftshift(i64{}, shape[1]) : 0,
-                is_centered ? noa::fft::fftshift(i64{}, shape[2]) : 0,
-                is_centered and is_full ? noa::fft::fftshift(i64{}, shape[3]) : 0);
+            ni::FullExtent{},
+            is_centered ? noa::fft::fftshift(i64{}, shape[1]) : 0,
+            is_centered ? noa::fft::fftshift(i64{}, shape[2]) : 0,
+            is_centered and is_full ? noa::fft::fftshift(i64{}, shape[3]) : 0);
 
         if constexpr (REMAP == Remap::F2F or REMAP == Remap::FC2FC) {
             // Compute the energy of the input (excluding the dc).

@@ -40,10 +40,12 @@ namespace noa::signal {
             value_type phase_shift;
             value_type bfactor;
             value_type scale;
+
+            [[nodiscard]] constexpr auto to_ctf() noexcept { return CTFIsotropic(*this); }
         };
 
     public: // constructors
-        constexpr CTFIsotropic() = default;
+        constexpr CTFIsotropic() noexcept = default;
 
         /// Create an isotropic CTF.
         /// \param pixel_size   Pixel size in A/p.
@@ -54,7 +56,7 @@ namespace noa::signal {
         /// \param phase_shift  Angle of phase shift applied to CTF in radians.
         /// \param bfactor      B-factor in A^2, negative is decay.
         /// \param scale        Post-processing scaling-factor.
-        constexpr CTFIsotropic(
+        constexpr explicit CTFIsotropic(
             value_type pixel_size,
             value_type defocus,
             value_type voltage,
@@ -63,7 +65,7 @@ namespace noa::signal {
             value_type phase_shift,
             value_type bfactor,
             value_type scale
-        ) :
+        ) noexcept :
             m_pixel_size(pixel_size),
             m_defocus_angstroms(-defocus * static_cast<value_type>(1e4)), // micrometers -> angstroms
             m_phase_shift(phase_shift),
@@ -77,7 +79,7 @@ namespace noa::signal {
             set_amplitude_fraction_();
         }
 
-        constexpr explicit CTFIsotropic(Parameters parameters) : CTFIsotropic(
+        constexpr explicit CTFIsotropic(const Parameters& parameters) noexcept : CTFIsotropic(
             parameters.pixel_size,
             parameters.defocus,
             parameters.voltage,
@@ -90,7 +92,7 @@ namespace noa::signal {
 
         constexpr explicit CTFIsotropic(
             const CTFAnisotropic<value_type>& ctf_anisotropic
-        ) : CTFIsotropic(
+        ) noexcept : CTFIsotropic(
             mean(ctf_anisotropic.pixel_size()), // average pixel size
             ctf_anisotropic.defocus().value, // of course, ignore the astigmatism
             ctf_anisotropic.voltage(),
@@ -221,6 +223,8 @@ namespace noa::signal {
             value_type phase_shift;
             value_type bfactor;
             value_type scale;
+
+            [[nodiscard]] constexpr auto to_ctf() noexcept { return CTFAnisotropic(*this); }
         };
 
     public: // constructors
@@ -235,7 +239,7 @@ namespace noa::signal {
         /// \param phase_shift  Angle of phase shift applied to CTF in radians.
         /// \param bfactor      B-factor in A^2, negative is decay.
         /// \param scale        Post-processing scaling-factor.
-        constexpr CTFAnisotropic(
+        constexpr explicit CTFAnisotropic(
             pixel_size_type pixel_size,
             defocus_type defocus,
             value_type voltage,

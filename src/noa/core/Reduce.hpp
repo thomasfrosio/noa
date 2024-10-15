@@ -267,18 +267,22 @@ namespace noa {
 }
 
 namespace noa {
-    template<typename Accessor, typename Offset, bool SaveValue, typename Reducer>
+    template<typename Accessor, typename Reduced, bool SaveValue, typename Reducer>
     struct ReduceArg {
         using accessor_type = Accessor;
-        using value_type = nt::mutable_value_type_t<accessor_type>;
-        using offset_type = Offset;
-        using reduced_type = Pair<value_type, offset_type>;
+        using reduced_type = Reduced;
+        using value_type = reduced_type::first_type;
+        using offset_type = reduced_type::second_type;
+
         accessor_type accessor;
 
     public:
         constexpr void init(const auto& indices, reduced_type& reduced) const {
             // TODO Add option for per batch offsets?
-            reduced_type current{accessor(indices), static_cast<offset_type>(accessor.offset_at(indices))};
+            reduced_type current{
+                cast_or_abs_squared<value_type>(accessor(indices)),
+                static_cast<offset_type>(accessor.offset_at(indices))
+            };
             static_cast<const Reducer&>(*this).join(current, reduced);
         }
 
@@ -297,13 +301,11 @@ namespace noa {
         }
     };
 
-    template<typename Accessor, typename Offset = i64, bool SaveValue = false>
-    struct ReduceFirstMin : ReduceArg<Accessor, Offset, SaveValue, ReduceFirstMin<Accessor, Offset, SaveValue>> {
-        using base_type = ReduceArg<Accessor, Offset, SaveValue, ReduceFirstMin>;
+    template<typename Accessor, typename Reduced, bool SaveValue = true>
+    struct ReduceFirstMin : ReduceArg<Accessor, Reduced, SaveValue, ReduceFirstMin<Accessor, Reduced, SaveValue>> {
         using remove_defaulted_final = bool;
         using allow_vectorization = bool;
-        using accessor_type = base_type::accessor_type;
-        using reduced_type = base_type::reduced_type;
+        using reduced_type = ReduceArg<Accessor, Reduced, SaveValue, ReduceFirstMin>::reduced_type;
 
         static constexpr void join(const reduced_type& current, reduced_type& reduced) {
             if (current.first < reduced.first or (current.first == reduced.first and current.second < reduced.second))
@@ -311,13 +313,11 @@ namespace noa {
         }
     };
 
-    template<typename Accessor, typename Offset = i64, bool SaveValue = false>
-    struct ReduceFirstMax : ReduceArg<Accessor, Offset, SaveValue, ReduceFirstMax<Accessor, Offset, SaveValue>> {
-        using base_type = ReduceArg<Accessor, Offset, SaveValue, ReduceFirstMax>;
+    template<typename Accessor, typename Reduced, bool SaveValue = true>
+    struct ReduceFirstMax : ReduceArg<Accessor, Reduced, SaveValue, ReduceFirstMax<Accessor, Reduced, SaveValue>> {
         using remove_defaulted_final = bool;
         using allow_vectorization = bool;
-        using accessor_type = base_type::accessor_type;
-        using reduced_type = base_type::reduced_type;
+        using reduced_type = ReduceArg<Accessor, Reduced, SaveValue, ReduceFirstMax>::reduced_type;
 
         static constexpr void join(const reduced_type& current, reduced_type& reduced) {
             if (current.first > reduced.first or (reduced.first == current.first and current.second < reduced.second))
@@ -325,13 +325,11 @@ namespace noa {
         }
     };
 
-    template<typename Accessor, typename Offset = i64, bool SaveValue = false>
-    struct ReduceLastMin : ReduceArg<Accessor, Offset, SaveValue, ReduceLastMin<Accessor, Offset, SaveValue>> {
-        using base_type = ReduceArg<Accessor, Offset, SaveValue, ReduceLastMin>;
+    template<typename Accessor, typename Reduced, bool SaveValue = true>
+    struct ReduceLastMin : ReduceArg<Accessor, Reduced, SaveValue, ReduceLastMin<Accessor, Reduced, SaveValue>> {
         using remove_defaulted_final = bool;
         using allow_vectorization = bool;
-        using accessor_type = base_type::accessor_type;
-        using reduced_type = base_type::reduced_type;
+        using reduced_type = ReduceArg<Accessor, Reduced, SaveValue, ReduceLastMin>::reduced_type;
 
         static constexpr void join(const reduced_type& current, reduced_type& reduced) {
             if (current.first < reduced.first or (current.first == reduced.first and current.second > reduced.second))
@@ -339,13 +337,11 @@ namespace noa {
         }
     };
 
-    template<typename Accessor, typename Offset = i64, bool SaveValue = false>
-    struct ReduceLastMax : ReduceArg<Accessor, Offset, SaveValue, ReduceLastMax<Accessor, Offset, SaveValue>> {
-        using base_type = ReduceArg<Accessor, Offset, SaveValue, ReduceLastMax>;
+    template<typename Accessor, typename Reduced, bool SaveValue = true>
+    struct ReduceLastMax : ReduceArg<Accessor, Reduced, SaveValue, ReduceLastMax<Accessor, Reduced, SaveValue>> {
         using remove_defaulted_final = bool;
         using allow_vectorization = bool;
-        using accessor_type = base_type::accessor_type;
-        using reduced_type = base_type::reduced_type;
+        using reduced_type = ReduceArg<Accessor, Reduced, SaveValue, ReduceLastMax>::reduced_type;
 
         static constexpr void join(const reduced_type& current, reduced_type& reduced) {
             if (current.first > reduced.first or (reduced.first == current.first and current.second > reduced.second))

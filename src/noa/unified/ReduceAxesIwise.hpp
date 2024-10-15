@@ -107,41 +107,41 @@ namespace noa {
              typename Outputs = ng::AdaptorUnzip<>,
              typename Operator, typename... Ts>
     void reduce_axes_iwise(
-            const Shape<Index, N>& shape,
-            Device device,
-            Reduced&& reduced,
-            Outputs&& outputs,
-            Operator&& op,
-            Ts&&... attachments
+        const Shape<Index, N>& shape,
+        Device device,
+        Reduced&& reduced,
+        Outputs&& outputs,
+        Operator&& op,
+        Ts&&... attachments
     ) {
         if constexpr (ng::adaptor<Reduced, Outputs>) {
             ng::reduce_axes_iwise<Reduced::ZIP, Outputs::ZIP, false>(
-                    shape, device,
-                    std::forward<Reduced>(reduced).tuple,
-                    std::forward<Outputs>(outputs).tuple,
-                    std::forward<Operator>(op), {},
-                    std::forward<Ts>(attachments)...);
+                shape, device,
+                std::forward<Reduced>(reduced).tuple,
+                std::forward<Outputs>(outputs).tuple,
+                std::forward<Operator>(op), {},
+                std::forward<Ts>(attachments)...);
         } else if constexpr (ng::adaptor<Reduced>) {
             ng::reduce_axes_iwise<Reduced::ZIP, false, false>(
-                    shape, device,
-                    std::forward<Reduced>(reduced).tuple,
-                    forward_as_tuple(std::forward<Outputs>(outputs)),
-                    std::forward<Operator>(op), {},
-                    std::forward<Ts>(attachments)...);
+                shape, device,
+                std::forward<Reduced>(reduced).tuple,
+                forward_as_tuple(std::forward<Outputs>(outputs)),
+                std::forward<Operator>(op), {},
+                std::forward<Ts>(attachments)...);
         } else if constexpr (ng::adaptor<Outputs>) {
             ng::reduce_axes_iwise<false, Outputs::ZIP, false>(
-                    shape, device,
-                    forward_as_tuple(std::forward<Reduced>(reduced)),
-                    std::forward<Outputs>(outputs).tuple,
-                    std::forward<Operator>(op), {},
-                    std::forward<Ts>(attachments)...);
+                shape, device,
+                forward_as_tuple(std::forward<Reduced>(reduced)),
+                std::forward<Outputs>(outputs).tuple,
+                std::forward<Operator>(op), {},
+                std::forward<Ts>(attachments)...);
         } else {
             ng::reduce_axes_iwise<false, false, false>(
-                    shape, device,
-                    forward_as_tuple(std::forward<Reduced>(reduced)),
-                    forward_as_tuple(std::forward<Outputs>(outputs)),
-                    std::forward<Operator>(op), {},
-                    std::forward<Ts>(attachments)...);
+                shape, device,
+                forward_as_tuple(std::forward<Reduced>(reduced)),
+                forward_as_tuple(std::forward<Outputs>(outputs)),
+                std::forward<Operator>(op), {},
+                std::forward<Ts>(attachments)...);
         }
     }
 
@@ -160,18 +160,18 @@ namespace noa {
     ) {
         if constexpr (ng::adaptor<Reduced>) {
             ng::reduce_axes_iwise<Reduced::ZIP, false, true>(
-                    shape, device,
-                    std::forward<Reduced>(reduced).tuple,
-                    Tuple{},
-                    std::forward<Operator>(op), {},
-                    std::forward<Ts>(attachments)...);
+                shape, device,
+                std::forward<Reduced>(reduced).tuple,
+                Tuple{},
+                std::forward<Operator>(op), {},
+                std::forward<Ts>(attachments)...);
         } else {
             ng::reduce_axes_iwise<false, false, true>(
-                    shape, device,
-                    forward_as_tuple(std::forward<Reduced>(reduced)),
-                    Tuple{},
-                    std::forward<Operator>(op), reduce_axes,
-                    std::forward<Ts>(attachments)...);
+                shape, device,
+                forward_as_tuple(std::forward<Reduced>(reduced)),
+                Tuple{},
+                std::forward<Operator>(op), reduce_axes,
+                std::forward<Ts>(attachments)...);
         }
     }
 }
@@ -180,13 +180,13 @@ namespace noa::guts {
     template<bool ZIP_REDUCED, bool ZIP_OUTPUT, bool ALLOW_NO_OUTPUTS,
              typename Index, size_t N, typename Reduced, typename Outputs, typename Op, typename... Ts>
     constexpr void reduce_axes_iwise(
-            const Shape<Index, N>& input_shape,
-            Device device,
-            Reduced&& reduced,
-            Outputs&& outputs,
-            Op&& reduce_operator,
-            ReduceAxes reduce_axes,
-            Ts&&... attachments
+        const Shape<Index, N>& input_shape,
+        Device device,
+        Reduced&& reduced,
+        Outputs&& outputs,
+        Op&& reduce_operator,
+        ReduceAxes reduce_axes,
+        Ts&&... attachments
     ) {
         Shape<Index, N> output_shape;
 
@@ -235,34 +235,34 @@ namespace noa::guts {
 
             if (cpu_stream.is_sync()) {
                 noa::cpu::reduce_axes_iwise<config>(
-                        input_shape, output_shape,
-                        std::forward<Op>(reduce_operator),
-                        std::move(reduced_accessors),
-                        output_accessors_nd,
-                        n_threads);
+                    input_shape, output_shape,
+                    std::forward<Op>(reduce_operator),
+                    std::move(reduced_accessors),
+                    output_accessors_nd,
+                    n_threads);
             } else {
                 cpu_stream.enqueue(
-                        [=,
-                         op = std::forward<Op>(reduce_operator),
-                         ra = std::move(reduced_accessors),
-                         oh = ng::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs)),
-                         ah = ng::extract_shared_handle(forward_as_tuple(std::forward<Ts>(attachments)...))
-                        ] {
-                            noa::cpu::reduce_axes_iwise<config>(
-                                    input_shape, output_shape, std::move(op),
-                                    std::move(ra), output_accessors_nd, n_threads);
-                        });
+                    [=,
+                        op = std::forward<Op>(reduce_operator),
+                        ra = std::move(reduced_accessors),
+                        oh = ng::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs)),
+                        ah = ng::extract_shared_handle(forward_as_tuple(std::forward<Ts>(attachments)...))
+                    ] {
+                        noa::cpu::reduce_axes_iwise<config>(
+                            input_shape, output_shape, std::move(op),
+                            std::move(ra), output_accessors_nd, n_threads);
+                    });
             }
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = Stream::current(device).cuda();
             using config = noa::cuda::ReduceIwiseConfig<ZIP_REDUCED, ZIP_OUTPUT>;
             noa::cuda::reduce_axes_iwise<config>(
-                    input_shape, output_shape,
-                    std::forward<Op>(reduce_operator),
-                    std::move(reduced_accessors),
-                    output_accessors_nd,
-                    cuda_stream);
+                input_shape, output_shape,
+                std::forward<Op>(reduce_operator),
+                std::move(reduced_accessors),
+                output_accessors_nd,
+                cuda_stream);
 
             // Enqueue the shared handles. See ewise() for more details.
             [&]<size_t... O>(std::index_sequence<O...>) {

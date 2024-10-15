@@ -100,7 +100,8 @@ namespace noa::cpu {
 
     template<typename Config = ReduceIwiseConfig<>,
              typename Op, typename Reduced, typename Output, typename Index, size_t N>
-    requires (nt::tuple_of_accessor_value<std::decay_t<Reduced>> and nt::tuple_of_accessor_or_empty<Output>)
+    requires (nt::tuple_of_accessor_value<std::decay_t<Reduced>> and
+              nt::tuple_of_accessor_nd_or_empty<Output, 1>)
     constexpr void reduce_iwise(
         const Shape<Index, N>& shape,
         Op&& op,
@@ -117,7 +118,7 @@ namespace noa::cpu {
 
             if (actual_n_threads > 1) {
                 return core::parallel(
-                        shape.vec, std::forward<Op>(op), std::forward<Reduced>(reduced), output, actual_n_threads);
+                    shape.vec, std::forward<Op>(op), std::forward<Reduced>(reduced), output, actual_n_threads);
             }
         }
         core::serial(shape.vec, std::forward<Op>(op), std::forward<Reduced>(reduced), output);

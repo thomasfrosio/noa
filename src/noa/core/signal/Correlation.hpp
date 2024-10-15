@@ -79,7 +79,7 @@ namespace noa::signal::guts {
         }
     };
 
-    template<size_t N, bool IS_CENTERED, bool SUBREGION, size_t REGISTRATION_RADIUS_LIMIT,
+    template<size_t N, bool IS_CENTERED, size_t REGISTRATION_RADIUS_LIMIT,
              nt::readable_nd<N + 1> Input,
              nt::writable_nd_optional<1> PeakCoordinates,
              nt::writable_nd_optional<1> PeakValues>
@@ -97,11 +97,9 @@ namespace noa::signal::guts {
         using reduced_type = Pair<value_type, index_type>;
         using index_n_type = Vec<index_type, N>;
         using shape_type = Shape<index_type, N>;
-        using f32_n_type = Vec<f32, N>;
 
-        using draw_ellipse_type = noa::geometry::guts::DrawEllipse<N, f32, false>;
-        using subregion_offset_type = std::conditional_t<SUBREGION, Vec<index_type, N>, Empty>;
-        using ellipse_type = std::conditional_t<SUBREGION, draw_ellipse_type, Empty>;
+        using subregion_offset_type = Vec<index_type, N>;
+        using ellipse_type = noa::geometry::guts::DrawEllipse<N, f32, false>;
 
     public:
         constexpr ReducePeak(
@@ -110,32 +108,35 @@ namespace noa::signal::guts {
             const peak_values_type& peak_values,
             const Shape<index_type, N + 1>& shape,
             const index_n_type& registration_radius,
-            const index_n_type& subregion_offset = {},
-            const f32_n_type& maximum_lag = {}
+            const index_n_type& subregion_offset,
+            const index_n_type& maximum_lag,
+            bool apply_ellipse
         ) : m_input(input),
             m_peak_coordinates(peak_coordinates),
             m_peak_values(peak_values),
             m_shape(shape.pop_front()),
             m_batch(shape[0]),
-            m_registration_radius(registration_radius)
+            m_registration_radius(registration_radius),
+            m_apply_ellipse(apply_ellipse)
         {
-            if constexpr (SUBREGION) {
+            if (m_apply_ellipse) {
                 m_subregion_offset = subregion_offset;
-                const auto center = f32_n_type::from_vec(shape.vec.pop_front() / 2); // DC position
+                const auto center = (m_shape.vec / 2).template as<f32>(); // DC position
                 constexpr auto cvalue = 1.f;
-                constexpr auto is_smooth = false;
-                m_ellipse = ellipse_type(center, maximum_lag, cvalue, is_smooth);
+                constexpr auto is_inverted = false;
+                m_ellipse = ellipse_type(center, maximum_lag.template as<f32>(), cvalue, is_inverted);
             }
             NOA_ASSERT(all(registration_radius <= static_cast<index_type>(REGISTRATION_RADIUS_LIMIT)));
         }
 
     public:
-        constexpr void init(const nt::vec_of_size<N + 1> auto& subregion_indices, reduced_type& reduced) const {
+        template<nt::vec_of_size<N + 1> S> // nvcc segfaults if the concept is used with the auto syntax
+        constexpr void init(const S& subregion_indices, reduced_type& reduced) const {
             auto batch = subregion_indices[0];
             auto indices = subregion_indices.pop_front();
 
             f32 mask{1};
-            if constexpr (SUBREGION) {
+            if (m_apply_ellipse) {
                 indices += m_subregion_offset;
                 mask = m_ellipse(Vec<f32, N>::from_vec(indices));
             }
@@ -145,7 +146,7 @@ namespace noa::signal::guts {
             const auto batched_indices = indices.push_front(batch);
 
             const auto value = m_input(batched_indices) * static_cast<value_type>(mask);
-            const auto offset = m_input.offset_at(batched_indices); // the reduction is per batch, so this is okay
+            const auto offset = m_input.offset_at(batched_indices);
             join(reduced_type{value, offset}, reduced);
         }
 
@@ -160,7 +161,7 @@ namespace noa::signal::guts {
             const auto batch = peak_indices[0];
 
             auto [peak_value, peak_coordinate] = subpixel_registration_using_1d_parabola_(
-                m_input[batch], peak_indices.pop_front());
+                m_input[batch], peak_indices.pop_front(), reduced.first);
             if (m_peak_coordinates)
                 m_peak_coordinates(batch) = static_cast<coord_type>(peak_coordinate);
             if (m_peak_values)
@@ -168,7 +169,9 @@ namespace noa::signal::guts {
         }
 
     private:
-        constexpr auto subpixel_registration_using_1d_parabola_(auto input, const index_n_type& peak_indices) {
+        constexpr auto subpixel_registration_using_1d_parabola_(
+            auto input, const index_n_type& peak_indices, const value_type& original_value
+        ) {
             Vec<value_type, REGISTRATION_RADIUS_LIMIT * 2 + 1> buffer;
 
             f64 peak_value{};
@@ -190,6 +193,10 @@ namespace noa::signal::guts {
                 // to an index and compute the memory offset.
                 const i64 peak_frequency = noa::fft::index2frequency<IS_CENTERED>(peak_index, input_size);
                 for (i64 i = -peak_radius, c{}; i <= peak_radius; ++i, ++c) {
+                    if (i == 0) {
+                        peak_window[c] = original_value;
+                        continue;
+                    }
                     const i64 frequency = peak_frequency + i;
                     if (-input_size / 2 <= frequency and frequency <= (input_size - 1) / 2) {
                         const i64 index = noa::fft::frequency2index<IS_CENTERED>(frequency, input_size);
@@ -231,7 +238,8 @@ namespace noa::signal::guts {
         shape_type m_shape;
         index_type m_batch;
         index_n_type m_registration_radius;
-        NOA_NO_UNIQUE_ADDRESS ellipse_type m_ellipse;
-        NOA_NO_UNIQUE_ADDRESS subregion_offset_type m_subregion_offset;
+        ellipse_type m_ellipse;
+        subregion_offset_type m_subregion_offset;
+        bool m_apply_ellipse;
     };
 }

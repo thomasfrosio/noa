@@ -96,7 +96,7 @@ TEST_CASE("unified::signal::ctf_isotropic, default range", "[noa][unified]") {
 
     const i64 ndim = GENERATE(1, 2, 3);
     using CTFIsotropic64 = noa::signal::CTFIsotropic<f64>;
-    const auto ctf = CTFIsotropic64({
+    const auto ctf = CTFIsotropic64::Parameters{
         .pixel_size = 2.1,
         .defocus = 2.5,
         .voltage = 300.,
@@ -105,7 +105,7 @@ TEST_CASE("unified::signal::ctf_isotropic, default range", "[noa][unified]") {
         .phase_shift = 0.,
         .bfactor = 10.,
         .scale = 1.,
-    });
+    }.to_ctf();
 
     for (auto device: devices) {
         INFO(device);
@@ -130,7 +130,7 @@ TEST_CASE("unified::signal::ctf_isotropic, range", "[noa][unified]") {
     // with the same number of elements as in the subregion and check these ranges are equal.
 
     using CTFIsotropic64 = noa::signal::CTFIsotropic<f64>;
-    const auto ctf = CTFIsotropic64({
+    const auto ctf = CTFIsotropic64::Parameters{
         .pixel_size = 2.1,
         .defocus = 2.67,
         .voltage = 300.,
@@ -139,9 +139,9 @@ TEST_CASE("unified::signal::ctf_isotropic, range", "[noa][unified]") {
         .phase_shift = 0.,
         .bfactor = 0.,
         .scale = 1.,
-    });
+    }.to_ctf();
 
-    const auto resolution_range = Vec2<f64>{40, 10};
+    constexpr auto resolution_range = Vec{40., 10.};
     const bool endpoint = GENERATE(true, false);
 
     const auto trimmed_range = [endpoint](
@@ -158,33 +158,41 @@ TEST_CASE("unified::signal::ctf_isotropic, range", "[noa][unified]") {
         const auto normalized_frequency_cutoff = frequency_cutoff / logical_size_f;
         const auto actual_fitting_range = spacing / normalized_frequency_cutoff;
 
-        // For the new logical size, simply compute the even size.
+        // For the new logical size, compute the even size.
         const auto new_size = index_cutoff[1] - index_cutoff[0];
         const auto new_logical_size = (new_size - 1) * 2;
 
         return {new_logical_size, noa::indexing::Slice{index_cutoff[0], index_cutoff[1]}, actual_fitting_range};
     };
 
-    // Generate full range.
-    const auto shape = Shape4<i64>{1, 1, 1, 512};
-    const auto output = noa::empty<f32>(shape.rfft());
-    noa::signal::ctf_isotropic<Remap::H2H>({}, output, shape, ctf, {.ctf_squared=true});
+    std::vector<Device> devices{"cpu"};
+    if (Device::is_any_gpu())
+        devices.emplace_back("gpu");
 
-    // Get the truncated range and truncate the full range.
-    const auto [trimmed_size, trimmed_slice, trimmed_resolution_range] =
-            trimmed_range(resolution_range, Vec2<f64>::from_value(ctf.pixel_size()), shape.n_elements());
-    const auto output_truncated = output.subregion(noa::indexing::Ellipsis{}, trimmed_slice);
+    for (auto device: devices) {
+        INFO(device);
+        const auto options = ArrayOption{.device = device, .allocator = Allocator::MANAGED};
 
-    // Generate the truncated
-    const auto output_range = noa::empty<f32>(trimmed_size / 2 + 1);
-    noa::signal::ctf_isotropic<Remap::H2H>(
-        output_range, {1, 1, 1, trimmed_size}, ctf, {
-            .fftfreq_range = (ctf.pixel_size() / trimmed_resolution_range).as<f64>(),
-            .fftfreq_range_endpoint = true,
-            .ctf_squared = true,
-        });
+        // Generate full range.
+        const auto shape = Shape4<i64>{1, 1, 1, 512};
+        const auto output = noa::empty<f32>(shape.rfft(), options);
+        noa::signal::ctf_isotropic<Remap::H2H>({}, output, shape, ctf, {.ctf_squared=true});
 
-    REQUIRE(test::allclose_abs(output_truncated, output_range, 1e-4));
+        // Get the truncated range and truncate the full range.
+        const auto [trimmed_size, trimmed_slice, trimmed_resolution_range] =
+            trimmed_range(resolution_range, Vec<f64, 2>::from_value(ctf.pixel_size()), shape.n_elements());
+        const auto output_truncated = output.subregion(noa::indexing::Ellipsis{}, trimmed_slice);
+
+        // Generate the truncated
+        const auto output_range = noa::empty<f32>(trimmed_size / 2 + 1, options);
+        noa::signal::ctf_isotropic<Remap::H2H>(
+            output_range, {1, 1, 1, trimmed_size}, ctf, {
+                .fftfreq_range = (ctf.pixel_size() / trimmed_resolution_range).as<f64>(),
+                .fftfreq_range_endpoint = endpoint,
+                .ctf_squared = true,
+            });
+        REQUIRE(test::allclose_abs(output_truncated, output_range, 1e-4));
+    }
 }
 
 TEST_CASE("unified::signal::ctf_anisotropic, assets", "[noa][unified][assets]") {
@@ -274,7 +282,7 @@ TEST_CASE("unified::signal::ctf_anisotropic, default range, vs isotropic", "[noa
 
     using CTFIsotropic64 = noa::signal::CTFIsotropic<f64>;
     using CTFAnisotropic64 = noa::signal::CTFAnisotropic<f64>;
-    const auto ctf_iso = CTFIsotropic64({
+    const auto ctf_iso = CTFIsotropic64::Parameters{
         .pixel_size = 2.1,
         .defocus = 2.5,
         .voltage = 300.,
@@ -283,7 +291,7 @@ TEST_CASE("unified::signal::ctf_anisotropic, default range, vs isotropic", "[noa
         .phase_shift = 0.,
         .bfactor = 10.,
         .scale = 1.,
-    });
+    }.to_ctf();
     const auto ctf_aniso = CTFAnisotropic64(ctf_iso);
 
     for (auto device: devices) {

@@ -80,8 +80,9 @@ namespace noa::cpu {
 
     template<typename Config = ReduceEwiseConfig<>,
              typename Input, typename Reduced, typename Output, typename Index, typename Op>
-    requires (nt::are_tuple_of_accessor_v<std::decay_t<Input>, Output> and
+    requires (nt::tuple_of_accessor_nd<std::decay_t<Input>, 4> and
               not nt::tuple_of_accessor_value<std::decay_t<Input>> and // at least one varray
+              nt::tuple_of_accessor_nd<Output, 1> and
               nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
     void reduce_ewise(
         const Shape4<Index>& shape,

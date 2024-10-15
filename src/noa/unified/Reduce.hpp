@@ -42,6 +42,19 @@ namespace noa::guts {
         }
         return n_elements_to_reduce;
     }
+
+    template<typename Input, typename ReducedValue, typename ReducedOffset, typename ArgValue, typename ArgOffset,
+         typename InputValue = nt::value_type_t<Input>,
+         typename ArgValue_ = std::conditional_t<nt::empty<ArgValue>, InputValue, nt::value_type_t<ArgValue>>,
+         typename ArgOffset_ = std::conditional_t<nt::empty<ArgOffset>, i64, nt::value_type_t<ArgOffset>>,
+         typename ReducedValue_ = std::conditional_t<std::is_void_v<ReducedValue>, ArgValue_, ReducedValue>,
+         typename ReducedOffset_ = std::conditional_t<std::is_void_v<ReducedOffset>, ArgOffset_, ReducedOffset>>
+    concept arg_reduceable =
+        nt::readable_varray_decay<Input> and
+        (nt::writable_varray_decay<ArgValue> or nt::empty<ArgValue>) and
+        (nt::writable_varray_decay<ArgOffset> or nt::empty<ArgOffset>) and
+        (nt::scalar<InputValue, ReducedValue_> or (nt::complex<InputValue> and nt::real<ReducedValue_>)) and
+        nt::scalar<ArgValue_> and nt::integer<ArgOffset_, ReducedOffset_>;
 }
 
 namespace noa {
@@ -242,9 +255,10 @@ namespace noa {
     template<nt::readable_varray_of_scalar Input>
     [[nodiscard]] auto argmax(const Input& input) {
         using value_t = nt::mutable_value_type_t<Input>;
-        using op_t = ReduceFirstMax<AccessorI64<const value_t, 4>>;
-        Pair<value_t, i64> reduced{std::numeric_limits<value_t>::lowest(), i64{}};
-        Pair<value_t, i64> output{};
+        using reduced_t = Pair<value_t, i64>;
+        using op_t = ReduceFirstMax<AccessorI64<const value_t, 4>, reduced_t>;
+        reduced_t reduced{std::numeric_limits<value_t>::lowest(), i64{}};
+        reduced_t output{};
         reduce_iwise(input.shape(), input.device(), reduced,
                      wrap(output.first, output.second),
                      op_t{{ng::to_accessor(input)}});
@@ -257,9 +271,10 @@ namespace noa {
     template<nt::readable_varray_of_scalar Input>
     [[nodiscard]] auto argmin(const Input& input) {
         using value_t = nt::mutable_value_type_t<Input>;
-        using op_t = ReduceFirstMin<AccessorI64<const value_t, 4>>;
-        Pair<value_t, i64> reduced{std::numeric_limits<value_t>::max(), i64{}};
-        Pair<value_t, i64> output{};
+        using reduced_t = Pair<value_t, i64>;
+        using op_t = ReduceFirstMin<AccessorI64<const value_t, 4>, reduced_t>;
+        reduced_t reduced{std::numeric_limits<value_t>::max(), i64{}};
+        reduced_t output{};
         reduce_iwise(input.shape(), input.device(), reduced,
                      wrap(output.first, output.second),
                      op_t{{ng::to_accessor(input)}});
@@ -622,63 +637,76 @@ namespace noa {
     /// \details Dimensions of the output arrays should match the input shape, or be 1, indicating the dimension
     ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
     ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
+    ///
+    /// \tparam ReducedValue        Value type used for the reduction. Any scalar.
+    ///                             If the input value type is complex, this type can be real, in which case the
+    ///                             reduction is done on the magnitude of the input values.
+    /// \tparam ReducedOffset       Offset type used for the reduction. Any integer.
     /// \param[in] input            Array to reduce.
     /// \param[out] output_values   Array where to save the maximum values, or empty.
     /// \param[out] output_offsets  Array where to save the offsets of the maximum values, or empty.
     /// \note If the maximum value appears more than once, this function makes no guarantee to which one is selected.
-    template<nt::readable_varray_decay_of_scalar Input,
-             nt::writable_varray_decay_of_scalar Values = View<nt::mutable_value_type_t<Input>>,
-             nt::writable_varray_decay_of_integer Offsets = View<i64>>
+    template<typename ReducedValue = void,
+             typename ReducedOffset = void,
+             typename Input,
+             typename Values = Empty,
+             typename Offsets = Empty>
+    requires guts::arg_reduceable<Input, ReducedValue, ReducedOffset, Values, Offsets>
     void argmax(
         Input&& input,
         Values&& output_values,
         Offsets&& output_offsets
     ) {
-        const bool has_offsets = not output_offsets.is_empty();
-        const bool has_values = not output_values.is_empty();
-        if (not has_offsets and not has_values)
-            return;
+        constexpr bool has_values = not nt::empty<Values>;
+        constexpr bool has_offsets = not nt::empty<Offsets>;
+        if constexpr (has_offsets or has_values) {
+            check(not input.is_empty(), "Empty array detected");
+            auto shape = input.shape();
+            auto accessor = ng::to_accessor(input);
 
-        check(not input.is_empty(), "Empty array detected");
-        auto shape = input.shape();
-        auto accessor = ng::to_accessor(input);
-        auto arg_values = output_values.view();
-        auto arg_offsets = output_offsets.view();
+            using input_value_t = nt::mutable_value_type_t<Input>;
+            using accessor_t = AccessorI64<const input_value_t, 4>;
+            using value_t = std::conditional_t<nt::empty<Values>, input_value_t, nt::value_type_t<Values>>;
+            using offset_t = std::conditional_t<nt::empty<Offsets>, i64, nt::value_type_t<Offsets>>;
 
-        using input_value_t = nt::mutable_value_type_t<Input>;
-        using offset_t = nt::value_type_t<Offsets>;
-        using pair_t = Pair<input_value_t, offset_t>;
-        auto reduced = pair_t{std::numeric_limits<input_value_t>::lowest(), offset_t{}};
+            using reduce_value_t = std::conditional_t<std::is_void_v<ReducedValue>, value_t, ReducedValue>;
+            using reduce_offset_t = std::conditional_t<std::is_void_v<ReducedOffset>, offset_t, ReducedOffset>;
+            using pair_t = Pair<reduce_value_t, reduce_offset_t>;
+            auto reduced = pair_t{std::numeric_limits<reduce_value_t>::lowest(), reduce_offset_t{}};
 
-        auto device = input.device();
-        if (has_offsets and has_values) {
-            reduce_axes_iwise(
-                shape, device, reduced, wrap(arg_values, arg_offsets),
-                ReduceFirstMax<AccessorI64<const input_value_t, 4>, offset_t>{{accessor}},
-                std::forward<Input>(input),
-                std::forward<Values>(output_values),
-                std::forward<Offsets>(output_offsets));
-        } else if (has_offsets) {
-            reduce_axes_iwise(
-                shape, device, reduced, arg_offsets,
-                ReduceFirstMax<AccessorI64<const input_value_t, 4>, offset_t, false>{{accessor}},
-                std::forward<Input>(input),
-                std::forward<Offsets>(output_offsets));
-        } else {
-            // Reorder DHW to rightmost if offsets are not computed.
-            const auto order_3d = ni::order(input.strides().pop_front(), shape.pop_front());
-            if (vany(NotEqual{}, order_3d, Vec{0, 1, 2})) {
-                auto order_4d = (order_3d + 1).push_front(0);
-                shape = shape.reorder(order_4d);
-                accessor.reorder(order_4d);
-                arg_values = arg_values.permute(order_4d);
+            auto device = input.device();
+            if constexpr (has_offsets and has_values) {
+                reduce_axes_iwise(
+                    shape, device, reduced, wrap(output_values.view(), output_offsets.view()),
+                    ReduceFirstMax<accessor_t, pair_t, true>{{accessor}},
+                    std::forward<Input>(input),
+                    std::forward<Values>(output_values),
+                    std::forward<Offsets>(output_offsets));
+
+            } else if constexpr (has_offsets) {
+                reduce_axes_iwise(
+                    shape, device, reduced, output_offsets.view(),
+                    ReduceFirstMax<accessor_t, pair_t, false>{{accessor}},
+                    std::forward<Input>(input),
+                    std::forward<Offsets>(output_offsets));
+
+            } else {
+                // Reorder DHW to rightmost if offsets are not computed.
+                auto arg_values = output_values.view();
+                const auto order_3d = ni::order(input.strides().pop_front(), shape.pop_front());
+                if (vany(NotEqual{}, order_3d, Vec{0, 1, 2})) {
+                    auto order_4d = (order_3d + 1).push_front(0);
+                    shape = shape.reorder(order_4d);
+                    accessor.reorder(order_4d);
+                    arg_values = arg_values.permute(order_4d);
+                }
+
+                reduce_axes_iwise(
+                    shape, device, reduced, arg_values,
+                    ReduceFirstMax<accessor_t, pair_t, true>{{accessor}},
+                    std::forward<Input>(input),
+                    std::forward<Values>(output_values));
             }
-
-            reduce_axes_iwise(
-                shape, device, reduced, arg_values,
-                ReduceFirstMax<AccessorI64<const input_value_t, 4>, offset_t, true>{{accessor}},
-                std::forward<Input>(input),
-                std::forward<Values>(output_values));
         }
     }
 
@@ -686,63 +714,76 @@ namespace noa {
     /// \details Dimensions of the output arrays should match the input shape, or be 1, indicating the dimension
     ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
     ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
+    ///
+    /// \tparam ReducedValue        Value type used for the reduction. Any scalar.
+    ///                             If the input value type is complex, this type can be real, in which case the
+    ///                             reduction is done on the magnitude of the input values.
+    /// \tparam ReducedOffset       Offset type used for the reduction. Any integer.
     /// \param[in] input            Array to reduce.
     /// \param[out] output_values   Array where to save the minimum values, or empty.
     /// \param[out] output_offsets  Array where to save the offsets of the minimum values, or empty.
     /// \note If the minimum value appears more than once, this function makes no guarantee to which one is selected.
-    template<nt::readable_varray_decay_of_scalar Input,
-             nt::writable_varray_decay_of_scalar Values = View<nt::mutable_value_type_t<Input>>,
-             nt::writable_varray_decay_of_integer Offsets = View<i64>>
+    template<typename ReducedValue = void,
+             typename ReducedOffset = void,
+             typename Input,
+             typename Values = Empty,
+             typename Offsets = Empty>
+    requires guts::arg_reduceable<Input, ReducedValue, ReducedOffset, Values, Offsets>
     void argmin(
         Input&& input,
         Values&& output_values,
-        Offsets&& output_offsets = {}
+        Offsets&& output_offsets
     ) {
-        const bool has_offsets = not output_offsets.is_empty();
-        const bool has_values = not output_values.is_empty();
-        if (not has_offsets and not has_values)
-            return;
+        constexpr bool has_values = not nt::empty<Values>;
+        constexpr bool has_offsets = not nt::empty<Offsets>;
+        if constexpr (has_offsets or has_values) {
+            check(not input.is_empty(), "Empty array detected");
+            auto shape = input.shape();
+            auto accessor = ng::to_accessor(input);
 
-        check(not input.is_empty(), "Empty array detected");
-        auto shape = input.shape();
-        auto accessor = ng::to_accessor(input);
-        auto arg_values = output_values.view();
-        auto arg_offsets = output_offsets.view();
+            using input_value_t = nt::mutable_value_type_t<Input>;
+            using accessor_t = AccessorI64<const input_value_t, 4>;
+            using value_t = std::conditional_t<nt::empty<Values>, input_value_t, nt::value_type_t<Values>>;
+            using offset_t = std::conditional_t<nt::empty<Offsets>, i64, nt::value_type_t<Offsets>>;
 
-        using input_value_t = nt::mutable_value_type_t<Input>;
-        using offset_t = nt::value_type_t<Offsets>;
-        using pair_t = Pair<input_value_t, offset_t>;
-        auto reduced = pair_t{std::numeric_limits<input_value_t>::max(), offset_t{}};
+            using reduce_value_t = std::conditional_t<std::is_void_v<ReducedValue>, value_t, ReducedValue>;
+            using reduce_offset_t = std::conditional_t<std::is_void_v<ReducedOffset>, offset_t, ReducedOffset>;
+            using pair_t = Pair<reduce_value_t, reduce_offset_t>;
+            auto reduced = pair_t{std::numeric_limits<reduce_value_t>::max(), reduce_offset_t{}};
 
-        auto device = input.device();
-        if (has_offsets and has_values) {
-            reduce_axes_iwise(
-                shape, device, reduced, wrap(arg_values, arg_offsets),
-                ReduceFirstMin<AccessorI64<const input_value_t, 4>, offset_t>{{accessor}},
-                std::forward<Input>(input),
-                std::forward<Values>(output_values),
-                std::forward<Offsets>(output_offsets));
-        } else if (has_offsets) {
-            reduce_axes_iwise(
-                shape, device, reduced, arg_offsets,
-                ReduceFirstMin<AccessorI64<const input_value_t, 4>, offset_t, false>{{accessor}},
-                std::forward<Input>(input),
-                std::forward<Offsets>(output_offsets));
-        } else {
-            // Reorder DHW to rightmost if offsets are not computed.
-            const auto order_3d = ni::order(input.strides().pop_front(), shape.pop_front());
-            if (vany(NotEqual{}, order_3d, Vec{0, 1, 2})) {
-                auto order_4d = (order_3d + 1).push_front(0);
-                shape = shape.reorder(order_4d);
-                accessor.reorder(order_4d);
-                arg_values = arg_values.permute(order_4d);
+            auto device = input.device();
+            if constexpr (has_offsets and has_values) {
+                reduce_axes_iwise(
+                    shape, device, reduced, wrap(output_values.view(), output_offsets.view()),
+                    ReduceFirstMin<accessor_t, pair_t, true>{{accessor}},
+                    std::forward<Input>(input),
+                    std::forward<Values>(output_values),
+                    std::forward<Offsets>(output_offsets));
+
+            } else if constexpr (has_offsets) {
+                reduce_axes_iwise(
+                    shape, device, reduced, output_offsets.view(),
+                    ReduceFirstMin<accessor_t, pair_t, false>{{accessor}},
+                    std::forward<Input>(input),
+                    std::forward<Offsets>(output_offsets));
+
+            } else {
+                // Reorder DHW to rightmost if offsets are not computed.
+                auto arg_values = output_values.view();
+                const auto order_3d = ni::order(input.strides().pop_front(), shape.pop_front());
+                if (vany(NotEqual{}, order_3d, Vec{0, 1, 2})) {
+                    auto order_4d = (order_3d + 1).push_front(0);
+                    shape = shape.reorder(order_4d);
+                    accessor.reorder(order_4d);
+                    arg_values = arg_values.permute(order_4d);
+                }
+
+                reduce_axes_iwise(
+                    shape, device, reduced, arg_values,
+                    ReduceFirstMin<accessor_t, pair_t, true>{{accessor}},
+                    std::forward<Input>(input),
+                    std::forward<Values>(output_values));
             }
-
-            reduce_axes_iwise(
-                shape, device, reduced, arg_values,
-                ReduceFirstMin<AccessorI64<const input_value_t, 4>, offset_t, true>{{accessor}},
-                std::forward<Input>(input),
-                std::forward<Values>(output_values));
         }
     }
 }

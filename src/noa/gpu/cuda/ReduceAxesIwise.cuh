@@ -529,8 +529,7 @@ namespace noa::cuda {
     template<typename Config = ReduceAxesIwiseConfig<>,
              typename Op, typename Reduced, typename Output, typename Index, size_t N>
     requires (nt::tuple_of_accessor_value<std::decay_t<Reduced>> and
-              nt::tuple_of_accessor_pure<Output> and
-              nt::tuple_of_accessor_nd<Output, N>)
+              nt::tuple_of_accessor_pure_nd_or_empty<Output, N>)
     constexpr void reduce_axes_iwise(
         const Shape<Index, N>& input_shape,
         const Shape<Index, N>& output_shape,

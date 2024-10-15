@@ -176,7 +176,7 @@ namespace noa::signal {
     /// \note As mentioned above, this function takes the rFFT of the real inputs to correlate.
     ///       The score with zero lag can be computed more efficiently with the cross_correlation_score function.
     ///       If other lags are to be selected (which is the entire point of this function), the inputs
-    ///       should be zero-padded before taking the irFFT to cancel the circular convolution effect of
+    ///       should be zero-padded before taking the rFFT to cancel the circular convolution effect of
     ///       the DFT. The amount of padding along a dimension is equal to the maximum lag allowed.
     ///
     /// \note As opposed to the cross_correlation_score function, this function does not take a normalization flag.
@@ -326,39 +326,36 @@ namespace noa::signal {
         auto reduce_axes = ReduceAxes::all();
         reduce_axes[3 - N] = false; // batch equivalent
 
-        if (all(options.maximum_lag <= 0)) {
-            using reducer_t = guts::ReducePeak<
-                N, REMAP.is_xc2xx(), false, REGISTRATION_RADIUS_LIMIT,
-                input_accessor_t, peak_coordinates_accessor_t, peak_values_accessor_t>;
-
-            reduce_axes_iwise(
-                shape_nd, device, initial_reduction_value, reduce_axes,
-                reducer_t(input_accessor, peak_coordinates_accessor, peak_values_accessor,
-                          shape_nd, options.registration_radius)
-            );
-        } else {
-            auto maximum_allowed_lag = shape_nd.vec.pop_front() / 2;
-            Vec<index_t, N> maximum_lag;
-            for (size_t i{}; i < N; ++i) {
-                auto tmp = static_cast<index_t>(ceil(options.maximum_lag[i]));
-                maximum_lag[i] = tmp <= 0 or tmp > maximum_allowed_lag[i] ? maximum_allowed_lag[i] : tmp;
+        bool apply_ellipse{};
+        auto maximum_allowed_lag = shape_nd.vec.pop_front() / 2;
+        Vec<index_t, N> maximum_lag;
+        Vec<index_t, N> subregion_offset;
+        Shape<index_t, N> subregion_shape;
+        for (size_t i{}; i < N; ++i) {
+            if (options.maximum_lag[i] <= 0) {
+                maximum_lag[i] = maximum_allowed_lag[i];
+            } else {
+                auto lag_index = static_cast<index_t>(ceil(options.maximum_lag[i]));
+                maximum_lag[i] = min(maximum_allowed_lag[i], lag_index);
+                apply_ellipse = true;
             }
 
-            // The reduction is done within the subregion up to the maximum lag.
-            auto subregion_offset = (maximum_allowed_lag - maximum_lag); // center is preserved
-            auto subregion_shape = Shape{maximum_lag * 2 + 1}.push_front(shape[0]);
-
-            using reducer_t = guts::ReducePeak<
-                N, REMAP.is_xc2xx(), true, REGISTRATION_RADIUS_LIMIT,
-                input_accessor_t, peak_coordinates_accessor_t, peak_values_accessor_t>;
-
-            reduce_axes_iwise(
-                subregion_shape, device, initial_reduction_value, reduce_axes,
-                reducer_t(input_accessor, peak_coordinates_accessor, peak_values_accessor,
-                          shape_nd, options.registration_radius,
-                          subregion_offset, maximum_lag.template as<f32>())
-            );
+            // The reduction is done within the subregion that goes up to the maximum lag
+            // (and centered on the original map center, of course).
+            subregion_offset[i] = maximum_allowed_lag[i] - maximum_lag[i];
+            subregion_shape[i] = min(maximum_lag[i] * 2 + 1, shape_nd[i + 1]);
         }
+
+        using reducer_t = guts::ReducePeak<
+            N, REMAP.is_xc2xx(), REGISTRATION_RADIUS_LIMIT,
+            input_accessor_t, peak_coordinates_accessor_t, peak_values_accessor_t>;
+
+        reduce_axes_iwise(
+            subregion_shape.push_front(shape[0]), device, initial_reduction_value, reduce_axes,
+            reducer_t(input_accessor, peak_coordinates_accessor, peak_values_accessor,
+                      shape_nd, options.registration_radius,
+                      subregion_offset, maximum_lag, apply_ellipse)
+        );
     }
 
     template<Remap REMAP, size_t N, nt::readable_varray_decay_of_almost_any<f32, f64> Input>
@@ -378,10 +375,10 @@ namespace noa::signal {
             const auto array_options = ArrayOption{cross_correlation_map.device(), Allocator::ASYNC};
             Array pair = noa::empty<pair_t>(1, array_options);
             cross_correlation_peak<REMAP, N>(
-                    cross_correlation_map.view(),
-                    View(&(pair.get()->first), 1, array_options),
-                    View(&(pair.get()->second), 1, array_options),
-                    options);
+                cross_correlation_map.view(),
+                View(&(pair.get()->first), 1, array_options),
+                View(&(pair.get()->second), 1, array_options),
+                options);
             return pair.first();
         }
     }
@@ -390,10 +387,10 @@ namespace noa::signal {
              typename PeakCoord = View<Vec1<f32>>,
              typename PeakValue = View<nt::mutable_value_type_t<Input>>>
     void cross_correlation_peak_1d(
-            const Input& xmap,
-            const PeakCoord& peak_coordinates,
-            const PeakValue& peak_values = {},
-            const CrossCorrelationPeakOptions<1>& options = {}
+        const Input& xmap,
+        const PeakCoord& peak_coordinates,
+        const PeakValue& peak_values = {},
+        const CrossCorrelationPeakOptions<1>& options = {}
     ) {
         cross_correlation_peak<REMAP>(xmap, peak_coordinates, peak_values, options);
     }
@@ -401,10 +398,10 @@ namespace noa::signal {
              nt::varray_decay PeakCoord = View<Vec2<f32>>,
              nt::varray_decay PeakValue = View<nt::mutable_value_type_t<Input>>>
     void cross_correlation_peak_2d(
-            const Input& xmap,
-            const PeakCoord& peak_coordinates,
-            const PeakValue& peak_values = {},
-            const CrossCorrelationPeakOptions<2>& options = {}
+        const Input& xmap,
+        const PeakCoord& peak_coordinates,
+        const PeakValue& peak_values = {},
+        const CrossCorrelationPeakOptions<2>& options = {}
     ) {
         cross_correlation_peak<REMAP>(xmap, peak_coordinates, peak_values, options);
     }
@@ -412,10 +409,10 @@ namespace noa::signal {
              typename PeakCoord = View<Vec3<f32>>,
              typename PeakValue = View<nt::mutable_value_type_t<Input>>>
     void cross_correlation_peak_3d(
-            const Input& xmap,
-            const PeakCoord& peak_coordinates,
-            const PeakValue& peak_values = {},
-            const CrossCorrelationPeakOptions<3>& options = {}
+        const Input& xmap,
+        const PeakCoord& peak_coordinates,
+        const PeakValue& peak_values = {},
+        const CrossCorrelationPeakOptions<3>& options = {}
     ) {
         cross_correlation_peak<REMAP>(xmap, peak_coordinates, peak_values, options);
     }

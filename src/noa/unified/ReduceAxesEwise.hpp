@@ -60,10 +60,10 @@ namespace noa {
              typename Outputs = ng::AdaptorUnzip<>,
              typename Operator>
     void reduce_axes_ewise(
-            Inputs&& inputs,
-            Reduced&& reduced,
-            Outputs&& outputs,
-            Operator&& op
+        Inputs&& inputs,
+        Reduced&& reduced,
+        Outputs&& outputs,
+        Operator&& op
     ) {
         if constexpr (ng::adaptor<Inputs, Reduced, Outputs>) {
             ng::reduce_axes_ewise<OPTIONS, Inputs::ZIP, Reduced::ZIP, Outputs::ZIP>(
@@ -121,10 +121,10 @@ namespace noa::guts {
     template<ReduceAxesEwiseOptions OPTIONS, bool ZIP_INPUTS, bool ZIP_REDUCED, bool ZIP_OUTPUTS,
              typename Inputs, typename Reduced, typename Outputs, typename Op>
     constexpr void reduce_axes_ewise(
-            Inputs&& inputs,
-            Reduced&& reduced,
-            Outputs&& outputs,
-            Op&& reduce_operator
+        Inputs&& inputs,
+        Reduced&& reduced,
+        Outputs&& outputs,
+        Op&& reduce_operator
     ) {
         constexpr i64 index_of_first_varray = ng::index_of_first_varray<Inputs>();
         static_assert(index_of_first_varray >= 0, "There should be at least one input varray");
@@ -238,12 +238,12 @@ namespace noa::guts {
                     OPTIONS.gpu_max_grid_size,
                     OPTIONS.gpu_enable_vectorization>;
                 noa::cuda::reduce_axes_ewise<config>(
-                        input_shape, output_shape,
-                        std::forward<Op>(reduce_operator),
-                        std::move(input_accessors),
-                        std::move(reduced_accessors),
-                        std::move(output_accessors),
-                        cuda_stream);
+                    input_shape, output_shape,
+                    std::forward<Op>(reduce_operator),
+                    std::move(input_accessors),
+                    std::move(reduced_accessors),
+                    std::move(output_accessors),
+                    cuda_stream);
 
                 // Enqueue the shared handles. See ewise() for more details.
                 [&]<size_t... I, size_t... O>(std::index_sequence<I...>, std::index_sequence<O...>) {

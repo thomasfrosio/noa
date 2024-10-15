@@ -37,37 +37,37 @@ namespace noa {
              typename Operator, typename Index, size_t N>
     requires (N <= 4)
     void reduce_iwise(
-            const Shape<Index, N>& shape,
-            Device device,
-            Reduced&& reduced,
-            Outputs&& outputs,
-            Operator&& op
+        const Shape<Index, N>& shape,
+        Device device,
+        Reduced&& reduced,
+        Outputs&& outputs,
+        Operator&& op
     ) {
         static_assert(guts::adaptor<Outputs> or std::is_lvalue_reference_v<Outputs>,
                       "Output value(s) should be reference(s)");
 
         if constexpr (guts::adaptor<Reduced, Outputs>) {
             guts::reduce_iwise<Reduced::ZIP, Outputs::ZIP>(
-                    shape, device, std::forward<Operator>(op),
-                    std::forward<Reduced>(reduced).tuple,
-                    std::forward<Outputs>(outputs).tuple);
+                shape, device, std::forward<Operator>(op),
+                std::forward<Reduced>(reduced).tuple,
+                std::forward<Outputs>(outputs).tuple);
 
         } else if constexpr (guts::adaptor<Reduced>) {
             guts::reduce_iwise<Reduced::ZIP, false>(
-                    shape, device, std::forward<Operator>(op),
-                    std::forward<Reduced>(reduced).tuple,
-                    forward_as_tuple(std::forward<Outputs>(outputs)));
+                shape, device, std::forward<Operator>(op),
+                std::forward<Reduced>(reduced).tuple,
+                forward_as_tuple(std::forward<Outputs>(outputs)));
 
         } else if constexpr (guts::adaptor<Outputs>) {
             guts::reduce_iwise<false, Outputs::ZIP>(
-                    shape, device, std::forward<Operator>(op),
-                    forward_as_tuple(std::forward<Reduced>(reduced)),
-                    std::forward<Outputs>(outputs).tuple);
+                shape, device, std::forward<Operator>(op),
+                forward_as_tuple(std::forward<Reduced>(reduced)),
+                std::forward<Outputs>(outputs).tuple);
         } else {
             guts::reduce_iwise<false, false>(
-                    shape, device, std::forward<Operator>(op),
-                    forward_as_tuple(std::forward<Reduced>(reduced)),
-                    forward_as_tuple(std::forward<Outputs>(outputs)));
+                shape, device, std::forward<Operator>(op),
+                forward_as_tuple(std::forward<Reduced>(reduced)),
+                forward_as_tuple(std::forward<Outputs>(outputs)));
         }
     }
 }
@@ -76,11 +76,11 @@ namespace noa::guts {
     template<bool ZIP_REDUCED, bool ZIP_OUTPUT,
              typename Op, typename Reduced, typename Output, typename I, size_t N>
     constexpr void reduce_iwise(
-            const Shape<I, N>& shape,
-            Device device,
-            Op&& op,
-            Reduced&& reduced,
-            Output&& outputs
+        const Shape<I, N>& shape,
+        Device device,
+        Op&& op,
+        Reduced&& reduced,
+        Output&& outputs
     ) {
         []<typename... T>(nt::TypeList<T...>){
             static_assert(((not nt::varray<std::remove_reference_t<T>>) and ...),
@@ -100,9 +100,9 @@ namespace noa::guts {
             cpu_stream.synchronize();
             using config_t = noa::cpu::ReduceIwiseConfig<ZIP_REDUCED, ZIP_OUTPUT>;
             noa::cpu::reduce_iwise<config_t>(
-                    shape, std::forward<Op>(op),
-                    std::move(reduced_accessors), output_accessors,
-                    cpu_stream.thread_limit());
+                shape, std::forward<Op>(op),
+                std::move(reduced_accessors), output_accessors,
+                cpu_stream.thread_limit());
 
         } else {
             #ifdef NOA_ENABLE_CUDA
@@ -114,8 +114,8 @@ namespace noa::guts {
             });
 
             constexpr bool use_device_memory =
-                    nt::has_allow_vectorization_v<Op> and
-                    ng::are_all_value_types_trivially_copyable<decltype(output_accessors)>();
+                nt::has_allow_vectorization_v<Op> and
+                ng::are_all_value_types_trivially_copyable<decltype(output_accessors)>();
 
             // Allocate and initialize the output values for the device.
             [[maybe_unused]] auto buffers = output_accessors.map_enumerate([&]<size_t J, typename A>(A& accessor) {
@@ -142,9 +142,9 @@ namespace noa::guts {
             // Compute the reduction.
             using config = noa::cuda::ReduceIwiseConfig<ZIP_REDUCED, ZIP_OUTPUT>;
             noa::cuda::reduce_iwise<config>(
-                    shape, std::forward<Op>(op),
-                    std::move(reduced_accessors),
-                    output_accessors, cuda_stream);
+                shape, std::forward<Op>(op),
+                std::move(reduced_accessors),
+                output_accessors, cuda_stream);
             if constexpr (not use_device_memory)
                 cuda_stream.synchronize();
 
