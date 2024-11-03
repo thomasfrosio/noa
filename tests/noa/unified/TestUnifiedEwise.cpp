@@ -143,7 +143,7 @@ TEST_CASE("unified::ewise - zip vs wrap", "[noa][unified]") {
 
             auto output0 = noa::like<f64>(lhs);
             auto output1 = noa::like(output0);
-            noa::ewise(noa::zip(lhs, mhs, rhs), noa::wrap(output0, output1),
+            noa::ewise(noa::fuse(lhs, mhs, rhs), noa::wrap(output0, output1),
                        []NOA_HD(const Tuple<i64&, i64&, i64&>& inputs, f64& o0, f64& o1) {
                            const auto sum = inputs.apply([](auto& ... i) {
                                return (i + ...);

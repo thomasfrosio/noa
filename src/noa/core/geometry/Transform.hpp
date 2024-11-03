@@ -202,7 +202,7 @@ namespace noa::geometry::guts {
         const Vec<T, N, A>& vector
     ) -> Vec<T, N, A> {
         if constexpr (nt::mat_of_shape<X, N, N>) {
-            return xform * vector; // linear
+            return xform * vector;
         } else if constexpr (nt::mat_of_shape<X, N, N + 1>) {
             return xform * vector.push_back(1); // truncated
         } else if constexpr (nt::mat_of_shape<X, N + 1, N + 1>) {

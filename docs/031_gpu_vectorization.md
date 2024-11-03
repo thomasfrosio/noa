@@ -2,7 +2,7 @@
 
 By default, the element-wise interfaces (`ewise`, `reduce_ewise` and `reduce_axes_ewise`) allow the operators to write from the inputs and read from the outputs. While this can be useful for some operations, it may also constrain some backends in doing certain optimizations.
 
-For instance, the CUDA backend supports "vectorized" reads/writes from/to global memory, which may help increasing the data throughput on the GPU. However, to do so, we use temporary input/output values and pass these values to the operator instead of the values from the input/output arrays. For instance, in the case of `ewise`, we would do something like:
+For instance, the CUDA backend supports "vectorized" reads/writes from/to global memory, which may help increase the data throughput on the GPU. However, to do so, we use temporary input/output values and pass these values to the operator instead of the values from the input/output arrays. For instance, in the case of `ewise`, we would do something like:
 ```c++
 // noa::ewise(input: a, output: b, op) ->
 a_buffer, b_buffer; // uninitialized

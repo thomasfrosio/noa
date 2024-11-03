@@ -25,13 +25,15 @@ namespace noa::cpu {
     /// \details This allocator is designed to allocate medium to large memory regions, as it enforces an alignment
     ///          of 256 bytes by default (or more if the type requires it). Moreover, the allocation is done with
     ///          malloc-like functions, thus returns uninitialized memory regions, i.e. it is undefined behavior to
-    ///          directly read from this memory.
+    ///          directly read from this memory. Similarly, the allocator's deleter is simply freeing the memory,
+    ///          thereby requiring T to be trivially destructible.
     template<typename T>
     class AllocatorHeap {
     public:
         static_assert(not std::is_pointer_v<T> and
                       not std::is_reference_v<T> and
-                      not std::is_const_v<T>);
+                      not std::is_const_v<T> and
+                      std::is_trivially_destructible_v<T>);
 
         using value_type = T;
         using shared_type = std::shared_ptr<value_type[]>;

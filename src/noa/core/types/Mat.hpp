@@ -187,7 +187,7 @@ namespace noa::inline types {
         static constexpr i64 SSIZE = ROWS;
 
     public:
-        row_type row[ROWS];
+        row_type rows[ROWS];
 
     public: // Static factory functions
         [[nodiscard]] NOA_HD static constexpr Mat from_value(nt::scalar auto s) noexcept {
@@ -276,20 +276,20 @@ namespace noa::inline types {
     public: // Component accesses
         NOA_HD constexpr auto operator[](nt::integer auto i) noexcept -> row_type& {
             NOA_ASSERT(static_cast<size_t>(i) < ROWS);
-            return row[i];
+            return rows[i];
         }
 
         NOA_HD constexpr auto operator[](nt::integer auto i) const noexcept -> const row_type& {
             NOA_ASSERT(static_cast<size_t>(i) < ROWS);
-            return row[i];
+            return rows[i];
         }
 
         // Structure binding support.
         template<int I> [[nodiscard]] NOA_HD constexpr const row_type& get() const noexcept { return (*this)[I]; }
         template<int I> [[nodiscard]] NOA_HD constexpr row_type& get() noexcept { return (*this)[I]; }
 
-        [[nodiscard]] NOA_HD constexpr const row_type* data() const noexcept { return row; }
-        [[nodiscard]] NOA_HD constexpr row_type* data() noexcept { return row; }
+        [[nodiscard]] NOA_HD constexpr const row_type* data() const noexcept { return rows; }
+        [[nodiscard]] NOA_HD constexpr row_type* data() noexcept { return rows; }
         [[nodiscard]] NOA_HD static constexpr size_t size() noexcept { return SIZE; };
         [[nodiscard]] NOA_HD static constexpr i64 ssize() noexcept { return SSIZE; };
 
@@ -304,13 +304,13 @@ namespace noa::inline types {
     public: // Assignment operators
         NOA_HD constexpr Mat& operator+=(const Mat& m) noexcept {
             for (size_t i{}; i < ROWS; ++i)
-                row[i] += m[i];
+                rows[i] += m[i];
             return *this;
         }
 
         NOA_HD constexpr Mat& operator-=(const Mat& m) noexcept {
             for (size_t i{}; i < ROWS; ++i)
-                row[i] -= m[i];
+                rows[i] -= m[i];
             return *this;
         }
 
@@ -325,25 +325,25 @@ namespace noa::inline types {
         }
 
         NOA_HD constexpr Mat& operator+=(value_type s) noexcept {
-            for (auto& r: row)
+            for (auto& r: rows)
                 r += s;
             return *this;
         }
 
         NOA_HD constexpr Mat& operator-=(value_type s) noexcept {
-            for (auto& r: row)
+            for (auto& r: rows)
                 r -= s;
             return *this;
         }
 
         NOA_HD constexpr Mat& operator*=(value_type s) noexcept {
-            for (auto& r: row)
+            for (auto& r: rows)
                 r *= s;
             return *this;
         }
 
         NOA_HD constexpr Mat& operator/=(value_type s) noexcept {
-            for (auto& r: row)
+            for (auto& r: rows)
                 r /= s;
             return *this;
         }
@@ -474,6 +474,46 @@ namespace noa::inline types {
         template<nt::real U>
         [[nodiscard]] NOA_HD constexpr auto as() const noexcept {
             return Mat<U, ROWS, COLS>::from_matrix(*this);
+        }
+
+        template<size_t S = 1> requires (ROWS > S)
+        [[nodiscard]] NOA_HD constexpr auto pop_front() const noexcept {
+            return []<size_t... I>(std::index_sequence<I...>, auto& m) { // nvcc bug - no capture
+                return Mat<T, ROWS - S, COLS>::from_rows(m[I + S]...);
+            }(std::make_index_sequence<ROWS - S>{}, *this);
+        }
+
+        template<size_t S = 1> requires (ROWS > S)
+        [[nodiscard]] NOA_HD constexpr auto pop_back() const noexcept {
+            return []<size_t... I>(std::index_sequence<I...>, auto& m) { // nvcc bug - no capture
+                return Mat<T, ROWS - S, COLS>::from_rows(m[I]...);
+            }(std::make_index_sequence<ROWS - S>{}, *this);
+        }
+
+        [[nodiscard]] NOA_HD constexpr auto push_front(const row_type& r) const noexcept {
+            return []<size_t... I>(std::index_sequence<I...>, auto& m, auto& r_) { // nvcc bug - no capture
+                return Mat<value_type, ROWS + 1, COLS>{r_, m[I]...};
+            }(std::make_index_sequence<ROWS>{}, *this, r);
+        }
+
+        [[nodiscard]] NOA_HD constexpr auto push_back(const row_type& r) const noexcept {
+            return []<size_t... I>(std::index_sequence<I...>, auto& m, auto& r_) { // nvcc bug - no capture
+                return Mat<value_type, ROWS + 1, COLS>{m[I]..., r_};
+            }(std::make_index_sequence<ROWS>{}, *this, r);
+        }
+
+        template<nt::integer... I>
+        [[nodiscard]] NOA_HD constexpr auto filter(I... i) const noexcept {
+            return Mat<value_type, sizeof...(I), COLS>::from_rows((*this)[i]...);
+        }
+
+        [[nodiscard]] NOA_IHD constexpr auto row(nt::integer auto i) const noexcept -> row_type {
+            return (*this)[i];
+        }
+        [[nodiscard]] NOA_IHD constexpr auto col(nt::integer auto i) const noexcept -> column_type {
+            return []<size_t... I>(std::index_sequence<I...>, auto& m, auto i_) { // nvcc bug - no capture
+                return column_type{m[I][i_]...};
+            }(std::make_index_sequence<ROWS>{}, *this, i);
         }
 
         [[nodiscard]] NOA_IHD constexpr Mat transpose() const noexcept {

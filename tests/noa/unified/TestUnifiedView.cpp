@@ -87,16 +87,16 @@ TEMPLATE_TEST_CASE("unified::View, shape manipulation", "[noa][unified]", i32, u
     AND_THEN("as another type") {
         Array<f64> buffer({2, 3, 4, 5});
         View<f64> c = buffer.view();
-        View<unsigned char> d = c.as<unsigned char>();
+        View<unsigned char> d = c.reinterpret_as<unsigned char>();
         REQUIRE(all(d.shape() == Shape4<i64>{2, 3, 4, 40}));
         REQUIRE(all(d.strides() == Strides4<i64>{480, 160, 40, 1}));
 
         Array<c64> e({2, 3, 4, 5});
-        View f = e.view().as<f64>();
+        View f = e.view().reinterpret_as<f64>();
         REQUIRE(all(f.shape() == Shape4<i64>{2, 3, 4, 10}));
         REQUIRE(all(f.strides() == Strides4<i64>{120, 40, 10, 1}));
 
-        auto g = f.as<c64>();
+        auto g = f.reinterpret_as<c64>();
         REQUIRE(all(g.shape() == Shape4<i64>{2, 3, 4, 5}));
         REQUIRE(all(g.strides() == Strides4<i64>{60, 20, 5, 1}));
     }

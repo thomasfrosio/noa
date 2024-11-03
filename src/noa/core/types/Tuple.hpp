@@ -375,6 +375,7 @@ namespace noa {
     /// \endcode
     template<typename... T>
     constexpr auto forward_as_final_tuple(T&&... v) {
+        // Tuple<T...>{std::forward<T>(v)...} is almost ok, but passing T const&& saves const T.
         return Tuple<std::conditional_t<std::is_lvalue_reference_v<T>, T, std::decay_t<T>>...>{std::forward<T>(v)...};
     }
 }

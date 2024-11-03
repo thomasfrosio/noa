@@ -75,7 +75,7 @@ namespace noa::fft {
                 cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), output);
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         }
         guts::normalize(std::forward<Output>(output), logical_shape, Sign::FORWARD, options.norm);
@@ -132,7 +132,7 @@ namespace noa::fft {
                 output.shape(), options.cache_plan, cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), output);
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         }
         guts::normalize(std::forward<Output>(output), logical_shape, Sign::BACKWARD, options.norm);
@@ -191,7 +191,7 @@ namespace noa::fft {
                 input.shape(), sign, options.cache_plan, cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), output);
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         }
         guts::normalize(std::forward<Output>(output), logical_shape, sign, options.norm);

@@ -84,12 +84,12 @@ noa::ewise({}, b, [](f64&) {});
 ```c++
 // Multiple inputs and outputs.
 
-// To pass multiple arguments, noa::wrap and/or noa::zip should be used.
+// To pass multiple arguments, noa::wrap and/or noa::fuse should be used.
 // These are simple types that behave (almost) as std::forward_as_tuple and
 // that can be understood by the ewise function.
 
 // noa::wrap says that the arguments should be passed as is, in the same order as specified.
-// noa::zip says that the arguments should be zipped in a Tuple. As mentionned above,
+// noa::fuse says that the arguments should be fused in a Tuple. As mentionned above,
 // the arguments are passed as lvalue references. The Tuple itself is also passed as a
 // lvalue reference.
 
@@ -99,7 +99,7 @@ View<f64> c;
 View<i64> d;
 noa::ewise(noa::wrap(a, b), noa::wrap(c, d), [](const f32&, const i32&, f64&, i64&) {});
 noa::ewise(noa::wrap(a, b), noa::wrap(c, d), [](f32, i32, f64&, i64&) {}); // inputs by value
-noa::ewise(noa::zip(a, b), noa::zip(c, d),
+noa::ewise(noa::fuse(a, b), noa::fuse(c, d),
     [](const Tuple<const f32&, const i32&>&, const Tuple<f64&, i64&>&) {});
 
 // Zip is mostly useful when the operator is meant to handle a variable number of inputs:
@@ -114,7 +114,7 @@ struct EwiseSum {
         }(std::make_index_sequence<sizeof...(T)>{});
     }
 };
-noa::ewise(noa::zip(a, b, d), c, EwiseSum{});
+noa::ewise(noa::fuse(a, b, d), c, EwiseSum{});
 ```
 
 Here's a slightly more real example:
@@ -132,7 +132,7 @@ const auto output_1 = noa::like(output_1);
 // All inputs and outputs should be on the same device and have compatible shapes.
 // Also note that Array and View can be used interchangeably, as always.
 noa::ewise(
-    noa::wrap(lhs, mhs, rhs), noa::zip(output_0, output_1),
+    noa::wrap(lhs, mhs, rhs), noa::fuse(output_0, output_1),
     [](i32 l, i32 m, i32 r, const Tuple<f32&, f32&>& outputs) {
         auto& [o0, o1] = outputs;
         o0 = l + m * 2;

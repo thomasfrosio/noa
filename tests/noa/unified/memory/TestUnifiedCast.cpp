@@ -1,6 +1,4 @@
 #include <noa/unified/Random.hpp>
-#include <noa/unified/Cast.hpp>
-
 #include <catch2/catch.hpp>
 #include "Utils.hpp"
 
@@ -27,17 +25,15 @@ TEMPLATE_TEST_CASE("unified::memory::cast", "[noa][unified]", i32, f32, f64) {
         using namespace noa::indexing;
         auto results = Array<TestType>(shape, options);
         results = results.subregion(
-                Ellipsis{},
-                Slice{0, subregion_shape[1]},
-                Slice{0, subregion_shape[2]},
-                Slice{0, subregion_shape[3]});
+            Ellipsis{},
+            Slice{0, subregion_shape[1]},
+            Slice{0, subregion_shape[2]},
+            Slice{0, subregion_shape[3]});
 
         const Array data0 = noa::random(noa::Uniform(-50, 50), results.shape(), options);
         noa::cast(data0, results);
 
-        const Array<i32> data1(results.shape(), options);
-        noa::cast(results, data1);
-
+        const Array data1 = results.template as<i32>();
         REQUIRE(test::allclose_abs(data0, data1));
     }
 }

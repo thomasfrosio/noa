@@ -26,6 +26,7 @@ namespace noa {
     ///                     The function is enqueued to the current stream of that device.
     /// \param op           Operator satisfying the iwise core interface.
     ///                     The operator is perfectly forwarded to the backend.
+    ///                     Each computing thread holds a copy of the operator.
     /// \param attachments  Resources to attach to the function call. These are usually Arrays that hold the
     ///                     resources used by the operator, but others attachments can be passed too (see note below).
     ///
@@ -75,7 +76,7 @@ namespace noa {
                 cuda_stream.enqueue_attach(std::forward<Ts>(attachments)...);
                 return;
                 #else
-                panic("No GPU backend detected");
+                panic_no_gpu_backend();
                 #endif
             }
         }

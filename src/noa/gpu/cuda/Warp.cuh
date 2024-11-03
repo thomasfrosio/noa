@@ -1,4 +1,5 @@
 #pragma once
+#include "noa/gpu/cuda/IncludeGuard.cuh"
 
 #include "noa/core/Config.hpp"
 #include "noa/core/types/Vec.hpp"

@@ -9,6 +9,7 @@ set(NOA_CUDA_HEADERS
     gpu/cuda/Event.hpp
     gpu/cuda/Ewise.cuh
     gpu/cuda/Exception.hpp
+    gpu/cuda/IncludeGuard.cuh
     gpu/cuda/Iwise.cuh
     gpu/cuda/Median.cuh
     gpu/cuda/MemoryPool.hpp
@@ -21,8 +22,7 @@ set(NOA_CUDA_HEADERS
     gpu/cuda/Runtime.hpp
     gpu/cuda/Sort.cuh
     gpu/cuda/Stream.hpp
-    gpu/cuda/Texture.hpp
-    gpu/cuda/Types.hpp
+    gpu/cuda/Texture.cuh
     gpu/cuda/Version.hpp
     gpu/cuda/Warp.cuh
 

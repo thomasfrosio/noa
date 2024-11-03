@@ -36,15 +36,16 @@ namespace noa::guts {
 
 namespace noa {
     /// Generic element-wise transformation.
-    /// \param[in] inputs       Input varray(s) and/or values to transform.
-    /// \param[out] outputs     Output varray(s).
-    /// \param ewise_operator   Operator satisfying the ewise core interface.
-    ///                         The operator is perfectly forwarded to the backend, but note that more than
-    ///                         one move can happen by the time the operator reaches the compute kernel.
+    /// \param[in] inputs   Input varray(s) and/or values to transform.
+    /// \param[out] outputs Output varray(s).
+    /// \param op           Operator satisfying the ewise core interface.
+    ///                     The operator is perfectly forwarded to the backend, but note that more than
+    ///                     one move can happen by the time the operator reaches the compute kernel.
+    ///                     Each computing thread holds a copy of this operator.
     ///
-    /// \note Compared to iwise, this function can analyse the inputs and outputs to deduce the most efficient way to
-    ///       traverse the arrays, e.g. by reordering the dimensions, collapsing contiguous dimensions together (up to
-    ///       1d), and can trigger the vectorization for the 1d case by checking for data contiguity and aliasing.
+    /// \note Compared to iwise, this function can analyze the inputs and outputs to deduce the most efficient way to
+    ///       traverse the arrays. For instance, it can reorder dimensions, collapse contiguous dimensions together
+    ///       (up to 1d), and can trigger the vectorization for the 1d case by checking for data contiguity and aliasing.
     ///       Note that because the core interface allows the operator to modify the inputs and allows the inputs/outputs
     ///       to alias, GPU vectorization can only be triggered if the input varrays have a const value type and if the
     ///       inputs/outputs don't alias. Note that the core interface also allows the output values to be read/updated,
@@ -66,37 +67,33 @@ namespace noa {
     ///       If outputs are provided, there should all be varrays with the same shape, have the same stride order
     ///       and cannot be broadcasted (strides of zeros are not allowed). In this case, the varray inputs will
     ///       need to match the output shape or be broadcastable to the output shape. If the stride order of the
-    ///       outputs is not the rightmost order, output varrays are reordered to the rightmost order to maximise
+    ///       outputs is not the rightmost order, output varrays are reordered to the rightmost order to maximize
     ///       performance. Of course, this means that input varrays are reordered as well for correctness.
-    ///
-    /// \note To be supported by the CUDA JIT backend, the source of \p ewise_operator needs to be added to the sources
-    ///       available to the JIT compiler. This can be set up as part of the build, but source code can also
-    ///       be added at runtime using the noa::Session::add_cuda_sources(...) functions. TODO
     template<EwiseOptions OPTIONS = EwiseOptions{},
-             typename Input = guts::AdaptorUnzip<>,
-             typename Output = guts::AdaptorUnzip<>,
+             typename Input = ng::AdaptorUnzip<>,
+             typename Output = ng::AdaptorUnzip<>,
              typename EwiseOperator> // TODO EwiseChecker
-    void ewise(Input&& inputs, Output&& outputs, EwiseOperator&& ewise_operator) {
-        if constexpr (guts::adaptor<Input, Output>) {
-            ng::ewise<OPTIONS, Input::ZIP, Output::ZIP>(
+    void ewise(Input&& inputs, Output&& outputs, EwiseOperator&& op) {
+        if constexpr (ng::adaptor_decay<Input, Output>) {
+            ng::ewise<OPTIONS, std::decay_t<Input>::ZIP, std::decay_t<Output>::ZIP>(
                 std::forward<Input>(inputs).tuple,
                 std::forward<Output>(outputs).tuple,
-                std::forward<EwiseOperator>(ewise_operator));
-        } else if constexpr (guts::adaptor<Input>) {
-            ng::ewise<OPTIONS, Input::ZIP, false>(
+                std::forward<EwiseOperator>(op));
+        } else if constexpr (ng::adaptor_decay<Input>) {
+            ng::ewise<OPTIONS, std::decay_t<Input>::ZIP, false>(
                 std::forward<Input>(inputs).tuple,
                 forward_as_tuple(std::forward<Output>(outputs)), // wrap
-                std::forward<EwiseOperator>(ewise_operator));
-        } else if constexpr (guts::adaptor<Output>) {
-            ng::ewise<OPTIONS, false, Output::ZIP>(
+                std::forward<EwiseOperator>(op));
+        } else if constexpr (ng::adaptor_decay<Output>) {
+            ng::ewise<OPTIONS, false, std::decay_t<Output>::ZIP>(
                 forward_as_tuple(std::forward<Input>(inputs)), // wrap
                 std::forward<Output>(outputs).tuple,
-                std::forward<EwiseOperator>(ewise_operator));
+                std::forward<EwiseOperator>(op));
         } else {
             ng::ewise<OPTIONS, false, false>(
                 forward_as_tuple(std::forward<Input>(inputs)), // wrap
                 forward_as_tuple(std::forward<Output>(outputs)), // wrap
-                std::forward<EwiseOperator>(ewise_operator));
+                std::forward<EwiseOperator>(op));
         }
     }
 }
@@ -165,7 +162,7 @@ namespace noa::guts {
                                       input_shape, shape);
                             }
                         } else {
-                            static_assert(nt::accessor_value<>);
+                            static_assert(nt::accessor_value<T>);
                         }
                     });
                 } else {
@@ -270,7 +267,7 @@ namespace noa::guts {
                     }(nt::index_list_t<Inputs>{}, nt::index_list_t<Outputs>{});
                     return;
                     #else
-                    panic("No GPU backend detected");
+                    panic_no_gpu_backend();
                     #endif
                 }
             }

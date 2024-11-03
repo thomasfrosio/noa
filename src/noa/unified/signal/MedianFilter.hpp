@@ -73,7 +73,7 @@ namespace noa::signal {
                 options.border_mode, options.window_size, cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         }
     }
@@ -131,7 +131,7 @@ namespace noa::signal {
                 options.border_mode, options.window_size, cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         }
     }
@@ -188,7 +188,7 @@ namespace noa::signal {
                 options.border_mode, options.window_size, cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         }
     }

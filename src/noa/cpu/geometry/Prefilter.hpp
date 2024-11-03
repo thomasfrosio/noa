@@ -34,26 +34,26 @@ namespace noa::cpu::geometry::guts {
             for (i64 i = 0; i < shape[0]; ++i)
                 for (i64 y = 0; y < shape[1]; ++y) // every row
                     bspline::filter_inplace(
-                            output + output_strides[0] * i + y * output_strides[1],
-                            output_strides[2], shape[2]);
+                        output + output_strides[0] * i + y * output_strides[1],
+                        output_strides[2], shape[2]);
 
             for (i64 i = 0; i < shape[0]; ++i)
                 for (i64 x = 0; x < shape[2]; ++x) // every column
                     bspline::filter_inplace(
-                            output + output_strides[0] * i + x * output_strides[2],
-                            output_strides[1], shape[1]);
+                        output + output_strides[0] * i + x * output_strides[2],
+                        output_strides[1], shape[1]);
         } else {
             for (i64 i = 0; i < shape[0]; ++i)
                 for (i64 y = 0; y < shape[1]; ++y) // every row
                     bspline::filter(
-                            input + i * input_strides[0] + y * input_strides[1], input_strides[2],
-                            output + i * output_strides[0] + y * output_strides[1], output_strides[2], shape[2]);
+                        input + i * input_strides[0] + y * input_strides[1], input_strides[2],
+                        output + i * output_strides[0] + y * output_strides[1], output_strides[2], shape[2]);
 
             for (i64 i = 0; i < shape[0]; ++i)
                 for (i64 x = 0; x < shape[2]; ++x) // every column
                     bspline::filter_inplace(
-                            output + i * output_strides[0] + x * output_strides[2],
-                            output_strides[1], shape[1]);
+                        output + i * output_strides[0] + x * output_strides[2],
+                        output_strides[1], shape[1]);
         }
     }
 
@@ -64,7 +64,7 @@ namespace noa::cpu::geometry::guts {
         const Shape4<i64>& shape, i64 threads
     ) {
         using bspline = noa::geometry::guts::BSplinePrefilter1d<T, i64>;
-        constexpr i64 OMP_THRESHOLD = 1048576; // 1024*1024
+        [[maybe_unused]] constexpr i64 OMP_THRESHOLD = 1048576; // 1024*1024
         const i64 n_iterations = shape.pop_back().n_elements();
 
         if (input == output) {
@@ -76,22 +76,22 @@ namespace noa::cpu::geometry::guts {
                     for (i64 z = 0; z < shape[1]; ++z)
                         for (i64 y = 0; y < shape[2]; ++y)
                             bspline::filter_inplace(
-                                    output + ni::offset_at(output_strides, i, z, y),
-                                    output_strides[3], shape[3]); // every row
+                                output + ni::offset_at(output_strides, i, z, y),
+                                output_strides[3], shape[3]); // every row
                 #pragma omp for collapse(3)
                 for (i64 i = 0; i < shape[0]; ++i)
                     for (i64 z = 0; z < shape[1]; ++z)
                         for (i64 x = 0; x < shape[3]; ++x)
                             bspline::filter_inplace(
-                                    output + i * output_strides[0] + z * output_strides[1] + x * output_strides[3],
-                                    output_strides[2], shape[2]); // every column
+                                output + i * output_strides[0] + z * output_strides[1] + x * output_strides[3],
+                                output_strides[2], shape[2]); // every column
                 #pragma omp for collapse(3)
                 for (i64 i = 0; i < shape[0]; ++i)
                     for (i64 y = 0; y < shape[2]; ++y)
                         for (i64 x = 0; x < shape[3]; ++x)
                             bspline::filter_inplace(
-                                    output + i * output_strides[0] + y * output_strides[2] + x * output_strides[3],
-                                    output_strides[1], shape[1]); // every page
+                                output + i * output_strides[0] + y * output_strides[2] + x * output_strides[3],
+                                output_strides[1], shape[1]); // every page
             }
         } else {
             #pragma omp parallel num_threads(threads) default(none) if(n_iterations > OMP_THRESHOLD) \
@@ -102,23 +102,23 @@ namespace noa::cpu::geometry::guts {
                     for (i64 z = 0; z < shape[1]; ++z)
                         for (i64 y = 0; y < shape[2]; ++y)
                             bspline::filter(
-                                    input + ni::offset_at(input_strides, i, z, y), input_strides[3],
-                                    output + ni::offset_at(output_strides, i, z, y), output_strides[3],
-                                    shape[3]); // every row
+                                input + ni::offset_at(input_strides, i, z, y), input_strides[3],
+                                output + ni::offset_at(output_strides, i, z, y), output_strides[3],
+                                shape[3]); // every row
                 #pragma omp for collapse(3)
                 for (i64 i = 0; i < shape[0]; ++i)
                     for (i64 z = 0; z < shape[1]; ++z)
                         for (i64 x = 0; x < shape[3]; ++x)
                             bspline::filter_inplace(
-                                    output + i * output_strides[0] + z * output_strides[1] + x * output_strides[3],
-                                    output_strides[2], shape[2]); // every column
+                                output + i * output_strides[0] + z * output_strides[1] + x * output_strides[3],
+                                output_strides[2], shape[2]); // every column
                 #pragma omp for collapse(3)
                 for (i64 i = 0; i < shape[0]; ++i)
                     for (i64 y = 0; y < shape[2]; ++y)
                         for (i64 x = 0; x < shape[3]; ++x)
                             bspline::filter_inplace(
-                                    output + i * output_strides[0] + y * output_strides[2] + x * output_strides[3],
-                                    output_strides[1], shape[1]); // every page
+                                output + i * output_strides[0] + y * output_strides[2] + x * output_strides[3],
+                                output_strides[1], shape[1]); // every page
             }
         }
     }

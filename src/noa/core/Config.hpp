@@ -129,6 +129,7 @@
 // and device (which is necessary to pass objects to CUDA), turn of the attribute
 // entirely for now.
 #if defined(NOA_ENABLE_CUDA)
+    #define NOA_ENABLE_GPU
     #define NOA_NO_UNIQUE_ADDRESS
 #else
     #define NOA_NO_UNIQUE_ADDRESS [[no_unique_address]]

@@ -107,7 +107,7 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             return noa::cuda::median(array.get(), array.strides(), array.shape(), overwrite, stream.cuda());
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         }
     }

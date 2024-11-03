@@ -36,7 +36,7 @@ namespace noa::geometry::guts {
         NOA_HD static constexpr void filter_inplace(value_type* output, sint_type strides, sint_type size) {
             // causal initialization and recursion
             value_type* c = output;
-            value_type previous_c;  //cache the previously calculated c rather than look it up again (faster!)
+            value_type previous_c; // cache the previously calculated c rather than look it up again (faster!)
             *c = previous_c = LAMBDA * initial_causal_coefficient_(c, strides, size);
             for (sint_type n = 1; n < size; n++) {
                 c += strides;

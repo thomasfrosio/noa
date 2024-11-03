@@ -90,8 +90,8 @@ namespace noa::geometry::guts {
         const auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0, 2, 3).template as<Index>());
         const auto output_shape = output.shape().filter(0, 2, 3).template as<Index>();
 
-        auto launch_iwise = [&]<Interp INTERP> {
-            auto interpolator = ng::to_interpolator<2, INTERP, Border::ZERO, Index, coord_t, IS_GPU>(input);
+        auto launch_iwise = [&](auto interp) {
+            auto interpolator = ng::to_interpolator<2, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
             auto op = [&]{
                 if constexpr (CARTESIAN_TO_POLAR) {
                     return Cartesian2Polar<Index, coord_t, decltype(interpolator), output_accessor_t>(
@@ -107,7 +107,7 @@ namespace noa::geometry::guts {
                         phi_range, options.phi_endpoint);
                 }
             }();
-            return iwise<{
+            return iwise<IwiseOptions{
                 .generate_cpu = not IS_GPU,
                 .generate_gpu = IS_GPU,
             }>(output_shape, output.device(), op, std::forward<Input>(input), std::forward<Output>(output));
@@ -117,20 +117,20 @@ namespace noa::geometry::guts {
         if constexpr (nt::texture_decay<Input>)
             interp = input.interp();
         switch (interp) {
-            case Interp::NEAREST:            return launch_iwise.template operator()<Interp::NEAREST>();
-            case Interp::NEAREST_FAST:       return launch_iwise.template operator()<Interp::NEAREST_FAST>();
-            case Interp::LINEAR:             return launch_iwise.template operator()<Interp::LINEAR>();
-            case Interp::LINEAR_FAST:        return launch_iwise.template operator()<Interp::LINEAR_FAST>();
-            case Interp::CUBIC:              return launch_iwise.template operator()<Interp::CUBIC>();
-            case Interp::CUBIC_FAST:         return launch_iwise.template operator()<Interp::CUBIC_FAST>();
-            case Interp::CUBIC_BSPLINE:      return launch_iwise.template operator()<Interp::CUBIC_BSPLINE>();
-            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise.template operator()<Interp::CUBIC_BSPLINE_FAST>();
-            case Interp::LANCZOS4:           return launch_iwise.template operator()<Interp::LANCZOS4>();
-            case Interp::LANCZOS6:           return launch_iwise.template operator()<Interp::LANCZOS6>();
-            case Interp::LANCZOS8:           return launch_iwise.template operator()<Interp::LANCZOS8>();
-            case Interp::LANCZOS4_FAST:      return launch_iwise.template operator()<Interp::LANCZOS4_FAST>();
-            case Interp::LANCZOS6_FAST:      return launch_iwise.template operator()<Interp::LANCZOS6_FAST>();
-            case Interp::LANCZOS8_FAST:      return launch_iwise.template operator()<Interp::LANCZOS8_FAST>();
+            case Interp::NEAREST:            return launch_iwise(ng::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_iwise(ng::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_iwise(ng::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_iwise(ng::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_iwise(ng::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_iwise(ng::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::LANCZOS4:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS8>{});
+            case Interp::LANCZOS4_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS4_FAST>{});
+            case Interp::LANCZOS6_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS6_FAST>{});
+            case Interp::LANCZOS8_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
 }
@@ -194,7 +194,7 @@ namespace noa::geometry {
                     cartesian_center, options);
             }
             #else
-            std::terminate(); // unreachable
+            panic_no_gpu_backend(); // unreachable
             #endif
         } else {
             guts::launch_cartesian_polar<true, false, i64>(
@@ -237,7 +237,7 @@ namespace noa::geometry {
                     cartesian_center, options);
             }
             #else
-            std::terminate(); // unreachable
+            panic_no_gpu_backend(); // unreachable
             #endif
         } else {
             guts::launch_cartesian_polar<false, false, i64>(

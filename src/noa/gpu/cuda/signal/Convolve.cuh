@@ -1,4 +1,5 @@
 #pragma once
+#include "noa/gpu/cuda/IncludeGuard.cuh"
 
 #include "noa/gpu/cuda/Allocators.hpp"
 #include "noa/gpu/cuda/Block.cuh"

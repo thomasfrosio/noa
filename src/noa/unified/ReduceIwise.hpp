@@ -25,15 +25,15 @@ namespace noa {
     /// \param shape            Shape of the 1-, 2-, 3- or 4-dimensional loop.
     /// \param device           Device on which to dispatch the reduction. When this function returns, the current
     ///                         stream of that device is synchronized.
-    /// \param[in] reduced      Initial reduction value, or an adaptor (see wrap() and zip()) containing the initial
+    /// \param[in] reduced      Initial reduction value, or an adaptor (see wrap() and fuse()) containing the initial
     ///                         reduction value(s).
-    /// \param[in,out] outputs  Output value, an adaptor (see wrap() and zip()) containing (a reference of) the output
+    /// \param[in,out] outputs  Output value, an adaptor (see wrap() and fuse()) containing (a reference of) the output
     ///                         value(s), or an empty adaptor. When this function returns, the output values will have
     ///                         been updated.
     /// \param[in] op           Operator satisfying the reduce_iwise core interface. The operator is perfectly
     ///                         forwarded to the backend (it is moved or copied to the backend compute kernel).
-    template<typename Reduced = guts::AdaptorUnzip<>,
-             typename Outputs = guts::AdaptorUnzip<>,
+    template<typename Reduced = ng::AdaptorUnzip<>,
+             typename Outputs = ng::AdaptorUnzip<>,
              typename Operator, typename Index, size_t N>
     requires (N <= 4)
     void reduce_iwise(
@@ -43,28 +43,28 @@ namespace noa {
         Outputs&& outputs,
         Operator&& op
     ) {
-        static_assert(guts::adaptor<Outputs> or std::is_lvalue_reference_v<Outputs>,
+        static_assert(ng::adaptor_decay<Outputs> or std::is_lvalue_reference_v<Outputs>,
                       "Output value(s) should be reference(s)");
 
-        if constexpr (guts::adaptor<Reduced, Outputs>) {
-            guts::reduce_iwise<Reduced::ZIP, Outputs::ZIP>(
+        if constexpr (ng::adaptor_decay<Reduced, Outputs>) {
+            ng::reduce_iwise<std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP>(
                 shape, device, std::forward<Operator>(op),
                 std::forward<Reduced>(reduced).tuple,
                 std::forward<Outputs>(outputs).tuple);
 
-        } else if constexpr (guts::adaptor<Reduced>) {
-            guts::reduce_iwise<Reduced::ZIP, false>(
+        } else if constexpr (ng::adaptor_decay<Reduced>) {
+            ng::reduce_iwise<std::decay_t<Reduced>::ZIP, false>(
                 shape, device, std::forward<Operator>(op),
                 std::forward<Reduced>(reduced).tuple,
                 forward_as_tuple(std::forward<Outputs>(outputs)));
 
-        } else if constexpr (guts::adaptor<Outputs>) {
-            guts::reduce_iwise<false, Outputs::ZIP>(
+        } else if constexpr (ng::adaptor_decay<Outputs>) {
+            ng::reduce_iwise<false, std::decay_t<Outputs>::ZIP>(
                 shape, device, std::forward<Operator>(op),
                 forward_as_tuple(std::forward<Reduced>(reduced)),
                 std::forward<Outputs>(outputs).tuple);
         } else {
-            guts::reduce_iwise<false, false>(
+            ng::reduce_iwise<false, false>(
                 shape, device, std::forward<Operator>(op),
                 forward_as_tuple(std::forward<Reduced>(reduced)),
                 forward_as_tuple(std::forward<Outputs>(outputs)));
@@ -160,7 +160,7 @@ namespace noa::guts {
             if constexpr (use_device_memory)
                 cuda_stream.synchronize();
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         }
     }

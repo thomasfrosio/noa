@@ -55,15 +55,18 @@ set(NOA_CORE_HEADERS
     core/utils/Threadpool.hpp
     core/utils/Timer.hpp
     core/utils/Strings.hpp
+    core/utils/Zip.hpp
 
     core/signal/Bandpass.hpp
     core/signal/Correlation.hpp
     core/signal/CTF.hpp
+    core/signal/FilterSpectrum.hpp
     core/signal/FSC.hpp
     core/signal/PhaseShift.hpp
     core/signal/StandardizeIFFT.hpp
     core/signal/Windows.hpp
 
+    core/geometry/Project.hpp
     core/geometry/DrawShape.hpp
     core/geometry/Euler.hpp
     core/geometry/FourierExtract.hpp

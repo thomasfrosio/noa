@@ -60,8 +60,8 @@ namespace noa::memory {
         if (index > 0) {
             NOA_ASSERT(batch_indices_1d[0] + n_batches_to_copy == index);
             return std::forward<Input>(input)
-                   .subregion(ni::Slice{batch_indices_1d[0], index})
-                   .to(std::forward<Output>(output));
+                .subregion(ni::Slice{batch_indices_1d[0], index})
+                .to(std::forward<Output>(output));
         }
 
         // Otherwise, if the arrays are on the same device, we can use extract_subregions (only one iwise call).
@@ -75,7 +75,7 @@ namespace noa::memory {
             if (device.is_gpu())
                 batch_origins = batch_origins.to(ArrayOption{device, Allocator::DEFAULT_ASYNC});
             return extract_subregions(
-                    std::forward<Input>(input), std::forward<Output>(output), batch_origins, Border::NOTHING);
+                std::forward<Input>(input), std::forward<Output>(output), batch_origins, Border::NOTHING);
         }
 
         // Worst case scenario, copy batches one by one across devices.

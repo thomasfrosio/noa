@@ -59,7 +59,10 @@ namespace noa::cuda {
     template<typename T>
     class AllocatorDevice {
     public:
-        static_assert(not std::is_pointer_v<T> and not std::is_reference_v<T> and not std::is_const_v<T>);
+        static_assert(not std::is_pointer_v<T> and
+                      not std::is_reference_v<T> and
+                      not std::is_const_v<T> and
+                      std::is_trivially_destructible_v<T>);
         using value_type = T;
         using deleter_type = AllocatorDeviceDeleter;
         using shared_type = std::shared_ptr<value_type[]>;
@@ -136,6 +139,7 @@ namespace noa::cuda {
         static_assert(not std::is_pointer_v<T> and
                       not std::is_reference_v<T> and
                       not std::is_const_v<T> and
+                      std::is_trivially_destructible_v<T> and
                       sizeof(T) <= 16);
         using value_type = T;
         using deleter_type = AllocatorDevicePaddedDeleter;
@@ -213,7 +217,10 @@ namespace noa::cuda {
     template<typename T>
     class AllocatorManaged {
     public:
-        static_assert(not std::is_pointer_v<T> and not std::is_reference_v<T> and not std::is_const_v<T>);
+        static_assert(not std::is_pointer_v<T> and
+                      not std::is_reference_v<T> and
+                      not std::is_const_v<T> and
+                      std::is_trivially_destructible_v<T>);
         using value_type = T;
         using deleter_type = AllocatorManagedDeleter;
         using shared_type = std::shared_ptr<value_type[]>;
@@ -326,7 +333,10 @@ namespace noa::cuda {
     template<typename T>
     class AllocatorPinned {
     public:
-        static_assert(not std::is_pointer_v<T> and not std::is_reference_v<T> and not std::is_const_v<T>);
+        static_assert(not std::is_pointer_v<T> and
+                      not std::is_reference_v<T> and
+                      not std::is_const_v<T> and
+                      std::is_trivially_destructible_v<T>);
         using value_type = T;
         using deleter_type = AllocatorPinnedDeleter;
         using shared_type = std::shared_ptr<value_type[]>;
@@ -343,6 +353,11 @@ namespace noa::cuda {
             return unique_type(static_cast<value_type*>(tmp));
         }
     };
+
+    template<size_t N, Interp INTERP_, Border BORDER_,
+             typename Value, typename Coord, typename Index,
+             bool NORMALIZED, bool LAYERED>
+    class Texture;
 
     /// Creates 1d, 2d or 3d texture objects bounded to a CUDA array.
     ///
@@ -406,19 +421,19 @@ namespace noa::cuda {
         template<nt::any_of<i8, i16, i32, u8, u16, u32, f16, f32, c16, c32> T>
         static auto allocate(
             const Shape4<i64>& shape,
-            Interp interp_mode,
-            Border border_mode,
-            u32 flag = cudaArrayDefault
+            Interp interp,
+            Border border
         ) -> std::shared_ptr<Resource> {
             auto resource = std::make_shared<Resource>();
 
             // Create the array.
             const cudaChannelFormatDesc desc = cudaCreateChannelDesc<T>();
-            const cudaExtent extent = shape2extent(shape, flag & cudaArrayLayered);
-            check(cudaMalloc3DArray(&resource->array, &desc, extent, flag));
+            const auto is_layered = shape.ndim() == 2;
+            const cudaExtent extent = shape2extent(shape, is_layered);
+            check(cudaMalloc3DArray(&resource->array, &desc, extent, is_layered ? cudaArrayLayered : cudaArrayDefault));
 
             // Create the texture.
-            const auto [filter, address, read_mode, normalized_coords] = convert_to_description(interp_mode, border_mode);
+            const auto [filter, address, read_mode, normalized_coords] = convert_to_description(interp, border);
             resource->texture = create_texture(resource->array, filter, address, read_mode, normalized_coords);
 
             return resource;
@@ -476,19 +491,30 @@ namespace noa::cuda {
         }
 
     public: // static texture utilities
-        /// Sets the underlying texture filter and addressing mode according to "interp_mode" and "border_mode".
-        static auto convert_to_description(
-            Interp interp_mode,
-            Border border_mode
-        ) -> Tuple<cudaTextureFilterMode, cudaTextureAddressMode, cudaTextureReadMode, bool> {
-            // The accurate modes use nearest-lookups, while the fast methods use linear lookups.
-            cudaTextureFilterMode filter_mode =
-                interp_mode.is_fast() and interp_mode != Interp::NEAREST_FAST ?
-                cudaFilterModeLinear : cudaFilterModePoint;
+        static constexpr auto convert_to_texture(
+            Interp interp,
+            Border border
+        ) -> Pair<Interp, Border> {
+            bool is_addressable = border.is_any(Border::ZERO, Border::CLAMP, Border::MIRROR, Border::PERIODIC);
+            Border border_tex = is_addressable ? border : Border{Border::ZERO};
+            Interp interp_tex =
+                is_addressable and interp.is_any(Interp::LINEAR_FAST, Interp::CUBIC_BSPLINE_FAST) ?
+                Interp::LINEAR_FAST : Interp::NEAREST_FAST;
+            return {interp_tex, border_tex};
+        }
 
-            cudaTextureAddressMode address_mode;
+        static auto convert_to_description(
+            Interp interp,
+            Border border
+        ) -> Tuple<cudaTextureFilterMode, cudaTextureAddressMode, cudaTextureReadMode, bool> {
+            auto [interp_tex, border_tex] = convert_to_texture(interp, border);
+
+            cudaTextureFilterMode filter_mode =
+                interp_tex == Interp::LINEAR_FAST ? cudaFilterModeLinear : cudaFilterModePoint;
+
+            cudaTextureAddressMode address_mode{};
             bool normalized_coordinates{false};
-            switch (border_mode) {
+            switch (border_tex) {
                 case Border::PERIODIC: {
                     address_mode = cudaAddressModeWrap;
                     normalized_coordinates = true;
@@ -503,13 +529,11 @@ namespace noa::cuda {
                     address_mode = cudaAddressModeClamp;
                     break;
                 }
-                case Border::VALUE: // not natively supported, fallback to ZERO
-                case Border::REFLECT: // not natively supported, fallback to ZERO
-                case Border::NOTHING: // not natively supported, fallback to ZERO
                 case Border::ZERO: {
                     address_mode = cudaAddressModeBorder;
                     break;
                 }
+                default: panic();
             }
             return make_tuple(filter_mode, address_mode, cudaReadModeElementType, normalized_coordinates);
         }
@@ -575,6 +599,18 @@ namespace noa::cuda {
         static bool has_normalized_coordinates(cudaTextureObject_t texture) {
             return texture_description(texture).normalizedCoords;
         }
+
+        template<size_t N, Interp INTERP, Border BORDER, typename Value, typename Coord, typename Index>
+             struct texture_type_ {
+            static constexpr bool LAYERED = N == 2;
+            static constexpr bool NORMALIZED = BORDER == Border::MIRROR or BORDER == Border::PERIODIC;
+            static constexpr auto TEX = convert_to_texture(INTERP, BORDER);
+            using type = Texture<N, TEX.first, TEX.second, Value, Coord, Index, NORMALIZED, LAYERED>;
+        };
+
+        /// The corresponding Texture type created by the allocator.
+        template<size_t N, Interp INTERP, Border BORDER, typename Value, typename Coord, typename Index>
+        using texture_type = texture_type_<N, INTERP, BORDER, Value, Coord, Index>::type;
     };
 }
 

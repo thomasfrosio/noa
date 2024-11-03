@@ -1,12 +1,12 @@
 #include "noa/core/Exception.hpp"
 
 namespace noa {
-    std::string Exception::format_(
+    auto Exception::format_(
         const char* file,
         const char* function,
         std::uint_least32_t line,
         const std::string_view& message
-    ) {
+    ) -> std::string {
         namespace fs = std::filesystem;
         size_t idx = std::string(file).rfind(std::string("noa") + fs::path::preferred_separator);
         return fmt::format("ERROR:{}:{}:{}: {}",

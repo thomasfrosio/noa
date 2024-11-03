@@ -1,5 +1,8 @@
 #pragma once
 
+#include "noa/core/Config.hpp"
+
+#ifdef NOA_IS_OFFLINE
 #include <variant>
 
 #include "noa/unified/Array.hpp"
@@ -7,28 +10,28 @@
 #include "noa/unified/geometry/CubicBSplinePrefilter.hpp"
 
 #ifdef NOA_ENABLE_CUDA
+#include "noa/gpu/cuda/IncludeGuard.cuh"
 #include "noa/gpu/cuda/Allocators.hpp"
 #include "noa/gpu/cuda/Copy.cuh"
+namespace noa::gpu {
+    template<typename T>
+    using TextureResource = AllocatorTexture::shared_type;
+}
+#else
+namespace noa::gpu {
+    template<typename T>
+    using TextureResource = std::shared_ptr<void>;
+}
 #endif
 
 namespace noa::cpu {
     /// A simple handle to an array or view.
     template<typename T>
-    struct Texture {
+    struct TextureResource {
         Strides4<i64> strides{};
         std::shared_ptr<T[]> handle{};
         const T* pointer{};
     };
-}
-
-namespace noa::gpu {
-    #ifdef NOA_ENABLE_CUDA
-    template<typename T>
-    using Texture = noa::cuda::AllocatorTexture::shared_type;
-    #else
-    template<typename T>
-    using Texture = std::shared_ptr<void>;
-    #endif
 }
 
 namespace noa::inline types {
@@ -58,8 +61,8 @@ namespace noa::inline types {
         using mutable_value_type = T;
         using shape_type = Shape4<i64>;
         using strides_type = Strides4<i64>;
-        using cpu_texture_type = noa::cpu::Texture<value_type>;
-        using gpu_texture_type = noa::gpu::Texture<value_type>;
+        using cpu_texture_type = noa::cpu::TextureResource<value_type>;
+        using gpu_texture_type = noa::gpu::TextureResource<value_type>;
         using variant_type = std::variant<std::monostate, cpu_texture_type, gpu_texture_type>;
 
         struct Options {
@@ -138,9 +141,7 @@ namespace noa::inline types {
                 } else {
                     const auto guard = DeviceGuard(device_target);
                     auto texture = noa::cuda::AllocatorTexture::allocate<value_type>(
-                        array.shape(), interp, options.border,
-                        array.shape().ndim() == 2 ? cudaArrayLayered : cudaArrayDefault
-                    );
+                        array.shape(), interp, options.border);
 
                     // Copy input to CUDA array.
                     if (device_target != array.device())
@@ -156,7 +157,7 @@ namespace noa::inline types {
                     m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
                 }
                 #else
-                panic("No GPU backend detected");
+                panic();
                 #endif
             }
         }
@@ -188,13 +189,11 @@ namespace noa::inline types {
                     panic("Double-precision textures are not supported by the CUDA backend");
                 } else {
                     const auto guard = DeviceGuard(device_target);
-                    m_texture = noa::cuda::AllocatorTexture::allocate<value_type>(
-                        shape, interp, options.border,
-                        shape.ndim() == 2 ? cudaArrayLayered : cudaArrayDefault);
+                    m_texture = noa::cuda::AllocatorTexture::allocate<value_type>(shape, interp, options.border);
                     m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
                 }
                 #else
-                panic("No GPU backend detected");
+                panic();
                 #endif
             }
         }
@@ -263,7 +262,7 @@ namespace noa::inline types {
                     cuda_stream.enqueue_attach(std::forward<VArray>(array), cuda_texture);
                 }
                 #else
-                panic("No GPU backend detected");
+                panic();
                 #endif
             }
         }
@@ -272,7 +271,7 @@ namespace noa::inline types {
         [[nodiscard]] constexpr auto options() const noexcept -> ArrayOption { return m_options; }
         [[nodiscard]] constexpr auto device() const noexcept -> Device { return m_options.device; }
         [[nodiscard]] constexpr auto allocator() const noexcept -> Allocator { return m_options.allocator; }
-        [[nodiscard]] constexpr bool is_empty() const noexcept { return std::holds_alternative<std::monostate>(m_texture); }
+        [[nodiscard]] constexpr auto is_empty() const noexcept -> bool { return std::holds_alternative<std::monostate>(m_texture); }
         [[nodiscard]] constexpr auto interp() const noexcept -> Interp { return m_interp; }
         [[nodiscard]] constexpr auto border() const noexcept -> Border { return m_border; }
         [[nodiscard]] constexpr auto cvalue() const noexcept -> value_type { return m_cvalue; }
@@ -287,7 +286,7 @@ namespace noa::inline types {
 
         /// Whether the dimensions of the array are C or F contiguous.
         template<char ORDER = 'C'>
-        [[nodiscard]] bool are_contiguous() const noexcept {
+        [[nodiscard]] auto are_contiguous() const noexcept -> bool {
             if (device().is_cpu())
                 return ni::are_contiguous<ORDER>(cpu().strides, m_shape);
             return ORDER == 'C' or ORDER == 'c';
@@ -301,19 +300,19 @@ namespace noa::inline types {
         }
 
         /// Releases the texture. The current instance is left empty.
-        Texture release() noexcept {
+        auto release() noexcept -> Texture {
             return std::exchange(*this, Texture{});
         }
 
         /// Returns the underlying pointer of CPU array.
         /// This is used to provide an Array-like API.
-        [[nodiscard]] constexpr const value_type* get() const noexcept {
+        [[nodiscard]] constexpr auto get() const noexcept -> const value_type* {
             return cpu().pointer;
         }
 
         /// Returns the underlying CPU array as a View.
         /// This is used to provide an Array-like API.
-        [[nodiscard]] constexpr View<const value_type> view() const noexcept {
+        [[nodiscard]] constexpr auto view() const noexcept -> View<const value_type> {
             const auto& cpu_texture = cpu();
             return View<const value_type>(cpu_texture.pointer, shape(), cpu_texture.strides, options());
         }
@@ -322,15 +321,20 @@ namespace noa::inline types {
         /// This is used to provide an Array-like API.
         /// \warning Depending on the current stream of this array's device,
         ///          reading/writing to this pointer may be illegal or create a data race.
-        [[nodiscard]] std::shared_ptr<void> share() noexcept {
-            return std::visit(m_texture,
-                              [](const cpu_texture_type& texture) { return texture.handle; },
-                              [](const gpu_texture_type& texture) { return texture; });
+        [[nodiscard]] auto share() const noexcept {
+            return std::visit([]<typename U>(const U& t) -> std::shared_ptr<void> {
+                if constexpr (std::is_same_v<U, cpu_texture_type>)
+                    return t.handle;
+                else if constexpr (std::is_same_v<U, gpu_texture_type>)
+                    return t;
+                else // std::monostate
+                    return {};
+            }, m_texture);
         }
 
         /// Gets the underlying texture, assuming it is a CPU texture (i.e. device is CPU).
         /// Otherwise, throw an exception.
-        [[nodiscard]] const cpu_texture_type& cpu() const {
+        [[nodiscard]] auto cpu() const -> const cpu_texture_type& {
             auto* ptr = std::get_if<cpu_texture_type>(&m_texture);
             check(ptr, "Texture is not initialized or trying to retrieve at CPU texture from a GPU texture");
             return *ptr;
@@ -338,50 +342,46 @@ namespace noa::inline types {
 
         /// Gets the underlying texture, assuming it is a GPU texture (i.e. device is GPU).
         /// Otherwise, throw an exception.
-        [[nodiscard]] const gpu_texture_type& gpu() const {
+        [[nodiscard]] auto gpu() const -> const gpu_texture_type& {
             #ifdef NOA_ENABLE_CUDA
             return this->cuda();
             #else
-            panic("No GPU backend detected");
+            panic();
             #endif
         }
 
+#ifdef NOA_ENABLE_CUDA
         /// Gets the underlying texture, assuming it is a CUDA texture (i.e. device is a CUDA-capable GPU).
         /// Otherwise, throw an exception.
-        [[nodiscard]] const gpu_texture_type& cuda() const {
-            #ifdef NOA_ENABLE_CUDA
+        [[nodiscard]] auto cuda() const -> const gpu_texture_type& {
             auto* ptr = std::get_if<gpu_texture_type>(&m_texture);
             check(ptr, "Texture is not initialized or trying to retrieve at GPU texture from a CPU texture");
             return *ptr;
-            #else
-            panic("No GPU backend detected");
-            #endif
         }
+#endif
 
-    private: // For now, keep the right to modify the underlying textures to yourself
-        [[nodiscard]] cpu_texture_type& cpu_() {
+    private: // For now, keep the right to modify the underlying textures to yourself - TODO C++23 deducing this
+        [[nodiscard]] auto cpu_() -> cpu_texture_type& {
             auto* ptr = std::get_if<cpu_texture_type>(&m_texture);
             check(ptr, "Texture is not initialized or trying to retrieve at CPU texture from a GPU texture");
             return *ptr;
         }
 
-        [[nodiscard]] gpu_texture_type& gpu_() {
+        [[nodiscard]] auto gpu_() -> gpu_texture_type& {
             #ifdef NOA_ENABLE_CUDA
             return this->cuda();
             #else
-            panic("No GPU backend detected");
+            panic();
             #endif
         }
 
-        [[nodiscard]] gpu_texture_type& cuda_() {
-            #ifdef NOA_ENABLE_CUDA
+#ifdef NOA_ENABLE_CUDA
+        [[nodiscard]] auto cuda_() -> gpu_texture_type& {
             auto* ptr = std::get_if<gpu_texture_type>(&m_texture);
             check(ptr, "Texture is not initialized or trying to retrieve at GPU texture from a CPU texture");
             return *ptr;
-            #else
-            panic("No GPU backend detected");
-            #endif
         }
+#endif
 
     private:
         variant_type m_texture{};
@@ -396,3 +396,4 @@ namespace noa::inline types {
 namespace noa::traits {
     template<typename T> struct proclaim_is_texture<Texture<T>> : std::true_type {};
 }
+#endif

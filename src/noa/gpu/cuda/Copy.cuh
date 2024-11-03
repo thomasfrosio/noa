@@ -1,16 +1,18 @@
 #pragma once
 
+#include "noa/gpu/cuda/IncludeGuard.cuh"
 #include "noa/core/Config.hpp"
 
 #ifdef NOA_IS_OFFLINE
 #include "noa/core/Ewise.hpp"
-#include "noa/gpu/cuda/Types.hpp"
-#include "noa/gpu/cuda/Exception.hpp"
-#include "noa/gpu/cuda/Stream.hpp"
-#include "noa/gpu/cuda/Pointers.hpp"
-#include "noa/gpu/cuda/Texture.hpp"
+#include "noa/core/Types.hpp"
+#include "noa/gpu/cuda/Allocators.hpp"
 #include "noa/gpu/cuda/Ewise.cuh"
+#include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Iwise.cuh"
+#include "noa/gpu/cuda/Pointers.hpp"
+#include "noa/gpu/cuda/Runtime.hpp"
+#include "noa/gpu/cuda/Stream.hpp"
 
 // Since we assume Compute Capability >= 2.0, all devices support the Unified Virtual Address Space, so
 // the CUDA driver can determine, for each pointer, where the data is located, and one does not have to
@@ -368,7 +370,7 @@ namespace noa::cuda {
 
     template<typename T>
     void copy(cudaArray* src, T* dst, const Strides4<i64>& dst_strides, const Shape4<i64>& shape, Stream& stream) {
-        const auto[desc_, actual_extent, flags] = AllocatorTexture::array_info(src);
+        const auto[_, actual_extent, flags] = AllocatorTexture::array_info(src);
         const bool is_layered = flags & cudaArrayLayered;
         const cudaExtent expected_extent = AllocatorTexture::shape2extent(shape, is_layered);
 

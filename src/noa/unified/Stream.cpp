@@ -8,7 +8,7 @@ namespace {
 }
 
 namespace noa {
-    Stream& Stream::current(Device device) {
+    auto Stream::current(Device device) -> Stream& {
         for (auto& current_stream: g_current)
             if (current_stream.device() == device)
                 return current_stream;

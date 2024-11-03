@@ -114,22 +114,22 @@ namespace noa {
         Operator&& op,
         Ts&&... attachments
     ) {
-        if constexpr (ng::adaptor<Reduced, Outputs>) {
-            ng::reduce_axes_iwise<Reduced::ZIP, Outputs::ZIP, false>(
+        if constexpr (ng::adaptor_decay<Reduced, Outputs>) {
+            ng::reduce_axes_iwise<std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP, false>(
                 shape, device,
                 std::forward<Reduced>(reduced).tuple,
                 std::forward<Outputs>(outputs).tuple,
                 std::forward<Operator>(op), {},
                 std::forward<Ts>(attachments)...);
-        } else if constexpr (ng::adaptor<Reduced>) {
-            ng::reduce_axes_iwise<Reduced::ZIP, false, false>(
+        } else if constexpr (ng::adaptor_decay<Reduced>) {
+            ng::reduce_axes_iwise<std::decay_t<Reduced>::ZIP, false, false>(
                 shape, device,
                 std::forward<Reduced>(reduced).tuple,
                 forward_as_tuple(std::forward<Outputs>(outputs)),
                 std::forward<Operator>(op), {},
                 std::forward<Ts>(attachments)...);
-        } else if constexpr (ng::adaptor<Outputs>) {
-            ng::reduce_axes_iwise<false, Outputs::ZIP, false>(
+        } else if constexpr (ng::adaptor_decay<Outputs>) {
+            ng::reduce_axes_iwise<false, std::decay_t<Outputs>::ZIP, false>(
                 shape, device,
                 forward_as_tuple(std::forward<Reduced>(reduced)),
                 std::forward<Outputs>(outputs).tuple,
@@ -158,8 +158,8 @@ namespace noa {
             Operator&& op,
             Ts&&... attachments
     ) {
-        if constexpr (ng::adaptor<Reduced>) {
-            ng::reduce_axes_iwise<Reduced::ZIP, false, true>(
+        if constexpr (ng::adaptor_decay<Reduced>) {
+            ng::reduce_axes_iwise<std::decay_t<Reduced>::ZIP, false, true>(
                 shape, device,
                 std::forward<Reduced>(reduced).tuple,
                 Tuple{},
@@ -273,7 +273,7 @@ namespace noa::guts {
                 if constexpr (sizeof...(O) == 0) (void) oh;
             }(nt::index_list_t<Outputs>{});
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         }
     }

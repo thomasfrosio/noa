@@ -3,7 +3,7 @@
 #include "noa/core/Config.hpp"
 
 #ifdef NOA_IS_OFFLINE
-#include "noa/gpu/cuda/Types.hpp"
+#include "noa/gpu/cuda/Runtime.hpp"
 #include "noa/gpu/cuda/Exception.hpp"
 #include "noa/gpu/cuda/Device.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
@@ -72,14 +72,14 @@ namespace noa::cuda {
         // Computes the elapsed time between events.
         // Both events should be completed and both events should have recorded times (i.e. created without
         // DISABLE_TIMING). Note that this measurement can be quite inaccurate.
-        static double elapsed(const Event& start, const Event& end) {
+        static auto elapsed(const Event& start, const Event& end) {
             if (start.m_device != end.m_device) {
                 panic("Events are associated to different devices. Got device {} and device {}",
                       start.m_device.id(), end.m_device.id());
             }
-            float milliseconds{};
+            f32 milliseconds{};
             check(cudaEventElapsedTime(&milliseconds, start.m_event, end.m_event));
-            return static_cast<double>(milliseconds);
+            return std::chrono::duration<f64, std::milli>(static_cast<f64>(milliseconds));
         }
 
     public:

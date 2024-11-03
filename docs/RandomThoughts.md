@@ -47,40 +47,4 @@ can generate a data-race if values are written along the broadcast dimension**. 
 multiple indexes can now refer to the same memory location. Except when explicitly documented otherwise,
 **there are no guarantees on the order of execution in element-wise or index-wise operations**.
 
-## `Complex numbers`
 
-The library never uses `std::complex`. Instead, it includes its own `Complex<T>` template type that can be used
-interchangeably across all backends and can be reinterpreted to `std::complex`or `cuComplex`/`cuDoubleComplex`. It is a
-simple struct with an array of two floats or two doubles. It is "well-defined" (it does not violate the stride aliasing
-rule) to reinterpret this `Complex<T>` into a `T*`.
-
-Since C++11, it is required for `std::complex` to have an array-oriented access. It is also defined behavior
-to `reinterpret_cast` a `struct { float|double x, y; }` to a `float|double*`. As such, `noa::Complex<T>` can simply 
-be reinterpreted to `std::complex<T>`, `cuComplex` or `cuDoubleComplex` whenever necessary.
-
-Links: [std::complex](https://en.cppreference.com/w/cpp/numeric/complex),
-[reinterpret_cast](https://en.cppreference.com/w/cpp/language/reinterpret_cast)
-
-## `Exceptions`
-
-The library uses exceptions to report errors. Exceptions messages are prefixed with the location of where they were
-thrown. Usually exceptions messages have enough information regarding the error and exceptions are rarely nested.
-
-Exceptions thrown by the library are always of type `noa::Exception`, which inherits from `std::exception`. However,
-other exceptions, which all inherits from `std::exception`, can be thrown by the runtime, e.g. `std::bad_alloc`,
-although these are very rare...
-
-Exceptions thrown by the library are nested exceptions, which can be very useful if the user also uses nested 
-exceptions. The library provides a way to unroll all nested exceptions via the `noa::Exception::backtrace()`
-static function. Note that this function works with any `std::nested_exception`.
-
-## `Cycle per pixel`
-
-In the `fft` namespaces, frequencies are specified in fractional reciprocal lattice units from 0 to 0.5. Anything
-outside this range is often still valid or clamped to this range. For instance, given a `{1,1,64,64}` image with a pixel
-size of 1.4 A/pixel. To lowpass filter this image at a resolution of 8 A, the frequency cutoff should
-be `1.4 / 8 = 0.175`. Note that multiplying this normalized value by the dimension of the image gives us the number of
-oscillations in the real-space image at this frequency (or the resolution shell in Fourier space),
-i.e. `0.175 * 64 = 22.4`. Naturally, the Nyquist frequency is at 0.5 in fractional reciprocal lattice units and, for
-this example, at the 64th shell. One advantage of this notation is that it does not depend on the transform dimensions
-and works for rectangular shapes.

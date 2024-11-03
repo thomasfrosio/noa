@@ -54,6 +54,11 @@ namespace noa::inline types {
     template<typename T>
     class Array {
     public: // typedefs
+        static_assert(not std::is_const_v<T>);
+        static_assert(not std::is_pointer_v<T>);
+        static_assert(not std::is_reference_v<T>);
+        static_assert(std::is_trivially_destructible_v<T>);
+
         using pointer_type = T*;
         using value_type = T;
         using mutable_value_type = std::remove_const_t<T>;
@@ -72,9 +77,15 @@ namespace noa::inline types {
         static constexpr size_t SIZE = 4;
         static constexpr int64_t SSIZE = 4;
 
-        static_assert(not std::is_const_v<value_type>);
-        static_assert(not std::is_pointer_v<value_type>);
-        static_assert(not std::is_reference_v<value_type>);
+    public: // Static factory functions
+        template<std::convertible_to<value_type>... Ts>
+        constexpr static auto from_values(Ts&&... a) -> Array {
+            Array output(sizeof...(Ts));
+            [&]<size_t...I>(std::index_sequence<I...>) {
+                (std::construct_at(output.data() + I, std::forward<Ts>(a)), ...);
+            }(std::make_index_sequence<sizeof...(Ts)>{});
+            return output;
+        }
 
     public: // Constructors
         /// Creates an empty array.
@@ -136,7 +147,7 @@ namespace noa::inline types {
         /// with a View of that Array are done executing so that this Array can release its memory.
         ~Array() noexcept {
             // This should slow down the exception path due to the extra synchronization, but given
-            // that exception are used as non-recoverable errors that will ultimately end up terminating
+            // that exceptions are used as non-recoverable errors that will ultimately end up terminating
             // the program, we don't really care about performance here.
 
             // While we could record the number of living exceptions at construction time to correctly
@@ -281,8 +292,36 @@ namespace noa::inline types {
             return std::move(*this).to(options());
         }
 
+        /// Casts the array to a new array with the desired value type.
+        template<typename U>
+        [[nodiscard]] auto as() const& -> Array<U> {
+            Array<U> out(shape(), options());
+            noa::cast(*this, out, false);
+            return out;
+        }
+        template<typename U>
+        [[nodiscard]] auto as() && -> Array<U> {
+            Array<U> out(shape(), options());
+            noa::cast(std::move(*this), out, false);
+            return out;
+        }
+
+        /// Clamp-casts the array to a new array with the desired value type.
+        template<typename U>
+        [[nodiscard]] auto as_clamp() const& -> Array<U> {
+            Array<U> out(shape(), options());
+            noa::cast(*this, out, true);
+            return out;
+        }
+        template<typename U>
+        [[nodiscard]] auto as_clamp() && -> Array<U> {
+            Array<U> out(shape(), options());
+            noa::cast(std::move(*this), out, true);
+            return out;
+        }
+
         /// Returns a copy of the first value in the array.
-        /// Note that the stream of the array's device is synchronized when this functions returs.
+        /// Note that the stream of the array's device is synchronized when this functions returns.
         [[nodiscard]] auto first() const -> value_type {
             return view().first();
         }
@@ -293,12 +332,12 @@ namespace noa::inline types {
         ///       when \p U is an unsigned char or std::byte to represent any data type as an array of bytes,
         ///       or to switch between complex and real floating-point numbers with the same precision.
         template<typename U>
-        [[nodiscard]] auto as() const& -> Array<U> {
+        [[nodiscard]] auto reinterpret_as() const& -> Array<U> {
             const auto out = ni::ReinterpretLayout(shape(), strides(), get()).template as<U>();
             return Array<U>(std::shared_ptr<U[]>(m_shared, out.ptr), out.shape, out.strides, options());
         }
         template<typename U>
-        [[nodiscard]] auto as() && -> Array<U> {
+        [[nodiscard]] auto reinterpret_as() && -> Array<U> {
             const auto out = ni::ReinterpretLayout(shape(), strides(), get()).template as<U>();
             return Array<U>(std::shared_ptr<U[]>(std::move(m_shared), out.ptr), out.shape, out.strides, options());
         }
@@ -312,12 +351,12 @@ namespace noa::inline types {
         ///                 memory and should be used to anticipate access of that memory region by the target device,
         ///                 and/or to "move" the memory from the original to the target device. The prefetching is
         ///                 enqueued to the GPU stream, and as always, concurrent access from both CPU and GPU is illegal.
-        [[nodiscard]] auto as(Device::Type type, bool prefetch = false) const& -> Array {
-            const auto new_device = view().as(type, prefetch).device();
+        [[nodiscard]] auto reinterpret_as(Device::Type type, bool prefetch = false) const& -> Array {
+            const auto new_device = view().reinterpret_as(type, prefetch).device();
             return Array(m_shared, shape(), strides(), options().set_device(new_device));
         }
-        [[nodiscard]] auto as(Device::Type type, bool prefetch = false) && -> Array {
-            const auto new_device = view().as(type, prefetch).device();
+        [[nodiscard]] auto reinterpret_as(Device::Type type, bool prefetch = false) && -> Array {
+            const auto new_device = view().reinterpret_as(type, prefetch).device();
             return Array(std::move(m_shared), shape(), strides(), options().set_device(new_device));
         }
 
@@ -448,25 +487,23 @@ namespace noa::inline types {
                 const cudaPointerAttributes attr = noa::cuda::pointer_attributes(ptr);
                 switch (attr.type) {
                     case cudaMemoryTypeUnregistered:
-                        if (not option.allocator.is_any(
-                            Allocator::DEFAULT, Allocator::DEFAULT_ASYNC, Allocator::PITCHED)) {
-                            panic("Attempting to create a CPU array with {} from a CPU-only "
-                                  "(CUDA unregistered) memory region", option.allocator);
-                        }
+                        check(option.allocator.is_any(Allocator::DEFAULT, Allocator::DEFAULT_ASYNC, Allocator::PITCHED),
+                              "Attempting to create a CPU array with {} from a CPU-only (CUDA unregistered) memory region",
+                              option.allocator);
                         break;
                     case cudaMemoryTypeHost:
-                        if (option.allocator != Allocator::PINNED)
-                            panic("Attempting to create a CPU array with {} from a pinned memory region",
-                                  option.allocator);
+                        check(option.allocator == Allocator::PINNED,
+                              "Attempting to create a CPU array with {} from a pinned memory region",
+                              option.allocator);
                         break;
                     case cudaMemoryTypeDevice:
                         panic("Attempting to create an CPU array that points to a GPU-only memory region");
                     case cudaMemoryTypeManaged:
-                        if (not option.allocator.is_any(
-                            Allocator::DEFAULT, Allocator::DEFAULT_ASYNC, Allocator::PITCHED,
-                            Allocator::MANAGED, Allocator::MANAGED_GLOBAL))
-                            panic("Attempting to create an CPU array with {} from a (CUDA) managed pointer",
-                                  option.allocator);
+                        check(option.allocator.is_any(
+                                  Allocator::DEFAULT, Allocator::DEFAULT_ASYNC, Allocator::PITCHED,
+                                  Allocator::MANAGED, Allocator::MANAGED_GLOBAL),
+                              "Attempting to create an CPU array with {} from a (CUDA) managed pointer",
+                              option.allocator);
                         break;
                 }
                 #endif
@@ -478,21 +515,21 @@ namespace noa::inline types {
                     case cudaMemoryTypeUnregistered:
                         panic("Attempting to create GPU array from a CPU-only (CUDA unregistered) memory region");
                     case cudaMemoryTypeHost:
-                        if (option.allocator != Allocator::PINNED)
-                            panic("Attempting to create a GPU array with {} from a pinned memory region",
-                                  option.allocator);
+                        check(option.allocator == Allocator::PINNED,
+                              "Attempting to create a GPU array with {} from a pinned memory region",
+                              option.allocator);
                         break;
                     case cudaMemoryTypeDevice:
-                        if (attr.device != option.device.id())
-                            panic("Attempting to create a GPU array with a device ID of {} from a memory region "
-                                  "located on another device (ID={})", option.device.id(), attr.device);
+                        check(attr.device == option.device.id(),
+                              "Attempting to create a GPU array with a device ID of {} from a memory region "
+                              "located on another device (ID={})", option.device.id(), attr.device);
                         break;
                     case cudaMemoryTypeManaged:
-                        if (not option.allocator.is_any(
-                            Allocator::DEFAULT, Allocator::DEFAULT_ASYNC, Allocator::PITCHED,
-                            Allocator::MANAGED, Allocator::MANAGED_GLOBAL))
-                            panic("Attempting to create a GPU array with {} from a (CUDA) managed pointer",
-                                  option.allocator);
+                        check(option.allocator.is_any(
+                                  Allocator::DEFAULT, Allocator::DEFAULT_ASYNC, Allocator::PITCHED,
+                                  Allocator::MANAGED, Allocator::MANAGED_GLOBAL),
+                              "Attempting to create a GPU array with {} from a (CUDA) managed pointer",
+                              option.allocator);
                         break;
                 }
                 #endif

@@ -113,7 +113,7 @@ namespace noa::geometry::guts {
 
         auto launch_interp = [&]<bool NO_SHIFTS> {
             Interp interp = options.interp;
-            if constexpr (nt::texture_decay<Input>)
+            if constexpr (nt::is_texture_decay_v<Input>)
                 interp = input.interp();
 
             using enum Interp::Method;

@@ -152,7 +152,7 @@ namespace noa::cuda {
     public:
         enum class Mode : u32 {
             // Work running in the created stream is implicitly synchronized with the NULL stream.
-            SERIAL = cudaStreamDefault,
+            SYNC = cudaStreamDefault,
 
             // Work running in the created stream may run concurrently with work in stream 0 (the
             // NULL stream) and there is no implicit synchronization performed between it and stream 0.
@@ -160,7 +160,6 @@ namespace noa::cuda {
 
             // Default (NULL) stream.
             DEFAULT = 2,
-            SYNC = DEFAULT,
         };
         using enum Mode;
 
@@ -224,13 +223,6 @@ namespace noa::cuda {
             }
             #endif
         }
-
-        // TODO
-//        void enqueue(
-//                std::string_view kernel,
-//                LaunchConfig config,
-//                void** arguments
-//        );
 
         /// Enqueues attachments to the stream.
         /// \details Attachments are resources that should be kept alive until the CUDA stream reaches this point.

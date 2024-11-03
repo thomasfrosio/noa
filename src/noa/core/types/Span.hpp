@@ -10,10 +10,10 @@
 
 namespace noa::guts {
     template<typename T, typename I, StridesTraits StrideTrait>
-    struct SpanRange {
+    struct SpanIterator {
     public:
         // iterator traits
-        using difference_type = T;
+        using difference_type = I;
         using value_type = T;
         using pointer = T*;
         using reference = T&;
@@ -25,12 +25,13 @@ namespace noa::guts {
         using stride_type = std::conditional_t<IS_CONTIGUOUS, Empty, index_type>;
 
     public:
-        constexpr explicit SpanRange(pointer p, I = {}) noexcept requires (IS_CONTIGUOUS) : m_pointer(p) {}
-        constexpr explicit SpanRange(pointer p, I stride) noexcept requires (not IS_CONTIGUOUS) : m_pointer(p), m_stride(stride) {}
+        constexpr SpanIterator() = default;
+        constexpr explicit SpanIterator(pointer p, I = {}) noexcept requires (IS_CONTIGUOUS) : m_pointer(p) {}
+        constexpr explicit SpanIterator(pointer p, I stride) noexcept requires (not IS_CONTIGUOUS) : m_pointer(p), m_stride(stride) {}
         constexpr reference operator*() const noexcept { return *m_pointer; }
         constexpr pointer operator->() const noexcept { return m_pointer; }
 
-        constexpr SpanRange& operator++() noexcept {
+        constexpr SpanIterator& operator++() noexcept {
             if constexpr (IS_CONTIGUOUS)
                 ++m_pointer;
             else
@@ -38,14 +39,14 @@ namespace noa::guts {
             return *this;
         }
 
-        constexpr SpanRange operator++(int) noexcept {
+        constexpr SpanIterator operator++(int) noexcept {
             const auto copy = *this;
             ++*this;
             return copy;
         }
 
-        constexpr bool operator==(const SpanRange& other) const noexcept { return m_pointer == other.m_pointer; }
-        constexpr bool operator!=(const SpanRange& other) const noexcept { return m_pointer != other.m_pointer; }
+        constexpr bool operator==(const SpanIterator& other) const noexcept { return m_pointer == other.m_pointer; }
+        constexpr bool operator!=(const SpanIterator& other) const noexcept { return m_pointer != other.m_pointer; }
 
     protected:
         pointer m_pointer;
@@ -83,7 +84,7 @@ namespace noa::inline types {
         using shape_type = Shape<index_type, N>;
         using strides_type = Strides<index_type, N - IS_CONTIGUOUS>;
         using strides_full_type = Strides<index_type, N>;
-        using span_range_type = ng::SpanRange<value_type, index_type, STRIDES_TRAIT>;
+        using span_iterator_type = ng::SpanIterator<value_type, index_type, STRIDES_TRAIT>;
         using contiguous_span_type = Span<value_type, SIZE, index_type, StridesTraits::CONTIGUOUS>;
 
     public: // Constructors
@@ -141,7 +142,7 @@ namespace noa::inline types {
                   m_strides{span.strides()} {}
 
         /// Creates a non-contiguous span from an otherwise identical contiguous span.
-        template<typename U> requires (nt::same_as<contiguous_span_type> and (not IS_CONTIGUOUS))
+        template<typename U> requires (nt::same_as<U, contiguous_span_type> and (not IS_CONTIGUOUS))
         NOA_HD constexpr /*implicit*/ Span(const U& span) noexcept
                 : m_ptr{span.get()},
                   m_shape{span.shape()},
@@ -187,8 +188,13 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr auto n_elements() const noexcept -> index_type { return m_shape.n_elements(); }
         [[nodiscard]] NOA_HD constexpr auto size() const noexcept -> size_type { return static_cast<size_type>(n_elements()); };
         [[nodiscard]] NOA_HD constexpr auto ssize() const noexcept -> ssize_type { return static_cast<ssize_type>(n_elements()); };
-        [[nodiscard]] NOA_HD constexpr auto begin() const noexcept -> span_range_type requires (N == 1) { return span_range_type(get(), stride<0>()); }
-        [[nodiscard]] NOA_HD constexpr auto end() const noexcept -> span_range_type requires (N == 1) { return span_range_type(get() + ssize(), stride<0>()); }
+
+        [[nodiscard]] NOA_HD constexpr auto begin() const noexcept -> span_iterator_type requires (N == 1) {
+            return span_iterator_type(get(), stride<0>());
+        }
+        [[nodiscard]] NOA_HD constexpr auto end() const noexcept -> span_iterator_type requires (N == 1) {
+            return span_iterator_type(get() + ssize(), stride<0>());
+        }
 
         [[nodiscard]] NOA_HD constexpr reference_type front() const noexcept requires (N == 1 and not std::is_void_v<value_type>) {
             NOA_ASSERT(not is_empty());

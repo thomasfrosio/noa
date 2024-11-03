@@ -26,6 +26,7 @@ set(TEST_COMMON_SOURCES
     noa/core/utils/TestCoreSafeCast.cpp
     noa/core/utils/TestCoreInterfaces.cpp
     noa/core/utils/TestCoreString.cpp
+    noa/core/utils/TestCoreZip.cpp
 
     )
 

@@ -2,7 +2,7 @@
 #include <noa/unified/fft/Factory.hpp>
 #include <noa/unified/Random.hpp>
 #include <noa/unified/Factory.hpp>
-
+#include <noa/unified/io/ImageFile.hpp>
 #include <catch2/catch.hpp>
 #include "Utils.hpp"
 

@@ -77,9 +77,8 @@ namespace noa {
     /// \tparam Coord   Coordinate value type. If it is a Vec, then Weight must be a Vec too.
     /// \param fraction Fraction(s), between 0 and 1.
     /// \returns Interpolation weights in the form of Vec<Weight, N>, where N is the size of the interpolation window.
-    template<Interp INTERP, typename Weight, typename Coord>
-    requires (nt::vec_real<Weight, Coord> or nt::real<Weight, Coord>)
-    NOA_IHD constexpr auto interpolation_weights(Coord fraction) {
+    template<Interp INTERP, typename Weight, typename Coord> requires nt::vec_real<Weight, Coord>
+    [[nodiscard]] NOA_IHD constexpr auto interpolation_weights(Coord fraction) {
         using real_t = nt::value_type_t<Weight>;
         const auto f = static_cast<Weight>(fraction);
 
@@ -88,12 +87,8 @@ namespace noa {
             // In practice, the rounding is done by the interpolation function
             // and only the correct element (with weight=1) is read/fetched.
             Vec<Weight, 2> coefficients{};
-            if constexpr (nt::vec<Weight>) {
-                for (size_t i{}; auto e: round(f))
-                    coefficients[i++][static_cast<i32>(e)] = 1;
-            } else {
-                coefficients[static_cast<i32>(round(f))] = 1;
-            }
+            for (size_t i{}; auto e: round(f))
+                coefficients[i++][static_cast<i32>(e)] = 1;
             return coefficients;
 
         } else if constexpr (INTERP.is_almost_any(Interp::LINEAR)) {
@@ -123,43 +118,36 @@ namespace noa {
         } else if constexpr (INTERP.is_almost_any(Interp::LANCZOS4, Interp::LANCZOS6, Interp::LANCZOS8)) {
             constexpr size_t SIZE = INTERP.window_size();
             constexpr size_t CENTER = SIZE / 2 - 1;
+            constexpr auto PI = Constant<real_t>::PI;
+
+            constexpr auto s45 = static_cast<real_t>(0.7071067811865475); // sin(Constant<real_t>::PI / 4);
+            constexpr real_t cs[][2] =
+                {{1, 0}, {-s45, -s45}, {0, 1}, {s45, -s45}, {-1, 0}, {s45, s45}, {0, -1}, {-s45, s45}};
 
             // Instead of computing the windowed-sinc for every point in the nd-window, use this trick from OpenCV
             // to only compute one sin and cos per dimension, regardless of the window size. See:
             // https://github.com/opencv/opencv/blob/master/modules/imgproc/src/imgwarp.cpp#L162
             // I think this relies on the Chebyshev polynomials, but I'm not sure.
             // Regardless, it gives the expected windowed-sinc, and it works for any N (N=[4,6,8] in our case).
-            const auto x0 = -(f + CENTER);
-            const auto y0 = x0 * Constant<real_t>::PI * static_cast<real_t>(0.25);
-            const auto s0 = sin(y0);
-            const auto c0 = cos(y0);
-
-            constexpr auto s45 = static_cast<real_t>(0.7071067811865475); // sin(Constant<real_t>::PI / 4);
-            constexpr real_t cs[][2] =
-                {{1, 0}, {-s45, -s45}, {0, 1}, {s45, -s45}, {-1, 0}, {s45, s45}, {0, -1}, {-s45, s45}};
-
             Weight sum{};
             Vec<Weight, SIZE> coefficients{};
-            for (size_t i{}; i < SIZE; i++) {
-                const auto fi = -(f + CENTER - static_cast<real_t>(i));
-                const auto y = fi * Constant<real_t>::PI * static_cast<real_t>(0.25);
-
-                // Prevent division by zero, which happens when the fraction is 0.
-                if constexpr (nt::real<Weight>) {
-                    if (abs(fi) < std::numeric_limits<real_t>::epsilon())
-                        coefficients[i] = std::numeric_limits<real_t>::max();
-                    else
-                        coefficients[i] = (cs[i][0] * s0 + cs[i][1] * c0) / (y * y);
+            for (size_t j{}; j < Weight::SIZE; ++j) {
+                if (abs(f[j]) < std::numeric_limits<real_t>::epsilon()) {
+                    coefficients[CENTER][j] = 1;
+                    sum[j] = 1;
                 } else {
-                    for (size_t j{}; j < Weight::SIZE; ++j) {
-                        if (abs(fi[j]) < std::numeric_limits<real_t>::epsilon())
-                            coefficients[i][j] = std::numeric_limits<real_t>::max();
-                        else
-                            coefficients[i][j] = (cs[i][0] * s0[j] + cs[i][1] * c0[j]) / (y[j] * y[j]);
+                    const real_t x0 = -(f[j] + static_cast<real_t>(CENTER));
+                    const real_t y0 = x0 * PI * static_cast<real_t>(0.25);
+                    const real_t s0 = sin(y0);
+                    const real_t c0 = cos(y0);
+
+                    for (size_t i{}; i < SIZE; i++) {
+                        const auto fij = -(f[j] + CENTER - static_cast<real_t>(i));
+                        const auto yj = fij * PI * static_cast<real_t>(0.25);
+                        coefficients[i][j] = (cs[i][0] * s0 + cs[i][1] * c0) / (yj * yj);
+                        sum[j] += coefficients[i][j];
                     }
                 }
-
-                sum += coefficients[i];
             }
 
             // Normalize the convolution kernel.
@@ -184,7 +172,7 @@ namespace noa {
              nt::sinteger SInt,
              size_t A0, size_t A1, typename C>
     requires (1 <= N and N <= 3 and (BORDER != Border::VALUE or nt::same_as_mutable_value_type_of<C, T>))
-    NOA_HD constexpr auto interpolate(
+    [[nodiscard]] NOA_HD constexpr auto interpolate(
         const T& input,
         const Vec<Coord, N, A0>& coordinate,
         const Shape<SInt, N, A1>& shape,
@@ -193,7 +181,7 @@ namespace noa {
         using value_t = nt::mutable_value_type_t<T>;
         using real_t = nt::value_type_t<value_t>;
         using indices_t = Vec<SInt, N, A1>;
-        using weight_t = Vec<real_t, N, min(size_t{16}, next_power_of_2(alignof(real_t) * N))>; // FIXME
+        using weight_t = Vec<real_t, N>;
 
         // Utility to read from the input while accounting for the border mode.
         auto value_at = [&](const auto& indices) {
@@ -226,7 +214,7 @@ namespace noa {
 
             const auto floored = floor(coordinate);
             const auto indices = floored.template as<SInt, A1>();
-            const auto fraction = coordinate - floored; // TODO increase alignment?
+            const auto fraction = coordinate - floored;
 
             // If indices are inbound, no need to interpolate in the case of AccessorValue.
             if constexpr (nt::accessor_value<T>) {
@@ -282,11 +270,11 @@ namespace noa {
     /// \param coordinate   ((D)H)W coordinates to interpolate at.
     template<Interp INTERP, Border BORDER, size_t N, size_t A,
              nt::textureable_nd<BORDER, N> T,
-             nt::any_of<f32, f64> R>
+             nt::any_of<f32, f64> Coord>
     requires (1 <= N and N <= 3)
-    NOA_HD constexpr auto interpolate_using_texture(
+    [[nodiscard]] NOA_HD constexpr auto interpolate_using_texture(
         const T& input,
-        const Vec<R, N, A>& coordinate
+        const Vec<Coord, N, A>& coordinate
     ) noexcept -> nt::mutable_value_type_t<T> {
         if constexpr (INTERP == T::INTERP) {
             return input.fetch(coordinate); // the texture can handle both the interpolation and addressing
@@ -299,21 +287,24 @@ namespace noa {
         } else {
             using value_t = nt::mutable_value_type_t<T>;
             using real_t = nt::value_type_t<value_t>;
-            using coord_t = R;
-            using coordn_t = Vec<coord_t, N, A>;
-            using weight_t = Vec<real_t, N, next_power_of_2(alignof(real_t) * N)>;
+            using coordn_t = Vec<Coord, N, A>;
+            using weight_t = Vec<real_t, N>;
 
             constexpr i32 SIZE = INTERP.window_size();
             const coordn_t floored = floor(coordinate);
             const coordn_t fraction = coordinate - floored;
             const Vec<weight_t, static_cast<size_t>(SIZE)> weights = interpolation_weights<INTERP, weight_t>(fraction);
 
-            if constexpr (INTERP.is_fast() and nt::lerpable_nd<T, BORDER, N>) {
+            if constexpr (INTERP == Interp::CUBIC_BSPLINE_FAST and nt::lerpable_nd<T, BORDER, N>) {
                 // Use hardware accelerated lerp(s) to compute the interpolated value. This works for any
                 // interpolation method in fast mode (allowing lower precision).
 
                 // This was expanded from the original implementation of Daniel Ruijters
                 // for Cubic B-spline interpolation in CUDA: http://www.dannyruijters.nl/cubicinterpolation/
+                // FIXME Unfortunately, this only works for interpolation functions with no negative parts,
+                //       otherwise lerp_coord may end up outside of the [0,1] range, which doesn't work if
+                //       we want to pass it to the texture. I couldn't find a way to make it work, so only
+                //       do this for Cubic B-spline (which doesn't have negative weights), for now...
 
                 // Compute the adjusted coordinates for the lerp and the weights.
                 constexpr i32 HALF = SIZE / 2;
@@ -324,8 +315,8 @@ namespace noa {
                     const i32 offset = -(HALF - 1 - index);
                     lerp_weight[i] = weights[index] + weights[index + 1];
                     lerp_coord[i] = input.fetch_preprocess(
-                        static_cast<coord_t>(weights[index + 1] / lerp_weight[i]) +
-                        floored + static_cast<coord_t>(offset));
+                        (weights[index + 1] / lerp_weight[i]).template as<Coord>() +
+                        floored + static_cast<Coord>(offset));
                 }
 
                 // Lerp at the adjusted coordinates and correct for the interpolation weights.
@@ -405,7 +396,7 @@ namespace noa {
              nt::any_of<f32, f64> Coord,
              nt::sinteger Int,
              size_t A0, size_t A1>
-    NOA_HD constexpr auto interpolate_spectrum(
+    [[nodiscard]] NOA_HD constexpr auto interpolate_spectrum(
         const T& input,
         Vec<Coord, N, A0> frequency,
         const Shape<Int, N, A1>& shape
@@ -413,7 +404,7 @@ namespace noa {
         using value_t = nt::mutable_value_type_t<T>;
         using real_t = nt::value_type_t<value_t>;
         using indices_t = Vec<Int, N, A1>;
-        using weight_t = Vec<real_t, N>; // TODO benchmark vec alignment?
+        using weight_t = Vec<real_t, N>;
 
         // Handle non-redundant inputs by switching to the complex conjugate.
         // For windows of size 2 (LINEAR), we can flip the frequency at this point because the window doesn't have
@@ -526,7 +517,7 @@ namespace noa {
              nt::any_of<f32, f64> Coord,
              nt::sinteger Int,
              size_t A0, size_t A1>
-    NOA_HD constexpr auto interpolate_spectrum_using_texture(
+    [[nodiscard]] NOA_HD constexpr auto interpolate_spectrum_using_texture(
         const T& input,
         Vec<Coord, N, A0> frequency,
         const Shape<Int, N, A1>& shape
@@ -677,7 +668,7 @@ namespace noa {
     ///     - In texture mode, the texture is responsible for the addressing, so some Border modes may not be supported.
     ///       See `interpolate_using_texture` for more details. If the texture does not have the required mode, i.e.
     ///       BORDER != Input::BORDER, the interpolator tries to fall back on the `interpolate` function (which
-    ///       requires the readable_nd trait. If the texture is not readable, a compile time error will be given.
+    ///       requires the readable_nd trait. If the texture is not readable, a compile time error is given.
     ///
     /// Coordinate system:
     ///     The coordinate system matches the indexing, as expected.
@@ -726,12 +717,12 @@ namespace noa {
         /// Constructs an interpolator from an accessor-like object.
         /// This stores a copy of the input accessor, shape and cvalue. The created instance
         /// can then be used to interpolate the nd-data (as described in the interpolate function).
-        template<size_t A> requires (not is_textureable)
+        template<size_t A>
         NOA_HD constexpr Interpolator(
             const input_type& input,
             const Shape<index_type, N, A>& shape,
             mutable_value_type cvalue = mutable_value_type{}
-        ) noexcept :
+        ) noexcept requires (not is_textureable) :
             m_input(input),
             m_shape(shape_nd_type::from_shape(shape))
         {
@@ -877,14 +868,14 @@ namespace noa {
 
 namespace noa::traits {
     template<size_t N, Interp INTERP, Border BORDER, typename Input>
-    struct proclaim_is_interpolator<noa::Interpolator<N, INTERP, BORDER, Input>> : std::true_type {};
+    struct proclaim_is_interpolator<Interpolator<N, INTERP, BORDER, Input>> : std::true_type {};
 
     template<size_t N, Interp INTERP, Border BORDER, typename Input, size_t S>
-    struct proclaim_is_interpolator_nd<noa::Interpolator<N, INTERP, BORDER, Input>, S> : std::bool_constant<N == S> {};
+    struct proclaim_is_interpolator_nd<Interpolator<N, INTERP, BORDER, Input>, S> : std::bool_constant<N == S> {};
 
     template<size_t N, Remap REMAP, Interp INTERP, typename Input>
-    struct proclaim_is_interpolator_spectrum<noa::InterpolatorSpectrum<N, REMAP, INTERP, Input>> : std::true_type {};
+    struct proclaim_is_interpolator_spectrum<InterpolatorSpectrum<N, REMAP, INTERP, Input>> : std::true_type {};
 
     template<size_t N, Remap REMAP, Interp INTERP, typename Input, size_t S>
-    struct proclaim_is_interpolator_spectrum_nd<noa::InterpolatorSpectrum<N, REMAP, INTERP, Input>, S> : std::bool_constant<N == S> {};
+    struct proclaim_is_interpolator_spectrum_nd<InterpolatorSpectrum<N, REMAP, INTERP, Input>, S> : std::bool_constant<N == S> {};
 }

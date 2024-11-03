@@ -14,7 +14,7 @@ namespace noa::geometry {
     ///       it is implicitly applied by the "symmetrize" functions.
     /// \note Supported symmetries:
     ///     - CX, with X being a non-zero positive number.
-    ///     - TODO WIP...
+    /// TODO Add quaternions and more symmetries...
     template<typename Real, size_t N>
     class Symmetry {
     public:
@@ -161,7 +161,8 @@ namespace noa::geometry::guts {
         auto options
     ) {
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, N + 1, Index>;
-        auto output_accessor = output_accessor_t(output.get(), output.strides().template filter_nd<N>().template as<Index>());
+        auto output_accessor = output_accessor_t(
+            output.get(), output.strides().template filter_nd<N>().template as<Index>());
 
         // Batch the optional pre/post matrices.
         auto batched_pre_inverse_matrices = ng::to_batched_transform<true>(pre_inverse_matrices);
@@ -180,13 +181,13 @@ namespace noa::geometry::guts {
             if (center == std::numeric_limits<f64>::max())
                 center = static_cast<f64>(input_shape_nd[i++] / 2);
 
-        auto launch_iwise = [&]<Interp INTERP> {
-            auto interpolator = ng::to_interpolator<N, INTERP, Border::ZERO, Index, coord_t, IS_GPU>(input);
+        auto launch_iwise = [&](auto interp) {
+            auto interpolator = ng::to_interpolator<N, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
             using op_t = Symmetrize<
                 N, Index, decltype(symmetry_matrices), decltype(interpolator), output_accessor_t,
                 decltype(batched_pre_inverse_matrices), decltype(batched_post_inverse_matrices)>;
 
-            iwise<{
+            iwise<IwiseOptions{
                 .generate_cpu = not IS_GPU,
                 .generate_gpu = IS_GPU,
             }>(output.shape().template filter_nd<N>().template as<Index>(), output.device(),
@@ -203,20 +204,20 @@ namespace noa::geometry::guts {
         if constexpr (nt::texture_decay<Input>)
             options.interp = input.interp();
         switch (options.interp) {
-            case Interp::NEAREST:            return launch_iwise.template operator()<Interp::NEAREST>();
-            case Interp::NEAREST_FAST:       return launch_iwise.template operator()<Interp::NEAREST_FAST>();
-            case Interp::LINEAR:             return launch_iwise.template operator()<Interp::LINEAR>();
-            case Interp::LINEAR_FAST:        return launch_iwise.template operator()<Interp::LINEAR_FAST>();
-            case Interp::CUBIC:              return launch_iwise.template operator()<Interp::CUBIC>();
-            case Interp::CUBIC_FAST:         return launch_iwise.template operator()<Interp::CUBIC_FAST>();
-            case Interp::CUBIC_BSPLINE:      return launch_iwise.template operator()<Interp::CUBIC_BSPLINE>();
-            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise.template operator()<Interp::CUBIC_BSPLINE_FAST>();
-            case Interp::LANCZOS4:           return launch_iwise.template operator()<Interp::LANCZOS4>();
-            case Interp::LANCZOS6:           return launch_iwise.template operator()<Interp::LANCZOS6>();
-            case Interp::LANCZOS8:           return launch_iwise.template operator()<Interp::LANCZOS8>();
-            case Interp::LANCZOS4_FAST:      return launch_iwise.template operator()<Interp::LANCZOS4_FAST>();
-            case Interp::LANCZOS6_FAST:      return launch_iwise.template operator()<Interp::LANCZOS6_FAST>();
-            case Interp::LANCZOS8_FAST:      return launch_iwise.template operator()<Interp::LANCZOS8_FAST>();
+            case Interp::NEAREST:            return launch_iwise(ng::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_iwise(ng::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_iwise(ng::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_iwise(ng::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_iwise(ng::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_iwise(ng::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::LANCZOS4:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS8>{});
+            case Interp::LANCZOS4_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS4_FAST>{});
+            case Interp::LANCZOS6_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS6_FAST>{});
+            case Interp::LANCZOS8_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
 }
@@ -238,15 +239,19 @@ namespace noa::geometry {
     };
 
     /// Symmetrizes 2d array(s).
-    /// \tparam PreMatrix, PostMatrix       Mat23, Mat33, or a varray of these types, or Empty.
+    /// \tparam PreMatrix, PostMatrix       Mat23, Mat33, a varray of these types, or Empty.
     /// \param[in] input                    Input 2d array(s).
     /// \param[out] output                  Output 2d array(s).
     /// \param[in] symmetry                 Symmetry operator.
     /// \param[in] options                  Symmetry and interpolation options.
     /// \param[in] pre_inverse_matrices     HW inverse affine matrices to apply before the symmetry.
+    ///                                     This is used to align the input with the symmetry axis/center.
     ///                                     In practice, this needs to be applied for each symmetry count
-    ///                                     as opposed to the post-transformation which is applied once per pixel.
+    ///                                     as opposed to the post-transformation which is applied once per pixel,
+    ///                                     so it may be more efficient to apply it separately using transform_2d.
     /// \param[in] post_inverse_matrices    HW inverse affine matrix to apply after the symmetry.
+    ///                                     This is often used to move the symmetrized output to the original input
+    ///                                     location, as if the symmetry was applied in-place.
     ///
     /// \note During transformation, out-of-bound elements are set to 0, i.e. Border::ZERO is used.
     /// \note The input and output array can have different shapes. The output window starts at the same index
@@ -267,7 +272,7 @@ namespace noa::geometry {
         guts::check_parameters_symmetrize_nd(input, output, symmetry);
 
         if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_CUDA
+            #ifdef NOA_ENABLE_GPU
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::mutable_value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
@@ -283,7 +288,7 @@ namespace noa::geometry {
                 return;
             }
             #else
-            std::terminate(); // unreachable
+            panic_no_gpu_backend();
             #endif
         }
         guts::launch_symmetrize_nd<2, i64>(
@@ -295,15 +300,19 @@ namespace noa::geometry {
     }
 
     /// Symmetrizes 3d array(s).
-    /// \tparam PreMatrix, PostMatrix       Mat34, Mat44, or a varray of these types, or Empty.
+    /// \tparam PreMatrix, PostMatrix       Mat34, Mat44, a varray of these types, or Empty.
     /// \param[in] input                    Input 3d array(s).
     /// \param[out] output                  Output 3d array(s).
     /// \param[in] symmetry                 Symmetry operator.
     /// \param[in] options                  Symmetry and interpolation options.
     /// \param[in] pre_inverse_matrices     HW inverse affine matrices to apply before the symmetry.
+    ///                                     This is used to align the input with the symmetry axis/center.
     ///                                     In practice, this needs to be applied for each symmetry count
-    ///                                     as opposed to the post-transformation which is applied once per pixel.
+    ///                                     as opposed to the post-transformation which is applied once per pixel,
+    ///                                     so it may be more efficient to apply it separately using transform_3d.
     /// \param[in] post_inverse_matrices    HW inverse affine matrix to apply after the symmetry.
+    ///                                     This is often used to move the symmetrized output to the original input
+    ///                                     location, as if the symmetry was applied in-place.
     ///
     /// \note During transformation, out-of-bound elements are set to 0, i.e. Border::ZERO is used.
     /// \note The input and output array can have different shapes. The output window starts at the same index
@@ -324,7 +333,7 @@ namespace noa::geometry {
         guts::check_parameters_symmetrize_nd(input, output, symmetry);
 
         if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_CUDA
+            #ifdef NOA_ENABLE_GPU
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::mutable_value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
@@ -340,7 +349,7 @@ namespace noa::geometry {
                 return;
             }
             #else
-            std::terminate(); // unreachable
+            panic_no_gpu_backend();
             #endif
         }
         guts::launch_symmetrize_nd<3, i64>(

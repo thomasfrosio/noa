@@ -516,8 +516,8 @@ TEMPLATE_TEST_CASE("unified::geometry::sphere, 2d matches 3d", "[noa][unified]",
             .invert=invert,
         };
 
-        noa::geometry::draw_shape(input, output_2d, sphere_2d, inv_transform_2d, {});
-        noa::geometry::draw_shape(input, output_3d, sphere_3d, inv_transform_3d, noa::Multiply{});
+        noa::geometry::draw_shape(input, output_2d, sphere_2d, inv_transform_2d);
+        noa::geometry::draw_shape(input, output_3d, sphere_3d, inv_transform_3d);
         REQUIRE(test::allclose_abs(output_2d, output_3d, 1e-4));
     }
 }

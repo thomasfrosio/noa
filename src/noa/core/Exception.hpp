@@ -21,7 +21,14 @@ namespace noa {
         ///          exceptions' messages until it reaches the last exception. These exceptions should inherit from
         ///          std::exception, otherwise we have no way to retrieve its message and a generic message is
         ///          returned instead saying that an unknown exception was thrown and the backtrace stops.
-        [[nodiscard]] static std::vector<std::string> backtrace() noexcept {
+        /// \example
+        /// \code
+        /// const std::vector<std::string> backtrace_vector = noa::Exception::backtrace();
+        /// std::string backtrace_message;
+        /// for (i64 i{}; auto& message: backtrace_vector)
+        ///     backtrace_message += fmt::format("[{}]: {}\n", i++, message);
+        /// \endcode
+        [[nodiscard]] static auto backtrace() noexcept -> std::vector<std::string> {
             std::vector<std::string> message;
             backtrace_(message);
             return message;
@@ -37,17 +44,17 @@ namespace noa {
             m_buffer(format_(file, function, line, message)) {}
 
         /// Returns the formatted error message of this exception.
-        [[nodiscard]] const char* what() const noexcept override {
+        [[nodiscard]] auto what() const noexcept -> const char* override{
             return m_buffer.data();
         }
 
     protected:
-        static std::string format_(
+        static auto format_(
             const char* file,
             const char* function,
             std::uint_least32_t line,
             const std::string_view& message
-        );
+        ) -> std::string;
 
         static void backtrace_(
             std::vector<std::string>& message,
@@ -159,7 +166,10 @@ namespace noa {
         }
     }
 
-    static constexpr std::string_view NO_GPU_MESSAGE = "Built without GPU support";
+    [[noreturn]] inline void panic_no_gpu_backend(const std::source_location& location = std::source_location::current()) {
+        // FIXME Should we just std::terminate?
+        panic_at_location(location, "Built without GPU support");
+    }
 }
 
 #endif

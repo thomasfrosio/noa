@@ -123,11 +123,17 @@ namespace noa::geometry::guts {
             auto coordinates = vec_type::from_values(indices...);
 
             input_value_type value;
-            if constexpr (nt::empty<post_inverse_affine_type> or nt::readable_nd<input_type, N + 1>) {
+            if constexpr (nt::empty<post_inverse_affine_type> and
+                          nt::empty<pre_inverse_affine_type> and
+                          nt::readable_nd<input_type, N + 1>) {
                 value = m_input(batch, indices...); // skip interpolation if possible
             } else {
                 coordinates = transform_vector(m_post_inverse_affine_matrices[batch], coordinates);
-                value = m_input.interpolate_at(coordinates, batch);
+
+                auto i_coord = coordinates;
+                if constexpr (not nt::empty<pre_inverse_affine_type>)
+                    i_coord = transform_vector(m_pre_inverse_affine_matrices[batch], i_coord);
+                value = m_input.interpolate_at(i_coord, batch);
             }
 
             coordinates -= m_symmetry_center;

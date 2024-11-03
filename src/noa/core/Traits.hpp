@@ -102,10 +102,12 @@ namespace noa::traits {
         template<typename T, typename = void>                   \
         struct name {                                           \
             using type = default_type;                          \
+            static constexpr bool HAS_ALIAS = false;            \
         };                                                      \
         template<typename T>                                    \
         struct name<T, std::void_t<typename special_type>> {    \
             using type = special_type;                          \
+            static constexpr bool HAS_ALIAS = true;             \
         };                                                      \
     }                                                           \
     template<typename T>                                        \
@@ -113,7 +115,10 @@ namespace noa::traits {
         using type = guts::name<std::decay_t<T>>::type;         \
     };                                                          \
     template<typename T>                                        \
-    using name##_t = name<T>::type
+    using name##_t = name<T>::type;                             \
+                                                                \
+    template<typename T>                                        \
+    constexpr bool has_##name##_v = guts::name<std::decay_t<T>>::HAS_ALIAS;
 
     NOA_TRAITS_(type_type, T, T::type);
     NOA_TRAITS_(index_type, T, T::index_type);

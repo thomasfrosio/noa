@@ -3,6 +3,7 @@
 #include "noa/core/Config.hpp"
 
 #ifdef NOA_IS_OFFLINE
+#include "noa/core/Ewise.hpp"
 #include "noa/core/Exception.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/Types.hpp"
@@ -12,6 +13,8 @@
 #include "noa/unified/Stream.hpp"
 #include "noa/unified/Traits.hpp"
 #include "noa/unified/Indexing.hpp"
+#include "noa/unified/Utilities.hpp"
+#include "noa/unified/Ewise.hpp"
 
 #include "noa/cpu/Copy.hpp"
 #include "noa/cpu/Permute.hpp"
@@ -72,7 +75,7 @@ namespace noa {
             cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             cuda_stream.synchronize();
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         } else { // gpu -> gpu or cpu -> gpu
             #ifdef NOA_ENABLE_CUDA
@@ -84,7 +87,7 @@ namespace noa {
                             output.shape(), cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         }
     }
@@ -166,7 +169,7 @@ namespace noa {
                 permutation, cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         }
     }
@@ -180,6 +183,18 @@ namespace noa {
         auto output = Array<nt::mutable_value_type_t<Input>>(permuted_shape, input.options());
         permute_copy(std::forward<Input>(input), output, permutation);
         return output;
+    }
+
+    /// Casts an array.
+    /// \param[in] input    Array to convert.
+    /// \param[out] output  Array with the cast values.
+    /// \param clamp        Whether the input values should be clamped to the output range before casting.
+    /// \note If the input is complex and the output is real, the power spectrum is first computed.
+    template<nt::readable_varray_decay Input, nt::writable_varray_decay Output>
+    requires nt::varray_decay_with_compatible_or_spectrum_types<Input, Output>
+    void cast(Input&& input, Output&& output, bool clamp = false) {
+        check(not ni::are_overlapped(input, output), "The input and output arrays should not overlap");
+        ewise(std::forward<Input>(input), std::forward<Output>(output), Cast{clamp});
     }
 }
 
@@ -390,6 +405,22 @@ namespace noa::inline types {
             return to(options());
         }
 
+        /// Casts the array to a new array with the desired value type.
+        template<typename U>
+        [[nodiscard]] auto as() const -> Array<U> {
+            Array<U> out(shape(), options());
+            noa::cast(*this, out, false);
+            return out;
+        }
+
+        /// Clamp-casts the array to a new array with the desired value type.
+        template<typename U>
+        [[nodiscard]] auto as_clamp() const -> Array<U> {
+            Array<U> out(shape(), options());
+            noa::cast(*this, out, true);
+            return out;
+        }
+
         /// Returns a copy of the first value in the array.
         /// Note that the stream of the array's device is synchronized when this functions returns.
         [[nodiscard]] auto first() const -> mutable_value_type {
@@ -411,7 +442,7 @@ namespace noa::inline types {
         ///       when \p U is an unsigned char or std::byte to represent any data type as an array of bytes,
         ///       or to switch between complex and real floating-point numbers with the same precision.
         template<typename U>
-        [[nodiscard]] auto as() const -> View<U> {
+        [[nodiscard]] auto reinterpret_as() const -> View<U> {
             const auto out = ni::ReinterpretLayout(shape(), strides(), get()).template as<U>();
             return View<U>(out.ptr, out.shape, out.strides, options());
         }
@@ -425,7 +456,7 @@ namespace noa::inline types {
         ///                 memory and should be used to anticipate access of that memory region by the target device,
         ///                 and/or to "move" the memory from the original to the target device. The prefetching is
         ///                 enqueued to the GPU stream, and as always, concurrent access from both CPU and GPU is illegal.
-        [[nodiscard]] auto as(Device::Type type, [[maybe_unused]] bool prefetch = false) const -> View {
+        [[nodiscard]] auto reinterpret_as(Device::Type type, [[maybe_unused]] bool prefetch = false) const -> View {
             if (device().is_gpu() and type == Device::CPU) { // GPU -> CPU
                 check(m_options.allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL),
                       "GPU memory {} cannot be reinterpreted as a CPU memory-region. "
@@ -467,7 +498,7 @@ namespace noa::inline types {
                 }
                 return View(get(), shape(), strides(), {.device=gpu, .allocator=m_options.allocator});
                 #else
-                panic("No GPU backend detected");
+                panic_no_gpu_backend();
                 #endif
             } else {
                 return *this;

@@ -4,10 +4,10 @@ set(NOA_UNIFIED_HEADERS
     unified/Array.hpp
     unified/ArrayOption.hpp
     unified/Blas.hpp
-    unified/Cast.hpp
     unified/Complex.hpp
     unified/CopyBatches.hpp
     unified/Device.hpp
+    unified/Event.hpp
     unified/Ewise.hpp
     unified/Factory.hpp
     unified/Indexing.hpp
@@ -43,6 +43,7 @@ set(NOA_UNIFIED_HEADERS
     unified/signal/Convolve.hpp
     unified/signal/Correlate.hpp
     unified/signal/CTF.hpp
+    unified/signal/FilterSpectrum.hpp
     unified/signal/FSC.hpp
     unified/signal/MedianFilter.hpp
     unified/signal/PhaseShift.hpp
@@ -55,6 +56,7 @@ set(NOA_UNIFIED_HEADERS
     unified/geometry/FourierProject.hpp
     unified/geometry/PolarTransform.hpp
     unified/geometry/PolarTransformSpectrum.hpp
+    unified/geometry/Project.hpp
     unified/geometry/RotationalAverage.hpp
     unified/geometry/Symmetry.hpp
     unified/geometry/Transform.hpp

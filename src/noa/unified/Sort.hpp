@@ -44,7 +44,7 @@ namespace noa {
             noa::cuda::sort(array.get(), array.strides(), array.shape(), options.ascending, options.axis, cuda_stream);
             cuda_stream.enqueue_attach(std::forward<VArray>(array));
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         }
     }

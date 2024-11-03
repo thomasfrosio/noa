@@ -313,8 +313,8 @@ namespace noa::geometry {
     ///                             computed. This is ignored if \p input is empty.
     ///
     /// \note The floating-point precision of the computed geometric shape is set by the inverse transform.
-    ///       If no transforms are provided (Empty), the precision is the one of the input value type (which
-    ///       defaults to the output if no input is provided). If the input value type is not a (complex)
+    ///       If no transforms are provided (Empty), the precision corresponds to the input value type (which
+    ///       defaults to the output if no input is provided). If the resulting type is not a (complex)
     ///       floating-point, f64 is used.
     template<typename Output, typename Shape,
              typename Input = View<nt::value_type_t<Output>>,

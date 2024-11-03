@@ -48,6 +48,7 @@ namespace noa::geometry::guts {
         }
     }
 
+    // GPU path instantiates 42 kernels with arrays and 54 kernels with textures...
     template<size_t N, typename Index, bool IS_GPU = false, typename Input, typename Output, typename Matrix>
     void launch_transform_nd(Input&& input, Output&& output, Matrix&& inverse_matrices, auto options) {
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, N + 1, Index>;
@@ -60,12 +61,12 @@ namespace noa::geometry::guts {
             options.cvalue = input.cvalue();
         }
 
-        auto launch_iwise = [&]<Interp INTERP, Border BORDER> {
+        auto launch_iwise = [&](auto interp, auto border) {
             using coord_t = nt::mutable_value_type_twice_t<Matrix>;
-            auto interpolator = ng::to_interpolator<N, INTERP, BORDER, Index, coord_t, IS_GPU>(input, options.cvalue);
+            auto interpolator = ng::to_interpolator<N, interp(), border(), Index, coord_t, IS_GPU>(input, options.cvalue);
             using op_t = Transform<N, Index, decltype(batched_inverse_matrices), decltype(interpolator), output_accessor_t>;
 
-            iwise<{
+            iwise<IwiseOptions{
                 .generate_cpu = not IS_GPU,
                 .generate_gpu = IS_GPU,
             }>(output.shape().template filter_nd<N>().template as<Index>(), output.device(),
@@ -75,33 +76,33 @@ namespace noa::geometry::guts {
                std::forward<Matrix>(inverse_matrices));
         };
 
-        auto launch_border = [&]<Interp INTERP>{
+        auto launch_border = [&](auto interp) {
             switch (options.border) {
-                case Border::ZERO:      return launch_iwise.template operator()<INTERP, Border::ZERO>();
-                case Border::VALUE:     return launch_iwise.template operator()<INTERP, Border::VALUE>();
-                case Border::CLAMP:     return launch_iwise.template operator()<INTERP, Border::CLAMP>();
-                case Border::PERIODIC:  return launch_iwise.template operator()<INTERP, Border::PERIODIC>();
-                case Border::MIRROR:    return launch_iwise.template operator()<INTERP, Border::MIRROR>();
-                case Border::REFLECT:   return launch_iwise.template operator()<INTERP, Border::REFLECT>();
-                case Border::NOTHING:   panic("The border mode {} is not supported", options.border);
+                case Border::ZERO:      return launch_iwise(interp, ng::WrapBorder<Border::ZERO>{});
+                case Border::VALUE:     return launch_iwise(interp, ng::WrapBorder<Border::VALUE>{});
+                case Border::CLAMP:     return launch_iwise(interp, ng::WrapBorder<Border::CLAMP>{});
+                case Border::PERIODIC:  return launch_iwise(interp, ng::WrapBorder<Border::PERIODIC>{});
+                case Border::MIRROR:    return launch_iwise(interp, ng::WrapBorder<Border::MIRROR>{});
+                case Border::REFLECT:   return launch_iwise(interp, ng::WrapBorder<Border::REFLECT>{});
+                case Border::NOTHING:   panic("The border mode {} is not supported", Border::NOTHING);
             }
         };
 
         switch (options.interp) {
-            case Interp::NEAREST:            return launch_border.template operator()<Interp::NEAREST>();
-            case Interp::NEAREST_FAST:       return launch_border.template operator()<Interp::NEAREST_FAST>();
-            case Interp::LINEAR:             return launch_border.template operator()<Interp::LINEAR>();
-            case Interp::LINEAR_FAST:        return launch_border.template operator()<Interp::LINEAR_FAST>();
-            case Interp::CUBIC:              return launch_border.template operator()<Interp::CUBIC>();
-            case Interp::CUBIC_FAST:         return launch_border.template operator()<Interp::CUBIC_FAST>();
-            case Interp::CUBIC_BSPLINE:      return launch_border.template operator()<Interp::CUBIC_BSPLINE>();
-            case Interp::CUBIC_BSPLINE_FAST: return launch_border.template operator()<Interp::CUBIC_BSPLINE_FAST>();
-            case Interp::LANCZOS4:           return launch_border.template operator()<Interp::LANCZOS4>();
-            case Interp::LANCZOS6:           return launch_border.template operator()<Interp::LANCZOS6>();
-            case Interp::LANCZOS8:           return launch_border.template operator()<Interp::LANCZOS8>();
-            case Interp::LANCZOS4_FAST:      return launch_border.template operator()<Interp::LANCZOS4_FAST>();
-            case Interp::LANCZOS6_FAST:      return launch_border.template operator()<Interp::LANCZOS6_FAST>();
-            case Interp::LANCZOS8_FAST:      return launch_border.template operator()<Interp::LANCZOS8_FAST>();
+            case Interp::NEAREST:            return launch_border(ng::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_border(ng::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_border(ng::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_border(ng::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_border(ng::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_border(ng::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_border(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_border(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::LANCZOS4:           return launch_border(ng::WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:           return launch_border(ng::WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:           return launch_border(ng::WrapInterp<Interp::LANCZOS8>{});
+            case Interp::LANCZOS4_FAST:      return launch_border(ng::WrapInterp<Interp::LANCZOS4_FAST>{});
+            case Interp::LANCZOS6_FAST:      return launch_border(ng::WrapInterp<Interp::LANCZOS6_FAST>{});
+            case Interp::LANCZOS8_FAST:      return launch_border(ng::WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
 }
@@ -135,7 +136,7 @@ namespace noa::geometry {
     ///          of the output window relative to the input window.
     /// \details The input and output arrays should be 2d arrays. If the output is batched, a different matrix will
     ///          be applied to each batch. In this case, the input can be batched as well, resulting in a fully
-    ///          batched operation (N input -> N output). Futhermore, if the input is not batched, it is broadcasted
+    ///          batched operation (N input -> N output). Furthermore, if the input is not batched, it is broadcasted
     ///          to all output batches (1 input -> N output).
     ///
     /// \param[in] input            Input 2d array(s).
@@ -156,7 +157,7 @@ namespace noa::geometry {
         guts::check_parameters_transform_nd<2>(input, output, inverse_matrices);
 
         if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_CUDA
+            #ifdef NOA_ENABLE_GPU
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
@@ -172,7 +173,7 @@ namespace noa::geometry {
             }
             return;
             #else
-            std::terminate(); // unreachable
+            panic_no_gpu_backend();
             #endif
         }
         guts::launch_transform_nd<2, i64>(
@@ -188,7 +189,7 @@ namespace noa::geometry {
     ///          of the output window relative to the input window.
     /// \details The input and output arrays should be 3d arrays. If the output is batched, a different matrix will
     ///          be applied to each batch. In this case, the input can be batched as well, resulting in a fully
-    ///          batched operation (N input -> N output). Futhermore, if the input is not batched, it is broadcasted
+    ///          batched operation (N input -> N output). Furthermore, if the input is not batched, it is broadcasted
     ///          to all output batches (1 input -> N output).
     ///
     /// \param[in] input            Input 3d array(s).
@@ -209,7 +210,7 @@ namespace noa::geometry {
         guts::check_parameters_transform_nd<3>(input, output, inverse_matrices);
 
         if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_CUDA
+            #ifdef NOA_ENABLE_GPU
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
@@ -231,7 +232,7 @@ namespace noa::geometry {
             }
             return;
             #else
-            std::terminate(); // unreachable
+            panic_no_gpu_backend();
             #endif
         }
 

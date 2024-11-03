@@ -754,13 +754,13 @@ namespace noa {
             if constexpr (std::same_as<T, f16> && N == 4) {                 \
                 auto* alias = reinterpret_cast<__half2*>(vector.data());    \
                 const __half2 tmp = __h##name##2(alias[0], alias[1]);       \
-                return name(tmp.x, tmp.y);                                  \
+                return __h##name(tmp.x, tmp.y);                             \
             } else if constexpr (std::same_as<T, f16> && N == 8) {          \
                 auto* alias = reinterpret_cast<__half2*>(vector.data());    \
                 const __half2 tmp0 = __h##name##2(alias[0], alias[1]);      \
                 const __half2 tmp1 = __h##name##2(alias[2], alias[3]);      \
                 const __half2 tmp2 = __h##name##2(tmp0, tmp1);              \
-                return name(tmp2.x, tmp2.y);                                \
+                return __h##name(tmp2.x, tmp2.y);                           \
             } else {                                                        \
                 auto element = name(vector[0], vector[1]);                  \
                 for (size_t i = 2; i < N; ++i)                              \
@@ -800,7 +800,7 @@ namespace noa {
         }                                                                   \
     }                                                                       \
     template<typename T, size_t N, size_t A>                                \
-    [[nodiscard]] NOA_HD constexpr auto name(                              \
+    [[nodiscard]] NOA_HD constexpr auto name(                               \
         Vec<T, N, A> lhs,                                                   \
         const Vec<T, N, A>& rhs                                             \
     ) noexcept {                                                            \
@@ -956,7 +956,7 @@ namespace noa {
     constexpr bool vall(Op&& op, Args&&... args) {
         if constexpr (sizeof...(Args) > 0) {
             using first_t = nt::first_t<std::remove_reference_t<Args>...>;
-            return [&]<size_t... I>(std::index_sequence<I...>, auto& op_, auto&... args_) {
+            return []<size_t... I>(std::index_sequence<I...>, auto& op_, auto&... args_) {
                 return (guts::vec_indexer<I>(op_, args_...) and ...);
             }(std::make_index_sequence<first_t::SIZE>{}, op, args...); // nvcc bug - no capture
         } else {

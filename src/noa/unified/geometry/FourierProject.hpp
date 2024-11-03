@@ -50,9 +50,9 @@ namespace noa::geometry::guts {
          nt::varray_decay_of_almost_any<Rotation, Mat33<f32>, Mat33<f64>, Quaternion<f32>, Quaternion<f64>>) and
         (nt::any_of<std::decay_t<Scale>, Empty, Mat22<Coord>> or nt::varray_decay_of_almost_any<Scale, Mat22<Coord>>);
 
-    enum class ProjectionType { INSERT_RASTERIZE, INSERT_INTERPOLATE, EXTRACT, INSERT_EXTRACT };
+    enum class FourierProjectionType { INSERT_RASTERIZE, INSERT_INTERPOLATE, EXTRACT, INSERT_EXTRACT };
 
-    template<ProjectionType DIRECTION,
+    template<FourierProjectionType DIRECTION,
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
              typename InputScale, typename InputRotate,
@@ -106,13 +106,13 @@ namespace noa::geometry::guts {
                   output_weight.shape(), output_shape.rfft());
         }
 
-        if constexpr (DIRECTION == ProjectionType::INSERT_RASTERIZE or
-                      DIRECTION == ProjectionType::INSERT_INTERPOLATE) {
+        if constexpr (DIRECTION == FourierProjectionType::INSERT_RASTERIZE or
+                      DIRECTION == FourierProjectionType::INSERT_INTERPOLATE) {
             check(input_shape[1] == 1, "2d input slices are expected, but got shape={}", input_shape);
             check(output_shape[0] == 1 and target_shape[0] <= 1,
                   "A single 3d volume is expected, but got output_shape={} and target_shape={} (optional)",
                   output_shape, target_shape);
-        } else if constexpr (DIRECTION == ProjectionType::EXTRACT) {
+        } else if constexpr (DIRECTION == FourierProjectionType::EXTRACT) {
             check(input_shape[0] == 1 and target_shape[0] <= 1,
                   "A single 3d volume is expected, but got input_shape={} and target_shape={} (optional)",
                   input_shape, target_shape);
@@ -126,12 +126,12 @@ namespace noa::geometry::guts {
         auto check_transform = [&](const auto& transform, i64 required_size, std::string_view name) {
             check(not transform.is_empty(), "{} should not be empty", name);
             check(ni::is_contiguous_vector(transform) and transform.n_elements() == required_size,
-                  "{} should be a contiguous vector with n_slices={}, but got {}:shape={}, {}:strides={}",
+                  "{} should be a contiguous vector with n_slices={} elements, but got {}:shape={}, {}:strides={}",
                   name, required_size, name, transform.shape(), name, transform.strides());
             check(transform.device() == output_device, "{} should be on the compute device", name);
         };
 
-        const auto required_count = DIRECTION == ProjectionType::EXTRACT ? output_shape[0] : input_shape[0];
+        const auto required_count = DIRECTION == FourierProjectionType::EXTRACT ? output_shape[0] : input_shape[0];
         if constexpr (nt::varray<InputScale>)
             check_transform(input_scaling, required_count, "input_scaling");
         if constexpr (nt::varray<InputRotate>)
@@ -211,6 +211,12 @@ namespace noa::geometry::guts {
             return ews.as<Coord>();
     }
 
+    // nvcc struggles with C++20 template parameters in lambda, so use a worse C++17 syntax and create this type...
+    template<bool VALUE>
+    struct WrapNoEwaldAndScale {
+        consteval auto operator()() const -> bool { return VALUE;}
+    };
+
     template<Remap REMAP, typename Index,
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
@@ -241,9 +247,9 @@ namespace noa::geometry::guts {
         auto batched_rotation = ng::to_batched_transform(rotation);
         using coord_t = nt::value_type_twice_t<Rotate>;
 
-        auto launch = [&]<bool NO_EWS_SCALE> {
-            auto ews = fourier_projection_to_ews<NO_EWS_SCALE, coord_t>(options.ews_radius);
-            auto batched_scaling = ng::to_batched_transform<true, NO_EWS_SCALE>(scaling);
+        auto launch = [&](auto no_ews_and_scale) {
+            auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
+            auto batched_scaling = ng::to_batched_transform<true, no_ews_and_scale()>(scaling);
 
             using op_t = FourierInsertRasterize<
                 REMAP, Index,
@@ -266,8 +272,8 @@ namespace noa::geometry::guts {
         const auto has_ews = any(options.ews_radius != 0);
         const bool has_scale = fourier_project_has_scale(scaling);
         if (has_ews or has_scale)
-            return launch.template operator()<false>();
-        return launch.template operator()<true>();
+            return launch(WrapNoEwaldAndScale<false>{});
+        return launch(WrapNoEwaldAndScale<true>{});
     }
 
     template<Remap REMAP, typename Index, bool IS_GPU,
@@ -292,12 +298,14 @@ namespace noa::geometry::guts {
         auto batched_rotation = ng::to_batched_transform<false>(rotation);
         using coord_t = nt::value_type_twice_t<Rotate>;
 
-        auto launch = [&]<Interp INTERP, bool NO_EWS_SCALE>{
-            auto slice_interpolator = fourier_projection_to_interpolator<2, REMAP, IS_GPU, INTERP, coord_t>(slice, s_slice_shape);
-            auto slice_weight_interpolator = fourier_projection_to_interpolator<2, REMAP, IS_GPU, INTERP, coord_t>(slice_weight, s_slice_shape);
+        auto launch = [&](auto no_ews_and_scale, auto interp) {
+            auto slice_interpolator = fourier_projection_to_interpolator
+                <2, REMAP, IS_GPU, interp(), coord_t>(slice, s_slice_shape);
+            auto slice_weight_interpolator = fourier_projection_to_interpolator
+                <2, REMAP, IS_GPU, interp(), coord_t>(slice_weight, s_slice_shape);
 
-            auto batched_scaling = ng::to_batched_transform<true, NO_EWS_SCALE>(scaling);
-            auto ews = fourier_projection_to_ews<NO_EWS_SCALE, coord_t>(options.ews_radius);
+            auto batched_scaling = ng::to_batched_transform<true, no_ews_and_scale()>(scaling);
+            auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
 
             using op_t = FourierInsertInterpolate<
                 REMAP, Index, decltype(batched_scaling), decltype(batched_rotation), decltype(ews),
@@ -320,28 +328,28 @@ namespace noa::geometry::guts {
 
         const auto has_ews = any(options.ews_radius != 0);
         const bool has_scale = fourier_project_has_scale(scaling);
-        auto launch_scale = [&]<Interp INTERP>{
+        auto launch_scale = [&](auto interp) {
             if (has_ews or has_scale)
-                return launch.template operator()<INTERP, false>();
-            return launch.template operator()<INTERP, true>();
+                return launch(WrapNoEwaldAndScale<false>{}, interp);
+            return launch(WrapNoEwaldAndScale<true>{}, interp);
         };
 
         const Interp interp = guts::fourier_insert_extract_interp_mode(slice, slice_weight, options.interp);
         switch (interp) {
-            case Interp::NEAREST:            return launch_scale.template operator()<Interp::NEAREST>();
-            case Interp::NEAREST_FAST:       return launch_scale.template operator()<Interp::NEAREST_FAST>();
-            case Interp::LINEAR:             return launch_scale.template operator()<Interp::LINEAR>();
-            case Interp::LINEAR_FAST:        return launch_scale.template operator()<Interp::LINEAR_FAST>();
-            case Interp::CUBIC:              return launch_scale.template operator()<Interp::CUBIC>();
-            case Interp::CUBIC_FAST:         return launch_scale.template operator()<Interp::CUBIC_FAST>();
-            case Interp::CUBIC_BSPLINE:      return launch_scale.template operator()<Interp::CUBIC_BSPLINE>();
-            case Interp::CUBIC_BSPLINE_FAST: return launch_scale.template operator()<Interp::CUBIC_BSPLINE_FAST>();
-            case Interp::LANCZOS4:           return launch_scale.template operator()<Interp::LANCZOS4>();
-            case Interp::LANCZOS6:           return launch_scale.template operator()<Interp::LANCZOS6>();
-            case Interp::LANCZOS8:           return launch_scale.template operator()<Interp::LANCZOS8>();
-            case Interp::LANCZOS4_FAST:      return launch_scale.template operator()<Interp::LANCZOS4_FAST>();
-            case Interp::LANCZOS6_FAST:      return launch_scale.template operator()<Interp::LANCZOS6_FAST>();
-            case Interp::LANCZOS8_FAST:      return launch_scale.template operator()<Interp::LANCZOS8_FAST>();
+            case Interp::NEAREST:            return launch_scale(ng::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_scale(ng::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_scale(ng::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_scale(ng::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_scale(ng::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_scale(ng::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_scale(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_scale(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::LANCZOS4:           return launch_scale(ng::WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:           return launch_scale(ng::WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:           return launch_scale(ng::WrapInterp<Interp::LANCZOS8>{});
+            case Interp::LANCZOS4_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS4_FAST>{});
+            case Interp::LANCZOS6_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS6_FAST>{});
+            case Interp::LANCZOS8_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
 
@@ -367,13 +375,15 @@ namespace noa::geometry::guts {
         const auto s_volume_shape = volume_shape.as<Index>();
         const auto s_target_shape = options.target_shape.template as<Index>();
 
-        auto launch = [&]<Interp INTERP, bool NO_EWS_SCALE>{
+        auto launch = [&](auto no_ews_and_scale, auto interp) {
             using coord_t = nt::value_type_twice_t<Rotate>;
-            auto volume_interpolator = fourier_projection_to_interpolator<3, REMAP, IS_GPU, INTERP, coord_t>(volume, s_volume_shape);
-            auto volume_weight_interpolator = fourier_projection_to_interpolator<3, REMAP, IS_GPU, INTERP, coord_t>(volume_weight, s_volume_shape);
+            auto volume_interpolator = fourier_projection_to_interpolator
+                <3, REMAP, IS_GPU, interp(), coord_t>(volume, s_volume_shape);
+            auto volume_weight_interpolator = fourier_projection_to_interpolator
+                <3, REMAP, IS_GPU, interp(), coord_t>(volume_weight, s_volume_shape);
 
-            auto batched_scale = ng::to_batched_transform<true, NO_EWS_SCALE>(scaling);
-            auto ews = fourier_projection_to_ews<NO_EWS_SCALE, coord_t>(options.ews_radius);
+            auto batched_scale = ng::to_batched_transform<true, no_ews_and_scale()>(scaling);
+            auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
 
             using op_t = FourierExtract<
                 REMAP, Index,
@@ -411,28 +421,28 @@ namespace noa::geometry::guts {
 
         const auto has_ews = any(options.ews_radius != 0);
         const bool has_scale = fourier_project_has_scale(scaling);
-        auto launch_scale = [&]<Interp INTERP>{
+        auto launch_scale = [&] (auto interp){
             if (has_ews or has_scale)
-                return launch.template operator()<INTERP, false>();
-            return launch.template operator()<INTERP, true>();
+                return launch(WrapNoEwaldAndScale<false>{}, interp);
+            return launch(WrapNoEwaldAndScale<true>{}, interp);
         };
 
         const Interp interp = guts::fourier_insert_extract_interp_mode(volume, volume_weight, options.interp);
         switch (interp) {
-            case Interp::NEAREST:            return launch_scale.template operator()<Interp::NEAREST>();
-            case Interp::NEAREST_FAST:       return launch_scale.template operator()<Interp::NEAREST_FAST>();
-            case Interp::LINEAR:             return launch_scale.template operator()<Interp::LINEAR>();
-            case Interp::LINEAR_FAST:        return launch_scale.template operator()<Interp::LINEAR_FAST>();
-            case Interp::CUBIC:              return launch_scale.template operator()<Interp::CUBIC>();
-            case Interp::CUBIC_FAST:         return launch_scale.template operator()<Interp::CUBIC_FAST>();
-            case Interp::CUBIC_BSPLINE:      return launch_scale.template operator()<Interp::CUBIC_BSPLINE>();
-            case Interp::CUBIC_BSPLINE_FAST: return launch_scale.template operator()<Interp::CUBIC_BSPLINE_FAST>();
-            case Interp::LANCZOS4:           return launch_scale.template operator()<Interp::LANCZOS4>();
-            case Interp::LANCZOS6:           return launch_scale.template operator()<Interp::LANCZOS6>();
-            case Interp::LANCZOS8:           return launch_scale.template operator()<Interp::LANCZOS8>();
-            case Interp::LANCZOS4_FAST:      return launch_scale.template operator()<Interp::LANCZOS4_FAST>();
-            case Interp::LANCZOS6_FAST:      return launch_scale.template operator()<Interp::LANCZOS6_FAST>();
-            case Interp::LANCZOS8_FAST:      return launch_scale.template operator()<Interp::LANCZOS8_FAST>();
+            case Interp::NEAREST:            return launch_scale(ng::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_scale(ng::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_scale(ng::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_scale(ng::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_scale(ng::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_scale(ng::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_scale(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_scale(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::LANCZOS4:           return launch_scale(ng::WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:           return launch_scale(ng::WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:           return launch_scale(ng::WrapInterp<Interp::LANCZOS8>{});
+            case Interp::LANCZOS4_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS4_FAST>{});
+            case Interp::LANCZOS6_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS6_FAST>{});
+            case Interp::LANCZOS8_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
 
@@ -461,14 +471,16 @@ namespace noa::geometry::guts {
         const auto s_input_shape = input_shape.as<Index>();
         const auto s_output_shape = output_shape.as<Index>();
 
-        auto launch = [&]<Interp INTERP, bool NO_EWS_SCALE>() {
+        auto launch = [&](auto no_ews_and_scale, auto interp) {
             using coord_t = nt::value_type_twice_t<InputRotate>;
-            auto input_interpolator = fourier_projection_to_interpolator<2, REMAP, IS_GPU, INTERP, coord_t>(input_slice, s_input_shape);
-            auto input_weight_interpolator = fourier_projection_to_interpolator<2, REMAP, IS_GPU, INTERP, coord_t>(input_weight, s_input_shape);
+            auto input_interpolator = fourier_projection_to_interpolator
+                <2, REMAP, IS_GPU, interp(), coord_t>(input_slice, s_input_shape);
+            auto input_weight_interpolator = fourier_projection_to_interpolator
+                <2, REMAP, IS_GPU, interp(), coord_t>(input_weight, s_input_shape);
 
-            auto ews = fourier_projection_to_ews<NO_EWS_SCALE, coord_t>(options.ews_radius);
-            auto input_scaling_accessor = ng::to_batched_transform<true, NO_EWS_SCALE>(input_scaling);
-            auto output_scaling_accessor = ng::to_batched_transform<true, NO_EWS_SCALE>(output_scaling);
+            auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
+            auto input_scaling_accessor = ng::to_batched_transform<true, no_ews_and_scale()>(input_scaling);
+            auto output_scaling_accessor = ng::to_batched_transform<true, no_ews_and_scale()>(output_scaling);
 
             using op_t = FourierInsertExtract<
                 REMAP, Index,
@@ -520,28 +532,28 @@ namespace noa::geometry::guts {
 
         const auto has_ews = any(options.ews_radius != 0);
         const bool has_scale = fourier_project_has_scale(input_scaling) or fourier_project_has_scale(output_scaling);
-        auto launch_scale = [&]<Interp INTERP>{
+        auto launch_scale = [&](auto interp) {
             if (has_ews or has_scale)
-                return launch.template operator()<INTERP, false>();
-            return launch.template operator()<INTERP, true>();
+                return launch(WrapNoEwaldAndScale<false>{}, interp);
+            return launch(WrapNoEwaldAndScale<true>{}, interp);
         };
 
         const Interp interp = guts::fourier_insert_extract_interp_mode(input_slice, input_weight, options.interp);
         switch (interp) {
-            case Interp::NEAREST:            return launch_scale.template operator()<Interp::NEAREST>();
-            case Interp::NEAREST_FAST:       return launch_scale.template operator()<Interp::NEAREST_FAST>();
-            case Interp::LINEAR:             return launch_scale.template operator()<Interp::LINEAR>();
-            case Interp::LINEAR_FAST:        return launch_scale.template operator()<Interp::LINEAR_FAST>();
-            case Interp::CUBIC:              return launch_scale.template operator()<Interp::CUBIC>();
-            case Interp::CUBIC_FAST:         return launch_scale.template operator()<Interp::CUBIC_FAST>();
-            case Interp::CUBIC_BSPLINE:      return launch_scale.template operator()<Interp::CUBIC_BSPLINE>();
-            case Interp::CUBIC_BSPLINE_FAST: return launch_scale.template operator()<Interp::CUBIC_BSPLINE_FAST>();
-            case Interp::LANCZOS4:           return launch_scale.template operator()<Interp::LANCZOS4>();
-            case Interp::LANCZOS6:           return launch_scale.template operator()<Interp::LANCZOS6>();
-            case Interp::LANCZOS8:           return launch_scale.template operator()<Interp::LANCZOS8>();
-            case Interp::LANCZOS4_FAST:      return launch_scale.template operator()<Interp::LANCZOS4_FAST>();
-            case Interp::LANCZOS6_FAST:      return launch_scale.template operator()<Interp::LANCZOS6_FAST>();
-            case Interp::LANCZOS8_FAST:      return launch_scale.template operator()<Interp::LANCZOS8_FAST>();
+            case Interp::NEAREST:            return launch_scale(ng::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_scale(ng::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_scale(ng::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_scale(ng::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_scale(ng::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_scale(ng::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_scale(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_scale(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::LANCZOS4:           return launch_scale(ng::WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:           return launch_scale(ng::WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:           return launch_scale(ng::WrapInterp<Interp::LANCZOS8>{});
+            case Interp::LANCZOS4_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS4_FAST>{});
+            case Interp::LANCZOS6_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS6_FAST>{});
+            case Interp::LANCZOS8_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
 }
@@ -616,12 +628,12 @@ namespace noa::geometry {
         Rotate&& fwd_rotation,
         const FourierInsertRasterizeOptions& options = {}
     ) {
-        guts::fourier_projection_check_parameters<guts::ProjectionType::INSERT_RASTERIZE>(
+        guts::fourier_projection_check_parameters<guts::FourierProjectionType::INSERT_RASTERIZE>(
             slice, slice_weight, slice_shape, volume, volume_weight, volume_shape,
             options.target_shape, inv_scaling, fwd_rotation);
 
         if (volume.device().is_gpu()) {
-            #ifdef NOA_ENABLE_CUDA
+            #ifdef NOA_ENABLE_GPU
             check(guts::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
                   "i64 indexing not instantiated for GPU devices");
             return guts::launch_fourier_insert_rasterize_3d<REMAP, i32>(
@@ -629,7 +641,7 @@ namespace noa::geometry {
                 std::forward<Output>(volume), std::forward<OutputWeight>(volume_weight), volume_shape,
                 std::forward<Scale>(inv_scaling), std::forward<Rotate>(fwd_rotation), options);
             #else
-            std::terminate(); // unreachable
+            panic_no_gpu_backend();
             #endif
         }
 
@@ -733,12 +745,12 @@ namespace noa::geometry {
         Rotate&& inv_rotation,
         const FourierInsertInterpolateOptions& options = {}
     ) {
-        guts::fourier_projection_check_parameters<guts::ProjectionType::INSERT_INTERPOLATE>(
+        guts::fourier_projection_check_parameters<guts::FourierProjectionType::INSERT_INTERPOLATE>(
             slice, slice_weight, slice_shape, volume, volume_weight, volume_shape,
             options.target_shape, fwd_scaling, inv_rotation);
 
         if (volume.device().is_gpu()) {
-            #ifdef NOA_ENABLE_CUDA
+            #ifdef NOA_ENABLE_GPU
             if constexpr (
                 (nt::texture_decay<Input> and nt::any_of<nt::mutable_value_type_t<Input>, f64, c64>) or
                 (nt::texture_decay<InputWeight> and nt::any_of<nt::mutable_value_type_t<InputWeight>, f64, c64>)) {
@@ -752,7 +764,7 @@ namespace noa::geometry {
                     std::forward<Scale>(fwd_scaling), std::forward<Rotate>(inv_rotation), options);
             }
             #else
-            std::terminate(); // unreachable
+            panic_no_gpu_backend();
             #endif
         }
 
@@ -832,12 +844,12 @@ namespace noa::geometry {
         Rotate&& fwd_rotation,
         const FourierExtractOptions& options = {}
     ) {
-        guts::fourier_projection_check_parameters<guts::ProjectionType::EXTRACT>(
+        guts::fourier_projection_check_parameters<guts::FourierProjectionType::EXTRACT>(
             volume, volume_weight, volume_shape, slice, slice_weight, slice_shape,
             options.target_shape, inv_scaling, fwd_rotation);
 
         if (volume.device().is_gpu()) {
-            #ifdef NOA_ENABLE_CUDA
+            #ifdef NOA_ENABLE_GPU
             if constexpr (
                 (nt::texture_decay<Input> and nt::any_of<nt::mutable_value_type_t<Input>, f64, c64>) or
                 (nt::texture_decay<InputWeight> and nt::any_of<nt::mutable_value_type_t<InputWeight>, f64, c64>)) {
@@ -851,7 +863,7 @@ namespace noa::geometry {
                     std::forward<Scale>(inv_scaling), std::forward<Rotate>(fwd_rotation), options);
             }
             #else
-            std::terminate(); // unreachable
+            panic_no_gpu_backend();
             #endif
         }
 
@@ -954,7 +966,7 @@ namespace noa::geometry {
         OutputRotate&& output_fwd_rotation,
         const FourierInsertExtractOptions& options = {}
     ) {
-        guts::fourier_projection_check_parameters<guts::ProjectionType::INSERT_EXTRACT>(
+        guts::fourier_projection_check_parameters<guts::FourierProjectionType::INSERT_EXTRACT>(
             input_slice, input_weight, input_slice_shape, output_slice, output_weight, output_slice_shape,
             {}, input_fwd_scaling, input_inv_rotation, output_inv_scaling, output_fwd_rotation);
 
@@ -968,7 +980,7 @@ namespace noa::geometry {
               options.w_windowed_sinc.fftfreq_blackman, w_blackman_size);
 
         if (output_slice.device().is_gpu()) {
-            #ifdef NOA_ENABLE_CUDA
+            #ifdef NOA_ENABLE_GPU
             if constexpr (
                 (nt::texture_decay<Input> and nt::any_of<nt::mutable_value_type_t<Input>, f64, c64>) or
                 (nt::texture_decay<InputWeight> and nt::any_of<nt::mutable_value_type_t<InputWeight>, f64, c64>)) {
@@ -984,7 +996,7 @@ namespace noa::geometry {
                     options);
             }
             #else
-            std::terminate(); // unreachable
+            panic_no_gpu_backend();
             #endif
         }
 

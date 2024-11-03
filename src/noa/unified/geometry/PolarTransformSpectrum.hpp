@@ -22,8 +22,8 @@ namespace noa::geometry::guts {
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, 3, Index>;
         const auto output_accessor = output_accessor_t(polar.get(), polar.strides().filter(0, 2, 3).template as<Index>());
 
-        auto launch_iwise = [&]<Interp INTERP> {
-            auto interpolator = ng::to_interpolator_spectrum<2, REMAP, INTERP, coord_t, IS_GPU>(
+        auto launch_iwise = [&](auto interp) {
+            auto interpolator = ng::to_interpolator_spectrum<2, REMAP, interp(), coord_t, IS_GPU>(
                 spectrum, spectrum_shape);
 
             auto polar_shape = polar.shape().filter(0, 2, 3).template as<Index>();
@@ -44,20 +44,20 @@ namespace noa::geometry::guts {
         if constexpr (nt::texture_decay<Input>)
             interp = spectrum.interp();
         switch (interp) {
-            case Interp::NEAREST:            return launch_iwise.template operator()<Interp::NEAREST>();
-            case Interp::NEAREST_FAST:       return launch_iwise.template operator()<Interp::NEAREST_FAST>();
-            case Interp::LINEAR:             return launch_iwise.template operator()<Interp::LINEAR>();
-            case Interp::LINEAR_FAST:        return launch_iwise.template operator()<Interp::LINEAR_FAST>();
-            case Interp::CUBIC:              return launch_iwise.template operator()<Interp::CUBIC>();
-            case Interp::CUBIC_FAST:         return launch_iwise.template operator()<Interp::CUBIC_FAST>();
-            case Interp::CUBIC_BSPLINE:      return launch_iwise.template operator()<Interp::CUBIC_BSPLINE>();
-            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise.template operator()<Interp::CUBIC_BSPLINE_FAST>();
-            case Interp::LANCZOS4:           return launch_iwise.template operator()<Interp::LANCZOS4>();
-            case Interp::LANCZOS6:           return launch_iwise.template operator()<Interp::LANCZOS6>();
-            case Interp::LANCZOS8:           return launch_iwise.template operator()<Interp::LANCZOS8>();
-            case Interp::LANCZOS4_FAST:      return launch_iwise.template operator()<Interp::LANCZOS4_FAST>();
-            case Interp::LANCZOS6_FAST:      return launch_iwise.template operator()<Interp::LANCZOS6_FAST>();
-            case Interp::LANCZOS8_FAST:      return launch_iwise.template operator()<Interp::LANCZOS8_FAST>();
+            case Interp::NEAREST:            return launch_iwise(ng::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_iwise(ng::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_iwise(ng::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_iwise(ng::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_iwise(ng::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_iwise(ng::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::LANCZOS4:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS8>{});
+            case Interp::LANCZOS4_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS4_FAST>{});
+            case Interp::LANCZOS6_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS6_FAST>{});
+            case Interp::LANCZOS8_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
 }
@@ -130,7 +130,7 @@ namespace noa::geometry {
                         std::forward<Output>(polar), options);
             }
             #else
-            std::terminate(); // unreachable
+            panic_no_gpu_backend(); // unreachable
             #endif
         } else {
             guts::launch_spectrum2polar<REMAP>(

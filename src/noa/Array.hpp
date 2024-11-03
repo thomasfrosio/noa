@@ -1,4 +1,5 @@
 #pragma once
+
 #include "noa/unified/Device.hpp"
 #include "noa/unified/Stream.hpp"
 #include "noa/unified/Allocator.hpp"

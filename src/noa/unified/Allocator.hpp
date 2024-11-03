@@ -141,7 +141,7 @@ namespace noa::inline types {
                         const DeviceGuard guard(device);
                         return noa::cuda::AllocatorDevice<T>::allocate(n_elements);
                         #else
-                        panic(NO_GPU_MESSAGE);
+                        panic_no_gpu_backend();
                         #endif
                     }
                 }
@@ -153,7 +153,7 @@ namespace noa::inline types {
                         return noa::cuda::AllocatorDevice<T>::allocate_async(
                             n_elements, Stream::current(device).cuda());
                         #else
-                        panic(NO_GPU_MESSAGE);
+                        panic_no_gpu_backend();
                         #endif
                     }
                 }
@@ -171,7 +171,7 @@ namespace noa::inline types {
                             return noa::cuda::AllocatorDevice<T>::allocate(n_elements);
                         }
                         #else
-                        panic(NO_GPU_MESSAGE);
+                        panic_no_gpu_backend();
                         #endif
                     }
                 }
@@ -183,7 +183,7 @@ namespace noa::inline types {
                         const DeviceGuard guard(device.is_gpu() ? device : Device::current_gpu());
                         return noa::cuda::AllocatorPinned<T>::allocate(n_elements);
                         #else
-                        panic(NO_GPU_MESSAGE);
+                        panic_no_gpu_backend();
                         #endif
                     }
                 }
@@ -197,7 +197,7 @@ namespace noa::inline types {
                         auto& cuda_stream = Stream::current(gpu).cuda();
                         return noa::cuda::AllocatorManaged<T>::allocate(n_elements, cuda_stream);
                         #else
-                        panic(NO_GPU_MESSAGE);
+                        panic_no_gpu_backend();
                         #endif
                     }
                 }
@@ -209,7 +209,7 @@ namespace noa::inline types {
                         const DeviceGuard guard(device.is_gpu() ? device : Device::current_gpu());
                         return noa::cuda::AllocatorManaged<T>::allocate_global(n_elements);
                         #else
-                        panic(NO_GPU_MESSAGE);
+                        panic_no_gpu_backend();
                         #endif
                     }
                 }
@@ -241,7 +241,7 @@ namespace noa::inline types {
                             return {noa::cuda::AllocatorDevice<T>::allocate(shape.n_elements()), shape.strides()};
                         }
                         #else
-                        panic(NO_GPU_MESSAGE);
+                        panic_no_gpu_backend();
                         #endif
                     }
                 }

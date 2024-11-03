@@ -1,6 +1,5 @@
 #include <noa/unified/io/ImageFile.hpp>
 #include "noa/unified/Factory.hpp"
-#include <noa/unified/Cast.hpp>
 #include <noa/core/io/OS.hpp>
 #include <catch2/catch.hpp>
 

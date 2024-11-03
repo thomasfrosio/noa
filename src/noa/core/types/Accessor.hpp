@@ -581,7 +581,7 @@ namespace noa::guts {
             });
     }
 
-    /// Whether the accessors are aliases of each others.
+    /// Whether the accessors are aliases of each others. If empty, return false.
     /// TODO Take a shape and see if end of array doesn't overlap with other arrays? like are_overlapped
     template<nt::tuple_of_accessor_or_empty... T>
     [[nodiscard]] constexpr auto are_accessors_aliased(const T&... tuples_of_accessors) -> bool {

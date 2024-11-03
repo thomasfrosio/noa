@@ -72,6 +72,9 @@ namespace noa::traits {
 
     template<typename T, typename... U> concept varray_with_compatible_or_spectrum_types = varray<T, U...> and (compatible_or_spectrum_types<value_type_t<T>, value_type_t<U>> and ...);
     template<typename T, typename... U> concept varray_decay_with_compatible_or_spectrum_types = varray_decay<T, U...> and (compatible_or_spectrum_types<value_type_t<T>, value_type_t<U>> and ...);
+
+    template<typename T, typename U> concept varray_compatible_with = varray<T> and compatible_types<value_type_t<T>, value_type_t<U>>;
+    template<typename T, typename U> concept varray_decay_compatible_with = varray_decay<T> and compatible_types<value_type_t<T>, value_type_t<U>>;
 }
 
 namespace noa::traits {
@@ -121,4 +124,16 @@ namespace noa::traits {
     NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE(complex);
     NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE(real_or_complex);
     #undef NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE
+
+    template<typename T, size_t N, typename U = std::remove_reference_t<T>, typename V = value_type_t<T>>
+    concept transform_affine_nd =
+        mat_of_shape<U, N, N + 1> or
+        mat_of_shape<U, N + 1, N + 1> or
+        (nt::varray<U> and (mat_of_shape<V, N, N + 1> or mat_of_shape<V, N + 1, N + 1>));
+
+    template<typename T, size_t N, typename U = std::remove_reference_t<T>, typename V = value_type_t<T>>
+    concept transform_projection_nd =
+        mat_of_shape<U, N - 1, N + 1> or
+        mat_of_shape<U, N + 1, N + 1> or
+        (nt::varray<U> and (mat_of_shape<V, N - 1, N + 1> or mat_of_shape<V, N + 1, N + 1>));
 }

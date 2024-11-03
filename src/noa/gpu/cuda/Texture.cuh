@@ -1,8 +1,9 @@
 #pragma once
+#include "noa/gpu/cuda/IncludeGuard.cuh"
 
 #include "noa/core/Config.hpp"
 #include "noa/core/Enums.hpp"
-#include "noa/core/Interpolation.hpp"
+#include "noa/gpu/cuda/Allocators.hpp"
 
 namespace noa::cuda {
     /// Texture object used to interpolate data.
@@ -12,12 +13,14 @@ namespace noa::cuda {
              Border BORDER_,
              typename Value,
              typename Coord,
+             typename Index,
              bool NORMALIZED,
              bool LAYERED>
     class Texture {
     public:
         static constexpr Interp INTERP = INTERP_;
         static constexpr Border BORDER = BORDER_;
+        static constexpr size_t SIZE = N;
 
         static_assert(N == 2 or N == 3);
         static_assert(nt::any_of<Value, f32, c32> and nt::any_of<Coord, f32, f64>);
@@ -31,7 +34,7 @@ namespace noa::cuda {
 
         using value_type = Value;
         using coord_type = Coord;
-        using index_type = i32;
+        using index_type = Index;
         using coord_n_type = Vec<coord_type, N>;
         using f_shape_type = std::conditional_t<NORMALIZED, coord_n_type, Empty>;
         using layer_type = std::conditional_t<LAYERED, i32, Empty>;
@@ -43,7 +46,7 @@ namespace noa::cuda {
             m_texture(texture)
         {
             if constexpr (NORMALIZED)
-                m_norm = 1 / shape.pop_front().template as<coord_type>();
+                m_norm = 1 / shape.vec.pop_front().template as<coord_type>();
             if constexpr (LAYERED)
                 m_broadcast_layer = shape[0] == 1; // automatically broadcasts if one layer
             validate(texture);
@@ -51,7 +54,7 @@ namespace noa::cuda {
 
     public:
         template<nt::real T, size_t A>
-        [[nodiscard]] auto fetch_preprocess(Vec<T, N, A> coordinates) const -> Vec<T, N, A> {
+        [[nodiscard]] NOA_HD auto fetch_preprocess(Vec<T, N, A> coordinates) const -> Vec<T, N, A> {
             coordinates += static_cast<T>(0.5); // to texture coordinate system
             if constexpr (NORMALIZED)
                 coordinates *= m_norm.template as<T, A>();
@@ -59,22 +62,22 @@ namespace noa::cuda {
         }
 
         template<nt::real... T> requires (sizeof...(T) == N)
-        [[nodiscard]] auto fetch(T... coordinates) const noexcept -> value_type {
+        [[nodiscard]] NOA_HD auto fetch(T... coordinates) const noexcept -> value_type {
             return fetch_raw(fetch_preprocess(coord_n_type::from_values(coordinates...)));
         }
 
         template<nt::real T, size_t A>
-        [[nodiscard]] auto fetch(const Vec<T, N, A>& coordinates) const noexcept -> value_type {
+        [[nodiscard]] NOA_HD auto fetch(const Vec<T, N, A>& coordinates) const noexcept -> value_type {
             return fetch_raw(fetch_preprocess(coordinates.template as<coord_type>()));
         }
 
         template<nt::real... T> requires (sizeof...(T) == N)
-        [[nodiscard]] auto fetch_raw(T... coordinates) const noexcept -> value_type {
+        [[nodiscard]] NOA_HD auto fetch_raw(T... coordinates) const noexcept -> value_type {
             return fetch_raw(coord_n_type::from_values(coordinates...));
         }
 
         template<nt::real T, size_t A>
-        [[nodiscard]] auto fetch_raw(const Vec<T, N, A>& coordinates) const noexcept -> value_type {
+        [[nodiscard]] NOA_HD auto fetch_raw(const Vec<T, N, A>& coordinates) const noexcept -> value_type {
             auto vec = coordinates.template as<coord_type>();
             #ifdef __CUDACC__
             if constexpr (N == 2) {
@@ -108,17 +111,17 @@ namespace noa::cuda {
             }
             #else
             (void) coordinates;
-            return {};
+            return value_type{};
             #endif
         }
 
     public:
-        void set_layer(nt::integer auto layer) noexcept {
+        NOA_HD void set_layer(nt::integer auto layer) noexcept {
             if constexpr (LAYERED)
-                m_layer = m_broadcast_layer ? static_cast<i32>(layer) : 0;
+                m_layer = m_broadcast_layer ? 0 : static_cast<i32>(layer);
         }
 
-        [[nodiscard]] auto operator[](nt::integer auto layer) const noexcept -> Texture {
+        [[nodiscard]] NOA_HD auto operator[](nt::integer auto layer) const noexcept -> Texture {
             Texture new_texture = *this;
             new_texture.set_layer(layer);
             return new_texture;
@@ -145,7 +148,7 @@ namespace noa::cuda {
             return (*this)[indices[0]](indices.pop_front());
         }
 
-        /// Checks that the texture object matches the Texture pa
+        /// Checks that the texture object matches the Texture
         static void validate(cudaTextureObject_t texture) {
             #ifdef NOA_IS_OFFLINE
             cudaArray* array = AllocatorTexture::texture_array(texture);
@@ -153,14 +156,15 @@ namespace noa::cuda {
             check(is_layered == LAYERED, "The input texture object is not layered, but a layered Texture was created");
 
             const cudaTextureDesc description = AllocatorTexture::texture_description(texture);
-            if constexpr (INTERP == Interp::NEAREST_FAST) {
-                check(description.filterMode == cudaFilterModePoint,
-                      "The input texture object is not using mode-point lookups, "
-                      "which does not match the Texture settings: INTERP=", INTERP);
-            } else if constexpr (INTERP == Interp::LINEAR_FAST) {
+            constexpr bool IS_ADDRESSABLE = BORDER.is_any(Border::ZERO, Border::CLAMP, Border::MIRROR, Border::PERIODIC);
+            if constexpr (IS_ADDRESSABLE and INTERP == Interp::LINEAR_FAST) {
                 check(description.filterMode == cudaFilterModeLinear,
                       "The input texture object is not using linear lookups, "
-                      "which does not match the Texture settings: INTERP=", INTERP);
+                      "which does not match the Texture settings: INTERP={}", INTERP);
+            } else if constexpr (not IS_ADDRESSABLE or INTERP == Interp::NEAREST_FAST) {
+                check(description.filterMode == cudaFilterModePoint,
+                      "The input texture object is not using mode-point lookups, "
+                      "which does not match the Texture settings: INTERP={}", INTERP);
             } else {
                 static_assert(nt::always_false<value_type>);
             }
@@ -177,24 +181,4 @@ namespace noa::cuda {
         NOA_NO_UNIQUE_ADDRESS layer_type m_layer{};
         NOA_NO_UNIQUE_ADDRESS layer_flag_type m_broadcast_layer{};
     };
-
-    template<size_t N, Interp INTERP, Border BORDER, typename Value, typename Coord>
-    struct interpolation_to_texture {
-        static constexpr bool LAYERED = N == 2;
-        static constexpr bool NORMALIZED = BORDER == Border::MIRROR or BORDER == Border::PERIODIC;
-
-        static constexpr Interp INTERP_TEX =
-            INTERP.is_fast() and INTERP != Interp::NEAREST_FAST ?
-            Interp::LINEAR_FAST : Interp::NEAREST_FAST;
-
-        static constexpr Border BORDER_TEX =
-            BORDER == Border::VALUE or BORDER == Border::REFLECT or BORDER == Border::NOTHING ?
-            Border{Border::ZERO} : BORDER;
-
-        using type = Texture<N, INTERP_TEX, BORDER_TEX, Value, Coord, NORMALIZED, LAYERED>;
-    };
-
-    /// Utility to get the correct Texture type given the interpolation inputs.
-    template<size_t N, Interp INTERP, Border BORDER, typename Value, typename Coord = f32>
-    using interpolation_to_texture_t = interpolation_to_texture<N, INTERP, BORDER, Value, Coord>;
 }

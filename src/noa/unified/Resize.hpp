@@ -2,7 +2,6 @@
 
 #include "noa/core/Iwise.hpp"
 #include "noa/unified/Array.hpp"
-#include "noa/unified/Cast.hpp"
 #include "noa/unified/Iwise.hpp"
 
 namespace noa {

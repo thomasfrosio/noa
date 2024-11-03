@@ -1,7 +1,7 @@
 ## `cryoEM`
 
 
-- __High-order aberrations__ and optics in general... Look at Warp and RELION's code. I know nothing about this...
+- __High-order aberrations__ and optics in general... Look at Warp and RELION's code. I know little to nothing about this...
 
 
 - Complex CTFs, for Russo/Henderson's EWS correction?

@@ -68,7 +68,7 @@ namespace noa::signal {
                 std::forward<Output>(output),
                 std::forward<Filter>(filter));
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         }
     }
@@ -181,7 +181,7 @@ namespace noa::signal {
                 std::forward<FilterWidth>(filter_width),
                 std::forward<Buffer>(buffer));
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         }
     }

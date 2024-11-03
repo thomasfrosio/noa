@@ -215,7 +215,7 @@ TEST_CASE("unified::signal::bandpass()", "[asset][noa][unified]") {
         const auto shape = test["shape"].as<Shape4<i64>>();
         const auto cutoff = test["cutoff"].as<std::vector<f64>>();
         const auto width = test["width"].as<std::vector<f64>>();
-        const auto bandpass_options = noa::signal::DoublePassParameters{cutoff[0], width[0], cutoff[1], width[1]};
+        const auto bandpass_options = noa::signal::Bandpass{cutoff[0], width[0], cutoff[1], width[1]};
         const auto filename_expected = path_base / test["path"].as<Path>();
 
         if (COMPUTE_ASSETS) {
@@ -258,7 +258,7 @@ TEST_CASE("unified::signal::bandpass()", "[asset][noa][unified]") {
 
 TEMPLATE_TEST_CASE("unified::signal::bandpass(), remap", "[noa][unified]", f16, f32, f64) {
     const auto shape = test::random_shape_batched(3);
-    constexpr auto bandpass = noa::signal::DoublePassParameters{
+    constexpr auto bandpass = noa::signal::Bandpass{
         .highpass_cutoff=0.1,
         .highpass_width=0.1,
         .lowpass_cutoff=0.4,

@@ -1,4 +1,5 @@
 #pragma once
+#include "noa/gpu/cuda/IncludeGuard.cuh"
 
 #include "noa/core/Config.hpp"
 #include "noa/core/Interfaces.hpp"
@@ -38,8 +39,8 @@ namespace noa::cuda::guts {
         static constexpr u32 block_size_x = min(block_size, Constant::WARP_SIZE);
         static constexpr u32 block_size_y = block_size / block_size_x;
 
-        static constexpr u32 n_elements_per_thread_x = EwiseConfig::n_elements_per_thread / 2;
-        static constexpr u32 n_elements_per_thread_y = EwiseConfig::n_elements_per_thread - n_elements_per_thread_x;
+        static constexpr u32 n_elements_per_thread_x = max(EwiseConfig::n_elements_per_thread / 2, 1u);
+        static constexpr u32 n_elements_per_thread_y = max(EwiseConfig::n_elements_per_thread - n_elements_per_thread_x, 1u);
 
         static constexpr u32 block_work_size_x = block_size_x * n_elements_per_thread_x;
         static constexpr u32 block_work_size_y = block_size_y * n_elements_per_thread_y;

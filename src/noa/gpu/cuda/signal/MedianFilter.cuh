@@ -1,4 +1,5 @@
 #pragma once
+#include "noa/gpu/cuda/IncludeGuard.cuh"
 
 #include "noa/core/Enums.hpp"
 #include "noa/core/indexing/Layout.hpp"

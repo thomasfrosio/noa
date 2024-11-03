@@ -3,10 +3,10 @@
 #include "noa/core/Config.hpp"
 
 #ifdef NOA_IS_OFFLINE
-#include "noa/core/Types.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/core/indexing/Layout.hpp"
+#include "noa/core/indexing/Offset.hpp"
 #include "noa/unified/Traits.hpp"
-#include "noa/unified/Utilities.hpp"
 
 namespace noa {
     /// Broadcasts an array to a given shape.

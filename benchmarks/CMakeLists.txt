@@ -4,8 +4,10 @@
 set(BENCHMARK_SOURCES
     EntryPoint.cpp
 
+
     src/BenchCopy.cpp
-    src/BenchTransformSpectrum.cpp
+#    src/BenchTransform.cpp
+#    src/BenchTransformSpectrum.cpp
 )
 
 

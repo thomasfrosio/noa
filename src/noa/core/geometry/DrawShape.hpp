@@ -82,7 +82,7 @@ namespace noa::geometry::guts {
             const auto shape = m_draw_op(draw_vec_type::from_values(indices...), m_inverse_xform[batch]);
             if (m_input) {
                 auto input = m_input(batch, indices...);
-                if constexpr (nt::empty<BinaryOp>) {
+                if constexpr (nt::same_as<BinaryOp, Empty>) {
                     m_output(batch, indices...) = static_cast<output_value_type>(default_op_(input, shape));
                 } else {
                     m_output(batch, indices...) = static_cast<output_value_type>(m_binary_op(input, shape));

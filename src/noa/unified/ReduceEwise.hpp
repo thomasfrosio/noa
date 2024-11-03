@@ -57,47 +57,47 @@ namespace noa {
             Outputs&& outputs,
             Operator&& op
     ) {
-        static_assert(ng::adaptor<Outputs> or std::is_lvalue_reference_v<Outputs>,
+        static_assert(ng::adaptor_decay<Outputs> or std::is_lvalue_reference_v<Outputs>,
                       "Output values should be lvalue references");
 
-        if constexpr (ng::adaptor<Inputs, Reduced, Outputs>) {
-            ng::reduce_ewise<OPTIONS, Inputs::ZIP, Reduced::ZIP, Outputs::ZIP>(
+        if constexpr (ng::adaptor_decay<Inputs, Reduced, Outputs>) {
+            ng::reduce_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP>(
                 std::forward<Inputs>(inputs).tuple,
                 std::forward<Reduced>(reduced).tuple,
                 std::forward<Outputs>(outputs).tuple,
                 std::forward<Operator>(op));
-        } else if constexpr (ng::adaptor<Inputs, Reduced>) {
-            ng::reduce_ewise<OPTIONS, Inputs::ZIP, Reduced::ZIP, false>(
+        } else if constexpr (ng::adaptor_decay<Inputs, Reduced>) {
+            ng::reduce_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, std::decay_t<Reduced>::ZIP, false>(
                 std::forward<Inputs>(inputs).tuple,
                 std::forward<Reduced>(reduced).tuple,
                 forward_as_tuple(std::forward<Outputs>(outputs)),
                 std::forward<Operator>(op));
-        } else if constexpr (ng::adaptor<Inputs, Outputs>) {
-            ng::reduce_ewise<OPTIONS, Inputs::ZIP, false, Outputs::ZIP>(
+        } else if constexpr (ng::adaptor_decay<Inputs, Outputs>) {
+            ng::reduce_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, false, std::decay_t<Outputs>::ZIP>(
                 std::forward<Inputs>(inputs).tuple,
                 forward_as_tuple(std::forward<Reduced>(reduced)),
                 std::forward<Outputs>(outputs).tuple,
                 std::forward<Operator>(op));
-        } else if constexpr (ng::adaptor<Reduced, Outputs>) {
-            ng::reduce_ewise<OPTIONS, false, Reduced::ZIP, Outputs::ZIP>(
+        } else if constexpr (ng::adaptor_decay<Reduced, Outputs>) {
+            ng::reduce_ewise<OPTIONS, false, std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP>(
                 forward_as_tuple(std::forward<Inputs>(inputs)),
                 std::forward<Reduced>(reduced).tuple,
                 std::forward<Outputs>(outputs).tuple,
                 std::forward<Operator>(op));
-        } else if constexpr (ng::adaptor<Outputs>) {
-            ng::reduce_ewise<OPTIONS, false, false, Outputs::ZIP>(
+        } else if constexpr (ng::adaptor_decay<Outputs>) {
+            ng::reduce_ewise<OPTIONS, false, false, std::decay_t<Outputs>::ZIP>(
                 forward_as_tuple(std::forward<Inputs>(inputs)),
                 forward_as_tuple(std::forward<Reduced>(reduced)),
                 std::forward<Outputs>(outputs).tuple,
                 std::forward<Operator>(op));
-        } else if constexpr (ng::adaptor<Reduced>) {
-            ng::reduce_ewise<OPTIONS, false, Reduced::ZIP, false>(
+        } else if constexpr (ng::adaptor_decay<Reduced>) {
+            ng::reduce_ewise<OPTIONS, false, std::decay_t<Reduced>::ZIP, false>(
                 forward_as_tuple(std::forward<Inputs>(inputs)),
                 std::forward<Reduced>(reduced).tuple,
                 forward_as_tuple(std::forward<Outputs>(outputs)),
                 std::forward<Operator>(op));
-        } else if constexpr (ng::adaptor<Inputs>) {
-            ng::reduce_ewise<OPTIONS, Inputs::ZIP, false, false>(
+        } else if constexpr (ng::adaptor_decay<Inputs>) {
+            ng::reduce_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, false, false>(
                 std::forward<Inputs>(inputs).tuple,
                 forward_as_tuple(std::forward<Reduced>(reduced)),
                 forward_as_tuple(std::forward<Outputs>(outputs)),
@@ -244,7 +244,7 @@ namespace noa::guts {
                     cuda_stream.synchronize();
                 return;
 #else
-                panic("No GPU backend detected");
+                panic_no_gpu_backend();
 #endif
             }
         }

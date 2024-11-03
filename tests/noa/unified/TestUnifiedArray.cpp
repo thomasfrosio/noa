@@ -41,13 +41,13 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", i32, f32, c32, 
     REQUIRE_FALSE(b.is_empty());
 
     if (allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL)) {
-        Array<TestType> c = a.as(Device::GPU, /*prefetch=*/ true);
+        Array<TestType> c = a.reinterpret_as(Device::GPU, /*prefetch=*/ true);
         REQUIRE(c.device().is_gpu());
-        c = b.as(Device::CPU, /*prefetch=*/ true);
+        c = b.reinterpret_as(Device::CPU, /*prefetch=*/ true);
         REQUIRE(c.device() == Device{});
     } else {
-        REQUIRE_THROWS_AS(a.as(Device::GPU), noa::Exception);
-        REQUIRE_THROWS_AS(b.as(Device::CPU), noa::Exception);
+        REQUIRE_THROWS_AS(a.reinterpret_as(Device::GPU), noa::Exception);
+        REQUIRE_THROWS_AS(b.reinterpret_as(Device::CPU), noa::Exception);
     }
 }
 
@@ -145,16 +145,16 @@ TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "[noa][unified]", i32, 
     StreamGuard guard(Device{}, Stream::DEFAULT);
     AND_THEN("as another type") {
         Array<f64> c({2, 3, 4, 5});
-        Array<unsigned char> d = c.as<unsigned char>();
+        Array<unsigned char> d = c.reinterpret_as<unsigned char>();
         REQUIRE(all(d.shape() == Shape4<i64>{2, 3, 4, 40}));
         REQUIRE(all(d.strides() == Strides4<i64>{480, 160, 40, 1}));
 
         Array<c64> e({2, 3, 4, 5});
-        Array f = e.as<f64>();
+        Array f = e.reinterpret_as<f64>();
         REQUIRE(all(f.shape() == Shape4<i64>{2, 3, 4, 10}));
         REQUIRE(all(f.strides() == Strides4<i64>{120, 40, 10, 1}));
 
-        e = f.as<c64>();
+        e = f.reinterpret_as<c64>();
         REQUIRE(all(e.shape() == Shape4<i64>{2, 3, 4, 5}));
         REQUIRE(all(e.strides() == Strides4<i64>{60, 20, 5, 1}));
     }

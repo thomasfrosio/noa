@@ -53,7 +53,7 @@ namespace noa::geometry {
                 std::forward<Input>(input),
                 std::forward<Output>(output));
             #else
-            panic("No GPU backend detected");
+            panic_no_gpu_backend();
             #endif
         }
     }
