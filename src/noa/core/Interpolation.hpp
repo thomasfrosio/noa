@@ -118,22 +118,25 @@ namespace noa {
         } else if constexpr (INTERP.is_almost_any(Interp::LANCZOS4, Interp::LANCZOS6, Interp::LANCZOS8)) {
             constexpr size_t SIZE = INTERP.window_size();
             constexpr size_t CENTER = SIZE / 2 - 1;
-            constexpr auto PI = Constant<real_t>::PI;
-
-            constexpr auto s45 = static_cast<real_t>(0.7071067811865475); // sin(Constant<real_t>::PI / 4);
-            constexpr real_t cs[][2] =
-                {{1, 0}, {-s45, -s45}, {0, 1}, {s45, -s45}, {-1, 0}, {s45, s45}, {0, -1}, {-s45, s45}};
 
             // Instead of computing the windowed-sinc for every point in the nd-window, use this trick from OpenCV
             // to only compute one sin and cos per dimension, regardless of the window size. See:
             // https://github.com/opencv/opencv/blob/master/modules/imgproc/src/imgwarp.cpp#L162
             // I think this relies on the Chebyshev polynomials, but I'm not sure.
             // Regardless, it gives the expected windowed-sinc, and it works for any N (N=[4,6,8] in our case).
+            constexpr auto PI = Constant<real_t>::PI;
+            constexpr auto s45 = static_cast<real_t>(0.7071067811865475); // sin(Constant<real_t>::PI / 4);
+            constexpr real_t cs[][2] =
+                {{1, 0}, {-s45, -s45}, {0, 1}, {s45, -s45}, {-1, 0}, {s45, s45}, {0, -1}, {-s45, s45}};
+
             Weight sum{};
             Vec<Weight, SIZE> coefficients{};
             for (size_t j{}; j < Weight::SIZE; ++j) {
-                if (abs(f[j]) < std::numeric_limits<real_t>::epsilon()) {
+                if (f[j] <= std::numeric_limits<real_t>::epsilon()) {
                     coefficients[CENTER][j] = 1;
+                    sum[j] = 1;
+                } else if (f[j] >= 1 - std::numeric_limits<real_t>::epsilon()) {
+                    coefficients[CENTER + 1][j] = 1;
                     sum[j] = 1;
                 } else {
                     const real_t x0 = -(f[j] + static_cast<real_t>(CENTER));

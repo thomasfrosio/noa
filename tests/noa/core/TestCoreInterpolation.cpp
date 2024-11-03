@@ -25,3 +25,37 @@ TEST_CASE("core, Interpolator", "[noa][core]") {
         auto value1 = op(2, 6, 7); // batch=2, height=6, width=7
     }
 }
+
+TEMPLATE_TEST_CASE("core, interpolation_weight<LANCZOS>, ", "[noa][core]", float, double) {
+    using namespace noa::types;
+    {
+        Vec<TestType, 1> a{std::numeric_limits<TestType>::epsilon()};
+        for (auto i: noa::irange(10)) {
+            for (auto c: noa::interpolation_weights<noa::Interp::LANCZOS4, decltype(a)>(a))
+                REQUIRE(noa::is_finite(c[0]));
+
+            for (auto c: noa::interpolation_weights<noa::Interp::LANCZOS6, decltype(a)>(a))
+                REQUIRE(noa::is_finite(c[0]));
+
+            for (auto c: noa::interpolation_weights<noa::Interp::LANCZOS8, decltype(a)>(a))
+                REQUIRE(noa::is_finite(c[0]));
+
+            a[0] = std::nextafter(a[0], TestType{1.});
+        }
+    }
+    {
+        Vec<TestType, 1> a{1};
+        for (auto i: noa::irange(10)) {
+            for (auto c: noa::interpolation_weights<noa::Interp::LANCZOS4, decltype(a)>(a))
+                REQUIRE(noa::is_finite(c[0]));
+
+            for (auto c: noa::interpolation_weights<noa::Interp::LANCZOS6, decltype(a)>(a))
+                REQUIRE(noa::is_finite(c[0]));
+
+            for (auto c: noa::interpolation_weights<noa::Interp::LANCZOS8, decltype(a)>(a))
+                REQUIRE(noa::is_finite(c[0]));
+
+            a[0] = std::nextafter(a[0], TestType{0.});
+        }
+    }
+}

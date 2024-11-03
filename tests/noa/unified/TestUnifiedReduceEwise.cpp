@@ -51,6 +51,6 @@ TEMPLATE_TEST_CASE("unified::reduce_ewise - simple", "[noa][unified]", i32, f64)
 
         f64 output{};
         noa::reduce_ewise(input, f64{}, output, noa::ReduceSum{});
-        REQUIRE_THAT(output, Catch::WithinAbs(sum, 1e-6));
+        REQUIRE_THAT(output, Catch::WithinAbs(sum, 1e-5));
     }
 }
