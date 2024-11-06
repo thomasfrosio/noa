@@ -10,6 +10,10 @@
 #include "noa/core/Enums.hpp"
 #include "noa/core/fft/Frequency.hpp"
 
+// TODO These interpolation functions prioritize simplicity.
+//      It could be interesting to try to optimize them at some point,
+//      especially given how prevalent the Interpolator is in the codebase.
+
 namespace noa::guts {
     template<Remap REMAP, nt::scalar T, nt::integer I, size_t N, size_t A0, size_t A1>
     requires (REMAP.is_xc2xx() or nt::integer<T>)
@@ -695,7 +699,7 @@ namespace noa {
     /// auto value = op(6, 7); // batch=0, height=6, width=7
     /// auto value = op(2, 6, 7); // batch=2, height=6, width=7
     /// \endcode
-    template<size_t N, Interp INTERP, Border BORDER, nt::interpable_nd<BORDER, N> Input>
+    template<size_t N, Interp INTERP_, Border BORDER_, nt::interpable_nd<BORDER_, N> Input>
     class Interpolator {
     public:
         using input_type = Input;
@@ -704,13 +708,15 @@ namespace noa {
         using mutable_value_type = nt::mutable_value_type_t<input_type>;
         using index_type = std::make_signed_t<offset_type>;
 
+        static constexpr Interp INTERP = INTERP_;
+        static constexpr Border BORDER = BORDER_;
         static constexpr size_t SIZE = N;
-        static constexpr bool is_textureable = requires (const input_type& t) {
+        static constexpr bool IS_TEXTUREABLE = requires (const input_type& t) {
             { t[0] } -> nt::textureable_nd<BORDER, N>;
         };
 
         using shape_nd_type = Shape<index_type, N>;
-        using shape_nd_or_empty_type = std::conditional_t<is_textureable, Empty, shape_nd_type>;
+        using shape_nd_or_empty_type = std::conditional_t<IS_TEXTUREABLE, Empty, shape_nd_type>;
         using value_or_empty_type = std::conditional_t<BORDER == Border::VALUE, mutable_value_type, Empty>;
 
     public:
@@ -725,7 +731,7 @@ namespace noa {
             const input_type& input,
             const Shape<index_type, N, A>& shape,
             mutable_value_type cvalue = mutable_value_type{}
-        ) noexcept requires (not is_textureable) :
+        ) noexcept requires (not IS_TEXTUREABLE) :
             m_input(input),
             m_shape(shape_nd_type::from_shape(shape))
         {
@@ -737,7 +743,7 @@ namespace noa {
         /// This stores a copy of the input texture. Note that the texture handles the addressing (as described
         /// in the interpolate_using_texture function), so the shape and cvalue are ignored and only provided here
         /// to match the constructor taking readable inputs.
-        template<size_t A> requires is_textureable
+        template<size_t A> requires IS_TEXTUREABLE
         NOA_HD constexpr explicit Interpolator(
             const input_type& input,
             const Shape<index_type, N, A>& = {},
@@ -752,7 +758,7 @@ namespace noa {
         ///                     and can thus effectively broadcast the input along the batch dimension.
         template<nt::any_of<f32, f64> T, size_t A, nt::integer I = index_type>
         NOA_HD constexpr auto interpolate_at(const Vec<T, N, A>& coordinates, I batch = I{}) const -> mutable_value_type {
-            if constexpr (is_textureable) {
+            if constexpr (IS_TEXTUREABLE) {
                 return noa::interpolate_using_texture<INTERP, BORDER>(m_input[batch], coordinates);
             } else { // readable
                 return noa::interpolate<INTERP, BORDER>(m_input[batch], coordinates, m_shape, m_cvalue);
@@ -795,7 +801,7 @@ namespace noa {
     /// \tparam REMAP   FFT layout of the input. The output layout is ignored.
     /// \tparam INTERP  Interpolation method.
     /// \tparam Input   Batched input data. Readable or textureable.
-    template<size_t N, Remap REMAP, Interp INTERP, nt::interpable_nd<Border::ZERO, N> Input>
+    template<size_t N, Remap REMAP, Interp INTERP_, nt::interpable_nd<Border::ZERO, N> Input>
     class InterpolatorSpectrum {
     public:
         using input_type = Input;
@@ -805,8 +811,10 @@ namespace noa {
         using index_type = std::make_signed_t<offset_type>;
         using shape_nd_type = Shape<index_type, N>;
 
+        static constexpr Interp INTERP = INTERP_;
+        static constexpr Border BORDER = Border::ZERO;
         static constexpr size_t SIZE = N;
-        static constexpr bool is_textureable = requires(const input_type& t) {
+        static constexpr bool IS_TEXTUREABLE = requires(const input_type& t) {
             { t[0] } -> nt::textureable_nd<Border::ZERO, N>;
         };
 
@@ -831,7 +839,7 @@ namespace noa {
         ///                     and can thus effectively broadcast the input along the batch dimension.
         template<nt::any_of<f32, f64> T, size_t A, nt::integer I = index_type>
         NOA_HD constexpr auto interpolate_spectrum_at(const Vec<T, N, A>& frequency, I batch = I{}) const -> mutable_value_type {
-            if constexpr (is_textureable) {
+            if constexpr (IS_TEXTUREABLE) {
                 return noa::interpolate_spectrum_using_texture<REMAP, INTERP>(m_input[batch], frequency, m_shape);
             } else { // readable
                 return noa::interpolate_spectrum<REMAP, INTERP>(m_input[batch], frequency, m_shape);

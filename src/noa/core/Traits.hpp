@@ -234,13 +234,13 @@ namespace noa::traits {
     template<> struct proclaim_is_integer<signed long> : std::true_type {};
     template<> struct proclaim_is_integer<signed long long> : std::true_type {};
 
-    template<typename T, bool = is_integer_v<T>> struct proclaim_is_sinteger : public std::false_type {};
-    template<typename T> struct proclaim_is_sinteger<T, true> : public std::bool_constant<T(-1) < T(0)> {};
-    template<typename T> struct is_sinteger : public proclaim_is_sinteger<T>::type {};
+    template<typename T, bool = is_integer_v<T>> struct proclaim_is_sinteger : std::false_type {};
+    template<typename T> struct proclaim_is_sinteger<T, true> : std::bool_constant<T(-1) < T(0)> {};
+    template<typename T> struct is_sinteger : proclaim_is_sinteger<T>::type {};
     NOA_GENERATE_PROCLAIM_UTILS(sinteger);
     template<typename... T> concept sinteger = integer<T...> and are_sinteger_v<T...>;
 
-    template<typename T> struct is_uinteger : public std::conjunction<is_integer<T>, std::negation<is_sinteger<T>>>::type{};
+    template<typename T> struct is_uinteger : std::conjunction<is_integer<T>, std::negation<is_sinteger<T>>>::type{};
     NOA_GENERATE_PROCLAIM_UTILS(uinteger);
     template<typename... T> concept uinteger = integer<T...> and are_uinteger_v<T...>;
 
