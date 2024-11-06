@@ -745,73 +745,105 @@ namespace noa {
     }
 
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
-    #define NOA_VEC_MATH_GEN_(name)                                         \
-    template<typename T, size_t N, size_t A> requires (N > 0)               \
-    [[nodiscard]] NOA_HD constexpr T name(Vec<T, N, A> vector) noexcept {   \
-        if constexpr (N == 1) {                                             \
-            return vector[0];                                               \
-        } else {                                                            \
-            if constexpr (std::same_as<T, f16> && N == 4) {                 \
-                auto* alias = reinterpret_cast<__half2*>(vector.data());    \
-                const __half2 tmp = __h##name##2(alias[0], alias[1]);       \
-                return __h##name(tmp.x, tmp.y);                             \
-            } else if constexpr (std::same_as<T, f16> && N == 8) {          \
-                auto* alias = reinterpret_cast<__half2*>(vector.data());    \
-                const __half2 tmp0 = __h##name##2(alias[0], alias[1]);      \
-                const __half2 tmp1 = __h##name##2(alias[2], alias[3]);      \
-                const __half2 tmp2 = __h##name##2(tmp0, tmp1);              \
-                return __h##name(tmp2.x, tmp2.y);                           \
-            } else {                                                        \
-                auto element = name(vector[0], vector[1]);                  \
-                for (size_t i = 2; i < N; ++i)                              \
-                    element = name(element, vector[i]);                     \
-                return element;                                             \
-            }                                                               \
-        }                                                                   \
-    }                                                                       \
-    template<typename T, size_t N, size_t A>                                \
-    [[nodiscard]] NOA_HD constexpr auto name(                               \
-        Vec<T, N, A> lhs,                                                   \
-        const Vec<T, N, A>& rhs                                             \
-    ) noexcept {                                                            \
-        if constexpr (std::same_as<T, f16> and is_even(N)) {                \
-            auto* alias0 = reinterpret_cast<__half2*>(lhs.data());          \
-            auto* alias1 = reinterpret_cast<__half2*>(rhs.data());          \
-            for (size_t i{}; i < N / 2; ++i)                                \
-                alias0[i] = __h##name##2(alias0[i], alias1[i]);             \
-            return lhs;                                                     \
-        } else {                                                            \
-            for (size_t i{}; i < N; ++i)                                    \
-                lhs[i] = name(lhs[i], rhs[i]);                              \
-            return lhs;                                                     \
-        }                                                                   \
+    #define NOA_VEC_MATH_GEN_(name)                                             \
+    template<typename T, size_t N, size_t A> requires (N > 0)                   \
+    [[nodiscard]] NOA_HD constexpr T name(                                      \
+        const Vec<T, N, A>& vector                                              \
+    ) noexcept {                                                                \
+        if constexpr (N == 1) {                                                 \
+            return vector[0];                                                   \
+        } else {                                                                \
+            if constexpr (std::same_as<T, f16> && N == 4) {                     \
+                auto* alias = reinterpret_cast<const __half2*>(vector.data());  \
+                const __half2 tmp = __h##name##2(alias[0], alias[1]);           \
+                return __h##name(tmp.x, tmp.y);                                 \
+            } else if constexpr (std::same_as<T, f16> && N == 8) {              \
+                auto* alias = reinterpret_cast<const __half2*>(vector.data());  \
+                const __half2 tmp0 = __h##name##2(alias[0], alias[1]);          \
+                const __half2 tmp1 = __h##name##2(alias[2], alias[3]);          \
+                const __half2 tmp2 = __h##name##2(tmp0, tmp1);                  \
+                return __h##name(tmp2.x, tmp2.y);                               \
+            } else {                                                            \
+                auto element = name(vector[0], vector[1]);                      \
+                for (size_t i = 2; i < N; ++i)                                  \
+                    element = name(element, vector[i]);                         \
+                return element;                                                 \
+            }                                                                   \
+        }                                                                       \
+    }                                                                           \
+    template<typename T, size_t N, size_t A>                                    \
+    [[nodiscard]] NOA_HD constexpr auto name(                                   \
+        Vec<T, N, A> lhs,                                                       \
+        const Vec<T, N, A>& rhs                                                 \
+    ) noexcept {                                                                \
+        if constexpr (std::same_as<T, f16> and is_even(N)) {                    \
+            auto* alias0 = reinterpret_cast<__half2*>(lhs.data());              \
+            auto* alias1 = reinterpret_cast<__half2*>(rhs.data());              \
+            for (size_t i{}; i < N / 2; ++i)                                    \
+                alias0[i] = __h##name##2(alias0[i], alias1[i]);                 \
+            return lhs;                                                         \
+        } else {                                                                \
+            for (size_t i{}; i < N; ++i)                                        \
+                lhs[i] = name(lhs[i], rhs[i]);                                  \
+            return lhs;                                                         \
+        }                                                                       \
     }
 #else
-    #define NOA_VEC_MATH_GEN_(name)                                         \
-    template<typename T, size_t N, size_t A> requires (N > 0)               \
-    [[nodiscard]] NOA_HD constexpr T name(Vec<T, N, A> vector) noexcept {   \
-        if constexpr (N == 1) {                                             \
-            return vector[0];                                               \
-        } else {                                                            \
-            auto element = name(vector[0], vector[1]);                      \
-            for (size_t i = 2; i < N; ++i)                                  \
-                element = name(element, vector[i]);                         \
-            return element;                                                 \
-        }                                                                   \
-    }                                                                       \
-    template<typename T, size_t N, size_t A>                                \
-    [[nodiscard]] NOA_HD constexpr auto name(                               \
-        Vec<T, N, A> lhs,                                                   \
-        const Vec<T, N, A>& rhs                                             \
-    ) noexcept {                                                            \
-        for (size_t i{}; i < N; ++i)                                        \
-            lhs[i] = name(lhs[i], rhs[i]);                                  \
-        return lhs;                                                         \
+    #define NOA_VEC_MATH_GEN_(name)                                             \
+    template<typename T, size_t N, size_t A> requires (N > 0)                   \
+    [[nodiscard]] NOA_HD constexpr T name(                                      \
+        const Vec<T, N, A>& vector                                              \
+    ) noexcept {                                                                \
+        if constexpr (N == 1) {                                                 \
+            return vector[0];                                                   \
+        } else {                                                                \
+            auto element = name(vector[0], vector[1]);                          \
+            for (size_t i = 2; i < N; ++i)                                      \
+                element = name(element, vector[i]);                             \
+            return element;                                                     \
+        }                                                                       \
+    }                                                                           \
+    template<typename T, size_t N, size_t A>                                    \
+    [[nodiscard]] NOA_HD constexpr auto name(                                   \
+        Vec<T, N, A> lhs,                                                       \
+        const Vec<T, N, A>& rhs                                                 \
+    ) noexcept {                                                                \
+        for (size_t i{}; i < N; ++i)                                            \
+            lhs[i] = name(lhs[i], rhs[i]);                                      \
+        return lhs;                                                             \
     }
 #endif
     NOA_VEC_MATH_GEN_(min)
     NOA_VEC_MATH_GEN_(max)
     #undef NOA_VEC_MATH_GEN_
+
+    /// Computes the argmax. Returns first occurrence if equal values are present.
+    template<typename I = size_t, nt::numeric T, size_t N, size_t A> requires (N > 0)
+    [[nodiscard]] NOA_HD constexpr auto argmax(const Vec<T, N, A>& vector) noexcept -> I {
+        if constexpr (N == 1) {
+            return 0;
+        } else {
+            auto compare = [&](I i, I j) { return vector[i] < vector[j] ? j : i; };
+            auto index = compare(0, 1);
+            for (I i = 2; i < N; ++i)
+                index = compare(index, i);
+            return index;
+        }
+    }
+
+    /// Computes the argmax. Returns first occurrence if equal values are present.
+    template<typename I = size_t, nt::numeric T, size_t N, size_t A> requires (N > 0)
+    [[nodiscard]] NOA_HD constexpr auto argmin(const Vec<T, N, A>& vector) noexcept -> I {
+        if constexpr (N == 1) {
+            return 0;
+        } else {
+            auto compare = [&](I i, I j) { return vector[i] > vector[j] ? j : i; };
+            auto index = compare(0, 1);
+            for (I i = 2; i < N; ++i)
+                index = compare(index, i);
+            return index;
+        }
+    }
 
     template<typename T, size_t N, size_t A>
     [[nodiscard]] NOA_FHD constexpr auto min(const Vec<T, N, A>& lhs, std::type_identity_t<T> rhs) noexcept {
