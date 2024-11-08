@@ -243,6 +243,7 @@ namespace noa::inline types {
                 const size_t offset = string[0] == 'c' ? 1 : 0;
                 if (length == 3 + offset) {
                     id = 0;
+                    check(is_any_gpu(), "GPU device ID 0 is not valid");
                 } else if (length >= 5 + offset and string[3 + offset] == ':') {
                     std::string_view specifier = ns::offset_by(string, 4 + offset);
                     std::optional<u32> result = ns::parse<u32>(specifier);

@@ -503,8 +503,12 @@ namespace noa::inline types {
         }
 
         template<nt::integer... I>
-        [[nodiscard]] NOA_HD constexpr auto filter(I... i) const noexcept {
+        [[nodiscard]] NOA_HD constexpr auto filter_rows(I... i) const noexcept {
             return Mat<value_type, sizeof...(I), COLS>::from_rows((*this)[i]...);
+        }
+        template<nt::integer... I>
+        [[nodiscard]] NOA_HD constexpr auto filter_columns(I... i) const noexcept {
+            return Mat<value_type, ROWS, sizeof...(I)>::from_columns((*this).col(i)...);
         }
 
         [[nodiscard]] NOA_IHD constexpr auto row(nt::integer auto i) const noexcept -> row_type {

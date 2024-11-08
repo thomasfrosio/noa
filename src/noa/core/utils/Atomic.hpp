@@ -60,7 +60,7 @@ namespace noa::cuda::guts {
 namespace noa::cpu::guts {
     // FIXME C++20 atomic_ref, but lib clang doesn't support it yet
     template<typename Pointer, typename Value>
-    NOA_FD void atomic_add(Pointer pointer, Value value) {
+    NOA_FH void atomic_add(Pointer pointer, Value value) {
         if constexpr (nt::complex<Value>) {
             #pragma omp atomic
             (*pointer)[0] += value[0];

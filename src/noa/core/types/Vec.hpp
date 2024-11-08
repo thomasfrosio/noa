@@ -837,7 +837,7 @@ namespace noa {
         if constexpr (N == 1) {
             return 0;
         } else {
-            auto compare = [&](I i, I j) { return vector[i] > vector[j] ? j : i; };
+            auto compare = [&](I i, I j) { return vector[j] < vector[i] ? j : i; };
             auto index = compare(0, 1);
             for (I i = 2; i < N; ++i)
                 index = compare(index, i);

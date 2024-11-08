@@ -65,15 +65,12 @@ namespace noa::geometry::guts {
         auto output_accessor = output_accessor_t(output.get(), output.strides().filter(1, 2, 3).template as<Index>());
         auto batched_projection_matrices = ng::to_batched_transform(projection_matrices);
 
-        if constexpr (nt::texture_decay<Input>) {
+        if constexpr (nt::texture_decay<Input>)
             options.interp = input.interp();
-            options.border = input.border();
-            options.cvalue = input.cvalue();
-        }
 
-        auto launch_iwise = [&](auto interp, auto border) {
+        auto launch_iwise = [&](auto interp) {
             using coord_t = nt::mutable_value_type_twice_t<Transform>;
-            auto interpolator = ng::to_interpolator<2, interp(), border(), Index, coord_t, IS_GPU>(input, options.cvalue);
+            auto interpolator = ng::to_interpolator<2, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
             using op_t = BackwardProject<Index, decltype(interpolator), output_accessor_t, decltype(batched_projection_matrices)>;
             auto op = op_t(interpolator, output_accessor, batched_projection_matrices,
                            static_cast<Index>(input.shape()[0]), options.add_to_output);
@@ -87,54 +84,47 @@ namespace noa::geometry::guts {
                std::forward<Transform>(projection_matrices));
         };
 
-        auto launch_border = [&](auto interp) {
-            switch (options.border) {
-                case Border::ZERO:      return launch_iwise(interp, ng::WrapBorder<Border::ZERO>{});
-                case Border::VALUE:     return launch_iwise(interp, ng::WrapBorder<Border::VALUE>{});
-                case Border::MIRROR:    return launch_iwise(interp, ng::WrapBorder<Border::MIRROR>{});
-                case Border::REFLECT:   return launch_iwise(interp, ng::WrapBorder<Border::REFLECT>{});
-                default:                panic("The border mode {} is not supported", options.border);
-            }
-        };
-
         switch (options.interp) {
-            case Interp::NEAREST:            return launch_border(ng::WrapInterp<Interp::NEAREST>{});
-            case Interp::NEAREST_FAST:       return launch_border(ng::WrapInterp<Interp::NEAREST_FAST>{});
-            case Interp::LINEAR:             return launch_border(ng::WrapInterp<Interp::LINEAR>{});
-            case Interp::LINEAR_FAST:        return launch_border(ng::WrapInterp<Interp::LINEAR_FAST>{});
-            case Interp::CUBIC:              return launch_border(ng::WrapInterp<Interp::CUBIC>{});
-            case Interp::CUBIC_FAST:         return launch_border(ng::WrapInterp<Interp::CUBIC_FAST>{});
-            case Interp::CUBIC_BSPLINE:      return launch_border(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
-            case Interp::CUBIC_BSPLINE_FAST: return launch_border(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::NEAREST:            return launch_iwise(ng::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_iwise(ng::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_iwise(ng::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_iwise(ng::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_iwise(ng::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_iwise(ng::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
             default:                         panic("The interp mode {} is not supported", options.interp);
         }
     }
 
     template<typename Index, bool IS_GPU = false, typename Input, typename Output, typename Transform>
-    void launch_forward_projection(Input&& input, Output&& output, Transform&& projection_matrices, auto& options) {
-        if (options.add_to_output)
+    void launch_forward_projection(
+        Input&& input, Output&& output, Transform&& projection_matrices,
+        i64 projection_window_size, auto& options
+    ) {
+        if (not options.add_to_output)
             fill(output, {}); // the operator adds to the output, so we need to initialize it in this case
 
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, 3, Index>;
         auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0, 2, 3).template as<Index>());
         auto batched_projection_matrices = ng::to_batched_transform(projection_matrices);
 
-        if constexpr (nt::texture_decay<Input>) {
+        if constexpr (nt::texture_decay<Input>)
             options.interp = input.interp();
-            options.border = input.border();
-            options.cvalue = input.cvalue();
-        }
 
-        auto launch_iwise = [&](auto interp, auto border) {
+        auto launch_iwise = [&](auto interp) {
             using coord_t = nt::mutable_value_type_twice_t<Transform>;
-            auto interpolator = ng::to_interpolator<3, interp(), border(), Index, coord_t, IS_GPU>(input, options.cvalue);
+            auto interpolator = ng::to_interpolator<3, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
             using op_t = ForwardProject<Index, decltype(interpolator), output_accessor_t, decltype(batched_projection_matrices)>;
-            auto op = op_t(interpolator, output_accessor, batched_projection_matrices);
-            const auto longest_diagonal = op.set_volume_shape(input.shape().pop_front().template as<Index>());
+            auto op = op_t(
+                interpolator, output_accessor,
+                input.shape().pop_front().template as<Index>(),
+                batched_projection_matrices,
+                static_cast<Index>(projection_window_size));
 
-            auto output_shape_3d = output.shape().filter(0, 2, 3).template as<Index>();
-            auto iwise_shape = Shape{output_shape_3d[0], longest_diagonal, output_shape_3d[1], output_shape_3d[2]};
-
+            auto iwise_shape = Shape<Index, 4>::from_values(
+                output.shape()[0], projection_window_size, output.shape()[2], output.shape()[3]
+            );
             iwise<IwiseOptions{
                 .generate_cpu = not IS_GPU,
                 .generate_gpu = IS_GPU,
@@ -144,25 +134,15 @@ namespace noa::geometry::guts {
                std::forward<Transform>(projection_matrices));
         };
 
-        auto launch_border = [&](auto interp) {
-            switch (options.border) {
-                case Border::ZERO:      return launch_iwise(interp, ng::WrapBorder<Border::ZERO>{});
-                case Border::VALUE:     return launch_iwise(interp, ng::WrapBorder<Border::VALUE>{});
-                case Border::MIRROR:    return launch_iwise(interp, ng::WrapBorder<Border::MIRROR>{});
-                case Border::REFLECT:   return launch_iwise(interp, ng::WrapBorder<Border::REFLECT>{});
-                default:                panic("The border mode {} is not supported", options.border);
-            }
-        };
-
         switch (options.interp) {
-            case Interp::NEAREST:            return launch_border(ng::WrapInterp<Interp::NEAREST>{});
-            case Interp::NEAREST_FAST:       return launch_border(ng::WrapInterp<Interp::NEAREST_FAST>{});
-            case Interp::LINEAR:             return launch_border(ng::WrapInterp<Interp::LINEAR>{});
-            case Interp::LINEAR_FAST:        return launch_border(ng::WrapInterp<Interp::LINEAR_FAST>{});
-            case Interp::CUBIC:              return launch_border(ng::WrapInterp<Interp::CUBIC>{});
-            case Interp::CUBIC_FAST:         return launch_border(ng::WrapInterp<Interp::CUBIC_FAST>{});
-            case Interp::CUBIC_BSPLINE:      return launch_border(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
-            case Interp::CUBIC_BSPLINE_FAST: return launch_border(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::NEAREST:            return launch_iwise(ng::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_iwise(ng::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_iwise(ng::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_iwise(ng::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_iwise(ng::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_iwise(ng::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
             default:                         panic("The interp mode {} is not supported", options.interp);
         }
     }
@@ -173,9 +153,9 @@ namespace noa::geometry::guts {
         Input&& input, Output&& output, const Shape<i64, 3>& volume_shape,
         BackwardTransform&& backward_projection_matrices,
         ForwardTransform&& forward_projection_matrices,
-        auto& options
+        i64 projection_window_size, auto& options
     ) {
-        if (options.add_to_output)
+        if (not options.add_to_output)
             fill(output, {}); // the operator adds to the output, so we need to initialize it in this case
 
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, 3, Index>;
@@ -183,57 +163,44 @@ namespace noa::geometry::guts {
         auto batched_backward_projection_matrices = ng::to_batched_transform(backward_projection_matrices);
         auto batched_forward_projection_matrices = ng::to_batched_transform(forward_projection_matrices);
 
-        if constexpr (nt::texture_decay<Input>) {
+        if constexpr (nt::texture_decay<Input>)
             options.interp = input.interp();
-            options.border = input.border();
-            options.cvalue = input.cvalue();
-        }
 
-        auto launch_iwise = [&](auto interp, auto border) {
+        auto launch_iwise = [&](auto interp) {
             using coord_t = nt::mutable_value_type_twice_t<BackwardTransform>;
-            auto interpolator = ng::to_interpolator<2, interp(), border(), Index, coord_t, IS_GPU>(input, options.cvalue);
+            auto interpolator = ng::to_interpolator<2, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
 
             using op_t = BackwardForwardProject<
                 Index, decltype(interpolator), output_accessor_t,
                 decltype(batched_backward_projection_matrices),
                 decltype(batched_forward_projection_matrices)>;
-            auto op = op_t(interpolator, output_accessor,
-                           batched_backward_projection_matrices, batched_forward_projection_matrices,
-                           input.shape()[0]);
-            const auto longest_diagonal = op.set_volume_shape(volume_shape.as<Index>());
+            auto op = op_t(
+                interpolator, output_accessor, volume_shape.as<Index>(),
+                batched_backward_projection_matrices, batched_forward_projection_matrices,
+                static_cast<Index>(projection_window_size), input.shape()[0]);
 
-            auto output_shape_3d = output.shape().filter(0, 2, 3).template as<Index>();
-            auto iwise_shape = Shape{output_shape_3d[0], longest_diagonal, output_shape_3d[1], output_shape_3d[2]};
-
+            auto iwise_shape = Shape<Index, 4>::from_values(
+                output.shape()[0], projection_window_size, output.shape()[2], output.shape()[3]
+            );
             iwise<IwiseOptions{
                 .generate_cpu = not IS_GPU,
                 .generate_gpu = IS_GPU,
             }>(iwise_shape, output.device(), op,
                std::forward<Input>(input),
                std::forward<Output>(output),
-               std::forward<Transform>(backward_projection_matrices),
-               std::forward<Transform>(forward_projection_matrices));
-        };
-
-        auto launch_border = [&](auto interp) {
-            switch (options.border) {
-                case Border::ZERO:      return launch_iwise(interp, ng::WrapBorder<Border::ZERO>{});
-                case Border::VALUE:     return launch_iwise(interp, ng::WrapBorder<Border::VALUE>{});
-                case Border::MIRROR:    return launch_iwise(interp, ng::WrapBorder<Border::MIRROR>{});
-                case Border::REFLECT:   return launch_iwise(interp, ng::WrapBorder<Border::REFLECT>{});
-                default:                panic("The border mode {} is not supported", options.border);
-            }
+               std::forward<BackwardTransform>(backward_projection_matrices),
+               std::forward<ForwardTransform>(forward_projection_matrices));
         };
 
         switch (options.interp) {
-            case Interp::NEAREST:            return launch_border(ng::WrapInterp<Interp::NEAREST>{});
-            case Interp::NEAREST_FAST:       return launch_border(ng::WrapInterp<Interp::NEAREST_FAST>{});
-            case Interp::LINEAR:             return launch_border(ng::WrapInterp<Interp::LINEAR>{});
-            case Interp::LINEAR_FAST:        return launch_border(ng::WrapInterp<Interp::LINEAR_FAST>{});
-            case Interp::CUBIC:              return launch_border(ng::WrapInterp<Interp::CUBIC>{});
-            case Interp::CUBIC_FAST:         return launch_border(ng::WrapInterp<Interp::CUBIC_FAST>{});
-            case Interp::CUBIC_BSPLINE:      return launch_border(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
-            case Interp::CUBIC_BSPLINE_FAST: return launch_border(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::NEAREST:            return launch_iwise(ng::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_iwise(ng::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_iwise(ng::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_iwise(ng::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_iwise(ng::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_iwise(ng::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
             default:                         panic("The interp mode {} is not supported", options.interp);
         }
     }
@@ -248,18 +215,41 @@ namespace noa::geometry {
         /// - backward_and_forward_project_3d: 2d interpolate the backprojected images making up the virtual volume.
         Interp interp{Interp::LINEAR};
 
-        /// Border method.
-        Border border{Border::ZERO};
-
-        /// Constant value to use for out-of-bounds coordinates.
-        /// Only used if the border is Border::VALUE.
-        T cvalue{};
-
         /// Whether the (back)projection should be added to the output. This implies that the output is already set.
-        /// Note: If false, (backward_and_)forward_project_3d need to zero-out the output first, so if the output
-        ///       is already zeroed-out, this operation is redundant and this flag should be turned on.
+        /// Note: If false, (backward_and_)forward_project_3d need to zeroed-out the output first, so if the output
+        ///       is already zeroed-out, it is not necessary and this flag should be turned on.
         bool add_to_output{false};
     };
+
+    /// Computes the projection window size of (backward_and_)forward_project_3d functions.
+    /// \details In theory, the forward projection operators need to integrate the volume along the projection axis.
+    ///          In practice, only a section of the projection axis is computed. This section, referred to as the
+    ///          projection window, is the segment of projection axis within the volume and that through its center.
+    ///          A larger section can be provided, but this would result in computing the forward projection for
+    ///          elements that are outside the volume (thus zero), which is a waste of compute.
+    ///          In other words, this function computes the minimal projection window size that will be required to
+    ///          integrate the volume. If multiple projection matrices are to be used at once, one should take
+    ///          the maximum window size to ensure the volume is correctly projected along any of the projection axes.
+    ///
+    /// \param[in] volume_shape         DHW shape of the volume to forward project.
+    /// \param[in] projection_matrix    Matrices defining the transformation from image to volume space.
+    template<typename T, size_t R> requires (R == 3 or R == 4)
+    constexpr auto forward_projection_window_size(
+        const Shape<i64, 3>& volume_shape,
+        const Mat<T, R, 4>& projection_matrix
+    ) -> i64 {
+        const auto projection_axis = projection_matrix.col(0);
+        const auto projection_window_center = (volume_shape.vec / 2).as<f64>();
+
+        auto distance_to_volume_edge = Vec<f64, 3>::from_value(std::numeric_limits<f64>::max());
+        for (auto i: irange(3))
+            if (abs(projection_axis[i]) > 0) // not parallel to the ith-plane
+                distance_to_volume_edge[i] = abs(-projection_window_center[i] / projection_axis[i]);
+
+        const auto index = argmin(distance_to_volume_edge);
+        const auto projection_window_radius = static_cast<i64>(ceil(distance_to_volume_edge[index]));
+        return projection_window_radius * 2 + 1;
+    }
 
     /// Backward project 2d images into a 3d volume using real space backprojection.
     /// \tparam Transform               Mat44, Mat24, or a varray of these types.
@@ -316,6 +306,7 @@ namespace noa::geometry {
     /// \param[out] output_images       Output projected images.
     /// \param[in] projection_matrices  4x4 or 3x4 (zyx rows) matrices defining the transformation from
     ///                                 image to volume space. One or one per input image.
+    /// \param projection_window_size   Size of the projection window, as defined by forward_projection_window_size.
     /// \param[in] options              Projection options.
     /// \note Supporting affine matrices allows complete control on the projection center and axis.
     ///       Note that the input and output can have different dimension sizes, thus allowing to
@@ -327,6 +318,7 @@ namespace noa::geometry {
         Input&& input_volume,
         Output&& output_images,
         Transform&& projection_matrices,
+        i64 projection_window_size,
         const ProjectionOptions<nt::mutable_value_type_t<Input>>& options = {}
     ) {
         guts::check_projection_parameters<guts::ProjectionType::FORWARD>(
@@ -345,7 +337,7 @@ namespace noa::geometry {
                     std::forward<Input>(input_volume),
                     std::forward<Output>(output_images),
                     std::forward<Transform>(projection_matrices),
-                    options);
+                    projection_window_size, options);
             }
             return;
             #else
@@ -356,7 +348,7 @@ namespace noa::geometry {
             std::forward<Input>(input_volume),
             std::forward<Output>(output_images),
             std::forward<Transform>(projection_matrices),
-            options);
+            projection_window_size, options);
     }
 
     /// Backward project 2d images into a 3d virtual volume and immediately forward project
@@ -374,6 +366,7 @@ namespace noa::geometry {
     ///                                         image to volume space. One or one per input image.
     /// \param[in] forward_projection_matrices  4x4 or 3x4 (zyx rows) matrices defining the transformation from
     ///                                         volume to image space. One or one per input image.
+    /// \param projection_window_size           Size of the projection window, as defined by forward_projection_window_size.
     /// \param[in] options                      Projection options.
     ///
     /// \note Supporting affine matrices allows complete control on the projection center and axis.
@@ -390,6 +383,7 @@ namespace noa::geometry {
         const Shape<i64, 3>& volume_shape,
         InputTransform&& backward_projection_matrices,
         OutputTransform&& forward_projection_matrices,
+        i64 projection_window_size,
         const ProjectionOptions<nt::mutable_value_type_t<Input>>& options = {}
     ) {
         guts::check_projection_parameters<guts::ProjectionType::FUSED>(
@@ -409,7 +403,7 @@ namespace noa::geometry {
                     std::forward<Output>(output_images), volume_shape,
                     std::forward<InputTransform>(backward_projection_matrices),
                     std::forward<OutputTransform>(forward_projection_matrices),
-                    options);
+                    projection_window_size, options);
             }
             return;
             #else
@@ -421,6 +415,6 @@ namespace noa::geometry {
             std::forward<Output>(output_images), volume_shape,
             std::forward<InputTransform>(backward_projection_matrices),
             std::forward<OutputTransform>(forward_projection_matrices),
-            options);
+            projection_window_size, options);
     }
 }

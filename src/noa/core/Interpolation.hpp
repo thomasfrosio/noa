@@ -166,6 +166,31 @@ namespace noa {
         }
     }
 
+    template<Interp INTERP, Border BORDER, size_t N,
+             nt::any_of<f32, f64> Coord,
+             nt::sinteger SInt,
+             size_t A0, size_t A1>
+    requires (1 <= N and N <= 3)
+    [[nodiscard]] NOA_HD constexpr auto is_within_interpolation_window(
+        const Vec<Coord, N, A0>& coordinate,
+        const Shape<SInt, N, A1>& shape
+    ) noexcept -> bool {
+        if constexpr (BORDER.is_any(Border::PERIODIC, Border::CLAMP, Border::MIRROR, Border::REFLECT)) {
+            return true;
+        } else {
+            constexpr SInt SIZE = INTERP.window_size();
+            constexpr SInt START = -(SIZE - 1) / 2;
+            constexpr SInt END = SIZE / 2;
+
+            for (size_t i{}; i < SIZE; ++i) {
+                auto index = static_cast<SInt>(floor(coordinate[i]));
+                if (index + END < 0 or index + START >= shape[i])
+                    return false;
+            }
+            return true;
+        }
+    }
+
     /// Interpolates the 1d|2d|3d input data at the given coordinates.
     /// \tparam INTERP      Interpolation method.
     /// \tparam BORDER      Border type.
@@ -223,9 +248,19 @@ namespace noa {
             const auto indices = floored.template as<SInt, A1>();
             const auto fraction = coordinate - floored;
 
+            // TODO benchmark this:
+            // if constexpr (BORDER.is_any(Border::ZERO, Border::VALUE)) {
+            //     if (vany([](auto i, auto s) { return i + END < 0 or i + START >= s; }, indices, shape)) {
+            //         if constexpr (BORDER == Border::ZERO)
+            //             return value_t{};
+            //         else
+            //             return cvalue;
+            //     }
+            // }
+
             // If indices are inbound, no need to interpolate in the case of AccessorValue.
             if constexpr (nt::accessor_value<T>) {
-                if (vall([](auto i, auto s) { return i - START >= 0 and i + END < s; }, indices, shape))
+                if (vall([](auto i, auto s) { return i + START >= 0 and i + END < s; }, indices, shape))
                     return input();
             }
 
