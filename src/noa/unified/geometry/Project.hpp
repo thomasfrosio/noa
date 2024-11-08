@@ -372,6 +372,14 @@ namespace noa::geometry {
     /// \note Supporting affine matrices allows complete control on the projection center and axis.
     ///       Note that the input and output can have different dimension sizes, thus allowing to
     ///       only render small regions of the projected output.
+    ///
+    /// \note The edges of the virtual volume are handled differently than the 3d interpolation of the physical volume
+    ///       in forward_project_3d. Indeed, the 3d interpolator can handle the edges of the physical volume directly,
+    ///       but this operator cannot because the volume is rendered from the 2d interpolation of the input
+    ///       images, resulting in an infinite depth. To remedy this issue, the operator only renders elements
+    ///       within the volume_shape, plus adds a linear antialiasing at the edges to remove sharp edges. As such,
+    ///       while the elements within the volume_shape are unaffected, due to this divergence in handling elements at
+    ///       the edges, these output images can be slightly different from the forward_project_3d output images.
     template<nt::varray_or_texture_decay_of_real_or_complex Input,
              nt::varray_decay_compatible_with<Input> Output,
              nt::transform_projection_nd<3> InputTransform,
