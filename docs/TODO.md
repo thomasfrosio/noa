@@ -24,8 +24,7 @@
 - Use the __CUDA driver to handle the context__. That way, the library can keep track of its own context and reset it without affecting then entire application. This could be attached to the current Session. [Pytorch DeviceThreadHandles](https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/cuda/detail/DeviceThreadHandles.h)
 
 
-- SYCL backend?
+- SYCL backend? OpenMP GPU? OpenACC? clang-cuda?
 
 
 - Add __vkFFT__ support? Also look at FFTW CPU port for Intel-MKL and AMD. This is only for zero-padding, which can bring up to 2x increase of performance for 2D, 3x for 3D. Convolution can be added as a call- back but there's no benchmark for that.
-
