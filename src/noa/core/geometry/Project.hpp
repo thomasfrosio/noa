@@ -23,7 +23,7 @@ namespace noa::geometry::guts {
     }
 
     template<typename T>
-    auto forward_projection_transform_vector(
+    constexpr auto forward_projection_transform_vector(
         const Vec<T, 3>& image_coordinates,
         const Vec<T, 3>& projection_window_center,
         const Mat<T, 3, 4>& projection_matrix
@@ -170,7 +170,7 @@ namespace noa::geometry::guts {
             // The interpolator handles OOB coordinates using Border::ZERO, so we could skip that.
             // However, we do expect a significant number of cases where the volume_coordinates are OOB,
             // so try to shortcut here directly.
-            if (not is_within_interpolation_window<input_type::INTERP, Border::ZERO>(volume_coordinates, m_volume_shape)) // FIXME make sure this works
+            if (not is_within_interpolation_window<input_type::INTERP, Border::ZERO>(volume_coordinates, m_volume_shape))
                 return;
 
             const auto value = static_cast<output_value_type>(m_input.interpolate_at(volume_coordinates, i));

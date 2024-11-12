@@ -182,7 +182,7 @@ namespace noa {
             constexpr SInt START = -(SIZE - 1) / 2;
             constexpr SInt END = SIZE / 2;
 
-            for (size_t i{}; i < SIZE; ++i) {
+            for (size_t i{}; i < N; ++i) {
                 auto index = static_cast<SInt>(floor(coordinate[i]));
                 if (index + END < 0 or index + START >= shape[i])
                     return false;

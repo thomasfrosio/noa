@@ -67,7 +67,7 @@ TEST_CASE("core::Span") {
         e += 1;
     REQUIRE(span[2] == 3);
     REQUIRE(span(4) == 5);
-    REQUIRE_THROWS_AS(span.at(6), noa::Exception);
+    // REQUIRE_THROWS_AS(span.at(6), noa::Exception); // fails to compile with new static bounds check!
     REQUIRE(span.size() == buffer.size());
     REQUIRE((span.stride<0>() == 1 and span.strides_full()[0] == 1));
 

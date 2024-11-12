@@ -207,7 +207,6 @@ namespace noa::geometry::guts {
 }
 
 namespace noa::geometry {
-    template<typename T>
     struct ProjectionOptions {
         /// Interpolation method used to:
         /// - backward_project_3d: 2d interpolate backprojected images.
@@ -215,9 +214,9 @@ namespace noa::geometry {
         /// - backward_and_forward_project_3d: 2d interpolate the backprojected images making up the virtual volume.
         Interp interp{Interp::LINEAR};
 
-        /// Whether the (back)projection should be added to the output. This implies that the output is already set.
-        /// Note: If false, (backward_and_)forward_project_3d need to zeroed-out the output first, so if the output
-        ///       is already zeroed-out, it is not necessary and this flag should be turned on.
+        /// Whether the projected values should be added to the output, implying that the output is already initialized.
+        /// Note: If false, (backward_and_)forward_project_3d need to zero-out the output first, so if the output
+        ///       is already zeroed-out, this flag should be turned on.
         bool add_to_output{false};
     };
 
@@ -268,7 +267,7 @@ namespace noa::geometry {
         Input&& input_images,
         Output&& output_volume,
         Transform&& projection_matrices,
-        ProjectionOptions<nt::mutable_value_type_t<Input>> options = {}
+        ProjectionOptions options = {}
     ) {
         guts::check_projection_parameters<guts::ProjectionType::BACKWARD>(
             input_images, output_volume, projection_matrices, {});
@@ -319,7 +318,7 @@ namespace noa::geometry {
         Output&& output_images,
         Transform&& projection_matrices,
         i64 projection_window_size,
-        const ProjectionOptions<nt::mutable_value_type_t<Input>>& options = {}
+        const ProjectionOptions& options = {}
     ) {
         guts::check_projection_parameters<guts::ProjectionType::FORWARD>(
             input_volume, output_images, {}, projection_matrices);
@@ -392,7 +391,7 @@ namespace noa::geometry {
         InputTransform&& backward_projection_matrices,
         OutputTransform&& forward_projection_matrices,
         i64 projection_window_size,
-        const ProjectionOptions<nt::mutable_value_type_t<Input>>& options = {}
+        const ProjectionOptions& options = {}
     ) {
         guts::check_projection_parameters<guts::ProjectionType::FUSED>(
             input_images, output_images, backward_projection_matrices, forward_projection_matrices);
