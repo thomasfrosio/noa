@@ -7,7 +7,7 @@
 #include "noa/core/types/Accessor.hpp"
 #include "noa/gpu/cuda/Block.cuh"
 #include "noa/gpu/cuda/Copy.cuh"
-#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Error.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
 
 // Logic from:

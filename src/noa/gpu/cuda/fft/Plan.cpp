@@ -2,7 +2,7 @@
 #include <deque>
 
 #include "noa/core/utils/Strings.hpp"
-#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Error.hpp"
 #include "noa/gpu/cuda/fft/Plan.hpp"
 
 namespace noa::cuda {

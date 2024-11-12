@@ -22,7 +22,7 @@ namespace noa::cuda {
 #ifdef NOA_IS_OFFLINE
 #include "noa/core/types/Shape.hpp"
 #include "noa/gpu/cuda/Device.hpp"
-#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Error.hpp"
 #include "noa/gpu/cuda/Runtime.hpp"
 
 namespace noa::cuda {

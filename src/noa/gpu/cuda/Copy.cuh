@@ -8,7 +8,7 @@
 #include "noa/core/Types.hpp"
 #include "noa/gpu/cuda/Allocators.hpp"
 #include "noa/gpu/cuda/Ewise.cuh"
-#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Error.hpp"
 #include "noa/gpu/cuda/Iwise.cuh"
 #include "noa/gpu/cuda/Pointers.hpp"
 #include "noa/gpu/cuda/Runtime.hpp"

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/Exception.hpp"
+#include "noa/core/Error.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/utils/Misc.hpp"
 #include "noa/core/utils/Strings.hpp"

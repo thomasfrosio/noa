@@ -1,4 +1,4 @@
-#if NOA_ENABLE_TIFF
+#ifdef NOA_ENABLE_TIFF
 
 #include <tiffio.h>
 

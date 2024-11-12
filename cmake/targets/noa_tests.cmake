@@ -1,6 +1,10 @@
 message(STATUS "--------------------------------------")
 message(STATUS "-> noa::noa_tests: configuring public target...")
 
+if (NOT NOA_ERROR_POLICY EQUAL 2)
+    message(FATAL_ERROR "In order to built tests, the library should built with NOA_ERROR_POLICY=2, but got ${NOA_ERROR_POLICY}")
+endif ()
+
 include(${PROJECT_SOURCE_DIR}/cmake/ext/catch2.cmake)
 include(${PROJECT_SOURCE_DIR}/cmake/ext/yaml-cpp.cmake)
 

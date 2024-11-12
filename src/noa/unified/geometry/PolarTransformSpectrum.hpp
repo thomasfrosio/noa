@@ -33,7 +33,7 @@ namespace noa::geometry::guts {
                 rho_range, options.rho_endpoint,
                 phi_range, options.phi_endpoint);
 
-            return iwise<{
+            return iwise<IwiseOptions{
                 .generate_cpu = not IS_GPU,
                 .generate_gpu = IS_GPU,
             }>(polar_shape, polar.device(), op,

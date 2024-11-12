@@ -22,53 +22,6 @@ namespace noa::geometry::guts {
         }
     }
 
-    // // When doing the projection, we need to ensure that the z is large enough to cover the entire volume
-    // // in any direction. To do so, we set the z equal to the longest diagonal of the volume, i.e sqrt(3) *
-    // // max(volume_shape). However, this assumes no shifts (along the project axis) and that the center of
-    // // the volume is equal to the rotation center. To account for these cases, we shift the "projection window",
-    // // along the normal of the projected plane, back to the center of the volume.
-    // template<typename T>
-    // constexpr auto distance_from_center_along_normal(
-    //     const Vec<T, 3>& center,
-    //     const Mat<T, 3, 4>& affine
-    // ) -> Vec<T, 3> {
-    //     const auto normal = affine.col(0); // aka projection axis
-    //     const auto distance = center - affine.col(3);
-    //     const auto distance_along_normal = normal * dot(normal, distance);
-    //     return distance_along_normal;
-    // }
-
-    template<typename T>
-    auto distance_from_plane_along_normal(
-        const Vec<T, 3>& volume_coordinates,
-        const Vec<T, 3>& projection_window_center,
-        const Mat<f64, 3, 4>& projection_matrix
-    ) -> Vec<T, 3> {
-        auto projection_axis = projection_matrix.col(0);
-
-        // Retrieve the base plane (z, y, or x) that was used to compute the projection window.
-        i32 i{};
-        {
-            T distance{std::numeric_limits<T>::max()};
-            for (i32 j{}; j < 3; ++j) {
-                if (abs(projection_axis[j]) > 0) {
-                    auto tmp = abs(projection_window_center[j] / projection_axis[j]);
-                    if (tmp < distance) {
-                        i = j;
-                        distance = tmp;
-                    }
-                }
-            }
-        }
-
-        // Compute the distance along the projection axis, from the current coordinates to
-        // the selected plane centered on the window center. This is from:
-        // https://en.m.wikipedia.org/wiki/Line-plane_intersection
-        const T distance =
-            ((projection_window_center[i] - volume_coordinates[i]) * projection_axis[i]) / projection_axis[i];
-        return projection_axis * distance;
-    }
-
     template<typename T>
     auto forward_projection_transform_vector(
         const Vec<T, 3>& image_coordinates,

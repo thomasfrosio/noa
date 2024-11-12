@@ -2,7 +2,7 @@
 
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
-#include "noa/core/Exception.hpp"
+#include "noa/core/Error.hpp"
 #include "noa/core/math/Comparison.hpp"
 #include "noa/core/indexing/Offset.hpp"
 #include "noa/core/indexing/Subregion.hpp"
@@ -95,10 +95,10 @@ namespace noa::inline types {
         NOA_HD constexpr Span(
             pointer_type data,
             index_type size
-        ) noexcept
-                : m_ptr{data},
-                  m_shape{shape_type::from_value(1).template set<N - 1>(size)},
-                  m_strides{strides_type::from_value(1)} {}
+        ) noexcept :
+            m_ptr{data},
+            m_shape{shape_type::from_value(1).template set<N - 1>(size)},
+            m_strides{strides_type::from_value(1)} {}
 
         /// Creates a span of rightmost contiguous nd data.
         template<size_t A>
@@ -112,11 +112,11 @@ namespace noa::inline types {
         NOA_HD constexpr Span(
             pointer_type pointer,
             const Shape<index_type, SIZE, A>& shape,
-            const Strides<index_type, SIZE - IS_CONTIGUOUS, B>& strides
-        ) noexcept
-                : m_ptr{pointer},
-                  m_shape{shape_type::from_shape(shape)},
-                  m_strides{strides_type::from_strides(strides)} {}
+            const Strides<index_type, SIZE - 1, B>& strides
+        ) noexcept :
+            m_ptr{pointer},
+            m_shape{shape_type::from_shape(shape)},
+            m_strides{strides_type::from_strides(strides)} {}
 
         /// Creates a span of nd data.
         /// If the span is contiguous, the width stride (strides[N-1]) is ignored and assumed to be 1.
@@ -210,7 +210,8 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr auto operator[](
             nt::integer auto index
         ) const noexcept requires (N > 1) {
-            NOA_ASSERT(not is_empty() and ni::is_inbound(shape(), static_cast<index_type>(index)));
+            NOA_ASSERT(not is_empty());
+            ni::bounds_check(shape(), index);
             using output_t = Span<value_type, N - 1, index_type, STRIDES_TRAIT>;
             return output_t(get() + ni::offset_at(stride<0>(), index), shape().pop_front(), strides().pop_front());
         }
@@ -220,16 +221,9 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr auto& operator[](
             nt::integer auto index
         ) const noexcept requires (N == 1 and not std::is_void_v<value_type>) {
-            NOA_ASSERT(not is_empty() and ni::is_inbound(shape(), static_cast<index_type>(index)));
+            NOA_ASSERT(not is_empty());
+            ni::bounds_check(shape(), index);
             return get()[ni::offset_at(stride<0>(), index)];
-        }
-
-        /// Guaranteed bound-check. Throws if out-of-bound.
-        template<typename... U> requires (nt::iwise_general_indexing<SIZE, U...> and not std::is_void_v<value_type>)
-        [[nodiscard]] constexpr reference_type at(const U&... indices) const {
-            check(not is_empty() and ni::is_inbound(shape(), safe_cast<index_type>(indices)...),
-                  "Out-of-bound indices detected");
-            return (*this)(indices...);
         }
 
     public:
@@ -366,7 +360,7 @@ namespace noa::inline types {
         /// Reshapes the array in a vector along a particular axis.
         /// Returns a row vector by default (axis = 3).
         [[nodiscard]] Span flat(i32 axis = N - 1) const {
-            check(axis >= 0 and axis < static_cast<i32>(N));
+            ni::bounds_check<true>(N, axis);
             auto output_shape = shape_type::filled_with(1);
             output_shape[axis] = shape().n_elements();
             return reshape(output_shape);

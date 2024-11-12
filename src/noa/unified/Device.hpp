@@ -4,7 +4,7 @@
 
 #ifdef NOA_IS_OFFLINE
 #include <string_view>
-#include "noa/core/Exception.hpp"
+#include "noa/core/Error.hpp"
 #include "noa/core/utils/Irange.hpp"
 #include "noa/core/utils/Strings.hpp"
 

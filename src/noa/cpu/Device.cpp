@@ -1,5 +1,5 @@
 #include "noa/core/Config.hpp"
-#include "noa/core/Exception.hpp"
+#include "noa/core/Error.hpp"
 #include "noa/core/io/IO.hpp"
 #include "noa/core/io/TextFile.hpp"
 #include "noa/core/io/OS.hpp"

@@ -143,6 +143,7 @@ endif ()
 # Set definitions:
 target_compile_definitions(noa
     PUBLIC
+    NOA_ERROR_POLICY=${NOA_ERROR_POLICY}
     "$<$<CONFIG:DEBUG>:NOA_DEBUG>"
     "$<$<BOOL:${NOA_ENABLE_CPU}>:NOA_ENABLE_CPU>"
     "$<$<BOOL:${NOA_ENABLE_CUDA}>:NOA_ENABLE_CUDA>"

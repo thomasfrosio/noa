@@ -1,19 +1,6 @@
-#include "noa/core/Exception.hpp"
+#include "noa/core/Error.hpp"
 
 namespace noa {
-    auto Exception::format_(
-        const char* file,
-        const char* function,
-        std::uint_least32_t line,
-        const std::string_view& message
-    ) -> std::string {
-        namespace fs = std::filesystem;
-        size_t idx = std::string(file).rfind(std::string("noa") + fs::path::preferred_separator);
-        return fmt::format("ERROR:{}:{}:{}: {}",
-                           idx == std::string::npos ? fs::path(file).filename().string() : file + idx,
-                           function, line, message);
-    }
-
     void Exception::backtrace_(
         std::vector<std::string>& message,
         const std::exception_ptr& exception_ptr

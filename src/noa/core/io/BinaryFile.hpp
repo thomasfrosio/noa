@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include "noa/core/Traits.hpp"
-#include "noa/core/Exception.hpp"
+#include "noa/core/Error.hpp"
 #include "noa/core/io/OS.hpp"
 #include "noa/core/io/IO.hpp"
 #include "noa/core/utils/Strings.hpp"

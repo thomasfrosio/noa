@@ -12,14 +12,14 @@
 #include <vector>
 
 namespace noa {
-    /// Exception type used in ::noa.
+    /// Exception type used in noa. Only used if exceptions are enabled (see noa::config::error_policy).
     class Exception : public std::exception {
     public:
-        /// Returns the message of all of the nested exceptions, from the newest to the oldest exception.
-        /// \details This gets the current exception and gets its message using what(). Then if the exception is
+        /// Returns the message of all the nested exceptions, from the newest to the oldest exception.
+        /// \details This gets the current exception and gets its message using what(). Then, if the exception is
         ///          a std::nested_exception, i.e. it was thrown using std::throw_with_nested, it gets the nested
         ///          exceptions' messages until it reaches the last exception. These exceptions should inherit from
-        ///          std::exception, otherwise we have no way to retrieve its message and a generic message is
+        ///          std::exception, otherwise we have no safe way to retrieve its message, and a generic message is
         ///          returned instead saying that an unknown exception was thrown and the backtrace stops.
         /// \example
         /// \code
@@ -35,13 +35,8 @@ namespace noa {
         }
 
     public:
-        /// Format the error message, which is then accessible with what().
-        /// \param[in] file      File name.
-        /// \param[in] function  Function name.
-        /// \param[in] line      Line number.
-        /// \param[in] message   Error message.
-        Exception(const char* file, const char* function, std::uint_least32_t line, std::string_view message) :
-            m_buffer(format_(file, function, line, message)) {}
+        /// Stores the error message, which is then accessible with what().
+        explicit Exception(std::string&& message) : m_buffer(std::move(message)) {}
 
         /// Returns the formatted error message of this exception.
         [[nodiscard]] auto what() const noexcept -> const char* override{
@@ -49,13 +44,6 @@ namespace noa {
         }
 
     protected:
-        static auto format_(
-            const char* file,
-            const char* function,
-            std::uint_least32_t line,
-            const std::string_view& message
-        ) -> std::string;
-
         static void backtrace_(
             std::vector<std::string>& message,
             const std::exception_ptr& exception_ptr = std::current_exception()
@@ -93,10 +81,26 @@ namespace noa {
         fmt::format_string<Ts...> fmt,
         Ts&&... args
     ) {
-        std::throw_with_nested(
-                Exception(location.file_name(), location.function_name(), location.line(),
-                          fmt::format(fmt::runtime(fmt), std::forward<Ts>(args)...))
-        );
+        if constexpr (config::error_policy == config::error_policy_type::TERMINATE) {
+            fmt::print(stderr, "ERROR: {}:{}: {}: ", location.file_name(), location.line(), location.function_name());
+            fmt::println(stderr, fmt::runtime(fmt), std::forward<Ts>(args)...);
+            std::terminate();
+
+        } else if constexpr (config::error_policy == config::error_policy_type::THROW) {
+            auto buffer = fmt::memory_buffer();
+            auto it = std::back_inserter(buffer);
+            fmt::format_to(it, "ERROR: {}:{}: {}: ", location.file_name(), location.line(), location.function_name());
+            fmt::format_to(it, fmt::runtime(fmt), std::forward<Ts>(args)...);
+            std::throw_with_nested(Exception(fmt::to_string(buffer)));
+
+        } else { // config::error_policy_type::ABORT
+            (void) location, (void) fmt, ((void) args, ...);
+            #if NOA_HAS_BUILTIN_TRAP
+            __builtin_trap();
+            #else
+            std::abort();
+            #endif
+        }
     }
 
     /// Throws an Exception with an error message already formatted.
@@ -119,6 +123,10 @@ namespace noa {
         panic_at_location(fmt.location, fmt.fmt, std::forward<Ts>(args)...);
     }
 
+    [[noreturn]] inline void panic_no_gpu_backend(const std::source_location& location = std::source_location::current()) {
+        panic_at_location(location, "Built without GPU support");
+    }
+
     template<typename... Ts>
     constexpr void check_at_location(
         const std::source_location& location,
@@ -127,7 +135,7 @@ namespace noa {
         Ts&&... args
     ) {
         if (expression) {
-            /*do nothing*/
+            return;
         } else {
             panic_at_location(location, fmt, std::forward<Ts>(args)...);
         }
@@ -141,7 +149,7 @@ namespace noa {
         const std::source_location& location = std::source_location::current()
     ) {
         if (expression) {
-            /*do nothing*/
+            return;
         } else {
             panic_at_location(location, fmt::runtime(message));
         }
@@ -150,7 +158,7 @@ namespace noa {
     /// If the expression evaluates to false, throw an exception with no error message. Otherwise, do nothing.
     constexpr void check(auto&& expression, const std::source_location& location = std::source_location::current()) {
         if (expression) {
-            /*do nothing*/
+            return;
         } else {
             panic_at_location(location, "");
         }
@@ -160,15 +168,10 @@ namespace noa {
     template<typename... Ts>
     constexpr void check(auto&& expression, guts::FormatWithLocation<std::type_identity_t<Ts>...> fmt, Ts&&... args) {
         if (expression) {
-            /*do nothing*/
+            return;
         } else {
             panic_at_location(fmt.location, fmt.fmt, std::forward<Ts>(args)...);
         }
-    }
-
-    [[noreturn]] inline void panic_no_gpu_backend(const std::source_location& location = std::source_location::current()) {
-        // FIXME Should we just std::terminate?
-        panic_at_location(location, "Built without GPU support");
     }
 }
 

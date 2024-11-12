@@ -4,7 +4,7 @@
 
 #ifdef NOA_IS_OFFLINE
 #include <ostream>
-#include "noa/core/Exception.hpp"
+#include "noa/core/Error.hpp"
 #include "noa/core/utils/Strings.hpp"
 
 #include "noa/cpu/AllocatorHeap.hpp"

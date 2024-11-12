@@ -6,7 +6,7 @@
 #include "noa/core/types/Accessor.hpp"
 #include "noa/core/types/Shape.hpp"
 #include "noa/gpu/cuda/Block.cuh"
-#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Error.hpp"
 
 // The current implementations only supports small squared windows. This allows to:
 //  1)  Load the windows for all threads in a block in shared memory. This is useful because windows overlap.

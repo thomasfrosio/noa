@@ -1,142 +1,152 @@
 #pragma once
 
-// --- Platform detection ---
-#if defined(_WIN64)
-    // TODO Improve this
-    #define NOA_PLATFORM_WINDOWS
-#elif defined(__APPLE__) || defined(__MACH__)
-    #include <TargetConditionals.h>
-    // TARGET_OS_MAC exists on all the platforms so we must check all of them (in this order)
-    // to ensure that we're running on MAC and not some other Apple platform.
-    #if TARGET_IPHONE_SIMULATOR == 1
-        #error "IOS simulator is not supported!"
-    #elif TARGET_OS_IPHONE == 1
-        #error "IOS is not supported!"
-    #elif TARGET_OS_MAC == 1
-        #error "MacOS is not supported!"
-    #else
-        #error "Unknown Apple platform!"
-    #endif
-#elif defined(__ANDROID__)
-    // We also have to check __ANDROID__ before __linux__ since android is based on the linux kernel
-    // it has __linux__ defined
-    #error "Android is not supported!"
+// Platform detection.
+#if defined(_WIN64) || defined(__APPLE__) || defined(__MACH__) || defined(__ANDROID__)
+#   error "Platform is not supported"
 #elif defined(__linux__) || defined(__CUDACC_RTC__)
-    // If windows, nvrtc defines _WIN64 on windows,
-    // so if we read this point with nvrtc we are on linux
-    #define NOA_PLATFORM_LINUX
+#   define NOA_PLATFORM_LINUX
 #else
-    #error "Unknown platform!"
+#   error "Unknown platform!"
 #endif
 
-#if defined(__CUDA_ARCH__)
-    // Code is compiled for the GPU (by nvcc, nvc++ or nvrtc)
-    #define NOA_IS_GPU_CODE
+// Whether the code is compiled for device/GPU code.
+#ifdef __CUDA_ARCH__
+#   define NOA_IS_GPU_CODE
 #else
-    // Code is compiled for the CPU
-    #define NOA_IS_CPU_CODE
+#   define NOA_IS_CPU_CODE
 #endif
 
-#if defined(__CUDACC_RTC__)
-    // Code is JIT-compiled by nvrtc
-    #define NOA_IS_JIT
+// Whether the code is compiled offline by a C++ compiler (which includes nvcc and nvc++)
+#ifdef __CUDACC_RTC__
+#   define NOA_IS_GPU_JIT
 #else
-    // Code is compiled offline by a C++ compiler (which includes nvcc and nvc++)
-    #define NOA_IS_OFFLINE
+#   define NOA_IS_OFFLINE
 #endif
 
-// --- Assertions ---
-// CUDA device code supports the assert macro, but the code bloat is really not worth it.
-#if defined(NOA_DEBUG) && !defined(NOA_IS_GPU_CODE)
-    #include <cassert>
-    #define NOA_ASSERT(check) assert(check)
-#else
-    #define NOA_ASSERT(check)
-#endif
-
-// --- Device/Host declarations ---
+// Device/Host declarations.
 // If the compilation is not steered by nvcc/nvrtc, these attributes should not be used
 // since the CUDA runtime might not be included in the translation unit.
-#if defined(__CUDACC__)
-    #if !defined(NOA_FD)
-        #define NOA_FD __forceinline__ __device__
-    #endif
-    #if !defined(NOA_FH)
-        #define NOA_FH __forceinline__ __host__
-    #endif
-    #if !defined(NOA_FHD)
-        #define NOA_FHD __forceinline__ __host__ __device__
-    #endif
-    #if !defined(NOA_ID)
-        #define NOA_ID inline __device__
-    #endif
-    #if !defined(NOA_IH)
-        #define NOA_IH inline __host__
-    #endif
-    #if !defined(NOA_IHD)
-        #define NOA_IHD inline __host__ __device__
-    #endif
-    #if !defined(NOA_HD)
-        #define NOA_HD __host__ __device__
-    #endif
-    #if !defined(NOA_DEVICE)
-        #define NOA_DEVICE __device__
-    #endif
-    #if !defined(NOA_HOST)
-        #define NOA_HOST __host__
-    #endif
+#ifdef __CUDACC__
+#   ifndef NOA_FD
+#       define NOA_FD __forceinline__ __device__
+#   endif
+#   ifndef NOA_FH
+#       define NOA_FH __forceinline__ __host__
+#   endif
+#   ifndef NOA_FHD
+#       define NOA_FHD __forceinline__ __host__ __device__
+#   endif
+#   ifndef NOA_ID
+#       define NOA_ID inline __device__
+#   endif
+#   ifndef NOA_IH
+#       define NOA_IH inline __host__
+#   endif
+#   ifndef NOA_IHD
+#       define NOA_IHD inline __host__ __device__
+#   endif
+#   ifndef NOA_HD
+#       define NOA_HD __host__ __device__
+#   endif
+#   ifndef NOA_DEVICE
+#       define NOA_DEVICE __device__
+#   endif
+#   ifndef NOA_HOST
+#       define NOA_HOST __host__
+#   endif
 #else // __CUDACC__
-    #if !defined(NOA_FD)
-        #define NOA_FD inline
-    #endif
-    #if !defined(NOA_FH)
-        #define NOA_FH inline
-    #endif
-    #if !defined(NOA_FHD)
-        #define NOA_FHD inline
-    #endif
-    #if !defined(NOA_ID)
-        #define NOA_ID inline
-    #endif
-    #if !defined(NOA_IH)
-        #define NOA_IH inline
-    #endif
-    #if !defined(NOA_IHD)
-        #define NOA_IHD inline
-    #endif
-    #if !defined(NOA_HD)
-        #define NOA_HD
-    #endif
-    #if !defined(NOA_DEVICE)
-        #define NOA_DEVICE
-    #endif
-    #if !defined(NOA_HOST)
-        #define NOA_HOST
-    #endif
+#   ifndef NOA_FD
+#       define NOA_FD inline
+#   endif
+#   ifndef NOA_FH
+#       define NOA_FH inline
+#   endif
+#   ifndef NOA_FHD
+#       define NOA_FHD inline
+#   endif
+#   ifndef NOA_ID
+#       define NOA_ID inline
+#   endif
+#   ifndef NOA_IH
+#       define NOA_IH inline
+#   endif
+#   ifndef NOA_IHD
+#       define NOA_IHD inline
+#   endif
+#   ifndef NOA_HD
+#       define NOA_HD
+#   endif
+#   ifndef NOA_DEVICE
+#       define NOA_DEVICE
+#   endif
+#   ifndef NOA_HOST
+#       define NOA_HOST
+#   endif
 #endif // __CUDACC__
 
 // Detect host compiler
 #if defined(__clang__)
-#define NOA_COMPILER_CLANG
+#   define NOA_COMPILER_CLANG
 #elif defined(__GNUG__)
-#define NOA_COMPILER_GCC
+#   define NOA_COMPILER_GCC
 #elif defined(_MSC_VER)
-#define NOA_COMPILER_MSVC
+#   define NOA_COMPILER_MSVC
 #endif
 
 // nvcc says it's support [[no_unique_address]], but about half the time it freaks out
 // with a internal compiler error. In order to keep the layout consistent between host
 // and device (which is necessary to pass objects to CUDA), turn of the attribute
 // entirely for now.
-#if defined(NOA_ENABLE_CUDA)
-    #define NOA_ENABLE_GPU
-    #define NOA_NO_UNIQUE_ADDRESS
+#ifdef NOA_ENABLE_CUDA
+#   define NOA_ENABLE_GPU
+#   define NOA_NO_UNIQUE_ADDRESS
 #else
-    #define NOA_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#   define NOA_NO_UNIQUE_ADDRESS [[no_unique_address]]
 #endif
 
-#if defined(__CUDACC__)
-    #define NOA_RESTRICT_ATTRIBUTE __restrict__
+// nvcc warnings
+#ifdef __NVCC_DIAG_PRAGMA_SUPPORT__
+#   define NOA_PRAGMA_(value) _Pragma(#value)
+#   define NOA_NV_DIAG_SUPPRESS(nb) NOA_PRAGMA_(nv_diag_suppress=nb)
+#   define NOA_NV_DIAG_DEFAULT(nb) NOA_PRAGMA_(nv_diag_default=nb)
 #else
-    #define NOA_RESTRICT_ATTRIBUTE __restrict
+#   define NOA_NV_DIAG_SUPPRESS(nb)
+#   define NOA_NV_DIAG_DEFAULT(nb)
+#endif
+
+#ifdef __CUDACC__
+#   define NOA_RESTRICT_ATTRIBUTE __restrict__
+#else
+#   define NOA_RESTRICT_ATTRIBUTE __restrict
+#endif
+
+// Assertions.
+// CUDA device code supports the assert macro, but the code bloat is really not worth it.
+#ifdef NOA_DEBUG
+#   ifdef NOA_IS_GPU_CODE
+#       define NOA_ASSERT(cond) (static_cast<bool>(cond) ? void(0) : __trap())
+#   else
+#       include <cassert>
+#       define NOA_ASSERT(cond) assert(cond)
+#   endif
+#else
+#   define NOA_ASSERT(cond)
+#endif
+
+// Error policy.
+namespace noa::config {
+    enum class error_policy_type { ABORT, TERMINATE, THROW };
+    inline constexpr auto error_policy = static_cast<error_policy_type>(NOA_ERROR_POLICY);
+}
+#ifdef __has_builtin
+#  if __has_builtin(__builtin_trap)
+#    define NOA_HAS_BUILTIN_TRAP 1
+#  endif
+#endif
+
+// GCC/Clang extension for static bounds checking.
+#if defined(__has_cpp_attribute) && defined(__has_builtin)
+#   if __has_builtin(__builtin_constant_p) && __has_cpp_attribute(gnu::error)
+#       define NOA_HAS_GCC_STATIC_BOUNDS_CHECKING
+#   endif
 #endif

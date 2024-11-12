@@ -14,6 +14,7 @@ namespace {
 
 using namespace noa::types;
 
+NOA_NV_DIAG_SUPPRESS(445)
 TEST_CASE("core::Tuple") {
     // Element access.
     using tt = std::tuple<int, int&, int&&, const int, const int&, const int&&>;
@@ -101,6 +102,7 @@ TEST_CASE("core::Tuple") {
         REQUIRE((u3.count[0] == u2.count[0] and u3.count[1] == u2.count[1] and u3.count[2] == u2.count[2]));
     }
 }
+NOA_NV_DIAG_DEFAULT(445)
 
 TEST_CASE("core::tuple_cat") {
     constexpr Tuple<i32, i32> a = noa::make_tuple(1, 2);

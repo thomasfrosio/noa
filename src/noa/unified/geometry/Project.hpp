@@ -177,7 +177,7 @@ namespace noa::geometry::guts {
             auto op = op_t(
                 interpolator, output_accessor, volume_shape.as<Index>(),
                 batched_backward_projection_matrices, batched_forward_projection_matrices,
-                static_cast<Index>(projection_window_size), input.shape()[0]);
+                static_cast<Index>(projection_window_size), static_cast<Index>(input.shape()[0]));
 
             auto iwise_shape = Shape<Index, 4>::from_values(
                 output.shape()[0], projection_window_size, output.shape()[2], output.shape()[3]

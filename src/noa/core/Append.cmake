@@ -2,7 +2,7 @@ set(NOA_CORE_HEADERS
     core/Config.hpp
     core/Enums.hpp
     core/Ewise.hpp
-    core/Exception.hpp
+    core/Error.hpp
     core/Interfaces.hpp
     core/Interpolation.hpp
     core/Iwise.hpp
@@ -14,8 +14,9 @@ set(NOA_CORE_HEADERS
     core/fft/FourierResize.hpp
     core/fft/Frequency.hpp
 
-    core/indexing/Offset.hpp
+    core/indexing/Bounds.hpp
     core/indexing/Layout.hpp
+    core/indexing/Offset.hpp
     core/indexing/Subregion.hpp
 
     core/io/BinaryFile.hpp
@@ -88,7 +89,7 @@ set(NOA_CORE_HEADERS
 
 set(NOA_CORE_SOURCES
     core/Enums.cpp
-    core/Exception.cpp
+    core/Error.cpp
     core/geometry/Euler.cpp
     core/io/IO.cpp
     core/io/BinaryFile.cpp

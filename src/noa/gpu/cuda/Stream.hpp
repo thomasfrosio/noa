@@ -11,7 +11,7 @@
 #include "noa/core/Traits.hpp"
 #include "noa/core/utils/Misc.hpp"
 #include "noa/core/utils/ShareHandles.hpp"
-#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Error.hpp"
 #include "noa/gpu/cuda/Device.hpp"
 #include "noa/gpu/cuda/Runtime.hpp"
 

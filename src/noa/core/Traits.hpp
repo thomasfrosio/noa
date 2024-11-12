@@ -468,7 +468,7 @@ namespace noa::traits {
 }
 
 namespace noa::inline types {
-    template<typename T, size_t N, size_t A>
+    template<typename, size_t, size_t>
     class Vec;
 }
 
@@ -486,25 +486,32 @@ namespace noa::traits {
     concept compatible_or_spectrum_types = (nt::complex<From> and nt::real<To>) or static_castable_to<From, To>;
 
     template<typename T, size_t N>
-    concept indexer_compatible =
+    concept indexable_nd =
         nt::integer<typename T::index_type> and
         std::convertible_to<decltype(T::SIZE), size_t> and
         std::convertible_to<decltype(std::declval<const T&>().template stride<N - 1>()), size_t>;
 
-    template<size_t N, typename... T>
-    concept offset_indexing =
-        ((sizeof...(T) <= N and integer<T...>) or
-         (sizeof...(T) == 1 and vec_integer<T...> and nt::size_or_v<T..., 0> <= N));
+    template<typename T, typename... U>
+    concept indexable =
+        nt::integer<typename T::index_type> and
+        std::convertible_to<decltype(T::SIZE), size_t> and
+        ((integer<U...> and std::convertible_to<decltype(std::declval<const T&>().template stride<sizeof...(U) - 1>()), size_t>) or
+         (vec_integer<U...> and std::convertible_to<decltype(std::declval<const T&>().template stride<size_or_v<U..., 0> - 1>()), size_t>));
 
     template<size_t N, typename... T>
-    concept iwise_general_indexing =
-        ((sizeof...(T) == N and integer<T...>) or
-         (sizeof...(T) == 1 and nt::vec_integer<T...> and nt::are_vec_of_size_v<N, T...>));
+    concept offset_indexing =
+        (sizeof...(T) <= N and integer<T...>) or
+        (sizeof...(T) == 1 and vec_integer<T...> and size_or_v<T..., 0> <= N);
+
+    template<size_t N, typename... T>
+    concept iwise_indexing =
+        (sizeof...(T) == N and integer<T...>) or
+        (sizeof...(T) == 1 and vec_integer<T...> and are_vec_of_size_v<N, T...>);
 
     template<size_t N, typename I, typename... T>
     concept iwise_core_indexing =
-        ((sizeof...(T) == N and same_as<I, T...>) or
-         (sizeof...(T) == 1 and nt::are_vec_of_type_v<I, T...> and nt::are_vec_of_size_v<N, T...>));
+        (sizeof...(T) == N and same_as<I, T...>) or
+        (sizeof...(T) == 1 and are_vec_of_type_v<I, T...> and are_vec_of_size_v<N, T...>);
 
     namespace guts { // nvcc workaround
         template<typename T, size_t S, typename I, I... J>

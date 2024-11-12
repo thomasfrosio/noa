@@ -1,7 +1,7 @@
 #include <mutex>
 #include <fftw3/fftw3.h>
 
-#include "noa/core/Exception.hpp"
+#include "noa/core/Error.hpp"
 #include "noa/core/indexing/Layout.hpp"
 #include "noa/core/utils/Irange.hpp"
 #include "noa/core/utils/Misc.hpp"

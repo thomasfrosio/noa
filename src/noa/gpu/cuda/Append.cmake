@@ -8,7 +8,7 @@ set(NOA_CUDA_HEADERS
     gpu/cuda/Device.hpp
     gpu/cuda/Event.hpp
     gpu/cuda/Ewise.cuh
-    gpu/cuda/Exception.hpp
+    gpu/cuda/Error.hpp
     gpu/cuda/IncludeGuard.cuh
     gpu/cuda/Iwise.cuh
     gpu/cuda/Median.cuh

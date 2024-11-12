@@ -2,6 +2,7 @@
 
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
+#include "noa/core/indexing/Bounds.hpp"
 #include "noa/core/math/Generic.hpp"
 #include "noa/core/utils/ClampCast.hpp"
 #include "noa/core/utils/SafeCast.hpp"
@@ -157,19 +158,13 @@ namespace noa::inline types {
     public: // Accessor operators and functions
         template<nt::integer I> requires (SIZE > 0)
         [[nodiscard]] NOA_HD constexpr value_type& operator[](I i) noexcept {
-            NOA_ASSERT(static_cast<i64>(i) < SSIZE);
-            if constexpr (nt::sinteger<I>) {
-                NOA_ASSERT(i >= 0);
-            }
+            ni::bounds_check(SSIZE, i);
             return storage_type::ref(array, i);
         }
 
         template<nt::integer I> requires (SIZE > 0)
         [[nodiscard]] NOA_HD constexpr const value_type& operator[](I i) const noexcept {
-            NOA_ASSERT(static_cast<i64>(i) < SSIZE);
-            if constexpr (nt::sinteger<I>) {
-                NOA_ASSERT(i >= 0);
-            }
+            ni::bounds_check(SSIZE, i);
             return storage_type::ref(array, i);
         }
 

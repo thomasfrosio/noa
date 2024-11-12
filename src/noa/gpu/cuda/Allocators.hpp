@@ -11,7 +11,7 @@
 #include "noa/core/types/Pair.hpp"
 #include "noa/core/types/Shape.hpp"
 #include "noa/gpu/cuda/Runtime.hpp"
-#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Error.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
 
 // Add specialization for our complex types. Used for CUDA arrays and textures.

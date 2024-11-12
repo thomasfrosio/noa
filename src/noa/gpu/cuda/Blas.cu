@@ -1,7 +1,7 @@
 #include <cublas_v2.h>
 #include "noa/core/indexing/Layout.hpp"
 #include "noa/gpu/cuda/Blas.hpp"
-#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Error.hpp"
 
 namespace {
     using namespace noa::types;

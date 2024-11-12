@@ -8,7 +8,7 @@
 #include <vector>
 #include "noa/core/utils/Strings.hpp"
 #include "noa/gpu/cuda/Runtime.hpp"
-#include "noa/gpu/cuda/Exception.hpp"
+#include "noa/gpu/cuda/Error.hpp"
 #include "noa/gpu/cuda/Version.hpp"
 
 namespace noa::cuda {

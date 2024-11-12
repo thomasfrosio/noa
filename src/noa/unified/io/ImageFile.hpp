@@ -296,7 +296,7 @@ namespace noa::io {
                     m_file.emplace<TiffFile>();
                     break;
                     #else
-                    panic("File {}: TIFF files are not supported in this build. See CMake option NOA_ENABLE_TIFF");
+                    panic("TIFF files are not supported in this build. See CMake option NOA_ENABLE_TIFF");
                     #endif
             }
         }
@@ -334,25 +334,26 @@ namespace noa::io {
 
 namespace noa::io {
     struct ReadOption {
+        /// Whether to enforce the output array to be a stack of 2d images, instead of a single 3d volume.
         bool enforce_2d_stack{};
+
+        /// Whether the deserialized values should be clamped to the output type range.
         bool clamp{true};
     };
 
     struct WriteOption {
+        /// Encoding format used for the serialization.
+        /// If Encoding::UNKNOWN, let the file decide the best format given the input value type,
+        /// so that no truncation or loss of precision happens.
         Encoding::Format encoding_format{Encoding::UNKNOWN};
+
+        /// Whether the input values should be clamped to the serialized values range.
         bool clamp{true};
     };
 
-    /// Loads the file into a new array.
-    /// \tparam T               Any numeric type (integer, floating-point, complex).
-    ///                         Values in the file are clamped to this type's range.
-    /// \param[in] filename     Path of the file to read.
-    /// \param enforce_2d_stack Whether to enforce the output array to be a stack of 2D images,
-    ///                         instead of a single 3D volume. This is useful for files that are
-    ///                         not encoded properly.
-    /// \param option           Options for the output array.
+    /// Loads the file into a new array with a given type T.
     /// \return BDHW C-contiguous output array containing the whole data array of the file, and its pixel size.
-    template<typename T>
+    template<nt::numeric T>
     [[nodiscard]] auto read(
             const Path& filename,
             ReadOption read_option = {},
@@ -386,9 +387,7 @@ namespace noa::io {
     /// \param[in] input        Array to serialize.
     /// \param pixel_size       (D)HW pixel size of \p input.
     /// \param[in] filename     Path of the new file.
-    /// \param encoding_format  Encoding format used for the serialization.
-    ///                         If Encoding::UNKNOWN, let the file decide the best format given the input value type,
-    ///                         so that no truncation or loss of precision happens.
+    /// \param write_option     Options.
     template<nt::varray_of_numeric Input, nt::vec_real_size<2, 3> PixelSize>
     void write(
             const Input& input,
@@ -415,5 +414,12 @@ namespace noa::io {
             file.set_encoding_format(write_option.encoding_format);
         file.write(input);
     }
+}
+
+// Expose read/write to noa.
+namespace noa {
+    using noa::io::read;
+    using noa::io::read_data;
+    using noa::io::write;
 }
 #endif

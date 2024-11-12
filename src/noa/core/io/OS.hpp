@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/Exception.hpp"
+#include "noa/core/Error.hpp"
 #include "noa/core/utils/ClampCast.hpp"
 
 #ifdef NOA_IS_OFFLINE

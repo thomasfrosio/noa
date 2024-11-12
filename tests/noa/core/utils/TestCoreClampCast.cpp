@@ -103,6 +103,7 @@ TEMPLATE_TEST_CASE("core::clamp_cast, large integer to f16", "[noa]", i32, i64, 
     }
 }
 
+NOA_NV_DIAG_SUPPRESS(221)
 TEST_CASE("core::clamp_cast, f64 to f32/f16", "[noa]") {
     using double_limit = std::numeric_limits<f64>;
     REQUIRE(static_cast<f32>(12456.251) == noa::clamp_cast<f32>(12456.251));
@@ -115,6 +116,7 @@ TEST_CASE("core::clamp_cast, f64 to f32/f16", "[noa]") {
     REQUIRE(std::numeric_limits<f16>::lowest() == noa::clamp_cast<f16>(double_limit::lowest()));
     REQUIRE(std::numeric_limits<f16>::max() == noa::clamp_cast<f16>(double_limit::max()));
 }
+NOA_NV_DIAG_DEFAULT(221)
 
 TEMPLATE_TEST_CASE("core::clamp_cast, scalar to complex", "[noa]", i8, i16, i32, i64, u8, u16, u32, u64, f16, f32, f64) {
     auto c1 = noa::clamp_cast<Complex<f32>>(std::numeric_limits<TestType>::lowest());

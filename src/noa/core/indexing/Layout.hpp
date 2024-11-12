@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-#include "noa/core/Exception.hpp"
+#include "noa/core/Error.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Shape.hpp"
 #include "noa/core/types/Vec.hpp"
@@ -612,8 +612,10 @@ namespace noa::indexing {
                     check(strides[rightmost_order[N - 1]] == 1,
                           "The stride of the innermost dimension must be 1 to view a {} as a {}",
                           ns::stringify<old_type>(), ns::stringify<New>());
+                    NOA_NV_DIAG_SUPPRESS(186)
                     for (size_t i{}; i < N - 1; ++i)
                         out.strides[rightmost_order[i]] *= ratio;
+                    NOA_NV_DIAG_DEFAULT(186)
                     out.strides[rightmost_order[N - 1]] = 1;
                     out.shape[rightmost_order[N - 1]] *= ratio;
 

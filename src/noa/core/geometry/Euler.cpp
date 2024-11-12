@@ -1,4 +1,4 @@
-#include "noa/core/Exception.hpp"
+#include "noa/core/Error.hpp"
 #include "noa/core/math/Generic.hpp"
 #include "noa/core/geometry/Euler.hpp"
 #include "noa/core/geometry/Transform.hpp"

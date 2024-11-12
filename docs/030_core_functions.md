@@ -50,8 +50,8 @@ noa::iwise(
 
 The element-wise core function, `noa::ewise`, can be seen as a wrapper over the index-wise
 core function. This function is useful when the position of the element in the array(s)
-is not required, e.g. copy, fill, for arithmetics or other maths functions like `sin`. These
-take the input and output arrays, and an element-wise operator. One advantage of this
+is not required, e.g. copy, fill, for arithmetics or other maths functions like `sin`. This
+takes the input and output arrays, and an element-wise operator. One advantage of this
 function over the `noa::iwise` function is that it can analyze the input and output array(s)
 to deduce the most efficient way to traverse them, by reordering the dimensions, collapsing
 contiguous dimensions together (up to 1d), and can trigger vectorization by checking for
@@ -102,9 +102,9 @@ noa::ewise(noa::wrap(a, b), noa::wrap(c, d), [](f32, i32, f64&, i64&) {}); // in
 noa::ewise(noa::fuse(a, b), noa::fuse(c, d),
     [](const Tuple<const f32&, const i32&>&, const Tuple<f64&, i64&>&) {});
 
-// Zip is mostly useful when the operator is meant to handle a variable number of inputs:
+// Fuse is mostly useful when the operator is meant to handle a variable number of inputs:
 struct EwiseSum {
-    // If inputs is a parameter pack, output cannot be specified...
+    // If inputs is a parameter pack, output cannot be specified due to how C++ works...
     // constexpr void operator()(auto... inputs, f32 output) {}
 
     template<typename... T>

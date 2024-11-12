@@ -4,7 +4,7 @@
 
 #ifdef NOA_IS_OFFLINE
 #include "noa/core/Ewise.hpp"
-#include "noa/core/Exception.hpp"
+#include "noa/core/Error.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/Types.hpp"
 #include "noa/core/indexing/Subregion.hpp"
@@ -541,14 +541,14 @@ namespace noa::inline types {
 
     public:
         /// Element access (unsafe if not synchronized). For efficient access, prefer to use Span.
-        template<typename... U> requires nt::iwise_general_indexing<SIZE, U...>
+        template<typename... U> requires nt::iwise_indexing<SIZE, U...>
         [[nodiscard]] constexpr auto at(const U&... indices) const -> value_type& {
             check(is_dereferenceable(), "Memory buffer cannot be accessed from the CPU");
             return span().at(indices...);
         }
 
         /// Element access (unsafe). For efficient access, prefer to use Span.
-        template<typename... U> requires nt::iwise_general_indexing<SIZE, U...>
+        template<typename... U> requires nt::iwise_indexing<SIZE, U...>
         [[nodiscard]] constexpr auto operator()(const U&... indices) const -> value_type& {
             return span()(indices...);
         }

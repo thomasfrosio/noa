@@ -17,12 +17,12 @@ TEST_CASE("core, Interpolator", "[noa][core]") {
         using interpolator_t = const Interpolator<2, Interp::CUBIC, Border::ZERO, decltype(accessor)>;
         auto op = interpolator_t(accessor, data_2d.shape().pop_front());
 
-        auto coordinate = Vec<f64, 2>{1, 1};
-        auto interpolated_value_batch0 = op.interpolate_at(coordinate);
-        auto interpolated_value_batch2 = op.interpolate_at(coordinate, 2);
+        [[maybe_unused]] auto coordinate = Vec<f64, 2>{1, 1};
+        [[maybe_unused]] auto interpolated_value_batch0 = op.interpolate_at(coordinate);
+        [[maybe_unused]] auto interpolated_value_batch2 = op.interpolate_at(coordinate, 2);
 
-        auto value0 = op(6, 7); // batch=0, height=6, width=7
-        auto value1 = op(2, 6, 7); // batch=2, height=6, width=7
+        [[maybe_unused]] auto value0 = op(6, 7); // batch=0, height=6, width=7
+        [[maybe_unused]] auto value1 = op(2, 6, 7); // batch=2, height=6, width=7
     }
 }
 
@@ -30,7 +30,7 @@ TEMPLATE_TEST_CASE("core, interpolation_weight<LANCZOS>, ", "[noa][core]", float
     using namespace noa::types;
     {
         Vec<TestType, 1> a{std::numeric_limits<TestType>::epsilon()};
-        for (auto i: noa::irange(10)) {
+        for ([[maybe_unused]] auto _: noa::irange(10)) {
             for (auto c: noa::interpolation_weights<noa::Interp::LANCZOS4, decltype(a)>(a))
                 REQUIRE(noa::is_finite(c[0]));
 
@@ -45,7 +45,7 @@ TEMPLATE_TEST_CASE("core, interpolation_weight<LANCZOS>, ", "[noa][core]", float
     }
     {
         Vec<TestType, 1> a{1};
-        for (auto i: noa::irange(10)) {
+        for ([[maybe_unused]] auto _: noa::irange(10)) {
             for (auto c: noa::interpolation_weights<noa::Interp::LANCZOS4, decltype(a)>(a))
                 REQUIRE(noa::is_finite(c[0]));
 
