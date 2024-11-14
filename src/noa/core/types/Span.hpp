@@ -125,10 +125,10 @@ namespace noa::inline types {
             pointer_type pointer,
             const Shape<index_type, SIZE, A>& shape,
             const Strides<index_type, SIZE, B>& strides
-        ) noexcept
-                : m_ptr{pointer},
-                  m_shape{shape_type::from_shape(shape)},
-                  m_strides{strides_type::from_pointer(strides.data())} {}
+        ) noexcept :
+            m_ptr{pointer},
+            m_shape{shape_type::from_shape(shape)},
+            m_strides{strides_type::from_pointer(strides.data())} {}
 
         /// Creates a span of 1d contiguous data.
         template<typename U, size_t S> requires (not std::is_void_v<value_type>)
@@ -136,17 +136,17 @@ namespace noa::inline types {
 
         /// Creates a const span from an existing non-const span, or from/to a void span.
         template<typename U> requires (nt::mutable_of<U, value_type> or std::is_void_v<U> or std::is_void_v<value_type>)
-        NOA_HD constexpr /*implicit*/ Span(const Span<U, SIZE, index_type, STRIDES_TRAIT>& span) noexcept
-                : m_ptr{span.get()},
-                  m_shape{span.shape()},
-                  m_strides{span.strides()} {}
+        NOA_HD constexpr /*implicit*/ Span(const Span<U, SIZE, index_type, STRIDES_TRAIT>& span) noexcept :
+            m_ptr{span.get()},
+            m_shape{span.shape()},
+            m_strides{span.strides()} {}
 
         /// Creates a non-contiguous span from an otherwise identical contiguous span.
         template<typename U> requires (nt::same_as<U, contiguous_span_type> and (not IS_CONTIGUOUS))
-        NOA_HD constexpr /*implicit*/ Span(const U& span) noexcept
-                : m_ptr{span.get()},
-                  m_shape{span.shape()},
-                  m_strides{span.strides_full()} {}
+        NOA_HD constexpr /*implicit*/ Span(const U& span) noexcept :
+            m_ptr{span.get()},
+            m_shape{span.shape()},
+            m_strides{span.strides_full()} {}
 
     public: // Accessing strides
         template<size_t INDEX>
