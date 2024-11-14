@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ranges> // std::ranges::begin, std::ranges::end
+#include <ranges> // std::ranges::begin/end
 #include <noa/core/types/Tuple.hpp>
 
 namespace noa::guts {

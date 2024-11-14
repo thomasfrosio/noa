@@ -1,10 +1,12 @@
-#include <noa/FFT.hpp>
-#include <noa/Geometry.hpp>
-#include <noa/IO.hpp>
-#include <noa/Math.hpp>
-#include <noa/Signal.hpp>
-#include <noa/unified/geometry/RotationalAverage.hpp>
+#include <noa/core/io/TextFile.hpp>
+#include <noa/unified/io/ImageFile.hpp>
+
+#include <noa/unified/fft/Remap.hpp>
+#include <noa/unified/geometry/DrawShape.hpp>
 #include <noa/unified/geometry/PolarTransformSpectrum.hpp>
+#include <noa/unified/geometry/RotationalAverage.hpp>
+#include <noa/unified/Reduce.hpp>
+#include <noa/unified/signal/CTF.hpp>
 
 #include <catch2/catch.hpp>
 
@@ -77,7 +79,7 @@ TEST_CASE("unified::geometry::fft::rotational_average", "[noa][unified]") {
         const auto output_range = noa::empty<f32>({n_batch, 1, 1, frequency_range_n_shells}, options);
         const auto weight_range = noa::like(output_range);
         noa::geometry::rotational_average<"HC2H">(
-                input_rfft, shape, output_range, weight_range, {.fftfreq_range = frequency_range});
+            input_rfft, shape, output_range, weight_range, {.fftfreq_range = frequency_range});
 
         const auto output_cropped = output.subregion(subregion_within_full_range);
         const auto weight_cropped = weight.subregion(subregion_within_full_range);

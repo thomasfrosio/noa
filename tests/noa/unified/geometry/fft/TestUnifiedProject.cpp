@@ -4,7 +4,7 @@
 #include <noa/unified/io/ImageFile.hpp>
 #include <noa/unified/Factory.hpp>
 
-#include <noa/Math.hpp>
+#include <noa/Array.hpp>
 #include <noa/Signal.hpp>
 #include <noa/FFT.hpp>
 

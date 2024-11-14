@@ -4,6 +4,7 @@
 #include "noa/unified/signal/Convolve.hpp"
 #include "noa/unified/signal/Correlate.hpp"
 #include "noa/unified/signal/CTF.hpp"
+#include "noa/unified/signal/FilterSpectrum.hpp"
 #include "noa/unified/signal/FSC.hpp"
 #include "noa/unified/signal/MedianFilter.hpp"
 #include "noa/unified/signal/PhaseShift.hpp"
