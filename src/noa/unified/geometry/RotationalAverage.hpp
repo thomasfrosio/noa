@@ -89,7 +89,8 @@ namespace noa::geometry::guts {
 
         // Output must be zeroed out.
         const auto output_view = output.view();
-        ewise<EWISE_OPTION>({}, output_view, Zero{});
+        if (not options.add_to_output)
+            ewise<EWISE_OPTION>({}, output_view, Zero{});
 
         // When computing the average, the weights must be valid.
         auto weight_view = weight.view();
@@ -98,7 +99,7 @@ namespace noa::geometry::guts {
             if (weight_view.is_empty()) {
                 weight_buffer = zeros<weight_value_t>(output_view.shape(), ArrayOption{output.device(), Allocator::DEFAULT_ASYNC});
                 weight_view = weight_buffer.view();
-            } else {
+            } else if (not options.add_to_output) {
                 ewise<EWISE_OPTION>({}, weight_view, Zero{});
             }
         }
@@ -123,13 +124,12 @@ namespace noa::geometry::guts {
                     return BatchedParameter{input_ctf};
                 }
             }();
-            using ctf_t = decltype(ctf);
 
             using input_accessor_t = AccessorRestrict<input_value_t, 3, Index>;
             auto op = RotationalAverage
-                <REMAP, 2, coord_t, Index, input_accessor_t, output_accessor_t, weight_accessor_t, ctf_t>(
+                <REMAP, 2, coord_t, Index, input_accessor_t, output_accessor_t, weight_accessor_t, decltype(ctf)>(
                 input_accessor_t(input.get(), input_strides.filter(0, 2, 3)), input_shape.filter(2, 3),
-                ctf, output_accessor, weight_accessor, n_shells,
+                ctf, output_accessor, weight_accessor, static_cast<Index>(n_shells),
                 fftfreq_range, options.fftfreq_endpoint);
 
             iwise<IWISE_OPTION>(
@@ -142,7 +142,7 @@ namespace noa::geometry::guts {
                 REMAP, 3, coord_t, Index,
                 input_accessor_t, output_accessor_t, weight_accessor_t, BatchedParameter<Empty>
             >(input_accessor_t(input.get(), input_strides), input_shape.filter(1, 2, 3),
-              {}, output_accessor, weight_accessor, n_shells,
+              {}, output_accessor, weight_accessor, static_cast<Index>(n_shells),
               fftfreq_range, options.fftfreq_endpoint);
 
             iwise<IWISE_OPTION>(iwise_shape, output.device(), op, std::forward<Input>(input), output, weight);
@@ -151,9 +151,9 @@ namespace noa::geometry::guts {
         // Some shells can be 0, so use DivideSafe.
         if (options.average) {
             if (weight_buffer.is_empty()) {
-                ewise<EWISE_OPTION>(wrap(output.view(), weight), std::forward<Output>(output), DivideSafe{});
+                ewise<EWISE_OPTION>(wrap(output_view, weight), std::forward<Output>(output), DivideSafe{});
             } else {
-                ewise<EWISE_OPTION>(wrap(output.view(), std::move(weight_buffer)), std::forward<Output>(output), DivideSafe{});
+                ewise<EWISE_OPTION>(wrap(output_view, std::move(weight_buffer)), std::forward<Output>(output), DivideSafe{});
             }
         }
     }
@@ -179,6 +179,10 @@ namespace noa::geometry {
 
         /// Whether the rotational average should be computed instead of the rotational sum.
         bool average{true};
+
+        /// Whether the outputs (including the optional weights) are initialized.
+        /// If so, the function can skip the extra zeroing.
+        bool add_to_output{false};
     };
 
     /// Computes the rotational sum/average of a 2d or 3d DFT.
@@ -211,7 +215,7 @@ namespace noa::geometry {
         guts::set_frequency_range_to_default(input_shape, options.fftfreq_range);
 
         if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_CUDA
+            #ifdef NOA_ENABLE_GPU
             check(ng::is_accessor_access_safe<i32>(input, input.shape()) and
                   ng::is_accessor_access_safe<i32>(output, output.shape()) and
                   ng::is_accessor_access_safe<i32>(weights, weights.shape()),
@@ -222,7 +226,7 @@ namespace noa::geometry {
                 std::forward<Weight>(weights),
                 n_shells, options);
             #else
-            std::terminate(); // unreachable
+            panic_no_gpu_backend();
             #endif
         } else {
             guts::launch_rotational_average<REMAP>(
@@ -268,7 +272,7 @@ namespace noa::geometry {
         guts::set_frequency_range_to_default(input_shape, options.fftfreq_range);
 
         if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_CUDA
+            #ifdef NOA_ENABLE_GPU
             check(ng::is_accessor_access_safe<i32>(input, input.shape()) and
                   ng::is_accessor_access_safe<i32>(output, output.shape()) and
                   ng::is_accessor_access_safe<i32>(weights, weights.shape()),
@@ -280,7 +284,7 @@ namespace noa::geometry {
                 std::forward<Weight>(weights),
                 n_shells, options);
             #else
-            std::terminate(); // unreachable
+            panic_no_gpu_backend();
             #endif
         } else {
             guts::launch_rotational_average<REMAP>(

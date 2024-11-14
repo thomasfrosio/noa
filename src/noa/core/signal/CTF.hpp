@@ -227,6 +227,14 @@ namespace noa::signal {
             [[nodiscard]] constexpr auto to_ctf() noexcept { return CTFAnisotropic(*this); }
         };
 
+        [[nodiscard]] static constexpr auto from_isotropic_ctf(
+            const CTFIsotropic<value_type>& ctf_isotropic,
+            value_type defocus_astigmatic_value = 0,
+            value_type defocus_astigmatic_angle = 0
+        ) -> CTFAnisotropic {
+            return CTFAnisotropic(ctf_isotropic, defocus_astigmatic_value, defocus_astigmatic_angle);
+        }
+
     public: // constructors
         constexpr CTFAnisotropic() = default;
 
