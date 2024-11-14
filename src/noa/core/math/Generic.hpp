@@ -228,4 +228,20 @@ namespace noa {
         }
         sum = sum_value;
     }
+
+    template<typename T, typename U>
+    requires ((nt::scalar<T, U> and nt::same_as<T, U>) or (nt::real_or_complex<T, U> and nt::same_value_type<T, U>))
+    constexpr auto divide_safe(const T& lhs, const U& rhs) noexcept {
+        if constexpr (nt::real_or_complex<T, U>) {
+            constexpr auto epsilon = std::numeric_limits<nt::value_type_t<U>>::epsilon();
+            if constexpr (nt::complex<U>)
+                return abs(rhs.real) < epsilon or abs(rhs.imag) < epsilon ? U{} : lhs / rhs;
+            else
+                return abs(rhs) < epsilon ? T{} : lhs / rhs;
+        } else if constexpr (nt::integer<T, U>) {
+            return rhs == 0 ? T{} : lhs / rhs;
+        } else {
+            static_assert(nt::always_false<T>);
+        }
+    }
 }

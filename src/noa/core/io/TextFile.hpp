@@ -229,9 +229,15 @@ namespace noa::io {
     }
 
     /// Saves the entire text file.
-    inline void save_text(std::string_view string, const Path& path) {
+    inline void write_text(std::string_view string, const Path& path) {
         OutputTextFile text_file(path, Open{.write=true});
         text_file.write(string);
     }
+}
+
+// Expose to main namespace.
+namespace noa {
+    using noa::io::read_text;
+    using noa::io::write_text;
 }
 #endif

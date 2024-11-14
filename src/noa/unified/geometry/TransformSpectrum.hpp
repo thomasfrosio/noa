@@ -72,6 +72,12 @@ namespace noa::geometry::guts {
         }
     }
 
+    // nvcc struggles with C++20 template parameters in lambda, so use a worse C++17 syntax and create this type...
+    template<bool VALUE>
+    struct WrapNoShift {
+        consteval auto operator()() const -> bool { return VALUE;}
+    };
+
     template<Remap REMAP, size_t N, typename Index, bool IS_GPU = false,
              typename Input, typename Output, typename Matrix, typename Shift>
     void launch_transform_spectrum_nd(
@@ -87,12 +93,12 @@ namespace noa::geometry::guts {
         auto logical_shape = shape.as<Index>();
         auto batched_inverse_rotations = ng::to_batched_transform(inverse_rotations);
 
-        auto launch_iwise = [&]<bool NO_SHIFTS, Interp INTERP> {
-            auto batched_post_shifts = ng::to_batched_transform<true, NO_SHIFTS>(post_shifts);
+        auto launch_iwise = [&](auto no_shift, auto interp) {
+            auto batched_post_shifts = ng::to_batched_transform<true, no_shift()>(post_shifts);
 
             // Get the interpolator.
             using coord_t = nt::mutable_value_type_twice_t<Matrix>;
-            auto interpolator = ng::to_interpolator_spectrum<N, REMAP, INTERP, coord_t, IS_GPU>(input, logical_shape);
+            auto interpolator = ng::to_interpolator_spectrum<N, REMAP, interp(), coord_t, IS_GPU>(input, logical_shape);
 
             using op_t = TransformSpectrum<
                 N, REMAP, Index, decltype(batched_inverse_rotations), decltype(batched_post_shifts),
@@ -111,27 +117,27 @@ namespace noa::geometry::guts {
                std::forward<Shift>(post_shifts));
         };
 
-        auto launch_interp = [&]<bool NO_SHIFTS> {
+        auto launch_interp = [&](auto no_shift) {
             Interp interp = options.interp;
             if constexpr (nt::is_texture_decay_v<Input>)
                 interp = input.interp();
 
             using enum Interp::Method;
             switch (interp) {
-                case NEAREST:            return launch_iwise.template operator()<NO_SHIFTS, NEAREST>();
-                case NEAREST_FAST:       return launch_iwise.template operator()<NO_SHIFTS, NEAREST_FAST>();
-                case LINEAR:             return launch_iwise.template operator()<NO_SHIFTS, LINEAR>();
-                case LINEAR_FAST:        return launch_iwise.template operator()<NO_SHIFTS, LINEAR_FAST>();
-                case CUBIC:              return launch_iwise.template operator()<NO_SHIFTS, CUBIC>();
-                case CUBIC_FAST:         return launch_iwise.template operator()<NO_SHIFTS, CUBIC_FAST>();
-                case CUBIC_BSPLINE:      return launch_iwise.template operator()<NO_SHIFTS, CUBIC_BSPLINE>();
-                case CUBIC_BSPLINE_FAST: return launch_iwise.template operator()<NO_SHIFTS, CUBIC_BSPLINE_FAST>();
-                case LANCZOS4:           return launch_iwise.template operator()<NO_SHIFTS, LANCZOS4>();
-                case LANCZOS6:           return launch_iwise.template operator()<NO_SHIFTS, LANCZOS6>();
-                case LANCZOS8:           return launch_iwise.template operator()<NO_SHIFTS, LANCZOS8>();
-                case LANCZOS4_FAST:      return launch_iwise.template operator()<NO_SHIFTS, LANCZOS4_FAST>();
-                case LANCZOS6_FAST:      return launch_iwise.template operator()<NO_SHIFTS, LANCZOS6_FAST>();
-                case LANCZOS8_FAST:      return launch_iwise.template operator()<NO_SHIFTS, LANCZOS8_FAST>();
+                case NEAREST:            return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::NEAREST>{});
+                case NEAREST_FAST:       return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::NEAREST_FAST>{});
+                case LINEAR:             return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LINEAR>{});
+                case LINEAR_FAST:        return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LINEAR_FAST>{});
+                case CUBIC:              return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::CUBIC>{});
+                case CUBIC_FAST:         return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::CUBIC_FAST>{});
+                case CUBIC_BSPLINE:      return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::CUBIC_BSPLINE>{});
+                case CUBIC_BSPLINE_FAST: return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+                case LANCZOS4:           return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LANCZOS4>{});
+                case LANCZOS6:           return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LANCZOS6>{});
+                case LANCZOS8:           return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LANCZOS8>{});
+                case LANCZOS4_FAST:      return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LANCZOS4_FAST>{});
+                case LANCZOS6_FAST:      return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LANCZOS6_FAST>{});
+                case LANCZOS8_FAST:      return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LANCZOS8_FAST>{});
             }
         };
 
@@ -143,9 +149,9 @@ namespace noa::geometry::guts {
             has_shift = any(post_shifts != shift_t{});
 
         if (nt::complex<nt::value_type_t<Input>> and has_shift)
-            launch_interp.template operator()<false>();
+            launch_interp(WrapNoShift<false>{});
         else
-            launch_interp.template operator()<true>();
+            launch_interp(WrapNoShift<true>{});
     }
 
     template<size_t N, typename Rotation, typename RotationValue = nt::value_type_t<Rotation>>

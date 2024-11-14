@@ -27,7 +27,7 @@ namespace noa::geometry::guts {
     public:
         static_assert((N == 2 or N == 3) and REMAP.is_xx2h());
         static constexpr bool IS_CENTERED = REMAP.is_xc2xx();
-        static constexpr bool IS_RFFT = REMAP.is_hc2xx();
+        static constexpr bool IS_RFFT = REMAP.is_hx2xx();
 
         using index_type = Index;
         using coord_type = Coord;

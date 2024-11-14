@@ -82,15 +82,7 @@ namespace noa {
     NOA_BINARY_OP_(Modulo, return lhs % rhs);
     NOA_BINARY_OP_(MultiplyConjugate, return lhs * conj(rhs));
     NOA_BINARY_OP_(DistanceSquared, auto tmp = lhs - rhs; return tmp * tmp);
-    NOA_BINARY_OP_(DivideSafe,
-                   if constexpr (nt::real_or_complex<T, U>) {
-                       constexpr auto epsilon = std::numeric_limits<nt::value_type_t<U>>::epsilon();
-                       return abs(rhs) < epsilon ? T{} : lhs / rhs;
-                   } else if constexpr (nt::integer<T, U>) {
-                       return rhs == 0 ? T{} : lhs / rhs;
-                   } else {
-                       static_assert(nt::always_false<T>);
-                   });
+    NOA_BINARY_OP_(DivideSafe, return divide_safe(lhs, rhs));
     #undef NOA_BINARY_OP_
 
     #define NOA_TRINARY_OP_(name, src_op)                                                           \
