@@ -223,9 +223,9 @@ namespace noa::geometry {
     /// Computes the projection window size of (backward_and_)forward_project_3d functions.
     /// \details In theory, the forward projection operators need to integrate the volume along the projection axis.
     ///          In practice, only a section of the projection axis is computed. This section, referred to as the
-    ///          projection window, is the segment of projection axis within the volume and that through its center.
-    ///          A larger section can be provided, but this would result in computing the forward projection for
-    ///          elements that are outside the volume (thus zero), which is a waste of compute.
+    ///          projection window, is the segment of the projection axis within the volume and that goes through
+    ///          its center. A larger section can be provided, but this would result in computing the forward
+    ///          projection for elements that are outside the volume (thus zero), which is a waste of compute.
     ///          In other words, this function computes the minimal projection window size that will be required to
     ///          integrate the volume. If multiple projection matrices are to be used at once, one should take
     ///          the maximum window size to ensure the volume is correctly projected along any of the projection axes.
