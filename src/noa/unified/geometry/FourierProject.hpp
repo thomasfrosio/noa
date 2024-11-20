@@ -320,7 +320,7 @@ namespace noa::geometry::guts {
                 static_cast<coord_t>(options.fftfreq_cutoff),
                 options.target_shape.template as<Index>(), ews);
 
-            iwise(s_slice_shape.filter(0, 2, 3).rfft(), volume.device(), op,
+            iwise(s_volume_shape.filter(1, 2, 3).rfft(), volume.device(), op,
                   std::forward<Input>(slice), std::forward<InputWeight>(slice_weight),
                   std::forward<Output>(volume), std::forward<OutputWeight>(volume_weight),
                   std::forward<Scale>(scaling), std::forward<Rotate>(rotation));
@@ -498,10 +498,10 @@ namespace noa::geometry::guts {
                 static_cast<coord_t>(options.w_windowed_sinc.fftfreq_sinc),
                 static_cast<coord_t>(options.w_windowed_sinc.fftfreq_blackman),
                 static_cast<coord_t>(options.fftfreq_cutoff),
-                options.add_to_output, options.correct_multiplicity, ews);
+                options.add_to_output, options.correct_weights, ews);
 
             if (op.is_iwise_4d()) {
-                check(not options.correct_multiplicity, "");
+                check(not options.correct_weights, "");
                 if (not options.add_to_output) {
                     if constexpr (nt::empty<OutputWeight>)
                         ewise({}, wrap(output_slice), Zero{});
@@ -656,14 +656,14 @@ namespace noa::geometry {
     /// the windowed-sinc that is convolved along the normal of the perfectly thin slice(s) to insert.\n
     /// \b Fourier-extraction: Central slices are extracted from a (virtual) volume. This parameter defines the
     /// windowed-sinc that is convolved, along the z of the reconstruction, with the perfectly thin slice(s) to
-    /// extract. This is used to effectively apply an horizontal (smooth) rectangular mask centered on the object
-    /// _before_ the forward projection. The current API doesn't allow to change the orientation of this sinc
+    /// extract. This is used to effectively apply a horizontal (smooth) rectangular mask centered on the object
+    /// _before_ the forward projection. The current API doesn't allow changing the orientation of this sinc
     /// (it is always along z) since its only purpose was originally to improve projections from tomograms by
     /// masking out the noise from above and below the sample.
     struct WindowedSinc {
         /// Frequency, in cycle/pix, of the first zero of the sinc.
         /// This is clamped to ensure a minimum of 1 pixel diameter,
-        /// which is usually want we want for the Fourier insertion.
+        /// which is usually what we want for the Fourier insertion.
         f64 fftfreq_sinc{-1};
 
         /// Frequency, in cycle/pix, where the blackman window stops (weight is 0 at this frequency).
@@ -673,7 +673,7 @@ namespace noa::geometry {
         /// is to compute the slice.
         /// This is clamped to ensure the window stops at least to the first sinc-cutoff.
         /// So if both frequencies are left to their default value (-1), a 1 pixel thick slice
-        /// is generated, which is usually want we want for Fourier insertion.
+        /// is generated, which is usually what we want for Fourier insertion.
         f64 fftfreq_blackman{-1};
     };
 
@@ -892,14 +892,14 @@ namespace noa::geometry {
         /// to progressively build the output_{slice|weight}.
         bool add_to_output{false};
 
-        /// Correct for the multiplicity, i.e. divide the output sampled values by their corresponding weight.
+        /// Correct for the weights, i.e. divide the output sampled values by their corresponding weight.
         /// This is the equivalent of doing `output_slice/max(1, output_weight)` after the function and assumes all
         /// the input slices are included in the same function call. It is not compatible with add_to_output=true or
         /// with a non-default w_windowed_sinc.
         /// This can be useful for cases where there's no real-space mask to apply before the forward projection and
         /// if the weights are to be applied right away and not used for anything else (in which case output_weight
         /// doesn't need to be saved and can be left empty).
-        bool correct_multiplicity{false};
+        bool correct_weights{false};
 
         /// Frequency cutoff of the virtual 3d volume, in cycle/pix.
         /// The frequencies above this cutoff are assumed to be zero.
@@ -974,8 +974,8 @@ namespace noa::geometry {
         const auto volume_z = static_cast<coord_t>(min(output_slice_shape.filter(2, 3)));
         const auto fftfreq_blackman = static_cast<coord_t>(options.w_windowed_sinc.fftfreq_blackman);
         const auto w_blackman_size = guts::blackman_window_size<i64>(fftfreq_blackman, volume_z);
-        check(not options.correct_multiplicity or (not options.add_to_output and w_blackman_size == 1),
-              "options.correct_multiplicity=true is not compatible with "
+        check(not options.correct_weights or (not options.add_to_output and w_blackman_size == 1),
+              "options.correct_weights=true is not compatible with "
               "options.add_to_output=true and options.w_windowed_sinc.fftfreq_blackman={} (={} pixels)",
               options.w_windowed_sinc.fftfreq_blackman, w_blackman_size);
 

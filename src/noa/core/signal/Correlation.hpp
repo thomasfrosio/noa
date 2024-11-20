@@ -8,8 +8,8 @@
 
 namespace noa::signal::guts {
     struct CrossCorrelationL2Norm {
-        using allow_vectorization = bool;
-        using remove_defaulted_final = bool;
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
 
         static constexpr void init(const auto& lhs, const auto& rhs, f64& lhs_sum, f64& rhs_sum) {
             lhs_sum += static_cast<f64>(abs_squared(lhs));
@@ -29,7 +29,7 @@ namespace noa::signal::guts {
     };
 
     struct CrossCorrelationScore {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<typename T>
         static constexpr void init(auto lhs, auto rhs, T& sum) {

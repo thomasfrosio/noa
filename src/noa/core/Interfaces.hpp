@@ -9,34 +9,33 @@
 
 namespace noa::traits {
     template<typename T, typename = void>
-    struct has_allow_vectorization : std::false_type {};
+    struct enable_vectorization : std::false_type {};
     template<typename T>
-    struct has_allow_vectorization<T, std::void_t<typename T::allow_vectorization>> : std::true_type {};
+    struct enable_vectorization<T, std::void_t<typename T::enable_vectorization>> : std::true_type {};
 
     /// By default, the element-wise interfaces (ewise, reduce_ewise and reduce_axes_ewise) allow the operators
     /// to write from the inputs and read from the outputs. While this can be useful for some operations, it may also
     /// constrain some backends when it comes to vectorization (e.g. vectorized load/write in CUDA). Operators can
-    /// define the optional type alias "allow_vectorization" to indicate that the input values are read-only and
-    /// that output values are write-only.
+    /// define the optional type alias "enable_vectorization" to indicate that the input values are read-only and
+    /// that output values must be initialized by the operator.
     template<typename T>
-    constexpr bool has_allow_vectorization_v = has_allow_vectorization<std::decay_t<T>>::value;
+    constexpr bool enable_vectorization_v = enable_vectorization<std::decay_t<T>>::value;
 
     template<typename T, typename = void>
-    struct has_remove_defaulted_final : std::false_type {};
+    struct remove_default_final : std::false_type {};
     template<typename T>
-    struct has_remove_defaulted_final<T, std::void_t<typename T::remove_defaulted_final>> : std::true_type {};
+    struct remove_default_final<T, std::void_t<typename T::remove_default_final>> : std::true_type {};
 
-    /// One issue with the defaulted .final() of the reduction interface is that if the user provides a .final()
-    /// member function but makes an error in the reduced/output types, instead of giving a compiler error, the
+    /// One issue with the default .final() of the reduction interface is that if the user provides a .final()
+    /// member function but makes an error in the reduced/output types, instead of giving a compile-time error, the
     /// interface will skip it and fall back to the default. This is a case of "it's not a bug, it's a feature"
-    /// because the user can use this to their advantage and provide "specialization" for specific types. However,
+    /// because the user can use this to their advantage and provide specialization for specific types. However,
     /// it is probably best to use function overloading in this case (and explicitly write the default case).
     /// Regardless, we need a way to make sure the .final() gets used: to do so, operators can define a type-alias
-    /// named "remove_defaulted_final" (e.g. using remove_defaulted_final=bool) which the interface will detect
-    /// and remove the defaulted final. Then, if the provided .final() doesn't exist or is not valid, a compiler
-    /// error will be raised.
+    /// named "remove_default_final" (e.g. using remove_default_final=bool) which the interface detects. Then, if the
+    /// provided .final() doesn't exist or is not valid, a compile-time error will be raised.
     template<typename T>
-    constexpr bool has_remove_defaulted_final_v = has_remove_defaulted_final<std::decay_t<T>>::value;
+    constexpr bool remove_default_final_v = remove_default_final<std::decay_t<T>>::value;
 }
 
 namespace noa::guts {
@@ -292,9 +291,9 @@ namespace noa::guts {
             nt::TypeList<T...>,
             Indices... indices
         ) {
-            if constexpr (nt::has_remove_defaulted_final_v<Op>) {
+            if constexpr (nt::remove_default_final_v<Op>) {
                 static_assert(nt::always_false<Op>,
-                              "Defaulted .final() was removed using the remove_defaulted_final flag, but no explicit .final() was detected");
+                              "Defaulted .final() was removed using the remove_default_final flag, but no explicit .final() was detected");
             } else {
                 // Default copy assignment, with explicit cast.
                 // TODO Here we could perfectly forward the reduced values into the outputs.

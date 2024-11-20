@@ -5,8 +5,8 @@
 
 namespace noa::signal::guts {
     struct FFTSpectrumEnergy {
-        using allow_vectorization = bool;
-        using remove_defaulted_final = bool;
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
 
         f64 scale;
 
@@ -27,7 +27,7 @@ namespace noa::signal::guts {
     };
 
     struct rFFTSpectrumEnergy {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<nt::complex C, nt::real R>
         static constexpr void init(const C& input, R& sum) {
@@ -42,7 +42,7 @@ namespace noa::signal::guts {
 
     template<typename C, typename R>
     struct CombineSpectrumEnergies {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
         R scale;
 
         constexpr void operator()(C dc, R energy_1, R energy_2, R& energy_0) const {
@@ -51,8 +51,8 @@ namespace noa::signal::guts {
     };
 
     struct SpectrumAccurateEnergy {
-        using allow_vectorization = bool;
-        using remove_defaulted_final = bool;
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
 
         static constexpr void init(const auto& input, f64& sum, f64& error) {
             kahan_sum(static_cast<f64>(abs_squared(input)), sum, error);

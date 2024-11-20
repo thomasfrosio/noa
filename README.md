@@ -20,7 +20,7 @@ This is a `C++20` static library, aiming to provide basic signal and image proce
   - [Core functions: `iwise`, `ewise`, `reduce(_axes)_iwise`, `reduce(_axes)_ewise`](docs/030_core_functions.md)
 
 - Other topics
-  - [GPU vectorization](docs/031_gpu_vectorization.md)
+  - [Operator flags: enable_vectorization](docs/031_gpu_vectorization.md)
   - [FFT layouts: `Remap`](docs/040_fft_layouts.md)
   - [Geometric transformations](docs/041_geometric_transformations.md)
   - [Namespaces](docs/042_namespaces.md)

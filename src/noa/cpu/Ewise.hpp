@@ -18,7 +18,7 @@ namespace noa::cpu::guts {
         // Take the input and output by value, a reference will be passed to each thread.
         // Take the operator by reference since a copy will be passed to each thread.
         template<size_t N, typename Index, typename Op, typename Input, typename Output>
-        static void parallel(const Shape<Index, N>& shape, Op op, Input input, Output output, i64 n_threads) {
+        [[gnu::noinline]] static void parallel(const Shape<Index, N>& shape, Op op, Input input, Output output, i64 n_threads) {
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, input, output) firstprivate(op)
             {
                 interface::init(op, omp_get_thread_num());
@@ -45,7 +45,7 @@ namespace noa::cpu::guts {
         }
 
         template<size_t N, typename Index, typename Op, typename Input, typename Output>
-        static constexpr void serial(const Shape<Index, N>& shape, Op op, Input input, Output output) {
+        [[gnu::noinline]] static constexpr void serial(const Shape<Index, N>& shape, Op op, Input input, Output output) {
             interface::init(op, 0);
 
             if constexpr (N == 4) {
@@ -80,7 +80,7 @@ namespace noa::cpu {
              typename Input, typename Output, typename Index, typename Op>
     requires (nt::tuple_of_accessor_nd_or_empty<std::decay_t<Input>, 4> and
               nt::tuple_of_accessor_pure_nd_or_empty<std::decay_t<Output>, 4>)
-    void ewise(
+    constexpr void ewise(
         const Shape4<Index>& shape,
         Op&& op,
         Input&& input,
@@ -98,10 +98,11 @@ namespace noa::cpu {
         if (actual_n_threads > 1)
             actual_n_threads = min(n_threads, elements / Config::n_elements_per_thread);
 
-        using interface = guts::Ewise<Config::zip_input, Config::zip_output>;
+        using ewise_t = guts::Ewise<Config::zip_input, Config::zip_output>;
+
         if (are_all_contiguous) {
             auto shape_1d = Shape1<Index>{shape.n_elements()};
-            if (ng::are_accessors_aliased(input, output)) {
+            if (not nt::enable_vectorization_v<Op> and ng::are_accessors_aliased(input, output)) {
                 constexpr auto accessor_config_1d = ng::AccessorConfig<1>{
                     .enforce_contiguous=true,
                     .enforce_restrict=false,
@@ -110,9 +111,9 @@ namespace noa::cpu {
                 auto input_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Input>(input));
                 auto output_1d = ng::reconfig_accessors<accessor_config_1d>(output);
                 if (actual_n_threads > 1)
-                    interface::parallel(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d, actual_n_threads);
+                    ewise_t::parallel(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d, actual_n_threads);
                 else
-                    interface::serial(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d);
+                    ewise_t::serial(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d);
             } else {
                 constexpr auto accessor_config_1d = ng::AccessorConfig<1>{
                     .enforce_contiguous=true,
@@ -122,15 +123,15 @@ namespace noa::cpu {
                 auto input_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Input>(input));
                 auto output_1d = ng::reconfig_accessors<accessor_config_1d>(output);
                 if (actual_n_threads > 1)
-                    interface::parallel(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d, actual_n_threads);
+                    ewise_t::parallel(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d, actual_n_threads);
                 else
-                    interface::serial(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d);
+                    ewise_t::serial(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d);
             }
         } else {
             if (actual_n_threads > 1)
-                interface::parallel(shape, std::forward<Op>(op), std::forward<Input>(input), output, actual_n_threads);
+                ewise_t::parallel(shape, std::forward<Op>(op), std::forward<Input>(input), output, actual_n_threads);
             else
-                interface::serial(shape, std::forward<Op>(op), std::forward<Input>(input), output);
+                ewise_t::serial(shape, std::forward<Op>(op), std::forward<Input>(input), output);
         }
     }
 }

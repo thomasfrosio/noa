@@ -12,7 +12,7 @@ namespace noa::cpu::guts {
     class Iwise {
     public:
         template<size_t N, typename Index, typename Operator>
-        static void parallel(const Shape<Index, N>& shape, Operator op, i64 n_threads) {
+        [[gnu::noinline]] static void parallel(const Shape<Index, N>& shape, Operator op, i64 n_threads) {
             // firstprivate(op) vs shared(op):
             //  - We assume op is cheap to copy, so the once-per-thread call to the copy constructor with
             //    firstprivate(op) is assumed to be non-significant compared to the rest of the function.
@@ -65,7 +65,7 @@ namespace noa::cpu::guts {
         }
 
         template<size_t N, typename Index, typename Operator>
-        static constexpr void serial(const Shape<Index, N>& shape, Operator op) {
+        [[gnu::noinline]] static constexpr void serial(const Shape<Index, N>& shape, Operator op) {
             using interface = ng::IwiseInterface;
             interface::init(op, 0);
 

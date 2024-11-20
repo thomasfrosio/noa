@@ -8,7 +8,7 @@
 namespace noa {
     #define NOA_UNARY_OP_(name, src_op)                                     \
     struct name {                                                           \
-        using allow_vectorization = bool;                                   \
+        using enable_vectorization = bool;                                  \
         template<typename T>                                                \
         NOA_HD constexpr auto operator()(const T& src) const {              \
             src_op;                                                         \
@@ -55,7 +55,7 @@ namespace noa {
 
     #define NOA_BINARY_OP_(name, src_op)                                                \
     struct name {                                                                       \
-        using allow_vectorization = bool;                                               \
+        using enable_vectorization = bool;                                              \
         template<typename T, typename U>                                                \
         NOA_HD constexpr auto operator()(const T& lhs, const U& rhs) const {            \
             src_op;                                                                     \
@@ -87,7 +87,7 @@ namespace noa {
 
     #define NOA_TRINARY_OP_(name, src_op)                                                           \
     struct name {                                                                                   \
-        using allow_vectorization = bool;                                                           \
+        using enable_vectorization = bool;                                                          \
         template<typename T, typename U, typename V>                                                \
         NOA_HD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {          \
             src_op;                                                                                 \
@@ -117,7 +117,7 @@ namespace noa {
 
     template<typename T>
     struct Fill {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
         T value;
 
         template<typename U>
@@ -137,7 +137,7 @@ namespace noa {
     };
 
     struct Zero {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<typename... U>
         NOA_HD constexpr void operator()(U&... dst) const {
@@ -146,7 +146,7 @@ namespace noa {
     };
 
     struct Cast {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
         bool clamp{};
 
         template<typename T, typename U> requires nt::compatible_or_spectrum_types<T, U>
@@ -161,7 +161,7 @@ namespace noa {
     };
 
     struct Pow {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<typename T>
         NOA_HD constexpr auto operator()(const T& x, const T& e) const {
@@ -174,7 +174,7 @@ namespace noa {
     };
 
     struct ComplexFuse {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<typename C>
         NOA_HD constexpr void operator()(auto r, auto i, C& c) {
@@ -182,7 +182,7 @@ namespace noa {
         }
     };
     struct ComplexDecompose {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<typename R, typename I>
         NOA_HD constexpr void operator()(const auto& c, R& r, I& i) {
@@ -192,7 +192,7 @@ namespace noa {
     };
 
     struct NormalizeMinMax {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<typename T>
         NOA_HD constexpr auto operator()(const T& value, const T& min, const T& max) {
@@ -204,7 +204,7 @@ namespace noa {
         }
     };
     struct NormalizeMeanStddev {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<typename T, typename U>
         NOA_HD constexpr auto operator()(const T& value, const T& mean, const U& stddev) {
@@ -216,7 +216,7 @@ namespace noa {
         }
     };
     struct NormalizeNorm {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<typename T, typename U>
         NOA_HD constexpr void operator()(const T& value, const U& norm) {

@@ -15,7 +15,7 @@ namespace noa::cpu::guts {
         using interface = ng::ReduceEwiseInterface<ZipInput, ZipReduced, ZipOutput>;
 
         template<i32 MODE, typename Op, typename Input, typename Reduced, typename Output, typename Index, size_t N>
-        static void parallel(
+        [[gnu::noinline]] static void parallel(
             const Shape<Index, N>& shape, Op op,
             Input input, Reduced reduced, Output output, i64 threads
         ) {
@@ -106,7 +106,7 @@ namespace noa::cpu::guts {
         }
 
         template<i32 MODE, typename Op, typename Input, typename Reduced, typename Output, typename Index>
-        static constexpr void serial(
+        [[gnu::noinline]] static constexpr void serial(
             const Shape4<Index>& shape, Op op,
             Input input, Reduced reduced, Output output
         ) {
@@ -166,7 +166,7 @@ namespace noa::cpu {
         Output&& output,
         i64 n_threads = 1
     ) {
-        using reduce_axes_ewise_core = guts::ReduceAxesEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
+        using reduce_axes_ewise_t = guts::ReduceAxesEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
         const auto axes_to_reduce = input_shape != output_shape;
         if (any(axes_to_reduce and (output_shape != 1))) {
             panic("Dimensions should match the input shape, or be 1, "
@@ -176,7 +176,7 @@ namespace noa::cpu {
             panic("No reduction to compute. Got shape input={}, output={}. Please use ewise instead.",
                   input_shape, output_shape);
         }
-        const bool are_aliased = ng::are_accessors_aliased(input, output);
+        const bool are_aliased = not nt::enable_vectorization_v<Op> and ng::are_accessors_aliased(input, output);
 
         const auto axes_empty_or_to_reduce = output_shape == 1 or axes_to_reduce;
         if (all(axes_empty_or_to_reduce)) { // reduce to a single value
@@ -211,7 +211,7 @@ namespace noa::cpu {
             if (n_elements_to_reduce > Config::n_elements_per_thread and n_batches < n_threads) {
                 if (are_contiguous and not are_aliased) {
                     auto input_2d = ng::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
-                    reduce_axes_ewise_core::template parallel<3>(
+                    reduce_axes_ewise_t::template parallel<3>(
                         shape_2d,
                         std::forward<Op>(op),
                         std::move(input_2d),
@@ -219,7 +219,7 @@ namespace noa::cpu {
                         std::move(output_1d),
                         actual_n_threads);
                 } else {
-                    reduce_axes_ewise_core::template parallel<3>(
+                    reduce_axes_ewise_t::template parallel<3>(
                         input_shape,
                         std::forward<Op>(op),
                         std::forward<Input>(input),
@@ -230,7 +230,7 @@ namespace noa::cpu {
             } else {
                 if (are_contiguous and not are_aliased) {
                     auto input_2d = ng::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
-                    reduce_axes_ewise_core::template parallel<2>(
+                    reduce_axes_ewise_t::template parallel<2>(
                         shape_2d,
                         std::forward<Op>(op),
                         std::move(input_2d),
@@ -238,7 +238,7 @@ namespace noa::cpu {
                         std::move(output_1d),
                         actual_n_threads);
                 } else {
-                    reduce_axes_ewise_core::template parallel<2>(
+                    reduce_axes_ewise_t::template parallel<2>(
                         input_shape,
                         std::forward<Op>(op),
                         std::forward<Input>(input),
@@ -286,7 +286,7 @@ namespace noa::cpu {
             };
             auto contiguous_input = ng::reconfig_accessors<contiguous_restrict>(std::move(input_));
             if (actual_n_threads > 1) {
-                reduce_axes_ewise_core::template parallel<1>(
+                reduce_axes_ewise_t::template parallel<1>(
                     reordered_shape,
                     std::forward<Op>(op),
                     std::move(contiguous_input),
@@ -294,7 +294,7 @@ namespace noa::cpu {
                     std::move(output_3d),
                     actual_n_threads);
             } else {
-                reduce_axes_ewise_core::template serial<1>(
+                reduce_axes_ewise_t::template serial<1>(
                     reordered_shape,
                     std::forward<Op>(op),
                     std::move(contiguous_input),
@@ -303,7 +303,7 @@ namespace noa::cpu {
             }
         } else {
             if (actual_n_threads > 1) {
-                reduce_axes_ewise_core::template parallel<1>(
+                reduce_axes_ewise_t::template parallel<1>(
                     reordered_shape,
                     std::forward<Op>(op),
                     std::move(input_),
@@ -311,7 +311,7 @@ namespace noa::cpu {
                     std::move(output_3d),
                     actual_n_threads);
             } else {
-                reduce_axes_ewise_core::template serial<1>(
+                reduce_axes_ewise_t::template serial<1>(
                     reordered_shape,
                     std::forward<Op>(op),
                     std::move(input_),

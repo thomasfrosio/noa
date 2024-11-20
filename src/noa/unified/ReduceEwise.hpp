@@ -190,7 +190,7 @@ namespace noa::guts {
                 });
 
                 constexpr bool use_device_memory =
-                    nt::has_allow_vectorization_v<Op> and
+                    nt::enable_vectorization_v<Op> and
                     ng::are_all_value_types_trivially_copyable<decltype(output_accessors)>();
 
                 // Allocate and initialize the output values for the device.
@@ -208,8 +208,8 @@ namespace noa::guts {
 
                         // In case the final() function is defined, the core interface requires the output values
                         // to be correctly initialized so that the operator can read from them.
-                        // This requirement is removed by the "allow_vectorization" flag.
-                        if constexpr (not nt::has_allow_vectorization_v<Op>)
+                        // This requirement is removed by the "enable_vectorization" flag.
+                        if constexpr (not nt::enable_vectorization_v<Op>)
                             accessor[0] = outputs[Tag<J>{}]; // TODO else prefetch to device?
                         return buffer;
                     }

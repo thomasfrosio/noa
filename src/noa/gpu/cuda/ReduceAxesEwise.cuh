@@ -168,8 +168,7 @@ namespace noa::cuda::guts {
         // Note that these if statements are likely to instantiate the same kernel. For instance, if the smallest
         // type has an alignment of 4, only 6 kernels are created (3 with n_threads_x=256, 3 with n_threads_x=64).
         // The worst case is when the smallest type is aligned to only one byte, in which case 10 kernels are created.
-        if constexpr (Config::enable_vectorization and
-                      (nt::has_allow_vectorization_v<Op> or ng::are_accessors_const<std::decay_t<Input>>())) {
+        if constexpr (Config::enable_vectorization and nt::enable_vectorization_v<Op>) {
             const size_t alignment = min_address_alignment(input, shape_u32.pop_back());
             if (n_threads_x == 256) {
                 if (alignment == 16) {

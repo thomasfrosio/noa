@@ -9,7 +9,7 @@
 // Reduction operators
 namespace noa {
     struct ReduceSum {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<typename T>
         static constexpr void init(const auto& value, T& sum) {
@@ -27,8 +27,8 @@ namespace noa {
 
     template<nt::scalar S>
     struct ReduceMean {
-        using allow_vectorization = bool;
-        using remove_defaulted_final = bool;
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
         S size;
 
         template<typename T>
@@ -46,8 +46,8 @@ namespace noa {
     };
 
     struct ReduceL2Norm {
-        using allow_vectorization = bool;
-        using remove_defaulted_final = bool;
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
 
         template<typename T>
         static constexpr void init(const auto& value, T& sum) {
@@ -64,7 +64,7 @@ namespace noa {
     };
 
     struct ReduceMin {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<typename T>
         constexpr void operator()(const T& value, T& min) const {
@@ -73,7 +73,7 @@ namespace noa {
     };
 
     struct ReduceMax {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<typename T>
         constexpr void operator()(const T& value, T& min) const {
@@ -82,7 +82,7 @@ namespace noa {
     };
 
     struct ReduceMinMax {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<typename T>
         static constexpr void init(const T& value, T& min, T& max) {
@@ -97,7 +97,7 @@ namespace noa {
     };
 
     struct ReduceMinMaxSum {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<typename T, typename U>
         static constexpr void init(const T& value, T& min, T& max, U& sum) {
@@ -115,8 +115,8 @@ namespace noa {
 
     template<nt::scalar R>
     struct ReduceVariance {
-        using allow_vectorization = bool;
-        using remove_defaulted_final = bool;
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
         R size{};
 
         template<typename T, typename U>
@@ -140,8 +140,8 @@ namespace noa {
 
     template<nt::scalar R>
     struct ReduceStddev {
-        using allow_vectorization = bool;
-        using remove_defaulted_final = bool;
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
         R size{};
 
         template<typename T, typename U>
@@ -166,8 +166,8 @@ namespace noa {
 
     template<nt::scalar T>
     struct ReduceRMSD {
-        using allow_vectorization = bool;
-        using remove_defaulted_final = bool;
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
         T size;
 
         template<typename I>
@@ -185,7 +185,7 @@ namespace noa {
     };
 
     struct ReduceAllEqual {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<typename T>
         static constexpr void init(const auto& lhs, const auto& rhs, T& reduced) {
@@ -201,8 +201,8 @@ namespace noa {
     /// Accurate sum reduction operator for (complex) floating-points using Kahan summation, with Neumaier variation.
     template<nt::real_or_complex T>
     struct ReduceAccurateSum {
-        using allow_vectorization = bool;
-        using remove_defaulted_final = bool;
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
         using reduced_type = std::conditional_t<nt::real<T>, f64, c64>;
         using pair_type = Pair<reduced_type, reduced_type>;
 
@@ -226,8 +226,8 @@ namespace noa {
 
     template<nt::real_or_complex T>
     struct ReduceAccurateMean {
-        using allow_vectorization = bool;
-        using remove_defaulted_final = bool;
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
         using reduced_type = std::conditional_t<nt::real<T>, f64, c64>;
         using pair_type = Pair<reduced_type, reduced_type>;
         using mean_type = nt::value_type_t<reduced_type>;
@@ -248,8 +248,8 @@ namespace noa {
     };
 
     struct ReduceAccurateL2Norm {
-        using allow_vectorization = bool;
-        using remove_defaulted_final = bool;
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
         using pair_type = Pair<f64, f64>;
 
         static constexpr void init(const auto& input, pair_type& sum) {
@@ -303,8 +303,8 @@ namespace noa {
 
     template<typename Accessor, typename Reduced, bool SaveValue = true>
     struct ReduceFirstMin : ReduceArg<Accessor, Reduced, SaveValue, ReduceFirstMin<Accessor, Reduced, SaveValue>> {
-        using remove_defaulted_final = bool;
-        using allow_vectorization = bool;
+        using remove_default_final = bool;
+        using enable_vectorization = bool;
         using reduced_type = ReduceArg<Accessor, Reduced, SaveValue, ReduceFirstMin>::reduced_type;
 
         static constexpr void join(const reduced_type& current, reduced_type& reduced) {
@@ -315,8 +315,8 @@ namespace noa {
 
     template<typename Accessor, typename Reduced, bool SaveValue = true>
     struct ReduceFirstMax : ReduceArg<Accessor, Reduced, SaveValue, ReduceFirstMax<Accessor, Reduced, SaveValue>> {
-        using remove_defaulted_final = bool;
-        using allow_vectorization = bool;
+        using remove_default_final = bool;
+        using enable_vectorization = bool;
         using reduced_type = ReduceArg<Accessor, Reduced, SaveValue, ReduceFirstMax>::reduced_type;
 
         static constexpr void join(const reduced_type& current, reduced_type& reduced) {
@@ -327,8 +327,8 @@ namespace noa {
 
     template<typename Accessor, typename Reduced, bool SaveValue = true>
     struct ReduceLastMin : ReduceArg<Accessor, Reduced, SaveValue, ReduceLastMin<Accessor, Reduced, SaveValue>> {
-        using remove_defaulted_final = bool;
-        using allow_vectorization = bool;
+        using remove_default_final = bool;
+        using enable_vectorization = bool;
         using reduced_type = ReduceArg<Accessor, Reduced, SaveValue, ReduceLastMin>::reduced_type;
 
         static constexpr void join(const reduced_type& current, reduced_type& reduced) {
@@ -339,8 +339,8 @@ namespace noa {
 
     template<typename Accessor, typename Reduced, bool SaveValue = true>
     struct ReduceLastMax : ReduceArg<Accessor, Reduced, SaveValue, ReduceLastMax<Accessor, Reduced, SaveValue>> {
-        using remove_defaulted_final = bool;
-        using allow_vectorization = bool;
+        using remove_default_final = bool;
+        using enable_vectorization = bool;
         using reduced_type = ReduceArg<Accessor, Reduced, SaveValue, ReduceLastMax>::reduced_type;
 
         static constexpr void join(const reduced_type& current, reduced_type& reduced) {

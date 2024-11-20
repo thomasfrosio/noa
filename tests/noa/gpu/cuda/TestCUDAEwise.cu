@@ -24,7 +24,7 @@ namespace {
     };
 
     struct Op1 {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
         constexpr void operator()(const f32& i0, const f32& i1, Tuple<f32&, i32&> o) const {
             auto& [lhs, rhs] = o;
             lhs = i0 + i1;

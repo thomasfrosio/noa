@@ -15,7 +15,7 @@ namespace noa::cpu::guts {
         using interface = ng::ReduceIwiseInterface<ZipReduced, ZipOutput>;
 
         template<size_t R, size_t N, typename Index, typename Op>
-        static void single_axis(
+        [[gnu::noinline]] static void single_axis(
             const Shape<Index, N>& shape,
             Op op, auto reduced, auto output,
             i64 n_threads
@@ -147,7 +147,7 @@ namespace noa::cpu::guts {
         };
 
         template<ReductionMode MODE, typename Index>
-        static void parallel_4d(const Shape4<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
+        [[gnu::noinline]] static void parallel_4d(const Shape4<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
             auto original_reduced = reduced;
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
             {
@@ -184,7 +184,7 @@ namespace noa::cpu::guts {
         }
 
         template<typename Index>
-        static constexpr void serial_4d(const Shape4<Index>& shape, auto op, auto reduced, auto output) {
+        [[gnu::noinline]] static constexpr void serial_4d(const Shape4<Index>& shape, auto op, auto reduced, auto output) {
             for (Index i = 0; i < shape[0]; ++i) {
                 auto local = reduced;
                 for (Index j = 0; j < shape[1]; ++j)
@@ -196,7 +196,7 @@ namespace noa::cpu::guts {
         }
 
         template<ReductionMode MODE, typename Index>
-        static void parallel_3d(const Shape3<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
+        [[gnu::noinline]] static void parallel_3d(const Shape3<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
             auto original_reduced = reduced;
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
             {
@@ -233,7 +233,7 @@ namespace noa::cpu::guts {
         }
 
         template<typename Index>
-        static constexpr void serial_3d(const Shape3<Index>& shape, auto op, auto reduced, auto output) {
+        [[gnu::noinline]] static constexpr void serial_3d(const Shape3<Index>& shape, auto op, auto reduced, auto output) {
             for (Index d = 0; d < shape[0]; ++d) {
                 auto local = reduced;
                 for (Index h = 0; h < shape[1]; ++h)
@@ -244,7 +244,7 @@ namespace noa::cpu::guts {
         }
 
         template<ReductionMode MODE, typename Index>
-        static void parallel_2d(const Shape2<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
+        [[gnu::noinline]] static void parallel_2d(const Shape2<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
             auto original_reduced = reduced;
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
             {
@@ -279,7 +279,7 @@ namespace noa::cpu::guts {
         }
 
         template<typename Index>
-        static constexpr void serial_2d(const Shape2<Index>& shape, auto op, auto reduced, auto output) {
+        [[gnu::noinline]] static constexpr void serial_2d(const Shape2<Index>& shape, auto op, auto reduced, auto output) {
             for (Index h = 0; h < shape[0]; ++h) {
                 auto local = reduced;
                 for (Index w = 0; w < shape[1]; ++w)
@@ -328,7 +328,7 @@ namespace noa::cpu {
                 input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
         }
 
-        using reducer = guts::ReduceAxesIwise<Config::zip_reduced, Config::zip_output>;
+        using reduce_axes_iwise_t = guts::ReduceAxesIwise<Config::zip_reduced, Config::zip_output>;
         const auto shape = input_shape.template as<i64>();
         const auto n_batches = shape[0];
         const i64 n_elements_to_reduce = input_shape.template as<i64>().n_elements();
@@ -338,33 +338,33 @@ namespace noa::cpu {
             if (all(axes_empty_or_to_reduce.pop_front())) { // reduce to one value per batch
                 auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter = {0}}>(output);
                 if (is_small or n_threads <= 1) {
-                    reducer::serial_4d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
+                    reduce_axes_iwise_t::serial_4d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
                 } else if (n_batches < n_threads) {
-                    reducer::template parallel_4d<reducer::ParallelReduction>(
+                    reduce_axes_iwise_t::template parallel_4d<reduce_axes_iwise_t::ParallelReduction>(
                         input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
                 } else {
-                    reducer::template parallel_4d<reducer::SerialReduction>(
+                    reduce_axes_iwise_t::template parallel_4d<reduce_axes_iwise_t::SerialReduction>(
                         input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
                 }
             } else {
                 if (axes_to_reduce[3]) {
                     auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter = {0, 1, 2}}>(output);
-                    reducer::template single_axis<3>(
+                    reduce_axes_iwise_t::template single_axis<3>(
                         input_shape, std::forward<Op>(op),
                         std::forward<Reduced>(reduced), output_3d, n_threads);
                 } else if (axes_to_reduce[2]) {
                     auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter = {0, 1, 3}}>(output);
-                    reducer::template single_axis<2>(
+                    reduce_axes_iwise_t::template single_axis<2>(
                         input_shape.filter(0, 1, 3, 2), std::forward<Op>(op),
                         std::forward<Reduced>(reduced), output_3d, n_threads);
                 } else if (axes_to_reduce[1]) {
                     auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter = {0, 2, 3}}>(output);
-                    reducer::template single_axis<1>(
+                    reduce_axes_iwise_t::template single_axis<1>(
                         input_shape.filter(0, 2, 3, 1), std::forward<Op>(op),
                         std::forward<Reduced>(reduced), output_3d, n_threads);
                 } else {
                     auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter = {1, 2, 3}}>(output);
-                    reducer::template single_axis<0>(
+                    reduce_axes_iwise_t::template single_axis<0>(
                         input_shape.filter(1, 2, 3, 0), std::forward<Op>(op),
                         std::forward<Reduced>(reduced), output_3d, n_threads);
                 }
@@ -373,28 +373,28 @@ namespace noa::cpu {
             if (all(axes_empty_or_to_reduce.pop_front())) { // reduce to one value per batch
                 auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter={0}}>(output);
                 if (is_small or n_threads <= 1) {
-                    reducer::serial_3d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
+                    reduce_axes_iwise_t::serial_3d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
                 } else if (n_batches < n_threads) {
-                    reducer::template parallel_3d<reducer::ParallelReduction>(
+                    reduce_axes_iwise_t::template parallel_3d<reduce_axes_iwise_t::ParallelReduction>(
                         input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
                 } else {
-                    reducer::template parallel_3d<reducer::SerialReduction>(
+                    reduce_axes_iwise_t::template parallel_3d<reduce_axes_iwise_t::SerialReduction>(
                         input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
                 }
             } else {
                 if (axes_to_reduce[2]) {
                     auto output_2d = ng::reconfig_accessors<ng::AccessorConfig<2>{.filter = {0, 1}}>(output);
-                    reducer::template single_axis<2>(
+                    reduce_axes_iwise_t::template single_axis<2>(
                         input_shape, std::forward<Op>(op),
                         std::forward<Reduced>(reduced), output_2d, n_threads);
                 } else if (axes_to_reduce[1]) {
                     auto output_2d = ng::reconfig_accessors<ng::AccessorConfig<2>{.filter = {0, 2}}>(output);
-                    reducer::template single_axis<1>(
+                    reduce_axes_iwise_t::template single_axis<1>(
                         input_shape.filter(0, 2, 1), std::forward<Op>(op),
                         std::forward<Reduced>(reduced), output_2d, n_threads);
                 } else {
                     auto output_2d = ng::reconfig_accessors<ng::AccessorConfig<2>{.filter = {1, 2}}>(output);
-                    reducer::template single_axis<0>(
+                    reduce_axes_iwise_t::template single_axis<0>(
                         input_shape.filter(1, 2, 0), std::forward<Op>(op),
                         std::forward<Reduced>(reduced), output_2d, n_threads);
                 }
@@ -403,17 +403,17 @@ namespace noa::cpu {
             if (axes_to_reduce[1]) {
                 auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter = {0}}>(output);
                 if (is_small or n_threads <= 1) {
-                    reducer::serial_2d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
+                    reduce_axes_iwise_t::serial_2d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
                 } else if (n_batches < n_threads) {
-                    reducer::template parallel_2d<reducer::ParallelReduction>(
+                    reduce_axes_iwise_t::template parallel_2d<reduce_axes_iwise_t::ParallelReduction>(
                         input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
                 } else {
-                    reducer::template parallel_2d<reducer::SerialReduction>(
+                    reduce_axes_iwise_t::template parallel_2d<reduce_axes_iwise_t::SerialReduction>(
                         input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
                 }
             } else {
                 auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter = {1}}>(output);
-                reducer::template single_axis<0>(
+                reduce_axes_iwise_t::template single_axis<0>(
                     input_shape.filter(1, 0), std::forward<Op>(op),
                     std::forward<Reduced>(reduced), output_1d, n_threads);
             }

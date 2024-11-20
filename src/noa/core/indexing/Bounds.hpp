@@ -73,7 +73,7 @@ namespace noa::indexing {
 
     /// Whether the indices are in-bound, i.e. 0 <= indices < shape.
     template<nt::integer T, size_t N0, size_t N1, size_t A0, size_t A1> requires (N1 <= N0)
-    [[nodiscard]] NOA_FHD constexpr bool is_inbound(
+    [[nodiscard]] NOA_FHD constexpr bool is_inbounds(
         const Shape<T, N0, A0>& shape,
         const Vec<T, N1, A1>& indices
     ) noexcept {
@@ -92,7 +92,7 @@ namespace noa::indexing {
 
     /// Whether the indices are in-bound, i.e. 0 <= indices < shape.
     template<nt::integer T, size_t N, size_t A, nt::same_as<T>... U> requires (sizeof...(U) <= N)
-    [[nodiscard]] NOA_FHD constexpr bool is_inbound(
+    [[nodiscard]] NOA_FHD constexpr bool is_inbounds(
         const Shape<T, N, A>& shape,
         const U&... indices
     ) noexcept {

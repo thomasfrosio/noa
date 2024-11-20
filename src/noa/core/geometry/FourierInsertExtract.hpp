@@ -85,7 +85,7 @@ namespace noa::geometry::guts {
             coord_type extract_fftfreq_sinc,
             coord_type extract_fftfreq_blackman,
             coord_type fftfreq_cutoff,
-            bool add_to_output, bool correct_multiplicity,
+            bool add_to_output, bool correct_weights,
             const ews_type& ews_radius
         ) :
             m_input_slices(input_slices),
@@ -98,7 +98,7 @@ namespace noa::geometry::guts {
             m_insert_fwd_scaling(insert_fwd_scaling),
             m_extract_inv_scaling(extract_inv_scaling),
             m_add_to_output(add_to_output),
-            m_correct_multiplicity(correct_multiplicity)
+            m_correct_weights(correct_weights)
         {
             const auto l_input_shape = input_shape.filter(2, 3);
             const auto l_output_shape = output_shape.filter(2, 3);
@@ -148,7 +148,7 @@ namespace noa::geometry::guts {
                 return;
             }
 
-            const auto value_and_weight = sample_virtual_volume_(fftfreq_3d, m_correct_multiplicity);
+            const auto value_and_weight = sample_virtual_volume_(fftfreq_3d, m_correct_weights);
 
             auto& output = m_output_slices(batch, y, x);
             if (m_add_to_output)
@@ -215,7 +215,7 @@ namespace noa::geometry::guts {
                 fftfreq_2d, m_extract_inv_scaling, m_extract_fwd_rotation, batch, m_ews_diam_inv);
         }
 
-        NOA_HD auto sample_virtual_volume_(const coord3_type& fftfreq_3d, bool correct_multiplicity) const noexcept {
+        NOA_HD auto sample_virtual_volume_(const coord3_type& fftfreq_3d, bool correct_weights) const noexcept {
             using input_weight_value_type =
                 std::conditional_t<has_input_weights, nt::mutable_value_type_t<input_weight_type>,
                 std::conditional_t<has_output_weights, output_weight_value_type, input_real_type>>;
@@ -251,7 +251,7 @@ namespace noa::geometry::guts {
             }
 
             // Correct for the multiplicity (assuming this is all the signal at that frequency).
-            if (correct_multiplicity) {
+            if (correct_weights) {
                 const auto final_weight = max(input_weight_value_type{1}, weight);
                 value /= static_cast<input_real_type>(final_weight);
             }
@@ -286,6 +286,6 @@ namespace noa::geometry::guts {
         NOA_NO_UNIQUE_ADDRESS ews_type m_ews_diam_inv{};
 
         bool m_add_to_output;
-        bool m_correct_multiplicity;
+        bool m_correct_weights;
     };
 }

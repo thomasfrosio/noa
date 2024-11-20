@@ -241,7 +241,7 @@ namespace noa {
     /// Element-wise randomize operator.
     template<typename Distribution>
     struct Randomizer {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         constexpr explicit Randomizer(const Distribution& distribution, u64 seed = 0) noexcept :
             m_distribution(distribution), random_seed(seed) {}

@@ -124,20 +124,20 @@ namespace noa::geometry::guts {
 
             using enum Interp::Method;
             switch (interp) {
-                case NEAREST:            return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::NEAREST>{});
-                case NEAREST_FAST:       return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::NEAREST_FAST>{});
-                case LINEAR:             return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LINEAR>{});
-                case LINEAR_FAST:        return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LINEAR_FAST>{});
-                case CUBIC:              return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::CUBIC>{});
-                case CUBIC_FAST:         return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::CUBIC_FAST>{});
-                case CUBIC_BSPLINE:      return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::CUBIC_BSPLINE>{});
-                case CUBIC_BSPLINE_FAST: return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
-                case LANCZOS4:           return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LANCZOS4>{});
-                case LANCZOS6:           return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LANCZOS6>{});
-                case LANCZOS8:           return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LANCZOS8>{});
-                case LANCZOS4_FAST:      return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LANCZOS4_FAST>{});
-                case LANCZOS6_FAST:      return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LANCZOS6_FAST>{});
-                case LANCZOS8_FAST:      return launch_iwise(no_shift, noa::guts::WrapInterp<Interp::LANCZOS8_FAST>{});
+                case NEAREST:            return launch_iwise(no_shift, ng::WrapInterp<NEAREST>{});
+                case NEAREST_FAST:       return launch_iwise(no_shift, ng::WrapInterp<NEAREST_FAST>{});
+                case LINEAR:             return launch_iwise(no_shift, ng::WrapInterp<LINEAR>{});
+                case LINEAR_FAST:        return launch_iwise(no_shift, ng::WrapInterp<LINEAR_FAST>{});
+                case CUBIC:              return launch_iwise(no_shift, ng::WrapInterp<CUBIC>{});
+                case CUBIC_FAST:         return launch_iwise(no_shift, ng::WrapInterp<CUBIC_FAST>{});
+                case CUBIC_BSPLINE:      return launch_iwise(no_shift, ng::WrapInterp<CUBIC_BSPLINE>{});
+                case CUBIC_BSPLINE_FAST: return launch_iwise(no_shift, ng::WrapInterp<CUBIC_BSPLINE_FAST>{});
+                case LANCZOS4:           return launch_iwise(no_shift, ng::WrapInterp<LANCZOS4>{});
+                case LANCZOS6:           return launch_iwise(no_shift, ng::WrapInterp<LANCZOS6>{});
+                case LANCZOS8:           return launch_iwise(no_shift, ng::WrapInterp<LANCZOS8>{});
+                case LANCZOS4_FAST:      return launch_iwise(no_shift, ng::WrapInterp<LANCZOS4_FAST>{});
+                case LANCZOS6_FAST:      return launch_iwise(no_shift, ng::WrapInterp<LANCZOS6_FAST>{});
+                case LANCZOS8_FAST:      return launch_iwise(no_shift, ng::WrapInterp<LANCZOS8_FAST>{});
             }
         };
 
@@ -207,7 +207,7 @@ namespace noa::geometry {
     ///                                 If an empty array is entered or if input is real, it is ignored.
     /// \param options                  Transformation options.
     ///
-    /// \note Hardware interpolation is only supported for centered inputs (see InterpolateSpectrum).
+    /// \note For more details, see InterpolateSpectrum.
     template<Remap REMAP,
              nt::varray_or_texture_decay Input,
              nt::writable_varray_decay Output,
@@ -226,7 +226,7 @@ namespace noa::geometry {
         guts::check_parameters_transform_spectrum_nd<2>(input, output, shape, inverse_rotations, post_shifts);
 
         if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_CUDA
+            #ifdef NOA_ENABLE_GPU
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
@@ -242,7 +242,7 @@ namespace noa::geometry {
                 return;
             }
             #else
-            std::terminate(); // unreachable
+            panic_no_gpu_backend();
             #endif
         }
 
@@ -275,7 +275,7 @@ namespace noa::geometry {
     ///                                 If an empty array is entered or if input is real, it is ignored.
     /// \param options                  Transformation options.
     ///
-    /// \note Hardware interpolation is only supported for centered inputs (see InterpolateSpectrum).
+    /// \note For more details, see InterpolateSpectrum.
     template<Remap REMAP,
              nt::varray_or_texture_decay Input,
              nt::writable_varray_decay Output,
@@ -294,7 +294,7 @@ namespace noa::geometry {
         guts::check_parameters_transform_spectrum_nd<3>(input, output, shape, inverse_rotations, post_shifts);
 
         if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_CUDA
+            #ifdef NOA_ENABLE_GPU
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
@@ -318,7 +318,7 @@ namespace noa::geometry {
                 return;
             }
             #else
-            std::terminate(); // unreachable
+            panic_no_gpu_backend();
             #endif
         }
 

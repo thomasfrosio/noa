@@ -13,7 +13,7 @@ namespace noa::cpu::guts {
         using interface = ng::ReduceEwiseInterface<ZipInput, ZipReduced, ZipOutput>;
 
         template<typename Op, typename Input, typename Reduced, typename Output, typename Index, size_t N>
-        static void parallel(
+        [[gnu::noinline]] static void parallel(
             const Shape<Index, N>& shape, Op op,
             Input input, Reduced reduced, Output& output, i64 n_threads
         ) {
@@ -47,7 +47,7 @@ namespace noa::cpu::guts {
         }
 
         template<typename Op, typename Input, typename Reduced, typename Output, typename Index, size_t N>
-        static void serial(
+        [[gnu::noinline]] static void serial(
             const Shape<Index, N>& shape, Op op,
             Input input, Reduced reduced, Output& output
         ) {
@@ -99,14 +99,14 @@ namespace noa::cpu {
         if (actual_n_threads > 1)
             actual_n_threads = min(n_threads, n_elements / Config::n_elements_per_thread);
 
-        using reduce_ewise_core = guts::ReduceEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
+        using reduce_ewise_t = guts::ReduceEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
 
         // FIXME We could try collapse contiguous dimensions to still have a contiguous loop.
         //       In most cases, the inputs are not expected to be aliases of each other, so only
         //       optimise for the 1d-contig restrict case? remove 1d-contig non-restrict case
         if (are_all_contiguous) {
             auto shape_1d = Shape1<Index>::from_value(n_elements);
-            if (ng::are_accessors_aliased(input, output)) {
+            if (not nt::enable_vectorization_v<Op> and ng::are_accessors_aliased(input, output)) {
                 constexpr auto contiguous_1d = ng::AccessorConfig<1>{
                     .enforce_contiguous = true,
                     .enforce_restrict = false,
@@ -114,14 +114,14 @@ namespace noa::cpu {
                 };
                 auto input_1d = ng::reconfig_accessors<contiguous_1d>(std::forward<Input>(input));
                 if (actual_n_threads > 1) {
-                    reduce_ewise_core::parallel(
+                    reduce_ewise_t::parallel(
                         shape_1d,
                         std::forward<Op>(op),
                         std::move(input_1d),
                         std::forward<Reduced>(reduced),
                         output, actual_n_threads);
                 } else {
-                    reduce_ewise_core::serial(
+                    reduce_ewise_t::serial(
                         shape_1d,
                         std::forward<Op>(op),
                         std::move(input_1d),
@@ -136,14 +136,14 @@ namespace noa::cpu {
                 };
                 auto input_1d = ng::reconfig_accessors<contiguous_restrict_1d>(std::forward<Input>(input));
                 if (actual_n_threads > 1) {
-                    reduce_ewise_core::parallel(
+                    reduce_ewise_t::parallel(
                         shape_1d,
                         std::forward<Op>(op),
                         std::move(input_1d),
                         std::forward<Reduced>(reduced),
                         output, actual_n_threads);
                 } else {
-                    reduce_ewise_core::serial(
+                    reduce_ewise_t::serial(
                         shape_1d,
                         std::forward<Op>(op),
                         std::move(input_1d),
@@ -153,14 +153,14 @@ namespace noa::cpu {
             }
         } else {
             if (actual_n_threads > 1) {
-                reduce_ewise_core::parallel(
+                reduce_ewise_t::parallel(
                     shape,
                     std::forward<Op>(op),
                     std::forward<Input>(input),
                     std::forward<Reduced>(reduced),
                     output, actual_n_threads);
             } else {
-                reduce_ewise_core::serial(
+                reduce_ewise_t::serial(
                     shape,
                     std::forward<Op>(op),
                     std::forward<Input>(input),

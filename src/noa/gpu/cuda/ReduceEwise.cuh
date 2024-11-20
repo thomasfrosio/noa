@@ -233,10 +233,7 @@ namespace noa::cuda::guts {
         Shape2<Index> shape,
         Stream& stream
     ) {
-        using input_t = std::decay_t<Input>;
-
-        constexpr bool ALLOW_VECTORIZATION = nt::has_allow_vectorization_v<Op>;
-        if constexpr (Config::enable_vectorization and (ALLOW_VECTORIZATION or ng::are_accessors_const<input_t>())) {
+        if constexpr (Config::enable_vectorization and nt::enable_vectorization_v<Op>) {
             size_t alignment = min_address_alignment(input, Shape3<Index>{shape[0], 1, 1});
             if (alignment == 16) {
                 return launch_reduce_ewise_small_2d_<16, Config>(
@@ -334,10 +331,7 @@ namespace noa::cuda::guts {
         bool is_per_batch,
         Stream& stream
     ) {
-        using input_t = std::decay_t<Input>;
-
-        constexpr bool ALLOW_VECTORIZATION = nt::has_allow_vectorization_v<Op>;
-        if constexpr (Config::enable_vectorization and (ALLOW_VECTORIZATION or ng::are_accessors_const<input_t>())) {
+        if constexpr (Config::enable_vectorization and nt::enable_vectorization_v<Op>) {
             size_t alignment = min_address_alignment(input, shape.pop_back());
             if (alignment == 16) {
                 return launch_reduce_ewise_small_4d_<16, Config>(
@@ -432,7 +426,6 @@ namespace noa::cuda::guts {
         // In this config, the inputs can be interpreted as 1d arrays. If the innermost dimension is contiguous,
         // i.e. if all elements to reduce are contiguous, we can vectorize loads for the first kernel.
         using op_t = std::decay_t<Op>;
-        using input_t = std::decay_t<Input>;
         using reduced_t = std::decay_t<Reduced>;
         using output_t = std::decay_t<Output>;
 
@@ -454,8 +447,7 @@ namespace noa::cuda::guts {
         [[maybe_unused]] auto joined_buffer = get_joined_buffer(
             n_blocks_x, n_blocks_y, joined, JOINED_VEC_SIZE, stream);
 
-        constexpr bool ALLOW_VECTORIZATION = nt::has_allow_vectorization_v<Op>;
-        if constexpr (Config::enable_vectorization and (ALLOW_VECTORIZATION or ng::are_accessors_const<input_t>())) {
+        if constexpr (Config::enable_vectorization and nt::enable_vectorization_v<Op>) {
             size_t alignment = min_address_alignment(input, Shape3<Index>{shape[0], 1, 1});
             if (alignment == 16) {
                 launch_reduce_ewise_large_2d_<16, Config>(
@@ -536,7 +528,6 @@ namespace noa::cuda::guts {
         // As such, the 3 outermost dimensions are batched in a set of rows. Each block reduces at least one row.
         // If the innermost dimension is contiguous, blocks can use vectorize loads to read their row(s).
         using op_t = std::decay_t<Op>;
-        using input_t = std::decay_t<Input>;
         using reduced_t = std::decay_t<Reduced>;
         using output_t = std::decay_t<Output>;
 
@@ -566,7 +557,7 @@ namespace noa::cuda::guts {
         // Note that these if statements are likely to instantiate the same kernel. For instance, if the smallest
         // type has an alignment of 4, only 6 kernels are created (3 with n_threads_x=256, 3 with n_threads_x=64).
         // The worst case is when the smallest type is aligned to only one byte, in which case 10 kernels are created.
-        if constexpr (Config::enable_vectorization and (nt::has_allow_vectorization_v<Op> or ng::are_accessors_const<input_t>())) {
+        if constexpr (Config::enable_vectorization and nt::enable_vectorization_v<Op>) {
             const size_t alignment = min_address_alignment(input, shape.pop_back());
             if (n_threads_x == 256) {
                 if (alignment == 16) {

@@ -104,26 +104,28 @@ namespace noa::fft {
     /// Returns the index at a given frequency (in samples).
     /// The frequency should be in range [-size/2, (size-1)/2]
     /// \warning This function is only intended to be used for full dimensions!
-    ///          For a rfft's half dimension (which is not supported by this function),
+    ///          For a rfft's half-dimension (which is not supported by this function),
     ///          the index is equal to the frequency, regardless of the centering.
-    template<bool IS_CENTERED, nt::sinteger T>
-    [[nodiscard]] constexpr T frequency2index(T frequency, T size) noexcept {
+    template<bool IS_CENTERED, typename T, nt::sinteger U> requires (nt::real<T> or nt::sinteger<T>)
+    [[nodiscard]] constexpr T frequency2index(T frequency, U size) noexcept {
         // n=5: [0, 1, 2, 3, 4] -> centered=[-2,-1, 0, 1, 2], non-centered=[0, 1, 2,-2,-1]
         // n=6: [0, 1, 2, 3, 4, 5] -> centered=[-3,-2,-1, 0, 1, 2], non-centered=[0, 1, 2,-3,-2,-1]
         if constexpr (IS_CENTERED)
-            return frequency + size / 2;
-        return frequency < 0 ? frequency + size : frequency;
+            return frequency + static_cast<T>(size / 2);
+        return frequency < 0 ? frequency + static_cast<T>(size) : frequency;
     }
 
     /// Returns the multidimensional index at a given multidimensional frequency, assuming ((D)H)W order.
     /// For the rfft, the index along the width (ie rightmost dimension) is the frequency, so the width
     /// value is ignored and can be omitted from the shape.
     template<bool IS_CENTERED, bool IS_RFFT,
-             nt::sinteger T, size_t N0, size_t N1, size_t A0, size_t A1>
-    requires (1 <= N0 and N0 <= 3 and ((N0 == N1) or (IS_RFFT and N0 - 1 == N1)))
+             typename T, nt::sinteger U, size_t N0, size_t N1, size_t A0, size_t A1>
+    requires ((nt::real<T> or nt::sinteger<T>) and
+              1 <= N0 and N0 <= 3 and
+              ((N0 == N1) or (IS_RFFT and N0 - 1 == N1)))
     [[nodiscard]] constexpr auto frequency2index(
         Vec<T, N0, A0> frequency,
-        const Shape<T, N1, A1>& shape
+        const Shape<U, N1, A1>& shape
     ) noexcept {
         if constexpr (N0 == 1 and not IS_RFFT) {
             frequency[0] = frequency2index<IS_CENTERED>(frequency[0], shape[0]);
@@ -229,5 +231,42 @@ namespace noa::fft {
         T phase_shift;
         sincos(factor, &phase_shift.imag, &phase_shift.real);
         return phase_shift;
+    }
+
+    /// Computes the left-right frequency bounds.
+    /// \example
+    /// \code
+    /// n=5 (full) -> frequency=[-2,-1, 0, 1, 2]      -> left=-2, right=2
+    /// n=6 (full) -> frequency=[-3,-2,-1, 0, 1, 2]   -> left=-3, right=2
+    /// n=5 (half) -> frequency=[0, 1, 2]             -> left=0,  right=2
+    /// n=6 (half) -> frequency=[0, 1, 2, 3]          -> left=0,  right=3
+    /// \endcode
+    template<bool IS_RFFT, nt::sinteger T, size_t N, size_t A> requires (N >= 1 and N <= 3)
+    [[nodiscard]] constexpr auto frequency_bounds(const Shape<T, N, A>& shape) noexcept {
+        using bound_t = Vec<T, N, A>;
+        Pair<bound_t, bound_t> bounds;
+        if constexpr (IS_RFFT) {
+            for (size_t i{}; i < N - 1; ++i) {
+                bounds.first[i] = -shape[i] / 2;
+                bounds.second[i] = (shape[i] - 1) / 2;
+            }
+            bounds.first[N - 1] = 0;
+            bounds.second[N - 1] = shape[N - 1] / 2;
+        } else {
+            bounds.first = -shape / 2;
+            bounds.second = (shape - 1) / 2;
+        }
+        return bounds;
+    }
+
+    /// Whether the (unnormalized) frequency is within bounds.
+    template<bool IS_RFFT, bool IS_FLIPPED = false, nt::sinteger T, size_t N, size_t A, nt::pair U>
+    requires (N >= 1 and N <= 3)
+    [[nodiscard]] constexpr auto is_inbounds(const Vec<T, N, A>& frequency, const U& bounds) noexcept {
+        for (size_t i{}; i < N; ++i) {
+            if (frequency[i] < bounds.first[i] and bounds.second[i] > frequency[i])
+                return false;
+        }
+        return true;
     }
 }

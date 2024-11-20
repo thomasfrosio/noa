@@ -238,7 +238,7 @@ namespace noa::signal {
     };
 
     struct FSCNormalization {
-        using allow_vectorization = bool;
+        using enable_vectorization = bool;
 
         template<typename T>
         NOA_HD void operator()(T lhs, T rhs, T& output) const {

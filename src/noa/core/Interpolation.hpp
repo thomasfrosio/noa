@@ -10,29 +10,9 @@
 #include "noa/core/Enums.hpp"
 #include "noa/core/fft/Frequency.hpp"
 
-// TODO These interpolation functions prioritize simplicity.
+// TODO These interpolation functions originally prioritized simplicity.
 //      It could be interesting to try to optimize them at some point,
-//      especially given how prevalent the Interpolator is in the codebase.
-
-namespace noa::guts {
-    template<Remap REMAP, nt::scalar T, nt::integer I, size_t N, size_t A0, size_t A1>
-    requires (REMAP.is_xc2xx() or nt::integer<T>)
-    constexpr auto interp_frequency_to_index(Vec<T, N, A0> frequency, const Shape<I, N, A1>& shape) {
-        auto to_index = [](const auto& f, const auto& s) {
-            auto i = f + static_cast<T>(s / 2); // frequency [left,right] -> freq [0,s)
-            if constexpr (not REMAP.is_xc2xx() and nt::integer<T>)
-                i = noa::fft::ifftshift(i, s); // convert to non-centered input
-            return i;
-        };
-        if constexpr (N >= 2) // 3d=z, 2d=y
-            frequency[0] = to_index(frequency[0], shape[0]);
-        if constexpr (N == 3) // 3d=y
-            frequency[1] = to_index(frequency[1], shape[1]);
-        if constexpr (REMAP.is_fx2xx()) // x
-            frequency[N - 1] = to_index(frequency[N - 1], shape[N - 1]);
-        return frequency;
-    }
-}
+//      especially knowing how prevalent the Interpolator is in the codebase.
 
 namespace noa::traits {
     namespace guts {
@@ -219,7 +199,7 @@ namespace noa {
         auto value_at = [&](const auto& indices) {
             // TODO Add support for a readable input that can do its own addressing?
             if constexpr (BORDER == Border::ZERO or BORDER == Border::VALUE) {
-                if (ni::is_inbound(shape, indices))
+                if (ni::is_inbounds(shape, indices))
                     return input(indices);
                 if constexpr (BORDER == Border::ZERO)
                     return value_t{};
@@ -458,10 +438,11 @@ namespace noa {
         // input and weights the interpolated values towards zero. We can fix this by enforcing FLIP_PER_INDEX=true
         // for LINEAR too, but leave it like this for now as this error is realistically negligible...
         constexpr Int SIZE = INTERP.window_size();
-        constexpr bool FLIP = REMAP.is_hx2xx();
-        constexpr bool FLIP_PER_INDEX = SIZE > 2; // TODO try benchmarking with FLIP_PER_INDEX=true
+        constexpr bool IS_RFFT = REMAP.is_hx2xx();
+        constexpr bool IS_CENTERED = REMAP.is_xc2xx();
+        constexpr bool FLIP_PER_INDEX = true; //SIZE > 2;
         real_t conjugate{1};
-        if constexpr (FLIP and not FLIP_PER_INDEX) {
+        if constexpr (IS_RFFT and not FLIP_PER_INDEX) {
             if (frequency[N - 1] < 0) {
                 frequency *= -1;
                 if constexpr (nt::complex<value_t>)
@@ -471,11 +452,10 @@ namespace noa {
 
         auto update_at = [
             &input, &shape,
-            left = -shape.vec / 2,
-            right = (shape.vec - 1) / 2
-        ] (auto freq, auto weight, auto& output) {
+            bounds = noa::fft::frequency_bounds<IS_RFFT>(shape)
+        ] (auto freq, const auto& weight, auto& output) {
             real_t conj{1};
-            if constexpr (FLIP and FLIP_PER_INDEX) {
+            if constexpr (IS_RFFT and FLIP_PER_INDEX) {
                 if (freq[N - 1] < 0) {
                     freq *= -1;
                     if constexpr (nt::complex<value_t>)
@@ -483,15 +463,9 @@ namespace noa {
                 }
             }
 
-            const bool is_inside_spectrum = vall_enumerate([]<size_t J>(auto l, auto r, auto i) {
-                if constexpr (REMAP.is_hx2xx() and J == N - 1)
-                    return i <= r; // for non-redundant spectra, we know i >= 0 along the width
-                return l <= i and i <= r;
-            }, left, right, freq);
-
-            if (is_inside_spectrum) {
-                auto value = input(ng::interp_frequency_to_index<REMAP>(freq, shape));
-                if constexpr (FLIP and FLIP_PER_INDEX and nt::complex<value_t>)
+            if (noa::fft::is_inbounds<IS_RFFT, true>(freq, bounds)) {
+                auto value = input(noa::fft::frequency2index<IS_CENTERED, IS_RFFT>(freq, shape));
+                if constexpr (IS_RFFT and FLIP_PER_INDEX and nt::complex<value_t>)
                     value.imag *= conj;
                 output += value * weight;
             }
@@ -540,7 +514,7 @@ namespace noa {
                     value += value_z * weights[z - START][0];
                 }
             }
-            if constexpr (FLIP and not FLIP_PER_INDEX and nt::complex<value_t>)
+            if constexpr (IS_RFFT and not FLIP_PER_INDEX and nt::complex<value_t>)
                 value.imag *= conjugate;
             return value;
         }
@@ -574,10 +548,11 @@ namespace noa {
         // offsets, so if the frequency is flipped, we know that all indices will be on the right side of the DC.
         // For larger windows, this is not the case and flipping needs to be done for each index in the window.
         constexpr Int SIZE = INTERP.window_size();
-        constexpr bool FLIP = REMAP.is_hx2xx();
+        constexpr bool IS_RFFT = REMAP.is_hx2xx();
+        constexpr bool IS_CENTERED = REMAP.is_xc2xx();
         constexpr bool FLIP_PER_INDEX = SIZE > 2;
         real_t conjugate{1};
-        if constexpr (FLIP and not FLIP_PER_INDEX) {
+        if constexpr (IS_RFFT and not FLIP_PER_INDEX) {
             if (frequency[N - 1] < 0) {
                 frequency *= -1;
                 if constexpr (nt::complex<value_t>)
@@ -588,34 +563,33 @@ namespace noa {
         value_t value;
         if constexpr (INTERP == T::INTERP) {
             // The texture can handle both the interpolation and the addressing.
-            value = input.fetch(ng::interp_frequency_to_index<REMAP>(frequency, shape));
+            value = input.fetch(noa::fft::frequency2index<IS_CENTERED, IS_RFFT>(frequency, shape));
 
         } else if constexpr (INTERP.is_almost_any(Interp::NEAREST)) {
             // Special case for nearest-neighbor interpolation in accurate mode. Here the "interpolation"
             // is done in software and the texture, regardless of its mode, fetches at the closest integer location.
-            auto indices = ng::interp_frequency_to_index<REMAP>(static_cast<indices_t>(round(frequency)), shape);
-            value = input.fetch(static_cast<coordn_t>(indices));
+            value = input.fetch(noa::fft::frequency2index<IS_CENTERED, IS_RFFT>(round(frequency), shape));
 
         } else {
             auto value_at = [&shape, &input](auto freq) {
                 real_t conj{1};
-                if constexpr (FLIP and FLIP_PER_INDEX) {
+                if constexpr (IS_RFFT and FLIP_PER_INDEX) {
                     if (freq[N - 1] < 0) {
                         freq *= -1;
                         if constexpr (nt::complex<value_t>)
                             conj = -1;
                     }
                 }
-                freq = ng::interp_frequency_to_index<REMAP>(freq, shape);
+                freq = noa::fft::frequency2index<IS_CENTERED, IS_RFFT>(freq, shape);
                 value_t fetched = input.fetch(static_cast<coordn_t>(freq));
-                if constexpr (FLIP and FLIP_PER_INDEX and nt::complex<value_t>)
+                if constexpr (IS_RFFT and FLIP_PER_INDEX and nt::complex<value_t>)
                     fetched.imag = conj;
                 return fetched;
             };
 
             const coordn_t floored = floor(frequency);
             const coordn_t fraction = frequency - floored;
-            using weight_t = Vec<real_t, N>; // TODO , next_power_of_2(alignof(real_t) * N)
+            using weight_t = Vec<real_t, N>;
             const Vec<weight_t, SIZE> weights = interpolation_weights<INTERP, weight_t>(fraction);
 
             if constexpr (REMAP.is_hc2xx() and INTERP.is_fast() and nt::lerpable_nd<T, Border::ZERO>) {
@@ -687,7 +661,7 @@ namespace noa {
                 }
             }
         }
-        if constexpr (FLIP and not FLIP_PER_INDEX and nt::complex<value_t>)
+        if constexpr (IS_RFFT and not FLIP_PER_INDEX and nt::complex<value_t>)
             value.imag *= conjugate;
         return value;
     }
@@ -697,8 +671,8 @@ namespace noa {
     /// \details
     /// Input trait:
     ///     - The input data is abstracted behind the readable and textureable concepts, allowing to support different
-    ///       memory layouts and pointer traits (all accessor types are supported). Hardware interpolation and
-    ///       addressing is supported via the textureable concept. See the `interpolate_using_texture` function for
+    ///       memory layouts and pointer traits (all accessor/span types are supported). Hardware interpolation and
+    ///       addressing are supported via the textureable concept. See the `interpolate_using_texture` function for
     ///       more details. See the `interpable_nd` concept for more details about the requirements on the input type.
     ///     - The interpolator propagates the readable trait, i.e. if the input type is readable, so is the interpolator.
     ///
@@ -720,8 +694,8 @@ namespace noa {
     ///     locates the data between -0.5 and N-1 + 0.5.
     ///
     /// \tparam N       Number of dimensions of the data. Between 1 and 3.
-    /// \tparam INTERP  Interpolation method.
-    /// \tparam BORDER  Border mode, aka addressing mode.
+    /// \tparam INTERP_ Interpolation method.
+    /// \tparam BORDER_ Border mode, aka addressing mode.
     /// \tparam Input   Batched input data. Readable or textureable.
     /// \example
     /// \code
@@ -834,8 +808,14 @@ namespace noa {
     /// Interpolates {1|2|3}d (power) spectra with a given FFT layout, using a given interpolation.
     /// \tparam N       Number of dimensions of the data. Between 1 and 3.
     /// \tparam REMAP   FFT layout of the input. The output layout is ignored.
-    /// \tparam INTERP  Interpolation method.
+    /// \tparam INTERP_ Interpolation method.
     /// \tparam Input   Batched input data. Readable or textureable.
+    ///
+    /// \warning rfft inputs with even sizes results in slight interpolation error. This affects only a few elements
+    ///          at the Nyquist frequencies (the ones on the central axes, e.g. x=0) on the input and weights the
+    ///          interpolated values towards zero. This only affects Interp::LINEAR(_FAST), and while this can be fixed
+    ///          easily (see FLIP_PER_INDEX=true in interpolate_spectrum), we are leaving it like this for now as this
+    ///          error is realistically negligible and the fix has a slight performance cost...
     template<size_t N, Remap REMAP, Interp INTERP_, nt::interpable_nd<Border::ZERO, N> Input>
     class InterpolatorSpectrum {
     public:

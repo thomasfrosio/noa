@@ -249,9 +249,7 @@ namespace noa::cuda {
             const auto n_elements = safe_cast<Index>(
                 is_contiguous[0] ? shape_i64.n_elements() : shape_i64.pop_front().n_elements());
 
-            if constexpr (Config::enable_vectorization and
-                          (nt::has_allow_vectorization_v<Op> or
-                           (output_t::SIZE == 0 and ng::are_accessors_const<input_t>()))) {
+            if constexpr (Config::enable_vectorization and nt::enable_vectorization_v<Op>) {
                 const auto shape_3d = Shape3<u32>{batch, 1, 1};
                 size_t alignment = min(
                     min_address_alignment(input, shape_3d),

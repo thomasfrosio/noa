@@ -14,7 +14,7 @@ namespace noa::cpu::guts {
         using interface = ng::ReduceIwiseInterface<ZipReduced, ZipOutput>;
 
         template<typename Op, typename Reduced, typename Output, typename Index, size_t N>
-        static void parallel(
+        [[gnu::noinline]] static void parallel(
             const Vec<Index, N>& shape, Op op,
             Reduced reduced, Output& output, i64 n_threads
         ) {
@@ -58,7 +58,7 @@ namespace noa::cpu::guts {
         }
 
         template<typename Op, typename Reduced, typename Output, typename Index, size_t N>
-        static constexpr void serial(
+        [[gnu::noinline]] static constexpr void serial(
             const Vec<Index, N>& shape, Op op,
             Reduced reduced, Output& output
         ) {
@@ -109,7 +109,7 @@ namespace noa::cpu {
         Output& output,
         i64 n_threads = 1
     ) {
-        using core = guts::ReduceIwise<Config::zip_reduced, Config::zip_output>;
+        using reduce_iwise_t = guts::ReduceIwise<Config::zip_reduced, Config::zip_output>;
         if constexpr (Config::n_elements_per_thread > 1) {
             const i64 n_elements = shape.template as<i64>().n_elements();
             i64 actual_n_threads = n_elements <= Config::n_elements_per_thread ? 1 : n_threads;
@@ -117,11 +117,11 @@ namespace noa::cpu {
                 actual_n_threads = min(n_threads, n_elements / Config::n_elements_per_thread);
 
             if (actual_n_threads > 1) {
-                return core::parallel(
+                return reduce_iwise_t::parallel(
                     shape.vec, std::forward<Op>(op), std::forward<Reduced>(reduced), output, actual_n_threads);
             }
         }
-        core::serial(shape.vec, std::forward<Op>(op), std::forward<Reduced>(reduced), output);
+        reduce_iwise_t::serial(shape.vec, std::forward<Op>(op), std::forward<Reduced>(reduced), output);
     }
 }
 #endif
