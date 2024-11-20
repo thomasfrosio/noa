@@ -22,7 +22,7 @@ else ()
         FetchContent_Populate(benchmark)
 
         set(BENCHMARK_ENABLE_GTEST_TESTS OFF)
-        set(BENCHMARK_ENABLE_LTO ${NOA_ENABLE_LTO})
+        set(BENCHMARK_ENABLE_LTO OFF)
         add_subdirectory(${benchmark_SOURCE_DIR} ${benchmark_BINARY_DIR})
     endif ()
 

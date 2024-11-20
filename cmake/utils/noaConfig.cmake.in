@@ -1,10 +1,5 @@
 # Configuration file for noa.
-#
 # The goal is to find all of the dependencies of the library and recreate its targets.
-# One important feature is that the project options are set, so users can modify them
-# before calling this module. The default value of these options are set to the values
-# that were used to build the library. Some options cannot be changed though, and this
-# file will try to warn if the installed library is compatible with the options that are passed.
 
 # =====================================================================================
 # Find dependencies
@@ -40,17 +35,19 @@ endif ()
 # CUDA backend dependencies:
 if (@NOA_ENABLE_CUDA@)
     # We cannot enable a language from here. Instead, alert the user that the library was build
-    # with CUDA and that we therefore expect the CUDA language to be enable.
+    # with CUDA and that we therefore expect the CUDA language to be enabled.
     get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
     if(NOT "CUDA" IN_LIST languages)
-        message(FATAL_ERROR "Library was build with CUDA. Please enable CUDA (e.g. enable_language(CUDA))")
+        message(FATAL_ERROR "The library was built with CUDA. Please enable CUDA (e.g. enable_language(CUDA))")
     endif()
     message(STATUS "Built with CMAKE_CUDA_ARCHITECTURES=@CMAKE_CUDA_ARCHITECTURES@")
     message(STATUS "Built with CUDAToolkit_VERSION=@CUDAToolkit_VERSION@")
 
-    # FIXME If all static, we don't need the toolkit (that's the whole point).
-    # FIXME If static AND shared, we probably want to stick to the exact same version? so maybe only allow all shared or all static.
-    find_dependency(CUDAToolkit @CUDAToolkit_VERSION@ REQUIRED)
+    # If CUDA was linked statically, we only need the CUDA driver,
+    # which should already be required with the CUDA language enabled.
+    if (NOT @NOA_CUDA_STATIC@)
+        find_dependency(CUDAToolkit @CUDAToolkit_VERSION@ REQUIRED)
+    endif ()
 endif ()
 
 unset(_noa_install_lib_cmake_path)

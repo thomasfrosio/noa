@@ -295,7 +295,7 @@ namespace {
         static i32 cleanup() noexcept {
             i32 n_plans_destructed = destroy(nullptr, true);
             const std::scoped_lock lock(mutex);
-            #if defined(NOA_MULTITHREADED_FFTW3)
+            #if defined(NOA_CPU_MULTITHREADED_FFTW3)
             if constexpr (is_single_precision)
                 fftwf_cleanup_threads();
             else
@@ -347,7 +347,7 @@ namespace {
         // All subsequent plans will use this number of threads.
         // This function is not thread-safe; it should be called in a thread-safe environment.
         static void set_planner_(i32 batch, const Shape3<i32>& shape, i64 max_threads) {
-            #ifdef NOA_MULTITHREADED_FFTW3
+            #ifdef NOA_CPU_MULTITHREADED_FFTW3
             // Initialize (once)...
             static bool is_initialized = false;
             if (not is_initialized) {

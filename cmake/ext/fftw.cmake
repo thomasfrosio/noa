@@ -21,7 +21,8 @@ else ()
     set(CMAKE_BUILD_TYPE_ ${CMAKE_BUILD_TYPE})
     set(CMAKE_BUILD_TYPE Release)
 
-    option(FFTW3_ENABLE_OPENMP "Use OpenMP for multithreading" ON)
+    option(FFTW3_BUILD_TESTS "Build tests" OFF)
+    option(FFTW3_ENABLE_OPENMP "Use OpenMP for multithreading" ${NOA_CPU_MULTITHREADED_FFTW3})
     FetchContent_MakeAvailable(FFTW3)
 
     set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE_})

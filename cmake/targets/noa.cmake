@@ -102,7 +102,7 @@ target_link_libraries(noa
 set_target_properties(noa
     PROPERTIES
     POSITION_INDEPENDENT_CODE ON)
-if (NOA_ENABLE_CUDA AND NOT NOA_CUDA_JIT)
+if (NOA_ENABLE_CUDA)
     set_target_properties(noa PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 endif ()
 
@@ -149,9 +149,7 @@ target_compile_definitions(noa
     "$<$<BOOL:${NOA_ENABLE_CUDA}>:NOA_ENABLE_CUDA>"
     "$<$<BOOL:${NOA_ENABLE_TIFF}>:NOA_ENABLE_TIFF>"
     "$<$<BOOL:${NOA_CPU_OPENMP}>:NOA_ENABLE_OPENMP>"
-    "$<$<BOOL:${NOA_CUDA_JIT}>:NOA_CUDA_JIT>"
-    "$<$<BOOL:${NOA_CUDA_ENABLE_ASSERT}>:NOA_CUDA_ENABLE_ASSERT>"
-    "$<$<BOOL:${NOA_MULTITHREADED_FFTW3}>:NOA_MULTITHREADED_FFTW3>"
+    "$<$<BOOL:${NOA_CPU_MULTITHREADED_FFTW3}>:NOA_CPU_MULTITHREADED_FFTW3>"
     )
 
 # Since it is static library only, the SOVERSION shouldn't matter.
