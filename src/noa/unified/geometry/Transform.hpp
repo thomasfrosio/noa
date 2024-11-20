@@ -8,6 +8,60 @@
 #include "noa/unified/Iwise.hpp"
 
 namespace noa::geometry::guts {
+    /// Iwise operator computing 2d or 3d affine transformations:
+    ///  * Works on real and complex arrays.
+    ///  * The interpolated value is static_cast to Output::value_type.
+    ///  * The floating-point precision of the transformation and interpolation is set by Xform.
+    ///  * Use (truncated) affine matrices to transform coordinates.
+    ///    A single matrix can be used for every output batch. Otherwise, an array of matrices
+    ///    is expected. In this case, there should be as many matrices as they are output batches.
+    ///  * The matrices should be inverted since the inverse transformation is performed.
+    ///  * Multiple batches can be processed. The operator expects a "batch" index, which is passed
+    ///    to the interpolator. It is up to the interpolator to decide what to do with this index.
+    ///    The interpolator can ignore that batch index, effectively broadcasting the input to
+    ///    every dimension of the output.
+    template<size_t N,
+             nt::integer Index,
+             nt::batched_parameter Xform,
+             nt::interpolator_nd<N> Input,
+             nt::writable_nd<N + 1> Output>
+    requires (N == 2 or N == 3)
+    class Transform {
+    public:
+        using index_type = Index;
+        using input_type = Input;
+        using output_type = Output;
+        using output_value_type = nt::value_type_t<output_type>;
+
+        using xform_parameter_type = Xform;
+        using xform_type = nt::value_type_t<xform_parameter_type>;
+        using coord_type = nt::value_type_t<xform_type>;
+        static_assert(nt::mat_of_shape<xform_type, N + 0, N + 1> or
+                      nt::mat_of_shape<xform_type, N + 1, N + 1>);
+
+    public:
+        Transform(
+            const input_type& input,
+            const output_type& output,
+            const xform_parameter_type& inverse_xform
+        ) :
+            m_input(input),
+            m_output(output),
+            m_inverse_xform(inverse_xform) {}
+
+        template<nt::same_as<index_type>... I> requires (sizeof...(I) == N)
+        NOA_HD constexpr void operator()(index_type batch, I... indices) const {
+            auto coordinates = Vec<coord_type, N>::from_values(indices...);
+            coordinates = transform_vector(m_inverse_xform[batch], coordinates);
+            m_output(batch, indices...) = static_cast<output_value_type>(m_input.interpolate_at(coordinates, batch));
+        }
+
+    private:
+        input_type m_input;
+        output_type m_output;
+        xform_parameter_type m_inverse_xform;
+    };
+
     template<size_t N, typename Input, typename Output, typename Matrix>
     void check_parameters_transform_nd(const Input& input, const Output& output, const Matrix& matrix) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");

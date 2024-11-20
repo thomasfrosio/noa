@@ -60,12 +60,12 @@ namespace noa::geometry {
     ///       rotation, as always.
     template<nt::real T, nt::sinteger I>
     [[nodiscard]] NOA_IHD auto polar2cartesian(
-            const Vec<T, 2>& polar_coordinate,
-            const Vec<I, 2>& polar_shape,
-            const Vec<T, 2>& cartesian_center,
-            const Vec<T, 2>& radius_range,
-            const Vec<T, 2>& angle_range,
-            bool log
+        const Vec<T, 2>& polar_coordinate,
+        const Vec<I, 2>& polar_shape,
+        const Vec<T, 2>& cartesian_center,
+        const Vec<T, 2>& radius_range,
+        const Vec<T, 2>& angle_range,
+        bool log
     ) -> Vec<T, 2> {
         const T phi = polar2phi(polar_coordinate[0], polar_shape[0], angle_range);
         const T rho = polar2rho(polar_coordinate[1], polar_shape[1], radius_range, log);
@@ -164,12 +164,12 @@ namespace noa::geometry {
     /// \param log                  Whether this is the log-polar coordinates system.
     template<nt::real T, nt::sinteger I>
     [[nodiscard]] NOA_IHD auto cartesian2polar(
-            const Vec<T, 2>& cartesian_coordinate,
-            const Vec<T, 2>& cartesian_center,
-            const Vec<I, 2>& polar_shape,
-            const Vec<T, 2>& radius_range,
-            const Vec<T, 2>& angle_range,
-            bool log
+        const Vec<T, 2>& cartesian_coordinate,
+        const Vec<T, 2>& cartesian_center,
+        const Vec<I, 2>& polar_shape,
+        const Vec<T, 2>& radius_range,
+        const Vec<T, 2>& angle_range,
+        bool log
     ) -> Vec<T, 2> {
         cartesian_coordinate -= cartesian_center;
         const T phi = cartesian2phi(cartesian_coordinate);

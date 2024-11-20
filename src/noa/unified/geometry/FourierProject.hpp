@@ -3,14 +3,12 @@
 #include <valarray>
 
 #include "noa/core/Enums.hpp"
+#include "noa/core/fft/Frequency.hpp"
 #include "noa/core/geometry/Euler.hpp"
-#include "noa/core/geometry/Transform.hpp"
 #include "noa/core/geometry/Quaternion.hpp"
-#include "noa/core/geometry/FourierInsertRasterize.hpp"
-#include "noa/core/geometry/FourierInsertInterpolate.hpp"
-#include "noa/core/geometry/FourierInsertExtract.hpp"
-#include "noa/core/geometry/FourierExtract.hpp"
-#include "noa/core/geometry/FourierGriddingCorrection.hpp"
+#include "noa/core/geometry/Transform.hpp"
+#include "noa/core/types/Shape.hpp"
+#include "noa/core/utils/Atomic.hpp"
 
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Ewise.hpp"
@@ -18,6 +16,1058 @@
 #include "noa/unified/Iwise.hpp"
 #include "noa/unified/Texture.hpp"
 #include "noa/unified/Utilities.hpp"
+
+namespace noa::geometry::guts {
+    template<typename ScaleBatched, typename RotateBatched, typename Ews,
+             typename ScaleValue = nt::mutable_value_type_t<ScaleBatched>,
+             typename RotateValue = nt::mutable_value_type_t<RotateBatched>,
+             typename Coord = nt::value_type_t<RotateValue>>
+    concept fourier_projection_transform_types =
+        nt::real<Coord> and
+        nt::any_of<ScaleValue, Empty, Mat22<Coord>> and
+        nt::any_of<RotateValue, Mat33<Coord>, Quaternion<Coord>> and
+        nt::any_of<Ews, Empty, Coord, Vec2<Coord>>;
+
+    template<typename Input, typename Output>
+    concept fourier_projection_types = nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>;
+
+    template<typename Input, typename Output,
+             typename InputValue = nt::value_type_t<Input>,
+             typename OutputValue = nt::value_type_t<Output>>
+    concept fourier_projection_weight_types =
+        nt::real<InputValue, OutputValue> or
+        (nt::empty<Input> and nt::real<OutputValue>) or
+        (nt::real<InputValue> and nt::empty<OutputValue>) or
+        (nt::empty<Input> and nt::empty<Output>);
+
+    // Transforms a 3d fftfreq representing the slice, to its 3d fftfreq in the grid.
+    // This is a forward transformation of the frequency, but because it is in Fourier-space,
+    // the real-space scaling is inverted.
+    template<nt::real Coord,
+             nt::batched_parameter ScaleOrEmpty,
+             nt::batched_parameter Rotate,
+             nt::integer Integer,
+             typename EWSOrEmpty>
+    NOA_IHD constexpr auto fourier_slice2grid(
+        Vec2<Coord> fftfreq,
+        const ScaleOrEmpty& inv_scaling,
+        const Rotate& fwd_rotation,
+        Integer batch,
+        EWSOrEmpty inv_ews_diameter
+    ) -> Vec3<Coord> {
+        // If we apply the EWS curvature, the scaling factors should be corrected
+        // before applying the curvature, and therefore before applying the rotation.
+        // That way, we use the correct frequencies to compute the EWS, e.g., resulting
+        // in a spherical EWS even under anisotropic magnification.
+        fftfreq = transform_vector(inv_scaling[batch], fftfreq);
+
+        // TODO We use the Small Angle Approximation to compute the EWS curvature,
+        //      so the frequency (u,v) is unchanged. Look at the cisTEM implementation
+        //      to remove this approximation? RELION shows that even for low voltages
+        //      and large boxes, it is probably not worth it though.
+        Vec3<Coord> fftfreq_3d{0, fftfreq[0], fftfreq[1]};
+        if constexpr (not nt::empty<EWSOrEmpty>)
+            fftfreq_3d[0] = sum(inv_ews_diameter * fftfreq * fftfreq);
+
+        return transform_vector(fwd_rotation[batch], fftfreq_3d);
+    }
+
+    // Same as above, but in the other direction.
+    template<nt::real Coord,
+             nt::batched_parameter ScaleOrEmpty,
+             nt::batched_parameter Rotate,
+             nt::integer Integer,
+             typename EWSOrEmpty>
+    NOA_IHD constexpr auto fourier_grid2slice(
+        Vec3<Coord> frequency,
+        const ScaleOrEmpty& fwd_scaling_matrices,
+        const Rotate& inv_rotation,
+        Integer batch,
+        EWSOrEmpty inv_ews_diameter
+    ) -> Pair<Coord, Vec2<Coord>> {
+        frequency = transform_vector(inv_rotation[batch], frequency);
+
+        Vec2<Coord> freq_2d{frequency[1], frequency[2]};
+        Coord freq_z = frequency[0];
+        if constexpr (not nt::empty<EWSOrEmpty>)
+            freq_z -= sum(inv_ews_diameter * freq_2d * freq_2d);
+
+        // Same reason as for the forward transformation.
+        // Here the grid is correct, so rotate the EWS, then compute
+        // the curvature and only then we can scale the slice.
+        freq_2d = transform_vector(fwd_scaling_matrices[batch], freq_2d);
+        return {freq_z, freq_2d};
+    }
+
+    // Windowed-sinc. This function assumes fftfreq <= fftfreq_blackman,
+    // above that the blackman window will start again.
+    template<typename Coord>
+    NOA_FHD Coord windowed_sinc(Coord fftfreq, Coord fftfreq_sinc, Coord fftfreq_blackman) {
+        // https://www.desmos.com/calculator/tu5b8aqg2e
+        constexpr Coord PI = Constant<Coord>::PI;
+        fftfreq *= PI;
+        const auto sinc = noa::sinc(fftfreq / fftfreq_sinc);
+        const auto blackman_cutoff = fftfreq / fftfreq_blackman;
+        const auto blackman = static_cast<Coord>(0.42) +
+                              static_cast<Coord>(0.5) * cos(blackman_cutoff) +
+                              static_cast<Coord>(0.08) * cos(2 * blackman_cutoff);
+        return sinc * blackman;
+    }
+
+    // This is only used for the Fourier extraction step.
+    // The window is always an odd-numbered size.
+    template<nt::integer Int, nt::real Coord>
+    Int blackman_window_size(Coord fftfreq_blackman, Coord spectrum_size) {
+        // Given a blackman window in range [0, fftfreq_blackman] and a spectrum logical-size
+        // (the z size in our case), what is the size of the blackman window, in elements.
+        // For instance:
+        //  spectrum_size=10, fftfreq_blackman=0.23
+        //  rfftfreq=[0.,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5]
+        //  rfftfreq_samples=4.6->5, window_size=11
+        //  computed_window=[-0.25,-0.2,-0.15,-0.1,-0.05,0.,0.05,0.1,0.15,0.2,0.25]
+        auto rfftfreq_samples = static_cast<f64>(spectrum_size) * static_cast<f64>(fftfreq_blackman);
+        rfftfreq_samples = ceil(rfftfreq_samples); // include last fraction
+        const auto rfftfreq_samples_int = max(Int{1}, static_cast<Int>(rfftfreq_samples));
+        auto window_size = 2 * (rfftfreq_samples_int) + 1;
+
+        // Truncate the edges because at these indexes, the window is 0, so there's no need to compute it.
+        // So using the same example, computed_window=[-0.2,-0.15,-0.1,-0.05,0.,0.05,0.1,0.15,0.2]
+        return window_size - 2;
+    }
+
+    // This is only used for the Fourier extraction step.
+    // Given the iwise-index w and the blackman window size, return the fftfreq offset. For instance,
+    // window_size=9: w=[0..8] -> [-0.2,-0.15,-0.1,-0.05,0.,0.05,0.1,0.15,0.2]
+    template<nt::integer Int, nt::real Coord>
+    constexpr NOA_FHD Coord w_index_to_fftfreq_offset(Int w, Int window_size, Coord spectrum_size) {
+        return static_cast<Coord>(w - window_size / 2) / spectrum_size;
+    }
+
+    // This is only used for the Fourier extraction step.
+    // Compute the sum of the z-window, so that it can be directly applied to the extracted values,
+    // thereby correcting for the multiplicity on the fly.
+    template<nt::integer Int, nt::real Real>
+    Pair<Int, Real> z_window_spec(Real fftfreq_sinc, Real fftfreq_blackman, Real spectrum_size) {
+        auto window_size = blackman_window_size<Int>(fftfreq_blackman, spectrum_size);
+        Real sum{};
+        for (Int i{}; i < window_size; ++i) {
+            const auto fftfreq = w_index_to_fftfreq_offset(i, window_size, spectrum_size);
+            sum += windowed_sinc(fftfreq, fftfreq_sinc, fftfreq_blackman);
+        }
+        return {window_size, sum};
+    }
+
+    template<Remap REMAP,
+             nt::sinteger Index,
+             nt::batched_parameter Scale,
+             nt::batched_parameter Rotate,
+             typename EWSCurvature,
+             nt::readable_nd<3> InputSlice,
+             nt::readable_nd_or_empty<3> InputWeight,
+             nt::atomic_addable_nd<3> OutputVolume,
+             nt::atomic_addable_nd_or_empty<3> OutputWeight>
+    class FourierInsertRasterize {
+        static_assert(REMAP.is_hx2hx());
+        static constexpr bool ARE_SLICES_CENTERED = REMAP.is_xc2xx();
+        static constexpr bool IS_VOLUME_CENTERED = REMAP.is_xx2xc();
+
+        using index_type = Index;
+        using scale_type = Scale;
+        using rotate_type = Rotate;
+        using ews_type = EWSCurvature;
+        using coord_type = nt::value_type_twice_t<rotate_type>;
+        using coord2_type = Vec2<coord_type>;
+        using coord3_type = Vec3<coord_type>;
+        using shape3_type = Shape3<index_type>;
+
+        using input_type = InputSlice;
+        using output_type = OutputVolume;
+        using input_weight_type = InputWeight;
+        using output_weight_type = OutputWeight;
+        using input_value_type = nt::mutable_value_type_t<input_type>;
+        using input_real_type = nt::value_type_t<input_value_type>;
+        using output_value_type = nt::value_type_t<output_type>;
+        using output_real_type = nt::value_type_t<output_value_type>;
+        using output_weight_value_type = nt::value_type_t<output_weight_type>;
+
+        static_assert(guts::fourier_projection_transform_types<scale_type, rotate_type, ews_type> and
+                      guts::fourier_projection_types<input_type, output_type> and
+                      guts::fourier_projection_weight_types<input_weight_type, output_weight_type>);
+
+    public:
+        constexpr FourierInsertRasterize(
+            const input_type& input_slices,
+            const input_weight_type& input_weights,
+            const Shape4<index_type>& input_slice_shape,
+            const output_type& output_volume,
+            const output_weight_type& output_weights,
+            const Shape4<index_type>& output_volume_shape,
+            const scale_type& inv_scaling,
+            const rotate_type& fwd_rotation,
+            coord_type fftfreq_cutoff,
+            const Shape4<index_type>& target_shape,
+            const ews_type& ews_radius
+        ) :
+            m_input_slices(input_slices),
+            m_output_volume(output_volume),
+            m_fwd_rotation(fwd_rotation),
+            m_grid_shape(output_volume_shape.pop_front()),
+            m_input_weights(input_weights),
+            m_output_weights(output_weights),
+            m_inv_scaling(inv_scaling)
+        {
+            const auto slice_shape_2d = input_slice_shape.filter(2, 3);
+            m_slice_size_y = slice_shape_2d[0];
+            m_f_slice_shape = coord2_type::from_vec(slice_shape_2d.vec);
+
+            // Use the grid shape as backup.
+            const auto target_shape_3d = any(target_shape == 0) ? m_grid_shape : target_shape.pop_front();
+            m_f_target_shape = coord3_type::from_vec(target_shape_3d.vec);
+
+            // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
+            // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
+            if constexpr (not nt::empty<ews_type>)
+                m_ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_type{};
+
+            m_fftfreq_cutoff_sqd = max(fftfreq_cutoff, coord_type{});
+            m_fftfreq_cutoff_sqd *= m_fftfreq_cutoff_sqd;
+        }
+
+        // For every pixel of every central slice to insert.
+        NOA_HD void operator()(index_type batch, index_type y, index_type u) const { // x == u
+            // We compute the forward transformation and use normalized frequencies.
+            // The oversampling is implicitly handled when scaling back to the target shape.
+            const index_type v = noa::fft::index2frequency<ARE_SLICES_CENTERED>(y, m_slice_size_y);
+            const auto fftfreq_2d = coord2_type::from_values(v, u) / m_f_slice_shape;
+            coord3_type fftfreq_3d = guts::fourier_slice2grid(
+                fftfreq_2d, m_inv_scaling, m_fwd_rotation, batch, m_ews_diam_inv);
+
+            // The frequency rate won't change from that point, so check for the cutoff.
+            if (dot(fftfreq_3d, fftfreq_3d) > m_fftfreq_cutoff_sqd)
+                return;
+
+            // Handle the non-redundancy in x.
+            input_real_type conjugate = 1;
+            if (fftfreq_3d[2] < 0) {
+                fftfreq_3d = -fftfreq_3d;
+                if constexpr (nt::complex<input_value_type>)
+                    conjugate = -1;
+            }
+
+            // Scale back to the target shape.
+            const auto frequency_3d = fftfreq_3d * m_f_target_shape;
+
+            // At this point, we know we are going to use the input, so load everything.
+            Pair value_and_weight{
+                get_input_value_(conjugate, batch, y, u),
+                get_input_weight_(batch, y, u),
+            };
+            rasterize_on_3d_grid_(value_and_weight, frequency_3d);
+        }
+
+    private:
+        NOA_HD constexpr auto get_input_value_(input_real_type conjugate, auto... input_indices) const {
+            auto value = m_input_slices(input_indices...);
+            if constexpr (nt::complex<input_value_type, output_value_type>) {
+                return static_cast<output_value_type>(value * conjugate);
+            } else {
+                return cast_or_abs_squared<output_value_type>(value);
+            }
+        }
+
+        NOA_HD constexpr auto get_input_weight_(auto... input_indices) const {
+            if constexpr (nt::empty<output_weight_type>)
+                return output_weight_value_type{}; // no weights
+            else if constexpr (nt::empty<input_weight_type>)
+                return output_weight_value_type{1}; // default weights
+            else
+                return static_cast<output_weight_value_type>(m_input_weights(input_indices...));
+        }
+
+        // The gridding/rasterization kernel is a trilinear pulse.
+        // The total weight within the 2x2x2 cube is 1.
+        NOA_HD static constexpr void set_rasterization_weights_(
+            const Vec3<index_type>& base0,
+            const Vec3<coord_type>& freq,
+            coord_type o_weights[2][2][2]
+        ) noexcept {
+            // So if the coordinate is centered in the bottom left corner of the cube (base0),
+            // i.e., its decimal is 0, the corresponding fraction for this element should be 1.
+            Vec3<coord_type> fraction[2];
+            fraction[1] = freq - base0.template as<coord_type>();
+            fraction[0] = 1.f - fraction[1];
+            for (index_type w{}; w < 2; ++w)
+                for (index_type v{}; v < 2; ++v)
+                    for (index_type u{}; u < 2; ++u)
+                        o_weights[w][v][u] = fraction[w][0] * fraction[v][1] * fraction[u][2];
+        }
+
+        // Spread the value within a 2x2x2 centered on a particular frequency using linear interpolation.
+        // This is called gridding, but is also referred as rasterization with antialiasing.
+        // "frequency" is the frequency, in samples, centered on DC, with negative frequencies on the left.
+        NOA_HD void rasterize_on_3d_grid_(
+            Pair<output_value_type, output_weight_value_type> value_and_weight,
+            const Vec3<coord_type>& frequency // in samples
+        ) const noexcept {
+            const auto base0 = floor(frequency).template as<index_type>();
+
+            coord_type kernel[2][2][2]; // 2x2x2 trilinear weights
+            set_rasterization_weights_(base0, frequency, kernel);
+
+            using namespace ::noa::fft;
+            constexpr bool has_weights = not nt::empty<output_weight_type>;
+
+            for (index_type w{}; w < 2; ++w) {
+                for (index_type v{}; v < 2; ++v) {
+                    for (index_type u{}; u < 2; ++u) {
+                        const index_type idx_w = frequency2index<IS_VOLUME_CENTERED>(base0[0] + w, m_grid_shape[0]);
+                        const index_type idx_v = frequency2index<IS_VOLUME_CENTERED>(base0[1] + v, m_grid_shape[1]);
+                        const index_type idx_u = base0[2] + u;
+
+                        if (idx_w >= 0 and idx_w < m_grid_shape[0] and
+                            idx_v >= 0 and idx_v < m_grid_shape[1] and
+                            idx_u >= 0 and idx_u < m_grid_shape[2]) {
+                            const auto fraction = kernel[w][v][u];
+                            ng::atomic_add(
+                                m_output_volume,
+                                value_and_weight.first * static_cast<output_real_type>(fraction),
+                                idx_w, idx_v, idx_u);
+                            if constexpr (has_weights) {
+                                ng::atomic_add(
+                                    m_output_weights,
+                                    value_and_weight.second * static_cast<output_weight_value_type>(fraction),
+                                    idx_w, idx_v, idx_u);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // The gridding doesn't preserve the hermitian symmetry, so enforce it on the redundant X==0 ZY plane.
+            // So if a side of this plane was modified, add the conjugate at (x=0, -y, -z) with the same fraction.
+            if (base0[2] == 0) {
+                if constexpr (nt::complex<output_value_type>)
+                    value_and_weight.first.imag = -value_and_weight.first.imag;
+
+                for (index_type w{}; w < 2; ++w) {
+                    for (index_type v{}; v < 2; ++v) {
+                        const index_type idx_w = frequency2index<IS_VOLUME_CENTERED>(-(base0[0] + w), m_grid_shape[0]);
+                        const index_type idx_v = frequency2index<IS_VOLUME_CENTERED>(-(base0[1] + v), m_grid_shape[1]);
+
+                        if (idx_w >= 0 and idx_w < m_grid_shape[0] and
+                            idx_v >= 0 and idx_v < m_grid_shape[1]) {
+                            const auto fraction = kernel[w][v][0];
+                            ng::atomic_add(
+                                m_output_volume,
+                                value_and_weight.first * static_cast<output_real_type>(fraction),
+                                idx_w, idx_v, index_type{});
+                            if constexpr (has_weights) {
+                                ng::atomic_add(
+                                    m_output_weights,
+                                    value_and_weight.second * static_cast<output_weight_value_type>(fraction),
+                                    idx_w, idx_v, index_type{});
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    private:
+        input_type m_input_slices;
+        output_type m_output_volume;
+
+        rotate_type m_fwd_rotation;
+        shape3_type m_grid_shape;
+        index_type m_slice_size_y;
+        coord3_type m_f_target_shape;
+        coord2_type m_f_slice_shape;
+        coord_type m_fftfreq_cutoff_sqd;
+
+        NOA_NO_UNIQUE_ADDRESS input_weight_type m_input_weights;
+        NOA_NO_UNIQUE_ADDRESS output_weight_type m_output_weights;
+        NOA_NO_UNIQUE_ADDRESS scale_type m_inv_scaling;
+        NOA_NO_UNIQUE_ADDRESS ews_type m_ews_diam_inv{};
+    };
+
+    template<Remap REMAP,
+             nt::sinteger Index,
+             nt::batched_parameter Scale,
+             nt::batched_parameter Rotate,
+             typename EWSCurvature,
+             nt::interpolator_spectrum_nd<2> InputSlice,
+             nt::interpolator_spectrum_nd_or_empty<2> InputSliceWeight,
+             nt::writable_nd<3> OutputVolume,
+             nt::writable_nd_or_empty<3> OutputVolumeWeight>
+    class FourierInsertInterpolate {
+        static constexpr bool IS_VOLUME_CENTERED = REMAP.is_xx2xc();
+        static constexpr bool IS_VOLUME_RFFT = REMAP.is_xx2hx();
+
+        using index_type = Index;
+        using scale_type = Scale;
+        using rotate_type = Rotate;
+        using ews_type = EWSCurvature;
+        using coord_type = nt::value_type_twice_t<rotate_type>;
+        using coord2_type = Vec2<coord_type>;
+        using coord3_type = Vec3<coord_type>;
+        using shape_nd_type = Shape<index_type, 3 - IS_VOLUME_RFFT>;
+
+        using input_type = InputSlice;
+        using input_weight_type = InputSliceWeight;
+        using output_type = OutputVolume;
+        using output_weight_type = OutputVolumeWeight;
+        using input_value_type = nt::mutable_value_type_t<input_type>;
+        using input_real_type = nt::value_type_t<input_value_type>;
+        using output_value_type = nt::value_type_t<output_type>;
+        static constexpr bool has_input_weights = not nt::empty<input_weight_type>;
+        static constexpr bool has_output_weights = not nt::empty<output_weight_type>;
+        using output_weight_value_type = nt::value_type_t<output_weight_type>;
+        using input_weight_value_type = std::conditional_t<
+            has_input_weights, nt::mutable_value_type_t<input_weight_type>, output_weight_type>;
+
+        static_assert(guts::fourier_projection_transform_types<scale_type, rotate_type, ews_type> and
+                      guts::fourier_projection_types<input_type, output_type> and
+                      guts::fourier_projection_weight_types<input_weight_type, output_weight_type>);
+
+    public:
+        FourierInsertInterpolate(
+            const input_type& input_slices,
+            const input_weight_type& input_weights,
+            const Shape4<index_type>& input_slice_shape,
+            const output_type& output_volume,
+            const output_weight_type& output_weights,
+            const Shape4<index_type>& output_volume_shape,
+            const scale_type& fwd_scaling,
+            const rotate_type& inv_rotation,
+            coord_type fftfreq_sinc,
+            coord_type fftfreq_blackman,
+            coord_type fftfreq_cutoff,
+            const Shape4<index_type>& target_shape,
+            const ews_type& ews_radius
+        ) :
+            m_input_slices(input_slices),
+            m_output_volume(output_volume),
+            m_inv_rotation(inv_rotation),
+            m_slice_count(input_slice_shape[0]),
+            m_input_weights(input_weights),
+            m_output_weights(output_weights),
+            m_fwd_scaling(fwd_scaling)
+        {
+            const auto slice_shape_2d = input_slice_shape.filter(2, 3);
+            m_f_slice_shape = coord2_type::from_vec(slice_shape_2d.vec);
+
+            const auto grid_shape = output_volume_shape.pop_front();
+            const auto l_target_shape = any(target_shape == 0) ? grid_shape : target_shape.pop_front();
+            m_grid_shape = grid_shape.template pop_back<IS_VOLUME_RFFT>();
+            m_f_target_shape = coord3_type::from_vec(l_target_shape.vec);
+
+            // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
+            // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
+            if constexpr (not nt::empty<ews_type>)
+                m_ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_type{};
+
+            m_fftfreq_cutoff_sqd = max(fftfreq_cutoff, coord_type{});
+            m_fftfreq_cutoff_sqd *= m_fftfreq_cutoff_sqd;
+
+            // Clamp the windowed-sinc to ensure it's at least one pixel thick.
+            const auto max_output_size = static_cast<coord_type>(min(l_target_shape));
+            m_fftfreq_sinc = max(fftfreq_sinc, 1 / max_output_size);
+            m_fftfreq_blackman = max(fftfreq_blackman, 1 / max_output_size);
+        }
+
+        // For every voxel of the grid.
+        NOA_HD void operator()(index_type oz, index_type oy, index_type ox) const noexcept {
+            const auto frequency = noa::fft::index2frequency<IS_VOLUME_CENTERED, IS_VOLUME_RFFT>(
+                Vec{oz, oy, ox}, m_grid_shape);
+            const auto fftfreq = coord3_type::from_vec(frequency) / m_f_target_shape;
+            if (dot(fftfreq, fftfreq) > m_fftfreq_cutoff_sqd)
+                return;
+
+            input_value_type value{};
+            input_weight_value_type weights{};
+
+            for (index_type i{}; i < m_slice_count; ++i) {
+                const auto [fftfreq_z, fftfreq_2d] = guts::fourier_grid2slice(
+                    fftfreq, m_fwd_scaling, m_inv_rotation, i, m_ews_diam_inv);
+
+                input_value_type i_value{};
+                input_weight_value_type i_weights{};
+                if (abs(fftfreq_z) <= m_fftfreq_blackman) { // the slice affects the voxel
+                    const auto window = guts::windowed_sinc(fftfreq_z, m_fftfreq_sinc, m_fftfreq_blackman);
+                    const auto frequency_2d = fftfreq_2d * m_f_slice_shape;
+
+                    i_value = m_input_slices.interpolate_spectrum_at(frequency_2d, i) *
+                              static_cast<input_real_type>(window);
+
+                    if constexpr (has_output_weights) {
+                        if constexpr (has_input_weights) {
+                            i_weights = m_input_weights.interpolate_spectrum_at(frequency_2d, i) *
+                                        static_cast<input_weight_value_type>(window);
+                        } else {
+                            i_weights = static_cast<input_weight_value_type>(window); // input_weight=1
+                        }
+                    }
+                }
+                value += i_value;
+                if constexpr (has_output_weights)
+                    weights += i_weights;
+            }
+
+            // The transformation preserves the hermitian symmetry, so there's nothing else to do.
+            m_output_volume(oz, oy, ox) += cast_or_abs_squared<output_value_type>(value);
+            if constexpr (has_output_weights)
+                m_output_weights(oz, oy, ox) += cast_or_abs_squared<output_weight_value_type>(weights);
+        }
+
+    private:
+        input_type m_input_slices;
+        output_type m_output_volume;
+
+        rotate_type m_inv_rotation;
+        shape_nd_type m_grid_shape;
+        coord3_type m_f_target_shape;
+        coord2_type m_f_slice_shape;
+        index_type m_slice_count;
+
+        coord_type m_fftfreq_cutoff_sqd;
+        coord_type m_fftfreq_sinc;
+        coord_type m_fftfreq_blackman;
+
+        NOA_NO_UNIQUE_ADDRESS input_weight_type m_input_weights;
+        NOA_NO_UNIQUE_ADDRESS output_weight_type m_output_weights;
+        NOA_NO_UNIQUE_ADDRESS scale_type m_fwd_scaling;
+        NOA_NO_UNIQUE_ADDRESS ews_type m_ews_diam_inv{};
+    };
+
+    template<Remap REMAP,
+             nt::sinteger Index,
+             nt::batched_parameter Scale,
+             nt::batched_parameter Rotate,
+             typename EWSCurvature,
+             nt::interpolator_spectrum_nd<3> InputVolume,
+             nt::interpolator_spectrum_nd_or_empty<3> InputWeight,
+             nt::writable_nd<3> OutputSlice,
+             nt::writable_nd_or_empty<3> OutputWeight>
+    class FourierExtract {
+        static constexpr bool ARE_SLICES_CENTERED = REMAP.is_xx2xc();
+        static constexpr bool ARE_SLICES_RFFT = REMAP.is_xx2hx();
+
+        using index_type = Index;
+        using shape_nd_type = Shape<index_type, 2 - ARE_SLICES_RFFT>;
+
+        using input_type = InputVolume;
+        using input_weight_type = InputWeight;
+        using output_type = OutputSlice;
+        using output_weight_type = OutputWeight;
+        using input_value_type = nt::mutable_value_type_t<input_type>;
+        using output_value_type = nt::value_type_t<output_type>;
+        using output_real_type = nt::value_type_t<output_value_type>;
+        using output_weight_value_type = nt::value_type_t<output_weight_type>;
+
+        using batched_scale_type = Scale;
+        using batched_rotate_type = Rotate;
+        using ews_type = EWSCurvature;
+        using coord_type = nt::value_type_twice_t<batched_rotate_type>;
+        using coord2_type = Vec2<coord_type>;
+        using coord3_type = Vec3<coord_type>;
+
+        static_assert(guts::fourier_projection_transform_types<batched_scale_type, batched_rotate_type, ews_type> and
+                      guts::fourier_projection_types<input_type, output_type> and
+                      guts::fourier_projection_weight_types<input_weight_type, output_weight_type>);
+
+        // Optional operator requires atomic_add.
+        static constexpr bool are_outputs_atomic =
+            nt::atomic_addable_nd<output_type, 3> and
+            nt::atomic_addable_nd_or_empty<output_weight_type, 3>;
+
+    public:
+        FourierExtract(
+            const input_type& input_volume,
+            const input_weight_type& input_weights,
+            const Shape4<index_type>& input_volume_shape,
+            const output_type& output_slices,
+            const output_weight_type& output_weights,
+            const Shape4<index_type>& output_slice_shape,
+            const batched_scale_type& inv_scaling,
+            const batched_rotate_type& fwd_rotation,
+            coord_type fftfreq_sinc,
+            coord_type fftfreq_blackman,
+            coord_type fftfreq_cutoff,
+            const Shape4<index_type>& target_shape,
+            const ews_type& ews_radius
+        ) :
+            m_input_volume(input_volume),
+            m_output_slices(output_slices),
+            m_fwd_rotation(fwd_rotation),
+            m_input_weights(input_weights),
+            m_output_weights(output_weights),
+            m_inv_scaling(inv_scaling)
+        {
+            const auto slice_shape_2d = output_slice_shape.filter(2, 3);
+            m_slice_shape = slice_shape_2d.template pop_back<ARE_SLICES_RFFT>();
+            m_f_slice_shape = coord2_type::from_vec(slice_shape_2d.vec);
+
+            // Use the grid shape as backup.
+            const auto grid_shape_3d = input_volume_shape.pop_front();
+            const auto target_shape_3d = any(target_shape == 0) ? grid_shape_3d : target_shape.pop_front();
+            m_f_target_shape = coord3_type::from_vec(target_shape_3d.vec);
+
+            // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
+            // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
+            if constexpr (not nt::empty<ews_type>)
+                m_ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_type{};
+
+            m_fftfreq_cutoff_sqd = max(fftfreq_cutoff, coord_type{0});
+            m_fftfreq_cutoff_sqd *= m_fftfreq_cutoff_sqd;
+
+            // This is along the w of the grid.
+            m_fftfreq_sinc = max(fftfreq_sinc, 1 / m_f_target_shape[0]);
+            m_fftfreq_blackman = max(fftfreq_blackman, 1 / m_f_target_shape[0]);
+            tie(m_blackman_size, m_w_window_sum) = guts::z_window_spec<index_type>(
+                m_fftfreq_sinc, m_fftfreq_blackman, m_f_target_shape[0]);
+        }
+
+        [[nodiscard]] constexpr index_type windowed_sinc_size() const noexcept { return m_blackman_size; }
+
+        // For every pixel of every slice to extract.
+        NOA_HD constexpr void operator()(index_type batch, index_type oy, index_type ou) const {
+            const coord3_type fftfreq_3d = compute_fftfreq_in_volume_(batch, oy, ou);
+
+            output_value_type value{};
+            output_weight_value_type weight{};
+
+            if (dot(fftfreq_3d, fftfreq_3d) <= m_fftfreq_cutoff_sqd) {
+                const auto frequency_3d = fftfreq_3d * m_f_target_shape;
+                value = cast_or_abs_squared<output_value_type>(
+                        m_input_volume.interpolate_spectrum_at(frequency_3d));
+
+                // Passing no input weights is technically allowed, but does nothing other than returning ones.
+                if constexpr (not nt::empty<output_weight_type>) {
+                    if constexpr (not nt::empty<input_weight_type>) {
+                        weight = static_cast<output_weight_value_type>(
+                                m_input_weights.interpolate_spectrum_at(frequency_3d));
+                    } else {
+                        weight = 1;
+                    }
+                }
+            }
+
+            m_output_slices(batch, oy, ou) = value;
+            if constexpr (not nt::empty<output_weight_type>)
+                m_output_weights(batch, oy, ou) = weight;
+        }
+
+        // For every pixel of every slice to extract.
+        // w is the index within the windowed-sinc convolution along the z of the grid.
+        NOA_HD constexpr void operator()(
+            index_type batch, index_type ow, index_type oy, index_type ox
+        ) const requires are_outputs_atomic {
+            coord3_type fftfreq_3d = compute_fftfreq_in_volume_(batch, oy, ox);
+
+            // Additional z component, within the grid coordinate system.
+            const auto fftfreq_z_offset = guts::w_index_to_fftfreq_offset(ow, m_blackman_size, m_f_target_shape[0]);
+            fftfreq_3d[0] += fftfreq_z_offset;
+
+            if (dot(fftfreq_3d, fftfreq_3d) > m_fftfreq_cutoff_sqd)
+                return;
+
+            const auto frequency_3d = fftfreq_3d * m_f_target_shape;
+            const auto convolution_weight =
+                guts::windowed_sinc(fftfreq_z_offset, m_fftfreq_sinc, m_fftfreq_blackman) / m_w_window_sum;
+
+            const auto value = m_input_volume.interpolate_spectrum_at(frequency_3d);
+            ng::atomic_add(
+                m_output_slices,
+                cast_or_abs_squared<output_value_type>(value) *
+                static_cast<output_real_type>(convolution_weight),
+                batch, oy, ox);
+
+            if constexpr (not nt::empty<output_weight_type>) {
+                output_weight_value_type weight;
+                if constexpr (not nt::empty<input_weight_type>) {
+                    weight = static_cast<output_weight_value_type>(
+                        m_input_weights.interpolate_spectrum_at(frequency_3d));
+                } else {
+                    weight = 1;
+                }
+                ng::atomic_add(
+                    m_output_weights,
+                    weight * static_cast<output_weight_value_type>(convolution_weight),
+                    batch, oy, ox);
+            }
+        }
+
+    private:
+        // The indexes give us the fftfreq in the coordinate system of the slice to extract.
+        // This function transforms this fftfreq to the coordinate system of the volume.
+        NOA_HD coord3_type compute_fftfreq_in_volume_(index_type batch, index_type oy, index_type ox) const {
+            const auto frequency_2d = noa::fft::index2frequency<ARE_SLICES_CENTERED, ARE_SLICES_RFFT>(
+                Vec{oy, ox}, m_slice_shape);
+            const auto fftfreq_2d = coord2_type::from_vec(frequency_2d) / m_f_slice_shape;
+            return guts::fourier_slice2grid(
+                fftfreq_2d, m_inv_scaling, m_fwd_rotation, batch, m_ews_diam_inv);
+        }
+
+    private:
+        input_type m_input_volume;
+        output_type m_output_slices;
+
+        batched_rotate_type m_fwd_rotation;
+        coord3_type m_f_target_shape;
+        coord2_type m_f_slice_shape;
+        shape_nd_type m_slice_shape;
+
+        coord_type m_fftfreq_cutoff_sqd;
+        coord_type m_fftfreq_sinc;
+        coord_type m_fftfreq_blackman;
+        index_type m_blackman_size;
+        coord_type m_w_window_sum;
+
+        NOA_NO_UNIQUE_ADDRESS input_weight_type m_input_weights;
+        NOA_NO_UNIQUE_ADDRESS output_weight_type m_output_weights;
+        NOA_NO_UNIQUE_ADDRESS batched_scale_type m_inv_scaling;
+        NOA_NO_UNIQUE_ADDRESS ews_type m_ews_diam_inv{};
+    };
+
+    /// Index-wise (3d or 4d) operator for extracting central-slices from a virtual volume made of (other) central-slices.
+    /// \details There are two operator():
+    ///     - The 3d operator, which should be called for every pixel of every slice to extract.
+    ///     - The 4d operator, which has an additional dimension for an output windowed-sinc. Indeed, the extracted
+    ///       slices can be convolved with a windowed-sinc along the z-axis of the volume (note that the convolution
+    ///       is reduced to a simple weighted-sum), effectively applying a (smooth) rectangular mask along the z-axis
+    ///       and centered on the ifft of the virtual volume.
+    ///
+    /// \note If the input slice|weight is complex and the corresponding output is real, the power-spectrum is saved.
+    /// \note The weights are optional and can be real or complex (although in most cases they are real).
+    ///       Creating one operator for the values and one for the weights is equivalent, but projecting the values
+    ///       and weights in the same operator is often more efficient.
+    template<Remap REMAP,
+             nt::sinteger Index,
+             nt::batched_parameter InputScale,
+             nt::batched_parameter InputRotate,
+             nt::batched_parameter OutputScale,
+             nt::batched_parameter OutputRotate,
+             typename EWSCurvature,
+             nt::interpolator_spectrum_nd<2> InputSlice,
+             nt::interpolator_spectrum_nd_or_empty<2> InputSliceWeight,
+             nt::writable_nd<3> OutputSlice,
+             nt::writable_nd_or_empty<3> OutputSliceWeight>
+    class FourierInsertExtract {
+        static constexpr bool ARE_OUTPUT_SLICES_CENTERED = REMAP.is_xx2xc();
+        static constexpr bool ARE_OUTPUT_SLICES_RFFT = REMAP.is_xx2hx();
+
+        using index_type = Index;
+        using shape_nd_type = Shape<index_type, 2 - ARE_OUTPUT_SLICES_RFFT>;
+
+        // Transformations:
+        using input_scale_type = InputScale;
+        using input_rotate_type = InputRotate;
+        using output_scale_type = OutputScale;
+        using output_rotate_type = OutputRotate;
+        using ews_type = EWSCurvature;
+        using coord_type = nt::value_type_twice_t<input_rotate_type>;
+        using coord2_type = Vec2<coord_type>;
+        using coord3_type = Vec3<coord_type>;
+
+        // Input/Output value types:
+        using input_type = InputSlice;
+        using input_weight_type = InputSliceWeight;
+        using output_type = OutputSlice;
+        using output_weight_type = OutputSliceWeight;
+        using input_value_type = nt::mutable_value_type_t<input_type>;
+        using output_value_type = nt::value_type_t<output_type>;
+        using input_real_type = nt::value_type_t<input_value_type>;
+        using output_real_type = nt::value_type_t<output_value_type>;
+        using output_weight_value_type = nt::value_type_t<output_weight_type>;
+        static constexpr bool has_input_weights = not nt::empty<input_weight_type>;
+        static constexpr bool has_output_weights = not nt::empty<output_weight_type>;
+
+        static_assert(guts::fourier_projection_transform_types<input_scale_type, input_rotate_type, ews_type> and
+                      guts::fourier_projection_transform_types<output_scale_type, output_rotate_type, ews_type> and
+                      guts::fourier_projection_types<input_type, output_type> and
+                      guts::fourier_projection_weight_types<input_weight_type, output_weight_type>);
+
+        // Optional operator requires atomic_add.
+        static constexpr bool are_outputs_atomic =
+            nt::atomic_addable_nd<output_type, 3> and
+            nt::atomic_addable_nd_or_empty<output_weight_type, 3>;
+
+    public:
+        FourierInsertExtract(
+            const input_type& input_slices,
+            const input_weight_type& input_weights,
+            const Shape4<index_type>& input_shape,
+            const output_type& output_slices,
+            const output_weight_type& output_weights,
+            const Shape4<index_type>& output_shape,
+            const input_scale_type& insert_fwd_scaling,
+            const input_rotate_type& insert_inv_rotation,
+            const output_scale_type& extract_inv_scaling,
+            const output_rotate_type& extract_fwd_rotation,
+            coord_type insert_fftfreq_sinc,
+            coord_type insert_fftfreq_blackman,
+            coord_type extract_fftfreq_sinc,
+            coord_type extract_fftfreq_blackman,
+            coord_type fftfreq_cutoff,
+            bool add_to_output, bool correct_weights,
+            const ews_type& ews_radius
+        ) :
+            m_input_slices(input_slices),
+            m_output_slices(output_slices),
+            m_insert_inv_rotation(insert_inv_rotation),
+            m_extract_fwd_rotation(extract_fwd_rotation),
+            m_input_count(input_shape[0]),
+            m_input_weights(input_weights),
+            m_output_weights(output_weights),
+            m_insert_fwd_scaling(insert_fwd_scaling),
+            m_extract_inv_scaling(extract_inv_scaling),
+            m_add_to_output(add_to_output),
+            m_correct_weights(correct_weights)
+        {
+            const auto l_input_shape = input_shape.filter(2, 3);
+            const auto l_output_shape = output_shape.filter(2, 3);
+
+            m_f_input_shape = coord2_type::from_vec(l_input_shape.vec);
+            m_f_output_shape = coord2_type::from_vec(l_output_shape.vec);
+            m_output_shape = l_output_shape.template pop_back<ARE_OUTPUT_SLICES_RFFT>();
+
+            // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
+            // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
+            if constexpr (not nt::empty<ews_type>)
+                m_ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_type{};
+
+            m_fftfreq_cutoff_sqd = max(fftfreq_cutoff, coord_type{0});
+            m_fftfreq_cutoff_sqd *= m_fftfreq_cutoff_sqd;
+
+            // Of course, we have no z here, but the smallest axis is a good fallback.
+            m_volume_z = static_cast<coord_type>(min(l_output_shape));
+            m_insert_fftfreq_sinc = max(insert_fftfreq_sinc, 1 / m_volume_z);
+            m_insert_fftfreq_blackman = max(insert_fftfreq_blackman, 1 / m_volume_z);
+            m_extract_fftfreq_sinc = max(extract_fftfreq_sinc, 1 / m_volume_z);
+            m_extract_fftfreq_blackman = max(extract_fftfreq_blackman, 1 / m_volume_z);
+            tie(m_extract_blackman_size, m_extract_window_total_weight) = guts::z_window_spec<index_type>(
+                m_extract_fftfreq_sinc, m_extract_fftfreq_blackman, m_volume_z);
+        }
+
+        // Whether the operator is 4d. Otherwise, it is 3d.
+        [[nodiscard]] constexpr auto is_iwise_4d() const noexcept -> bool {
+            return m_extract_blackman_size > 1;
+        }
+
+        // Returns the size of the output (depth) window.
+        [[nodiscard]] constexpr auto output_window_size() const noexcept -> index_type {
+            return m_extract_blackman_size;
+        }
+
+        // Should be called for every pixel of every slice to extract.
+        NOA_HD constexpr void operator()(index_type batch, index_type y, index_type x) const {
+            const coord3_type fftfreq_3d = compute_fftfreq_in_volume_(batch, y, x);
+
+            if (dot(fftfreq_3d, fftfreq_3d) > m_fftfreq_cutoff_sqd) {
+                if (not m_add_to_output) {
+                    m_output_slices(batch, y, x) = output_value_type{};
+                    if constexpr (has_output_weights)
+                        m_output_weights(batch, y, x) = output_weight_value_type{};
+                }
+                return;
+            }
+
+            const auto value_and_weight = sample_virtual_volume_(fftfreq_3d, m_correct_weights);
+
+            auto& output = m_output_slices(batch, y, x);
+            if (m_add_to_output)
+                output += cast_or_abs_squared<output_value_type>(value_and_weight.first);
+            else
+                output = cast_or_abs_squared<output_value_type>(value_and_weight.first);
+
+            if constexpr (has_output_weights) {
+                auto& weight = m_output_weights(batch, y, x);
+                if (m_add_to_output)
+                    weight += static_cast<output_weight_value_type>(value_and_weight.second);
+                else
+                    weight = static_cast<output_weight_value_type>(value_and_weight.second);
+            }
+        }
+
+        // Should be called for every pixel of every slice to extract and for every element in the z-windowed-sinc.
+        // Of course, this makes the extraction much more expensive. Also, the output-slice could be unset, so
+        // the caller may have to fill it with zeros first, depending on add_to_output.
+        NOA_HD constexpr void operator()(
+            index_type batch, index_type w, index_type y, index_type x
+        ) const requires are_outputs_atomic {
+            coord3_type fftfreq_3d = compute_fftfreq_in_volume_(batch, y, x);
+
+            // Get and add the volume z-offset for the z-windowed-sinc.
+            const auto fftfreq_z_offset = guts::w_index_to_fftfreq_offset(w, m_extract_blackman_size, m_volume_z);
+            fftfreq_3d[0] += fftfreq_z_offset;
+
+            if (dot(fftfreq_3d, fftfreq_3d) > m_fftfreq_cutoff_sqd)
+                return;
+
+            // The weights cannot be corrected on-the-fly in this case because
+            // the final weight is unknown at this point!
+            const auto value_and_weight = sample_virtual_volume_(fftfreq_3d, false);
+
+            // z-windowed sinc.
+            const auto convolution_weight =
+                guts::windowed_sinc(fftfreq_z_offset, m_extract_fftfreq_sinc, m_extract_fftfreq_blackman) /
+                m_extract_window_total_weight;
+
+            // Add the contribution for this z-offset. The z-convolution is essentially a simple weighted mean.
+            ng::atomic_add(
+                m_output_slices,
+                cast_or_abs_squared<output_value_type>(value_and_weight.first) *
+                static_cast<output_real_type>(convolution_weight),
+                batch, y, x);
+            if constexpr (has_output_weights) {
+                ng::atomic_add(
+                    m_output_weights,
+                    static_cast<output_weight_value_type>(value_and_weight.second) *
+                    static_cast<output_weight_value_type>(convolution_weight),
+                    batch, y, x);
+            }
+        }
+
+    private:
+        // The indexes give us the fftfreq in the coordinate system of the slice to extract.
+        // This function transforms this fftfreq to the coordinate system of the virtual volume.
+        NOA_HD coord3_type compute_fftfreq_in_volume_(index_type batch, index_type y, index_type x) const noexcept {
+            const auto frequency_2d = noa::fft::index2frequency<ARE_OUTPUT_SLICES_CENTERED, ARE_OUTPUT_SLICES_RFFT>(
+                Vec{y, x}, m_output_shape);
+            const auto fftfreq_2d = coord2_type::from_vec(frequency_2d) / m_f_output_shape;
+            return guts::fourier_slice2grid(
+                fftfreq_2d, m_extract_inv_scaling, m_extract_fwd_rotation, batch, m_ews_diam_inv);
+        }
+
+        NOA_HD auto sample_virtual_volume_(const coord3_type& fftfreq_3d, bool correct_weights) const noexcept {
+            using input_weight_value_type =
+                std::conditional_t<has_input_weights, nt::mutable_value_type_t<input_weight_type>,
+                std::conditional_t<has_output_weights, output_weight_value_type, input_real_type>>;
+
+            input_value_type value{};
+            input_weight_value_type weight{};
+
+            // For every slice to insert...
+            for (index_type i{}; i < m_input_count; ++i) {
+                // Project the 3d frequency onto that input-slice.
+                // fftfreq_z is along the normal of that input-slice.
+                const auto [fftfreq_z, fftfreq_yx] = guts::fourier_grid2slice(
+                    fftfreq_3d, m_insert_fwd_scaling, m_insert_inv_rotation, i, m_ews_diam_inv);
+
+                // Add the contribution of this slice to that frequency.
+                // Compute only if this slice affects the voxel.
+                // If we fall exactly at the blackman cutoff, the value is 0, so exclude the equality case too.
+                if (abs(fftfreq_z) < m_insert_fftfreq_blackman) {
+                    const auto windowed_sinc = guts::windowed_sinc(
+                        fftfreq_z, m_insert_fftfreq_sinc, m_insert_fftfreq_blackman);
+
+                    const auto frequency_yx = fftfreq_yx * m_f_input_shape;
+                    value += m_input_slices.interpolate_spectrum_at(frequency_yx, i) *
+                             static_cast<input_real_type>(windowed_sinc);
+
+                    if constexpr (has_input_weights) {
+                        weight += m_input_weights.interpolate_spectrum_at(frequency_yx, i) *
+                                  static_cast<input_weight_value_type>(windowed_sinc);
+                    } else {
+                        weight += static_cast<input_weight_value_type>(windowed_sinc); // input_weight=1
+                    }
+                }
+            }
+
+            // Correct for the multiplicity (assuming this is all the signal at that frequency).
+            if (correct_weights) {
+                const auto final_weight = max(input_weight_value_type{1}, weight);
+                value /= static_cast<input_real_type>(final_weight);
+            }
+
+            return Pair{value, weight};
+        }
+
+    private:
+        input_type m_input_slices;
+        output_type m_output_slices;
+
+        input_rotate_type m_insert_inv_rotation;
+        output_rotate_type m_extract_fwd_rotation;
+        coord2_type m_f_output_shape;
+        coord2_type m_f_input_shape;
+        shape_nd_type m_output_shape;
+        index_type m_input_count;
+
+        coord_type m_volume_z;
+        coord_type m_fftfreq_cutoff_sqd;
+        coord_type m_insert_fftfreq_sinc;
+        coord_type m_insert_fftfreq_blackman;
+        coord_type m_extract_fftfreq_sinc;
+        coord_type m_extract_fftfreq_blackman;
+        index_type m_extract_blackman_size;
+        coord_type m_extract_window_total_weight;
+
+        NOA_NO_UNIQUE_ADDRESS input_weight_type m_input_weights;
+        NOA_NO_UNIQUE_ADDRESS output_weight_type m_output_weights;
+        NOA_NO_UNIQUE_ADDRESS input_scale_type m_insert_fwd_scaling;
+        NOA_NO_UNIQUE_ADDRESS output_scale_type m_extract_inv_scaling;
+        NOA_NO_UNIQUE_ADDRESS ews_type m_ews_diam_inv{};
+
+        bool m_add_to_output;
+        bool m_correct_weights;
+    };
+
+        /// Pre/post gridding correction, assuming linear interpolation.
+    template<bool POST_CORRECTION,
+             nt::real Coord,
+             nt::readable_nd<4> Input,
+             nt::writable_nd<4> Output>
+    class GriddingCorrection {
+        using coord_type = Coord;
+        using coord3_type = Vec3<coord_type>;
+        using input_type = Input;
+        using output_type = Output;
+        using output_value_type = nt::value_type_t<output_type>;
+        using input_value_type = nt::value_type_t<input_type>;
+        static_assert(nt::real<input_value_type, output_value_type>);
+
+    public:
+        template<typename T>
+        constexpr GriddingCorrection(
+            const input_type& input,
+            const output_type& output,
+            const Shape4<T>& shape
+        ) :
+            m_input(input),
+            m_output(output)
+        {
+            const auto l_shape = shape.pop_front();
+            m_f_shape = coord3_type::from_vec(l_shape.vec);
+            m_half = m_f_shape / 2 * coord3_type::from_vec(l_shape != 1); // if size == 1, half should be 0
+        }
+
+        template<nt::integer T>
+        NOA_HD void operator()(T batch, T j, T k, T l) const noexcept {
+            auto dist = coord3_type::from_values(j, k, l);
+            dist -= m_half;
+            dist /= m_f_shape;
+
+            constexpr coord_type PI = Constant<coord_type>::PI;
+            const coord_type radius = sqrt(dot(dist, dist));
+            const coord_type sinc = sinc(PI * radius);
+            const auto sinc2 = static_cast<input_value_type>(sinc * sinc); // > 0.05
+
+            const auto value = m_input(batch, j, k, l);
+            if constexpr (POST_CORRECTION) {
+                m_output(batch, j, k, l) = static_cast<output_value_type>(value / sinc2);
+            } else {
+                m_output(batch, j, k, l) = static_cast<output_value_type>(value * sinc2);
+            }
+        }
+
+    private:
+        input_type m_input;
+        output_type m_output;
+        coord3_type m_f_shape;
+        coord3_type m_half;
+    };
+}
 
 namespace noa::geometry::guts {
     template<bool AllowTexture, bool AllowValue,

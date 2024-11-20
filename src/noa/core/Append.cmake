@@ -10,8 +10,6 @@ set(NOA_CORE_HEADERS
     core/Reduce.hpp
     core/Traits.hpp
 
-    core/fft/FourierRemap.hpp
-    core/fft/FourierResize.hpp
     core/fft/Frequency.hpp
 
     core/indexing/Bounds.hpp
@@ -58,33 +56,16 @@ set(NOA_CORE_HEADERS
     core/utils/Strings.hpp
     core/utils/Zip.hpp
 
-    core/signal/Bandpass.hpp
-    core/signal/Correlation.hpp
     core/signal/CTF.hpp
-    core/signal/FilterSpectrum.hpp
-    core/signal/FSC.hpp
-    core/signal/PhaseShift.hpp
-    core/signal/StandardizeIFFT.hpp
     core/signal/Windows.hpp
 
-    core/geometry/Project.hpp
     core/geometry/DrawShape.hpp
     core/geometry/Euler.hpp
-    core/geometry/FourierExtract.hpp
-    core/geometry/FourierGriddingCorrection.hpp
-    core/geometry/FourierInsertExtract.hpp
-    core/geometry/FourierInsertInterpolate.hpp
-    core/geometry/FourierInsertRasterize.hpp
-    core/geometry/FourierUtilities.hpp
     core/geometry/Polar.hpp
-    core/geometry/PolarTransform.hpp
-    core/geometry/PolarTransformSpectrum.hpp
     core/geometry/Prefilter.hpp
     core/geometry/Quaternion.hpp
-    core/geometry/RotationalAverage.hpp
     core/geometry/Symmetry.hpp
     core/geometry/Transform.hpp
-    core/geometry/TransformSpectrum.hpp
     )
 
 set(NOA_CORE_SOURCES

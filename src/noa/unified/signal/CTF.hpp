@@ -3,8 +3,145 @@
 #include "noa/core/Enums.hpp"
 #include "noa/core/utils/BatchedParameter.hpp"
 #include "noa/core/signal/CTF.hpp"
+#include "noa/core/fft/Frequency.hpp"
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Iwise.hpp"
+
+namespace noa::signal::guts {
+    /// Index-wise operator, to compute/apply CTFs to {1|2|3}d DFTs.
+    /// \details If the input is valid, input*ctf->output is computed for the full fftfreq range.
+    ///          Note that if the input is complex and the output is real, abs(input*ctf)^2->output
+    ///          is computed instead. If the input is empty, ctf->output is computed, for a user-defined
+    ///          frequency range.
+    template<Remap REMAP, size_t N,
+             nt::any_of<f32, f64> Coord,
+             nt::sinteger Index,
+             nt::readable_nd_or_empty<N + 1> Input,
+             nt::writable_nd<N + 1> Output,
+             nt::batched_parameter CTFParameter>
+    class CTF {
+    public:
+        static_assert(REMAP.is_any(Remap::H2H, Remap::HC2HC, Remap::HC2H, Remap::H2HC,
+                                   Remap::F2F, Remap::FC2FC, Remap::FC2F, Remap::F2FC));
+
+        using input_type = Input;
+        using output_type = Output;
+        using input_value_type = nt::value_type_t<input_type>;
+        using input_real_type = nt::value_type_t<input_value_type>;
+        using output_value_type = nt::value_type_t<output_type>;
+        static_assert(nt::spectrum_types<input_value_type, output_value_type> or
+                      (nt::empty<input_type> and nt::real_or_complex<output_value_type>));
+
+        using ctf_parameter_type = CTFParameter;
+        using ctf_type = nt::value_type_t<ctf_parameter_type>;
+        static_assert(nt::ctf<ctf_type>);
+
+        static constexpr bool HAS_INPUT = not nt::empty<input_type>;
+        static constexpr bool IS_RFFT = REMAP.is_hx2hx();
+        static constexpr bool IS_DST_CENTERED = REMAP.is_xx2xc();
+        static constexpr bool IS_ISOTROPIC = nt::ctf_isotropic<ctf_type>;
+
+        using index_type = Index;
+        using coord_type = Coord;
+        using coord_or_empty_type = std::conditional_t<nt::empty<input_type>, coord_type, Empty>;
+        using shape_nd_type = Shape<index_type, N>;
+        using shape_type = Shape<index_type, N - IS_RFFT>;
+        using coord_nd_type = Vec<coord_type, N>;
+        using frequency_range_type = Vec2<coord_type>;
+
+    public:
+        constexpr CTF(
+            const input_type& input,
+            const output_type& output,
+            const shape_nd_type& shape,
+            const ctf_parameter_type& ctf,
+            bool ctf_abs,
+            bool ctf_squared
+        ) requires HAS_INPUT :
+            m_ctf(ctf),
+            m_output(output),
+            m_shape(shape.template pop_back<IS_RFFT>()),
+            m_frequency_step(coord_type{1} / coord_nd_type::from_vec(shape.vec)),
+            m_input(input),
+            m_ctf_abs(ctf_abs),
+            m_ctf_squared(ctf_squared) {}
+
+        constexpr CTF(
+            const output_type& output,
+            const shape_nd_type& shape,
+            const ctf_parameter_type& ctf,
+            bool ctf_abs,
+            bool ctf_squared,
+            const frequency_range_type& frequency_range,
+            bool frequency_range_endpoint
+        ) requires (not HAS_INPUT) :
+            m_ctf(ctf),
+            m_output(output),
+            m_shape(shape.template pop_back<IS_RFFT>()),
+            m_frequency_start(frequency_range[0]),
+            m_ctf_abs(ctf_abs),
+            m_ctf_squared(ctf_squared)
+        {
+            // If frequency.end is negative, defaults to the highest frequency.
+            // In this case, and if the frequency.start is 0, this results in the full frequency range.
+            for (size_t i{}; i < N; ++i) {
+                const auto max_sample_size = shape[i] / 2 + 1;
+                const auto frequency_end =
+                    frequency_range[1] < 0 ?
+                    noa::fft::highest_normalized_frequency<coord_type>(shape[i]) :
+                    frequency_range[1];
+                m_frequency_step[i] = Linspace{
+                    .start = frequency_range[0],
+                    .stop = frequency_end,
+                    .endpoint = frequency_range_endpoint
+                }.for_size(max_sample_size).step;
+            }
+        }
+
+    public:
+        template<nt::same_as<index_type>... I> requires (sizeof...(I) == N)
+        NOA_HD void operator()(
+            index_type batch,
+            I... output_indices
+        ) const {
+            auto frequency = noa::fft::index2frequency<IS_DST_CENTERED, IS_RFFT>(Vec{output_indices...}, m_shape);
+            auto fftfreq = coord_nd_type::from_vec(frequency) * m_frequency_step;
+            if constexpr (not HAS_INPUT)
+                fftfreq += m_frequency_start;
+
+            auto ctf = m_ctf[batch].value_at([&] {
+                if constexpr (N == 1)
+                    return fftfreq[0];
+                else if constexpr ((N == 2 and IS_ISOTROPIC) or N == 3)
+                    return norm(fftfreq);
+                else // N == 2 anisotropic
+                    return fftfreq;
+            }());
+            if (m_ctf_abs)
+                ctf = abs(ctf);
+            if (m_ctf_squared)
+                ctf *= ctf;
+
+            if constexpr (HAS_INPUT) {
+                const auto input_indices = noa::fft::remap_indices<REMAP, true>(Vec{output_indices...}, m_shape);
+                m_output(batch, output_indices...) = cast_or_abs_squared<output_value_type>(
+                    m_input(input_indices.push_front(batch)) * static_cast<input_real_type>(ctf));
+            } else {
+                m_output(batch, output_indices...) = static_cast<output_value_type>(ctf);
+            }
+        }
+
+    private:
+        ctf_parameter_type m_ctf;
+        output_type m_output;
+        shape_type m_shape;
+        coord_nd_type m_frequency_step;
+        NOA_NO_UNIQUE_ADDRESS input_type m_input{};
+        NOA_NO_UNIQUE_ADDRESS coord_or_empty_type m_frequency_start{};
+        bool m_ctf_abs;
+        bool m_ctf_squared;
+    };
+}
 
 namespace noa::signal::guts {
     template<typename T, typename U = nt::value_type_t<T>, typename V = std::decay_t<T>>
