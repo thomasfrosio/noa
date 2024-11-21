@@ -7,7 +7,7 @@ The library as very few dependencies, most of which should be installed before s
 
 "Options" are cache variables (i.e. they are not updated if already set), so they can be set from the command line or using a tool like [cmake-gui](https://cmake.org/cmake/help/latest/manual/cmake-gui.1.html). Options should be prefixed with `-D` when entered on the command line.
 
-Here is the [list](../cmake/utils/ProjectOptions.cmake) of the project-specific options available. Note that the following CMake cache variables are recommended:
+Here is the [list](../cmake/ProjectOptions.cmake) of the project-specific options available. Note that the following CMake cache variables are recommended:
 - `CMAKE_BUILD_TYPE`: The build type. Default: `Release`.
 - `CMAKE_INSTALL_PREFIX`: Directory where the library will be installed.
 
