@@ -79,7 +79,7 @@ struct MyAffineTransform {
         // Bilinear interpolation.
         // Note: we also provide an Interpolator that can do all of this.
         const auto floored = noa::floor(coordinate);
-        const auto indices = floored.template as<int>();
+        const auto indices = floored.as<int>();
         const auto fraction = coordinates - floored;
         const auto weights = noa::Vec{1 - fraction, fraction};
 
