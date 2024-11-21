@@ -58,7 +58,7 @@ TEST_CASE("unified::geometry::transform_3d, rotate vs scipy", "[noa][unified][as
             // With arrays:
             const auto output = noa::like(expected);
             if (interp.is_almost_any(Interp::CUBIC_BSPLINE))
-                noa::geometry::cubic_bspline_prefilter(input, input);
+                noa::cubic_bspline_prefilter(input, input);
             noa::geometry::transform_3d(input, output, inv_matrix, {interp, border, cvalue});
 
             if (interp == noa::Interp::NEAREST) {
@@ -123,7 +123,7 @@ TEST_CASE("unified::geometry::transform_3d(), others", "[noa][unified][assets]")
             const auto input = noa::io::read_data<f32>(input_filename);
             const auto output = noa::like(input);
             if (interp.is_almost_any(Interp::CUBIC_BSPLINE))
-                noa::geometry::cubic_bspline_prefilter(input, input);
+                noa::cubic_bspline_prefilter(input, input);
             noa::geometry::transform_3d(input, output, inv_matrix, {interp, border, cvalue});
             noa::io::write(output, expected_filename);
             continue;
@@ -140,7 +140,7 @@ TEST_CASE("unified::geometry::transform_3d(), others", "[noa][unified][assets]")
             // With arrays:
             const auto output = noa::like(expected);
             if (interp.is_almost_any(Interp::CUBIC_BSPLINE))
-                noa::geometry::cubic_bspline_prefilter(input.copy(), input);
+                noa::cubic_bspline_prefilter(input.copy(), input);
             noa::geometry::transform_3d(input, output, inv_matrix, {interp, border, cvalue});
             REQUIRE(test::allclose_abs_safe(expected, output, 1e-4f)); // usually around 2e-5, with some outliers...
 
@@ -199,8 +199,8 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_3d, cpu vs gpu", "[noa][geometr
     const auto output_gpu = noa::like(input_gpu);
 
     if (interp.is_almost_any(Interp::CUBIC_BSPLINE)) {
-        noa::geometry::cubic_bspline_prefilter(input_cpu, input_cpu);
-        noa::geometry::cubic_bspline_prefilter(input_gpu, input_gpu);
+        noa::cubic_bspline_prefilter(input_cpu, input_cpu);
+        noa::cubic_bspline_prefilter(input_gpu, input_gpu);
     }
     noa::geometry::transform_3d(input_cpu, output_cpu, rotation_matrix, {interp, border, value});
     noa::geometry::transform_3d(input_gpu, output_gpu, rotation_matrix, {interp, border, value});

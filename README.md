@@ -58,7 +58,7 @@ int main() {
 
     // Compute the affine transformation.
     noa::Array<float> output = noa::like(images);
-    ng::transform_2d(input, output, inverse_transform {
+    ng::transform_2d(input, output, inverse_transform, {
         .interp = noa::Interp::LINEAR, // optional
         .border = noa::Border::ZERO,   // optional
     });

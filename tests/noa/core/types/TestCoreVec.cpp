@@ -1,4 +1,4 @@
-#include <noa/core/Types.hpp>
+#include <noa/core/types/Vec.hpp>
 #include <catch2/catch.hpp>
 #include "Utils.hpp"
 

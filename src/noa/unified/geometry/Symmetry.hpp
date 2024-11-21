@@ -8,6 +8,102 @@
 #include "noa/unified/Iwise.hpp"
 #include "noa/unified/Interpolation.hpp"
 
+namespace noa::geometry {
+    /// Symmetry utility class, storing and managing symmetry rotation matrices.
+    /// \note By convention, the identity matrix is not stored as
+    ///       it is implicitly applied by the "symmetrize" functions.
+    /// \note Supported symmetries:
+    ///     - CX, with X being a non-zero positive number.
+    /// TODO Add quaternions and more symmetries...
+    template<typename Real, size_t N>
+    class Symmetry {
+    public:
+        using value_type = Real;
+        using matrix_type = Mat<value_type, N, N>;
+        using array_type = Array<matrix_type>;
+        using shared_type = array_type::shared_type;
+
+        /// Construct an empty object.
+        constexpr Symmetry() = default;
+
+        /// Allocates and initializes the symmetry matrices on the device.
+        constexpr explicit Symmetry(const SymmetryCode& code, const ArrayOption& options = {}) : m_code(code) {
+            validate_and_set_buffer_(options);
+        }
+
+        constexpr explicit Symmetry(std::string_view code, const ArrayOption& options = {}) {
+            const auto parsed_code = SymmetryCode::from_string(code);
+            check(parsed_code.has_value(), "Failed to parse \"{}\" to a valid symmetry", code);
+            m_code = parsed_code.value();
+            validate_and_set_buffer_(options);
+        }
+
+        /// Imports existing matrices. No validation is done.
+        /// The identity matrix should not be included as it is implicitly applied by the "symmetrize" functions.
+        template<nt::almost_any_of<array_type> A>
+        constexpr explicit Symmetry(A&& matrices, const SymmetryCode& code) :
+            m_buffer(std::forward<A>(matrices)),
+            m_code(code)
+        {
+            check(ni::is_contiguous_vector(m_buffer),
+                  "The symmetry matrices should be saved in a contiguous vector, "
+                  "but got matrices:shape={} and matrices:strides={}",
+                  m_buffer.shape(), m_buffer.strides());
+        }
+
+    public:
+        [[nodiscard]] auto code() const -> SymmetryCode { return m_code; }
+        [[nodiscard]] auto device() const { return m_buffer.device(); }
+        [[nodiscard]] auto options() const { return m_buffer.options(); }
+        [[nodiscard]] auto is_empty() const { return m_buffer.is_empty(); }
+
+        [[nodiscard]] auto span() const -> Span<const matrix_type> {
+            return m_buffer.template span<const matrix_type>();
+        }
+
+        [[nodiscard]] auto share() const& -> const shared_type& { return m_buffer.share(); }
+        [[nodiscard]] auto share() && -> shared_type&& { return std::move(m_buffer).share(); }
+
+        [[nodiscard]] auto array() const& -> const array_type& { return m_buffer; }
+        [[nodiscard]] auto array() && -> array_type&& { return std::move(m_buffer); }
+
+        [[nodiscard]] auto to(ArrayOption option) const& -> Symmetry {
+            array_type out(array().shape(), option);
+            array().to(out);
+            return Symmetry(std::move(out), code());
+        }
+        [[nodiscard]] auto to(ArrayOption option) && -> Symmetry {
+            array_type out(array().shape(), option);
+            array().to(out);
+            return Symmetry(std::move(out), code());
+        }
+
+    private:
+        void validate_and_set_buffer_(const ArrayOption& options) {
+            check(m_code.type == 'C' and m_code.order > 0, "{} symmetry is not supported", m_code.to_string());
+
+            i64 n_matrices = m_code.order - 1; // -1 to remove the identity from the matrices
+            if (options.device.is_cpu()) {
+                m_buffer = array_type(n_matrices, options);
+                guts::set_cx_symmetry_matrices(m_buffer.span_1d_contiguous());
+            } else {
+                // Create a new sync stream so that the final copy doesn't sync the default cpu stream of the user.
+                const auto guard = StreamGuard(Device{}, Stream::DEFAULT);
+                array_type cpu_matrices(n_matrices);
+                guts::set_cx_symmetry_matrices(cpu_matrices.span_1d_contiguous());
+
+                // Copy to gpu.
+                m_buffer = array_type(n_matrices, options);
+                copy(std::move(cpu_matrices), m_buffer);
+            }
+        }
+
+    private:
+        array_type m_buffer;
+        SymmetryCode m_code;
+    };
+}
+
 namespace noa::geometry::guts {
     /// 3d or 4d iwise operator used to symmetrize 2d or 3d array(s).
     ///  * Can apply a per batch affine transformation before and after the symmetry.
@@ -106,105 +202,7 @@ namespace noa::geometry::guts {
         NOA_NO_UNIQUE_ADDRESS batched_pre_inverse_affine_type m_pre_inverse_affine_matrices;
         NOA_NO_UNIQUE_ADDRESS batched_post_inverse_affine_type m_post_inverse_affine_matrices;
     };
-}
 
-namespace noa::geometry {
-    /// Symmetry utility class, storing and managing symmetry rotation matrices.
-    /// \note By convention, the identity matrix is not stored as
-    ///       it is implicitly applied by the "symmetrize" functions.
-    /// \note Supported symmetries:
-    ///     - CX, with X being a non-zero positive number.
-    /// TODO Add quaternions and more symmetries...
-    template<typename Real, size_t N>
-    class Symmetry {
-    public:
-        using value_type = Real;
-        using matrix_type = Mat<value_type, N, N>;
-        using array_type = Array<matrix_type>;
-        using shared_type = array_type::shared_type;
-
-        /// Construct an empty object.
-        constexpr Symmetry() = default;
-
-        /// Allocates and initializes the symmetry matrices on the device.
-        constexpr explicit Symmetry(const SymmetryCode& code, const ArrayOption& options = {}) : m_code(code) {
-            validate_and_set_buffer_(options);
-        }
-
-        constexpr explicit Symmetry(std::string_view code, const ArrayOption& options = {}) {
-            const auto parsed_code = SymmetryCode::from_string(code);
-            check(parsed_code.has_value(), "Failed to parse \"{}\" to a valid symmetry", code);
-            m_code = parsed_code.value();
-            validate_and_set_buffer_(options);
-        }
-
-        /// Imports existing matrices. No validation is done.
-        /// The identity matrix should not be included as it is implicitly applied by the "symmetrize" functions.
-        template<nt::almost_any_of<array_type> A>
-        constexpr explicit Symmetry(A&& matrices, const SymmetryCode& code) :
-            m_buffer(std::forward<A>(matrices)),
-            m_code(code)
-        {
-            check(ni::is_contiguous_vector(m_buffer),
-                  "The symmetry matrices should be saved in a contiguous vector, "
-                  "but got matrices:shape={} and matrices:strides={}",
-                  m_buffer.shape(), m_buffer.strides());
-        }
-
-    public:
-        [[nodiscard]] auto code() const -> SymmetryCode { return m_code; }
-        [[nodiscard]] auto device() const { return m_buffer.device(); }
-        [[nodiscard]] auto options() const { return m_buffer.options(); }
-        [[nodiscard]] auto is_empty() const { return m_buffer.is_empty(); }
-
-        [[nodiscard]] auto span() const -> Span<const matrix_type> {
-            return m_buffer.template span<const matrix_type>();
-        }
-
-        [[nodiscard]] auto share() const& -> const shared_type& { return m_buffer.share(); }
-        [[nodiscard]] auto share() && -> shared_type&& { return std::move(m_buffer).share(); }
-
-        [[nodiscard]] auto array() const& -> const array_type& { return m_buffer; }
-        [[nodiscard]] auto array() && -> array_type&& { return std::move(m_buffer); }
-
-        [[nodiscard]] auto to(ArrayOption option) const& -> Symmetry {
-            array_type out(array().shape(), option);
-            array().to(out);
-            return Symmetry(std::move(out), code());
-        }
-        [[nodiscard]] auto to(ArrayOption option) && -> Symmetry {
-            array_type out(array().shape(), option);
-            array().to(out);
-            return Symmetry(std::move(out), code());
-        }
-
-    private:
-        void validate_and_set_buffer_(const ArrayOption& options) {
-            check(m_code.type == 'C' and m_code.order > 0, "{} symmetry is not supported", m_code.to_string());
-
-            i64 n_matrices = m_code.order - 1; // -1 to remove the identity from the matrices
-            if (options.device.is_cpu()) {
-                m_buffer = array_type(n_matrices, options);
-                guts::set_cx_symmetry_matrices(m_buffer.span_1d_contiguous());
-            } else {
-                // Create a new sync stream so that the final copy doesn't sync the default cpu stream of the user.
-                const auto guard = StreamGuard(Device{}, Stream::DEFAULT);
-                array_type cpu_matrices(n_matrices);
-                guts::set_cx_symmetry_matrices(cpu_matrices.span_1d_contiguous());
-
-                // Copy to gpu.
-                m_buffer = array_type(n_matrices, options);
-                copy(std::move(cpu_matrices), m_buffer);
-            }
-        }
-
-    private:
-        array_type m_buffer;
-        SymmetryCode m_code;
-    };
-}
-
-namespace noa::geometry::guts {
     template<typename T, size_t N>
     concept symmetry_nd = nt::any_of<std::decay_t<T>, Symmetry<f32, N>, Symmetry<f64, N>>;
 
@@ -283,7 +281,7 @@ namespace noa::geometry::guts {
 
         auto launch_iwise = [&](auto interp) {
             auto interpolator = ng::to_interpolator<N, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
-            using op_t = Symmetrize<
+            using op_t = guts::Symmetrize<
                 N, Index, decltype(symmetry_matrices), decltype(interpolator), output_accessor_t,
                 decltype(batched_pre_inverse_matrices), decltype(batched_post_inverse_matrices)>;
 

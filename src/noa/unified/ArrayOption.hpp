@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/unified/Allocator.hpp"
 #include "noa/unified/Device.hpp"
 
@@ -13,12 +10,12 @@ namespace noa::inline types {
         Device device{};
         Allocator allocator{};
 
-        constexpr ArrayOption& set_device(Device new_device) noexcept {
+        constexpr auto set_device(Device new_device) noexcept -> ArrayOption& {
             device = new_device;
             return *this;
         }
 
-        constexpr ArrayOption& set_allocator(Allocator new_allocator) noexcept {
+        constexpr auto set_allocator(Allocator new_allocator) noexcept -> ArrayOption& {
             allocator = new_allocator;
             return *this;
         }
@@ -29,9 +26,8 @@ namespace noa::inline types {
         ///       the allocated data. For instance, pinned memory can be dereferenced by the CPU, so this function will
         ///       returned true, but if the device is a GPU, the library will refer to the memory region as a
         ///       GPU-own region and will therefore prioritize GPU access.
-        [[nodiscard]] constexpr bool is_dereferenceable() const noexcept {
+        [[nodiscard]] constexpr auto is_dereferenceable() const noexcept -> bool {
             return device.is_cpu() or allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL);
         }
     };
 }
-#endif

@@ -1,10 +1,7 @@
 #pragma once
 
-#include "noa/core/Types.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <algorithm>
-#include "noa/cpu/Stream.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/cpu/AllocatorHeap.hpp"
 
 namespace noa::cpu::guts::sort {
@@ -201,4 +198,3 @@ namespace noa::cpu {
             guts::sort::sort_batched_(array, strides, shape, dim, ascending);
     }
 }
-#endif

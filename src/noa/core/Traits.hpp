@@ -1,21 +1,13 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-#include "noa/core/Namespace.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <climits>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
 #include <utility>
-#else
-#include <cuda/std/climits>
-#include <cuda/std/cstddef>
-#include <cuda/std/cstdint>
-#include <cuda/std/type_traits>
-#include <cuda/std/utility>
-#endif
+
+#include "noa/core/Config.hpp"
+#include "noa/core/Namespace.hpp"
 
 // Assume POSIX and/or Windows, both of which guarantee CHAR_BIT == 8.
 // The rest should fine for all modern hardware.

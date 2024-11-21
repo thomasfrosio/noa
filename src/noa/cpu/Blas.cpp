@@ -1,5 +1,6 @@
 // Eigen raises warnings...
 #include "noa/core/Config.hpp"
+
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wsign-conversion"

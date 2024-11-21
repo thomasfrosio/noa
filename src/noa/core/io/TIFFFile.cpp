@@ -2,7 +2,7 @@
 
 #include <tiffio.h>
 
-#include "noa/core/Types.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/core/io/OS.hpp"
 #include "noa/core/io/TIFFFile.hpp"
 

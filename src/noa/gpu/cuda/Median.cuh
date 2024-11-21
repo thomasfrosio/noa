@@ -1,9 +1,6 @@
 #pragma once
 #include "noa/gpu/cuda/IncludeGuard.cuh"
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/types/Shape.hpp"
 #include "noa/core/indexing/Layout.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
@@ -49,4 +46,3 @@ namespace noa::cuda {
         return out[0];
     }
 }
-#endif

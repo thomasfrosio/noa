@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <filesystem>
 #include <fstream>
 #include "noa/core/Traits.hpp"
@@ -13,7 +10,11 @@
 
 namespace noa::io {
     struct BinaryFileOptions {
+        /// Whether the file should be deleted after closing.
         bool close_delete{};
+
+        /// Whether the file should be placed in the current working directory.
+        /// Otherwise, temporary_directory() is used.
         bool default_to_cwd{};
     };
 
@@ -29,11 +30,11 @@ namespace noa::io {
             if (use_cwd)
                 out = fs::current_path() / "";
             else
-                out = noa::io::temporary_directory() / "";
+                out = temporary_directory() / "";
             while (true) {
                 const i32 tag = 10000 + std::rand() / (99999 / (99999 - 10000 + 1) + 1); // 5 random digits
                 out.replace_filename(fmt::format("tmp_{}.bin", tag));
-                if (not noa::io::is_file(out))
+                if (not is_file(out))
                     break;
             }
             return out;
@@ -44,14 +45,18 @@ namespace noa::io {
         BinaryFile() = default;
 
         /// Stores the path and opens the file. \see open() for more details.
-        BinaryFile(Path path, Open open_mode, BinaryFileOptions options = {})
-                : m_path(std::move(path)), m_delete(options.close_delete) {
+        BinaryFile(Path path, Open open_mode, BinaryFileOptions options = {}) :
+            m_path(std::move(path)),
+            m_delete(options.close_delete)
+        {
             open_(open_mode);
         }
 
         /// Generates a temporary filename and opens the file.
-        explicit BinaryFile(Open open_mode, BinaryFileOptions options = {})
-                : m_path(generate_filename(options.default_to_cwd)), m_delete(options.close_delete) {
+        explicit BinaryFile(Open open_mode, BinaryFileOptions options = {}) :
+            m_path(generate_filename(options.default_to_cwd)),
+            m_delete(options.close_delete)
+        {
             open_(open_mode);
         }
 
@@ -62,7 +67,7 @@ namespace noa::io {
         ///                     \c read-write:              File should exists.     Backup copy.
         ///                     \c write, write-truncate:   Overwrite the file.     Backup move.
         ///                     \c read-write-truncate:     Overwrite the file.     Backup move.
-        /// \param close_delete Whether the file should be deleted after closing.
+        /// \param options      Only .close_delete is used.
         ///
         /// \throws Exception   If any of the following cases:
         ///         - If the file does not exist and \p open_mode is set to read or read-write.
@@ -150,4 +155,3 @@ namespace noa::io {
         bool m_delete{false};
     };
 }
-#endif

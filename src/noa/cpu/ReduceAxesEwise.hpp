@@ -1,10 +1,7 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
-#include <omp.h>
-#include "noa/core/Types.hpp"
+#include "noa/core/types/Accessor.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/core/Interfaces.hpp"
 #include "noa/cpu/ReduceEwise.hpp"
 
@@ -321,4 +318,3 @@ namespace noa::cpu {
         }
     }
 }
-#endif

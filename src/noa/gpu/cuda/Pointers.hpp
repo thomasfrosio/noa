@@ -1,6 +1,9 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
+#include "noa/core/types/Shape.hpp"
+#include "noa/gpu/cuda/Device.hpp"
+#include "noa/gpu/cuda/Error.hpp"
+#include "noa/gpu/cuda/Runtime.hpp"
 
 namespace noa::cuda {
     /// Aligned array that generates vectorized load/store in CUDA.
@@ -17,15 +20,7 @@ namespace noa::cuda {
         constexpr static size_t SIZE = N;
         T data[N];
     };
-}
 
-#ifdef NOA_IS_OFFLINE
-#include "noa/core/types/Shape.hpp"
-#include "noa/gpu/cuda/Device.hpp"
-#include "noa/gpu/cuda/Error.hpp"
-#include "noa/gpu/cuda/Runtime.hpp"
-
-namespace noa::cuda {
     /// Returns the pointer attributes of ptr.
     inline cudaPointerAttributes pointer_attributes(const void* ptr) {
         cudaPointerAttributes attr;
@@ -212,4 +207,3 @@ namespace noa::cuda {
         }
     }
 }
-#endif

@@ -1,9 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-#include "noa/core/Traits.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <utility> // std::exchange
 #include <memory> // std::unique_ptr, std::shared_ptr
 
@@ -613,5 +609,3 @@ namespace noa::cuda {
         using texture_type = texture_type_<N, INTERP, BORDER, Value, Coord, Index>::type;
     };
 }
-
-#endif

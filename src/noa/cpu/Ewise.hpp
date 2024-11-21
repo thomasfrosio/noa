@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <omp.h>
 #include "noa/core/Interfaces.hpp"
 #include "noa/core/types/Shape.hpp"
@@ -135,4 +132,3 @@ namespace noa::cpu {
         }
     }
 }
-#endif

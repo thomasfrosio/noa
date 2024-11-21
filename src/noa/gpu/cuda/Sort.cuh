@@ -1,9 +1,6 @@
 #pragma once
 #include "noa/gpu/cuda/IncludeGuard.cuh"
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/Iwise.hpp"
 #include "noa/gpu/cuda/Allocators.hpp"
 #include "noa/gpu/cuda/Copy.cuh"
@@ -265,4 +262,3 @@ namespace noa::cuda {
             guts::sort_batched_(array, strides, shape, dim, ascending, stream);
     }
 }
-#endif

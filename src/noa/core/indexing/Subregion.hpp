@@ -72,7 +72,6 @@ namespace noa::indexing {
         std::uintptr_t offset;
     };
 
-#ifdef NOA_IS_OFFLINE
     /// Utility to create and extract subregions.
     /// Dimensions can be extracted using either:
     /// -   A single index value: This is bound-checked. Negative values are allowed.
@@ -175,5 +174,4 @@ namespace noa::indexing {
     constexpr auto make_subregion(const T&... indices) noexcept {
         return Subregion<N, T...>(indices...);
     }
-#endif
 }

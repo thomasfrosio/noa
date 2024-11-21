@@ -20,7 +20,7 @@ namespace noa::geometry {
     /// \param radius_range     Radius [start,end] range of the bounding circle, in pixels.
     /// \param log              Whether this is the log-polar coordinates system.
     template<nt::real T, nt::sinteger I, size_t A>
-    [[nodiscard]] NOA_IHD T polar2rho(T polar_coordinate, I polar_size, const Vec<T, 2, A>& radius_range, bool log) {
+    [[nodiscard]] NOA_IHD auto polar2rho(T polar_coordinate, I polar_size, const Vec<T, 2, A>& radius_range, bool log) -> T {
         NOA_ASSERT(radius_range[1] - radius_range[0] > 1);
         const T effective_size = static_cast<T>(polar_size - 1);
         if (log) {
@@ -103,7 +103,7 @@ namespace noa::geometry {
     /// \param radius_range Radius [start,end] range of the bounding circle, in pixels.
     /// \param log          Whether this is the log-polar coordinates system.
     template<nt::real T, nt::sinteger I, size_t A>
-    [[nodiscard]] NOA_IHD constexpr T rho2polar(T rho, I polar_size, const Vec<T, 2, A>& radius_range, bool log) {
+    [[nodiscard]] NOA_IHD constexpr auto rho2polar(T rho, I polar_size, const Vec<T, 2, A>& radius_range, bool log) -> T {
         const T effective_size = static_cast<T>(polar_size - 1);
         if (log) {
             const T step = noa::log(radius_range[1] - radius_range[0]) / effective_size;
@@ -117,7 +117,7 @@ namespace noa::geometry {
     /// Returns the phi angle of the (y,x) cartesian \p coordinate.
     /// If \p OFFSET, the returned values is between [0,2pi], otherwise [-pi,pi].
     template<bool OFFSET = true, nt::real T, size_t A>
-    [[nodiscard]] NOA_IHD T cartesian2phi(const Vec<T, 2, A>& coordinate) {
+    [[nodiscard]] NOA_IHD auto cartesian2phi(const Vec<T, 2, A>& coordinate) -> T {
         T angle = atan2(coordinate[0], coordinate[1]); // [-pi,pi]
         if (OFFSET and angle < 0)
             angle += Constant<T>::PI * 2; // [0,2pi]
@@ -127,7 +127,7 @@ namespace noa::geometry {
     /// Returns the phi angle of the (z,y,x) cartesian \p coordinate.
     /// If \p OFFSET, the returned values is between [0,2pi], otherwise [-pi,pi].
     template<bool OFFSET = true, nt::real T, size_t A>
-    [[nodiscard]] NOA_IHD T cartesian2phi(const Vec<T, 3, A>& coordinate) {
+    [[nodiscard]] NOA_IHD auto cartesian2phi(const Vec<T, 3, A>& coordinate) -> T {
         T angle = atan2(coordinate[1], coordinate[2]); // [-pi,pi]
         if (OFFSET and angle < 0)
             angle += Constant<T>::PI * 2; // [0,2pi]
@@ -136,7 +136,7 @@ namespace noa::geometry {
 
     /// Returns the theta angle [0,pi] of the (z,y,x) cartesian \p coordinate.
     template<nt::real T, size_t A>
-    [[nodiscard]] NOA_IHD T cartesian2theta(const Vec<T, 3, A>& coordinate) {
+    [[nodiscard]] NOA_IHD auto cartesian2theta(const Vec<T, 3, A>& coordinate) -> T {
         T angle = atan2(hypot(coordinate[1], coordinate[2]), coordinate[0]); // [0,pi]
         return angle;
     }
@@ -148,7 +148,7 @@ namespace noa::geometry {
     /// \param angle_range  Angle [start,end] range, in radians, of the bounding (truncated)-circle.
     ///                     Increases in the counterclockwise orientation (i.e. unit circle).
     template<nt::real T, nt::sinteger I, size_t A>
-    [[nodiscard]] NOA_IHD constexpr T phi2polar(T phi, I polar_size, const Vec<T, 2, A>& angle_range) {
+    [[nodiscard]] NOA_IHD constexpr auto phi2polar(T phi, I polar_size, const Vec<T, 2, A>& angle_range) -> T {
         const T effective_size = static_cast<T>(polar_size - 1);
         const T step_angle = (angle_range[1] - angle_range[0]) / effective_size;
         return (phi - angle_range[0]) / step_angle;

@@ -558,7 +558,6 @@ namespace noa::traits {
     struct proclaim_is_mat_of_shape<noa::Mat<T, R0, C0>, R, C> : std::bool_constant<R0 == R and C0 == C> {};
 }
 
-#ifdef NOA_IS_OFFLINE
 namespace noa::string {
     template<typename T, size_t R, size_t C>
     struct Stringify<Mat<T, R, C>> {
@@ -567,4 +566,3 @@ namespace noa::string {
         }
     };
 }
-#endif

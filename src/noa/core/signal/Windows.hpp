@@ -29,13 +29,13 @@ namespace noa::signal::guts {
                 window_normalize_(output, m_n_elements - m_offset, sum);
         }
 
-        [[nodiscard]] constexpr f64 sample(i64 index) const noexcept {
+        [[nodiscard]] constexpr auto sample(i64 index) const noexcept -> f64 {
             const f64 n = static_cast<f64>(index + m_offset);
             return static_cast<const Derived*>(this)->window(n, m_center);
         }
 
     private:
-        [[nodiscard]] static constexpr f64 window_center_coordinate_(i64 n_elements) noexcept {
+        [[nodiscard]] static constexpr auto window_center_coordinate_(i64 n_elements) noexcept -> f64 {
             auto half = static_cast<f64>(n_elements / 2);
             if (is_even(n_elements))
                 half -= 0.5;
@@ -60,7 +60,7 @@ namespace noa::signal::guts {
         constexpr explicit WindowGaussian(i64 elements, bool half_window, f64 stddev) :
             Window(elements, half_window), sig2(2 * stddev * stddev) {}
 
-        [[nodiscard]] f64 window(f64 i, f64 center) const noexcept {
+        [[nodiscard]] auto window(f64 i, f64 center) const noexcept -> f64 {
             i -= center;
             return exp(-(i * i) / sig2);
         }
@@ -70,7 +70,7 @@ namespace noa::signal::guts {
         constexpr explicit WindowBlackman(i64 elements, bool half_window) :
             Window(elements, half_window) {}
 
-        [[nodiscard]] f64 window(f64 i, f64) const noexcept {
+        [[nodiscard]] auto window(f64 i, f64) const noexcept -> f64 {
             constexpr auto PI = Constant<f64>::PI;
             const auto norm = static_cast<f64>(n_elements() - 1);
             return 0.42 -
@@ -84,7 +84,7 @@ namespace noa::signal::guts {
         constexpr explicit WindowSinc(i64 elements, bool half_window, f64 constant_) :
             Window(elements, half_window), constant(constant_) {}
 
-        [[nodiscard]] f64 window(f64 i, f64 center) const noexcept {
+        [[nodiscard]] auto window(f64 i, f64 center) const noexcept -> f64 {
             constexpr auto PI = Constant<f64>::PI;
             i -= center;
             return i == 0 ? constant : sin(PI * i * constant) / (PI * i);
@@ -119,7 +119,7 @@ namespace noa::signal {
     /// \param elements     Number of elements in the window.
     /// \param stddev       Standard deviation of the gaussian.
     /// \param options      Window options. Note that `normalize` is ignored.
-    [[nodiscard]] constexpr f64 window_gaussian(i64 index, i64 elements, f64 stddev, WindowOptions options = {}) {
+    [[nodiscard]] constexpr auto window_gaussian(i64 index, i64 elements, f64 stddev, WindowOptions options = {}) -> f64 {
         if (elements <= 0)
             return 0.;
         return guts::WindowGaussian(elements, options.half_window, stddev).sample(index);
@@ -140,7 +140,7 @@ namespace noa::signal {
     /// \param index        Index where to sample.
     /// \param elements     Number of elements in the window.
     /// \param options      Window options. Note that `normalize` is ignored.
-    [[nodiscard]] constexpr f64 window_blackman(i64 index, i64 elements, WindowOptions options = {}) {
+    [[nodiscard]] constexpr auto window_blackman(i64 index, i64 elements, WindowOptions options = {}) -> f64 {
         if (elements <= 0)
             return 0;
         return guts::WindowBlackman(elements, options.half_window).sample(index);
@@ -163,7 +163,7 @@ namespace noa::signal {
     /// \param elements     Number of elements in the window. Should be >= 1.
     /// \param constant     Additional constant factor. \c sin(constant*pi*x)/(pi*x) is computed.
     /// \param options      Window options. Note that `normalize` is ignored.
-    [[nodiscard]] constexpr f64 window_sinc(i64 index, i64 elements, f64 constant, WindowOptions options = {}) {
+    [[nodiscard]] constexpr auto window_sinc(i64 index, i64 elements, f64 constant, WindowOptions options = {}) -> f64 {
         if (elements <= 0)
             return 0;
         return guts::WindowSinc(elements, options.half_window, constant).sample(index);

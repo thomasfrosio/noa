@@ -1,10 +1,8 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <algorithm>
-#include "noa/core/Types.hpp"
+#include "noa/core/types/Accessor.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/cpu/Ewise.hpp"
 
 namespace noa::cpu {
@@ -37,4 +35,3 @@ namespace noa::cpu {
               n_threads);
     }
 }
-#endif

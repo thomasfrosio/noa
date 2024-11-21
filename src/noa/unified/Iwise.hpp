@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/types/Shape.hpp"
 #include "noa/unified/Device.hpp"
 #include "noa/unified/Stream.hpp"
@@ -82,4 +79,3 @@ namespace noa {
         }
     }
 }
-#endif

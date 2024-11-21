@@ -1067,9 +1067,7 @@ namespace noa::geometry::guts {
         coord3_type m_f_shape;
         coord3_type m_half;
     };
-}
 
-namespace noa::geometry::guts {
     template<bool AllowTexture, bool AllowValue,
              typename Input, typename Output,
              typename InputValue = nt::value_type_t<Input>,

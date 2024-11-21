@@ -349,7 +349,6 @@ namespace noa::cuda::signal::guts {
     }
 }
 
-#ifdef NOA_IS_OFFLINE
 namespace noa::cuda::signal {
     struct MedianFilterConfig {
         static constexpr i32 block_size_x = 16;
@@ -558,4 +557,3 @@ namespace noa::cuda::signal {
         }
     }
 }
-#endif

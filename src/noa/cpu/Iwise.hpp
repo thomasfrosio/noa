@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <omp.h>
 #include "noa/core/types/Accessor.hpp"
 #include "noa/core/Interfaces.hpp"
@@ -117,4 +114,3 @@ namespace noa::cpu {
         guts::Iwise::serial(shape, std::forward<Op>(op));
     }
 }
-#endif

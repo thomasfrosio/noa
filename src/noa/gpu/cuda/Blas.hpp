@@ -1,9 +1,6 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
-#include "noa/core/Types.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
 
 namespace noa::cuda {
@@ -17,4 +14,3 @@ namespace noa::cuda {
                 T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
                 Stream& stream);
 }
-#endif

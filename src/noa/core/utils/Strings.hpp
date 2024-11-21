@@ -3,17 +3,12 @@
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
 
-namespace noa::traits {
-    NOA_GENERATE_PROCLAIM_FULL(string);
-}
-
-#ifdef NOA_IS_OFFLINE
-
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #pragma GCC diagnostic ignored "-Wshadow"
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
 #elif defined(NOA_COMPILER_MSVC)
 #pragma warning(push, 0)
 #endif
@@ -42,6 +37,7 @@ namespace noa::traits {
 #include <typeinfo>
 
 namespace noa::traits {
+    NOA_GENERATE_PROCLAIM_FULL(string);
     template<> struct proclaim_is_string<std::string> : std::true_type {};
     template<> struct proclaim_is_string<std::string_view> : std::true_type {};
 }
@@ -218,4 +214,3 @@ namespace noa::string {
         }
     }
 }
-#endif

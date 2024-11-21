@@ -3,10 +3,7 @@
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Pair.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/utils/Strings.hpp"
-#endif
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
     #pragma GCC diagnostic push
@@ -480,7 +477,6 @@ namespace noa::traits {
     #pragma warning(pop)
 #endif
 
-#ifdef NOA_IS_OFFLINE
 namespace fmt {
     template<typename... T>
     struct formatter<noa::Tuple<T...>> {
@@ -529,4 +525,3 @@ namespace fmt {
         }
     };
 }
-#endif

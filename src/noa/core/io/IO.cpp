@@ -565,3 +565,46 @@ namespace noa::io {
     NOA_IO_SERIALIZE_(c32);
     NOA_IO_SERIALIZE_(c64);
 }
+
+namespace noa::io {
+    auto operator<<(std::ostream& os, Open mode) -> std::ostream& {
+        std::array flags{mode.read, mode.write, mode.truncate, mode.binary, mode.append, mode.at_the_end};
+        std::array names{"read", "write", "truncate", "binary", "append", "at_the_end"};
+
+        bool add{};
+        os << "Open{";
+        for (auto i: irange(flags.size())) {
+            if (flags[i]) {
+                if (add)
+                    os << '|';
+                os << names[i];
+                add = true;
+            }
+        }
+        os << '}';
+        return os;
+    }
+
+    auto operator<<(std::ostream& os, Encoding::Format data_type) -> std::ostream& {
+        switch (data_type) {
+            case Encoding::UNKNOWN: return os << "Encoding::UNKNOWN";
+            case Encoding::U4: return os << "Encoding::U4";
+            case Encoding::I8: return os << "Encoding::I8";
+            case Encoding::U8: return os << "Encoding::U8";
+            case Encoding::I16: return os << "Encoding::I16";
+            case Encoding::U16: return os << "Encoding::U16";
+            case Encoding::I32: return os << "Encoding::I32";
+            case Encoding::U32: return os << "Encoding::U32";
+            case Encoding::I64: return os << "Encoding::I64";
+            case Encoding::U64: return os << "Encoding::U64";
+            case Encoding::F16: return os << "Encoding::F16";
+            case Encoding::F32: return os << "Encoding::F32";
+            case Encoding::F64: return os << "Encoding::F64";
+            case Encoding::CI16: return os << "Encoding::CI16";
+            case Encoding::C16: return os << "Encoding::C16";
+            case Encoding::C32: return os << "Encoding::C32";
+            case Encoding::C64: return os << "Encoding::C64";
+        }
+        return os; // unreachable
+    }
+}

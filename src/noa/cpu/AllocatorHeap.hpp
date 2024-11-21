@@ -1,10 +1,7 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
+#include <memory>
 #include "noa/core/Error.hpp"
-#include "noa/core/Types.hpp"
 
 namespace noa::cpu {
     template<typename T>
@@ -77,4 +74,3 @@ namespace noa::cpu {
         }
     };
 }
-#endif

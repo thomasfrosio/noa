@@ -10,7 +10,7 @@
 
 using namespace ::noa::types;
 
-TEST_CASE("unified::memory::resize()", "[asset][noa][unified]") {
+TEST_CASE("unified::resize()", "[asset][noa][unified]") {
     constexpr bool COMPUTE_ASSETS = false;
     const Path path_base = test::NOA_DATA_PATH / "memory";
     const YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["resize"];
@@ -88,7 +88,7 @@ TEST_CASE("unified::memory::resize()", "[asset][noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::memory::resize() - edge cases", "[noa][unified]", i32, u32, i64, u64, f32, f64) {
+TEMPLATE_TEST_CASE("unified::resize() - edge cases", "[noa][unified]", i32, u32, i64, u64, f32, f64) {
     const i64 ndim = GENERATE(2, 3);
 
     std::vector<Device> devices{"cpu"};
@@ -110,7 +110,7 @@ TEMPLATE_TEST_CASE("unified::memory::resize() - edge cases", "[noa][unified]", i
     }
 }
 
-TEMPLATE_TEST_CASE("unified::memory::resize(), borders", "[noa][unified]", i32, f32, f64) {
+TEMPLATE_TEST_CASE("unified::resize(), borders", "[noa][unified]", i32, f32, f64) {
     const i64 ndim = GENERATE(2, 3);
     const auto shape = test::random_shape(ndim);
 

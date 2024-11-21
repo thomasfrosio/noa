@@ -1,10 +1,6 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <algorithm>
-
 #include "noa/core/Ewise.hpp"
 #include "noa/cpu/Ewise.hpp"
 
@@ -39,4 +35,3 @@ namespace noa::cpu {
               n_threads);
     }
 }
-#endif

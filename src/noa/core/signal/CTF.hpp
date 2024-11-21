@@ -9,7 +9,7 @@
 namespace noa::signal {
     /// Calculate the relativistic electron wavelength in meters given an acceleration potential in volts.
     /// \see https://en.wikipedia.org/wiki/Electron_diffraction#Relativistic_theory
-    [[nodiscard]] NOA_IHD f64 relativistic_electron_wavelength(f64 energy) noexcept {
+    [[nodiscard]] NOA_IHD auto relativistic_electron_wavelength(f64 energy) noexcept -> f64 {
         constexpr auto h = Constant<f64>::PLANCK;
         constexpr auto c = Constant<f64>::SPEED_OF_LIGHT;
         constexpr auto m0 = Constant<f64>::ELECTRON_MASS;
@@ -104,21 +104,21 @@ namespace noa::signal {
         ) {}
 
     public: // getters
-        [[nodiscard]] constexpr value_type pixel_size() const { return m_pixel_size; }
-        [[nodiscard]] constexpr value_type sampling_rate() const { return pixel_size(); }
-        [[nodiscard]] constexpr value_type phase_shift() const { return m_phase_shift; }
-        [[nodiscard]] constexpr value_type amplitude() const { return m_amplitude; }
-        [[nodiscard]] constexpr value_type scale() const { return m_scale; }
-        [[nodiscard]] constexpr value_type bfactor() const {
+        [[nodiscard]] constexpr auto pixel_size() const -> value_type { return m_pixel_size; }
+        [[nodiscard]] constexpr auto sampling_rate() const -> value_type { return pixel_size(); }
+        [[nodiscard]] constexpr auto phase_shift() const -> value_type { return m_phase_shift; }
+        [[nodiscard]] constexpr auto amplitude() const -> value_type { return m_amplitude; }
+        [[nodiscard]] constexpr auto scale() const -> value_type { return m_scale; }
+        [[nodiscard]] constexpr auto bfactor() const -> value_type {
             return m_bfactor_forth * 4;
         }
-        [[nodiscard]] constexpr value_type defocus() const {
+        [[nodiscard]] constexpr auto defocus() const -> value_type {
             return -m_defocus_angstroms * static_cast<value_type>(1e-4); // angstrom -> micrometers
         }
-        [[nodiscard]] constexpr value_type cs() const {
+        [[nodiscard]] constexpr auto cs() const -> value_type {
             return m_cs_angstroms * static_cast<value_type>(1e-7); // angstrom -> millimeters
         }
-        [[nodiscard]] constexpr value_type voltage() const {
+        [[nodiscard]] constexpr auto voltage() const -> value_type {
             return m_voltage_volts * static_cast<value_type>(1e-3); // volts -> kilovolts
         }
 
@@ -146,7 +146,7 @@ namespace noa::signal {
         }
 
     public:
-        [[nodiscard]] constexpr value_type phase_at(nt::real auto fftfreq) const {
+        [[nodiscard]] constexpr auto phase_at(nt::real auto fftfreq) const -> value_type {
             const auto r1 = static_cast<value_type>(fftfreq) / m_pixel_size;
             const auto r2 = r1 * r1;
             const auto r4 = r2 * r2;
@@ -154,7 +154,7 @@ namespace noa::signal {
             return phase;
         }
 
-        [[nodiscard]] constexpr value_type value_at(nt::real auto fftfreq) const {
+        [[nodiscard]] constexpr auto value_at(nt::real auto fftfreq) const -> value_type {
             const auto r1 = static_cast<value_type>(fftfreq) / m_pixel_size;
             const auto r2 = r1 * r1;
             const auto r4 = r2 * r2;
@@ -297,23 +297,23 @@ namespace noa::signal {
                 ctf_isotropic.scale()) {}
 
     public: // getters
-        [[nodiscard]] constexpr pixel_size_type pixel_size() const { return m_pixel_size; }
-        [[nodiscard]] constexpr pixel_size_type sampling_rate() const { return pixel_size(); }
-        [[nodiscard]] constexpr value_type phase_shift() const { return m_phase_shift; }
-        [[nodiscard]] constexpr value_type amplitude() const { return m_amplitude; }
-        [[nodiscard]] constexpr value_type scale() const { return m_scale; }
-        [[nodiscard]] constexpr value_type bfactor() const {
+        [[nodiscard]] constexpr auto pixel_size() const -> pixel_size_type { return m_pixel_size; }
+        [[nodiscard]] constexpr auto sampling_rate() const -> pixel_size_type { return pixel_size(); }
+        [[nodiscard]] constexpr auto phase_shift() const -> value_type { return m_phase_shift; }
+        [[nodiscard]] constexpr auto amplitude() const -> value_type { return m_amplitude; }
+        [[nodiscard]] constexpr auto scale() const -> value_type { return m_scale; }
+        [[nodiscard]] constexpr auto bfactor() const -> value_type {
             return m_bfactor_forth * 4;
         }
-        [[nodiscard]] constexpr defocus_type defocus() const {
+        [[nodiscard]] constexpr auto defocus() const -> defocus_type {
             return {-m_defocus_angstroms.value * static_cast<value_type>(1e-4), // angstroms -> micrometers
                     -m_defocus_angstroms.astigmatism * static_cast<value_type>(1e-4), // angstroms -> micrometers
                     m_defocus_angstroms.angle};
         }
-        [[nodiscard]] constexpr value_type cs() const {
+        [[nodiscard]] constexpr auto cs() const -> value_type {
             return m_cs_angstroms * static_cast<value_type>(1e-7); // angstroms -> millimeters
         }
-        [[nodiscard]] constexpr value_type voltage() const {
+        [[nodiscard]] constexpr auto voltage() const -> value_type {
             return m_voltage_volts * static_cast<value_type>(1e-3); // volts -> kilovolts
         }
 
@@ -344,7 +344,7 @@ namespace noa::signal {
 
     public:
         template<nt::real Coord>
-        [[nodiscard]] constexpr value_type phase_at(Vec2<Coord> fftfreq) const {
+        [[nodiscard]] constexpr auto phase_at(Vec2<Coord> fftfreq) const -> value_type {
             const auto scaled_fftfreq = fftfreq.template as<value_type>() / m_pixel_size;
             const auto phi = noa::geometry::cartesian2phi<false>(scaled_fftfreq);
             const auto rho = noa::geometry::cartesian2rho(scaled_fftfreq);
@@ -358,7 +358,7 @@ namespace noa::signal {
         }
 
         template<nt::real Coord>
-        [[nodiscard]] constexpr value_type value_at(Vec2<Coord> fftfreq) const {
+        [[nodiscard]] constexpr auto value_at(Vec2<Coord> fftfreq) const -> value_type {
             const auto scaled_fftfreq = fftfreq.template as<value_type>() / m_pixel_size;
             const auto phi = noa::geometry::cartesian2phi<false>(scaled_fftfreq);
             const auto rho = noa::geometry::cartesian2rho(scaled_fftfreq);
@@ -375,7 +375,7 @@ namespace noa::signal {
         }
 
         template<nt::real Coord>
-        [[nodiscard]] constexpr value_type isotropic_fftfreq(Vec2<Coord> fftfreq_2d) const {
+        [[nodiscard]] constexpr auto isotropic_fftfreq(Vec2<Coord> fftfreq_2d) const -> value_type {
             // Correct for the anisotropic pixel size directly in cartesian space.
             const auto scaled_fftfreq_2d = fftfreq_2d.template as<value_type>() / m_pixel_size;
 
@@ -406,7 +406,7 @@ namespace noa::signal {
         }
 
     private:
-        [[nodiscard]] constexpr value_type phi2defocus_(value_type phi) const {
+        [[nodiscard]] constexpr auto phi2defocus_(value_type phi) const -> value_type {
             const auto ellipse_angle = (phi - m_defocus_angstroms.angle);
             return m_defocus_angstroms.value + m_defocus_angstroms.astigmatism * cos(2 * ellipse_angle);
         }

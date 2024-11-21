@@ -223,7 +223,6 @@ namespace noa {
         constexpr /*implicit*/ operator Enum() const noexcept { return value; }
 
     public: // additional constructors and member functions
-#ifdef NOA_IS_OFFLINE
         /// Implicit constructor from string literal.
         template<size_t N>
         constexpr /*implicit*/ Remap(const char (& name)[N]) {
@@ -270,7 +269,6 @@ namespace noa {
                 panic("invalid layout");
             }
         }
-#endif
 
         /// Whether the remap is one of these values.
         [[nodiscard]] constexpr bool is_any(auto... values) const noexcept {
@@ -407,7 +405,6 @@ namespace noa::signal {
     };
 }
 
-#ifdef NOA_IS_OFFLINE
 namespace noa {
     std::ostream& operator<<(std::ostream& os, Interp interp);
     std::ostream& operator<<(std::ostream& os, Border border);
@@ -435,4 +432,3 @@ namespace fmt {
     template<> struct formatter<noa::Border::Method> : ostream_formatter {};
     template<> struct formatter<noa::Remap::Enum> : ostream_formatter {};
 }
-#endif

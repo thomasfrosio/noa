@@ -92,9 +92,7 @@ namespace noa::signal::guts {
         shape_type m_shape;
         filter_type m_filter;
     };
-}
 
-namespace noa::signal::guts {
     template<size_t N, Remap REMAP, typename Input, typename Output>
     void check_filter_spectrum_parameters(const Input& input, const Output& output, const Shape4<i64>& shape) {
         check(not output.is_empty(), "Empty array detected");

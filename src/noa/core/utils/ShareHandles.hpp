@@ -1,10 +1,7 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-#include "noa/core/Traits.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <memory>
+#include "noa/core/Traits.hpp"
 
 namespace noa::traits {
     NOA_GENERATE_PROCLAIM_FULL(unique_ptr);
@@ -32,4 +29,3 @@ namespace noa::traits {
     template<typename T>
     concept shareable_using_share = shareable<decltype(std::declval<T>().share())>;
 }
-#endif

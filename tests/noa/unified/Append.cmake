@@ -38,9 +38,9 @@ set(TEST_UNIFIED_SOURCES
     noa/unified/signal/TestUnifiedMedian.cpp
     noa/unified/signal/TestUnifiedConvolve.cpp
 
-#    noa/unified/geometry/fft/TestUnifiedPolar.cpp
-#    noa/unified/geometry/fft/TestUnifiedProject.cpp
-#    noa/unified/geometry/fft/TestUnifiedTransform.cpp
+    noa/unified/geometry/fft/TestUnifiedPolar.cpp
+    noa/unified/geometry/fft/TestUnifiedProject.cpp
+    noa/unified/geometry/fft/TestUnifiedTransform.cpp
     noa/unified/geometry/TestUnifiedProject.cpp
     noa/unified/geometry/TestUnifiedPolar.cpp
     noa/unified/geometry/TestUnifiedShape.cpp

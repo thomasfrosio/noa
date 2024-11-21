@@ -1,8 +1,6 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/Reduce.hpp"
 #include "noa/cpu/Blas.hpp"
 #ifdef NOA_ENABLE_CUDA
@@ -170,4 +168,3 @@ namespace noa {
         }
     }
 }
-#endif

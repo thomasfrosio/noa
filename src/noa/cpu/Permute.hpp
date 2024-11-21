@@ -1,10 +1,9 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/Error.hpp"
-#include "noa/core/Types.hpp"
+#include "noa/core/types/Accessor.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/cpu/Copy.hpp"
 
 // TODO Use BLAS-like copy for out-of-place permute
@@ -101,4 +100,3 @@ namespace noa::cpu {
         }
     }
 }
-#endif

@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/types/Shape.hpp"
 #include "noa/core/indexing/Layout.hpp"
 #include "noa/core/indexing/Offset.hpp"
@@ -59,4 +56,3 @@ namespace noa::indexing {
                vall(Equal{}, input.is_contiguous().pop_front(), Vec<bool, 3>::filled_with(true));
     }
 }
-#endif

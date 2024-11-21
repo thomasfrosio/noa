@@ -31,7 +31,6 @@ set(NOA_CORE_HEADERS
     core/math/Generic.hpp
     core/math/LeastSquare.hpp
 
-    core/Types.hpp
     core/types/Accessor.hpp
     core/types/Complex.hpp
     core/types/Half.hpp
@@ -62,7 +61,6 @@ set(NOA_CORE_HEADERS
     core/geometry/DrawShape.hpp
     core/geometry/Euler.hpp
     core/geometry/Polar.hpp
-    core/geometry/Prefilter.hpp
     core/geometry/Quaternion.hpp
     core/geometry/Symmetry.hpp
     core/geometry/Transform.hpp

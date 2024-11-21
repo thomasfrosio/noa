@@ -1,9 +1,6 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
-#include "noa/core/Types.hpp"
+#include "noa/core/types/Shape.hpp"
 
 namespace noa::cpu {
     // Computes a scalar-matrix-matrix product and add the result to a scalar-matrix product, with general matrices.
@@ -14,4 +11,3 @@ namespace noa::cpu {
                 T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
                 i64 n_threads);
 }
-#endif

@@ -135,11 +135,11 @@ namespace noa::geometry::guts {
             m_smoothness(smoothness),
             m_is_inverted(is_inverted) {}
 
-        [[nodiscard]] constexpr value_type operator()(nt::integer auto index, Empty = {}) const {
+        [[nodiscard]] constexpr auto operator()(nt::integer auto index, Empty = {}) const -> value_type {
             return draw_at(static_cast<value_type>(index) - m_center);
         }
 
-        [[nodiscard]] constexpr value_type draw_at(value_type centered_coordinate) const {
+        [[nodiscard]] constexpr auto draw_at(value_type centered_coordinate) const -> value_type {
             const auto dst = abs(centered_coordinate);
             if constexpr (IS_SMOOTH) {
                 constexpr auto PI = Constant<value_type>::PI;
@@ -163,7 +163,7 @@ namespace noa::geometry::guts {
         value_type m_center;
         value_type m_radius;
         NOA_NO_UNIQUE_ADDRESS value_or_empty_type m_smoothness{};
-        bool m_is_inverted;
+        bool m_is_inverted{};
     };
 
     template<size_t N, nt::any_of<f32, f64> T, bool IsSmooth>
@@ -205,14 +205,14 @@ namespace noa::geometry::guts {
 
     public:
         template<typename X = Empty>
-        [[nodiscard]] constexpr value_type operator()(
+        [[nodiscard]] constexpr auto operator()(
             vector_type coordinates,
             const X& inverse_transform = X{}
-        ) const {
+        ) const -> value_type {
             return guts::draw_geometric_shape_at(*this, coordinates, m_center, inverse_transform);
         }
 
-        [[nodiscard]] constexpr value_type draw_at(vector_type centered_coordinates) const {
+        [[nodiscard]] constexpr auto draw_at(vector_type centered_coordinates) const -> value_type {
             const auto dst_sqd = dot(centered_coordinates, centered_coordinates);
             if constexpr (IS_SMOOTH) {
                 constexpr auto PI = Constant<value_type>::PI;
@@ -283,14 +283,14 @@ namespace noa::geometry::guts {
             m_is_inverted(is_inverted) {}
 
         template<typename T = Empty>
-        [[nodiscard]] constexpr value_type operator()(
+        [[nodiscard]] constexpr auto operator()(
             vector3_type coordinates,
             const T& inverse_transform = T{}
-        ) const {
+        ) const -> value_type {
             return guts::draw_geometric_shape_at(*this, coordinates, m_center, inverse_transform);
         }
 
-        [[nodiscard]] constexpr value_type draw_at(vector3_type centered_coordinates) const {
+        [[nodiscard]] constexpr auto draw_at(vector3_type centered_coordinates) const -> value_type {
             const auto dst_z = abs(centered_coordinates[0]);
             vector2_type tmp{centered_coordinates[1], centered_coordinates[2]};
             const value_type dst_yx_sqd = dot(tmp, tmp);
@@ -333,7 +333,7 @@ namespace noa::geometry::guts {
         NOA_NO_UNIQUE_ADDRESS value_or_empty_type m_radius_edge_sqd{};
         NOA_NO_UNIQUE_ADDRESS value_or_empty_type m_edge_size{};
         NOA_NO_UNIQUE_ADDRESS value_or_empty_type m_length_edge{};
-        bool m_is_inverted;
+        bool m_is_inverted{};
     };
 
     template<size_t N, nt::any_of<f32, f64> Value, bool IsSmooth>
@@ -374,14 +374,14 @@ namespace noa::geometry::guts {
             m_is_inverted(is_inverted) {}
 
         template<typename T = Empty>
-        [[nodiscard]] constexpr value_type operator()(
+        [[nodiscard]] constexpr auto operator()(
                 vector_type coordinates,
                 const T& inverse_transform = T{}
-        ) const {
+        ) const -> value_type {
             return guts::draw_geometric_shape_at(*this, coordinates, m_center, inverse_transform);
         }
 
-        [[nodiscard]] constexpr value_type draw_at(vector_type coords) const {
+        [[nodiscard]] constexpr auto draw_at(vector_type coords) const -> value_type {
             coords = abs(coords);
 
             if constexpr (IS_SMOOTH) {
@@ -415,7 +415,7 @@ namespace noa::geometry::guts {
         value_type m_cvalue;
         NOA_NO_UNIQUE_ADDRESS vector_or_empty_type m_radius_edge{};
         NOA_NO_UNIQUE_ADDRESS value_or_empty_type m_smoothness{};
-        bool m_is_inverted;
+        bool m_is_inverted{};
     };
 
     template<size_t N, nt::any_of<f32, f64> Value, bool IsSmooth>
@@ -455,14 +455,14 @@ namespace noa::geometry::guts {
 
         // TODO for 2d we could also accept the rotation angle and add it to phi.
         template<typename T = Empty>
-        [[nodiscard]] constexpr value_type operator()(
+        [[nodiscard]] constexpr auto operator()(
             vector_type coordinates,
             const T& inverse_transform = T{}
-        ) const {
+        ) const -> value_type {
             return guts::draw_geometric_shape_at(*this, coordinates, m_center, inverse_transform);
         }
 
-        [[nodiscard]] constexpr value_type draw_at(vector_type coordinates) const {
+        [[nodiscard]] constexpr auto draw_at(vector_type coordinates) const -> value_type {
             if constexpr (IS_SMOOTH) {
                 value_type irho, erho;
                 if constexpr (N == 2) {
@@ -514,6 +514,6 @@ namespace noa::geometry::guts {
         vector_type m_radius;
         value_type m_cvalue;
         NOA_NO_UNIQUE_ADDRESS value_or_empty_type m_smoothness{};
-        bool m_is_inverted;
+        bool m_is_inverted{};
     };
 }

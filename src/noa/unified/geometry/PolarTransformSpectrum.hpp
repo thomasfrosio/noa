@@ -68,9 +68,7 @@ namespace noa::geometry::guts {
         coord_type m_step_fftfreq;
         coord_type m_start_fftfreq;
     };
-}
 
-namespace noa::geometry::guts {
     template<Remap REMAP, bool IS_GPU = false, typename Index, typename Input, typename Output, typename Options>
     void launch_spectrum2polar(
         Input&& spectrum,

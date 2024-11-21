@@ -130,9 +130,7 @@ namespace noa::signal::guts {
         shift_parameter_type m_shift;
         coord_type m_cutoff_fftfreq_sqd;
     };
-}
 
-namespace noa::signal::guts {
     template<Remap REMAP, typename Input, typename Output, typename Shift>
     void check_phase_shift_parameters(
         const Input& input, const Output& output,

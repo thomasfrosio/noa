@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/cpu/fft/Plan.hpp"
 
 namespace noa::cpu::fft {
@@ -92,4 +89,3 @@ namespace noa::cpu::fft {
         c2c(data, strides, data, strides, shape, sign, flag, n_threads);
     }
 }
-#endif

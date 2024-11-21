@@ -138,7 +138,7 @@ namespace noa::indexing {
     /// Returns the index of the first non-empty dimension, excluding the batch dimension, going from left to right.
     /// If all dimensions are empty, the index of the width dimension is returned, ie 3.
     template<typename T>
-    [[nodiscard]] NOA_FHD constexpr T non_empty_dhw_dimension(const Shape4<T>& shape) noexcept {
+    [[nodiscard]] NOA_FHD constexpr auto non_empty_dhw_dimension(const Shape4<T>& shape) noexcept -> T {
         for (T i{1}; i < 4; ++i)
             if (shape[i] > 1)
                 return i;
@@ -405,8 +405,8 @@ namespace noa::indexing {
 
     /// Whether the range [lhs_start, lhs_end] overlaps with the range [rhs_start, rhs_end].
     [[nodiscard]] constexpr bool are_overlapped(
-            std::uintptr_t lhs_start, std::uintptr_t lhs_end,
-            std::uintptr_t rhs_start, std::uintptr_t rhs_end
+        std::uintptr_t lhs_start, std::uintptr_t lhs_end,
+        std::uintptr_t rhs_start, std::uintptr_t rhs_end
     ) noexcept {
         return lhs_start <= rhs_end and lhs_end >= rhs_start;
     }
@@ -466,7 +466,6 @@ namespace noa::indexing {
         return shape[N - 1] <= 1 or strides[N - 1] >= 1;
     }
 
-#ifdef NOA_IS_OFFLINE
     template<typename Int>
     [[nodiscard]] auto extract_matmul_layout(
         const Strides4<Int>& lhs_strides, const Shape4<Int>& lhs_shape,
@@ -646,5 +645,4 @@ namespace noa::indexing {
             }
         }
     };
-#endif
 }

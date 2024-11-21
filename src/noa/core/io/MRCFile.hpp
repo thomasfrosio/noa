@@ -1,9 +1,7 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <fstream>
+
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Shape.hpp"
 #include "noa/core/io/IO.hpp"
@@ -88,12 +86,12 @@ namespace noa::io {
         [[nodiscard]] auto stats() const noexcept -> Stats<f64> {
             Stats<f64> out;
             if (m_header.min != 0 or m_header.max != -1 or m_header.mean != -2) {
-                out.set_min(static_cast<f64>(m_header.min));
-                out.set_max(static_cast<f64>(m_header.max));
-                out.set_mean(static_cast<f64>(m_header.mean));
+                out.set_min(m_header.min);
+                out.set_max(m_header.max);
+                out.set_mean(m_header.mean);
             }
             if (m_header.std >= 0)
-                out.set_std(static_cast<f64>(m_header.std));
+                out.set_std(m_header.std);
             return out;
         }
 
@@ -373,13 +371,13 @@ namespace noa::io {
         void write_header_(Byte* buffer);
 
         // Gets the offset to the data.
-        [[nodiscard]] constexpr i64 header_offset_() const noexcept {
+        [[nodiscard]] constexpr auto header_offset_() const noexcept -> i64 {
             return 1024 + m_header.extended_bytes_nb;
         }
 
         // This is to set the default data type of the file in the first write operation of a new file in writing mode.
         // data_type is the type of the real data that is passed in, and we return the "closest" supported type.
-        static Encoding::Format closest_supported_encoding_format_(Encoding::Format encoding_format) {
+        static auto closest_supported_encoding_format_(Encoding::Format encoding_format) -> Encoding::Format {
             switch (encoding_format) {
                 case Encoding::I8:
                 case Encoding::U8:
@@ -429,4 +427,3 @@ namespace noa::io {
         } m_header{};
     };
 }
-#endif

@@ -86,7 +86,6 @@ namespace noa {
         return false;
     }
 
-#ifdef NOA_IS_OFFLINE
     /// Casts src to type To, with bound-checks.
     /// Panics if there is a loss of range.
     /// This should be very similar to boost::numeric_cast.
@@ -99,5 +98,4 @@ namespace noa {
             return static_cast<To>(src);
         panic("Cannot safely cast {} to {} type", src, ns::stringify<To>());
     }
-#endif
 }

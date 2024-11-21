@@ -8,7 +8,7 @@ namespace {
     using namespace ::noa::types;
 
     template<typename T>
-    Vec3<T> rotm2xyx(Mat33<T> rotm) {
+    auto rotm2xyx(Mat33<T> rotm) -> Vec3<T> {
         // Rx(k3) @ Ry(k2) @ Rx(k1) = { c1c2c3-s1s3,  s1c2c3+c1s3, -s2c3,
         //                             -c1c2s3-s1c3, -s1c2s3+c1c3,  s2s3,
         //                                     c1s2,         s1s2,    c2}
@@ -25,7 +25,7 @@ namespace {
     }
 
     template<typename T>
-    Vec3<T> rotm2yzy(Mat33<T> rotm) {
+    auto rotm2yzy(Mat33<T> rotm) -> Vec3<T> {
         // Ry(k3) @ Rz(k2) @ Ry(k1) = { c1c2c3-s1s3, -s2c3,  s1c2c3+c1c3,
         //                                     c1s2,    c2,         s1s2,
         //                                  -c1c2s3,  s2s3, -s1c2s3+c1c3}
@@ -42,7 +42,7 @@ namespace {
     }
 
     template<typename T>
-    Vec3<T> rotm2zxz(Mat33<T> rotm) {
+    auto rotm2zxz(Mat33<T> rotm) -> Vec3<T> {
         // Rz(k3) @ Rx(k2) @ Rz(k1) = { -s1c2s3+c1c3, -c1c2s3-s1c3,  s2s3,
         //                               s1c2c3+s1s3,  c1c2c3-s1s3, -s2c3,
         //                                      s1s2,         c1s2,    c2}
@@ -59,7 +59,7 @@ namespace {
     }
 
     template<typename T>
-    Vec3<T> rotm2xzx(Mat33<T> rotm) {
+    auto rotm2xzx(Mat33<T> rotm) -> Vec3<T> {
         // Rx(k3) @ Rz(k2) @ Rx(k1) = {  c2,       -c1s2,         s1s2,
         //                             s2c3,   c1c2c3-s3, -s1c2c3-c1s3,
         //                             s2s3, c1c2s3+s1c3, -s1c2s3+c1c3}
@@ -76,7 +76,7 @@ namespace {
     }
 
     template<typename T>
-    Vec3<T> rotm2yxy(Mat33<T> rotm) {
+    auto rotm2yxy(Mat33<T> rotm) -> Vec3<T> {
         // Ry(k3) @ Rx(k2) @ Ry(k1) = { -s1c2s3+c1c3, s2s3, c1c2s3+s1c3,
         //                                      s1s2,   c2,       -c1s2,
         //                              -s1c2c3-c1s3, s2c3, c1c2c3-s1s3}
@@ -93,7 +93,7 @@ namespace {
     }
 
     template<typename T>
-    Vec3<T> rotm2zyz(Mat33<T> rotm) {
+    auto rotm2zyz(Mat33<T> rotm) -> Vec3<T> {
         // Rz(k3) @ Ry(k2) @ Rz(k1) = { c1c2c3-s1s3, -s1c2c3-c1s3, s2c3,
         //                              c1c2s3+s1c3, -s1c2s3+c1c3, s2s3,
         //                                    -c1s2,         s1s2,   c2}
@@ -110,7 +110,7 @@ namespace {
     }
 
     template<typename T>
-    Vec3<T> rotm2xyz(Mat33<T> rotm) {
+    auto rotm2xyz(Mat33<T> rotm) -> Vec3<T> {
         // Rz(k3) @ Ry(k2) @ Rx(k1) = { c2c3, s1s2c3-c1s3, c1s2c3+s1s3,
         //                              c2s3, s1s2s3+c1c3, c1s2s3-s1c3,
         //                               -s2,        s1c2,        c1c2}
@@ -127,7 +127,7 @@ namespace {
     }
 
     template<typename T>
-    Vec3<T> rotm2yzx(Mat33<T> rotm) {
+    auto rotm2yzx(Mat33<T> rotm) -> Vec3<T> {
         // Rx(k3) @ Rz(k2) @ Ry(k1) = {        c1c2,  -s2,        s1c2,
         //                              c1s2c3+s1s3, c2c3, s1s2c3-c1s3,
         //                              c1s2s3-s1c3, c2s3, s1s2s3+c1c3}
@@ -144,7 +144,7 @@ namespace {
     }
 
     template<typename T>
-    Vec3<T> rotm2zxy(Mat33<T> rotm) {
+    auto rotm2zxy(Mat33<T> rotm) -> Vec3<T> {
         // Ry(k3) @ Rx(k2) @ Rz(k1) = { s1s2s3+c1c3, c1s2s3-s1c3, c2s3,
         //                                     s1c2,        c1c2,  -s2,
         //                              s1s2c3-c1s3, c1s2c3+s1s3, c2c3}
@@ -161,7 +161,7 @@ namespace {
     }
 
     template<typename T>
-    Vec3<T> rotm2xzy(Mat33<T> rotm) {
+    auto rotm2xzy(Mat33<T> rotm) -> Vec3<T> {
         // Ry(k3) @ Rz(k2) @ Rx(k1) = { c2c3, -c1s2c3+s1s3,  s1s2c3+c1s3,
         //                                s2,         c1c2,        -s1c2,
         //                             -c2s3,  c1s2s3+s1c3, -s1s2s3+c1c3}
@@ -178,7 +178,7 @@ namespace {
     }
 
     template<typename T>
-    Vec3<T> rotm2yxz(Mat33<T> rotm) {
+    auto rotm2yxz(Mat33<T> rotm) -> Vec3<T> {
         // Rz(k3) @ Rx(k2) @ Ry(k1) = {-s1s2s3+c1c3, -c2s3,  c1s2s3+s1c3,
         //                              s1s2c3+c1s3,  c2c3, -c1s2c3+s1s3,
         //                                    -s1c2,    s2,         c1c2}
@@ -195,7 +195,7 @@ namespace {
     }
 
     template<typename T>
-    Vec3<T> rotm2zyx(Mat33<T> rotm) {
+    auto rotm2zyx(Mat33<T> rotm) -> Vec3<T> {
         // Rx(k3) @ Ry(k2) @ Rz(k1) = {        c1c2,        -s1c2,    s2,
         //                              c1s2s3+s1c3, -s1s2s3+c1c3, -c2s3,
         //                             -c1s2c3+s1s3,  s1s2c3+c1s3,  c2c3}
@@ -214,70 +214,70 @@ namespace {
 
 namespace noa::geometry {
     template<nt::any_of<f32, f64> T>
-    Mat33<T> euler2matrix(Vec3<T> angles, const EulerOptions& options) {
+    auto euler2matrix(Vec3<T> angles, const EulerOptions& options) -> Mat33<T> {
         const std::string lower_axes = ns::to_upper(ns::trim(options.axes));
-        const auto right_angles = options.right_handed ? angles : angles * -1;
+        angles = options.right_handed ? angles : angles * -1;
 
         Mat33<T> r1, r2, r3;
         if (lower_axes == "ZYZ") {
-            r1 = rotate_z(right_angles[0]);
-            r2 = rotate_y(right_angles[1]);
-            r3 = rotate_z(right_angles[2]);
+            r1 = rotate_z(angles[0]);
+            r2 = rotate_y(angles[1]);
+            r3 = rotate_z(angles[2]);
         } else if (lower_axes == "ZXZ") {
-            r1 = rotate_z(right_angles[0]);
-            r2 = rotate_x(right_angles[1]);
-            r3 = rotate_z(right_angles[2]);
+            r1 = rotate_z(angles[0]);
+            r2 = rotate_x(angles[1]);
+            r3 = rotate_z(angles[2]);
         } else if (lower_axes == "ZYX") {
-            r1 = rotate_z(right_angles[0]);
-            r2 = rotate_y(right_angles[1]);
-            r3 = rotate_x(right_angles[2]);
+            r1 = rotate_z(angles[0]);
+            r2 = rotate_y(angles[1]);
+            r3 = rotate_x(angles[2]);
         } else if (lower_axes == "ZXY") {
-            r1 = rotate_z(right_angles[0]);
-            r2 = rotate_x(right_angles[1]);
-            r3 = rotate_y(right_angles[2]);
+            r1 = rotate_z(angles[0]);
+            r2 = rotate_x(angles[1]);
+            r3 = rotate_y(angles[2]);
         } else if (lower_axes == "XYZ") {
-            r1 = rotate_x(right_angles[0]);
-            r2 = rotate_y(right_angles[1]);
-            r3 = rotate_z(right_angles[2]);
+            r1 = rotate_x(angles[0]);
+            r2 = rotate_y(angles[1]);
+            r3 = rotate_z(angles[2]);
         } else if (lower_axes == "XYX") {
-            r1 = rotate_x(right_angles[0]);
-            r2 = rotate_y(right_angles[1]);
-            r3 = rotate_x(right_angles[2]);
+            r1 = rotate_x(angles[0]);
+            r2 = rotate_y(angles[1]);
+            r3 = rotate_x(angles[2]);
         } else if (lower_axes == "XZX") {
-            r1 = rotate_x(right_angles[0]);
-            r2 = rotate_z(right_angles[1]);
-            r3 = rotate_x(right_angles[2]);
+            r1 = rotate_x(angles[0]);
+            r2 = rotate_z(angles[1]);
+            r3 = rotate_x(angles[2]);
         } else if (lower_axes == "XZY") {
-            r1 = rotate_x(right_angles[0]);
-            r2 = rotate_z(right_angles[1]);
-            r3 = rotate_y(right_angles[2]);
+            r1 = rotate_x(angles[0]);
+            r2 = rotate_z(angles[1]);
+            r3 = rotate_y(angles[2]);
         } else if (lower_axes == "YXY") {
-            r1 = rotate_y(right_angles[0]);
-            r2 = rotate_x(right_angles[1]);
-            r3 = rotate_y(right_angles[2]);
+            r1 = rotate_y(angles[0]);
+            r2 = rotate_x(angles[1]);
+            r3 = rotate_y(angles[2]);
         } else if (lower_axes == "YXZ") {
-            r1 = rotate_y(right_angles[0]);
-            r2 = rotate_x(right_angles[1]);
-            r3 = rotate_z(right_angles[2]);
+            r1 = rotate_y(angles[0]);
+            r2 = rotate_x(angles[1]);
+            r3 = rotate_z(angles[2]);
         } else if (lower_axes == "YZX") {
-            r1 = rotate_y(right_angles[0]);
-            r2 = rotate_z(right_angles[1]);
-            r3 = rotate_x(right_angles[2]);
+            r1 = rotate_y(angles[0]);
+            r2 = rotate_z(angles[1]);
+            r3 = rotate_x(angles[2]);
         } else if (lower_axes == "YZY") {
-            r1 = rotate_y(right_angles[0]);
-            r2 = rotate_z(right_angles[1]);
-            r3 = rotate_y(right_angles[2]);
+            r1 = rotate_y(angles[0]);
+            r2 = rotate_z(angles[1]);
+            r3 = rotate_y(angles[2]);
         } else {
             panic("Axes \"{}\" are not valid", lower_axes);
         }
         return options.intrinsic ? r1 * r2 * r3 : r3 * r2 * r1;
     }
 
-    template Mat33<f32> euler2matrix<f32>(Vec3<f32>, const EulerOptions&);
-    template Mat33<f64> euler2matrix<f64>(Vec3<f64>, const EulerOptions&);
+    template auto euler2matrix<f32>(Vec3<f32>, const EulerOptions&) -> Mat33<f32>;
+    template auto euler2matrix<f64>(Vec3<f64>, const EulerOptions&) -> Mat33<f64>;
 
     template<nt::any_of<f32, f64> T>
-    Vec3<T> matrix2euler(const Mat33<T>& rotation, const EulerOptions& options) {
+    auto matrix2euler(const Mat33<T>& rotation, const EulerOptions& options) -> Vec3<T> {
         std::string lower_axes = ns::to_upper(ns::trim(options.axes));
         if (options.intrinsic)
             lower_axes = ns::reverse(std::move(lower_axes));
@@ -318,6 +318,6 @@ namespace noa::geometry {
         return euler;
     }
 
-    template Vec3<f32> matrix2euler<f32>(const Mat33<f32>&, const EulerOptions&);
-    template Vec3<f64> matrix2euler<f64>(const Mat33<f64>&, const EulerOptions&);
+    template auto matrix2euler<f32>(const Mat33<f32>&, const EulerOptions&) -> Vec3<f32>;
+    template auto matrix2euler<f64>(const Mat33<f64>&, const EulerOptions&) -> Vec3<f64>;
 }

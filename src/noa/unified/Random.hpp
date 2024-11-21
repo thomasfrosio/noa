@@ -1,12 +1,9 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
+#include <random>
 #include "noa/core/math/Distribution.hpp"
 #include "noa/unified/Ewise.hpp"
 #include "noa/unified/Array.hpp"
-#include <random>
 
 namespace noa {
     /// Randomizes an array with uniform random values.
@@ -35,4 +32,3 @@ namespace noa {
         return out;
     }
 }
-#endif

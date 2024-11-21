@@ -1,11 +1,8 @@
 #pragma once
-
 #include "noa/gpu/cuda/IncludeGuard.cuh"
-#include "noa/core/Config.hpp"
 
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/Ewise.hpp"
-#include "noa/core/Types.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/gpu/cuda/Allocators.hpp"
 #include "noa/gpu/cuda/Ewise.cuh"
 #include "noa/gpu/cuda/Error.hpp"
@@ -414,4 +411,3 @@ namespace noa::cuda {
                 /*stream=*/ stream.id()));
     }
 }
-#endif

@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/unified/Device.hpp"
 #include "noa/unified/Session.hpp"
 #include "noa/cpu/Stream.hpp"
@@ -167,4 +164,3 @@ namespace noa::inline types {
         Stream m_previous_current;
     };
 }
-#endif

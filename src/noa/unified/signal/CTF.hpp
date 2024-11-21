@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/core/Enums.hpp"
+#include "noa/core/Iwise.hpp"
 #include "noa/core/utils/BatchedParameter.hpp"
 #include "noa/core/signal/CTF.hpp"
 #include "noa/core/fft/Frequency.hpp"

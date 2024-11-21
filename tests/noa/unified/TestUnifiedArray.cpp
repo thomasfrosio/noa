@@ -1,7 +1,5 @@
 #include <noa/unified/Array.hpp>
-//#include <noa/unified/memory/Factory.hpp>
-//#include <noa/unified/io/ImageFile.hpp>
-
+#include <noa/core/types/Mat.hpp>
 #include <catch2/catch.hpp>
 #include "Utils.hpp"
 

@@ -720,7 +720,6 @@ namespace std {
     };
 }
 
-#ifdef NOA_IS_OFFLINE
 namespace noa::string {
     template<>
     struct Stringify<Half> {
@@ -748,4 +747,3 @@ namespace fmt {
         }
     };
 }
-#endif

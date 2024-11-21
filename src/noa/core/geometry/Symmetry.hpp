@@ -1,14 +1,13 @@
 #pragma once
 
+#include <optional>
+
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/utils/Strings.hpp"
 #include "noa/core/geometry/Transform.hpp"
 #include "noa/core/types/Mat.hpp"
 #include "noa/core/types/Span.hpp"
-
-#ifdef NOA_IS_OFFLINE
-#include <optional>
 
 namespace noa::geometry {
     /// Symmetry code.
@@ -25,7 +24,7 @@ namespace noa::geometry {
             out.type = static_cast<char>(std::toupper(static_cast<unsigned char>(symmetry[0])));
 
             if (symmetry.size() > 1) {
-                auto opt = ns::parse<i32>(std::string(symmetry, 1, symmetry.length())); // offset by 1
+                const auto opt = ns::parse<i32>(std::string(symmetry, 1, symmetry.length())); // offset by 1
                 if (not opt)
                     return std::nullopt;
                 out.order = opt.value();
@@ -35,7 +34,7 @@ namespace noa::geometry {
             return out;
         }
 
-        [[nodiscard]] std::string to_string() const {
+        [[nodiscard]] auto to_string() const -> std::string {
             if (order)
                 return fmt::format("{}{}", type, order);
             return {type};
@@ -60,4 +59,3 @@ namespace noa::geometry::guts {
         }
     }
 }
-#endif

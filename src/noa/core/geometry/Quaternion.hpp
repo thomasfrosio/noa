@@ -5,7 +5,7 @@
 
 namespace noa::geometry {
     /// Quaternion type to represent 3d rotations. The coefficients are saved in the z, y, x, w order.
-    /// \note For our use cases, quaternions are mostly advantageous for (de)serializing 3d pure rotations.
+    /// \note For our use cases, quaternions are mostly helpful for (de)serializing 3d pure rotations.
     ///       For instance, a 3x3 matrix requires 9 load.f32|f64 instructions (Euler angles require 3), as opposed
     ///       to a quaternion which requires a single load.vec4.f32 instruction for single precision or two
     ///       load.vec2.f64 instruction for double precision. This can have a major performance benefit, especially
@@ -25,7 +25,7 @@ namespace noa::geometry {
         /// Converts a 3x3 orthogonal matrix to a quaternion.
         /// \warning Only pure rotations are supported, ie \p matrix should have no scaling and no reflection.
         template<typename U>
-        [[nodiscard]] NOA_HD static constexpr Quaternion from_matrix(const Mat33<U>& matrix) noexcept {
+        [[nodiscard]] NOA_HD static constexpr auto from_matrix(const Mat33<U>& matrix) noexcept -> Quaternion {
             // This is also interesting, to handle the case with a scaling factor:
             // https://github.com/scipy/scipy/blob/main/scipy/spatial/transform/_rotation.pyx#L978-L1001
 
@@ -44,14 +44,14 @@ namespace noa::geometry {
         }
 
         template<typename U, size_t A>
-        [[nodiscard]] NOA_HD static constexpr Quaternion from_coefficients(const Vec<U, 4, A>& zyxw) noexcept {
+        [[nodiscard]] NOA_HD static constexpr auto from_coefficients(const Vec<U, 4, A>& zyxw) noexcept -> Quaternion {
             return {static_cast<value_type>(zyxw[0]),
                     static_cast<value_type>(zyxw[1]),
                     static_cast<value_type>(zyxw[2]),
                     static_cast<value_type>(zyxw[3])};
         }
 
-        [[nodiscard]] NOA_HD static constexpr Quaternion from_coefficients(auto z, auto y, auto x, auto w) noexcept {
+        [[nodiscard]] NOA_HD static constexpr auto from_coefficients(auto z, auto y, auto x, auto w) noexcept -> Quaternion {
             return {static_cast<value_type>(z),
                     static_cast<value_type>(y),
                     static_cast<value_type>(x),
@@ -81,8 +81,8 @@ namespace noa::geometry {
         }
 
         [[nodiscard]] friend NOA_HD constexpr auto operator*(
-                const Quaternion& lhs,
-                const Quaternion& rhs
+            const Quaternion& lhs,
+            const Quaternion& rhs
         ) noexcept -> Quaternion {
             return {
                     .z=lhs.w * rhs.z + lhs.z * rhs.w + lhs.x * rhs.y - lhs.y * rhs.x,

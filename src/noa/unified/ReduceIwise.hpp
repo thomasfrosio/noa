@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/utils/Adaptor.hpp"
 #include "noa/unified/Traits.hpp"
 #include "noa/unified/Stream.hpp"
@@ -165,4 +162,3 @@ namespace noa::guts {
         }
     }
 }
-#endif

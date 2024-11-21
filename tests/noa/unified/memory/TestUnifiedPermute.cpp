@@ -51,7 +51,7 @@ TEST_CASE("unified::permute()", "[asset][noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::memory::permute", "[noa][unified]", i32, f32, f64, c32) {
+TEMPLATE_TEST_CASE("unified::permute", "[noa][unified]", i32, f32, f64, c32) {
     constexpr std::array permutations{
         Vec4<i64>{0, 1, 2, 3},
         Vec4<i64>{0, 1, 3, 2},

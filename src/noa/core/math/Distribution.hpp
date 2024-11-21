@@ -1,14 +1,10 @@
 #pragma once
 
+#include <random>
+
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/math/Generic.hpp"
-
-#ifdef NOA_IS_OFFLINE
-#include <random>
-#else
-#include <cuda/std/random>
-#endif
 
 namespace noa {
     /// Uniform distribution.
@@ -60,13 +56,13 @@ namespace noa {
         constexpr explicit Normal(value_type mean = 0, value_type stddev = 1) noexcept :
             m_mean(mean), m_stddev(stddev) {}
 
-        constexpr value_type operator()(auto& generator) noexcept {
+        constexpr auto operator()(auto& generator) noexcept -> value_type {
             value_type real = next_(generator, m_saved, m_saved_is_available);
             return real * m_stddev + m_mean;
         }
 
     private:
-        static constexpr value_type next_(auto& generator, value_type& saved, bool& is_available) noexcept {
+        static constexpr auto next_(auto& generator, value_type& saved, bool& is_available) noexcept -> value_type {
             value_type ret;
             if (is_available) {
                 is_available = false;
@@ -106,7 +102,7 @@ namespace noa {
         constexpr explicit LogNormal(value_type mean = {}, value_type stddev = 1) noexcept :
             m_mean(mean), m_stddev(stddev) {}
 
-        constexpr value_type operator()(auto& generator) noexcept requires nt::real<value_type> {
+        constexpr auto operator()(auto& generator) noexcept -> value_type requires nt::real<value_type> {
             value_type real = Normal<value_type>::next_(generator, m_saved, m_saved_is_available);
             return exp(real * m_stddev + m_mean);
         }
@@ -128,7 +124,7 @@ namespace noa {
         constexpr explicit Poisson(T mean) noexcept :
             m_mean(static_cast<compute_type>(mean)), m_threshold(std::exp(-m_mean)) {}
 
-        constexpr compute_type next(auto& generator) noexcept {
+        constexpr auto next(auto& generator) noexcept -> compute_type {
             T x = 0;
             compute_type prod = 1.0;
             do {

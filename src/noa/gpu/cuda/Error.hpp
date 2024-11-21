@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/Error.hpp"
 #include "noa/core/utils/Strings.hpp"
 #include "noa/gpu/cuda/Runtime.hpp"
@@ -24,4 +21,3 @@ namespace noa::cuda {
         return fmt::format("{}: {}", cudaGetErrorName(result), cudaGetErrorString(result));
     }
 }
-#endif

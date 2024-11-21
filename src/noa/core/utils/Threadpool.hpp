@@ -1,16 +1,14 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-#include "noa/core/Error.hpp"
-#include "noa/core/utils/Misc.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <future>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <vector>
 #include <queue>
+
+#include "noa/core/Error.hpp"
+#include "noa/core/utils/Misc.hpp"
 
 namespace noa {
     /// Simple thread pool.
@@ -102,4 +100,3 @@ namespace noa {
         }
     };
 }
-#endif

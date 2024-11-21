@@ -16,13 +16,6 @@
 #   define NOA_IS_CPU_CODE
 #endif
 
-// Whether the code is compiled offline by a C++ compiler (which includes nvcc and nvc++)
-#ifdef __CUDACC_RTC__
-#   define NOA_IS_GPU_JIT
-#else
-#   define NOA_IS_OFFLINE
-#endif
-
 // Device/Host declarations.
 // If the compilation is not steered by nvcc/nvrtc, these attributes should not be used
 // since the CUDA runtime might not be included in the translation unit.

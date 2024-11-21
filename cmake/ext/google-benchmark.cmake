@@ -17,14 +17,9 @@ else ()
         GIT_TAG ${google-benchmark_TAG}
     )
 
-    FetchContent_GetProperties(benchmark)
-    if (NOT benchmark_POPULATED)
-        FetchContent_Populate(benchmark)
-
-        set(BENCHMARK_ENABLE_GTEST_TESTS OFF)
-        set(BENCHMARK_ENABLE_LTO OFF)
-        add_subdirectory(${benchmark_SOURCE_DIR} ${benchmark_BINARY_DIR})
-    endif ()
+    option(BENCHMARK_ENABLE_GTEST_TESTS "" OFF)
+    option(BENCHMARK_ENABLE_LTO "" OFF)
+    FetchContent_MakeAvailable(benchmark)
 
     message(STATUS "New imported target available: benchmark::benchmark")
 endif ()

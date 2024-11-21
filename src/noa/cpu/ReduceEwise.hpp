@@ -1,9 +1,7 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
-#include "noa/core/Types.hpp"
+#include "noa/core/types/Accessor.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/core/Interfaces.hpp"
 
 namespace noa::cpu::guts {
@@ -170,4 +168,3 @@ namespace noa::cpu {
         }
     }
 }
-#endif

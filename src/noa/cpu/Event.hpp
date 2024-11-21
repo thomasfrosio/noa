@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/Error.hpp"
 #include "noa/cpu/Stream.hpp"
 
@@ -65,4 +62,3 @@ namespace noa::cpu {
         std::chrono::time_point<std::chrono::steady_clock> m_time;
     };
 }
-#endif

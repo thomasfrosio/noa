@@ -1,17 +1,11 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-#include "noa/core/Traits.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <cstddef>
 #include <utility>
 #include <functional> // reference_wrapper
-#else
-#include <cuda/std/cstddef>
-#include <cuda/std/utility>
-#include <cuda/std/functional> // reference_wrapper
-#endif
+
+#include "noa/core/Config.hpp"
+#include "noa/core/Traits.hpp"
 
 namespace noa::inline types {
     template<size_t I>
@@ -114,7 +108,7 @@ namespace noa::inline types {
 namespace noa {
     template<size_t I, typename Tup>
     requires (nt::tuple<std::decay_t<Tup>> or nt::pair<std::decay_t<Tup>>)
-    constexpr decltype(auto) get(Tup&& tup) {
+    constexpr auto get(Tup&& tup) -> decltype(auto) {
         return std::forward<Tup>(tup)[Tag<I>{}];
     }
 

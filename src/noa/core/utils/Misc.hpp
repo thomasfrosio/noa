@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
 
@@ -43,13 +45,9 @@ namespace noa {
     }
 }
 
-#ifdef NOA_IS_OFFLINE
-#include <algorithm>
-
 namespace noa {
     template<typename T>
     constexpr bool any(T value, std::initializer_list<T> args) noexcept {
         return std::any_of(args.begin(), args.end(), [value](T x) { return value == x; });
     }
 }
-#endif

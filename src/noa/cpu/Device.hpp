@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <cstddef>
 #include <string>
 
@@ -32,4 +29,3 @@ namespace noa::cpu {
         static void reset();
     };
 }
-#endif

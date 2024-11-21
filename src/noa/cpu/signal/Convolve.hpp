@@ -1,8 +1,10 @@
 #pragma once
 
-#include "noa/core/Types.hpp"
-#include "noa/core/Ewise.hpp"
+#include "noa/core/indexing/Layout.hpp"
+#include "noa/core/types/Accessor.hpp"
+#include "noa/core/types/Shape.hpp"
 #include "noa/core/utils/Misc.hpp"
+#include "noa/core/Ewise.hpp"
 #include "noa/cpu/AllocatorHeap.hpp"
 #include "noa/cpu/Iwise.hpp"
 #include "noa/cpu/Ewise.hpp"

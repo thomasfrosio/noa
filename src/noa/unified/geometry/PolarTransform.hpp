@@ -3,7 +3,6 @@
 #include "noa/core/Enums.hpp"
 #include "noa/core/Iwise.hpp"
 #include "noa/core/geometry/Polar.hpp"
-#include "noa/core/geometry/PolarTransform.hpp"
 #include "noa/core/math/Constant.hpp"
 #include "noa/core/math/Generic.hpp"
 #include "noa/core/types/Shape.hpp"
@@ -140,9 +139,7 @@ namespace noa::geometry::guts {
         coord_type m_start_angle;
         coord_type m_start_radius;
     };
-}
 
-namespace noa::geometry::guts {
     inline void set_polar_window_range_to_default(
         const Shape4<i64>& cartesian_shape,
         const Vec2<f64>& cartesian_center,

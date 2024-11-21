@@ -78,7 +78,7 @@ TEST_CASE("unified::geometry::symmetrize_2d", "[noa][unified][assets]") {
 
             const auto input = noa::io::read_data<f32>(input_filename, {.enforce_2d_stack = true}, options);
             if (interp.is_almost_any(Interp::CUBIC_BSPLINE))
-                ng::cubic_bspline_prefilter(input, input);
+                noa::cubic_bspline_prefilter(input, input);
 
             // With arrays:
             const auto output = noa::like(input);
@@ -138,7 +138,7 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[noa][unified][assets]")
         devices.emplace_back("gpu");
 
     const size_t expected_count = param["tests"].size() * devices.size();
-    REQUIRE(expected_count == 2);
+    REQUIRE(expected_count == 1);
     size_t count{};
     for (size_t nb{}; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);
@@ -170,7 +170,7 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[noa][unified][assets]")
 
             const auto input = noa::io::read_data<f32>(input_filename, {.enforce_2d_stack = false}, options);
             if (interp.is_almost_any(Interp::CUBIC_BSPLINE))
-                ng::cubic_bspline_prefilter(input, input);
+                noa::cubic_bspline_prefilter(input, input);
 
             // With arrays:
             const auto output = noa::like(input);

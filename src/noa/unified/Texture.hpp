@@ -1,10 +1,6 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <variant>
-
 #include "noa/unified/Array.hpp"
 #include "noa/unified/ArrayOption.hpp"
 #include "noa/unified/geometry/CubicBSplinePrefilter.hpp"
@@ -120,7 +116,7 @@ namespace noa::inline types {
             check(not array.is_empty(), "Empty array detected");
 
             if (options.prefilter and interp.is_almost_any(Interp::CUBIC_BSPLINE))
-                noa::geometry::cubic_bspline_prefilter(array, array);
+                noa::cubic_bspline_prefilter(array, array);
 
             if (device_target.is_cpu()) {
                 check(array.device() == device_target,
@@ -228,7 +224,7 @@ namespace noa::inline types {
                   m_shape, array.shape());
 
             if (prefilter and m_interp.is_almost_any(Interp::CUBIC_BSPLINE))
-                noa::geometry::cubic_bspline_prefilter(array, array);
+                noa::cubic_bspline_prefilter(array, array);
 
             const Device device_target = device();
             if (device_target.is_cpu()) {
@@ -396,4 +392,3 @@ namespace noa::inline types {
 namespace noa::traits {
     template<typename T> struct proclaim_is_texture<Texture<T>> : std::true_type {};
 }
-#endif

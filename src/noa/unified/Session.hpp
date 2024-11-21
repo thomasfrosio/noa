@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/Version.hpp"
 #include "noa/unified/Device.hpp"
 
@@ -94,5 +91,3 @@ namespace noa::inline types {
         static i64 m_thread_limit;
     };
 }
-
-#endif

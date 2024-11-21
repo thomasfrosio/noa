@@ -150,7 +150,6 @@ namespace noa::cuda {
 
         /// Checks that the texture object matches the Texture
         static void validate(cudaTextureObject_t texture) {
-            #ifdef NOA_IS_OFFLINE
             cudaArray* array = AllocatorTexture::texture_array(texture);
             const bool is_layered = AllocatorTexture::is_layered(array);
             check(is_layered == LAYERED, "The input texture object is not layered, but a layered Texture was created");
@@ -172,7 +171,6 @@ namespace noa::cuda {
             check(description.normalizedCoords == NORMALIZED,
                   "The input texture object is not using normalized coordinates, "
                   "which does not match the Texture settings: BORDER={}", BORDER);
-            #endif
         }
 
     private:

@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <memory>
 #include <utility>
 #include <variant>
@@ -422,4 +419,3 @@ namespace noa {
     using noa::io::read_data;
     using noa::io::write;
 }
-#endif

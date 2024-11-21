@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/types/Mat.hpp"
 #include "noa/core/types/Span.hpp"
 
@@ -34,9 +31,9 @@ namespace noa::geometry {
              typename I0, StridesTraits S0,
              typename I1, StridesTraits S1>
     void euler2matrix(
-            const Span<const Vec3<T>, 1, I0, S0>& angles,
-            const Span<Mat33<T>, 1, I1, S1>& matrices,
-            const EulerOptions& options = {}
+        const Span<const Vec3<T>, 1, I0, S0>& angles,
+        const Span<Mat33<T>, 1, I1, S1>& matrices,
+        const EulerOptions& options = {}
     ) {
         check(angles.size() == matrices.size(), "angles and matrices don't have the same size");
         for (size_t batch{}; batch < angles.size(); ++batch)
@@ -52,13 +49,12 @@ namespace noa::geometry {
              typename I0, StridesTraits S0,
              typename I1, StridesTraits S1>
     void matrix2euler(
-            const Span<Mat33<T>, 1, I0, S0>& matrices,
-            const Span<const Vec3<T>, 1, I1, S1>& angles,
-            const EulerOptions& options = {}
+        const Span<Mat33<T>, 1, I0, S0>& matrices,
+        const Span<const Vec3<T>, 1, I1, S1>& angles,
+        const EulerOptions& options = {}
     ) {
         check(angles.size() == matrices.size(), "angles and matrices don't have the same size");
         for (size_t batch{}; batch < angles.size(); ++batch)
             angles[batch] = matrix2euler(matrices[batch], options);
     }
 }
-#endif

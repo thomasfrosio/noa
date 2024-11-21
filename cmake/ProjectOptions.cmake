@@ -8,7 +8,8 @@ macro(noa_set_options)
     # CPU backend:
     option(NOA_ENABLE_CPU "Build the CPU backend" ON)
     option(NOA_CPU_OPENMP "Enable multithreading, using OpenMP" ON)
-    option(NOA_CPU_MULTITHREADED_FFTW3 "Use the multi-threaded FFTW3 libraries" ${NOA_CPU_OPENMP})
+    option(NOA_CPU_FFTW3_MULTITHREADED "Use the multi-threaded FFTW3 libraries" ${NOA_CPU_OPENMP})
+    option(NOA_CPU_FFTW3_STATIC "Whether to link the FFTW3 libraries statically" ON)
 
     # CUDA backend:
     option(NOA_ENABLE_CUDA "Build the CUDA backend. Requires a CUDA compiler and a CUDA Toolkit" ON)

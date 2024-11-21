@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <memory>
 #include "noa/core/indexing/Layout.hpp"
 #include "noa/core/types/Complex.hpp"
@@ -104,4 +101,3 @@ namespace noa::cuda::fft {
         std::shared_ptr<void> m_plan{};
     };
 }
-#endif

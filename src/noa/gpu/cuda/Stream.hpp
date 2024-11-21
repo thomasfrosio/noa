@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <list>
 #include <mutex>
 #include <condition_variable>
@@ -301,4 +298,3 @@ namespace noa::cuda {
         Device m_device{0, Device::DeviceUnchecked{}};
     };
 }
-#endif

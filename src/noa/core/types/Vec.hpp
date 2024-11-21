@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm> // sort
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/indexing/Bounds.hpp"
@@ -7,12 +8,8 @@
 #include "noa/core/utils/ClampCast.hpp"
 #include "noa/core/utils/SafeCast.hpp"
 #include "noa/core/utils/Sort.hpp"
-#include "noa/core/Ewise.hpp"
-
-#ifdef NOA_IS_OFFLINE
-#include <algorithm> // sort
 #include "noa/core/utils/Strings.hpp"
-#endif
+#include "noa/core/Ewise.hpp"
 
 namespace noa::guts {
     // Add support for alignment requirement.
@@ -349,12 +346,10 @@ namespace noa::inline types {
             return clamp_cast<Vec<U, SIZE, AR>>(*this);
         }
 
-#ifdef NOA_IS_OFFLINE
         template<nt::static_castable_to<value_type> U, size_t AR = 0>
         [[nodiscard]] constexpr auto as_safe() const {
             return safe_cast<Vec<U, SIZE, AR>>(*this);
         }
-#endif
 
     public:
         template<size_t S = 1, size_t AR = 0> requires (N >= S)
@@ -487,7 +482,6 @@ namespace noa::inline types {
     template<typename T> using Vec3 = Vec<T, 3>;
     template<typename T> using Vec4 = Vec<T, 4>;
 
-#ifdef NOA_IS_OFFLINE
     /// Support for output stream:
     template<typename T, size_t N, size_t A>
     inline std::ostream& operator<<(std::ostream& os, const Vec<T, N, A>& v) {
@@ -497,7 +491,6 @@ namespace noa::inline types {
             os << fmt::format("{}", v); // FIXME
         return os;
     }
-#endif
 }
 
 // Support for structure bindings:
@@ -920,7 +913,6 @@ namespace noa {
         return vector;
     }
 
-#ifdef NOA_IS_OFFLINE
     template<typename T, size_t N, size_t A, typename Op = Less> requires (N > 4)
     [[nodiscard]] auto stable_sort(Vec<T, N, A> vector, Op&& comp = {}) noexcept {
         std::stable_sort(vector.begin(), vector.end(), std::forward<Op>(comp));
@@ -932,7 +924,6 @@ namespace noa {
         std::sort(vector.begin(), vector.end(), std::forward<Op>(comp));
         return vector;
     }
-#endif
 }
 
 namespace noa {
@@ -1056,7 +1047,6 @@ namespace noa {
     }
 }
 
-#ifdef NOA_IS_OFFLINE
 namespace noa::string {
     template<typename T, size_t N>
     struct Stringify<Vec<T, N>> {
@@ -1065,4 +1055,3 @@ namespace noa::string {
         }
     };
 }
-#endif

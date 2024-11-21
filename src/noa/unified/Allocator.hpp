@@ -1,11 +1,9 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
-#include <ostream>
 #include "noa/core/Error.hpp"
 #include "noa/core/utils/Strings.hpp"
+#include "noa/core/types/Shape.hpp"
+#include "noa/core/types/Pair.hpp"
 
 #include "noa/cpu/AllocatorHeap.hpp"
 #if defined(NOA_ENABLE_CUDA)
@@ -256,8 +254,8 @@ namespace noa::inline types {
 }
 
 namespace noa::inline types {
-    std::ostream& operator<<(std::ostream& os, Allocator::Enum allocator);
-    inline std::ostream& operator<<(std::ostream& os, Allocator allocator) {
+    auto operator<<(std::ostream& os, Allocator::Enum allocator) -> std::ostream&;
+    inline auto operator<<(std::ostream& os, Allocator allocator) -> std::ostream& {
         return os << allocator.value;
     }
 }
@@ -267,4 +265,3 @@ namespace fmt {
     template<> struct formatter<noa::Allocator::Enum> : ostream_formatter {};
     template<> struct formatter<noa::Allocator> : ostream_formatter {};
 }
-#endif

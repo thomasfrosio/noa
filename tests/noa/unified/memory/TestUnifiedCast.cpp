@@ -4,7 +4,7 @@
 
 using namespace ::noa::types;
 
-TEMPLATE_TEST_CASE("unified::memory::cast", "[noa][unified]", i32, f32, f64) {
+TEMPLATE_TEST_CASE("unified::cast", "[noa][unified]", i32, f32, f64) {
     const bool pad = GENERATE(false, true);
     const auto subregion_shape = test::random_shape_batched(3);
     auto shape = subregion_shape;

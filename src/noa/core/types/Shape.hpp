@@ -170,12 +170,10 @@ namespace noa::inline types {
             return clamp_cast<Shape<U, SIZE, AR>>(*this);
         }
 
-#ifdef NOA_IS_OFFLINE
         template<nt::integer U, size_t AR = 0>
         [[nodiscard]] constexpr auto as_safe() const {
             return safe_cast<Shape<U, SIZE, AR>>(*this);
         }
-#endif
 
     public:
         template<size_t S = 1, size_t AR = 0> requires (SIZE >= S)
@@ -546,12 +544,10 @@ namespace noa::inline types {
             return clamp_cast<Strides<U, SIZE, AR>>(*this);
         }
 
-#ifdef NOA_IS_OFFLINE
         template<nt::integer U, size_t AR = 0>
         [[nodiscard]] constexpr auto as_safe() const {
             return safe_cast<Strides<U, SIZE, AR>>(*this);
         }
-#endif
 
     public:
         template<size_t S = 1, size_t AR = 0> requires (SIZE >= S)
@@ -875,7 +871,6 @@ namespace noa {
     }
 }
 
-#ifdef NOA_IS_OFFLINE
 namespace noa::inline types {
     template<typename T, size_t N>
     std::ostream& operator<<(std::ostream& os, const Shape<T, N>& v) {
@@ -910,4 +905,3 @@ namespace noa::string {
         }
     };
 }
-#endif

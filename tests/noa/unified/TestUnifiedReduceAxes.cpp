@@ -9,7 +9,7 @@
 
 using namespace noa::types;
 
-TEST_CASE("unified:: axis reductions vs numpy", "[assets][noa][unified]") {
+TEST_CASE("unified::reduce - axis reductions vs numpy", "[assets][noa][unified]") {
     const auto path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
 
@@ -84,7 +84,7 @@ TEST_CASE("unified:: axis reductions vs numpy", "[assets][noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified:: axis reductions, cpu vs gpu", "[noa][unified]", i64, f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::reduce - axis reductions, cpu vs gpu", "[noa][unified]", i64, f32, f64, c32, c64) {
     if (not Device::is_any_gpu())
         return;
 
@@ -198,7 +198,7 @@ TEMPLATE_TEST_CASE("unified:: axis reductions, cpu vs gpu", "[noa][unified]", i6
     }
 }
 
-TEST_CASE("unified::argmax/argmin()", "[noa][unified]") {
+TEST_CASE("unified::reduce - argmax/argmin()", "[noa][unified]") {
     const bool small = GENERATE(true, false);
     const auto shape = small ? Shape4<i64>{3, 8, 41, 65} : Shape4<i64>{3, 256, 256, 300};
     const auto n_elements_per_batch = shape.pop_front().as<u32>().n_elements();

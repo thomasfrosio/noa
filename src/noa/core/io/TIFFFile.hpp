@@ -6,8 +6,6 @@
 #include "noa/core/io/Stats.hpp"
 
 #ifdef NOA_ENABLE_TIFF
-#   ifdef NOA_IS_OFFLINE
-
 namespace noa::io {
     class TiffFile {
     public:
@@ -215,6 +213,4 @@ namespace noa::io {
         bool m_is_read{};
     };
 }
-
-#   endif
 #endif

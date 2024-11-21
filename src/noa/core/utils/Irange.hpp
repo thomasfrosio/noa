@@ -1,14 +1,9 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
+#include <iterator>
+
 #include "noa/core/Traits.hpp"
 #include "noa/core/math/Comparison.hpp"
-
-#ifdef NOA_IS_OFFLINE
-#include <iterator>
-#else
-#include <cuda/std/iterator>
-#endif
 
 // Adapted from https://github.com/pytorch/pytorch/blob/master/c10/util/irange.h
 namespace noa::guts {

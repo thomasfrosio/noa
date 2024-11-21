@@ -377,7 +377,6 @@ namespace noa::cuda::guts {
     // based on a 3D shared memory array, but since it is unlikely to be used anyway, don't bother for now.
 }
 
-#ifdef NOA_IS_OFFLINE
 namespace noa::cuda::guts {
     template<typename T>
     void permute_0132(
@@ -660,4 +659,3 @@ namespace noa::cuda {
         }
     }
 }
-#endif

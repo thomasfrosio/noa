@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/gpu/cuda/Runtime.hpp"
 #include "noa/gpu/cuda/Error.hpp"
 #include "noa/gpu/cuda/Device.hpp"
@@ -68,4 +65,3 @@ namespace noa::cuda {
         cudaMemPool_t m_pool{nullptr};
     };
 }
-#endif

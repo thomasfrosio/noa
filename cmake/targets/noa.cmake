@@ -149,7 +149,7 @@ target_compile_definitions(noa
     "$<$<BOOL:${NOA_ENABLE_CUDA}>:NOA_ENABLE_CUDA>"
     "$<$<BOOL:${NOA_ENABLE_TIFF}>:NOA_ENABLE_TIFF>"
     "$<$<BOOL:${NOA_CPU_OPENMP}>:NOA_ENABLE_OPENMP>"
-    "$<$<BOOL:${NOA_CPU_MULTITHREADED_FFTW3}>:NOA_CPU_MULTITHREADED_FFTW3>"
+    "$<$<BOOL:${NOA_CPU_FFTW3_MULTITHREADED}>:NOA_CPU_FFTW3_MULTITHREADED>"
     )
 
 # Since it is static library only, the SOVERSION shouldn't matter.

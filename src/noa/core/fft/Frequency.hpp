@@ -8,7 +8,7 @@
 namespace noa::fft {
     /// Returns the highest normalized frequency (in cycle/pix) that a dimension with a given size can have.
     template<std::floating_point T>
-    [[nodiscard]] constexpr T highest_normalized_frequency(nt::integer auto size) noexcept {
+    [[nodiscard]] constexpr auto highest_normalized_frequency(nt::integer auto size) noexcept -> T {
         // even: the highest frequency is always 0.5, i.e. Nyquist. E.g. size=64, 32/64=0.5
         // odd: Nyquist cannot be reached. Eg. size=63, 31/63 = 0.49206
         const auto max_index = size / 2; // integer division
@@ -24,13 +24,13 @@ namespace noa::fft {
     /// Returns the fft centered index of the corresponding fft non-centered index.
     /// Should satisfy `0 <= index < size`.
     template<nt::integer T>
-    [[nodiscard]] constexpr T fftshift(T index, T size) noexcept {
+    [[nodiscard]] constexpr auto fftshift(T index, T size) noexcept -> T {
         // n=10: [0, 1, 2, 3, 4,-5,-4,-3,-2,-1] -> [-5,-4,-3,-2,-1, 0, 1, 2, 3, 4]
         // n=11: [0, 1, 2, 3, 4, 5,-5,-4,-3,-2,-1] -> [-5,-4,-3,-2,-1, 0, 1, 2, 3, 4, 5]
         return (index < (size + 1) / 2) ? index + size / 2 : index - (size + 1) / 2; // or (index + size / 2) % size
     }
     template<nt::vec_integer T>
-    [[nodiscard]] constexpr T fftshift(const T& indices, const T& sizes) noexcept {
+    [[nodiscard]] constexpr auto fftshift(const T& indices, const T& sizes) noexcept -> T {
         T shifted_indices;
         for (size_t i{}; i < T::SIZE; ++i)
             shifted_indices[i] = fftshift(indices[i], sizes[i]);
@@ -47,13 +47,13 @@ namespace noa::fft {
     /// Returns the fft non-centered index of the corresponding centered fft index.
     /// Should be within `0 <= index < size`.
     template<nt::integer T>
-    [[nodiscard]] constexpr T ifftshift(T index, T size) noexcept {
+    [[nodiscard]] constexpr auto ifftshift(T index, T size) noexcept -> T {
         // n=10: [-5,-4,-3,-2,-1, 0, 1, 2, 3, 4] -> [0, 1, 2, 3, 4,-5,-4,-3,-2,-1]
         // n=11: [-5,-4,-3,-2,-1, 0, 1, 2, 3, 4, 5] -> [0, 1, 2, 3, 4, 5,-5,-4,-3,-2,-1]
         return (index < size / 2) ? index + (size + 1) / 2 : index - size / 2; // or (index + (size + 1) / 2) % size
     }
     template<nt::vec_integer T>
-    [[nodiscard]] constexpr T ifftshift(const T& indices, const T& sizes) noexcept {
+    [[nodiscard]] constexpr auto ifftshift(const T& indices, const T& sizes) noexcept -> T {
         T shifted_indices;
         for (size_t i{}; i < T::SIZE; ++i)
             shifted_indices[i] = ifftshift(indices[i], sizes[i]);
@@ -72,7 +72,7 @@ namespace noa::fft {
     ///          For a rfft's half dimension (which is not supported by this function),
     ///          the index is equal to the frequency, regardless of the centering.
     template<bool IS_CENTERED, nt::sinteger T>
-    [[nodiscard]] constexpr T index2frequency(T index, T size) noexcept {
+    [[nodiscard]] constexpr auto index2frequency(T index, T size) noexcept -> T {
         // n=5: [0, 1, 2, 3, 4] -> centered=[-2,-1, 0, 1, 2], non-centered=[0, 1, 2,-2,-1]
         // n=6: [0, 1, 2, 3, 4, 5] -> centered=[-3,-2,-1, 0, 1, 2], non-centered=[0, 1, 2,-3,-2,-1]
         if constexpr (IS_CENTERED)
@@ -107,7 +107,7 @@ namespace noa::fft {
     ///          For a rfft's half-dimension (which is not supported by this function),
     ///          the index is equal to the frequency, regardless of the centering.
     template<bool IS_CENTERED, typename T, nt::sinteger U> requires (nt::real<T> or nt::sinteger<T>)
-    [[nodiscard]] constexpr T frequency2index(T frequency, U size) noexcept {
+    [[nodiscard]] constexpr auto frequency2index(T frequency, U size) noexcept -> T {
         // n=5: [0, 1, 2, 3, 4] -> centered=[-2,-1, 0, 1, 2], non-centered=[0, 1, 2,-2,-1]
         // n=6: [0, 1, 2, 3, 4, 5] -> centered=[-3,-2,-1, 0, 1, 2], non-centered=[0, 1, 2,-3,-2,-1]
         if constexpr (IS_CENTERED)
@@ -141,7 +141,7 @@ namespace noa::fft {
     /// Returns the centered index, given the (non-)centered index.
     /// \warning This function only supports full-dimensions.
     template<bool IS_CENTERED, nt::integer T>
-    constexpr T to_centered_index(T index, T shape) noexcept {
+    constexpr auto to_centered_index(T index, T shape) noexcept -> T {
         if constexpr (IS_CENTERED)
             return index;
         return fftshift(index, shape);
@@ -172,7 +172,7 @@ namespace noa::fft {
     /// Remaps the input index onto the output.
     /// \warning This function only supports full-dimensions.
     template<Remap REMAP, bool FLIP_REMAP = false, nt::integer T>
-    constexpr T remap_index(T index, T shape) noexcept {
+    constexpr auto remap_index(T index, T shape) noexcept -> T {
         constexpr Remap remap = FLIP_REMAP ? REMAP.flip() : REMAP;
         if constexpr (remap.is_xc2xx() == remap.is_xx2xc()) {
             return index;
@@ -264,7 +264,7 @@ namespace noa::fft {
     requires (N >= 1 and N <= 3)
     [[nodiscard]] constexpr auto is_inbounds(const Vec<T, N, A>& frequency, const U& bounds) noexcept {
         for (size_t i{}; i < N; ++i) {
-            if (frequency[i] < bounds.first[i] and bounds.second[i] > frequency[i])
+            if (frequency[i] < bounds.first[i] or frequency[i] > bounds.second[i])
                 return false;
         }
         return true;

@@ -1,8 +1,6 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-
-#if defined (NOA_IS_OFFLINE)
 #include "noa/cpu/Sort.hpp"
 #ifdef NOA_ENABLE_CUDA
 #include "noa/gpu/cuda/Sort.cuh"
@@ -51,4 +49,3 @@ namespace noa {
 
     // TODO Add sort by keys.
 }
-#endif

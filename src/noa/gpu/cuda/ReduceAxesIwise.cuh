@@ -268,7 +268,6 @@ namespace noa::cuda::guts {
     }
 }
 
-#ifdef NOA_IS_OFFLINE
 namespace noa::cuda::guts {
     template<typename Config, size_t N> requires (N >= 2)
     auto reduce_axes_iwise_nd_first_config(const Shape<i32, N>& shape) {
@@ -647,4 +646,3 @@ namespace noa::cuda {
         }
     }
 }
-#endif

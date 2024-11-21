@@ -156,7 +156,6 @@ namespace noa::cuda::guts {
     }
 }
 
-#ifdef NOA_IS_OFFLINE
 namespace noa::cuda::guts {
     // nvcc bug - this could be a lambda, but nvcc <=12.6 is broken...
     template<size_t ALIGNMENT, typename Config, typename Input, typename Output,  typename Op, typename Index>
@@ -307,7 +306,6 @@ namespace noa::cuda {
         }
     }
 }
-#endif
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #pragma GCC diagnostic pop

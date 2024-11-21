@@ -1,12 +1,8 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/Ewise.hpp"
 #include "noa/core/Error.hpp"
 #include "noa/core/Traits.hpp"
-#include "noa/core/Types.hpp"
 #include "noa/core/indexing/Subregion.hpp"
 
 #include "noa/unified/ArrayOption.hpp"
@@ -578,4 +574,3 @@ namespace noa::inline types {
 namespace noa::traits {
     template<typename T> struct proclaim_is_view<View<T>> : std::true_type {};
 }
-#endif

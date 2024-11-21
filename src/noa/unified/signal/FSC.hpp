@@ -8,6 +8,23 @@
 #include "noa/unified/Iwise.hpp"
 
 namespace noa::signal {
+    constexpr auto n_shells(const Shape4<i64>& shape) -> i64 {
+        switch (shape.ndim()) {
+            case 1:
+                return (shape[3] > 1 ? shape[3] : shape[2]) / 2 + 1;
+            case 2:
+                return min(shape.filter(2, 3)) / 2 + 1;
+            case 3:
+                return min(shape.pop_front()) / 2 + 1;
+            default:
+                panic("BUG: this should not have happened");
+        }
+        return 1;
+    }
+}
+
+
+namespace noa::signal::guts {
     /// 4d iwise operator to compute an isotropic FSC.
     /// * A lerp is used to add frequencies in its two neighbour shells, instead of rounding to the nearest shell.
     /// * The frequencies are normalized, so rectangular volumes can be passed.
@@ -249,25 +266,7 @@ namespace noa::signal {
             output /= max(EPSILON, sqrt(lhs * rhs));
         }
     };
-}
 
-namespace noa::signal {
-    constexpr auto n_shells(const Shape4<i64>& shape) -> i64 {
-        switch (shape.ndim()) {
-            case 1:
-                return (shape[3] > 1 ? shape[3] : shape[2]) / 2 + 1;
-            case 2:
-                return min(shape.filter(2, 3)) / 2 + 1;
-            case 3:
-                return min(shape.pop_front()) / 2 + 1;
-            default:
-                panic("BUG: this should not have happened");
-        }
-        return 1;
-    }
-}
-
-namespace noa::signal::guts {
     template<typename Lhs, typename Rhs, typename Output, typename Cones = Empty>
     void check_fsc_parameters(
             const Lhs& lhs, const Rhs& rhs, const Output& fsc, const Shape4<i64>& shape,
@@ -348,7 +347,7 @@ namespace noa::signal::fft {
         iwise(shape.rfft(), fsc.device(), reduction_op, std::forward<Lhs>(lhs), std::forward<Rhs>(rhs));
         ewise(wrap(std::move(denominator_lhs), std::move(denominator_rhs)),
               std::forward<Output>(fsc),
-              FSCNormalization{});
+              guts::FSCNormalization{});
     }
 
     /// Computes the isotropic Fourier Shell Correlation between \p lhs and \p rhs.
@@ -427,7 +426,7 @@ namespace noa::signal::fft {
               std::forward<Cones>(cone_directions));
         ewise(wrap(std::move(denominator_lhs), std::move(denominator_rhs)),
               std::forward<Output>(fsc),
-              FSCNormalization{});
+              guts::FSCNormalization{});
     }
 
     /// Computes the anisotropic/conical Fourier Shell Correlation between \p lhs and \p rhs.

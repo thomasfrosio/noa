@@ -109,7 +109,7 @@ namespace noa::indexing {
 
     /// Reads the element at the given indices.
     template<typename T, typename... I> requires nt::indexable<T, I...>
-    [[nodiscard]] NOA_FHD constexpr auto& read(const T& indexable, const I&... indices) {
+    [[nodiscard]] NOA_FHD constexpr auto read(const T& indexable, const I&... indices) -> auto& {
         if constexpr (requires { indexable.is_empty(); }) {
             NOA_ASSERT(not indexable.is_empty());
         }
@@ -121,7 +121,7 @@ namespace noa::indexing {
 
     /// Reads the element at the given indices, enforcing bounds check.
     template<typename T, typename... I> requires nt::indexable<T, I...>
-    [[nodiscard]] NOA_FHD constexpr auto& read_at(const T& indexable, const I&... indices) {
+    [[nodiscard]] NOA_FHD constexpr auto read_at(const T& indexable, const I&... indices) -> auto& {
         if constexpr (requires { indexable.is_empty(); })
             check(not indexable.is_empty());
         if constexpr (requires { indexable.shape(); })
@@ -165,7 +165,7 @@ namespace noa::indexing {
     /// If \p idx is out-of-bound, computes a valid index, i.e. [0, size-1], according to \p MODE.
     /// Otherwise, returns \p idx. \p size should be > 0.
     template<Border MODE, nt::sinteger T>
-    [[nodiscard]] NOA_HD constexpr T index_at(T idx, T size) noexcept {
+    [[nodiscard]] NOA_HD constexpr auto index_at(T idx, T size) noexcept -> T {
         static_assert(MODE == Border::CLAMP or MODE == Border::PERIODIC or
                       MODE == Border::MIRROR or MODE == Border::REFLECT);
         NOA_ASSERT(size > 0);

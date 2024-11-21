@@ -108,7 +108,6 @@ namespace noa::cuda::guts {
     }
 }
 
-#ifdef NOA_IS_OFFLINE
 namespace noa::cuda::guts {
     template<size_t BLOCK_SIZE_X, size_t ALIGNMENT, typename Config,
              typename Op, typename Input, typename Reduced, typename Output, typename Index>
@@ -413,7 +412,6 @@ namespace noa::cuda {
         }
     }
 }
-#endif
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #pragma GCC diagnostic pop

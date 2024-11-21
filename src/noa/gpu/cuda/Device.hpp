@@ -1,11 +1,9 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <cstddef>
 #include <string>
 #include <vector>
+
 #include "noa/core/utils/Strings.hpp"
 #include "noa/gpu/cuda/Runtime.hpp"
 #include "noa/gpu/cuda/Error.hpp"
@@ -234,4 +232,3 @@ namespace noa::cuda {
     inline bool operator!=(const Device& lhs, const DeviceGuard& rhs) { return lhs.id() != rhs.id(); }
     inline bool operator!=(const DeviceGuard& lhs, const Device& rhs) { return lhs.id() != rhs.id(); }
 }
-#endif

@@ -5,6 +5,7 @@ set(NOA_CUDA_HEADERS
     gpu/cuda/Block.cuh
     gpu/cuda/Constants.hpp
     gpu/cuda/Copy.cuh
+    gpu/cuda/CubicBSplinePrefilter.cuh
     gpu/cuda/Device.hpp
     gpu/cuda/Event.hpp
     gpu/cuda/Ewise.cuh
@@ -33,9 +34,6 @@ set(NOA_CUDA_HEADERS
     # noa::cuda::signal
     gpu/cuda/signal/Convolve.cuh
     gpu/cuda/signal/MedianFilter.cuh
-
-    # noa::cuda::geometry
-    gpu/cuda/geometry/Prefilter.cuh
     )
 
 set(NOA_CUDA_SOURCES

@@ -1,8 +1,6 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/Enums.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
 #include "noa/gpu/cuda/fft/Plan.hpp"
@@ -104,4 +102,3 @@ namespace noa::cuda::fft {
         c2c(data, strides, data, strides, shape, sign, cache_plan, stream);
     }
 }
-#endif

@@ -249,9 +249,7 @@ namespace noa::signal::guts {
         subregion_offset_type m_subregion_offset;
         bool m_apply_ellipse;
     };
-}
 
-namespace noa::signal::guts {
     template<size_t NDIM, typename Input, typename PeakCoord, typename PeakValue>
     void check_cross_correlation_peak_parameters(
         const Input& xmap,

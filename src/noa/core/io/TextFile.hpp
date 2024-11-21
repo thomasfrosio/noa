@@ -1,18 +1,17 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-#include "noa/core/Error.hpp"
-#include "noa/core/io/IO.hpp"
-#include "noa/core/io/OS.hpp"
-#include "noa/core/Traits.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <ios> // std::streamsize
 #include <fstream>
 #include <memory>
 #include <type_traits>
 #include <thread>
 #include <string>
+
+#include "noa/core/Config.hpp"
+#include "noa/core/Error.hpp"
+#include "noa/core/io/IO.hpp"
+#include "noa/core/io/OS.hpp"
+#include "noa/core/Traits.hpp"
 
 namespace noa::io {
     /// Read from and write to text files.
@@ -30,16 +29,16 @@ namespace noa::io {
         }
 
         /// (Re)Opens the file.
-        /// \param filename Path of the file to open.
-        /// \param mode Open mode. Should be one of the following combination:
-        ///                 1) read                             File should exists.
-        ///                 2) read-write                       File should exists.    Backup copy.
+        /// \param path Path of the file to open.
+        /// \param mode Open mode. Should be one of the following combinations:
+        ///                 1) read                             File should exist.
+        ///                 2) read-write                       File should exist.     Backup copy.
         ///                 3) write, write-truncate            Overwrite the file.    Backup move.
         ///                 4) read-write-truncate              Overwrite the file.    Backup move.
         ///                 5) append, write-append             Append or create file. Backup copy. Append at each write.
         ///                 6) read-append, read-write-append   Append or create file. Backup copy. Append at each write.
         ///             Additionally, at_the_end and/or binary can be turned on:
-        ///             - at_the_end: the stream go to the end of the file after opening.
+        ///             - at_the_end: the stream goes to the end of the file after opening.
         ///             - binary: Disable text conversions.
         ///
         /// \throws Exception   If any of the following cases:
@@ -75,8 +74,9 @@ namespace noa::io {
         /// \return Whether the line was successfully read. If not, the stream failed or reached
         ///         the end of the file. Use bad() to check if an error occurred while reading the file.
         ///
-        /// \example Read a file line per line.
+        /// \example
         /// \code
+        /// // Read a file line per line.
         /// TextFile file("some_file.txt");
         /// std::string line;
         /// while(file.next_line(line)) {
@@ -86,7 +86,7 @@ namespace noa::io {
         ///     // error while reading the file
         /// // file.eof() == true; everything is OK, the end of the file was reached without error.
         /// \endcode
-        bool next_line(std::string& line) {
+        auto next_line(std::string& line) -> bool {
             return static_cast<bool>(std::getline(m_fstream, line));
         }
 
@@ -101,7 +101,7 @@ namespace noa::io {
         /// }
         /// // file.eof() == true; end of file reached successfully
         /// \endcode
-        bool next_line_or_throw(std::string& line) {
+        auto next_line_or_throw(std::string& line) -> bool {
             bool success = next_line(line);
             if (not success and not this->eof())
                 panic("File: {}. Failed to read a line", m_path);
@@ -109,7 +109,7 @@ namespace noa::io {
         }
 
         /// Reads the entire file.
-        std::string read_all() {
+        auto read_all() -> std::string {
             std::string buffer;
 
             // FIXME use file_size(m_path) instead?
@@ -160,19 +160,19 @@ namespace noa::io {
         ///                        can happen from memory shortage or because the underlying stream
         ///                        buffer throws an exception.
         ///                        See \c std::fstream::bad().
-        [[nodiscard]] Stream& fstream() noexcept { return m_fstream; }
+        [[nodiscard]] auto fstream() noexcept -> Stream& { return m_fstream; }
 
         /// Gets the size (in bytes) of the file. Symlinks are followed.
-        [[nodiscard]] i64 size() {
+        [[nodiscard]] auto size() -> i64 {
             m_fstream.flush();
             return noa::io::file_size(m_path);
         }
 
-        [[nodiscard]] const Path& path() const noexcept { return m_path; }
-        [[nodiscard]] bool bad() const noexcept { return m_fstream.bad(); }
-        [[nodiscard]] bool eof() const noexcept { return m_fstream.eof(); }
-        [[nodiscard]] bool fail() const noexcept { return m_fstream.fail(); }
-        [[nodiscard]] bool is_open() const noexcept { return m_fstream.is_open(); }
+        [[nodiscard]] auto path() const noexcept -> const Path& { return m_path; }
+        [[nodiscard]] auto bad() const noexcept -> bool { return m_fstream.bad(); }
+        [[nodiscard]] auto eof() const noexcept -> bool { return m_fstream.eof(); }
+        [[nodiscard]] auto fail() const noexcept -> bool { return m_fstream.fail(); }
+        [[nodiscard]] auto is_open() const noexcept -> bool { return m_fstream.is_open(); }
         void clear_flags() { m_fstream.clear(); }
 
         /// Whether the underlying file stream is in a "good" state.
@@ -223,7 +223,7 @@ namespace noa::io {
     using OutputTextFile = TextFile<std::ofstream>;
 
     /// Reads the entire text file.
-    inline std::string read_text(const Path& path) {
+    inline auto read_text(const Path& path) -> std::string {
         InputTextFile text_file(path, Open{.read=true});
         return text_file.read_all();
     }
@@ -235,9 +235,7 @@ namespace noa::io {
     }
 }
 
-// Expose to main namespace.
 namespace noa {
     using noa::io::read_text;
     using noa::io::write_text;
 }
-#endif

@@ -96,7 +96,6 @@ namespace noa::cuda::guts {
     }
 }
 
-#ifdef NOA_IS_OFFLINE
 namespace noa::cuda::guts {
     template<typename Config, typename Index>
     auto iwise_4d_static_config(
@@ -208,4 +207,3 @@ namespace noa::cuda {
         }
     }
 }
-#endif

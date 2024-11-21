@@ -9,7 +9,7 @@
 
 using namespace noa::types;
 
-TEST_CASE("unified:: reductions vs numpy", "[assets][noa][unified]") {
+TEST_CASE("unified::reduce - vs numpy", "[assets][noa][unified]") {
     const auto path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
 
@@ -70,7 +70,7 @@ TEST_CASE("unified:: reductions vs numpy", "[assets][noa][unified]") {
     }
 }
 
-TEST_CASE("unified:: reductions complex vs numpy", "[assets][noa][unified]") {
+TEST_CASE("unified::reduce - complex vs numpy", "[assets][noa][unified]") {
     const auto path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_complex"];
     const auto shape = tests["shape"].as<Shape4<i64>>();
@@ -125,7 +125,7 @@ TEST_CASE("unified:: reductions complex vs numpy", "[assets][noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified:: reductions, cpu vs gpu", "[noa][unified]", i64, f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::reduce - cpu vs gpu", "[noa][unified]", i64, f32, f64, c32, c64) {
     if (not Device::is_any_gpu())
         return;
 

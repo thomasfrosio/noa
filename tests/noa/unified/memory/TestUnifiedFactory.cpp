@@ -49,7 +49,7 @@ TEMPLATE_TEST_CASE("unified::arange(), cpu", "[noa][unified]", i32, i64, u32, u6
     }
 }
 
-TEST_CASE("unified::memory::linspace()", "[noa][unified]") {
+TEST_CASE("unified::linspace()", "[noa][unified]") {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");

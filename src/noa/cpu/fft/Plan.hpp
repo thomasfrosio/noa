@@ -1,9 +1,7 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
-#include "noa/core/Types.hpp"
+#include "noa/core/Enums.hpp"
+#include "noa/core/types/Shape.hpp"
 
 namespace noa::cpu::fft {
     /// Returns the optimum even size, greater or equal than "size".
@@ -128,4 +126,3 @@ namespace noa::cpu::fft {
         return n;
     }
 }
-#endif

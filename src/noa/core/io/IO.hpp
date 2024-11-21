@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <algorithm> // std::reverse
 #include <filesystem>
 #include <ios>
@@ -263,7 +260,7 @@ namespace noa::io {
     /// \param[in] ptr              Array of bytes to swap. Should contain at least (elements * bytes_per_element).
     /// \param n_elements           How many elements to swap.
     /// \param bytes_per_elements   Size, in bytes, of one element. If not 2, 4, or 8, do nothing.
-    inline void swap_endian(std::byte* ptr, i64 n_elements, i64 bytes_per_elements) noexcept {
+    constexpr void swap_endian(std::byte* ptr, i64 n_elements, i64 bytes_per_elements) noexcept {
         if (bytes_per_elements == 2) {
             guts::swap_endian<2>(ptr, n_elements);
         } else if (bytes_per_elements == 4) {
@@ -295,7 +292,7 @@ namespace noa::io {
     void serialize(const Span<const T, 4>& input, const SpanContiguous<std::byte, 1>& output, Encoding encoding);
 
     /// Overload taking the output as an ostream.
-    /// \param[out] output  Output stream to write into. The current position is used as starting point.
+    /// \param[out] output  Output stream to write into. The current position is used as a starting point.
     ///                     See Encoding::encoded_size() to know how many bytes will be written into this stream.
     /// \throws Exception   If the stream fails to write data, an exception is thrown. Note that the stream is
     ///                     reset to its good state before the exception is thrown.
@@ -314,7 +311,7 @@ namespace noa::io {
     void deserialize(const SpanContiguous<const std::byte, 1>& input, Encoding encoding, const Span<T, 4>& output);
 
     /// Overload taking the input as an istream.
-    /// \param[in] input    Input stream to read from. The current position is used as starting point.
+    /// \param[in] input    Input stream to read from. The current position is used as a starting point.
     ///                     See Encoding::encoded_size() to know how many bytes will be read from this stream.
     /// \throws Exception   If the stream fails to read data, an exception is thrown. Note that the stream is
     ///                     reset to its good state before the exception is thrown.
@@ -323,46 +320,8 @@ namespace noa::io {
 }
 
 namespace noa::io {
-    inline auto operator<<(std::ostream& os, Open mode) -> std::ostream& {
-        std::array flags{mode.read, mode.write, mode.truncate, mode.binary, mode.append, mode.at_the_end};
-        std::array names{"read", "write", "truncate", "binary", "append", "at_the_end"};
-
-        bool add{};
-        os << "Open{";
-        for (auto i: irange(flags.size())) {
-            if (flags[i]) {
-                if (add)
-                    os << '|';
-                os << names[i];
-                add = true;
-            }
-        }
-        os << '}';
-        return os;
-    }
-
-    inline auto operator<<(std::ostream& os, Encoding::Format data_type) -> std::ostream& {
-        switch (data_type) {
-            case Encoding::UNKNOWN: return os << "Encoding::UNKNOWN";
-            case Encoding::U4: return os << "Encoding::U4";
-            case Encoding::I8: return os << "Encoding::I8";
-            case Encoding::U8: return os << "Encoding::U8";
-            case Encoding::I16: return os << "Encoding::I16";
-            case Encoding::U16: return os << "Encoding::U16";
-            case Encoding::I32: return os << "Encoding::I32";
-            case Encoding::U32: return os << "Encoding::U32";
-            case Encoding::I64: return os << "Encoding::I64";
-            case Encoding::U64: return os << "Encoding::U64";
-            case Encoding::F16: return os << "Encoding::F16";
-            case Encoding::F32: return os << "Encoding::F32";
-            case Encoding::F64: return os << "Encoding::F64";
-            case Encoding::CI16: return os << "Encoding::CI16";
-            case Encoding::C16: return os << "Encoding::C16";
-            case Encoding::C32: return os << "Encoding::C32";
-            case Encoding::C64: return os << "Encoding::C64";
-        }
-        return os; // unreachable
-    }
+    auto operator<<(std::ostream& os, Open mode) -> std::ostream&;
+    auto operator<<(std::ostream& os, Encoding::Format data_type) -> std::ostream&;
 }
 
 // fmt 9.1.0 fix (Disabled automatic std::ostream insertion operator)
@@ -370,4 +329,3 @@ namespace fmt {
     template<> struct formatter<noa::io::Open> : ostream_formatter {};
     template<> struct formatter<noa::io::Encoding::Format> : ostream_formatter {};
 }
-#endif

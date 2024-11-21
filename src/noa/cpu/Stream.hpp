@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <future>
 #include <thread>
 #include <mutex>
@@ -10,6 +7,7 @@
 #include <queue>
 #include <tuple>
 #include <functional>
+
 #include "noa/core/Error.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/utils/Misc.hpp"
@@ -242,4 +240,3 @@ namespace noa::cpu {
         std::shared_ptr<Core> m_core;
     };
 }
-#endif

@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/gpu/cuda/Error.hpp"
 #include "noa/gpu/cuda/Runtime.hpp"
 
@@ -21,4 +18,3 @@ namespace noa::cuda {
         return version;
     }
 }
-#endif

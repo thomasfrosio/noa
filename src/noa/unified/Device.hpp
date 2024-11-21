@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <string_view>
 #include "noa/core/Error.hpp"
 #include "noa/core/utils/Irange.hpp"
@@ -319,5 +316,3 @@ namespace fmt {
     template<> struct formatter<noa::Device> : ostream_formatter {};
     template<> struct formatter<noa::DeviceGuard> : ostream_formatter {};
 }
-
-#endif

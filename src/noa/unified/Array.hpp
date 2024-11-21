@@ -1,11 +1,10 @@
 #pragma once
 
 #include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/core/Error.hpp"
 #include "noa/core/Traits.hpp"
-#include "noa/core/Types.hpp"
+#include "noa/core/types/Shape.hpp"
+#include "noa/core/types/Span.hpp"
 #include "noa/core/utils/ShareHandles.hpp"
 
 #if defined(NOA_ENABLE_CUDA)
@@ -547,4 +546,3 @@ namespace noa::inline types {
 namespace noa::traits {
     template<typename T> struct proclaim_is_array<Array<T>> : std::true_type {};
 }
-#endif

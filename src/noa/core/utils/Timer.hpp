@@ -1,12 +1,6 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <chrono>
-#else
-#include <cuda/std/chrono>
-#endif
 
 namespace noa {
     class Timer {
@@ -15,14 +9,14 @@ namespace noa {
         using duration_type = std::chrono::duration<double, std::milli>;
 
         /// Starts the timer.
-        Timer& start() noexcept {
+        auto start() noexcept -> Timer& {
             m_start = std::chrono::steady_clock::now();
             m_running = true;
             return *this;
         }
 
         /// Stops the timer.
-        Timer& stop() noexcept {
+        auto stop() noexcept -> Timer& {
             m_end = std::chrono::steady_clock::now();
             m_running = false;
             return *this;

@@ -3,6 +3,7 @@ set(NOA_CPU_HEADERS
     cpu/AllocatorHeap.hpp
     cpu/Blas.hpp
     cpu/Copy.hpp
+    cpu/CubicBSplinePrefilter.hpp
     cpu/Device.hpp
     cpu/Event.hpp
     cpu/Ewise.hpp
@@ -24,9 +25,6 @@ set(NOA_CPU_HEADERS
     # noa::cpu::signal
     cpu/signal/Convolve.hpp
     cpu/signal/MedianFilter.hpp
-
-    # noa::cpu::geometry
-    cpu/geometry/Prefilter.hpp
     )
 
 set(NOA_CPU_SOURCES

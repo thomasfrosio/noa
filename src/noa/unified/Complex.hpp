@@ -1,8 +1,5 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Ewise.hpp"
 
@@ -92,4 +89,3 @@ namespace noa {
         return output;
     }
 }
-#endif

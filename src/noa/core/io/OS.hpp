@@ -1,13 +1,11 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-#include "noa/core/Error.hpp"
-#include "noa/core/utils/ClampCast.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <filesystem>
 #include <cstddef>
 #include <cstdint>
+
+#include "noa/core/Error.hpp"
+#include "noa/core/utils/ClampCast.hpp"
 
 /// Gathers a bunch of OS/filesystem related functions. All functions throws upon failure.
 namespace noa::io {
@@ -64,7 +62,7 @@ namespace noa::io {
     /// Gets the size, in bytes, of a regular file. Symlinks are followed.
     /// \note The result of attempting to determine the size of a directory (as well as any other
     ///       file that is not a regular file or a symlink) is implementation-defined.
-    inline int64_t file_size(const fs::path& path) {
+    inline auto file_size(const fs::path& path) -> int64_t {
         try {
             return clamp_cast<int64_t>(fs::file_size(path));
         } catch (const fs::filesystem_error& e) {
@@ -141,9 +139,9 @@ namespace noa::io {
     ///        If \a from and \a to are equivalent.
     ///        If \a option is empty or if \a to exists and options == fs::copy_options::none.
     inline bool copy_file(
-            const fs::path& from,
-            const fs::path& to,
-            const fs::copy_options options = fs::copy_options::overwrite_existing
+        const fs::path& from,
+        const fs::path& to,
+        const fs::copy_options options = fs::copy_options::overwrite_existing
     ) {
         try {
             return fs::copy_file(from, to, options);
@@ -246,7 +244,7 @@ namespace noa::io {
     }
 
     /// Returns the directory location suitable for temporary files.
-    inline fs::path temporary_directory() {
+    inline auto temporary_directory() -> fs::path {
         try {
             return fs::temp_directory_path();
         } catch (const fs::filesystem_error& e) {
@@ -256,4 +254,3 @@ namespace noa::io {
         }
     }
 }
-#endif

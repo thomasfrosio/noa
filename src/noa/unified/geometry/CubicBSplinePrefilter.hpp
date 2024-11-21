@@ -1,13 +1,13 @@
 #pragma once
 
-#include "noa/cpu/geometry/Prefilter.hpp"
+#include "noa/cpu/CubicBSplinePrefilter.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/geometry/Prefilter.cuh"
+#include "noa/gpu/cuda/CubicBSplinePrefilter.cuh"
 #endif
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Utilities.hpp"
 
-namespace noa::geometry {
+namespace noa {
     /// Applies a prefilter to \p input so that the cubic B-spline values will pass through the sample data.
     /// \details Without prefiltering, cubic B-spline filtering results in smoothened images. This is because the
     ///          cubic B-spline filtering yields a function that does not pass through its coefficients. To end up
@@ -37,7 +37,7 @@ namespace noa::geometry {
                 i = std::forward<Input>(input),
                 o = std::forward<Output>(output)
             ] {
-                noa::cpu::geometry::cubic_bspline_prefilter(
+                noa::cpu::cubic_bspline_prefilter(
                     i.get(), input_strides,
                     o.get(), o.strides(),
                     o.shape(), threads);
@@ -45,7 +45,7 @@ namespace noa::geometry {
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
-            noa::cuda::geometry::cubic_bspline_prefilter(
+            noa::cuda::cubic_bspline_prefilter(
                 input.get(), input_strides,
                 output.get(), output.strides(),
                 output.shape(), cuda_stream);

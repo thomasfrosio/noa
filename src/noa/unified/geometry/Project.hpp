@@ -287,9 +287,7 @@ namespace noa::geometry::guts {
         index_type m_projection_window_radius{};
         index_type m_n_input_images;
     };
-}
 
-namespace noa::geometry::guts {
     enum class ProjectionType { BACKWARD, FORWARD, FUSED };
 
     template<ProjectionType TYPE,

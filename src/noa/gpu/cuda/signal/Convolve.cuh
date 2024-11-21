@@ -350,7 +350,6 @@ namespace noa::cuda::guts {
     }
 }
 
-#ifdef NOA_IS_OFFLINE
 namespace noa::cuda::signal::guts {
     template<typename T, typename U, typename V>
     void launch_convolve_separable_x(
@@ -632,4 +631,3 @@ namespace noa::cuda::signal {
         }
     }
 }
-#endif

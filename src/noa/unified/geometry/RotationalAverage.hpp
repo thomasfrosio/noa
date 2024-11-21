@@ -144,9 +144,7 @@ namespace noa::geometry::guts {
         coord_type m_frequency_range_start;
         coord_type m_frequency_range_span;
     };
-}
 
-namespace noa::geometry::guts {
     template<Remap REMAP, typename Input, typename Output, typename Weight, typename Ctf = Empty>
     auto check_parameters_rotational_average(
         const Input& input,

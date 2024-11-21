@@ -1,14 +1,10 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-
-#ifdef NOA_IS_OFFLINE
+#include <algorithm>
 #include "noa/core/indexing/Layout.hpp"
 #include "noa/core/math/Generic.hpp"
 #include "noa/core/types/Shape.hpp"
 #include "noa/cpu/AllocatorHeap.hpp"
-
-#include <algorithm>
 
 namespace noa::cpu {
     template<typename Value>
@@ -40,4 +36,3 @@ namespace noa::cpu {
         }
     }
 }
-#endif

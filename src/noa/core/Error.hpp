@@ -1,15 +1,14 @@
 #pragma once
 
-#include "noa/core/Config.hpp"
-#include "noa/core/utils/Strings.hpp"
-
-#ifdef NOA_IS_OFFLINE
 #include <exception>
 #include <filesystem>
 #include <source_location>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "noa/core/Config.hpp"
+#include "noa/core/utils/Strings.hpp"
 
 namespace noa {
     /// Exception type used in noa. Only used if exceptions are enabled (see noa::config::error_policy).
@@ -174,5 +173,3 @@ namespace noa {
         }
     }
 }
-
-#endif
