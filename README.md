@@ -1,5 +1,3 @@
-### :construction: This repository is in its initial phase of development :construction:
-
 ## `Objectives`
 
 This is a `C++20` static library, aiming to provide basic signal and image processing tools for cryoEM software development. One goal is to retain reasonable efficiency so that it can be used in production code, while offering a relatively simple API.
