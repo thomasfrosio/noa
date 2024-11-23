@@ -13,7 +13,8 @@ add_executable(noa::noa_benchmarks ALIAS noa_benchmarks)
 
 target_link_libraries(noa_benchmarks
     PRIVATE
-    prj_common_option
+    prj_compiler_public_options
+    prj_compiler_private_options
     prj_compiler_warnings
     noa::noa
     benchmark::benchmark
@@ -24,6 +25,7 @@ target_include_directories(noa_benchmarks
     ${PROJECT_SOURCE_DIR}/benchmarks)
 
 install(TARGETS noa_benchmarks
+    EXPORT noa
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
     )
 

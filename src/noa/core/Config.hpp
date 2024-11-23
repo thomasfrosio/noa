@@ -1,5 +1,7 @@
 #pragma once
 
+#include "noa/Version.hpp"
+
 // Platform detection.
 #if defined(_WIN64) || defined(__APPLE__) || defined(__MACH__) || defined(__ANDROID__)
 #   error "Platform is not supported"

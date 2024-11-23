@@ -28,8 +28,8 @@ else ()
         set(BUILD_SHARED_LIBS ON)
     endif ()
 
-    option(FFTW3_BUILD_TESTS "Build tests" OFF)
-    option(FFTW3_ENABLE_OPENMP "Use OpenMP for multithreading" ${NOA_CPU_FFTW3_MULTITHREADED})
+    set(FFTW3_BUILD_TESTS OFF)
+    set(FFTW3_ENABLE_OPENMP ${NOA_CPU_FFTW3_MULTITHREADED})
     FetchContent_MakeAvailable(FFTW3)
 
     set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE_})

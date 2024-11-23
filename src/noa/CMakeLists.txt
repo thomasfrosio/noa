@@ -35,6 +35,7 @@ set(NOA_HEADERS
     Session.hpp
     Signal.hpp
     Utils.hpp
+    Version.hpp
 )
 
 # Create and set up the main target.

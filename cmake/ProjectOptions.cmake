@@ -19,7 +19,6 @@ macro(noa_set_options)
     set(NOA_ERROR_POLICY 2 CACHE STRING "Abort=0, Terminate=1, Exceptions=2")
     option(NOA_ENABLE_WARNINGS "Enable compiler warnings (these only affect the library's source files)" ON)
     option(NOA_ENABLE_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
-    option(NOA_ENABLE_PCH "Build using precompiled header to speed up compilation time in Debug mode" OFF)
 
     # TIFF:
     option(NOA_ENABLE_TIFF "Enable support for the TIFF file format. Requires static libtiff" OFF) # TODO not tested

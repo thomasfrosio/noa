@@ -1,6 +1,5 @@
 #pragma once
 
-#include "noa/Version.hpp"
 #include "noa/unified/Device.hpp"
 
 namespace noa::inline types {
@@ -83,9 +82,6 @@ namespace noa::inline types {
         ///          that none of the plans are being used. This can be easily done by synchronizing the relevant
         ///          streams or the device.
         static void clear_blas_cache(Device device = Device::current_gpu());
-
-        static std::string version() { return NOA_VERSION; }
-        static std::string url() { return NOA_URL; }
 
     private:
         static i64 m_thread_limit;

@@ -2,7 +2,7 @@ message(STATUS "--------------------------------------")
 message(STATUS "-> noa::noa_tests: configuring public target...")
 
 if (NOT NOA_ERROR_POLICY EQUAL 2)
-    message(FATAL_ERROR "In order to built tests, the library should built with NOA_ERROR_POLICY=2, but got ${NOA_ERROR_POLICY}")
+    message(FATAL_ERROR "In order to built tests, the library should built with NOA_ERROR_POLICY=2, but got NOA_ERROR_POLICY=${NOA_ERROR_POLICY}")
 endif ()
 
 include(${PROJECT_SOURCE_DIR}/cmake/ext/catch2.cmake)
@@ -19,17 +19,13 @@ add_executable(noa::noa_tests ALIAS noa_tests)
 
 target_link_libraries(noa_tests
     PRIVATE
-    prj_common_option
+    prj_compiler_public_options
+    prj_compiler_private_options
     prj_compiler_warnings
     noa::noa
     Catch2::Catch2
     yaml-cpp::yaml-cpp
     )
-
-#target_precompile_headers(noa_tests
-#    PRIVATE
-#    ${PROJECT_SOURCE_DIR}/src/noa/core/Types.hpp
-#    )
 
 target_include_directories(noa_tests
     PRIVATE

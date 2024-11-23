@@ -18,6 +18,7 @@ else ()
         GIT_SHALLOW TRUE
         GIT_PROGRESS TRUE
     )
+    # Eigen 3.4 uses CMP0077 OLD (ignore set), so use option to force it from here.
     option(EIGEN_BUILD_BLAS "Toggles the building of the Eigen Blas library" OFF)
     option(EIGEN_BUILD_LAPACK "Toggles the building of the included Eigen LAPACK library" OFF)
     option(EIGEN_BUILD_TESTING "Enable creation of Eigen tests." OFF)

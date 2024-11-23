@@ -1,4 +1,22 @@
-function(noa_get_cxx_compiler_warnings enable_warnings_as_errors)
+function(noa_set_compiler_options public_target private_target)
+    target_compile_features(${public_target} INTERFACE cxx_std_20) # requires at least 20
+
+    get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
+    if ("CUDA" IN_LIST languages AND CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA")
+        # Make constexpr functions __device__ functions.
+        # We use this all over the place in public headers so enforce this on the user...
+        target_compile_options(${public_target} INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: --expt-relaxed-constexpr>)
+
+        # Allow __device__ lambdas. We use this in a few tests, so keep it private.
+        target_compile_options(${private_target} INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: --extended-lambda>)
+
+        if (NOT CMAKE_CUDA_HOST_COMPILER) # defaults to the host compiler being the C++ compiler
+            target_compile_options(${private_target} INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: -ccbin ${CMAKE_CXX_COMPILER}>)
+        endif ()
+    endif ()
+endfunction()
+
+function(noa_set_compiler_warnings target enable_warnings_as_errors)
     set(_clang_warnings
         -Wall
         -Wextra                 # reasonable and standard
@@ -17,7 +35,7 @@ function(noa_get_cxx_compiler_warnings enable_warnings_as_errors)
         # -Wold-style-cast        # warn for c-style casts
     )
 
-    if (enable_warnings_as_errors)
+    if (${${enable_warnings_as_errors}})
         set(_clang_warnings ${_clang_warnings} -Werror)
     endif ()
 
@@ -31,59 +49,36 @@ function(noa_get_cxx_compiler_warnings enable_warnings_as_errors)
     )
 
     if (CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
-        set(NOA_CXX_COMPILER_WARNINGS ${_clang_warnings} PARENT_SCOPE)
+        set(_cxx_warnings ${_clang_warnings})
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set(NOA_CXX_COMPILER_WARNINGS ${_gcc_warnings} PARENT_SCOPE)
+        set(_cxx_warnings ${_gcc_warnings})
     else ()
+        set(_cxx_warnings)
         message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CXX_COMPILER_ID}' compiler.")
     endif ()
-endfunction()
-
-function(noa_get_cuda_compiler_warnings enable_warnings_as_errors)
-    # We only support nvcc atm, so forward all C++ warnings in CUDA files
-    # except --Wpedantic (since nvcc generates compiler specific code).
-    noa_get_cxx_compiler_warnings(${enable_warnings_as_errors})
-    set(_cuda_warnings
-        --forward-unknown-to-host-compiler
-        --Wreorder                  # Generate warnings when member initializers are reordered.
-        --Wdefault-stream-launch    # Generate warning when an explicit stream argument is not provided in the <<<...>>> kernel launch syntax.
-        --Wext-lambda-captures-this # Generate warning when an extended lambda implicitly captures 'this'.
-        ${NOA_CXX_COMPILER_WARNINGS})
-    list(REMOVE_ITEM _cuda_warnings -Wpedantic -Werror)
-
-    if (${enable_warnings_as_errors})
-        set(_cuda_warnings ${_cuda_warnings} -Werror all-warnings)
-    endif ()
-
-    if (CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA")
-        set(NOA_CUDA_COMPILER_WARNINGS ${_cuda_warnings} PARENT_SCOPE)
-    elseif ()
-        message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CUDA_COMPILER_ID}' compiler.")
-    endif ()
-endfunction()
-
-function(noa_set_cxx_compiler_warnings target enable_warnings_as_errors)
-    noa_get_cxx_compiler_warnings(${${enable_warnings_as_errors}})
-    target_compile_options(${target} INTERFACE $<$<COMPILE_LANGUAGE:CXX>: ${NOA_CXX_COMPILER_WARNINGS}>)
-endfunction()
-
-function(noa_set_cuda_compiler_warnings target enable_warnings_as_errors)
-    noa_get_cuda_compiler_warnings(${${enable_warnings_as_errors}})
-    target_compile_options(${target} INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: ${NOA_CUDA_COMPILER_WARNINGS}>)
-endfunction()
-
-function(noa_set_compiler_options target)
-    target_compile_features(${target} INTERFACE cxx_std_20) # All of our targets are C++20
+    target_compile_options(${target} INTERFACE $<$<COMPILE_LANGUAGE:CXX>: ${_cxx_warnings}>)
 
     get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
-    if ("CUDA" IN_LIST languages AND CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA")
-        set(_cuda_options
-            --expt-relaxed-constexpr    # constexpr functions are __device__ functions
-            --extended-lambda           # Allow __device__ lambdas
-        )
-        if (NOT CMAKE_CUDA_HOST_COMPILER) # defaults to the host compiler being the C++ compiler
-            list(APPEND _cuda_options "-ccbin ${CMAKE_CXX_COMPILER}")
+    if ("CUDA" IN_LIST languages)
+        set(_nvcc_warnings
+            --Wreorder                  # Warn when member initializers are reordered
+            --Wdefault-stream-launch    # Warn when the stream argument is not provided in the kernel launch syntax
+            --Wext-lambda-captures-this # Warn when an extended lambda implicitly captures 'this'
+            --forward-unknown-to-host-compiler ${_cxx_warnings} # Forward C++ warnings to host compiler
+            )
+        # Don't forward --Wpedantic since nvcc generates compiler specific code.
+        # -Werror doesn't have the same syntax in nvcc.
+        list(REMOVE_ITEM _nvcc_warnings -Wpedantic -Werror)
+
+        if (${${enable_warnings_as_errors}})
+            set(_nvcc_warnings ${_nvcc_warnings} -Werror all-warnings)
         endif ()
-        target_compile_options(${target} INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: ${_cuda_options}>)
+
+        if (CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA")
+            set(_cuda_warnings ${_nvcc_warnings})
+        elseif ()
+            message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CUDA_COMPILER_ID}' compiler.")
+        endif ()
+        target_compile_options(${target} INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: ${_cuda_warnings}>)
     endif ()
 endfunction()

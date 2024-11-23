@@ -38,7 +38,6 @@ macro(noa_set_toolchain enable_cuda)
         set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "MinSizeRel" "RelWithDebInfo")
     endif ()
 
-    message(STATUS "CMAKE_INTERPROCEDURAL_OPTIMIZATION: ${CMAKE_INTERPROCEDURAL_OPTIMIZATION}")
     message(STATUS "CMAKE_GENERATOR: ${CMAKE_GENERATOR}")
     message(STATUS "CMAKE_C_COMPILER: ${CMAKE_C_COMPILER}")
     message(STATUS "CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER}")

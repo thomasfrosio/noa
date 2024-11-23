@@ -17,8 +17,8 @@ else ()
         GIT_TAG ${google-benchmark_TAG}
     )
 
-    option(BENCHMARK_ENABLE_GTEST_TESTS "" OFF)
-    option(BENCHMARK_ENABLE_LTO "" OFF)
+    set(BENCHMARK_ENABLE_GTEST_TESTS OFF)
+    set(BENCHMARK_ENABLE_LTO OFF)
     FetchContent_MakeAvailable(benchmark)
 
     message(STATUS "New imported target available: benchmark::benchmark")

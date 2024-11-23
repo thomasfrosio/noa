@@ -6,8 +6,7 @@
 include(CMakePackageConfigHelpers)
 
 # Directory to store the generated config files.
-# Note: This file is included, so NOA_BINARY_DIR == CMAKE_CURRENT_BINARY_DIR.
-set(NOA_GENERATED_CONFIG_DIR "${NOA_BINARY_DIR}/noa_generated_config")
+set(NOA_GENERATED_CONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/noa_generated_config")
 
 # When a project does find_package(noa), this config file is going to be included into
 # the project. The file should 1) include all of our targets, this is done by including
@@ -34,7 +33,7 @@ configure_package_config_file(
 # PATCH: Bug fix only. No API changes.
 write_basic_package_version_file(
     ${NOA_GENERATED_CONFIG_DIR}/noaConfigVersion.cmake
-    VERSION ${PROJECT_VERSION}
+    VERSION ${NOA_VERSION}
     COMPATIBILITY SameMajorVersion)
 
 # Install the config files.
