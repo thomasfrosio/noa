@@ -14,8 +14,6 @@ else ()
     FetchContent_Declare(half
         GIT_REPOSITORY ${half_REPOSITORY}
         GIT_TAG ${half_TAG}
-        CONFIGURE_COMMAND ""
-        BUILD_COMMAND ""
         )
     FetchContent_MakeAvailable(half)
 

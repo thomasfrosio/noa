@@ -74,17 +74,17 @@ include(GNUInstallDirs)
 # ---------------------------------------------------------------------------------------
 add_subdirectory(src/noa)
 
-#if (NOA_BUILD_TESTS)
+if (NOA_BUILD_TESTS)
     add_subdirectory(tests)
-#else ()
-#    message(STATUS "Skipping target: noa::noa_tests")
-#endif ()
+else ()
+    message(STATUS "Skipping target: noa::noa_tests")
+endif ()
 
-#if (NOA_BUILD_BENCHMARKS)
+if (NOA_BUILD_BENCHMARKS)
     add_subdirectory(benchmarks)
-#else ()
-#    message(STATUS "Skipping target: noa::noa_benchmarks")
-#endif ()
+else ()
+    message(STATUS "Skipping target: noa::noa_benchmarks")
+endif ()
 
 # ---------------------------------------------------------------------------------------
 # Export

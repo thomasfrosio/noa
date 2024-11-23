@@ -16,9 +16,9 @@ Here is the [list](../cmake/ProjectOptions.cmake) of the project-specific option
 To build and install the library, the easiest is probably to use the command line. For instance:
 
 ```shell
-git clone https://github.com/thomasfrosio/noa.git  # (1)
+git clone https://github.com/thomasfrosio/noa.git   # (1)
 cd noa && mkdir build && cd build                   # (2)
-cmake -DCMAKE_INSTALL_PREFIX=../install ../noa      # (3)
+cmake -DCMAKE_INSTALL_PREFIX=../install ..          # (3)
 cmake --build . --target install -- -j 16           # (4)
 ```
 
