@@ -1549,7 +1549,7 @@ namespace noa::geometry::guts {
                 options.add_to_output, options.correct_weights, ews);
 
             if (op.is_iwise_4d()) {
-                check(not options.correct_weights, "");
+                check(not options.correct_weights);
                 if (not options.add_to_output) {
                     if constexpr (nt::empty<OutputWeight>)
                         ewise({}, wrap(output_slice), Zero{});

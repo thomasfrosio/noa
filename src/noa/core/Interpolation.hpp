@@ -407,6 +407,19 @@ namespace noa {
         }
     }
 
+    namespace guts {
+        template<bool FLIP, typename T, typename Coord, size_t N, size_t A>
+        NOA_FHD constexpr auto flip_frequency(Vec<Coord, N, A>& frequency) -> T {
+            if constexpr (FLIP) {
+                if (frequency[N - 1] < 0) {
+                    frequency *= -1;
+                    return T{-1};
+                }
+            }
+            return T{1};
+        }
+    }
+
     /// Interpolates the 1d|2d|3d input spectrum at the given coordinates.
     /// \tparam REMAP       Remap operator. The output layout is ignored.
     /// \tparam INTERP      Interpolation method.
@@ -440,32 +453,18 @@ namespace noa {
         constexpr Int SIZE = INTERP.window_size();
         constexpr bool IS_RFFT = REMAP.is_hx2xx();
         constexpr bool IS_CENTERED = REMAP.is_xc2xx();
-        constexpr bool FLIP_PER_INDEX = SIZE > 2;
-        real_t conjugate{1};
-        if constexpr (IS_RFFT and not FLIP_PER_INDEX) {
-            if (frequency[N - 1] < 0) {
-                frequency *= -1;
-                if constexpr (nt::complex<value_t>)
-                    conjugate = -1;
-            }
-        }
+        constexpr bool FLIP_EARLY = IS_RFFT and SIZE <= 2;
+        const real_t conjugate = guts::flip_frequency<FLIP_EARLY, real_t>(frequency);
 
         auto update_at = [
             &input, &shape,
             bounds = noa::fft::frequency_bounds<IS_RFFT>(shape)
         ] (auto freq, const auto& weight, auto& output) {
-            real_t conj{1};
-            if constexpr (IS_RFFT and FLIP_PER_INDEX) {
-                if (freq[N - 1] < 0) {
-                    freq *= -1;
-                    if constexpr (nt::complex<value_t>)
-                        conj = -1;
-                }
-            }
-
+            constexpr bool FLIP_PER_INDEX = IS_RFFT and SIZE > 2;
+            const real_t conj = guts::flip_frequency<FLIP_PER_INDEX, real_t>(freq);
             if (noa::fft::is_inbounds<IS_RFFT, true>(freq, bounds)) {
                 auto value = input(noa::fft::frequency2index<IS_CENTERED, IS_RFFT>(freq, shape));
-                if constexpr (IS_RFFT and FLIP_PER_INDEX and nt::complex<value_t>)
+                if constexpr (FLIP_PER_INDEX and nt::complex<value_t>)
                     value.imag *= conj;
                 output += value * weight;
             }
@@ -514,7 +513,7 @@ namespace noa {
                     value += value_z * weights[z - START][0];
                 }
             }
-            if constexpr (IS_RFFT and not FLIP_PER_INDEX and nt::complex<value_t>)
+            if constexpr (FLIP_EARLY and nt::complex<value_t>)
                 value.imag *= conjugate;
             return value;
         }
@@ -550,17 +549,10 @@ namespace noa {
         constexpr Int SIZE = INTERP.window_size();
         constexpr bool IS_RFFT = REMAP.is_hx2xx();
         constexpr bool IS_CENTERED = REMAP.is_xc2xx();
-        constexpr bool FLIP_PER_INDEX = SIZE > 2;
-        real_t conjugate{1};
-        if constexpr (IS_RFFT and not FLIP_PER_INDEX) {
-            if (frequency[N - 1] < 0) {
-                frequency *= -1;
-                if constexpr (nt::complex<value_t>)
-                    conjugate = -1;
-            }
-        }
+        constexpr bool FLIP_EARLY = IS_RFFT and SIZE <= 2;
+        const real_t conjugate = guts::flip_frequency<FLIP_EARLY, real_t>(frequency);
 
-        value_t value;
+        value_t value{};
         if constexpr (INTERP == T::INTERP) {
             // The texture can handle both the interpolation and the addressing.
             value = input.fetch(noa::fft::frequency2index<IS_CENTERED, IS_RFFT>(frequency, shape));
@@ -572,17 +564,11 @@ namespace noa {
 
         } else {
             auto value_at = [&shape, &input](auto freq) {
-                real_t conj{1};
-                if constexpr (IS_RFFT and FLIP_PER_INDEX) {
-                    if (freq[N - 1] < 0) {
-                        freq *= -1;
-                        if constexpr (nt::complex<value_t>)
-                            conj = -1;
-                    }
-                }
+                constexpr bool FLIP_PER_INDEX = IS_RFFT and SIZE > 2;
+                const real_t conj = guts::flip_frequency<FLIP_PER_INDEX, real_t>(freq);
                 freq = noa::fft::frequency2index<IS_CENTERED, IS_RFFT>(freq, shape);
                 value_t fetched = input.fetch(static_cast<coordn_t>(freq));
-                if constexpr (IS_RFFT and FLIP_PER_INDEX and nt::complex<value_t>)
+                if constexpr (FLIP_PER_INDEX and nt::is_complex_v<value_t>)
                     fetched.imag = conj;
                 return fetched;
             };
@@ -661,7 +647,7 @@ namespace noa {
                 }
             }
         }
-        if constexpr (IS_RFFT and not FLIP_PER_INDEX and nt::complex<value_t>)
+        if constexpr (FLIP_EARLY and nt::complex<value_t>)
             value.imag *= conjugate;
         return value;
     }

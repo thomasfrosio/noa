@@ -6,9 +6,9 @@
 #include "noa/core/types/Shape.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
 
-// The implementation requires a single thread to go through the entire 1D array. This is not very efficient
-// compared to the CPU implementation. However, when multiple batches are processes, a warp can simultaneously process
-// as many batches as it has threads, which is more efficient.
+// FIXME The implementation requires a single thread to go through the each line. Obviously, this leeds to poor
+//       performance. We should try to optimize it at some point.
+
 namespace noa::cuda::guts {
     template<typename T>
     __global__ void cubic_bspline_prefilter_1d_x_inplace(T* input, Strides2<u32> strides, Shape2<u32> shape) {

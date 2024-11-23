@@ -138,7 +138,6 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[noa][unified][assets]")
         devices.emplace_back("gpu");
 
     const size_t expected_count = param["tests"].size() * devices.size();
-    REQUIRE(expected_count == 1);
     size_t count{};
     for (size_t nb{}; nb < param["tests"].size(); ++nb) {
         INFO("test number = " << nb);

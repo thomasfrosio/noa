@@ -254,7 +254,9 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_2d(), texture interpolation", "
 
     const auto gpu_options = ArrayOption{.device="gpu", .allocator="unified"};
     const auto input_cpu = noa::random(noa::Uniform<TestType>{-2, 2}, shape);
-    const auto input_gpu = noa::Texture<TestType>(input_cpu, gpu_options.device, interp, {.border=border, .cvalue=value});
+    const auto input_gpu = noa::Texture<TestType>(input_cpu, gpu_options.device, interp, {
+        .border = border, .cvalue = value, .prefilter  = false
+    });
     const auto output_cpu = noa::like(input_cpu);
     const auto output_gpu = noa::empty<TestType>(shape, gpu_options);
 
@@ -262,13 +264,11 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_2d(), texture interpolation", "
     noa::geometry::transform_2d(input_gpu, output_gpu, inverse_rotation_matrix);
 
     const bool is_textureable = border.is_any(Border::ZERO, Border::CLAMP, Border::MIRROR, Border::PERIODIC);
-    f32 min_max_error = 1e-5f; // usually around 1e-6 and 5e-6
-    if (is_textureable and interp == Interp::LINEAR_FAST)
-        min_max_error = 0.05f; // for linear and cosine, it is usually around 0.01-0.03
-    else if (is_textureable and interp == Interp::CUBIC_BSPLINE_FAST)
-        min_max_error = 0.08f; // usually around 0.03-0.06
+    f32 epsilon = 1e-5f; // usually around 1e-6 and 5e-6
+    if (is_textureable and (interp == Interp::LINEAR_FAST or interp == Interp::CUBIC_BSPLINE_FAST))
+        epsilon = 0.035f; // usually around 0.01-0.03
 
-    const test::MatchResult results = test::allclose_abs(output_cpu, output_gpu, min_max_error);
+    const test::MatchResult results = test::allclose_abs(output_cpu, output_gpu, epsilon);
     if (interp == Interp::NEAREST_FAST) {
         // For nearest-neighbor, the border can be off by one pixel due to floating-point imprecision,
         // so here check the average difference...
