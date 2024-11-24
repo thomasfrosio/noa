@@ -3,6 +3,17 @@ cmake_minimum_required(VERSION 3.24)
 # ---------------------------------------------------------------------------------------
 # Project preamble
 # ---------------------------------------------------------------------------------------
+# Automatically parse the version number from header file.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/noa/Version.hpp" _noa_version_header)
+if (NOT _noa_version_header MATCHES "NOA_VERSION ([0-9]+)([0-9][0-9])([0-9][0-9])")
+    message(FATAL_ERROR "Cannot get NOA_VERSION from Version.hpp.")
+endif ()
+# Use math to skip leading zeros if any.
+math(EXPR NOA_VERSION_MAJOR ${CMAKE_MATCH_1})
+math(EXPR NOA_VERSION_MINOR ${CMAKE_MATCH_2})
+math(EXPR NOA_VERSION_PATCH ${CMAKE_MATCH_3})
+set(NOA_VERSION ${NOA_VERSION_MAJOR}.${NOA_VERSION_MINOR}.${NOA_VERSION_PATCH})
+message(STATUS "NOA_VERSION=${NOA_VERSION}")
 
 # Allow overriding options in a parent project via `set` before including noa.
 cmake_policy(SET CMP0077 NEW)
@@ -14,17 +25,13 @@ endif ()
 
 # Only set the C++ standard if it is not set by someone else.
 # noa doesn't use this (we use the newer target_compile_features alternative instead),
-# but it is useful to set as default for fetched dependencies that depend on it.
+# but it is useful to set as default for fetched dependencies that depend on it, like fmt.
 if (NOT DEFINED CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 20)
 elseif (CMAKE_CXX_STANDARD LESS 20)
     message(FATAL_ERROR "C++ standard should be at least 20, got CMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD}")
 endif()
-
-# Strongly encouraged to enable this globally to avoid conflicts between
-# -Wpedantic being enabled and -std=c++20 and -std=gnu++20 for example
-# when compiling with PCH enabled.
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_EXTENSIONS OFF) # use -std=c++20 instead of e.g. -std=gnu++20
 
 # Make sure debug configuration doesn't collide with release.
 set(CMAKE_DEBUG_POSTFIX "d")
@@ -66,16 +73,6 @@ include(GNUInstallDirs)
 # CMAKE_INSTALL_BINDIR (bin/)
 # CMAKE_INSTALL_LIBDIR (lib/)
 # CMAKE_INSTALL_INCLUDEDIR (include/)
-
-# Automatically parse the version number from header file.
-file(READ "${PROJECT_SOURCE_DIR}/src/noa/Version.hpp" _noa_version_header)
-string(REGEX MATCH "define[ \t]+NOA_VERSION_MAJOR[ \t]+([0-9]+)" _noa_world_version_match "${_noa_version_header}")
-set(NOA_VERSION_MAJOR "${CMAKE_MATCH_1}")
-string(REGEX MATCH "define[ \t]+NOA_VERSION_MINOR[ \t]+([0-9]+)" _noa_major_version_match "${_noa_version_header}")
-set(NOA_VERSION_MINOR "${CMAKE_MATCH_1}")
-string(REGEX MATCH "define[ \t]+NOA_VERSION_PATCH[ \t]+([0-9]+)" _noa_minor_version_match "${_noa_version_header}")
-set(NOA_VERSION_PATCH "${CMAKE_MATCH_1}")
-set(NOA_VERSION ${NOA_VERSION_MAJOR}.${NOA_VERSION_MINOR}.${NOA_VERSION_PATCH})
 
 # ---------------------------------------------------------------------------------------
 # Project targets

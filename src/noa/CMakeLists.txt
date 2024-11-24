@@ -36,6 +36,7 @@ set(NOA_HEADERS
     Signal.hpp
     Utils.hpp
     Version.hpp
+    gpu/Backend.hpp
 )
 
 # Create and set up the main target.

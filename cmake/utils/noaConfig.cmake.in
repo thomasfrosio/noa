@@ -1,26 +1,48 @@
 # Configuration file for noa.
 # The goal is to find all of the dependencies of the library and recreate its targets.
 
+@PACKAGE_INIT@
+
+# =====================================================================================
+# Build info
+# =====================================================================================
+message(STATUS "noa-config:")
+list(APPEND CMAKE_MESSAGE_INDENT "   ")
+
+message(STATUS "Built with CMAKE_BUILD_TYPE=@CMAKE_BUILD_TYPE@")
+message(STATUS "Built with CMAKE_GENERATOR=@CMAKE_GENERATOR@")
+message(STATUS "Built with CMAKE_C_COMPILER=@CMAKE_C_COMPILER@")
+message(STATUS "Built with CMAKE_CXX_COMPILER=@CMAKE_CXX_COMPILER@")
+if (@NOA_ENABLE_CUDA@)
+    message(STATUS "Built with CMAKE_CUDA_COMPILER=@CMAKE_CUDA_COMPILER@")
+    message(STATUS "Built with CMAKE_CUDA_HOST_COMPILER=@CMAKE_CUDA_HOST_COMPILER@")
+    message(STATUS "Built with CMAKE_CUDA_ARCHITECTURES=@CMAKE_CUDA_ARCHITECTURES@")
+endif ()
+
+list(POP_BACK CMAKE_MESSAGE_INDENT)
+
 # =====================================================================================
 # Find dependencies
 # =====================================================================================
-get_filename_component(_noa_install_lib_cmake_path "${CMAKE_CURRENT_LIST_DIR}/.." REALPATH)
-list(APPEND CMAKE_MODULE_PATH "${_noa_install_lib_cmake_path}/modules")
-
 include(CMakeFindDependencyMacro)
 find_dependency(Threads)
 
-# fmt:
 if (NOT TARGET fmt::fmt)
-    find_dependency(fmt REQUIRED CONFIG PATHS ${_noa_install_lib_cmake_path} NO_DEFAULT_PATH)
+    find_dependency(fmt REQUIRED CONFIG PATHS ${PACKAGE_PREFIX_DIR} NO_DEFAULT_PATH)
 endif ()
 
-# half:
 if (NOT TARGET half::half)
-    find_dependency(half REQUIRED CONFIG PATHS ${_noa_install_lib_cmake_path} NO_DEFAULT_PATH)
+    find_dependency(half REQUIRED CONFIG PATHS ${PACKAGE_PREFIX_DIR} NO_DEFAULT_PATH)
 endif ()
 
-# TIFF:
+if (NOT TARGET Eigen3::Eigen)
+    find_dependency(Eigen3 REQUIRED CONFIG PATHS ${PACKAGE_PREFIX_DIR} NO_DEFAULT_PATH)
+endif ()
+
+if (NOT TARGET FFTW3::fftw3)
+    find_dependency(FFTW3 REQUIRED CONFIG PATHS ${PACKAGE_PREFIX_DIR} NO_DEFAULT_PATH)
+endif ()
+
 if (@NOA_ENABLE_TIFF@ AND NOT TARGET TIFF::TIFF)
     find_dependency(TIFF REQUIRED)
 endif ()
@@ -35,23 +57,26 @@ endif ()
 # CUDA backend dependencies:
 if (@NOA_ENABLE_CUDA@)
     # We cannot enable a language from here. Instead, alert the user that the library was build
-    # with CUDA and that we therefore expect the CUDA language to be enabled.
-    get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
-    if(NOT "CUDA" IN_LIST languages)
-        message(FATAL_ERROR "The library was built with CUDA. Please enable CUDA (e.g. enable_language(CUDA))")
+    # with CUDA and that as a result we expect the CUDA language to be enabled.
+    get_property(_languages GLOBAL PROPERTY ENABLED_LANGUAGES)
+    if(NOT "CUDA" IN_LIST _languages)
+        message(FATAL_ERROR "The library was built with CUDA. Please enable CUDA before importing noa.")
     endif()
-    message(STATUS "Built with CMAKE_CUDA_ARCHITECTURES=@CMAKE_CUDA_ARCHITECTURES@")
-    message(STATUS "Built with CUDAToolkit_VERSION=@CUDAToolkit_VERSION@")
 
-    # If CUDA was linked statically, we only need the CUDA driver,
-    # which should already be required with the CUDA language enabled.
-    if (NOT @NOA_CUDA_STATIC@)
-        find_dependency(CUDAToolkit @CUDAToolkit_VERSION@ REQUIRED)
-    endif ()
+    # Prefer to be overly strict than lax and cause issues down the line...
+    find_dependency(CUDAToolkit @CMAKE_CUDA_COMPILER_VERSION@ EXACT REQUIRED)
+
+    # The application linking against noa will crash if this is not enabled,
+    # but the user might simply have it set on their target, so prefer to just
+    # alert as opposed to raising an error.
+    if (NOT DEFINED CMAKE_CUDA_SEPARABLE_COMPILATION)
+        message(WARNING "CMAKE_CUDA_SEPARABLE_COMPILATION is not set. Make sure to set the CUDA_SEPARABLE_COMPILATION=ON property building your targets.")
+    endif()
+
+    # FIXME Choosing the wrong architecture can lead to huge performance penalties.
+    #       Unfortunately, by this time the default architectures should already be set.
+    #       We could check that the architectures match the ones we used?
 endif ()
-
-unset(_noa_install_lib_cmake_path)
-list(POP_BACK CMAKE_MODULE_PATH)
 
 # =====================================================================================
 # Create targets

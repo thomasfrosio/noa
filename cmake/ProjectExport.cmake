@@ -18,7 +18,7 @@ set(NOA_GENERATED_CONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/noa_generated_config")
 # we have to save as much information as possible about the build in the configuration file.
 # When building and importing on different systems, we want the package to be relocatable.
 # As such, the configuration file should find the packages that closest match the dependencies
-# we used during building. This is where package manager shines...
+# we used during building. This is where package managers shine...
 configure_package_config_file(
     ${PROJECT_SOURCE_DIR}/cmake/utils/noaConfig.cmake.in
     ${NOA_GENERATED_CONFIG_DIR}/noaConfig.cmake

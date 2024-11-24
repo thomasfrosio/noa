@@ -93,7 +93,7 @@ target_link_libraries(noa
     noa_public_libraries
     )
 
-set_target_properties(noa PROPERTIES POSITION_INDEPENDENT_CODE ON)
+#set_target_properties(noa PROPERTIES POSITION_INDEPENDENT_CODE ON) # FIXME remove since prj_compiler_public_options should propagate it
 if (NOA_ENABLE_CUDA)
     set_target_properties(noa PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 endif ()

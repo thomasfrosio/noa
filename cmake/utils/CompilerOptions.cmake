@@ -1,5 +1,6 @@
 function(noa_set_compiler_options public_target private_target)
     target_compile_features(${public_target} INTERFACE cxx_std_20) # requires at least 20
+    set_target_properties(${public_target} PROPERTIES INTERFACE_POSITION_INDEPENDENT_CODE ON)
 
     get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
     if ("CUDA" IN_LIST languages AND CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA")

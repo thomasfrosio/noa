@@ -2,6 +2,10 @@
 
 #include "noa/core/Config.hpp"
 
+#ifdef NOA_ENABLE_CUDA
+namespace noa::cuda {}
+#endif
+
 namespace noa::gpu {
     #ifdef NOA_ENABLE_CUDA
     using namespace noa::cuda;

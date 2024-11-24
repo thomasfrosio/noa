@@ -46,7 +46,7 @@ int main() {
 
     // Create the affine matrix, rotating the images around their center by 45deg.
     const auto rotation_center = noa::Vec{512., 512.};
-    const auto rotation_matrix = ng::rotate_z(noa::deg2rad(45.))
+    const auto rotation_matrix = ng::rotate(noa::deg2rad(45.));
 
     noa::Mat<double, 3, 3> inverse_transform = (
         ng::translate(rotation_center) *
@@ -56,7 +56,7 @@ int main() {
 
     // Compute the affine transformation.
     noa::Array<float> output = noa::like(images);
-    ng::transform_2d(input, output, inverse_transform, {
+    ng::transform_2d(images, output, inverse_transform, {
         .interp = noa::Interp::LINEAR, // optional
         .border = noa::Border::ZERO,   // optional
     });
@@ -73,15 +73,15 @@ struct MyAffineTransform {
 
     // Index-wise operator called for every batch, y and x.
     constexpr void operator()(int batch, int y, int x) {
-        auto coordinates = noa::Vec<float, 2>::from_values(y, x);
-        coordinates = inverse_transform * coordinates;
+        auto coordinates = noa::Vec<double, 2>::from_values(y, x);
+        coordinates = (inverse_transform * coordinates.push_back(1)).pop_back();
         
         // Bilinear interpolation.
         // Note: we also provide an Interpolator that can do all of this.
         const auto floored = noa::floor(coordinate);
         const auto indices = floored.as<int>();
         const auto fraction = coordinates - floored;
-        const auto weights = noa::Vec{1 - fraction, fraction};
+        const auto weights = noa::Vec{1 - fraction, fraction}.as<Vec<float, 2>();
 
         float interpolated_value{};
         for (int i = 0; i < 2; ++i) {
@@ -98,7 +98,7 @@ struct MyAffineTransform {
         // Save to the output.
         output(batch, y, x) = interpolated_value;
     }
-}
+};
 
 void my_transform_2d(
     const noa::Array<float>& input,
