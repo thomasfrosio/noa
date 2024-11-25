@@ -72,10 +72,6 @@ if (@NOA_ENABLE_CUDA@)
     if (NOT DEFINED CMAKE_CUDA_SEPARABLE_COMPILATION)
         message(WARNING "CMAKE_CUDA_SEPARABLE_COMPILATION is not set. Make sure to set the CUDA_SEPARABLE_COMPILATION=ON property building your targets.")
     endif()
-
-    # FIXME Choosing the wrong architecture can lead to huge performance penalties.
-    #       Unfortunately, by this time the default architectures should already be set.
-    #       We could check that the architectures match the ones we used?
 endif ()
 
 # =====================================================================================
