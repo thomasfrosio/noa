@@ -10,7 +10,7 @@
 #include "noa/gpu/cuda/Blas.hpp"
 #endif
 
-#include "noa/Session.hpp"
+#include "noa/unified/Session.hpp"
 #include "noa/core/utils/Strings.hpp"
 
 noa::i64 noa::Session::m_thread_limit = 0;

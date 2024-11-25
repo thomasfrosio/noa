@@ -4,7 +4,6 @@
 
 #include "noa/cpu/Event.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/IncludeGuard.cuh"
 #include "noa/gpu/Backend.hpp"
 #include "noa/gpu/cuda/Event.hpp"
 #else
