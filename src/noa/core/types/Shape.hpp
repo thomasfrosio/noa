@@ -65,7 +65,7 @@ namespace noa::inline types {
         // Allow implicit conversion from a shape with a different alignment.
         template<size_t AR> requires (A != AR)
         [[nodiscard]] NOA_HD constexpr /*implicit*/ operator Shape<value_type, SIZE, AR>() const noexcept {
-            return Shape<value_type, SIZE, AR>::from_vec(*this);
+            return Shape<value_type, SIZE, AR>::from_shape(*this);
         }
 
     public: // Accessor operators and functions
@@ -465,7 +465,7 @@ namespace noa::inline types {
         // Allow implicit conversion from a strides with a different alignment.
         template<size_t AR> requires (A != AR)
         [[nodiscard]] NOA_HD constexpr /*implicit*/ operator Strides<value_type, SIZE, AR>() const noexcept {
-            return Strides<value_type, SIZE, AR>::from_vec(*this);
+            return Strides<value_type, SIZE, AR>::from_strides(*this);
         }
 
     public: // Accessor operators and functions

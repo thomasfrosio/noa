@@ -811,7 +811,7 @@ namespace noa {
                              std::forward<Output>(output), MinusDivide{});
             }
             case Norm::MEAN_STD: {
-                const auto [mean, stddev] = mean_std(input, options.ddof);
+                const auto [mean, stddev] = mean_stddev(input, options.ddof);
                 return ewise(wrap(std::forward<Input>(input), mean, stddev),
                              std::forward<Output>(output), MinusDivide{});
             }
