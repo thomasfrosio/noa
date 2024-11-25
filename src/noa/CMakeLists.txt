@@ -29,6 +29,7 @@ set(NOA_HEADERS
     ${NOA_UNIFIED_HEADERS}
 
     Array.hpp
+    Core.hpp
     FFT.hpp
     Geometry.hpp
     IO.hpp
