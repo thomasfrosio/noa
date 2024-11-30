@@ -7,9 +7,6 @@
 - Complex CTFs, for Russo/Henderson's EWS correction?
 
 
-- __IO__: Refactor IO. Remove polymorphism and use something more modern and less coupled, like `std::variant`? Add compression and other file formats. Also, better support for 3dmod with complex types: IMOD excepts the logical shape but always excepts the non-redundant data. ImageFile treats the shape as the physical shape.
-
-
 ## `General`
 
 - __Windows support__. It should not be that complicated. One thing to look at is OpenMP support.

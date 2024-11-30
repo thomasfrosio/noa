@@ -3,7 +3,7 @@
 #include <noa/unified/fft/Remap.hpp>
 #include <noa/unified/fft/Transform.hpp>
 #include <noa/unified/geometry/TransformSpectrum.hpp>
-#include <noa/unified/io/ImageFile.hpp>
+#include <noa/unified/IO.hpp>
 #include <noa/unified/Texture.hpp>
 #include <noa/unified/Random.hpp>
 #include <noa/unified/Factory.hpp>

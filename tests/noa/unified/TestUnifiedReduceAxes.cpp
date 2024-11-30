@@ -1,7 +1,7 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/Reduce.hpp>
 #include <noa/unified/Factory.hpp>
-#include <noa/unified/io/ImageFile.hpp>
+#include <noa/unified/IO.hpp>
 #include <catch2/catch.hpp>
 
 #include "Utils.hpp"

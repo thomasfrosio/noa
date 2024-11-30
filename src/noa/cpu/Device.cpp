@@ -2,7 +2,6 @@
 #include "noa/core/Error.hpp"
 #include "noa/core/io/IO.hpp"
 #include "noa/core/io/TextFile.hpp"
-#include "noa/core/io/OS.hpp"
 #include "noa/core/utils/Strings.hpp"
 #include "noa/cpu/Device.hpp"
 

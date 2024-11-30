@@ -1,7 +1,7 @@
 #include <noa/unified/geometry/PolarTransform.hpp>
 #include <noa/unified/geometry/DrawShape.hpp>
 #include <noa/unified/Factory.hpp>
-#include <noa/unified/io/ImageFile.hpp>
+#include <noa/unified/IO.hpp>
 
 #include <catch2/catch.hpp>
 

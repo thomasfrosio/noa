@@ -1,7 +1,7 @@
 #include <noa/core/geometry/Euler.hpp>
 #include <noa/unified/geometry/CubicBSplinePrefilter.hpp>
 #include <noa/unified/geometry/Transform.hpp>
-#include <noa/unified/io/ImageFile.hpp>
+#include <noa/unified/IO.hpp>
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/Random.hpp>
 #include <noa/unified/Texture.hpp>

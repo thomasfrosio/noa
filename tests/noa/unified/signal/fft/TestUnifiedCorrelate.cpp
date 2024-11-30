@@ -7,8 +7,6 @@
 #include <noa/unified/Reduce.hpp>
 #include <noa/unified/signal/Correlate.hpp>
 
-#include <noa/unified/io/ImageFile.hpp>
-
 #include <catch2/catch.hpp>
 #include "Utils.hpp"
 

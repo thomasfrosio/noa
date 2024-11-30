@@ -1,15 +1,16 @@
 #pragma once
 
 #include <algorithm> // std::reverse
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <ios>
 #include <ostream>
 
+#include "noa/core/Error.hpp"
+#include "noa/core/Traits.hpp"
+#include "noa/core/utils/ClampCast.hpp"
 #include "noa/core/utils/Irange.hpp"
-#include "noa/core/types/Half.hpp"
-#include "noa/core/types/Complex.hpp"
-#include "noa/core/types/Shape.hpp"
-#include "noa/core/types/Span.hpp"
 
 namespace noa {
     namespace fs = std::filesystem;
@@ -18,28 +19,35 @@ namespace noa {
     }
 }
 
-namespace noa::io::guts {
-    template<i64 BYTES_IN_ELEMENTS>
-    void reverse(std::byte* element) noexcept {
-        std::reverse(element, element + BYTES_IN_ELEMENTS);
-    }
-
-    template<i64 BYTES_PER_ELEMENTS>
-    void swap_endian(std::byte* ptr, i64 elements) noexcept {
-        for (i64 i{}; i < elements * BYTES_PER_ELEMENTS; i += BYTES_PER_ELEMENTS)
-            reverse<BYTES_PER_ELEMENTS>(ptr + i);
-    }
-}
-
 namespace noa::io {
     /// Controls how files should be opened.
+    /// \details There are six opening modes:
+    ///     1) read:                Readable.           The file should exist.
+    ///     2) read-write:          Readable-Writable.  The file should exist.          Backup copy.
+    ///     3) read-write-truncate: Readable-Writable.  Create or overwrite the file.   Backup move.
+    ///     4) read-write-append:   Readable-Writable.  Create or append the file.      Backup copy.
+    ///     5) write(-truncate):    Writable.           Create or overwrite the file.   Backup move.
+    ///     6) write-append:        Writable.           Create or append the file.      Backup copy.
     struct Open {
         bool read{};
         bool write{};
         bool truncate{};
-        bool binary{};
         bool append{};
-        bool at_the_end{};
+
+        /// Whether a backup of existing files should be created.
+        /// Backups are saved (whether by copying or moving the existing file) with the '~' postfix.
+        bool backup{true};
+
+        /// Whether the open mode is valid.
+        [[nodiscard]] constexpr auto is_valid() const noexcept -> bool {
+            if (not read and not write)
+                return false;
+            if (read and not write and (truncate or append)) // truncate and append are not allowed in read-only mode
+                return false;
+            if (truncate and append) // mutually exclusive
+                return false;
+            return true;
+        }
 
         /// Converts to the std::ios_base::openmode flag.
         [[nodiscard]] constexpr auto to_ios_base() const noexcept {
@@ -48,206 +56,11 @@ namespace noa::io {
                 mode |= std::ios::in;
             if (write)
                 mode |= std::ios::out;
-            if (binary)
-                mode |= std::ios::binary;
             if (truncate)
                 mode |= std::ios::trunc;
             if (append)
                 mode |= std::ios::app;
-            if (at_the_end)
-                mode |= std::ios::ate;
             return mode;
-        }
-    };
-
-    struct Encoding {
-    public:
-        enum class Format {
-            UNKNOWN = 0,
-            I8,
-            U8,
-            I16,
-            U16,
-            I32,
-            U32,
-            I64,
-            U64,
-            F16,
-            F32,
-            F64,
-            C16,
-            C32,
-            C64,
-            U4,
-            CI16
-        };
-        using enum Format;
-
-    public:
-        /// Format used for the encoding.
-        Format format{};
-
-        /// Whether the values should be clamped to the value range of the destination type.
-        /// If false, out-of-range values are undefined.
-        bool clamp{};
-
-        /// Whether the endianness of the serialized data should be swapped.
-        bool endian_swap{};
-
-    public:
-        /// Returns the range that \T values, about to be serialized with the current format, should be in.
-        /// \details (De)Serialization functions can clamp the values to fit the destination types. However, if
-        ///          one wants to clamp the values beforehand, this function becomes really useful. It computes
-        ///          the lowest and maximum value that the format can hold and clamps them to type \p T.
-        /// \return Minimum and maximum \p T values in the range of the current format.
-        template<typename T>
-        [[nodiscard]] constexpr auto value_range() const -> Pair<T, T> {
-            if constexpr (nt::scalar<T>) {
-                switch (format) {
-                    case U4:
-                        return {T{0}, T{15}};
-                    case I8:
-                        return {clamp_cast<T>(std::numeric_limits<i8>::min()),
-                                clamp_cast<T>(std::numeric_limits<i8>::max())};
-                    case U8:
-                        return {clamp_cast<T>(std::numeric_limits<u8>::min()),
-                                clamp_cast<T>(std::numeric_limits<u8>::max())};
-                    case I16:
-                        return {clamp_cast<T>(std::numeric_limits<i16>::min()),
-                                clamp_cast<T>(std::numeric_limits<i16>::max())};
-                    case U16:
-                        return {clamp_cast<T>(std::numeric_limits<u16>::min()),
-                                clamp_cast<T>(std::numeric_limits<u16>::max())};
-                    case I32:
-                        return {clamp_cast<T>(std::numeric_limits<i32>::min()),
-                                clamp_cast<T>(std::numeric_limits<i32>::max())};
-                    case U32:
-                        return {clamp_cast<T>(std::numeric_limits<u32>::min()),
-                                clamp_cast<T>(std::numeric_limits<u32>::max())};
-                    case I64:
-                        return {clamp_cast<T>(std::numeric_limits<i64>::min()),
-                                clamp_cast<T>(std::numeric_limits<i64>::max())};
-                    case U64:
-                        return {clamp_cast<T>(std::numeric_limits<u64>::min()),
-                                clamp_cast<T>(std::numeric_limits<u64>::max())};
-                    case CI16:
-                        return {clamp_cast<T>(std::numeric_limits<i16>::min()),
-                                clamp_cast<T>(std::numeric_limits<i16>::max())};
-                    case F16:
-                    case C16:
-                        return {clamp_cast<T>(std::numeric_limits<f16>::lowest()),
-                                clamp_cast<T>(std::numeric_limits<f16>::max())};
-                    case F32:
-                    case C32:
-                        return {clamp_cast<T>(std::numeric_limits<f32>::lowest()),
-                                clamp_cast<T>(std::numeric_limits<f32>::max())};
-                    case F64:
-                    case C64:
-                        return {clamp_cast<T>(std::numeric_limits<f64>::lowest()),
-                                clamp_cast<T>(std::numeric_limits<f64>::max())};
-                    case UNKNOWN:
-                        panic("Encoding format is not set");
-                }
-                return {}; // unreachable
-            } else if constexpr (nt::complex<T>) {
-                using real_t = nt::value_type_t<T>;
-                auto[min, max] = value_range<real_t>();
-                return {T{min, min}, T{max, max}};
-            } else {
-                static_assert(nt::always_false<T>);
-            }
-        }
-
-        [[nodiscard]] static constexpr auto encoded_size(
-            Format format,
-            i64 n_elements,
-            i64 n_elements_per_row = 0
-        ) noexcept -> i64 {
-            switch (format) {
-                case U4: {
-                    if (n_elements_per_row == 0 or is_even(n_elements_per_row))
-                        return n_elements / 2;
-
-                    check(is_multiple_of(n_elements, n_elements_per_row),
-                          "The number of elements is not compatible with the size of the rows");
-                    const auto rows = n_elements / n_elements_per_row;
-                    const auto bytes_per_row = (n_elements_per_row + 1) / 2;
-                    return bytes_per_row * rows;
-                }
-                case I8:
-                case U8:
-                    return n_elements;
-                case I16:
-                case U16:
-                case F16:
-                    return n_elements * 2;
-                case I32:
-                case U32:
-                case F32:
-                case CI16:
-                case C16:
-                    return n_elements * 4;
-                case I64:
-                case U64:
-                case F64:
-                case C32:
-                    return n_elements * 8;
-                case C64:
-                    return n_elements * 16;
-                case UNKNOWN:
-                    return 0;
-            }
-            return 0; // unreachable
-        }
-
-        /// Returns the number of bytes necessary to hold \p n_elements with the current format.
-        /// \param n_elements           Number of elements.
-        /// \param n_elements_per_row   Number of elements per row.
-        ///                             Only used with the U4 format.
-        ///                             This is to account for the half-byte padding at the end of odd rows with U4.
-        ///                             If 0, the number of elements per row is assumed to be even.
-        ///                             Otherwise, \p n_elements should be a multiple of \p n_elements_per_row.
-        [[nodiscard]] constexpr auto encoded_size(
-            i64 n_elements,
-            i64 n_elements_per_row = 0
-        ) const noexcept -> i64 {
-            return encoded_size(format, n_elements, n_elements_per_row);
-        }
-
-        /// Returns the encoding format corresponding to the type \p T.
-        template<typename T>
-        static constexpr auto to_format() noexcept -> Format {
-            if constexpr (nt::almost_same_as<T, i8>) {
-                return I8;
-            } else if constexpr (nt::almost_same_as<T, u8>) {
-                return U8;
-            } else if constexpr (nt::almost_same_as<T, i16>) {
-                return I16;
-            } else if constexpr (nt::almost_same_as<T, u16>) {
-                return U16;
-            } else if constexpr (nt::almost_same_as<T, i32>) {
-                return I32;
-            } else if constexpr (nt::almost_same_as<T, u32>) {
-                return U32;
-            } else if constexpr (nt::almost_same_as<T, i64>) {
-                return I64;
-            } else if constexpr (nt::almost_same_as<T, u64>) {
-                return U64;
-            } else if constexpr (nt::almost_same_as<T, f16>) {
-                return F16;
-            } else if constexpr (nt::almost_same_as<T, f32>) {
-                return F32;
-            } else if constexpr (nt::almost_same_as<T, f64>) {
-                return F64;
-            } else if constexpr (nt::almost_same_as<T, c16>) {
-                return C16;
-            } else if constexpr (nt::almost_same_as<T, c32>) {
-                return C32;
-            } else if constexpr (nt::almost_same_as<T, c64>) {
-                return C64;
-            } else {
-                static_assert(nt::always_false<T>);
-            }
         }
     };
 
@@ -256,76 +69,291 @@ namespace noa::io {
         return std::endian::native == std::endian::big;
     }
 
-    /// Changes the endianness of the elements in an array, in-place.
-    /// \param[in] ptr              Array of bytes to swap. Should contain at least (elements * bytes_per_element).
-    /// \param n_elements           How many elements to swap.
-    /// \param bytes_per_elements   Size, in bytes, of one element. If not 2, 4, or 8, do nothing.
-    constexpr void swap_endian(std::byte* ptr, i64 n_elements, i64 bytes_per_elements) noexcept {
-        if (bytes_per_elements == 2) {
-            guts::swap_endian<2>(ptr, n_elements);
-        } else if (bytes_per_elements == 4) {
-            guts::swap_endian<4>(ptr, n_elements);
-        } else if (bytes_per_elements == 8) {
-            guts::swap_endian<8>(ptr, n_elements);
+    template<nt::numeric T>
+    auto swap_endian(T value) noexcept -> T {
+        auto* ptr = reinterpret_cast<std::byte*>(&value);
+        std::reverse(ptr, ptr + sizeof(T));
+        return value;
+    }
+
+    template<size_t SIZEOF>
+    auto swap_endian(void* value, i64 n_elements) noexcept {
+        auto* ptr = static_cast<std::byte*>(value);
+        for (i64 i{}; i < n_elements; ++i) {
+            std::reverse(ptr, ptr + SIZEOF);
+        }
+    }
+}
+
+namespace noa::io {
+    inline auto operator<<(std::ostream& os, Open mode) -> std::ostream& {
+        std::array flags{mode.read, mode.write, mode.truncate, mode.append};
+        std::array names{"read", "write", "truncate", "append"};
+
+        bool add{};
+        os << "Open{";
+        for (auto i: irange(flags.size())) {
+            if (flags[i]) {
+                if (add)
+                    os << '|';
+                os << names[i];
+                add = true;
+            }
+        }
+        os << '}';
+        return os;
+    }
+}
+
+namespace fmt {
+    template<> struct formatter<noa::io::Open> : ostream_formatter {};
+}
+
+// Gathers a bunch of OS/filesystem related functions.
+// These are just thin wrappers that throw upon failure.
+namespace noa::io {
+    namespace fs = std::filesystem;
+
+    /// Whether or not the path points to an existing regular file. Symlinks are followed.
+    inline bool is_file(const fs::path& path) {
+        try {
+            return fs::is_regular_file(path);
+        } catch (const fs::filesystem_error& e) {
+            panic_runtime(e.what());
+        } catch (const std::exception& e) {
+            panic("File: {}. {}", path, e.what());
         }
     }
 
-    /// Changes the endianness of the elements in an array, in-place.
-    /// \param[in] ptr      Array of bytes to swap.
-    /// \param n_elements   How many elements to swap.
-    template<typename T>
-    void swap_endian(T* ptr, i64 n_elements) noexcept {
-        swap_endian(reinterpret_cast<std::byte*>(ptr), n_elements, sizeof(T));
+    /// Whether or not the file-status describes an existing regular file. Symlinks are followed.
+    inline bool is_file(const fs::file_status& file_status) noexcept {
+        return fs::is_regular_file(file_status);
     }
-}
 
-namespace noa::io {
-    /// Converts the values in \p input, according to the desired \p encoding,
-    /// and saves the converted values into \p output. Values are saved in the rightmost order.
-    /// \tparam T           If \p T is complex, \p input is reinterpreted to the corresponding real type array,
-    ///                     requiring its innermost dimension to be contiguous.
-    /// \param[in] input    Values to serialize.
-    /// \param[out] output  Array containing the serialized values.
-    ///                     See Encoding::encoded_size() to know how many bytes will be written into this array.
-    /// \param encoding     Desired encoding to apply to the input values before saving them into the output.
-    template<nt::numeric T>
-    void serialize(const Span<const T, 4>& input, const SpanContiguous<std::byte, 1>& output, Encoding encoding);
+    /// Whether or not the path points to an existing directory.
+    inline bool is_directory(const fs::path& path) {
+        try {
+            return fs::is_directory(path);
+        } catch (const fs::filesystem_error& e) {
+            panic_runtime(e.what());
+        } catch (const std::exception& e) {
+            panic("Path: {}. {}", path, e.what());
+        }
+    }
 
-    /// Overload taking the output as an ostream.
-    /// \param[out] output  Output stream to write into. The current position is used as a starting point.
-    ///                     See Encoding::encoded_size() to know how many bytes will be written into this stream.
-    /// \throws Exception   If the stream fails to write data, an exception is thrown. Note that the stream is
-    ///                     reset to its good state before the exception is thrown.
-    template<nt::numeric T>
-    void serialize(const Span<const T, 4>& input, std::ostream& output, Encoding encoding);
+    /// Whether or not the file-status describes an existing directory.
+    inline bool is_directory(const fs::file_status& file_status) noexcept {
+        return fs::is_directory(file_status);
+    }
 
-    /// Deserializes the \p input, according to its \p encoding, converts the decoded values to
-    /// the output value type, and save them in the \p output. Values are saved in the rightmost order.
-    /// \tparam T           If \p T is complex, \p input is reinterpreted to the corresponding real type array,
-    ///                     requiring its innermost dimension to be contiguous.
-    /// \param[in] input    Values to deserialize.
-    ///                     See Encoding::encoded_size() to know how many bytes will be read from this array.
-    /// \param encoding     Encoding used to serialize the input values.
-    /// \param[out] output  Deserialize values.
-    template<nt::numeric T>
-    void deserialize(const SpanContiguous<const std::byte, 1>& input, Encoding encoding, const Span<T, 4>& output);
+    /// Whether or not the path points to an existing file or directory. Symlinks are followed.
+    inline bool is_file_or_directory(const fs::path& path) {
+        try {
+            return fs::exists(path);
+        } catch (const fs::filesystem_error& e) {
+            panic_runtime(e.what());
+        } catch (const std::exception& e) {
+            panic("File: {}. {}", path, e.what());
+        }
+    }
 
-    /// Overload taking the input as an istream.
-    /// \param[in] input    Input stream to read from. The current position is used as a starting point.
-    ///                     See Encoding::encoded_size() to know how many bytes will be read from this stream.
-    /// \throws Exception   If the stream fails to read data, an exception is thrown. Note that the stream is
-    ///                     reset to its good state before the exception is thrown.
-    template<nt::numeric T>
-    void deserialize(std::istream& input, Encoding encoding, const Span<T, 4>& output);
-}
+    /// Whether or not the file-status describes an existing file or directory. Symlinks are followed.
+    inline bool is_file_or_directory(const fs::file_status& file_status) noexcept {
+        return fs::exists(file_status);
+    }
 
-namespace noa::io {
-    auto operator<<(std::ostream& os, Open mode) -> std::ostream&;
-    auto operator<<(std::ostream& os, Encoding::Format data_type) -> std::ostream&;
-}
+    /// Gets the size, in bytes, of a regular file. Symlinks are followed.
+    /// \note The result of attempting to determine the size of a directory (as well as any other
+    ///       file that is not a regular file or a symlink) is implementation-defined.
+    inline auto file_size(const fs::path& path) -> int64_t {
+        try {
+            return clamp_cast<int64_t>(fs::file_size(path));
+        } catch (const fs::filesystem_error& e) {
+            panic_runtime(e.what());
+        } catch (const std::exception& e) {
+            panic("File: {}. {}", path, e.what());
+        }
+    }
 
-// fmt 9.1.0 fix (Disabled automatic std::ostream insertion operator)
-namespace fmt {
-    template<> struct formatter<noa::io::Open> : ostream_formatter {};
-    template<> struct formatter<noa::io::Encoding::Format> : ostream_formatter {};
+    /// \param path         File or empty directory. If it doesn't exist, do nothing.
+    /// \throw Exception    If the file or empty directory could not be removed or if the directory was not empty.
+    /// \note Symlinks are removed but not their targets.
+    inline void remove(const fs::path& path) {
+        try {
+            fs::remove(path);
+        } catch (const fs::filesystem_error& e) {
+            panic_runtime(e.what());
+        } catch (const std::exception& e) {
+            panic("File: {}. {}", path, e.what());
+        }
+    }
+
+    /// \param path If it is a file, this is similar to remove()
+    ///             If it is a directory, it removes it and all its content.
+    ///             If it does not exist, do nothing.
+    /// \throw Exception    If the file or directory could not be removed.
+    /// \note Symlinks are remove but not their targets.
+    inline void remove_all(const fs::path& path) {
+        try {
+            fs::remove_all(path);
+        } catch (const fs::filesystem_error& e) {
+            panic_runtime(e.what());
+        } catch (const std::exception& e) {
+            panic("File: {}. {}", path, e.what());
+        }
+    }
+
+    /// Changes the name or location of a file or directory.
+    /// \param from     File or directory to rename.
+    /// \param to       Desired name or location.
+    /// \throw If \a from could not be moved. One of the reasons my be:
+    ///          - \a to ends with . or ..
+    ///          - \a to names a non-existing directory ending with a directory separator.
+    ///          - \a from is a directory which is an ancestor of \a to.
+    ///          - If \a from is a file, \a to should be a file (or non-existing file).
+    ///          - If \a from is a directory, \a to should be non-existing directory. On POSIX, \a to can
+    ///            be an empty directory, but on other systems, it can fail.
+    ///
+    /// \note    Symlinks are not followed: if \a from is a symlink, it is itself renamed,
+    ///          not its target. If \a to is an existing symlink, it is itself erased, not its target.
+    inline void move(const fs::path& from, const fs::path& to) {
+        try {
+            fs::rename(from, to);
+        } catch (const fs::filesystem_error& e) {
+            panic_runtime(e.what());
+        } catch (const std::exception& e) {
+            panic("File: {} to {}. {}", from, to, e.what());
+        }
+    }
+
+    /// Copies a single regular file (symlinks are followed).
+    /// \param from     Existing file to copy.
+    /// \param to       Desired name or location. Non-existing file or a regular file different than \a from.
+    /// \param options  The behavior is undefined if there is more than one option.
+    ///                 When the file \a to already exists:
+    ///                 \c fs::copy_options::none:                  Throw an error.
+    ///                 \c fs::copy_options::skip_existing:         Keep the existing file, without reporting an error.
+    ///                 \c fs::copy_options::overwrite_existing:    Replace the existing file.
+    ///                 \c fs::copy_options::update_existing:       Replace the existing file only if it is older
+    ///                                                             than the file being copied.
+    /// \return         Whether or not the file was copied.
+    ///
+    /// \throw If \a from is not a regular file.
+    ///        If \a from and \a to are equivalent.
+    ///        If \a option is empty or if \a to exists and options == fs::copy_options::none.
+    inline bool copy_file(
+        const fs::path& from,
+        const fs::path& to,
+        const fs::copy_options options = fs::copy_options::overwrite_existing
+    ) {
+        try {
+            return fs::copy_file(from, to, options);
+        } catch (const fs::filesystem_error& e) {
+            panic_runtime(e.what());
+        } catch (const std::exception& e) {
+            panic("File: {} to {}. {}", from, to, e.what());
+        }
+    }
+
+    /// Copies a symbolic link, effectively reading the symlink and creating a new symlink of the target.
+    /// \param from     Path to a symbolic link to copy. Can resolve to a file or directory.
+    /// \param to       Destination path of the new symlink.
+    /// \throw          If the symlink could not be copied.
+    inline void copy_symlink(const fs::path& from, const fs::path& to) {
+        try {
+            fs::copy_symlink(from, to);
+        } catch (const fs::filesystem_error& e) {
+            panic_runtime(e.what());
+        } catch (const std::exception& e) {
+            panic("File: {} to {}. {}", from, to, e.what());
+        }
+    }
+
+    /// Copies files and directories
+    /// \param from     Existing regular file, symlink or directory to copy.
+    /// \param to       Desired name or location. Non-existing, regular file, symlink or directory, different than \a from.
+    /// \param options  The behavior is undefined if there is more than one option of the same group.
+    ///  Group 1:
+    ///   ├─ \c fs::copy_options::none:                 Skip subdirectories.
+    ///   └─ \c fs::copy_options::recursive:            Recursively copy subdirectories and their content.
+    ///  Group 2:
+    ///   ├─ \c fs::copy_options::none:                 Symlinks are followed.
+    ///   ├─ \c fs::copy_options::copy_symlinks:        Symlinks are not followed.
+    ///   └─ \c fs::copy_options::skip_symlinks:        Ignore symlinks.
+    ///  Group 3:
+    ///   ├─ \c fs::copy_options::none:                 Copy file content.
+    ///   ├─ \c fs::copy_options::directories_only:     Copy the directory structure, but do not copy any non-directory files.
+    ///   ├─ \c fs::copy_options::create_symlinks:      Instead of creating copies of files, create symlinks pointing to the originals.
+    ///   │                                             Note: \a from must be an absolute path unless \a to is in the current directory.
+    ///   │                                             Note: \a from must be a file.
+    ///   └─ \c fs::copy_options::create_hard_links:    Instead of creating copies of files, create hardlinks.
+    ///  Group 4:
+    ///   └─ Any of the options from copy_file().
+    ///
+    /// \throw If \a from or \a to is not a regular file, symlink or directory.
+    ///        If \a from is equivalent to \a to or if \a from does not exist.
+    ///        If \a from is a directory but \a to is a regular file.
+    ///        If \a from is a directory and \c create_symlinks is on.
+    ///
+    /// \note If \a from is a regular file and \a to is a directory, it copies \a from into \a to.
+    /// \note If \a from and \a to are directories, it copies the content of \a from into \a to.
+    /// \note To copy a single file, use copy_file().
+    inline void copy(
+            const fs::path& from,
+            const fs::path& to,
+            const fs::copy_options options =
+                fs::copy_options::recursive |
+                fs::copy_options::copy_symlinks |
+                fs::copy_options::overwrite_existing
+    ) {
+        try {
+            fs::copy(from, to, options);
+        } catch (const fs::filesystem_error& e) {
+            panic_runtime(e.what());
+        } catch (const std::exception& e) {
+            panic("File: {} to {}. {}", from, to, e.what());
+        }
+    }
+
+    /// \param from         Path of the file to backup. The backup is suffixed with '~'.
+    /// \param overwrite    Whether or not it should perform a backup move or backup copy.
+    /// \warning With backup moves, symlinks are moved, whereas backup copies follow
+    ///          the symlinks and copy the targets. This is usually the expected behavior.
+    inline void backup(const fs::path& from, bool overwrite = false) {
+        try {
+            const fs::path to(from.string() + '~');
+            if (overwrite)
+                noa::io::move(from, to);
+            else
+                noa::io::copy_file(from, to);
+        } catch (...) {
+            panic("File: {}. Could not backup the file", from);
+        }
+    }
+
+    /// \param path         Path of the directory or directories to create.
+    /// \throw Exception    If the directory or directories could not be created.
+    /// \note               Existing directories are tolerated and do not generate errors.
+    inline void mkdir(const fs::path& path) {
+        if (path.empty())
+            return;
+        try {
+            fs::create_directories(path);
+        } catch (const fs::filesystem_error& e) {
+            panic_runtime(e.what());
+        } catch (const std::exception& e) {
+            panic("File: {}. {}", path, e.what());
+        }
+    }
+
+    /// Returns the directory location suitable for temporary files.
+    inline auto temporary_directory() -> fs::path {
+        try {
+            return fs::temp_directory_path();
+        } catch (const fs::filesystem_error& e) {
+            panic_runtime(e.what());
+        } catch (const std::exception& e) {
+            panic_runtime(e.what());
+        }
+    }
 }

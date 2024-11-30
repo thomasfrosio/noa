@@ -3,7 +3,7 @@
 #include <noa/unified/geometry/DrawShape.hpp>
 #include <noa/unified/geometry/Symmetry.hpp>
 #include <noa/unified/geometry/Transform.hpp>
-#include <noa/unified/io/ImageFile.hpp>
+#include <noa/unified/IO.hpp>
 #include <noa/unified/Factory.hpp>
 
 #include <catch2/catch.hpp>

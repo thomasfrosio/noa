@@ -2,15 +2,12 @@
 
 #include <ios> // std::streamsize
 #include <fstream>
-#include <memory>
 #include <type_traits>
 #include <thread>
 #include <string>
 
-#include "noa/core/Config.hpp"
 #include "noa/core/Error.hpp"
 #include "noa/core/io/IO.hpp"
-#include "noa/core/io/OS.hpp"
 #include "noa/core/Traits.hpp"
 
 namespace noa::io {
@@ -23,25 +20,15 @@ namespace noa::io {
         /// Creates an empty file. Use .open() to open a new file.
         TextFile() = default;
 
-        /// Opens the associated file. See .open() for more details.
+        /// Opens the file. See .open() for more details.
         TextFile(Path path, Open mode) : m_path(std::move(path)) {
             open_(mode);
         }
 
         /// (Re)Opens the file.
-        /// \param path Path of the file to open.
-        /// \param mode Open mode. Should be one of the following combinations:
-        ///                 1) read                             File should exist.
-        ///                 2) read-write                       File should exist.     Backup copy.
-        ///                 3) write, write-truncate            Overwrite the file.    Backup move.
-        ///                 4) read-write-truncate              Overwrite the file.    Backup move.
-        ///                 5) append, write-append             Append or create file. Backup copy. Append at each write.
-        ///                 6) read-append, read-write-append   Append or create file. Backup copy. Append at each write.
-        ///             Additionally, at_the_end and/or binary can be turned on:
-        ///             - at_the_end: the stream goes to the end of the file after opening.
-        ///             - binary: Disable text conversions.
-        ///
-        /// \throws Exception   If any of the following cases:
+        /// \param path     Path of the file to open.
+        /// \param mode     Open mode. All opening modes are supported.
+        /// \throws If any of the following cases:
         ///         - If failed to close the file before starting.
         ///         - If failed to open the file.
         ///         - If an underlying OS error was raised.
@@ -50,7 +37,7 @@ namespace noa::io {
             open_(mode);
         }
 
-        /// Closes the stream if it is opened, otherwise do nothing.
+        /// Closes the file if it is open, otherwise do nothing.
         void close() {
             if (m_fstream.is_open()) {
                 m_fstream.close();
@@ -59,14 +46,11 @@ namespace noa::io {
             }
         }
 
-        /// Writes a string to the file.
+        /// Writes a string at the end of the file.
         void write(std::string_view string) {
+            // m_fstream.seekp(0, std::ios_base::end);
             m_fstream.write(string.data(), static_cast<std::streamsize>(string.size()));
-            if (m_fstream.fail()) {
-                if (m_fstream.is_open())
-                    panic("File: {}. File stream error while writing", m_path);
-                panic("File: {}. File stream error. File is closed file", m_path);
-            }
+            check(not m_fstream.fail(), "Could not write to file {}", m_path);
         }
 
         /// Gets the next line of the file.
@@ -92,8 +76,9 @@ namespace noa::io {
 
         /// Gets the next line of the file. If an error occurs, throw an exception.
         /// \param[out] line Buffer into which the line will be stored. It is erased before starting.
-        /// \example Read a file line per line.
+        /// \example
         /// \code
+        /// // Read a file line per line.
         /// TextFile file("some_file.txt");
         /// std::string line;
         /// while(file.next_line_or_throw(line)) {
@@ -115,10 +100,9 @@ namespace noa::io {
             // FIXME use file_size(m_path) instead?
             m_fstream.seekg(0, std::ios::end);
             const std::streampos size = m_fstream.tellg();
-            if (!size)
+            check(size >= 0, "File: {}. File stream error. Could not get the input position indicator", m_path);
+            if (not size)
                 return buffer;
-            else if (size < 0)
-                panic("File: {}. File stream error. Could not get the input position indicator", m_path);
 
             try {
                 buffer.resize(static_cast<size_t>(size));
@@ -129,67 +113,39 @@ namespace noa::io {
 
             m_fstream.seekg(0);
             m_fstream.read(buffer.data(), size);
-            if (m_fstream.fail())
-                panic("File: {}. File stream error. Could not read the entire file", m_path);
+            check(not m_fstream.fail(), "File: {}. File stream error. Could not read the entire file", m_path);
             return buffer;
         }
 
-        /// Gets a reference of the underlying file stream.
-        /// \note   This should be safe and the class should be able to handle whatever changes are
-        ///         done outside the class. One thing that is possible but not really meant to be
-        ///         changed is the exception level of the stream. If you activate some exceptions,
-        ///         make sure you know what you are doing, specially when activating \c eofbit.
-        ///
-        /// \note \c std::fstream doesn't throw exceptions by default but keeps track of a few flags
-        ///       reporting on the situation. Here is more information on their meaning.
-        ///          - \c goodbit: its value, 0, indicates the absence of any error flag. If 1,
-        ///                        all input and output operations have no effect.
-        ///                        See \c std::fstream::good().
-        ///          - \c eofbit:  Is set when there an attempt to read past the end of an input sequence.
-        ///                        When reaching the last character, the stream is still in good state,
-        ///                        but any subsequent extraction will be considered an attempt to read
-        ///                        past the end - `eofbit` is set to 1. The other situation is when
-        ///                        the reading doesn't happen character-wise and we reach the eof.
-        ///                        See \c std::fstream::eof().
-        ///          - \c failbit: Is set when a read or write operation fails. For example, in the
-        ///                        first example of `eofbit`, `failbit` is also set since we fail to
-        ///                        read, but in the second example it is not set since the int or string
-        ///                        was extracted. `failbit` is also set if the file couldn't be open.
-        ///                        See \c std::fstream::fail() or \c std::fstream::operator!().
-        ///          - \c badbit:  Is set when a problem with the underlying stream buffer happens. This
-        ///                        can happen from memory shortage or because the underlying stream
-        ///                        buffer throws an exception.
-        ///                        See \c std::fstream::bad().
-        [[nodiscard]] auto fstream() noexcept -> Stream& { return m_fstream; }
-
-        /// Gets the size (in bytes) of the file. Symlinks are followed.
-        [[nodiscard]] auto size() -> i64 {
+        [[nodiscard]] auto ssize() -> i64 {
             m_fstream.flush();
             return noa::io::file_size(m_path);
         }
+        [[nodiscard]] auto size() -> u64 {
+            return static_cast<u64>(ssize());
+        }
 
         [[nodiscard]] auto path() const noexcept -> const Path& { return m_path; }
+        [[nodiscard]] auto fstream() noexcept -> Stream& { return m_fstream; }
         [[nodiscard]] auto bad() const noexcept -> bool { return m_fstream.bad(); }
         [[nodiscard]] auto eof() const noexcept -> bool { return m_fstream.eof(); }
         [[nodiscard]] auto fail() const noexcept -> bool { return m_fstream.fail(); }
         [[nodiscard]] auto is_open() const noexcept -> bool { return m_fstream.is_open(); }
         void clear_flags() { m_fstream.clear(); }
 
-        /// Whether the underlying file stream is in a "good" state.
-        [[nodiscard]] explicit operator bool() const noexcept { return not m_fstream.fail(); }
-
     private:
         void open_(Open mode) {
             close();
+            check(mode.is_valid(), "Invalid open mode");
 
             if constexpr (not std::is_same_v<Stream, std::ifstream>) {
-                if (mode.write or mode.append) /* all except case 1 */ {
-                    const bool overwrite = mode.truncate or not (mode.read or mode.append); // case 3|4
+                if (mode.write) {
+                    const bool overwrite = mode.truncate or not (mode.read or mode.append); // case 3 and 5
                     const bool exists = is_file(m_path);
                     try {
-                        if (exists)
+                        if (exists and mode.backup)
                             backup(m_path, overwrite);
-                        else if (overwrite or mode.append) /* all except case 2 */
+                        else if (overwrite or mode.append)
                             mkdir(m_path.parent_path());
                     } catch (...) {
                         panic("File: {}. {}. Could not open the file because of an OS failure", m_path, mode);
@@ -201,7 +157,7 @@ namespace noa::io {
             if constexpr (std::is_same_v<Stream, std::ifstream>)
                 check(read_only, "File: {}. {} is not allowed for read-only TextFile", m_path, mode);
 
-            for (i32 it{}; it < 5; ++it) {
+            for (i32 it{}; it < 3; ++it) {
                 m_fstream.open(m_path, mode.to_ios_base());
                 if (m_fstream.is_open())
                     return;
@@ -224,13 +180,13 @@ namespace noa::io {
 
     /// Reads the entire text file.
     inline auto read_text(const Path& path) -> std::string {
-        InputTextFile text_file(path, Open{.read=true});
+        InputTextFile text_file(path, Open{.read = true});
         return text_file.read_all();
     }
 
     /// Saves the entire text file.
     inline void write_text(std::string_view string, const Path& path) {
-        OutputTextFile text_file(path, Open{.write=true});
+        OutputTextFile text_file(path, Open{.write = true});
         text_file.write(string);
     }
 }

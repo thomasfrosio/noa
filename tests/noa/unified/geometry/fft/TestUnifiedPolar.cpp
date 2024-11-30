@@ -1,5 +1,5 @@
 #include <noa/core/io/TextFile.hpp>
-#include <noa/unified/io/ImageFile.hpp>
+#include <noa/unified/IO.hpp>
 
 #include <noa/unified/fft/Remap.hpp>
 #include <noa/unified/geometry/DrawShape.hpp>

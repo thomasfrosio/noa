@@ -1,6 +1,6 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/Random.hpp>
-#include <noa/unified/io/ImageFile.hpp>
+#include <noa/unified/IO.hpp>
 #include <noa/unified/Resize.hpp>
 #include <noa/unified/Factory.hpp>
 

@@ -1,7 +1,7 @@
 #include <noa/unified/Random.hpp>
 #include <noa/unified/Subregion.hpp>
 #include <noa/unified/Factory.hpp>
-#include <noa/unified/io/ImageFile.hpp>
+#include <noa/unified/IO.hpp>
 
 #include <catch2/catch.hpp>
 #include "Assets.h"
@@ -38,6 +38,7 @@ TEST_CASE("unified::extract_subregions()", "[asset][noa][unified]") {
 
             // Extract:
             noa::extract_subregions(input, subregions, origins, border_mode, border_value);
+            subregions.eval();
 
             const auto expected_subregion_filenames = test["expected_extract"].as<std::vector<Path>>();
             const auto subregion_count = static_cast<size_t>(subregion_shape[0]);
@@ -45,14 +46,14 @@ TEST_CASE("unified::extract_subregions()", "[asset][noa][unified]") {
                 noa::io::ImageFile file;
                 for (size_t i{}; i < subregion_count; ++i) {
                     file.open(path_base / expected_subregion_filenames[i], {.write=true});
-                    file.write(subregions.subregion(i));
+                    file.write_all(subregions.span().as_const().subregion(i));
                 }
             } else {
                 const auto expected_subregions = noa::like(subregions);
                 noa::io::ImageFile file;
                 for (size_t i{}; i < subregion_count; ++i) {
                     file.open(path_base / expected_subregion_filenames[i], {.read=true});
-                    file.read(expected_subregions.subregion(i));
+                    file.read_all(expected_subregions.span().subregion(i));
                 }
                 REQUIRE(test::allclose_abs_safe(expected_subregions, subregions, 1e-7));
             }
@@ -63,7 +64,7 @@ TEST_CASE("unified::extract_subregions()", "[asset][noa][unified]") {
 
             const auto expected_insert_filename = path_base / test["expected_insert"][0].as<Path>();
             if constexpr (COMPUTE_ASSETS) {
-                noa::io::write(input, expected_insert_filename);
+                noa::write(input, expected_insert_filename);
             } else {
                 const auto expected_insert_back = noa::io::read_data<f32>(expected_insert_filename).reshape(input.shape());
                 REQUIRE(test::allclose_abs_safe(expected_insert_back, input, 1e-7));

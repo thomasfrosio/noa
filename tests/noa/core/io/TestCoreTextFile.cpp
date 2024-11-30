@@ -16,21 +16,21 @@ TEST_CASE("core::io::TextFile", "[noa][core]") {
     AND_WHEN("file should exists") {
         noa::io::InputTextFile file;
 
-        REQUIRE(file);
+        REQUIRE(not file.fail());
         REQUIRE_THROWS_AS(file.open(test_file2, {.read=true}), noa::Exception);
-        REQUIRE(file);
+        REQUIRE(not file.fail());
         REQUIRE_FALSE(file.is_open());
 
         REQUIRE_THROWS_AS(file.open(test_file2, {.read=true, .write=true}), noa::Exception);
         REQUIRE_FALSE(file.is_open());
-        REQUIRE(file);
+        REQUIRE(not file.fail());
     }
 
     AND_WHEN("creating a file and its parent path") {
         noa::io::OutputTextFile file;
         REQUIRE_FALSE(noa::io::is_file(test_file2));
         file.open(test_file2, {.write=true, .append=true});
-        REQUIRE(file);
+        REQUIRE(not file.fail());
         REQUIRE(file.is_open());
         REQUIRE(noa::io::is_file(test_file2));
         file.close();
@@ -39,11 +39,11 @@ TEST_CASE("core::io::TextFile", "[noa][core]") {
 
     AND_WHEN("write and read") {
         noa::io::TextFile file;
-        file.open(test_file1, {.append=true});
+        file.open(test_file1, {.write=true, .append=true});
         file.write(fmt::format("Here are some arguments: {}, {} ", 123, 124));
         file.write("I'm about to close the file...");
         file.close();
-        REQUIRE(file);
+        REQUIRE(not file.fail());
 
         // read_all() needs the file stream to be opened.
         REQUIRE_THROWS_AS(file.read_all(), noa::Exception);
@@ -51,11 +51,11 @@ TEST_CASE("core::io::TextFile", "[noa][core]") {
 
         const std::string expected = "Here are some arguments: 123, 124 "
                                      "I'm about to close the file...";
-        REQUIRE(file.size() == static_cast<i64>(expected.size()));
+        REQUIRE(file.size() == expected.size());
 
         file.open(test_file1, {.read=true});
         REQUIRE(file.read_all() == expected);
-        REQUIRE(file);
+        REQUIRE(not file.fail());
 
         REQUIRE_THROWS_AS(noa::io::InputTextFile(test_dir / "not_existing", {.read=true}), noa::Exception);
     }
@@ -64,14 +64,14 @@ TEST_CASE("core::io::TextFile", "[noa][core]") {
         noa::io::TextFile file(test_file2, {.write=true});
         file.write("number: 2");
         file.close();
-        REQUIRE(file.size() == 9);
+        REQUIRE(file.ssize() == 9);
 
         // Backup copy: open an existing file in writing mode.
         const fs::path test_file2_backup = test_file2.string() + '~';
         file.open(test_file2, {.read=true, .write=true});
         REQUIRE(file.is_open());
         REQUIRE(file.read_all() == "number: 2");
-        REQUIRE(noa::io::file_size(test_file2_backup) == file.size());
+        REQUIRE(noa::io::file_size(test_file2_backup) == file.ssize());
 
         noa::io::remove(test_file2_backup);
 
@@ -89,7 +89,7 @@ TEST_CASE("core::io::TextFile", "[noa][core]") {
         const std::string str = "line1\nline2\nline3\nline4\n";
         file.write(str);
         file.close();
-        REQUIRE(file);
+        REQUIRE(not file.fail());
 
         file.open(test_file2, {.read=true});
         std::string line;
@@ -110,11 +110,12 @@ TEST_CASE("core::io::TextFile", "[noa][core]") {
     }
 
     AND_WHEN("append") {
+        fmt::println("cwd={}", fs::current_path());
         noa::io::TextFile file;
         file.open(test_file1, {.write=true, .truncate=true});
         file.write("0");
         file.close();
-        file.open(test_file1, {.append=true, .at_the_end=true});
+        file.open(test_file1, {.write=true, .append=true});
         file.write("1");
         file.close();
 

@@ -1,7 +1,7 @@
 #include <noa/unified/fft/Factory.hpp>
 #include <noa/unified/fft/Remap.hpp>
 #include <noa/unified/Random.hpp>
-#include <noa/unified/io/ImageFile.hpp>
+#include <noa/unified/IO.hpp>
 
 #include <catch2/catch.hpp>
 #include "Assets.h"

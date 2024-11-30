@@ -12,6 +12,7 @@ set(NOA_UNIFIED_HEADERS
     unified/Factory.hpp
     unified/Indexing.hpp
     unified/Interpolation.hpp
+    unified/IO.hpp
     unified/Iwise.hpp
     unified/Random.hpp
     unified/Reduce.hpp
@@ -28,9 +29,6 @@ set(NOA_UNIFIED_HEADERS
     unified/Traits.hpp
     unified/Utilities.hpp
     unified/View.hpp
-
-    # noa::io
-    unified/io/ImageFile.hpp
 
     # noa::fft
     unified/fft/Factory.hpp

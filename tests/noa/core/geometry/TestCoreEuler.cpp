@@ -1,5 +1,5 @@
 #include <noa/core/geometry/Euler.hpp>
-#include <noa/core/io/MRCFile.hpp>
+#include <noa/core/io/ImageFile.hpp>
 #include <noa/core/indexing/Layout.hpp>
 #include <catch2/catch.hpp>
 #include <memory>
@@ -19,7 +19,7 @@ TEST_CASE("core::geometry::euler2matrix()", "[noa]") {
     const auto angles = deg2rad(param["angles"].as<Vec3<f32>>());
 
     // Get expected:
-    auto file = nio::MrcFile(path_expected, {.read=true});
+    auto file = nio::ImageFile(path_expected, {.read = true});
     const auto shape = file.shape();
     const auto n_matrices = shape[0];
     const auto n_elements = shape.n_elements();
@@ -27,7 +27,7 @@ TEST_CASE("core::geometry::euler2matrix()", "[noa]") {
     const auto expected = Span(buffer_expected.get(), n_matrices);
     {
         const auto tmp = test::make_unique<f32[]>(n_elements);
-        file.read_all(Span(tmp.get(), shape), false);
+        file.read_all(Span(tmp.get(), shape));
         for (size_t i{}; auto& e: expected) {
             e = Mat33<f32>::from_pointer(tmp.get() + i);
             i += 9;

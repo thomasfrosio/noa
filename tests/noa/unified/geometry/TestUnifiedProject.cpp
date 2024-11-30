@@ -2,7 +2,7 @@
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/geometry/DrawShape.hpp>
 #include <noa/unified/geometry/Project.hpp>
-#include <noa/unified/io/ImageFile.hpp>
+#include <noa/unified/IO.hpp>
 #include <noa/core/utils/Zip.hpp>
 #include <catch2/catch.hpp>
 

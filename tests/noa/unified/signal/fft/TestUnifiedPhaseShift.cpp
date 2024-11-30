@@ -1,6 +1,6 @@
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/Random.hpp>
-#include <noa/unified/io/ImageFile.hpp>
+#include <noa/unified/IO.hpp>
 #include <noa/unified/fft/Remap.hpp>
 #include <noa/unified/signal/PhaseShift.hpp>
 
