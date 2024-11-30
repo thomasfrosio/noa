@@ -194,9 +194,17 @@ namespace noa::inline types {
         /// Synchronizes the current stream of the array's device.
         /// \details It guarantees safe access to the memory region. Note that stream-ordered access (i.e. passing
         ///          this to the library API) is safe and doesn't need synchronization.
-        auto& eval() const {
+        auto eval() const& -> const Array& {
             Stream::current(device()).synchronize();
             return *this;
+        }
+        auto eval() & -> Array& {
+            Stream::current(device()).synchronize();
+            return *this;
+        }
+        auto eval() && -> Array&& {
+            Stream::current(device()).synchronize();
+            return std::move(*this);
         }
 
         /// Returns the pointer to the data.
