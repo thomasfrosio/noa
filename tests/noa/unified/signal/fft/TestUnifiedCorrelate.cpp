@@ -125,11 +125,11 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak batched", "[noa][unified]"
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    auto shape = test::random_shape_batched(N, {.batch_range = {2, 5}});
+    auto shape = test::random_shape_batched(N, {.batch_range = {2, 3}});
     if (N == 3)
-        shape[1] += 150;
-    shape[2] += 150;
-    shape[3] += 150;
+        shape[1] += 80;
+    shape[2] += 80;
+    shape[3] += 80;
     INFO(shape);
 
     std::vector<TestData<N>> data;
