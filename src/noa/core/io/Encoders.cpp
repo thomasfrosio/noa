@@ -7,6 +7,7 @@ namespace noa::io {
     auto EncoderMrc::read_header(
         SpanContiguous<const std::byte> file
     ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, Encoding::Type> {
+        check(file.size() >= 1024, "Invalid file");
         std::byte buffer[1024];
         std::memcpy(buffer, file.data(), 1024);
 
@@ -20,7 +21,7 @@ namespace noa::io {
         } else if (stamp[0] == 17 and stamp[1] == 17 and stamp[2] == 0 and stamp[3] == 0) {/* big */
             m_is_endian_swapped = not is_big_endian();
         } else {
-            panic("Invalid data. Endianness was not recognized."
+            panic("Invalid data. Endianness was not recognized. "
                   "Should be [68,65,0,0], [68,68,0,0] or [17,17,0,0], got [{},{},{},{}]",
                   stamp[0], stamp[1], stamp[2], stamp[3]);
         }
