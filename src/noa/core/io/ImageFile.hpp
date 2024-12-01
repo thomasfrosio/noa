@@ -47,11 +47,6 @@ namespace noa::io {
             return closest_supported_dtype(extension, Encoding::to_dtype<T>());
         }
 
-        template<nt::numeric T>
-        [[nodiscard]] static auto closest_supported_dtype() noexcept -> Encoding::Type {
-            return closest_supported_dtype(Encoding::to_dtype<T>());
-        }
-
     public: // RAII
         BasicImageFile() = default;
         BasicImageFile(const Path& path, Open mode, Header new_header = {}) { open(path, mode, new_header); }
@@ -190,7 +185,7 @@ namespace noa::io {
                   parameters.bd_offset);
             check(all(output.shape() == shape()),
                   "File: {}. Shapes do not match, got output:shape={} and file:shape={}",
-                  path(), shape(), output.shape());
+                  path(), output.shape(), shape());
 
             // Read and decode.
             std::visit([&, this](auto& f) {
@@ -232,7 +227,7 @@ namespace noa::io {
                   parameters.bd_offset);
             check(all(input.shape() == shape()),
                   "File: {}. Shapes do not match, got input:shape={} and file:shape={}",
-                  path(), shape(), input.shape());
+                  path(), input.shape(), shape());
 
             std::visit([&, this](auto& f) {
                 f.encode(m_file.as_bytes(), input.as_strided(),
