@@ -48,7 +48,7 @@ namespace noa::io {
         }
 
         template<nt::numeric T>
-static auto closest_supported_dtype() noexcept -> Encoding::Type {
+        [[nodiscard]] static auto closest_supported_dtype() noexcept -> Encoding::Type {
             return closest_supported_dtype(Encoding::to_dtype<T>());
         }
 
