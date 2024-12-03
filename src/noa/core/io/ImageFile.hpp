@@ -235,20 +235,6 @@ namespace noa::io {
             }, m_encoders);
         }
 
-        /// Advise the kernel regarding accesses.
-        void optimize_for_sequential_access(i64 offset = 0, i64 size = -1) const {
-            m_file.optimize_for_sequential_access(offset, size);
-        }
-        void optimize_for_random_access(i64 offset = 0, i64 size = -1) const {
-            m_file.optimize_for_random_access(offset, size);
-        }
-        void optimize_for_no_access(i64 offset = 0, i64 size = -1) const {
-            m_file.optimize_for_no_access(offset, size);
-        }
-        void optimize_for_normal_access(i64 offset = 0, i64 size = -1) const {
-            m_file.optimize_for_normal_access(offset, size);
-        }
-
     private:
         template<size_t I>
         [[nodiscard]] static auto is_supported_extension_(std::string_view extension) noexcept -> bool {
