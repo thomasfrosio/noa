@@ -73,7 +73,7 @@ TEST_CASE("unified::extract_subregions()", "[asset][noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::{extract|insert}_subregions()", "[noa][unified]", i32, f32, f64, c32) {
+TEMPLATE_TEST_CASE("unified::extract|insert_subregions()", "[noa][unified]", i32, f32, f64, c32) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
