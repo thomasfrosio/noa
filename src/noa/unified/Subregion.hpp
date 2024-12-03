@@ -1,9 +1,183 @@
 #pragma once
 
-#include "noa/core/Iwise.hpp"
+#include "noa/unified/Array.hpp"
 #include "noa/unified/Indexing.hpp"
 #include "noa/unified/Iwise.hpp"
-#include "noa/unified/Array.hpp"
+
+namespace noa::guts {
+    /// Extract subregions from one or multiple arrays.
+    /// \details Subregions are defined by their 3d shape and their 2d (hw) or 4d (batch + dhw) origins.
+    ///          If the subregion falls (even partially) out of the input bounds, the border mode is used
+    ///          to handle that case.
+    /// \note The origins dimensions might not correspond to the input/subregion dimensions because of the
+    ///       rearranging before the index-wise transformation. Thus, this operator keeps the dimension "order"
+    ///       and rearranges the origin on-the-fly (instead of allocating a new "origins" vector).
+    template<Border MODE,
+             nt::integer Index,
+             nt::vec_integer_size<2, 4> Origins,
+             nt::readable_nd<4> InputAccessor,
+             nt::writable_nd<4> SubregionAccessor>
+    class ExtractSubregion {
+    public:
+        using input_accessor_type = std::remove_const_t<InputAccessor>;
+        using subregion_accessor_type = std::remove_const_t<SubregionAccessor>;
+        using subregion_value_type = nt::value_type_t<subregion_accessor_type>;
+        using index_type = std::remove_const_t<Index>;
+
+        using origins_type = std::remove_const_t<Origins>;
+        using origins_pointer_type = const origins_type*;
+
+        using index4_type = Vec4<index_type>;
+        using shape4_type = Shape4<index_type>;
+        using subregion_value_or_empty_type = std::conditional_t<MODE == Border::VALUE, subregion_value_type, Empty>;
+
+    public:
+        constexpr ExtractSubregion(
+            const input_accessor_type& input_accessor,
+            const subregion_accessor_type& subregion_accessor,
+            const shape4_type& input_shape,
+            origins_pointer_type origins,
+            subregion_value_type cvalue,
+            const origins_type& order
+        ) :
+            m_input(input_accessor),
+            m_subregions(subregion_accessor),
+            m_subregion_origins(origins),
+            m_input_shape(input_shape),
+            m_order(order)
+        {
+            if constexpr (not nt::empty<subregion_value_or_empty_type>)
+                m_cvalue = cvalue;
+            else
+                (void) cvalue;
+        }
+
+        constexpr void operator()(const index4_type& output_indices) const {
+            // TODO For CUDA, the origins could copied to constant memory.
+            //      Although these can be loaded in a single vectorized instruction.
+            const auto corner_left = m_subregion_origins[output_indices[0]].reorder(m_order).template as<index_type>();
+
+            index4_type input_indices;
+            if constexpr (origins_type::SIZE == 2) {
+                input_indices = {
+                        0,
+                        output_indices[1],
+                        output_indices[2] + corner_left[0],
+                        output_indices[3] + corner_left[1],
+                };
+            } else if constexpr (origins_type::SIZE == 4) {
+                input_indices = {
+                        corner_left[0],
+                        output_indices[1] + corner_left[1],
+                        output_indices[2] + corner_left[2],
+                        output_indices[3] + corner_left[3],
+                };
+            } else {
+                static_assert(nt::always_false<>);
+            }
+
+            if constexpr (MODE == Border::NOTHING) {
+                if (ni::is_inbounds(m_input_shape, input_indices))
+                    m_subregions(output_indices) = cast_or_abs_squared<subregion_value_type>(m_input(input_indices));
+
+            } else if constexpr (MODE == Border::ZERO) {
+                m_subregions(output_indices) = ni::is_inbounds(m_input_shape, input_indices) ?
+                                               cast_or_abs_squared<subregion_value_type>(m_input(input_indices)) :
+                                               subregion_value_type{};
+
+            } else if constexpr (MODE == Border::VALUE) {
+                m_subregions(output_indices) = ni::is_inbounds(m_input_shape, input_indices) ?
+                                               cast_or_abs_squared<subregion_value_type>(m_input(input_indices)) :
+                                               m_cvalue;
+
+            } else {
+                const index4_type bounded_indices = ni::index_at<MODE>(input_indices, m_input_shape);
+                m_subregions(output_indices) = cast_or_abs_squared<subregion_value_type>(m_input(bounded_indices));
+            }
+        }
+
+    private:
+        input_accessor_type m_input;
+        subregion_accessor_type m_subregions;
+        origins_pointer_type m_subregion_origins;
+        shape4_type m_input_shape;
+        origins_type m_order;
+        NOA_NO_UNIQUE_ADDRESS subregion_value_or_empty_type m_cvalue;
+    };
+
+    /// Insert subregions into one or multiple arrays.
+    /// \details This works as expected and is similar to ExtractSubregion. Subregions can be (even partially) out
+    ///          of the output bounds. The only catch here is that overlapped subregions are not explicitly supported
+    ///          since it is not clear what we want in these cases (add?), so for now, just ignore it out.
+    template<nt::integer Index,
+             nt::vec_integer_size<2, 4> Origins,
+             nt::readable_nd<4> SubregionAccessor,
+             nt::writable_nd<4> OutputAccessor>
+    class InsertSubregion {
+    public:
+        using output_accessor_type = std::remove_const_t<OutputAccessor>;
+        using output_value_type = nt::value_type_t<output_accessor_type>;
+        using subregion_accessor_type = std::remove_const_t<SubregionAccessor>;
+        using index_type = std::remove_const_t<Index>;
+
+        using origins_type = std::remove_const_t<Origins>;
+        using origins_pointer_type = const origins_type*;
+
+        using index4_type = Vec4<Index>;
+        using shape4_type = Shape4<Index>;
+
+    public:
+        constexpr InsertSubregion(
+            const subregion_accessor_type& subregion_accessor,
+            const output_accessor_type& output_accessor,
+            const shape4_type& output_shape,
+            origins_pointer_type origins,
+            const origins_type& order
+        ) :
+            m_output(output_accessor),
+            m_subregions(subregion_accessor),
+            m_subregion_origins(origins),
+            m_output_shape(output_shape),
+            m_order(order) {}
+
+        constexpr void operator()(const index4_type& input_indices) const {
+            // TODO For CUDA, the origins could copied to constant memory.
+            //      Although these can be loaded in a single vectorized instruction.
+            const auto corner_left = m_subregion_origins[input_indices[0]].reorder(m_order).template as<index_type>();
+
+            index4_type output_indices;
+            if constexpr (origins_type::SIZE == 2) {
+                output_indices = {
+                        0,
+                        input_indices[1],
+                        input_indices[2] + corner_left[0],
+                        input_indices[3] + corner_left[1],
+                };
+            } else if constexpr (origins_type::SIZE == 4) {
+                output_indices = {
+                        corner_left[0],
+                        input_indices[1] + corner_left[1],
+                        input_indices[2] + corner_left[2],
+                        input_indices[3] + corner_left[3],
+                };
+            } else {
+                static_assert(nt::always_false<>);
+            }
+
+            // We assume no overlap in the output between subregions.
+            if (ni::is_inbounds(m_output_shape, output_indices))
+                m_output(output_indices) = cast_or_abs_squared<output_value_type>(m_subregions(input_indices));
+        }
+
+    private:
+        output_accessor_type m_output;
+        subregion_accessor_type m_subregions;
+        origins_pointer_type m_subregion_origins;
+        shape4_type m_output_shape;
+        origins_type m_order;
+    };
+
+}
 
 namespace noa {
     /// Extracts one or multiple {1|2|3}d subregions at various locations in the input array.
