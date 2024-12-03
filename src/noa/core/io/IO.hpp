@@ -22,12 +22,12 @@ namespace noa {
 namespace noa::io {
     /// Controls how files should be opened.
     /// \details There are six opening modes:
-    ///     1) read:                Readable.           The file should exist.
-    ///     2) read-write:          Readable-Writable.  The file should exist.          Backup copy.
-    ///     3) read-write-truncate: Readable-Writable.  Create or overwrite the file.   Backup move.
-    ///     4) read-write-append:   Readable-Writable.  Create or append the file.      Backup copy.
-    ///     5) write(-truncate):    Writable.           Create or overwrite the file.   Backup move.
-    ///     6) write-append:        Writable.           Create or append the file.      Backup copy.
+    ///     1) read:                  r     Readable.           The file should exist.          No backup.
+    ///     2) read-write:            r+    Readable-Writable.  The file should exist.          Backup copy.
+    ///     3) read-write-truncate:   w+    Readable-Writable.  Create or overwrite the file.   Backup move.
+    ///     4) read-write-append:     a+    Readable-Writable.  Create or append the file.      Backup copy.
+    ///     5) write(-truncate):      w     Writable.           Create or overwrite the file.   Backup move.
+    ///     6) write-append:          a     Writable.           Create or append the file.      Backup copy.
     struct Open {
         bool read{};
         bool write{};
@@ -299,12 +299,12 @@ namespace noa::io {
     /// \note If \a from and \a to are directories, it copies the content of \a from into \a to.
     /// \note To copy a single file, use copy_file().
     inline void copy(
-            const fs::path& from,
-            const fs::path& to,
-            const fs::copy_options options =
-                fs::copy_options::recursive |
-                fs::copy_options::copy_symlinks |
-                fs::copy_options::overwrite_existing
+        const fs::path& from,
+        const fs::path& to,
+        const fs::copy_options options =
+            fs::copy_options::recursive |
+            fs::copy_options::copy_symlinks |
+            fs::copy_options::overwrite_existing
     ) {
         try {
             fs::copy(from, to, options);

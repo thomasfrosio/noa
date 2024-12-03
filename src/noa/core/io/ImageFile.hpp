@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/core/io/MemoryMappedFile.hpp"
+#include "noa/core/io/BinaryFile.hpp"
 #include "noa/core/io/Encoders.hpp"
 #include "noa/core/io/IO.hpp"
 #include "noa/core/types/Shape.hpp"
@@ -95,12 +95,12 @@ namespace noa::io {
             }
 
             // Open and mmap the file.
-            m_file.open(path, mode, {.new_size = new_size, .keep_private = false});
+            m_file.open(path, mode, {.new_size = new_size});
 
             // Save the header.
             if (mode.read) {
                 std::visit([this](auto& f) {
-                     auto&& [shape, spacing, dtype] = f.read_header(m_file.as_bytes());
+                     auto&& [shape, spacing, dtype] = f.read_header(m_file.stream());
                      m_header.shape = shape;
                      m_header.spacing = spacing;
                      m_header.dtype = dtype;
@@ -114,7 +114,7 @@ namespace noa::io {
                 m_header = new_header;
 
                 std::visit([this](auto& f) {
-                    f.write_header(m_file.as_bytes(), m_header.shape, m_header.spacing, m_header.dtype);
+                    f.write_header(m_file.stream(), m_header.shape, m_header.spacing, m_header.dtype);
                 }, m_encoders);
             }
         }
@@ -171,7 +171,7 @@ namespace noa::io {
 
             // Read and decode.
             std::visit([&, this](auto& f) {
-                f.decode(m_file.as_bytes(), output.as_strided(),
+                f.decode(m_file.stream(), output.as_strided(),
                          parameters.bd_offset, parameters.clamp, parameters.n_threads);
             }, m_encoders);
         }
@@ -189,7 +189,7 @@ namespace noa::io {
 
             // Read and decode.
             std::visit([&, this](auto& f) {
-                f.decode(m_file.as_bytes(), output.as_strided(),
+                f.decode(m_file.stream(), output.as_strided(),
                          parameters.bd_offset, parameters.clamp, parameters.n_threads);
             }, m_encoders);
         }
@@ -213,7 +213,7 @@ namespace noa::io {
                   path(), input.shape().filter(2, 3), shape().filter(2, 3));
 
             std::visit([&, this](auto& f) {
-                f.encode(m_file.as_bytes(), input.as_strided(),
+                f.encode(m_file.stream(), input.as_strided(),
                          parameters.bd_offset, parameters.clamp, parameters.n_threads);
             }, m_encoders);
         }
@@ -230,9 +230,23 @@ namespace noa::io {
                   path(), input.shape(), shape());
 
             std::visit([&, this](auto& f) {
-                f.encode(m_file.as_bytes(), input.as_strided(),
+                f.encode(m_file.stream(), input.as_strided(),
                          parameters.bd_offset, parameters.clamp, parameters.n_threads);
             }, m_encoders);
+        }
+
+        /// Advise the kernel regarding accesses.
+        void optimize_for_sequential_access(i64 offset = 0, i64 size = -1) const {
+            m_file.optimize_for_sequential_access(offset, size);
+        }
+        void optimize_for_random_access(i64 offset = 0, i64 size = -1) const {
+            m_file.optimize_for_random_access(offset, size);
+        }
+        void optimize_for_no_access(i64 offset = 0, i64 size = -1) const {
+            m_file.optimize_for_no_access(offset, size);
+        }
+        void optimize_for_normal_access(i64 offset = 0, i64 size = -1) const {
+            m_file.optimize_for_normal_access(offset, size);
         }
 
     private:
@@ -262,7 +276,7 @@ namespace noa::io {
         }
 
     private:
-        MemoryMappedFile m_file{};
+        BinaryFile m_file{};
         std::variant<Encoders...> m_encoders{};
         Header m_header{};
     };

@@ -9,7 +9,7 @@ namespace noa::traits {
     template<typename T, typename U = f32>
     concept image_encorder = requires(
         T t,
-        SpanContiguous<std::byte> file,
+        std::FILE* file,
         const Span<U, 4>& span,
         const Shape<i64, 4>& shape,
         const Vec<f64, 3>& spacing,
@@ -19,7 +19,7 @@ namespace noa::traits {
         i32 n_threads,
         std::string_view extension
     ) {
-        { t.read_header(file.as_const()) } -> std::same_as<Tuple<Shape<i64, 4>, Vec<f64, 3>, noa::io::Encoding::Type>>;
+        { t.read_header(file) } -> std::same_as<Tuple<Shape<i64, 4>, Vec<f64, 3>, noa::io::Encoding::Type>>;
         { t.write_header(file, shape, spacing, dtype) } -> std::same_as<void>;
         { t.close() } -> std::same_as<void>;
         { t.decode(file, span, offset, clamp, n_threads) } -> std::same_as<void>;
@@ -48,11 +48,11 @@ namespace noa::io {
     ///      https://www.ccpem.ac.uk/mrc_format/mrc2014.php
     struct EncoderMrc {
         auto read_header(
-            SpanContiguous<const std::byte> file
+            std::FILE* file
         ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, Encoding::Type>;
 
         void write_header(
-            SpanContiguous<std::byte> file,
+            std::FILE* file,
             const Shape<i64, 4>& shape,
             const Vec<f64, 3>& spacing,
             Encoding::Type dtype
@@ -64,7 +64,7 @@ namespace noa::io {
 
         template<typename T>
         void decode(
-            SpanContiguous<const std::byte> file,
+            std::FILE* file,
             const Span<T, 4>& output,
             const Vec<i64, 2>& bd_offset,
             bool clamp,
@@ -79,12 +79,15 @@ namespace noa::io {
                 HEADER_SIZE + m_extended_bytes_nb +
                 encoding.encoded_size(ni::offset_at(m_shape.strides(), bd_offset));
 
-            noa::io::decode(file.subregion(ni::Slice{byte_offset, file.ssize()}), encoding, output, n_threads);
+            check(std::fseek(file, byte_offset, SEEK_SET) == 0,
+                  "Failed to seek at bd_offset={} (bytes={}). {}",
+                  bd_offset, byte_offset, std::strerror(errno));
+            noa::io::decode(file, encoding, output, n_threads);
         }
 
         template<typename T>
         void encode(
-            SpanContiguous<std::byte> file,
+            std::FILE* file,
             const Span<const T, 4>& input,
             const Vec<i64, 2>& bd_offset,
             bool clamp,
@@ -99,7 +102,10 @@ namespace noa::io {
                 HEADER_SIZE + m_extended_bytes_nb +
                 encoding.encoded_size(ni::offset_at(m_shape.strides(), bd_offset));
 
-            noa::io::encode(input, file.subregion(ni::Slice{byte_offset, file.ssize()}), encoding, n_threads);
+            check(std::fseek(file, byte_offset, SEEK_SET) == 0,
+                  "Failed to seek at bd_offset={} (bytes={}). {}",
+                  bd_offset, byte_offset, std::strerror(errno));
+            noa::io::encode(input, file, encoding, n_threads);
         }
 
         static auto is_supported_extension(std::string_view extension) noexcept -> bool {

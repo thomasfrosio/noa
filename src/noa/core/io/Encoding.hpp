@@ -29,7 +29,7 @@ namespace noa::io {
 
     public: // static function
         /// Returns the number of bytes necessary to hold a given number of elements with the current dtype.
-        [[nodiscard]] static constexpr auto encoded_size(Type dtype, i64 n_elements) noexcept -> i64 {
+        [[nodiscard]] static constexpr auto encoded_size(Type dtype, i64 n_elements) -> i64 {
             switch (dtype) {
                 case U4: {
                     check(is_even(n_elements), "u4 encoding requires an even number of elements");
@@ -193,6 +193,17 @@ namespace noa::io {
         i32 n_threads = 1
     );
 
+    /// Encodes the values in the input array into the file.
+    /// The encoding starts at the current cursor position of the file.
+    /// This is otherwise similar to the overload taking an array of bytes.
+    template<nt::numeric T>
+    void encode(
+        const Span<const T, 4>& input,
+        std::FILE* output,
+        Encoding encoding,
+        i32 n_threads = 1
+    );
+
     /// Decodes the values in the input array into the output array. Values are saved in the BDHW order.
     /// \tparam T           If complex, the input is reinterpreted to the corresponding real type array,
     ///                     requiring its innermost dimension to be contiguous.
@@ -209,5 +220,15 @@ namespace noa::io {
         const Span<T, 4>& output,
         i32 n_threads = 1
     );
-}
 
+    /// Decodes the values in the file into the output array.
+    /// The decoding starts at the current cursor position of the file.
+    /// This is otherwise similar to the overload taking an array of bytes.
+    template<nt::numeric T>
+    void decode(
+        std::FILE* input,
+        Encoding encoding,
+        const Span<T, 4>& output,
+        i32 n_threads = 1
+    );
+}

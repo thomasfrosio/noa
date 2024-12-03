@@ -21,7 +21,7 @@ set(NOA_CORE_HEADERS
     core/io/Encoding.hpp
     core/io/ImageFile.hpp
     core/io/IO.hpp
-    core/io/MemoryMappedFile.hpp
+    core/io/BinaryFile.hpp
     core/io/TextFile.hpp
 
     core/math/Comparison.hpp
@@ -69,7 +69,7 @@ set(NOA_CORE_SOURCES
     core/Enums.cpp
     core/Error.cpp
     core/geometry/Euler.cpp
-    core/io/MemoryMappedFile.cpp
+    core/io/BinaryFile.cpp
     core/io/Encoders.cpp
     core/io/Encoding.cpp
     )

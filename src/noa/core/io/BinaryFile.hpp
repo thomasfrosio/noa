@@ -4,47 +4,52 @@
 #include "noa/core/types/Span.hpp"
 
 namespace noa::io {
-   /// Memory mapped file.
-    class MemoryMappedFile {
+    class BinaryFile {
     public:
         struct Parameters {
             /// Size, in bytes, of the opened file. This is ignored in read-only mode.
             /// If the file already exists (read|write mode), the file is resized to this size.
             i64 new_size{-1};
 
+            /// Whether to memory map the file after opening it.
+            /// This allows accessing the file as an array of bytes, using the as_bytes function.
+            bool memory_map{false};
+
             /// Create a private copy-on-write mapping. Updates to the mapping are not visible to
             /// other processes mapping the same file, and are not carried through to the underlying file.
+            /// This is ignored if memory_map is false.
             bool keep_private{false};
         };
+        static constexpr Parameters DEFAULT_PARAMS = Parameters{-1, false, false}; // required for default value in ctor
 
     public: // RAII
-        MemoryMappedFile() = default;
+        BinaryFile() = default;
 
         /// Opens the file and memory map the entire file.
-        MemoryMappedFile(const Path& path, Open mode, Parameters parameters = {.new_size = -1, .keep_private = false}) {
+        BinaryFile(const Path& path, Open mode, Parameters parameters = DEFAULT_PARAMS) {
             open(path, mode, parameters);
         }
 
-        MemoryMappedFile(const MemoryMappedFile& other) = delete;
-        MemoryMappedFile& operator=(const MemoryMappedFile& other) = delete;
+        BinaryFile(const BinaryFile& other) = delete;
+        BinaryFile& operator=(const BinaryFile& other) = delete;
 
-        MemoryMappedFile(MemoryMappedFile&& other) noexcept :
+        BinaryFile(BinaryFile&& other) noexcept :
             m_path{std::move(other.m_path)},
+            m_file{std::exchange(other.m_file, nullptr)},
             m_data{std::exchange(other.m_data, nullptr)},
             m_size{other.m_size},
-            m_fd{std::exchange(other.m_fd, -1)},
             m_open{other.m_open} {}
 
-        MemoryMappedFile& operator=(MemoryMappedFile&& other) noexcept {
+        BinaryFile& operator=(BinaryFile&& other) noexcept {
             std::swap(m_path, other.m_path);
+            std::swap(m_file, other.m_file);
             std::swap(m_data, other.m_data);
             std::swap(m_size, other.m_size);
-            std::swap(m_fd, other.m_fd);
             std::swap(m_open, other.m_open);
             return *this;
         }
 
-        ~MemoryMappedFile() noexcept(false) {
+        ~BinaryFile() noexcept(false) {
             try {
                 close();
             } catch (...) {
@@ -59,19 +64,25 @@ namespace noa::io {
         /// \param path         File path.
         /// \param mode         Open mode. Append is not supported, but the file can be resized in read|write mode.
         /// \param parameters   File and mapping parameters.
-        void open(const Path& path, Open mode, Parameters parameters = {.new_size = -1, .keep_private = false});
+        void open(const Path& path, Open mode, Parameters parameters = DEFAULT_PARAMS);
 
         void close();
 
-        [[nodiscard]] auto is_open() const -> bool { return m_fd != -1; }
+        [[nodiscard]] auto is_open() const -> bool { return m_file != nullptr; }
         [[nodiscard]] auto path() const -> const Path& { return m_path; }
 
-        /// Retrieve the memory mapped range. Accesses must be compatible with the open-mode.
+        /// Retrieves the memory mapped range.
+        /// This function requires the file to be memory mapped.
+        /// Accesses must be compatible with the open-mode.
         /// \warning Closing the file invalidates this range.
         [[nodiscard]] auto as_bytes() const -> SpanContiguous<std::byte, 1> {
-            check(is_open());
+            check(is_open() and m_data != nullptr, "The file is not open or not memory mapped");
             return {static_cast<std::byte*>(m_data), m_size};
         }
+
+        /// Retrieves the file stream.
+        /// \warning The stream should not be closed. Any other access, e.g. std::fread/fwrite, if fine.
+        [[nodiscard]] auto stream() const -> std::FILE* { return m_file; }
 
         /// Advise the kernel regarding accesses.
         void optimize_for_sequential_access(i64 offset = 0, i64 size = -1) const;
@@ -84,9 +95,9 @@ namespace noa::io {
 
     private:
         Path m_path{};
+        std::FILE* m_file{};
         void* m_data{};
         i64 m_size{};
-        i32 m_fd{-1};
         Open m_open{};
     };
 }

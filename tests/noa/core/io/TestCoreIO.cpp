@@ -2,16 +2,23 @@
 #include <filesystem>
 #include <noa/core/io/IO.hpp>
 #include <noa/core/io/Encoding.hpp>
+#include <noa/core/io/BinaryFile.hpp>
 #include <catch2/catch.hpp>
 
 #include "Utils.hpp"
+#include "noa/core/utils/Zip.hpp"
 
 using namespace ::noa::types;
 namespace fs = std::filesystem;
 namespace nio = noa::io;
 
 TEMPLATE_TEST_CASE("core::io::encoding and decoding - real types", "[noa]", u8, i16, i32, u32, f16, f32, f64) {
+    const fs::path directory = "test_encoding";
+    const fs::path filename = directory / "data";
+    nio::mkdir(directory);
+
     const nio::Encoding::Type dtype = GENERATE(
+        nio::Encoding::U4,
         nio::Encoding::I8, nio::Encoding::U8,
         nio::Encoding::I16, nio::Encoding::U16,
         nio::Encoding::I32, nio::Encoding::U32,
@@ -22,85 +29,72 @@ TEMPLATE_TEST_CASE("core::io::encoding and decoding - real types", "[noa]", u8, 
     const bool swap = GENERATE(true, false);
     auto encoding = nio::Encoding{dtype, clamp, swap};
 
-    const auto shape = test::random_shape<i64>(1, {.batch_range={1, 10}});
+    const auto shape = test::random_shape<i64>(1, {
+        .batch_range={1, 10},
+        .only_even_sizes = dtype == nio::Encoding::U4
+    });
     const auto ssize = shape.n_elements();
     const auto size = static_cast<size_t>(ssize);
     INFO("shape: " << shape << ", encoding: " << encoding);
 
-    const auto data0 = std::make_unique<TestType[]>(size);
-    const auto data1 = std::make_unique<TestType[]>(size);
-    const auto s0 = Span(data0.get(), shape);
-    const auto s1 = Span(data1.get(), shape);
-
-    const auto n_bytes = encoding.encoded_size(ssize);
-    const auto file = std::make_unique<std::byte[]>(static_cast<size_t>(n_bytes));
-    const auto s2 = Span(file.get(), n_bytes);
-
     // Randomize data. No decimals, otherwise it makes everything more complicated.
     i64 range_min{}, range_max{};
-    if (clamp) {
-        range_min = dtype == nio::Encoding::F16 ? -2048 : -30000;
-        range_max = dtype == nio::Encoding::F16 ? 2048 : 30000;
+    if (dtype == nio::Encoding::U4) {
+        range_max = clamp ? 30 : 15;
     } else {
-        range_min = 0;
-        range_max = 127;
+        if (clamp) {
+            range_min = dtype == nio::Encoding::F16 ? -2048 : -30000;
+            range_max = dtype == nio::Encoding::F16 ? 2048 : 30000;
+        } else {
+            range_min = 0;
+            range_max = 127;
+        }
     }
     auto randomizer = test::Randomizer<i64>(range_min, range_max);
-    for (auto& e: s0.as_1d())
-        e = noa::clamp_cast<TestType>(randomizer.get());
 
-    nio::encode(s0.as_strided().as_const(), s2, encoding);
-    nio::decode(s2, encoding, s1.as_strided());
+    const auto data_ptr = std::make_unique<TestType[]>(size);
+    const auto data_decoded_ptr = std::make_unique<TestType[]>(size);
+    const auto data_span = Span(data_ptr.get(), shape);
+    const auto data_decoded_span = Span(data_decoded_ptr.get(), shape);
 
-    if (clamp) {
-        // Encoded data was clamped to fit the data type, so clamp input data as well.
-        auto[min, max] = encoding.value_range<TestType>();
-        for (auto& e: s0.as_1d())
-            e = noa::clamp(e, min, max);
+    for (auto&& [v0, v1]: zip(data_span.as_1d(), data_decoded_span.as_1d())) {
+        v0 = noa::clamp_cast<TestType>(randomizer.get());
+        if (clamp) {
+            // Encoded data is clamped to fit the data type, so clamp input data as well.
+            auto[min, max] = encoding.value_range<TestType>();
+            v1 = noa::clamp(v0, min, max);
+        } else {
+            v1 = v0;
+        }
     }
-
-    REQUIRE(test::allclose_abs(s0, s1, 1e-6));
-}
-
-TEMPLATE_TEST_CASE("core::io::encoding and decoding - u4", "[noa]", u8, i16, i32, u32, f16, f32) {
-    const bool clamp = GENERATE(true, false);
-    const bool swap = GENERATE(true, false);
-    const auto encoding = nio::Encoding{nio::Encoding::U4, clamp, swap};
-    INFO(encoding);
-
-    const auto shape = test::random_shape<i64>(1, {.batch_range{1, 4}, .only_even_sizes = true});
-    const auto ssize = shape.n_elements();
-    const auto size = static_cast<size_t>(ssize);
-    INFO(size);
-
-    const auto input = std::make_unique<TestType[]>(size);
-    const auto output = std::make_unique<TestType[]>(size);
-    const auto s0 = Span(input.get(), shape);
-    const auto s1 = Span(output.get(), shape);
 
     const auto n_bytes = encoding.encoded_size(ssize);
-    const auto buffer = std::make_unique<std::byte[]>(static_cast<size_t>(n_bytes));
-    const auto s2 = Span(buffer.get(), n_bytes);
-
-    // Randomize data. No decimals, otherwise it makes everything more complicated.
-    auto randomizer = test::Randomizer<i64>(0, clamp ? 30 : 15);
-    for (auto& e: s0.as_contiguous_1d())
-        e = noa::clamp_cast<TestType>(randomizer.get());
-
-    nio::encode(s0.as_strided().as_const(), s2, encoding);
-    nio::decode(s2, encoding, s1.as_strided());
-
-    if (clamp) {
-        // Serialized data was clamped to fit the data type, so clamp input data as well.
-        auto[min, max] = encoding.value_range<TestType>();
-        for (auto& e: s0.as_contiguous_1d())
-            e = noa::clamp(e, min, max);
+    const auto decoded_ptr = std::make_unique<TestType[]>(size);
+    const auto decoded_span = Span(decoded_ptr.get(), shape);
+    {
+        const auto encoded_ptr = std::make_unique<std::byte[]>(static_cast<size_t>(n_bytes));
+        const auto encoded_span = Span(encoded_ptr.get(), n_bytes);
+        nio::encode(data_span.as_strided().as_const(), encoded_span, encoding);
+        nio::decode(encoded_span, encoding, decoded_span.as_strided());
+        REQUIRE(test::allclose_abs(data_decoded_span, decoded_span, 1e-6));
     }
 
-    REQUIRE(test::allclose_abs(s0, s1, 1e-6));
+    {
+        auto file = nio::BinaryFile(filename, {.write = true}, {.new_size = n_bytes});
+        nio::encode(data_span.as_strided().as_const(), file.stream(), encoding);
+        file.open(filename, {.read = true});
+        nio::decode(file.stream(), encoding, decoded_span.as_strided());
+        REQUIRE(test::allclose_abs(data_decoded_span, decoded_span, 1e-6));
+    }
+
+    nio::remove_all(directory);
 }
 
 TEMPLATE_TEST_CASE("core::io::encoding and decoding - complex", "[noa][core]", c16, c32, c64) {
+    const fs::path directory = "test_encoding";
+    const fs::path filename = directory / "data";
+    nio::mkdir(directory);
+
     const bool clamp = GENERATE(true, false);
     const bool swap = GENERATE(true, false);
     const nio::Encoding::Type dtype = GENERATE(nio::Encoding::C16, nio::Encoding::C32, nio::Encoding::C64);
@@ -109,56 +103,91 @@ TEMPLATE_TEST_CASE("core::io::encoding and decoding - complex", "[noa][core]", c
 
     const auto ssize = shape.n_elements();
     const auto size = static_cast<size_t>(ssize);
-    INFO("size: " << size << ", clamp:" << clamp << ", swap: " << swap);
+    INFO(size);
+    INFO(encoding);
 
-    const auto input = std::make_unique<TestType[]>(size);
-    const auto output = std::make_unique<TestType[]>(size);
-    const auto s0 = Span(input.get(), shape);
-    const auto s1 = Span(output.get(), shape);
+    const auto data_ptr = std::make_unique<TestType[]>(size);
+    const auto data_span = Span(data_ptr.get(), shape);
+    const auto data_decoded_ptr = std::make_unique<TestType[]>(size);
+    const auto data_decoded_span = Span(data_decoded_ptr.get(), shape);
+    auto randomizer = test::Randomizer<f32>(-10000, 10000);
+    for (auto&& [v0, v1]: zip(data_span.as_1d(), data_decoded_span.as_1d())) {
+        v0 = TestType::from_values(randomizer.get(), randomizer.get());
+        if (dtype == nio::Encoding::C16) {
+            // For f16, cast to have the same loss of precision than encoded/decoded data.
+            v1 = static_cast<TestType>(static_cast<c16>(v0));
+        } else {
+            v1 = v0;
+        }
+    }
 
     const auto n_bytes = encoding.encoded_size(ssize);
-    const auto buffer = std::make_unique<std::byte[]>(static_cast<size_t>(n_bytes));
-    const auto s2 = Span(buffer.get(), n_bytes);
+    const auto decoded_ptr = std::make_unique<TestType[]>(size);
+    const auto decoded_span = Span(decoded_ptr.get(), shape);
 
-    auto randomizer = test::Randomizer<f32>(-10000, 10000);
-    for (auto& e: s0.as_contiguous_1d())
-        e = TestType::from_real(randomizer.get());
+    {
+        const auto encoded_ptr = std::make_unique<std::byte[]>(static_cast<size_t>(n_bytes));
+        const auto encoded_span = Span(encoded_ptr.get(), n_bytes);
+        nio::encode(data_span.as_strided().as_const(), encoded_span, encoding);
+        nio::decode(encoded_span, encoding, decoded_span.as_strided());
+        REQUIRE(test::allclose_abs(data_decoded_span, decoded_span, 1e-6));
+    }
 
-    nio::encode(s0.as_const().as_strided(), s2, encoding);
-    nio::decode(s2, encoding, s1.as_strided());
+    {
+        auto file = nio::BinaryFile(filename, {.write = true}, {.new_size = n_bytes});
+        nio::encode(data_span.as_strided().as_const(), file.stream(), encoding);
+        file.open(filename, {.read = true});
+        nio::decode(file.stream(), encoding, decoded_span.as_strided());
+        REQUIRE(test::allclose_abs(data_decoded_span, decoded_span, 1e-6));
+    }
 
-    if (dtype == nio::Encoding::C16)
-        for (auto& e: s0.as_contiguous_1d())
-            e = static_cast<TestType>(static_cast<c16>(e)); // for half, mimic conversion on raw data
-
-    REQUIRE(test::allclose_abs(s0, s1, 1e-6));
+    nio::remove_all(directory);
 }
 
 TEST_CASE("core::io::encoding and decoding - many elements", "[noa][core]") {
-    constexpr auto encoding = nio::Encoding{.dtype = nio::Encoding::I16, .clamp = false, .endian_swap = true};
+    const fs::path directory = "test_encoding";
+    const fs::path filename = directory / "data";
+    nio::mkdir(directory);
+
+    constexpr auto encoding = nio::Encoding{
+        .dtype = nio::Encoding::I16,
+        .clamp = false,
+        .endian_swap = true
+    };
     constexpr auto shape = Shape4<i64>{2, 256, 256, 256};
     constexpr auto ssize = shape.n_elements();
     constexpr auto size = static_cast<size_t>(ssize);
 
-    const auto input = std::make_unique<f32[]>(size);
-    const auto output = std::make_unique<f32[]>(size);
-    const auto s0 = Span(input.get(), shape);
-    const auto s1 = Span(output.get(), shape);
-
-    const auto n_bytes = encoding.encoded_size(ssize);
-    const auto buffer = std::make_unique<std::byte[]>(static_cast<size_t>(n_bytes));
-    const auto s2 = Span(buffer.get(), n_bytes);
+    const auto data_ptr = std::make_unique<f32[]>(size);
+    const auto data_span = Span(data_ptr.get(), shape);
+    const auto data_decoded_ptr = std::make_unique<f32[]>(size);
+    const auto data_decoded_span = Span(data_decoded_ptr.get(), shape);
 
     test::Randomizer<f32> randomizer(-10000, 10000);
-    for (auto& e: s0.as_contiguous_1d())
-        e = randomizer.get();
+    for (auto&& [v0, v1]: zip(data_span.as_1d(), data_decoded_span.as_1d())) {
+        v0 = randomizer.get();
+        v1 = std::trunc(v0); // float/double -> i16 -> float/double
+    }
 
-    nio::encode(s0.as_strided<const f32>(), s2, encoding, 4);
-    nio::decode(s2, encoding, s1.as_strided(), 4);
+    const auto n_bytes = encoding.encoded_size(ssize);
+    const auto decoded_ptr = std::make_unique<f32[]>(size);
+    const auto decoded_span = Span(decoded_ptr.get(), shape);
 
-    for (auto& e: s0.as_contiguous_1d())
-        e = std::trunc(e); // float/double -> int16 -> float/double
-    REQUIRE(test::allclose_rel(s0, s1));
+    {
+        const auto encoded_ptr = std::make_unique<std::byte[]>(static_cast<size_t>(n_bytes));
+        const auto encoded_span = Span(encoded_ptr.get(), n_bytes);
+        nio::encode(data_span.as_strided().as_const(), encoded_span, encoding, 4);
+        nio::decode(encoded_span, encoding, decoded_span.as_strided(), 4);
+        REQUIRE(test::allclose_abs(data_decoded_span, decoded_span, 1e-6));
+    }
+
+    {
+        auto file = nio::BinaryFile(filename, {.write = true}, {.new_size = n_bytes});
+        nio::encode(data_span.as_strided().as_const(), file.stream(), encoding, 4);
+        file.open(filename, {.read = true});
+        nio::decode(file.stream(), encoding, decoded_span.as_strided(), 4);
+        REQUIRE(test::allclose_abs(data_decoded_span, decoded_span, 1e-6));
+    }
 }
 
 TEST_CASE("core::io::swap_endian", "[noa]") {

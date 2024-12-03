@@ -1,18 +1,18 @@
-#include <noa/core/io/MemoryMappedFile.hpp>
+#include <noa/core/io/BinaryFile.hpp>
 #include <catch2/catch.hpp>
 
 using namespace ::noa::types;
 
-TEST_CASE("core::io::MemoryMappedFile", "[noa]") {
+TEST_CASE("core::io::BinaryFile", "[noa]") {
     namespace fs = std::filesystem;
 
-    const fs::path test_dir = "test_MemoryMappedFile";
+    const fs::path test_dir = "test_BinaryFile";
     const fs::path test_file1 = test_dir / "file1";
     const fs::path test_file2 = test_dir / "subdir/file2";
     noa::io::remove_all(test_dir);
 
     AND_WHEN("file should exists") {
-        noa::io::MemoryMappedFile file;
+        noa::io::BinaryFile file;
         REQUIRE_THROWS_AS(file.open(test_file2, {.read=true}), noa::Exception);
         REQUIRE_FALSE(file.is_open());
 
@@ -21,15 +21,15 @@ TEST_CASE("core::io::MemoryMappedFile", "[noa]") {
     }
 
     AND_WHEN("read and write") {
-        noa::io::MemoryMappedFile file;
-        file.open(test_file1, {.write = true}, {.new_size = 32});
+        noa::io::BinaryFile file;
+        file.open(test_file1, {.write = true}, {.new_size = 32, .memory_map = true});
         auto s0 = file.as_bytes().as<char>();
         for (auto& e: s0)
             e = 'a';
         file.close();
         REQUIRE(noa::io::file_size(test_file1) == 32);
 
-        file.open(test_file1, {.read = true});
+        file.open(test_file1, {.read = true}, {.memory_map = true});
         auto s1 = file.as_bytes().as<const char>();
         REQUIRE(s1.size() == 32);
         bool match = true;
@@ -44,7 +44,7 @@ TEST_CASE("core::io::MemoryMappedFile", "[noa]") {
 
         // Append
         using noa::indexing::Slice;
-        file.open(test_file1, {.read = true, .write = true}, {.new_size = 64});
+        file.open(test_file1, {.read = true, .write = true}, {.new_size = 64, .memory_map = true});
         auto s2 = file.as_bytes().as<char>();
         REQUIRE(s2.size() == 64);
         match = true;
@@ -57,7 +57,7 @@ TEST_CASE("core::io::MemoryMappedFile", "[noa]") {
         REQUIRE(match);
         for (auto& e: s2.subregion(Slice{32, 64}))
             e = 'b';
-        file.open(test_file1, {.read = true});
+        file.open(test_file1, {.read = true}, {.memory_map = true});
         REQUIRE(noa::io::file_size(test_file1) == 64);
         auto s3 = file.as_bytes().as<const char>();
         REQUIRE(s3.size() == 64);
@@ -74,7 +74,7 @@ TEST_CASE("core::io::MemoryMappedFile", "[noa]") {
     }
 
     AND_WHEN("backup copy and backup move") {
-        noa::io::MemoryMappedFile file(test_file2, {.write = true}, {.new_size = 12});
+        noa::io::BinaryFile file(test_file2, {.write = true}, {.new_size = 12});
         REQUIRE(file.size() == 12);
         file.close();
 
@@ -99,21 +99,21 @@ TEST_CASE("core::io::MemoryMappedFile", "[noa]") {
     }
 
     AND_WHEN("private doesn't update the file") {
-        noa::io::MemoryMappedFile file(test_file1, {.write = true}, {.new_size = 32});
+        noa::io::BinaryFile file(test_file1, {.write = true}, {.new_size = 32, .memory_map = true});
         auto s0 = file.as_bytes().as<char>();
         for (auto& e: s0)
             e = 'a';
         file.close();
         REQUIRE(noa::io::file_size(test_file1) == 32);
 
-        file.open(test_file1, {.read = true, .write = true}, {.keep_private = true});
+        file.open(test_file1, {.read = true, .write = true}, {.memory_map = true, .keep_private = true});
         auto s1 = file.as_bytes().as<char>();
         REQUIRE(s1.size() == 32);
         for (auto& e: s1)
             e = 'b';
         file.close();
 
-        file.open(test_file1, {.read = true});
+        file.open(test_file1, {.read = true}, {.memory_map = true});
         auto s2 = file.as_bytes().as<const char>();
         REQUIRE(s2.size() == 32);
         bool match = true;

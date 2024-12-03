@@ -2,7 +2,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-#include "noa/core/io/MemoryMappedFile.hpp"
+#include "noa/core/io/BinaryFile.hpp"
 
 namespace {
     using namespace noa::types;
@@ -15,46 +15,47 @@ namespace {
         if (size < 0)
             size = file_size;
         size = noa::clamp(size, 0, file_size - offset);
-        noa::check(madvise(file + offset, static_cast<size_t>(size), flag) != -1,
-                   "Failed to madvise. {}", strerror(errno));
+        noa::check(::madvise(static_cast<std::byte*>(file) + offset, static_cast<size_t>(size), flag) != -1,
+                   "Failed to madvise. {}", std::strerror(errno));
     }
 }
 
 namespace noa::io {
-    void MemoryMappedFile::open(const Path& path, Open mode, Parameters parameters) {
+    void BinaryFile::open(const Path& path, Open mode, Parameters parameters) {
         close();
         check(mode.is_valid() and not mode.append, "Invalid open mode {} (append is not supported)", mode);
         m_path = path;
         m_open = mode;
 
-        int oflags{};
-        mode_t omode{};
+        const char* oflags{};
         if (m_open.write) {
-            oflags = O_RDWR | O_CREAT; // memory mapping requires the file to be open for reading
-            omode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH; // rw-rw-r--
+            // read|write -> rb+
+            // read|write|truncate -> wb+
+            // write(|truncate) -> wb
             const bool overwrite = m_open.truncate or not m_open.read;
-            const bool exists = is_file(m_path);
+            oflags = overwrite ? "wb+" : "rb+"; // mmap seems to require reading, so use wb+ instead of wb
             try {
-                if (exists and mode.backup)
+                if (is_file(m_path) and mode.backup)
                     backup(m_path, overwrite);
-                else if (overwrite) {
-                    oflags |= O_TRUNC;
+                else if (overwrite)
                     mkdir(m_path.parent_path());
-                }
             } catch (...) {
                 panic("File: {}. {}. Could not open the file because of an OS failure", m_path, mode);
             }
         } else if (m_open.read) {
-            oflags = O_RDONLY;
+            oflags = "rb";
         }
 
         for (i32 it{}; it < 3; ++it) {
-            m_fd = ::open(m_path.c_str(), oflags, omode);
-            if (m_fd != -1)
+            m_file = std::fopen(m_path.c_str(), oflags);
+            if (m_file != nullptr)
                 break;
             check(it < 2, "Failed to open file {} with error: {}", m_path, std::strerror(errno));
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
+
+        int fd = ::fileno(m_file);
+        check(fd != -1, "Failed to retrieve the file descriptor, {}", std::strerror(errno));
 
         // Resize the file.
         if (m_open.write) {
@@ -65,15 +66,18 @@ namespace noa::io {
                       "When creating a new file or overwriting an existing one ({}), "
                       "a valid file size should be provided, but got {}",
                       m_open, parameters.new_size);
-                check(::ftruncate(m_fd, parameters.new_size) != -1,
+                check(::ftruncate(fd, parameters.new_size) != -1,
                       "Failed to resize the file. {}", std::strerror(errno));
                 m_size = parameters.new_size;
             }
         } else {
             struct stat s{};
-            check(fstat(m_fd, &s) != -1, "Failed to stat file");
+            check(::fstat(fd, &s) != -1, "Failed to stat file");
             m_size = s.st_size;
         }
+
+        if (not parameters.memory_map)
+            return;
 
         // Align the size to the next page.
         int pagesize = ::getpagesize();
@@ -88,35 +92,36 @@ namespace noa::io {
         int mflags = parameters.keep_private or not mode.write ? MAP_PRIVATE : MAP_SHARED;
 
         // Memory map the entire file.
-        m_data = ::mmap(nullptr, static_cast<size_t>(msize), mprot, mflags, m_fd, 0);
-        noa::check(m_data != reinterpret_cast<void*>(-1), "Failed to mmap: {}", strerror(errno));
+        m_data = ::mmap(nullptr, static_cast<size_t>(msize), mprot, mflags, fd, 0);
+        noa::check(m_data != reinterpret_cast<void*>(-1), "Failed to mmap: {}", std::strerror(errno));
     }
 
-    void MemoryMappedFile::close() {
-        if (m_fd == -1)
+    void BinaryFile::close() {
+        if (m_file == nullptr)
             return;
 
-        int pagesize = ::getpagesize();
-        i64 psize = m_size;
-        psize += pagesize - (psize % pagesize);
+        if (m_data) {
+            int pagesize = ::getpagesize();
+            i64 psize = m_size;
+            psize += pagesize - (psize % pagesize);
+            check(::munmap(m_data, static_cast<size_t>(psize)) != -1, "Failed to munmap: {}", std::strerror(errno));
+            m_data = nullptr;
+        }
 
-        check(::munmap(m_data, static_cast<size_t>(psize)) != -1, "Failed to munmap: {}", strerror(errno));
-        check(::close(m_fd) != -1, "Failed to close file {}", strerror(errno));
-
-        m_fd = -1;
-        m_data = nullptr;
+        check(std::fclose(m_file) == 0, "Failed to close file");
+        m_file = nullptr;
     }
 
-    void MemoryMappedFile::optimize_for_sequential_access(i64 offset, i64 size) const {
+    void BinaryFile::optimize_for_sequential_access(i64 offset, i64 size) const {
         optimize_for_access_(offset, size, m_data, m_size, MADV_SEQUENTIAL);
     }
-    void MemoryMappedFile::optimize_for_random_access(i64 offset, i64 size) const {
+    void BinaryFile::optimize_for_random_access(i64 offset, i64 size) const {
         optimize_for_access_(offset, size, m_data, m_size, MADV_RANDOM);
     }
-    void MemoryMappedFile::optimize_for_no_access(i64 offset, i64 size) const {
+    void BinaryFile::optimize_for_no_access(i64 offset, i64 size) const {
         optimize_for_access_(offset, size, m_data, m_size, MADV_DONTNEED);
     }
-    void MemoryMappedFile::optimize_for_normal_access(i64 offset, i64 size) const {
+    void BinaryFile::optimize_for_normal_access(i64 offset, i64 size) const {
         optimize_for_access_(offset, size, m_data, m_size, MADV_NORMAL);
     }
 }

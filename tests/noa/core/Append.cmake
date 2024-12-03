@@ -9,7 +9,7 @@ set(TEST_COMMON_SOURCES
 
     noa/core/io/TestCoreIO.cpp
     noa/core/io/TestCoreMRCFile.cpp
-    noa/core/io/TestCoreMemoryMappedFile.cpp
+    noa/core/io/TestCoreBinaryFile.cpp
     noa/core/io/TestCoreOS.cpp
     noa/core/io/TestCoreTextFile.cpp
 

@@ -5,11 +5,11 @@
 
 namespace noa::io {
     auto EncoderMrc::read_header(
-        SpanContiguous<const std::byte> file
+        std::FILE* file
     ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, Encoding::Type> {
-        check(file.size() >= 1024, "Invalid file");
         std::byte buffer[1024];
-        std::memcpy(buffer, file.data(), 1024);
+        check(std::fseek(file, 0, SEEK_SET) == 0, "Failed to seek {}", std::strerror(errno));
+        check(std::fread(buffer, 1, 1024, file) == 1024, "Failed to read the header (1024 bytes)");
 
         // Endianness.
         char stamp[4];
@@ -153,7 +153,7 @@ namespace noa::io {
     }
 
     void EncoderMrc::write_header(
-        SpanContiguous<std::byte> file,
+        std::FILE* file,
         const Shape<i64, 4>& shape,
         const Vec<f64, 3>& spacing,
         Encoding::Type dtype
@@ -271,6 +271,7 @@ namespace noa::io {
         //224-1024: labels -> 0 or unchanged.
 
         // Write the header to the file.
-        std::memcpy(file.data(), buffer, 1024);
+        check(std::fseek(file, 0, SEEK_SET) == 0, "Failed to seek {}", std::strerror(errno));
+        check(std::fwrite(buffer, 1, 1024, file) == 1024, "Failed to write the header (1024 bytes). {}", std::strerror(errno));
     }
 }
