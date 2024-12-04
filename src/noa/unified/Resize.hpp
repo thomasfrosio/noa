@@ -64,12 +64,12 @@ namespace noa::guts {
                 const auto is_within_input = [](auto i, auto l, auto r) { return i >= l and i < r; };
                 if constexpr (MODE == Border::VALUE) {
                     m_output(output_indices) =
-                            vall(is_within_input, output_indices, m_pad_left, m_right) ?
-                            cast_or_abs_squared<output_value_type>(m_input(input_indices)) : m_cvalue;
+                        vall(is_within_input, output_indices, m_pad_left, m_right) ?
+                        cast_or_abs_squared<output_value_type>(m_input(input_indices)) : m_cvalue;
                 } else {
                     m_output(output_indices) =
-                            vall(is_within_input, output_indices, m_pad_left, m_right) ?
-                            cast_or_abs_squared<output_value_type>(m_input(input_indices)) : output_value_type{};
+                        vall(is_within_input, output_indices, m_pad_left, m_right) ?
+                        cast_or_abs_squared<output_value_type>(m_input(input_indices)) : output_value_type{};
                 }
             } else { // CLAMP or PERIODIC or MIRROR or REFLECT
                 const indices_type indices_bounded = ni::index_at<MODE>(input_indices, m_input_shape);

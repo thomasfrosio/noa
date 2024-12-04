@@ -22,12 +22,9 @@
 #include "noa/core/indexing/Subregion.hpp"
 
 #include "noa/core/io/BinaryFile.hpp"
+#include "noa/core/io/ImageFile.hpp"
 #include "noa/core/io/IO.hpp"
-#include "noa/core/io/MRCFile.hpp"
-#include "noa/core/io/OS.hpp"
-#include "noa/core/io/Stats.hpp"
 #include "noa/core/io/TextFile.hpp"
-#include "noa/core/io/TIFFFile.hpp"
 
 #include "noa/core/math/Comparison.hpp"
 #include "noa/core/math/Constant.hpp"
