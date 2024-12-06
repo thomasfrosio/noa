@@ -168,7 +168,6 @@ namespace noa::inline types {
         [[nodiscard]] constexpr auto options() const noexcept -> ArrayOption { return m_options; }
         [[nodiscard]] constexpr auto device() const noexcept -> Device { return options().device; }
         [[nodiscard]] constexpr auto allocator() const noexcept -> Allocator { return options().allocator; }
-        [[nodiscard]] constexpr auto is_dereferenceable() const noexcept -> bool { return options().is_dereferenceable(); }
         [[nodiscard]] constexpr auto shape() const noexcept -> const shape_type& { return m_shape; }
         [[nodiscard]] constexpr auto strides() const noexcept -> const strides_type& { return m_strides; }
         [[nodiscard]] constexpr auto strides_full() const noexcept -> const strides_type& { return m_strides; }
@@ -299,34 +298,6 @@ namespace noa::inline types {
             return std::move(*this).to(options());
         }
 
-        /// Casts the array to a new array with the desired value type.
-        template<typename U>
-        [[nodiscard]] auto as() const& -> Array<U> {
-            Array<U> out(shape(), options());
-            noa::cast(*this, out, false);
-            return out;
-        }
-        template<typename U>
-        [[nodiscard]] auto as() && -> Array<U> {
-            Array<U> out(shape(), options());
-            noa::cast(std::move(*this), out, false);
-            return out;
-        }
-
-        /// Clamp-casts the array to a new array with the desired value type.
-        template<typename U>
-        [[nodiscard]] auto as_clamp() const& -> Array<U> {
-            Array<U> out(shape(), options());
-            noa::cast(*this, out, true);
-            return out;
-        }
-        template<typename U>
-        [[nodiscard]] auto as_clamp() && -> Array<U> {
-            Array<U> out(shape(), options());
-            noa::cast(std::move(*this), out, true);
-            return out;
-        }
-
         /// Returns a copy of the first value in the array.
         /// Note that the stream of the array's device is synchronized when this functions returns.
         [[nodiscard]] auto first() const -> value_type {
@@ -334,6 +305,39 @@ namespace noa::inline types {
         }
 
     public: // Data reinterpretation
+        [[nodiscard]] constexpr auto is_reinterpretable_as(Device::Type type) const noexcept -> bool {
+            return options().is_reinterpretable(type);
+        }
+        [[nodiscard]] constexpr auto is_reinterpretable_as_cpu() const noexcept -> bool {
+            return options().is_reinterpretable(Device::CPU);
+        }
+        [[nodiscard]] constexpr auto is_reinterpretable_as_gpu() const noexcept -> bool {
+            return options().is_reinterpretable(Device::GPU);
+        }
+        [[nodiscard]] constexpr auto is_dereferenceable() const noexcept -> bool {
+            return options().is_dereferenceable();
+        }
+
+        /// Changes the device type (CPU<->GPU) on which the memory should be accessed. See View for more details.
+        [[nodiscard]] auto reinterpret_as(Device::Type type, ReinterpretAsOptions parameters = {}) const& -> Array {
+            return noa::reinterpret_as(*this, type, parameters);
+        }
+        [[nodiscard]] auto reinterpret_as_cpu(ReinterpretAsOptions parameters = {}) const& -> Array {
+            return noa::reinterpret_as(*this, Device::CPU, parameters);
+        }
+        [[nodiscard]] auto reinterpret_as_gpu(ReinterpretAsOptions parameters = {}) const& -> Array {
+            return noa::reinterpret_as(*this, Device::GPU, parameters);
+        }
+        [[nodiscard]] auto reinterpret_as(Device::Type type, ReinterpretAsOptions parameters = {}) && -> Array {
+            return noa::reinterpret_as(std::move(*this), type, parameters);
+        }
+        [[nodiscard]] auto reinterpret_as_cpu(ReinterpretAsOptions parameters = {}) && -> Array {
+            return noa::reinterpret_as(std::move(*this), Device::CPU, parameters);
+        }
+        [[nodiscard]] auto reinterpret_as_gpu(ReinterpretAsOptions parameters = {}) && -> Array {
+            return noa::reinterpret_as(std::move(*this), Device::GPU, parameters);
+        }
+
         /// Reinterprets the value type.
         /// \note This is only well-defined in cases where reinterpret_cast<U*>(T*) is well-defined, for instance,
         ///       when \p U is an unsigned char or std::byte to represent any data type as an array of bytes,
@@ -347,24 +351,6 @@ namespace noa::inline types {
         [[nodiscard]] auto reinterpret_as() && -> Array<U> {
             const auto out = ni::ReinterpretLayout(shape(), strides(), get()).template as<U>();
             return Array<U>(std::shared_ptr<U[]>(std::move(m_shared), out.ptr), out.shape, out.strides, options());
-        }
-
-        /// Changes the device type (CPU<->GPU) on which the memory should be accessed.
-        /// \details If the memory resource can be accessed by the CPU and/or a GPU, this function returns an array
-        ///          with the new. This is used to control whether PINNED or MANAGED memory should be accessed by
-        ///          the CPU or the GPU. MANAGED_GLOBAL memory is not attached to any particular GPU, so the current
-        ///         GPU is used in that case.
-        /// \param prefetch Whether to prefetch the memory to the target device. This only affects MANAGED(_GLOBAL)
-        ///                 memory and should be used to anticipate access of that memory region by the target device,
-        ///                 and/or to "move" the memory from the original to the target device. The prefetching is
-        ///                 enqueued to the GPU stream, and as always, concurrent access from both CPU and GPU is illegal.
-        [[nodiscard]] auto reinterpret_as(Device::Type type, bool prefetch = false) const& -> Array {
-            const auto new_device = view().reinterpret_as(type, prefetch).device();
-            return Array(m_shared, shape(), strides(), options().set_device(new_device));
-        }
-        [[nodiscard]] auto reinterpret_as(Device::Type type, bool prefetch = false) && -> Array {
-            const auto new_device = view().reinterpret_as(type, prefetch).device();
-            return Array(std::move(m_shared), shape(), strides(), options().set_device(new_device));
         }
 
         /// Reshapes the array.
@@ -415,10 +401,10 @@ namespace noa::inline types {
 
         /// Permutes the array by performing a deep-copy. The returned Array is a new C-contiguous array.
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
-        [[nodiscard]] Array permute_copy(const Vec4<i64>& permutation) const& {
+        [[nodiscard]] auto permute_copy(const Vec4<i64>& permutation) const& -> Array {
             return noa::permute_copy(*this, permutation);
         }
-        [[nodiscard]] Array permute_copy(const Vec4<i64>& permutation) && {
+        [[nodiscard]] auto permute_copy(const Vec4<i64>& permutation) && -> Array {
             return noa::permute_copy(std::move(*this), permutation);
         }
 

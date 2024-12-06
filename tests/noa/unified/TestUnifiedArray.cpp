@@ -39,9 +39,9 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", i32, f32, c32, 
     REQUIRE_FALSE(b.is_empty());
 
     if (allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL)) {
-        Array<TestType> c = a.reinterpret_as(Device::GPU, /*prefetch=*/ true);
+        Array<TestType> c = a.reinterpret_as(Device::GPU, {.prefetch = true});
         REQUIRE(c.device().is_gpu());
-        c = b.reinterpret_as(Device::CPU, /*prefetch=*/ true);
+        c = b.reinterpret_as(Device::CPU, {.prefetch = true});
         REQUIRE(c.device() == Device{});
     } else {
         REQUIRE_THROWS_AS(a.reinterpret_as(Device::GPU), noa::Exception);

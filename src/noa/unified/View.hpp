@@ -192,6 +192,89 @@ namespace noa {
         check(not ni::are_overlapped(input, output), "The input and output arrays should not overlap");
         ewise(std::forward<Input>(input), std::forward<Output>(output), Cast{clamp});
     }
+
+
+    struct ReinterpretAsOptions {
+        /// Whether to prefetch the memory to the target device. Used as an optimization hint for the driver.
+        /// In CUDA, this only affects MANAGED(_GLOBAL) memory and, in the case of discrete can result to "move" the
+        /// memory from the original to the target device.
+        /// The prefetching is enqueued to the GPU stream.
+        bool prefetch{false};
+    };
+
+    /// Changes the device type (CPU<->GPU) on which the memory should be accessed.
+    /// \details If the memory resource can be accessed by the CPU and/or a GPU, this function returns a new view
+    ///          with the new device. This is used to control whether PINNED or MANAGED memory should be accessed
+    ///          by the CPU or the GPU. MANAGED_GLOBAL memory is not attached to any particular GPU, so the
+    ///          current GPU is used in that case.
+    ///
+    /// \note Note that while this allows having CPU and GPU arrays pointing to the same memory, concurrent access
+    ///       from both CPU and GPU is always illegal (see Allocator). As such, a call to reinterpret_as should
+    ///       often be preceded by a stream synchronization. For instance:
+    ///       \code
+    ///       auto cpu_span = gpu_array.eval().reinterpret_as_cpu({.prefetch = true}).span_1d();
+    ///       // eval is equivalent to Stream::current(gpu_array.device()).synchronize();
+    ///       for (auto& e: cpu_span)
+    ///           e = 1; // if .eval() hadn't been called, this may have led to a segfault
+    ///       \endcode
+    template<nt::varray_decay Input>
+    [[nodiscard]] auto reinterpret_as(
+        Input&& input,
+        Device::Type type,
+        [[maybe_unused]] ReinterpretAsOptions parameters = {}
+    ) {
+        using input_t = std::decay_t<Input>;
+        auto&& opt = input.options();
+
+        if (opt.device.is_gpu() and type == Device::CPU) {
+            // GPU -> CPU
+            check(opt.allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL),
+                  "GPU memory {} cannot be reinterpreted as a CPU memory-region. "
+                  "This is only supported for pinned and managed memory-regions", opt.allocator);
+            #ifdef NOA_ENABLE_CUDA
+            if (parameters.prefetch and (opt.allocator.is_any(Allocator::MANAGED, Allocator::MANAGED_GLOBAL))) {
+                noa::cuda::AllocatorManaged<nt::value_type_t<input_t>>::prefetch_to_cpu(
+                    input.get(), input.shape().n_elements(), Stream::current(opt.device).cuda());
+            }
+            #endif
+            return input_t(std::forward<Input>(input).share(), input.shape(), input.strides(),
+                           {.device = Device(type), .allocator = opt.allocator});
+        } else if (opt.device.is_cpu() and type == Device::GPU) {
+            // CPU -> GPU
+            check(Device::is_any(Device::GPU), "No GPU detected");
+            check(opt.allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL),
+                  "CPU memory-region with the allocator {} cannot be reinterpreted as a GPU memory-region. "
+                  "This is only supported for pinned and managed memory-regions", opt.allocator);
+            #ifdef NOA_ENABLE_CUDA
+            Device gpu;
+            if (opt.allocator.is_any(Allocator::PINNED, Allocator::MANAGED)) {
+                // NOTE: CUDA doesn't document what the attr.device is for managed memory.
+                //       Hopefully this is the device against which the allocation was performed
+                //       and not the current device.
+                // NOTE: With "stream-attached" managed memory, it is up to the user to know what
+                //       stream was used to perform the allocation.
+                const cudaPointerAttributes attr = noa::cuda::pointer_attributes(get());
+                gpu = Device(Device::GPU, attr.device, Device::Unchecked{});
+                NOA_ASSERT((opt.allocator == Allocator::PINNED and attr.type == cudaMemoryTypeHost) or
+                    (opt.allocator == Allocator::MANAGED and attr.type == cudaMemoryTypeManaged));
+            } else if (opt.allocator == Allocator::MANAGED_GLOBAL) {
+                // NOTE: This can be accessed from any stream and any GPU. It seems to be better to return the
+                //       current device and not the original device against which the allocation was performed.
+                gpu = Device::current(Device::GPU);
+            }
+            if (parameters.prefetch and (opt.allocator.is_any(Allocator::MANAGED, Allocator::MANAGED_GLOBAL))) {
+                noa::cuda::AllocatorManaged<nt::value_type_t<input_t>>::prefetch_to_gpu(
+                    input.get(), input.shape().n_elements(), Stream::current(gpu).cuda());
+            }
+            return input_t(std::forward<Input>(input).share(), input.shape(), input.strides(),
+                           {.device = gpu, .allocator = opt.allocator});
+            #else
+                panic_no_gpu_backend();
+            #endif
+        } else {
+            return std::forward<Input>(input);
+        }
+    }
 }
 
 namespace noa::inline types {
@@ -290,7 +373,6 @@ namespace noa::inline types {
         [[nodiscard]] constexpr auto options() const noexcept -> const ArrayOption& { return m_options; }
         [[nodiscard]] constexpr auto device() const noexcept -> Device { return options().device; }
         [[nodiscard]] constexpr auto allocator() const noexcept -> Allocator { return options().allocator; }
-        [[nodiscard]] constexpr auto is_dereferenceable() const noexcept -> bool { return options().is_dereferenceable(); }
         [[nodiscard]] constexpr auto shape() const noexcept -> const shape_type& { return m_shape; }
         [[nodiscard]] constexpr auto strides() const noexcept -> const strides_type& { return m_strides; }
         [[nodiscard]] constexpr auto strides_full() const noexcept -> const strides_type& { return m_strides; }
@@ -401,22 +483,6 @@ namespace noa::inline types {
             return to(options());
         }
 
-        /// Casts the array to a new array with the desired value type.
-        template<typename U>
-        [[nodiscard]] auto as() const -> Array<U> {
-            Array<U> out(shape(), options());
-            noa::cast(*this, out, false);
-            return out;
-        }
-
-        /// Clamp-casts the array to a new array with the desired value type.
-        template<typename U>
-        [[nodiscard]] auto as_clamp() const -> Array<U> {
-            Array<U> out(shape(), options());
-            noa::cast(*this, out, true);
-            return out;
-        }
-
         /// Returns a copy of the first value in the array.
         /// Note that the stream of the array's device is synchronized when this functions returns.
         [[nodiscard]] auto first() const -> mutable_value_type {
@@ -433,72 +499,37 @@ namespace noa::inline types {
         }
 
     public: // Data reinterpretation
+        [[nodiscard]] constexpr auto is_reinterpretable_as(Device::Type type) const noexcept -> bool {
+            return options().is_reinterpretable(type);
+        }
+        [[nodiscard]] constexpr auto is_reinterpretable_as_cpu() const noexcept -> bool {
+            return options().is_reinterpretable(Device::CPU);
+        }
+        [[nodiscard]] constexpr auto is_reinterpretable_as_gpu() const noexcept -> bool {
+            return options().is_reinterpretable(Device::GPU);
+        }
+        [[nodiscard]] constexpr auto is_dereferenceable() const noexcept -> bool {
+            return options().is_dereferenceable();
+        }
+
+        [[nodiscard]] auto reinterpret_as(Device::Type type, ReinterpretAsOptions parameters = {}) const -> View {
+            return reinterpret_as(*this, Device::CPU, parameters);
+        }
+        [[nodiscard]] auto reinterpret_as_cpu(ReinterpretAsOptions parameters = {}) const -> View {
+            return reinterpret_as(*this, Device::CPU, parameters);
+        }
+        [[nodiscard]] auto reinterpret_as_gpu(ReinterpretAsOptions parameters = {}) const -> View {
+            return reinterpret_as(*this, Device::GPU, parameters);
+        }
+
         /// Reinterprets the value type.
         /// \note This is only well-defined in cases where reinterpret_cast<U*>(T*) is well-defined, for instance,
-        ///       when \p U is an unsigned char or std::byte to represent any data type as an array of bytes,
-        ///       or to switch between complex and real floating-point numbers with the same precision.
+        ///       to represent any data type as an array of bytes, or to switch between complex and real floating-point
+        ///       numbers with the same precision.
         template<typename U>
         [[nodiscard]] auto reinterpret_as() const -> View<U> {
             const auto out = ni::ReinterpretLayout(shape(), strides(), get()).template as<U>();
             return View<U>(out.ptr, out.shape, out.strides, options());
-        }
-
-        /// Changes the device type (CPU<->GPU) on which the memory should be accessed.
-        /// \details If the memory resource can be accessed by the CPU and/or a GPU, this function returns a new view
-        ///          with the new device. This is used to control whether PINNED or MANAGED memory should be accessed
-        ///          by the CPU or the GPU. MANAGED_GLOBAL memory is not attached to any particular GPU, so the
-        ///          current GPU is used in that case.
-        /// \param prefetch Whether to prefetch the memory to the target device. This only affects MANAGED(_GLOBAL)
-        ///                 memory and should be used to anticipate access of that memory region by the target device,
-        ///                 and/or to "move" the memory from the original to the target device. The prefetching is
-        ///                 enqueued to the GPU stream, and as always, concurrent access from both CPU and GPU is illegal.
-        [[nodiscard]] auto reinterpret_as(Device::Type type, [[maybe_unused]] bool prefetch = false) const -> View {
-            if (device().is_gpu() and type == Device::CPU) { // GPU -> CPU
-                check(m_options.allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL),
-                      "GPU memory {} cannot be reinterpreted as a CPU memory-region. "
-                      "This is only supported for pinned and managed memory-regions", m_options.allocator);
-                #ifdef NOA_ENABLE_CUDA
-                if (prefetch and (m_options.allocator.is_any(Allocator::MANAGED, Allocator::MANAGED_GLOBAL))) {
-                    noa::cuda::AllocatorManaged<value_type>::prefetch_to_cpu(
-                        get(), shape().n_elements(), Stream::current(device()).cuda());
-                }
-                #endif
-                return View(get(), shape(), strides(), {.device=Device(type), .allocator=m_options.allocator});
-
-            } else if (device().is_cpu() and type == Device::GPU) { // CPU -> GPU
-                check(Device::is_any(Device::GPU), "No GPU detected");
-                check(m_options.allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL),
-                      "CPU memory-region with the allocator {} cannot be reinterpreted as a GPU memory-region. "
-                      "This is only supported for pinned and managed memory-regions", m_options.allocator);
-                #ifdef NOA_ENABLE_CUDA
-                Device gpu;
-                if (m_options.allocator.is_any(Allocator::PINNED, Allocator::MANAGED)) {
-                    // NOTE: CUDA doesn't document what the attr.device is for managed memory.
-                    //       Hopefully this is the device against which the allocation was performed
-                    //       and not the current device.
-                    // NOTE: With "stream-attached" managed memory, it is up to the user to know what
-                    //       stream was used to perform the allocation.
-                    const cudaPointerAttributes attr = noa::cuda::pointer_attributes(get());
-                    gpu = Device(Device::GPU, attr.device, Device::Unchecked{});
-                    NOA_ASSERT((m_options.allocator == Allocator::PINNED and attr.type == cudaMemoryTypeHost) or
-                               (m_options.allocator == Allocator::MANAGED and attr.type == cudaMemoryTypeManaged));
-
-                } else if (m_options.allocator == Allocator::MANAGED_GLOBAL) {
-                    // NOTE: This can be accessed from any stream and any GPU. It seems to be better to return the
-                    //       current device and not the original device against which the allocation was performed.
-                    gpu = Device::current(Device::GPU);
-                }
-                if (prefetch and (m_options.allocator.is_any(Allocator::MANAGED, Allocator::MANAGED_GLOBAL))) {
-                    noa::cuda::AllocatorManaged<value_type>::prefetch_to_gpu(
-                        get(), shape().n_elements(), Stream::current(gpu).cuda());
-                }
-                return View(get(), shape(), strides(), {.device=gpu, .allocator=m_options.allocator});
-                #else
-                panic_no_gpu_backend();
-                #endif
-            } else {
-                return *this;
-            }
         }
 
         /// Reshapes the view (must have the same number of elements as the current view).

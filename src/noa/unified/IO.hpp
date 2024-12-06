@@ -93,15 +93,20 @@ namespace noa::io {
         if (dtype == Encoding::UNKNOWN)
             dtype = ImageFile::closest_supported_dtype<value_t>(filename.extension().string());
 
+        Array<value_t> tmp;
+        Span<const value_t, 4> span;
+        if (input.is_dereferenceable()) {
+            span = input.eval().reinterpret_as_cpu({.prefetch = true}).span();
+        } else {
+            tmp = std::forward<Input>(input).to_cpu().eval();
+            span = tmp.span();
+        }
+
         ImageFile(filename, Open{.write = true}, {
             .shape = input.shape(),
             .spacing = file_spacing,
             .dtype = dtype,
-        }).write_all(
-            (input.is_dereferenceable() ?
-                std::forward<Input>(input).eval() :
-                std::forward<Input>(input).to_cpu()
-            ).span().as_const(), {
+        }).write_all(span, {
             .clamp = write_option.clamp,
             .n_threads = write_option.n_threads,
         });
@@ -110,8 +115,8 @@ namespace noa::io {
     /// Saves the input array into a new file.
     /// Same as the above overload, but without setting a pixel size.
     template<nt::readable_varray_decay_of_numeric Input>
-    void write(const Input& input, const Path& filename, WriteOption write_option = {}) {
-        write(input, Vec{0., 0., 0.}, filename, write_option);
+    void write(Input&& input, const Path& filename, WriteOption write_option = {}) {
+        write(std::forward<Input>(input), Vec{0., 0., 0.}, filename, write_option);
     }
 }
 

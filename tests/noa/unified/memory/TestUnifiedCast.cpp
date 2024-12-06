@@ -1,4 +1,5 @@
 #include <noa/unified/Random.hpp>
+#include <noa/unified/Factory.hpp>
 #include <catch2/catch.hpp>
 #include "Utils.hpp"
 
@@ -33,7 +34,8 @@ TEMPLATE_TEST_CASE("unified::cast", "[noa][unified]", i32, f32, f64) {
         const Array data0 = noa::random(noa::Uniform(-50, 50), results.shape(), options);
         noa::cast(data0, results);
 
-        const Array data1 = results.template as<i32>();
+        const auto data1 = noa::like<i32>(results);
+        noa::cast(results, data1);
         REQUIRE(test::allclose_abs(data0, data1));
     }
 }
