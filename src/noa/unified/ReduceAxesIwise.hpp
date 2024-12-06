@@ -1,5 +1,6 @@
 #pragma once
 
+#include "noa/core/indexing/Bounds.hpp"
 #include "noa/core/utils/Adaptor.hpp"
 #include "noa/unified/Stream.hpp"
 #include "noa/unified/Utilities.hpp"
@@ -22,26 +23,34 @@ namespace noa::inline types {
         ReduceAxes& reduce_width(bool flag) { width = flag; return *this; }
 
         constexpr auto operator[](nt::integer auto i) const -> const bool& {
+            ni::bounds_check<true>(4, i);
             switch (i) {
                 case 0: return batch;
                 case 1: return depth;
                 case 2: return height;
                 case 3: return width;
-                default: panic("invalid index");
+                default: unreachable();
             }
         }
         constexpr auto operator[](nt::integer auto i) -> bool& {
+            ni::bounds_check<true>(4, i);
             switch (i) {
                 case 0: return batch;
                 case 1: return depth;
                 case 2: return height;
                 case 3: return width;
-                default: panic("invalid index");
+                default: unreachable();
             }
         }
 
         static constexpr ReduceAxes all() {
             return {true, true, true, true};
+        }
+
+        static constexpr ReduceAxes all_but(nt::integer auto i) {
+            auto out = all();
+            out[i] = false;
+            return out;
         }
 
         template<size_t N> requires (1 <= N and N <= 4)

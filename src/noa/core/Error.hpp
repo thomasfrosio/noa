@@ -172,4 +172,15 @@ namespace noa {
             panic_at_location(fmt.location, fmt.fmt, std::forward<Ts>(args)...);
         }
     }
+
+    [[noreturn]] NOA_IHD void unreachable() {
+        // Uses compiler specific extensions if possible.
+        // Even if no extension is used, undefined behavior is still raised by
+        // an empty function body and the noreturn attribute.
+        #if defined(NOA_COMPILER_MSVC) && !defined(NOA_COMPILER_CLANG) && !defined(NOA_IS_GPU_CODE) // MSVC
+        __assume(false);
+        #else // GCC, Clang
+        __builtin_unreachable();
+        #endif
+    }
 }
