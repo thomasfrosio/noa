@@ -38,6 +38,7 @@ TEST_CASE("unified::signal::ctf_isotropic, assets", "[noa][unified][assets]") {
         const auto bfactor = test["bfactor"].as<f64>();
 
         const auto ctf = CTFIsotropic64(pixel_size, defocus, voltage, amplitude, cs, phase_shift, bfactor, 1);
+        [[maybe_unused]] auto ctf2 = ctf.as<f32>();
 
         static_assert(noa::traits::spectrum_types<float, float>);
 
@@ -222,6 +223,7 @@ TEST_CASE("unified::signal::ctf_anisotropic, assets", "[noa][unified][assets]") 
 
         const auto defocus_astigmatic = DefocusAstigmatic64{defocus[0], defocus[1], noa::deg2rad(defocus[2])};
         const auto ctf = CTFAnisotropic64(pixel_size, defocus_astigmatic, voltage, amplitude, cs, phase_shift, bfactor, 1);
+        [[maybe_unused]] auto ctf2 = ctf.as<f32>();
 
         if constexpr (COMPUTE_ASSETS) {
             const auto input = noa::empty<f32>(shape);

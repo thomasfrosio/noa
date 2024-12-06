@@ -145,6 +145,31 @@ namespace noa::signal {
             set_amplitude_fraction_();
         }
 
+        // Access private members for the as<U>() function.
+        friend CTFIsotropic<f32>;
+        friend CTFIsotropic<f64>;
+
+        template<nt::any_of<f32, f64> U>
+        [[nodiscard]] NOA_HD constexpr auto as() const noexcept {
+            if constexpr (std::same_as<U, value_type>) {
+                return *this;
+            } else {
+                CTFIsotropic<U> out;
+                out.m_pixel_size = static_cast<U>(m_pixel_size);
+                out.m_defocus_angstroms = static_cast<U>(m_defocus_angstroms);
+                out.m_phase_shift = static_cast<U>(m_phase_shift);
+                out.m_cs_angstroms = static_cast<U>(m_cs_angstroms);
+                out.m_voltage_volts = static_cast<U>(m_voltage_volts);
+                out.m_amplitude = static_cast<U>(m_amplitude);
+                out.m_bfactor_forth = static_cast<U>(m_bfactor_forth);
+                out.m_scale = static_cast<U>(m_scale);
+                out.m_k1 = static_cast<U>(m_k1);
+                out.m_k2 = static_cast<U>(m_k2);
+                out.m_k3 = static_cast<U>(m_k3);
+                return out;
+            }
+        }
+
     public:
         [[nodiscard]] constexpr auto phase_at(nt::real auto fftfreq) const -> value_type {
             const auto r1 = static_cast<value_type>(fftfreq) / m_pixel_size;
@@ -212,7 +237,7 @@ namespace noa::signal {
     class CTFAnisotropic {
     public:
         using value_type = T;
-        using pixel_size_type = Vec2<value_type>;
+        using pixel_size_type = Vec<value_type, 2>;
         using defocus_type = DefocusAstigmatic<value_type>;
         struct Parameters {
             pixel_size_type pixel_size;
@@ -340,6 +365,36 @@ namespace noa::signal {
         constexpr void set_amplitude(value_type amplitude) {
             m_amplitude = amplitude;
             set_amplitude_fraction_();
+        }
+
+        // Access private members for the as<U>() function.
+        friend CTFAnisotropic<f32>;
+        friend CTFAnisotropic<f64>;
+
+        template<nt::any_of<f32, f64> U>
+        [[nodiscard]] NOA_HD constexpr auto as() const noexcept {
+            if constexpr (std::same_as<U, value_type>) {
+                return *this;
+            } else {
+                CTFAnisotropic<U> out;
+                out.m_pixel_size = m_pixel_size.template as<U>();
+                out.m_defocus_angstroms = {
+                    static_cast<U>(m_defocus_angstroms.value),
+                    static_cast<U>(m_defocus_angstroms.astigmatism),
+                    static_cast<U>(m_defocus_angstroms.angle)
+                };
+                out.m_phase_shift = static_cast<U>(m_phase_shift);
+                out.m_cs_angstroms = static_cast<U>(m_cs_angstroms);
+                out.m_voltage_volts = static_cast<U>(m_voltage_volts);
+                out.m_amplitude = static_cast<U>(m_amplitude);
+                out.m_bfactor_forth = static_cast<U>(m_bfactor_forth);
+                out.m_scale = static_cast<U>(m_scale);
+                out.m_lambda_angstroms = static_cast<U>(m_lambda_angstroms);
+                out.m_k1 = static_cast<U>(m_k1);
+                out.m_k2 = static_cast<U>(m_k2);
+                out.m_k3 = static_cast<U>(m_k3);
+                return out;
+            }
         }
 
     public:
