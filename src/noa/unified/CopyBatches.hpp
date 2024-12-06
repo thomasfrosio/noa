@@ -3,7 +3,7 @@
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Subregion.hpp"
 
-namespace noa::memory {
+namespace noa {
     /// (Deep-)Copies batches across arrays.
     /// \param[in] input            Input array to copy.
     /// \param[out] output          Output array.
