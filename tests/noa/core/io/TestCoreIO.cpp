@@ -98,7 +98,7 @@ TEMPLATE_TEST_CASE("core::io::encoding and decoding - complex", "[noa][core]", c
     const bool clamp = GENERATE(true, false);
     const bool swap = GENERATE(true, false);
     const nio::Encoding::Type dtype = GENERATE(nio::Encoding::C16, nio::Encoding::C32, nio::Encoding::C64);
-    const auto encoding = nio::Encoding{.dtype=dtype, .clamp=false, .endian_swap=true};
+    const auto encoding = nio::Encoding{.dtype=dtype, .clamp=clamp, .endian_swap=swap};
     const auto shape = test::random_shape<i64>(1, {.batch_range{1, 5}});
 
     const auto ssize = shape.n_elements();
