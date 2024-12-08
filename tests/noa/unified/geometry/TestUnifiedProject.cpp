@@ -142,7 +142,7 @@ TEST_CASE("unified::geometry::project_3d, fused") {
         ng::translate(-center)
     ).inverse().pop_back();
     i64 projection_window_size = ng::forward_projection_window_size(volume_shape, forward_projection_matrix);
-    REQUIRE(projection_window_size == 257);
+    REQUIRE(projection_window_size == 259);
 
     constexpr auto circle = ng::Sphere{.center = Vec{128., 128.}, .radius = 32., .smoothness = 5.};
     auto images = noa::empty<f32>({n_images, 1, 256, 256});
@@ -190,5 +190,27 @@ TEST_CASE("unified::geometry::project_3d, fused") {
                 REQUIRE(test::allclose_abs(projected_image, asset_image, 5e-4));
             }
         }
+    }
+}
+
+TEST_CASE("unified::geometry::project_3d, projection window", "[.]") {
+    const Path path_base = test::NOA_DATA_PATH / "geometry";
+
+    constexpr auto volume_shape = Shape<i64, 3>{64, 256, 256};
+    constexpr auto center = (volume_shape.vec / 2).as<f64>();
+
+    const auto volume = noa::ones<f32>(volume_shape.push_front(1));
+    auto images = noa::zeros<f32>({1, 1, 256, 256});
+
+    for (auto tilt: std::array{60.}) {
+        auto forward_matrix = (
+            ng::translate(center) *
+            ng::linear2affine(ng::rotate_y(noa::deg2rad(tilt + 180))) *
+            ng::translate(-center)
+        ).inverse().pop_back();
+
+        auto projection_window_size = ng::forward_projection_window_size(volume_shape, forward_matrix);
+        ng::forward_project_3d(volume, images, forward_matrix, projection_window_size, {.interp = noa::Interp::CUBIC});
+        noa::write(images, path_base / "test_image.mrc");
     }
 }

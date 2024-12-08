@@ -59,7 +59,7 @@ namespace noa::geometry::guts {
         // Compute and add the distance along the projection axis,
         // from the yx-plane to the selected plane centered on the window center.
         // This is from https://en.m.wikipedia.org/wiki/Line-plane_intersection
-        const T distance = ((projection_window_center[i] - plane_0yx[i]) * projection_axis[i]) / projection_axis[i];
+        const T distance = (projection_window_center[i] - plane_0yx[i]) / projection_axis[i];
         volume_coordinates += projection_axis * distance;
 
         return volume_coordinates;
@@ -503,12 +503,12 @@ namespace noa::geometry {
     /// Computes the projection window size of (backward_and_)forward_project_3d functions.
     /// \details In theory, the forward projection operators need to integrate the volume along the projection axis.
     ///          In practice, only a section of the projection axis is computed. This section, referred to as the
-    ///          projection window, is the segment of the projection axis within the volume and that goes through
-    ///          its center. A larger section can be provided, but this would result in computing the forward
-    ///          projection for elements that are outside the volume (thus zero), which is a waste of compute.
+    ///          projection window, is the segment of the projection axis within the volume that goes through its
+    ///          center. A larger section can be provided, but this would result in computing the forward projection
+    ///          for elements that are outside the volume (and thus equal to zero), which is a waste of compute.
     ///          In other words, this function computes the minimal projection window size that will be required to
-    ///          integrate the volume. If multiple projection matrices are to be used at once, one should take
-    ///          the maximum window size to ensure the volume is correctly projected along any of the projection axes.
+    ///          integrate the volume. If multiple projection matrices are to be used at once, one should take the
+    ///          maximum window size to ensure the volume is correctly projected along any of the projection axes.
     ///
     /// \param[in] volume_shape         DHW shape of the volume to forward project.
     /// \param[in] projection_matrix    Matrices defining the transformation from image to volume space.
@@ -523,11 +523,11 @@ namespace noa::geometry {
         auto distance_to_volume_edge = Vec<f64, 3>::from_value(std::numeric_limits<f64>::max());
         for (auto i: irange(3))
             if (abs(projection_axis[i]) > 0) // not parallel to the ith-plane
-                distance_to_volume_edge[i] = abs(-projection_window_center[i] / projection_axis[i]);
+                distance_to_volume_edge[i] = abs(projection_window_center[i] / projection_axis[i]);
 
         const auto index = argmin(distance_to_volume_edge);
         const auto projection_window_radius = static_cast<i64>(ceil(distance_to_volume_edge[index]));
-        return projection_window_radius * 2 + 1;
+        return (projection_window_radius + 1) * 2 + 1;
     }
 
     /// Backward project 2d images into a 3d volume using real space backprojection.
