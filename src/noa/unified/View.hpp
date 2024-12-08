@@ -253,7 +253,7 @@ namespace noa {
                 //       and not the current device.
                 // NOTE: With "stream-attached" managed memory, it is up to the user to know what
                 //       stream was used to perform the allocation.
-                const cudaPointerAttributes attr = noa::cuda::pointer_attributes(get());
+                const cudaPointerAttributes attr = noa::cuda::pointer_attributes(input.get());
                 gpu = Device(Device::GPU, attr.device, Device::Unchecked{});
                 NOA_ASSERT((opt.allocator == Allocator::PINNED and attr.type == cudaMemoryTypeHost) or
                     (opt.allocator == Allocator::MANAGED and attr.type == cudaMemoryTypeManaged));
