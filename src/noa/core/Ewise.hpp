@@ -177,7 +177,7 @@ namespace noa {
         using enable_vectorization = bool;
 
         template<typename C>
-        NOA_HD constexpr void operator()(auto r, auto i, C& c) {
+        NOA_HD constexpr void operator()(auto r, auto i, C& c) const {
             c = C::from_values(r, i);
         }
     };
@@ -185,7 +185,7 @@ namespace noa {
         using enable_vectorization = bool;
 
         template<typename R, typename I>
-        NOA_HD constexpr void operator()(const auto& c, R& r, I& i) {
+        NOA_HD constexpr void operator()(const auto& c, R& r, I& i) const {
             r = static_cast<R>(c.real);
             i = static_cast<I>(c.imag);
         }
@@ -195,11 +195,11 @@ namespace noa {
         using enable_vectorization = bool;
 
         template<typename T>
-        NOA_HD constexpr auto operator()(const T& value, const T& min, const T& max) {
+        NOA_HD constexpr auto operator()(const T& value, const T& min, const T& max) const {
             return (value - min) / (max - min);
         }
         template<typename T, typename U>
-        NOA_HD constexpr void operator()(const T& value, const T& min, const T& max, U& output) {
+        NOA_HD constexpr void operator()(const T& value, const T& min, const T& max, U& output) const {
             output = static_cast<U>((*this)(value, min, max));
         }
     };
@@ -207,11 +207,11 @@ namespace noa {
         using enable_vectorization = bool;
 
         template<typename T, typename U>
-        NOA_HD constexpr auto operator()(const T& value, const T& mean, const U& stddev) {
+        NOA_HD constexpr auto operator()(const T& value, const T& mean, const U& stddev) const {
             return (value - mean) / stddev;
         }
         template<typename T, typename U, typename V>
-        NOA_HD constexpr void operator()(const T& value, const T& mean, const U& stddev, V& output) {
+        NOA_HD constexpr void operator()(const T& value, const T& mean, const U& stddev, V& output) const {
             output = static_cast<V>((*this)(value, mean, stddev));
         }
     };
@@ -219,11 +219,11 @@ namespace noa {
         using enable_vectorization = bool;
 
         template<typename T, typename U>
-        NOA_HD constexpr void operator()(const T& value, const U& norm) {
+        NOA_HD constexpr auto operator()(const T& value, const U& norm) const {
             return value / norm;
         }
         template<typename T, typename U, typename V>
-        NOA_HD constexpr void operator()(const T& value, const U& norm, V& output) {
+        NOA_HD constexpr void operator()(const T& value, const U& norm, V& output) const {
             output = static_cast<V>((*this)(value, norm));
         }
     };

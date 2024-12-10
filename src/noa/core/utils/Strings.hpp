@@ -165,10 +165,10 @@ namespace noa::string {
     }
 
     /// Parses a string into a T.
-    /// \tparam T   integer: similar to from_chars with base=10, \p fmt is ignored.
+    /// \tparam T   integer: similar to from_chars (+ plus-sign support) with base=10, \p fmt is ignored.
     ///             bool: same as integer, plus recognizes true={"y", "yes", "true"} and false={"n", "no", "false"}
     ///                   as valid matches (ignoring trailing whitespaces and case-insensitive).
-    ///             floating-point: same as from_chars, with provided \p fmt.
+    ///             floating-point: same as from_chars (+ plus-sign support), with provided \p fmt.
     ///             std::string: remove trailing whitespaces and convert to lowercase.
     template<typename T>
     auto parse(
@@ -196,13 +196,15 @@ namespace noa::string {
 
         } else if constexpr (std::is_integral_v<T>) {
             T output{};
-            if (std::from_chars(string.begin(), string.end(), output).ec == std::errc{})
+            const bool has_plus = string.size() > 1 and string[0] == '+';
+            if (std::from_chars(string.begin() + has_plus, string.end(), output).ec == std::errc{})
                 return output;
             return std::nullopt;
 
         } else if constexpr (nt::is_real_v<T>) {
             T output{};
-            if (std::from_chars(string.begin(), string.end(), output, fmt).ec == std::errc{})
+            const bool has_plus = string.size() > 1 and string[0] == '+';
+            if (std::from_chars(string.begin() + has_plus, string.end(), output, fmt).ec == std::errc{})
                 return output;
             return std::nullopt;
 
