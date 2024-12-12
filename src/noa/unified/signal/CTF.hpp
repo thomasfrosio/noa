@@ -10,10 +10,9 @@
 
 namespace noa::signal::guts {
     /// Index-wise operator, to compute/apply CTFs to {1|2|3}d DFTs.
-    /// \details If the input is valid, input*ctf->output is computed for the full fftfreq range.
-    ///          Note that if the input is complex and the output is real, abs(input*ctf)^2->output
-    ///          is computed instead. If the input is empty, ctf->output is computed, for a user-defined
-    ///          frequency range.
+    /// \details If the input is valid, input*ctf->output is computed.
+    ///          If the input is complex and the output is real, the power spectrum is saved.
+    ///          If the input is empty, ctf->output is computed.
     template<Remap REMAP, size_t N,
              nt::any_of<f32, f64> Coord,
              nt::sinteger Index,
@@ -44,11 +43,10 @@ namespace noa::signal::guts {
 
         using index_type = Index;
         using coord_type = Coord;
-        using coord_or_empty_type = std::conditional_t<nt::empty<input_type>, coord_type, Empty>;
         using shape_nd_type = Shape<index_type, N>;
         using shape_type = Shape<index_type, N - IS_RFFT>;
         using coord_nd_type = Vec<coord_type, N>;
-        using frequency_range_type = Vec2<coord_type>;
+        using coord2_type = Vec2<coord_type>;
 
     public:
         constexpr CTF(
@@ -57,29 +55,15 @@ namespace noa::signal::guts {
             const shape_nd_type& shape,
             const ctf_parameter_type& ctf,
             bool ctf_abs,
-            bool ctf_squared
-        ) requires HAS_INPUT :
-            m_ctf(ctf),
-            m_output(output),
-            m_shape(shape.template pop_back<IS_RFFT>()),
-            m_frequency_step(coord_type{1} / coord_nd_type::from_vec(shape.vec)),
-            m_input(input),
-            m_ctf_abs(ctf_abs),
-            m_ctf_squared(ctf_squared) {}
-
-        constexpr CTF(
-            const output_type& output,
-            const shape_nd_type& shape,
-            const ctf_parameter_type& ctf,
-            bool ctf_abs,
             bool ctf_squared,
-            const frequency_range_type& frequency_range,
-            bool frequency_range_endpoint
-        ) requires (not HAS_INPUT) :
+            const coord2_type& fftfreq_range,
+            bool fftfreq_endpoint
+        ) :
             m_ctf(ctf),
             m_output(output),
             m_shape(shape.template pop_back<IS_RFFT>()),
-            m_frequency_start(frequency_range[0]),
+            m_input(input),
+            m_fftfreq_start(fftfreq_range[0]),
             m_ctf_abs(ctf_abs),
             m_ctf_squared(ctf_squared)
         {
@@ -88,13 +72,13 @@ namespace noa::signal::guts {
             for (size_t i{}; i < N; ++i) {
                 const auto max_sample_size = shape[i] / 2 + 1;
                 const auto frequency_end =
-                    frequency_range[1] < 0 ?
-                    noa::fft::highest_normalized_frequency<coord_type>(shape[i]) :
-                    frequency_range[1];
-                m_frequency_step[i] = Linspace{
-                    .start = frequency_range[0],
+                    fftfreq_range[1] <= 0 ?
+                    noa::fft::highest_fftfreq<coord_type>(shape[i]) :
+                    fftfreq_range[1];
+                m_fftfreq_step[i] = Linspace{
+                    .start = fftfreq_range[0],
                     .stop = frequency_end,
-                    .endpoint = frequency_range_endpoint
+                    .endpoint = fftfreq_endpoint
                 }.for_size(max_sample_size).step;
             }
         }
@@ -106,9 +90,10 @@ namespace noa::signal::guts {
             I... output_indices
         ) const {
             auto frequency = noa::fft::index2frequency<IS_DST_CENTERED, IS_RFFT>(Vec{output_indices...}, m_shape);
-            auto fftfreq = coord_nd_type::from_vec(frequency) * m_frequency_step;
-            if constexpr (not HAS_INPUT)
-                fftfreq += m_frequency_start;
+            auto fftfreq = coord_nd_type::from_vec(frequency) * m_fftfreq_step;
+            fftfreq += m_fftfreq_start;
+
+            // TODO Add frequency cutoff?
 
             auto ctf = m_ctf[batch].value_at([&] {
                 if constexpr (N == 1)
@@ -118,10 +103,10 @@ namespace noa::signal::guts {
                 else // N == 2 anisotropic
                     return fftfreq;
             }());
-            if (m_ctf_abs)
-                ctf = abs(ctf);
             if (m_ctf_squared)
                 ctf *= ctf;
+            else if (m_ctf_abs)
+                ctf = abs(ctf);
 
             if constexpr (HAS_INPUT) {
                 const auto input_indices = noa::fft::remap_indices<REMAP, true>(Vec{output_indices...}, m_shape);
@@ -136,9 +121,9 @@ namespace noa::signal::guts {
         ctf_parameter_type m_ctf;
         output_type m_output;
         shape_type m_shape;
-        coord_nd_type m_frequency_step;
         NOA_NO_UNIQUE_ADDRESS input_type m_input{};
-        NOA_NO_UNIQUE_ADDRESS coord_or_empty_type m_frequency_start{};
+        coord_nd_type m_fftfreq_step;
+        coord_type m_fftfreq_start;
         bool m_ctf_abs;
         bool m_ctf_squared;
     };
@@ -211,23 +196,22 @@ namespace noa::signal::guts {
 
 namespace noa::signal {
     struct CTFOptions {
-        /// Frequency [start, end] range of the output, in cycle/pixels, from the zero, along the cartesian axes.
-        /// If the end is negative (default), the library sets it to the highest frequencies for the given dimensions,
+        /// Frequency [start, end] range of the input and output, from the zero, along the cartesian axes.
+        /// If the end is negative or zero, it is set to the highest frequencies for the given dimensions,
         /// i.e. the entire rfft/fft range is selected. For even dimensions, this is equivalent to {0, 0.5}.
         Vec2<f64> fftfreq_range{0, -1};
 
-        /// Whether the \p frequency_range 's end should be included in the range.
-        bool fftfreq_range_endpoint{true};
+        /// Whether the frequency_range's end should be included in the range.
+        bool fftfreq_endpoint{true};
 
         /// Whether the absolute of the ctf should be computed.
         bool ctf_abs{};
 
         /// Whether the square of the ctf should be computed.
-        /// If ctf_abs=true, computes the abs square (aka the power spectrum).
         bool ctf_squared{};
     };
 
-    /// Computes isotropic CTF(s) over entire FFT or rFFT spectrum or over a specific frequency range (see \p options).
+    /// Computes isotropic CTF(s) over entire FFT or rFFT spectrum or over a specific frequency range (see options).
     /// \tparam REMAP       Output layout. Should be H2H, HC2HC, F2F or FC2FC.
     /// \param[out] output  1d, 2d, or 3d CTF(s).
     /// \param shape        Logical BDHW shape.
@@ -255,9 +239,9 @@ namespace noa::signal {
                 using op_t = guts::CTF<REMAP, 1, coord_t, i64, Empty, output_accessor_t, ctf_t>;
                 auto index = ni::non_empty_dhw_dimension(shape);
                 auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0, index));
-                auto op = op_t(output_accessor, shape.filter(index), guts::extract_ctf(ctf),
+                auto op = op_t({}, output_accessor, shape.filter(index), guts::extract_ctf(ctf),
                                options.ctf_abs, options.ctf_squared,
-                               options.fftfreq_range, options.fftfreq_range_endpoint);
+                               options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
 
                 auto iwise_shape = shape.filter(0, index);
                 if constexpr (REMAP.is_hx2hx())
@@ -275,9 +259,9 @@ namespace noa::signal {
                 using output_accessor_t = Accessor<value_t, 3, i64>;
                 using op_t = guts::CTF<REMAP, 2, coord_t, i64, Empty, output_accessor_t, ctf_t>;
                 auto output_accessor = output_accessor_t(output.get(), output_strides.filter(0, 2, 3));
-                auto op = op_t(output_accessor, shape.filter(2, 3), guts::extract_ctf(ctf),
+                auto op = op_t({}, output_accessor, shape.filter(2, 3), guts::extract_ctf(ctf),
                                options.ctf_abs, options.ctf_squared,
-                               options.fftfreq_range, options.fftfreq_range_endpoint);
+                               options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
 
                 auto iwise_shape = shape.filter(0, 2, 3);
                 if constexpr (REMAP.is_hx2hx())
@@ -296,9 +280,9 @@ namespace noa::signal {
                 using output_accessor_t = Accessor<value_t, 4, i64>;
                 using op_t = guts::CTF<REMAP, 3, coord_t, i64, Empty, output_accessor_t, ctf_t>;
                 auto output_accessor = output_accessor_t(output.get(), output_strides);
-                auto op = op_t(output_accessor, shape.pop_front(), guts::extract_ctf(ctf),
+                auto op = op_t({}, output_accessor, shape.pop_front(), guts::extract_ctf(ctf),
                                options.ctf_abs, options.ctf_squared,
-                               options.fftfreq_range, options.fftfreq_range_endpoint);
+                               options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
 
                 auto iwise_shape = shape;
                 if constexpr (REMAP.is_hx2hx())
@@ -310,16 +294,16 @@ namespace noa::signal {
 
     /// Computes isotropic CTF(s).
     /// \tparam REMAP       Remapping operation. Should be H2H, HC2H, H2HC, HC2HC, F2F, FC2F, F2FC or FC2FC.
-    /// \param[in] input    1d, 2d, or 3d array(s) to multiply with the CTF.
-    ///                     If empty, the CTF is directly written to \p output.
-    ///                     If complex and \p output is real, the power spectrum is first computed.
-    /// \param[out] output  1d, 2d, or 3d CTF or CTF-multiplied array, depending on \p input.
-    ///                     If no remapping is done, it can be equal to \p input.
+    /// \param[in] input    {1|2|3}d array(s) to multiply with the CTF.
+    ///                     If empty, the CTF is directly written to the output.
+    ///                     If complex and the output is real, the power spectrum is saved.
+    /// \param[out] output  {1|2|3}d CTF or CTF-multiplied array, depending on the input.
+    ///                     If no remapping is done, it can be equal to the input.
     /// \param shape        Logical BDHW shape.
     /// \param[in] ctf      Isotropic CTF. A contiguous vector of CTFs can be passed. In this case, there
     ///                     should be one CTF per output batch. If a single value is passed, it is applied
     ///                     to every batch.
-    /// \param options      Spectrum and CTF options. The frequency range is ignored if the input is not empty.
+    /// \param options      Spectrum and CTF options.
     template<Remap REMAP,
              typename Output, typename CTF,
              typename Input = View<nt::value_type_t<Output>>>
@@ -359,7 +343,8 @@ namespace noa::signal {
                 auto op = op_t(input_accessor_t(input.get(), input_strides.filter(0, index)),
                                output_accessor_t(output.get(), output.strides().filter(0, index)),
                                shape.filter(index), guts::extract_ctf(ctf),
-                               options.ctf_abs, options.ctf_squared);
+                               options.ctf_abs, options.ctf_squared,
+                               options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
                 return iwise(iwise_shape, device, op,
                              std::forward<Input>(input),
                              std::forward<Output>(output),
@@ -379,7 +364,8 @@ namespace noa::signal {
                 auto op = op_t(input_accessor_t(input.get(), input_strides.filter(0, 2, 3)),
                                output_accessor_t(output.get(), output_strides.filter(0, 2, 3)),
                                shape.filter(2, 3), guts::extract_ctf(ctf),
-                               options.ctf_abs, options.ctf_squared);
+                               options.ctf_abs, options.ctf_squared,
+                               options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
 
                 auto iwise_shape = shape.filter(0, 2, 3);
                 if constexpr (REMAP.is_xx2hx())
@@ -405,7 +391,8 @@ namespace noa::signal {
                 auto op = op_t(input_accessor_t(input.get(), input_strides),
                                output_accessor_t(output.get(), output_strides),
                                shape.pop_front(), guts::extract_ctf(ctf),
-                               options.ctf_abs, options.ctf_squared);
+                               options.ctf_abs, options.ctf_squared,
+                               options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
 
                 auto iwise_shape = shape;
                 if constexpr (REMAP.is_xx2hx())
@@ -450,9 +437,9 @@ namespace noa::signal {
         using output_accessor_t = Accessor<value_t, 3, i64>;
         using op_t = guts::CTF<REMAP, 2, coord_t, i64, Empty, output_accessor_t, ctf_t>;
         auto output_accessor = output_accessor_t(output.get(), output_strides.filter(0, 2, 3));
-        auto op = op_t(output_accessor, shape.filter(2, 3), guts::extract_ctf(ctf),
+        auto op = op_t({}, output_accessor, shape.filter(2, 3), guts::extract_ctf(ctf),
                        options.ctf_abs, options.ctf_squared,
-                       options.fftfreq_range, options.fftfreq_range_endpoint);
+                       options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
 
         auto iwise_shape = shape.filter(0, 2, 3);
         if constexpr (REMAP.is_xx2hx())
@@ -463,15 +450,15 @@ namespace noa::signal {
     /// Computes the anisotropic CTF(s).
     /// \tparam REMAP       Remapping operation. Should be H2H, HC2H, H2HC, HC2HC, F2F, FC2F, F2FC or FC2FC.
     /// \param[in] input    2d array to multiply with the CTF.
-    ///                     If empty, the CTF is directly written to \p output.
-    ///                     If complex and \p output is real, \c output=abs(input)^2*CTF is computed.
+    ///                     If empty, the CTF is directly written to the output.
+    ///                     If complex and the output is real, the power spectrum is saved.
     /// \param[out] output  2d CTF or CTF-multiplied array.
-    ///                     If no remapping is done, it can be equal to \p input.
+    ///                     If no remapping is done, it can be equal to the input.
     /// \param shape        Logical BDHW shape.
     /// \param[in] ctf      Anisotropic CTF(s). A contiguous vector of CTFs can be passed. In this case, there
     ///                     should be one CTF per output batch. If a single value is passed, it is applied
     ///                     to every batch.
-    /// \param options      Spectrum and CTF options. frequency range is ignored if the input is not empty.
+    /// \param options      Spectrum and CTF options.
     template<Remap REMAP, typename Output, typename CTF,
              typename Input = View<nt::value_type_t<Output>>>
     requires guts::ctfable<REMAP, Input, Output, CTF, false>
@@ -505,7 +492,8 @@ namespace noa::signal {
         auto op = op_t(input_accessor_t(input.get(), input_strides.filter(0, 2, 3)),
                        output_accessor_t(output.get(), output_strides.filter(0, 2, 3)),
                        shape.filter(2, 3), guts::extract_ctf(ctf),
-                       options.ctf_abs, options.ctf_squared);
+                       options.ctf_abs, options.ctf_squared,
+                       options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
 
         auto iwise_shape = shape.filter(0, 2, 3);
         if constexpr (REMAP.is_xx2hx())

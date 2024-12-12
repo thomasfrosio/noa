@@ -161,6 +161,7 @@ namespace noa::signal {
     ///                     If real and the filtered input is complex, the power spectrum of the filter input is saved.
     /// \param shape        BDHW logical shape.
     /// \param pass         Lowpass filter parameters.
+    /// \param options      Spectrum options.
     template<Remap REMAP,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>>
@@ -169,7 +170,8 @@ namespace noa::signal {
         Input&& input,
         Output&& output,
         const Shape4<i64>& shape,
-        const Lowpass& pass
+        const Lowpass& pass,
+        FilterSpectrumOptions options = {}
     ) {
         using coord_t = guts::filter_spectrum_default_coord_t<Input>;
         const auto cutoff = static_cast<coord_t>(pass.cutoff);
@@ -177,10 +179,10 @@ namespace noa::signal {
         if (pass.width > 1e-6) {
             const auto width = static_cast<coord_t>(pass.width);
             const auto filter = guts::Bandpass<guts::BandpassType::LOWPASS, true, coord_t>(cutoff, width);
-            filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter);
+            filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
         } else {
             const auto filter = guts::Bandpass<guts::BandpassType::LOWPASS, false, coord_t>(cutoff);
-            filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter);
+            filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
         }
     }
 
@@ -190,6 +192,7 @@ namespace noa::signal {
     ///                     If real and the filtered input is complex, the power spectrum of the filter input is saved.
     /// \param shape        BDHW logical shape.
     /// \param pass         Highpass filter parameters.
+    /// \param options      Spectrum options.
     template<Remap REMAP,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>>
@@ -198,7 +201,8 @@ namespace noa::signal {
         Input&& input,
         Output&& output,
         const Shape4<i64>& shape,
-        const Highpass& pass
+        const Highpass& pass,
+        FilterSpectrumOptions options = {}
     ) {
         using coord_t = guts::filter_spectrum_default_coord_t<Input>;
         const auto cutoff = static_cast<coord_t>(pass.cutoff);
@@ -206,10 +210,10 @@ namespace noa::signal {
         if (pass.width > 1e-6) {
             const auto width = static_cast<coord_t>(pass.width);
             const auto filter = guts::Bandpass<guts::BandpassType::HIGHPASS, true, coord_t>(cutoff, width);
-            filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter);
+            filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
         } else {
             const auto filter = guts::Bandpass<guts::BandpassType::HIGHPASS, false, coord_t>(cutoff);
-            filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter);
+            filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
         }
     }
 
@@ -219,6 +223,7 @@ namespace noa::signal {
     ///                     If real and the filtered input is complex, the power spectrum of the filter input is saved.
     /// \param shape        BDHW logical shape.
     /// \param pass         Bandpass filter parameters.
+    /// \param options      Spectrum options.
     template<Remap REMAP,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>>
@@ -227,7 +232,8 @@ namespace noa::signal {
         Input&& input,
         Output&& output,
         const Shape4<i64>& shape,
-        const Bandpass& pass
+        const Bandpass& pass,
+        FilterSpectrumOptions options = {}
     ) {
         using coord_t = guts::filter_spectrum_default_coord_t<Input>;
         const auto highpass_cutoff = static_cast<coord_t>(pass.highpass_cutoff);
@@ -238,11 +244,11 @@ namespace noa::signal {
             const auto lowpass_width = static_cast<coord_t>(pass.lowpass_width);
             using filter_t = guts::Bandpass<guts::BandpassType::BANDPASS, true, coord_t>;
             auto filter = filter_t(highpass_cutoff, lowpass_cutoff, highpass_width, lowpass_width);
-            filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter);
+            filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
         } else {
             using filter_t = guts::Bandpass<guts::BandpassType::BANDPASS, false, coord_t>;
             auto filter = filter_t(highpass_cutoff, lowpass_cutoff);
-            filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter);
+            filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
         }
     }
 }

@@ -33,9 +33,9 @@ namespace noa::geometry::guts {
             const output_type& polar,
             const shape2_type& polar_shape,
             coord2_type fftfreq_range,
-            bool fftfreq_range_endpoint,
+            bool fftfreq_endpoint,
             const coord2_type& angle_range,
-            bool angle_range_endpoint
+            bool angle_endpoint
         ) :
             m_spectrum(spectrum),
             m_polar(polar),
@@ -43,8 +43,8 @@ namespace noa::geometry::guts {
             m_start_fftfreq(fftfreq_range[0])
         {
             NOA_ASSERT(fftfreq_range[1] - fftfreq_range[0] >= 0);
-            m_step_angle = Linspace{angle_range[0], angle_range[1], angle_range_endpoint}.for_size(polar_shape[0]).step;
-            m_step_fftfreq = Linspace{fftfreq_range[0], fftfreq_range[1], fftfreq_range_endpoint}.for_size(polar_shape[1]).step;
+            m_step_angle = Linspace{angle_range[0], angle_range[1], angle_endpoint}.for_size(polar_shape[0]).step;
+            m_step_fftfreq = Linspace{fftfreq_range[0], fftfreq_range[1], fftfreq_endpoint}.for_size(polar_shape[1]).step;
 
             // Scale the frequency range to the polar dimension [0,width).
             m_scale = coord2_type::from_vec(spectrum_shape.vec);
@@ -121,14 +121,29 @@ namespace noa::geometry::guts {
             case Interp::LANCZOS8_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
+
+    inline void set_spectrum2polar_defaults(
+        const Shape4<i64>& cartesian_shape,
+        Vec2<f64>& rho_range,
+        Vec2<f64>& angle_range
+    ) {
+        if (rho_range[0] <= 0) {
+            // Find highest fftfreq. If any dimension is even sized, this is 0.5.
+            rho_range[1] = std::max(noa::fft::highest_fftfreq<f64>(cartesian_shape[1]), rho_range[1]);
+            rho_range[1] = std::max(noa::fft::highest_fftfreq<f64>(cartesian_shape[2]), rho_range[1]);
+            rho_range[1] = std::max(noa::fft::highest_fftfreq<f64>(cartesian_shape[3]), rho_range[1]);
+        }
+        if (vall(IsZero{}, angle_range))
+            angle_range = {0., Constant<f64>::PI};
+    }
 }
 
 namespace noa::geometry {
     struct PolarTransformSpectrumOptions {
-        /// Rho frequency [start,end] range of the bounding shells to transform, in cycle/pixels (fftfreq).
+        /// Rho [start, end] range of the bounding shells to transform, in cycle/pixels (fftfreq).
         /// Rho maps to the width dimension of the polar array.
-        /// Defaults to the [0, v], where v is the highest normalized frequency of min(height,width).
-        Vec2<f64> rho_range{};
+        /// A negative or zero end-frequency defaults the highest fftfreq along the cartesian axes.
+        Vec2<f64> rho_range{0, -1};
 
         /// Whether the rho_range's end should be included in the range.
         /// The computed linspace range is Linspace{rho_range[0], rho_range[1], rho_endpoint}.for_size(polar_width).
@@ -172,7 +187,7 @@ namespace noa::geometry {
         PolarTransformSpectrumOptions options = {}
     ) {
         guts::polar_check_parameters(spectrum, polar);
-        guts::set_polar_window_range_to_default(spectrum_shape, options.rho_range, options.phi_range);
+        guts::set_spectrum2polar_defaults(spectrum_shape, options.rho_range, options.phi_range);
 
         check(all(spectrum.shape() == (REMAP.is_hx2xx() ? spectrum_shape.rfft() : spectrum_shape)),
               "The logical shape {} does not match the spectrum shape. Got spectrum:shape={}, REMAP={}",

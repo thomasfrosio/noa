@@ -189,7 +189,7 @@ TEST_CASE("unified::signal::ctf_isotropic, range", "[noa][unified]") {
         noa::signal::ctf_isotropic<Remap::H2H>(
             output_range, {1, 1, 1, trimmed_size}, ctf, {
                 .fftfreq_range = (ctf.pixel_size() / trimmed_resolution_range).as<f64>(),
-                .fftfreq_range_endpoint = endpoint,
+                .fftfreq_endpoint = endpoint,
                 .ctf_squared = true,
             });
         REQUIRE(test::allclose_abs(output_truncated, output_range, 1e-4));

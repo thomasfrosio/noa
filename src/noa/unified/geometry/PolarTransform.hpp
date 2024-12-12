@@ -152,32 +152,6 @@ namespace noa::geometry::guts {
             angle_range = {0., 2 * Constant<f64>::PI};
     }
 
-    inline void set_frequency_range_to_default(
-        const Shape4<i64>& shape,
-        Vec2<f64>& fftfreq_range
-    ) {
-        if (all(fftfreq_range == Vec2<f64>{})) {
-            // default value
-            // Find smallest non-empty dimension.
-            i64 min_size = shape[1] > 1 ? shape[1] : std::numeric_limits<i64>::max();
-            min_size = shape[2] > 1 ? std::min(min_size, shape[2]) : min_size;
-            min_size = shape[3] > 1 ? std::min(min_size, shape[3]) : min_size;
-
-            // Get the max normalized frequency (if odd, it's not 0.5).
-            fftfreq_range = {0, noa::fft::highest_normalized_frequency<f64>(min_size)};
-        }
-    }
-
-    inline void set_polar_window_range_to_default(
-        const Shape4<i64>& cartesian_shape,
-        Vec2<f64>& fftfreq_range,
-        Vec2<f64>& angle_range
-    ) {
-        set_frequency_range_to_default(cartesian_shape, fftfreq_range);
-        if (all(angle_range == Vec2<f64>{}))
-            angle_range = {0., Constant<f64>::PI};
-    }
-
     template<typename Input, typename Output>
     void polar_check_parameters(const Input& input, const Output& output) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");

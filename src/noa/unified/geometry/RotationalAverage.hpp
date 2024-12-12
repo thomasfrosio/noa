@@ -298,6 +298,18 @@ namespace noa::geometry::guts {
     concept rotational_average_ctf =
         nt::ctf_anisotropic<std::decay_t<Ctf>> or
         (nt::varray_decay<Ctf> and nt::ctf_anisotropic<nt::value_type_t<Ctf>>);
+
+    inline void set_rotational_average_defaults(
+        const Shape4<i64>& shape,
+        Vec2<f64>& fftfreq_range
+    ) {
+        if (fftfreq_range[0] <= 0) {
+            // Find highest fftfreq. If any dimension is even sized, this is 0.5.
+            fftfreq_range[1] = std::max(noa::fft::highest_fftfreq<f64>(shape[1]), fftfreq_range[1]);
+            fftfreq_range[1] = std::max(noa::fft::highest_fftfreq<f64>(shape[2]), fftfreq_range[1]);
+            fftfreq_range[1] = std::max(noa::fft::highest_fftfreq<f64>(shape[3]), fftfreq_range[1]);
+        }
+    }
 }
 
 // TODO Add rotation_average() for 2d only with frequency and angle range.
@@ -306,9 +318,9 @@ namespace noa::geometry::guts {
 
 namespace noa::geometry {
     struct RotationalAverageOptions {
-        /// Output fftfreq range. The output shells span over this range.
-        /// Defaults to the full frequency range, i.e. [0, highest_fftfreq].
-        Vec2<f64> fftfreq_range{};
+        /// Output [start, end] fftfreq range. The output shells span over this range.
+        /// A negative or zero end-frequency defaults the highest fftfreq along the cartesian axes.
+        Vec2<f64> fftfreq_range{0, -1};
 
         /// Whether frequency_range's endpoint should be included in the range.
         bool fftfreq_endpoint{true};
@@ -348,7 +360,7 @@ namespace noa::geometry {
     ) {
         const auto n_shells = guts::check_parameters_rotational_average<REMAP>(
             input, input_shape, Empty{}, output, weights);
-        guts::set_frequency_range_to_default(input_shape, options.fftfreq_range);
+        guts::set_rotational_average_defaults(input_shape, options.fftfreq_range);
 
         if (output.device().is_gpu()) {
             #ifdef NOA_ENABLE_GPU
@@ -405,7 +417,7 @@ namespace noa::geometry {
     ) {
         const auto n_shells = guts::check_parameters_rotational_average<REMAP>(
             input, input_shape, input_ctf, output, weights);
-        guts::set_frequency_range_to_default(input_shape, options.fftfreq_range);
+        guts::set_rotational_average_defaults(input_shape, options.fftfreq_range);
 
         if (output.device().is_gpu()) {
             #ifdef NOA_ENABLE_GPU
