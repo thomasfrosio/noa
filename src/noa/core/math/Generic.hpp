@@ -190,10 +190,9 @@ namespace noa {
             return std::abs(x);
         }
     }
-    template<typename T>
+    template<nt::scalar T>
     [[nodiscard]] NOA_FHD constexpr auto abs_squared(T x) noexcept {
-        auto t = abs(x);
-        return t * t;
+        return x * x;
     }
 
     template<typename T, typename U>
