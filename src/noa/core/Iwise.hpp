@@ -54,7 +54,7 @@ namespace noa {
             op.index_end = max(I{}, size - 1);
             op.endpoint = endpoint;
 
-            const auto count = size - static_cast<I>(endpoint);
+            const auto count = max(I{1}, size - static_cast<I>(endpoint));
             const auto delta = stop - start;
             op.step = delta / static_cast<value_type>(count);
             return op;
