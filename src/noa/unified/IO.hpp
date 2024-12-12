@@ -96,7 +96,7 @@ namespace noa::io {
         Array<value_t> tmp;
         Span<const value_t, 4> span;
         if (input.is_dereferenceable()) {
-            span = input.eval().reinterpret_as_cpu({.prefetch = true}).span();
+            span = input.reinterpret_as_cpu({.prefetch = true}).span();
         } else {
             tmp = std::forward<Input>(input).to_cpu().eval();
             span = tmp.span();
