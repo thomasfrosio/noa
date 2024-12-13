@@ -81,15 +81,17 @@ TEMPLATE_TEST_CASE("unified::reduce - batched reductions, cpu vs gpu", "[noa][un
     const auto pad = GENERATE(true, false);
     const auto large = GENERATE(true, false);
     const auto subregion_shape =
-            test::random_shape_batched(3) +
-            (large ? Shape4<i64>{1, 164, 164, 164} : Shape4<i64>{});
+        test::random_shape_batched(3) +
+        (large ? Shape4<i64>{1, 164, 164, 164} : Shape4<i64>{});
     auto shape = subregion_shape;
     if (pad) {
         shape[1] += 10;
         shape[2] += 11;
         shape[3] += 12;
     }
-    INFO("padded: " << pad);
+    INFO("padded=" << pad);
+    INFO("large=" << large);
+    INFO("subregion_shape=" << subregion_shape);
 
     Array<TestType> cpu_data(shape);
     test::Randomizer<TestType> randomizer(-50, 50);
@@ -97,15 +99,15 @@ TEMPLATE_TEST_CASE("unified::reduce - batched reductions, cpu vs gpu", "[noa][un
     auto gpu_data = cpu_data.to(ArrayOption("gpu", "managed"));
 
     cpu_data = cpu_data.subregion(
-            noa::indexing::FullExtent{},
-            noa::indexing::Slice{0, subregion_shape[1]},
-            noa::indexing::Slice{0, subregion_shape[2]},
-            noa::indexing::Slice{0, subregion_shape[3]});
+        noa::indexing::FullExtent{},
+        noa::indexing::Slice{0, subregion_shape[1]},
+        noa::indexing::Slice{0, subregion_shape[2]},
+        noa::indexing::Slice{0, subregion_shape[3]});
     gpu_data = gpu_data.subregion(
-            noa::indexing::FullExtent{},
-            noa::indexing::Slice{0, subregion_shape[1]},
-            noa::indexing::Slice{0, subregion_shape[2]},
-            noa::indexing::Slice{0, subregion_shape[3]});
+        noa::indexing::FullExtent{},
+        noa::indexing::Slice{0, subregion_shape[1]},
+        noa::indexing::Slice{0, subregion_shape[2]},
+        noa::indexing::Slice{0, subregion_shape[3]});
 
     using real_t = noa::traits::value_type_t<TestType>;
     const real_t eps = std::is_same_v<real_t, f32> ? static_cast<real_t>(1e-4) : static_cast<real_t>(1e-10);

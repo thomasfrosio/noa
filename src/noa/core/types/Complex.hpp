@@ -305,6 +305,19 @@ namespace noa::inline types {
             return !(lhs == rhs);
         }
 
+        [[nodiscard]] friend NOA_HD constexpr auto operator<(Complex lhs, Complex rhs) noexcept -> bool {
+            return abs_squared(lhs) < abs_squared(rhs);
+        }
+        [[nodiscard]] friend NOA_HD constexpr auto operator<=(Complex lhs, Complex rhs) noexcept -> bool {
+            return abs_squared(lhs) <= abs_squared(rhs);
+        }
+        [[nodiscard]] friend NOA_HD constexpr auto operator>(Complex lhs, Complex rhs) noexcept -> bool {
+            return abs_squared(lhs) > abs_squared(rhs);
+        }
+        [[nodiscard]] friend NOA_HD constexpr auto operator>=(Complex lhs, Complex rhs) noexcept -> bool {
+            return abs_squared(lhs) >= abs_squared(rhs);
+        }
+
     public:
         [[nodiscard]] NOA_HD constexpr auto to_vec() const noexcept {
             return Vec<value_type, 2, 0>{real, imag};

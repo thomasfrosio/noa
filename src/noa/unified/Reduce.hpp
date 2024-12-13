@@ -19,6 +19,9 @@
 //      allocate the temporary array.
 //      Or add a core interface to compute "nested" reductions??
 
+// TODO Add support for variance/stddev/l2_norm of integers, numpy casts to f64.
+//      This will ultimately add support for the normalize(_per_batch) function.
+
 namespace noa::guts {
     template<typename VArray>
     auto axes_to_output_shape(const VArray& varray, ReduceAxes axes) -> Shape4<i64> {
@@ -47,19 +50,19 @@ namespace noa::guts {
          typename InputValue = nt::value_type_t<Input>,
          typename ArgValue_ = std::conditional_t<nt::empty<ArgValue>, InputValue, nt::value_type_t<ArgValue>>,
          typename ArgOffset_ = std::conditional_t<nt::empty<ArgOffset>, i64, nt::value_type_t<ArgOffset>>,
-         typename ReducedValue_ = std::conditional_t<std::is_void_v<ReducedValue>, ArgValue_, ReducedValue>,
-         typename ReducedOffset_ = std::conditional_t<std::is_void_v<ReducedOffset>, ArgOffset_, ReducedOffset>>
+         typename ReducedValue_ = std::conditional_t<std::is_void_v<ReducedValue>, InputValue, ReducedValue>,
+         typename ReducedOffset_ = std::conditional_t<std::is_void_v<ReducedOffset>, i64, ReducedOffset>>
     concept arg_reduceable =
         nt::readable_varray_decay<Input> and
         (nt::writable_varray_decay<ArgValue> or nt::empty<ArgValue>) and
         (nt::writable_varray_decay<ArgOffset> or nt::empty<ArgOffset>) and
-        (nt::scalar<InputValue, ReducedValue_> or (nt::complex<InputValue> and nt::real<ReducedValue_>)) and
-        nt::scalar<ArgValue_> and nt::integer<ArgOffset_, ReducedOffset_>;
+        (nt::numeric<InputValue, ReducedValue_> or (nt::complex<InputValue> and nt::real<ReducedValue_>)) and
+        nt::numeric<ArgValue_> and nt::integer<ArgOffset_, ReducedOffset_>;
 }
 
 namespace noa {
     /// Returns the minimum value of the input array.
-    template<nt::readable_varray_of_scalar Input>
+    template<nt::readable_varray_of_numeric Input>
     [[nodiscard]] auto min(const Input& array) {
         using value_type = nt::mutable_value_type_t<Input>;
         auto init = std::numeric_limits<value_type>::max();
@@ -69,7 +72,7 @@ namespace noa {
     }
 
     /// Returns the maximum value of the input array.
-    template<nt::readable_varray_of_scalar Input>
+    template<nt::readable_varray_of_numeric Input>
     [[nodiscard]] auto max(const Input& array) {
         using value_type = nt::mutable_value_type_t<Input>;
         auto init = std::numeric_limits<value_type>::lowest();
@@ -79,7 +82,7 @@ namespace noa {
     }
 
     /// Returns a pair with the minimum and maximum value of the input array.
-    template<nt::readable_varray_of_scalar Input>
+    template<nt::readable_varray_of_numeric Input>
     [[nodiscard]] auto min_max(const Input& array) {
         using value_type = nt::mutable_value_type_t<Input>;
         auto init_min = std::numeric_limits<value_type>::max();
@@ -252,7 +255,7 @@ namespace noa {
     /// Returns {offset, maximum} of the input array.
     /// \note If the maximum value appears more than once, this function makes no guarantee to which one is selected.
     /// \note To get the corresponding 4d indices, noa::indexing::offset2index(offset, input) can be used.
-    template<nt::readable_varray_of_scalar Input>
+    template<nt::readable_varray_of_numeric Input>
     [[nodiscard]] auto argmax(const Input& input) {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduced_t = Pair<value_t, i64>;
@@ -268,7 +271,7 @@ namespace noa {
     /// Returns {offset, minimum} of the input array.
     /// \note If the minimum value appears more than once, this function makes no guarantee to which one is selected.
     /// \note To get the corresponding 4d indices, noa::indexing::offset2index(offset, input) can be used.
-    template<nt::readable_varray_of_scalar Input>
+    template<nt::readable_varray_of_numeric Input>
     [[nodiscard]] auto argmin(const Input& input) {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduced_t = Pair<value_t, i64>;
@@ -289,8 +292,8 @@ namespace noa {
     ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
     /// \param[in] input    Input array to reduce.
     /// \param[out] output  Reduced array of minimum values.
-    template<nt::readable_varray_decay_of_scalar Input,
-             nt::writable_varray_decay_of_scalar Output>
+    template<nt::readable_varray_decay_of_numeric Input,
+             nt::writable_varray_decay_of_numeric Output>
     void min(Input&& input, Output&& output) {
         using value_type = nt::mutable_value_type_t<Input>;
         auto init = std::numeric_limits<value_type>::max();
@@ -298,7 +301,7 @@ namespace noa {
     }
 
     /// Reduces an array along some dimension by taking the minimum value.
-    template<nt::readable_varray_decay_of_scalar Input>
+    template<nt::readable_varray_decay_of_numeric Input>
     [[nodiscard]] auto min(Input&& input, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
         Array<value_t> output(guts::axes_to_output_shape(input, axes), input.options());
@@ -312,8 +315,8 @@ namespace noa {
     ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
     /// \param[in] input    Input array to reduce.
     /// \param[out] output  Reduced array of maximum values.
-    template<nt::readable_varray_decay_of_scalar Input,
-             nt::writable_varray_decay_of_scalar Output>
+    template<nt::readable_varray_decay_of_numeric Input,
+             nt::writable_varray_decay_of_numeric Output>
     void max(Input&& input, Output&& output) {
         using value_type = nt::mutable_value_type_t<Input>;
         auto init = std::numeric_limits<value_type>::lowest();
@@ -321,7 +324,7 @@ namespace noa {
     }
 
     /// Reduces an array along some dimension by taking the maximum value.
-    template<nt::readable_varray_decay_of_scalar Input>
+    template<nt::readable_varray_decay_of_numeric Input>
     [[nodiscard]] auto max(Input&& input, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
         Array<value_t> output(guts::axes_to_output_shape(input, axes), input.options());
@@ -330,9 +333,9 @@ namespace noa {
     }
 
     /// Reduces an array along some dimension(s) by taking the minimum and maximum values.
-    template<nt::readable_varray_decay_of_scalar Input,
-             nt::writable_varray_decay_of_scalar Min,
-             nt::writable_varray_decay_of_scalar Max>
+    template<nt::readable_varray_decay_of_numeric Input,
+             nt::writable_varray_decay_of_numeric Min,
+             nt::writable_varray_decay_of_numeric Max>
     void min_max(Input&& input, Min&& min, Max&& max) {
         using value_type = nt::mutable_value_type_t<Input>;
         auto init_min = std::numeric_limits<value_type>::max();
@@ -345,7 +348,7 @@ namespace noa {
     }
 
     /// Reduces an array along some dimension(s) by taking the minimum and maximum values.
-    template<nt::readable_varray_decay_of_scalar Input>
+    template<nt::readable_varray_decay_of_numeric Input>
     [[nodiscard]] auto min_max(Input&& input, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
         auto output_shape = guts::axes_to_output_shape(input, axes);
@@ -638,12 +641,15 @@ namespace noa {
     ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
     ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
     ///
-    /// \tparam ReducedValue        Value type used for the reduction. Any scalar.
-    ///                             If the input value type is complex, this type can be real, in which case the
-    ///                             reduction is done on the magnitude of the input values.
-    /// \tparam ReducedOffset       Offset type used for the reduction. Any integer.
+    /// \tparam ReducedValue        Value type used for the reduction. Any numeric or void.
+    ///                             If void, this defaults to the input value type.
+    ///                             The input is explicitly converted to this type.
+    ///                             If real and the input is complex, the power spectrum of the input is first computed.
+    /// \tparam ReducedOffset       Offset type used for the reduction. Any integer or void.
+    ///                             If void, this defaults to the input index type (i64).
     /// \param[in] input            Array to reduce.
     /// \param[out] output_values   Array where to save the maximum values, or empty.
+    ///                             If real and the reduced value is complex, the power is computed.
     /// \param[out] output_offsets  Array where to save the offsets of the maximum values, or empty.
     /// \note If the maximum value appears more than once, this function makes no guarantee to which one is selected.
     template<typename ReducedValue = void,
@@ -666,11 +672,8 @@ namespace noa {
 
             using input_value_t = nt::mutable_value_type_t<Input>;
             using accessor_t = AccessorI64<const input_value_t, 4>;
-            using value_t = std::conditional_t<nt::empty<Values>, input_value_t, nt::value_type_t<Values>>;
-            using offset_t = std::conditional_t<nt::empty<Offsets>, i64, nt::value_type_t<Offsets>>;
-
-            using reduce_value_t = std::conditional_t<std::is_void_v<ReducedValue>, value_t, ReducedValue>;
-            using reduce_offset_t = std::conditional_t<std::is_void_v<ReducedOffset>, offset_t, ReducedOffset>;
+            using reduce_value_t = std::conditional_t<std::is_void_v<ReducedValue>, input_value_t, ReducedValue>;
+            using reduce_offset_t = std::conditional_t<std::is_void_v<ReducedOffset>, i64, ReducedOffset>;
             using pair_t = Pair<reduce_value_t, reduce_offset_t>;
             auto reduced = pair_t{std::numeric_limits<reduce_value_t>::lowest(), reduce_offset_t{}};
 
@@ -715,12 +718,15 @@ namespace noa {
     ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
     ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
     ///
-    /// \tparam ReducedValue        Value type used for the reduction. Any scalar.
-    ///                             If the input value type is complex, this type can be real, in which case the
-    ///                             reduction is done on the magnitude of the input values.
-    /// \tparam ReducedOffset       Offset type used for the reduction. Any integer.
+    /// \tparam ReducedValue        Value type used for the reduction. Any numeric or void.
+    ///                             If void, this defaults to the input value type.
+    ///                             The input is explicitly converted to this type.
+    ///                             If real and the input is complex, the power spectrum of the input is first computed.
+    /// \tparam ReducedOffset       Offset type used for the reduction. Any integer or void.
+    ///                             If void, this defaults to the input index type (i64).
     /// \param[in] input            Array to reduce.
     /// \param[out] output_values   Array where to save the minimum values, or empty.
+    ///                             If real and the reduced value is complex, the power is computed.
     /// \param[out] output_offsets  Array where to save the offsets of the minimum values, or empty.
     /// \note If the minimum value appears more than once, this function makes no guarantee to which one is selected.
     template<typename ReducedValue = void,
@@ -734,6 +740,7 @@ namespace noa {
         Values&& output_values,
         Offsets&& output_offsets
     ) {
+        // noa::argmin(f32, f64, {});
         constexpr bool has_values = not nt::empty<Values>;
         constexpr bool has_offsets = not nt::empty<Offsets>;
         if constexpr (has_offsets or has_values) {
@@ -743,11 +750,8 @@ namespace noa {
 
             using input_value_t = nt::mutable_value_type_t<Input>;
             using accessor_t = AccessorI64<const input_value_t, 4>;
-            using value_t = std::conditional_t<nt::empty<Values>, input_value_t, nt::value_type_t<Values>>;
-            using offset_t = std::conditional_t<nt::empty<Offsets>, i64, nt::value_type_t<Offsets>>;
-
-            using reduce_value_t = std::conditional_t<std::is_void_v<ReducedValue>, value_t, ReducedValue>;
-            using reduce_offset_t = std::conditional_t<std::is_void_v<ReducedOffset>, offset_t, ReducedOffset>;
+            using reduce_value_t = std::conditional_t<std::is_void_v<ReducedValue>, input_value_t, ReducedValue>;
+            using reduce_offset_t = std::conditional_t<std::is_void_v<ReducedOffset>, i64, ReducedOffset>;
             using pair_t = Pair<reduce_value_t, reduce_offset_t>;
             auto reduced = pair_t{std::numeric_limits<reduce_value_t>::max(), reduce_offset_t{}};
 
@@ -837,7 +841,7 @@ namespace noa {
               "The input and output arrays should have the same shape, but got input={} and output={}",
               input.shape(), output.shape());
 
-        constexpr auto axes_to_reduced = ReduceAxes{false, true, true, true};
+        constexpr auto axes_to_reduced = ReduceAxes::all_but(0);
         switch (options.mode) {
             case Norm::MIN_MAX: {
                 const auto mins_maxs = min_max(input, axes_to_reduced);

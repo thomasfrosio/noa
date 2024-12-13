@@ -289,14 +289,14 @@ namespace noa {
         template<typename T>
         static constexpr void final(const reduced_type& reduced, T& output) {
             if constexpr (SaveValue)
-                output = static_cast<T>(reduced.first);
+                output = cast_or_abs_squared<T>(reduced.first);
             else
                 output = static_cast<T>(reduced.second);
         }
 
         template<typename T, typename U>
         static constexpr void final(const reduced_type& reduced, T& value, U& offset) {
-            value = static_cast<T>(reduced.first);
+            value = cast_or_abs_squared<T>(reduced.first);
             offset = static_cast<U>(reduced.second);
         }
     };
