@@ -255,16 +255,18 @@ namespace noa::inline types {
         ///          be copied if the source and destination are both on the same GPU or on the CPU.
         /// \param[out] output  Destination. It should not overlap with this array.
         template<nt::varray_decay_of_almost_same_type<Array> Output>
-        void to(Output&& output) const& {
-            noa::copy(*this, std::forward<Output>(output));
+        auto to(Output&& output) const& -> decltype(auto) {
+            noa::copy(*this, output);
+            return std::forward<Output>(output);
         }
         template<nt::varray_decay_of_almost_same_type<Array> Output>
-        void to(Output&& output) && {
-            noa::copy(std::move(*this), std::forward<Output>(output));
+        auto to(Output&& output) && -> decltype(auto) {
+            noa::copy(std::move(*this), output);
+            return std::forward<Output>(output);
         }
 
         /// Performs a deep copy of the array according \p option.
-        /// \details The returned array is completely independent from the original one and is C-contiguous.
+        /// \details The returned array is completely independent of the original one and is C-contiguous.
         ///          Contiguous regions of memory have no copy restrictions and can be copied to any device. This is
         ///          also true for pitched layouts, colum or row vectors, or any layout that can be reordered and/or
         ///          reshaped to the aforementioned layouts. However, other non-contiguous memory layouts can only

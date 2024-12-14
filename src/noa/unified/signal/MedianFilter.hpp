@@ -28,8 +28,10 @@ namespace noa::signal {
     template<nt::readable_varray_decay_of_scalar Input,
              nt::writable_varray_decay_of_scalar Output>
     void median_filter_1d(Input&& input, Output&& output, const MedianFilterOptions& options) {
-        if (options.window_size <= 1)
-            return input.to(output);
+        if (options.window_size <= 1) {
+            std::forward<Input>(input).to(output);
+            return;
+        }
 
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         check(not ni::are_overlapped(input, output), "The input and output array should not overlap");
@@ -85,8 +87,10 @@ namespace noa::signal {
     template<nt::readable_varray_decay_of_scalar Input,
              nt::writable_varray_decay_of_scalar Output>
     void median_filter_2d(Input&& input, Output&& output, const MedianFilterOptions& options) {
-        if (options.window_size <= 1)
-            return input.to(output);
+        if (options.window_size <= 1) {
+            std::forward<Input>(input).to(output);
+            return;
+        }
 
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         check(not ni::are_overlapped(input, output), "The input and output array should not overlap");
@@ -143,8 +147,10 @@ namespace noa::signal {
     template<nt::readable_varray_decay_of_scalar Input,
              nt::writable_varray_decay_of_scalar Output>
     void median_filter_3d(Input&& input, Output&& output, const MedianFilterOptions& options) {
-        if (options.window_size <= 1)
-            return input.to(output);
+        if (options.window_size <= 1) {
+            std::forward<Input>(input).to(output);
+            return;
+        }
 
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         check(not ni::are_overlapped(input, output), "The input and output array should not overlap");

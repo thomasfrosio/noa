@@ -139,6 +139,13 @@ TEMPLATE_TEST_CASE("unified::Array, copy values", "[noa][unified]", i32, u64, f3
     }
 }
 
+TEST_CASE("unified::Array, .to returns the output") {
+    auto a0 = Array<f32>(1);
+    auto a1 = Array<f32>(1);
+
+    REQUIRE(a1.get() == std::move(a0).to(a1).get());
+}
+
 TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
     StreamGuard guard(Device{}, Stream::DEFAULT);
     AND_THEN("as another type") {
@@ -184,25 +191,6 @@ TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "[noa][unified]", i32, 
         REQUIRE(all(b.strides() == Strides4<i64>{6000, 1500, 50, 1}));
     }
 }
-
-//TEST_CASE("unified::io, quick load and save", "[noa][unified][io]") {
-//    const Path directory = fs::current_path() / "test_unified_io";
-//    const Path file_path = directory / "test_quick_save.mrc";
-//    fs::create_directory(directory);
-//
-//    const auto shape = test::get_random_shape4_batched(2);
-//    const Array input = memory::linspace<f32>(shape, -10, 10);
-//    io::save(input, file_path);
-//
-//    const Array output = io::load_data<f32>(file_path);
-//
-//    REQUIRE(all(input.shape() == output.shape()));
-//    REQUIRE(all(input.strides() == output.strides()));
-//    REQUIRE(test::Matcher(test::MATCH_ABS, input.get(), output.get(), shape.elements(), 1e-7));
-//
-//    std::error_code er;
-//    fs::remove_all(directory, er); // silence possible error
-//}
 
 TEST_CASE("unified::Array, overlap", "[noa][unified]") {
     Array<f32> lhs;
