@@ -303,12 +303,9 @@ namespace noa::geometry::guts {
         const Shape4<i64>& shape,
         Vec2<f64>& fftfreq_range
     ) {
-        if (fftfreq_range[0] <= 0) {
-            // Find highest fftfreq. If any dimension is even sized, this is 0.5.
-            fftfreq_range[1] = std::max(noa::fft::highest_fftfreq<f64>(shape[1]), fftfreq_range[1]);
-            fftfreq_range[1] = std::max(noa::fft::highest_fftfreq<f64>(shape[2]), fftfreq_range[1]);
-            fftfreq_range[1] = std::max(noa::fft::highest_fftfreq<f64>(shape[3]), fftfreq_range[1]);
-        }
+        // Find highest fftfreq. If any dimension is even sized, this is 0.5.
+        if (fftfreq_range[1] <= 0)
+            fftfreq_range[1] = noa::max(noa::fft::highest_fftfreq<f64>(shape.pop_front()));
     }
 }
 

@@ -146,9 +146,9 @@ namespace noa::geometry::guts {
         Vec2<f64>& radius_range,
         Vec2<f64>& angle_range
     ) {
-        if (all(radius_range == Vec2<f64>{}))
+        if (all(radius_range == 0))
             radius_range = {0., min(cartesian_shape.filter(2, 3).vec.as<f64>() - cartesian_center)};
-        if (all(angle_range == Vec2<f64>{}))
+        if (all(angle_range == 0))
             angle_range = {0., 2 * Constant<f64>::PI};
     }
 

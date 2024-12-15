@@ -7,7 +7,7 @@
 
 namespace noa::fft {
     /// Returns the highest normalized frequency (in cycle/pix) that a dimension with a given size can have.
-    template<std::floating_point T>
+    template<nt::real T>
     [[nodiscard]] constexpr auto highest_normalized_frequency(nt::integer auto size) noexcept -> T {
         // even: the highest frequency is always 0.5, i.e. Nyquist. E.g. size=64, 32/64=0.5
         // odd: Nyquist cannot be reached. Eg. size=63, 31/63 = 0.49206
@@ -16,9 +16,17 @@ namespace noa::fft {
     }
 
     /// Returns the highest normalized frequency (in cycle/pix) that a dimension with a given size can have.
-    template<std::floating_point T>
+    template<nt::real T>
     [[nodiscard]] constexpr auto highest_fftfreq(nt::integer auto size) noexcept {
         return highest_normalized_frequency<T>(size);
+    }
+
+    template<nt::real T, nt::integer U, size_t N> requires (N >= 1 and N <= 3)
+    [[nodiscard]] constexpr auto highest_fftfreq(const Shape<U, N>& shape) noexcept {
+        Vec<T, N> max_fftfreq;
+        for (size_t i{}; i < N; ++i)
+            max_fftfreq[i] = highest_fftfreq<T>(shape[i]);
+        return max_fftfreq;
     }
 
     /// Returns the fft centered index of the corresponding fft non-centered index.

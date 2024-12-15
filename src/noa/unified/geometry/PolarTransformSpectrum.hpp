@@ -127,12 +127,10 @@ namespace noa::geometry::guts {
         Vec2<f64>& rho_range,
         Vec2<f64>& angle_range
     ) {
-        if (rho_range[0] <= 0) {
-            // Find highest fftfreq. If any dimension is even sized, this is 0.5.
-            rho_range[1] = std::max(noa::fft::highest_fftfreq<f64>(cartesian_shape[1]), rho_range[1]);
-            rho_range[1] = std::max(noa::fft::highest_fftfreq<f64>(cartesian_shape[2]), rho_range[1]);
-            rho_range[1] = std::max(noa::fft::highest_fftfreq<f64>(cartesian_shape[3]), rho_range[1]);
-        }
+        // Find highest fftfreq. If any dimension is even sized, this is 0.5.
+        if (rho_range[1] <= 0)
+            rho_range[1] = noa::max(noa::fft::highest_fftfreq<f64>(cartesian_shape.pop_front()));
+
         if (vall(IsZero{}, angle_range))
             angle_range = {0., Constant<f64>::PI};
     }
