@@ -527,20 +527,17 @@ namespace noa::inline types {
         [[nodiscard]] constexpr auto is_reinterpretable_as_cpu() const noexcept -> bool {
             return options().is_reinterpretable(Device::CPU);
         }
-        [[nodiscard]] constexpr auto is_reinterpretable_as_gpu() const noexcept -> bool {
-            return options().is_reinterpretable(Device::GPU);
-        }
         [[nodiscard]] constexpr auto is_dereferenceable() const noexcept -> bool {
             return options().is_dereferenceable();
         }
 
-        [[nodiscard]] auto reinterpret_as(Device::Type type, ReinterpretAsOptions parameters = {}) const -> View {
+        auto reinterpret_as(Device::Type type, ReinterpretAsOptions parameters = {}) const -> View {
+            return reinterpret_as(*this, type, parameters);
+        }
+        auto reinterpret_as_cpu(ReinterpretAsOptions parameters = {}) const -> View {
             return reinterpret_as(*this, Device::CPU, parameters);
         }
-        [[nodiscard]] auto reinterpret_as_cpu(ReinterpretAsOptions parameters = {}) const -> View {
-            return reinterpret_as(*this, Device::CPU, parameters);
-        }
-        [[nodiscard]] auto reinterpret_as_gpu(ReinterpretAsOptions parameters = {}) const -> View {
+        auto reinterpret_as_gpu(ReinterpretAsOptions parameters = {}) const -> View {
             return reinterpret_as(*this, Device::GPU, parameters);
         }
 

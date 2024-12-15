@@ -321,22 +321,22 @@ namespace noa::inline types {
         }
 
         /// Changes the device type (CPU<->GPU) on which the memory should be accessed. See View for more details.
-        [[nodiscard]] auto reinterpret_as(Device::Type type, ReinterpretAsOptions parameters = {}) const& -> Array {
+        auto reinterpret_as(Device::Type type, ReinterpretAsOptions parameters = {}) const& -> Array {
             return noa::reinterpret_as(*this, type, parameters);
         }
-        [[nodiscard]] auto reinterpret_as_cpu(ReinterpretAsOptions parameters = {}) const& -> Array {
+        auto reinterpret_as_cpu(ReinterpretAsOptions parameters = {}) const& -> Array {
             return noa::reinterpret_as(*this, Device::CPU, parameters);
         }
-        [[nodiscard]] auto reinterpret_as_gpu(ReinterpretAsOptions parameters = {}) const& -> Array {
+        auto reinterpret_as_gpu(ReinterpretAsOptions parameters = {}) const& -> Array {
             return noa::reinterpret_as(*this, Device::GPU, parameters);
         }
-        [[nodiscard]] auto reinterpret_as(Device::Type type, ReinterpretAsOptions parameters = {}) && -> Array {
+        auto reinterpret_as(Device::Type type, ReinterpretAsOptions parameters = {}) && -> Array {
             return noa::reinterpret_as(std::move(*this), type, parameters);
         }
-        [[nodiscard]] auto reinterpret_as_cpu(ReinterpretAsOptions parameters = {}) && -> Array {
+        auto reinterpret_as_cpu(ReinterpretAsOptions parameters = {}) && -> Array {
             return noa::reinterpret_as(std::move(*this), Device::CPU, parameters);
         }
-        [[nodiscard]] auto reinterpret_as_gpu(ReinterpretAsOptions parameters = {}) && -> Array {
+        auto reinterpret_as_gpu(ReinterpretAsOptions parameters = {}) && -> Array {
             return noa::reinterpret_as(std::move(*this), Device::GPU, parameters);
         }
 
