@@ -394,7 +394,9 @@ namespace noa::indexing {
         // as long as the number of elements is the same. If inference, find the integer multiple to
         // complete the shape.
         if (n_elements == new_size) {
-            return true; // nothing to do
+            if (infer_dim != -1)
+                shape[infer_dim] = 1; // the dimension asked for inference is empty
+            return true;
         } else if (infer_dim != -1 and new_size > 0 and n_elements % new_size == 0) {
             shape[infer_dim] = n_elements / new_size;
             return true; // inferred
