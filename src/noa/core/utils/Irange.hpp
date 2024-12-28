@@ -58,7 +58,7 @@ namespace noa {
     /// The range has the type of the `end` integer; `begin` integer is
     /// cast to this type.
     template<nt::integer T>
-    constexpr IntRange<T> irange(T begin, T end) noexcept {
+    constexpr IntRange<T> irange(T begin, std::type_identity_t<T> end) noexcept {
         // If end<=begin then the range is empty; we can achieve this effect by
         // choosing the larger of {begin, end} as the loop terminator
         return {begin, max(begin, end)};

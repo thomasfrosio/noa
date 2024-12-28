@@ -7,19 +7,19 @@ namespace noa {
     /// (Deep-)Copies batches across arrays.
     /// \param[in] input            Input array to copy.
     /// \param[out] output          Output array.
-    /// \param[in] batch_indices    Contiguous vector with the input batch index(es) to copy into \p output.
+    /// \param[in] batch_indices    Contiguous vector with the input batch indices to copy into \p output.
     /// \param group_copy_at_count  If the batches are not consecutive, this function will either do a per-batch
     ///                             copy or a grouped copy using extract_subregions(). This parameter sets
     ///                             the threshold when to use a grouped copy. This has no effect if the batches
     ///                             are consecutive, or not on the same device.
     template<nt::readable_varray_decay Input,
              nt::writable_varray_decay Output,
-             nt::readable_varray_decay_of_almost_any<i32, i64> Indexes>
+             nt::readable_varray_decay_of_almost_any<i32, i64> Indices>
     requires nt::varray_decay_of_almost_same_type<Input, Output>
     void copy_batches(
         Input&& input,
         Output&& output,
-        Indexes&& batch_indices,
+        Indices&& batch_indices,
         i64 group_copy_at_count = 3
     ) {
         check(not input.is_empty() and not output.is_empty() and not batch_indices.is_empty(), "Empty array detected");
@@ -37,11 +37,11 @@ namespace noa {
               batch_indices.device());
 
         const auto n_batches_to_copy = output.shape()[0];
-        const auto batch_indices_1d = batch_indices.accessor_contiguous_1d();
+        const auto batch_indices_1d = batch_indices.span_1d_contiguous();
 
         // If the batches to copy to the output are next to each other,
         // this becomes a slice operation. So try to identify this case:
-        using index_t = nt::value_type_t<Indexes>;
+        using index_t = nt::value_type_t<Indices>;
         index_t index{};
         for (i64 i{}; i < n_batches_to_copy; ++i, ++index) {
             const auto current_index = batch_indices_1d[i];

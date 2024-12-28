@@ -199,7 +199,7 @@ namespace noa {
         /// to the target device.
         /// To follow the stream-ordering access rule, prefetching may require synchronizing the original
         /// and/or the target stream.
-        bool prefetch{false};
+        bool prefetch{true};
     };
 
     /// Changes the device type (CPU<->GPU) on which the memory should be accessed.
@@ -532,13 +532,13 @@ namespace noa::inline types {
         }
 
         auto reinterpret_as(Device::Type type, ReinterpretAsOptions parameters = {}) const -> View {
-            return reinterpret_as(*this, type, parameters);
+            return noa::reinterpret_as(*this, type, parameters);
         }
         auto reinterpret_as_cpu(ReinterpretAsOptions parameters = {}) const -> View {
-            return reinterpret_as(*this, Device::CPU, parameters);
+            return noa::reinterpret_as(*this, Device::CPU, parameters);
         }
         auto reinterpret_as_gpu(ReinterpretAsOptions parameters = {}) const -> View {
-            return reinterpret_as(*this, Device::GPU, parameters);
+            return noa::reinterpret_as(*this, Device::GPU, parameters);
         }
 
         /// Reinterprets the value type.

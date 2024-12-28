@@ -516,17 +516,17 @@ namespace noa::signal {
         Vec<i64, N> registration_radius{Vec<i64, N>::from_value(1)};
 
         /// ((D)H)W maximum lag allowed, i.e. the peak is selected within this elliptical radius.
-        /// If negative or 0, it is ignored. Otherwise, an elliptical mask is applied, in-place, on the
+        /// If negative or 0, it is ignored. Otherwise, an elliptical mask is applied on the
         /// centered cross-correlation map before selecting the peak.
         Vec<f64, N> maximum_lag{Vec<f64, N>::from_value(-1)};
     };
 
     /// Find the cross-correlation peak(s) of the cross-correlation map(s).
-    /// \tparam REMAP                           Whether \p xmap is centered. Should be F2F or FC2FC.
-    /// \param[in,out] cross_correlation_map    1d, 2d or 3d cross-correlation map.
-    /// \param[out] peak_coordinates            Output ((D)H)W coordinate of the highest peak. One per batch or empty.
-    /// \param[out] peak_values                 Output value of the highest peak. One per batch or empty.
-    /// \param options                          Picking and registration options.
+    /// \tparam REMAP                       Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \param[in] cross_correlation_map    1d, 2d or 3d cross-correlation map.
+    /// \param[out] peak_coordinates        Output ((D)H)W coordinate of the highest peak. One per batch or empty.
+    /// \param[out] peak_values             Output value of the highest peak. One per batch or empty.
+    /// \param options                      Picking and registration options.
     template<Remap REMAP, size_t N,
              nt::readable_varray_decay_of_almost_any<f32, f64> Input,
              nt::writable_varray_decay_of_any<Vec<f32, N>, Vec<f64, N>> PeakCoord = View<Vec<f64, N>>,
