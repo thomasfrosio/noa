@@ -59,9 +59,10 @@ namespace noa {
         }
         if (index > 0) {
             NOA_ASSERT(batch_indices_1d[0] + n_batches_to_copy == index);
-            return std::forward<Input>(input)
+            std::forward<Input>(input)
                 .subregion(ni::Slice{batch_indices_1d[0], index})
                 .to(std::forward<Output>(output));
+            return;
         }
 
         // Otherwise, if the arrays are on the same device, we can use extract_subregions (only one iwise call).
