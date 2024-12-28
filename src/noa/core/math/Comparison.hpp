@@ -19,19 +19,19 @@ namespace noa {
     [[nodiscard]] NOA_FH constexpr auto is_normal(double x) noexcept -> bool { return std::isnormal(x); }
     [[nodiscard]] NOA_FH constexpr auto is_normal(float x) noexcept -> bool { return std::isnormal(x); }
 
-    template<nt::scalar T>
+    template<nt::numeric T>
     [[nodiscard]] NOA_FHD constexpr auto min(T x, T y) noexcept -> T { return (y < x) ? y : x; }
 
     template<typename T>
     [[nodiscard]] NOA_IH constexpr auto min(std::initializer_list<T> list) noexcept -> T { return std::min(list); }
 
-    template<nt::scalar T>
+    template<nt::numeric T>
     [[nodiscard]] NOA_FHD constexpr auto max(T x, T y) noexcept -> T { return (y > x) ? y : x; }
 
     template<typename T>
     [[nodiscard]] NOA_IH constexpr auto max(std::initializer_list<T> list) noexcept -> T { return std::max(list); }
 
-    template<nt::scalar T>
+    template<nt::numeric T>
     [[nodiscard]] NOA_FHD constexpr auto clamp(T val, std::type_identity_t<T> low, std::type_identity_t<T> high) noexcept -> T {
     #ifdef __CUDA_ARCH__
         return min(high, max(val, low));
