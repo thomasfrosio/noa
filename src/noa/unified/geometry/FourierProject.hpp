@@ -423,7 +423,7 @@ namespace noa::geometry::guts {
         static constexpr bool has_output_weights = not nt::empty<output_weight_type>;
         using output_weight_value_type = nt::value_type_t<output_weight_type>;
         using input_weight_value_type = std::conditional_t<
-            has_input_weights, nt::mutable_value_type_t<input_weight_type>, output_weight_type>;
+            has_input_weights, nt::mutable_value_type_t<input_weight_type>, output_weight_value_type>;
 
         static_assert(guts::fourier_projection_transform_types<scale_type, rotate_type, ews_type> and
                       guts::fourier_projection_types<input_type, output_type> and

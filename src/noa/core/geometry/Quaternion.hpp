@@ -173,7 +173,7 @@ namespace noa::geometry {
         }
 
         template<nt::real U>
-        [[nodiscard]] NOA_HD constexpr auto as() const noexcept -> Quaternion<T> {
+        [[nodiscard]] NOA_HD constexpr auto as() const noexcept -> Quaternion<U> {
             return {static_cast<U>(z), static_cast<U>(y), static_cast<U>(x), static_cast<U>(w)};
         }
     };
