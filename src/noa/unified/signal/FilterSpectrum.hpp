@@ -211,7 +211,7 @@ namespace noa::signal {
         const Filter& filter,
         FilterSpectrumOptions options = {}
     ) {
-        filter_spectrum<1, REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter);
+        filter_spectrum<REMAP, 1>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
     }
 
     /// Filters 1|2d spectrum(s).
@@ -227,7 +227,7 @@ namespace noa::signal {
         const Filter& filter,
         FilterSpectrumOptions options = {}
     ) {
-        filter_spectrum<2, REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter);
+        filter_spectrum<REMAP, 2>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
     }
 
     /// Filters 1|2|3d spectrum(s).
@@ -243,6 +243,6 @@ namespace noa::signal {
         const Filter& filter,
         FilterSpectrumOptions options = {}
     ) {
-        filter_spectrum<3, REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter);
+        filter_spectrum<REMAP, 3>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
     }
 }

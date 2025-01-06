@@ -1050,7 +1050,7 @@ namespace noa::geometry::guts {
 
             constexpr coord_type PI = Constant<coord_type>::PI;
             const coord_type radius = sqrt(dot(dist, dist));
-            const coord_type sinc = sinc(PI * radius);
+            const coord_type sinc = noa::sinc(PI * radius);
             const auto sinc2 = static_cast<input_value_type>(sinc * sinc); // > 0.05
 
             const auto value = m_input(batch, j, k, l);
