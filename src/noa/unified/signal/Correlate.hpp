@@ -435,15 +435,9 @@ namespace noa::signal {
         const CrossCorrelationMapOptions& options = {},
         Buffer&& buffer = {}
     ) {
-        check(not lhs.is_empty() and not rhs.is_empty() and not output.is_empty(), "Empty array detected");
-
-        const auto expected_shape = output.shape().rfft();
-        check(vall(Equal{}, lhs.shape(), expected_shape) and vall(Equal{}, rhs.shape(), expected_shape),
-              "Given an output map of shape {}, the input transforms should be of shape {}, "
-              "but got lhs:shape={}, rhs:shape={}",
-              output.shape(), expected_shape, lhs.shape(), rhs.shape());
-
         const Device device = output.device();
+        const auto expected_shape = output.shape().rfft();
+        check(not lhs.is_empty() and not rhs.is_empty() and not output.is_empty(), "Empty array detected");
         check(device == lhs.device() and device == rhs.device(),
               "The lhs, rhs and output arrays must be on the same device, "
               "but got lhs:device={}, rhs:device={} and output:device={}",
@@ -452,10 +446,10 @@ namespace noa::signal {
         using complex_t = nt::value_type_t<Buffer>;
         View<complex_t> tmp;
         if (buffer.is_empty()) {
-            check(ni::are_elements_unique(rhs.strides(), rhs.shape()),
+            check(ni::are_elements_unique(rhs.strides(), expected_shape),
                   "Since no temporary buffer is passed, the rhs input is used as buffer, "
-                  "thus should have unique elements (e.g. no broadcasting), "
-                  "but got rhs:shape={}, rhs:strides={}", rhs.shape(), rhs.strides());
+                  "thus should have unique elements (e.g. no broadcasting) with a shape of {}, "
+                  "but got rhs:shape={}, rhs:strides={}", expected_shape, rhs.shape(), rhs.strides());
             tmp = rhs.view();
         } else {
             check(device == buffer.device(),
