@@ -135,7 +135,7 @@ namespace noa::signal {
         check_separable_filter(filter_width, std::source_location::current());
 
         if (not buffer.is_empty()) {
-            check(all(buffer.shape() == output.shape()) and all(buffer.strides() > 1),
+            check(all(buffer.shape() == output.shape()) and ni::are_elements_unique(buffer.strides(), output.shape()),
                   "The temporary array should be able to hold an array of shape {}, but got shape {} and strides {}",
                   output.shape(), buffer.shape(), buffer.strides());
             check(device == buffer.device(),

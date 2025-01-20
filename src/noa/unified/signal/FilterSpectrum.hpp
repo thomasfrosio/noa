@@ -24,8 +24,8 @@ namespace noa::signal::guts {
     template<size_t N, Remap REMAP,
              nt::integer Index,
              nt::real Coord,
-             nt::readable_nd_optional<4> Input,
-             nt::writable_nd<4> Output,
+             nt::readable_nd_optional<N + 1> Input,
+             nt::writable_nd<N + 1> Output,
              filterable_nd<N, Input> Filter>
     requires (nt::accessor_pure<Input> and (REMAP.is_hx2hx() or REMAP.is_fx2fx()))
     class FilterSpectrum {
@@ -118,9 +118,9 @@ namespace noa::signal::guts {
         check(not output.is_empty(), "Empty array detected");
 
         if constexpr (N == 1)
-            check(shape[1] == 0 and shape[2] == 0, "1d spectra are expected, but got shape={}", shape);
+            check(shape[1] == 1 and shape[2] == 1, "1d spectra are expected, but got shape={}", shape);
         else if constexpr (N == 2)
-            check(shape[1] == 0, "2d spectra are expected, but got shape={}", shape);
+            check(shape[1] == 1, "2d spectra are expected, but got shape={}", shape);
 
         const auto expected_output_shape = REMAP.is_xx2hx() ? shape.rfft() : shape;
         check(vall(Equal{}, output.shape(), expected_output_shape),

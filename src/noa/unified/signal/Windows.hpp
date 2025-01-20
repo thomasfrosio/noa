@@ -11,7 +11,7 @@ namespace noa::signal {
     template<typename T>
     Array<T> window_gaussian(i64 n_elements, f64 stddev, WindowOptions options = {}) {
         Array<T> output(options.half_window ? (n_elements - 1) / 2 + 1 : n_elements);
-        window_gaussian(output.data(), n_elements, stddev, options.normalize, options.half_window);
+        window_gaussian(output.data(), n_elements, stddev, {options.normalize, options.half_window});
         return output;
     }
 
@@ -21,7 +21,7 @@ namespace noa::signal {
     template<typename T>
     Array<T> window_blackman(i64 n_elements, WindowOptions options = {}) {
         Array<T> output(options.half_window ? (n_elements - 1) / 2 + 1 : n_elements);
-        window_blackman(output.data(), n_elements, options.normalize, options.half_window);
+        window_blackman(output.data(), n_elements, {options.normalize, options.half_window});
         return output;
     }
 
@@ -32,7 +32,7 @@ namespace noa::signal {
     template<typename T>
     Array<T> window_sinc(i64 n_elements, f64 constant, WindowOptions options = {}) {
         Array<T> output(options.half_window ? (n_elements - 1) / 2 + 1 : n_elements);
-        window_sinc(output.data(), n_elements, constant, options.normalize, options.half_window);
+        window_sinc(output.data(), n_elements, constant, {options.normalize, options.half_window});
         return output;
     }
 }
