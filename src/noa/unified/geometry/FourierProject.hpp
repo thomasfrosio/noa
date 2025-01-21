@@ -126,7 +126,13 @@ namespace noa::geometry::guts {
         //  rfftfreq_samples=4.6->5, window_size=11
         //  computed_window=[-0.25,-0.2,-0.15,-0.1,-0.05,0.,0.05,0.1,0.15,0.2,0.25]
         auto rfftfreq_samples = static_cast<f64>(spectrum_size) * static_cast<f64>(fftfreq_blackman);
-        rfftfreq_samples = ceil(rfftfreq_samples); // include last fraction
+        if (allclose(rfftfreq_samples, 1.)) {
+            // Due to floating-point precision errors, the default value (1/spectrum_size)
+            // may be slightly greater than 1. In this case, we really mean 1.
+            rfftfreq_samples = round(rfftfreq_samples);
+        } else {
+            rfftfreq_samples = ceil(rfftfreq_samples); // include last fraction
+        }
         const auto rfftfreq_samples_int = max(Int{1}, static_cast<Int>(rfftfreq_samples));
         auto window_size = 2 * (rfftfreq_samples_int) + 1;
 
