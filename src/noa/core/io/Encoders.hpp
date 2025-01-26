@@ -110,7 +110,7 @@ namespace noa::io {
 
         static auto is_supported_extension(std::string_view extension) noexcept -> bool {
             using namespace std::string_view_literals;
-            return extension == ".mrc"sv or extension == ".mrcs"sv;
+            return extension == ".mrc"sv or extension == ".mrcs"sv or extension == ".st"sv;
         }
 
         static auto required_file_size(const Shape<i64, 4>& shape, Encoding::Type dtype) noexcept -> i64 {
