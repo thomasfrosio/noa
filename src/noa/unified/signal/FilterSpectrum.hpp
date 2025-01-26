@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/core/Enums.hpp"
+#include "noa/core/Iwise.hpp"
 #include "noa/core/math/Generic.hpp"
 #include "noa/core/types/Vec.hpp"
 #include "noa/core/types/Shape.hpp"
