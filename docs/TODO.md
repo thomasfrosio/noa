@@ -7,12 +7,19 @@
 - Complex CTFs, for Russo/Henderson's EWS correction?
 
 
+- Do a quick review on the function taking fftfreq_range. Replace by a Linspace? Do we need one for the input and one for the output? Move FSC to geometry since it's a transformation, like rotational_average.
+
+
+
 ## `General`
 
 - __Windows support__. It should not be that complicated. One thing to look at is OpenMP support.
 
 
 - __as\<T\>()__ functions. We use these conversion member functions for various types: `Vec`, `Shape`, `Strides`, `Mat`, `Quaternion`, `CTFIsotropic`, `CTFAnisotropic`, and `Span`. These functions return by value. Should we return conditionally by reference if no conversion happens (`T == value_type`)? Performance wise, for these types, it should make any difference with optimizations on. From what I've seen it shouldn't break any code too. Maybe for C++23 when explicit object parameter is available, because right now it would mean to add at least 3 extra overloads for `const&`, `&`, and `&&`.
+
+
+- Frontend functions are templates, thus implicitly inline. I've noticed that sometimes it puts to much code into the caller block and may prevent some optimizations to be triggered. I think it could be useful to start using `[[gnu::noinline]]` in these frontend functions and/or in the core functions.
 
 
 - __SIMD__ Trying explicit SIMD in the CPU-"core" functions (start with ewise_*?). [xsimd](https://xsimd.readthedocs.io/en/latest/index.html) seems interesting (their "abstract batch" at least).
