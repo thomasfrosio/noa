@@ -1,4 +1,5 @@
 #include <noa/core/io/TextFile.hpp>
+#include <noa/core/utils/Zip.hpp>
 #include <noa/unified/IO.hpp>
 
 #include <noa/unified/fft/Remap.hpp>
@@ -24,7 +25,7 @@ TEST_CASE("unified::geometry::fft::rotational_average", "[noa][unified]") {
     INFO(size);
 
     // Handpicked frequencies that fall exactly onto a shell.
-    const auto frequency_range = Vec{
+    const auto frequency_range = noa::Linspace{
         size == 64 ? 0.125 : 0.2,
         size == 64 ? 0.3125 : 0.4,
     };
@@ -79,7 +80,7 @@ TEST_CASE("unified::geometry::fft::rotational_average", "[noa][unified]") {
         const auto output_range = noa::empty<f32>({n_batch, 1, 1, frequency_range_n_shells}, options);
         const auto weight_range = noa::like(output_range);
         noa::geometry::rotational_average<"HC2H">(
-            input_rfft, shape, output_range, weight_range, {.fftfreq_range = frequency_range});
+            input_rfft, shape, output_range, weight_range, {.output_fftfreq = frequency_range});
 
         const auto output_cropped = output.subregion(subregion_within_full_range);
         const auto weight_cropped = weight.subregion(subregion_within_full_range);
@@ -172,6 +173,73 @@ TEST_CASE("unified::geometry::fft::rotational_average_anisotropic, vs isotropic"
             REQUIRE(test::allclose_abs(expected, rotational_averages.subregion(i), 1e-3));
         }
     }
+}
+
+namespace {
+    template<typename Real>
+    void save_vector_to_text(View<Real> x, const Path& filename) {
+        noa::check(noa::indexing::is_contiguous_vector_batched_strided(x));
+
+        std::string format;
+        for (auto i: noa::irange(x.shape().batch()))
+            format += fmt::format("{}\n", fmt::join(x.subregion(i).span_1d(), ","));
+        noa::write_text(format, filename);
+    }
+}
+
+// TODO Add better tests...
+TEST_CASE("unified::geometry::fft::fuse_rotational_averages", "[noa][unified]") {
+    // Simulate two 1d CTFs with different spacing and defocus, then fuse to another CTF, and check that they match.
+    const auto directory = test::NOA_DATA_PATH / "geometry";
+
+    using CTFIsotropic64 = noa::signal::CTFIsotropic<f64>;
+    constexpr auto defocus = std::array{2.15, 2.90, 2.4};
+    constexpr auto spacing = std::array{1.80, 2.40, 2.};
+    constexpr auto phase_shifts = std::array{0.45, 0.75, 0.55};
+    auto input_ctfs = Array<CTFIsotropic64>(3);
+    for (auto&& [d, s, p, ctf]: noa::zip(defocus, spacing, phase_shifts, input_ctfs.span_1d_contiguous())) {
+        ctf = CTFIsotropic64::Parameters{
+            .pixel_size = s,
+            .defocus = d,
+            .voltage = 300.,
+            .amplitude = 0.1,
+            .cs = 2.7,
+            .phase_shift = p,
+            .bfactor = 0.,
+            .scale = 1.,
+        }.to_ctf();
+    }
+
+    constexpr i64 size = 2048;
+    const auto input = noa::Array<f64>({3, 1, 1, size / 2 + 1});
+    noa::signal::ctf_isotropic<"h2h">(input, input.shape().set<3>(size), input_ctfs);
+    // save_vector_to_text(input.view(), directory / "test_input_average.txt");
+
+    // Target CTF.
+    auto target_ctf = CTFIsotropic64::Parameters{
+        .pixel_size = 2.1,
+        .defocus = 2.45,
+        .voltage = 300.,
+        .amplitude = 0.1,
+        .cs = 2.7,
+        .phase_shift = 0.5,
+        .bfactor = 0.,
+        .scale = 1.,
+    }.to_ctf();
+
+    const auto target = noa::Array<f64>({1, 1, 1, size / 2 + 1});
+    noa::signal::ctf_isotropic<"h2h">(target, target.shape().set<3>(size), target_ctf, {.fftfreq_range = {0.1, 0.4}});
+
+    // Output CTF.
+    const auto output = noa::like(target);
+    noa::geometry::fuse_rotational_averages(
+        input, {.start = 0., .stop = 0.5}, input_ctfs,
+        output, {.start = 0.1, .stop = 0.4}, target_ctf
+    );
+    // save_vector_to_text(target.view(), directory / "test_expected_average.txt");
+    // save_vector_to_text(output.view(), directory / "test_result_average.txt");
+
+    REQUIRE(test::allclose_abs(target, output, 5e-2));
 }
 
 TEST_CASE("unified::geometry::fft::rotational_average_anisotropic, test", "[.]") {
