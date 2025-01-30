@@ -121,6 +121,9 @@ namespace noa::signal {
         [[nodiscard]] constexpr auto voltage() const -> value_type {
             return m_voltage_volts * static_cast<value_type>(1e-3); // volts -> kilovolts
         }
+        [[nodiscard]] constexpr auto wavelength() const -> value_type {
+            return m_k1 / Constant<value_type>::PI; // k1 = wavelength * PI, in angstrom
+        }
 
     public: // setters
         constexpr void set_pixel_size(value_type pixel_size) { m_pixel_size = pixel_size; }
@@ -188,6 +191,21 @@ namespace noa::signal {
             if (m_bfactor_forth != 0)
                 ctf *= exp(m_bfactor_forth * r2);
             return ctf * m_scale;
+        }
+
+        [[nodiscard]] constexpr auto fftfreq_at(nt::real auto phase) const -> value_type {
+            // Floating-point precision errors are a real thing, switch everything to double precision.
+            const auto a = static_cast<f64>(m_k2);
+            const auto b = static_cast<f64>(m_k1) * static_cast<f64>(m_defocus_angstroms);
+            const auto c = -static_cast<f64>(phase) - static_cast<f64>(m_phase_shift) - static_cast<f64>(m_k3);
+            const auto d = b * b - 4 * a * c;
+
+            const auto numerator = -b - sqrt(d);
+            const auto denominator = 2 * a;
+            auto fftfreq = sqrt(abs(numerator / denominator));
+            fftfreq *= static_cast<f64>(m_pixel_size);
+
+            return static_cast<value_type>(fftfreq);
         }
 
     private:
@@ -341,6 +359,9 @@ namespace noa::signal {
         [[nodiscard]] constexpr auto voltage() const -> value_type {
             return m_voltage_volts * static_cast<value_type>(1e-3); // volts -> kilovolts
         }
+        [[nodiscard]] constexpr auto wavelength() const -> value_type {
+            return m_k1 / Constant<value_type>::PI; // k1 = wavelength * PI, in angstrom
+        }
 
     public: // setters
         constexpr void set_pixel_size(pixel_size_type pixel_size) { m_pixel_size = pixel_size; }
@@ -389,7 +410,6 @@ namespace noa::signal {
                 out.m_amplitude = static_cast<U>(m_amplitude);
                 out.m_bfactor_forth = static_cast<U>(m_bfactor_forth);
                 out.m_scale = static_cast<U>(m_scale);
-                out.m_lambda_angstroms = static_cast<U>(m_lambda_angstroms);
                 out.m_k1 = static_cast<U>(m_k1);
                 out.m_k2 = static_cast<U>(m_k2);
                 out.m_k3 = static_cast<U>(m_k3);
@@ -399,7 +419,7 @@ namespace noa::signal {
 
     public:
         template<nt::real Coord>
-        [[nodiscard]] constexpr auto phase_at(Vec2<Coord> fftfreq) const -> value_type {
+        [[nodiscard]] constexpr auto phase_at(const Vec<Coord, 2>& fftfreq) const -> value_type {
             const auto scaled_fftfreq = fftfreq.template as<value_type>() / m_pixel_size;
             const auto phi = noa::geometry::cartesian2phi<false>(scaled_fftfreq);
             const auto rho = noa::geometry::cartesian2rho(scaled_fftfreq);
@@ -413,7 +433,7 @@ namespace noa::signal {
         }
 
         template<nt::real Coord>
-        [[nodiscard]] constexpr auto value_at(Vec2<Coord> fftfreq) const -> value_type {
+        [[nodiscard]] constexpr auto value_at(const Vec<Coord, 2>& fftfreq) const -> value_type {
             const auto scaled_fftfreq = fftfreq.template as<value_type>() / m_pixel_size;
             const auto phi = noa::geometry::cartesian2phi<false>(scaled_fftfreq);
             const auto rho = noa::geometry::cartesian2rho(scaled_fftfreq);
@@ -443,7 +463,7 @@ namespace noa::signal {
             const auto r1 = rho;
             const auto r2 = r1 * r1;
             const auto r4 = r2 * r2;
-            const auto l1 = m_lambda_angstroms;
+            const auto l1 = wavelength();
             const auto l2 = l1 * l1;
             const auto l4 = l2 * l2;
             const auto c1 = m_cs_angstroms;
@@ -468,10 +488,10 @@ namespace noa::signal {
 
         NOA_HD void set_lambda_and_cs_() {
             const auto voltage = static_cast<f64>(m_voltage_volts);
-            m_lambda_angstroms = relativistic_electron_wavelength(voltage) * 1e10; // angstroms
+            const auto lambda = relativistic_electron_wavelength(voltage) * 1e10; // angstroms
             constexpr f64 PI = Constant<f64>::PI;
-            m_k1 = PI * m_lambda_angstroms;
-            m_k2 = PI * 0.5 * m_cs_angstroms * m_lambda_angstroms * m_lambda_angstroms * m_lambda_angstroms;
+            m_k1 = PI * lambda;
+            m_k2 = PI * 0.5 * m_cs_angstroms * lambda * lambda * lambda;
         }
 
         constexpr void set_amplitude_fraction_() {
@@ -488,7 +508,6 @@ namespace noa::signal {
         value_type m_bfactor_forth{};
         value_type m_scale{};
 
-        value_type m_lambda_angstroms;
         value_type m_k1;
         value_type m_k2;
         value_type m_k3;

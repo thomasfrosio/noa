@@ -15,8 +15,13 @@ namespace noa {
         Value start{0};
         Value step{1};
 
-        [[nodiscard]] NOA_HD constexpr Value operator()(nt::integer auto index) const noexcept {
+        [[nodiscard]] NOA_FHD constexpr Value operator()(nt::integer auto index) const noexcept {
             return start + static_cast<real_type>(index) * step;
+        }
+
+        template<nt::numeric U>
+        [[nodiscard]] NOA_FHD constexpr auto as() const -> Arange<U> {
+            return {static_cast<U>(start), static_cast<U>(step)};
         }
     };
 
@@ -41,13 +46,18 @@ namespace noa {
             index_type index_end;
             bool endpoint;
 
-            [[nodiscard]] NOA_HD constexpr value_type operator()(index_type i) const noexcept {
+            [[nodiscard]] NOA_FHD constexpr value_type operator()(index_type i) const noexcept {
                 return endpoint and i == index_end ? stop : start + static_cast<real_type>(i) * step;
             }
         };
 
+        template<nt::numeric U>
+        [[nodiscard]] NOA_FHD constexpr auto as() const -> Linspace<U> {
+            return {static_cast<U>(start), static_cast<U>(stop), endpoint};
+        }
+
         template<nt::integer I>
-        auto for_size(const I& size) -> Op<I> requires nt::scalar<value_type> {
+        [[nodiscard]] NOA_FHD constexpr auto for_size(const I& size) const -> Op<I> requires nt::scalar<value_type> {
             Op<I> op;
             op.start = start;
             op.stop = stop;
@@ -61,7 +71,7 @@ namespace noa {
         }
 
         template<nt::integer I>
-        auto for_size(const I& size) -> Op<I> requires nt::complex<value_type> {
+        [[nodiscard]] NOA_FHD constexpr auto for_size(const I& size) const -> Op<I> requires nt::complex<value_type> {
             auto real = Linspace<real_type>{start.real, stop.real, endpoint}.for_size(size);
             auto imag = Linspace<real_type>{start.imag, stop.imag, endpoint}.for_size(size);
             return Op{

@@ -269,8 +269,8 @@ namespace noa::signal::guts {
 
     template<typename Lhs, typename Rhs, typename Output, typename Cones = Empty>
     void check_fsc_parameters(
-            const Lhs& lhs, const Rhs& rhs, const Output& fsc, const Shape4<i64>& shape,
-            const Cones& cone_directions = {}
+        const Lhs& lhs, const Rhs& rhs, const Output& fsc, const Shape4<i64>& shape,
+        const Cones& cone_directions = {}
     ) {
         check(not lhs.is_empty() and not rhs.is_empty() and not fsc.is_empty(), "Empty array detected");
         check(not ni::are_overlapped(lhs, rhs), "Computing the FSC on the same array is not allowed");
@@ -321,10 +321,10 @@ namespace noa::signal::fft {
              nt::writable_varray_decay_of_real Output>
     requires (nt::varray_decay_of_almost_same_type<Lhs, Rhs> and not REMAP.has_layout_change())
     void fsc_isotropic(
-            Lhs&& lhs,
-            Rhs&& rhs,
-            Output&& fsc,
-            const Shape4<i64>& shape
+        Lhs&& lhs,
+        Rhs&& rhs,
+        Output&& fsc,
+        const Shape4<i64>& shape
     ) {
         guts::check_fsc_parameters(lhs, rhs, fsc, shape);
 
@@ -361,9 +361,9 @@ namespace noa::signal::fft {
              nt::readable_varray_decay_of_complex Rhs>
     requires (nt::varray_decay_of_almost_same_type<Lhs, Rhs> and not REMAP.has_layout_change())
     auto fsc_isotropic(
-            Lhs&& lhs,
-            Rhs&& rhs,
-            const Shape4<i64>& shape
+        Lhs&& lhs,
+        Rhs&& rhs,
+        const Shape4<i64>& shape
     ) {
         using value_t = nt::mutable_value_type_t<Lhs>;
         auto fsc = Array<value_t>({shape[0], 1, 1, n_shells(rhs.shape())}, rhs.options());
@@ -391,12 +391,12 @@ namespace noa::signal::fft {
               nt::vec_real_size<nt::value_type_t<Cones>, 3> and
               not REMAP.has_layout_change())
     void fsc_anisotropic(
-            Lhs&& lhs,
-            Rhs&& rhs,
-            Output&& fsc,
-            const Shape4<i64>& shape,
-            Cones&& cone_directions,
-            f64 cone_aperture
+        Lhs&& lhs,
+        Rhs&& rhs,
+        Output&& fsc,
+        const Shape4<i64>& shape,
+        Cones&& cone_directions,
+        f64 cone_aperture
     ) {
         guts::check_fsc_parameters(lhs, rhs, fsc, shape, cone_directions);
 
@@ -412,14 +412,14 @@ namespace noa::signal::fft {
         auto denominator_rhs = denominator.subregion(ni::FullExtent{}, 1);
 
         auto reduction_op = FSCAnisotropic<REMAP, coord_t, i64, input_accessor_t, output_accessor_t, direction_accessor_t>(
-                input_accessor_t(lhs.get(), lhs.strides()),
-                input_accessor_t(rhs.get(), rhs.strides()), shape.pop_front(),
-                output_accessor_t(fsc.get(), fsc.strides().filter(0, 2, 3).template as_safe<i32>()),
-                output_accessor_t(denominator_lhs.get(), denominator_lhs.strides().filter(0, 2, 3).template as_safe<i32>()),
-                output_accessor_t(denominator_rhs.get(), denominator_rhs.strides().filter(0, 2, 3).template as_safe<i32>()),
-                direction_accessor_t(cone_directions.get()),
-                cone_directions.ssize(),
-                static_cast<coord_t>(cone_aperture));
+            input_accessor_t(lhs.get(), lhs.strides()),
+            input_accessor_t(rhs.get(), rhs.strides()), shape.pop_front(),
+            output_accessor_t(fsc.get(), fsc.strides().filter(0, 2, 3).template as_safe<i32>()),
+            output_accessor_t(denominator_lhs.get(), denominator_lhs.strides().filter(0, 2, 3).template as_safe<i32>()),
+            output_accessor_t(denominator_rhs.get(), denominator_rhs.strides().filter(0, 2, 3).template as_safe<i32>()),
+            direction_accessor_t(cone_directions.get()),
+            cone_directions.ssize(),
+            static_cast<coord_t>(cone_aperture));
         iwise(shape.rfft(), fsc.device(), reduction_op,
               std::forward<Lhs>(lhs),
               std::forward<Rhs>(rhs),
@@ -448,11 +448,11 @@ namespace noa::signal::fft {
               nt::vec_real_size<nt::value_type_t<Cones>, 3> and
               not REMAP.has_layout_change())
     auto fsc_anisotropic(
-            Lhs&& lhs,
-            Rhs&& rhs,
-            const Shape4<i64>& shape,
-            Cones&& cone_directions,
-            f32 cone_aperture
+        Lhs&& lhs,
+        Rhs&& rhs,
+        const Shape4<i64>& shape,
+        Cones&& cone_directions,
+        f32 cone_aperture
     ) {
         using value_t = nt::mutable_value_type_t<Lhs>;
         auto fsc = Array<value_t>({shape[0], 1, cone_directions.ssize(), n_shells(lhs.shape())}, rhs.options());

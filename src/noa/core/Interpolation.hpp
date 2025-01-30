@@ -62,7 +62,7 @@ namespace noa {
     /// \param fraction Fraction(s), between 0 and 1.
     /// \returns Interpolation weights in the form of Vec<Weight, N>, where N is the size of the interpolation window.
     template<Interp INTERP, typename Weight, typename Coord> requires nt::vec_real<Weight, Coord>
-    [[nodiscard]] NOA_IHD constexpr auto interpolation_weights(Coord fraction) {
+    [[nodiscard]] NOA_FHD constexpr auto interpolation_weights(Coord fraction) {
         using real_t = nt::value_type_t<Weight>;
         const auto f = static_cast<Weight>(fraction);
 
@@ -151,7 +151,7 @@ namespace noa {
              nt::sinteger SInt,
              size_t A0, size_t A1>
     requires (1 <= N and N <= 3)
-    [[nodiscard]] NOA_HD constexpr auto is_within_interpolation_window(
+    [[nodiscard]] NOA_FHD constexpr auto is_within_interpolation_window(
         const Vec<Coord, N, A0>& coordinate,
         const Shape<SInt, N, A1>& shape
     ) noexcept -> bool {
@@ -184,7 +184,7 @@ namespace noa {
              nt::sinteger SInt,
              size_t A0, size_t A1, typename C>
     requires (1 <= N and N <= 3 and (BORDER != Border::VALUE or nt::same_as_mutable_value_type_of<C, T>))
-    [[nodiscard]] NOA_HD constexpr auto interpolate(
+    [[nodiscard]] NOA_FHD constexpr auto interpolate(
         const T& input,
         const Vec<Coord, N, A0>& coordinate,
         const Shape<SInt, N, A1>& shape,
@@ -294,7 +294,7 @@ namespace noa {
              nt::textureable_nd<BORDER, N> T,
              nt::any_of<f32, f64> Coord>
     requires (1 <= N and N <= 3)
-    [[nodiscard]] NOA_HD constexpr auto interpolate_using_texture(
+    [[nodiscard]] NOA_FHD constexpr auto interpolate_using_texture(
         const T& input,
         const Vec<Coord, N, A>& coordinate
     ) noexcept -> nt::mutable_value_type_t<T> {
@@ -431,7 +431,7 @@ namespace noa {
              nt::any_of<f32, f64> Coord,
              nt::sinteger Int,
              size_t A0, size_t A1>
-    [[nodiscard]] NOA_HD constexpr auto interpolate_spectrum(
+    [[nodiscard]] NOA_FHD constexpr auto interpolate_spectrum(
         const T& input,
         Vec<Coord, N, A0> frequency,
         const Shape<Int, N, A1>& shape
@@ -532,7 +532,7 @@ namespace noa {
              nt::any_of<f32, f64> Coord,
              nt::sinteger Int,
              size_t A0, size_t A1>
-    [[nodiscard]] NOA_HD constexpr auto interpolate_spectrum_using_texture(
+    [[nodiscard]] NOA_FHD constexpr auto interpolate_spectrum_using_texture(
         const T& input,
         Vec<Coord, N, A0> frequency,
         const Shape<Int, N, A1>& shape
