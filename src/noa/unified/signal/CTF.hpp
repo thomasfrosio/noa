@@ -56,14 +56,13 @@ namespace noa::signal::guts {
             const ctf_parameter_type& ctf,
             bool ctf_abs,
             bool ctf_squared,
-            const coord2_type& fftfreq_range,
-            bool fftfreq_endpoint
+            const Linspace<coord_type>& fftfreq_range
         ) :
             m_ctf(ctf),
             m_output(output),
             m_shape(shape.template pop_back<IS_RFFT>()),
             m_input(input),
-            m_fftfreq_start(fftfreq_range[0]),
+            m_fftfreq_start(fftfreq_range.start),
             m_ctf_abs(ctf_abs),
             m_ctf_squared(ctf_squared)
         {
@@ -71,14 +70,14 @@ namespace noa::signal::guts {
             // In this case, and if the frequency.start is 0, this results in the full frequency range.
             for (size_t i{}; i < N; ++i) {
                 const auto max_sample_size = shape[i] / 2 + 1;
-                const auto frequency_end =
-                    fftfreq_range[1] <= 0 ?
+                const auto frequency_stop =
+                    fftfreq_range.stop <= 0 ?
                     noa::fft::highest_fftfreq<coord_type>(shape[i]) :
-                    fftfreq_range[1];
+                    fftfreq_range.stop;
                 m_fftfreq_step[i] = Linspace{
-                    .start = fftfreq_range[0],
-                    .stop = frequency_end,
-                    .endpoint = fftfreq_endpoint
+                    .start = fftfreq_range.start,
+                    .stop = frequency_stop,
+                    .endpoint = fftfreq_range.endpoint
                 }.for_size(max_sample_size).step;
             }
         }
@@ -89,9 +88,8 @@ namespace noa::signal::guts {
             index_type batch,
             I... output_indices
         ) const {
-            auto frequency = noa::fft::index2frequency<IS_DST_CENTERED, IS_RFFT>(Vec{output_indices...}, m_shape);
-            auto fftfreq = coord_nd_type::from_vec(frequency) * m_fftfreq_step;
-            fftfreq += m_fftfreq_start;
+            const auto frequency = noa::fft::index2frequency<IS_DST_CENTERED, IS_RFFT>(Vec{output_indices...}, m_shape);
+            const auto fftfreq = m_fftfreq_start + coord_nd_type::from_vec(frequency) * m_fftfreq_step;
 
             // TODO Add frequency cutoff?
 
@@ -144,10 +142,10 @@ namespace noa::signal::guts {
 
     template<Remap REMAP, typename Input, typename Output, typename CTF>
     void ctf_check_parameters(
-            const Input& input,
-            const Output& output,
-            const Shape4<i64>& shape,
-            const CTF& ctf
+        const Input& input,
+        const Output& output,
+        const Shape4<i64>& shape,
+        const CTF& ctf
     ) {
         check(not output.is_empty(), "Empty array detected");
 
@@ -196,13 +194,10 @@ namespace noa::signal::guts {
 
 namespace noa::signal {
     struct CTFOptions {
-        /// Frequency [start, end] range of the input and output, from the zero, along the cartesian axes.
+        /// Frequency range of the input and output, from the zero, along the cartesian axes.
         /// If the end is negative or zero, it is set to the highest frequencies for the given dimensions,
         /// i.e. the entire rfft/fft range is selected. For even dimensions, this is equivalent to {0, 0.5}.
-        Vec2<f64> fftfreq_range{0, -1};
-
-        /// Whether the frequency_range's end should be included in the range.
-        bool fftfreq_endpoint{true};
+        Linspace<f64> fftfreq_range{.start = 0, .stop = -1, .endpoint = true};
 
         /// Whether the absolute of the ctf should be computed.
         bool ctf_abs{};
@@ -239,10 +234,11 @@ namespace noa::signal {
                 using op_t = guts::CTF<REMAP, 1, coord_t, i64, Empty, output_accessor_t, ctf_t>;
                 auto index = ni::non_empty_dhw_dimension(shape);
                 auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0, index));
-                auto op = op_t({}, output_accessor, shape.filter(index), guts::extract_ctf(ctf),
-                               options.ctf_abs, options.ctf_squared,
-                               options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
-
+                auto op = op_t(
+                    {}, output_accessor, shape.filter(index), guts::extract_ctf(ctf),
+                    options.ctf_abs, options.ctf_squared,
+                    options.fftfreq_range.as<coord_t>()
+                );
                 auto iwise_shape = shape.filter(0, index);
                 if constexpr (REMAP.is_hx2hx())
                     iwise_shape = iwise_shape.rfft();
@@ -259,10 +255,11 @@ namespace noa::signal {
                 using output_accessor_t = Accessor<value_t, 3, i64>;
                 using op_t = guts::CTF<REMAP, 2, coord_t, i64, Empty, output_accessor_t, ctf_t>;
                 auto output_accessor = output_accessor_t(output.get(), output_strides.filter(0, 2, 3));
-                auto op = op_t({}, output_accessor, shape.filter(2, 3), guts::extract_ctf(ctf),
-                               options.ctf_abs, options.ctf_squared,
-                               options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
-
+                auto op = op_t(
+                    {}, output_accessor, shape.filter(2, 3), guts::extract_ctf(ctf),
+                    options.ctf_abs, options.ctf_squared,
+                    options.fftfreq_range.as<coord_t>()
+                );
                 auto iwise_shape = shape.filter(0, 2, 3);
                 if constexpr (REMAP.is_hx2hx())
                     iwise_shape = iwise_shape.rfft();
@@ -280,10 +277,11 @@ namespace noa::signal {
                 using output_accessor_t = Accessor<value_t, 4, i64>;
                 using op_t = guts::CTF<REMAP, 3, coord_t, i64, Empty, output_accessor_t, ctf_t>;
                 auto output_accessor = output_accessor_t(output.get(), output_strides);
-                auto op = op_t({}, output_accessor, shape.pop_front(), guts::extract_ctf(ctf),
-                               options.ctf_abs, options.ctf_squared,
-                               options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
-
+                auto op = op_t(
+                    {}, output_accessor, shape.pop_front(), guts::extract_ctf(ctf),
+                    options.ctf_abs, options.ctf_squared,
+                    options.fftfreq_range.as<coord_t>()
+                );
                 auto iwise_shape = shape;
                 if constexpr (REMAP.is_hx2hx())
                     iwise_shape = iwise_shape.rfft();
@@ -340,15 +338,19 @@ namespace noa::signal {
                 using input_accessor_t = Accessor<input_value_t, 2, i64>;
                 using output_accessor_t = Accessor<output_value_t, 2, i64>;
                 using op_t = guts::CTF<REMAP, 1, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
-                auto op = op_t(input_accessor_t(input.get(), input_strides.filter(0, index)),
-                               output_accessor_t(output.get(), output.strides().filter(0, index)),
-                               shape.filter(index), guts::extract_ctf(ctf),
-                               options.ctf_abs, options.ctf_squared,
-                               options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
-                return iwise(iwise_shape, device, op,
-                             std::forward<Input>(input),
-                             std::forward<Output>(output),
-                             std::forward<CTF>(ctf));
+                auto op = op_t(
+                    input_accessor_t(input.get(), input_strides.filter(0, index)),
+                    output_accessor_t(output.get(), output.strides().filter(0, index)),
+                    shape.filter(index), guts::extract_ctf(ctf),
+                    options.ctf_abs, options.ctf_squared,
+                    options.fftfreq_range.as<coord_t>()
+                );
+                return iwise(
+                    iwise_shape, device, op,
+                    std::forward<Input>(input),
+                    std::forward<Output>(output),
+                    std::forward<CTF>(ctf)
+                );
             }
             case 2: {
                 auto output_strides = output.strides();
@@ -361,19 +363,22 @@ namespace noa::signal {
                 using input_accessor_t = Accessor<input_value_t, 3, i64>;
                 using output_accessor_t = Accessor<output_value_t, 3, i64>;
                 using op_t = guts::CTF<REMAP, 2, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
-                auto op = op_t(input_accessor_t(input.get(), input_strides.filter(0, 2, 3)),
-                               output_accessor_t(output.get(), output_strides.filter(0, 2, 3)),
-                               shape.filter(2, 3), guts::extract_ctf(ctf),
-                               options.ctf_abs, options.ctf_squared,
-                               options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
-
+                auto op = op_t(
+                    input_accessor_t(input.get(), input_strides.filter(0, 2, 3)),
+                    output_accessor_t(output.get(), output_strides.filter(0, 2, 3)),
+                    shape.filter(2, 3), guts::extract_ctf(ctf),
+                    options.ctf_abs, options.ctf_squared,
+                    options.fftfreq_range.as<coord_t>()
+                );
                 auto iwise_shape = shape.filter(0, 2, 3);
                 if constexpr (REMAP.is_xx2hx())
                     iwise_shape = iwise_shape.rfft();
-                return iwise(iwise_shape, device, op,
-                             std::forward<Input>(input),
-                             std::forward<Output>(output),
-                             std::forward<CTF>(ctf));
+                return iwise(
+                    iwise_shape, device, op,
+                    std::forward<Input>(input),
+                    std::forward<Output>(output),
+                    std::forward<CTF>(ctf)
+                );
             }
             case 3: {
                 auto output_strides = output.strides();
@@ -388,19 +393,22 @@ namespace noa::signal {
                 using input_accessor_t = Accessor<input_value_t, 4, i64>;
                 using output_accessor_t = Accessor<output_value_t, 4, i64>;
                 using op_t = guts::CTF<REMAP, 3, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
-                auto op = op_t(input_accessor_t(input.get(), input_strides),
-                               output_accessor_t(output.get(), output_strides),
-                               shape.pop_front(), guts::extract_ctf(ctf),
-                               options.ctf_abs, options.ctf_squared,
-                               options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
-
+                auto op = op_t(
+                    input_accessor_t(input.get(), input_strides),
+                    output_accessor_t(output.get(), output_strides),
+                    shape.pop_front(), guts::extract_ctf(ctf),
+                    options.ctf_abs, options.ctf_squared,
+                    options.fftfreq_range.as<coord_t>()
+                );
                 auto iwise_shape = shape;
                 if constexpr (REMAP.is_xx2hx())
                     iwise_shape = iwise_shape.rfft();
-                return iwise(iwise_shape, device, op,
-                             std::forward<Input>(input),
-                             std::forward<Output>(output),
-                             std::forward<CTF>(ctf));
+                return iwise(
+                    iwise_shape, device, op,
+                    std::forward<Input>(input),
+                    std::forward<Output>(output),
+                    std::forward<CTF>(ctf)
+                );
             }
         }
     }
@@ -437,9 +445,11 @@ namespace noa::signal {
         using output_accessor_t = Accessor<value_t, 3, i64>;
         using op_t = guts::CTF<REMAP, 2, coord_t, i64, Empty, output_accessor_t, ctf_t>;
         auto output_accessor = output_accessor_t(output.get(), output_strides.filter(0, 2, 3));
-        auto op = op_t({}, output_accessor, shape.filter(2, 3), guts::extract_ctf(ctf),
-                       options.ctf_abs, options.ctf_squared,
-                       options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
+        auto op = op_t(
+            {}, output_accessor, shape.filter(2, 3), guts::extract_ctf(ctf),
+            options.ctf_abs, options.ctf_squared,
+            options.fftfreq_range.as<coord_t>()
+        );
 
         auto iwise_shape = shape.filter(0, 2, 3);
         if constexpr (REMAP.is_xx2hx())
@@ -489,16 +499,17 @@ namespace noa::signal {
         using coord_t = nt::value_type_twice_t<CTF>;
         using ctf_t = decltype(guts::extract_ctf(ctf));
         using op_t = guts::CTF<REMAP, 2, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
-        auto op = op_t(input_accessor_t(input.get(), input_strides.filter(0, 2, 3)),
-                       output_accessor_t(output.get(), output_strides.filter(0, 2, 3)),
-                       shape.filter(2, 3), guts::extract_ctf(ctf),
-                       options.ctf_abs, options.ctf_squared,
-                       options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
+        auto op = op_t(
+            input_accessor_t(input.get(), input_strides.filter(0, 2, 3)),
+            output_accessor_t(output.get(), output_strides.filter(0, 2, 3)),
+            shape.filter(2, 3), guts::extract_ctf(ctf),
+            options.ctf_abs, options.ctf_squared,
+            options.fftfreq_range.as<coord_t>()
+        );
 
         auto iwise_shape = shape.filter(0, 2, 3);
         if constexpr (REMAP.is_xx2hx())
             iwise_shape = iwise_shape.rfft();
-
         iwise(iwise_shape, output.device(), op,
               std::forward<Input>(input),
               std::forward<Output>(output),
