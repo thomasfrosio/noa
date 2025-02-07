@@ -8,6 +8,12 @@
 #include "noa/unified/Array.hpp"
 
 namespace noa::signal {
+    struct ConvolveOptions {
+        /// Border mode used for the convolution.
+        /// Only Border::ZERO and Border::REFLECT are currently supported.
+        Border border{Border::ZERO};
+    };
+
     /// 1d, 2d or 3d convolution.
     /// \param[in] input    Array to convolve.
     /// \param[out] output  Convolved array. Should not overlap with \p input.
@@ -17,7 +23,7 @@ namespace noa::signal {
     template<nt::readable_varray_decay_of_real Input,
              nt::writable_varray_decay_of_real Output,
              nt::readable_varray_decay_of_real Filter>
-    void convolve(Input&& input, Output&& output, Filter&& filter) {
+    void convolve(Input&& input, Output&& output, Filter&& filter, const ConvolveOptions& options = {}) {
         check(not input.is_empty() and not output.is_empty() and not filter.is_empty(), "Empty array detected");
         check(not ni::are_overlapped(input, output), "The input and output array should not overlap");
 
@@ -43,6 +49,8 @@ namespace noa::signal {
               "but got input:device={}, filter:device={}, output:device={}",
               input.device(), filter.device(), device);
 
+        check(options.border.is_any(Border::ZERO, Border::REFLECT), "The provided border mode is not supported");
+
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
@@ -51,18 +59,32 @@ namespace noa::signal {
                 i = std::forward<Input>(input),
                 o = std::forward<Output>(output),
                 f = std::forward<Filter>(filter)] {
-                noa::cpu::signal::convolve(
-                    i.get(), input_strides,
-                    o.get(), o.strides(), o.shape(),
-                    f.get(), filter_shape, threads);
+                if (options.border == Border::ZERO) {
+                    noa::cpu::signal::convolve<Border::ZERO>(
+                        i.get(), input_strides,
+                        o.get(), o.strides(), o.shape(),
+                        f.get(), filter_shape, threads);
+                } else {
+                    noa::cpu::signal::convolve<Border::REFLECT>(
+                        i.get(), input_strides,
+                        o.get(), o.strides(), o.shape(),
+                        f.get(), filter_shape, threads);
+                }
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
-            noa::cuda::signal::convolve(
-                input.get(), input_strides,
-                output.get(), output.strides(), output.shape(),
-                filter.get(), filter_shape, cuda_stream);
+            if (options.border == Border::ZERO) {
+                noa::cuda::signal::convolve<Border::ZERO>(
+                    input.get(), input_strides,
+                    output.get(), output.strides(), output.shape(),
+                    filter.get(), filter_shape, cuda_stream);
+            } else {
+                noa::cuda::signal::convolve<Border::REFLECT>(
+                    input.get(), input_strides,
+                    output.get(), output.strides(), output.shape(),
+                    filter.get(), filter_shape, cuda_stream);
+            }
             cuda_stream.enqueue_attach(
                 std::forward<Input>(input),
                 std::forward<Output>(output),
@@ -99,7 +121,8 @@ namespace noa::signal {
         FilterDepth&& filter_depth,
         FilterHeight&& filter_height,
         FilterWidth&& filter_width,
-        Buffer&& buffer = Buffer{}
+        Buffer&& buffer = Buffer{},
+        const ConvolveOptions& options = {}
     ) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         check(not ni::are_overlapped(input, output), "The input and output array should not overlap");
@@ -144,6 +167,8 @@ namespace noa::signal {
                   buffer.device(), device);
         }
 
+        check(options.border.is_any(Border::ZERO, Border::REFLECT), "The provided border mode is not supported");
+
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
@@ -155,24 +180,44 @@ namespace noa::signal {
                 fh = std::forward<FilterHeight>(filter_height),
                 fw = std::forward<FilterWidth>(filter_width),
                 b = std::forward<Buffer>(buffer)] {
-                noa::cpu::signal::convolve_separable(
-                    i.get(), input_strides,
-                    o.get(), o.strides(), o.shape(),
-                    fd.get(), fd.n_elements(),
-                    fh.get(), fh.n_elements(),
-                    fw.get(), fw.n_elements(),
-                    b.get(), b.strides(), threads);
+                if (options.border == Border::ZERO) {
+                    noa::cpu::signal::convolve_separable<Border::ZERO>(
+                        i.get(), input_strides,
+                        o.get(), o.strides(), o.shape(),
+                        fd.get(), fd.n_elements(),
+                        fh.get(), fh.n_elements(),
+                        fw.get(), fw.n_elements(),
+                        b.get(), b.strides(), threads);
+                } else {
+                    noa::cpu::signal::convolve_separable<Border::REFLECT>(
+                        i.get(), input_strides,
+                        o.get(), o.strides(), o.shape(),
+                        fd.get(), fd.n_elements(),
+                        fh.get(), fh.n_elements(),
+                        fw.get(), fw.n_elements(),
+                        b.get(), b.strides(), threads);
+                }
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
-            noa::cuda::signal::convolve_separable(
-                input.get(), input_strides,
-                output.get(), output.strides(), output.shape(),
-                filter_depth.get(), filter_depth.n_elements(),
-                filter_height.get(), filter_height.n_elements(),
-                filter_width.get(), filter_width.n_elements(),
-                buffer.get(), buffer.strides(), cuda_stream);
+            if (options.border == Border::ZERO) {
+                noa::cuda::signal::convolve_separable<Border::ZERO>(
+                    input.get(), input_strides,
+                    output.get(), output.strides(), output.shape(),
+                    filter_depth.get(), filter_depth.n_elements(),
+                    filter_height.get(), filter_height.n_elements(),
+                    filter_width.get(), filter_width.n_elements(),
+                    buffer.get(), buffer.strides(), cuda_stream);
+            } else {
+                noa::cuda::signal::convolve_separable<Border::REFLECT>(
+                    input.get(), input_strides,
+                    output.get(), output.strides(), output.shape(),
+                    filter_depth.get(), filter_depth.n_elements(),
+                    filter_height.get(), filter_height.n_elements(),
+                    filter_width.get(), filter_width.n_elements(),
+                    buffer.get(), buffer.strides(), cuda_stream);
+            }
             cuda_stream.enqueue_attach(
                 std::forward<Input>(input),
                 std::forward<Output>(output),

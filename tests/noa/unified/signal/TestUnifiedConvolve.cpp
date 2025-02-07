@@ -7,7 +7,7 @@
 #include "Assets.h"
 #include "Utils.hpp"
 
-TEST_CASE("unified::signal::convolve()", "[asset][noa][unified]") {
+TEST_CASE("unified::signal::convolve()", "[asset][noa]") {
     using namespace noa::types;
 
     const Path path_base = test::NOA_DATA_PATH / "signal";
@@ -44,7 +44,7 @@ TEST_CASE("unified::signal::convolve()", "[asset][noa][unified]") {
     }
 }
 
-TEST_CASE("unified::signal::convolve_separable()", "[asset][noa][unified]") {
+TEST_CASE("unified::signal::convolve_separable()", "[asset][noa]") {
     using namespace noa::types;
 
     const Path path_base = test::NOA_DATA_PATH / "signal";
