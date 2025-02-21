@@ -41,7 +41,7 @@ namespace noa {
 
         // If the batches to copy to the output are next to each other,
         // this becomes a slice operation. So try to identify this case:
-        using index_t = nt::value_type_t<Indices>;
+        using index_t = nt::mutable_value_type_t<Indices>;
         index_t index{};
         for (i64 i{}; i < n_batches_to_copy; ++i, ++index) {
             const auto current_index = batch_indices_1d[i];
