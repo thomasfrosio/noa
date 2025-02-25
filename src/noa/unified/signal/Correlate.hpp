@@ -422,7 +422,8 @@ namespace noa::signal {
     ///
     /// \note As opposed to the cross_correlation_score function, this function does not take a normalization flag.
     ///       To get the normalized cross-correlation scores, simply L2 normalize the inputs before computing their
-    ///       rFFT.
+    ///       rFFT. To output scores with the correct scaling, use .ifft_norm=ORTHO|BACKWARD (using noa::fft::FORWARD
+    ///       outputs scores divided by a scaling factor of 1/n_elements).
     template<Remap REMAP, typename Lhs, typename Rhs, typename Output,
              typename Buffer = View<nt::mutable_value_type_t<Rhs>>>
     requires(nt::varray_decay_of_complex<Lhs, Rhs, Buffer> and
