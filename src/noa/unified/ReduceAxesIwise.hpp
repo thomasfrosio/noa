@@ -85,9 +85,9 @@ namespace noa {
     /// Computes an index-wise reduction along one or multiple axes.
     /// \details The output axes are mapped from right to left, i.e.:
     ///          N=4 -> BDHW
-    ///          N=3 -> DHW  (B   is  ignored)
-    ///          N=2 -> HW   (BD  are ignored)
-    ///          N=1 -> W    (BDH are ignored)
+    ///          N=3 -> DHW  (B   is  ignored and assumed to be empy)
+    ///          N=2 -> HW   (BD  are ignored and assumed to be empy)
+    ///          N=1 -> W    (BDH are ignored and assumed to be empy)
     ///
     /// \details The size of each output axis should match the input shape, or be 1, indicating the axis
     ///          should be reduced. There should be at least one axis being reduced. Currently, reducing more than
@@ -194,32 +194,7 @@ namespace noa::guts {
         ReduceAxes reduce_axes,
         Ts&&... attachments
     ) {
-        Shape<Index, N> output_shape;
-
-        if constexpr (ALLOW_NO_OUTPUTS) {
-            output_shape = reduce_axes.to_reduced_shape(input_shape);
-        } else {
-            static_assert(ng::are_all_varrays<Outputs>(), "All of the outputs should be varrays");
-            static_assert(std::tuple_size_v<Outputs> > 0, "There should be at least one output");
-
-            output_shape = outputs[Tag<0>{}].shape().template as_safe<Index>();
-            outputs.for_each_enumerate([&]<size_t I, typename T>(T& output) {
-                check(device == output.device(),
-                      "Output arrays should be on device={}, but got output:{}:device={}",
-                      device, I, output.device());
-                if constexpr (I > 0) {
-                    check(vall(Equal{}, output_shape, output.shape()),
-                          "Output arrays should have the same shape, but got output:0:shape={} and output:{}:shape={}",
-                          output_shape, I, output.shape());
-                }
-            });
-        }
-
-        Tuple reduced_accessors = ng::to_tuple_of_accessors(std::forward<Reduced>(reduced));
-        Tuple output_accessors = ng::to_tuple_of_accessors(outputs);
-
-        // Backends expect the output accessors to have N dimensions, i.e. we need to remove the leftmost axes.
-        constexpr auto filter_nd = []() -> Vec<size_t, N> {
+        constexpr auto FILTER_ND = []() -> Vec<size_t, N> {
             if constexpr (N == 1)
                 return {3};
             else if constexpr (N == 2)
@@ -231,7 +206,37 @@ namespace noa::guts {
             else
                 static_assert(nt::always_false<>);
         }();
-        Tuple output_accessors_nd = ng::reconfig_accessors<ng::AccessorConfig<N>{.filter=filter_nd}>(output_accessors);
+
+        Shape<Index, N> output_shape;
+        if constexpr (ALLOW_NO_OUTPUTS) {
+            output_shape = reduce_axes.to_reduced_shape(input_shape);
+        } else {
+            static_assert(ng::are_all_varrays<Outputs>(), "All of the outputs should be varrays");
+            static_assert(std::tuple_size_v<Outputs> > 0, "There should be at least one output");
+
+            auto desired_shape = outputs[Tag<0>{}].shape().template as_safe<Index>();
+            outputs.for_each_enumerate([&]<size_t I, typename T>(T& output) {
+                check(device == output.device(),
+                      "Output arrays should be on device={}, but got output:{}:device={}",
+                      device, I, output.device());
+                if constexpr (I > 0) {
+                    check(vall(Equal{}, desired_shape, output.shape()),
+                          "Output arrays should have the same shape, but got output:0:shape={} and output:{}:shape={}",
+                          desired_shape, I, output.shape());
+                }
+            });
+
+            // Go from the 4d shape to the nd one.
+            output_shape = [&desired_shape]<size_t... I>(std::index_sequence<I...>, const auto& filter) {
+                return Shape{desired_shape[filter[I]]...};
+            }(std::make_index_sequence<N>{}, FILTER_ND);
+        }
+
+        Tuple reduced_accessors = ng::to_tuple_of_accessors(std::forward<Reduced>(reduced));
+        Tuple output_accessors = ng::to_tuple_of_accessors(outputs);
+
+        // Backends expect the output accessors to have N dimensions, i.e. we need to remove the leftmost axes.
+        Tuple output_accessors_nd = ng::reconfig_accessors<ng::AccessorConfig<N>{.filter=FILTER_ND}>(output_accessors);
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
