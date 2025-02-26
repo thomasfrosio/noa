@@ -335,14 +335,14 @@ namespace noa::signal {
                 guts::CrossCorrelationL2Norm{});
             reduce_axes_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), std::move(lhs_norms), std::move(rhs_norms)),
-                wrap(output_t{}),
-                wrap(std::forward<Output>(scores).flat(0)),
+                output_t{},
+                std::forward<Output>(scores).flat(0),
                 guts::CrossCorrelationScore{});
         } else {
             reduce_axes_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
-                wrap(output_t{}),
-                wrap(std::forward<Output>(scores).flat(0)),
+                output_t{},
+                std::forward<Output>(scores).flat(0),
                 guts::CrossCorrelationScore{});
         }
     }
@@ -377,14 +377,14 @@ namespace noa::signal {
                 guts::CrossCorrelationL2Norm{});
             reduce_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), lhs_norm, rhs_norm),
-                wrap(output_t{}),
-                wrap(score),
+                output_t{},
+                score,
                 guts::CrossCorrelationScore{});
         } else {
             reduce_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
-                wrap(output_t{}),
-                wrap(score),
+                output_t{},
+                score,
                 guts::CrossCorrelationScore{});
         }
         return score;
