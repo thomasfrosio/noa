@@ -61,7 +61,7 @@ namespace noa::indexing {
     template<bool ENFORCE = false, nt::integer T, nt::integer U, size_t N0, size_t N1, size_t A0, size_t A1> requires (N1 <= N0)
     NOA_FHD constexpr void bounds_check(const Shape<T, N0, A0>& shape, const Vec<U, N1, A1>& indices) {
         for (size_t i{}; i < N1; ++i)
-            bounds_check<ENFORCE>(indices[i], shape[i]);
+            bounds_check<ENFORCE>(shape[i], indices[i]);
     }
 
     template<bool ENFORCE = false, nt::integer T, nt::integer... U, size_t N, size_t A> requires (sizeof...(U) <= N)
