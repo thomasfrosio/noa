@@ -354,6 +354,26 @@ namespace noa {
     }
 
     template<typename T>
+    [[nodiscard]] NOA_FHD auto sqrt(Complex<T> x) noexcept -> Complex<T> {
+        #if defined(__CUDA_ARCH__)
+        T& r = x.real;
+        T& i = x.imag;
+        if (r == T{}) {
+            T t = sqrt(abs(i) / 2);
+            return Complex<T>{t, i < T{} ? -t : t};
+        } else {
+            T t = sqrt(2 * (abs(x) + abs(r)));
+            T u = t / 2;
+            return r > T{} ?
+                Complex<T>{u, i / t} :
+                Complex<T>{abs(i) / t, i < T{} ? -u : u};
+        }
+        #else
+        return Complex<T>::from_complex(std::sqrt(std::complex<f32>{x.real, x.imag}));
+        #endif
+    }
+
+    template<typename T>
     [[nodiscard]] NOA_FHD auto phase(Complex<T> x) noexcept -> T {
         return arg(x);
     }

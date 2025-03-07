@@ -14,27 +14,6 @@
 #include "noa/unified/ReduceAxesIwise.hpp"
 
 namespace noa::signal::guts {
-    struct CrossCorrelationL2Norm {
-        using enable_vectorization = bool;
-        using remove_default_final = bool;
-
-        static constexpr void init(const auto& lhs, const auto& rhs, f64& lhs_sum, f64& rhs_sum) {
-            lhs_sum += static_cast<f64>(abs_squared(lhs));
-            rhs_sum += static_cast<f64>(abs_squared(rhs));
-        }
-
-        static constexpr void join(f64 lhs_isum, f64 rhs_isum, f64& lhs_sum, f64& rhs_sum) {
-            lhs_sum += lhs_isum;
-            rhs_sum += rhs_isum;
-        }
-
-        template<typename T>
-        static constexpr void final(f64 lhs_sum, f64 rhs_sum, T& lhs_norm, T& rhs_norm) {
-            lhs_norm = static_cast<T>(sqrt(lhs_sum));
-            rhs_norm = static_cast<T>(sqrt(rhs_sum));
-        }
-    };
-
     struct CrossCorrelationScore {
         using enable_vectorization = bool;
 
@@ -47,12 +26,44 @@ namespace noa::signal::guts {
             }
         }
 
-        static constexpr void init(const auto& lhs, const auto& rhs, auto lhs_norm, auto rhs_norm, auto& sum) {
-            init(lhs / lhs_norm, rhs / rhs_norm, sum);
-        }
-
         static constexpr void join(auto isum, auto& sum) {
             sum += isum;
+        }
+    };
+
+    struct CrossCorrelationScoreNormalized {
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
+
+        template<typename T>
+        static constexpr void init(auto lhs, auto rhs, T& cc, T& lhs_cc, T& rhs_cc) {
+            if constexpr (nt::complex<decltype(rhs)>) {
+                cc += static_cast<T>(lhs * conj(rhs));
+                lhs_cc += static_cast<T>(lhs * conj(lhs));
+                rhs_cc += static_cast<T>(rhs * conj(rhs));
+            } else {
+                cc += static_cast<T>(lhs * rhs);
+                lhs_cc += static_cast<T>(lhs * lhs);
+                rhs_cc += static_cast<T>(rhs * rhs);
+            }
+        }
+
+        template<typename T>
+        static constexpr void join(
+            const T& icc, const T& lhs_icc, const T& rhs_icc,
+            T& cc, T& lhs_cc, T& rhs_cc
+        ) {
+            cc += icc;
+            lhs_cc += lhs_icc;
+            rhs_cc += rhs_icc;
+        }
+
+        template<typename T>
+        static constexpr void final(
+            const T& cc, const T& lhs_cc, const T& rhs_cc,
+            T& ncc
+        ) {
+            ncc = cc / (sqrt(lhs_cc) * sqrt(rhs_cc));
         }
     };
 
@@ -321,27 +332,17 @@ namespace noa::signal {
               "Got scores:shape={}, scores:strides={}, and batch={}",
               scores.shape(), scores.strides(), batch);
 
-        using output_t = nt::value_type_t<Output>;
-        using lhs_real_t = nt::mutable_value_type_twice_t<Lhs>;
-        using rhs_real_t = nt::mutable_value_type_twice_t<Rhs>;
+        using value_t = nt::value_type_t<Output>;
         if (normalize) {
-            const auto options = ArrayOption{.device = lhs.device(), .allocator = Allocator::DEFAULT_ASYNC};
-            auto lhs_norms = Array<lhs_real_t>({batch, 1, 1, 1}, options);
-            auto rhs_norms = Array<rhs_real_t>({batch, 1, 1, 1}, options);
             reduce_axes_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
-                wrap(f64{}, f64{}),
-                wrap(lhs_norms.view(), rhs_norms.view()),
-                guts::CrossCorrelationL2Norm{});
-            reduce_axes_ewise(
-                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), std::move(lhs_norms), std::move(rhs_norms)),
-                output_t{},
+                wrap(value_t{}, value_t{}, value_t{}),
                 std::forward<Output>(scores).flat(0),
-                guts::CrossCorrelationScore{});
+                guts::CrossCorrelationScoreNormalized{});
         } else {
             reduce_axes_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
-                output_t{},
+                value_t{},
                 std::forward<Output>(scores).flat(0),
                 guts::CrossCorrelationScore{});
         }
@@ -362,28 +363,18 @@ namespace noa::signal {
               "The lhs and rhs input arrays should be on the same device, but got lhs:device={} and rhs:device={}",
               lhs.device(), rhs.device());
 
-        using output_t = std::conditional_t<nt::complex<Lhs>, c64, f64>;
-        using lhs_real_t = nt::mutable_value_type_twice_t<Lhs>;
-        using rhs_real_t = nt::mutable_value_type_twice_t<Rhs>;
-
-        output_t score;
+        using value_t = std::conditional_t<nt::complex<Lhs>, c64, f64>;
+        value_t score;
         if (normalize) {
-            lhs_real_t lhs_norm;
-            rhs_real_t rhs_norm;
-            reduce_ewise(
+            reduce_axes_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
-                wrap(f64{}, f64{}),
-                wrap(lhs_norm, rhs_norm),
-                guts::CrossCorrelationL2Norm{});
-            reduce_ewise(
-                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), lhs_norm, rhs_norm),
-                output_t{},
+                wrap(value_t{}, value_t{}, value_t{}),
                 score,
-                guts::CrossCorrelationScore{});
+                guts::CrossCorrelationScoreNormalized{});
         } else {
             reduce_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
-                output_t{},
+                value_t{},
                 score,
                 guts::CrossCorrelationScore{});
         }
