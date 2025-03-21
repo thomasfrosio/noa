@@ -263,12 +263,11 @@ namespace noa::geometry::guts {
             // Scale back to the target shape.
             const auto frequency_3d = fftfreq_3d * m_f_target_shape;
 
-            // At this point, we know we are going to use the input, so load everything.
-            Pair value_and_weight{
+            rasterize_on_3d_grid_(
                 get_input_value_(conjugate, batch, y, u),
                 get_input_weight_(batch, y, u),
-            };
-            rasterize_on_3d_grid_(value_and_weight, frequency_3d);
+                frequency_3d
+            );
         }
 
     private:
@@ -312,7 +311,8 @@ namespace noa::geometry::guts {
         // This is called gridding, but is also referred as rasterization with antialiasing.
         // "frequency" is the frequency, in samples, centered on DC, with negative frequencies on the left.
         NOA_HD void rasterize_on_3d_grid_(
-            Pair<output_value_type, output_weight_value_type> value_and_weight,
+            output_value_type value,
+            const output_weight_value_type& weight,
             const Vec3<coord_type>& frequency // in samples
         ) const noexcept {
             const auto base0 = floor(frequency).template as<index_type>();
@@ -336,12 +336,12 @@ namespace noa::geometry::guts {
                             const auto fraction = kernel[w][v][u];
                             ng::atomic_add(
                                 m_output_volume,
-                                value_and_weight.first * static_cast<output_real_type>(fraction),
+                                value * static_cast<output_real_type>(fraction),
                                 idx_w, idx_v, idx_u);
                             if constexpr (has_weights) {
                                 ng::atomic_add(
                                     m_output_weights,
-                                    value_and_weight.second * static_cast<output_weight_value_type>(fraction),
+                                    weight * static_cast<output_weight_value_type>(fraction),
                                     idx_w, idx_v, idx_u);
                             }
                         }
@@ -353,7 +353,7 @@ namespace noa::geometry::guts {
             // So if a side of this plane was modified, add the conjugate at (x=0, -y, -z) with the same fraction.
             if (base0[2] == 0) {
                 if constexpr (nt::complex<output_value_type>)
-                    value_and_weight.first.imag = -value_and_weight.first.imag;
+                    value.imag = -value.imag;
 
                 for (index_type w{}; w < 2; ++w) {
                     for (index_type v{}; v < 2; ++v) {
@@ -365,12 +365,12 @@ namespace noa::geometry::guts {
                             const auto fraction = kernel[w][v][0];
                             ng::atomic_add(
                                 m_output_volume,
-                                value_and_weight.first * static_cast<output_real_type>(fraction),
+                                value * static_cast<output_real_type>(fraction),
                                 idx_w, idx_v, index_type{});
                             if constexpr (has_weights) {
                                 ng::atomic_add(
                                     m_output_weights,
-                                    value_and_weight.second * static_cast<output_weight_value_type>(fraction),
+                                    weight * static_cast<output_weight_value_type>(fraction),
                                     idx_w, idx_v, index_type{});
                             }
                         }

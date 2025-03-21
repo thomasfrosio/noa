@@ -60,7 +60,7 @@ namespace noa::cpu::guts::sort {
     // This is like permute(), but working with the pair as input.
     template<typename T>
     void permute_(
-        const Pair<uint, T>* src, const Strides4<i64>& src_strides, const Shape4<i64>& src_shape,
+        const Pair<u32, T>* src, const Strides4<i64>& src_strides, const Shape4<i64>& src_shape,
         T* dst, const Strides4<i64>& dst_strides, const Vec4<i64>& permutation
     ) {
         const auto dst_shape = src_shape.reorder(permutation);

@@ -10,6 +10,8 @@
 
 // TODO maybe use something a bit more robust like pytorch/cpuinfo?
 // FIXME should this be in noa/core ?
+// FIXME For unsupported plateforms, this still compiles but returns zeros for everything.
+//       MacOS would be used sysctlbyname.
 
 #if defined(NOA_PLATFORM_WINDOWS)
 #include <windows.h>
@@ -78,8 +80,8 @@ namespace {
         return {};
     }
 }
+
 #elif defined(NOA_PLATFORM_LINUX)
-#include <unistd.h>
 namespace {
     using namespace noa;
 
@@ -176,7 +178,7 @@ namespace {
 #endif
 
 namespace noa::cpu {
-    DeviceMemory Device::memory() {
+    auto Device::memory() -> DeviceMemory {
         #if defined(NOA_PLATFORM_LINUX)
         return get_memory_info_linux();
         #elif defined(NOA_PLATFORM_WINDOWS)
@@ -186,7 +188,7 @@ namespace noa::cpu {
         #endif
     }
 
-    DeviceCore Device::cores() {
+    auto Device::cores() -> DeviceCore {
         #if defined(NOA_PLATFORM_LINUX)
         return get_cpu_core_count_linux();
         #elif defined(NOA_PLATFORM_WINDOWS)
@@ -196,17 +198,18 @@ namespace noa::cpu {
         #endif
     }
 
-    DeviceCache Device::cache(int level) {
+    auto Device::cache(int level) -> DeviceCache {
         #if defined(NOA_PLATFORM_LINUX)
         return get_cpu_cache_linux(level);
         #elif defined(NOA_PLATFORM_WINDOWS)
         return get_cpu_cache_windows(level);
         #else
+        (void) level;
         return {};
         #endif
     }
 
-    std::string Device::name() {
+    auto Device::name() -> std::string {
         #if defined(NOA_PLATFORM_LINUX)
         return std::string(ns::trim(get_cpu_name_linux()));
         #elif defined(NOA_PLATFORM_WINDOWS)
@@ -216,7 +219,7 @@ namespace noa::cpu {
         #endif
     }
 
-    std::string Device::summary() {
+    auto Device::summary() -> std::string {
         const std::string name = Device::name();
         const DeviceCore core_count = Device::cores();
         const DeviceCache cache1 = Device::cache(1);

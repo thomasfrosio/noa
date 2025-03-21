@@ -1,21 +1,28 @@
-// Eigen raises warnings...
 #include "noa/core/Config.hpp"
+#include "noa/core/indexing/Layout.hpp"
+#include "noa/cpu/Blas.hpp"
 
+// Suppress Eigen warnings...
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wsign-conversion"
-    #pragma GCC diagnostic ignored "-Wnull-dereference"
-    #if defined(NOA_COMPILER_GCC)
-    #pragma GCC diagnostic ignored "-Wduplicated-branches"
-    #pragma GCC diagnostic ignored "-Wuseless-cast"
-    #endif
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wsign-conversion"
+#   pragma GCC diagnostic ignored "-Wnull-dereference"
+#   if defined(NOA_COMPILER_GCC)
+#       pragma GCC diagnostic ignored "-Wduplicated-branches"
+#       pragma GCC diagnostic ignored "-Wuseless-cast"
+#       pragma GCC diagnostic ignored "-Wclass-memaccess"
+#   endif
 #elif defined(NOA_COMPILER_MSVC)
-    #pragma warning(push, 0)
+#   pragma warning(push, 0)
 #endif
 
 #include <Eigen/Dense>
-#include "noa/core/indexing/Layout.hpp"
-#include "noa/cpu/Blas.hpp"
+
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+    #pragma GCC diagnostic pop
+#elif defined(NOA_COMPILER_MSVC)
+    #pragma warning(pop)
+#endif
 
 namespace noa::cpu {
     template<typename T>
@@ -107,9 +114,3 @@ namespace noa::cpu {
     INSTANTIATE_GEMM_(c32);
     INSTANTIATE_GEMM_(c64);
 }
-
-#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
-    #pragma GCC diagnostic pop
-#elif defined(NOA_COMPILER_MSVC)
-    #pragma warning(pop)
-#endif

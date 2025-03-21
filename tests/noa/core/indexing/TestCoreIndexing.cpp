@@ -260,7 +260,7 @@ TEST_CASE("core:: shape, strides", "[noa][core]") {
     }
 
     AND_THEN("physical shape") {
-        const uint ndim = GENERATE(1u, 2u, 3u);
+        const u32 ndim = GENERATE(1u, 2u, 3u);
         for (size_t i = 0; i < 20; ++i) {
             auto shape = test::random_shape(ndim, {.batch_range={1, 5}});
             auto strides = shape.strides();

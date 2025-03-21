@@ -3,10 +3,12 @@
 #include "noa/Version.hpp"
 
 // Platform detection.
-#if defined(_WIN64) || defined(__APPLE__) || defined(__MACH__) || defined(__ANDROID__)
+#if defined(_WIN64) || defined(__ANDROID__)
 #   error "Platform is not supported"
 #elif defined(__linux__) || defined(__CUDACC_RTC__)
 #   define NOA_PLATFORM_LINUX
+#elif defined(__APPLE__) || defined(__MACH__)
+#   define NOA_PLATFORM_APPLE
 #else
 #   error "Unknown platform!"
 #endif

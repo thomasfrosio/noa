@@ -1,8 +1,12 @@
 /// TODO This is Linux-only but support for Windows could be added in the future.
+#include "noa/core/Config.hpp"
+#include "noa/core/io/BinaryFile.hpp"
+
 #include <sys/mman.h>
 #include <sys/stat.h>
-
-#include "noa/core/io/BinaryFile.hpp"
+#ifdef NOA_PLATFORM_APPLE
+#   include <unistd.h>
+#endif
 
 namespace {
     using namespace noa::types;

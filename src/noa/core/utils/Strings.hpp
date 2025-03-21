@@ -3,14 +3,16 @@
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
 
+// Suppress fmt warnings...
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wsign-conversion"
-#pragma GCC diagnostic ignored "-Wshadow"
-#pragma GCC diagnostic ignored "-Wformat-nonliteral"
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wsign-conversion"
+#   pragma GCC diagnostic ignored "-Wshadow"
+#   pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#   pragma GCC diagnostic ignored "-Wstringop-overflow"
+#   pragma GCC diagnostic ignored "-Wtautological-compare"
 #elif defined(NOA_COMPILER_MSVC)
-#pragma warning(push, 0)
+#   pragma warning(push, 0)
 #endif
 
 #include <fmt/chrono.h>
@@ -24,9 +26,9 @@
 #include <fmt/std.h>
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
-#pragma GCC diagnostic pop
+#   pragma GCC diagnostic pop
 #elif defined(NOA_COMPILER_MSVC)
-#pragma warning(pop)
+#   pragma warning(pop)
 #endif
 
 #include <algorithm>
