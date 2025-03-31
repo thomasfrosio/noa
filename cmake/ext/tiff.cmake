@@ -4,7 +4,7 @@ list(APPEND CMAKE_MESSAGE_INDENT "   ")
 if (TARGET TIFF::TIFF)
     message(STATUS "Target already exists: TIFF::TIFF")
 else ()
-    # TODO libtiff.a from apt is broken apparently, similar to this https://bugs.archlinux.org/task/77224.
+    # TODO some libtiff.a from apt is broken apparently, similar to this https://bugs.archlinux.org/task/77224.
     # TODO Use shared library for now, but maybe look for a better TIFF option?
     set(_tiff_old_lib_suffix ${CMAKE_FIND_LIBRARY_SUFFIXES})
     set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_SHARED_LIBRARY_SUFFIX})
