@@ -61,27 +61,28 @@ namespace noa::io {
         int fd = ::fileno(m_file);
         check(fd != -1, "Failed to retrieve the file descriptor, {}", std::strerror(errno));
 
-        // Resize the file.
-        if (m_open.write) {
-            if (m_open.read and not m_open.truncate and parameters.new_size < 0) {
-                // In read|write only, if the size isn't specified, do nothing.
-            } else {
-                check(parameters.new_size >= 0,
-                      "When creating a new file or overwriting an existing one ({}), "
-                      "a valid file size should be provided, but got {}",
-                      m_open, parameters.new_size);
-                check(::ftruncate(fd, parameters.new_size) != -1,
-                      "Failed to resize the file. {}", std::strerror(errno));
-                m_size = parameters.new_size;
-            }
-        } else {
+        if (not m_open.write or (m_open.read and not m_open.truncate and parameters.new_size < 0 and is_file(m_path))) {
+            // Fetch the file size if:
+            // - read-only
+            // - read|write + file exists + no resize.
             struct stat s{};
             check(::fstat(fd, &s) != -1, "Failed to stat file");
             m_size = s.st_size;
+        } else {
+            // Resize the file if a new size is provided and:
+            // - read|write
+            // - read|write|truncate
+            // - write(|truncate)
+            check(parameters.new_size <= 0 or ::ftruncate(fd, parameters.new_size) != -1,
+                  "Failed to resize the file. {}", std::strerror(errno));
+            m_size = parameters.new_size;
         }
 
         if (not parameters.memory_map)
             return;
+
+        // We are about to mmap, so the file should have a valid size by now.
+        check(m_size > 0, "Memory mapping isn't allowed on files without a valid size");
 
         // Align the size to the next page.
         int pagesize = ::getpagesize();

@@ -35,3 +35,8 @@
 
 
 - Add __vkFFT__ support? Also look at FFTW CPU port for Intel-MKL and AMD. This is only for zero-padding, which can bring up to 2x increase of performance for 2D, 3x for 3D. Convolution can be added as a call- back but there's no benchmark for that.
+
+
+- Replace libtiff with something else. I hate it.
+  Then entire IO/Encoders is still not great, but I'll wait until I add compression to think about this. I think some of it could be in the frontend since we may want to compress on the GPU!
+

@@ -7,8 +7,13 @@ namespace noa::io {
     class BinaryFile {
     public:
         struct Parameters {
-            /// Size, in bytes, of the opened file. This is ignored in read-only mode.
-            /// If the file already exists (read|write mode), the file is resized to this size.
+            /// New size, in bytes, of the opened file.
+            /// - This is ignored in read-only mode (the file should exist and cannot be modified).
+            /// - If writing is allowed (e.g. write or read|write mode), the file will be resized
+            ///   if a positive new_size is provided. Note that if the file doesn't exist and a new size isn't
+            ///   provided (new_size=-1), the stream is simply opened, no memory-mapping can be done (an error
+            ///   will be thrown if memory_map=true), and size() returns -1. This behavior is intended for cases
+            ///   where the stream() is to be manipulated directly.
             i64 new_size{-1};
 
             /// Whether to memory map the file after opening it.
@@ -65,11 +70,16 @@ namespace noa::io {
         /// \param mode         Open mode. Append is not supported, but the file can be resized in read|write mode.
         /// \param parameters   File and mapping parameters.
         void open(const Path& path, Open mode, Parameters parameters = DEFAULT_PARAMS);
-
         void close();
 
         [[nodiscard]] auto is_open() const -> bool { return m_file != nullptr; }
         [[nodiscard]] auto path() const -> const Path& { return m_path; }
+
+        /// Returns the file size.
+        /// \warning This is the size when opening the file, after resizing.
+        ///          If the file size was changed after that, the returned value will not be correct.
+        [[nodiscard]] auto ssize() const -> i64 { return m_size; }
+        [[nodiscard]] auto size() const -> u64 { return static_cast<u64>(m_size); }
 
         /// Retrieves the memory mapped range.
         /// This function requires the file to be memory mapped.
@@ -90,8 +100,6 @@ namespace noa::io {
         void optimize_for_no_access(i64 offset = 0, i64 size = -1) const;
         void optimize_for_normal_access(i64 offset = 0, i64 size = -1) const;
 
-        [[nodiscard]] auto ssize() const -> i64 { return m_size; }
-        [[nodiscard]] auto size() const -> u64 { return static_cast<u64>(m_size); }
 
     private:
         Path m_path{};

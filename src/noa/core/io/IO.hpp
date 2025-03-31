@@ -62,6 +62,24 @@ namespace noa::io {
                 mode |= std::ios::app;
             return mode;
         }
+
+        static auto from_stdio(std::string_view mode, bool backup = true) -> Open {
+            mode = noa::string::trim(mode);
+            if (mode == "r")
+                return {.read = true, .backup = backup};
+            if (mode == "r+")
+                return {.read = true, .write = true, .backup = backup};
+            if (mode == "w+")
+                return {.read = true, .write = true, .truncate = true, .backup = backup};
+            if (mode == "a+")
+                return {.read = true, .write = true, .append = true, .backup = backup};
+            if (mode == "w")
+                return {.write = true, .backup = backup};
+            if (mode == "a")
+                return {.write = true, .append = true, .backup = backup};
+
+            panic("invalid stdio open mode: {}", mode);
+        }
     };
 
     /// Whether this code was compiled for big-endian.

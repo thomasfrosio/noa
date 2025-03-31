@@ -10,9 +10,9 @@ using namespace ::noa::types;
 namespace nio = ::noa::io;
 namespace fs = std::filesystem;
 
-TEST_CASE("core::io::ImageFile<EncodingMrc>: real dtype", "[noa]") {
+TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[noa]") {
     const auto data_file = test::NOA_DATA_PATH / "common" / "io" / "files" / "example_MRCFile.mrc";
-    const Path test_dir = fs::current_path() / "test_MrcFile";
+    const Path test_dir = fs::current_path() / "test_MRCFile";
     fs::remove_all(test_dir);
 
     const Path file1 = test_dir / "file1.mrc";

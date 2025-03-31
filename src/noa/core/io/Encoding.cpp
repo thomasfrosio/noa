@@ -1,5 +1,6 @@
 #include <omp.h>
 #include <cstring>
+
 #include "noa/core/indexing/Layout.hpp"
 #include "noa/core/io/Encoding.hpp"
 
@@ -56,9 +57,8 @@ namespace {
         auto encoder = Encoder<Input, Output>{clamp, swap_endian};
 
         #pragma omp parallel for num_threads(n_threads) default(none) shared(input, ptr, encoder)
-        for (i64 idx = 0; idx < input.ssize(); ++idx) {
+        for (i64 idx = 0; idx < input.ssize(); ++idx)
             ptr[idx] = encoder(input[idx]);
-        }
     }
 
     template<typename Output, typename Input>

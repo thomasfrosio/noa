@@ -68,9 +68,16 @@ namespace noa::io {
 
     public: // member functions
         /// Opens and memory maps the file.
-        /// \param path         File path.
-        /// \param mode         Open mode. Only read, read|write|truncate, and write(|truncate) are supported.
-        /// \param new_header   Header of the opened file. This is ignored in read-only mode.
+        /// \param path File path.
+        /// \param mode Open mode. Modifying an existing file is currently not supported.
+        ///             Only the follow modes are supported:
+        ///             1) read:                  r     Readable.           The file should exist.          No backup.
+        ///             2) read-write-truncate:   w+    Readable-Writable.  Create or overwrite the file.   Backup move.
+        ///             3) write(-truncate):      w     Writable.           Create or overwrite the file.   Backup move.
+        /// \param new_header   Header of the opened file. This is ignored in read-only (r) mode.
+        ///
+        /// \note Currently, we cannot both read and write from the same TIFF file, so while the mode w+ described
+        ///       above will correctly create a new file, reading from this newly created file is not allowed...
         void open(const Path& path, Open mode, Header new_header = {}) {
             close();
             check(mode.is_valid() and not mode.append and
@@ -79,43 +86,48 @@ namespace noa::io {
                    (not mode.read and mode.write)),
                   "Invalid or unsupported open mode: {}", mode);
 
-            // Select the first encoder supporting the extension.
-            auto extension = path.extension().string();
-            auto has_been_initialized = [&extension, this]<size_t... Is>(std::index_sequence<Is...>) {
-                return (initialize_encoder_<Is>(extension) or ...);
-            }(std::make_index_sequence<N_ENCODERS>{});
-            check(has_been_initialized, "The file extension \"{}\" is not supported", extension);
+            if (mode.truncate or (mode.write and not mode.read)) {
+                // If we create a new file, use the extension to decide which encoder to select.
+                auto extension = path.extension().string();
+                const bool has_been_initialized = [&extension, this]<size_t... Is>(std::index_sequence<Is...>) {
+                    return (initialize_encoder_with_extension_<Is>(extension) or ...);
+                }(std::make_index_sequence<N_ENCODERS>{});
+                check(has_been_initialized, "Extension \"{}\" is not supported by any encoder", extension);
 
-            // Get the file size.
-            i64 new_size{-1};
-            if (mode.write) {
-                new_size = std::visit([&](auto&& f) {
+                // Ask the encoder if we should resize the file. If this returns -1, the file will not be resized,
+                // and we expect the encoder to resize it later during the write_(slice|all) operations.
+                const i64 new_size = std::visit([&](auto&& f) {
                     return f.required_file_size(new_header.shape, new_header.dtype);
                 }, m_encoders);
-            }
 
-            // Open and mmap the file.
-            m_file.open(path, mode, {.new_size = new_size});
+                // Encoders may need to read the file stream, even in writing mode, so always open in w+ mode.
+                m_file.open(path, Open::from_stdio("w+"), {.new_size = new_size});
 
-            // Save the header.
-            if (mode.read) {
-                std::visit([this](auto& f) {
-                     auto&& [shape, spacing, dtype] = f.read_header(m_file.stream());
-                     m_header.shape = shape;
-                     m_header.spacing = spacing;
-                     m_header.dtype = dtype;
-                 }, m_encoders);
-            } else {
+                // Set the header.
                 check(not new_header.shape.is_empty(),
                       "The data shape should be non-zero positive, but got new_header.shape={}", new_header.shape);
                 check(all(new_header.spacing >= 0),
                       "The data spacing should be positive, but got new_header.spacing={}", new_header.spacing);
                 check(new_header.dtype != Encoding::Type::UNKNOWN, "The data type is not set");
                 m_header = new_header;
-
                 std::visit([this](auto& f) {
                     f.write_header(m_file.stream(), m_header.shape, m_header.spacing, m_header.dtype);
                 }, m_encoders);
+
+            } else {
+                // In read-only mode, ask if any encoder recognizes the file.
+                m_file.open(path, mode);
+                const bool has_been_initialized = [this]<size_t... Is>(std::index_sequence<Is...>) {
+                    return (initialize_encoder_with_stream_<Is>(m_file.stream()) or ...);
+                }(std::make_index_sequence<N_ENCODERS>{});
+                check(has_been_initialized, "{} is not supported by any encoder", path);
+
+                std::visit([this](auto& f) {
+                     auto&& [shape, spacing, dtype] = f.read_header(m_file.stream());
+                     m_header.shape = shape;
+                     m_header.spacing = spacing;
+                     m_header.dtype = dtype;
+                 }, m_encoders);
             }
         }
 
@@ -152,7 +164,7 @@ namespace noa::io {
         };
 
         /// Reads one or multiple consecutive 2d slices from a file describing a stack of 2d images or 3d volumes.
-        template<typename T, StridesTraits S>
+        template<nt::image_encorder_supported_value_type T, StridesTraits S>
         void read_slice(const Span<T, 4, i64, S>& output, Parameters parameters) {
             check(is_open(), "The file should be open");
 
@@ -177,7 +189,7 @@ namespace noa::io {
         }
 
         /// Reads the whole data from the file.
-        template<typename T, StridesTraits S>
+        template<nt::image_encorder_supported_value_type T, StridesTraits S>
         void read_all(const Span<T, 4, i64, S>& output, Parameters parameters = {}) {
             check(is_open(), "The file should be open");
             check(noa::all(parameters.bd_offset == 0),
@@ -195,7 +207,10 @@ namespace noa::io {
         }
 
         /// Writes one or multiple consecutive 2d slices into a file describing a stack of 2d images or 3d volumes.
-        template<typename T, StridesTraits S>
+        /// \note Multithreading is disabled for TIFF files. Parameters::n_threads is ignored.
+        /// \note TIFF files can only write slices sequentially, so an error will be thrown if inputs are written
+        ///       in a different order.
+        template<nt::image_encorder_supported_value_type T, StridesTraits S>
         void write_slice(const Span<const T, 4, i64, S>& input, Parameters parameters) {
             check(is_open(), "The file should be open");
 
@@ -219,7 +234,8 @@ namespace noa::io {
         }
 
         /// Writes the data into the file.
-        template<typename T, StridesTraits S>
+        /// \note Multithreading is disabled for TIFF files. Parameters::n_threads is ignored.
+        template<nt::image_encorder_supported_value_type T, StridesTraits S>
         void write_all(const Span<const T, 4, i64, S>& input, Parameters parameters = {}) {
             check(is_open(), "The file should be open");
             check(noa::all(parameters.bd_offset == 0),
@@ -243,8 +259,23 @@ namespace noa::io {
         }
 
         template<size_t I>
-        [[nodiscard]] auto initialize_encoder_(std::string_view extension) -> bool {
+        [[nodiscard]] auto initialize_encoder_with_extension_(std::string_view extension) -> bool {
             if (is_supported_extension_<I>(extension)) {
+                m_encoders.template emplace<I>();
+                return true;
+            }
+            return false;
+        }
+
+        template<size_t I>
+        [[nodiscard]] static auto is_supported_stream_(std::FILE* stream) noexcept -> bool {
+            using encoder_t = std::tuple_element_t<I, encoders_type>;
+            return encoder_t::is_supported_stream(stream);
+        }
+
+        template<size_t I>
+        [[nodiscard]] auto initialize_encoder_with_stream_(std::FILE* stream) -> bool {
+            if (is_supported_stream_<I>(stream)) {
                 m_encoders.template emplace<I>();
                 return true;
             }
@@ -267,5 +298,5 @@ namespace noa::io {
         Header m_header{};
     };
 
-    using ImageFile = BasicImageFile<EncoderMrc>;
+    using ImageFile = BasicImageFile<EncoderMrc, EncoderTiff>;
 }
