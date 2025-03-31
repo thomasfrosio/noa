@@ -1,6 +1,6 @@
 ## `Dependencies`
 
-The library as very few dependencies, most of which should be installed before starting to build the library. Take a look at the [`dependencies`](000_dependencies.md) for more details.
+The library as very few dependencies, most of which should be installed before building the library. Take a look at the [`dependencies`](000_dependencies.md) for more details.
 
 ## `Build and Install`
 

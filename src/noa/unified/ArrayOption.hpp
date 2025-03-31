@@ -30,7 +30,7 @@ namespace noa::inline types {
         /// \note While it indicates whether the managed data can be read/written by the CPU, it does not indicate
         ///       how the library uses the managed data. Indeed, this choice is purely made on the device currently
         ///       associated with the allocated data. For instance, the CPU may access values from a pinned GPU array
-        ///       (certain conditions may apply, see Allocator), i.e. it is dereferenceable. However, since the device
+        ///       (certain conditions may apply, see Allocator), thus it is dereferenceable. However, if the device
         ///       of that array is a GPU, the library will refer to the memory region as GPU-owned and will therefore
         ///       prioritize GPU access.
         [[nodiscard]] constexpr auto is_dereferenceable() const noexcept -> bool {

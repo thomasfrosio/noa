@@ -7,7 +7,7 @@
 
 #include "noa/cpu/AllocatorHeap.hpp"
 #if defined(NOA_ENABLE_CUDA)
-#include "noa/gpu/cuda/Allocators.hpp"
+#   include "noa/gpu/cuda/Allocators.hpp"
 #endif
 
 #include "noa/unified/Device.hpp"
@@ -17,7 +17,8 @@ namespace noa::inline types {
     /// Memory allocator.
     class Allocator {
     public:
-        /// Memory allocation depends on the device used for the allocation.
+        /// Different types of allocators.
+        /// \note Memory allocation depends on the device used for the allocation.
         enum class Enum {
             /// No allocation can be performed.
             NONE = 0,
@@ -100,6 +101,10 @@ namespace noa::inline types {
         /*implicit*/ Allocator(const char* name) : Allocator(std::string_view(name)) {}
 
     public:
+        /// Whether the allocator is any of the provided values.
+        /// The values should be convertible to an Allocator instance,
+        /// e.g. Allocator{"unified"}.is_any("pinned") == false,
+        /// e.g. Allocator{"unified"}.is_any("pinned", Allocator::UNIFIED) == true.
         [[nodiscard]] constexpr auto is_any(const auto&... values) const {
             auto get_resource = []<typename T>(const T& v) {
                 if constexpr (nt::any_of<T, Allocator, Enum>) {
@@ -113,7 +118,7 @@ namespace noa::inline types {
             return ((value == get_resource(values)) or ...);
         }
 
-        /// Allocates \p n_elements from the given \p memory_resource.
+        /// Allocates, using the current allocator, \p n_elements from a memory resource accessible to the \p device.
         /// \warning The underlying allocators are using malloc-like functions, thus return uninitialized memory
         ///          with the appropriate alignment requirement and size, i.e. it is undefined behavior to directly
         ///          read from these memory regions.
@@ -217,6 +222,9 @@ namespace noa::inline types {
             std::terminate(); // unreachable
         }
 
+        /// Similar to allocate, but for 4d shapes. If Allocator::PITCHED, the returned memory is optimized for
+        /// efficient per-row access. This may be done at the cost of an extra padding of the rows to preserve the
+        /// memory alignment. Of course, this padding is encoded in the returned strides.
         template<typename T>
         auto allocate_pitched(
             const Shape4<i64>& shape,

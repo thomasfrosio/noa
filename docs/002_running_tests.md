@@ -9,7 +9,7 @@ To run the tests:
 
 2. Build the library and the executable if not done already.
    See instructions [here](001_build.md).
-   **Building the tests with the CUDA backend can take a lot of memory, so we recommend only using a few threads (e.g. `-j 5`) to make sure the system doesn't run out of memory...** (nvcc isn't particularly lean on the number of subprocesses its spawns...)
+   **Building the tests with the CUDA backend can take a lot of memory, so we recommend only using a few threads (e.g. `-j 5`) to make sure the system doesn't run out of memory...** (nvcc isn't particularly lean on the number of subprocesses it spawns...)
 
 3. To run all tests, simply run `./noa_tests` (there are a lot of tests, this can take a few minutes to run).
    The command line arguments are parsed using `Catch2`.

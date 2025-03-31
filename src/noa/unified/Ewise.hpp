@@ -43,24 +43,24 @@ namespace noa {
     /// \note Compared to iwise, this function can analyze the inputs and outputs to deduce the most efficient way to
     ///       traverse the arrays. For instance, it can reorder dimensions, collapse contiguous dimensions together
     ///       (up to 1d), and can trigger the vectorization for the 1d case by checking for data contiguity and aliasing.
-    ///       Note that because the core interface allows the operator to modify the inputs and allows the inputs/outputs
-    ///       to alias, GPU vectorization can only be triggered if the input varrays have a const value type and if the
-    ///       inputs/outputs don't alias. Note that the core interface also allows the output values to be read/updated,
-    ///       which greatly simplifies some operations.
+    ///       Note that because the core interface allows the operator to write/read to the inputs/outputs and
+    ///       allows the inputs/outputs to alias each other, GPU vectorization is only enabled if the
+    ///       enable_vectorization<op> trait is true.
     ///
     /// \note Views or Arrays (i.e. varrays) are supported and handled separately from other types. Varrays are
-    ///       converted and wrapper into a tuple of accessors, and sent to the backends' ewise core function. For
+    ///       converted and wrapped into a tuple of accessors, and sent to the backends' ewise core functions. For
     ///       asynchronous cases (async CPU stream or GPU), the shared handle of every Array (see Array::share())
-    ///       is copied and will be released (i.e. destructed) when the core function finishes, thus ensuring that the
-    ///       Array's resource stays alive during the processing. Other types (so everything that is not a varray)
-    ///       are moved/copied into a wrapper (AccessorValue). The stored value is passed by (const) lvalue reference
-    ///       to the operator. No other actions are performed on these types, so it is the responsibility of the caller
-    ///       to make sure these stay valid until completion.
+    ///       is moved/copied and will be released (i.e. destructed) when the core function finishes, thus ensuring
+    ///       that the Array's resource stays alive during the processing. Other types (so everything that is not a
+    ///       varray) are moved/copied into an owning wrapper (AccessorValue). The stored value is passed by (const)
+    ///       lvalue reference to the operator. No other actions are performed on these types, so it is the
+    ///       responsibility of the caller to make sure these objects (and more specifically, the resources that they
+    ///       may be pointing to) stay valid until completion.
     ///
     /// \note \p inputs and \p outputs can be left empty, but note that there should be at least one varray
-    ///       (in either \p inputs and \p outputs), otherwise the function will not compile.
+    ///       (in either \p inputs or \p outputs), otherwise the function will not compile.
     ///       If no outputs are provided, all varray inputs should have the same shape. If they do have the same
-    ///       stride layout, the function can reorder them to the rightmost layout for better performance.
+    ///       stride layout, they will be reordered to the rightmost layout for better performance.
     ///       If outputs are provided, there should all be varrays with the same shape, have the same stride order
     ///       and cannot be broadcasted (strides of zeros are not allowed). In this case, the varray inputs will
     ///       need to match the output shape or be broadcastable to the output shape. If the stride order of the

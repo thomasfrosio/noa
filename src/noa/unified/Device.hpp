@@ -7,8 +7,8 @@
 
 #include "noa/cpu/Device.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/gpu/cuda/Device.hpp"
-#include "noa/gpu/cuda/MemoryPool.hpp"
+#   include "noa/gpu/cuda/Device.hpp"
+#   include "noa/gpu/cuda/MemoryPool.hpp"
 #endif
 
 namespace noa::inline types {

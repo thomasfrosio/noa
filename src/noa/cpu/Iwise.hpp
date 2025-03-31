@@ -1,8 +1,8 @@
 #pragma once
 
 #include <omp.h>
-#include "noa/core/types/Accessor.hpp"
 #include "noa/core/Interfaces.hpp"
+#include "noa/core/types/Accessor.hpp"
 #include "noa/core/types/Shape.hpp"
 
 namespace noa::cpu::guts {

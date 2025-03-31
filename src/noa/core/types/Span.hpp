@@ -108,6 +108,7 @@ namespace noa::inline types {
         ) noexcept : Span(data, shape, shape.strides()) {}
 
         /// Creates a span of nd data.
+        /// For contiguous spans, since the width stride (strides[N-1]) is ignored, it doesn't have to be specified.
         template<size_t A, size_t B> requires IS_CONTIGUOUS
         NOA_HD constexpr Span(
             pointer_type pointer,
@@ -408,12 +409,15 @@ namespace noa::inline types {
         NOA_NO_UNIQUE_ADDRESS strides_type m_strides{};
     };
 
+    /// Deduction guide. Span(ptr, size) creates a contiguous span.
     template<typename T, nt::integer I>
     Span(T*, I) -> Span<T, 1, I, StridesTraits::CONTIGUOUS>;
 
+    /// Deduction guide. Span(ptr, shape) creates a contiguous span.
     template<typename T, nt::integer I, size_t N, size_t A>
     Span(T*, const Shape<I, N, A>&) -> Span<T, N, I, StridesTraits::CONTIGUOUS>;
 
+    /// Deduction guide. Span(c_array) creates a contiguous span.
     template<typename T, size_t S>
     Span(T (&)[S]) -> Span<T, 1, i64, StridesTraits::CONTIGUOUS>;
 

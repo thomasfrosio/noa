@@ -44,7 +44,7 @@ namespace noa::inline types {
         } else if (str_ == "none" or str_.empty()) {
             return Allocator::NONE;
         } else {
-            panic("{} is not a valid memory resource", str_);
+            panic("{} is not a valid allocator", str_);
         }
     }
 }

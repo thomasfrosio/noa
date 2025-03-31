@@ -36,7 +36,6 @@ Instead, this library and its CUDA backend are leaving the burden of compilation
 
 Here's an example of how this can be done:
 ```cmake
-
 # -- CMakeLists.txt --
 project(my_application LANGUAGES C++)
 
@@ -54,15 +53,16 @@ set(my_source_files my_application.cpp)
 if (NOA_ENABLE_CUDA)
     # In this example, my_application.cpp includes the library (see below).
     # To use its CUDA backend, we need to compile the application sources as CUDA files (*).
+    # If the file extention is .cu, this is of course not necessary.
     set_source_files_properties(${my_source_files} PROPERTIES LANGUAGE CUDA)
 endif()
 
-# Then continue as normal...
+# Then continue as usual...
 add_executable(my_application ${my_source_files})
 target_link_library(my_application PRIVATE noa::noa)
 
 # --
-# (*): If NOA_ENABLE_CUDA=ON, the most headers in the CUDA backend and the frontend
+# (*): If NOA_ENABLE_CUDA=ON, most headers in the CUDA backend and the frontend
 #      will fail to compile as C++ files. Core headers and CPU backend will be compiled
 #      correctly either way. Not to worry, a compile time error will be given if a file
 #      is wrongly compiled as a C++ file!
