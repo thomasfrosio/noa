@@ -5,7 +5,7 @@ if (TARGET fmt::fmt)
     message(STATUS "Target already exists: fmt::fmt")
 else ()
     set(fmt_REPOSITORY https://github.com/fmtlib/fmt)
-    set(fmt_TAG 10.2.1)
+    set(fmt_TAG 11.1.4)
 
     message(STATUS "Repository: ${fmt_REPOSITORY}")
     message(STATUS "Git tag: ${fmt_TAG}")
