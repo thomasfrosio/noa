@@ -1,5 +1,6 @@
 #pragma once
 
+#include <limits>
 #include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/math/Constant.hpp"
@@ -642,12 +643,10 @@ namespace noa {
     }
 }
 
+#include <limits>
 namespace std {
     // "Non-standard libraries may add specializations for library-provided types"
     // https://en.cppreference.com/w/cpp/types/numeric_limits
-    template<class T>
-    class numeric_limits;
-
     template<>
     class numeric_limits<noa::Half> {
     public:

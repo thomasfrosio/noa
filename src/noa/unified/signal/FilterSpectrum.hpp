@@ -174,7 +174,7 @@ namespace noa::signal {
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>,
              guts::filterable_nd<N, Input> Filter>
-    requires (nt::varray_decay_with_spectrum_types<Input, Output> and REMAP.is_hx2hx() or REMAP.is_fx2fx())
+    requires (nt::varray_decay_with_spectrum_types<Input, Output> and (REMAP.is_hx2hx() or REMAP.is_fx2fx()))
     void filter_spectrum(
         Input&& input,
         Output&& output,

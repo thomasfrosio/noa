@@ -158,7 +158,7 @@ namespace noa::io {
             panic("Map order {} is not supported. Only (1,2,3) is supported", order);
         }
 
-        return {m_shape, m_spacing.as<f64>(), m_dtype};
+        return make_tuple(m_shape, m_spacing.as<f64>(), m_dtype);
     }
 
     void EncoderMrc::write_header(
@@ -641,11 +641,11 @@ namespace noa::io {
         // Don't bother resetting the current directory to the first one,
         // read/write operations will reset the directory whenever necessary.
 
-        return {
+        return make_tuple(
             Shape<i64, 4>{m_shape[0], 1, m_shape[1], m_shape[2]},
             m_spacing.as<f64>().push_front(m_spacing[0] == 0 and m_spacing[1] == 0 ? 0 : 1),
             m_dtype
-        };
+        );
     }
 
     void EncoderTiff::write_header(

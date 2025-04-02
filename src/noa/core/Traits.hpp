@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
+#include <concepts>
 #include <utility>
 
 #include "noa/core/Config.hpp"

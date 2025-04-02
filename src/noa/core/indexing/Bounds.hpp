@@ -26,7 +26,7 @@ namespace noa::indexing::guts {
 }
 #endif
 
-namespace noa::types {
+namespace noa::inline types {
     template<typename, size_t, size_t> class Vec;
     template<typename, size_t, size_t> class Shape;
 }

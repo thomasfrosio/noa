@@ -74,7 +74,7 @@ namespace noa {
         [[nodiscard]] NOA_FHD constexpr auto for_size(const I& size) const -> Op<I> requires nt::complex<value_type> {
             auto real = Linspace<real_type>{start.real, stop.real, endpoint}.for_size(size);
             auto imag = Linspace<real_type>{start.imag, stop.imag, endpoint}.for_size(size);
-            return Op{
+            return Op<I>{
                 .start = {real.start, imag.start},
                 .step = {real.step, imag.step},
                 .stop = {real.stop, imag.stop},

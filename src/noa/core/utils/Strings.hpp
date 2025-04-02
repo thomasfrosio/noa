@@ -9,8 +9,10 @@
 #   pragma GCC diagnostic ignored "-Wsign-conversion"
 #   pragma GCC diagnostic ignored "-Wshadow"
 #   pragma GCC diagnostic ignored "-Wformat-nonliteral"
-#   pragma GCC diagnostic ignored "-Wstringop-overflow"
 #   pragma GCC diagnostic ignored "-Wtautological-compare"
+#   if defined(NOA_COMPILER_GCC)
+#       pragma GCC diagnostic ignored "-Wstringop-overflow"
+#   endif
 #elif defined(NOA_COMPILER_MSVC)
 #   pragma warning(push, 0)
 #endif
@@ -170,15 +172,10 @@ namespace noa::string {
     /// \tparam T   integer: similar to from_chars (+ plus-sign support) with base=10, \p fmt is ignored.
     ///             bool: same as integer, plus recognizes true={"y", "yes", "true"} and false={"n", "no", "false"}
     ///                   as valid matches (ignoring trailing whitespaces and case-insensitive).
-    ///             floating-point: same as from_chars (+ plus-sign support), with provided \p fmt.
+    ///             floating-point: use std::strto(f|d).
     ///             std::string: remove trailing whitespaces and convert to lowercase.
     template<typename T>
-    auto parse(
-        std::string_view string,
-        std::chars_format fmt = std::chars_format::general
-    ) noexcept -> std::optional<T> {
-        string = trim_left(string);
-
+    auto parse(std::string_view string) noexcept -> std::optional<T> {
         if constexpr (std::is_same_v<T, bool>) {
             auto equal_case_insensitive = [](std::string_view lhs, std::string_view rhs) {
                 return lhs.size() == rhs.size() and
@@ -187,7 +184,7 @@ namespace noa::string {
                                   std::tolower(static_cast<unsigned char>(b));
                        });
             };
-            string = trim_right(string);
+            string = trim(string);
             for (std::string_view match: {"1", "y", "yes", "true"})
                 if (equal_case_insensitive(string, match))
                     return true;
@@ -197,6 +194,7 @@ namespace noa::string {
             return std::nullopt;
 
         } else if constexpr (std::is_integral_v<T>) {
+            string = trim_left(string);
             T output{};
             const bool has_plus = string.size() > 1 and string[0] == '+';
             if (std::from_chars(string.begin() + has_plus, string.end(), output).ec == std::errc{})
@@ -204,14 +202,20 @@ namespace noa::string {
             return std::nullopt;
 
         } else if constexpr (nt::is_real_v<T>) {
+            // std::from_chars for floating-point isn't available in libc++?
             T output{};
-            const bool has_plus = string.size() > 1 and string[0] == '+';
-            if (std::from_chars(string.begin() + has_plus, string.end(), output, fmt).ec == std::errc{})
-                return output;
-            return std::nullopt;
+            char* ending;
+            if constexpr (nt::is_almost_same_v<T, f64>) {
+                output = std::strtod(string.data(), &ending);
+            } else {
+                output = static_cast<T>(std::strtof(string.data(), &ending));
+            }
+            if (*ending == 0)
+                return std::nullopt;
+            return output;
 
         } else if constexpr (std::is_same_v<T, std::string>) {
-            return to_lower(trim_right(string));
+            return to_lower(trim(string));
 
         } else {
             static_assert(nt::always_false<T>);

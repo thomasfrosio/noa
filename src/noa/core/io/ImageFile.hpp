@@ -90,7 +90,7 @@ namespace noa::io {
                 // If we create a new file, use the extension to decide which encoder to select.
                 auto extension = path.extension().string();
                 const bool has_been_initialized = [&extension, this]<size_t... Is>(std::index_sequence<Is...>) {
-                    return (initialize_encoder_with_extension_<Is>(extension) or ...);
+                    return (this->initialize_encoder_with_extension_<Is>(extension) or ...);
                 }(std::make_index_sequence<N_ENCODERS>{});
                 check(has_been_initialized, "Extension \"{}\" is not supported by any encoder", extension);
 
@@ -133,7 +133,7 @@ namespace noa::io {
 
         void close() {
             if (is_open()) {
-                std::visit([this](auto& f) { f.close(); }, m_encoders);
+                std::visit([](auto& f) { f.close(); }, m_encoders);
                 m_file.close();
             }
         }

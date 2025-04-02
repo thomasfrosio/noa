@@ -3,6 +3,13 @@
 #include <ranges> // std::ranges::begin/end
 #include <noa/core/types/Tuple.hpp>
 
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wmissing-braces"
+#elif defined(NOA_COMPILER_MSVC)
+    #pragma warning(push, 0)
+#endif
+
 namespace noa::guts {
     template<typename... T>
     class ZipIterator {
@@ -26,12 +33,12 @@ namespace noa::guts {
         }
 
         template<typename... U>
-        constexpr auto operator!=(const ZipIterator<U...>& other) const {
+        constexpr bool operator!=(const ZipIterator<U...>& other) const {
             return not (*this == other);
         }
 
         template<typename... U> requires (sizeof...(U) == sizeof...(T))
-        constexpr auto operator==(const ZipIterator<U...>& other) const {
+        constexpr bool operator==(const ZipIterator<U...>& other) const {
             return [&]<size_t... I>(std::index_sequence<I...>) {
                 return ((m_iterators[Tag<I>{}] == other.m_iterators[Tag<I>{}]) or ...);
             }(std::make_index_sequence<sizeof...(T)>{});
@@ -77,3 +84,9 @@ namespace noa {
         return guts::ZipRange<T...>(std::forward<T>(r)...);
     }
 }
+
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+#pragma GCC diagnostic pop
+#elif defined(NOA_COMPILER_MSVC)
+#pragma warning(pop)
+#endif
