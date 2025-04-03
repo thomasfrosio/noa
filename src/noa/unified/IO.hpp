@@ -95,10 +95,18 @@ namespace noa::io {
 
         Array<value_t> tmp;
         Span<const value_t, 4> span;
-        if (input.is_dereferenceable()) {
-            span = input.reinterpret_as_cpu({.prefetch = true}).span();
+        if (input.device().is_cpu()) {
+            // Unfortunately, the IO is currently part of the core, thus is not stream-aware.
+            // To account for asynchronous CPU streams, it is important to synchronize here!
+            span = input.eval().span();
+        } else if (input.is_dereferenceable()) {
+            // The input is on the GPU, reinterpret_as will prefetch and sync, making sure
+            // the GPU is done with the input and that the memory can be accessed by the CPU.
+            span = input.reinterpret_as_cpu().span();
         } else {
-            tmp = std::forward<Input>(input).to_cpu().eval();
+            // The input is on the GPU but cannot be reinterpreted, so copy to cpu.
+            // to_cpu() calls copy(), which synchronizes both the CPU and GPU stream in this case.
+            tmp = std::forward<Input>(input).to_cpu();
             span = tmp.span();
         }
 
