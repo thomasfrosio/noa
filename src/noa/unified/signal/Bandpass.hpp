@@ -165,7 +165,7 @@ namespace noa::signal {
     template<Remap REMAP,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>>
-    requires (nt::varray_decay_with_spectrum_types<Input, Output> and REMAP.is_hx2hx() or REMAP.is_fx2fx())
+    requires (nt::varray_decay_with_spectrum_types<Input, Output> and (REMAP.is_hx2hx() or REMAP.is_fx2fx()))
     void lowpass(
         Input&& input,
         Output&& output,
@@ -196,7 +196,7 @@ namespace noa::signal {
     template<Remap REMAP,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>>
-    requires (nt::varray_decay_with_spectrum_types<Input, Output> and REMAP.is_hx2hx() or REMAP.is_fx2fx())
+    requires (nt::varray_decay_with_spectrum_types<Input, Output> and (REMAP.is_hx2hx() or REMAP.is_fx2fx()))
     void highpass(
         Input&& input,
         Output&& output,
@@ -227,7 +227,7 @@ namespace noa::signal {
     template<Remap REMAP,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>>
-    requires (nt::varray_decay_with_spectrum_types<Input, Output> and REMAP.is_hx2hx() or REMAP.is_fx2fx())
+    requires (nt::varray_decay_with_spectrum_types<Input, Output> and (REMAP.is_hx2hx() or REMAP.is_fx2fx()))
     void bandpass(
         Input&& input,
         Output&& output,

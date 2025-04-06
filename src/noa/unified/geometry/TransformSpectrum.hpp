@@ -257,7 +257,7 @@ namespace noa::geometry::guts {
     concept transform_spectrum_nd_rotation =
         nt::mat_of_shape<std::decay_t<Rotation>, N, N> or
         (N == 3 and nt::quaternion<std::decay_t<Rotation>>) or
-        (nt::varray_decay<Rotation> and nt::mat_of_shape<RotationValue, N, N> or (N == 3 and nt::quaternion<RotationValue>));
+        (nt::varray_decay<Rotation> and (nt::mat_of_shape<RotationValue, N, N> or (N == 3 and nt::quaternion<RotationValue>)));
 
     template<size_t N, typename Shift>
     concept transform_spectrum_nd_shift =

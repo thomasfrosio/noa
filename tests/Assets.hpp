@@ -4,7 +4,6 @@
 #include <noa/core/types/Shape.hpp>
 #include <noa/core/io/IO.hpp>
 #include <noa/core/Enums.hpp>
-#include <ostream>
 
 #if defined(NOA_COMPILER_CLANG)
 #pragma GCC diagnostic push

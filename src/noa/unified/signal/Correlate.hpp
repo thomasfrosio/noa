@@ -533,6 +533,7 @@ namespace noa::signal {
         const Device& device = cross_correlation_map.device();
         const auto shape = cross_correlation_map.shape();
         auto filter_nd = [&shape](auto v) {
+            (void)shape; // clang unused warning
             if constexpr (N == 1) return v.filter(0, shape[2] > 1 ? 2 : 3);
             if constexpr (N == 2) return v.filter(0, 2, 3);
             if constexpr (N == 3) return v;

@@ -204,7 +204,7 @@ namespace noa::signal {
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>,
              guts::filterable_nd<1, Input> Filter>
-    requires (nt::varray_decay_with_spectrum_types<Input, Output> and REMAP.is_hx2hx() or REMAP.is_fx2fx())
+    requires (nt::varray_decay_with_spectrum_types<Input, Output> and (REMAP.is_hx2hx() or REMAP.is_fx2fx()))
     void filter_spectrum_1d(
         Input&& input,
         Output&& output,
@@ -220,7 +220,7 @@ namespace noa::signal {
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>,
              guts::filterable_nd<2, Input> Filter>
-    requires (nt::varray_decay_with_spectrum_types<Input, Output> and REMAP.is_hx2hx() or REMAP.is_fx2fx())
+    requires (nt::varray_decay_with_spectrum_types<Input, Output> and (REMAP.is_hx2hx() or REMAP.is_fx2fx()))
     void filter_spectrum_2d(
         Input&& input,
         Output&& output,
@@ -236,7 +236,7 @@ namespace noa::signal {
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>,
              guts::filterable_nd<3, Input> Filter>
-    requires (nt::varray_decay_with_spectrum_types<Input, Output> and REMAP.is_hx2hx() or REMAP.is_fx2fx())
+    requires (nt::varray_decay_with_spectrum_types<Input, Output> and (REMAP.is_hx2hx() or REMAP.is_fx2fx()))
     void filter_spectrum_3d(
         Input&& input,
         Output&& output,

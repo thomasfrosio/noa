@@ -1,6 +1,7 @@
 # Collect source files for tests:
 set(TEST_SOURCES
-    Assets.h
+    Assets.hpp
+    Catch.hpp
     EntryPoint.cpp
     Utils.hpp
     )

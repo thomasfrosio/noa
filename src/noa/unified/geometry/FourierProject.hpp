@@ -300,7 +300,7 @@ namespace noa::geometry::guts {
             // i.e., its decimal is 0, the corresponding fraction for this element should be 1.
             Vec3<coord_type> fraction[2];
             fraction[1] = freq - base0.template as<coord_type>();
-            fraction[0] = 1.f - fraction[1];
+            fraction[0] = 1 - fraction[1];
             for (index_type w{}; w < 2; ++w)
                 for (index_type v{}; v < 2; ++v)
                     for (index_type u{}; u < 2; ++u)
