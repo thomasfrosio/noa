@@ -1,4 +1,5 @@
 set(TEST_COMMON_SOURCES
+    noa/core/TestCoreAllclose.cpp
     noa/core/TestCoreRemap.cpp
     noa/core/TestCoreInterpolation.cpp
 

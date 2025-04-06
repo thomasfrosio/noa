@@ -1,17 +1,17 @@
+#include <memory>
+
 #include <noa/core/geometry/Euler.hpp>
 #include <noa/core/io/ImageFile.hpp>
 #include <noa/core/indexing/Layout.hpp>
-#include <catch2/catch.hpp>
-#include <memory>
 
-#include "Assets.h"
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
 namespace nio = ::noa::io;
 
-
-TEST_CASE("core::geometry::euler2matrix()", "[noa]") {
+TEST_CASE("core::geometry::euler2matrix()", "[asset]") {
     const Path path_base = test::NOA_DATA_PATH / "common" / "geometry";
     YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["euler2matrix"];
     const auto path_expected = path_base / param["file"].as<Path>();
@@ -57,7 +57,7 @@ TEST_CASE("core::geometry::euler2matrix()", "[noa]") {
     REQUIRE(allclose);
 }
 
-TEST_CASE("core::geometry::matrix2euler()", "[noa]") {
+TEST_CASE("core::geometry::matrix2euler()", "[asset]") {
     const Path path_base = test::NOA_DATA_PATH / "common" / "geometry";
     YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["euler2matrix"];
     const auto valid_axes = param["axes"].as<std::vector<std::string>>();

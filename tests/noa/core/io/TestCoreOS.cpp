@@ -1,10 +1,9 @@
-#include <noa/core/io/IO.hpp>
-
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <noa/core/io/IO.hpp>
 
-#include <catch2/catch.hpp>
+#include "Catch.hpp"
 
 using namespace ::noa::types;
 namespace io = ::noa::io;
@@ -18,7 +17,7 @@ ofstream_.close(); }
 std::ofstream ofstream_(filename, std::ios::out | std::ios::trunc); \
 ofstream_.close(); }
 
-TEST_CASE("core::io:: basics", "[noa][core]") {
+TEST_CASE("core::io:: basics") {
     namespace fs = std::filesystem;
 
     // Get some data

@@ -1,5 +1,6 @@
 #include <noa/cpu/Ewise.hpp>
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 namespace {

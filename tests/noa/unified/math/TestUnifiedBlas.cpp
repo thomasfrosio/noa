@@ -4,7 +4,7 @@
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/Ewise.hpp>
 
-#include <catch2/catch.hpp>
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
@@ -34,7 +34,7 @@ namespace {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::dot()", "[noa][unified]", f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::dot()", "", f32, f64, c32, c64) {
     using real_t = noa::traits::value_type_t<TestType>;
     const i64 batches = test::Randomizer<i64>(1, 5).get();
 
@@ -67,7 +67,7 @@ TEMPLATE_TEST_CASE("unified::dot()", "[noa][unified]", f32, f64, c32, c64) {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::dot() vs matmul", "[noa][unified]", f32, f64) {
+TEMPLATE_TEST_CASE("unified::dot() vs matmul", "", f32, f64) {
     using real_t = noa::traits::value_type_t<TestType>;
 
     test::Randomizer<i64> randomizer(4096, 1048576);
@@ -93,12 +93,12 @@ TEMPLATE_TEST_CASE("unified::dot() vs matmul", "[noa][unified]", f32, f64) {
         noa::matmul(lhs, rhs, output_matmul);
 
         REQUIRE_THAT(out_dot,
-                     Catch::WithinRel(static_cast<f64>(output_matmul.first()),
-                                      std::is_same_v<real_t, f64> ? 1e-7 : 5e-3));
+                     Catch::Matchers::WithinRel(static_cast<f64>(output_matmul.first()),
+                         std::is_same_v<real_t, f64> ? 1e-7 : 5e-3));
     }
 }
 
-TEMPLATE_TEST_CASE("unified::matmul()", "[noa][unified]", f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::matmul()", "", f32, f64, c32, c64) {
     using real_t = noa::traits::value_type_t<TestType>;
     const i64 batches = test::Randomizer<i64>(1, 4).get();
 

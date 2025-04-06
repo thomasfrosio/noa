@@ -1,15 +1,14 @@
 #include <noa/core/io/IO.hpp>
 #include <noa/core/io/ImageFile.hpp>
 
-#include <catch2/catch.hpp>
-
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
 namespace nio = ::noa::io;
 namespace fs = std::filesystem;
 
-TEST_CASE("core::io::ImageFile - TIFF: simple write and read", "[noa]") {
+TEST_CASE("core::io::ImageFile - TIFF: simple write and read") {
     const Path test_dir = fs::current_path() / "test_TIFFFile";
     fs::remove_all(test_dir);
 

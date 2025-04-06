@@ -1,7 +1,7 @@
 #include <noa/unified/IO.hpp>
 #include "noa/unified/Factory.hpp"
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 namespace fs = std::filesystem;
@@ -9,7 +9,7 @@ namespace nio = noa::io;
 using namespace noa::types;
 
 
-TEST_CASE("unified::ImageFile", "[noa]") {
+TEST_CASE("unified::ImageFile") {
     const auto cwd = fs::current_path() / "test_image_file" / "test0.mrc";
 
     auto a0 = Array<f32>({10, 1, 64, 64});

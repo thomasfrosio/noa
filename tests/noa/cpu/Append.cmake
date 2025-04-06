@@ -3,6 +3,7 @@ if (NOT NOA_ENABLE_CPU)
 endif ()
 
 set(TEST_CPU_SOURCES
+    noa/cpu/TestCPUAllocate.cpp
     noa/cpu/TestCPUIwise.cpp
     noa/cpu/TestCPUEwise.cpp
     noa/cpu/TestCPUReduceIwise.cpp

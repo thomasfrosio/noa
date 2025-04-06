@@ -1,12 +1,12 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/Factory.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
 
-TEMPLATE_TEST_CASE("unified::copy", "[noa][unified]", i32, f32, f64, c32) {
+TEMPLATE_TEST_CASE("unified::copy", "", i32, f32, f64, c32) {
     const auto shape = test::random_shape_batched(3);
     const auto cpu = Device("cpu");
     const auto stream = StreamGuard(cpu, Stream::DEFAULT); // CPU queue is synchronous
@@ -42,7 +42,7 @@ TEMPLATE_TEST_CASE("unified::copy", "[noa][unified]", i32, f32, f64, c32) {
     }
 }
 
-TEST_CASE("unified::copy, strided data from GPU to CPU", "[noa][unified]") {
+TEST_CASE("unified::copy, strided data from GPU to CPU") {
     if (not Device::is_any(Device::GPU))
         return;
 

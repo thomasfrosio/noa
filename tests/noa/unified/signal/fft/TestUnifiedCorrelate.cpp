@@ -7,7 +7,7 @@
 #include <noa/unified/Reduce.hpp>
 #include <noa/unified/signal/Correlate.hpp>
 
-#include <catch2/catch.hpp>
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
@@ -45,7 +45,7 @@ namespace {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::signal, correlation peak", "[noa][unified]", Vec2<f32>, Vec2<f64>, Vec3<f32>, Vec3<f64>) {
+TEMPLATE_TEST_CASE("unified::signal, correlation peak", "", Vec2<f32>, Vec2<f64>, Vec3<f32>, Vec3<f64>) {
     using value_t = TestType::value_type;
     constexpr size_t N = TestType::SIZE;
 
@@ -91,7 +91,7 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak", "[noa][unified]", Vec2<f
                 REQUIRE(max_value <= peak_value);
 
                 for (size_t i: noa::irange(N))
-                    REQUIRE_THAT(computed_shift[i], Catch::WithinAbs(data.expected_shift[i], 5e-2));
+                    REQUIRE_THAT(computed_shift[i], Catch::Matchers::WithinAbs(data.expected_shift[i], 5e-2));
                 return computed_shift;
             };
 
@@ -109,15 +109,15 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak", "[noa][unified]", Vec2<f
             const auto shift_not_centered_max = run.template operator()<Remap::H2F>(xpeak_options_max);
 
             for (size_t i: noa::irange(N)) {
-                REQUIRE_THAT(shift_not_centered[i], Catch::WithinAbs(shift_centered[i], 1e-4));
-                REQUIRE_THAT(shift_not_centered[i], Catch::WithinAbs(shift_not_centered_max[i], 1e-6));
-                REQUIRE_THAT(shift_centered[i], Catch::WithinAbs(shift_centered_max[i], 1e-6));
+                REQUIRE_THAT(shift_not_centered[i], Catch::Matchers::WithinAbs(shift_centered[i], 1e-4));
+                REQUIRE_THAT(shift_not_centered[i], Catch::Matchers::WithinAbs(shift_not_centered_max[i], 1e-6));
+                REQUIRE_THAT(shift_centered[i], Catch::Matchers::WithinAbs(shift_centered_max[i], 1e-6));
             }
         }
     }
 }
 
-TEMPLATE_TEST_CASE("unified::signal, correlation peak batched", "[noa][unified]", Vec2<f32>, Vec2<f64>, Vec3<f32>,  Vec3<f64>) {
+TEMPLATE_TEST_CASE("unified::signal, correlation peak batched", "", Vec2<f32>, Vec2<f64>, Vec3<f32>,  Vec3<f64>) {
     using value_t = TestType::value_type;
     constexpr size_t N = TestType::SIZE;
 
@@ -185,7 +185,7 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak batched", "[noa][unified]"
                     //              computed_shift, data[i].expected_shift, abs(computed_shift - data[i].expected_shift));
 
                     for (size_t j: noa::irange(N))
-                        REQUIRE_THAT(computed_shift[j], Catch::WithinAbs(data[i].expected_shift[j], 5e-2));
+                        REQUIRE_THAT(computed_shift[j], Catch::Matchers::WithinAbs(data[i].expected_shift[j], 5e-2));
 
                     const auto max = noa::max(xmap.subregion(i));
                     REQUIRE(max <= values(0, 0, 0, i));
@@ -215,8 +215,8 @@ TEST_CASE("unified::signal, autocorrelate", "[.]") {
         const auto xmap = noa::like<f32>(lhs);
         noa::signal::cross_correlation_map<Remap::H2F>(lhs_rfft, rhs_rfft, xmap);
         const auto [shift, _] = noa::signal::cross_correlation_peak_3d<Remap::F2F>(xmap);
-        REQUIRE_THAT(shift[0], Catch::WithinAbs(center[0], 5e-2));
-        REQUIRE_THAT(shift[1], Catch::WithinAbs(center[1], 5e-2));
-        REQUIRE_THAT(shift[2], Catch::WithinAbs(center[2], 5e-2));
+        REQUIRE_THAT(shift[0], Catch::Matchers::WithinAbs(center[0], 5e-2));
+        REQUIRE_THAT(shift[1], Catch::Matchers::WithinAbs(center[1], 5e-2));
+        REQUIRE_THAT(shift[2], Catch::Matchers::WithinAbs(center[2], 5e-2));
     }
 }

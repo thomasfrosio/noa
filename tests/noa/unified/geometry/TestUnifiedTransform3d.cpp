@@ -6,15 +6,15 @@
 #include <noa/unified/Random.hpp>
 #include <noa/unified/Texture.hpp>
 
-#include <catch2/catch.hpp>
-#include "Assets.h"
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
 using Interp = noa::Interp;
 using Border = noa::Border;
 
-TEST_CASE("unified::geometry::transform_3d, rotate vs scipy", "[noa][unified][assets]") {
+TEST_CASE("unified::geometry::transform_3d, rotate vs scipy", "[asset]") {
     const Path path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform_3d"];
     const auto input_filename = path_base / param["input"].as<Path>();
@@ -65,7 +65,7 @@ TEST_CASE("unified::geometry::transform_3d, rotate vs scipy", "[noa][unified][as
                 // For nearest neighbour, the border can be off by one pixel,
                 // so here just check the total difference.
                 const test::MatchResult results = test::allclose_abs(expected, output, 1e-4f);
-                REQUIRE_THAT(results.total_abs_diff, Catch::WithinAbs(0, 1e-6));
+                REQUIRE_THAT(results.total_abs_diff, Catch::Matchers::WithinAbs(0, 1e-6));
             } else {
                 // Otherwise it is usually around 2e-5, but there are some outliers...
                 REQUIRE(test::allclose_abs_safe(expected, output, 1e-4f));
@@ -81,7 +81,7 @@ TEST_CASE("unified::geometry::transform_3d, rotate vs scipy", "[noa][unified][as
 
             if (interp == noa::Interp::NEAREST) {
                 const test::MatchResult results = test::allclose_abs(expected, output, 1e-4f);
-                REQUIRE_THAT(results.total_abs_diff, Catch::WithinAbs(0, 1e-6));
+                REQUIRE_THAT(results.total_abs_diff, Catch::Matchers::WithinAbs(0, 1e-6));
             } else {
                 REQUIRE(test::allclose_abs_safe(expected, output, 1e-4f));
             }
@@ -90,7 +90,7 @@ TEST_CASE("unified::geometry::transform_3d, rotate vs scipy", "[noa][unified][as
     REQUIRE(count == expected_count);
 }
 
-TEST_CASE("unified::geometry::transform_3d(), others", "[noa][unified][assets]") {
+TEST_CASE("unified::geometry::transform_3d(), others", "[asset]") {
     constexpr bool GENERATE_TEST_DATA = false;
     const Path path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform_3d_more"];
@@ -155,7 +155,7 @@ TEST_CASE("unified::geometry::transform_3d(), others", "[noa][unified][assets]")
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::transform_3d, cpu vs gpu", "[noa][geometry]", f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::geometry::transform_3d, cpu vs gpu", "", f32, f64, c32, c64) {
     if (not Device::is_any_gpu())
         return;
 
@@ -208,7 +208,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_3d, cpu vs gpu", "[noa][geometr
     REQUIRE(test::allclose_abs(output_cpu, output_gpu, 5e-4f));
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::transform_3d, cpu vs gpu, texture interpolation", "[noa][geometry]", f32, c32) {
+TEMPLATE_TEST_CASE("unified::geometry::transform_3d, cpu vs gpu, texture interpolation", "", f32, c32) {
     if (not Device::is_any_gpu())
         return;
 
@@ -266,7 +266,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_3d, cpu vs gpu, texture interpo
     if (interp == Interp::NEAREST_FAST) {
         // For nearest-neighbor, the border can be off by one pixel due to floating-point imprecision,
         // so here check the average difference...
-        REQUIRE_THAT(noa::abs(results.total_abs_diff) / static_cast<f32>(shape.n_elements()), Catch::WithinAbs(0, 5e-4));
+        REQUIRE_THAT(noa::abs(results.total_abs_diff) / static_cast<f32>(shape.n_elements()), Catch::Matchers::WithinAbs(0, 5e-4));
     } else {
         // fmt::println("interp={}, border={}, error={}", interp, border, results.max_abs_diff);
         REQUIRE(results);

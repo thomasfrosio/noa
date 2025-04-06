@@ -1,13 +1,13 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/Ewise.hpp>
 #include <noa/unified/Factory.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace noa::types;
 
-TEMPLATE_TEST_CASE("unified::ewise - simple", "[noa][unified]", i32, f64) {
+TEMPLATE_TEST_CASE("unified::ewise - simple", "", i32, f64) {
     auto shape = test::random_shape_batched(3);
     Array lhs = noa::empty<TestType>(shape);
     Array rhs = noa::like(lhs);
@@ -43,7 +43,7 @@ TEMPLATE_TEST_CASE("unified::ewise - simple", "[noa][unified]", i32, f64) {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::ewise - broadcast", "[noa][unified]", i32, f32, f64, c32) {
+TEMPLATE_TEST_CASE("unified::ewise - broadcast", "", i32, f32, f64, c32) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -101,7 +101,7 @@ TEMPLATE_TEST_CASE("unified::ewise - broadcast", "[noa][unified]", i32, f32, f64
     }
 }
 
-TEST_CASE("unified::ewise - zip vs wrap", "[noa][unified]") {
+TEST_CASE("unified::ewise - zip vs wrap") {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -158,7 +158,7 @@ TEST_CASE("unified::ewise - zip vs wrap", "[noa][unified]") {
     }
 }
 
-TEST_CASE("unified::ewise - no inputs/outputs", "[noa][unified]") {
+TEST_CASE("unified::ewise - no inputs/outputs") {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");

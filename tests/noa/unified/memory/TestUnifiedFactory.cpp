@@ -1,12 +1,12 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/Factory.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
 
-TEMPLATE_TEST_CASE("unified::arange(), cpu", "[noa][unified]", i32, i64, u32, u64, f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::arange(), cpu", "", i32, i64, u32, u64, f32, f64, c32, c64) {
     using real_t = noa::traits::value_type_t<TestType>;
 
     {
@@ -17,11 +17,11 @@ TEMPLATE_TEST_CASE("unified::arange(), cpu", "[noa][unified]", i32, i64, u32, u6
         c32 a;
         a = 1;
 
-        noa::arange(results, noa::Arange<TestType>{.start=0, .step=1});
+        noa::arange(results, noa::Arange{.start=TestType{0}, .step=TestType{1}});
         for (i64 i{}; auto& e: expected.span_1d_contiguous())
             e = static_cast<real_t>(i++);
 
-        REQUIRE(test::allclose_abs(results, expected, 1e-10f));
+        REQUIRE(test::allclose_rel(results, expected, 1e-7f));
     }
 
     {
@@ -29,11 +29,11 @@ TEMPLATE_TEST_CASE("unified::arange(), cpu", "[noa][unified]", i32, i64, u32, u6
         const Array<TestType> results(n_elements);
         const Array<TestType> expected(n_elements);
 
-        noa::arange(results, noa::Arange<TestType>{.start=3, .step=5});
+        noa::arange(results, noa::Arange{.start=TestType{3}, .step=TestType{5}});
         for (i64 i{}; auto& e: expected.span_1d_contiguous())
             e = real_t(3) + static_cast<real_t>(i++) * real_t(5);
 
-        REQUIRE(test::allclose_abs(results, expected, 1e-10f));
+        REQUIRE(test::allclose_rel(results, expected, 1e-7f));
     }
 
     {
@@ -41,15 +41,15 @@ TEMPLATE_TEST_CASE("unified::arange(), cpu", "[noa][unified]", i32, i64, u32, u6
         const Array<TestType> results(shape);
         const Array<TestType> expected(shape);
 
-        noa::arange(results, noa::Arange<TestType>{.start=3, .step=5});
+        noa::arange(results, noa::Arange{.start=TestType{3}, .step=TestType{5}});
         for (i64 i{}; auto& e: expected.span_1d_contiguous())
             e = real_t(3) + static_cast<real_t>(i++) * real_t(5);
 
-        REQUIRE(test::allclose_abs(results, expected, 1e-10f));
+        REQUIRE(test::allclose_rel(results, expected, 1e-7f));
     }
 }
 
-TEST_CASE("unified::linspace()", "[noa][unified]") {
+TEST_CASE("unified::linspace()") {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -82,7 +82,7 @@ TEST_CASE("unified::linspace()", "[noa][unified]") {
                 0., 0.14285714, 0.28571429, 0.42857143,
                 0.57142857, 0.71428571, 0.85714286, 1.
             };
-            REQUIRE_THAT(step, Catch::WithinAbs(0.14285714285714285, 1e-9));
+            REQUIRE_THAT(step, Catch::Matchers::WithinAbs(0.14285714285714285, 1e-9));
             REQUIRE(test::allclose_abs(results.eval().get(), expected.data(), n_elements, 1e-7));
         }
 
@@ -115,7 +115,7 @@ TEST_CASE("unified::linspace()", "[noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified:: factories, cpu vs gpu", "[noa][unified]", i32, i64, u32, u64, f64, c64) {
+TEMPLATE_TEST_CASE("unified:: factories, cpu vs gpu", "", i32, i64, u32, u64, f64, c64) {
     const bool pad = GENERATE(false, true);
     const auto type = GENERATE(Device::CPU, Device::GPU);
     INFO(pad);

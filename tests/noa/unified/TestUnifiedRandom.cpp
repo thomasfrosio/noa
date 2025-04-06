@@ -1,12 +1,12 @@
 #include <noa/unified/Random.hpp>
 #include <noa/unified/Reduce.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace noa::types;
 
-TEMPLATE_TEST_CASE("unified::randomize()", "[noa][unified]", f32, f64) {
+TEMPLATE_TEST_CASE("unified::randomize()", "", f32, f64) {
     using value_t = noa::traits::value_type_t<TestType>;
     const auto pad = GENERATE(true, false);
     const auto subregion_shape = test::random_shape_batched(3);
@@ -42,15 +42,15 @@ TEMPLATE_TEST_CASE("unified::randomize()", "[noa][unified]", f32, f64) {
         auto mean = noa::mean(subregion);
         REQUIRE(min >= value_t{-10});
         REQUIRE(max <= value_t{10});
-        REQUIRE_THAT(mean, Catch::WithinAbs(0, 0.1));
+        REQUIRE_THAT(mean, Catch::Matchers::WithinAbs(0, 0.1));
 
         test::fill(data.get(), data.n_elements(), 20);
 
         noa::randomize(noa::Normal<value_t>{5, 2}, subregion);
         mean = noa::mean(subregion);
         const auto stddev = noa::stddev(subregion);
-        REQUIRE_THAT(mean, Catch::WithinAbs(5, 0.1));
-        REQUIRE_THAT(stddev, Catch::WithinAbs(2, 0.1));
+        REQUIRE_THAT(mean, Catch::Matchers::WithinAbs(5, 0.1));
+        REQUIRE_THAT(stddev, Catch::Matchers::WithinAbs(2, 0.1));
     }
 }
 

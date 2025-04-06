@@ -3,12 +3,13 @@
 #include <noa/unified/Random.hpp>
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/IO.hpp>
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
 
-TEMPLATE_TEST_CASE("unified::fft::r2c() -> c2r()", "[noa][unified]", f32, f64) {
+TEMPLATE_TEST_CASE("unified::fft::r2c() -> c2r()", "", f32, f64) {
     const i64 ndim = GENERATE(1, 2, 3);
     const bool pad = GENERATE(true, false);
     INFO("ndim: " << ndim);
@@ -62,7 +63,7 @@ TEMPLATE_TEST_CASE("unified::fft::r2c() -> c2r()", "[noa][unified]", f32, f64) {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::fft::r2c/c2r(), cpu vs gpu", "[noa][unified]", f32, f64) {
+TEMPLATE_TEST_CASE("unified::fft::r2c/c2r(), cpu vs gpu", "", f32, f64) {
     if (not Device::is_any_gpu())
         return;
 
@@ -125,7 +126,7 @@ TEMPLATE_TEST_CASE("unified::fft::r2c/c2r(), cpu vs gpu", "[noa][unified]", f32,
     }
 }
 
-TEMPLATE_TEST_CASE("unified::fft::c2c()", "[noa][unified]", f32, f64) {
+TEMPLATE_TEST_CASE("unified::fft::c2c()", "", f32, f64) {
     const i64 ndim = GENERATE(1, 2, 3);
     const bool pad = GENERATE(true, false);
     INFO("ndim: " << ndim);

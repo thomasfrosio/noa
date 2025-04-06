@@ -1,12 +1,11 @@
 #include <noa/core/utils/SafeCast.hpp>
-#include <catch2/catch.hpp>
-#include <iostream>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
 
-TEMPLATE_TEST_CASE("core::safe_cast, floating-point to signed integer", "[noa][core]", i8, i16, i32, i64) {
+TEMPLATE_TEST_CASE("core::safe_cast, floating-point to signed integer", "", i8, i16, i32, i64) {
     using int_limit = std::numeric_limits<TestType>;
     REQUIRE(123 == noa::safe_cast<TestType>(123.f));
     REQUIRE(-123 == noa::safe_cast<TestType>(-123.f));
@@ -47,7 +46,7 @@ TEMPLATE_TEST_CASE("core::safe_cast, floating-point to signed integer", "[noa][c
     REQUIRE(0 == noa::safe_cast<TestType>(std::numeric_limits<f16>::min()));
 }
 
-TEMPLATE_TEST_CASE("core::safe_cast, floating-point to unsigned integer", "[noa][core]", u8, u16, u32, u64) {
+TEMPLATE_TEST_CASE("core::safe_cast, floating-point to unsigned integer", "", u8, u16, u32, u64) {
     REQUIRE(123 == noa::safe_cast<TestType>(123.f));
     REQUIRE_THROWS_AS(noa::safe_cast<TestType>(-123.f), noa::Exception);
     REQUIRE(123 == noa::safe_cast<TestType>(123.));
@@ -62,7 +61,7 @@ TEMPLATE_TEST_CASE("core::safe_cast, floating-point to unsigned integer", "[noa]
     REQUIRE_THROWS_AS(noa::safe_cast<TestType>(sqrt(f16(-1))), noa::Exception);
 }
 
-TEMPLATE_TEST_CASE("core::safe_cast, integer to floating-point", "[noa][core]", i8, i16, i32, i64, u8, u16, u32, u64) {
+TEMPLATE_TEST_CASE("core::safe_cast, integer to floating-point", "", i8, i16, i32, i64, u8, u16, u32, u64) {
     using int_limit = std::numeric_limits<TestType>;
     REQUIRE(static_cast<f32>(int_limit::min()) == noa::safe_cast<f32>(int_limit::min()));
     REQUIRE(static_cast<f32>(int_limit::max()) == noa::safe_cast<f32>(int_limit::max()));
@@ -70,7 +69,7 @@ TEMPLATE_TEST_CASE("core::safe_cast, integer to floating-point", "[noa][core]", 
     REQUIRE(static_cast<f64>(int_limit::max()) == noa::safe_cast<f64>(int_limit::max()));
 }
 
-TEMPLATE_TEST_CASE("core::safe_cast, f16 to float/double", "[noa][core]", f32, f64) {
+TEMPLATE_TEST_CASE("core::safe_cast, f16 to float/double", "", f32, f64) {
     test::Randomizer<f16> randomizer(std::numeric_limits<f16>::lowest(), std::numeric_limits<f16>::max());
     for (size_t i = 0; i < 1000; ++i) {
         f16 v = randomizer.get();
@@ -79,20 +78,20 @@ TEMPLATE_TEST_CASE("core::safe_cast, f16 to float/double", "[noa][core]", f32, f
     }
 }
 
-TEMPLATE_TEST_CASE("core::safe_cast, small integer to f16", "[noa][core]", i8, i16, u8) {
+TEMPLATE_TEST_CASE("core::safe_cast, small integer to f16", "", i8, i16, u8) {
     using int_limit = std::numeric_limits<TestType>;
     REQUIRE(static_cast<f16>(int_limit::min()) == noa::safe_cast<f16>(int_limit::min()));
     REQUIRE(static_cast<f16>(int_limit::max()) == noa::safe_cast<f16>(int_limit::max()));
 }
 
-TEMPLATE_TEST_CASE("core::safe_cast, large integer to half_t", "[noa][core]", i32, i64, u16, u32, u64) {
+TEMPLATE_TEST_CASE("core::safe_cast, large integer to half_t", "", i32, i64, u16, u32, u64) {
     using int_limit = std::numeric_limits<TestType>;
     if constexpr (std::is_signed_v<TestType>)
         REQUIRE_THROWS_AS(noa::safe_cast<f16>(int_limit::min()), noa::Exception);
     REQUIRE_THROWS_AS(noa::safe_cast<f16>(int_limit::max()), noa::Exception);
 }
 
-TEST_CASE("core::safe_cast, double to float/f16", "[noa][core]") {
+TEST_CASE("core::safe_cast, double to float/f16") {
     using double_limit = std::numeric_limits<f64>;
     REQUIRE(static_cast<f32>(12456.251) == noa::safe_cast<f32>(12456.251));
     REQUIRE_THROWS_AS(noa::safe_cast<f32>(double_limit::lowest()), noa::Exception);
@@ -103,7 +102,7 @@ TEST_CASE("core::safe_cast, double to float/f16", "[noa][core]") {
     REQUIRE_THROWS_AS(noa::safe_cast<f16>(double_limit::max()), noa::Exception);
 }
 
-TEST_CASE("core::safe_cast, integer to integer", "[noa][core]") {
+TEST_CASE("core::safe_cast, integer to integer") {
     // Unsigned to sign:
     REQUIRE(123456 == noa::safe_cast<i32>(u32(123456)));
     REQUIRE(0 == noa::safe_cast<i32>(std::numeric_limits<u32>::min()));

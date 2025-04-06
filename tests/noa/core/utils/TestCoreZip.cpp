@@ -1,9 +1,10 @@
-#include <noa/core/utils/Zip.hpp>
-#include <catch2/catch.hpp>
-
 #include <list>
 #include <vector>
 #include <ranges>
+
+#include <noa/core/utils/Zip.hpp>
+
+#include "Catch.hpp"
 
 TEST_CASE("core::zip") {
     namespace stdr = std::ranges;

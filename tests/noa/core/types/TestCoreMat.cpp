@@ -1,9 +1,10 @@
 #include <noa/core/types/Mat.hpp>
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 
 using namespace ::noa::types;
 
-TEMPLATE_TEST_CASE("core::Mat", "[noa][core]", f32, f64) {
+TEMPLATE_TEST_CASE("core::Mat", "", f32, f64) {
     // Loading matrices onto the GPU can be quite expensive, especially for matrices made of vectors
     // with an odd number of elements. To fix this, force to a 16-bytes alignment.
     using real_t = TestType;

@@ -1,8 +1,8 @@
 #include <noa/core/types/Accessor.hpp>
 #include <noa/gpu/cuda/ReduceAxesIwise.cuh>
 #include <noa/gpu/cuda/Allocators.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 namespace {

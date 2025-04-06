@@ -5,15 +5,14 @@
 #include <noa/unified/IO.hpp>
 #include <noa/unified/Ewise.hpp>
 
-#include <catch2/catch.hpp>
-
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
-#include "Assets.h"
 
 using namespace noa::types;
 using Remap = noa::Remap;
 
-TEST_CASE("unified::signal::ctf_isotropic, assets", "[noa][unified][assets]") {
+TEST_CASE("unified::signal::ctf_isotropic, assets", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector<Device> devices{"cpu"};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
@@ -90,7 +89,7 @@ TEST_CASE("unified::signal::ctf_isotropic, assets", "[noa][unified][assets]") {
     }
 }
 
-TEST_CASE("unified::signal::ctf_isotropic, default range", "[noa][unified]") {
+TEST_CASE("unified::signal::ctf_isotropic, default range") {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -126,7 +125,7 @@ TEST_CASE("unified::signal::ctf_isotropic, default range", "[noa][unified]") {
     }
 }
 
-TEST_CASE("unified::signal::ctf_isotropic, range", "[noa][unified]") {
+TEST_CASE("unified::signal::ctf_isotropic, range") {
     // Generate the full range, and truncate to subregion. Then generate the truncated range directly
     // with the same number of elements as in the subregion and check these ranges are equal.
 
@@ -200,7 +199,7 @@ TEST_CASE("unified::signal::ctf_isotropic, range", "[noa][unified]") {
     }
 }
 
-TEST_CASE("unified::signal::ctf_anisotropic, assets", "[noa][unified][assets]") {
+TEST_CASE("unified::signal::ctf_anisotropic, assets", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector<Device> devices{"cpu"};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
@@ -281,7 +280,7 @@ TEST_CASE("unified::signal::ctf_anisotropic, assets", "[noa][unified][assets]") 
     }
 }
 
-TEST_CASE("unified::signal::ctf_anisotropic, default range, vs isotropic", "[noa][unified]") {
+TEST_CASE("unified::signal::ctf_anisotropic, default range, vs isotropic") {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");

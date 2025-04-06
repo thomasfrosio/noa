@@ -1,7 +1,8 @@
 #include <noa/core/types/Accessor.hpp>
 #include <noa/cpu/AllocatorHeap.hpp>
 #include <noa/gpu/cuda/Pointers.hpp>
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 
 TEST_CASE("cuda::ewise vectorization") {
     using namespace noa::types;

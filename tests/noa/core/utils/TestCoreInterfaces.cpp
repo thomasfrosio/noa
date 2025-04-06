@@ -1,11 +1,11 @@
 #include <noa/core/Interfaces.hpp>
 #include <noa/core/utils/Irange.hpp>
 #include <noa/core/types/Accessor.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
-TEST_CASE("core::IwiseInterface", "[core]") {
+TEST_CASE("core::IwiseInterface") {
     using namespace noa::types;
     using namespace noa::guts;
 
@@ -48,7 +48,7 @@ TEST_CASE("core::IwiseInterface", "[core]") {
     }
 }
 
-TEST_CASE("core::EwiseInterface", "[core]") {
+TEST_CASE("core::EwiseInterface") {
     using namespace noa::types;
     using namespace noa::guts;
 
@@ -92,7 +92,7 @@ TEST_CASE("core::EwiseInterface", "[core]") {
     }
 }
 
-TEST_CASE("core::ReduceIwiseInterface", "[core]") {
+TEST_CASE("core::ReduceIwiseInterface") {
     using namespace noa::types;
     using noa::guts::ReduceIwiseInterface;
 
@@ -170,7 +170,7 @@ TEST_CASE("core::ReduceIwiseInterface", "[core]") {
     }
 }
 
-TEST_CASE("core::ReduceEwiseInterface", "[core]") {
+TEST_CASE("core::ReduceEwiseInterface") {
     using namespace noa::types;
     using noa::guts::ReduceEwiseInterface;
 

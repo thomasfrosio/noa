@@ -4,14 +4,14 @@
 #include <noa/unified/fft/Remap.hpp>
 #include <noa/unified/signal/PhaseShift.hpp>
 
-#include <catch2/catch.hpp>
-#include "Assets.h"
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace noa::types;
 using Remap = noa::Remap;
 
-TEST_CASE("unified::signal::phase_shift_2d()", "[assets][noa][unified]") {
+TEST_CASE("unified::signal::phase_shift_2d()", "[asset]") {
     const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["2d"];
 
@@ -48,7 +48,7 @@ TEST_CASE("unified::signal::phase_shift_2d()", "[assets][noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::signal::phase_shift_2d(), remap", "[noa][unified]", c32, c64) {
+TEMPLATE_TEST_CASE("unified::signal::phase_shift_2d(), remap", "", c32, c64) {
     const auto shape = test::random_shape_batched(2, {.batch_range = {2, 5}, .only_even_sizes = true}); // even sizes for inplace remap
     const auto shift = Vec{31.5, -15.2};
     const f64 cutoff = 0.5;
@@ -95,12 +95,12 @@ TEMPLATE_TEST_CASE("unified::signal::phase_shift_2d(), remap", "[noa][unified]",
     }
 }
 
-TEMPLATE_TEST_CASE("unified::signal::phase_shift_2d(), batch", "[noa][unified]", c32, c64) {
+TEMPLATE_TEST_CASE("unified::signal::phase_shift_2d(), batch", "", c32, c64) {
     const auto shape = test::random_shape_batched(2);
 
     using real_t = noa::traits::value_type_t<TestType>;
     auto shifts = noa::empty<Vec2<real_t>>(shape[0]);
-    auto randomizer = test::Randomizer<f32>(-30.f, 30.f);
+    auto randomizer = test::Randomizer<real_t>(-30, 30);
     for (auto& e: shifts.span_1d())
         e = {randomizer.get(), randomizer.get()};
 
@@ -127,7 +127,7 @@ TEMPLATE_TEST_CASE("unified::signal::phase_shift_2d(), batch", "[noa][unified]",
     }
 }
 
-TEST_CASE("unified::signal::phase_shift_3d()", "[assets][noa][unified]") {
+TEST_CASE("unified::signal::phase_shift_3d()", "[asset]") {
     const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["3d"];
 
@@ -163,7 +163,7 @@ TEST_CASE("unified::signal::phase_shift_3d()", "[assets][noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::signal::phase_shift_3d(), remap", "[noa][unified]", c32, c64) {
+TEMPLATE_TEST_CASE("unified::signal::phase_shift_3d(), remap", "", c32, c64) {
     const auto shape = test::random_shape_batched(3, {.only_even_sizes = true}); // even sizes for inplace remap
     const auto shift = Vec{31.5, -15.2, 25.8};
     const f64 cutoff = 0.5;
@@ -208,12 +208,12 @@ TEMPLATE_TEST_CASE("unified::signal::phase_shift_3d(), remap", "[noa][unified]",
     }
 }
 
-TEMPLATE_TEST_CASE("unified::signal::phase_shift_3d(), batch", "[noa][unified]", c32, c64) {
+TEMPLATE_TEST_CASE("unified::signal::phase_shift_3d(), batch", "", c32, c64) {
     const auto shape = test::random_shape_batched(3);
 
     using real_t = noa::traits::value_type_t<TestType>;
     auto shifts = noa::empty<Vec3<real_t>>(shape[0]);
-    auto randomizer = test::Randomizer<f32>(-30.f, 30.f);
+    auto randomizer = test::Randomizer<real_t>(-30, 30);
     for (auto& e: shifts.span_1d())
         e = {randomizer.get(), randomizer.get(), randomizer.get()};
 
@@ -239,7 +239,7 @@ TEMPLATE_TEST_CASE("unified::signal::phase_shift_3d(), batch", "[noa][unified]",
     }
 }
 
-TEMPLATE_TEST_CASE("unified::signal::phase_shift{2|3}d(), cpu vs gpu", "[noa][unified]", c32, c64) {
+TEMPLATE_TEST_CASE("unified::signal::phase_shift{2|3}d(), cpu vs gpu", "", c32, c64) {
     if (not Device::is_any_gpu())
         return;
 

@@ -8,16 +8,16 @@
 #include <noa/Signal.hpp>
 #include <noa/FFT.hpp>
 
-#include <catch2/catch.hpp>
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
-#include "Assets.h"
 
 using namespace ::noa::types;
 namespace ng = noa::geometry;
 using Remap = noa::Remap;
 using Interp = noa::Interp;
 
-TEST_CASE("unified::geometry::fourier_insert_rasterize_3d", "[noa][unified][asset]") {
+TEST_CASE("unified::geometry::fourier_insert_rasterize_3d", "[asset]") {
     const Path path = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["fourier_insert_rasterize_3d"];
     constexpr bool COMPUTE_ASSETS = false;
@@ -39,7 +39,7 @@ TEST_CASE("unified::geometry::fourier_insert_rasterize_3d", "[noa][unified][asse
         const auto ews_radius = Vec2<f64>::from_value(parameters["ews_radius"].as<f64>());
         const auto volume_filename = path / parameters["volume_filename"].as<Path>();
 
-        const Mat22 inv_scaling_matrix = noa::geometry::scale(1 / scale);
+        const auto inv_scaling_matrix = noa::geometry::scale(1 / scale);
         auto fwd_rotation_matrices = noa::empty<Mat33<f32>>(static_cast<i64>(rotate.size()));
         for (size_t i{}; auto& fwd_rotation_matrix: fwd_rotation_matrices.span_1d_contiguous())
             fwd_rotation_matrix = noa::geometry::euler2matrix(
@@ -71,7 +71,7 @@ TEST_CASE("unified::geometry::fourier_insert_rasterize_3d", "[noa][unified][asse
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_rasterize_3d, remap", "[noa][unified]", f32, c32) {
+TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_rasterize_3d, remap", "", f32, c32) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -92,7 +92,7 @@ TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_rasterize_3d, remap", "[no
         if (fwd_rotation_matrices.device() != device)
             fwd_rotation_matrices = fwd_rotation_matrices.to({device});
 
-        const Array slice_fft = noa::linspace(slice_shape.rfft(), noa::Linspace<TestType>{1, 10, true}, options);
+        const Array slice_fft = noa::linspace(slice_shape.rfft(), noa::Linspace{TestType{1}, TestType{10}, true}, options);
         const Array grid_fft0 = noa::zeros<TestType>(grid_shape.rfft(), options);
         const Array grid_fft1 = grid_fft0.copy();
         const Array grid_fft2 = grid_fft0.copy();
@@ -121,7 +121,7 @@ TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_rasterize_3d, remap", "[no
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_rasterize_3d, weights", "[noa][unified]", f32, f64) {
+TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_rasterize_3d, weights", "", f32, f64) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");

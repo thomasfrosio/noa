@@ -8,16 +8,16 @@
 #include <noa/Signal.hpp>
 #include <noa/FFT.hpp>
 
-#include <catch2/catch.hpp>
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
-#include "Assets.h"
 
 using namespace ::noa::types;
 namespace ng = noa::geometry;
 using Remap = noa::Remap;
 using Interp = noa::Interp;
 
-TEST_CASE("unified::geometry::fourier_extract_3d", "[noa][unified]") {
+TEST_CASE("unified::geometry::fourier_extract_3d", "[asset]") {
     const Path path = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["fourier_extract_3d"];
 
@@ -115,7 +115,7 @@ TEST_CASE("unified::geometry::fourier_extract_3d", "[noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::fourier_extract_3d, using texture API and remap", "[noa][unified]", f32, c32) {
+TEMPLATE_TEST_CASE("unified::geometry::fourier_extract_3d, using texture API and remap", "", f32, c32) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -135,7 +135,8 @@ TEMPLATE_TEST_CASE("unified::geometry::fourier_extract_3d, using texture API and
         if (fwd_rotation_matrices.device() != device)
             fwd_rotation_matrices = fwd_rotation_matrices.to({device});
 
-        const Array grid_fft = noa::linspace(grid_shape.rfft(), noa::Linspace<TestType>{-50, 50, true}, options);
+        const Array grid_fft = noa::linspace(grid_shape.rfft(), noa::Linspace<TestType>{
+            TestType{-50.}, TestType{50.}, true}, options);
         const Array slice_fft0 = noa::empty<TestType>(slice_shape.rfft(), options);
         const Array slice_fft1 = slice_fft0.copy();
         const Array slice_fft2 = slice_fft0.copy();

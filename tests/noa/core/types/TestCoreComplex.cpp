@@ -1,12 +1,11 @@
 #include <noa/core/types/Complex.hpp>
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 #include "Utils.hpp"
 
-
-#define REQUIRE_COMPLEX_EQUALS_ABS(x, y, abs)                               \
-REQUIRE_THAT(f64(noa::real(x)), Catch::WithinAbs(f64(noa::real(y)), abs));  \
-REQUIRE_THAT(f64(noa::imag(x)), Catch::WithinAbs(f64(noa::imag(y)), abs))
-
+#define REQUIRE_COMPLEX_EQUALS_ABS(x, y, abs)                                         \
+REQUIRE_THAT(f64(noa::real(x)), Catch::Matchers::WithinAbs(f64(noa::real(y)), abs));  \
+REQUIRE_THAT(f64(noa::imag(x)), Catch::Matchers::WithinAbs(f64(noa::imag(y)), abs))
 
 using namespace ::noa::types;
 static_assert(sizeof(c16) == sizeof(f16) * 2); // no padding
@@ -16,8 +15,7 @@ static_assert(alignof(c16) == 4);
 static_assert(alignof(c32) == 8);
 static_assert(alignof(c64) == 16);
 
-
-TEMPLATE_TEST_CASE("core::Complex", "[noa][complex]", f16, f32, f64) {
+TEMPLATE_TEST_CASE("core::Complex", "", f16, f32, f64) {
     using real_t = TestType;
     using c0 = noa::Complex<real_t>;
     using c1 = std::complex<real_t>;

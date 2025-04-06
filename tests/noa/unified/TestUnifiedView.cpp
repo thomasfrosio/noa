@@ -1,11 +1,12 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/View.hpp>
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
 
-TEMPLATE_TEST_CASE("unified::View, copy metadata", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::View, copy metadata", "", i32, u64, f32, f64, c32, c64) {
     const auto guard = StreamGuard(Device{}, Stream::DEFAULT);
 
     const auto shape = test::random_shape(2);
@@ -43,7 +44,7 @@ TEMPLATE_TEST_CASE("unified::View, copy metadata", "[noa][unified]", i32, u64, f
     REQUIRE(va.get());
 }
 
-TEMPLATE_TEST_CASE("unified::View, copy values", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::View, copy values", "", i32, u64, f32, f64, c32, c64) {
     auto guard = StreamGuard(Device{}, Stream::ASYNC);
     const auto shape = test::random_shape(3);
     const auto input = Array<TestType>(shape, {.allocator="managed"});
@@ -83,7 +84,7 @@ TEMPLATE_TEST_CASE("unified::View, copy values", "[noa][unified]", i32, u64, f32
     }
 }
 
-TEMPLATE_TEST_CASE("unified::View, shape manipulation", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::View, shape manipulation", "", i32, u64, f32, f64, c32, c64) {
     AND_THEN("as another type") {
         Array<f64> buffer({2, 3, 4, 5});
         View<f64> c = buffer.view();

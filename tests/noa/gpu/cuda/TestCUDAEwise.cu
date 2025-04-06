@@ -1,8 +1,8 @@
-#include <catch2/catch.hpp>
 #include <noa/core/Ewise.hpp>
 #include <noa/gpu/cuda/Allocators.hpp>
 #include <noa/gpu/cuda/Ewise.cuh>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 namespace {
@@ -219,7 +219,7 @@ TEST_CASE("cuda::ewise") {
     }
 }
 
-TEMPLATE_TEST_CASE("cuda::ewise - copy", "[noa][cuda]", i8, i16, i32, i64, c16, c32, c64) {
+TEMPLATE_TEST_CASE("cuda::ewise - copy", "", i8, i16, i32, i64, c16, c32, c64) {
     using namespace noa::types;
     using noa::cuda::ewise;
     using noa::cuda::EwiseConfig;

@@ -1,7 +1,7 @@
 #include <noa/cpu/ReduceAxesEwise.hpp>
 #include <noa/core/utils/Irange.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 namespace {

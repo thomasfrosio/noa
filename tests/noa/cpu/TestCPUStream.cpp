@@ -1,16 +1,22 @@
 #include <noa/cpu/Stream.hpp>
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 
 namespace {
     struct Tracked {
         std::array<int, 2> count{};
         Tracked() = default;
-        Tracked(const Tracked& t) : count(t.count) { count[0] += 1; }
-        Tracked(Tracked&& t) noexcept: count(t.count) { count[1] += 1; }
+        Tracked(const Tracked& t) : count(t.count) {
+            count[0] += 1;
+        }
+        Tracked(Tracked&& t) noexcept: count(t.count) {
+            count[1] += 1;
+        }
+        auto operator()() const { return count; }
     };
 }
 
-TEST_CASE("cpu::Stream", "[noa][cpu]") {
+TEST_CASE("cpu::Stream") {
     using noa::cpu::Stream;
 
     int flag = 0;
@@ -97,6 +103,15 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
     }
 
     SECTION("forwarding arguments") {
+        // libc++ takes the function by value, so triggers an additional move
+        // compared to libstdc++ which uses forwarding references...
+        Tracked t{};
+        auto f = std::function(std::move(t));
+        t.count = f();
+
+        // Stream should essentially have the same cost than moving something to std::function,
+        // plus an additional copy/move when saved to the no_args lambda (which is required because
+        // we transfer it to another thread, so we want to store by value).
         Tracked t0{};
         Tracked t1{};
         Tracked t2{};
@@ -105,24 +120,24 @@ TEST_CASE("cpu::Stream", "[noa][cpu]") {
             t1.count = tracked.count;
         }, t0);
         async_stream.synchronize();
-        REQUIRE((t1.count[0] == 1 and t1.count[1] == 1));
+        REQUIRE((t1.count[0] == t.count[0] + 1 and t1.count[1] == t.count[1]));
 
         async_stream.enqueue([&t1](auto tracked) {
             t1.count = tracked.count;
         }, t0);
         async_stream.synchronize();
-        REQUIRE((t1.count[0] == 2 and t1.count[1] == 1));
+        REQUIRE((t1.count[0] == t.count[0] + 2 and t1.count[1] == t.count[1]));
 
         async_stream.enqueue([&t1](auto&& tracked) {
             t1.count = tracked.count;
         }, std::move(t0));
         async_stream.synchronize();
-        REQUIRE((t1.count[0] == 0 and t1.count[1] == 2));
+        REQUIRE((t1.count[0] == t.count[0] and t1.count[1] == t.count[1] + 1));
 
         async_stream.enqueue([&t1](auto tracked) {
             t1.count = tracked.count;
         }, std::move(t2));
         async_stream.synchronize();
-        REQUIRE((t1.count[0] == 0 and t1.count[1] == 3));
+        REQUIRE((t1.count[0] == t.count[0] and t1.count[1] == t.count[1] + 2));
     }
 }

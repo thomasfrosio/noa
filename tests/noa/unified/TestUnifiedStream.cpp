@@ -1,8 +1,8 @@
 #include <noa/unified/Stream.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 
-TEST_CASE("unified::Stream", "[noa][unified]") {
+TEST_CASE("unified::Stream") {
     using namespace ::noa::types;
 
     AND_THEN("parse") {

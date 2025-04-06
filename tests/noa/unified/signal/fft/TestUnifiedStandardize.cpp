@@ -5,14 +5,14 @@
 #include <noa/unified/Reduce.hpp>
 #include <noa/unified/signal/Standardize.hpp>
 
-#include <catch2/catch.hpp>
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
 using Norm = noa::fft::Norm;
 using Remap = noa::Remap;
 
-TEST_CASE("unified::signal::standardize_ifft(), rfft", "[noa][unified]") {
+TEST_CASE("unified::signal::standardize_ifft(), rfft") {
     constexpr auto shape = Shape4<i64>{1, 1, 128, 128};
 
     Norm norm = GENERATE(Norm::FORWARD, Norm::BACKWARD, Norm::ORTHO, Norm::NONE);
@@ -41,12 +41,12 @@ TEST_CASE("unified::signal::standardize_ifft(), rfft", "[noa][unified]") {
 
         const auto mean = noa::mean(input);
         const auto std = noa::stddev(input, 0);
-        REQUIRE_THAT(mean, Catch::WithinAbs(0, 1e-6));
-        REQUIRE_THAT(std, Catch::WithinAbs(1, 1e-5));
+        REQUIRE_THAT(mean, Catch::Matchers::WithinAbs(0, 1e-6));
+        REQUIRE_THAT(std, Catch::Matchers::WithinAbs(1, 1e-5));
     }
 }
 
-TEST_CASE("unified::signal::standardize_ifft(), fft", "[noa][unified]") {
+TEST_CASE("unified::signal::standardize_ifft(), fft") {
     constexpr auto shape = Shape4<i64>{1, 1, 128, 128};
 
     Norm norm = GENERATE(Norm::FORWARD, Norm::BACKWARD, Norm::ORTHO, Norm::NONE);
@@ -75,12 +75,12 @@ TEST_CASE("unified::signal::standardize_ifft(), fft", "[noa][unified]") {
 
         const auto mean = noa::mean(input);
         const auto std = noa::stddev(input, 0);
-        REQUIRE_THAT(mean, Catch::WithinAbs(0, 1e-6));
-        REQUIRE_THAT(std, Catch::WithinAbs(1, 1e-5));
+        REQUIRE_THAT(mean, Catch::Matchers::WithinAbs(0, 1e-6));
+        REQUIRE_THAT(std, Catch::Matchers::WithinAbs(1, 1e-5));
     }
 }
 
-TEMPLATE_TEST_CASE("unified::signal::standardize_ifft()", "[noa][unified]", f32, f64) {
+TEMPLATE_TEST_CASE("unified::signal::standardize_ifft()", "", f32, f64) {
     const Norm norm = GENERATE(Norm::FORWARD, Norm::BACKWARD, Norm::ORTHO, Norm::NONE);
     const i64 ndim = GENERATE(2, 3);
     const auto shape = test::random_shape_batched(ndim);
@@ -107,8 +107,8 @@ TEMPLATE_TEST_CASE("unified::signal::standardize_ifft()", "[noa][unified]", f32,
 
         for (i64 batch: noa::irange(shape[0])) {
             const auto [mean, stddev] = noa::mean_stddev(image.subregion(batch));
-            REQUIRE_THAT(mean, Catch::WithinAbs(0, 1e-6));
-            REQUIRE_THAT(stddev, Catch::WithinAbs(1, 1e-4));
+            REQUIRE_THAT(mean, Catch::Matchers::WithinAbs(0, 1e-6));
+            REQUIRE_THAT(stddev, Catch::Matchers::WithinAbs(1, 1e-4));
         }
     }
 }

@@ -1,11 +1,12 @@
 #include <noa/unified/Array.hpp>
 #include <noa/core/types/Mat.hpp>
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
 
-TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", i32, f32, c32, Vec4<i32>, Mat22<f64>) {
+TEMPLATE_TEST_CASE("unified::Array, allocate", "", i32, f32, c32, Vec4<i32>, Mat22<f64>) {
     auto guard = StreamGuard(Device{}, Stream::DEFAULT);
     Array<TestType> a;
     REQUIRE(a.is_empty());
@@ -49,7 +50,7 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "[noa][unified]", i32, f32, c32, 
     }
 }
 
-TEMPLATE_TEST_CASE("unified::Array, copy metadata", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::Array, copy metadata", "", i32, u64, f32, f64, c32, c64) {
     StreamGuard guard(Device{}, Stream::DEFAULT);
     const auto shape = test::random_shape(2);
     const auto allocator = GENERATE(as<Allocator>(),
@@ -100,7 +101,7 @@ TEMPLATE_TEST_CASE("unified::Array, copy metadata", "[noa][unified]", i32, u64, 
     REQUIRE(b.get() != a.get());
 }
 
-TEMPLATE_TEST_CASE("unified::Array, copy values", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::Array, copy values", "", i32, u64, f32, f64, c32, c64) {
     StreamGuard guard(Device{}, Stream::DEFAULT);
     const auto shape = test::random_shape(3);
     const auto input = Array<TestType>(shape, {.allocator="managed"});
@@ -146,7 +147,7 @@ TEST_CASE("unified::Array, .to returns the output") {
     REQUIRE(a1.get() == std::move(a0).to(a1).get());
 }
 
-TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "[noa][unified]", i32, u64, f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "", i32, u64, f32, f64, c32, c64) {
     StreamGuard guard(Device{}, Stream::DEFAULT);
     AND_THEN("as another type") {
         Array<f64> c({2, 3, 4, 5});
@@ -192,7 +193,7 @@ TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "[noa][unified]", i32, 
     }
 }
 
-TEST_CASE("unified::Array, overlap", "[noa][unified]") {
+TEST_CASE("unified::Array, overlap") {
     Array<f32> lhs;
     Array<f32> rhs;
 
@@ -209,7 +210,7 @@ TEST_CASE("unified::Array, overlap", "[noa][unified]") {
     REQUIRE(ni::are_overlapped(rhs, lhs));
 }
 
-TEST_CASE("unified::Array, span", "[noa][unified]") {
+TEST_CASE("unified::Array, span") {
     StreamGuard guard(Device{"cpu"}, Stream::DEFAULT);
     Array<f32> lhs({9, 10, 11, 12});
 

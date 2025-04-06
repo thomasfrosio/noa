@@ -1,10 +1,11 @@
 #include <noa/core/utils/ClampCast.hpp>
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
 
-TEMPLATE_TEST_CASE("core::clamp_cast, floating-point to signed integer", "[noa]", i8, i16, i32, i64) {
+TEMPLATE_TEST_CASE("core::clamp_cast, floating-point to signed integer", "", i8, i16, i32, i64) {
     using int_limit = std::numeric_limits<TestType>;
     REQUIRE(123 == noa::clamp_cast<TestType>(123.f));
     REQUIRE(-123 == noa::clamp_cast<TestType>(-123.f));
@@ -47,7 +48,7 @@ TEMPLATE_TEST_CASE("core::clamp_cast, floating-point to signed integer", "[noa]"
     REQUIRE(0 == noa::clamp_cast<TestType>(std::numeric_limits<f16>::min()));
 }
 
-TEMPLATE_TEST_CASE("core::clamp_cast, floating-point to unsigned integer", "[noa]", u8, u16, u32, u64) {
+TEMPLATE_TEST_CASE("core::clamp_cast, floating-point to unsigned integer", "", u8, u16, u32, u64) {
     using int_limit = std::numeric_limits<TestType>;
     REQUIRE(123 == noa::clamp_cast<TestType>(123.f));
     REQUIRE(0 == noa::clamp_cast<TestType>(-123.f));
@@ -69,7 +70,7 @@ TEMPLATE_TEST_CASE("core::clamp_cast, floating-point to unsigned integer", "[noa
     REQUIRE(int_limit::min() == noa::clamp_cast<TestType>(f16(int_limit::min())));
 }
 
-TEMPLATE_TEST_CASE("core::clamp_cast, integer to floating-point", "[noa]", i8, i16, i32, i64, u8, u16, u32, u64) {
+TEMPLATE_TEST_CASE("core::clamp_cast, integer to floating-point", "", i8, i16, i32, i64, u8, u16, u32, u64) {
     using int_limit = std::numeric_limits<TestType>;
     REQUIRE(static_cast<f32>(int_limit::min()) == noa::clamp_cast<f32>(int_limit::min()));
     REQUIRE(static_cast<f32>(int_limit::max()) == noa::clamp_cast<f32>(int_limit::max()));
@@ -77,7 +78,7 @@ TEMPLATE_TEST_CASE("core::clamp_cast, integer to floating-point", "[noa]", i8, i
     REQUIRE(static_cast<f64>(int_limit::max()) == noa::clamp_cast<f64>(int_limit::max()));
 }
 
-TEMPLATE_TEST_CASE("core::clamp_cast, f16 to f32/f64", "[noa]", f32, double) {
+TEMPLATE_TEST_CASE("core::clamp_cast, f16 to f32/f64", "", f32, double) {
     test::Randomizer<f16> randomizer(std::numeric_limits<f16>::lowest(), std::numeric_limits<f16>::max());
     for (size_t i = 0; i < 1000; ++i) {
         f16 v = randomizer.get();
@@ -86,13 +87,13 @@ TEMPLATE_TEST_CASE("core::clamp_cast, f16 to f32/f64", "[noa]", f32, double) {
     }
 }
 
-TEMPLATE_TEST_CASE("core::clamp_cast, small integer to f16", "[noa]", i8, i16, u8) {
+TEMPLATE_TEST_CASE("core::clamp_cast, small integer to f16", "", i8, i16, u8) {
     using int_limit = std::numeric_limits<TestType>;
     REQUIRE(static_cast<f16>(int_limit::min()) == noa::clamp_cast<f16>(int_limit::min()));
     REQUIRE(static_cast<f16>(int_limit::max()) == noa::clamp_cast<f16>(int_limit::max()));
 }
 
-TEMPLATE_TEST_CASE("core::clamp_cast, large integer to f16", "[noa]", i32, i64, u16, u32, u64) {
+TEMPLATE_TEST_CASE("core::clamp_cast, large integer to f16", "", i32, i64, u16, u32, u64) {
     using int_limit = std::numeric_limits<TestType>;
     if constexpr (std::is_signed_v<TestType>) {
         REQUIRE(std::numeric_limits<f16>::lowest() == noa::clamp_cast<f16>(int_limit::min()));
@@ -104,7 +105,7 @@ TEMPLATE_TEST_CASE("core::clamp_cast, large integer to f16", "[noa]", i32, i64, 
 }
 
 NOA_NV_DIAG_SUPPRESS(221)
-TEST_CASE("core::clamp_cast, f64 to f32/f16", "[noa]") {
+TEST_CASE("core::clamp_cast, f64 to f32/f16") {
     using double_limit = std::numeric_limits<f64>;
     REQUIRE(static_cast<f32>(12456.251) == noa::clamp_cast<f32>(12456.251));
     REQUIRE(static_cast<f32>(double_limit::min()) == noa::clamp_cast<f32>(double_limit::min()));
@@ -118,7 +119,7 @@ TEST_CASE("core::clamp_cast, f64 to f32/f16", "[noa]") {
 }
 NOA_NV_DIAG_DEFAULT(221)
 
-TEMPLATE_TEST_CASE("core::clamp_cast, scalar to complex", "[noa]", i8, i16, i32, i64, u8, u16, u32, u64, f16, f32, f64) {
+TEMPLATE_TEST_CASE("core::clamp_cast, scalar to complex", "", i8, i16, i32, i64, u8, u16, u32, u64, f16, f32, f64) {
     auto c1 = noa::clamp_cast<Complex<f32>>(std::numeric_limits<TestType>::lowest());
     REQUIRE(noa::clamp_cast<f32>(std::numeric_limits<TestType>::lowest()) == c1.real);
     REQUIRE(0.f == c1.imag);
@@ -144,7 +145,7 @@ TEMPLATE_TEST_CASE("core::clamp_cast, scalar to complex", "[noa]", i8, i16, i32,
     REQUIRE(f16(0) == c3.imag);
 }
 
-TEST_CASE("core::clamp_cast, integer to integer", "[noa]") {
+TEST_CASE("core::clamp_cast, integer to integer") {
     // Unsigned to sign:
     REQUIRE(123456 == noa::clamp_cast<i32>(u32(123456)));
     REQUIRE(0 == noa::clamp_cast<i32>(std::numeric_limits<u32>::min()));

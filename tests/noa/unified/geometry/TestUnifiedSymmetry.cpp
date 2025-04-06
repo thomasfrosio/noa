@@ -6,15 +6,15 @@
 #include <noa/unified/IO.hpp>
 #include <noa/unified/Factory.hpp>
 
-#include <catch2/catch.hpp>
-#include "Assets.h"
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 namespace ng = ::noa::geometry;
 using namespace ::noa::types;
 using Interp = noa::Interp;
 
-TEST_CASE("unified::geometry::symmetrize_2d", "[noa][unified][assets]") {
+TEST_CASE("unified::geometry::symmetrize_2d", "[asset]") {
     const Path path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["symmetry_2d"];
     const auto input_filename = path_base / param["input"].as<Path>();
@@ -114,7 +114,7 @@ TEST_CASE("unified::geometry::symmetrize_2d", "[noa][unified][assets]") {
     REQUIRE(count == expected_count);
 }
 
-TEST_CASE("unified::geometry::transform_3d, symmetry", "[noa][unified][assets]") {
+TEST_CASE("unified::geometry::transform_3d, symmetry", "[asset]") {
     const Path path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["symmetry_3d"];
 

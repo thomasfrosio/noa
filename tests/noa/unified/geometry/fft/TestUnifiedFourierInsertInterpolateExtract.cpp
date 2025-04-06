@@ -8,16 +8,16 @@
 #include <noa/Signal.hpp>
 #include <noa/FFT.hpp>
 
-#include <catch2/catch.hpp>
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
-#include "Assets.h"
 
 using namespace ::noa::types;
 namespace ng = noa::geometry;
 using Remap = noa::Remap;
 using Interp = noa::Interp;
 
-TEST_CASE("unified::geometry::fourier_insert_interpolate_and_extract_3d", "[noa][unified][asset]") {
+TEST_CASE("unified::geometry::central_slice_insert_extract_3d", "[asset]") {
     const Path path = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["fourier_insert_interpolate_and_extract_3d"];
     constexpr bool COMPUTE_ASSETS = false;
@@ -88,7 +88,7 @@ TEST_CASE("unified::geometry::fourier_insert_interpolate_and_extract_3d", "[noa]
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_interpolate_and_extract_3d, texture/remap", "[noa][unified]", f32, c32) {
+TEMPLATE_TEST_CASE("unified::geometry::central_slice_insert_extract_3d, texture/remap", "", f32, c32) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -117,7 +117,7 @@ TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_interpolate_and_extract_3d
         if (output_fwd_rotation_matrices.device() != device)
             output_fwd_rotation_matrices = output_fwd_rotation_matrices.to({device});
 
-        const Array input_slice_fft = noa::linspace(input_slice_shape.rfft(), noa::Linspace<TestType>{-50, 50, true}, options);
+        const Array input_slice_fft = noa::linspace(input_slice_shape.rfft(), noa::Linspace{TestType{-50}, TestType{50}, true}, options);
         const Texture<TestType> texture_input_slice_fft(input_slice_fft, device, Interp::LINEAR);
         const Array output_slice_fft0 = noa::empty<TestType>(output_slice_shape.rfft(), options);
         const Array output_slice_fft1 = noa::empty<TestType>(output_slice_shape.rfft(), options);
@@ -140,7 +140,7 @@ TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_interpolate_and_extract_3d
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_interpolate_and_extract_3d, weights", "[noa]", f32, f64) {
+TEMPLATE_TEST_CASE("unified::geometry::central_slice_insert_extract_3d, weights", "", f32, f64) {
     std::vector<Device> devices = {"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -183,7 +183,7 @@ TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_interpolate_and_extract_3d
     }
 }
 
-TEST_CASE("unified::geometry::fourier_insert_interpolate_and_extract_3d, test rotation", "[noa][unified][assets]") {
+TEST_CASE("unified::geometry::central_slice_insert_extract_3d, test rotation", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector<Device> devices{"cpu"};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
@@ -230,7 +230,7 @@ TEST_CASE("unified::geometry::fourier_insert_interpolate_and_extract_3d, test ro
     }
 }
 
-TEST_CASE("unified::geometry::fourier_insert_interpolate_and_extract_3d, weight/multiplicity", "[noa][assets]") {
+TEST_CASE("unified::geometry::central_slice_insert_extract_3d, weight/multiplicity", "[asset]") {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -281,8 +281,8 @@ TEST_CASE("unified::geometry::fourier_insert_interpolate_and_extract_3d, weight/
             {.input_windowed_sinc = {0.01}, .fftfreq_cutoff = 0.8});
 
         // Ignore the usual tiny error along the line at Nyquist...
-        noa::signal::lowpass<Remap::HC2HC>(output_slice_fft0, output_slice_fft0, input_slice_shape, {.cutoff = 0.49f, .width = 0});
-        noa::signal::lowpass<Remap::HC2HC>(output_slice_fft1, output_slice_fft1, input_slice_shape, {.cutoff = 0.49f, .width = 0});
+        noa::signal::lowpass<Remap::HC2HC>(output_slice_fft0, output_slice_fft0, input_slice_shape, {.cutoff = 0.49, .width = 0});
+        noa::signal::lowpass<Remap::HC2HC>(output_slice_fft1, output_slice_fft1, input_slice_shape, {.cutoff = 0.49, .width = 0});
         REQUIRE(test::allclose_abs_safe(output_slice_fft0, output_slice_fft1, 5e-5));
     }
 }

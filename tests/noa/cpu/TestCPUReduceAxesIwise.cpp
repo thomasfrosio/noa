@@ -1,7 +1,7 @@
 #include <noa/cpu/ReduceAxesIwise.hpp>
 #include <noa/core/utils/Irange.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 TEST_CASE("cpu::reduce_axes_iwise - 4d") {

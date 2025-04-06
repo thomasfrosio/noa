@@ -1,9 +1,9 @@
 #include <noa/unified/Factory.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
-TEST_CASE("unified:: Factory functions", "[noa]") {
+TEST_CASE("unified:: Factory functions") {
     using namespace noa::types;
 
     std::vector<Device> devices{"cpu"};

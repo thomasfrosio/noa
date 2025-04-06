@@ -2,14 +2,15 @@
 #include <noa/unified/Reduce.hpp>
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/IO.hpp>
-#include <catch2/catch.hpp>
+#include <noa/core/math/Comparison.hpp>
 
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
-#include "Assets.h"
 
 using namespace noa::types;
 
-TEST_CASE("unified::reduce - vs numpy", "[assets][noa][unified]") {
+TEST_CASE("unified::reduce - vs numpy", "[asset]") {
     const auto path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
 
@@ -53,24 +54,24 @@ TEST_CASE("unified::reduce - vs numpy", "[assets][noa][unified]") {
         const auto mean_var = noa::mean_variance(data);
         const auto mean_std = noa::mean_stddev(data);
 
-        REQUIRE_THAT(min, Catch::WithinAbs(expected_min, 1e-6));
-        REQUIRE_THAT(max, Catch::WithinAbs(expected_max, 1e-6));
-        REQUIRE_THAT(min_max.first, Catch::WithinAbs(expected_min, 1e-6));
-        REQUIRE_THAT(min_max.second, Catch::WithinAbs(expected_max, 1e-6));
-        REQUIRE_THAT(median, Catch::WithinAbs(expected_median, 1e-6));
-        REQUIRE_THAT(sum, Catch::WithinRel(expected_sum));
-        REQUIRE_THAT(mean, Catch::WithinRel(expected_mean));
-        REQUIRE_THAT(norm, Catch::WithinRel(expected_norm));
-        REQUIRE_THAT(var, Catch::WithinRel(expected_var));
-        REQUIRE_THAT(std, Catch::WithinRel(expected_std));
-        REQUIRE_THAT(mean_var.first, Catch::WithinRel(expected_mean));
-        REQUIRE_THAT(mean_var.second, Catch::WithinRel(expected_var));
-        REQUIRE_THAT(mean_std.first, Catch::WithinRel(expected_mean));
-        REQUIRE_THAT(mean_std.second, Catch::WithinRel(expected_std));
+        REQUIRE(noa::allclose(min, expected_min));
+        REQUIRE(noa::allclose(max, expected_max));
+        REQUIRE(noa::allclose(min_max.first, expected_min));
+        REQUIRE(noa::allclose(min_max.second, expected_max));
+        REQUIRE(noa::allclose(median, expected_median));
+        REQUIRE(noa::allclose(sum, expected_sum));
+        REQUIRE(noa::allclose(mean, expected_mean));
+        REQUIRE(noa::allclose(norm, expected_norm));
+        REQUIRE(noa::allclose(var, expected_var));
+        REQUIRE(noa::allclose(std, expected_std));
+        REQUIRE(noa::allclose(mean_var.first, expected_mean));
+        REQUIRE(noa::allclose(mean_var.second, expected_var));
+        REQUIRE(noa::allclose(mean_std.first, expected_mean));
+        REQUIRE(noa::allclose(mean_std.second, expected_std));
     }
 }
 
-TEST_CASE("unified::reduce - complex vs numpy", "[assets][noa][unified]") {
+TEST_CASE("unified::reduce - complex vs numpy", "[assets]") {
     const auto path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_complex"];
     const auto shape = tests["shape"].as<Shape4<i64>>();
@@ -105,27 +106,27 @@ TEST_CASE("unified::reduce - complex vs numpy", "[assets][noa][unified]") {
         const auto var = noa::variance(data, 1);
         const auto std = noa::stddev(data, 1);
 
-        REQUIRE_THAT(complex_sum.real, Catch::WithinRel(expected_sum.real));
-        REQUIRE_THAT(complex_sum.imag, Catch::WithinRel(expected_sum.imag));
-        REQUIRE_THAT(complex_mean.real, Catch::WithinRel(expected_mean.real));
-        REQUIRE_THAT(complex_mean.imag, Catch::WithinRel(expected_mean.imag));
-        REQUIRE_THAT(norm, Catch::WithinRel(expected_norm));
-        REQUIRE_THAT(var, Catch::WithinRel(expected_var));
-        REQUIRE_THAT(std, Catch::WithinRel(expected_std));
+        REQUIRE(noa::allclose(complex_sum.real, expected_sum.real));
+        REQUIRE(noa::allclose(complex_sum.imag, expected_sum.imag));
+        REQUIRE(noa::allclose(complex_mean.real, expected_mean.real));
+        REQUIRE(noa::allclose(complex_mean.imag, expected_mean.imag));
+        REQUIRE(noa::allclose(norm, expected_norm));
+        REQUIRE(noa::allclose(var, expected_var));
+        REQUIRE(noa::allclose(std, expected_std));
 
         const auto [mean_var0, mean_var1] = noa::mean_variance(data, 1);
-        REQUIRE_THAT(mean_var0.real, Catch::WithinRel(expected_mean.real));
-        REQUIRE_THAT(mean_var0.imag, Catch::WithinRel(expected_mean.imag));
-        REQUIRE_THAT(mean_var1, Catch::WithinRel(expected_var));
+        REQUIRE(noa::allclose(mean_var0.real, expected_mean.real));
+        REQUIRE(noa::allclose(mean_var0.imag, expected_mean.imag));
+        REQUIRE(noa::allclose(mean_var1, expected_var));
 
         const auto [mean_std0, mean_std1] = noa::mean_stddev(data, 1);
-        REQUIRE_THAT(mean_std0.real, Catch::WithinRel(expected_mean.real));
-        REQUIRE_THAT(mean_std0.imag, Catch::WithinRel(expected_mean.imag));
-        REQUIRE_THAT(mean_std1, Catch::WithinRel(expected_std));
+        REQUIRE(noa::allclose(mean_std0.real, expected_mean.real));
+        REQUIRE(noa::allclose(mean_std0.imag, expected_mean.imag));
+        REQUIRE(noa::allclose(mean_std1, expected_std));
     }
 }
 
-TEMPLATE_TEST_CASE("unified::reduce - cpu vs gpu", "[noa][unified]", i64, f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::reduce - cpu vs gpu", "", i64, f32, f64, c32, c64) {
     if (not Device::is_any_gpu())
         return;
 
@@ -145,15 +146,15 @@ TEMPLATE_TEST_CASE("unified::reduce - cpu vs gpu", "[noa][unified]", i64, f32, f
     auto gpu_data = cpu_data.to({.device="gpu", .allocator="managed"});
 
     cpu_data = cpu_data.subregion(
-            noa::indexing::FullExtent{},
-            noa::indexing::Slice{0, subregion_shape[1]},
-            noa::indexing::Slice{0, subregion_shape[2]},
-            noa::indexing::Slice{0, subregion_shape[3]});
+        noa::indexing::FullExtent{},
+        noa::indexing::Slice{0, subregion_shape[1]},
+        noa::indexing::Slice{0, subregion_shape[2]},
+        noa::indexing::Slice{0, subregion_shape[3]});
     gpu_data = gpu_data.subregion(
-            noa::indexing::FullExtent{},
-            noa::indexing::Slice{0, subregion_shape[1]},
-            noa::indexing::Slice{0, subregion_shape[2]},
-            noa::indexing::Slice{0, subregion_shape[3]});
+        noa::indexing::FullExtent{},
+        noa::indexing::Slice{0, subregion_shape[1]},
+        noa::indexing::Slice{0, subregion_shape[2]},
+        noa::indexing::Slice{0, subregion_shape[3]});
 
     using real_t = noa::traits::value_type_t<TestType>;
     const real_t eps = std::is_same_v<real_t, f32> ? static_cast<real_t>(5e-5) : static_cast<real_t>(1e-10);
@@ -169,11 +170,11 @@ TEMPLATE_TEST_CASE("unified::reduce - cpu vs gpu", "[noa][unified]", i64, f32, f
         const auto gpu_min_max = noa::min_max(gpu_data);
         const auto gpu_median = noa::median(gpu_data);
 
-        REQUIRE_THAT(gpu_min, Catch::WithinAbs(static_cast<f64>(cpu_min), 1e-6));
-        REQUIRE_THAT(gpu_max, Catch::WithinAbs(static_cast<f64>(cpu_max), 1e-6));
-        REQUIRE_THAT(gpu_min_max.first, Catch::WithinAbs(static_cast<f64>(cpu_min_max.first), 1e-6));
-        REQUIRE_THAT(gpu_min_max.second, Catch::WithinAbs(static_cast<f64>(cpu_min_max.second), 1e-6));
-        REQUIRE_THAT(gpu_median, Catch::WithinAbs(static_cast<f64>(cpu_median), 1e-6));
+        REQUIRE(noa::allclose(gpu_min, cpu_min));
+        REQUIRE(noa::allclose(gpu_max, cpu_max));
+        REQUIRE(noa::allclose(gpu_min_max.first, cpu_min_max.first));
+        REQUIRE(noa::allclose(gpu_min_max.second, cpu_min_max.second));
+        REQUIRE(noa::allclose(gpu_median, cpu_median));
     }
 
     if constexpr (not noa::traits::integer<TestType>) {

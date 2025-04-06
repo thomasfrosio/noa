@@ -1,16 +1,14 @@
 #include <noa/core/io/IO.hpp>
 #include <noa/core/io/ImageFile.hpp>
 
-#include <iostream>
-
+#include "Catch.hpp"
 #include "Utils.hpp"
-#include <catch2/catch.hpp>
 
 using namespace ::noa::types;
 namespace nio = ::noa::io;
 namespace fs = std::filesystem;
 
-TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[noa]") {
+TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[asset]") {
     const auto data_file = test::NOA_DATA_PATH / "common" / "io" / "files" / "example_MRCFile.mrc";
     const Path test_dir = fs::current_path() / "test_MRCFile";
     fs::remove_all(test_dir);
@@ -189,7 +187,7 @@ TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[noa]") {
         // cast to i16 is necessary: it happens during write_slice() since the encoding is i16.
         for (size_t i{}; i < s1.size(); ++i)
             diff += static_cast<f32>(static_cast<i16>(to_write[i])) - to_read[i];
-        REQUIRE_THAT(diff, Catch::WithinULP(0.f, 4));
+        REQUIRE_THAT(diff, Catch::Matchers::WithinULP(0.f, 4));
     }
     std::error_code er;
     fs::remove_all(test_dir, er); // silence error

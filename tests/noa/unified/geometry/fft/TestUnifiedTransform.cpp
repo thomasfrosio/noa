@@ -9,8 +9,8 @@
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/signal/PhaseShift.hpp>
 
-#include <catch2/catch.hpp>
-#include "Assets.h"
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
@@ -24,7 +24,7 @@ using Remap = noa::Remap;
 //      we should measure the transformation step and only the transformation step. Also, there's still
 //      this bug in the library at Nyquist, but here we don't even measure that because of the 0.45 cutoff.
 
-TEST_CASE("unified::geometry::transform_spectrum_2d, vs scipy", "[noa][unified][asset]") {
+TEST_CASE("unified::geometry::transform_spectrum_2d, vs scipy", "[asset]") {
     const Path path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform_spectrum_2d"];
 
@@ -45,14 +45,14 @@ TEST_CASE("unified::geometry::transform_spectrum_2d, vs scipy", "[noa][unified][
         const auto rotate = noa::deg2rad(test["rotate"].as<f64>());
         const auto center = test["center"].as<Vec2<f32>>();
         const auto shift = test["shift"].as<Vec2<f32>>();
-        const auto cutoff = test["cutoff"].as<f32>();
+        const auto cutoff = test["cutoff"].as<f64>();
         const auto interp = test["interp"].as<Interp>();
         constexpr auto FFT_NORM = noa::fft::Norm::ORTHO;
 
         const auto matrix = (ng::rotate(rotate) * ng::scale(1 / scale)).inverse().as<f32>();
 
         for (auto& device: devices) {
-            auto stream = noa::StreamGuard(device);
+            auto stream = noa::StreamGuard(device, Stream::SYNC);
             const auto options = noa::ArrayOption(device, noa::Allocator::MANAGED);
             INFO(device);
 
@@ -89,7 +89,7 @@ TEST_CASE("unified::geometry::transform_spectrum_2d, vs scipy", "[noa][unified][
     REQUIRE(count == expected_count);
 }
 
-TEST_CASE("unified::geometry::transform_spectrum_3d, vs scipy", "[noa][unified][asset]") {
+TEST_CASE("unified::geometry::transform_spectrum_3d, vs scipy", "[asset]") {
     const Path path_base = test::NOA_DATA_PATH / "geometry" / "fft";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform_spectrum_3d"];
 
@@ -110,7 +110,7 @@ TEST_CASE("unified::geometry::transform_spectrum_3d, vs scipy", "[noa][unified][
         const auto rotate = noa::deg2rad(test["rotate"].as<Vec3<f64>>());
         const auto center = test["center"].as<Vec3<f32>>();
         const auto shift = test["shift"].as<Vec3<f32>>();
-        const auto cutoff = test["cutoff"].as<f32>();
+        const auto cutoff = test["cutoff"].as<f64>();
         const auto interp = test["interp"].as<Interp>();
         constexpr auto FFT_NORM = noa::fft::Norm::ORTHO;
 
@@ -153,7 +153,7 @@ TEST_CASE("unified::geometry::transform_spectrum_3d, vs scipy", "[noa][unified][
     REQUIRE(count == expected_count);
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_2d(), remap", "[noa][unified]", f32, f64) {
+TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_2d(), remap", "", f32, f64) {
     const auto shape = test::random_shape_batched(2);
     constexpr f64 cutoff = 0.5;
     constexpr auto interp = Interp::LINEAR;
@@ -211,7 +211,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_2d(), remap", "[noa][u
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "[noa][unified]", f32, f64) {
+TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32, f64) {
     const auto shape = test::random_shape(3);
     constexpr f64 cutoff = 0.5;
     constexpr auto interp = Interp::LINEAR;

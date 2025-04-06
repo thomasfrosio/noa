@@ -2,8 +2,8 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/ReduceIwise.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace noa::types;
@@ -24,7 +24,7 @@ namespace {
     };
 }
 
-TEMPLATE_TEST_CASE("unified::reduce_iwise - simple", "[noa][unified]", i32, f64) {
+TEMPLATE_TEST_CASE("unified::reduce_iwise - simple", "", i32, f64) {
     auto shape = Shape4<i64>{5, 35, 64, 81};
     auto min_indices = Vec4<i64>{2, 12, 43, 56};
     auto max_indices = Vec4<i64>{1, 6, 12, 34};
@@ -68,6 +68,6 @@ TEMPLATE_TEST_CASE("unified::reduce_iwise - simple", "[noa][unified]", i32, f64)
         TestType output_sum{1};
         noa::reduce_iwise(Shape{shape.n_elements()}, device, f64{}, noa::wrap(output_sum),
                           SumAdd{input.span_1d_contiguous()});
-        REQUIRE_THAT(output_sum, Catch::WithinRel(sum + 1, 1e-6));
+        REQUIRE_THAT(output_sum, Catch::Matchers::WithinRel(sum + 1, 1e-6));
     }
 }

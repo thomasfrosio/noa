@@ -1,14 +1,14 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/Sort.hpp>
 #include <noa/unified/IO.hpp>
-#include <catch2/catch.hpp>
 
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
-#include "Assets.h"
 
 using namespace noa::types;
 
-TEST_CASE("unified::sort", "[assets][noa][unified]") {
+TEST_CASE("unified::sort", "[asset]") {
     const auto path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["sort"];
 

@@ -9,14 +9,13 @@
 #include <noa/unified/Reduce.hpp>
 #include <noa/unified/signal/CTF.hpp>
 
-#include <catch2/catch.hpp>
-
+#include "Assets.hpp"
 #include "Utils.hpp"
-#include "Assets.h"
+#include "Catch.hpp"
 
 using namespace noa::types;
 
-TEST_CASE("unified::geometry::fft::rotational_average", "[noa][unified]") {
+TEST_CASE("unified::geometry::fft::rotational_average") {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -104,7 +103,7 @@ TEST_CASE("unified::geometry::fft::rotational_average", "[noa][unified]") {
     }
 }
 
-TEST_CASE("unified::geometry::fft::rotational_average_anisotropic, vs isotropic", "[noa][unified]") {
+TEST_CASE("unified::geometry::fft::rotational_average_anisotropic, vs isotropic") {
     // Test that with an isotropic ctf it gives the same results as the classic rotational average.
 
     std::vector<Device> devices{"cpu"};
@@ -188,7 +187,7 @@ namespace {
 }
 
 // TODO Add better tests...
-TEST_CASE("unified::geometry::fft::fuse_rotational_averages", "[noa][unified]") {
+TEST_CASE("unified::geometry::fft::fuse_rotational_averages") {
     // Simulate two 1d CTFs with different spacing and defocus, then fuse to another CTF, and check that they match.
     const auto directory = test::NOA_DATA_PATH / "geometry";
 

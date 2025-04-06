@@ -4,18 +4,18 @@
 #include <noa/unified/geometry/Project.hpp>
 #include <noa/unified/IO.hpp>
 #include <noa/core/utils/Zip.hpp>
-#include <catch2/catch.hpp>
 
 #include <noa/core/geometry/Euler.hpp>
 #include <noa/unified/Reduce.hpp>
 
-#include "Assets.h"
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace noa::types;
 namespace ng = noa::geometry;
 
-TEST_CASE("unified::geometry::project_3d, project sphere", "[noa][asset]") {
+TEST_CASE("unified::geometry::project_3d, project sphere", "[asset]") {
     const Path path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["project_3d"][0];
     const auto input_filename = path_base / param["input_images"].as<Path>();
@@ -115,7 +115,7 @@ TEST_CASE("unified::geometry::project_3d, project sphere", "[noa][asset]") {
     }
 }
 
-TEST_CASE("unified::geometry::project_3d, fused") {
+TEST_CASE("unified::geometry::project_3d, fused", "[asset]") {
     const Path path_base = test::NOA_DATA_PATH / "geometry";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["project_3d"][1];
     const auto image_normal = path_base / param["image_normal"].as<Path>();

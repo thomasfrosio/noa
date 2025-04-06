@@ -1,8 +1,8 @@
-#include <catch2/catch.hpp>
 #include <noa/core/types/Accessor.hpp>
 #include <noa/gpu/cuda/Allocators.hpp>
 #include <noa/gpu/cuda/Iwise.cuh>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 namespace {

@@ -2,10 +2,10 @@
 #include "noa/core/types/Accessor.hpp"
 #include "noa/core/types/Span.hpp"
 
-#include <catch2/catch.hpp>
+#include "Catch.hpp"
 #include "Utils.hpp"
 
-TEST_CASE("core, Interpolator", "[noa][core]") {
+TEST_CASE("core::Interpolator") {
     using namespace noa;
 
     {
@@ -26,7 +26,7 @@ TEST_CASE("core, Interpolator", "[noa][core]") {
     }
 }
 
-TEMPLATE_TEST_CASE("core, interpolation_weight<LANCZOS>, ", "[noa][core]", float, double) {
+TEMPLATE_TEST_CASE("core::interpolation_weight<LANCZOS>", "", float, double) {
     using namespace noa::types;
     {
         Vec<TestType, 1> a{std::numeric_limits<TestType>::epsilon()};

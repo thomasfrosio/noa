@@ -1,9 +1,9 @@
 #include <noa/core/io/BinaryFile.hpp>
-#include <catch2/catch.hpp>
+#include "Catch.hpp"
 
 using namespace ::noa::types;
 
-TEST_CASE("core::io::BinaryFile", "[noa]") {
+TEST_CASE("core::io::BinaryFile") {
     namespace fs = std::filesystem;
 
     const fs::path test_dir = "test_BinaryFile";

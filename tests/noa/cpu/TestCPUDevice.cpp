@@ -1,9 +1,14 @@
 #include <noa/core/utils/Irange.hpp>
 #include <noa/cpu/Device.hpp>
-#include <catch2/catch.hpp>
 
-TEST_CASE("cpu::Device", "[noa][cpu]") {
+#include "Catch.hpp"
+
+TEST_CASE("cpu::Device") {
     using noa::cpu::Device;
+
+    #ifdef NOA_PLATFORM_APPLE
+    return; // while we compile on MacOS, we still don't parse the device properties...
+    #endif
 
     const auto mem_info = Device::memory();
     REQUIRE(mem_info.free != 0);

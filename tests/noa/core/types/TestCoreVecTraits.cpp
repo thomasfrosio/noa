@@ -1,10 +1,10 @@
 #include <noa/core/types/Vec.hpp>
 
-#include <catch2/catch.hpp>
+#include "Catch.hpp"
 
 using namespace ::noa::types;
 
-TEMPLATE_TEST_CASE("core::traits:: Vec", "[noa][core]", u8, u16, u32, u64, i8, i16, i32, i64, f32, f64, bool) {
+TEMPLATE_TEST_CASE("core::traits:: Vec", "", u8, u16, u32, u64, i8, i16, i32, i64, f32, f64, bool) {
     namespace nt = ::noa::traits;
 
     static_assert(nt::is_vec_v<Vec1<TestType>>);

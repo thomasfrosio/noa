@@ -1,7 +1,8 @@
 #include "noa/gpu/cuda/Device.hpp"
-#include <catch2/catch.hpp>
 
-TEST_CASE("cuda::Device", "[noa][cuda]") {
+#include "Catch.hpp"
+
+TEST_CASE("cuda::Device") {
     using namespace noa::types;
     using namespace noa::cuda;
 

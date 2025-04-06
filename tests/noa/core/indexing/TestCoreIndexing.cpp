@@ -5,14 +5,14 @@
 #include <noa/core/indexing/Layout.hpp>
 #include <noa/core/indexing/Subregion.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
-#include <catch2/catch.hpp>
 
 using Border = noa::Border;
 using namespace ::noa::types;
 using namespace ::noa::indexing;
 
-TEST_CASE("core::indexing::index_at()", "[noa][core]") {
+TEST_CASE("core::indexing::index_at()") {
     AND_THEN("Border::PERIODIC") {
         int expected_odd[55] = {0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4,
                                 0, 1, 2, 3, 4,
@@ -110,7 +110,7 @@ TEST_CASE("core::indexing::index_at()", "[noa][core]") {
     }
 }
 
-TEST_CASE("core:: shape, strides", "[noa][core]") {
+TEST_CASE("core:: shape, strides") {
     AND_THEN("C- contiguous") {
         const Shape4<u64> shape{2, 128, 64, 65};
         const auto strides = shape.strides();
@@ -315,7 +315,7 @@ TEST_CASE("core:: shape, strides", "[noa][core]") {
     }
 }
 
-TEST_CASE("core::indexing:: order(), squeeze()", "[noa][core]") {
+TEST_CASE("core::indexing:: order(), squeeze()") {
     const Shape4<u64> shape{2, 32, 64, 128};
     REQUIRE(noa::all(order(shape.strides(), shape) == Vec4<u64>{0, 1, 2, 3}));
     REQUIRE(noa::all(order(shape.strides<'F'>(), shape) == Vec4<u64>{0, 1, 3, 2}));
@@ -356,7 +356,7 @@ TEST_CASE("core::indexing:: order(), squeeze()", "[noa][core]") {
     REQUIRE(noa::all(squeeze_right(Shape4<u64>{5, 1, 1, 1}) == Vec4<u64>{0, 1, 2, 3}));
 }
 
-TEST_CASE("core::indexing:: memory layouts", "[noa][core]") {
+TEST_CASE("core::indexing:: memory layouts") {
     Shape4<u64> shape{2, 32, 64, 128};
     auto strides = shape.strides();
     REQUIRE(is_row_major(strides));
@@ -399,7 +399,7 @@ TEST_CASE("core::indexing:: memory layouts", "[noa][core]") {
     }
 }
 
-TEST_CASE("core::indexing:: Reinterpret", "[noa][core]") {
+TEST_CASE("core::indexing:: Reinterpret") {
     const auto shape = test::random_shape(3, {.batch_range={1, 10}});
     auto strides = shape.strides();
     c32* ptr = nullptr;
@@ -415,7 +415,7 @@ TEST_CASE("core::indexing:: Reinterpret", "[noa][core]") {
     REQUIRE(noa::all(real.strides == Strides4<i64>{strides[0] * 2, strides[1] * 2, 1, strides[3] * 2}));
 }
 
-TEMPLATE_TEST_CASE("core::indexing::offset2index(), 4D", "[noa][core]", Vec4<i64>, Vec4<u64>) {
+TEMPLATE_TEST_CASE("core::indexing::offset2index(), 4D", "", Vec4<i64>, Vec4<u64>) {
     const u32 ndim = GENERATE(1u, 2u, 3u);
 
     using value_t = noa::traits::value_type_t<TestType>;
@@ -443,9 +443,7 @@ TEMPLATE_TEST_CASE("core::indexing::offset2index(), 4D", "[noa][core]", Vec4<i64
     }
 }
 
-TEMPLATE_TEST_CASE("core::indexing::offset2index()", "[noa][core]",
-                   Vec1<i64>, Vec2<i64>, Vec3<i64>, Vec4<i64>) {
-
+TEMPLATE_TEST_CASE("core::indexing::offset2index()", "", Vec1<i64>, Vec2<i64>, Vec3<i64>, Vec4<i64>) {
     constexpr size_t N = TestType::SIZE;
     using value_t = noa::traits::value_type_t<TestType>;
     test::Randomizer<value_t> randomizer(2, 3);
@@ -478,7 +476,7 @@ TEMPLATE_TEST_CASE("core::indexing::offset2index()", "[noa][core]",
     }
 }
 
-TEMPLATE_TEST_CASE("core::indexing:: reorder matrices", "[noa][core]", u32, i32, i64, u64) {
+TEMPLATE_TEST_CASE("core::indexing:: reorder matrices", "", u32, i32, i64, u64) {
     // When we reorder the array, if it is attached to a matrix, we need to reorder the matrix as well.
     test::Randomizer<double> randomizer(-3, 3);
     SECTION("2D") {
@@ -494,8 +492,8 @@ TEMPLATE_TEST_CASE("core::indexing:: reorder matrices", "[noa][core]", u32, i32,
         vector = reorder(vector, order);
         matrix = reorder(matrix, order);
         Vec2<f64> result = matrix * vector;
-        REQUIRE(expected[0] == result[1]);
-        REQUIRE(expected[1] == result[0]);
+        REQUIRE(noa::allclose(expected[0], result[1], 1e-12));
+        REQUIRE(noa::allclose(expected[1], result[0], 1e-12));
     }
 
     SECTION("2D affine") {
@@ -510,8 +508,8 @@ TEMPLATE_TEST_CASE("core::indexing:: reorder matrices", "[noa][core]", u32, i32,
         vector = reorder(vector, Vec3<TestType>{1, 0, 2});
         matrix = reorder(matrix, Vec2<TestType>{1, 0});
         Vec2<f64> result = matrix * vector;
-        REQUIRE(expected[0] == result[1]);
-        REQUIRE(expected[1] == result[0]);
+        REQUIRE(noa::allclose(expected[0], result[1], 1e-12));
+        REQUIRE(noa::allclose(expected[1], result[0], 1e-12));
     }
 
     SECTION("3D") {
@@ -532,14 +530,14 @@ TEMPLATE_TEST_CASE("core::indexing:: reorder matrices", "[noa][core]", u32, i32,
             expected = reorder(expected, order);
 
             INFO(order);
-            REQUIRE_THAT(result[0], Catch::WithinAbs(expected[0], 1e-6));
-            REQUIRE_THAT(result[1], Catch::WithinAbs(expected[1], 1e-6));
-            REQUIRE_THAT(result[2], Catch::WithinAbs(expected[2], 1e-6));
+            REQUIRE_THAT(result[0], Catch::Matchers::WithinAbs(expected[0], 1e-6));
+            REQUIRE_THAT(result[1], Catch::Matchers::WithinAbs(expected[1], 1e-6));
+            REQUIRE_THAT(result[2], Catch::Matchers::WithinAbs(expected[2], 1e-6));
         }
     }
 }
 
-TEST_CASE("core::indexing::reshape, broadcasting", "[noa][indexing]") {
+TEST_CASE("core::indexing::reshape, broadcasting") {
     const auto shape1 = Shape4<u64>{30, 20, 10, 5};
     const auto strides1 = Strides4<u64>{1000, 50, 5, 1};
 
@@ -563,7 +561,7 @@ TEST_CASE("core::indexing::reshape, broadcasting", "[noa][indexing]") {
     REQUIRE(noa::all(new_strides == new_shape.strides()));
 }
 
-TEST_CASE("core::indexing::Subregion", "[noa][indexing]") {
+TEST_CASE("core::indexing::Subregion") {
     constexpr auto shape = Shape4<i64>{30, 20, 10, 5};
     constexpr auto strides = shape.strides();
     constexpr std::uintptr_t offset = 5;

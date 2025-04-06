@@ -3,13 +3,13 @@
 #include <noa/unified/IO.hpp>
 #include <noa/unified/signal/MedianFilter.hpp>
 
-#include <catch2/catch.hpp>
-#include "Assets.h"
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace noa::types;
 
-TEST_CASE("unified::signal::median_filter()", "[asset][noa][unified]") {
+TEST_CASE("unified::signal::median_filter()", "[asset]") {
     const Path path_base = test::NOA_DATA_PATH / "signal";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["median"]["tests"];
 
@@ -50,7 +50,7 @@ TEST_CASE("unified::signal::median_filter()", "[asset][noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::signal::median_filter(), cpu vs gpu", "[noa][unified]", i32, f16, f32, f64) {
+TEMPLATE_TEST_CASE("unified::signal::median_filter(), cpu vs gpu", "", i32, f16, f32, f64) {
     if (not Device::is_any_gpu())
         return;
 

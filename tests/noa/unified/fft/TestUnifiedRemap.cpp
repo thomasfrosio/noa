@@ -3,16 +3,16 @@
 #include <noa/unified/Random.hpp>
 #include <noa/unified/IO.hpp>
 
-#include <catch2/catch.hpp>
-#include "Assets.h"
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
 using Remap = noa::Remap;
-using Path = std::filesystem::path;
+namespace fs = std::filesystem;
 
-TEST_CASE("unified::fft::(i)fftshift -- vs numpy", "[asset][noa][unified]") {
-    const Path path = test::NOA_DATA_PATH / "fft";
+TEST_CASE("unified::fft::(i)fftshift -- vs numpy", "[asset]") {
+    const fs::path path = test::NOA_DATA_PATH / "fft";
     YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["remap"];
 
     const std::array<std::string, 2> keys{"2D", "3D"};
@@ -26,22 +26,22 @@ TEST_CASE("unified::fft::(i)fftshift -- vs numpy", "[asset][noa][unified]") {
         const auto options = ArrayOption(device, Allocator::MANAGED);
 
         for (const auto& key: keys) {
-            const auto array = noa::io::read_data<f32>(path / tests[key]["input"].as<Path>(), {}, options);
+            const auto array = noa::io::read_data<f32>(path / tests[key]["input"].as<fs::path>(), {}, options);
 
             // fftshift
-            auto reordered_expected = noa::io::read_data<f32>(path / tests[key]["fftshift"].as<Path>(), {}, options);
+            auto reordered_expected = noa::io::read_data<f32>(path / tests[key]["fftshift"].as<fs::path>(), {}, options);
             auto reordered_results = noa::fft::remap("f2fc", array, reordered_expected.shape());
             REQUIRE(test::allclose_abs_safe(reordered_expected, reordered_results, 1e-10));
 
             // ifftshift
-            reordered_expected = noa::io::read_data<f32>(path / tests[key]["ifftshift"].as<Path>(), {}, options);
+            reordered_expected = noa::io::read_data<f32>(path / tests[key]["ifftshift"].as<fs::path>(), {}, options);
             reordered_results = noa::fft::remap("fc2f", array, reordered_expected.shape());
             REQUIRE(test::allclose_abs_safe(reordered_expected, reordered_results, 1e-10));
         }
     }
 }
 
-TEMPLATE_TEST_CASE("unified::fft::remap()", "[noa][unified]", f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::fft::remap()", "", f32, f64, c32, c64) {
     const i64 ndim = GENERATE(1, 2, 3);
     INFO("ndim: " << ndim);
 
@@ -126,7 +126,7 @@ TEMPLATE_TEST_CASE("unified::fft::remap()", "[noa][unified]", f32, f64, c32, c64
     }
 }
 
-TEMPLATE_TEST_CASE("unified::fft::remap(), cpu vs gpu", "[noa][unified]", f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::fft::remap(), cpu vs gpu", "", f32, f64, c32, c64) {
     if (not Device::is_any_gpu())
         return;
 

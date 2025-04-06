@@ -1,12 +1,12 @@
 #include <noa/unified/Complex.hpp>
 #include <noa/unified/Random.hpp>
 
-#include <catch2/catch.hpp>
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace noa::types;
 
-TEMPLATE_TEST_CASE("unified::decompose() and complex()", "[noa][unified]", f32, f64) {
+TEMPLATE_TEST_CASE("unified::decompose() and complex()", "", f32, f64) {
     const auto pad = GENERATE(true, false);
     const auto subregion_shape = test::random_shape_batched(3);
     auto shape = subregion_shape;

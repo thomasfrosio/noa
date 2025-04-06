@@ -5,9 +5,9 @@
 #include <noa/unified/IO.hpp>
 #include <noa/unified/Ewise.hpp>
 
-#include "catch2/catch.hpp"
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
-#include "Assets.h"
 
 using namespace ::noa::types;
 
@@ -20,7 +20,7 @@ namespace {
     };
 }
 
-TEST_CASE("unified::geometry::sphere(), 2d", "[asset][noa][unified]") {
+TEST_CASE("unified::geometry::sphere(), 2d", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector devices{Device("cpu")};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
@@ -86,7 +86,7 @@ TEST_CASE("unified::geometry::sphere(), 2d", "[asset][noa][unified]") {
     }
 }
 
-TEST_CASE("unified::geometry::rectangle(), 2d", "[assets][noa][unified]") {
+TEST_CASE("unified::geometry::rectangle(), 2d", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector devices{Device("cpu")};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
@@ -151,7 +151,7 @@ TEST_CASE("unified::geometry::rectangle(), 2d", "[assets][noa][unified]") {
     }
 }
 
-TEST_CASE("unified::geometry::ellipse(), 2d", "[assets][noa][unified]") {
+TEST_CASE("unified::geometry::ellipse(), 2d", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector devices{Device("cpu")};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
@@ -216,7 +216,7 @@ TEST_CASE("unified::geometry::ellipse(), 2d", "[assets][noa][unified]") {
     }
 }
 
-TEST_CASE("unified::geometry::sphere, 3d", "[assets][noa][unified]") {
+TEST_CASE("unified::geometry::sphere, 3d", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector devices{Device("cpu")};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
@@ -280,7 +280,7 @@ TEST_CASE("unified::geometry::sphere, 3d", "[assets][noa][unified]") {
     }
 }
 
-TEST_CASE("unified::geometry::rectangle, 3d", "[assets][noa][unified]") {
+TEST_CASE("unified::geometry::rectangle, 3d", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector devices{Device("cpu")};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
@@ -345,7 +345,7 @@ TEST_CASE("unified::geometry::rectangle, 3d", "[assets][noa][unified]") {
     }
 }
 
-TEST_CASE("unified::geometry::ellipse, 3d", "[assets][noa][unified]") {
+TEST_CASE("unified::geometry::ellipse, 3d", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector devices{Device("cpu")};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
@@ -410,7 +410,7 @@ TEST_CASE("unified::geometry::ellipse, 3d", "[assets][noa][unified]") {
     }
 }
 
-TEST_CASE("unified::geometry::cylinder", "[assets][noa][unified]") {
+TEST_CASE("unified::geometry::cylinder", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector devices{Device("cpu")};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
@@ -478,7 +478,7 @@ TEST_CASE("unified::geometry::cylinder", "[assets][noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::sphere, 2d matches 3d", "[noa][unified]", f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::geometry::sphere, 2d matches 3d", "", f32, f64, c32, c64) {
     const auto shape = test::random_shape_batched(2);
     const auto center_3d = (shape.pop_front().vec / 2).as<f64>();
     const auto center_2d = (shape.filter(2, 3).vec / 2).as<f64>();
@@ -522,7 +522,7 @@ TEMPLATE_TEST_CASE("unified::geometry::sphere, 2d matches 3d", "[noa][unified]",
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::rectangle, 2d matches 3d", "[noa][unified]", f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::geometry::rectangle, 2d matches 3d", "", f32, f64, c32, c64) {
     const auto shape = test::random_shape_batched(2);
     const auto center_3d = (shape.pop_front().vec / 2).as<f64>();
     const auto center_2d = (shape.filter(2, 3).vec / 2).as<f64>();
@@ -568,7 +568,7 @@ TEMPLATE_TEST_CASE("unified::geometry::rectangle, 2d matches 3d", "[noa][unified
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::ellipse, 2d matches 3d", "[noa][unified]", f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::geometry::ellipse, 2d matches 3d", "", f32, f64, c32, c64) {
     const auto shape = test::random_shape_batched(2);
     const auto center_3d = (shape.pop_front().vec / 2).as<f64>();
     const auto center_2d = (shape.filter(2, 3).vec / 2).as<f64>();
@@ -613,7 +613,7 @@ TEMPLATE_TEST_CASE("unified::geometry::ellipse, 2d matches 3d", "[noa][unified]"
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::ellipse, 2d affine", "[noa][unified]", f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::geometry::ellipse, 2d affine", "", f32, f64, c32, c64) {
     const auto shape = test::random_shape_batched(2);
     const auto ellipse = noa::geometry::Ellipse{
         .center = (shape.filter(2, 3) / 2).vec.as<f64>(),
@@ -645,7 +645,7 @@ TEMPLATE_TEST_CASE("unified::geometry::ellipse, 2d affine", "[noa][unified]", f3
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::ellipse, 3d affine", "[noa][unified]", f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::geometry::ellipse, 3d affine", "", f32, f64, c32, c64) {
     const auto shape = test::random_shape_batched(3);
     const auto ellipse = noa::geometry::Ellipse{
         .center = (shape.filter(1, 2, 3) / 2).vec.as<f64>(),
@@ -677,7 +677,7 @@ TEMPLATE_TEST_CASE("unified::geometry::ellipse, 3d affine", "[noa][unified]", f3
     }
 }
 
-TEST_CASE("unified::geometry::shapes, 2d batched", "[noa][unified]") {
+TEST_CASE("unified::geometry::shapes, 2d batched") {
     constexpr auto shape = Shape4<i64>{10, 1, 124, 115};
     constexpr auto center = shape.filter(2, 3).vec.as<f64>() / 2;
     constexpr auto radius = Vec{42., 12.};
@@ -724,7 +724,7 @@ TEST_CASE("unified::geometry::shapes, 2d batched", "[noa][unified]") {
     }
 }
 
-TEST_CASE("unified::geometry::shapes, 3d batched", "[noa][unified]") {
+TEST_CASE("unified::geometry::shapes, 3d batched") {
     constexpr auto shape = Shape4<i64>{4, 55, 65, 58};
     constexpr auto center = shape.filter(1, 2, 3).vec.as<f64>() / 2;
     constexpr auto radius = Vec{9., 21., 8.};

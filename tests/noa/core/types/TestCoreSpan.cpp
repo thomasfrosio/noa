@@ -1,5 +1,6 @@
 #include <noa/core/types/Span.hpp>
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 
 TEST_CASE("core::Span") {
     using namespace noa::types;

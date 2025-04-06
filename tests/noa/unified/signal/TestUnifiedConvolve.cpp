@@ -3,11 +3,11 @@
 #include <noa/unified/IO.hpp>
 #include <noa/unified/signal/Convolve.hpp>
 
-#include <catch2/catch.hpp>
-#include "Assets.h"
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
 
-TEST_CASE("unified::signal::convolve()", "[asset][noa]") {
+TEST_CASE("unified::signal::convolve()", "[asset]") {
     using namespace noa::types;
 
     const Path path_base = test::NOA_DATA_PATH / "signal";
@@ -44,7 +44,7 @@ TEST_CASE("unified::signal::convolve()", "[asset][noa]") {
     }
 }
 
-TEST_CASE("unified::signal::convolve_separable()", "[asset][noa]") {
+TEST_CASE("unified::signal::convolve_separable()", "[asset]") {
     using namespace noa::types;
 
     const Path path_base = test::NOA_DATA_PATH / "signal";

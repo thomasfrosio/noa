@@ -1,9 +1,9 @@
 #include <noa/core/types/Half.hpp>
 #include <noa/core/math/Comparison.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 
-TEST_CASE("core::Half", "[noa][core]") {
+TEST_CASE("core::Half") {
     using namespace ::noa::types;
 
     static_assert(sizeof(f16) == 2);

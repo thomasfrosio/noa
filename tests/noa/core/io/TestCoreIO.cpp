@@ -1,18 +1,19 @@
 #include <fstream>
 #include <filesystem>
+
 #include <noa/core/io/IO.hpp>
 #include <noa/core/io/Encoding.hpp>
 #include <noa/core/io/BinaryFile.hpp>
-#include <catch2/catch.hpp>
+#include <noa/core/utils/Zip.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
-#include "noa/core/utils/Zip.hpp"
 
 using namespace ::noa::types;
 namespace fs = std::filesystem;
 namespace nio = noa::io;
 
-TEMPLATE_TEST_CASE("core::io::encoding and decoding - real types", "[noa]", u8, i16, i32, u32, f16, f32, f64) {
+TEMPLATE_TEST_CASE("core::io::encoding and decoding - real types", "", u8, i16, i32, u32, f16, f32, f64) {
     const fs::path directory = "test_encoding";
     const fs::path filename = directory / "data";
     nio::mkdir(directory);
@@ -90,7 +91,7 @@ TEMPLATE_TEST_CASE("core::io::encoding and decoding - real types", "[noa]", u8, 
     nio::remove_all(directory);
 }
 
-TEMPLATE_TEST_CASE("core::io::encoding and decoding - complex", "[noa][core]", c16, c32, c64) {
+TEMPLATE_TEST_CASE("core::io::encoding and decoding - complex", "", c16, c32, c64) {
     const fs::path directory = "test_encoding";
     const fs::path filename = directory / "data";
     nio::mkdir(directory);
@@ -144,7 +145,7 @@ TEMPLATE_TEST_CASE("core::io::encoding and decoding - complex", "[noa][core]", c
     nio::remove_all(directory);
 }
 
-TEST_CASE("core::io::encoding and decoding - many elements", "[noa][core]") {
+TEST_CASE("core::io::encoding and decoding - many elements") {
     const fs::path directory = "test_encoding";
     const fs::path filename = directory / "data";
     nio::mkdir(directory);
@@ -190,7 +191,7 @@ TEST_CASE("core::io::encoding and decoding - many elements", "[noa][core]") {
     }
 }
 
-TEST_CASE("core::io::swap_endian", "[noa]") {
+TEST_CASE("core::io::swap_endian") {
     constexpr size_t N = 100;
     auto randomizer = test::Randomizer<i32>(-1234434, 94321458);
     f32 diff{};
@@ -199,5 +200,5 @@ TEST_CASE("core::io::swap_endian", "[noa]") {
         auto b = nio::swap_endian(nio::swap_endian(a));
         diff += std::abs(a - b);
     }
-    REQUIRE_THAT(diff, Catch::WithinULP(0.f, 2));
+    REQUIRE_THAT(diff, Catch::Matchers::WithinULP(0.f, 2));
 }

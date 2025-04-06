@@ -3,14 +3,13 @@
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/IO.hpp>
 
-#include <catch2/catch.hpp>
-
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
-#include "Assets.h"
 
 using namespace noa::types;
 
-TEST_CASE("unified::geometry::cartesian2polar", "[noa][unified]") {
+TEST_CASE("unified::geometry::cartesian2polar", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector<Device> devices{"cpu"};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())

@@ -1,5 +1,6 @@
 #include <noa/core/utils/Strings.hpp>
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 
 using namespace ::noa::types;
 namespace ns = ::noa::string;
@@ -20,7 +21,7 @@ TEST_CASE("core::string::trim_left", "[noa][core]") {
     }
 }
 
-TEST_CASE("core::string::trim_right", "[noa][core]") {
+TEST_CASE("core::string::trim_right") {
     std::string result;
     std::vector<std::string> tests{
         "", "   ", "  foo ", "  \tfoo", " \n foo\n ", "foo \r", " foo bar ", "\t  \n 123; \n", " , 123 "
@@ -36,7 +37,7 @@ TEST_CASE("core::string::trim_right", "[noa][core]") {
     }
 }
 
-TEST_CASE("core::string::trim", "[noa][core]") {
+TEST_CASE("core::string::trim") {
     std::string result;
     std::vector<std::string> tests{
         "", "  ", "  foo ", "  \tfoo", " \n foo\n ", "foo \r", " foo bar ",
@@ -54,7 +55,7 @@ TEST_CASE("core::string::trim", "[noa][core]") {
     }
 }
 
-TEMPLATE_TEST_CASE("core::string::parse(), to integer", "[noa][core]", u8, u16, u32, u64, i8, i16, i32, i64) {
+TEMPLATE_TEST_CASE("core::string::parse(), to integer", "", u8, u16, u32, u64, i8, i16, i32, i64) {
     TestType min = std::numeric_limits<TestType>::min();
     TestType max = std::numeric_limits<TestType>::max();
 
@@ -95,7 +96,7 @@ TEMPLATE_TEST_CASE("core::string::parse(), to integer", "[noa][core]", u8, u16, 
     }
 }
 
-TEMPLATE_TEST_CASE("core::string::parse(), to floating-point", "[noa][core]", f32, f64) {
+TEMPLATE_TEST_CASE("core::string::parse(), to floating-point", "", f32, f64) {
     GIVEN("a string that can be converted to a floating point") {
         WHEN("should return a number") {
             std::vector<std::string> tests{
@@ -110,7 +111,7 @@ TEMPLATE_TEST_CASE("core::string::parse(), to floating-point", "[noa][core]", f3
                 INFO(i);
                 const auto result = ns::parse<TestType>(tests[i]);
                 REQUIRE(result.has_value());
-                REQUIRE_THAT(result.value_or(0), Catch::WithinULP(expected[i], 2));
+                REQUIRE_THAT(result.value_or(0), Catch::Matchers::WithinULP(expected[i], 2));
             }
         }
 
@@ -144,7 +145,7 @@ TEMPLATE_TEST_CASE("core::string::parse(), to floating-point", "[noa][core]", f3
     }
 }
 
-TEST_CASE("core::string::parse(), to boolean", "[noa][core]") {
+TEST_CASE("core::string::parse(), to boolean") {
     GIVEN("a string that can be converted to a bool") {
         WHEN("should return true") {
             const auto* to_test = GENERATE("1", "true", "TRUE", "y", "yes", "YES");

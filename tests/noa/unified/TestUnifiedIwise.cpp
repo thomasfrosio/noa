@@ -1,7 +1,7 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/Iwise.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 namespace {
@@ -16,7 +16,7 @@ namespace {
     };
 }
 
-TEST_CASE("unified::iwise", "[noa][unified]") {
+TEST_CASE("unified::iwise") {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");

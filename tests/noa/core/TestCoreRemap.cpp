@@ -1,5 +1,6 @@
 #include <noa/core/Enums.hpp>
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 
 namespace {
     template<noa::Remap REMAP>
@@ -8,7 +9,7 @@ namespace {
     }
 }
 
-TEST_CASE("core::Remap", "[noa][core]") {
+TEST_CASE("core::Remap") {
     constexpr auto a0 = noa::Remap("h2hc");
     bool is_ok{};
     switch (a0) { // implicit conversion to the underlying enum type

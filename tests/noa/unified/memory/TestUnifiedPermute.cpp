@@ -3,15 +3,15 @@
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/IO.hpp>
 
-#include <catch2/catch.hpp>
-#include "Assets.h"
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
-using Path = std::filesystem::path;
+namespace fs = std::filesystem;
 
-TEST_CASE("unified::permute()", "[asset][noa][unified]") {
-    const Path path_base = test::NOA_DATA_PATH / "memory";
+TEST_CASE("unified::permute()", "[asset]") {
+    const fs::path path_base = test::NOA_DATA_PATH / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["transpose"]["tests"];
     const bool pad = GENERATE(false, true);
     INFO("pad=" << pad);
@@ -29,8 +29,8 @@ TEST_CASE("unified::permute()", "[asset][noa][unified]") {
             INFO("test number = " << nb);
 
             const YAML::Node& test = tests[nb];
-            const auto filename_input = path_base / test["input"].as<Path>();
-            const auto filename_expected = path_base / test["expected"].as<Path>();
+            const auto filename_input = path_base / test["input"].as<fs::path>();
+            const auto filename_expected = path_base / test["expected"].as<fs::path>();
             const auto permutation = test["permutation"].as<Vec4<i64>>();
             const auto inplace = test["inplace"].as<bool>();
 
@@ -51,7 +51,7 @@ TEST_CASE("unified::permute()", "[asset][noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::permute", "[noa][unified]", i32, f32, f64, c32) {
+TEMPLATE_TEST_CASE("unified::permute", "", i32, f32, f64, c32) {
     constexpr std::array permutations{
         Vec4<i64>{0, 1, 2, 3},
         Vec4<i64>{0, 1, 3, 2},
@@ -98,7 +98,7 @@ TEMPLATE_TEST_CASE("unified::permute", "[noa][unified]", i32, f32, f64, c32) {
     }
 }
 
-TEST_CASE("unified::permute, broadcast", "[noa][unified]") {
+TEST_CASE("unified::permute, broadcast") {
     constexpr std::array permutations{
         Vec4<i64>{0, 1, 2, 3},
         Vec4<i64>{0, 1, 3, 2},

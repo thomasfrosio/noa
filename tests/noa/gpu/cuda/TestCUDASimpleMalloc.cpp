@@ -1,6 +1,7 @@
 #include <noa/gpu/cuda/Allocators.hpp>
 #include <noa/gpu/cuda/Stream.hpp>
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 
 TEST_CASE("cuda::simple malloc") {
     using namespace noa::cuda;

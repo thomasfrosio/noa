@@ -1,5 +1,6 @@
 #include <noa/cpu/ReduceIwise.hpp>
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 
 namespace {
     struct Tracked {

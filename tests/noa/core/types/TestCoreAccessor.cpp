@@ -1,12 +1,12 @@
 #include <noa/core/types/Accessor.hpp>
 #include <noa/core/utils/Irange.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
 
-TEMPLATE_TEST_CASE("core:: Accessor", "[noa]", i32, i64, u32, u64) {
+TEMPLATE_TEST_CASE("core:: Accessor", "", i32, i64, u32, u64) {
     using noa::indexing::offset_at;
 
     const auto shape = Shape4<u64>{2, 30, 50, 60};
@@ -93,7 +93,7 @@ TEMPLATE_TEST_CASE("core:: Accessor", "[noa]", i32, i64, u32, u64) {
     }
 }
 
-TEMPLATE_TEST_CASE("core:: AccessorValue", "[noa]", i32, i64, u32, u64) {
+TEMPLATE_TEST_CASE("core:: AccessorValue", "", i32, i64, u32, u64) {
     AccessorValue<TestType> accessor_value; // uninitialized
     accessor_value(0) = 1;
     REQUIRE(accessor_value.ref() == 1);

@@ -1,7 +1,7 @@
 #include <noa/gpu/cuda/ReduceEwise.cuh>
 #include <noa/gpu/cuda/Allocators.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 namespace {
@@ -122,7 +122,7 @@ TEST_CASE("cuda::reduce_ewise") {
         using config = ReduceEwiseConfig<false, false, true>;
         reduce_ewise<config>(shape, SumMaxOp{}, input, reduced, output, stream);
         stream.synchronize();
-        REQUIRE_THAT(b1[0], Catch::WithinAbs(static_cast<f64>(n_elements + 12 + 1), 1e-8));
+        REQUIRE_THAT(b1[0], Catch::Matchers::WithinAbs(static_cast<f64>(n_elements + 12 + 1), 1e-8));
         REQUIRE(b2[0] == 13 + 1);
     }
 }

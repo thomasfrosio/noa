@@ -1,8 +1,8 @@
 #include <noa/core/types/Accessor.hpp>
 #include <noa/gpu/cuda/ReduceIwise.cuh>
 #include <noa/gpu/cuda/Allocators.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 namespace {
@@ -78,7 +78,7 @@ TEST_CASE("cuda::reduce_iwise") {
         reduce_iwise(shape_i32, op, reduced, output, stream);
         stream.synchronize();
 
-        REQUIRE_THAT(b1[0], Catch::WithinRel(static_cast<f64>(expected_sum), 1e-8));
+        REQUIRE_THAT(b1[0], Catch::Matchers::WithinRel(static_cast<f64>(expected_sum), 1e-8));
         REQUIRE((b2[0].first == expected_max and b2[0].second == expected_index));
     });
 }

@@ -1,9 +1,9 @@
 #include <noa/unified/Device.hpp>
 #include <noa/gpu/Backend.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 
-TEST_CASE("unified::Device", "[noa][unified]") {
+TEST_CASE("unified::Device") {
     using namespace noa::types;
 
     THEN("parse") {

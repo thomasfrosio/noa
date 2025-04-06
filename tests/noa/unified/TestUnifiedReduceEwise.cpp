@@ -3,8 +3,7 @@
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/ReduceEwise.hpp>
 
-#include <catch2/catch.hpp>
-
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace noa::types;
@@ -25,7 +24,7 @@ namespace {
     };
 }
 
-TEMPLATE_TEST_CASE("unified::reduce_ewise - simple", "[noa][unified]", i32, f64) {
+TEMPLATE_TEST_CASE("unified::reduce_ewise - simple", "", i32, f64) {
     auto shape = Shape4<i64>{5, 35, 64, 81};
 
     auto input = noa::empty<TestType>(shape);
@@ -51,6 +50,6 @@ TEMPLATE_TEST_CASE("unified::reduce_ewise - simple", "[noa][unified]", i32, f64)
 
         f64 output{};
         noa::reduce_ewise(input, f64{}, output, noa::ReduceSum{});
-        REQUIRE_THAT(output, Catch::WithinAbs(sum, 1e-5));
+        REQUIRE_THAT(output, Catch::Matchers::WithinAbs(sum, 1e-5));
     }
 }

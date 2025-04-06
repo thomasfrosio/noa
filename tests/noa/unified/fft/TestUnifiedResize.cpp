@@ -4,23 +4,23 @@
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/IO.hpp>
 
-#include <catch2/catch.hpp>
-#include "Assets.h"
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
 using Remap = noa::Remap;
-using Path = std::filesystem::path;
+namespace fs = std::filesystem;
 
-TEST_CASE("unified::fft::resize()", "[asset][noa][unified]") {
-    const Path path = test::NOA_DATA_PATH / "fft";
+TEST_CASE("unified::fft::resize()", "[asset]") {
+    const fs::path path = test::NOA_DATA_PATH / "fft";
     YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["resize"];
 
     constexpr bool GENERATE_ASSETS = false;
     if constexpr (GENERATE_ASSETS) {
         for (const YAML::Node& node : tests["input"]) {
             const auto shape = node["shape"].as<Shape4<i64>>();
-            const auto path_input = path / node["path"].as<Path>();
+            const auto path_input = path / node["path"].as<fs::path>();
             const auto input = noa::random(noa::Uniform{-128.f, 128.f}, shape.rfft());
             noa::io::write(input, path_input);
         }
@@ -36,8 +36,8 @@ TEST_CASE("unified::fft::resize()", "[asset][noa][unified]") {
 
         for (size_t i = 0; i < tests["tests"].size(); ++i) {
             const YAML::Node& test = tests["tests"][i];
-            const auto filename_input = path / test["input"].as<Path>();
-            const auto filename_expected = path / test["expected"].as<Path>();
+            const auto filename_input = path / test["input"].as<fs::path>();
+            const auto filename_expected = path / test["expected"].as<fs::path>();
             const auto shape_input = test["shape_input"].as<Shape4<i64>>();
             const auto shape_expected = test["shape_expected"].as<Shape4<i64>>();
 
@@ -55,7 +55,7 @@ TEST_CASE("unified::fft::resize()", "[asset][noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::fft::resize and remap", "[noa][unified]", f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::fft::resize and remap", "", f32, f64, c32, c64) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");

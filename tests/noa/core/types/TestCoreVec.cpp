@@ -1,5 +1,6 @@
 #include <noa/core/types/Vec.hpp>
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
@@ -10,7 +11,7 @@ static_assert(alignof(Vec<f32, 2>) == 8);
 static_assert(alignof(Vec<f32, 6>) == 4);
 static_assert(alignof(Vec<f64, 4, 32>) == 32);
 
-TEMPLATE_TEST_CASE("core::Vec", "[noa][core]", i32, i64, u32, u64, f32, f64) {
+TEMPLATE_TEST_CASE("core::Vec", "", i32, i64, u32, u64, f32, f64) {
     // Vec is an essential part of the library. It is similar to std::array, in that it is an aggregate storing
     // an array of a given type and static size. However, it only supports numeric types or a Vec, i.e. Vec<f32,2>,
     // Vec<Vec<f32,2>,2> are both allowed.
@@ -219,11 +220,11 @@ TEMPLATE_TEST_CASE("core::Vec", "[noa][core]", i32, i64, u32, u64, f32, f64) {
 
             b = vec2_t::from_values(23.23, -12.252);
             auto dot = static_cast<double>(b[0] * b[0] + b[1] * b[1]);
-            REQUIRE_THAT(noa::dot(b, b), Catch::WithinAbs(dot, 1e-6));
-            REQUIRE_THAT(noa::norm(b), Catch::WithinAbs(std::sqrt(dot), 1e-6));
+            REQUIRE_THAT(noa::dot(b, b), Catch::Matchers::WithinAbs(dot, 1e-6));
+            REQUIRE_THAT(noa::norm(b), Catch::Matchers::WithinAbs(std::sqrt(dot), 1e-6));
             const auto b_normalized = noa::normalize(b);
-            REQUIRE_THAT(noa::norm(b_normalized), Catch::WithinAbs(1, 1e-6));
-            REQUIRE_THAT(noa::dot(b, vec2_t::from_values(-12.23, -21.23)), Catch::WithinAbs(-23.992940, 1e-4));
+            REQUIRE_THAT(noa::norm(b_normalized), Catch::Matchers::WithinAbs(1, 1e-6));
+            REQUIRE_THAT(noa::dot(b, vec2_t::from_values(-12.23, -21.23)), Catch::Matchers::WithinAbs(-23.992940, 1e-4));
         }
     }
 

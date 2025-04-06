@@ -1,7 +1,7 @@
 #include <noa/core/types/Tuple.hpp>
 #include <noa/core/utils/Misc.hpp>
 
-#include <catch2/catch.hpp>
+#include "Catch.hpp"
 
 namespace {
     struct Tracked {

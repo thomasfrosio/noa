@@ -1,9 +1,9 @@
 #include <noa/core/signal/Windows.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
-TEST_CASE("core::signal:: windows", "[noa][core]") {
+TEST_CASE("core::signal:: windows") {
     using namespace noa::types;
     {
         std::array<f64, 20> window{};

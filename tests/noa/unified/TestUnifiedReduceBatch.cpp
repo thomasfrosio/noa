@@ -2,14 +2,14 @@
 #include <noa/unified/Reduce.hpp>
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/IO.hpp>
-#include <catch2/catch.hpp>
 
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
-#include "Assets.h"
 
 using namespace noa::types;
 
-TEST_CASE("unified::reduce - batched reductions vs numpy", "[assets][noa][unified]") {
+TEST_CASE("unified::reduce - batched reductions vs numpy", "[asset]") {
     const auto path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
 
@@ -63,18 +63,18 @@ TEST_CASE("unified::reduce - batched reductions vs numpy", "[assets][noa][unifie
         data.eval();
 
         for (u32 batch = 0; batch < shape[0]; ++batch) {
-            REQUIRE_THAT(mins(batch, 0, 0, 0), Catch::WithinAbs(static_cast<double>(expected_min[batch]), 1e-6));
-            REQUIRE_THAT(maxs(batch, 0, 0, 0), Catch::WithinAbs(static_cast<double>(expected_max[batch]), 1e-6));
-            REQUIRE_THAT(sums(batch, 0, 0, 0), Catch::WithinRel(expected_sum[batch]));
-            REQUIRE_THAT(means(batch, 0, 0, 0), Catch::WithinRel(expected_mean[batch]));
-            REQUIRE_THAT(norms(batch, 0, 0, 0), Catch::WithinRel(expected_norm[batch]));
-            REQUIRE_THAT(vars(batch, 0, 0, 0), Catch::WithinRel(expected_var[batch]));
-            REQUIRE_THAT(stds(batch, 0, 0, 0), Catch::WithinRel(expected_std[batch]));
+            REQUIRE_THAT(mins(batch, 0, 0, 0), Catch::Matchers::WithinAbs(static_cast<double>(expected_min[batch]), 1e-6));
+            REQUIRE_THAT(maxs(batch, 0, 0, 0), Catch::Matchers::WithinAbs(static_cast<double>(expected_max[batch]), 1e-6));
+            REQUIRE_THAT(sums(batch, 0, 0, 0), Catch::Matchers::WithinRel(expected_sum[batch]));
+            REQUIRE_THAT(means(batch, 0, 0, 0), Catch::Matchers::WithinRel(expected_mean[batch]));
+            REQUIRE_THAT(norms(batch, 0, 0, 0), Catch::Matchers::WithinRel(expected_norm[batch]));
+            REQUIRE_THAT(vars(batch, 0, 0, 0), Catch::Matchers::WithinRel(expected_var[batch]));
+            REQUIRE_THAT(stds(batch, 0, 0, 0), Catch::Matchers::WithinRel(expected_std[batch]));
         }
     }
 }
 
-TEMPLATE_TEST_CASE("unified::reduce - batched reductions, cpu vs gpu", "[noa][unified]", i64, f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::reduce - batched reductions, cpu vs gpu", "", i64, f32, f64, c32, c64) {
     if (not Device::is_any_gpu())
         return;
 

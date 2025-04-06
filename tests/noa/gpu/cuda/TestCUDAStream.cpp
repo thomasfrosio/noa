@@ -1,6 +1,7 @@
 #include "noa/gpu/cuda/Stream.hpp"
 #include "noa/gpu/cuda/Event.hpp"
-#include <catch2/catch.hpp>
+
+#include "Catch.hpp"
 
 namespace {
     struct TestCUDAShareable {
@@ -31,7 +32,7 @@ namespace {
     static_assert(not shareable_using_share<TestCUDANonShareable>);
 }
 
-TEST_CASE("cuda::Stream", "[noa][cuda]") {
+TEST_CASE("cuda::Stream") {
     const std::shared_ptr resource = std::make_unique<float[]>(1);
     REQUIRE(resource.use_count() == 1);
     const TestCUDAShareable shareable{resource};

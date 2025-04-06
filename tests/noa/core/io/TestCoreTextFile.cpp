@@ -1,11 +1,11 @@
 #include <noa/core/io/TextFile.hpp>
 #include <noa/core/utils/Strings.hpp>
 
-#include <catch2/catch.hpp>
+#include "Catch.hpp"
 
 using namespace ::noa::types;
 
-TEST_CASE("core::io::TextFile", "[noa][core]") {
+TEST_CASE("core::io::TextFile") {
     namespace fs = std::filesystem;
 
     const fs::path test_dir = "test_TextFile";

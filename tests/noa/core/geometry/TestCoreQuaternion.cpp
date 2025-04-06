@@ -1,9 +1,10 @@
+#include <random>
+
 #include <noa/core/geometry/Euler.hpp>
 #include <noa/core/geometry/Quaternion.hpp>
 #include <noa/core/geometry/Transform.hpp>
 
-#include <random>
-#include <catch2/catch.hpp>
+#include "Catch.hpp"
 
 TEST_CASE("core::geometry::Quaternion") {
     using namespace ::noa::types;

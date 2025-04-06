@@ -5,14 +5,14 @@
 #include <noa/unified/signal/Bandpass.hpp>
 #include <noa/unified/Ewise.hpp>
 
-#include <catch2/catch.hpp>
-#include "Assets.h"
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace noa::types;
 using Remap = noa::Remap;
 
-TEST_CASE("unified::signal::lowpass()", "[asset][noa][unified]") {
+TEST_CASE("unified::signal::lowpass()", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["lowpass"];
@@ -69,7 +69,7 @@ TEST_CASE("unified::signal::lowpass()", "[asset][noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::signal::lowpass(), remap", "[noa][unified]", f16, f32, f64) {
+TEMPLATE_TEST_CASE("unified::signal::lowpass(), remap", "", f16, f32, f64) {
     const auto shape = test::random_shape_batched(3);
     constexpr f64 cutoff = 0.4;
     constexpr f64 width = 0.1;
@@ -106,7 +106,7 @@ TEMPLATE_TEST_CASE("unified::signal::lowpass(), remap", "[noa][unified]", f16, f
     }
 }
 
-TEST_CASE("unified::signal::highpass()", "[asset][noa][unified]") {
+TEST_CASE("unified::signal::highpass()", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["highpass"];
@@ -162,7 +162,7 @@ TEST_CASE("unified::signal::highpass()", "[asset][noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::signal::highpass(), remap", "[noa][unified]", f16, f32, f64) {
+TEMPLATE_TEST_CASE("unified::signal::highpass(), remap", "", f16, f32, f64) {
     const auto shape = test::random_shape_batched(3);
     constexpr f64 cutoff = 0.4;
     constexpr f64 width = 0.1;
@@ -199,7 +199,7 @@ TEMPLATE_TEST_CASE("unified::signal::highpass(), remap", "[noa][unified]", f16, 
     }
 }
 
-TEST_CASE("unified::signal::bandpass()", "[asset][noa][unified]") {
+TEST_CASE("unified::signal::bandpass()", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["bandpass"];
@@ -256,7 +256,7 @@ TEST_CASE("unified::signal::bandpass()", "[asset][noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::signal::bandpass(), remap", "[noa][unified]", f16, f32, f64) {
+TEMPLATE_TEST_CASE("unified::signal::bandpass(), remap", "", f16, f32, f64) {
     const auto shape = test::random_shape_batched(3);
     constexpr auto bandpass = noa::signal::Bandpass{
         .highpass_cutoff=0.1,
@@ -297,7 +297,7 @@ TEMPLATE_TEST_CASE("unified::signal::bandpass(), remap", "[noa][unified]", f16, 
     }
 }
 
-TEMPLATE_TEST_CASE("unified::signal::bandpass(), cpu vs gpu", "[noa][unified]", f32, f64) {
+TEMPLATE_TEST_CASE("unified::signal::bandpass(), cpu vs gpu", "", f32, f64) {
     if (not Device::is_any_gpu())
         return;
 

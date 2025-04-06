@@ -1,7 +1,7 @@
 #include <noa/gpu/cuda/ReduceAxesEwise.cuh>
 #include <noa/gpu/cuda/Allocators.hpp>
-#include <catch2/catch.hpp>
 
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 TEST_CASE("cuda::reduce_axes_ewise") {

@@ -3,13 +3,13 @@
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/IO.hpp>
 
-#include <catch2/catch.hpp>
-#include "Assets.h"
+#include "Assets.hpp"
+#include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
 
-TEST_CASE("unified::extract_subregions()", "[asset][noa][unified]") {
+TEST_CASE("unified::extract_subregions()", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     const Path path_base = test::NOA_DATA_PATH / "memory";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["subregions"];
@@ -73,7 +73,7 @@ TEST_CASE("unified::extract_subregions()", "[asset][noa][unified]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::extract|insert_subregions()", "[noa][unified]", i32, f32, f64, c32) {
+TEMPLATE_TEST_CASE("unified::extract|insert_subregions()", "", i32, f32, f64, c32) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -97,7 +97,7 @@ TEMPLATE_TEST_CASE("unified::extract|insert_subregions()", "[noa][unified]", i32
     }
 }
 
-TEMPLATE_TEST_CASE("unified::atlas_layout(), insert_subregions()", "[noa][unified]", i32, f32) {
+TEMPLATE_TEST_CASE("unified::atlas_layout(), insert_subregions()", "", i32, f32) {
     const i64 ndim = GENERATE(2, 3);
     test::Randomizer<u32> dim_randomizer(40, 60);
     const auto subregion_shape = Shape4<i64>{
