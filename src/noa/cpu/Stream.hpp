@@ -55,7 +55,7 @@ namespace noa::cpu::guts {
                     m_queue.pop();
                 std::rethrow_exception(std::exchange(m_exception, nullptr));
             }
-            m_queue.emplace(std::move(no_args_func));
+            m_queue.push(std::move(no_args_func));
             m_condition_work.notify_one();
         }
 

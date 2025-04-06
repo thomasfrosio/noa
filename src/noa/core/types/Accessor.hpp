@@ -116,7 +116,7 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr auto strides_full() const noexcept -> decltype(auto) {
             if constexpr (IS_CONTIGUOUS) {
                 return [this]<size_t... J>(std::index_sequence<J...>){
-                    return Strides{stride<J>()...}; // returns by value
+                    return Strides{this->stride<J>()...}; // returns by value
                 }(std::make_index_sequence<SIZE>{});
             } else {
                 return strides(); // returns a lvalue const ref

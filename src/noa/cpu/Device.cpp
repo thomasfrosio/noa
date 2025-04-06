@@ -11,7 +11,7 @@
 // TODO maybe use something a bit more robust like pytorch/cpuinfo?
 // FIXME should this be in noa/core ?
 // FIXME For unsupported plateforms, this still compiles but returns zeros for everything.
-//       MacOS would be used sysctlbyname.
+//       For MacOS, sysctlbyname should be used.
 
 #if defined(NOA_PLATFORM_WINDOWS)
 #include <windows.h>
