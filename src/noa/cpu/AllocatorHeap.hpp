@@ -2,6 +2,7 @@
 
 #include <memory>
 #include "noa/core/Error.hpp"
+#include "noa/core/math/Generic.hpp"
 
 namespace noa::cpu {
     template<typename T>
@@ -44,19 +45,23 @@ namespace noa::cpu {
     public:
         /// Allocates some elements of uninitialized storage. Throws if the allocation fails.
         template<size_t ALIGNMENT = 256>
-        static alloc_unique_type allocate(i64 n_elements) {
+        static auto allocate(i64 n_elements) -> alloc_unique_type {
             if (n_elements <= 0)
                 return {};
 
+            // TODO aligned_alloc requires the size to be a multiple of the alignment.
+            //      We could use the same strategy as with calloc, but for now this is fine.
+            //      https://en.cppreference.com/w/c/memory/aligned_alloc
             constexpr size_t alignment = std::max(ALIGNOF, ALIGNMENT);
-            auto out = static_cast<value_type*>(std::aligned_alloc(alignment, static_cast<size_t>(n_elements) * SIZEOF));
+            const size_t n_bytes = next_multiple_of(static_cast<size_t>(n_elements) * SIZEOF, alignment);
+            auto out = static_cast<value_type*>(std::aligned_alloc(alignment, n_bytes));
             check(out, "Failed to allocate {} {} on the heap", n_elements, ns::stringify<value_type>());
             return {out, alloc_deleter_type{}};
         }
 
         /// Allocates some elements, with the underlying bytes initialized to 0. Throws if the allocation fails.
         template<size_t ALIGNMENT = 256>
-        static calloc_unique_type calloc(i64 n_elements) {
+        static auto calloc(i64 n_elements) -> calloc_unique_type {
             if (n_elements <= 0)
                 return {};
 
