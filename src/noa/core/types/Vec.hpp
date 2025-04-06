@@ -871,11 +871,11 @@ namespace noa {
         return min(max(lhs, low), high);
     }
 
-    template<i32 ULP = 2, nt::real T, size_t N, size_t A>
+    template<i32 ULP = 2, nt::numeric T, size_t N, size_t A, typename U = nt::value_type_t<T>>
     [[nodiscard]] NOA_HD constexpr auto allclose(
             const Vec<T, N, A>& lhs,
             const Vec<T, N, A>& rhs,
-            std::type_identity_t<T> epsilon = static_cast<T>(1e-6)
+            std::type_identity_t<U> epsilon = static_cast<U>(1e-6)
     ) {
         Vec<bool, N> output;
         for (size_t i{}; i < N; ++i)
@@ -883,20 +883,20 @@ namespace noa {
         return output;
     }
 
-    template<i32 ULP = 2, nt::real T, size_t N, size_t A>
+    template<i32 ULP = 2, nt::numeric T, size_t N, size_t A, typename U = nt::value_type_t<T>>
     [[nodiscard]] NOA_FHD constexpr auto allclose(
         const Vec<T, N, A>& lhs,
         std::type_identity_t<T> rhs,
-        std::type_identity_t<T> epsilon = static_cast<T>(1e-6)
+        std::type_identity_t<U> epsilon = static_cast<U>(1e-6)
     ) noexcept {
         return allclose<ULP>(lhs, Vec<T, N, A>::filled_with(rhs), epsilon);
     }
 
-    template<i32 ULP = 2, nt::real T, size_t N, size_t A>
+    template<i32 ULP = 2, nt::numeric T, size_t N, size_t A, typename U = nt::value_type_t<T>>
     [[nodiscard]] NOA_FHD constexpr auto allclose(
         std::type_identity_t<T> lhs,
         const Vec<T, N, A>& rhs,
-        std::type_identity_t<T> epsilon = static_cast<T>(1e-6)
+        std::type_identity_t<U> epsilon = static_cast<U>(1e-6)
     ) noexcept {
         return allclose<ULP>(Vec<T, N, A>::filled_with(lhs), rhs, epsilon);
     }
