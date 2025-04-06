@@ -205,12 +205,13 @@ namespace noa::string {
             // std::from_chars for floating-point isn't available in libc++?
             T output{};
             char* ending;
+            errno = 0; // check for ERANGE
             if constexpr (nt::is_almost_same_v<T, f64>) {
                 output = std::strtod(string.data(), &ending);
             } else {
                 output = static_cast<T>(std::strtof(string.data(), &ending));
             }
-            if (*ending == 0)
+            if (errno != 0 or string.data() == ending)
                 return std::nullopt;
             return output;
 
