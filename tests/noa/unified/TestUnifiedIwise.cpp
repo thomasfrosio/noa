@@ -4,9 +4,9 @@
 #include "Catch.hpp"
 #include "Utils.hpp"
 
-namespace {
-    using namespace ::noa::types;
+using namespace ::noa::types;
 
+// namespace { // FIXME this should be anonymous, but nvcc generates a -Wattribute warning with GCC-14.2
     struct Arange4d {
         Span<f32, 4> span;
 
@@ -14,7 +14,7 @@ namespace {
             span(indices) = static_cast<f32>(noa::indexing::offset_at(span.strides(), indices));
         }
     };
-}
+// }
 
 TEST_CASE("unified::iwise") {
     std::vector<Device> devices{"cpu"};
