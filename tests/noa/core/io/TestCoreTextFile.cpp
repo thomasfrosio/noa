@@ -110,7 +110,6 @@ TEST_CASE("core::io::TextFile") {
     }
 
     AND_WHEN("append") {
-        fmt::println("cwd={}", fs::current_path());
         noa::io::TextFile file;
         file.open(test_file1, {.write=true, .truncate=true});
         file.write("0");

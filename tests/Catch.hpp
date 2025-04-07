@@ -3,7 +3,9 @@
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #   pragma GCC diagnostic push
 #   pragma GCC diagnostic ignored "-Wdouble-promotion"
-#   pragma GCC diagnostic ignored "-Wimplicit-int-float-conversion"
+#   if defined(NOA_COMPILER_CLANG)
+#       pragma GCC diagnostic ignored "-Wimplicit-int-float-conversion"
+#   endif
 #endif
 
 #include <catch2/catch_test_macros.hpp>

@@ -201,8 +201,8 @@ TEMPLATE_TEST_CASE("core::Vec", "", i32, i64, u32, u64, f32, f64) {
 
     SECTION("Maths") {
         const vec2_t a{123, 43};
-        REQUIRE(noa::sum(a) == 166);
-        REQUIRE(noa::product(a) == 5289);
+        REQUIRE(noa::sum(a) == TestType{166});
+        REQUIRE(noa::product(a) == TestType{5289});
 
         if constexpr (std::is_floating_point_v<TestType>) {
             const auto x = static_cast<TestType>(5.2);
@@ -247,7 +247,7 @@ TEMPLATE_TEST_CASE("core::Vec", "", i32, i64, u32, u64, f32, f64) {
         REQUIRE(noa::all(b.reorder({1, 0, 3, 2}) == b.filter(1, 0, 3, 2)));
         REQUIRE(noa::all(b.filter(0, 1) == vec2_t{123, 43}));
         REQUIRE(b.filter(2)[0] == b[2]);
-        REQUIRE(b.template set<3>(0)[3] == 0);
+        REQUIRE(b.template set<3>(0)[3] == TestType{0});
 
         const std::array<TestType, 4> b_array = {123, 43, 32, 12};
         REQUIRE(fmt::format("{}", b) == fmt::format("{}", b_array));

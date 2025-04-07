@@ -20,7 +20,7 @@ using Interp = noa::Interp;
 using Remap = noa::Remap;
 
 // TODO Surprisingly this is quite low precision. The images look good, but the errors can get quite
-//      large. Of course, we are measure a round of r2c, phase-shift x2 and transformation... Instead,
+//      large. Of course, we are measuring a round of r2c, phase-shift x2 and transformation... Instead,
 //      we should measure the transformation step and only the transformation step. Also, there's still
 //      this bug in the library at Nyquist, but here we don't even measure that because of the 0.45 cutoff.
 
