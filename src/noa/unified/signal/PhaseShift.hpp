@@ -137,9 +137,9 @@ namespace noa::signal::guts {
         const Shape4<i64>& shape, const Shift& shifts
     ) {
         check(not output.is_empty(), "Empty array detected");
-        check(vall(Equal{}, output.shape(), shape.rfft()),
-              "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
-              shape, shape.rfft(), output.shape());
+        check(vall(Equal{}, output.shape(), REMAP.is_hx2hx() ? shape.rfft() : shape),
+              "Given the logical shape {} and FFT layout {}, the expected physical shape should be {}, but got {}",
+              shape, REMAP, REMAP.is_hx2hx() ? shape.rfft() : shape, output.shape());
 
         if (not input.is_empty()) {
             check(output.device() == input.device(),
@@ -187,7 +187,7 @@ namespace noa::signal::guts {
 
 namespace noa::signal {
     /// Phase-shifts 2d rfft(s).
-    /// \tparam REMAP           Remap operation. Should be H2H, H2HC, HC2HC or HC2H.
+    /// \tparam REMAP           Remap operation. Should be HX2HX or FX2FX.
     /// \param[in] input        2d rfft to phase-shift. If empty, the phase-shifts are saved in \p output.
     /// \param[out] output      Phase-shifted 2d rfft.
     /// \param shape            BDHW logical shape.
@@ -249,7 +249,7 @@ namespace noa::signal {
     }
 
     /// Phase-shifts 3d rfft(s).
-    /// \tparam REMAP           Remap operation. Should be H2H, H2HC, HC2HC or HC2H.
+    /// \tparam REMAP           Remap operation. Should be HX2HX or FX2FX.
     /// \param[in] input        3d rfft to phase-shift. If empty, the phase-shifts are saved in \p output.
     /// \param[out] output      Phase-shifted 3d rfft.
     /// \param shape            BDHW logical shape.
