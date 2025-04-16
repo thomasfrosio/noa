@@ -812,17 +812,17 @@ namespace noa {
             case Norm::MIN_MAX: {
                 const auto [min, max] = min_max(input);
                 return ewise(wrap(std::forward<Input>(input), min, max),
-                             std::forward<Output>(output), MinusDivide{});
+                             std::forward<Output>(output), NormalizeMinMax{});
             }
             case Norm::MEAN_STD: {
                 const auto [mean, stddev] = mean_stddev(input, options.ddof);
                 return ewise(wrap(std::forward<Input>(input), mean, stddev),
-                             std::forward<Output>(output), MinusDivide{});
+                             std::forward<Output>(output), NormalizeMeanStddev{});
             }
             case Norm::L2: {
                 const auto norm = l2_norm(input);
                 return ewise(wrap(std::forward<Input>(input), norm),
-                             std::forward<Output>(output), Divide{});
+                             std::forward<Output>(output), NormalizeNorm{});
             }
         }
     }
