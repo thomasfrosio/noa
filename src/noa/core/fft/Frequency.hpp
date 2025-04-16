@@ -228,14 +228,22 @@ namespace noa::fft {
     }
 
     /// Computes the phase shift at a given normalized-frequency.
-    template<nt::complex T, nt::any_of<f32, f64> R, size_t N, size_t A0, size_t A1>
-    requires (N == 2 or N == 3)
+    /// \param shift    ((D)H)W shift.
+    /// \param fftfreq  ((D)H)W normalized frequency.
+    template<nt::complex T, nt::any_of<f32, f64> R, size_t N0, size_t A0, size_t N1, size_t A1>
+    requires ((1 <= N0 and N0 <= 3) and (N0 <= N1 and N1 <= 3))
     [[nodiscard]] constexpr auto phase_shift(
-        const Vec<R, N, A0>& shift,
-        const Vec<R, N, A1>& fftfreq
+        const Vec<R, N0, A0>& shift,
+        const Vec<R, N1, A1>& fftfreq
     ) noexcept -> T {
         using real_t = typename T::value_type;
-        const auto factor = static_cast<real_t>(-dot(2 * Constant<R>::PI * shift, fftfreq));
+        real_t factor;
+        if constexpr (N0 == 1)
+            factor = static_cast<real_t>(-2 * Constant<R>::PI * shift[0], fftfreq[N1 - 1]);
+        else if constexpr (N0 == 2)
+            factor = static_cast<real_t>(-dot(2 * Constant<R>::PI * shift, fftfreq.filter(N1 - 2, N1 - 1)));
+        else if constexpr (N0 == 3)
+            factor = static_cast<real_t>(-dot(2 * Constant<R>::PI * shift, fftfreq));
         T phase_shift;
         sincos(factor, &phase_shift.imag, &phase_shift.real);
         return phase_shift;
