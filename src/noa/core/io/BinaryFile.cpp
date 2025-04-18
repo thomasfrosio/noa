@@ -29,6 +29,7 @@ namespace noa::io {
         close();
         check(mode.is_valid() and not mode.append, "Invalid open mode {} (append is not supported)", mode);
         m_path = path;
+        expand_user(m_path);
         m_open = mode;
 
         const char* oflags{};

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <algorithm> // std::reverse
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -373,5 +373,17 @@ namespace noa::io {
         } catch (const std::exception& e) {
             panic_runtime(e.what());
         }
+    }
+
+    /// Replaces ~ by the current user home directory, in-place.
+    /// If the expansion fails or if the path does not begin with a tilde, the path is left unchanged.
+    inline void expand_user(fs::path& path) {
+        // TODO https://docs.python.org/3/library/os.path.html#os.path.expanduser
+        #if defined(NOA_PLATFORM_LINUX) || defined(NOA_PLATFORM_APPLE)
+        const auto& str = path.native();
+        if (str.starts_with("~/") or str.starts_with("~\\") or str == "~")
+            if (const char* home_directory = std::getenv("HOME"))
+                path = std::string(path).replace(0, 1, home_directory);
+        #endif
     }
 }

@@ -21,7 +21,9 @@ namespace noa::io {
         TextFile() = default;
 
         /// Opens the file. See .open() for more details.
-        TextFile(Path path, Open mode) : m_path(std::move(path)) {
+        TextFile(Path path, Open mode) {
+            expand_user(path);
+            m_path = std::move(path);
             open_(mode);
         }
 
@@ -33,6 +35,7 @@ namespace noa::io {
         ///         - If failed to open the file.
         ///         - If an underlying OS error was raised.
         void open(Path path, Open mode) {
+            expand_user(path);
             m_path = std::move(path);
             open_(mode);
         }
@@ -42,7 +45,7 @@ namespace noa::io {
             if (m_fstream.is_open()) {
                 m_fstream.close();
                 if (m_fstream.fail() and not m_fstream.eof())
-                    panic("File: {}. File stream error", m_path);
+                    panic("{}. File stream error", m_path);
             }
         }
 
@@ -89,7 +92,7 @@ namespace noa::io {
         auto next_line_or_throw(std::string& line) -> bool {
             bool success = next_line(line);
             if (not success and not this->eof())
-                panic("File: {}. Failed to read a line", m_path);
+                panic("{}. Failed to read a line", m_path);
             return success;
         }
 
@@ -100,20 +103,20 @@ namespace noa::io {
             // FIXME use file_size(m_path) instead?
             m_fstream.seekg(0, std::ios::end);
             const std::streampos size = m_fstream.tellg();
-            check(size >= 0, "File: {}. File stream error. Could not get the input position indicator", m_path);
+            check(size >= 0, "{}. File stream error. Could not get the input position indicator", m_path);
             if (not size)
                 return buffer;
 
             try {
                 buffer.resize(static_cast<size_t>(size));
             } catch (std::length_error& e) {
-                panic("File: {}. Passed the maximum permitted size while try to load file. Got {} bytes",
+                panic("{}. Passed the maximum permitted size while try to load file. Got {} bytes",
                       m_path, static_cast<std::streamoff>(size));
             }
 
             m_fstream.seekg(0);
             m_fstream.read(buffer.data(), size);
-            check(not m_fstream.fail(), "File: {}. File stream error. Could not read the entire file", m_path);
+            check(not m_fstream.fail(), "{}. File stream error. Could not read the entire file", m_path);
             return buffer;
         }
 
@@ -148,14 +151,14 @@ namespace noa::io {
                         else if (overwrite or mode.append)
                             mkdir(m_path.parent_path());
                     } catch (...) {
-                        panic("File: {}. {}. Could not open the file because of an OS failure", m_path, mode);
+                        panic("{}. {}. Could not open the file because of an OS failure", m_path, mode);
                     }
                 }
             }
             const bool read_only = not (mode.write or mode.truncate or mode.append);
             const bool read_write_only = mode.write and mode.read and not (mode.truncate or mode.append);
             if constexpr (std::is_same_v<Stream, std::ifstream>)
-                check(read_only, "File: {}. {} is not allowed for read-only TextFile", m_path, mode);
+                check(read_only, "{}. {} is not allowed for read-only TextFile", m_path, mode);
 
             for (i32 it{}; it < 3; ++it) {
                 m_fstream.open(m_path, mode.to_ios_base());
@@ -166,8 +169,8 @@ namespace noa::io {
             m_fstream.clear();
 
             if (read_only or read_write_only) // case 1|2
-                check(is_file(m_path), "File: {}. {}. Trying to open a file that does not exist", m_path, mode);
-            panic("File: {}. {}. Failed to open the file. Check the permissions for that directory", m_path, mode);
+                check(is_file(m_path), "{}. {}. Trying to open a file that does not exist", m_path, mode);
+            panic("{}. {}. Failed to open the file. Check the permissions for that directory", m_path, mode);
         }
 
     private:

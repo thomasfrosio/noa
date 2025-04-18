@@ -202,3 +202,16 @@ TEST_CASE("core::io::swap_endian") {
     }
     REQUIRE_THAT(diff, Catch::Matchers::WithinULP(0.f, 2));
 }
+
+TEST_CASE("core::io::expand_user") {
+    const char* home_directory = std::getenv("HOME");
+    if (not home_directory)
+        return;
+
+    for (std::string postfix: {"", "/dir/file", "/dir\\file"}) {
+        fs::path raw = std::string("~") + postfix;
+        nio::expand_user(raw);
+        fs::path expanded = std::string(home_directory) + postfix;
+        REQUIRE(raw == expanded);
+    }
+}
