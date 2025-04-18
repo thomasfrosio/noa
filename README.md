@@ -81,7 +81,7 @@ struct MyAffineTransform {
         const auto floored = noa::floor(coordinate);
         const auto indices = floored.as<int>();
         const auto fraction = coordinates - floored;
-        const auto weights = noa::Vec{1 - fraction, fraction}.as<Vec<float, 2>();
+        const auto weights = noa::Vec{1 - fraction, fraction}.as<Vec<float, 2>>();
 
         float interpolated_value{};
         for (int i = 0; i < 2; ++i) {
