@@ -252,7 +252,7 @@ namespace noa {
         return output;
     }
 
-    /// Returns {offset, maximum} of the input array.
+    /// Returns {maximum, offset: i64} of the input array.
     /// \note If the maximum value appears more than once, this function makes no guarantee to which one is selected.
     /// \note To get the corresponding 4d indices, noa::indexing::offset2index(offset, input) can be used.
     template<nt::readable_varray_of_numeric Input>
@@ -268,7 +268,7 @@ namespace noa {
         return output;
     }
 
-    /// Returns {offset, minimum} of the input array.
+    /// Returns {minimum, offset: i64} of the input array.
     /// \note If the minimum value appears more than once, this function makes no guarantee to which one is selected.
     /// \note To get the corresponding 4d indices, noa::indexing::offset2index(offset, input) can be used.
     template<nt::readable_varray_of_numeric Input>
