@@ -1,6 +1,6 @@
 ## `Span`
 
-`Array` and `View` provide an operator() taking 4d-indices, which can be used to access the underlying values of the nd-arrays. However, this is not the preferred way to access data. First, this may not be the most efficient way to access the data, for instance, 1d contiguous arrays can be accessed using a single index and a fixed stride of 1 (known at compile time). Second, depending on the device and memory resource, direct access from CPU threads may not be even safe or allowed.
+`Array` and `View` provide an operator() taking 4d-indices, which can be used to access the underlying values of the nd-arrays. However, this is not the preferred way to access data. First, this may not be the most efficient way to access the data, for instance, 1d contiguous arrays can be accessed using a single index and a fixed stride of 1 (known at compile time). Second, depending on the device and memory resource, direct access from CPU threads may not be safe or even allowed.
 
 `Span`, i.e. a view over multidimensional data, should be used instead. The library comes with its own Span ([Span.hpp](../src/noa/core/types/Span.hpp)), which is similar to C++23 `std::mdspan`.
 
@@ -59,14 +59,14 @@ for (i64 i{}; i < shape.n_elements(); ++i)
     sum += s1(i);
 ```
 
-`Span`, as well as `Array` and `View`, has many other utility functions making it easy to manipulate multidimensional data (e.g. `reshape`, `subregion`, `permute`, `filter`, `flat`, etc.). It is also very easy to get a span from an `Array` or `View`.
+`Span`, as well as `Array` and `View`, has many other utility functions making it easy to manipulate multidimensional data (e.g. `reshape`, `subregion`, `permute`, `filter`, `flat`, etc.). It is also straightforward to get a span from an `Array` or `View`.
 
 ```c++
 using namespace ::noa::types; // f64, i64, i32, View, Array
 using namespace ::noa::indexing; // Ellipsis and Slice
 
 // This is similar to noa::fill<f64>({4, 1, 64, 64}, 3.);
-const Array array = noa::empty<f64>({4, 1, 64, 64});
+const auto array = Array<f64>({4, 1, 64, 64});
 for (f64& e: array.span_1d()) // or equivalently: array.span<f64, 1>()
     e = 3.;
 
@@ -80,6 +80,9 @@ Array center = array.subregion(Ellipsis{}, Slice{16, 48}, Slice{16, 48});
 //    e = 2.;
 
 const auto span_3d = center.span().filter(0, 2, 3); // ignores dim 1
+// We could have used center.span<f64, 3>() which collapses dimensions
+// left to right. Since dim 1 is empty, this is equivalent to filtering
+// out dim 1.
 for (i64 b{}; i < span_3d.shape()[0]; ++b)
     for (i64 y{}; y < span_3d.shape()[1]; ++y)
         for (i64 x{}; x < span_3d.shape()[2]; ++x)
@@ -90,8 +93,7 @@ for (i64 b{}; i < span_3d.shape()[0]; ++b)
 // the same code as the above example.
 noa::iwise(
     center.shape().filter(0, 2, 3), array.device(),
-    [span_3d = center.span<f64, 3>()] // collapses dimensions left to right
-    (i64 batch, i64 y, i64 x) {
+    [](i64 batch, i64 y, i64 x) {
         span_3d(batch, y, x) = 2.;
     });
 
@@ -99,6 +101,7 @@ noa::iwise(
 // we could also (and should) use the element-wise core function.
 // Something like:
 noa::ewise({}, center, [](f64& e) { e = 2.; });
+
 // Which is equivalent to:
 noa::fill(center, 2.);
 ```
@@ -106,8 +109,7 @@ noa::fill(center, 2.);
 
 ## `Accessor`
 
-`Accessor` is similar to `Span` but does not store the shape. It contains the strict necessity: the pointer of the memory
-region and the strides. This type is intended to be used by the backends, and as such, it prioritizes performance above all else. While accessors are a good abstraction for backends, they are not the safest, nor they are the most practical.
+`Accessor` is similar to `Span` but does not store the shape. It contains the minimum required to iterate through the nd region: the pointer of the memory region and the strides. This type is intended to be used by the backends, and as such, it prioritizes performance above all else. While accessors are a good abstraction for backends, they are not the safest, nor they are the most practical.
 
 ```c++
 template<typename T, size_t N, typename I,

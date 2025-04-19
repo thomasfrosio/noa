@@ -1,6 +1,6 @@
 ## `Array and View`
 
-This library provides an owning 4d-array called `Array<T>` and a non-owning 4d-array called `View<T>`. The data-type of the array is defined at compile time. Having the data-type exposed in the type of the arrays gives more information to the type system to catch misuses and helps to enforce certain things at compile time. For instance, some (member)functions are only available for certain data-types, like `noa::signal::bandpass` which only accepts complex arrays.
+This library provides an owning 4d-array called `Array<T>` and a non-owning 4d-array called `View<T>`. The data-type of the array is defined at compile time. Having the data-type exposed in the type of the arrays gives more information to the type system to catch misuses and helps to enforce certain things at compile time. For instance, some (member)functions are only available for certain data-types, like `noa::signal::bandpass` which only accepts real or complex arrays.
 
 Data-type reinterpretations are allowed, as long as the C++ strict type-aliasing rule is not broken. An array of any type can be reinterpreted to an array of bytes, thereby allowing to manipulate “type-erased” arrays. Reinterpreting between the complex data-type and the underlying floating-point type is also allowed. Reinterpretation is done via the `Array<T>::reinterpret_as<U>()` or `Array<T>::span<U>()` member functions.
 
@@ -26,4 +26,4 @@ class View {
 
 `Array` and `View` can be used interchangeably in the library API, but in practice, we recommend to use `Array` to allocate and manage memory and use `View` to manipulate and pass data around. To read and write by indexing directly into the nd-array, we recommend using [`Span`](023_accessor_and_span.md).
 
-While most of the library API is designed around free functions, `Array` and `View` have some useful member functions. See [View.hpp](../src/noa/unified/View.hpp) and [Array.hpp](../src/noa/unified/Array.hpp)
+While most of the library API is designed around free functions, `Array` and `View` have some useful member functions e.g. to reshape and permute dimensions, to select subregions, copy to other devices, etc. (see [View.hpp](../src/noa/unified/View.hpp) and [Array.hpp](../src/noa/unified/Array.hpp)).

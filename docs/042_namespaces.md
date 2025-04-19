@@ -24,4 +24,4 @@ namespace noa {
 }
 ```
 
-`noa::types` is an inline namespace used to "import" the main library types. Because it is inline, it can be entirely ignored, e.g. use `noa::Array` as opposed to `noa::types::Array`. However, if you want to include the library types and keep the library functions out of the way, `using namespace noa::types` is a nice options.
+`noa::types` is an inline namespace used to "import" the main library types. Because it is inline, it can be entirely ignored, e.g. use `noa::Array` as opposed to `noa::types::Array`. However, if you want to include the library types and keep the library functions out of the way, `using namespace noa::types` is a nice option.
