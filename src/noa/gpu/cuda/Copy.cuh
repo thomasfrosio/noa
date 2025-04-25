@@ -410,4 +410,9 @@ namespace noa::cuda {
                 /*kind=*/ cudaMemcpyDefault,
                 /*stream=*/ stream.id()));
     }
+
+    template<typename T> requires std::is_trivially_copyable_v<T>
+    void fill_with_zeroes(T* ptr, i64 n_elements, Stream& stream) {
+        check(cudaMemsetAsync(ptr, 0, static_cast<size_t>(n_elements) * sizeof(T), stream.id()));
+    }
 }

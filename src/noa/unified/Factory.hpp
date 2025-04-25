@@ -11,7 +11,16 @@ namespace noa {
     /// \param value        The value to assign.
     template<nt::writable_varray_decay Output>
     void fill(Output&& output, nt::mutable_value_type_t<Output> value) {
-        // TODO If trival, contiguous and value=0, cudaMemset could be used?
+        #ifdef NOA_ENABLE_CUDA
+        using value_t = nt::mutable_value_type_t<Output>;
+        if constexpr (nt::numeric<value_t> or nt::vec<value_t> or nt::mat<value_t>) { // TODO zero-initialize-able
+            if (output.are_contiguous() and all(value_t{} == value)) {
+                auto& cuda_stream = Stream::current(output.device()).gpu();
+                noa::cuda::fill_with_zeroes(output.get(), output.ssize(), cuda_stream);
+                return;
+            }
+        }
+        #endif
         ewise({}, std::forward<Output>(output), Fill{value});
     }
 
