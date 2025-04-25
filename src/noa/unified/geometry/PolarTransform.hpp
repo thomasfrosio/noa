@@ -34,21 +34,19 @@ namespace noa::geometry::guts {
             const shape2_type& polar_shape,
             const output_type& cartesian,
             const coord2_type& cartesian_center,
-            const coord2_type& radius_range,
-            bool radius_range_endpoint,
-            const coord2_type& angle_range,
-            bool angle_range_endpoint
+            const Linspace<coord_type>& radius_range,
+            const Linspace<coord_type>& angle_range
         ) :
             m_polar(polar),
             m_cartesian(cartesian),
             m_center(cartesian_center),
-            m_start_angle(angle_range[0]),
-            m_start_radius(radius_range[0])
+            m_start_angle(angle_range.start),
+            m_start_radius(radius_range.start)
         {
             NOA_ASSERT(radius_range[1] - radius_range[0] >= 0);
 
-            m_step_angle = Linspace{angle_range[0], angle_range[1], angle_range_endpoint}.for_size(polar_shape[0]).step;
-            m_step_radius = Linspace{radius_range[0], radius_range[1], radius_range_endpoint}.for_size(polar_shape[1]).step;
+            m_step_angle = angle_range.for_size(polar_shape[0]).step;
+            m_step_radius = radius_range.for_size(polar_shape[1]).step;
         }
 
         NOA_HD constexpr void operator()(index_type batch, index_type y, index_type x) const {
@@ -99,22 +97,20 @@ namespace noa::geometry::guts {
             const output_type& polar,
             const shape2_type& polar_shape,
             const coord2_type& cartesian_center,
-            const coord2_type& radius_range,
-            bool radius_range_endpoint,
-            const coord2_type& angle_range,
-            bool angle_range_endpoint
+            const Linspace<coord_type>& radius_range,
+            const Linspace<coord_type>& angle_range
         ) :
             m_cartesian(cartesian),
             m_polar(polar),
             m_center(cartesian_center),
-            m_start_angle(angle_range[0]),
-            m_start_radius(radius_range[0])
+            m_start_angle(angle_range.start),
+            m_start_radius(radius_range.start)
         {
-            NOA_ASSERT(radius_range[1] - radius_range[0] >= 0);
+            NOA_ASSERT(radius_range.stop - radius_range.start >= 0);
 
             // We could use polar2phi() and polar2rho() in the loop, but instead, precompute the step here.
-            m_step_angle = Linspace{angle_range[0], angle_range[1], angle_range_endpoint}.for_size(polar_shape[0]).step;
-            m_step_radius = Linspace{radius_range[0], radius_range[1], radius_range_endpoint}.for_size(polar_shape[1]).step;
+            m_step_angle = angle_range.for_size(polar_shape[0]).step;
+            m_step_radius = radius_range.for_size(polar_shape[1]).step;
         }
 
         NOA_HD constexpr void operator()(index_type batch, index_type y, index_type x) const {
@@ -143,13 +139,13 @@ namespace noa::geometry::guts {
     inline void set_polar_window_range_to_default(
         const Shape4<i64>& cartesian_shape,
         const Vec2<f64>& cartesian_center,
-        Vec2<f64>& radius_range,
-        Vec2<f64>& angle_range
+        Linspace<f64>& radius_range,
+        Linspace<f64>& angle_range
     ) {
-        if (all(radius_range == 0))
-            radius_range = {0., min(cartesian_shape.filter(2, 3).vec.as<f64>() - cartesian_center)};
-        if (all(angle_range == 0))
-            angle_range = {0., 2 * Constant<f64>::PI};
+        if (radius_range.start == 0 and radius_range.stop == 0)
+            radius_range.stop = min(cartesian_shape.filter(2, 3).vec.as<f64>() - cartesian_center);
+        if (angle_range.start == 0 and angle_range.stop == 0)
+            angle_range.stop = 2 * Constant<f64>::PI;
     }
 
     template<typename Input, typename Output>
@@ -203,14 +199,12 @@ namespace noa::geometry::guts {
                     return Cartesian2Polar<Index, coord_t, decltype(interpolator), output_accessor_t>(
                         interpolator,
                         output_accessor, output_shape.pop_front(), cartesian_center.as<coord_t>(),
-                        rho_range, options.rho_endpoint,
-                        phi_range, options.phi_endpoint);
+                        rho_range, phi_range);
                 } else {
                     return Polar2Cartesian<Index, coord_t, decltype(interpolator), output_accessor_t>(
                         interpolator, input.shape().filter(2, 3).template as<Index>(),
                         output_accessor, cartesian_center.as<coord_t>(),
-                        rho_range, options.rho_endpoint,
-                        phi_range, options.phi_endpoint);
+                        rho_range, phi_range);
                 }
             }();
             return iwise<IwiseOptions{
@@ -243,23 +237,17 @@ namespace noa::geometry::guts {
 
 namespace noa::geometry {
     struct PolarTransformOptions {
-        /// Rho radius [start,end] range of the bounding circle to transform, in pixels.
+        /// Rho radius range of the bounding circle to transform, in pixels.
         /// Rho maps to the width dimension of the polar array.
         /// Defaults to the largest in-bound circle.
-        Vec2<f64> rho_range{};
+        /// The computed linspace range is rho_range.for_size(polar_width).
+        Linspace<f64> rho_range{0, 0, false};
 
-        /// Whether the rho_range's end should be included in the range.
-        /// The computed linspace range is Linspace{rho_range[0], rho_range[1], rho_endpoint}.for_size(polar_width).
-        bool rho_endpoint{};
-
-        /// Phi angle [start,end) range increasing in the counterclockwise orientation, in radians.
+        /// Phi angle range increasing in the counterclockwise orientation, in radians.
         /// Phi maps to the height dimension of the polar array.
         /// Defaults to the entire circle, i.e. [0, 2pi).
-        Vec2<f64> phi_range{};
-
-        /// Whether the phi_range's end should be included in the range.
-        /// The computed linspace range is Linspace{phi_range[0], phi_range[1], phi_endpoint}.for_size(polar_height).
-        bool phi_endpoint{};
+        /// The computed linspace range is phi_range.for_size(polar_height).
+        Linspace<f64> phi_range{0, 0, false};
 
         /// Interpolation method used to interpolate the values onto the new grid.
         /// Out-of-bounds elements are set to zero.

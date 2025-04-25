@@ -44,10 +44,8 @@ TEST_CASE("unified::geometry::cartesian2polar", "[asset]") {
             const auto output = noa::empty<f32>(polar_shape);
             noa::geometry::cartesian2polar(
                 input, output, cartesian_center, {
-                    .rho_range = radius_range,
-                    .rho_endpoint = false,
-                    .phi_range = angle_range,
-                    .phi_endpoint = false,
+                    .rho_range = noa::Linspace{radius_range[0], radius_range[1], false},
+                    .phi_range = noa::Linspace{angle_range[0], angle_range[1], false},
                     .interp = interpolation_mode,
                 });
             noa::io::write(output, output_filename);
@@ -66,10 +64,8 @@ TEST_CASE("unified::geometry::cartesian2polar", "[asset]") {
             const auto output = noa::empty<f32>(polar_shape, option);
             noa::geometry::cartesian2polar(
                 input, output, cartesian_center, {
-                    .rho_range = radius_range,
-                    .rho_endpoint = false,
-                    .phi_range = angle_range,
-                    .phi_endpoint = false,
+                    .rho_range = noa::Linspace{radius_range[0], radius_range[1], false},
+                    .phi_range = noa::Linspace{angle_range[0], angle_range[1], false},
                     .interp = interpolation_mode,
                 });
 

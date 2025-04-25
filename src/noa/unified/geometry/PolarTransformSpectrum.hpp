@@ -32,19 +32,17 @@ namespace noa::geometry::guts {
             const shape2_type& spectrum_shape,
             const output_type& polar,
             const shape2_type& polar_shape,
-            coord2_type fftfreq_range,
-            bool fftfreq_endpoint,
-            const coord2_type& angle_range,
-            bool angle_endpoint
+            Linspace<coord_type> fftfreq_range,
+            const Linspace<coord_type>& angle_range
         ) :
             m_spectrum(spectrum),
             m_polar(polar),
-            m_start_angle(angle_range[0]),
-            m_start_fftfreq(fftfreq_range[0])
+            m_start_angle(angle_range.start),
+            m_start_fftfreq(fftfreq_range.start)
         {
-            NOA_ASSERT(fftfreq_range[1] - fftfreq_range[0] >= 0);
-            m_step_angle = Linspace{angle_range[0], angle_range[1], angle_endpoint}.for_size(polar_shape[0]).step;
-            m_step_fftfreq = Linspace{fftfreq_range[0], fftfreq_range[1], fftfreq_endpoint}.for_size(polar_shape[1]).step;
+            NOA_ASSERT(fftfreq_range.stop - fftfreq_range.start >= 0);
+            m_step_angle = angle_range.for_size(polar_shape[0]).step;
+            m_step_fftfreq = fftfreq_range.for_size(polar_shape[1]).step;
 
             // Scale the frequency range to the polar dimension [0,width).
             m_scale = coord2_type::from_vec(spectrum_shape.vec);
@@ -91,8 +89,7 @@ namespace noa::geometry::guts {
             auto op = Spectrum2Polar<Index, coord_t, decltype(interpolator), output_accessor_t>(
                 interpolator, spectrum_shape.filter(2, 3),
                 output_accessor, polar_shape.pop_front(),
-                rho_range, options.rho_endpoint,
-                phi_range, options.phi_endpoint);
+                rho_range, phi_range);
 
             return iwise<IwiseOptions{
                 .generate_cpu = not IS_GPU,
@@ -124,38 +121,33 @@ namespace noa::geometry::guts {
 
     inline void set_spectrum2polar_defaults(
         const Shape4<i64>& cartesian_shape,
-        Vec2<f64>& rho_range,
-        Vec2<f64>& angle_range
+        Linspace<f64>& rho_range,
+        Linspace<f64>& angle_range
     ) {
         // Find highest fftfreq. If any dimension is even sized, this is 0.5.
-        if (rho_range[1] <= 0)
-            rho_range[1] = noa::max(noa::fft::highest_fftfreq<f64>(cartesian_shape.pop_front()));
+        if (rho_range.stop <= 0)
+            rho_range.stop = noa::max(noa::fft::highest_fftfreq<f64>(cartesian_shape.pop_front()));
 
-        if (vall(IsZero{}, angle_range))
-            angle_range = {0., Constant<f64>::PI};
+        if (angle_range.start == 0 and angle_range.stop == 0)
+            angle_range.stop = Constant<f64>::PI;
     }
 }
 
 namespace noa::geometry {
     struct PolarTransformSpectrumOptions {
-        /// Rho [start, end] range of the bounding shells to transform, in cycle/pixels (fftfreq).
+        /// Rho range of the bounding shells to transform, in cycle/pixels (fftfreq).
         /// Rho maps to the width dimension of the polar array.
-        /// A negative or zero end-frequency defaults the highest fftfreq along the cartesian axes.
-        Vec2<f64> rho_range{0, -1};
+        /// A negative or zero stop-frequency defaults the highest fftfreq along the cartesian axes.
+        /// The computed linspace range is rho_range.for_size(polar_width).
+        /// TODO The current API doesn't allow to specify the cartesian fftfreq range and assumes its [0,-1].
+        Linspace<f64> rho_range{.start = 0., .stop = -1., .endpoint = true};
 
-        /// Whether the rho_range's end should be included in the range.
-        /// The computed linspace range is Linspace{rho_range[0], rho_range[1], rho_endpoint}.for_size(polar_width).
-        bool rho_endpoint{true};
-
-        /// Phi angle [start,end) range increasing in the counterclockwise orientation, in radians.
+        /// Phi angle range increasing in the counterclockwise orientation, in radians.
         /// Phi maps to the height dimension of the polar array.
         /// While the range naturally included in the non-redundant centered FFT is [-pi/2, pi/2],
         /// this range can include the entire unit circle, e.g. [-pi, pi]. Defaults to [0, pi).
-        Vec2<f64> phi_range{};
-
-        /// Whether the phi_range's end should be included in the range.
-        /// The computed linspace range is Linspace{phi_range[0], phi_range[1], phi_endpoint}.for_size(polar_height).
-        bool phi_endpoint{};
+        /// The computed linspace range is phi_range.for_size(polar_height).
+        Linspace<f64> phi_range{.start = 0., .stop = 0., .endpoint = false};
 
         /// Interpolation method used to interpolate the values onto the new grid.
         /// Out-of-bounds elements are set to zero.

@@ -47,6 +47,7 @@ namespace noa::signal::guts {
         using shape_type = Shape<index_type, N - IS_RFFT>;
         using coord_nd_type = Vec<coord_type, N>;
         using coord2_type = Vec2<coord_type>;
+        using coord_or_empty_type = std::conditional_t<N == 1, coord_type, Empty>;
 
     public:
         constexpr CTF(
@@ -62,7 +63,6 @@ namespace noa::signal::guts {
             m_output(output),
             m_shape(shape.template pop_back<IS_RFFT>()),
             m_input(input),
-            m_fftfreq_start(fftfreq_range.start),
             m_ctf_abs(ctf_abs),
             m_ctf_squared(ctf_squared)
         {
@@ -80,6 +80,8 @@ namespace noa::signal::guts {
                     .endpoint = fftfreq_range.endpoint
                 }.for_size(max_sample_size).step;
             }
+            if constexpr (N == 1)
+                m_fftfreq_start = fftfreq_range.start;
         }
 
     public:
@@ -89,7 +91,9 @@ namespace noa::signal::guts {
             I... output_indices
         ) const {
             const auto frequency = noa::fft::index2frequency<IS_DST_CENTERED, IS_RFFT>(Vec{output_indices...}, m_shape);
-            const auto fftfreq = m_fftfreq_start + coord_nd_type::from_vec(frequency) * m_fftfreq_step;
+            auto fftfreq = coord_nd_type::from_vec(frequency) * m_fftfreq_step;
+            if constexpr (N == 1)
+                fftfreq += m_fftfreq_start;
 
             // TODO Add frequency cutoff?
 
@@ -121,7 +125,7 @@ namespace noa::signal::guts {
         shape_type m_shape;
         NOA_NO_UNIQUE_ADDRESS input_type m_input{};
         coord_nd_type m_fftfreq_step;
-        coord_type m_fftfreq_start;
+        NOA_NO_UNIQUE_ADDRESS coord_or_empty_type m_fftfreq_start;
         bool m_ctf_abs;
         bool m_ctf_squared;
     };
@@ -145,7 +149,8 @@ namespace noa::signal::guts {
         const Input& input,
         const Output& output,
         const Shape4<i64>& shape,
-        const CTF& ctf
+        const CTF& ctf,
+        const noa::Linspace<f64>& fftfreq_range
     ) {
         check(not output.is_empty(), "Empty array detected");
 
@@ -179,6 +184,9 @@ namespace noa::signal::guts {
                   "Only (batched) 2d arrays are supported with anisotropic CTFs, but got ctf:shape={}",
                   shape);
         }
+
+        check(expected_shape.ndim() == 1 or allclose(fftfreq_range.start, 0.),
+              "For multidimensional cases, the starting fftfreq should be 0, but got {}", fftfreq_range.start);
     }
 
     template<typename CTF>
@@ -197,6 +205,7 @@ namespace noa::signal {
         /// Frequency range of the input and output, from the zero, along the cartesian axes.
         /// If the end is negative or zero, it is set to the highest frequencies for the given dimensions,
         /// i.e. the entire rfft/fft range is selected. For even dimensions, this is equivalent to {0, 0.5}.
+        /// For 2d and 3d cases, the start should be 0, otherwise, an error will be thrown.
         Linspace<f64> fftfreq_range{.start = 0, .stop = -1, .endpoint = true};
 
         /// Whether the absolute of the ctf should be computed.
@@ -221,7 +230,7 @@ namespace noa::signal {
         CTF&& ctf,
         const CTFOptions& options = {}
     ) {
-        guts::ctf_check_parameters<REMAP>(Empty{}, output, shape, ctf);
+        guts::ctf_check_parameters<REMAP>(Empty{}, output, shape, ctf, options.fftfreq_range);
         const Device device = output.device();
 
         using value_t = nt::value_type_t<Output>;
@@ -318,7 +327,7 @@ namespace noa::signal {
                 std::forward<Output>(output), shape, std::forward<CTF>(ctf), options);
         }
 
-        guts::ctf_check_parameters<REMAP>(input, output, shape, ctf);
+        guts::ctf_check_parameters<REMAP>(input, output, shape, ctf, options.fftfreq_range);
 
         auto input_strides = ng::broadcast_strides_optional(input, output);
         const Device device = output.device();
@@ -429,7 +438,7 @@ namespace noa::signal {
         CTF&& ctf,
         const CTFOptions& options = {}
     ) {
-        guts::ctf_check_parameters<REMAP>(Empty{}, output, shape, ctf);
+        guts::ctf_check_parameters<REMAP>(Empty{}, output, shape, ctf, options.fftfreq_range);
 
         using value_t = nt::value_type_t<Output>;
         using coord_t = nt::value_type_twice_t<CTF>;
@@ -484,7 +493,7 @@ namespace noa::signal {
                 std::forward<Output>(output), shape, std::forward<CTF>(ctf), options);
         }
 
-        guts::ctf_check_parameters<REMAP>(input, output, shape, ctf);
+        guts::ctf_check_parameters<REMAP>(input, output, shape, ctf, options.fftfreq_range);
 
         auto input_strides = ng::broadcast_strides_optional(input, output);
         auto output_strides = output.strides();

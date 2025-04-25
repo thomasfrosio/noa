@@ -105,7 +105,6 @@ namespace noa::geometry::guts {
             // If input_fftfreq.stop is negative, defaults to the highest frequency.
             // In this case, and if the frequency.start is 0, this results in the full frequency range.
             // The input is N-d, so we have to handle each axis separately.
-            m_input_fftfreq_start = input_fftfreq.start;
             coord_type max_input_fftfreq{-1};
             for (size_t i{}; i < N; ++i) {
                 const auto max_sample_size = input_shape[i] / 2 + 1;
@@ -114,8 +113,8 @@ namespace noa::geometry::guts {
                     noa::fft::highest_fftfreq<coord_type>(input_shape[i]) :
                     input_fftfreq.stop;
                 max_input_fftfreq = max(max_input_fftfreq, fftfreq_end);
-                m_input_fftfreq_step[i] = Linspace{
-                    .start = input_fftfreq.start,
+                m_input_fftfreq_step[i] = Linspace<coord_type>{
+                    .start = 0,
                     .stop = fftfreq_end,
                     .endpoint = input_fftfreq.endpoint
                 }.for_size(max_sample_size).step;
@@ -123,7 +122,7 @@ namespace noa::geometry::guts {
 
             // The output defaults to the input range. Of course, it is a reduction to 1d, so take the max fftfreq.
             if (output_fftfreq.start < 0)
-                output_fftfreq.start = input_fftfreq.start;
+                output_fftfreq.start = 0;
             if (output_fftfreq.stop <= 0)
                 output_fftfreq.stop = max_input_fftfreq;
 
@@ -147,7 +146,7 @@ namespace noa::geometry::guts {
         NOA_HD void operator()(index_type batch, I... indices) const noexcept {
             // Input indices to fftfreq.
             const auto frequency = noa::fft::index2frequency<IS_CENTERED, IS_RFFT>(Vec{indices...}, m_shape);
-            const auto fftfreq_nd = m_input_fftfreq_start + coord_nd_type::from_vec(frequency) * m_input_fftfreq_step;
+            const auto fftfreq_nd = coord_nd_type::from_vec(frequency) * m_input_fftfreq_step;
 
             coord_type fftfreq;
             if constexpr (nt::empty<ctf_type>) {
@@ -173,7 +172,6 @@ namespace noa::geometry::guts {
 
         shape_type m_shape;
         coord_nd_type m_input_fftfreq_step;
-        coord_type m_input_fftfreq_start;
         coord2_type m_fftfreq_cutoff;
         coord_type m_output_fftfreq_start;
         coord_type m_output_fftfreq_span;
@@ -280,7 +278,8 @@ namespace noa::geometry::guts {
         const Shape4<i64>& shape,
         const Ctf& input_ctf,
         const Output& output,
-        const Weight& weights
+        const Weight& weights,
+        const Linspace<f64>& input_fftfreq
     ) -> i64 {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         const bool weights_is_empty = weights.is_empty();
@@ -334,6 +333,7 @@ namespace noa::geometry::guts {
                   "but got input_ctf:device={} and output:device={}",
                   input_ctf.device(), output.device());
         }
+        check(allclose(input_fftfreq.start, 0.), "The starting fftfreq should be 0, but got {}", input_fftfreq.start);
 
         return n_shells;
     }
@@ -521,8 +521,9 @@ namespace noa::geometry::guts {
 
 namespace noa::geometry {
     struct RotationalAverageOptions {
-        /// Input [start, end] fftfreq range. If the end-frequency is negative or zero, it defaults the highest
+        /// Input [0, end] fftfreq range. If the end-frequency is negative or zero, it defaults the highest
         /// fftfreq along the cartesian axes (thus requiring to know the logical shape).
+        /// Note that the start frequency must be zero, otherwise an error will be thrown.
         /// \warning For multidimensional spectra with both odd and even dimensions, the default should be used since
         ///          it is the only way to correctly map the spectrum (because the stop frequency is different for
         ///          odd and even axes). If all dimensions are even, this is equivalent to entering 0.5 and this can
@@ -532,7 +533,7 @@ namespace noa::geometry {
         /// Output [start, end] fftfreq range. The output shells span over this range.
         /// A negative value (or zero for the stop) defaults to the corresponding value of the input fftfreq range.
         /// If the input fftfreq is defaulted, this would be equal to [0, max(noa::fft::highest_fftfreq(input_shape))].
-        Linspace<f64> output_fftfreq{.start = -1., .stop = -1, .endpoint = true};
+        Linspace<f64> output_fftfreq{.start = 0., .stop = -1, .endpoint = true};
 
         /// Whether the rotational average should be computed instead of the rotational sum.
         bool average{true};
@@ -568,7 +569,7 @@ namespace noa::geometry {
         RotationalAverageOptions options = {}
     ) {
         const auto n_shells = guts::check_parameters_rotational_average<REMAP>(
-            input, input_shape, Empty{}, output, weights);
+            input, input_shape, Empty{}, output, weights, options.input_fftfreq);
 
         if (output.device().is_gpu()) {
             #ifdef NOA_ENABLE_GPU
@@ -624,7 +625,7 @@ namespace noa::geometry {
         RotationalAverageOptions options = {}
     ) {
         const auto n_shells = guts::check_parameters_rotational_average<REMAP>(
-            input, input_shape, input_ctf, output, weights);
+            input, input_shape, input_ctf, output, weights, options.input_fftfreq);
 
         if (output.device().is_gpu()) {
             #ifdef NOA_ENABLE_GPU

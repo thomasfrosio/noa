@@ -40,6 +40,7 @@ namespace noa::signal::guts {
         using coord_nd_type = Vec<coord_type, N>;
         using shape_nd_type = Shape<index_type, N>;
         using shape_type = Shape<index_type, N - REMAP.is_hx2hx()>;
+        using coord_or_empty_type = std::conditional_t<N == 1, coord_type, Empty>;
 
         using input_type = Input;
         using output_type = Output;
@@ -62,12 +63,10 @@ namespace noa::signal::guts {
             const output_type& output,
             const shape_nd_type& shape,
             const filter_type& filter,
-            coord2_type fftfreq_range,
-            bool fftfreq_endpoint
+            const Linspace<coord_type>& fftfreq_range
         ) :
             m_input(input),
             m_output(output),
-            m_fftfreq_start(fftfreq_range[0]),
             m_shape(shape.template pop_back<REMAP.is_hx2hx()>()),
             m_filter(std::move(filter))
         {
@@ -76,21 +75,25 @@ namespace noa::signal::guts {
             for (size_t i{}; i < N; ++i) {
                 const auto max_sample_size = shape[i] / 2 + 1;
                 const auto frequency_end =
-                    fftfreq_range[1] <= 0 ?
+                    fftfreq_range.stop <= 0 ?
                     noa::fft::highest_fftfreq<coord_type>(shape[i]) :
-                    fftfreq_range[1];
+                    fftfreq_range.stop;
                 m_fftfreq_step[i] = Linspace{
-                    .start = fftfreq_range[0],
+                    .start = fftfreq_range.start,
                     .stop = frequency_end,
-                    .endpoint = fftfreq_endpoint
+                    .endpoint = fftfreq_range.endpoint
                 }.for_size(max_sample_size).step;
             }
+            if constexpr (N == 1)
+                m_fftfreq_start = fftfreq_range.start;
         }
 
         template<nt::same_as<index_type>... I> requires (sizeof...(I) == N)
         constexpr void operator()(index_type batch, I... indices) const {
             const auto frequency = noa::fft::index2frequency<IS_SRC_CENTERED, IS_RFFT>(Vec{indices...}, m_shape);
-            const auto fftfreq = coord_nd_type::from_vec(frequency) * m_fftfreq_step + m_fftfreq_start;
+            auto fftfreq = coord_nd_type::from_vec(frequency) * m_fftfreq_step;
+            if constexpr (N == 1)
+                fftfreq += m_fftfreq_start;
 
             const auto filter = m_filter(fftfreq, batch);
             const auto output_indices = noa::fft::remap_indices<REMAP>(Vec{indices...}, m_shape);
@@ -109,13 +112,18 @@ namespace noa::signal::guts {
         input_type m_input;
         output_type m_output;
         coord_nd_type m_fftfreq_step;
-        coord_type m_fftfreq_start;
+        NOA_NO_UNIQUE_ADDRESS coord_or_empty_type m_fftfreq_start;
         shape_type m_shape;
         filter_type m_filter;
     };
 
     template<size_t N, Remap REMAP, typename Input, typename Output>
-    void check_filter_spectrum_parameters(const Input& input, const Output& output, const Shape4<i64>& shape) {
+    void check_filter_spectrum_parameters(
+        const Input& input,
+        const Output& output,
+        const Shape4<i64>& shape,
+        noa::Linspace<f64>& fftfreq_range
+    ) {
         check(not output.is_empty(), "Empty array detected");
 
         if constexpr (N == 1)
@@ -141,18 +149,18 @@ namespace noa::signal::guts {
             check(not REMAP.has_layout_change() or not ni::are_overlapped(input, output),
                   "In-place remapping is not allowed");
         }
+        check(N == 1 or allclose(fftfreq_range.start, 0.),
+              "For multidimensional cases, the starting fftfreq should be 0, but got {}", fftfreq_range.start);
     }
 }
 
 namespace noa::signal {
     struct FilterSpectrumOptions {
-        /// Frequency [start, end] range of the input and output, from the zero, along the cartesian axes.
+        /// Frequency range of the input and output, from the zero, along the cartesian axes.
         /// If the end is negative or zero, it is set to the highest frequencies for the given dimensions,
         /// i.e. the entire rfft/fft range is selected. For even dimensions, this is equivalent to {0, 0.5}.
-        Vec2<f64> fftfreq_range{0, -1};
-
-        /// Whether the frequency_range's end should be included in the range.
-        bool fftfreq_endpoint{true};
+        /// For 2d and 3d cases, the start should be 0, otherwise, an error will be thrown.
+        noa::Linspace<f64> fftfreq_range{.start = 0, .stop = -1, .endpoint = true};
     };
 
     /// Filters a nd spectrum(s).
@@ -182,7 +190,7 @@ namespace noa::signal {
         const Filter& filter,
         FilterSpectrumOptions options = {}
     ) {
-        guts::check_filter_spectrum_parameters<N, REMAP>(input, output, shape);
+        guts::check_filter_spectrum_parameters<N, REMAP>(input, output, shape, options.fftfreq_range);
 
         auto input_accessor = AccessorI64<nt::const_value_type_t<Input>, N + 1>(
             input.get(), input.strides().template filter_nd<N>());
@@ -193,7 +201,7 @@ namespace noa::signal {
         using op_t = guts::FilterSpectrum<
             N, REMAP, i64, coord_t, decltype(input_accessor), decltype(output_accessor), std::decay_t<Filter>>;
         auto op = op_t(input_accessor, output_accessor, shape.filter_nd<N>().pop_front(), filter,
-                       options.fftfreq_range.as<coord_t>(), options.fftfreq_endpoint);
+                       options.fftfreq_range.as<coord_t>());
 
         iwise(output.shape().template filter_nd<N>(), output.device(), op,
               std::forward<Input>(input), std::forward<Output>(output));
