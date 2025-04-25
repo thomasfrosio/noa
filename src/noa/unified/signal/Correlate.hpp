@@ -366,7 +366,7 @@ namespace noa::signal {
         using value_t = std::conditional_t<nt::complex<Lhs>, c64, f64>;
         value_t score;
         if (normalize) {
-            reduce_axes_ewise(
+            reduce_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
                 wrap(value_t{}, value_t{}, value_t{}),
                 score,
