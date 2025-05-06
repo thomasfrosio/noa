@@ -35,6 +35,16 @@ namespace noa {
         value_type stop;
         bool endpoint{true};
 
+    public:
+        template<size_t A>
+        [[nodiscard]] NOA_FHD static constexpr auto from_vec(
+            const Vec<T, 2, A>& vec,
+            bool endpoint = true
+        ) -> Linspace {
+            return {vec[0], vec[1], endpoint};
+        }
+
+    public:
         template<nt::integer I>
         struct Op {
             using value_type = T;
