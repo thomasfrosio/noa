@@ -349,14 +349,14 @@ namespace noa::inline types {
         {
             auto span_4d = span.as_4d(); // row vector
             m_shape = span_4d.shape();
-            m_strides = span_4d.strides();
+            m_strides = span_4d.strides_full();
         }
 
         /// Creates a view of a 4d (contiguous) span.
         template<StridesTraits StridesTrait>
         constexpr explicit View(const Span<value_type, 4, index_type, StridesTrait>& span, ArrayOption options = {}) noexcept :
             m_shape{span.shape()},
-            m_strides{span.strides()},
+            m_strides{span.strides_full()},
             m_ptr{span.data()},
             m_options{options} {}
 
