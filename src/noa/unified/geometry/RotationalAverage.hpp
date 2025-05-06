@@ -13,8 +13,8 @@
 
 namespace noa::geometry::guts {
     struct RotationalAverageUtils {
-        template<typename T, typename U, typename C, typename... I>
-        NOA_FHD static void lerp_to_output(const T& op, const U& value, C fftfreq, I... batch) noexcept {
+        template<typename T, typename U, typename C, typename I>
+        NOA_FHD static void lerp_to_output(const T& op, const U& value, C fftfreq, I batch) noexcept {
             // fftfreq to output index.
             const C scaled_fftfreq = (fftfreq - op.m_output_fftfreq_start) / op.m_output_fftfreq_span;
             const C radius = scaled_fftfreq * static_cast<C>(op.m_max_shell_index);
@@ -28,15 +28,15 @@ namespace noa::geometry::guts {
 
             // TODO In CUDA, we could do the atomic reduction in shared memory to reduce global memory transfers?
             if (shell_low >= 0 and shell_low <= op.m_max_shell_index) {
-                ng::atomic_add(op.m_output, value * static_cast<T::output_real_type>(fraction_low), batch..., shell_low);
+                ng::atomic_add(op.m_output, value * static_cast<T::output_real_type>(fraction_low), batch, shell_low);
                 if (op.m_weight)
-                    ng::atomic_add(op.m_weight, static_cast<T::weight_value_type>(fraction_low), batch..., shell_low);
+                    ng::atomic_add(op.m_weight, static_cast<T::weight_value_type>(fraction_low), batch, shell_low);
             }
 
             if (shell_high >= 0 and shell_high <= op.m_max_shell_index) {
-                ng::atomic_add(op.m_output, value * static_cast<T::output_real_type>(fraction_high), batch..., shell_high);
+                ng::atomic_add(op.m_output, value * static_cast<T::output_real_type>(fraction_high), batch, shell_high);
                 if (op.m_weight)
-                    ng::atomic_add(op.m_weight, static_cast<T::weight_value_type>(fraction_high), batch..., shell_high);
+                    ng::atomic_add(op.m_weight, static_cast<T::weight_value_type>(fraction_high), batch, shell_high);
             }
         }
     };
@@ -181,8 +181,8 @@ namespace noa::geometry::guts {
     template<nt::real Coord,
              nt::sinteger Index,
              nt::readable_nd<2> Input,
-             nt::atomic_addable_nd<1> Output,
-             nt::atomic_addable_nd_optional<1> Weight,
+             nt::atomic_addable_nd<2> Output,
+             nt::atomic_addable_nd_optional<2> Weight,
              nt::batched_parameter InputCtf,
              nt::ctf_isotropic OutputCtf>
     class FuseRotationalAverages {
@@ -218,13 +218,16 @@ namespace noa::geometry::guts {
             Linspace<coord_type> output_fftfreq,
             const output_ctf_type& output_ctf,
             index_type n_output_shells,
-            const weight_type& weight
+            const weight_type& weight,
+            index_type chunk_size
         ) :
             m_input(input),
             m_output(output),
             m_weight(weight),
             m_input_ctf(input_ctf),
-            m_output_ctf(output_ctf)
+            m_output_ctf(output_ctf),
+            m_max_shell_index(n_output_shells - 1),
+            m_chunk_size(chunk_size)
         {
             m_input_fftfreq_start = input_fftfreq.start;
             m_input_fftfreq_step = input_fftfreq.for_size(n_input_shells).step;
@@ -236,7 +239,6 @@ namespace noa::geometry::guts {
             }
             m_output_fftfreq_start = output_fftfreq.start;
             m_output_fftfreq_span = output_fftfreq.stop - output_fftfreq.start;
-            m_max_shell_index = n_output_shells - 1;
 
             // To shortcut early, compute the fftfreq cutoffs where we know the output isn't affected.
             auto output_fftfreq_step = output_fftfreq.for_size(n_output_shells).step;
@@ -254,7 +256,7 @@ namespace noa::geometry::guts {
                 return;
 
             const auto value = cast_or_abs_squared<output_value_type>(m_input(batch, index));
-            RotationalAverageUtils::lerp_to_output(*this, value, fftfreq);
+            RotationalAverageUtils::lerp_to_output(*this, value, fftfreq, batch / m_chunk_size);
         }
 
     private:
@@ -270,6 +272,7 @@ namespace noa::geometry::guts {
         coord_type m_output_fftfreq_start;
         coord_type m_output_fftfreq_span;
         index_type m_max_shell_index;
+        index_type m_chunk_size;
     };
 
     template<Remap REMAP, typename Input, typename Output, typename Weight, typename Ctf = Empty>
@@ -459,17 +462,18 @@ namespace noa::geometry::guts {
         }
 
         using input_accessor_t = AccessorRestrictContiguous<input_value_t, 2, Index>;
-        using output_accessor_t = AccessorRestrictContiguous<output_value_t, 1, Index>;
-        using weight_accessor_t = AccessorRestrictContiguous<weight_value_t, 1, Index>;
+        using output_accessor_t = AccessorRestrictContiguous<output_value_t, 2, Index>;
+        using weight_accessor_t = AccessorRestrictContiguous<weight_value_t, 2, Index>;
         auto input_accessor = input_accessor_t(input.get(), input.strides().filter(0).template as<Index>());
-        auto output_accessor = output_accessor_t(output_view.get());
-        auto weight_accessor = weight_accessor_t(weight_view.get());
+        auto output_accessor = output_accessor_t(output_view.get(), output_view.strides().filter(0).template as<Index>());
+        auto weight_accessor = weight_accessor_t(weight_view.get(), weight_view.strides().filter(0).template as<Index>());
 
         const auto input_fftfreq_f = input_fftfreq.as<coord_t>();
         const auto output_fftfreq_f = output_fftfreq.as<coord_t>();
         const auto n_input_shells = static_cast<Index>(input.shape()[3]);
         const auto n_output_shells = static_cast<Index>(output.shape()[3]);
         const auto iwise_shape = Shape{static_cast<Index>(input.shape()[0]), n_input_shells};
+        const auto chunk_size = static_cast<Index>(input.shape()[0]) / static_cast<Index>(output.shape()[0]);
 
         // Retrieve the CTF(s).
         auto batched_input_ctf = [&] {
@@ -487,7 +491,7 @@ namespace noa::geometry::guts {
             weight_accessor_t, decltype(batched_input_ctf), OutputCtf>;
         auto op = op_t(
             input_accessor, input_fftfreq_f, batched_input_ctf, n_input_shells,
-            output_accessor, output_fftfreq_f, output_ctf, n_output_shells, weight_accessor
+            output_accessor, output_fftfreq_f, output_ctf, n_output_shells, weight_accessor, chunk_size
         );
         iwise<IWISE_OPTION>(
             iwise_shape, output.device(), op,
@@ -672,6 +676,11 @@ namespace noa::geometry {
     ///                         shape as the output. If valid, the output weights are saved in this array.
     ///                         If empty and options.average is true, a temporary vector is allocated.
     /// \param options          Spectrum and averaging options.
+    ///
+    /// \note This function supports an unusual (for this library) batching operation.
+    ///       B*N -> N: If B*N input spectra are given, they will be reduced to N outputs.
+    ///       In most cases, N==1 and the spectra are fused into one output spectrum.
+    ///       In other cases, the input spectra are divided into N chunks and each chunk is fused into one spectrum.
     template<
         nt::readable_varray_decay Input,
         nt::writable_varray_decay Output,
@@ -697,20 +706,24 @@ namespace noa::geometry {
               "Invalid input/output fftfreq range");
 
         // For simplicity, enforce contiguous row vectors for now.
-        check(ni::is_contiguous_vector_batched_strided(input) and noa::all(input.shape().filter(1, 2) == 1),
+        const auto [ib, id, ih, iw] = input.shape();
+        const auto [ob, od, oh, ow] = output.shape();
+        check(ni::is_contiguous_vector_batched_strided(input) and id == 1 and ih == 1,
               "The input must be a (batch of) contiguous row vector(s), but got input:shape={} and input:strides={}",
               input.shape(), input.strides());
-        check(ni::is_contiguous_vector(output) and noa::all(output.shape().filter(0, 1, 2) == 1),
-              "The output must be a contiguous row vector, but got output:shape={} and output:strides={}",
+        check(ni::is_contiguous_vector_batched_strided(output) and od == 1 and oh == 1,
+              "The output must be a (batch of) contiguous row vector(s), but got output:shape={} and output:strides={}",
               output.shape(), output.strides());
+        check(is_multiple_of(ib, ob), "Invalid reduction. input:batch={}, output:batch={}", ib, ob);
 
         if (not weights_is_empty) {
-            check(ni::is_contiguous_vector(weights) and noa::all(weights.shape().filter(0, 1, 2) == 1),
+            const auto [wb, wd, wh, ww] = weights.shape();
+            check(ni::is_contiguous_vector(weights) and wd == 1 and wh == 1,
                   "The weights must be a contiguous row vector, but got weights:shape={} and weights:strides={}",
                   weights.shape(), weights.strides());
-            check(output.shape()[3] == weights.shape()[3],
-                  "The output and weights should have the same size, but got output:n_shells={} and weights:n_shells={}",
-                  output.shape()[3], weights.shape()[3]);
+            check(ob == wb and ow == ww,
+                  "The output and weights should have the same shape, but got output:shape={} and weights:shape={}",
+                  output.shape(), weights.shape());
         }
 
         check(input.device() == output.device() and (weights_is_empty or weights.device() == output.device()),
@@ -720,10 +733,10 @@ namespace noa::geometry {
 
         if constexpr (nt::varray_decay<InputCtf>) {
             check(
-                ni::is_contiguous_vector(input_ctf) and input_ctf.n_elements() == input.shape()[0],
+                ni::is_contiguous_vector(input_ctf) and input_ctf.n_elements() == ib,
                 "The input CTFs, specified as a contiguous vector, should have the same size "
                 "as the input batch size. Got input_ctf:strides={}, input_ctf:shape={}, input:batch={}",
-                input_ctf.strides(), input_ctf.shape(), input.shape()[0]
+                input_ctf.strides(), input_ctf.shape(), ib
             );
             check(
                 input_ctf.device() == output.device(),
