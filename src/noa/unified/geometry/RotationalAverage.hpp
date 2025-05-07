@@ -184,7 +184,7 @@ namespace noa::geometry::guts {
              nt::atomic_addable_nd<2> Output,
              nt::atomic_addable_nd_optional<2> Weight,
              nt::batched_parameter InputCtf,
-             nt::ctf_isotropic OutputCtf>
+             nt::batched_parameter OutputCtf>
     class FuseRotationalAverages {
     public:
         using index_type = Index;
@@ -203,8 +203,9 @@ namespace noa::geometry::guts {
 
         using batched_input_ctf_type = InputCtf;
         using input_ctf_type = nt::mutable_value_type_t<batched_input_ctf_type>;
-        using output_ctf_type = OutputCtf;
-        static_assert(nt::ctf_isotropic<input_ctf_type>);
+        using batched_output_ctf_type = OutputCtf;
+        using output_ctf_type = nt::mutable_value_type_t<batched_output_ctf_type>;
+        static_assert(nt::ctf_isotropic<input_ctf_type, output_ctf_type>);
 
         friend RotationalAverageUtils;
 
@@ -216,7 +217,7 @@ namespace noa::geometry::guts {
             index_type n_input_shells,
             const output_type& output,
             Linspace<coord_type> output_fftfreq,
-            const output_ctf_type& output_ctf,
+            const batched_output_ctf_type& output_ctf,
             index_type n_output_shells,
             const weight_type& weight,
             index_type chunk_size
@@ -247,16 +248,17 @@ namespace noa::geometry::guts {
         }
 
         NOA_HD void operator()(index_type batch, index_type index) const noexcept {
+            const auto output_batch = batch / m_chunk_size;
             const auto input_fftfreq = m_input_fftfreq_start + static_cast<coord_type>(index) * m_input_fftfreq_step;
             const auto input_phase = m_input_ctf[batch].phase_at(input_fftfreq);
-            const auto fftfreq = static_cast<coord_type>(m_output_ctf.fftfreq_at(input_phase));
+            const auto fftfreq = static_cast<coord_type>(m_output_ctf[output_batch].fftfreq_at(input_phase));
 
             // Remove most out-of-bounds asap.
             if (fftfreq < m_fftfreq_cutoff[0] or fftfreq > m_fftfreq_cutoff[1])
                 return;
 
             const auto value = cast_or_abs_squared<output_value_type>(m_input(batch, index));
-            RotationalAverageUtils::lerp_to_output(*this, value, fftfreq, batch / m_chunk_size);
+            RotationalAverageUtils::lerp_to_output(*this, value, fftfreq, output_batch);
         }
 
     private:
@@ -264,7 +266,7 @@ namespace noa::geometry::guts {
         output_type m_output;
         weight_type m_weight;
         batched_input_ctf_type m_input_ctf;
-        output_ctf_type m_output_ctf;
+        batched_output_ctf_type m_output_ctf;
 
         coord2_type m_fftfreq_cutoff;
         coord_type m_input_fftfreq_start;
@@ -434,7 +436,7 @@ namespace noa::geometry::guts {
         typename InputCtf, typename OutputCtf, typename Options>
     void launch_fuse_rotational_averages(
         Input&& input, const Linspace<f64>& input_fftfreq, InputCtf&& input_ctf,
-        Output&& output, const Linspace<f64>& output_fftfreq, const OutputCtf& output_ctf,
+        Output&& output, const Linspace<f64>& output_fftfreq, OutputCtf&& output_ctf,
         Weight&& weight, const Options& options
     ) {
         using input_value_t = nt::const_value_type_t<Input>;
@@ -476,26 +478,30 @@ namespace noa::geometry::guts {
         const auto chunk_size = static_cast<Index>(input.shape()[0]) / static_cast<Index>(output.shape()[0]);
 
         // Retrieve the CTF(s).
-        auto batched_input_ctf = [&] {
-            if constexpr (nt::varray_decay<InputCtf>) {
-                return BatchedParameter{input_ctf.get()};
-            } else if constexpr (nt::empty<InputCtf>) {
+        auto extract_ctf = [&]<typename T>(const T& ctf) {
+            if constexpr (nt::varray_decay<T>) {
+                return BatchedParameter{ctf.get()};
+            } else if constexpr (nt::empty<T>) {
                 return BatchedParameter<Empty>{};
             } else { // ctf_isotropic
-                return BatchedParameter{input_ctf};
+                return BatchedParameter{ctf};
             }
-        }();
+        };
+        auto batched_input_ctf = extract_ctf(input_ctf);
+        auto batched_output_ctf = extract_ctf(output_ctf);
 
         using op_t = FuseRotationalAverages<
             coord_t, Index, input_accessor_t, output_accessor_t,
-            weight_accessor_t, decltype(batched_input_ctf), OutputCtf>;
+            weight_accessor_t, decltype(batched_input_ctf), decltype(batched_output_ctf)>;
         auto op = op_t(
             input_accessor, input_fftfreq_f, batched_input_ctf, n_input_shells,
-            output_accessor, output_fftfreq_f, output_ctf, n_output_shells, weight_accessor, chunk_size
+            output_accessor, output_fftfreq_f, batched_output_ctf, n_output_shells, weight_accessor, chunk_size
         );
         iwise<IWISE_OPTION>(
             iwise_shape, output.device(), op,
-            std::forward<Input>(input), output, weight, std::forward<InputCtf>(input_ctf)
+            std::forward<Input>(input), output, weight,
+            std::forward<InputCtf>(input_ctf),
+            std::forward<OutputCtf>(output_ctf)
         );
 
         // Some shells can be 0, so use DivideSafe.
@@ -685,7 +691,7 @@ namespace noa::geometry {
         nt::readable_varray_decay Input,
         nt::writable_varray_decay Output,
         guts::rotational_average_isotropic_ctf InputCtf,
-        nt::ctf_isotropic OutputCtf,
+        guts::rotational_average_isotropic_ctf OutputCtf,
         nt::writable_varray_decay_of_any<nt::value_type_twice_t<Output>> Weight = View<nt::value_type_twice_t<Output>>>
     requires (nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
     [[gnu::noinline]] void fuse_rotational_averages(
@@ -694,7 +700,7 @@ namespace noa::geometry {
         InputCtf&& input_ctf,
         Output&& output,
         const Linspace<f64>& output_fftfreq,
-        const OutputCtf& output_ctf,
+        OutputCtf&& output_ctf,
         Weight&& weights = {},
         FuseRotationalAveragesOptions options = {}
     ) {
@@ -745,6 +751,20 @@ namespace noa::geometry {
                 input_ctf.device(), output.device()
             );
         }
+        if constexpr (nt::varray_decay<OutputCtf>) {
+            check(
+                ni::is_contiguous_vector(output_ctf) and output_ctf.n_elements() == ob,
+                "The output CTFs, specified as a contiguous vector, should have the same size "
+                "as the output batch size. Got output_ctf:strides={}, output_ctf:shape={}, output:batch={}",
+                output_ctf.strides(), output_ctf.shape(), ob
+            );
+            check(
+                output_ctf.device() == output.device(),
+                "The input and output arrays must be on the same device, "
+                "but got output_ctf:device={} and output:device={}",
+                output_ctf.device(), output.device()
+            );
+        }
 
         if (output.device().is_gpu()) {
             #ifdef NOA_ENABLE_GPU
@@ -756,7 +776,7 @@ namespace noa::geometry {
             );
             guts::launch_fuse_rotational_averages<true, i32>(
                 std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
-                std::forward<Output>(output), output_fftfreq, output_ctf,
+                std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
                 std::forward<Weight>(weights), options
             );
             #else
@@ -765,7 +785,7 @@ namespace noa::geometry {
         } else {
             guts::launch_fuse_rotational_averages<false, i64>(
                 std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
-                std::forward<Output>(output), output_fftfreq, output_ctf,
+                std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
                 std::forward<Weight>(weights), options
             );
         }
