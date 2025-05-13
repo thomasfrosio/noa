@@ -185,7 +185,7 @@ namespace noa::geometry::guts {
              nt::atomic_addable_nd_optional<2> Weight,
              nt::batched_parameter InputCtf,
              nt::batched_parameter OutputCtf>
-    class FuseRotationalAverages {
+    class FuseSpectra {
     public:
         using index_type = Index;
         using coord_type = Coord;
@@ -210,7 +210,7 @@ namespace noa::geometry::guts {
         friend RotationalAverageUtils;
 
     public:
-        constexpr FuseRotationalAverages(
+        constexpr FuseSpectra(
             const input_type& input,
             const Linspace<coord_type>& input_fftfreq,
             const batched_input_ctf_type& input_ctf,
@@ -277,6 +277,90 @@ namespace noa::geometry::guts {
         index_type m_chunk_size;
     };
 
+    template<nt::real Coord,
+             nt::sinteger Index,
+             nt::interpolator_spectrum_nd<1> Input,
+             nt::writable_nd<2> Output,
+             nt::batched_parameter InputCtf,
+             nt::batched_parameter OutputCtf>
+    class PhaseSpectra {
+    public:
+        using index_type = Index;
+        using coord_type = Coord;
+
+        using input_type = Input;
+        using output_type = Output;
+        using output_value_type = nt::value_type_t<output_type>;
+        static_assert(nt::spectrum_types<nt::value_type_t<input_type>, output_value_type>);
+
+        using batched_input_ctf_type = InputCtf;
+        using batched_output_ctf_type = OutputCtf;
+        using input_ctf_type = nt::mutable_value_type_t<batched_input_ctf_type>;
+        using output_ctf_type = nt::mutable_value_type_t<batched_output_ctf_type>;
+        static_assert(nt::ctf_isotropic<input_ctf_type, output_ctf_type>);
+
+    public:
+        constexpr PhaseSpectra(
+            const input_type& input,
+            const Linspace<coord_type>& input_fftfreq,
+            const batched_input_ctf_type& input_ctf,
+            index_type n_input_shells,
+            const output_type& output,
+            Linspace<coord_type> output_fftfreq,
+            const batched_output_ctf_type& output_ctf,
+            index_type n_output_shells
+        ) :
+            m_input{input},
+            m_output{output},
+            m_input_ctf{input_ctf},
+            m_output_ctf{output_ctf},
+            m_input_fftfreq_start{input_fftfreq.start},
+            m_input_fftfreq_step{input_fftfreq.for_size(n_input_shells).step},
+            m_output_fftfreq_start{output_fftfreq.start},
+            m_output_fftfreq_step{output_fftfreq.for_size(n_output_shells).step}
+        {}
+
+        NOA_HD void operator()(index_type batch, index_type index) const noexcept {
+            const auto output_fftfreq = m_output_fftfreq_start + static_cast<coord_type>(index) * m_output_fftfreq_step;
+            const auto phase = m_output_ctf[batch].phase_at(output_fftfreq);
+            const auto input_fftfreq = static_cast<coord_type>(m_input_ctf[batch].fftfreq_at(phase));
+
+            const auto input_frequency = (input_fftfreq - m_input_fftfreq_start) / m_input_fftfreq_step;
+            const auto interpolated_value = m_input.interpolate_spectrum_at(Vec{input_frequency}, batch);
+            m_output(batch, index) = cast_or_abs_squared<output_value_type>(interpolated_value);
+        }
+
+    private:
+        input_type m_input;
+        output_type m_output;
+        batched_input_ctf_type m_input_ctf;
+        batched_output_ctf_type m_output_ctf;
+
+        coord_type m_input_fftfreq_start;
+        coord_type m_input_fftfreq_step;
+        coord_type m_output_fftfreq_start;
+        coord_type m_output_fftfreq_step;
+    };
+
+    template<typename T>
+    auto check_parameters_ctf(
+        const T& ctf, i64 batch, Device device,
+        const std::source_location& location = std::source_location::current()
+    ) {
+        if constexpr (nt::varray<T>) {
+            check_at_location(
+                location, ni::is_contiguous_vector(ctf) and ctf.n_elements() == batch,
+                "The CTFs, specified as a contiguous vector, should have the same size "
+                "as the corresponding array batch size. Got ctf:strides={}, ctf:shape={}, batch={}",
+                ctf.strides(), ctf.shape(), batch
+            );
+            check(ctf.device() == device,
+                  "The input and output arrays must be on the same device, "
+                  "but got ctf:device={} and output:device={}",
+                  ctf.device(), device);
+        }
+    }
+
     template<Remap REMAP, typename Input, typename Output, typename Weight, typename Ctf = Empty>
     auto check_parameters_rotational_average(
         const Input& input,
@@ -328,19 +412,66 @@ namespace noa::geometry::guts {
                   "Only (batched) 2d arrays are supported with anisotropic CTFs, but got shape={}",
                   shape);
         }
-        if constexpr (nt::varray<Ctf>) {
-            check(ni::is_contiguous_vector(input_ctf) and input_ctf.n_elements() == shape[0],
-                  "The anisotropic input CTFs, specified as a contiguous vector, should have the same batch size "
-                  "as the input. Got input_ctf:strides={}, input_ctf:shape={}, input:batch={}",
-                  input_ctf.strides(), input_ctf.shape(), shape[0]);
-            check(input_ctf.device() == output.device(),
-                  "The input and output arrays must be on the same device, "
-                  "but got input_ctf:device={} and output:device={}",
-                  input_ctf.device(), output.device());
-        }
+        check_parameters_ctf(input_ctf, shape[0], output.device());
+
         check(allclose(input_fftfreq.start, 0.), "The starting fftfreq should be 0, but got {}", input_fftfreq.start);
 
         return n_shells;
+    }
+
+    template<bool REDUCE, typename Input, typename Output, typename Weight = Empty, typename InputCtf, typename OutputCtf>
+    void check_parameters_fuse_spectra(
+        const Input& input,
+        const Linspace<f64>& input_fftfreq,
+        const InputCtf& input_ctf,
+        const Output& output,
+        const Linspace<f64>& output_fftfreq,
+        const OutputCtf& output_ctf,
+        const Weight& weights = Weight{}
+    ) {
+        check(not input.is_empty() and not output.is_empty(), "Empty array detected");
+
+        check(input_fftfreq.start >= 0 and input_fftfreq.start < input_fftfreq.stop and
+              output_fftfreq.start >= 0 and output_fftfreq.start < output_fftfreq.stop,
+              "Invalid input/output fftfreq range");
+
+        // For simplicity, enforce contiguous row vectors for now.
+        const auto [ib, id, ih, iw] = input.shape();
+        const auto [ob, od, oh, ow] = output.shape();
+        check(ni::is_contiguous_vector_batched_strided(input) and id == 1 and ih == 1,
+              "The input must be a (batch of) contiguous row vector(s), but got input:shape={} and input:strides={}",
+              input.shape(), input.strides());
+        check(ni::is_contiguous_vector_batched_strided(output) and od == 1 and oh == 1,
+              "The output must be a (batch of) contiguous row vector(s), but got output:shape={} and output:strides={}",
+              output.shape(), output.strides());
+        if constexpr (REDUCE) {
+            check(is_multiple_of(ib, ob), "Invalid reduction. input:batch={}, output:batch={}", ib, ob);
+        } else {
+            check(ib == 1 or ib == ob,
+                  "Cannot broadcast an array with input:batch={} into an array with output:batch={}", ib, ob);
+        }
+
+        check(input.device() == output.device(),
+              "The arrays must be on the same device, but got input:device={}, output:device={}",
+              input.device(), output.device());
+
+        if constexpr (not nt::empty<Weight>) {
+            if (not weights.is_empty()) {
+                const auto [wb, wd, wh, ww] = weights.shape();
+                check(ni::is_contiguous_vector_batched_strided(weights) and wd == 1 and wh == 1,
+                      "The weights must be a contiguous row vector, but got weights:shape={} and weights:strides={}",
+                      weights.shape(), weights.strides());
+                check(ob == wb and ow == ww,
+                      "The output and weights should have the same shape, but got output:shape={} and weights:shape={}",
+                      output.shape(), weights.shape());
+                check(input.device() == weights.device(),
+                      "The arrays must be on the same device, but got input:device={}, weights:device={}",
+                      input.device(), weights.device());
+            }
+        }
+
+        check_parameters_ctf(input_ctf, ib, output.device());
+        check_parameters_ctf(output_ctf, ob, output.device());
     }
 
     template<
@@ -386,16 +517,7 @@ namespace noa::geometry::guts {
         const auto input_strides = input.strides().template as<Index>();
 
         if (input_shape.ndim() == 2) {
-            // Retrieve the CTF(s).
-            auto ctf = [&] {
-                if constexpr (nt::varray_decay<Ctf>) {
-                    return BatchedParameter{input_ctf.get()};
-                } else if constexpr (nt::empty<Ctf>) {
-                    return BatchedParameter<Empty>{};
-                } else { // ctf_anisotropic
-                    return BatchedParameter{input_ctf};
-                }
-            }();
+            auto ctf = ng::to_batched_parameter<true>(input_ctf);
 
             using input_accessor_t = AccessorRestrict<input_value_t, 3, Index>;
             auto op = RotationalAverage
@@ -434,7 +556,7 @@ namespace noa::geometry::guts {
         bool IS_GPU = false, typename Index,
         typename Input, typename Output, typename Weight,
         typename InputCtf, typename OutputCtf, typename Options>
-    void launch_fuse_rotational_averages(
+    void launch_fuse_spectra(
         Input&& input, const Linspace<f64>& input_fftfreq, InputCtf&& input_ctf,
         Output&& output, const Linspace<f64>& output_fftfreq, OutputCtf&& output_ctf,
         Weight&& weight, const Options& options
@@ -477,20 +599,10 @@ namespace noa::geometry::guts {
         const auto iwise_shape = Shape{static_cast<Index>(input.shape()[0]), n_input_shells};
         const auto chunk_size = static_cast<Index>(input.shape()[0]) / static_cast<Index>(output.shape()[0]);
 
-        // Retrieve the CTF(s).
-        auto extract_ctf = [&]<typename T>(const T& ctf) {
-            if constexpr (nt::varray_decay<T>) {
-                return BatchedParameter{ctf.get()};
-            } else if constexpr (nt::empty<T>) {
-                return BatchedParameter<Empty>{};
-            } else { // ctf_isotropic
-                return BatchedParameter{ctf};
-            }
-        };
-        auto batched_input_ctf = extract_ctf(input_ctf);
-        auto batched_output_ctf = extract_ctf(output_ctf);
+        auto batched_input_ctf = ng::to_batched_parameter(input_ctf);
+        auto batched_output_ctf = ng::to_batched_parameter(output_ctf);
 
-        using op_t = FuseRotationalAverages<
+        using op_t = FuseSpectra<
             coord_t, Index, input_accessor_t, output_accessor_t,
             weight_accessor_t, decltype(batched_input_ctf), decltype(batched_output_ctf)>;
         auto op = op_t(
@@ -511,6 +623,62 @@ namespace noa::geometry::guts {
             } else {
                 ewise<EWISE_OPTION>(wrap(output_view, std::move(weight_buffer)), std::forward<Output>(output), DivideSafe{});
             }
+        }
+    }
+
+    template<
+        bool IS_GPU = false, typename Index,
+        typename Input, typename Output,
+        typename InputCtf, typename OutputCtf, typename Options>
+    void launch_phase_spectra(
+        Input&& input, const Linspace<f64>& input_fftfreq, InputCtf&& input_ctf,
+        Output&& output, const Linspace<f64>& output_fftfreq, OutputCtf&& output_ctf,
+        const Options& options
+    ) {
+        using output_value_t = nt::value_type_t<Output>;
+        using coord_t = nt::value_type_t<output_value_t>;
+        constexpr auto IWISE_OPTION = IwiseOptions{.generate_cpu = not IS_GPU, .generate_gpu = IS_GPU};
+
+        const auto input_fftfreq_f = input_fftfreq.as<coord_t>();
+        const auto output_fftfreq_f = output_fftfreq.as<coord_t>();
+        const auto n_input_shells = static_cast<Index>(input.shape()[3]);
+        const auto n_output_shells = static_cast<Index>(output.shape()[3]);
+        const auto logical_shape = Shape<Index, 4>{1, 1, 1, (n_input_shells - 1) * 2};
+        const auto iwise_shape = Shape{static_cast<Index>(output.shape()[0]), n_output_shells};
+
+        using output_accessor_t = AccessorRestrictContiguous<output_value_t, 2, Index>;
+        auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0).template as<Index>());
+
+        auto batched_input_ctf = ng::to_batched_parameter(input_ctf);
+        auto batched_output_ctf = ng::to_batched_parameter(output_ctf);
+
+        auto launch_iwise = [&](auto interp) {
+            auto interpolator = ng::to_interpolator_spectrum<1, Remap::H2H, interp(), coord_t, IS_GPU>(input, logical_shape);
+            using op_t = PhaseSpectra<
+                coord_t, Index, decltype(interpolator), output_accessor_t,
+                decltype(batched_input_ctf), decltype(batched_output_ctf)>;
+            auto op = op_t(
+                interpolator, input_fftfreq_f, batched_input_ctf, n_input_shells,
+                output_accessor, output_fftfreq_f, batched_output_ctf, n_output_shells
+            );
+            iwise<IWISE_OPTION>(
+                iwise_shape, output.device(), op,
+                std::forward<Input>(input), output,
+                std::forward<InputCtf>(input_ctf),
+                std::forward<OutputCtf>(output_ctf)
+            );
+        };
+
+        auto interp = options.interp.erase_fast();
+        switch (options.interp) {
+            case Interp::NEAREST:       return launch_iwise(ng::WrapInterp<Interp::NEAREST>{});
+            case Interp::LINEAR:        return launch_iwise(ng::WrapInterp<Interp::LINEAR>{});
+            case Interp::CUBIC:         return launch_iwise(ng::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_BSPLINE: return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::LANCZOS4:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS8>{});
+            default: panic("interp={} is not supported", interp);
         }
     }
 
@@ -662,7 +830,7 @@ namespace noa::geometry {
         }
     }
 
-    struct FuseRotationalAveragesOptions {
+    struct FuseSpectraOptions {
         /// Whether the average of the input spectra should be computed instead of their sum.
         bool average{true};
 
@@ -671,22 +839,25 @@ namespace noa::geometry {
         bool add_to_output{false};
     };
 
-    /// Scale rotational averages (or any 1d spectra) so that their CTF phases match with a target CTF, then, average them.
+    /// Scale 1d rfft spectra so that their CTF phases match with the target CTF, then, average them.
+    /// \details The reduction is done in chunks:
+    ///          B=C*N -> N: C*N input spectra are given, and they will be reduced to N outputs.
+    ///          If N==1, the input spectra are fused into one output spectrum. Otherwise, the input spectra are
+    ///          divided into N chunks of size C, and each chunk is fused into one spectrum.
+    ///
     /// \param[in] input        Input 1d spectra to reduce. Can be real or complex.
     /// \param input_fftfreq    Frequency range of the input spectra.
     /// \param[in] input_ctf    Isotropic CTFs of the 1d input spectra. One per spectrum.
-    /// \param[out] output      Output spectrum. If real, and the input is complex, the power spectrum is computed.
-    /// \param output_fftfreq   Frequency range of the output spectrum.
-    /// \param output_ctf       Target isotropic CTF. Inputs are rescaled to match the phases of this CTF.
-    /// \param[out] weights     Averaging weights. Can be empty, or be a contiguous vector with the same
-    ///                         shape as the output. If valid, the output weights are saved in this array.
+    /// \param[out] output      Output spectra. If real, and the input is complex, the power spectrum is computed.
+    /// \param output_fftfreq   Frequency range of the output spectra.
+    /// \param[in] output_ctf   Target isotropic CTFs. Inputs are rescaled to match the phases of these CTFs.
+    /// \param[out] weights     Averaging weights.
+    ///                         Can be empty, or be a contiguous vector with the same shape as the output.
+    ///                         If valid, the output weights are saved in this array.
     ///                         If empty and options.average is true, a temporary vector is allocated.
     /// \param options          Spectrum and averaging options.
     ///
-    /// \note This function supports an unusual (for this library) batching operation.
-    ///       B*N -> N: If B*N input spectra are given, they will be reduced to N outputs.
-    ///       In most cases, N==1 and the spectra are fused into one output spectrum.
-    ///       In other cases, the input spectra are divided into N chunks and each chunk is fused into one spectrum.
+    /// \note While the C=1 case is supported (no reduction), in this case, one should use phase_spectra instead.
     template<
         nt::readable_varray_decay Input,
         nt::writable_varray_decay Output,
@@ -694,7 +865,7 @@ namespace noa::geometry {
         guts::rotational_average_isotropic_ctf OutputCtf,
         nt::writable_varray_decay_of_any<nt::value_type_twice_t<Output>> Weight = View<nt::value_type_twice_t<Output>>>
     requires (nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
-    [[gnu::noinline]] void fuse_rotational_averages(
+    [[gnu::noinline]] void fuse_spectra(
         Input&& input,
         const Linspace<f64>& input_fftfreq,
         InputCtf&& input_ctf,
@@ -702,69 +873,10 @@ namespace noa::geometry {
         const Linspace<f64>& output_fftfreq,
         OutputCtf&& output_ctf,
         Weight&& weights = {},
-        FuseRotationalAveragesOptions options = {}
+        FuseSpectraOptions options = {}
     ) {
-        check(not input.is_empty() and not output.is_empty(), "Empty array detected");
-        const bool weights_is_empty = weights.is_empty();
-
-        check(input_fftfreq.start >= 0 and input_fftfreq.start < input_fftfreq.stop and
-              output_fftfreq.start >= 0 and output_fftfreq.start < output_fftfreq.stop,
-              "Invalid input/output fftfreq range");
-
-        // For simplicity, enforce contiguous row vectors for now.
-        const auto [ib, id, ih, iw] = input.shape();
-        const auto [ob, od, oh, ow] = output.shape();
-        check(ni::is_contiguous_vector_batched_strided(input) and id == 1 and ih == 1,
-              "The input must be a (batch of) contiguous row vector(s), but got input:shape={} and input:strides={}",
-              input.shape(), input.strides());
-        check(ni::is_contiguous_vector_batched_strided(output) and od == 1 and oh == 1,
-              "The output must be a (batch of) contiguous row vector(s), but got output:shape={} and output:strides={}",
-              output.shape(), output.strides());
-        check(is_multiple_of(ib, ob), "Invalid reduction. input:batch={}, output:batch={}", ib, ob);
-
-        if (not weights_is_empty) {
-            const auto [wb, wd, wh, ww] = weights.shape();
-            check(ni::is_contiguous_vector(weights) and wd == 1 and wh == 1,
-                  "The weights must be a contiguous row vector, but got weights:shape={} and weights:strides={}",
-                  weights.shape(), weights.strides());
-            check(ob == wb and ow == ww,
-                  "The output and weights should have the same shape, but got output:shape={} and weights:shape={}",
-                  output.shape(), weights.shape());
-        }
-
-        check(input.device() == output.device() and (weights_is_empty or weights.device() == output.device()),
-              "The arrays must be on the same device, but got input:device={}, output:device={}{}",
-              input.device(), output.device(),
-              weights_is_empty ? "" : fmt::format(" and weights:device={}", weights.device()));
-
-        if constexpr (nt::varray_decay<InputCtf>) {
-            check(
-                ni::is_contiguous_vector(input_ctf) and input_ctf.n_elements() == ib,
-                "The input CTFs, specified as a contiguous vector, should have the same size "
-                "as the input batch size. Got input_ctf:strides={}, input_ctf:shape={}, input:batch={}",
-                input_ctf.strides(), input_ctf.shape(), ib
-            );
-            check(
-                input_ctf.device() == output.device(),
-                "The input and output arrays must be on the same device, "
-                "but got input_ctf:device={} and output:device={}",
-                input_ctf.device(), output.device()
-            );
-        }
-        if constexpr (nt::varray_decay<OutputCtf>) {
-            check(
-                ni::is_contiguous_vector(output_ctf) and output_ctf.n_elements() == ob,
-                "The output CTFs, specified as a contiguous vector, should have the same size "
-                "as the output batch size. Got output_ctf:strides={}, output_ctf:shape={}, output:batch={}",
-                output_ctf.strides(), output_ctf.shape(), ob
-            );
-            check(
-                output_ctf.device() == output.device(),
-                "The input and output arrays must be on the same device, "
-                "but got output_ctf:device={} and output:device={}",
-                output_ctf.device(), output.device()
-            );
-        }
+        guts::check_parameters_fuse_spectra<true>(
+            input, input_fftfreq, input_ctf, output, output_fftfreq, output_ctf, weights);
 
         if (output.device().is_gpu()) {
             #ifdef NOA_ENABLE_GPU
@@ -774,7 +886,7 @@ namespace noa::geometry {
                 ng::is_accessor_access_safe<i32>(weights, weights.shape()),
                 "i64 indexing not instantiated for GPU devices"
             );
-            guts::launch_fuse_rotational_averages<true, i32>(
+            guts::launch_fuse_spectra<true, i32>(
                 std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
                 std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
                 std::forward<Weight>(weights), options
@@ -783,10 +895,65 @@ namespace noa::geometry {
             panic_no_gpu_backend();
             #endif
         } else {
-            guts::launch_fuse_rotational_averages<false, i64>(
+            guts::launch_fuse_spectra<false, i64>(
                 std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
                 std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
                 std::forward<Weight>(weights), options
+            );
+        }
+    }
+
+    struct PhaseSpectraOptions {
+        /// Interpolation used for the scaling.
+        noa::Interp interp{noa::Interp::LINEAR};
+    };
+
+    /// Scale 1d rfft spectra so that their CTF phases match with the target CTF.
+    /// \param[in] input        Input 1d spectra to scale. Can be real or complex.
+    /// \param input_fftfreq    Frequency range of the input spectra.
+    /// \param[in] input_ctf    Isotropic CTFs of the 1d input spectra. One per spectrum.
+    /// \param[out] output      Output spectra. If real, and the input is complex, the power spectrum is computed.
+    /// \param output_fftfreq   Frequency range of the output spectra.
+    /// \param[in] output_ctf   Target isotropic CTFs. Inputs are rescaled to match the phases of these CTFs.
+    /// \param options          Spectrum options.
+    template<
+        nt::readable_varray_decay Input,
+        nt::writable_varray_decay Output,
+        guts::rotational_average_isotropic_ctf InputCtf,
+        guts::rotational_average_isotropic_ctf OutputCtf>
+    requires (nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
+    [[gnu::noinline]] void phase_spectra(
+        Input&& input,
+        const Linspace<f64>& input_fftfreq,
+        InputCtf&& input_ctf,
+        Output&& output,
+        const Linspace<f64>& output_fftfreq,
+        OutputCtf&& output_ctf,
+        const PhaseSpectraOptions& options = {}
+    ) {
+        guts::check_parameters_fuse_spectra<false>(
+            input, input_fftfreq, input_ctf, output, output_fftfreq, output_ctf);
+
+        if (output.device().is_gpu()) {
+            #ifdef NOA_ENABLE_GPU
+            check(
+                ng::is_accessor_access_safe<i32>(input, input.shape()) and
+                ng::is_accessor_access_safe<i32>(output, output.shape()),
+                "i64 indexing not instantiated for GPU devices"
+            );
+            guts::launch_phase_spectra<false, i32>(
+                std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
+                std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
+                options
+            );
+            #else
+            panic_no_gpu_backend();
+            #endif
+        } else {
+            guts::launch_phase_spectra<false, i64>(
+                std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
+                std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
+                options
             );
         }
     }

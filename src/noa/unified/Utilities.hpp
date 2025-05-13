@@ -156,6 +156,22 @@ namespace noa::guts {
             static_assert(nt::always_false<Xform>);
         }
     }
+
+    template<bool ALLOW_EMPTY = false, typename T>
+    constexpr auto to_batched_parameter(const T& value) {
+        using value_t = nt::const_value_type_t<T>;
+        if constexpr (nt::empty<T>) {
+            if constexpr (ALLOW_EMPTY)
+                return BatchedParameter<Empty>{};
+            else
+                static_assert(nt::always_false<T>);
+        } else if constexpr (nt::varray<T>) {
+            NOA_ASSERT(value.are_contiguous());
+            return BatchedParameter<value_t*>{value.get()};
+        } else {
+            return BatchedParameter{value};
+        }
+    }
 }
 
 // /// Filters the input tuple by removing non-varrays and
