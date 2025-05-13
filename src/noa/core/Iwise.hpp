@@ -26,7 +26,7 @@ namespace noa {
     };
 
     /// Defines evenly spaced numbers over a specified interval.
-    template<nt::numeric T>
+    template<nt::numeric T = f64>
     struct Linspace {
         using value_type = T;
         using real_type = nt::value_type_t<value_type>;
