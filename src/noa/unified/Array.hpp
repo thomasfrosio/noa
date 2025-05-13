@@ -231,7 +231,7 @@ namespace noa::inline types {
             return span<U, N, I, StridesTraits::CONTIGUOUS>();
         }
 
-        template<typename U = value_type, typename I = index_type, StridesTraits STRIDES_TRAIT = STRIDES_TRAIT>
+        template<typename U = value_type, typename I = index_type, StridesTraits STRIDES_TRAIT = StridesTraits::CONTIGUOUS>
         [[nodiscard]] constexpr auto span_1d() const {
             return span<U, 1, I, STRIDES_TRAIT>();
         }
@@ -239,6 +239,11 @@ namespace noa::inline types {
         template<typename U = value_type, typename I = index_type>
         [[nodiscard]] constexpr auto span_1d_contiguous() const {
             return span<U, 1, I, StridesTraits::CONTIGUOUS>();
+        }
+
+        template<typename U = value_type, typename I = index_type>
+        [[nodiscard]] constexpr auto span_1d_strided() const {
+            return span<U, 1, I, StridesTraits::STRIDED>();
         }
 
         /// Returns a (const-)view of the array.

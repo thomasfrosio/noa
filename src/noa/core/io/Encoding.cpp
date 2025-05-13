@@ -68,7 +68,7 @@ namespace {
         bool clamp, bool swap_endian, i32 n_threads
     ) {
         if (input.are_contiguous())
-            return encode_1d_<Output>(input.as_contiguous_1d(), output, clamp, swap_endian, n_threads);
+            return encode_1d_<Output>(input.as_1d_contiguous(), output, clamp, swap_endian, n_threads);
 
         auto* ptr = reinterpret_cast<Output*>(output.get());
         auto encoder = Encoder<Input, Output>{clamp, swap_endian};
@@ -120,7 +120,7 @@ namespace {
         bool clamp, bool swap_endian, i32 n_threads
     ) {
         if (output.are_contiguous())
-            return decode_1d_<Input>(input, output.as_contiguous_1d(), clamp, swap_endian, n_threads);
+            return decode_1d_<Input>(input, output.as_1d_contiguous(), clamp, swap_endian, n_threads);
 
         auto* ptr = reinterpret_cast<const Input*>(input.get());
         auto decoder = Decoder<Input, Output>{clamp, swap_endian};
@@ -335,7 +335,7 @@ namespace noa::io {
                 if constexpr (nt::scalar<T>) {
                     check(input.are_contiguous() and is_even(input.shape()[3]),
                           "u4 encoding requires the input array to be contiguous and have even rows");
-                    return encode_4bits_(input.as_contiguous_1d(), output, n_threads);
+                    return encode_4bits_(input.as_1d_contiguous(), output, n_threads);
                 }
                 break;
             case Encoding::I8:
@@ -535,7 +535,7 @@ namespace noa::io {
                 if constexpr (nt::scalar<T>) {
                     check(output.are_contiguous() and is_even(n_elements),
                           "u4 encoding requires the output array to be contiguous and have an even number of elements");
-                    return decode_4bits_(input, output.as_contiguous_1d(), n_threads);
+                    return decode_4bits_(input, output.as_1d_contiguous(), n_threads);
                 }
                 break;
             case Encoding::I8:

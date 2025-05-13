@@ -322,14 +322,19 @@ namespace noa::inline types {
             return span<U, NewN, NewI, StridesTraits::CONTIGUOUS>();
         }
 
+        template<typename U = value_type, typename NewI = index_type, StridesTraits NewStridesTrait = StridesTraits::CONTIGUOUS>
+        [[nodiscard]] constexpr auto as_1d() const {
+            return span<U, 1, NewI, NewStridesTrait>();
+        }
+
         template<typename U = value_type, typename NewI = index_type>
-        [[nodiscard]] constexpr auto as_contiguous_1d() const {
+        [[nodiscard]] constexpr auto as_1d_contiguous() const {
             return span<U, 1, NewI, StridesTraits::CONTIGUOUS>();
         }
 
-        template<typename U = value_type, typename NewI = index_type, StridesTraits NewStridesTrait = STRIDES_TRAIT>
-        [[nodiscard]] constexpr auto as_1d() const {
-            return span<U, 1, NewI, NewStridesTrait>();
+        template<typename U = value_type, typename NewI = index_type>
+        [[nodiscard]] constexpr auto as_1d_strided() const {
+            return span<U, 1, NewI, StridesTraits::STRIDED>();
         }
 
         template<typename U = value_type, typename NewI = index_type, StridesTraits NewStridesTrait = STRIDES_TRAIT>
@@ -338,7 +343,12 @@ namespace noa::inline types {
         }
 
         template<typename U = value_type, typename NewI = index_type>
-        [[nodiscard]] constexpr auto as_strided_4d() const {
+        [[nodiscard]] constexpr auto as_4d_contiguous() const {
+            return span<U, 4, NewI, StridesTraits::CONTIGUOUS>();
+        }
+
+        template<typename U = value_type, typename NewI = index_type>
+        [[nodiscard]] constexpr auto as_4d_strided() const {
             return span<U, 4, NewI, StridesTraits::STRIDED>();
         }
 

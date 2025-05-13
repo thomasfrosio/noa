@@ -107,12 +107,12 @@ TEST_CASE("core::Span") {
                         s0(i, j, k, l) = ((i * shape_4d[1] + j) * shape_4d[2] + k) * shape_4d[3] + l;
 
         // Dimensions can be collapsed.
-        auto s1 = s0.as_contiguous_1d();
+        auto s1 = s0.as_1d_contiguous();
         static_assert(std::is_same_v<decltype(s1), SpanContiguous<i32, 1, i32>>);
         REQUIRE(s1.size() == s0.size());
 
         bool is_ok{true};
-        for (i32 i{}; auto& e: s0.as_contiguous_1d()) {
+        for (i32 i{}; auto& e: s0.as_1d_contiguous()) {
             if (e != i++)
                 is_ok = false;
         }
