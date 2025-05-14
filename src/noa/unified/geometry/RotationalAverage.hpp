@@ -258,7 +258,8 @@ namespace noa::geometry::guts {
                 return;
 
             const auto value = cast_or_abs_squared<output_value_type>(m_input(batch, index));
-            RotationalAverageUtils::lerp_to_output(*this, value, fftfreq, output_batch);
+            const auto weight = static_cast<output_real_type>(m_input_ctf[batch].scale());
+            RotationalAverageUtils::lerp_to_output(*this, value * weight, fftfreq, output_batch);
         }
 
     private:
@@ -848,6 +849,7 @@ namespace noa::geometry {
     /// \param[in] input        Input 1d spectra to reduce. Can be real or complex.
     /// \param input_fftfreq    Frequency range of the input spectra.
     /// \param[in] input_ctf    Isotropic CTFs of the 1d input spectra. One per spectrum.
+    ///                         The CTF scale is used to assign a weight to each input spectrum.
     /// \param[out] output      Output spectra. If real, and the input is complex, the power spectrum is computed.
     /// \param output_fftfreq   Frequency range of the output spectra.
     /// \param[in] output_ctf   Target isotropic CTFs. Inputs are rescaled to match the phases of these CTFs.
