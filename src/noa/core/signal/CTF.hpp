@@ -193,6 +193,14 @@ namespace noa::signal {
             return ctf * m_scale;
         }
 
+        [[nodiscard]] constexpr auto envelope_at(nt::real auto fftfreq) const -> value_type {
+            if (m_bfactor_forth == 0)
+                return m_scale;
+            const auto r1 = static_cast<value_type>(fftfreq) / m_pixel_size;
+            const auto r2 = r1 * r1;
+            return exp(m_bfactor_forth * r2) * m_scale;
+        }
+
         [[nodiscard]] constexpr auto fftfreq_at(nt::real auto phase) const -> value_type {
             // Floating-point precision errors are a real thing, switch everything to double precision.
             const auto a = static_cast<f64>(m_k2);
@@ -447,6 +455,16 @@ namespace noa::signal {
             if (m_bfactor_forth != 0)
                 ctf *= exp(m_bfactor_forth * r2);
             return ctf * m_scale;
+        }
+
+        [[nodiscard]] constexpr auto envelope_at(nt::real auto fftfreq) const -> value_type {
+            if (m_bfactor_forth == 0)
+                return m_scale;
+            const auto scaled_fftfreq = fftfreq.template as<value_type>() / m_pixel_size;
+            const auto rho = noa::geometry::cartesian2rho(scaled_fftfreq);
+            const auto r1 = rho;
+            const auto r2 = r1 * r1;
+            return exp(m_bfactor_forth * r2) * m_scale;
         }
 
         template<nt::real Coord>
