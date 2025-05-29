@@ -47,7 +47,6 @@ namespace noa::io {
     ///       header are ignored. When writing a new file, these are set to 0 or to the expected default value.
     ///     - The map ordering should be mapc=1, mapr=2 and maps=3. Anything else is not supported, and an exception
     ///       is thrown when opening a file with a different ordering.
-    ///
     /// \see https://bio3d.colorado.edu/imod/doc/mrc_format.txt or
     ///      https://www.ccpem.ac.uk/mrc_format/mrc2014.php
     struct EncoderMrc {
@@ -252,6 +251,29 @@ namespace noa::io {
             bool clamp,
             i32 n_threads
         );
+
+    public: // move-only - not thread-safe!
+        EncoderTiff(const EncoderTiff& rhs) = delete;
+        EncoderTiff& operator=(const EncoderTiff& rhs) = delete;
+        EncoderTiff(EncoderTiff&& rhs) noexcept {
+            m_shape = rhs.m_shape;
+            m_spacing = rhs.m_spacing;
+            m_dtype = rhs.m_dtype;
+            m_handles = std::move(rhs.m_handles);
+            current_directory = rhs.current_directory;
+            m_is_write = rhs.m_is_write;
+        }
+        EncoderTiff& operator=(EncoderTiff&& rhs) noexcept {
+            if (this != &rhs) {
+                m_shape = rhs.m_shape;
+                m_spacing = rhs.m_spacing;
+                m_dtype = rhs.m_dtype;
+                m_handles = std::move(rhs.m_handles);
+                current_directory = rhs.current_directory;
+                m_is_write = rhs.m_is_write;
+            }
+            return *this;
+        }
 
     public:
         // For multithreading support, each thread is assigned its own TIFF handle.

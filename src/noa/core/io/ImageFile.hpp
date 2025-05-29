@@ -6,6 +6,8 @@
 #include "noa/core/types/Shape.hpp"
 
 namespace noa::io {
+    /// Image file.
+    /// \warning This type is not thread-safe. It should be owned and used by a single thread.
     template<nt::image_encorder... Encoders>
     class BasicImageFile {
     public:
