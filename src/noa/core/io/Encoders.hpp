@@ -253,6 +253,7 @@ namespace noa::io {
         );
 
     public: // move-only - not thread-safe!
+        EncoderTiff() = default;
         EncoderTiff(const EncoderTiff& rhs) = delete;
         EncoderTiff& operator=(const EncoderTiff& rhs) = delete;
         EncoderTiff(EncoderTiff&& rhs) noexcept {
