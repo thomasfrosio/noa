@@ -14,7 +14,7 @@ namespace noa {
         #ifdef NOA_ENABLE_CUDA
         using value_t = nt::mutable_value_type_t<Output>;
         if constexpr (nt::numeric<value_t> or nt::vec<value_t> or nt::mat<value_t>) { // TODO zero-initialize-able
-            if (output.are_contiguous() and all(value_t{} == value)) {
+            if (output.device().is_gpu() and output.are_contiguous() and all(value_t{} == value)) {
                 auto& cuda_stream = Stream::current(output.device()).gpu();
                 noa::cuda::fill_with_zeroes(output.get(), output.ssize(), cuda_stream);
                 return;
