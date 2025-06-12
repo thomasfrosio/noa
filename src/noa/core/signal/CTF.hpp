@@ -498,6 +498,10 @@ namespace noa::signal {
             return rho_corrected * mean(m_pixel_size);
         }
 
+        [[nodiscard]] constexpr auto defocus_at(nt::real auto phi) const -> value_type {
+            return -phi2defocus_(static_cast<value_type>(phi)) * static_cast<value_type>(1e-4);
+        }
+
     private:
         [[nodiscard]] constexpr auto phi2defocus_(value_type phi) const -> value_type {
             const auto ellipse_angle = (phi - m_defocus_angstroms.angle);
