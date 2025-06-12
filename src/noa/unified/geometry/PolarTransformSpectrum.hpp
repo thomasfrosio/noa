@@ -30,28 +30,50 @@ namespace noa::geometry::guts {
         constexpr Spectrum2Polar(
             const input_type& spectrum,
             const shape2_type& spectrum_shape,
+            const Linspace<coord_type>& spectrum_fftfreq,
             const output_type& polar,
             const shape2_type& polar_shape,
-            Linspace<coord_type> fftfreq_range,
-            const Linspace<coord_type>& angle_range
+            Linspace<coord_type> rho,
+            const Linspace<coord_type>& phi
         ) :
             m_spectrum(spectrum),
-            m_polar(polar),
-            m_start_angle(angle_range.start),
-            m_start_fftfreq(fftfreq_range.start)
+            m_polar(polar)
         {
-            NOA_ASSERT(fftfreq_range.stop - fftfreq_range.start >= 0);
-            m_step_angle = angle_range.for_size(polar_shape[0]).step;
-            m_step_fftfreq = fftfreq_range.for_size(polar_shape[1]).step;
+            coord_type spectrum_stop{};
+            for (size_t i{}; i < 2; ++i) {
+                const auto max_sample_size = spectrum_shape[i] / 2 + 1;
+                const auto highest_fftfreq = noa::fft::highest_fftfreq<coord_type>(spectrum_shape[i]);
 
-            // Scale the frequency range to the polar dimension [0,width).
-            m_scale = coord2_type::from_vec(spectrum_shape.vec);
+                auto linspace = spectrum_fftfreq;
+                if (linspace.stop <= 0) // default to highest fftfreq
+                    linspace.stop = highest_fftfreq;
+                if (not linspace.endpoint) // convert to endpoint=true
+                    linspace.stop -= linspace.for_size(max_sample_size).step;
+
+                spectrum_stop = std::max(spectrum_stop, linspace.stop);
+
+                const auto polar2spectrum = highest_fftfreq / linspace.stop;
+                m_scale[i] = polar2spectrum * static_cast<coord_type>(spectrum_shape[i]);
+            }
+
+            // Polar start defaults to the input start, which is always 0.
+            if (rho.start < 0)
+                rho.start = 0;
+            m_rho_start = rho.start;
+
+            // Polar stop defaults to the input stop.
+            if (rho.stop <= 0)
+                rho.stop = spectrum_stop;
+            m_rho_step = rho.for_size(polar_shape[1]).step;
+
+            m_phi_start = phi.start;
+            m_phi_step = phi.for_size(polar_shape[0]).step;
         }
 
         NOA_HD constexpr void operator()(index_type batch, index_type y, index_type x) const {
             const auto polar_coordinate = coord2_type::from_values(y, x);
-            const coord_type phi = polar_coordinate[0] * m_step_angle + m_start_angle;
-            const coord_type rho = polar_coordinate[1] * m_step_fftfreq + m_start_fftfreq;
+            const coord_type phi = polar_coordinate[0] * m_phi_step + m_phi_start;
+            const coord_type rho = polar_coordinate[1] * m_rho_step + m_rho_start;
             const coord2_type frequency = (rho * sincos(phi)) * m_scale;
             auto value = m_spectrum.interpolate_spectrum_at(frequency, batch);
             m_polar(batch, y, x) = cast_or_abs_squared<output_value_type>(value);
@@ -61,10 +83,10 @@ namespace noa::geometry::guts {
         input_type m_spectrum;
         output_type m_polar;
         coord2_type m_scale;
-        coord_type m_step_angle;
-        coord_type m_start_angle;
-        coord_type m_step_fftfreq;
-        coord_type m_start_fftfreq;
+        coord_type m_rho_start;
+        coord_type m_rho_step;
+        coord_type m_phi_start;
+        coord_type m_phi_step;
     };
 
     template<Remap REMAP, bool IS_GPU = false, typename Index, typename Input, typename Output, typename Options>
@@ -75,6 +97,7 @@ namespace noa::geometry::guts {
         const Options& options
     ) {
         using coord_t = nt::value_type_twice_t<Output>;
+        auto spectrum_range = options.spectrum_fftfreq.template as<coord_t>();
         auto rho_range = options.rho_range.template as<coord_t>();
         auto phi_range = options.phi_range.template as<coord_t>();
 
@@ -87,7 +110,7 @@ namespace noa::geometry::guts {
 
             auto polar_shape = polar.shape().filter(0, 2, 3).template as<Index>();
             auto op = Spectrum2Polar<Index, coord_t, decltype(interpolator), output_accessor_t>(
-                interpolator, spectrum_shape.filter(2, 3),
+                interpolator, spectrum_shape.filter(2, 3), spectrum_range,
                 output_accessor, polar_shape.pop_front(),
                 rho_range, phi_range);
 
@@ -118,38 +141,29 @@ namespace noa::geometry::guts {
             case Interp::LANCZOS8_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
-
-    inline void set_spectrum2polar_defaults(
-        const Shape4<i64>& cartesian_shape,
-        Linspace<f64>& rho_range,
-        Linspace<f64>& angle_range
-    ) {
-        // Find highest fftfreq. If any dimension is even sized, this is 0.5.
-        if (rho_range.stop <= 0)
-            rho_range.stop = noa::max(noa::fft::highest_fftfreq<f64>(cartesian_shape.pop_front()));
-
-        if (angle_range.start == 0 and angle_range.stop == 0)
-            angle_range.stop = Constant<f64>::PI;
-    }
 }
 
 namespace noa::geometry {
     struct PolarTransformSpectrumOptions {
+        /// Frequency range of the cartesian input, along the cartesian axes, in cycle/pixels (fftfreq).
+        /// If the end is negative or zero, it is set to the highest frequencies for each dimension, i.e.,
+        /// the entire rfft/fft range is selected. For even dimensions, this is equivalent to {0, 0.5}.
+        /// Note that the start should be 0, otherwise an error will be thrown.
+        Linspace<f64> spectrum_fftfreq{.start = 0., .stop = -1., .endpoint = true};
+
         /// Rho range of the bounding shells to transform, in cycle/pixels (fftfreq).
-        /// Rho maps to the width dimension of the polar array.
-        /// A negative or zero stop-frequency defaults the highest fftfreq along the cartesian axes.
-        /// The computed linspace range is rho_range.for_size(polar_width).
-        /// TODO The current API doesn't allow to specify the cartesian fftfreq range and assumes its [0,-1].
+        /// Rho maps to the width dimension of the polar array. A negative value (or zero for the stop)
+        /// defaults to the corresponding value of the input fftfreq range. If the input fftfreq is itself
+        /// defaulted, this would be equal to [0, max(noa::fft::highest_fftfreq(input_shape))].
         Linspace<f64> rho_range{.start = 0., .stop = -1., .endpoint = true};
 
         /// Phi angle range increasing in the counterclockwise orientation, in radians.
-        /// Phi maps to the height dimension of the polar array.
-        /// While the range naturally included in the non-redundant centered FFT is [-pi/2, pi/2],
-        /// this range can include the entire unit circle, e.g. [-pi, pi]. Defaults to [0, pi).
-        /// The computed linspace range is phi_range.for_size(polar_height).
-        Linspace<f64> phi_range{.start = 0., .stop = 0., .endpoint = false};
+        /// Phi maps to the height dimension of the polar array. While the range naturally included in the
+        /// non-redundant centered FFT is [-pi/2, pi/2], this range can include the entire unit circle,
+        /// e.g. [-pi, pi]. Defaults to [0, pi).
+        Linspace<f64> phi_range{.start = 0., .stop = Constant<f64>::PI, .endpoint = false};
 
-        /// Interpolation method used to interpolate the values onto the new grid.
+        /// Interpolation method used to interpolate the values onto the new polar grid.
         /// Out-of-bounds elements are set to zero.
         /// This is unused if a texture is passed to the transform function.
         Interp interp{Interp::LINEAR};
@@ -177,23 +191,22 @@ namespace noa::geometry {
         PolarTransformSpectrumOptions options = {}
     ) {
         guts::polar_check_parameters(spectrum, polar);
-        guts::set_spectrum2polar_defaults(spectrum_shape, options.rho_range, options.phi_range);
 
         check(all(spectrum.shape() == (REMAP.is_hx2xx() ? spectrum_shape.rfft() : spectrum_shape)),
               "The logical shape {} does not match the spectrum shape. Got spectrum:shape={}, REMAP={}",
               spectrum_shape, spectrum.shape(), REMAP);
+        check(allclose(options.spectrum_fftfreq.start, 0.),
+              "For multidimensional cases, the starting fftfreq should be 0, but got {}",
+              options.spectrum_fftfreq.start);
 
         if (polar.device().is_gpu()) {
             #ifdef NOA_ENABLE_CUDA
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
-                check(ng::is_accessor_access_safe<i32>(spectrum, spectrum.shape()) and
-                      ng::is_accessor_access_safe<i32>(polar, polar.shape()),
-                      "i64 indexing not instantiated for GPU devices");
                 guts::launch_spectrum2polar<REMAP, true>(
-                        std::forward<Input>(spectrum), spectrum_shape.as<i32>(),
-                        std::forward<Output>(polar), options);
+                    std::forward<Input>(spectrum), spectrum_shape.as<i64>(),
+                    std::forward<Output>(polar), options);
             }
             #else
             panic_no_gpu_backend(); // unreachable
