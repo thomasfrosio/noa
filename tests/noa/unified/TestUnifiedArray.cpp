@@ -228,3 +228,16 @@ TEST_CASE("unified::Array, span") {
                     span(i, j, k, l) = 0;
     REQUIRE(test::allclose_abs(lhs, 0.f, 1e-10));
 }
+
+TEST_CASE("unified::Array, drop") {
+    auto a = Array<f32>(10);
+    auto b = a.drop();
+
+    REQUIRE(a.is_empty());
+    REQUIRE(a.data() == nullptr);
+
+    a = std::move(b).drop();
+    REQUIRE(b.is_empty());
+    REQUIRE(b.data() == nullptr);
+    REQUIRE(a.size() == 10);
+}
