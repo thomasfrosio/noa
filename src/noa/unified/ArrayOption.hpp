@@ -23,7 +23,7 @@ namespace noa::inline types {
         /// Whether the allocated data can be accessed by the given device type.
         [[nodiscard]] constexpr auto is_reinterpretable(Device::Type type) const noexcept -> bool {
             return device.type() == type or allocator.is_any(
-                Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL);
+                Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL, Allocator::PITCHED_MANAGED);
         }
 
         /// Whether the allocated data can be accessed by CPU threads.

@@ -11,6 +11,8 @@ namespace noa::inline types {
                 return os << "Allocator::ASYNC";
             case Allocator::PITCHED:
                 return os << "Allocator::PITCHED";
+            case Allocator::PITCHED_UNIFIED:
+                return os << "Allocator::PITCHED_UNIFIED";
             case Allocator::PINNED:
                 return os << "Allocator::PINNED";
             case Allocator::UNIFIED:
@@ -28,21 +30,23 @@ namespace noa::inline types {
         std::ranges::replace(str_, '-', '_');
 
         if (str_ == "default") {
-            return Allocator::DEFAULT;
+            return DEFAULT;
         } else if (str_ == "default_async" or str_ == "async") {
-            return Allocator::DEFAULT_ASYNC;
+            return DEFAULT_ASYNC;
         } else if (str_ == "pitched") {
-            return Allocator::PITCHED;
+            return PITCHED;
+        } else if (str_ == "pitched_managed" or str_ == "pitched_unified") {
+            return MANAGED_GLOBAL;
         } else if (str_ == "pinned") {
-            return Allocator::PINNED;
+            return PINNED;
         } else if (str_ == "managed" or str_ == "unified") {
-            return Allocator::MANAGED;
+            return MANAGED;
         } else if (str_ == "managed_global" or str_ == "unified_global") {
-            return Allocator::MANAGED_GLOBAL;
+            return MANAGED_GLOBAL;
         } else if (str_ == "cuda_array") {
-            return Allocator::CUDA_ARRAY;
+            return CUDA_ARRAY;
         } else if (str_ == "none" or str_.empty()) {
-            return Allocator::NONE;
+            return NONE;
         } else {
             panic("{} is not a valid allocator", str_);
         }

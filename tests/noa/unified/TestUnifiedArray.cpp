@@ -18,7 +18,8 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "", i32, f32, c32, Vec4<i32>, Mat
         Allocator::PITCHED,
         Allocator::PINNED,
         Allocator::MANAGED,
-        Allocator::MANAGED_GLOBAL);
+        Allocator::MANAGED_GLOBAL,
+        Allocator::PITCHED_MANAGED);
 
     // CPU
     a = Array<TestType>(shape, {.device=Device{}, .allocator=allocator});
@@ -39,7 +40,7 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "", i32, f32, c32, Vec4<i32>, Mat
     REQUIRE(b.get());
     REQUIRE_FALSE(b.is_empty());
 
-    if (allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL)) {
+    if (allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL, Allocator::PITCHED_MANAGED)) {
         Array<TestType> c = a.reinterpret_as(Device::GPU, {.prefetch = true});
         REQUIRE(c.device().is_gpu());
         c = b.reinterpret_as(Device::CPU, {.prefetch = true});
@@ -59,7 +60,8 @@ TEMPLATE_TEST_CASE("unified::Array, copy metadata", "", i32, u64, f32, f64, c32,
         Allocator::PITCHED,
         Allocator::PINNED,
         Allocator::MANAGED,
-        Allocator::MANAGED_GLOBAL);
+        Allocator::MANAGED_GLOBAL,
+        Allocator::PITCHED_MANAGED);
 
     // CPU
     Array<TestType> a(shape, {Device{}, allocator});

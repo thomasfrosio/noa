@@ -63,7 +63,7 @@ namespace noa::cuda {
         using deleter_type = AllocatorDeviceDeleter;
         using shared_type = std::shared_ptr<value_type[]>;
         using unique_type = std::unique_ptr<value_type[], deleter_type>;
-        static constexpr size_t ALIGNMENT = 256; // in bytes, this is guaranteed by cuda
+        static constexpr size_t ALIGNMENT = std::max(alignof(T), size_t{256}); // this is guaranteed by cuda
 
     public:
         /// Allocates device memory using cudaMalloc, with an alignment of at least 256 bytes.
@@ -141,7 +141,7 @@ namespace noa::cuda {
         using deleter_type = AllocatorDevicePaddedDeleter;
         using shared_type = std::shared_ptr<value_type[]>;
         using unique_type = std::unique_ptr<value_type[], deleter_type>;
-        static constexpr size_t ALIGNMENT = 256; // this is guaranteed by cuda
+        static constexpr size_t ALIGNMENT = std::max(alignof(T), size_t{256}); // this is guaranteed by cuda
 
     public:
         /// Allocates device memory using cudaMalloc3D.
@@ -221,7 +221,7 @@ namespace noa::cuda {
         using deleter_type = AllocatorManagedDeleter;
         using shared_type = std::shared_ptr<value_type[]>;
         using unique_type = std::unique_ptr<value_type[], deleter_type>;
-        static constexpr size_t ALIGNMENT = 256; // this is guaranteed by the driver
+        static constexpr size_t ALIGNMENT = std::max(alignof(T), size_t{256}); // this is guaranteed by cuda
 
     public:
         /// Allocates managed memory using cudaMallocManaged, accessible from any stream and any device.
@@ -287,6 +287,44 @@ namespace noa::cuda {
         }
     };
 
+    template<typename T>
+    class AllocatorManagedPadded {
+    public:
+        static_assert(not std::is_pointer_v<T> and
+                      not std::is_reference_v<T> and
+                      not std::is_const_v<T> and
+                      std::is_trivially_destructible_v<T>);
+        using value_type = T;
+        using deleter_type = AllocatorManagedDeleter;
+        using shared_type = std::shared_ptr<value_type[]>;
+        using unique_type = std::unique_ptr<value_type[], deleter_type>;
+        static constexpr size_t ALIGNMENT = std::max(alignof(T), size_t{256}); // this is guaranteed by cuda
+
+    public:
+        /// Allocates managed memory using AllocatorManaged<T>::allocate().
+        /// Returns 1: Unique pointer pointing to the managed memory.
+        ///         2: Pitch, i.e. height stride, in number of elements.
+        template<typename Integer, size_t N> requires (N >= 2)
+        static auto allocate(
+            const Shape<Integer, N>& shape, // ((B)D)HW order
+            Stream& stream
+        ) -> Pair<unique_type, Strides<Integer, N>> {
+            if (shape.is_empty())
+                return {};
+
+            // Get the pitch from the device.
+            auto pitch = static_cast<size_t>(stream.device().attribute(cudaDevAttrTexturePitchAlignment));
+            pitch = std::max(ALIGNMENT, pitch);
+            check(is_multiple_of(pitch, sizeof(T)),
+                  "The pitch must be a multiple of sizeof({})={}, but got {}",
+                  ns::stringify<value_type>(), sizeof(T), pitch);
+
+            auto width = next_multiple_of(shape.width(), safe_cast<Integer>(pitch / sizeof(T)));
+            auto padded_shape = shape.template set<N - 1>(width);
+            return {AllocatorManaged<T>::allocate(padded_shape.n_elements(), stream), padded_shape.strides()};
+        }
+    };
+
     struct AllocatorPinnedDeleter {
         void operator()(void* ptr) const noexcept {
             [[maybe_unused]] const cudaError_t err = cudaFreeHost(ptr);
@@ -337,7 +375,7 @@ namespace noa::cuda {
         using deleter_type = AllocatorPinnedDeleter;
         using shared_type = std::shared_ptr<value_type[]>;
         using unique_type = std::unique_ptr<value_type[], deleter_type>;
-        static constexpr size_t ALIGNMENT = 256; // this is guaranteed by cuda
+        static constexpr size_t ALIGNMENT = std::max(alignof(T), size_t{256}); // this is guaranteed by cuda
 
     public:
         // Allocates pinned memory using cudaMallocHost.

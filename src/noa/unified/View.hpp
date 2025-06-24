@@ -224,7 +224,7 @@ namespace noa {
 
         if (options.device.is_gpu()) {
             check(not change_device or
-                  options.allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL),
+                  options.allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL, Allocator::PITCHED_MANAGED),
                   "GPU memory {} cannot be reinterpreted as a CPU memory-region. "
                   "This is only supported for pinned and managed memory-regions",
                   options.allocator);
@@ -232,8 +232,8 @@ namespace noa {
             Stream& input_stream = Stream::current(options.device);
 
             #ifdef NOA_ENABLE_CUDA
-            if (parameters.prefetch and options.allocator.is_any(Allocator::MANAGED, Allocator::MANAGED_GLOBAL)) {
-                const auto n_elements = input.shape().n_elements();
+            if (parameters.prefetch and options.allocator.is_any(Allocator::MANAGED, Allocator::MANAGED_GLOBAL, Allocator::PITCHED_MANAGED)) {
+                const auto n_elements = ni::offset_at(input.strides(), input.shape().vec - 1) + 1;
                 using allocator_t = noa::cuda::AllocatorManaged<nt::mutable_value_type_t<input_t>>;
                 if (change_device)
                     allocator_t::prefetch_to_cpu(input.get(), n_elements, input_stream.cuda());
@@ -250,7 +250,7 @@ namespace noa {
         } else if (options.device.is_cpu() and (change_device or parameters.prefetch)) {
             if (change_device) {
                 check(Device::is_any_gpu(), "No GPU detected");
-                check(options.allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL),
+                check(options.allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL, Allocator::PITCHED_MANAGED),
                       "CPU memory-region with the allocator {} cannot be reinterpreted as a GPU memory-region. "
                       "This is only supported for pinned and managed memory-regions",
                       options.allocator);
@@ -258,14 +258,14 @@ namespace noa {
 
             #ifdef NOA_ENABLE_CUDA
             Device gpu_device;
-            if (options.allocator.is_any(Allocator::PINNED, Allocator::MANAGED)) {
+            if (options.allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::PITCHED_MANAGED)) {
                 // CUDA doesn't document what the attr.device is for managed memory. Hopefully this is the device
                 // against which the allocation was performed and not the current device. With "stream-attached"
                 // managed memory, it is up to the user to know what stream was used to perform the allocation.
                 const cudaPointerAttributes attr = noa::cuda::pointer_attributes(input.get());
                 gpu_device = Device(Device::GPU, attr.device, Device::Unchecked{});
                 check((options.allocator == Allocator::PINNED and attr.type == cudaMemoryTypeHost) or
-                      (options.allocator == Allocator::MANAGED and attr.type == cudaMemoryTypeManaged));
+                      (options.allocator.is_any(Allocator::MANAGED, Allocator::PITCHED_MANAGED) and attr.type == cudaMemoryTypeManaged));
 
             } else if (options.allocator == Allocator::MANAGED_GLOBAL) {
                 // This can be accessed from any stream and any GPU. It seems better to return the current
@@ -278,8 +278,8 @@ namespace noa {
                 options.device = gpu_device;
             }
 
-            if (parameters.prefetch and options.allocator.is_any(Allocator::MANAGED, Allocator::MANAGED_GLOBAL)) {
-                const auto n_elements = input.shape().n_elements();
+            if (parameters.prefetch and options.allocator.is_any(Allocator::MANAGED, Allocator::MANAGED_GLOBAL, Allocator::PITCHED_MANAGED)) {
+                const auto n_elements = ni::offset_at(input.strides(), input.shape().vec - 1) + 1;
                 auto& gpu_stream = Stream::current(gpu_device).cuda();
                 using allocator_t = noa::cuda::AllocatorManaged<nt::mutable_value_type_t<input_t>>;
                 if (change_device) {

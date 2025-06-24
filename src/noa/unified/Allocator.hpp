@@ -45,14 +45,24 @@ namespace noa::inline types {
 
             /// "Pitch" allocator.
             /// - \b Allocation: This is equivalent to DEFAULT, except for CUDA-capable devices. In this case,
-            ///   the CUDA driver will potentially pad the right side of each row of the ND array. The size of the row,
-            ///   including the padding, is called the "pitch". "Pitched" layouts can be useful to minimize the number
-            ///   of memory accesses on a given row (but may can increase the number of memory accesses for reading
-            ///   the whole array) and to reduce shared memory bank conflicts. It is recommended to use these layouts
-            ///   if the application is performing copies from/to 2d or 3d CUDA arrays.
+            ///   the CUDA driver will potentially pad the right side of the rows to preserve a minimum alignment.
+            ///   The size of the row, including the padding, is called the "pitch" in CUDA. "Pitched" layouts can be
+            ///   useful to minimize the number of memory accesses on a given row, but may can increase the number of
+            ///   memory accesses for reading the whole array. Due to the potentially increased per-row alignment,
+            ///   it can also be used to reduce shared memory bank conflicts. It is recommended to use these layouts
+            ///   if the application is performing copies from/to 2d or 3d CUDA arrays, or when manipulating a stack
+            ///   of row.
             /// - \b Accessibility: Allocated memory is private to the device that performed the allocation,
             ///   but can be used by any stream of that device.
-            PITCHED = 4,
+            PITCHED = 3,
+
+            /// "Pitch"-managed memory allocator.
+            /// - \b Allocation: Similar to PITCHED, but is implemented on the library side (it is not supported
+            ///   by CUDA itself) using the MANAGED allocator. The padding is computed to guarantee a per-row
+            ///   alignment of at least 256 bytes.
+            /// - \b Accessibility: Same as MANAGED.
+            PITCHED_MANAGED = 4,
+            PITCHED_UNIFIED = PITCHED_MANAGED,
 
             /// Page-locked (i.e. pinned) memory allocator.
             /// - \b Allocation: Pinned memory can be allocated by a CPU or a GPU device. Allocating excessive
@@ -63,7 +73,7 @@ namespace noa::inline types {
             /// - \b Accessibility: Can be accessed by the CPU, and the GPU against which the allocation was
             ///   performed. If the CPU device was used for allocation, this GPU is the "current" GPU at the
             ///   time of allocation. Concurrent access from the CPU and the GPU is illegal.
-            PINNED = 8,
+            PINNED = 5,
 
             /// Managed memory allocator.
             /// - \b Allocation: If the device is the CPU, the current GPU stream of the current GPU is used to
@@ -73,7 +83,7 @@ namespace noa::inline types {
             ///   was the NULL stream, this is equivalent to MANAGED_GLOBAL. Otherwise, the allocated memory on
             ///   the GPU side is private to the stream and the GPU that performed the allocation. Concurrent access
             ///   from the CPU and the GPU is illegal.
-            MANAGED = 16,
+            MANAGED = 6,
             UNIFIED = MANAGED,
 
             /// Managed memory allocator.
@@ -81,13 +91,13 @@ namespace noa::inline types {
             ///   efficient compared to a stream-private allocation with MANAGED.
             /// - \b Accessibility: Can be accessed by any stream and any device (CPU and GPU). Concurrent access
             ///   from the CPU and the GPU is illegal.
-            MANAGED_GLOBAL = 32,
+            MANAGED_GLOBAL = 7,
             UNIFIED_GLOBAL = MANAGED_GLOBAL,
 
             /// CUDA array.
             /// - \b Allocation: This is only supported by CUDA-capable devices and is only used for textures.
             /// - \b Accessibility: Can only be accessed via texture fetching on the device it was allocated on.
-            CUDA_ARRAY = 64
+            CUDA_ARRAY = 8
         } value{DEFAULT};
 
     public: // enum-like
@@ -190,6 +200,7 @@ namespace noa::inline types {
                         #endif
                     }
                 }
+                case Allocator::PITCHED_MANAGED:
                 case Allocator::MANAGED: {
                     if (device.is_cpu() and not Device::is_any(Device::GPU)) {
                         return noa::cpu::AllocatorHeap<T>::allocate(n_elements);
@@ -246,6 +257,20 @@ namespace noa::inline types {
                         } else {
                             return {noa::cuda::AllocatorDevice<T>::allocate(shape.n_elements()), shape.strides()};
                         }
+                        #else
+                        panic_no_gpu_backend();
+                        #endif
+                    }
+                }
+                case Allocator::PITCHED_MANAGED: {
+                    if (device.is_cpu()) {
+                        return {noa::cpu::AllocatorHeap<T>::allocate(shape.n_elements()), shape.strides()};
+                    } else {
+                        #ifdef NOA_ENABLE_CUDA
+                        const DeviceGuard guard(device);
+                        auto& cuda_stream = Stream::current(device).cuda();
+                        auto [ptr, strides] = noa::cuda::AllocatorManagedPadded<T>::allocate(shape, cuda_stream);
+                        return {std::move(ptr), strides};
                         #else
                         panic_no_gpu_backend();
                         #endif
