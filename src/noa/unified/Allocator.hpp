@@ -281,6 +281,9 @@ namespace noa::inline types {
             }
         }
 
+        /// Check that the pointer matches the allocator and device.
+        void validate(const void* ptr, const Device& device);
+
     private:
         static Enum parse_(std::string_view name);
     };

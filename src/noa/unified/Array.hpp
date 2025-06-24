@@ -119,7 +119,7 @@ namespace noa::inline types {
             m_shared(std::forward<SharedPtr>(data)),
             m_options{option}
         {
-            validate_(get(), option);
+            allocator().validate(get(), device());
         }
 
         /// Creates an array from an existing allocated memory region.
@@ -139,7 +139,7 @@ namespace noa::inline types {
             m_shared(std::forward<SharedPtr>(data)),
             m_options{option}
         {
-            validate_(get(), option);
+            allocator().validate(get(), device());
         }
 
         /// If an exception is thrown, make sure to synchronize the stream to guarantee that functions called
@@ -477,68 +477,6 @@ namespace noa::inline types {
                 noa::tie(m_shared, m_strides) = allocator().template allocate_pitched<value_type>(shape(), device());
             } else {
                 m_shared = allocator().template allocate<value_type>(n_elements(), device());
-            }
-        }
-
-        static void validate_(const void* ptr, ArrayOption option) {
-            check(option.allocator != Allocator::CUDA_ARRAY,
-                  "CUDA arrays are not supported by the Array class. Use a Texture instead");
-            check(option.allocator != Allocator::NONE or ptr == nullptr,
-                  "{} is for nullptr only", Allocator::NONE);
-
-            if (option.device.is_cpu()) {
-                if (not Device::is_any_gpu())
-                    return; // Everything is allocated using AllocatorHeap
-                #ifdef NOA_ENABLE_CUDA
-                const cudaPointerAttributes attr = noa::cuda::pointer_attributes(ptr);
-                switch (attr.type) {
-                    case cudaMemoryTypeUnregistered:
-                        check(option.allocator.is_any(Allocator::DEFAULT, Allocator::DEFAULT_ASYNC, Allocator::PITCHED),
-                              "Attempting to create a CPU array with {} from a CPU-only (CUDA unregistered) memory region",
-                              option.allocator);
-                        break;
-                    case cudaMemoryTypeHost:
-                        check(option.allocator == Allocator::PINNED,
-                              "Attempting to create a CPU array with {} from a pinned memory region",
-                              option.allocator);
-                        break;
-                    case cudaMemoryTypeDevice:
-                        panic("Attempting to create an CPU array that points to a GPU-only memory region");
-                    case cudaMemoryTypeManaged:
-                        check(option.allocator.is_any(
-                                  Allocator::DEFAULT, Allocator::DEFAULT_ASYNC, Allocator::PITCHED,
-                                  Allocator::MANAGED, Allocator::MANAGED_GLOBAL),
-                              "Attempting to create an CPU array with {} from a (CUDA) managed pointer",
-                              option.allocator);
-                        break;
-                }
-                #endif
-
-            } else if (option.device.is_gpu()) {
-                #ifdef NOA_ENABLE_CUDA
-                const cudaPointerAttributes attr = noa::cuda::pointer_attributes(ptr);
-                switch (attr.type) {
-                    case cudaMemoryTypeUnregistered:
-                        panic("Attempting to create GPU array from a CPU-only (CUDA unregistered) memory region");
-                    case cudaMemoryTypeHost:
-                        check(option.allocator == Allocator::PINNED,
-                              "Attempting to create a GPU array with {} from a pinned memory region",
-                              option.allocator);
-                        break;
-                    case cudaMemoryTypeDevice:
-                        check(attr.device == option.device.id(),
-                              "Attempting to create a GPU array with a device ID of {} from a memory region "
-                              "located on another device (ID={})", option.device.id(), attr.device);
-                        break;
-                    case cudaMemoryTypeManaged:
-                        check(option.allocator.is_any(
-                                  Allocator::DEFAULT, Allocator::DEFAULT_ASYNC, Allocator::PITCHED,
-                                  Allocator::MANAGED, Allocator::MANAGED_GLOBAL),
-                              "Attempting to create a GPU array with {} from a (CUDA) managed pointer",
-                              option.allocator);
-                        break;
-                }
-                #endif
             }
         }
 
