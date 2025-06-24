@@ -252,17 +252,6 @@ namespace noa::inline types {
             return View<U>(get(), shape(), strides(), options());
         }
 
-        auto drop() & -> Array {
-            Array out = *this;
-            *this = Array{};
-            return out;
-        }
-        auto drop() && -> Array {
-            Array out = std::move(*this);
-            *this = Array{};
-            return out;
-        }
-
     public: // Deep copy
         /// Performs a deep copy of the array to \p output.
         /// \details Contiguous regions of memory have no copy restrictions and can be copied to any device. This is
@@ -314,6 +303,18 @@ namespace noa::inline types {
         }
         [[nodiscard]] auto copy() && -> Array {
             return std::move(*this).to(options());
+        }
+
+        /// Drops the resource of this array into the returned array.
+        auto drop() & -> Array {
+            Array out = *this;
+            *this = Array{};
+            return out;
+        }
+        auto drop() && -> Array {
+            Array out = std::move(*this);
+            *this = Array{};
+            return out;
         }
 
         /// Returns a copy of the first value in the array.
