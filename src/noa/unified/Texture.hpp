@@ -295,8 +295,8 @@ namespace noa::inline types {
             return *this;
         }
 
-        /// Releases the texture. The current instance is left empty.
-        auto release() noexcept -> Texture {
+        /// Drops the resource of this texture into the returned texture.
+        auto drop() noexcept -> Texture {
             return std::exchange(*this, Texture{});
         }
 

@@ -305,18 +305,6 @@ namespace noa::inline types {
             return std::move(*this).to(options());
         }
 
-        /// Drops the resource of this array into the returned array.
-        auto drop() & -> Array {
-            Array out = *this;
-            *this = Array{};
-            return out;
-        }
-        auto drop() && -> Array {
-            Array out = std::move(*this);
-            *this = Array{};
-            return out;
-        }
-
         /// Returns a copy of the first value in the array.
         /// Note that the stream of the array's device is synchronized when this functions returns.
         [[nodiscard]] auto first() const -> value_type {
@@ -434,10 +422,16 @@ namespace noa::inline types {
             return *this;
         }
 
-        /// Releases the array. *this is left empty.
-        /// \note This effectively does a move with a guaranteed reset of the array.
-        Array release() noexcept {
-            return std::exchange(*this, Array{});
+        /// Drops the resource of this array into the returned array.
+        auto drop() & -> Array {
+            Array out = *this;
+            *this = Array{};
+            return out;
+        }
+        auto drop() && -> Array {
+            Array out = std::move(*this);
+            *this = Array{};
+            return out;
         }
 
     public:

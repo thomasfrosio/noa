@@ -584,9 +584,9 @@ namespace noa::inline types {
             return *this;
         }
 
-        /// Releases the view. *this is left empty.
-        /// \note This effectively does a move with a guaranteed reset of the view.
-        View release() noexcept {
+        /// Returns the view and reset this view to an empty view.
+        /// \note drop() is more meaningful for Array.
+        View drop() noexcept {
             return std::exchange(*this, View{});
         }
 
