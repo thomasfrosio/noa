@@ -104,8 +104,12 @@ namespace noa {
         return ++x;
     }
 
-    template<nt::uinteger T>
-    [[nodiscard]] NOA_FHD constexpr auto next_multiple_of(T value, std::type_identity_t<T> base) noexcept -> T { return (value + base - 1) / base * base; }
+    /// Rounds up to the nearest multiple of a number.
+    /// \warning This should only be used for positive numbers, and the base should be greater than zero.
+    template<nt::integer T>
+    [[nodiscard]] NOA_FHD constexpr auto next_multiple_of(T value, std::type_identity_t<T> base) noexcept -> T {
+        return ((value + base - 1) / base) * base;
+    }
 
     template<nt::integer T>
     [[nodiscard]] NOA_FHD constexpr auto is_multiple_of(T value, std::type_identity_t<T> base) noexcept -> bool { return (value % base) == 0; }
