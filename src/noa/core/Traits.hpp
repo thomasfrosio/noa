@@ -87,6 +87,22 @@ namespace noa::traits {
     // std::conjunction equivalent that default to false_type if no types are specified.
     template<typename... T> struct conjunction_or_false : std::conjunction<T...> {};
     template<> struct conjunction_or_false<> : std::false_type {};
+
+    template<typename... Ts>
+    struct largest_type;
+
+    template<typename T>
+    struct largest_type<T> {
+        using type = T;
+    };
+
+    template<typename T, typename U, typename... Ts>
+    struct largest_type<T, U, Ts...> {
+        using type = typename largest_type<typename std::conditional<(sizeof(U) <= sizeof(T)), T, U>::type, Ts...>::type;
+    };
+
+    template<typename... Ts>
+    using largest_type_t = typename largest_type<Ts...>::type;
 }
 
 namespace noa::traits {
