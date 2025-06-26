@@ -49,10 +49,10 @@ namespace noa {
              typename Outputs = ng::AdaptorUnzip<>,
              typename Operator>
     void reduce_ewise(
-            Inputs&& inputs,
-            Reduced&& reduced,
-            Outputs&& outputs,
-            Operator&& op
+        Inputs&& inputs,
+        Reduced&& reduced,
+        Outputs&& outputs,
+        Operator&& op
     ) {
         static_assert(ng::adaptor_decay<Outputs> or std::is_lvalue_reference_v<Outputs>,
                       "Output values should be lvalue references");
@@ -113,10 +113,10 @@ namespace noa::guts {
     template<ReduceEwiseOptions OPTIONS, bool ZIP_INPUTS, bool ZIP_REDUCED, bool ZIP_OUTPUTS,
              typename Inputs, typename Reduced, typename Outputs, typename Op>
     constexpr void reduce_ewise(
-            Inputs&& inputs,
-            Reduced&& reduced,
-            Outputs&& outputs,
-            Op&& op
+        Inputs&& inputs,
+        Reduced&& reduced,
+        Outputs&& outputs,
+        Op&& op
     ) {
         constexpr i64 index_of_first_varray = ng::index_of_first_varray<Inputs>();
         static_assert(index_of_first_varray >= 0, "There should be at least one input varray");
@@ -220,11 +220,11 @@ namespace noa::guts {
                     OPTIONS.gpu_max_grid_size,
                     OPTIONS.gpu_enable_vectorization>;
                 noa::cuda::reduce_ewise<config>(
-                        shape, std::forward<Op>(op),
-                        std::move(input_accessors),
-                        std::move(reduced_accessors),
-                        output_accessors,
-                        cuda_stream);
+                    shape, std::forward<Op>(op),
+                    std::move(input_accessors),
+                    std::move(reduced_accessors),
+                    output_accessors,
+                    cuda_stream);
                 if constexpr (not use_device_memory)
                     cuda_stream.synchronize();
 
