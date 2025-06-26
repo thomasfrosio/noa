@@ -60,6 +60,8 @@ TEST_CASE("unified::Stream") {
             REQUIRE(Stream::current(gpu).device() == gpu);
         }
         REQUIRE(Stream::current(gpu).device() == gpu);
+
+        Device::set_current(Device("gpu"));
     }
 
     // Thread limit.

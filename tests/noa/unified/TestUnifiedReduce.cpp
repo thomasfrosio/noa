@@ -79,15 +79,14 @@ TEST_CASE("unified::reduce - complex vs numpy", "[assets]") {
     const auto output_filename = path / tests["output_path"].as<Path>();
 
     const YAML::Node expected = YAML::LoadFile(output_filename);
-    const c32 expected_sum{expected["sum_real"].as<f32>(),
-                           expected["sum_imag"].as<f32>()};
-    const c32 expected_mean{expected["mean_real"].as<f32>(),
-                            expected["mean_imag"].as<f32>()};
-    const auto expected_norm = expected["norm"].as<f32>();
-    const auto expected_std = expected["std"].as<f32>();
-    const auto expected_var = expected["var"].as<f32>();
+    const c64 expected_sum{expected["sum_real"].as<f64>(), expected["sum_imag"].as<f64>()};
+    const c64 expected_mean{expected["mean_real"].as<f64>(), expected["mean_imag"].as<f64>()};
+    const auto expected_norm = expected["norm"].as<f64>();
+    const auto expected_std = expected["std"].as<f64>();
+    const auto expected_var = expected["var"].as<f64>();
 
-    auto data = noa::io::read_data<c32>(input_filename);
+    auto data = noa::io::read_data<c64>(input_filename);
+
     REQUIRE(noa::all(data.shape() == shape));
 
     std::vector<Device> devices{"cpu"};

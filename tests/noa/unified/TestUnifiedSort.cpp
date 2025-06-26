@@ -31,6 +31,7 @@ TEST_CASE("unified::sort", "[asset]") {
         REQUIRE((noa::all(input.shape() == shape) and noa::all(expected.shape() == shape)));
 
         for (auto& device: devices) {
+            const auto guard = DeviceGuard(device);
             const auto options = ArrayOption(device, Allocator::MANAGED);
             input = input.device().is_gpu() ? input.to(options) : input;
             expected = expected.device().is_gpu() ? expected.to(options) : expected;

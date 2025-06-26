@@ -25,6 +25,7 @@ TEMPLATE_TEST_CASE("unified::randomize()", "", f32, f64) {
     test::fill(data.get(), data.n_elements(), 20);
 
     for (auto& device: devices) {
+        const auto guard = DeviceGuard(device);
         const auto stream = StreamGuard(device);
         const auto options = ArrayOption(device, "managed");
         INFO(device);
@@ -54,7 +55,7 @@ TEMPLATE_TEST_CASE("unified::randomize()", "", f32, f64) {
     }
 }
 
-TEST_CASE("core::random_generator(), random_value()") {
+TEST_CASE("unified::random_generator(), random_value()") {
     auto distribution = noa::Uniform(-10., 10.);
     auto random_generator = noa::random_generator(distribution);
 
