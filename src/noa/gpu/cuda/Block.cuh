@@ -14,6 +14,90 @@
 // We add some logic to support types that default initializes, but this seems to have been fixed in 11.7
 // (nvcc zero initializes by default). I couldn't find it in the changelog though, but it does compile...
 
+namespace noa::cuda {
+    /// Sets up the grid necessary for the block to loop through the problem size.
+    /// This grid can be divided into multiple kernel launches to bypass CUDA's grid-size limits.
+    /// \param T    Integer type used by the kernel for indexing.
+    /// \param S    CUDA maximum grid size along the dimension.
+    template<i64 S>
+    class Grid {
+    public:
+        constexpr Grid(nt::integer auto size, u32 block_work_size) {
+            m_n_blocks_total = divide_up(safe_cast<i64>(size), static_cast<i64>(block_work_size));
+            m_n_blocks_per_launch = min(m_n_blocks_total, S);
+            m_n_launches = safe_cast<u32>(divide_up(m_n_blocks_total, m_n_blocks_per_launch));
+
+            auto max_offset = m_n_blocks_per_launch * static_cast<i64>(m_n_launches - 1);
+            check(is_safe_cast<u32>(max_offset),
+                  "The grid offset is larger than the maximum supported offset. "
+                  "size={}, block_work_size={}, max_grid_size={}",
+                  size, block_work_size, S);
+        }
+
+        [[nodiscard]] constexpr auto n_launches() const -> u32 { return m_n_launches; }
+        [[nodiscard]] constexpr auto n_blocks_total() const -> i64 { return m_n_blocks_total; }
+        [[nodiscard]] constexpr auto n_blocks(u32 launch) const -> u32 {
+            auto offset = m_n_blocks_per_launch * static_cast<i64>(launch);
+            auto left = m_n_blocks_total - offset;
+            return static_cast<u32>(std::min(left, m_n_blocks_per_launch));
+        }
+        [[nodiscard]] constexpr auto offset(u32 launch) const -> u32 {
+            return static_cast<u32>(m_n_blocks_per_launch * static_cast<i64>(launch));
+        }
+
+    private:
+        i64 m_n_blocks_total;
+        i64 m_n_blocks_per_launch;
+        u32 m_n_launches;
+    };
+
+    template<i64 S>
+    class GridFused {
+    public:
+        constexpr GridFused(
+            nt::integer auto size_x,
+            nt::integer auto size_y,
+            u32 block_work_size_x,
+            u32 block_work_size_y
+        ) {
+            const i64 n_blocks_x = divide_up(safe_cast<i64>(size_x), static_cast<i64>(block_work_size_x));
+            const i64 n_blocks_y = divide_up(safe_cast<i64>(size_y), static_cast<i64>(block_work_size_y));
+            m_n_blocks_x = safe_cast<u32>(n_blocks_x);
+            m_n_blocks_total = n_blocks_x * n_blocks_y;
+            m_n_blocks_per_launch = min(m_n_blocks_total, S);
+            m_n_launches = safe_cast<u32>(divide_up(m_n_blocks_total, m_n_blocks_per_launch));
+
+            auto max_offset = m_n_blocks_per_launch * static_cast<i64>(m_n_launches - 1);
+            check(is_safe_cast<u32>(max_offset),
+                  "The grid offset is larger than the maximum supported offset. "
+                  "size_x={}, size_y={}, block_work_size_x={}, block_work_size_y={}, max_grid_size={}",
+                  size_x, size_y, block_work_size_x, block_work_size_y, S);
+        }
+        [[nodiscard]] constexpr auto n_launches() const -> u32 { return m_n_launches; }
+        [[nodiscard]] constexpr auto n_blocks_total() const -> i64 { return m_n_blocks_total; }
+        [[nodiscard]] constexpr auto n_blocks_x() const -> u32 { return m_n_blocks_x; }
+        [[nodiscard]] constexpr auto n_blocks(u32 launch) const -> u32 {
+            auto offset = m_n_blocks_per_launch * static_cast<i64>(launch);
+            auto left = m_n_blocks_total - offset;
+            return static_cast<u32>(std::min(left, m_n_blocks_per_launch));
+        }
+        [[nodiscard]] constexpr auto offset(u32 launch) const -> u32 {
+            return static_cast<u32>(m_n_blocks_per_launch * static_cast<i64>(launch));
+        }
+
+    private:
+        i64 m_n_blocks_per_launch;
+        i64 m_n_blocks_total;
+        u32 m_n_launches;
+        u32 m_n_blocks_x;
+    };
+
+    using GridX = Grid<2'147'483'647>;
+    using GridY = Grid<65'535>;
+    using GridZ = Grid<65'535>;
+    using GridXY = GridFused<2'147'483'647>;
+}
+
 namespace noa::cuda::guts {
     template<typename Tup>
     struct vectorized_tuple { using type = Tup; };
@@ -48,6 +132,30 @@ namespace noa::cuda::guts {
     /// TODO Cooperative groups may be the way to go and do offer more granularity.
     NOA_FD void block_synchronize() {
         __syncthreads();
+    }
+
+    template<nt::integer T = u32, size_t N = 3>
+    NOA_HD auto block_indices() -> Vec<T, N> {
+        if constexpr (N == 3)
+            return Vec<T, N>::from_values(blockIdx.z, blockIdx.y, blockIdx.x);
+        else if constexpr (N == 2)
+            return Vec<T, N>::from_values(blockIdx.y, blockIdx.x);
+        else if constexpr (N == 1)
+            return Vec<T, N>::from_values(blockIdx.x);
+        else
+            return Vec<T, 0>{};
+    }
+
+    template<nt::integer T = u32, size_t N = 3>
+    NOA_HD auto thread_indices() -> Vec<T, N> {
+        if constexpr (N == 3)
+            return Vec<T, N>::from_values(threadIdx.z, threadIdx.y, threadIdx.x);
+        else if constexpr (N == 2)
+            return Vec<T, N>::from_values(threadIdx.y, threadIdx.x);
+        else if constexpr (N == 1)
+            return Vec<T, N>::from_values(threadIdx.x);
+        else
+            return Vec<T, 0>{};
     }
 
     /// Returns a per-thread unique ID, i.e. each thread in the grid gets a unique value.

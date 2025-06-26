@@ -1,18 +1,20 @@
 #include <noa/core/types/Accessor.hpp>
 #include <noa/gpu/cuda/Allocators.hpp>
 #include <noa/gpu/cuda/Iwise.cuh>
+#include <noa/gpu/cuda/Event.hpp>
 
 #include "Catch.hpp"
 #include "Utils.hpp"
 
 namespace {
     using namespace noa::types;
+    namespace ni = noa::indexing;
 
     struct Tracked {
         Vec<i32, 2> count{};
         constexpr Tracked() = default;
         NOA_HD constexpr Tracked(const Tracked& t) : count(t.count) { count[0] += 1; }
-        NOA_HD constexpr Tracked(Tracked&& t)  noexcept : count(t.count) { count[1] += 1; }
+        // NOA_HD constexpr Tracked(Tracked&& t) noexcept : count(t.count) { count[1] += 1; }
     };
 
     struct Op {
@@ -22,6 +24,63 @@ namespace {
             ptr[i] = tracked.count;
         }
     };
+
+    template<size_t N>
+    struct IwiseCopy {
+        SpanContiguous<i64, N> span;
+        NOA_HD constexpr void operator()(auto... indices) const {
+            span(indices...) = ni::is_inbounds(span.shape(), indices...) ?
+                ni::offset_at(span.strides_full(), indices...) : -1;
+        }
+    };
+}
+
+TEST_CASE("cuda::iwise - multi-launch") {
+    using namespace noa::types;
+    using noa::cuda::iwise;
+    using noa::cuda::Stream;
+    using noa::cuda::Device;
+    using noa::cuda::AllocatorManaged;
+
+    Stream stream(Device::current(), Stream::DEFAULT);
+
+    {
+        auto shape = Shape4<i64>{70001, 10, 10, 32};
+        auto ptr = AllocatorManaged<i64>::allocate(shape.n_elements(), stream);
+        auto span = Span(ptr.get(), shape);
+
+        iwise(shape, IwiseCopy{span}, stream);
+        stream.synchronize();
+
+        bool is_ok{true};
+        for (i64 i{}; auto& e: span.as_1d()) {
+            if (e != i) {
+                is_ok = false;
+                break;
+            }
+            ++i;
+        }
+        REQUIRE(is_ok);
+    }
+    {
+        auto shape = Shape3<i64>{70001, 10, 32};
+        auto ptr = AllocatorManaged<i64>::allocate(shape.n_elements(), stream);
+        auto span = Span(ptr.get(), shape);
+
+        iwise(shape, IwiseCopy{span}, stream);
+        stream.synchronize();
+
+        bool is_ok{true};
+        for (i64 i{}; auto& e: span.as_1d()) {
+            if (e != i) {
+                is_ok = false;
+                break;
+            }
+            ++i;
+        }
+        REQUIRE(is_ok);
+    }
+
 }
 
 TEST_CASE("cuda::iwise") {
@@ -45,8 +104,8 @@ TEST_CASE("cuda::iwise") {
 
         iwise(shape, std::move(op0), stream); // operator is moved once into the kernel
         stream.synchronize();
-        REQUIRE((value[0][0] == 0 and value[0][1] == 1));
-        REQUIRE((value[1][0] == 0 and value[1][1] == 1));
+        REQUIRE((value[0][0] == 1 and value[0][1] == 0));
+        REQUIRE((value[1][0] == 1 and value[1][1] == 0));
     }
 
     AND_THEN("1d") {

@@ -157,6 +157,18 @@ namespace noa::cuda::guts {
 }
 
 namespace noa::cuda::guts {
+    void ewise_offset_accessors(const auto& offset, auto& inputs, auto& outputs) {
+        auto ld = [&]<typename T>(T& accessor) {
+            if constexpr (nt::accessor_pure<T>) {
+                auto strides = accessor.strides_full().template as<i64>();
+                auto ptr = accessor.data() + ni::offset_at(strides, offset);
+                accessor.reset_pointer(ptr);
+            }
+        };
+        inputs.for_each(ld);
+        outputs.for_each(ld);
+    }
+
     // nvcc bug - this could be a lambda, but nvcc <=12.6 is broken...
     template<size_t ALIGNMENT, typename Config, typename Input, typename Output,  typename Op, typename Index>
     void launch_ewise_2d(
@@ -182,21 +194,33 @@ namespace noa::cuda::guts {
         auto output_2d = ng::reconfig_accessors<to_2d>(std::forward<Output>(output));
 
         using config_t = EwiseConfig1dBlock<Config, VEC_SIZE>;
-        const auto n_blocks_x = divide_up(n_elements, static_cast<Index>(config_t::block_work_size));
-        const auto launch_config = LaunchConfig{
-            .n_blocks = dim3(static_cast<u32>(n_blocks_x), batch, 1u),
-            .n_threads = dim3(config_t::block_size, 1u, 1u),
-        };
+        auto grid_x = GridX(n_elements, config_t::block_work_size);
+        auto grid_y = GridY(batch, 1);
 
-        if constexpr (VECTORIZE) {
-            stream.enqueue(
-                guts::ewise_2d_vectorized
-                <config_t, op_t, Index, decltype(input_2d), iv_t, decltype(output_2d), ov_t>,
-                launch_config, std::forward<Op>(op), std::move(input_2d), std::move(output_2d), n_elements);
-        } else {
-            stream.enqueue(
-                guts::ewise_2d<config_t, op_t, decltype(input_2d), decltype(output_2d), Index>,
-                launch_config, std::forward<Op>(op), std::move(input_2d), std::move(output_2d), n_elements);
+        for (u32 y{}; y < grid_y.n_launches(); ++y) {
+            for (u32 x{}; x < grid_x.n_launches(); ++x) {
+                // Add that offset to each accessor. This cannot break the row alignment.
+                auto offset = Vec{grid_y.offset(y), grid_x.offset(x)}.template as<i64>();
+                offset[1] *= config_t::block_work_size;
+                ewise_offset_accessors(offset, input_2d, output_2d);
+
+                // Launch the grid.
+                const auto config = LaunchConfig{
+                    .n_blocks = dim3(grid_x.n_blocks(x), grid_y.n_blocks(y)),
+                    .n_threads = dim3(config_t::block_size, 1),
+                };
+                if constexpr (VECTORIZE) {
+                    stream.enqueue(
+                        guts::ewise_2d_vectorized<config_t, op_t, Index, decltype(input_2d), iv_t, decltype(output_2d), ov_t>,
+                        config, op, input_2d, output_2d, n_elements
+                    );
+                } else {
+                    stream.enqueue(
+                        guts::ewise_2d<config_t, op_t, decltype(input_2d), decltype(output_2d), Index>,
+                        config, op, input_2d, output_2d, n_elements
+                    );
+                }
+            }
         }
     }
 }
@@ -212,7 +236,7 @@ namespace noa::cuda {
              bool EnableVectorization = true>
     struct EwiseConfig {
         static_assert(is_power_of_2(ElementsPerThread));
-        static_assert(is_power_of_2(BlockSize) and BlockSize <= Limits::MAX_THREADS);
+        static_assert(is_power_of_2(BlockSize) and BlockSize >= Constant::WARP_SIZE and BlockSize <= Limits::MAX_THREADS);
 
         using interface = ng::EwiseInterface<ZipInput, ZipOutput>;
         static constexpr u32 block_size = BlockSize;
@@ -259,50 +283,69 @@ namespace noa::cuda {
                         std::forward<Op>(op),
                         std::forward<Input>(input),
                         std::forward<Output>(output),
-                        stream, n_elements, batch);
+                        stream, n_elements, batch
+                    );
                 } else if (alignment == 8) {
                     return guts::launch_ewise_2d<8, Config>(
                         std::forward<Op>(op),
                         std::forward<Input>(input),
                         std::forward<Output>(output),
-                        stream, n_elements, batch);
+                        stream, n_elements, batch
+                    );
                 } else if (alignment == 4) {
                     return guts::launch_ewise_2d<4, Config>(
                         std::forward<Op>(op),
                         std::forward<Input>(input),
                         std::forward<Output>(output),
-                        stream, n_elements, batch);
+                        stream, n_elements, batch
+                    );
                 } else if (alignment == 2) {
                     return guts::launch_ewise_2d<2, Config>(
                         std::forward<Op>(op),
                         std::forward<Input>(input),
                         std::forward<Output>(output),
-                        stream, n_elements, batch);
+                        stream, n_elements, batch
+                    );
                 }
             }
-
             guts::launch_ewise_2d<1, Config>(
                 std::forward<Op>(op),
                 std::forward<Input>(input),
                 std::forward<Output>(output),
-                stream, n_elements, batch);
-
+                stream, n_elements, batch
+            );
         } else {
             using config_t = guts::EwiseConfig2dBlock<Config>;
-            const auto shape_u32 = shape.template as<u32>();
-            const u32 n_blocks_x = divide_up(shape_u32[3], config_t::block_work_size_x);
-            const u32 n_blocks_y = divide_up(shape_u32[2], config_t::block_work_size_y);
-            const auto launch_config = LaunchConfig{
-                .n_blocks = dim3(n_blocks_x * n_blocks_y, shape_u32[1], shape_u32[0]),
-                .n_threads = dim3(config_t::block_size_x, config_t::block_size_y, 1u),
-            };
-            stream.enqueue(
-                guts::ewise_4d<config_t, op_t, input_t, output_t, Index>,
-                launch_config,
-                std::forward<Op>(op),
-                std::forward<Input>(input),
-                std::forward<Output>(output),
-                shape.filter(2, 3), n_blocks_x);
+            auto grid_x = GridXY(shape[3], shape[2], config_t::block_work_size_x, config_t::block_work_size_y);
+            auto grid_y = GridY(shape[1], 1);
+            auto grid_z = GridZ(shape[0], 1);
+
+            // Save mutable versions of the accessors since we may need to offset them in-place.
+            auto input_mut = std::forward<Input>(input);
+            auto output_mut = std::forward<Output>(output);
+
+            // Launch the grid.
+            for (u32 z{}; z < grid_z.n_launches(); ++z) {
+                for (u32 y{}; y < grid_y.n_launches(); ++y) {
+                    for (u32 x{}; x < grid_x.n_launches(); ++x) {
+                        // Compute and add the 4d index offset to each accessor.
+                        auto offset_yx = ni::offset2index(grid_x.offset(x), grid_x.n_blocks_x());
+                        auto offset = Vec{grid_z.offset(z), grid_y.offset(y)}.push_back(offset_yx).template as<i64>();
+                        offset[2] *= config_t::block_work_size_y;
+                        offset[3] *= config_t::block_work_size_x;
+                        guts::ewise_offset_accessors(offset, input_mut, output_mut);
+
+                        const auto config = LaunchConfig{
+                            .n_blocks = dim3(grid_x.n_blocks(x), grid_y.n_blocks(y), grid_z.n_blocks(z)),
+                            .n_threads = dim3(config_t::block_size_x, config_t::block_size_y),
+                        };
+                        stream.enqueue(
+                            guts::ewise_4d<config_t, op_t, input_t, output_t, Index>,
+                            config, op, input_mut, output_mut, shape.filter(2, 3), grid_x.n_blocks_x()
+                        );
+                    }
+                }
+            }
         }
     }
 }

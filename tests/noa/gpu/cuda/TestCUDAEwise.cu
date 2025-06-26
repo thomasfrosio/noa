@@ -57,13 +57,13 @@ TEST_CASE("cuda::ewise") {
         // Operator is copied once to the kernel
         ewise(shape, op0, input, output_contiguous, stream);
         stream.synchronize();
-        REQUIRE((value[0][0] == 1 and value[0][1] == 1));
+        REQUIRE((value[0][0] == 2 and value[0][1] == 0));
         REQUIRE((value[1][0] == 1 and value[1][1] == 0));
 
         ewise(shape, std::move(op0), std::move(input), output_contiguous, stream);
         stream.synchronize();
-        REQUIRE((value[0][0] == 0 and value[0][1] == 2));
-        REQUIRE((value[1][0] == 0 and value[1][1] == 1));
+        REQUIRE((value[0][0] == 1 and value[0][1] == 1));
+        REQUIRE((value[1][0] == 1 and value[1][1] == 0));
 
         // Create a non-contiguous case by broadcasting.
         auto shape_strided = Shape4<i64>{1, 1, 2, 1};
@@ -73,18 +73,18 @@ TEST_CASE("cuda::ewise") {
 
         ewise(shape_strided, op1, input, output_strided, stream);
         stream.synchronize();
-        REQUIRE((value[0][0] == 1 and value[0][1] == 1));
+        REQUIRE((value[0][0] == 2 and value[0][1] == 1));
         REQUIRE((value[1][0] == 1 and value[1][1] == 0));
 
         ewise(shape_strided, std::move(op1), std::move(input), output_strided, stream);
         stream.synchronize();
-        REQUIRE((value[0][0] == 0 and value[0][1] == 2));
-        REQUIRE((value[1][0] == 0 and value[1][1] == 1));
+        REQUIRE((value[0][0] == 1 and value[0][1] == 2));
+        REQUIRE((value[1][0] == 1 and value[1][1] == 0));
     }
 
     SECTION("simply fill and copy") {
-        constexpr auto shape = Shape4<i64>{1, 1, 1, 512}; // test::get_random_shape4_batched(4);
-        constexpr auto elements = shape.n_elements();
+        const auto shape = test::random_shape<i64, 4>(4);
+        const auto elements = shape.n_elements();
         constexpr auto value = 3.1415;
 
         const auto buffer = AllocatorManaged<f64>::allocate(elements, stream);
@@ -94,7 +94,7 @@ TEST_CASE("cuda::ewise") {
         {
             // This is not vectorized.
             const auto input = noa::make_tuple(Accessor<f64, 4, i64>(buffer.get(), shape.strides()));
-            ewise(shape, [value]__device__(f64& i) { i = value; }, input, Tuple<>{}, stream);
+            ewise(shape, [value]__device__(f64& i) { i = value; }, input, Tuple{}, stream);
             stream.synchronize();
             REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 1e-8));
 
@@ -267,4 +267,62 @@ TEMPLATE_TEST_CASE("cuda::ewise - copy", "", i8, i16, i32, i64, c16, c32, c64) {
         stream.synchronize();
         REQUIRE(test::allclose_abs(buffer.get(), expected.get(), n_elements, 1e-6));
     }
+}
+
+TEST_CASE("cuda::ewise - multi-grid - 2d") {
+    using namespace noa::types;
+    using namespace noa::cuda;
+    namespace ni = noa::indexing;
+
+    const auto shape = Shape<i64, 4>{140'000, 1, 1, 512};
+    const auto n_elements = shape.n_elements();
+
+    auto stream = Stream(Device::current());
+    const auto buffer = AllocatorManaged<f32>::allocate(n_elements, stream);
+    test::fill(buffer.get(), n_elements, 0.f);
+
+    const auto original = Span(buffer.get(), shape);
+
+    {
+        const auto strided = original.subregion(ni::Slice{0, shape[0], 2});
+        const auto accessors = noa::make_tuple(AccessorI64<f32, 4>(strided.get(), strided.strides_full()));
+        ewise(strided.shape(), []NOA_DEVICE(f32& e){ e += 1; }, accessors, Tuple{}, stream);
+    }
+    {
+        const auto strided = original.subregion(ni::Slice{1, shape[0], 2});
+        const auto accessors = noa::make_tuple(AccessorI64<f32, 4>(strided.get(), strided.strides_full()));
+        ewise(strided.shape(), []NOA_DEVICE(f32& e){ e += 1; }, accessors, Tuple{}, stream);
+    }
+
+    stream.synchronize();
+    REQUIRE(test::allclose_abs(buffer.get(), 1.f, n_elements, 1e-8));
+}
+
+TEST_CASE("cuda::ewise - multi-grid - 4d") {
+    using namespace noa::types;
+    using namespace noa::cuda;
+    namespace ni = noa::indexing;
+
+    const auto shape = Shape<i64, 4>{1, 140'000, 1, 512};
+    const auto n_elements = shape.n_elements();
+
+    auto stream = Stream(Device::current());
+    const auto buffer = AllocatorManaged<f32>::allocate(n_elements, stream);
+    test::fill(buffer.get(), n_elements, 0.f);
+
+    const auto original = Span(buffer.get(), shape);
+
+    {
+        const auto strided = original.subregion(ni::FullExtent{}, ni::Slice{0, shape[1], 2});
+        const auto accessors = noa::make_tuple(AccessorI64<f32, 4>(strided.get(), strided.strides_full()));
+        ewise(strided.shape(), []NOA_DEVICE(f32& e){ e += 1; }, accessors, Tuple{}, stream);
+    }
+    {
+        const auto strided = original.subregion(ni::FullExtent{}, ni::Slice{1, shape[1], 2});
+        const auto accessors = noa::make_tuple(AccessorI64<f32, 4>(strided.get(), strided.strides_full()));
+        ewise(strided.shape(), []NOA_DEVICE(f32& e){ e += 1; }, accessors, Tuple{}, stream);
+    }
+
+    stream.synchronize();
+    REQUIRE(test::allclose_abs(buffer.get(), 1.f, n_elements, 1e-8));
 }
