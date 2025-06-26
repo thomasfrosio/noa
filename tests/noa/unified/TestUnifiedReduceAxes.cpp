@@ -54,7 +54,7 @@ TEST_CASE("unified::reduce - axis reductions vs numpy", "[assets]") {
 
             expected = noa::io::read_data<f32>(output_path_sum);
             noa::sum(data, output);
-            REQUIRE(test::allclose_abs_safe(expected.release(), output, 1e-5));
+            REQUIRE(test::allclose_abs_safe(expected.drop(), output, 1e-5));
 
             const auto expected_std = noa::io::read_data<f32>(output_path_std);
             noa::stddev(data, output);
