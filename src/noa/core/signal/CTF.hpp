@@ -221,8 +221,8 @@ namespace noa::signal {
             const auto voltage = static_cast<f64>(m_voltage_volts);
             const auto lambda = relativistic_electron_wavelength(voltage) * 1e10; // angstroms
             constexpr f64 PI = Constant<f64>::PI;
-            m_k1 = PI * lambda;
-            m_k2 = PI * 0.5 * m_cs_angstroms * lambda * lambda * lambda;
+            m_k1 = static_cast<value_type>(PI * lambda);
+            m_k2 = static_cast<value_type>(PI * 0.5 * m_cs_angstroms * lambda * lambda * lambda);
         }
 
         constexpr void set_amplitude_fraction_() {
@@ -512,8 +512,8 @@ namespace noa::signal {
             const auto voltage = static_cast<f64>(m_voltage_volts);
             const auto lambda = relativistic_electron_wavelength(voltage) * 1e10; // angstroms
             constexpr f64 PI = Constant<f64>::PI;
-            m_k1 = PI * lambda;
-            m_k2 = PI * 0.5 * m_cs_angstroms * lambda * lambda * lambda;
+            m_k1 = static_cast<value_type>(PI * lambda);
+            m_k2 = static_cast<value_type>(PI * 0.5 * m_cs_angstroms * lambda * lambda * lambda);
         }
 
         constexpr void set_amplitude_fraction_() {
