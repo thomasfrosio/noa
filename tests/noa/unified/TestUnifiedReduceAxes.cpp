@@ -108,12 +108,12 @@ TEMPLATE_TEST_CASE("unified::reduce - axis reductions, cpu vs gpu", "[noa]", i64
     auto gpu_data = cpu_data.to(ArrayOption("gpu", "managed"));
 
     cpu_data = cpu_data.subregion(
-        noa::indexing::FullExtent{},
+        noa::indexing::Full{},
         noa::indexing::Slice{0, subregion_shape[1]},
         noa::indexing::Slice{0, subregion_shape[2]},
         noa::indexing::Slice{0, subregion_shape[3]});
     gpu_data = gpu_data.subregion(
-        noa::indexing::FullExtent{},
+        noa::indexing::Full{},
         noa::indexing::Slice{0, subregion_shape[1]},
         noa::indexing::Slice{0, subregion_shape[2]},
         noa::indexing::Slice{0, subregion_shape[3]});

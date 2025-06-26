@@ -335,8 +335,8 @@ namespace noa::signal::fft {
 
         const auto options = lhs.options().set_allocator(Allocator::DEFAULT_ASYNC);
         const auto denominator = Array<real_t>(fsc.shape().template set<1>(2), options);
-        auto denominator_lhs = denominator.subregion(ni::FullExtent{}, 0);
-        auto denominator_rhs = denominator.subregion(ni::FullExtent{}, 1);
+        auto denominator_lhs = denominator.subregion(ni::Full{}, 0);
+        auto denominator_rhs = denominator.subregion(ni::Full{}, 1);
 
         const auto reduction_op = FSCIsotropic<REMAP, real_t, i64, input_accessor_t, output_accessor_t>(
                 input_accessor_t(lhs.get(), lhs.strides()),
@@ -408,8 +408,8 @@ namespace noa::signal::fft {
 
         const auto options = lhs.options().set_allocator(Allocator::DEFAULT_ASYNC);
         const auto denominator = Array<real_t>(fsc.shape().template set<1>(2), options);
-        auto denominator_lhs = denominator.subregion(ni::FullExtent{}, 0);
-        auto denominator_rhs = denominator.subregion(ni::FullExtent{}, 1);
+        auto denominator_lhs = denominator.subregion(ni::Full{}, 0);
+        auto denominator_rhs = denominator.subregion(ni::Full{}, 1);
 
         auto reduction_op = FSCAnisotropic<REMAP, coord_t, i64, input_accessor_t, output_accessor_t, direction_accessor_t>(
             input_accessor_t(lhs.get(), lhs.strides()),

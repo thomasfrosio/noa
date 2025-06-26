@@ -576,7 +576,7 @@ TEST_CASE("core::indexing::Subregion") {
     REQUIRE(noa::all(subregion.strides == strides));
     REQUIRE(noa::all(subregion.offset == offset + offset_at(strides, 0, 0, 5, 2)));
 
-    subregion = make_subregion<4>(Slice{10, 20}, FullExtent{}, Slice{2, 5}, 3).extract_from(shape, strides, offset);
+    subregion = make_subregion<4>(Slice{10, 20}, Full{}, Slice{2, 5}, 3).extract_from(shape, strides, offset);
     REQUIRE(noa::all(subregion.shape == Shape4<i64>{10, 20, 3, 1}));
     REQUIRE(noa::all(subregion.strides == strides));
     REQUIRE(noa::all(subregion.offset == offset + offset_at(strides, 10, 0, 2, 3)));

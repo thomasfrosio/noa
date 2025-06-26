@@ -113,7 +113,7 @@ namespace noa::signal {
         const auto options = ArrayOption{input.device(), Allocator::DEFAULT_ASYNC};
 
         auto dc_position = ni::make_subregion<4>(
-            ni::FullExtent{},
+            ni::Full{},
             is_centered ? noa::fft::fftshift(i64{}, shape[1]) : 0,
             is_centered ? noa::fft::fftshift(i64{}, shape[2]) : 0,
             is_centered and is_full ? noa::fft::fftshift(i64{}, shape[3]) : 0);
@@ -134,9 +134,9 @@ namespace noa::signal {
             const bool is_even = noa::is_even(shape[3]);
 
             auto energies = zeros<real_t>({shape[0], 3, 1, 1}, options);
-            auto energies_0 = energies.view().subregion(ni::FullExtent{}, 0, 0, 0);
-            auto energies_1 = energies.view().subregion(ni::FullExtent{}, 1, 0, 0);
-            auto energies_2 = energies.view().subregion(ni::FullExtent{}, 2, 0, 0);
+            auto energies_0 = energies.view().subregion(ni::Full{}, 0, 0, 0);
+            auto energies_1 = energies.view().subregion(ni::Full{}, 1, 0, 0);
+            auto energies_2 = energies.view().subregion(ni::Full{}, 2, 0, 0);
 
             // Reduce unique chunk:
             reduce_axes_ewise(input.view().subregion(ni::Ellipsis{}, ni::Slice{1, input.shape()[3] - is_even}),
@@ -155,7 +155,7 @@ namespace noa::signal {
             // Standardize.
             ewise(wrap(input.view().subregion(dc_position), energies_1, energies_2), energies_0,
                   guts::CombineSpectrumEnergies<complex_t, real_t>{static_cast<real_t>(scale)}); // if batch=1, this is one single value...
-            ewise(wrap(input, energies.subregion(ni::FullExtent{}, 0, 0, 0)), output.view(), Multiply{});
+            ewise(wrap(input, energies.subregion(ni::Full{}, 0, 0, 0)), output.view(), Multiply{});
             fill(output.subregion(dc_position), {});
 
         } else {

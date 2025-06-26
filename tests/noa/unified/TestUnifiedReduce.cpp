@@ -145,12 +145,12 @@ TEMPLATE_TEST_CASE("unified::reduce - cpu vs gpu", "", i64, f32, f64, c32, c64) 
     auto gpu_data = cpu_data.to({.device="gpu", .allocator="managed"});
 
     cpu_data = cpu_data.subregion(
-        noa::indexing::FullExtent{},
+        noa::indexing::Full{},
         noa::indexing::Slice{0, subregion_shape[1]},
         noa::indexing::Slice{0, subregion_shape[2]},
         noa::indexing::Slice{0, subregion_shape[3]});
     gpu_data = gpu_data.subregion(
-        noa::indexing::FullExtent{},
+        noa::indexing::Full{},
         noa::indexing::Slice{0, subregion_shape[1]},
         noa::indexing::Slice{0, subregion_shape[2]},
         noa::indexing::Slice{0, subregion_shape[3]});

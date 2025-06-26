@@ -313,12 +313,12 @@ TEST_CASE("cuda::ewise - multi-grid - 4d") {
     const auto original = Span(buffer.get(), shape);
 
     {
-        const auto strided = original.subregion(ni::FullExtent{}, ni::Slice{0, shape[1], 2});
+        const auto strided = original.subregion(ni::Full{}, ni::Slice{0, shape[1], 2});
         const auto accessors = noa::make_tuple(AccessorI64<f32, 4>(strided.get(), strided.strides_full()));
         ewise(strided.shape(), []NOA_DEVICE(f32& e){ e += 1; }, accessors, Tuple{}, stream);
     }
     {
-        const auto strided = original.subregion(ni::FullExtent{}, ni::Slice{1, shape[1], 2});
+        const auto strided = original.subregion(ni::Full{}, ni::Slice{1, shape[1], 2});
         const auto accessors = noa::make_tuple(AccessorI64<f32, 4>(strided.get(), strided.strides_full()));
         ewise(strided.shape(), []NOA_DEVICE(f32& e){ e += 1; }, accessors, Tuple{}, stream);
     }

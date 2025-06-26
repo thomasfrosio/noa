@@ -11,7 +11,7 @@ namespace noa::indexing {
     struct Ellipsis {};
 
     /// Selects the entire dimension.
-    struct FullExtent {};
+    struct Full {};
 
     /// Slice operator.
     /// Negative indexes are valid and start from the end like in python.
@@ -32,6 +32,12 @@ namespace noa::indexing {
         i64 end{};
         i64 step{};
     };
+
+    struct Offset {
+        template<nt::integer T = i64>
+        constexpr explicit Offset(T start_ = 0) noexcept : start{static_cast<i64>(start_)} {}
+        i64 start{};
+    };
 }
 
 namespace noa::indexing::guts {
@@ -39,9 +45,7 @@ namespace noa::indexing::guts {
     struct SubregionParser {
         template<typename U>
         static consteval auto is_subregion_indexer_no_ellipsis() {
-            return nt::integer<std::remove_reference_t<U>> or
-                   nt::almost_same_as<U, FullExtent> or
-                   nt::almost_same_as<U, Slice>;
+            return nt::integer<std::remove_reference_t<U>> or nt::almost_any_of<U, Full, Slice, Offset>;
         }
 
         template<typename... U>
@@ -75,9 +79,10 @@ namespace noa::indexing {
     /// Utility to create and extract subregions.
     /// Dimensions can be extracted using either:
     /// -   A single index value: This is bound-checked. Negative values are allowed.
-    /// -   FullExtent: Select the entire dimension.
+    /// -   Full: Select the entire dimension.
     /// -   Slice: Slice operator. Slices are clamped to the dimension size. Negative values are allowed.
-    /// -   Ellipsis: Fills all unspecified dimensions with FullExtent.
+    /// -   Offset: Offset the dimension. Equivalent to Slice{offset}.
+    /// -   Ellipsis: Fills all unspecified dimensions with Full.
     template<size_t N, typename... T> requires nt::subregion_indexing<N, T...>
     struct Subregion {
         /// Creates a new subregion.
@@ -108,14 +113,14 @@ namespace noa::indexing {
                 constexpr size_t J = N - COUNT;
                 if constexpr (nt::almost_same_as<decltype(m_ops[Tag<0>{}]), Ellipsis>) {
                     if constexpr (I <= J)
-                        return FullExtent{};
+                        return Full{};
                     else
                         return m_ops[Tag<I - J>{}];
                 } else {
                     if constexpr (I < COUNT)
                         return m_ops[Tag<I>{}];
                     else
-                        return FullExtent{};
+                        return Full{};
                 }
             }
         }
@@ -140,7 +145,7 @@ namespace noa::indexing {
                 new_size = 1;
                 new_offset += safe_cast<std::uintptr_t>(old_strides * index);
 
-            } else if constexpr(nt::any_of<Op, Ellipsis, FullExtent>) {
+            } else if constexpr(nt::any_of<Op, Ellipsis, Full>) {
                 new_strides = old_strides;
                 new_size = old_size;
                 new_offset += 0;
@@ -160,6 +165,16 @@ namespace noa::indexing {
 
                 new_size = divide_up(op.end - op.start, op.step);
                 new_strides = old_strides * op.step;
+                new_offset += safe_cast<std::uintptr_t>(op.start * old_strides);
+                (void) dim;
+
+            } else if constexpr(nt::same_as<Offset, Op>) {
+                if (op.start < 0)
+                    op.start += old_size;
+                op.start = clamp(op.start, I{}, old_size);
+
+                new_size = old_size - op.start;
+                new_strides = old_strides;
                 new_offset += safe_cast<std::uintptr_t>(op.start * old_strides);
                 (void) dim;
             } else {

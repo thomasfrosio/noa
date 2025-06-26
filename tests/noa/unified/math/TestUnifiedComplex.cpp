@@ -33,7 +33,7 @@ TEMPLATE_TEST_CASE("unified::decompose() and complex()", "", f32, f64) {
 
         using namespace noa::indexing;
         const auto subregion = data.subregion(
-                FullExtent{},
+                Full{},
                 Slice{0, subregion_shape[1]},
                 Slice{0, subregion_shape[2]},
                 Slice{0, subregion_shape[3]});

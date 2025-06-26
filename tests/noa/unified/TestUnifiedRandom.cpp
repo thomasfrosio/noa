@@ -32,7 +32,7 @@ TEMPLATE_TEST_CASE("unified::randomize()", "", f32, f64) {
         data = device.is_cpu() ? data : data.to(options);
 
         const auto subregion = data.subregion(
-                noa::indexing::FullExtent{},
+                noa::indexing::Full{},
                 noa::indexing::Slice{0, subregion_shape[1]},
                 noa::indexing::Slice{0, subregion_shape[2]},
                 noa::indexing::Slice{0, subregion_shape[3]});
