@@ -12,7 +12,7 @@ namespace noa::cpu::guts {
         using interface = ng::ReduceEwiseInterface<ZipInput, ZipReduced, ZipOutput>;
 
         template<i32 MODE, typename Op, typename Input, typename Reduced, typename Output, typename Index, size_t N>
-        [[gnu::noinline]] static void parallel(
+        NOA_NOINLINE static void parallel(
             const Shape<Index, N>& shape, Op op,
             Input input, Reduced reduced, Output output, i64 threads
         ) {
@@ -103,7 +103,7 @@ namespace noa::cpu::guts {
         }
 
         template<i32 MODE, typename Op, typename Input, typename Reduced, typename Output, typename Index>
-        [[gnu::noinline]] static constexpr void serial(
+        NOA_NOINLINE static constexpr void serial(
             const Shape4<Index>& shape, Op op,
             Input input, Reduced reduced, Output output
         ) {
@@ -154,7 +154,7 @@ namespace noa::cpu {
               not nt::tuple_of_accessor_value<std::decay_t<Input>> and // at least one varray
               nt::tuple_of_accessor_pure_nd<std::decay_t<Output>, 4> and
               nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
-    constexpr void reduce_axes_ewise(
+    NOA_NOINLINE constexpr void reduce_axes_ewise(
         const Shape4<Index>& input_shape,
         const Shape4<Index>& output_shape,
         Op&& op,

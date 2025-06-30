@@ -12,7 +12,7 @@ namespace noa::cpu::guts {
         using interface = ng::ReduceIwiseInterface<ZipReduced, ZipOutput>;
 
         template<size_t R, size_t N, typename Index, typename Op>
-        [[gnu::noinline]] static void single_axis(
+        NOA_NOINLINE static void single_axis(
             const Shape<Index, N>& shape,
             Op op, auto reduced, auto output,
             i64 n_threads
@@ -144,7 +144,7 @@ namespace noa::cpu::guts {
         };
 
         template<ReductionMode MODE, typename Index>
-        [[gnu::noinline]] static void parallel_4d(const Shape4<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
+        NOA_NOINLINE static void parallel_4d(const Shape4<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
             auto original_reduced = reduced;
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
             {
@@ -181,7 +181,7 @@ namespace noa::cpu::guts {
         }
 
         template<typename Index>
-        [[gnu::noinline]] static constexpr void serial_4d(const Shape4<Index>& shape, auto op, auto reduced, auto output) {
+        NOA_NOINLINE static constexpr void serial_4d(const Shape4<Index>& shape, auto op, auto reduced, auto output) {
             for (Index i = 0; i < shape[0]; ++i) {
                 auto local = reduced;
                 for (Index j = 0; j < shape[1]; ++j)
@@ -193,7 +193,7 @@ namespace noa::cpu::guts {
         }
 
         template<ReductionMode MODE, typename Index>
-        [[gnu::noinline]] static void parallel_3d(const Shape3<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
+        NOA_NOINLINE static void parallel_3d(const Shape3<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
             auto original_reduced = reduced;
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
             {
@@ -230,7 +230,7 @@ namespace noa::cpu::guts {
         }
 
         template<typename Index>
-        [[gnu::noinline]] static constexpr void serial_3d(const Shape3<Index>& shape, auto op, auto reduced, auto output) {
+        NOA_NOINLINE static constexpr void serial_3d(const Shape3<Index>& shape, auto op, auto reduced, auto output) {
             for (Index d = 0; d < shape[0]; ++d) {
                 auto local = reduced;
                 for (Index h = 0; h < shape[1]; ++h)
@@ -241,7 +241,7 @@ namespace noa::cpu::guts {
         }
 
         template<ReductionMode MODE, typename Index>
-        [[gnu::noinline]] static void parallel_2d(const Shape2<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
+        NOA_NOINLINE static void parallel_2d(const Shape2<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
             auto original_reduced = reduced;
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
             {
@@ -276,7 +276,7 @@ namespace noa::cpu::guts {
         }
 
         template<typename Index>
-        [[gnu::noinline]] static constexpr void serial_2d(const Shape2<Index>& shape, auto op, auto reduced, auto output) {
+        NOA_NOINLINE static constexpr void serial_2d(const Shape2<Index>& shape, auto op, auto reduced, auto output) {
             for (Index h = 0; h < shape[0]; ++h) {
                 auto local = reduced;
                 for (Index w = 0; w < shape[1]; ++w)
@@ -299,7 +299,7 @@ namespace noa::cpu {
             typename Op, size_t N, typename Reduced, typename Output, typename Index>
     requires (nt::tuple_of_accessor_pure_nd_or_empty<std::decay_t<Output>, N> and
               nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
-    constexpr void reduce_axes_iwise(
+    NOA_NOINLINE constexpr void reduce_axes_iwise(
         const Shape<Index, N>& input_shape,
         const Shape<Index, N>& output_shape,
         Op&& op,

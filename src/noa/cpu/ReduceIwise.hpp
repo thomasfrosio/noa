@@ -11,7 +11,7 @@ namespace noa::cpu::guts {
         using interface = ng::ReduceIwiseInterface<ZipReduced, ZipOutput>;
 
         template<typename Op, typename Reduced, typename Output, typename Index, size_t N>
-        [[gnu::noinline]] static void parallel(
+        NOA_NOINLINE static void parallel(
             const Vec<Index, N>& shape, Op op,
             Reduced reduced, Output& output, i64 n_threads
         ) {
@@ -55,7 +55,7 @@ namespace noa::cpu::guts {
         }
 
         template<typename Op, typename Reduced, typename Output, typename Index, size_t N>
-        [[gnu::noinline]] static constexpr void serial(
+        NOA_NOINLINE static constexpr void serial(
             const Vec<Index, N>& shape, Op op,
             Reduced reduced, Output& output
         ) {
