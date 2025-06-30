@@ -613,4 +613,18 @@ namespace noa::guts {
             return (std::is_const_v<nt::value_type_t<A>> and ...);
         }(nt::type_list_t<T>{});
     }
+
+    template<typename T, size_t N, nt::tuple_of_accessor_or_empty... U>
+    constexpr void offset_accessors(const Vec<T, N>& offset, U&... accessors) {
+        auto add_offset = [&]<typename A>(A& accessor) {
+            if constexpr (nt::accessor_pure<A>) {
+                accessor.offset_inplace(offset);
+            } else if constexpr (nt::accessor_value<A>) {
+                // do nothing
+            } else {
+                static_assert(nt::always_false<A>);
+            }
+        };
+        (accessors.for_each(add_offset), ...);
+    }
 }
