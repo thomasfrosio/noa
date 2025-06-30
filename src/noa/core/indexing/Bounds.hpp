@@ -98,7 +98,7 @@ namespace noa::indexing {
     ) noexcept {
         if constexpr (nt::sinteger<T>) {
             return [&shape]<size_t... I>(std::index_sequence<I...>, auto&... indices_) {
-                return ((indices_ >= T{} or indices_ < shape[I]) and ...);
+                return ((indices_ >= T{} and indices_ < shape[I]) and ...);
             }(std::make_index_sequence<sizeof...(U)>{}, indices...); // nvcc bug
         } else {
             return [&shape]<size_t... I>(std::index_sequence<I...>, auto&... indices_) {
