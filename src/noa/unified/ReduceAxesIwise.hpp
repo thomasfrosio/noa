@@ -91,7 +91,7 @@ namespace noa {
     ///
     /// \details The size of each output axis should match the input shape, or be 1, indicating the axis
     ///          should be reduced. There should be at least one axis being reduced. Currently, reducing more than
-    ///          one axis at a time is only supported if the reduction results to having one value or one value per
+    ///          one axis at a time is only supported if the reduction results in having one value or one value per
     ///          leftmost dimension. Or in other words, if the DHW axes for N=4, or the HW axes for N==3, are empty
     ///          after reduction. As opposed to reduce_iwise, this function is asynchronous and does not perform any
     ///          synchronization. If all axes are reduced, it is otherwise equivalent to reduce_iwise.
@@ -157,12 +157,12 @@ namespace noa {
              typename Reduced = ng::AdaptorUnzip<>,
              typename Operator, typename... Ts>
     void reduce_axes_iwise(
-            const Shape<Index, N>& shape,
-            Device device,
-            Reduced&& reduced,
-            ReduceAxes reduce_axes,
-            Operator&& op,
-            Ts&&... attachments
+        const Shape<Index, N>& shape,
+        Device device,
+        Reduced&& reduced,
+        ReduceAxes reduce_axes,
+        Operator&& op,
+        Ts&&... attachments
     ) {
         if constexpr (ng::adaptor_decay<Reduced>) {
             ng::reduce_axes_iwise<std::decay_t<Reduced>::ZIP, false, true>(
