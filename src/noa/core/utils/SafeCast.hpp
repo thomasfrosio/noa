@@ -85,17 +85,30 @@ namespace noa {
         }
         return false;
     }
+}
 
+namespace noa::traits {
+    template<typename From, typename To>
+    concept safe_castable_to = requires (const From& v) {{ is_safe_cast<To>(v) } -> std::convertible_to<bool>; };
+}
+
+namespace noa {
     /// Casts src to type To, with bound-checks.
     /// Panics if there is a loss of range.
     /// This should be very similar to boost::numeric_cast.
     /// If the output type has a wider range than the input type,
     /// this function should have no runtime overhead compared to static_cast.
-    template<typename To, typename From>
-    requires requires (const From& v) {{ is_safe_cast<To>(v) } -> std::convertible_to<bool>; }
+    template<typename To, typename From> requires nt::safe_castable_to<From, To>
     [[nodiscard]] constexpr To safe_cast(const From& src) {
         if (is_safe_cast<To>(src))
             return static_cast<To>(src);
         panic("Cannot safely cast {} to {} type", src, ns::stringify<To>());
+    }
+
+    template<typename To, typename From, typename... Ts> requires nt::safe_castable_to<From, To>
+    [[nodiscard]] constexpr To safe_cast(const From& src, guts::FormatWithLocation<std::type_identity_t<Ts>...> fmt, Ts&&... fmt_args) {
+        if (is_safe_cast<To>(src))
+            return static_cast<To>(src);
+        panic_at_location(fmt.location, fmt.fmt, std::forward<Ts>(fmt_args)...);
     }
 }
