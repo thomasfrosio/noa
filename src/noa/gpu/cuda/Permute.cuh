@@ -33,16 +33,21 @@ namespace noa::cuda::guts {
     void permute_0132_(
         AccessorRestrict<const T, 4, u32> input,
         AccessorRestrict<T, 4, u32> output,
-        Shape2<u32> shape_yx, u32 blocks_x
+        Shape2<u32> shape_yx,
+        Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
         __shared__ T tile[TILE_SIZE][TILE_SIZE + 1]; // +1 so that elements in a column map to different banks.
 
-        const auto input_2d = input[blockIdx.z][blockIdx.y];
-        const auto output_2d = output[blockIdx.z][blockIdx.y];
+        auto bid = block_indices<u32, 3>();
+        bid[0] += block_offset_zy[0];
+        bid[1] += block_offset_zy[1];
 
-        const Vec2<u32> tid{threadIdx.y, threadIdx.x};
-        const Vec2<u32> index = ni::offset2index(blockIdx.x, blocks_x);
+        const auto input_2d = input[bid[0]][bid[1]];
+        const auto output_2d = output[bid[0]][bid[1]];
+
+        const Vec2<u32> tid = thread_indices<u32, 2>();
+        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
         const Vec2<u32> offset = TILE_SIZE * index;
 
         // Read tile to shared memory.
@@ -68,16 +73,20 @@ namespace noa::cuda::guts {
     // Since the last dimension is unchanged, we can simply in-place permute the XY slices one at a time.
     template<bool IsMultipleOfTile, typename T>
     __global__ __launch_bounds__(PermuteConfig::block_size)
-    void permute_0132_inplace_(Accessor<T, 4, u32> output, u32 size, u32 blocks_x) {
+    void permute_0132_inplace_(Accessor<T, 4, u32> output, u32 size, Vec<u32, 2> block_offset_zy, u32 blocks_x) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
         __shared__ T tile_src[TILE_SIZE][TILE_SIZE + 1];
         __shared__ T tile_dst[TILE_SIZE][TILE_SIZE + 1];
 
-        const auto output_2d = output[blockIdx.z][blockIdx.y];
+        auto bid = block_indices<u32, 3>();
+        bid[0] += block_offset_zy[0];
+        bid[1] += block_offset_zy[1];
+
+        const auto output_2d = output[bid[0]][bid[1]];
 
         // Get the current indexes.
-        const Vec2<u32> tid{threadIdx.y, threadIdx.x};
-        const Vec2<u32> index = ni::offset2index(blockIdx.x, blocks_x);
+        const Vec2<u32> tid = thread_indices<u32, 2>();
+        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
         const Vec2<u32> offset = TILE_SIZE * index;
 
         if (offset[0] > offset[1]) { // lower triangle
@@ -139,17 +148,21 @@ namespace noa::cuda::guts {
     void permute_0213_(
         AccessorRestrict<const T, 4, u32> input,
         AccessorRestrict<T, 4, u32> output_swapped,
-        Shape2<u32> shape_yx, u32 blocks_x
+        Shape2<u32> shape_yx, Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
-        const Vec2<u32> tid{threadIdx.y, threadIdx.x};
-        const Vec2<u32> index = ni::offset2index(blockIdx.x, blocks_x);
+
+        auto bid = block_indices<u32, 3>();
+        const Vec2<u32> tid = thread_indices<u32, 2>();
+        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
         const Vec2<u32> gid = TILE_SIZE * index + tid;
         if (not IsMultipleOfTile and gid[1] >= shape_yx[1])
             return;
 
-        const auto input_ = input[blockIdx.z][blockIdx.y];
-        const auto output_ = output_swapped[blockIdx.z][blockIdx.y];
+        bid[0] += block_offset_zy[0];
+        bid[1] += block_offset_zy[1];
+        const auto input_ = input[bid[0]][bid[1]];
+        const auto output_ = output_swapped[bid[0]][bid[1]];
 
         for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
             const u32 gy = gid[0] + repeat;
@@ -164,16 +177,25 @@ namespace noa::cuda::guts {
     // The shared memory simply acts as a per thread buffer.
     template<bool IsMultipleOfTile, typename T>
     __global__ __launch_bounds__(PermuteConfig::block_size)
-    void permute_0213_inplace_(Accessor<T, 4, u32> output, Shape2<u32> shape, u32 blocks_x) {
+    void permute_0213_inplace_(
+        Accessor<T, 4, u32> output, Shape2<u32> shape,
+        Vec<u32, 2> block_offset_zy, u32 blocks_x
+    ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
         __shared__ T tile[PermuteConfig::block_size_y][PermuteConfig::block_size_x];
 
-        const Vec2<u32> tid{threadIdx.y, threadIdx.x};
-        const Vec2<u32> index = ni::offset2index(blockIdx.x, blocks_x);
-        const Vec4<u32> gid{blockIdx.z,
-                            blockIdx.y,
-                            TILE_SIZE * index[0] + tid[0],
-                            TILE_SIZE * index[1] + tid[1]};
+        auto bid = block_indices<u32, 3>();
+        bid[0] += block_offset_zy[0];
+        bid[1] += block_offset_zy[1];
+
+        const Vec2<u32> tid = thread_indices<u32, 2>();
+        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
+        const Vec4<u32> gid{
+            bid[0],
+            bid[1],
+            TILE_SIZE * index[0] + tid[0],
+            TILE_SIZE * index[1] + tid[1]
+        };
         if (gid[3] >= shape[1])
             return;
 
@@ -200,17 +222,21 @@ namespace noa::cuda::guts {
     void permute_0231_(
         AccessorRestrict<const T, 4, u32> input_swapped,
         AccessorRestrict<T, 4, u32> output,
-        Shape2<u32> shape_zx, u32 blocks_x
+        Shape2<u32> shape_zx, Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
         __shared__ T tile[TILE_SIZE][TILE_SIZE + 1];
 
-        const auto input_swapped_ = input_swapped[blockIdx.z][blockIdx.y];
-        const auto output_ = output[blockIdx.z][blockIdx.y];
+        auto bid = block_indices<u32, 3>();
+        bid[0] += block_offset_zy[0];
+        bid[1] += block_offset_zy[1];
+
+        const auto input_swapped_ = input_swapped[bid[0]][bid[1]];
+        const auto output_ = output[bid[0]][bid[1]];
 
         // Get the current indexes.
-        const Vec2<u32> tid{threadIdx.y, threadIdx.x};
-        const Vec2<u32> index = ni::offset2index(blockIdx.x, blocks_x);
+        const Vec2<u32> tid = thread_indices<u32, 2>();
+        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
         const Vec2<u32> offset = TILE_SIZE * index; // ZX
 
         // Read tile to shared memory.
@@ -239,16 +265,20 @@ namespace noa::cuda::guts {
     void permute_0312_(
         AccessorRestrict<const T, 4, u32> input,
         AccessorRestrict<T, 4, u32> output_swapped,
-        Shape2<u32> shape_yx /* YX */ , u32 blocks_x
+        Shape2<u32> shape_yx /* YX */, Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
         __shared__ T tile[TILE_SIZE][TILE_SIZE + 1];
 
-        const auto input_ = input[blockIdx.z][blockIdx.y];
-        const auto output_swapped_ = output_swapped[blockIdx.z][blockIdx.y];
+        auto bid = block_indices<u32, 3>();
+        bid[0] += block_offset_zy[0];
+        bid[1] += block_offset_zy[1];
 
-        const Vec2<u32> tid{threadIdx.y, threadIdx.x};
-        const Vec2<u32> index = ni::offset2index(blockIdx.x, blocks_x);
+        const auto input_ = input[bid[0]][bid[1]];
+        const auto output_swapped_ = output_swapped[bid[0]][bid[1]];
+
+        const Vec2<u32> tid = thread_indices<u32, 2>();
+        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
         const Vec2<u32> offset = TILE_SIZE * index;
 
         // Read tile to shared memory.
@@ -277,17 +307,21 @@ namespace noa::cuda::guts {
     void permute_0321_(
         AccessorRestrict<const T, 4, u32> input_swapped,
         AccessorRestrict<T, 4, u32> output_swapped,
-        Shape2<u32> shape_zx, u32 blocks_x
+        Shape2<u32> shape_zx, Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
         __shared__ T tile[TILE_SIZE][TILE_SIZE + 1];
 
-        const auto input_swapped_ = input_swapped[blockIdx.z][blockIdx.y];
-        const auto output_swapped_ = output_swapped[blockIdx.z][blockIdx.y];
+        auto bid = block_indices<u32, 3>();
+        bid[0] += block_offset_zy[0];
+        bid[1] += block_offset_zy[1];
+
+        const auto input_swapped_ = input_swapped[bid[0]][bid[1]];
+        const auto output_swapped_ = output_swapped[bid[0]][bid[1]];
 
         // Get the current indexes.
-        const Vec2<u32> tid{threadIdx.y, threadIdx.x};
-        const Vec2<u32> index = ni::offset2index(blockIdx.x, blocks_x);
+        const Vec2<u32> tid = thread_indices<u32, 2>();
+        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
         const Vec2<u32> offset = TILE_SIZE * index; // ZX
 
         // Read tile to shared memory.
@@ -311,16 +345,23 @@ namespace noa::cuda::guts {
 
     template<bool IsMultipleOfTile, typename T>
     __global__ __launch_bounds__(PermuteConfig::block_size)
-    void permute_0321_inplace_(Accessor<T, 4, u32> output_swapped, u32 shape, u32 blocks_x) {
+    void permute_0321_inplace_(
+        Accessor<T, 4, u32> output_swapped, u32 shape,
+        Vec<u32, 2> block_offset_zy, u32 blocks_x
+    ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
         __shared__ T tile_src[TILE_SIZE][TILE_SIZE + 1];
         __shared__ T tile_dst[TILE_SIZE][TILE_SIZE + 1];
 
-        const auto output_swapped_ = output_swapped[blockIdx.z][blockIdx.y];
+        auto bid = block_indices<u32, 3>();
+        bid[0] += block_offset_zy[0];
+        bid[1] += block_offset_zy[1];
+
+        const auto output_swapped_ = output_swapped[bid[0]][bid[1]];
 
         // Get the current indexes.
-        const Vec2<u32> tid{threadIdx.y, threadIdx.x};
-        const Vec2<u32> index = ni::offset2index(blockIdx.x, blocks_x);
+        const Vec2<u32> tid = thread_indices<u32, 2>();
+        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
         const Vec2<u32> offset = TILE_SIZE * index; // ZX
 
         if (offset[0] > offset[1]) { // lower t
@@ -390,21 +431,33 @@ namespace noa::cuda::guts {
             is_multiple_of(shape_2d[0], PermuteConfig::tile_size) and
             is_multiple_of(shape_2d[1], PermuteConfig::tile_size);
 
-        const u32 n_blocks_y = divide_up(shape_2d[0], PermuteConfig::tile_size);
-        const u32 n_blocks_x = divide_up(shape_2d[1], PermuteConfig::tile_size);
-        const auto launch_config = LaunchConfig{
-            .n_blocks = dim3(n_blocks_x * n_blocks_y, u_shape[1], u_shape[0]),
-            .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-        };
         const auto input_accessor = AccessorRestrict<const T, 4, u32>(input, input_strides.as_safe<u32>());
         const auto output_accessor = AccessorRestrict<T, 4, u32>(output, output_strides.as_safe<u32>());
 
-        if (are_multiple_tile) {
-            stream.enqueue(permute_0132_<true, T>, launch_config,
-                           input_accessor, output_accessor, shape_2d, n_blocks_x);
-        } else {
-            stream.enqueue(permute_0132_<false, T>, launch_config,
-                           input_accessor, output_accessor, shape_2d, n_blocks_x);
+        const auto grid_x = GridXY(shape[3], shape[2], PermuteConfig::tile_size, PermuteConfig::tile_size);
+        const auto grid_y = GridY(shape[1], 1);
+        const auto grid_z = GridZ(shape[0], 1);
+        check(grid_x.n_launches() == 1);
+
+        for (u32 z{}; z < grid_z.n_launches(); ++z) {
+            for (u32 y{}; y < grid_y.n_launches(); ++y) {
+                const auto config = LaunchConfig{
+                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
+                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
+                };
+                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
+                if (are_multiple_tile) {
+                    stream.enqueue(
+                        permute_0132_<true, T>,
+                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
+                    );
+                } else {
+                    stream.enqueue(
+                        permute_0132_<false, T>,
+                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
+                    );
+                }
+            }
         }
     }
 
@@ -420,25 +473,35 @@ namespace noa::cuda::guts {
             is_multiple_of(shape_2d[0], PermuteConfig::tile_size) and
             is_multiple_of(shape_2d[1], PermuteConfig::tile_size);
 
-        const u32 n_blocks_y = divide_up(shape_2d[0], PermuteConfig::tile_size);
-        const u32 n_blocks_x = divide_up(shape_2d[1], PermuteConfig::tile_size);
-        const auto launch_config = LaunchConfig{
-            .n_blocks = dim3(n_blocks_x * n_blocks_y, u_shape[1], u_shape[0]),
-            .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-        };
-
         const auto input_accessor = AccessorRestrict<const T, 4, u32>(input, input_strides.as_safe<u32>());
         const auto output_accessor = AccessorRestrict<T, 4, u32>(output, output_strides.as_safe<u32>().filter(0, 2, 1, 3));
 
-        if (are_multiple_tile) {
-            stream.enqueue(permute_0213_<true, T>, launch_config,
-                           input_accessor, output_accessor, shape_2d, n_blocks_x);
-        } else {
-            stream.enqueue(permute_0213_<false, T>, launch_config,
-                           input_accessor, output_accessor, shape_2d, n_blocks_x);
+        const auto grid_x = GridXY(shape[3], shape[2], PermuteConfig::tile_size, PermuteConfig::tile_size);
+        const auto grid_y = GridY(shape[1], 1);
+        const auto grid_z = GridZ(shape[0], 1);
+        check(grid_x.n_launches() == 1);
+
+        for (u32 z{}; z < grid_z.n_launches(); ++z) {
+            for (u32 y{}; y < grid_y.n_launches(); ++y) {
+                const auto config = LaunchConfig{
+                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
+                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
+                };
+                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
+                if (are_multiple_tile) {
+                    stream.enqueue(
+                        permute_0213_<true, T>,
+                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
+                    );
+                } else {
+                    stream.enqueue(
+                        permute_0213_<false, T>,
+                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
+                    );
+                }
+            }
         }
     }
-
 
     template<typename T>
     void permute_0312(
@@ -452,22 +515,31 @@ namespace noa::cuda::guts {
             is_multiple_of(shape_2d[0], PermuteConfig::tile_size) and
             is_multiple_of(shape_2d[1], PermuteConfig::tile_size);
 
-        const u32 n_blocks_y = divide_up(shape_2d[0], PermuteConfig::tile_size);
-        const u32 n_blocks_x = divide_up(shape_2d[1], PermuteConfig::tile_size);
-        const auto launch_config = LaunchConfig{
-            .n_blocks = dim3(n_blocks_x * n_blocks_y, u_shape[1], u_shape[0]),
-            .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-        };
-
         const auto input_accessor = AccessorRestrict<const T, 4, u32>(input, input_strides.as_safe<u32>());
         const auto output_accessor = AccessorRestrict<T, 4, u32>(output, output_strides.as_safe<u32>().filter(0, 2, 1, 3));
 
-        if (are_multiple_tile) {
-            stream.enqueue(permute_0312_<true, T>, launch_config,
-                           input_accessor, output_accessor, shape_2d, n_blocks_x);
-        } else {
-            stream.enqueue(permute_0312_<false, T>, launch_config,
-                           input_accessor, output_accessor, shape_2d, n_blocks_x);
+        const auto grid_x = GridXY(shape[3], shape[2], PermuteConfig::tile_size, PermuteConfig::tile_size);
+        const auto grid_y = GridY(shape[1], 1);
+        const auto grid_z = GridZ(shape[0], 1);
+        check(grid_x.n_launches() == 1);
+
+        for (u32 z{}; z < grid_z.n_launches(); ++z) {
+            for (u32 y{}; y < grid_y.n_launches(); ++y) {
+                const auto config = LaunchConfig{
+                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
+                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
+                };
+                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
+                if (are_multiple_tile) {
+                    stream.enqueue(
+                        permute_0312_<true, T>,
+                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x());
+                } else {
+                    stream.enqueue(
+                        permute_0312_<false, T>,
+                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x());
+                }
+            }
         }
     }
 
@@ -483,24 +555,36 @@ namespace noa::cuda::guts {
             is_multiple_of(shape_2d[0], PermuteConfig::tile_size) and
             is_multiple_of(shape_2d[1], PermuteConfig::tile_size);
 
-        const u32 n_blocks_y = divide_up(shape_2d[0], PermuteConfig::tile_size);
-        const u32 n_blocks_x = divide_up(shape_2d[1], PermuteConfig::tile_size);
-        const auto launch_config = LaunchConfig{
-            .n_blocks = dim3(n_blocks_x * n_blocks_y, u_shape[2], u_shape[0]),
-            .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-        };
-
         const auto input_accessor = AccessorRestrict<const T, 4, u32>(input, input_strides.as_safe<u32>().filter(0, 2, 1, 3)); // Y -> Z'
         const auto output_accessor = AccessorRestrict<T, 4, u32>(output, output_strides.as_safe<u32>());
 
-        if (are_multiple_tile) {
-            stream.enqueue(permute_0231_<true, T>, launch_config,
-                           input_accessor, output_accessor, shape_2d, n_blocks_x);
-        } else {
-            stream.enqueue(permute_0231_<false, T>, launch_config,
-                           input_accessor, output_accessor, shape_2d, n_blocks_x);
+        const auto grid_x = GridXY(shape[3], shape[1], PermuteConfig::tile_size, PermuteConfig::tile_size);
+        const auto grid_y = GridY(shape[2], 1);
+        const auto grid_z = GridZ(shape[0], 1);
+        check(grid_x.n_launches() == 1);
+
+        for (u32 z{}; z < grid_z.n_launches(); ++z) {
+            for (u32 y{}; y < grid_y.n_launches(); ++y) {
+                const auto config = LaunchConfig{
+                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
+                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
+                };
+                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
+                if (are_multiple_tile) {
+                    stream.enqueue(
+                        permute_0231_<true, T>,
+                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
+                    );
+                } else {
+                    stream.enqueue(
+                        permute_0231_<false, T>,
+                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
+                    );
+                }
+            }
         }
     }
+
     template<typename T>
     void permute_0321(
         const T* input, const Strides4<i64>& input_strides,
@@ -513,22 +597,33 @@ namespace noa::cuda::guts {
             is_multiple_of(shape_2d[0], PermuteConfig::tile_size) and
             is_multiple_of(shape_2d[1], PermuteConfig::tile_size);
 
-        const u32 n_blocks_y = divide_up(shape_2d[0], PermuteConfig::tile_size);
-        const u32 n_blocks_x = divide_up(shape_2d[1], PermuteConfig::tile_size);
-        const auto launch_config = LaunchConfig{
-            .n_blocks = dim3(n_blocks_x * n_blocks_y, u_shape[2], u_shape[0]),
-            .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-        };
-
         const auto input_accessor = AccessorRestrict<const T, 4, u32>(input, input_strides.as_safe<u32>().filter(0, 2, 1, 3));
         const auto output_accessor = AccessorRestrict<T, 4, u32>(output, output_strides.as_safe<u32>().filter(0, 2, 1, 3));
 
-        if (are_multiple_tile) {
-            stream.enqueue(permute_0321_<true, T>, launch_config,
-                           input_accessor, output_accessor, shape_2d, n_blocks_x);
-        } else {
-            stream.enqueue(permute_0321_<false, T>, launch_config,
-                           input_accessor, output_accessor, shape_2d, n_blocks_x);
+        const auto grid_x = GridXY(shape[3], shape[1], PermuteConfig::tile_size, PermuteConfig::tile_size);
+        const auto grid_y = GridY(shape[2], 1);
+        const auto grid_z = GridZ(shape[0], 1);
+        check(grid_x.n_launches() == 1);
+
+        for (u32 z{}; z < grid_z.n_launches(); ++z) {
+            for (u32 y{}; y < grid_y.n_launches(); ++y) {
+                const auto config = LaunchConfig{
+                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
+                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
+                };
+                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
+                if (are_multiple_tile) {
+                    stream.enqueue(
+                        permute_0321_<true, T>,
+                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
+                    );
+                } else {
+                    stream.enqueue(
+                        permute_0321_<false, T>,
+                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
+                    );
+                }
+            }
         }
     }
 
@@ -537,23 +632,36 @@ namespace noa::cuda::guts {
         T* output, const Strides4<i64>& output_strides,
         const Shape4<i64>& shape, Stream& stream
     ) {
-        check(shape[3] == shape[2],
-              "For a \"0132\" in-place permutation, shape[2] should be equal to shape[3]. Got shape={}", shape);
+        check(shape[3] == shape[2], "For a \"0132\" in-place permutation, shape[2] should be equal to shape[3]. Got shape={}", shape);
 
         const auto shape_u32 = shape.as_safe<u32>();
         const bool is_multiple_tile = is_multiple_of(shape_u32[3], PermuteConfig::tile_size);
         const auto accessor = Accessor<T, 4, u32>(output, output_strides.as_safe<u32>());
 
-        const u32 n_blocks_x = divide_up(shape_u32[3], PermuteConfig::tile_size); // blocks_y == blocks_x
-        const auto launch_config = LaunchConfig{
-            .n_blocks = dim3(n_blocks_x * n_blocks_x, shape_u32[1], shape_u32[0]), // about less than half will be idle blocks...
-            .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-        };
+        const auto grid_x = GridXY(shape[3], shape[3], PermuteConfig::tile_size, PermuteConfig::tile_size);
+        const auto grid_y = GridY(shape[1], 1);
+        const auto grid_z = GridZ(shape[0], 1);
+        check(grid_x.n_launches() == 1);
 
-        if (is_multiple_tile)
-            stream.enqueue(permute_0132_inplace_<true, T>, launch_config, accessor, shape_u32[3], n_blocks_x);
-        else
-            stream.enqueue(permute_0132_inplace_<false, T>, launch_config, accessor, shape_u32[3], n_blocks_x);
+        for (u32 z{}; z < grid_z.n_launches(); ++z) {
+            for (u32 y{}; y < grid_y.n_launches(); ++y) {
+                const auto config = LaunchConfig{
+                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)), // about less than half will be no-op blocks...
+                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
+                };
+                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
+                if (is_multiple_tile)
+                    stream.enqueue(
+                        permute_0132_inplace_<true, T>,
+                        config, accessor, shape_u32[3], grid_offset, grid_x.n_blocks_x()
+                    );
+                else
+                    stream.enqueue(
+                        permute_0132_inplace_<false, T>,
+                        config, accessor, shape_u32[3], grid_offset, grid_x.n_blocks_x()
+                    );
+            }
+        }
     }
 
     template<typename T>
@@ -569,17 +677,31 @@ namespace noa::cuda::guts {
         const bool is_multiple_tile = is_multiple_of(shape_2d[0], PermuteConfig::tile_size);
         const auto accessor = Accessor<T, 4, u32>(output, output_strides.as_safe<u32>());
 
-        const u32 n_blocks_x = divide_up(shape_2d[1], PermuteConfig::tile_size);
-        const u32 n_blocks_y = divide_up(shape_2d[0], PermuteConfig::tile_size);
-        const auto launch_config = LaunchConfig{
-            .n_blocks = dim3(n_blocks_x * n_blocks_y, shape_u32[1], shape_u32[0]),
-            .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-        };
+        const auto grid_x = GridXY(shape[3], shape[2], PermuteConfig::tile_size, PermuteConfig::tile_size);
+        const auto grid_y = GridY(shape[1], 1);
+        const auto grid_z = GridZ(shape[0], 1);
+        check(grid_x.n_launches() == 1);
 
-        if (is_multiple_tile)
-            stream.enqueue(permute_0213_inplace_<true, T>, launch_config, accessor, shape_2d, n_blocks_x);
-        else
-            stream.enqueue(permute_0213_inplace_<false, T>, launch_config, accessor, shape_2d, n_blocks_x);
+        for (u32 z{}; z < grid_z.n_launches(); ++z) {
+            for (u32 y{}; y < grid_y.n_launches(); ++y) {
+                const auto config = LaunchConfig{
+                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
+                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
+                };
+                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
+                if (is_multiple_tile) {
+                    stream.enqueue(
+                        permute_0213_inplace_<true, T>,
+                        config, accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
+                    );
+                } else {
+                    stream.enqueue(
+                        permute_0213_inplace_<false, T>,
+                        config, accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
+                    );
+                }
+            }
+        }
     }
 
     template<typename T>
@@ -594,18 +716,30 @@ namespace noa::cuda::guts {
         const bool is_multiple_tile = is_multiple_of(shape_u32[1], PermuteConfig::tile_size);
         const auto output_accessor = Accessor<T, 4, u32>(output, output_strides.as_safe<u32>().filter(0, 2, 1, 3));
 
-        const u32 n_blocks_x = divide_up(shape_u32[1], PermuteConfig::tile_size); // blocks_z == blocks_x
-        const auto launch_config = LaunchConfig{
-            .n_blocks = dim3(n_blocks_x * n_blocks_x, shape_u32[2], shape_u32[0]),
-            .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-        };
+        const auto grid_x = GridXY(shape[1], shape[1], PermuteConfig::tile_size, PermuteConfig::tile_size);
+        const auto grid_y = GridY(shape[2], 1);
+        const auto grid_z = GridZ(shape[0], 1);
+        check(grid_x.n_launches() == 1);
 
-        if (is_multiple_tile) {
-            stream.enqueue(permute_0321_inplace_<true, T>, launch_config,
-                           output_accessor, shape_u32[1], n_blocks_x);
-        } else {
-            stream.enqueue(permute_0321_inplace_<false, T>, launch_config,
-                           output_accessor, shape_u32[1], n_blocks_x);
+        for (u32 z{}; z < grid_z.n_launches(); ++z) {
+            for (u32 y{}; y < grid_y.n_launches(); ++y) {
+                const auto config = LaunchConfig{
+                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
+                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
+                };
+                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
+                if (is_multiple_tile) {
+                    stream.enqueue(
+                        permute_0321_inplace_<true, T>,
+                        config, output_accessor, shape_u32[1], grid_offset, grid_x.n_blocks_x()
+                    );
+                } else {
+                    stream.enqueue(
+                        permute_0321_inplace_<false, T>,
+                        config, output_accessor, shape_u32[1], grid_offset, grid_x.n_blocks_x()
+                    );
+                }
+            }
         }
     }
 }
@@ -618,10 +752,10 @@ namespace noa::cuda {
         const Vec4<i64>& permutation, Stream& stream
     ) {
         const auto idx =
-                permutation[0] * 1000 +
-                permutation[1] * 100 +
-                permutation[2] * 10 +
-                permutation[3];
+            permutation[0] * 1000 +
+            permutation[1] * 100 +
+            permutation[2] * 10 +
+            permutation[3];
 
         if (input == output) {
             switch (idx) {
