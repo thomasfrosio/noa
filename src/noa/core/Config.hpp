@@ -147,3 +147,5 @@ namespace noa::config {
 #       define NOA_HAS_GCC_STATIC_BOUNDS_CHECKING
 #   endif
 #endif
+
+#define NOA_NOINLINE [[gnu::noinline]]
