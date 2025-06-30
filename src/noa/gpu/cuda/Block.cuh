@@ -37,12 +37,19 @@ namespace noa::cuda {
         [[nodiscard]] constexpr auto n_launches() const -> u32 { return m_n_launches; }
         [[nodiscard]] constexpr auto n_blocks_total() const -> i64 { return m_n_blocks_total; }
         [[nodiscard]] constexpr auto n_blocks(u32 launch) const -> u32 {
+            check(launch < m_n_launches);
             auto offset = m_n_blocks_per_launch * static_cast<i64>(launch);
             auto left = m_n_blocks_total - offset;
             return static_cast<u32>(std::min(left, m_n_blocks_per_launch));
         }
         [[nodiscard]] constexpr auto offset(u32 launch) const -> u32 {
             return static_cast<u32>(m_n_blocks_per_launch * static_cast<i64>(launch));
+        }
+        [[nodiscard]] constexpr auto offset_additive(u32 launch) const -> u32 {
+            check(launch < m_n_launches);
+            if (launch)
+                return static_cast<u32>(m_n_blocks_per_launch);
+            return 0;
         }
 
     private:
@@ -96,6 +103,27 @@ namespace noa::cuda {
     using GridY = Grid<65'535>;
     using GridZ = Grid<65'535>;
     using GridXY = GridFused<2'147'483'647>;
+
+
+    template<u32 BlockSizeX, u32 BlockSizeY, u32 BlockSizeZ,
+             u32 ElementsPerThreadX = 1, u32 ElementsPerThreadY = 1, u32 ElementsPerThreadZ = 1>
+    struct StaticBlock {
+        static constexpr u32 block_size_x = BlockSizeX;
+        static constexpr u32 block_size_y = BlockSizeY;
+        static constexpr u32 block_size_z = BlockSizeZ;
+        static constexpr u32 block_size = block_size_x * block_size_y * block_size_z;
+        static constexpr u32 ndim = block_size_z > 1 ? 3 : block_size_y > 1 ? 2 : 1;
+
+        static_assert(block_size > 0 and block_size < Limits::MAX_THREADS);
+
+        static constexpr u32 n_elements_per_thread_x = ElementsPerThreadX;
+        static constexpr u32 n_elements_per_thread_y = ElementsPerThreadY;
+        static constexpr u32 n_elements_per_thread_z = ElementsPerThreadZ;
+
+        static constexpr u32 block_work_size_x = block_size_x * n_elements_per_thread_x;
+        static constexpr u32 block_work_size_y = block_size_y * n_elements_per_thread_y;
+        static constexpr u32 block_work_size_z = block_size_z * n_elements_per_thread_z;
+    };
 }
 
 namespace noa::cuda::guts {
@@ -135,7 +163,7 @@ namespace noa::cuda::guts {
     }
 
     template<nt::integer T = u32, size_t N = 3>
-    NOA_HD auto block_indices() -> Vec<T, N> {
+    NOA_FD auto block_indices() -> Vec<T, N> {
         if constexpr (N == 3)
             return Vec<T, N>::from_values(blockIdx.z, blockIdx.y, blockIdx.x);
         else if constexpr (N == 2)
@@ -147,7 +175,7 @@ namespace noa::cuda::guts {
     }
 
     template<nt::integer T = u32, size_t N = 3>
-    NOA_HD auto thread_indices() -> Vec<T, N> {
+    NOA_FD auto thread_indices() -> Vec<T, N> {
         if constexpr (N == 3)
             return Vec<T, N>::from_values(threadIdx.z, threadIdx.y, threadIdx.x);
         else if constexpr (N == 2)
@@ -156,6 +184,73 @@ namespace noa::cuda::guts {
             return Vec<T, N>::from_values(threadIdx.x);
         else
             return Vec<T, 0>{};
+    }
+
+    template<nt::integer T, typename Block>
+    NOA_FD auto global_indices_4d(u32 grid_size_x, const Vec<u32, 2>& block_offset_zy = Vec<u32, 2>{}) {
+        auto bid = block_indices<T, 3>();
+        bid[0] += block_offset_zy[0];
+        bid[1] += block_offset_zy[1];
+
+        const Vec<T, 2> bid_yx = ni::offset2index(bid[2], static_cast<T>(grid_size_x));
+        auto gid = Vec{
+            bid[0],
+            static_cast<T>(Block::block_work_size_z) * bid[1],
+            static_cast<T>(Block::block_work_size_y) * bid_yx[0],
+            static_cast<T>(Block::block_work_size_x) * bid_yx[1],
+        };
+        if constexpr (Block::ndim == 3)
+            gid[1] += static_cast<T>(threadIdx.z);
+        if constexpr (Block::ndim >= 2)
+            gid[2] += static_cast<T>(threadIdx.y);
+        if constexpr (Block::ndim >= 1)
+            gid[3] += static_cast<T>(threadIdx.x);
+        return gid;
+    }
+
+    template<nt::integer T, typename Config>
+    NOA_FD auto global_indices_3d(const Vec<u32, 2>& block_offset_zy = Vec<u32, 2>{}) {
+        auto bid = block_indices<T, 3>();
+        bid[0] += block_offset_zy[0];
+        bid[1] += block_offset_zy[1];
+
+        auto gid = Vec{
+            static_cast<T>(Config::block_work_size_z) * static_cast<T>(bid[0]),
+            static_cast<T>(Config::block_work_size_y) * static_cast<T>(bid[1]),
+            static_cast<T>(Config::block_work_size_x) * static_cast<T>(bid[2]),
+        };
+        if constexpr (Config::ndim == 3)
+            gid[0] += static_cast<T>(threadIdx.z);
+        if constexpr (Config::ndim >= 2)
+            gid[1] += static_cast<T>(threadIdx.y);
+        if constexpr (Config::ndim >= 1)
+            gid[2] += static_cast<T>(threadIdx.x);
+        return gid;
+    }
+
+    template<nt::integer T, typename Config>
+    NOA_FD auto global_indices_2d(const Vec<u32, 1>& block_offset_y = Vec<u32, 1>{}) {
+        auto bid = block_indices<T, 2>();
+        bid[0] += block_offset_y[0];
+
+        auto gid = Vec{
+            static_cast<T>(Config::block_work_size_y) * bid[0],
+            static_cast<T>(Config::block_work_size_x) * bid[1],
+        };
+        if constexpr (Config::ndim >= 2)
+            gid[0] += static_cast<T>(threadIdx.y);
+        if constexpr (Config::ndim >= 1)
+            gid[1] += static_cast<T>(threadIdx.x);
+        return gid;
+    }
+
+    template<nt::integer T, typename Config>
+    NOA_FD auto global_indices_1d() {
+        const auto bid = block_indices<T, 1>();
+        const auto tid = thread_indices<T, 1>();
+        return Vec{
+            static_cast<T>(Config::block_work_size_x) * bid[0] + tid[0],
+        };
     }
 
     /// Returns a per-thread unique ID, i.e. each thread in the grid gets a unique value.

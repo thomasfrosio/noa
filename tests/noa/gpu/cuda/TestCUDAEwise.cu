@@ -303,7 +303,7 @@ TEST_CASE("cuda::ewise - multi-grid - 4d") {
     using namespace noa::cuda;
     namespace ni = noa::indexing;
 
-    const auto shape = Shape<i64, 4>{1, 140'000, 1, 512};
+    const auto shape = Shape<i64, 4>{1, 250'000, 1, 512};
     const auto n_elements = shape.n_elements();
 
     auto stream = Stream(Device::current());
