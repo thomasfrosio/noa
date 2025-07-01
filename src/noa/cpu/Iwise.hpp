@@ -102,7 +102,7 @@ namespace noa::cpu {
 
     template<typename Config = IwiseConfig<>, size_t N, typename Index, typename Op>
     constexpr void iwise(const Shape<Index, N>& shape, Op&& op, i64 n_threads = 1) {
-        if constexpr (Config::n_elements_per_thread > 1) {
+        if constexpr (Config::n_elements_per_thread >= 1) {
             const i64 n_elements = shape.template as<i64>().n_elements();
             i64 actual_n_threads = n_elements <= Config::n_elements_per_thread ? 1 : n_threads;
             if (actual_n_threads > 1)

@@ -11,9 +11,32 @@
 #endif
 
 namespace noa {
+    struct GpuThreadBlock {};
+
     struct IwiseOptions {
+        /// Whether the CPU code path should be generated.
         bool generate_cpu{true};
+
+        /// Whether the GPU code path should be generated.
         bool generate_gpu{true};
+
+        /// Distribute the nd-shape to this exact number of CPU threads.
+        /// - A value of 0 means to not enforce the number of threads and to instead let the CPU backend decide the
+        ///   best number of threads to launch according to the option cpu_number_of_indices_per_threads (see below)
+        ///   and Stream::thread_limit.
+        /// - A positive value bypasses this logic and requires the CPU backend to launch that many threads,
+        ///   regardless of the nd-shape, cpu_number_of_indices_per_threads or Stream::thread_limit.
+        ///   This also means that cpu_launch_n_threads=1 turns off the multithreading completely and
+        ///   only the serial loop is generated.
+        ///   Note that if this value cannot be known at compile-time, the same behavior can be achieved by setting
+        ///   cpu_number_of_indices_per_threads=1 and the Stream::set_thread_limit(n). The only difference is that
+        ///   in this case the optimizer may not be able to identify which of the parallel or serial nd-loops is
+        ///   needed, thus both implementations will be likely generated even if only one is needed.
+        i64 cpu_launch_n_threads{0};
+
+        /// Each CPU thread is assigned to work on at least this number of indices.
+        /// As such, the parallel version of the nd-loop is only called if there are more elements than this value.
+        i64 cpu_number_of_indices_per_threads{1'048'576}; // 2^20
     };
 
     /// Index-wise core function; dispatches an index-wise operator across N-dimensional (parallel) for-loops.
@@ -43,21 +66,24 @@ namespace noa {
                 // TODO For now, use the default config, which is meant to trigger the parallel loop
                 //      only for large shapes. We could add a way for the user to change that default?
                 auto& cpu_stream = stream.cpu();
-                const auto n_threads = cpu_stream.thread_limit();
+
+                constexpr bool LAUNCH_EXACT = OPTIONS.cpu_launch_n_threads > 0;
+                constexpr i64 N_ELEMENTS_PER_THREAD = LAUNCH_EXACT ? 1 : OPTIONS.cpu_number_of_indices_per_threads;
+                const auto n_threads = LAUNCH_EXACT ? OPTIONS.cpu_launch_n_threads : cpu_stream.thread_limit();
+                using config_t = noa::cpu::IwiseConfig<N_ELEMENTS_PER_THREAD>;
+
                 if constexpr (sizeof...(Ts) == 0) {
-                    cpu_stream.enqueue(
-                        noa::cpu::iwise<noa::cpu::IwiseConfig<>, N, I, Op>,
-                        shape, std::forward<Op>(op), n_threads);
+                    cpu_stream.enqueue(noa::cpu::iwise<config_t, N, I, Op>, shape, std::forward<Op>(op), n_threads);
                 } else {
                     if (cpu_stream.is_sync()) {
-                        noa::cpu::iwise(shape, std::forward<Op>(op), n_threads);
+                        noa::cpu::iwise<config_t>(shape, std::forward<Op>(op), n_threads);
                     } else {
                         cpu_stream.enqueue(
                             [shape, n_threads,
                                 op_ = std::forward<Op>(op),
                                 h = guts::extract_shared_handle(forward_as_tuple(std::forward<Ts>(attachments)...))
                             ] {
-                                noa::cpu::iwise(shape, std::move(op_), n_threads);
+                                noa::cpu::iwise<config_t>(shape, std::move(op_), n_threads);
                             });
                     }
                 }

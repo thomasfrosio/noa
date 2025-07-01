@@ -14,6 +14,17 @@ using namespace ::noa::types;
             span(indices) = static_cast<f32>(noa::indexing::offset_at(span.strides(), indices));
         }
     };
+
+    struct ThreadPoolLike {
+        SpanContiguous<i32> array;
+        void operator()(i32 index) const {
+            #ifdef NOA_ENABLE_OPENMP
+            array[index] = omp_in_parallel() ? omp_get_thread_num() : 1;
+            #elif
+            array[index] = 1;
+            #endif
+        }
+    };
 // }
 
 TEST_CASE("unified::iwise") {
@@ -34,4 +45,25 @@ TEST_CASE("unified::iwise") {
 
         REQUIRE(test::allclose_abs(a0, a1, 1e-6));
     }
+}
+
+TEST_CASE("unified::iwise - threadpool-like") {
+    auto data = Vec<i32, 4>{};
+    auto span = Span(data.data(), data.ssize());
+    auto op = ThreadPoolLike{span};
+
+    auto stream = StreamGuard(Device(), Stream::SYNC);
+    stream.set_thread_limit(2);
+
+    // By default, only one thread should be launched for this shape.
+    constexpr auto OPTIONS1 = noa::IwiseOptions{.generate_gpu = false};
+    noa::iwise<OPTIONS1>(Shape{4}, stream.device(), op);
+    for (auto e: data)
+        REQUIRE(e == 1);
+
+    // But we can enforce the number of threads.
+    constexpr auto OPTIONS2 = noa::IwiseOptions{.generate_gpu = false, .cpu_launch_n_threads = 4};
+    noa::iwise<OPTIONS2>(Shape{4}, stream.device(), op);
+    for (i32 i{}; auto e: data)
+        REQUIRE(e == i++);
 }
