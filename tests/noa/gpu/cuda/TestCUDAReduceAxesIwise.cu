@@ -1,3 +1,4 @@
+#include <noa/core/Reduce.hpp>
 #include <noa/core/types/Accessor.hpp>
 #include <noa/gpu/cuda/ReduceAxesIwise.cuh>
 #include <noa/gpu/cuda/Allocators.hpp>
@@ -14,6 +15,21 @@ namespace {
 
         NOA_HD void init(const Vec<i64, N>& indices, i64& reduced) const {
             reduced += accessor(indices);
+        }
+        NOA_HD static void join(i64 to_reduce, i64& reduced) {
+            reduced += to_reduce;
+        }
+        NOA_HD static void final(i64 reduced, i64& output) {
+            output += reduced;
+        }
+    };
+
+    template<size_t N>
+    struct SumOp2 {
+        SpanContiguous<const i64, N> span;
+
+        NOA_HD void init(const Vec<i64, N>& indices, i64& reduced) const {
+            reduced += span(indices);
         }
         NOA_HD static void join(i64 to_reduce, i64& reduced) {
             reduced += to_reduce;
@@ -244,6 +260,27 @@ TEST_CASE("cuda::reduce_axes_iwise - 3d") {
             stream.synchronize();
             REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
         }
+    }
+
+    SECTION("reduce height") {
+        const auto input_shape = Shape<i64, 3>{70000, 32, 64};
+        const auto output_shape = input_shape.set<1>(1);
+
+        const auto input_buffer = AllocatorManaged<i64>::allocate(input_shape.n_elements(), stream);
+        const auto input = Span(input_buffer.get(), input_shape);
+        const auto op = SumOp2{.span=input.as_const()};
+        std::ranges::fill(input.as_1d(), 1);
+
+        const auto reduced = noa::make_tuple(AccessorValue<i64>(0));
+
+        const auto output_buffer = AllocatorManaged<i64>::allocate(output_shape.n_elements(), stream);
+        const auto output = AccessorI64<i64, 3>(output_buffer.get(), output_shape.strides());
+        const auto output_tuple = noa::make_tuple(output);
+
+        reduce_axes_iwise(input_shape, output_shape, op, reduced, output_tuple, stream);
+
+        stream.synchronize();
+        REQUIRE(test::allclose_abs(output_buffer.get(), input_shape[1], output_shape.n_elements(), 0));
     }
 }
 
