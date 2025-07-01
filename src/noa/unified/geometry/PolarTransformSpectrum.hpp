@@ -96,7 +96,10 @@ namespace noa::geometry::guts {
         Output&& polar,
         const Options& options
     ) {
-        using coord_t = nt::value_type_twice_t<Output>;
+        using input_real_type = nt::mutable_value_type_twice_t<Input>;
+        using output_real_type = nt::value_type_twice_t<Output>;
+        using coord_t = nt::largest_type_t<f32, input_real_type, output_real_type>;
+
         auto spectrum_range = options.spectrum_fftfreq.template as<coord_t>();
         auto rho_range = options.rho_range.template as<coord_t>();
         auto phi_range = options.phi_range.template as<coord_t>();
@@ -106,14 +109,14 @@ namespace noa::geometry::guts {
 
         auto launch_iwise = [&](auto interp) {
             auto interpolator = ng::to_interpolator_spectrum<2, REMAP, interp(), coord_t, IS_GPU>(
-                spectrum, spectrum_shape);
-
+                spectrum, spectrum_shape
+            );
             auto polar_shape = polar.shape().filter(0, 2, 3).template as<Index>();
             auto op = Spectrum2Polar<Index, coord_t, decltype(interpolator), output_accessor_t>(
                 interpolator, spectrum_shape.filter(2, 3), spectrum_range,
                 output_accessor, polar_shape.pop_front(),
-                rho_range, phi_range);
-
+                rho_range, phi_range
+            );
             return iwise<IwiseOptions{
                 .generate_cpu = not IS_GPU,
                 .generate_gpu = IS_GPU,
@@ -206,7 +209,8 @@ namespace noa::geometry {
             } else {
                 guts::launch_spectrum2polar<REMAP, true>(
                     std::forward<Input>(spectrum), spectrum_shape.as<i64>(),
-                    std::forward<Output>(polar), options);
+                    std::forward<Output>(polar), options
+                );
             }
             #else
             panic_no_gpu_backend(); // unreachable
@@ -214,7 +218,8 @@ namespace noa::geometry {
         } else {
             guts::launch_spectrum2polar<REMAP>(
                 std::forward<Input>(spectrum), spectrum_shape.as<i64>(),
-                std::forward<Output>(polar), options);
+                std::forward<Output>(polar), options
+            );
         }
     }
 }

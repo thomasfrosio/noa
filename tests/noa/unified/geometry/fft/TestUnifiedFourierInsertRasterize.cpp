@@ -17,9 +17,9 @@ namespace ng = noa::geometry;
 using Remap = noa::Remap;
 using Interp = noa::Interp;
 
-TEST_CASE("unified::geometry::fourier_insert_rasterize_3d", "[asset]") {
+TEST_CASE("unified::geometry::rasterize_central_slices_3d", "[asset]") {
     const Path path = test::NOA_DATA_PATH / "geometry" / "fft";
-    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["fourier_insert_rasterize_3d"];
+    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["rasterize_central_slices_3d"];
     constexpr bool COMPUTE_ASSETS = false;
 
     std::vector<Device> devices{"cpu"};
@@ -56,7 +56,7 @@ TEST_CASE("unified::geometry::fourier_insert_rasterize_3d", "[asset]") {
             // Backward project.
             const Array slice_fft = noa::linspace(slice_shape.rfft(), noa::Linspace<f32>{1, 10, true}, options);
             const Array volume_fft = noa::zeros<f32>(volume_shape.rfft(), options);
-            noa::geometry::fourier_insert_rasterize_3d<"HC2HC">(
+            noa::geometry::rasterize_central_slices_3d<"HC2HC">(
                 slice_fft, {}, slice_shape, volume_fft, {}, volume_shape,
                 inv_scaling_matrix, fwd_rotation_matrices,
                 {fftfreq_cutoff, target_shape, ews_radius});
@@ -71,7 +71,7 @@ TEST_CASE("unified::geometry::fourier_insert_rasterize_3d", "[asset]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_rasterize_3d, remap", "", f32, c32) {
+TEMPLATE_TEST_CASE("unified::geometry::rasterize_central_slices_3d, remap", "", f32, c32) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -98,10 +98,10 @@ TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_rasterize_3d, remap", "", 
         const Array grid_fft2 = grid_fft0.copy();
 
         // With centered slices.
-        ng::fourier_insert_rasterize_3d<Remap::HC2HC>(
+        ng::rasterize_central_slices_3d<Remap::HC2HC>(
             slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
-        ng::fourier_insert_rasterize_3d<Remap::HC2H>(
+        ng::rasterize_central_slices_3d<Remap::HC2H>(
             slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
         noa::fft::remap(Remap::H2HC, grid_fft1, grid_fft2, grid_shape);
@@ -110,10 +110,10 @@ TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_rasterize_3d, remap", "", 
         // With non-centered slices.
         noa::fill(grid_fft0, TestType{});
         noa::fill(grid_fft1, TestType{});
-        ng::fourier_insert_rasterize_3d<Remap::H2HC>(
+        ng::rasterize_central_slices_3d<Remap::H2HC>(
             slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
-        ng::fourier_insert_rasterize_3d<Remap::H2H>(
+        ng::rasterize_central_slices_3d<Remap::H2H>(
             slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
         noa::fft::remap(Remap::H2HC, grid_fft1, grid_fft2, grid_shape);
@@ -121,7 +121,7 @@ TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_rasterize_3d, remap", "", 
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_rasterize_3d, weights", "", f32, f64) {
+TEMPLATE_TEST_CASE("unified::geometry::rasterize_central_slices_3d, weights", "", f32, f64) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -146,7 +146,7 @@ TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_rasterize_3d, weights", ""
         const Array grid_fft0 = noa::zeros<TestType>(grid_shape.rfft(), options);
         const Array grid_fft1 = grid_fft0.copy();
 
-        ng::fourier_insert_rasterize_3d<Remap::HC2HC>(
+        ng::rasterize_central_slices_3d<Remap::HC2HC>(
             slice_fft, slice_fft.copy(), slice_shape, grid_fft0, grid_fft1, grid_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
         REQUIRE(test::allclose_abs_safe(grid_fft0, grid_fft1, 5e-5));

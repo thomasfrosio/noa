@@ -77,16 +77,16 @@ namespace noa::guts {
             }
 
             if constexpr (MODE == Border::NOTHING) {
-                if (ni::is_inbounds(m_input_shape, input_indices))
+                if (ni::is_inbound(m_input_shape, input_indices))
                     m_subregions(output_indices) = cast_or_abs_squared<subregion_value_type>(m_input(input_indices));
 
             } else if constexpr (MODE == Border::ZERO) {
-                m_subregions(output_indices) = ni::is_inbounds(m_input_shape, input_indices) ?
+                m_subregions(output_indices) = ni::is_inbound(m_input_shape, input_indices) ?
                                                cast_or_abs_squared<subregion_value_type>(m_input(input_indices)) :
                                                subregion_value_type{};
 
             } else if constexpr (MODE == Border::VALUE) {
-                m_subregions(output_indices) = ni::is_inbounds(m_input_shape, input_indices) ?
+                m_subregions(output_indices) = ni::is_inbound(m_input_shape, input_indices) ?
                                                cast_or_abs_squared<subregion_value_type>(m_input(input_indices)) :
                                                m_cvalue;
 
@@ -165,7 +165,7 @@ namespace noa::guts {
             }
 
             // We assume no overlap in the output between subregions.
-            if (ni::is_inbounds(m_output_shape, output_indices))
+            if (ni::is_inbound(m_output_shape, output_indices))
                 m_output(output_indices) = cast_or_abs_squared<output_value_type>(m_subregions(input_indices));
         }
 

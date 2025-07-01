@@ -475,10 +475,9 @@ namespace noa::geometry::guts {
         check_parameters_ctf(output_ctf, ob, output.device());
     }
 
-    template<
-        Remap REMAP, bool IS_GPU = false,
-        typename Input, typename Index, typename Ctf,
-        typename Output, typename Weight, typename Options>
+    template<Remap REMAP,
+             typename Input, typename Index, typename Ctf,
+             typename Output, typename Weight, typename Options>
     void launch_rotational_average(
         Input&& input, const Shape4<Index>& input_shape, Ctf&& input_ctf,
         Output&& output, Weight&& weight, i64 n_shells, const Options& options
@@ -486,14 +485,12 @@ namespace noa::geometry::guts {
         using input_value_t = nt::const_value_type_t<Input>;
         using output_value_t = nt::value_type_t<Output>;
         using weight_value_t = nt::value_type_t<Weight>;
-        using coord_t = nt::value_type_t<output_value_t>;
-        constexpr auto IWISE_OPTION = IwiseOptions{.generate_cpu = not IS_GPU, .generate_gpu = IS_GPU};
-        constexpr auto EWISE_OPTION = EwiseOptions{.generate_cpu = not IS_GPU, .generate_gpu = IS_GPU};
+        using coord_t = nt::largest_type_t<f32, nt::value_type_t<output_value_t>>;
 
         // Output must be zeroed out.
         const auto output_view = output.view();
         if (not options.add_to_output)
-            ewise<EWISE_OPTION>({}, output_view, Zero{});
+            ewise({}, output_view, Zero{});
 
         // When computing the average, the weights must be valid.
         auto weight_view = weight.view();
@@ -503,7 +500,7 @@ namespace noa::geometry::guts {
                 weight_buffer = zeros<weight_value_t>(output_view.shape(), ArrayOption{output.device(), Allocator::DEFAULT_ASYNC});
                 weight_view = weight_buffer.view();
             } else if (not options.add_to_output) {
-                ewise<EWISE_OPTION>({}, weight_view, Zero{});
+                ewise({}, weight_view, Zero{});
             }
         }
 
@@ -523,40 +520,37 @@ namespace noa::geometry::guts {
             using input_accessor_t = AccessorRestrict<input_value_t, 3, Index>;
             auto op = RotationalAverage
                 <REMAP, 2, coord_t, Index, input_accessor_t, output_accessor_t, weight_accessor_t, decltype(ctf)>(
-                input_accessor_t(input.get(), input_strides.filter(0, 2, 3)), input_shape.filter(2, 3),
-                ctf, output_accessor, weight_accessor, static_cast<Index>(n_shells),
-                input_fftfreq, output_fftfreq);
-
-            iwise<IWISE_OPTION>(
+                    input_accessor_t(input.get(), input_strides.filter(0, 2, 3)), input_shape.filter(2, 3),
+                    ctf, output_accessor, weight_accessor, static_cast<Index>(n_shells),
+                    input_fftfreq, output_fftfreq
+                );
+            iwise(
                 iwise_shape.filter(0, 2, 3), output.device(), op,
-                std::forward<Input>(input), output, weight, std::forward<Ctf>(input_ctf));
-
+                std::forward<Input>(input), output, weight, std::forward<Ctf>(input_ctf)
+            );
         } else {
             using input_accessor_t = AccessorRestrict<input_value_t, 4, Index>;
-            auto op = RotationalAverage<
-                REMAP, 3, coord_t, Index,
-                input_accessor_t, output_accessor_t, weight_accessor_t, BatchedParameter<Empty>
-            >(input_accessor_t(input.get(), input_strides), input_shape.filter(1, 2, 3),
-              {}, output_accessor, weight_accessor, static_cast<Index>(n_shells),
-              input_fftfreq, output_fftfreq);
-
-            iwise<IWISE_OPTION>(iwise_shape, output.device(), op, std::forward<Input>(input), output, weight);
+            auto op = RotationalAverage
+                <REMAP, 3, coord_t, Index, input_accessor_t, output_accessor_t, weight_accessor_t, BatchedParameter<Empty>>(
+                    input_accessor_t(input.get(), input_strides), input_shape.filter(1, 2, 3), {},
+                    output_accessor, weight_accessor, static_cast<Index>(n_shells), input_fftfreq, output_fftfreq
+                );
+            iwise(iwise_shape, output.device(), op, std::forward<Input>(input), output, weight);
         }
 
         // Some shells can be 0, so use DivideSafe.
         if (options.average) {
             if (weight_buffer.is_empty()) {
-                ewise<EWISE_OPTION>(wrap(output_view, weight), std::forward<Output>(output), DivideSafe{});
+                ewise(wrap(output_view, weight), std::forward<Output>(output), DivideSafe{});
             } else {
-                ewise<EWISE_OPTION>(wrap(output_view, std::move(weight_buffer)), std::forward<Output>(output), DivideSafe{});
+                ewise(wrap(output_view, std::move(weight_buffer)), std::forward<Output>(output), DivideSafe{});
             }
         }
     }
 
-    template<
-        bool IS_GPU = false, typename Index,
-        typename Input, typename Output, typename Weight,
-        typename InputCtf, typename OutputCtf, typename Options>
+    template<typename Index,
+             typename Input, typename Output, typename Weight,
+             typename InputCtf, typename OutputCtf, typename Options>
     void launch_fuse_spectra(
         Input&& input, const Linspace<f64>& input_fftfreq, InputCtf&& input_ctf,
         Output&& output, const Linspace<f64>& output_fftfreq, OutputCtf&& output_ctf,
@@ -565,14 +559,12 @@ namespace noa::geometry::guts {
         using input_value_t = nt::const_value_type_t<Input>;
         using output_value_t = nt::value_type_t<Output>;
         using weight_value_t = nt::value_type_t<Weight>;
-        using coord_t = nt::value_type_t<output_value_t>;
-        constexpr auto IWISE_OPTION = IwiseOptions{.generate_cpu = not IS_GPU, .generate_gpu = IS_GPU};
-        constexpr auto EWISE_OPTION = EwiseOptions{.generate_cpu = not IS_GPU, .generate_gpu = IS_GPU};
+        using coord_t = nt::largest_type_t<f32, nt::value_type_t<output_value_t>>;
 
         // Output must be zeroed out.
         const auto output_view = output.view();
         if (not options.add_to_output)
-            ewise<EWISE_OPTION>({}, output_view, Zero{});
+            ewise({}, output_view, Zero{});
 
         // When computing the average, the weights must be valid.
         auto weight_view = weight.view();
@@ -582,7 +574,7 @@ namespace noa::geometry::guts {
                 weight_buffer = zeros<weight_value_t>(output_view.shape(), ArrayOption{output.device(), Allocator::DEFAULT_ASYNC});
                 weight_view = weight_buffer.view();
             } else if (not options.add_to_output) {
-                ewise<EWISE_OPTION>({}, weight_view, Zero{});
+                ewise({}, weight_view, Zero{});
             }
         }
 
@@ -610,7 +602,7 @@ namespace noa::geometry::guts {
             input_accessor, input_fftfreq_f, batched_input_ctf, n_input_shells,
             output_accessor, output_fftfreq_f, batched_output_ctf, n_output_shells, weight_accessor, chunk_size
         );
-        iwise<IWISE_OPTION>(
+        iwise(
             iwise_shape, output.device(), op,
             std::forward<Input>(input), output, weight,
             std::forward<InputCtf>(input_ctf),
@@ -620,25 +612,23 @@ namespace noa::geometry::guts {
         // Some shells can be 0, so use DivideSafe.
         if (options.average) {
             if (weight_buffer.is_empty()) {
-                ewise<EWISE_OPTION>(wrap(output_view, weight), std::forward<Output>(output), DivideSafe{});
+                ewise(wrap(output_view, weight), std::forward<Output>(output), DivideSafe{});
             } else {
-                ewise<EWISE_OPTION>(wrap(output_view, std::move(weight_buffer)), std::forward<Output>(output), DivideSafe{});
+                ewise(wrap(output_view, std::move(weight_buffer)), std::forward<Output>(output), DivideSafe{});
             }
         }
     }
 
-    template<
-        bool IS_GPU = false, typename Index,
-        typename Input, typename Output,
-        typename InputCtf, typename OutputCtf, typename Options>
+    template<typename Index,
+             typename Input, typename Output,
+             typename InputCtf, typename OutputCtf, typename Options>
     void launch_phase_spectra(
         Input&& input, const Linspace<f64>& input_fftfreq, InputCtf&& input_ctf,
         Output&& output, const Linspace<f64>& output_fftfreq, OutputCtf&& output_ctf,
         const Options& options
     ) {
         using output_value_t = nt::value_type_t<Output>;
-        using coord_t = nt::value_type_t<output_value_t>;
-        constexpr auto IWISE_OPTION = IwiseOptions{.generate_cpu = not IS_GPU, .generate_gpu = IS_GPU};
+        using coord_t = nt::largest_type_t<f32, nt::value_type_t<output_value_t>>;
 
         const auto input_fftfreq_f = input_fftfreq.as<coord_t>();
         const auto output_fftfreq_f = output_fftfreq.as<coord_t>();
@@ -654,7 +644,7 @@ namespace noa::geometry::guts {
         auto batched_output_ctf = ng::to_batched_parameter(output_ctf);
 
         auto launch_iwise = [&](auto interp) {
-            auto interpolator = ng::to_interpolator_spectrum<1, Remap::H2H, interp(), coord_t, IS_GPU>(input, logical_shape);
+            auto interpolator = ng::to_interpolator_spectrum<1, Remap::H2H, interp(), coord_t, false>(input, logical_shape);
             using op_t = PhaseSpectra<
                 coord_t, Index, decltype(interpolator), output_accessor_t,
                 decltype(batched_input_ctf), decltype(batched_output_ctf)>;
@@ -662,7 +652,7 @@ namespace noa::geometry::guts {
                 interpolator, input_fftfreq_f, batched_input_ctf, n_input_shells,
                 output_accessor, output_fftfreq_f, batched_output_ctf, n_output_shells
             );
-            iwise<IWISE_OPTION>(
+            iwise(
                 iwise_shape, output.device(), op,
                 std::forward<Input>(input), output,
                 std::forward<InputCtf>(input_ctf),
@@ -740,7 +730,7 @@ namespace noa::geometry {
         nt::writable_varray_decay Output,
         nt::writable_varray_decay_of_any<nt::value_type_twice_t<Output>> Weight = View<nt::value_type_twice_t<Output>>>
     requires (REMAP.is_xx2h() and nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
-    [[gnu::noinline]] void rotational_average(
+    NOA_NOINLINE void rotational_average(
         Input&& input,
         const Shape4<i64>& input_shape,
         Output&& output,
@@ -749,28 +739,12 @@ namespace noa::geometry {
     ) {
         const auto n_shells = guts::check_parameters_rotational_average<REMAP>(
             input, input_shape, Empty{}, output, weights, options.input_fftfreq);
-
-        if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            check(ng::is_accessor_access_safe<i32>(input, input.shape()) and
-                  ng::is_accessor_access_safe<i32>(output, output.shape()) and
-                  ng::is_accessor_access_safe<i32>(weights, weights.shape()),
-                  "i64 indexing not instantiated for GPU devices");
-            guts::launch_rotational_average<REMAP, true>(
-                std::forward<Input>(input), input_shape.as<i32>(), Empty{},
-                std::forward<Output>(output),
-                std::forward<Weight>(weights),
-                n_shells, options);
-            #else
-            panic_no_gpu_backend();
-            #endif
-        } else {
-            guts::launch_rotational_average<REMAP>(
-                std::forward<Input>(input), input_shape.as<i64>(), Empty{},
-                std::forward<Output>(output),
-                std::forward<Weight>(weights),
-                n_shells, options);
-        }
+        guts::launch_rotational_average<REMAP>(
+            std::forward<Input>(input), input_shape.as<i64>(), Empty{},
+            std::forward<Output>(output),
+            std::forward<Weight>(weights),
+            n_shells, options
+        );
     }
 
     /// Computes the rotational sum/average of a 2d DFT, while correcting for the distortion from the anisotropic ctf.
@@ -788,14 +762,15 @@ namespace noa::geometry {
     ///                     shape as the output. If valid, the output weights are also saved in this array.
     /// \param options      Rotational average options.
     /// \note If weights is empty and options.average is true, a temporary vector like output is allocated.
-    template<Remap REMAP,
-             nt::readable_varray_decay Input,
-             nt::writable_varray_decay Output,
-             guts::rotational_average_anisotropic_ctf Ctf,
-             nt::writable_varray_decay_of_any<nt::value_type_twice_t<Output>> Weight =
-                 View<nt::value_type_twice_t<Output>>>
+    template<
+        Remap REMAP,
+        nt::readable_varray_decay Input,
+        nt::writable_varray_decay Output,
+        guts::rotational_average_anisotropic_ctf Ctf,
+        nt::writable_varray_decay_of_any<nt::value_type_twice_t<Output>> Weight =
+        View<nt::value_type_twice_t<Output>>>
     requires (REMAP.is_xx2h() and nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
-    [[gnu::noinline]] void rotational_average_anisotropic(
+    NOA_NOINLINE void rotational_average_anisotropic(
         Input&& input,
         const Shape4<i64>& input_shape,
         Ctf&& input_ctf,
@@ -805,30 +780,13 @@ namespace noa::geometry {
     ) {
         const auto n_shells = guts::check_parameters_rotational_average<REMAP>(
             input, input_shape, input_ctf, output, weights, options.input_fftfreq);
-
-        if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            check(ng::is_accessor_access_safe<i32>(input, input.shape()) and
-                  ng::is_accessor_access_safe<i32>(output, output.shape()) and
-                  ng::is_accessor_access_safe<i32>(weights, weights.shape()),
-                  "i64 indexing not instantiated for GPU devices");
-            guts::launch_rotational_average<REMAP, true>(
-                std::forward<Input>(input), input_shape.as<i32>(),
-                std::forward<Ctf>(input_ctf),
-                std::forward<Output>(output),
-                std::forward<Weight>(weights),
-                n_shells, options);
-            #else
-            panic_no_gpu_backend();
-            #endif
-        } else {
-            guts::launch_rotational_average<REMAP>(
-                std::forward<Input>(input), input_shape.as<i64>(),
-                std::forward<Ctf>(input_ctf),
-                std::forward<Output>(output),
-                std::forward<Weight>(weights),
-                n_shells, options);
-        }
+        guts::launch_rotational_average<REMAP>(
+            std::forward<Input>(input), input_shape.as<i64>(),
+            std::forward<Ctf>(input_ctf),
+            std::forward<Output>(output),
+            std::forward<Weight>(weights),
+            n_shells, options
+        );
     }
 
     struct FuseSpectraOptions {
@@ -867,7 +825,7 @@ namespace noa::geometry {
         guts::rotational_average_isotropic_ctf OutputCtf,
         nt::writable_varray_decay_of_any<nt::value_type_twice_t<Output>> Weight = View<nt::value_type_twice_t<Output>>>
     requires (nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
-    [[gnu::noinline]] void fuse_spectra(
+    NOA_NOINLINE void fuse_spectra(
         Input&& input,
         const Linspace<f64>& input_fftfreq,
         InputCtf&& input_ctf,
@@ -878,31 +836,13 @@ namespace noa::geometry {
         FuseSpectraOptions options = {}
     ) {
         guts::check_parameters_fuse_spectra<true>(
-            input, input_fftfreq, input_ctf, output, output_fftfreq, output_ctf, weights);
-
-        if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            check(
-                ng::is_accessor_access_safe<i32>(input, input.shape()) and
-                ng::is_accessor_access_safe<i32>(output, output.shape()) and
-                ng::is_accessor_access_safe<i32>(weights, weights.shape()),
-                "i64 indexing not instantiated for GPU devices"
-            );
-            guts::launch_fuse_spectra<true, i32>(
-                std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
-                std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
-                std::forward<Weight>(weights), options
-            );
-            #else
-            panic_no_gpu_backend();
-            #endif
-        } else {
-            guts::launch_fuse_spectra<false, i64>(
-                std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
-                std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
-                std::forward<Weight>(weights), options
-            );
-        }
+            input, input_fftfreq, input_ctf, output, output_fftfreq, output_ctf, weights
+        );
+        guts::launch_fuse_spectra<i64>(
+            std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
+            std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
+            std::forward<Weight>(weights), options
+        );
     }
 
     struct PhaseSpectraOptions {
@@ -924,7 +864,7 @@ namespace noa::geometry {
         guts::rotational_average_isotropic_ctf InputCtf,
         guts::rotational_average_isotropic_ctf OutputCtf>
     requires (nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
-    [[gnu::noinline]] void phase_spectra(
+    NOA_NOINLINE void phase_spectra(
         Input&& input,
         const Linspace<f64>& input_fftfreq,
         InputCtf&& input_ctf,
@@ -934,29 +874,12 @@ namespace noa::geometry {
         const PhaseSpectraOptions& options = {}
     ) {
         guts::check_parameters_fuse_spectra<false>(
-            input, input_fftfreq, input_ctf, output, output_fftfreq, output_ctf);
-
-        if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            check(
-                ng::is_accessor_access_safe<i32>(input, input.shape()) and
-                ng::is_accessor_access_safe<i32>(output, output.shape()),
-                "i64 indexing not instantiated for GPU devices"
-            );
-            guts::launch_phase_spectra<false, i32>(
-                std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
-                std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
-                options
-            );
-            #else
-            panic_no_gpu_backend();
-            #endif
-        } else {
-            guts::launch_phase_spectra<false, i64>(
-                std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
-                std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
-                options
-            );
-        }
+            input, input_fftfreq, input_ctf, output, output_fftfreq, output_ctf
+        );
+        guts::launch_phase_spectra<i64>(
+            std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
+            std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
+            options
+        );
     }
 }

@@ -17,9 +17,9 @@ namespace ng = noa::geometry;
 using Remap = noa::Remap;
 using Interp = noa::Interp;
 
-TEST_CASE("unified::geometry::fourier_extract_3d", "[asset]") {
+TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
     const Path path = test::NOA_DATA_PATH / "geometry" / "fft";
-    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["fourier_extract_3d"];
+    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["extract_central_slices_3d"];
 
     constexpr bool COMPUTE_ASSETS = false;
     if constexpr (COMPUTE_ASSETS) {
@@ -38,7 +38,7 @@ TEST_CASE("unified::geometry::fourier_extract_3d", "[asset]") {
         const Array volume_fft = noa::empty<f32>(volume_shape.rfft());
 
         const Array slice_fft = noa::linspace(insert_slice_shape.rfft(), noa::Linspace{1.f, 20.f});
-        ng::fourier_insert_interpolate_3d<Remap::HC2HC>(
+        ng::insert_central_slices_3d<Remap::HC2HC>(
             slice_fft, {}, insert_slice_shape, volume_fft, {}, volume_shape,
             {}, insert_inv_rotation_matrices, {.windowed_sinc = {-1, 0.1}});
         noa::write(volume_fft, volume_filename);
@@ -52,7 +52,7 @@ TEST_CASE("unified::geometry::fourier_extract_3d", "[asset]") {
 
         const auto slice_shape = Shape4<i64>{1, 1, volume_shape[2], volume_shape[3]};
         const auto slice_fft = noa::linspace(slice_shape.rfft(), noa::Linspace{1.f, 20.f});
-        ng::fourier_insert_interpolate_3d<Remap::HC2HC>(
+        ng::insert_central_slices_3d<Remap::HC2HC>(
             slice_fft, {}, slice_shape, volume_fft, {}, volume_shape,
             {}, Mat33<f32>::eye(1), {.windowed_sinc = {0.0234375, 1}});
         noa::write(volume_fft, volume_filename);
@@ -96,7 +96,7 @@ TEST_CASE("unified::geometry::fourier_extract_3d", "[asset]") {
             const Array slice_fft = noa::empty<f32>(slice_shape.rfft(), options);
 
             // Forward project.
-            ng::fourier_extract_3d<Remap::HC2HC>(
+            ng::extract_central_slices_3d<Remap::HC2HC>(
                 volume_fft, {}, volume_shape, slice_fft, {}, slice_shape,
                 inv_scaling_matrix, fwd_rotation_matrices, {
                     .w_windowed_sinc = {fftfreq_z_sinc, fftfreq_z_blackman},
@@ -115,7 +115,7 @@ TEST_CASE("unified::geometry::fourier_extract_3d", "[asset]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::fourier_extract_3d, using texture API and remap", "", f32, c32) {
+TEMPLATE_TEST_CASE("unified::geometry::extract_central_slices_3d - using texture API and remap", "", f32, c32) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -142,11 +142,11 @@ TEMPLATE_TEST_CASE("unified::geometry::fourier_extract_3d, using texture API and
         const Array slice_fft2 = slice_fft0.copy();
 
         const auto texture_grid_fft = Texture<TestType>(grid_fft, device, Interp::LINEAR);
-        ng::fourier_extract_3d<Remap::HC2HC>(
+        ng::extract_central_slices_3d<Remap::HC2HC>(
             texture_grid_fft, {}, grid_shape,
             slice_fft0, {}, slice_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
-        ng::fourier_extract_3d<Remap::HC2H>(
+        ng::extract_central_slices_3d<Remap::HC2H>(
             grid_fft, {}, grid_shape, slice_fft1, {}, slice_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
         noa::fft::remap(Remap::H2HC, slice_fft1, slice_fft2, slice_shape);

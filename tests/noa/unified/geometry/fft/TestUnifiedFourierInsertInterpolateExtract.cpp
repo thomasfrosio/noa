@@ -17,9 +17,9 @@ namespace ng = noa::geometry;
 using Remap = noa::Remap;
 using Interp = noa::Interp;
 
-TEST_CASE("unified::geometry::central_slice_insert_extract_3d", "[asset]") {
+TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d", "[asset]") {
     const Path path = test::NOA_DATA_PATH / "geometry" / "fft";
-    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["fourier_insert_interpolate_and_extract_3d"];
+    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["insert_and_extract_central_slices_3d"];
     constexpr bool COMPUTE_ASSETS = false;
 
     std::vector<Device> devices{"cpu"};
@@ -65,7 +65,7 @@ TEST_CASE("unified::geometry::central_slice_insert_extract_3d", "[asset]") {
             const Array input_slice_fft = noa::linspace(input_slice_shape.rfft(), noa::Linspace{-50.f, 50.f, true}, options);
             const Array output_slice_fft = noa::empty<f32>(output_slice_shape.rfft(), options);
 
-            ng::fourier_insert_interpolate_and_extract_3d<Remap::HC2HC>(
+            ng::insert_and_extract_central_slices_3d<Remap::HC2HC>(
                 input_slice_fft, {}, input_slice_shape,
                 output_slice_fft, {}, output_slice_shape,
                 {}, input_inv_rotation_matrices,
@@ -88,7 +88,7 @@ TEST_CASE("unified::geometry::central_slice_insert_extract_3d", "[asset]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::central_slice_insert_extract_3d, texture/remap", "", f32, c32) {
+TEMPLATE_TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d, texture/remap", "", f32, c32) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -123,13 +123,13 @@ TEMPLATE_TEST_CASE("unified::geometry::central_slice_insert_extract_3d, texture/
         const Array output_slice_fft1 = noa::empty<TestType>(output_slice_shape.rfft(), options);
         const Array output_slice_fft2 = noa::like(output_slice_fft1);
 
-        ng::fourier_insert_interpolate_and_extract_3d<Remap::HC2HC>(
+        ng::insert_and_extract_central_slices_3d<Remap::HC2HC>(
             texture_input_slice_fft, {}, input_slice_shape,
             output_slice_fft0, {}, output_slice_shape,
             {}, input_inv_rotation_matrices,
             {}, output_fwd_rotation_matrices,
             {.input_windowed_sinc = {0.01}, .fftfreq_cutoff = 0.8});
-        ng::fourier_insert_interpolate_and_extract_3d<Remap::HC2H>(
+        ng::insert_and_extract_central_slices_3d<Remap::HC2H>(
             input_slice_fft, {}, input_slice_shape,
             output_slice_fft1, {}, output_slice_shape,
             {}, input_inv_rotation_matrices,
@@ -140,7 +140,7 @@ TEMPLATE_TEST_CASE("unified::geometry::central_slice_insert_extract_3d, texture/
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::central_slice_insert_extract_3d, weights", "", f32, f64) {
+TEMPLATE_TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d, weights", "", f32, f64) {
     std::vector<Device> devices = {"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -173,7 +173,7 @@ TEMPLATE_TEST_CASE("unified::geometry::central_slice_insert_extract_3d, weights"
         const Array output_slice_fft0 = noa::empty<TestType>(output_slice_shape.rfft(), options);
         const Array output_slice_fft1 = noa::empty<TestType>(output_slice_shape.rfft(), options);
 
-        ng::fourier_insert_interpolate_and_extract_3d<Remap::HC2HC>(
+        ng::insert_and_extract_central_slices_3d<Remap::HC2HC>(
             input_slice_fft, input_slice_fft.copy(), input_slice_shape,
             output_slice_fft0, output_slice_fft1, output_slice_shape,
             {}, input_inv_rotation_matrices,
@@ -183,7 +183,7 @@ TEMPLATE_TEST_CASE("unified::geometry::central_slice_insert_extract_3d, weights"
     }
 }
 
-TEST_CASE("unified::geometry::central_slice_insert_extract_3d, test rotation", "[asset]") {
+TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d, test rotation", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     std::vector<Device> devices{"cpu"};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
@@ -202,7 +202,7 @@ TEST_CASE("unified::geometry::central_slice_insert_extract_3d, test rotation", "
 
     const auto directory = test::NOA_DATA_PATH / "geometry" / "fft";
     const auto output_filename = directory / YAML::LoadFile(directory / "tests.yaml")
-                                 ["fourier_insert_interpolate_and_extract_3d_others"]
+                                 ["insert_and_extract_central_slices_3d_others"]
                                  ["test_rotation_filename"]
                                  .as<Path>();
 
@@ -214,7 +214,7 @@ TEST_CASE("unified::geometry::central_slice_insert_extract_3d, test rotation", "
         const Array input_slice_fft = noa::linspace(input_slice_shape.rfft(), noa::Linspace{-100.f, 100.f, true}, options);
         const Array output_slice_fft0 = noa::empty<f32>(output_slice_shape.rfft(), options);
 
-        ng::fourier_insert_interpolate_and_extract_3d<Remap::HC2HC>(
+        ng::insert_and_extract_central_slices_3d<Remap::HC2HC>(
             input_slice_fft, {}, input_slice_shape,
             output_slice_fft0, {}, output_slice_shape,
             {}, input_slice_rotation,
@@ -230,7 +230,7 @@ TEST_CASE("unified::geometry::central_slice_insert_extract_3d, test rotation", "
     }
 }
 
-TEST_CASE("unified::geometry::central_slice_insert_extract_3d, weight/multiplicity", "[asset]") {
+TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d, weight/multiplicity", "[asset]") {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -267,13 +267,13 @@ TEST_CASE("unified::geometry::central_slice_insert_extract_3d, weight/multiplici
         const Array output_slice_fft0 = noa::empty<c32>(output_slice_shape.rfft(), options);
         const Array output_slice_fft1 = noa::empty<c32>(output_slice_shape.rfft(), options);
 
-        ng::fourier_insert_interpolate_and_extract_3d<Remap::HC2HC>(
+        ng::insert_and_extract_central_slices_3d<Remap::HC2HC>(
             input_slice_rfft, {}, input_slice_shape,
             output_slice_fft0, {}, output_slice_shape,
             {}, input_inv_rotation_matrices,
             {}, output_fwd_rotation_matrices,
             {.input_windowed_sinc = {0.01}, .fftfreq_cutoff = 0.8});
-        ng::fourier_insert_interpolate_and_extract_3d<Remap::HC2HC>(
+        ng::insert_and_extract_central_slices_3d<Remap::HC2HC>(
             input_slice_rfft, {}, input_slice_shape,
             output_slice_fft1, {}, output_slice_shape,
             {}, input_inv_rotation_quaternion,
@@ -287,7 +287,7 @@ TEST_CASE("unified::geometry::central_slice_insert_extract_3d, weight/multiplici
     }
 }
 
-//TEST_CASE("unified::geometry::fourier_insert_interpolate_and_extract_3d, test recons 0deg", "[.]") {
+//TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d, test recons 0deg", "[.]") {
 //    const auto stack_path = Path("/home/thomas/Projects/quinoa/tests/ribo_ctf/tilt1_coarse_aligned.mrc");
 //    const auto output_directory = Path("/home/thomas/Projects/quinoa/tests/ribo_ctf");
 //
@@ -332,13 +332,13 @@ TEST_CASE("unified::geometry::central_slice_insert_extract_3d, weight/multiplici
 //    const auto max_output_size = static_cast<f32>(noa::math::min(slice_shape.filter(2, 3)));
 //    auto slice_z_radius =  1.f / max_output_size;
 //    for (auto i: noa::irange(10)) {
-//        ng::fourier_insert_interpolate_and_extract_3d<fft::HC2H>(
+//        ng::insert_and_extract_central_slices_3d<fft::HC2H>(
 //                stack_rfft, stack_shape,
 //                output_slice_rfft, slice_shape,
 //                Float22{}, input_slice_rotation,
 //                Float22{}, output_slice_rotation,
 //                slice_z_radius);
-//        ng::fourier_insert_interpolate_and_extract_3d<fft::HC2H>(
+//        ng::insert_and_extract_central_slices_3d<fft::HC2H>(
 //                1.f, stack_shape,
 //                output_slice_rfft_weight, slice_shape,
 //                Float22{}, input_slice_rotation,
@@ -367,7 +367,7 @@ TEST_CASE("unified::geometry::central_slice_insert_extract_3d, weight/multiplici
 //    }
 //}
 //
-//TEST_CASE("unified::geometry::fourier_insert_interpolate_and_extract_3d, test recons volume", "[.]") {
+//TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d, test recons volume", "[.]") {
 //    const auto stack_path = Path("/home/thomas/Projects/quinoa/tests/ribo_ctf/tilt1_coarse_aligned.mrc");
 //    const auto output_directory = Path("/home/thomas/Projects/quinoa/tests/ribo_ctf");
 //
@@ -401,12 +401,12 @@ TEST_CASE("unified::geometry::central_slice_insert_extract_3d, weight/multiplici
 //        noa::fill(volume_rfft, c32{0});
 //        noa::fill(volume_rfft_weight, f32{0});
 //
-//        ng::fourier_insert_interpolate_3d<fft::HC2H>(
+//        ng::insert_central_slices_3d<fft::HC2H>(
 //                slice_0deg_rfft, slice_shape,
 //                volume_rfft, volume_shape,
 //                Float22{}, input_slice_rotation,
 //                slice_z_radius);
-//        ng::fourier_insert_interpolate_3d<fft::HC2H>(
+//        ng::insert_central_slices_3d<fft::HC2H>(
 //                1.f, slice_shape,
 //                volume_rfft_weight, volume_shape,
 //                Float22{}, input_slice_rotation,

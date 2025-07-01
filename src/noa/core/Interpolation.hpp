@@ -199,7 +199,7 @@ namespace noa {
         auto value_at = [&](const auto& indices) {
             // TODO Add support for a readable input that can do its own addressing?
             if constexpr (BORDER == Border::ZERO or BORDER == Border::VALUE) {
-                if (ni::is_inbounds(shape, indices))
+                if (ni::is_inbound(shape, indices))
                     return input(indices);
                 if constexpr (BORDER == Border::ZERO)
                     return value_t{};
@@ -462,7 +462,7 @@ namespace noa {
         ] (auto freq, const auto& weight, auto& output) {
             constexpr bool FLIP_PER_INDEX = IS_RFFT and SIZE > 2;
             const real_t conj = guts::flip_frequency<FLIP_PER_INDEX, real_t>(freq);
-            if (noa::fft::is_inbounds<IS_RFFT, true>(freq, bounds)) {
+            if (noa::fft::is_inbound<IS_RFFT, true>(freq, bounds)) {
                 auto value = input(noa::fft::frequency2index<IS_CENTERED, IS_RFFT>(freq, shape));
                 if constexpr (FLIP_PER_INDEX and nt::complex<value_t>)
                     value.imag *= conj;

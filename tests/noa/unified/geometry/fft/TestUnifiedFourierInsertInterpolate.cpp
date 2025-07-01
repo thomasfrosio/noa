@@ -17,16 +17,9 @@ namespace ng = noa::geometry;
 using Remap = noa::Remap;
 using Interp = noa::Interp;
 
-namespace noa {
-    template<std::floating_point T>
-    constexpr auto scale22(const Vec<T, 2>& s) {
-        return Mat22<T>::from_diagonal(s);
-    }
-}
-
-void test22() {
+TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
     const Path path = test::NOA_DATA_PATH / "geometry" / "fft";
-    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["fourier_insert_interpolate_3d"];
+    const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["insert_central_slices_3d"];
     constexpr bool COMPUTE_ASSETS = false;
 
     std::vector<Device> devices{"cpu"};
@@ -64,7 +57,7 @@ void test22() {
             // Backward project.
             const Array slice_fft = noa::linspace(slice_shape.rfft(), noa::Linspace{1.f, 10.f, true}, options);
             const Array volume_fft = noa::zeros<f32>(volume_shape.rfft(), options);
-            ng::fourier_insert_interpolate_3d<Remap::HC2HC>(
+            ng::insert_central_slices_3d<Remap::HC2HC>(
                 slice_fft.eval(), {}, slice_shape, volume_fft, {}, volume_shape,
                 fwd_scaling_matrix, inv_rotation_matrices, {
                     .interp = Interp::LINEAR,
@@ -85,68 +78,7 @@ void test22() {
     }
 }
 
-// TEST_CASE("unified::geometry::fourier_insert_interpolate_3d", "[asset]") {
-//     const Path path = test::NOA_DATA_PATH / "geometry" / "fft";
-//     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["fourier_insert_interpolate_3d"];
-//     constexpr bool COMPUTE_ASSETS = false;
-//
-//     std::vector<Device> devices{"cpu"};
-//     if (not COMPUTE_ASSETS and Device::is_any_gpu())
-//         devices.emplace_back("gpu");
-//
-//     for (size_t nb{}; nb < tests["tests"].size(); ++nb) {
-//         INFO("test number = " << nb);
-//
-//         const YAML::Node& parameters = tests["tests"][nb];
-//         const auto slice_shape = parameters["slice_shape"].as<Shape4<i64>>();
-//         const auto volume_shape = parameters["volume_shape"].as<Shape4<i64>>();
-//         const auto target_shape = parameters["target_shape"].as<Shape4<i64>>();
-//         const auto scale = Vec2<f32>::from_value(parameters["scale"].as<f32>());
-//         const auto rotate = parameters["rotate"].as<std::vector<f32>>();
-//         const auto fftfreq_cutoff = parameters["fftfreq_cutoff"].as<f32>();
-//         const auto ews_radius = Vec2<f64>::from_value(parameters["ews_radius"].as<f64>());
-//         const auto fftfreq_sinc = parameters["fftfreq_sinc"].as<f64>();
-//         const auto fftfreq_blackman = parameters["fftfreq_blackman"].as<f64>();
-//         const auto volume_filename = path / parameters["volume_filename"].as<Path>();
-//
-//         const Mat22 fwd_scaling_matrix = ng::scale(scale);
-//         auto inv_rotation_matrices = noa::empty<Mat33<f32>>(static_cast<i64>(rotate.size()));
-//         for (size_t i{}; auto& inv_rotation_matrix: inv_rotation_matrices.span_1d_contiguous())
-//             inv_rotation_matrix = ng::rotate_y(noa::deg2rad(-rotate[i++]));
-//
-//         for (auto& device: devices) {
-//             const auto stream = StreamGuard(device);
-//             const auto options = ArrayOption{device, Allocator::MANAGED};
-//             INFO(device);
-//
-//             if (inv_rotation_matrices.device() != device)
-//                 inv_rotation_matrices = std::move(inv_rotation_matrices).to({device});
-//
-//             // Backward project.
-//             const Array slice_fft = noa::linspace(slice_shape.rfft(), noa::Linspace{1.f, 10.f, true}, options);
-//             const Array volume_fft = noa::zeros<f32>(volume_shape.rfft(), options);
-//             ng::fourier_insert_interpolate_3d<Remap::HC2HC>(
-//                 slice_fft.eval(), {}, slice_shape, volume_fft, {}, volume_shape,
-//                 fwd_scaling_matrix, inv_rotation_matrices, {
-//                     .interp = Interp::LINEAR,
-//                     .windowed_sinc = {fftfreq_sinc, fftfreq_blackman},
-//                     .fftfreq_cutoff = fftfreq_cutoff,
-//                     .target_shape = target_shape,
-//                     .ews_radius = ews_radius,
-//                 });
-//
-//             if constexpr (COMPUTE_ASSETS) {
-//                 noa::write(volume_fft, volume_filename);
-//                 continue;
-//             }
-//
-//             const Array asset_volume_fft = noa::read_data<f32>(volume_filename);
-//             REQUIRE(test::allclose_abs_safe(asset_volume_fft, volume_fft, 5e-5));
-//         }
-//     }
-// }
-
-// TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_interpolate_3d, weights", "", f32, f64) {
+// TEMPLATE_TEST_CASE("unified::geometry::insert_central_slices_3d, weights", "", f32, f64) {
 //     std::vector<Device> devices{"cpu"};
 //     if (Device::is_any_gpu())
 //         devices.emplace_back("gpu");
@@ -170,7 +102,7 @@ void test22() {
 //         const Array grid_fft0 = noa::zeros<TestType>(grid_shape.rfft(), options);
 //         const Array grid_fft1 = grid_fft0.copy();
 //
-//         ng::fourier_insert_interpolate_3d<Remap::HC2HC>(
+//         ng::insert_central_slices_3d<Remap::HC2HC>(
 //             slice_fft, slice_fft.copy(), slice_shape,
 //             grid_fft0, grid_fft1, grid_shape,
 //             {}, fwd_rotation_matrices, {
@@ -181,7 +113,7 @@ void test22() {
 //     }
 // }
 //
-// TEMPLATE_TEST_CASE("unified::geometry::fourier_insert_interpolate_3d, texture/remap", "", f32, c32) {
+// TEMPLATE_TEST_CASE("unified::geometry::insert_central_slices_3d, texture/remap", "", f32, c32) {
 //     std::vector<Device> devices{"cpu"};
 //     if (Device::is_any_gpu())
 //         devices.emplace_back("gpu");
@@ -210,10 +142,10 @@ void test22() {
 //
 //         { // Texture
 //             const auto texture_slice_fft = Texture<TestType>{slice_fft, device, Interp::LINEAR};
-//             ng::fourier_insert_interpolate_3d<Remap::HC2H>(
+//             ng::insert_central_slices_3d<Remap::HC2H>(
 //                 slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
 //                 {}, inv_rotation_matrices, {.windowed_sinc=windowed_sinc, .fftfreq_cutoff=0.45});
-//             ng::fourier_insert_interpolate_3d<Remap::HC2H>(
+//             ng::insert_central_slices_3d<Remap::HC2H>(
 //                 texture_slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
 //                 {}, inv_rotation_matrices, {.windowed_sinc=windowed_sinc, .fftfreq_cutoff=0.45});
 //
@@ -223,10 +155,10 @@ void test22() {
 //         { // Remap
 //             noa::fill(grid_fft0, {});
 //             noa::fill(grid_fft1, {});
-//             ng::fourier_insert_interpolate_3d<Remap::HC2HC>(
+//             ng::insert_central_slices_3d<Remap::HC2HC>(
 //                 slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
 //                 {}, inv_rotation_matrices, {.windowed_sinc = windowed_sinc, .fftfreq_cutoff = 0.5});
-//             ng::fourier_insert_interpolate_3d<Remap::HC2H>(
+//             ng::insert_central_slices_3d<Remap::HC2H>(
 //                 slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
 //                 {}, inv_rotation_matrices, {.windowed_sinc = windowed_sinc, .fftfreq_cutoff = 0.5});
 //             noa::fft::remap(Remap::H2HC, grid_fft1, grid_fft2, grid_shape);

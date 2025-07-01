@@ -452,7 +452,6 @@ namespace noa::cuda::guts {
         // First kernel, limit the number of blocks, otherwise the second kernel would have too much work to do.
         const auto grid_x = Grid<Config::max_grid_size>(shape[1], Config::block_work_size);
         const auto grid_y = GridY(shape[0], 1);
-        check(grid_x.n_launches() == 1);
         const auto n_blocks_x = grid_x.n_blocks(0);
         const auto n_blocks_y = safe_cast<u32>(grid_y.n_blocks_total());
 
@@ -574,7 +573,6 @@ namespace noa::cuda::guts {
         const auto n_rows = shape[2] * shape[1] * (is_per_batch ? 1 : shape[0]);
         const auto grid_x = Grid<Config::max_grid_size>(n_rows, n_threads_y);
         const auto grid_y = GridY(is_per_batch ? shape[0] : 1, 1);
-        check(grid_x.n_launches() == 1);
         const auto n_blocks_x = grid_x.n_blocks(0);
         const auto n_blocks_y = safe_cast<u32>(grid_y.n_blocks_total());
 

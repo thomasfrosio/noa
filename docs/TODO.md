@@ -13,6 +13,8 @@
 
 ## `General`
 
+- The core should be extracted into a separate utility library. Tuple, Vec, Shape/Strides, Span, etc. Same for io.
+
 - __Windows support__. It should not be that complicated. One thing to look at is OpenMP support.
 
 

@@ -147,7 +147,7 @@ namespace noa::cuda::guts {
         //
         //             filter_value_t value{};
         //             if constexpr (BORDER_ZERO) {
-        //                 if (ni::is_inbounds(shape, i_z, i_y, i_x))
+        //                 if (ni::is_inbound(shape, i_z, i_y, i_x))
         //                     value = static_cast<filter_value_t>(input_3d(i_z, i_y, i_x));
         //             } else {
         //                 const auto iz_ = ni::index_at<Border::REFLECT>(i_z, shape[0]);
@@ -171,7 +171,7 @@ namespace noa::cuda::guts {
 
                     filter_value_t value{};
                     if constexpr (BORDER_ZERO) {
-                        if (ni::is_inbounds(shape, iz, iy, ix))
+                        if (ni::is_inbound(shape, iz, iy, ix))
                             value = static_cast<filter_value_t>(input_3d(iz, iy, ix));
                     } else {
                         const auto iz_reflected = ni::index_at<Border::REFLECT>(iz, shape[0]);
@@ -231,7 +231,7 @@ namespace noa::cuda::guts {
 
                     filter_value_t value{};
                     if constexpr (BORDER_ZERO) {
-                        if (ni::is_inbounds(shape, iz, iy, ix))
+                        if (ni::is_inbound(shape, iz, iy, ix))
                             value = static_cast<filter_value_t>(input_3d(iz, iy, ix));
                     } else {
                         const auto iz_reflected = ni::index_at<Border::REFLECT>(iz, shape[0]);

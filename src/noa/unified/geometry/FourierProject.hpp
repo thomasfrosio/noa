@@ -1275,7 +1275,7 @@ namespace noa::geometry::guts {
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
              typename Scale, typename Rotate>
-    void launch_fourier_insert_rasterize_3d(
+    void launch_rasterize_central_slices_3d(
         Input&& slice, InputWeight&& slice_weight, const Shape4<i64>& slice_shape,
         Output&& volume, OutputWeight&& volume_weight, const Shape4<i64>& volume_shape,
         Scale&& scaling, Rotate&& rotation, const auto& options
@@ -1334,7 +1334,7 @@ namespace noa::geometry::guts {
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
              typename Scale, typename Rotate>
-    void launch_fourier_insert_interpolate_3d(
+    void launch_insert_central_slices_3d(
         Input&& slice, InputWeight&& slice_weight, const Shape4<i64>& slice_shape,
         Output&& volume, OutputWeight&& volume_weight, const Shape4<i64>& volume_shape,
         Scale&& scaling, Rotate&& rotation, const auto& options
@@ -1411,7 +1411,7 @@ namespace noa::geometry::guts {
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
              typename Scale, typename Rotate>
-    void launch_fourier_extract_3d(
+    void launch_extract_central_slices_3d(
         Input&& volume, InputWeight&& volume_weight, const Shape4<i64>& volume_shape,
         Output&& slice, OutputWeight&& slice_weight, const Shape4<i64>& slice_shape,
         Scale&& scaling, Rotate&& rotation, const auto& options
@@ -1505,7 +1505,7 @@ namespace noa::geometry::guts {
              typename Output, typename OutputWeight,
              typename InputScale, typename InputRotate,
              typename OutputScale, typename OutputRotate>
-    void launch_fourier_insert_interpolate_extract_3d(
+    void launch_insert_and_extract_central_slices_3d(
         Input&& input_slice, InputWeight&& input_weight, const Shape4<i64>& input_shape,
         Output&& output_slice, OutputWeight&& output_weight, const Shape4<i64>& output_shape,
         InputScale&& input_scaling, InputRotate&& input_rotation,
@@ -1613,7 +1613,7 @@ namespace noa::geometry::guts {
 }
 
 namespace noa::geometry {
-    struct FourierInsertRasterizeOptions {
+    struct RasterizeCentralSlicesOptions {
         /// Frequency cutoff of the output volume, in cycle/pix.
         /// Frequencies above this are left unchanged.
         f64 fftfreq_cutoff{0.5};
@@ -1671,7 +1671,7 @@ namespace noa::geometry {
     requires (guts::fourier_projection_input_output<false, true, Input, Output, InputWeight, OutputWeight> and
               guts::fourier_projection_transform<Scale, Rotate> and
               REMAP.is_hx2hx())
-    void fourier_insert_rasterize_3d(
+    void rasterize_central_slices_3d(
         Input&& slice,
         InputWeight&& slice_weight,
         const Shape4<i64>& slice_shape,
@@ -1680,7 +1680,7 @@ namespace noa::geometry {
         const Shape4<i64>& volume_shape,
         Scale&& inv_scaling,
         Rotate&& fwd_rotation,
-        const FourierInsertRasterizeOptions& options = {}
+        const RasterizeCentralSlicesOptions& options = {}
     ) {
         guts::fourier_projection_check_parameters<guts::FourierProjectionType::INSERT_RASTERIZE>(
             slice, slice_weight, slice_shape, volume, volume_weight, volume_shape,
@@ -1690,7 +1690,7 @@ namespace noa::geometry {
             #ifdef NOA_ENABLE_GPU
             check(guts::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
                   "i64 indexing not instantiated for GPU devices");
-            return guts::launch_fourier_insert_rasterize_3d<REMAP, i32>(
+            return guts::launch_rasterize_central_slices_3d<REMAP, i32>(
                 std::forward<Input>(slice), std::forward<InputWeight>(slice_weight), slice_shape,
                 std::forward<Output>(volume), std::forward<OutputWeight>(volume_weight), volume_shape,
                 std::forward<Scale>(inv_scaling), std::forward<Rotate>(fwd_rotation), options);
@@ -1699,7 +1699,7 @@ namespace noa::geometry {
             #endif
         }
 
-        guts::launch_fourier_insert_rasterize_3d<REMAP, i64>(
+        guts::launch_rasterize_central_slices_3d<REMAP, i64>(
             std::forward<Input>(slice), std::forward<InputWeight>(slice_weight), slice_shape,
             std::forward<Output>(volume), std::forward<OutputWeight>(volume_weight), volume_shape,
             std::forward<Scale>(inv_scaling), std::forward<Rotate>(fwd_rotation), options);
@@ -1731,7 +1731,7 @@ namespace noa::geometry {
         f64 fftfreq_blackman{-1};
     };
 
-    struct FourierInsertInterpolateOptions {
+    struct InsertCentralSlicesOptions {
         /// Interpolation method.
         /// This is ignored if the input(_weights) is a texture.
         Interp interp{Interp::LINEAR};
@@ -1744,11 +1744,11 @@ namespace noa::geometry {
         f64 fftfreq_cutoff{0.5};
 
         /// Actual BDHW logical shape of the 3d volume.
-        /// See FourierInsertRasterizeOptions for more details.
+        /// See RasterizeCentralSlicesOptions for more details.
         Shape4<i64> target_shape{};
 
         /// HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
-        /// See FourierInsertRasterizeOptions for more details.
+        /// See RasterizeCentralSlicesOptions for more details.
         Vec2<f64> ews_radius{};
     };
 
@@ -1788,7 +1788,7 @@ namespace noa::geometry {
     requires (guts::fourier_projection_input_output<true, true, Input, Output, InputWeight, OutputWeight> and
               guts::fourier_projection_transform<Scale, Rotate> and
               REMAP.is_hx2hx())
-    void fourier_insert_interpolate_3d(
+    void insert_central_slices_3d(
         Input&& slice,
         InputWeight&& slice_weight,
         const Shape4<i64>& slice_shape,
@@ -1797,7 +1797,7 @@ namespace noa::geometry {
         const Shape4<i64>& volume_shape,
         Scale&& fwd_scaling,
         Rotate&& inv_rotation,
-        const FourierInsertInterpolateOptions& options = {}
+        const InsertCentralSlicesOptions& options = {}
     ) {
         guts::fourier_projection_check_parameters<guts::FourierProjectionType::INSERT_INTERPOLATE>(
             slice, slice_weight, slice_shape, volume, volume_weight, volume_shape,
@@ -1812,7 +1812,7 @@ namespace noa::geometry {
             } else {
                 check(guts::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
                       "i64 indexing not instantiated for GPU devices");
-                return guts::launch_fourier_insert_interpolate_3d<REMAP, i32, true>(
+                return guts::launch_insert_central_slices_3d<REMAP, i32, true>(
                     std::forward<Input>(slice), std::forward<InputWeight>(slice_weight), slice_shape,
                     std::forward<Output>(volume), std::forward<OutputWeight>(volume_weight), volume_shape,
                     std::forward<Scale>(fwd_scaling), std::forward<Rotate>(inv_rotation), options);
@@ -1822,13 +1822,13 @@ namespace noa::geometry {
             #endif
         }
 
-        guts::launch_fourier_insert_interpolate_3d<REMAP, i64, false>(
+        guts::launch_insert_central_slices_3d<REMAP, i64, false>(
             std::forward<Input>(slice), std::forward<InputWeight>(slice_weight), slice_shape,
             std::forward<Output>(volume), std::forward<OutputWeight>(volume_weight), volume_shape,
             std::forward<Scale>(fwd_scaling), std::forward<Rotate>(inv_rotation), options);
     }
 
-    struct FourierExtractOptions {
+    struct ExtractCentralSlicesOptions {
         /// Interpolation method.
         /// This is ignored if the input(_weights) is a texture.
         Interp interp{Interp::LINEAR};
@@ -1843,11 +1843,11 @@ namespace noa::geometry {
         f64 fftfreq_cutoff{0.5};
 
         /// Actual BDHW logical shape of the 3d volume.
-        /// See FourierInsertRasterizeOptions for more details.
+        /// See RasterizeCentralSlicesOptions for more details.
         Shape4<i64> target_shape{};
 
         /// HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
-        /// See FourierInsertRasterizeOptions for more details.
+        /// See RasterizeCentralSlicesOptions for more details.
         Vec2<f64> ews_radius{};
     };
 
@@ -1887,7 +1887,7 @@ namespace noa::geometry {
     requires (guts::fourier_projection_input_output<true, false, Input, Output, InputWeight, OutputWeight> and
               guts::fourier_projection_transform<Scale, Rotate> and
               REMAP.is_hx2hx())
-    void fourier_extract_3d(
+    void extract_central_slices_3d(
         Input&& volume,
         InputWeight&& volume_weight,
         const Shape4<i64>& volume_shape,
@@ -1896,7 +1896,7 @@ namespace noa::geometry {
         const Shape4<i64>& slice_shape,
         Scale&& inv_scaling,
         Rotate&& fwd_rotation,
-        const FourierExtractOptions& options = {}
+        const ExtractCentralSlicesOptions& options = {}
     ) {
         guts::fourier_projection_check_parameters<guts::FourierProjectionType::EXTRACT>(
             volume, volume_weight, volume_shape, slice, slice_weight, slice_shape,
@@ -1911,7 +1911,7 @@ namespace noa::geometry {
             } else {
                 check(guts::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
                       "i64 indexing not instantiated for GPU devices");
-                return guts::launch_fourier_extract_3d<REMAP, i32, true>(
+                return guts::launch_extract_central_slices_3d<REMAP, i32, true>(
                     std::forward<Input>(volume), std::forward<InputWeight>(volume_weight), volume_shape,
                     std::forward<Output>(slice), std::forward<OutputWeight>(slice_weight), slice_shape,
                     std::forward<Scale>(inv_scaling), std::forward<Rotate>(fwd_rotation), options);
@@ -1921,13 +1921,13 @@ namespace noa::geometry {
             #endif
         }
 
-        guts::launch_fourier_extract_3d<REMAP, i64, false>(
+        guts::launch_extract_central_slices_3d<REMAP, i64, false>(
             std::forward<Input>(volume), std::forward<InputWeight>(volume_weight), volume_shape,
             std::forward<Output>(slice), std::forward<OutputWeight>(slice_weight), slice_shape,
             std::forward<Scale>(inv_scaling), std::forward<Rotate>(fwd_rotation), options);
     }
 
-    struct FourierInsertExtractOptions {
+    struct InsertAndExtractCentralSlicesOptions {
         /// Interpolation method.
         /// This is ignored if input(_weights) is a texture.
         Interp interp{Interp::LINEAR};
@@ -1960,7 +1960,7 @@ namespace noa::geometry {
         f64 fftfreq_cutoff{0.5};
 
         /// HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
-        /// See FourierInsertRasterizeOptions for more details.
+        /// See RasterizeCentralSlicesOptions for more details.
         Vec2<f64> ews_radius{};
     };
 
@@ -2007,7 +2007,7 @@ namespace noa::geometry {
               guts::fourier_projection_transform<InputScale, InputRotate> and
               guts::fourier_projection_transform<OutputScale, OutputRotate> and
               REMAP.is_hx2hx())
-    void fourier_insert_interpolate_and_extract_3d(
+    void insert_and_extract_central_slices_3d(
         Input&& input_slice,
         InputWeight&& input_weight,
         const Shape4<i64>& input_slice_shape,
@@ -2018,7 +2018,7 @@ namespace noa::geometry {
         InputRotate&& input_inv_rotation,
         OutputScale&& output_inv_scaling,
         OutputRotate&& output_fwd_rotation,
-        const FourierInsertExtractOptions& options = {}
+        const InsertAndExtractCentralSlicesOptions& options = {}
     ) {
         guts::fourier_projection_check_parameters<guts::FourierProjectionType::INSERT_EXTRACT>(
             input_slice, input_weight, input_slice_shape, output_slice, output_weight, output_slice_shape,
@@ -2042,7 +2042,7 @@ namespace noa::geometry {
             } else {
                 check(guts::fourier_projection_is_i32_safe_access(input_slice, input_weight, output_slice, output_weight),
                       "i64 indexing not instantiated for GPU devices");
-                return guts::launch_fourier_insert_interpolate_extract_3d<REMAP, i32, true>(
+                return guts::launch_insert_and_extract_central_slices_3d<REMAP, i32, true>(
                     std::forward<Input>(input_slice), std::forward<InputWeight>(input_weight), input_slice_shape,
                     std::forward<Output>(output_slice), std::forward<OutputWeight>(output_weight), output_slice_shape,
                     std::forward<InputScale>(input_fwd_scaling), std::forward<InputRotate>(input_inv_rotation),
@@ -2054,7 +2054,7 @@ namespace noa::geometry {
             #endif
         }
 
-        guts::launch_fourier_insert_interpolate_extract_3d<REMAP, i64>(
+        guts::launch_insert_and_extract_central_slices_3d<REMAP, i64>(
             std::forward<Input>(input_slice), std::forward<InputWeight>(input_weight), input_slice_shape,
             std::forward<Output>(output_slice), std::forward<OutputWeight>(output_weight), output_slice_shape,
             std::forward<InputScale>(input_fwd_scaling), std::forward<InputRotate>(input_inv_rotation),
@@ -2063,14 +2063,14 @@ namespace noa::geometry {
     }
 
     /// Corrects for the interpolation kernel applied to Fourier transforms.
-    /// \details When interpolating Fourier transforms, we effectively convolves the input Fourier components with
+    /// \details When interpolating Fourier transforms, we effectively convolve the input Fourier components with
     ///          an interpolation kernel. As such, the resulting iFT of the interpolated output is the product of the
     ///          final wanted output and the iFT of the interpolation kernel. This function corrects for the effect of
     ///          the interpolation kernel in real-space.
     /// \param[in] input        Inverse Fourier transform of the 3d volume used for direct Fourier insertion.
-    /// \param[out] output      Gridding-corrected output. Can be equal to \p input.
+    /// \param[out] output      Corrected output. Can be equal to \p input.
     /// \param interp           Interpolation method.
-    /// \param post_correction  Whether the correction is the post- or pre-correction. Post correction is meant to be
+    /// \param post_correction  Whether the correction is the post- or pre-correction. Post-correction is meant to be
     ///                         applied to the interpolated output, whereas pre-correction is meant to be applied to
     ///                         the input about to be interpolated.
     template<nt::varray_decay_of_almost_any<f32, f64> Input,

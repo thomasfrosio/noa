@@ -29,7 +29,7 @@ namespace {
     struct IwiseCopy {
         SpanContiguous<i64, N> span;
         NOA_HD constexpr void operator()(auto... indices) const {
-            span(indices...) = ni::is_inbounds(span.shape(), indices...) ?
+            span(indices...) = ni::is_inbound(span.shape(), indices...) ?
                 ni::offset_at(span.strides_full(), indices...) : -1;
         }
     };

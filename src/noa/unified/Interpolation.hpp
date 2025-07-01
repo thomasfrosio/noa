@@ -11,11 +11,11 @@
 namespace noa::guts {
     /// Returns the input type for the Interpolator.
     /// - Supports View, Array and Texture.
-    ///   For Texture, use IS_GPU to extract the GPU texture; otherwise it uses the underlying CPU array.
+    ///   For GPU textures, use EXTRACT_GPU_TEXTURE to extract the GPU texture; otherwise array is used.
     /// - Automatically broadcasts the batch dimension if the input batch is 1.
-    template<size_t N, typename Index, typename Coord, Interp INTERP, Border BORDER, bool IS_GPU, nt::varray_or_texture T>
+    template<size_t N, typename Index, typename Coord, Interp INTERP, Border BORDER, bool EXTRACT_GPU_TEXTURE, nt::varray_or_texture T>
     constexpr auto to_interpolator_input(const T& input) {
-        if constexpr (nt::texture<T> and IS_GPU) {
+        if constexpr (nt::texture<T> and EXTRACT_GPU_TEXTURE) {
             #ifdef NOA_ENABLE_CUDA
             using texture_t = noa::cuda::AllocatorTexture::texture_type<N, INTERP, BORDER, nt::value_type_t<T>, Coord, Index>;
             return texture_t(input.gpu()->texture, input.shape().template filter_nd<N>());
@@ -35,28 +35,28 @@ namespace noa::guts {
     /// The "fast" interpolation methods are only used in certain conditions.
     /// We could leave it as such, the interpolator would generate the correct code, but we would
     /// instantiate more kernels than necessary, so erase the "fast" when it's not relevant.
-    template<Interp INTERP, Border BORDER, bool IS_GPU, nt::varray_or_texture T>
+    template<Interp INTERP, Border BORDER, bool EXTRACT_GPU_TEXTURE, nt::varray_or_texture T>
     consteval auto to_interpolator_interp() {
-        return IS_GPU and nt::texture<T> and
+        return EXTRACT_GPU_TEXTURE and nt::texture<T> and
             BORDER.is_any(Border::MIRROR, Border::PERIODIC, Border::ZERO, Border::CLAMP) and
             INTERP.is_any(Interp::NEAREST_FAST, Interp::LINEAR_FAST, Interp::CUBIC_BSPLINE_FAST)
             ? INTERP : INTERP.erase_fast();
     }
 
     /// Creates an Interpolator.
-    template<size_t N, Interp INTERP, Border BORDER, typename Index, typename Coord, bool IS_GPU, nt::varray_or_texture T>
+    template<size_t N, Interp INTERP, Border BORDER, typename Index, typename Coord, bool EXTRACT_GPU_TEXTURE, nt::varray_or_texture T>
     constexpr auto to_interpolator(const T& input, nt::mutable_value_type_t<T> cvalue = {}) {
-        constexpr Interp INTERP_ = to_interpolator_interp<INTERP, BORDER, IS_GPU, T>();
-        auto interp_input = to_interpolator_input<N, Index, Coord, INTERP_, BORDER, IS_GPU>(input);
+        constexpr Interp INTERP_ = to_interpolator_interp<INTERP, BORDER, EXTRACT_GPU_TEXTURE, T>();
+        auto interp_input = to_interpolator_input<N, Index, Coord, INTERP_, BORDER, EXTRACT_GPU_TEXTURE>(input);
         return Interpolator<N, INTERP_, BORDER, decltype(interp_input)>(
             interp_input, input.shape().template filter_nd<N>().pop_front().template as<Index>(), cvalue);
     }
 
     /// Creates an InterpolatorSpectrum.
-    template<size_t N, Remap REMAP, Interp INTERP, typename Coord, bool IS_GPU, nt::varray_or_texture T, typename Index>
+    template<size_t N, Remap REMAP, Interp INTERP, typename Coord, bool EXTRACT_GPU_TEXTURE, nt::varray_or_texture T, typename Index>
     constexpr auto to_interpolator_spectrum(const T& input, const Shape<Index, 4>& logical_shape) {
-        constexpr Interp INTERP_ = to_interpolator_interp<INTERP, Border::ZERO, IS_GPU, T>();
-        auto interp_input = to_interpolator_input<N, Index, Coord, INTERP_, Border::ZERO, IS_GPU>(input);
+        constexpr Interp INTERP_ = to_interpolator_interp<INTERP, Border::ZERO, EXTRACT_GPU_TEXTURE, T>();
+        auto interp_input = to_interpolator_input<N, Index, Coord, INTERP_, Border::ZERO, EXTRACT_GPU_TEXTURE>(input);
         return InterpolatorSpectrum<N, REMAP, INTERP_, decltype(interp_input)>(
             interp_input, logical_shape.template filter_nd<N>().pop_front().template as<Index>());
     }
