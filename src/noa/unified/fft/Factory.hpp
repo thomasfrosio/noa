@@ -40,7 +40,7 @@ namespace noa::fft {
     [[nodiscard]] auto alias_to_real(Complex&& rfft, const Shape4<i64>& shape) {
         check(vall(Equal{}, rfft.shape(), shape.rfft()),
               "Given the {} logical shape, the rfft should have a shape of {}, but got {}",
-              shape, rfft.shape(), shape.rfft());
+              shape, shape.rfft(), rfft.shape());
         using real_t = nt::mutable_value_type_twice_t<Complex>;
         auto tmp = std::forward<Complex>(rfft).template reinterpret_as<real_t>();
         auto strides = tmp.strides();
