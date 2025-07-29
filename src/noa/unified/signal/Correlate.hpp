@@ -17,17 +17,18 @@ namespace noa::signal::guts {
     struct CrossCorrelationScore {
         using enable_vectorization = bool;
 
-        template<typename T>
-        static constexpr void init(auto lhs, auto rhs, T& sum) {
-            if constexpr (nt::complex<decltype(rhs)>) {
-                sum += static_cast<T>(lhs * conj(rhs));
+        template<typename X, typename Y, typename T>
+        static constexpr void init(const X& x, const Y& y, T& sum_xy) {
+            if constexpr (nt::complex<decltype(y)>) {
+                sum_xy += static_cast<T>(x * conj(y));
             } else {
-                sum += static_cast<T>(lhs * rhs);
+                sum_xy += static_cast<T>(x * y);
             }
         }
 
-        static constexpr void join(auto isum, auto& sum) {
-            sum += isum;
+        template<typename T>
+        static constexpr void join(const T& isum_xy, T& sum_xy) {
+            sum_xy += isum_xy;
         }
     };
 
@@ -35,35 +36,110 @@ namespace noa::signal::guts {
         using enable_vectorization = bool;
         using remove_default_final = bool;
 
-        template<typename T>
-        static constexpr void init(auto lhs, auto rhs, T& cc, T& lhs_cc, T& rhs_cc) {
-            if constexpr (nt::complex<decltype(rhs)>) {
-                cc += static_cast<T>(lhs * conj(rhs));
-                lhs_cc += static_cast<T>(lhs * conj(lhs));
-                rhs_cc += static_cast<T>(rhs * conj(rhs));
+        template<typename X, typename Y, typename T, typename U>
+        static constexpr void init(const X& x, const Y& y, T& sum_xx, T& sum_yy, U& sum_xy) {
+            sum_xx += static_cast<T>(abs_squared(x));
+            sum_yy += static_cast<T>(abs_squared(y));
+            if constexpr (nt::complex<Y>) {
+                sum_xy += static_cast<U>(x * conj(y));
             } else {
-                cc += static_cast<T>(lhs * rhs);
-                lhs_cc += static_cast<T>(lhs * lhs);
-                rhs_cc += static_cast<T>(rhs * rhs);
+                sum_xy += static_cast<U>(x * y);
+            }
+        }
+
+        template<typename T, typename U>
+        static constexpr void join(const T& isum_xx, const T& isum_yy, const U& isum_xy, T& sum_xx, T& sum_yy, U& sum_xy) {
+            sum_xx += isum_xx;
+            sum_yy += isum_yy;
+            sum_xy += isum_xy;
+        }
+
+        template<typename T, typename U, typename V>
+        static constexpr void final(const T& sum_xx, const T& sum_yy, const U& sum_xy, V& ncc) {
+            const auto denom = sum_xx * sum_yy;
+            if (denom <= 0) {
+                ncc = V{};
+            } else {
+                ncc = static_cast<V>(sum_xy / sqrt(denom));
+            }
+        }
+    };
+
+    template<typename S>
+    struct CrossCorrelationScoreCentered {
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
+        S size;
+
+        template<typename L, typename R, typename T>
+        static constexpr void init(const L& x, const R& y, T& sum_x, T& sum_y, T& sum_xy) {
+            sum_x += static_cast<T>(x);
+            sum_y += static_cast<T>(y);
+            if constexpr (nt::complex<R>) {
+                sum_xy += static_cast<T>(x * conj(y));
+            } else {
+                sum_xy += static_cast<T>(x * y);
             }
         }
 
         template<typename T>
-        static constexpr void join(
-            const T& icc, const T& lhs_icc, const T& rhs_icc,
-            T& cc, T& lhs_cc, T& rhs_cc
-        ) {
-            cc += icc;
-            lhs_cc += lhs_icc;
-            rhs_cc += rhs_icc;
+        static constexpr void join(const T& isum_x, const T& isum_y, const T& isum_xy, T& sum_x, T& sum_y, T& sum_xy) {
+            sum_x += isum_x;
+            sum_y += isum_y;
+            sum_xy += isum_xy;
         }
 
-        template<typename T>
-        static constexpr void final(
-            const T& cc, const T& lhs_cc, const T& rhs_cc,
-            T& ncc
+        template<typename T, typename U>
+        constexpr void final(const T& sum_x, const T& sum_y, const T& sum_xy, U& zcc) {
+            zcc = static_cast<U>(sum_xy - (sum_x * conj(sum_y)) / size);
+        }
+    };
+
+    template<typename S>
+    struct CrossCorrelationScoreCenteredNormalized {
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
+        S size;
+
+        template<typename X, typename Y, typename T, typename U>
+        static constexpr void init(const X& x, const Y& y, T& sum_xx, T& sum_yy, U& sum_x, U& sum_y, U& sum_xy) {
+            sum_xx += static_cast<T>(abs_squared(x));
+            sum_yy += static_cast<T>(abs_squared(y));
+            sum_x += static_cast<U>(x);
+            sum_y += static_cast<U>(y);
+            if constexpr (nt::complex<Y>) {
+                sum_xy += static_cast<U>(x * conj(y));
+            } else {
+                sum_xy += static_cast<U>(x * y);
+            }
+        }
+
+        template<typename T, typename U>
+        static constexpr void join(
+            const T& isum_xx, const T& isum_yy, const U& isum_x, const U& isum_y, const U& isum_xy,
+            T& sum_xx, T& sum_yy, U& sum_x, U& sum_y, U& sum_xy
         ) {
-            ncc = cc / (sqrt(lhs_cc) * sqrt(rhs_cc));
+            isum_xx += sum_xx;
+            isum_yy += sum_yy;
+            isum_x += sum_x;
+            isum_y += sum_y;
+            isum_xy += sum_xy;
+        }
+
+        template<typename T, typename U, typename V>
+        constexpr void final(
+            const T& sum_xx, const T& sum_yy, const U& sum_x, const U& sum_y, const U& sum_xy, V& zncc
+        ) {
+            const auto denom_x = sum_xx - abs_squared(sum_x) / size;
+            const auto denom_y = sum_yy - abs_squared(sum_y) / size;
+            auto denom = denom_x * denom_y;
+            if (denom <= 0) {
+                zncc = V{};
+            } else {
+                const auto num = sum_xy - sum_x * conj(sum_y) / size;
+                denom = sqrt(denom);
+                zncc = static_cast<V>(num / denom);
+            }
         }
     };
 
@@ -304,11 +380,21 @@ namespace noa::signal::guts {
 }
 
 namespace noa::signal {
-    /// Computes the cross-correlation score(s).
+    struct CrossCorrelationScoreOptions {
+        /// Whether the inputs should be zero-centered.
+        bool center = false;
+
+        /// Whether the inputs should be L2-normalized.
+        bool normalize = false;
+
+        // TODO Add accurate?
+    };
+
+    /// Computes the (zero-)(normalized-)cross-correlation score(s).
     /// \param[in] lhs      Left-hand side.
     /// \param[in] rhs      Right-hand side.
     /// \param[out] scores  Cross-correlation scores(s). One per batch.
-    /// \param normalize    Whether the inputs should be L2-norm normalized before computing the scores.
+    /// \note The reduction is done using double-precision.
     template<typename Lhs, typename Rhs, nt::writable_varray_decay Output>
     requires (nt::varray_decay_of_real<Lhs, Rhs, Output> or
               nt::varray_decay_of_complex<Lhs, Rhs, Output>)
@@ -316,7 +402,7 @@ namespace noa::signal {
         Lhs&& lhs,
         Rhs&& rhs,
         Output&& scores,
-        bool normalize = false
+        const CrossCorrelationScoreOptions& options = {}
     ) {
         check(not lhs.is_empty() and not rhs.is_empty() and not scores.is_empty(), "Empty array detected");
         check(vall(Equal{}, lhs.shape(), rhs.shape()),
@@ -332,29 +418,46 @@ namespace noa::signal {
               "Got scores:shape={}, scores:strides={}, and batch={}",
               scores.shape(), scores.strides(), batch);
 
-        using value_t = nt::value_type_t<Output>;
-        if (normalize) {
+        using value_t = std::conditional_t<nt::complex<Lhs>, c64, f64>;
+        using real_t = f64;
+        if (options.center and options.normalize) {
+            const auto n_elements = static_cast<real_t>(lhs.shape().n_elements());
+            reduce_axes_ewise(
+                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(real_t{}, real_t{}, value_t{}, value_t{}, value_t{}),
+                std::forward<Output>(scores).flat(0),
+                guts::CrossCorrelationScoreCenteredNormalized{n_elements}
+            );
+        } else if (options.normalize) {
+            reduce_axes_ewise(
+                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(real_t{}, real_t{}, value_t{}),
+                std::forward<Output>(scores).flat(0),
+                guts::CrossCorrelationScoreNormalized{}
+            );
+        } else if (options.center) {
+            const auto n_elements = static_cast<real_t>(lhs.shape().n_elements());
             reduce_axes_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
                 wrap(value_t{}, value_t{}, value_t{}),
                 std::forward<Output>(scores).flat(0),
-                guts::CrossCorrelationScoreNormalized{});
+                guts::CrossCorrelationScoreCentered{n_elements}
+            );
         } else {
             reduce_axes_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
                 value_t{},
                 std::forward<Output>(scores).flat(0),
-                guts::CrossCorrelationScore{});
+                guts::CrossCorrelationScore{}
+            );
         }
     }
 
-    /// Computes the cross-correlation score.
-    /// \param[in] lhs      Left-hand side.
-    /// \param[in] rhs      Right-hand side.
-    /// \param normalize    Whether the inputs should be L2-norm normalized before computing the score.
+    /// Computes the (zero-)(normalized-)cross-correlation score.
+    /// \note The reduction is done using double-precision.
     template<typename Lhs, typename Rhs>
     requires (nt::varray_decay_of_real<Lhs, Rhs> or nt::varray_decay_of_complex<Lhs, Rhs>)
-    [[nodiscard]] auto cross_correlation_score(Lhs&& lhs, Rhs&& rhs, bool normalize = false) {
+    [[nodiscard]] auto cross_correlation_score(Lhs&& lhs, Rhs&& rhs, const CrossCorrelationScoreOptions& options = {}) {
         check(not lhs.is_empty() and not rhs.is_empty(), "Empty array detected");
         check(vall(Equal{}, lhs.shape(), rhs.shape()) and not rhs.shape().is_batched(),
               "Arrays should have the same shape and should not be batched, but got lhs:shape={}, rhs:shape={}",
@@ -364,19 +467,38 @@ namespace noa::signal {
               lhs.device(), rhs.device());
 
         using value_t = std::conditional_t<nt::complex<Lhs>, c64, f64>;
+        using real_t = f64;
         value_t score;
-        if (normalize) {
-            reduce_ewise(
+        if (options.center and options.normalize) {
+            const auto n_elements = static_cast<real_t>(lhs.shape().n_elements());
+            reduce_axes_ewise(
+                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(real_t{}, real_t{}, value_t{}, value_t{}, value_t{}),
+                score,
+                guts::CrossCorrelationScoreCenteredNormalized{n_elements}
+            );
+        } else if (options.normalize) {
+            reduce_axes_ewise(
+                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(real_t{}, real_t{}, value_t{}),
+                score,
+                guts::CrossCorrelationScoreNormalized{}
+            );
+        } else if (options.center) {
+            const auto n_elements = static_cast<real_t>(lhs.shape().n_elements());
+            reduce_axes_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
                 wrap(value_t{}, value_t{}, value_t{}),
                 score,
-                guts::CrossCorrelationScoreNormalized{});
+                guts::CrossCorrelationScoreCentered{n_elements}
+            );
         } else {
-            reduce_ewise(
+            reduce_axes_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
                 value_t{},
                 score,
-                guts::CrossCorrelationScore{});
+                guts::CrossCorrelationScore{}
+            );
         }
         return score;
     }

@@ -390,10 +390,12 @@ namespace noa::inline types {
     static_assert(alignof(f16) == 2);
 }
 
-namespace noa {
-    template<>
-    struct nt::proclaim_is_real<Half> : std::true_type {};
+namespace noa::traits {
+    template<> struct proclaim_is_real<f16> : std::true_type {};
+    template<> struct double_precision<f16> { using type = f64; };
+}
 
+namespace noa {
     [[nodiscard]] NOA_FHD Half fma(Half x, Half y, Half z) {
         #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
         return Half(__hfma(x.native(), y.native(), z.native()));

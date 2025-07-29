@@ -426,6 +426,10 @@ namespace noa::traits {
     template<> struct proclaim_is_complex<c16> : std::true_type {};
     template<> struct proclaim_is_complex<c32> : std::true_type {};
     template<> struct proclaim_is_complex<c64> : std::true_type {};
+
+    template<> struct double_precision<c16> { using type = c64; };
+    template<> struct double_precision<c32> { using type = c64; };
+    template<> struct double_precision<c64> { using type = c64; };
 }
 
 namespace fmt {

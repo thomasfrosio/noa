@@ -17,11 +17,10 @@ set(NOA_CORE_HEADERS
     core/indexing/Offset.hpp
     core/indexing/Subregion.hpp
 
-    core/io/Encoders.hpp
+    core/io/BinaryFile.hpp
     core/io/Encoding.hpp
     core/io/ImageFile.hpp
     core/io/IO.hpp
-    core/io/BinaryFile.hpp
     core/io/TextFile.hpp
 
     core/math/Comparison.hpp
@@ -70,6 +69,6 @@ set(NOA_CORE_SOURCES
     core/Error.cpp
     core/geometry/Euler.cpp
     core/io/BinaryFile.cpp
-    core/io/Encoders.cpp
     core/io/Encoding.cpp
+    core/io/ImageFile.cpp
     )

@@ -4,18 +4,16 @@
 
 #ifdef NOA_ENABLE_TIFF
 #   include <tiffio.h>
-#endif
-#ifdef NOA_ENABLE_OPENMP
 #   include <omp.h>
 #endif
 
 #include "noa/core/io/IO.hpp"
-#include "noa/core/io/Encoders.hpp"
+#include "noa/core/io/ImageFile.hpp"
 
 namespace noa::io {
-    auto EncoderMrc::read_header(
+    auto ImageFileEncoderMrc::read_header(
         std::FILE* file
-    ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, Encoding::Type> {
+    ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, Encoding::Type, Compression> {
         std::byte buffer[1024];
         check(std::fseek(file, 0, SEEK_SET) == 0, "Failed to seek {}", std::strerror(errno));
         check(std::fread(buffer, 1, 1024, file) == 1024, "Failed to read the header (1024 bytes)");
@@ -158,19 +156,22 @@ namespace noa::io {
             panic("Map order {} is not supported. Only (1,2,3) is supported", order);
         }
 
-        return make_tuple(m_shape, m_spacing.as<f64>(), m_dtype);
+        return make_tuple(m_shape, m_spacing.as<f64>(), m_dtype, Compression::NONE);
     }
 
-    void EncoderMrc::write_header(
+    auto ImageFileEncoderMrc::write_header(
         std::FILE* file,
         const Shape<i64, 4>& shape,
         const Vec<f64, 3>& spacing,
-        Encoding::Type dtype
-    ) {
+        Encoding::Type dtype,
+        Compression compression
+    ) -> Tuple<Encoding::Type, Compression> {
         // Sets the member variables.
         m_shape = shape;
         m_spacing = spacing.as<f32>();
-        m_dtype = dtype;
+        m_dtype = closest_supported_dtype(dtype);
+        check(m_dtype != Encoding::UNKNOWN, "The data type is set to unknown");
+        check(compression != Compression::UNKNOWN, "The compression scheme is set to unknown");
 
         // Data type.
         i32 mode{}, imod_stamp{}, imod_flags{};
@@ -196,7 +197,7 @@ namespace noa::io {
                 break;
             }
             default:
-                panic("Data type {} is not supported", m_dtype);
+                panic(); // this should be unreachable(), but panic instead of triggering UB
         }
 
         // Shape/spacing.
@@ -282,9 +283,12 @@ namespace noa::io {
         // Write the header to the file.
         check(std::fseek(file, 0, SEEK_SET) == 0, "Failed to seek {}", std::strerror(errno));
         check(std::fwrite(buffer, 1, 1024, file) == 1024, "Failed to write the header (1024 bytes). {}", std::strerror(errno));
+
+        return make_tuple(m_dtype, Compression::NONE);
     }
 }
 
+#ifdef NOA_ENABLE_TIFF
 namespace {
     using namespace noa;
     using namespace noa::io;
@@ -296,7 +300,7 @@ namespace {
     #endif
 
     auto tiff_client_read(thandle_t data, tdata_t buf, tsize_t size) -> tsize_t {
-        auto handle = static_cast<EncoderTiff::Handle*>(data);
+        auto handle = static_cast<ImageFileEncoderTiff::Handle*>(data);
         auto lock = std::scoped_lock(*handle->mutex);
 
         check(std::fseek(handle->file, handle->offset, SEEK_SET) == 0);
@@ -308,7 +312,7 @@ namespace {
     }
 
     auto tiff_client_write(thandle_t data, tdata_t buf, tsize_t size) -> tsize_t {
-        auto handle = static_cast<EncoderTiff::Handle*>(data);
+        auto handle = static_cast<ImageFileEncoderTiff::Handle*>(data);
         // auto lock = std::scoped_lock(*handle->mutex); writing to the file is synchronous, so don't lock
 
         check(std::fseek(handle->file, handle->offset, SEEK_SET) == 0);
@@ -320,7 +324,7 @@ namespace {
     }
 
     auto tiff_client_seek(thandle_t data, toff_t offset, int whence) -> toff_t {
-        auto handle = static_cast<EncoderTiff::Handle*>(data);
+        auto handle = static_cast<ImageFileEncoderTiff::Handle*>(data);
 
         // Convert to offset from the beginning.
         switch (whence) {
@@ -349,7 +353,7 @@ namespace {
     }
 
     auto tiff_client_size(thandle_t data) -> toff_t {
-        auto handle = static_cast<EncoderTiff::Handle*>(data);
+        auto handle = static_cast<ImageFileEncoderTiff::Handle*>(data);
         auto lock = std::scoped_lock(*handle->mutex);
         auto current_pos = std::ftell(handle->file);
         check(current_pos != -1);
@@ -400,7 +404,7 @@ namespace {
         // TODO
     }
 
-    auto tiff_client_init(EncoderTiff::Handle* handle, const char* mode) -> ::TIFF* {
+    auto tiff_client_init(ImageFileEncoderTiff::Handle* handle, const char* mode) -> ::TIFF* {
         // Error handling setup.
         thread_local bool thread_is_set{};
         if (not thread_is_set) {
@@ -556,9 +560,9 @@ namespace {
 }
 
 namespace noa::io {
-    auto EncoderTiff::read_header(
+    auto ImageFileEncoderTiff::read_header(
         std::FILE* file
-    ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, Encoding::Type> {
+    ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, Encoding::Type, Compression> {
         // Previously opened TIFF files should be closed by now, but make sure.
         close();
         if (m_handles == nullptr)
@@ -570,6 +574,7 @@ namespace noa::io {
         m_handles[0].second = tiff;
 
         u16 n_directories{};
+        u16 tiff_compression{};
         while (::TIFFSetDirectory(tiff, n_directories)) {
             // Shape.
             Shape2<u32> shape; // hw
@@ -613,30 +618,52 @@ namespace noa::io {
 
             // Strips.
             {
-                uint32_t tmp;
+                u32 tmp;
                 check(TIFFGetField(tiff, TIFFTAG_ROWSPERSTRIP, &tmp) == 1,
                       "Only images divided in strips are currently supported. "
                       "Tiled images are currently not supported");
             }
+
+            // Compression.
+            u16 dir_compression{};
+            check(TIFFGetField(tiff, TIFFTAG_COMPRESSION, &dir_compression));
 
             if (n_directories) { // check no mismatch with the other directories
                 check(
                     noa::all(allclose(pixel_size, m_spacing)) and
                     shape[0] == m_shape[1] and
                     shape[1] == m_shape[2] and
-                    data_type == m_dtype,
-                    "Mismatch detected. Directories with different data type, shape, or pixel sizes are not supported"
+                    data_type == m_dtype and
+                    dir_compression == tiff_compression,
+                    "Mismatch detected. Directories with different data type, shape, pixel sizes, or compression, are not supported"
                 );
             } else { // save to header
                 m_dtype = data_type;
                 m_spacing = pixel_size;
                 m_shape[1] = shape[0];
                 m_shape[2] = shape[1];
+                tiff_compression = dir_compression;
             }
             ++n_directories;
         }
         check(s_error_buffer.empty(), "Error occurred while reading directories. {}", s_error_buffer);
         m_shape[0] = n_directories;
+
+        // Extract the compression.
+        Compression compression{};
+        switch (tiff_compression) {
+            case COMPRESSION_NONE:
+                compression = Compression::NONE;
+                break;
+            case COMPRESSION_LZW:
+                compression = Compression::LZW;
+                break;
+            case COMPRESSION_DEFLATE:
+                compression = Compression::DEFLATE;
+                break;
+            default:
+                compression = Compression::UNKNOWN;
+        }
 
         // Don't bother resetting the current directory to the first one,
         // read/write operations will reset the directory whenever necessary.
@@ -644,24 +671,27 @@ namespace noa::io {
         return make_tuple(
             Shape<i64, 4>{m_shape[0], 1, m_shape[1], m_shape[2]},
             m_spacing.as<f64>().push_front(m_spacing[0] == 0 and m_spacing[1] == 0 ? 0 : 1),
-            m_dtype
+            m_dtype, compression
         );
     }
 
-    void EncoderTiff::write_header(
+    auto ImageFileEncoderTiff::write_header(
         std::FILE* file,
         const Shape<i64, 4>& shape,
         const Vec<f64, 3>& spacing,
-        Encoding::Type dtype
-    ) {
+        Encoding::Type dtype,
+        Compression compression
+    ) -> Tuple<Encoding::Type, Compression> {
         check(shape[1] == 1, "TIFF files do not support 3d volumes, but got BDHW shape={}", shape);
         check(not shape.is_empty(), "Empty shapes are invalid, but got {}", shape);
         check(all(spacing >= 0), "The pixel size should be positive, got {}", spacing);
-        check(dtype != Encoding::UNKNOWN, "dtype is not set");
+        check(dtype != Encoding::UNKNOWN, "The data type is set to unknown");
+        check(compression != Compression::UNKNOWN, "The compression scheme is set to unknown");
 
         m_shape = shape.filter(0, 2, 3);
         m_spacing = spacing.filter(1, 2).as<f32>();
         m_dtype = dtype;
+        m_compression = compression;
 
         // Prepare the handles and open the tiff client.
         close();
@@ -676,9 +706,12 @@ namespace noa::io {
 
         // libtiff is so annoying to use, for now disallow reading from new files.
         m_is_write = true;
+
+        // Every dtype and compression are supported.
+        return make_tuple(m_dtype, m_compression);
     }
 
-    void EncoderTiff::close() const {
+    void ImageFileEncoderTiff::close() const {
         if (m_handles != nullptr) {
             // Close the TIFF clients, but don't deallocate in case we need the encoder again.
             // Importantly, the handles are saved sequentially, so stop at the first nullptr.
@@ -694,7 +727,7 @@ namespace noa::io {
     }
 
     template<typename T>
-    void EncoderTiff::decode(
+    void ImageFileEncoderTiff::decode(
         std::FILE* file,
         const Span<T, 4>& output,
         const Vec<i64, 2>& bd_offset,
@@ -796,7 +829,7 @@ namespace noa::io {
     }
 
     template<typename T>
-    void EncoderTiff::encode(
+    void ImageFileEncoderTiff::encode(
         std::FILE* file,
         const Span<const T, 4>& input,
         const Vec<i64, 2>& bd_offset,
@@ -819,6 +852,21 @@ namespace noa::io {
         check(m_shape[0] >= end,
               "The file has less slices ({}) that what is about to be writen (start:{}, count:{})",
               m_shape[0], start, b);
+
+        u16 tiff_compression{};
+        switch (m_compression) {
+            case Compression::NONE:
+                tiff_compression = COMPRESSION_NONE;
+                break;
+            case Compression::LZW:
+                tiff_compression = COMPRESSION_LZW;
+                break;
+            case Compression::DEFLATE:
+                tiff_compression = COMPRESSION_DEFLATE;
+                break;
+            default:
+                panic("The compression is not set");
+        }
 
         check(start == current_directory, "Slices should be written in sequential order");
 
@@ -870,12 +918,11 @@ namespace noa::io {
             check(::TIFFSetField(tiff, TIFFTAG_SAMPLEFORMAT, sample_format));
             check(::TIFFSetField(tiff, TIFFTAG_BITSPERSAMPLE, bits_per_sample));
 
-            // TODO Add support for compression.
-            check(::TIFFSetField(tiff, TIFFTAG_COMPRESSION, COMPRESSION_NONE));
+            check(::TIFFSetField(tiff, TIFFTAG_COMPRESSION, tiff_compression));
 
             // FIXME Many cryoEM software (RELION, IMOD) are reading TIFFs incorrectly because
-            //       they are not check for the orientation and are assuming the default (TOPLEFT).
-            //       As such, this will not be correct...
+            //       they do not check for the orientation and are assuming the default (TOPLEFT).
+            //       As such, this will not read this file correctly...
             check(::TIFFSetField(tiff, TIFFTAG_ORIENTATION, ORIENTATION_BOTLEFT));
 
             i64 irow{};
@@ -898,9 +945,9 @@ namespace noa::io {
         }
     }
 
-    #define NOA_ENCODERTIFF_(T)                                                                                 \
-    template void EncoderTiff::encode<T>(std::FILE*, const Span<const T, 4>&, const Vec<i64, 2>&, bool, i32);   \
-    template void EncoderTiff::decode<T>(std::FILE*, const Span<T, 4>&, const Vec<i64, 2>&, bool, i32)
+    #define NOA_ENCODERTIFF_(T)                                                                                         \
+    template void ImageFileEncoderTiff::encode<T>(std::FILE*, const Span<const T, 4>&, const Vec<i64, 2>&, bool, i32);  \
+    template void ImageFileEncoderTiff::decode<T>(std::FILE*, const Span<T, 4>&, const Vec<i64, 2>&, bool, i32)
 
     NOA_ENCODERTIFF_(i8);
     NOA_ENCODERTIFF_(u8);
@@ -917,3 +964,4 @@ namespace noa::io {
     NOA_ENCODERTIFF_(c32);
     NOA_ENCODERTIFF_(c64);
 }
+#endif

@@ -7,19 +7,20 @@
 #include "noa/gpu/cuda/Blas.hpp"
 #endif
 
+#include "Reduce.hpp"
 #include "noa/unified/Array.hpp"
-#include "noa/unified/ReduceAxesEwise.hpp"
-#include "noa/unified/ReduceEwise.hpp"
+#include "noa/unified/Reduce.hpp"
 #include "noa/unified/Indexing.hpp"
 
 namespace noa {
     /// Returns the vector-vector dot product.
     /// \param[in] lhs  Single row or column vector.
     /// \param[in] rhs  Single row or column vector.
+    /// \param options  Sum options.
     /// \note The input vector \p lhs and \p rhs are automatically reshaped in a row and column vector, respectively.
     template<typename Lhs, typename Rhs>
     requires nt::readable_varray_decay_of_almost_same_type<Lhs, Rhs>
-    [[nodiscard]] auto dot(Lhs&& lhs, Rhs&& rhs) {
+    [[nodiscard]] auto dot(Lhs&& lhs, Rhs&& rhs, const SumOptions& options = {}) {
         check(not lhs.shape().is_batched() and lhs.shape().ndim() <= 2 and
               not rhs.shape().is_batched() and rhs.shape().ndim() <= 2,
               "The inputs should be single row or column vectors, but got lhs:shape={} and rhs:shape={}",
@@ -27,31 +28,32 @@ namespace noa {
 
         auto inputs = wrap(std::forward<Lhs>(lhs).flat(), std::forward<Rhs>(rhs).flat());
         using value_t = nt::mutable_value_type_t<Lhs>;
-        value_t output{};
+        using reduce_t = std::conditional_t<nt::real<value_t>, f64,
+                         std::conditional_t<nt::complex<value_t>, c64,
+                         value_t>>;
 
+        value_t output;
         if constexpr (nt::real_or_complex<value_t>) {
-            if (rhs.device().is_cpu()) {
-                using op_t = ReduceAccurateSum<value_t>;
-                using pair_t = op_t::pair_type;
-                reduce_ewise<ReduceEwiseOptions{.generate_gpu = false}>(
-                    std::move(inputs), pair_t{}, output, op_t{});
+            if (options.accurate) {
+                reduce_ewise(std::move(inputs), Vec<reduce_t, 2>{}, output, ReduceSumKahan{});
                 return output;
             }
         }
-        reduce_ewise(std::move(inputs), value_t{}, output, ReduceSum{});
+        reduce_ewise(std::move(inputs), reduce_t{}, output, ReduceSum{});
         return output;
     }
 
     /// Computes the (batched) vector-vector dot product.
-    /// \param[in] lhs              (Batched) row or column vector.
-    /// \param[in] rhs              (Batched) row or column vector.
-    /// \param[out] output          Output contiguous vector with the dot products. One element per batch.
+    /// \param[in] lhs      (Batched) row or column vector.
+    /// \param[in] rhs      (Batched) row or column vector.
+    /// \param[out] output  Output contiguous vector with the dot products. One element per batch.
+    /// \param options      Sum options.
     /// \note The input vector \p lhs and \p rhs are automatically reshaped in a row and column vector, respectively.
     template<nt::readable_varray_decay Lhs,
              nt::readable_varray_decay Rhs,
              nt::writable_varray_decay Output>
     requires nt::varray_decay_of_almost_same_type<Lhs, Rhs, Output>
-    void dot(Lhs&& lhs, Rhs&& rhs, Output&& output) {
+    void dot(Lhs&& lhs, Rhs&& rhs, Output&& output, const SumOptions& options = {}) {
         check(ni::is_vector(lhs.shape(), true) and
               ni::is_vector(rhs.shape(), true) and
               lhs.shape()[1] == 1 and rhs.shape()[1] == 1,
@@ -74,16 +76,22 @@ namespace noa {
                            std::forward<Rhs>(rhs).reshape(full_shape));
 
         using value_t = nt::mutable_value_type_t<Lhs>;
+        using reduce_t = std::conditional_t<nt::real<value_t>, f64,
+                         std::conditional_t<nt::complex<value_t>, c64,
+                         value_t>>;
+
         if constexpr (nt::real_or_complex<value_t>) {
-            if (rhs.device().is_cpu()) {
-                using op_t = ReduceAccurateSum<value_t>;
-                using pair_t = op_t::pair_type;
-                reduce_axes_ewise<ReduceAxesEwiseOptions{.generate_gpu = false}>(
-                    std::move(inputs), pair_t{}, output, op_t{});
-                return;
+            if (options.accurate) {
+                return reduce_axes_ewise(
+                    std::move(inputs), Vec<reduce_t, 2>{},
+                    std::forward<Output>(output), ReduceSumKahan{}
+                );
             }
         }
-        reduce_axes_ewise(std::move(inputs), value_t{}, output, ReduceSum{});
+        reduce_axes_ewise(
+            std::move(inputs), reduce_t{},
+            std::forward<Output>(output), ReduceSum{}
+        );
     }
 
     template<nt::any_of<f32, f64, c32, c64> T>

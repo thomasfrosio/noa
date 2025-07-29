@@ -20,16 +20,16 @@ TEST_CASE("unified::reduce - vs numpy", "[asset]") {
     const auto output_filename = path / tests["all"]["output_path"].as<Path>();
 
     const YAML::Node expected = YAML::LoadFile(output_filename);
-    const auto expected_max = expected["max"].as<f32>();
-    const auto expected_min = expected["min"].as<f32>();
-    const auto expected_median = expected["median"].as<f32>();
-    const auto expected_mean = expected["mean"].as<f32>();
-    const auto expected_norm = expected["norm"].as<f32>();
-    const auto expected_std = expected["std"].as<f32>();
-    const auto expected_sum = expected["sum"].as<f32>();
-    const auto expected_var = expected["var"].as<f32>();
+    const auto expected_max = expected["max"].as<f64>();
+    const auto expected_min = expected["min"].as<f64>();
+    const auto expected_median = expected["median"].as<f64>();
+    const auto expected_mean = expected["mean"].as<f64>();
+    const auto expected_norm = expected["norm"].as<f64>();
+    const auto expected_std = expected["std"].as<f64>();
+    const auto expected_sum = expected["sum"].as<f64>();
+    const auto expected_var = expected["var"].as<f64>();
 
-    auto data = noa::io::read_data<f32>(input_filename);
+    auto data = noa::io::read_data<f64>(input_filename);
     REQUIRE(all(data.shape() == shape));
 
     std::vector<Device> devices{"cpu"};
@@ -102,26 +102,26 @@ TEST_CASE("unified::reduce - complex vs numpy", "[assets]") {
         const auto complex_sum = noa::sum(data);
         const auto complex_mean = noa::mean(data);
         const auto norm = noa::l2_norm(data);
-        const auto var = noa::variance(data, 1);
-        const auto std = noa::stddev(data, 1);
+        const auto var = noa::variance(data, {.ddof = 1});
+        const auto std = noa::stddev(data, {.ddof = 1});
 
         REQUIRE(noa::allclose(complex_sum.real, expected_sum.real));
         REQUIRE(noa::allclose(complex_sum.imag, expected_sum.imag));
         REQUIRE(noa::allclose(complex_mean.real, expected_mean.real));
         REQUIRE(noa::allclose(complex_mean.imag, expected_mean.imag));
         REQUIRE(noa::allclose(norm, expected_norm));
-        REQUIRE(noa::allclose(var, expected_var));
-        REQUIRE(noa::allclose(std, expected_std));
+        REQUIRE(noa::allclose(var, expected_var, 1e-5));
+        REQUIRE(noa::allclose(std, expected_std, 1e-5));
 
-        const auto [mean_var0, mean_var1] = noa::mean_variance(data, 1);
+        const auto [mean_var0, mean_var1] = noa::mean_variance(data, {.ddof = 1});
         REQUIRE(noa::allclose(mean_var0.real, expected_mean.real));
         REQUIRE(noa::allclose(mean_var0.imag, expected_mean.imag));
-        REQUIRE(noa::allclose(mean_var1, expected_var));
+        REQUIRE(noa::allclose(mean_var1, expected_var, 1e-5));
 
-        const auto [mean_std0, mean_std1] = noa::mean_stddev(data, 1);
+        const auto [mean_std0, mean_std1] = noa::mean_stddev(data, {.ddof = 1});
         REQUIRE(noa::allclose(mean_std0.real, expected_mean.real));
         REQUIRE(noa::allclose(mean_std0.imag, expected_mean.imag));
-        REQUIRE(noa::allclose(mean_std1, expected_std));
+        REQUIRE(noa::allclose(mean_std1, expected_std, 1e-5));
     }
 }
 

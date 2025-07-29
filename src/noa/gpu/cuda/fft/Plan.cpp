@@ -93,14 +93,25 @@ namespace {
     public:
         CufftManager() = default;
 
-        void set_cache_limit(i32 size) noexcept {
-            NOA_ASSERT(size >= 0);
-            m_max_size = noa::clamp_cast<size_t>(size);
-            while (m_queue.size() > m_max_size)
+        auto set_cache_limit(i32 size) noexcept {
+            m_max_size = noa::safe_cast<size_t>(size);
+            i32 n_plans_destructed{};
+            while (m_queue.size() > m_max_size) {
                 m_queue.pop_back();
+                ++n_plans_destructed;
+            }
+            return n_plans_destructed;
         }
 
-        i32 clear_cache() noexcept {
+        [[nodiscard]] auto cache_limit() const noexcept {
+            return static_cast<i32>(m_max_size);
+        }
+
+        [[nodiscard]] auto cache_size() const noexcept {
+            return static_cast<i32>(m_queue.size());
+        }
+
+        auto clear_cache() noexcept {
             i32 n_plans_destructed{};
             while (not m_queue.empty()) {
                 m_queue.pop_back();
@@ -114,7 +125,7 @@ namespace {
                 m_queue.pop_back();
         }
 
-        [[nodiscard]] std::shared_ptr<CufftPlan> find_in_cache(const std::string& key) const noexcept {
+        [[nodiscard]] auto find_in_cache(const std::string& key) const noexcept -> std::shared_ptr<CufftPlan> {
             std::shared_ptr<CufftPlan> out;
             for (const auto& [hash, handle]: m_queue) {
                 if (key == hash) {
@@ -125,7 +136,7 @@ namespace {
             return out;
         }
 
-        std::shared_ptr<CufftPlan> share_and_push_to_cache(std::string&& key, cufftHandle handle) {
+        auto share_and_push_to_cache(std::string&& key, cufftHandle handle) -> std::shared_ptr<CufftPlan> {
             if (m_max_size == 0) // the cache is turned off
                 return std::make_shared<CufftPlan>(handle);
 
@@ -135,7 +146,7 @@ namespace {
             return m_queue.front().second;
         }
 
-        static std::shared_ptr<CufftPlan> share(cufftHandle handle) {
+        static auto share(cufftHandle handle) -> std::shared_ptr<CufftPlan> {
             return std::make_shared<CufftPlan>(handle);
         }
 
@@ -318,7 +329,7 @@ namespace noa::cuda::fft::guts {
 
 namespace noa::cuda::fft {
     // cuFFT has stronger requirements compared to FFTW.
-    i64 fast_size(i64 size) {
+    auto fast_size(i64 size) -> i64 {
         for (auto nice_size: sizes_even_cufft_) {
             const auto tmp = static_cast<i64>(nice_size);
             if (size <= tmp)
@@ -327,12 +338,20 @@ namespace noa::cuda::fft {
         return is_even(size) ? size : (size + 1); // fall back to next even number
     }
 
-    i32 clear_caches(Device device) noexcept {
+    auto clear_cache(Device device) noexcept -> i32 {
         return get_cache_(device).clear_cache();
     }
 
-    void set_cache_limit(Device device, i32 count) noexcept {
-        get_cache_(device).set_cache_limit(count);
+    auto cache_limit(Device device) noexcept -> i32 {
+        return get_cache_(device).cache_limit();
+    }
+
+    auto cache_size(Device device) noexcept -> i32 {
+        return get_cache_(device).cache_size();
+    }
+
+    auto set_cache_limit(Device device, i32 count) noexcept -> i32 {
+        return get_cache_(device).set_cache_limit(count);
     }
 
     template<typename T>

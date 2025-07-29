@@ -9,7 +9,7 @@
 
 namespace noa::cuda {
     template<typename T>
-    T median(
+    auto median(
         T* input,
         Strides4<i64> strides,
         Shape4<i64> shape,
@@ -21,14 +21,21 @@ namespace noa::cuda {
         shape = ni::reorder(shape, order);
 
         const auto n_elements = shape.n_elements();
-        typename AllocatorDevice<T>::unique_type buffer;
-        T* to_sort{};
-        if (overwrite and ni::are_contiguous(strides, shape)) {
-            to_sort = input;
-        } else {
-            buffer = AllocatorDevice<T>::allocate_async(n_elements, stream);
+        using mut_t = std::remove_const_t<T>;
+        typename AllocatorDevice<mut_t>::unique_type buffer;
+        mut_t* to_sort{};
+        if constexpr (std::is_const_v<T>) {
+            buffer = AllocatorDevice<mut_t>::allocate_async(n_elements, stream);
             to_sort = buffer.get();
             copy(input, strides, to_sort, shape.strides(), shape, stream);
+        } else {
+            if (overwrite and ni::are_contiguous(strides, shape)) {
+                to_sort = input;
+            } else {
+                buffer = AllocatorDevice<mut_t>::allocate_async(n_elements, stream);
+                to_sort = buffer.get();
+                copy(input, strides, to_sort, shape.strides(), shape, stream);
+            }
         }
 
         // Sort the entire contiguous array.
@@ -37,12 +44,12 @@ namespace noa::cuda {
 
         // Retrieve the median.
         const bool is_even = noa::is_even(n_elements);
-        T out[2];
+        mut_t out[2];
         copy(to_sort + (n_elements - is_even) / 2, out, 1 + is_even, stream);
         stream.synchronize();
 
         if (is_even)
-            return (out[0] + out[1]) / T{2};
+            return (out[0] + out[1]) / mut_t{2};
         return out[0];
     }
 }

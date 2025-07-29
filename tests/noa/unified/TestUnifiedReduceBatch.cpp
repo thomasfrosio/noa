@@ -19,7 +19,7 @@ TEST_CASE("unified::reduce - batched reductions vs numpy", "[asset]") {
     const auto input_filename = path / input["path"].as<Path>();
     const auto output_filename = path / tests["batch"]["output_path"].as<Path>();
 
-    auto data = noa::io::read_data<f32>(input_filename);
+    auto data = noa::io::read_data<f64>(input_filename);
     REQUIRE(noa::all(data.shape() == shape));
 
     const YAML::Node expected = YAML::LoadFile(output_filename);
@@ -146,11 +146,11 @@ TEMPLATE_TEST_CASE("unified::reduce - batched reductions, cpu vs gpu", "", i64, 
 
         for (i64 ddof = 0; ddof < 2; ++ddof) {
             INFO("ddof: " << ddof);
-            noa::variance(cpu_data, cpu_var, ddof);
-            noa::stddev(cpu_data, cpu_std, ddof);
+            noa::variance(cpu_data, cpu_var, {.ddof = ddof});
+            noa::stddev(cpu_data, cpu_std, {.ddof = ddof});
 
-            noa::variance(gpu_data, gpu_var, ddof);
-            noa::stddev(gpu_data, gpu_std, ddof);
+            noa::variance(gpu_data, gpu_var, {.ddof = ddof});
+            noa::stddev(gpu_data, gpu_std, {.ddof = ddof});
 
             REQUIRE(test::allclose_abs_safe(cpu_results, gpu_results, eps));
         }

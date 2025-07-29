@@ -125,7 +125,8 @@ namespace noa {
     /// \return             1: The number of elements to add/remove from the left side of the dimensions.
     ///                     2: The number of elements to add/remove from the right side of the dimension.
     ///                     Positive values correspond to padding, while negative values correspond to cropping.
-    [[nodiscard]] inline auto shape2borders(const Shape4<i64>& input_shape, const Shape4<i64>& output_shape) {
+    template<size_t N> requires (1 <= N and N <= 4)
+    [[nodiscard]] auto shape2borders(const Shape<i64, N>& input_shape, const Shape<i64, N>& output_shape) {
         const auto diff = output_shape - input_shape;
         const auto border_left = output_shape / 2 - input_shape / 2;
         const auto border_right = diff - border_left;

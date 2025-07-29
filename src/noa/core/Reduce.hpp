@@ -2,7 +2,7 @@
 
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Complex.hpp"
-#include "noa/core/types/Pair.hpp"
+#include "noa/core/types/Vec.hpp"
 #include "noa/core/math/Comparison.hpp"
 #include "noa/core/math/Generic.hpp"
 
@@ -10,18 +10,47 @@
 namespace noa {
     struct ReduceSum {
         using enable_vectorization = bool;
+        using remove_default_final = bool;
 
-        template<typename T>
-        static constexpr void init(const auto& value, T& sum) {
+        template<typename I, typename T>
+        static constexpr void init(const I& value, T& sum) {
             sum += static_cast<T>(value);
         }
-        template<typename T>
-        static constexpr void init(const auto& lhs, const auto& rhs, T& sum) { // dot
+        template<typename I, typename J, typename T>
+        static constexpr void init(const I& lhs, const J& rhs, T& sum) { // dot
             sum += static_cast<T>(lhs * rhs);
         }
         template<typename T>
         static constexpr void join(const T& ireduced, T& reduced) {
             reduced += ireduced;
+        }
+        template<typename T, typename O>
+        static constexpr void final(const T& reduced, O& sum) {
+            sum = static_cast<O>(reduced);
+        }
+    };
+
+    struct ReduceSumKahan {
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
+
+        template<nt::real_or_complex I, typename T>
+        static constexpr void init(const I& input, Vec<T, 2>& sum) {
+            auto value = static_cast<T>(input);
+            kahan_sum(value, sum[0], sum[1]);
+        }
+        template<nt::real_or_complex I, nt::real_or_complex J, typename T>
+        static constexpr void init(const I& lhs, const J& rhs, Vec<T, 2>& sum) { // dot
+            auto value = static_cast<T>(lhs * rhs);
+            kahan_sum(value, sum[0], sum[1]);
+        }
+        template<typename T>
+        static constexpr void join(const Vec<T, 2>& isum, Vec<T, 2>& sum) {
+            sum += isum;
+        }
+        template<typename T, typename F>
+        static constexpr void final(const Vec<T, 2>& sum, F& final) {
+            final = static_cast<F>(sum[0] + sum[1]);
         }
     };
 
@@ -36,8 +65,8 @@ namespace noa {
             sum += static_cast<T>(value);
         }
         template<typename T>
-        static constexpr void join(const T& ireduced, T& reduced) {
-            reduced += ireduced;
+        static constexpr void join(const T& isum, T& sum) {
+            sum += isum;
         }
         template<typename T, typename U>
         constexpr void final(const T& sum, U& mean) const {
@@ -45,21 +74,61 @@ namespace noa {
         }
     };
 
+    template<nt::real_or_complex S>
+    struct ReduceMeanKahan {
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
+        S size;
+
+        template<nt::real_or_complex I, typename T>
+        static constexpr void init(const I& input, Vec<T, 2>& sum) {
+            auto value = static_cast<T>(input);
+            kahan_sum(value, sum[0], sum[1]);
+        }
+        template<typename T>
+        static constexpr void join(const Vec<T, 2>& isum, Vec<T, 2>& sum) {
+            sum += isum;
+        }
+        template<typename T, typename F>
+        constexpr void final(const Vec<T, 2>& sum, F& final) const {
+            final = static_cast<F>((sum[0] + sum[1]) / size);
+        }
+    };
+
     struct ReduceL2Norm {
         using enable_vectorization = bool;
         using remove_default_final = bool;
 
-        template<typename T>
-        static constexpr void init(const auto& value, T& sum) {
+        template<typename I, typename T>
+        static constexpr void init(const I& value, T& sum) {
             sum += static_cast<T>(abs_squared(value));
         }
         template<typename T>
-        static constexpr void join(const T& ireduced, T& reduced) {
-            reduced += ireduced;
+        static constexpr void join(const T& isum, T& sum) {
+            sum += isum;
         }
-        template<typename T>
-        static constexpr void final(const auto& sum, T& norm) {
-            norm = static_cast<T>(sqrt(sum));
+        template<typename T, typename F>
+        static constexpr void final(const T& sum, F& norm) {
+            using tmp_t = std::conditional_t<nt::integer<T>, f64, T>;
+            norm = static_cast<F>(sqrt(static_cast<tmp_t>(sum)));
+        }
+    };
+
+    struct ReduceL2NormKahan {
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
+
+        template<typename I, nt::real T>
+        static constexpr void init(const I& input, Vec<T, 2>& sum) {
+            kahan_sum(static_cast<T>(abs_squared(input)), sum[0], sum[1]);
+        }
+        template<nt::real T>
+        static constexpr void join(const Vec<T, 2>& isum, Vec<T, 2>& sum) {
+            sum += isum;
+        }
+        template<nt::real T, typename F>
+        static constexpr void final(const Vec<T, 2>& global_sum, F& final) {
+            final = static_cast<F>(sqrt(global_sum[0] + global_sum[1]));
         }
     };
 
@@ -121,13 +190,8 @@ namespace noa {
 
         template<typename T, typename U>
         static constexpr void init(const T& value, const U& mean, R& reduced) {
-            if constexpr (nt::complex<T>) {
-                const auto distance = abs(static_cast<U>(value) - mean);
-                reduced += static_cast<R>(distance * distance);
-            } else {
-                const auto distance = static_cast<U>(value) - mean;
-                reduced += static_cast<R>(distance * distance);
-            }
+            const auto distance_sqd = abs_squared(static_cast<U>(value) - mean);
+            reduced += static_cast<R>(distance_sqd);
         }
         static constexpr void join(const R& ireduced, R& reduced) {
             reduced += ireduced;
@@ -146,13 +210,8 @@ namespace noa {
 
         template<typename T, typename U>
         static constexpr void init(const T& value, const U& mean, R& reduced) {
-            if constexpr (nt::complex<T>) {
-                const auto distance = abs(static_cast<U>(value) - mean);
-                reduced += static_cast<R>(distance * distance);
-            } else {
-                const auto distance = static_cast<U>(value) - mean;
-                reduced += static_cast<R>(distance * distance);
-            }
+            const auto distance_sqd = abs_squared(static_cast<U>(value) - mean);
+            reduced += static_cast<R>(distance_sqd);
         }
         static constexpr void join(const R& ireduced, R& reduced) {
             reduced += ireduced;
@@ -161,6 +220,83 @@ namespace noa {
         constexpr void final(const R& reduced, T& stddev) const {
             auto variance = reduced / size;
             stddev = static_cast<T>(sqrt(variance));
+        }
+    };
+
+    template<nt::real S, bool STDDEV = false>
+    struct ReduceMeanVariance {
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
+        S size{};
+
+        template<typename I, typename T, typename U>
+        static constexpr void init(const I& value, T& sum, U& sum_sqd) {
+            const auto v = static_cast<T>(value);
+            sum += v;
+            sum_sqd += abs_squared(v);
+        }
+        template<typename T, typename U>
+        static constexpr void join(const T& isum, const U& isum_sqd, T& sum, U& sum_sqd) {
+            sum += isum;
+            sum_sqd += isum_sqd;
+        }
+        template<typename T, typename U, typename V, typename W>
+        constexpr void final(const T& sum, const U& sum_sqd, V& mean, W& variance) const {
+            using t0 = std::conditional_t<nt::integer<T>, S, T>;
+            using t1 = std::conditional_t<nt::integer<U>, S, U>;
+            T mean_ = static_cast<t0>(sum) / size;
+            U variance_ = static_cast<t1>(sum_sqd) / size - abs_squared(mean_);
+            if constexpr (STDDEV)
+                variance_ = sqrt(variance_);
+            if constexpr (not nt::empty<V>)
+                mean = static_cast<V>(mean_);
+            variance = static_cast<W>(variance_);
+        }
+        template<typename T, typename U, typename V>
+        constexpr void final(const T& sum, const U& sum_sqd, V& variance) const {
+            auto empty = Empty{};
+            final(sum, sum_sqd, empty, variance);
+        }
+    };
+
+    template<nt::real S, bool STDDEV = false>
+    struct ReduceMeanVarianceKahan {
+        using enable_vectorization = bool;
+        using remove_default_final = bool;
+        S size{};
+
+        template<nt::real_or_complex I, typename T, typename U>
+        constexpr void init(const I& value, Vec<T, 2>& sum, Vec<U, 2>& sum_sqd) {
+            const auto x = static_cast<T>(value);
+            noa::kahan_sum(x, sum[0], sum[1]);
+            noa::kahan_sum(abs_squared(x), sum_sqd[0], sum_sqd[1]);
+        }
+        template<typename T, typename U>
+        static constexpr void join(
+            const Vec<T, 2>& isum,
+            const Vec<U, 2>& isum_sqd,
+            Vec<T, 2>& sum,
+            Vec<U, 2>& sum_sqd
+        ) {
+            sum += isum;
+            sum_sqd += isum_sqd;
+        }
+        template<typename T, typename U, typename V, typename W>
+        constexpr void final(const Vec<T, 2>& sum, const Vec<U, 2>& sum_sqd, V& mean, W& variance) const {
+            T mean_ = (sum[0] + sum[1]) / size;
+            U variance_ = (sum_sqd[0] + sum_sqd[1]) / size - abs_squared(mean_);
+            if constexpr (STDDEV)
+                variance_ = sqrt(variance_);
+            mean = static_cast<V>(mean_);
+            variance = static_cast<W>(variance_);
+        }
+        template<typename T, typename U, typename V>
+        constexpr void final(const Vec<T, 2>& sum, const Vec<U, 2>& sum_sqd, V& variance) const {
+            T mean_ = (sum[0] + sum[1]) / size;
+            U variance_ = (sum_sqd[0] + sum_sqd[1]) / size - abs_squared(mean_);
+            if constexpr (STDDEV)
+                variance_ = sqrt(variance_);
+            variance = static_cast<V>(variance_);
         }
     };
 
@@ -195,73 +331,6 @@ namespace noa {
         static constexpr void join(const T& ireduced, T& reduced) {
             if (not ireduced)
                 reduced = false;
-        }
-    };
-
-    /// Accurate sum reduction operator for (complex) floating-points using Kahan summation, with Neumaier variation.
-    template<nt::real_or_complex T>
-    struct ReduceAccurateSum {
-        using enable_vectorization = bool;
-        using remove_default_final = bool;
-        using reduced_type = std::conditional_t<nt::real<T>, f64, c64>;
-        using pair_type = Pair<reduced_type, reduced_type>;
-
-        static constexpr void init(const auto& input, pair_type& sum) {
-            auto value = static_cast<reduced_type>(input);
-            kahan_sum(value, sum.first, sum.second);
-        }
-        static constexpr void init(const auto& lhs, const auto& rhs, pair_type& sum) { // dot
-            auto value = static_cast<reduced_type>(lhs * rhs);
-            kahan_sum(value, sum.first, sum.second);
-        }
-        static constexpr void join(const pair_type& local_sum, pair_type& global_sum) {
-            global_sum.first += local_sum.first;
-            global_sum.second += local_sum.second;
-        }
-        template<typename F>
-        static constexpr void final(const pair_type& global_sum, F& final) {
-            final = static_cast<F>(global_sum.first + global_sum.second);
-        }
-    };
-
-    template<nt::real_or_complex T>
-    struct ReduceAccurateMean {
-        using enable_vectorization = bool;
-        using remove_default_final = bool;
-        using reduced_type = std::conditional_t<nt::real<T>, f64, c64>;
-        using pair_type = Pair<reduced_type, reduced_type>;
-        using mean_type = nt::value_type_t<reduced_type>;
-        mean_type size;
-
-        static constexpr void init(const auto& input, pair_type& sum) {
-            auto value = static_cast<reduced_type>(input);
-            kahan_sum(value, sum.first, sum.second);
-        }
-        static constexpr void join(const pair_type& local_sum, pair_type& global_sum) {
-            global_sum.first += local_sum.first;
-            global_sum.second += local_sum.second;
-        }
-        template<typename F>
-        constexpr void final(const pair_type& global_sum, F& final) const {
-            final = static_cast<F>((global_sum.first + global_sum.second) / size);
-        }
-    };
-
-    struct ReduceAccurateL2Norm {
-        using enable_vectorization = bool;
-        using remove_default_final = bool;
-        using pair_type = Pair<f64, f64>;
-
-        static constexpr void init(const auto& input, pair_type& sum) {
-            kahan_sum(static_cast<f64>(abs_squared(input)), sum.first, sum.second);
-        }
-        static constexpr void join(const pair_type& local_sum, pair_type& global_sum) {
-            global_sum.first += local_sum.first;
-            global_sum.second += local_sum.second;
-        }
-        template<typename F>
-        static constexpr void final(const pair_type& global_sum, F& final) {
-            final = static_cast<F>(sqrt(global_sum.first + global_sum.second));
         }
     };
 }

@@ -7,6 +7,15 @@
 #include "noa/core/types/Half.hpp"
 
 namespace noa::io {
+    /// Compression scheme.
+    /// TODO This is a very rudimentary support of compression schemes.
+    ///      We currently only support this in BasicImageFile,
+    ///      and the compression is done through the libtiff library.
+    enum class Compression {
+        NONE = 0, UNKNOWN = 1,
+        LZW, DEFLATE
+    };
+
     struct Encoding {
     public:
         enum class Type {

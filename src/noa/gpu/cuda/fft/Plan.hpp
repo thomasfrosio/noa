@@ -15,7 +15,7 @@ namespace noa::cuda::fft {
     /// An optimum size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d).
     /// If \p size is >16800, this function will simply return the next even number and will not necessarily
     /// satisfy the aforementioned requirements.
-    i64 fast_size(i64 size);
+    auto fast_size(i64 size) -> i64;
 
     /// Type of transform to plan for.
     enum class Type : i32 {
@@ -25,8 +25,10 @@ namespace noa::cuda::fft {
     };
 
     /// Manages FFT plans.
-    i32 clear_caches(Device device) noexcept;
-    void set_cache_limit(Device device, i32 count) noexcept;
+    auto clear_cache(Device device) noexcept -> i32;
+    auto cache_limit(Device device) noexcept -> i32;
+    auto cache_size(Device device) noexcept -> i32;
+    auto set_cache_limit(Device device, i32 count) noexcept -> i32;
 }
 
 namespace noa::cuda::fft::guts {

@@ -17,6 +17,7 @@ namespace noa::fft {
         Norm norm = NORM_DEFAULT;
 
         /// Whether this transform should be cached.
+        /// On the CPU (built with FFTW3), this does nothing. See Session for more details.
         bool cache_plan = true;
     };
 }

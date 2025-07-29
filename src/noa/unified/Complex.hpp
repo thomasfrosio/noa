@@ -22,7 +22,6 @@ namespace noa {
     template<nt::readable_varray_decay_of_complex C,
              nt::writable_varray_decay_of_real R>
     void real(C&& input, R&& real) {
-        check(not ni::are_overlapped(real, input), "The arrays should not overlap");
         ewise(std::forward<C>(input), std::forward<R>(real), Real{});
     }
 
@@ -32,7 +31,6 @@ namespace noa {
     template<nt::readable_varray_decay_of_complex C,
              nt::writable_varray_decay_of_real I>
     void imag(C&& input, I&& imag) {
-        check(not ni::are_overlapped(imag, input), "The arrays should not overlap");
         ewise(std::forward<C>(input), std::forward<I>(imag), Imag{});
     }
 
@@ -44,7 +42,6 @@ namespace noa {
              nt::readable_varray_decay_of_real I,
              nt::writable_varray_decay_of_complex C>
     void complex(R&& real, I&& imag, C&& output) {
-        check(not ni::are_overlapped(real, imag), "The output arrays should not overlap");
         ewise(wrap(std::forward<R>(real), std::forward<I>(imag)), std::forward<C>(output), ComplexFuse{});
     }
 }

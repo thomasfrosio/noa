@@ -31,11 +31,21 @@ namespace noa::inline types {
     /// Session can check that lazy loading is enabled (the default in CUDA 12.1) and can also enable it directly.
     ///
     /// \details \b FFT-plans:
-    /// The backends use the external libraries to compute FFTs. These libraries often save a lot of data, referred
-    /// to as "plans". The backends save these plans so that users don't need to keep track of them. The cache is
-    /// per device (for CUDA, it is also per host-thread). Since these plans can take a lot of memory, and users
-    /// may want to control the maximum number of plans that can be cached or may want to reset the cache. Note that
-    /// the library's FFT API also offers more granular control on the cache.
+    /// Backends guarantee that FFT plans are cached so that the free-functions (e.g. noa::fft::r2c) to compute FFTs
+    /// are efficient. However, since these plans can take a lot of memory, we provide ways for users to control and
+    /// query this cache. Some backends (and the libraries they use) may be more flexible than others.
+    /// CUDA:
+    ///     - We manage the caching system explicitly, which offers maximum flexibility. The API below allows turning
+    ///       on and off the cache, resizing it, and querying its current state. The free-functions we provide in
+    ///       noa::fft also allow turning on and off the cache temporarily for a particular transform.
+    ///     - The cache is per device and per host-thread, and a single plan encodes both the forward and backward
+    ///       transform. For instance, noa::r2c and noa::c2r on the same arrays only require (and cache) a single plan.
+    /// CPU-FFTW3:
+    ///     - The cache is handled by FFTW3's wisdom. We don't manage it, and its flexibility is limited.
+    ///       The user can either clear the cache or query its size.
+    ///     - The cache is per device, globally shared within the application, and has no fixed capacity.
+    ///       Forward and backward transforms are considered different plans in FFTW3. In fact, a single transform
+    ///       can generate many (>16) entries in the cache.
     ///
     /// \details \b CUDA's-cuBLAS:
     /// The CUDA backend uses the cuBLAS library for matrix-matrix multiplication. The library caches cuBLAS
@@ -53,7 +63,7 @@ namespace noa::inline types {
         static void set_thread_limit(i64 n_threads);
 
         /// Returns the maximum number of internal threads.
-        static i64 thread_limit() noexcept {
+        [[nodiscard]] static auto thread_limit() noexcept -> i64 {
             if (m_thread_limit <= 0) // if not initialized, do it now
                 set_thread_limit(0);
             return m_thread_limit;
@@ -68,20 +78,34 @@ namespace noa::inline types {
         static bool set_gpu_lazy_loading();
 
         /// Clears the FFT cache for a given device.
-        /// Returns how many plans were cleared from the cache.
+        /// Returns how many "plans" were cleared from the cache, or returns zero.
         /// \warning This function doesn't synchronize before clearing the cache, so the caller should make sure
         ///          that none of the plans are being used. This can be easily done by synchronizing the relevant
         ///          streams or the device.
-        static i64 clear_fft_cache(Device device = Device::current_gpu());
+        static auto clear_fft_cache(Device device) -> i64;
 
         /// Sets the maximum number of plans the FFT cache can hold on a given device.
-        static void set_fft_cache_limit(i64 count, Device device = Device::current_gpu());
+        /// Returns how many plans were cleared from the resizing of the cache.
+        /// \note Some backends may not allow setting this parameter, in which case -1 is returned.
+        static auto set_fft_cache_limit(i64 count, Device device) -> i64;
+
+        /// Gets the maximum number of plans the FFT cache can hold on a given device.
+        /// \note Some backends may not support retrieving this parameter or may have a
+        ///       dynamic cache without a fixed capacity. In these cases, -1 is returned.
+        [[nodiscard]] static auto fft_cache_limit(Device device) -> i64;
+
+        /// Returns the current cache size, i.e. how many plans are currently cached.
+        /// \note This number may be different from the number of transforms that have been launched.
+        ///       Indeed, FFT planners (like FFTW) may create and cache many plans for a single transformation.
+        ///       Similarly, transforms may be divided internally into multiple transforms.
+        /// \note Some backends may not support retrieving this parameter, in which case, -1 is returned.
+        [[nodiscard]] static auto fft_cache_size(Device device) -> i64;
 
         /// Clears the BLAS cache for a given device.
         /// \warning This function doesn't synchronize before clearing the cache, so the caller should make sure
         ///          that none of the plans are being used. This can be easily done by synchronizing the relevant
         ///          streams or the device.
-        static void clear_blas_cache(Device device = Device::current_gpu());
+        static void clear_blas_cache(Device device);
 
     private:
         static i64 m_thread_limit;

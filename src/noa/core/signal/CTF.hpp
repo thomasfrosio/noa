@@ -468,7 +468,7 @@ namespace noa::signal {
         }
 
         template<nt::real Coord>
-        [[nodiscard]] constexpr auto isotropic_fftfreq(Vec2<Coord> fftfreq_2d) const -> value_type {
+        [[nodiscard]] constexpr auto isotropic_fftfreq(const Vec2<Coord>& fftfreq_2d) const -> value_type {
             // Correct for the anisotropic pixel size directly in cartesian space.
             const auto scaled_fftfreq_2d = fftfreq_2d.template as<value_type>() / m_pixel_size;
 

@@ -15,7 +15,7 @@ TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[asset]") {
 
     const Path file1 = test_dir / "file1.mrc";
     const Path file2 = test_dir / "file2.mrc";
-    using MrcFile = nio::BasicImageFile<nio::EncoderMrc>;
+    using MrcFile = nio::BasicImageFile<nio::ImageFileEncoderMrc>;
 
     const auto dtype = GENERATE(
         nio::Encoding::I16, nio::Encoding::U16,
@@ -35,6 +35,7 @@ TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[asset]") {
             .dtype = dtype
         });
         REQUIRE(file.is_open());
+        REQUIRE(file.encoder_name() == "mrc");
 
         // Initialize data to put into the file.
         const auto size = static_cast<size_t>(shape.n_elements());

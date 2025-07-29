@@ -108,21 +108,22 @@ namespace noa::cpu::fft {
 
         void execute() noexcept;
 
-        // The plans are cached and FFTW caches accumulated wisdom and a list of algorithms available in the current
-        // configuration. If you want to deallocate all of that and reset to the pristine state it was in when you
-        // started your program, then call this function.
-        // This function should only be called when all plans are destroyed. All existing plans become
-        // undefined, and one should not attempt to execute them nor to destroy them. You can however
-        // create and execute/destroy new plans.
-        static i32 cleanup() noexcept;
+        static void clear_cache() noexcept;
+        static auto cache_size() noexcept -> i32;
 
     private:
         void* m_plan{};
     };
 
-    inline i32 clear_caches() noexcept {
-        i32 n = Plan<f32>::cleanup();
-        n += Plan<f64>::cleanup();
-        return n;
+    inline auto clear_cache() noexcept -> i32 {
+        Plan<f32>::clear_cache();
+        Plan<f64>::clear_cache();
+        return 0;
+    }
+
+    inline auto cache_size() noexcept -> i32 {
+        i32 size = Plan<f32>::cache_size();
+        size += Plan<f64>::cache_size();
+        return size;
     }
 }

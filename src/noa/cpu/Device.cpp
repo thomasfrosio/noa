@@ -245,6 +245,6 @@ namespace noa::cpu {
 
     void Device::reset() {
         // Reset all internal data created and managed automatically by the CPU backend:
-        noa::cpu::fft::clear_caches();
+        noa::cpu::fft::clear_cache();
     }
 }

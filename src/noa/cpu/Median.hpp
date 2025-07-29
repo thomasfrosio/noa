@@ -7,32 +7,38 @@
 #include "noa/cpu/AllocatorHeap.hpp"
 
 namespace noa::cpu {
-    template<typename Value>
-    Value median(Value* input, Strides4<i64> strides, Shape4<i64> shape, bool overwrite) {
+    template<typename T>
+    auto median(T* input, Strides4<i64> strides, Shape4<i64> shape, bool overwrite) {
         // Make it in rightmost order.
         const auto order = ni::order(strides, shape);
         strides = ni::reorder(strides, order);
         shape = ni::reorder(shape, order);
 
-        // Allocate buffer only if necessary.
         const auto n_elements = shape.n_elements();
-        Value* to_sort;
-        typename AllocatorHeap<Value>::alloc_unique_type buffer;
-        if (overwrite and ni::are_contiguous(strides, shape)) {
-            to_sort = input;
-        } else {
-            buffer = AllocatorHeap<Value>::allocate(n_elements);
+
+        // Allocate buffer if necessary.
+        using mut_t = std::remove_const_t<T>;
+        mut_t* to_sort;
+        typename AllocatorHeap<mut_t>::alloc_unique_type buffer;
+        if constexpr (std::is_const_v<T>) {
+            buffer = AllocatorHeap<mut_t>::allocate(n_elements);
             copy(input, strides, buffer.get(), shape.strides(), shape, 1);
             to_sort = buffer.get();
+        } else {
+            if (overwrite and ni::are_contiguous(strides, shape)) {
+                to_sort = input;
+            } else {
+                buffer = AllocatorHeap<mut_t>::allocate(n_elements);
+                copy(input, strides, buffer.get(), shape.strides(), shape, 1);
+                to_sort = buffer.get();
+            }
         }
 
         std::nth_element(to_sort, to_sort + n_elements / 2, to_sort + n_elements);
-        Value half = to_sort[n_elements / 2];
-        if (is_odd(n_elements)) {
+        mut_t half = to_sort[n_elements / 2];
+        if (is_odd(n_elements))
             return half;
-        } else {
-            std::nth_element(to_sort, to_sort + (n_elements - 1) / 2, to_sort + n_elements);
-            return static_cast<Value>(to_sort[(n_elements - 1) / 2] + half) / Value{2}; // cast to silence integer promotion
-        }
+        std::nth_element(to_sort, to_sort + (n_elements - 1) / 2, to_sort + n_elements);
+        return static_cast<T>(to_sort[(n_elements - 1) / 2] + half) / mut_t{2}; // cast to silence integer promotion
     }
 }

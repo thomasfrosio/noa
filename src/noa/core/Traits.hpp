@@ -299,6 +299,12 @@ namespace noa::traits {
     NOA_TRAITS_POINTER(real);
     NOA_TRAITS_POINTER(scalar);
     NOA_TRAITS_POINTER(numeric);
+
+    // Convert floating-points to the double-precision version. Otherwise, return the same type.
+    template<typename T> struct double_precision { using type = T; };
+    template<> struct double_precision<f32> { using type = f64; };
+    template<> struct double_precision<f64> { using type = f64; };
+    template<typename T> using double_precision_t = typename double_precision<std::remove_cv_t<T>>::type;
 }
 
 namespace noa::traits {

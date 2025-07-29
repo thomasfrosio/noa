@@ -13,15 +13,6 @@
 #include "noa/gpu/cuda/Median.cuh"
 #endif
 
-// TODO We used to have a backend specific kernel to compute the variance along an axis, add it back?
-//      The current API requires to first compute the means and save them in an array, then relaunch
-//      to compute the variances. This can be fused into a single backend call and doesn't require to
-//      allocate the temporary array.
-//      Or add a core interface to compute "nested" reductions??
-
-// TODO Add support for variance/stddev/l2_norm of integers, numpy casts to f64.
-//      This will ultimately add support for the normalize(_per_batch) function.
-
 namespace noa::guts {
     template<typename VArray>
     auto axes_to_output_shape(const VArray& varray, ReduceAxes axes) -> Shape4<i64> {
@@ -61,6 +52,50 @@ namespace noa::guts {
 }
 
 namespace noa {
+    struct SumOptions {
+        /// Reduce (complex) floating-points using double-precision Kahan summation, with the Neumaier variation.
+        /// Otherwise, (complex) floating-points are reduced using a double-precision linear or partial sum.
+        ///
+        /// \note Integers:
+        ///     For integers, this parameter has no effect as integer are summed using 64-bits integers (signed or
+        ///     unsigned depending on whether the operator needs to support negative values). When computing values
+        ///     that can have a decimal part (mean, variance, L2-norm), this integral sum is then static_cast to f64.
+        ///
+        /// \note Accuracy:
+        ///     The Kahan summation is numerically stable and can deal with very large arrays and a very wide range
+        ///     of values. However, by default (accurate=false), (complex) floating-points are first static_cast to
+        ///     double-precision. In the vast majority of cases, this is enough to guarantee good stability.
+        ///     Furthermore, both the GPU and the parallel CPU implementations use a partial sum algorithm,
+        ///     making the need for the Kahan sum even less likely.
+        ///
+        /// \note Runtime performance:
+        ///     On the GPU, the Kahan sum has a similar runtime cost than the default double-precision partial sum.
+        ///     For maximum performance, single-precision is still the best option. On the CPU, the single- and
+        ///     double-precision sums perform identically, but the Kahan summation is much slower.
+        bool accurate = false;
+    };
+
+    struct VarianceOptions {
+        /// Same as SumOptions::accurate.
+        bool accurate = false;
+
+        /// Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
+        /// In standard statistical practice, ddof=1 provides an unbiased estimator of the variance
+        /// of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
+        /// of the variance for normally distributed variables.
+        i64 ddof = 0;
+    };
+
+    struct MedianOptions {
+        /// Whether the input array can be overwritten.
+        /// If true and if the array is contiguous, the content of the array is left in an undefined state.
+        /// Otherwise, the array is unchanged and a temporary buffer is allocated.
+        /// This is ignored if a View of const data is passed.
+        bool overwrite = false;
+    };
+}
+
+namespace noa {
     /// Returns the minimum value of the input array.
     template<nt::readable_varray_of_numeric Input>
     [[nodiscard]] auto min(const Input& array) {
@@ -92,145 +127,138 @@ namespace noa {
         return output;
     }
 
-    /// Returns the median of the input array.
-    /// \param[in,out] array    Input array.
-    /// \param overwrite        Whether the function is allowed to overwrite \p array.
-    ///                         If true and if the array is contiguous, the content of \p array is left
-    ///                         in an undefined state. Otherwise, array is unchanged and a temporary
-    ///                         buffer is allocated.
+    /// Returns the median of an array.
     template<nt::readable_varray_of_scalar Input>
-    [[nodiscard]] auto median(const Input& array, bool overwrite = false) {
+    [[nodiscard]] auto median(const Input& array, const MedianOptions& options = {}) {
         check(not array.is_empty(), "Empty array detected");
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             stream.synchronize();
-            return noa::cpu::median(array.get(), array.strides(), array.shape(), overwrite);
+            return noa::cpu::median(array.get(), array.strides(), array.shape(), options.overwrite);
         } else {
             #ifdef NOA_ENABLE_CUDA
-            return noa::cuda::median(array.get(), array.strides(), array.shape(), overwrite, stream.cuda());
+            return noa::cuda::median(array.get(), array.strides(), array.shape(), options.overwrite, stream.cuda());
             #else
             panic_no_gpu_backend();
             #endif
         }
     }
 
-    /// Returns the sum of the input array.
-    /// \note For (complex)-floating-point types, the CPU backend uses a Kahan summation (with Neumaier variation).
+    /// Returns the sum of an array.
     template<nt::readable_varray Input>
-    [[nodiscard]] auto sum(const Input& array) {
+    [[nodiscard]] auto sum(const Input& array, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
-        value_t output;
+        using reduce_t = std::conditional_t<nt::real<value_t>, f64,
+                         std::conditional_t<nt::complex<value_t>, c64,
+                         value_t>>;
 
+        value_t output;
         if constexpr (nt::real_or_complex<value_t>) {
-            if (array.device().is_cpu()) {
-                using op_t = ReduceAccurateSum<value_t>;
-                using pair_t = op_t::pair_type;
-                reduce_ewise<ReduceEwiseOptions{.generate_gpu = false}>(array, pair_t{}, output, op_t{});
+            if (options.accurate) {
+                reduce_ewise(array, Vec<reduce_t, 2>{}, output, ReduceSumKahan{});
                 return output;
             }
         }
-        reduce_ewise(array, value_t{}, output, ReduceSum{});
+        reduce_ewise(array, reduce_t{}, output, ReduceSum{});
         return output;
     }
 
-    /// Returns the mean of the input array.
-    /// \note For (complex)-floating-point types, the CPU backend uses a Kahan summation (with Neumaier variation).
+    /// Returns the mean of an array.
     template<nt::readable_varray Input>
-    [[nodiscard]] auto mean(const Input& array) {
+    [[nodiscard]] auto mean(const Input& array, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
-        value_t output;
+        using reduce_t = std::conditional_t<nt::real<value_t>, f64,
+                         std::conditional_t<nt::complex<value_t>, c64,
+                         value_t>>;
 
+        using size_t = nt::value_type_t<reduce_t>;
+        const auto size = static_cast<size_t>(array.ssize());
+
+        value_t output;
         if constexpr (nt::real_or_complex<value_t>) {
-            if (array.device().is_cpu()) {
-                using op_t = ReduceAccurateMean<value_t>;
-                using pair_t = op_t::pair_type;
-                auto op = op_t{.size=static_cast<op_t::mean_type>(array.ssize())};
-                reduce_ewise<ReduceEwiseOptions{.generate_gpu = false}>(array, pair_t{}, output, op);
+            if (options.accurate) {
+                reduce_ewise(array, Vec<reduce_t, 2>{}, output, ReduceMeanKahan{size});
                 return output;
             }
         }
-        using mean_t = nt::value_type_t<value_t>;
-        reduce_ewise(array, value_t{}, output, ReduceMean{.size=static_cast<mean_t>(array.ssize())});
+        reduce_ewise(array, reduce_t{}, output, ReduceMean{size});
         return output;
     }
 
     /// Returns the L2-norm of the input array.
-    template<nt::readable_varray_of_real_or_complex Input>
-    [[nodiscard]] auto l2_norm(const Input& array) {
+    template<nt::readable_varray_of_numeric Input>
+    [[nodiscard]] auto l2_norm(const Input& array, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using real_t = nt::value_type_t<value_t>;
-        real_t output;
+        using reduce_t = std::conditional_t<nt::integer<value_t>, u64, real_t>;
+        using output_t = std::conditional_t<nt::integer<value_t>, f64, real_t>;
 
-        if (array.device().is_cpu()) {
-            reduce_ewise<ReduceEwiseOptions{.generate_gpu = false}>(
-                array, Pair<f64, f64>{}, output, ReduceAccurateL2Norm{});
-            return output;
+        output_t output;
+        if constexpr (nt::real_or_complex<value_t>) {
+            if (options.accurate) {
+                reduce_ewise(array, Vec<reduce_t, 2>{}, output, ReduceL2NormKahan{});
+                return output;
+            };
         }
-        reduce_ewise(array, real_t{}, output, ReduceL2Norm{});
+        reduce_ewise(array, reduce_t{}, output, ReduceL2Norm{});
         return output;
     }
 
-    /// Returns the mean and variance of the input array.
-    /// \param[in] array    Array to reduce.
-    /// \param ddof         Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
-    ///                     In standard statistical practice, ddof=1 provides an unbiased estimator of the variance
-    ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
-    ///                     of the variance for normally distributed variables.
-    template<nt::readable_varray_of_real_or_complex Input>
-    [[nodiscard]] auto mean_variance(const Input& array, i64 ddof = 0) {
-        auto mean = noa::mean(array);
-        using value_t = nt::mutable_value_type_t<Input>;
-        using real_t = nt::value_type_t<value_t>;
-        real_t variance;
+    namespace guts {
+        template<bool STDDEV, typename Input>
+        [[nodiscard]] auto mean_variance_or_stddev(const Input& array, const VarianceOptions& options) {
+            using value_t = nt::mutable_value_type_t<Input>;
+            using real_t = nt::value_type_t<value_t>;
+            using sum_t = std::conditional_t<nt::integer<value_t>, i64, nt::double_precision_t<value_t>>;
+            using sum_sqd_t = nt::value_type_t<sum_t>;
 
-        if (array.device().is_cpu()) {
-            using double_t = std::conditional_t<nt::real<value_t>, f64, c64>;
-            auto mean_double = static_cast<double_t>(mean);
-            auto size = static_cast<f64>(array.ssize() - ddof);
-            reduce_ewise<ReduceEwiseOptions{.generate_gpu = false}>(
-                wrap(array, mean_double), f64{}, variance, ReduceVariance{size});
+            using output_mean_t = std::conditional_t<nt::integer<value_t>, f64, value_t>;
+            using output_variance_t = std::conditional_t<nt::integer<value_t>, f64, real_t>;
+            const auto size = static_cast<f64>(array.ssize() - options.ddof);
+
+            output_mean_t mean;
+            output_variance_t variance;
+            if constexpr (nt::real_or_complex<value_t>) {
+                if (options.accurate) {
+                    using sum_error_t = Vec<sum_t, 2>;
+                    using sum_sqd_error_t = Vec<sum_sqd_t, 2>;
+                    reduce_ewise(
+                        array, wrap(sum_error_t{}, sum_sqd_error_t{}),
+                        wrap(mean, variance), ReduceMeanVarianceKahan<f64, STDDEV>{size}
+                    );
+                    return Pair{mean, variance};
+                }
+            }
+            reduce_ewise(array, wrap(sum_t{}, sum_sqd_t{}), wrap(mean, variance), ReduceMeanVariance<f64, STDDEV>{size});
             return Pair{mean, variance};
         }
-        auto size = static_cast<real_t>(array.ssize() - ddof);
-        reduce_ewise(wrap(array, mean), real_t{}, variance, ReduceVariance{size});
-        return Pair{mean, variance};
     }
 
-    /// Returns the mean and standard deviation of the input array.
-    /// \param[in] array    Array to reduce.
-    /// \param ddof         Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
-    ///                     In standard statistical practice, ddof=1 provides an unbiased estimator of the variance
-    ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
-    ///                     of the variance for normally distributed variables.
-    template<nt::readable_varray_of_real_or_complex Input>
-    [[nodiscard]] auto mean_stddev(const Input& array, i64 ddof = 0) {
-        auto pair = mean_variance(array, ddof);
-        pair.second = sqrt(pair.second);
-        return pair;
+    /// Returns the mean and variance of an array.
+    template<nt::readable_varray_of_numeric Input>
+    [[nodiscard]] auto mean_variance(const Input& array, const VarianceOptions& options = {}) {
+        return guts::mean_variance_or_stddev<false>(array, options);
     }
 
-    /// Returns the variance of the input array.
-    /// \param[in] array    Array to reduce.
-    /// \param ddof         Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
-    ///                     In standard statistical practice, ddof=1 provides an unbiased estimator of the variance
-    ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
-    ///                     of the variance for normally distributed variables.
-    template<nt::readable_varray_of_real_or_complex Input>
-    [[nodiscard]] auto variance(const Input& array, i64 ddof = 0) {
-        const auto& [mean, variance] = mean_variance(array, ddof);
+    /// Returns the mean and standard deviation of an array.
+    template<nt::readable_varray_of_numeric Input>
+    [[nodiscard]] auto mean_stddev(const Input& array, const VarianceOptions& options = {}) {
+        return guts::mean_variance_or_stddev<true>(array, options);
+    }
+
+    /// Returns the variance of an array.
+    template<nt::readable_varray_of_numeric Input>
+    [[nodiscard]] auto variance(const Input& array, const VarianceOptions& options = {}) {
+        const auto& [mean, variance] = mean_variance(array, options);
         return variance;
     }
 
-    /// Returns the standard-deviation of the input array.
-    /// \param[in] array    Array to reduce.
-    /// \param ddof         Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
-    ///                     In standard statistical practice, ddof=1 provides an unbiased estimator of the variance
-    ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
-    ///                     of the variance for normally distributed variables.
-    template<nt::readable_varray_of_real_or_complex Input>
-    [[nodiscard]] auto stddev(const Input& array, i64 ddof = 0) {
-        return sqrt(variance(array, ddof));
+    /// Returns the standard-deviation of an array.
+    template<nt::readable_varray_of_numeric Input>
+    [[nodiscard]] auto stddev(const Input& array, const VarianceOptions& options = {}) {
+        const auto& [mean, stddev] = mean_stddev(array, options);
+        return stddev;
     }
 
     /// Returns the root-mean-square deviation.
@@ -239,20 +267,13 @@ namespace noa {
     [[nodiscard]] auto rmsd(const Lhs& lhs, const Rhs& rhs) {
         using lhs_value_t = nt::mutable_value_type_t<Lhs>;
         using rhs_value_t = nt::mutable_value_type_t<Rhs>;
-        using real_t = std::conditional_t<nt::same_as<f64, lhs_value_t>, lhs_value_t, rhs_value_t>;
+        using real_t = nt::largest_type_t<lhs_value_t, rhs_value_t>;
         real_t output;
-
-        if (lhs.device().is_cpu()) {
-            reduce_ewise<ReduceEwiseOptions{.generate_gpu = false}>(
-                wrap(lhs, rhs), f64{}, output, ReduceRMSD{static_cast<f64>(lhs.ssize())});
-        } else {
-            reduce_ewise<ReduceEwiseOptions{.generate_cpu = false}>(
-                wrap(lhs, rhs), real_t{}, output, ReduceRMSD{static_cast<real_t>(lhs.ssize())});
-        }
+        reduce_ewise(wrap(lhs, rhs), f64{}, output, ReduceRMSD{static_cast<f64>(lhs.ssize())});
         return output;
     }
 
-    /// Returns {maximum, offset: i64} of the input array.
+    /// Returns {maximum, offset: i64} of an array.
     /// \note If the maximum value appears more than once, this function makes no guarantee to which one is selected.
     /// \note To get the corresponding 4d indices, noa::indexing::offset2index(offset, input) can be used.
     template<nt::readable_varray_of_numeric Input>
@@ -262,13 +283,15 @@ namespace noa {
         using op_t = ReduceFirstMax<AccessorI64<const value_t, 4>, reduced_t>;
         reduced_t reduced{std::numeric_limits<value_t>::lowest(), i64{}};
         reduced_t output{};
-        reduce_iwise(input.shape(), input.device(), reduced,
-                     wrap(output.first, output.second),
-                     op_t{{ng::to_accessor(input)}});
+        reduce_iwise(
+            input.shape(), input.device(), reduced,
+            wrap(output.first, output.second),
+            op_t{{ng::to_accessor(input)}}
+        );
         return output;
     }
 
-    /// Returns {minimum, offset: i64} of the input array.
+    /// Returns {minimum, offset: i64} of an array.
     /// \note If the minimum value appears more than once, this function makes no guarantee to which one is selected.
     /// \note To get the corresponding 4d indices, noa::indexing::offset2index(offset, input) can be used.
     template<nt::readable_varray_of_numeric Input>
@@ -278,20 +301,18 @@ namespace noa {
         using op_t = ReduceFirstMin<AccessorI64<const value_t, 4>, reduced_t>;
         reduced_t reduced{std::numeric_limits<value_t>::max(), i64{}};
         reduced_t output{};
-        reduce_iwise(input.shape(), input.device(), reduced,
-                     wrap(output.first, output.second),
-                     op_t{{ng::to_accessor(input)}});
+        reduce_iwise(
+            input.shape(), input.device(), reduced,
+            wrap(output.first, output.second),
+            op_t{{ng::to_accessor(input)}}
+        );
         return output;
     }
 }
 
 namespace noa {
     /// Reduces an array along some dimensions by taking the minimum value.
-    /// \details Dimensions of the output array should match the input shape, or be 1, indicating the dimension
-    ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
-    ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
-    /// \param[in] input    Input array to reduce.
-    /// \param[out] output  Reduced array of minimum values.
+    //// \see reduce_axes_ewise for more details about the reduction.
     template<nt::readable_varray_decay_of_numeric Input,
              nt::writable_varray_decay_of_numeric Output>
     void min(Input&& input, Output&& output) {
@@ -301,20 +322,17 @@ namespace noa {
     }
 
     /// Reduces an array along some dimension by taking the minimum value.
+    /// //// \see reduce_axes_ewise for more details about the reduction.
     template<nt::readable_varray_decay_of_numeric Input>
     [[nodiscard]] auto min(Input&& input, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
-        Array<value_t> output(guts::axes_to_output_shape(input, axes), input.options());
+        auto output = Array<value_t>(guts::axes_to_output_shape(input, axes), input.options());
         min(std::forward<Input>(input), output);
         return output;
     }
 
     /// Reduces an array along some dimensions by taking the maximum value.
-    /// \details Dimensions of the output array should match the input shape, or be 1, indicating the dimension
-    ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
-    ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
-    /// \param[in] input    Input array to reduce.
-    /// \param[out] output  Reduced array of maximum values.
+    //// \see reduce_axes_ewise for more details about the reduction.
     template<nt::readable_varray_decay_of_numeric Input,
              nt::writable_varray_decay_of_numeric Output>
     void max(Input&& input, Output&& output) {
@@ -324,15 +342,17 @@ namespace noa {
     }
 
     /// Reduces an array along some dimension by taking the maximum value.
+    /// \see reduce_axes_ewise for more details about the reduction.
     template<nt::readable_varray_decay_of_numeric Input>
     [[nodiscard]] auto max(Input&& input, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
-        Array<value_t> output(guts::axes_to_output_shape(input, axes), input.options());
+        auto output = Array<value_t>(guts::axes_to_output_shape(input, axes), input.options());
         max(std::forward<Input>(input), output);
         return output;
     }
 
     /// Reduces an array along some dimension(s) by taking the minimum and maximum values.
+    /// \see reduce_axes_ewise for more details about the reduction.
     template<nt::readable_varray_decay_of_numeric Input,
              nt::writable_varray_decay_of_numeric Min,
              nt::writable_varray_decay_of_numeric Max>
@@ -344,10 +364,12 @@ namespace noa {
             std::forward<Input>(input),
             wrap(init_min, init_max),
             wrap(std::forward<Min>(min), std::forward<Max>(max)),
-            ReduceMinMax{});
+            ReduceMinMax{}
+        );
     }
 
     /// Reduces an array along some dimension(s) by taking the minimum and maximum values.
+    /// \see reduce_axes_ewise for more details about the reduction.
     template<nt::readable_varray_decay_of_numeric Input>
     [[nodiscard]] auto min_max(Input&& input, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
@@ -363,288 +385,279 @@ namespace noa {
     // TODO Add median()
 
     /// Reduces an array along some dimensions by taking the sum.
-    /// \details Dimensions of the output array should match the input shape, or be 1, indicating the dimension
-    ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
-    ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
-    /// \param[in] input        Input array to reduce.
-    /// \param[out] output      Reduced sums.
+    /// \see reduce_axes_ewise for more details about the reduction.
     template<nt::readable_varray_decay Input,
              nt::writable_varray_decay Output>
-    void sum(Input&& input, Output&& output) {
-        using input_value_t = nt::mutable_value_type_t<Input>;
+    void sum(Input&& input, Output&& output, const SumOptions& options = {}) {
+        using value_t = nt::mutable_value_type_t<Input>;
+        using reduce_t = std::conditional_t<nt::real<value_t>, f64,
+                         std::conditional_t<nt::complex<value_t>, c64,
+                         value_t>>;
 
-        if constexpr (nt::real_or_complex<input_value_t>) {
-            if (input.device().is_cpu()) {
-                using op_t = ReduceAccurateSum<input_value_t>;
-                using pair_t = op_t::pair_type;
-                return reduce_axes_ewise<ReduceAxesEwiseOptions{.generate_gpu = false}>(
-                    std::forward<Input>(input), pair_t{}, std::forward<Output>(output), op_t{});
+        if constexpr (nt::real_or_complex<value_t>) {
+            if (options.accurate) {
+                return reduce_axes_ewise(
+                    std::forward<Input>(input), Vec<reduce_t, 2>{},
+                    std::forward<Output>(output), ReduceSumKahan{}
+                );
             }
         }
-        reduce_axes_ewise(std::forward<Input>(input), input_value_t{}, std::forward<Output>(output), ReduceSum{});
+        reduce_axes_ewise(
+            std::forward<Input>(input), reduce_t{},
+            std::forward<Output>(output), ReduceSum{}
+        );
     }
 
     /// Reduces an array along some dimensions by taking the sum.
+    /// \see reduce_axes_ewise for more details about the reduction.
     template<nt::readable_varray_decay Input>
-    [[nodiscard]] auto sum(Input&& input, ReduceAxes axes) {
+    [[nodiscard]] auto sum(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
-        Array<value_t> output(guts::axes_to_output_shape(input, axes), input.options());
-        sum(std::forward<Input>(input), output);
+        auto output = Array<value_t>(guts::axes_to_output_shape(input, axes), input.options());
+        sum(std::forward<Input>(input), output, options);
         return output;
     }
 
     /// Reduces an array along some dimensions by taking the mean.
-    /// \details Dimensions of the output array should match the input shape, or be 1, indicating the dimension
-    ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
-    ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
-    /// \param[in] input        Input array to reduce.
-    /// \param[out] output      Reduced means.
+    /// \see reduce_axes_ewise for more details about the reduction.
     template<nt::readable_varray_decay Input,
              nt::writable_varray_decay Output>
-    void mean(Input&& input, Output&& output) {
-        using input_value_t = nt::mutable_value_type_t<Input>;
-        using scalar_t = nt::value_type_t<input_value_t>;
-        const auto n_elements_to_reduce = guts::n_elements_to_reduce(input.shape(), output.shape());
+    void mean(Input&& input, Output&& output, const SumOptions& options = {}) {
+        using value_t = nt::mutable_value_type_t<Input>;
+        using reduce_t = std::conditional_t<nt::real<value_t>, f64,
+                         std::conditional_t<nt::complex<value_t>, c64,
+                         value_t>>;
 
-        if constexpr (nt::real_or_complex<input_value_t>) {
-            if (input.device().is_cpu()) {
-                using op_t = ReduceAccurateMean<input_value_t>;
-                using pair_t = op_t::pair_type;
-                return reduce_axes_ewise<ReduceAxesEwiseOptions{.generate_gpu = false}>(
-                    std::forward<Input>(input), pair_t{}, std::forward<Output>(output),
-                    op_t{.size=static_cast<op_t::mean_type>(n_elements_to_reduce)});
+        using real_t = nt::value_type_t<reduce_t>;
+        const auto size = static_cast<real_t>(guts::n_elements_to_reduce(input.shape(), output.shape()));
+        if constexpr (nt::real_or_complex<value_t>) {
+            if (options.accurate) {
+                return reduce_axes_ewise(
+                    std::forward<Input>(input), Vec<reduce_t, 2>{},
+                    std::forward<Output>(output), ReduceMeanKahan{size}
+                );
             }
         }
         reduce_axes_ewise(
-            std::forward<Input>(input),
-            input_value_t{},
-            std::forward<Output>(output),
-            ReduceMean{.size = static_cast<scalar_t>(n_elements_to_reduce)});
+            std::forward<Input>(input), reduce_t{},
+            std::forward<Output>(output), ReduceMean{size}
+        );
     }
 
     /// Reduces an array along some dimensions by taking the average.
+    /// \see reduce_axes_ewise for more details about the reduction.
     template<nt::readable_varray_decay Input>
-    [[nodiscard]] auto mean(Input&& input, ReduceAxes axes) {
+    [[nodiscard]] auto mean(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
-        Array<value_t> output(guts::axes_to_output_shape(input, axes), input.options());
-        mean(std::forward<Input>(input), output);
+        auto output = Array<value_t>(guts::axes_to_output_shape(input, axes), input.options());
+        mean(std::forward<Input>(input), output, options);
         return output;
     }
 
     /// Reduces an array along some dimensions by taking the L2-norm.
-    /// \details Dimensions of the output array should match the input shape, or be 1, indicating the dimension
-    ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
-    ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
-    /// \param[in] input        Input array to reduce.
-    /// \param[out] output      Reduced norms.
-    template<nt::readable_varray_decay_of_real_or_complex Input,
-             nt::writable_varray_decay_of_real Output>
-    void l2_norm(Input&& input, Output&& output) {
+    /// \see reduce_axes_ewise for more details about the reduction.
+    template<nt::readable_varray_decay_of_numeric Input,
+             nt::writable_varray_decay_of_numeric Output>
+    void l2_norm(Input&& input, Output&& output, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using real_t = nt::value_type_t<value_t>;
+        using reduce_t = std::conditional_t<nt::integer<value_t>, u64, real_t>;
 
         if constexpr (nt::real_or_complex<value_t>) {
-            if (input.device().is_cpu()) {
-                return reduce_axes_ewise<ReduceAxesEwiseOptions{.generate_gpu = false}>(
-                    std::forward<Input>(input), Pair<f64, f64>{}, std::forward<Output>(output),
-                    ReduceAccurateL2Norm{});
+            if (options.accurate) {
+                return reduce_axes_ewise(
+                    std::forward<Input>(input), Vec<reduce_t, 2>{},
+                    std::forward<Output>(output), ReduceL2NormKahan{}
+                );
             }
         }
-        reduce_axes_ewise(std::forward<Input>(input), real_t{}, std::forward<Output>(output), ReduceL2Norm{});
+        reduce_axes_ewise(
+            std::forward<Input>(input), reduce_t{},
+            std::forward<Output>(output), ReduceL2Norm{}
+        );
     }
 
     /// Reduces an array along some dimensions by taking the norm.
-    template<nt::readable_varray_decay_of_real_or_complex Input>
-    [[nodiscard]] auto l2_norm(Input&& input, ReduceAxes axes) {
+    /// \see reduce_axes_ewise for more details about the reduction.
+    template<nt::writable_varray_decay_of_numeric Input>
+    [[nodiscard]] auto l2_norm(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
         using real_t = nt::mutable_value_type_twice_t<Input>;
-        Array<real_t> output(guts::axes_to_output_shape(input, axes), input.options());
-        l2_norm(std::forward<Input>(input), output);
+        auto output = Array<real_t>(guts::axes_to_output_shape(input, axes), input.options());
+        l2_norm(std::forward<Input>(input), output, options);
         return output;
     }
 
-    /// Reduces an array along some dimensions by taking the mean and variance.
-    /// \details Dimensions of the output array should match the input shape, or be 1, indicating the dimension
-    ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
-    ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
-    /// \tparam Input           VArray of f32, f64, c32, f64. To compute the variance of complex types,
-    ///                         the absolute value is taken before squaring, so the variance is always real and positive.
-    /// \tparam Mean            VArray with the same (but mutable) value-type as \p Input.
-    /// \tparam Variance        VArray with the same (but mutable) value-type as \p Input, except for if \p Input has
-    ///                         a complex value-type, in which case it should be the corresponding real type.
-    /// \param[in] input        Input array to reduce.
-    /// \param[out] means       Reduced means.
-    /// \param[out] variances   Reduced variances.
-    /// \param ddof             Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
-    ///                         In standard statistical practice, ddof=1 provides an unbiased estimator of the variance
-    ///                         of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
-    ///                         of the variance for normally distributed variables.
-    template<nt::readable_varray_decay_of_real_or_complex Input,
-             nt::writable_varray_decay_of_real_or_complex Mean,
-             nt::writable_varray_decay_of_real Variance>
-    void mean_variance(Input&& input, Mean&& means, Variance&& variances, i64 ddof = 0) {
-        check(vall(Equal{}, means.shape(), variances.shape()),
-              "The means and variances should have the same shape, but got means={} and variances={}",
-              means.shape(), variances.shape());
+    namespace guts {
+        template<bool STDDEV, typename Input, typename Mean, typename Variance>
+        void mean_variance_or_stddev(Input&& input, Mean&& means, Variance&& variances, const VarianceOptions options) {
+            constexpr bool HAS_MEAN = not nt::empty<std::remove_reference_t<Mean>>;
+            if constexpr (HAS_MEAN) {
+                check(vall(Equal{}, means.shape(), variances.shape()),
+                      "The means and variances should have the same shape, but got means={} and variances={}",
+                      means.shape(), variances.shape());
+            }
 
-        mean(input, means);
-        auto n_reduced = guts::n_elements_to_reduce(input.shape(), means.shape()) - ddof;
-        auto shape = input.shape();
+            using value_t = nt::mutable_value_type_t<Input>;
+            using sum_t = std::conditional_t<nt::integer<value_t>, i64, nt::double_precision_t<value_t>>;
+            using sum_sqd_t = nt::value_type_t<sum_t>;
+            const auto size = static_cast<f64>(guts::n_elements_to_reduce(input.shape(), variances.shape()) - options.ddof);
 
-        if (input.device().is_cpu()) {
-            reduce_axes_ewise<ReduceAxesEwiseOptions{.generate_gpu = false}>(
-                wrap(std::forward<Input>(input), ni::broadcast(std::forward<Mean>(means), shape)),
-                f64{}, std::forward<Variance>(variances), ReduceVariance{static_cast<f64>(n_reduced)});
-        } else {
-            using real_t = nt::value_type_t<nt::mutable_value_type_t<Input>>;
-            reduce_axes_ewise<ReduceAxesEwiseOptions{.generate_cpu = false}>(
-                wrap(std::forward<Input>(input), ni::broadcast(std::forward<Mean>(means), shape)),
-                real_t{}, std::forward<Variance>(variances), ReduceVariance{static_cast<real_t>(n_reduced)});
+            if constexpr (nt::real_or_complex<value_t>) {
+                if (options.accurate) {
+                    using sum_error_t = Vec<sum_t, 2>;
+                    using sum_sqd_error_t = Vec<sum_sqd_t, 2>;
+                    if constexpr (HAS_MEAN) {
+                        reduce_axes_ewise(
+                            std::forward<Input>(input),
+                            wrap(sum_error_t{}, sum_sqd_error_t{}),
+                            wrap(std::forward<Mean>(means), std::forward<Variance>(variances)),
+                            ReduceMeanVarianceKahan<f64, STDDEV>{size}
+                        );
+                    } else {
+                        reduce_axes_ewise(
+                            std::forward<Input>(input),
+                            wrap(sum_error_t{}, sum_sqd_error_t{}),
+                            std::forward<Variance>(variances),
+                            ReduceMeanVarianceKahan<f64, STDDEV>{size}
+                        );
+                    }
+                }
+            }
+            if constexpr (HAS_MEAN) {
+                reduce_axes_ewise(
+                    std::forward<Input>(input),
+                    wrap(sum_t{}, sum_sqd_t{}),
+                    wrap(std::forward<Mean>(means), std::forward<Variance>(variances)),
+                    ReduceMeanVariance<f64, STDDEV>{size}
+                );
+            } else {
+                reduce_axes_ewise(
+                    std::forward<Input>(input),
+                    wrap(sum_t{}, sum_sqd_t{}),
+                    std::forward<Variance>(variances),
+                    ReduceMeanVariance<f64, STDDEV>{size}
+                );
+            }
         }
     }
 
     /// Reduces an array along some dimensions by taking the mean and variance.
-    template<nt::readable_varray_decay_of_real_or_complex Input>
-    [[nodiscard]] auto mean_variance(Input&& input, ReduceAxes axes, i64 ddof = 0) {
+    /// \see reduce_axes_ewise for more details about the reduction.
+    template<nt::readable_varray_decay Input,
+             nt::writable_varray_decay Mean,
+             nt::writable_varray_decay Variance>
+    requires ((nt::varray_decay_of_complex<Input, Mean> and nt::varray_decay_of_real<Variance>) or
+               nt::varray_decay_of_scalar<Input, Mean, Variance>)
+    void mean_variance(Input&& input, Mean&& means, Variance&& variances, const VarianceOptions options = {}) {
+        guts::mean_variance_or_stddev<false>(
+            std::forward<Input>(input),
+            std::forward<Mean>(means),
+            std::forward<Variance>(variances),
+            options
+        );
+    }
+
+    /// Reduces an array along some dimensions by taking the mean and variance.
+    /// \see reduce_axes_ewise for more details about the reduction.
+    template<nt::readable_varray_decay_of_numeric Input>
+    [[nodiscard]] auto mean_variance(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
         using mean_t = nt::mutable_value_type_t<Input>;
         using variance_t = nt::mutable_value_type_twice_t<Input>;
-
         auto output_shape = guts::axes_to_output_shape(input, axes);
         Pair output{
             Array<mean_t>(output_shape, input.options()),
             Array<variance_t>(output_shape, input.options()),
         };
-        mean_variance(std::forward<Input>(input), output.first, output.second, ddof);
+        mean_variance(std::forward<Input>(input), output.first, output.second, options);
         return output;
     }
 
     /// Reduces an array along some dimensions by taking the mean and standard deviation.
-    /// \details Dimensions of the output array should match the input shape, or be 1, indicating the dimension
-    ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
-    ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
-    /// \tparam Input           VArray of f32, f64, c32, f64. To compute the variance of complex types,
-    ///                         the absolute value is taken before squaring, so the variance is always real and positive.
-    /// \tparam Mean            VArray with the same (but mutable) value-type as \p Input.
-    /// \tparam Stddev          VArray with the same (but mutable) value-type as \p Input, except for if \p Input has
-    ///                         a complex value-type, in which case it should be the corresponding real type.
-    /// \param[in] input        Input array to reduce.
-    /// \param[out] means      Reduced means.
-    /// \param[out] stddevs     Reduced standard deviations.
-    /// \param ddof             Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
-    ///                         In standard statistical practice, ddof=1 provides an unbiased estimator of the variance
-    ///                         of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
-    ///                         of the variance for normally distributed variables.
-    template<nt::readable_varray_decay_of_real_or_complex Input,
-             nt::writable_varray_decay_of_real_or_complex Mean,
-             nt::writable_varray_decay_of_real Stddev>
-    void mean_stddev(Input&& input, Mean&& means, Stddev&& stddevs, i64 ddof = 0) {
-        check(vall(Equal{}, means.shape(), stddevs.shape()),
-              "The means and stddevs should have the same shape, but got means={} and stddevs={}",
-              means.shape(), stddevs.shape());
-
-        mean(input, means);
-        auto n_reduced = guts::n_elements_to_reduce(input.shape(), means.shape()) - ddof;
-        auto shape = input.shape();
-
-        if (input.device().is_cpu()) {
-            reduce_axes_ewise<ReduceAxesEwiseOptions{.generate_gpu = false}>(
-                wrap(std::forward<Input>(input), ni::broadcast(std::forward<Mean>(means), shape)),
-                f64{}, std::forward<Stddev>(stddevs), ReduceStddev{static_cast<f64>(n_reduced)});
-        } else {
-            using real_t = nt::value_type_t<nt::mutable_value_type_t<Input>>;
-            reduce_axes_ewise<ReduceAxesEwiseOptions{.generate_cpu = false}>(
-                wrap(std::forward<Input>(input), ni::broadcast(std::forward<Mean>(means), shape)),
-                real_t{}, std::forward<Stddev>(stddevs), ReduceStddev{static_cast<real_t>(n_reduced)});
-        }
+    /// \see reduce_axes_ewise for more details about the reduction.
+    template<nt::readable_varray_decay Input,
+             nt::writable_varray_decay Mean,
+             nt::writable_varray_decay Stddev>
+    requires ((nt::varray_decay_of_complex<Input, Mean> and nt::varray_decay_of_real<Stddev>) or
+               nt::varray_decay_of_scalar<Input, Mean, Stddev>)
+    void mean_stddev(Input&& input, Mean&& means, Stddev&& stddevs, const VarianceOptions options = {}) {
+        guts::mean_variance_or_stddev<true>(
+           std::forward<Input>(input),
+           std::forward<Mean>(means),
+           std::forward<Stddev>(stddevs),
+           options
+       );
     }
 
     /// Reduces an array along some dimensions by taking the mean and standard deviation.
-    template<nt::readable_varray_decay_of_real_or_complex Input>
-    [[nodiscard]] auto mean_stddev(Input&& input, ReduceAxes axes, i64 ddof = 0) {
+    /// \see reduce_axes_ewise for more details about the reduction.
+    template<nt::readable_varray_decay_of_numeric Input>
+    [[nodiscard]] auto mean_stddev(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
         using mean_t = nt::mutable_value_type_t<Input>;
         using variance_t = nt::value_type_t<mean_t>;
-
         auto output_shape = guts::axes_to_output_shape(input, axes);
         Pair output{
             Array<mean_t>(output_shape, input.options()),
             Array<variance_t>(output_shape, input.options()),
         };
-        mean_stddev(std::forward<Input>(input), output.first, output.second, ddof);
+        mean_stddev(std::forward<Input>(input), output.first, output.second, options);
         return output;
     }
 
     /// Reduces an array along some dimensions by taking the variance.
-    /// \details Dimensions of the output array should match the input shape, or be 1, indicating the dimension
-    ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
-    ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
-    /// \tparam Input       VArray of f32, f64, c32, f64. For complex types, the absolute value is taken
-    ///                     before squaring, so the variance and stddev are always real and positive.
-    /// \tparam Output      VArray with the same (but mutable) value-type as \p Input, except for if \p Input has
-    ///                     a complex value-type, in which case it should be the corresponding real type.
-    /// \param[in] input    Input array to reduce.
-    /// \param[out] output  Reduced variances.
-    /// \param ddof         Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
-    ///                     In standard statistical practice, ddof=1 provides an unbiased estimator of the variance
-    ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
-    ///                     of the variance for normally distributed variables.
-    template<nt::readable_varray_decay_of_real_or_complex Input,
+    /// \see reduce_axes_ewise for more details about the reduction.
+    template<nt::readable_varray_decay_of_numeric Input,
              nt::writable_varray_decay_of_real Output>
-    void variance(Input&& input, Output&& output, i64 ddof = 0) {
-        using mean_t = nt::mutable_value_type_t<Input>;
-        Array<mean_t> means(output.shape(), output.options());
-        mean_variance(std::forward<Input>(input), means, std::forward<Output>(output), ddof);
+    void variance(Input&& input, Output&& output, const VarianceOptions options = {}) {
+        guts::mean_variance_or_stddev<false>(
+            std::forward<Input>(input),
+            Empty{},
+            std::forward<Output>(output),
+            options
+        );
     }
 
     /// Reduces an array along some dimensions by taking the variance.
-    template<nt::readable_varray_decay_of_real_or_complex Input>
-    [[nodiscard]] auto variance(Input&& input, ReduceAxes axes, i64 ddof = 0) {
+    /// \see reduce_axes_ewise for more details about the reduction.
+    template<nt::readable_varray_decay_of_numeric Input>
+    [[nodiscard]] auto variance(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using variance_t = nt::value_type_t<value_t>;
-        Array<variance_t> variances(guts::axes_to_output_shape(input, axes), input.options());
-        variance(std::forward<Input>(input), variances, ddof);
+        auto variances = Array<variance_t>(guts::axes_to_output_shape(input, axes), input.options());
+        variance(std::forward<Input>(input), variances, options);
         return variances;
     }
 
     /// Reduces an array along some dimensions by taking the standard-deviation.
-    /// \details Dimensions of the output array should match the input shape, or be 1, indicating the dimension
-    ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
-    ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
-    /// \tparam Input       VArray of f32, f64, c32, f64. For complex types, the absolute value is taken
-    ///                     before squaring, so the variance and stddev are always real and positive.
-    /// \tparam Output      VArray with the same (but mutable) value-type as \p Input, except for if \p Input has
-    ///                     a complex value-type, in which case it should be the corresponding real type.
-    /// \param[in] input    Input array to reduce.
-    /// \param[out] output  Reduced variances.
-    /// \param ddof         Delta Degree Of Freedom used to calculate the variance. Should be 0 or 1.
-    ///                     In standard statistical practice, ddof=1 provides an unbiased estimator of the variance
-    ///                     of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
-    ///                     of the variance for normally distributed variables.
-    template<nt::readable_varray_decay_of_real_or_complex Input,
+    ///\see reduce_axes_ewise for more details about the reduction.
+    template<nt::readable_varray_decay_of_numeric Input,
              nt::writable_varray_decay_of_real Output>
-    void stddev(Input&& input, Output&& output, i64 ddof = 0) {
-        using mean_t = nt::mutable_value_type_t<Input>;
-        Array<mean_t> means(output.shape(), output.options());
-        mean_stddev(std::forward<Input>(input), means, std::forward<Output>(output), ddof);
+    void stddev(Input&& input, Output&& output, const VarianceOptions options = {}) {
+        guts::mean_variance_or_stddev<true>(
+            std::forward<Input>(input),
+            Empty{},
+            std::forward<Output>(output),
+            options
+        );
     }
 
     /// Reduces an array along some dimensions by taking the standard-deviation.
-    template<nt::readable_varray_decay_of_real_or_complex Input>
-    [[nodiscard]] auto stddev(Input&& input, ReduceAxes axes, i64 ddof = 0) {
+    /// \see reduce_axes_ewise for more details about the reduction.
+    template<nt::readable_varray_decay_of_numeric Input>
+    [[nodiscard]] auto stddev(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using stddev_t = nt::value_type_t<value_t>;
-        Array<stddev_t> stddevs(guts::axes_to_output_shape(input, axes), input.options());
-        stddev(std::forward<Input>(input), stddevs, ddof);
+        auto stddevs = Array<stddev_t>(guts::axes_to_output_shape(input, axes), input.options());
+        stddev(std::forward<Input>(input), stddevs, options);
         return stddevs;
     }
 
     /// Reduces an array along some dimensions by taking the maximum value along the reduced axis/axes.
-    /// \details Dimensions of the output arrays should match the input shape, or be 1, indicating the dimension
-    ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
-    ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
+    /// \see reduce_axes_ewise for more details about the reduction.
     ///
     /// \tparam ReducedValue        Value type used for the reduction. Any numeric or void.
-    ///                             If void, this defaults to the input value type.
+    ///                             If void, it defaults to the input value type.
     ///                             The input is explicitly converted to this type.
-    ///                             If real and the input is complex, the power spectrum of the input is first computed.
+    ///                             If real and the input is complex, the abs_squared of the input is first computed.
     /// \tparam ReducedOffset       Offset type used for the reduction. Any integer or void.
     ///                             If void, this defaults to the input index type (i64).
     /// \param[in] input            Array to reduce.
@@ -714,9 +727,7 @@ namespace noa {
     }
 
     /// Reduces an array along some dimensions by taking the minimum value along the reduced axis/axes.
-    /// \details Dimensions of the output arrays should match the input shape, or be 1, indicating the dimension
-    ///          should be reduced. Reducing more than one axis at a time is only supported if the reduction
-    ///          results to having one value or one value per batch, i.e. the DHW dimensions are empty after reduction.
+    /// \see reduce_axes_ewise for more details about the reduction.
     ///
     /// \tparam ReducedValue        Value type used for the reduction. Any numeric or void.
     ///                             If void, this defaults to the input value type.
@@ -795,6 +806,9 @@ namespace noa {
 namespace noa {
     struct NormalizeOptions {
         Norm mode = Norm::MEAN_STD;
+
+        /// Same as VarianceOptions::ddof.
+        /// Only used if mode == Norm::MEAN_STD.
         i64 ddof = 0;
     };
 
@@ -827,6 +841,44 @@ namespace noa {
         }
     }
 
+    /// Normalizes an array, according to a normalization mode.
+    /// The normalization bounds are computed by reducing the provided axes.
+    /// Can be in-place or out-of-place.
+    template<nt::readable_varray_decay Input, nt::writable_varray_decay Output>
+    requires (nt::varray_decay_of_complex<Input, Output> or
+              nt::varray_decay_of_real<Input, Output>)
+    void normalize(
+        Input&& input,
+        Output&& output,
+        ReduceAxes axes,
+        const NormalizeOptions& options = {}
+    ) {
+        check(vall(Equal{}, input.shape(), output.shape()),
+              "The input and output arrays should have the same shape, but got input={} and output={}",
+              input.shape(), output.shape());
+
+        switch (options.mode) {
+            case Norm::MIN_MAX: {
+                const auto mins_maxs = min_max(input, axes);
+                ewise(wrap(std::forward<Input>(input), mins_maxs.first, mins_maxs.second),
+                      std::forward<Output>(output), NormalizeMinMax{});
+                break;
+            }
+            case Norm::MEAN_STD: {
+                const auto [means, stddevs] = mean_stddev(input, axes, options.ddof);
+                ewise(wrap(std::forward<Input>(input), means, stddevs),
+                      std::forward<Output>(output), NormalizeMeanStddev{});
+                break;
+            }
+            case Norm::L2: {
+                const auto l2_norms = l2_norm(input, axes);
+                ewise(wrap(std::forward<Input>(input), l2_norms),
+                      std::forward<Output>(output), NormalizeNorm{});
+                break;
+            }
+        }
+    }
+
     /// Normalizes each batch of an array, according to a normalization mode.
     /// Can be in-place or out-of-place.
     template<nt::readable_varray_decay Input, nt::writable_varray_decay Output>
@@ -837,30 +889,6 @@ namespace noa {
         Output&& output,
         const NormalizeOptions& options = {}
     ) {
-        check(vall(Equal{}, input.shape(), output.shape()),
-              "The input and output arrays should have the same shape, but got input={} and output={}",
-              input.shape(), output.shape());
-
-        constexpr auto axes_to_reduced = ReduceAxes::all_but(0);
-        switch (options.mode) {
-            case Norm::MIN_MAX: {
-                const auto mins_maxs = min_max(input, axes_to_reduced);
-                ewise(wrap(std::forward<Input>(input), mins_maxs.first, mins_maxs.second),
-                      std::forward<Output>(output), NormalizeMinMax{});
-                break;
-            }
-            case Norm::MEAN_STD: {
-                const auto [means, stddevs] = mean_stddev(input, axes_to_reduced, options.ddof);
-                ewise(wrap(std::forward<Input>(input), means, stddevs),
-                      std::forward<Output>(output), NormalizeMeanStddev{});
-                break;
-            }
-            case Norm::L2: {
-                const auto l2_norms = l2_norm(input, axes_to_reduced);
-                ewise(wrap(std::forward<Input>(input), l2_norms),
-                      std::forward<Output>(output), NormalizeNorm{});
-                break;
-            }
-        }
+        normalize(std::forward<Input>(input), std::forward<Output>(output), ReduceAxes::all_but(0), options);
     }
 }

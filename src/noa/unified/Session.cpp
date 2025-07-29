@@ -55,32 +55,57 @@ namespace noa::inline types {
         #endif
     }
 
-    i64 Session::clear_fft_cache(Device device) {
+    auto Session::clear_fft_cache(Device device) -> i64 {
         if (device.is_cpu())
-            return noa::cpu::fft::clear_caches();
+            return noa::cpu::fft::clear_cache();
         #ifdef NOA_ENABLE_CUDA
         auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
-        return noa::cuda::fft::clear_caches(cuda_device);
+        return noa::cuda::fft::clear_cache(cuda_device);
         #else
         return 0;
         #endif
     }
 
-    void Session::set_fft_cache_limit(i64 count, Device device) {
-        if (device.is_cpu())
-            return; // TODO we could have a more flexible caching mechanism for FFTW
+    auto Session::set_fft_cache_limit(i64 count, Device device) -> i64 {
         #ifdef NOA_ENABLE_CUDA
-        auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
-        noa::cuda::fft::set_cache_limit(cuda_device, clamp_cast<i32>(count));
+        if (device.is_gpu()) {
+            auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+            return noa::cuda::fft::set_cache_limit(cuda_device, safe_cast<i32>(count));
+        }
         #else
         (void) count;
+        (void) device;
+        #endif
+        return -1;
+    }
+
+    auto Session::fft_cache_limit(Device device) -> i64 {
+        #ifdef NOA_ENABLE_CUDA
+        if (device.is_gpu()) {
+            auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+            return noa::cuda::fft::cache_limit(cuda_device);
+        }
+        #else
+        (void) device;
+        #endif
+        return -1;
+    }
+
+    auto Session::fft_cache_size(Device device) -> i64 {
+        if (device.is_cpu())
+            return noa::cpu::fft::cache_size();
+        #ifdef NOA_ENABLE_CUDA
+        auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+        return noa::cuda::fft::cache_size(cuda_device);
+        #else
+        return -1;
         #endif
     }
 
     void Session::clear_blas_cache(Device device) {
-        #ifdef NOA_ENABLE_CUDA
         if (device.is_cpu())
             return;
+        #ifdef NOA_ENABLE_CUDA
         auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
         noa::cuda::cublas_clear_cache(cuda_device);
         #else

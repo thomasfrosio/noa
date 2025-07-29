@@ -17,7 +17,7 @@ TEST_CASE("unified::reduce - axis reductions vs numpy", "[assets]") {
     const auto input_filename = path / input["path"].as<Path>();
     const auto shape = input["shape"].as<Shape4<i64>>();
 
-    auto data = noa::io::read_data<f32>(input_filename);
+    auto data = noa::io::read_data<f64>(input_filename);
     REQUIRE(noa::all(data.shape() == shape));
 
    std::vector<Device> devices{"cpu"};
@@ -154,14 +154,14 @@ TEMPLATE_TEST_CASE("unified::reduce - axis reductions, cpu vs gpu", "[noa]", i64
                 const Array<real_t> cpu_results({2, 1, 1, output_shape.n_elements()});
                 const auto cpu_var = cpu_results.view().subregion(0).reshape(output_shape);
                 const auto cpu_std = cpu_results.view().subregion(1).reshape(output_shape);
-                noa::variance(cpu_data, cpu_var, ddof);
-                noa::stddev(cpu_data, cpu_std, ddof);
+                noa::variance(cpu_data, cpu_var, {.ddof = ddof});
+                noa::stddev(cpu_data, cpu_std, {.ddof = ddof});
 
                 const Array<real_t> gpu_results({2, 1, 1, output_shape.n_elements()}, gpu_data.options());
                 const auto gpu_var = gpu_results.view().subregion(0).reshape(output_shape);
                 const auto gpu_std = gpu_results.view().subregion(1).reshape(output_shape);
-                noa::variance(gpu_data, gpu_var, ddof);
-                noa::stddev(gpu_data, gpu_std, ddof);
+                noa::variance(gpu_data, gpu_var, {.ddof = ddof});
+                noa::stddev(gpu_data, gpu_std, {.ddof = ddof});
 
                 REQUIRE(test::allclose_abs_safe(cpu_results, gpu_results, eps));
 
