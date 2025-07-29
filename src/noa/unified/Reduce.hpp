@@ -807,6 +807,10 @@ namespace noa {
     struct NormalizeOptions {
         Norm mode = Norm::MEAN_STD;
 
+        /// Same as SumOptions::accurate.
+        ///  Only used if mode == Norm::MEAN_STD or Norm::L2.
+        bool accurate = false;
+
         /// Same as VarianceOptions::ddof.
         /// Only used if mode == Norm::MEAN_STD.
         i64 ddof = 0;
@@ -829,12 +833,12 @@ namespace noa {
                              std::forward<Output>(output), NormalizeMinMax{});
             }
             case Norm::MEAN_STD: {
-                const auto [mean, stddev] = mean_stddev(input, options.ddof);
+                const auto [mean, stddev] = mean_stddev(input, {.accurate = options.accurate, .ddof = options.ddof});
                 return ewise(wrap(std::forward<Input>(input), mean, stddev),
                              std::forward<Output>(output), NormalizeMeanStddev{});
             }
             case Norm::L2: {
-                const auto norm = l2_norm(input);
+                const auto norm = l2_norm(input, {.accurate = options.accurate});
                 return ewise(wrap(std::forward<Input>(input), norm),
                              std::forward<Output>(output), NormalizeNorm{});
             }
@@ -865,13 +869,13 @@ namespace noa {
                 break;
             }
             case Norm::MEAN_STD: {
-                const auto [means, stddevs] = mean_stddev(input, axes, options.ddof);
+                const auto [means, stddevs] = mean_stddev(input, axes, {.accurate = options.accurate, .ddof = options.ddof});
                 ewise(wrap(std::forward<Input>(input), means, stddevs),
                       std::forward<Output>(output), NormalizeMeanStddev{});
                 break;
             }
             case Norm::L2: {
-                const auto l2_norms = l2_norm(input, axes);
+                const auto l2_norms = l2_norm(input, axes, {.accurate = options.accurate});
                 ewise(wrap(std::forward<Input>(input), l2_norms),
                       std::forward<Output>(output), NormalizeNorm{});
                 break;

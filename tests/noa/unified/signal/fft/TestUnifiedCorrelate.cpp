@@ -6,6 +6,7 @@
 #include <noa/unified/Random.hpp>
 #include <noa/unified/Reduce.hpp>
 #include <noa/unified/signal/Correlate.hpp>
+#include <noa/unified/Blas.hpp>
 
 #include "Catch.hpp"
 #include "Utils.hpp"
@@ -197,7 +198,7 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak batched", "", Vec2<f32>, V
     }
 }
 
-TEST_CASE("unified::signal, autocorrelate", "[.]") {
+TEST_CASE("unified::signal, autocorrelate") {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -218,5 +219,56 @@ TEST_CASE("unified::signal, autocorrelate", "[.]") {
         REQUIRE_THAT(shift[0], Catch::Matchers::WithinAbs(center[0], 5e-2));
         REQUIRE_THAT(shift[1], Catch::Matchers::WithinAbs(center[1], 5e-2));
         REQUIRE_THAT(shift[2], Catch::Matchers::WithinAbs(center[2], 5e-2));
+    }
+}
+
+TEST_CASE("unified::signal::cross_correlation_score") {
+    std::vector<Device> devices{"cpu"};
+    if (Device::is_any_gpu())
+        devices.emplace_back("gpu");
+
+    const auto shape = test::random_shape(3);
+    for (auto& device: devices) {
+        const auto stream = noa::StreamGuard(device);
+        const auto options = noa::ArrayOption(device, Allocator::MANAGED);
+
+        // Mean=2.
+        const auto lhs = noa::random(noa::Normal(0., 1.), shape, options);
+        noa::normalize(lhs, lhs, {.mode = noa::Norm::MEAN_STD});
+        noa::ewise(noa::wrap(lhs, 2.), lhs, noa::Plus{});
+
+        const auto rhs = noa::random(noa::Normal(0., 1.), shape, options);
+        noa::normalize(rhs, rhs, {.mode = noa::Norm::MEAN_STD});
+        noa::ewise(noa::wrap(rhs, 2.), rhs, noa::Plus{});
+
+        const auto lhs_l2_normalized = noa::like(lhs);
+        const auto lhs_zero_normalized = noa::like(lhs);
+        const auto lhs_zero_l2_normalized = noa::like(lhs);
+        noa::normalize(lhs, lhs_l2_normalized, {.mode = noa::Norm::L2});
+        noa::normalize(lhs, lhs_zero_normalized, {.mode = noa::Norm::MEAN_STD});
+        noa::normalize(lhs_zero_normalized, lhs_zero_l2_normalized, {.mode = noa::Norm::L2});
+
+        const auto rhs_l2_normalized = noa::like(rhs);
+        const auto rhs_zero_normalized = noa::like(rhs);
+        const auto rhs_zero_l2_normalized = noa::like(rhs);
+        noa::normalize(rhs, rhs_l2_normalized, {.mode = noa::Norm::L2});
+        noa::normalize(rhs, rhs_zero_normalized, {.mode = noa::Norm::MEAN_STD});
+        noa::normalize(rhs_zero_normalized, rhs_zero_l2_normalized, {.mode = noa::Norm::L2});
+
+        const auto dot = noa::dot(lhs.flat(), rhs.flat());
+        const auto cc = noa::signal::cross_correlation_score(lhs, rhs, {.center = false, .normalize = false});
+        REQUIRE_THAT(dot, Catch::Matchers::WithinAbs(cc, 1e-5));
+
+        const auto zcc0 = noa::signal::cross_correlation_score(lhs, rhs, {.center = true, .normalize = false});
+        const auto zcc1 = noa::signal::cross_correlation_score(lhs_zero_normalized, rhs_zero_normalized, {.center = false, .normalize = false});
+        REQUIRE_THAT(zcc0, Catch::Matchers::WithinAbs(zcc1, 1e-5));
+
+        const auto ncc0 = noa::signal::cross_correlation_score(lhs, rhs, {.center = false, .normalize = true});
+        const auto ncc1 = noa::signal::cross_correlation_score(lhs_l2_normalized, rhs_l2_normalized, {.center = false, .normalize = false});
+        REQUIRE_THAT(ncc0, Catch::Matchers::WithinAbs(ncc1, 1e-5));
+
+        const auto zncc0 = noa::signal::cross_correlation_score(lhs, rhs, {.center = true, .normalize = true});
+        const auto zncc1 = noa::signal::cross_correlation_score(lhs_zero_l2_normalized, rhs_zero_l2_normalized, {.center = false, .normalize = false});
+        REQUIRE_THAT(zncc0, Catch::Matchers::WithinAbs(zncc1, 1e-5));
     }
 }

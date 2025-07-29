@@ -91,7 +91,10 @@ namespace noa::signal::guts {
 
         template<typename T, typename U>
         constexpr void final(const T& sum_x, const T& sum_y, const T& sum_xy, U& zcc) {
-            zcc = static_cast<U>(sum_xy - (sum_x * conj(sum_y)) / size);
+            if constexpr (nt::complex<U>)
+                zcc = static_cast<U>(sum_xy - (sum_x * conj(sum_y)) / size);
+            else
+                zcc = static_cast<U>(sum_xy - (sum_x * sum_y) / size);
         }
     };
 
@@ -119,11 +122,11 @@ namespace noa::signal::guts {
             const T& isum_xx, const T& isum_yy, const U& isum_x, const U& isum_y, const U& isum_xy,
             T& sum_xx, T& sum_yy, U& sum_x, U& sum_y, U& sum_xy
         ) {
-            isum_xx += sum_xx;
-            isum_yy += sum_yy;
-            isum_x += sum_x;
-            isum_y += sum_y;
-            isum_xy += sum_xy;
+            sum_xx += isum_xx;
+            sum_yy += isum_yy;
+            sum_x += isum_x;
+            sum_y += isum_y;
+            sum_xy += isum_xy;
         }
 
         template<typename T, typename U, typename V>
@@ -136,7 +139,11 @@ namespace noa::signal::guts {
             if (denom <= 0) {
                 zncc = V{};
             } else {
-                const auto num = sum_xy - sum_x * conj(sum_y) / size;
+                U num;
+                if constexpr (nt::complex<U>)
+                    num = sum_xy - sum_x * conj(sum_y) / size;
+                else
+                    num = sum_xy - sum_x * sum_y / size;
                 denom = sqrt(denom);
                 zncc = static_cast<V>(num / denom);
             }
@@ -418,20 +425,21 @@ namespace noa::signal {
               "Got scores:shape={}, scores:strides={}, and batch={}",
               scores.shape(), scores.strides(), batch);
 
-        using value_t = std::conditional_t<nt::complex<Lhs>, c64, f64>;
+        using value_t = nt::mutable_value_type_t<Lhs>;
+        using sum_t = nt::double_precision_t<value_t>;
         using real_t = f64;
         if (options.center and options.normalize) {
             const auto n_elements = static_cast<real_t>(lhs.shape().n_elements());
             reduce_axes_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
-                wrap(real_t{}, real_t{}, value_t{}, value_t{}, value_t{}),
+                wrap(real_t{}, real_t{}, sum_t{}, sum_t{}, sum_t{}),
                 std::forward<Output>(scores).flat(0),
                 guts::CrossCorrelationScoreCenteredNormalized{n_elements}
             );
         } else if (options.normalize) {
             reduce_axes_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
-                wrap(real_t{}, real_t{}, value_t{}),
+                wrap(real_t{}, real_t{}, sum_t{}),
                 std::forward<Output>(scores).flat(0),
                 guts::CrossCorrelationScoreNormalized{}
             );
@@ -439,14 +447,14 @@ namespace noa::signal {
             const auto n_elements = static_cast<real_t>(lhs.shape().n_elements());
             reduce_axes_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
-                wrap(value_t{}, value_t{}, value_t{}),
+                wrap(sum_t{}, sum_t{}, sum_t{}),
                 std::forward<Output>(scores).flat(0),
                 guts::CrossCorrelationScoreCentered{n_elements}
             );
         } else {
             reduce_axes_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
-                value_t{},
+                sum_t{},
                 std::forward<Output>(scores).flat(0),
                 guts::CrossCorrelationScore{}
             );
@@ -466,36 +474,37 @@ namespace noa::signal {
               "The lhs and rhs input arrays should be on the same device, but got lhs:device={} and rhs:device={}",
               lhs.device(), rhs.device());
 
-        using value_t = std::conditional_t<nt::complex<Lhs>, c64, f64>;
+        using value_t = nt::mutable_value_type_t<Lhs>;
+        using sum_t = nt::double_precision_t<value_t>;
         using real_t = f64;
         value_t score;
         if (options.center and options.normalize) {
             const auto n_elements = static_cast<real_t>(lhs.shape().n_elements());
-            reduce_axes_ewise(
+            reduce_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
-                wrap(real_t{}, real_t{}, value_t{}, value_t{}, value_t{}),
+                wrap(real_t{}, real_t{}, sum_t{}, sum_t{}, sum_t{}),
                 score,
                 guts::CrossCorrelationScoreCenteredNormalized{n_elements}
             );
         } else if (options.normalize) {
-            reduce_axes_ewise(
+            reduce_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
-                wrap(real_t{}, real_t{}, value_t{}),
+                wrap(real_t{}, real_t{}, sum_t{}),
                 score,
                 guts::CrossCorrelationScoreNormalized{}
             );
         } else if (options.center) {
             const auto n_elements = static_cast<real_t>(lhs.shape().n_elements());
-            reduce_axes_ewise(
+            reduce_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
-                wrap(value_t{}, value_t{}, value_t{}),
+                wrap(sum_t{}, sum_t{}, sum_t{}),
                 score,
                 guts::CrossCorrelationScoreCentered{n_elements}
             );
         } else {
-            reduce_axes_ewise(
+            reduce_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
-                value_t{},
+                sum_t{},
                 score,
                 guts::CrossCorrelationScore{}
             );
