@@ -56,7 +56,7 @@ set(NOA_CORE_HEADERS
     core/signal/CTF.hpp
     core/signal/Windows.hpp
 
-    core/geometry/DrawShape.hpp
+    core/geometry/Draw.hpp
     core/geometry/Euler.hpp
     core/geometry/Polar.hpp
     core/geometry/Quaternion.hpp

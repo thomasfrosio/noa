@@ -50,7 +50,7 @@ set(NOA_UNIFIED_HEADERS
 
     # noa::geometry
     unified/geometry/CubicBSplinePrefilter.hpp
-    unified/geometry/DrawShape.hpp
+    unified/geometry/Draw.hpp
     unified/geometry/FourierProject.hpp
     unified/geometry/PolarTransform.hpp
     unified/geometry/PolarTransformSpectrum.hpp
