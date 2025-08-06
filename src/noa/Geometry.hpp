@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/core/geometry/DrawShape.hpp"
+#include "noa/core/geometry/Draw.hpp"
 #include "noa/core/geometry/Euler.hpp"
 #include "noa/core/geometry/Polar.hpp"
 #include "noa/core/geometry/Quaternion.hpp"
@@ -9,7 +9,7 @@
 
 #include "noa/unified/Texture.hpp"
 #include "noa/unified/geometry/CubicBSplinePrefilter.hpp"
-#include "noa/unified/geometry/DrawShape.hpp"
+#include "noa/unified/geometry/Draw.hpp"
 #include "noa/unified/geometry/FourierProject.hpp"
 #include "noa/unified/geometry/PolarTransform.hpp"
 #include "noa/unified/geometry/PolarTransformSpectrum.hpp"

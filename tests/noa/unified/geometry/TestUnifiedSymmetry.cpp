@@ -1,6 +1,6 @@
 #include <noa/core/geometry/Euler.hpp>
 #include <noa/unified/geometry/CubicBSplinePrefilter.hpp>
-#include <noa/unified/geometry/DrawShape.hpp>
+#include <noa/unified/geometry/Draw.hpp>
 #include <noa/unified/geometry/Symmetry.hpp>
 #include <noa/unified/geometry/Transform.hpp>
 #include <noa/unified/IO.hpp>
@@ -23,21 +23,21 @@ TEST_CASE("unified::geometry::symmetrize_2d", "[asset]") {
     if constexpr (COMPUTE_ASSETS) {
         const auto asset = noa::empty<f32>({1, 1, 512, 512});
         const auto center = Vec{256., 256.};
-        ng::draw_shape({}, asset, ng::Rectangle{
+        ng::draw({}, asset, ng::Rectangle{
             .center = center,
             .radius = Vec{64., 128.},
             .smoothness = 5.,
-        });
-        ng::draw_shape(asset, asset, ng::Rectangle{
+        }.draw());
+        ng::draw(asset, asset, ng::Rectangle{
             .center = center + Vec{64., 128.},
             .radius = Vec{32., 32.},
             .smoothness = 3.,
-        }, {}, noa::Plus{});
-        ng::draw_shape(asset, asset, ng::Rectangle{
+        }.draw(), {}, noa::Plus{});
+        ng::draw(asset, asset, ng::Rectangle{
             .center = center,
             .radius = Vec{2. ,2.},
             .smoothness = 0.,
-        }, {}, noa::Plus{});
+        }.draw(), {}, noa::Plus{});
         noa::io::write(asset, input_filename);
     }
 
@@ -122,14 +122,14 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[asset]") {
     if constexpr (COMPUTE_ASSETS) {
         const auto asset = noa::empty<f32>({1, 150, 150, 150});
         constexpr auto center = Vec<f64, 3>::from_value(150 / 2);
-        ng::draw_shape({}, asset, ng::Rectangle{.center = center, .radius = Vec{34., 24., 24.}, .smoothness = 3.});
+        ng::draw({}, asset, ng::Rectangle{.center = center, .radius = Vec{34., 24., 24.}, .smoothness = 3.}.draw());
         noa::io::write(asset, path_base / param["input"][0].as<Path>());
 
-        ng::draw_shape(asset, asset, ng::Rectangle{
+        ng::draw(asset, asset, ng::Rectangle{
             .center = center + Vec{15., 15., 15.},
             .radius = Vec{15., 15., 15.},
             .smoothness = 3.
-        }, {}, noa::Plus{});
+        }.draw(), {}, noa::Plus{});
         noa::io::write(asset, path_base / param["input"][1].as<Path>());
     }
 

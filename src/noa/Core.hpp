@@ -9,7 +9,7 @@
 
 #include "noa/core/fft/Frequency.hpp"
 
-#include "noa/core/geometry/DrawShape.hpp"
+#include "noa/core/geometry/Draw.hpp"
 #include "noa/core/geometry/Euler.hpp"
 #include "noa/core/geometry/Polar.hpp"
 #include "noa/core/geometry/Quaternion.hpp"

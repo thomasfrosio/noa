@@ -4,7 +4,7 @@
 #include "noa/core/types/Vec.hpp"
 #include "noa/core/types/Pair.hpp"
 #include "noa/core/math/LeastSquare.hpp"
-#include "noa/core/geometry/DrawShape.hpp"
+#include "noa/core/geometry/Draw.hpp"
 
 #include "noa/unified/Array.hpp"
 #include "noa/unified/fft/Transform.hpp"
@@ -200,7 +200,7 @@ namespace noa::signal::guts {
         using shape_type = Shape<index_type, N>;
 
         using subregion_offset_type = Vec<index_type, N>;
-        using ellipse_type = noa::geometry::guts::DrawEllipse<N, f32, false>;
+        using ellipse_type = noa::geometry::DrawEllipse<N, f32, false>;
 
     public:
         constexpr ReducePeak(
@@ -239,7 +239,7 @@ namespace noa::signal::guts {
             f32 mask{1};
             if (m_apply_ellipse) {
                 indices += m_subregion_offset;
-                mask = m_ellipse(Vec<f32, N>::from_vec(indices));
+                mask = m_ellipse.draw_at(Vec<f32, N>::from_vec(indices));
             }
 
             if constexpr (not IS_CENTERED)

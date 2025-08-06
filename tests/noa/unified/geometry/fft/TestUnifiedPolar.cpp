@@ -3,7 +3,7 @@
 #include <noa/unified/IO.hpp>
 
 #include <noa/unified/fft/Remap.hpp>
-#include <noa/unified/geometry/DrawShape.hpp>
+#include <noa/unified/geometry/Draw.hpp>
 #include <noa/unified/geometry/CubicBSplinePrefilter.hpp>
 #include <noa/unified/geometry/PolarTransformSpectrum.hpp>
 #include <noa/unified/geometry/RotationalAverage.hpp>
@@ -233,11 +233,11 @@ TEST_CASE("unified::geometry::rotational_average") {
         INFO(device);
 
         const auto input = noa::zeros<f32>(shape, options);
-        noa::geometry::draw_shape({}, input, noa::geometry::Sphere{
+        noa::geometry::draw({}, input, noa::geometry::Sphere{
             .center=center,
             .radius=0.,
             .smoothness=noa::min(center),
-        });
+        }.draw());
 
         // Rotational average using polar transformation.
         const auto input_rfft = noa::fft::remap(noa::Remap::FC2HC, input, shape);

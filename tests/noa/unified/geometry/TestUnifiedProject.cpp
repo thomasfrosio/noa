@@ -1,6 +1,6 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/Factory.hpp>
-#include <noa/unified/geometry/DrawShape.hpp>
+#include <noa/unified/geometry/Draw.hpp>
 #include <noa/unified/geometry/Project.hpp>
 #include <noa/unified/IO.hpp>
 #include <noa/core/utils/Zip.hpp>
@@ -40,7 +40,7 @@ TEST_CASE("unified::geometry::project_3d, project sphere", "[asset]") {
 
         constexpr auto circle = ng::Sphere{.center = Vec{128., 128.}, .radius = 32., .smoothness = 5.};
         const auto asset = noa::empty<f32>({n_images, 1, 256, 256});
-        ng::draw_shape({}, asset, circle, inverse_matrices);
+        ng::draw({}, asset, circle.draw(), inverse_matrices);
         noa::write(asset, input_filename);
     }
 
@@ -98,7 +98,7 @@ TEST_CASE("unified::geometry::project_3d, project sphere", "[asset]") {
         // Forward project.
         {
             const auto volume = noa::empty<f32>(volume_shape.push_front(1), options);
-            ng::draw_shape({}, volume, ng::Sphere{.center = center, .radius = 32., .smoothness = 0.});
+            ng::draw({}, volume, ng::Sphere{.center = center, .radius = 32., .smoothness = 0.}.draw());
 
             auto images = noa::zeros<f32>({n_images, 1, 256, 256}, options);
             ng::forward_project_3d(
@@ -146,7 +146,7 @@ TEST_CASE("unified::geometry::project_3d, fused", "[asset]") {
 
     constexpr auto circle = ng::Sphere{.center = Vec{128., 128.}, .radius = 32., .smoothness = 5.};
     auto images = noa::empty<f32>({n_images, 1, 256, 256});
-    ng::draw_shape({}, images, circle);
+    ng::draw({}, images, circle.draw());
 
     std::vector<Device> devices{"cpu"};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())

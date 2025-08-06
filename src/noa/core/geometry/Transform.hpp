@@ -189,7 +189,7 @@ namespace noa::geometry {
     }
 }
 
-namespace noa::geometry::guts {
+namespace noa::geometry {
     /// Transform the vector.
     /// \param xform    Transform operator.
     /// \param vector   Coordinate. The non-homogeneous vector should be passed.

@@ -1,7 +1,7 @@
 #include <noa/unified/fft/Transform.hpp>
 #include <noa/unified/fft/Factory.hpp>
 #include <noa/unified/fft/Remap.hpp>
-#include <noa/unified/geometry/DrawShape.hpp>
+#include <noa/unified/geometry/Draw.hpp>
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/Random.hpp>
 #include <noa/unified/Reduce.hpp>
@@ -71,8 +71,8 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak", "", Vec2<f32>, Vec2<f64>
             const Array xmap = noa::empty<value_t>(shape, options);
             const Array buffer = noa::like(lhs_rfft);
 
-            noa::geometry::draw_shape({}, lhs, noa::geometry::Rectangle{data.lhs_center, data.radius, data.smoothness});
-            noa::geometry::draw_shape({}, rhs, noa::geometry::Rectangle{data.rhs_center, data.radius, data.smoothness});
+            noa::geometry::draw({}, lhs, noa::geometry::Rectangle{data.lhs_center, data.radius, data.smoothness}.draw());
+            noa::geometry::draw({}, rhs, noa::geometry::Rectangle{data.rhs_center, data.radius, data.smoothness}.draw());
             noa::fft::r2c(lhs, lhs_rfft);
             noa::fft::r2c(rhs, rhs_rfft);
 
@@ -157,11 +157,11 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak batched", "", Vec2<f32>, V
             const auto xmap = noa::empty<value_t>(shape, options);
             const auto buffer = noa::like(lhs_rfft);
 
-            noa::geometry::draw_shape({}, lhs, noa::geometry::Rectangle{
-                .radius=data[0].radius, .smoothness=data[0].smoothness},
+            noa::geometry::draw({}, lhs, noa::geometry::Rectangle{
+                .radius=data[0].radius, .smoothness=data[0].smoothness}.template draw<f32>(),
                  lhs_inverse_affine_matrices.to({device}));
-            noa::geometry::draw_shape({}, rhs, noa::geometry::Rectangle{
-                .radius=data[0].radius, .smoothness=data[0].smoothness},
+            noa::geometry::draw({}, rhs, noa::geometry::Rectangle{
+                .radius=data[0].radius, .smoothness=data[0].smoothness}.template draw<f32>(),
                  rhs_inverse_affine_matrices.to({device}));
 
             noa::fft::r2c(lhs, lhs_rfft);

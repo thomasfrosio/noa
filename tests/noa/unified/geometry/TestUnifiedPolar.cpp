@@ -1,5 +1,5 @@
 #include <noa/unified/geometry/PolarTransform.hpp>
-#include <noa/unified/geometry/DrawShape.hpp>
+#include <noa/unified/geometry/Draw.hpp>
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/IO.hpp>
 
@@ -34,11 +34,11 @@ TEST_CASE("unified::geometry::cartesian2polar", "[asset]") {
         if constexpr (COMPUTE_ASSETS) {
             // Generate a smooth sphere as input.
             const auto input = noa::empty<f32>(cartesian_shape);
-            noa::geometry::draw_shape({}, input, noa::geometry::Sphere{
+            noa::geometry::draw({}, input, noa::geometry::Sphere{
                 .center=cartesian_center,
                 .radius=0.,
                 .smoothness=radius_range[1]
-            });
+            }.draw());
             noa::io::write(input, input_filename);
 
             const auto output = noa::empty<f32>(polar_shape);
