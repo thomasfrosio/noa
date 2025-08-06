@@ -228,12 +228,12 @@ namespace noa::io {
 
         template<typename T>
         [[nodiscard]] auto closest_supported_dtype() const noexcept -> Encoding::Type {
-            return std::visit([this](const auto& f) { return f.template closest_supported_dtype<T>(); }, m_encoders);
+            return std::visit([](const auto& f) { return f.template closest_supported_dtype<T>(); }, m_encoders);
         }
 
         /// Returns the encoder name.
         [[nodiscard]] auto encoder_name() const noexcept -> std::string_view {
-            return std::visit([this](const auto& f) { return f.name(); }, m_encoders);
+            return std::visit([](const auto& f) { return f.name(); }, m_encoders);
         }
 
         struct Parameters {
