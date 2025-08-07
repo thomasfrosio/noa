@@ -7,6 +7,7 @@
 #include <noa/unified/Reduce.hpp>
 #include <noa/unified/signal/Correlate.hpp>
 #include <noa/unified/Blas.hpp>
+#include <noa/unified/IO.hpp>
 
 #include "Catch.hpp"
 #include "Utils.hpp"
@@ -270,5 +271,42 @@ TEST_CASE("unified::signal::cross_correlation_score") {
         const auto zncc0 = noa::signal::cross_correlation_score(lhs, rhs, {.center = true, .normalize = true});
         const auto zncc1 = noa::signal::cross_correlation_score(lhs_zero_l2_normalized, rhs_zero_l2_normalized, {.center = false, .normalize = false});
         REQUIRE_THAT(zncc0, Catch::Matchers::WithinAbs(zncc1, 1e-5));
+    }
+}
+
+TEST_CASE("unified::signal::cross_correlation_peak, no registration") {
+    std::vector<Device> devices{"cpu"};
+    if (Device::is_any_gpu())
+        devices.emplace_back("gpu");
+
+    const auto shape = Shape<i64, 4>{1, 1, 64, 64};
+    for (auto& device: devices) {
+        const auto stream = noa::StreamGuard(device);
+        const auto options = noa::ArrayOption(device, Allocator::MANAGED);
+
+        const auto lhs = Array<f64>(shape, options);
+        noa::geometry::draw({}, lhs, noa::geometry::Sphere{.center=Vec{32., 32.}, .radius=6., .smoothness = 4.}.draw());
+        noa::normalize(lhs, lhs, {.mode = noa::Norm::MEAN_STD});
+        noa::normalize(lhs, lhs, {.mode = noa::Norm::L2});
+        const auto lhs_rfft = noa::fft::r2c(lhs, {.norm = noa::fft::Norm::BACKWARD});
+
+        const auto rhs = Array<f64>(shape, options);
+        noa::geometry::draw({}, rhs, noa::geometry::Sphere{.center=Vec{35., 34.}, .radius=6., .smoothness = 4.}.draw());
+        noa::normalize(rhs, rhs, {.mode = noa::Norm::MEAN_STD});
+        noa::normalize(rhs, rhs, {.mode = noa::Norm::L2});
+        const auto rhs_rfft = noa::fft::r2c(rhs, {.norm = noa::fft::Norm::BACKWARD});
+
+        // Using a cross-correlation map.
+        const auto xmap = noa::like(rhs);
+        noa::signal::cross_correlation_map<"h2fc">(lhs_rfft, rhs_rfft, xmap, {.ifft_norm = noa::fft::Norm::BACKWARD});
+        auto [peak_coord, peak_value] = noa::signal::cross_correlation_peak_2d<"fc2fc">(xmap, {.registration_radius = Vec<i64, 2>{}});
+
+        // Using argmax.
+        auto [argmax_value, argmax_offset] = noa::argmax(xmap);
+        auto indices = noa::indexing::offset2index(argmax_offset, xmap);
+
+        REQUIRE(noa::allclose(argmax_value, peak_value));
+        REQUIRE((indices[0] == 0 and indices[1] == 0));
+        REQUIRE(noa::all(noa::allclose(indices.filter(2, 3).as<f64>(), peak_coord)));
     }
 }

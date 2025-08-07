@@ -239,7 +239,7 @@ namespace noa::signal::guts {
             f32 mask{1};
             if (m_apply_ellipse) {
                 indices += m_subregion_offset;
-                mask = m_ellipse.draw_at(Vec<f32, N>::from_vec(indices));
+                mask = m_ellipse.draw_at(indices.template as<f32>());
             }
 
             if constexpr (not IS_CENTERED)
@@ -314,6 +314,10 @@ namespace noa::signal::guts {
                     // Add x directly, since it's relative to peak_index.
                     peak_coordinate[dim] = static_cast<f64>(peak_index) + static_cast<f64>(x);
                     peak_value += static_cast<f64>(y);
+                } else if (peak_radius == 0) {
+                    // No registration, just save the value and index.
+                    peak_coordinate[dim] = static_cast<f64>(peak_index);
+                    peak_value += static_cast<f64>(peak_window[0]);
                 } else {
                     QuadraticCurve<f64> curve = lstsq_fit_quadratic(peak_window.as_const());
                     if (abs(curve.a) < 1e-6) {
@@ -540,12 +544,13 @@ namespace noa::signal {
     ///       The score with zero lag can be computed more efficiently with the cross_correlation_score function.
     ///       If other lags are to be selected (which is the entire point of this function), the inputs
     ///       should be zero-padded before taking the rFFT to cancel the circular convolution effect of
-    ///       the DFT. The amount of padding along a dimension is equal to the maximum lag allowed.
+    ///       the DFT. The amount of padding along a dimension is equal to the maximum lag allowed.\n
     ///
-    /// \note As opposed to the cross_correlation_score function, this function does not take a normalization flag.
-    ///       To get the normalized cross-correlation scores, simply L2 normalize the inputs before computing their
-    ///       rFFT. To output scores with the correct scaling, use .ifft_norm=ORTHO|BACKWARD (using noa::fft::FORWARD
-    ///       outputs scores divided by a scaling factor of 1/n_elements).
+    /// \note As opposed to the cross_correlation_score function, this function does not take normalization flags.
+    ///       To get the (Z)(N)CC scores, normalize the inputs appropriately before computing their rFFT (for instance,
+    ///       the ZNCC needs zero-centered and L2-normalized real-space inputs). Importantly, the FFT normalization
+    ///       should be noa::fft::Norm::(ORTHO|BACKWARD). noa::fft::Norm::FORWARD outputs scores divided by a scaling
+    ///       factor of 1/n_elements.
     template<Remap REMAP, typename Lhs, typename Rhs, typename Output,
              typename Buffer = View<nt::mutable_value_type_t<Rhs>>>
     requires(nt::varray_decay_of_complex<Lhs, Rhs, Buffer> and
@@ -630,16 +635,20 @@ namespace noa::signal {
     template<size_t N>
     struct CrossCorrelationPeakOptions {
         /// ((D)H)W radius of the registration window, centered on the peak.
+        /// To get subpixel-accuracy of the peak position and value, a 1d parabola is fitted along each dimension.
+        /// This parameter specifies the radius of these parabolas. Zero is valid and turns off the registration.
         Vec<i64, N> registration_radius{Vec<i64, N>::from_value(1)};
 
-        /// ((D)H)W maximum lag allowed, i.e. the peak is selected within this elliptical radius.
-        /// If negative or 0, it is ignored. Otherwise, an elliptical mask is applied on the
-        /// centered cross-correlation map before selecting the peak.
+        /// ((D)H)W maximum lag allowed, i.e., the peak is selected within this elliptical radius.
+        /// If negative, it is ignored and the entire map is searched. If zero, the central peak at lag zero is
+        /// guaranteed to be selected. Otherwise, an elliptical mask is applied on the centered cross-correlation
+        /// map before the search. Note that the implementation will select the minimum subregion within the
+        /// map so that only this subregion needs to be searched.
         Vec<f64, N> maximum_lag{Vec<f64, N>::from_value(-1)};
     };
 
     /// Find the cross-correlation peak(s) of the cross-correlation map(s).
-    /// \tparam REMAP                       Whether \p xmap is centered. Should be F2F or FC2FC.
+    /// \tparam REMAP                       Whether xmap is centered. Should be F2F or FC2FC.
     /// \param[in] cross_correlation_map    1d, 2d or 3d cross-correlation map.
     /// \param[out] peak_coordinates        Output ((D)H)W coordinate of the highest peak. One per batch or empty.
     /// \param[out] peak_values             Output value of the highest peak. One per batch or empty.
@@ -648,7 +657,7 @@ namespace noa::signal {
              nt::readable_varray_decay_of_almost_any<f32, f64> Input,
              nt::writable_varray_decay_of_any<Vec<f32, N>, Vec<f64, N>> PeakCoord = View<Vec<f64, N>>,
              nt::writable_varray_decay_of_almost_same_type<Input> PeakValue = View<nt::mutable_value_type_t<Input>>>
-    requires (1 <= N and N <= 3)
+    requires (1 <= N and N <= 3 and (REMAP == Remap::F2F or REMAP == Remap::FC2FC))
     void cross_correlation_peak(
         Input&& cross_correlation_map,
         PeakCoord&& peak_coordinates,
@@ -657,7 +666,7 @@ namespace noa::signal {
     ) {
         constexpr size_t REGISTRATION_RADIUS_LIMIT = 4;
         guts::check_cross_correlation_peak_parameters<N>(cross_correlation_map, peak_coordinates, peak_values);
-        check(all(options.registration_radius > 0 and options.registration_radius <= REGISTRATION_RADIUS_LIMIT),
+        check(all(options.registration_radius >= 0 and options.registration_radius <= REGISTRATION_RADIUS_LIMIT),
               "The registration radius should be a small positive value (less than {}), but got {}",
               REGISTRATION_RADIUS_LIMIT, options.registration_radius);
 
@@ -682,16 +691,13 @@ namespace noa::signal {
         auto shape_nd = filter_nd(cross_correlation_map.shape());
         auto initial_reduction_value = Pair{std::numeric_limits<value_t>::min(), index_t{}};
 
-        auto reduce_axes = ReduceAxes::all();
-        reduce_axes[3 - N] = false; // batch equivalent
-
         bool apply_ellipse{};
         auto maximum_allowed_lag = shape_nd.vec.pop_front() / 2;
         Vec<index_t, N> maximum_lag;
         Vec<index_t, N> subregion_offset;
         Shape<index_t, N> subregion_shape;
         for (size_t i{}; i < N; ++i) {
-            if (options.maximum_lag[i] <= 0) {
+            if (options.maximum_lag[i] < 0) {
                 maximum_lag[i] = maximum_allowed_lag[i];
             } else {
                 auto lag_index = static_cast<index_t>(ceil(options.maximum_lag[i]));
@@ -704,6 +710,9 @@ namespace noa::signal {
             subregion_offset[i] = maximum_allowed_lag[i] - maximum_lag[i];
             subregion_shape[i] = min(maximum_lag[i] * 2 + 1, shape_nd[i + 1]);
         }
+
+        auto reduce_axes = ReduceAxes::all();
+        reduce_axes[3 - N] = false; // do not reduce the outermost dimension
 
         using reducer_t = guts::ReducePeak<
             N, REMAP.is_xc2xx(), REGISTRATION_RADIUS_LIMIT,
