@@ -151,7 +151,7 @@ namespace noa::geometry {
             bool is_inverted
         ) requires (not IS_SMOOTH):
             m_center(center),
-            m_radius(radius),
+            m_radius(noa::max(radius, static_cast<value_type>(1e-6))),
             m_cvalue(cvalue),
             m_is_inverted(is_inverted) {}
 
@@ -163,10 +163,13 @@ namespace noa::geometry {
             bool is_inverted
         ) requires IS_SMOOTH:
             m_center(center),
-            m_radius(radius * radius),
+            m_radius(noa::max(radius, static_cast<value_type>(1e-6))),
             m_cvalue(cvalue),
             m_smoothness(smoothness),
-            m_is_inverted(is_inverted) {}
+            m_is_inverted(is_inverted)
+        {
+            m_radius *= m_radius;
+        }
 
             [[nodiscard]] constexpr auto center() const -> const vector_type& { return m_center; }
 

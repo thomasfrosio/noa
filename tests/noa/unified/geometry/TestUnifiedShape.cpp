@@ -4,6 +4,7 @@
 #include <noa/unified/Factory.hpp>
 #include <noa/unified/IO.hpp>
 #include <noa/unified/Ewise.hpp>
+#include <noa/unified/Reduce.hpp>
 
 #include "Assets.hpp"
 #include "Catch.hpp"
@@ -777,4 +778,23 @@ TEST_CASE("unified::geometry::shapes, 3d batched") {
             REQUIRE(test::allclose_abs_safe(batched, serial, 1e-6));
         }
     }
+}
+
+TEST_CASE("unified::draw, radius 0") {
+    const auto array = Array<f64>({1, 1, 64, 64});
+
+    noa::geometry::draw({}, array, noa::geometry::Ellipse{.center=Vec{32., 32.}, .radius=Vec{0., 0.}}.draw_binary());
+    REQUIRE(noa::allclose(noa::sum(array), 1.));
+    noa::geometry::draw({}, array, noa::geometry::Ellipse{.center=Vec{32., 32.}, .radius=Vec{0., 0.}}.draw());
+    REQUIRE(noa::allclose(noa::sum(array), 1.));
+
+    noa::geometry::draw({}, array, noa::geometry::Sphere{.center=Vec{32., 32.}, .radius=0.}.draw_binary());
+    REQUIRE(noa::allclose(noa::sum(array), 1.));
+    noa::geometry::draw({}, array, noa::geometry::Sphere{.center=Vec{32., 32.}, .radius=0.}.draw());
+    REQUIRE(noa::allclose(noa::sum(array), 1.));
+
+    noa::geometry::draw({}, array, noa::geometry::Rectangle{.center=Vec{32., 32.}, .radius=Vec{0., 0.}}.draw_binary());
+    REQUIRE(noa::allclose(noa::sum(array), 1.));
+    noa::geometry::draw({}, array, noa::geometry::Rectangle{.center=Vec{32., 32.}, .radius=Vec{0., 0.}}.draw());
+    REQUIRE(noa::allclose(noa::sum(array), 1.));
 }
