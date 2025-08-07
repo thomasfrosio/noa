@@ -260,7 +260,7 @@ namespace noa::geometry {
         Transform&& inverse_transforms = {},
         BinaryOp binary_op = {}
     ) {
-        constexpr size_t N = Drawable::SIZE;
+        constexpr size_t N = std::decay_t<Drawable>::SIZE;
         guts::check_draw_parameters<N>(input, output, inverse_transforms);
 
         if (output.device().is_gpu() and
