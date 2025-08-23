@@ -78,6 +78,12 @@ TEMPLATE_TEST_CASE("core::Complex", "", f16, f32, f64) {
         real_t scalar4_nonzero = randomizer2.get();
         real_t scalar5_nonzero = randomizer2.get();
         real_t scalar6_nonzero = randomizer2.get();
+        INFO("scalar1=" << scalar1);
+        INFO("scalar2=" << scalar2);
+        INFO("scalar3=" << scalar3);
+        INFO("scalar4_nonzero=" << scalar4_nonzero);
+        INFO("scalar5_nonzero=" << scalar5_nonzero);
+        INFO("scalar6_nonzero=" << scalar6_nonzero);
 
         f64 epsilon = std::is_same_v<Half, real_t> ? 5e-3 : 1e-6;
 

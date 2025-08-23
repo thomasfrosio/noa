@@ -306,6 +306,7 @@ namespace {
         }
 
         static auto cache_size() noexcept -> i32 {
+            const auto lock = std::scoped_lock(mutex);
             char* string;
             if constexpr (is_single_precision)
                 string = fftwf_export_wisdom_to_string();

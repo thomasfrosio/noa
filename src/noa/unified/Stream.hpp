@@ -36,7 +36,7 @@ namespace noa::inline types {
         using gpu_stream = noa::gpu::Stream;
 
         /// Stream mode.
-        /// For CPU devices: DEFAULT/SYNC referes to the current thread. ASYNC launches a new thread which waits
+        /// For CPU devices: DEFAULT/SYNC refers to the current thread. ASYNC launches a new thread which waits
         ///                  to execute work, in which case the execution will be asynchronous relative to the
         ///                  current thread - ASYNC creates an asynchronous queue.
         /// For CUDA devices: DEFAULT refers to the NULL stream. SYNC is a new stream implicitly synchronized with

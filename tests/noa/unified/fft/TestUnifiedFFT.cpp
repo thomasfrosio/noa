@@ -178,17 +178,17 @@ TEST_CASE("unified::fft, caching plans") {
         devices.emplace_back("gpu");
 
     for (auto device: devices) {
+        INFO(device);
         Session::clear_fft_cache(device);
-
         Session::set_fft_cache_limit(5, device);
 
         auto a = Array<f32>(64, {.device = device});
-        auto a_rfft = noa::fft::r2c(a);
+        auto a_rfft = noa::fft::r2c(a).eval();
         auto a_s = Session::fft_cache_size(device);
         REQUIRE((a_s == -1 or a_s > 0));
 
         auto b = Array<f32>(128, {.device = device});
-        auto b_rfft = noa::fft::r2c(b);
+        auto b_rfft = noa::fft::r2c(b).eval();
         auto b_s = Session::fft_cache_size(device);
         REQUIRE((b_s == -1 or b_s >= a_s));
 
@@ -196,11 +196,11 @@ TEST_CASE("unified::fft, caching plans") {
         REQUIRE(Session::fft_cache_size(device) <= 0);
 
         auto c = Array<f32>({2, 1, 1024, 1024}, {.device = device});
-        auto c_rfft = noa::fft::r2c(c);
+        auto c_rfft = noa::fft::r2c(c).eval();
         auto c_s = Session::fft_cache_size(device);
 
         auto d = Array<f32>({2, 1, 1024, 1024}, {.device = device});
-        auto d_rfft = noa::fft::r2c(d);
+        auto d_rfft = noa::fft::r2c(d).eval();
         auto d_s = Session::fft_cache_size(device);
 
         REQUIRE(c_s == d_s);

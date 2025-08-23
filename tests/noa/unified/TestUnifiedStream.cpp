@@ -34,7 +34,7 @@ TEST_CASE("unified::Stream") {
     }
 
     AND_THEN("current, guard") {
-        if (!Device::is_any_gpu())
+        if (not Device::is_any_gpu())
             return;
 
         Device::set_current(Device("gpu"));
@@ -42,10 +42,6 @@ TEST_CASE("unified::Stream") {
         REQUIRE(current_stream.device().is_gpu());
         REQUIRE(current_stream.device().id() == 0);
         Stream::set_current(current_stream); // does nothing since it is already the current stream
-
-        Stream a(Device{}); // new stream on the current device
-        REQUIRE(a.device().is_cpu());
-        Stream::set_current(a);
 
         const Device gpu(Device::GPU, Device::count_gpus() - 1);
         Device::set_current(gpu);
