@@ -40,7 +40,7 @@ TEST_CASE("unified::signal::standardize_ifft(), rfft") {
             noa::ewise(noa::wrap(input, 1 / static_cast<f32>(shape.n_elements())), input, noa::Multiply{});
 
         const auto mean = noa::mean(input);
-        const auto std = noa::stddev(input, 0);
+        const auto std = noa::stddev(input, {.ddof = 0});
         REQUIRE_THAT(mean, Catch::Matchers::WithinAbs(0, 1e-6));
         REQUIRE_THAT(std, Catch::Matchers::WithinAbs(1, 1e-5));
     }
@@ -74,7 +74,7 @@ TEST_CASE("unified::signal::standardize_ifft(), fft") {
             noa::ewise(noa::wrap(input, 1 / static_cast<f32>(shape.n_elements())), input, noa::Multiply{});
 
         const auto mean = noa::mean(input);
-        const auto std = noa::stddev(input, 0);
+        const auto std = noa::stddev(input, {.ddof = 0});
         REQUIRE_THAT(mean, Catch::Matchers::WithinAbs(0, 1e-6));
         REQUIRE_THAT(std, Catch::Matchers::WithinAbs(1, 1e-5));
     }
