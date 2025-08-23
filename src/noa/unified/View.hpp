@@ -26,15 +26,23 @@ namespace noa::inline types {
 }
 
 namespace noa {
+    struct CopyOptions {
+        /// When transferring from a GPU to the CPU, the copy is enqueued to the input's (GPU) current stream.
+        /// By default, this stream is synchronized before returning to guarantee that the copy is completed so
+        /// that the output array can be safely accessed by the CPU.
+        bool sync_gpu_to_cpu{true};
+    };
+
     /// (Deep-)Copies arrays.
     /// \param[in] input    Source.
     /// \param[out] output  Destination. It should not overlap with \p input.
+    /// \param options      Copy options.
     /// \note Contiguous regions of memory have no copy restrictions and can be copied to any device. This is
     ///       also true for pitched layouts and colum or row vectors. However, other non-contiguous memory
     ///       layouts can only be copied if the source and destination are both on the same GPU or on the CPU.
     template<nt::readable_varray_decay Input,
              nt::writable_varray_decay_of_any<nt::mutable_value_type_t<Input>> Output>
-    void copy(Input&& input, Output&& output) {
+    void copy(Input&& input, Output&& output, const CopyOptions& options = {}) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         check(not ni::are_overlapped(input, output), "The input and output should not overlap");
 
@@ -69,8 +77,10 @@ namespace noa {
                             output.get(), output.strides(),
                             output.shape(), cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
-            cuda_stream.synchronize();
+            if (options.sync_gpu_to_cpu)
+                cuda_stream.synchronize();
             #else
+            (void) options;
             panic_no_gpu_backend();
             #endif
         } else { // gpu -> gpu or cpu -> gpu
