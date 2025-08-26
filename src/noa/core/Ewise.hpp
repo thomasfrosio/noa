@@ -206,13 +206,13 @@ namespace noa {
     struct NormalizeMeanStddev {
         using enable_vectorization = bool;
 
-        template<typename T, typename U>
-        NOA_HD constexpr auto operator()(const T& value, const T& mean, const U& stddev) const {
-            return (value - mean) / stddev;
-        }
         template<typename T, typename U, typename V>
-        NOA_HD constexpr void operator()(const T& value, const T& mean, const U& stddev, V& output) const {
-            output = static_cast<V>((*this)(value, mean, stddev));
+        NOA_HD constexpr auto operator()(const T& value, const U& mean, const V& stddev) const {
+            return (static_cast<U>(value) - mean) / stddev;
+        }
+        template<typename T, typename U, typename V, typename W>
+        NOA_HD constexpr void operator()(const T& value, const U& mean, const V& stddev, W& output) const {
+            output = static_cast<W>((*this)(value, mean, stddev));
         }
     };
     struct NormalizeNorm {
