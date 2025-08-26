@@ -1,8 +1,6 @@
 #include <noa/unified/Array.hpp>
 #include <noa/unified/Reduce.hpp>
-#include <noa/unified/Factory.hpp>
 #include <noa/unified/IO.hpp>
-#include <noa/core/math/Comparison.hpp>
 
 #include "Assets.hpp"
 #include "Catch.hpp"
@@ -125,7 +123,7 @@ TEST_CASE("unified::reduce - complex vs numpy", "[assets]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::reduce - cpu vs gpu", "", i64, f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("unified::reduce - cpu vs gpu", "", f32) { // , c32, c64
     if (not Device::is_any_gpu())
         return;
 

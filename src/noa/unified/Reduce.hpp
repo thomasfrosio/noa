@@ -57,9 +57,9 @@ namespace noa {
         /// Otherwise, (complex) floating-points are reduced using a double-precision linear or partial sum.
         ///
         /// \note Integers:
-        ///     For integers, this parameter has no effect as integer are summed using 64-bits integers (signed or
+        ///     For integers, this parameter has no effect as integers are summed using 64-bits integers (signed or
         ///     unsigned depending on whether the operator needs to support negative values). When computing values
-        ///     that can have a decimal part (mean, variance, L2-norm), this integral sum is then static_cast to f64.
+        ///     that can have a decimal part (mean, variance, L2-norm), the integral sum is then static_cast to f64.
         ///
         /// \note Accuracy:
         ///     The Kahan summation is numerically stable and can deal with very large arrays and a very wide range
@@ -151,9 +151,11 @@ namespace noa {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduce_t = std::conditional_t<nt::real<value_t>, f64,
                          std::conditional_t<nt::complex<value_t>, c64,
-                         value_t>>;
+                         std::conditional_t<nt::sinteger<value_t>, i64,
+                         std::conditional_t<nt::uinteger<value_t>, u64,
+                         value_t>>>>;
 
-        value_t output;
+        reduce_t output;
         if constexpr (nt::real_or_complex<value_t>) {
             if (options.accurate) {
                 reduce_ewise(array, Vec<reduce_t, 2>{}, output, ReduceSumKahan{});
@@ -170,12 +172,13 @@ namespace noa {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduce_t = std::conditional_t<nt::real<value_t>, f64,
                          std::conditional_t<nt::complex<value_t>, c64,
-                         value_t>>;
+                         std::conditional_t<nt::sinteger<value_t>, i64,
+                         std::conditional_t<nt::uinteger<value_t>, u64,
+                         value_t>>>>;
+        using output_t = std::conditional_t<nt::integer<value_t>, f64, reduce_t>;
+        const auto size = static_cast<f64>(array.ssize());
 
-        using size_t = nt::value_type_t<reduce_t>;
-        const auto size = static_cast<size_t>(array.ssize());
-
-        value_t output;
+        output_t output;
         if constexpr (nt::real_or_complex<value_t>) {
             if (options.accurate) {
                 reduce_ewise(array, Vec<reduce_t, 2>{}, output, ReduceMeanKahan{size});
@@ -190,11 +193,9 @@ namespace noa {
     template<nt::readable_varray_of_numeric Input>
     [[nodiscard]] auto l2_norm(const Input& array, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
-        using real_t = nt::value_type_t<value_t>;
-        using reduce_t = std::conditional_t<nt::integer<value_t>, u64, real_t>;
-        using output_t = std::conditional_t<nt::integer<value_t>, f64, real_t>;
+        using reduce_t = std::conditional_t<nt::integer<value_t>, u64, f64>;
 
-        output_t output;
+        f64 output;
         if constexpr (nt::real_or_complex<value_t>) {
             if (options.accurate) {
                 reduce_ewise(array, Vec<reduce_t, 2>{}, output, ReduceL2NormKahan{});
@@ -209,13 +210,16 @@ namespace noa {
         template<bool STDDEV, typename Input>
         [[nodiscard]] auto mean_variance_or_stddev(const Input& array, const VarianceOptions& options) {
             using value_t = nt::mutable_value_type_t<Input>;
-            using real_t = nt::value_type_t<value_t>;
-            using sum_t = std::conditional_t<nt::integer<value_t>, i64, nt::double_precision_t<value_t>>;
-            using sum_sqd_t = nt::value_type_t<sum_t>;
+            using sum_t =
+                std::conditional_t<nt::sinteger<value_t>, i64,
+                std::conditional_t<nt::uinteger<value_t>, u64,
+                nt::double_precision_t<value_t>>>;
+            using sum_sqd_t = std::conditional_t<nt::integer<value_t>, u64, f64>;
 
-            using output_mean_t = std::conditional_t<nt::integer<value_t>, f64, value_t>;
-            using output_variance_t = std::conditional_t<nt::integer<value_t>, f64, real_t>;
-            const auto size = static_cast<f64>(array.ssize() - options.ddof);
+            using output_mean_t = std::conditional_t<nt::integer<value_t>, f64, sum_t>;
+            using output_variance_t = f64;
+            const auto size = static_cast<f64>(array.ssize());
+            const auto ddof = static_cast<f64>(options.ddof);
 
             output_mean_t mean;
             output_variance_t variance;
@@ -225,12 +229,15 @@ namespace noa {
                     using sum_sqd_error_t = Vec<sum_sqd_t, 2>;
                     reduce_ewise(
                         array, wrap(sum_error_t{}, sum_sqd_error_t{}),
-                        wrap(mean, variance), ReduceMeanVarianceKahan<f64, STDDEV>{size}
+                        wrap(mean, variance), ReduceMeanVarianceKahan<f64, STDDEV>{size, ddof}
                     );
                     return Pair{mean, variance};
                 }
             }
-            reduce_ewise(array, wrap(sum_t{}, sum_sqd_t{}), wrap(mean, variance), ReduceMeanVariance<f64, STDDEV>{size});
+            reduce_ewise(
+                array, wrap(sum_t{}, sum_sqd_t{}), wrap(mean, variance),
+                ReduceMeanVariance<f64, STDDEV>{size, ddof}
+            );
             return Pair{mean, variance};
         }
     }
@@ -390,9 +397,12 @@ namespace noa {
              nt::writable_varray_decay Output>
     void sum(Input&& input, Output&& output, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
-        using reduce_t = std::conditional_t<nt::real<value_t>, f64,
-                         std::conditional_t<nt::complex<value_t>, c64,
-                         value_t>>;
+        using reduce_t =
+            std::conditional_t<nt::real<value_t>, f64,
+            std::conditional_t<nt::complex<value_t>, c64,
+            std::conditional_t<nt::sinteger<value_t>, i64,
+            std::conditional_t<nt::uinteger<value_t>, u64,
+            value_t>>>>;
 
         if constexpr (nt::real_or_complex<value_t>) {
             if (options.accurate) {
@@ -424,12 +434,14 @@ namespace noa {
              nt::writable_varray_decay Output>
     void mean(Input&& input, Output&& output, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
-        using reduce_t = std::conditional_t<nt::real<value_t>, f64,
-                         std::conditional_t<nt::complex<value_t>, c64,
-                         value_t>>;
+        using reduce_t =
+            std::conditional_t<nt::real<value_t>, f64,
+            std::conditional_t<nt::complex<value_t>, c64,
+            std::conditional_t<nt::sinteger<value_t>, i64,
+            std::conditional_t<nt::uinteger<value_t>, u64,
+            value_t>>>>;
 
-        using real_t = nt::value_type_t<reduce_t>;
-        const auto size = static_cast<real_t>(guts::n_elements_to_reduce(input.shape(), output.shape()));
+        const auto size = static_cast<f64>(guts::n_elements_to_reduce(input.shape(), output.shape()));
         if constexpr (nt::real_or_complex<value_t>) {
             if (options.accurate) {
                 return reduce_axes_ewise(
@@ -460,8 +472,7 @@ namespace noa {
              nt::writable_varray_decay_of_numeric Output>
     void l2_norm(Input&& input, Output&& output, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
-        using real_t = nt::value_type_t<value_t>;
-        using reduce_t = std::conditional_t<nt::integer<value_t>, u64, real_t>;
+        using reduce_t = std::conditional_t<nt::integer<value_t>, u64, f64>;
 
         if constexpr (nt::real_or_complex<value_t>) {
             if (options.accurate) {
@@ -498,9 +509,14 @@ namespace noa {
             }
 
             using value_t = nt::mutable_value_type_t<Input>;
-            using sum_t = std::conditional_t<nt::integer<value_t>, i64, nt::double_precision_t<value_t>>;
-            using sum_sqd_t = nt::value_type_t<sum_t>;
-            const auto size = static_cast<f64>(guts::n_elements_to_reduce(input.shape(), variances.shape()) - options.ddof);
+            using sum_t =
+                std::conditional_t<nt::sinteger<value_t>, i64,
+                std::conditional_t<nt::uinteger<value_t>, u64,
+                nt::double_precision_t<value_t>>>;
+            using sum_sqd_t = std::conditional_t<nt::integer<value_t>, u64, f64>;
+
+            const auto size = static_cast<f64>(guts::n_elements_to_reduce(input.shape(), variances.shape()));
+            const auto ddof = static_cast<f64>(options.ddof);
 
             if constexpr (nt::real_or_complex<value_t>) {
                 if (options.accurate) {
@@ -511,14 +527,14 @@ namespace noa {
                             std::forward<Input>(input),
                             wrap(sum_error_t{}, sum_sqd_error_t{}),
                             wrap(std::forward<Mean>(means), std::forward<Variance>(variances)),
-                            ReduceMeanVarianceKahan<f64, STDDEV>{size}
+                            ReduceMeanVarianceKahan<f64, STDDEV>{size, ddof}
                         );
                     } else {
                         reduce_axes_ewise(
                             std::forward<Input>(input),
                             wrap(sum_error_t{}, sum_sqd_error_t{}),
                             std::forward<Variance>(variances),
-                            ReduceMeanVarianceKahan<f64, STDDEV>{size}
+                            ReduceMeanVarianceKahan<f64, STDDEV>{size, ddof}
                         );
                     }
                 }
@@ -528,14 +544,14 @@ namespace noa {
                     std::forward<Input>(input),
                     wrap(sum_t{}, sum_sqd_t{}),
                     wrap(std::forward<Mean>(means), std::forward<Variance>(variances)),
-                    ReduceMeanVariance<f64, STDDEV>{size}
+                    ReduceMeanVariance<f64, STDDEV>{size, ddof}
                 );
             } else {
                 reduce_axes_ewise(
                     std::forward<Input>(input),
                     wrap(sum_t{}, sum_sqd_t{}),
                     std::forward<Variance>(variances),
-                    ReduceMeanVariance<f64, STDDEV>{size}
+                    ReduceMeanVariance<f64, STDDEV>{size, ddof}
                 );
             }
         }

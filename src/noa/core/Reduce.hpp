@@ -70,7 +70,8 @@ namespace noa {
         }
         template<typename T, typename U>
         constexpr void final(const T& sum, U& mean) const {
-            mean = static_cast<U>(sum / size);
+            using tmp_t = std::conditional_t<nt::integer<T>, f64, T>;
+            mean = static_cast<U>(static_cast<tmp_t>(sum) / size);
         }
     };
 
@@ -228,6 +229,7 @@ namespace noa {
         using enable_vectorization = bool;
         using remove_default_final = bool;
         S size{};
+        S ddof{};
 
         template<typename I, typename T, typename U>
         static constexpr void init(const I& value, T& sum, U& sum_sqd) {
@@ -244,12 +246,13 @@ namespace noa {
         constexpr void final(const T& sum, const U& sum_sqd, V& mean, W& variance) const {
             using t0 = std::conditional_t<nt::integer<T>, S, T>;
             using t1 = std::conditional_t<nt::integer<U>, S, U>;
-            T mean_ = static_cast<t0>(sum) / size;
-            U variance_ = static_cast<t1>(sum_sqd) / size - abs_squared(mean_);
+            if constexpr (not nt::empty<V>)
+                mean = static_cast<V>(static_cast<t0>(sum) / size);
+
+            auto tmp = abs_squared(sum) / size;
+            U variance_ = (static_cast<t1>(sum_sqd) - tmp) / (size - ddof);
             if constexpr (STDDEV)
                 variance_ = sqrt(variance_);
-            if constexpr (not nt::empty<V>)
-                mean = static_cast<V>(mean_);
             variance = static_cast<W>(variance_);
         }
         template<typename T, typename U, typename V>
@@ -264,6 +267,7 @@ namespace noa {
         using enable_vectorization = bool;
         using remove_default_final = bool;
         S size{};
+        S ddof{};
 
         template<nt::real_or_complex I, typename T, typename U>
         constexpr void init(const I& value, Vec<T, 2>& sum, Vec<U, 2>& sum_sqd) {
@@ -283,20 +287,21 @@ namespace noa {
         }
         template<typename T, typename U, typename V, typename W>
         constexpr void final(const Vec<T, 2>& sum, const Vec<U, 2>& sum_sqd, V& mean, W& variance) const {
-            T mean_ = (sum[0] + sum[1]) / size;
-            U variance_ = (sum_sqd[0] + sum_sqd[1]) / size - abs_squared(mean_);
+            auto sum_ = sum[0] + sum[1];
+            if constexpr (not nt::empty<V>)
+                mean = static_cast<V>(sum_ / size);
+
+            auto sum_sqd_ = sum_sqd[0] + sum_sqd[1];
+            auto tmp = abs_squared(sum_) / size;
+            U variance_ = (sum_sqd_ - tmp) / (size - ddof);
             if constexpr (STDDEV)
                 variance_ = sqrt(variance_);
-            mean = static_cast<V>(mean_);
             variance = static_cast<W>(variance_);
         }
         template<typename T, typename U, typename V>
         constexpr void final(const Vec<T, 2>& sum, const Vec<U, 2>& sum_sqd, V& variance) const {
-            T mean_ = (sum[0] + sum[1]) / size;
-            U variance_ = (sum_sqd[0] + sum_sqd[1]) / size - abs_squared(mean_);
-            if constexpr (STDDEV)
-                variance_ = sqrt(variance_);
-            variance = static_cast<V>(variance_);
+            auto empty = Empty{};
+            final(sum, sum_sqd, empty, variance);
         }
     };
 

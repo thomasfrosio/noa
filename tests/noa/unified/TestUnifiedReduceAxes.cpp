@@ -101,6 +101,7 @@ TEMPLATE_TEST_CASE("unified::reduce - axis reductions, cpu vs gpu", "[noa]", i64
     }
     INFO("padded: " << pad);
     INFO("large: " << large);
+    INFO("subregion_shape: " << subregion_shape);
 
     Array<TestType> cpu_data(shape);
     test::Randomizer<TestType> randomizer(-50, 50);
