@@ -77,23 +77,14 @@ namespace noa::cpu::fft {
         using real_type = T;
         using complex_type = Complex<T>;
 
-    public: // r2c
-        Plan(real_type* input, complex_type* output, const Shape4<i64>& shape, u32 flags, i64 max_n_threads);
-
+    public:
         Plan(real_type* input, const Strides4<i64>& input_strides,
              complex_type* output, const Strides4<i64>& output_strides,
              const Shape4<i64>& shape, u32 flags, i64 max_n_threads);
 
-    public: // c2r
-        Plan(complex_type* input, real_type* output, const Shape4<i64>& shape, u32 flags, i64 max_n_threads);
-
         Plan(complex_type* input, const Strides4<i64>& input_strides,
              real_type* output, const Strides4<i64>& output_strides,
              const Shape4<i64>& shape, u32 flags, i64 max_n_threads);
-
-    public: // c2c
-        Plan(complex_type* input, complex_type* output, const Shape4<i64>& shape,
-             noa::fft::Sign sign, u32 flags, i64 max_n_threads);
 
         Plan(complex_type* input, const Strides4<i64>& input_strides,
              complex_type* output, const Strides4<i64>& output_strides,

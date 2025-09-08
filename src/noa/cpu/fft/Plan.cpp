@@ -70,32 +70,6 @@ namespace {
         using fftw_complex_t = std::conditional_t<is_single_precision, fftwf_complex, fftw_complex>;
 
         static plan_t create_r2c(
-            real_t* input, i32 input_batch_stride,
-            complex_t* output, i32 output_batch_stride,
-            i32 batch, const Shape3<i32>& shape_3d, i32 rank, i64 max_n_threads, u32 flags
-        ) {
-            const auto lock = std::scoped_lock(mutex);
-            set_planner_(batch, shape_3d, max_n_threads);
-            plan_t plan;
-            auto optr = reinterpret_cast<fftw_complex_t*>(output);
-            if constexpr (is_single_precision) {
-                plan = fftwf_plan_many_dft_r2c(
-                    rank, shape_3d.data() + 3 - rank, batch,
-                    input, nullptr, 1, input_batch_stride,
-                    optr, nullptr, 1, output_batch_stride, flags
-                );
-            } else {
-                plan = fftw_plan_many_dft_r2c(
-                    rank, shape_3d.data() + 3 - rank, batch,
-                    input, nullptr, 1, input_batch_stride,
-                    optr, nullptr, 1, output_batch_stride, flags
-                );
-            }
-            noa::check(plan != nullptr, "Failed to create the r2c plan with shape={}", shape_3d.push_back(batch));
-            return plan;
-        }
-
-        static plan_t create_r2c(
             real_t* input, const Strides4<i32>& input_strides,
             complex_t* output, const Strides4<i32>& output_strides,
             i32 batch, const Shape3<i32>& shape_3d, i32 rank, i64 max_n_threads, u32 flags
@@ -127,32 +101,6 @@ namespace {
                 "Failed to create the r2c plan with shape={}, input_strides={}, output_strides={}",
                 shape_3d, input_strides, output_strides
             );
-            return plan;
-        }
-
-        static plan_t create_c2r(
-            complex_t* input, i32 input_batch_stride,
-            real_t* output, i32 output_batch_stride,
-            i32 batch, const Shape3<i32>& shape_3d, i32 rank, i64 max_n_threads, u32 flags
-        ) {
-            const auto lock = std::scoped_lock(mutex);
-            set_planner_(batch, shape_3d, max_n_threads);
-            plan_t plan;
-            auto iptr = reinterpret_cast<fftw_complex_t*>(input);
-            if constexpr (is_single_precision) {
-                plan = fftwf_plan_many_dft_c2r(
-                    rank, shape_3d.data() + 3 - rank, batch,
-                    iptr, nullptr, 1, input_batch_stride,
-                    output, nullptr, 1, output_batch_stride, flags
-                );
-            } else {
-                plan = fftw_plan_many_dft_c2r(
-                    rank, shape_3d.data() + 3 - rank, batch,
-                    iptr, nullptr, 1, input_batch_stride,
-                    output, nullptr, 1, output_batch_stride, flags
-                );
-            }
-            noa::check(plan != nullptr, "Failed to create the c2r plan with shape={}", shape_3d.push_back(batch));
             return plan;
         }
 
@@ -191,36 +139,6 @@ namespace {
                 "Failed to create the c2r plan with shape={}, input_strides={}, output_strides={}",
                 shape_3d, input_strides, output_strides
             );
-            return plan;
-        }
-
-        static plan_t create_c2c(
-            complex_t* input, i32 input_batch_stride,
-            complex_t* output, i32 output_batch_stride,
-            noa::fft::Sign sign,
-            i32 batch, const Shape3<i32>& shape_3d, i32 rank, i64 max_n_threads, u32 flags
-        ) {
-            const auto lock = std::scoped_lock(mutex);
-            set_planner_(batch, shape_3d, max_n_threads);
-            plan_t plan;
-            auto iptr = reinterpret_cast<fftw_complex_t*>(input);
-            auto optr = reinterpret_cast<fftw_complex_t*>(output);
-            if constexpr (is_single_precision) {
-                plan = fftwf_plan_many_dft(
-                    rank, shape_3d.data() + 3 - rank, batch,
-                    iptr, nullptr, 1, input_batch_stride,
-                    optr, nullptr, 1, output_batch_stride,
-                    noa::to_underlying(sign), flags
-                );
-            } else {
-                plan = fftw_plan_many_dft(
-                    rank, shape_3d.data() + 3 - rank, batch,
-                    iptr, nullptr, 1, input_batch_stride,
-                    optr, nullptr, 1, output_batch_stride,
-                    noa::to_underlying(sign), flags
-                );
-            }
-            noa::check(plan != nullptr, "Failed to create the c2c plan with shape={}", shape_3d.push_back(batch));
             return plan;
         }
 
@@ -387,10 +305,6 @@ namespace {
 
     template<typename T>
     std::mutex FFTW<T>::mutex{};
-
-    bool is_inplace_(const void* input, const void* output) {
-        return input == output;
-    }
 }
 
 namespace noa::cpu::fft {
@@ -405,20 +319,6 @@ namespace noa::cpu::fft {
 }
 
 namespace noa::cpu::fft {
-    template<typename T>
-    Plan<T>::Plan(T* input, Complex<T>* output, const Shape4<i64>& shape, u32 flag, i64 max_n_threads) {
-        auto [batch, shape_3d] = shape.as_safe<i32>().split_batch();
-        const i32 rank = shape_3d.ndim();
-        const i32 odist = shape_3d.rfft().n_elements();
-        const i32 idist = is_inplace_(input, output) ? odist * 2 : shape_3d.n_elements();
-
-        NOA_ASSERT(rank == 1 || !ni::is_vector(shape_3d));
-        if (rank == 1 and shape_3d[2] == 1) // column vector -> row vector
-            std::swap(shape_3d[1], shape_3d[2]);
-
-        m_plan = FFTW<T>::create_r2c(input, idist, output, odist, batch, shape_3d, rank, max_n_threads, flag);
-    }
-
     template<typename T>
     Plan<T>::Plan(
         T* input, const Strides4<i64>& input_strides,
@@ -440,20 +340,6 @@ namespace noa::cpu::fft {
     }
 
     template<typename T>
-    Plan<T>::Plan(Complex<T>* input, T* output, const Shape4<i64>& shape, u32 flag, i64 max_threads) {
-        auto [batch, shape_3d] = shape.as_safe<i32>().split_batch();
-        const i32 rank = shape_3d.ndim();
-        const i32 idist = shape_3d.rfft().n_elements();
-        const i32 odist = is_inplace_(input, output) ? idist * 2 : shape_3d.n_elements();
-
-        NOA_ASSERT(rank == 1 or not ni::is_vector(shape_3d));
-        if (rank == 1 and shape_3d[2] == 1) // column vector -> row vector
-            std::swap(shape_3d[1], shape_3d[2]);
-
-        m_plan = FFTW<T>::create_c2r(input, idist, output, odist, batch, shape_3d, rank, max_threads, flag);
-    }
-
-    template<typename T>
     Plan<T>::Plan(
         Complex<T>* input, const Strides4<i64>& input_strides,
         T* output, const Strides4<i64>& output_strides,
@@ -471,22 +357,6 @@ namespace noa::cpu::fft {
             std::swap(ostrides[2], ostrides[3]);
         }
         m_plan = FFTW<T>::create_c2r(input, istrides, output, ostrides, batch, shape_3d, rank, max_n_threads, flag);
-    }
-
-    template<typename T>
-    Plan<T>::Plan(
-        Complex<T>* input, Complex<T>* output, const Shape4<i64>& shape,
-        noa::fft::Sign sign, u32 flag, i64 max_threads
-    ) {
-        auto [batch, shape_3d] = shape.as_safe<i32>().split_batch();
-        const i32 rank = shape_3d.ndim();
-        const i32 dist = shape_3d.n_elements();
-
-        NOA_ASSERT(rank == 1 or not ni::is_vector(shape_3d));
-        if (rank == 1 and shape_3d[2] == 1) // column vector -> row vector
-            std::swap(shape_3d[1], shape_3d[2]);
-
-        m_plan = FFTW<T>::create_c2c(input, dist, output, dist, sign, batch, shape_3d, rank, max_threads, flag);
     }
 
     template<typename T>

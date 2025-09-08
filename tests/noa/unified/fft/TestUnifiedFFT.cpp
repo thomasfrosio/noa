@@ -103,8 +103,6 @@ TEMPLATE_TEST_CASE("unified::fft::r2c/c2r(), cpu vs gpu", "", f32, f64) {
         gpu_rfft = cpu_rfft.to(ArrayOption("gpu", Allocator::MANAGED)).eval(); // wait because c2r overwrites cpu_rfft
         const auto cpu_result = noa::fft::c2r(cpu_rfft, cpu_real.shape());
         const auto gpu_result = noa::fft::c2r(gpu_rfft, cpu_real.shape());
-        noa::io::write(cpu_result.subregion(0), test::NOA_DATA_PATH / "test_cpu.mrc");
-        noa::io::write(gpu_result.subregion(0), test::NOA_DATA_PATH / "test_gpu.mrc");
         REQUIRE(test::allclose_abs_safe(cpu_result, gpu_result, abs_epsilon));
     }
 
@@ -204,5 +202,64 @@ TEST_CASE("unified::fft, caching plans") {
         auto d_s = Session::fft_cache_size(device);
 
         REQUIRE(c_s == d_s);
+    }
+}
+
+TEST_CASE("unified::fft, caching plans, shared workspace") {
+    if (not Device::is_any_gpu())
+        return;
+
+    const auto devices = std::vector<Device>{"gpu"};
+    const auto shape = Shape<i64, 4>{15, 1, 512, 512};
+
+    for (auto device: devices) {
+        INFO(device);
+
+        auto a0 = noa::random<f32>(noa::Uniform{-1.f, 1.f}, shape, {.device = device});
+        auto a1 = a0.copy();
+        auto b0 = Array<c32>(shape.rfft(), {.device = device});
+        auto b1 = Array<c32>(shape.rfft(), {.device = device});
+        noa::fft::set_cache_limit(50, device);
+
+        // auto print_memory_usage = [init = device.memory_capacity().free, previous = device.memory_capacity().free, device] () mutable {
+        //     auto current = device.memory_capacity().free;
+        //     auto diff1 = (static_cast<f64>(init) - static_cast<f64>(current)) * 10e-6;
+        //     auto diff2 = (static_cast<f64>(previous) - static_cast<f64>(current)) * 10e-6;
+        //     fmt::println("diff={:.2f}, {:.2f}, n_cached={}", diff1, diff2, noa::fft::cache_size(device));
+        //     previous = current;
+        // };
+
+        // Create plans the normal way.
+        noa::fft::clear_cache(device);
+        auto init0 = device.memory_capacity().free;
+        auto max0 = init0;
+
+        for (auto i: noa::irange(shape[0])) {
+            auto offset = noa::indexing::Offset{i};
+            noa::fft::r2c(a0.subregion(offset), b0.subregion(offset), {.plan_only = true});
+            max0 = std::min(max0, device.memory_capacity().free);
+        }
+        noa::fft::r2c(a0, b0);
+        a0.eval();
+        max0 = std::min(max0, device.memory_capacity().free);
+
+        // Shared-workspace.
+        noa::fft::clear_cache(device);
+        auto init1 = device.memory_capacity().free;
+        auto max1 = init1;
+
+        for (auto i: noa::irange(shape[0])) {
+            auto offset = noa::indexing::Offset{i};
+            noa::fft::r2c(a1.subregion(offset), b1.subregion(offset), {.record_and_share_workspace = true});
+            max1 = std::min(max1, device.memory_capacity().free);
+        }
+        noa::fft::r2c(a1, b1);
+        a1.eval();
+        max1 = std::min(max1, device.memory_capacity().free);
+
+        noa::fft::clear_cache(device);
+        noa::fft::set_cache_limit(8, device);
+
+        REQUIRE(max0 < max1);
     }
 }

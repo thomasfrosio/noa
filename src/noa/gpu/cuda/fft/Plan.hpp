@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+
 #include "noa/core/indexing/Layout.hpp"
 #include "noa/core/types/Complex.hpp"
 #include "noa/core/types/Shape.hpp"
@@ -37,7 +38,9 @@ namespace noa::cuda::fft::guts {
         bool is_single_precision,
         const Shape4<i64>& shape,
         Device device,
-        bool save_in_cache
+        bool save_in_cache,
+        bool plan_only,
+        bool record_workspace
     ) -> std::shared_ptr<void>;
 
     [[nodiscard]] auto get_plan(
@@ -47,7 +50,9 @@ namespace noa::cuda::fft::guts {
         Strides4<i64> output_stride,
         const Shape4<i64>& shape,
         Device device,
-        bool save_in_cache
+        bool save_in_cache,
+        bool plan_only,
+        bool record_workspace
     ) -> std::shared_ptr<void>;
 }
 
@@ -70,34 +75,29 @@ namespace noa::cuda::fft {
 
     public:
         Plan(Type type,
-             const Shape4<i64>& shape,
-             Device device,
-             bool save_to_cache
-        ) : m_plan(guts::get_plan(type, is_single_precision, shape, device, save_to_cache)) {}
-
-        Plan(Type type,
              const Strides4<i64>& input_strides,
              const Strides4<i64>& output_strides,
-             const Shape4<i64>& shape,
-             Device device,
-             bool save_to_cache
+             const Shape4<i64>& shape, Device device,
+             bool save_to_cache, bool plan_only, bool record_workspace
         ) {
             const auto input_shape = type == Type::C2R ? shape.rfft() : shape;
             const auto output_shape = type == Type::R2C ? shape.rfft() : shape;
             if (ni::are_contiguous(input_strides, input_shape) and
                 ni::are_contiguous(output_strides, output_shape)) {
                 m_plan = guts::get_plan(
-                    type, is_single_precision, shape, device, save_to_cache);
+                    type, is_single_precision, shape, device,
+                    save_to_cache, plan_only, record_workspace);
             } else {
                 m_plan = guts::get_plan(
-                    type, is_single_precision, input_strides, output_strides, shape, device, save_to_cache);
+                    type, is_single_precision, input_strides, output_strides, shape, device,
+                    save_to_cache, plan_only, record_workspace);
             }
         }
 
         /// The shape, strides, alignment and type (that includes in-place or not) should match the plan.
-        void execute(T* input, Complex<T>* output, Stream& stream);
-        void execute(Complex<T>* input, T* output, Stream& stream);
-        void execute(Complex<T>* input, Complex<T>* output, noa::fft::Sign sign, Stream& stream);
+        void execute(T* input, Complex<T>* output, Stream& stream) &&;
+        void execute(Complex<T>* input, T* output, Stream& stream) &&;
+        void execute(Complex<T>* input, Complex<T>* output, noa::fft::Sign sign, Stream& stream) &&;
 
     private:
         std::shared_ptr<void> m_plan{};
