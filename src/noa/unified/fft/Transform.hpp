@@ -119,7 +119,8 @@ namespace noa::fft {
                 noa::cpu::fft::r2c(
                     real.get(), real.strides(),
                     output.get(), output.strides(),
-                    real.shape(), flags, options.plan_only, n_threads
+                    real.shape(), flags, options.plan_only or options.record_and_share_workspace,
+                    n_threads
                 );
             });
         } else {
@@ -180,7 +181,8 @@ namespace noa::fft {
                 noa::cpu::fft::c2r(
                     complex.get(), complex.strides(),
                     output.get(), output.strides(),
-                    output.shape(), flags, options.plan_only, threads
+                    output.shape(), flags, options.plan_only or options.record_and_share_workspace,
+                    threads
                 );
             });
         } else {
@@ -243,7 +245,8 @@ namespace noa::fft {
                 noa::cpu::fft::c2c(
                     i.get(), i.strides(),
                     output.get(), output.strides(),
-                    i.shape(), sign, flags, options.plan_only, threads
+                    i.shape(), sign, flags, options.plan_only or options.record_and_share_workspace,
+                    threads
                     );
             });
         } else {
