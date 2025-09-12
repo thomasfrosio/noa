@@ -457,7 +457,8 @@ namespace noa::signal {
             return ctf * m_scale;
         }
 
-        [[nodiscard]] constexpr auto envelope_at(nt::real auto fftfreq) const -> value_type {
+        template<nt::real Coord>
+        [[nodiscard]] constexpr auto envelope_at(const Vec<Coord, 2>& fftfreq) const -> value_type {
             if (m_bfactor_forth == 0)
                 return m_scale;
             const auto scaled_fftfreq = fftfreq.template as<value_type>() / m_pixel_size;
