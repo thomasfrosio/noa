@@ -75,6 +75,13 @@ namespace noa::fft {
     ///       Similarly, transforms may be divided internally into multiple transforms. See Session for more details.
     /// \note Some backends may not support retrieving this parameter, in which case, -1 is returned.
     [[nodiscard]] inline auto cache_size(Device device) -> i64 { return Session::fft_cache_size(device); }
+
+    /// Returns the number of bytes that are left to allocate from previous plan creations.
+    /// \see noa::fft::FFTOptions.record_and_share_workspace for more details.
+    /// \note Some backends (e.g., FFTW) do not support explicit workspace management and always return 0.
+    [[nodiscard]] inline auto workspace_left_to_allocate(Device device) -> size_t {
+        return Session::fft_workspace_left_to_allocate(device);
+    }
 }
 
 namespace noa::fft::guts {

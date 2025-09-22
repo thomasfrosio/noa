@@ -102,6 +102,15 @@ namespace noa::inline types {
         #endif
     }
 
+    auto Session::fft_workspace_left_to_allocate(Device device) -> size_t {
+        if (device.is_cpu())
+            return 0;
+        #ifdef NOA_ENABLE_CUDA
+        auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+        return noa::cuda::fft::workspace_left_to_allocate(cuda_device);
+        #endif
+    }
+
     void Session::clear_blas_cache(Device device) {
         if (device.is_cpu())
             return;

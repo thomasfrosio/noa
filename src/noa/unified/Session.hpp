@@ -31,21 +31,28 @@ namespace noa::inline types {
     /// Session can check that lazy loading is enabled (the default in CUDA 12.1) and can also enable it directly.
     ///
     /// \details \b FFT-plans:
-    /// Backends guarantee that FFT plans are cached so that the free-functions (e.g. noa::fft::r2c) to compute FFTs
+    /// Backends guarantee that FFT plans are cached so that the transform functions (e.g. noa::fft::r2c)
     /// are efficient. However, since these plans can take a lot of memory, we provide ways for users to control and
     /// query this cache. Some backends (and the libraries they use) may be more flexible than others.
     /// CUDA:
     ///     - We manage the caching system explicitly, which offers maximum flexibility. The API below allows turning
     ///       on and off the cache, resizing it, and querying its current state. The free-functions we provide in
-    ///       noa::fft also allow turning on and off the cache temporarily for a particular transform.
-    ///     - The cache is per device and per host-thread, and a single plan encodes both the forward and backward
-    ///       transform. For instance, noa::r2c and noa::c2r on the same arrays only require (and cache) a single plan.
+    ///       noa::fft also allow turning on and off the cache temporarily for a particular transform (see
+    ///       noa::fft::FFTOptions.cache_plan).
+    ///     - Plan creation (and the cuFFT APIs in general) is thread safe. However, plans and output data should only
+    ///       be accessed by one (host) thread at a time. As such and for simplicity, we hold a per host-thread and
+    ///       per-device cache. In cuFFT, a single plan encodes both the forward and backward transform. For instance,
+    ///       noa::r2c and noa::c2r on the same arrays only require (and cache) a single plan.
+    ///     - Plans often allocate a workspace on the device. Holding many plans in the cache quite often results
+    ///       in significant memory usage. If plans are to be executed sequentially (e.g., on the same stream), the
+    ///       workspace can be shared across multiple plans (see noa::fft::FFTOptions.record_and_share_workspace).
     /// CPU-FFTW3:
     ///     - The cache is handled by FFTW3's wisdom. We don't manage it, and its flexibility is limited.
-    ///       The user can either clear the cache or query its size.
-    ///     - The cache is per device, globally shared within the application, and has no fixed capacity.
+    ///       The user can only clear the cache or query its size.
+    ///     - The cache is per device (CPU), globally shared within the application, and has no fixed capacity.
     ///       Forward and backward transforms are considered different plans in FFTW3. In fact, a single transform
     ///       can generate many (>16) entries in the cache.
+    ///     - FFTW3's wisdom is well-optimized and doesn't require a lot of memory.
     ///
     /// \details \b CUDA's-cuBLAS:
     /// The CUDA backend uses the cuBLAS library for matrix-matrix multiplication. The library caches cuBLAS
@@ -100,6 +107,11 @@ namespace noa::inline types {
         ///       Similarly, transforms may be divided internally into multiple transforms.
         /// \note Some backends may not support retrieving this parameter, in which case, -1 is returned.
         [[nodiscard]] static auto fft_cache_size(Device device) -> i64;
+
+        /// Returns the number of bytes that are left to allocate from previous plan creations.
+        /// \see noa::fft::FFTOptions.record_and_share_workspace for more details.
+        /// \note Some backends (e.g., FFTW) do not support explicit workspace management and always return 0.
+        [[nodiscard]] static auto fft_workspace_left_to_allocate(Device device) -> size_t;
 
         /// Clears the BLAS cache for a given device.
         /// \warning This function doesn't synchronize before clearing the cache, so the caller should make sure

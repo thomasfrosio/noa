@@ -123,6 +123,10 @@ namespace {
             return static_cast<i32>(m_queue.size());
         }
 
+        [[nodiscard]] auto workspace_size() const noexcept {
+            return m_workspace_size;
+        }
+
         auto clear() noexcept {
             i32 n_plans_destructed{};
             while (not m_queue.empty()) {
@@ -456,6 +460,10 @@ namespace noa::cuda::fft {
 
     auto set_cache_limit(Device device, i32 count) noexcept -> i32 {
         return get_cache_(device).set_limit(count);
+    }
+
+    auto workspace_left_to_allocate(Device device) noexcept -> size_t {
+        return get_cache_(device).workspace_size();
     }
 
     template<typename T>

@@ -30,6 +30,7 @@ namespace noa::cuda::fft {
     auto cache_limit(Device device) noexcept -> i32;
     auto cache_size(Device device) noexcept -> i32;
     auto set_cache_limit(Device device, i32 count) noexcept -> i32;
+    auto workspace_left_to_allocate(Device device) noexcept -> size_t;
 }
 
 namespace noa::cuda::fft::guts {
