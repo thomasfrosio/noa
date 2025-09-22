@@ -175,6 +175,104 @@ namespace {
         return out;
     }
 }
+
+#elif defined (NOA_PLATFORM_APPLE)
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <mach/mach.h>
+
+namespace {
+    using namespace noa;
+
+    cpu::DeviceMemory get_memory_info_macos() {
+        cpu::DeviceMemory ret{};
+
+        u64 memsize{};
+        size_t len = sizeof(memsize);
+        if (sysctlbyname("hw.memsize", &memsize, &len, nullptr, 0) == 0) {
+            ret.total = static_cast<size_t>(memsize);
+        }
+
+        mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
+        vm_statistics64_data_t vmstat;
+        if (host_statistics64(mach_host_self(), HOST_VM_INFO64, reinterpret_cast<host_info64_t>(&vmstat), &count) == KERN_SUCCESS) {
+            const auto page_size = safe_cast<size_t>(sysconf(_SC_PAGESIZE));
+            const auto free_bytes = safe_cast<size_t>(vmstat.free_count * page_size);
+            const auto inactive_bytes = safe_cast<size_t>(vmstat.inactive_count * page_size);
+            ret.free = free_bytes + inactive_bytes;
+        }
+
+        return ret;
+    }
+
+    std::string get_cpu_name_macos() {
+        char buffer[256];
+        size_t size = sizeof(buffer);
+        check(sysctlbyname("machdep.cpu.brand_string", buffer, &size, nullptr, 0) == 0,
+              "Could not retrieve CPU name");
+        return std::string(buffer, size - 1);
+    }
+
+    cpu::DeviceCore get_cpu_core_count_macos() {
+        cpu::DeviceCore out{};
+
+        u32 logical = 0, physical = 0;
+        size_t size = sizeof(u32);
+        check(sysctlbyname("hw.logicalcpu", &logical, &size, nullptr, 0) == 0,
+              "Could not retrieve logical core count");
+        check(sysctlbyname("hw.physicalcpu", &physical, &size, nullptr, 0) == 0,
+              "Could not retrieve physical core count");
+
+        out.logical = logical;
+        out.physical = physical;
+        return out;
+    }
+
+    cpu::DeviceCache get_cpu_cache_macos(int level) {
+        cpu::DeviceCache out{};
+
+        const char* cache_sysctls[] = {
+            "hw.l1dcachesize", // data cache L1
+            "hw.l2cachesize",
+            "hw.l3cachesize"
+        };
+        check(level > 0 and level <= 3);
+
+        u64 cache_size{};
+        size_t size = sizeof(cache_size);
+        if (sysctlbyname(cache_sysctls[level - 1], &cache_size, &size, nullptr, 0) == 0) {
+            out.size = static_cast<size_t>(cache_size);
+        } else if (level == 3) {
+            // L3 isn't exposed, use SLC instead. From https://en.wikipedia.org/wiki/Apple_silicon
+            out.size = [&]() -> size_t {
+                constexpr size_t MB = 1024 * 1024;
+                const auto name = get_cpu_name_macos();
+                if (name.find("M1 Ultra") != std::string::npos) return 96 * MB;
+                if (name.find("M1 Max")   != std::string::npos) return 48 * MB;
+                if (name.find("M1 Pro")   != std::string::npos) return 24 * MB;
+                if (name.find("M1")       != std::string::npos) return 8  * MB;
+                if (name.find("M2 Ultra") != std::string::npos) return 96 * MB;
+                if (name.find("M2 Max")   != std::string::npos) return 48  * MB;
+                if (name.find("M2 Pro")   != std::string::npos) return 24  * MB;
+                if (name.find("M2")       != std::string::npos) return 8   * MB;
+                if (name.find("M3 Ultra") != std::string::npos) return 96 * MB;
+                if (name.find("M3 Max")   != std::string::npos) return 48  * MB;
+                if (name.find("M3 Pro")   != std::string::npos) return 24  * MB;
+                if (name.find("M3")       != std::string::npos) return 8   * MB;
+                return {};
+            }();
+        }
+
+        // Line size (same across all levels)
+        u64 line_size{};
+        size = sizeof(line_size);
+        if (sysctlbyname("hw.cachelinesize", &line_size, &size, nullptr, 0) == 0)
+            out.line_size = static_cast<size_t>(line_size);
+
+        return out;
+    }
+}
 #endif
 
 namespace noa::cpu {
@@ -183,6 +281,8 @@ namespace noa::cpu {
         return get_memory_info_linux();
         #elif defined(NOA_PLATFORM_WINDOWS)
         return get_memory_info_windows();
+        #elif defined(NOA_PLATFORM_APPLE)
+        return get_memory_info_macos();
         #else
         return {};
         #endif
@@ -193,6 +293,8 @@ namespace noa::cpu {
         return get_cpu_core_count_linux();
         #elif defined(NOA_PLATFORM_WINDOWS)
         return get_cpu_core_count_windows();
+        #elif defined(NOA_PLATFORM_APPLE)
+        return get_cpu_core_count_macos();
         #else
         return {};
         #endif
@@ -203,6 +305,8 @@ namespace noa::cpu {
         return get_cpu_cache_linux(level);
         #elif defined(NOA_PLATFORM_WINDOWS)
         return get_cpu_cache_windows(level);
+        #elif defined(NOA_PLATFORM_APPLE)
+        return get_cpu_cache_macos(level);
         #else
         (void) level;
         return {};
@@ -214,6 +318,8 @@ namespace noa::cpu {
         return std::string(ns::trim(get_cpu_name_linux()));
         #elif defined(NOA_PLATFORM_WINDOWS)
         return std::string{ns::trim(get_cpu_name_windows())};
+        #elif defined(NOA_PLATFORM_APPLE)
+        return std::string{ns::trim(get_cpu_name_macos())};
         #else
         return {};
         #endif

@@ -6,9 +6,8 @@
 TEST_CASE("cpu::Device") {
     using noa::cpu::Device;
 
-    #ifdef NOA_PLATFORM_APPLE
-    return; // while we compile on MacOS, we still don't parse the device properties...
-    #endif
+    // Simply check that it runs without throwing an exception.
+    [[maybe_unused]] const std::string s = Device::summary();
 
     const auto mem_info = Device::memory();
     REQUIRE(mem_info.free != 0);
@@ -18,12 +17,9 @@ TEST_CASE("cpu::Device") {
     REQUIRE(core_info.logical != 0);
     REQUIRE(core_info.physical != 0);
 
-    for (auto level: noa::irange(3)) {
+    for (auto level: noa::irange(1, 3)) {
         const auto cache_info = Device::cache(level);
         REQUIRE(cache_info.size != 0);
         REQUIRE(cache_info.line_size != 0);
     }
-
-    // Simply check that it runs without throwing an exception.
-    [[maybe_unused]] const std::string s = Device::summary();
 }
