@@ -8,19 +8,28 @@
 namespace noa::geometry {
     /// Returns a 2x2 HW scaling matrix.
     /// \param s HW scaling factors for each axis.
-    template<nt::real T, size_t A>
-    constexpr auto scale(const Vec<T, 2, A>& s) -> Mat22<T> {
-        return Mat22<T>::from_diagonal(s);
+    template<bool AFFINE = false, nt::real T, size_t A>
+    constexpr auto scale(const Vec<T, 2, A>& s) -> Mat<T, 2 + AFFINE, 2 + AFFINE> {
+        if constexpr (AFFINE)
+            return Mat33<T>::from_diagonal(s.push_back(1));
+        else
+            return Mat22<T>::from_diagonal(s);
     }
 
     /// Returns the HW 2x2 rotation matrix describing an
     /// in-plane rotation by \p angle radians.
-    template<nt::real T>
-    constexpr auto rotate(T angle) -> Mat22<T> {
+    template<bool AFFINE = false, nt::real T>
+    constexpr auto rotate(T angle) -> Mat<T, 2 + AFFINE, 2 + AFFINE> {
         T c = cos(angle);
         T s = sin(angle);
-        return {{{c, s},
-                 {-s, c}}};
+        if constexpr (AFFINE) {
+            return {{{ c, s, 0},
+                     {-s, c, 0},
+                     { 0, 0, 1}}};
+        } else {
+            return {{{ c, s},
+                     {-s, c}}};
+        }
     }
 
     /// Returns the DHW 3x3 affine translation matrix encoding the
@@ -74,42 +83,66 @@ namespace noa::geometry {
 namespace noa::geometry {
     /// Returns a DHW 3x3 scaling matrix.
     /// \param s DHW scaling factors for each axis.
-    template<nt::real T, size_t A>
-    constexpr auto scale(const Vec<T, 3, A>& s) -> Mat33<T> {
-        return Mat33<T>::from_diagonal(s);
+    template<bool AFFINE = false, nt::real T, size_t A>
+    constexpr auto scale(const Vec<T, 3, A>& s) -> Mat<T, 3 + AFFINE, 3 + AFFINE> {
+        if constexpr (AFFINE)
+            return Mat44<T>::from_diagonal(s.push_back(1));
+        else
+            return Mat33<T>::from_diagonal(s);
     }
 
     /// Returns the DHW 3x3 rotation matrix describing the rotation
     /// by \p angle radians around the outermost axis.
-    template<nt::real T>
-    constexpr auto rotate_z(T angle) -> Mat33<T> {
+    template<bool AFFINE = false, nt::real T>
+    constexpr auto rotate_z(T angle) -> Mat<T, 3 + AFFINE, 3 + AFFINE> {
         T c = cos(angle);
         T s = sin(angle);
-        return {{{1, 0, 0},
-                 {0, c, s},
-                 {0, -s, c}}};
+        if constexpr (AFFINE) {
+            return {{{1, 0, 0, 0},
+                     {0, c, s, 0},
+                     {0,-s, c, 0},
+                     {0, 0, 0, 1}}};
+        } else {
+            return {{{1, 0, 0},
+                     {0, c, s},
+                     {0,-s, c}}};
+        }
     }
 
     /// Returns the DHW 3x3 rotation matrix describing the rotation
     /// by \p angle radians around the second-most axis.
-    template<nt::real T>
-    constexpr auto rotate_y(T angle) -> Mat33<T> {
+    template<bool AFFINE = false, nt::real T>
+    constexpr auto rotate_y(T angle) -> Mat<T, 3 + AFFINE, 3 + AFFINE> {
         T c = cos(angle);
         T s = sin(angle);
-        return {{{c, 0, -s},
-                 {0, 1, 0},
-                 {s, 0, c}}};
+        if constexpr (AFFINE) {
+            return {{{c, 0,-s, 0},
+                     {0, 1, 0, 0},
+                     {s, 0, c, 0},
+                     {0, 0, 0, 1}}};
+        } else {
+            return {{{c, 0,-s},
+                     {0, 1, 0},
+                     {s, 0, c}}};
+        }
     }
 
     /// Returns the DHW 3x3 rotation matrix describing the rotation
     /// by \p angle radians around the innermost axis.
-    template<nt::real T>
-    constexpr auto rotate_x(T angle) -> Mat33<T> {
+    template<bool AFFINE = false, nt::real T>
+    constexpr auto rotate_x(T angle) -> Mat<T, 3 + AFFINE, 3 + AFFINE> {
         T c = cos(angle);
         T s = sin(angle);
-        return {{{c, s, 0},
-                 {-s, c, 0},
-                 {0, 0, 1}}};
+        if constexpr (AFFINE) {
+            return {{{ c, s, 0, 0},
+                     {-s, c, 0, 0},
+                     { 0, 0, 1, 0},
+                     { 0, 0, 0, 1}}};
+        } else {
+            return {{{ c, s, 0},
+                     {-s, c, 0},
+                     { 0, 0, 1}}};
+        }
     }
 
     /// Returns a DHW 3x3 matrix describing a rotation by an \p angle around a given \p axis.
