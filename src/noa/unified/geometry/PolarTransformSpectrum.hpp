@@ -149,21 +149,21 @@ namespace noa::geometry::guts {
 namespace noa::geometry {
     struct PolarTransformSpectrumOptions {
         /// Frequency range of the cartesian input, along the cartesian axes, in cycle/pixels (fftfreq).
-        /// If the end is negative or zero, it is set to the highest frequencies for each dimension, i.e.,
+        /// If the stop is negative or zero, it is set to the highest frequencies for each dimension, i.e.,
         /// the entire rfft/fft range is selected. For even dimensions, this is equivalent to {0, 0.5}.
-        /// Note that the start should be 0, otherwise an error will be thrown.
+        /// Note that the start should be 0; otherwise an error will be thrown.
         Linspace<f64> spectrum_fftfreq{.start = 0., .stop = -1., .endpoint = true};
 
         /// Rho range of the bounding shells to transform, in cycle/pixels (fftfreq).
         /// Rho maps to the width dimension of the polar array. A negative value (or zero for the stop)
-        /// defaults to the corresponding value of the input fftfreq range. If the input fftfreq is itself
+        /// defaults to the corresponding value of the spectrum fftfreq range. If the spectrum fftfreq is itself
         /// defaulted, this would be equal to [0, max(noa::fft::highest_fftfreq(input_shape))].
         Linspace<f64> rho_range{.start = 0., .stop = -1., .endpoint = true};
 
         /// Phi angle range increasing in the counterclockwise orientation, in radians.
         /// Phi maps to the height dimension of the polar array. While the range naturally included in the
-        /// non-redundant centered FFT is [-pi/2, pi/2], this range can include the entire unit circle,
-        /// e.g. [-pi, pi]. Defaults to [0, pi).
+        /// HC-layout FFT is [-pi/2, pi/2], this range can include the entire unit circle, e.g. [-pi, pi].
+        /// Defaults to [0, pi).
         Linspace<f64> phi_range{.start = 0., .stop = Constant<f64>::PI, .endpoint = false};
 
         /// Interpolation method used to interpolate the values onto the new polar grid.
@@ -178,7 +178,7 @@ namespace noa::geometry {
     /// \tparam REMAP           Every input layout is supported (see InterpolateSpectrum).
     ///                         The output is denoted as "FC" (full-centered) to emphasize that it has a full shape
     ///                         (equals to polar_shape) and can map the entire angular range (e.g. 0 to 2PI).
-    /// \param[in] spectrum     Centered 2d (r)FFT to interpolate onto the new coordinate system.
+    /// \param[in] spectrum     2d (r)FFT to interpolate onto the polar coordinate system.
     /// \param spectrum_shape   BDHW logical shape of spectrum.
     /// \param[out] polar       Transformed 2d array on the polar grid.
     ///                         If real, and spectrum is complex, the power spectrum is computed.

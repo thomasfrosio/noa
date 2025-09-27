@@ -63,8 +63,6 @@ namespace noa {
         Stream& stream = Stream::current(device);
         if constexpr (OPTIONS.generate_cpu) {
             if (device.is_cpu()) {
-                // TODO For now, use the default config, which is meant to trigger the parallel loop
-                //      only for large shapes. We could add a way for the user to change that default?
                 auto& cpu_stream = stream.cpu();
 
                 constexpr bool LAUNCH_EXACT = OPTIONS.cpu_launch_n_threads > 0;
