@@ -245,7 +245,7 @@ namespace noa::inline types {
 
         /// Returns a new Span.
         /// \details While constructing the span, this function can also reinterpret the current value type.
-        ///          This is only well defined in cases where Span::as<U>() is well defined.
+        ///          This is only well-defined in cases where Span::as<U>() is well-defined.
         ///          If N < NewN, the outer-dimensions are stacked together.
         template<typename NewT = T, size_t NewN = N, typename NewI = index_type, StridesTraits NewStridesTrait = STRIDES_TRAIT>
         [[nodiscard]] constexpr auto span() const {

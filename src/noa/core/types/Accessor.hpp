@@ -16,23 +16,22 @@ namespace noa::inline types {
     /// Multidimensional accessor; wraps a pointer and nd-strides, and provides nd-indexing.
     /// \details
     /// Accessors are mostly intended for internal use, which affected some design choices. Noticeable features:
-    /// >>> The size of the dimensions are not stored, so accessors cannot bound-check the indexes against
+    /// >>> The sizes of the dimensions are not stored, so accessors cannot bound-check the indexes against
     ///     their dimension size. In a lot of cases, the input/output arrays have the same size/shape and
     ///     the size/shape is often not needed by the compute kernels, leading to storing useless data.
     ///     If the extents of the region are required, use (md)spans.
     /// >>> \b Pointer-traits. By default, the pointers are not marked with any attributes, but the "restrict"
-    ///     traits can be added. This is useful to signify that pointers don't alias, which helps generating
-    ///     better code. Unfortunately, only g++ seem to acknowledge the restrict attribute on pointers
+    ///     traits can be added. This is useful to signify that pointers don't alias, which helps generate
+    ///     better code. Unfortunately, only g++ seems to acknowledge the restrict attribute on pointers
     ///     inside structs (details below)...
     /// >>> \b Strides-traits. Strides are fully dynamic (one dynamic stride per dimension) by default,
-    ///     but the rightmost dimension can be marked contiguous. Accessors (and the library internals) uses
-    ///     the rightmost convention, so that the innermost dimension is the rightmost dimension.
-    ///     As such, StridesTraits::CONTIGUOUS implies C-contiguous. F-contiguous layouts are not supported
-    ///     by the accessors, as these layouts should be reordered to C-contiguous before creating the
-    ///     contiguous accessor.
+    ///     but the rightmost dimension can be marked contiguous. Accessors (and the library internals) use
+    ///     the rightmost convention, so that the innermost dimension is the rightmost dimension. As such,
+    ///     StridesTraits::CONTIGUOUS implies C-contiguous. Accessors don't support the F-contiguous layout,
+    ///     but of course this layout can be reordered to C-contiguous before creating the contiguous accessor.
     ///     With StridesTraits::CONTIGUOUS, the innermost/rightmost stride is fixed to 1 and is not stored,
-    ///     resulting in the strides being truncated by 1 (Strides<I,N-1>). In case of a 1d contiguous
-    ///     accessor, this mean that the strides are empty (Strides<I,0>) and the indexing is equivalent
+    ///     resulting in the strides being truncated by 1 (Strides<I,N-1>). In the case of a 1d contiguous
+    ///     accessor, this means that the strides are empty (Strides<I,0>) and the indexing is equivalent
     ///     to pointer/array indexing.
     template<typename T, size_t N, typename I,
              StridesTraits StridesTrait = StridesTraits::STRIDED,
@@ -190,7 +189,7 @@ namespace noa::inline types {
     public:
         /// Creates a reference to an accessor.
         /// For the contiguous case, the rightmost stride is ignored and never read from
-        /// the \p strides strides pointer (so \p strides[N-1] is never accessed).
+        /// the stride pointer (i.e., strides[N-1] is never accessed).
         /// As such, in the 1d contiguous case, a nullptr can be passed.
         NOA_HD constexpr AccessorReference(pointer_type pointer, strides_type strides) noexcept :
             m_ptr(pointer), m_strides(strides) {}
@@ -262,27 +261,28 @@ namespace noa::inline types {
     #pragma warning(push, 0)
 #endif
 
-    /// Stores a value and provide an nd-accessor interface of that value.
+    /// Stores a value and provide an accessor-like interface of that value.
     /// \details This is poorly named because as opposed to Accessor(Reference), this type is the owner of the
     ///          object being accessed. The original goal is to provide the accessor interface so we can index
-    ///          a value as if it was a nd-array (something like Scalar would have been have better choice),
-    ///          but we want to emphasize that the goal here is to support the accessor indexing, while referring
-    ///          to a single _local_ single value (we don't want to refer to a value on the heap for example).
+    ///          a value as if it was a nd-array (something like Scalar would have been a better choice).
+    ///          However, we want to emphasize that the goal here is to support the accessor interface while
+    ///          referring to a single _local_ value (we don't want to refer to a value on the heap, for example).
     ///
-    /// \note As opposed to the Accessor, the const-ness is also enforced by the accessor.
-    ///       With AccessorValue<const T>, the value cannot be mutated(*).
-    ///       With AccessorValue<f64>, the value can be mutated, iif the accessor itself is not const.
+    /// \note As opposed to Accessor, the const-ness is also enforced by the wrapper type:
+    ///    1. With AccessorValue<T>, the referred value can be mutated, iif the accessor itself is not const.
     ///       This is because the AccessorValue stores the value, so const-ness is transferred to the member variable.
-    ///       (*): using deref_unsafe() allows to access the stored T and bypass the const-ness of an
-    ///            AccessorValue<const T> if the accessor itself is not const. This is intended for the library
-    ///            to be able to reassign AccessorValue<const T> while still preserving the const-ness in the main
-    ///            API (notably in the core interface and operators).
+    ///       This is different from const Accessor<T>, which refers to mutable T values.
+    ///    2. With AccessorValue<const T>, the referenced value cannot be mutated (like Accessor<const T>)
+    ///       using the classic accessor interface. However, AccessorValue has an extra member function, called
+    ///       deref_unsafe(), which allows accessing the stored T, bypassing the const-ness of a mutable
+    ///       AccessorValue<const T>. This is intended for the library to be able to reassign AccessorValue<const T>
+    ///       while still preserving the const-ness in the main API (notably in the core interface and operators).
     ///
-    /// \note This can be treated as an Accessor of any dimension. So a(2) or a(2,3,4,5) are equivalent and
-    ///       are both returning a reference of the value. The only constraint is on operator[], which always
-    ///       returns a reference of the value (like array/pointer indexing).
+    /// \note This can be treated mostly as an Accessor of any dimension and size. So a(2) or a(2,3,4,5) are equivalent
+    ///       and are both returning a reference of the value. However, AccessorValue<T> most equivalent to an
+    ///       Accessor<T, 1, StridesTraits::CONTIGUOUS, PointerTraits::RESTRICT>.
     ///
-    /// \note The pointer_type (e.g. returned from .data()) is always marked restrict because the value is owned
+    /// \note The pointer_type (returned from .data()) is always marked restrict because the value is owned
     ///       by the accessor. This shouldn't be relevant since the compiler can see that, but it's just to keep
     ///       things coherent.
     ///
@@ -606,7 +606,7 @@ namespace noa::guts {
         });
     }
 
-    /// Whether the accessors point to const data, i.e. their value_type is const.
+    /// Whether the accessors point to const data, i.e., their value_type is const.
     template<nt::tuple_of_accessor_or_empty T>
     [[nodiscard]] consteval auto are_accessors_const() -> bool {
         return []<typename... A>(nt::TypeList<A...>) {

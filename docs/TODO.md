@@ -15,10 +15,11 @@
 
 - The core should be extracted into a separate utility library. Tuple, Vec, Shape/Strides, Span, etc. Same for io.
 
+
 - __Windows support__. It should not be that complicated. One thing to look at is OpenMP support.
 
 
-- __as\<T\>()__ functions. We use these conversion member functions for various types: `Vec`, `Shape`, `Strides`, `Mat`, `Quaternion`, `CTFIsotropic`, `CTFAnisotropic`, and `Span`. These functions return by value. Should we return conditionally by reference if no conversion happens (`T == value_type`)? Performance wise, for these types, it should make any difference with optimizations on. From what I've seen it shouldn't break any code too. Maybe for C++23 when explicit object parameter is available, because right now it would mean to add at least 3 extra overloads for `const&`, `&`, and `&&`.
+- __as\<T\>()__ functions. We use these conversion member functions for various types: `Vec`, `Shape`, `Strides`, `Mat`, `Quaternion`, `CTFIsotropic`, `CTFAnisotropic`, and `Span`. These functions return by value. Should we return conditionally by reference if no conversion happens (`T == value_type`)? Performance wise, for these types, it shouldn't make any difference with optimizations on. From what I've seen it shouldn't break any code too. Maybe for C++23 when explicit object parameter is available, because right now it would mean to add at least 3 extra overloads for `const&`, `&`, and `&&`.
 
 
 - Frontend functions are templates, thus implicitly inline. I've noticed that sometimes it puts too much code into the caller block and may prevent some optimizations from being triggered. I think it could be useful to start using `[[gnu::noinline]]` in these frontend functions and/or in the core functions.
