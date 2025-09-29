@@ -110,8 +110,8 @@ namespace noa::inline types {
         }
         #else
         (void) device;
-        return 0;
         #endif
+        return 0;
     }
 
     void Session::clear_blas_cache(Device device) {
