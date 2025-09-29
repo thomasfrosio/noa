@@ -40,8 +40,8 @@ TEST_CASE("cuda::reduce_ewise") {
             INFO("shape=" << shape);
             const auto n_elements = shape.n_elements();
 
-            const auto b0 = AllocatorManaged<i64>::allocate(n_elements, stream);
-            const auto b1 = AllocatorManaged<i64>::allocate(1, stream);
+            const auto b0 = AllocatorManaged::allocate<i64>(n_elements, stream);
+            const auto b1 = AllocatorManaged::allocate<i64>(1, stream);
             test::arange(b0.get(), n_elements);
 
             auto reduced = noa::make_tuple(AccessorValue<i64>(0.));
@@ -70,8 +70,8 @@ TEST_CASE("cuda::reduce_ewise") {
             INFO("shape=" << shape);
             const auto n_elements = shape.n_elements();
 
-            const auto b0 = AllocatorManaged<i64>::allocate(n_elements, stream);
-            const auto b1 = AllocatorManaged<i64>::allocate(1, stream);
+            const auto b0 = AllocatorManaged::allocate<i64>(n_elements, stream);
+            const auto b1 = AllocatorManaged::allocate<i64>(1, stream);
             test::arange(b0.get(), n_elements);
 
             // Repeat the batch. This breaks the batch contiguity.
@@ -107,9 +107,9 @@ TEST_CASE("cuda::reduce_ewise") {
         const auto shape = test::random_shape(4);
         const auto n_elements = shape.n_elements();
 
-        const auto b0 = AllocatorManaged<f32>::allocate(n_elements, stream);
-        const auto b1 = AllocatorManaged<f64>::allocate(1, stream);
-        const auto b2 = AllocatorManaged<i32>::allocate(1, stream);
+        const auto b0 = AllocatorManaged::allocate<f32>(n_elements, stream);
+        const auto b1 = AllocatorManaged::allocate<f64>(1, stream);
+        const auto b2 = AllocatorManaged::allocate<i32>(1, stream);
         std::fill_n(b0.get(), n_elements, 1);
         b0[234] += 12.f;
         auto input = noa::make_tuple(AccessorI64<f32, 4>(b0.get(), shape.strides()));

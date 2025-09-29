@@ -1,5 +1,5 @@
 #include <noa/core/types/Accessor.hpp>
-#include <noa/cpu/AllocatorHeap.hpp>
+#include <noa/cpu/Allocators.hpp>
 #include <noa/gpu/cuda/Pointers.hpp>
 
 #include "Catch.hpp"
@@ -149,11 +149,11 @@ TEST_CASE("cuda::ewise vectorization") {
         static_assert(not is_vectorized<to_aligned_buffer_t<t0, 4, 1>>());
     }
 
-    auto d1 = noa::cpu::AllocatorHeap<aligned_1>::allocate<16>(2);
-    auto d2 = noa::cpu::AllocatorHeap<aligned_2>::allocate<16>(2);
-    auto d4 = noa::cpu::AllocatorHeap<aligned_4>::allocate<16>(2);
-    auto d8 = noa::cpu::AllocatorHeap<aligned_8>::allocate<16>(2);
-    auto d16 = noa::cpu::AllocatorHeap<aligned_16>::allocate<16>(2);
+    auto d1 = noa::cpu::AllocatorHeap::allocate<aligned_1, 16>(2);
+    auto d2 = noa::cpu::AllocatorHeap::allocate<aligned_2, 16>(2);
+    auto d4 = noa::cpu::AllocatorHeap::allocate<aligned_4, 16>(2);
+    auto d8 = noa::cpu::AllocatorHeap::allocate<aligned_8, 16>(2);
+    auto d16 = noa::cpu::AllocatorHeap::allocate<aligned_16, 16>(2);
     {
         const auto shape = Shape4<i64>{3, 2, 16, 16};
         const auto strides = shape.strides();

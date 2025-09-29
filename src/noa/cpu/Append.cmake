@@ -1,6 +1,6 @@
 set(NOA_CPU_HEADERS
     # noa::cpu
-    cpu/AllocatorHeap.hpp
+    cpu/Allocators.hpp
     cpu/Blas.hpp
     cpu/Copy.hpp
     cpu/CubicBSplinePrefilter.hpp

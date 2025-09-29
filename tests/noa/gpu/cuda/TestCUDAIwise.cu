@@ -45,7 +45,7 @@ namespace {
 
         AND_THEN("check operator") {
             constexpr auto shape = Shape1<i64>{2};
-            auto value = AllocatorManaged<Vec2<i32>>::allocate(2, stream);
+            auto value = AllocatorManaged::allocate<Vec2<i32>>(2, stream);
             auto op0 = Op{value.get(), Tracked{}};
 
             iwise(shape, op0, stream); // operator is copied once to the kernel
@@ -66,7 +66,7 @@ namespace {
             };
             for (const auto& shape: shapes) {
                 const auto n_elements = shape.n_elements();
-                const auto buffer = AllocatorManaged<i32>::allocate(n_elements, stream);
+                const auto buffer = AllocatorManaged::allocate<i32>(n_elements, stream);
                 iwise(shape, [ptr = buffer.get()] __device__ (i64 i) { ptr[i] = static_cast<i32>(i); }, stream);
 
                 const auto expected = std::make_unique<i32[]>(static_cast<size_t>(n_elements));
@@ -86,7 +86,7 @@ namespace {
             };
             for (const auto& shape: shapes) {
                 const auto n_elements = shape.n_elements();
-                const auto buffer = AllocatorManaged<i32>::allocate(n_elements, stream);
+                const auto buffer = AllocatorManaged::allocate<i32>(n_elements, stream);
                 const auto accessor = AccessorContiguousI64<i32, 2>(buffer.get(), shape.strides());
                 iwise(shape, [=] __device__(i64 i, i64 j) {
                     accessor(i, j) = static_cast<i32>(accessor.offset_at(i, j));
@@ -111,7 +111,7 @@ namespace {
             for (const auto& shape: shapes) {
                 const auto n_elements = shape.n_elements();
 
-                const auto buffer = AllocatorManaged<i32>::allocate(n_elements, stream);
+                const auto buffer = AllocatorManaged::allocate<i32>(n_elements, stream);
                 const auto accessor = AccessorContiguousI64<i32, 3>(buffer.get(), shape.strides());
                 iwise(shape, [=] __device__(const Vec3<i64>& indices) {
                     accessor(indices) = static_cast<i32>(accessor.offset_at(indices));
@@ -137,7 +137,7 @@ namespace {
             for (const auto& shape: shapes) {
                 const auto n_elements = shape.n_elements();
 
-                const auto buffer = AllocatorManaged<i32>::allocate(n_elements, stream);
+                const auto buffer = AllocatorManaged::allocate<i32>(n_elements, stream);
                 const auto accessor = AccessorContiguousI64<i32, 4>(buffer.get(), shape.strides());
                 iwise(shape, [=] __device__(const Vec4<i64>& indices) {
                     accessor(indices) = static_cast<i32>(accessor.offset_at(indices));
@@ -166,7 +166,7 @@ TEST_CASE("cuda::iwise - multi-launch") {
 
     {
         auto shape = Shape4<i64>{140000, 10, 10, 32};
-        auto ptr = AllocatorManaged<i64>::allocate(shape.n_elements(), stream);
+        auto ptr = AllocatorManaged::allocate<i64>(shape.n_elements(), stream);
         auto span = Span(ptr.get(), shape);
 
         iwise(shape, IwiseCopy{span}, stream);
@@ -184,7 +184,7 @@ TEST_CASE("cuda::iwise - multi-launch") {
     }
     {
         auto shape = Shape3<i64>{70001, 10, 32};
-        auto ptr = AllocatorManaged<i64>::allocate(shape.n_elements(), stream);
+        auto ptr = AllocatorManaged::allocate<i64>(shape.n_elements(), stream);
         auto span = Span(ptr.get(), shape);
 
         iwise(shape, IwiseCopy{span}, stream);

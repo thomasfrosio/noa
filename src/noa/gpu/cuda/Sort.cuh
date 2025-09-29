@@ -82,22 +82,22 @@ namespace noa::cuda::guts {
 
         // Prepare the alternate buffer.
         // TODO Do one single allocation for buffer(s) and tmp storage. Problem is the alignment?
-        using unique_t = typename AllocatorDevice<T>::unique_type;
+        using unique_t = AllocatorDevice::allocate_type<T>;
         unique_t key_buffer;
         unique_t key_buffer_alt;
         if (dim_is_contiguous) {
             key_buffer = nullptr;
-            key_buffer_alt = AllocatorDevice<T>::allocate_async(dim_size, stream);
+            key_buffer_alt = AllocatorDevice::allocate_async<T>(dim_size, stream);
         } else {
-            key_buffer = AllocatorDevice<T>::allocate_async(dim_size, stream);
-            key_buffer_alt = AllocatorDevice<T>::allocate_async(dim_size, stream);
+            key_buffer = AllocatorDevice::allocate_async<T>(dim_size, stream);
+            key_buffer_alt = AllocatorDevice::allocate_async<T>(dim_size, stream);
         }
         cub::DoubleBuffer<T> keys(key_buffer.get(), key_buffer_alt.get());
 
         // Allocates for the small tmp storage.
         size_t temp_storage_bytes{};
         check(cub_radix_sort_keys_<T>(nullptr, temp_storage_bytes, keys, dim_size, ascending, stream));
-        const auto temp_storage = AllocatorDevice<Byte>::allocate_async(
+        const auto temp_storage = AllocatorDevice::allocate_async<Byte>(
             static_cast<i64>(temp_storage_bytes), stream);
 
         // Prepare the iterations.
@@ -164,24 +164,24 @@ namespace noa::cuda::guts {
         const auto shape_i32 = shape.as<i32>();
 
         // Prepare the keys.
-        const auto key_buffer = AllocatorDevice<u32>::allocate_async(n_elements, stream);
-        const auto key_buffer_alt = AllocatorDevice<u32>::allocate_async(n_elements, stream);
+        const auto key_buffer = AllocatorDevice::allocate_async<u32>(n_elements, stream);
+        const auto key_buffer_alt = AllocatorDevice::allocate_async<u32>(n_elements, stream);
         Vec4<i32> tile = shape_i32.vec;
         tile[dim] = 1; // mark elements with their original line.
         iwise(shape_i32, ng::Iota(AccessorContiguousI32<u32, 4>(key_buffer.get(), shape_i32.strides()), shape_i32, tile), stream);
 
         // Prepare the values.
-        using unique_t = typename AllocatorDevice<T>::unique_type;
+        using unique_t = AllocatorDevice::allocate_type<T>;
         unique_t val_buffer;
         unique_t val_buffer_alt;
         T* val_ptr;
         if (is_contiguous) {
             val_ptr = values;
-            val_buffer_alt = AllocatorDevice<T>::allocate_async(n_elements, stream);
+            val_buffer_alt = AllocatorDevice::allocate_async<T>(n_elements, stream);
         } else {
-            val_buffer = AllocatorDevice<T>::allocate_async(n_elements, stream);
+            val_buffer = AllocatorDevice::allocate_async<T>(n_elements, stream);
             val_ptr = val_buffer.get();
-            val_buffer_alt = AllocatorDevice<T>::allocate_async(n_elements, stream);
+            val_buffer_alt = AllocatorDevice::allocate_async<T>(n_elements, stream);
             copy(values, strides, val_ptr, shape.strides(), shape, stream);
         }
 
@@ -201,7 +201,7 @@ namespace noa::cuda::guts {
               error2string(err0), error2string(err1));
 
         tmp_bytes0 = std::max(tmp_bytes0, tmp_bytes1);
-        const auto tmp = AllocatorDevice<Byte>::allocate_async(static_cast<i64>(tmp_bytes0), stream);
+        const auto tmp = AllocatorDevice::allocate_async<Byte>(static_cast<i64>(tmp_bytes0), stream);
 
         // Sort the entire array based on the values, but updates the original indexes.
         // It is important that the second sort is stable, which is the case with radix sort.

@@ -244,11 +244,10 @@ namespace noa {
             #ifdef NOA_ENABLE_CUDA
             if (parameters.prefetch and options.allocator.is_any(Allocator::MANAGED, Allocator::MANAGED_GLOBAL, Allocator::PITCHED_MANAGED)) {
                 const auto n_elements = ni::offset_at(input.strides(), input.shape().vec - 1) + 1;
-                using allocator_t = noa::cuda::AllocatorManaged<nt::mutable_value_type_t<input_t>>;
                 if (change_device)
-                    allocator_t::prefetch_to_cpu(input.get(), n_elements, input_stream.cuda());
+                    noa::cuda::AllocatorManaged::prefetch_to_cpu(input.get(), n_elements, input_stream.cuda());
                 else
-                    allocator_t::prefetch_to_gpu(input.get(), n_elements, input_stream.cuda());
+                    noa::cuda::AllocatorManaged::prefetch_to_gpu(input.get(), n_elements, input_stream.cuda());
             }
             #endif
 
@@ -291,13 +290,13 @@ namespace noa {
             if (parameters.prefetch and options.allocator.is_any(Allocator::MANAGED, Allocator::MANAGED_GLOBAL, Allocator::PITCHED_MANAGED)) {
                 const auto n_elements = ni::offset_at(input.strides(), input.shape().vec - 1) + 1;
                 auto& gpu_stream = Stream::current(gpu_device).cuda();
-                using allocator_t = noa::cuda::AllocatorManaged<nt::mutable_value_type_t<input_t>>;
+                using value_t = nt::mutable_value_type_t<input_t>;
                 if (change_device) {
-                    allocator_t::prefetch_to_gpu(input.get(), n_elements, gpu_stream);
+                    noa::cuda::AllocatorManaged::prefetch_to_gpu<value_t>(input.get(), n_elements, gpu_stream);
                     // We return a GPU array, so no need to synchronize the GPU stream.
                 } else {
                     input.eval();
-                    allocator_t::prefetch_to_cpu(input.get(), n_elements, gpu_stream);
+                    noa::cuda::AllocatorManaged::prefetch_to_cpu<value_t>(input.get(), n_elements, gpu_stream);
                     gpu_stream.synchronize();
                 }
             }

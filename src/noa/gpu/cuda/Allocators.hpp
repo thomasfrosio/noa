@@ -1,6 +1,5 @@
 #pragma once
 
-#include <utility> // std::exchange
 #include <memory> // std::unique_ptr, std::shared_ptr
 
 #include "noa/core/Enums.hpp"
@@ -16,25 +15,6 @@ template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::c16>() { retu
 template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::c32>() { return cudaCreateChannelDesc<float2>(); }
 
 namespace noa::cuda {
-    struct AllocatorDeviceDeleter {
-        using stream_type = Stream::Core;
-        std::weak_ptr<stream_type> stream{};
-
-        void operator()(void* ptr) const noexcept {
-            const std::shared_ptr<stream_type> stream_ = stream.lock();
-            [[maybe_unused]] cudaError_t err{};
-            if (not stream_) {
-                // No stream, so the memory was allocated:
-                //  - with cudaMalloc, so cudaFree syncs the device
-                //  - with cudaMallocAsync, but the stream was deleted, so cudaFree instead
-                err = cudaFree(ptr);
-            } else {
-                err = cudaFreeAsync(ptr, stream_->stream_handle);
-            }
-            NOA_ASSERT(err == cudaSuccess);
-        }
-    };
-
     /// Allocates (global) device memory, using either:
     ///  1) device-wide allocations via cudaMalloc.
     ///  2) stream-ordered allocations via cudaMallocAsync (recommended).
@@ -52,63 +32,86 @@ namespace noa::cuda {
     ///  - Similarly, an application can use cudaFree to free memory allocated using cudaMallocAsync. However, cudaFree
     ///    does not implicitly synchronize in this case, so the application must insert the appropriate synchronization
     ///    to ensure that all accesses to the to-be-freed memory are complete.
-    template<typename T>
     class AllocatorDevice {
     public:
-        static_assert(not std::is_pointer_v<T> and
-                      not std::is_reference_v<T> and
-                      not std::is_const_v<T> and
-                      std::is_trivially_destructible_v<T>);
-        using value_type = T;
-        using deleter_type = AllocatorDeviceDeleter;
-        using shared_type = std::shared_ptr<value_type[]>;
-        using unique_type = std::unique_ptr<value_type[], deleter_type>;
-        static constexpr size_t ALIGNMENT = std::max(alignof(T), size_t{256}); // this is guaranteed by cuda
+        static constexpr size_t MIN_ALIGNMENT = 256; // this is guaranteed by cuda
+
+        struct Deleter {
+            std::weak_ptr<Stream::Core> stream{};
+            i64 size{};
+            i32 device_id{};
+
+            void operator()(void* ptr) const noexcept {
+                if (const auto stream_ = stream.lock()) {
+                    [[maybe_unused]] auto err = cudaFreeAsync(ptr, stream_->stream_handle);
+                    NOA_ASSERT(err == cudaSuccess);
+                } else {
+                    // No stream, so the memory was allocated:
+                    //  - with cudaMalloc, so cudaFree syncs the device
+                    //  - with cudaMallocAsync, but the stream was deleted, so cudaFree instead
+                    [[maybe_unused]] auto err = cudaFree(ptr);
+                    NOA_ASSERT(err == cudaSuccess);
+                }
+                add_bytes(device_id, -size);
+            }
+        };
+
+        template<typename T>
+        using allocate_type = std::unique_ptr<T[], Deleter>;
 
     public:
         /// Allocates device memory using cudaMalloc, with an alignment of at least 256 bytes.
         /// This function throws if the allocation fails.
-        static unique_type allocate(i64 n_elements, Device device = Device::current()) {
+        template<nt::allocatable_type T>
+        static auto allocate(i64 n_elements, Device device = Device::current()) -> allocate_type<T> {
             if (n_elements <= 0)
                 return {};
-            const DeviceGuard guard(device);
+            const auto guard = DeviceGuard(device);
             void* tmp{nullptr}; // X** to void** is not allowed
-            check(cudaMalloc(&tmp, static_cast<size_t>(n_elements) * sizeof(value_type)));
-            return unique_type(static_cast<value_type*>(tmp));
+            const auto n_bytes = n_elements * static_cast<i64>(sizeof(T));
+            check(cudaMalloc(&tmp, static_cast<size_t>(n_bytes)));
+            add_bytes(device.id(), n_bytes);
+            return {static_cast<T*>(tmp), Deleter{.size=n_bytes, .device_id=device.id()}};
         }
 
         /// Allocates device memory asynchronously using cudaMallocAsync, with an alignment of at least 256 bytes.
         /// This function throws if the allocation fails.
-        static unique_type allocate_async(i64 n_elements, Stream& stream) {
+        template<nt::allocatable_type T>
+        static auto allocate_async(i64 n_elements, Stream& stream) -> allocate_type<T> {
             if (n_elements <= 0)
                 return {};
             void* tmp{nullptr}; // X** to void** is not allowed
-            check(cudaMallocAsync(&tmp, static_cast<size_t>(n_elements) * sizeof(value_type), stream.id()));
-            return unique_type(static_cast<value_type*>(tmp), deleter_type{stream.core()});
+            const auto n_bytes = n_elements * static_cast<i64>(sizeof(T));
+            check(cudaMallocAsync(&tmp, static_cast<size_t>(n_bytes), stream.id()));
+            add_bytes(stream.device().id(), n_bytes);
+            return {static_cast<T*>(tmp), Deleter{.stream = stream.core(), .size=n_bytes, .device_id=stream.device().id()}};
         }
 
         /// Returns the stream handle used to allocate the resource.
         /// If the data was created synchronously using allocate() or if it's empty, return the null stream.
-        template<nt::any_of<shared_type, unique_type> R>
-        [[nodiscard]] static cudaStream_t attached_stream_handle(const R& resource) {
+        template<nt::allocatable_type T>
+        [[nodiscard]] static auto attached_stream_handle(const allocate_type<T>& resource) -> cudaStream_t {
             if (resource) {
-                const std::shared_ptr<Stream::Core> stream;
-                if constexpr (std::is_same_v<R, shared_type>)
-                    stream = std::get_deleter<AllocatorDeviceDeleter>(resource)->stream.lock();
-                else
-                    resource.get_deleter().stream.lock();
-                if (stream)
+                if (auto stream = resource.get_deleter().stream.lock())
                     return stream->stream_handle;
             }
             return nullptr;
         }
-    };
 
-    struct AllocatorDevicePaddedDeleter {
-        void operator()(void* ptr) const noexcept {
-            [[maybe_unused]] const cudaError_t err = cudaFree(ptr); // if nullptr, it does nothing
-            NOA_ASSERT(err == cudaSuccess);
+        /// Returns the number of bytes currently allocated on the device.
+        [[nodiscard]] static auto bytes_currently_allocated(i32 device_id) -> size_t {
+            if (device_id >= 0 and device_id < MAX_DEVICES)
+                return clamp_cast<size_t>(m_bytes_currently_allocated[device_id].load());
+            return 0;
         }
+
+    private:
+        static constexpr i32 MAX_DEVICES = 64;
+        static void add_bytes(i32 device_id, i64 n_bytes) noexcept {
+            if (device_id >= 0 and device_id < MAX_DEVICES)
+                m_bytes_currently_allocated[device_id] += n_bytes;
+        }
+        inline static std::atomic<i64> m_bytes_currently_allocated[MAX_DEVICES]{};
     };
 
     /// Manages a device pointer.
@@ -129,68 +132,76 @@ namespace noa::cuda {
     ///    However, it looks like all devices will return a pitch divisible by at least 16 bytes (which makes sense),
     ///    which is the maximum size allowed by AllocatorDevicePadded. To be safe, AllocatorDevicePadded::allocate()
     ///    checks if this assumption holds.
-    template<typename T>
+    ///
     class AllocatorDevicePadded {
     public:
-        static_assert(not std::is_pointer_v<T> and
-                      not std::is_reference_v<T> and
-                      not std::is_const_v<T> and
-                      std::is_trivially_destructible_v<T> and
-                      sizeof(T) <= 16);
-        using value_type = T;
-        using deleter_type = AllocatorDevicePaddedDeleter;
-        using shared_type = std::shared_ptr<value_type[]>;
-        using unique_type = std::unique_ptr<value_type[], deleter_type>;
-        static constexpr size_t ALIGNMENT = std::max(alignof(T), size_t{256}); // this is guaranteed by cuda
+        static constexpr size_t MIN_ALIGNMENT = 256; // this is guaranteed by cuda
+
+        struct Deleter {
+            i64 size{};
+            i32 device_id{};
+            void operator()(void* ptr) const noexcept {
+                [[maybe_unused]] const auto err = cudaFree(ptr); // if nullptr, it does nothing
+                NOA_ASSERT(err == cudaSuccess);
+                add_bytes(device_id, -size);
+            }
+        };
+
+        template<typename T>
+        using allocate_type = std::unique_ptr<T[], Deleter>;
 
     public:
         /// Allocates device memory using cudaMalloc3D.
         /// Returns 1: Unique pointer pointing to the device memory.
-        ///         2: Pitch, i.e. height stride, in number of elements.
-        template<typename Integer, size_t N> requires (N >= 2)
+        ///         2: Strides describing the allocated layout.
+        template<nt::allocatable_type T, typename I, size_t N>
+        requires (sizeof(T) <= 16 and N >= 2)
         static auto allocate(
-            const Shape<Integer, N>& shape, // ((B)D)HW order
+            const Shape<I, N>& shape, // ((B)D)HW order
             Device device = Device::current()
-        ) -> Pair<unique_type, Strides<Integer, N>> {
+        ) -> Pair<allocate_type<T>, Strides<I, N>> {
             if (shape.is_empty())
                 return {};
 
             // Get the extents from the shape.
             const auto s_shape = shape.template as_safe<size_t>();
-            const cudaExtent extent{s_shape[N - 1] * sizeof(value_type), s_shape.pop_back().n_elements(), 1};
+            const auto extent = cudaExtent{s_shape[N - 1] * sizeof(T), s_shape.pop_back().n_elements(), 1};
 
             // Allocate.
-            cudaPitchedPtr pitched_ptr{};
-            const DeviceGuard guard(device);
+            auto pitched_ptr = cudaPitchedPtr{};
+            const auto guard = DeviceGuard(device);
             check(cudaMalloc3D(&pitched_ptr, extent));
 
-            if (not is_multiple_of(pitched_ptr.pitch, sizeof(value_type))) {
+            if (not is_multiple_of(pitched_ptr.pitch, sizeof(T))) {
                 cudaFree(pitched_ptr.ptr); // ignore any error at this point
-                panic("DEV: pitch is not divisible by sizeof({}): {} % {} != 0",
-                      ns::stringify<value_type>(), pitched_ptr.pitch, sizeof(value_type));
+                panic("The returned pitch is not divisible by sizeof({}): {} % {} != 0. Please report this issue",
+                      ns::stringify<T>(), pitched_ptr.pitch, sizeof(T));
             }
 
             // Create the strides.
-            const auto pitch = static_cast<Integer>(pitched_ptr.pitch / sizeof(value_type));
-            Strides<Integer, N> strides = shape.template set<N - 1>(pitch).strides();
+            const auto pitch = static_cast<I>(pitched_ptr.pitch / sizeof(T));
+            const auto physical_shape = shape.template set<N - 1>(pitch);
+            const auto strides = physical_shape.strides();
+            const auto n_bytes = physical_shape.n_elements() * static_cast<i64>(sizeof(T));
+            add_bytes(device.id(), n_bytes);
 
-            return {unique_type(static_cast<value_type*>(pitched_ptr.ptr)), strides};
+            return {allocate_type<T>(static_cast<T*>(pitched_ptr.ptr), Deleter{.size = n_bytes, .device_id = device.id()}), strides};
         }
-    };
 
-    struct AllocatorManagedDeleter {
-        std::weak_ptr<Stream::Core> stream{};
-
-        void operator()(void* ptr) const noexcept {
-            const std::shared_ptr<Stream::Core> stream_ = stream.lock();
-            [[maybe_unused]] cudaError_t err;
-            if (stream_) {
-                err = cudaStreamSynchronize(stream_->stream_handle);
-                NOA_ASSERT(err == cudaSuccess);
-            }
-            err = cudaFree(ptr);
-            NOA_ASSERT(err == cudaSuccess);
+        /// Returns the number of bytes currently allocated on the device.
+        [[nodiscard]] static auto bytes_currently_allocated(i32 device_id) -> size_t {
+            if (device_id >= 0 and device_id < MAX_DEVICES)
+                return clamp_cast<size_t>(m_bytes_currently_allocated[device_id].load());
+            return 0;
         }
+
+    private:
+        static constexpr i32 MAX_DEVICES = 64;
+        static void add_bytes(i32 device_id, i64 n_bytes) noexcept {
+            if (device_id >= 0 and device_id < MAX_DEVICES)
+                m_bytes_currently_allocated[device_id] += n_bytes;
+        }
+        inline static std::atomic<i64> m_bytes_currently_allocated[MAX_DEVICES]{};
     };
 
     /// Unified memory:
@@ -210,27 +221,43 @@ namespace noa::cuda {
     ///
     ///  - GPU memory over-subscription: On compute capabilities >= 6.X, applications can allocate and access more
     ///    managed memory than the physical size of GPU memory.
-    template<typename T>
     class AllocatorManaged {
     public:
-        static_assert(not std::is_pointer_v<T> and
-                      not std::is_reference_v<T> and
-                      not std::is_const_v<T> and
-                      std::is_trivially_destructible_v<T>);
-        using value_type = T;
-        using deleter_type = AllocatorManagedDeleter;
-        using shared_type = std::shared_ptr<value_type[]>;
-        using unique_type = std::unique_ptr<value_type[], deleter_type>;
-        static constexpr size_t ALIGNMENT = std::max(alignof(T), size_t{256}); // this is guaranteed by cuda
+        struct Deleter {
+            std::weak_ptr<Stream::Core> stream{};
+            i64 size{};
+            i32 device_id{};
+
+            void operator()(void* ptr) const noexcept {
+                if (const auto stream_ = stream.lock()) {
+                    [[maybe_unused]] auto err = cudaStreamSynchronize(stream_->stream_handle);
+                    NOA_ASSERT(err == cudaSuccess);
+                }
+                [[maybe_unused]] auto err = cudaFree(ptr);
+                NOA_ASSERT(err == cudaSuccess);
+                add_bytes(device_id, -size);
+            }
+        };
+
+        template<typename T>
+        using allocate_type = std::unique_ptr<T[], Deleter>;
+
+        static constexpr size_t MIN_ALIGNMENT = 256; // this is guaranteed by cuda
 
     public:
         /// Allocates managed memory using cudaMallocManaged, accessible from any stream and any device.
-        static unique_type allocate_global(i64 n_elements) {
+        template<nt::allocatable_type T>
+        static auto allocate_global(i64 n_elements) -> allocate_type<T> {
             if (n_elements <= 0)
                 return {};
             void* tmp{nullptr}; // X** to void** is not allowed
-            check(cudaMallocManaged(&tmp, static_cast<size_t>(n_elements) * sizeof(value_type), cudaMemAttachGlobal));
-            return unique_type(static_cast<value_type*>(tmp));
+            const auto n_bytes = static_cast<size_t>(n_elements) * sizeof(T);
+            check(cudaMallocManaged(&tmp, n_bytes, cudaMemAttachGlobal));
+            add_bytes(-1, static_cast<i64>(n_bytes));
+            return allocate_type<T>(static_cast<T*>(tmp), Deleter{
+                .size = static_cast<i64>(n_bytes),
+                .device_id = -1,
+            });
         }
 
         /// Allocates managed memory using cudaMallocManaged.
@@ -242,73 +269,91 @@ namespace noa::cuda {
         /// by the host, and the stream's device from kernels launched with this stream. Note that if the null stream
         /// is passed, the allocation falls back to allocate_global() and the memory can be accessed by any stream
         /// on any device.
-        static unique_type allocate(i64 n_elements, Stream& stream) {
+        template<nt::allocatable_type T>
+        static auto allocate(i64 n_elements, Stream& stream) -> allocate_type<T> {
             // cudaStreamAttachMemAsync: "It is illegal to attach singly to the NULL stream, because the NULL stream
             // is a virtual global stream and not a specific stream. An error will be returned in this case".
             if (not stream.id())
-                return allocate_global(n_elements);
+                return allocate_global<T>(n_elements);
             if (n_elements <= 0)
                 return {};
             void* tmp{nullptr}; // X** to void** is not allowed
-            check(cudaMallocManaged(&tmp, static_cast<size_t>(n_elements) * sizeof(value_type), cudaMemAttachHost));
+            const auto n_bytes = static_cast<size_t>(n_elements) * sizeof(T);
+            check(cudaMallocManaged(&tmp, n_bytes, cudaMemAttachHost));
             check(cudaStreamAttachMemAsync(stream.id(), tmp));
+            add_bytes(stream.device().id(), static_cast<i64>(n_bytes));
             stream.synchronize(); // FIXME is this necessary since cudaMemAttachHost is used?
-            return unique_type(static_cast<value_type*>(tmp), deleter_type{stream.core()});
+            return allocate_type<T>(static_cast<T*>(tmp), Deleter{
+                .stream = stream.core(),
+                .size = static_cast<i64>(n_bytes),
+                .device_id = stream.device().id(),
+            });
         }
 
         /// Returns the stream handle used to allocate the resource.
         /// If the data was created synchronously using allocate() or if it's empty, return the null stream.
-        template<nt::any_of< shared_type, unique_type> R>
-        [[nodiscard]] cudaStream_t attached_stream_handle(const R& resource) const {
+        template<nt::allocatable_type T>
+        [[nodiscard]] auto attached_stream_handle(const allocate_type<T>& resource) const -> cudaStream_t {
             if (resource) {
-                const std::shared_ptr<Stream::Core> stream;
-                if constexpr (std::is_same_v<R, shared_type>)
-                    stream = std::get_deleter<AllocatorManagedDeleter>(resource)->stream.lock();
-                else
-                    resource.get_deleter().stream.lock();
-                if (stream)
+                if (auto stream = resource.get_deleter().stream.lock())
                     return stream->stream_handle;
             }
             return nullptr;
         }
 
         /// Prefetches the memory region to the stream's GPU.
-        static void prefetch_to_gpu(const value_type* pointer, i64 n_elements, Stream& stream) {
+        template<nt::allocatable_type T>
+        static void prefetch_to_gpu(const T* pointer, i64 n_elements, Stream& stream) {
             check(cudaMemPrefetchAsync(
-                pointer, static_cast<size_t>(n_elements) * sizeof(value_type),
+                pointer, static_cast<size_t>(n_elements) * sizeof(T),
                 stream.device().id(), stream.id()));
         }
 
         /// Prefetches the memory region to the cpu.
-        static void prefetch_to_cpu(const value_type* pointer, i64 n_elements, Stream& stream) {
+        template<nt::allocatable_type T>
+        static void prefetch_to_cpu(const T* pointer, i64 n_elements, Stream& stream) {
             check(cudaMemPrefetchAsync(
-                pointer, static_cast<size_t>(n_elements) * sizeof(value_type),
+                pointer, static_cast<size_t>(n_elements) * sizeof(T),
                 cudaCpuDeviceId, stream.id()));
         }
+
+        /// Returns the number of bytes currently allocated on the device.
+        /// Note that memory allocated using allocate_global is added to every device.
+        [[nodiscard]] static auto bytes_currently_allocated(i32 device_id) -> size_t {
+            auto n_bytes = clamp_cast<size_t>(m_bytes_currently_allocated_globally.load());
+            if (device_id >= 0 and device_id < MAX_DEVICES)
+                n_bytes += clamp_cast<size_t>(m_bytes_currently_allocated[device_id].load());
+            return n_bytes;
+        }
+
+    private:
+        static constexpr i32 MAX_DEVICES = 64;
+        static void add_bytes(i32 device_id, i64 n_bytes) noexcept {
+            if (device_id >= 0 and device_id < MAX_DEVICES)
+                m_bytes_currently_allocated[device_id] += n_bytes;
+            else
+                m_bytes_currently_allocated_globally += n_bytes;
+        }
+        inline static std::atomic<i64> m_bytes_currently_allocated[MAX_DEVICES]{};
+        inline static std::atomic<i64> m_bytes_currently_allocated_globally{};
     };
 
-    template<typename T>
     class AllocatorManagedPadded {
     public:
-        static_assert(not std::is_pointer_v<T> and
-                      not std::is_reference_v<T> and
-                      not std::is_const_v<T> and
-                      std::is_trivially_destructible_v<T>);
-        using value_type = T;
-        using deleter_type = AllocatorManagedDeleter;
-        using shared_type = std::shared_ptr<value_type[]>;
-        using unique_type = std::unique_ptr<value_type[], deleter_type>;
-        static constexpr size_t ALIGNMENT = std::max(alignof(T), size_t{256}); // this is guaranteed by cuda
+        static constexpr size_t ALIGNMENT = 256; // this is guaranteed by cuda
+
+        template<typename T>
+        using allocate_type = AllocatorManaged::allocate_type<T>;
 
     public:
-        /// Allocates managed memory using AllocatorManaged<T>::allocate().
+        /// Allocates managed memory using AllocatorManaged::allocate<T>().
         /// Returns 1: Unique pointer pointing to the managed memory.
-        ///         2: Pitch, i.e. height stride, in number of elements.
-        template<typename Integer, size_t N> requires (N >= 2)
+        ///         2: Strides describing the allocated layout.
+        template<nt::allocatable_type T, typename I, size_t N> requires (N >= 2)
         static auto allocate(
-            const Shape<Integer, N>& shape, // ((B)D)HW order
+            const Shape<I, N>& shape, // ((B)D)HW order
             Stream& stream
-        ) -> Pair<unique_type, Strides<Integer, N>> {
+        ) -> Pair<allocate_type<T>, Strides<I, N>> {
             if (shape.is_empty())
                 return {};
 
@@ -317,18 +362,11 @@ namespace noa::cuda {
             pitch = std::max(ALIGNMENT, pitch);
             check(is_multiple_of(pitch, sizeof(T)),
                   "The pitch must be a multiple of sizeof({})={}, but got {}",
-                  ns::stringify<value_type>(), sizeof(T), pitch);
+                  ns::stringify<T>(), sizeof(T), pitch);
 
-            auto width = next_multiple_of(shape.width(), safe_cast<Integer>(pitch / sizeof(T)));
+            auto width = next_multiple_of(shape.width(), safe_cast<I>(pitch / sizeof(T)));
             auto padded_shape = shape.template set<N - 1>(width);
-            return {AllocatorManaged<T>::allocate(padded_shape.n_elements(), stream), padded_shape.strides()};
-        }
-    };
-
-    struct AllocatorPinnedDeleter {
-        void operator()(void* ptr) const noexcept {
-            [[maybe_unused]] const cudaError_t err = cudaFreeHost(ptr);
-            NOA_ASSERT(err == cudaSuccess);
+            return {AllocatorManaged::allocate<T>(padded_shape.n_elements(), stream), padded_shape.strides()};
         }
     };
 
@@ -347,13 +385,13 @@ namespace noa::cuda {
     /// - cudaMallocHost is used, as opposed to cudaHostMalloc since the default flags are enough in most cases.
     ///   See https://stackoverflow.com/questions/35535831.
     ///   -> Portable memory:
-    ///      by default, the benefits of using page-locked memory are only available in conjunction
+    ///      By default, the benefits of using page-locked memory are only available in conjunction
     ///      with the device that was current when the block was allocated (and with all devices sharing
     ///      the same unified address space). The flag `cudaHostAllocPortable` makes it available
     ///      to all devices. Solution: pinned memory is per device, since devices are unlikely to
     ///      work on the same data...
     ///   -> Write-combining memory:
-    ///      by default page-locked host memory is allocated as cacheable. It can optionally be
+    ///      By default, page-locked host memory is allocated as cacheable. It can optionally be
     ///      allocated as write-combining instead by passing flag `cudaHostAllocWriteCombined`.
     ///      It frees up the host's L1 and L2 cache resources, making more cache available to the
     ///      rest of the application. In addition, write-combining memory is not snooped during
@@ -364,36 +402,60 @@ namespace noa::cuda {
     ///      for transfer to device and another for transfer from device, so that all transfers
     ///      can be async. Note: In case where there's a lot of devices, we'll probably want to
     ///      restrict the use of pinned memory.
-    template<typename T>
     class AllocatorPinned {
     public:
-        static_assert(not std::is_pointer_v<T> and
-                      not std::is_reference_v<T> and
-                      not std::is_const_v<T> and
-                      std::is_trivially_destructible_v<T>);
-        using value_type = T;
-        using deleter_type = AllocatorPinnedDeleter;
-        using shared_type = std::shared_ptr<value_type[]>;
-        using unique_type = std::unique_ptr<value_type[], deleter_type>;
-        static constexpr size_t ALIGNMENT = std::max(alignof(T), size_t{256}); // this is guaranteed by cuda
+        static constexpr size_t ALIGNMENT = 256; // this is guaranteed by cuda
+
+        struct Deleter {
+            i64 size{};
+            i32 device_id{};
+            void operator()(void* ptr) const noexcept {
+                [[maybe_unused]] const cudaError_t err = cudaFreeHost(ptr);
+                NOA_ASSERT(err == cudaSuccess);
+                add_bytes(device_id, -size);
+            }
+        };
+
+        template<typename T>
+        using allocate_type = std::unique_ptr<T[], Deleter>;
 
     public:
         // Allocates pinned memory using cudaMallocHost.
-        static unique_type allocate(i64 n_elements) {
+        template<nt::allocatable_type T>
+        static auto allocate(i64 n_elements, Device device = Device::current()) -> allocate_type<T> {
             if (n_elements <= 0)
                 return {};
             void* tmp{nullptr}; // T** to void** not allowed [-fpermissive]
-            check(cudaMallocHost(&tmp, static_cast<size_t>(n_elements) * sizeof(value_type)));
-            return unique_type(static_cast<value_type*>(tmp));
+            auto n_bytes = n_elements * static_cast<i64>(sizeof(T));
+            auto device_guard = DeviceGuard(device);
+            check(cudaMallocHost(&tmp, static_cast<size_t>(n_bytes)));
+            add_bytes(device_guard.id(), n_bytes);
+            return allocate_type<T>(static_cast<T*>(tmp), Deleter{.size = n_bytes, .device_id = device_guard.id()});
         }
+
+        /// Returns the number of bytes currently allocated on the device.
+        /// Note that memory allocated using allocate_global is added to every device.
+        [[nodiscard]] static auto bytes_currently_allocated(i32 device_id) -> size_t {
+            if (device_id >= 0 and device_id < MAX_DEVICES)
+                return clamp_cast<size_t>(m_bytes_currently_allocated[device_id].load());
+            return 0;
+        }
+
+    private:
+        static constexpr i32 MAX_DEVICES = 64;
+        static void add_bytes(i32 device_id, i64 n_bytes) noexcept {
+            if (device_id >= 0 and device_id < MAX_DEVICES)
+                m_bytes_currently_allocated[device_id] += n_bytes;
+        }
+        inline static std::atomic<i64> m_bytes_currently_allocated[MAX_DEVICES]{};
     };
 
-    template<size_t N, Interp INTERP_, Border BORDER_,
+    template<size_t N, Interp INTERP, Border BORDER,
              typename Value, typename Coord, typename Index,
              bool NORMALIZED, bool LAYERED>
     class Texture;
 
-    /// Creates 1d, 2d or 3d texture objects bounded to a CUDA array.
+    /// Creates 1d, 2d, or 3d texture objects bounded to a CUDA array.
     ///
     /// CUDA arrays:
     ///  - Data resides in global memory. The host can cudaMemcpy to it, and the device can only access it
@@ -434,8 +496,10 @@ namespace noa::cuda {
         // Textures can map pitch memory (2d only) and linear memory (1d only), but we don't support these
         // use cases as they are either less performant or are very limited compared to a CUDA array.
         struct Resource {
-            cudaArray_t array; // pointer
-            cudaTextureObject_t texture; // size_t
+            cudaArray_t array{}; // pointer
+            cudaTextureObject_t texture{}; // size_t
+            i64 size{};
+            i32 device_id{};
 
             Resource() = default;
             ~Resource() {
@@ -444,9 +508,11 @@ namespace noa::cuda {
                 NOA_ASSERT(err == cudaSuccess);
                 err = cudaFreeArray(array);
                 NOA_ASSERT(err == cudaSuccess);
+                add_bytes(device_id, -size);
             }
         };
-        using shared_type = std::shared_ptr<Resource>;
+
+        using allocate_type = std::shared_ptr<Resource>;
 
     public:
         /// Allocates a CUDA array and create a texture from that array.
@@ -456,25 +522,28 @@ namespace noa::cuda {
         static auto allocate(
             const Shape4<i64>& shape,
             Interp interp,
-            Border border
+            Border border,
+            Device device = Device::current()
         ) -> std::shared_ptr<Resource> {
             auto resource = std::make_shared<Resource>();
 
             // Create the array.
-            const cudaChannelFormatDesc desc = cudaCreateChannelDesc<T>();
+            const auto device_guard = DeviceGuard(device);
+            const auto desc = cudaCreateChannelDesc<T>();
             const auto is_layered = shape.ndim() == 2;
-            const cudaExtent extent = shape2extent(shape, is_layered);
+            const auto extent = shape2extent(shape, is_layered);
             check(cudaMalloc3DArray(&resource->array, &desc, extent, is_layered ? cudaArrayLayered : cudaArrayDefault));
 
             // Create the texture.
             const auto [filter, address, read_mode, normalized_coords] = convert_to_description(interp, border);
             resource->texture = create_texture(resource->array, filter, address, read_mode, normalized_coords);
 
+            add_bytes(device.id(), shape.n_elements() * sizeof(T)); // TODO include pitch
             return resource;
         }
 
     public: // static array utilities
-        static cudaExtent shape2extent(Shape4<i64> shape, bool is_layered) {
+        static auto shape2extent(Shape4<i64> shape, bool is_layered) -> cudaExtent {
             // Special case: treat column vectors as row vectors.
             if (shape[2] >= 1 and shape[3] == 1)
                 std::swap(shape[2], shape[3]);
@@ -499,7 +568,7 @@ namespace noa::cuda {
             return {shape_3d[2], shape_3d[1], shape_3d[0]};
         }
 
-        static Shape4<i64> extent2shape(cudaExtent extent, bool is_layered) noexcept {
+        static auto extent2shape(cudaExtent extent, bool is_layered) noexcept -> Shape4<i64> {
             auto u_extent = Shape{extent.depth, extent.height, extent.width};
             u_extent += Shape3<size_t>::from_vec(u_extent == 0); // set empty dimensions to 1
 
@@ -582,13 +651,13 @@ namespace noa::cuda {
         /// \param normalized_coordinates       Whether the coordinates are normalized when fetching.
         /// \note cudaAddressModeMirror and cudaAddressModeWrap are only available with normalized coordinates.
         ///       If normalized_coordinates is false, border_mode is switched (internally by CUDA) to cudaAddressModeClamp.
-        static cudaTextureObject_t create_texture(
+        static auto create_texture(
             const cudaArray* array,
             cudaTextureFilterMode filter_mode,
             cudaTextureAddressMode address_mode,
             cudaTextureReadMode normalized_reads_to_float,
             bool normalized_coordinates
-        ) {
+        ) -> cudaTextureObject_t {
             cudaResourceDesc res_desc{};
             res_desc.resType = cudaResourceTypeArray;
             res_desc.res.array.array = const_cast<cudaArray*>(array); // one example where we need const_cast...
@@ -610,20 +679,20 @@ namespace noa::cuda {
         }
 
         /// Returns a texture object's texture descriptor.
-        static cudaTextureDesc texture_description(cudaTextureObject_t texture) {
+        static auto texture_description(cudaTextureObject_t texture) -> cudaTextureDesc {
             cudaTextureDesc tex_desc{};
             check(cudaGetTextureObjectTextureDesc(&tex_desc, texture));
             return tex_desc;
         }
 
         /// Returns a texture object's texture descriptor.
-        static cudaResourceDesc texture_resource(cudaTextureObject_t texture) {
+        static auto texture_resource(cudaTextureObject_t texture) -> cudaResourceDesc {
             cudaResourceDesc tex_desc{};
             check(cudaGetTextureObjectResourceDesc(&tex_desc, texture));
             return tex_desc;
         }
 
-        static cudaArray* texture_array(cudaTextureObject_t texture) {
+        static auto texture_array(cudaTextureObject_t texture) -> cudaArray* {
             const auto array_resource = texture_resource(texture);
             check(array_resource.resType == cudaResourceTypeArray, "The texture is not bound to a CUDA array");
             return array_resource.res.array.array;
@@ -635,7 +704,7 @@ namespace noa::cuda {
         }
 
         template<size_t N, Interp INTERP, Border BORDER, typename Value, typename Coord, typename Index>
-             struct texture_type_ {
+        struct texture_type_ {
             static constexpr bool LAYERED = N == 2;
             static constexpr bool NORMALIZED = BORDER == Border::MIRROR or BORDER == Border::PERIODIC;
             static constexpr auto TEX = convert_to_texture(INTERP, BORDER);
@@ -645,5 +714,20 @@ namespace noa::cuda {
         /// The corresponding Texture type created by the allocator.
         template<size_t N, Interp INTERP, Border BORDER, typename Value, typename Coord, typename Index>
         using texture_type = texture_type_<N, INTERP, BORDER, Value, Coord, Index>::type;
+
+        /// Returns the number of bytes currently allocated on the device.
+        [[nodiscard]] static auto bytes_currently_allocated(i32 device_id) -> size_t {
+            if (device_id >= 0 and device_id < MAX_DEVICES)
+                return clamp_cast<size_t>(m_bytes_currently_allocated[device_id].load());
+            return 0;
+        }
+
+    private:
+        static constexpr i32 MAX_DEVICES = 64;
+        static void add_bytes(i32 device_id, i64 n_bytes) noexcept {
+            if (device_id >= 0 and device_id < MAX_DEVICES)
+                m_bytes_currently_allocated[device_id] += n_bytes;
+        }
+        inline static std::atomic<i64> m_bytes_currently_allocated[MAX_DEVICES]{};
     };
 }

@@ -36,7 +36,7 @@ namespace noa {
             if (all(value == T{}) and option.device.is_cpu() and
                 (not Device::is_any_gpu() or
                  option.allocator.is_any(Allocator::DEFAULT, Allocator::ASYNC, Allocator::PITCHED))) {
-                return Array<T>(noa::cpu::AllocatorHeap<T>::calloc(shape.n_elements()),
+                return Array<T>(noa::cpu::AllocatorHeap::calloc<T>(shape.n_elements()),
                                 shape, shape.strides(), option);
             }
         }

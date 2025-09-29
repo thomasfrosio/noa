@@ -647,9 +647,9 @@ namespace noa::cuda::signal {
             count += 1;
         if (filter_width)
             count += 1;
-        typename AllocatorDevice<V>::unique_type buffer{};
+        AllocatorDevice::allocate_type<V> buffer{};
         if (not tmp and count > 1) {
-            buffer = AllocatorDevice<V>::allocate_async(shape.n_elements(), stream);
+            buffer = AllocatorDevice::allocate_async<V>(shape.n_elements(), stream);
             tmp = buffer.get();
             tmp_strides = shape.strides();
         }

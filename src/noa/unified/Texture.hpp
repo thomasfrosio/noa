@@ -10,12 +10,12 @@
 #include "noa/gpu/cuda/Allocators.hpp"
 #include "noa/gpu/cuda/Copy.cuh"
 namespace noa::gpu {
-    template<typename T>
-    using TextureResource = AllocatorTexture::shared_type;
+    template<typename>
+    using TextureResource = AllocatorTexture::allocate_type;
 }
 #else
 namespace noa::gpu {
-    template<typename T>
+    template<typename>
     using TextureResource = std::shared_ptr<void>;
 }
 #endif
@@ -135,9 +135,8 @@ namespace noa::inline types {
                 if constexpr (sizeof(nt::value_type_t<value_type>) >= 8) {
                     panic("Double-precision textures are not supported by the CUDA backend");
                 } else {
-                    const auto guard = DeviceGuard(device_target);
                     auto texture = noa::cuda::AllocatorTexture::allocate<value_type>(
-                        array.shape(), interp, options.border);
+                        array.shape(), interp, options.border, device_target);
 
                     // Copy input to CUDA array.
                     if (device_target != array.device())
@@ -184,8 +183,7 @@ namespace noa::inline types {
                 if constexpr (sizeof(nt::value_type_t<value_type>) >= 8) {
                     panic("Double-precision textures are not supported by the CUDA backend");
                 } else {
-                    const auto guard = DeviceGuard(device_target);
-                    m_texture = noa::cuda::AllocatorTexture::allocate<value_type>(shape, interp, options.border);
+                    m_texture = noa::cuda::AllocatorTexture::allocate<value_type>(shape, interp, options.border, device_target);
                     m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
                 }
                 #else

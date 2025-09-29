@@ -178,9 +178,8 @@ namespace {
                 return; // no need to allocate; plans are ready for execution
 
             using namespace noa::cuda;
-            using workspace_allocator_t = AllocatorDevice<unsigned char>;
-            using workspace_deleter_ptr_t = workspace_allocator_t::deleter_type;
-            using workspace_shared_ptr_t = workspace_allocator_t::shared_type;
+            using workspace_deleter_t = AllocatorDevice::Deleter;
+            using workspace_shared_ptr_t = std::shared_ptr<unsigned char[]>;
             workspace_shared_ptr_t workspace{nullptr};
 
             // Allocate memory on the device, safely.
@@ -190,7 +189,10 @@ namespace {
                 void* tmp{nullptr};
                 cudaError_t err = cudaMalloc(&tmp, m_workspace_size);
                 if (err == cudaSuccess) {
-                    workspace = workspace_shared_ptr_t(static_cast<unsigned char*>(tmp), workspace_deleter_ptr_t{});
+                    workspace = workspace_shared_ptr_t(
+                        static_cast<unsigned char*>(tmp),
+                        workspace_deleter_t{.size = static_cast<i64>(m_workspace_size)}
+                    );
                     return true;
                 }
                 return false;

@@ -54,9 +54,9 @@ TEST_CASE("cuda::reduce_iwise") {
     shapes.for_each([&]<size_t N>(const Shape<i64, N>& shape) {
         INFO("shape=" << shape);
         const auto n_elements = shape.n_elements();
-        const auto b0 = AllocatorManaged<f64>::allocate(n_elements, stream);
-        const auto b1 = AllocatorManaged<f64>::allocate(1, stream);
-        const auto b2 = AllocatorManaged<Pair<f64, i32>>::allocate(1, stream);
+        const auto b0 = AllocatorManaged::allocate<f64>(n_elements, stream);
+        const auto b1 = AllocatorManaged::allocate<f64>(1, stream);
+        const auto b2 = AllocatorManaged::allocate<Pair<f64, i32>>(1, stream);
         test::randomize(b0.get(), n_elements, test::Randomizer<f64>(-5, 10));
 
         const i32 expected_index = 1751;

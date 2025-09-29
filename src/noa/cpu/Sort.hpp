@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #include "noa/core/types/Shape.hpp"
-#include "noa/cpu/AllocatorHeap.hpp"
+#include "noa/cpu/Allocators.hpp"
 
 namespace noa::cpu::guts::sort {
     template<typename T, typename U>
@@ -96,7 +96,7 @@ namespace noa::cpu::guts::sort {
         const i64 dim_size = shape[dim];
         const i64 dim_stride = strides[dim];
 
-        const auto buffer = AllocatorHeap<T>::allocate(dim_is_contiguous ? 0 : dim_size);
+        const auto buffer = AllocatorHeap::allocate<T>(dim_is_contiguous ? 0 : dim_size);
         for (i64 i{}; i < shape_[0]; ++i) {
             for (i64 j{}; j < shape_[1]; ++j) {
                 for (i64 k{}; k < shape_[2]; ++k) {

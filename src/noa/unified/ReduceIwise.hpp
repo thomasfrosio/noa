@@ -118,13 +118,13 @@ namespace noa::guts {
             [[maybe_unused]] auto buffers = output_accessors.map_enumerate([&]<size_t J, typename A>(A& accessor) {
                 using value_t = typename A::value_type;
                 if constexpr (use_device_memory) {
-                    auto buffer = noa::cuda::AllocatorDevice<value_t>::allocate_async(1, cuda_stream);
+                    auto buffer = noa::cuda::AllocatorDevice::allocate_async<value_t>(1, cuda_stream);
                     accessor.reset_pointer(buffer.get());
                     return buffer;
                 } else {
                     // We use managed memory to do the copy on the host, allowing us to support non-trivially copyable
                     // types (such types cannot be safely copied between unregistered host and device memory).
-                    auto buffer = noa::cuda::AllocatorManaged<value_t>::allocate(1, cuda_stream);
+                    auto buffer = noa::cuda::AllocatorManaged::allocate<value_t>(1, cuda_stream);
                     accessor.reset_pointer(buffer.get());
 
                     // In the case of a defined final() operator member function, the core interface requires

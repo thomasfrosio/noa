@@ -22,17 +22,17 @@ namespace noa::cuda {
 
         const auto n_elements = shape.n_elements();
         using mut_t = std::remove_const_t<T>;
-        typename AllocatorDevice<mut_t>::unique_type buffer;
+        AllocatorDevice::allocate_type<mut_t> buffer;
         mut_t* to_sort{};
         if constexpr (std::is_const_v<T>) {
-            buffer = AllocatorDevice<mut_t>::allocate_async(n_elements, stream);
+            buffer = AllocatorDevice::allocate_async<mut_t>(n_elements, stream);
             to_sort = buffer.get();
             copy(input, strides, to_sort, shape.strides(), shape, stream);
         } else {
             if (overwrite and ni::are_contiguous(strides, shape)) {
                 to_sort = input;
             } else {
-                buffer = AllocatorDevice<mut_t>::allocate_async(n_elements, stream);
+                buffer = AllocatorDevice::allocate_async<mut_t>(n_elements, stream);
                 to_sort = buffer.get();
                 copy(input, strides, to_sort, shape.strides(), shape, stream);
             }

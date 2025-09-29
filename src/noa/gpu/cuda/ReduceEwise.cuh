@@ -389,7 +389,7 @@ namespace noa::cuda::guts {
     auto get_joined_buffer(u32 n_blocks_x, u32 n_blocks_y, Joined& joined, u32 max_vector_size, Stream& stream) {
         return joined.map([&]<typename A>(A& accessor) {
             const u32 pitch = next_multiple_of(n_blocks_x, max_vector_size);
-            auto buffer = AllocatorDevice<typename A::value_type>::allocate_async(pitch * n_blocks_y, stream);
+            auto buffer = AllocatorDevice::allocate_async<typename A::value_type>(pitch * n_blocks_y, stream);
             accessor = A(buffer.get(), Strides2<typename A::index_type>{pitch, 1});
             return buffer;
         });

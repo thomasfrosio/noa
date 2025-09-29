@@ -647,6 +647,35 @@ namespace noa::signal {
         Vec<f64, N> maximum_lag{Vec<f64, N>::from_value(-1)};
     };
 
+//     template<size_t N>
+// struct CrossCorrelationPeakOptions {
+//         /// ((D)H)W maximum lag allowed, i.e. the peak is selected within this elliptical radius.
+//         /// If negative or 0, it is ignored and the returned peak can be anywhere on the map.
+//         /// Otherwise, an elliptical mask is applied on the centered cross-correlation map before selecting the peak.
+//         Vec<f64, N> maximum_lag{Vec<f64, N>::from_value(-1)};
+//
+//         /// CCW (when looking at the origin) in-plane angle (in radius) of the distortion present in the
+//         /// cross-correlation map. This rotation is corrected (the map is rotated by -distortion_angle) just after
+//         /// the maximum lag mask. This improves the accuracy of the subpixel-registration by aligning the 1d parabolas
+//         /// with the distortion of the peak, but is also important when base_correction=true.
+//         f64 distortion_angle{0.};
+//
+//         /// ((D)H)W radius of the registration window, centered on the peak.
+//         /// To get subpixel-accuracy of the peak position and value, a 1d parabola is fitted along each dimension.
+//         /// The vertex of these parabolas
+//         Vec<i64, N> registration_radius{Vec<i64, N>::from_value(1)};
+//
+//         /// Whether the peak heights should be adjusted using their base value.
+//         /// This is useful to select the correct lobe from multi-lobe peaks or sharper peaks. In these cases, some lobes
+//         bool base_correction{false};
+//
+//         f64 trial_threshold{0.8};
+//
+//
+//         Shape<i64, N> grid_shape{Shape<i64, N>::from_value(1)};
+//         Shape<i64, N> block_shape{Shape<i64, N>::from_value(5)};
+//     };
+
     /// Find the cross-correlation peak(s) of the cross-correlation map(s).
     /// \tparam REMAP                       Whether xmap is centered. Should be F2F or FC2FC.
     /// \param[in] cross_correlation_map    1d, 2d or 3d cross-correlation map.

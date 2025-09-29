@@ -657,7 +657,7 @@ namespace noa::cuda {
 
                     // Allocate the 2d buffer.
                     using Joined = AccessorRestrictContiguous<ReducedDecay, 2, Index>;
-                    auto buffer = AllocatorDevice<ReducedDecay>::allocate_async(n_blocks_per_batch * batch, stream);
+                    auto buffer = AllocatorDevice::allocate_async<ReducedDecay>(n_blocks_per_batch * batch, stream);
                     auto joined = Joined(buffer.get(), Strides<Index, 2>{n_blocks_per_batch, 1});
 
                     auto grid_z = GridZ(batch, 1);

@@ -619,3 +619,12 @@ namespace noa::traits {
     template<typename T> concept marked_contiguous = same_as<std::remove_cv_t<decltype(T::IS_CONTIGUOUS)>, bool> and T::IS_CONTIGUOUS == true;
     template<typename T> concept marked_restrict =   same_as<std::remove_cv_t<decltype(T::IS_RESTRICT)>,   bool> and T::IS_RESTRICT   == true;
 }
+
+namespace noa::traits {
+    template<typename T>
+    concept allocatable_type =
+        not std::is_pointer_v<T> and
+        not std::is_reference_v<T> and
+        not std::is_const_v<T> and
+        std::is_trivially_destructible_v<T>;
+}

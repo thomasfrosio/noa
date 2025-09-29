@@ -4,7 +4,7 @@
 #include "noa/core/indexing/Layout.hpp"
 #include "noa/core/math/Generic.hpp"
 #include "noa/core/types/Shape.hpp"
-#include "noa/cpu/AllocatorHeap.hpp"
+#include "noa/cpu/Allocators.hpp"
 
 namespace noa::cpu {
     template<typename T>
@@ -19,16 +19,16 @@ namespace noa::cpu {
         // Allocate buffer if necessary.
         using mut_t = std::remove_const_t<T>;
         mut_t* to_sort;
-        typename AllocatorHeap<mut_t>::alloc_unique_type buffer;
+        AllocatorHeap::allocate_type<mut_t> buffer;
         if constexpr (std::is_const_v<T>) {
-            buffer = AllocatorHeap<mut_t>::allocate(n_elements);
+            buffer = AllocatorHeap::allocate<mut_t>(n_elements);
             copy(input, strides, buffer.get(), shape.strides(), shape, 1);
             to_sort = buffer.get();
         } else {
             if (overwrite and ni::are_contiguous(strides, shape)) {
                 to_sort = input;
             } else {
-                buffer = AllocatorHeap<mut_t>::allocate(n_elements);
+                buffer = AllocatorHeap::allocate<mut_t>(n_elements);
                 copy(input, strides, buffer.get(), shape.strides(), shape, 1);
                 to_sort = buffer.get();
             }

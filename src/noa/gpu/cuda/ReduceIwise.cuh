@@ -286,12 +286,12 @@ namespace noa::cuda {
             }
         } else {
             const auto shape_i64 = shape.template as_safe<i64>();
-            using Buffer = AllocatorDevice<ReducedDecay>::unique_type;
+            using Buffer = AllocatorDevice::allocate_type<ReducedDecay>;
             Buffer joined;
             Index n_joined;
             auto allocate_joined = [&](u32 n) {
                 n_joined = static_cast<Index>(n);
-                joined = AllocatorDevice<ReducedDecay>::allocate_async(static_cast<i64>(n_joined), stream);
+                joined = AllocatorDevice::allocate_async<ReducedDecay>(static_cast<i64>(n_joined), stream);
             };
 
             // First kernel.

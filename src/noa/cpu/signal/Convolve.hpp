@@ -5,7 +5,7 @@
 #include "noa/core/types/Shape.hpp"
 #include "noa/core/utils/Misc.hpp"
 #include "noa/core/Ewise.hpp"
-#include "noa/cpu/AllocatorHeap.hpp"
+#include "noa/cpu/Allocators.hpp"
 #include "noa/cpu/Iwise.hpp"
 #include "noa/cpu/Ewise.hpp"
 
@@ -195,12 +195,12 @@ namespace noa::cpu::signal::guts {
     template<typename T>
     auto get_filter(const T* filter, i64 filter_size) {
         using compute_t = std::conditional_t<std::is_same_v<f16, T>, f32, T>;
-        using buffer_t = AllocatorHeap<compute_t>::alloc_unique_type;
+        using buffer_t = AllocatorHeap::allocate_type<compute_t>;
         using accessor_t = AccessorRestrictContiguous<const compute_t, 1, i64>;
         buffer_t buffer{};
 
         if constexpr (std::is_same_v<f16, T>) {
-            buffer = AllocatorHeap<compute_t>::allocate(filter_size);
+            buffer = AllocatorHeap::allocate<compute_t>(filter_size);
             for (size_t i{}; i < static_cast<size_t>(filter_size); ++i)
                 buffer[i] = static_cast<compute_t>(filter[i]);
             return Pair{accessor_t(buffer.get()), std::move(buffer)};
@@ -319,10 +319,9 @@ namespace noa::cpu::signal {
             count += 1;
         if (filter_width)
             count += 1;
-        using allocator_t = noa::cpu::AllocatorHeap<V>;
-        typename allocator_t::alloc_unique_type buffer{};
+        AllocatorHeap::allocate_type<V> buffer{};
         if (not tmp and count > 1) {
-            buffer = allocator_t::allocate(shape.n_elements());
+            buffer = AllocatorHeap::allocate<V>(shape.n_elements());
             tmp = buffer.get();
             tmp_strides = shape.strides();
         }

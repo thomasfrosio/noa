@@ -3,7 +3,7 @@
 #include <algorithm> // std::nth_element
 
 #include "noa/cpu/Copy.hpp"
-#include "noa/cpu/AllocatorHeap.hpp"
+#include "noa/cpu/Allocators.hpp"
 #include "noa/cpu/Iwise.hpp"
 
 namespace noa::cpu::signal::guts {
@@ -216,7 +216,7 @@ namespace noa::cpu::signal {
         i64 window_size, i64 n_threads
     ) {
         using compute_t = std::conditional_t<std::is_same_v<f16, T>, f32, T>;
-        const auto buffer = AllocatorHeap<compute_t>::allocate(window_size * n_threads);
+        const auto buffer = AllocatorHeap::allocate<compute_t>(window_size * n_threads);
 
         using input_accessor_t = AccessorRestrictI64<const T, 4>;
         using output_accessor_t = AccessorRestrictI64<U, 4>;
@@ -260,7 +260,7 @@ namespace noa::cpu::signal {
         }
 
         using compute_t = std::conditional_t<std::is_same_v<f16, T>, f32, T>;
-        const auto buffer = AllocatorHeap<compute_t>::allocate(window_size * window_size * n_threads);
+        const auto buffer = AllocatorHeap::allocate<compute_t>(window_size * window_size * n_threads);
 
         using input_accessor_t = AccessorRestrictI64<const T, 4>;
         using output_accessor_t = AccessorRestrictI64<U, 4>;
@@ -306,7 +306,7 @@ namespace noa::cpu::signal {
         }
 
         using compute_t = std::conditional_t<std::is_same_v<f16, T>, f32, T>;
-        const auto buffer = AllocatorHeap<compute_t>::allocate(window_size * window_size * window_size * n_threads);
+        const auto buffer = AllocatorHeap::allocate<compute_t>(window_size * window_size * window_size * n_threads);
 
         using input_accessor_t = AccessorRestrictI64<const T, 4>;
         using output_accessor_t = AccessorRestrictI64<U, 4>;
