@@ -107,20 +107,19 @@ namespace noa::inline types {
         ///       allocated as CUDA_ARRAY is only an estimate, and CUDA may allocate slightly more than that.
         [[nodiscard]] static auto bytes_currently_allocated(Device device) -> size_t {
             size_t n_bytes{};
-            const i32 id = device.id();
             if (device.is_cpu()) {
                 n_bytes += noa::cpu::AllocatorHeap::bytes_currently_allocated();
                 #ifdef NOA_ENABLE_CUDA
-                n_bytes += noa::cuda::AllocatorPinned::bytes_currently_allocated(id);
-                n_bytes += noa::cuda::AllocatorManaged::bytes_currently_allocated(id);
+                n_bytes += noa::cuda::AllocatorPinned::bytes_currently_allocated(device.id());
+                n_bytes += noa::cuda::AllocatorManaged::bytes_currently_allocated(device.id());
                 #endif
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                n_bytes += noa::cuda::AllocatorDevice::bytes_currently_allocated(id);
-                n_bytes += noa::cuda::AllocatorDevicePadded::bytes_currently_allocated(id);
-                n_bytes += noa::cuda::AllocatorPinned::bytes_currently_allocated(id);
-                n_bytes += noa::cuda::AllocatorManaged::bytes_currently_allocated(id);
-                n_bytes += noa::cuda::AllocatorTexture::bytes_currently_allocated(id);
+                n_bytes += noa::cuda::AllocatorDevice::bytes_currently_allocated(device.id());
+                n_bytes += noa::cuda::AllocatorDevicePadded::bytes_currently_allocated(device.id());
+                n_bytes += noa::cuda::AllocatorPinned::bytes_currently_allocated(device.id());
+                n_bytes += noa::cuda::AllocatorManaged::bytes_currently_allocated(device.id());
+                n_bytes += noa::cuda::AllocatorTexture::bytes_currently_allocated(device.id());
                 #endif
             }
             return n_bytes;

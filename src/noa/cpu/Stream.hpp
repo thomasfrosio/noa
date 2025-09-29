@@ -69,10 +69,12 @@ namespace noa::cpu::guts {
             m_condition_work.notify_one();
         }
 
-#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
-#   pragma GCC diagnostic pop
-#elif defined(NOA_COMPILER_MSVC)
-#   pragma warning(pop)
+#ifdef __CUDACC__
+#   if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+#       pragma GCC diagnostic pop
+#   elif defined(NOA_COMPILER_MSVC)
+#       pragma warning(pop)
+#   endif
 #endif
 
         bool is_busy() {

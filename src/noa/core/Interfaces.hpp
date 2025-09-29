@@ -403,8 +403,10 @@ namespace noa::guts {
     };
 }
 
-#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
-#   pragma GCC diagnostic pop
-#elif defined(NOA_COMPILER_MSVC)
-#   pragma warning(pop)
+#ifdef __CUDACC__
+#   if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+#       pragma GCC diagnostic pop
+#   elif defined(NOA_COMPILER_MSVC)
+#       pragma warning(pop)
+#   endif
 #endif
