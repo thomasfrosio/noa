@@ -36,6 +36,16 @@ namespace noa::cpu::guts {
             // Because of this, it is best to synchronize the stream before calling the dtor.
         }
 
+// Suppress spurious visibility warning with NVCC-GCC when a lambda captures anonymous types.
+#ifdef __CUDACC__
+#   if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+#       pragma GCC diagnostic push
+#       pragma GCC diagnostic ignored "-Wattributes"
+#   elif defined(NOA_COMPILER_MSVC)
+#       pragma warning(push, 0)
+#   endif
+#endif
+
         template<typename F, typename... Args>
         void enqueue(F&& func, Args&&... args) {
             if (is_sync()) {
@@ -58,6 +68,12 @@ namespace noa::cpu::guts {
             m_queue.push(std::move(no_args_func));
             m_condition_work.notify_one();
         }
+
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+#   pragma GCC diagnostic pop
+#elif defined(NOA_COMPILER_MSVC)
+#   pragma warning(pop)
+#endif
 
         bool is_busy() {
             if (is_sync())

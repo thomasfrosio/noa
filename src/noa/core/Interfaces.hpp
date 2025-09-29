@@ -1,5 +1,6 @@
 #pragma once
 
+#include "noa/core/Config.hpp"
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Vec.hpp"
 #include "noa/core/types/Tuple.hpp"
@@ -135,6 +136,16 @@ namespace noa::guts {
         } {}
     };
 }
+
+// Suppress spurious visibility warning with NVCC-GCC when a lambda captures anonymous types.
+#ifdef __CUDACC__
+#   if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+#       pragma GCC diagnostic push
+#       pragma GCC diagnostic ignored "-Wattributes"
+#   elif defined(NOA_COMPILER_MSVC)
+#       pragma warning(push, 0)
+#   endif
+#endif
 
 namespace noa::guts {
     /// Index-wise interface.
@@ -391,3 +402,9 @@ namespace noa::guts {
         }
     };
 }
+
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+#   pragma GCC diagnostic pop
+#elif defined(NOA_COMPILER_MSVC)
+#   pragma warning(pop)
+#endif

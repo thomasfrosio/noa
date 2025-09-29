@@ -8,7 +8,7 @@
 
 using namespace noa::types;
 
-// namespace { // FIXME this should be anonymous, but nvcc generates a -Wattribute warning with GCC-14.2
+namespace {
     template<typename A>
     struct SumAdd {
         A accessor;
@@ -22,7 +22,7 @@ using namespace noa::types;
             output += static_cast<std::decay_t<decltype(output)>>(sum);
         }
     };
-// }
+}
 
 TEMPLATE_TEST_CASE("unified::reduce_iwise - simple", "", i32, f64) {
     auto shape = Shape4<i64>{5, 35, 64, 81};

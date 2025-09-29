@@ -12,14 +12,14 @@
 
 using namespace ::noa::types;
 
-// namespace { // FIXME this should be anonymous, but nvcc generates a -Wattribute warning with GCC-14.2
+namespace {
     struct ApplyInvertedMask {
         f32 cvalue;
         constexpr void operator()(f32 input, f32 mask, f32& output) const {
             output = input * (cvalue - mask);
         }
     };
-// }
+}
 
 TEST_CASE("unified::geometry::sphere(), 2d", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
