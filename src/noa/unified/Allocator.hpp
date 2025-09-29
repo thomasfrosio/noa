@@ -176,7 +176,8 @@ namespace noa::inline types {
                         return noa::cpu::AllocatorHeap::allocate<T>(n_elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
-                        return noa::cuda::AllocatorDevice::allocate<T>(n_elements, device);
+                        const auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+                        return noa::cuda::AllocatorDevice::allocate<T>(n_elements, cuda_device);
                         #else
                         panic_no_gpu_backend();
                         #endif
@@ -199,12 +200,13 @@ namespace noa::inline types {
                         return noa::cpu::AllocatorHeap::allocate<T>(n_elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
+                        const auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
                         // AllocatorDevicePadded requires sizeof(T) <= 16 bytes.
                         if constexpr (nt::numeric<T>) {
                             auto shape = Shape<i64, 4>::from_values(1, 1, 1, n_elements);
-                            return noa::cuda::AllocatorDevicePadded::allocate<T>(shape, device).first;
+                            return noa::cuda::AllocatorDevicePadded::allocate<T>(shape, cuda_device).first;
                         } else {
-                            return noa::cuda::AllocatorDevice::allocate<T>(n_elements, device);
+                            return noa::cuda::AllocatorDevice::allocate<T>(n_elements, cuda_device);
                         }
                         #else
                         panic_no_gpu_backend();
@@ -216,8 +218,9 @@ namespace noa::inline types {
                         return noa::cpu::AllocatorHeap::allocate<T>(n_elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
-                        const auto guard = DeviceGuard(device.is_gpu() ? device : Device::current_gpu());
-                        return noa::cuda::AllocatorPinned::allocate<T>(n_elements);
+                        const auto allocating_device = device.is_gpu() ? device : Device::current_gpu();
+                        const auto cuda_device = noa::cuda::Device(allocating_device.id(), noa::cuda::Device::DeviceUnchecked{});
+                        return noa::cuda::AllocatorPinned::allocate<T>(n_elements, cuda_device);
                         #else
                         panic_no_gpu_backend();
                         #endif
@@ -230,9 +233,8 @@ namespace noa::inline types {
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         const auto gpu = device.is_gpu() ? device : Device::current_gpu();
-                        const auto guard = DeviceGuard(gpu); // could be helpful when retrieving device
-                        auto& cuda_stream = Stream::current(gpu).cuda();
-                        return noa::cuda::AllocatorManaged::allocate<T>(n_elements, cuda_stream);
+                        const auto guard = DeviceGuard(gpu); // could be helpful when retrieving the device
+                        return noa::cuda::AllocatorManaged::allocate<T>(n_elements, Stream::current(gpu).cuda());
                         #else
                         panic_no_gpu_backend();
                         #endif
@@ -243,7 +245,7 @@ namespace noa::inline types {
                         return noa::cpu::AllocatorHeap::allocate<T>(n_elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
-                        const DeviceGuard guard(device.is_gpu() ? device : Device::current_gpu());
+                        const auto guard = DeviceGuard(device.is_gpu() ? device : Device::current_gpu());
                         return noa::cuda::AllocatorManaged::allocate_global<T>(n_elements);
                         #else
                         panic_no_gpu_backend();
@@ -273,11 +275,12 @@ namespace noa::inline types {
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         // AllocatorDevicePadded requires sizeof(T) <= 16 bytes.
+                        const auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
                         if constexpr (nt::numeric<T>) {
-                            auto [ptr, strides] = noa::cuda::AllocatorDevicePadded::allocate<T>(shape, device);
+                            auto [ptr, strides] = noa::cuda::AllocatorDevicePadded::allocate<T>(shape, cuda_device);
                             return {std::move(ptr), strides};
                         } else {
-                            return {noa::cuda::AllocatorDevice::allocate<T>(shape.n_elements(), device), shape.strides()};
+                            return {noa::cuda::AllocatorDevice::allocate<T>(shape.n_elements(), cuda_device), shape.strides()};
                         }
                         #else
                         panic_no_gpu_backend();
@@ -289,7 +292,6 @@ namespace noa::inline types {
                         return {noa::cpu::AllocatorHeap::allocate<T>(shape.n_elements()), shape.strides()};
                     } else {
                         #ifdef NOA_ENABLE_CUDA
-                        const DeviceGuard guard(device);
                         auto& cuda_stream = Stream::current(device).cuda();
                         auto [ptr, strides] = noa::cuda::AllocatorManagedPadded::allocate<T>(shape, cuda_stream);
                         return {std::move(ptr), strides};
