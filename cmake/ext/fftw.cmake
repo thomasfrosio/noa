@@ -15,6 +15,7 @@ else ()
         FFTW3
         GIT_REPOSITORY ${FFTW3_REPOSITORY}
         GIT_TAG ${FFTW3_TAG}
+        EXCLUDE_FROM_ALL # no install
     )
 
     # Build with optimizations, regardless of our build mode.

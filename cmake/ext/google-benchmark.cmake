@@ -15,6 +15,7 @@ else ()
         benchmark
         GIT_REPOSITORY ${google-benchmark_REPOSITORY}
         GIT_TAG ${google-benchmark_TAG}
+        EXCLUDE_FROM_ALL # no install
     )
 
     set(BENCHMARK_ENABLE_GTEST_TESTS OFF)

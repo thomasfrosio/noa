@@ -1,6 +1,5 @@
 # Collect header and source files.
 # Note: All of these file-paths should be relative to this directory!
-
 include(${PROJECT_SOURCE_DIR}/src/noa/core/Append.cmake)
 if (NOA_ENABLE_CPU)
     include(${PROJECT_SOURCE_DIR}/src/noa/cpu/Append.cmake)
@@ -11,7 +10,6 @@ endif ()
 include(${PROJECT_SOURCE_DIR}/src/noa/unified/Append.cmake)
 
 # Library sources.
-# Note: use quotes in case these are empty.
 set(NOA_SOURCES
     ${NOA_CORE_SOURCES}
     ${NOA_CPU_SOURCES}

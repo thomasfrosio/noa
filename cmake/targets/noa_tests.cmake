@@ -25,19 +25,26 @@ target_link_libraries(noa_tests
     noa::noa
     Catch2::Catch2
     yaml-cpp::yaml-cpp
-    )
+)
 
 target_include_directories(noa_tests
     PRIVATE
     ${PROJECT_SOURCE_DIR}/tests
-    )
+)
 
-set_target_properties(noa_tests PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+if (NOA_ENABLE_CUDA)
+    set_target_properties(noa_tests PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
-install(TARGETS noa_tests
+    # The preprocessing in CUDA is super annoying because it generates a few useless casts.
+    # So turn this specific warning off. Note that for CPU only, we still want all warnings.
+    target_compile_options(noa_tests PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: "-Wno-useless-cast" >)
+endif()
+
+install(
+    TARGETS noa_tests
     EXPORT noa
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-    )
+)
 
 message(STATUS "-> noa::noa_tests: configuring public target... done")
 message(STATUS "--------------------------------------\n")

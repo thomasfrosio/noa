@@ -1,87 +1,84 @@
 # Configuration file for noa.
-# The goal is to find all of the dependencies of the library and recreate its targets.
-
 @PACKAGE_INIT@
 
-# =====================================================================================
-# Build info
-# =====================================================================================
-message(STATUS "noa-config:")
-list(APPEND CMAKE_MESSAGE_INDENT "   ")
+# Build info.
+if(NOT noa_FIND_QUIETLY)
+    message(STATUS "Found noa: ${PACKAGE_PREFIX_DIR} (version ${noa_VERSION})")
+    list(APPEND CMAKE_MESSAGE_INDENT "  ")
 
-message(STATUS "Built with CMAKE_BUILD_TYPE=@CMAKE_BUILD_TYPE@")
-message(STATUS "Built with CMAKE_GENERATOR=@CMAKE_GENERATOR@")
-message(STATUS "Built with CMAKE_C_COMPILER=@CMAKE_C_COMPILER@")
-message(STATUS "Built with CMAKE_CXX_COMPILER=@CMAKE_CXX_COMPILER@")
-if (@NOA_ENABLE_CUDA@)
-    message(STATUS "Built with CMAKE_CUDA_COMPILER=@CMAKE_CUDA_COMPILER@")
-    message(STATUS "Built with CMAKE_CUDA_HOST_COMPILER=@CMAKE_CUDA_HOST_COMPILER@")
-    message(STATUS "Built with CMAKE_CUDA_ARCHITECTURES=@CMAKE_CUDA_ARCHITECTURES@")
-endif ()
+    message(STATUS "Built with CMAKE_BUILD_TYPE=@CMAKE_BUILD_TYPE@")
+    message(STATUS "Built with CMAKE_GENERATOR=@CMAKE_GENERATOR@")
+    message(STATUS "Built with CMAKE_C_COMPILER=@CMAKE_C_COMPILER@")
+    message(STATUS "Built with CMAKE_CXX_COMPILER=@CMAKE_CXX_COMPILER@")
+    if (@NOA_ENABLE_CUDA@)
+        message(STATUS "Built with CMAKE_CUDA_COMPILER=@CMAKE_CUDA_COMPILER@")
+        message(STATUS "Built with CMAKE_CUDA_HOST_COMPILER=@CMAKE_CUDA_HOST_COMPILER@")
+        message(STATUS "Built with CMAKE_CUDA_ARCHITECTURES=@CMAKE_CUDA_ARCHITECTURES@")
+    endif ()
+    message(STATUS "Built with NOA_CPU_OPENMP=@NOA_CPU_OPENMP@")
+    message(STATUS "Built with NOA_ENABLE_TIFF=@NOA_ENABLE_TIFF@")
+    list(POP_BACK CMAKE_MESSAGE_INDENT)
+endif()
 
-list(POP_BACK CMAKE_MESSAGE_INDENT)
-
-# =====================================================================================
-# Find dependencies
-# =====================================================================================
+# Find dependencies.
 include(CMakeFindDependencyMacro)
-find_dependency(Threads)
+find_dependency(Threads REQUIRED)
 
 if (NOT TARGET fmt::fmt)
-    find_dependency(fmt REQUIRED CONFIG PATHS ${PACKAGE_PREFIX_DIR} NO_DEFAULT_PATH)
+    find_dependency(fmt REQUIRED CONFIG PATHS ${PACKAGE_PREFIX_DIR}/${CMAKE_INSTALL_LIBDIR}/cmake NO_DEFAULT_PATH)
 endif ()
 
 if (NOT TARGET half::half)
-    find_dependency(half REQUIRED CONFIG PATHS ${PACKAGE_PREFIX_DIR} NO_DEFAULT_PATH)
-endif ()
-
-if (NOT TARGET Eigen3::Eigen)
-    find_dependency(Eigen3 REQUIRED CONFIG PATHS ${PACKAGE_PREFIX_DIR} NO_DEFAULT_PATH)
-endif ()
-
-if (NOT TARGET FFTW3::fftw3)
-    find_dependency(FFTW3 REQUIRED CONFIG PATHS ${PACKAGE_PREFIX_DIR} NO_DEFAULT_PATH)
+    find_dependency(half REQUIRED CONFIG PATHS ${PACKAGE_PREFIX_DIR}/${CMAKE_INSTALL_LIBDIR}/cmake NO_DEFAULT_PATH)
 endif ()
 
 if (@NOA_ENABLE_TIFF@ AND NOT TARGET TIFF::TIFF)
     find_dependency(TIFF REQUIRED)
 endif ()
 
-# CPU backend dependencies:
-if (@NOA_ENABLE_CPU@)
-    if (NOT TARGET OpenMP::OpenMP_CXX AND @NOA_CPU_OPENMP@)
-        find_dependency(OpenMP 4.5 REQUIRED)
-    endif ()
+if (@NOA_CPU_OPENMP@ AND NOT TARGET OpenMP::OpenMP_CXX)
+    find_dependency(OpenMP 4.5 REQUIRED)
 endif ()
 
 # CUDA backend dependencies:
 if (@NOA_ENABLE_CUDA@)
-    # We cannot enable a language from here. Instead, alert the user that the library was build
-    # with CUDA and that as a result we expect the CUDA language to be enabled.
+    # Verify CUDA language is enabled.
     get_property(_languages GLOBAL PROPERTY ENABLED_LANGUAGES)
     if(NOT "CUDA" IN_LIST _languages)
-        message(FATAL_ERROR "The library was built with CUDA. Please enable CUDA before importing noa.")
+        message(FATAL_ERROR
+            "noa was built with CUDA support, but CUDA language is not enabled.\n"
+            "Add 'CUDA' to your project() LANGUAGES or call enable_language(CUDA)."
+        )
     endif()
 
-    # Prefer to be overly strict than lax and cause issues down the line...
-    find_dependency(CUDAToolkit @CMAKE_CUDA_COMPILER_VERSION@ EXACT REQUIRED)
+    # Find matching CUDAToolkit version.
+    find_dependency(CUDAToolkit @CUDAToolkit_VERSION@ REQUIRED)
 
-    # The application linking against noa will crash if this is not enabled,
-    # but the user might simply have it set on their target, so prefer to just
-    # alert as opposed to raising an error.
-    if (NOT DEFINED CMAKE_CUDA_SEPARABLE_COMPILATION)
-        message(WARNING "CMAKE_CUDA_SEPARABLE_COMPILATION is not set. Make sure to set the CUDA_SEPARABLE_COMPILATION=ON property building your targets.")
+    # Verify CUDAToolkit version compatibility.
+    if(CUDAToolkit_VERSION VERSION_LESS @CUDAToolkit_VERSION_MAJOR@.@CUDAToolkit_VERSION_MINOR@)
+        message(WARNING
+            "noa was built with CUDA Toolkit ${CUDAToolkit_VERSION}, "
+            "but found version ${CUDAToolkit_VERSION}. "
+            "This may cause compatibility issues."
+        )
+    endif()
+
+    # Warn about separable compilation requirement.
+    if(NOT DEFINED CMAKE_CUDA_SEPARABLE_COMPILATION)
+        message(WARNING
+            "CMAKE_CUDA_SEPARABLE_COMPILATION is not set.\n"
+            "Targets linking to noa::noa should have CUDA_SEPARABLE_COMPILATION ON.\n"
+            "Example: set_target_properties(your_target PROPERTIES CUDA_SEPARABLE_COMPILATION ON)"
+        )
     endif()
 endif ()
 
-# =====================================================================================
-# Create targets
-# =====================================================================================
+# Create the targets.
 if(NOT TARGET noa::noa)
     include("${CMAKE_CURRENT_LIST_DIR}/noaTargets.cmake")
-    set(noa_FOUND TRUE)
+    if(NOT TARGET noa::noa)
+        message(FATAL_ERROR "noa::noa target not defined after including noaTargets.cmake")
+    endif()
 
-    if (noa_FIND_COMPONENTS AND NOT noa_FIND_QUIETLY)
-        message(STATUS "Some components where required, but noa doesn't support components yet, so this is ignored")
-    endif ()
+    check_required_components(noa)
 endif()

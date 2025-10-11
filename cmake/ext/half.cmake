@@ -14,7 +14,7 @@ else ()
     FetchContent_Declare(half
         GIT_REPOSITORY ${half_REPOSITORY}
         GIT_TAG ${half_TAG}
-        )
+    )
     FetchContent_MakeAvailable(half)
 
     message(STATUS "New imported target available: half::half")

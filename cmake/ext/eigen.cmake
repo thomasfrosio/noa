@@ -17,13 +17,15 @@ else ()
         GIT_TAG ${Eigen3_TAG}
 #        GIT_SHALLOW TRUE
         GIT_PROGRESS TRUE
+        EXCLUDE_FROM_ALL # no install
     )
-    # Eigen 3.4 uses CMP0077 OLD (ignore set), so use option to force it from here.
-    option(EIGEN_BUILD_BLAS "Toggles the building of the Eigen Blas library" OFF)
-    option(EIGEN_BUILD_LAPACK "Toggles the building of the included Eigen LAPACK library" OFF)
-    option(EIGEN_BUILD_TESTING "Enable creation of Eigen tests." OFF)
-    option(EIGEN_BUILD_PKGCONFIG "Build pkg-config .pc file for Eigen" OFF)
-    option(EIGEN_BUILD_DOC "Enable creation of Eigen documentation" OFF)
+
+    # Configure Eigen build options
+    set(EIGEN_BUILD_BLAS OFF CACHE BOOL "" FORCE)
+    set(EIGEN_BUILD_LAPACK OFF CACHE BOOL "" FORCE)
+    set(EIGEN_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    set(EIGEN_BUILD_PKGCONFIG OFF CACHE BOOL "" FORCE)
+    set(EIGEN_BUILD_DOC OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(Eigen)
 
     message(STATUS "New imported target available: Eigen3::Eigen")

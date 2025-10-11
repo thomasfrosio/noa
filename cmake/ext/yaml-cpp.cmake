@@ -15,6 +15,7 @@ else ()
         yaml-cpp
         GIT_REPOSITORY ${yaml-cpp_REPOSITORY}
         GIT_TAG ${yaml-cpp_TAG}
+        EXCLUDE_FROM_ALL # no install
     )
     FetchContent_MakeAvailable(yaml-cpp)
 

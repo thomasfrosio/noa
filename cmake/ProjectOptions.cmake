@@ -7,7 +7,7 @@
 macro(noa_set_options)
     # CPU backend:
     option(NOA_ENABLE_CPU "Build the CPU backend" ON)
-    option(NOA_CPU_OPENMP "Enable multithreading, using OpenMP" ON) # TODO
+    option(NOA_CPU_OPENMP "Enable multithreading, using OpenMP" ON) # TODO this is currently ignored and always on
     option(NOA_CPU_FFTW3_MULTITHREADED "Use the multi-threaded FFTW3 libraries" ${NOA_CPU_OPENMP})
     option(NOA_CPU_FFTW3_STATIC "Whether to link the FFTW3 libraries statically" ON)
 
@@ -17,13 +17,13 @@ macro(noa_set_options)
 
     # Core:
     set(NOA_ERROR_POLICY 2 CACHE STRING "Abort=0, Terminate=1, Exceptions=2")
-    option(NOA_ENABLE_WARNINGS "Enable compiler warnings (these only affect the library's source files)" ON)
+    option(NOA_ENABLE_WARNINGS "Enable compiler warnings" ON)
     option(NOA_ENABLE_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
     # TIFF:
     option(NOA_ENABLE_TIFF "Enable support for the TIFF file format. Requires libtiff" ON)
 
     # Additional targets:
-    option(NOA_BUILD_TESTS "Build tests" OFF)
+    option(NOA_BUILD_TESTS "Build tests" ON)
     option(NOA_BUILD_BENCHMARKS "Build benchmarks" OFF)
 endmacro()
