@@ -41,7 +41,7 @@ namespace noa::inline types {
     ///       make sure that stream-ordering is respected.\n
     /// - \b Shape: Shape and strides are in number of elements and specified in the BDHW order (from left to right).
     ///   While column-major ordering is supported, row-major ordering is recommended. Empty dimensions have a size
-    ///   of 1. If one dimension is 0, the entire array is considered empty. Arrays can be broadcasted to other shapes
+    ///   of 1. If one dimension is 0, the entire array is considered empty. Arrays can be broadcast to other shapes
     ///   according to the broadcasting rule (see noa::indexing::broadcast()). As such, some arrays can have dimensions
     ///   with a stride of 0. Negative strides are not supported.\n
     /// - \b Deferred-deletion: When passing Arrays to a function, the stream keeps a reference of the input/output
@@ -79,7 +79,7 @@ namespace noa::inline types {
     public: // Static factory functions
         template<std::convertible_to<value_type>... Ts>
         constexpr static auto from_values(Ts&&... a) -> Array {
-            Array output(sizeof...(Ts));
+            auto output = Array(sizeof...(Ts));
             [&]<size_t...I>(std::index_sequence<I...>) {
                 (std::construct_at(output.data() + I, std::forward<Ts>(a)), ...);
             }(std::make_index_sequence<sizeof...(Ts)>{});
@@ -110,13 +110,13 @@ namespace noa::inline types {
 
         /// Creates a contiguous row vector from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
-        /// \param n_elements   Number of elements in \p data.
-        /// \param option       Options of \p data.
-        template<nt::smart_ptr_decay SharedPtr>
-        constexpr Array(SharedPtr&& data, i64 n_elements, ArrayOption option = {}) :
+        /// \param n_elements   Number of elements in data.
+        /// \param option       Options of data.
+        template<std::convertible_to<shared_type> P>
+        constexpr Array(P&& data, i64 n_elements, ArrayOption option = {}) :
             m_shape{1, 1, 1, n_elements},
             m_strides{n_elements, n_elements, n_elements, 1},
-            m_shared(std::forward<SharedPtr>(data)),
+            m_shared(std::forward<P>(data)),
             m_options{option}
         {
             allocator().validate(get(), device());
@@ -124,23 +124,41 @@ namespace noa::inline types {
 
         /// Creates an array from an existing allocated memory region.
         /// \param[in,out] data Data to encapsulate.
-        /// \param shape        BDHW shape of \p data.
-        /// \param strides      BDHW strides of \p data.
-        /// \param option       Options of \p data.
-        template<nt::smart_ptr_decay SharedPtr>
+        /// \param shape        BDHW shape of data.
+        /// \param strides      BDHW strides of data.
+        /// \param option       Options of data.
+        template<std::convertible_to<shared_type> P>
         constexpr Array(
-            SharedPtr&& data,
+            P&& data,
             const shape_type& shape,
             const strides_type& strides,
             ArrayOption option = {}
         ) :
             m_shape{shape},
             m_strides{strides},
-            m_shared(std::forward<SharedPtr>(data)),
+            m_shared(std::forward<P>(data)),
             m_options{option}
         {
             allocator().validate(get(), device());
         }
+
+        /// Creates an array from an existing allocated memory region, without validation.
+        /// \param[in,out] data Data to encapsulate.
+        /// \param shape        BDHW shape of data.
+        /// \param strides      BDHW strides of data.
+        /// \param option       Options of data.
+        template<std::convertible_to<shared_type> P>
+        constexpr Array(
+            P&& data,
+            const shape_type& shape,
+            const strides_type& strides,
+            ArrayOption option,
+            Unchecked
+        ) :
+            m_shape{shape},
+            m_strides{strides},
+            m_shared(std::forward<P>(data)),
+            m_options{option} {}
 
         /// If an exception is thrown, make sure to synchronize the stream to guarantee that functions called
         /// with a View of that Array are done executing so that this Array can release its memory.
@@ -249,7 +267,7 @@ namespace noa::inline types {
         /// Returns a (const-)view of the array.
         template<nt::almost_same_as<value_type> U = value_type>
         [[nodiscard]] constexpr auto view() const noexcept -> View<U> {
-            return View<U>(get(), shape(), strides(), options());
+            return View<U>(*this);
         }
 
     public: // Deep copy
@@ -352,12 +370,12 @@ namespace noa::inline types {
         template<typename U>
         [[nodiscard]] auto reinterpret_as() const& -> Array<U> {
             const auto out = ni::ReinterpretLayout(shape(), strides(), get()).template as<U>();
-            return Array<U>(std::shared_ptr<U[]>(m_shared, out.ptr), out.shape, out.strides, options());
+            return Array<U>(std::shared_ptr<U[]>(m_shared, out.ptr), out.shape, out.strides, options(), Unchecked{});
         }
         template<typename U>
         [[nodiscard]] auto reinterpret_as() && -> Array<U> {
             const auto out = ni::ReinterpretLayout(shape(), strides(), get()).template as<U>();
-            return Array<U>(std::shared_ptr<U[]>(std::move(m_shared), out.ptr), out.shape, out.strides, options());
+            return Array<U>(std::shared_ptr<U[]>(std::move(m_shared), out.ptr), out.shape, out.strides, options(), Unchecked{});
         }
 
         /// Reshapes the array.
@@ -369,11 +387,11 @@ namespace noa::inline types {
         /// \return An alias of the array with the new shape and strides.
         [[nodiscard]] constexpr auto reshape(const shape_type& new_shape) const& -> Array {
             auto new_span = span_type(nullptr, shape(), strides()).reshape(new_shape);
-            return Array(m_shared, new_span.shape(), new_span.strides(), options());
+            return Array(m_shared, new_span.shape(), new_span.strides(), options(), Unchecked{});
         }
         [[nodiscard]] constexpr auto reshape(const shape_type& new_shape) && -> Array {
             auto new_span = span_type(nullptr, shape(), strides()).reshape(new_shape);
-            return Array(std::move(m_shared), new_span.shape(), new_span.strides(), options());
+            return Array(std::move(m_shared), new_span.shape(), new_span.strides(), options(), Unchecked{});
         }
 
         /// Reshapes the array in a vector along a particular axis.
@@ -394,16 +412,20 @@ namespace noa::inline types {
         /// Permutes the dimensions of the view.
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
         [[nodiscard]] constexpr auto permute(const Vec4<i64>& permutation) const& -> Array {
-            return Array(m_shared,
-                         ni::reorder(shape(), permutation),
-                         ni::reorder(strides(), permutation),
-                         options());
+            return Array(
+                m_shared,
+                ni::reorder(shape(), permutation),
+                ni::reorder(strides(), permutation),
+                options(), Unchecked{}
+            );
         }
         [[nodiscard]] constexpr auto permute(const Vec4<i64>& permutation) && -> Array {
-            return Array(std::move(m_shared),
-                         ni::reorder(shape(), permutation),
-                         ni::reorder(strides(), permutation),
-                         options());
+            return Array(
+                std::move(m_shared),
+                ni::reorder(shape(), permutation),
+                ni::reorder(strides(), permutation),
+                options(), Unchecked{}
+            );
         }
 
         /// Permutes the array by performing a deep-copy. The returned Array is a new C-contiguous array.
@@ -452,12 +474,12 @@ namespace noa::inline types {
         template<typename... U>
         [[nodiscard]] constexpr auto subregion(const ni::Subregion<4, U...>& subregion) const& -> Array {
             auto [new_shape, new_strides, offset] = subregion.extract_from(shape(), strides());
-            return Array(shared_type(m_shared, get() + offset), new_shape, new_strides, options());
+            return Array(shared_type(m_shared, get() + offset), new_shape, new_strides, options(), Unchecked{});
         }
         template<typename... U>
         [[nodiscard]] constexpr auto subregion(const ni::Subregion<4, U...>& subregion) && -> Array {
             auto [new_shape, new_strides, offset] = subregion.extract_from(shape(), strides());
-            return Array(shared_type(std::move(m_shared), get() + offset), new_shape, new_strides, options());
+            return Array(shared_type(std::move(m_shared), get() + offset), new_shape, new_strides, options(), Unchecked{});
         }
 
         /// Subregion indexing. Extracts a subregion from the current array.

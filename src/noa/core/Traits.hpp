@@ -25,6 +25,7 @@ static_assert(std::is_same_v<uint32_t, unsigned int>);
 
 namespace noa::inline types {
     struct Empty {};
+    struct Unchecked {};
     using Byte = std::byte;
 
     using u8 = uint8_t;

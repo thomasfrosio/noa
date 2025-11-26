@@ -16,7 +16,7 @@ namespace noa::inline types {
     class Device {
     public:
         struct Memory { size_t total; size_t free; };
-        struct Unchecked {};
+        // struct Unchecked {};
         enum class Type { CPU, GPU };
         using enum Type;
 
@@ -63,7 +63,7 @@ namespace noa::inline types {
                 return noa::cpu::Device::summary();
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                return noa::cuda::Device(this->id(), noa::cuda::Device::DeviceUnchecked{}).summary();
+                return noa::cuda::Device(this->id(), Unchecked{}).summary();
                 #else
                 return {};
                 #endif
@@ -78,7 +78,7 @@ namespace noa::inline types {
                 return {mem_info.total, mem_info.free};
             } else {
                 #ifdef NOA_ENABLE_CUDA
-                const auto device = noa::cuda::Device(this->id(), noa::cuda::Device::DeviceUnchecked{});
+                const auto device = noa::cuda::Device(this->id(), Unchecked{});
                 const auto mem_info = device.memory();
                 return {mem_info.total, mem_info.free};
                 #else
@@ -93,7 +93,7 @@ namespace noa::inline types {
         void set_cache_threshold(size_t threshold_bytes) const {
             if (is_gpu()) {
                 #ifdef NOA_ENABLE_CUDA
-                const auto device = noa::cuda::Device(id(), noa::cuda::Device::DeviceUnchecked{});
+                const auto device = noa::cuda::Device(id(), Unchecked{});
                 noa::cuda::MemoryPool(device).set_threshold(threshold_bytes);
                 #else
                 (void) threshold_bytes;
@@ -108,7 +108,7 @@ namespace noa::inline types {
         void trim_cache(size_t bytes_to_keep) const {
             if (is_gpu()) {
                 #ifdef NOA_ENABLE_CUDA
-                const auto device = noa::cuda::Device(id(), noa::cuda::Device::DeviceUnchecked{});
+                const auto device = noa::cuda::Device(id(), Unchecked{});
                 noa::cuda::MemoryPool(device).trim(bytes_to_keep);
                 #else
                 (void) bytes_to_keep;
@@ -157,7 +157,7 @@ namespace noa::inline types {
         static void set_current(Device device) {
             if (device.is_gpu()) {
                 #ifdef NOA_ENABLE_CUDA
-                noa::cuda::Device::set_current(noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{}));
+                noa::cuda::Device::set_current(noa::cuda::Device(device.id(), Unchecked{}));
                 #else
                 panic_no_gpu_backend();
                 #endif

@@ -176,7 +176,7 @@ namespace noa::inline types {
                         return noa::cpu::AllocatorHeap::allocate<T>(n_elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
-                        const auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+                        const auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
                         return noa::cuda::AllocatorDevice::allocate<T>(n_elements, cuda_device);
                         #else
                         panic_no_gpu_backend();
@@ -200,7 +200,7 @@ namespace noa::inline types {
                         return noa::cpu::AllocatorHeap::allocate<T>(n_elements);
                     } else {
                         #ifdef NOA_ENABLE_CUDA
-                        const auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+                        const auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
                         // AllocatorDevicePadded requires sizeof(T) <= 16 bytes.
                         if constexpr (nt::numeric<T>) {
                             auto shape = Shape<i64, 4>::from_values(1, 1, 1, n_elements);
@@ -219,7 +219,7 @@ namespace noa::inline types {
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         const auto allocating_device = device.is_gpu() ? device : Device::current_gpu();
-                        const auto cuda_device = noa::cuda::Device(allocating_device.id(), noa::cuda::Device::DeviceUnchecked{});
+                        const auto cuda_device = noa::cuda::Device(allocating_device.id(), Unchecked{});
                         return noa::cuda::AllocatorPinned::allocate<T>(n_elements, cuda_device);
                         #else
                         panic_no_gpu_backend();
@@ -275,7 +275,7 @@ namespace noa::inline types {
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         // AllocatorDevicePadded requires sizeof(T) <= 16 bytes.
-                        const auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+                        const auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
                         if constexpr (nt::numeric<T>) {
                             auto [ptr, strides] = noa::cuda::AllocatorDevicePadded::allocate<T>(shape, cuda_device);
                             return {std::move(ptr), strides};

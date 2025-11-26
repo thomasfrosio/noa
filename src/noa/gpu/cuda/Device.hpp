@@ -16,9 +16,6 @@ namespace noa::cuda {
     /// A CUDA device.
     class Device {
     public:
-        struct DeviceUnchecked{};
-
-    public:
         /// Creates the current device.
         Device() : m_id(current().m_id) {}
 
@@ -27,7 +24,7 @@ namespace noa::cuda {
             validate_(m_id);
         }
 
-        constexpr explicit Device(std::integral auto id, DeviceUnchecked) : m_id(static_cast<i32>(id)) {}
+        constexpr explicit Device(std::integral auto id, Unchecked) : m_id(static_cast<i32>(id)) {}
 
     public:
         /// Suspends execution until all previously scheduled tasks on the specified device (all contexts and streams)
@@ -161,7 +158,7 @@ namespace noa::cuda {
         /// Returns the device on which the active host thread executes the device code.
         /// The default device is the first device, i.e. device with ID=0.
         static Device current() {
-            Device device(0, DeviceUnchecked{});
+            Device device(0, Unchecked{});
             check(cudaGetDevice(&device.m_id));
             return device;
         }
@@ -180,7 +177,7 @@ namespace noa::cuda {
 
         /// Gets the device with the most free memory available for allocation.
         static Device most_free() {
-            Device most_free(0, DeviceUnchecked{});
+            Device most_free(0, Unchecked{});
             size_t available_mem{};
             for (auto& device: all()) {
                 const size_t dev_available_mem = device.memory().free;

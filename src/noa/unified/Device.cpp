@@ -6,7 +6,7 @@ namespace noa {
         Stream::current(*this).synchronize();
         #ifdef NOA_ENABLE_CUDA
         if (is_gpu())
-            noa::cuda::Device(this->id(), noa::cuda::Device::DeviceUnchecked{}).synchronize();
+            noa::cuda::Device(this->id(), Unchecked{}).synchronize();
         #endif
     }
 
@@ -21,7 +21,7 @@ namespace noa {
             noa::cpu::Device::reset();
         } else {
             #ifdef NOA_ENABLE_CUDA
-            noa::cuda::Device(id(), noa::cuda::Device::DeviceUnchecked{}).reset();
+            noa::cuda::Device(id(), Unchecked{}).reset();
             #endif
         }
     }

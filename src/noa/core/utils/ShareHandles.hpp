@@ -10,16 +10,6 @@ namespace noa::traits {
     NOA_GENERATE_PROCLAIM_FULL(shared_ptr);
     template<typename T> struct proclaim_is_shared_ptr<std::shared_ptr<T>> : std::true_type {};
 
-    template<typename T> using is_smart_ptr = std::disjunction<is_unique_ptr<T>, is_shared_ptr<T>>;
-    template<typename T> constexpr bool is_smart_ptr_v = is_smart_ptr<T>::value;
-    template<typename... T> constexpr bool are_smart_ptr_v = conjunction_or_false<is_smart_ptr<T>...>::value;
-    template<typename... T> concept smart_ptr = are_smart_ptr_v<T...>;
-
-    template<typename T> using is_smart_ptr_decay = is_smart_ptr<std::decay_t<T>>;
-    template<typename T> constexpr bool is_smart_ptr_decay_v = is_smart_ptr_decay<T>::value;
-    template<typename... T> constexpr bool are_smart_ptr_decay_v = conjunction_or_false<is_smart_ptr_decay<T>...>::value;
-    template<typename... T> concept smart_ptr_decay = are_smart_ptr_decay_v<T...>;
-
     template<typename T>
     concept shareable =
         requires(T t) { std::shared_ptr<const void>(t); } and

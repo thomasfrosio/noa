@@ -272,7 +272,7 @@ namespace noa {
                 // against which the allocation was performed and not the current device. With "stream-attached"
                 // managed memory, it is up to the user to know what stream was used to perform the allocation.
                 const cudaPointerAttributes attr = noa::cuda::pointer_attributes(input.get());
-                gpu_device = Device(Device::GPU, attr.device, Device::Unchecked{});
+                gpu_device = Device(Device::GPU, attr.device, Unchecked{});
                 check((options.allocator == Allocator::PINNED and attr.type == cudaMemoryTypeHost) or
                       (options.allocator.is_any(Allocator::MANAGED, Allocator::PITCHED_MANAGED) and attr.type == cudaMemoryTypeManaged));
 
@@ -349,39 +349,52 @@ namespace noa::inline types {
             m_shape{1, 1, 1, n_elements},
             m_strides{n_elements, n_elements, n_elements, 1},
             m_ptr{data},
-            m_options{options} {}
+            m_options{options}
+        {
+            allocator().validate(data, device());
+        }
 
         /// Creates a view of a 1d (contiguous) span.
-        template<StridesTraits StridesTrait>
-        constexpr explicit View(const Span<value_type, 1, index_type, StridesTrait>& span, ArrayOption options = {}) :
+        template<StridesTraits S>
+        constexpr explicit View(const Span<value_type, 1, index_type, S>& span, ArrayOption options = {}) :
             m_ptr{span.data()}, m_options{options}
         {
+            allocator().validate(span.data(), device());
             auto span_4d = span.as_4d(); // row vector
             m_shape = span_4d.shape();
             m_strides = span_4d.strides_full();
         }
 
         /// Creates a view of a 4d (contiguous) span.
-        template<StridesTraits StridesTrait>
-        constexpr explicit View(const Span<value_type, 4, index_type, StridesTrait>& span, ArrayOption options = {}) noexcept :
+        template<StridesTraits S>
+        constexpr explicit View(const Span<value_type, 4, index_type, S>& span, ArrayOption options = {}) noexcept :
             m_shape{span.shape()},
             m_strides{span.strides_full()},
             m_ptr{span.data()},
-            m_options{options} {}
+            m_options{options}
+        {
+            allocator().validate(span.data(), device());
+        }
 
         /// Creates a view of a strided 4d memory region.
         constexpr View(T* data, const shape_type& shape, const strides_type& strides, ArrayOption options = {}) noexcept :
             m_shape{shape},
             m_strides{strides},
             m_ptr{data},
-            m_options{options} {}
+            m_options{options}
+        {
+            allocator().validate(data, device());
+        }
 
         /// Creates a view of a strided 4d memory region, assuming the data is C-contiguous.
         constexpr View(T* data, const shape_type& shape, ArrayOption options = {}) noexcept :
             m_shape{shape},
             m_strides{shape.strides()},
             m_ptr{data},
-            m_options{options} {}
+            m_options{options}
+        {
+            allocator().validate(data, device());
+        }
 
         /// Creates a const view from an existing non-const view.
         template<nt::mutable_of<value_type> U>
@@ -398,6 +411,13 @@ namespace noa::inline types {
             m_strides{array.strides()},
             m_ptr{array.data()},
             m_options{array.options()} {}
+
+        /// Creates a view of a strided 4d memory region, but don't validate the data pointer.
+        constexpr View(T* data, const shape_type& shape, const strides_type& strides, ArrayOption options, Unchecked) noexcept :
+            m_shape{shape},
+            m_strides{strides},
+            m_ptr{data},
+            m_options{options} {}
 
     public: // Getters
         [[nodiscard]] constexpr auto options() const noexcept -> const ArrayOption& { return m_options; }
@@ -528,7 +548,10 @@ namespace noa::inline types {
                 return get()[0];
             } else {
                 mutable_value_type output;
-                View(get(), 1, options()).to(View(&output));
+                auto one_shape = shape_type::from_value(1);
+                auto one_strides = strides_type::from_value(1);
+                View(get(), one_shape, one_strides, options(), Unchecked{}).to(
+                    View(&output, one_shape, one_strides, ArrayOption{}, Unchecked{}));
                 eval(); // protect against async cpu stream
                 return output;
             }
@@ -562,24 +585,27 @@ namespace noa::inline types {
         template<typename U>
         [[nodiscard]] auto reinterpret_as() const -> View<U> {
             const auto out = ni::ReinterpretLayout(shape(), strides(), get()).template as<U>();
-            return View<U>(out.ptr, out.shape, out.strides, options());
+            return View<U>(out.ptr, out.shape, out.strides, options(), Unchecked{});
         }
 
         /// Reshapes the view (must have the same number of elements as the current view).
         [[nodiscard]] constexpr auto reshape(shape_type new_shape) const -> View {
-            return View(span().reshape(new_shape), options());
+            auto new_span = span().reshape(new_shape);
+            return View(new_span.data(), new_span.shape(), new_span.strides(), options(), Unchecked{});
         }
 
         /// Reshapes the array in a vector along a particular axis.
         /// Returns a row vector by default (axis = 3).
         [[nodiscard]] constexpr auto flat(i32 axis = 3) const -> View {
-            return View(span().flat(axis), options());
+            auto new_span = span().flat(axis);
+            return View(new_span.data(), new_span.shape(), new_span.strides(), options(), Unchecked{});
         }
 
         /// Permutes the dimensions of the view.
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
         [[nodiscard]] constexpr auto permute(const Vec4<i64>& permutation) const -> View {
-            return View(span().permute(permutation), options());
+            auto new_span = span().permute(permutation);
+            return View(new_span.data(), new_span.shape(), new_span.strides(), options(), Unchecked{});
         }
 
         [[nodiscard]] auto permute_copy(const Vec4<i64>& permutation) const -> Array<mutable_value_type> {
@@ -617,7 +643,7 @@ namespace noa::inline types {
         template<typename... U>
         [[nodiscard]] constexpr auto subregion(const ni::Subregion<4, U...>& subregion) const -> View {
             auto [new_shape, new_strides, offset] = subregion.extract_from(shape(), strides());
-            return View(get() + offset, new_shape, new_strides, options());
+            return View(get() + offset, new_shape, new_strides, options(), Unchecked{});
         }
 
         /// Subregion indexing. Extracts a subregion from the current view.

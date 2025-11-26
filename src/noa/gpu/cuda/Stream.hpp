@@ -295,6 +295,6 @@ namespace noa::cuda {
 
     private:
         std::shared_ptr<Core> m_core{};
-        Device m_device{0, Device::DeviceUnchecked{}};
+        Device m_device{0, Unchecked{}};
     };
 }

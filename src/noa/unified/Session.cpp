@@ -59,7 +59,7 @@ namespace noa::inline types {
         if (device.is_cpu())
             return noa::cpu::fft::clear_cache();
         #ifdef NOA_ENABLE_CUDA
-        auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+        auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
         return noa::cuda::fft::clear_cache(cuda_device);
         #else
         return 0;
@@ -69,7 +69,7 @@ namespace noa::inline types {
     auto Session::set_fft_cache_limit(i64 count, Device device) -> i64 {
         #ifdef NOA_ENABLE_CUDA
         if (device.is_gpu()) {
-            auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+            auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
             return noa::cuda::fft::set_cache_limit(cuda_device, safe_cast<i32>(count));
         }
         #else
@@ -82,7 +82,7 @@ namespace noa::inline types {
     auto Session::fft_cache_limit(Device device) -> i64 {
         #ifdef NOA_ENABLE_CUDA
         if (device.is_gpu()) {
-            auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+            auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
             return noa::cuda::fft::cache_limit(cuda_device);
         }
         #else
@@ -95,7 +95,7 @@ namespace noa::inline types {
         if (device.is_cpu())
             return noa::cpu::fft::cache_size();
         #ifdef NOA_ENABLE_CUDA
-        auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+        auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
         return noa::cuda::fft::cache_size(cuda_device);
         #else
         return -1;
@@ -105,7 +105,7 @@ namespace noa::inline types {
     auto Session::fft_workspace_left_to_allocate(Device device) -> size_t {
         #ifdef NOA_ENABLE_CUDA
         if (device.is_gpu()) {
-            auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+            auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
             return noa::cuda::fft::workspace_left_to_allocate(cuda_device);
         }
         #else
@@ -118,7 +118,7 @@ namespace noa::inline types {
         if (device.is_cpu())
             return;
         #ifdef NOA_ENABLE_CUDA
-        auto cuda_device = noa::cuda::Device(device.id(), noa::cuda::Device::DeviceUnchecked{});
+        auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
         noa::cuda::cublas_clear_cache(cuda_device);
         #else
         (void) device;
