@@ -8,7 +8,7 @@
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Iwise.hpp"
 
-namespace noa::fft::guts {
+namespace noa::fft::details {
     template<Layout REMAP,
              nt::sinteger Index,
              nt::writable_nd<4> Output>
@@ -280,69 +280,69 @@ namespace noa::fft {
                 break;
             case Layout::H2HC: {
                 if (is_inplace) {
-                    auto op = guts::FourierRemapInplace<Layout::H2HC, i64, output_accessor_t>(output_accessor, shape_3d);
+                    auto op = details::FourierRemapInplace<Layout::H2HC, i64, output_accessor_t>(output_accessor, shape_3d);
                     return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
                 }
-                auto op = guts::FourierRemap<Layout::H2HC, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::H2HC, i64, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::HC2H: {
                 if (is_inplace) {
-                    auto op = guts::FourierRemapInplace<Layout::HC2H, i64, output_accessor_t>(output_accessor, shape_3d);
+                    auto op = details::FourierRemapInplace<Layout::HC2H, i64, output_accessor_t>(output_accessor, shape_3d);
                     return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
                 }
-                auto op = guts::FourierRemap<Layout::HC2H, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::HC2H, i64, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::H2F: {
-                auto op = guts::FourierRemap<Layout::H2F, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::H2F, i64, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::F2H: {
-                auto op = guts::FourierRemap<Layout::F2H, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::F2H, i64, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::F2FC: {
-                auto op = guts::FourierRemap<Layout::F2FC, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::F2FC, i64, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::FC2F: {
-                auto op = guts::FourierRemap<Layout::FC2F, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::FC2F, i64, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::HC2F: {
-                auto op = guts::FourierRemap<Layout::HC2F, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::HC2F, i64, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::F2HC: {
-                auto op = guts::FourierRemap<Layout::F2HC, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::F2HC, i64, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::FC2H: {
-                auto op = guts::FourierRemap<Layout::FC2H, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::FC2H, i64, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::FC2HC: {
-                auto op = guts::FourierRemap<Layout::FC2HC, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::FC2HC, i64, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::HC2FC: {
-                auto op = guts::FourierRemap<Layout::HC2FC, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::HC2FC, i64, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::H2FC: {
-                auto op = guts::FourierRemap<Layout::H2FC, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::H2FC, i64, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }

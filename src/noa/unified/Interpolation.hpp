@@ -8,7 +8,7 @@
 #include "noa/gpu/cuda/Texture.cuh"
 #endif
 
-namespace noa::guts {
+namespace noa::details {
     /// Returns the input type for the Interpolator.
     /// - Supports View, Array and Texture.
     ///   For GPU textures, use EXTRACT_GPU_TEXTURE to extract the GPU texture; otherwise array is used.

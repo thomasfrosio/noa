@@ -6,7 +6,7 @@
 #include "noa/core/math/Comparison.hpp"
 
 // Adapted from https://github.com/pytorch/pytorch/blob/master/c10/util/irange.h
-namespace noa::guts {
+namespace noa::details {
     template<nt::integer I>
     struct IntIterator {
     public:
@@ -46,11 +46,11 @@ namespace noa {
     struct IntRange {
     public:
         constexpr IntRange(I begin, I end) noexcept: m_begin(begin), m_end(end) {}
-        constexpr guts::IntIterator<I> begin() const noexcept { return m_begin; }
-        constexpr guts::IntIterator<I> end() const noexcept { return m_end; }
+        constexpr details::IntIterator<I> begin() const noexcept { return m_begin; }
+        constexpr details::IntIterator<I> end() const noexcept { return m_end; }
     private:
-        guts::IntIterator<I> m_begin;
-        guts::IntIterator<I> m_end;
+        details::IntIterator<I> m_begin;
+        details::IntIterator<I> m_end;
     };
 
     /// Creates an integer range for the half-open interval [begin, end)

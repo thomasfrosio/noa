@@ -7,7 +7,7 @@
 
 TEST_CASE("core::IwiseInterface") {
     using namespace noa::types;
-    using namespace noa::guts;
+    using namespace noa::details;
 
     constexpr size_t size = 1000;
     const auto b0 = std::make_unique<i32[]>(size);
@@ -50,7 +50,7 @@ TEST_CASE("core::IwiseInterface") {
 
 TEST_CASE("core::EwiseInterface") {
     using namespace noa::types;
-    using namespace noa::guts;
+    using namespace noa::details;
 
     constexpr size_t size = 200;
     const auto b0 = std::make_unique<i32[]>(size);
@@ -94,7 +94,7 @@ TEST_CASE("core::EwiseInterface") {
 
 TEST_CASE("core::ReduceIwiseInterface") {
     using namespace noa::types;
-    using noa::guts::ReduceIwiseInterface;
+    using noa::details::ReduceIwiseInterface;
 
     AND_THEN("simple sum") {
         const auto buffer = std::make_unique<i32[]>(100);
@@ -172,7 +172,7 @@ TEST_CASE("core::ReduceIwiseInterface") {
 
 TEST_CASE("core::ReduceEwiseInterface") {
     using namespace noa::types;
-    using noa::guts::ReduceEwiseInterface;
+    using noa::details::ReduceEwiseInterface;
 
     AND_THEN("simple sum") {
         const auto b0 = std::make_unique<i32[]>(100);

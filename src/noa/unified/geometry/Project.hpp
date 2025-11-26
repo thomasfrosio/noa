@@ -9,7 +9,7 @@
 #include "noa/unified/Interpolation.hpp"
 #include "noa/unified/Iwise.hpp"
 
-namespace noa::geometry::guts {
+namespace noa::geometry::details {
     template<nt::any_of<f32, f64> T, typename X>
     constexpr auto project_vector(
         const X& xform,
@@ -118,7 +118,7 @@ namespace noa::geometry::guts {
             const auto output_coordinates = coord_4d_type::from_values(z, y, x, 1);
             const auto input_coordinates = project_vector(m_batched_inverse_matrices[i], output_coordinates);
             const auto value = static_cast<output_value_type>(m_input.interpolate_at(input_coordinates, i));
-            ng::atomic_add(m_output, value, z, y, x);
+            nd::atomic_add(m_output, value, z, y, x);
         }
 
     private:
@@ -179,7 +179,7 @@ namespace noa::geometry::guts {
                 return;
 
             const auto value = static_cast<output_value_type>(m_input.interpolate_at(volume_coordinates, i));
-            ng::atomic_add(m_output, value, i, y, x); // sum along z
+            nd::atomic_add(m_output, value, i, y, x); // sum along z
         }
 
     private:
@@ -274,7 +274,7 @@ namespace noa::geometry::guts {
                 }
             }
 
-            ng::atomic_add(m_output, value, i, y, x); // sum along z
+            nd::atomic_add(m_output, value, i, y, x); // sum along z
         }
 
     private:
@@ -343,14 +343,14 @@ namespace noa::geometry::guts {
     void launch_backward_projection(Input&& input, Output&& output, Transform&& projection_matrices, auto& options) {
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, 3, Index>;
         auto output_accessor = output_accessor_t(output.get(), output.strides().filter(1, 2, 3).template as<Index>());
-        auto batched_projection_matrices = ng::to_batched_transform(projection_matrices);
+        auto batched_projection_matrices = nd::to_batched_transform(projection_matrices);
 
         if constexpr (nt::texture_decay<Input>)
             options.interp = input.interp();
 
         auto launch_iwise = [&](auto interp) {
             using coord_t = nt::mutable_value_type_twice_t<Transform>;
-            auto interpolator = ng::to_interpolator<2, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
+            auto interpolator = nd::to_interpolator<2, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
             using op_t = BackwardProject<Index, decltype(interpolator), output_accessor_t, decltype(batched_projection_matrices)>;
             auto op = op_t(interpolator, output_accessor, batched_projection_matrices,
                            static_cast<Index>(input.shape()[0]), options.add_to_output);
@@ -365,14 +365,14 @@ namespace noa::geometry::guts {
         };
 
         switch (options.interp) {
-            case Interp::NEAREST:            return launch_iwise(ng::WrapInterp<Interp::NEAREST>{});
-            case Interp::NEAREST_FAST:       return launch_iwise(ng::WrapInterp<Interp::NEAREST_FAST>{});
-            case Interp::LINEAR:             return launch_iwise(ng::WrapInterp<Interp::LINEAR>{});
-            case Interp::LINEAR_FAST:        return launch_iwise(ng::WrapInterp<Interp::LINEAR_FAST>{});
-            case Interp::CUBIC:              return launch_iwise(ng::WrapInterp<Interp::CUBIC>{});
-            case Interp::CUBIC_FAST:         return launch_iwise(ng::WrapInterp<Interp::CUBIC_FAST>{});
-            case Interp::CUBIC_BSPLINE:      return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
-            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::NEAREST:            return launch_iwise(nd::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_iwise(nd::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_iwise(nd::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_iwise(nd::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_iwise(nd::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_iwise(nd::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_iwise(nd::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(nd::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
             default:                         panic("The interp mode {} is not supported", options.interp);
         }
     }
@@ -387,14 +387,14 @@ namespace noa::geometry::guts {
 
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, 3, Index>;
         auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0, 2, 3).template as<Index>());
-        auto batched_projection_matrices = ng::to_batched_transform(projection_matrices);
+        auto batched_projection_matrices = nd::to_batched_transform(projection_matrices);
 
         if constexpr (nt::texture_decay<Input>)
             options.interp = input.interp();
 
         auto launch_iwise = [&](auto interp) {
             using coord_t = nt::mutable_value_type_twice_t<Transform>;
-            auto interpolator = ng::to_interpolator<3, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
+            auto interpolator = nd::to_interpolator<3, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
             using op_t = ForwardProject<Index, decltype(interpolator), output_accessor_t, decltype(batched_projection_matrices)>;
             auto op = op_t(
                 interpolator, output_accessor,
@@ -415,14 +415,14 @@ namespace noa::geometry::guts {
         };
 
         switch (options.interp) {
-            case Interp::NEAREST:            return launch_iwise(ng::WrapInterp<Interp::NEAREST>{});
-            case Interp::NEAREST_FAST:       return launch_iwise(ng::WrapInterp<Interp::NEAREST_FAST>{});
-            case Interp::LINEAR:             return launch_iwise(ng::WrapInterp<Interp::LINEAR>{});
-            case Interp::LINEAR_FAST:        return launch_iwise(ng::WrapInterp<Interp::LINEAR_FAST>{});
-            case Interp::CUBIC:              return launch_iwise(ng::WrapInterp<Interp::CUBIC>{});
-            case Interp::CUBIC_FAST:         return launch_iwise(ng::WrapInterp<Interp::CUBIC_FAST>{});
-            case Interp::CUBIC_BSPLINE:      return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
-            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::NEAREST:            return launch_iwise(nd::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_iwise(nd::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_iwise(nd::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_iwise(nd::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_iwise(nd::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_iwise(nd::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_iwise(nd::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(nd::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
             default:                         panic("The interp mode {} is not supported", options.interp);
         }
     }
@@ -440,15 +440,15 @@ namespace noa::geometry::guts {
 
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, 3, Index>;
         auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0, 2, 3).template as<Index>());
-        auto batched_backward_projection_matrices = ng::to_batched_transform(backward_projection_matrices);
-        auto batched_forward_projection_matrices = ng::to_batched_transform(forward_projection_matrices);
+        auto batched_backward_projection_matrices = nd::to_batched_transform(backward_projection_matrices);
+        auto batched_forward_projection_matrices = nd::to_batched_transform(forward_projection_matrices);
 
         if constexpr (nt::texture_decay<Input>)
             options.interp = input.interp();
 
         auto launch_iwise = [&](auto interp) {
             using coord_t = nt::mutable_value_type_twice_t<BackwardTransform>;
-            auto interpolator = ng::to_interpolator<2, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
+            auto interpolator = nd::to_interpolator<2, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
 
             using op_t = BackwardForwardProject<
                 Index, decltype(interpolator), output_accessor_t,
@@ -473,14 +473,14 @@ namespace noa::geometry::guts {
         };
 
         switch (options.interp) {
-            case Interp::NEAREST:            return launch_iwise(ng::WrapInterp<Interp::NEAREST>{});
-            case Interp::NEAREST_FAST:       return launch_iwise(ng::WrapInterp<Interp::NEAREST_FAST>{});
-            case Interp::LINEAR:             return launch_iwise(ng::WrapInterp<Interp::LINEAR>{});
-            case Interp::LINEAR_FAST:        return launch_iwise(ng::WrapInterp<Interp::LINEAR_FAST>{});
-            case Interp::CUBIC:              return launch_iwise(ng::WrapInterp<Interp::CUBIC>{});
-            case Interp::CUBIC_FAST:         return launch_iwise(ng::WrapInterp<Interp::CUBIC_FAST>{});
-            case Interp::CUBIC_BSPLINE:      return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
-            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::NEAREST:            return launch_iwise(nd::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_iwise(nd::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_iwise(nd::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_iwise(nd::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_iwise(nd::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_iwise(nd::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_iwise(nd::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(nd::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
             default:                         panic("The interp mode {} is not supported", options.interp);
         }
     }
@@ -549,7 +549,7 @@ namespace noa::geometry {
         Transform&& projection_matrices,
         ProjectionOptions options = {}
     ) {
-        guts::check_projection_parameters<guts::ProjectionType::BACKWARD>(
+        details::check_projection_parameters<details::ProjectionType::BACKWARD>(
             input_images, output_volume, projection_matrices, {});
 
         if (output_volume.device().is_gpu()) {
@@ -557,11 +557,11 @@ namespace noa::geometry {
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
-                check(ng::is_accessor_access_safe<i32>(input_images.strides(), input_images.shape()) and
-                      ng::is_accessor_access_safe<i32>(output_volume.strides(), output_volume.shape()),
+                check(nd::is_accessor_access_safe<i32>(input_images.strides(), input_images.shape()) and
+                      nd::is_accessor_access_safe<i32>(output_volume.strides(), output_volume.shape()),
                       "i64 indexing not instantiated for GPU devices");
 
-                guts::launch_backward_projection<i32, true>(
+                details::launch_backward_projection<i32, true>(
                     std::forward<Input>(input_images),
                     std::forward<Output>(output_volume),
                     std::forward<Transform>(projection_matrices),
@@ -572,7 +572,7 @@ namespace noa::geometry {
             panic_no_gpu_backend();
             #endif
         }
-        guts::launch_backward_projection<i64>(
+        details::launch_backward_projection<i64>(
             std::forward<Input>(input_images),
             std::forward<Output>(output_volume),
             std::forward<Transform>(projection_matrices),
@@ -600,7 +600,7 @@ namespace noa::geometry {
         i64 projection_window_size,
         const ProjectionOptions& options = {}
     ) {
-        guts::check_projection_parameters<guts::ProjectionType::FORWARD>(
+        details::check_projection_parameters<details::ProjectionType::FORWARD>(
             input_volume, output_images, {}, projection_matrices);
 
         if (output_images.device().is_gpu()) {
@@ -608,11 +608,11 @@ namespace noa::geometry {
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
-                check(ng::is_accessor_access_safe<i32>(input_volume.strides(), input_volume.shape()) and
-                      ng::is_accessor_access_safe<i32>(output_images.strides(), output_images.shape()),
+                check(nd::is_accessor_access_safe<i32>(input_volume.strides(), input_volume.shape()) and
+                      nd::is_accessor_access_safe<i32>(output_images.strides(), output_images.shape()),
                       "i64 indexing not instantiated for GPU devices");
 
-                guts::launch_forward_projection<i32, true>(
+                details::launch_forward_projection<i32, true>(
                     std::forward<Input>(input_volume),
                     std::forward<Output>(output_images),
                     std::forward<Transform>(projection_matrices),
@@ -623,7 +623,7 @@ namespace noa::geometry {
             panic_no_gpu_backend();
             #endif
         }
-        guts::launch_forward_projection<i64>(
+        details::launch_forward_projection<i64>(
             std::forward<Input>(input_volume),
             std::forward<Output>(output_images),
             std::forward<Transform>(projection_matrices),
@@ -673,7 +673,7 @@ namespace noa::geometry {
         i64 projection_window_size,
         const ProjectionOptions& options = {}
     ) {
-        guts::check_projection_parameters<guts::ProjectionType::FUSED>(
+        details::check_projection_parameters<details::ProjectionType::FUSED>(
             input_images, output_images, backward_projection_matrices, forward_projection_matrices);
 
         if (output_images.device().is_gpu()) {
@@ -681,11 +681,11 @@ namespace noa::geometry {
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
-                check(ng::is_accessor_access_safe<i32>(input_images.strides(), input_images.shape()) and
-                      ng::is_accessor_access_safe<i32>(output_images.strides(), output_images.shape()),
+                check(nd::is_accessor_access_safe<i32>(input_images.strides(), input_images.shape()) and
+                      nd::is_accessor_access_safe<i32>(output_images.strides(), output_images.shape()),
                       "i64 indexing not instantiated for GPU devices");
 
-                guts::launch_fused_projection<i32, true>(
+                details::launch_fused_projection<i32, true>(
                     std::forward<Input>(input_images),
                     std::forward<Output>(output_images), volume_shape,
                     std::forward<InputTransform>(backward_projection_matrices),
@@ -697,7 +697,7 @@ namespace noa::geometry {
             panic_no_gpu_backend();
             #endif
         }
-        guts::launch_fused_projection<i64>(
+        details::launch_fused_projection<i64>(
             std::forward<Input>(input_images),
             std::forward<Output>(output_images), volume_shape,
             std::forward<InputTransform>(backward_projection_matrices),

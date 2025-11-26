@@ -126,7 +126,7 @@ namespace noa::cuda {
     };
 }
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     template<typename Tup>
     struct vectorized_tuple { using type = Tup; };
 

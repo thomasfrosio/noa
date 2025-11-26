@@ -26,7 +26,7 @@ namespace noa {
     };
 }
 
-namespace noa::guts {
+namespace noa::details {
     template<EwiseOptions, bool, bool, typename Inputs, typename Outputs, typename EwiseOp>
     void ewise(Inputs&&, Outputs&&, EwiseOp&&);
 }
@@ -67,27 +67,27 @@ namespace noa {
     ///       outputs is not the rightmost order, output varrays are reordered to the rightmost order to maximize
     ///       performance. Of course, this means that input varrays are reordered as well for correctness.
     template<EwiseOptions OPTIONS = EwiseOptions{},
-             typename Input = ng::AdaptorUnzip<>,
-             typename Output = ng::AdaptorUnzip<>,
+             typename Input = nd::AdaptorUnzip<>,
+             typename Output = nd::AdaptorUnzip<>,
              typename EwiseOperator> // TODO EwiseChecker
     void ewise(Input&& inputs, Output&& outputs, EwiseOperator&& op) {
-        if constexpr (ng::adaptor_decay<Input, Output>) {
-            ng::ewise<OPTIONS, std::decay_t<Input>::ZIP, std::decay_t<Output>::ZIP>(
+        if constexpr (nd::adaptor_decay<Input, Output>) {
+            nd::ewise<OPTIONS, std::decay_t<Input>::ZIP, std::decay_t<Output>::ZIP>(
                 std::forward<Input>(inputs).tuple,
                 std::forward<Output>(outputs).tuple,
                 std::forward<EwiseOperator>(op));
-        } else if constexpr (ng::adaptor_decay<Input>) {
-            ng::ewise<OPTIONS, std::decay_t<Input>::ZIP, false>(
+        } else if constexpr (nd::adaptor_decay<Input>) {
+            nd::ewise<OPTIONS, std::decay_t<Input>::ZIP, false>(
                 std::forward<Input>(inputs).tuple,
                 forward_as_tuple(std::forward<Output>(outputs)), // wrap
                 std::forward<EwiseOperator>(op));
-        } else if constexpr (ng::adaptor_decay<Output>) {
-            ng::ewise<OPTIONS, false, std::decay_t<Output>::ZIP>(
+        } else if constexpr (nd::adaptor_decay<Output>) {
+            nd::ewise<OPTIONS, false, std::decay_t<Output>::ZIP>(
                 forward_as_tuple(std::forward<Input>(inputs)), // wrap
                 std::forward<Output>(outputs).tuple,
                 std::forward<EwiseOperator>(op));
         } else {
-            ng::ewise<OPTIONS, false, false>(
+            nd::ewise<OPTIONS, false, false>(
                 forward_as_tuple(std::forward<Input>(inputs)), // wrap
                 forward_as_tuple(std::forward<Output>(outputs)), // wrap
                 std::forward<EwiseOperator>(op));
@@ -95,7 +95,7 @@ namespace noa {
     }
 }
 
-namespace noa::guts {
+namespace noa::details {
     template<EwiseOptions OPTIONS, bool ZIP_INPUT, bool ZIP_OUTPUT, typename Inputs, typename Outputs, typename EwiseOp>
     void ewise(Inputs&& inputs, Outputs&& outputs, EwiseOp&& ewise_op) {
         constexpr size_t N_INPUTS = std::tuple_size_v<std::decay_t<Inputs>>;
@@ -106,8 +106,8 @@ namespace noa::guts {
             // While these are forwarded, varrays are actually never moved, it simply returns the .accessor().
             // For anything other than varrays, it can be moved thus left in an unspecified state,
             // i.e. we shouldn't read from these elements again.
-            Tuple input_accessors = guts::to_tuple_of_accessors(std::forward<Inputs>(inputs));
-            Tuple output_accessors = guts::to_tuple_of_accessors(std::forward<Outputs>(outputs));
+            Tuple input_accessors = details::to_tuple_of_accessors(std::forward<Inputs>(inputs));
+            Tuple output_accessors = details::to_tuple_of_accessors(std::forward<Outputs>(outputs));
 
             Shape4<i64> shape;
             Device device;
@@ -115,7 +115,7 @@ namespace noa::guts {
             bool do_reorder{};
 
             if constexpr (N_OUTPUTS >= 1) {
-                if constexpr (guts::are_all_varrays<Outputs>()) {
+                if constexpr (details::are_all_varrays<Outputs>()) {
                     const auto& first_output = outputs[Tag<0>{}];
                     shape = first_output.shape();
                     device = first_output.device();
@@ -166,7 +166,7 @@ namespace noa::guts {
                     static_assert(nt::always_false<>, "The outputs should be varrays");
                 }
             } else { // N_INPUTS >= 1
-                constexpr i64 index_of_first_varray = guts::index_of_first_varray<Inputs>();
+                constexpr i64 index_of_first_varray = details::index_of_first_varray<Inputs>();
                 if constexpr (index_of_first_varray >= 0) {
                     constexpr auto INDEX = static_cast<size_t>(index_of_first_varray);
                     const auto& first_input_array = inputs[Tag<INDEX>{}];
@@ -202,7 +202,7 @@ namespace noa::guts {
 
             if (do_reorder) {
                 shape = shape.reorder(order);
-                guts::reorder_accessors(order, input_accessors, output_accessors);
+                details::reorder_accessors(order, input_accessors, output_accessors);
             }
 
             Stream& stream = Stream::current(device);
@@ -223,8 +223,8 @@ namespace noa::guts {
                             op = std::forward<EwiseOp>(ewise_op),
                             ia = std::move(input_accessors),
                             oa = std::move(output_accessors),
-                            ih = guts::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs)),
-                            oh = guts::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs))
+                            ih = details::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs)),
+                            oh = details::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs))
                         ] {
                             noa::cpu::ewise<config>(shape, std::move(op), std::move(ia), std::move(oa), n_threads);
                         });
@@ -254,8 +254,8 @@ namespace noa::guts {
                         // a shared_ptr, and ignores everything else. As such, we could directly pass the values
                         // of "inputs" and "outputs", but here we explicitly only want to save the shared_ptr
                         // from arrays.
-                        auto ih = guts::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs));
-                        auto oh = guts::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs));
+                        auto ih = details::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs));
+                        auto oh = details::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs));
                         cuda_stream.enqueue_attach(std::move(ih)[Tag<I>{}]..., std::move(oh)[Tag<O>{}]...);
 
                         // Work-around to remove spurious "set but unused variable" warning (g++11).

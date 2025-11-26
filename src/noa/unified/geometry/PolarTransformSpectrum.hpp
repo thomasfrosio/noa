@@ -8,7 +8,7 @@
 #include "noa/unified/Interpolation.hpp"
 #include "noa/unified/geometry/PolarTransform.hpp"
 
-namespace noa::geometry::guts {
+namespace noa::geometry::details {
     /// 3d iwise operator to compute the spectrum->polar transformation of 2d (r)FFT(s).
     template<nt::sinteger Index,
              nt::any_of<f32, f64> Coord,
@@ -108,7 +108,7 @@ namespace noa::geometry::guts {
         const auto output_accessor = output_accessor_t(polar.get(), polar.strides().filter(0, 2, 3).template as<Index>());
 
         auto launch_iwise = [&](auto interp) {
-            auto interpolator = ng::to_interpolator_spectrum<2, REMAP, interp(), coord_t, IS_GPU>(
+            auto interpolator = nd::to_interpolator_spectrum<2, REMAP, interp(), coord_t, IS_GPU>(
                 spectrum, spectrum_shape
             );
             auto polar_shape = polar.shape().filter(0, 2, 3).template as<Index>();
@@ -128,20 +128,20 @@ namespace noa::geometry::guts {
         if constexpr (nt::texture_decay<Input>)
             interp = spectrum.interp();
         switch (interp) {
-            case Interp::NEAREST:            return launch_iwise(ng::WrapInterp<Interp::NEAREST>{});
-            case Interp::NEAREST_FAST:       return launch_iwise(ng::WrapInterp<Interp::NEAREST_FAST>{});
-            case Interp::LINEAR:             return launch_iwise(ng::WrapInterp<Interp::LINEAR>{});
-            case Interp::LINEAR_FAST:        return launch_iwise(ng::WrapInterp<Interp::LINEAR_FAST>{});
-            case Interp::CUBIC:              return launch_iwise(ng::WrapInterp<Interp::CUBIC>{});
-            case Interp::CUBIC_FAST:         return launch_iwise(ng::WrapInterp<Interp::CUBIC_FAST>{});
-            case Interp::CUBIC_BSPLINE:      return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
-            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
-            case Interp::LANCZOS4:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS4>{});
-            case Interp::LANCZOS6:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS6>{});
-            case Interp::LANCZOS8:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS8>{});
-            case Interp::LANCZOS4_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS4_FAST>{});
-            case Interp::LANCZOS6_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS6_FAST>{});
-            case Interp::LANCZOS8_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS8_FAST>{});
+            case Interp::NEAREST:            return launch_iwise(nd::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_iwise(nd::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_iwise(nd::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_iwise(nd::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_iwise(nd::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_iwise(nd::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_iwise(nd::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(nd::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::LANCZOS4:           return launch_iwise(nd::WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:           return launch_iwise(nd::WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:           return launch_iwise(nd::WrapInterp<Interp::LANCZOS8>{});
+            case Interp::LANCZOS4_FAST:      return launch_iwise(nd::WrapInterp<Interp::LANCZOS4_FAST>{});
+            case Interp::LANCZOS6_FAST:      return launch_iwise(nd::WrapInterp<Interp::LANCZOS6_FAST>{});
+            case Interp::LANCZOS8_FAST:      return launch_iwise(nd::WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
 }
@@ -193,7 +193,7 @@ namespace noa::geometry {
         Output&& polar,
         PolarTransformSpectrumOptions options = {}
     ) {
-        guts::polar_check_parameters(spectrum, polar);
+        details::polar_check_parameters(spectrum, polar);
 
         check(all(spectrum.shape() == (REMAP.is_hx2xx() ? spectrum_shape.rfft() : spectrum_shape)),
               "The logical shape {} does not match the spectrum shape. Got spectrum:shape={}, REMAP={}",
@@ -207,7 +207,7 @@ namespace noa::geometry {
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
-                guts::launch_spectrum2polar<REMAP, true>(
+                details::launch_spectrum2polar<REMAP, true>(
                     std::forward<Input>(spectrum), spectrum_shape.as<i64>(),
                     std::forward<Output>(polar), options
                 );
@@ -216,7 +216,7 @@ namespace noa::geometry {
             panic_no_gpu_backend(); // unreachable
             #endif
         } else {
-            guts::launch_spectrum2polar<REMAP>(
+            details::launch_spectrum2polar<REMAP>(
                 std::forward<Input>(spectrum), spectrum_shape.as<i64>(),
                 std::forward<Output>(polar), options
             );

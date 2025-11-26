@@ -5,7 +5,7 @@
 #include "noa/core/types/Accessor.hpp"
 #include "noa/core/types/Shape.hpp"
 
-namespace noa::cpu::guts {
+namespace noa::cpu::details {
     class Iwise {
     public:
         template<size_t N, typename Index, typename Operator>
@@ -27,7 +27,7 @@ namespace noa::cpu::guts {
             //    for every thread.
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape) firstprivate(op)
             {
-                using interface = ng::IwiseInterface;
+                using interface = nd::IwiseInterface;
                 interface::init(op, omp_get_thread_num());
 
                 if constexpr (N == 4) {
@@ -63,7 +63,7 @@ namespace noa::cpu::guts {
 
         template<size_t N, typename Index, typename Operator>
         NOA_NOINLINE static constexpr void serial(const Shape<Index, N>& shape, Operator op) {
-            using interface = ng::IwiseInterface;
+            using interface = nd::IwiseInterface;
             interface::init(op, 0);
 
             if constexpr (N == 4) {
@@ -109,8 +109,8 @@ namespace noa::cpu {
                 actual_n_threads = min(n_threads, n_elements / Config::n_elements_per_thread);
 
             if (actual_n_threads > 1)
-                return guts::Iwise::parallel(shape, std::forward<Op>(op), actual_n_threads);
+                return details::Iwise::parallel(shape, std::forward<Op>(op), actual_n_threads);
         }
-        guts::Iwise::serial(shape, std::forward<Op>(op));
+        details::Iwise::serial(shape, std::forward<Op>(op));
     }
 }

@@ -441,9 +441,9 @@ namespace fmt {
     template<> struct formatter<noa::Border> : ostream_formatter {};
     template<> struct formatter<noa::Norm> : ostream_formatter {};
     template<> struct formatter<noa::signal::Correlation> : ostream_formatter {};
-    template<> struct formatter<noa::nf::Layout> : ostream_formatter {};
+    template<> struct formatter<noa::fft::Layout> : ostream_formatter {};
 
     template<> struct formatter<noa::Interp::Method> : ostream_formatter {};
     template<> struct formatter<noa::Border::Method> : ostream_formatter {};
-    template<> struct formatter<noa::nf::Layout::Enum> : ostream_formatter {};
+    template<> struct formatter<noa::fft::Layout::Enum> : ostream_formatter {};
 }

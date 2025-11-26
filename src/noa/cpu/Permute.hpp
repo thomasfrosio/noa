@@ -9,7 +9,7 @@
 // TODO Use BLAS-like copy for out-of-place permute
 // TODO Try https://stackoverflow.com/a/16743203
 
-namespace noa::cpu::guts {
+namespace noa::cpu::details {
     template<typename T>
     void permute_copy(
         const T* input, const Strides4<i64>& input_strides,
@@ -87,16 +87,16 @@ namespace noa::cpu {
                 case 123:
                     return;
                 case 213:
-                    return guts::permute_inplace_0213(accessor_t(output, output_strides), input_shape);
+                    return details::permute_inplace_0213(accessor_t(output, output_strides), input_shape);
                 case 132:
-                    return guts::permute_inplace_0132(accessor_t(output, output_strides), input_shape);
+                    return details::permute_inplace_0132(accessor_t(output, output_strides), input_shape);
                 case 321:
-                    return guts::permute_inplace_0321(accessor_t(output, output_strides), input_shape);
+                    return details::permute_inplace_0321(accessor_t(output, output_strides), input_shape);
                 default:
                     panic("The in-place permutation {} is not supported", permutation);
             }
         } else {
-            guts::permute_copy(input, input_strides, input_shape, output, output_strides, permutation, threads);
+            details::permute_copy(input, input_strides, input_shape, output, output_strides, permutation, threads);
         }
     }
 }

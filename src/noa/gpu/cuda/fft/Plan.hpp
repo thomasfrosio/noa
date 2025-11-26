@@ -33,7 +33,7 @@ namespace noa::cuda::fft {
     auto workspace_left_to_allocate(Device device) noexcept -> size_t;
 }
 
-namespace noa::cuda::fft::guts {
+namespace noa::cuda::fft::details {
     [[nodiscard]] auto get_plan(
         Type type,
         bool is_single_precision,
@@ -85,11 +85,11 @@ namespace noa::cuda::fft {
             const auto output_shape = type == Type::R2C ? shape.rfft() : shape;
             if (ni::are_contiguous(input_strides, input_shape) and
                 ni::are_contiguous(output_strides, output_shape)) {
-                m_plan = guts::get_plan(
+                m_plan = details::get_plan(
                     type, is_single_precision, shape, device,
                     save_to_cache, plan_only, record_workspace);
             } else {
-                m_plan = guts::get_plan(
+                m_plan = details::get_plan(
                     type, is_single_precision, input_strides, output_strides, shape, device,
                     save_to_cache, plan_only, record_workspace);
             }

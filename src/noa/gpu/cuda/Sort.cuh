@@ -13,7 +13,7 @@
 // so use the radix sort for everything...
 #include <cub/device/device_radix_sort.cuh>
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     template<typename T>
     cudaError cub_radix_sort_keys_(
         void* temp_storage, size_t& temp_storage_bytes,
@@ -168,7 +168,7 @@ namespace noa::cuda::guts {
         const auto key_buffer_alt = AllocatorDevice::allocate_async<u32>(n_elements, stream);
         Vec4<i32> tile = shape_i32.vec;
         tile[dim] = 1; // mark elements with their original line.
-        iwise(shape_i32, ng::Iota(AccessorContiguousI32<u32, 4>(key_buffer.get(), shape_i32.strides()), shape_i32, tile), stream);
+        iwise(shape_i32, nd::Iota(AccessorContiguousI32<u32, 4>(key_buffer.get(), shape_i32.strides()), shape_i32, tile), stream);
 
         // Prepare the values.
         using unique_t = AllocatorDevice::allocate_type<T>;
@@ -257,8 +257,8 @@ namespace noa::cuda {
         shape_4d[dim] = 1;
         const auto n_iterations = shape_4d.n_elements();
         if (n_iterations < 10)
-            guts::sort_iterative_(array, strides, shape, dim, ascending, stream);
+            details::sort_iterative_(array, strides, shape, dim, ascending, stream);
         else
-            guts::sort_batched_(array, strides, shape, dim, ascending, stream);
+            details::sort_batched_(array, strides, shape, dim, ascending, stream);
     }
 }

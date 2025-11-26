@@ -6,7 +6,7 @@
 #include "noa/unified/Iwise.hpp"
 #include "noa/unified/View.hpp"
 
-namespace noa::geometry::guts {
+namespace noa::geometry::details {
     template<
         size_t N,
         nt::sinteger Index,
@@ -241,18 +241,18 @@ namespace noa::geometry {
     /// \example
     /// \code
     /// // Draw a sphere onto the output.
-    /// ng::draw({}, output_2d, ng::Sphere{.center=Vec{64.,64.}, .radius=10.}.draw());
+    /// nd::draw({}, output_2d, nd::Sphere{.center=Vec{64.,64.}, .radius=10.}.draw());
     ///
     /// // Add an ellipse rotated by 10 degrees onto the input.
-    /// const auto ellipse = ng::Ellipse{.center=Vec{64.,64.}, .radius=Vec{10.,20.};
-    /// const auto ellipse_rotation = ng::rotate(noa::deg2rad(10.));
-    /// ng::draw(input_2d, output_2d, ellipse.draw(), ellipse_rotation.inverse(), noa::Plus{});
+    /// const auto ellipse = nd::Ellipse{.center=Vec{64.,64.}, .radius=Vec{10.,20.};
+    /// const auto ellipse_rotation = nd::rotate(noa::deg2rad(10.));
+    /// nd::draw(input_2d, output_2d, ellipse.draw(), ellipse_rotation.inverse(), noa::Plus{});
     /// \endcode
     template<typename Output, typename Drawable,
              typename Input = View<nt::value_type_t<Output>>,
              typename Transform = Empty,
              typename BinaryOp = Empty>
-    requires guts::drawable<Input, Output, Drawable, Transform, BinaryOp>
+    requires details::drawable<Input, Output, Drawable, Transform, BinaryOp>
     void draw(
         Input&& input,
         Output&& output,
@@ -261,13 +261,13 @@ namespace noa::geometry {
         BinaryOp binary_op = {}
     ) {
         constexpr size_t N = std::decay_t<Drawable>::SIZE;
-        guts::check_draw_parameters<N>(input, output, inverse_transforms);
+        details::check_draw_parameters<N>(input, output, inverse_transforms);
 
         if (output.device().is_gpu() and
-            ng::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
-            ng::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
+            nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
+            nd::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
             #ifdef NOA_ENABLE_CUDA
-            return guts::launch_draw<IwiseOptions{.generate_cpu = false}, i32>(
+            return details::launch_draw<IwiseOptions{.generate_cpu = false}, i32>(
                 std::forward<Input>(input),
                 std::forward<Output>(output),
                 std::forward<Drawable>(drawable),
@@ -277,7 +277,7 @@ namespace noa::geometry {
             std::terminate(); // unreachable
             #endif
         }
-        return guts::launch_draw<IwiseOptions{}, i64>(
+        return details::launch_draw<IwiseOptions{}, i64>(
             std::forward<Input>(input),
             std::forward<Output>(output),
             std::forward<Drawable>(drawable),

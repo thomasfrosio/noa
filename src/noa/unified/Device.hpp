@@ -228,22 +228,22 @@ namespace noa::inline types {
 
     private:
         static auto parse_name_and_validate_(std::string_view name) -> i32 {
-            std::string string = ns::to_lower(ns::trim(name));
+            std::string string = noa::string::to_lower(noa::string::trim(name));
             const size_t length = string.length();
 
             i32 id{};
-            if (ns::starts_with(string, "cpu")) {
+            if (noa::string::starts_with(string, "cpu")) {
                 check(length == 3, "CPU device name \"{}\" is not supported", string);
                 id = -1;
 
-            } else if (ns::starts_with(string, "gpu") or ns::starts_with(string, "cuda")) {
+            } else if (noa::string::starts_with(string, "gpu") or noa::string::starts_with(string, "cuda")) {
                 const size_t offset = string[0] == 'c' ? 1 : 0;
                 if (length == 3 + offset) {
                     id = 0;
                     check(is_any_gpu(), "GPU device ID 0 is not valid");
                 } else if (length >= 5 + offset and string[3 + offset] == ':') {
-                    std::string_view specifier = ns::offset_by(string, 4 + offset);
-                    std::optional<u32> result = ns::parse<u32>(specifier);
+                    std::string_view specifier = noa::string::offset_by(string, 4 + offset);
+                    std::optional<u32> result = noa::string::parse<u32>(specifier);
                     if (result.has_value()) {
                         id = static_cast<i32>(*result);
                         check(id < count_gpus(), "GPU device ID {} is not valid", id);

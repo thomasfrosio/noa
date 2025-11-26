@@ -9,7 +9,7 @@
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Iwise.hpp"
 
-namespace noa::signal::guts {
+namespace noa::signal::details {
     template<typename Input, typename Filter = Empty,
              typename InputReal = nt::mutable_value_type_twice_t<Input>,
              typename InputCoord = std::conditional_t<(sizeof(InputReal) < 4), f32, InputReal>>
@@ -181,7 +181,7 @@ namespace noa::signal {
     template<nf::Layout REMAP, size_t N = 3,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>,
-             guts::filterable_nd<N, Input> Filter>
+             details::filterable_nd<N, Input> Filter>
     requires (nt::varray_decay_with_spectrum_types<Input, Output> and (REMAP.is_hx2hx() or REMAP.is_fx2fx()))
     void filter_spectrum(
         Input&& input,
@@ -190,15 +190,15 @@ namespace noa::signal {
         Filter&& filter,
         FilterSpectrumOptions options = {}
     ) {
-        guts::check_filter_spectrum_parameters<N, REMAP>(input, output, shape, options.fftfreq_range);
+        details::check_filter_spectrum_parameters<N, REMAP>(input, output, shape, options.fftfreq_range);
 
         auto input_accessor = AccessorI64<nt::const_value_type_t<Input>, N + 1>(
             input.get(), input.strides().template filter_nd<N>());
         auto output_accessor = AccessorI64<nt::value_type_t<Output>, N + 1>(
             output.get(), output.strides().template filter_nd<N>());
 
-        using coord_t = guts::filter_spectrum_default_coord_t<Input, Filter>;
-        using op_t = guts::FilterSpectrum<
+        using coord_t = details::filter_spectrum_default_coord_t<Input, Filter>;
+        using op_t = details::FilterSpectrum<
             N, REMAP, i64, coord_t, decltype(input_accessor), decltype(output_accessor), std::decay_t<Filter>>;
         auto op = op_t(
             input_accessor, output_accessor, shape.filter_nd<N>().pop_front(),
@@ -213,7 +213,7 @@ namespace noa::signal {
     template<nf::Layout REMAP,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>,
-             guts::filterable_nd<1, Input> Filter>
+             details::filterable_nd<1, Input> Filter>
     requires (nt::varray_decay_with_spectrum_types<Input, Output> and (REMAP.is_hx2hx() or REMAP.is_fx2fx()))
     void filter_spectrum_1d(
         Input&& input,
@@ -232,7 +232,7 @@ namespace noa::signal {
     template<nf::Layout REMAP,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>,
-             guts::filterable_nd<2, Input> Filter>
+             details::filterable_nd<2, Input> Filter>
     requires (nt::varray_decay_with_spectrum_types<Input, Output> and (REMAP.is_hx2hx() or REMAP.is_fx2fx()))
     void filter_spectrum_2d(
         Input&& input,
@@ -251,7 +251,7 @@ namespace noa::signal {
     template<nf::Layout REMAP,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>,
-             guts::filterable_nd<3, Input> Filter>
+             details::filterable_nd<3, Input> Filter>
     requires (nt::varray_decay_with_spectrum_types<Input, Output> and (REMAP.is_hx2hx() or REMAP.is_fx2fx()))
     void filter_spectrum_3d(
         Input&& input,

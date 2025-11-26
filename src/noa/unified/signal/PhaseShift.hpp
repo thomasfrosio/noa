@@ -9,7 +9,7 @@
 #include "noa/unified/Factory.hpp"
 #include "noa/unified/fft/Remap.hpp"
 
-namespace noa::signal::guts {
+namespace noa::signal::details {
     /// 4d iwise operator to phase shift the ((D)H)W dimension by size / 2 (floating-point division).
     template<nf::Layout REMAP, size_t N,
              nt::sinteger Index,
@@ -224,7 +224,7 @@ namespace noa::signal {
         using input_accessor_t = Accessor<nt::const_value_type_t<Input>, 4, i64>;
         using output_accessor_t = Accessor<nt::value_type_t<Output>, 4, i64>;
 
-        guts::check_phase_shift_parameters<REMAP>(input, output, shape, shifts);
+        details::check_phase_shift_parameters<REMAP>(input, output, shape, shifts);
 
         auto input_strides = input.strides();
         if (not input.is_empty() and not ni::broadcast(input.shape(), input_strides, output.shape())) {
@@ -237,21 +237,21 @@ namespace noa::signal {
 
         if constexpr (not nt::varray_decay<Shift>) { // single shift
             if (vall(IsZero{}, shifts))
-                return guts::no_phase_shift<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape);
+                return details::no_phase_shift<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape);
 
             const auto half_shifts = shape.filter_nd<N>().vec.pop_front().template as<coord_t>() / 2;
             const auto is_half_shift = [&](auto shift, auto half_shift) { return allclose(abs(shift), half_shift); };
             if (vall(is_half_shift, shifts, half_shifts) and fftfreq_cutoff >= sqrt(0.5)) {
-                using op_t = guts::PhaseShiftHalf<REMAP, N, i64, input_accessor_t, output_accessor_t>;
+                using op_t = details::PhaseShiftHalf<REMAP, N, i64, input_accessor_t, output_accessor_t>;
                 return iwise(iwise_shape, output.device(), op_t(input_accessor, output_accessor, shape.pop_front()),
                              std::forward<Input>(input), std::forward<Output>(output));
             }
         }
 
-        using shift_t = decltype(guts::extract_shift(shifts));
-        using op_t = guts::PhaseShift<REMAP, i64, shift_t, input_accessor_t, output_accessor_t>;
+        using shift_t = decltype(details::extract_shift(shifts));
+        using op_t = details::PhaseShift<REMAP, i64, shift_t, input_accessor_t, output_accessor_t>;
         auto op = op_t(
-            input_accessor, output_accessor, shape.pop_front(), guts::extract_shift(shifts),
+            input_accessor, output_accessor, shape.pop_front(), details::extract_shift(shifts),
             static_cast<coord_t>(fftfreq_cutoff)
         );
         iwise(iwise_shape, output.device(), op,

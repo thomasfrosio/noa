@@ -429,8 +429,8 @@ namespace noa::signal {
         template<nt::real Coord>
         [[nodiscard]] constexpr auto phase_at(const Vec<Coord, 2>& fftfreq) const -> value_type {
             const auto scaled_fftfreq = fftfreq.template as<value_type>() / m_pixel_size;
-            const auto phi = noa::geometry::cartesian2phi<false>(scaled_fftfreq);
-            const auto rho = noa::geometry::cartesian2rho(scaled_fftfreq);
+            const auto phi = ng::cartesian2phi<false>(scaled_fftfreq);
+            const auto rho = ng::cartesian2rho(scaled_fftfreq);
 
             const auto r1 = rho;
             const auto r2 = r1 * r1;
@@ -443,8 +443,8 @@ namespace noa::signal {
         template<nt::real Coord>
         [[nodiscard]] constexpr auto value_at(const Vec<Coord, 2>& fftfreq) const -> value_type {
             const auto scaled_fftfreq = fftfreq.template as<value_type>() / m_pixel_size;
-            const auto phi = noa::geometry::cartesian2phi<false>(scaled_fftfreq);
-            const auto rho = noa::geometry::cartesian2rho(scaled_fftfreq);
+            const auto phi = ng::cartesian2phi<false>(scaled_fftfreq);
+            const auto rho = ng::cartesian2rho(scaled_fftfreq);
 
             const auto r1 = rho;
             const auto r2 = r1 * r1;
@@ -462,7 +462,7 @@ namespace noa::signal {
             if (m_bfactor_forth == 0)
                 return m_scale;
             const auto scaled_fftfreq = fftfreq.template as<value_type>() / m_pixel_size;
-            const auto rho = noa::geometry::cartesian2rho(scaled_fftfreq);
+            const auto rho = ng::cartesian2rho(scaled_fftfreq);
             const auto r1 = rho;
             const auto r2 = r1 * r1;
             return exp(m_bfactor_forth * r2) * m_scale;
@@ -476,8 +476,8 @@ namespace noa::signal {
             // Given rho, compute a scaling factor s(phi) such that rho_corrected = rho * s(phi),
             // rho_corrected being the anisotropy-corrected magnitude.
             // from doi:10.1016/j.ultramic.2014.01.009.
-            const auto phi = noa::geometry::cartesian2phi<false>(scaled_fftfreq_2d);
-            const auto rho = noa::geometry::cartesian2rho(scaled_fftfreq_2d);
+            const auto phi = ng::cartesian2phi<false>(scaled_fftfreq_2d);
+            const auto rho = ng::cartesian2rho(scaled_fftfreq_2d);
 
             const auto r1 = rho;
             const auto r2 = r1 * r1;
@@ -538,8 +538,8 @@ namespace noa::signal {
 }
 
 namespace noa::traits {
-    template<typename T> struct proclaim_is_ctf<noa::signal::CTFIsotropic<T>> : std::true_type {};
-    template<typename T> struct proclaim_is_ctf<noa::signal::CTFAnisotropic<T>> : std::true_type {};
-    template<typename T> struct proclaim_is_ctf_isotropic<noa::signal::CTFIsotropic<T>> : std::true_type {};
-    template<typename T> struct proclaim_is_ctf_anisotropic<noa::signal::CTFAnisotropic<T>> : std::true_type {};
+    template<typename T> struct proclaim_is_ctf<ns::CTFIsotropic<T>> : std::true_type {};
+    template<typename T> struct proclaim_is_ctf<ns::CTFAnisotropic<T>> : std::true_type {};
+    template<typename T> struct proclaim_is_ctf_isotropic<ns::CTFIsotropic<T>> : std::true_type {};
+    template<typename T> struct proclaim_is_ctf_anisotropic<ns::CTFAnisotropic<T>> : std::true_type {};
 }

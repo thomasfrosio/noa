@@ -5,7 +5,7 @@
 #include "noa/core/Error.hpp"
 
 #ifdef NOA_HAS_GCC_STATIC_BOUNDS_CHECKING
-namespace noa::indexing::guts {
+namespace noa::indexing::details {
     [[gnu::error("out-of-bounds sequence access detected")]]
     void static_bounds_check_failed(); // not defined
 
@@ -40,7 +40,7 @@ namespace noa::indexing {
     NOA_FHD constexpr void bounds_check(T size, U index) {
         using common_t = std::common_type_t<T, T>;
         #ifdef NOA_HAS_GCC_STATIC_BOUNDS_CHECKING
-        guts::static_bounds_check(static_cast<common_t>(size), static_cast<common_t>(index));
+        details::static_bounds_check(static_cast<common_t>(size), static_cast<common_t>(index));
         #endif
 
         if constexpr (ENFORCE) {

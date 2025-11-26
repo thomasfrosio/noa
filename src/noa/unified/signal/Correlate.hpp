@@ -13,7 +13,7 @@
 #include "noa/unified/ReduceAxesEwise.hpp"
 #include "noa/unified/ReduceAxesIwise.hpp"
 
-namespace noa::signal::guts {
+namespace noa::signal::details {
     struct CrossCorrelationScore {
         using enable_vectorization = bool;
 
@@ -200,7 +200,7 @@ namespace noa::signal::guts {
         using shape_type = Shape<index_type, N>;
 
         using subregion_offset_type = Vec<index_type, N>;
-        using ellipse_type = noa::geometry::DrawEllipse<N, f32, false>;
+        using ellipse_type = ng::DrawEllipse<N, f32, false>;
 
     public:
         constexpr ReducePeak(
@@ -439,14 +439,14 @@ namespace noa::signal {
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
                 wrap(real_t{}, real_t{}, sum_t{}, sum_t{}, sum_t{}),
                 std::forward<Output>(scores).flat(0),
-                guts::CrossCorrelationScoreCenteredNormalized{n_elements}
+                details::CrossCorrelationScoreCenteredNormalized{n_elements}
             );
         } else if (options.normalize) {
             reduce_axes_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
                 wrap(real_t{}, real_t{}, sum_t{}),
                 std::forward<Output>(scores).flat(0),
-                guts::CrossCorrelationScoreNormalized{}
+                details::CrossCorrelationScoreNormalized{}
             );
         } else if (options.center) {
             const auto n_elements = static_cast<real_t>(lhs.shape().n_elements());
@@ -454,14 +454,14 @@ namespace noa::signal {
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
                 wrap(sum_t{}, sum_t{}, sum_t{}),
                 std::forward<Output>(scores).flat(0),
-                guts::CrossCorrelationScoreCentered{n_elements}
+                details::CrossCorrelationScoreCentered{n_elements}
             );
         } else {
             reduce_axes_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
                 sum_t{},
                 std::forward<Output>(scores).flat(0),
-                guts::CrossCorrelationScore{}
+                details::CrossCorrelationScore{}
             );
         }
     }
@@ -489,14 +489,14 @@ namespace noa::signal {
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
                 wrap(real_t{}, real_t{}, sum_t{}, sum_t{}, sum_t{}),
                 score,
-                guts::CrossCorrelationScoreCenteredNormalized{n_elements}
+                details::CrossCorrelationScoreCenteredNormalized{n_elements}
             );
         } else if (options.normalize) {
             reduce_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
                 wrap(real_t{}, real_t{}, sum_t{}),
                 score,
-                guts::CrossCorrelationScoreNormalized{}
+                details::CrossCorrelationScoreNormalized{}
             );
         } else if (options.center) {
             const auto n_elements = static_cast<real_t>(lhs.shape().n_elements());
@@ -504,14 +504,14 @@ namespace noa::signal {
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
                 wrap(sum_t{}, sum_t{}, sum_t{}),
                 score,
-                guts::CrossCorrelationScoreCentered{n_elements}
+                details::CrossCorrelationScoreCentered{n_elements}
             );
         } else {
             reduce_ewise(
                 wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
                 sum_t{},
                 score,
-                guts::CrossCorrelationScore{}
+                details::CrossCorrelationScore{}
             );
         }
         return score;
@@ -598,19 +598,19 @@ namespace noa::signal {
         switch (options.mode) {
             case Correlation::CONVENTIONAL:
                 ewise(wrap(std::forward<Lhs>(lhs), rhs), tmp,
-                      guts::CrossCorrelationMap<Correlation::CONVENTIONAL>{});
+                      details::CrossCorrelationMap<Correlation::CONVENTIONAL>{});
                 break;
             case Correlation::PHASE:
                 ewise(wrap(std::forward<Lhs>(lhs), rhs), tmp,
-                      guts::CrossCorrelationMap<Correlation::PHASE>{});
+                      details::CrossCorrelationMap<Correlation::PHASE>{});
                 break;
             case Correlation::DOUBLE_PHASE:
                 ewise(wrap(std::forward<Lhs>(lhs), rhs), tmp,
-                      guts::CrossCorrelationMap<Correlation::DOUBLE_PHASE>{});
+                      details::CrossCorrelationMap<Correlation::DOUBLE_PHASE>{});
                 break;
             case Correlation::MUTUAL:
                 ewise(wrap(std::forward<Lhs>(lhs), rhs), tmp,
-                      guts::CrossCorrelationMap<Correlation::MUTUAL>{});
+                      details::CrossCorrelationMap<Correlation::MUTUAL>{});
                 break;
         }
 
@@ -695,7 +695,7 @@ namespace noa::signal {
         const CrossCorrelationPeakOptions<N>& options = {}
     ) {
         constexpr size_t REGISTRATION_RADIUS_LIMIT = 4;
-        guts::check_cross_correlation_peak_parameters<N>(cross_correlation_map, peak_coordinates, peak_values);
+        details::check_cross_correlation_peak_parameters<N>(cross_correlation_map, peak_coordinates, peak_values);
         check(all(options.registration_radius >= 0 and options.registration_radius <= REGISTRATION_RADIUS_LIMIT),
               "The registration radius should be a small positive value (less than {}), but got {}",
               REGISTRATION_RADIUS_LIMIT, options.registration_radius);
@@ -744,7 +744,7 @@ namespace noa::signal {
         auto reduce_axes = ReduceAxes::all();
         reduce_axes[3 - N] = false; // do not reduce the outermost dimension
 
-        using reducer_t = guts::ReducePeak<
+        using reducer_t = details::ReducePeak<
             N, REMAP.is_xc2xx(), REGISTRATION_RADIUS_LIMIT,
             input_accessor_t, peak_coordinates_accessor_t, peak_values_accessor_t>;
 

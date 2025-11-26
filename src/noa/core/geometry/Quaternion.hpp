@@ -192,5 +192,5 @@ namespace noa::geometry {
 }
 
 namespace noa::traits {
-    template<typename T> struct proclaim_is_quaternion<noa::geometry::Quaternion<T>> : std::true_type {};
+    template<typename T> struct proclaim_is_quaternion<ng::Quaternion<T>> : std::true_type {};
 }

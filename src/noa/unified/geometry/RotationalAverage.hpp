@@ -11,7 +11,7 @@
 #include "noa/unified/Iwise.hpp"
 #include "noa/unified/Factory.hpp"
 
-namespace noa::geometry::guts {
+namespace noa::geometry::details {
     struct RotationalAverageUtils {
         template<typename T, typename U, typename C, typename I>
         NOA_FHD static void lerp_to_output(const T& op, const U& value, C fftfreq, I batch) noexcept {
@@ -28,15 +28,15 @@ namespace noa::geometry::guts {
 
             // TODO In CUDA, we could do the atomic reduction in shared memory to reduce global memory transfers?
             if (shell_low >= 0 and shell_low <= op.m_max_shell_index) {
-                ng::atomic_add(op.m_output, value * static_cast<T::output_real_type>(fraction_low), batch, shell_low);
+                nd::atomic_add(op.m_output, value * static_cast<T::output_real_type>(fraction_low), batch, shell_low);
                 if (op.m_weight)
-                    ng::atomic_add(op.m_weight, static_cast<T::weight_value_type>(fraction_low), batch, shell_low);
+                    nd::atomic_add(op.m_weight, static_cast<T::weight_value_type>(fraction_low), batch, shell_low);
             }
 
             if (shell_high >= 0 and shell_high <= op.m_max_shell_index) {
-                ng::atomic_add(op.m_output, value * static_cast<T::output_real_type>(fraction_high), batch, shell_high);
+                nd::atomic_add(op.m_output, value * static_cast<T::output_real_type>(fraction_high), batch, shell_high);
                 if (op.m_weight)
-                    ng::atomic_add(op.m_weight, static_cast<T::weight_value_type>(fraction_high), batch, shell_high);
+                    nd::atomic_add(op.m_weight, static_cast<T::weight_value_type>(fraction_high), batch, shell_high);
             }
         }
     };
@@ -515,7 +515,7 @@ namespace noa::geometry::guts {
         const auto input_strides = input.strides().template as<Index>();
 
         if (input_shape.ndim() == 2) {
-            auto ctf = ng::to_batched_parameter<true>(input_ctf);
+            auto ctf = nd::to_batched_parameter<true>(input_ctf);
 
             using input_accessor_t = AccessorRestrict<input_value_t, 3, Index>;
             auto op = RotationalAverage
@@ -592,8 +592,8 @@ namespace noa::geometry::guts {
         const auto iwise_shape = Shape{static_cast<Index>(input.shape()[0]), n_input_shells};
         const auto chunk_size = static_cast<Index>(input.shape()[0]) / static_cast<Index>(output.shape()[0]);
 
-        auto batched_input_ctf = ng::to_batched_parameter(input_ctf);
-        auto batched_output_ctf = ng::to_batched_parameter(output_ctf);
+        auto batched_input_ctf = nd::to_batched_parameter(input_ctf);
+        auto batched_output_ctf = nd::to_batched_parameter(output_ctf);
 
         using op_t = FuseSpectra<
             coord_t, Index, input_accessor_t, output_accessor_t,
@@ -640,11 +640,11 @@ namespace noa::geometry::guts {
         using output_accessor_t = AccessorRestrictContiguous<output_value_t, 2, Index>;
         auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0).template as<Index>());
 
-        auto batched_input_ctf = ng::to_batched_parameter(input_ctf);
-        auto batched_output_ctf = ng::to_batched_parameter(output_ctf);
+        auto batched_input_ctf = nd::to_batched_parameter(input_ctf);
+        auto batched_output_ctf = nd::to_batched_parameter(output_ctf);
 
         auto launch_iwise = [&](auto interp) {
-            auto interpolator = ng::to_interpolator_spectrum<1, "h2h", interp(), coord_t, false>(input, logical_shape);
+            auto interpolator = nd::to_interpolator_spectrum<1, "h2h", interp(), coord_t, false>(input, logical_shape);
             using op_t = PhaseSpectra<
                 coord_t, Index, decltype(interpolator), output_accessor_t,
                 decltype(batched_input_ctf), decltype(batched_output_ctf)>;
@@ -662,13 +662,13 @@ namespace noa::geometry::guts {
 
         auto interp = options.interp.erase_fast();
         switch (options.interp) {
-            case Interp::NEAREST:       return launch_iwise(ng::WrapInterp<Interp::NEAREST>{});
-            case Interp::LINEAR:        return launch_iwise(ng::WrapInterp<Interp::LINEAR>{});
-            case Interp::CUBIC:         return launch_iwise(ng::WrapInterp<Interp::CUBIC>{});
-            case Interp::CUBIC_BSPLINE: return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
-            case Interp::LANCZOS4:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS4>{});
-            case Interp::LANCZOS6:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS6>{});
-            case Interp::LANCZOS8:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS8>{});
+            case Interp::NEAREST:       return launch_iwise(nd::WrapInterp<Interp::NEAREST>{});
+            case Interp::LINEAR:        return launch_iwise(nd::WrapInterp<Interp::LINEAR>{});
+            case Interp::CUBIC:         return launch_iwise(nd::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_BSPLINE: return launch_iwise(nd::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::LANCZOS4:      return launch_iwise(nd::WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:      return launch_iwise(nd::WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:      return launch_iwise(nd::WrapInterp<Interp::LANCZOS8>{});
             default: panic("interp={} is not supported", interp);
         }
     }
@@ -737,9 +737,9 @@ namespace noa::geometry {
         Weight&& weights = {},
         RotationalAverageOptions options = {}
     ) {
-        const auto n_shells = guts::check_parameters_rotational_average<REMAP>(
+        const auto n_shells = details::check_parameters_rotational_average<REMAP>(
             input, input_shape, Empty{}, output, weights, options.input_fftfreq);
-        guts::launch_rotational_average<REMAP>(
+        details::launch_rotational_average<REMAP>(
             std::forward<Input>(input), input_shape.as<i64>(), Empty{},
             std::forward<Output>(output),
             std::forward<Weight>(weights),
@@ -766,7 +766,7 @@ namespace noa::geometry {
         nf::Layout REMAP,
         nt::readable_varray_decay Input,
         nt::writable_varray_decay Output,
-        guts::rotational_average_anisotropic_ctf Ctf,
+        details::rotational_average_anisotropic_ctf Ctf,
         nt::writable_varray_decay_of_any<nt::value_type_twice_t<Output>> Weight =
         View<nt::value_type_twice_t<Output>>>
     requires (REMAP.is_xx2h() and nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
@@ -778,9 +778,9 @@ namespace noa::geometry {
         Weight&& weights = {},
         RotationalAverageOptions options = {}
     ) {
-        const auto n_shells = guts::check_parameters_rotational_average<REMAP>(
+        const auto n_shells = details::check_parameters_rotational_average<REMAP>(
             input, input_shape, input_ctf, output, weights, options.input_fftfreq);
-        guts::launch_rotational_average<REMAP>(
+        details::launch_rotational_average<REMAP>(
             std::forward<Input>(input), input_shape.as<i64>(),
             std::forward<Ctf>(input_ctf),
             std::forward<Output>(output),
@@ -821,8 +821,8 @@ namespace noa::geometry {
     template<
         nt::readable_varray_decay Input,
         nt::writable_varray_decay Output,
-        guts::rotational_average_isotropic_ctf InputCtf,
-        guts::rotational_average_isotropic_ctf OutputCtf,
+        details::rotational_average_isotropic_ctf InputCtf,
+        details::rotational_average_isotropic_ctf OutputCtf,
         nt::writable_varray_decay_of_any<nt::value_type_twice_t<Output>> Weight = View<nt::value_type_twice_t<Output>>>
     requires (nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
     NOA_NOINLINE void fuse_spectra(
@@ -835,10 +835,10 @@ namespace noa::geometry {
         Weight&& weights = {},
         FuseSpectraOptions options = {}
     ) {
-        guts::check_parameters_fuse_spectra<true>(
+        details::check_parameters_fuse_spectra<true>(
             input, input_fftfreq, input_ctf, output, output_fftfreq, output_ctf, weights
         );
-        guts::launch_fuse_spectra<i64>(
+        details::launch_fuse_spectra<i64>(
             std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
             std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
             std::forward<Weight>(weights), options
@@ -861,8 +861,8 @@ namespace noa::geometry {
     template<
         nt::readable_varray_decay Input,
         nt::writable_varray_decay Output,
-        guts::rotational_average_isotropic_ctf InputCtf,
-        guts::rotational_average_isotropic_ctf OutputCtf>
+        details::rotational_average_isotropic_ctf InputCtf,
+        details::rotational_average_isotropic_ctf OutputCtf>
     requires (nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
     NOA_NOINLINE void phase_spectra(
         Input&& input,
@@ -873,10 +873,10 @@ namespace noa::geometry {
         OutputCtf&& output_ctf,
         const PhaseSpectraOptions& options = {}
     ) {
-        guts::check_parameters_fuse_spectra<false>(
+        details::check_parameters_fuse_spectra<false>(
             input, input_fftfreq, input_ctf, output, output_fftfreq, output_ctf
         );
-        guts::launch_phase_spectra<i64>(
+        details::launch_phase_spectra<i64>(
             std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
             std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
             options

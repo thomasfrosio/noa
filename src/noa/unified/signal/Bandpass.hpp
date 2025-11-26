@@ -5,7 +5,7 @@
 #include "noa/core/types/Vec.hpp"
 #include "noa/unified/signal/FilterSpectrum.hpp"
 
-namespace noa::signal::guts {
+namespace noa::signal::details {
     enum class BandpassType {
         LOWPASS,
         HIGHPASS,
@@ -173,15 +173,15 @@ namespace noa::signal {
         const Lowpass& pass,
         FilterSpectrumOptions options = {}
     ) {
-        using coord_t = guts::filter_spectrum_default_coord_t<Input>;
+        using coord_t = details::filter_spectrum_default_coord_t<Input>;
         const auto cutoff = static_cast<coord_t>(pass.cutoff);
 
         if (pass.width > 1e-6) {
             const auto width = static_cast<coord_t>(pass.width);
-            const auto filter = guts::Bandpass<guts::BandpassType::LOWPASS, true, coord_t>(cutoff, width);
+            const auto filter = details::Bandpass<details::BandpassType::LOWPASS, true, coord_t>(cutoff, width);
             filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
         } else {
-            const auto filter = guts::Bandpass<guts::BandpassType::LOWPASS, false, coord_t>(cutoff);
+            const auto filter = details::Bandpass<details::BandpassType::LOWPASS, false, coord_t>(cutoff);
             filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
         }
     }
@@ -204,15 +204,15 @@ namespace noa::signal {
         const Highpass& pass,
         FilterSpectrumOptions options = {}
     ) {
-        using coord_t = guts::filter_spectrum_default_coord_t<Input>;
+        using coord_t = details::filter_spectrum_default_coord_t<Input>;
         const auto cutoff = static_cast<coord_t>(pass.cutoff);
 
         if (pass.width > 1e-6) {
             const auto width = static_cast<coord_t>(pass.width);
-            const auto filter = guts::Bandpass<guts::BandpassType::HIGHPASS, true, coord_t>(cutoff, width);
+            const auto filter = details::Bandpass<details::BandpassType::HIGHPASS, true, coord_t>(cutoff, width);
             filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
         } else {
-            const auto filter = guts::Bandpass<guts::BandpassType::HIGHPASS, false, coord_t>(cutoff);
+            const auto filter = details::Bandpass<details::BandpassType::HIGHPASS, false, coord_t>(cutoff);
             filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
         }
     }
@@ -235,18 +235,18 @@ namespace noa::signal {
         const Bandpass& pass,
         FilterSpectrumOptions options = {}
     ) {
-        using coord_t = guts::filter_spectrum_default_coord_t<Input>;
+        using coord_t = details::filter_spectrum_default_coord_t<Input>;
         const auto highpass_cutoff = static_cast<coord_t>(pass.highpass_cutoff);
         const auto lowpass_cutoff = static_cast<coord_t>(pass.lowpass_cutoff);
 
         if (pass.highpass_cutoff > 1e-6 or pass.lowpass_cutoff > 1e-6) {
             const auto highpass_width = static_cast<coord_t>(pass.highpass_width);
             const auto lowpass_width = static_cast<coord_t>(pass.lowpass_width);
-            using filter_t = guts::Bandpass<guts::BandpassType::BANDPASS, true, coord_t>;
+            using filter_t = details::Bandpass<details::BandpassType::BANDPASS, true, coord_t>;
             auto filter = filter_t(highpass_cutoff, lowpass_cutoff, highpass_width, lowpass_width);
             filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
         } else {
-            using filter_t = guts::Bandpass<guts::BandpassType::BANDPASS, false, coord_t>;
+            using filter_t = details::Bandpass<details::BandpassType::BANDPASS, false, coord_t>;
             auto filter = filter_t(highpass_cutoff, lowpass_cutoff);
             filter_spectrum<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
         }

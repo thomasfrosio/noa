@@ -11,7 +11,7 @@
 #include "noa/core/utils/Strings.hpp"
 #include "noa/core/Ewise.hpp"
 
-namespace noa::guts {
+namespace noa::details {
     // Add support for alignment requirement.
     template<typename T, size_t N, size_t A>
     struct VecAlignment {
@@ -56,13 +56,13 @@ namespace noa::inline types {
     /// \tparam N Size of the vector. Empty vectors (N=0) are allowed.
     /// \tparam A Alignment requirement of the vector.
     template<typename T, size_t N, size_t A = 0>
-    class alignas(guts::VecAlignment<T, N, A>::value) Vec {
+    class alignas(details::VecAlignment<T, N, A>::value) Vec {
     public:
         static_assert(nt::numeric<T> or nt::vec<T>);
         static_assert(not std::is_const_v<T>);
         static_assert(not std::is_reference_v<T>);
 
-        using storage_type = guts::VecStorage<T, N>;
+        using storage_type = details::VecStorage<T, N>;
         using array_type = storage_type::type;
         using value_type = T;
         using mutable_value_type = value_type;
@@ -945,7 +945,7 @@ namespace noa {
     }
     [[nodiscard]] constexpr bool all(bool v) noexcept { return v; }
 
-    namespace guts { // nvcc workaround
+    namespace details { // nvcc workaround
         template<size_t I, typename Op, typename... Args>
         constexpr bool vec_indexer(Op&& op, Args&&... args) {
             return static_cast<bool>(op(args[I]...));
@@ -975,7 +975,7 @@ namespace noa {
         if constexpr (sizeof...(Args) > 0) {
             using first_t = nt::first_t<std::remove_reference_t<Args>...>;
             return []<size_t... I>(std::index_sequence<I...>, auto& op_, auto&... args_) {
-                return (guts::vec_indexer<I>(op_, args_...) and ...);
+                return (details::vec_indexer<I>(op_, args_...) and ...);
             }(std::make_index_sequence<first_t::SIZE>{}, op, args...); // nvcc bug - no capture
         } else {
             return true;
@@ -995,7 +995,7 @@ namespace noa {
         if constexpr (sizeof...(Args) > 0) {
             using first_t = nt::first_t<std::remove_reference_t<Args>...>;
             return []<size_t... I>(std::index_sequence<I...>, auto& op_, auto&... args_) {
-                return (guts::vec_enumerate_indexer<I>(op_, args_...) and ...);
+                return (details::vec_enumerate_indexer<I>(op_, args_...) and ...);
             }(std::make_index_sequence<first_t::SIZE>{}, op, args...); // nvcc bug - no capture
         } else {
             return true;
@@ -1014,7 +1014,7 @@ namespace noa {
         if constexpr (sizeof...(Args) > 0) {
             using first_t = nt::first_t<std::remove_reference_t<Args>...>;
             return []<size_t... I>(std::index_sequence<I...>, auto& op_, auto&... args_) {
-                return (guts::vec_indexer<I>(op_, args_...) or ...);
+                return (details::vec_indexer<I>(op_, args_...) or ...);
             }(std::make_index_sequence<first_t::SIZE>{}, op, args...); // nvcc bug - no capture
         } else {
             return true;
@@ -1034,7 +1034,7 @@ namespace noa {
         if constexpr (sizeof...(Args) > 0) {
             using first_t = nt::first_t<std::remove_reference_t<Args>...>;
             return []<size_t... I>(std::index_sequence<I...>, auto& op_, auto&... args_) {
-                return (guts::vec_enumerate_indexer<I>(op_, args_...) or ...);
+                return (details::vec_enumerate_indexer<I>(op_, args_...) or ...);
             }(std::make_index_sequence<first_t::SIZE>{}, op, args...); // nvcc bug - no capture
         } else {
             return true;
@@ -1051,7 +1051,7 @@ namespace noa::string {
     template<typename T, size_t N>
     struct Stringify<Vec<T, N>> {
         static auto get() -> std::string {
-            return fmt::format("Vec<{},{}>", ns::stringify<T>(), N);
+            return fmt::format("Vec<{},{}>", noa::string::stringify<T>(), N);
         }
     };
 }

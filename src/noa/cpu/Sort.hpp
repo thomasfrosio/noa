@@ -4,7 +4,7 @@
 #include "noa/core/types/Shape.hpp"
 #include "noa/cpu/Allocators.hpp"
 
-namespace noa::cpu::guts::sort {
+namespace noa::cpu::details::sort {
     template<typename T, typename U>
     using KeyValPair = Pair<T, U>;
 
@@ -193,8 +193,8 @@ namespace noa::cpu {
         shape_4d[dim] = 1;
         const auto iterations = shape_4d.n_elements();
         if (iterations < 100)
-            guts::sort::sort_iterative_(array, strides, shape, dim, ascending);
+            details::sort::sort_iterative_(array, strides, shape, dim, ascending);
         else
-            guts::sort::sort_batched_(array, strides, shape, dim, ascending);
+            details::sort::sort_batched_(array, strides, shape, dim, ascending);
     }
 }

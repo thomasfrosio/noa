@@ -62,7 +62,7 @@ namespace noa::traits {
         return TypeList<Ls..., Rs...>{};
     }
 
-    namespace guts {
+    namespace details {
         template<typename, typename>
         struct append_to_type_seq {};
 
@@ -74,7 +74,7 @@ namespace noa::traits {
 
     template<typename T, size_t N, template<typename...> class TT>
     struct repeat {
-        using type = guts::append_to_type_seq<T, typename repeat<T, N - 1, TT>::type>::type;
+        using type = details::append_to_type_seq<T, typename repeat<T, N - 1, TT>::type>::type;
     };
 
     template<typename T, template<typename...> class TT>
@@ -108,7 +108,7 @@ namespace noa::traits {
 
 namespace noa::traits {
     #define NOA_TRAITS_(name, default_type, special_type)       \
-    namespace guts {                                            \
+    namespace details {                                            \
         template<typename T, typename = void>                   \
         struct name {                                           \
             using type = default_type;                          \
@@ -122,13 +122,13 @@ namespace noa::traits {
     }                                                           \
     template<typename T>                                        \
     struct name {                                               \
-        using type = guts::name<std::decay_t<T>>::type;         \
+        using type = details::name<std::decay_t<T>>::type;         \
     };                                                          \
     template<typename T>                                        \
     using name##_t = name<T>::type;                             \
                                                                 \
     template<typename T>                                        \
-    constexpr bool has_##name##_v = guts::name<std::decay_t<T>>::HAS_ALIAS;
+    constexpr bool has_##name##_v = details::name<std::decay_t<T>>::HAS_ALIAS;
 
     NOA_TRAITS_(type_type, T, T::type);
     NOA_TRAITS_(index_type, T, T::index_type);
@@ -529,7 +529,7 @@ namespace noa::traits {
         (sizeof...(T) == N and same_as<I, T...>) or
         (sizeof...(T) == 1 and are_vec_of_type_v<I, T...> and are_vec_of_size_v<N, T...>);
 
-    namespace guts { // nvcc workaround
+    namespace details { // nvcc workaround
         template<typename T, size_t S, typename I, I... J>
         concept readable_nd_c =
             std::convertible_to<decltype(std::declval<const T&>()(J...)), mutable_value_type_t<T>> and
@@ -575,7 +575,7 @@ namespace noa::traits {
         typename T::value_type;
         typename T::index_type;
         requires integer<decltype(T::SIZE)>;
-    } and guts::readable_nd_t<T, typename T::index_type, N...>::value;
+    } and details::readable_nd_t<T, typename T::index_type, N...>::value;
 
     template<typename T, size_t... N>
     concept readable_nd_or_empty = readable_nd<T, N...> or nt::empty<T>;
@@ -587,7 +587,7 @@ namespace noa::traits {
     concept writable_nd = readable_nd<T, N...> and
         not std::is_const_v<value_type_t<T>> and
         not std::is_const_v<mutable_value_type_t<T>> and
-        guts::writable_nd_t<T, typename T::index_type, N...>::value;
+        details::writable_nd_t<T, typename T::index_type, N...>::value;
 
     template<typename T, size_t... N>
     concept writable_nd_optional = writable_nd<T, N...> and static_castable_to<decltype(std::declval<const T&>()), bool>;
@@ -599,7 +599,7 @@ namespace noa::traits {
     concept atomic_addable_nd =
         std::copyable<std::remove_cv_t<T>> and
         numeric<typename T::value_type> and
-        guts::atomic_addable_nd_t<T, N...>::value;
+        details::atomic_addable_nd_t<T, N...>::value;
 
     template<typename T, size_t... N>
     concept atomic_addable_nd_optional = atomic_addable_nd<T, N...> and static_castable_to<decltype(std::declval<const T&>()), bool>;

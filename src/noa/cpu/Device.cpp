@@ -88,7 +88,7 @@ namespace {
     size_t parse_size_from_line(const std::string& line) {
         const size_t colon_id = line.find_first_of(':');
         const auto start = std::string_view(line.c_str() + colon_id + 1);
-        auto size = ns::parse<size_t>(start);
+        auto size = noa::string::parse<size_t>(start);
         check(size, "Could not retrieve file size. Line={}", start);
         return *size;
     }
@@ -99,9 +99,9 @@ namespace {
         std::string line;
         io::InputTextFile mem_info("/proc/meminfo", {.read=true});
         while (mem_info.next_line(line)) {
-            if (ns::starts_with(line, "MemTotal"))
+            if (noa::string::starts_with(line, "MemTotal"))
                 ret.total = parse_size_from_line(line) * 1024; // in bytes
-            else if (ns::starts_with(line, "MemAvailable"))
+            else if (noa::string::starts_with(line, "MemAvailable"))
                 ret.free = parse_size_from_line(line) * 1024; // in bytes
         }
         check(not mem_info.bad(), "Error while reading {}", mem_info.path());
@@ -112,7 +112,7 @@ namespace {
         io::InputTextFile cpu_info("/proc/cpuinfo", {.read=true});
         std::string line;
         while (cpu_info.next_line(line)) {
-            if (ns::starts_with(line, "model name")) {
+            if (noa::string::starts_with(line, "model name")) {
                 const size_t colon_id = line.find_first_of(':');
                 const size_t nonspace_id = line.find_first_not_of(" \t", colon_id + 1);
                 return line.c_str() + nonspace_id; // assume right trimmed
@@ -129,10 +129,10 @@ namespace {
         io::InputTextFile cpu_info("/proc/cpuinfo", {.read=true});
         std::string line;
         while (cpu_info.next_line(line)) {
-            if (not got_logical and ns::starts_with(line, "siblings")) {
+            if (not got_logical and noa::string::starts_with(line, "siblings")) {
                 out.logical = parse_size_from_line(line);
                 got_logical = true;
-            } else if (not got_physical and ns::starts_with(line, "cpu cores")) {
+            } else if (not got_physical and noa::string::starts_with(line, "cpu cores")) {
                 out.physical = parse_size_from_line(line);
                 got_physical = true;
             }
@@ -315,11 +315,11 @@ namespace noa::cpu {
 
     auto Device::name() -> std::string {
         #if defined(NOA_PLATFORM_LINUX)
-        return std::string(ns::trim(get_cpu_name_linux()));
+        return std::string(noa::string::trim(get_cpu_name_linux()));
         #elif defined(NOA_PLATFORM_WINDOWS)
-        return std::string{ns::trim(get_cpu_name_windows())};
+        return std::string{noa::string::trim(get_cpu_name_windows())};
         #elif defined(NOA_PLATFORM_APPLE)
-        return std::string{ns::trim(get_cpu_name_macos())};
+        return std::string{noa::string::trim(get_cpu_name_macos())};
         #else
         return {};
         #endif

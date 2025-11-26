@@ -13,7 +13,7 @@
 #pragma warning(push, 0)
 #endif
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     template<typename Config, u32 BlockSizeX, u32 MaxVectorSize>
     struct ReduceAxesEwiseWidthConfig {
         static constexpr u32 block_size = max(BlockSizeX, Config::block_size);
@@ -108,7 +108,7 @@ namespace noa::cuda::guts {
     }
 }
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     template<size_t BLOCK_SIZE_X, size_t ALIGNMENT, typename Config,
              typename Op, typename Input, typename Reduced, typename Output, typename Index>
     void launch_reduce_ewise_width_(
@@ -121,15 +121,15 @@ namespace noa::cuda::guts {
         dim3 n_threads
     ) {
         // The width of the output is empty/reduced, remove it.
-        constexpr auto TO_3D = ng::AccessorConfig<3>{.filter={0, 1, 2}};
-        auto output_3d = ng::reconfig_accessors<TO_3D>(std::forward<Output>(output));
+        constexpr auto TO_3D = nd::AccessorConfig<3>{.filter={0, 1, 2}};
+        auto output_3d = nd::reconfig_accessors<TO_3D>(std::forward<Output>(output));
         using Output3D = decltype(output_3d);
 
         // Prepare the input for vectorization.
         constexpr size_t VEC_SIZE = maximum_allowed_aligned_buffer_size<ALIGNMENT, Input>();
         using InputVec = to_aligned_buffer_t<Input, ALIGNMENT, VEC_SIZE>;
-        constexpr auto TO_4D = ng::AccessorConfig<0>{.enforce_contiguous = is_vectorized<InputVec>()};
-        auto input_4d = ng::reconfig_accessors<TO_4D>(std::forward<Input>(input));
+        constexpr auto TO_4D = nd::AccessorConfig<0>{.enforce_contiguous = is_vectorized<InputVec>()};
+        auto input_4d = nd::reconfig_accessors<TO_4D>(std::forward<Input>(input));
         using Input4D = decltype(input_4d);
 
         // Grid shape.
@@ -146,7 +146,7 @@ namespace noa::cuda::guts {
 
         for (u32 z{}; z < grid_z.n_launches(); z++) {
             for (u32 y{}; y < grid_y.n_launches(); y++) {
-                ng::offset_accessors(Vec{grid_z.offset_additive(z), grid_y.offset_additive(y)}, input_4d, output_3d);
+                nd::offset_accessors(Vec{grid_z.offset_additive(z), grid_y.offset_additive(y)}, input_4d, output_3d);
 
                 const auto config = LaunchConfig{
                     .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
@@ -278,8 +278,8 @@ namespace noa::cuda::guts {
         output_.for_each([&order](auto& accessor) { accessor.reorder(order); });
 
         // Remove the empty/reduced axis from the output.
-        constexpr auto TO_3D = ng::AccessorConfig<3>{.filter = {0, 1, 3}};
-        auto output_3d = ng::reconfig_accessors<TO_3D>(std::move(output_));
+        constexpr auto TO_3D = nd::AccessorConfig<3>{.filter = {0, 1, 3}};
+        auto output_3d = nd::reconfig_accessors<TO_3D>(std::move(output_));
         using Output3D = decltype(output_3d);
 
         // Block shape.
@@ -302,7 +302,7 @@ namespace noa::cuda::guts {
 
         for (u32 z{}; z < grid_z.n_launches(); z++) {
             for (u32 y{}; y < grid_y.n_launches(); y++) {
-                ng::offset_accessors(Vec{grid_z.offset_additive(z), grid_y.offset_additive(y)}, input_, output_3d);
+                nd::offset_accessors(Vec{grid_z.offset_additive(z), grid_y.offset_additive(y)}, input_, output_3d);
 
                 const auto config = LaunchConfig{
                     .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
@@ -329,7 +329,7 @@ namespace noa::cuda {
         static_assert(is_power_of_2(ElementsPerThread));
         static_assert(is_power_of_2(BlockSize) and BlockSize <= Limits::MAX_THREADS);
 
-        using interface = ng::ReduceEwiseInterface<ZipInput, ZipReduced, ZipOutput>;
+        using interface = nd::ReduceEwiseInterface<ZipInput, ZipReduced, ZipOutput>;
         static constexpr u32 max_grid_size = MaxGridSize;
         static constexpr u32 block_size = BlockSize;
         static constexpr u32 n_elements_per_thread = ElementsPerThread;
@@ -374,29 +374,29 @@ namespace noa::cuda {
             if (not reduce_all)
                 is_contiguous[0] = true;
 
-            auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter = {0}}>(std::forward<Output>(output));
+            auto output_1d = nd::reconfig_accessors<nd::AccessorConfig<1>{.filter = {0}}>(std::forward<Output>(output));
 
             constexpr auto SMALL_THRESHOLD = Config::block_work_size * 4;
             if (all(is_contiguous.pop_back())) {
                 if (n_elements_to_reduce <= SMALL_THRESHOLD) {
-                    guts::launch_reduce_ewise_small_2d<Config>(
+                    details::launch_reduce_ewise_small_2d<Config>(
                         std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),
                         std::move(output_1d), Shape{batches, n_elements_to_reduce}, stream
                     );
                 } else {
-                    guts::launch_reduce_ewise_large_2d<Config>(
+                    details::launch_reduce_ewise_large_2d<Config>(
                         std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),
                         std::move(output_1d), Shape{batches, n_elements_to_reduce}, stream
                     );
                 }
             } else {
                 if (n_elements_to_reduce <= SMALL_THRESHOLD) {
-                    guts::launch_reduce_ewise_small_4d<Config>(
+                    details::launch_reduce_ewise_small_4d<Config>(
                         std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),
                         std::move(output_1d), input_shape, true, stream
                     );
                 } else {
-                    guts::launch_reduce_ewise_large_4d<Config>(
+                    details::launch_reduce_ewise_large_4d<Config>(
                         std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),
                         std::move(output_1d), input_shape, true, stream
                     );
@@ -413,7 +413,7 @@ namespace noa::cuda {
               input_shape, output_shape, axes_to_reduce);
 
         if (axes_to_reduce[3]) {
-            guts::launch_reduce_ewise_width<Config>(
+            details::launch_reduce_ewise_width<Config>(
                 input_shape,
                 std::forward<Op>(op),
                 std::forward<Input>(input),
@@ -422,7 +422,7 @@ namespace noa::cuda {
                 stream
             );
         } else {
-            guts::launch_reduce_ewise_bdh<Config>(
+            details::launch_reduce_ewise_bdh<Config>(
                 input_shape, axes_to_reduce,
                 std::forward<Op>(op),
                 std::forward<Input>(input),

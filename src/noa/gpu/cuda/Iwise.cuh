@@ -6,7 +6,7 @@
 #include "noa/gpu/cuda/Constants.hpp"
 #include "noa/gpu/cuda/Stream.hpp"
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     template<typename Block, typename Interface, typename Op, typename Index>
     __global__ __launch_bounds__(Block::block_size)
     void iwise_4d_static(Op op, Vec<Index, 3> shape, Vec<u32, 2> block_offset_zy, u32 n_blocks_x) {
@@ -99,7 +99,7 @@ namespace noa::cuda {
     ) {
         static_assert(N >= Config::ndim);
         using Block = Config;
-        using Interface = ng::IwiseInterface;
+        using Interface = nd::IwiseInterface;
 
         if constexpr (N == 4) {
             auto grid_x = GridXY(shape[3], shape[2], Block::block_work_size_x, Block::block_work_size_y);
@@ -115,7 +115,7 @@ namespace noa::cuda {
                     };
                     const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
                     stream.enqueue(
-                        guts::iwise_4d_static<Block, Interface, std::decay_t<Op>, Index>,
+                        details::iwise_4d_static<Block, Interface, std::decay_t<Op>, Index>,
                         config, op, shape.vec.pop_front(), grid_offset, grid_x.n_blocks_x()
                     );
                 }
@@ -134,7 +134,7 @@ namespace noa::cuda {
                     };
                     const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
                     stream.enqueue(
-                        guts::iwise_3d_static<Block, Interface, std::decay_t<Op>, Index>,
+                        details::iwise_3d_static<Block, Interface, std::decay_t<Op>, Index>,
                         config, op, shape.vec, grid_offset
                     );
                 }
@@ -151,7 +151,7 @@ namespace noa::cuda {
                 };
                 const auto grid_offset = Vec{grid_y.offset(y)};
                 stream.enqueue(
-                    guts::iwise_2d_static<Block, Interface, std::decay_t<Op>, Index>,
+                    details::iwise_2d_static<Block, Interface, std::decay_t<Op>, Index>,
                     config, op, shape.vec, grid_offset
                 );
             }
@@ -164,7 +164,7 @@ namespace noa::cuda {
                 .n_bytes_of_shared_memory = n_bytes_of_shared_memory,
             };
             stream.enqueue(
-                guts::iwise_1d_static<Block, Interface, std::decay_t<Op>, Index>,
+                details::iwise_1d_static<Block, Interface, std::decay_t<Op>, Index>,
                 config, op, shape.vec
             );
         }

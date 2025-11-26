@@ -15,7 +15,7 @@
 //      especially knowing how prevalent the Interpolator is in the codebase.
 
 namespace noa::traits {
-    namespace guts {
+    namespace details {
         template<typename T, size_t... N>
         struct fetchable_nd_t {
             template<size_t S, size_t... J>
@@ -37,7 +37,7 @@ namespace noa::traits {
     concept textureable_nd = std::copyable<std::remove_cv_t<T>> and T::BORDER == BORDER and requires {
         typename T::value_type;
         typename T::index_type;
-    } and guts::fetchable_nd_t<T, N...>::value;
+    } and details::fetchable_nd_t<T, N...>::value;
 
     template<typename T, Border BORDER, size_t... N>
     concept lerpable_nd = textureable_nd<T, BORDER, N...> and T::INTERP == Interp::LINEAR_FAST;
@@ -406,7 +406,7 @@ namespace noa {
         }
     }
 
-    namespace guts {
+    namespace details {
         template<bool FLIP, typename T, typename Coord, size_t N, size_t A>
         NOA_FHD constexpr auto flip_frequency(Vec<Coord, N, A>& frequency) -> T {
             if constexpr (FLIP) {
@@ -453,14 +453,14 @@ namespace noa {
         constexpr bool IS_RFFT = REMAP.is_hx2xx();
         constexpr bool IS_CENTERED = REMAP.is_xc2xx();
         constexpr bool FLIP_EARLY = IS_RFFT and SIZE <= 2;
-        const real_t conjugate = guts::flip_frequency<FLIP_EARLY, real_t>(frequency);
+        const real_t conjugate = details::flip_frequency<FLIP_EARLY, real_t>(frequency);
 
         auto update_at = [
             &input, &shape,
             bounds = nf::frequency_bounds<IS_RFFT>(shape)
         ] (auto freq, const auto& weight, auto& output) {
             constexpr bool FLIP_PER_INDEX = IS_RFFT and SIZE > 2;
-            const real_t conj = guts::flip_frequency<FLIP_PER_INDEX, real_t>(freq);
+            const real_t conj = details::flip_frequency<FLIP_PER_INDEX, real_t>(freq);
             if (nf::is_inbound<IS_RFFT, true>(freq, bounds)) {
                 auto value = input(nf::frequency2index<IS_CENTERED, IS_RFFT>(freq, shape));
                 if constexpr (FLIP_PER_INDEX and nt::complex<value_t>)
@@ -549,7 +549,7 @@ namespace noa {
         constexpr bool IS_RFFT = REMAP.is_hx2xx();
         constexpr bool IS_CENTERED = REMAP.is_xc2xx();
         constexpr bool FLIP_EARLY = IS_RFFT and SIZE <= 2;
-        const real_t conjugate = guts::flip_frequency<FLIP_EARLY, real_t>(frequency);
+        const real_t conjugate = details::flip_frequency<FLIP_EARLY, real_t>(frequency);
 
         value_t value{};
         if constexpr (INTERP == T::INTERP) {
@@ -564,7 +564,7 @@ namespace noa {
         } else {
             auto value_at = [&shape, &input](auto freq) {
                 constexpr bool FLIP_PER_INDEX = IS_RFFT and SIZE > 2;
-                const real_t conj = guts::flip_frequency<FLIP_PER_INDEX, real_t>(freq);
+                const real_t conj = details::flip_frequency<FLIP_PER_INDEX, real_t>(freq);
                 freq = nf::frequency2index<IS_CENTERED, IS_RFFT>(freq, shape);
                 value_t fetched = input.fetch(static_cast<coordn_t>(freq));
                 if constexpr (FLIP_PER_INDEX and nt::is_complex_v<value_t>)
@@ -891,7 +891,7 @@ namespace noa::traits {
     struct proclaim_is_interpolator_spectrum_nd<InterpolatorSpectrum<N, REMAP, INTERP, Input>, S> : std::bool_constant<N == S> {};
 }
 
-namespace noa::guts {
+namespace noa::details {
     /// BSpline prefilter utility.
     /// \details Cubic B-spline curves are not constrained to pass through the data, i.e. data points are simply
     /// referred to as control points. As such, these curves are not really interpolating. For instance, a ratio of 0

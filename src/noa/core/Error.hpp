@@ -52,7 +52,7 @@ namespace noa {
         std::string m_buffer{};
     };
 
-    namespace guts {
+    namespace details {
         template<typename... Ts>
         struct FormatWithLocation {
             fmt::format_string<Ts...> fmt;
@@ -118,7 +118,7 @@ namespace noa {
 
     /// Throws an Exception with an error message and the current source location.
     template<typename... Ts>
-    [[noreturn]] constexpr void panic(guts::FormatWithLocation<std::type_identity_t<Ts>...> fmt, Ts&&... args) {
+    [[noreturn]] constexpr void panic(details::FormatWithLocation<std::type_identity_t<Ts>...> fmt, Ts&&... args) {
         panic_at_location(fmt.location, fmt.fmt, std::forward<Ts>(args)...);
     }
 
@@ -165,7 +165,7 @@ namespace noa {
 
     /// Throws an Exception if the expression evaluates to false.
     template<typename... Ts>
-    constexpr void check(auto&& expression, guts::FormatWithLocation<std::type_identity_t<Ts>...> fmt, Ts&&... args) {
+    constexpr void check(auto&& expression, details::FormatWithLocation<std::type_identity_t<Ts>...> fmt, Ts&&... args) {
         if (expression) {
             return;
         } else {

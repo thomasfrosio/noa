@@ -17,7 +17,7 @@
 // Other transpositions are very similar to this one, but the tile might be in XZ along Y as opposed to XY along Z.
 // Reads and writes to global memory should coalesce and there should be no shared memory bank conflict.
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     struct PermuteConfig {
         static constexpr u32 tile_size = Constant::WARP_SIZE;
         static constexpr u32 block_size = 256;
@@ -418,7 +418,7 @@ namespace noa::cuda::guts {
     // based on a 3D shared memory array, but since it is unlikely to be used anyway, don't bother for now.
 }
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     template<typename T>
     void permute_0132(
         const T* input, const Strides4<i64>& input_strides,
@@ -762,11 +762,11 @@ namespace noa::cuda {
                 case 123:
                     return;
                 case 213:
-                    return guts::permute_0213_inplace(output, output_strides, input_shape, stream);
+                    return details::permute_0213_inplace(output, output_strides, input_shape, stream);
                 case 132:
-                    return guts::permute_0132_inplace(output, output_strides, input_shape, stream);
+                    return details::permute_0132_inplace(output, output_strides, input_shape, stream);
                 case 321:
-                    return guts::permute_0321_inplace(output, output_strides, input_shape, stream);
+                    return details::permute_0321_inplace(output, output_strides, input_shape, stream);
                 default:
                     panic("The in-place permutation {} is not supported", permutation);
             }
@@ -775,15 +775,15 @@ namespace noa::cuda {
                 case 123:
                     return copy(input, input_strides, output, output_strides, input_shape, stream);
                 case 213:
-                    return guts::permute_0213(input, input_strides, output, output_strides, input_shape, stream);
+                    return details::permute_0213(input, input_strides, output, output_strides, input_shape, stream);
                 case 132:
-                    return guts::permute_0132(input, input_strides, output, output_strides, input_shape, stream);
+                    return details::permute_0132(input, input_strides, output, output_strides, input_shape, stream);
                 case 312:
-                    return guts::permute_0312(input, input_strides, output, output_strides, input_shape, stream);
+                    return details::permute_0312(input, input_strides, output, output_strides, input_shape, stream);
                 case 231:
-                    return guts::permute_0231(input, input_strides, output, output_strides, input_shape, stream);
+                    return details::permute_0231(input, input_strides, output, output_strides, input_shape, stream);
                 case 321:
-                    return guts::permute_0321(input, input_strides, output, output_strides, input_shape, stream);
+                    return details::permute_0321(input, input_strides, output, output_strides, input_shape, stream);
                 default:
                     // Expected to be much slower...
                     const auto output_shape = ni::reorder(input_shape, permutation);

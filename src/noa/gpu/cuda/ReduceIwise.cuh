@@ -5,7 +5,7 @@
 #include "noa/gpu/cuda/Allocators.hpp"
 #include "noa/gpu/cuda/Block.cuh"
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     template<typename Config>
     struct ReduceIwise2dBlock {
         static constexpr u32 max_grid_size = Config::max_grid_size;
@@ -21,7 +21,7 @@ namespace noa::cuda::guts {
     };
 }
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     template<typename Block, typename Interface, typename Op, typename Index, typename Reduced>
     __global__ __launch_bounds__(Block::block_size)
     void reduce_iwise_4d_first(
@@ -187,7 +187,7 @@ namespace noa::cuda::guts {
     }
 }
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     template<typename Block, size_t N>
     auto reduce_iwise_nd_first_config(const Shape<i64, N>& shape) {
         constexpr auto max_grid_size = static_cast<i64>(Block::max_grid_size);
@@ -228,7 +228,7 @@ namespace noa::cuda {
              u32 MaxGridSize = 4096>
     struct ReduceIwiseConfig {
         static_assert(is_multiple_of(BlockSize, Constant::WARP_SIZE) and BlockSize <= Limits::MAX_THREADS);
-        using interface = ng::ReduceIwiseInterface<ZipReduced, ZipOutput>;
+        using interface = nd::ReduceIwiseInterface<ZipReduced, ZipOutput>;
         static constexpr u32 block_size = BlockSize;
         static constexpr u32 max_grid_size = MaxGridSize;
     };
@@ -254,30 +254,30 @@ namespace noa::cuda {
 
         if (n_elements <= SMALL_THRESHOLD) {
             if constexpr (N == 1) {
-                using Block = guts::ReduceIwise1dBlock<Config>;
+                using Block = details::ReduceIwise1dBlock<Config>;
                 stream.enqueue(
-                    guts::reduce_iwise_1d_small<Block, Interface, OpDecay, Index, ReducedDecay, OutputDecay>,
+                    details::reduce_iwise_1d_small<Block, Interface, OpDecay, Index, ReducedDecay, OutputDecay>,
                     LaunchConfig{.n_blocks = 1, .n_threads = dim3(Block::block_size)},
                     std::forward<Op>(op), std::forward<Reduced>(reduced), output, shape.vec
                 );
             } else if constexpr (N == 2) {
-                using Block = guts::ReduceIwise2dBlock<Config>;
+                using Block = details::ReduceIwise2dBlock<Config>;
                 stream.enqueue(
-                    guts::reduce_iwise_2d_small<Block, Interface, OpDecay, Index, ReducedDecay, OutputDecay>,
+                    details::reduce_iwise_2d_small<Block, Interface, OpDecay, Index, ReducedDecay, OutputDecay>,
                     LaunchConfig{.n_blocks = 1, .n_threads = dim3(Block::block_size_x, Block::block_size_y)},
                     std::forward<Op>(op), std::forward<Reduced>(reduced), output, shape.vec
                 );
             } else if constexpr (N == 3) {
-                using Block = guts::ReduceIwise2dBlock<Config>;
+                using Block = details::ReduceIwise2dBlock<Config>;
                 stream.enqueue(
-                    guts::reduce_iwise_3d_small<Block, Interface, OpDecay, Index, ReducedDecay, OutputDecay>,
+                    details::reduce_iwise_3d_small<Block, Interface, OpDecay, Index, ReducedDecay, OutputDecay>,
                     LaunchConfig{.n_blocks = 1, .n_threads = dim3(Block::block_size_x, Block::block_size_y)},
                     std::forward<Op>(op), std::forward<Reduced>(reduced), output, shape.vec
                 );
             } else if constexpr (N == 4) {
-                using Block = guts::ReduceIwise2dBlock<Config>;
+                using Block = details::ReduceIwise2dBlock<Config>;
                 stream.enqueue(
-                    guts::reduce_iwise_4d_small<Block, Interface, OpDecay, Index, ReducedDecay, OutputDecay>,
+                    details::reduce_iwise_4d_small<Block, Interface, OpDecay, Index, ReducedDecay, OutputDecay>,
                     LaunchConfig{.n_blocks = 1, .n_threads = dim3(Block::block_size_x, Block::block_size_y)},
                     std::forward<Op>(op), std::forward<Reduced>(reduced), output, shape.vec
                 );
@@ -296,35 +296,35 @@ namespace noa::cuda {
 
             // First kernel.
             if constexpr (N == 1) {
-                using Block = guts::ReduceIwise1dBlock<Config>;
-                auto [config, n_blocks, _] = guts::reduce_iwise_nd_first_config<Block>(shape_i64);
+                using Block = details::ReduceIwise1dBlock<Config>;
+                auto [config, n_blocks, _] = details::reduce_iwise_nd_first_config<Block>(shape_i64);
                 allocate_joined(n_blocks);
                 stream.enqueue(
-                    guts::reduce_iwise_1d_first<Block, Interface, OpDecay, Index, ReducedDecay>,
+                    details::reduce_iwise_1d_first<Block, Interface, OpDecay, Index, ReducedDecay>,
                     config, op, reduced, joined.get(), shape.vec
                 );
             } else if constexpr (N == 2) {
-                using Block = guts::ReduceIwise2dBlock<Config>;
-                auto [config, n_blocks, _] = guts::reduce_iwise_nd_first_config<Block>(shape_i64);
+                using Block = details::ReduceIwise2dBlock<Config>;
+                auto [config, n_blocks, _] = details::reduce_iwise_nd_first_config<Block>(shape_i64);
                 allocate_joined(n_blocks);
                 stream.enqueue(
-                    guts::reduce_iwise_2d_first<Block, Interface, OpDecay, Index, ReducedDecay>,
+                    details::reduce_iwise_2d_first<Block, Interface, OpDecay, Index, ReducedDecay>,
                     config, op, reduced, joined.get(), shape.vec
                 );
             } else if constexpr (N == 3) {
-                using Block = guts::ReduceIwise2dBlock<Config>;
-                auto [config, n_blocks, _] = guts::reduce_iwise_nd_first_config<Block>(shape_i64);
+                using Block = details::ReduceIwise2dBlock<Config>;
+                auto [config, n_blocks, _] = details::reduce_iwise_nd_first_config<Block>(shape_i64);
                 allocate_joined(n_blocks);
                 stream.enqueue(
-                    guts::reduce_iwise_3d_first<Block, Interface, OpDecay, Index, ReducedDecay>,
+                    details::reduce_iwise_3d_first<Block, Interface, OpDecay, Index, ReducedDecay>,
                     config, op, reduced, joined.get(), shape.vec
                 );
             } else if constexpr (N == 4) {
-                using Block = guts::ReduceIwise2dBlock<Config>;
-                auto [config, n_blocks, n_blocks_hw] = guts::reduce_iwise_nd_first_config<Block>(shape_i64);
+                using Block = details::ReduceIwise2dBlock<Config>;
+                auto [config, n_blocks, n_blocks_hw] = details::reduce_iwise_nd_first_config<Block>(shape_i64);
                 allocate_joined(n_blocks);
                 stream.enqueue(
-                    guts::reduce_iwise_4d_first<Block, Interface, OpDecay, Index, ReducedDecay>,
+                    details::reduce_iwise_4d_first<Block, Interface, OpDecay, Index, ReducedDecay>,
                     config, op, reduced, joined.get(), shape.vec, n_blocks_hw
                 );
             } else {
@@ -334,7 +334,7 @@ namespace noa::cuda {
             // Second kernel.
             using Block = Config;
             stream.enqueue(
-                guts::reduce_iwise_second<Block, Interface, OpDecay, Index, ReducedDecay, OutputDecay>,
+                details::reduce_iwise_second<Block, Interface, OpDecay, Index, ReducedDecay, OutputDecay>,
                 LaunchConfig{.n_blocks = 1, .n_threads = Config::block_size},
                 std::forward<Op>(op), joined.get(), n_joined, std::forward<Reduced>(reduced), output
             );

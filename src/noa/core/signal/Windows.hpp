@@ -3,7 +3,7 @@
 #include "noa/core/math/Constant.hpp"
 #include "noa/core/math/Generic.hpp"
 
-namespace noa::signal::guts {
+namespace noa::signal::details {
     template<typename Derived>
     class Window {
     public:
@@ -111,7 +111,7 @@ namespace noa::signal {
     constexpr void window_gaussian(T* output, i64 elements, f64 stddev, WindowOptions options = {}) {
         if (elements <= 0)
             return;
-        guts::WindowGaussian(elements, options.half_window, stddev).generate(output, options.normalize);
+        details::WindowGaussian(elements, options.half_window, stddev).generate(output, options.normalize);
     }
 
     /// Samples the gaussian window at a particular index.
@@ -122,7 +122,7 @@ namespace noa::signal {
     [[nodiscard]] constexpr auto window_gaussian(i64 index, i64 elements, f64 stddev, WindowOptions options = {}) -> f64 {
         if (elements <= 0)
             return 0.;
-        return guts::WindowGaussian(elements, options.half_window, stddev).sample(index);
+        return details::WindowGaussian(elements, options.half_window, stddev).sample(index);
     }
 
     /// Computes the blackman window.
@@ -133,7 +133,7 @@ namespace noa::signal {
     constexpr void window_blackman(T* output, i64 elements, WindowOptions options = {}) {
         if (elements <= 0)
             return;
-        guts::WindowBlackman(elements, options.half_window).generate(output, options.normalize);
+        details::WindowBlackman(elements, options.half_window).generate(output, options.normalize);
     }
 
     /// Samples the blackman window at a particular index.
@@ -143,7 +143,7 @@ namespace noa::signal {
     [[nodiscard]] constexpr auto window_blackman(i64 index, i64 elements, WindowOptions options = {}) -> f64 {
         if (elements <= 0)
             return 0;
-        return guts::WindowBlackman(elements, options.half_window).sample(index);
+        return details::WindowBlackman(elements, options.half_window).sample(index);
     }
 
     /// Computes the sinc window.
@@ -155,7 +155,7 @@ namespace noa::signal {
     constexpr void window_sinc(T* output, i64 elements, f64 constant, WindowOptions options = {}) {
         if (elements <= 0)
             return;
-        guts::WindowSinc(elements, options.half_window, constant).generate(output, options.normalize);
+        details::WindowSinc(elements, options.half_window, constant).generate(output, options.normalize);
     }
 
     /// Samples the sinc window at a particular index.
@@ -166,6 +166,6 @@ namespace noa::signal {
     [[nodiscard]] constexpr auto window_sinc(i64 index, i64 elements, f64 constant, WindowOptions options = {}) -> f64 {
         if (elements <= 0)
             return 0;
-        return guts::WindowSinc(elements, options.half_window, constant).sample(index);
+        return details::WindowSinc(elements, options.half_window, constant).sample(index);
     }
 }

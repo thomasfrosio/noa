@@ -9,7 +9,7 @@
 // FIXME The implementation requires a single thread to go through the each line. Obviously, this leeds to poor
 //       performance. We should try to optimize it at some point.
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     template<typename T>
     __global__ void cubic_bspline_prefilter_1d_x_inplace(T* input, Strides2<u32> strides, Shape2<u32> shape) {
         // process lines in x-direction
@@ -17,7 +17,7 @@ namespace noa::cuda::guts {
         if (batch >= shape[0])
             return;
         input += batch * strides[0];
-        ng::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[1], shape[1]);
+        nd::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[1], shape[1]);
     }
 
     template<typename T>
@@ -32,7 +32,7 @@ namespace noa::cuda::guts {
             return;
         input += batch * input_strides[0];
         output += batch * output_strides[0];
-        ng::BSplinePrefilter1d<T, i32>::filter(
+        nd::BSplinePrefilter1d<T, i32>::filter(
             input, input_strides[1], output, output_strides[1], shape[1]);
     }
 
@@ -43,7 +43,7 @@ namespace noa::cuda::guts {
         if (y >= shape[0])
             return;
         const auto input_1d = input[blockIdx.y][y]; // blockIdx.y == batch
-        ng::BSplinePrefilter1d<T, i32>::filter_inplace(
+        nd::BSplinePrefilter1d<T, i32>::filter_inplace(
             input_1d.get(), input_1d.template stride<0>(), shape[1]);
     }
 
@@ -59,7 +59,7 @@ namespace noa::cuda::guts {
             return;
         const auto input_1d = input[blockIdx.y][y];
         const auto output_1d = output[blockIdx.y][y];
-        ng::BSplinePrefilter1d<T, i32>::filter(
+        nd::BSplinePrefilter1d<T, i32>::filter(
             input_1d.get(), input_1d.template stride<0>(),
             output.get(), output_1d.template stride<0>(), shape[1]);
     }
@@ -71,7 +71,7 @@ namespace noa::cuda::guts {
         if (x >= shape[1])
             return;
         input += blockIdx.y * strides[0] + x * strides[2];
-        ng::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[1], shape[0]);
+        nd::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[1], shape[0]);
     }
 
     template<typename T>
@@ -82,7 +82,7 @@ namespace noa::cuda::guts {
         if (z >= shape[0] or y >= shape[1])
             return;
         const auto input_1d = input[blockIdx.z][z][y];
-        ng::BSplinePrefilter1d<T, i32>::filter_inplace(
+        nd::BSplinePrefilter1d<T, i32>::filter_inplace(
             input_1d.get(), input_1d.template stride<0>(), shape[2]);
     }
 
@@ -99,7 +99,7 @@ namespace noa::cuda::guts {
             return;
         const auto input_1d = input[blockIdx.z][z][y];
         const auto output_1d = output[blockIdx.z][z][y];
-        ng::BSplinePrefilter1d<T, i32>::filter(
+        nd::BSplinePrefilter1d<T, i32>::filter(
             input_1d.get(), input_1d.template stride<0>(),
             output_1d.get(), output_1d.template stride<0>(), shape[2]);
     }
@@ -112,7 +112,7 @@ namespace noa::cuda::guts {
         if (z >= shape[0] or x >= shape[2])
             return;
         input += ni::offset_at(strides, blockIdx.z, z) + x * strides[3];
-        ng::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[2], shape[1]);
+        nd::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[2], shape[1]);
     }
 
     template<typename T>
@@ -123,11 +123,11 @@ namespace noa::cuda::guts {
         if (y >= shape[1] or x >= shape[2])
             return;
         input += blockIdx.z * strides[0] + y * strides[2] + x * strides[3];
-        ng::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[1], shape[0]);
+        nd::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[1], shape[0]);
     }
 }
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     template<typename T>
     void cubic_bspline_prefilter_1d(
         const T* input, const Strides2<u32>& input_strides,
@@ -142,11 +142,11 @@ namespace noa::cuda::guts {
 
         if (input == output) {
             stream.enqueue(
-                guts::cubic_bspline_prefilter_1d_x_inplace<T>,
+                details::cubic_bspline_prefilter_1d_x_inplace<T>,
                 config, output, output_strides, shape);
         } else {
             stream.enqueue(
-                guts::cubic_bspline_prefilter_1d_x<T>,
+                details::cubic_bspline_prefilter_1d_x<T>,
                 config, input, input_strides, output, output_strides, shape);
         }
     }
@@ -168,17 +168,17 @@ namespace noa::cuda::guts {
         if (input == output) {
             const auto accessor = AccessorU32<T, 3>(output, output_strides);
             stream.enqueue(
-                guts::cubic_bspline_prefilter_2d_x_inplace<T>,
+                details::cubic_bspline_prefilter_2d_x_inplace<T>,
                 config_x, accessor, shape.pop_front());
         } else {
             const auto input_accessor = AccessorRestrictU32<const T, 3>(input, input_strides);
             const auto output_accessor = AccessorRestrictU32<T, 3>(output, output_strides);
             stream.enqueue(
-                guts::cubic_bspline_prefilter_2d_x<T>,
+                details::cubic_bspline_prefilter_2d_x<T>,
                 config_x, input_accessor, output_accessor, shape.pop_front());
         }
         stream.enqueue(
-            guts::cubic_bspline_prefilter_2d_y<T>,
+            details::cubic_bspline_prefilter_2d_y<T>,
             config_y, output, output_strides, shape.pop_front());
     }
 
@@ -203,24 +203,24 @@ namespace noa::cuda::guts {
         if (input == output) {
             const auto accessor = AccessorU32<T, 4>(output, output_strides);
             stream.enqueue(
-                guts::cubic_bspline_prefilter_3d_x_inplace<T>,
+                details::cubic_bspline_prefilter_3d_x_inplace<T>,
                 launch_config, accessor, shape_3d);
         } else {
             const auto input_accessor = AccessorRestrictU32<const T, 4>(input, input_strides);
             const auto output_accessor = AccessorRestrictU32<T, 4>(output, output_strides);
             stream.enqueue(
-                guts::cubic_bspline_prefilter_3d_x<T>,
+                details::cubic_bspline_prefilter_3d_x<T>,
                 launch_config, input_accessor, output_accessor, shape_3d);
         }
 
         launch_config = get_launch_config_3d(shape[0], shape[1], shape[3]);
         stream.enqueue(
-            guts::cubic_bspline_prefilter_3d_y<T>,
+            details::cubic_bspline_prefilter_3d_y<T>,
             launch_config, output, output_strides, shape_3d);
 
         launch_config = get_launch_config_3d(shape[0], shape[2], shape[3]);
         stream.enqueue(
-            guts::cubic_bspline_prefilter_3d_z<T>,
+            details::cubic_bspline_prefilter_3d_z<T>,
             launch_config, output, output_strides, shape_3d);
     }
 }
@@ -243,17 +243,17 @@ namespace noa::cuda {
 
         const auto ndim = shape.ndim();
         if (ndim == 3) {
-            guts::cubic_bspline_prefilter_3d<Value>(
+            details::cubic_bspline_prefilter_3d<Value>(
                 input, input_strides.as_safe<u32>(),
                 output, output_strides.as_safe<u32>(),
                 shape.as_safe<u32>(), stream);
         } else if (ndim == 2) {
-            guts::cubic_bspline_prefilter_2d<Value>(
+            details::cubic_bspline_prefilter_2d<Value>(
                 input, input_strides.filter(0, 2, 3).as_safe<u32>(),
                 output, output_strides.filter(0, 2, 3).as_safe<u32>(),
                 shape.filter(0, 2, 3).as_safe<u32>(), stream);
         } else {
-            guts::cubic_bspline_prefilter_1d<Value>(
+            details::cubic_bspline_prefilter_1d<Value>(
                 input, input_strides.filter(0, 3).as_safe<u32>(),
                 output, output_strides.filter(0, 3).as_safe<u32>(),
                 shape.filter(0, 3).as_safe<u32>(), stream);

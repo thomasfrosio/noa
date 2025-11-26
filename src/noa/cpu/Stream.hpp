@@ -12,7 +12,7 @@
 #include "noa/core/Traits.hpp"
 #include "noa/core/utils/Misc.hpp"
 
-namespace noa::cpu::guts {
+namespace noa::cpu::details {
     // (Asynchronous) dispatch queue. Enqueued tasks are executed in order.
     struct DispatchQueue {
         explicit DispatchQueue(bool async) {
@@ -199,7 +199,7 @@ namespace noa::cpu {
         struct Core {
             Core(bool async, i64 thread_limit) : worker(async), omp_thread_limit(thread_limit) {}
 
-            guts::DispatchQueue worker;
+            details::DispatchQueue worker;
 
             // Number of "internal" threads that OpenMP is allowed to use.
             // This has nothing to do with the number of workers (there's only one worker).

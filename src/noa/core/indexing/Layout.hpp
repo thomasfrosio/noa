@@ -612,7 +612,7 @@ namespace noa::indexing {
                     constexpr index_type ratio = sizeof(old_type) / sizeof(New);
                     check(strides[rightmost_order[N - 1]] == 1,
                           "The stride of the innermost dimension must be 1 to view a {} as a {}",
-                          ns::stringify<old_type>(), ns::stringify<New>());
+                          noa::string::stringify<old_type>(), noa::string::stringify<New>());
                     NOA_NV_DIAG_SUPPRESS(186)
                     for (size_t i{}; i < N - 1; ++i)
                         out.strides[rightmost_order[i]] *= ratio;
@@ -624,20 +624,20 @@ namespace noa::indexing {
                     constexpr index_type ratio = sizeof(New) / sizeof(old_type);
                     check(out.shape[rightmost_order[N - 1]] % ratio == 0,
                           "The size of the innermost dimension must be divisible by {} to view a {} as a {}",
-                          ratio, ns::stringify<old_type>(), ns::stringify<New>());
+                          ratio, noa::string::stringify<old_type>(), noa::string::stringify<New>());
 
                     check(not (reinterpret_cast<std::uintptr_t>(ptr) % alignof(New)),
                           "The memory offset should be at least aligned to {} bytes to be viewed as a {}, but got {}",
-                          alignof(New), ns::stringify<New>(), static_cast<const void*>(ptr));
+                          alignof(New), noa::string::stringify<New>(), static_cast<const void*>(ptr));
 
                     check(out.strides[rightmost_order[N - 1]] == 1,
                           "The stride of the innermost dimension must be 1 to view a {} as a {}",
-                          ns::stringify<old_type>(), ns::stringify<New>());
+                          noa::string::stringify<old_type>(), noa::string::stringify<New>());
 
                     for (size_t i{}; i < N - 1; ++i) {
                         check(not (out.strides[i] % ratio),
                               "The strides must be divisible by {} to view a {} as a {}",
-                              ratio, ns::stringify<old_type>(), ns::stringify<New>());
+                              ratio, noa::string::stringify<old_type>(), noa::string::stringify<New>());
                         out.strides[i] /= ratio;
                     }
                     out.strides[rightmost_order[N - 1]] = 1;

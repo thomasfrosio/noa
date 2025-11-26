@@ -85,12 +85,12 @@ namespace noa::geometry {
             i64 n_matrices = m_code.order - 1; // -1 to remove the identity from the matrices
             if (options.device.is_cpu()) {
                 m_buffer = array_type(n_matrices, options);
-                guts::set_cx_symmetry_matrices(m_buffer.span_1d_contiguous());
+                details::set_cx_symmetry_matrices(m_buffer.span_1d_contiguous());
             } else {
                 // Create a new sync stream so that the final copy doesn't sync the default cpu stream of the user.
                 const auto guard = StreamGuard(Device{}, Stream::DEFAULT);
                 array_type cpu_matrices(n_matrices);
-                guts::set_cx_symmetry_matrices(cpu_matrices.span_1d_contiguous());
+                details::set_cx_symmetry_matrices(cpu_matrices.span_1d_contiguous());
 
                 // Copy to gpu.
                 m_buffer = array_type(n_matrices, options);
@@ -104,7 +104,7 @@ namespace noa::geometry {
     };
 }
 
-namespace noa::geometry::guts {
+namespace noa::geometry::details {
     /// 3d or 4d iwise operator used to symmetrize 2d or 3d array(s).
     ///  * Can apply a per batch affine transformation before and after the symmetry.
     ///  * The symmetry is applied around a specified center.
@@ -263,8 +263,8 @@ namespace noa::geometry::guts {
             output.get(), output.strides().template filter_nd<N>().template as<Index>());
 
         // Batch the optional pre/post matrices.
-        auto batched_pre_inverse_matrices = ng::to_batched_transform<true>(pre_inverse_matrices);
-        auto batched_post_inverse_matrices = ng::to_batched_transform<true>(post_inverse_matrices);
+        auto batched_pre_inverse_matrices = nd::to_batched_transform<true>(pre_inverse_matrices);
+        auto batched_post_inverse_matrices = nd::to_batched_transform<true>(post_inverse_matrices);
 
         // Prepare the symmetry.
         using real_t = nt::mutable_value_type_twice_t<Input>;
@@ -280,8 +280,8 @@ namespace noa::geometry::guts {
                 center = static_cast<f64>(input_shape_nd[i++] / 2);
 
         auto launch_iwise = [&](auto interp) {
-            auto interpolator = ng::to_interpolator<N, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
-            using op_t = guts::Symmetrize<
+            auto interpolator = nd::to_interpolator<N, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
+            using op_t = details::Symmetrize<
                 N, Index, decltype(symmetry_matrices), decltype(interpolator), output_accessor_t,
                 decltype(batched_pre_inverse_matrices), decltype(batched_post_inverse_matrices)>;
 
@@ -302,20 +302,20 @@ namespace noa::geometry::guts {
         if constexpr (nt::texture_decay<Input>)
             options.interp = input.interp();
         switch (options.interp) {
-            case Interp::NEAREST:            return launch_iwise(ng::WrapInterp<Interp::NEAREST>{});
-            case Interp::NEAREST_FAST:       return launch_iwise(ng::WrapInterp<Interp::NEAREST_FAST>{});
-            case Interp::LINEAR:             return launch_iwise(ng::WrapInterp<Interp::LINEAR>{});
-            case Interp::LINEAR_FAST:        return launch_iwise(ng::WrapInterp<Interp::LINEAR_FAST>{});
-            case Interp::CUBIC:              return launch_iwise(ng::WrapInterp<Interp::CUBIC>{});
-            case Interp::CUBIC_FAST:         return launch_iwise(ng::WrapInterp<Interp::CUBIC_FAST>{});
-            case Interp::CUBIC_BSPLINE:      return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
-            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
-            case Interp::LANCZOS4:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS4>{});
-            case Interp::LANCZOS6:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS6>{});
-            case Interp::LANCZOS8:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS8>{});
-            case Interp::LANCZOS4_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS4_FAST>{});
-            case Interp::LANCZOS6_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS6_FAST>{});
-            case Interp::LANCZOS8_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS8_FAST>{});
+            case Interp::NEAREST:            return launch_iwise(nd::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_iwise(nd::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_iwise(nd::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_iwise(nd::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_iwise(nd::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_iwise(nd::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_iwise(nd::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(nd::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::LANCZOS4:           return launch_iwise(nd::WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:           return launch_iwise(nd::WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:           return launch_iwise(nd::WrapInterp<Interp::LANCZOS8>{});
+            case Interp::LANCZOS4_FAST:      return launch_iwise(nd::WrapInterp<Interp::LANCZOS4_FAST>{});
+            case Interp::LANCZOS6_FAST:      return launch_iwise(nd::WrapInterp<Interp::LANCZOS6_FAST>{});
+            case Interp::LANCZOS8_FAST:      return launch_iwise(nd::WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
 }
@@ -357,9 +357,9 @@ namespace noa::geometry {
     ///       of the output window relative to the input window.
     template<nt::varray_or_texture_decay_of_real_or_complex Input,
              nt::writable_varray_decay Output,
-             guts::symmetry_nd<2> Symmetry,
-             guts::symmetry_matrix_parameter_nd<nt::value_type_t<Symmetry>, 2> PreMatrix = Empty,
-             guts::symmetry_matrix_parameter_nd<nt::value_type_t<Symmetry>, 2> PostMatrix = Empty>
+             details::symmetry_nd<2> Symmetry,
+             details::symmetry_matrix_parameter_nd<nt::value_type_t<Symmetry>, 2> PreMatrix = Empty,
+             details::symmetry_matrix_parameter_nd<nt::value_type_t<Symmetry>, 2> PostMatrix = Empty>
     requires nt::compatible_types<nt::value_type_t<Input>, nt::value_type_t<Output>>
     void symmetrize_2d(
         Input&& input, Output&& output, Symmetry&& symmetry,
@@ -367,17 +367,17 @@ namespace noa::geometry {
         PreMatrix&& pre_inverse_matrices = {},
         PostMatrix&& post_inverse_matrices = {}
     ) {
-        guts::check_parameters_symmetrize_nd(input, output, symmetry);
+        details::check_parameters_symmetrize_nd(input, output, symmetry);
 
         if (output.device().is_gpu()) {
             #ifdef NOA_ENABLE_GPU
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::mutable_value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
-                check(ng::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
-                      ng::is_accessor_access_safe<i32>(output.strides(), output.shape()),
+                check(nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
+                      nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
                       "i64 indexing not instantiated for GPU devices");
-                guts::launch_symmetrize_nd<2, i32, true>(
+                details::launch_symmetrize_nd<2, i32, true>(
                     std::forward<Input>(input), std::forward<Output>(output),
                     std::forward<Symmetry>(symmetry),
                     std::forward<PreMatrix>(pre_inverse_matrices),
@@ -389,7 +389,7 @@ namespace noa::geometry {
             panic_no_gpu_backend();
             #endif
         }
-        guts::launch_symmetrize_nd<2, i64>(
+        details::launch_symmetrize_nd<2, i64>(
             std::forward<Input>(input), std::forward<Output>(output),
             std::forward<Symmetry>(symmetry),
             std::forward<PreMatrix>(pre_inverse_matrices),
@@ -418,9 +418,9 @@ namespace noa::geometry {
     ///       of the output window relative to the input window.
     template<nt::varray_or_texture_decay_of_real_or_complex Input,
              nt::writable_varray_decay Output,
-             guts::symmetry_nd<3> Symmetry,
-             guts::symmetry_matrix_parameter_nd<nt::value_type_t<Symmetry>, 3> PreMatrix = Empty,
-             guts::symmetry_matrix_parameter_nd<nt::value_type_t<Symmetry>, 3> PostMatrix = Empty>
+             details::symmetry_nd<3> Symmetry,
+             details::symmetry_matrix_parameter_nd<nt::value_type_t<Symmetry>, 3> PreMatrix = Empty,
+             details::symmetry_matrix_parameter_nd<nt::value_type_t<Symmetry>, 3> PostMatrix = Empty>
     requires nt::compatible_types<nt::value_type_t<Input>, nt::value_type_t<Output>>
     void symmetrize_3d(
         Input&& input, Output&& output, Symmetry&& symmetry,
@@ -428,17 +428,17 @@ namespace noa::geometry {
         PreMatrix&& pre_inverse_matrices = {},
         PostMatrix&& post_inverse_matrices = {}
     ) {
-        guts::check_parameters_symmetrize_nd(input, output, symmetry);
+        details::check_parameters_symmetrize_nd(input, output, symmetry);
 
         if (output.device().is_gpu()) {
             #ifdef NOA_ENABLE_GPU
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::mutable_value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
-                check(ng::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
-                      ng::is_accessor_access_safe<i32>(output.strides(), output.shape()),
+                check(nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
+                      nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
                       "i64 indexing not instantiated for GPU devices");
-                guts::launch_symmetrize_nd<3, i32, true>(
+                details::launch_symmetrize_nd<3, i32, true>(
                     std::forward<Input>(input), std::forward<Output>(output),
                     std::forward<Symmetry>(symmetry),
                     std::forward<PreMatrix>(pre_inverse_matrices),
@@ -450,7 +450,7 @@ namespace noa::geometry {
             panic_no_gpu_backend();
             #endif
         }
-        guts::launch_symmetrize_nd<3, i64>(
+        details::launch_symmetrize_nd<3, i64>(
             std::forward<Input>(input), std::forward<Output>(output),
             std::forward<Symmetry>(symmetry),
             std::forward<PreMatrix>(pre_inverse_matrices),

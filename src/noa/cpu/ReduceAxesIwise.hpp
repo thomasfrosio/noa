@@ -5,11 +5,11 @@
 #include "noa/core/Interfaces.hpp"
 #include "noa/cpu/ReduceIwise.hpp"
 
-namespace noa::cpu::guts {
+namespace noa::cpu::details {
     template<bool ZipReduced, bool ZipOutput>
     class ReduceAxesIwise {
     public:
-        using interface = ng::ReduceIwiseInterface<ZipReduced, ZipOutput>;
+        using interface = nd::ReduceIwiseInterface<ZipReduced, ZipOutput>;
 
         template<size_t R, size_t N, typename Index, typename Op>
         NOA_NOINLINE static void single_axis(
@@ -319,13 +319,13 @@ namespace noa::cpu {
 
         const auto axes_empty_or_to_reduce = output_shape == 1 or axes_to_reduce;
         if (all(axes_empty_or_to_reduce)) { // reduce to a single value
-            constexpr auto config = ng::AccessorConfig<1>{.enforce_contiguous = true, .filter = {0}};
-            auto output_1d = ng::reconfig_accessors<config>(output);
+            constexpr auto config = nd::AccessorConfig<1>{.enforce_contiguous = true, .filter = {0}};
+            auto output_1d = nd::reconfig_accessors<config>(output);
             return reduce_iwise<Config>(
                 input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
         }
 
-        using reduce_axes_iwise_t = guts::ReduceAxesIwise<Config::zip_reduced, Config::zip_output>;
+        using reduce_axes_iwise_t = details::ReduceAxesIwise<Config::zip_reduced, Config::zip_output>;
         const auto shape = input_shape.template as<i64>();
         const auto n_batches = shape[0];
         const i64 n_elements_to_reduce = input_shape.template as<i64>().n_elements();
@@ -333,7 +333,7 @@ namespace noa::cpu {
 
         if constexpr (N == 4) {
             if (all(axes_empty_or_to_reduce.pop_front())) { // reduce to one value per batch
-                auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter = {0}}>(output);
+                auto output_1d = nd::reconfig_accessors<nd::AccessorConfig<1>{.filter = {0}}>(output);
                 if (is_small or n_threads <= 1) {
                     reduce_axes_iwise_t::serial_4d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
                 } else if (n_batches < n_threads) {
@@ -345,22 +345,22 @@ namespace noa::cpu {
                 }
             } else {
                 if (axes_to_reduce[3]) {
-                    auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter = {0, 1, 2}}>(output);
+                    auto output_3d = nd::reconfig_accessors<nd::AccessorConfig<3>{.filter = {0, 1, 2}}>(output);
                     reduce_axes_iwise_t::template single_axis<3>(
                         input_shape, std::forward<Op>(op),
                         std::forward<Reduced>(reduced), output_3d, n_threads);
                 } else if (axes_to_reduce[2]) {
-                    auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter = {0, 1, 3}}>(output);
+                    auto output_3d = nd::reconfig_accessors<nd::AccessorConfig<3>{.filter = {0, 1, 3}}>(output);
                     reduce_axes_iwise_t::template single_axis<2>(
                         input_shape.filter(0, 1, 3, 2), std::forward<Op>(op),
                         std::forward<Reduced>(reduced), output_3d, n_threads);
                 } else if (axes_to_reduce[1]) {
-                    auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter = {0, 2, 3}}>(output);
+                    auto output_3d = nd::reconfig_accessors<nd::AccessorConfig<3>{.filter = {0, 2, 3}}>(output);
                     reduce_axes_iwise_t::template single_axis<1>(
                         input_shape.filter(0, 2, 3, 1), std::forward<Op>(op),
                         std::forward<Reduced>(reduced), output_3d, n_threads);
                 } else {
-                    auto output_3d = ng::reconfig_accessors<ng::AccessorConfig<3>{.filter = {1, 2, 3}}>(output);
+                    auto output_3d = nd::reconfig_accessors<nd::AccessorConfig<3>{.filter = {1, 2, 3}}>(output);
                     reduce_axes_iwise_t::template single_axis<0>(
                         input_shape.filter(1, 2, 3, 0), std::forward<Op>(op),
                         std::forward<Reduced>(reduced), output_3d, n_threads);
@@ -368,7 +368,7 @@ namespace noa::cpu {
             }
         } else if constexpr (N == 3) {
             if (all(axes_empty_or_to_reduce.pop_front())) { // reduce to one value per batch
-                auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter={0}}>(output);
+                auto output_1d = nd::reconfig_accessors<nd::AccessorConfig<1>{.filter={0}}>(output);
                 if (is_small or n_threads <= 1) {
                     reduce_axes_iwise_t::serial_3d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
                 } else if (n_batches < n_threads) {
@@ -380,17 +380,17 @@ namespace noa::cpu {
                 }
             } else {
                 if (axes_to_reduce[2]) {
-                    auto output_2d = ng::reconfig_accessors<ng::AccessorConfig<2>{.filter = {0, 1}}>(output);
+                    auto output_2d = nd::reconfig_accessors<nd::AccessorConfig<2>{.filter = {0, 1}}>(output);
                     reduce_axes_iwise_t::template single_axis<2>(
                         input_shape, std::forward<Op>(op),
                         std::forward<Reduced>(reduced), output_2d, n_threads);
                 } else if (axes_to_reduce[1]) {
-                    auto output_2d = ng::reconfig_accessors<ng::AccessorConfig<2>{.filter = {0, 2}}>(output);
+                    auto output_2d = nd::reconfig_accessors<nd::AccessorConfig<2>{.filter = {0, 2}}>(output);
                     reduce_axes_iwise_t::template single_axis<1>(
                         input_shape.filter(0, 2, 1), std::forward<Op>(op),
                         std::forward<Reduced>(reduced), output_2d, n_threads);
                 } else {
-                    auto output_2d = ng::reconfig_accessors<ng::AccessorConfig<2>{.filter = {1, 2}}>(output);
+                    auto output_2d = nd::reconfig_accessors<nd::AccessorConfig<2>{.filter = {1, 2}}>(output);
                     reduce_axes_iwise_t::template single_axis<0>(
                         input_shape.filter(1, 2, 0), std::forward<Op>(op),
                         std::forward<Reduced>(reduced), output_2d, n_threads);
@@ -398,7 +398,7 @@ namespace noa::cpu {
             }
         } else if constexpr (N == 2) {
             if (axes_to_reduce[1]) {
-                auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter = {0}}>(output);
+                auto output_1d = nd::reconfig_accessors<nd::AccessorConfig<1>{.filter = {0}}>(output);
                 if (is_small or n_threads <= 1) {
                     reduce_axes_iwise_t::serial_2d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
                 } else if (n_batches < n_threads) {
@@ -409,7 +409,7 @@ namespace noa::cpu {
                         input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
                 }
             } else {
-                auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter = {1}}>(output);
+                auto output_1d = nd::reconfig_accessors<nd::AccessorConfig<1>{.filter = {1}}>(output);
                 reduce_axes_iwise_t::template single_axis<0>(
                     input_shape.filter(1, 0), std::forward<Op>(op),
                     std::forward<Reduced>(reduced), output_1d, n_threads);

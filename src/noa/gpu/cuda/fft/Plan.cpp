@@ -352,7 +352,7 @@ namespace {
     }
 }
 
-namespace noa::cuda::fft::guts {
+namespace noa::cuda::fft::details {
     auto get_plan(
         Type type, bool is_single_precision,
         const Shape4<i64>& shape, Device device,

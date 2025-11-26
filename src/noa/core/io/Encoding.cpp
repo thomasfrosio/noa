@@ -413,7 +413,7 @@ namespace noa::io {
             case Encoding::UNKNOWN:
                 break;
         }
-        panic("{} cannot be encoded into {}", ns::stringify<T>(), encoding.dtype);
+        panic("{} cannot be encoded into {}", noa::string::stringify<T>(), encoding.dtype);
     }
 
     template<nt::numeric T>
@@ -515,7 +515,7 @@ namespace noa::io {
             case Encoding::UNKNOWN:
                 break;
         }
-        panic("{} cannot be encoded into {}", ns::stringify<T>(), encoding.dtype);
+        panic("{} cannot be encoded into {}", noa::string::stringify<T>(), encoding.dtype);
     }
 
     template<nt::numeric T>
@@ -609,7 +609,7 @@ namespace noa::io {
             case Encoding::UNKNOWN:
                 break;
         }
-        panic("{} cannot be decoded into {}", encoding.dtype, ns::stringify<T>());
+        panic("{} cannot be decoded into {}", encoding.dtype, noa::string::stringify<T>());
     }
 
     template<nt::numeric T>
@@ -707,7 +707,7 @@ namespace noa::io {
             case Encoding::UNKNOWN:
                 break;
         }
-        panic("{} cannot be decoded into {}", encoding.dtype, ns::stringify<T>());
+        panic("{} cannot be decoded into {}", encoding.dtype, noa::string::stringify<T>());
     }
 
     #define NOA_IO_ENCODE_(T)                                                                       \

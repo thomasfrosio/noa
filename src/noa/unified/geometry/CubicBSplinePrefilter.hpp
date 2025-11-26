@@ -28,7 +28,7 @@ namespace noa {
               "The input and output arrays must be on the same device, but got input:device={}, output:device={}",
               input.device(), device);
 
-        auto input_strides = ng::broadcast_strides(input, output);
+        auto input_strides = nd::broadcast_strides(input, output);
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();

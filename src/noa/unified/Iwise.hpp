@@ -79,7 +79,7 @@ namespace noa {
                         cpu_stream.enqueue(
                             [shape, n_threads,
                                 op_ = std::forward<Op>(op),
-                                h = guts::extract_shared_handle(forward_as_tuple(std::forward<Ts>(attachments)...))
+                                h = details::extract_shared_handle(forward_as_tuple(std::forward<Ts>(attachments)...))
                             ] {
                                 noa::cpu::iwise<config_t>(shape, std::move(op_), n_threads);
                             });

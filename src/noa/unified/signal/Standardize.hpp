@@ -7,7 +7,7 @@
 #include "noa/unified/ReduceAxesEwise.hpp"
 #include "noa/unified/Factory.hpp"
 
-namespace noa::signal::guts {
+namespace noa::signal::details {
     struct FFTSpectrumEnergy {
         using enable_vectorization = bool;
         using remove_default_final = bool;
@@ -123,7 +123,7 @@ namespace noa::signal {
             auto energies = Array<real_t>(dc_components.shape(), options);
             reduce_axes_ewise(
                 input.view(), real_t{}, wrap(energies.view(), dc_components),
-                guts::FFTSpectrumEnergy{scale});
+                details::FFTSpectrumEnergy{scale});
 
             // Standardize.
             ewise(wrap(input, std::move(energies)), output.view(), Multiply{});
@@ -139,21 +139,21 @@ namespace noa::signal {
 
             // Reduce unique chunk:
             reduce_axes_ewise(input.view().subregion(ni::Ellipsis{}, ni::Slice{1, input.shape()[3] - is_even}),
-                              real_t{}, energies_0, guts::rFFTSpectrumEnergy{});
+                              real_t{}, energies_0, details::rFFTSpectrumEnergy{});
 
             // Reduce common column/plane containing the DC:
             reduce_axes_ewise(input.view().subregion(ni::Ellipsis{}, 0),
-                              real_t{}, energies_1, guts::rFFTSpectrumEnergy{});
+                              real_t{}, energies_1, details::rFFTSpectrumEnergy{});
 
             if (is_even) {
                 // Reduce common column/plane containing the real Nyquist:
                 reduce_axes_ewise(input.view().subregion(ni::Ellipsis{}, -1),
-                                  real_t{}, energies_2, guts::rFFTSpectrumEnergy{});
+                                  real_t{}, energies_2, details::rFFTSpectrumEnergy{});
             }
 
             // Standardize.
             ewise(wrap(input.view().subregion(dc_position), energies_1, energies_2), energies_0,
-                  guts::CombineSpectrumEnergies<complex_t, real_t>{static_cast<real_t>(scale)}); // if batch=1, this is one single value...
+                  details::CombineSpectrumEnergies<complex_t, real_t>{static_cast<real_t>(scale)}); // if batch=1, this is one single value...
             ewise(wrap(input, energies.subregion(ni::Full{}, 0, 0, 0)), output.view(), Multiply{});
             fill(output.subregion(dc_position), {});
 

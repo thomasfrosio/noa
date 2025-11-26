@@ -9,7 +9,7 @@
 #include "noa/unified/Utilities.hpp"
 #include "noa/unified/Iwise.hpp"
 
-namespace noa::geometry::guts {
+namespace noa::geometry::details {
     /// 3d or 4d iwise operator to compute linear transformations (one rotation/scaling followed by one translation)
     /// of 2d or 3d array(s) by directly manipulating their 2d or 3d Fourier transforms(s).
     /// \tparam N                   2 or 3.
@@ -190,14 +190,14 @@ namespace noa::geometry::guts {
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, N + 1, Index>;
         auto output_accessor = output_accessor_t(output.get(), output.strides().template filter_nd<N>().template as<Index>());
         auto logical_shape = shape.as<Index>();
-        auto batched_inverse_rotations = ng::to_batched_transform(inverse_rotations);
+        auto batched_inverse_rotations = nd::to_batched_transform(inverse_rotations);
 
         auto launch_iwise = [&](auto no_shift, auto interp) {
-            auto batched_post_shifts = ng::to_batched_transform<true, no_shift()>(post_shifts);
+            auto batched_post_shifts = nd::to_batched_transform<true, no_shift()>(post_shifts);
 
             // Get the interpolator.
             using coord_t = nt::mutable_value_type_twice_t<Matrix>;
-            auto interpolator = ng::to_interpolator_spectrum<N, REMAP, interp(), coord_t, IS_GPU>(input, logical_shape);
+            auto interpolator = nd::to_interpolator_spectrum<N, REMAP, interp(), coord_t, IS_GPU>(input, logical_shape);
 
             using op_t = TransformSpectrum<
                 N, REMAP, Index, decltype(batched_inverse_rotations), decltype(batched_post_shifts),
@@ -223,20 +223,20 @@ namespace noa::geometry::guts {
 
             using enum Interp::Method;
             switch (interp) {
-                case NEAREST:            return launch_iwise(no_shift, ng::WrapInterp<NEAREST>{});
-                case NEAREST_FAST:       return launch_iwise(no_shift, ng::WrapInterp<NEAREST_FAST>{});
-                case LINEAR:             return launch_iwise(no_shift, ng::WrapInterp<LINEAR>{});
-                case LINEAR_FAST:        return launch_iwise(no_shift, ng::WrapInterp<LINEAR_FAST>{});
-                case CUBIC:              return launch_iwise(no_shift, ng::WrapInterp<CUBIC>{});
-                case CUBIC_FAST:         return launch_iwise(no_shift, ng::WrapInterp<CUBIC_FAST>{});
-                case CUBIC_BSPLINE:      return launch_iwise(no_shift, ng::WrapInterp<CUBIC_BSPLINE>{});
-                case CUBIC_BSPLINE_FAST: return launch_iwise(no_shift, ng::WrapInterp<CUBIC_BSPLINE_FAST>{});
-                case LANCZOS4:           return launch_iwise(no_shift, ng::WrapInterp<LANCZOS4>{});
-                case LANCZOS6:           return launch_iwise(no_shift, ng::WrapInterp<LANCZOS6>{});
-                case LANCZOS8:           return launch_iwise(no_shift, ng::WrapInterp<LANCZOS8>{});
-                case LANCZOS4_FAST:      return launch_iwise(no_shift, ng::WrapInterp<LANCZOS4_FAST>{});
-                case LANCZOS6_FAST:      return launch_iwise(no_shift, ng::WrapInterp<LANCZOS6_FAST>{});
-                case LANCZOS8_FAST:      return launch_iwise(no_shift, ng::WrapInterp<LANCZOS8_FAST>{});
+                case NEAREST:            return launch_iwise(no_shift, nd::WrapInterp<NEAREST>{});
+                case NEAREST_FAST:       return launch_iwise(no_shift, nd::WrapInterp<NEAREST_FAST>{});
+                case LINEAR:             return launch_iwise(no_shift, nd::WrapInterp<LINEAR>{});
+                case LINEAR_FAST:        return launch_iwise(no_shift, nd::WrapInterp<LINEAR_FAST>{});
+                case CUBIC:              return launch_iwise(no_shift, nd::WrapInterp<CUBIC>{});
+                case CUBIC_FAST:         return launch_iwise(no_shift, nd::WrapInterp<CUBIC_FAST>{});
+                case CUBIC_BSPLINE:      return launch_iwise(no_shift, nd::WrapInterp<CUBIC_BSPLINE>{});
+                case CUBIC_BSPLINE_FAST: return launch_iwise(no_shift, nd::WrapInterp<CUBIC_BSPLINE_FAST>{});
+                case LANCZOS4:           return launch_iwise(no_shift, nd::WrapInterp<LANCZOS4>{});
+                case LANCZOS6:           return launch_iwise(no_shift, nd::WrapInterp<LANCZOS6>{});
+                case LANCZOS8:           return launch_iwise(no_shift, nd::WrapInterp<LANCZOS8>{});
+                case LANCZOS4_FAST:      return launch_iwise(no_shift, nd::WrapInterp<LANCZOS4_FAST>{});
+                case LANCZOS6_FAST:      return launch_iwise(no_shift, nd::WrapInterp<LANCZOS6_FAST>{});
+                case LANCZOS8_FAST:      return launch_iwise(no_shift, nd::WrapInterp<LANCZOS8_FAST>{});
             }
         };
 
@@ -313,7 +313,7 @@ namespace noa::geometry {
              typename Rotation,
              typename Shift = Empty>
     requires (nt::varray_or_texture_decay_with_spectrum_types<Input, Output> and
-              guts::transform_spectrum_nd_rotation_shift<2, Rotation, Shift>)
+              details::transform_spectrum_nd_rotation_shift<2, Rotation, Shift>)
     void transform_spectrum_2d(
         Input&& input,
         Output&& output,
@@ -322,17 +322,17 @@ namespace noa::geometry {
         Shift&& post_shifts = {},
         const TransformSpectrumOptions& options = {}
     ) {
-        guts::check_parameters_transform_spectrum_nd<2>(input, output, shape, inverse_rotations, post_shifts);
+        details::check_parameters_transform_spectrum_nd<2>(input, output, shape, inverse_rotations, post_shifts);
 
         if (output.device().is_gpu()) {
             #ifdef NOA_ENABLE_GPU
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
-                check(ng::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
-                      ng::is_accessor_access_safe<i32>(output.strides(), output.shape()),
+                check(nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
+                      nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
                       "i64 indexing not instantiated for GPU devices");
-                guts::launch_transform_spectrum_nd<REMAP, 2, i32, true>(
+                details::launch_transform_spectrum_nd<REMAP, 2, i32, true>(
                     std::forward<Input>(input),
                     std::forward<Output>(output), shape,
                     std::forward<Rotation>(inverse_rotations),
@@ -345,7 +345,7 @@ namespace noa::geometry {
             #endif
         }
 
-        guts::launch_transform_spectrum_nd<REMAP, 2, i64>(
+        details::launch_transform_spectrum_nd<REMAP, 2, i64>(
             std::forward<Input>(input),
             std::forward<Output>(output), shape,
             std::forward<Rotation>(inverse_rotations),
@@ -381,7 +381,7 @@ namespace noa::geometry {
              typename Rotation,
              typename Shift = Empty>
     requires (nt::varray_or_texture_decay_with_spectrum_types<Input, Output> and
-              guts::transform_spectrum_nd_rotation_shift<3, Rotation, Shift>)
+              details::transform_spectrum_nd_rotation_shift<3, Rotation, Shift>)
     void transform_spectrum_3d(
         Input&& input,
         Output&& output,
@@ -390,16 +390,16 @@ namespace noa::geometry {
         Shift&& post_shifts = {},
         const TransformSpectrumOptions& options = {}
     ) {
-        guts::check_parameters_transform_spectrum_nd<3>(input, output, shape, inverse_rotations, post_shifts);
+        details::check_parameters_transform_spectrum_nd<3>(input, output, shape, inverse_rotations, post_shifts);
 
         if (output.device().is_gpu()) {
             #ifdef NOA_ENABLE_GPU
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
-                if (ng::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
-                    ng::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
-                    guts::launch_transform_spectrum_nd<REMAP, 3, i32, true>(
+                if (nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
+                    nd::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
+                    details::launch_transform_spectrum_nd<REMAP, 3, i32, true>(
                         std::forward<Input>(input),
                         std::forward<Output>(output), shape,
                         std::forward<Rotation>(inverse_rotations),
@@ -407,7 +407,7 @@ namespace noa::geometry {
                         options);
                 } else {
                     // For large volumes (>1290^3), i64 indexing is required.
-                    guts::launch_transform_spectrum_nd<REMAP, 3, i64, true>(
+                    details::launch_transform_spectrum_nd<REMAP, 3, i64, true>(
                         std::forward<Input>(input),
                         std::forward<Output>(output), shape,
                         std::forward<Rotation>(inverse_rotations),
@@ -421,7 +421,7 @@ namespace noa::geometry {
             #endif
         }
 
-        guts::launch_transform_spectrum_nd<REMAP, 3, i64>(
+        details::launch_transform_spectrum_nd<REMAP, 3, i64>(
             std::forward<Input>(input),
             std::forward<Output>(output), shape,
             std::forward<Rotation>(inverse_rotations),

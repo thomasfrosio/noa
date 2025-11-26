@@ -8,16 +8,16 @@
 
 TEST_CASE("core::zip") {
     namespace stdr = std::ranges;
-    namespace ng = noa::guts;
+    namespace nd = noa::details;
 
     {
         auto a = std::vector{1, 2, 3, 4, 5, 6};
         auto za = noa::zip(a, std::vector{1, 2, 3, 4, 5, 6});
         auto za_begin = za.begin();
         auto za_end = za.end();
-        static_assert(std::is_same_v<decltype(za), ng::ZipRange<std::vector<int>&, std::vector<int>>>);
-        static_assert(std::is_same_v<decltype(za_begin), ng::ZipIterator<stdr::iterator_t<std::vector<int>&>, stdr::iterator_t<std::vector<int>>>>);
-        static_assert(std::is_same_v<decltype(za_end), ng::ZipIterator<stdr::sentinel_t<std::vector<int>&>, stdr::sentinel_t<std::vector<int>>>>);
+        static_assert(std::is_same_v<decltype(za), nd::ZipRange<std::vector<int>&, std::vector<int>>>);
+        static_assert(std::is_same_v<decltype(za_begin), nd::ZipIterator<stdr::iterator_t<std::vector<int>&>, stdr::iterator_t<std::vector<int>>>>);
+        static_assert(std::is_same_v<decltype(za_end), nd::ZipIterator<stdr::sentinel_t<std::vector<int>&>, stdr::sentinel_t<std::vector<int>>>>);
         REQUIRE(za_begin == za_begin);
         REQUIRE(za_begin != za_end);
     }

@@ -3,7 +3,7 @@
 #include "noa/core/Traits.hpp"
 #include "noa/core/types/Tuple.hpp"
 
-namespace noa::guts {
+namespace noa::details {
     template<typename... T>
     struct AdaptorZip {
         static constexpr bool ZIP = true;
@@ -34,7 +34,7 @@ namespace noa {
     ///   See forward_as_final_tuple for more details.
     template<typename... T>
     constexpr auto fuse(T&&... a) noexcept {
-        return ng::AdaptorZip{.tuple = forward_as_final_tuple(std::forward<T>(a)...)};
+        return nd::AdaptorZip{.tuple = forward_as_final_tuple(std::forward<T>(a)...)};
     }
 
     /// Core functions utility used to wrap arguments.
@@ -46,6 +46,6 @@ namespace noa {
     ///   See forward_as_final_tuple for more details.
     template<typename... T>
     constexpr auto wrap(T&&... a) noexcept {
-        return ng::AdaptorUnzip{.tuple=forward_as_final_tuple(std::forward<T>(a)...)};
+        return nd::AdaptorUnzip{.tuple=forward_as_final_tuple(std::forward<T>(a)...)};
     }
 }

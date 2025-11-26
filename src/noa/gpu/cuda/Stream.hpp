@@ -12,7 +12,7 @@
 #include "noa/gpu/cuda/Device.hpp"
 #include "noa/gpu/cuda/Runtime.hpp"
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     // Registry to attach a shared_ptr to a stream, using a FIFO buffer.
     //
     // Kernel execution is asynchronous relative to the host. As such, we need a way to know when the
@@ -161,7 +161,7 @@ namespace noa::cuda {
         using enum Mode;
 
         struct Core {
-            guts::StreamResourceRegistry resource_registry{};
+            details::StreamResourceRegistry resource_registry{};
             cudaStream_t stream_handle{};
 
             ~Core() {
@@ -289,7 +289,7 @@ namespace noa::cuda {
         // As such, if the StreamResourceRegistry calls the CUDA API as part of insert() or clear(), since these
         // function lock, the CUDA host thread can deadlock...
         static void CUDART_CB update_registry_callback_(void* object) {
-            auto* registry = static_cast<guts::StreamResourceRegistry*>(object);
+            auto* registry = static_cast<details::StreamResourceRegistry*>(object);
             ++(registry->callback_count);
         }
 

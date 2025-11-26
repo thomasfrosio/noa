@@ -4,11 +4,11 @@
 #include "noa/core/types/Shape.hpp"
 #include "noa/core/Interfaces.hpp"
 
-namespace noa::cpu::guts {
+namespace noa::cpu::details {
     template<bool ZipInput, bool ZipReduced, bool ZipOutput>
     class ReduceEwise {
     public:
-        using interface = ng::ReduceEwiseInterface<ZipInput, ZipReduced, ZipOutput>;
+        using interface = nd::ReduceEwiseInterface<ZipInput, ZipReduced, ZipOutput>;
 
         template<typename Op, typename Input, typename Reduced, typename Output, typename Index, size_t N>
         NOA_NOINLINE static void parallel(
@@ -97,20 +97,20 @@ namespace noa::cpu {
         if (actual_n_threads > 1)
             actual_n_threads = min(n_threads, n_elements / Config::n_elements_per_thread);
 
-        using reduce_ewise_t = guts::ReduceEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
+        using reduce_ewise_t = details::ReduceEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
 
         // FIXME We could try collapse contiguous dimensions to still have a contiguous loop.
         //       In most cases, the inputs are not expected to be aliases of each other, so only
         //       optimise for the 1d-contig restrict case? remove 1d-contig non-restrict case
         if (are_all_contiguous) {
             auto shape_1d = Shape1<Index>::from_value(n_elements);
-            if (not nt::enable_vectorization_v<Op> and ng::are_accessors_aliased(input, output)) {
-                constexpr auto contiguous_1d = ng::AccessorConfig<1>{
+            if (not nt::enable_vectorization_v<Op> and nd::are_accessors_aliased(input, output)) {
+                constexpr auto contiguous_1d = nd::AccessorConfig<1>{
                     .enforce_contiguous = true,
                     .enforce_restrict = false,
                     .filter = {3},
                 };
-                auto input_1d = ng::reconfig_accessors<contiguous_1d>(std::forward<Input>(input));
+                auto input_1d = nd::reconfig_accessors<contiguous_1d>(std::forward<Input>(input));
                 if (actual_n_threads > 1) {
                     reduce_ewise_t::parallel(
                         shape_1d,
@@ -127,12 +127,12 @@ namespace noa::cpu {
                         output);
                 }
             } else {
-                constexpr auto contiguous_restrict_1d = ng::AccessorConfig<1>{
+                constexpr auto contiguous_restrict_1d = nd::AccessorConfig<1>{
                     .enforce_contiguous = true,
                     .enforce_restrict = true,
                     .filter = {3},
                 };
-                auto input_1d = ng::reconfig_accessors<contiguous_restrict_1d>(std::forward<Input>(input));
+                auto input_1d = nd::reconfig_accessors<contiguous_restrict_1d>(std::forward<Input>(input));
                 if (actual_n_threads > 1) {
                     reduce_ewise_t::parallel(
                         shape_1d,

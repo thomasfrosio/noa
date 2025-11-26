@@ -6,7 +6,7 @@
 #include "noa/gpu/cuda/Block.cuh"
 #include "noa/gpu/cuda/ReduceIwise.cuh"
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     template<typename Config, u32 BlockSizeX>
     struct ReduceAxesIwiseWidthBlock {
         static constexpr u32 block_size = max(BlockSizeX, Config::block_size);
@@ -282,7 +282,7 @@ namespace noa::cuda::guts {
     }
 }
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     template<typename Config, size_t N>
     auto reduce_axes_iwise_nd_first_config(const Shape<i64, N>& shape) {
         constexpr auto max_grid_size = static_cast<i64>(Config::max_grid_size);
@@ -329,8 +329,8 @@ namespace noa::cuda::guts {
             const auto shape_hw = input_shape.filter(2, 3);
 
             // The width of the output is empty/reduced, remove it.
-            constexpr auto TO_3D = ng::AccessorConfig<3>{.filter={0, 1, 2}};
-            auto output_3d = ng::reconfig_accessors<TO_3D>(output);
+            constexpr auto TO_3D = nd::AccessorConfig<3>{.filter={0, 1, 2}};
+            auto output_3d = nd::reconfig_accessors<TO_3D>(output);
             using Output3D = decltype(output_3d);
 
             // Block shape.
@@ -382,8 +382,8 @@ namespace noa::cuda::guts {
             });
 
             // Remove the empty/reduced axis from the output.
-            constexpr auto TO_3D = ng::AccessorConfig<3>{.filter = {0, 1, 3}};
-            auto reordered_output_3d = ng::reconfig_accessors<TO_3D>(reordered_output);
+            constexpr auto TO_3D = nd::AccessorConfig<3>{.filter = {0, 1, 3}};
+            auto reordered_output_3d = nd::reconfig_accessors<TO_3D>(reordered_output);
             using ReorderedOutput3D = decltype(reordered_output_3d);
 
             // Block shape.
@@ -446,8 +446,8 @@ namespace noa::cuda::guts {
             const auto shape_hw = input_shape.filter(1, 2);
 
             // The width of the output is empty/reduced, remove it.
-            constexpr auto to_2d = ng::AccessorConfig<2>{.filter={0, 1}};
-            auto output_2d = ng::reconfig_accessors<to_2d>(output);
+            constexpr auto to_2d = nd::AccessorConfig<2>{.filter={0, 1}};
+            auto output_2d = nd::reconfig_accessors<to_2d>(output);
             using Output2D = decltype(output_2d);
 
             // Block shape.
@@ -496,8 +496,8 @@ namespace noa::cuda::guts {
             });
 
             // Remove the empty/reduced axis from the output.
-            constexpr auto TO_2D = ng::AccessorConfig<2>{.filter = {0, 2}};
-            auto reordered_output_2d = ng::reconfig_accessors<TO_2D>(reordered_output);
+            constexpr auto TO_2D = nd::AccessorConfig<2>{.filter = {0, 2}};
+            auto reordered_output_2d = nd::reconfig_accessors<TO_2D>(reordered_output);
             using ReorderedOutput2D = decltype(reordered_output_2d);
 
             // Block shape.
@@ -556,8 +556,8 @@ namespace noa::cuda::guts {
                 .n_threads = dim3(N_THREADS_X, N_THREADS_Y),
             };
 
-            constexpr auto TO_1D = ng::AccessorConfig<1>{.filter = {1}};
-            auto output_1d = ng::reconfig_accessors<TO_1D>(output);
+            constexpr auto TO_1D = nd::AccessorConfig<1>{.filter = {1}};
+            auto output_1d = nd::reconfig_accessors<TO_1D>(output);
             using Output1D = decltype(output_1d);
 
             using Block = ReduceAxesIwiseHeightBlock<Config, N_THREADS_X>;
@@ -580,7 +580,7 @@ namespace noa::cuda {
              u32 MaxGridSize = 4096>
     struct ReduceAxesIwiseConfig {
         static_assert(is_multiple_of(BlockSize, Constant::WARP_SIZE) and BlockSize <= Limits::MAX_THREADS);
-        using interface = ng::ReduceIwiseInterface<ZipReduced, ZipOutput>;
+        using interface = nd::ReduceIwiseInterface<ZipReduced, ZipOutput>;
         static constexpr u32 block_size = BlockSize;
         static constexpr u32 max_grid_size = MaxGridSize;
     };
@@ -609,8 +609,8 @@ namespace noa::cuda {
 
         const auto axes_empty_or_to_reduce = output_shape == 1 or axes_to_reduce;
         if (all(axes_empty_or_to_reduce)) { // reduce to one value
-            constexpr auto TO_1D = ng::AccessorConfig<1>{.enforce_contiguous = true, .filter = {0}};
-            const auto output_1d = ng::reconfig_accessors<TO_1D>(output);
+            constexpr auto TO_1D = nd::AccessorConfig<1>{.enforce_contiguous = true, .filter = {0}};
+            const auto output_1d = nd::reconfig_accessors<TO_1D>(output);
             return reduce_iwise(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, stream);
         }
 
@@ -623,12 +623,12 @@ namespace noa::cuda {
             using ReducedDecay = std::decay_t<Reduced>;
 
             if (all(axes_empty_or_to_reduce.pop_front())) { // reduce to one value per leftmost
-                using Block = guts::ReduceAxesIwiseBlock<Config, N == 2 ? 1 : 2>;
+                using Block = details::ReduceAxesIwiseBlock<Config, N == 2 ? 1 : 2>;
                 using Interface = Config::interface;
 
                 const auto n_elements = shape_to_reduce_i64.n_elements();
                 constexpr auto SMALL_THRESHOLD = static_cast<i64>(Config::block_size * 32);
-                auto output_1d = ng::reconfig_accessors<ng::AccessorConfig<1>{.filter={0}}>(output);
+                auto output_1d = nd::reconfig_accessors<nd::AccessorConfig<1>{.filter={0}}>(output);
                 using Output1D = decltype(output_1d);
 
                 if (n_elements <= SMALL_THRESHOLD) {
@@ -637,23 +637,23 @@ namespace noa::cuda {
 
                     if constexpr (N == 4) {
                         stream.enqueue(
-                            guts::reduce_axes_iwise_4d_small<Block, Interface, OpDecay, Index, ReducedDecay, Output1D>,
+                            details::reduce_axes_iwise_4d_small<Block, Interface, OpDecay, Index, ReducedDecay, Output1D>,
                             config, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, shape_to_reduce.vec
                         );
                     } else if constexpr (N == 3) {
                         stream.enqueue(
-                            guts::reduce_axes_iwise_3d_small<Block, Interface, OpDecay, Index, ReducedDecay, Output1D>,
+                            details::reduce_axes_iwise_3d_small<Block, Interface, OpDecay, Index, ReducedDecay, Output1D>,
                             config, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, shape_to_reduce.vec
                         );
                     } else {
                         stream.enqueue(
-                            guts::reduce_axes_iwise_2d_small<Block, Interface, OpDecay, Index, ReducedDecay, Output1D>,
+                            details::reduce_axes_iwise_2d_small<Block, Interface, OpDecay, Index, ReducedDecay, Output1D>,
                             config, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, shape_to_reduce.vec
                         );
                     }
                 } else {
                     auto [config, n_blocks_per_batch, n_blocks_hw] =
-                        guts::reduce_axes_iwise_nd_first_config<Block>(shape_to_reduce_i64);
+                        details::reduce_axes_iwise_nd_first_config<Block>(shape_to_reduce_i64);
 
                     // Allocate the 2d buffer.
                     using Joined = AccessorRestrictContiguous<ReducedDecay, 2, Index>;
@@ -665,23 +665,23 @@ namespace noa::cuda {
                         config.n_blocks.z = grid_z.n_blocks(z);
                         if constexpr (N == 4) {
                             stream.enqueue(
-                                guts::reduce_axes_iwise_4d_first<Block, Interface, OpDecay, Index, ReducedDecay, Joined>,
+                                details::reduce_axes_iwise_4d_first<Block, Interface, OpDecay, Index, ReducedDecay, Joined>,
                                 config, op, reduced, joined, shape_to_reduce.vec, n_blocks_hw, grid_z.offset(z)
                             );
                         } else if constexpr (N == 3) {
                             stream.enqueue(
-                                guts::reduce_axes_iwise_3d_first<Block, Interface, OpDecay, Index, ReducedDecay, Joined>,
+                                details::reduce_axes_iwise_3d_first<Block, Interface, OpDecay, Index, ReducedDecay, Joined>,
                                 config, op, reduced, joined, shape_to_reduce.vec, grid_z.offset(z)
                             );
                         } else {
                             stream.enqueue(
-                                guts::reduce_axes_iwise_2d_first<Block, Interface, OpDecay, Index, ReducedDecay, Joined>,
+                                details::reduce_axes_iwise_2d_first<Block, Interface, OpDecay, Index, ReducedDecay, Joined>,
                                 config, op, reduced, joined, shape_to_reduce.vec, grid_z.offset(z)
                             );
                         }
                     }
                     stream.enqueue(
-                        guts::reduce_axes_iwise_second<Config, Interface, OpDecay, Index, Joined, ReducedDecay, Output1D>,
+                        details::reduce_axes_iwise_second<Config, Interface, OpDecay, Index, Joined, ReducedDecay, Output1D>,
                         LaunchConfig{.n_blocks = batch, .n_threads = Config::block_size},
                         std::forward<Op>(op), joined, n_blocks_per_batch, std::forward<Reduced>(reduced), output_1d
                     );
@@ -698,17 +698,17 @@ namespace noa::cuda {
               input_shape, output_shape, axes_to_reduce);
 
         if constexpr (N == 4) {
-            guts::launch_reduce_axes_iwise_4d<Config>(
+            details::launch_reduce_axes_iwise_4d<Config>(
                 input_shape, axes_to_reduce, std::forward<Op>(op),
                 std::forward<Reduced>(reduced), output, stream
             );
         } else if constexpr (N == 3) {
-            guts::launch_reduce_axes_iwise_3d<Config>(
+            details::launch_reduce_axes_iwise_3d<Config>(
                 input_shape, axes_to_reduce, std::forward<Op>(op),
                 std::forward<Reduced>(reduced), output, stream
             );
         } else if constexpr (N == 2) {
-            guts::launch_reduce_axes_iwise_2d<Config>(
+            details::launch_reduce_axes_iwise_2d<Config>(
                 input_shape, axes_to_reduce, std::forward<Op>(op),
                 std::forward<Reduced>(reduced), output, stream
             );

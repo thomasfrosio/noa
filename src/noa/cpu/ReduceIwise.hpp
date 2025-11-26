@@ -4,11 +4,11 @@
 #include "noa/core/types/Shape.hpp"
 #include "noa/core/Interfaces.hpp"
 
-namespace noa::cpu::guts {
+namespace noa::cpu::details {
     template<bool ZipReduced, bool ZipOutput>
     class ReduceIwise {
     public:
-        using interface = ng::ReduceIwiseInterface<ZipReduced, ZipOutput>;
+        using interface = nd::ReduceIwiseInterface<ZipReduced, ZipOutput>;
 
         template<typename Op, typename Reduced, typename Output, typename Index, size_t N>
         NOA_NOINLINE static void parallel(
@@ -106,7 +106,7 @@ namespace noa::cpu {
         Output& output,
         i64 n_threads = 1
     ) {
-        using reduce_iwise_t = guts::ReduceIwise<Config::zip_reduced, Config::zip_output>;
+        using reduce_iwise_t = details::ReduceIwise<Config::zip_reduced, Config::zip_output>;
         if constexpr (Config::n_elements_per_thread > 1) {
             const i64 n_elements = shape.template as<i64>().n_elements();
             i64 actual_n_threads = n_elements <= Config::n_elements_per_thread ? 1 : n_threads;

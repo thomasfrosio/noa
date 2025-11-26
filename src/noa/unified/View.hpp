@@ -47,7 +47,7 @@ namespace noa {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         check(not ni::are_overlapped(input, output), "The input and output should not overlap");
 
-        const auto input_strides = ng::broadcast_strides(input, output);
+        const auto input_strides = nd::broadcast_strides(input, output);
         const Device input_device = input.device();
         const Device output_device = output.device();
         if (input_device.is_cpu() and output_device.is_cpu()) {

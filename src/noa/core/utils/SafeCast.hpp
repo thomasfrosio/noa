@@ -102,11 +102,11 @@ namespace noa {
     [[nodiscard]] constexpr To safe_cast(const From& src) {
         if (is_safe_cast<To>(src))
             return static_cast<To>(src);
-        panic("Cannot safely cast {} to {} type", src, ns::stringify<To>());
+        panic("Cannot safely cast {} to {} type", src, noa::string::stringify<To>());
     }
 
     template<typename To, typename From, typename... Ts> requires nt::safe_castable_to<From, To>
-    [[nodiscard]] constexpr To safe_cast(const From& src, guts::FormatWithLocation<std::type_identity_t<Ts>...> fmt, Ts&&... fmt_args) {
+    [[nodiscard]] constexpr To safe_cast(const From& src, details::FormatWithLocation<std::type_identity_t<Ts>...> fmt, Ts&&... fmt_args) {
         if (is_safe_cast<To>(src))
             return static_cast<To>(src);
         panic_at_location(fmt.location, fmt.fmt, std::forward<Ts>(fmt_args)...);

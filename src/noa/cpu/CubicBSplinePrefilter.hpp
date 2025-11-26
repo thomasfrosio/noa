@@ -2,14 +2,14 @@
 
 #include "noa/core/Interpolation.hpp"
 
-namespace noa::cpu::guts {
+namespace noa::cpu::details {
     template<typename T>
     void cubic_bspline_prefilter_1d(
         const T* input, const Strides2<i64>& input_strides,
         T* output, const Strides2<i64>& output_strides,
         const Shape2<i64>& shape
     ) {
-        using bspline = ng::BSplinePrefilter1d<T, i64>;
+        using bspline = nd::BSplinePrefilter1d<T, i64>;
 
         if (input == output) {
             for (i64 i = 0; i < shape[0]; ++i)
@@ -28,7 +28,7 @@ namespace noa::cpu::guts {
         T* output, const Strides3<i64>& output_strides,
         const Shape3<i64>& shape
     ) {
-        using bspline = ng::BSplinePrefilter1d<T, i64>;
+        using bspline = nd::BSplinePrefilter1d<T, i64>;
         if (input == output) {
             for (i64 i = 0; i < shape[0]; ++i)
                 for (i64 y = 0; y < shape[1]; ++y) // every row
@@ -62,7 +62,7 @@ namespace noa::cpu::guts {
         T* output, const Strides4<i64>& output_strides,
         const Shape4<i64>& shape, i64 threads
     ) {
-        using bspline = ng::BSplinePrefilter1d<T, i64>;
+        using bspline = nd::BSplinePrefilter1d<T, i64>;
         [[maybe_unused]] constexpr i64 OMP_THRESHOLD = 1048576; // 1024*1024
         const i64 n_iterations = shape.pop_back().n_elements();
 
@@ -141,14 +141,14 @@ namespace noa::cpu {
 
         const auto ndim = shape.ndim();
         if (ndim == 3) {
-            guts::cubic_bspline_prefilter_3d(input, input_strides, output, output_strides, shape, n_threads);
+            details::cubic_bspline_prefilter_3d(input, input_strides, output, output_strides, shape, n_threads);
         } else if (ndim == 2) {
-            guts::cubic_bspline_prefilter_2d(
+            details::cubic_bspline_prefilter_2d(
                 input, input_strides.filter(0, 2, 3),
                 output, output_strides.filter(0, 2, 3),
                 shape.filter(0, 2, 3));
         } else {
-            guts::cubic_bspline_prefilter_1d(
+            details::cubic_bspline_prefilter_1d(
                 input, input_strides.filter(0, 3),
                 output, output_strides.filter(0, 3),
                 shape.filter(0, 3));

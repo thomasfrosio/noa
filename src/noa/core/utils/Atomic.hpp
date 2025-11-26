@@ -8,7 +8,7 @@
 // TODO Eventually, std::atomic_ref will replace everything...
 
 #if defined(NOA_IS_GPU_CODE)
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     NOA_FD i32 atomic_add(i32* address, i32 val) {
         return ::atomicAdd(address, val);
     }
@@ -57,7 +57,7 @@ namespace noa::cuda::guts {
     }
 }
 #else
-namespace noa::cpu::guts {
+namespace noa::cpu::details {
     // FIXME C++20 atomic_ref, but lib clang doesn't support it yet
     template<typename Pointer, typename Value>
     NOA_FH void atomic_add(Pointer pointer, Value value) {
@@ -74,14 +74,14 @@ namespace noa::cpu::guts {
 }
 #endif
 
-namespace noa::guts {
+namespace noa::details {
     // Atomic add for CUDA and OpenMP.
     template<nt::pointer_numeric P>
     NOA_FHD void atomic_add(P pointer, nt::mutable_value_type_t<P> value) {
         #if defined(NOA_IS_GPU_CODE)
-        ::noa::cuda::guts::atomic_add(pointer, value);
+        ::noa::cuda::details::atomic_add(pointer, value);
         #else
-        ::noa::cpu::guts::atomic_add(pointer, value);
+        ::noa::cpu::details::atomic_add(pointer, value);
         #endif
     }
 

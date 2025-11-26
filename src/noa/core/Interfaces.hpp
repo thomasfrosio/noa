@@ -39,7 +39,7 @@ namespace noa::traits {
     constexpr bool remove_default_final_v = remove_default_final<std::decay_t<T>>::value;
 }
 
-namespace noa::guts {
+namespace noa::details {
     // nvcc (12.0-12.5) easily breaks (or worse, give wrong results) with `if constexpr (requires...)` statements,
     // so we have to walk on eggshells and define "friendlier" structures to check these type substitutions...
     // std::declval seems necessary, as using the name of variadics seem to freak out nvcc...
@@ -147,7 +147,7 @@ namespace noa::guts {
 #   endif
 #endif
 
-namespace noa::guts {
+namespace noa::details {
     /// Index-wise interface.
     struct IwiseInterface {
         static constexpr void init(auto& op, auto id) {

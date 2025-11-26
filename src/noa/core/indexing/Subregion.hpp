@@ -40,7 +40,7 @@ namespace noa::indexing {
     };
 }
 
-namespace noa::indexing::guts {
+namespace noa::indexing::details {
     template<size_t N, typename... T>
     struct SubregionParser {
         template<typename U>
@@ -65,7 +65,7 @@ namespace noa::indexing::guts {
 
 namespace noa::traits {
     template<size_t N, typename... T>
-    concept subregion_indexing = ni::guts::SubregionParser<N, T...>::value;
+    concept subregion_indexing = ni::details::SubregionParser<N, T...>::value;
 }
 
 namespace noa::indexing {

@@ -215,7 +215,7 @@ namespace {
 namespace noa::geometry {
     template<nt::any_of<f32, f64> T>
     auto euler2matrix(Vec3<T> angles, const EulerOptions& options) -> Mat33<T> {
-        const std::string lower_axes = ns::to_upper(ns::trim(options.axes));
+        const std::string lower_axes = noa::string::to_upper(noa::string::trim(options.axes));
         angles = options.right_handed ? angles : angles * -1;
 
         Mat33<T> r1, r2, r3;
@@ -278,9 +278,9 @@ namespace noa::geometry {
 
     template<nt::any_of<f32, f64> T>
     auto matrix2euler(const Mat33<T>& rotation, const EulerOptions& options) -> Vec3<T> {
-        std::string lower_axes = ns::to_upper(ns::trim(options.axes));
+        std::string lower_axes = noa::string::to_upper(noa::string::trim(options.axes));
         if (options.intrinsic)
-            lower_axes = ns::reverse(std::move(lower_axes));
+            lower_axes = noa::string::reverse(std::move(lower_axes));
 
         Vec3<T> euler;
         if (lower_axes == "ZYZ") {

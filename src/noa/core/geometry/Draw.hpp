@@ -24,7 +24,7 @@ namespace noa::traits {
             { object.draw_at_centered(vec) } -> std::same_as<Coord>;
 
             /// Given output coordinates and an inverse transform, returns the drawing.
-            /// This can usually be implemented using the ng::draw_at function and T::draw_at_centered.
+            /// This can usually be implemented using the nd::draw_at function and T::draw_at_centered.
             { object.draw_at(vec, xform) } -> std::same_as<Coord>;
 
             /// Object center.
@@ -97,7 +97,7 @@ namespace noa::geometry {
             const vector_type& coordinates,
             const Xform& inverse_transform = Xform{}
         ) const -> value_type {
-            return noa::geometry::draw_at(*this, coordinates, inverse_transform);
+            return ng::draw_at(*this, coordinates, inverse_transform);
         }
 
         [[nodiscard]] constexpr auto draw_at_centered(const vector_type& centered_coordinates) const -> value_type {
@@ -175,7 +175,7 @@ namespace noa::geometry {
             const vector_type& coordinates,
             const Xform& inverse_transform = Xform{}
         ) const -> value_type {
-            return noa::geometry::draw_at(*this, coordinates, inverse_transform);
+            return ng::draw_at(*this, coordinates, inverse_transform);
         }
 
         [[nodiscard]] constexpr auto draw_at_centered(vector_type centered_coordinates) const -> value_type {
@@ -276,7 +276,7 @@ namespace noa::geometry {
             const vector_type& coordinates,
             const Xform& inverse_transform = Xform{}
         ) const -> value_type {
-            return noa::geometry::draw_at(*this, coordinates, inverse_transform);
+            return ng::draw_at(*this, coordinates, inverse_transform);
         }
 
         [[nodiscard]] constexpr auto draw_at_centered(vector_type centered_coordinates) const -> value_type {
@@ -361,7 +361,7 @@ namespace noa::geometry {
             const vector3_type& coordinates,
             const Xform& inverse_transform = Xform{}
         ) const -> value_type {
-            return noa::geometry::draw_at(*this, coordinates, inverse_transform);
+            return ng::draw_at(*this, coordinates, inverse_transform);
         }
 
         [[nodiscard]] constexpr auto draw_at_centered(const vector3_type& centered_coordinates) const -> value_type {

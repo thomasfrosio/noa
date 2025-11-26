@@ -16,7 +16,7 @@
 // specify the cudaMemcpyKind. In the documentation they don't explicitly say that cudaMemcpyDefault allows
 // for concurrent transfers between host and device if the host is pinned, but why would it make a difference?
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     template<typename T>
     cudaMemcpy3DParms to_copy_parameters(
         const T* src, i64 src_pitch,
@@ -74,7 +74,7 @@ namespace noa::cuda::guts {
         T* dst, i64 dst_pitch,
         const Shape4<i64>& shape, Stream& stream
     ) {
-        const auto params = guts::to_copy_parameters(src, src_pitch, dst, dst_pitch, shape);
+        const auto params = details::to_copy_parameters(src, src_pitch, dst, dst_pitch, shape);
         check(cudaMemcpy3DAsync(&params, stream.id()));
     }
 
@@ -146,12 +146,12 @@ namespace noa::cuda {
     template<typename T>
     void copy(const T* src, T* dst, Stream& stream) {
         if constexpr (std::is_trivially_copyable_v<T>) {
-            guts::memcpy(src, dst, 1, stream);
+            details::memcpy(src, dst, 1, stream);
         } else {
             const auto shape = Shape4<i64>::from_value(1);
             const auto strides = Strides4<i64>::from_value(1);
             using config = EwiseConfig<false, false, 1, 1>; // 1 thread
-            guts::copy_non_trivial_contiguous<config>(src, strides, dst, strides, shape, stream);
+            details::copy_non_trivial_contiguous<config>(src, strides, dst, strides, shape, stream);
         }
     }
 
@@ -159,11 +159,11 @@ namespace noa::cuda {
     template<typename T>
     void copy(const T* src, T* dst, i64 elements, Stream& stream) {
         if constexpr (std::is_trivially_copyable_v<T>) {
-            guts::memcpy(src, dst, elements, stream);
+            details::memcpy(src, dst, elements, stream);
         } else {
             const auto shape = Shape4<i64>{1, 1, 1, elements};
             const auto strides = Strides4<i64>::from_value(1);
-            guts::copy_non_trivial_contiguous(src, strides, dst, strides, shape, stream);
+            details::copy_non_trivial_contiguous(src, strides, dst, strides, shape, stream);
         }
     }
 
@@ -171,11 +171,11 @@ namespace noa::cuda {
     template<typename T>
     void copy(const T* src, i64 src_pitch, T* dst, i64 dst_pitch, const Shape4<i64>& shape, Stream& stream) {
         if constexpr (std::is_trivially_copyable_v<T>) {
-            guts::memcpy(src, src_pitch, dst, dst_pitch, shape, stream);
+            details::memcpy(src, src_pitch, dst, dst_pitch, shape, stream);
         } else {
             const auto src_strides = Strides4<i64>{src_pitch, src_pitch, src_pitch, 1};
             const auto dst_strides = Strides4<i64>{dst_pitch, dst_pitch, dst_pitch, 1};
-            guts::copy_non_trivial_contiguous(src, src_strides, dst, dst_strides, shape, stream);
+            details::copy_non_trivial_contiguous(src, src_strides, dst, dst_strides, shape, stream);
         }
     }
 
@@ -301,25 +301,25 @@ namespace noa::cuda {
 namespace noa::cuda {
     template<typename T>
     void copy(const T* src, i64 src_pitch, cudaArray* dst, const Shape3<i64>& shape) {
-        cudaMemcpy3DParms params = guts::to_copy_parameters(src, src_pitch, dst, shape);
+        cudaMemcpy3DParms params = details::to_copy_parameters(src, src_pitch, dst, shape);
         check(cudaMemcpy3D(&params));
     }
 
     template<typename T>
     void copy(const T* src, i64 src_pitch, cudaArray* dst, const Shape3<i64>& shape, Stream& stream) {
-        cudaMemcpy3DParms params = guts::to_copy_parameters(src, src_pitch, dst, shape);
+        cudaMemcpy3DParms params = details::to_copy_parameters(src, src_pitch, dst, shape);
         check(cudaMemcpy3DAsync(&params, stream.id()));
     }
 
     template<typename T>
     void copy(const cudaArray* src, T* dst, i64 dst_pitch, const Shape3<i64>& shape) {
-        cudaMemcpy3DParms params = guts::to_copy_parameters(src, dst, dst_pitch, shape);
+        cudaMemcpy3DParms params = details::to_copy_parameters(src, dst, dst_pitch, shape);
         check(cudaMemcpy3D(&params));
     }
 
     template<typename T>
     void copy(const cudaArray* src, T* dst, i64 dst_pitch, const Shape3<i64>& shape, Stream& stream) {
-        cudaMemcpy3DParms params = guts::to_copy_parameters(src, dst, dst_pitch, shape);
+        cudaMemcpy3DParms params = details::to_copy_parameters(src, dst, dst_pitch, shape);
         check(cudaMemcpy3DAsync(&params, stream.id()));
     }
 

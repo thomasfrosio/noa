@@ -7,7 +7,7 @@
 #include "noa/core/utils/BatchedParameter.hpp"
 #include "noa/unified/Traits.hpp"
 
-namespace noa::guts {
+namespace noa::details {
     /// Extracts the accessors from the varrays in the tuple.
     /// For types other than varrays, forward the object into an AccessorValue.
     template<bool EnforceConst = false, nt::tuple_decay T>

@@ -27,7 +27,7 @@ namespace noa {
     };
 }
 
-namespace noa::guts {
+namespace noa::details {
     template<ReduceAxesEwiseOptions, bool, bool, bool, typename Inputs, typename Reduced, typename Outputs, typename Op>
     constexpr void reduce_axes_ewise(Inputs&&, Reduced&&, Outputs&&, Op&&);
 }
@@ -52,9 +52,9 @@ namespace noa {
     ///                         forwarded to the backend (it is moved or copied to the backend compute kernel).
     ///                         Each compute (CPU or GPU) thread holds a copy of the operator.
     template<ReduceAxesEwiseOptions OPTIONS = ReduceAxesEwiseOptions{},
-             typename Inputs = ng::AdaptorUnzip<>,
-             typename Reduced = ng::AdaptorUnzip<>,
-             typename Outputs = ng::AdaptorUnzip<>,
+             typename Inputs = nd::AdaptorUnzip<>,
+             typename Reduced = nd::AdaptorUnzip<>,
+             typename Outputs = nd::AdaptorUnzip<>,
              typename Operator>
     void reduce_axes_ewise(
         Inputs&& inputs,
@@ -62,50 +62,50 @@ namespace noa {
         Outputs&& outputs,
         Operator&& op
     ) {
-        if constexpr (ng::adaptor_decay<Inputs, Reduced, Outputs>) {
-            ng::reduce_axes_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP>(
+        if constexpr (nd::adaptor_decay<Inputs, Reduced, Outputs>) {
+            nd::reduce_axes_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP>(
                 std::forward<Inputs>(inputs).tuple,
                 std::forward<Reduced>(reduced).tuple,
                 std::forward<Outputs>(outputs).tuple,
                 std::forward<Operator>(op));
-        } else if constexpr (ng::adaptor_decay<Inputs, Reduced>) {
-            ng::reduce_axes_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, std::decay_t<Reduced>::ZIP, false>(
+        } else if constexpr (nd::adaptor_decay<Inputs, Reduced>) {
+            nd::reduce_axes_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, std::decay_t<Reduced>::ZIP, false>(
                 std::forward<Inputs>(inputs).tuple,
                 std::forward<Reduced>(reduced).tuple,
                 forward_as_tuple(std::forward<Outputs>(outputs)),
                 std::forward<Operator>(op));
-        } else if constexpr (ng::adaptor_decay<Inputs, Outputs>) {
-            ng::reduce_axes_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, false, std::decay_t<Outputs>::ZIP>(
+        } else if constexpr (nd::adaptor_decay<Inputs, Outputs>) {
+            nd::reduce_axes_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, false, std::decay_t<Outputs>::ZIP>(
                 std::forward<Inputs>(inputs).tuple,
                 forward_as_tuple(std::forward<Reduced>(reduced)),
                 std::forward<Outputs>(outputs).tuple,
                 std::forward<Operator>(op));
-        } else if constexpr (ng::adaptor_decay<Reduced, Outputs>) {
-            ng::reduce_axes_ewise<OPTIONS, false, std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP>(
+        } else if constexpr (nd::adaptor_decay<Reduced, Outputs>) {
+            nd::reduce_axes_ewise<OPTIONS, false, std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP>(
                 forward_as_tuple(std::forward<Inputs>(inputs)),
                 std::forward<Reduced>(reduced).tuple,
                 std::forward<Outputs>(outputs).tuple,
                 std::forward<Operator>(op));
-        } else if constexpr (ng::adaptor_decay<Outputs>) {
-            ng::reduce_axes_ewise<OPTIONS, false, false, std::decay_t<Outputs>::ZIP>(
+        } else if constexpr (nd::adaptor_decay<Outputs>) {
+            nd::reduce_axes_ewise<OPTIONS, false, false, std::decay_t<Outputs>::ZIP>(
                 forward_as_tuple(std::forward<Inputs>(inputs)),
                 forward_as_tuple(std::forward<Reduced>(reduced)),
                 std::forward<Outputs>(outputs).tuple,
                 std::forward<Operator>(op));
-        } else if constexpr (ng::adaptor_decay<Reduced>) {
-            ng::reduce_axes_ewise<OPTIONS, false, std::decay_t<Reduced>::ZIP, false>(
+        } else if constexpr (nd::adaptor_decay<Reduced>) {
+            nd::reduce_axes_ewise<OPTIONS, false, std::decay_t<Reduced>::ZIP, false>(
                 forward_as_tuple(std::forward<Inputs>(inputs)),
                 std::forward<Reduced>(reduced).tuple,
                 forward_as_tuple(std::forward<Outputs>(outputs)),
                 std::forward<Operator>(op));
-        } else if constexpr (ng::adaptor_decay<Inputs>) {
-            ng::reduce_axes_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, false, false>(
+        } else if constexpr (nd::adaptor_decay<Inputs>) {
+            nd::reduce_axes_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, false, false>(
                 std::forward<Inputs>(inputs).tuple,
                 forward_as_tuple(std::forward<Reduced>(reduced)),
                 forward_as_tuple(std::forward<Outputs>(outputs)),
                 std::forward<Operator>(op));
         } else {
-            ng::reduce_axes_ewise<OPTIONS, false, false, false>(
+            nd::reduce_axes_ewise<OPTIONS, false, false, false>(
                 forward_as_tuple(std::forward<Inputs>(inputs)),
                 forward_as_tuple(std::forward<Reduced>(reduced)),
                 forward_as_tuple(std::forward<Outputs>(outputs)),
@@ -114,7 +114,7 @@ namespace noa {
     }
 }
 
-namespace noa::guts {
+namespace noa::details {
     template<ReduceAxesEwiseOptions OPTIONS, bool ZIP_INPUTS, bool ZIP_REDUCED, bool ZIP_OUTPUTS,
              typename Inputs, typename Reduced, typename Outputs, typename Op>
     constexpr void reduce_axes_ewise(
@@ -123,16 +123,16 @@ namespace noa::guts {
         Outputs&& outputs,
         Op&& reduce_operator
     ) {
-        constexpr i64 index_of_first_varray = ng::index_of_first_varray<Inputs>();
+        constexpr i64 index_of_first_varray = nd::index_of_first_varray<Inputs>();
         static_assert(index_of_first_varray >= 0, "There should be at least one input varray");
         constexpr auto index = static_cast<size_t>(index_of_first_varray);
 
-        static_assert(ng::are_all_varrays<Outputs>(), "All of the outputs should be varrays");
+        static_assert(nd::are_all_varrays<Outputs>(), "All of the outputs should be varrays");
         static_assert(std::tuple_size_v<Outputs> > 0, "There should be at least one output");
 
-        Tuple input_accessors = ng::to_tuple_of_accessors(std::forward<Inputs>(inputs));
-        Tuple reduced_accessors = ng::to_tuple_of_accessors(std::forward<Reduced>(reduced));
-        Tuple output_accessors = ng::to_tuple_of_accessors(std::forward<Outputs>(outputs));
+        Tuple input_accessors = nd::to_tuple_of_accessors(std::forward<Inputs>(inputs));
+        Tuple reduced_accessors = nd::to_tuple_of_accessors(std::forward<Reduced>(reduced));
+        Tuple output_accessors = nd::to_tuple_of_accessors(std::forward<Outputs>(outputs));
 
         const auto& first_input_array = inputs[Tag<index>{}];
         auto input_shape = first_input_array.shape();
@@ -188,7 +188,7 @@ namespace noa::guts {
         // No need to reorder the output shape, since we only reorder axes that are empty in the output.
         if (do_reorder) {
             input_shape = input_shape.reorder(order);
-            ng::reorder_accessors(order, input_accessors);
+            nd::reorder_accessors(order, input_accessors);
         }
 
         Stream& stream = Stream::current(device);
@@ -213,8 +213,8 @@ namespace noa::guts {
                             ia = std::move(input_accessors),
                             ir = std::move(reduced_accessors),
                             oa = std::move(output_accessors),
-                            ih = ng::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs)),
-                            oh = ng::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs))
+                            ih = nd::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs)),
+                            oh = nd::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs))
                         ] {
                             noa::cpu::reduce_axes_ewise<config>(
                                 input_shape, output_shape, std::move(op),
@@ -244,8 +244,8 @@ namespace noa::guts {
 
                 // Enqueue the shared handles. See ewise() for more details.
                 [&]<size_t... I, size_t... O>(std::index_sequence<I...>, std::index_sequence<O...>) {
-                    auto ih = ng::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs));
-                    auto oh = ng::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs));
+                    auto ih = nd::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs));
+                    auto oh = nd::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs));
                     cuda_stream.enqueue_attach(std::move(ih)[Tag<I>{}]..., std::move(oh)[Tag<O>{}]...);
                     // Work-around to remove spurious warning of set but unused variable (g++11).
                     if constexpr (sizeof...(I) == 0) (void) ih;

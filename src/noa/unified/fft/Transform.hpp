@@ -84,7 +84,7 @@ namespace noa::fft {
     }
 }
 
-namespace noa::fft::guts {
+namespace noa::fft::details {
     template<typename T>
     void normalize(T&& array, const Shape4<i64>& shape, Sign sign, Norm norm) {
         using real_t = nt::mutable_value_type_twice_t<T>;
@@ -145,7 +145,7 @@ namespace noa::fft {
             #endif
         }
         if (not options.plan_only and not options.record_and_share_workspace)
-            guts::normalize(std::forward<Output>(output), logical_shape, Sign::FORWARD, options.norm);
+            details::normalize(std::forward<Output>(output), logical_shape, Sign::FORWARD, options.norm);
     }
 
     /// Computes the forward r2c transform of (batched) 2d/3d array(s) or column/row vector(s).
@@ -207,7 +207,7 @@ namespace noa::fft {
             #endif
         }
         if (not options.plan_only and not options.record_and_share_workspace)
-            guts::normalize(std::forward<Output>(output), logical_shape, Sign::BACKWARD, options.norm);
+            details::normalize(std::forward<Output>(output), logical_shape, Sign::BACKWARD, options.norm);
     }
 
     /// Computes the backward c2r transform.
@@ -271,7 +271,7 @@ namespace noa::fft {
             #endif
         }
         if (not options.plan_only and not options.record_and_share_workspace)
-            guts::normalize(std::forward<Output>(output), logical_shape, sign, options.norm);
+            details::normalize(std::forward<Output>(output), logical_shape, sign, options.norm);
     }
 
     /// Computes the c2c transform.

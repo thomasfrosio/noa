@@ -17,7 +17,7 @@
 #include "noa/unified/Texture.hpp"
 #include "noa/unified/Utilities.hpp"
 
-namespace noa::geometry::guts {
+namespace noa::geometry::details {
     template<typename ScaleBatched, typename RotateBatched, typename Ews,
              typename ScaleValue = nt::mutable_value_type_t<ScaleBatched>,
              typename RotateValue = nt::mutable_value_type_t<RotateBatched>,
@@ -196,9 +196,9 @@ namespace noa::geometry::guts {
         using output_real_type = nt::value_type_t<output_value_type>;
         using output_weight_value_type = nt::value_type_t<output_weight_type>;
 
-        static_assert(guts::fourier_projection_transform_types<scale_type, rotate_type, ews_type> and
-                      guts::fourier_projection_types<input_type, output_type> and
-                      guts::fourier_projection_weight_types<input_weight_type, output_weight_type>);
+        static_assert(details::fourier_projection_transform_types<scale_type, rotate_type, ews_type> and
+                      details::fourier_projection_types<input_type, output_type> and
+                      details::fourier_projection_weight_types<input_weight_type, output_weight_type>);
 
     public:
         constexpr FourierInsertRasterize(
@@ -245,7 +245,7 @@ namespace noa::geometry::guts {
             // The oversampling is implicitly handled when scaling back to the target shape.
             const index_type v = nf::index2frequency<ARE_SLICES_CENTERED>(y, m_slice_size_y);
             const auto fftfreq_2d = coord2_type::from_values(v, u) / m_f_slice_shape;
-            coord3_type fftfreq_3d = guts::fourier_slice2grid(
+            coord3_type fftfreq_3d = details::fourier_slice2grid(
                 fftfreq_2d, m_inv_scaling, m_fwd_rotation, batch, m_ews_diam_inv);
 
             // The frequency rate won't change from that point, so check for the cutoff.
@@ -334,12 +334,12 @@ namespace noa::geometry::guts {
                             idx_v >= 0 and idx_v < m_grid_shape[1] and
                             idx_u >= 0 and idx_u < m_grid_shape[2]) {
                             const auto fraction = kernel[w][v][u];
-                            ng::atomic_add(
+                            nd::atomic_add(
                                 m_output_volume,
                                 value * static_cast<output_real_type>(fraction),
                                 idx_w, idx_v, idx_u);
                             if constexpr (has_weights) {
-                                ng::atomic_add(
+                                nd::atomic_add(
                                     m_output_weights,
                                     weight * static_cast<output_weight_value_type>(fraction),
                                     idx_w, idx_v, idx_u);
@@ -363,12 +363,12 @@ namespace noa::geometry::guts {
                         if (idx_w >= 0 and idx_w < m_grid_shape[0] and
                             idx_v >= 0 and idx_v < m_grid_shape[1]) {
                             const auto fraction = kernel[w][v][0];
-                            ng::atomic_add(
+                            nd::atomic_add(
                                 m_output_volume,
                                 value * static_cast<output_real_type>(fraction),
                                 idx_w, idx_v, index_type{});
                             if constexpr (has_weights) {
-                                ng::atomic_add(
+                                nd::atomic_add(
                                     m_output_weights,
                                     weight * static_cast<output_weight_value_type>(fraction),
                                     idx_w, idx_v, index_type{});
@@ -431,9 +431,9 @@ namespace noa::geometry::guts {
         using input_weight_value_type = std::conditional_t<
             has_input_weights, nt::mutable_value_type_t<input_weight_type>, output_weight_value_type>;
 
-        static_assert(guts::fourier_projection_transform_types<scale_type, rotate_type, ews_type> and
-                      guts::fourier_projection_types<input_type, output_type> and
-                      guts::fourier_projection_weight_types<input_weight_type, output_weight_type>);
+        static_assert(details::fourier_projection_transform_types<scale_type, rotate_type, ews_type> and
+                      details::fourier_projection_types<input_type, output_type> and
+                      details::fourier_projection_weight_types<input_weight_type, output_weight_type>);
 
     public:
         FourierInsertInterpolate(
@@ -493,13 +493,13 @@ namespace noa::geometry::guts {
             input_weight_value_type weights{};
 
             for (index_type i{}; i < m_slice_count; ++i) {
-                const auto [fftfreq_z, fftfreq_2d] = guts::fourier_grid2slice(
+                const auto [fftfreq_z, fftfreq_2d] = details::fourier_grid2slice(
                     fftfreq, m_fwd_scaling, m_inv_rotation, i, m_ews_diam_inv);
 
                 input_value_type i_value{};
                 input_weight_value_type i_weights{};
                 if (abs(fftfreq_z) <= m_fftfreq_blackman) { // the slice affects the voxel
-                    const auto window = guts::windowed_sinc(fftfreq_z, m_fftfreq_sinc, m_fftfreq_blackman);
+                    const auto window = details::windowed_sinc(fftfreq_z, m_fftfreq_sinc, m_fftfreq_blackman);
                     const auto frequency_2d = fftfreq_2d * m_f_slice_shape;
 
                     i_value = m_input_slices.interpolate_spectrum_at(frequency_2d, i) *
@@ -577,9 +577,9 @@ namespace noa::geometry::guts {
         using coord2_type = Vec2<coord_type>;
         using coord3_type = Vec3<coord_type>;
 
-        static_assert(guts::fourier_projection_transform_types<batched_scale_type, batched_rotate_type, ews_type> and
-                      guts::fourier_projection_types<input_type, output_type> and
-                      guts::fourier_projection_weight_types<input_weight_type, output_weight_type>);
+        static_assert(details::fourier_projection_transform_types<batched_scale_type, batched_rotate_type, ews_type> and
+                      details::fourier_projection_types<input_type, output_type> and
+                      details::fourier_projection_weight_types<input_weight_type, output_weight_type>);
 
         // Optional operator requires atomic_add.
         static constexpr bool are_outputs_atomic =
@@ -629,7 +629,7 @@ namespace noa::geometry::guts {
             // This is along the w of the grid.
             m_fftfreq_sinc = max(fftfreq_sinc, 1 / m_f_target_shape[0]);
             m_fftfreq_blackman = max(fftfreq_blackman, 1 / m_f_target_shape[0]);
-            tie(m_blackman_size, m_w_window_sum) = guts::z_window_spec<index_type>(
+            tie(m_blackman_size, m_w_window_sum) = details::z_window_spec<index_type>(
                 m_fftfreq_sinc, m_fftfreq_blackman, m_f_target_shape[0]);
         }
 
@@ -671,7 +671,7 @@ namespace noa::geometry::guts {
             coord3_type fftfreq_3d = compute_fftfreq_in_volume_(batch, oy, ox);
 
             // Additional z component, within the grid coordinate system.
-            const auto fftfreq_z_offset = guts::w_index_to_fftfreq_offset(ow, m_blackman_size, m_f_target_shape[0]);
+            const auto fftfreq_z_offset = details::w_index_to_fftfreq_offset(ow, m_blackman_size, m_f_target_shape[0]);
             fftfreq_3d[0] += fftfreq_z_offset;
 
             if (dot(fftfreq_3d, fftfreq_3d) > m_fftfreq_cutoff_sqd)
@@ -679,10 +679,10 @@ namespace noa::geometry::guts {
 
             const auto frequency_3d = fftfreq_3d * m_f_target_shape;
             const auto convolution_weight =
-                guts::windowed_sinc(fftfreq_z_offset, m_fftfreq_sinc, m_fftfreq_blackman) / m_w_window_sum;
+                details::windowed_sinc(fftfreq_z_offset, m_fftfreq_sinc, m_fftfreq_blackman) / m_w_window_sum;
 
             const auto value = m_input_volume.interpolate_spectrum_at(frequency_3d);
-            ng::atomic_add(
+            nd::atomic_add(
                 m_output_slices,
                 cast_or_abs_squared<output_value_type>(value) *
                 static_cast<output_real_type>(convolution_weight),
@@ -696,7 +696,7 @@ namespace noa::geometry::guts {
                 } else {
                     weight = 1;
                 }
-                ng::atomic_add(
+                nd::atomic_add(
                     m_output_weights,
                     weight * static_cast<output_weight_value_type>(convolution_weight),
                     batch, oy, ox);
@@ -710,7 +710,7 @@ namespace noa::geometry::guts {
             const auto frequency_2d = nf::index2frequency<ARE_SLICES_CENTERED, ARE_SLICES_RFFT>(
                 Vec{oy, ox}, m_slice_shape);
             const auto fftfreq_2d = coord2_type::from_vec(frequency_2d) / m_f_slice_shape;
-            return guts::fourier_slice2grid(
+            return details::fourier_slice2grid(
                 fftfreq_2d, m_inv_scaling, m_fwd_rotation, batch, m_ews_diam_inv);
         }
 
@@ -788,10 +788,10 @@ namespace noa::geometry::guts {
         static constexpr bool has_input_weights = not nt::empty<input_weight_type>;
         static constexpr bool has_output_weights = not nt::empty<output_weight_type>;
 
-        static_assert(guts::fourier_projection_transform_types<input_scale_type, input_rotate_type, ews_type> and
-                      guts::fourier_projection_transform_types<output_scale_type, output_rotate_type, ews_type> and
-                      guts::fourier_projection_types<input_type, output_type> and
-                      guts::fourier_projection_weight_types<input_weight_type, output_weight_type>);
+        static_assert(details::fourier_projection_transform_types<input_scale_type, input_rotate_type, ews_type> and
+                      details::fourier_projection_transform_types<output_scale_type, output_rotate_type, ews_type> and
+                      details::fourier_projection_types<input_type, output_type> and
+                      details::fourier_projection_weight_types<input_weight_type, output_weight_type>);
 
         // Optional operator requires atomic_add.
         static constexpr bool are_outputs_atomic =
@@ -851,7 +851,7 @@ namespace noa::geometry::guts {
             m_insert_fftfreq_blackman = max(insert_fftfreq_blackman, 1 / m_volume_z);
             m_extract_fftfreq_sinc = max(extract_fftfreq_sinc, 1 / m_volume_z);
             m_extract_fftfreq_blackman = max(extract_fftfreq_blackman, 1 / m_volume_z);
-            tie(m_extract_blackman_size, m_extract_window_total_weight) = guts::z_window_spec<index_type>(
+            tie(m_extract_blackman_size, m_extract_window_total_weight) = details::z_window_spec<index_type>(
                 m_extract_fftfreq_sinc, m_extract_fftfreq_blackman, m_volume_z);
         }
 
@@ -904,7 +904,7 @@ namespace noa::geometry::guts {
             coord3_type fftfreq_3d = compute_fftfreq_in_volume_(batch, y, x);
 
             // Get and add the volume z-offset for the z-windowed-sinc.
-            const auto fftfreq_z_offset = guts::w_index_to_fftfreq_offset(w, m_extract_blackman_size, m_volume_z);
+            const auto fftfreq_z_offset = details::w_index_to_fftfreq_offset(w, m_extract_blackman_size, m_volume_z);
             fftfreq_3d[0] += fftfreq_z_offset;
 
             if (dot(fftfreq_3d, fftfreq_3d) > m_fftfreq_cutoff_sqd)
@@ -916,17 +916,17 @@ namespace noa::geometry::guts {
 
             // z-windowed sinc.
             const auto convolution_weight =
-                guts::windowed_sinc(fftfreq_z_offset, m_extract_fftfreq_sinc, m_extract_fftfreq_blackman) /
+                details::windowed_sinc(fftfreq_z_offset, m_extract_fftfreq_sinc, m_extract_fftfreq_blackman) /
                 m_extract_window_total_weight;
 
             // Add the contribution for this z-offset. The z-convolution is essentially a simple weighted mean.
-            ng::atomic_add(
+            nd::atomic_add(
                 m_output_slices,
                 cast_or_abs_squared<output_value_type>(value_and_weight.first) *
                 static_cast<output_real_type>(convolution_weight),
                 batch, y, x);
             if constexpr (has_output_weights) {
-                ng::atomic_add(
+                nd::atomic_add(
                     m_output_weights,
                     static_cast<output_weight_value_type>(value_and_weight.second) *
                     static_cast<output_weight_value_type>(convolution_weight),
@@ -941,7 +941,7 @@ namespace noa::geometry::guts {
             const auto frequency_2d = nf::index2frequency<ARE_OUTPUT_SLICES_CENTERED, ARE_OUTPUT_SLICES_RFFT>(
                 Vec{y, x}, m_output_shape);
             const auto fftfreq_2d = coord2_type::from_vec(frequency_2d) / m_f_output_shape;
-            return guts::fourier_slice2grid(
+            return details::fourier_slice2grid(
                 fftfreq_2d, m_extract_inv_scaling, m_extract_fwd_rotation, batch, m_ews_diam_inv);
         }
 
@@ -957,14 +957,14 @@ namespace noa::geometry::guts {
             for (index_type i{}; i < m_input_count; ++i) {
                 // Project the 3d frequency onto that input-slice.
                 // fftfreq_z is along the normal of that input-slice.
-                const auto [fftfreq_z, fftfreq_yx] = guts::fourier_grid2slice(
+                const auto [fftfreq_z, fftfreq_yx] = details::fourier_grid2slice(
                     fftfreq_3d, m_insert_fwd_scaling, m_insert_inv_rotation, i, m_ews_diam_inv);
 
                 // Add the contribution of this slice to that frequency.
                 // Compute only if this slice affects the voxel.
                 // If we fall exactly at the blackman cutoff, the value is 0, so exclude the equality case too.
                 if (abs(fftfreq_z) < m_insert_fftfreq_blackman) {
-                    const auto windowed_sinc = guts::windowed_sinc(
+                    const auto windowed_sinc = details::windowed_sinc(
                         fftfreq_z, m_insert_fftfreq_sinc, m_insert_fftfreq_blackman);
 
                     const auto frequency_yx = fftfreq_yx * m_f_input_shape;
@@ -1204,13 +1204,13 @@ namespace noa::geometry::guts {
     ) {
         bool is_safe_access{true};
         if constexpr (nt::varray_decay<T>)
-            is_safe_access = ng::is_accessor_access_safe<i32>(input, input.shape());
+            is_safe_access = nd::is_accessor_access_safe<i32>(input, input.shape());
         if constexpr (nt::varray_decay<U>)
-            is_safe_access = is_safe_access and ng::is_accessor_access_safe<i32>(input_weight, input_weight.shape());
+            is_safe_access = is_safe_access and nd::is_accessor_access_safe<i32>(input_weight, input_weight.shape());
         if constexpr (nt::varray_decay<V>)
-            is_safe_access = is_safe_access and ng::is_accessor_access_safe<i32>(output, output.shape());
+            is_safe_access = is_safe_access and nd::is_accessor_access_safe<i32>(output, output.shape());
         if constexpr (nt::varray_decay<W>)
-            is_safe_access = is_safe_access and ng::is_accessor_access_safe<i32>(output_weight, output_weight.shape());
+            is_safe_access = is_safe_access and nd::is_accessor_access_safe<i32>(output_weight, output_weight.shape());
         return is_safe_access;
     }
 
@@ -1233,7 +1233,7 @@ namespace noa::geometry::guts {
     template<size_t N, nf::Layout REMAP, bool IS_GPU, Interp INTERP, typename Coord, typename Index, typename T>
     auto fourier_projection_to_interpolator(const T& input, const Shape<Index, 4>& shape) {
         if constexpr (nt::varray_or_texture<T>) {
-            return ng::to_interpolator_spectrum<N, REMAP, INTERP, Coord, IS_GPU>(input, shape);
+            return nd::to_interpolator_spectrum<N, REMAP, INTERP, Coord, IS_GPU>(input, shape);
 
         } else if constexpr (nt::empty<T>) {
             return input;
@@ -1280,30 +1280,30 @@ namespace noa::geometry::guts {
         Output&& volume, OutputWeight&& volume_weight, const Shape4<i64>& volume_shape,
         Scale&& scaling, Rotate&& rotation, const auto& options
     ) {
-        constexpr auto input_accessor_config = ng::AccessorConfig<3>{
+        constexpr auto input_accessor_config = nd::AccessorConfig<3>{
             .enforce_const=true,
             .enforce_restrict=true,
             .allow_empty=true,
             .filter={0, 2, 3},
         };
-        constexpr auto output_accessor_config = ng::AccessorConfig<3>{
+        constexpr auto output_accessor_config = nd::AccessorConfig<3>{
             .enforce_restrict=true,
             .allow_empty=true,
             .filter={1, 2, 3},
         };
-        auto slice_accessor = ng::to_accessor<input_accessor_config, Index>(slice);
-        auto slice_weight_accessor = ng::to_accessor<input_accessor_config, Index>(slice_weight);
-        auto volume_accessor = ng::to_accessor<output_accessor_config, Index>(volume);
-        auto volume_weight_accessor = ng::to_accessor<output_accessor_config, Index>(volume_weight);
+        auto slice_accessor = nd::to_accessor<input_accessor_config, Index>(slice);
+        auto slice_weight_accessor = nd::to_accessor<input_accessor_config, Index>(slice_weight);
+        auto volume_accessor = nd::to_accessor<output_accessor_config, Index>(volume);
+        auto volume_weight_accessor = nd::to_accessor<output_accessor_config, Index>(volume_weight);
 
         const auto s_input_slice_shape = slice_shape.as<Index>();
         const auto s_volume_shape = volume_shape.as<Index>();
-        auto batched_rotation = ng::to_batched_transform(rotation);
+        auto batched_rotation = nd::to_batched_transform(rotation);
         using coord_t = nt::value_type_twice_t<Rotate>;
 
         auto launch = [&](auto no_ews_and_scale) {
             auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
-            auto batched_scaling = ng::to_batched_transform<true, no_ews_and_scale()>(scaling);
+            auto batched_scaling = nd::to_batched_transform<true, no_ews_and_scale()>(scaling);
 
             using op_t = FourierInsertRasterize<
                 REMAP, Index,
@@ -1339,17 +1339,17 @@ namespace noa::geometry::guts {
         Output&& volume, OutputWeight&& volume_weight, const Shape4<i64>& volume_shape,
         Scale&& scaling, Rotate&& rotation, const auto& options
     ) {
-        constexpr auto accessor_config = ng::AccessorConfig<3>{
+        constexpr auto accessor_config = nd::AccessorConfig<3>{
             .enforce_restrict = true,
             .allow_empty = true,
             .filter = {1, 2, 3},
         };
-        auto volume_accessor = ng::to_accessor<accessor_config, Index>(volume);
-        auto volume_weight_accessor = ng::to_accessor<accessor_config, Index>(volume_weight);
+        auto volume_accessor = nd::to_accessor<accessor_config, Index>(volume);
+        auto volume_weight_accessor = nd::to_accessor<accessor_config, Index>(volume_weight);
 
         const auto s_slice_shape = slice_shape.as<Index>();
         const auto s_volume_shape = volume_shape.as<Index>();
-        auto batched_rotation = ng::to_batched_transform<false>(rotation);
+        auto batched_rotation = nd::to_batched_transform<false>(rotation);
         using coord_t = nt::value_type_twice_t<Rotate>;
 
         auto launch = [&](auto no_ews_and_scale, auto interp) {
@@ -1358,7 +1358,7 @@ namespace noa::geometry::guts {
             auto slice_weight_interpolator = fourier_projection_to_interpolator
                 <2, REMAP, IS_GPU, interp(), coord_t>(slice_weight, s_slice_shape);
 
-            auto batched_scaling = ng::to_batched_transform<true, no_ews_and_scale()>(scaling);
+            auto batched_scaling = nd::to_batched_transform<true, no_ews_and_scale()>(scaling);
             auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
 
             using op_t = FourierInsertInterpolate<
@@ -1388,22 +1388,22 @@ namespace noa::geometry::guts {
             return launch(WrapNoEwaldAndScale<true>{}, interp);
         };
 
-        const Interp interp = guts::fourier_insert_extract_interp_mode(slice, slice_weight, options.interp);
+        const Interp interp = details::fourier_insert_extract_interp_mode(slice, slice_weight, options.interp);
         switch (interp) {
-            case Interp::NEAREST:            return launch_scale(ng::WrapInterp<Interp::NEAREST>{});
-            case Interp::NEAREST_FAST:       return launch_scale(ng::WrapInterp<Interp::NEAREST_FAST>{});
-            case Interp::LINEAR:             return launch_scale(ng::WrapInterp<Interp::LINEAR>{});
-            case Interp::LINEAR_FAST:        return launch_scale(ng::WrapInterp<Interp::LINEAR_FAST>{});
-            case Interp::CUBIC:              return launch_scale(ng::WrapInterp<Interp::CUBIC>{});
-            case Interp::CUBIC_FAST:         return launch_scale(ng::WrapInterp<Interp::CUBIC_FAST>{});
-            case Interp::CUBIC_BSPLINE:      return launch_scale(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
-            case Interp::CUBIC_BSPLINE_FAST: return launch_scale(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
-            case Interp::LANCZOS4:           return launch_scale(ng::WrapInterp<Interp::LANCZOS4>{});
-            case Interp::LANCZOS6:           return launch_scale(ng::WrapInterp<Interp::LANCZOS6>{});
-            case Interp::LANCZOS8:           return launch_scale(ng::WrapInterp<Interp::LANCZOS8>{});
-            case Interp::LANCZOS4_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS4_FAST>{});
-            case Interp::LANCZOS6_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS6_FAST>{});
-            case Interp::LANCZOS8_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS8_FAST>{});
+            case Interp::NEAREST:            return launch_scale(nd::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_scale(nd::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_scale(nd::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_scale(nd::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_scale(nd::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_scale(nd::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_scale(nd::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_scale(nd::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::LANCZOS4:           return launch_scale(nd::WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:           return launch_scale(nd::WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:           return launch_scale(nd::WrapInterp<Interp::LANCZOS8>{});
+            case Interp::LANCZOS4_FAST:      return launch_scale(nd::WrapInterp<Interp::LANCZOS4_FAST>{});
+            case Interp::LANCZOS6_FAST:      return launch_scale(nd::WrapInterp<Interp::LANCZOS6_FAST>{});
+            case Interp::LANCZOS8_FAST:      return launch_scale(nd::WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
 
@@ -1416,14 +1416,14 @@ namespace noa::geometry::guts {
         Output&& slice, OutputWeight&& slice_weight, const Shape4<i64>& slice_shape,
         Scale&& scaling, Rotate&& rotation, const auto& options
     ) {
-        constexpr auto accessor_config = ng::AccessorConfig<3>{
+        constexpr auto accessor_config = nd::AccessorConfig<3>{
             .enforce_restrict = true,
             .allow_empty = true,
             .filter = {0, 2, 3},
         };
-        auto slice_accessor = ng::to_accessor<accessor_config, Index>(slice);
-        auto slice_weight_accessor = ng::to_accessor<accessor_config, Index>(slice_weight);
-        auto batched_rotation = ng::to_batched_transform(rotation);
+        auto slice_accessor = nd::to_accessor<accessor_config, Index>(slice);
+        auto slice_weight_accessor = nd::to_accessor<accessor_config, Index>(slice_weight);
+        auto batched_rotation = nd::to_batched_transform(rotation);
 
         const auto s_slice_shape = slice_shape.as<Index>();
         const auto s_volume_shape = volume_shape.as<Index>();
@@ -1436,7 +1436,7 @@ namespace noa::geometry::guts {
             auto volume_weight_interpolator = fourier_projection_to_interpolator
                 <3, REMAP, IS_GPU, interp(), coord_t>(volume_weight, s_volume_shape);
 
-            auto batched_scale = ng::to_batched_transform<true, no_ews_and_scale()>(scaling);
+            auto batched_scale = nd::to_batched_transform<true, no_ews_and_scale()>(scaling);
             auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
 
             using op_t = FourierExtract<
@@ -1481,22 +1481,22 @@ namespace noa::geometry::guts {
             return launch(WrapNoEwaldAndScale<true>{}, interp);
         };
 
-        const Interp interp = guts::fourier_insert_extract_interp_mode(volume, volume_weight, options.interp);
+        const Interp interp = details::fourier_insert_extract_interp_mode(volume, volume_weight, options.interp);
         switch (interp) {
-            case Interp::NEAREST:            return launch_scale(ng::WrapInterp<Interp::NEAREST>{});
-            case Interp::NEAREST_FAST:       return launch_scale(ng::WrapInterp<Interp::NEAREST_FAST>{});
-            case Interp::LINEAR:             return launch_scale(ng::WrapInterp<Interp::LINEAR>{});
-            case Interp::LINEAR_FAST:        return launch_scale(ng::WrapInterp<Interp::LINEAR_FAST>{});
-            case Interp::CUBIC:              return launch_scale(ng::WrapInterp<Interp::CUBIC>{});
-            case Interp::CUBIC_FAST:         return launch_scale(ng::WrapInterp<Interp::CUBIC_FAST>{});
-            case Interp::CUBIC_BSPLINE:      return launch_scale(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
-            case Interp::CUBIC_BSPLINE_FAST: return launch_scale(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
-            case Interp::LANCZOS4:           return launch_scale(ng::WrapInterp<Interp::LANCZOS4>{});
-            case Interp::LANCZOS6:           return launch_scale(ng::WrapInterp<Interp::LANCZOS6>{});
-            case Interp::LANCZOS8:           return launch_scale(ng::WrapInterp<Interp::LANCZOS8>{});
-            case Interp::LANCZOS4_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS4_FAST>{});
-            case Interp::LANCZOS6_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS6_FAST>{});
-            case Interp::LANCZOS8_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS8_FAST>{});
+            case Interp::NEAREST:            return launch_scale(nd::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_scale(nd::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_scale(nd::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_scale(nd::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_scale(nd::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_scale(nd::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_scale(nd::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_scale(nd::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::LANCZOS4:           return launch_scale(nd::WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:           return launch_scale(nd::WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:           return launch_scale(nd::WrapInterp<Interp::LANCZOS8>{});
+            case Interp::LANCZOS4_FAST:      return launch_scale(nd::WrapInterp<Interp::LANCZOS4_FAST>{});
+            case Interp::LANCZOS6_FAST:      return launch_scale(nd::WrapInterp<Interp::LANCZOS6_FAST>{});
+            case Interp::LANCZOS8_FAST:      return launch_scale(nd::WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
 
@@ -1512,15 +1512,15 @@ namespace noa::geometry::guts {
         OutputScale&& output_scaling, OutputRotate&& output_rotation,
         const auto& options
     ) {
-        constexpr auto output_config = ng::AccessorConfig<3>{
+        constexpr auto output_config = nd::AccessorConfig<3>{
             .enforce_restrict = true,
             .allow_empty = true,
             .filter = {0, 2, 3},
         };
-        auto output_slice_accessor = ng::to_accessor<output_config, Index>(output_slice);
-        auto output_weight_accessor = ng::to_accessor<output_config, Index>(output_weight);
-        auto input_rotation_accessor = ng::to_batched_transform(input_rotation);
-        auto output_rotation_accessor = ng::to_batched_transform(output_rotation);
+        auto output_slice_accessor = nd::to_accessor<output_config, Index>(output_slice);
+        auto output_weight_accessor = nd::to_accessor<output_config, Index>(output_weight);
+        auto input_rotation_accessor = nd::to_batched_transform(input_rotation);
+        auto output_rotation_accessor = nd::to_batched_transform(output_rotation);
 
         const auto s_input_shape = input_shape.as<Index>();
         const auto s_output_shape = output_shape.as<Index>();
@@ -1533,8 +1533,8 @@ namespace noa::geometry::guts {
                 <2, REMAP, IS_GPU, interp(), coord_t>(input_weight, s_input_shape);
 
             auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
-            auto input_scaling_accessor = ng::to_batched_transform<true, no_ews_and_scale()>(input_scaling);
-            auto output_scaling_accessor = ng::to_batched_transform<true, no_ews_and_scale()>(output_scaling);
+            auto input_scaling_accessor = nd::to_batched_transform<true, no_ews_and_scale()>(input_scaling);
+            auto output_scaling_accessor = nd::to_batched_transform<true, no_ews_and_scale()>(output_scaling);
 
             using op_t = FourierInsertExtract<
                 REMAP, Index,
@@ -1592,22 +1592,22 @@ namespace noa::geometry::guts {
             return launch(WrapNoEwaldAndScale<true>{}, interp);
         };
 
-        const Interp interp = guts::fourier_insert_extract_interp_mode(input_slice, input_weight, options.interp);
+        const Interp interp = details::fourier_insert_extract_interp_mode(input_slice, input_weight, options.interp);
         switch (interp) {
-            case Interp::NEAREST:            return launch_scale(ng::WrapInterp<Interp::NEAREST>{});
-            case Interp::NEAREST_FAST:       return launch_scale(ng::WrapInterp<Interp::NEAREST_FAST>{});
-            case Interp::LINEAR:             return launch_scale(ng::WrapInterp<Interp::LINEAR>{});
-            case Interp::LINEAR_FAST:        return launch_scale(ng::WrapInterp<Interp::LINEAR_FAST>{});
-            case Interp::CUBIC:              return launch_scale(ng::WrapInterp<Interp::CUBIC>{});
-            case Interp::CUBIC_FAST:         return launch_scale(ng::WrapInterp<Interp::CUBIC_FAST>{});
-            case Interp::CUBIC_BSPLINE:      return launch_scale(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
-            case Interp::CUBIC_BSPLINE_FAST: return launch_scale(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
-            case Interp::LANCZOS4:           return launch_scale(ng::WrapInterp<Interp::LANCZOS4>{});
-            case Interp::LANCZOS6:           return launch_scale(ng::WrapInterp<Interp::LANCZOS6>{});
-            case Interp::LANCZOS8:           return launch_scale(ng::WrapInterp<Interp::LANCZOS8>{});
-            case Interp::LANCZOS4_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS4_FAST>{});
-            case Interp::LANCZOS6_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS6_FAST>{});
-            case Interp::LANCZOS8_FAST:      return launch_scale(ng::WrapInterp<Interp::LANCZOS8_FAST>{});
+            case Interp::NEAREST:            return launch_scale(nd::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_scale(nd::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_scale(nd::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_scale(nd::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_scale(nd::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_scale(nd::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_scale(nd::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_scale(nd::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::LANCZOS4:           return launch_scale(nd::WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:           return launch_scale(nd::WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:           return launch_scale(nd::WrapInterp<Interp::LANCZOS8>{});
+            case Interp::LANCZOS4_FAST:      return launch_scale(nd::WrapInterp<Interp::LANCZOS4_FAST>{});
+            case Interp::LANCZOS6_FAST:      return launch_scale(nd::WrapInterp<Interp::LANCZOS6_FAST>{});
+            case Interp::LANCZOS8_FAST:      return launch_scale(nd::WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
 }
@@ -1668,8 +1668,8 @@ namespace noa::geometry {
              typename Input, typename InputWeight = Empty,
              typename Output, typename OutputWeight = Empty,
              typename Scale = Empty, typename Rotate>
-    requires (guts::fourier_projection_input_output<false, true, Input, Output, InputWeight, OutputWeight> and
-              guts::fourier_projection_transform<Scale, Rotate> and
+    requires (details::fourier_projection_input_output<false, true, Input, Output, InputWeight, OutputWeight> and
+              details::fourier_projection_transform<Scale, Rotate> and
               REMAP.is_hx2hx())
     void rasterize_central_slices_3d(
         Input&& slice,
@@ -1682,15 +1682,15 @@ namespace noa::geometry {
         Rotate&& fwd_rotation,
         const RasterizeCentralSlicesOptions& options = {}
     ) {
-        guts::fourier_projection_check_parameters<guts::FourierProjectionType::INSERT_RASTERIZE>(
+        details::fourier_projection_check_parameters<details::FourierProjectionType::INSERT_RASTERIZE>(
             slice, slice_weight, slice_shape, volume, volume_weight, volume_shape,
             options.target_shape, inv_scaling, fwd_rotation);
 
         if (volume.device().is_gpu()) {
             #ifdef NOA_ENABLE_GPU
-            check(guts::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
+            check(details::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
                   "i64 indexing not instantiated for GPU devices");
-            return guts::launch_rasterize_central_slices_3d<REMAP, i32>(
+            return details::launch_rasterize_central_slices_3d<REMAP, i32>(
                 std::forward<Input>(slice), std::forward<InputWeight>(slice_weight), slice_shape,
                 std::forward<Output>(volume), std::forward<OutputWeight>(volume_weight), volume_shape,
                 std::forward<Scale>(inv_scaling), std::forward<Rotate>(fwd_rotation), options);
@@ -1699,7 +1699,7 @@ namespace noa::geometry {
             #endif
         }
 
-        guts::launch_rasterize_central_slices_3d<REMAP, i64>(
+        details::launch_rasterize_central_slices_3d<REMAP, i64>(
             std::forward<Input>(slice), std::forward<InputWeight>(slice_weight), slice_shape,
             std::forward<Output>(volume), std::forward<OutputWeight>(volume_weight), volume_shape,
             std::forward<Scale>(inv_scaling), std::forward<Rotate>(fwd_rotation), options);
@@ -1785,8 +1785,8 @@ namespace noa::geometry {
              typename Input, typename InputWeight = Empty,
              typename Output, typename OutputWeight = Empty,
              typename Scale = Empty, typename Rotate>
-    requires (guts::fourier_projection_input_output<true, true, Input, Output, InputWeight, OutputWeight> and
-              guts::fourier_projection_transform<Scale, Rotate> and
+    requires (details::fourier_projection_input_output<true, true, Input, Output, InputWeight, OutputWeight> and
+              details::fourier_projection_transform<Scale, Rotate> and
               REMAP.is_hx2hx())
     void insert_central_slices_3d(
         Input&& slice,
@@ -1799,7 +1799,7 @@ namespace noa::geometry {
         Rotate&& inv_rotation,
         const InsertCentralSlicesOptions& options = {}
     ) {
-        guts::fourier_projection_check_parameters<guts::FourierProjectionType::INSERT_INTERPOLATE>(
+        details::fourier_projection_check_parameters<details::FourierProjectionType::INSERT_INTERPOLATE>(
             slice, slice_weight, slice_shape, volume, volume_weight, volume_shape,
             options.target_shape, fwd_scaling, inv_rotation);
 
@@ -1810,9 +1810,9 @@ namespace noa::geometry {
                 (nt::texture_decay<InputWeight> and nt::any_of<nt::mutable_value_type_t<InputWeight>, f64, c64>)) {
                 std::terminate(); // unreachable
             } else {
-                check(guts::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
+                check(details::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
                       "i64 indexing not instantiated for GPU devices");
-                return guts::launch_insert_central_slices_3d<REMAP, i32, true>(
+                return details::launch_insert_central_slices_3d<REMAP, i32, true>(
                     std::forward<Input>(slice), std::forward<InputWeight>(slice_weight), slice_shape,
                     std::forward<Output>(volume), std::forward<OutputWeight>(volume_weight), volume_shape,
                     std::forward<Scale>(fwd_scaling), std::forward<Rotate>(inv_rotation), options);
@@ -1822,7 +1822,7 @@ namespace noa::geometry {
             #endif
         }
 
-        guts::launch_insert_central_slices_3d<REMAP, i64, false>(
+        details::launch_insert_central_slices_3d<REMAP, i64, false>(
             std::forward<Input>(slice), std::forward<InputWeight>(slice_weight), slice_shape,
             std::forward<Output>(volume), std::forward<OutputWeight>(volume_weight), volume_shape,
             std::forward<Scale>(fwd_scaling), std::forward<Rotate>(inv_rotation), options);
@@ -1884,8 +1884,8 @@ namespace noa::geometry {
              typename Input, typename InputWeight = Empty,
              typename Output, typename OutputWeight = Empty,
              typename Scale = Empty, typename Rotate>
-    requires (guts::fourier_projection_input_output<true, false, Input, Output, InputWeight, OutputWeight> and
-              guts::fourier_projection_transform<Scale, Rotate> and
+    requires (details::fourier_projection_input_output<true, false, Input, Output, InputWeight, OutputWeight> and
+              details::fourier_projection_transform<Scale, Rotate> and
               REMAP.is_hx2hx())
     void extract_central_slices_3d(
         Input&& volume,
@@ -1898,7 +1898,7 @@ namespace noa::geometry {
         Rotate&& fwd_rotation,
         const ExtractCentralSlicesOptions& options = {}
     ) {
-        guts::fourier_projection_check_parameters<guts::FourierProjectionType::EXTRACT>(
+        details::fourier_projection_check_parameters<details::FourierProjectionType::EXTRACT>(
             volume, volume_weight, volume_shape, slice, slice_weight, slice_shape,
             options.target_shape, inv_scaling, fwd_rotation);
 
@@ -1909,9 +1909,9 @@ namespace noa::geometry {
                 (nt::texture_decay<InputWeight> and nt::any_of<nt::mutable_value_type_t<InputWeight>, f64, c64>)) {
                 std::terminate(); // unreachable
             } else {
-                check(guts::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
+                check(details::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
                       "i64 indexing not instantiated for GPU devices");
-                return guts::launch_extract_central_slices_3d<REMAP, i32, true>(
+                return details::launch_extract_central_slices_3d<REMAP, i32, true>(
                     std::forward<Input>(volume), std::forward<InputWeight>(volume_weight), volume_shape,
                     std::forward<Output>(slice), std::forward<OutputWeight>(slice_weight), slice_shape,
                     std::forward<Scale>(inv_scaling), std::forward<Rotate>(fwd_rotation), options);
@@ -1921,7 +1921,7 @@ namespace noa::geometry {
             #endif
         }
 
-        guts::launch_extract_central_slices_3d<REMAP, i64, false>(
+        details::launch_extract_central_slices_3d<REMAP, i64, false>(
             std::forward<Input>(volume), std::forward<InputWeight>(volume_weight), volume_shape,
             std::forward<Output>(slice), std::forward<OutputWeight>(slice_weight), slice_shape,
             std::forward<Scale>(inv_scaling), std::forward<Rotate>(fwd_rotation), options);
@@ -2003,9 +2003,9 @@ namespace noa::geometry {
              typename Output, typename OutputWeight = Empty,
              typename InputScale = Empty, typename InputRotate,
              typename OutputScale = Empty, typename OutputRotate>
-    requires (guts::fourier_projection_input_output<true, true, Input, Output, InputWeight, OutputWeight> and
-              guts::fourier_projection_transform<InputScale, InputRotate> and
-              guts::fourier_projection_transform<OutputScale, OutputRotate> and
+    requires (details::fourier_projection_input_output<true, true, Input, Output, InputWeight, OutputWeight> and
+              details::fourier_projection_transform<InputScale, InputRotate> and
+              details::fourier_projection_transform<OutputScale, OutputRotate> and
               REMAP.is_hx2hx())
     void insert_and_extract_central_slices_3d(
         Input&& input_slice,
@@ -2020,14 +2020,14 @@ namespace noa::geometry {
         OutputRotate&& output_fwd_rotation,
         const InsertAndExtractCentralSlicesOptions& options = {}
     ) {
-        guts::fourier_projection_check_parameters<guts::FourierProjectionType::INSERT_EXTRACT>(
+        details::fourier_projection_check_parameters<details::FourierProjectionType::INSERT_EXTRACT>(
             input_slice, input_weight, input_slice_shape, output_slice, output_weight, output_slice_shape,
             {}, input_fwd_scaling, input_inv_rotation, output_inv_scaling, output_fwd_rotation);
 
         using coord_t = nt::value_type_twice_t<OutputRotate>;
         const auto volume_z = static_cast<coord_t>(min(output_slice_shape.filter(2, 3)));
         const auto fftfreq_blackman = static_cast<coord_t>(options.w_windowed_sinc.fftfreq_blackman);
-        const auto w_blackman_size = guts::blackman_window_size<i64>(fftfreq_blackman, volume_z);
+        const auto w_blackman_size = details::blackman_window_size<i64>(fftfreq_blackman, volume_z);
         check(not options.correct_weights or (not options.add_to_output and w_blackman_size == 1),
               "options.correct_weights=true is not compatible with "
               "options.add_to_output=true and options.w_windowed_sinc.fftfreq_blackman={} (={} pixels)",
@@ -2040,9 +2040,9 @@ namespace noa::geometry {
                 (nt::texture_decay<InputWeight> and nt::any_of<nt::mutable_value_type_t<InputWeight>, f64, c64>)) {
                 std::terminate(); // unreachable
             } else {
-                check(guts::fourier_projection_is_i32_safe_access(input_slice, input_weight, output_slice, output_weight),
+                check(details::fourier_projection_is_i32_safe_access(input_slice, input_weight, output_slice, output_weight),
                       "i64 indexing not instantiated for GPU devices");
-                return guts::launch_insert_and_extract_central_slices_3d<REMAP, i32, true>(
+                return details::launch_insert_and_extract_central_slices_3d<REMAP, i32, true>(
                     std::forward<Input>(input_slice), std::forward<InputWeight>(input_weight), input_slice_shape,
                     std::forward<Output>(output_slice), std::forward<OutputWeight>(output_weight), output_slice_shape,
                     std::forward<InputScale>(input_fwd_scaling), std::forward<InputRotate>(input_inv_rotation),
@@ -2054,7 +2054,7 @@ namespace noa::geometry {
             #endif
         }
 
-        guts::launch_insert_and_extract_central_slices_3d<REMAP, i64>(
+        details::launch_insert_and_extract_central_slices_3d<REMAP, i64>(
             std::forward<Input>(input_slice), std::forward<InputWeight>(input_weight), input_slice_shape,
             std::forward<Output>(output_slice), std::forward<OutputWeight>(output_weight), output_slice_shape,
             std::forward<InputScale>(input_fwd_scaling), std::forward<InputRotate>(input_inv_rotation),
@@ -2083,17 +2083,17 @@ namespace noa::geometry {
         using output_value_t = nt::value_type_t<Output>;
         using coord_t = std::conditional_t<nt::any_of<f64, input_value_t, output_value_t>, f64, f32>;
         const auto output_shape = output.shape();
-        const auto input_strides = ng::broadcast_strides(input, output);
+        const auto input_strides = nd::broadcast_strides(input, output);
         const auto input_accessor = Accessor<const input_value_t, 4, i64>(input.get(), input_strides.template as<i64>());
         const auto output_accessor = Accessor<output_value_t, 4, i64>(output.get(), output.strides().template as<i64>());
 
         if (post_correction) {
-            const auto op = guts::GriddingCorrection<true, coord_t, decltype(input_accessor), decltype(output_accessor)>(
+            const auto op = details::GriddingCorrection<true, coord_t, decltype(input_accessor), decltype(output_accessor)>(
                 input_accessor, output_accessor, output_shape);
             iwise(output_shape, output.device(), op,
                   std::forward<Input>(input), std::forward<Output>(output));
         } else {
-            const auto op = guts::GriddingCorrection<false, coord_t, decltype(input_accessor), decltype(output_accessor)>(
+            const auto op = details::GriddingCorrection<false, coord_t, decltype(input_accessor), decltype(output_accessor)>(
                 input_accessor, output_accessor, output_shape);
             iwise(output_shape, output.device(), op,
                   std::forward<Input>(input), std::forward<Output>(output));

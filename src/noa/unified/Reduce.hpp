@@ -13,7 +13,7 @@
 #include "noa/gpu/cuda/Median.cuh"
 #endif
 
-namespace noa::guts {
+namespace noa::details {
     template<typename VArray>
     auto axes_to_output_shape(const VArray& varray, ReduceAxes axes) -> Shape4<i64> {
         auto output_shape = varray.shape();
@@ -206,7 +206,7 @@ namespace noa {
         return output;
     }
 
-    namespace guts {
+    namespace details {
         template<bool STDDEV, typename Input>
         [[nodiscard]] auto mean_variance_or_stddev(const Input& array, const VarianceOptions& options) {
             using value_t = nt::mutable_value_type_t<Input>;
@@ -245,13 +245,13 @@ namespace noa {
     /// Returns the mean and variance of an array.
     template<nt::readable_varray_of_numeric Input>
     [[nodiscard]] auto mean_variance(const Input& array, const VarianceOptions& options = {}) {
-        return guts::mean_variance_or_stddev<false>(array, options);
+        return details::mean_variance_or_stddev<false>(array, options);
     }
 
     /// Returns the mean and standard deviation of an array.
     template<nt::readable_varray_of_numeric Input>
     [[nodiscard]] auto mean_stddev(const Input& array, const VarianceOptions& options = {}) {
-        return guts::mean_variance_or_stddev<true>(array, options);
+        return details::mean_variance_or_stddev<true>(array, options);
     }
 
     /// Returns the variance of an array.
@@ -293,7 +293,7 @@ namespace noa {
         reduce_iwise(
             input.shape(), input.device(), reduced,
             wrap(output.first, output.second),
-            op_t{{ng::to_accessor(input)}}
+            op_t{{nd::to_accessor(input)}}
         );
         return output;
     }
@@ -311,7 +311,7 @@ namespace noa {
         reduce_iwise(
             input.shape(), input.device(), reduced,
             wrap(output.first, output.second),
-            op_t{{ng::to_accessor(input)}}
+            op_t{{nd::to_accessor(input)}}
         );
         return output;
     }
@@ -333,7 +333,7 @@ namespace noa {
     template<nt::readable_varray_decay_of_numeric Input>
     [[nodiscard]] auto min(Input&& input, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
-        auto output = Array<value_t>(guts::axes_to_output_shape(input, axes), input.options());
+        auto output = Array<value_t>(details::axes_to_output_shape(input, axes), input.options());
         min(std::forward<Input>(input), output);
         return output;
     }
@@ -353,7 +353,7 @@ namespace noa {
     template<nt::readable_varray_decay_of_numeric Input>
     [[nodiscard]] auto max(Input&& input, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
-        auto output = Array<value_t>(guts::axes_to_output_shape(input, axes), input.options());
+        auto output = Array<value_t>(details::axes_to_output_shape(input, axes), input.options());
         max(std::forward<Input>(input), output);
         return output;
     }
@@ -380,7 +380,7 @@ namespace noa {
     template<nt::readable_varray_decay_of_numeric Input>
     [[nodiscard]] auto min_max(Input&& input, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
-        auto output_shape = guts::axes_to_output_shape(input, axes);
+        auto output_shape = details::axes_to_output_shape(input, axes);
         Pair output{
             Array<value_t>(output_shape, input.options()),
             Array<value_t>(output_shape, input.options()),
@@ -423,7 +423,7 @@ namespace noa {
     template<nt::readable_varray_decay Input>
     [[nodiscard]] auto sum(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
-        auto output = Array<value_t>(guts::axes_to_output_shape(input, axes), input.options());
+        auto output = Array<value_t>(details::axes_to_output_shape(input, axes), input.options());
         sum(std::forward<Input>(input), output, options);
         return output;
     }
@@ -441,7 +441,7 @@ namespace noa {
             std::conditional_t<nt::uinteger<value_t>, u64,
             value_t>>>>;
 
-        const auto size = static_cast<f64>(guts::n_elements_to_reduce(input.shape(), output.shape()));
+        const auto size = static_cast<f64>(details::n_elements_to_reduce(input.shape(), output.shape()));
         if constexpr (nt::real_or_complex<value_t>) {
             if (options.accurate) {
                 return reduce_axes_ewise(
@@ -461,7 +461,7 @@ namespace noa {
     template<nt::readable_varray_decay Input>
     [[nodiscard]] auto mean(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
-        auto output = Array<value_t>(guts::axes_to_output_shape(input, axes), input.options());
+        auto output = Array<value_t>(details::axes_to_output_shape(input, axes), input.options());
         mean(std::forward<Input>(input), output, options);
         return output;
     }
@@ -493,12 +493,12 @@ namespace noa {
     template<nt::writable_varray_decay_of_numeric Input>
     [[nodiscard]] auto l2_norm(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
         using real_t = nt::mutable_value_type_twice_t<Input>;
-        auto output = Array<real_t>(guts::axes_to_output_shape(input, axes), input.options());
+        auto output = Array<real_t>(details::axes_to_output_shape(input, axes), input.options());
         l2_norm(std::forward<Input>(input), output, options);
         return output;
     }
 
-    namespace guts {
+    namespace details {
         template<bool STDDEV, typename Input, typename Mean, typename Variance>
         void mean_variance_or_stddev(Input&& input, Mean&& means, Variance&& variances, const VarianceOptions options) {
             constexpr bool HAS_MEAN = not nt::empty<std::remove_reference_t<Mean>>;
@@ -515,7 +515,7 @@ namespace noa {
                 nt::double_precision_t<value_t>>>;
             using sum_sqd_t = std::conditional_t<nt::integer<value_t>, u64, f64>;
 
-            const auto size = static_cast<f64>(guts::n_elements_to_reduce(input.shape(), variances.shape()));
+            const auto size = static_cast<f64>(details::n_elements_to_reduce(input.shape(), variances.shape()));
             const auto ddof = static_cast<f64>(options.ddof);
 
             if constexpr (nt::real_or_complex<value_t>) {
@@ -565,7 +565,7 @@ namespace noa {
     requires ((nt::varray_decay_of_complex<Input, Mean> and nt::varray_decay_of_real<Variance>) or
                nt::varray_decay_of_scalar<Input, Mean, Variance>)
     void mean_variance(Input&& input, Mean&& means, Variance&& variances, const VarianceOptions options = {}) {
-        guts::mean_variance_or_stddev<false>(
+        details::mean_variance_or_stddev<false>(
             std::forward<Input>(input),
             std::forward<Mean>(means),
             std::forward<Variance>(variances),
@@ -579,7 +579,7 @@ namespace noa {
     [[nodiscard]] auto mean_variance(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
         using mean_t = nt::mutable_value_type_t<Input>;
         using variance_t = nt::mutable_value_type_twice_t<Input>;
-        auto output_shape = guts::axes_to_output_shape(input, axes);
+        auto output_shape = details::axes_to_output_shape(input, axes);
         Pair output{
             Array<mean_t>(output_shape, input.options()),
             Array<variance_t>(output_shape, input.options()),
@@ -596,7 +596,7 @@ namespace noa {
     requires ((nt::varray_decay_of_complex<Input, Mean> and nt::varray_decay_of_real<Stddev>) or
                nt::varray_decay_of_scalar<Input, Mean, Stddev>)
     void mean_stddev(Input&& input, Mean&& means, Stddev&& stddevs, const VarianceOptions options = {}) {
-        guts::mean_variance_or_stddev<true>(
+        details::mean_variance_or_stddev<true>(
            std::forward<Input>(input),
            std::forward<Mean>(means),
            std::forward<Stddev>(stddevs),
@@ -610,7 +610,7 @@ namespace noa {
     [[nodiscard]] auto mean_stddev(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
         using mean_t = nt::mutable_value_type_t<Input>;
         using variance_t = nt::value_type_t<mean_t>;
-        auto output_shape = guts::axes_to_output_shape(input, axes);
+        auto output_shape = details::axes_to_output_shape(input, axes);
         Pair output{
             Array<mean_t>(output_shape, input.options()),
             Array<variance_t>(output_shape, input.options()),
@@ -624,7 +624,7 @@ namespace noa {
     template<nt::readable_varray_decay_of_numeric Input,
              nt::writable_varray_decay_of_real Output>
     void variance(Input&& input, Output&& output, const VarianceOptions options = {}) {
-        guts::mean_variance_or_stddev<false>(
+        details::mean_variance_or_stddev<false>(
             std::forward<Input>(input),
             Empty{},
             std::forward<Output>(output),
@@ -638,7 +638,7 @@ namespace noa {
     [[nodiscard]] auto variance(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using variance_t = nt::value_type_t<value_t>;
-        auto variances = Array<variance_t>(guts::axes_to_output_shape(input, axes), input.options());
+        auto variances = Array<variance_t>(details::axes_to_output_shape(input, axes), input.options());
         variance(std::forward<Input>(input), variances, options);
         return variances;
     }
@@ -648,7 +648,7 @@ namespace noa {
     template<nt::readable_varray_decay_of_numeric Input,
              nt::writable_varray_decay_of_real Output>
     void stddev(Input&& input, Output&& output, const VarianceOptions options = {}) {
-        guts::mean_variance_or_stddev<true>(
+        details::mean_variance_or_stddev<true>(
             std::forward<Input>(input),
             Empty{},
             std::forward<Output>(output),
@@ -662,7 +662,7 @@ namespace noa {
     [[nodiscard]] auto stddev(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using stddev_t = nt::value_type_t<value_t>;
-        auto stddevs = Array<stddev_t>(guts::axes_to_output_shape(input, axes), input.options());
+        auto stddevs = Array<stddev_t>(details::axes_to_output_shape(input, axes), input.options());
         stddev(std::forward<Input>(input), stddevs, options);
         return stddevs;
     }
@@ -686,7 +686,7 @@ namespace noa {
              typename Input,
              typename Values = Empty,
              typename Offsets = Empty>
-    requires guts::arg_reduceable<Input, ReducedValue, ReducedOffset, Values, Offsets>
+    requires details::arg_reduceable<Input, ReducedValue, ReducedOffset, Values, Offsets>
     void argmax(
         Input&& input,
         Values&& output_values,
@@ -697,7 +697,7 @@ namespace noa {
         if constexpr (has_offsets or has_values) {
             check(not input.is_empty(), "Empty array detected");
             auto shape = input.shape();
-            auto accessor = ng::to_accessor(input);
+            auto accessor = nd::to_accessor(input);
 
             using input_value_t = nt::mutable_value_type_t<Input>;
             using accessor_t = AccessorI64<const input_value_t, 4>;
@@ -761,7 +761,7 @@ namespace noa {
              typename Input,
              typename Values = Empty,
              typename Offsets = Empty>
-    requires guts::arg_reduceable<Input, ReducedValue, ReducedOffset, Values, Offsets>
+    requires details::arg_reduceable<Input, ReducedValue, ReducedOffset, Values, Offsets>
     void argmin(
         Input&& input,
         Values&& output_values,
@@ -773,7 +773,7 @@ namespace noa {
         if constexpr (has_offsets or has_values) {
             check(not input.is_empty(), "Empty array detected");
             auto shape = input.shape();
-            auto accessor = ng::to_accessor(input);
+            auto accessor = nd::to_accessor(input);
 
             using input_value_t = nt::mutable_value_type_t<Input>;
             using accessor_t = AccessorI64<const input_value_t, 4>;

@@ -5,11 +5,11 @@
 #include "noa/core/Interfaces.hpp"
 #include "noa/cpu/ReduceEwise.hpp"
 
-namespace noa::cpu::guts {
+namespace noa::cpu::details {
     template<bool ZipInput, bool ZipReduced, bool ZipOutput>
     class ReduceAxesEwise {
     public:
-        using interface = ng::ReduceEwiseInterface<ZipInput, ZipReduced, ZipOutput>;
+        using interface = nd::ReduceEwiseInterface<ZipInput, ZipReduced, ZipOutput>;
 
         template<i32 MODE, typename Op, typename Input, typename Reduced, typename Output, typename Index, size_t N>
         NOA_NOINLINE static void parallel(
@@ -163,7 +163,7 @@ namespace noa::cpu {
         Output&& output,
         i64 n_threads = 1
     ) {
-        using reduce_axes_ewise_t = guts::ReduceAxesEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
+        using reduce_axes_ewise_t = details::ReduceAxesEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
         const auto axes_to_reduce = input_shape != output_shape;
         if (any(axes_to_reduce and (output_shape != 1))) {
             panic("Dimensions should match the input shape, or be 1, "
@@ -173,13 +173,13 @@ namespace noa::cpu {
             panic("No reduction to compute. Got shape input={}, output={}. Please use ewise instead.",
                   input_shape, output_shape);
         }
-        const bool are_aliased = not nt::enable_vectorization_v<Op> and ng::are_accessors_aliased(input, output);
+        const bool are_aliased = not nt::enable_vectorization_v<Op> and nd::are_accessors_aliased(input, output);
 
         const auto axes_empty_or_to_reduce = output_shape == 1 or axes_to_reduce;
         if (all(axes_empty_or_to_reduce)) { // reduce to a single value
             // Reduce to a single value.
-            constexpr auto to_1d = ng::AccessorConfig<1>{.enforce_contiguous=true, .filter={0}};
-            auto output_1d = ng::reconfig_accessors<to_1d>(output);
+            constexpr auto to_1d = nd::AccessorConfig<1>{.enforce_contiguous=true, .filter={0}};
+            auto output_1d = nd::reconfig_accessors<to_1d>(output);
             return reduce_ewise(
                 input_shape,
                 std::forward<Op>(op),
@@ -194,20 +194,20 @@ namespace noa::cpu {
             const auto actual_n_threads = min(n_batches, n_threads);
 
             const auto shape_2d = Shape2<Index>{n_batches, n_elements_to_reduce};
-            constexpr auto contiguous_restrict_2d = ng::AccessorConfig<2>{
+            constexpr auto contiguous_restrict_2d = nd::AccessorConfig<2>{
                 .enforce_contiguous = true,
                 .enforce_restrict = true,
                 .filter = {0, 3},
             };
 
             // Extract the batch from the output(s).
-            auto output_1d = ng::reconfig_accessors
-                <ng::AccessorConfig<1>{.filter = {0}}>
+            auto output_1d = nd::reconfig_accessors
+                <nd::AccessorConfig<1>{.filter = {0}}>
                 (std::forward<Output>(output));
 
             if (n_elements_to_reduce > Config::n_elements_per_thread and n_batches < n_threads) {
                 if (are_contiguous and not are_aliased) {
-                    auto input_2d = ng::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
+                    auto input_2d = nd::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
                     reduce_axes_ewise_t::template parallel<3>(
                         shape_2d,
                         std::forward<Op>(op),
@@ -226,7 +226,7 @@ namespace noa::cpu {
                 }
             } else {
                 if (are_contiguous and not are_aliased) {
-                    auto input_2d = ng::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
+                    auto input_2d = nd::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
                     reduce_axes_ewise_t::template parallel<2>(
                         shape_2d,
                         std::forward<Op>(op),
@@ -266,8 +266,8 @@ namespace noa::cpu {
             output_.for_each([&order](auto& accessor) { accessor.reorder(order); });
         }
 
-        auto output_3d = ng::reconfig_accessors
-            <ng::AccessorConfig<3>{.filter={0, 1, 2}}>
+        auto output_3d = nd::reconfig_accessors
+            <nd::AccessorConfig<3>{.filter={0, 1, 2}}>
             (std::move(output_));
 
         // This function distributes the threads on the dimensions that are not reduced.
@@ -277,11 +277,11 @@ namespace noa::cpu {
         const bool is_contiguous = ni::is_contiguous(input_, reordered_shape)[3];
 
         if (is_contiguous and not are_aliased) {
-            constexpr auto contiguous_restrict = ng::AccessorConfig<0>{
+            constexpr auto contiguous_restrict = nd::AccessorConfig<0>{
                 .enforce_contiguous = true,
                 .enforce_restrict = true,
             };
-            auto contiguous_input = ng::reconfig_accessors<contiguous_restrict>(std::move(input_));
+            auto contiguous_input = nd::reconfig_accessors<contiguous_restrict>(std::move(input_));
             if (actual_n_threads > 1) {
                 reduce_axes_ewise_t::template parallel<1>(
                     reordered_shape,

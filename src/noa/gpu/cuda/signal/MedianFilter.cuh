@@ -15,7 +15,7 @@
 //      to be constant, i.e. the window size should be a template argument.
 // TODO Maybe look at other implementations for larger windows (e.g. with textures)?
 
-namespace noa::cuda::signal::guts {
+namespace noa::cuda::signal::details {
     // Ensures a < b. If not, swap.
     template<typename T>
     __forceinline__ __device__ void sort_swap_(T& a, T& b) {
@@ -97,7 +97,7 @@ namespace noa::cuda::signal::guts {
                 median_filter_1d_load_to_shared<BORDER_REFLECT, HALO>(
                     input_1d, shared_mem + tid[0] * SHARED_SHAPE[1] + lx, shape[1], gx - HALO);
             }
-            noa::cuda::guts::block_synchronize();
+            noa::cuda::details::block_synchronize();
 
             // Only continue if not out of bound.
             if (gid[3] < shape[1]) {
@@ -201,7 +201,7 @@ namespace noa::cuda::signal::guts {
                 median_filter_2d_load_to_shared<BORDER_REFLECT, HALO>(
                     input_2d, shared_mem + ly * SHARED_SHAPE[1] + lx,
                     shape[0], gy - HALO, shape[1], gx - HALO);
-        noa::cuda::guts::block_synchronize();
+        noa::cuda::details::block_synchronize();
 
         // Only continue if not out of bound. gid.z cannot be out of bound.
         if (gid[2] < shape[0] and gid[3] < shape[1]) {
@@ -314,7 +314,7 @@ namespace noa::cuda::signal::guts {
                         input_3d,
                         shared_mem + (lz * SHARED_SHAPE[1] + ly) * SHARED_SHAPE[2] + lx,
                         shape[0], gz - HALO, shape[1], gy - HALO, shape[2], gx - HALO);
-        noa::cuda::guts::block_synchronize();
+        noa::cuda::details::block_synchronize();
 
         // Only continue if not out of bound. gid.z cannot be out of bound.
         if (gid[2] < shape[1] and gid[3] < shape[2]) {
@@ -382,62 +382,62 @@ namespace noa::cuda::signal {
             case 3:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_1d<config_t, input_t, output_t, true, 3> :
-                    guts::median_filter_1d<config_t, input_t, output_t, false, 3>,
+                    details::median_filter_1d<config_t, input_t, output_t, true, 3> :
+                    details::median_filter_1d<config_t, input_t, output_t, false, 3>,
                     launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
             case 5:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_1d<config_t, input_t, output_t, true, 5> :
-                    guts::median_filter_1d<config_t, input_t, output_t, false, 5>,
+                    details::median_filter_1d<config_t, input_t, output_t, true, 5> :
+                    details::median_filter_1d<config_t, input_t, output_t, false, 5>,
                     launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
             case 7:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_1d<config_t, input_t, output_t, true, 7> :
-                    guts::median_filter_1d<config_t, input_t, output_t, false, 7>,
+                    details::median_filter_1d<config_t, input_t, output_t, true, 7> :
+                    details::median_filter_1d<config_t, input_t, output_t, false, 7>,
                     launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
             case 9:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_1d<config_t, input_t, output_t, true, 9> :
-                    guts::median_filter_1d<config_t, input_t, output_t, false, 9>,
+                    details::median_filter_1d<config_t, input_t, output_t, true, 9> :
+                    details::median_filter_1d<config_t, input_t, output_t, false, 9>,
                     launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
             case 11:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_1d<config_t, input_t, output_t, true, 11> :
-                    guts::median_filter_1d<config_t, input_t, output_t, false, 11>,
+                    details::median_filter_1d<config_t, input_t, output_t, true, 11> :
+                    details::median_filter_1d<config_t, input_t, output_t, false, 11>,
                     launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
             case 13:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_1d<config_t, input_t, output_t, true, 13> :
-                    guts::median_filter_1d<config_t, input_t, output_t, false, 13>,
+                    details::median_filter_1d<config_t, input_t, output_t, true, 13> :
+                    details::median_filter_1d<config_t, input_t, output_t, false, 13>,
                     launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
             case 15:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_1d<config_t, input_t, output_t, true, 15> :
-                    guts::median_filter_1d<config_t, input_t, output_t, false, 15>,
+                    details::median_filter_1d<config_t, input_t, output_t, true, 15> :
+                    details::median_filter_1d<config_t, input_t, output_t, false, 15>,
                     launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
             case 17:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_1d<config_t, input_t, output_t, true, 17> :
-                    guts::median_filter_1d<config_t, input_t, output_t, false, 17>,
+                    details::median_filter_1d<config_t, input_t, output_t, true, 17> :
+                    details::median_filter_1d<config_t, input_t, output_t, false, 17>,
                     launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
             case 19:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_1d<config_t, input_t, output_t, true, 19> :
-                    guts::median_filter_1d<config_t, input_t, output_t, false, 19>,
+                    details::median_filter_1d<config_t, input_t, output_t, true, 19> :
+                    details::median_filter_1d<config_t, input_t, output_t, false, 19>,
                     launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
             case 21:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_1d<config_t, input_t, output_t, true, 21> :
-                    guts::median_filter_1d<config_t, input_t, output_t, false, 21>,
+                    details::median_filter_1d<config_t, input_t, output_t, true, 21> :
+                    details::median_filter_1d<config_t, input_t, output_t, false, 21>,
                     launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
             default:
                 panic("Unsupported window size. It should be an odd number from 1 to 21, got {}", window_size);
@@ -477,32 +477,32 @@ namespace noa::cuda::signal {
             case 3:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_2d<config_t, input_t, output_t, true, 3> :
-                    guts::median_filter_2d<config_t, input_t, output_t, false, 3>,
+                    details::median_filter_2d<config_t, input_t, output_t, true, 3> :
+                    details::median_filter_2d<config_t, input_t, output_t, false, 3>,
                     launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
             case 5:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_2d<config_t, input_t, output_t, true, 5> :
-                    guts::median_filter_2d<config_t, input_t, output_t, false, 5>,
+                    details::median_filter_2d<config_t, input_t, output_t, true, 5> :
+                    details::median_filter_2d<config_t, input_t, output_t, false, 5>,
                     launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
             case 7:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_2d<config_t, input_t, output_t, true, 7> :
-                    guts::median_filter_2d<config_t, input_t, output_t, false, 7>,
+                    details::median_filter_2d<config_t, input_t, output_t, true, 7> :
+                    details::median_filter_2d<config_t, input_t, output_t, false, 7>,
                     launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
             case 9:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_2d<config_t, input_t, output_t, true, 9> :
-                    guts::median_filter_2d<config_t, input_t, output_t, false, 9>,
+                    details::median_filter_2d<config_t, input_t, output_t, true, 9> :
+                    details::median_filter_2d<config_t, input_t, output_t, false, 9>,
                     launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
             case 11:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_2d<config_t, input_t, output_t, true, 11> :
-                    guts::median_filter_2d<config_t, input_t, output_t, false, 11>,
+                    details::median_filter_2d<config_t, input_t, output_t, true, 11> :
+                    details::median_filter_2d<config_t, input_t, output_t, false, 11>,
                     launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
             default:
                 panic("Unsupported window size. It should be an odd number from 1 to 11, got {}", window_size);
@@ -543,14 +543,14 @@ namespace noa::cuda::signal {
             case 3:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_3d<config_t, input_t, output_t, true, 3> :
-                    guts::median_filter_3d<config_t, input_t, output_t, false, 3>,
+                    details::median_filter_3d<config_t, input_t, output_t, true, 3> :
+                    details::median_filter_3d<config_t, input_t, output_t, false, 3>,
                     launch_config, input_accessor, output_accessor, shape_3d, n_blocks_x);
             case 5:
                 return stream.enqueue(
                     border_mode == Border::REFLECT ?
-                    guts::median_filter_3d<config_t, input_t, output_t, true, 5> :
-                    guts::median_filter_3d<config_t, input_t, output_t, false, 5>,
+                    details::median_filter_3d<config_t, input_t, output_t, true, 5> :
+                    details::median_filter_3d<config_t, input_t, output_t, false, 5>,
                     launch_config, input_accessor, output_accessor, shape_3d, n_blocks_x);
             default:
                 panic("Unsupported window size. It should be an odd number from 1 to 11, got {}", window_size);

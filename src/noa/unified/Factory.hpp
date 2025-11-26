@@ -114,14 +114,14 @@ namespace noa {
     void arange(Output&& output, Arange<T> params = {}) {
         check(not output.is_empty(), "Empty array detected");
         if (output.are_contiguous()) {
-            auto accessor = ng::to_accessor_contiguous_1d(output);
-            using op_t = ng::IwiseRange<1, decltype(accessor), i64, Arange<T>>;
+            auto accessor = nd::to_accessor_contiguous_1d(output);
+            using op_t = nd::IwiseRange<1, decltype(accessor), i64, Arange<T>>;
             iwise(Shape{output.n_elements()}, output.device(),
                   op_t(accessor, Shape<i64, 1>{}, params),
                   std::forward<Output>(output));
         } else {
-            auto accessor = ng::to_accessor(output);
-            using op_t = ng::IwiseRange<4, decltype(accessor), i64, Arange<T>>;
+            auto accessor = nd::to_accessor(output);
+            using op_t = nd::IwiseRange<4, decltype(accessor), i64, Arange<T>>;
             iwise(output.shape(), output.device(),
                   op_t(accessor, output.shape(), params),
                   std::forward<Output>(output));
@@ -176,14 +176,14 @@ namespace noa {
         auto linspace = params.for_size(n_elements);
 
         if (output.are_contiguous()) {
-            auto accessor = ng::to_accessor_contiguous_1d(output);
-            using op_t = ng::IwiseRange<1, decltype(accessor), i64, decltype(linspace)>;
+            auto accessor = nd::to_accessor_contiguous_1d(output);
+            using op_t = nd::IwiseRange<1, decltype(accessor), i64, decltype(linspace)>;
             iwise(Shape{n_elements}, output.device(),
                   op_t(accessor, Shape<i64, 1>{}, linspace),
                   std::forward<Output>(output));
         } else {
-            auto accessor = ng::to_accessor(output);
-            using op_t = ng::IwiseRange<4, decltype(accessor), i64, decltype(linspace)>;
+            auto accessor = nd::to_accessor(output);
+            using op_t = nd::IwiseRange<4, decltype(accessor), i64, decltype(linspace)>;
             iwise(output.shape(), output.device(),
                   op_t(accessor, output.shape(), linspace),
                   std::forward<Output>(output));
@@ -238,14 +238,14 @@ namespace noa {
 
         auto shape = output.shape().template as_safe<T>();
         if (output.are_contiguous()) {
-            auto accessor = ng::to_accessor_contiguous(output);
-            using op_t = ng::Iota<4, decltype(accessor), T>;
+            auto accessor = nd::to_accessor_contiguous(output);
+            using op_t = nd::Iota<4, decltype(accessor), T>;
             iwise(shape, output.device(),
                   op_t(accessor, shape, tile),
                   std::forward<Output>(output));
         } else {
-            auto accessor = ng::to_accessor(output);
-            using op_t = ng::Iota<4, decltype(accessor), T>;
+            auto accessor = nd::to_accessor(output);
+            using op_t = nd::Iota<4, decltype(accessor), T>;
             iwise(shape, output.device(),
                   op_t(accessor, shape, tile),
                   std::forward<Output>(output));

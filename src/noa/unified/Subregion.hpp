@@ -4,7 +4,7 @@
 #include "noa/unified/Indexing.hpp"
 #include "noa/unified/Iwise.hpp"
 
-namespace noa::guts {
+namespace noa::details {
     /// Extract subregions from one or multiple arrays.
     /// \details Subregions are defined by their 3d shape and their 2d (hw) or 4d (batch + dhw) origins.
     ///          If the subregion falls (even partially) out of the input bounds, the border mode is used
@@ -253,7 +253,7 @@ namespace noa {
         switch (border_mode) {
             #define NOA_GENERATE_SUBREGION_(border)                                                           \
             case border: {                                                                                    \
-                auto op = ng::ExtractSubregion<border, i64, indice_t, input_accessor_t, subregion_accessor_t>(\
+                auto op = nd::ExtractSubregion<border, i64, indice_t, input_accessor_t, subregion_accessor_t>(\
                         input_accessor, subregion_accessor, input_shape, origins.get(), border_value, order); \
                 return iwise(subregion_shape, device, std::move(op),                                          \
                              std::forward<Input>(input),                                                      \
@@ -334,7 +334,7 @@ namespace noa {
         const auto subregion_accessor = subregion_accessor_t(subregions.get(), subregion_strides);
         const auto output_accessor = output_accessor_t(output.get(), output_strides);
 
-        auto op = ng::InsertSubregion<i64, indice_t, subregion_accessor_t, output_accessor_t>(
+        auto op = nd::InsertSubregion<i64, indice_t, subregion_accessor_t, output_accessor_t>(
             subregion_accessor, output_accessor, output_shape, origins.get(), order);
         iwise(subregion_shape, device, std::move(op),
               std::forward<Subregion>(subregions),

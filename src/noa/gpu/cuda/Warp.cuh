@@ -5,7 +5,7 @@
 #include "noa/core/types/Vec.hpp"
 #include "noa/gpu/cuda/Runtime.hpp"
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     // TODO Add a way for the users to add a specialisation for wrap_reduce with their own types?
     template<typename T>
     concept shuffable = nt::numeric<T> or nt::any_of<T, half, half2>;

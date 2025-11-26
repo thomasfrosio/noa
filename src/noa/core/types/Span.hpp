@@ -8,7 +8,7 @@
 #include "noa/core/indexing/Subregion.hpp"
 #include "noa/core/indexing/Layout.hpp"
 
-namespace noa::guts {
+namespace noa::details {
     template<typename T, typename I, StridesTraits StrideTrait>
     struct SpanIterator {
     public:
@@ -84,7 +84,7 @@ namespace noa::inline types {
         using shape_type = Shape<index_type, N>;
         using strides_type = Strides<index_type, N - IS_CONTIGUOUS>;
         using strides_full_type = Strides<index_type, N>;
-        using span_iterator_type = ng::SpanIterator<value_type, index_type, STRIDES_TRAIT>;
+        using span_iterator_type = nd::SpanIterator<value_type, index_type, STRIDES_TRAIT>;
         using contiguous_span_type = Span<value_type, SIZE, index_type, StridesTraits::CONTIGUOUS>;
 
     public: // Constructors

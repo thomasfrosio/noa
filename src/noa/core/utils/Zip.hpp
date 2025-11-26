@@ -10,7 +10,7 @@
     #pragma warning(push, 0)
 #endif
 
-namespace noa::guts {
+namespace noa::details {
     template<typename... T>
     class ZipIterator {
     public:
@@ -81,7 +81,7 @@ namespace noa {
     /// Zip ranges ala std::views::zip (C++23).
     template<typename... T>
     constexpr auto zip(T&&... r) {
-        return guts::ZipRange<T...>(std::forward<T>(r)...);
+        return details::ZipRange<T...>(std::forward<T>(r)...);
     }
 }
 

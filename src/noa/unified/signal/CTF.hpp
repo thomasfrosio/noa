@@ -8,7 +8,7 @@
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Iwise.hpp"
 
-namespace noa::signal::guts {
+namespace noa::signal::details {
     /// Index-wise operator, to compute/apply CTFs to {1|2|3}d DFTs.
     /// \details If the input is valid, input*ctf->output is computed.
     ///          If the input is complex and the output is real, the power spectrum is saved.
@@ -131,7 +131,7 @@ namespace noa::signal::guts {
     };
 }
 
-namespace noa::signal::guts {
+namespace noa::signal::details {
     template<typename T, typename U = nt::value_type_t<T>, typename V = std::decay_t<T>>
     concept varray_decay_or_ctf_isotropic = (nt::ctf_isotropic<V> or (nt::varray<V> and nt::ctf_isotropic<U>));
 
@@ -223,28 +223,28 @@ namespace noa::signal {
     ///                     one CTF per output batch. If a single value is passed, it is applied to every batch.
     /// \param options      Spectrum and CTF options.
     template<nf::Layout REMAP, typename Output, typename CTF>
-    requires guts::ctfable<REMAP, View<nt::value_type_t<Output>>, Output, CTF, true>
+    requires details::ctfable<REMAP, View<nt::value_type_t<Output>>, Output, CTF, true>
     void ctf_isotropic(
         Output&& output,
         Shape4<i64> shape,
         CTF&& ctf,
         const CTFOptions& options = {}
     ) {
-        guts::ctf_check_parameters<REMAP>(Empty{}, output, shape, ctf, options.fftfreq_range);
+        details::ctf_check_parameters<REMAP>(Empty{}, output, shape, ctf, options.fftfreq_range);
         const Device device = output.device();
 
         using value_t = nt::value_type_t<Output>;
         using coord_t = nt::value_type_twice_t<CTF>;
-        using ctf_t = decltype(guts::extract_ctf(ctf));
+        using ctf_t = decltype(details::extract_ctf(ctf));
 
         switch (shape.ndim()) {
             case 1: {
                 using output_accessor_t = Accessor<value_t, 2, i64>;
-                using op_t = guts::CTF<REMAP, 1, coord_t, i64, Empty, output_accessor_t, ctf_t>;
+                using op_t = details::CTF<REMAP, 1, coord_t, i64, Empty, output_accessor_t, ctf_t>;
                 auto index = ni::non_empty_dhw_dimension(shape);
                 auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0, index));
                 auto op = op_t(
-                    {}, output_accessor, shape.filter(index), guts::extract_ctf(ctf),
+                    {}, output_accessor, shape.filter(index), details::extract_ctf(ctf),
                     options.ctf_abs, options.ctf_squared,
                     options.fftfreq_range.as<coord_t>()
                 );
@@ -262,10 +262,10 @@ namespace noa::signal {
                 }
 
                 using output_accessor_t = Accessor<value_t, 3, i64>;
-                using op_t = guts::CTF<REMAP, 2, coord_t, i64, Empty, output_accessor_t, ctf_t>;
+                using op_t = details::CTF<REMAP, 2, coord_t, i64, Empty, output_accessor_t, ctf_t>;
                 auto output_accessor = output_accessor_t(output.get(), output_strides.filter(0, 2, 3));
                 auto op = op_t(
-                    {}, output_accessor, shape.filter(2, 3), guts::extract_ctf(ctf),
+                    {}, output_accessor, shape.filter(2, 3), details::extract_ctf(ctf),
                     options.ctf_abs, options.ctf_squared,
                     options.fftfreq_range.as<coord_t>()
                 );
@@ -284,10 +284,10 @@ namespace noa::signal {
                 }
 
                 using output_accessor_t = Accessor<value_t, 4, i64>;
-                using op_t = guts::CTF<REMAP, 3, coord_t, i64, Empty, output_accessor_t, ctf_t>;
+                using op_t = details::CTF<REMAP, 3, coord_t, i64, Empty, output_accessor_t, ctf_t>;
                 auto output_accessor = output_accessor_t(output.get(), output_strides);
                 auto op = op_t(
-                    {}, output_accessor, shape.pop_front(), guts::extract_ctf(ctf),
+                    {}, output_accessor, shape.pop_front(), details::extract_ctf(ctf),
                     options.ctf_abs, options.ctf_squared,
                     options.fftfreq_range.as<coord_t>()
                 );
@@ -314,7 +314,7 @@ namespace noa::signal {
     template<nf::Layout REMAP,
              typename Output, typename CTF,
              typename Input = View<nt::value_type_t<Output>>>
-    requires guts::ctfable<REMAP, Input, Output, CTF, true>
+    requires details::ctfable<REMAP, Input, Output, CTF, true>
     void ctf_isotropic(
         Input&& input,
         Output&& output,
@@ -327,15 +327,15 @@ namespace noa::signal {
                 std::forward<Output>(output), shape, std::forward<CTF>(ctf), options);
         }
 
-        guts::ctf_check_parameters<REMAP>(input, output, shape, ctf, options.fftfreq_range);
+        details::ctf_check_parameters<REMAP>(input, output, shape, ctf, options.fftfreq_range);
 
-        auto input_strides = ng::broadcast_strides_optional(input, output);
+        auto input_strides = nd::broadcast_strides_optional(input, output);
         const Device device = output.device();
 
         using input_value_t = nt::const_value_type_t<Input>;
         using output_value_t = nt::value_type_t<Output>;
         using coord_t = nt::value_type_twice_t<CTF>;
-        using ctf_t = decltype(guts::extract_ctf(ctf));
+        using ctf_t = decltype(details::extract_ctf(ctf));
 
         switch (shape.ndim()) {
             case 1: {
@@ -346,11 +346,11 @@ namespace noa::signal {
 
                 using input_accessor_t = Accessor<input_value_t, 2, i64>;
                 using output_accessor_t = Accessor<output_value_t, 2, i64>;
-                using op_t = guts::CTF<REMAP, 1, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
+                using op_t = details::CTF<REMAP, 1, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
                 auto op = op_t(
                     input_accessor_t(input.get(), input_strides.filter(0, index)),
                     output_accessor_t(output.get(), output.strides().filter(0, index)),
-                    shape.filter(index), guts::extract_ctf(ctf),
+                    shape.filter(index), details::extract_ctf(ctf),
                     options.ctf_abs, options.ctf_squared,
                     options.fftfreq_range.as<coord_t>()
                 );
@@ -371,11 +371,11 @@ namespace noa::signal {
                 }
                 using input_accessor_t = Accessor<input_value_t, 3, i64>;
                 using output_accessor_t = Accessor<output_value_t, 3, i64>;
-                using op_t = guts::CTF<REMAP, 2, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
+                using op_t = details::CTF<REMAP, 2, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
                 auto op = op_t(
                     input_accessor_t(input.get(), input_strides.filter(0, 2, 3)),
                     output_accessor_t(output.get(), output_strides.filter(0, 2, 3)),
-                    shape.filter(2, 3), guts::extract_ctf(ctf),
+                    shape.filter(2, 3), details::extract_ctf(ctf),
                     options.ctf_abs, options.ctf_squared,
                     options.fftfreq_range.as<coord_t>()
                 );
@@ -401,11 +401,11 @@ namespace noa::signal {
 
                 using input_accessor_t = Accessor<input_value_t, 4, i64>;
                 using output_accessor_t = Accessor<output_value_t, 4, i64>;
-                using op_t = guts::CTF<REMAP, 3, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
+                using op_t = details::CTF<REMAP, 3, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
                 auto op = op_t(
                     input_accessor_t(input.get(), input_strides),
                     output_accessor_t(output.get(), output_strides),
-                    shape.pop_front(), guts::extract_ctf(ctf),
+                    shape.pop_front(), details::extract_ctf(ctf),
                     options.ctf_abs, options.ctf_squared,
                     options.fftfreq_range.as<coord_t>()
                 );
@@ -431,18 +431,18 @@ namespace noa::signal {
     ///                     to every batch.
     /// \param options      Spectrum and CTF options.
     template<nf::Layout REMAP, typename Output, typename CTF>
-    requires guts::ctfable<REMAP, View<nt::value_type_t<Output>>, Output, CTF, false>
+    requires details::ctfable<REMAP, View<nt::value_type_t<Output>>, Output, CTF, false>
     void ctf_anisotropic(
         Output&& output,
         Shape4<i64> shape,
         CTF&& ctf,
         const CTFOptions& options = {}
     ) {
-        guts::ctf_check_parameters<REMAP>(Empty{}, output, shape, ctf, options.fftfreq_range);
+        details::ctf_check_parameters<REMAP>(Empty{}, output, shape, ctf, options.fftfreq_range);
 
         using value_t = nt::value_type_t<Output>;
         using coord_t = nt::value_type_twice_t<CTF>;
-        using ctf_t = decltype(guts::extract_ctf(ctf));
+        using ctf_t = decltype(details::extract_ctf(ctf));
 
         auto output_strides = output.strides();
         const auto order = ni::order(output_strides.filter(2, 3), shape.filter(2, 3));
@@ -452,10 +452,10 @@ namespace noa::signal {
         }
 
         using output_accessor_t = Accessor<value_t, 3, i64>;
-        using op_t = guts::CTF<REMAP, 2, coord_t, i64, Empty, output_accessor_t, ctf_t>;
+        using op_t = details::CTF<REMAP, 2, coord_t, i64, Empty, output_accessor_t, ctf_t>;
         auto output_accessor = output_accessor_t(output.get(), output_strides.filter(0, 2, 3));
         auto op = op_t(
-            {}, output_accessor, shape.filter(2, 3), guts::extract_ctf(ctf),
+            {}, output_accessor, shape.filter(2, 3), details::extract_ctf(ctf),
             options.ctf_abs, options.ctf_squared,
             options.fftfreq_range.as<coord_t>()
         );
@@ -480,7 +480,7 @@ namespace noa::signal {
     /// \param options      Spectrum and CTF options.
     template<nf::Layout REMAP, typename Output, typename CTF,
              typename Input = View<nt::value_type_t<Output>>>
-    requires guts::ctfable<REMAP, Input, Output, CTF, false>
+    requires details::ctfable<REMAP, Input, Output, CTF, false>
     void ctf_anisotropic(
         Input&& input,
         Output&& output,
@@ -493,9 +493,9 @@ namespace noa::signal {
                 std::forward<Output>(output), shape, std::forward<CTF>(ctf), options);
         }
 
-        guts::ctf_check_parameters<REMAP>(input, output, shape, ctf, options.fftfreq_range);
+        details::ctf_check_parameters<REMAP>(input, output, shape, ctf, options.fftfreq_range);
 
-        auto input_strides = ng::broadcast_strides_optional(input, output);
+        auto input_strides = nd::broadcast_strides_optional(input, output);
         auto output_strides = output.strides();
         const auto order = ni::order(output_strides.filter(2, 3), shape.filter(2, 3));
         if (vany(NotEqual{}, order, Vec{0, 1})) {
@@ -506,12 +506,12 @@ namespace noa::signal {
         using input_accessor_t = Accessor<nt::const_value_type_t<Input>, 3, i64>;
         using output_accessor_t = Accessor<nt::value_type_t<Output>, 3, i64>;
         using coord_t = nt::value_type_twice_t<CTF>;
-        using ctf_t = decltype(guts::extract_ctf(ctf));
-        using op_t = guts::CTF<REMAP, 2, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
+        using ctf_t = decltype(details::extract_ctf(ctf));
+        using op_t = details::CTF<REMAP, 2, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
         auto op = op_t(
             input_accessor_t(input.get(), input_strides.filter(0, 2, 3)),
             output_accessor_t(output.get(), output_strides.filter(0, 2, 3)),
-            shape.filter(2, 3), guts::extract_ctf(ctf),
+            shape.filter(2, 3), details::extract_ctf(ctf),
             options.ctf_abs, options.ctf_squared,
             options.fftfreq_range.as<coord_t>()
         );

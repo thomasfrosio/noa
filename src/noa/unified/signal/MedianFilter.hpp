@@ -63,8 +63,8 @@ namespace noa::signal {
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            check(ng::is_accessor_access_safe<i32>(input, output.shape()) and
-                  ng::is_accessor_access_safe<i32>(output, output.shape()),
+            check(nd::is_accessor_access_safe<i32>(input, output.shape()) and
+                  nd::is_accessor_access_safe<i32>(output, output.shape()),
                   "GPU backend only instantiate i32-based accessor indexing, "
                   "which is unsafe for the given input and output arrays. "
                   "Please report this.");
@@ -123,8 +123,8 @@ namespace noa::signal {
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            check(ng::is_accessor_access_safe<i32>(input, output.shape()) and
-                  ng::is_accessor_access_safe<i32>(output, output.shape()),
+            check(nd::is_accessor_access_safe<i32>(input, output.shape()) and
+                  nd::is_accessor_access_safe<i32>(output, output.shape()),
                   "GPU backend only instantiate i32-based accessor indexing, "
                   "which is unsafe for the given input and output arrays. "
                   "Please report this.");
@@ -182,8 +182,8 @@ namespace noa::signal {
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
-            check(ng::is_accessor_access_safe<i32>(input, output.shape()) and
-                  ng::is_accessor_access_safe<i32>(output, output.shape()),
+            check(nd::is_accessor_access_safe<i32>(input, output.shape()) and
+                  nd::is_accessor_access_safe<i32>(output, output.shape()),
                   "GPU backend only instantiate i32-based accessor indexing, "
                   "which is unsafe for the given input and output arrays. "
                   "Please report this.");

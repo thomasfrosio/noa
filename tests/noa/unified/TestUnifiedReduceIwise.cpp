@@ -55,7 +55,7 @@ TEMPLATE_TEST_CASE("unified::reduce_iwise - simple", "", i32, f64) {
         using accessor_t = AccessorI64<const TestType, 4>;
         using reduce_t = Pair<TestType, i64>;
         using op_t = noa::ReduceFirstMax<accessor_t, reduce_t>;
-        auto op = op_t{noa::guts::to_accessor(input)};
+        auto op = op_t{noa::details::to_accessor(input)};
         auto initial = reduce_t{std::numeric_limits<TestType>::lowest(), 0};
 
         i64 output_max_offset{};

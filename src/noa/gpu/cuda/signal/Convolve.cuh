@@ -6,7 +6,7 @@
 #include "noa/gpu/cuda/Copy.cuh"
 #include "noa/gpu/cuda/Stream.hpp"
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     using ConvolveBlock = StaticBlock<16, 16, 1>;
 
     template<bool BORDER_ZERO, typename Block, typename Input, typename Output, typename Filter>
@@ -400,14 +400,14 @@ namespace noa::cuda::guts {
     }
 }
 
-namespace noa::cuda::signal::guts {
+namespace noa::cuda::signal::details {
     template<Border BORDER, typename T, typename U, typename V>
     void launch_convolve_separable_x(
         const T* input, const Strides4<i64>& input_strides,
         U* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
         const V* filter, i64 filter_size, Stream& stream
     ) {
-        using namespace noa::cuda::guts;
+        using namespace noa::cuda::details;
         using input_t = AccessorRestrictI64<const T, 4>;
         using output_t = AccessorRestrictI64<U, 4>;
         using filter_t = AccessorRestrictContiguousI32<const V, 1>;
@@ -443,7 +443,7 @@ namespace noa::cuda::signal::guts {
         U* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
         const V* filter, i64 filter_size, Stream& stream
     ) {
-        using namespace noa::cuda::guts;
+        using namespace noa::cuda::details;
         using input_t = AccessorRestrictI64<const T, 4>;
         using output_t = AccessorRestrictI64<U, 4>;
         using filter_t = AccessorRestrictContiguousI32<const V, 1>;
@@ -479,7 +479,7 @@ namespace noa::cuda::signal::guts {
         U* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
         const V* filter, i64 filter_size, Stream& stream
     ) {
-        using namespace noa::cuda::guts;
+        using namespace noa::cuda::details;
         using input_t = AccessorRestrictI64<const T, 4>;
         using output_t = AccessorRestrictI64<U, 4>;
         using filter_t = AccessorRestrictContiguousI32<const V, 1>;
@@ -517,7 +517,7 @@ namespace noa::cuda::signal {
         U* output, Strides4<i64> output_strides, const Shape4<i64>& shape,
         const V* filter, const Shape3<i64>& filter_shape, Stream& stream
     ) {
-        using namespace noa::cuda::guts;
+        using namespace noa::cuda::details;
         using input_accessor_t = AccessorRestrictI64<const T, 4>;
         using output_accessor_t = AccessorRestrictI64<U, 4>;
         using filter_accessor_t = AccessorRestrictContiguousI32<const V, 1>;
@@ -527,15 +527,15 @@ namespace noa::cuda::signal {
         const auto ndim = filter_shape.ndim();
         if (n_dimensions_to_convolve == 1) {
             if (filter_shape[0] > 1) {
-                guts::launch_convolve_separable_z<BORDER>(
+                details::launch_convolve_separable_z<BORDER>(
                     input, input_strides, output, output_strides, shape, filter, filter_shape[0], stream
                 );
             } else if (filter_shape[1] > 1) {
-                guts::launch_convolve_separable_y<BORDER>(
+                details::launch_convolve_separable_y<BORDER>(
                     input, input_strides, output, output_strides, shape, filter, filter_shape[1], stream
                 );
             } else {
-                guts::launch_convolve_separable_x<BORDER>(
+                details::launch_convolve_separable_x<BORDER>(
                     input, input_strides, output, output_strides, shape, filter, filter_shape[2], stream
                 );
             }
@@ -655,46 +655,46 @@ namespace noa::cuda::signal {
         }
 
         if (filter_depth and filter_height and filter_width) {
-            guts::launch_convolve_separable_z<BORDER>(
+            details::launch_convolve_separable_z<BORDER>(
                 input, input_strides, output, output_strides, shape, filter_depth, filter_depth_size, stream
             );
-            guts::launch_convolve_separable_y<BORDER>(
+            details::launch_convolve_separable_y<BORDER>(
                 output, output_strides, tmp, tmp_strides, shape, filter_height, filter_height_size, stream
             );
-            guts::launch_convolve_separable_x<BORDER>(
+            details::launch_convolve_separable_x<BORDER>(
                 tmp, tmp_strides, output, output_strides, shape, filter_width, filter_width_size, stream
             );
         } else if (filter_depth and filter_height) {
-            guts::launch_convolve_separable_z<BORDER>(
+            details::launch_convolve_separable_z<BORDER>(
                 input, input_strides, tmp, tmp_strides, shape, filter_depth, filter_depth_size, stream
             );
-            guts::launch_convolve_separable_y<BORDER>(
+            details::launch_convolve_separable_y<BORDER>(
                 tmp, tmp_strides, output, output_strides, shape, filter_height, filter_height_size, stream
             );
         } else if (filter_depth and filter_width) {
-            guts::launch_convolve_separable_z<BORDER>(
+            details::launch_convolve_separable_z<BORDER>(
                 input, input_strides, tmp, tmp_strides, shape, filter_depth, filter_depth_size, stream
             );
-            guts::launch_convolve_separable_x<BORDER>(
+            details::launch_convolve_separable_x<BORDER>(
                 tmp, tmp_strides, output, output_strides, shape, filter_width, filter_width_size, stream
             );
         } else if (filter_height and filter_width) {
-            guts::launch_convolve_separable_y<BORDER>(
+            details::launch_convolve_separable_y<BORDER>(
                 input, input_strides, tmp, tmp_strides, shape, filter_height, filter_height_size, stream
             );
-            guts::launch_convolve_separable_x<BORDER>(
+            details::launch_convolve_separable_x<BORDER>(
                 tmp, tmp_strides, output, output_strides, shape, filter_width, filter_width_size, stream
             );
         } else if (filter_depth) {
-            guts::launch_convolve_separable_z<BORDER>(
+            details::launch_convolve_separable_z<BORDER>(
                 input, input_strides, output, output_strides, shape, filter_depth, filter_depth_size, stream
             );
         } else if (filter_height) {
-            guts::launch_convolve_separable_y<BORDER>(
+            details::launch_convolve_separable_y<BORDER>(
                 input, input_strides, output, output_strides, shape, filter_height, filter_height_size, stream
             );
         } else if (filter_width) {
-            guts::launch_convolve_separable_x<BORDER>(
+            details::launch_convolve_separable_x<BORDER>(
                 input, input_strides, output, output_strides, shape, filter_width, filter_width_size, stream
             );
         }

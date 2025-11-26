@@ -23,12 +23,12 @@ namespace noa::inline types {
             i64 max_threads;
             const char* str = std::getenv("NOA_THREADS");
             if (str) {
-                max_threads = ns::parse<i64>(str).value_or(1);
+                max_threads = noa::string::parse<i64>(str).value_or(1);
             } else {
                 #ifdef NOA_ENABLE_OPENMP
                 str = std::getenv("OMP_NUM_THREADS");
                 if (str)
-                    max_threads = ns::parse<i64>(str).value_or(1);
+                    max_threads = noa::string::parse<i64>(str).value_or(1);
                 else
                     max_threads = static_cast<i64>(omp_get_max_threads());
                 #else

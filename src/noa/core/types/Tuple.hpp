@@ -37,7 +37,7 @@ namespace noa::inline types {
     struct Tuple;
 }
 
-namespace noa::guts {
+namespace noa::details {
     template<size_t I, typename T>
     struct TupleElement {
         using type = T;
@@ -89,11 +89,11 @@ namespace noa::guts {
     // FIXME don't think we need the type_identity here, but better safe than sorry.
     template<typename... T>
     using TupleBase = std::invoke_result_t<
-            guts::GetTypeMap<std::type_identity_t<T>...>,
+            details::GetTypeMap<std::type_identity_t<T>...>,
             std::index_sequence_for<T...>>;
 }
 
-namespace noa::guts {
+namespace noa::details {
     template<typename Tup, typename F, size_t... B>
     constexpr void tuple_for_each(Tup&& t, F&& f, std::index_sequence<B...>) {
         ((std::forward<F>(f)(std::forward<Tup>(t)[Tag<B>{}])), ...);
@@ -148,11 +148,11 @@ namespace noa::guts {
 namespace noa::inline types {
     /// Efficient tuple aggregate-type.
     template<typename... T>
-    struct Tuple : guts::TupleBase<T...> {
+    struct Tuple : details::TupleBase<T...> {
         constexpr static size_t SIZE = sizeof...(T);
         constexpr static bool nothrow_swappable = (std::is_nothrow_swappable_v<T> && ...);
 
-        using super = guts::TupleBase<T...>;
+        using super = details::TupleBase<T...>;
         using super::operator[];
         using super::declval;
         using element_list = typename super::element_list;
@@ -180,10 +180,10 @@ namespace noa::inline types {
 
     public: // Utility functions
         #define NOA_MAKE_TUPLE_UTILITY_FUNCS(name) \
-        template<typename F> constexpr decltype(auto) name(F&& f) &        { return guts::tuple_##name(*this, std::forward<F>(f), index_list{}); }             \
-        template<typename F> constexpr decltype(auto) name(F&& f) const&   { return guts::tuple_##name(*this, std::forward<F>(f), index_list{}); }             \
-        template<typename F> constexpr decltype(auto) name(F&& f) &&       { return guts::tuple_##name(std::move(*this), std::forward<F>(f), index_list{}); }  \
-        template<typename F> constexpr decltype(auto) name(F&& f) const && { return guts::tuple_##name(std::move(*this), std::forward<F>(f), index_list{}); }
+        template<typename F> constexpr decltype(auto) name(F&& f) &        { return details::tuple_##name(*this, std::forward<F>(f), index_list{}); }             \
+        template<typename F> constexpr decltype(auto) name(F&& f) const&   { return details::tuple_##name(*this, std::forward<F>(f), index_list{}); }             \
+        template<typename F> constexpr decltype(auto) name(F&& f) &&       { return details::tuple_##name(std::move(*this), std::forward<F>(f), index_list{}); }  \
+        template<typename F> constexpr decltype(auto) name(F&& f) const && { return details::tuple_##name(std::move(*this), std::forward<F>(f), index_list{}); }
 
         /// Applies a function to every element of the tuple. The order is the declaration order, so first the
         /// function will be applied to element 0, then element 1, then element 2, and so on, where element N
@@ -216,28 +216,28 @@ namespace noa::inline types {
         template<typename... U>
         constexpr explicit operator Tuple<U...>() & {
             static_assert(sizeof...(U) == SIZE, "Can only convert to tuples with the same number of items");
-            return guts::tuple_convert<Tuple<U...>>(*this, index_list{});
+            return details::tuple_convert<Tuple<U...>>(*this, index_list{});
         }
         template<typename... U>
         constexpr explicit operator Tuple<U...>() const& {
             static_assert(sizeof...(U) == SIZE, "Can only convert to tuples with the same number of items");
-            return guts::tuple_convert<Tuple<U...>>(*this, index_list{});
+            return details::tuple_convert<Tuple<U...>>(*this, index_list{});
         }
         template<typename... U>
         constexpr explicit operator Tuple<U...>() && {
             static_assert(sizeof...(U) == SIZE, "Can only convert to tuples with the same number of items");
-            return guts::tuple_convert<Tuple<U...>>(std::move(*this), index_list{});
+            return details::tuple_convert<Tuple<U...>>(std::move(*this), index_list{});
         }
 
         /// Instantiate the given type using list initialization
         constexpr auto decay() & {
-            return guts::tuple_convert<decayed_tuple>(*this, index_list{});
+            return details::tuple_convert<decayed_tuple>(*this, index_list{});
         }
         constexpr auto decay() const& {
-            return guts::tuple_convert<decayed_tuple>(*this, index_list{});
+            return details::tuple_convert<decayed_tuple>(*this, index_list{});
         }
         constexpr auto decay() && {
-            return guts::tuple_convert<decayed_tuple>(std::move(*this), index_list{});
+            return details::tuple_convert<decayed_tuple>(std::move(*this), index_list{});
         }
 
     private:
@@ -259,10 +259,10 @@ namespace noa::inline types {
     };
 
     template<>
-    struct Tuple<> : guts::TupleBase<> {
+    struct Tuple<> : details::TupleBase<> {
         constexpr static size_t SIZE = 0;
         constexpr static bool nothrow_swappable = true;
-        using super = guts::TupleBase<>;
+        using super = details::TupleBase<>;
         using element_list = nt::TypeList<>;
         using type_list = nt::TypeList<>;
         using decayed_type_list = nt::TypeList<>;
@@ -307,7 +307,7 @@ namespace noa {
         template<typename U>
         constexpr /* implicit */ operator U()&& {
             using index_list = typename std::decay_t<Tuple>::index_list;
-            return guts::tuple_convert<U>(std::forward<Tuple>(tuple), index_list{});
+            return details::tuple_convert<U>(std::forward<Tuple>(tuple), index_list{});
         }
     };
 
@@ -326,7 +326,7 @@ namespace noa {
 
     template<typename F, typename Tup>
     constexpr decltype(auto) apply(F&& func, Tup&& tup) { // works for Pair too
-        return guts::tuple_apply(std::forward<Tup>(tup), std::forward<F>(func), nt::index_list_t<Tup>{});
+        return details::tuple_apply(std::forward<Tup>(tup), std::forward<F>(func), nt::index_list_t<Tup>{});
     }
 
     template<typename... T>
@@ -378,7 +378,7 @@ namespace noa {
 }
 
 namespace noa {
-    namespace guts {
+    namespace details {
         template<typename T, typename... Q>
         constexpr auto tuple_repeat_type(nt::TypeList<Q...>) {
             return nt::TypeList<nt::first_t<T, Q>...>{};
@@ -412,9 +412,9 @@ namespace noa {
         } else {
             using big_tuple = Tuple<T&&...>;
             using outer_elements = nt::element_list_t<big_tuple>;
-            constexpr auto outer = guts::tuple_get_outer_elements(outer_elements{});
-            constexpr auto inner = guts::tuple_get_inner_elements(outer_elements{});
-            return guts::tuple_cat(big_tuple{std::forward<T>(ts)...}, outer, inner);
+            constexpr auto outer = details::tuple_get_outer_elements(outer_elements{});
+            constexpr auto inner = details::tuple_get_inner_elements(outer_elements{});
+            return details::tuple_cat(big_tuple{std::forward<T>(ts)...}, outer, inner);
         }
     }
 

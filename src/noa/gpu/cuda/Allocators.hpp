@@ -175,7 +175,7 @@ namespace noa::cuda {
             if (not is_multiple_of(pitched_ptr.pitch, sizeof(T))) {
                 cudaFree(pitched_ptr.ptr); // ignore any error at this point
                 panic("The returned pitch is not divisible by sizeof({}): {} % {} != 0. Please report this issue",
-                      ns::stringify<T>(), pitched_ptr.pitch, sizeof(T));
+                      noa::string::stringify<T>(), pitched_ptr.pitch, sizeof(T));
             }
 
             // Create the strides.
@@ -362,7 +362,7 @@ namespace noa::cuda {
             pitch = std::max(ALIGNMENT, pitch);
             check(is_multiple_of(pitch, sizeof(T)),
                   "The pitch must be a multiple of sizeof({})={}, but got {}",
-                  ns::stringify<T>(), sizeof(T), pitch);
+                  noa::string::stringify<T>(), sizeof(T), pitch);
 
             auto width = next_multiple_of(shape.width(), safe_cast<I>(pitch / sizeof(T)));
             auto padded_shape = shape.template set<N - 1>(width);

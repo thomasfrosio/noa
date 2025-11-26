@@ -10,7 +10,7 @@
 
 // TODO Rescale values like in IMOD?
 
-namespace noa::fft::guts {
+namespace noa::fft::details {
     enum class FourierResizeMode {
         PAD_H2H,
         PAD_F2F,
@@ -120,7 +120,7 @@ namespace noa::fft {
         Input&& input, Shape4<i64> input_shape,
         Output&& output, Shape4<i64> output_shape
     ) {
-        using guts::FourierResizeMode;
+        using details::FourierResizeMode;
         using input_value_t = nt::mutable_value_type_t<Input>;
         using output_value_t = nt::value_type_t<Output>;
 
@@ -203,25 +203,25 @@ namespace noa::fft {
             // in the output are NOT set and the backend should make sure these are set to zeros at some point.
             switch (mode) {
                 case FourierResizeMode::PAD_H2H: {
-                    auto op = guts::FourierResize<FourierResizeMode::PAD_H2H, i64, input_accessor_t, output_accessor_t>(
+                    auto op = details::FourierResize<FourierResizeMode::PAD_H2H, i64, input_accessor_t, output_accessor_t>(
                             input_accessor, output_accessor, input_shape_3d, output_shape_3d);
                     return iwise(input_shape.rfft(), device, op,
                                  std::forward<Input>(input), std::forward<Output>(output));
                 }
                 case FourierResizeMode::PAD_F2F: {
-                    auto op = guts::FourierResize<FourierResizeMode::PAD_F2F, i64, input_accessor_t, output_accessor_t>(
+                    auto op = details::FourierResize<FourierResizeMode::PAD_F2F, i64, input_accessor_t, output_accessor_t>(
                             input_accessor, output_accessor, input_shape_3d, output_shape_3d);
                     return iwise(input_shape, device, op,
                                  std::forward<Input>(input), std::forward<Output>(output));
                 }
                 case FourierResizeMode::CROP_H2H: {
-                    auto op = guts::FourierResize<FourierResizeMode::CROP_H2H, i64, input_accessor_t, output_accessor_t>(
+                    auto op = details::FourierResize<FourierResizeMode::CROP_H2H, i64, input_accessor_t, output_accessor_t>(
                             input_accessor, output_accessor, input_shape_3d, output_shape_3d);
                     return iwise(output_shape.rfft(), device, op,
                                  std::forward<Input>(input), std::forward<Output>(output));
                 }
                 case FourierResizeMode::CROP_F2F: {
-                    auto op = guts::FourierResize<FourierResizeMode::CROP_F2F, i64, input_accessor_t, output_accessor_t>(
+                    auto op = details::FourierResize<FourierResizeMode::CROP_F2F, i64, input_accessor_t, output_accessor_t>(
                             input_accessor, output_accessor, input_shape_3d, output_shape_3d);
                     return iwise(output_shape, device, op,
                                  std::forward<Input>(input), std::forward<Output>(output));

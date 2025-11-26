@@ -18,7 +18,7 @@
 #pragma warning(push, 0)
 #endif
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     template<typename Block, typename Interface, typename Op, typename Input, typename Output, typename Index>
     __global__ __launch_bounds__(Block::block_size)
     void ewise_2d(Op op, Input input, Output output, Index width) {
@@ -119,7 +119,7 @@ namespace noa::cuda::guts {
     }
 }
 
-namespace noa::cuda::guts {
+namespace noa::cuda::details {
     // nvcc bug - this could be a lambda, but nvcc <=12.6 is broken...
     template<size_t ALIGNMENT, typename Config, typename Input, typename Output,  typename Op, typename Index>
     void launch_ewise_2d(
@@ -140,13 +140,13 @@ namespace noa::cuda::guts {
         using Block = StaticBlock<Config::block_size, 1, 1, N_ELEMENTS_PER_THREAD, 1, 1>;
         using Interface = Config::interface;
 
-        constexpr auto TO_2D = ng::AccessorConfig<2>{
+        constexpr auto TO_2D = nd::AccessorConfig<2>{
             .enforce_contiguous = VECTORIZE,
             .enforce_restrict = false,
             .filter = {0, 3},
         };
-        auto input_2d = ng::reconfig_accessors<TO_2D>(std::forward<Input>(input));
-        auto output_2d = ng::reconfig_accessors<TO_2D>(std::forward<Output>(output));
+        auto input_2d = nd::reconfig_accessors<TO_2D>(std::forward<Input>(input));
+        auto output_2d = nd::reconfig_accessors<TO_2D>(std::forward<Output>(output));
         using Input2D = decltype(input_2d);
         using Output2D = decltype(output_2d);
 
@@ -155,7 +155,7 @@ namespace noa::cuda::guts {
         check(grid_x.n_launches() == 1);
 
         for (u32 y{}; y < grid_y.n_launches(); ++y) {
-            ng::offset_accessors(Vec{grid_y.offset_additive(y)}, input_2d, output_2d);
+            nd::offset_accessors(Vec{grid_y.offset_additive(y)}, input_2d, output_2d);
 
             const auto config = LaunchConfig{
                 .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y)),
@@ -163,12 +163,12 @@ namespace noa::cuda::guts {
             };
             if constexpr (VECTORIZE) {
                 stream.enqueue(
-                    guts::ewise_2d_vectorized<Block, Interface, OpDecay, Index, Input2D, InputVec, Output2D, OutputVec>,
+                    details::ewise_2d_vectorized<Block, Interface, OpDecay, Index, Input2D, InputVec, Output2D, OutputVec>,
                     config, op, input_2d, output_2d, n_elements
                 );
             } else {
                 stream.enqueue(
-                    guts::ewise_2d<Block, Interface, OpDecay, Input2D, Output2D, Index>,
+                    details::ewise_2d<Block, Interface, OpDecay, Input2D, Output2D, Index>,
                     config, op, input_2d, output_2d, n_elements
                 );
             }
@@ -189,7 +189,7 @@ namespace noa::cuda {
         static_assert(is_power_of_2(ElementsPerThread));
         static_assert(is_power_of_2(BlockSize) and BlockSize >= Constant::WARP_SIZE and BlockSize <= Limits::MAX_THREADS);
 
-        using interface = ng::EwiseInterface<ZipInput, ZipOutput>;
+        using interface = nd::EwiseInterface<ZipInput, ZipOutput>;
         static constexpr u32 block_size = BlockSize;
         static constexpr u32 n_elements_per_thread = ElementsPerThread;
         static constexpr bool enable_vectorization = EnableVectorization;
@@ -225,28 +225,28 @@ namespace noa::cuda {
                     min_address_alignment(output, shape_3d)
                 );
                 if (alignment == 16) {
-                    return guts::launch_ewise_2d<16, Config>(
+                    return details::launch_ewise_2d<16, Config>(
                         std::forward<Op>(op),
                         std::forward<Input>(input),
                         std::forward<Output>(output),
                         stream, n_elements, batch
                     );
                 } else if (alignment == 8) {
-                    return guts::launch_ewise_2d<8, Config>(
+                    return details::launch_ewise_2d<8, Config>(
                         std::forward<Op>(op),
                         std::forward<Input>(input),
                         std::forward<Output>(output),
                         stream, n_elements, batch
                     );
                 } else if (alignment == 4) {
-                    return guts::launch_ewise_2d<4, Config>(
+                    return details::launch_ewise_2d<4, Config>(
                         std::forward<Op>(op),
                         std::forward<Input>(input),
                         std::forward<Output>(output),
                         stream, n_elements, batch
                     );
                 } else if (alignment == 2) {
-                    return guts::launch_ewise_2d<2, Config>(
+                    return details::launch_ewise_2d<2, Config>(
                         std::forward<Op>(op),
                         std::forward<Input>(input),
                         std::forward<Output>(output),
@@ -254,7 +254,7 @@ namespace noa::cuda {
                     );
                 }
             }
-            guts::launch_ewise_2d<1, Config>(
+            details::launch_ewise_2d<1, Config>(
                 std::forward<Op>(op),
                 std::forward<Input>(input),
                 std::forward<Output>(output),
@@ -291,14 +291,14 @@ namespace noa::cuda {
             for (u32 z{}; z < grid_z.n_launches(); ++z) {
                 for (u32 y{}; y < grid_y.n_launches(); ++y) {
                     const auto offset = Vec{grid_z.offset_additive(z), grid_y.offset_additive(y)};
-                    ng::offset_accessors(offset, input_mut, output_mut);
+                    nd::offset_accessors(offset, input_mut, output_mut);
 
                     const auto config = LaunchConfig{
                         .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
                         .n_threads = dim3(Block::block_size_x, Block::block_size_y),
                     };
                     stream.enqueue(
-                        guts::ewise_4d<Block, Interface, OpDecay, InputDecay, OutputDecay, Index>,
+                        details::ewise_4d<Block, Interface, OpDecay, InputDecay, OutputDecay, Index>,
                         config, op, input_mut, output_mut, shape.filter(2, 3), grid_x.n_blocks_x()
                     );
                 }

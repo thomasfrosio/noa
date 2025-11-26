@@ -16,7 +16,7 @@ namespace noa::geometry {
         char type{};
 
         [[nodiscard]] static auto from_string(std::string_view symmetry) -> std::optional<SymmetryCode> {
-            symmetry = ns::trim(symmetry);
+            symmetry = noa::string::trim(symmetry);
             if (symmetry.empty())
                 return std::nullopt;
 
@@ -24,7 +24,7 @@ namespace noa::geometry {
             out.type = static_cast<char>(std::toupper(static_cast<unsigned char>(symmetry[0])));
 
             if (symmetry.size() > 1) {
-                const auto opt = ns::parse<i32>(std::string(symmetry, 1, symmetry.length())); // offset by 1
+                const auto opt = noa::string::parse<i32>(std::string(symmetry, 1, symmetry.length())); // offset by 1
                 if (not opt)
                     return std::nullopt;
                 out.order = opt.value();
@@ -42,7 +42,7 @@ namespace noa::geometry {
     };
 }
 
-namespace noa::geometry::guts {
+namespace noa::geometry::details {
     /// Sets the {2|3}d rotation matrices for the CX symmetry.
     /// \param[out] matrices Rotation matrices, excluding the identity. The order X is matrices.size() + 1.
     template<typename T, typename I, StridesTraits S> requires (nt::mat22<T> or nt::mat33<T>)

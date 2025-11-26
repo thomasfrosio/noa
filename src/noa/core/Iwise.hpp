@@ -95,7 +95,7 @@ namespace noa {
     };
 }
 
-namespace noa::guts {
+namespace noa::details {
     /// Arange index-wise operator for nd ranges.
     template<size_t N, nt::writable_nd<N> T, nt::integer I, typename R>
     class IwiseRange {

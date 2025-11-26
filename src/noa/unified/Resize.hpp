@@ -3,7 +3,7 @@
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Iwise.hpp"
 
-namespace noa::guts {
+namespace noa::details {
     /// 4d index-wise operator to resize an array, out of place.
     /// \details The "border_left" and "border_right", specify the number of elements to crop (negative value)
     ///          or pad (positive value) on the left or right side of each dimension. Padded elements are handled
@@ -177,7 +177,7 @@ namespace noa {
         }
         if (border_mode == Border::NOTHING) {
             // Special case. We can simply copy the input subregion into the output subregion.
-            const auto [cropped_input, cropped_output] = ng::extract_common_subregion(
+            const auto [cropped_input, cropped_output] = nd::extract_common_subregion(
                     input_shape, output_shape, border_left, border_right);
             if constexpr (nt::same_mutable_value_type<Input, Output>) {
                 return copy(std::forward<Input>(input).subregion(cropped_input),
@@ -207,7 +207,7 @@ namespace noa {
         switch (border_mode) {
             #define NOA_GENERATE_RESIZE_(border)                                              \
             case border: {                                                                    \
-                const auto op = ng::Resize<border, i64, input_accessor_t, output_accessor_t>( \
+                const auto op = nd::Resize<border, i64, input_accessor_t, output_accessor_t>( \
                     input_accessor, output_accessor, input_shape, output_shape,               \
                     border_left, border_right, border_value);                                 \
                 return iwise(output_shape, device, op,                                        \

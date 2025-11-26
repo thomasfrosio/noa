@@ -45,7 +45,7 @@ namespace noa::cpu {
             constexpr size_t alignment = std::max(alignof(T), MIN_ALIGNMENT);
             const size_t n_bytes = next_multiple_of(static_cast<size_t>(n_elements) * sizeof(T), alignment);
             auto out = static_cast<T*>(std::aligned_alloc(alignment, n_bytes));
-            check(out, "Failed to allocate {} {} on the heap", n_elements, ns::stringify<T>());
+            check(out, "Failed to allocate {} {} on the heap", n_elements, noa::string::stringify<T>());
             m_bytes_currently_allocated += n_bytes;
             return {out, Deleter{n_bytes}};
         }
@@ -61,7 +61,7 @@ namespace noa::cpu {
             const size_t offset = alignment - 1 + sizeof(void*);
             const size_t n_bytes = static_cast<size_t>(n_elements) * sizeof(T) + offset;
             void* calloc_ptr = std::calloc(n_bytes, 1);
-            check(calloc_ptr, "Failed to allocate {} {} on the heap", n_elements, ns::stringify<T>());
+            check(calloc_ptr, "Failed to allocate {} {} on the heap", n_elements, noa::string::stringify<T>());
             m_bytes_currently_allocated += n_bytes;
 
             // Align to the requested value, leaving room for the original calloc value.

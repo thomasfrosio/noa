@@ -10,7 +10,7 @@
 #include "noa/unified/Interpolation.hpp"
 #include "noa/unified/Iwise.hpp"
 
-namespace noa::geometry::guts {
+namespace noa::geometry::details {
     /// 3d iwise operator to compute 2d cartesian->polar transformation(s).
     template<nt::sinteger Index,
              nt::any_of<f32, f64> Coord,
@@ -193,7 +193,7 @@ namespace noa::geometry::guts {
         const auto output_shape = output.shape().filter(0, 2, 3).template as<Index>();
 
         auto launch_iwise = [&](auto interp) {
-            auto interpolator = ng::to_interpolator<2, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
+            auto interpolator = nd::to_interpolator<2, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
             auto op = [&]{
                 if constexpr (CARTESIAN_TO_POLAR) {
                     return Cartesian2Polar<Index, coord_t, decltype(interpolator), output_accessor_t>(
@@ -217,20 +217,20 @@ namespace noa::geometry::guts {
         if constexpr (nt::texture_decay<Input>)
             interp = input.interp();
         switch (interp) {
-            case Interp::NEAREST:            return launch_iwise(ng::WrapInterp<Interp::NEAREST>{});
-            case Interp::NEAREST_FAST:       return launch_iwise(ng::WrapInterp<Interp::NEAREST_FAST>{});
-            case Interp::LINEAR:             return launch_iwise(ng::WrapInterp<Interp::LINEAR>{});
-            case Interp::LINEAR_FAST:        return launch_iwise(ng::WrapInterp<Interp::LINEAR_FAST>{});
-            case Interp::CUBIC:              return launch_iwise(ng::WrapInterp<Interp::CUBIC>{});
-            case Interp::CUBIC_FAST:         return launch_iwise(ng::WrapInterp<Interp::CUBIC_FAST>{});
-            case Interp::CUBIC_BSPLINE:      return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE>{});
-            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(ng::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
-            case Interp::LANCZOS4:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS4>{});
-            case Interp::LANCZOS6:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS6>{});
-            case Interp::LANCZOS8:           return launch_iwise(ng::WrapInterp<Interp::LANCZOS8>{});
-            case Interp::LANCZOS4_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS4_FAST>{});
-            case Interp::LANCZOS6_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS6_FAST>{});
-            case Interp::LANCZOS8_FAST:      return launch_iwise(ng::WrapInterp<Interp::LANCZOS8_FAST>{});
+            case Interp::NEAREST:            return launch_iwise(nd::WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_iwise(nd::WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_iwise(nd::WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_iwise(nd::WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_iwise(nd::WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_iwise(nd::WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_iwise(nd::WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(nd::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::LANCZOS4:           return launch_iwise(nd::WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:           return launch_iwise(nd::WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:           return launch_iwise(nd::WrapInterp<Interp::LANCZOS8>{});
+            case Interp::LANCZOS4_FAST:      return launch_iwise(nd::WrapInterp<Interp::LANCZOS4_FAST>{});
+            case Interp::LANCZOS6_FAST:      return launch_iwise(nd::WrapInterp<Interp::LANCZOS6_FAST>{});
+            case Interp::LANCZOS8_FAST:      return launch_iwise(nd::WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
 }
@@ -269,8 +269,8 @@ namespace noa::geometry {
         const Vec2<f64>& cartesian_center,
         PolarTransformOptions options = {}
     ) {
-        guts::polar_check_parameters(cartesian, polar);
-        guts::set_polar_window_range_to_default(
+        details::polar_check_parameters(cartesian, polar);
+        details::set_polar_window_range_to_default(
             cartesian.shape(), cartesian_center,
             options.rho_range, options.phi_range);
 
@@ -279,10 +279,10 @@ namespace noa::geometry {
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
-                check(ng::is_accessor_access_safe<i32>(cartesian, cartesian.shape()) and
-                      ng::is_accessor_access_safe<i32>(polar, polar.shape()),
+                check(nd::is_accessor_access_safe<i32>(cartesian, cartesian.shape()) and
+                      nd::is_accessor_access_safe<i32>(polar, polar.shape()),
                       "i64 indexing not instantiated for GPU devices");
-                guts::launch_cartesian_polar<true, true, i32>(
+                details::launch_cartesian_polar<true, true, i32>(
                     std::forward<Input>(cartesian),
                     std::forward<Output>(polar),
                     cartesian_center, options);
@@ -291,7 +291,7 @@ namespace noa::geometry {
             panic_no_gpu_backend(); // unreachable
             #endif
         } else {
-            guts::launch_cartesian_polar<true, false, i64>(
+            details::launch_cartesian_polar<true, false, i64>(
                 std::forward<Input>(cartesian),
                 std::forward<Output>(polar),
                 cartesian_center, options);
@@ -312,8 +312,8 @@ namespace noa::geometry {
         const Vec2<f64>& cartesian_center,
         PolarTransformOptions options = {}
     ) {
-        guts::polar_check_parameters(polar, cartesian);
-        guts::set_polar_window_range_to_default(
+        details::polar_check_parameters(polar, cartesian);
+        details::set_polar_window_range_to_default(
             cartesian.shape(), cartesian_center,
             options.rho_range, options.phi_range);
 
@@ -322,10 +322,10 @@ namespace noa::geometry {
             if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
                 std::terminate(); // unreachable
             } else {
-                check(ng::is_accessor_access_safe<i32>(cartesian, cartesian.shape()) and
-                      ng::is_accessor_access_safe<i32>(polar, polar.shape()),
+                check(nd::is_accessor_access_safe<i32>(cartesian, cartesian.shape()) and
+                      nd::is_accessor_access_safe<i32>(polar, polar.shape()),
                       "i64 indexing not instantiated for GPU devices");
-                guts::launch_cartesian_polar<false, true, i32>(
+                details::launch_cartesian_polar<false, true, i32>(
                     std::forward<Input>(cartesian),
                     std::forward<Output>(polar),
                     cartesian_center, options);
@@ -334,7 +334,7 @@ namespace noa::geometry {
             panic_no_gpu_backend(); // unreachable
             #endif
         } else {
-            guts::launch_cartesian_polar<false, false, i64>(
+            details::launch_cartesian_polar<false, false, i64>(
                 std::forward<Input>(polar),
                 std::forward<Output>(cartesian),
                 cartesian_center, options);

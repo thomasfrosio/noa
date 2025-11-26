@@ -9,7 +9,7 @@
 #include "noa/cpu/Iwise.hpp"
 #include "noa/cpu/Ewise.hpp"
 
-namespace noa::cpu::signal::guts {
+namespace noa::cpu::signal::details {
     template<size_t DIM, Border BORDER, typename InputAccessor, typename OutputAccessor, typename FilterAccessor>
     class Convolution {
     public:
@@ -217,7 +217,7 @@ namespace noa::cpu::signal::guts {
     ) {
         using input_accessor_t = AccessorRestrict<const T, 4, i64>;
         using output_accessor_t = AccessorRestrict<U, 4, i64>;
-        const auto [filter_accessor, filter_buffer] = guts::get_filter(filter, filter_size);
+        const auto [filter_accessor, filter_buffer] = details::get_filter(filter, filter_size);
         const auto dim_size = shape.filter(to_underlying(DIM))[0];
 
         auto kernel = ConvolutionSeparable<DIM, BORDER, input_accessor_t, output_accessor_t, decltype(filter_accessor)>(
@@ -240,15 +240,15 @@ namespace noa::cpu::signal {
         const auto ndim = filter_shape.ndim();
         if (n_dimensions_to_convolve == 1) {
             if (filter_shape[0] > 1) {
-                guts::launch_convolve_separable<guts::ConvolutionSeparableDim::DEPTH, BORDER>(
+                details::launch_convolve_separable<details::ConvolutionSeparableDim::DEPTH, BORDER>(
                     input, input_strides, output, output_strides, shape,
                     filter, filter_shape[0], n_threads);
             } else if (filter_shape[1] > 1) {
-                guts::launch_convolve_separable<guts::ConvolutionSeparableDim::HEIGHT, BORDER>(
+                details::launch_convolve_separable<details::ConvolutionSeparableDim::HEIGHT, BORDER>(
                     input, input_strides, output, output_strides, shape,
                     filter, filter_shape[1], n_threads);
             } else {
-                guts::launch_convolve_separable<guts::ConvolutionSeparableDim::WIDTH, BORDER>(
+                details::launch_convolve_separable<details::ConvolutionSeparableDim::WIDTH, BORDER>(
                     input, input_strides, output, output_strides, shape,
                     filter, filter_shape[2], n_threads);
             }
@@ -259,10 +259,10 @@ namespace noa::cpu::signal {
             const auto output_accessor = output_accessor_t(output, output_strides);
 
             const auto filter_shape_2d = filter_shape.pop_front();
-            const auto [filter_accessor, filter_buffer] = guts::get_filter(filter, filter_shape_2d.n_elements());
+            const auto [filter_accessor, filter_buffer] = details::get_filter(filter, filter_shape_2d.n_elements());
             using filter_accessor_t = std::decay_t<decltype(filter_accessor)>;
 
-            using op_t = guts::Convolution<2, BORDER, input_accessor_t, output_accessor_t, filter_accessor_t>;
+            using op_t = details::Convolution<2, BORDER, input_accessor_t, output_accessor_t, filter_accessor_t>;
             auto kernel = op_t(input_accessor, output_accessor, filter_accessor, shape.filter(2, 3), filter_shape_2d);
             iwise(shape, kernel, n_threads);
 
@@ -272,10 +272,10 @@ namespace noa::cpu::signal {
             const auto input_accessor = input_accessor_t(input, input_strides);
             const auto output_accessor = output_accessor_t(output, output_strides);
 
-            const auto [filter_accessor, filter_buffer] = guts::get_filter(filter, filter_shape.n_elements());
+            const auto [filter_accessor, filter_buffer] = details::get_filter(filter, filter_shape.n_elements());
             using filter_accessor_t = std::decay_t<decltype(filter_accessor)>;
 
-            using op_t = guts::Convolution<3, BORDER, input_accessor_t, output_accessor_t, filter_accessor_t>;
+            using op_t = details::Convolution<3, BORDER, input_accessor_t, output_accessor_t, filter_accessor_t>;
             auto kernel = op_t(input_accessor, output_accessor, filter_accessor, shape.filter(1, 2, 3), filter_shape);
             iwise(shape, kernel, n_threads);
 
@@ -327,50 +327,50 @@ namespace noa::cpu::signal {
         }
 
         if (filter_depth and filter_height and filter_width) {
-            guts::launch_convolve_separable<guts::ConvolutionSeparableDim::DEPTH, BORDER>(
+            details::launch_convolve_separable<details::ConvolutionSeparableDim::DEPTH, BORDER>(
                 input, input_strides, output, output_strides, shape,
                 filter_depth, filter_depth_size, n_threads);
-            guts::launch_convolve_separable<guts::ConvolutionSeparableDim::HEIGHT, BORDER>(
+            details::launch_convolve_separable<details::ConvolutionSeparableDim::HEIGHT, BORDER>(
                 output, output_strides, tmp, tmp_strides, shape,
                 filter_height, filter_height_size, n_threads);
-            guts::launch_convolve_separable<guts::ConvolutionSeparableDim::WIDTH, BORDER>(
+            details::launch_convolve_separable<details::ConvolutionSeparableDim::WIDTH, BORDER>(
                 tmp, tmp_strides, output, output_strides, shape,
                 filter_width, filter_width_size, n_threads);
 
         } else if (filter_depth and filter_height) {
-            guts::launch_convolve_separable<guts::ConvolutionSeparableDim::DEPTH, BORDER>(
+            details::launch_convolve_separable<details::ConvolutionSeparableDim::DEPTH, BORDER>(
                 input, input_strides, tmp, tmp_strides, shape,
                 filter_depth, filter_depth_size, n_threads);
-            guts::launch_convolve_separable<guts::ConvolutionSeparableDim::HEIGHT, BORDER>(
+            details::launch_convolve_separable<details::ConvolutionSeparableDim::HEIGHT, BORDER>(
                 tmp, tmp_strides, output, output_strides, shape,
                 filter_height, filter_height_size, n_threads);
 
         } else if (filter_height and filter_width) {
-            guts::launch_convolve_separable<guts::ConvolutionSeparableDim::HEIGHT, BORDER>(
+            details::launch_convolve_separable<details::ConvolutionSeparableDim::HEIGHT, BORDER>(
                 input, input_strides, tmp, tmp_strides, shape,
                 filter_height, filter_height_size, n_threads);
-            guts::launch_convolve_separable<guts::ConvolutionSeparableDim::WIDTH, BORDER>(
+            details::launch_convolve_separable<details::ConvolutionSeparableDim::WIDTH, BORDER>(
                 tmp, tmp_strides, output, output_strides, shape,
                 filter_width, filter_width_size, n_threads);
 
         } else if (filter_depth and filter_width) {
-            guts::launch_convolve_separable<guts::ConvolutionSeparableDim::DEPTH, BORDER>(
+            details::launch_convolve_separable<details::ConvolutionSeparableDim::DEPTH, BORDER>(
                 input, input_strides, tmp, tmp_strides, shape,
                 filter_depth, filter_depth_size, n_threads);
-            guts::launch_convolve_separable<guts::ConvolutionSeparableDim::WIDTH, BORDER>(
+            details::launch_convolve_separable<details::ConvolutionSeparableDim::WIDTH, BORDER>(
                 tmp, tmp_strides, output, output_strides, shape,
                 filter_width, filter_width_size, n_threads);
 
         } else if (filter_depth) {
-            guts::launch_convolve_separable<guts::ConvolutionSeparableDim::DEPTH, BORDER>(
+            details::launch_convolve_separable<details::ConvolutionSeparableDim::DEPTH, BORDER>(
                 input, input_strides, output, output_strides, shape,
                 filter_depth, filter_depth_size, n_threads);
         } else if (filter_height) {
-            guts::launch_convolve_separable<guts::ConvolutionSeparableDim::HEIGHT, BORDER>(
+            details::launch_convolve_separable<details::ConvolutionSeparableDim::HEIGHT, BORDER>(
                 input, input_strides, output, output_strides, shape,
                 filter_height, filter_height_size, n_threads);
         } else if (filter_width) {
-            guts::launch_convolve_separable<guts::ConvolutionSeparableDim::WIDTH, BORDER>(
+            details::launch_convolve_separable<details::ConvolutionSeparableDim::WIDTH, BORDER>(
                 input, input_strides, output, output_strides, shape,
                 filter_width, filter_width_size, n_threads);
         }

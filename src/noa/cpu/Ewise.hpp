@@ -6,11 +6,11 @@
 #include "noa/core/indexing/Layout.hpp"
 #include "noa/core/types/Accessor.hpp"
 
-namespace noa::cpu::guts {
+namespace noa::cpu::details {
     template<bool ZipInput, bool ZipOutput>
     class Ewise {
     public:
-        using interface = ng::EwiseInterface<ZipInput, ZipOutput>;
+        using interface = nd::EwiseInterface<ZipInput, ZipOutput>;
 
         // Take the input and output by value, a reference will be passed to each thread.
         // Take the operator by reference since a copy will be passed to each thread.
@@ -29,7 +29,7 @@ namespace noa::cpu::guts {
                                     interface::call(op, input, output, i, j, k, l);
 
                 } else if constexpr (N == 1) {
-                    #pragma omp for collapse(1)
+                    #pragma omp for
                     for (Index i = 0; i < shape[0]; ++i)
                         interface::call(op, input, output, i);
 
@@ -95,30 +95,30 @@ namespace noa::cpu {
         if (actual_n_threads > 1)
             actual_n_threads = min(n_threads, elements / Config::n_elements_per_thread);
 
-        using ewise_t = guts::Ewise<Config::zip_input, Config::zip_output>;
+        using ewise_t = details::Ewise<Config::zip_input, Config::zip_output>;
 
         if (are_all_contiguous) {
             auto shape_1d = Shape1<Index>{shape.n_elements()};
-            if (not nt::enable_vectorization_v<Op> and ng::are_accessors_aliased(input, output)) {
-                constexpr auto accessor_config_1d = ng::AccessorConfig<1>{
+            if (not nt::enable_vectorization_v<Op> and nd::are_accessors_aliased(input, output)) {
+                constexpr auto accessor_config_1d = nd::AccessorConfig<1>{
                     .enforce_contiguous=true,
                     .enforce_restrict=false,
                     .filter={3},
                 };
-                auto input_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Input>(input));
-                auto output_1d = ng::reconfig_accessors<accessor_config_1d>(output);
+                auto input_1d = nd::reconfig_accessors<accessor_config_1d>(std::forward<Input>(input));
+                auto output_1d = nd::reconfig_accessors<accessor_config_1d>(output);
                 if (actual_n_threads > 1)
                     ewise_t::parallel(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d, actual_n_threads);
                 else
                     ewise_t::serial(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d);
             } else {
-                constexpr auto accessor_config_1d = ng::AccessorConfig<1>{
+                constexpr auto accessor_config_1d = nd::AccessorConfig<1>{
                     .enforce_contiguous=true,
                     .enforce_restrict=true,
                     .filter={3},
                 };
-                auto input_1d = ng::reconfig_accessors<accessor_config_1d>(std::forward<Input>(input));
-                auto output_1d = ng::reconfig_accessors<accessor_config_1d>(output);
+                auto input_1d = nd::reconfig_accessors<accessor_config_1d>(std::forward<Input>(input));
+                auto output_1d = nd::reconfig_accessors<accessor_config_1d>(output);
                 if (actual_n_threads > 1)
                     ewise_t::parallel(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d, actual_n_threads);
                 else

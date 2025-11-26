@@ -24,7 +24,7 @@ namespace noa::signal {
 }
 
 
-namespace noa::signal::guts {
+namespace noa::signal::details {
     /// 4d iwise operator to compute an isotropic FSC.
     /// * A lerp is used to add frequencies in its two neighbour shells, instead of rounding to the nearest shell.
     /// * The frequencies are normalized, so rectangular volumes can be passed.
@@ -105,12 +105,12 @@ namespace noa::signal::guts {
             // Atomic save.
             // TODO In CUDA, we could do the atomic reduction in shared memory to reduce global memory transfers.
             using oreal_t = output_value_type;
-            ng::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_low), batch, shell_low);
-            ng::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_high), batch, shell_high);
-            ng::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_low), batch, shell_low);
-            ng::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_high), batch, shell_high);
-            ng::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_low), batch, shell_low);
-            ng::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_high), batch, shell_high);
+            nd::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_low), batch, shell_low);
+            nd::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_high), batch, shell_high);
+            nd::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_low), batch, shell_low);
+            nd::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_high), batch, shell_high);
+            nd::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_low), batch, shell_low);
+            nd::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_high), batch, shell_high);
         }
 
     private:
@@ -232,12 +232,12 @@ namespace noa::signal::guts {
                 // Atomic save.
                 // TODO In CUDA, we could do the atomic reduction in shared memory to reduce global memory transfers.
                 using oreal_t = output_value_type;
-                ng::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_low), batch, cone, shell_low);
-                ng::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_high), batch, cone, shell_high);
-                ng::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_low), batch, cone, shell_low);
-                ng::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_high), batch, cone, shell_high);
-                ng::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_low), batch, cone, shell_low);
-                ng::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_high), batch, cone, shell_high);
+                nd::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_low), batch, cone, shell_low);
+                nd::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_high), batch, cone, shell_high);
+                nd::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_low), batch, cone, shell_low);
+                nd::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_high), batch, cone, shell_high);
+                nd::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_low), batch, cone, shell_low);
+                nd::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_high), batch, cone, shell_high);
             }
         }
 
@@ -326,7 +326,7 @@ namespace noa::signal::fft {
         Output&& fsc,
         const Shape4<i64>& shape
     ) {
-        guts::check_fsc_parameters(lhs, rhs, fsc, shape);
+        details::check_fsc_parameters(lhs, rhs, fsc, shape);
 
         using complex_t = nt::const_value_type_t<Lhs>;
         using real_t = nt::value_type_t<Output>;
@@ -347,7 +347,7 @@ namespace noa::signal::fft {
         iwise(shape.rfft(), fsc.device(), reduction_op, std::forward<Lhs>(lhs), std::forward<Rhs>(rhs));
         ewise(wrap(std::move(denominator_lhs), std::move(denominator_rhs)),
               std::forward<Output>(fsc),
-              guts::FSCNormalization{});
+              details::FSCNormalization{});
     }
 
     /// Computes the isotropic Fourier Shell Correlation between \p lhs and \p rhs.
@@ -398,7 +398,7 @@ namespace noa::signal::fft {
         Cones&& cone_directions,
         f64 cone_aperture
     ) {
-        guts::check_fsc_parameters(lhs, rhs, fsc, shape, cone_directions);
+        details::check_fsc_parameters(lhs, rhs, fsc, shape, cone_directions);
 
         using coord_t = nt::mutable_value_type_t<Cones>;
         using real_t = nt::value_type_t<Output>;
@@ -426,7 +426,7 @@ namespace noa::signal::fft {
               std::forward<Cones>(cone_directions));
         ewise(wrap(std::move(denominator_lhs), std::move(denominator_rhs)),
               std::forward<Output>(fsc),
-              guts::FSCNormalization{});
+              details::FSCNormalization{});
     }
 
     /// Computes the anisotropic/conical Fourier Shell Correlation between \p lhs and \p rhs.

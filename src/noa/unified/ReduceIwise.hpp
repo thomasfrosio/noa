@@ -12,7 +12,7 @@
 #include "noa/gpu/cuda/ReduceIwise.cuh"
 #endif
 
-namespace noa::guts {
+namespace noa::details {
     template<bool, bool, typename Op, typename Reduced, typename Output, typename I, size_t N>
     constexpr void reduce_iwise(const Shape<I, N>&, Device, Op&&, Reduced&&, Output&&);
 }
@@ -29,8 +29,8 @@ namespace noa {
     ///                         been updated.
     /// \param[in] op           Operator satisfying the reduce_iwise core interface. The operator is perfectly
     ///                         forwarded to the backend (it is moved or copied to the backend compute kernel).
-    template<typename Reduced = ng::AdaptorUnzip<>,
-             typename Outputs = ng::AdaptorUnzip<>,
+    template<typename Reduced = nd::AdaptorUnzip<>,
+             typename Outputs = nd::AdaptorUnzip<>,
              typename Operator, typename Index, size_t N>
     requires (N <= 4)
     void reduce_iwise(
@@ -40,28 +40,28 @@ namespace noa {
         Outputs&& outputs,
         Operator&& op
     ) {
-        static_assert(ng::adaptor_decay<Outputs> or std::is_lvalue_reference_v<Outputs>,
+        static_assert(nd::adaptor_decay<Outputs> or std::is_lvalue_reference_v<Outputs>,
                       "Output value(s) should be reference(s)");
 
-        if constexpr (ng::adaptor_decay<Reduced, Outputs>) {
-            ng::reduce_iwise<std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP>(
+        if constexpr (nd::adaptor_decay<Reduced, Outputs>) {
+            nd::reduce_iwise<std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP>(
                 shape, device, std::forward<Operator>(op),
                 std::forward<Reduced>(reduced).tuple,
                 std::forward<Outputs>(outputs).tuple);
 
-        } else if constexpr (ng::adaptor_decay<Reduced>) {
-            ng::reduce_iwise<std::decay_t<Reduced>::ZIP, false>(
+        } else if constexpr (nd::adaptor_decay<Reduced>) {
+            nd::reduce_iwise<std::decay_t<Reduced>::ZIP, false>(
                 shape, device, std::forward<Operator>(op),
                 std::forward<Reduced>(reduced).tuple,
                 forward_as_tuple(std::forward<Outputs>(outputs)));
 
-        } else if constexpr (ng::adaptor_decay<Outputs>) {
-            ng::reduce_iwise<false, std::decay_t<Outputs>::ZIP>(
+        } else if constexpr (nd::adaptor_decay<Outputs>) {
+            nd::reduce_iwise<false, std::decay_t<Outputs>::ZIP>(
                 shape, device, std::forward<Operator>(op),
                 forward_as_tuple(std::forward<Reduced>(reduced)),
                 std::forward<Outputs>(outputs).tuple);
         } else {
-            ng::reduce_iwise<false, false>(
+            nd::reduce_iwise<false, false>(
                 shape, device, std::forward<Operator>(op),
                 forward_as_tuple(std::forward<Reduced>(reduced)),
                 forward_as_tuple(std::forward<Outputs>(outputs)));
@@ -69,7 +69,7 @@ namespace noa {
     }
 }
 
-namespace noa::guts {
+namespace noa::details {
     template<bool ZIP_REDUCED, bool ZIP_OUTPUT,
              typename Op, typename Reduced, typename Output, typename I, size_t N>
     constexpr void reduce_iwise(
@@ -86,7 +86,7 @@ namespace noa::guts {
                           "The initial reduced or the output values should not be const qualified");
         }(nt::type_list_t<Reduced>{} + nt::type_list_t<Output>{});
 
-        Tuple reduced_accessors = guts::to_tuple_of_accessors(std::forward<Reduced>(reduced));
+        Tuple reduced_accessors = details::to_tuple_of_accessors(std::forward<Reduced>(reduced));
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
@@ -112,7 +112,7 @@ namespace noa::guts {
 
             constexpr bool use_device_memory =
                 nt::enable_vectorization_v<Op> and
-                ng::are_all_value_types_trivially_copyable<decltype(output_accessors)>();
+                nd::are_all_value_types_trivially_copyable<decltype(output_accessors)>();
 
             // Allocate and initialize the output values for the device.
             [[maybe_unused]] auto buffers = output_accessors.map_enumerate([&]<size_t J, typename A>(A& accessor) {

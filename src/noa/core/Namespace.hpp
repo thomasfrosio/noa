@@ -3,7 +3,7 @@
 namespace noa {
     inline namespace types {}
 
-    namespace guts {}
+    namespace details {}
     namespace traits {}
     namespace string {}
     namespace indexing {}
@@ -14,8 +14,9 @@ namespace noa {
 
     // Internal aliases
     namespace nt = ::noa::traits;
+    namespace nd = ::noa::details;
     namespace ni = ::noa::indexing;
-    namespace ns = ::noa::string;
-    namespace ng = ::noa::guts;
     namespace nf = ::noa::fft;
+    namespace ns = ::noa::signal;
+    namespace ng = ::noa::geometry;
 }

@@ -493,7 +493,7 @@ namespace noa::traits {
     struct proclaim_is_accessor_value<noa::AccessorValue<T, I>> : std::true_type {};
 }
 
-namespace noa::guts {
+namespace noa::details {
     template<size_t N = 0>
     struct AccessorConfig {
         /// Whether the reconfigured accessor(s) should be made const
