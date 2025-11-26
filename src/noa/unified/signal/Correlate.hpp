@@ -533,25 +533,34 @@ namespace noa::signal {
     /// \tparam REMAP       Whether the output map should be centered. Should be H2F or H2FC.
     /// \param[in] lhs      Non-centered rFFT of the signal to cross-correlate.
     /// \param[in,out] rhs  Non-centered rFFT of the signal to cross-correlate.
+    ///                     Autocorrelation is allowed, so lhs can be equal to rhs.
     ///                     Overwritten by default (see \p buffer).
     /// \param[out] output  Cross-correlation map.
     ///                     If \p REMAP is H2F, the zero lag is at {n, 0, 0, 0}.
     ///                     If \p REMAP is H2FC, the zero lag is at {n, shape[1]/2, shape[2]/2, shape[3]/2}.
+    ///                     Can overlap with the inputs (see \p buffer).
     /// \param options      Correlation mode and ifft options.
-    /// \param[out] buffer  Buffer of the same shape as the inputs (no broadcasting allowed). It is overwritten.
-    ///                     Can be \p lhs or \p rhs. If empty, use \p rhs instead (the default).
+    /// \param[out] buffer  Buffer of the same shape as the inputs (no broadcasting allowed).
+    ///                     Can be \p lhs or \p rhs. If empty, \p rhs is used instead (the default).
+    ///                     Can be an alias of \p output, in which case an in-place iFFT is computed.
     ///
     /// \note As mentioned above, this function takes the rFFT of the real inputs to correlate.
     ///       The score with zero lag can be computed more efficiently with the cross_correlation_score function.
     ///       If other lags are to be selected (which is the entire point of this function), the inputs
-    ///       should be zero-padded before taking the rFFT to cancel the circular convolution effect of
+    ///       should likely be zero-padded before taking the rFFT to cancel the circular convolution effect of
     ///       the DFT. The amount of padding along a dimension is equal to the maximum lag allowed.\n
     ///
     /// \note As opposed to the cross_correlation_score function, this function does not take normalization flags.
     ///       To get the (Z)(N)CC scores, normalize the inputs appropriately before computing their rFFT (for instance,
     ///       the ZNCC needs zero-centered and L2-normalized real-space inputs). Importantly, the FFT normalization
     ///       should be noa::fft::Norm::(ORTHO|BACKWARD). noa::fft::Norm::FORWARD outputs scores divided by a scaling
-    ///       factor of 1/n_elements.
+    ///       factor of 1/n_elements.\n
+    ///
+    /// \note To save memory, this function can operate fully in-place by overwriting \p lhs and/or \p rhs.
+    ///       When \p buffer is empty, the temporary pairwise multiplication is saved into \p rhs. Then it is iFFTed
+    ///       to compute the cross-correlation map. Since \p output can alias with \p lhs or \p rhs, no temporary
+    ///       buffer is necessary. In the case of auto-correlation, no temporaries are necessary and everything can
+    ///       run on the input array.
     template<nf::Layout REMAP, typename Lhs, typename Rhs, typename Output,
              typename Buffer = View<nt::mutable_value_type_t<Rhs>>>
     requires(nt::varray_decay_of_complex<Lhs, Rhs, Buffer> and
