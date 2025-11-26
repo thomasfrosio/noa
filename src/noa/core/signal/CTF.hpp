@@ -126,26 +126,43 @@ namespace noa::signal {
         }
 
     public: // setters
-        constexpr void set_pixel_size(value_type pixel_size) { m_pixel_size = pixel_size; }
-        constexpr void set_sampling_rate(value_type sampling_rate) { set_pixel_size(sampling_rate); }
-        constexpr void set_phase_shift(value_type phase_shift) { m_phase_shift = phase_shift; }
-        constexpr void set_scale(value_type scale) { m_scale = scale; }
-        constexpr void set_bfactor(value_type bfactor) {
+        constexpr auto& set_pixel_size(value_type pixel_size) {
+            m_pixel_size = pixel_size;
+            return *this;
+        }
+        constexpr auto& set_sampling_rate(value_type sampling_rate) {
+            set_pixel_size(sampling_rate);
+            return *this;
+        }
+        constexpr auto& set_phase_shift(value_type phase_shift) {
+            m_phase_shift = phase_shift;
+            return *this;
+        }
+        constexpr auto& set_scale(value_type scale) {
+            m_scale = scale;
+            return *this;
+        }
+        constexpr auto& set_bfactor(value_type bfactor) {
             m_bfactor_forth = bfactor / 4;
+            return *this;
         }
-        constexpr void set_defocus(value_type defocus) {
+        constexpr auto& set_defocus(value_type defocus) {
             m_defocus_angstroms = -defocus * static_cast<value_type>(1e4);
+            return *this;
         }
-        constexpr void set_cs(value_type cs) {
-            m_cs_angstroms = cs * * static_cast<value_type>(1e7);
+        constexpr auto& set_cs(value_type cs) {
+            m_cs_angstroms = cs * *static_cast<value_type>(1e7);
+            return *this;
         }
-        constexpr void set_voltage(value_type voltage) {
+        constexpr auto& set_voltage(value_type voltage) {
             m_voltage_volts = voltage * static_cast<value_type>(1e3);
             set_lambda_and_cs_();
+            return *this;
         }
-        constexpr void set_amplitude(value_type amplitude) {
+        constexpr auto& set_amplitude(value_type amplitude) {
             m_amplitude = amplitude;
             set_amplitude_fraction_();
+            return *this;
         }
 
         // Access private members for the as<U>() function.
@@ -372,28 +389,46 @@ namespace noa::signal {
         }
 
     public: // setters
-        constexpr void set_pixel_size(pixel_size_type pixel_size) { m_pixel_size = pixel_size; }
-        constexpr void set_sampling_rate(pixel_size_type sampling_rate) { set_pixel_size(sampling_rate); }
-        constexpr void set_phase_shift(value_type phase_shift) { m_phase_shift = phase_shift; }
-        constexpr void set_scale(value_type scale) { m_scale = scale; }
-        constexpr void set_bfactor(value_type bfactor) {
+        constexpr auto& set_pixel_size(pixel_size_type pixel_size) {
+            m_pixel_size = pixel_size;
+            return *this;
+        }
+        constexpr auto& set_sampling_rate(pixel_size_type sampling_rate) {
+            set_pixel_size(sampling_rate);
+            return *this;
+        }
+        constexpr auto& set_phase_shift(value_type phase_shift) {
+            m_phase_shift = phase_shift;
+            return *this;
+        }
+        constexpr auto& set_scale(value_type scale) {
+            m_scale = scale;
+            return *this;
+        }
+        constexpr auto& set_bfactor(value_type bfactor) {
             m_bfactor_forth = bfactor / 4;
+            return *this;
         }
-        constexpr void set_defocus(defocus_type defocus) {
+        constexpr auto& set_defocus(defocus_type defocus) {
             m_defocus_angstroms.value = -defocus.value * static_cast<value_type>(1e4); // micrometers -> angstroms
-            m_defocus_angstroms.astigmatism = -defocus.astigmatism * static_cast<value_type>(1e4); // micrometers -> angstroms
+            m_defocus_angstroms.astigmatism = -defocus.astigmatism * static_cast<value_type>(1e4);
+            // micrometers -> angstroms
             m_defocus_angstroms.angle = defocus.angle;
+            return *this;
         }
-        constexpr void set_cs(value_type cs) {
-            m_cs_angstroms = cs * * static_cast<value_type>(1e7);
+        constexpr auto& set_cs(value_type cs) {
+            m_cs_angstroms = cs * *static_cast<value_type>(1e7);
+            return *this;
         }
-        constexpr void set_voltage(value_type voltage) {
+        constexpr auto& set_voltage(value_type voltage) {
             m_voltage_volts = voltage * static_cast<value_type>(1e3);
             set_lambda_and_cs_();
+            return *this;
         }
-        constexpr void set_amplitude(value_type amplitude) {
+        constexpr auto& set_amplitude(value_type amplitude) {
             m_amplitude = amplitude;
             set_amplitude_fraction_();
+            return *this;
         }
 
         // Access private members for the as<U>() function.
