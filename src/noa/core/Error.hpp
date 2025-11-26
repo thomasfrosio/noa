@@ -16,13 +16,13 @@ namespace noa {
     public:
         /// Returns the message of all the nested exceptions, from the newest to the oldest exception.
         /// \details This gets the current exception and gets its message using what(). Then, if the exception is
-        ///          a std::nested_exception, i.e. it was thrown using std::throw_with_nested, it gets the nested
-        ///          exceptions' messages until it reaches the last exception. These exceptions should inherit from
+        ///          a std::nested_exception, i.e., it was thrown using std::throw_with_nested, it gets the nested
+        ///          exception's messages until it reaches the last exception. These exceptions should inherit from
         ///          std::exception, otherwise we have no safe way to retrieve its message, and a generic message is
-        ///          returned instead saying that an unknown exception was thrown and the backtrace stops.
+        ///          returned saying that an unknown exception was thrown and the backtrace stops.
         /// \example
         /// \code
-        /// const std::vector<std::string> backtrace_vector = noa::Exception::backtrace();
+        /// std::vector<std::string> backtrace_vector = noa::Exception::backtrace();
         /// std::string backtrace_message;
         /// for (i64 i{}; auto& message: backtrace_vector)
         ///     backtrace_message += fmt::format("[{}]: {}\n", i++, message);

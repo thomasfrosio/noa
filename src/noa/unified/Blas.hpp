@@ -122,7 +122,7 @@ namespace noa {
     ///
     /// \note The memory layout is restricted: \p lhs and \p rhs should not overlap with \p output. All matrices should
     ///       either be row-major or column-major (before transposition). The innermost dimension of the matrices
-    ///       (before transposition) should be contiguous, and the second-most dimension cannot be broadcasted.
+    ///       (before transposition) should be contiguous, and the second-most dimension cannot be broadcast.
     template<nt::readable_varray_decay Lhs,
              nt::readable_varray_decay Rhs,
              nt::writable_varray_decay Output>

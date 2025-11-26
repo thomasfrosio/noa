@@ -227,4 +227,4 @@ namespace noa {
             output = static_cast<V>((*this)(value, norm));
         }
     };
-};
+}

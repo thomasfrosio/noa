@@ -528,7 +528,7 @@ namespace noa::indexing {
                 check(stride[3 - are_column_major] == 1 and
                       secondmost_strides[i] >= shape[3 - are_column_major],
                       "The innermost dimension of the matrices (before the optional transposition) "
-                      "should be contiguous and the second-most dimension cannot be broadcasted. "
+                      "should be contiguous and the second-most dimension cannot be broadcast. "
                       "Got shape={}, strides={}, layout={}",
                       shape, stride, are_column_major ? "column" : "row");
             }

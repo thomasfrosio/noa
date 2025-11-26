@@ -52,10 +52,6 @@ namespace noa::geometry {
 }
 
 namespace noa::geometry {
-
-}
-
-namespace noa::geometry {
     template<size_t N, nt::any_of<f32, f64> T, bool IsSmooth>
     class DrawSphere {
     public:

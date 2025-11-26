@@ -125,13 +125,12 @@ namespace noa {
                 } else {
                     const real_t x0 = -(f[j] + static_cast<real_t>(CENTER));
                     const real_t y0 = x0 * PI * static_cast<real_t>(0.25);
-                    const real_t s0 = sin(y0);
-                    const real_t c0 = cos(y0);
+                    const auto sc0 = sincos(y0);
 
                     for (size_t i{}; i < SIZE; i++) {
                         const auto fij = -(f[j] + CENTER - static_cast<real_t>(i));
                         const auto yj = fij * PI * static_cast<real_t>(0.25);
-                        coefficients[i][j] = (cs[i][0] * s0 + cs[i][1] * c0) / (yj * yj);
+                        coefficients[i][j] = (cs[i][0] * sc0[0] + cs[i][1] * sc0[1]) / (yj * yj);
                         sum[j] += coefficients[i][j];
                     }
                 }

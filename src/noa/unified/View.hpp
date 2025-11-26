@@ -29,7 +29,8 @@ namespace noa {
     struct CopyOptions {
         /// When transferring from a GPU to the CPU, the copy is enqueued to the input's (GPU) current stream.
         /// By default, this stream is synchronized before returning to guarantee that the copy is completed so
-        /// that the output array can be safely accessed by the CPU.
+        /// that the output array can be safely accessed by the CPU. This option allows not waiting for the copy
+        /// to finish.
         bool sync_gpu_to_cpu{true};
     };
 
@@ -104,9 +105,8 @@ namespace noa {
         check(all(permutation <= 3) and sum(permutation) == 6, "Permutation {} is not valid", permutation);
         auto permuted_shape = ni::reorder(input.shape(), permutation);
         auto permuted_strides = ni::reorder(input.strides(), permutation);
-        return std::decay_t<Input>(
-            std::forward<Input>(input).share(),
-            permuted_shape, permuted_strides, input.options());
+        using output_t = std::decay_t<Input>;
+        return output_t(std::forward<Input>(input).share(), permuted_shape, permuted_strides, input.options());
     }
 
     /// Permutes, in memory, the axes of an array.

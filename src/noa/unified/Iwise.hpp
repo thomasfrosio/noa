@@ -45,8 +45,8 @@ namespace noa {
     /// \param device       Device on which to dispatch the operator.
     ///                     The function is enqueued to the current stream of that device.
     /// \param op           Operator satisfying the iwise core interface.
-    ///                     The operator is perfectly forwarded to the backend.
-    ///                     Each computing thread holds a copy of the operator.
+    ///                     The operator is perfectly forwarded to the backend, but
+    ///                     each computing thread ends up holding a copy of the operator.
     /// \param attachments  Resources to attach to the function call. These are usually Arrays that hold the
     ///                     resources used by the operator, but other attachments can be passed too (see note below).
     ///

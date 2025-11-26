@@ -190,7 +190,7 @@ namespace noa::geometry {
     ///          of the output window relative to the input window.
     /// \details The input and output arrays should be 2d arrays. If the output is batched, a different matrix will
     ///          be applied to each batch. In this case, the input can be batched as well, resulting in a fully
-    ///          batched operation (N input -> N output). Furthermore, if the input is not batched, it is broadcasted
+    ///          batched operation (N input -> N output). Furthermore, if the input is not batched, it is broadcast
     ///          to all output batches (1 input -> N output).
     ///
     /// \param[in] input            Input 2d array(s).
@@ -243,7 +243,7 @@ namespace noa::geometry {
     ///          of the output window relative to the input window.
     /// \details The input and output arrays should be 3d arrays. If the output is batched, a different matrix will
     ///          be applied to each batch. In this case, the input can be batched as well, resulting in a fully
-    ///          batched operation (N input -> N output). Furthermore, if the input is not batched, it is broadcasted
+    ///          batched operation (N input -> N output). Furthermore, if the input is not batched, it is broadcast
     ///          to all output batches (1 input -> N output).
     ///
     /// \param[in] input            Input 3d array(s).

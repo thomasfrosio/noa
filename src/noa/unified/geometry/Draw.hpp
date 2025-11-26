@@ -232,7 +232,7 @@ namespace noa::geometry {
     ///                           is valid and equivalent to no transformation. Otherwise, the floating-point precision
     ///                           of the transform should match the precision of the drawing operator.
     /// \param binary_op          Optional binary operator used to apply the drawing onto the input values:
-    ///                           (input_value, drawn_value) -> value ("value" is then casted to the actual output type).
+    ///                           (input_value, drawn_value) -> value ("value" is then cast to the actual output type).
     ///                           The default operator (i.e. passing Empty) multiplies both values; if the input is an
     ///                           integer, drawn_value if first rounded to the nearest integer; if the input is complex
     ///                           and the output is real, abs(input_value)^2 (the power-spectrum) is first computed.

@@ -62,7 +62,7 @@ namespace noa {
     ///       If no outputs are provided, all varray inputs should have the same shape. If they do have the same
     ///       stride layout, they will be reordered to the rightmost layout for better performance.
     ///       If outputs are provided, there should all be varrays with the same shape, have the same stride order
-    ///       and cannot be broadcasted (strides of zeros are not allowed). In this case, the varray inputs will
+    ///       and cannot be broadcast (strides of zeros are not allowed). In this case, the varray inputs will
     ///       need to match the output shape or be broadcastable to the output shape. If the stride order of the
     ///       outputs is not the rightmost order, output varrays are reordered to the rightmost order to maximize
     ///       performance. Of course, this means that input varrays are reordered as well for correctness.
@@ -125,7 +125,7 @@ namespace noa::guts {
                     outputs.for_each_enumerate([&]<size_t I>(const nt::varray auto& output) {
                         check(not output.is_empty(), "Empty output array detected (index={})", I);
                         check(all(output.strides() > 0),
-                              "Output arrays cannot be broadcasted, i.e. strides should not be 0, but got strides:{}={}",
+                              "Output arrays cannot be broadcast, i.e. strides should not be 0, but got strides:{}={}",
                               I, output.strides());
                         if constexpr (I > 0) {
                             check(device == output.device(),

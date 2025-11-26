@@ -355,7 +355,7 @@ namespace noa::signal::guts {
         const PeakValue& peak_values = {}
     ) {
         check(not xmap.is_empty(), "Empty array detected");
-        check(not xmap.strides().is_broadcast(), "The cross-correlation map should not be broadcasted");
+        check(not xmap.strides().is_broadcast(), "The cross-correlation map should not be broadcast");
         check(xmap.shape().ndim() == NDIM,
               "The cross-correlation map(s) shape doesn't match the ndim. Got shape={} and expected ndim={}",
               xmap.shape(), NDIM);
@@ -405,6 +405,7 @@ namespace noa::signal {
     /// \param[in] lhs      Left-hand side.
     /// \param[in] rhs      Right-hand side.
     /// \param[out] scores  Cross-correlation scores(s). One per batch.
+    /// \param options      Options for the reduction.
     /// \note The reduction is done using double-precision.
     template<typename Lhs, typename Rhs, nt::writable_varray_decay Output>
     requires (nt::varray_decay_of_real<Lhs, Rhs, Output> or
@@ -642,8 +643,8 @@ namespace noa::signal {
         /// ((D)H)W maximum lag allowed, i.e., the peak is selected within this elliptical radius.
         /// If negative, it is ignored and the entire map is searched. If zero, the central peak at lag zero is
         /// guaranteed to be selected. Otherwise, an elliptical mask is applied on the centered cross-correlation
-        /// map before the search. Note that the implementation will select the minimum subregion within the
-        /// map so that only this subregion needs to be searched.
+        /// map before the search. Note that to maximize performance the implementation will select the minimum
+        /// subregion within the map and only search within that subregion.
         Vec<f64, N> maximum_lag{Vec<f64, N>::from_value(-1)};
     };
 
