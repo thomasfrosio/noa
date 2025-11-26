@@ -50,8 +50,12 @@ namespace noa::inline types {
                 m_event.emplace<cpu_event_t>();
                 std::get<cpu_event_t>(m_event).record(stream.cpu());
             } else {
-                m_event.emplace<gpu_event_t>();
+                #ifdef NOA_ENABLE_CUDA
+                m_event.emplace<gpu_event_t>(stream.gpu().device());
                 std::get<gpu_event_t>(m_event).record(stream.gpu());
+                #else
+                unreachable();
+                #endif
             }
         }
 
