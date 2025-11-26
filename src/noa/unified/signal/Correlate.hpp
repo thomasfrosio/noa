@@ -700,8 +700,8 @@ namespace noa::signal {
               "The registration radius should be a small positive value (less than {}), but got {}",
               REGISTRATION_RADIUS_LIMIT, options.registration_radius);
 
-        const Device& device = cross_correlation_map.device();
-        const auto shape = cross_correlation_map.shape();
+        const auto& device = cross_correlation_map.device();
+        const auto& shape = cross_correlation_map.shape();
         auto filter_nd = [&shape](auto v) {
             (void)shape; // clang unused warning
             if constexpr (N == 1) return v.filter(0, shape[2] > 1 ? 2 : 3);
@@ -718,8 +718,8 @@ namespace noa::signal {
         auto input_accessor = input_accessor_t(cross_correlation_map.get(), filter_nd(cross_correlation_map.strides()));
         auto peak_values_accessor = peak_values_accessor_t(peak_values.get());
         auto peak_coordinates_accessor = peak_coordinates_accessor_t(peak_coordinates.get());
-        auto shape_nd = filter_nd(cross_correlation_map.shape());
-        auto initial_reduction_value = Pair{std::numeric_limits<value_t>::min(), index_t{}};
+        auto shape_nd = filter_nd(shape);
+        auto initial_reduction_value = Pair{std::numeric_limits<value_t>::lowest(), index_t{}};
 
         bool apply_ellipse{};
         auto maximum_allowed_lag = shape_nd.vec.pop_front() / 2;
