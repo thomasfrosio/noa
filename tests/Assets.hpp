@@ -169,46 +169,46 @@ namespace YAML {
     };
 
     template<>
-    struct convert<noa::Remap> {
-        static Node encode(const noa::Remap& rhs) {
+    struct convert<noa::fft::Layout> {
+        static Node encode(const noa::fft::Layout& rhs) {
             std::ostringstream stream;
             stream << rhs;
             return convert<std::string>::encode(stream.str());
         }
 
-        static bool decode(const Node& node, noa::Remap& rhs) {
+        static bool decode(const Node& node, noa::fft::Layout& rhs) {
             if (not node.IsScalar())
                 return false;
             const std::string& buffer = node.Scalar();
 
             if (buffer == "H2H")
-                rhs = noa::Remap::H2H;
+                rhs = noa::fft::Layout::H2H;
             else if (buffer == "HC2HC")
-                rhs = noa::Remap::HC2HC;
+                rhs = noa::fft::Layout::HC2HC;
             else if (buffer == "H2HC")
-                rhs = noa::Remap::H2HC;
+                rhs = noa::fft::Layout::H2HC;
             else if (buffer == "HC2H")
-                rhs = noa::Remap::HC2H;
+                rhs = noa::fft::Layout::HC2H;
             else if (buffer == "H2F")
-                rhs = noa::Remap::H2F;
+                rhs = noa::fft::Layout::H2F;
             else if (buffer == "F2H")
-                rhs = noa::Remap::F2H;
+                rhs = noa::fft::Layout::F2H;
             else if (buffer == "F2FC")
-                rhs = noa::Remap::F2FC;
+                rhs = noa::fft::Layout::F2FC;
             else if (buffer == "FC2F")
-                rhs = noa::Remap::FC2F;
+                rhs = noa::fft::Layout::FC2F;
             else if (buffer == "HC2F")
-                rhs = noa::Remap::HC2F;
+                rhs = noa::fft::Layout::HC2F;
             else if (buffer == "F2HC")
-                rhs = noa::Remap::F2HC;
+                rhs = noa::fft::Layout::F2HC;
             else if (buffer == "H2FC")
-                rhs = noa::Remap::H2FC;
+                rhs = noa::fft::Layout::H2FC;
             else if (buffer == "FC2H")
-                rhs = noa::Remap::FC2H;
+                rhs = noa::fft::Layout::FC2H;
             else if (buffer == "F2F")
-                rhs = noa::Remap::F2F;
+                rhs = noa::fft::Layout::F2F;
             else if (buffer == "FC2FC")
-                rhs = noa::Remap::FC2FC;
+                rhs = noa::fft::Layout::FC2FC;
             else
                 return false;
             return true;

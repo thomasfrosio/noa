@@ -179,9 +179,9 @@ namespace noa::fft {
 
     /// Remaps the input index onto the output.
     /// \warning This function only supports full-dimensions.
-    template<Remap REMAP, bool FLIP_REMAP = false, nt::integer T>
+    template<Layout REMAP, bool FLIP_REMAP = false, nt::integer T>
     constexpr auto remap_index(T index, T shape) noexcept -> T {
-        constexpr Remap remap = FLIP_REMAP ? REMAP.flip() : REMAP;
+        constexpr Layout remap = FLIP_REMAP ? REMAP.flip() : REMAP;
         if constexpr (remap.is_xc2xx() == remap.is_xx2xc()) {
             return index;
         } else if constexpr (remap.is_xc2xx()) { // input is centered, output isn't
@@ -194,14 +194,14 @@ namespace noa::fft {
     /// Remaps the input indices onto the output.
     /// This function is limited to input/output being both rffts or both ffts.
     /// For rffts, the centering doesn't apply to the width (ie rightmost dimension) and the index is left unchanged.
-    template<Remap REMAP, bool FLIP_REMAP = false,
+    template<Layout REMAP, bool FLIP_REMAP = false,
              nt::integer T, size_t N0, size_t N1, size_t A0, size_t A1>
     requires (1 <= N0 and N0 <= 3)
     constexpr auto remap_indices(
         Vec<T, N0, A0> indices,
         const Shape<T, N1, A1>& shape
     ) noexcept -> Vec<T, N0, A0> {
-        constexpr Remap ACTUAL_REMAP = FLIP_REMAP ? REMAP.flip() : REMAP;
+        constexpr Layout ACTUAL_REMAP = FLIP_REMAP ? REMAP.flip() : REMAP;
         constexpr bool IS_RFFT = ACTUAL_REMAP.is_hx2hx();
         constexpr bool IS_INPUT_CENTERED = ACTUAL_REMAP.is_xc2xx();
         static_assert(IS_RFFT or ACTUAL_REMAP.is_fx2fx());

@@ -12,8 +12,8 @@
 namespace {
     using namespace ::noa;
 
-    static_assert(noa::to_underlying(noa::fft::Sign::FORWARD) == FFTW_FORWARD);
-    static_assert(noa::to_underlying(noa::fft::Sign::BACKWARD) == FFTW_BACKWARD);
+    static_assert(noa::to_underlying(nf::Sign::FORWARD) == FFTW_FORWARD);
+    static_assert(noa::to_underlying(nf::Sign::BACKWARD) == FFTW_BACKWARD);
 
     // Even values satisfying (2^a) * (3^b) * (5^c) * (7^d) * (11^e) * (13^f), with e + f = 0 or 1.
     constexpr u16 sizes_even_fftw_[] = {
@@ -145,7 +145,7 @@ namespace {
         static plan_t create_c2c(
             complex_t* input, const Strides4<i32>& input_strides,
             complex_t* output, const Strides4<i32>& output_strides,
-            noa::fft::Sign sign,
+            nf::Sign sign,
             i32 batch, const Shape3<i32>& shape_3d, i32 rank, i64 max_n_threads, u32 flags
         ) {
             const auto lock = std::scoped_lock(mutex);
@@ -363,7 +363,7 @@ namespace noa::cpu::fft {
     Plan<T>::Plan(
         Complex<T>* input, const Strides4<i64>& input_strides,
         Complex<T>* output, const Strides4<i64>& output_strides,
-        const Shape4<i64>& shape, noa::fft::Sign sign, u32 flag, i64 max_n_threads
+        const Shape4<i64>& shape, nf::Sign sign, u32 flag, i64 max_n_threads
     ) {
         auto [batch, shape_3d] = shape.as_safe<i32>().split_batch();
         const i32 rank = shape_3d.ndim();

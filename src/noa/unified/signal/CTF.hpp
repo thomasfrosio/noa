@@ -13,7 +13,7 @@ namespace noa::signal::guts {
     /// \details If the input is valid, input*ctf->output is computed.
     ///          If the input is complex and the output is real, the power spectrum is saved.
     ///          If the input is empty, ctf->output is computed.
-    template<Remap REMAP, size_t N,
+    template<nf::Layout REMAP, size_t N,
              nt::any_of<f32, f64> Coord,
              nt::sinteger Index,
              nt::readable_nd_or_empty<N + 1> Input,
@@ -21,8 +21,8 @@ namespace noa::signal::guts {
              nt::batched_parameter CTFParameter>
     class CTF {
     public:
-        static_assert(REMAP.is_any(Remap::H2H, Remap::HC2HC, Remap::HC2H, Remap::H2HC,
-                                   Remap::F2F, Remap::FC2FC, Remap::FC2F, Remap::F2FC));
+        static_assert(REMAP.is_any(nf::Layout::H2H, nf::Layout::HC2HC, nf::Layout::HC2H, nf::Layout::H2HC,
+                                   nf::Layout::F2F, nf::Layout::FC2FC, nf::Layout::FC2F, nf::Layout::F2FC));
 
         using input_type = Input;
         using output_type = Output;
@@ -72,7 +72,7 @@ namespace noa::signal::guts {
                 const auto max_sample_size = shape[i] / 2 + 1;
                 const auto frequency_stop =
                     fftfreq_range.stop <= 0 ?
-                    noa::fft::highest_fftfreq<coord_type>(shape[i]) :
+                    nf::highest_fftfreq<coord_type>(shape[i]) :
                     fftfreq_range.stop;
                 m_fftfreq_step[i] = Linspace{
                     .start = fftfreq_range.start,
@@ -90,7 +90,7 @@ namespace noa::signal::guts {
             index_type batch,
             I... output_indices
         ) const {
-            const auto frequency = noa::fft::index2frequency<IS_DST_CENTERED, IS_RFFT>(Vec{output_indices...}, m_shape);
+            const auto frequency = nf::index2frequency<IS_DST_CENTERED, IS_RFFT>(Vec{output_indices...}, m_shape);
             auto fftfreq = coord_nd_type::from_vec(frequency) * m_fftfreq_step;
             if constexpr (N == 1)
                 fftfreq += m_fftfreq_start;
@@ -111,7 +111,7 @@ namespace noa::signal::guts {
                 ctf = abs(ctf);
 
             if constexpr (HAS_INPUT) {
-                const auto input_indices = noa::fft::remap_indices<REMAP, true>(Vec{output_indices...}, m_shape);
+                const auto input_indices = nf::remap_indices<REMAP, true>(Vec{output_indices...}, m_shape);
                 m_output(batch, output_indices...) = cast_or_abs_squared<output_value_type>(
                     m_input(input_indices.push_front(batch)) * static_cast<input_real_type>(ctf));
             } else {
@@ -138,13 +138,13 @@ namespace noa::signal::guts {
     template<typename T, typename U = nt::value_type_t<T>, typename V = std::decay_t<T>>
     concept varray_decay_or_ctf_anisotropic = (nt::ctf_anisotropic<V> or (nt::varray<V> and nt::ctf_anisotropic<U>));
 
-    template<Remap REMAP, typename Input, typename Output, typename CTF, bool ISOTROPIC>
+    template<nf::Layout REMAP, typename Input, typename Output, typename CTF, bool ISOTROPIC>
     concept ctfable =
         ((ISOTROPIC and varray_decay_or_ctf_isotropic<CTF>) or (not ISOTROPIC and varray_decay_or_ctf_anisotropic<CTF>)) and
         (REMAP.is_hx2hx() or REMAP.is_fx2fx()) and
         nt::varray_decay_with_spectrum_types<Input, Output>;
 
-    template<Remap REMAP, typename Input, typename Output, typename CTF>
+    template<nf::Layout REMAP, typename Input, typename Output, typename CTF>
     void ctf_check_parameters(
         const Input& input,
         const Output& output,
@@ -222,7 +222,7 @@ namespace noa::signal {
     /// \param[in] ctf      Isotropic CTF(s). A contiguous vector of CTFs can be passed. In this case, there should be
     ///                     one CTF per output batch. If a single value is passed, it is applied to every batch.
     /// \param options      Spectrum and CTF options.
-    template<Remap REMAP, typename Output, typename CTF>
+    template<nf::Layout REMAP, typename Output, typename CTF>
     requires guts::ctfable<REMAP, View<nt::value_type_t<Output>>, Output, CTF, true>
     void ctf_isotropic(
         Output&& output,
@@ -311,7 +311,7 @@ namespace noa::signal {
     ///                     should be one CTF per output batch. If a single value is passed, it is applied
     ///                     to every batch.
     /// \param options      Spectrum and CTF options.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              typename Output, typename CTF,
              typename Input = View<nt::value_type_t<Output>>>
     requires guts::ctfable<REMAP, Input, Output, CTF, true>
@@ -430,7 +430,7 @@ namespace noa::signal {
     ///                     should be one CTF per output batch. If a single value is passed, it is applied
     ///                     to every batch.
     /// \param options      Spectrum and CTF options.
-    template<Remap REMAP, typename Output, typename CTF>
+    template<nf::Layout REMAP, typename Output, typename CTF>
     requires guts::ctfable<REMAP, View<nt::value_type_t<Output>>, Output, CTF, false>
     void ctf_anisotropic(
         Output&& output,
@@ -478,7 +478,7 @@ namespace noa::signal {
     ///                     should be one CTF per output batch. If a single value is passed, it is applied
     ///                     to every batch.
     /// \param options      Spectrum and CTF options.
-    template<Remap REMAP, typename Output, typename CTF,
+    template<nf::Layout REMAP, typename Output, typename CTF,
              typename Input = View<nt::value_type_t<Output>>>
     requires guts::ctfable<REMAP, Input, Output, CTF, false>
     void ctf_anisotropic(

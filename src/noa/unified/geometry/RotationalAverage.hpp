@@ -49,7 +49,7 @@ namespace noa::geometry::guts {
     /// - The user sets the number of output shells, as well as the output frequency range.
     /// - If input is complex and output real, the input is preprocessed to abs(input)^2.
     /// - The 2d distortion from the anisotropic ctf can be corrected.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              size_t N,
              nt::real Coord,
              nt::sinteger Index,
@@ -110,7 +110,7 @@ namespace noa::geometry::guts {
                 const auto max_sample_size = input_shape[i] / 2 + 1;
                 const auto fftfreq_end =
                     input_fftfreq.stop <= 0 ?
-                    noa::fft::highest_fftfreq<coord_type>(input_shape[i]) :
+                    nf::highest_fftfreq<coord_type>(input_shape[i]) :
                     input_fftfreq.stop;
                 max_input_fftfreq = max(max_input_fftfreq, fftfreq_end);
                 m_input_fftfreq_step[i] = Linspace<coord_type>{
@@ -145,7 +145,7 @@ namespace noa::geometry::guts {
         template<nt::same_as<index_type>... I> requires (N == sizeof...(I))
         NOA_HD void operator()(index_type batch, I... indices) const noexcept {
             // Input indices to fftfreq.
-            const auto frequency = noa::fft::index2frequency<IS_CENTERED, IS_RFFT>(Vec{indices...}, m_shape);
+            const auto frequency = nf::index2frequency<IS_CENTERED, IS_RFFT>(Vec{indices...}, m_shape);
             const auto fftfreq_nd = coord_nd_type::from_vec(frequency) * m_input_fftfreq_step;
 
             coord_type fftfreq;
@@ -362,7 +362,7 @@ namespace noa::geometry::guts {
         }
     }
 
-    template<Remap REMAP, typename Input, typename Output, typename Weight, typename Ctf = Empty>
+    template<nf::Layout REMAP, typename Input, typename Output, typename Weight, typename Ctf = Empty>
     auto check_parameters_rotational_average(
         const Input& input,
         const Shape4<i64>& shape,
@@ -475,7 +475,7 @@ namespace noa::geometry::guts {
         check_parameters_ctf(output_ctf, ob, output.device());
     }
 
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              typename Input, typename Index, typename Ctf,
              typename Output, typename Weight, typename Options>
     void launch_rotational_average(
@@ -644,7 +644,7 @@ namespace noa::geometry::guts {
         auto batched_output_ctf = ng::to_batched_parameter(output_ctf);
 
         auto launch_iwise = [&](auto interp) {
-            auto interpolator = ng::to_interpolator_spectrum<1, Remap::H2H, interp(), coord_t, false>(input, logical_shape);
+            auto interpolator = ng::to_interpolator_spectrum<1, "h2h", interp(), coord_t, false>(input, logical_shape);
             using op_t = PhaseSpectra<
                 coord_t, Index, decltype(interpolator), output_accessor_t,
                 decltype(batched_input_ctf), decltype(batched_output_ctf)>;
@@ -725,7 +725,7 @@ namespace noa::geometry {
     ///                         and options.average is true, a temporary vector like output is allocated.
     /// \param options          Rotational average and frequency range options.
     template<
-        Remap REMAP,
+        nf::Layout REMAP,
         nt::readable_varray_decay Input,
         nt::writable_varray_decay Output,
         nt::writable_varray_decay_of_any<nt::value_type_twice_t<Output>> Weight = View<nt::value_type_twice_t<Output>>>
@@ -763,7 +763,7 @@ namespace noa::geometry {
     /// \param options      Rotational average options.
     /// \note If weights is empty and options.average is true, a temporary vector like output is allocated.
     template<
-        Remap REMAP,
+        nf::Layout REMAP,
         nt::readable_varray_decay Input,
         nt::writable_varray_decay Output,
         guts::rotational_average_anisotropic_ctf Ctf,

@@ -14,7 +14,6 @@
 
 using namespace ::noa::types;
 namespace ng = noa::geometry;
-using Remap = noa::Remap;
 using Interp = noa::Interp;
 
 TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d", "[asset]") {
@@ -65,7 +64,7 @@ TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d", "[asset]") 
             const Array input_slice_fft = noa::linspace(input_slice_shape.rfft(), noa::Linspace{-50.f, 50.f, true}, options);
             const Array output_slice_fft = noa::empty<f32>(output_slice_shape.rfft(), options);
 
-            ng::insert_and_extract_central_slices_3d<Remap::HC2HC>(
+            ng::insert_and_extract_central_slices_3d<"hc2hc">(
                 input_slice_fft, {}, input_slice_shape,
                 output_slice_fft, {}, output_slice_shape,
                 {}, input_inv_rotation_matrices,
@@ -123,19 +122,19 @@ TEMPLATE_TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d, tex
         const Array output_slice_fft1 = noa::empty<TestType>(output_slice_shape.rfft(), options);
         const Array output_slice_fft2 = noa::like(output_slice_fft1);
 
-        ng::insert_and_extract_central_slices_3d<Remap::HC2HC>(
+        ng::insert_and_extract_central_slices_3d<"hc2hc">(
             texture_input_slice_fft, {}, input_slice_shape,
             output_slice_fft0, {}, output_slice_shape,
             {}, input_inv_rotation_matrices,
             {}, output_fwd_rotation_matrices,
             {.input_windowed_sinc = {0.01}, .fftfreq_cutoff = 0.8});
-        ng::insert_and_extract_central_slices_3d<Remap::HC2H>(
+        ng::insert_and_extract_central_slices_3d<"hc2h">(
             input_slice_fft, {}, input_slice_shape,
             output_slice_fft1, {}, output_slice_shape,
             {}, input_inv_rotation_matrices,
             {}, output_fwd_rotation_matrices,
             {.input_windowed_sinc = {0.01}, .fftfreq_cutoff = 0.8});
-        noa::fft::remap(Remap::H2HC, output_slice_fft1, output_slice_fft2, output_slice_shape);
+        noa::fft::remap("h2hc", output_slice_fft1, output_slice_fft2, output_slice_shape);
         REQUIRE(test::allclose_abs_safe(output_slice_fft0, output_slice_fft2, 5e-5));
     }
 }
@@ -173,7 +172,7 @@ TEMPLATE_TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d, wei
         const Array output_slice_fft0 = noa::empty<TestType>(output_slice_shape.rfft(), options);
         const Array output_slice_fft1 = noa::empty<TestType>(output_slice_shape.rfft(), options);
 
-        ng::insert_and_extract_central_slices_3d<Remap::HC2HC>(
+        ng::insert_and_extract_central_slices_3d<"hc2hc">(
             input_slice_fft, input_slice_fft.copy(), input_slice_shape,
             output_slice_fft0, output_slice_fft1, output_slice_shape,
             {}, input_inv_rotation_matrices,
@@ -214,7 +213,7 @@ TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d, test rotatio
         const Array input_slice_fft = noa::linspace(input_slice_shape.rfft(), noa::Linspace{-100.f, 100.f, true}, options);
         const Array output_slice_fft0 = noa::empty<f32>(output_slice_shape.rfft(), options);
 
-        ng::insert_and_extract_central_slices_3d<Remap::HC2HC>(
+        ng::insert_and_extract_central_slices_3d<"hc2hc">(
             input_slice_fft, {}, input_slice_shape,
             output_slice_fft0, {}, output_slice_shape,
             {}, input_slice_rotation,
@@ -263,17 +262,17 @@ TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d, weight/multi
             output_fwd_rotation_matrices = std::move(output_fwd_rotation_matrices).to({device});
 
         const Array input_slice = noa::random(noa::Uniform{-50.f, 50.f}, input_slice_shape, options);
-        const Array input_slice_rfft = noa::fft::remap(Remap::H2HC, noa::fft::r2c(input_slice), input_slice_shape);
+        const Array input_slice_rfft = noa::fft::remap("h2hc", noa::fft::r2c(input_slice), input_slice_shape);
         const Array output_slice_fft0 = noa::empty<c32>(output_slice_shape.rfft(), options);
         const Array output_slice_fft1 = noa::empty<c32>(output_slice_shape.rfft(), options);
 
-        ng::insert_and_extract_central_slices_3d<Remap::HC2HC>(
+        ng::insert_and_extract_central_slices_3d<"hc2hc">(
             input_slice_rfft, {}, input_slice_shape,
             output_slice_fft0, {}, output_slice_shape,
             {}, input_inv_rotation_matrices,
             {}, output_fwd_rotation_matrices,
             {.input_windowed_sinc = {0.01}, .fftfreq_cutoff = 0.8});
-        ng::insert_and_extract_central_slices_3d<Remap::HC2HC>(
+        ng::insert_and_extract_central_slices_3d<"hc2hc">(
             input_slice_rfft, {}, input_slice_shape,
             output_slice_fft1, {}, output_slice_shape,
             {}, input_inv_rotation_quaternion,
@@ -281,8 +280,8 @@ TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d, weight/multi
             {.input_windowed_sinc = {0.01}, .fftfreq_cutoff = 0.8});
 
         // Ignore the usual tiny error along the line at Nyquist...
-        noa::signal::lowpass<Remap::HC2HC>(output_slice_fft0, output_slice_fft0, input_slice_shape, {.cutoff = 0.49, .width = 0});
-        noa::signal::lowpass<Remap::HC2HC>(output_slice_fft1, output_slice_fft1, input_slice_shape, {.cutoff = 0.49, .width = 0});
+        noa::signal::lowpass<"hc2hc">(output_slice_fft0, output_slice_fft0, input_slice_shape, {.cutoff = 0.49, .width = 0});
+        noa::signal::lowpass<"hc2hc">(output_slice_fft1, output_slice_fft1, input_slice_shape, {.cutoff = 0.49, .width = 0});
         REQUIRE(test::allclose_abs_safe(output_slice_fft0, output_slice_fft1, 5e-5));
     }
 }

@@ -10,18 +10,18 @@ TEST_CASE("cuda::Device") {
     REQUIRE(a.id() == 0);
     REQUIRE(a == Device::current()); // defaults to device 0
 
-    const Device b(1, Device::DeviceUnchecked{});
+    const Device b(1, Unchecked{});
     REQUIRE(b.id() == 1);
 
     std::vector<Device> devices = Device::all();
     REQUIRE(static_cast<i64>(devices.size()) == Device::count());
 
     {
-        Device device(0, Device::DeviceUnchecked{});
+        Device device(0, Unchecked{});
         REQUIRE(device.id() == 0);
-        device = Device(1, Device::DeviceUnchecked{});
+        device = Device(1, Unchecked{});
         REQUIRE(device.id() == 1);
-        device = Device(12, Device::DeviceUnchecked{});
+        device = Device(12, Unchecked{});
         REQUIRE(device.id() == 12);
     }
 

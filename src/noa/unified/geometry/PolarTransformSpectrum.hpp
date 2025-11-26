@@ -42,7 +42,7 @@ namespace noa::geometry::guts {
             coord_type spectrum_stop{};
             for (size_t i{}; i < 2; ++i) {
                 const auto max_sample_size = spectrum_shape[i] / 2 + 1;
-                const auto highest_fftfreq = noa::fft::highest_fftfreq<coord_type>(spectrum_shape[i]);
+                const auto highest_fftfreq = nf::highest_fftfreq<coord_type>(spectrum_shape[i]);
 
                 auto linspace = spectrum_fftfreq;
                 if (linspace.stop <= 0) // default to highest fftfreq
@@ -89,7 +89,7 @@ namespace noa::geometry::guts {
         coord_type m_phi_step;
     };
 
-    template<Remap REMAP, bool IS_GPU = false, typename Index, typename Input, typename Output, typename Options>
+    template<nf::Layout REMAP, bool IS_GPU = false, typename Index, typename Input, typename Output, typename Options>
     void launch_spectrum2polar(
         Input&& spectrum,
         const Shape4<Index>& spectrum_shape,
@@ -183,7 +183,7 @@ namespace noa::geometry {
     /// \param[out] polar       Transformed 2d array on the polar grid.
     ///                         If real, and spectrum is complex, the power spectrum is computed.
     /// \param options          Transformation options.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::varray_or_texture_decay Input,
              nt::writable_varray_decay Output>
     requires (REMAP.is_xx2fc() and nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)

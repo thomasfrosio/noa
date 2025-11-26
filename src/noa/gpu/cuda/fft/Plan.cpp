@@ -506,7 +506,7 @@ namespace noa::cuda::fft {
     }
 
     template<typename T>
-    void Plan<T>::execute(Complex<T>* input, Complex<T>* output, noa::fft::Sign sign, Stream& stream) && {
+    void Plan<T>::execute(Complex<T>* input, Complex<T>* output, nf::Sign sign, Stream& stream) && {
         if (m_plan == nullptr)
             return;
 

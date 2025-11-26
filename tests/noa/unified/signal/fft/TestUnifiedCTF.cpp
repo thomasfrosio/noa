@@ -10,7 +10,6 @@
 #include "Utils.hpp"
 
 using namespace noa::types;
-using Remap = noa::Remap;
 
 TEST_CASE("unified::signal::ctf_isotropic, assets", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
@@ -43,7 +42,7 @@ TEST_CASE("unified::signal::ctf_isotropic, assets", "[asset]") {
 
         if constexpr (COMPUTE_ASSETS) {
             const auto input = noa::empty<f32>(shape.rfft());
-            noa::signal::ctf_isotropic<Remap::H2H>({}, input, shape, ctf);
+            noa::signal::ctf_isotropic<"H2H">({}, input, shape, ctf);
             noa::io::write(input, filename_asset);
         } else {
             for (auto device: devices) {
@@ -54,35 +53,35 @@ TEST_CASE("unified::signal::ctf_isotropic, assets", "[asset]") {
                 const auto expected_rfft = noa::io::read_data<f32>(filename_asset, {}, options);
 
                 // Check against asset.
-                noa::signal::ctf_isotropic<Remap::H2H>({}, result_rfft, shape, ctf);
+                noa::signal::ctf_isotropic<"H2H">({}, result_rfft, shape, ctf);
                 REQUIRE(test::allclose_abs(result_rfft, expected_rfft, 1e-4));
 
                 // Remap
-                noa::signal::ctf_isotropic<Remap::HC2HC>({}, result_rfft, shape, ctf);
-                auto expected_hc = noa::fft::remap(Remap::H2HC, expected_rfft, shape);
+                noa::signal::ctf_isotropic<"HC2HC">({}, result_rfft, shape, ctf);
+                auto expected_hc = noa::fft::remap("H2HC", expected_rfft, shape);
                 REQUIRE(test::allclose_abs(result_rfft, expected_hc.drop(), 1e-4));
 
-                noa::signal::ctf_isotropic<Remap::F2F>({}, result_fft, shape, ctf);
-                auto expected_f = noa::fft::remap(Remap::H2F, expected_rfft, shape);
+                noa::signal::ctf_isotropic<"F2F">({}, result_fft, shape, ctf);
+                auto expected_f = noa::fft::remap("H2F", expected_rfft, shape);
                 REQUIRE(test::allclose_abs(result_fft, expected_f.drop(), 1e-4));
 
-                noa::signal::ctf_isotropic<Remap::FC2FC>({}, result_fft, shape, ctf);
-                auto expected_fc = noa::fft::remap(Remap::H2FC, expected_rfft, shape);
+                noa::signal::ctf_isotropic<"FC2FC">({}, result_fft, shape, ctf);
+                auto expected_fc = noa::fft::remap("H2FC", expected_rfft, shape);
                 REQUIRE(test::allclose_abs(result_fft, expected_fc.drop(), 1e-4));
 
                 // Remap-Multiply.
                 auto input_rfft = noa::random(noa::Normal<f32>{-5, 5}, shape.rfft(), options);
-                noa::signal::ctf_isotropic<Remap::HC2HC>({}, result_rfft, shape, ctf);
-                auto input_rfft_centered = noa::fft::remap(Remap::H2HC, input_rfft, shape);
+                noa::signal::ctf_isotropic<"HC2HC">({}, result_rfft, shape, ctf);
+                auto input_rfft_centered = noa::fft::remap("H2HC", input_rfft, shape);
                 noa::ewise(noa::wrap(input_rfft_centered, result_rfft), input_rfft_centered, noa::Multiply{});
-                noa::signal::ctf_isotropic<Remap::H2HC>(input_rfft.copy(), input_rfft, shape, ctf);
+                noa::signal::ctf_isotropic<"H2HC">(input_rfft.copy(), input_rfft, shape, ctf);
                 REQUIRE(test::allclose_abs(input_rfft.drop(), input_rfft_centered.drop(), 1e-4));
 
                 auto input_fft = noa::random(noa::Normal<f32>{-5, 5}, shape, options);
-                noa::signal::ctf_isotropic<Remap::FC2FC>({}, result_fft, shape, ctf);
-                auto input_fft_centered = noa::fft::remap(Remap::F2FC, input_fft, shape);
+                noa::signal::ctf_isotropic<"FC2FC">({}, result_fft, shape, ctf);
+                auto input_fft_centered = noa::fft::remap("F2FC", input_fft, shape);
                 noa::ewise(noa::wrap(input_fft_centered, result_fft), input_fft_centered, noa::Multiply{});
-                noa::signal::ctf_isotropic<Remap::F2FC>(input_fft.copy(), input_fft, shape, ctf);
+                noa::signal::ctf_isotropic<"F2FC">(input_fft.copy(), input_fft, shape, ctf);
                 REQUIRE(test::allclose_abs(input_fft.drop(), input_fft_centered.drop(), 1e-4));
             }
         }
@@ -117,9 +116,9 @@ TEST_CASE("unified::signal::ctf_isotropic, default range") {
         const auto expected_0 = noa::like(input);
         const auto expected_1 = noa::like(input);
 
-        noa::signal::ctf_isotropic<Remap::FC2FC>(input, output, shape, ctf);
-        noa::signal::ctf_isotropic<Remap::FC2FC>({}, expected_0, shape, ctf);
-        noa::signal::ctf_isotropic<Remap::FC2FC>(expected_1, shape, ctf);
+        noa::signal::ctf_isotropic<"FC2FC">(input, output, shape, ctf);
+        noa::signal::ctf_isotropic<"FC2FC">({}, expected_0, shape, ctf);
+        noa::signal::ctf_isotropic<"FC2FC">(expected_1, shape, ctf);
         REQUIRE(test::allclose_abs(output, expected_0, 1e-4));
         REQUIRE(test::allclose_abs(output, expected_1, 1e-4));
     }
@@ -176,7 +175,7 @@ TEST_CASE("unified::signal::ctf_isotropic, range") {
         // Generate full range.
         const auto shape = Shape4<i64>{1, 1, 1, 512};
         const auto output = noa::empty<f32>(shape.rfft(), options);
-        noa::signal::ctf_isotropic<Remap::H2H>({}, output, shape, ctf, {.ctf_squared=true});
+        noa::signal::ctf_isotropic<"H2H">({}, output, shape, ctf, {.ctf_squared=true});
 
         // Get the truncated range and truncate the full range.
         const auto [trimmed_size, trimmed_slice, trimmed_resolution_range] =
@@ -186,7 +185,7 @@ TEST_CASE("unified::signal::ctf_isotropic, range") {
         // Generate the truncated
         const auto output_range = noa::empty<f32>(trimmed_size / 2 + 1, options);
         const auto output_fftfreq = (ctf.pixel_size() / trimmed_resolution_range).as<f64>();
-        noa::signal::ctf_isotropic<Remap::H2H>(
+        noa::signal::ctf_isotropic<"H2H">(
             output_range, {1, 1, 1, trimmed_size}, ctf, {
                 .fftfreq_range = {
                     .start = output_fftfreq[0],
@@ -230,7 +229,7 @@ TEST_CASE("unified::signal::ctf_anisotropic, assets", "[asset]") {
 
         if constexpr (COMPUTE_ASSETS) {
             const auto input = noa::empty<f32>(shape);
-            noa::signal::ctf_anisotropic<Remap::FC2FC>({}, input, shape, ctf);
+            noa::signal::ctf_anisotropic<"FC2FC">({}, input, shape, ctf);
             noa::io::write(input, filename_asset);
         } else {
             for (auto device: devices) {
@@ -241,39 +240,39 @@ TEST_CASE("unified::signal::ctf_anisotropic, assets", "[asset]") {
                 const auto expected_fft = noa::io::read_data<f32>(filename_asset, {}, options);
 
                 // Check against asset.
-                noa::signal::ctf_anisotropic<Remap::FC2FC>(result_fft, shape, ctf);
+                noa::signal::ctf_anisotropic<"FC2FC">(result_fft, shape, ctf);
                 REQUIRE(test::allclose_abs(result_fft, expected_fft, 1e-4));
 
                 // Remap
-                noa::signal::ctf_anisotropic<Remap::F2F>(result_fft, shape, ctf);
-                auto expected_f = noa::fft::remap(Remap::FC2F, expected_fft, shape);
+                noa::signal::ctf_anisotropic<"F2F">(result_fft, shape, ctf);
+                auto expected_f = noa::fft::remap("FC2F", expected_fft, shape);
                 REQUIRE(test::allclose_abs(result_fft, expected_f.drop(), 1e-4));
 
                 // If it is astigmatic and angle is not a multiple of pi/2, the astigmatic field breaks
                 // the remapping after Nyquist for even size. This is documented in noa::fft::remap().
                 if (defocus_astigmatic.angle == 0) {
-                    noa::signal::ctf_anisotropic<Remap::H2H>(result_rfft, shape, ctf);
-                    auto expected_r = noa::fft::remap(Remap::FC2H, expected_fft, shape);
+                    noa::signal::ctf_anisotropic<"H2H">(result_rfft, shape, ctf);
+                    auto expected_r = noa::fft::remap("FC2H", expected_fft, shape);
                     REQUIRE(test::allclose_abs(result_rfft, expected_r.drop(), 1e-4));
 
-                    noa::signal::ctf_anisotropic<Remap::HC2HC>(result_rfft, shape, ctf);
-                    auto expected_hc = noa::fft::remap(Remap::FC2HC, expected_fft, shape);
+                    noa::signal::ctf_anisotropic<"HC2HC">(result_rfft, shape, ctf);
+                    auto expected_hc = noa::fft::remap("FC2HC", expected_fft, shape);
                     REQUIRE(test::allclose_abs(result_rfft, expected_hc.drop(), 1e-4));
                 }
 
                 // Remap-Multiply.
                 auto input_rfft = noa::random(noa::Normal<f32>{-5, 5}, shape.rfft(), options);
-                noa::signal::ctf_anisotropic<Remap::HC2HC>({}, result_rfft, shape, ctf);
-                auto input_rfft_centered = noa::fft::remap(Remap::H2HC, input_rfft, shape);
+                noa::signal::ctf_anisotropic<"HC2HC">({}, result_rfft, shape, ctf);
+                auto input_rfft_centered = noa::fft::remap("H2HC", input_rfft, shape);
                 noa::ewise(noa::wrap(input_rfft_centered, result_rfft), input_rfft_centered, noa::Multiply{});
-                noa::signal::ctf_anisotropic<Remap::H2HC>(input_rfft.copy(), input_rfft, shape, ctf);
+                noa::signal::ctf_anisotropic<"H2HC">(input_rfft.copy(), input_rfft, shape, ctf);
                 REQUIRE(test::allclose_abs(input_rfft.drop(), input_rfft_centered.drop(), 1e-4));
 
                 auto input_fft = noa::random(noa::Normal<f32>{-5, 5}, shape, options);
-                noa::signal::ctf_anisotropic<Remap::FC2FC>({}, result_fft, shape, ctf);
-                auto input_fft_centered = noa::fft::remap(Remap::F2FC, input_fft, shape);
+                noa::signal::ctf_anisotropic<"FC2FC">({}, result_fft, shape, ctf);
+                auto input_fft_centered = noa::fft::remap("F2FC", input_fft, shape);
                 noa::ewise(noa::wrap(input_fft_centered, result_fft), input_fft_centered, noa::Multiply{});
-                noa::signal::ctf_anisotropic<Remap::F2FC>(input_fft.copy(), input_fft, shape, ctf);
+                noa::signal::ctf_anisotropic<"F2FC">(input_fft.copy(), input_fft, shape, ctf);
                 REQUIRE(test::allclose_abs(input_fft.drop(), input_fft_centered.drop(), 1e-4));
             }
         }
@@ -310,9 +309,9 @@ TEST_CASE("unified::signal::ctf_anisotropic, default range, vs isotropic") {
             const auto expected_0 = noa::like(input);
             const auto expected_1 = noa::like(input);
 
-            noa::signal::ctf_anisotropic<Remap::FC2FC>(input, output, shape, ctf_aniso);
-            noa::signal::ctf_anisotropic<Remap::FC2FC>({}, expected_0, shape, ctf_aniso);
-            noa::signal::ctf_anisotropic<Remap::FC2FC>(expected_1, shape, ctf_aniso);
+            noa::signal::ctf_anisotropic<"FC2FC">(input, output, shape, ctf_aniso);
+            noa::signal::ctf_anisotropic<"FC2FC">({}, expected_0, shape, ctf_aniso);
+            noa::signal::ctf_anisotropic<"FC2FC">(expected_1, shape, ctf_aniso);
             REQUIRE(test::allclose_abs(output, expected_0, 1e-4));
             REQUIRE(test::allclose_abs(output, expected_1, 1e-4));
         }
@@ -320,8 +319,8 @@ TEST_CASE("unified::signal::ctf_anisotropic, default range, vs isotropic") {
         {
             const auto isotropic = noa::ones<f32>(shape.rfft(), options);
             const auto anisotropic = noa::like(isotropic);
-            noa::signal::ctf_isotropic<Remap::H2H>(isotropic, shape, ctf_iso);
-            noa::signal::ctf_anisotropic<Remap::H2H>(anisotropic, shape, ctf_aniso);
+            noa::signal::ctf_isotropic<"H2H">(isotropic, shape, ctf_iso);
+            noa::signal::ctf_anisotropic<"H2H">(anisotropic, shape, ctf_aniso);
             REQUIRE(test::allclose_abs(isotropic, anisotropic, 1e-4));
         }
     }

@@ -11,7 +11,7 @@
 
 namespace noa::signal::guts {
     /// 4d iwise operator to phase shift the ((D)H)W dimension by size / 2 (floating-point division).
-    template<Remap REMAP, size_t N,
+    template<nf::Layout REMAP, size_t N,
              nt::sinteger Index,
              nt::readable_nd_or_empty<4> Input,
              nt::writable_nd<4> Output>
@@ -44,7 +44,7 @@ namespace noa::signal::guts {
 
         template<nt::same_as<index_type>... I> requires (sizeof...(I) == 3)
         constexpr void operator()(index_type batch, I... indices) const {
-            const auto frequency = noa::fft::index2frequency<IS_SRC_CENTERED, IS_RFFT>(Vec{indices...}, m_shape);
+            const auto frequency = nf::index2frequency<IS_SRC_CENTERED, IS_RFFT>(Vec{indices...}, m_shape);
             const auto frequency_nd = [&]{
                 if constexpr (N == 1)
                     return frequency.filter(2);
@@ -55,7 +55,7 @@ namespace noa::signal::guts {
             }();
             const auto phase_shift = static_cast<input_real_type>(product(1 - 2 * abs(frequency_nd % 2)));
 
-            const auto output_indices = noa::fft::remap_indices<REMAP>(Vec{indices...}, m_shape);
+            const auto output_indices = nf::remap_indices<REMAP>(Vec{indices...}, m_shape);
             auto& output = m_output(output_indices.push_front(batch));
 
             if (m_input)
@@ -71,7 +71,7 @@ namespace noa::signal::guts {
     };
 
     /// 4d iwise operator to apply ((D)H)W phase-shifts.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::sinteger Index,
              nt::batched_parameter Shift,
              nt::readable_nd_optional<4> Input,
@@ -114,15 +114,15 @@ namespace noa::signal::guts {
 
         template<nt::same_as<index_type>... I> requires (sizeof...(I) == 3)
         constexpr void operator()(index_type batch, I... indices) const {
-            const auto frequency = noa::fft::index2frequency<IS_SRC_CENTERED, IS_RFFT>(Vec{indices...}, m_shape);
+            const auto frequency = nf::index2frequency<IS_SRC_CENTERED, IS_RFFT>(Vec{indices...}, m_shape);
             const auto fftfreq = vec_3d_type::from_vec(frequency) * m_norm;
 
             input_value_type phase_shift{1, 0};
             if (dot(fftfreq, fftfreq) <= m_cutoff_fftfreq_sqd)
-                phase_shift = noa::fft::phase_shift<input_value_type>(m_shift[batch], fftfreq);
+                phase_shift = nf::phase_shift<input_value_type>(m_shift[batch], fftfreq);
             // TODO If even, the real nyquist should stay real, so add the conjugate pair?
 
-            const auto output_indices = noa::fft::remap_indices<REMAP>(Vec{indices...}, m_shape);
+            const auto output_indices = nf::remap_indices<REMAP>(Vec{indices...}, m_shape);
             auto& output = m_output(output_indices.push_front(batch));
             if (m_input)
                 output = static_cast<output_value_type>(m_input(batch, indices...) * phase_shift);
@@ -139,7 +139,7 @@ namespace noa::signal::guts {
         coord_type m_cutoff_fftfreq_sqd;
     };
 
-    template<Remap REMAP, typename Input, typename Output, typename Shift>
+    template<nf::Layout REMAP, typename Input, typename Output, typename Shift>
     void check_phase_shift_parameters(
         const Input& input, const Output& output,
         const Shape4<i64>& shape, const Shift& shifts
@@ -167,7 +167,7 @@ namespace noa::signal::guts {
         }
     }
 
-    template<Remap REMAP, typename Input, typename Output>
+    template<nf::Layout REMAP, typename Input, typename Output>
     void no_phase_shift(Input&& input, Output&& output, const Shape4<i64>& shape) {
         if (input.is_empty()) {
             using value_t = nt::value_type_t<Output>;
@@ -177,7 +177,7 @@ namespace noa::signal::guts {
                 if (input.get() != output.get())
                     copy(std::forward<Input>(input), std::forward<Output>(output));
             } else {
-                noa::fft::remap(REMAP, std::forward<Input>(input), std::forward<Output>(output), shape);
+                nf::remap(REMAP, std::forward<Input>(input), std::forward<Output>(output), shape);
             }
         }
     }
@@ -208,7 +208,7 @@ namespace noa::signal {
     /// \note \p input and \p output can be equal as long as the layout is unchanged.
     /// \note \p N refers to the dimensionality of the shift(s), not the input/output.
     ///       For instance, one can apply a 1d shift on a 3d array to translate it along its width.
-    template<Remap REMAP, size_t N,
+    template<nf::Layout REMAP, size_t N,
              nt::writable_varray_decay_of_complex Output,
              nt::readable_varray_decay_of_complex Input = View<nt::const_value_type_t<Output>>,
              nt::varray_decay_or_value_of_almost_any<Vec<f32, N>, Vec<f64, N>> Shift>
@@ -260,7 +260,7 @@ namespace noa::signal {
               std::forward<Shift>(shifts));
     }
 
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::writable_varray_decay_of_complex Output,
              nt::readable_varray_decay_of_complex Input = View<nt::const_value_type_t<Output>>,
              nt::varray_decay_or_value_of_almost_any<Vec1<f32>, Vec1<f64>> Shift>
@@ -275,7 +275,7 @@ namespace noa::signal {
         phase_shift<REMAP, 1>(std::forward<Input>(input), std::forward<Output>(output), shape, shifts, fftfreq_cutoff);
     }
 
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::writable_varray_decay_of_complex Output,
              nt::readable_varray_decay_of_complex Input = View<nt::const_value_type_t<Output>>,
              nt::varray_decay_or_value_of_almost_any<Vec2<f32>, Vec2<f64>> Shift>
@@ -290,7 +290,7 @@ namespace noa::signal {
         phase_shift<REMAP, 2>(std::forward<Input>(input), std::forward<Output>(output), shape, shifts, fftfreq_cutoff);
     }
 
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::writable_varray_decay_of_complex Output,
              nt::readable_varray_decay_of_complex Input = View<nt::const_value_type_t<Output>>,
              nt::varray_decay_or_value_of_almost_any<Vec3<f32>, Vec3<f64>> Shift>

@@ -22,7 +22,7 @@ namespace noa::signal::guts {
         (not nt::has_value_type_v<Filter> or nt::any_of<nt::value_type_t<Filter>, f32, f64>) and
         nt::real_or_complex<std::invoke_result_t<std::decay_t<Filter>&, const Vec<Coord, N>&, i64>>; // nvcc bug - use requires
 
-    template<size_t N, Remap REMAP,
+    template<size_t N, nf::Layout REMAP,
              nt::integer Index,
              nt::real Coord,
              nt::readable_nd_optional<N + 1> Input,
@@ -76,7 +76,7 @@ namespace noa::signal::guts {
                 const auto max_sample_size = shape[i] / 2 + 1;
                 const auto frequency_end =
                     fftfreq_range.stop <= 0 ?
-                    noa::fft::highest_fftfreq<coord_type>(shape[i]) :
+                    nf::highest_fftfreq<coord_type>(shape[i]) :
                     fftfreq_range.stop;
                 m_fftfreq_step[i] = Linspace{
                     .start = fftfreq_range.start,
@@ -90,13 +90,13 @@ namespace noa::signal::guts {
 
         template<nt::same_as<index_type>... I> requires (sizeof...(I) == N)
         constexpr void operator()(index_type batch, I... indices) {
-            const auto frequency = noa::fft::index2frequency<IS_SRC_CENTERED, IS_RFFT>(Vec{indices...}, m_shape);
+            const auto frequency = nf::index2frequency<IS_SRC_CENTERED, IS_RFFT>(Vec{indices...}, m_shape);
             auto fftfreq = coord_nd_type::from_vec(frequency) * m_fftfreq_step;
             if constexpr (N == 1)
                 fftfreq += m_fftfreq_start;
 
             const auto filter = m_filter(fftfreq, batch);
-            const auto output_indices = noa::fft::remap_indices<REMAP>(Vec{indices...}, m_shape);
+            const auto output_indices = nf::remap_indices<REMAP>(Vec{indices...}, m_shape);
             auto& output = m_output(output_indices.push_front(batch));
 
             if (m_input) {
@@ -117,7 +117,7 @@ namespace noa::signal::guts {
         filter_type m_filter;
     };
 
-    template<size_t N, Remap REMAP, typename Input, typename Output>
+    template<size_t N, nf::Layout REMAP, typename Input, typename Output>
     void check_filter_spectrum_parameters(
         const Input& input,
         const Output& output,
@@ -178,7 +178,7 @@ namespace noa::signal {
     /// \param[in] options  Spectrum options.
     ///
     /// \note Like an iwise operator, each computing thread holds a copy of the given filter object.
-    template<Remap REMAP, size_t N = 3,
+    template<nf::Layout REMAP, size_t N = 3,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>,
              guts::filterable_nd<N, Input> Filter>
@@ -210,7 +210,7 @@ namespace noa::signal {
     }
 
     /// Filters 1d spectrum(s).
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>,
              guts::filterable_nd<1, Input> Filter>
@@ -229,7 +229,7 @@ namespace noa::signal {
     }
 
     /// Filters 1|2d spectrum(s).
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>,
              guts::filterable_nd<2, Input> Filter>
@@ -248,7 +248,7 @@ namespace noa::signal {
     }
 
     /// Filters 1|2|3d spectrum(s).
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>,
              guts::filterable_nd<3, Input> Filter>

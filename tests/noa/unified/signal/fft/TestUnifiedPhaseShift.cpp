@@ -9,7 +9,7 @@
 #include "Utils.hpp"
 
 using namespace noa::types;
-using Remap = noa::Remap;
+namespace nf = noa::fft;
 
 TEST_CASE("unified::signal::phase_shift_2d()", "[asset]") {
     const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";
@@ -36,12 +36,12 @@ TEST_CASE("unified::signal::phase_shift_2d()", "[asset]") {
 
             if (path_input.filename().empty()) {
                 const auto output = noa::empty<c32>(shape.rfft(), options);
-                noa::signal::phase_shift_2d<Remap::H2H>({}, output, shape, shift);
+                noa::signal::phase_shift_2d<"h2h">({}, output, shape, shift);
                 REQUIRE(test::allclose_abs(expected, output, 1e-4f));
 
             } else {
                 const auto input = noa::io::read_data<c32>(path_input, {}, options);
-                noa::signal::phase_shift_2d<Remap::H2H>(input, input, shape, shift);
+                noa::signal::phase_shift_2d<"h2h">(input, input, shape, shift);
                 REQUIRE(test::allclose_abs(expected, input, 1e-4f));
             }
         }
@@ -74,21 +74,21 @@ TEMPLATE_TEST_CASE("unified::signal::phase_shift_2d(), remap", "", c32, c64) {
 
         {
             const auto output = noa::like(input);
-            noa::signal::phase_shift_2d<Remap::H2H>(input, output, shape, shifts, cutoff);
-            noa::fft::remap(Remap::H2HC, output, output, shape);
+            noa::signal::phase_shift_2d<"h2h">(input, output, shape, shifts, cutoff);
+            noa::fft::remap("H2HC", output, output, shape);
 
             const auto output_remap = noa::like(input);
-            noa::signal::phase_shift_2d<Remap::H2HC>(input, output_remap, shape, shift.as<real_t>(), cutoff);
+            noa::signal::phase_shift_2d<"h2hc">(input, output_remap, shape, shift.as<real_t>(), cutoff);
 
             REQUIRE(test::allclose_abs(output, output_remap, 1e-4f));
         }
         {
             const auto output = noa::like(input);
-            noa::signal::phase_shift_2d<Remap::H2H>(input, output, shape, shifts, cutoff);
+            noa::signal::phase_shift_2d<"h2h">(input, output, shape, shifts, cutoff);
 
             const auto output_remap = noa::like(input);
-            noa::fft::remap(Remap::H2HC, input, input, shape);
-            noa::signal::phase_shift_2d<Remap::HC2H>(input, output_remap, shape, shift.as<real_t>(), cutoff);
+            noa::fft::remap("H2HC", input, input, shape);
+            noa::signal::phase_shift_2d<"hc2h">(input, output_remap, shape, shift.as<real_t>(), cutoff);
 
             REQUIRE(test::allclose_abs(output, output_remap, 1e-4f));
         }
@@ -151,12 +151,12 @@ TEST_CASE("unified::signal::phase_shift_3d()", "[asset]") {
 
             if (path_input.filename().empty()) {
                 const auto output = noa::empty<c32>(shape.rfft(), options);
-                noa::signal::phase_shift_3d<Remap::H2H>({}, output, shape, shift);
+                noa::signal::phase_shift_3d<"h2h">({}, output, shape, shift);
                 REQUIRE(test::allclose_abs(expected, output, 1e-4f));
 
             } else {
                 const auto input = noa::io::read_data<c32>(path_input, {}, options);
-                noa::signal::phase_shift_3d<Remap::H2H>(input, input, shape, shift);
+                noa::signal::phase_shift_3d<"h2h">(input, input, shape, shift);
                 REQUIRE(test::allclose_abs(expected, input, 1e-4f));
             }
         }
@@ -186,22 +186,22 @@ TEMPLATE_TEST_CASE("unified::signal::phase_shift_3d(), remap", "", c32, c64) {
 
         AND_THEN("h2hc") {
             const auto output = noa::like(input);
-            noa::signal::phase_shift_3d<Remap::H2H>(input, output, shape, shifts, cutoff);
-            noa::fft::remap(Remap::H2HC, output, output, shape);
+            noa::signal::phase_shift_3d<"h2h">(input, output, shape, shifts, cutoff);
+            noa::fft::remap("H2HC", output, output, shape);
 
             const auto output_remap = noa::like(input);
-            noa::signal::phase_shift_3d<Remap::H2HC>(input, output_remap, shape, shift.as<real_t>(), cutoff);
+            noa::signal::phase_shift_3d<"h2hc">(input, output_remap, shape, shift.as<real_t>(), cutoff);
 
             REQUIRE(test::allclose_abs(output, output_remap, 1e-4f));
         }
 
         AND_THEN("hc2h") {
             const auto output = noa::like(input);
-            noa::signal::phase_shift_3d<Remap::H2H>(input, output, shape, shifts, cutoff);
+            noa::signal::phase_shift_3d<"h2h">(input, output, shape, shifts, cutoff);
 
             const auto output_remap = noa::like(input);
-            noa::fft::remap(Remap::H2HC, input, input, shape);
-            noa::signal::phase_shift_3d<Remap::HC2H>(input, output_remap, shape, shift.as<real_t>(), cutoff);
+            noa::fft::remap("H2HC", input, input, shape);
+            noa::signal::phase_shift_3d<"hc2h">(input, output_remap, shape, shift.as<real_t>(), cutoff);
 
             REQUIRE(test::allclose_abs(output, output_remap, 1e-4f));
         }
@@ -254,7 +254,7 @@ TEMPLATE_TEST_CASE("unified::signal::phase_shift{2|3}d(), cpu vs gpu", "", c32, 
     const auto cpu_input = noa::random<TestType>(noa::Uniform{-TestType{2, 2}, TestType{2, 2}}, shape.rfft());
     const auto gpu_input = cpu_input.to(ArrayOption(Device("gpu"), Allocator::PITCHED));
 
-    const Remap remap = GENERATE(Remap::H2H, Remap::H2HC, Remap::HC2HC, Remap::HC2H);
+    const nf::Layout remap = GENERATE(nf::Layout::H2H, nf::Layout::H2HC, nf::Layout::HC2HC, nf::Layout::HC2H);
     const auto cpu_output = noa::like(cpu_input);
     const auto gpu_output = noa::like(gpu_input);
 
@@ -262,24 +262,24 @@ TEMPLATE_TEST_CASE("unified::signal::phase_shift{2|3}d(), cpu vs gpu", "", c32, 
     if (ndim == 2) {
         const auto shift_2d = shift.pop_back();
         switch (remap) {
-            case Remap::H2H: {
-                noa::signal::phase_shift_2d<Remap::H2H>(cpu_input, cpu_output, shape, shift_2d, cutoff);
-                noa::signal::phase_shift_2d<Remap::H2H>(gpu_input, gpu_output, shape, shift_2d, cutoff);
+            case nf::Layout::H2H: {
+                noa::signal::phase_shift_2d<"h2h">(cpu_input, cpu_output, shape, shift_2d, cutoff);
+                noa::signal::phase_shift_2d<"h2h">(gpu_input, gpu_output, shape, shift_2d, cutoff);
                 break;
             }
-            case Remap::H2HC: {
-                noa::signal::phase_shift_2d<Remap::H2HC>(cpu_input, cpu_output, shape, shift_2d, cutoff);
-                noa::signal::phase_shift_2d<Remap::H2HC>(gpu_input, gpu_output, shape, shift_2d, cutoff);
+            case nf::Layout::H2HC: {
+                noa::signal::phase_shift_2d<"h2hc">(cpu_input, cpu_output, shape, shift_2d, cutoff);
+                noa::signal::phase_shift_2d<"h2hc">(gpu_input, gpu_output, shape, shift_2d, cutoff);
                 break;
             }
-            case Remap::HC2H: {
-                noa::signal::phase_shift_2d<Remap::HC2H>(cpu_input, cpu_output, shape, shift_2d, cutoff);
-                noa::signal::phase_shift_2d<Remap::HC2H>(gpu_input, gpu_output, shape, shift_2d, cutoff);
+            case nf::Layout::HC2H: {
+                noa::signal::phase_shift_2d<"hc2h">(cpu_input, cpu_output, shape, shift_2d, cutoff);
+                noa::signal::phase_shift_2d<"hc2h">(gpu_input, gpu_output, shape, shift_2d, cutoff);
                 break;
             }
-            case Remap::HC2HC: {
-                noa::signal::phase_shift_2d<Remap::HC2HC>(cpu_input, cpu_output, shape, shift_2d.as<f32>(), cutoff);
-                noa::signal::phase_shift_2d<Remap::HC2HC>(gpu_input, gpu_output, shape, shift_2d.as<f32>(), cutoff);
+            case nf::Layout::HC2HC: {
+                noa::signal::phase_shift_2d<"hc2hc">(cpu_input, cpu_output, shape, shift_2d.as<f32>(), cutoff);
+                noa::signal::phase_shift_2d<"hc2hc">(gpu_input, gpu_output, shape, shift_2d.as<f32>(), cutoff);
                 break;
             }
             default:
@@ -287,24 +287,24 @@ TEMPLATE_TEST_CASE("unified::signal::phase_shift{2|3}d(), cpu vs gpu", "", c32, 
         }
     } else {
         switch (remap) {
-            case Remap::H2H: {
-                noa::signal::phase_shift_3d<Remap::H2H>(cpu_input, cpu_output, shape, shift, cutoff);
-                noa::signal::phase_shift_3d<Remap::H2H>(gpu_input, gpu_output, shape, shift, cutoff);
+            case nf::Layout::H2H: {
+                noa::signal::phase_shift_3d<"h2h">(cpu_input, cpu_output, shape, shift, cutoff);
+                noa::signal::phase_shift_3d<"h2h">(gpu_input, gpu_output, shape, shift, cutoff);
                 break;
             }
-            case Remap::H2HC: {
-                noa::signal::phase_shift_3d<Remap::H2HC>(cpu_input, cpu_output, shape, shift, cutoff);
-                noa::signal::phase_shift_3d<Remap::H2HC>(gpu_input, gpu_output, shape, shift, cutoff);
+            case nf::Layout::H2HC: {
+                noa::signal::phase_shift_3d<"h2hc">(cpu_input, cpu_output, shape, shift, cutoff);
+                noa::signal::phase_shift_3d<"h2hc">(gpu_input, gpu_output, shape, shift, cutoff);
                 break;
             }
-            case Remap::HC2H: {
-                noa::signal::phase_shift_3d<Remap::HC2H>(cpu_input, cpu_output, shape, shift, cutoff);
-                noa::signal::phase_shift_3d<Remap::HC2H>(gpu_input, gpu_output, shape, shift, cutoff);
+            case nf::Layout::HC2H: {
+                noa::signal::phase_shift_3d<"hc2h">(cpu_input, cpu_output, shape, shift, cutoff);
+                noa::signal::phase_shift_3d<"hc2h">(gpu_input, gpu_output, shape, shift, cutoff);
                 break;
             }
-            case Remap::HC2HC: {
-                noa::signal::phase_shift_3d<Remap::HC2HC>(cpu_input, cpu_output, shape, shift.as<f32>(), cutoff);
-                noa::signal::phase_shift_3d<Remap::HC2HC>(gpu_input, gpu_output, shape, shift.as<f32>(), cutoff);
+            case nf::Layout::HC2HC: {
+                noa::signal::phase_shift_3d<"hc2hc">(cpu_input, cpu_output, shape, shift.as<f32>(), cutoff);
+                noa::signal::phase_shift_3d<"hc2hc">(gpu_input, gpu_output, shape, shift.as<f32>(), cutoff);
                 break;
             }
             default:

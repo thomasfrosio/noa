@@ -88,7 +88,7 @@ namespace noa::cpu::fft {
 
         Plan(complex_type* input, const Strides4<i64>& input_strides,
              complex_type* output, const Strides4<i64>& output_strides,
-             const Shape4<i64>& shape, noa::fft::Sign sign, u32 flags, i64 max_n_threads);
+             const Shape4<i64>& shape, nf::Sign sign, u32 flags, i64 max_n_threads);
 
     public:
         Plan(const Plan&) = delete;

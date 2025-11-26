@@ -53,7 +53,7 @@ namespace noa::guts {
     }
 
     /// Creates an InterpolatorSpectrum.
-    template<size_t N, Remap REMAP, Interp INTERP, typename Coord, bool EXTRACT_GPU_TEXTURE, nt::varray_or_texture T, typename Index>
+    template<size_t N, nf::Layout REMAP, Interp INTERP, typename Coord, bool EXTRACT_GPU_TEXTURE, nt::varray_or_texture T, typename Index>
     constexpr auto to_interpolator_spectrum(const T& input, const Shape<Index, 4>& logical_shape) {
         constexpr Interp INTERP_ = to_interpolator_interp<INTERP, Border::ZERO, EXTRACT_GPU_TEXTURE, T>();
         auto interp_input = to_interpolator_input<N, Index, Coord, INTERP_, Border::ZERO, EXTRACT_GPU_TEXTURE>(input);

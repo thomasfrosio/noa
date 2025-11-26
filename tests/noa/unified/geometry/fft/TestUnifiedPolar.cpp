@@ -240,7 +240,7 @@ TEST_CASE("unified::geometry::rotational_average") {
         }.draw());
 
         // Rotational average using polar transformation.
-        const auto input_rfft = noa::fft::remap(noa::Remap::FC2HC, input, shape);
+        const auto input_rfft = noa::fft::remap("FC2HC", input, shape);
         const auto polar = noa::zeros<f32>(polar_shape, options);
         noa::geometry::spectrum2polar<"HC2FC">(input_rfft, shape, polar);
         const auto polar_reduced = noa::zeros<f32>(rotational_average_shape, options);
@@ -249,7 +249,7 @@ TEST_CASE("unified::geometry::rotational_average") {
         // Rotational average.
         const auto output = noa::empty<f32>(rotational_average_shape, options);
         const auto weight = noa::empty<f32>(rotational_average_shape, options);
-        noa::geometry::rotational_average<noa::Remap::HC2H>(input_rfft, shape, output, weight);
+        noa::geometry::rotational_average<"HC2H">(input_rfft, shape, output, weight);
 
         // fmt::print("{:.3f}\n", fmt::join(polar_reduced.eval().span_1d(), ","));
         // fmt::print("{:.3f}\n", fmt::join(output.eval().span_1d(), ","));

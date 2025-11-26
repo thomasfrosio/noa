@@ -29,7 +29,7 @@ namespace noa::signal::guts {
     /// * A lerp is used to add frequencies in its two neighbour shells, instead of rounding to the nearest shell.
     /// * The frequencies are normalized, so rectangular volumes can be passed.
     /// * The number of shells is fixed by the input shape: min(shape) // 2 + 1
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::real Coord,
              nt::sinteger Index,
              nt::readable_nd<4> Input,
@@ -78,7 +78,7 @@ namespace noa::signal::guts {
         // Initial reduction.
         NOA_HD void operator()(index_type batch, index_type z, index_type y, index_type x) const {
             // Compute the normalized frequency.
-            auto frequency = noa::fft::index2frequency<IS_CENTERED, IS_RFFT>(Vec{z, y, x}, m_shape);
+            auto frequency = nf::index2frequency<IS_CENTERED, IS_RFFT>(Vec{z, y, x}, m_shape);
             auto fftfreq = coord3_type::from_vec(frequency) * m_norm;
 
             // Shortcut for everything past Nyquist.
@@ -133,7 +133,7 @@ namespace noa::signal::guts {
     /// * Cones are described by their orientation (a 3d vector) and the cone aperture.
     ///   The aperture is fixed for every batch and the angular distance from the cone is
     ///   used to compute the cone mask.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::real Coord,
              nt::sinteger Index,
              nt::readable_nd<4> Input,
@@ -192,7 +192,7 @@ namespace noa::signal::guts {
         // Initial reduction.
         NOA_HD void operator()(index_type batch, index_type z, index_type y, index_type x) const {
             // Compute the normalized frequency.
-            auto frequency = noa::fft::index2frequency<IS_CENTERED, IS_RFFT>(Vec{z, y, x}, m_shape);
+            auto frequency = nf::index2frequency<IS_CENTERED, IS_RFFT>(Vec{z, y, x}, m_shape);
             auto fftfreq = coord3_type::from_vec(frequency) * m_norm;
 
             // Shortcut for everything past Nyquist.
@@ -315,7 +315,7 @@ namespace noa::signal::fft {
     /// \param[in] rhs  Right-hand side. Should have the same shape as \p lhs.
     /// \param[out] fsc The output FSC. Should be a (batched) vector of size n_shells(lhs.shape()).
     /// \param shape    Logical shape of \p lhs and \p rhs.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::readable_varray_decay_of_complex Lhs,
              nt::readable_varray_decay_of_complex Rhs,
              nt::writable_varray_decay_of_real Output>
@@ -356,7 +356,7 @@ namespace noa::signal::fft {
     /// \param[in] rhs  Right-hand side. Should have the same shape as \p lhs.
     /// \param shape    Logical shape of \p lhs and \p rhs.
     /// \return A (batched) row vector with the FSC. The number of shells is n_shells(lhs.shape()).
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::readable_varray_decay_of_complex Lhs,
              nt::readable_varray_decay_of_complex Rhs>
     requires (nt::varray_decay_of_almost_same_type<Lhs, Rhs> and not REMAP.has_layout_change())
@@ -382,7 +382,7 @@ namespace noa::signal::fft {
     /// \param shape                Logical shape of \p lhs and \p rhs.
     /// \param[in] cone_directions  DHW normalized direction(s) of the cone(s).
     /// \param cone_aperture        Cone aperture, in radians.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
             nt::readable_varray_decay_of_complex Lhs,
             nt::readable_varray_decay_of_complex Rhs,
             nt::writable_varray_decay_of_real Output,
@@ -440,7 +440,7 @@ namespace noa::signal::fft {
     ///         Each row contains the shell values. There's one row per cone.
     ///         Each column is a shell, with the number of shells set to n_shells(lhs.shape()).
     ///         There's one table per input batch.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::readable_varray_decay_of_complex Lhs,
              nt::readable_varray_decay_of_complex Rhs,
              nt::readable_varray_decay Cones>

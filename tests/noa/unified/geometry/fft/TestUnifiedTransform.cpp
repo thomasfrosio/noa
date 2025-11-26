@@ -17,7 +17,6 @@ using namespace ::noa::types;
 namespace ng = noa::geometry;
 namespace ns = noa::signal;
 using Interp = noa::Interp;
-using Remap = noa::Remap;
 
 // TODO Surprisingly this is quite low precision. The images look good, but the errors can get quite
 //      large. Of course, we are measuring a round of r2c, phase-shift x2 and transformation... Instead,
@@ -64,10 +63,10 @@ TEST_CASE("unified::geometry::transform_spectrum_2d, vs scipy", "[asset]") {
             const auto output_fft = noa::like(input_fft_centered);
 
             noa::fft::r2c(input, input_fft, {.norm=FFT_NORM});
-            ns::phase_shift_2d<Remap::H2HC>(input_fft, input_fft_centered, input.shape(), -center, cutoff);
+            ns::phase_shift_2d<"H2HC">(input_fft, input_fft_centered, input.shape(), -center, cutoff);
 
             // With arrays:
-            ng::transform_spectrum_2d<Remap::HC2H>(
+            ng::transform_spectrum_2d<"HC2H">(
                 input_fft_centered, output_fft, input.shape(),
                 matrix, center + shift, {interp, cutoff});
 
@@ -79,7 +78,7 @@ TEST_CASE("unified::geometry::transform_spectrum_2d, vs scipy", "[asset]") {
             // With textures:
             noa::fill(output, 0); // erase
             const auto input_fft_centered_texture = Texture<c32>(input_fft_centered, device, interp);
-            ng::transform_spectrum_2d<Remap::HC2H>(
+            ng::transform_spectrum_2d<"HC2H">(
                 input_fft_centered_texture, output_fft, input.shape(),
                 matrix, center + shift, {.fftfreq_cutoff = cutoff});
             noa::fft::c2r(output_fft, output, {.norm=FFT_NORM});
@@ -129,10 +128,10 @@ TEST_CASE("unified::geometry::transform_spectrum_3d, vs scipy", "[asset]") {
             const auto output_fft = noa::like(input_fft_centered);
 
             noa::fft::r2c(input, input_fft, {.norm=FFT_NORM});
-            ns::phase_shift_3d<Remap::H2HC>(input_fft, input_fft_centered, input.shape(), -center, cutoff);
+            ns::phase_shift_3d<"H2HC">(input_fft, input_fft_centered, input.shape(), -center, cutoff);
 
             // With arrays:
-            ng::transform_spectrum_3d<Remap::HC2H>(
+            ng::transform_spectrum_3d<"HC2H">(
                 input_fft_centered, output_fft, input.shape(),
                 matrix, center + shift, {interp, cutoff});
             noa::fft::c2r(output_fft, output, {.norm=FFT_NORM});
@@ -143,7 +142,7 @@ TEST_CASE("unified::geometry::transform_spectrum_3d, vs scipy", "[asset]") {
             // With textures:
             noa::fill(output, 0); // erase
             const auto input_fft_centered_texture = Texture<c32>(input_fft_centered, device, interp);
-            ng::transform_spectrum_3d<Remap::HC2H>(
+            ng::transform_spectrum_3d<"HC2H">(
                 input_fft_centered_texture, output_fft, input.shape(),
                 matrix, center + shift, {.fftfreq_cutoff = cutoff});
             noa::fft::c2r(output_fft, output, {.norm=FFT_NORM});
@@ -189,23 +188,23 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_2d(), remap", "", f32,
 
         using complex_t = Complex<TestType>;
         const auto output_rfft = noa::empty<complex_t>(shape.rfft(), options);
-        ng::transform_spectrum_2d<Remap::HC2H>(
+        ng::transform_spectrum_2d<"HC2H">(
             input_rfft, output_rfft, shape, transforms, shifts, {interp, cutoff});
 
         if constexpr (std::is_same_v<TestType, f64>) {
             const auto output_rfft_centered = noa::like(output_rfft);
-            ng::transform_spectrum_2d<Remap::HC2HC>(
+            ng::transform_spectrum_2d<"HC2HC">(
                 input_rfft, output_rfft_centered, shape,
                 transforms, shifts, {interp, cutoff});
-            const auto output_rfft_final = noa::fft::remap(Remap::HC2H, output_rfft_centered, shape);
+            const auto output_rfft_final = noa::fft::remap("HC2H", output_rfft_centered, shape);
             REQUIRE(test::allclose_abs(output_rfft, output_rfft_final, 1e-7));
         } else {
             const auto input_rfft_texture = Texture<c32>(input_rfft, device, interp);
             const auto output_rfft_centered = noa::like(output_rfft);
-            ng::transform_spectrum_2d<Remap::HC2HC>(
+            ng::transform_spectrum_2d<"HC2HC">(
                 input_rfft, output_rfft_centered, shape,
                 transforms, shifts, {interp, cutoff});
-            const auto output_rfft_final = noa::fft::remap(Remap::HC2H, output_rfft_centered, shape);
+            const auto output_rfft_final = noa::fft::remap("HC2H", output_rfft_centered, shape);
             REQUIRE(test::allclose_abs(output_rfft, output_rfft_final, 1e-7));
         }
     }
@@ -252,23 +251,23 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32,
 
         using complex_t = Complex<TestType>;
         const auto output_fft = noa::empty<complex_t>(shape.rfft(), options);
-        ng::transform_spectrum_3d<Remap::HC2H>(
+        ng::transform_spectrum_3d<"HC2H">(
             input_fft, output_fft, shape, transforms, shifts, {interp, cutoff});
 
         if constexpr (std::is_same_v<TestType, f64>) {
             const auto output_fft_centered = noa::like(output_fft);
-            ng::transform_spectrum_3d<Remap::HC2HC>(
+            ng::transform_spectrum_3d<"HC2HC">(
                 input_fft, output_fft_centered, shape,
                 transforms, shifts, {interp, cutoff});
-            const auto output_fft_final = noa::fft::remap(Remap::HC2H, output_fft_centered, shape);
+            const auto output_fft_final = noa::fft::remap("HC2H", output_fft_centered, shape);
             REQUIRE(test::allclose_abs(output_fft, output_fft_final, 1e-7));
         } else {
             const auto input_fft_texture = noa::Texture<c32>(input_fft, device, interp);
             const auto output_fft_centered = noa::like(output_fft);
-            ng::transform_spectrum_3d<Remap::HC2HC>(
+            ng::transform_spectrum_3d<"HC2HC">(
                 input_fft, output_fft_centered, shape,
                 transforms, shifts, {interp, cutoff});
-            const auto output_fft_final = noa::fft::remap(Remap::HC2H, output_fft_centered, shape);
+            const auto output_fft_final = noa::fft::remap("HC2H", output_fft_centered, shape);
             REQUIRE(test::allclose_abs(output_fft, output_fft_final, 1e-7));
         }
     }
@@ -282,11 +281,11 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32,
 //
 //     Array input = noa::linspace(shape, noa::Linspace<f32>{-10, 10, true}, option);
 //     Array output0 = noa::fft::r2c(input);
-//     noa::fft::remap(Remap::H2HC, output0, output0, shape);
+//     noa::fft::remap("H2HC", output0, output0, shape);
 //
 //     Array output1 = noa::like(output0);
 //     const Mat22 rotation = ng::rotate(noa::deg2rad(45.f));
-//     ng::transform_spectrum_2d<Remap::HC2HC>(output0, output1, shape, rotation);
+//     ng::transform_spectrum_2d<"HC2HC">(output0, output1, shape, rotation);
 //     noa::write(noa::real(output1), output_path / "test_output1_real.mrc");
 //     noa::write(noa::imag(output1), output_path / "test_output1_imag.mrc");
 // }
@@ -302,7 +301,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32,
 //
 //     Array output1 = noa::like(output0);
 //     const Mat33 rotation = ng::euler2matrix(noa::deg2rad(Vec{45.f, 0.f, 0.f}), {.axes="zyx", .intrinsic = false});
-//     ng::transform_spectrum_3d<Remap::HC2HC>(output0, output1, shape, rotation, Vec3<f32>{});
+//     ng::transform_spectrum_3d<"HC2HC">(output0, output1, shape, rotation, Vec3<f32>{});
 //     noa::write(noa::real(output1), output_path / "test_output1_real.mrc");
 //     noa::write(noa::imag(output1), output_path / "test_output1_imag.mrc");
 // }
@@ -316,7 +315,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32,
 //                        .radius = Vec{32., 44.},
 //                        .smoothness = 80.,
 //                    });
-//     auto input_rfft = noa::fft::remap(Remap::FC2H, data, shape);
+//     auto input_rfft = noa::fft::remap("FC2H", data, shape);
 //
 //     i64 batch = 5;
 //     auto rotations = noa::empty<Mat22<f32>>(batch);
@@ -326,7 +325,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32,
 //     }
 //
 //     auto output_rfft = noa::empty<f32>(shape.set<0>(batch).rfft());
-//     ng::transform_spectrum_2d<Remap::H2HC>(
+//     ng::transform_spectrum_2d<"H2HC">(
 //         input_rfft, output_rfft, shape,
 //         rotations, {}, {.interp = Interp::CUBIC_FAST, .fftfreq_cutoff = 1});
 //

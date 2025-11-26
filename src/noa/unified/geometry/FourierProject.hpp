@@ -163,7 +163,7 @@ namespace noa::geometry::guts {
         return {window_size, sum};
     }
 
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::sinteger Index,
              nt::batched_parameter Scale,
              nt::batched_parameter Rotate,
@@ -243,7 +243,7 @@ namespace noa::geometry::guts {
         NOA_HD void operator()(index_type batch, index_type y, index_type u) const { // x == u
             // We compute the forward transformation and use normalized frequencies.
             // The oversampling is implicitly handled when scaling back to the target shape.
-            const index_type v = noa::fft::index2frequency<ARE_SLICES_CENTERED>(y, m_slice_size_y);
+            const index_type v = nf::index2frequency<ARE_SLICES_CENTERED>(y, m_slice_size_y);
             const auto fftfreq_2d = coord2_type::from_values(v, u) / m_f_slice_shape;
             coord3_type fftfreq_3d = guts::fourier_slice2grid(
                 fftfreq_2d, m_inv_scaling, m_fwd_rotation, batch, m_ews_diam_inv);
@@ -396,7 +396,7 @@ namespace noa::geometry::guts {
         NOA_NO_UNIQUE_ADDRESS ews_type m_ews_diam_inv{};
     };
 
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::sinteger Index,
              nt::batched_parameter Scale,
              nt::batched_parameter Rotate,
@@ -483,7 +483,7 @@ namespace noa::geometry::guts {
 
         // For every voxel of the grid.
         NOA_HD void operator()(index_type oz, index_type oy, index_type ox) const noexcept {
-            const auto frequency = noa::fft::index2frequency<IS_VOLUME_CENTERED, IS_VOLUME_RFFT>(
+            const auto frequency = nf::index2frequency<IS_VOLUME_CENTERED, IS_VOLUME_RFFT>(
                 Vec{oz, oy, ox}, m_grid_shape);
             const auto fftfreq = coord3_type::from_vec(frequency) / m_f_target_shape;
             if (dot(fftfreq, fftfreq) > m_fftfreq_cutoff_sqd)
@@ -545,7 +545,7 @@ namespace noa::geometry::guts {
         NOA_NO_UNIQUE_ADDRESS ews_type m_ews_diam_inv{};
     };
 
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::sinteger Index,
              nt::batched_parameter Scale,
              nt::batched_parameter Rotate,
@@ -707,7 +707,7 @@ namespace noa::geometry::guts {
         // The indexes give us the fftfreq in the coordinate system of the slice to extract.
         // This function transforms this fftfreq to the coordinate system of the volume.
         NOA_HD coord3_type compute_fftfreq_in_volume_(index_type batch, index_type oy, index_type ox) const {
-            const auto frequency_2d = noa::fft::index2frequency<ARE_SLICES_CENTERED, ARE_SLICES_RFFT>(
+            const auto frequency_2d = nf::index2frequency<ARE_SLICES_CENTERED, ARE_SLICES_RFFT>(
                 Vec{oy, ox}, m_slice_shape);
             const auto fftfreq_2d = coord2_type::from_vec(frequency_2d) / m_f_slice_shape;
             return guts::fourier_slice2grid(
@@ -747,7 +747,7 @@ namespace noa::geometry::guts {
     /// \note The weights are optional and can be real or complex (although in most cases they are real).
     ///       Creating one operator for the values and one for the weights is equivalent, but projecting the values
     ///       and weights in the same operator is often more efficient.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::sinteger Index,
              nt::batched_parameter InputScale,
              nt::batched_parameter InputRotate,
@@ -938,7 +938,7 @@ namespace noa::geometry::guts {
         // The indexes give us the fftfreq in the coordinate system of the slice to extract.
         // This function transforms this fftfreq to the coordinate system of the virtual volume.
         NOA_HD coord3_type compute_fftfreq_in_volume_(index_type batch, index_type y, index_type x) const noexcept {
-            const auto frequency_2d = noa::fft::index2frequency<ARE_OUTPUT_SLICES_CENTERED, ARE_OUTPUT_SLICES_RFFT>(
+            const auto frequency_2d = nf::index2frequency<ARE_OUTPUT_SLICES_CENTERED, ARE_OUTPUT_SLICES_RFFT>(
                 Vec{y, x}, m_output_shape);
             const auto fftfreq_2d = coord2_type::from_vec(frequency_2d) / m_f_output_shape;
             return guts::fourier_slice2grid(
@@ -1230,7 +1230,7 @@ namespace noa::geometry::guts {
         return interp;
     }
 
-    template<size_t N, Remap REMAP, bool IS_GPU, Interp INTERP, typename Coord, typename Index, typename T>
+    template<size_t N, nf::Layout REMAP, bool IS_GPU, Interp INTERP, typename Coord, typename Index, typename T>
     auto fourier_projection_to_interpolator(const T& input, const Shape<Index, 4>& shape) {
         if constexpr (nt::varray_or_texture<T>) {
             return ng::to_interpolator_spectrum<N, REMAP, INTERP, Coord, IS_GPU>(input, shape);
@@ -1271,7 +1271,7 @@ namespace noa::geometry::guts {
         consteval auto operator()() const -> bool { return VALUE;}
     };
 
-    template<Remap REMAP, typename Index,
+    template<nf::Layout REMAP, typename Index,
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
              typename Scale, typename Rotate>
@@ -1330,7 +1330,7 @@ namespace noa::geometry::guts {
         return launch(WrapNoEwaldAndScale<true>{});
     }
 
-    template<Remap REMAP, typename Index, bool IS_GPU,
+    template<nf::Layout REMAP, typename Index, bool IS_GPU,
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
              typename Scale, typename Rotate>
@@ -1407,7 +1407,7 @@ namespace noa::geometry::guts {
         }
     }
 
-    template<Remap REMAP, typename Index, bool IS_GPU,
+    template<nf::Layout REMAP, typename Index, bool IS_GPU,
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
              typename Scale, typename Rotate>
@@ -1500,7 +1500,7 @@ namespace noa::geometry::guts {
         }
     }
 
-    template<Remap REMAP, typename Index, bool IS_GPU = false,
+    template<nf::Layout REMAP, typename Index, bool IS_GPU = false,
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
              typename InputScale, typename InputRotate,
@@ -1664,7 +1664,7 @@ namespace noa::geometry {
     /// \param[in] inv_scaling      2x2 HW inverse scaling matrix to apply to the slices before the rotation.
     /// \param[in] fwd_rotation     3x3 DHW forward rotation-matrices or quaternions to apply to the slices.
     /// \param options              Insertion options.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              typename Input, typename InputWeight = Empty,
              typename Output, typename OutputWeight = Empty,
              typename Scale = Empty, typename Rotate>
@@ -1781,7 +1781,7 @@ namespace noa::geometry {
     /// \param[in] fwd_scaling      2x2 HW forward scaling matrix to apply to the slices before the rotation.
     /// \param[in] inv_rotation     3x3 DHW inverse rotation-matrices or quaternions to apply to the slices.
     /// \param options              Insertion options.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              typename Input, typename InputWeight = Empty,
              typename Output, typename OutputWeight = Empty,
              typename Scale = Empty, typename Rotate>
@@ -1880,7 +1880,7 @@ namespace noa::geometry {
     /// \param[in] inv_scaling      2x2 HW inverse scaling to apply to the slices before the rotation.
     /// \param[in] fwd_rotation     3x3 DHW forward rotation-matrices or quaternions to apply to the slices.
     /// \param options              Extraction options.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              typename Input, typename InputWeight = Empty,
              typename Output, typename OutputWeight = Empty,
              typename Scale = Empty, typename Rotate>
@@ -1998,7 +1998,7 @@ namespace noa::geometry {
     /// \param[in] output_inv_scaling   2x2 HW inverse scaling matrix to apply to the output slices before the rotation.
     /// \param[in] output_fwd_rotation  3x3 DHW forward rotation-matrices or quaternions to apply to the output slices.
     /// \param options                  Operator options.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              typename Input, typename InputWeight = Empty,
              typename Output, typename OutputWeight = Empty,
              typename InputScale = Empty, typename InputRotate,

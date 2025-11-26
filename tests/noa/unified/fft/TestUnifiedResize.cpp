@@ -9,7 +9,7 @@
 #include "Utils.hpp"
 
 using namespace ::noa::types;
-using Remap = noa::Remap;
+namespace nf = noa::fft;
 namespace fs = std::filesystem;
 
 TEST_CASE("unified::fft::resize()", "[asset]") {
@@ -43,7 +43,7 @@ TEST_CASE("unified::fft::resize()", "[asset]") {
 
             const auto input = noa::io::read_data<f32>(filename_input, {}, options);
             const auto output = noa::empty<f32>(shape_expected.rfft(), options);
-            noa::fft::resize<"h2h">(input, shape_input, output, shape_expected);
+            nf::resize<"h2h">(input, shape_input, output, shape_expected);
 
             if constexpr (GENERATE_ASSETS) {
                 noa::io::write(output, filename_expected);
@@ -77,17 +77,17 @@ TEMPLATE_TEST_CASE("unified::fft::resize and remap", "", f32, f64, c32, c64) {
         INFO(device);
 
         Array a0 = noa::random(noa::Uniform<TestType>{-50, 50}, input_shape.rfft(), options);
-        Array a1 = noa::fft::resize<"h2h">(a0, input_shape, output_shape);
-        Array a2 = noa::fft::remap(Remap::H2HC, a1, output_shape);
-        Array a3 = noa::fft::resize<"hc2hc">(a2, output_shape, input_shape);
-        Array a4 = noa::fft::remap(Remap::HC2H, a3, input_shape);
+        Array a1 = nf::resize<"h2h">(a0, input_shape, output_shape);
+        Array a2 = nf::remap(nf::Layout::H2HC, a1, output_shape);
+        Array a3 = nf::resize<"hc2hc">(a2, output_shape, input_shape);
+        Array a4 = nf::remap(nf::Layout::HC2H, a3, input_shape);
         REQUIRE(test::allclose_abs_safe(a0, a4, 5e-6));
 
         a0 = noa::random(noa::Uniform<TestType>{-50, 50}, input_shape, options);
-        a1 = noa::fft::resize<"f2f">(a0, input_shape, output_shape);
-        a2 = noa::fft::remap(Remap::F2FC, a1, output_shape);
-        a3 = noa::fft::resize<"fc2fc">(a2, output_shape, input_shape);
-        a4 = noa::fft::remap(Remap::FC2F, a3, input_shape);
+        a1 = nf::resize<"f2f">(a0, input_shape, output_shape);
+        a2 = nf::remap(nf::Layout::F2FC, a1, output_shape);
+        a3 = nf::resize<"fc2fc">(a2, output_shape, input_shape);
+        a4 = nf::remap(nf::Layout::FC2F, a3, input_shape);
         REQUIRE(test::allclose_abs_safe(a0, a4, 5e-6));
     }
 }

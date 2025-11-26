@@ -17,4 +17,5 @@ namespace noa {
     namespace ni = ::noa::indexing;
     namespace ns = ::noa::string;
     namespace ng = ::noa::guts;
+    namespace nf = ::noa::fft;
 }

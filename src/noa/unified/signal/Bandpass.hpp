@@ -162,7 +162,7 @@ namespace noa::signal {
     /// \param shape        BDHW logical shape.
     /// \param pass         Lowpass filter parameters.
     /// \param options      Spectrum options.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>>
     requires (nt::varray_decay_with_spectrum_types<Input, Output> and (REMAP.is_hx2hx() or REMAP.is_fx2fx()))
@@ -193,7 +193,7 @@ namespace noa::signal {
     /// \param shape        BDHW logical shape.
     /// \param pass         Highpass filter parameters.
     /// \param options      Spectrum options.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>>
     requires (nt::varray_decay_with_spectrum_types<Input, Output> and (REMAP.is_hx2hx() or REMAP.is_fx2fx()))
@@ -224,7 +224,7 @@ namespace noa::signal {
     /// \param shape        BDHW logical shape.
     /// \param pass         Bandpass filter parameters.
     /// \param options      Spectrum options.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>>
     requires (nt::varray_decay_with_spectrum_types<Input, Output> and (REMAP.is_hx2hx() or REMAP.is_fx2fx()))

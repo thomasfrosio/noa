@@ -14,7 +14,6 @@
 
 using namespace ::noa::types;
 namespace ng = noa::geometry;
-using Remap = noa::Remap;
 using Interp = noa::Interp;
 
 TEST_CASE("unified::geometry::rasterize_central_slices_3d", "[asset]") {
@@ -98,25 +97,25 @@ TEMPLATE_TEST_CASE("unified::geometry::rasterize_central_slices_3d, remap", "", 
         const Array grid_fft2 = grid_fft0.copy();
 
         // With centered slices.
-        ng::rasterize_central_slices_3d<Remap::HC2HC>(
+        ng::rasterize_central_slices_3d<"hc2hc">(
             slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
-        ng::rasterize_central_slices_3d<Remap::HC2H>(
+        ng::rasterize_central_slices_3d<"HC2H">(
             slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
-        noa::fft::remap(Remap::H2HC, grid_fft1, grid_fft2, grid_shape);
+        noa::fft::remap("h2hc", grid_fft1, grid_fft2, grid_shape);
         REQUIRE(test::allclose_abs_safe(grid_fft0, grid_fft2, 5e-5));
 
         // With non-centered slices.
         noa::fill(grid_fft0, TestType{});
         noa::fill(grid_fft1, TestType{});
-        ng::rasterize_central_slices_3d<Remap::H2HC>(
+        ng::rasterize_central_slices_3d<"h2hc">(
             slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
-        ng::rasterize_central_slices_3d<Remap::H2H>(
+        ng::rasterize_central_slices_3d<"h2h">(
             slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
-        noa::fft::remap(Remap::H2HC, grid_fft1, grid_fft2, grid_shape);
+        noa::fft::remap("h2hc", grid_fft1, grid_fft2, grid_shape);
         REQUIRE(test::allclose_abs_safe(grid_fft0, grid_fft2, 5e-5));
     }
 }
@@ -146,7 +145,7 @@ TEMPLATE_TEST_CASE("unified::geometry::rasterize_central_slices_3d, weights", ""
         const Array grid_fft0 = noa::zeros<TestType>(grid_shape.rfft(), options);
         const Array grid_fft1 = grid_fft0.copy();
 
-        ng::rasterize_central_slices_3d<Remap::HC2HC>(
+        ng::rasterize_central_slices_3d<"hc2hc">(
             slice_fft, slice_fft.copy(), slice_shape, grid_fft0, grid_fft1, grid_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
         REQUIRE(test::allclose_abs_safe(grid_fft0, grid_fft1, 5e-5));

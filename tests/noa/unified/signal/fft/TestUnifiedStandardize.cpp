@@ -10,7 +10,6 @@
 
 using namespace ::noa::types;
 using Norm = noa::fft::Norm;
-using Remap = noa::Remap;
 
 TEST_CASE("unified::signal::standardize_ifft(), rfft") {
     constexpr auto shape = Shape4<i64>{1, 1, 128, 128};
@@ -30,11 +29,11 @@ TEST_CASE("unified::signal::standardize_ifft(), rfft") {
         const auto input_fft = noa::fft::r2c(input, {.norm=norm});
 
         const auto input_fft_centered = noa::like(input_fft);
-        noa::fft::remap(Remap::H2HC, input_fft, input_fft_centered, shape);
+        noa::fft::remap("H2HC", input_fft, input_fft_centered, shape);
 
-        noa::signal::standardize_ifft<Remap::HC2HC>(input_fft_centered, input_fft_centered, shape, norm);
+        noa::signal::standardize_ifft<"HC2HC">(input_fft_centered, input_fft_centered, shape, norm);
 
-        noa::fft::remap(Remap::HC2H, input_fft_centered, input_fft, shape);
+        noa::fft::remap("HC2H", input_fft_centered, input_fft, shape);
         noa::fft::c2r(input_fft, input, {.norm=norm});
         if (norm == Norm::NONE)
             noa::ewise(noa::wrap(input, 1 / static_cast<f32>(shape.n_elements())), input, noa::Multiply{});
@@ -64,11 +63,11 @@ TEST_CASE("unified::signal::standardize_ifft(), fft") {
         const auto input_fft = noa::fft::r2c(input, {.norm=norm});
 
         const auto input_full_centered = noa::empty<c32>(shape, options);
-        noa::fft::remap(Remap::H2FC, input_fft, input_full_centered, shape);
+        noa::fft::remap("H2FC", input_fft, input_full_centered, shape);
 
-        noa::signal::standardize_ifft<Remap::FC2FC>(input_full_centered, input_full_centered, shape, norm);
+        noa::signal::standardize_ifft<"FC2FC">(input_full_centered, input_full_centered, shape, norm);
 
-        noa::fft::remap(Remap::FC2H, input_full_centered, input_fft, shape);
+        noa::fft::remap("FC2H", input_full_centered, input_fft, shape);
         noa::fft::c2r(input_fft, input, {.norm=norm});
         if (norm == Norm::NONE)
             noa::ewise(noa::wrap(input, 1 / static_cast<f32>(shape.n_elements())), input, noa::Multiply{});
@@ -97,7 +96,7 @@ TEMPLATE_TEST_CASE("unified::signal::standardize_ifft()", "", f32, f64) {
 
         Array image = noa::random<TestType>(noa::Normal{2.5, 5.2}, shape, options);
         Array image_fft = noa::fft::r2c(image, {.norm=norm});
-        noa::signal::standardize_ifft<Remap::H2H>(image_fft, image_fft, shape, norm);
+        noa::signal::standardize_ifft<"H2H">(image_fft, image_fft, shape, norm);
         noa::fft::c2r(image_fft, image, {.norm=norm});
 
         if (norm == Norm::NONE) {

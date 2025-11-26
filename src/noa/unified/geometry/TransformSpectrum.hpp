@@ -19,7 +19,7 @@ namespace noa::geometry::guts {
     /// \tparam BatchedPostShift    BatchedParameter of Empty or Vec<T, N>.
     /// \tparam Input               N-d spectrum interpolator.
     /// \tparam Output              (N + 1)-d writable.
-    template<size_t N, Remap REMAP,
+    template<size_t N, nf::Layout REMAP,
              nt::integer Index,
              nt::batched_parameter BatchedRotate,
              nt::batched_parameter BatchedPostShift,
@@ -76,7 +76,7 @@ namespace noa::geometry::guts {
         template<nt::same_as<index_type>... I> requires (sizeof...(I) == N)
         NOA_HD constexpr void operator()(index_type batch, I... indices) const {
             // Given the output indices, compute the corresponding fftfreq.
-            const auto frequency = noa::fft::index2frequency<IS_DST_CENTERED, IS_DST_RFFT>(
+            const auto frequency = nf::index2frequency<IS_DST_CENTERED, IS_DST_RFFT>(
                 indices_type{indices...}, m_shape);
             const auto fftfreq = vec_type::from_vec(frequency) / m_f_shape;
 
@@ -92,7 +92,7 @@ namespace noa::geometry::guts {
             // Phase-shift the interpolated value.
             // It is a post-shift, so we need to use the original fftfreq (the ones in the output reference frame)
             if constexpr (nt::complex<input_value_type> and not nt::empty<postshift_type>)
-                value *= noa::fft::phase_shift<input_value_type>(m_post_forward_shift[batch], fftfreq);
+                value *= nf::phase_shift<input_value_type>(m_post_forward_shift[batch], fftfreq);
 
             m_output(batch, indices...) = cast_or_abs_squared<output_value_type>(value);
         }
@@ -177,7 +177,7 @@ namespace noa::geometry::guts {
         consteval auto operator()() const -> bool { return VALUE;}
     };
 
-    template<Remap REMAP, size_t N, typename Index, bool IS_GPU = false,
+    template<nf::Layout REMAP, size_t N, typename Index, bool IS_GPU = false,
              typename Input, typename Output, typename Matrix, typename Shift>
     void launch_transform_spectrum_nd(
         Input&& input,
@@ -307,7 +307,7 @@ namespace noa::geometry {
     /// \param options                  Transformation options.
     ///
     /// \note For more details, see InterpolateSpectrum.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::varray_or_texture_decay Input,
              nt::writable_varray_decay Output,
              typename Rotation,
@@ -375,7 +375,7 @@ namespace noa::geometry {
     /// \param options                  Transformation options.
     ///
     /// \note For more details, see InterpolateSpectrum.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::varray_or_texture_decay Input,
              nt::writable_varray_decay Output,
              typename Rotation,

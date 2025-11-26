@@ -98,7 +98,7 @@ namespace noa::cuda::fft {
         /// The shape, strides, alignment and type (that includes in-place or not) should match the plan.
         void execute(T* input, Complex<T>* output, Stream& stream) &&;
         void execute(Complex<T>* input, T* output, Stream& stream) &&;
-        void execute(Complex<T>* input, Complex<T>* output, noa::fft::Sign sign, Stream& stream) &&;
+        void execute(Complex<T>* input, Complex<T>* output, nf::Sign sign, Stream& stream) &&;
 
     private:
         std::shared_ptr<void> m_plan{};

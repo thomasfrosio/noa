@@ -14,7 +14,6 @@
 
 using namespace ::noa::types;
 namespace ng = noa::geometry;
-using Remap = noa::Remap;
 using Interp = noa::Interp;
 
 TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
@@ -57,7 +56,7 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
             // Backward project.
             const Array slice_fft = noa::linspace(slice_shape.rfft(), noa::Linspace{1.f, 10.f, true}, options);
             const Array volume_fft = noa::zeros<f32>(volume_shape.rfft(), options);
-            ng::insert_central_slices_3d<Remap::HC2HC>(
+            ng::insert_central_slices_3d<"hc2hc">(
                 slice_fft.eval(), {}, slice_shape, volume_fft, {}, volume_shape,
                 fwd_scaling_matrix, inv_rotation_matrices, {
                     .interp = Interp::LINEAR,
@@ -102,7 +101,7 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
 //         const Array grid_fft0 = noa::zeros<TestType>(grid_shape.rfft(), options);
 //         const Array grid_fft1 = grid_fft0.copy();
 //
-//         ng::insert_central_slices_3d<Remap::HC2HC>(
+//         ng::insert_central_slices_3d<"hc2hc">(
 //             slice_fft, slice_fft.copy(), slice_shape,
 //             grid_fft0, grid_fft1, grid_shape,
 //             {}, fwd_rotation_matrices, {
@@ -142,10 +141,10 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
 //
 //         { // Texture
 //             const auto texture_slice_fft = Texture<TestType>{slice_fft, device, Interp::LINEAR};
-//             ng::insert_central_slices_3d<Remap::HC2H>(
+//             ng::insert_central_slices_3d<"hc2h">(
 //                 slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
 //                 {}, inv_rotation_matrices, {.windowed_sinc=windowed_sinc, .fftfreq_cutoff=0.45});
-//             ng::insert_central_slices_3d<Remap::HC2H>(
+//             ng::insert_central_slices_3d<"hc2h">(
 //                 texture_slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
 //                 {}, inv_rotation_matrices, {.windowed_sinc=windowed_sinc, .fftfreq_cutoff=0.45});
 //
@@ -155,13 +154,13 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
 //         { // Remap
 //             noa::fill(grid_fft0, {});
 //             noa::fill(grid_fft1, {});
-//             ng::insert_central_slices_3d<Remap::HC2HC>(
+//             ng::insert_central_slices_3d<"hc2hc">(
 //                 slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
 //                 {}, inv_rotation_matrices, {.windowed_sinc = windowed_sinc, .fftfreq_cutoff = 0.5});
-//             ng::insert_central_slices_3d<Remap::HC2H>(
+//             ng::insert_central_slices_3d<"hc2h">(
 //                 slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
 //                 {}, inv_rotation_matrices, {.windowed_sinc = windowed_sinc, .fftfreq_cutoff = 0.5});
-//             noa::fft::remap(Remap::H2HC, grid_fft1, grid_fft2, grid_shape);
+//             noa::fft::remap("h2hc", grid_fft1, grid_fft2, grid_shape);
 //             REQUIRE(test::allclose_abs_safe(grid_fft0, grid_fft2, 5e-5));
 //         }
 //     }

@@ -425,7 +425,7 @@ namespace noa {
     /// \param input        Readable type, usually an Accessor(Value) or Span, mapping the input spectrum.
     /// \param frequency    Centered ((D)H)W frequency, in samples (not normalized).
     /// \param shape        ((D)H)W (logical) shape of the input spectrum.
-    template<Remap REMAP, Interp INTERP, size_t N,
+    template<nf::Layout REMAP, Interp INTERP, size_t N,
              nt::readable_nd<N> T,
              nt::any_of<f32, f64> Coord,
              nt::sinteger Int,
@@ -457,12 +457,12 @@ namespace noa {
 
         auto update_at = [
             &input, &shape,
-            bounds = noa::fft::frequency_bounds<IS_RFFT>(shape)
+            bounds = nf::frequency_bounds<IS_RFFT>(shape)
         ] (auto freq, const auto& weight, auto& output) {
             constexpr bool FLIP_PER_INDEX = IS_RFFT and SIZE > 2;
             const real_t conj = guts::flip_frequency<FLIP_PER_INDEX, real_t>(freq);
-            if (noa::fft::is_inbound<IS_RFFT, true>(freq, bounds)) {
-                auto value = input(noa::fft::frequency2index<IS_CENTERED, IS_RFFT>(freq, shape));
+            if (nf::is_inbound<IS_RFFT, true>(freq, bounds)) {
+                auto value = input(nf::frequency2index<IS_CENTERED, IS_RFFT>(freq, shape));
                 if constexpr (FLIP_PER_INDEX and nt::complex<value_t>)
                     value.imag *= conj;
                 output += value * weight;
@@ -526,7 +526,7 @@ namespace noa {
     /// \param frequency    Centered ((D)H)W frequency, in samples (i.e. not normalized).
     /// \param input        Textureable type mapping the input spectrum, using Border::ZERO addressing.
     /// \param shape        ((D)H)W (logical) shape of the input spectrum.
-    template<Remap REMAP, Interp INTERP, size_t N,
+    template<nf::Layout REMAP, Interp INTERP, size_t N,
              nt::textureable_nd<Border::ZERO, N> T,
              nt::any_of<f32, f64> Coord,
              nt::sinteger Int,
@@ -554,18 +554,18 @@ namespace noa {
         value_t value{};
         if constexpr (INTERP == T::INTERP) {
             // The texture can handle both the interpolation and the addressing.
-            value = input.fetch(noa::fft::frequency2index<IS_CENTERED, IS_RFFT>(frequency, shape));
+            value = input.fetch(nf::frequency2index<IS_CENTERED, IS_RFFT>(frequency, shape));
 
         } else if constexpr (INTERP.is_almost_any(Interp::NEAREST)) {
             // Special case for nearest-neighbor interpolation in accurate mode. Here the "interpolation"
             // is done in software and the texture, regardless of its mode, fetches at the closest integer location.
-            value = input.fetch(noa::fft::frequency2index<IS_CENTERED, IS_RFFT>(round(frequency), shape));
+            value = input.fetch(nf::frequency2index<IS_CENTERED, IS_RFFT>(round(frequency), shape));
 
         } else {
             auto value_at = [&shape, &input](auto freq) {
                 constexpr bool FLIP_PER_INDEX = IS_RFFT and SIZE > 2;
                 const real_t conj = guts::flip_frequency<FLIP_PER_INDEX, real_t>(freq);
-                freq = noa::fft::frequency2index<IS_CENTERED, IS_RFFT>(freq, shape);
+                freq = nf::frequency2index<IS_CENTERED, IS_RFFT>(freq, shape);
                 value_t fetched = input.fetch(static_cast<coordn_t>(freq));
                 if constexpr (FLIP_PER_INDEX and nt::is_complex_v<value_t>)
                     fetched.imag = conj;
@@ -801,7 +801,7 @@ namespace noa {
     ///          interpolated values towards zero. This only affects Interp::LINEAR(_FAST), and while this can be fixed
     ///          easily (see FLIP_PER_INDEX=true in interpolate_spectrum), we are leaving it like this for now as this
     ///          error is realistically negligible and the fix has a slight performance cost...
-    template<size_t N, Remap REMAP, Interp INTERP_, nt::interpable_nd<Border::ZERO, N> Input>
+    template<size_t N, nf::Layout REMAP, Interp INTERP_, nt::interpable_nd<Border::ZERO, N> Input>
     class InterpolatorSpectrum {
     public:
         using input_type = Input;
@@ -884,10 +884,10 @@ namespace noa::traits {
     template<size_t N, Interp INTERP, Border BORDER, typename Input, size_t S>
     struct proclaim_is_interpolator_nd<Interpolator<N, INTERP, BORDER, Input>, S> : std::bool_constant<N == S> {};
 
-    template<size_t N, Remap REMAP, Interp INTERP, typename Input>
+    template<size_t N, nf::Layout REMAP, Interp INTERP, typename Input>
     struct proclaim_is_interpolator_spectrum<InterpolatorSpectrum<N, REMAP, INTERP, Input>> : std::true_type {};
 
-    template<size_t N, Remap REMAP, Interp INTERP, typename Input, size_t S>
+    template<size_t N, nf::Layout REMAP, Interp INTERP, typename Input, size_t S>
     struct proclaim_is_interpolator_spectrum_nd<InterpolatorSpectrum<N, REMAP, INTERP, Input>, S> : std::bool_constant<N == S> {};
 }
 

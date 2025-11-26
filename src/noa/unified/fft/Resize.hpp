@@ -104,7 +104,7 @@ namespace noa::fft::guts {
 
 namespace noa::fft {
     /// Crops or zero-pads FFT(s).
-    /// \tparam REMAP       FFT Remap. Should be H2H, HC2HC, F2F or FC2FC.
+    /// \tparam REMAP       FFT layouts. Should be H2H, HC2HC, F2F or FC2FC.
     /// \param[in] input    FFT to resize.
     /// \param input_shape  BDHW logical shape of \p input.
     /// \param[out] output  Resized FFT.
@@ -114,7 +114,7 @@ namespace noa::fft {
     /// \note If \p REMAP is H2H or F2C, this function can either crop or pad, but cannot do both.
     /// \note This function can also perform a cast or compute the power spectrum of the input, depending on the
     ///       input and output types.
-    template<Remap REMAP, nt::readable_varray_decay Input, nt::writable_varray_decay Output>
+    template<Layout REMAP, nt::readable_varray_decay Input, nt::writable_varray_decay Output>
     requires (nt::varray_decay_with_compatible_or_spectrum_types<Input, Output> and not REMAP.has_layout_change())
     void resize(
         Input&& input, Shape4<i64> input_shape,
@@ -149,27 +149,27 @@ namespace noa::fft {
               "The input and output arrays must be on the same device, but got input:device={}, output:device={}",
               input.device(), device);
 
-        if constexpr (REMAP == Remap::HC2HC) {
+        if constexpr (REMAP == Layout::HC2HC) {
             // For centered layouts, use the normal resize instead.
             auto [border_left, border_right] = shape2borders(input_shape.rfft(), output_shape.rfft());
             border_right[3] += std::exchange(border_left[3], 0); // for width, padding goes to the right side only
             return noa::resize(std::forward<Input>(input), std::forward<Output>(output), border_left, border_right);
 
-        } else if constexpr (REMAP == Remap::FC2FC) {
+        } else if constexpr (REMAP == Layout::FC2FC) {
             // For centered layouts, use the normal resize instead.
             return noa::resize(std::forward<Input>(input), std::forward<Output>(output));
 
         } else {
             FourierResizeMode mode{};
             if (vall(GreaterEqual{}, input_shape, output_shape)) {
-                if constexpr (REMAP == Remap::H2H)
+                if constexpr (REMAP == Layout::H2H)
                     mode = FourierResizeMode::CROP_H2H;
-                else if constexpr (REMAP == Remap::F2F)
+                else if constexpr (REMAP == Layout::F2F)
                     mode = FourierResizeMode::CROP_F2F;
             } else if (vall(LessEqual{}, input_shape, output_shape)) {
-                if constexpr (REMAP == Remap::H2H)
+                if constexpr (REMAP == Layout::H2H)
                     mode = FourierResizeMode::PAD_H2H;
-                else if constexpr (REMAP == Remap::F2F)
+                else if constexpr (REMAP == Layout::F2F)
                     mode = FourierResizeMode::PAD_F2F;
 
                 // The way the padding is currently implemented requires the padded elements
@@ -181,7 +181,7 @@ namespace noa::fft {
 
             auto input_strides = input.strides();
             auto output_strides = output.strides();
-            if (REMAP == Remap::F2F) { // TODO h2h depth-height can be reordered
+            if (REMAP == Layout::F2F) { // TODO h2h depth-height can be reordered
                 const auto order_3d = ni::order(output_strides.pop_front(), output_shape.pop_front());
                 if (vany(NotEqual{}, order_3d, Vec{0, 1, 2})) {
                     const auto order = (order_3d + 1).push_front(0);
@@ -231,13 +231,13 @@ namespace noa::fft {
     }
 
     /// Returns a cropped or zero-padded FFT.
-    /// \tparam REMAP       FFT Remap. Should be H2H, HC2HC, F2F or FC2FC.
+    /// \tparam REMAP       FFT layouts. Should be H2H, HC2HC, F2F or FC2FC.
     /// \param[in] input    FFT to resize.
     /// \param input_shape  BDHW logical shape of \p input.
     /// \param output_shape BDHW logical shape of the output.
     /// \note The batch dimension cannot be resized.
     /// \note If \p REMAP is H2H or F2C, this function can either crop or pad, but cannot do both.
-    template<Remap REMAP, nt::readable_varray_decay_of_numeric Input>
+    template<Layout REMAP, nt::readable_varray_decay_of_numeric Input>
     requires (not REMAP.has_layout_change())
     [[nodiscard]] auto resize(
         Input&& input,

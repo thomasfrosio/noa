@@ -243,7 +243,7 @@ namespace noa::signal::guts {
             }
 
             if constexpr (not IS_CENTERED)
-                indices = noa::fft::ifftshift(indices, m_shape);
+                indices = nf::ifftshift(indices, m_shape);
             const auto batched_indices = indices.push_front(batch);
 
             const auto value = m_input(batched_indices) * static_cast<value_type>(mask);
@@ -292,7 +292,7 @@ namespace noa::signal::guts {
                 // If non-centered, the peak window can be split across two separate quadrants.
                 // As such, retrieve the frequency and if it is a valid frequency, convert back
                 // to an index and compute the memory offset.
-                const i64 peak_frequency = noa::fft::index2frequency<IS_CENTERED>(peak_index, input_size);
+                const i64 peak_frequency = nf::index2frequency<IS_CENTERED>(peak_index, input_size);
                 for (i64 i = -peak_radius, c{}; i <= peak_radius; ++i, ++c) {
                     if (i == 0) {
                         peak_window[c] = original_value;
@@ -300,13 +300,13 @@ namespace noa::signal::guts {
                     }
                     const i64 frequency = peak_frequency + i;
                     if (-input_size / 2 <= frequency and frequency <= (input_size - 1) / 2) {
-                        const i64 index = noa::fft::frequency2index<IS_CENTERED>(frequency, input_size);
+                        const i64 index = nf::frequency2index<IS_CENTERED>(frequency, input_size);
                         peak_window[c] = input_line[index * input_stride];
                     }
                 }
 
                 if constexpr (not IS_CENTERED)
-                    peak_index = noa::fft::fftshift(peak_index, input_size);
+                    peak_index = nf::fftshift(peak_index, input_size);
 
                 // Subpixel registration.
                 if (peak_radius == 1) {
@@ -523,7 +523,7 @@ namespace noa::signal {
 
         /// Normalization mode to use for the C2R transform producing the final output.
         /// This should match the mode that was used to compute the input transforms.
-        noa::fft::Norm ifft_norm = noa::fft::NORM_DEFAULT;
+        nf::Norm ifft_norm = nf::NORM_DEFAULT;
 
         /// Whether the C2R transform should be cached.
         bool ifft_cache_plan{true};
@@ -552,13 +552,13 @@ namespace noa::signal {
     ///       the ZNCC needs zero-centered and L2-normalized real-space inputs). Importantly, the FFT normalization
     ///       should be noa::fft::Norm::(ORTHO|BACKWARD). noa::fft::Norm::FORWARD outputs scores divided by a scaling
     ///       factor of 1/n_elements.
-    template<Remap REMAP, typename Lhs, typename Rhs, typename Output,
+    template<nf::Layout REMAP, typename Lhs, typename Rhs, typename Output,
              typename Buffer = View<nt::mutable_value_type_t<Rhs>>>
     requires(nt::varray_decay_of_complex<Lhs, Rhs, Buffer> and
              nt::varray_decay_of_almost_same_type<Lhs, Rhs, Buffer> and
              nt::writable_varray_decay<Rhs, Buffer> and
              nt::writable_varray_decay_of_any<Output, nt::value_type_twice_t<Rhs>> and
-             (REMAP == Remap::H2F or REMAP == Remap::H2FC))
+             (REMAP == nf::Layout::H2F or REMAP == nf::Layout::H2FC))
     void cross_correlation_map(
         Lhs&& lhs, Rhs&& rhs, Output&& output,
         const CrossCorrelationMapOptions& options = {},
@@ -614,22 +614,22 @@ namespace noa::signal {
                 break;
         }
 
-        if constexpr (REMAP == Remap::H2FC) {
+        if constexpr (REMAP == nf::Layout::H2FC) {
             using real_t = nt::value_type_t<complex_t>;
             const Shape4<i64> shape = output.shape();
             if (shape.ndim() == 3) {
-                phase_shift_3d<Remap::H2H>(tmp, tmp, shape, (shape.pop_front<1>() / 2).vec.as<real_t>());
+                phase_shift_3d<"h2h">(tmp, tmp, shape, (shape.pop_front<1>() / 2).vec.as<real_t>());
             } else {
-                phase_shift_2d<Remap::H2H>(tmp, tmp, shape, (shape.pop_front<2>() / 2).vec.as<real_t>());
+                phase_shift_2d<"h2h">(tmp, tmp, shape, (shape.pop_front<2>() / 2).vec.as<real_t>());
             }
         }
 
         if (buffer.is_empty())
-            noa::fft::c2r(std::forward<Rhs>(rhs), std::forward<Output>(output),
-                          {.norm = options.ifft_norm, .cache_plan = options.ifft_cache_plan});
+            nf::c2r(std::forward<Rhs>(rhs), std::forward<Output>(output),
+                    {.norm = options.ifft_norm, .cache_plan = options.ifft_cache_plan});
         else {
-            noa::fft::c2r(std::forward<Buffer>(buffer), std::forward<Output>(output),
-                          {.norm = options.ifft_norm, .cache_plan = options.ifft_cache_plan});
+            nf::c2r(std::forward<Buffer>(buffer), std::forward<Output>(output),
+                    {.norm = options.ifft_norm, .cache_plan = options.ifft_cache_plan});
         }
     }
 
@@ -683,11 +683,11 @@ namespace noa::signal {
     /// \param[out] peak_coordinates        Output ((D)H)W coordinate of the highest peak. One per batch or empty.
     /// \param[out] peak_values             Output value of the highest peak. One per batch or empty.
     /// \param options                      Picking and registration options.
-    template<Remap REMAP, size_t N,
+    template<nf::Layout REMAP, size_t N,
              nt::readable_varray_decay_of_almost_any<f32, f64> Input,
              nt::writable_varray_decay_of_any<Vec<f32, N>, Vec<f64, N>> PeakCoord = View<Vec<f64, N>>,
              nt::writable_varray_decay_of_almost_same_type<Input> PeakValue = View<nt::mutable_value_type_t<Input>>>
-    requires (1 <= N and N <= 3 and (REMAP == Remap::F2F or REMAP == Remap::FC2FC))
+    requires (1 <= N and N <= 3 and (REMAP == nf::Layout::F2F or REMAP == nf::Layout::FC2FC))
     void cross_correlation_peak(
         Input&& cross_correlation_map,
         PeakCoord&& peak_coordinates,
@@ -756,7 +756,7 @@ namespace noa::signal {
         );
     }
 
-    template<Remap REMAP, size_t N, nt::readable_varray_decay_of_almost_any<f32, f64> Input>
+    template<nf::Layout REMAP, size_t N, nt::readable_varray_decay_of_almost_any<f32, f64> Input>
     auto cross_correlation_peak(
         const Input& cross_correlation_map,
         const CrossCorrelationPeakOptions<N>& options = {}
@@ -781,7 +781,7 @@ namespace noa::signal {
         }
     }
 
-    template<Remap REMAP, typename Input,
+    template<nf::Layout REMAP, typename Input,
              typename PeakCoord = View<Vec1<f32>>,
              typename PeakValue = View<nt::mutable_value_type_t<Input>>>
     void cross_correlation_peak_1d(
@@ -792,7 +792,7 @@ namespace noa::signal {
     ) {
         cross_correlation_peak<REMAP>(xmap, peak_coordinates, peak_values, options);
     }
-    template<Remap REMAP, typename Input,
+    template<nf::Layout REMAP, typename Input,
              nt::varray_decay PeakCoord = View<Vec2<f32>>,
              nt::varray_decay PeakValue = View<nt::mutable_value_type_t<Input>>>
     void cross_correlation_peak_2d(
@@ -803,7 +803,7 @@ namespace noa::signal {
     ) {
         cross_correlation_peak<REMAP>(xmap, peak_coordinates, peak_values, options);
     }
-    template<Remap REMAP, typename Input,
+    template<nf::Layout REMAP, typename Input,
              typename PeakCoord = View<Vec3<f32>>,
              typename PeakValue = View<nt::mutable_value_type_t<Input>>>
     void cross_correlation_peak_3d(
@@ -815,15 +815,15 @@ namespace noa::signal {
         cross_correlation_peak<REMAP>(xmap, peak_coordinates, peak_values, options);
     }
 
-    template<Remap REMAP, typename Input>
+    template<nf::Layout REMAP, typename Input>
     auto cross_correlation_peak_1d(const Input& xmap, const CrossCorrelationPeakOptions<1>& options = {}) {
         return cross_correlation_peak<REMAP>(xmap, options);
     }
-    template<Remap REMAP, typename Input>
+    template<nf::Layout REMAP, typename Input>
     auto cross_correlation_peak_2d(const Input& xmap, const CrossCorrelationPeakOptions<2>& options = {}) {
         return cross_correlation_peak<REMAP>(xmap, options);
     }
-    template<Remap REMAP, typename Input>
+    template<nf::Layout REMAP, typename Input>
     auto cross_correlation_peak_3d(const Input& xmap, const CrossCorrelationPeakOptions<3>& options = {}) {
         return cross_correlation_peak<REMAP>(xmap, options);
     }

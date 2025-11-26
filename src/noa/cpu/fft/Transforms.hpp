@@ -47,7 +47,7 @@ namespace noa::cpu::fft {
     void c2c(
         Complex<T>* input, const Strides4<i64>& input_strides,
         Complex<T>* output, const Strides4<i64>& output_strides,
-        const Shape4<i64>& shape, noa::fft::Sign sign, u32 flag, bool plan_only, i64 n_threads
+        const Shape4<i64>& shape, nf::Sign sign, u32 flag, bool plan_only, i64 n_threads
     ) {
         auto plan = Plan(input, input_strides, output, output_strides, shape, sign, flag, n_threads);
         if (not plan_only)
@@ -57,7 +57,7 @@ namespace noa::cpu::fft {
     template<typename T>
     void c2c(
         Complex<T>* data, const Strides4<i64>& strides, const Shape4<i64>& shape,
-        noa::fft::Sign sign, u32 flag, bool plan_only, i64 n_threads
+        nf::Sign sign, u32 flag, bool plan_only, i64 n_threads
     ) {
         c2c(data, strides, data, strides, shape, sign, flag, plan_only, n_threads);
     }

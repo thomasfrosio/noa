@@ -13,7 +13,6 @@
 #include "Utils.hpp"
 
 using namespace ::noa::types;
-using Remap = noa::Remap;
 
 namespace {
     // DOUBLE_PHASE seem to be the more accurate, then CONVENTIONAL, MUTUAL and PHASE.
@@ -77,10 +76,10 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak", "", Vec2<f32>, Vec2<f64>
             noa::fft::r2c(lhs, lhs_rfft);
             noa::fft::r2c(rhs, rhs_rfft);
 
-            auto run = [&]<Remap REMAP>(auto xpeak_options) {
+            auto run = [&]<noa::fft::Layout REMAP>(auto xpeak_options) {
                 noa::signal::cross_correlation_map<REMAP>(lhs_rfft, rhs_rfft, xmap, xmap_options, buffer);
 
-                constexpr Remap REMAP_ = REMAP.flip().erase_output();
+                constexpr auto REMAP_ = REMAP.flip().erase_output();
                 auto [peak_coordinate, peak_value] = noa::signal::cross_correlation_peak<REMAP_>(xmap, xpeak_options);
                 auto computed_shift = -(peak_coordinate - data.lhs_center);
                 if (correlation_mode == noa::signal::Correlation::DOUBLE_PHASE)
@@ -98,8 +97,8 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak", "", Vec2<f32>, Vec2<f64>
             };
 
             const auto xpeak_options = noa::signal::CrossCorrelationPeakOptions<N>{};
-            const auto shift_centered = run.template operator()<Remap::H2FC>(xpeak_options);
-            const auto shift_not_centered = run.template operator()<Remap::H2F>(xpeak_options);
+            const auto shift_centered = run.template operator()<"H2FC">(xpeak_options);
+            const auto shift_not_centered = run.template operator()<"H2F">(xpeak_options);
 
             auto xpeak_options_max = noa::signal::CrossCorrelationPeakOptions{
                 .maximum_lag = abs(data.expected_shift) * 2};
@@ -107,8 +106,8 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak", "", Vec2<f32>, Vec2<f64>
                 xpeak_options_max.maximum_lag *= 2;
 
             // fmt::print("shape={}, maximum_lag={}\n", shape, xpeak_options_max.maximum_lag);
-            const auto shift_centered_max = run.template operator()<Remap::H2FC>(xpeak_options_max);
-            const auto shift_not_centered_max = run.template operator()<Remap::H2F>(xpeak_options_max);
+            const auto shift_centered_max = run.template operator()<"H2FC">(xpeak_options_max);
+            const auto shift_not_centered_max = run.template operator()<"H2F">(xpeak_options_max);
 
             for (size_t i: noa::irange(N)) {
                 REQUIRE_THAT(shift_not_centered[i], Catch::Matchers::WithinAbs(shift_centered[i], 1e-4));
@@ -168,13 +167,13 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak batched", "", Vec2<f32>, V
             noa::fft::r2c(lhs, lhs_rfft);
             noa::fft::r2c(rhs, rhs_rfft);
 
-            auto run = [&]<Remap REMAP>(){
+            auto run = [&]<noa::fft::Layout REMAP>(){
                 INFO(REMAP);
                 noa::signal::cross_correlation_map<REMAP>(lhs_rfft, rhs_rfft, xmap, xmap_options, buffer);
 
                 const auto shifts = noa::empty<Vec<f32, N>>(shape[0], options);
                 const auto values = noa::empty<value_t>(shape[0], options);
-                constexpr Remap REMAP_ = REMAP.flip().erase_output();
+                constexpr auto REMAP_ = REMAP.flip().erase_output();
                 noa::signal::cross_correlation_peak<REMAP_>(xmap, shifts, values, xpeak_options);
 
                 for (size_t i{}; i < shifts.eval().size(); ++i) {
@@ -193,8 +192,8 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak batched", "", Vec2<f32>, V
                     REQUIRE(max <= values(0, 0, 0, i));
                 }
             };
-            run.template operator()<Remap::H2FC>();
-            run.template operator()<Remap::H2F>();
+            run.template operator()<"H2FC">();
+            run.template operator()<"H2F">();
         }
     }
 }
@@ -215,8 +214,8 @@ TEST_CASE("unified::signal, autocorrelate") {
         const auto lhs_rfft = noa::fft::r2c(lhs);
         const auto rhs_rfft = lhs_rfft.copy();
         const auto xmap = noa::like<f32>(lhs);
-        noa::signal::cross_correlation_map<Remap::H2F>(lhs_rfft, rhs_rfft, xmap);
-        const auto [shift, _] = noa::signal::cross_correlation_peak_3d<Remap::F2F>(xmap);
+        noa::signal::cross_correlation_map<"H2F">(lhs_rfft, rhs_rfft, xmap);
+        const auto [shift, _] = noa::signal::cross_correlation_peak_3d<"F2F">(xmap);
         REQUIRE_THAT(shift[0], Catch::Matchers::WithinAbs(center[0], 5e-2));
         REQUIRE_THAT(shift[1], Catch::Matchers::WithinAbs(center[1], 5e-2));
         REQUIRE_THAT(shift[2], Catch::Matchers::WithinAbs(center[2], 5e-2));

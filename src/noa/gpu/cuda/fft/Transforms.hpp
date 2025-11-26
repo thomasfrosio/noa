@@ -60,7 +60,7 @@ namespace noa::cuda::fft {
     void c2c(
         Complex<T>* input, const Strides4<i64>& input_strides,
         Complex<T>* output, const Strides4<i64>& output_strides,
-        const Shape4<i64>& shape, noa::fft::Sign sign,
+        const Shape4<i64>& shape, nf::Sign sign,
         bool cache_plan, bool plan_only, bool record_workspace, Stream& stream
     ) {
         Plan<T>(
@@ -72,7 +72,7 @@ namespace noa::cuda::fft {
     template<typename T>
     void c2c(
         Complex<T>* data, const Strides4<i64>& strides, const Shape4<i64>& shape,
-        noa::fft::Sign sign, bool cache_plan, bool plan_only, bool record_workspace, Stream& stream
+        nf::Sign sign, bool cache_plan, bool plan_only, bool record_workspace, Stream& stream
     ) {
         c2c(data, strides, data, strides, shape, sign, cache_plan,  plan_only, record_workspace, stream);
     }

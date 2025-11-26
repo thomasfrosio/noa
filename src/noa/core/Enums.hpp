@@ -159,32 +159,40 @@ namespace noa {
         /// Set the l2_norm to 1.
         L2
     };
+}
 
-    /// Enum-like type encoding two FFT layouts, referred to as "remap" in the context of input and output layouts.
-    /// \details The format is \c {f|h}(c)2{f|h}(c), where f=redundant, h=non-redundant/rfft, c=centered. For example,
-    ///          "f2fc" denotes the common fftshift operation and h2hc is the equivalent but for rffts.
-    ///          The "non-centered" (or native) layout is used by fft functions, with the origin (the DC) at index 0.
-    ///          The "centered" layout is often used in files or for some transformations, with the origin at
-    ///          index n//2. The redundancy refers to non-redundant Fourier transforms of real inputs (aka rfft).
-    ///          For a {D,H,W} logical/real shape, rffts have a shape of {D,H,W//2+1}. Note that with even dimensions,
-    ///          the "highest" frequency (just before Nyquist) is real and the c2r (aka irfft) functions will assume
-    ///          its imaginary part is zero.
+namespace noa::fft {
+    /// Enum-like type encoding the FFT layout of an operation.
+    ///
+    /// \details
+    /// FFT arrays have four possible layouts: f, fc, h, hc, where f=redundant, h=non-redundant, c=centered.
+    /// The redundancy refers to non-redundant Fourier transforms of real inputs (aka rFFT). For an array of shape
+    /// (B,D,H,W), the rFFT has a shape of (B,D,H,W//2+1). The centering refers to how the frequencies are mapped along
+    /// each dimension. The non-centered layout has the origin (the DC) at index 0. The centered layout is often used
+    /// for visualization or for some geometric transformations and has the origin at index n//2.
+    ///
+    /// \details
+    /// For functions accepting input and output arrays, and when the FFT layout of the input(s) and output(s)
+    /// changes, the full layout is required. It is specified as [input-layout]2[output-layout], so {f|h}(c)2{f|h}(c).
+    /// For example, "f2fc" denotes the common fftshift operation for redundant (aka full) FFTs. "h2hc" is the
+    /// equivalent but for rFFTs. Note that "h" is equivalent to "h2h", i.e., the input and output are both in the
+    /// h-layout (non-redundant, non-centered).
     ///
     /// \note Position of the Fourier components:
     /// \code
-    /// n=8: non-centered, redundant     u=[ 0, 1, 2, 3,-4,-3,-2,-1]
-    ///      non-centered, non-redundant u=[ 0, 1, 2, 3, 4]
-    ///      centered,     redundant     u=[-4,-3,-2,-1, 0, 1, 2, 3]
-    ///      centered,     non-redundant u=[ 0, 1, 2, 3, 4]
+    /// n=8: F:  non-centered, redundant     u=[ 0, 1, 2, 3,-4,-3,-2,-1]
+    ///      H:  non-centered, non-redundant u=[ 0, 1, 2, 3, 4]
+    ///      FC: centered,     redundant     u=[-4,-3,-2,-1, 0, 1, 2, 3]
+    ///      HC: centered,     non-redundant u=[ 0, 1, 2, 3, 4]
     ///      note: frequency -4 is real, so -4 = 4
     ///
-    /// n=9  non-centered, redundant     u=[ 0, 1, 2, 3, 4,-4,-3,-2,-1]
-    ///      non-centered, non-redundant u=[ 0, 1, 2, 3, 4]
-    ///      centered,     redundant     u=[-4,-3,-2,-1, 0, 1, 2, 3, 4]
-    ///      centered,     non-redundant u=[ 0, 1, 2, 3, 4]
+    /// n=9  F:  non-centered, redundant     u=[ 0, 1, 2, 3, 4,-4,-3,-2,-1]
+    ///      H:  non-centered, non-redundant u=[ 0, 1, 2, 3, 4]
+    ///      FC: centered,     redundant     u=[-4,-3,-2,-1, 0, 1, 2, 3, 4]
+    ///      HC: centered,     non-redundant u=[ 0, 1, 2, 3, 4]
     ///      note: frequency 4 is complex (it's not nyquist), -4 = conj(4)
     /// \endcode
-    class Remap {
+    class Layout {
     public:
         struct Bitset {
             enum : u8 {
@@ -219,15 +227,15 @@ namespace noa {
 
     public: // behave like an enum class
         using enum Enum;
-        constexpr /*implicit*/ Remap(Enum value_) noexcept : value(value_) {}
+        constexpr /*implicit*/ Layout(Enum value_) noexcept : value(value_) {}
         constexpr /*implicit*/ operator Enum() const noexcept { return value; }
 
     public: // additional constructors and member functions
         /// Implicit constructor from string literal.
         template<size_t N>
-        constexpr /*implicit*/ Remap(const char (& name)[N]) {
+        constexpr /*implicit*/ Layout(const char (& name)[N]) {
             std::string_view name_(name);
-            if (name_ == "h2h" or name_ == "H2H") {
+            if (name_ == "h2h" or name_ == "H2H" or name_ == "h" or name_ == "H") {
                 value = H2H;
             } else if (name_ == "h2hc" or name_ == "H2HC") {
                 value = H2HC;
@@ -238,7 +246,7 @@ namespace noa {
 
             } else if (name_ == "hc2h" or name_ == "HC2H") {
                 value = HC2H;
-            } else if (name_ == "hc2hc" or name_ == "HC2HC") {
+            } else if (name_ == "hc2hc" or name_ == "HC2HC" or name_ == "hc" or name_ == "HC") {
                 value = HC2HC;
             } else if (name_ == "hc2f" or name_ == "HC2F") {
                 value = HC2F;
@@ -249,7 +257,7 @@ namespace noa {
                 value = F2H;
             } else if (name_ == "f2hc" or name_ == "F2HC") {
                 value = F2HC;
-            } else if (name_ == "f2f" or name_ == "F2F") {
+            } else if (name_ == "f2f" or name_ == "F2F" or name_ == "f" or name_ == "F") {
                 value = F2F;
             } else if (name_ == "f2fc" or name_ == "F2FC") {
                 value = F2FC;
@@ -260,7 +268,7 @@ namespace noa {
                 value = FC2HC;
             } else if (name_ == "fc2f" or name_ == "FC2F") {
                 value = FC2F;
-            } else if (name_ == "fc2fc" or name_ == "FC2FC") {
+            } else if (name_ == "fc2fc" or name_ == "FC2FC" or name_ == "fc" or name_ == "FC") {
                 value = FC2FC;
 
             } else {
@@ -302,27 +310,33 @@ namespace noa {
         [[nodiscard]] constexpr bool is_xx2fc() const noexcept { return is_xx2fx() and is_xx2xc(); }
         [[nodiscard]] constexpr bool is_xx2f()  const noexcept { return is_xx2fx() and not is_xx2xc(); }
 
+        [[nodiscard]] constexpr bool is_f()  const noexcept { return is_f2xx() and is_xx2f(); }
+        [[nodiscard]] constexpr bool is_fc()  const noexcept { return is_fc2xx() and is_xx2fc(); }
+        [[nodiscard]] constexpr bool is_h()  const noexcept { return is_h2xx() and is_xx2h(); }
+        [[nodiscard]] constexpr bool is_hc()  const noexcept { return is_hc2xx() and is_xx2hc(); }
+
+
         /// Convert to non-centered output.
-        [[nodiscard]] constexpr Remap to_xx2x() const noexcept {
+        [[nodiscard]] constexpr Layout to_xx2x() const noexcept {
             return static_cast<Enum>(to_u8_() & (~Bitset::DST_CENTERED));
         }
 
         /// Convert to centered output.
-        [[nodiscard]] constexpr Remap to_xx2xc() const noexcept {
+        [[nodiscard]] constexpr Layout to_xx2xc() const noexcept {
             return static_cast<Enum>(to_u8_() | Bitset::DST_CENTERED);
         }
 
         /// Convert to non-centered input.
-        [[nodiscard]] constexpr Remap to_x2xx() const noexcept {
+        [[nodiscard]] constexpr Layout to_x2xx() const noexcept {
             return static_cast<Enum>(to_u8_() & (~Bitset::SRC_CENTERED));
         }
 
         /// Convert to centered input.
-        [[nodiscard]] constexpr Remap to_xc2xx() const noexcept {
+        [[nodiscard]] constexpr Layout to_xc2xx() const noexcept {
             return static_cast<Enum>(to_u8_() | Bitset::SRC_CENTERED);
         }
 
-        [[nodiscard]] constexpr Remap flip() const noexcept {
+        [[nodiscard]] constexpr Layout flip() const noexcept {
             u8 set{};
             if (to_u8_() & Bitset::SRC_FULL)
                 set |= Bitset::DST_FULL;
@@ -335,7 +349,7 @@ namespace noa {
             return static_cast<Enum>(set);
         }
 
-        [[nodiscard]] constexpr Remap erase_input() const noexcept {
+        [[nodiscard]] constexpr Layout erase_input() const noexcept {
             u8 set{};
             if (to_u8_() & Bitset::DST_FULL) {
                 set |= Bitset::SRC_FULL;
@@ -348,7 +362,7 @@ namespace noa {
             return static_cast<Enum>(set);
         }
 
-        [[nodiscard]] constexpr Remap erase_output() const noexcept {
+        [[nodiscard]] constexpr Layout erase_output() const noexcept {
             u8 set{};
             if (to_u8_() & Bitset::SRC_FULL) {
                 set |= Bitset::SRC_FULL;
@@ -366,9 +380,7 @@ namespace noa {
             return static_cast<u8>(value);
         }
     };
-}
 
-namespace noa::fft {
     /// Sign of the exponent in the formula that defines the c2c Fourier transform.
     /// Either FORWARD (-1) for the forward/direct transform, or BACKWARD (+1) for the backward/inverse transform.
     enum class Sign : i32 {
@@ -409,11 +421,14 @@ namespace noa {
     std::ostream& operator<<(std::ostream& os, Interp interp);
     std::ostream& operator<<(std::ostream& os, Border border);
     std::ostream& operator<<(std::ostream& os, Norm norm);
-    std::ostream& operator<<(std::ostream& os, Remap layout);
 
     inline std::ostream& operator<<(std::ostream& os, Interp::Method interp) { return os << Interp(interp); }
     inline std::ostream& operator<<(std::ostream& os, Border::Method interp) { return os << Border(interp); }
-    inline std::ostream& operator<<(std::ostream& os, Remap::Enum remap) { return os << Remap(remap); }
+}
+
+namespace noa::fft {
+    std::ostream& operator<<(std::ostream& os, Layout layout);
+    inline std::ostream& operator<<(std::ostream& os, Layout::Enum remap) { return os << Layout(remap); }
 }
 
 namespace noa::signal {
@@ -426,9 +441,9 @@ namespace fmt {
     template<> struct formatter<noa::Border> : ostream_formatter {};
     template<> struct formatter<noa::Norm> : ostream_formatter {};
     template<> struct formatter<noa::signal::Correlation> : ostream_formatter {};
-    template<> struct formatter<noa::Remap> : ostream_formatter {};
+    template<> struct formatter<noa::nf::Layout> : ostream_formatter {};
 
     template<> struct formatter<noa::Interp::Method> : ostream_formatter {};
     template<> struct formatter<noa::Border::Method> : ostream_formatter {};
-    template<> struct formatter<noa::Remap::Enum> : ostream_formatter {};
+    template<> struct formatter<noa::nf::Layout::Enum> : ostream_formatter {};
 }

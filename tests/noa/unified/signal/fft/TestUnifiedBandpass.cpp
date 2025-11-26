@@ -10,7 +10,6 @@
 #include "Utils.hpp"
 
 using namespace noa::types;
-using Remap = noa::Remap;
 
 TEST_CASE("unified::signal::lowpass()", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
@@ -181,20 +180,20 @@ TEMPLATE_TEST_CASE("unified::signal::highpass(), remap", "", f16, f32, f64) {
         const auto filter_remapped = noa::like(filter_expected);
 
         // H2HC
-        noa::signal::highpass<Remap::H2H>({}, filter_expected, shape, {cutoff, width});
-        noa::signal::highpass<Remap::H2HC>({}, filter_result, shape, {cutoff, width});
-        noa::fft::remap(Remap::HC2H, filter_result, filter_remapped, shape);
+        noa::signal::highpass<"H2H">({}, filter_expected, shape, {cutoff, width});
+        noa::signal::highpass<"H2HC">({}, filter_result, shape, {cutoff, width});
+        noa::fft::remap("HC2H", filter_result, filter_remapped, shape);
         REQUIRE(test::allclose_abs(filter_expected, filter_remapped, 1e-6));
 
         // HC2HC
-        noa::signal::highpass<Remap::H2H>({}, filter_expected, shape, {cutoff, width});
-        noa::signal::highpass<Remap::HC2HC>({}, filter_result, shape, {cutoff, width});
-        noa::fft::remap(Remap::HC2H, filter_result, filter_remapped, shape);
+        noa::signal::highpass<"H2H">({}, filter_expected, shape, {cutoff, width});
+        noa::signal::highpass<"HC2HC">({}, filter_result, shape, {cutoff, width});
+        noa::fft::remap("HC2H", filter_result, filter_remapped, shape);
         REQUIRE(test::allclose_abs(filter_expected, filter_remapped, 1e-6));
 
         // HC2H
-        noa::signal::highpass<Remap::H2H>({}, filter_expected, shape, {cutoff, width});
-        noa::signal::highpass<Remap::HC2H>({}, filter_result, shape, {cutoff, width});
+        noa::signal::highpass<"H2H">({}, filter_expected, shape, {cutoff, width});
+        noa::signal::highpass<"HC2H">({}, filter_result, shape, {cutoff, width});
         REQUIRE(test::allclose_abs(filter_expected, filter_result, 1e-6));
     }
 }
@@ -279,20 +278,20 @@ TEMPLATE_TEST_CASE("unified::signal::bandpass(), remap", "", f16, f32, f64) {
         const auto filter_remapped = noa::like(filter_expected);
 
         // H2HC
-        noa::signal::bandpass<Remap::H2H>({}, filter_expected, shape, bandpass);
-        noa::signal::bandpass<Remap::H2HC>({}, filter_result, shape, bandpass);
-        noa::fft::remap(Remap::HC2H, filter_result, filter_remapped, shape);
+        noa::signal::bandpass<"H2H">({}, filter_expected, shape, bandpass);
+        noa::signal::bandpass<"H2HC">({}, filter_result, shape, bandpass);
+        noa::fft::remap("HC2H", filter_result, filter_remapped, shape);
         REQUIRE(test::allclose_abs(filter_expected, filter_remapped, 1e-6));
 
         // HC2HC
-        noa::signal::bandpass<Remap::H2H>({}, filter_expected, shape, bandpass);
-        noa::signal::bandpass<Remap::HC2HC>({}, filter_result, shape, bandpass);
-        noa::fft::remap(Remap::HC2H, filter_result, filter_remapped, shape);
+        noa::signal::bandpass<"H2H">({}, filter_expected, shape, bandpass);
+        noa::signal::bandpass<"HC2HC">({}, filter_result, shape, bandpass);
+        noa::fft::remap("HC2H", filter_result, filter_remapped, shape);
         REQUIRE(test::allclose_abs(filter_expected, filter_remapped, 1e-6));
 
         // HC2H
-        noa::signal::bandpass<Remap::H2H>({}, filter_expected, shape, bandpass);
-        noa::signal::bandpass<Remap::HC2H>({}, filter_result, shape, bandpass);
+        noa::signal::bandpass<"H2H">({}, filter_expected, shape, bandpass);
+        noa::signal::bandpass<"HC2H">({}, filter_result, shape, bandpass);
         REQUIRE(test::allclose_abs(filter_expected, filter_result, 1e-6));
     }
 }

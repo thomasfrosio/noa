@@ -82,20 +82,19 @@ namespace noa::signal {
     ///                     The c2r transform of \p output has its mean set to 0 and its stddev set to 1.
     /// \param shape        BDHW logical shape of \p input and \p output.
     /// \param norm         Normalization mode of \p input.
-    template<Remap REMAP,
+    template<nf::Layout REMAP,
              nt::readable_varray_decay_of_complex Input,
              nt::writable_varray_decay_of_complex Output>
-    requires (REMAP.is_any(Remap::H2H, Remap::HC2HC, Remap::F2F, Remap::FC2FC))
+    requires (REMAP.is_any(nf::Layout::H2H, nf::Layout::HC2HC, nf::Layout::F2F, nf::Layout::FC2FC))
     void standardize_ifft(
         const Input& input,
         const Output& output,
         const Shape4<i64>& shape,
-        noa::fft::Norm norm = noa::fft::NORM_DEFAULT
+        nf::Norm norm = nf::NORM_DEFAULT
     ) {
-        using Norm = noa::fft::Norm;
 
-        constexpr bool is_full = REMAP == Remap::F2F or REMAP == Remap::FC2FC;
-        constexpr bool is_centered = REMAP == Remap::FC2FC or REMAP == Remap::HC2HC;
+        constexpr bool is_full = REMAP == nf::Layout::F2F or REMAP == nf::Layout::FC2FC;
+        constexpr bool is_centered = REMAP == nf::Layout::FC2FC or REMAP == nf::Layout::HC2HC;
         const auto actual_shape = is_full ? shape : shape.rfft();
 
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
@@ -109,16 +108,16 @@ namespace noa::signal {
         using real_t = nt::value_type_twice_t<Output>;
         using complex_t = Complex<real_t>;
         const auto count = static_cast<f64>(shape.pop_front().n_elements());
-        const auto scale = norm == Norm::FORWARD ? 1 : norm == Norm::ORTHO ? sqrt(count) : count;
+        const auto scale = norm == nf::Norm::FORWARD ? 1 : norm == nf::Norm::ORTHO ? sqrt(count) : count;
         const auto options = ArrayOption{input.device(), Allocator::DEFAULT_ASYNC};
 
         auto dc_position = ni::make_subregion<4>(
             ni::Full{},
-            is_centered ? noa::fft::fftshift(i64{}, shape[1]) : 0,
-            is_centered ? noa::fft::fftshift(i64{}, shape[2]) : 0,
-            is_centered and is_full ? noa::fft::fftshift(i64{}, shape[3]) : 0);
+            is_centered ? nf::fftshift(i64{}, shape[1]) : 0,
+            is_centered ? nf::fftshift(i64{}, shape[2]) : 0,
+            is_centered and is_full ? nf::fftshift(i64{}, shape[3]) : 0);
 
-        if constexpr (REMAP == Remap::F2F or REMAP == Remap::FC2FC) {
+        if constexpr (REMAP == nf::Layout::F2F or REMAP == nf::Layout::FC2FC) {
             // Compute the energy of the input (excluding the dc).
             auto dc_components = input.view().subregion(dc_position);
             auto energies = Array<real_t>(dc_components.shape(), options);
@@ -130,7 +129,7 @@ namespace noa::signal {
             ewise(wrap(input, std::move(energies)), output.view(), Multiply{});
             fill(output.subregion(dc_position), {});
 
-        } else if constexpr (REMAP == Remap::H2H or REMAP == Remap::HC2HC) {
+        } else if constexpr (REMAP == nf::Layout::H2H or REMAP == nf::Layout::HC2HC) {
             const bool is_even = noa::is_even(shape[3]);
 
             auto energies = zeros<real_t>({shape[0], 3, 1, 1}, options);
