@@ -258,7 +258,7 @@ namespace noa::signal::details {
         }
 
         constexpr void final(const reduced_type& reduced) { // single-threaded, one thread per batch
-            const auto peak_indices = ni::offset2index(reduced.second, m_shape.push_front(m_batch));
+            const auto peak_indices = ni::offset2index(reduced.second, m_input.strides(), m_shape.push_front(m_batch));
             const auto batch = peak_indices[0];
 
             auto [peak_value, peak_coordinate] = subpixel_registration_using_1d_parabola_(
