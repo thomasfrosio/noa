@@ -33,6 +33,10 @@ if (NOT TARGET half::half)
     find_dependency(half REQUIRED CONFIG PATHS ${NOA_INSTALL_DIR_} NO_DEFAULT_PATH)
 endif ()
 
+if (NOT TARGET FFTW3::fftw3 OR NOT TARGET FFTW3::fftw3)
+    find_dependency(FFTW3 REQUIRED CONFIG PATHS ${NOA_INSTALL_DIR_} NO_DEFAULT_PATH)
+endif ()
+
 if (@NOA_ENABLE_TIFF@ AND NOT TARGET TIFF::TIFF)
     find_dependency(TIFF REQUIRED)
 endif ()

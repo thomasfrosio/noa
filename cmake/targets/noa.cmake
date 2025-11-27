@@ -24,14 +24,14 @@ target_link_libraries(noa
     prj_compiler_private_options
     prj_compiler_warnings
     $<BUILD_INTERFACE:Eigen3::Eigen>
-    $<BUILD_INTERFACE:FFTW3::fftw3>
-    $<BUILD_INTERFACE:FFTW3::fftw3f>
 
     PUBLIC
     prj_compiler_public_options
     Threads::Threads
     fmt::fmt
     half::half
+    FFTW3::fftw3
+    FFTW3::fftw3f
 )
 
 # Optional OpenMP support.
