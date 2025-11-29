@@ -428,7 +428,7 @@ namespace noa::cuda::details {
             } else if constexpr (nt::is_accessor_v<Joined>) {
                 joined(indices_within_grid...) = reduced;
             } else if constexpr (nt::is_pointer_v<Joined> and sizeof...(Indices) == 1) {
-                auto index = forward_as_tuple(indices_within_grid...)[Tag<0>{}]; // TODO C++23 [,] should fix that
+                auto index = noa::forward_as_tuple(indices_within_grid...)[Tag<0>{}]; // TODO C++23 [,] should fix that
                 joined[index] = reduced;
             } else {
                 static_assert(nt::always_false<Joined>);

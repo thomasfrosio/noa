@@ -53,18 +53,18 @@ namespace noa {
             nd::reduce_iwise<std::decay_t<Reduced>::ZIP, false>(
                 shape, device, std::forward<Operator>(op),
                 std::forward<Reduced>(reduced).tuple,
-                forward_as_tuple(std::forward<Outputs>(outputs)));
+                noa::forward_as_tuple(std::forward<Outputs>(outputs)));
 
         } else if constexpr (nd::adaptor_decay<Outputs>) {
             nd::reduce_iwise<false, std::decay_t<Outputs>::ZIP>(
                 shape, device, std::forward<Operator>(op),
-                forward_as_tuple(std::forward<Reduced>(reduced)),
+                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
                 std::forward<Outputs>(outputs).tuple);
         } else {
             nd::reduce_iwise<false, false>(
                 shape, device, std::forward<Operator>(op),
-                forward_as_tuple(std::forward<Reduced>(reduced)),
-                forward_as_tuple(std::forward<Outputs>(outputs)));
+                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
+                noa::forward_as_tuple(std::forward<Outputs>(outputs)));
         }
     }
 }

@@ -67,43 +67,43 @@ namespace noa {
             nd::reduce_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, std::decay_t<Reduced>::ZIP, false>(
                 std::forward<Inputs>(inputs).tuple,
                 std::forward<Reduced>(reduced).tuple,
-                forward_as_tuple(std::forward<Outputs>(outputs)),
+                noa::forward_as_tuple(std::forward<Outputs>(outputs)),
                 std::forward<Operator>(op));
         } else if constexpr (nd::adaptor_decay<Inputs, Outputs>) {
             nd::reduce_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, false, std::decay_t<Outputs>::ZIP>(
                 std::forward<Inputs>(inputs).tuple,
-                forward_as_tuple(std::forward<Reduced>(reduced)),
+                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
                 std::forward<Outputs>(outputs).tuple,
                 std::forward<Operator>(op));
         } else if constexpr (nd::adaptor_decay<Reduced, Outputs>) {
             nd::reduce_ewise<OPTIONS, false, std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP>(
-                forward_as_tuple(std::forward<Inputs>(inputs)),
+                noa::forward_as_tuple(std::forward<Inputs>(inputs)),
                 std::forward<Reduced>(reduced).tuple,
                 std::forward<Outputs>(outputs).tuple,
                 std::forward<Operator>(op));
         } else if constexpr (nd::adaptor_decay<Outputs>) {
             nd::reduce_ewise<OPTIONS, false, false, std::decay_t<Outputs>::ZIP>(
-                forward_as_tuple(std::forward<Inputs>(inputs)),
-                forward_as_tuple(std::forward<Reduced>(reduced)),
+                noa::forward_as_tuple(std::forward<Inputs>(inputs)),
+                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
                 std::forward<Outputs>(outputs).tuple,
                 std::forward<Operator>(op));
         } else if constexpr (nd::adaptor_decay<Reduced>) {
             nd::reduce_ewise<OPTIONS, false, std::decay_t<Reduced>::ZIP, false>(
-                forward_as_tuple(std::forward<Inputs>(inputs)),
+                noa::forward_as_tuple(std::forward<Inputs>(inputs)),
                 std::forward<Reduced>(reduced).tuple,
-                forward_as_tuple(std::forward<Outputs>(outputs)),
+                noa::forward_as_tuple(std::forward<Outputs>(outputs)),
                 std::forward<Operator>(op));
         } else if constexpr (nd::adaptor_decay<Inputs>) {
             nd::reduce_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, false, false>(
                 std::forward<Inputs>(inputs).tuple,
-                forward_as_tuple(std::forward<Reduced>(reduced)),
-                forward_as_tuple(std::forward<Outputs>(outputs)),
+                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
+                noa::forward_as_tuple(std::forward<Outputs>(outputs)),
                 std::forward<Operator>(op));
         } else {
             nd::reduce_ewise<OPTIONS, false, false, false>(
-                forward_as_tuple(std::forward<Inputs>(inputs)),
-                forward_as_tuple(std::forward<Reduced>(reduced)),
-                forward_as_tuple(std::forward<Outputs>(outputs)),
+                noa::forward_as_tuple(std::forward<Inputs>(inputs)),
+                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
+                noa::forward_as_tuple(std::forward<Outputs>(outputs)),
                 std::forward<Operator>(op));
         }
     }

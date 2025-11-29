@@ -429,14 +429,14 @@ namespace noa {
                 []<typename F, typename...R>(F&& first, R&& ... rest) {
                     auto filtered_rest = [&rest...] {
                         if constexpr (sizeof...(rest)) {
-                            return tuple_filter<Predicate, Transform>(forward_as_tuple(std::forward<R>(rest)..., 0));
+                            return noa::tuple_filter<Predicate, Transform>(noa::forward_as_tuple(std::forward<R>(rest)..., 0));
                         } else {
                             return Tuple{};
                         }
                     }();
 
                     if constexpr (Predicate{}.template operator()<T>()) { // FIXME loop through TupleElement to pass exact type
-                        return tuple_cat(Transform{}(std::forward<T>(first)), std::move(filtered_rest));
+                        return noa::tuple_cat(Transform{}(std::forward<T>(first)), std::move(filtered_rest));
                     } else {
                         return filtered_rest;
                     }

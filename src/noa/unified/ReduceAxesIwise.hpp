@@ -131,21 +131,21 @@ namespace noa {
             nd::reduce_axes_iwise<std::decay_t<Reduced>::ZIP, false, false>(
                 shape, device,
                 std::forward<Reduced>(reduced).tuple,
-                forward_as_tuple(std::forward<Outputs>(outputs)),
+                noa::forward_as_tuple(std::forward<Outputs>(outputs)),
                 std::forward<Operator>(op), {},
                 std::forward<Ts>(attachments)...);
         } else if constexpr (nd::adaptor_decay<Outputs>) {
             nd::reduce_axes_iwise<false, std::decay_t<Outputs>::ZIP, false>(
                 shape, device,
-                forward_as_tuple(std::forward<Reduced>(reduced)),
+                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
                 std::forward<Outputs>(outputs).tuple,
                 std::forward<Operator>(op), {},
                 std::forward<Ts>(attachments)...);
         } else {
             nd::reduce_axes_iwise<false, false, false>(
                 shape, device,
-                forward_as_tuple(std::forward<Reduced>(reduced)),
-                forward_as_tuple(std::forward<Outputs>(outputs)),
+                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
+                noa::forward_as_tuple(std::forward<Outputs>(outputs)),
                 std::forward<Operator>(op), {},
                 std::forward<Ts>(attachments)...);
         }
@@ -174,7 +174,7 @@ namespace noa {
         } else {
             nd::reduce_axes_iwise<false, false, true>(
                 shape, device,
-                forward_as_tuple(std::forward<Reduced>(reduced)),
+                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
                 Tuple{},
                 std::forward<Operator>(op), reduce_axes,
                 std::forward<Ts>(attachments)...);
@@ -257,7 +257,7 @@ namespace noa::details {
                         op = std::forward<Op>(reduce_operator),
                         ra = std::move(reduced_accessors),
                         oh = nd::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs)),
-                        ah = nd::extract_shared_handle(forward_as_tuple(std::forward<Ts>(attachments)...))
+                        ah = nd::extract_shared_handle(noa::forward_as_tuple(std::forward<Ts>(attachments)...))
                     ] {
                         noa::cpu::reduce_axes_iwise<config>(
                             input_shape, output_shape, std::move(op),

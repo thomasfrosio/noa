@@ -71,15 +71,15 @@ namespace noa::details {
         template<typename Op, typename R, typename O, size_t... R0, size_t... O0, typename... I>
         constexpr auto operator()(Tag<11>, Op, R, O, std::index_sequence<R0...>, std::index_sequence<O0...>, I...) requires requires {
             std::declval<Op>().final(
-                std::declval<decltype(forward_as_tuple(std::declval<R&>()[Tag<R0>{}].ref()...))&>(),
-                std::declval<decltype(forward_as_tuple(std::declval<O&>()[Tag<O0>{}](std::declval<I>()...)...))&>()
+                std::declval<decltype(noa::forward_as_tuple(std::declval<R&>()[Tag<R0>{}].ref()...))&>(),
+                std::declval<decltype(noa::forward_as_tuple(std::declval<O&>()[Tag<O0>{}](std::declval<I>()...)...))&>()
             );
         } {}
 
         template<typename Op, typename R, typename O, size_t... R0, size_t... O0, typename... I>
         constexpr auto operator()(Tag<10>, Op, R, O, std::index_sequence<R0...>, std::index_sequence<O0...>, I...) requires requires {
             std::declval<Op>().final(
-                std::declval<decltype(forward_as_tuple(std::declval<R&>()[Tag<R0>{}].ref()...))&>(),
+                std::declval<decltype(noa::forward_as_tuple(std::declval<R&>()[Tag<R0>{}].ref()...))&>(),
                 std::declval<O&>()[Tag<O0>{}](std::declval<I>()...)...
             );
         } {}
@@ -88,7 +88,7 @@ namespace noa::details {
         constexpr auto operator()(Tag<1>, Op, R, O, std::index_sequence<R0...>, std::index_sequence<O0...>, I...) requires requires {
             std::declval<Op>().final(
                 std::declval<R&>()[Tag<R0>{}].ref()...,
-                std::declval<decltype(forward_as_tuple(std::declval<O&>()[Tag<O0>{}](std::declval<I>()...)...))&>()
+                std::declval<decltype(noa::forward_as_tuple(std::declval<O&>()[Tag<O0>{}](std::declval<I>()...)...))&>()
             );
         } {}
 
@@ -189,14 +189,14 @@ namespace noa::details {
                 // moved or taken by value.
                 // Also, the zipped parameters should not be passed as rvalues.
                 if constexpr (ZipInput and ZipOutput) {
-                    auto pi = forward_as_tuple(input[Tag<I>{}](indices...)...);
-                    auto po = forward_as_tuple(output[Tag<O>{}](indices...)...);
+                    auto pi = noa::forward_as_tuple(input[Tag<I>{}](indices...)...);
+                    auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
                     op(pi, po);
                 } else if constexpr (ZipInput) {
-                    auto pi = forward_as_tuple(input[Tag<I>{}](indices...)...);
+                    auto pi = noa::forward_as_tuple(input[Tag<I>{}](indices...)...);
                     op(pi, output[Tag<O>{}](indices...)...);
                 } else if constexpr (ZipOutput) {
-                    auto po = forward_as_tuple(output[Tag<O>{}](indices...)...);
+                    auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
                     op(input[Tag<I>{}](indices...)..., po);
                 } else {
                     op(input[Tag<I>{}](indices...)...,
@@ -220,14 +220,14 @@ namespace noa::details {
                 if constexpr (ZipReduced) {
                     join_or_call_(
                         op,
-                        forward_as_tuple(forward_as_tuple(to_reduce[Tag<R>{}].ref()...)),
-                        forward_as_tuple(forward_as_tuple(reduced[Tag<R>{}].ref()...)),
+                        noa::forward_as_tuple(noa::forward_as_tuple(to_reduce[Tag<R>{}].ref()...)),
+                        noa::forward_as_tuple(noa::forward_as_tuple(reduced[Tag<R>{}].ref()...)),
                         std::index_sequence<0>{});
                 } else {
                     join_or_call_(
                         op,
-                        forward_as_tuple(to_reduce[Tag<R>{}].ref()...),
-                        forward_as_tuple(reduced[Tag<R>{}].ref()...),
+                        noa::forward_as_tuple(to_reduce[Tag<R>{}].ref()...),
+                        noa::forward_as_tuple(reduced[Tag<R>{}].ref()...),
                         index_sequence);
                 }
             }(nt::index_list_t<Reduced>{});
@@ -276,16 +276,16 @@ namespace noa::details {
             Indices... indices
         ) {
             if constexpr (ZipReduced and ZipOutput) {
-                auto pr = forward_as_tuple(reduced[Tag<R>{}].ref()...);
-                auto po = forward_as_tuple(output[Tag<O>{}](indices...)...);
+                auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
+                auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
                 op.final(pr, po);
 
             } else if constexpr (ZipReduced and not ZipOutput) {
-                auto pr = forward_as_tuple(reduced[Tag<R>{}].ref()...);
+                auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
                 op.final(pr, output[Tag<O>{}](indices...)...);
 
             } else if constexpr (not ZipReduced and ZipOutput) {
-                auto po = forward_as_tuple(output[Tag<O>{}](indices...)...);
+                auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
                 op.final(reduced[Tag<R>{}].ref()..., po);
 
             } else {
@@ -321,12 +321,12 @@ namespace noa::details {
                 if constexpr (ZipReduced) {
                     init_or_call_(
                         op,
-                        forward_as_tuple(forward_as_tuple(reduced[Tag<R>{}].ref()...)),
+                        noa::forward_as_tuple(noa::forward_as_tuple(reduced[Tag<R>{}].ref()...)),
                         std::index_sequence<0>{}, indices...);
                 } else {
                     init_or_call_(
                         op,
-                        forward_as_tuple(reduced[Tag<R>{}].ref()...),
+                        noa::forward_as_tuple(reduced[Tag<R>{}].ref()...),
                         index_sequence, indices...);
                 }
             }(nt::index_list_t<Reduced>{});
@@ -361,26 +361,26 @@ namespace noa::details {
                 if constexpr (ZipInput && ZipReduced) {
                     init_or_call_(
                         op,
-                        forward_as_tuple(forward_as_tuple(input[Tag<I>{}](indices...)...)),
-                        forward_as_tuple(forward_as_tuple(reduced[Tag<R>{}].ref()...)),
+                        noa::forward_as_tuple(noa::forward_as_tuple(input[Tag<I>{}](indices...)...)),
+                        noa::forward_as_tuple(noa::forward_as_tuple(reduced[Tag<R>{}].ref()...)),
                         std::index_sequence<0>{}, std::index_sequence<0>{});
                 } else if constexpr (ZipInput) {
                     init_or_call_(
                         op,
-                        forward_as_tuple(forward_as_tuple(input[Tag<I>{}](indices...)...)),
-                        forward_as_tuple(reduced[Tag<R>{}].ref()...),
+                        noa::forward_as_tuple(noa::forward_as_tuple(input[Tag<I>{}](indices...)...)),
+                        noa::forward_as_tuple(reduced[Tag<R>{}].ref()...),
                         std::index_sequence<0>{}, reduced_sequence);
                 } else if constexpr (ZipReduced) {
                     init_or_call_(
                         op,
-                        forward_as_tuple(input[Tag<I>{}](indices...)...),
-                        forward_as_tuple(forward_as_tuple(reduced[Tag<R>{}].ref()...)),
+                        noa::forward_as_tuple(input[Tag<I>{}](indices...)...),
+                        noa::forward_as_tuple(noa::forward_as_tuple(reduced[Tag<R>{}].ref()...)),
                         input_sequence, std::index_sequence<0>{});
                 } else {
                     init_or_call_(
                         op,
-                        forward_as_tuple(input[Tag<I>{}](indices...)...),
-                        forward_as_tuple(reduced[Tag<R>{}].ref()...),
+                        noa::forward_as_tuple(input[Tag<I>{}](indices...)...),
+                        noa::forward_as_tuple(reduced[Tag<R>{}].ref()...),
                         input_sequence, reduced_sequence);
                 }
             }(nt::index_list_t<Input>{}, nt::index_list_t<Reduced>{});

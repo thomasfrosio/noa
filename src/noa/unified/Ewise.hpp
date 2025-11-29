@@ -79,17 +79,17 @@ namespace noa {
         } else if constexpr (nd::adaptor_decay<Input>) {
             nd::ewise<OPTIONS, std::decay_t<Input>::ZIP, false>(
                 std::forward<Input>(inputs).tuple,
-                forward_as_tuple(std::forward<Output>(outputs)), // wrap
+                noa::forward_as_tuple(std::forward<Output>(outputs)), // wrap
                 std::forward<EwiseOperator>(op));
         } else if constexpr (nd::adaptor_decay<Output>) {
             nd::ewise<OPTIONS, false, std::decay_t<Output>::ZIP>(
-                forward_as_tuple(std::forward<Input>(inputs)), // wrap
+                noa::forward_as_tuple(std::forward<Input>(inputs)), // wrap
                 std::forward<Output>(outputs).tuple,
                 std::forward<EwiseOperator>(op));
         } else {
             nd::ewise<OPTIONS, false, false>(
-                forward_as_tuple(std::forward<Input>(inputs)), // wrap
-                forward_as_tuple(std::forward<Output>(outputs)), // wrap
+                noa::forward_as_tuple(std::forward<Input>(inputs)), // wrap
+                noa::forward_as_tuple(std::forward<Output>(outputs)), // wrap
                 std::forward<EwiseOperator>(op));
         }
     }

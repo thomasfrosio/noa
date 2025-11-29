@@ -233,7 +233,7 @@ namespace noa::inline types {
         template<nt::scalar... U> requires (sizeof...(U) == ROWS * COLS)
         [[nodiscard]] NOA_HD static constexpr Mat from_values(U... values) noexcept {
             Mat mat;
-            auto op = [&mat, v = forward_as_tuple(values...)]<size_t I, size_t... J>(){
+            auto op = [&mat, v = noa::forward_as_tuple(values...)]<size_t I, size_t... J>(){
                 ((mat[I][J] = static_cast<value_type>(v[Tag<I * COLS + J>{}])), ...);
             };
             [&op]<size_t... I, size_t... J>(std::index_sequence<I...>, std::index_sequence<J...>) {
@@ -256,7 +256,7 @@ namespace noa::inline types {
         template<nt::vec_scalar_size<ROWS>... V> requires (sizeof...(V) == COLS)
         [[nodiscard]] NOA_HD static constexpr Mat from_columns(const V&... c) noexcept {
             Mat mat;
-            auto op = [&mat, v = forward_as_tuple(c...)]<size_t I, size_t... J>(){
+            auto op = [&mat, v = noa::forward_as_tuple(c...)]<size_t I, size_t... J>(){
                 ((mat[I][J] = static_cast<value_type>(v[Tag<J>{}][I])), ...);
             };
             [&op]<size_t...I, size_t...J>(std::index_sequence<I...>, std::index_sequence<J...>) {
