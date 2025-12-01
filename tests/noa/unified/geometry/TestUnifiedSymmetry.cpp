@@ -38,7 +38,7 @@ TEST_CASE("unified::geometry::symmetrize_2d", "[asset]") {
             .radius = Vec{2. ,2.},
             .smoothness = 0.,
         }.draw(), {}, noa::Plus{});
-        noa::io::write(asset, input_filename);
+        noa::write_image(asset, input_filename);
     }
 
     std::vector<Device> devices{"cpu"};
@@ -76,7 +76,7 @@ TEST_CASE("unified::geometry::symmetrize_2d", "[asset]") {
             if (symmetry.device() != device)
                 symmetry = symmetry.to({device});
 
-            const auto input = noa::io::read_data<f32>(input_filename, {.enforce_2d_stack = true}, options);
+            const auto input = noa::read_image<f32>(input_filename, {.enforce_2d_stack = true}, options).data;
             if (interp.is_almost_any(Interp::CUBIC_BSPLINE))
                 noa::cubic_bspline_prefilter(input, input);
 
@@ -88,11 +88,11 @@ TEST_CASE("unified::geometry::symmetrize_2d", "[asset]") {
                 inverse_pre_matrix, inverse_post_matrix);
 
             if constexpr (COMPUTE_ASSETS) {
-                noa::io::write(output, expected_filename);
+                noa::write_image(output, expected_filename);
                 continue;
             }
 
-            const auto expected = noa::io::read_data<f32>(expected_filename, {.enforce_2d_stack = true}, options);
+            const auto expected = noa::read_image<f32>(expected_filename, {.enforce_2d_stack = true}, options).data;
             REQUIRE(test::allclose_abs_safe(expected, output, 5e-4)); // usually around 2e-5, with some outliers...
             ++count;
 
@@ -123,14 +123,14 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[asset]") {
         const auto asset = noa::empty<f32>({1, 150, 150, 150});
         constexpr auto center = Vec<f64, 3>::from_value(150 / 2);
         ng::draw({}, asset, ng::Rectangle{.center = center, .radius = Vec{34., 24., 24.}, .smoothness = 3.}.draw());
-        noa::io::write(asset, path_base / param["input"][0].as<Path>());
+        noa::write_image(asset, path_base / param["input"][0].as<Path>());
 
         ng::draw(asset, asset, ng::Rectangle{
             .center = center + Vec{15., 15., 15.},
             .radius = Vec{15., 15., 15.},
             .smoothness = 3.
         }.draw(), {}, noa::Plus{});
-        noa::io::write(asset, path_base / param["input"][1].as<Path>());
+        noa::write_image(asset, path_base / param["input"][1].as<Path>());
     }
 
     std::vector<Device> devices{"cpu"};
@@ -167,7 +167,7 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[asset]") {
             if (symmetry.device() != device)
                 symmetry = symmetry.to({device});
 
-            const auto input = noa::io::read_data<f32>(input_filename, {.enforce_2d_stack = false}, options);
+            const auto input = noa::read_image<f32>(input_filename, {.enforce_2d_stack = false}, options).data;
             if (interp.is_almost_any(Interp::CUBIC_BSPLINE))
                 noa::cubic_bspline_prefilter(input, input);
 
@@ -180,11 +180,11 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[asset]") {
                 inverse_pre_matrix, inverse_post_matrix);
 
             if constexpr (COMPUTE_ASSETS) {
-                noa::io::write(output, expected_filename);
+                noa::write_image(output, expected_filename);
                 continue;
             }
 
-            const auto expected = noa::io::read_data<f32>(expected_filename, {.enforce_2d_stack = false}, options);
+            const auto expected = noa::read_image<f32>(expected_filename, {.enforce_2d_stack = false}, options).data;
             REQUIRE(test::allclose_abs_safe(expected, output, 5e-4)); // usually around 2e-5, with some outliers...
             ++count;
 

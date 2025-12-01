@@ -442,3 +442,26 @@ namespace noa::traits {
     template<typename T, size_t N1, typename I, StridesTraits S, size_t N2> struct proclaim_is_span_nd<noa::Span<T, N1, I, S>, N2> : std::bool_constant<N1 == N2> {};
     template<typename T, size_t N1, typename I, size_t N2> struct proclaim_is_span_contiguous_nd<noa::Span<T, N1, I, StridesTraits::CONTIGUOUS>, N2> : std::bool_constant<N1 == N2> {};
 }
+
+namespace noa::indexing {
+    /// Whether \p lhs and \p rhs overlap in memory.
+    [[nodiscard]] bool are_overlapped(const nt::span auto& lhs, const nt::span auto& rhs) {
+        if (lhs.is_empty() or rhs.is_empty())
+            return false;
+        return are_overlapped(
+                reinterpret_cast<uintptr_t>(lhs.get()),
+                reinterpret_cast<uintptr_t>(lhs.get() + offset_at(lhs, (lhs.shape() - 1).vec)),
+                reinterpret_cast<uintptr_t>(rhs.get()),
+                reinterpret_cast<uintptr_t>(rhs.get() + offset_at(rhs, (rhs.shape() - 1).vec)));
+    }
+
+    /// Returns the multidimensional indices of \p span corresponding to a memory \p offset.
+    /// \note 0 indicates the beginning of the span. The span should not have any broadcast dimension.
+    template<typename T, size_t N, typename I, StridesTraits S>
+    [[nodiscard]] constexpr auto offset2index(i64 offset, const Span<T, N, I, S>& span) -> Vec<i64, N> {
+        check(all(span.strides() > 0),
+              "Cannot retrieve the indices from a broadcast span. Got strides:{}",
+              span.strides());
+        return offset2index(offset, span.strides(), span.shape());
+    }
+}

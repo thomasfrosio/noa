@@ -6,6 +6,54 @@
 #include "noa/core/types/Shape.hpp"
 #include "noa/core/types/Span.hpp"
 
+namespace noa::io {
+    struct ImageFileStats {
+        f64 min{std::numeric_limits<f64>::max()};
+        f64 max{std::numeric_limits<f64>::lowest()};
+        f64 mean{std::numeric_limits<f64>::lowest()};
+        f64 stddev{std::numeric_limits<f64>::lowest()};
+
+        [[nodiscard]] constexpr auto has_min() const -> bool { return min != std::numeric_limits<f64>::max(); }
+        [[nodiscard]] constexpr auto has_max() const -> bool { return max != std::numeric_limits<f64>::lowest(); }
+        [[nodiscard]] constexpr auto has_mean() const -> bool { return mean != std::numeric_limits<f64>::lowest(); }
+        [[nodiscard]] constexpr auto has_stddev() const -> bool { return stddev != std::numeric_limits<f64>::lowest(); }
+
+        [[nodiscard]] constexpr auto has_any() const -> bool {
+            return has_min() or has_max() or has_mean() or has_stddev();
+        }
+
+        [[nodiscard]] constexpr auto has_all() const -> bool {
+            return has_min() and has_max() and has_mean() and has_stddev();
+        }
+    };
+
+    struct ImageFileHeader {
+        /// BDHW shape of the (new) file.
+        Shape<i64, 4> shape{};
+
+        /// DHW spacing (in Angstrom/pix) of the (new) file.
+        Vec<f64, 3> spacing{};
+
+        /// Desired data-type of the (new) file.
+        /// Note that encoders are allowed to select a different data-type
+        /// (usually the closest related) if this one is not supported.
+        DataType dtype{};
+
+        /// Compression scheme of the (new) file.
+        /// Note that encoders are allowed to select a different compression scheme
+        /// (a similar scheme or Compression::NONE) if this one is not supported.
+        /// For MRC, compression is not supported and this is ignored.
+        Compression compression{};
+
+        /// Statistics of the data in the (new) file.
+        /// This is for the entire file; there's currently no way to specify it per image/volume within the file.
+        /// Note that encoders can ignore certain fields, so check with the stats.has_* functions before use.
+        /// For MRC, every field should be specified, otherwise none are saved.
+        /// For TIFF, only min and max are used, and both of them should be specified in order to be saved.
+        ImageFileStats stats{};
+    };
+}
+
 // TODO Add JPEG, PNG and EER.
 namespace noa::traits {
     /// Interface of a BasicImageFile encoder.
@@ -14,10 +62,12 @@ namespace noa::traits {
         T t,
         std::FILE* file,
         const Span<U, 4>& span,
+        const Span<const U, 4>& span_const,
         const Shape<i64, 4>& shape,
         const Vec<f64, 3>& spacing,
-        noa::io::Encoding::Type dtype,
-        noa::io::Compression compression,
+        io::DataType dtype,
+        io::Compression compression,
+        io::ImageFileStats stats,
         Vec<i64, 2>& offset,
         bool clamp,
         i32 n_threads,
@@ -45,16 +95,18 @@ namespace noa::traits {
 
         /// Returns the closest supported data-type.
         /// This may allow users to better prepare for encoding files before even creating a new file.
-        { T::closest_supported_dtype(dtype) } noexcept -> std::same_as<noa::io::Encoding::Type>;
+        { T::closest_supported_dtype(dtype) } noexcept -> std::same_as<io::DataType>;
 
-        /// Reads and extras the image file header from the opened stream.
-        { t.read_header(file) } -> std::same_as<Tuple<Shape<i64, 4>, Vec<f64, 3>, noa::io::Encoding::Type, noa::io::Compression>>;
+        /// Reads and extracts the image file header from the opened stream.
+        { t.read_header(file) } -> std::same_as<
+            Tuple<Shape<i64, 4>, Vec<f64, 3>, io::DataType, io::Compression, io::ImageFileStats>>;
 
         /// Sets the metadata of the new file.
         /// The file doesn't have to be created at this point, this is just to initialize the encoder with user data.
         /// Encoders are allowed to change the data-type and compression if the provided ones are not supported,
         /// so the actual data-type and compression scheme is returned.
-        { t.write_header(file, shape, spacing, dtype, compression) } -> std::same_as<Tuple<noa::io::Encoding::Type, noa::io::Compression>>;
+        { t.write_header(file, shape, spacing, dtype, compression, stats) } -> std::same_as<
+            Tuple<io::DataType, io::Compression>>;
 
         /// Closes the encoder. After that point, encoders may be reset by calling {read|write}_header again.
         /// Some encoders may do nothing here, some may need to clear some private data, some may need to write
@@ -64,7 +116,7 @@ namespace noa::traits {
 
         /// Decodes or encodes some data from the opened file.
         { t.decode(file, span, offset, clamp, n_threads) } -> std::same_as<void>;
-        { t.encode(file, span.as_const(), offset, clamp, n_threads) } -> std::same_as<void>;
+        { t.encode(file, span_const, offset, clamp, n_threads) } -> std::same_as<void>;
     };
 
     template<typename T>
@@ -81,23 +133,8 @@ namespace noa::io {
         using encoders_type = Tuple<Encoders...>;
         static constexpr size_t N_ENCODERS = sizeof...(Encoders);
 
-        struct Header {
-            /// BDHW shape of the (new) file.
-            Shape<i64, 4> shape{};
-
-            /// DHW spacing (in Angstrom/pix) of the (new) file.
-            Vec<f64, 3> spacing{};
-
-            /// Desired data-type of the (new) file.
-            /// Note that encoders are allowed to select a different data-type
-            /// (usually the closest related) if this one is not supported.
-            Encoding::Type dtype{};
-
-            /// Compression scheme of the (new) file.
-            /// Note that encoders are allowed to select a different compression scheme
-            /// (a similar scheme or Compression::NONE) if this one is not supported.
-            Compression compression{};
-        };
+        using Stats = ImageFileStats;
+        using Header = ImageFileHeader;
 
     public: // static functions
         [[nodiscard]] static constexpr auto is_supported_extension(std::string_view extension) noexcept -> bool {
@@ -108,8 +145,8 @@ namespace noa::io {
 
         [[nodiscard]] static auto closest_supported_dtype(
             std::string_view extension,
-            Encoding::Type dtype
-        ) noexcept -> Encoding::Type {
+            DataType dtype
+        ) noexcept -> DataType {
             [&extension, &dtype]<size_t... Is>(std::index_sequence<Is...>) {
                 return (set_closest_dtype_<Is>(extension, dtype) or ...);
             }(std::make_index_sequence<N_ENCODERS>{});
@@ -117,13 +154,13 @@ namespace noa::io {
         }
 
         template<nt::numeric T>
-        [[nodiscard]] static auto closest_supported_dtype(std::string_view extension) noexcept -> Encoding::Type {
-            return closest_supported_dtype(extension, Encoding::to_dtype<T>());
+        [[nodiscard]] static auto closest_supported_dtype(std::string_view extension) noexcept -> DataType {
+            return closest_supported_dtype(extension, DataType::from_type<T>());
         }
 
     public: // RAII
         BasicImageFile() = default;
-        BasicImageFile(const Path& path, Open mode, Header new_header = {}) { open(path, mode, new_header); }
+        BasicImageFile(const Path& path, const Open& mode, const Header& new_header = {}) { open(path, mode, new_header); }
 
         BasicImageFile(const BasicImageFile&) noexcept = delete;
         BasicImageFile& operator=(const BasicImageFile&) noexcept = delete;
@@ -152,7 +189,7 @@ namespace noa::io {
         ///
         /// \note Currently, we cannot both read and write from the same TIFF file, so while the mode w+ described
         ///       above will correctly create a new file, reading from this newly created file will raise an error.
-        void open(const Path& path, Open mode, Header new_header = {}) {
+        void open(const Path& path, const Open& mode, const Header& new_header = {}) {
             close();
             check(mode.is_valid() and not mode.append and
                   ((mode.read and not mode.write and not mode.truncate) or
@@ -187,7 +224,9 @@ namespace noa::io {
                     // Encoders are allowed to change the data-type and compression scheme,
                     // so we need to update these in case the user queries the header.
                     auto&& [actual_dtype, actual_compression] = f.write_header(
-                        m_file.stream(), m_header.shape, m_header.spacing, m_header.dtype, m_header.compression);
+                        m_file.stream(), m_header.shape, m_header.spacing,
+                        m_header.dtype, m_header.compression, m_header.stats
+                    );
                     m_header.dtype = actual_dtype;
                     m_header.compression = actual_compression;
                 }, m_encoders);
@@ -200,11 +239,12 @@ namespace noa::io {
                 check(has_been_initialized, "{} is not supported by any encoder", path);
 
                 std::visit([this](auto& f) {
-                    auto&& [shape, spacing, dtype, compression] = f.read_header(m_file.stream());
+                    auto&& [shape, spacing, dtype, compression, stats] = f.read_header(m_file.stream());
                     m_header.shape = shape;
                     m_header.spacing = spacing;
                     m_header.dtype = dtype;
                     m_header.compression = compression;
+                    m_header.stats = stats;
                 }, m_encoders);
             }
         }
@@ -222,12 +262,13 @@ namespace noa::io {
         [[nodiscard]] auto header() const noexcept -> const Header& { return m_header; }
         [[nodiscard]] auto shape() const noexcept -> const Shape<i64, 4>& { return m_header.shape; }
         [[nodiscard]] auto spacing() const noexcept -> const Vec<f64, 3>& { return m_header.spacing; }
-        [[nodiscard]] auto dtype() const noexcept -> const Encoding::Type& { return m_header.dtype; }
+        [[nodiscard]] auto dtype() const noexcept -> const DataType& { return m_header.dtype; }
         [[nodiscard]] auto compression() const noexcept -> const Compression& { return m_header.compression; }
         [[nodiscard]] auto is_compressed() const noexcept -> bool { return compression() != Compression::NONE; }
+        [[nodiscard]] auto stats() const noexcept -> const Stats& { return m_header.stats; }
 
         template<typename T>
-        [[nodiscard]] auto closest_supported_dtype() const noexcept -> Encoding::Type {
+        [[nodiscard]] auto closest_supported_dtype() const noexcept -> DataType {
             return std::visit([](const auto& f) { return f.template closest_supported_dtype<T>(); }, m_encoders);
         }
 
@@ -369,7 +410,7 @@ namespace noa::io {
         }
 
         template<size_t I>
-        [[nodiscard]] static auto set_closest_dtype_(std::string_view extension, Encoding::Type& dtype) -> bool {
+        [[nodiscard]] static auto set_closest_dtype_(std::string_view extension, DataType& dtype) -> bool {
             using encoder_t = std::tuple_element_t<I, encoders_type>;
             if (encoder_t::is_supported_extension(extension)) {
                 dtype = encoder_t::closest_supported_dtype(dtype);
@@ -431,49 +472,50 @@ namespace noa::io {
             return stamp[2] == 0 and stamp[3] == 0;
         }
 
-        static auto required_file_size(const Shape<i64, 4>& shape, Encoding::Type dtype) noexcept -> i64 {
+        static auto required_file_size(const Shape<i64, 4>& shape, DataType dtype) noexcept -> i64 {
             // The MRC encoder doesn't resize the stream, so let the BinaryFile do the resizing when opening the stream.
-            return HEADER_SIZE + Encoding::encoded_size(dtype, shape.n_elements());
+            return HEADER_SIZE + dtype.n_bytes(shape.n_elements());
         }
 
-        static auto closest_supported_dtype(Encoding::Type dtype) noexcept -> Encoding::Type {
+        static auto closest_supported_dtype(DataType dtype) noexcept -> DataType {
             switch (dtype) {
-                case Encoding::I8:
-                case Encoding::U8:
-                case Encoding::I16:
-                case Encoding::U16:
-                case Encoding::F16:
-                case Encoding::U4:
-                case Encoding::CI16:
+                case DataType::I8:
+                case DataType::U8:
+                case DataType::I16:
+                case DataType::U16:
+                case DataType::F16:
+                case DataType::U4:
+                case DataType::CI16:
                     return dtype;
-                case Encoding::I32:
-                case Encoding::U32:
-                case Encoding::I64:
-                case Encoding::U64:
-                case Encoding::F32:
-                case Encoding::F64:
-                    return Encoding::F32;
-                case Encoding::C16:
-                case Encoding::C32:
-                case Encoding::C64:
-                    return Encoding::C32;
+                case DataType::I32:
+                case DataType::U32:
+                case DataType::I64:
+                case DataType::U64:
+                case DataType::F32:
+                case DataType::F64:
+                    return DataType::F32;
+                case DataType::C16:
+                case DataType::C32:
+                case DataType::C64:
+                    return DataType::C32;
                 default:
-                    return Encoding::UNKNOWN;
+                    return DataType::UNKNOWN;
             }
         }
 
     public:
         auto read_header(
             std::FILE* file
-        ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, Encoding::Type, Compression>;
+        ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, DataType, Compression, ImageFileStats>;
 
         auto write_header(
             std::FILE* file,
             const Shape<i64, 4>& shape,
             const Vec<f64, 3>& spacing,
-            Encoding::Type dtype,
-            Compression compression
-        ) -> Tuple<Encoding::Type, Compression>;
+            const DataType& dtype,
+            const Compression& compression,
+            const ImageFileStats& stats
+        ) -> Tuple<DataType, Compression>;
 
         void close() const {
             // We write the header directly when opening the file, so we have nothing to do here.
@@ -487,19 +529,18 @@ namespace noa::io {
             bool clamp,
             i32 n_threads
         ) {
-            const auto encoding = Encoding{
-                .dtype = m_dtype,
-                .clamp = clamp,
-                .endian_swap = m_is_endian_swapped
-            };
             const i64 byte_offset =
                 HEADER_SIZE + m_extended_bytes_nb +
-                encoding.encoded_size(ni::offset_at(m_shape.strides(), bd_offset));
+                m_dtype.n_bytes(ni::offset_at(m_shape.strides(), bd_offset));
 
             check(std::fseek(file, byte_offset, SEEK_SET) == 0,
                   "Failed to seek at bd_offset={} (bytes={}). {}",
                   bd_offset, byte_offset, std::strerror(errno));
-            noa::io::decode(file, encoding, output, n_threads);
+            noa::io::decode(file, m_dtype, output, {
+                .clamp = clamp,
+                .endian_swap = m_is_endian_swapped,
+                .n_threads = n_threads,
+            });
         }
 
         template<typename T>
@@ -510,26 +551,25 @@ namespace noa::io {
             bool clamp,
             i32 n_threads
         ) {
-            const auto encoding = Encoding{
-                .dtype = m_dtype,
-                .clamp = clamp,
-                .endian_swap = m_is_endian_swapped
-            };
             const i64 byte_offset =
                 HEADER_SIZE + m_extended_bytes_nb +
-                encoding.encoded_size(ni::offset_at(m_shape.strides(), bd_offset));
+                m_dtype.n_bytes(ni::offset_at(m_shape.strides(), bd_offset));
 
             check(std::fseek(file, byte_offset, SEEK_SET) == 0,
                   "Failed to seek at bd_offset={} (bytes={}). {}",
                   bd_offset, byte_offset, std::strerror(errno));
-            noa::io::encode(input, file, encoding, n_threads);
+            noa::io::encode(input, file, m_dtype, {
+                .clamp = clamp,
+                .endian_swap = m_is_endian_swapped,
+                .n_threads = n_threads,
+            });
         }
 
     private:
         static constexpr i64 HEADER_SIZE = 1024;
         Shape<i64, 4> m_shape{}; // BDHW order
         Vec<f32, 3> m_spacing{}; // DHW order
-        Encoding::Type m_dtype{};
+        DataType m_dtype{};
         i32 m_extended_bytes_nb{};
         bool m_is_endian_swapped{false};
     };
@@ -573,26 +613,27 @@ namespace noa::io {
                    (stamp[1] == 0x002a or stamp[1] == 0x2a00);
         }
 
-        static auto required_file_size(const Shape<i64, 4>&, Encoding::Type) noexcept -> i64 {
+        static auto required_file_size(const Shape<i64, 4>&, DataType) noexcept -> i64 {
             return -1; // the TIFF encoder will handle the stream resizing during writing operations
         }
 
-        static auto closest_supported_dtype(Encoding::Type dtype) noexcept -> Encoding::Type {
+        static auto closest_supported_dtype(DataType dtype) noexcept -> DataType {
             return dtype; // TIFF encoder supports all encoding types
         }
 
     public:
         auto read_header(
             std::FILE* file
-        ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, Encoding::Type, Compression>;
+        ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, DataType, Compression, ImageFileStats>;
 
         auto write_header(
             std::FILE* file,
             const Shape<i64, 4>& shape,
             const Vec<f64, 3>& spacing,
-            Encoding::Type dtype,
-            Compression compression
-        ) -> Tuple<Encoding::Type, Compression>;
+            const DataType& dtype,
+            const Compression& compression,
+            const ImageFileStats& stats
+        ) -> Tuple<DataType, Compression>;
 
         void close() const;
 
@@ -652,8 +693,9 @@ namespace noa::io {
     private:
         Shape<i64, 3> m_shape{}; // BHW order
         Vec<f32, 2> m_spacing{}; // HW order
-        Encoding::Type m_dtype{};
+        DataType m_dtype{};
         Compression m_compression{};
+        Vec<f64, 2> m_minmax{};
 
         // Create multiple TIFF handles from the same file stream to enable parallel decoding.
         std::mutex m_mutex;

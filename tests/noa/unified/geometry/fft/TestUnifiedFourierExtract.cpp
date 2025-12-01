@@ -40,7 +40,7 @@ TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
         ng::insert_central_slices_3d<"hc2hc">(
             slice_fft, {}, insert_slice_shape, volume_fft, {}, volume_shape,
             {}, insert_inv_rotation_matrices, {.windowed_sinc = {-1, 0.1}});
-        noa::write(volume_fft, volume_filename);
+        noa::write_image(volume_fft, volume_filename);
     }
 
     if constexpr (COMPUTE_ASSETS) {
@@ -54,7 +54,7 @@ TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
         ng::insert_central_slices_3d<"hc2hc">(
             slice_fft, {}, slice_shape, volume_fft, {}, volume_shape,
             {}, Mat33<f32>::eye(1), {.windowed_sinc = {0.0234375, 1}});
-        noa::write(volume_fft, volume_filename);
+        noa::write_image(volume_fft, volume_filename);
     }
 
     std::vector<Device> devices{"cpu"};
@@ -91,7 +91,7 @@ TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
             if (fwd_rotation_matrices.device() != device)
                 fwd_rotation_matrices = fwd_rotation_matrices.to({device});
 
-            const Array volume_fft = noa::read_data<f32>(volume_filename, {}, options);
+            const Array volume_fft = noa::read_image<f32>(volume_filename, {}, options).data;
             const Array slice_fft = noa::empty<f32>(slice_shape.rfft(), options);
 
             // Forward project.
@@ -104,17 +104,17 @@ TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
                 });
 
             if constexpr (COMPUTE_ASSETS) {
-                noa::write(slice_fft, slice_filename);
+                noa::write_image(slice_fft, slice_filename);
                 continue;
             }
 
-            const Array asset_slice_fft = noa::read_data<f32>(slice_filename);
+            const Array asset_slice_fft = noa::read_image<f32>(slice_filename).data;
             REQUIRE(test::allclose_abs_safe(asset_slice_fft, slice_fft, 5e-5));
         }
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::extract_central_slices_3d - using texture API and remap", "", f32, c32) {
+TEMPLATE_TEST_CASE("unified::geometry::extract_central_slices_3d, using texture API and remap", "", f32, c32) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");

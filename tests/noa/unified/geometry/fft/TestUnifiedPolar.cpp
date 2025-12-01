@@ -172,7 +172,7 @@ TEST_CASE("unified::geometry::spectrum2polar") {
 //             .interp = noa::Interp::CUBIC_BSPLINE,
 //         });
 //
-//         noa::write(polar, "/Users/cix56657/Tmp/test_polar.mrc");
+//         noa::write_image(polar, "/Users/cix56657/Tmp/test_polar.mrc");
 //
 //         const auto rotational_average = noa::Array<f32>(polar.shape().set<2>(1), options);
 //         noa::reduce_axes_iwise(polar.shape().filter(0, 2, 3), device, noa::wrap(f64{}, f64{}), rotational_average, ReduceAnisotropic{
@@ -186,7 +186,7 @@ TEST_CASE("unified::geometry::spectrum2polar") {
 //             .rho_range = rho_range.stop - rho_range.start, // assumes endpoint=true
 //         });
 //
-//         noa::write(rotational_average, "/Users/cix56657/Tmp/test_rotational_average.mrc");
+//         noa::write_image(rotational_average, "/Users/cix56657/Tmp/test_rotational_average.mrc");
 //
 //         const auto rotational_average2 = noa::Array<f32>(polar.shape().set<2>(1), options);
 //         noa::geometry::rotational_average_anisotropic<"h2h">(spectrum, spectrum_shape, ctf, rotational_average2, {}, {
@@ -194,7 +194,7 @@ TEST_CASE("unified::geometry::spectrum2polar") {
 //             .output_fftfreq = rho_range
 //         });
 //
-//         noa::write(rotational_average2, "/Users/cix56657/Tmp/test_rotational_average2.mrc");
+//         noa::write_image(rotational_average2, "/Users/cix56657/Tmp/test_rotational_average2.mrc");
 //     }
 // }
 
@@ -487,7 +487,7 @@ TEST_CASE("unified::geometry::rotational_average_anisotropic, test", "[.]") {
 
     const auto ctf = noa::empty<f32>(shape);
     noa::signal::ctf_anisotropic<"FC2FC">(ctf, shape, ctf_aniso);
-    noa::write(ctf, directory / "test_simulated_ctf.mrc");
+    noa::write_image(ctf, directory / "test_simulated_ctf.mrc");
 
     const auto rotational_average = noa::empty<f32>(n_shells);
     noa::geometry::rotational_average_anisotropic<"FC2H">(

@@ -32,8 +32,8 @@ TEST_CASE("unified::signal::median_filter()", "[asset]") {
             const auto border = test["border"].as<noa::Border>();
             const auto filename_expected = path_base / test["expected"].as<Path>();
 
-            const auto input = noa::io::read_data<f32>(filename_input, {}, options);
-            const auto expected = noa::io::read_data<f32>(filename_expected, {}, options);
+            const auto input = noa::read_image<f32>(filename_input, {}, options).data;
+            const auto expected = noa::read_image<f32>(filename_expected, {}, options).data;
 
             const auto result = noa::like(input);
             if (dim == 1)

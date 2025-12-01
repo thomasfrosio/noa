@@ -27,7 +27,7 @@ TEST_CASE("unified::reduce - vs numpy", "[asset]") {
     const auto expected_sum = expected["sum"].as<f64>();
     const auto expected_var = expected["var"].as<f64>();
 
-    auto data = noa::io::read_data<f64>(input_filename);
+    auto data = noa::read_image<f64>(input_filename).data;
     REQUIRE(all(data.shape() == shape));
 
     std::vector<Device> devices{"cpu"};
@@ -83,7 +83,7 @@ TEST_CASE("unified::reduce - complex vs numpy", "[assets]") {
     const auto expected_std = expected["std"].as<f64>();
     const auto expected_var = expected["var"].as<f64>();
 
-    auto data = noa::io::read_data<c64>(input_filename);
+    auto data = noa::read_image<c64>(input_filename).data;
 
     REQUIRE(noa::all(data.shape() == shape));
 

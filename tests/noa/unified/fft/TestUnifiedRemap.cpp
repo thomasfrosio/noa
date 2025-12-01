@@ -26,15 +26,15 @@ TEST_CASE("unified::fft::(i)fftshift -- vs numpy", "[asset]") {
         const auto options = ArrayOption(device, Allocator::MANAGED);
 
         for (const auto& key: keys) {
-            const auto array = noa::io::read_data<f32>(path / tests[key]["input"].as<fs::path>(), {}, options);
+            const auto array = noa::read_image<f32>(path / tests[key]["input"].as<fs::path>(), {}, options).data;
 
             // fftshift
-            auto reordered_expected = noa::io::read_data<f32>(path / tests[key]["fftshift"].as<fs::path>(), {}, options);
+            auto reordered_expected = noa::read_image<f32>(path / tests[key]["fftshift"].as<fs::path>(), {}, options).data;
             auto reordered_results = nf::remap("f2fc", array, reordered_expected.shape());
             REQUIRE(test::allclose_abs_safe(reordered_expected, reordered_results, 1e-10));
 
             // ifftshift
-            reordered_expected = noa::io::read_data<f32>(path / tests[key]["ifftshift"].as<fs::path>(), {}, options);
+            reordered_expected = noa::read_image<f32>(path / tests[key]["ifftshift"].as<fs::path>(), {}, options).data;
             reordered_results = nf::remap("fc2f", array, reordered_expected.shape());
             REQUIRE(test::allclose_abs_safe(reordered_expected, reordered_results, 1e-10));
         }

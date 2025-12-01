@@ -136,6 +136,36 @@ namespace noa::io {
         [[nodiscard]] auto is_open() const noexcept -> bool { return m_fstream.is_open(); }
         void clear_flags() { m_fstream.clear(); }
 
+    public: // input_iterator interface to iterate per-lines
+        struct Sentinel {}; // end marker
+        struct Iterator {
+            using value_type = std::string;
+            using difference_type = std::ptrdiff_t;
+            using reference = std::string&;
+
+            TextFile* file = nullptr;
+
+            Iterator() = default;
+            explicit Iterator(TextFile* p) : file(p) {
+                ++(*this); // load first line
+            }
+
+            auto operator*() const -> reference { return file->m_buffer; }
+            auto operator++() -> Iterator&{
+                if (file and not std::getline(file->m_fstream, file->m_buffer)) {
+                    check(file->eof(), "{}. Failed to read a line", file->m_path);
+                    file = nullptr; // mark end
+                }
+                return *this;
+            }
+            void operator++(int) { ++(*this); } // post-increment
+            friend bool operator==(const Iterator& it, Sentinel) { return it.file == nullptr; }
+            friend bool operator!=(const Iterator& it, Sentinel s) { return !(it == s); }
+        };
+
+        auto begin() -> Iterator { return Iterator{this}; }
+        auto end() const -> Sentinel { return {}; }
+
     private:
         void open_(Open mode) {
             close();
@@ -176,6 +206,7 @@ namespace noa::io {
     private:
         Stream m_fstream{};
         Path m_path{};
+        std::string m_buffer; // iterator line buffer
     };
 
     using InputTextFile = TextFile<std::ifstream>;
@@ -183,18 +214,21 @@ namespace noa::io {
 
     /// Reads the entire text file.
     inline auto read_text(const Path& path) -> std::string {
-        InputTextFile text_file(path, Open{.read = true});
-        return text_file.read_all();
+        return InputTextFile(path, Open{.read = true}).read_all();
     }
 
     /// Saves the entire text file.
     inline void write_text(std::string_view string, const Path& path) {
-        OutputTextFile text_file(path, Open{.write = true});
-        text_file.write(string);
+        OutputTextFile(path, Open{.write = true}).write(string);
+    }
+
+    inline auto read_lines(const Path& path) -> InputTextFile {
+        return InputTextFile(path, Open{.read = true});
     }
 }
 
 namespace noa {
     using noa::io::read_text;
     using noa::io::write_text;
+    using noa::io::read_lines;
 }

@@ -17,7 +17,7 @@ TEST_CASE("unified::reduce - axis reductions vs numpy", "[assets]") {
     const auto input_filename = path / input["path"].as<Path>();
     const auto shape = input["shape"].as<Shape4<i64>>();
 
-    auto data = noa::io::read_data<f64>(input_filename);
+    auto data = noa::read_image<f64>(input_filename).data;
     REQUIRE(noa::all(data.shape() == shape));
 
    std::vector<Device> devices{"cpu"};
@@ -44,31 +44,31 @@ TEST_CASE("unified::reduce - axis reductions vs numpy", "[assets]") {
 
             const Array<f32> output(output_shape, options);
 
-            auto expected = noa::io::read_data<f32>(output_path_min);
+            auto expected = noa::read_image<f32>(output_path_min).data;
             noa::min(data, output);
             REQUIRE(test::allclose_abs_safe(expected, output, 1e-5));
 
-            expected = noa::io::read_data<f32>(output_path_max);
+            expected = noa::read_image<f32>(output_path_max).data;
             noa::max(data, output);
             REQUIRE(test::allclose_abs_safe(expected, output, 1e-5));
 
-            expected = noa::io::read_data<f32>(output_path_sum);
+            expected = noa::read_image<f32>(output_path_sum).data;
             noa::sum(data, output);
             REQUIRE(test::allclose_abs_safe(expected.drop(), output, 1e-5));
 
-            const auto expected_std = noa::io::read_data<f32>(output_path_std);
+            const auto expected_std = noa::read_image<f32>(output_path_std).data;
             noa::stddev(data, output);
             REQUIRE(test::allclose_abs_safe(expected_std, output, 1e-5));
 
-            const auto expected_mean = noa::io::read_data<f32>(output_path_mean);
+            const auto expected_mean = noa::read_image<f32>(output_path_mean).data;
             noa::mean(data, output);
             REQUIRE(test::allclose_abs_safe(expected_mean, output, 1e-5));
 
-            const auto expected_norm = noa::io::read_data<f32>(output_path_norm);
+            const auto expected_norm = noa::read_image<f32>(output_path_norm).data;
             noa::l2_norm(data, output);
             REQUIRE(test::allclose_abs_safe(expected_norm, output, 1e-5));
 
-            const auto expected_variance = noa::io::read_data<f32>(output_path_var);
+            const auto expected_variance = noa::read_image<f32>(output_path_var).data;
             noa::variance(data, output);
             REQUIRE(test::allclose_abs_safe(expected_variance, output, 1e-5));
 

@@ -41,7 +41,7 @@ TEST_CASE("unified::geometry::project_3d, project sphere", "[asset]") {
         constexpr auto circle = ng::Sphere{.center = Vec{128., 128.}, .radius = 32., .smoothness = 5.};
         const auto asset = noa::empty<f32>({n_images, 1, 256, 256});
         ng::draw({}, asset, circle.draw(), inverse_matrices);
-        noa::write(asset, input_filename);
+        noa::write_image(asset, input_filename);
     }
 
     constexpr auto volume_shape = Shape<i64, 3>{80, 256, 256};
@@ -84,13 +84,13 @@ TEST_CASE("unified::geometry::project_3d, project sphere", "[asset]") {
 
         // Backward project.
         {
-            auto images = noa::read_data<f32>(input_filename, {}, options);
+            auto images = noa::read_image<f32>(input_filename, {}, options).data;
             auto volume = noa::empty<f32>(volume_shape.push_front(1), options);
             ng::backward_project_3d(images, volume, backward_projection_matrices);
             if constexpr (COMPUTE_ASSETS) {
-                noa::write(volume, output_volume_filename);
+                noa::write_image(volume, output_volume_filename);
             } else {
-                auto asset_volume = noa::read_data<f32>(output_volume_filename, {}, options);
+                auto asset_volume = noa::read_image<f32>(output_volume_filename, {}, options).data;
                 REQUIRE(test::allclose_abs(volume, asset_volume, 1e-4));
             }
         }
@@ -106,9 +106,9 @@ TEST_CASE("unified::geometry::project_3d, project sphere", "[asset]") {
                 projection_window_size, {.add_to_output = true}
             );
             if constexpr (COMPUTE_ASSETS) {
-                noa::write(images, output_images_filename);
+                noa::write_image(images, output_images_filename);
             } else {
-                auto asset_images = noa::read_data<f32>(output_images_filename, {}, options);
+                auto asset_images = noa::read_image<f32>(output_images_filename, {}, options).data;
                 REQUIRE(test::allclose_abs(images, asset_images, 1e-4));
             }
         }
@@ -170,9 +170,9 @@ TEST_CASE("unified::geometry::project_3d, fused", "[asset]") {
                 projection_window_size, {.add_to_output = true}
             );
             if constexpr (COMPUTE_ASSETS) {
-                noa::write(projected_image, image_normal);
+                noa::write_image(projected_image, image_normal);
             } else {
-                auto asset_image = noa::read_data<f32>(image_normal, {}, options);
+                auto asset_image = noa::read_image<f32>(image_normal, {}, options).data;
                 REQUIRE(test::allclose_abs(projected_image, asset_image, 5e-4));
             }
         }
@@ -184,9 +184,9 @@ TEST_CASE("unified::geometry::project_3d, fused", "[asset]") {
                 projection_window_size, {.interp = noa::Interp::CUBIC}
             );
             if constexpr (COMPUTE_ASSETS) {
-                noa::write(projected_image, image_fused);
+                noa::write_image(projected_image, image_fused);
             } else {
-                auto asset_image = noa::read_data<f32>(image_fused, {}, options);
+                auto asset_image = noa::read_image<f32>(image_fused, {}, options).data;
                 REQUIRE(test::allclose_abs(projected_image, asset_image, 5e-4));
             }
         }
@@ -211,6 +211,6 @@ TEST_CASE("unified::geometry::project_3d, projection window", "[.]") {
 
         auto projection_window_size = ng::forward_projection_window_size(volume_shape, forward_matrix);
         ng::forward_project_3d(volume, images, forward_matrix, projection_window_size, {.interp = noa::Interp::CUBIC});
-        noa::write(images, path_base / "test_image.mrc");
+        noa::write_image(images, path_base / "test_image.mrc");
     }
 }

@@ -34,12 +34,12 @@ TEST_CASE("unified::signal::lowpass()", "[asset]") {
             no_batch_shape[0] = 1;
             const auto filter_expected = noa::empty<f32>(no_batch_shape.rfft());
             noa::signal::lowpass<"h2h">({}, filter_expected, no_batch_shape, {cutoff, width});
-            noa::io::write(filter_expected, filename_expected);
+            noa::write_image(filter_expected, filename_expected);
             continue;
         }
 
         // Get expected filter. Asset is not batched so broadcast batch dimension.
-        auto filter_expected = noa::indexing::broadcast(noa::io::read_data<f32>(filename_expected), shape.rfft());
+        auto filter_expected = noa::indexing::broadcast(noa::read_image<f32>(filename_expected).data, shape.rfft());
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device, Stream::DEFAULT);
@@ -52,7 +52,7 @@ TEST_CASE("unified::signal::lowpass()", "[asset]") {
             // Test saving the mask.
             const Array filter_result = noa::empty<f32>(shape.rfft(), options);
             noa::signal::lowpass<"h2h">({}, filter_result, shape, {cutoff, width});
-            noa::io::write(filter_result, path_base / "test.mrc");
+            noa::write_image(filter_result, path_base / "test.mrc");
             REQUIRE(test::allclose_abs(filter_expected, filter_result, 1e-6));
 
             // Test on-the-fly, in-place.
@@ -128,12 +128,12 @@ TEST_CASE("unified::signal::highpass()", "[asset]") {
             no_batch_shape[0] = 1;
             const auto filter_expected = noa::empty<f32>(no_batch_shape.rfft());
             noa::signal::highpass<"h2h">({}, filter_expected, no_batch_shape, {cutoff, width});
-            noa::io::write(filter_expected, filename_expected);
+            noa::write_image(filter_expected, filename_expected);
             continue;
         }
 
         // Get expected filter. Asset is not batched so copy to all batches.
-        auto filter_expected = noa::indexing::broadcast(noa::io::read_data<f32>(filename_expected), shape.rfft());
+        auto filter_expected = noa::indexing::broadcast(noa::read_image<f32>(filename_expected).data, shape.rfft());
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device, Stream::DEFAULT);
@@ -222,12 +222,12 @@ TEST_CASE("unified::signal::bandpass()", "[asset]") {
             no_batch_shape[0] = 1;
             const auto filter_expected = noa::empty<f32>(no_batch_shape.rfft());
             noa::signal::bandpass<"h2h">({}, filter_expected, no_batch_shape, bandpass_options);
-            noa::io::write(filter_expected, filename_expected);
+            noa::write_image(filter_expected, filename_expected);
             continue;
         }
 
         // Get expected filter. Asset is not batched so copy to all batches.
-        auto filter_expected = noa::indexing::broadcast(noa::io::read_data<f32>(filename_expected), shape.rfft());
+        auto filter_expected = noa::indexing::broadcast(noa::read_image<f32>(filename_expected).data, shape.rfft());
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device, Stream::DEFAULT);

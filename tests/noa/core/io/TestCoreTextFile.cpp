@@ -122,5 +122,21 @@ TEST_CASE("core::io::TextFile") {
         REQUIRE(file.read_all() == "01");
     }
 
+    AND_WHEN("line iterator") {
+        constexpr auto LINES = std::array{"line1", "line2", "line3", "line4"};
+        auto f = noa::io::TextFile(test_file1, {.write=true, .truncate=true});
+        for (auto line : LINES) {
+            f.write(line);
+            f.write("\n");
+        }
+        f.close();
+        f.open(test_file1, {.read=true});
+
+        size_t i{};
+        for (auto line : f)
+            REQUIRE(line == LINES[i++]);
+        REQUIRE(i == 4);
+    }
+
     noa::io::remove_all(test_dir);
 }

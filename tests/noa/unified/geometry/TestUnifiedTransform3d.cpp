@@ -52,8 +52,8 @@ TEST_CASE("unified::geometry::transform_3d, rotate vs scipy", "[asset]") {
             const auto options = noa::ArrayOption(device, noa::Allocator::MANAGED);
             INFO(device);
 
-            const auto input = noa::io::read_data<f32>(input_filename, {.enforce_2d_stack = false}, options);
-            const auto expected = noa::io::read_data<f32>(expected_filename, {.enforce_2d_stack = false}, options);
+            const auto input = noa::read_image<f32>(input_filename, {.enforce_2d_stack = false}, options).data;
+            const auto expected = noa::read_image<f32>(expected_filename, {.enforce_2d_stack = false}, options).data;
 
             // With arrays:
             const auto output = noa::like(expected);
@@ -120,12 +120,12 @@ TEST_CASE("unified::geometry::transform_3d(), others", "[asset]") {
         const auto expected_filename = path_base / test["expected"].as<Path>();
 
         if constexpr (GENERATE_TEST_DATA) {
-            const auto input = noa::io::read_data<f32>(input_filename);
+            const auto input = noa::read_image<f32>(input_filename).data;
             const auto output = noa::like(input);
             if (interp.is_almost_any(Interp::CUBIC_BSPLINE))
                 noa::cubic_bspline_prefilter(input, input);
             noa::geometry::transform_3d(input, output, inv_matrix, {interp, border, cvalue});
-            noa::io::write(output, expected_filename);
+            noa::write_image(output, expected_filename);
             continue;
         }
 
@@ -134,8 +134,8 @@ TEST_CASE("unified::geometry::transform_3d(), others", "[asset]") {
             const auto options = noa::ArrayOption(device, noa::Allocator::MANAGED);
             INFO(device);
 
-            const auto input = noa::io::read_data<f32>(input_filename, {.enforce_2d_stack = false}, options);
-            const auto expected = noa::io::read_data<f32>(expected_filename, {.enforce_2d_stack = false}, options);
+            const auto input = noa::read_image<f32>(input_filename, {.enforce_2d_stack = false}, options).data;
+            const auto expected = noa::read_image<f32>(expected_filename, {.enforce_2d_stack = false}, options).data;
 
             // With arrays:
             const auto output = noa::like(expected);

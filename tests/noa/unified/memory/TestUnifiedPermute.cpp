@@ -34,8 +34,8 @@ TEST_CASE("unified::permute()", "[asset]") {
             const auto permutation = test["permutation"].as<Vec4<i64>>();
             const auto inplace = test["inplace"].as<bool>();
 
-            const auto input = noa::io::read_data<f32>(filename_input, {}, options);
-            const auto expected = noa::io::read_data<f32>(filename_expected, {}, options);
+            const auto input = noa::read_image<f32>(filename_input, {}, options).data;
+            const auto expected = noa::read_image<f32>(filename_expected, {}, options).data;
 
             if (inplace) {
                 noa::permute_copy(input, input, permutation);

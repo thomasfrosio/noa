@@ -39,7 +39,7 @@ TEST_CASE("unified::geometry::cartesian2polar", "[asset]") {
                 .radius=0.,
                 .smoothness=radius_range[1]
             }.draw());
-            noa::io::write(input, input_filename);
+            noa::write_image(input, input_filename);
 
             const auto output = noa::empty<f32>(polar_shape);
             noa::geometry::cartesian2polar(
@@ -48,7 +48,7 @@ TEST_CASE("unified::geometry::cartesian2polar", "[asset]") {
                     .phi_range = noa::Linspace{angle_range[0], angle_range[1], false},
                     .interp = interpolation_mode,
                 });
-            noa::io::write(output, output_filename);
+            noa::write_image(output, output_filename);
 
             continue;
         }
@@ -57,7 +57,7 @@ TEST_CASE("unified::geometry::cartesian2polar", "[asset]") {
             const auto option = ArrayOption(device, Allocator::MANAGED);
             INFO(device);
 
-            const auto input = noa::io::read_data<f32>(input_filename, {.enforce_2d_stack = false}, option);
+            const auto input = noa::read_image<f32>(input_filename, {.enforce_2d_stack = false}, option).data;
             if (noa::any(input.shape() != cartesian_shape))
                 FAIL("input shape is not correct");
 
@@ -69,7 +69,7 @@ TEST_CASE("unified::geometry::cartesian2polar", "[asset]") {
                     .interp = interpolation_mode,
                 });
 
-            const auto expected = noa::io::read_data<f32>(output_filename);
+            const auto expected = noa::read_image<f32>(output_filename).data;
             REQUIRE(test::allclose_abs_safe(output, expected, 1e-6));
         }
     }

@@ -9,7 +9,7 @@ namespace noa::io {
         struct Parameters {
             /// New size, in bytes, of the opened file.
             /// - This is ignored in read-only mode (the file should exist and cannot be modified).
-            /// - If writing is allowed (e.g. write or read|write mode), the file will be resized
+            /// - If writing is allowed (e.g., write or read|write mode), the file will be resized
             ///   if a positive new_size is provided. Note that if the file doesn't exist and a new size isn't
             ///   provided (new_size=-1), the stream is simply opened, no memory-mapping can be done (an error
             ///   will be thrown if memory_map=true), and size() returns -1. This behavior is intended for cases
@@ -81,8 +81,8 @@ namespace noa::io {
         [[nodiscard]] auto ssize() const -> i64 { return m_size; }
         [[nodiscard]] auto size() const -> u64 { return static_cast<u64>(m_size); }
 
-        /// Retrieves the memory mapped range.
-        /// This function requires the file to be memory mapped.
+        /// Retrieves the memory-mapped range.
+        /// This function requires the file to be memory-mapped.
         /// Accesses must be compatible with the open-mode.
         /// \warning Closing the file invalidates this range.
         [[nodiscard]] auto as_bytes() const -> SpanContiguous<std::byte, 1> {
@@ -91,7 +91,7 @@ namespace noa::io {
         }
 
         /// Retrieves the file stream.
-        /// \warning The stream should not be closed. Any other access, e.g. std::fread/fwrite, if fine.
+        /// \warning The stream should not be closed. Any other access, e.g., std::fread/fwrite, if fine.
         [[nodiscard]] auto stream() const -> std::FILE* { return m_file; }
 
         /// Advise the kernel regarding accesses.
@@ -99,7 +99,6 @@ namespace noa::io {
         void optimize_for_random_access(i64 offset = 0, i64 size = -1) const;
         void optimize_for_no_access(i64 offset = 0, i64 size = -1) const;
         void optimize_for_normal_access(i64 offset = 0, i64 size = -1) const;
-
 
     private:
         Path m_path{};

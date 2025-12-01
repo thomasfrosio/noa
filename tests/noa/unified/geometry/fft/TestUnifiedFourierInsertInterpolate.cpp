@@ -67,11 +67,11 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
                 });
 
             if constexpr (COMPUTE_ASSETS) {
-                noa::write(volume_fft, volume_filename);
+                noa::write_image(volume_fft, volume_filename);
                 continue;
             }
 
-            const Array asset_volume_fft = noa::read_data<f32>(volume_filename);
+            const Array asset_volume_fft = noa::read_image<f32>(volume_filename).data;
             REQUIRE(test::allclose_abs_safe(asset_volume_fft, volume_fft, 5e-5));
         }
     }

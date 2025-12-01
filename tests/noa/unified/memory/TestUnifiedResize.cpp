@@ -79,9 +79,9 @@ TEST_CASE("unified::resize()", "[asset]") {
                 noa::resize(input, output, left, right, border_mode, border_value);
 
             if (COMPUTE_ASSETS) {
-                noa::io::write(output, expected_filename);
+                noa::io::write_image(output, expected_filename);
             } else {
-                const auto expected = noa::io::read_data<f32>(expected_filename).reshape(output_shape);
+                const auto expected = noa::read_image<f32>(expected_filename).data.reshape(output_shape);
                 REQUIRE(test::allclose_abs_safe(expected, output, 1e-6));
             }
         }

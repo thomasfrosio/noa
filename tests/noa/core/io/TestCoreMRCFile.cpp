@@ -18,9 +18,9 @@ TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[asset]") {
     using MrcFile = nio::BasicImageFile<nio::ImageFileEncoderMrc>;
 
     const auto dtype = GENERATE(
-        nio::Encoding::I16, nio::Encoding::U16,
-        nio::Encoding::U8, nio::Encoding::I8,
-        nio::Encoding::F16, nio::Encoding::F32
+        nio::DataType::I16, nio::DataType::U16,
+        nio::DataType::U8, nio::DataType::I8,
+        nio::DataType::F16, nio::DataType::F32
     );
 
     AND_THEN("write and read to a volume") {
@@ -32,7 +32,8 @@ TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[asset]") {
         auto file = MrcFile(file1, {.write = true}, {
             .shape = shape,
             .spacing = spacing,
-            .dtype = dtype
+            .dtype = dtype,
+            .stats = {.min = -1., .max = 1., .mean = 0., .stddev = 1.},
         });
         REQUIRE(file.is_open());
         REQUIRE(file.encoder_name() == "mrc");
@@ -53,6 +54,7 @@ TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[asset]") {
         auto file_to_read = MrcFile(file1, {.read = true});
         REQUIRE(noa::all(file_to_read.shape() == shape));
         REQUIRE(noa::all(file_to_read.spacing().as<f32>() == spacing.as<f32>()));
+        REQUIRE((file_to_read.stats().min == -1. and file_to_read.stats().max == 1.));
 
         const auto to_read = std::make_unique<f32[]>(size);
         const auto s1 = Span(to_read.get(), shape);
@@ -69,7 +71,8 @@ TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[asset]") {
         auto file = MrcFile(file1, {.write = true}, {
             .shape = shape,
             .spacing = spacing,
-            .dtype = dtype
+            .dtype = dtype,
+            .stats = {.min = -1., .max = 1., .mean = 0., .stddev = 1.},
         });
         REQUIRE(file.is_open());
 
@@ -88,6 +91,7 @@ TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[asset]") {
         auto file_to_read = MrcFile(file1, {.read = true});
         REQUIRE(noa::all(file_to_read.shape() == shape));
         REQUIRE(noa::all(file_to_read.spacing().as<f32>() == spacing.as<f32>()));
+        REQUIRE((file_to_read.stats().min == -1. and file_to_read.stats().max == 1.));
 
         const auto to_read = std::make_unique<f32[]>(size);
         const auto s1 = Span(to_read.get(), shape);
@@ -163,7 +167,7 @@ TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[asset]") {
 
         auto image_file = MrcFile(file2, {.write = true}, {
             .shape = shape,
-            .dtype = nio::Encoding::I16,
+            .dtype = nio::DataType::I16,
         });
         REQUIRE(image_file.is_open());
         REQUIRE(fs::is_regular_file(file2.string() + "~")); // backup since we open in writing mode

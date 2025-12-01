@@ -55,7 +55,7 @@ TEST_CASE("unified::geometry::sphere(), 2d", "[asset]") {
         if constexpr (COMPUTE_ASSETS) {
             const auto asset = noa::empty<f32>(shape);
             noa::geometry::draw({}, asset, sphere.draw());
-            noa::io::write(asset, filename_expected);
+            noa::write_image(asset, filename_expected);
             continue;
         }
 
@@ -63,7 +63,7 @@ TEST_CASE("unified::geometry::sphere(), 2d", "[asset]") {
             const auto option = ArrayOption(device, Allocator::MANAGED);
             INFO(device);
 
-            const auto asset = noa::io::read_data<f32>(filename_expected, {}, option);
+            const auto asset = noa::read_image<f32>(filename_expected, {}, option).data;
             if (noa::any(asset.shape() != shape))
                 FAIL("asset shape is not correct");
 
@@ -122,13 +122,13 @@ TEST_CASE("unified::geometry::rectangle(), 2d", "[asset]") {
         if constexpr (COMPUTE_ASSETS) {
             const auto asset = noa::empty<f32>(shape);
             noa::geometry::draw({}, asset, rectangle.draw(), inv_matrix);
-            noa::io::write(asset, filename_expected);
+            noa::write_image(asset, filename_expected);
             continue;
         }
 
         for (auto device: devices) {
             const auto option = ArrayOption(device, Allocator::MANAGED);
-            const auto asset = noa::io::read_data<f32>(filename_expected, {}, option);
+            const auto asset = noa::read_image<f32>(filename_expected, {}, option).data;
             if (noa::any(asset.shape() != shape))
                 FAIL("asset shape is not correct");
 
@@ -187,13 +187,13 @@ TEST_CASE("unified::geometry::ellipse(), 2d", "[asset]") {
         if constexpr (COMPUTE_ASSETS) {
             const auto asset = noa::empty<f32>(shape);
             noa::geometry::draw({}, asset, ellipse.draw(), inv_matrix);
-            noa::io::write(asset, filename_expected);
+            noa::write_image(asset, filename_expected);
             continue;
         }
 
         for (auto device: devices) {
             const auto option = ArrayOption(device, Allocator::MANAGED);
-            const auto asset = noa::io::read_data<f32>(filename_expected, {}, option);
+            const auto asset = noa::read_image<f32>(filename_expected, {}, option).data;
             if (noa::any(asset.shape() != shape))
                 FAIL("asset shape is not correct");
 
@@ -251,13 +251,13 @@ TEST_CASE("unified::geometry::sphere, 3d", "[asset]") {
         if constexpr (COMPUTE_ASSETS) {
             const auto asset = noa::empty<f32>(shape);
             noa::geometry::draw({}, asset, sphere.draw());
-            noa::io::write(asset, filename_expected);
+            noa::write_image(asset, filename_expected);
             continue;
         }
 
         for (auto device: devices) {
             const auto option = ArrayOption(device, Allocator::MANAGED);
-            const auto asset = noa::io::read_data<f32>(filename_expected, {}, option);
+            const auto asset = noa::read_image<f32>(filename_expected, {}, option).data;
             if (noa::any(asset.shape() != shape))
                 FAIL("asset shape is not correct");
 
@@ -316,13 +316,13 @@ TEST_CASE("unified::geometry::rectangle, 3d", "[asset]") {
         if constexpr (COMPUTE_ASSETS) {
             Array asset = noa::empty<f32>(shape);
             noa::geometry::draw({}, asset, rectangle.draw(), inv_matrix);
-            noa::io::write(asset, filename_expected);
+            noa::write_image(asset, filename_expected);
             continue;
         }
 
         for (auto device: devices) {
             const auto option = ArrayOption(device, Allocator::MANAGED);
-            const auto asset = noa::io::read_data<f32>(filename_expected, {}, option);
+            const auto asset = noa::read_image<f32>(filename_expected, {}, option).data;
             if (any(asset.shape() != shape))
                 FAIL("asset shape is not correct");
 
@@ -381,13 +381,13 @@ TEST_CASE("unified::geometry::ellipse, 3d", "[asset]") {
         if constexpr (COMPUTE_ASSETS) {
             const auto asset = noa::empty<f32>(shape);
             noa::geometry::draw({}, asset, ellipse.draw(), inv_matrix);
-            noa::io::write(asset, filename_expected);
+            noa::write_image(asset, filename_expected);
             continue;
         }
 
         for (auto device: devices) {
             const auto option = ArrayOption(device, Allocator::MANAGED);
-            const auto asset = noa::io::read_data<f32>(filename_expected, {}, option);
+            const auto asset = noa::read_image<f32>(filename_expected, {}, option).data;
             if (noa::any(asset.shape() != shape))
                 FAIL("asset shape is not correct");
 
@@ -448,14 +448,14 @@ TEST_CASE("unified::geometry::cylinder", "[asset]") {
         if constexpr (COMPUTE_ASSETS) {
             const auto asset = noa::empty<f32>(shape);
             noa::geometry::draw({}, asset, cylinder.draw(), inv_matrix);
-            noa::io::write(asset, filename_expected);
+            noa::write_image(asset, filename_expected);
             continue;
         }
 
         for (auto device: devices) {
             INFO(device);
             const auto option = ArrayOption(device, Allocator::MANAGED);
-            const auto asset = noa::io::read_data<f32>(filename_expected, {}, option);
+            const auto asset = noa::read_image<f32>(filename_expected, {}, option).data;
             if (noa::any(asset.shape() != shape))
                 FAIL("asset shape is not correct");
 

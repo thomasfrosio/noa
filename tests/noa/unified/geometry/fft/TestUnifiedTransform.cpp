@@ -55,8 +55,8 @@ TEST_CASE("unified::geometry::transform_spectrum_2d, vs scipy", "[asset]") {
             const auto options = noa::ArrayOption(device, noa::Allocator::MANAGED);
             INFO(device);
 
-            const auto input = noa::read_data<f32>(input_filename, {.enforce_2d_stack = true}, options);
-            const auto expected = noa::read_data<f32>(expected_filename, {.enforce_2d_stack = true}, options);
+            const auto input = noa::read_image<f32>(input_filename, {.enforce_2d_stack = true}, options).data;
+            const auto expected = noa::read_image<f32>(expected_filename, {.enforce_2d_stack = true}, options).data;
             const auto output = noa::like(expected);
             const auto input_fft = noa::empty<c32>(input.shape().rfft(), options);
             const auto input_fft_centered = noa::like(input_fft);
@@ -120,8 +120,8 @@ TEST_CASE("unified::geometry::transform_spectrum_3d, vs scipy", "[asset]") {
             const auto options = ArrayOption(device, Allocator::MANAGED);
             INFO(device);
 
-            const auto input = noa::read_data<f32>(input_filename, {}, options);
-            const auto expected = noa::read_data<f32>(expected_filename, {}, options);
+            const auto input = noa::read_image<f32>(input_filename, {}, options).data;
+            const auto expected = noa::read_image<f32>(expected_filename, {}, options).data;
             const auto output = noa::like(expected);
             const auto input_fft = noa::empty<c32>(input.shape().rfft(), options);
             const auto input_fft_centered = noa::like(input_fft);
@@ -286,8 +286,8 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32,
 //     Array output1 = noa::like(output0);
 //     const Mat22 rotation = ng::rotate(noa::deg2rad(45.f));
 //     ng::transform_spectrum_2d<"HC2HC">(output0, output1, shape, rotation);
-//     noa::write(noa::real(output1), output_path / "test_output1_real.mrc");
-//     noa::write(noa::imag(output1), output_path / "test_output1_imag.mrc");
+//     noa::write_image(noa::real(output1), output_path / "test_output1_real.mrc");
+//     noa::write_image(noa::imag(output1), output_path / "test_output1_imag.mrc");
 // }
 //
 // TEST_CASE("unified::geometry::transform_spectrum_3d, check redundancy", "[.]") {
@@ -302,8 +302,8 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32,
 //     Array output1 = noa::like(output0);
 //     const Mat33 rotation = ng::euler2matrix(noa::deg2rad(Vec{45.f, 0.f, 0.f}), {.axes="zyx", .intrinsic = false});
 //     ng::transform_spectrum_3d<"HC2HC">(output0, output1, shape, rotation, Vec3<f32>{});
-//     noa::write(noa::real(output1), output_path / "test_output1_real.mrc");
-//     noa::write(noa::imag(output1), output_path / "test_output1_imag.mrc");
+//     noa::write_image(noa::real(output1), output_path / "test_output1_real.mrc");
+//     noa::write_image(noa::imag(output1), output_path / "test_output1_imag.mrc");
 // }
 //
 // TEST_CASE("unified::geometry::transform_spectrum_2d, 0", ".") {
@@ -329,8 +329,8 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32,
 //         input_rfft, output_rfft, shape,
 //         rotations, {}, {.interp = Interp::CUBIC_FAST, .fftfreq_cutoff = 1});
 //
-//     noa::write(input_rfft, test::NOA_DATA_PATH / "geometry" / "test_input_rfft.mrc");
-//     noa::write(output_rfft, test::NOA_DATA_PATH / "geometry" / "test_output_rfft.mrc");
+//     noa::write_image(input_rfft, test::NOA_DATA_PATH / "geometry" / "test_input_rfft.mrc");
+//     noa::write_image(output_rfft, test::NOA_DATA_PATH / "geometry" / "test_output_rfft.mrc");
 // }
 //
 // TEST_CASE("unified::geometry::transform_spectrum_2d, 1", ".") {
@@ -343,7 +343,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32,
 //         .radius = Vec{64., 64.},
 //         .smoothness = 2.,
 //     });
-//     noa::write(input, test::NOA_DATA_PATH / "geometry" / "test_input.mrc");
+//     noa::write_image(input, test::NOA_DATA_PATH / "geometry" / "test_input.mrc");
 //
 //     auto rotations = noa::empty<Mat<f64, 2, 2>>(shape[0]);
 //     for (f64 i{5}; auto& rotation: rotations.span_1d_contiguous()) {
@@ -363,6 +363,6 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32,
 //             });
 //
 //         auto output = noa::fft::c2r(output_rfft, shape);
-//         noa::write(output, test::NOA_DATA_PATH / "geometry" / fmt::format("test_output_{}.mrc", interp));
+//         noa::write_image(output, test::NOA_DATA_PATH / "geometry" / fmt::format("test_output_{}.mrc", interp));
 //     }
 // }

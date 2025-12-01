@@ -49,15 +49,16 @@ namespace {
 
     template<typename Output, typename Input>
     void encode_1d_(
-        SpanContiguous<const Input, 1> input,
-        SpanContiguous<std::byte, 1> output,
-        bool clamp, bool swap_endian, i32 n_threads
+        const Input __restrict* input,
+        std::byte __restrict* output,
+        i64 n_elements, bool clamp, bool swap_endian, i32 n_threads
     ) {
-        auto* ptr = reinterpret_cast<Output*>(output.get());
+        auto ptr = reinterpret_cast<Output*>(output);
         auto encoder = Encoder<Input, Output>{clamp, swap_endian};
 
-        #pragma omp parallel for num_threads(n_threads) default(none) shared(input, ptr, encoder)
-        for (i64 idx = 0; idx < input.ssize(); ++idx)
+        // TODO This still can be auto vectorized...
+        #pragma omp parallel for num_threads(n_threads)
+        for (i64 idx = 0; idx < n_elements; ++idx)
             ptr[idx] = encoder(input[idx]);
     }
 
@@ -68,14 +69,14 @@ namespace {
         bool clamp, bool swap_endian, i32 n_threads
     ) {
         if (input.are_contiguous())
-            return encode_1d_<Output>(input.as_1d_contiguous(), output, clamp, swap_endian, n_threads);
+            return encode_1d_<Output>(input.data(), output.data(), input.n_elements(), clamp, swap_endian, n_threads);
 
         auto* ptr = reinterpret_cast<Output*>(output.get());
         auto encoder = Encoder<Input, Output>{clamp, swap_endian};
 
         if (n_threads > 1) {
             // Collapse manually since we need to keep track of a linear index anyway...
-            #pragma omp parallel for num_threads(n_threads) default(none) shared(input, ptr, encoder)
+            #pragma omp parallel for num_threads(n_threads)
             for (i64 i = 0; i < input.ssize(); ++i)
                 ptr[i] = encoder(input(ni::offset2index(i, input.shape())));
         } else {
@@ -101,15 +102,16 @@ namespace {
 
     template<typename Input, typename Output>
     void decode_1d_(
-        SpanContiguous<const std::byte, 1> input,
-        SpanContiguous<Output, 1> output,
-        bool clamp, bool swap_endian, i32 n_threads
+        const std::byte __restrict* input,
+        Output __restrict* output,
+        i64 n_elements, bool clamp, bool swap_endian, i32 n_threads
     ) {
-        auto* ptr = reinterpret_cast<const Input*>(input.get());
+        auto ptr = reinterpret_cast<const Input*>(input);
         auto decoder = Decoder<Input, Output>{clamp, swap_endian};
 
-        #pragma omp parallel for num_threads(n_threads) default(none) shared(output, ptr, decoder)
-        for (i64 idx = 0; idx < output.ssize(); ++idx)
+        // TODO This still can be auto vectorized...
+        #pragma omp parallel for num_threads(n_threads)
+        for (i64 idx = 0; idx < n_elements; ++idx)
             output[idx] = decoder(ptr[idx]);
     }
 
@@ -120,14 +122,14 @@ namespace {
         bool clamp, bool swap_endian, i32 n_threads
     ) {
         if (output.are_contiguous())
-            return decode_1d_<Input>(input, output.as_1d_contiguous(), clamp, swap_endian, n_threads);
+            return decode_1d_<Input>(input.data(), output.data(), output.n_elements(), clamp, swap_endian, n_threads);
 
         auto* ptr = reinterpret_cast<const Input*>(input.get());
         auto decoder = Decoder<Input, Output>{clamp, swap_endian};
 
         if (n_threads > 1) {
             // Collapse manually since we need to keep track of a linear index anyway...
-            #pragma omp parallel for num_threads(n_threads) default(none) shared(output, ptr, decoder)
+            #pragma omp parallel for num_threads(n_threads)
             for (i64 i = 0; i < output.ssize(); ++i)
                 output(ni::offset2index(i, output.shape())) = decoder(ptr[i]);
         } else {
@@ -141,34 +143,34 @@ namespace {
 
     template<nt::scalar T>
     void encode_4bits_(
-        SpanContiguous<const T, 1> input,
-        SpanContiguous<std::byte, 1> output,
-        i32 n_threads
+        const T __restrict* input,
+        std::byte __restrict* output,
+        i64 n_elements, i32 n_threads
     ) {
         // The order of the first and second elements in the output are the 4 LSB and 4 MSB, respectively.
         // Note: We don't support odd rows, but if the row had an odd number of elements, the last byte of
         // the row has the 4 MSB unset.
         #pragma omp parallel for num_threads(n_threads)
-        for (i64 i = 0; i < input.ssize() / 2; ++i) {
+        for (i64 i = 0; i < n_elements / 2; ++i) {
             u32 l_val = clamp_cast<u32>(noa::round(input[2 * i]));
             u32 h_val = clamp_cast<u32>(noa::round(input[2 * i + 1]));
             l_val = noa::clamp(l_val, 0u, 15u);
             h_val = noa::clamp(h_val, 0u, 15u);
             u32 tmp = l_val + (h_val << 4);
-            std::memcpy(output.get() + i, &tmp, 1);
+            std::memcpy(output + i, &tmp, 1);
         }
     }
 
     template<typename T>
     void decode_4bits_(
-        SpanContiguous<const std::byte, 1> input,
-        SpanContiguous<T, 1> output,
-        i32 n_threads
+        const std::byte __restrict* input,
+        T __restrict* output,
+        i64 n_elements, i32 n_threads
     ) {
         constexpr unsigned char MASK_4LSB{0b00001111};
 
         #pragma omp parallel for num_threads(n_threads)
-        for (i64 i = 0; i < output.ssize() / 2; ++i) {
+        for (i64 i = 0; i < n_elements / 2; ++i) {
             const auto tmp = static_cast<unsigned char>(input[i]);
             output[i * 2] = static_cast<T>(tmp & MASK_4LSB);
             output[i * 2 + 1] = static_cast<T>((tmp >> 4) & MASK_4LSB);
@@ -321,400 +323,544 @@ namespace noa::io {
     template<nt::numeric T>
     void encode(
         const Span<const T, 4>& input,
-        SpanContiguous<std::byte, 1> output,
-        Encoding encoding,
-        i32 n_threads
+        const SpanContiguous<std::byte, 1>& output,
+        const DataType& output_dtype,
+        const EncodeOptions& options
     ) {
         const i64 n_elements = input.ssize();
-        const i64 n_encoded_bytes = encoding.encoded_size(n_elements);
-        check(n_encoded_bytes <= output.ssize(), "The encoded array is not big enough to contain the input array");
-        n_threads = actual_n_threads_(n_elements, n_threads);
+        const i64 n_encoded_bytes = output_dtype.n_bytes(n_elements);
+        const auto n_threads = actual_n_threads_(n_elements, options.n_threads);
 
-        switch (encoding.dtype) {
-            case Encoding::U4:
+        check(n_encoded_bytes <= output.ssize(), "The encoded array is not big enough to contain the input array");
+        check(not ni::are_overlapped(input, output), "The input and output arrays should not overlap");
+
+        switch (output_dtype) {
+            case DataType::U4:
                 if constexpr (nt::scalar<T>) {
                     check(input.are_contiguous() and is_even(input.shape()[3]),
                           "u4 encoding requires the input array to be contiguous and have even rows");
-                    return encode_4bits_(input.as_1d_contiguous(), output, n_threads);
+                    return encode_4bits_(input.data(), output.data(), input.n_elements(), n_threads);
                 }
                 break;
-            case Encoding::I8:
+            case DataType::I8:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<i8>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_4d_<i8>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U8:
+            case DataType::U8:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<u8>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_4d_<u8>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::I16:
+            case DataType::I16:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<i16>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_4d_<i16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U16:
+            case DataType::U16:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<u16>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_4d_<u16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::I32:
+            case DataType::I32:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<i32>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_4d_<i32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U32:
+            case DataType::U32:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<u32>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_4d_<u32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::I64:
+            case DataType::I64:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<i64>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_4d_<i64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U64:
+            case DataType::U64:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<u64>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_4d_<u64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::F16:
+            case DataType::F16:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<f16>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_4d_<f16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::F32:
+            case DataType::F32:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<f32>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_4d_<f32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::F64:
+            case DataType::F64:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<f64>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_4d_<f64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::CI16:
-                if constexpr (nt::complex<T>) {
-                    using real_t = const T::value_type;
-                    auto new_encoding = Encoding{Encoding::I16, encoding.clamp, encoding.endian_swap};
-                    return encode(input.template as<real_t>(), output, new_encoding, n_threads);
-                }
+            case DataType::CI16:
+                if constexpr (nt::complex<T>)
+                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::I16, options);
                 break;
-            case Encoding::C16:
-                if constexpr (nt::complex<T>) {
-                    using real_t = const T::value_type;
-                    auto new_encoding = Encoding{Encoding::F16, encoding.clamp, encoding.endian_swap};
-                    return encode(input.template as<real_t>(), output, new_encoding, n_threads);
-                }
+            case DataType::C16:
+                if constexpr (nt::complex<T>)
+                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::F16, options);
                 break;
-            case Encoding::C32:
-                if constexpr (nt::complex<T>) {
-                    using real_t = const T::value_type;
-                    auto new_encoding = Encoding{Encoding::F32, encoding.clamp, encoding.endian_swap};
-                    return encode(input.template as<real_t>(), output, new_encoding, n_threads);
-                }
+            case DataType::C32:
+                if constexpr (nt::complex<T>)
+                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::F32, options);
                 break;
-            case Encoding::C64:
-                if constexpr (nt::complex<T>) {
-                    using real_t = const T::value_type;
-                    auto new_encoding = Encoding{Encoding::F64, encoding.clamp, encoding.endian_swap};
-                    return encode(input.template as<real_t>(), output, new_encoding, n_threads);
-                }
+            case DataType::C64:
+                if constexpr (nt::complex<T>)
+                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::F64, options);
                 break;
-            case Encoding::UNKNOWN:
+            case DataType::UNKNOWN:
                 break;
         }
-        panic("{} cannot be encoded into {}", noa::string::stringify<T>(), encoding.dtype);
+        panic("{} cannot be encoded into {}", noa::string::stringify<T>(), output_dtype);
+    }
+
+    void encode(
+        const SpanContiguous<const std::byte, 1>& input,
+        const DataType& input_dtype,
+        const SpanContiguous<std::byte, 1>& output,
+        const DataType& output_dtype,
+        const EncodeOptions& options
+    ) {
+        switch (input_dtype) {
+            case DataType::I8:
+                return encode(input.as_strided<const i8, 4>(), output, output_dtype, options);
+            case DataType::I16:
+                return encode(input.as_strided<const i16, 4>(), output, output_dtype, options);
+            case DataType::I32:
+                return encode(input.as_strided<const i32, 4>(), output, output_dtype, options);
+            case DataType::I64:
+                return encode(input.as_strided<const i64, 4>(), output, output_dtype, options);
+            case DataType::U8:
+                return encode(input.as_strided<const u8, 4>(), output, output_dtype, options);
+            case DataType::U16:
+                return encode(input.as_strided<const u16, 4>(), output, output_dtype, options);
+            case DataType::U32:
+                return encode(input.as_strided<const u32, 4>(), output, output_dtype, options);
+            case DataType::U64:
+                return encode(input.as_strided<const u64, 4>(), output, output_dtype, options);
+            case DataType::F16:
+                return encode(input.as_strided<const f16, 4>(), output, output_dtype, options);
+            case DataType::F32:
+                return encode(input.as_strided<const f32, 4>(), output, output_dtype, options);
+            case DataType::F64:
+                return encode(input.as_strided<const f64, 4>(), output, output_dtype, options);
+            case DataType::C16:
+                return encode(input.as_strided<const c16, 4>(), output, output_dtype, options);
+            case DataType::C32:
+                return encode(input.as_strided<const c32, 4>(), output, output_dtype, options);
+            case DataType::C64:
+                return encode(input.as_strided<const c64, 4>(), output, output_dtype, options);
+            case DataType::U4:
+            case DataType::CI16:
+                panic("TODO: u4 and ci16 cannot be reinterpreted to valid types, they would require special cases");
+            case DataType::UNKNOWN:
+                break;
+        }
     }
 
     template<nt::numeric T>
     void encode(
         const Span<const T, 4>& input,
         std::FILE* output,
-        Encoding encoding,
-        i32 n_threads
+        const DataType& output_dtype,
+        const EncodeOptions& options
     ) {
         const i64 n_elements = input.ssize();
-        const i64 n_encoded_bytes = encoding.encoded_size(n_elements);
+        const i64 n_encoded_bytes = output_dtype.n_bytes(n_elements);
         const i64 remaining_bytes = remaining_bytes_from_file(output);
+        const auto n_threads = actual_n_threads_(n_elements, options.n_threads);
+
         check(n_encoded_bytes <= remaining_bytes,
               "The file (remaining_bytes={}) is not big enough to contain the encoded array",
               remaining_bytes);
 
-        n_threads = actual_n_threads_(n_elements, n_threads);
-
-        switch (encoding.dtype) {
-            case Encoding::U4:
+        switch (output_dtype) {
+            case DataType::U4:
                 if constexpr (nt::scalar<T>) {
                     check(input.are_contiguous() and is_even(n_elements),
                           "u4 encoding requires the input array to be contiguous and have an even number of elements");
-                    return encode_file_<u4_encoding>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_file_<u4_encoding>(input, output, options.clamp, options.endian_swap, n_threads);
                 }
                 break;
-            case Encoding::I8:
+            case DataType::I8:
                 if constexpr (nt::scalar<T>)
-                    return encode_file_<i8>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_file_<i8>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U8:
+            case DataType::U8:
                 if constexpr (nt::scalar<T>)
-                    return encode_file_<u8>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_file_<u8>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::I16:
+            case DataType::I16:
                 if constexpr (nt::scalar<T>)
-                    return encode_file_<i16>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_file_<i16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U16:
+            case DataType::U16:
                 if constexpr (nt::scalar<T>)
-                    return encode_file_<u16>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_file_<u16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::I32:
+            case DataType::I32:
                 if constexpr (nt::scalar<T>)
-                    return encode_file_<i32>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_file_<i32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U32:
+            case DataType::U32:
                 if constexpr (nt::scalar<T>)
-                    return encode_file_<u32>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_file_<u32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::I64:
+            case DataType::I64:
                 if constexpr (nt::scalar<T>)
-                    return encode_file_<i64>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_file_<i64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U64:
+            case DataType::U64:
                 if constexpr (nt::scalar<T>)
-                    return encode_file_<u64>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_file_<u64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::F16:
+            case DataType::F16:
                 if constexpr (nt::scalar<T>)
-                    return encode_file_<f16>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_file_<f16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::F32:
+            case DataType::F32:
                 if constexpr (nt::scalar<T>)
-                    return encode_file_<f32>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_file_<f32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::F64:
+            case DataType::F64:
                 if constexpr (nt::scalar<T>)
-                    return encode_file_<f64>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return encode_file_<f64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::CI16:
-                if constexpr (nt::complex<T>) {
-                    using real_t = const T::value_type;
-                    auto new_encoding = Encoding{Encoding::I16, encoding.clamp, encoding.endian_swap};
-                    return encode(input.template as<real_t>(), output, new_encoding, n_threads);
-                }
+            case DataType::CI16:
+                if constexpr (nt::complex<T>)
+                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::I16, options);
                 break;
-            case Encoding::C16:
-                if constexpr (nt::complex<T>) {
-                    using real_t = const T::value_type;
-                    auto new_encoding = Encoding{Encoding::F16, encoding.clamp, encoding.endian_swap};
-                    return encode(input.template as<real_t>(), output, new_encoding, n_threads);
-                }
+            case DataType::C16:
+                if constexpr (nt::complex<T>)
+                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::F16, options);
                 break;
-            case Encoding::C32:
-                if constexpr (nt::complex<T>) {
-                    using real_t = const T::value_type;
-                    auto new_encoding = Encoding{Encoding::F32, encoding.clamp, encoding.endian_swap};
-                    return encode(input.template as<real_t>(), output, new_encoding, n_threads);
-                }
+            case DataType::C32:
+                if constexpr (nt::complex<T>)
+                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::F32, options);
                 break;
-            case Encoding::C64:
-                if constexpr (nt::complex<T>) {
-                    using real_t = const T::value_type;
-                    auto new_encoding = Encoding{Encoding::F64, encoding.clamp, encoding.endian_swap};
-                    return encode(input.template as<real_t>(), output, new_encoding, n_threads);
-                }
+            case DataType::C64:
+                if constexpr (nt::complex<T>)
+                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::F64, options);
                 break;
-            case Encoding::UNKNOWN:
+            case DataType::UNKNOWN:
                 break;
         }
-        panic("{} cannot be encoded into {}", noa::string::stringify<T>(), encoding.dtype);
+        panic("{} cannot be encoded into {}", noa::string::stringify<T>(), output_dtype);
+    }
+
+    void encode(
+        const SpanContiguous<const std::byte, 1>& input,
+        const DataType& input_dtype,
+        std::FILE* output,
+        const DataType& output_dtype,
+        const EncodeOptions& options
+    ) {
+        switch (input_dtype) {
+            case DataType::I8:
+                return encode(input.as_strided<const i8, 4>(), output, output_dtype, options);
+            case DataType::I16:
+                return encode(input.as_strided<const i16, 4>(), output, output_dtype, options);
+            case DataType::I32:
+                return encode(input.as_strided<const i32, 4>(), output, output_dtype, options);
+            case DataType::I64:
+                return encode(input.as_strided<const i64, 4>(), output, output_dtype, options);
+            case DataType::U8:
+                return encode(input.as_strided<const u8, 4>(), output, output_dtype, options);
+            case DataType::U16:
+                return encode(input.as_strided<const u16, 4>(), output, output_dtype, options);
+            case DataType::U32:
+                return encode(input.as_strided<const u32, 4>(), output, output_dtype, options);
+            case DataType::U64:
+                return encode(input.as_strided<const u64, 4>(), output, output_dtype, options);
+            case DataType::F16:
+                return encode(input.as_strided<const f16, 4>(), output, output_dtype, options);
+            case DataType::F32:
+                return encode(input.as_strided<const f32, 4>(), output, output_dtype, options);
+            case DataType::F64:
+                return encode(input.as_strided<const f64, 4>(), output, output_dtype, options);
+            case DataType::C16:
+                return encode(input.as_strided<const c16, 4>(), output, output_dtype, options);
+            case DataType::C32:
+                return encode(input.as_strided<const c32, 4>(), output, output_dtype, options);
+            case DataType::C64:
+                return encode(input.as_strided<const c64, 4>(), output, output_dtype, options);
+            case DataType::U4:
+            case DataType::CI16:
+                panic("TODO: u4 and ci16 cannot be reinterpreted to valid types, they would require special cases");
+            case DataType::UNKNOWN:
+                break;
+        }
     }
 
     template<nt::numeric T>
     void decode(
-        SpanContiguous<const std::byte, 1> input,
-        Encoding encoding,
+        const SpanContiguous<const std::byte, 1>& input,
+        const DataType& input_dtype,
         const Span<T, 4>& output,
-        i32 n_threads
+        const DecodeOptions& options
     ) {
         const i64 n_elements = output.ssize();
-        const i64 n_encoded_bytes = encoding.encoded_size(n_elements);
-        check(n_encoded_bytes <= input.ssize(), "The encoded array is not big enough to contain the output array");
-        n_threads = actual_n_threads_(n_elements, n_threads);
+        const i64 n_encoded_bytes = input_dtype.n_bytes(n_elements);
+        const auto n_threads = actual_n_threads_(n_elements, options.n_threads);
 
-        switch (encoding.dtype) {
-            case Encoding::U4:
+        check(n_encoded_bytes <= input.ssize(), "The encoded array is not big enough to contain the output array");
+        check(not ni::are_overlapped(input, output), "The input and output arrays should not overlap");
+
+        switch (input_dtype) {
+            case DataType::U4:
                 if constexpr (nt::scalar<T>) {
                     check(output.are_contiguous() and is_even(n_elements),
                           "u4 encoding requires the output array to be contiguous and have an even number of elements");
-                    return decode_4bits_(input, output.as_1d_contiguous(), n_threads);
+                    return decode_4bits_(input.data(), output.data(), output.n_elements(), n_threads);
                 }
                 break;
-            case Encoding::I8:
+            case DataType::I8:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<i8>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_4d_<i8>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U8:
+            case DataType::U8:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<u8>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_4d_<u8>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::I16:
+            case DataType::I16:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<i16>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_4d_<i16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U16:
+            case DataType::U16:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<u16>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_4d_<u16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::I32:
+            case DataType::I32:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<i32>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_4d_<i32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U32:
+            case DataType::U32:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<u32>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_4d_<u32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::I64:
+            case DataType::I64:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<i64>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_4d_<i64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U64:
+            case DataType::U64:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<u64>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_4d_<u64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::F16:
+            case DataType::F16:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<f16>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_4d_<f16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::F32:
+            case DataType::F32:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<f32>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_4d_<f32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::F64:
+            case DataType::F64:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<f64>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_4d_<f64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::CI16:
-                if constexpr (nt::complex<T>) {
-                    auto new_encoding = Encoding{Encoding::I16, encoding.clamp, encoding.endian_swap};
-                    return decode(input, new_encoding, output.template as<typename T::value_type>(), n_threads);
-                }
+            case DataType::CI16:
+                if constexpr (nt::complex<T>)
+                    return decode(input, DataType::I16, output.template as<typename T::value_type>(), options);
                 break;
-            case Encoding::C16:
-                if constexpr (nt::complex<T>) {
-                    auto new_encoding = Encoding{Encoding::F16, encoding.clamp, encoding.endian_swap};
-                    return decode(input, new_encoding, output.template as<typename T::value_type>(), n_threads);
-                }
+            case DataType::C16:
+                if constexpr (nt::complex<T>)
+                    return decode(input, DataType::F16, output.template as<typename T::value_type>(), options);
                 break;
-            case Encoding::C32:
-                if constexpr (nt::complex<T>) {
-                    auto new_encoding = Encoding{Encoding::F32, encoding.clamp, encoding.endian_swap};
-                    return decode(input, new_encoding, output.template as<typename T::value_type>(), n_threads);
-                }
+            case DataType::C32:
+                if constexpr (nt::complex<T>)
+                    return decode(input, DataType::F32, output.template as<typename T::value_type>(), options);
                 break;
-            case Encoding::C64:
-                if constexpr (nt::complex<T>) {
-                    auto new_encoding = Encoding{Encoding::F64, encoding.clamp, encoding.endian_swap};
-                    return decode(input, new_encoding, output.template as<typename T::value_type>(), n_threads);
-                }
+            case DataType::C64:
+                if constexpr (nt::complex<T>)
+                    return decode(input, DataType::F64, output.template as<typename T::value_type>(), options);
                 break;
-            case Encoding::UNKNOWN:
+            case DataType::UNKNOWN:
                 break;
         }
-        panic("{} cannot be decoded into {}", encoding.dtype, noa::string::stringify<T>());
+        panic("{} cannot be decoded into {}", input_dtype, noa::string::stringify<T>());
+    }
+
+    void decode(
+        const SpanContiguous<const std::byte, 1>& input,
+        const DataType& input_dtype,
+        const SpanContiguous<std::byte, 1>& output,
+        const DataType& output_dtype,
+        const DecodeOptions& options
+    ) {
+        switch (output_dtype) {
+            case DataType::I8:
+                return decode(input, input_dtype, output.as_strided<i8, 4>(), options);
+            case DataType::I16:
+                return decode(input, input_dtype, output.as_strided<i16, 4>(), options);
+            case DataType::I32:
+                return decode(input, input_dtype, output.as_strided<i32, 4>(), options);
+            case DataType::I64:
+                return decode(input, input_dtype, output.as_strided<i64, 4>(), options);
+            case DataType::U8:
+                return decode(input, input_dtype, output.as_strided<u8, 4>(), options);
+            case DataType::U16:
+                return decode(input, input_dtype, output.as_strided<u16, 4>(), options);
+            case DataType::U32:
+                return decode(input, input_dtype, output.as_strided<u32, 4>(), options);
+            case DataType::U64:
+                return decode(input, input_dtype, output.as_strided<u64, 4>(), options);
+            case DataType::F16:
+                return decode(input, input_dtype, output.as_strided<f16, 4>(), options);
+            case DataType::F32:
+                return decode(input, input_dtype, output.as_strided<f32, 4>(), options);
+            case DataType::F64:
+                return decode(input, input_dtype, output.as_strided<f64, 4>(), options);
+            case DataType::C16:
+                return decode(input, input_dtype, output.as_strided<c16, 4>(), options);
+            case DataType::C32:
+                return decode(input, input_dtype, output.as_strided<c32, 4>(), options);
+            case DataType::C64:
+                return decode(input, input_dtype, output.as_strided<c64, 4>(), options);
+            case DataType::U4:
+            case DataType::CI16:
+                panic("TODO: u4 and ci16 cannot be reinterpreted to valid types, they would require special cases");
+            case DataType::UNKNOWN:
+                break;
+        }
     }
 
     template<nt::numeric T>
     void decode(
         std::FILE* input,
-        Encoding encoding,
+        const DataType& input_dtype,
         const Span<T, 4>& output,
-        i32 n_threads
+        const DecodeOptions& options
     ) {
         const i64 n_elements = output.n_elements();
-        const i64 n_encoded_bytes = encoding.encoded_size(n_elements);
+        const i64 n_encoded_bytes = input_dtype.n_bytes(n_elements);
         const i64 remaining_bytes = remaining_bytes_from_file(input);
+        const auto n_threads = actual_n_threads_(n_elements, options.n_threads);
+
         check(n_encoded_bytes <= remaining_bytes,
               "The file (remaining_bytes={}) is not big enough to contain the decoded array",
               remaining_bytes);
 
-        n_threads = actual_n_threads_(n_elements, n_threads);
-
-        switch (encoding.dtype) {
-            case Encoding::U4:
+        switch (input_dtype) {
+            case DataType::U4:
                 if constexpr (nt::scalar<T>) {
                     check(output.are_contiguous() and is_even(n_elements),
                           "u4 encoding requires the output array to be contiguous and have an even number of elements");
-                    return decode_file_<u4_encoding>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_file_<u4_encoding>(input, output, options.clamp, options.endian_swap, n_threads);
                 }
                 break;
-            case Encoding::I8:
+            case DataType::I8:
                 if constexpr (nt::scalar<T>)
-                    return decode_file_<i8>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_file_<i8>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U8:
+            case DataType::U8:
                 if constexpr (nt::scalar<T>)
-                    return decode_file_<u8>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_file_<u8>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::I16:
+            case DataType::I16:
                 if constexpr (nt::scalar<T>)
-                    return decode_file_<i16>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_file_<i16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U16:
+            case DataType::U16:
                 if constexpr (nt::scalar<T>)
-                    return decode_file_<u16>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_file_<u16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::I32:
+            case DataType::I32:
                 if constexpr (nt::scalar<T>)
-                    return decode_file_<i32>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_file_<i32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U32:
+            case DataType::U32:
                 if constexpr (nt::scalar<T>)
-                    return decode_file_<u32>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_file_<u32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::I64:
+            case DataType::I64:
                 if constexpr (nt::scalar<T>)
-                    return decode_file_<i64>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_file_<i64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::U64:
+            case DataType::U64:
                 if constexpr (nt::scalar<T>)
-                    return decode_file_<u64>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_file_<u64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::F16:
+            case DataType::F16:
                 if constexpr (nt::scalar<T>)
-                    return decode_file_<f16>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_file_<f16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::F32:
+            case DataType::F32:
                 if constexpr (nt::scalar<T>)
-                    return decode_file_<f32>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_file_<f32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::F64:
+            case DataType::F64:
                 if constexpr (nt::scalar<T>)
-                    return decode_file_<f64>(input, output, encoding.clamp, encoding.endian_swap, n_threads);
+                    return decode_file_<f64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
-            case Encoding::CI16:
+            case DataType::CI16:
                 if constexpr (nt::complex<T>) {
-                    auto new_encoding = Encoding{Encoding::I16, encoding.clamp, encoding.endian_swap};
-                    return decode(input, new_encoding, output.template as<typename T::value_type>(), n_threads);
+                    return decode(input, DataType::I16, output.template as<typename T::value_type>(), options);
                 }
                 break;
-            case Encoding::C16:
+            case DataType::C16:
                 if constexpr (nt::complex<T>) {
-                    auto new_encoding = Encoding{Encoding::F16, encoding.clamp, encoding.endian_swap};
-                    return decode(input, new_encoding, output.template as<typename T::value_type>(), n_threads);
+                    return decode(input, DataType::F16, output.template as<typename T::value_type>(), options);
                 }
                 break;
-            case Encoding::C32:
+            case DataType::C32:
                 if constexpr (nt::complex<T>) {
-                    auto new_encoding = Encoding{Encoding::F32, encoding.clamp, encoding.endian_swap};
-                    return decode(input, new_encoding, output.template as<typename T::value_type>(), n_threads);
+                    return decode(input, DataType::F32, output.template as<typename T::value_type>(), options);
                 }
                 break;
-            case Encoding::C64:
+            case DataType::C64:
                 if constexpr (nt::complex<T>) {
-                    auto new_encoding = Encoding{Encoding::F64, encoding.clamp, encoding.endian_swap};
-                    return decode(input, new_encoding, output.template as<typename T::value_type>(), n_threads);
+                    return decode(input, DataType::F64, output.template as<typename T::value_type>(), options);
                 }
                 break;
-            case Encoding::UNKNOWN:
+            case DataType::UNKNOWN:
                 break;
         }
-        panic("{} cannot be decoded into {}", encoding.dtype, noa::string::stringify<T>());
+        panic("{} cannot be decoded into {}", input_dtype, noa::string::stringify<T>());
     }
 
-    #define NOA_IO_ENCODE_(T)                                                                       \
-    template void encode<T>(const Span<const T, 4>&, SpanContiguous<std::byte, 1>, Encoding, i32);  \
-    template void encode<T>(const Span<const T, 4>&, std::FILE*, Encoding, i32);                    \
-    template void decode<T>(SpanContiguous<const std::byte, 1>, Encoding, const Span<T, 4>&, i32);  \
-    template void decode<T>(std::FILE*, Encoding, const Span<T, 4>&, i32)
+    void decode(
+        std::FILE* input,
+        const DataType& input_dtype,
+        const SpanContiguous<std::byte, 1>& output,
+        const DataType& output_dtype,
+        const DecodeOptions& options
+    ) {
+        switch (output_dtype) {
+            case DataType::I8:
+                return decode(input, input_dtype, output.as_strided<i8, 4>(), options);
+            case DataType::I16:
+                return decode(input, input_dtype, output.as_strided<i16, 4>(), options);
+            case DataType::I32:
+                return decode(input, input_dtype, output.as_strided<i32, 4>(), options);
+            case DataType::I64:
+                return decode(input, input_dtype, output.as_strided<i64, 4>(), options);
+            case DataType::U8:
+                return decode(input, input_dtype, output.as_strided<u8, 4>(), options);
+            case DataType::U16:
+                return decode(input, input_dtype, output.as_strided<u16, 4>(), options);
+            case DataType::U32:
+                return decode(input, input_dtype, output.as_strided<u32, 4>(), options);
+            case DataType::U64:
+                return decode(input, input_dtype, output.as_strided<u64, 4>(), options);
+            case DataType::F16:
+                return decode(input, input_dtype, output.as_strided<f16, 4>(), options);
+            case DataType::F32:
+                return decode(input, input_dtype, output.as_strided<f32, 4>(), options);
+            case DataType::F64:
+                return decode(input, input_dtype, output.as_strided<f64, 4>(), options);
+            case DataType::C16:
+                return decode(input, input_dtype, output.as_strided<c16, 4>(), options);
+            case DataType::C32:
+                return decode(input, input_dtype, output.as_strided<c32, 4>(), options);
+            case DataType::C64:
+                return decode(input, input_dtype, output.as_strided<c64, 4>(), options);
+            case DataType::U4:
+            case DataType::CI16:
+                panic("TODO: u4 and ci16 cannot be reinterpreted to valid types, they would require special cases");
+            case DataType::UNKNOWN:
+                break;
+        }
+    }
+
+    #define NOA_IO_ENCODE_(T) \
+    template void encode<T>(const Span<const T, 4>&, const SpanContiguous<std::byte, 1>&, const DataType&, const EncodeOptions&);  \
+    template void encode<T>(const Span<const T, 4>&, std::FILE*, const DataType&, const EncodeOptions&);                           \
+    template void decode<T>(const SpanContiguous<const std::byte, 1>&, const DataType&, const Span<T, 4>&, const DecodeOptions&);  \
+    template void decode<T>(std::FILE*, const DataType&, const Span<T, 4>&, const DecodeOptions&)
 
     NOA_IO_ENCODE_(i8);
     NOA_IO_ENCODE_(u8);
@@ -733,34 +879,30 @@ namespace noa::io {
 }
 
 namespace noa::io {
-    auto operator<<(std::ostream& os, Encoding::Type dtype) -> std::ostream& {
+    auto operator<<(std::ostream& os, DataType::Enum dtype) -> std::ostream& {
         switch (dtype) {
-            case Encoding::UNKNOWN: return os << "<unknown>";
-            case Encoding::U4: return os << "u4";
-            case Encoding::I8: return os << "i8";
-            case Encoding::U8: return os << "u8";
-            case Encoding::I16: return os << "i16";
-            case Encoding::U16: return os << "u16";
-            case Encoding::I32: return os << "i32";
-            case Encoding::U32: return os << "u32";
-            case Encoding::I64: return os << "i64";
-            case Encoding::U64: return os << "u64";
-            case Encoding::F16: return os << "f16";
-            case Encoding::F32: return os << "f32";
-            case Encoding::F64: return os << "f64";
-            case Encoding::CI16: return os << "ci16";
-            case Encoding::C16: return os << "c16";
-            case Encoding::C32: return os << "c32";
-            case Encoding::C64: return os << "c64";
+            case DataType::UNKNOWN: return os << "<unknown>";
+            case DataType::U4: return os << "u4";
+            case DataType::I8: return os << "i8";
+            case DataType::U8: return os << "u8";
+            case DataType::I16: return os << "i16";
+            case DataType::U16: return os << "u16";
+            case DataType::I32: return os << "i32";
+            case DataType::U32: return os << "u32";
+            case DataType::I64: return os << "i64";
+            case DataType::U64: return os << "u64";
+            case DataType::F16: return os << "f16";
+            case DataType::F32: return os << "f32";
+            case DataType::F64: return os << "f64";
+            case DataType::CI16: return os << "ci16";
+            case DataType::C16: return os << "c16";
+            case DataType::C32: return os << "c32";
+            case DataType::C64: return os << "c64";
         }
         return os; // unreachable
     }
 
-    auto operator<<(std::ostream& os, Encoding encoding) -> std::ostream& {
-        return os
-               << "Encoding{.dtype=" << encoding.dtype
-               <<         " .clamp=" << encoding.clamp
-               <<         " .endian_swap=" << encoding.endian_swap
-               << "}";
+    auto operator<<(std::ostream& os, DataType encoding) -> std::ostream& {
+        return os << encoding.value;
     }
 }

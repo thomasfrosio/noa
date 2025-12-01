@@ -31,9 +31,9 @@ TEST_CASE("unified::signal::convolve()", "[asset]") {
             const auto filename_expected = path_base / test["expected"].as<Path>();
 
             // Inputs:
-            const auto data = noa::io::read_data<f32>(filename_input, {}, options);
-            const auto expected = noa::io::read_data<f32>(filename_expected, {}, options);
-            auto filter = noa::io::read_data<f32>(filename_filter, {}, options);
+            const auto data = noa::read_image<f32>(filename_input, {}, options).data;
+            const auto expected = noa::read_image<f32>(filename_expected, {}, options).data;
+            auto filter = noa::read_image<f32>(filename_filter, {}, options).data;
             if (filter.shape()[1] == 1 and filter.shape()[2] == 2) // for 1d case, the MRC file as an extra row to make it 2D.
                 filter = filter.subregion(0, 0, 0, noa::indexing::Full{});
 
@@ -69,10 +69,10 @@ TEST_CASE("unified::signal::convolve_separable()", "[asset]") {
             const auto dim = test["dim"].as<std::vector<i32>>();
 
             // Input
-            const auto data = noa::io::read_data<f32>(filename_input, {}, options);
-            const auto filter = noa::io::read_data<f32>(filename_filter, {}, options)
-                    .subregion(0, 0, 0, noa::indexing::Full{});
-            const auto expected = noa::io::read_data<f32>(filename_expected, {}, options);
+            const auto data = noa::read_image<f32>(filename_input, {}, options).data;
+            const auto filter = noa::read_image<f32>(filename_filter, {}, options).data
+                .subregion(0, 0, 0, noa::indexing::Full{});
+            const auto expected = noa::read_image<f32>(filename_expected, {}, options).data;
 
             View<const f32> filter0;
             View<const f32> filter1;

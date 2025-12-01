@@ -32,7 +32,7 @@ TEST_CASE("unified::signal::phase_shift_2d()", "[asset]") {
             const auto options = ArrayOption(device, Allocator::MANAGED);
             INFO(device);
 
-            const auto expected = noa::io::read_data<c32>(path_output, {}, options);
+            const auto expected = noa::read_image<c32>(path_output, {}, options).data;
 
             if (path_input.filename().empty()) {
                 const auto output = noa::empty<c32>(shape.rfft(), options);
@@ -40,7 +40,7 @@ TEST_CASE("unified::signal::phase_shift_2d()", "[asset]") {
                 REQUIRE(test::allclose_abs(expected, output, 1e-4f));
 
             } else {
-                const auto input = noa::io::read_data<c32>(path_input, {}, options);
+                const auto input = noa::read_image<c32>(path_input, {}, options).data;
                 noa::signal::phase_shift_2d<"h2h">(input, input, shape, shift);
                 REQUIRE(test::allclose_abs(expected, input, 1e-4f));
             }
@@ -147,7 +147,7 @@ TEST_CASE("unified::signal::phase_shift_3d()", "[asset]") {
             const auto options = ArrayOption(device, Allocator::MANAGED);
             INFO(device);
 
-            const auto expected = noa::io::read_data<c32>(path_output, {}, options);
+            const auto expected = noa::read_image<c32>(path_output, {}, options).data;
 
             if (path_input.filename().empty()) {
                 const auto output = noa::empty<c32>(shape.rfft(), options);
@@ -155,7 +155,7 @@ TEST_CASE("unified::signal::phase_shift_3d()", "[asset]") {
                 REQUIRE(test::allclose_abs(expected, output, 1e-4f));
 
             } else {
-                const auto input = noa::io::read_data<c32>(path_input, {}, options);
+                const auto input = noa::read_image<c32>(path_input, {}, options).data;
                 noa::signal::phase_shift_3d<"h2h">(input, input, shape, shift);
                 REQUIRE(test::allclose_abs(expected, input, 1e-4f));
             }

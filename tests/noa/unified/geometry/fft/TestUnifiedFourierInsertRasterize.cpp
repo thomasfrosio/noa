@@ -61,9 +61,9 @@ TEST_CASE("unified::geometry::rasterize_central_slices_3d", "[asset]") {
                 {fftfreq_cutoff, target_shape, ews_radius});
 
             if constexpr (COMPUTE_ASSETS) {
-                noa::write(volume_fft, volume_filename);
+                noa::write_image(volume_fft, volume_filename);
             } else {
-                const Array asset_volume_fft = noa::read_data<f32>(volume_filename);
+                const Array asset_volume_fft = noa::read_image<f32>(volume_filename).data;
                 REQUIRE(test::allclose_abs_safe(asset_volume_fft, volume_fft, 1e-5));
             }
         }

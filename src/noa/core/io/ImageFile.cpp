@@ -13,7 +13,7 @@
 namespace noa::io {
     auto ImageFileEncoderMrc::read_header(
         std::FILE* file
-    ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, Encoding::Type, Compression> {
+    ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, DataType, Compression, ImageFileStats> {
         std::byte buffer[1024];
         check(std::fseek(file, 0, SEEK_SET) == 0, "Failed to seek {}", std::strerror(errno));
         check(std::fread(buffer, 1, 1024, file) == 1024, "Failed to read the header (1024 bytes)");
@@ -47,6 +47,7 @@ namespace noa::io {
         Shape3<i32> shape, grid_size;
         Vec3<i32> order;
         Vec3<f32> cell_size;
+        Vec4<f32> mrc_stats;
         {
             std::memcpy(shape.data(), buffer, 12);
             std::memcpy(&mode, buffer + 12, 4);
@@ -55,9 +56,7 @@ namespace noa::io {
             std::memcpy(cell_size.data(), buffer + 40, 12);
             // 52-64: alpha, beta, gamma.
             std::memcpy(order.data(), buffer + 64, 12);
-            // std::memcpy(&min, buffer + 76, 4);
-            // std::memcpy(&max, buffer + 80, 4);
-            // std::memcpy(&mean, buffer + 84, 4);
+            std::memcpy(mrc_stats.data(), buffer + 76, 12); // min, max, mean
             std::memcpy(&space_group, buffer + 88, 4);
             std::memcpy(&m_extended_bytes_nb, buffer + 92, 4);
             // 96-98: creatid, extra data, extType, nversion, extra data, nint, nreal, extra data.
@@ -66,7 +65,7 @@ namespace noa::io {
             // 160-208: idtype, lens, nd1, nd2, vd1, vd2, tiltangles, origin(x,y,z).
             // 208-212: cmap.
             // 212-216: stamp.
-            // std::memcpy(&stddev, buffer + 216, 4);
+            std::memcpy(&mrc_stats[3], buffer + 216, 4); // stddev
             // std::memcpy(&m_nb_labels, buffer + 220, 4);
             //224-1024: labels.
         }
@@ -125,24 +124,24 @@ namespace noa::io {
         switch (mode) {
             case 0: {
                 if (imod_stamp == 1146047817 and imod_flags & 1)
-                    m_dtype = Encoding::U8;
+                    m_dtype = DataType::U8;
                 else
-                    m_dtype = Encoding::I8;
+                    m_dtype = DataType::I8;
                 break;
             }
-            case 1: m_dtype = Encoding::I16; break;
-            case 2: m_dtype = Encoding::F32; break;
-            case 3: m_dtype = Encoding::CI16; break;
-            case 4: m_dtype = Encoding::C32; break;
-            case 6: m_dtype = Encoding::U16; break;
-            case 12: m_dtype = Encoding::F16; break;
+            case 1: m_dtype = DataType::I16; break;
+            case 2: m_dtype = DataType::F32; break;
+            case 3: m_dtype = DataType::CI16; break;
+            case 4: m_dtype = DataType::C32; break;
+            case 6: m_dtype = DataType::U16; break;
+            case 12: m_dtype = DataType::F16; break;
             case 16:
                 panic("MRC mode 16 is not currently supported");
             case 101: {
                 check(is_even(m_shape[3]),
                       "Mode 101 (u4) is only supported for shapes with even width, but got shape={}",
                       m_shape);
-                m_dtype = Encoding::U4;
+                m_dtype = DataType::U4;
                 break;
             }
             default:
@@ -156,40 +155,49 @@ namespace noa::io {
             panic("Map order {} is not supported. Only (1,2,3) is supported", order);
         }
 
-        return make_tuple(m_shape, m_spacing.as<f64>(), m_dtype, Compression::NONE);
+        // Check if stats are set.
+        const auto stats = mrc_stats[1] == -1.f and mrc_stats[2] == 2.f ? ImageFileStats{} : ImageFileStats{
+            .min = static_cast<f64>(mrc_stats[0]),
+            .max = static_cast<f64>(mrc_stats[1]),
+            .mean = static_cast<f64>(mrc_stats[2]),
+            .stddev = static_cast<f64>(mrc_stats[3]),
+        };
+
+        return make_tuple(m_shape, m_spacing.as<f64>(), m_dtype, Compression::NONE, stats);
     }
 
     auto ImageFileEncoderMrc::write_header(
         std::FILE* file,
         const Shape<i64, 4>& shape,
         const Vec<f64, 3>& spacing,
-        Encoding::Type dtype,
-        Compression compression
-    ) -> Tuple<Encoding::Type, Compression> {
+        const DataType& dtype,
+        const Compression& compression,
+        const ImageFileStats& stats
+    ) -> Tuple<DataType, Compression> {
         // Sets the member variables.
         m_shape = shape;
         m_spacing = spacing.as<f32>();
         m_dtype = closest_supported_dtype(dtype);
-        check(m_dtype != Encoding::UNKNOWN, "The data type is set to unknown");
+        check(m_dtype != DataType::UNKNOWN, "The data type is set to unknown");
         check(compression != Compression::UNKNOWN, "The compression scheme is set to unknown");
 
         // Data type.
         i32 mode{}, imod_stamp{}, imod_flags{};
         switch (m_dtype) {
-            case Encoding::U8: {
+            case DataType::U8: {
                 mode = 0;
                 imod_stamp = 1146047817;
                 imod_flags &= 1;
                 break;
             }
-            case Encoding::I8:      mode = 0;   break;
-            case Encoding::I16:     mode = 1;   break;
-            case Encoding::F32:     mode = 2;   break;
-            case Encoding::CI16:    mode = 3;   break;
-            case Encoding::C32:     mode = 4;   break;
-            case Encoding::U16:     mode = 6;   break;
-            case Encoding::F16:     mode = 12;  break;
-            case Encoding::U4: {
+            case DataType::I8:      mode = 0;   break;
+            case DataType::I16:     mode = 1;   break;
+            case DataType::F32:     mode = 2;   break;
+            case DataType::CI16:    mode = 3;   break;
+            case DataType::C32:     mode = 4;   break;
+            case DataType::U16:     mode = 6;   break;
+            case DataType::F16:     mode = 12;  break;
+            case DataType::U4: {
                 check(is_even(m_shape[3]),
                       "Mode 101 (u4) is only supported for shapes with even width, but got shape={}",
                       m_shape);
@@ -225,6 +233,10 @@ namespace noa::io {
         }
         cell_size = grid_size.vec.as<f32>() * m_spacing.flip();
 
+        const auto mrc_stats = stats.has_all() ?
+            Vec{stats.min, stats.max, stats.mean, stats.stddev}.as<f32>() :
+            Vec{0.f, -1.f, 2.f, -1.f};
+
         // Initialize the header.
         std::byte buffer[1024]{};
         auto* buffer_ptr = reinterpret_cast<char*>(buffer);
@@ -237,10 +249,7 @@ namespace noa::io {
         std::memcpy(buffer + 52, angles, 12);
         i32 order[3]{1, 2, 3}; // mapc, mapr, maps
         std::memcpy(buffer + 64, order, 12);
-        f32 max{-1}, mean{2};
-        // std::memcpy(buffer + 76, &min, 4); // min=0
-        std::memcpy(buffer + 80, &max, 4);
-        std::memcpy(buffer + 84, &mean, 4);
+        std::memcpy(buffer + 76, mrc_stats.data(), 12); // min, max, mean
         {
             i32 tmp{}; // if it is a volume stack, don't overwrite.
             std::memcpy(&tmp, buffer + 88, 4);
@@ -275,8 +284,7 @@ namespace noa::io {
             buffer_ptr[212] = 68; // 16 * 4 + 4
             buffer_ptr[213] = 68;
         }
-        f32 stddev{-1};
-        std::memcpy(buffer + 216, &stddev, 4);
+        std::memcpy(buffer + 216, &mrc_stats[3], 4); // stddev
         // std::memcpy(buffer + 220, &n_labels, 4);
         //224-1024: labels -> 0 or unchanged.
 
@@ -433,46 +441,46 @@ namespace {
         switch (sample_format) {
             case SAMPLEFORMAT_INT:
                 if (bits_per_sample == 8)
-                    return Encoding::I8;
+                    return DataType::I8;
                 if (bits_per_sample == 16)
-                    return Encoding::I16;
+                    return DataType::I16;
                 if (bits_per_sample == 32)
-                    return Encoding::I32;
+                    return DataType::I32;
             break;
             case SAMPLEFORMAT_UINT:
                 if (bits_per_sample == 8)
-                    return Encoding::U8;
+                    return DataType::U8;
                 if (bits_per_sample == 16)
-                    return Encoding::U16;
+                    return DataType::U16;
                 if (bits_per_sample == 32)
-                    return Encoding::U32;
+                    return DataType::U32;
                 if (bits_per_sample == 4)
-                    return Encoding::U4;
+                    return DataType::U4;
             break;
             case SAMPLEFORMAT_IEEEFP:
                 if (bits_per_sample == 16)
-                    return Encoding::F16;
+                    return DataType::F16;
                 if (bits_per_sample == 32)
-                    return Encoding::F32;
+                    return DataType::F32;
                 if (bits_per_sample == 64)
-                    return Encoding::F64;
+                    return DataType::F64;
             break;
             case SAMPLEFORMAT_COMPLEXINT:
                 if (bits_per_sample == 32)
-                    return Encoding::CI16;
+                    return DataType::CI16;
             break;
             case SAMPLEFORMAT_COMPLEXIEEEFP:
                 if (bits_per_sample == 32)
-                    return Encoding::C16;
+                    return DataType::C16;
                 if (bits_per_sample == 64)
-                    return Encoding::C32;
+                    return DataType::C32;
                 if (bits_per_sample == 128)
-                    return Encoding::C64;
+                    return DataType::C64;
             break;
             default:
                 break;
         }
-        return Encoding::UNKNOWN;
+        return DataType::UNKNOWN;
     }
 
     template<typename T, StridesTraits S>
@@ -485,69 +493,69 @@ namespace {
         }
     }
 
-    void tiff_set_dtype(Encoding::Type dtype, u16* sample_format, u16* bits_per_sample) {
+    void tiff_set_dtype(DataType dtype, u16* sample_format, u16* bits_per_sample) {
         switch (dtype) {
-            case Encoding::I8:
+            case DataType::I8:
                 *bits_per_sample = 8;
                 *sample_format = SAMPLEFORMAT_INT;
                 break;
-            case Encoding::U8:
+            case DataType::U8:
                 *bits_per_sample = 8;
                 *sample_format = SAMPLEFORMAT_UINT;
                 break;
-            case Encoding::I16:
+            case DataType::I16:
                 *bits_per_sample = 16;
                 *sample_format = SAMPLEFORMAT_INT;
                 break;
-            case Encoding::U16:
+            case DataType::U16:
                 *bits_per_sample = 16;
                 *sample_format = SAMPLEFORMAT_UINT;
                 break;
-            case Encoding::I32:
+            case DataType::I32:
                 *bits_per_sample = 32;
                 *sample_format = SAMPLEFORMAT_INT;
                 break;
-            case Encoding::U32:
+            case DataType::U32:
                 *bits_per_sample = 32;
                 *sample_format = SAMPLEFORMAT_UINT;
                 break;
-            case Encoding::I64:
+            case DataType::I64:
                 *bits_per_sample = 64;
                 *sample_format = SAMPLEFORMAT_INT;
                 break;
-            case Encoding::U64:
+            case DataType::U64:
                 *bits_per_sample = 64;
                 *sample_format = SAMPLEFORMAT_UINT;
                 break;
-            case Encoding::F16:
+            case DataType::F16:
                 *bits_per_sample = 16;
                 *sample_format = SAMPLEFORMAT_IEEEFP;
                 break;
-            case Encoding::F32:
+            case DataType::F32:
                 *bits_per_sample = 32;
                 *sample_format = SAMPLEFORMAT_IEEEFP;
                 break;
-            case Encoding::F64:
+            case DataType::F64:
                 *bits_per_sample = 64;
                 *sample_format = SAMPLEFORMAT_IEEEFP;
                 break;
-            case Encoding::C16:
+            case DataType::C16:
                 *bits_per_sample = 16;
                 *sample_format = SAMPLEFORMAT_COMPLEXIEEEFP;
                 break;
-            case Encoding::C32:
+            case DataType::C32:
                 *bits_per_sample = 32;
                 *sample_format = SAMPLEFORMAT_COMPLEXIEEEFP;
                 break;
-            case Encoding::C64:
+            case DataType::C64:
                 *bits_per_sample = 64;
                 *sample_format = SAMPLEFORMAT_COMPLEXIEEEFP;
                 break;
-            case Encoding::U4:
+            case DataType::U4:
                 *bits_per_sample = 4;
                 *sample_format = SAMPLEFORMAT_UINT;
                 break;
-            case Encoding::CI16:
+            case DataType::CI16:
                 *bits_per_sample = 16;
                 *sample_format = SAMPLEFORMAT_COMPLEXINT;
                 break;
@@ -562,7 +570,7 @@ namespace {
 namespace noa::io {
     auto ImageFileEncoderTiff::read_header(
         std::FILE* file
-    ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, Encoding::Type, Compression> {
+    ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, DataType, Compression, ImageFileStats> {
         // Previously opened TIFF files should be closed by now, but make sure.
         close();
         if (m_handles == nullptr)
@@ -573,8 +581,11 @@ namespace noa::io {
         auto tiff = tiff_client_init(&m_handles[0].first, "r");
         m_handles[0].second = tiff;
 
+        // Go through and get metadata of every directory.
         u16 n_directories{};
         u16 tiff_compression{};
+        f64 min{std::numeric_limits<f64>::max()};
+        f64 max{std::numeric_limits<f64>::lowest()};
         while (::TIFFSetDirectory(tiff, n_directories)) {
             // Shape.
             Shape2<u32> shape; // hw
@@ -597,7 +608,7 @@ namespace noa::io {
             }
 
             // Data type.
-            Encoding::Type data_type{};
+            DataType data_type{};
             {
                 u16 photometry{}, sample_per_pixel{}, sample_format{}, bits_per_sample{}, planar_config{};
                 check(::TIFFGetField(tiff, TIFFTAG_PHOTOMETRIC, &photometry));
@@ -611,8 +622,8 @@ namespace noa::io {
                 check(sample_per_pixel == 1, "Samples per pixel should be 1, but got {}", sample_per_pixel);
 
                 data_type = tiff_get_dtype(sample_format, bits_per_sample);
-                check(data_type != Encoding::UNKNOWN, "Data type was not recognized in directory {}", n_directories);
-                if (data_type == Encoding::U4)
+                check(data_type != DataType::UNKNOWN, "Data type was not recognized in directory {}", n_directories);
+                if (data_type == DataType::U4)
                     shape[1] *= 2;
             }
 
@@ -627,6 +638,20 @@ namespace noa::io {
             // Compression.
             u16 dir_compression{};
             check(TIFFGetField(tiff, TIFFTAG_COMPRESSION, &dir_compression));
+
+            // Min/max.
+            {
+                f64 v0{};
+                u16 v1{};
+                if (TIFFGetField(tiff, TIFFTAG_SMINSAMPLEVALUE, &v0))
+                    min = std::min(min, v0);
+                else if (TIFFGetField(tiff, TIFFTAG_MINSAMPLEVALUE, &v1))
+                    min = std::min(min, static_cast<f64>(v1));
+                if (TIFFGetField(tiff, TIFFTAG_SMAXSAMPLEVALUE, &v0))
+                    max = std::max(max, v0);
+                else if (TIFFGetField(tiff, TIFFTAG_MAXSAMPLEVALUE, &v1))
+                    max = std::max(max, static_cast<f64>(v1));
+            }
 
             if (n_directories) { // check no mismatch with the other directories
                 check(
@@ -671,7 +696,7 @@ namespace noa::io {
         return make_tuple(
             Shape<i64, 4>{m_shape[0], 1, m_shape[1], m_shape[2]},
             m_spacing.as<f64>().push_front(m_spacing[0] == 0 and m_spacing[1] == 0 ? 0 : 1),
-            m_dtype, compression
+            m_dtype, compression, ImageFileStats{.min = min, .max = max}
         );
     }
 
@@ -679,19 +704,22 @@ namespace noa::io {
         std::FILE* file,
         const Shape<i64, 4>& shape,
         const Vec<f64, 3>& spacing,
-        Encoding::Type dtype,
-        Compression compression
-    ) -> Tuple<Encoding::Type, Compression> {
+        const DataType& dtype,
+        const Compression& compression,
+        const ImageFileStats& stats
+    ) -> Tuple<DataType, Compression> {
         check(shape[1] == 1, "TIFF files do not support 3d volumes, but got BDHW shape={}", shape);
         check(not shape.is_empty(), "Empty shapes are invalid, but got {}", shape);
         check(all(spacing >= 0), "The pixel size should be positive, got {}", spacing);
-        check(dtype != Encoding::UNKNOWN, "The data type is set to unknown");
+        check(dtype != DataType::UNKNOWN, "The data type is set to unknown");
         check(compression != Compression::UNKNOWN, "The compression scheme is set to unknown");
 
         m_shape = shape.filter(0, 2, 3);
         m_spacing = spacing.filter(1, 2).as<f32>();
         m_dtype = dtype;
         m_compression = compression;
+        m_minmax[0] = stats.min;
+        m_minmax[1] = stats.max;
 
         // Prepare the handles and open the tiff client.
         close();
@@ -797,7 +825,7 @@ namespace noa::io {
 
                 // Convert the n_bytes read to number n_rows.
                 // Note that the last strip may have fewer rows than the others.
-                const auto n_bytes_per_element = Encoding::encoded_size(m_dtype, 1);
+                const auto n_bytes_per_element = m_dtype.n_bytes(1);
                 check(is_multiple_of(n_bytes, n_bytes_per_element));
                 const auto n_elements = n_bytes / n_bytes_per_element;
                 check(is_multiple_of(n_elements, m_shape[2]));
@@ -805,15 +833,14 @@ namespace noa::io {
 
                 // Convert and transfer to the output.
                 io::decode(
-                    SpanContiguous(buffer.get(), n_bytes),
-                    Encoding{.dtype = Encoding::to_dtype<T>(), .clamp = clamp, .endian_swap = false},
+                    SpanContiguous(buffer.get(), n_bytes), m_dtype,
                     output.subregion(slice, 0, ni::Slice{row_offset, row_offset + n_rows}),
-                    1 // single-threaded
+                    DecodeOptions{.clamp = clamp, .endian_swap = false, .n_threads = 1}
                 );
                 row_offset += n_rows;
             }
 
-            // The origin must be in the bottom left corner.
+            // The origin must be in the bottom-left corner.
             u16 orientation{};
             ::TIFFGetFieldDefaulted(tiff, TIFFTAG_ORIENTATION, &orientation);
             if (orientation == ORIENTATION_TOPLEFT) { // this is the default
@@ -877,7 +904,7 @@ namespace noa::io {
 
         // Target 64KB per strip. Ensure strip is multiple of a line and if too many strips,
         // increase strip size (double or more).
-        const i64 n_bytes_per_row = m_shape[2] * Encoding::encoded_size(m_dtype, 1);
+        const i64 n_bytes_per_row = m_shape[2] * m_dtype.n_bytes(1);
         i64 n_rows_per_strip = divide_up(i64{65'536}, n_bytes_per_row);
         i64 n_strips = divide_up(i64{m_shape[1]}, n_rows_per_strip);
         if (n_strips > 4096) {
@@ -912,26 +939,28 @@ namespace noa::io {
             check(::TIFFSetField(tiff, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG));
             check(::TIFFSetField(tiff, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK));
             check(::TIFFSetField(tiff, TIFFTAG_SAMPLESPERPIXEL, 1));
+            check(::TIFFSetField(tiff, TIFFTAG_COMPRESSION, tiff_compression));
+            check(::TIFFSetField(tiff, TIFFTAG_ORIENTATION, ORIENTATION_BOTLEFT));
 
             u16 sample_format{}, bits_per_sample{};
             tiff_set_dtype(m_dtype, &sample_format, &bits_per_sample);
             check(::TIFFSetField(tiff, TIFFTAG_SAMPLEFORMAT, sample_format));
             check(::TIFFSetField(tiff, TIFFTAG_BITSPERSAMPLE, bits_per_sample));
 
-            check(::TIFFSetField(tiff, TIFFTAG_COMPRESSION, tiff_compression));
-
-            // FIXME Many cryoEM software (RELION, IMOD) are reading TIFFs incorrectly because
-            //       they do not check for the orientation and are assuming the default (TOPLEFT).
-            //       As such, this will not read this file correctly...
-            check(::TIFFSetField(tiff, TIFFTAG_ORIENTATION, ORIENTATION_BOTLEFT));
+            // Set min and max, if we have them.
+            if (m_minmax[0] < std::numeric_limits<f64>::max() and
+                m_minmax[1] > std::numeric_limits<f64>::lowest() and
+                m_minmax[0] < m_minmax[1]) {
+                check(::TIFFSetField(tiff, TIFFTAG_SMINSAMPLEVALUE, m_minmax[0]) and
+                      ::TIFFSetField(tiff, TIFFTAG_SMAXSAMPLEVALUE, m_minmax[1]));
+            }
 
             i64 irow{};
             for (tstrip_t strip = 0; strip < n_strips; ++strip) {
                 io::encode(
                     input.subregion(slice, 0, ni::Slice{irow, irow + n_rows_per_strip}),
-                    SpanContiguous(buffer.get(), bytes_per_strip),
-                    Encoding{.dtype = Encoding::to_dtype<T>(), .clamp = clamp, .endian_swap = false},
-                    1 // single-threaded
+                    SpanContiguous(buffer.get(), bytes_per_strip), m_dtype,
+                    EncodeOptions{.clamp = clamp, .endian_swap = false, .n_threads = 1}
                 );
 
                 check(::TIFFWriteEncodedStrip(tiff, strip, buffer.get(), static_cast<tmsize_t>(bytes_per_strip)) != -1,

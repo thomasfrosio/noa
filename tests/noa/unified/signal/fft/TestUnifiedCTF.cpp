@@ -43,14 +43,14 @@ TEST_CASE("unified::signal::ctf_isotropic, assets", "[asset]") {
         if constexpr (COMPUTE_ASSETS) {
             const auto input = noa::empty<f32>(shape.rfft());
             noa::signal::ctf_isotropic<"H2H">({}, input, shape, ctf);
-            noa::io::write(input, filename_asset);
+            noa::write_image(input, filename_asset);
         } else {
             for (auto device: devices) {
                 INFO(device);
                 const auto options = ArrayOption(device, Allocator::MANAGED);
                 const auto result_fft = noa::empty<f32>(shape, options);
                 const auto result_rfft = noa::empty<f32>(shape.rfft(), options);
-                const auto expected_rfft = noa::io::read_data<f32>(filename_asset, {}, options);
+                const auto expected_rfft = noa::read_image<f32>(filename_asset, {}, options).data;
 
                 // Check against asset.
                 noa::signal::ctf_isotropic<"H2H">({}, result_rfft, shape, ctf);
@@ -230,14 +230,14 @@ TEST_CASE("unified::signal::ctf_anisotropic, assets", "[asset]") {
         if constexpr (COMPUTE_ASSETS) {
             const auto input = noa::empty<f32>(shape);
             noa::signal::ctf_anisotropic<"FC2FC">({}, input, shape, ctf);
-            noa::io::write(input, filename_asset);
+            noa::write_image(input, filename_asset);
         } else {
             for (auto device: devices) {
                 INFO(device);
                 const auto options = ArrayOption(device, Allocator::MANAGED);
                 const auto result_fft = noa::empty<f32>(shape, options);
                 const auto result_rfft = noa::empty<f32>(shape.rfft(), options);
-                const auto expected_fft = noa::io::read_data<f32>(filename_asset, {}, options);
+                const auto expected_fft = noa::read_image<f32>(filename_asset, {}, options).data;
 
                 // Check against asset.
                 noa::signal::ctf_anisotropic<"FC2FC">(result_fft, shape, ctf);

@@ -76,12 +76,12 @@ TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d", "[asset]") 
                 });
 
             if constexpr (COMPUTE_ASSETS) {
-                noa::write(output_slice_fft, output_slice_filename);
+                noa::write_image(output_slice_fft, output_slice_filename);
                 continue;
             }
 
-            noa::write(output_slice_fft, path / "test_fourier_insert.mrc");
-            const Array asset_output_slice_fft = noa::read_data<f32>(output_slice_filename);
+            noa::write_image(output_slice_fft, path / "test_fourier_insert.mrc");
+            const Array asset_output_slice_fft = noa::read_image<f32>(output_slice_filename).data;
             REQUIRE(test::allclose_abs_safe(asset_output_slice_fft, output_slice_fft, 5e-5));
         }
     }
@@ -221,9 +221,9 @@ TEST_CASE("unified::geometry::insert_and_extract_central_slices_3d, test rotatio
             {.input_windowed_sinc = {0.002}, .fftfreq_cutoff = 0.498});
 
         if constexpr (COMPUTE_ASSETS) {
-            noa::write(output_slice_fft0, output_filename);
+            noa::write_image(output_slice_fft0, output_filename);
         } else {
-            const auto asset = noa::read_data<f32>(output_filename);
+            const auto asset = noa::read_image<f32>(output_filename).data;
             REQUIRE(test::allclose_abs_safe(asset, output_slice_fft0, 1e-4));
         }
     }

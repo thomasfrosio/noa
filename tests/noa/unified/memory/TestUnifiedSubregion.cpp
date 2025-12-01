@@ -64,9 +64,9 @@ TEST_CASE("unified::extract_subregions()", "[asset]") {
 
             const auto expected_insert_filename = path_base / test["expected_insert"][0].as<Path>();
             if constexpr (COMPUTE_ASSETS) {
-                noa::write(input, expected_insert_filename);
+                noa::write_image(input, expected_insert_filename);
             } else {
-                const auto expected_insert_back = noa::io::read_data<f32>(expected_insert_filename).reshape(input.shape());
+                const auto expected_insert_back = noa::read_image<f32>(expected_insert_filename).data.reshape(input.shape());
                 REQUIRE(test::allclose_abs_safe(expected_insert_back, input, 1e-7));
             }
         }

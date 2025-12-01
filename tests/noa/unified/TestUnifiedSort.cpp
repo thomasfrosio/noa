@@ -26,8 +26,8 @@ TEST_CASE("unified::sort", "[asset]") {
         const auto axis = test["axis"].as<i32>();
         const auto ascending = test["ascending"].as<bool>();
 
-        Array input = noa::io::read_data<f32>(input_filename);
-        Array expected = noa::io::read_data<f32>(output_filename);
+        Array input = noa::read_image<f32>(input_filename).data;
+        Array expected = noa::read_image<f32>(output_filename).data;
         REQUIRE((noa::all(input.shape() == shape) and noa::all(expected.shape() == shape)));
 
         for (auto& device: devices) {

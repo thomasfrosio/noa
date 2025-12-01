@@ -16,32 +16,76 @@ namespace noa::io {
         LZW, DEFLATE
     };
 
-    struct Encoding {
-    public:
-        enum class Type {
+    struct DataType {
+        enum class Enum {
             UNKNOWN = 0,
-            I8, U8, I16, U16, I32, U32, I64, U64, F16, F32, F64, C16, C32, C64,
+            I8, U8, I16, U16, I32, U32, I64, U64,
+            F16, F32, F64,
+            C16, C32, C64,
             U4, CI16
-        };
-        using enum Type;
+        } value{};
 
-    public: // member variables
-        /// Data type used for the encoding.
-        Type dtype{};
+    public: // behave like an enum class
+        using enum Enum;
+        constexpr DataType() = default;
+        constexpr /*implicit*/ DataType(Enum value_) noexcept : value(value_) {}
+        constexpr /*implicit*/ operator Enum() const noexcept { return value; }
 
-        /// Whether the values should be clamped to the value range of the destination type.
-        /// If false, out-of-range values are undefined.
-        bool clamp{};
+        /// Implicit constructor from string literal.
+        template<size_t N>
+        constexpr /*implicit*/ DataType(const char (& name)[N]) {
+            std::string_view name_(name);
+            if (name_ == "i8" or name_ == "I8")
+                value = I8;
+            else if (name_ == "u8" or name_ == "U8")
+                value = U8;
+            else if (name_ == "i16" or name_ == "I16")
+                value = I16;
+            else if (name_ == "u16" or name_ == "U16")
+                value = U16;
+            else if (name_ == "i32" or name_ == "I32")
+                value = I32;
+            else if (name_ == "u32" or name_ == "U32")
+                value = U32;
+            else if (name_ == "i64" or name_ == "I64")
+                value = I64;
+            else if (name_ == "u64" or name_ == "U64")
+                value = U64;
 
-        /// Whether the endianness of the serialized data should be swapped.
-        bool endian_swap{};
+            else if (name_ == "f16" or name_ == "F16")
+                value = F16;
+            else if (name_ == "f32" or name_ == "F32")
+                value = F32;
+            else if (name_ == "f64" or name_ == "F64")
+                value = F64;
 
-    public: // static function
+            else if (name_ == "c16" or name_ == "C16")
+                value = C16;
+            else if (name_ == "c32" or name_ == "C32")
+                value = C32;
+            else if (name_ == "c64" or name_ == "C64")
+                value = C64;
+
+            else if (name_ == "u4" or name_ == "U4")
+                value = U4;
+            else if (name_ == "ci16" or name_ == "CI16")
+                value = CI16;
+
+            else if (name_ == "unknown" or name_ == "UNKNOWN")
+                value = UNKNOWN;
+
+            else
+                // If it is a constant expression, this creates a compile time error because throwing
+                // an exception at compile time is not allowed. At runtime, it throws the exception.
+                panic("invalid dtype");
+        }
+
+    public:
         /// Returns the number of bytes necessary to hold a given number of elements with the current dtype.
-        [[nodiscard]] static constexpr auto encoded_size(Type dtype, i64 n_elements) -> i64 {
+        [[nodiscard]] static constexpr auto n_bytes(DataType dtype, i64 n_elements) -> i64 {
             switch (dtype) {
                 case U4: {
-                    check(is_even(n_elements), "u4 encoding requires an even number of elements");
+                    check(is_even(n_elements), "dtype=u4 requires an even number of elements");
                     return n_elements / 2;
                 }
                 case I8:
@@ -70,9 +114,13 @@ namespace noa::io {
             return 0; // unreachable
         }
 
+        [[nodiscard]] constexpr auto n_bytes(i64 n_elements) const noexcept -> i64 {
+            return n_bytes(value, n_elements);
+        }
+
         /// Returns the data type corresponding to the type \p T.
         template<typename T>
-        static constexpr auto to_dtype() noexcept -> Type {
+        static constexpr auto from_type() noexcept -> DataType {
             if constexpr (nt::almost_same_as<T, i8>) {
                 return I8;
             } else if constexpr (nt::almost_same_as<T, u8>) {
@@ -106,16 +154,14 @@ namespace noa::io {
             }
         }
 
-    public: // member functions
-        /// Returns the range that \T values, about to be serialized with the current dtype, should be in.
+        /// Returns the minimum and maximum \p T values in the range of the current dtype.
         /// \details (De)Serialization functions can clamp the values to fit the destination types. However, if
         ///          one wants to clamp the values beforehand, this function becomes really useful. It computes
         ///          the lowest and maximum value that the dtype can hold and clamps them to type \p T.
-        /// \return Minimum and maximum \p T values in the range of the current dtype.
         template<typename T>
         [[nodiscard]] constexpr auto value_range() const -> Pair<T, T> {
             if constexpr (nt::scalar<T>) {
-                switch (dtype) {
+                switch (value) {
                     case U4:
                         return {T{0}, T{15}};
                     case I8:
@@ -169,65 +215,109 @@ namespace noa::io {
                 static_assert(nt::always_false<T>);
             }
         }
-
-        [[nodiscard]] constexpr auto encoded_size(i64 n_elements) const noexcept -> i64 {
-            return encoded_size(dtype, n_elements);
-        }
     };
 
-    auto operator<<(std::ostream& os, Encoding::Type dtype) -> std::ostream&;
-    auto operator<<(std::ostream& os, Encoding encoding) -> std::ostream&;
+    auto operator<<(std::ostream& os, DataType::Enum dtype) -> std::ostream&;
+    auto operator<<(std::ostream& os, DataType encoding) -> std::ostream&;
 }
 
 namespace fmt {
-    template<> struct formatter<noa::io::Encoding::Type> : ostream_formatter {};
-    template<> struct formatter<noa::io::Encoding> : ostream_formatter {};
+    template<> struct formatter<noa::io::DataType::Enum> : ostream_formatter {};
+    template<> struct formatter<noa::io::DataType> : ostream_formatter {};
 }
 
 namespace noa::io {
+    struct EncodeOptions {
+        /// Whether the values should be clamped to the value range of the destination type.
+        /// If false, out-of-range values are undefined.
+        bool clamp{};
+
+        /// Whether the endianness of the serialized data should be swapped.
+        bool endian_swap{};
+
+        /// Maximum number of OpenMP threads to use.
+        /// Internally, this is clamped to one thread per 8M elements.
+        i32 n_threads{1};
+    };
+    using DecodeOptions = EncodeOptions;
+
     /// Encodes the values in the input array into the output array. Values are saved in the BDHW order.
     /// \tparam T           If complex, the input is reinterpreted to the corresponding real type array,
     ///                     requiring its innermost dimension to be contiguous.
     /// \param[in] input    Values to encode.
-    /// \param[out] output  Array where the encoded values are saved.
-    ///                     See Encoding::encoded_size() to know how many bytes will be written into this array.
-    /// \param encoding     Desired encoding to apply to the input values before saving them into the output.
-    /// \param n_threads    Maximum number of OpenMP threads to use.
-    ///                     Internally, this is clamped to one thread per 8M elements.
+    /// \param[out] output  Array where the encoded values are saved. It is not allowed to overlap with the input
+    ///                     and should be at least of size output_dtype.n_bytes(input.n_elements()).
+    /// \param output_dtype Output data type.
+    /// \param options      Encoding options.
     template<nt::numeric T>
     void encode(
         const Span<const T, 4>& input,
-        SpanContiguous<std::byte, 1> output,
-        Encoding encoding,
-        i32 n_threads = 1
+        const SpanContiguous<std::byte, 1>& output,
+        const DataType& output_dtype,
+        const EncodeOptions& options = {}
     );
 
     /// Encodes the values in the input array into the file.
+    /// The input type is specified by the input data type.
+    /// This is otherwise similar to the overload taking an array of numeric types.
+    void encode(
+        const SpanContiguous<const std::byte, 1>& input,
+        const DataType& input_dtype,
+        const SpanContiguous<std::byte, 1>& output,
+        const DataType& output_dtype,
+        const EncodeOptions& options = {}
+    );
+
+    /// Encodes the values in the input array into the output array.
     /// The encoding starts at the current cursor position of the file.
     /// This is otherwise similar to the overload taking an array of bytes.
     template<nt::numeric T>
     void encode(
         const Span<const T, 4>& input,
         std::FILE* output,
-        Encoding encoding,
-        i32 n_threads = 1
+        const DataType& output_dtype,
+        const EncodeOptions& options = {}
     );
 
+    /// Encodes the values in the input array into the file.
+    /// The encoding starts at the current cursor position of the file.
+    /// The input type is specified by the input data type.
+    /// This is otherwise similar to the overload taking an array of numeric types.
+    void encode(
+        const SpanContiguous<const std::byte, 1>& input,
+        const DataType& input_dtype,
+        std::FILE* output,
+        const DataType& output_dtype,
+        const EncodeOptions& options = {}
+    );
+}
+
+namespace noa::io {
     /// Decodes the values in the input array into the output array. Values are saved in the BDHW order.
     /// \tparam T           If complex, the input is reinterpreted to the corresponding real type array,
     ///                     requiring its innermost dimension to be contiguous.
-    /// \param[in] input    Values to decode.
-    ///                     See Encoding::encoded_size() to know how many bytes will be read from this array.
-    /// \param encoding     Encoding used to encode the input values.
+    /// \param[in] input    Bytes to decode. It is not allowed to overlap with the output
+    ///                     and should be at least of size input_dtype.n_bytes(output.n_elements()).
+    /// \param input_dtype  Data type of the input.
     /// \param[out] output  Array where the decoded values are saved.
-    /// \param n_threads    Maximum number of OpenMP threads to use.
-    ///                     Internally, this is clamped to one thread per 8M elements.
+    /// \param options      Decoding options
     template<nt::numeric T>
     void decode(
-        SpanContiguous<const std::byte, 1> input,
-        Encoding encoding,
+        const SpanContiguous<const std::byte, 1>& input,
+        const DataType& input_dtype,
         const Span<T, 4>& output,
-        i32 n_threads = 1
+        const DecodeOptions& options = {}
+    );
+
+    /// Decodes the values in the input array into the output array.
+    /// The output type is specified by the output data type.
+    /// This is otherwise similar to the overload taking an array of numeric types.
+    void decode(
+        const SpanContiguous<const std::byte, 1>& input,
+        const DataType& input_dtype,
+        const SpanContiguous<std::byte, 1>& output,
+        const DataType& output_dtype,
+        const DecodeOptions& options = {}
     );
 
     /// Decodes the values in the file into the output array.
@@ -236,8 +326,20 @@ namespace noa::io {
     template<nt::numeric T>
     void decode(
         std::FILE* input,
-        Encoding encoding,
+        const DataType& input_dtype,
         const Span<T, 4>& output,
-        i32 n_threads = 1
+        const DecodeOptions& options = {}
+    );
+
+    /// Decodes the values in the file into the output array.
+    /// The decoding starts at the current cursor position of the file.
+    /// The output type is specified by the output data type.
+    /// This is otherwise similar to the overload taking an array of numeric types.
+    void decode(
+        std::FILE* input,
+        const DataType& input_dtype,
+        const SpanContiguous<std::byte, 1>& output,
+        const DataType& output_dtype,
+        const DecodeOptions& options = {}
     );
 }
