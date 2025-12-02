@@ -49,8 +49,8 @@ namespace {
 
     template<typename Output, typename Input>
     void encode_1d_(
-        const Input __restrict* input,
-        std::byte __restrict* output,
+        const Input* NOA_RESTRICT_ATTRIBUTE input,
+        std::byte* NOA_RESTRICT_ATTRIBUTE output,
         i64 n_elements, bool clamp, bool swap_endian, i32 n_threads
     ) {
         auto ptr = reinterpret_cast<Output*>(output);
@@ -102,8 +102,8 @@ namespace {
 
     template<typename Input, typename Output>
     void decode_1d_(
-        const std::byte __restrict* input,
-        Output __restrict* output,
+        const std::byte* NOA_RESTRICT_ATTRIBUTE input,
+        Output* NOA_RESTRICT_ATTRIBUTE output,
         i64 n_elements, bool clamp, bool swap_endian, i32 n_threads
     ) {
         auto ptr = reinterpret_cast<const Input*>(input);
@@ -143,8 +143,8 @@ namespace {
 
     template<nt::scalar T>
     void encode_4bits_(
-        const T __restrict* input,
-        std::byte __restrict* output,
+        const T* NOA_RESTRICT_ATTRIBUTE input,
+        std::byte* NOA_RESTRICT_ATTRIBUTE output,
         i64 n_elements, i32 n_threads
     ) {
         // The order of the first and second elements in the output are the 4 LSB and 4 MSB, respectively.
@@ -163,8 +163,8 @@ namespace {
 
     template<typename T>
     void decode_4bits_(
-        const std::byte __restrict* input,
-        T __restrict* output,
+        const std::byte* NOA_RESTRICT_ATTRIBUTE input,
+        T* NOA_RESTRICT_ATTRIBUTE output,
         i64 n_elements, i32 n_threads
     ) {
         constexpr unsigned char MASK_4LSB{0b00001111};
