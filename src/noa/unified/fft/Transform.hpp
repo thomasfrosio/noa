@@ -28,14 +28,15 @@ namespace noa::fft {
         /// Whether the plan workspace (the memory buffer allocated for the plan) should be postponed and
         /// shared with later transforms also using this option.
         /// \details On CPU (built with FFTW3), this is equivalent to plan_only=true since the workspace cannot be set.
-        /// However, note that FFTW3 is very memory efficiency, and it shouldn't be any issue storing many plans in
+        /// However, note that FFTW3 is very memory efficient, and there shouldn't be any issue storing many plans in
         /// the first place.
-        /// \details On CUDA, calling a transform with record_and_share_workspace=true creates the plan, records the
+        /// \details In CUDA, calling a transform with record_and_share_workspace=true creates the plan, records the
         /// workspace size, but postpones the allocation to the next transform call. If a suitable plan already exists
         /// in the cache, nothing is done. If multiple transforms are called sequentially with record_workspace=true,
         /// they will share the same workspace and should therefore only be executed sequentially (e.g., on the same
         /// stream). When a transform is later called with record_and_share_workspace=false (the default), the workspace
-        /// of previous cached plans is allocated; then the transform is run as usual.
+        /// of previous cached plans is allocated; then the transform is run as usual. The allocation can also be
+        /// bypassed using the set_workspace function.
         /// \example
         /// \code
         /// // Prepare for many transforms of different sizes and make them share the same workspace.
@@ -44,8 +45,13 @@ namespace noa::fft {
         /// for (auto&& [input, output]: noa::zip(inputs, outputs))
         ///     noa::fft::r2c(input, output, {.record_and_share_workspace = true}); // plan only
         /// ...
-        /// // Execute the transforms sequentially. The transforms are picked from the cache and
-        /// // use the same workspace, potentially saving a lot of memory.
+        /// // Optional: if called, set_workspace uses my_workspace directly and
+        /// // no further allocation will be required to execute the plans below.
+        /// noa::fft::set_workspace(input.device(), my_workspace);
+        /// ...
+        /// // Execute the transforms sequentially.
+        /// // If set_workspace wasn't called, the first r2c allocates
+        /// // and shares the workspace with every plan missing their workspace.
         /// for (auto&& [input, output]: noa::zip(inputs, outputs))
         ///     noa::fft::r2c(input, output);
         /// \endcode
@@ -79,8 +85,19 @@ namespace noa::fft {
     /// Returns the number of bytes that are left to allocate from previous plan creations.
     /// \see noa::fft::FFTOptions.record_and_share_workspace for more details.
     /// \note Some backends (e.g., FFTW) do not support explicit workspace management and always return 0.
-    [[nodiscard]] inline auto workspace_left_to_allocate(Device device) -> size_t {
+    [[nodiscard]] inline auto workspace_left_to_allocate(Device device) -> i64 {
         return Session::fft_workspace_left_to_allocate(device);
+    }
+
+    /// Assigns cached plans without a workspace to this buffer.
+    /// \details The buffer should be on the device and contiguous, otherwise an error will be thrown. The number of
+    ///          plans that have been assigned to the given buffer is returned. If the size of the buffer is less than
+    ///          workspace_left_to_allocate(device), the buffer cannot be used and 0 is returned.
+    /// \see noa::fft::FFTOptions.record_and_share_workspace for more details.
+    /// \note Some backends (e.g., FFTW) do not support explicit workspace management and always return 0.
+    template<typename T>
+    auto set_workspace(Device device, const Array<T>& buffer) -> i64 {
+        return Session::fft_set_workspace(device, buffer);
     }
 }
 

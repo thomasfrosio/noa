@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/unified/Device.hpp"
+#include "noa/unified/Traits.hpp"
 
 namespace noa::inline types {
     /// The session is used to initialize and control the library initialization and static data.
@@ -111,13 +112,35 @@ namespace noa::inline types {
         /// Returns the number of bytes that are left to allocate from previous plan creations.
         /// \see noa::fft::FFTOptions.record_and_share_workspace for more details.
         /// \note Some backends (e.g., FFTW) do not support explicit workspace management and always return 0.
-        [[nodiscard]] static auto fft_workspace_left_to_allocate(Device device) -> size_t;
+        [[nodiscard]] static auto fft_workspace_left_to_allocate(Device device) -> i64;
+
+        /// Assigns cached plans without a workspace to this buffer.
+        /// \details The buffer should be on the device and contiguous, otherwise an error will be thrown. The number of
+        ///          plans that have been assigned to the given buffer is returned. If the size of the buffer is less than
+        ///          workspace_left_to_allocate(device), the buffer cannot be used and 0 is returned.
+        /// \see noa::fft::FFTOptions.record_and_share_workspace for more details.
+        /// \note Some backends (e.g., FFTW) do not support explicit workspace management and always return 0.
+        template<nt::varray_decay T>
+        static auto fft_set_workspace(Device device, const T& buffer) -> i64 {
+            check(buffer.device() == device,
+                  "The buffer should be on the device, but got device={} and buffer:device={}",
+                  device, buffer.device());
+            check(buffer.are_contiguous(), "The workspace should be a contiguous array");
+            return fft_set_workspace(
+                device,
+                std::reinterpret_pointer_cast<std::byte[]>(buffer.share()),
+                buffer.ssize() * static_cast<i64>(sizeof(nt::value_type_t<T>))
+            );
+        }
 
         /// Clears the BLAS cache for a given device.
         /// \warning This function doesn't synchronize before clearing the cache, so the caller should make sure
         ///          that none of the plans are being used. This can be easily done by synchronizing the relevant
         ///          streams or the device.
         static void clear_blas_cache(Device device);
+
+    private:
+        static auto fft_set_workspace(Device device, const std::shared_ptr<std::byte[]>& buffer, i64 buffer_bytes) -> i64;
 
     private:
         static i64 m_thread_limit;

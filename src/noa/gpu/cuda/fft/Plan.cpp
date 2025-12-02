@@ -1,4 +1,5 @@
 #include <cufft.h>
+#include <cufftXt.h>
 #include <deque>
 #include <ranges>
 
@@ -59,6 +60,7 @@ namespace noa::cuda {
 
 namespace {
     using namespace ::noa;
+    using namespace ::noa::cuda;
 
     // Even values satisfying (2^a) * (3^b) * (5^c) * (7^d).
     constexpr u32 sizes_even_cufft_[315] = {
@@ -91,8 +93,8 @@ namespace {
 
         // The workspace used by the plan.
         // If managed by cuFFT (default), it is null.
-        // It managed by us, it can still be null if no workspace is needed or if has_workspace=false.
-        std::shared_ptr<unsigned char[]> workspace{};
+        // If managed by us, it can still be null if no workspace is needed or if has_workspace=false.
+        std::shared_ptr<std::byte[]> workspace{};
 
         ~CufftPlan() {
             const cufftResult result = cufftDestroy(handle);
@@ -124,7 +126,7 @@ namespace {
         }
 
         [[nodiscard]] auto workspace_size() const noexcept {
-            return m_workspace_size;
+            return static_cast<i64>(m_workspace_size);
         }
 
         auto clear() noexcept {
@@ -133,6 +135,7 @@ namespace {
                 m_queue.pop_back();
                 ++n_plans_destructed;
             }
+            m_workspace_size = 0;
             return n_plans_destructed;
         }
 
@@ -177,9 +180,8 @@ namespace {
             if (m_workspace_size <= 0)
                 return; // no need to allocate; plans are ready for execution
 
-            using namespace noa::cuda;
             using workspace_deleter_t = AllocatorDevice::Deleter;
-            using workspace_shared_ptr_t = std::shared_ptr<unsigned char[]>;
+            using workspace_shared_ptr_t = std::shared_ptr<std::byte[]>;
             workspace_shared_ptr_t workspace{nullptr};
 
             // Allocate memory on the device, safely.
@@ -190,7 +192,7 @@ namespace {
                 cudaError_t err = cudaMalloc(&tmp, m_workspace_size);
                 if (err == cudaSuccess) {
                     workspace = workspace_shared_ptr_t(
-                        static_cast<unsigned char*>(tmp),
+                        static_cast<std::byte*>(tmp),
                         workspace_deleter_t{.size = static_cast<i64>(m_workspace_size)}
                     );
                     return true;
@@ -220,6 +222,27 @@ namespace {
                 }
             }
             m_workspace_size = 0; // reset for future calls with record_workspace=true
+        }
+
+        auto set_workspace(
+            const std::shared_ptr<std::byte[]>& buffer,
+            i64 buffer_size
+        ) -> i32 {
+            if (m_workspace_size <= 0 or not buffer or static_cast<size_t>(buffer_size) < m_workspace_size)
+                return 0;
+
+            // The user provided a workspace that is big enough, so use it.
+            i32 count{};
+            for (auto& plan: m_queue | std::views::values) {
+                if (not plan->has_workspace) {
+                    plan->has_workspace = true;
+                    plan->workspace = buffer;
+                    check(::cufftSetWorkArea(plan->handle, buffer.get()));
+                    ++count;
+                }
+            }
+            m_workspace_size = 0; // reset for future calls with record_workspace=true
+            return count;
         }
 
         static auto make_shared(cufftHandle handle, bool has_workspace) {
@@ -320,7 +343,7 @@ namespace {
 
         // If the allocation fails, release some cached plans (with the hope to release some memory) and try again.
         // If record_workspace=true, the workspace isn't allocated so this is unlikely to help...
-        size_t work_size = 0;
+        size_t work_size{};
         const i32 n_trials = cache.size() + 1;
         for (i32 i{}; i < n_trials; ++i) {
             if (i > 0)
@@ -464,8 +487,12 @@ namespace noa::cuda::fft {
         return get_cache_(device).set_limit(count);
     }
 
-    auto workspace_left_to_allocate(Device device) noexcept -> size_t {
+    auto workspace_left_to_allocate(Device device) noexcept -> i64 {
         return get_cache_(device).workspace_size();
+    }
+
+    auto set_workspace(Device device, const std::shared_ptr<std::byte[]>& buffer, i64 buffer_size) -> i32 {
+        return get_cache_(device).set_workspace(buffer, buffer_size);
     }
 
     template<typename T>

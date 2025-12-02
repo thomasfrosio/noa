@@ -102,7 +102,7 @@ namespace noa::inline types {
         #endif
     }
 
-    auto Session::fft_workspace_left_to_allocate(Device device) -> size_t {
+    auto Session::fft_workspace_left_to_allocate(Device device) -> i64 {
         #ifdef NOA_ENABLE_CUDA
         if (device.is_gpu()) {
             auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
@@ -110,6 +110,20 @@ namespace noa::inline types {
         }
         #else
         (void) device;
+        #endif
+        return 0;
+    }
+
+    auto Session::fft_set_workspace(Device device, const std::shared_ptr<std::byte[]>& buffer, i64 buffer_bytes) -> i64 {
+        #ifdef NOA_ENABLE_CUDA
+        if (device.is_gpu()) {
+            auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
+            return noa::cuda::fft::set_workspace(cuda_device, buffer, buffer_bytes);
+        }
+        #else
+        (void) device;
+        (void) buffer;
+        (void) buffer_bytes;
         #endif
         return 0;
     }

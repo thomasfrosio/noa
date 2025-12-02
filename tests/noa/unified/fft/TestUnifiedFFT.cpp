@@ -261,5 +261,14 @@ TEST_CASE("unified::fft, caching plans, shared workspace") {
         noa::fft::set_cache_limit(8, device);
 
         REQUIRE(max0 < max1);
+
+        // Set the workspace.
+        noa::fft::clear_cache(device);
+        REQUIRE(noa::fft::workspace_left_to_allocate(device) == 0);
+        noa::fft::r2c(a0, b0, {.record_and_share_workspace = true});
+        auto n_bytes = noa::fft::workspace_left_to_allocate(device);
+        auto buffer = Array<std::byte>(n_bytes, {.device = device, .allocator = Allocator::DEFAULT});
+        noa::fft::set_workspace(device, buffer);
+        REQUIRE(noa::fft::workspace_left_to_allocate(device) == 0);
     }
 }
