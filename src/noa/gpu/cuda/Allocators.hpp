@@ -538,7 +538,7 @@ namespace noa::cuda {
             const auto [filter, address, read_mode, normalized_coords] = convert_to_description(interp, border);
             resource->texture = create_texture(resource->array, filter, address, read_mode, normalized_coords);
 
-            add_bytes(device.id(), shape.n_elements() * sizeof(T)); // TODO include pitch
+            add_bytes(device.id(), shape.n_elements() * static_cast<i64>(sizeof(T))); // TODO include pitch
             return resource;
         }
 

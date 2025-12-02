@@ -136,7 +136,8 @@ namespace noa::inline types {
                     panic("Double-precision textures are not supported by the CUDA backend");
                 } else {
                     auto texture = noa::cuda::AllocatorTexture::allocate<value_type>(
-                        array.shape(), interp, options.border, device_target);
+                        array.shape(), interp, options.border,
+                        noa::cuda::Device(device_target.id(), Unchecked{}));
 
                     // Copy input to CUDA array.
                     if (device_target != array.device())
@@ -183,7 +184,8 @@ namespace noa::inline types {
                 if constexpr (sizeof(nt::value_type_t<value_type>) >= 8) {
                     panic("Double-precision textures are not supported by the CUDA backend");
                 } else {
-                    m_texture = noa::cuda::AllocatorTexture::allocate<value_type>(shape, interp, options.border, device_target);
+                    m_texture = noa::cuda::AllocatorTexture::allocate<value_type>(
+                        shape, interp, options.border, noa::cuda::Device(device_target.id(), Unchecked{}));
                     m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
                 }
                 #else
