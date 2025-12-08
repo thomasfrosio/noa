@@ -180,6 +180,132 @@ namespace noa::signal::details {
         }
     };
 
+    template<bool IS_CENTERED, size_t REGISTRATION_RADIUS_LIMIT, typename T, typename I, size_t N>
+    constexpr auto subpixel_registration_using_1d_parabola(
+        auto input,
+        const Shape<I, N>& shape,
+        const Vec<I, N>& registration_radius,
+        const Vec<I, N>& peak_indices,
+        const T& original_value
+    ) {
+        Vec<T, REGISTRATION_RADIUS_LIMIT * 2 + 1> buffer;
+
+            f64 peak_value{};
+            Vec<f64, N> peak_coordinate;
+            for (size_t dim{}; dim < N; ++dim) {
+                // Reduce the problem to 1d by offsetting to the peak location, except for the current dimension.
+                const auto* input_line = input.get();
+                for (size_t i{}; i < N; ++i)
+                    input_line += (peak_indices[i] * input.strides()[i]) * (dim != i);
+
+                auto peak_radius = registration_radius[dim];
+                auto peak_window = Span(buffer.data(), peak_radius * 2 + 1);
+                auto peak_index = peak_indices[dim];
+                const i64 input_size = shape[dim];
+                const i64 input_stride = static_cast<I>(input.strides()[dim]);
+
+                // If non-centered, the peak window can be split across two separate quadrants.
+                // As such, retrieve the frequency and if it is a valid frequency, convert back
+                // to an index and compute the memory offset.
+                const i64 peak_frequency = nf::index2frequency<IS_CENTERED>(peak_index, input_size);
+                for (i64 i = -peak_radius, c{}; i <= peak_radius; ++i, ++c) {
+                    if (i == 0) {
+                        peak_window[c] = original_value;
+                        continue;
+                    }
+                    const i64 frequency = peak_frequency + i;
+                    if (-input_size / 2 <= frequency and frequency <= (input_size - 1) / 2) {
+                        const i64 index = nf::frequency2index<IS_CENTERED>(frequency, input_size);
+                        peak_window[c] = input_line[index * input_stride];
+                    }
+                }
+
+                if constexpr (not IS_CENTERED)
+                    peak_index = nf::fftshift(peak_index, input_size);
+
+                // Subpixel registration.
+                if (peak_radius == 1) {
+                    auto [x, y] = lstsq_fit_quadratic_vertex_3points(peak_window[0], peak_window[1], peak_window[2]);
+                    // Add x directly, since it's relative to peak_index.
+                    peak_coordinate[dim] = static_cast<f64>(peak_index) + static_cast<f64>(x);
+                    peak_value += static_cast<f64>(y);
+                } else if (peak_radius == 0) {
+                    // No registration, just save the value and index.
+                    peak_coordinate[dim] = static_cast<f64>(peak_index);
+                    peak_value += static_cast<f64>(peak_window[0]);
+                } else {
+                    QuadraticCurve<f64> curve = lstsq_fit_quadratic(peak_window.as_const());
+                    if (abs(curve.a) < 1e-6) {
+                        const f64 x = -curve.b / (2 * curve.a);
+                        const f64 y = curve.a * x * x + curve.b * x + curve.c;
+                        // x is within [0, size-1], so we need to subtract by peak_radius.
+                        peak_coordinate[dim] = static_cast<f64>(peak_index - peak_radius) + x;
+                        peak_value += static_cast<f64>(y);
+                    } else {
+                        peak_coordinate[dim] = static_cast<f64>(peak_index);
+                        peak_value += static_cast<f64>(peak_window[peak_radius]);
+                    }
+                }
+            }
+            peak_value /= static_cast<f64>(N); // take the average
+            return Pair{peak_value, peak_coordinate};
+    }
+
+    template<size_t N, bool IS_CENTERED, size_t REGISTRATION_RADIUS_LIMIT,
+             nt::readable_nd<N + 1> Input,
+             nt::writable_nd_optional<1> PeakCoordinates,
+             nt::writable_nd_optional<1> PeakValues>
+    struct PeakRegistration {
+        using input_type = Input;
+        using peak_coordinates_type = PeakCoordinates;
+        using peak_values_type = PeakValues;
+        static_assert(nt::same_mutable_value_type<peak_values_type, input_type>);
+
+        using index_type = nt::index_type_t<input_type>;
+        using coord_type = nt::value_type_t<peak_coordinates_type>;
+        using value_type = nt::mutable_value_type_t<input_type>;
+        static_assert(nt::vec_real_size<coord_type, N>);
+
+        using index_n_type = Vec<index_type, N>;
+        using shape_type = Shape<index_type, N>;
+
+    public:
+        constexpr PeakRegistration(
+            const input_type& input,
+            const peak_coordinates_type& peak_coordinates,
+            const peak_values_type& peak_values,
+            const Shape<index_type, N + 1>& shape,
+            const index_n_type& registration_radius
+        ) : m_input(input),
+            m_peak_coordinates(peak_coordinates),
+            m_peak_values(peak_values),
+            m_shape(shape.pop_front()),
+            m_registration_radius(registration_radius)
+        {
+            NOA_ASSERT(all(registration_radius <= static_cast<index_type>(REGISTRATION_RADIUS_LIMIT)));
+        }
+
+        constexpr void operator()(index_type batch) const {
+            const auto peak_indices = IS_CENTERED ? m_shape.vec / 2 : index_n_type{0};
+
+            auto span = m_input[batch];
+            auto [peak_value, peak_coordinate] =
+                subpixel_registration_using_1d_parabola<IS_CENTERED, REGISTRATION_RADIUS_LIMIT>(
+                    span, m_shape, m_registration_radius, peak_indices, span(peak_indices));
+            if (m_peak_coordinates)
+                m_peak_coordinates[batch] = static_cast<coord_type>(peak_coordinate);
+            if (m_peak_values)
+                m_peak_values[batch] = static_cast<value_type>(peak_value);
+        }
+
+    private:
+        input_type m_input;
+        peak_coordinates_type m_peak_coordinates;
+        peak_values_type m_peak_values;
+        shape_type m_shape;
+        index_n_type m_registration_radius;
+    };
+
     template<size_t N, bool IS_CENTERED, size_t REGISTRATION_RADIUS_LIMIT,
              nt::readable_nd<N + 1> Input,
              nt::writable_nd_optional<1> PeakCoordinates,
@@ -261,79 +387,13 @@ namespace noa::signal::details {
             const auto peak_indices = ni::offset2index(reduced.second, m_input.strides(), m_shape.push_front(m_batch));
             const auto batch = peak_indices[0];
 
-            auto [peak_value, peak_coordinate] = subpixel_registration_using_1d_parabola_(
-                m_input[batch], peak_indices.pop_front(), reduced.first);
+            auto [peak_value, peak_coordinate] =
+                subpixel_registration_using_1d_parabola<IS_CENTERED, REGISTRATION_RADIUS_LIMIT>(
+                    m_input[batch], m_shape, m_registration_radius, peak_indices.pop_front(), reduced.first);
             if (m_peak_coordinates)
                 m_peak_coordinates(batch) = static_cast<coord_type>(peak_coordinate);
             if (m_peak_values)
                 m_peak_values(batch) = static_cast<value_type>(peak_value);
-        }
-
-    private:
-        constexpr auto subpixel_registration_using_1d_parabola_(
-            auto input, const index_n_type& peak_indices, const value_type& original_value
-        ) {
-            Vec<value_type, REGISTRATION_RADIUS_LIMIT * 2 + 1> buffer;
-
-            f64 peak_value{};
-            Vec<f64, N> peak_coordinate;
-            for (size_t dim{}; dim < N; ++dim) {
-                // Reduce the problem to 1d by offsetting to the peak location, except for the current dimension.
-                const auto* input_line = input.get();
-                for (size_t i{}; i < N; ++i)
-                    input_line += (peak_indices[i] * input.strides()[i]) * (dim != i);
-
-                auto peak_radius = m_registration_radius[dim];
-                auto peak_window = Span(buffer.data(), peak_radius * 2 + 1);
-                auto peak_index = peak_indices[dim];
-                const i64 input_size = m_shape[dim];
-                const i64 input_stride = static_cast<index_type>(input.strides()[dim]);
-
-                // If non-centered, the peak window can be split across two separate quadrants.
-                // As such, retrieve the frequency and if it is a valid frequency, convert back
-                // to an index and compute the memory offset.
-                const i64 peak_frequency = nf::index2frequency<IS_CENTERED>(peak_index, input_size);
-                for (i64 i = -peak_radius, c{}; i <= peak_radius; ++i, ++c) {
-                    if (i == 0) {
-                        peak_window[c] = original_value;
-                        continue;
-                    }
-                    const i64 frequency = peak_frequency + i;
-                    if (-input_size / 2 <= frequency and frequency <= (input_size - 1) / 2) {
-                        const i64 index = nf::frequency2index<IS_CENTERED>(frequency, input_size);
-                        peak_window[c] = input_line[index * input_stride];
-                    }
-                }
-
-                if constexpr (not IS_CENTERED)
-                    peak_index = nf::fftshift(peak_index, input_size);
-
-                // Subpixel registration.
-                if (peak_radius == 1) {
-                    auto [x, y] = lstsq_fit_quadratic_vertex_3points(peak_window[0], peak_window[1], peak_window[2]);
-                    // Add x directly, since it's relative to peak_index.
-                    peak_coordinate[dim] = static_cast<f64>(peak_index) + static_cast<f64>(x);
-                    peak_value += static_cast<f64>(y);
-                } else if (peak_radius == 0) {
-                    // No registration, just save the value and index.
-                    peak_coordinate[dim] = static_cast<f64>(peak_index);
-                    peak_value += static_cast<f64>(peak_window[0]);
-                } else {
-                    QuadraticCurve<f64> curve = lstsq_fit_quadratic(peak_window.as_const());
-                    if (abs(curve.a) < 1e-6) {
-                        const f64 x = -curve.b / (2 * curve.a);
-                        const f64 y = curve.a * x * x + curve.b * x + curve.c;
-                        // x is within [0, size-1], so we need to subtract by peak_radius.
-                        peak_coordinate[dim] = static_cast<f64>(peak_index - peak_radius) + x;
-                        peak_value += static_cast<f64>(y);
-                    } else {
-                        peak_coordinate[dim] = static_cast<f64>(peak_index);
-                        peak_value += static_cast<f64>(peak_window[peak_radius]);
-                    }
-                }
-            }
-            peak_value /= static_cast<f64>(N); // take the average
-            return Pair{peak_value, peak_coordinate};
         }
 
     private:
@@ -536,8 +596,8 @@ namespace noa::signal {
     ///                     Autocorrelation is allowed, so lhs can be equal to rhs.
     ///                     Overwritten by default (see \p buffer).
     /// \param[out] output  Cross-correlation map.
-    ///                     If \p REMAP is H2F, the zero lag is at {n, 0, 0, 0}.
-    ///                     If \p REMAP is H2FC, the zero lag is at {n, shape[1]/2, shape[2]/2, shape[3]/2}.
+    ///                     If \p REMAP is H2F, the zero-lag is at {n, 0, 0, 0}.
+    ///                     If \p REMAP is H2FC, the zero-lag is at {n, shape[1]/2, shape[2]/2, shape[3]/2}.
     ///                     Can overlap with the inputs (see \p buffer).
     /// \param options      Correlation mode and ifft options.
     /// \param[out] buffer  Buffer of the same shape as the inputs (no broadcasting allowed).
@@ -601,9 +661,6 @@ namespace noa::signal {
             tmp = buffer.view();
         }
 
-        // TODO Add normalization with auto-correlation?
-        //      IMO it's always simpler to normalize the real inputs,
-        //      so not sure how useful this would be.
         switch (options.mode) {
             case Correlation::CONVENTIONAL:
                 ewise(wrap(std::forward<Lhs>(lhs), rhs), tmp,
@@ -652,7 +709,7 @@ namespace noa::signal {
         /// ((D)H)W maximum lag allowed, i.e., the peak is selected within this elliptical radius.
         /// If negative, it is ignored and the entire map is searched. If zero, the central peak at lag zero is
         /// guaranteed to be selected. Otherwise, an elliptical mask is applied on the centered cross-correlation
-        /// map before the search. Note that to maximize performance the implementation will select the minimum
+        /// map before the search. Note that to maximize performance, the implementation will select the minimum
         /// subregion within the map and only search within that subregion.
         Vec<f64, N> maximum_lag{Vec<f64, N>::from_value(-1)};
     };
@@ -728,7 +785,23 @@ namespace noa::signal {
         auto peak_values_accessor = peak_values_accessor_t(peak_values.get());
         auto peak_coordinates_accessor = peak_coordinates_accessor_t(peak_coordinates.get());
         auto shape_nd = filter_nd(shape);
-        auto initial_reduction_value = Pair{std::numeric_limits<value_t>::lowest(), index_t{}};
+
+        // Special case that doesn't require a reduction, just the subpixel registration.
+        if (all(options.maximum_lag == 0)) {
+            auto op = details::PeakRegistration<
+                N, REMAP.is_xc2xx(), REGISTRATION_RADIUS_LIMIT,
+                input_accessor_t, peak_coordinates_accessor_t, peak_values_accessor_t>(
+                input_accessor, peak_coordinates_accessor, peak_values_accessor,
+                shape_nd, options.registration_radius
+            );
+            iwise(
+                shape.filter(0), device, op,
+                std::forward<Input>(cross_correlation_map),
+                std::forward<PeakCoord>(peak_coordinates),
+                std::forward<PeakValue>(peak_values)
+            );
+            return;
+        }
 
         bool apply_ellipse{};
         auto maximum_allowed_lag = shape_nd.vec.pop_front() / 2;
@@ -757,11 +830,15 @@ namespace noa::signal {
             N, REMAP.is_xc2xx(), REGISTRATION_RADIUS_LIMIT,
             input_accessor_t, peak_coordinates_accessor_t, peak_values_accessor_t>;
 
+        auto initial_reduction_value = Pair{std::numeric_limits<value_t>::lowest(), index_t{}};
         reduce_axes_iwise(
             subregion_shape.push_front(shape[0]), device, initial_reduction_value, reduce_axes,
             reducer_t(input_accessor, peak_coordinates_accessor, peak_values_accessor,
                       shape_nd, options.registration_radius,
-                      subregion_offset, maximum_lag, apply_ellipse)
+                      subregion_offset, maximum_lag, apply_ellipse),
+            std::forward<Input>(cross_correlation_map),
+            std::forward<PeakCoord>(peak_coordinates),
+            std::forward<PeakValue>(peak_values)
         );
     }
 
@@ -780,12 +857,13 @@ namespace noa::signal {
             return pair;
         } else {
             const auto array_options = ArrayOption{cross_correlation_map.device(), Allocator::ASYNC};
-            Array pair = noa::empty<pair_t>(1, array_options);
+            const auto pair = Array<pair_t>(1, array_options);
             cross_correlation_peak<REMAP, N>(
                 cross_correlation_map.view(),
-                View(&(pair.get()->first), 1, array_options),
-                View(&(pair.get()->second), 1, array_options),
-                options);
+                View(&(pair.get()->first), pair.shape(), pair.strides(), array_options, Unchecked{}),
+                View(&(pair.get()->second), pair.shape(), pair.strides(), array_options, Unchecked{}),
+                options
+            );
             return pair.first();
         }
     }
