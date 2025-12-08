@@ -85,9 +85,9 @@ namespace noa {
     /// Computes an index-wise reduction along one or multiple axes.
     /// \details The output axes are mapped from right to left, i.e.:
     ///          N=4 -> BDHW
-    ///          N=3 -> DHW  (B   is  ignored and assumed to be empy)
-    ///          N=2 -> HW   (BD  are ignored and assumed to be empy)
-    ///          N=1 -> W    (BDH are ignored and assumed to be empy)
+    ///          N=3 -> DHW  (B must be empy)
+    ///          N=2 -> HW   (BD must be empy)
+    ///          N=1 -> W    (BDH must be empy)
     ///
     /// \details The size of each output axis should match the input shape, or be 1, indicating the axis
     ///          should be reduced. There should be at least one axis being reduced. Currently, reducing more than
@@ -215,6 +215,9 @@ namespace noa::details {
             static_assert(std::tuple_size_v<Outputs> > 0, "There should be at least one output");
 
             auto desired_shape = outputs[Tag<0>{}].shape().template as_safe<Index>();
+            for (size_t i{}; i < 4 - N; ++i)
+                check(desired_shape[i] == 1, "For N={}, the output dimension {} must be empty", N, i);
+
             outputs.for_each_enumerate([&]<size_t I, typename T>(T& output) {
                 check(device == output.device(),
                       "Output arrays should be on device={}, but got output:{}:device={}",
