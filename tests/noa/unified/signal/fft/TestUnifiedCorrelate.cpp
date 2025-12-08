@@ -13,14 +13,18 @@
 #include "Utils.hpp"
 
 using namespace ::noa::types;
+namespace nf = ::noa::fft;
+namespace ng = ::noa::geometry;
+namespace ns = ::noa::signal;
 
 namespace {
     // DOUBLE_PHASE seem to be the more accurate, then CONVENTIONAL, MUTUAL and PHASE.
-    constexpr std::array cross_correlation_modes{
-        noa::signal::Correlation::CONVENTIONAL,
-        noa::signal::Correlation::MUTUAL,
-        noa::signal::Correlation::PHASE,
-        noa::signal::Correlation::DOUBLE_PHASE};
+    constexpr auto cross_correlation_modes = std::array{
+        ns::Correlation::CONVENTIONAL,
+        ns::Correlation::MUTUAL,
+        ns::Correlation::PHASE,
+        ns::Correlation::DOUBLE_PHASE,
+    };
 
     template<size_t N>
     struct TestData {
@@ -33,7 +37,7 @@ namespace {
 
     template<size_t N>
     auto generate_data(const auto& shape) {
-        TestData<N> data{};
+        auto data = TestData<N>{};
         data.radius = Vec<f64, N>::from_value(N == 2 ? 25.: 20.);
         data.smoothness = 7.;
         data.lhs_center = (shape.vec.template pop_front<4 - N>() / 2).template as<f64>();
@@ -50,43 +54,41 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak", "", Vec2<f32>, Vec2<f64>
     using value_t = TestType::value_type;
     constexpr size_t N = TestType::SIZE;
 
-    std::vector<Device> devices{"cpu"};
+    auto devices = std::vector<Device>{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
     auto shape = test::random_shape(N) + Shape<i64, N>::from_value(N == 2 ? 200 : 50).template push_front<4 - N>(0);
-    TestData data = generate_data<N>(shape);
-    // fmt::println("shape={}, excepted shift: {::.6f}", shape, data.expected_shift);
+    auto data = generate_data<N>(shape);
 
     for (auto correlation_mode: cross_correlation_modes) {
-        const auto xmap_options = noa::signal::CrossCorrelationMapOptions{
-            .mode=correlation_mode, .ifft_norm=noa::fft::NORM_DEFAULT};
+        const auto xmap_options = ns::CrossCorrelationMapOptions{
+            .mode=correlation_mode,
+            .ifft_norm=nf::NORM_DEFAULT,
+        };
 
         for (auto device: devices) {
             const auto stream = StreamGuard(device);
             const auto options = ArrayOption(device, Allocator::MANAGED);
 
-            auto [lhs, lhs_rfft] = noa::fft::empty<value_t>(shape, options);
-            auto [rhs, rhs_rfft] = noa::fft::empty<value_t>(shape, options);
-            const Array xmap = noa::empty<value_t>(shape, options);
-            const Array buffer = noa::like(lhs_rfft);
+            auto [lhs, lhs_rfft] = nf::empty<value_t>(shape, options);
+            auto [rhs, rhs_rfft] = nf::empty<value_t>(shape, options);
+            const auto xmap = Array<value_t>(shape, options);
+            const auto buffer = noa::like(lhs_rfft);
 
-            noa::geometry::draw({}, lhs, noa::geometry::Rectangle{data.lhs_center, data.radius, data.smoothness}.draw());
-            noa::geometry::draw({}, rhs, noa::geometry::Rectangle{data.rhs_center, data.radius, data.smoothness}.draw());
-            noa::fft::r2c(lhs, lhs_rfft);
-            noa::fft::r2c(rhs, rhs_rfft);
+            ng::draw({}, lhs, ng::Rectangle{data.lhs_center, data.radius, data.smoothness}.draw());
+            ng::draw({}, rhs, ng::Rectangle{data.rhs_center, data.radius, data.smoothness}.draw());
+            nf::r2c(lhs, lhs_rfft);
+            nf::r2c(rhs, rhs_rfft);
 
-            auto run = [&]<noa::fft::Layout REMAP>(auto xpeak_options) {
-                noa::signal::cross_correlation_map<REMAP>(lhs_rfft, rhs_rfft, xmap, xmap_options, buffer);
+            auto run = [&]<nf::Layout REMAP>(auto xpeak_options) {
+                ns::cross_correlation_map<REMAP>(lhs_rfft, rhs_rfft, xmap, xmap_options, buffer);
 
                 constexpr auto REMAP_ = REMAP.flip().erase_output();
-                auto [peak_coordinate, peak_value] = noa::signal::cross_correlation_peak<REMAP_>(xmap, xpeak_options);
+                auto [peak_coordinate, peak_value] = ns::cross_correlation_peak<REMAP_>(xmap, xpeak_options);
                 auto computed_shift = -(peak_coordinate - data.lhs_center);
-                if (correlation_mode == noa::signal::Correlation::DOUBLE_PHASE)
+                if (correlation_mode == ns::Correlation::DOUBLE_PHASE)
                     computed_shift /= 2;
-
-                // fmt::println("Computed shift={::.6f}, diff={::.6f}",
-                //              computed_shift, abs(computed_shift - data.expected_shift));
 
                 const auto max_value = noa::max(xmap);
                 REQUIRE(max_value <= peak_value);
@@ -96,13 +98,14 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak", "", Vec2<f32>, Vec2<f64>
                 return computed_shift;
             };
 
-            const auto xpeak_options = noa::signal::CrossCorrelationPeakOptions<N>{};
+            const auto xpeak_options = ns::CrossCorrelationPeakOptions<N>{};
             const auto shift_centered = run.template operator()<"H2FC">(xpeak_options);
             const auto shift_not_centered = run.template operator()<"H2F">(xpeak_options);
 
-            auto xpeak_options_max = noa::signal::CrossCorrelationPeakOptions{
-                .maximum_lag = abs(data.expected_shift) * 2};
-            if (correlation_mode == noa::signal::Correlation::DOUBLE_PHASE)
+            auto xpeak_options_max = ns::CrossCorrelationPeakOptions{
+                .maximum_lag = abs(data.expected_shift) * 2
+            };
+            if (correlation_mode == ns::Correlation::DOUBLE_PHASE)
                 xpeak_options_max.maximum_lag *= 2;
 
             // fmt::print("shape={}, maximum_lag={}\n", shape, xpeak_options_max.maximum_lag);
@@ -122,7 +125,7 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak batched", "", Vec2<f32>, V
     using value_t = TestType::value_type;
     constexpr size_t N = TestType::SIZE;
 
-    std::vector<Device> devices{"cpu"};
+    auto devices = std::vector<Device>{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
@@ -134,52 +137,51 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak batched", "", Vec2<f32>, V
     INFO(shape);
 
     std::vector<TestData<N>> data;
-    const auto lhs_inverse_affine_matrices = noa::empty<Mat<f32, N + 1, N + 1>>(shape[0]);
-    const auto rhs_inverse_affine_matrices = noa::empty<Mat<f32, N + 1, N + 1>>(shape[0]);
+    const auto lhs_inverse_affine_matrices = Array<Mat<f32, N + 1, N + 1>>(shape[0]);
+    const auto rhs_inverse_affine_matrices = Array<Mat<f32, N + 1, N + 1>>(shape[0]);
     for (auto i: noa::irange(shape[0])) {
         auto tmp = generate_data<N>(shape);
         data.emplace_back(tmp);
-        lhs_inverse_affine_matrices(0, 0, 0, i) = noa::geometry::translate(-tmp.lhs_center).template as<f32>();
-        rhs_inverse_affine_matrices(0, 0, 0, i) = noa::geometry::translate(-tmp.rhs_center).template as<f32>();
+        lhs_inverse_affine_matrices(0, 0, 0, i) = ng::translate(-tmp.lhs_center).template as<f32>();
+        rhs_inverse_affine_matrices(0, 0, 0, i) = ng::translate(-tmp.rhs_center).template as<f32>();
     }
 
     for (auto correlation_mode: cross_correlation_modes) {
-        const auto xmap_options = noa::signal::CrossCorrelationMapOptions{
-            .mode=correlation_mode, .ifft_norm=noa::fft::NORM_DEFAULT};
-        const auto xpeak_options = noa::signal::CrossCorrelationPeakOptions<N>{};
+        const auto xmap_options = ns::CrossCorrelationMapOptions{.mode=correlation_mode, .ifft_norm=nf::NORM_DEFAULT};
+        const auto xpeak_options = ns::CrossCorrelationPeakOptions<N>{};
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device, Stream::DEFAULT);
             const auto options = ArrayOption(device, Allocator::MANAGED);
 
-            auto [lhs, lhs_rfft] = noa::fft::empty<value_t>(shape, options);
-            auto [rhs, rhs_rfft] = noa::fft::empty<value_t>(shape, options);
-            const auto xmap = noa::empty<value_t>(shape, options);
+            auto [lhs, lhs_rfft] = nf::empty<value_t>(shape, options);
+            auto [rhs, rhs_rfft] = nf::empty<value_t>(shape, options);
+            const auto xmap = Array<value_t>(shape, options);
             const auto buffer = noa::like(lhs_rfft);
 
-            noa::geometry::draw({}, lhs, noa::geometry::Rectangle{
+            ng::draw({}, lhs, ng::Rectangle{
                 .radius=data[0].radius, .smoothness=data[0].smoothness}.template draw<f32>(),
                  lhs_inverse_affine_matrices.to({device}));
-            noa::geometry::draw({}, rhs, noa::geometry::Rectangle{
+            ng::draw({}, rhs, ng::Rectangle{
                 .radius=data[0].radius, .smoothness=data[0].smoothness}.template draw<f32>(),
                  rhs_inverse_affine_matrices.to({device}));
 
-            noa::fft::r2c(lhs, lhs_rfft);
-            noa::fft::r2c(rhs, rhs_rfft);
+            nf::r2c(lhs, lhs_rfft);
+            nf::r2c(rhs, rhs_rfft);
 
-            auto run = [&]<noa::fft::Layout REMAP>(){
+            auto run = [&]<nf::Layout REMAP>(){
                 INFO(REMAP);
-                noa::signal::cross_correlation_map<REMAP>(lhs_rfft, rhs_rfft, xmap, xmap_options, buffer);
+                ns::cross_correlation_map<REMAP>(lhs_rfft, rhs_rfft, xmap, xmap_options, buffer);
 
-                const auto shifts = noa::empty<Vec<f32, N>>(shape[0], options);
-                const auto values = noa::empty<value_t>(shape[0], options);
+                const auto shifts = Array<Vec<f32, N>>(shape[0], options);
+                const auto values = Array<value_t>(shape[0], options);
                 constexpr auto REMAP_ = REMAP.flip().erase_output();
-                noa::signal::cross_correlation_peak<REMAP_>(xmap, shifts, values, xpeak_options);
+                ns::cross_correlation_peak<REMAP_>(xmap, shifts, values, xpeak_options);
 
                 for (size_t i{}; i < shifts.eval().size(); ++i) {
                     INFO(i);
                     auto computed_shift = -(shifts(0, 0, 0, i).template as<f64>() - data[i].lhs_center);
-                    if (correlation_mode == noa::signal::Correlation::DOUBLE_PHASE)
+                    if (correlation_mode == ns::Correlation::DOUBLE_PHASE)
                         computed_shift /= 2;
 
                     // fmt::println("Computed shift={::.6f}, expected={::.6f}, diff={::.6f}",
@@ -199,7 +201,7 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak batched", "", Vec2<f32>, V
 }
 
 TEST_CASE("unified::signal, autocorrelate") {
-    std::vector<Device> devices{"cpu"};
+    auto devices = std::vector<Device>{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
@@ -207,23 +209,27 @@ TEST_CASE("unified::signal, autocorrelate") {
     const auto center = (shape.pop_front() / 2).vec.as<f64>();
 
     for (auto& device: devices) {
-        const auto stream = noa::StreamGuard(device);
-        const auto options = noa::ArrayOption(device, Allocator::MANAGED);
+        const auto stream = StreamGuard(device);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
 
         const auto lhs = noa::random(noa::Uniform{-50.f, 50.f}, shape, options);
-        const auto lhs_rfft = noa::fft::r2c(lhs);
+        const auto lhs_rfft = nf::r2c(lhs);
         const auto rhs_rfft = lhs_rfft.copy();
         const auto xmap = noa::like<f32>(lhs);
-        noa::signal::cross_correlation_map<"H2F">(lhs_rfft, rhs_rfft, xmap);
-        const auto [shift, _] = noa::signal::cross_correlation_peak_3d<"F2F">(xmap);
+        ns::cross_correlation_map<"H2F">(lhs_rfft, rhs_rfft, xmap);
+        const auto [shift, _] = ns::cross_correlation_peak_3d<"f">(xmap);
         REQUIRE_THAT(shift[0], Catch::Matchers::WithinAbs(center[0], 5e-2));
         REQUIRE_THAT(shift[1], Catch::Matchers::WithinAbs(center[1], 5e-2));
         REQUIRE_THAT(shift[2], Catch::Matchers::WithinAbs(center[2], 5e-2));
+
+        // turn off the reduction, take the zero-lag
+        const auto shift2 = ns::cross_correlation_peak_3d<"f">(xmap, {.maximum_lag = {}}).first;
+        REQUIRE(all(shift == shift2));
     }
 }
 
 TEST_CASE("unified::signal::cross_correlation_score") {
-    std::vector<Device> devices{"cpu"};
+    auto devices = std::vector<Device>{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
@@ -256,25 +262,25 @@ TEST_CASE("unified::signal::cross_correlation_score") {
         noa::normalize(rhs_zero_normalized, rhs_zero_l2_normalized, {.mode = noa::Norm::L2});
 
         const auto dot = noa::dot(lhs.flat(), rhs.flat());
-        const auto cc = noa::signal::cross_correlation_score(lhs, rhs, {.center = false, .normalize = false});
+        const auto cc = ns::cross_correlation_score(lhs, rhs, {.center = false, .normalize = false});
         REQUIRE_THAT(dot, Catch::Matchers::WithinAbs(cc, 1e-5));
 
-        const auto zcc0 = noa::signal::cross_correlation_score(lhs, rhs, {.center = true, .normalize = false});
-        const auto zcc1 = noa::signal::cross_correlation_score(lhs_zero_normalized, rhs_zero_normalized, {.center = false, .normalize = false});
+        const auto zcc0 = ns::cross_correlation_score(lhs, rhs, {.center = true, .normalize = false});
+        const auto zcc1 = ns::cross_correlation_score(lhs_zero_normalized, rhs_zero_normalized, {.center = false, .normalize = false});
         REQUIRE_THAT(zcc0, Catch::Matchers::WithinAbs(zcc1, 1e-5));
 
-        const auto ncc0 = noa::signal::cross_correlation_score(lhs, rhs, {.center = false, .normalize = true});
-        const auto ncc1 = noa::signal::cross_correlation_score(lhs_l2_normalized, rhs_l2_normalized, {.center = false, .normalize = false});
+        const auto ncc0 = ns::cross_correlation_score(lhs, rhs, {.center = false, .normalize = true});
+        const auto ncc1 = ns::cross_correlation_score(lhs_l2_normalized, rhs_l2_normalized, {.center = false, .normalize = false});
         REQUIRE_THAT(ncc0, Catch::Matchers::WithinAbs(ncc1, 1e-5));
 
-        const auto zncc0 = noa::signal::cross_correlation_score(lhs, rhs, {.center = true, .normalize = true});
-        const auto zncc1 = noa::signal::cross_correlation_score(lhs_zero_l2_normalized, rhs_zero_l2_normalized, {.center = false, .normalize = false});
+        const auto zncc0 = ns::cross_correlation_score(lhs, rhs, {.center = true, .normalize = true});
+        const auto zncc1 = ns::cross_correlation_score(lhs_zero_l2_normalized, rhs_zero_l2_normalized, {.center = false, .normalize = false});
         REQUIRE_THAT(zncc0, Catch::Matchers::WithinAbs(zncc1, 1e-5));
     }
 }
 
 TEST_CASE("unified::signal::cross_correlation_peak, no registration") {
-    std::vector<Device> devices{"cpu"};
+    auto devices = std::vector<Device>{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
@@ -284,21 +290,21 @@ TEST_CASE("unified::signal::cross_correlation_peak, no registration") {
         const auto options = noa::ArrayOption(device, Allocator::MANAGED);
 
         const auto lhs = Array<f64>(shape, options);
-        noa::geometry::draw({}, lhs, noa::geometry::Sphere{.center=Vec{32., 32.}, .radius=6., .smoothness = 4.}.draw());
+        ng::draw({}, lhs, ng::Sphere{.center=Vec{32., 32.}, .radius=6., .smoothness = 4.}.draw());
         noa::normalize(lhs, lhs, {.mode = noa::Norm::MEAN_STD});
         noa::normalize(lhs, lhs, {.mode = noa::Norm::L2});
-        const auto lhs_rfft = noa::fft::r2c(lhs, {.norm = noa::fft::Norm::BACKWARD});
+        const auto lhs_rfft = nf::r2c(lhs, {.norm = nf::Norm::BACKWARD});
 
         const auto rhs = Array<f64>(shape, options);
-        noa::geometry::draw({}, rhs, noa::geometry::Sphere{.center=Vec{35., 34.}, .radius=6., .smoothness = 4.}.draw());
+        ng::draw({}, rhs, ng::Sphere{.center=Vec{35., 34.}, .radius=6., .smoothness = 4.}.draw());
         noa::normalize(rhs, rhs, {.mode = noa::Norm::MEAN_STD});
         noa::normalize(rhs, rhs, {.mode = noa::Norm::L2});
-        const auto rhs_rfft = noa::fft::r2c(rhs, {.norm = noa::fft::Norm::BACKWARD});
+        const auto rhs_rfft = nf::r2c(rhs, {.norm = nf::Norm::BACKWARD});
 
         // Using a cross-correlation map.
         const auto xmap = noa::like(rhs);
-        noa::signal::cross_correlation_map<"h2fc">(lhs_rfft, rhs_rfft, xmap, {.ifft_norm = noa::fft::Norm::BACKWARD});
-        auto [peak_coord, peak_value] = noa::signal::cross_correlation_peak_2d<"fc2fc">(xmap, {.registration_radius = Vec<i64, 2>{}});
+        ns::cross_correlation_map<"h2fc">(lhs_rfft, rhs_rfft, xmap, {.ifft_norm = nf::Norm::BACKWARD});
+        auto [peak_coord, peak_value] = ns::cross_correlation_peak_2d<"fc2fc">(xmap, {.registration_radius = Vec<i64, 2>{}});
 
         // Using argmax.
         auto [argmax_value, argmax_offset] = noa::argmax(xmap);
