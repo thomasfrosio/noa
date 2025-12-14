@@ -14,8 +14,8 @@ namespace noa::geometry {
     class alignas(16) Quaternion {
     public:
         using value_type = T;
-        using vec4_type = Vec4<value_type>;
-        using vec3_type = Vec3<value_type>;
+        using vec4_type = Vec<value_type, 4>;
+        using vec3_type = Vec<value_type, 3>;
         using mat33_type = Mat33<value_type>;
 
     public:
@@ -43,7 +43,7 @@ namespace noa::geometry {
             return q;
         }
 
-        template<typename U, size_t A>
+        template<typename U, usize A>
         [[nodiscard]] NOA_HD static constexpr auto from_coefficients(const Vec<U, 4, A>& zyxw) noexcept -> Quaternion {
             return {static_cast<value_type>(zyxw[0]),
                     static_cast<value_type>(zyxw[1]),

@@ -10,10 +10,10 @@
 #include "noa/cpu/Ewise.hpp"
 
 namespace noa::cpu::signal::details {
-    template<size_t DIM, Border BORDER, typename InputAccessor, typename OutputAccessor, typename FilterAccessor>
+    template<usize DIM, Border BORDER, typename InputAccessor, typename OutputAccessor, typename FilterAccessor>
     class Convolution {
     public:
-        using shape_type = Shape<i64, DIM>;
+        using shape_type = Shape<isize, DIM>;
         using input_accessor_type = InputAccessor;
         using output_accessor_type = OutputAccessor;
         using filter_accessor_type = FilterAccessor;
@@ -32,12 +32,12 @@ namespace noa::cpu::signal::details {
             m_shape(shape), m_filter_shape(filter_shape),
             m_halo(filter_shape / 2) {}
 
-        constexpr void operator()(i64 i, i64 j, i64 k, i64 l) const {
+        constexpr void operator()(isize i, isize j, isize k, isize l) const {
             filter_value_type conv{};
 
             if constexpr (DIM == 1) {
-                for (i64 wl{}; wl < m_filter_shape[0]; ++wl) {
-                    const i64 il = l - m_halo[0] + wl;
+                for (isize wl{}; wl < m_filter_shape[0]; ++wl) {
+                    const isize il = l - m_halo[0] + wl;
                     if constexpr (BORDER == Border::ZERO) {
                         if (il >= 0 and il < m_shape[0])
                             conv += static_cast<filter_value_type>(m_input(i, j, k, il)) * m_filter[wl];
@@ -48,55 +48,55 @@ namespace noa::cpu::signal::details {
                 }
             } else if constexpr (DIM == 2) {
                 if constexpr (BORDER == Border::ZERO) {
-                    for (i64 wk{}; wk < m_filter_shape[0]; ++wk) {
-                        const i64 ik = k - m_halo[0] + wk;
+                    for (isize wk{}; wk < m_filter_shape[0]; ++wk) {
+                        const isize ik = k - m_halo[0] + wk;
                         if (ik < 0 or ik >= m_shape[0])
                             continue;
-                        const i64 tmp = wk * m_filter_shape[1];
-                        for (i64 wl{}; wl < m_filter_shape[1]; ++wl) {
-                            const i64 il = l - m_halo[1] + wl;
+                        const isize tmp = wk * m_filter_shape[1];
+                        for (isize wl{}; wl < m_filter_shape[1]; ++wl) {
+                            const isize il = l - m_halo[1] + wl;
                             if (il >= 0 and il < m_shape[1])
                                 conv += static_cast<filter_value_type>(m_input(i, j, ik, il)) * m_filter[tmp + wl];
                         }
                     }
                 } else {
-                    for (i64 wk{}; wk < m_filter_shape[0]; ++wk) {
-                        const i64 ik = ni::index_at<BORDER>(k - m_halo[0] + wk, m_shape[0]);
-                        const i64 tmp = wk * m_filter_shape[1];
-                        for (i64 wl{}; wl < m_filter_shape[1]; ++wl) {
-                            const i64 il = ni::index_at<BORDER>(l - m_halo[1] + wl, m_shape[1]);
+                    for (isize wk{}; wk < m_filter_shape[0]; ++wk) {
+                        const isize ik = ni::index_at<BORDER>(k - m_halo[0] + wk, m_shape[0]);
+                        const isize tmp = wk * m_filter_shape[1];
+                        for (isize wl{}; wl < m_filter_shape[1]; ++wl) {
+                            const isize il = ni::index_at<BORDER>(l - m_halo[1] + wl, m_shape[1]);
                             conv += static_cast<filter_value_type>(m_input(i, j, ik, il)) * m_filter[tmp + wl];
                         }
                     }
                 }
             } else if constexpr (DIM == 3) {
                 if constexpr (BORDER == Border::ZERO) {
-                    for (i64 wj{}; wj < m_filter_shape[0]; ++wj) {
-                        const i64 ij = j - m_halo[0] + wj;
+                    for (isize wj{}; wj < m_filter_shape[0]; ++wj) {
+                        const isize ij = j - m_halo[0] + wj;
                         if (ij < 0 or ij >= m_shape[0])
                             continue;
-                        const i64 tmp_z = wj * m_filter_shape[1] * m_filter_shape[2];
-                        for (i64 wk{}; wk < m_filter_shape[1]; ++wk) {
-                            const i64 ik = k - m_halo[1] + wk;
+                        const isize tmp_z = wj * m_filter_shape[1] * m_filter_shape[2];
+                        for (isize wk{}; wk < m_filter_shape[1]; ++wk) {
+                            const isize ik = k - m_halo[1] + wk;
                             if (ik < 0 or ik >= m_shape[1])
                                 continue;
-                            const i64 tmp = tmp_z + wk * m_filter_shape[2];
-                            for (i64 wl{}; wl < m_filter_shape[2]; ++wl) {
-                                const i64 il = l - m_halo[2] + wl;
+                            const isize tmp = tmp_z + wk * m_filter_shape[2];
+                            for (isize wl{}; wl < m_filter_shape[2]; ++wl) {
+                                const isize il = l - m_halo[2] + wl;
                                 if (il >= 0 and il < m_shape[2])
                                     conv += static_cast<filter_value_type>(m_input(i, ij, ik, il)) * m_filter[tmp + wl];
                             }
                         }
                     }
                 } else {
-                    for (i64 wj{}; wj < m_filter_shape[0]; ++wj) {
-                        const i64 ij = ni::index_at<BORDER>(j - m_halo[0] + wj, m_shape[0]);
-                        const i64 tmp_z = wj * m_filter_shape[1] * m_filter_shape[2];
-                        for (i64 wk{}; wk < m_filter_shape[1]; ++wk) {
-                            const i64 ik = ni::index_at<BORDER>(k - m_halo[1] + wk, m_shape[1]);
-                            const i64 tmp = tmp_z + wk * m_filter_shape[2];
-                            for (i64 wl{}; wl < m_filter_shape[2]; ++wl) {
-                                const i64 il = ni::index_at<BORDER>(l - m_halo[2] + wl, m_shape[2]);
+                    for (isize wj{}; wj < m_filter_shape[0]; ++wj) {
+                        const isize ij = ni::index_at<BORDER>(j - m_halo[0] + wj, m_shape[0]);
+                        const isize tmp_z = wj * m_filter_shape[1] * m_filter_shape[2];
+                        for (isize wk{}; wk < m_filter_shape[1]; ++wk) {
+                            const isize ik = ni::index_at<BORDER>(k - m_halo[1] + wk, m_shape[1]);
+                            const isize tmp = tmp_z + wk * m_filter_shape[2];
+                            for (isize wl{}; wl < m_filter_shape[2]; ++wl) {
+                                const isize il = ni::index_at<BORDER>(l - m_halo[2] + wl, m_shape[2]);
                                 conv += static_cast<filter_value_type>(m_input(i, ij, ik, il)) * m_filter[tmp + wl];
                             }
                         }
@@ -137,16 +137,16 @@ namespace noa::cpu::signal::details {
             const input_accessor_type& input,
             const output_accessor_type& output,
             const filter_accessor_type& filter,
-            i64 dim_size, i64 filter_size
+            isize dim_size, isize filter_size
         ) : m_input(input), m_output(output), m_filter(filter),
             m_dim_size(dim_size), m_filter_size(filter_size),
             m_halo(filter_size / 2) {}
 
-        constexpr void operator()(i64 i, i64 j, i64 k, i64 l) const {
+        constexpr void operator()(isize i, isize j, isize k, isize l) const {
             filter_value_type conv{};
             if constexpr (DIM == ConvolutionSeparableDim::WIDTH) {
-                for (i64 wl{}; wl < m_filter_size; ++wl) {
-                    const i64 il = l - m_halo + wl;
+                for (isize wl{}; wl < m_filter_size; ++wl) {
+                    const isize il = l - m_halo + wl;
                     if constexpr (BORDER == Border::ZERO) {
                         if (il >= 0 and il < m_dim_size)
                             conv += static_cast<filter_value_type>(m_input(i, j, k, il)) * m_filter[wl];
@@ -156,8 +156,8 @@ namespace noa::cpu::signal::details {
                     }
                 }
             } else if constexpr (DIM == ConvolutionSeparableDim::HEIGHT) {
-                for (i64 wk{}; wk < m_filter_size; ++wk) {
-                    const i64 ik = k - m_halo + wk;
+                for (isize wk{}; wk < m_filter_size; ++wk) {
+                    const isize ik = k - m_halo + wk;
                     if constexpr (BORDER == Border::ZERO) {
                         if (ik >= 0 and ik < m_dim_size)
                             conv += static_cast<filter_value_type>(m_input(i, j, ik, l)) * m_filter[wk];
@@ -167,8 +167,8 @@ namespace noa::cpu::signal::details {
                     }
                 }
             } else if constexpr (DIM == ConvolutionSeparableDim::DEPTH) {
-                for (i64 wj{}; wj < m_filter_size; ++wj) {
-                    const i64 ij = j - m_halo + wj;
+                for (isize wj{}; wj < m_filter_size; ++wj) {
+                    const isize ij = j - m_halo + wj;
                     if constexpr (BORDER == Border::ZERO) {
                         if (ij >= 0 and ij < m_dim_size)
                             conv += static_cast<filter_value_type>(m_input(i, ij, k, l)) * m_filter[wj];
@@ -185,23 +185,23 @@ namespace noa::cpu::signal::details {
         input_accessor_type m_input;
         output_accessor_type m_output;
         filter_accessor_type m_filter;
-        i64 m_dim_size;
-        i64 m_filter_size;
-        i64 m_halo;
+        isize m_dim_size;
+        isize m_filter_size;
+        isize m_halo;
     };
 
     // If half precision, convert filter and do the accumulation is single-precision.
     // Without this, half precision would be ~10times slower. With this preprocessing, it is only 2times slower.
     template<typename T>
-    auto get_filter(const T* filter, i64 filter_size) {
+    auto get_filter(const T* filter, isize filter_size) {
         using compute_t = std::conditional_t<std::is_same_v<f16, T>, f32, T>;
         using buffer_t = AllocatorHeap::allocate_type<compute_t>;
-        using accessor_t = AccessorRestrictContiguous<const compute_t, 1, i64>;
+        using accessor_t = AccessorRestrictContiguous<const compute_t, 1, isize>;
         buffer_t buffer{};
 
         if constexpr (std::is_same_v<f16, T>) {
             buffer = AllocatorHeap::allocate<compute_t>(filter_size);
-            for (size_t i{}; i < static_cast<size_t>(filter_size); ++i)
+            for (usize i{}; i < static_cast<usize>(filter_size); ++i)
                 buffer[i] = static_cast<compute_t>(filter[i]);
             return Pair{accessor_t(buffer.get()), std::move(buffer)};
         } else {
@@ -211,12 +211,12 @@ namespace noa::cpu::signal::details {
 
     template<ConvolutionSeparableDim DIM, Border BORDER, typename T, typename U, typename V>
     void launch_convolve_separable(
-        const T* input, const Strides4<i64>& input_strides,
-        U* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-        const V* filter, i64 filter_size, i64 n_threads
+        const T* input, const Strides4& input_strides,
+        U* output, const Strides4& output_strides, const Shape4& shape,
+        const V* filter, isize filter_size, i32 n_threads
     ) {
-        using input_accessor_t = AccessorRestrict<const T, 4, i64>;
-        using output_accessor_t = AccessorRestrict<U, 4, i64>;
+        using input_accessor_t = AccessorRestrict<const T, 4, isize>;
+        using output_accessor_t = AccessorRestrict<U, 4, isize>;
         const auto [filter_accessor, filter_buffer] = details::get_filter(filter, filter_size);
         const auto dim_size = shape.filter(to_underlying(DIM))[0];
 
@@ -232,11 +232,11 @@ namespace noa::cpu::signal::details {
 namespace noa::cpu::signal {
     template<Border BORDER, typename T, typename U, typename V>
     void convolve(
-        const T* input, Strides4<i64> input_strides,
-        U* output, Strides4<i64> output_strides, const Shape4<i64>& shape,
-        const V* filter, const Shape3<i64>& filter_shape, i64 n_threads
+        const T* input, Strides4 input_strides,
+        U* output, Strides4 output_strides, const Shape4& shape,
+        const V* filter, const Shape3& filter_shape, i32 n_threads
     ) {
-        const auto n_dimensions_to_convolve = sum(filter_shape > 1);
+        const auto n_dimensions_to_convolve = sum(filter_shape.cmp_gt(1));
         const auto ndim = filter_shape.ndim();
         if (n_dimensions_to_convolve == 1) {
             if (filter_shape[0] > 1) {
@@ -253,8 +253,8 @@ namespace noa::cpu::signal {
                     filter, filter_shape[2], n_threads);
             }
         } else if (ndim == 2) {
-            using input_accessor_t = AccessorRestrict<const T, 4, i64>;
-            using output_accessor_t = AccessorRestrict<U, 4, i64>;
+            using input_accessor_t = AccessorRestrict<const T, 4, isize>;
+            using output_accessor_t = AccessorRestrict<U, 4, isize>;
             const auto input_accessor = input_accessor_t(input, input_strides);
             const auto output_accessor = output_accessor_t(output, output_strides);
 
@@ -267,8 +267,8 @@ namespace noa::cpu::signal {
             iwise(shape, kernel, n_threads);
 
         } else if (ndim == 3) {
-            using input_accessor_t = AccessorRestrict<const T, 4, i64>;
-            using output_accessor_t = AccessorRestrict<U, 4, i64>;
+            using input_accessor_t = AccessorRestrict<const T, 4, isize>;
+            using output_accessor_t = AccessorRestrict<U, 4, isize>;
             const auto input_accessor = input_accessor_t(input, input_strides);
             const auto output_accessor = output_accessor_t(output, output_strides);
 
@@ -279,14 +279,14 @@ namespace noa::cpu::signal {
             auto kernel = op_t(input_accessor, output_accessor, filter_accessor, shape.filter(1, 2, 3), filter_shape);
             iwise(shape, kernel, n_threads);
 
-        } else if (all(filter_shape == 1)) {
+        } else if (filter_shape == 1) {
             auto order = ni::order(output_strides, shape);
-            if (vany(NotEqual{}, order, Vec{0, 1, 2, 3})) {
+            if (order != Vec<isize, 4>{0, 1, 2, 3}) {
                 input_strides = ni::reorder(input_strides, order);
                 output_strides = ni::reorder(output_strides, order);
             }
-            const auto input_accessor = AccessorRestrict<const T, 4, i64>(input, input_strides);
-            const auto output_accessor = AccessorRestrict<U, 4, i64>(output, output_strides);
+            const auto input_accessor = AccessorRestrict<const T, 4, isize>(input, input_strides);
+            const auto output_accessor = AccessorRestrict<U, 4, isize>(output, output_strides);
             const auto value = AccessorValue<T>(static_cast<T>(filter[0]));
             return ewise(shape, Multiply{}, make_tuple(input_accessor, value), make_tuple(output_accessor), n_threads);
 
@@ -297,12 +297,12 @@ namespace noa::cpu::signal {
 
     template<Border BORDER, typename T, typename U, typename V> requires nt::are_real_v<T, U, V>
     void convolve_separable(
-        const T* input, const Strides4<i64>& input_strides,
-        U* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-        const V* filter_depth, i64 filter_depth_size,
-        const V* filter_height, i64 filter_height_size,
-        const V* filter_width, i64 filter_width_size,
-        V* tmp, Strides4<i64> tmp_strides, i64 n_threads
+        const T* input, const Strides4& input_strides,
+        U* output, const Strides4& output_strides, const Shape4& shape,
+        const V* filter_depth, isize filter_depth_size,
+        const V* filter_height, isize filter_height_size,
+        const V* filter_width, isize filter_width_size,
+        V* tmp, Strides4 tmp_strides, i32 n_threads
     ) {
         if (filter_depth_size <= 0)
             filter_depth = nullptr;

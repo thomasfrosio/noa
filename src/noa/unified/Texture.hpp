@@ -24,7 +24,7 @@ namespace noa::cpu {
     /// A simple handle to an array or view.
     template<typename T>
     struct TextureResource {
-        Strides4<i64> strides{};
+        Strides4 strides{};
         std::shared_ptr<T[]> handle{};
         const T* pointer{};
     };
@@ -55,8 +55,8 @@ namespace noa::inline types {
 
         using value_type = T;
         using mutable_value_type = T;
-        using shape_type = Shape4<i64>;
-        using strides_type = Strides4<i64>;
+        using shape_type = Shape4;
+        using strides_type = Strides4;
         using cpu_texture_type = noa::cpu::TextureResource<value_type>;
         using gpu_texture_type = noa::gpu::TextureResource<value_type>;
         using variant_type = std::variant<std::monostate, cpu_texture_type, gpu_texture_type>;
@@ -218,7 +218,7 @@ namespace noa::inline types {
         void update(VArray&& array, bool prefilter = true) {
             check(not is_empty(), "Trying to update an empty texture is not allowed. Create a valid the texture first");
             check(not array.is_empty(), "Empty array detected");
-            check(all(array.shape() == m_shape),
+            check(array.shape() == m_shape,
                   "The input array should have the same shape as the texture, "
                   "but got texture:shape={} and array:shape={}",
                   m_shape, array.shape());
@@ -381,7 +381,7 @@ namespace noa::inline types {
 
     private:
         variant_type m_texture{};
-        Shape4<i64> m_shape{};
+        Shape4 m_shape{};
         ArrayOption m_options{};
         Interp m_interp{};
         Border m_border{};

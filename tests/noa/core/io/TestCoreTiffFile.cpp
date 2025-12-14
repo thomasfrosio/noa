@@ -15,7 +15,7 @@ TEST_CASE("core::io::ImageFile - TIFF: simple write and read") {
     const Path file0 = test_dir / "file1.tif";
 
     using TiffFile = nio::BasicImageFile<nio::ImageFileEncoderTiff>;
-    constexpr auto shape = Shape<i64, 4>{3, 1, 64, 65};
+    constexpr auto shape = Shape<isize, 4>{3, 1, 64, 65};
     constexpr auto dtype = nio::DataType::I32;
 
     auto data0 = std::make_unique<i32[]>(static_cast<size_t>(shape.n_elements()));
@@ -33,11 +33,11 @@ TEST_CASE("core::io::ImageFile - TIFF: simple write and read") {
     file.close();
 
     file.open(file0, {.read = true});
-    REQUIRE(noa::all(shape == file.shape()));
+    REQUIRE(shape == file.shape());
     REQUIRE(dtype == file.dtype());
     REQUIRE((file.is_compressed() and file.compression() == nio::Compression::LZW));
     REQUIRE(file.encoder_name() == "tiff");
-    REQUIRE(noa::all(file.spacing() == Vec{1., 2., 3.}));
+    REQUIRE(file.spacing() == Vec{1., 2., 3.});
     REQUIRE((file.stats().min == -1. and file.stats().max == 1.));
 
     auto data1 = std::make_unique<i32[]>(static_cast<size_t>(shape.n_elements()));

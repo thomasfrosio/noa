@@ -23,7 +23,7 @@ namespace noa::details {
 
     /// Reorders the tuple(s) of accessors (in-place).
     template<typename Index, nt::tuple_of_accessor_or_empty... T>
-    constexpr void reorder_accessors(const Vec4<Index>& order, T&... accessors) {
+    constexpr void reorder_accessors(const Vec<Index, 4>& order, T&... accessors) {
         (accessors.for_each([&order]<typename U>(U& accessor) {
             if constexpr (nt::accessor_pure<U>)
                 accessor.reorder(order);
@@ -47,16 +47,16 @@ namespace noa::details {
     /// Returns the index of the first varray in the tuple.
     /// Returns -1 if there's no varray in the tuple.
     template<nt::tuple_decay T>
-    [[nodiscard]] constexpr i64 index_of_first_varray() {
-        i64 index{-1};
-        auto is_varray = [&]<size_t I>() {
+    [[nodiscard]] constexpr isize index_of_first_varray() {
+        isize index{-1};
+        auto is_varray = [&]<usize I>() {
             if constexpr (nt::varray_decay<decltype(std::declval<T>()[Tag<I>{}])>) {
                 index = I;
                 return true;
             }
             return false;
         };
-        [&is_varray]<size_t... I>(std::index_sequence<I...>) {
+        [&is_varray]<usize... I>(std::index_sequence<I...>) {
             (is_varray.template operator()<I>() or ...);
         }(nt::index_list_t<T>{});
         return index;
@@ -91,16 +91,16 @@ namespace noa::details {
     /// \note Accessors increment the pointer on dimension at a time! So the offset of each dimension
     ///       is converted to ptrdiff_t (by the compiler) and added to the pointer. This makes it less
     ///       likely to reach the integer upper limit.
-    template<typename Int, typename T, typename I, size_t N>
+    template<typename Int, typename T, typename I, usize N>
     [[nodiscard]] constexpr bool is_accessor_access_safe(const T& input, const Shape<I, N>& shape) {
         if constexpr (nt::same_as<Strides<I, N>, T>) {
-            for (size_t i{}; i < N; ++i) {
-                const auto end = static_cast<i64>(shape[i] - 1) * static_cast<i64>(input[i]);
+            for (usize i{}; i < N; ++i) {
+                const auto end = static_cast<isize>(shape[i] - 1) * static_cast<isize>(input[i]);
                 if (not is_safe_cast<Int>(end))
                     return false;
             }
             return true;
-        } else if constexpr (nt::accessor_nd<T, N> or (nt::varray_or_texture<T> and N == 4 and nt::same_as<I, i64>)) {
+        } else if constexpr (nt::accessor_nd<T, N> or (nt::varray_or_texture<T> and N == 4 and nt::same_as<I, isize>)) {
             return is_accessor_access_safe<Int>(input.strides_full(), shape);
         } else if constexpr (nt::empty<T> or nt::numeric<T>) {
             return true;
@@ -114,7 +114,7 @@ namespace noa::details {
         const Input& input,
         const Output& output,
         std::source_location location = std::source_location::current()
-    ) -> Strides<i64, 4> {
+    ) -> Strides<isize, 4> {
         auto input_strides = input.strides();
         if (not ni::broadcast(input.shape(), input_strides, output.shape())) {
             panic_at_location(location, "Cannot broadcast an array of shape {} into an array of shape {}",
@@ -128,7 +128,7 @@ namespace noa::details {
         const Input& input,
         const Output& output,
         std::source_location location = std::source_location::current()
-    ) -> Strides<i64, 4> {
+    ) -> Strides<isize, 4> {
         auto input_strides = input.strides();
         if (not input.is_empty() and not ni::broadcast(input.shape(), input_strides, output.shape())) {
             panic_at_location(location, "Cannot broadcast an array of shape {} into an array of shape {}",
@@ -171,6 +171,11 @@ namespace noa::details {
         } else {
             return BatchedParameter{value};
         }
+    }
+
+    template<nt::varray_decay... T>
+    constexpr bool are_arrays_valid(const T&... inputs) {
+        return (not inputs.is_empty() and ...);
     }
 }
 

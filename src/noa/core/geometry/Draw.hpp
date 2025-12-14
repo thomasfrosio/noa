@@ -7,7 +7,7 @@
 #include "noa/core/geometry/Transform.hpp"
 
 namespace noa::traits {
-    template<typename T, size_t N, typename Coord>
+    template<typename T, usize N, typename Coord>
     concept drawable_transform =
         nt::empty<T> or
         (std::same_as<value_type_t<T>, Coord> and
@@ -16,7 +16,7 @@ namespace noa::traits {
           nt::mat_of_shape<T, N + 1, N + 1>
           or (N == 3 and nt::quaternion<T>)));
 
-    template<typename T, size_t N, typename Coord, typename Xform>
+    template<typename T, usize N, typename Coord, typename Xform>
     concept drawable = nt::any_of<Coord, f32, f64> and N == T::SIZE and drawable_transform<Xform, N, Coord> and
         requires (const T& object, const Vec<Coord, N>& vec, const Xform& xform) {
             /// Given centered coordinates, returns the drawing.
@@ -34,7 +34,7 @@ namespace noa::traits {
 
 namespace noa::geometry {
     /// Draws at the transformed coordinates.
-    template<typename Drawable, size_t N, typename Coord, typename Xform>
+    template<typename Drawable, usize N, typename Coord, typename Xform>
     requires nt::drawable<Drawable, N, Coord, Xform>
     [[nodiscard]] constexpr auto draw_at(
         const Drawable& drawable,
@@ -52,11 +52,11 @@ namespace noa::geometry {
 }
 
 namespace noa::geometry {
-    template<size_t N, nt::any_of<f32, f64> T, bool IsSmooth>
+    template<usize N, nt::any_of<f32, f64> T, bool IsSmooth>
     class DrawSphere {
     public:
         static constexpr bool IS_SMOOTH = IsSmooth;
-        static constexpr size_t SIZE = N;
+        static constexpr usize SIZE = N;
         using value_type = T;
         using value_or_empty_type = std::conditional_t<IS_SMOOTH, value_type, Empty>;
         using vector_type = Vec<value_type, N>;
@@ -129,11 +129,11 @@ namespace noa::geometry {
         bool m_is_inverted{};
     };
 
-    template<size_t N, nt::any_of<f32, f64> Value, bool IsSmooth>
+    template<usize N, nt::any_of<f32, f64> Value, bool IsSmooth>
     class DrawEllipse {
     public:
         static constexpr bool IS_SMOOTH = IsSmooth;
-        static constexpr size_t SIZE = N;
+        static constexpr usize SIZE = N;
         using value_type = Value;
         using vector_type = Vec<value_type, N>;
         using value_or_empty_type = std::conditional_t<IS_SMOOTH, value_type, Empty>;
@@ -231,11 +231,11 @@ namespace noa::geometry {
         bool m_is_inverted{};
     };
 
-    template<size_t N, nt::any_of<f32, f64> Value, bool IsSmooth>
+    template<usize N, nt::any_of<f32, f64> Value, bool IsSmooth>
     class DrawRectangle {
     public:
         static constexpr bool IS_SMOOTH = IsSmooth;
-        static constexpr size_t SIZE = N;
+        static constexpr usize SIZE = N;
         using value_type = Value;
         using vector_type = Vec<value_type, N>;
         using value_or_empty_type = std::conditional_t<IS_SMOOTH, value_type, Empty>;
@@ -283,13 +283,13 @@ namespace noa::geometry {
             centered_coordinates = abs(centered_coordinates);
 
             if constexpr (IS_SMOOTH) {
-                if (any(m_radius_edge < centered_coordinates))
+                if (not(m_radius_edge >= centered_coordinates))
                     return static_cast<value_type>(m_is_inverted) * m_cvalue;
-                if (all(centered_coordinates <= m_radius))
+                if (centered_coordinates <= m_radius)
                     return static_cast<value_type>(not m_is_inverted) * m_cvalue;
 
                 value_type mask_value{1};
-                for (size_t i{}; i < N; ++i) {
+                for (usize i{}; i < N; ++i) {
                     if (m_radius[i] < centered_coordinates[i] and centered_coordinates[i] <= m_radius_edge[i]) {
                         constexpr auto PI = Constant<value_type>::PI;
                         const auto distance = (centered_coordinates[i] - m_radius[i]) / m_smoothness;
@@ -300,7 +300,7 @@ namespace noa::geometry {
                     return (value_type{1} - mask_value) * m_cvalue;
                 return mask_value * m_cvalue;
             } else {
-                if (all(centered_coordinates <= m_radius))
+                if (centered_coordinates <= m_radius)
                     return static_cast<value_type>(not m_is_inverted) * m_cvalue;
                 return static_cast<value_type>(m_is_inverted) * m_cvalue;
             }
@@ -319,11 +319,11 @@ namespace noa::geometry {
     class DrawCylinder {
     public:
         static constexpr bool IS_SMOOTH = IsSmooth;
-        static constexpr size_t SIZE = 3;
+        static constexpr usize SIZE = 3;
         using value_type = Value;
         using value_or_empty_type = std::conditional_t<IS_SMOOTH, value_type, Empty>;
-        using vector3_type = Vec3<value_type>;
-        using vector2_type = Vec2<value_type>;
+        using vector3_type = Vec<value_type, 3>;
+        using vector2_type = Vec<value_type, 2>;
 
         constexpr DrawCylinder(
             vector3_type center,
@@ -409,10 +409,10 @@ namespace noa::geometry {
         bool m_is_inverted{};
     };
 
-    template<size_t N>
+    template<usize N>
     requires (N == 2 or N == 3)
     struct Sphere {
-        static constexpr size_t SIZE = N;
+        static constexpr usize SIZE = N;
 
         /// (D)HW center of the sphere/circle.
         Vec<f64, N> center;
@@ -457,10 +457,10 @@ namespace noa::geometry {
         }
     };
 
-    template<size_t N>
+    template<usize N>
     requires (N == 2 or N == 3)
     struct Ellipse {
-        static constexpr size_t SIZE = N;
+        static constexpr usize SIZE = N;
 
         /// (D)HW center of the ellipse.
         Vec<f64, N> center;
@@ -505,10 +505,10 @@ namespace noa::geometry {
         }
     };
 
-    template<size_t N>
+    template<usize N>
     requires (N == 2 or N == 3)
     struct Rectangle {
-        static constexpr size_t SIZE = N;
+        static constexpr usize SIZE = N;
 
         /// (D)HW center of the rectangle.
         Vec<f64, N> center{};
@@ -554,10 +554,10 @@ namespace noa::geometry {
     };
 
     struct Cylinder {
-        static constexpr size_t SIZE = 3;
+        static constexpr usize SIZE = 3;
 
         /// DHW center of the cylinder.
-        Vec3<f64> center{};
+        Vec<f64, 3> center{};
 
         /// Radius of the cylinder.
         f64 radius;
@@ -583,7 +583,7 @@ namespace noa::geometry {
         constexpr auto draw() const noexcept {
             return DrawCylinder<T, true>(
                 center.template as<T>(),
-                Vec2<T>::from_values(radius, length),
+                Vec<T, 2>::from_values(radius, length),
                 static_cast<T>(cvalue),
                 static_cast<T>(smoothness),
                 invert
@@ -595,7 +595,7 @@ namespace noa::geometry {
         constexpr auto draw_binary() const noexcept {
             return DrawCylinder<T, false>(
                 center.template as<T>(),
-                Vec2<T>::from_values(radius, length),
+                Vec<T, 2>::from_values(radius, length),
                 static_cast<T>(cvalue),
                 invert
             );

@@ -16,7 +16,7 @@ namespace noa::cuda::fft {
     /// An optimum size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d).
     /// If \p size is >16800, this function will simply return the next even number and will not necessarily
     /// satisfy the aforementioned requirements.
-    auto fast_size(i64 size) -> i64;
+    auto fast_size(isize size) -> isize;
 
     /// Type of transform to plan for.
     enum class Type : i32 {
@@ -30,15 +30,15 @@ namespace noa::cuda::fft {
     auto cache_limit(Device device) noexcept -> i32;
     auto cache_size(Device device) noexcept -> i32;
     auto set_cache_limit(Device device, i32 count) noexcept -> i32;
-    auto workspace_left_to_allocate(Device device) noexcept -> i64;
-    auto set_workspace(Device device, const std::shared_ptr<std::byte[]>& buffer, i64 buffer_size) -> i32;
+    auto workspace_left_to_allocate(Device device) noexcept -> isize;
+    auto set_workspace(Device device, const std::shared_ptr<std::byte[]>& buffer, isize buffer_size) -> i32;
 }
 
 namespace noa::cuda::fft::details {
     [[nodiscard]] auto get_plan(
         Type type,
         bool is_single_precision,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Device device,
         bool save_in_cache,
         bool plan_only,
@@ -48,9 +48,9 @@ namespace noa::cuda::fft::details {
     [[nodiscard]] auto get_plan(
         Type type,
         bool is_single_precision,
-        Strides4<i64> input_stride,
-        Strides4<i64> output_stride,
-        const Shape4<i64>& shape,
+        Strides4 input_stride,
+        Strides4 output_stride,
+        const Shape4& shape,
         Device device,
         bool save_in_cache,
         bool plan_only,
@@ -77,9 +77,9 @@ namespace noa::cuda::fft {
 
     public:
         Plan(Type type,
-             const Strides4<i64>& input_strides,
-             const Strides4<i64>& output_strides,
-             const Shape4<i64>& shape, Device device,
+             const Strides4& input_strides,
+             const Strides4& output_strides,
+             const Shape4& shape, Device device,
              bool save_to_cache, bool plan_only, bool record_workspace
         ) {
             const auto input_shape = type == Type::C2R ? shape.rfft() : shape;

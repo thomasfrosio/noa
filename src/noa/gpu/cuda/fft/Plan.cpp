@@ -9,7 +9,7 @@
 #include "noa/gpu/cuda/fft/Plan.hpp"
 
 namespace noa::cuda {
-    std::string error2string(cufftResult_t result) {
+    auto error2string(cufftResult_t result) -> std::string {
         switch (result) {
             case CUFFT_SUCCESS:
                 return "CUFFT_SUCCESS";
@@ -108,7 +108,7 @@ namespace {
         CufftCache() = default;
 
         auto set_limit(i32 size) noexcept {
-            m_max_size = noa::safe_cast<size_t>(size);
+            m_max_size = noa::safe_cast<usize>(size);
             i32 n_plans_destructed{};
             while (m_queue.size() > m_max_size) {
                 m_queue.pop_back();
@@ -126,7 +126,7 @@ namespace {
         }
 
         [[nodiscard]] auto workspace_size() const noexcept {
-            return static_cast<i64>(m_workspace_size);
+            return static_cast<isize>(m_workspace_size);
         }
 
         auto clear() noexcept {
@@ -167,7 +167,7 @@ namespace {
             return out;
         }
 
-        void push(std::string&& key, cufftHandle handle, size_t workspace_size) {
+        void push(std::string&& key, cufftHandle handle, usize workspace_size) {
             check(m_max_size > 0);
             if (m_queue.size() >= m_max_size)
                 m_queue.pop_back();
@@ -193,7 +193,7 @@ namespace {
                 if (err == cudaSuccess) {
                     workspace = workspace_shared_ptr_t(
                         static_cast<std::byte*>(tmp),
-                        workspace_deleter_t{.size = static_cast<i64>(m_workspace_size)}
+                        workspace_deleter_t{.size = static_cast<isize>(m_workspace_size)}
                     );
                     return true;
                 }
@@ -226,9 +226,9 @@ namespace {
 
         auto set_workspace(
             const std::shared_ptr<std::byte[]>& buffer,
-            i64 buffer_size
+            isize buffer_size
         ) -> i32 {
-            if (m_workspace_size <= 0 or not buffer or static_cast<size_t>(buffer_size) < m_workspace_size)
+            if (m_workspace_size <= 0 or not buffer or static_cast<usize>(buffer_size) < m_workspace_size)
                 return 0;
 
             // The user provided a workspace that is big enough, so use it.
@@ -252,8 +252,8 @@ namespace {
     public:
         using plan_pair_type = std::pair<std::string, std::shared_ptr<CufftPlan>>;
         std::deque<plan_pair_type> m_queue;
-        size_t m_max_size{4};
-        size_t m_workspace_size{};
+        usize m_max_size{4};
+        usize m_workspace_size{};
     };
 
     // Since a cufft plan can only be used by one thread at a time, for simplicity,
@@ -343,7 +343,7 @@ namespace {
 
         // If the allocation fails, release some cached plans (with the hope to release some memory) and try again.
         // If record_workspace=true, the workspace isn't allocated so this is unlikely to help...
-        size_t work_size{};
+        usize work_size{};
         const i32 n_trials = cache.size() + 1;
         for (i32 i{}; i < n_trials; ++i) {
             if (i > 0)
@@ -370,7 +370,7 @@ namespace {
     bool is_aligned_to_complex_(Real* ptr) {
         // This is apparently not guaranteed to work by the C++ standard.
         // But this should work in all modern and mainstream platforms.
-        constexpr size_t ALIGNMENT = alignof(Complex<Real>);
+        constexpr usize ALIGNMENT = alignof(Complex<Real>);
         return not(reinterpret_cast<std::uintptr_t>(ptr) % ALIGNMENT);
     }
 }
@@ -378,7 +378,7 @@ namespace {
 namespace noa::cuda::fft::details {
     auto get_plan(
         Type type, bool is_single_precision,
-        const Shape4<i64>& shape, Device device,
+        const Shape4& shape, Device device,
         bool save_in_cache, bool plan_only, bool record_workspace
     ) -> std::shared_ptr<void> {
         auto [batch, shape_3d] = shape.as<long long int>().split_batch();
@@ -405,8 +405,8 @@ namespace noa::cuda::fft::details {
 
     auto get_plan(
         Type type, bool is_single_precision,
-        Strides4<i64> input_strides, Strides4<i64> output_strides,
-        const Shape4<i64>& shape, Device device,
+        Strides4 input_strides, Strides4 output_strides,
+        const Shape4& shape, Device device,
         bool save_in_cache, bool plan_only, bool record_workspace
     ) -> std::shared_ptr<void> {
         using lli = long long int;
@@ -422,8 +422,8 @@ namespace noa::cuda::fft::details {
 
         const auto i_strides = input_strides.as<lli>();
         const auto o_strides = output_strides.as<lli>();
-        Shape3<lli> i_pitch = i_strides.physical_shape();
-        Shape3<lli> o_pitch = o_strides.physical_shape();
+        Shape<lli, 3> i_pitch = i_strides.physical_shape();
+        Shape<lli, 3> o_pitch = o_strides.physical_shape();
         const int offset = 3 - rank;
 
         const auto i_type = noa::to_underlying(type);
@@ -462,9 +462,9 @@ namespace noa::cuda::fft::details {
 
 namespace noa::cuda::fft {
     // cuFFT has stronger requirements compared to FFTW.
-    auto fast_size(i64 size) -> i64 {
+    auto fast_size(isize size) -> isize {
         for (auto nice_size: sizes_even_cufft_) {
-            const auto tmp = static_cast<i64>(nice_size);
+            const auto tmp = static_cast<isize>(nice_size);
             if (size <= tmp)
                 return tmp;
         }
@@ -487,11 +487,11 @@ namespace noa::cuda::fft {
         return get_cache_(device).set_limit(count);
     }
 
-    auto workspace_left_to_allocate(Device device) noexcept -> i64 {
+    auto workspace_left_to_allocate(Device device) noexcept -> isize {
         return get_cache_(device).workspace_size();
     }
 
-    auto set_workspace(Device device, const std::shared_ptr<std::byte[]>& buffer, i64 buffer_size) -> i32 {
+    auto set_workspace(Device device, const std::shared_ptr<std::byte[]>& buffer, isize buffer_size) -> i32 {
         return get_cache_(device).set_workspace(buffer, buffer_size);
     }
 

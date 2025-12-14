@@ -9,7 +9,7 @@ using namespace ::noa::types;
 TEMPLATE_TEST_CASE("core:: Accessor", "", i32, i64, u32, u64) {
     using noa::indexing::offset_at;
 
-    const auto shape = Shape4<u64>{2, 30, 50, 60};
+    const auto shape = Shape<u64, 4>{2, 30, 50, 60};
     const auto strides = shape.strides().as<TestType>();
     const auto elements = shape.n_elements();
 
@@ -80,7 +80,7 @@ TEMPLATE_TEST_CASE("core:: Accessor", "", i32, i64, u32, u64) {
         Accessor<int, 2, TestType> b(raw_data.get(), strides.filter(2, 3));
         Accessor<int, 3, TestType> c(raw_data.get(), strides.filter(1, 2, 3));
         Accessor<int, 4, TestType> d(raw_data.get(), strides);
-        const auto idx = Vec4<TestType>{1, 3, 4, 2};
+        const auto idx = Vec<TestType, 4>{1, 3, 4, 2};
 
         int av = a[offset_at(strides, idx)];
         int bv = b[idx[0]][offset_at(strides.pop_front(), idx[1], idx[2], idx[3])];

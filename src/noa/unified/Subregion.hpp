@@ -27,8 +27,8 @@ namespace noa::details {
         using origins_type = std::remove_const_t<Origins>;
         using origins_pointer_type = const origins_type*;
 
-        using index4_type = Vec4<index_type>;
-        using shape4_type = Shape4<index_type>;
+        using index4_type = Vec<index_type, 4>;
+        using shape4_type = Shape<index_type, 4>;
         using subregion_value_or_empty_type = std::conditional_t<MODE == Border::VALUE, subregion_value_type, Empty>;
 
     public:
@@ -123,8 +123,8 @@ namespace noa::details {
         using origins_type = std::remove_const_t<Origins>;
         using origins_pointer_type = const origins_type*;
 
-        using index4_type = Vec4<Index>;
-        using shape4_type = Shape4<Index>;
+        using index4_type = Vec<Index, 4>;
+        using shape4_type = Shape<Index, 4>;
 
     public:
         constexpr InsertSubregion(
@@ -206,7 +206,7 @@ namespace noa {
         Border border_mode = Border::ZERO,
         nt::value_type_t<Subregion> border_value = {}
     ) {
-        check(not input.is_empty() and not subregions.is_empty(), "Empty array detected");
+        check(nd::are_arrays_valid(input, subregions), "Empty array detected");
         check(not ni::are_overlapped(input, subregions),
               "The input and subregion(s) arrays should not overlap");
         check(ni::is_contiguous_vector(origins) and origins.n_elements() == subregions.shape()[0],
@@ -228,37 +228,37 @@ namespace noa {
         // We cannot move the batch dimension, and we can only move the depth if 4d indices are passed.
         using indice_t = nt::mutable_value_type_t<Origin>;
         indice_t order;
-        Vec4<i64> order_4d;
+        Vec<isize, 4> order_4d;
         if constexpr (indice_t::SIZE == 4) {
             const auto order_3d = ni::order(subregion_strides.pop_front(), subregion_shape.pop_front()) + 1;
             order_4d = order_3d.push_front(0);
             order = indice_t::from_values(0, order_3d[0], order_3d[1], order_3d[2]);
         } else {
             const auto order_2d = ni::order(subregion_strides.filter(2, 3), subregion_shape.filter(2, 3));
-            order_4d = (order_2d + 2).push_front(Vec2<i64>{0, 1});
+            order_4d = (order_2d + 2).push_front(Vec<isize, 2>{0, 1});
             order = indice_t::from_vec(order_2d);
         }
-        if (vany(NotEqual{}, order_4d, Vec{0, 1, 2, 3})) {
+        if (order_4d != Vec<isize, 4>{0, 1, 2, 3}) {
             input_strides = ni::reorder(input_strides, order_4d);
             input_shape = ni::reorder(input_shape, order_4d);
             subregion_strides = ni::reorder(subregion_strides, order_4d);
             subregion_shape = ni::reorder(subregion_shape, order_4d);
         }
 
-        using input_accessor_t = AccessorRestrictI64<nt::const_value_type_t<Input>, 4>;
-        using subregion_accessor_t = AccessorRestrictI64<nt::value_type_t<Subregion>, 4>;
+        using input_accessor_t = AccessorRestrict<nt::const_value_type_t<Input>, 4, isize>;
+        using subregion_accessor_t = AccessorRestrict<nt::value_type_t<Subregion>, 4, isize>;
         const auto input_accessor = input_accessor_t(input.get(), input_strides);
         const auto subregion_accessor = subregion_accessor_t(subregions.get(), subregion_strides);
 
         switch (border_mode) {
-            #define NOA_GENERATE_SUBREGION_(border)                                                           \
-            case border: {                                                                                    \
-                auto op = nd::ExtractSubregion<border, i64, indice_t, input_accessor_t, subregion_accessor_t>(\
-                        input_accessor, subregion_accessor, input_shape, origins.get(), border_value, order); \
-                return iwise(subregion_shape, device, std::move(op),                                          \
-                             std::forward<Input>(input),                                                      \
-                             std::forward<Subregion>(subregions),                                             \
-                             std::forward<Origin>(origins));                                                  \
+            #define NOA_GENERATE_SUBREGION_(border)                                                             \
+            case border: {                                                                                      \
+                auto op = nd::ExtractSubregion<border, isize, indice_t, input_accessor_t, subregion_accessor_t>(\
+                        input_accessor, subregion_accessor, input_shape, origins.get(), border_value, order);   \
+                return iwise(subregion_shape, device, std::move(op),                                            \
+                             std::forward<Input>(input),                                                        \
+                             std::forward<Subregion>(subregions),                                               \
+                             std::forward<Origin>(origins));                                                    \
             }
             NOA_GENERATE_SUBREGION_(Border::NOTHING)
             NOA_GENERATE_SUBREGION_(Border::ZERO)
@@ -290,7 +290,7 @@ namespace noa {
         Output&& output,
         Origin&& origins
     ) {
-        check(not output.is_empty() and not subregions.is_empty(), "Empty array detected");
+        check(nd::are_arrays_valid(output, subregions), "Empty array detected");
         check(not ni::are_overlapped(output, subregions),
               "The subregion(s) and output arrays should not overlap");
         check(ni::is_contiguous_vector(origins) and origins.n_elements() == subregions.shape()[0],
@@ -312,29 +312,29 @@ namespace noa {
         // We cannot move the batch dimension, and we can only move the depth if 4d indices are passed.
         using indice_t = nt::mutable_value_type_t<Origin>;
         indice_t order;
-        Vec4<i64> order_4d;
+        Vec<isize, 4> order_4d;
         if constexpr (indice_t::SIZE == 4) {
             const auto order_3d = ni::order(subregion_strides.pop_front(), subregion_shape.pop_front()) + 1;
             order_4d = order_3d.push_front(0);
             order = indice_t::from_values(0, order_3d[0], order_3d[1], order_3d[2]);
         } else {
             const auto order_2d = ni::order(subregion_strides.filter(2, 3), subregion_shape.filter(2, 3));
-            order_4d = (order_2d + 2).push_front(Vec2<i64>{0, 1});
+            order_4d = (order_2d + 2).push_front(Vec<isize, 2>{0, 1});
             order = indice_t::from_vec(order_2d);
         }
-        if (vany(NotEqual{}, order_4d, Vec{0, 1, 2, 3})) {
+        if (order_4d != Vec<isize, 4>{0, 1, 2, 3}) {
             output_strides = ni::reorder(output_strides, order_4d);
             output_shape = ni::reorder(output_shape, order_4d);
             subregion_strides = ni::reorder(subregion_strides, order_4d);
             subregion_shape = ni::reorder(subregion_shape, order_4d);
         }
 
-        using subregion_accessor_t = AccessorRestrictI64<nt::const_value_type_t<Subregion>, 4>;
-        using output_accessor_t = AccessorRestrictI64<nt::value_type_t<Output>, 4>;
+        using subregion_accessor_t = AccessorRestrict<nt::const_value_type_t<Subregion>, 4, isize>;
+        using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, 4, isize>;
         const auto subregion_accessor = subregion_accessor_t(subregions.get(), subregion_strides);
         const auto output_accessor = output_accessor_t(output.get(), output_strides);
 
-        auto op = nd::InsertSubregion<i64, indice_t, subregion_accessor_t, output_accessor_t>(
+        auto op = nd::InsertSubregion<isize, indice_t, subregion_accessor_t, output_accessor_t>(
             subregion_accessor, output_accessor, output_shape, origins.get(), order);
         iwise(subregion_shape, device, std::move(op),
               std::forward<Subregion>(subregions),
@@ -356,7 +356,7 @@ namespace noa {
     /// \return                     Atlas shape.
     template<typename Origin>
     requires nt::vec_integer_size<nt::value_type_t<Origin>, 2, 4>
-    auto atlas_layout(const Shape4<i64>& subregion_shape, const Origin& output_origins) -> Shape4<i64> {
+    auto atlas_layout(const Shape4& subregion_shape, const Origin& output_origins) -> Shape4 {
         NOA_ASSERT(not subregion_shape.is_empty());
 
         check(not output_origins.is_empty(), "Empty array detected");
@@ -367,9 +367,9 @@ namespace noa {
               "but got device={}, shape={} and strides={}",
               subregion_shape[0], output_origins.device(), output_origins.shape(), output_origins.strides());
 
-        const auto columns = static_cast<i64>(ceil(sqrt(static_cast<f32>(subregion_shape[0]))));
-        const i64 rows = (subregion_shape[0] + columns - 1) / columns;
-        const auto atlas_shape = Shape4<i64>{
+        const auto columns = static_cast<isize>(ceil(sqrt(static_cast<f32>(subregion_shape[0]))));
+        const isize rows = (subregion_shape[0] + columns - 1) / columns;
+        const auto atlas_shape = Shape4{
             1,
             subregion_shape[1],
             rows * subregion_shape[2],
@@ -378,9 +378,9 @@ namespace noa {
 
         output_origins.eval();
         const auto origins_1d = output_origins.span_1d_contiguous();
-        for (i64 y{}; y < rows; ++y) {
-            for (i64 x{}; x < columns; ++x) {
-                const i64 idx = y * columns + x;
+        for (isize y{}; y < rows; ++y) {
+            for (isize x{}; x < columns; ++x) {
+                const isize idx = y * columns + x;
                 if (idx >= subregion_shape[0])
                     break;
                 if constexpr (nt::value_type_t<Origin>::SIZE == 4)
@@ -401,9 +401,9 @@ namespace noa {
     /// auto atlas = noa::zeros<f32>(atlas_shape);
     /// noa::insert_subregions(maps, atlas, atlas_origins);
     /// \endcode
-    template<nt::integer Int = i64, size_t N = 4> requires (N == 2 or N == 4)
-    auto atlas_layout(const Shape4<i64>& subregion_shape) -> Pair<Shape4<i64>, Array<Vec<Int, N>>> {
-        Array<Vec<Int, N>> output_subregion_origins(subregion_shape.batch());
+    template<nt::integer Int = isize, usize N = 4> requires (N == 2 or N == 4)
+    auto atlas_layout(const Shape4& subregion_shape) -> Pair<Shape4, Array<Vec<Int, N>>> {
+        auto output_subregion_origins = Array<Vec<Int, N>>(subregion_shape.batch());
         return {atlas_layout(subregion_shape, output_subregion_origins), output_subregion_origins};
     }
 }

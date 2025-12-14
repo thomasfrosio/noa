@@ -210,7 +210,7 @@ TEST_CASE("unified::fft, caching plans, shared workspace") {
         return;
 
     const auto devices = std::vector<Device>{"gpu"};
-    const auto shape = Shape<i64, 4>{15, 1, 512, 512};
+    const auto shape = Shape<isize, 4>{15, 1, 512, 512};
 
     for (auto device: devices) {
         INFO(device);

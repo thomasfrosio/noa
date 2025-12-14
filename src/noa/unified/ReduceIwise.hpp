@@ -13,7 +13,7 @@
 #endif
 
 namespace noa::details {
-    template<bool, bool, typename Op, typename Reduced, typename Output, typename I, size_t N>
+    template<bool, bool, typename Op, typename Reduced, typename Output, typename I, usize N>
     constexpr void reduce_iwise(const Shape<I, N>&, Device, Op&&, Reduced&&, Output&&);
 }
 
@@ -31,7 +31,7 @@ namespace noa {
     ///                         forwarded to the backend (it is moved or copied to the backend compute kernel).
     template<typename Reduced = nd::AdaptorUnzip<>,
              typename Outputs = nd::AdaptorUnzip<>,
-             typename Operator, typename Index, size_t N>
+             typename Operator, typename Index, usize N>
     requires (N <= 4)
     void reduce_iwise(
         const Shape<Index, N>& shape,
@@ -71,7 +71,7 @@ namespace noa {
 
 namespace noa::details {
     template<bool ZIP_REDUCED, bool ZIP_OUTPUT,
-             typename Op, typename Reduced, typename Output, typename I, size_t N>
+             typename Op, typename Reduced, typename Output, typename I, usize N>
     constexpr void reduce_iwise(
         const Shape<I, N>& shape,
         Device device,
@@ -115,7 +115,7 @@ namespace noa::details {
                 nd::are_all_value_types_trivially_copyable<decltype(output_accessors)>();
 
             // Allocate and initialize the output values for the device.
-            [[maybe_unused]] auto buffers = output_accessors.map_enumerate([&]<size_t J, typename A>(A& accessor) {
+            [[maybe_unused]] auto buffers = output_accessors.map_enumerate([&]<usize J, typename A>(A& accessor) {
                 using value_t = typename A::value_type;
                 if constexpr (use_device_memory) {
                     auto buffer = noa::cuda::AllocatorDevice::allocate_async<value_t>(1, cuda_stream);
@@ -146,7 +146,7 @@ namespace noa::details {
                 cuda_stream.synchronize();
 
             // Copy the results back to the output values.
-            output_accessors.for_each_enumerate([&]<size_t J, typename A>(A& accessor) {
+            output_accessors.for_each_enumerate([&]<usize J, typename A>(A& accessor) {
                 if constexpr (use_device_memory) {
                     auto& output = outputs[Tag<J>{}];
                     noa::cuda::copy(accessor.get(), &output, cuda_stream);

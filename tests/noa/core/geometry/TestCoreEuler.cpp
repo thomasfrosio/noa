@@ -16,7 +16,7 @@ TEST_CASE("core::geometry::euler2matrix()", "[asset]") {
     YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["euler2matrix"];
     const auto path_expected = path_base / param["file"].as<Path>();
     const auto valid_axes = param["axes"].as<std::vector<std::string>>();
-    const auto angles = deg2rad(param["angles"].as<Vec3<f32>>());
+    const auto angles = deg2rad(param["angles"].as<Vec<f32, 3>>());
 
     // Get expected:
     auto file = nio::ImageFile(path_expected, {.read = true});

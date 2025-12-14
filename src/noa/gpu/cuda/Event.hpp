@@ -45,7 +45,7 @@ namespace noa::cuda {
         }
 
         // Whether the event has completed all operations.
-        bool is_busy() {
+        auto is_busy() -> bool {
             const DeviceGuard scope_device(m_device);
             const cudaError_t status = cudaEventQuery(m_event);
             if (status == cudaError_t::cudaSuccess)
@@ -91,12 +91,12 @@ namespace noa::cuda {
                 panic_runtime(error2string(err));
         }
 
-        [[nodiscard]] cudaEvent_t get() const noexcept { return m_event; }
-        [[nodiscard]] cudaEvent_t id() const noexcept { return m_event; }
-        [[nodiscard]] Device device() const noexcept { return m_device; }
+        [[nodiscard]] auto get() const noexcept -> cudaEvent_t { return m_event; }
+        [[nodiscard]] auto id() const noexcept -> cudaEvent_t { return m_event; }
+        [[nodiscard]] auto device() const noexcept -> Device { return m_device; }
 
     private:
-        static u32 mode2u32_(EventMode mode) { return static_cast<std::underlying_type_t<EventMode>>(mode); }
+        static auto mode2u32_(EventMode mode) -> u32 { return static_cast<std::underlying_type_t<EventMode>>(mode); }
 
         cudaEvent_t m_event{nullptr};
         Device m_device{};

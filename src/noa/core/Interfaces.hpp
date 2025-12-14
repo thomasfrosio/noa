@@ -57,18 +57,18 @@ namespace noa::details {
     };
 
     struct ReduceJoinChecker {
-        template<typename Op, typename T, typename U, size_t... R>
+        template<typename Op, typename T, typename U, usize... R>
         constexpr auto operator()(Op, T, U, std::index_sequence<R...>) requires requires {
             std::declval<Op>().join(std::declval<T&>()[Tag<R>{}]..., std::declval<U&>()[Tag<R>{}]...);
         } {}
     };
 
     struct ReduceFinalChecker {
-        static constexpr size_t tag(bool zip_reduced, bool zip_output) {
-            return static_cast<size_t>(zip_reduced) * 10 + static_cast<size_t>(zip_output);
+        static constexpr usize tag(bool zip_reduced, bool zip_output) {
+            return static_cast<usize>(zip_reduced) * 10 + static_cast<usize>(zip_output);
         };
 
-        template<typename Op, typename R, typename O, size_t... R0, size_t... O0, typename... I>
+        template<typename Op, typename R, typename O, usize... R0, usize... O0, typename... I>
         constexpr auto operator()(Tag<11>, Op, R, O, std::index_sequence<R0...>, std::index_sequence<O0...>, I...) requires requires {
             std::declval<Op>().final(
                 std::declval<decltype(noa::forward_as_tuple(std::declval<R&>()[Tag<R0>{}].ref()...))&>(),
@@ -76,7 +76,7 @@ namespace noa::details {
             );
         } {}
 
-        template<typename Op, typename R, typename O, size_t... R0, size_t... O0, typename... I>
+        template<typename Op, typename R, typename O, usize... R0, usize... O0, typename... I>
         constexpr auto operator()(Tag<10>, Op, R, O, std::index_sequence<R0...>, std::index_sequence<O0...>, I...) requires requires {
             std::declval<Op>().final(
                 std::declval<decltype(noa::forward_as_tuple(std::declval<R&>()[Tag<R0>{}].ref()...))&>(),
@@ -84,7 +84,7 @@ namespace noa::details {
             );
         } {}
 
-        template<typename Op, typename R, typename O, size_t... R0, size_t... O0, typename... I>
+        template<typename Op, typename R, typename O, usize... R0, usize... O0, typename... I>
         constexpr auto operator()(Tag<1>, Op, R, O, std::index_sequence<R0...>, std::index_sequence<O0...>, I...) requires requires {
             std::declval<Op>().final(
                 std::declval<R&>()[Tag<R0>{}].ref()...,
@@ -92,7 +92,7 @@ namespace noa::details {
             );
         } {}
 
-        template<typename Op, typename R, typename O, size_t... R0, size_t... O0, typename... I>
+        template<typename Op, typename R, typename O, usize... R0, usize... O0, typename... I>
         constexpr auto operator()(Tag<0>, Op, R, O, std::index_sequence<R0...>, std::index_sequence<O0...>, I...) requires requires {
             std::declval<Op&>().final(
                 std::declval<R&>()[Tag<R0>{}].ref()...,
@@ -102,7 +102,7 @@ namespace noa::details {
     };
 
     struct ReduceIwiseChecker {
-        template<typename Op, typename R, size_t... R0, typename... I>
+        template<typename Op, typename R, usize... R0, typename... I>
         constexpr auto operator()(Tag<0>, Op, R, std::index_sequence<R0...>, I...) requires requires {
             std::declval<Op>().init(
                 std::declval<decltype(Vec{std::declval<I>()...})&>(),
@@ -110,12 +110,12 @@ namespace noa::details {
             );
         } {}
 
-        template<typename Op, typename R, size_t... R0, typename... I>
+        template<typename Op, typename R, usize... R0, typename... I>
         constexpr auto operator()(Tag<1>, Op, R, std::index_sequence<R0...>, I...) requires requires {
             std::declval<Op>().init(std::declval<I>()..., std::declval<R&>()[Tag<R0>{}]...);
         } {}
 
-        template<typename Op, typename R, size_t... R0, typename... I>
+        template<typename Op, typename R, usize... R0, typename... I>
         constexpr auto operator()(Tag<2>, Op, R, std::index_sequence<R0...>, I...) requires requires {
             std::declval<Op>()(
                 std::declval<decltype(Vec{std::declval<I>()...})&>(),
@@ -123,14 +123,14 @@ namespace noa::details {
             );
         } {}
 
-        template<typename Op, typename R, size_t... R0, typename... I>
+        template<typename Op, typename R, usize... R0, typename... I>
         constexpr auto operator()(Tag<3>, Op, R, std::index_sequence<R0...>, I...) requires requires {
             std::declval<Op>()(std::declval<I>()..., std::declval<R&>()[Tag<R0>{}]...);
         } {}
     };
 
     struct ReduceEwiseChecker {
-        template<typename Op, typename Input, typename Reduced, size_t... I, size_t... R>
+        template<typename Op, typename Input, typename Reduced, usize... I, usize... R>
         constexpr auto operator()(Op, Input, Reduced, std::index_sequence<I...>, std::index_sequence<R...>) requires requires {
             std::declval<Op>().init(std::declval<Input&>()[Tag<I>{}]..., std::declval<Reduced&>()[Tag<R>{}]...);
         } {}
@@ -183,7 +183,7 @@ namespace noa::details {
 
         template<typename Op, nt::tuple Input, nt::tuple Output, nt::integer... Indices>
         static constexpr void call(Op& op, Input& input, Output& output, Indices... indices) {
-            [&]<size_t... I, size_t... O>(std::index_sequence<I...>, std::index_sequence<O...>) {
+            [&]<usize... I, usize... O>(std::index_sequence<I...>, std::index_sequence<O...>) {
                 // "input" and "output" are accessors, so we know that the operator() returns a lvalue reference.
                 // forward_as_tuple will create a tuple of these lvalue references; there's nothing being
                 // moved or taken by value.
@@ -216,7 +216,7 @@ namespace noa::details {
     struct ReduceJoinInterface {
         template<typename Op, nt::tuple_of_accessor_value Reduced>
         static constexpr void join(Op& op, Reduced& to_reduce, Reduced& reduced) {
-            [&]<size_t... R>(std::index_sequence<R...> index_sequence) {
+            [&]<usize... R>(std::index_sequence<R...> index_sequence) {
                 if constexpr (ZipReduced) {
                     join_or_call_(
                         op,
@@ -234,7 +234,7 @@ namespace noa::details {
         }
 
     private:
-        template<typename O, typename T, typename U, size_t... R>
+        template<typename O, typename T, typename U, usize... R>
         static constexpr void join_or_call_(O& op, T&& to_reduce, U&& reduced, std::index_sequence<R...>) {
             if constexpr (std::is_invocable_v<ReduceJoinChecker, O, T, U, std::index_sequence<R...>>) {
                 op.join(to_reduce[Tag<R>{}]..., reduced[Tag<R>{}]...);
@@ -251,7 +251,7 @@ namespace noa::details {
                  nt::tuple_of_accessor_or_empty Output,
                  nt::integer... Indices>
         static constexpr void final(Op& op, Reduced& reduced, Output& output, Indices... indices) {
-            [&]<size_t... R, size_t... O, typename... T>
+            [&]<usize... R, usize... O, typename... T>
                     (std::index_sequence<R...> isr, std::index_sequence<O...> iso, nt::TypeList<T...> tl) {
 
                 using has_final = std::is_invocable<
@@ -269,7 +269,7 @@ namespace noa::details {
         }
 
     private:
-        template<typename Op, typename Reduced, typename Output, size_t... R, size_t... O, typename... Indices>
+        template<typename Op, typename Reduced, typename Output, usize... R, usize... O, typename... Indices>
         static constexpr void final_(
             Op& op, Reduced& reduced, Output& output,
             std::index_sequence<R...>, std::index_sequence<O...>,
@@ -294,7 +294,7 @@ namespace noa::details {
         }
 
         template<typename Op, typename Reduced, typename Output,
-                 size_t... R, size_t... O,
+                 usize... R, usize... O,
                  typename... T, typename... Indices>
         static constexpr void default_final_(
             Reduced& reduced, Output& output,
@@ -317,7 +317,7 @@ namespace noa::details {
     struct ReduceIwiseInterface : ReduceJoinInterface<ZipReduced>, ReduceFinalInterface<ZipReduced, ZipOutput> {
         template<typename Op, nt::tuple_of_accessor_value Reduced, nt::integer... Indices>
         static constexpr void init(Op& op, Reduced& reduced, Indices... indices) {
-            [&]<size_t... R>(std::index_sequence<R...> index_sequence) {
+            [&]<usize... R>(std::index_sequence<R...> index_sequence) {
                 if constexpr (ZipReduced) {
                     init_or_call_(
                         op,
@@ -333,7 +333,7 @@ namespace noa::details {
         }
 
     private:
-        template<typename Op, typename R, size_t... R0, typename... Indices>
+        template<typename Op, typename R, usize... R0, typename... Indices>
         static constexpr void init_or_call_(Op& op, R&& reduced, std::index_sequence<R0...>, Indices... indices) {
             using packed_indices_t = Vec<nt::first_t<Indices...>, sizeof...(indices)>;
             if constexpr (std::is_invocable_v<ReduceIwiseChecker, Tag<0>, Op, R, std::index_sequence<R0...>, Indices...>) {
@@ -356,7 +356,7 @@ namespace noa::details {
     struct ReduceEwiseInterface : ReduceJoinInterface<ZipReduced>, ReduceFinalInterface<ZipReduced, ZipOutput> {
         template<typename Op, nt::tuple_of_accessor Input, nt::tuple_of_accessor_value Reduced, nt::integer... Indices>
         static constexpr void init(Op& op, Input& input, Reduced& reduced, Indices... indices) {
-            [&]<size_t... I, size_t... R>
+            [&]<usize... I, usize... R>
             (std::index_sequence<I...> input_sequence, std::index_sequence<R...> reduced_sequence) {
                 if constexpr (ZipInput && ZipReduced) {
                     init_or_call_(
@@ -389,7 +389,7 @@ namespace noa::details {
     private:
         // We don't want to perfect forward the tuples here: the operator should take the tuple elements
         // as (const) lvalue reference or by value, not by rvalue reference. As such, do not std::forward.
-        template<typename Op, typename Input, typename Reduced, size_t... I, size_t... R>
+        template<typename Op, typename Input, typename Reduced, usize... I, usize... R>
         static constexpr void init_or_call_(
             Op& op, Input&& input, Reduced&& reduced,
             std::index_sequence<I...>, std::index_sequence<R...>

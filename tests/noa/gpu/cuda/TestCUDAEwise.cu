@@ -9,7 +9,7 @@ namespace {
     using namespace noa::types;
 
     struct Tracked {
-        Vec2<i32> count{};
+        Vec<i32, 2> count{};
          constexpr Tracked() = default;
          constexpr Tracked(const Tracked& t) : count(t.count) { count[0] += 1; }
          constexpr Tracked(Tracked&& t) noexcept : count(t.count) { count[1] += 1; }
@@ -44,8 +44,8 @@ TEST_CASE("cuda::ewise") {
     Stream stream(Device::current());
 
     SECTION("check operator") {
-        constexpr auto shape = Shape4<i64>{1, 1, 1, 1};
-        auto value = AllocatorManaged::allocate<Vec2<i32>>(2, stream);
+        constexpr auto shape = Shape<i64, 4>{1, 1, 1, 1};
+        auto value = AllocatorManaged::allocate<Vec<i32, 2>>(2, stream);
         Tuple<AccessorValue<Tracked>> input{};
         auto output_contiguous = noa::make_tuple(
             AccessorI64<Vec<i32, 2>, 4>(value.get() + 0, shape.strides()),
@@ -66,10 +66,10 @@ TEST_CASE("cuda::ewise") {
         REQUIRE((value[1][0] == 1 and value[1][1] == 0));
 
         // Create a non-contiguous case by broadcasting.
-        auto shape_strided = Shape4<i64>{1, 1, 2, 1};
+        auto shape_strided = Shape<i64, 4>{1, 1, 2, 1};
         auto output_strided = noa::make_tuple(
-            AccessorI64<Vec<i32, 2>, 4>(value.get() + 0, Strides4<i64>{}),
-            AccessorI64<Vec<i32, 2>, 4>(value.get() + 1, Strides4<i64>{}));
+            AccessorI64<Vec<i32, 2>, 4>(value.get() + 0, Strides<i64, 4>{}),
+            AccessorI64<Vec<i32, 2>, 4>(value.get() + 1, Strides<i64, 4>{}));
 
         ewise(shape_strided, op1, input, output_strided, stream);
         stream.synchronize();
@@ -231,8 +231,8 @@ TEMPLATE_TEST_CASE("cuda::ewise - copy", "", i8, i16, i32, i64, c16, c32, c64) {
     Stream stream(Device::current());
 
     const auto shapes = std::array{
-        Shape4<i64>{1, 1, 1, 512},
-        Shape4<i64>{2, 6, 40, 65},
+        Shape<i64, 4>{1, 1, 1, 512},
+        Shape<i64, 4>{2, 6, 40, 65},
         test::random_shape_batched(1),
         test::random_shape_batched(2),
         test::random_shape_batched(3),

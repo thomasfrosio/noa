@@ -17,7 +17,7 @@ TEST_CASE("cpu::iwise") {
     using noa::cpu::iwise;
 
     AND_THEN("check operator") {
-        const auto shape = Shape1<i64>{2};
+        const auto shape = Shape<i64, 1>{2};
         std::array<int, 3> value[2];
 
         struct Op {
@@ -40,7 +40,7 @@ TEST_CASE("cpu::iwise") {
     }
 
     AND_THEN("1d") {
-        const auto shape = Shape1<i64>{100};
+        const auto shape = Shape<i64, 1>{100};
         const auto elements = shape.n_elements();
 
         const auto buffer = std::make_unique<i32[]>(static_cast<size_t>(elements));
@@ -54,11 +54,11 @@ TEST_CASE("cpu::iwise") {
     }
 
     AND_THEN("2d") {
-        const auto shape = Shape2<i64>{10, 10};
+        const auto shape = Shape<i64, 2>{10, 10};
         const auto elements = shape.n_elements();
 
         const auto buffer = std::make_unique<i32[]>(static_cast<size_t>(elements));
-        const auto accessor = AccessorContiguousI64<i32, 2>(buffer.get(), shape.strides());
+        const auto accessor = AccessorContiguous<i32, 2, i64>(buffer.get(), shape.strides());
         iwise(shape, [=](i64 i, i64 j) { accessor(i, j) = static_cast<i32>(i * 10 + j); });
 
         const auto expected = std::make_unique<i32[]>(static_cast<size_t>(elements));
@@ -69,12 +69,12 @@ TEST_CASE("cpu::iwise") {
     }
 
     AND_THEN("3d") {
-        const auto shape = Shape3<i64>{10, 10, 10};
+        const auto shape = Shape<i64, 3>{10, 10, 10};
         const auto elements = shape.n_elements();
 
         const auto buffer = std::make_unique<i32[]>(static_cast<size_t>(elements));
-        const auto accessor = AccessorContiguousI64<i32, 3>(buffer.get(), shape.strides());
-        iwise(shape, [=, i = int{}](Vec3<i64> indices) mutable { accessor(indices) = i++; });
+        const auto accessor = AccessorContiguous<i32, 3, i64>(buffer.get(), shape.strides());
+        iwise(shape, [=, i = int{}](Vec<i64, 3> indices) mutable { accessor(indices) = i++; });
 
         const auto expected = std::make_unique<i32[]>(static_cast<size_t>(elements));
         for (i32 i{}; auto& e: Span(expected.get(), elements))
@@ -84,12 +84,12 @@ TEST_CASE("cpu::iwise") {
     }
 
     AND_THEN("4d") {
-        const auto shape = Shape4<i64>{10, 10, 10, 10};
+        const auto shape = Shape<i64, 4>{10, 10, 10, 10};
         const auto elements = shape.n_elements();
 
         const auto buffer = std::make_unique<i32[]>(static_cast<size_t>(elements));
-        const auto accessor = AccessorContiguousI64<i32, 4>(buffer.get(), shape.strides());
-        iwise(shape, [=, i = int{}](Vec4<i64> indices) mutable { accessor(indices) = i++; });
+        const auto accessor = AccessorContiguous<i32, 4, i64>(buffer.get(), shape.strides());
+        iwise(shape, [=, i = int{}](Vec<i64, 4> indices) mutable { accessor(indices) = i++; });
 
         const auto expected = std::make_unique<i32[]>(static_cast<size_t>(elements));
         for (i32 i{}; auto& e: Span(expected.get(), elements))

@@ -12,7 +12,7 @@ using namespace ::noa::types;
 using Norm = noa::fft::Norm;
 
 TEST_CASE("unified::signal::standardize_ifft(), rfft") {
-    constexpr auto shape = Shape4<i64>{1, 1, 128, 128};
+    constexpr auto shape = Shape4{1, 1, 128, 128};
 
     Norm norm = GENERATE(Norm::FORWARD, Norm::BACKWARD, Norm::ORTHO, Norm::NONE);
 
@@ -46,7 +46,7 @@ TEST_CASE("unified::signal::standardize_ifft(), rfft") {
 }
 
 TEST_CASE("unified::signal::standardize_ifft(), fft") {
-    constexpr auto shape = Shape4<i64>{1, 1, 128, 128};
+    constexpr auto shape = Shape4{1, 1, 128, 128};
 
     Norm norm = GENERATE(Norm::FORWARD, Norm::BACKWARD, Norm::ORTHO, Norm::NONE);
 

@@ -62,7 +62,7 @@ namespace noa::inline types {
         using value_type = T;
         using mutable_value_type = std::remove_const_t<T>;
         using const_value_type = std::add_const_t<mutable_value_type>;
-        using index_type = i64;
+        using index_type = isize;
         using strides_type = Strides<index_type, 4>;
         using view_type = View<value_type>;
         using shape_type = Shape<index_type, 4>;
@@ -73,14 +73,14 @@ namespace noa::inline types {
         static constexpr PointerTraits POINTER_TRAIT = view_type::POINTER_TRAIT;
         static constexpr bool IS_CONTIGUOUS = view_type::IS_CONTIGUOUS;
         static constexpr bool IS_RESTRICT = view_type::IS_RESTRICT;
-        static constexpr size_t SIZE = 4;
-        static constexpr int64_t SSIZE = 4;
+        static constexpr usize SIZE = 4;
+        static constexpr isize SSIZE = 4;
 
     public: // Static factory functions
         template<std::convertible_to<value_type>... Ts>
         constexpr static auto from_values(Ts&&... a) -> Array {
             auto output = Array(sizeof...(Ts));
-            [&]<size_t...I>(std::index_sequence<I...>) {
+            [&]<usize...I>(std::index_sequence<I...>) {
                 (std::construct_at(output.data() + I, std::forward<Ts>(a)), ...);
             }(std::make_index_sequence<sizeof...(Ts)>{});
             return output;
@@ -94,7 +94,7 @@ namespace noa::inline types {
         /// \param n_elements   Number of elements.
         /// \param option       Options of the created array.
         /// \see Allocator for more details.
-        constexpr explicit Array(i64 n_elements, ArrayOption option = {}) :
+        constexpr explicit Array(isize n_elements, ArrayOption option = {}) :
             m_shape{1, 1, 1, n_elements},
             m_strides{n_elements, n_elements, n_elements, 1},
             m_options{option} { allocate_(); }
@@ -113,7 +113,7 @@ namespace noa::inline types {
         /// \param n_elements   Number of elements in data.
         /// \param option       Options of data.
         template<std::convertible_to<shared_type> P>
-        constexpr Array(P&& data, i64 n_elements, ArrayOption option = {}) :
+        constexpr Array(P&& data, isize n_elements, ArrayOption option = {}) :
             m_shape{1, 1, 1, n_elements},
             m_strides{n_elements, n_elements, n_elements, 1},
             m_shared(std::forward<P>(data)),
@@ -190,8 +190,8 @@ namespace noa::inline types {
         [[nodiscard]] constexpr auto strides() const noexcept -> const strides_type& { return m_strides; }
         [[nodiscard]] constexpr auto strides_full() const noexcept -> const strides_type& { return m_strides; }
         [[nodiscard]] constexpr auto n_elements() const noexcept -> index_type { return shape().n_elements(); }
-        [[nodiscard]] constexpr auto ssize() const noexcept -> index_type { return shape().n_elements(); }
-        [[nodiscard]] constexpr auto size() const noexcept -> size_t { return static_cast<size_t>(ssize()); }
+        [[nodiscard]] constexpr auto ssize() const noexcept -> isize { return shape().n_elements(); }
+        [[nodiscard]] constexpr auto size() const noexcept -> usize { return static_cast<usize>(ssize()); }
 
         /// Whether the dimensions of the array are C or F contiguous.
         template<char ORDER = 'C'>
@@ -239,29 +239,41 @@ namespace noa::inline types {
             return span_type(get(), shape(), strides());
         }
 
-        template<typename U, size_t N = 4, typename I = index_type, StridesTraits STRIDES_TRAIT = STRIDES_TRAIT>
+        template<typename U, usize N = 4,
+                 typename I = index_type,
+                 StridesTraits NewStridesTrait = STRIDES_TRAIT,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto span() const {
-            return span().template span<U, N, I, STRIDES_TRAIT>();
+            return span().template span<U, N, I, NewStridesTrait, NewPointerTrait>();
         }
 
-        template<typename U = value_type, size_t N = 4, typename I = index_type>
+        template<typename U = value_type, usize N = 4,
+                 typename I = index_type,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto span_contiguous() const {
-            return span<U, N, I, StridesTraits::CONTIGUOUS>();
+            return span<U, N, I, StridesTraits::CONTIGUOUS, NewPointerTrait>();
         }
 
-        template<typename U = value_type, typename I = index_type, StridesTraits STRIDES_TRAIT = StridesTraits::CONTIGUOUS>
+        template<typename U = value_type,
+                 typename I = index_type,
+                 StridesTraits NewStridesTrait = STRIDES_TRAIT,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto span_1d() const {
-            return span<U, 1, I, STRIDES_TRAIT>();
+            return span<U, 1, I, NewStridesTrait, NewPointerTrait>();
         }
 
-        template<typename U = value_type, typename I = index_type>
+        template<typename U = value_type,
+                 typename I = index_type,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto span_1d_contiguous() const {
-            return span<U, 1, I, StridesTraits::CONTIGUOUS>();
+            return span<U, 1, I, StridesTraits::CONTIGUOUS, NewPointerTrait>();
         }
 
-        template<typename U = value_type, typename I = index_type>
+        template<typename U = value_type,
+                 typename I = index_type,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto span_1d_strided() const {
-            return span<U, 1, I, StridesTraits::STRIDED>();
+            return span<U, 1, I, StridesTraits::STRIDED, NewPointerTrait>();
         }
 
         /// Returns a (const-)view of the array.
@@ -411,7 +423,7 @@ namespace noa::inline types {
 
         /// Permutes the dimensions of the view.
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
-        [[nodiscard]] constexpr auto permute(const Vec4<i64>& permutation) const& -> Array {
+        [[nodiscard]] constexpr auto permute(const Vec<i32, 4>& permutation) const& -> Array {
             return Array(
                 m_shared,
                 ni::reorder(shape(), permutation),
@@ -419,7 +431,7 @@ namespace noa::inline types {
                 options(), Unchecked{}
             );
         }
-        [[nodiscard]] constexpr auto permute(const Vec4<i64>& permutation) && -> Array {
+        [[nodiscard]] constexpr auto permute(const Vec<i32, 4>& permutation) && -> Array {
             return Array(
                 std::move(m_shared),
                 ni::reorder(shape(), permutation),
@@ -430,10 +442,10 @@ namespace noa::inline types {
 
         /// Permutes the array by performing a deep-copy. The returned Array is a new C-contiguous array.
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
-        [[nodiscard]] auto permute_copy(const Vec4<i64>& permutation) const& -> Array {
+        [[nodiscard]] auto permute_copy(const Vec<i32, 4>& permutation) const& -> Array {
             return noa::permute_copy(*this, permutation);
         }
-        [[nodiscard]] auto permute_copy(const Vec4<i64>& permutation) && -> Array {
+        [[nodiscard]] auto permute_copy(const Vec<i32, 4>& permutation) && -> Array {
             return noa::permute_copy(std::move(*this), permutation);
         }
 

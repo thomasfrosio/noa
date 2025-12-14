@@ -13,7 +13,7 @@ namespace noa::signal {
         /// 1d: This corresponds to the width dimension. On the GPU, this is limited to 21.
         /// 2d: This corresponds to the height and width dimension. On the GPU, this is limited to 11.
         /// 3d: This corresponds to the depth, height and width dimensions.  On the GPU, this is limited to 5.
-        i64 window_size;
+        i32 window_size;
 
         /// Border mode used for the "implicit padding".
         /// Either Border::ZERO or Border::REFLECT.
@@ -161,7 +161,7 @@ namespace noa::signal {
               input.shape(), output.shape());
 
         check(is_odd(options.window_size), "Only odd windows are currently supported");
-        check(options.border_mode == Border::ZERO or all(output.shape().pop_front() >= options.window_size / 2 + 1),
+        check(options.border_mode == Border::ZERO or output.shape().pop_front() >= options.window_size / 2 + 1,
               "With Border::REFLECT and a window of {}, the depth, height and width should be >= than {}, but got {}",
               options.window_size, options.window_size / 2 + 1, output.shape().pop_front());
 

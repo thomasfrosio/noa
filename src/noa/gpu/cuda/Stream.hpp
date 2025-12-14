@@ -45,8 +45,8 @@ namespace noa::cuda::details {
     class StreamResourceRegistry {
     private:
         std::mutex m_mutex;
-        std::vector<std::pair<i64, std::shared_ptr<const void>>> m_registry;
-        i64 m_key{};
+        std::vector<std::pair<isize, std::shared_ptr<const void>>> m_registry;
+        isize m_key{};
 
     public:
         std::atomic<i32> callback_count{0};
@@ -56,13 +56,13 @@ namespace noa::cuda::details {
         // The shared_ptr reference count is increased by one.
         // This function also deletes the registry from unused shared_ptr.
         template<typename ...Args>
-        bool try_insert(Args&& ... args) {
+        auto try_insert(Args&& ... args) -> bool {
             const std::scoped_lock lock(m_mutex);
             clear_unused_();
 
             if constexpr (((nt::shareable<Args> or nt::shareable_using_share<Args>) or ...)) {
-                i64 key = [this]() {
-                    if (m_key == std::numeric_limits<i64>::max())
+                isize key = [this]() {
+                    if (m_key == std::numeric_limits<isize>::max())
                         m_key = 0;
                     return m_key++;
                 }();
@@ -108,7 +108,7 @@ namespace noa::cuda::details {
                 // Multiple resources can have the same key (they were enqueued in the same try_insert() call),
                 // so we need to flag the first (from the front) _valid_ resource and flag any other resource with
                 // the same key.
-                i64 key = -1;
+                isize key = -1;
                 for (auto& p: m_registry) {
                     if (key == -1 and p.first != -1)
                         key = p.first; // oldest valid resource
@@ -249,7 +249,7 @@ namespace noa::cuda {
         }
 
         /// Whether the stream has completed all operations.
-        [[nodiscard]] bool is_busy() const {
+        [[nodiscard]] auto is_busy() const -> bool {
             NOA_ASSERT(m_core);
             const DeviceGuard guard(m_device);
             const cudaError_t status = cudaStreamQuery(m_core->stream_handle);
@@ -268,18 +268,18 @@ namespace noa::cuda {
             m_core->resource_registry.clear_after_sync();
         }
 
-        [[nodiscard]] cudaStream_t get() const noexcept {
+        [[nodiscard]] auto get() const noexcept -> cudaStream_t {
             NOA_ASSERT(m_core);
             return m_core->stream_handle;
         }
 
-        [[nodiscard]] const std::shared_ptr<Core>& core() const noexcept {
+        [[nodiscard]] auto core() const noexcept -> const std::shared_ptr<Core>& {
             return m_core;
         }
 
-        [[nodiscard]] cudaStream_t id() const noexcept { return get(); }
-        [[nodiscard]] Device device() const noexcept { return m_device; }
-        [[nodiscard]] bool is_empty() const noexcept { return m_core == nullptr; }
+        [[nodiscard]] auto id() const noexcept -> cudaStream_t { return get(); }
+        [[nodiscard]] auto device() const noexcept -> Device { return m_device; }
+        [[nodiscard]] auto is_empty() const noexcept -> bool { return m_core == nullptr; }
 
     private:
         // We need to make sure this callback:

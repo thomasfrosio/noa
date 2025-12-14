@@ -20,7 +20,7 @@ namespace noa::geometry::details {
     ///    to the interpolator. It is up to the interpolator to decide what to do with this index.
     ///    The interpolator can ignore that batch index, effectively broadcasting the input to
     ///    every dimension of the output.
-    template<size_t N,
+    template<usize N,
              nt::integer Index,
              nt::batched_parameter Xform,
              nt::interpolator_nd<N> Input,
@@ -62,7 +62,7 @@ namespace noa::geometry::details {
         xform_parameter_type m_inverse_xform;
     };
 
-    template<size_t N, typename Input, typename Output, typename Matrix>
+    template<usize N, typename Input, typename Output, typename Matrix>
     void check_parameters_transform_nd(const Input& input, const Output& output, const Matrix& matrix) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         check(N == 3 or (input.shape()[1] == 1 and output.shape()[1] == 1),
@@ -103,7 +103,7 @@ namespace noa::geometry::details {
     }
 
     // GPU path instantiates 42 kernels with arrays and 54 kernels with textures...
-    template<size_t N, typename Index, bool IS_GPU = false, typename Input, typename Output, typename Matrix>
+    template<usize N, typename Index, bool IS_GPU = false, typename Input, typename Output, typename Matrix>
     void launch_transform_nd(Input&& input, Output&& output, Matrix&& inverse_matrices, auto options) {
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, N + 1, Index>;
         auto output_accessor = output_accessor_t(output.get(), output.strides().template filter_nd<N>().template as<Index>());
@@ -162,7 +162,7 @@ namespace noa::geometry::details {
 }
 
 namespace noa::traits {
-    template<typename T, size_t N, typename U = std::remove_reference_t<T>, typename V = value_type_t<T>>
+    template<typename T, usize N, typename U = std::remove_reference_t<T>, typename V = value_type_t<T>>
     concept transform_parameter_nd =
         mat_of_shape<U, N, N + 1> or
         mat_of_shape<U, N + 1, N + 1> or
@@ -217,7 +217,7 @@ namespace noa::geometry {
             } else {
                 check(nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
                       nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
-                      "i64 indexing not instantiated for GPU devices");
+                      "isize indexing not instantiated for GPU devices");
 
                 details::launch_transform_nd<2, i32, true>(
                     std::forward<Input>(input),
@@ -230,7 +230,7 @@ namespace noa::geometry {
             panic_no_gpu_backend();
             #endif
         }
-        details::launch_transform_nd<2, i64>(
+        details::launch_transform_nd<2, isize>(
             std::forward<Input>(input),
             std::forward<Output>(output),
             std::forward<Matrix>(inverse_matrices),
@@ -276,8 +276,8 @@ namespace noa::geometry {
                         std::forward<Matrix>(inverse_matrices),
                         options);
                 } else {
-                    // For large volumes (>1290^3), i64 indexing is required.
-                    details::launch_transform_nd<3, i64, true>(
+                    // For large volumes (>1290^3), isize indexing is required.
+                    details::launch_transform_nd<3, isize, true>(
                         std::forward<Input>(input),
                         std::forward<Output>(output),
                         std::forward<Matrix>(inverse_matrices),
@@ -290,7 +290,7 @@ namespace noa::geometry {
             #endif
         }
 
-        details::launch_transform_nd<3, i64>(
+        details::launch_transform_nd<3, isize>(
             std::forward<Input>(input),
             std::forward<Output>(output),
             std::forward<Matrix>(inverse_matrices),

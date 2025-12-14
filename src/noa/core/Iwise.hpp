@@ -36,7 +36,7 @@ namespace noa {
         bool endpoint{true};
 
     public:
-        template<size_t A>
+        template<usize A>
         [[nodiscard]] NOA_FHD static constexpr auto from_vec(
             const Vec<T, 2, A>& vec,
             bool endpoint = true
@@ -97,7 +97,7 @@ namespace noa {
 
 namespace noa::details {
     /// Arange index-wise operator for nd ranges.
-    template<size_t N, nt::writable_nd<N> T, nt::integer I, typename R>
+    template<usize N, nt::writable_nd<N> T, nt::integer I, typename R>
     class IwiseRange {
     public:
         using output_type = T;
@@ -141,7 +141,7 @@ namespace noa::details {
         range_type m_range;
     };
 
-    template<size_t N, nt::writable_nd<N> T, nt::integer I>
+    template<usize N, nt::writable_nd<N> T, nt::integer I>
     class Iota {
     public:
         using output_type = T;

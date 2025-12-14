@@ -155,7 +155,7 @@ TEST_CASE("cuda::ewise vectorization") {
     auto d8 = noa::cpu::AllocatorHeap::allocate<aligned_8, 16>(2);
     auto d16 = noa::cpu::AllocatorHeap::allocate<aligned_16, 16>(2);
     {
-        const auto shape = Shape4<i64>{3, 2, 16, 16};
+        const auto shape = Shape<i64, 4>{3, 2, 16, 16};
         const auto strides = shape.strides();
         auto a1 = Accessor<aligned_1, 4, i64>(d1.get(), strides);
         auto a2 = Accessor<aligned_2, 4, i64>(d2.get(), strides);
@@ -170,7 +170,7 @@ TEST_CASE("cuda::ewise vectorization") {
         REQUIRE(min_address_alignment(noa::make_tuple(a1, a2, a4, a8, a16), shape.pop_back()) == 16);
     }
     {
-        const auto shape = Shape4<i64>{3, 2, 16, 10};
+        const auto shape = Shape<i64, 4>{3, 2, 16, 10};
         const auto strides = shape.strides();
         auto a1 = Accessor<aligned_1, 4, i64>(d1.get(), strides);
         auto a2 = Accessor<aligned_2, 4, i64>(d2.get(), strides);

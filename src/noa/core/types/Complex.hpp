@@ -11,7 +11,7 @@
 #include "noa/core/indexing/Bounds.hpp"
 
 namespace noa::inline types {
-    template<typename, size_t, size_t>
+    template<typename, usize, usize>
     class Vec;
 
     /// Complex number (aggregate type of two floating-point values).
@@ -33,8 +33,8 @@ namespace noa::inline types {
         using mutable_value_type = T;
 
     public: // Component accesses
-        static constexpr size_t SIZE = 2;
-        static constexpr int64_t SSIZE = 2;
+        static constexpr usize SIZE = 2;
+        static constexpr isize SSIZE = 2;
 
         template<std::integral I>
         NOA_HD constexpr auto operator[](I i) noexcept -> value_type& {
@@ -77,7 +77,7 @@ namespace noa::inline types {
                     static_cast<value_type>(reinterpret_cast<const U(&)[2]>(v)[1])};
         }
 
-        template<typename U, size_t A>
+        template<typename U, usize A>
         [[nodiscard]] NOA_HD static constexpr auto from_vec(const Vec<U, 2, A>& v) noexcept -> Complex {
             return {static_cast<value_type>(v[0]),
                     static_cast<value_type>(v[1])};
@@ -139,14 +139,13 @@ namespace noa::inline types {
         }
 
     public: // Non-member functions
-        // -- Unary operators --
-        [[nodiscard]] friend NOA_HD constexpr auto operator+(Complex v) noexcept -> Complex {
+        [[nodiscard]] NOA_HD friend constexpr auto operator+(Complex v) noexcept -> Complex {
             return v;
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator-(Complex v) noexcept -> Complex {
+        [[nodiscard]] NOA_HD friend constexpr auto operator-(Complex v) noexcept -> Complex {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half>) {
+            if constexpr (std::is_same_v<value_type, f16>) {
                 auto* tmp = reinterpret_cast<__half2*>(&v);
                 *tmp = -(*tmp);
                 return v;
@@ -155,10 +154,9 @@ namespace noa::inline types {
             return {-v.real, -v.imag};
         }
 
-        // -- Binary Arithmetic Operators --
-        [[nodiscard]] friend NOA_HD constexpr auto operator+(Complex lhs, Complex rhs) noexcept -> Complex {
+        [[nodiscard]] NOA_HD friend constexpr auto operator+(Complex lhs, Complex rhs) noexcept -> Complex {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half>) {
+            if constexpr (std::is_same_v<value_type, f16>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
                 *tmp += *reinterpret_cast<__half2*>(&rhs);
                 return lhs;
@@ -167,17 +165,17 @@ namespace noa::inline types {
             return {lhs.real + rhs.real, lhs.imag + rhs.imag};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator+(value_type lhs, Complex rhs) noexcept -> Complex {
+        [[nodiscard]] NOA_HD friend constexpr auto operator+(value_type lhs, Complex rhs) noexcept -> Complex {
             return {lhs + rhs.real, rhs.imag};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator+(Complex lhs, value_type rhs) noexcept -> Complex {
+        [[nodiscard]] NOA_HD friend constexpr auto operator+(Complex lhs, value_type rhs) noexcept -> Complex {
             return {lhs.real + rhs, lhs.imag};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator-(Complex lhs, Complex rhs) noexcept -> Complex {
+        [[nodiscard]] NOA_HD friend constexpr auto operator-(Complex lhs, Complex rhs) noexcept -> Complex {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half>) {
+            if constexpr (std::is_same_v<value_type, f16>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
                 *tmp -= *reinterpret_cast<__half2*>(&rhs);
                 return lhs;
@@ -186,25 +184,25 @@ namespace noa::inline types {
             return {lhs.real - rhs.real, lhs.imag - rhs.imag};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator-(value_type lhs, Complex rhs) noexcept -> Complex {
+        [[nodiscard]] NOA_HD friend constexpr auto operator-(value_type lhs, Complex rhs) noexcept -> Complex {
             return {lhs - rhs.real, -rhs.imag};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator-(Complex lhs, value_type rhs) noexcept -> Complex {
+        [[nodiscard]] NOA_HD friend constexpr auto operator-(Complex lhs, value_type rhs) noexcept -> Complex {
             return {lhs.real - rhs, lhs.imag};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator*(Complex lhs, Complex rhs) noexcept -> Complex {
-            if constexpr (std::is_same_v<value_type, Half>) {
-                return (lhs.as<Half::arithmetic_type>() * rhs.as<Half::arithmetic_type>()).template as<value_type>();
+        [[nodiscard]] NOA_HD friend constexpr auto operator*(Complex lhs, Complex rhs) noexcept -> Complex {
+            if constexpr (std::is_same_v<value_type, f16>) {
+                return (lhs.as<f16::arithmetic_type>() * rhs.as<f16::arithmetic_type>()).template as<value_type>();
             }
             return {lhs.real * rhs.real - lhs.imag * rhs.imag,
                     lhs.real * rhs.imag + lhs.imag * rhs.real};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator*(value_type lhs, Complex rhs) noexcept -> Complex {
+        [[nodiscard]] NOA_HD friend constexpr auto operator*(value_type lhs, Complex rhs) noexcept -> Complex {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half>) {
+            if constexpr (std::is_same_v<value_type, f16>) {
                 auto* tmp = reinterpret_cast<__half2*>(&rhs);
                 *tmp *= __half2half2(lhs.native());
                 return rhs;
@@ -213,7 +211,7 @@ namespace noa::inline types {
             return {lhs * rhs.real, lhs * rhs.imag};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator*(Complex lhs, value_type rhs) noexcept -> Complex {
+        [[nodiscard]] NOA_HD friend constexpr auto operator*(Complex lhs, value_type rhs) noexcept -> Complex {
             return rhs * lhs;
         }
 
@@ -222,9 +220,9 @@ namespace noa::inline types {
         // by scaling. Such guarded implementations are usually the default for
         // complex library implementations, with some also offering an unguarded,
         // faster version."
-        [[nodiscard]] friend NOA_HD constexpr auto operator/(Complex lhs, Complex rhs) noexcept -> Complex {
-            if constexpr (std::is_same_v<value_type, Half>) {
-                return (lhs.as<Half::arithmetic_type>() / rhs.as<Half::arithmetic_type>()).template as<value_type>();
+        [[nodiscard]] NOA_HD friend constexpr auto operator/(Complex lhs, Complex rhs) noexcept -> Complex {
+            if constexpr (std::is_same_v<value_type, f16>) {
+                return (lhs.as<f16::arithmetic_type>() / rhs.as<f16::arithmetic_type>()).template as<value_type>();
             }
 
             auto s = abs(rhs.real) + abs(rhs.imag);
@@ -241,13 +239,13 @@ namespace noa::inline types {
             return {((ars * brs) + (ais * bis)) * oos, ((ais * brs) - (ars * bis)) * oos};
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator/(value_type lhs, Complex rhs) noexcept -> Complex {
+        [[nodiscard]] NOA_HD friend constexpr auto operator/(value_type lhs, Complex rhs) noexcept -> Complex {
             return Complex::from_real(lhs) / rhs;
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator/(Complex lhs, value_type rhs) noexcept -> Complex {
+        [[nodiscard]] NOA_HD friend constexpr auto operator/(Complex lhs, value_type rhs) noexcept -> Complex {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half>) {
+            if constexpr (std::is_same_v<value_type, f16>) {
                 auto* tmp = reinterpret_cast<__half2*>(&lhs);
                 *tmp /= __half2half2(rhs.native());
                 return lhs;
@@ -257,64 +255,64 @@ namespace noa::inline types {
         }
 
         // -- Equality Operators -- //
-        [[nodiscard]] friend NOA_HD constexpr auto operator==(Complex lhs, Complex rhs) noexcept -> bool {
+        [[nodiscard]] NOA_HD friend constexpr auto operator==(Complex lhs, Complex rhs) noexcept -> bool {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half>)
+            if constexpr (std::is_same_v<value_type, f16>)
                 return *reinterpret_cast<__half2*>(&lhs) == *reinterpret_cast<__half2*>(&rhs);
             #endif
             return lhs.real == rhs.real && lhs.imag == rhs.imag;
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator==(value_type lhs, Complex rhs) noexcept -> bool {
+        [[nodiscard]] NOA_HD friend constexpr auto operator==(value_type lhs, Complex rhs) noexcept -> bool {
             return Complex::from_real(lhs) == rhs;
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator==(Complex lhs, value_type rhs) noexcept -> bool {
+        [[nodiscard]] NOA_HD friend constexpr auto operator==(Complex lhs, value_type rhs) noexcept -> bool {
             return lhs == Complex::from_real(rhs);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator!=(Complex lhs, Complex rhs) noexcept -> bool {
+        [[nodiscard]] NOA_HD friend constexpr auto operator!=(Complex lhs, Complex rhs) noexcept -> bool {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, Half>)
+            if constexpr (std::is_same_v<value_type, f16>)
                 return *reinterpret_cast<__half2*>(&lhs) != *reinterpret_cast<__half2*>(&rhs);
             #endif
             return !(lhs == rhs);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator!=(value_type lhs, Complex rhs) noexcept -> bool {
+        [[nodiscard]] NOA_HD friend constexpr auto operator!=(value_type lhs, Complex rhs) noexcept -> bool {
             return Complex::from_real(lhs) != rhs;
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator!=(Complex lhs, value_type rhs) noexcept -> bool {
+        [[nodiscard]] NOA_HD friend constexpr auto operator!=(Complex lhs, value_type rhs) noexcept -> bool {
             return lhs != Complex::from_real(rhs);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator==(Complex lhs, std::complex<value_type> rhs) noexcept -> bool {
+        [[nodiscard]] NOA_HD friend constexpr auto operator==(Complex lhs, std::complex<value_type> rhs) noexcept -> bool {
             return lhs == Complex::from_complex(rhs);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator==(std::complex<value_type> lhs, Complex rhs) noexcept -> bool {
+        [[nodiscard]] NOA_HD friend constexpr auto operator==(std::complex<value_type> lhs, Complex rhs) noexcept -> bool {
             return Complex::from_complex(lhs) == rhs;
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator!=(Complex lhs, std::complex<value_type> rhs) noexcept -> bool {
+        [[nodiscard]] NOA_HD friend constexpr auto operator!=(Complex lhs, std::complex<value_type> rhs) noexcept -> bool {
             return !(lhs == rhs);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator!=(std::complex<value_type> lhs, Complex rhs) noexcept -> bool {
+        [[nodiscard]] NOA_HD friend constexpr auto operator!=(std::complex<value_type> lhs, Complex rhs) noexcept -> bool {
             return !(lhs == rhs);
         }
 
-        [[nodiscard]] friend NOA_HD constexpr auto operator<(Complex lhs, Complex rhs) noexcept -> bool {
+        [[nodiscard]] NOA_HD friend constexpr auto operator<(Complex lhs, Complex rhs) noexcept -> bool {
             return abs_squared(lhs) < abs_squared(rhs);
         }
-        [[nodiscard]] friend NOA_HD constexpr auto operator<=(Complex lhs, Complex rhs) noexcept -> bool {
+        [[nodiscard]] NOA_HD friend constexpr auto operator<=(Complex lhs, Complex rhs) noexcept -> bool {
             return abs_squared(lhs) <= abs_squared(rhs);
         }
-        [[nodiscard]] friend NOA_HD constexpr auto operator>(Complex lhs, Complex rhs) noexcept -> bool {
+        [[nodiscard]] NOA_HD friend constexpr auto operator>(Complex lhs, Complex rhs) noexcept -> bool {
             return abs_squared(lhs) > abs_squared(rhs);
         }
-        [[nodiscard]] friend NOA_HD constexpr auto operator>=(Complex lhs, Complex rhs) noexcept -> bool {
+        [[nodiscard]] NOA_HD friend constexpr auto operator>=(Complex lhs, Complex rhs) noexcept -> bool {
             return abs_squared(lhs) >= abs_squared(rhs);
         }
 
@@ -387,8 +385,8 @@ namespace noa {
     /// Returns the length-normalized of the complex number x to 1, reducing it to its phase.
     template<typename T>
     [[nodiscard]] NOA_FHD auto normalize(Complex<T> x) noexcept -> Complex<T> {
-        if constexpr (std::is_same_v<T, Half>)
-            return Complex<T>(normalize(x.template as<Half::arithmetic_type>()));
+        if constexpr (std::is_same_v<T, f16>)
+            return Complex<T>(normalize(x.template as<f16::arithmetic_type>()));
         T magnitude = abs(x);
         if (magnitude > T{0})
             magnitude = T{1} / magnitude;
@@ -398,8 +396,8 @@ namespace noa {
     /// Returns the squared magnitude of the complex number x.
     template<typename T>
     NOA_IHD auto abs_squared(Complex<T> x) noexcept -> T {
-        if constexpr (std::is_same_v<T, Half>)
-            return Half(abs_squared(x.template as<Half::arithmetic_type>()));
+        if constexpr (std::is_same_v<T, f16>)
+            return f16(abs_squared(x.template as<f16::arithmetic_type>()));
         return x.real * x.real + x.imag * x.imag;
     }
 
@@ -416,9 +414,19 @@ namespace noa {
 
     template<typename T>
     [[nodiscard]] NOA_FHD constexpr auto dot(Complex<T> a, Complex<T> b) noexcept -> T {
-        if constexpr (std::is_same_v<T, Half>)
+        if constexpr (std::is_same_v<T, f16>)
             return fma(a[0], b[0], a[1] * b[1]);
         return a[0] * b[0] + a[1] * b[1];
+    }
+
+    /// Whether two complex floating-points are equal or almost equal to each other.
+    template<i32 ULP = 2, typename T>
+    [[nodiscard]] NOA_IHD constexpr auto allclose(
+        Complex<T> x, Complex<T> y,
+        std::type_identity_t<T> epsilon = static_cast<T>(1e-6)
+    ) noexcept -> bool {
+        return allclose<ULP>(x.real, y.real, epsilon) and
+               allclose<ULP>(x.imag, y.imag, epsilon);
     }
 }
 
@@ -471,16 +479,8 @@ namespace noa::inline types {
     }
 }
 
-namespace noa::string {
-    template<typename T>
-    struct Stringify<Complex<T>> {
-        static auto get() -> std::string {
-            if constexpr (std::is_same_v<T, Half>)
-                return "c16";
-            else if constexpr (std::is_same_v<T, float>)
-                return "c32";
-            else
-                return "c64";
-        }
-    };
+namespace noa::details {
+    template<> struct Stringify<Complex<f16>> { static auto get() -> std::string { return "c16"; }};
+    template<> struct Stringify<Complex<f32>> { static auto get() -> std::string { return "c32"; }};
+    template<> struct Stringify<Complex<f64>> { static auto get() -> std::string { return "c64"; }};
 }

@@ -8,21 +8,21 @@
 namespace noa::cuda {
     /// Aligned array that generates vectorized load/store in CUDA.
     /// TODO Replace with Vec<T, VECTOR_SIZE, sizeof(T) * VECTOR_SIZE>?
-    template<typename T, size_t VECTOR_SIZE>
+    template<typename T, usize VECTOR_SIZE>
     struct alignas(sizeof(T) * VECTOR_SIZE) AlignedVector {
         T data[VECTOR_SIZE];
     };
 
     /// Aligned array used to generate vectorized load/store in CUDA.
-    template<typename T, size_t N, size_t A>
+    template<typename T, usize N, usize A>
     struct alignas(A) AlignedBuffer {
         using value_type = T;
-        constexpr static size_t SIZE = N;
+        constexpr static usize SIZE = N;
         T data[N];
     };
 
     /// Returns the pointer attributes of ptr.
-    inline cudaPointerAttributes pointer_attributes(const void* ptr) {
+    inline auto pointer_attributes(const void* ptr) -> cudaPointerAttributes {
         cudaPointerAttributes attr;
         check(cudaPointerGetAttributes(&attr, ptr));
         return attr;
@@ -31,7 +31,7 @@ namespace noa::cuda {
     /// If ptr can be accessed by the device, returns ptr or the corresponding device pointer.
     /// If ptr cannot be accessed by the device, returns nullptr.
     template<typename T>
-    T* device_pointer(T* ptr, Device device) {
+    auto device_pointer(T* ptr, Device device) -> T* {
         const auto attr = pointer_attributes(ptr);
         switch (attr.type) {
             case cudaMemoryTypeUnregistered:
@@ -48,14 +48,14 @@ namespace noa::cuda {
 
     /// If ptr can be accessed by the host, returns ptr. Otherwise, returns nullptr.
     template<typename T>
-    T* host_pointer(T* ptr) {
+    auto host_pointer(T* ptr) -> T* {
         const auto attr = pointer_attributes(ptr);
         return attr.type == cudaMemoryTypeDevice ? nullptr : ptr;
     }
 
     /// Returns the address of constant_pointer on the device.
     template<typename T = void>
-    T* constant_to_device_pointer(const void* constant_pointer) {
+    auto constant_to_device_pointer(const void* constant_pointer) -> T* {
         void* device_pointer;
         check(cudaGetSymbolAddress(&device_pointer, constant_pointer));
         return static_cast<T*>(device_pointer);
@@ -71,10 +71,10 @@ namespace noa::cuda {
         explicit CollectArgumentAddresses(Args&& ... args) :
             m_pointers{const_cast<void*>(static_cast<const void*>(&args))...} {}
 
-        [[nodiscard]] void** pointers() { return static_cast<void**>(m_pointers); }
+        [[nodiscard]] auto pointers() -> void** { return static_cast<void**>(m_pointers); }
 
     private:
-        void* m_pointers[max(size_t{1}, sizeof...(Args))]{};
+        void* m_pointers[max(usize{1}, sizeof...(Args))]{};
     };
 
     /// Returns the minimum address alignment for the given accessors.
@@ -92,9 +92,9 @@ namespace noa::cuda {
     requires (nt::tuple_of_accessor_nd<T, 4> or nt::empty_tuple<T>)
     constexpr auto min_address_alignment(
         const T& accessors,
-        const Shape3<Index>& shape_bdh
-    ) -> size_t {
-        auto get_alignment = [](const void* pointer) -> size_t{
+        const Shape<Index, 3>& shape_bdh
+    ) -> usize {
+        auto get_alignment = [](const void* pointer) -> usize{
             // Global memory instructions support reading or
             // writing words of size equal to 1, 2, 4, 8, or 16 bytes.
             const auto address = reinterpret_cast<uintptr_t>(pointer);
@@ -109,12 +109,12 @@ namespace noa::cuda {
             return 1;
         };
 
-        size_t alignment = 16;
+        usize alignment = 16;
         accessors.for_each([&]<typename U>(const U& accessor) {
             if constexpr (nt::accessor_pure<U>) {
                 if (accessor.stride(3) == 1) {
-                    size_t i_alignment = get_alignment(accessor.get());
-                    const auto strides = accessor.strides().template as_safe<size_t>();
+                    usize i_alignment = get_alignment(accessor.get());
+                    const auto strides = accessor.strides().template as_safe<usize>();
 
                     // Make sure every row is aligned to the current alignment.
                     // If not, try to decrease the alignment until reaching the minimum
@@ -138,17 +138,17 @@ namespace noa::cuda {
     }
 
     /// Computes the maximum vector size allowed for the given inputs/outputs.
-    template<size_t ALIGNMENT, typename... T>
-    consteval size_t maximum_allowed_aligned_buffer_size() {
-        size_t size{ALIGNMENT};
-        auto get_size = [&]<typename V>() -> size_t {
+    template<usize ALIGNMENT, typename... T>
+    consteval auto maximum_allowed_aligned_buffer_size() -> usize {
+        usize size{ALIGNMENT};
+        auto get_size = [&]<typename V>() -> usize {
             using value_t = nt::mutable_value_type_t<V>;
             if constexpr (nt::accessor_value<V>) {
                 return size; // AccessorValue shouldn't affect the vector size
             } else if constexpr (nt::accessor_pure<V> and is_power_of_2(sizeof(value_t))) {
-                constexpr size_t RATIO = sizeof(value_t) / alignof(value_t); // non naturally aligned types
-                constexpr size_t N = (ALIGNMENT / alignof(value_t)) / RATIO;
-                return max(size_t{1}, N); // clamp to one for cases where ALIGNMENT < alignof(value_t)
+                constexpr usize RATIO = sizeof(value_t) / alignof(value_t); // non naturally aligned types
+                constexpr usize N = (ALIGNMENT / alignof(value_t)) / RATIO;
+                return max(usize{1}, N); // clamp to one for cases where ALIGNMENT < alignof(value_t)
             } else {
                 static_assert(nt::accessor_pure<V>);
                 // If size is not a power of two, memory accesses cannot fully coalesce;
@@ -166,15 +166,15 @@ namespace noa::cuda {
         return size;
     }
 
-    template<typename T, size_t ALIGNMENT, size_t N>
+    template<typename T, usize ALIGNMENT, usize N>
     struct to_aligned_buffer {
         template<typename U>
         static constexpr auto get_type() {
             using value_t = nt::mutable_value_type_t<U>;
             if constexpr (nt::accessor_pure<U> and is_power_of_2(sizeof(value_t))) {
-                constexpr size_t RATIO = sizeof(value_t) / alignof(value_t); // non naturally aligned types
-                constexpr size_t AA = min(alignof(value_t) * N * RATIO, ALIGNMENT);
-                constexpr size_t A = max(AA, alignof(value_t));
+                constexpr usize RATIO = sizeof(value_t) / alignof(value_t); // non naturally aligned types
+                constexpr usize AA = min(alignof(value_t) * N * RATIO, ALIGNMENT);
+                constexpr usize A = max(AA, alignof(value_t));
                 return std::type_identity<AlignedBuffer<value_t, N, A>>{};
             } else {
                 return std::type_identity<AlignedBuffer<value_t, N, alignof(value_t)>>{};
@@ -188,7 +188,7 @@ namespace noa::cuda {
 
         using type = decltype(get(nt::type_list_t<T>{}))::type;
     };
-    template<typename T, size_t ALIGNMENT, size_t N>
+    template<typename T, usize ALIGNMENT, usize N>
     using to_aligned_buffer_t = to_aligned_buffer<T, ALIGNMENT, N>::type;
 
     /// Whether the aligned buffers are actually over-aligned compared to the original type.
@@ -196,7 +196,7 @@ namespace noa::cuda {
     /// This is used to fall back on a non-vectorized implementation at compile time,
     /// thus reducing the number of kernels that need to be generated.
     template<typename... T>
-    constexpr size_t is_vectorized() {
+    constexpr auto is_vectorized() -> usize {
         constexpr auto aligned_buffers = (nt::type_list_t<T>{} + ...);
         if constexpr (nt::empty_tuple<T...>) {
             return false; // no inputs and no outputs

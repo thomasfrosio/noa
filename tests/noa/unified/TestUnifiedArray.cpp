@@ -6,7 +6,7 @@
 
 using namespace ::noa::types;
 
-TEMPLATE_TEST_CASE("unified::Array, allocate", "", i32, f32, c32, Vec4<i32>, Mat22<f64>) {
+TEMPLATE_TEST_CASE("unified::Array, allocate", "", i32, f32, c32, (Vec<i32, 4>), Mat22<f64>) {
     auto guard = StreamGuard(Device{}, Stream::DEFAULT);
     Array<TestType> a;
     REQUIRE(a.is_empty());
@@ -25,7 +25,7 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "", i32, f32, c32, Vec4<i32>, Mat
     a = Array<TestType>(shape, {.device=Device{}, .allocator=allocator});
     REQUIRE(a.device().is_cpu());
     REQUIRE(a.allocator() == allocator);
-    REQUIRE(all(a.shape() == shape));
+    REQUIRE(a.shape() == shape);
     REQUIRE(a.get());
     REQUIRE_FALSE(a.is_empty());
 
@@ -36,7 +36,7 @@ TEMPLATE_TEST_CASE("unified::Array, allocate", "", i32, f32, c32, Vec4<i32>, Mat
     Array<TestType> b(shape, {"gpu:0", allocator});
     REQUIRE(b.device().is_gpu());
     REQUIRE(b.allocator() == allocator);
-    REQUIRE(all(b.shape() == shape));
+    REQUIRE(b.shape() == shape);
     REQUIRE(b.get());
     REQUIRE_FALSE(b.is_empty());
 
@@ -154,44 +154,44 @@ TEMPLATE_TEST_CASE("unified::Array, shape manipulation", "", i32, u64, f32, f64,
     AND_THEN("as another type") {
         Array<f64> c({2, 3, 4, 5});
         Array<unsigned char> d = c.reinterpret_as<unsigned char>();
-        REQUIRE(all(d.shape() == Shape4<i64>{2, 3, 4, 40}));
-        REQUIRE(all(d.strides() == Strides4<i64>{480, 160, 40, 1}));
+        REQUIRE(d.shape() == Shape4{2, 3, 4, 40});
+        REQUIRE(d.strides() == Strides4{480, 160, 40, 1});
 
         Array<c64> e({2, 3, 4, 5});
         Array f = e.reinterpret_as<f64>();
-        REQUIRE(all(f.shape() == Shape4<i64>{2, 3, 4, 10}));
-        REQUIRE(all(f.strides() == Strides4<i64>{120, 40, 10, 1}));
+        REQUIRE(f.shape() == Shape4{2, 3, 4, 10});
+        REQUIRE(f.strides() == Strides4{120, 40, 10, 1});
 
         e = f.reinterpret_as<c64>();
-        REQUIRE(all(e.shape() == Shape4<i64>{2, 3, 4, 5}));
-        REQUIRE(all(e.strides() == Strides4<i64>{60, 20, 5, 1}));
+        REQUIRE(e.shape() == Shape4{2, 3, 4, 5});
+        REQUIRE(e.strides() == Strides4{60, 20, 5, 1});
     }
 
     AND_THEN("reshape") {
         Array<TestType> a({4, 10, 50, 30});
         a = a.flat();
-        REQUIRE(all(a.strides() == a.shape().strides()));
+        REQUIRE(a.strides() == a.shape().strides());
         REQUIRE((a.shape().is_vector() && a.shape().ndim() == 1));
         a = a.reshape({4, 10, 50, 30});
-        REQUIRE(all(a.strides() == a.shape().strides()));
+        REQUIRE(a.strides() == a.shape().strides());
         a = a.reshape({10, 4, 30, 50});
-        REQUIRE(all(a.strides() == a.shape().strides()));
-        REQUIRE(all(a.shape() == Shape4<i64>{10, 4, 30, 50}));
+        REQUIRE(a.strides() == a.shape().strides());
+        REQUIRE(a.shape() == Shape4{10, 4, 30, 50});
     }
 
     AND_THEN("permute") {
         Array<TestType> a({4, 10, 50, 30});
         Array<TestType> b = a.permute({0, 1, 2, 3});
-        REQUIRE(all(b.shape() == Shape4<i64>{4, 10, 50, 30}));
-        REQUIRE(all(b.strides() == Strides4<i64>{15000, 1500, 30, 1}));
+        REQUIRE(b.shape() == Shape4{4, 10, 50, 30});
+        REQUIRE(b.strides() == Strides4{15000, 1500, 30, 1});
 
         b = a.permute({1, 0, 3, 2});
-        REQUIRE(all(b.shape() == Shape4<i64>{10, 4, 30, 50}));
-        REQUIRE(all(b.strides() == Strides4<i64>{1500, 15000, 1, 30}));
+        REQUIRE(b.shape() == Shape4{10, 4, 30, 50});
+        REQUIRE(b.strides() == Strides4{1500, 15000, 1, 30});
 
         b = a.permute_copy({1, 0, 3, 2});
-        REQUIRE(all(b.shape() == Shape4<i64>{10, 4, 30, 50}));
-        REQUIRE(all(b.strides() == Strides4<i64>{6000, 1500, 50, 1}));
+        REQUIRE(b.shape() == Shape4{10, 4, 30, 50});
+        REQUIRE(b.strides() == Strides4{6000, 1500, 50, 1});
     }
 }
 

@@ -9,9 +9,9 @@ TEST_CASE("cpu::reduce_axes_iwise - 4d") {
     using noa::cpu::reduce_axes_iwise;
 
     struct SumOp {
-        AccessorContiguousI64<const i64, 4> accessor;
+        AccessorContiguous<const i64, 4, i64> accessor;
 
-        void init(const Vec4<i64>& indices, i64& reduced) const {
+        void init(const Vec<i64, 4>& indices, i64& reduced) const {
             reduced += accessor(indices);
         }
         void join(i64 to_reduce, i64& reduced) const {
@@ -23,7 +23,7 @@ TEST_CASE("cpu::reduce_axes_iwise - 4d") {
     };
 
     AND_THEN("sum one axis") {
-        auto input_shape = test::random_shape(3, {.batch_range{2, 10}});
+        auto input_shape = test::random_shape<i64>(3, {.batch_range{2, 10}});
         const auto input_strides = input_shape.strides();
         const auto n_elements = input_shape.n_elements();
 
@@ -41,7 +41,7 @@ TEST_CASE("cpu::reduce_axes_iwise - 4d") {
             const auto output_elements = output_shape.n_elements();
 
             const auto expected_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));
-            auto compute_expected_reduction = [](Shape4<i64> shape, const auto& input, const auto& expected) {
+            auto compute_expected_reduction = [](Shape<i64, 4> shape, const auto& input, const auto& expected) {
                 for (i64 i{}; i < shape[0]; ++i) {
                     for (i64 j{}; j < shape[1]; ++j) {
                         for (i64 k{}; k < shape[2]; ++k) {
@@ -53,33 +53,33 @@ TEST_CASE("cpu::reduce_axes_iwise - 4d") {
                     }
                 }
             };
-            using expected_t = AccessorI64<const i64, 4>;
+            using expected_t = Accessor<const i64, 4, i64>;
             if (axis == 0) {
                 compute_expected_reduction(
                     input_shape.filter(1, 2, 3, 0),
                     expected_t(buffer.get(), input_strides.filter(1, 2, 3, 0)),
-                    AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(1, 2, 3)));
+                    Accessor<i64, 3, i64>(expected_buffer.get(), output_strides.filter(1, 2, 3)));
             } else if (axis == 1) {
                 compute_expected_reduction(
                     input_shape.filter(0, 2, 3, 1),
                     expected_t(buffer.get(), input_strides.filter(0, 2, 3, 1)),
-                    AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(0, 2, 3)));
+                    Accessor<i64, 3, i64>(expected_buffer.get(), output_strides.filter(0, 2, 3)));
             } else if (axis == 2) {
                 compute_expected_reduction(
                     input_shape.filter(0, 1, 3, 2),
                     expected_t(buffer.get(), input_strides.filter(0, 1, 3, 2)),
-                    AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(0, 1, 3)));
+                    Accessor<i64, 3, i64>(expected_buffer.get(), output_strides.filter(0, 1, 3)));
             } else {
                 compute_expected_reduction(
                     input_shape,
                     expected_t(buffer.get(), input_strides),
-                    AccessorI64<i64, 3>(expected_buffer.get(), output_strides.filter(0, 1, 2)));
+                    Accessor<i64, 3, i64>(expected_buffer.get(), output_strides.filter(0, 1, 2)));
             }
 
             const auto output_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));
-            auto output = noa::make_tuple(AccessorI64<i64, 4>(output_buffer.get(), output_strides));
+            auto output = noa::make_tuple(Accessor<i64, 4, i64>(output_buffer.get(), output_strides));
 
-            for (i64 n_threads: std::array{1, 4}) {
+            for (i32 n_threads: std::array{1, 4}) {
                 std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
                 reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, n_threads);
                 REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
@@ -89,14 +89,14 @@ TEST_CASE("cpu::reduce_axes_iwise - 4d") {
 
     AND_THEN("per batch") {
         const auto input_shapes = std::array{
-                test::random_shape(1),
-                test::random_shape(2),
-                test::random_shape(3),
-                test::random_shape(4),
-                test::random_shape(1, {.batch_range={2, 10}}),
-                test::random_shape(2, {.batch_range={2, 10}}),
-                test::random_shape(3, {.batch_range={2, 10}}),
-                test::random_shape(4, {.batch_range={2, 10}})
+                test::random_shape<i64>(1),
+                test::random_shape<i64>(2),
+                test::random_shape<i64>(3),
+                test::random_shape<i64>(4),
+                test::random_shape<i64>(1, {.batch_range={2, 10}}),
+                test::random_shape<i64>(2, {.batch_range={2, 10}}),
+                test::random_shape<i64>(3, {.batch_range={2, 10}}),
+                test::random_shape<i64>(4, {.batch_range={2, 10}})
         };
         for (const auto& input_shape: input_shapes) {
             const auto input_strides = input_shape.strides();
@@ -118,12 +118,12 @@ TEST_CASE("cpu::reduce_axes_iwise - 4d") {
                 expected_buffer.get()[i] = tmp + 1;
             }
 
-            const auto output_shape = Shape4<i64>{input_shape[0], 1, 1, 1};
+            const auto output_shape = Shape<i64, 4>{input_shape[0], 1, 1, 1};
             const auto output_elements = output_shape.n_elements();
             const auto output_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));
-            const auto output = noa::make_tuple(AccessorI64<i64, 4>(output_buffer.get(), output_shape.strides()));
+            const auto output = noa::make_tuple(Accessor<i64, 4, i64>(output_buffer.get(), output_shape.strides()));
 
-            for (i64 n_threads: std::array{1, 4}) {
+            for (i32 n_threads: std::array{1, 4}) {
                 std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
                 reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, n_threads);
                 REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
@@ -137,9 +137,9 @@ TEST_CASE("cpu::reduce_axes_iwise - 3d") {
     using noa::cpu::reduce_axes_iwise;
 
     struct SumOp {
-        AccessorContiguousI64<const i64, 3> accessor;
+        AccessorContiguous<const i64, 3, i64> accessor;
 
-        void init(const Vec3<i64>& indices, i64& reduced) const {
+        void init(const Vec<i64, 3>& indices, i64& reduced) const {
             reduced += accessor(indices);
         }
         void join(i64 to_reduce, i64& reduced) const {
@@ -169,7 +169,7 @@ TEST_CASE("cpu::reduce_axes_iwise - 3d") {
             const auto output_elements = output_shape.n_elements();
 
             const auto expected_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));
-            auto compute_expected_reduction = [](Shape3<i64> shape, const auto& input, const auto& expected) {
+            auto compute_expected_reduction = [](Shape<i64, 3> shape, const auto& input, const auto& expected) {
                 for (i64 i{}; i < shape[0]; ++i) {
                     for (i64 j{}; j < shape[1]; ++j) {
                         i64 tmp{};
@@ -179,28 +179,28 @@ TEST_CASE("cpu::reduce_axes_iwise - 3d") {
                     }
                 }
             };
-            using expected_t = AccessorI64<const i64, 3>;
+            using expected_t = Accessor<const i64, 3, i64>;
             if (axis == 0) {
                 compute_expected_reduction(
                     input_shape.filter(1, 2, 0),
                     expected_t(buffer.get(), input_strides.filter(1, 2, 0)),
-                    AccessorI64<i64, 2>(expected_buffer.get(), output_strides.filter(1, 2)));
+                    Accessor<i64, 2, i64>(expected_buffer.get(), output_strides.filter(1, 2)));
             } else if (axis == 1) {
                 compute_expected_reduction(
                     input_shape.filter(0, 2, 1),
                     expected_t(buffer.get(), input_strides.filter(0, 2, 1)),
-                    AccessorI64<i64, 2>(expected_buffer.get(), output_strides.filter(0, 2)));
+                    Accessor<i64, 2, i64>(expected_buffer.get(), output_strides.filter(0, 2)));
             } else {
                 compute_expected_reduction(
                     input_shape,
                     expected_t(buffer.get(), input_strides),
-                    AccessorI64<i64, 2>(expected_buffer.get(), output_strides.filter(0, 1)));
+                    Accessor<i64, 2, i64>(expected_buffer.get(), output_strides.filter(0, 1)));
             }
 
             const auto output_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));
-            auto output = noa::make_tuple(AccessorI64<i64, 3>(output_buffer.get(), output_strides));
+            auto output = noa::make_tuple(Accessor<i64, 3, i64>(output_buffer.get(), output_strides));
 
-            for (i64 n_threads: std::array{1, 4}) {
+            for (i32 n_threads: std::array{1, 4}) {
                 std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
                 reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, n_threads);
                 REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
@@ -234,12 +234,12 @@ TEST_CASE("cpu::reduce_axes_iwise - 3d") {
                 expected_buffer.get()[i] = tmp + 1;
             }
 
-            const auto output_shape = Shape3<i64>{input_shape[0], 1, 1};
+            const auto output_shape = Shape<i64, 3>{input_shape[0], 1, 1};
             const auto output_elements = output_shape.n_elements();
             const auto output_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));
-            const auto output = noa::make_tuple(AccessorI64<i64, 3>(output_buffer.get(), output_shape.strides()));
+            const auto output = noa::make_tuple(Accessor<i64, 3, i64>(output_buffer.get(), output_shape.strides()));
 
-            for (i64 n_threads: std::array{1, 4}) {
+            for (i32 n_threads: std::array{1, 4}) {
                 std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
                 reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, n_threads);
                 REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
@@ -253,9 +253,9 @@ TEST_CASE("cpu::reduce_axes_iwise - 2d") {
     using noa::cpu::reduce_axes_iwise;
 
     struct SumOp {
-        AccessorContiguousI64<const i64, 2> accessor;
+        AccessorContiguous<const i64, 2, i64> accessor;
 
-        void init(const Vec2<i64>& indices, i64& reduced) const {
+        void init(const Vec<i64, 2>& indices, i64& reduced) const {
             reduced += accessor(indices);
         }
         void join(i64 to_reduce, i64& reduced) const {
@@ -285,7 +285,7 @@ TEST_CASE("cpu::reduce_axes_iwise - 2d") {
             const auto output_elements = output_shape.n_elements();
 
             const auto expected_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));
-            auto compute_expected_reduction = [](Shape2<i64> shape, const auto& input, const auto& expected) {
+            auto compute_expected_reduction = [](Shape<i64, 2> shape, const auto& input, const auto& expected) {
                 for (i64 i = 0; i < shape[0]; ++i) {
                     i64 tmp = 0;
                     for (i64 j = 0; j < shape[1]; ++j)
@@ -293,23 +293,23 @@ TEST_CASE("cpu::reduce_axes_iwise - 2d") {
                     expected(i) = tmp + 1; // +1: add to output
                 }
             };
-            using expected_t = AccessorI64<const i64, 2>;
+            using expected_t = Accessor<const i64, 2, i64>;
             if (axis == 0) {
                 compute_expected_reduction(
                     input_shape.filter(1, 0),
                     expected_t(buffer.get(), input_strides.filter(1, 0)),
-                    AccessorI64<i64, 1>(expected_buffer.get(), output_strides.filter(1)));
+                    Accessor<i64, 1, i64>(expected_buffer.get(), output_strides.filter(1)));
             } else {
                 compute_expected_reduction(
                     input_shape,
                     expected_t(buffer.get(), input_strides),
-                    AccessorI64<i64, 1>(expected_buffer.get(), output_strides.filter(0)));
+                    Accessor<i64, 1, i64>(expected_buffer.get(), output_strides.filter(0)));
             }
 
             const auto output_buffer = std::make_unique<i64[]>(static_cast<size_t>(output_elements));
-            auto output = noa::make_tuple(AccessorI64<i64, 2>(output_buffer.get(), output_strides));
+            auto output = noa::make_tuple(Accessor<i64, 2, i64>(output_buffer.get(), output_strides));
 
-            for (i64 n_threads: std::array{1, 4}) {
+            for (i32 n_threads: std::array{1, 4}) {
                 std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
                 reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, n_threads);
                 REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
@@ -323,9 +323,9 @@ TEST_CASE("cpu::reduce_axes_iwise - 1d") {
     using noa::cpu::reduce_axes_iwise;
 
     struct SumOp {
-        AccessorContiguousI64<const i64, 1> accessor;
+        AccessorContiguous<const i64, 1, i64> accessor;
 
-        void init(const Vec1<i64>& indices, i64& reduced) const {
+        void init(const Vec<i64, 1>& indices, i64& reduced) const {
             reduced += accessor(indices);
         }
         void join(i64 to_reduce, i64& reduced) const {
@@ -346,15 +346,15 @@ TEST_CASE("cpu::reduce_axes_iwise - 1d") {
     auto reduced = noa::make_tuple(AccessorValue<i64>(0));
     auto sum_op = SumOp{.accessor={buffer.get(), input_strides}};
 
-    auto output_shape = Shape1<i64>{1};
+    auto output_shape = Shape<i64, 1>{1};
 
     i64 expected{1};
     for (i64 i = 0; i < input_shape[0]; ++i)
         expected += sum_op.accessor(i);
 
-    for (i64 n_threads: std::array{1, 4}) {
+    for (i32 n_threads: std::array{1, 4}) {
         i64 output{1};
-        auto output_accessor = noa::make_tuple(AccessorContiguousI64<i64, 1>(&output));
+        auto output_accessor = noa::make_tuple(AccessorContiguous<i64, 1, i64>(&output));
         reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output_accessor, n_threads);
         REQUIRE(expected == output);
     }

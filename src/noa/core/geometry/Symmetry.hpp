@@ -16,7 +16,7 @@ namespace noa::geometry {
         char type{};
 
         [[nodiscard]] static auto from_string(std::string_view symmetry) -> std::optional<SymmetryCode> {
-            symmetry = noa::string::trim(symmetry);
+            symmetry = nd::trim(symmetry);
             if (symmetry.empty())
                 return std::nullopt;
 
@@ -24,7 +24,7 @@ namespace noa::geometry {
             out.type = static_cast<char>(std::toupper(static_cast<unsigned char>(symmetry[0])));
 
             if (symmetry.size() > 1) {
-                const auto opt = noa::string::parse<i32>(std::string(symmetry, 1, symmetry.length())); // offset by 1
+                const auto opt = nd::parse<i32>(std::string(symmetry, 1, symmetry.length())); // offset by 1
                 if (not opt)
                     return std::nullopt;
                 out.order = opt.value();
@@ -48,9 +48,9 @@ namespace noa::geometry::details {
     template<typename T, typename I, StridesTraits S> requires (nt::mat22<T> or nt::mat33<T>)
     constexpr void set_cx_symmetry_matrices(Span<T, 1, I, S> matrices) {
         using value_t = nt::value_type_t<T>;
-        i64 order = matrices.ssize() + 1;
+        isize order = matrices.ssize() + 1;
         const auto angle = Constant<f64>::PI * 2 / static_cast<f64>(order);
-        for (i64 i = 1; i < order; ++i) { // skip the identity
+        for (isize i = 1; i < order; ++i) { // skip the identity
             const auto i_angle = static_cast<f64>(i) * angle;
             if constexpr (nt::mat22<T>)
                 matrices[i - 1] = rotate(i_angle).as<value_t>();

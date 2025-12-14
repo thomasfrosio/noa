@@ -20,10 +20,10 @@ namespace {
         const auto span_rhs = rhs.template span<const T, 3>();
         const auto span_out = out.template span<T, 3>();
 
-        for (i64 batch{}; batch < out.shape()[0]; ++batch) {
-            for (i64 m{}; m < mnk[0]; ++m) {
-                for (i64 n{}; n < mnk[1]; ++n) {
-                    for (i64 k{}; k < mnk[2]; ++k) {
+        for (isize batch{}; batch < out.shape()[0]; ++batch) {
+            for (isize m{}; m < mnk[0]; ++m) {
+                for (isize n{}; n < mnk[1]; ++n) {
+                    for (isize k{}; k < mnk[2]; ++k) {
                         span_out.at(batch, m, n) +=
                             span_lhs.at(batch, m, k) *
                             span_rhs.at(batch, k, n);
@@ -36,11 +36,11 @@ namespace {
 
 TEMPLATE_TEST_CASE("unified::dot()", "", f32, f64, c32, c64) {
     using real_t = noa::traits::value_type_t<TestType>;
-    const i64 batches = test::Randomizer<i64>(1, 5).get();
+    const isize batches = test::Randomizer<isize>(1, 5).get();
 
-    test::Randomizer<i64> randomizer(4096, 1048576);
-    const auto shape = Shape4<i64>{batches, 1, 1, randomizer.get()};
-    const auto reduced_shape = Shape4<i64>{batches, 1, 1, 1};
+    test::Randomizer<isize> randomizer(4096, 1048576);
+    const auto shape = Shape4{batches, 1, 1, randomizer.get()};
+    const auto reduced_shape = Shape4{batches, 1, 1, 1};
 
     std::vector<Device> devices{"cpu"};
     if (Device::is_any(Device::GPU))
@@ -70,11 +70,11 @@ TEMPLATE_TEST_CASE("unified::dot()", "", f32, f64, c32, c64) {
 TEMPLATE_TEST_CASE("unified::dot() vs matmul", "", f32, f64) {
     using real_t = noa::traits::value_type_t<TestType>;
 
-    test::Randomizer<i64> randomizer(4096, 1048576);
-    const i64 n = randomizer.get();
-    const auto lhs_shape = Shape4<i64>{1, 1, 1, n};
-    const auto rhs_shape = Shape4<i64>{1, 1, n, 1};
-    const auto out_shape = Shape4<i64>{1, 1, 1, 1};
+    test::Randomizer<isize> randomizer(4096, 1048576);
+    const isize n = randomizer.get();
+    const auto lhs_shape = Shape4{1, 1, 1, n};
+    const auto rhs_shape = Shape4{1, 1, n, 1};
+    const auto out_shape = Shape4{1, 1, 1, 1};
 
     std::vector<Device> devices{"cpu"};
     if (Device::is_any(Device::GPU))
@@ -100,13 +100,13 @@ TEMPLATE_TEST_CASE("unified::dot() vs matmul", "", f32, f64) {
 
 TEMPLATE_TEST_CASE("unified::matmul()", "", f32, f64, c32, c64) {
     using real_t = noa::traits::value_type_t<TestType>;
-    const i64 batches = test::Randomizer<i64>(1, 4).get();
+    const isize batches = test::Randomizer<isize>(1, 4).get();
 
-    test::Randomizer<i64> randomizer(8, 256);
-    const i64 m = randomizer.get(), n = randomizer.get(), k = randomizer.get();
-    const auto lhs_shape = Shape4<i64>{batches, 1, m, k};
-    const auto rhs_shape = Shape4<i64>{batches, 1, k, n};
-    const auto out_shape = Shape4<i64>{batches, 1, m, n};
+    test::Randomizer<isize> randomizer(8, 256);
+    const isize m = randomizer.get(), n = randomizer.get(), k = randomizer.get();
+    const auto lhs_shape = Shape4{batches, 1, m, k};
+    const auto rhs_shape = Shape4{batches, 1, k, n};
+    const auto out_shape = Shape4{batches, 1, m, n};
     INFO(lhs_shape);
     INFO(rhs_shape);
     INFO(out_shape);

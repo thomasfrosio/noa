@@ -25,9 +25,9 @@ namespace {
 }
 
 TEMPLATE_TEST_CASE("unified::reduce_iwise - simple", "", i32, f64) {
-    auto shape = Shape4<i64>{5, 35, 64, 81};
-    auto min_indices = Vec4<i64>{2, 12, 43, 56};
-    auto max_indices = Vec4<i64>{1, 6, 12, 34};
+    auto shape = Shape4{5, 35, 64, 81};
+    auto min_indices = Vec<isize, 4>{2, 12, 43, 56};
+    auto max_indices = Vec<isize, 4>{1, 6, 12, 34};
 
     auto input = noa::empty<TestType>(shape);
     auto randomizer = test::Randomizer<TestType>(-50, 50);
@@ -52,7 +52,7 @@ TEMPLATE_TEST_CASE("unified::reduce_iwise - simple", "", i32, f64) {
         if (device != input.device())
             input = input.to(options);
 
-        using accessor_t = AccessorI64<const TestType, 4>;
+        using accessor_t = Accessor<const TestType, 4, isize>;
         using reduce_t = Pair<TestType, i64>;
         using op_t = noa::ReduceFirstMax<accessor_t, reduce_t>;
         auto op = op_t{noa::details::to_accessor(input)};
@@ -62,7 +62,7 @@ TEMPLATE_TEST_CASE("unified::reduce_iwise - simple", "", i32, f64) {
         TestType output_max_value{};
         noa::reduce_iwise(shape, device, initial, noa::wrap(output_max_value, output_max_offset), op);
 
-        REQUIRE(all(noa::indexing::offset2index(output_max_offset, input) == max_indices));
+        REQUIRE(noa::indexing::offset2index(output_max_offset, input) == max_indices);
         REQUIRE(output_max_value == 51);
 
         TestType output_sum{1};

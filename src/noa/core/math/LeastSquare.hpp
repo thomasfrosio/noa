@@ -24,7 +24,7 @@ namespace noa {
         f64 syx{};
         f64 syx2{};
 
-        for (i64 i{}; auto& e: y) {
+        for (isize i{}; auto& e: y) {
             const auto iy = static_cast<f64>(e);
             const auto ix = static_cast<f64>(i++);
             sy += iy;

@@ -13,7 +13,7 @@
 namespace noa::io {
     auto ImageFileEncoderMrc::read_header(
         std::FILE* file
-    ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, DataType, Compression, ImageFileStats> {
+    ) -> Tuple<Shape4, Vec<f64, 3>, DataType, Compression, ImageFileStats> {
         std::byte buffer[1024];
         check(std::fseek(file, 0, SEEK_SET) == 0, "Failed to seek {}", std::strerror(errno));
         check(std::fread(buffer, 1, 1024, file) == 1024, "Failed to read the header (1024 bytes)");
@@ -44,10 +44,10 @@ namespace noa::io {
 
         // Get the header.
         i32 mode, imod_stamp, imod_flags, space_group;
-        Shape3<i32> shape, grid_size;
-        Vec3<i32> order;
-        Vec3<f32> cell_size;
-        Vec4<f32> mrc_stats;
+        Shape<i32, 3> shape, grid_size;
+        Vec<i32, 3> order;
+        Vec<f32, 3> cell_size;
+        Vec<f32, 4> mrc_stats;
         {
             std::memcpy(shape.data(), buffer, 12);
             std::memcpy(&mode, buffer + 12, 4);
@@ -72,10 +72,10 @@ namespace noa::io {
 
         // Set the BDHW shape:
         const auto ndim = shape.flip().ndim();
-        check(all(shape > 0), "Invalid data. Logical shape should be greater than zero, got nx,ny,nz:{}", shape);
+        check(shape > 0, "Invalid data. Logical shape should be greater than zero, got nx,ny,nz:{}", shape);
 
         if (ndim <= 2) {
-            check(all(grid_size == shape),
+            check(grid_size == shape,
                   "1d or 2d data detected. The logical shape should be equal to the grid size. "
                   "Got nx,ny,nz:{}, mx,my,mz:{}", shape, grid_size);
             m_shape = {1, 1, shape[1], shape[0]};
@@ -89,7 +89,7 @@ namespace noa::io {
                       shape, grid_size);
                 m_shape = {shape[2], 1, shape[1], shape[0]};
             } else if (space_group == 1) { // volume
-                check(all(grid_size == shape),
+                check(grid_size == shape,
                       "3d volume detected (ndim=3, group=1). "
                       "The logical shape should be equal to the grid size. "
                       "Got nx,ny,nz:{}, mx,my,mz:{}", shape, grid_size);
@@ -117,7 +117,7 @@ namespace noa::io {
         // Set the pixel size:
         m_spacing = cell_size / grid_size.vec.as<f32>();
         m_spacing = m_spacing.flip();
-        check(all(m_spacing >= 0), "Invalid data. Pixel size should not be negative, got {}", m_spacing);
+        check(m_spacing >= 0, "Invalid data. Pixel size should not be negative, got {}", m_spacing);
         check(m_extended_bytes_nb >= 0, "Invalid data. Extended header size should be positive, got {}", m_extended_bytes_nb);
 
         // Convert mode to encoding format:
@@ -149,8 +149,8 @@ namespace noa::io {
         }
 
         // Map order: enforce row-major ordering, i.e. x=1, y=2, z=3.
-        if (any(order != Vec{1, 2, 3})) {
-            if (any(order < 1) or any(order > 3) or sum(order) != 6)
+        if (order != Vec{1, 2, 3}) {
+            if (order.any_lt(1) or order.any_gt(3) or sum(order) != 6)
                 panic("Invalid data. Map order should be (1,2,3), got {}", order);
             panic("Map order {} is not supported. Only (1,2,3) is supported", order);
         }
@@ -168,7 +168,7 @@ namespace noa::io {
 
     auto ImageFileEncoderMrc::write_header(
         std::FILE* file,
-        const Shape<i64, 4>& shape,
+        const Shape4& shape,
         const Vec<f64, 3>& spacing,
         const DataType& dtype,
         const Compression& compression,
@@ -210,8 +210,8 @@ namespace noa::io {
 
         // Shape/spacing.
         i32 space_group{};
-        Shape3<i32> whd_shape, grid_size;
-        Vec3<f32> cell_size;
+        Shape<i32, 3> whd_shape, grid_size;
+        Vec<f32, 3> cell_size;
         auto bdhw_shape = m_shape.as<i32>(); // can be empty if nothing was written...
         if (not bdhw_shape.is_batched()) { // 1d, 2d image, or 3d volume
             whd_shape = grid_size = bdhw_shape.pop_front().flip();
@@ -302,9 +302,9 @@ namespace {
     using namespace noa::io;
 
     #ifdef NOA_ENABLE_OPENMP
-    constexpr size_t NOA_TIFF_MAX_HANDLES = 16;
+    constexpr usize NOA_TIFF_MAX_HANDLES = 16;
     #else
-    constexpr size_t NOA_TIFF_MAX_HANDLES = 1;
+    constexpr usize NOA_TIFF_MAX_HANDLES = 1;
     #endif
 
     auto tiff_client_read(thandle_t data, tdata_t buf, tsize_t size) -> tsize_t {
@@ -312,7 +312,7 @@ namespace {
         auto lock = std::scoped_lock(*handle->mutex);
 
         check(std::fseek(handle->file, handle->offset, SEEK_SET) == 0);
-        size_t n_bytes_read = std::fread(buf, 1, safe_cast<size_t>(size), handle->file);
+        usize n_bytes_read = std::fread(buf, 1, safe_cast<usize>(size), handle->file);
         check(std::ferror(handle->file) == 0);
         handle->offset += static_cast<long>(n_bytes_read);
 
@@ -324,7 +324,7 @@ namespace {
         // auto lock = std::scoped_lock(*handle->mutex); writing to the file is synchronous, so don't lock
 
         check(std::fseek(handle->file, handle->offset, SEEK_SET) == 0);
-        size_t n_bytes_written = std::fwrite(buf, 1, safe_cast<size_t>(size), handle->file);
+        usize n_bytes_written = std::fwrite(buf, 1, safe_cast<usize>(size), handle->file);
         check(std::ferror(handle->file) == 0);
         handle->offset += static_cast<long>(n_bytes_written);
 
@@ -484,11 +484,11 @@ namespace {
     }
 
     template<typename T, StridesTraits S>
-    void flip_rows_(const Span<T, 2, i64, S>& slice) {
-        for (i64 row = 0; row < slice.shape()[0] / 2; ++row) {
+    void flip_rows_(const Span<T, 2, isize, S>& slice) {
+        for (isize row = 0; row < slice.shape()[0] / 2; ++row) {
             auto current_row = slice[row];
             auto opposite_row = slice[slice.shape()[0] - row - 1];
-            for (i64 i{}; i < slice.shape()[1]; ++i)
+            for (isize i{}; i < slice.shape()[1]; ++i)
                 std::swap(opposite_row[i], current_row[i]);
         }
     }
@@ -570,7 +570,7 @@ namespace {
 namespace noa::io {
     auto ImageFileEncoderTiff::read_header(
         std::FILE* file
-    ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, DataType, Compression, ImageFileStats> {
+    ) -> Tuple<Shape4, Vec<f64, 3>, DataType, Compression, ImageFileStats> {
         // Previously opened TIFF files should be closed by now, but make sure.
         close();
         if (m_handles == nullptr)
@@ -588,13 +588,13 @@ namespace noa::io {
         f64 max{std::numeric_limits<f64>::lowest()};
         while (::TIFFSetDirectory(tiff, n_directories)) {
             // Shape.
-            Shape2<u32> shape; // hw
+            Shape<u32, 2> shape; // hw
             check(::TIFFGetField(tiff, TIFFTAG_IMAGEWIDTH, shape.data() + 1) and
                   ::TIFFGetField(tiff, TIFFTAG_IMAGELENGTH, shape.data()),
                   "The input TIFF file does not have the width or height field");
 
             // Spacing.
-            Vec2<f32> pixel_size{}; // hw angpix
+            Vec<f32, 2> pixel_size{}; // hw angpix
             {
                 u16 resolution_unit{}; // 1: no units, 2: inch, 3: cm
                 const auto has_resolution = TIFFGetField(tiff, TIFFTAG_XRESOLUTION, &pixel_size[1]);
@@ -655,7 +655,7 @@ namespace noa::io {
 
             if (n_directories) { // check no mismatch with the other directories
                 check(
-                    noa::all(allclose(pixel_size, m_spacing)) and
+                    allclose(pixel_size, m_spacing) and
                     shape[0] == m_shape[1] and
                     shape[1] == m_shape[2] and
                     data_type == m_dtype and
@@ -694,7 +694,7 @@ namespace noa::io {
         // read/write operations will reset the directory whenever necessary.
 
         return make_tuple(
-            Shape<i64, 4>{m_shape[0], 1, m_shape[1], m_shape[2]},
+            Shape4{m_shape[0], 1, m_shape[1], m_shape[2]},
             m_spacing.as<f64>().push_front(m_spacing[0] == 0 and m_spacing[1] == 0 ? 0 : 1),
             m_dtype, compression, ImageFileStats{.min = min, .max = max}
         );
@@ -702,7 +702,7 @@ namespace noa::io {
 
     auto ImageFileEncoderTiff::write_header(
         std::FILE* file,
-        const Shape<i64, 4>& shape,
+        const Shape4& shape,
         const Vec<f64, 3>& spacing,
         const DataType& dtype,
         const Compression& compression,
@@ -710,7 +710,7 @@ namespace noa::io {
     ) -> Tuple<DataType, Compression> {
         check(shape[1] == 1, "TIFF files do not support 3d volumes, but got BDHW shape={}", shape);
         check(not shape.is_empty(), "Empty shapes are invalid, but got {}", shape);
-        check(all(spacing >= 0), "The pixel size should be positive, got {}", spacing);
+        check(spacing >= 0, "The pixel size should be positive, got {}", spacing);
         check(dtype != DataType::UNKNOWN, "The data type is set to unknown");
         check(compression != Compression::UNKNOWN, "The compression scheme is set to unknown");
 
@@ -743,7 +743,7 @@ namespace noa::io {
         if (m_handles != nullptr) {
             // Close the TIFF clients, but don't deallocate in case we need the encoder again.
             // Importantly, the handles are saved sequentially, so stop at the first nullptr.
-            for (size_t i{}; i < NOA_TIFF_MAX_HANDLES; ++i) {
+            for (usize i{}; i < NOA_TIFF_MAX_HANDLES; ++i) {
                 auto& tiff = m_handles[i].second;
                 if (tiff == nullptr)
                     return;
@@ -758,7 +758,7 @@ namespace noa::io {
     void ImageFileEncoderTiff::decode(
         std::FILE* file,
         const Span<T, 4>& output,
-        const Vec<i64, 2>& bd_offset,
+        const Vec<isize, 2>& bd_offset,
         bool clamp,
         i32 n_threads
     ) {
@@ -766,8 +766,8 @@ namespace noa::io {
         check(file == m_handles[0].first.file, "File stream mismatch");
 
         const auto [b, d, h, w] = output.shape();
-        const i64 start = bd_offset[0];
-        const i64 end = bd_offset[0] + b;
+        const isize start = bd_offset[0];
+        const isize end = bd_offset[0] + b;
 
         check(m_shape[1] == h and m_shape[2] == w,
               "Cannot read 2d slice(s) with shape={} from a file with 2d slice(s) with shape{}",
@@ -785,7 +785,7 @@ namespace noa::io {
         // Each thread has its own TIFF file, all pointing to the same file stream.
         n_threads = std::min(n_threads, static_cast<i32>(NOA_TIFF_MAX_HANDLES));
         n_threads = std::min(n_threads, static_cast<i32>(b));
-        for (size_t i = 1; i < clamp_cast<size_t>(n_threads); ++i) {
+        for (usize i = 1; i < clamp_cast<usize>(n_threads); ++i) {
             if (m_handles[i].second == nullptr) {
                 m_handles[i].first = Handle{.mutex = &m_mutex, .file = file};
                 m_handles[i].second = tiff_client_init(&m_handles[i].first, "r");
@@ -797,12 +797,12 @@ namespace noa::io {
         tsize_t current_strip_size{};
 
         #pragma omp parallel for num_threads(n_threads) default(shared) private(buffer) firstprivate(current_strip_size)
-        for (i64 slice = start; slice < end; ++slice) {
+        for (isize slice = start; slice < end; ++slice) {
             #ifdef NOA_ENABLE_OPENMP
             // Check that OpenMP launched the correct number of threads, otherwise it's a segfault...
             const i32 tid = omp_get_thread_num();
             check(tid < n_threads);
-            auto tiff = static_cast<::TIFF*>(m_handles[static_cast<size_t>(tid)].second);
+            auto tiff = static_cast<::TIFF*>(m_handles[static_cast<usize>(tid)].second);
             #else
             auto tiff = static_cast<::TIFF*>(m_handles[0].second);
             #endif
@@ -811,14 +811,14 @@ namespace noa::io {
             // Allocate enough memory to store decoded strip.
             const tsize_t strip_size = ::TIFFStripSize(tiff);
             if (strip_size > current_strip_size) {
-                buffer = std::make_unique<Byte[]>(safe_cast<size_t>(strip_size));
+                buffer = std::make_unique<Byte[]>(safe_cast<usize>(strip_size));
                 current_strip_size = strip_size;
             }
 
-            i64 row_offset = 0;
+            isize row_offset = 0;
             for (tstrip_t strip = 0; strip < ::TIFFNumberOfStrips(tiff); ++strip) {
                 // TIFF-decode the strip.
-                const auto n_bytes = ::TIFFReadEncodedStrip(tiff, strip, buffer.get(), strip_size);
+                const isize n_bytes = ::TIFFReadEncodedStrip(tiff, strip, buffer.get(), strip_size);
                 check(n_bytes != -1,
                       "An error occurred while reading slice={}, strip={}. {}",
                       slice, strip, s_error_buffer);
@@ -859,7 +859,7 @@ namespace noa::io {
     void ImageFileEncoderTiff::encode(
         std::FILE* file,
         const Span<const T, 4>& input,
-        const Vec<i64, 2>& bd_offset,
+        const Vec<isize, 2>& bd_offset,
         bool clamp,
         i32 n_threads
     ) {
@@ -867,8 +867,8 @@ namespace noa::io {
         check(file == m_handles[0].first.file, "File stream mismatch");
 
         const auto [b, d, h, w] = input.shape();
-        const i64 start = bd_offset[0];
-        const i64 end = bd_offset[0] + b;
+        const isize start = bd_offset[0];
+        const isize end = bd_offset[0] + b;
 
         check(m_shape[1] == h and m_shape[2] == w,
               "Cannot write 2d slice(s) with shape={} from a file with 2d slice(s) with shape{}",
@@ -904,19 +904,19 @@ namespace noa::io {
 
         // Target 64KB per strip. Ensure strip is multiple of a line and if too many strips,
         // increase strip size (double or more).
-        const i64 n_bytes_per_row = m_shape[2] * m_dtype.n_bytes(1);
-        i64 n_rows_per_strip = divide_up(i64{65'536}, n_bytes_per_row);
-        i64 n_strips = divide_up(i64{m_shape[1]}, n_rows_per_strip);
+        const isize n_bytes_per_row = m_shape[2] * m_dtype.n_bytes(1);
+        isize n_rows_per_strip = divide_up(isize{65'536}, n_bytes_per_row);
+        isize n_strips = divide_up(isize{m_shape[1]}, n_rows_per_strip);
         if (n_strips > 4096) {
             n_rows_per_strip *= (1 + m_shape[1] / 4096);
-            n_strips = divide_up(n_rows_per_strip, i64{m_shape[1]});
+            n_strips = divide_up(n_rows_per_strip, isize{m_shape[1]});
         }
 
-        const i64 bytes_per_strip = n_rows_per_strip * n_bytes_per_row;
-        const auto buffer = std::make_unique<std::byte[]>(static_cast<size_t>(bytes_per_strip));
+        const isize bytes_per_strip = n_rows_per_strip * n_bytes_per_row;
+        const auto buffer = std::make_unique<std::byte[]>(static_cast<usize>(bytes_per_strip));
 
         auto tiff = static_cast<::TIFF*>(m_handles[0].second);
-        for (i64 slice = start; slice < end; ++slice) {
+        for (isize slice = start; slice < end; ++slice) {
             check(::TIFFSetField(tiff, TIFFTAG_IMAGEWIDTH, m_shape[2]));
             check(::TIFFSetField(tiff, TIFFTAG_IMAGELENGTH, m_shape[1]));
             check(::TIFFSetField(tiff, TIFFTAG_ROWSPERSTRIP, n_rows_per_strip));
@@ -927,7 +927,7 @@ namespace noa::io {
             #   pragma GCC diagnostic push
             #   pragma GCC diagnostic ignored "-Wdouble-promotion"
             #endif
-            if (not all(allclose(m_spacing, 0))) {
+            if (not allclose(m_spacing, 0)) {
                 check(::TIFFSetField(tiff, TIFFTAG_RESOLUTIONUNIT, RESUNIT_CENTIMETER));
                 check(::TIFFSetField(tiff, TIFFTAG_XRESOLUTION, 1.e8f / m_spacing[1]));
                 check(::TIFFSetField(tiff, TIFFTAG_YRESOLUTION, 1.e8f / m_spacing[0]));
@@ -955,7 +955,7 @@ namespace noa::io {
                       ::TIFFSetField(tiff, TIFFTAG_SMAXSAMPLEVALUE, m_minmax[1]));
             }
 
-            i64 irow{};
+            isize irow{};
             for (tstrip_t strip = 0; strip < n_strips; ++strip) {
                 io::encode(
                     input.subregion(slice, 0, ni::Slice{irow, irow + n_rows_per_strip}),
@@ -974,9 +974,9 @@ namespace noa::io {
         }
     }
 
-    #define NOA_ENCODERTIFF_(T)                                                                                         \
-    template void ImageFileEncoderTiff::encode<T>(std::FILE*, const Span<const T, 4>&, const Vec<i64, 2>&, bool, i32);  \
-    template void ImageFileEncoderTiff::decode<T>(std::FILE*, const Span<T, 4>&, const Vec<i64, 2>&, bool, i32)
+    #define NOA_ENCODERTIFF_(T)                                                                                             \
+    template void ImageFileEncoderTiff::encode<T>(std::FILE*, const Span<const T, 4>&, const Vec<isize, 2>&, bool, i32);    \
+    template void ImageFileEncoderTiff::decode<T>(std::FILE*, const Span<T, 4>&, const Vec<isize, 2>&, bool, i32)
 
     NOA_ENCODERTIFF_(i8);
     NOA_ENCODERTIFF_(u8);

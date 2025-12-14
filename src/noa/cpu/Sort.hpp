@@ -35,15 +35,15 @@ namespace noa::cpu::details::sort {
     // Maybe this could be nice in the main API? Probably too specialized.
     template<typename T>
     void iota_(
-        T* input, const Strides4<i64>& strides, const Shape4<i64>& shape,
-        const Shape4<i64>& tile, KeyValPair<u32, T>* output
+        T* input, const Strides4& strides, const Shape4& shape,
+        const Shape4& tile, KeyValPair<u32, T>* output
     ) {
         const auto tile_strides = tile.strides();
-        for (i64 i{}; i < shape[0]; ++i) {
-            for (i64 j{}; j < shape[1]; ++j) {
-                for (i64 k{}; k < shape[2]; ++k) {
-                    for (i64 l{}; l < shape[3]; ++l, ++output) {
-                        const i64 key = ni::offset_at(
+        for (isize i{}; i < shape[0]; ++i) {
+            for (isize j{}; j < shape[1]; ++j) {
+                for (isize k{}; k < shape[2]; ++k) {
+                    for (isize l{}; l < shape[3]; ++l, ++output) {
+                        const isize key = ni::offset_at(
                             tile_strides,
                             i % tile[0], j % tile[1],
                             k % tile[2], l % tile[3]);
@@ -60,16 +60,16 @@ namespace noa::cpu::details::sort {
     // This is like permute(), but working with the pair as input.
     template<typename T>
     void permute_(
-        const Pair<u32, T>* src, const Strides4<i64>& src_strides, const Shape4<i64>& src_shape,
-        T* dst, const Strides4<i64>& dst_strides, const Vec4<i64>& permutation
+        const Pair<u32, T>* src, const Strides4& src_strides, const Shape4& src_shape,
+        T* dst, const Strides4& dst_strides, const Vec<isize, 4>& permutation
     ) {
         const auto dst_shape = src_shape.reorder(permutation);
         const auto src_strides_permuted = src_strides.reorder(permutation);
 
-        for (i64 i{}; i < dst_shape[0]; ++i)
-            for (i64 j{}; j < dst_shape[1]; ++j)
-                for (i64 k{}; k < dst_shape[2]; ++k)
-                    for (i64 l{}; l < dst_shape[3]; ++l)
+        for (isize i{}; i < dst_shape[0]; ++i)
+            for (isize j{}; j < dst_shape[1]; ++j)
+                for (isize k{}; k < dst_shape[2]; ++k)
+                    for (isize l{}; l < dst_shape[3]; ++l)
                         dst[ni::offset_at(dst_strides, i, j, k, l)] =
                                 src[ni::offset_at(src_strides_permuted, i, j, k, l)].second;
     }
@@ -78,11 +78,11 @@ namespace noa::cpu::details::sort {
     // Works with non-contiguous strides. If row is non-contiguous, allocates one row.
     // If there's a lot of rows to sort, sort_batched_ may be faster at the cost of more memory allocated.
     template<typename T>
-    void sort_iterative_(T* values, const Strides4<i64>& strides, const Shape4<i64>& shape, i32 dim, bool ascending) {
+    void sort_iterative_(T* values, const Strides4& strides, const Shape4& shape, i32 dim, bool ascending) {
         NOA_ASSERT(strides[dim] > 0); // nothing to sort if dim is broadcast
 
-        Strides3<i64> shape_;
-        Strides3<i64> strides_;
+        Strides3 shape_;
+        Strides3 strides_;
         i32 count{};
         for (i32 i{}; i < 4; ++i) {
             if (i != dim) {
@@ -93,20 +93,20 @@ namespace noa::cpu::details::sort {
         }
 
         const bool dim_is_contiguous = strides[dim] == 1;
-        const i64 dim_size = shape[dim];
-        const i64 dim_stride = strides[dim];
+        const isize dim_size = shape[dim];
+        const isize dim_stride = strides[dim];
 
         const auto buffer = AllocatorHeap::allocate<T>(dim_is_contiguous ? 0 : dim_size);
-        for (i64 i{}; i < shape_[0]; ++i) {
-            for (i64 j{}; j < shape_[1]; ++j) {
-                for (i64 k{}; k < shape_[2]; ++k) {
+        for (isize i{}; i < shape_[0]; ++i) {
+            for (isize j{}; j < shape_[1]; ++j) {
+                for (isize k{}; k < shape_[2]; ++k) {
 
-                    const i64 offset = ni::offset_at(strides_, i, j, k);
+                    const isize offset = ni::offset_at(strides_, i, j, k);
                     T* values_ptr = values + offset;
 
                     // If row is strided, copy in buffer...
                     if (not dim_is_contiguous) {
-                        for (i64 l = 0; l < dim_size; ++l)
+                        for (isize l = 0; l < dim_size; ++l)
                             buffer.get()[l] = values_ptr[l * dim_stride];
                         values_ptr = buffer.get();
                     }
@@ -118,7 +118,7 @@ namespace noa::cpu::details::sort {
 
                     // ... and copy the sorted row back to the original array.
                     if (not dim_is_contiguous) {
-                        for (i64 l{}; l < dim_size; ++l, ++values_ptr)
+                        for (isize l{}; l < dim_size; ++l, ++values_ptr)
                             values[offset + l * dim_stride] = values_ptr[l];
                     }
                 }
@@ -130,11 +130,11 @@ namespace noa::cpu::details::sort {
     // The array can have non-contiguous strides in any dimension.
     // Basically allocates x2 the shape...
     template<typename T>
-    void sort_batched_(T* values, const Strides4<i64>& strides, const Shape4<i64>& shape, i32 dim, bool ascending) {
+    void sort_batched_(T* values, const Strides4& strides, const Shape4& shape, i32 dim, bool ascending) {
         using keypair_t = KeyValPair<u32, T>;
         auto tile = shape;
         tile[dim] = 1; // mark elements with their original axis.
-        std::vector<keypair_t> key_val(static_cast<size_t>(shape.n_elements()));
+        std::vector<keypair_t> key_val(static_cast<usize>(shape.n_elements()));
         iota_(values, strides, shape, tile, key_val.data());
 
         // Sort the entire array based on the values, but update the original indexes.
@@ -159,9 +159,9 @@ namespace noa::cpu::details::sort {
         // dim=2 -> {0,1,3,2} {1,2,3,0}
         // dim=1 -> {0,2,3,1} {2,3,0,1}
         // dim=0 -> {1,2,3,0} {3,0,1,2}
-        auto input_shape = Shape4<i64>::filled_with(shape[dim]);
-        auto permutation = Vec4<i64>::filled_with(3);
-        i64 count{};
+        auto input_shape = Shape4::filled_with(shape[dim]);
+        auto permutation = Vec<isize, 4>::filled_with(3);
+        isize count{};
         for (i32 i{}; i < 4; ++i) {
             if (i != dim) {
                 input_shape[count] = shape[i];
@@ -175,8 +175,8 @@ namespace noa::cpu::details::sort {
 
 namespace noa::cpu {
     template<typename T>
-    void sort(T* array, const Strides4<i64>& strides, const Shape4<i64>& shape, bool ascending, i32 dim) {
-        NOA_ASSERT(array and all(shape > 0));
+    void sort(T* array, const Strides4& strides, const Shape4& shape, bool ascending, i32 dim) {
+        NOA_ASSERT(array and shape > 0);
 
         // Allow dim = -1 to specify the first non-empty dimension in the rightmost order.
         if (dim == -1)

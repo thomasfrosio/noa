@@ -15,7 +15,7 @@ namespace noa::geometry {
     /// \note Supported symmetries:
     ///     - CX, with X being a non-zero positive number.
     /// TODO Add quaternions and more symmetries...
-    template<typename Real, size_t N>
+    template<typename Real, usize N>
     class Symmetry {
     public:
         using value_type = Real;
@@ -82,7 +82,7 @@ namespace noa::geometry {
         void validate_and_set_buffer_(const ArrayOption& options) {
             check(m_code.type == 'C' and m_code.order > 0, "{} symmetry is not supported", m_code.to_string());
 
-            i64 n_matrices = m_code.order - 1; // -1 to remove the identity from the matrices
+            isize n_matrices = m_code.order - 1; // -1 to remove the identity from the matrices
             if (options.device.is_cpu()) {
                 m_buffer = array_type(n_matrices, options);
                 details::set_cx_symmetry_matrices(m_buffer.span_1d_contiguous());
@@ -108,7 +108,7 @@ namespace noa::geometry::details {
     /// 3d or 4d iwise operator used to symmetrize 2d or 3d array(s).
     ///  * Can apply a per batch affine transformation before and after the symmetry.
     ///  * The symmetry is applied around a specified center.
-    template<size_t N,
+    template<usize N,
             nt::integer Index,
             nt::span_contiguous_nd<1> SymmetryMatrices,
             nt::interpolator_nd<N> Input,
@@ -203,10 +203,10 @@ namespace noa::geometry::details {
         NOA_NO_UNIQUE_ADDRESS batched_post_inverse_affine_type m_post_inverse_affine_matrices;
     };
 
-    template<typename T, size_t N>
+    template<typename T, usize N>
     concept symmetry_nd = nt::any_of<std::decay_t<T>, Symmetry<f32, N>, Symmetry<f64, N>>;
 
-    template<typename T, typename Coord, size_t N,
+    template<typename T, typename Coord, usize N,
              typename U = std::remove_reference_t<T>,
              typename V = nt::value_type_t<T>,
              typename C = nt::value_type_t<V>>
@@ -218,13 +218,13 @@ namespace noa::geometry::details {
             (nt::varray<U> and (nt::mat_of_shape<V, N, N + 1> or nt::mat_of_shape<V, N + 1, N + 1>))
          ));
 
-    template<typename Input, typename Output, typename Coord, size_t N>
+    template<typename Input, typename Output, typename Coord, usize N>
     void check_parameters_symmetrize_nd(const Input& input, const Output& output, const Symmetry<Coord, N>& symmetry) {
         check(not input.is_empty() and not output.is_empty() and not symmetry.is_empty(), "Empty array detected");
         check(N == 3 or (input.shape()[1] == 1 and output.shape()[1] == 1),
               "The input and output arrays should be 2d, but got input:shape={}, output:shape={}",
               input.shape(), output.shape());
-        check(all(input.shape() == output.shape()),
+        check(input.shape() == output.shape(),
               "The input and output shapes are not compatible, got input:shape={}, output:shape={}",
               input.shape(), output.shape());
 
@@ -250,7 +250,7 @@ namespace noa::geometry::details {
         }
     }
 
-    template<size_t N, typename Index, bool IS_GPU = false,
+    template<usize N, typename Index, bool IS_GPU = false,
              typename Input, typename Output, typename Symmetry, typename PreMatrix, typename PostMatrix>
     void launch_symmetrize_nd(
         Input&& input, Output&& output, Symmetry&& symmetry,
@@ -275,7 +275,7 @@ namespace noa::geometry::details {
         // Set the default symmetry center to the input center (assuming center is n//2).
         using coord_t = nt::value_type_t<Symmetry>;
         auto input_shape_nd = input.shape().template filter_nd<N>().pop_front().template as<Index>();
-        for (size_t i{}; auto& center: options.symmetry_center)
+        for (usize i{}; auto& center: options.symmetry_center)
             if (center == std::numeric_limits<f64>::max())
                 center = static_cast<f64>(input_shape_nd[i++] / 2);
 
@@ -321,7 +321,7 @@ namespace noa::geometry::details {
 }
 
 namespace noa::geometry {
-    template<size_t N>
+    template<usize N>
     struct SymmetrizeOptions {
         /// (D)HW coordinates of the symmetry center.
         /// By default, use the input center, defined as `shape//2` (integer division).
@@ -376,7 +376,7 @@ namespace noa::geometry {
             } else {
                 check(nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
                       nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
-                      "i64 indexing not instantiated for GPU devices");
+                      "isize indexing not instantiated for GPU devices");
                 details::launch_symmetrize_nd<2, i32, true>(
                     std::forward<Input>(input), std::forward<Output>(output),
                     std::forward<Symmetry>(symmetry),
@@ -389,7 +389,7 @@ namespace noa::geometry {
             panic_no_gpu_backend();
             #endif
         }
-        details::launch_symmetrize_nd<2, i64>(
+        details::launch_symmetrize_nd<2, isize>(
             std::forward<Input>(input), std::forward<Output>(output),
             std::forward<Symmetry>(symmetry),
             std::forward<PreMatrix>(pre_inverse_matrices),
@@ -437,7 +437,7 @@ namespace noa::geometry {
             } else {
                 check(nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
                       nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
-                      "i64 indexing not instantiated for GPU devices");
+                      "isize indexing not instantiated for GPU devices");
                 details::launch_symmetrize_nd<3, i32, true>(
                     std::forward<Input>(input), std::forward<Output>(output),
                     std::forward<Symmetry>(symmetry),
@@ -450,7 +450,7 @@ namespace noa::geometry {
             panic_no_gpu_backend();
             #endif
         }
-        details::launch_symmetrize_nd<3, i64>(
+        details::launch_symmetrize_nd<3, isize>(
             std::forward<Input>(input), std::forward<Output>(output),
             std::forward<Symmetry>(symmetry),
             std::forward<PreMatrix>(pre_inverse_matrices),

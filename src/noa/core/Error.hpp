@@ -24,7 +24,7 @@ namespace noa {
         /// \code
         /// std::vector<std::string> backtrace_vector = noa::Exception::backtrace();
         /// std::string backtrace_message;
-        /// for (i64 i{}; auto& message: backtrace_vector)
+        /// for (usize i{}; auto& message: backtrace_vector)
         ///     backtrace_message += fmt::format("[{}]: {}\n", i++, message);
         /// \endcode
         [[nodiscard]] static auto backtrace() noexcept -> std::vector<std::string> {

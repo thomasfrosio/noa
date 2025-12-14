@@ -197,18 +197,18 @@ namespace noa::cpu {
         using enum Mode;
 
         struct Core {
-            Core(bool async, i64 thread_limit) : worker(async), omp_thread_limit(thread_limit) {}
+            Core(bool async, i32 thread_limit) : worker(async), omp_thread_limit(thread_limit) {}
 
             details::DispatchQueue worker;
 
             // Number of "internal" threads that OpenMP is allowed to use.
             // This has nothing to do with the number of workers (there's only one worker).
-            i64 omp_thread_limit;
+            i32 omp_thread_limit;
         };
 
     public:
         // Creates a stream.
-        explicit Stream(Mode mode = SYNC, i64 omp_thread_limit = 1) :
+        explicit Stream(Mode mode = SYNC, i32 omp_thread_limit = 1) :
             m_core(std::make_shared<Core>(mode == ASYNC, omp_thread_limit)) {}
 
     public:
@@ -245,12 +245,12 @@ namespace noa::cpu {
         }
 
         // Sets the number of internal threads that enqueued functions are allowed to use.
-        void set_thread_limit(i64 n_threads) const noexcept {
+        void set_thread_limit(i32 n_threads) const noexcept {
             m_core->omp_thread_limit = n_threads ? n_threads : 1;
         }
 
         // Returns the number of internal threads that enqueued functions are allowed to use.
-        [[nodiscard]] i64 thread_limit() const noexcept {
+        [[nodiscard]] auto thread_limit() const noexcept -> i32 {
             return m_core->omp_thread_limit;
         }
 

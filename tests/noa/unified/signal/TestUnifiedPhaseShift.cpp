@@ -22,8 +22,8 @@ TEST_CASE("unified::signal::phase_shift_2d()", "[asset]") {
     for (size_t i = 0; i < params.size(); i++) {
         const YAML::Node& param = params[i];
         INFO("test=" << i);
-        const auto shape = param["shape"].as<Shape4<i64>>();
-        const auto shift = param["shift"].as<Vec2<f32>>();
+        const auto shape = param["shape"].as<Shape4>();
+        const auto shift = param["shift"].as<Vec<f32, 2>>();
         const auto path_output = path_base / param["output"].as<Path>(); // these are non-redundant non-centered
         const auto path_input = path_base / param["input"].as<Path>();
 
@@ -54,7 +54,7 @@ TEMPLATE_TEST_CASE("unified::signal::phase_shift_2d(), remap", "", c32, c64) {
     const f64 cutoff = 0.5;
 
     using real_t = noa::traits::value_type_t<TestType>;
-    auto shifts = noa::empty<Vec2<real_t>>(shape[0]);
+    auto shifts = noa::empty<Vec<real_t, 2>>(shape[0]);
     for (auto& e: shifts.span_1d())
         e = shift.as<real_t>();
 
@@ -99,7 +99,7 @@ TEMPLATE_TEST_CASE("unified::signal::phase_shift_2d(), batch", "", c32, c64) {
     const auto shape = test::random_shape_batched(2);
 
     using real_t = noa::traits::value_type_t<TestType>;
-    auto shifts = noa::empty<Vec2<real_t>>(shape[0]);
+    auto shifts = noa::empty<Vec<real_t, 2>>(shape[0]);
     auto randomizer = test::Randomizer<real_t>(-30, 30);
     for (auto& e: shifts.span_1d())
         e = {randomizer.get(), randomizer.get()};
@@ -137,8 +137,8 @@ TEST_CASE("unified::signal::phase_shift_3d()", "[asset]") {
 
     for (size_t i = 0; i < params.size(); i++) {
         const YAML::Node& param = params[i];
-        const auto shape = param["shape"].as<Shape4<i64>>();
-        const auto shift = param["shift"].as<Vec3<f32>>();
+        const auto shape = param["shape"].as<Shape4>();
+        const auto shift = param["shift"].as<Vec<f32, 3>>();
         const auto path_output = path_base / param["output"].as<Path>(); // these are non-redundant non-centered
         const auto path_input = path_base / param["input"].as<Path>();
 
@@ -169,7 +169,7 @@ TEMPLATE_TEST_CASE("unified::signal::phase_shift_3d(), remap", "", c32, c64) {
     const f64 cutoff = 0.5;
 
     using real_t = noa::traits::value_type_t<TestType>;
-    auto shifts = noa::empty<Vec3<real_t>>(shape[0]);
+    auto shifts = noa::empty<Vec<real_t, 3>>(shape[0]);
     for (auto& e: shifts.span_1d())
         e = shift.as<real_t>();
 
@@ -212,7 +212,7 @@ TEMPLATE_TEST_CASE("unified::signal::phase_shift_3d(), batch", "", c32, c64) {
     const auto shape = test::random_shape_batched(3);
 
     using real_t = noa::traits::value_type_t<TestType>;
-    auto shifts = noa::empty<Vec3<real_t>>(shape[0]);
+    auto shifts = noa::empty<Vec<real_t, 3>>(shape[0]);
     auto randomizer = test::Randomizer<real_t>(-30, 30);
     for (auto& e: shifts.span_1d())
         e = {randomizer.get(), randomizer.get(), randomizer.get()};

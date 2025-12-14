@@ -24,7 +24,7 @@ TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
     if constexpr (COMPUTE_ASSETS) {
         const auto asset = tests["volumes"][0];
         const auto volume_filename = path / asset["filename"].as<Path>();
-        const auto volume_shape = asset["shape"].as<Shape4<i64>>();
+        const auto volume_shape = asset["shape"].as<Shape4>();
 
         const auto insert_inv_rotation_matrices = noa::empty<Mat33<f32>>(36);
         for (i64 i{}; auto& matrix: insert_inv_rotation_matrices.span_1d()) {
@@ -33,7 +33,7 @@ TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
                 {.axes = "xyz", .intrinsic = false}
             ).transpose();
         }
-        const auto insert_slice_shape = Shape4<i64>{36, 1, volume_shape[2], volume_shape[3]};
+        const auto insert_slice_shape = Shape4{36, 1, volume_shape[2], volume_shape[3]};
         const Array volume_fft = noa::empty<f32>(volume_shape.rfft());
 
         const Array slice_fft = noa::linspace(insert_slice_shape.rfft(), noa::Linspace{1.f, 20.f});
@@ -46,10 +46,10 @@ TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
     if constexpr (COMPUTE_ASSETS) {
         const auto asset_0 = tests["volumes"][1];
         const auto volume_filename = path / asset_0["filename"].as<Path>();
-        const auto volume_shape = asset_0["shape"].as<Shape4<i64>>();
+        const auto volume_shape = asset_0["shape"].as<Shape4>();
         const auto volume_fft = noa::empty<f32>(volume_shape.rfft());
 
-        const auto slice_shape = Shape4<i64>{1, 1, volume_shape[2], volume_shape[3]};
+        const auto slice_shape = Shape4{1, 1, volume_shape[2], volume_shape[3]};
         const auto slice_fft = noa::linspace(slice_shape.rfft(), noa::Linspace{1.f, 20.f});
         ng::insert_central_slices_3d<"hc2hc">(
             slice_fft, {}, slice_shape, volume_fft, {}, volume_shape,
@@ -66,22 +66,22 @@ TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
         const YAML::Node& parameters = tests["tests"][nb];
 
         const auto volume_filename = path / parameters["volume_filename"].as<Path>();
-        const auto volume_shape = parameters["volume_shape"].as<Shape4<i64>>();
+        const auto volume_shape = parameters["volume_shape"].as<Shape4>();
 
         const auto slice_filename = path / parameters["slice_filename"].as<Path>();
-        const auto slice_shape = parameters["slice_shape"].as<Shape4<i64>>();
-        const auto slice_scale = Vec2<f32>::from_value(parameters["slice_scale"].as<f32>());
+        const auto slice_shape = parameters["slice_shape"].as<Shape4>();
+        const auto slice_scale = Vec<f32, 2>::from_value(parameters["slice_scale"].as<f32>());
         const auto slice_rotate = parameters["slice_rotate"].as<std::vector<f32>>();
 
         const auto fftfreq_cutoff = parameters["fftfreq_cutoff"].as<f64>();
         const auto fftfreq_z_sinc = parameters["fftfreq_z_sinc"].as<f64>();
         const auto fftfreq_z_blackman = parameters["fftfreq_z_blackman"].as<f64>();
-        const auto ews_radius = Vec2<f64>::from_value(parameters["ews_radius"].as<f64>());
+        const auto ews_radius = Vec<f64, 2>::from_value(parameters["ews_radius"].as<f64>());
 
         const Mat22<f32> inv_scaling_matrix = ng::scale(1 / slice_scale);
-        auto fwd_rotation_matrices = noa::empty<Mat33<f32>>(static_cast<i64>(slice_rotate.size()));
+        auto fwd_rotation_matrices = noa::empty<Mat33<f32>>(std::ssize(slice_rotate));
         for (size_t i{}; auto& matrix: fwd_rotation_matrices.span_1d())
-            matrix = ng::euler2matrix(noa::deg2rad(Vec3<f32>{0.f, slice_rotate[i++], 0.f}), {.axes = "zyx"});
+            matrix = ng::euler2matrix(noa::deg2rad(Vec<f32, 3>{0.f, slice_rotate[i++], 0.f}), {.axes = "zyx"});
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device);
@@ -119,8 +119,8 @@ TEMPLATE_TEST_CASE("unified::geometry::extract_central_slices_3d, using texture 
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    constexpr auto slice_shape = Shape4<i64>{20, 1, 128, 128};
-    constexpr auto grid_shape = Shape4<i64>{1, 128, 128, 128};
+    constexpr auto slice_shape = Shape4{20, 1, 128, 128};
+    constexpr auto grid_shape = Shape4{1, 128, 128, 128};
 
     Array fwd_rotation_matrices = noa::empty<Mat33<f32>>(slice_shape[0]);
     for (i64 i{}; auto& fwd_rotation_matrix: fwd_rotation_matrices.span_1d())

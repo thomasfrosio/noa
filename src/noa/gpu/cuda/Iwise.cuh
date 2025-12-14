@@ -84,18 +84,18 @@ namespace noa::cuda::details {
 }
 
 namespace noa::cuda {
-    template<size_t N>
+    template<usize N>
     using IwiseConfig = std::conditional_t<
         N == 1,
         StaticBlock<Constant::WARP_SIZE * 8, 1, 1>,
         StaticBlock<Constant::WARP_SIZE, 256 / Constant::WARP_SIZE, 1>>;
 
-    template<size_t N, typename Config = IwiseConfig<N>, typename Index, typename Op>
+    template<usize N, typename Config = IwiseConfig<N>, typename Index, typename Op>
     NOA_NOINLINE void iwise(
         const Shape<Index, N>& shape,
         Op&& op,
         Stream& stream,
-        size_t n_bytes_of_shared_memory = 0
+        usize n_bytes_of_shared_memory = 0
     ) {
         static_assert(N >= Config::ndim);
         using Block = Config;

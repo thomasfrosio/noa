@@ -108,7 +108,7 @@ namespace noa::io {
                 return buffer;
 
             try {
-                buffer.resize(static_cast<size_t>(size));
+                buffer.resize(static_cast<usize>(size));
             } catch (std::length_error& e) {
                 panic("{}. Passed the maximum permitted size while try to load file. Got {} bytes",
                       m_path, static_cast<std::streamoff>(size));
@@ -120,12 +120,12 @@ namespace noa::io {
             return buffer;
         }
 
-        [[nodiscard]] auto ssize() -> i64 {
+        [[nodiscard]] auto ssize() -> isize {
             m_fstream.flush();
             return noa::io::file_size(m_path);
         }
-        [[nodiscard]] auto size() -> u64 {
-            return static_cast<u64>(ssize());
+        [[nodiscard]] auto size() -> usize {
+            return static_cast<usize>(ssize());
         }
 
         [[nodiscard]] auto path() const noexcept -> const Path& { return m_path; }

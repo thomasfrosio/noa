@@ -35,8 +35,8 @@ TEST_CASE("unified::geometry::sphere(), 2d", "[asset]") {
 
         const YAML::Node& test = tests[nb];
         const auto invert = test["invert"].as<bool>();
-        const auto shape = test["shape"].as<Shape4<i64>>();
-        const auto center = test["center"].as<Vec2<f64>>();
+        const auto shape = test["shape"].as<Shape4>();
+        const auto center = test["center"].as<Vec<f64, 2>>();
         const auto radius = test["radius"].as<f64>();
         const auto taper = test["taper"].as<f64>();
         const auto cvalue = test["cvalue"].as<f64>();
@@ -64,7 +64,7 @@ TEST_CASE("unified::geometry::sphere(), 2d", "[asset]") {
             INFO(device);
 
             const auto asset = noa::read_image<f32>(filename_expected, {}, option).data;
-            if (noa::any(asset.shape() != shape))
+            if (asset.shape() != shape)
                 FAIL("asset shape is not correct");
 
             // Save shape into the output.
@@ -101,9 +101,9 @@ TEST_CASE("unified::geometry::rectangle(), 2d", "[asset]") {
 
         const YAML::Node& test = tests[nb];
         const auto invert = test["invert"].as<bool>();
-        const auto shape = test["shape"].as<Shape4<i64>>();
-        const auto center = test["center"].as<Vec2<f64>>();
-        const auto radius = test["radius"].as<Vec2<f64>>();
+        const auto shape = test["shape"].as<Shape4>();
+        const auto center = test["center"].as<Vec<f64, 2>>();
+        const auto radius = test["radius"].as<Vec<f64, 2>>();
         const auto taper = test["taper"].as<f64>();
         const auto inv_matrix = noa::geometry::rotate(noa::deg2rad(-test["angle"].as<f64>()));
         const auto cvalue = test["cvalue"].as<f64>();
@@ -129,7 +129,7 @@ TEST_CASE("unified::geometry::rectangle(), 2d", "[asset]") {
         for (auto device: devices) {
             const auto option = ArrayOption(device, Allocator::MANAGED);
             const auto asset = noa::read_image<f32>(filename_expected, {}, option).data;
-            if (noa::any(asset.shape() != shape))
+            if (asset.shape() != shape)
                 FAIL("asset shape is not correct");
 
             // Save shape into the output.
@@ -166,9 +166,9 @@ TEST_CASE("unified::geometry::ellipse(), 2d", "[asset]") {
 
         const YAML::Node& test = tests[nb];
         const auto invert = test["invert"].as<bool>();
-        const auto shape = test["shape"].as<Shape4<i64>>();
-        const auto center = test["center"].as<Vec2<f64>>();
-        const auto radius = test["radius"].as<Vec2<f64>>();
+        const auto shape = test["shape"].as<Shape4>();
+        const auto center = test["center"].as<Vec<f64, 2>>();
+        const auto radius = test["radius"].as<Vec<f64, 2>>();
         const auto taper = test["taper"].as<f64>();
         const auto inv_matrix = noa::geometry::rotate(noa::deg2rad(-test["angle"].as<f64>()));
         const auto cvalue = test["cvalue"].as<f64>();
@@ -194,7 +194,7 @@ TEST_CASE("unified::geometry::ellipse(), 2d", "[asset]") {
         for (auto device: devices) {
             const auto option = ArrayOption(device, Allocator::MANAGED);
             const auto asset = noa::read_image<f32>(filename_expected, {}, option).data;
-            if (noa::any(asset.shape() != shape))
+            if (asset.shape() != shape)
                 FAIL("asset shape is not correct");
 
             // Save shape into the output.
@@ -231,8 +231,8 @@ TEST_CASE("unified::geometry::sphere, 3d", "[asset]") {
 
         const YAML::Node& test = tests[nb];
         const auto invert = test["invert"].as<bool>();
-        const auto shape = test["shape"].as<Shape4<i64>>();
-        const auto center = test["center"].as<Vec3<f64>>();
+        const auto shape = test["shape"].as<Shape4>();
+        const auto center = test["center"].as<Vec<f64, 3>>();
         const auto radius = test["radius"].as<f64>();
         const auto taper = test["taper"].as<f64>();
         const auto cvalue = test["cvalue"].as<f64>();
@@ -258,7 +258,7 @@ TEST_CASE("unified::geometry::sphere, 3d", "[asset]") {
         for (auto device: devices) {
             const auto option = ArrayOption(device, Allocator::MANAGED);
             const auto asset = noa::read_image<f32>(filename_expected, {}, option).data;
-            if (noa::any(asset.shape() != shape))
+            if (asset.shape() != shape)
                 FAIL("asset shape is not correct");
 
             // Save shape into the output.
@@ -295,9 +295,9 @@ TEST_CASE("unified::geometry::rectangle, 3d", "[asset]") {
 
         const YAML::Node& test = tests[nb];
         const auto invert = test["invert"].as<bool>();
-        const auto shape = test["shape"].as<Shape4<i64>>();
-        const auto center = test["center"].as<Vec3<f64>>();
-        const auto radius = test["radius"].as<Vec3<f64>>();
+        const auto shape = test["shape"].as<Shape4>();
+        const auto center = test["center"].as<Vec<f64, 3>>();
+        const auto radius = test["radius"].as<Vec<f64, 3>>();
         const auto taper = test["taper"].as<f64>();
         const auto inv_matrix = noa::geometry::rotate_y(-noa::deg2rad(test["tilt"].as<f64>()));
         const auto cvalue = test["cvalue"].as<f64>();
@@ -323,7 +323,7 @@ TEST_CASE("unified::geometry::rectangle, 3d", "[asset]") {
         for (auto device: devices) {
             const auto option = ArrayOption(device, Allocator::MANAGED);
             const auto asset = noa::read_image<f32>(filename_expected, {}, option).data;
-            if (any(asset.shape() != shape))
+            if (asset.shape() != shape)
                 FAIL("asset shape is not correct");
 
             // Save shape into the output.
@@ -360,9 +360,9 @@ TEST_CASE("unified::geometry::ellipse, 3d", "[asset]") {
 
         const YAML::Node& test = tests[nb];
         const auto invert = test["invert"].as<bool>();
-        const auto shape = test["shape"].as<Shape4<i64>>();
-        const auto center = test["center"].as<Vec3<f64>>();
-        const auto radius = test["radius"].as<Vec3<f64>>();
+        const auto shape = test["shape"].as<Shape4>();
+        const auto center = test["center"].as<Vec<f64, 3>>();
+        const auto radius = test["radius"].as<Vec<f64, 3>>();
         const auto taper = test["taper"].as<f64>();
         const auto inv_matrix = noa::geometry::rotate_y(-noa::deg2rad(test["tilt"].as<f64>()));
         const auto cvalue = test["cvalue"].as<f64>();
@@ -388,7 +388,7 @@ TEST_CASE("unified::geometry::ellipse, 3d", "[asset]") {
         for (auto device: devices) {
             const auto option = ArrayOption(device, Allocator::MANAGED);
             const auto asset = noa::read_image<f32>(filename_expected, {}, option).data;
-            if (noa::any(asset.shape() != shape))
+            if (asset.shape() != shape)
                 FAIL("asset shape is not correct");
 
             // Save shape into the output.
@@ -425,8 +425,8 @@ TEST_CASE("unified::geometry::cylinder", "[asset]") {
 
         const YAML::Node& test = tests[nb];
         const auto invert = test["invert"].as<bool>();
-        const auto shape = test["shape"].as<Shape4<i64>>();
-        const auto center = test["center"].as<Vec3<f64>>();
+        const auto shape = test["shape"].as<Shape4>();
+        const auto center = test["center"].as<Vec<f64, 3>>();
         const auto radius = test["radius"].as<f64>();
         const auto length = test["length"].as<f64>();
         const auto taper = test["taper"].as<f64>();
@@ -456,7 +456,7 @@ TEST_CASE("unified::geometry::cylinder", "[asset]") {
             INFO(device);
             const auto option = ArrayOption(device, Allocator::MANAGED);
             const auto asset = noa::read_image<f32>(filename_expected, {}, option).data;
-            if (noa::any(asset.shape() != shape))
+            if (asset.shape() != shape)
                 FAIL("asset shape is not correct");
 
             // Save shape into the output.
@@ -679,7 +679,7 @@ TEMPLATE_TEST_CASE("unified::geometry::ellipse, 3d affine", "", f32, f64, c32, c
 }
 
 TEST_CASE("unified::geometry::shapes, 2d batched") {
-    constexpr auto shape = Shape4<i64>{10, 1, 124, 115};
+    constexpr auto shape = Shape4{10, 1, 124, 115};
     constexpr auto center = shape.filter(2, 3).vec.as<f64>() / 2;
     constexpr auto radius = Vec{42., 12.};
     constexpr auto smoothness = 10.;
@@ -726,7 +726,7 @@ TEST_CASE("unified::geometry::shapes, 2d batched") {
 }
 
 TEST_CASE("unified::geometry::shapes, 3d batched") {
-    constexpr auto shape = Shape4<i64>{4, 55, 65, 58};
+    constexpr auto shape = Shape4{4, 55, 65, 58};
     constexpr auto center = shape.filter(1, 2, 3).vec.as<f64>() / 2;
     constexpr auto radius = Vec{9., 21., 8.};
     constexpr auto smoothness = 10.;

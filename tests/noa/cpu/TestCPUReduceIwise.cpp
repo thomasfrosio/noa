@@ -16,16 +16,16 @@ TEST_CASE("cpu::reduce_iwise") {
     using noa::cpu::reduce_iwise;
 
     AND_THEN("simple 1d") {
-        const auto shape = Shape1<i64>{100};
+        const auto shape = Shape<i64, 1>{100};
         const auto elements = shape.n_elements();
 
         const auto buffer = std::make_unique<f32[]>(static_cast<size_t>(elements));
         std::fill_n(buffer.get(), elements, 1);
         auto reduced = noa::make_tuple(AccessorValue<f64>(0.));
         auto output0 = noa::make_tuple(AccessorValue<Pair<i32, i32>>({0, 0}));
-        auto output1 = noa::make_tuple(AccessorContiguousI64<Pair<i32, i32>, 1>(output0[Tag<0>{}].get()));
+        auto output1 = noa::make_tuple(AccessorContiguous<Pair<i32, i32>, 1, i64>(output0[Tag<0>{}].get()));
 
-        using accessor_t = AccessorContiguousI64<const f32, 1>;
+        using accessor_t = AccessorContiguous<const f32, 1, i64>;
         struct reduce_op_t {
             accessor_t accessor;
             Tracked tracked{};

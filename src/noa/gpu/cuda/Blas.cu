@@ -30,7 +30,7 @@ namespace {
     };
 
     std::unique_ptr<CuBlasHandle>& cublas_cache_handle_(noa::cuda::Device device) {
-        constexpr size_t MAX_DEVICES = 16;
+        constexpr usize MAX_DEVICES = 16;
         thread_local std::unique_ptr<CuBlasHandle> g_cache[MAX_DEVICES];
 
         auto& cache = g_cache[device.id()];
@@ -42,7 +42,7 @@ namespace {
     template<typename T>
     void cublas_gemm_(
         bool is_column_major, bool lhs_transpose, bool rhs_transpose,
-        Shape3<int> mnk, Vec3<i32> labc, Vec3<i64> sabc, int batches, T alpha, T beta,
+        Shape<int, 3> mnk, Vec<i32, 3> labc, Vec<isize, 3> sabc, int batches, T alpha, T beta,
         const T* lhs, const T* rhs, T* output, noa::cuda::Stream& stream
     ) {
         // OpenBlas GEMM is slower than its DOT function, so we check for this condition and
@@ -106,10 +106,10 @@ namespace noa::cuda {
 
     template<typename T>
     void matmul(
-        const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-        const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+        const T* lhs, const Strides4& lhs_strides, const Shape4& lhs_shape,
+        const T* rhs, const Strides4& rhs_strides, const Shape4& rhs_shape,
         T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
-        T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
+        T* output, const Strides4& output_strides, const Shape4& output_shape,
         Stream& stream
     ) {
         auto [mnk, secondmost_strides, are_column_major] = ni::extract_matmul_layout(
@@ -117,7 +117,7 @@ namespace noa::cuda {
             lhs_transpose, rhs_transpose);
 
         const auto labc = secondmost_strides.vec.as_safe<i32>();
-        const auto sabc = Vec3<i64>{lhs_strides[0], rhs_strides[0], output_strides[0]};
+        const auto sabc = Vec<isize, 3>{lhs_strides[0], rhs_strides[0], output_strides[0]};
 
         cublas_gemm_(are_column_major, lhs_transpose, rhs_transpose,
                      mnk.as_safe<i32>(), labc, sabc, static_cast<i32>(output_shape[0]), alpha, beta,
@@ -126,10 +126,10 @@ namespace noa::cuda {
 
     #define NOA_INSTANTIATE_MATMUL_(T)                          \
     template void matmul<T>(                                    \
-        const T*, const Strides4<i64>&, const Shape4<i64>&,     \
-        const T*, const Strides4<i64>&, const Shape4<i64>&,     \
+        const T*, const Strides4&, const Shape4&, \
+        const T*, const Strides4&, const Shape4&, \
         T, T, bool, bool,                                       \
-        T*, const Strides4<i64>&, const Shape4<i64>&,           \
+        T*, const Strides4&, const Shape4&,       \
         Stream&)
 
     NOA_INSTANTIATE_MATMUL_(f32);

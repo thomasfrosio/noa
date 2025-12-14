@@ -127,7 +127,7 @@ namespace noa::cuda::details {
 
         for (Index row = initial_row; row < n_rows; row += n_rows_per_grid) { // for every row (within a batch)
             // If there batched are fused (gridDim.y==0), bdh[0] is always 0.
-            Vec3<Index> bdh = ni::offset2index(row, shape_dhw[0], shape_dhw[1]);
+            Vec<Index, 3> bdh = ni::offset2index(row, shape_dhw[0], shape_dhw[1]);
 
             for (Index cid = 0; cid < shape_dhw[2]; cid += Block::block_work_size_x) { // consume the row
                 input_1d.for_each_enumerate([&input, &bdh, &cid]<size_t I>(auto& accessor_1d) {
@@ -390,7 +390,7 @@ namespace noa::cuda::details {
         return joined.map([&]<typename A>(A& accessor) {
             const u32 pitch = next_multiple_of(n_blocks_x, max_vector_size);
             auto buffer = AllocatorDevice::allocate_async<typename A::value_type>(pitch * n_blocks_y, stream);
-            accessor = A(buffer.get(), Strides2<typename A::index_type>{pitch, 1});
+            accessor = A(buffer.get(), Strides<typename A::index_type, 2>{pitch, 1});
             return buffer;
         });
     }
@@ -709,11 +709,11 @@ namespace noa::cuda {
         Output&& output,
         Stream& stream
     ) {
-        const auto n_elements = safe_cast<Index>(shape.template as_safe<i64>().n_elements());
+        const auto n_elements = safe_cast<Index>(shape.template as_safe<isize>().n_elements());
         const Vec<bool, 4> is_contiguous = ni::is_contiguous(input, shape);
 
         constexpr auto SMALL_THRESHOLD = Config::block_work_size * 4;
-        if (all(is_contiguous.pop_back())) {
+        if (is_contiguous.pop_back() == true) {
             if (n_elements <= SMALL_THRESHOLD) {
                 details::launch_reduce_ewise_small_2d<Config>(
                     std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),

@@ -125,13 +125,13 @@ namespace noa::traits {
     NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE(real_or_complex);
     #undef NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE
 
-    template<typename T, size_t N, typename U = std::remove_reference_t<T>, typename V = value_type_t<T>>
+    template<typename T, usize N, typename U = std::remove_reference_t<T>, typename V = value_type_t<T>>
     concept transform_affine_nd =
         mat_of_shape<U, N, N + 1> or
         mat_of_shape<U, N + 1, N + 1> or
         (nt::varray<U> and (mat_of_shape<V, N, N + 1> or mat_of_shape<V, N + 1, N + 1>));
 
-    template<typename T, size_t N, typename U = std::remove_reference_t<T>, typename V = value_type_t<T>>
+    template<typename T, usize N, typename U = std::remove_reference_t<T>, typename V = value_type_t<T>>
     concept transform_projection_nd =
         mat_of_shape<U, N - 1, N + 1> or
         mat_of_shape<U, N + 1, N + 1> or

@@ -39,7 +39,7 @@ namespace noa::details {
 
         template<typename... U> requires (sizeof...(U) == sizeof...(T))
         constexpr bool operator==(const ZipIterator<U...>& other) const {
-            return [&]<size_t... I>(std::index_sequence<I...>) {
+            return [&]<usize... I>(std::index_sequence<I...>) {
                 return ((m_iterators[Tag<I>{}] == other.m_iterators[Tag<I>{}]) or ...);
             }(std::make_index_sequence<sizeof...(T)>{});
         }

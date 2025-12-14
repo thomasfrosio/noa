@@ -17,10 +17,10 @@ namespace noa::inline types {
         bool height{};
         bool width{};
 
-        ReduceAxes& reduce_batch(bool flag) { batch = flag; return *this; }
-        ReduceAxes& reduce_depth(bool flag) { depth = flag; return *this; }
-        ReduceAxes& reduce_height(bool flag) { height = flag; return *this; }
-        ReduceAxes& reduce_width(bool flag) { width = flag; return *this; }
+        constexpr auto reduce_batch(bool flag) -> ReduceAxes& { batch = flag; return *this; }
+        constexpr auto reduce_depth(bool flag) -> ReduceAxes& { depth = flag; return *this; }
+        constexpr auto reduce_height(bool flag) -> ReduceAxes& { height = flag; return *this; }
+        constexpr auto reduce_width(bool flag) -> ReduceAxes& { width = flag; return *this; }
 
         constexpr auto operator[](nt::integer auto i) const -> const bool& {
             ni::bounds_check<true>(4, i);
@@ -43,33 +43,33 @@ namespace noa::inline types {
             }
         }
 
-        static constexpr ReduceAxes all() {
+        static constexpr auto all() -> ReduceAxes {
             return {true, true, true, true};
         }
 
-        static constexpr ReduceAxes all_but(nt::integer auto i) {
+        static constexpr auto all_but(nt::integer auto i) -> ReduceAxes {
             auto out = all();
             out[i] = false;
             return out;
         }
 
-        template<size_t N> requires (1 <= N and N <= 4)
-        static constexpr ReduceAxes from_vec(const Vec<bool, N>& reduce_axes) {
+        template<usize N> requires (1 <= N and N <= 4)
+        static constexpr auto from_vec(const Vec<bool, N>& reduce_axes) -> ReduceAxes {
             ReduceAxes axes{};
-            for (size_t i{}; i < N; ++i)
+            for (usize i{}; i < N; ++i)
                 axes[4 - N + i] = reduce_axes[i];
             return axes;
         }
 
-        template<size_t N>
-        static constexpr ReduceAxes from_shape(const Shape<i64, N>& output_shape) {
-            return from_vec(output_shape == 1);
+        template<usize N>
+        static constexpr auto from_shape(const Shape<isize, N>& output_shape) -> ReduceAxes {
+            return from_vec(output_shape.cmp_eq(1));
         }
 
-        template<typename T, size_t N>
+        template<typename T, usize N>
         constexpr auto to_reduced_shape(const Shape<T, N>& input_shape) {
             Shape<T, N> output_shape;
-            for (size_t i{}; i < N; ++i)
+            for (usize i{}; i < N; ++i)
                 output_shape[i] = (*this)[4 - N + i] ? 1 : input_shape[i];
             return output_shape;
         }
@@ -77,7 +77,7 @@ namespace noa::inline types {
 }
 
 namespace noa::details {
-    template<bool, bool, bool, typename Index, size_t N, typename Reduced, typename Outputs, typename Op, typename... Ts>
+    template<bool, bool, bool, typename Index, usize N, typename Reduced, typename Outputs, typename Op, typename... Ts>
     constexpr void reduce_axes_iwise(const Shape<Index, N>&, Device, Reduced&&, Outputs&&, Op&&, ReduceAxes, Ts&&...);
 }
 
@@ -108,7 +108,7 @@ namespace noa {
     ///                         resources used by the operator, but other attachments can be passed too (see iwise).
     ///                         Note that the output arrays are already attached, so this should only be used to attach
     ///                         additional resources.
-    template<typename Index, size_t N,
+    template<typename Index, usize N,
              typename Reduced = nd::AdaptorUnzip<>,
              typename Outputs = nd::AdaptorUnzip<>,
              typename Operator, typename... Ts>
@@ -153,7 +153,7 @@ namespace noa {
 
     /// Computes an index-wise reduction along one or multiple axes.
     /// \details This overload does not have output array(s), and the axes to reduce are specified explicitly.
-    template<typename Index, size_t N,
+    template<typename Index, usize N,
              typename Reduced = nd::AdaptorUnzip<>,
              typename Operator, typename... Ts>
     void reduce_axes_iwise(
@@ -184,7 +184,7 @@ namespace noa {
 
 namespace noa::details {
     template<bool ZIP_REDUCED, bool ZIP_OUTPUT, bool ALLOW_NO_OUTPUTS,
-             typename Index, size_t N, typename Reduced, typename Outputs, typename Op, typename... Ts>
+             typename Index, usize N, typename Reduced, typename Outputs, typename Op, typename... Ts>
     constexpr void reduce_axes_iwise(
         const Shape<Index, N>& input_shape,
         Device device,
@@ -194,7 +194,7 @@ namespace noa::details {
         ReduceAxes reduce_axes,
         Ts&&... attachments
     ) {
-        constexpr auto FILTER_ND = []() -> Vec<size_t, N> {
+        constexpr auto FILTER_ND = []() -> Vec<usize, N> {
             if constexpr (N == 1)
                 return {3};
             else if constexpr (N == 2)
@@ -215,22 +215,22 @@ namespace noa::details {
             static_assert(std::tuple_size_v<Outputs> > 0, "There should be at least one output");
 
             auto desired_shape = outputs[Tag<0>{}].shape().template as_safe<Index>();
-            for (size_t i{}; i < 4 - N; ++i)
+            for (usize i{}; i < 4 - N; ++i)
                 check(desired_shape[i] == 1, "For N={}, the output dimension {} must be empty", N, i);
 
-            outputs.for_each_enumerate([&]<size_t I, typename T>(T& output) {
+            outputs.for_each_enumerate([&]<usize I, typename T>(T& output) {
                 check(device == output.device(),
                       "Output arrays should be on device={}, but got output:{}:device={}",
                       device, I, output.device());
                 if constexpr (I > 0) {
-                    check(vall(Equal{}, desired_shape, output.shape()),
+                    check(desired_shape == output.shape(),
                           "Output arrays should have the same shape, but got output:0:shape={} and output:{}:shape={}",
                           desired_shape, I, output.shape());
                 }
             });
 
             // Go from the 4d shape to the nd one.
-            output_shape = [&desired_shape]<size_t... I>(std::index_sequence<I...>, const auto& filter) {
+            output_shape = [&desired_shape]<usize... I>(std::index_sequence<I...>, const auto& filter) {
                 return Shape{desired_shape[filter[I]]...};
             }(std::make_index_sequence<N>{}, FILTER_ND);
         }
@@ -279,7 +279,7 @@ namespace noa::details {
                 cuda_stream);
 
             // Enqueue the shared handles. See ewise() for more details.
-            [&]<size_t... O>(std::index_sequence<O...>) {
+            [&]<usize... O>(std::index_sequence<O...>) {
                 auto oh = nd::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs));
                 cuda_stream.enqueue_attach(std::move(oh)[Tag<O>{}]..., std::forward<Ts>(attachments)...);
 

@@ -32,7 +32,7 @@ namespace noa::io {
         constexpr /*implicit*/ operator Enum() const noexcept { return value; }
 
         /// Implicit constructor from string literal.
-        template<size_t N>
+        template<usize N>
         constexpr /*implicit*/ DataType(const char (& name)[N]) {
             std::string_view name_(name);
             if (name_ == "i8" or name_ == "I8")
@@ -47,7 +47,7 @@ namespace noa::io {
                 value = I32;
             else if (name_ == "u32" or name_ == "U32")
                 value = U32;
-            else if (name_ == "i64" or name_ == "I64")
+            else if (name_ == "iz" or name_ == "I64")
                 value = I64;
             else if (name_ == "u64" or name_ == "U64")
                 value = U64;
@@ -82,7 +82,7 @@ namespace noa::io {
 
     public:
         /// Returns the number of bytes necessary to hold a given number of elements with the current dtype.
-        [[nodiscard]] static constexpr auto n_bytes(DataType dtype, i64 n_elements) -> i64 {
+        [[nodiscard]] static constexpr auto n_bytes(DataType dtype, isize n_elements) -> isize {
             switch (dtype) {
                 case U4: {
                     check(is_even(n_elements), "dtype=u4 requires an even number of elements");
@@ -114,7 +114,7 @@ namespace noa::io {
             return 0; // unreachable
         }
 
-        [[nodiscard]] constexpr auto n_bytes(i64 n_elements) const noexcept -> i64 {
+        [[nodiscard]] constexpr auto n_bytes(isize n_elements) const noexcept -> isize {
             return n_bytes(value, n_elements);
         }
 
@@ -133,7 +133,7 @@ namespace noa::io {
                 return I32;
             } else if constexpr (nt::almost_same_as<T, u32>) {
                 return U32;
-            } else if constexpr (nt::almost_same_as<T, i64>) {
+            } else if constexpr (nt::almost_same_as<T, isize>) {
                 return I64;
             } else if constexpr (nt::almost_same_as<T, u64>) {
                 return U64;

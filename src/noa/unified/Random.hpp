@@ -16,7 +16,7 @@ namespace noa {
 
     /// Returns an array initialized with random values.
     template<typename T = void, nt::distribution Distribution>
-    [[nodiscard]] auto random(const Distribution& distribution, const Shape4<i64>& shape, ArrayOption option = {}) {
+    [[nodiscard]] auto random(const Distribution& distribution, const Shape4& shape, ArrayOption option = {}) {
         using value_t = std::conditional_t<std::is_void_v<T>, nt::value_type_t<Distribution>, T>;
         Array<value_t> out(shape, option);
         randomize(distribution, out);
@@ -25,7 +25,7 @@ namespace noa {
 
     /// Returns an array initialized with random values.
     template<typename T = void, nt::distribution Distribution>
-    [[nodiscard]] auto random(const Distribution& distribution, i64 n_elements, ArrayOption option = {}) {
+    [[nodiscard]] auto random(const Distribution& distribution, isize n_elements, ArrayOption option = {}) {
         using value_t = std::conditional_t<std::is_void_v<T>, nt::value_type_t<Distribution>, T>;
         Array<value_t> out(n_elements, option);
         randomize(distribution, out);

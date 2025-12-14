@@ -32,7 +32,7 @@ namespace noa {
         ///          wait for the lock to be released. Once a task is added and the waiting thread receives
         ///          the notification, it extracts it from the queue, releases the lock so that another thread
         ///          can enter the waiting area, and launches the task.
-        explicit ThreadPool(size_t n_threads) {
+        explicit ThreadPool(usize n_threads) {
             check(n_threads, "Threads should be a positive non-zero number, got 0");
 
             auto waiting_room = [this] {
@@ -51,7 +51,7 @@ namespace noa {
             };
 
             workers.reserve(n_threads);
-            for (size_t i{}; i < n_threads; ++i) {
+            for (usize i{}; i < n_threads; ++i) {
                 workers.emplace_back(waiting_room); // launch threads into the pool.
             }
         }

@@ -13,7 +13,7 @@ namespace noa::signal::details {
     /// \details If the input is valid, input*ctf->output is computed.
     ///          If the input is complex and the output is real, the power spectrum is saved.
     ///          If the input is empty, ctf->output is computed.
-    template<nf::Layout REMAP, size_t N,
+    template<nf::Layout REMAP, usize N,
              nt::any_of<f32, f64> Coord,
              nt::sinteger Index,
              nt::readable_nd_or_empty<N + 1> Input,
@@ -46,7 +46,7 @@ namespace noa::signal::details {
         using shape_nd_type = Shape<index_type, N>;
         using shape_type = Shape<index_type, N - IS_RFFT>;
         using coord_nd_type = Vec<coord_type, N>;
-        using coord2_type = Vec2<coord_type>;
+        using coord2_type = Vec<coord_type, 2>;
         using coord_or_empty_type = std::conditional_t<N == 1, coord_type, Empty>;
 
     public:
@@ -68,7 +68,7 @@ namespace noa::signal::details {
         {
             // If frequency.end is negative, defaults to the highest frequency.
             // In this case, and if the frequency.start is 0, this results in the full frequency range.
-            for (size_t i{}; i < N; ++i) {
+            for (usize i{}; i < N; ++i) {
                 const auto max_sample_size = shape[i] / 2 + 1;
                 const auto frequency_stop =
                     fftfreq_range.stop <= 0 ?
@@ -148,14 +148,14 @@ namespace noa::signal::details {
     void ctf_check_parameters(
         const Input& input,
         const Output& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         const CTF& ctf,
         const noa::Linspace<f64>& fftfreq_range
     ) {
         check(not output.is_empty(), "Empty array detected");
 
         const auto expected_shape = REMAP.is_xx2hx() ? shape.rfft() : shape;
-        check(vall(Equal{}, output.shape(), expected_shape),
+        check(output.shape() == expected_shape,
               "The output shape doesn't match the expected shape. Got output:shape={} and expected:shape={}",
               output.shape(), expected_shape);
 
@@ -192,7 +192,7 @@ namespace noa::signal::details {
     template<typename CTF>
     constexpr auto extract_ctf(const CTF& ctf) {
         if constexpr (nt::varray<CTF>) {
-            using accessor_t = AccessorRestrictContiguousI64<nt::const_value_type_t<CTF>, 1>;
+            using accessor_t = AccessorRestrictContiguous<nt::const_value_type_t<CTF>, 1, isize>;
             return BatchedParameter{accessor_t(ctf.get())};
         } else {
             return BatchedParameter{ctf};
@@ -226,7 +226,7 @@ namespace noa::signal {
     requires details::ctfable<REMAP, View<nt::value_type_t<Output>>, Output, CTF, true>
     void ctf_isotropic(
         Output&& output,
-        Shape4<i64> shape,
+        Shape4 shape,
         CTF&& ctf,
         const CTFOptions& options = {}
     ) {
@@ -239,8 +239,8 @@ namespace noa::signal {
 
         switch (shape.ndim()) {
             case 1: {
-                using output_accessor_t = Accessor<value_t, 2, i64>;
-                using op_t = details::CTF<REMAP, 1, coord_t, i64, Empty, output_accessor_t, ctf_t>;
+                using output_accessor_t = Accessor<value_t, 2, isize>;
+                using op_t = details::CTF<REMAP, 1, coord_t, isize, Empty, output_accessor_t, ctf_t>;
                 auto index = ni::non_empty_dhw_dimension(shape);
                 auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0, index));
                 auto op = op_t(
@@ -256,13 +256,13 @@ namespace noa::signal {
             case 2: {
                 auto output_strides = output.strides();
                 const auto order = ni::order(output_strides.filter(2, 3), shape.filter(2, 3));
-                if (vany(NotEqual{}, order, Vec{0, 1})) {
+                if (order != Vec<isize, 2>{0, 1}) {
                     std::swap(output_strides[2], output_strides[3]);
                     std::swap(shape[2], shape[3]);
                 }
 
-                using output_accessor_t = Accessor<value_t, 3, i64>;
-                using op_t = details::CTF<REMAP, 2, coord_t, i64, Empty, output_accessor_t, ctf_t>;
+                using output_accessor_t = Accessor<value_t, 3, isize>;
+                using op_t = details::CTF<REMAP, 2, coord_t, isize, Empty, output_accessor_t, ctf_t>;
                 auto output_accessor = output_accessor_t(output.get(), output_strides.filter(0, 2, 3));
                 auto op = op_t(
                     {}, output_accessor, shape.filter(2, 3), details::extract_ctf(ctf),
@@ -277,14 +277,14 @@ namespace noa::signal {
             case 3: {
                 auto output_strides = output.strides();
                 const auto order = ni::order(output_strides.pop_front(), shape.pop_front());
-                if (vany(NotEqual{}, order, Vec{0, 1, 2})) {
+                if (order != Vec<isize, 3>{0, 1, 2}) {
                     const auto order_3d = (order + 1).push_front(0);
                     output_strides = ni::reorder(output_strides, order_3d);
                     shape = ni::reorder(shape, order_3d);
                 }
 
-                using output_accessor_t = Accessor<value_t, 4, i64>;
-                using op_t = details::CTF<REMAP, 3, coord_t, i64, Empty, output_accessor_t, ctf_t>;
+                using output_accessor_t = Accessor<value_t, 4, isize>;
+                using op_t = details::CTF<REMAP, 3, coord_t, isize, Empty, output_accessor_t, ctf_t>;
                 auto output_accessor = output_accessor_t(output.get(), output_strides);
                 auto op = op_t(
                     {}, output_accessor, shape.pop_front(), details::extract_ctf(ctf),
@@ -318,7 +318,7 @@ namespace noa::signal {
     void ctf_isotropic(
         Input&& input,
         Output&& output,
-        Shape4<i64> shape,
+        Shape4 shape,
         CTF&& ctf,
         const CTFOptions& options = {}
     ) {
@@ -344,9 +344,9 @@ namespace noa::signal {
                 if constexpr (REMAP.is_xx2hx())
                     iwise_shape = iwise_shape.rfft();
 
-                using input_accessor_t = Accessor<input_value_t, 2, i64>;
-                using output_accessor_t = Accessor<output_value_t, 2, i64>;
-                using op_t = details::CTF<REMAP, 1, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
+                using input_accessor_t = Accessor<input_value_t, 2, isize>;
+                using output_accessor_t = Accessor<output_value_t, 2, isize>;
+                using op_t = details::CTF<REMAP, 1, coord_t, isize, input_accessor_t, output_accessor_t, ctf_t>;
                 auto op = op_t(
                     input_accessor_t(input.get(), input_strides.filter(0, index)),
                     output_accessor_t(output.get(), output.strides().filter(0, index)),
@@ -364,14 +364,14 @@ namespace noa::signal {
             case 2: {
                 auto output_strides = output.strides();
                 const auto order = ni::order(output_strides.filter(2, 3), shape.filter(2, 3));
-                if (vany(NotEqual{}, order, Vec{0, 1})) {
+                if (order != Vec<isize, 2>{0, 1}) {
                     std::swap(input_strides[2], input_strides[3]);
                     std::swap(output_strides[2], output_strides[3]);
                     std::swap(shape[2], shape[3]);
                 }
-                using input_accessor_t = Accessor<input_value_t, 3, i64>;
-                using output_accessor_t = Accessor<output_value_t, 3, i64>;
-                using op_t = details::CTF<REMAP, 2, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
+                using input_accessor_t = Accessor<input_value_t, 3, isize>;
+                using output_accessor_t = Accessor<output_value_t, 3, isize>;
+                using op_t = details::CTF<REMAP, 2, coord_t, isize, input_accessor_t, output_accessor_t, ctf_t>;
                 auto op = op_t(
                     input_accessor_t(input.get(), input_strides.filter(0, 2, 3)),
                     output_accessor_t(output.get(), output_strides.filter(0, 2, 3)),
@@ -392,16 +392,16 @@ namespace noa::signal {
             case 3: {
                 auto output_strides = output.strides();
                 const auto order = ni::order(output_strides.pop_front(), shape.pop_front());
-                if (vany(NotEqual{}, order, Vec{0, 1, 2})) {
+                if (order != Vec<isize, 3>{0, 1, 2}) {
                     const auto order_3d = (order + 1).push_front(0);
                     input_strides = ni::reorder(input_strides, order_3d);
                     output_strides = ni::reorder(output_strides, order_3d);
                     shape = ni::reorder(shape, order_3d);
                 }
 
-                using input_accessor_t = Accessor<input_value_t, 4, i64>;
-                using output_accessor_t = Accessor<output_value_t, 4, i64>;
-                using op_t = details::CTF<REMAP, 3, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
+                using input_accessor_t = Accessor<input_value_t, 4, isize>;
+                using output_accessor_t = Accessor<output_value_t, 4, isize>;
+                using op_t = details::CTF<REMAP, 3, coord_t, isize, input_accessor_t, output_accessor_t, ctf_t>;
                 auto op = op_t(
                     input_accessor_t(input.get(), input_strides),
                     output_accessor_t(output.get(), output_strides),
@@ -434,7 +434,7 @@ namespace noa::signal {
     requires details::ctfable<REMAP, View<nt::value_type_t<Output>>, Output, CTF, false>
     void ctf_anisotropic(
         Output&& output,
-        Shape4<i64> shape,
+        Shape4 shape,
         CTF&& ctf,
         const CTFOptions& options = {}
     ) {
@@ -446,13 +446,13 @@ namespace noa::signal {
 
         auto output_strides = output.strides();
         const auto order = ni::order(output_strides.filter(2, 3), shape.filter(2, 3));
-        if (vany(NotEqual{}, order, Vec{0, 1})) {
+        if (order != Vec<isize, 2>{0, 1}) {
             std::swap(output_strides[2], output_strides[3]);
             std::swap(shape[2], shape[3]);
         }
 
-        using output_accessor_t = Accessor<value_t, 3, i64>;
-        using op_t = details::CTF<REMAP, 2, coord_t, i64, Empty, output_accessor_t, ctf_t>;
+        using output_accessor_t = Accessor<value_t, 3, isize>;
+        using op_t = details::CTF<REMAP, 2, coord_t, isize, Empty, output_accessor_t, ctf_t>;
         auto output_accessor = output_accessor_t(output.get(), output_strides.filter(0, 2, 3));
         auto op = op_t(
             {}, output_accessor, shape.filter(2, 3), details::extract_ctf(ctf),
@@ -484,7 +484,7 @@ namespace noa::signal {
     void ctf_anisotropic(
         Input&& input,
         Output&& output,
-        Shape4<i64> shape,
+        Shape4 shape,
         CTF&& ctf,
         const CTFOptions& options = {}
     ) {
@@ -498,16 +498,16 @@ namespace noa::signal {
         auto input_strides = nd::broadcast_strides_optional(input, output);
         auto output_strides = output.strides();
         const auto order = ni::order(output_strides.filter(2, 3), shape.filter(2, 3));
-        if (vany(NotEqual{}, order, Vec{0, 1})) {
+        if (order != Vec<isize, 2>{0, 1}) {
             std::swap(input_strides[2], input_strides[3]);
             std::swap(output_strides[2], output_strides[3]);
             std::swap(shape[2], shape[3]);
         }
-        using input_accessor_t = Accessor<nt::const_value_type_t<Input>, 3, i64>;
-        using output_accessor_t = Accessor<nt::value_type_t<Output>, 3, i64>;
+        using input_accessor_t = Accessor<nt::const_value_type_t<Input>, 3, isize>;
+        using output_accessor_t = Accessor<nt::value_type_t<Output>, 3, isize>;
         using coord_t = nt::value_type_twice_t<CTF>;
         using ctf_t = decltype(details::extract_ctf(ctf));
-        using op_t = details::CTF<REMAP, 2, coord_t, i64, input_accessor_t, output_accessor_t, ctf_t>;
+        using op_t = details::CTF<REMAP, 2, coord_t, isize, input_accessor_t, output_accessor_t, ctf_t>;
         auto op = op_t(
             input_accessor_t(input.get(), input_strides.filter(0, 2, 3)),
             output_accessor_t(output.get(), output_strides.filter(0, 2, 3)),

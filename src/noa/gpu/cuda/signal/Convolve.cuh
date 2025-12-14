@@ -13,10 +13,10 @@ namespace noa::cuda::details {
     __global__ __launch_bounds__(Block::block_size)
     void convolve_1d(
         Input input, Output output, Filter filter,
-        Shape2<i64> shape, i32 filter_size,
+        Shape2 shape, i32 filter_size,
         Vec<u32, 2> block_offset_zy, u32 n_blocks_x
     ) {
-        const auto gid = global_indices_4d<i64, Block>(n_blocks_x, block_offset_zy);
+        const auto gid = global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
         const auto tid = thread_indices<i32, 2>();
         const auto input_1d = input[gid[0]][gid[1]][gid[2]];
 
@@ -32,9 +32,9 @@ namespace noa::cuda::details {
 
             // Load shared memory. Loop to take into account padding.
             i32 lx = tid[1];
-            i64 gx = gid[3];
+            isize gx = gid[3];
             for (; lx < SHARED_LEN; lx += Block::block_size_x, gx += Block::block_size_x) {
-                const i64 ix = gx - HALO;
+                const isize ix = gx - HALO;
 
                 filter_value_t value{};
                 if constexpr (BORDER_ZERO) {
@@ -61,15 +61,15 @@ namespace noa::cuda::details {
     __global__ __launch_bounds__(Block::block_size)
     void convolve_2d(
         Input input, Output output, Filter filter,
-        Shape2<i64> shape, Shape2<i32> filter_shape,
+        Shape2 shape, Shape<i32, 2> filter_shape,
         Vec<u32, 2> block_offset_zy, u32 n_blocks_x
     ) {
-        const auto gid = global_indices_4d<i64, Block>(n_blocks_x, block_offset_zy);
+        const auto gid = global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
         const auto tid = thread_indices<i32, 2>();
         const auto input_2d = input[gid[0]][gid[1]];
 
         const auto OFFSET = static_cast<i32>(Block::block_size_x);
-        const auto PADDING = Vec2<i32>::from_vec(filter_shape.vec - 1);
+        const auto PADDING = Vec<i32, 2>::from_vec(filter_shape.vec - 1);
         const auto HALO = PADDING / 2;
         const auto SHARED_LEN = OFFSET + PADDING;
 
@@ -79,11 +79,11 @@ namespace noa::cuda::details {
 
         // Load to shared memory. Loop to take into account padding.
         i32 ly, lx;
-        i64 gy, gx;
+        isize gy, gx;
         for (ly = tid[0], gy = gid[2]; ly < SHARED_LEN[0]; ly += OFFSET, gy += OFFSET) {
             for (lx = tid[1], gx = gid[3]; lx < SHARED_LEN[1]; lx += OFFSET, gx += OFFSET) {
-                const i64 iy = gy - HALO[0];
-                const i64 ix = gx - HALO[1];
+                const isize iy = gy - HALO[0];
+                const isize ix = gx - HALO[1];
 
                 filter_value_t value{};
                 if constexpr (BORDER_ZERO) {
@@ -111,7 +111,7 @@ namespace noa::cuda::details {
     template<bool BORDER_ZERO, typename Block, typename Input, typename Output, typename Filter, i32 FILTER_LEN>
     __global__ __launch_bounds__(ConvolveBlock::block_size)
     void convolve_3d_square(
-        Input input, Output output, Filter filter, Shape3<i64> shape,
+        Input input, Output output, Filter filter, Shape3 shape,
         Vec<u32, 2> block_offset_zy, u32 n_blocks_x
     ) {
         static_assert(is_odd(FILTER_LEN));
@@ -124,7 +124,7 @@ namespace noa::cuda::details {
         );
         constexpr auto SHARED_SIZE = SHARED_SHAPE.n_elements();
 
-        const auto gid = global_indices_4d<i64, Block>(n_blocks_x, block_offset_zy);
+        const auto gid = global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
         const auto tid = thread_indices<i32, 2>();
         const auto input_3d = input[gid[0]];
 
@@ -133,41 +133,14 @@ namespace noa::cuda::details {
         __shared__ filter_value_t shared[SHARED_SIZE];
 
         // Load shared memory. Loop to take into account padding.
-        // i32 lz, ly, lx;
-        // i64 gz, gy, gx;
-        // for (lz = 0, gz = gid[1]; lz < SHARED_SHAPE[0]; ++lz, ++gz) {
-        //     for (ly = tid[0], gy = gid[2]; ly < SHARED_SHAPE[1]; ly += Block::block_size_y, gy += Block::block_size_y) {
-        //         for (lx = tid[1], gx = gid[3]; lx < SHARED_SHAPE[2]; lx += Block::block_size_x, gx += Block::block_size_x) {
-        //             // const i64 iz = gz - HALO;
-        //             // const i64 iy = gy - HALO;
-        //             // const i64 ix = gx - HALO;
-        //             const i64 i_z = gz - HALO;
-        //             const i64 i_y = gy - HALO;
-        //             const i64 i_x = gx - HALO;
-        //
-        //             filter_value_t value{};
-        //             if constexpr (BORDER_ZERO) {
-        //                 if (ni::is_inbound(shape, i_z, i_y, i_x))
-        //                     value = static_cast<filter_value_t>(input_3d(i_z, i_y, i_x));
-        //             } else {
-        //                 const auto iz_ = ni::index_at<Border::REFLECT>(i_z, shape[0]);
-        //                 const auto iy_ = ni::index_at<Border::REFLECT>(i_y, shape[1]);
-        //                 const auto ix_ = ni::index_at<Border::REFLECT>(i_x, shape[2]);
-        //                 value = static_cast<filter_value_t>(input_3d(iz_, iy_, ix_));
-        //             }
-        //             shared[(lz * SHARED_SHAPE[1] + ly) * SHARED_SHAPE[2] + lx] = value;
-        //         }
-        //     }
-        // }
-
         i32 lz, ly, lx;
-        i64 gz, gy, gx;
+        isize gz, gy, gx;
         for (lz = 0, gz = gid[1]; lz < SHARED_SHAPE[0]; ++lz, ++gz) {
             for (ly = tid[0], gy = gid[2]; ly < SHARED_SHAPE[1]; ly += Block::block_size_y, gy += Block::block_size_y) {
                 for (lx = tid[1], gx = gid[3]; lx < SHARED_SHAPE[2]; lx += Block::block_size_x, gx += Block::block_size_x) {
-                    const i64 iz = gz - HALO;
-                    const i64 iy = gy - HALO;
-                    const i64 ix = gx - HALO;
+                    const isize iz = gz - HALO;
+                    const isize iy = gy - HALO;
+                    const isize ix = gx - HALO;
 
                     filter_value_t value{};
                     if constexpr (BORDER_ZERO) {
@@ -201,17 +174,17 @@ namespace noa::cuda::details {
     __global__ __launch_bounds__(Block::block_size)
     void convolve_3d(
         Input input, Output output, Filter filter,
-        Shape3<i64> shape, Shape3<i32> filter_length,
+        Shape3 shape, Shape<i32, 3> filter_length,
         Vec<u32, 2> block_offset_zy, u32 n_blocks_x
     ) {
         const auto padding = filter_length.vec - 1; // assume odd
         const auto halo = padding / 2;
-        const auto shared_shape = Vec3<i32>::from_values(
+        const auto shared_shape = Vec<i32, 3>::from_values(
             filter_length[0],
             Block::block_size_y + padding[1],
             Block::block_size_x + padding[2]);
 
-        const auto gid = global_indices_4d<i64, Block>(n_blocks_x, block_offset_zy);
+        const auto gid = global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
         const auto tid = thread_indices<i32, 2>();
         const auto input_3d = input[gid[0]];
 
@@ -221,13 +194,13 @@ namespace noa::cuda::details {
 
         // Load shared memory. Loop to take into account padding.
         i32 lz, ly, lx;
-        i64 gz, gy, gx;
+        isize gz, gy, gx;
         for (lz = 0, gz = gid[1]; lz < shared_shape[0]; ++lz, ++gz) {
             for (ly = tid[0], gy = gid[2]; ly < shared_shape[1]; ly += Block::block_size_y, gy += Block::block_size_y) {
                 for (lx = tid[1], gx = gid[3]; lx < shared_shape[2]; lx += Block::block_size_x, gx += Block::block_size_x) {
-                    const i64 iz = gz - halo[0];
-                    const i64 iy = gy - halo[1];
-                    const i64 ix = gx - halo[2];
+                    const isize iz = gz - halo[0];
+                    const isize iy = gy - halo[1];
+                    const isize ix = gx - halo[2];
 
                     filter_value_t value{};
                     if constexpr (BORDER_ZERO) {
@@ -261,10 +234,10 @@ namespace noa::cuda::details {
     __global__ __launch_bounds__(Block::block_size)
     void convolve_separable_x(
         Input input, Output output, Filter filter,
-        Shape2<i64> shape_yx, i32 filter_size,
+        Shape2 shape_yx, i32 filter_size,
         Vec<u32, 2> block_offset_zy, u32 n_blocks_x
     ) {
-        const auto gid = global_indices_4d<i64, Block>(n_blocks_x, block_offset_zy);
+        const auto gid = global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
         const auto tid = thread_indices<i32, 2>();
         const auto input_x = input[gid[0]][gid[1]][gid[2]];
 
@@ -282,9 +255,9 @@ namespace noa::cuda::details {
 
             // Load shared memory. Loop to take into account padding.
             i32 lx = tid[1];
-            i64 gx = gid[3];
+            isize gx = gid[3];
             for (; lx < shared_len; lx += BLOCK_SIZE_X, gx += BLOCK_SIZE_X) {
-                const i64 ix = gx - halo;
+                const isize ix = gx - halo;
                 filter_value_t value{};
                 if constexpr (BORDER_ZERO) {
                     if (ix >= 0 and ix < shape_yx[1])
@@ -310,10 +283,10 @@ namespace noa::cuda::details {
     __global__ __launch_bounds__(Block::block_size)
     void convolve_separable_y(
         Input input, Output output, Filter filter,
-        Shape2<i64> shape_yx, i32 filter_size,
+        Shape2 shape_yx, i32 filter_size,
         Vec<u32, 2> block_offset_zy, u32 n_blocks_x
     ) {
-        const auto gid = global_indices_4d<i64, Block>(n_blocks_x, block_offset_zy);
+        const auto gid = global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
         const auto tid = thread_indices<i32, 2>();
         const auto input_yx = input[gid[0]][gid[1]];
 
@@ -328,9 +301,9 @@ namespace noa::cuda::details {
             const i32 shared_len_y = static_cast<i32>(Block::block_size_y) + padding;
 
             i32 ly = tid[0];
-            i64 gy = gid[2];
+            isize gy = gid[2];
             for (; ly < shared_len_y; ly += Block::block_size_y, gy += Block::block_size_y) {
-                const i64 iy = gy - halo;
+                const isize iy = gy - halo;
 
                 filter_value_t value{};
                 if constexpr (BORDER_ZERO) {
@@ -357,10 +330,10 @@ namespace noa::cuda::details {
     __global__ __launch_bounds__(Block::block_size)
     void convolve_separable_z(
         Input input, Output output, Filter filter,
-        Shape2<i64> shape_zx, i32 filter_size,
+        Shape2 shape_zx, i32 filter_size,
         Vec<u32, 2> block_offset_zy, u32 n_blocks_x
     ) {
-        const auto gid = global_indices_4d<i64, Block>(n_blocks_x, block_offset_zy).filter(0, 2, 1, 3);
+        const auto gid = global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy).filter(0, 2, 1, 3);
         const auto tid = thread_indices<i32, 2>();
         const auto input_3d = input[gid[0]];
 
@@ -374,9 +347,9 @@ namespace noa::cuda::details {
             const i32 shared_len_z = static_cast<i32>(Block::block_size_y) + padding;
 
             i32 lz = tid[0];
-            i64 gz = gid[1];
+            isize gz = gid[1];
             for (; lz < shared_len_z; lz += Block::block_size_y, gz += Block::block_size_y) {
-                const i64 iz = gz - halo;
+                const isize iz = gz - halo;
 
                 filter_value_t value{};
                 if constexpr (BORDER_ZERO) {
@@ -403,9 +376,9 @@ namespace noa::cuda::details {
 namespace noa::cuda::signal::details {
     template<Border BORDER, typename T, typename U, typename V>
     void launch_convolve_separable_x(
-        const T* input, const Strides4<i64>& input_strides,
-        U* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-        const V* filter, i64 filter_size, Stream& stream
+        const T* input, const Strides4& input_strides,
+        U* output, const Strides4& output_strides, const Shape4& shape,
+        const V* filter, isize filter_size, Stream& stream
     ) {
         using namespace noa::cuda::details;
         using input_t = AccessorRestrictI64<const T, 4>;
@@ -439,9 +412,9 @@ namespace noa::cuda::signal::details {
 
     template<Border BORDER, typename T, typename U, typename V>
     void launch_convolve_separable_y(
-        const T* input, const Strides4<i64>& input_strides,
-        U* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-        const V* filter, i64 filter_size, Stream& stream
+        const T* input, const Strides4& input_strides,
+        U* output, const Strides4& output_strides, const Shape4& shape,
+        const V* filter, isize filter_size, Stream& stream
     ) {
         using namespace noa::cuda::details;
         using input_t = AccessorRestrictI64<const T, 4>;
@@ -475,9 +448,9 @@ namespace noa::cuda::signal::details {
 
     template<Border BORDER, typename T, typename U, typename V>
     void launch_convolve_separable_z(
-        const T* input, const Strides4<i64>& input_strides,
-        U* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-        const V* filter, i64 filter_size, Stream& stream
+        const T* input, const Strides4& input_strides,
+        U* output, const Strides4& output_strides, const Shape4& shape,
+        const V* filter, isize filter_size, Stream& stream
     ) {
         using namespace noa::cuda::details;
         using input_t = AccessorRestrictI64<const T, 4>;
@@ -513,9 +486,9 @@ namespace noa::cuda::signal::details {
 namespace noa::cuda::signal {
     template<Border BORDER, typename T, typename U, typename V>
     void convolve(
-        const T* input, Strides4<i64> input_strides,
-        U* output, Strides4<i64> output_strides, const Shape4<i64>& shape,
-        const V* filter, const Shape3<i64>& filter_shape, Stream& stream
+        const T* input, Strides4 input_strides,
+        U* output, Strides4 output_strides, const Shape4& shape,
+        const V* filter, const Shape3& filter_shape, Stream& stream
     ) {
         using namespace noa::cuda::details;
         using input_accessor_t = AccessorRestrictI64<const T, 4>;
@@ -579,13 +552,13 @@ namespace noa::cuda::signal {
                         .n_threads = dim3(ConvolveBlock::block_size_x, ConvolveBlock::block_size_y),
                     };
                     const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
-                    if (all(filter_shape == 5)) {
+                    if (filter_shape == 5) {
                         stream.enqueue(
                             convolve_3d_square<BORDER_ZERO, ConvolveBlock, input_accessor_t, output_accessor_t, filter_accessor_t, 5>,
                             config, input_accessor_t(input, input_strides), output_accessor_t(output, output_strides),
                             filter_accessor_t(filter), shape_3d, grid_offset, grid_x.n_blocks_x()
                         );
-                    } else if (all(filter_shape == 3)) {
+                    } else if (filter_shape == 3) {
                         stream.enqueue(
                             convolve_3d_square<BORDER_ZERO, ConvolveBlock, input_accessor_t, output_accessor_t, filter_accessor_t, 3>,
                             config, input_accessor_t(input, input_strides), output_accessor_t(output, output_strides),
@@ -605,12 +578,12 @@ namespace noa::cuda::signal {
                     }
                 }
             }
-        } else if (all(filter_shape == 1)) {
+        } else if (filter_shape == 1) {
             V filter_value;
             copy(filter, &filter_value, 1, stream);
 
             auto order = ni::order(output_strides, shape);
-            if (vany(NotEqual{}, order, Vec{0, 1, 2, 3})) {
+            if (order != Vec<isize, 4>{0, 1, 2, 3}) {
                 input_strides = ni::reorder(input_strides, order);
                 output_strides = ni::reorder(output_strides, order);
             }
@@ -625,12 +598,12 @@ namespace noa::cuda::signal {
 
     template<Border BORDER, typename T, typename U, typename V>
     void convolve_separable(
-        const T* input, const Strides4<i64>& input_strides,
-        U* output, const Strides4<i64>& output_strides, const Shape4<i64>& shape,
-        const V* filter_depth, i64 filter_depth_size,
-        const V* filter_height, i64 filter_height_size,
-        const V* filter_width, i64 filter_width_size,
-        V* tmp, Strides4<i64> tmp_strides, Stream& stream
+        const T* input, const Strides4& input_strides,
+        U* output, const Strides4& output_strides, const Shape4& shape,
+        const V* filter_depth, isize filter_depth_size,
+        const V* filter_height, isize filter_height_size,
+        const V* filter_width, isize filter_width_size,
+        V* tmp, Strides4 tmp_strides, Stream& stream
     ) {
         if (filter_depth_size <= 0)
             filter_depth = nullptr;

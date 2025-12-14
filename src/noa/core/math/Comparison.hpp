@@ -40,34 +40,29 @@ namespace noa {
     #endif
     }
 
-    /// Whether two numerics are equal or almost equal to each other.
-    /// \details Floating-points:
-    ///     For the relative epsilon, the machine epsilon has to be scaled to the magnitude of
-    ///     the values used and multiplied by the desired precision in ULPs. Relative epsilons
-    ///     and Unit in the Last Place (ULPs) comparisons are usually meaningless for close-to-zero
-    ///     numbers, hence the absolute comparison with epsilon, acting as a safety net.
-    ///     If one or both values are NaN and|or +/-Inf, returns false.
-    /// \details Complex floating-points:
-    ///     Computes the allclose for the real and imaginary components. Returns true if both are allclose.
-    /// \details Integers:
-    ///     ULP is ignored, and this functions simply checks whether x and y are within +/- epsilon of each other.
-    template<i32 ULP = 2, nt::numeric T, typename U = nt::value_type_t<T>>
+    /// Whether two floating-points are equal or almost equal to each other.
+    /// \details For the relative epsilon, the machine epsilon has to be scaled to the magnitude of
+    ///          the values used and multiplied by the desired precision in ULPs. Relative epsilons
+    ///          and Unit in the Last Place (ULPs) comparisons are usually meaningless for close-to-zero
+    ///          numbers, hence the absolute comparison with epsilon, acting as a safety net.
+    ///          If one or both values are NaN and|or +/-Inf, returns false.
+    template<i32 ULP = 2, nt::real T>
     [[nodiscard]] NOA_IHD constexpr auto allclose(
         T x, T y,
-        std::type_identity_t<U> epsilon = static_cast<U>(1e-6)
+        std::type_identity_t<T> epsilon = static_cast<T>(1e-6)
     ) noexcept -> bool {
-        if constexpr (nt::integer<T>) {
-            T diff = static_cast<T>(abs(x - y));
-            return diff <= epsilon;
-        } else if constexpr (nt::complex<T>) {
-            return allclose<ULP>(x.real, y.real, epsilon) and
-                   allclose<ULP>(x.imag, y.imag, epsilon);
-        } else {
-            const T diff = abs(x - y);
-            if (not is_finite(diff))
-                return false;
-            constexpr auto THRESHOLD = std::numeric_limits<T>::epsilon() * static_cast<T>(ULP);
-            return diff <= epsilon or diff <= (max(abs(x), abs(y)) * THRESHOLD);
-        }
+        const T diff = abs(x - y);
+        if (not is_finite(diff))
+            return false;
+        constexpr auto THRESHOLD = std::numeric_limits<T>::epsilon() * static_cast<T>(ULP);
+        return diff <= epsilon or diff <= (max(abs(x), abs(y)) * THRESHOLD);
+    }
+
+    /// Whether two integers are equal or almost equal to each other.
+    /// ULP is ignored, and this function simply checks whether x and y are within +/- epsilon of each other.
+    template<i32 ULP = 2, nt::integer T>
+    [[nodiscard]] NOA_IHD constexpr auto allclose(T x, T y, T epsilon = 0) noexcept -> bool {
+        T diff = static_cast<T>(abs(x - y));
+        return diff <= epsilon;
     }
 }

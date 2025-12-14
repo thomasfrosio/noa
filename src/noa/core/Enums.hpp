@@ -231,51 +231,54 @@ namespace noa::fft {
         constexpr /*implicit*/ operator Enum() const noexcept { return value; }
 
     public: // additional constructors and member functions
-        /// Implicit constructor from string literal.
-        template<size_t N>
-        constexpr /*implicit*/ Layout(const char (& name)[N]) {
-            std::string_view name_(name);
-            if (name_ == "h2h" or name_ == "H2H" or name_ == "h" or name_ == "H") {
-                value = H2H;
-            } else if (name_ == "h2hc" or name_ == "H2HC") {
-                value = H2HC;
-            } else if (name_ == "h2f" or name_ == "H2F") {
-                value = H2F;
-            } else if (name_ == "h2fc" or name_ == "H2FC") {
-                value = H2FC;
+        static constexpr auto from_string(std::string_view name) -> Layout {
+            if (name == "h2h" or name == "H2H" or name == "h" or name == "H") {
+                return H2H;
+            } else if (name == "h2hc" or name == "H2HC") {
+                return H2HC;
+            } else if (name == "h2f" or name == "H2F") {
+                return H2F;
+            } else if (name == "h2fc" or name == "H2FC") {
+                return H2FC;
 
-            } else if (name_ == "hc2h" or name_ == "HC2H") {
-                value = HC2H;
-            } else if (name_ == "hc2hc" or name_ == "HC2HC" or name_ == "hc" or name_ == "HC") {
-                value = HC2HC;
-            } else if (name_ == "hc2f" or name_ == "HC2F") {
-                value = HC2F;
-            } else if (name_ == "hc2fc" or name_ == "HC2FC") {
-                value = HC2FC;
+            } else if (name == "hc2h" or name == "HC2H") {
+                return HC2H;
+            } else if (name == "hc2hc" or name == "HC2HC" or name == "hc" or name == "HC") {
+                return HC2HC;
+            } else if (name == "hc2f" or name == "HC2F") {
+                return HC2F;
+            } else if (name == "hc2fc" or name == "HC2FC") {
+                return HC2FC;
 
-            } else if (name_ == "f2h" or name_ == "F2H") {
-                value = F2H;
-            } else if (name_ == "f2hc" or name_ == "F2HC") {
-                value = F2HC;
-            } else if (name_ == "f2f" or name_ == "F2F" or name_ == "f" or name_ == "F") {
-                value = F2F;
-            } else if (name_ == "f2fc" or name_ == "F2FC") {
-                value = F2FC;
+            } else if (name == "f2h" or name == "F2H") {
+                return F2H;
+            } else if (name == "f2hc" or name == "F2HC") {
+                return F2HC;
+            } else if (name == "f2f" or name == "F2F" or name == "f" or name == "F") {
+                return F2F;
+            } else if (name == "f2fc" or name == "F2FC") {
+                return F2FC;
 
-            } else if (name_ == "fc2h" or name_ == "FC2H") {
-                value = FC2H;
-            } else if (name_ == "fc2hc" or name_ == "FC2HC") {
-                value = FC2HC;
-            } else if (name_ == "fc2f" or name_ == "FC2F") {
-                value = FC2F;
-            } else if (name_ == "fc2fc" or name_ == "FC2FC" or name_ == "fc" or name_ == "FC") {
-                value = FC2FC;
+            } else if (name == "fc2h" or name == "FC2H") {
+                return FC2H;
+            } else if (name == "fc2hc" or name == "FC2HC") {
+                return FC2HC;
+            } else if (name == "fc2f" or name == "FC2F") {
+                return FC2F;
+            } else if (name == "fc2fc" or name == "FC2FC" or name == "fc" or name == "FC") {
+                return FC2FC;
 
             } else {
                 // If it is a constant expression, this creates a compile time error because throwing
                 // an exception at compile time is not allowed. At runtime, it throws the exception.
                 panic("invalid layout");
             }
+        }
+
+        /// Implicit constructor from string literal.
+        template<usize N>
+        constexpr /*implicit*/ Layout(const char (& name)[N]) {
+            value = from_string(std::string_view(name)).value;
         }
 
         /// Whether the remap is one of these values.

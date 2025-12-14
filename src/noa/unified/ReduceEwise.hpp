@@ -118,9 +118,9 @@ namespace noa::details {
         Outputs&& outputs,
         Op&& op
     ) {
-        constexpr i64 index_of_first_varray = nd::index_of_first_varray<Inputs>();
+        constexpr isize index_of_first_varray = nd::index_of_first_varray<Inputs>();
         static_assert(index_of_first_varray >= 0, "There should be at least one input varray");
-        constexpr auto index = static_cast<size_t>(index_of_first_varray);
+        constexpr auto index = static_cast<usize>(index_of_first_varray);
 
         Tuple input_accessors = nd::to_tuple_of_accessors(std::forward<Inputs>(inputs));
         Tuple reduced_accessors = nd::to_tuple_of_accessors(std::forward<Reduced>(reduced));
@@ -129,20 +129,20 @@ namespace noa::details {
         auto shape = first_input_array.shape();
         const auto device = first_input_array.device();
         const auto order = ni::order(first_input_array.strides(), shape);
-        bool do_reorder = vany(NotEqual{}, order, Vec4<i64>{0, 1, 2, 3});
+        bool do_reorder = order != Vec<isize, 4>{0, 1, 2, 3};
 
-        inputs.for_each_enumerate([&]<size_t I, typename T>(T& input) {
+        inputs.for_each_enumerate([&]<usize I, typename T>(T& input) {
             if constexpr (I > index and nt::varray<T>) {
                 check(device == input.device(),
                       "Input arrays should be on the same device, but got device:0={} and device:{}={}",
                       device, I, input.device());
-                check(vall(Equal{}, shape, input.shape()),
+                check(shape == input.shape(),
                       "Input arrays should have the same shape, but got shape:0={} and shape:{}={}",
                       shape, I, input.shape());
 
                 // Only reorder if all the inputs have the same order.
                 if (do_reorder)
-                    do_reorder = vall(Equal{}, order, ni::order(input.strides(), shape));
+                    do_reorder = order == ni::order(input.strides(), shape);
                 // TODO Forcing the same order is okay, but may be a bit too restrictive since it effectively
                 //      prevents automatic broadcasting (the caller can still explicitly broadcast though).
                 //      We may instead find the input with the largest effective shape and use it as
@@ -191,7 +191,7 @@ namespace noa::details {
                     nd::are_all_value_types_trivially_copyable<decltype(output_accessors)>();
 
                 // Allocate and initialize the output values for the device.
-                [[maybe_unused]] auto buffers = output_accessors.map_enumerate([&]<size_t J, typename A>(A& accessor) {
+                [[maybe_unused]] auto buffers = output_accessors.map_enumerate([&]<usize J, typename A>(A& accessor) {
                     using value_t = typename A::value_type;
                     if constexpr (use_device_memory) {
                         auto buffer = noa::cuda::AllocatorDevice::allocate_async<value_t>(1, cuda_stream);
@@ -229,7 +229,7 @@ namespace noa::details {
                     cuda_stream.synchronize();
 
                 // Copy the results back to the output values.
-                output_accessors.for_each_enumerate([&]<size_t J>(auto& accessor) {
+                output_accessors.for_each_enumerate([&]<usize J>(auto& accessor) {
                     if constexpr (use_device_memory) {
                         auto& output = outputs[Tag<J>{}];
                         noa::cuda::copy(accessor.get(), &output, cuda_stream);

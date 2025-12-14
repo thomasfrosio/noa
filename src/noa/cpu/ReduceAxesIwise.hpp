@@ -11,11 +11,11 @@ namespace noa::cpu::details {
     public:
         using interface = nd::ReduceIwiseInterface<ZipReduced, ZipOutput>;
 
-        template<size_t R, size_t N, typename Index, typename Op>
+        template<usize R, usize N, typename Index, typename Op>
         NOA_NOINLINE static void single_axis(
             const Shape<Index, N>& shape,
             Op op, auto reduced, auto output,
-            i64 n_threads
+            isize n_threads
         ) {
             if (n_threads > 1) {
                 #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output) firstprivate(op)
@@ -144,7 +144,7 @@ namespace noa::cpu::details {
         };
 
         template<ReductionMode MODE, typename Index>
-        NOA_NOINLINE static void parallel_4d(const Shape4<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
+        NOA_NOINLINE static void parallel_4d(const Shape<Index, 4>& shape, auto op, auto reduced, auto output, isize n_threads) {
             auto original_reduced = reduced;
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
             {
@@ -181,7 +181,7 @@ namespace noa::cpu::details {
         }
 
         template<typename Index>
-        NOA_NOINLINE static constexpr void serial_4d(const Shape4<Index>& shape, auto op, auto reduced, auto output) {
+        NOA_NOINLINE static constexpr void serial_4d(const Shape<Index, 4>& shape, auto op, auto reduced, auto output) {
             for (Index i = 0; i < shape[0]; ++i) {
                 auto local = reduced;
                 for (Index j = 0; j < shape[1]; ++j)
@@ -193,7 +193,7 @@ namespace noa::cpu::details {
         }
 
         template<ReductionMode MODE, typename Index>
-        NOA_NOINLINE static void parallel_3d(const Shape3<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
+        NOA_NOINLINE static void parallel_3d(const Shape<Index, 3>& shape, auto op, auto reduced, auto output, isize n_threads) {
             auto original_reduced = reduced;
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
             {
@@ -230,7 +230,7 @@ namespace noa::cpu::details {
         }
 
         template<typename Index>
-        NOA_NOINLINE static constexpr void serial_3d(const Shape3<Index>& shape, auto op, auto reduced, auto output) {
+        NOA_NOINLINE static constexpr void serial_3d(const Shape<Index, 3>& shape, auto op, auto reduced, auto output) {
             for (Index d = 0; d < shape[0]; ++d) {
                 auto local = reduced;
                 for (Index h = 0; h < shape[1]; ++h)
@@ -241,7 +241,7 @@ namespace noa::cpu::details {
         }
 
         template<ReductionMode MODE, typename Index>
-        NOA_NOINLINE static void parallel_2d(const Shape2<Index>& shape, auto op, auto reduced, auto output, i64 n_threads) {
+        NOA_NOINLINE static void parallel_2d(const Shape<Index, 2>& shape, auto op, auto reduced, auto output, isize n_threads) {
             auto original_reduced = reduced;
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
             {
@@ -276,7 +276,7 @@ namespace noa::cpu::details {
         }
 
         template<typename Index>
-        NOA_NOINLINE static constexpr void serial_2d(const Shape2<Index>& shape, auto op, auto reduced, auto output) {
+        NOA_NOINLINE static constexpr void serial_2d(const Shape<Index, 2>& shape, auto op, auto reduced, auto output) {
             for (Index h = 0; h < shape[0]; ++h) {
                 auto local = reduced;
                 for (Index w = 0; w < shape[1]; ++w)
@@ -288,15 +288,15 @@ namespace noa::cpu::details {
 }
 
 namespace noa::cpu {
-    template<bool ZipReduced = false, bool ZipOutput = false, i64 ElementsPerThread = 1'048'576>
+    template<bool ZipReduced = false, bool ZipOutput = false, isize ElementsPerThread = 1'048'576>
     struct ReduceAxesIwiseConfig {
         static constexpr bool zip_reduced = ZipReduced;
         static constexpr bool zip_output = ZipOutput;
-        static constexpr i64 n_elements_per_thread = ElementsPerThread;
+        static constexpr isize n_elements_per_thread = ElementsPerThread;
     };
 
     template<typename Config = ReduceAxesIwiseConfig<>,
-            typename Op, size_t N, typename Reduced, typename Output, typename Index>
+            typename Op, usize N, typename Reduced, typename Output, typename Index>
     requires (nt::tuple_of_accessor_pure_nd_or_empty<std::decay_t<Output>, N> and
               nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
     NOA_NOINLINE constexpr void reduce_axes_iwise(
@@ -305,20 +305,19 @@ namespace noa::cpu {
         Op&& op,
         Reduced&& reduced,
         Output&& output,
-        i64 n_threads = 1
+        i32 n_threads = 1
     ) {
-        const Vec<bool, N> axes_to_reduce = input_shape != output_shape;
-        if (any(axes_to_reduce and (output_shape != 1))) {
-            panic("Dimensions should match the input shape, or be 1, "
-                  "indicating the dimension should be reduced to one element. "
-                  "Got shape input={}, output={}", input_shape, output_shape);
-        } else if (all(axes_to_reduce == false)) {
-            panic("No reduction to compute. Got shape input={}, output={}. Please use iwise instead.",
-                  input_shape, output_shape);
-        }
+        const auto axes_to_reduce = input_shape.cmp_ne(output_shape);
+        check((axes_to_reduce and output_shape.cmp_ne(1)) == false,
+              "Dimensions should match the input shape, or be 1, "
+              "indicating the dimension should be reduced to one element. "
+              "Got shape input={}, output={}", input_shape, output_shape);
+        check(axes_to_reduce.any_eq(true),
+              "No reduction to compute. Got shape input={}, output={}. Please use iwise instead.",
+              input_shape, output_shape);
 
-        const auto axes_empty_or_to_reduce = output_shape == 1 or axes_to_reduce;
-        if (all(axes_empty_or_to_reduce)) { // reduce to a single value
+        const auto axes_empty_or_to_reduce = output_shape.cmp_eq(1) or axes_to_reduce;
+        if (axes_empty_or_to_reduce == true) { // reduce to a single value
             constexpr auto config = nd::AccessorConfig<1>{.enforce_contiguous = true, .filter = {0}};
             auto output_1d = nd::reconfig_accessors<config>(output);
             return reduce_iwise<Config>(
@@ -326,13 +325,13 @@ namespace noa::cpu {
         }
 
         using reduce_axes_iwise_t = details::ReduceAxesIwise<Config::zip_reduced, Config::zip_output>;
-        const auto shape = input_shape.template as<i64>();
-        const auto n_batches = shape[0];
-        const i64 n_elements_to_reduce = input_shape.template as<i64>().n_elements();
+        const auto shape = input_shape.template as<isize>();
+        const auto n_batches = clamp_cast<i32>(shape[0]);
+        const isize n_elements_to_reduce = input_shape.template as<isize>().n_elements();
         const bool is_small = n_elements_to_reduce <= Config::n_elements_per_thread;
 
         if constexpr (N == 4) {
-            if (all(axes_empty_or_to_reduce.pop_front())) { // reduce to one value per batch
+            if (axes_empty_or_to_reduce.pop_front() == true) { // reduce to one value per batch
                 auto output_1d = nd::reconfig_accessors<nd::AccessorConfig<1>{.filter = {0}}>(output);
                 if (is_small or n_threads <= 1) {
                     reduce_axes_iwise_t::serial_4d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
@@ -367,7 +366,7 @@ namespace noa::cpu {
                 }
             }
         } else if constexpr (N == 3) {
-            if (all(axes_empty_or_to_reduce.pop_front())) { // reduce to one value per batch
+            if (axes_empty_or_to_reduce.pop_front() == true) { // reduce to one value per batch
                 auto output_1d = nd::reconfig_accessors<nd::AccessorConfig<1>{.filter={0}}>(output);
                 if (is_small or n_threads <= 1) {
                     reduce_axes_iwise_t::serial_3d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);

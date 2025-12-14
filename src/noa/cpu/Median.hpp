@@ -8,7 +8,7 @@
 
 namespace noa::cpu {
     template<typename T>
-    auto median(T* input, Strides4<i64> strides, Shape4<i64> shape, bool overwrite) {
+    auto median(T* input, Strides4 strides, Shape4 shape, bool overwrite) {
         // Make it in rightmost order.
         const auto order = ni::order(strides, shape);
         strides = ni::reorder(strides, order);

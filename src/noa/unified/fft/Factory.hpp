@@ -13,7 +13,7 @@ namespace noa::fft {
     /// \note A optimum size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d).
     /// \note If \p size is >16800, this function will simply return the next even number and will not necessarily
     ///       satisfy the aforementioned requirements.
-    inline auto next_fast_size(i64 size) -> i64 {
+    inline auto next_fast_size(isize size) -> isize {
         #ifdef NOA_ENABLE_CUDA
         return noa::cuda::fft::fast_size(size);
         #else
@@ -24,10 +24,10 @@ namespace noa::fft {
     /// Returns the next optimum (((B)D)H)W shape.
     /// \note Dimensions of size 0 or 1 are ignored as well as the batch dimension,
     ///       e.g. {3,1,53,53} is rounded up to {3,1,54,54}.
-    template<size_t N>
-    [[nodiscard]] auto next_fast_shape(Shape<i64, N> shape) -> Shape<i64, N> {
-        constexpr size_t START_INDEX = N == 4 ? 1 : 0; // BDHW -> ignore batch
-        for (size_t i = START_INDEX; i < N; ++i)
+    template<usize N>
+    [[nodiscard]] auto next_fast_shape(Shape<isize, N> shape) -> Shape<isize, N> {
+        constexpr usize START_INDEX = N == 4 ? 1 : 0; // BDHW -> ignore batch
+        for (usize i = START_INDEX; i < N; ++i)
             if (shape[i] > 1)
                 shape[i] = next_fast_size(shape[i]);
         return shape;
@@ -37,8 +37,8 @@ namespace noa::fft {
     /// \param[in] rfft VArray of the rfft(s) to alias.
     /// \param shape    BDHW logical shape of \p rfft.
     template<nt::varray_decay_of_complex Complex>
-    [[nodiscard]] auto alias_to_real(Complex&& rfft, const Shape4<i64>& shape) {
-        check(vall(Equal{}, rfft.shape(), shape.rfft()),
+    [[nodiscard]] auto alias_to_real(Complex&& rfft, const Shape4& shape) {
+        check(rfft.shape() == shape.rfft(),
               "Given the {} logical shape, the rfft should have a shape of {}, but got {}",
               shape, shape.rfft(), rfft.shape());
         using real_t = nt::mutable_value_type_twice_t<Complex>;
@@ -54,7 +54,7 @@ namespace noa::fft {
     /// \return         The allocated array. Both the real and complex views are pointing to the same memory,
     ///                 i.e. the real array has enough padding and alignment to support inplace r2c transforms.
     template<nt::any_of<f32, f64> T>
-    [[nodiscard]] auto zeros(const Shape4<i64>& shape, ArrayOption option = {}) -> Pair<Array<T>, Array<Complex<T>>> {
+    [[nodiscard]] auto zeros(const Shape4& shape, ArrayOption option = {}) -> Pair<Array<T>, Array<Complex<T>>> {
         Array complex = noa::zeros<Complex<T>>(shape.rfft(), option);
         Array real = alias_to_real(complex, shape);
         return {std::move(real), std::move(complex)};
@@ -66,7 +66,7 @@ namespace noa::fft {
     /// \return         The allocated array. Both the real and complex views are pointing to the same memory,
     ///                 i.e. the real array has enough padding and alignment to support inplace r2c transforms.
     template<nt::any_of<f32, f64> T>
-    [[nodiscard]] auto ones(const Shape4<i64>& shape, ArrayOption option = {}) -> Pair<Array<T>, Array<Complex<T>>> {
+    [[nodiscard]] auto ones(const Shape4& shape, ArrayOption option = {}) -> Pair<Array<T>, Array<Complex<T>>> {
         Array complex = noa::ones<Complex<T>>(shape.rfft(), option);
         Array real = alias_to_real(complex, shape);
         return {std::move(real), std::move(complex)};
@@ -78,7 +78,7 @@ namespace noa::fft {
     /// \return         The allocated array. Both the real and complex views are pointing to the same memory,
     ///                 i.e. the real array has enough padding and alignment to support inplace r2c transforms.
     template<nt::any_of<f32, f64> T>
-    [[nodiscard]] auto empty(const Shape4<i64>& shape, ArrayOption option = {}) -> Pair<Array<T>, Array<Complex<T>>> {
+    [[nodiscard]] auto empty(const Shape4& shape, ArrayOption option = {}) -> Pair<Array<T>, Array<Complex<T>>> {
         Array complex = noa::empty<Complex<T>>(shape.rfft(), option);
         Array real = alias_to_real(complex, shape);
         return {std::move(real), std::move(complex)};

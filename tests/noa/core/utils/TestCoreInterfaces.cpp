@@ -26,7 +26,7 @@ TEST_CASE("core::IwiseInterface") {
     }
 
     AND_THEN("simple 3d") {
-        auto op1 = [b = b0.get()](Vec3<size_t>& indices) {
+        auto op1 = [b = b0.get()](Vec<size_t, 3>& indices) {
             const auto offset = indices[0] * 100 + indices[1] * 10 + indices[2];
             b[offset] = static_cast<int>(noa::sum(indices));
         };
@@ -59,7 +59,7 @@ TEST_CASE("core::EwiseInterface") {
 
     AND_THEN("simple fill 1d") {
         auto op0 = [](int& b) { b = 1; };
-        auto a0 = AccessorContiguousI64<i32, 1>(b0.get());
+        auto a0 = AccessorContiguous<i32, 1, i64>(b0.get());
         auto input = noa::forward_as_tuple();
         auto output = noa::forward_as_tuple(a0);
 
@@ -75,10 +75,10 @@ TEST_CASE("core::EwiseInterface") {
             const auto& [a0, a1] = a;
             b = a0 + a1;
         };
-        const auto strides_2d = Strides2<i64>{50, 1};
-        auto a0 = AccessorContiguousI64<const i32, 2>(b0.get(), strides_2d);
-        auto a1 = AccessorContiguousI64<i32, 2>(b0.get(), strides_2d);
-        auto a2 = AccessorContiguousI64<i32, 2>(b1.get(), strides_2d);
+        const auto strides_2d = Strides<i64, 2>{50, 1};
+        auto a0 = AccessorContiguous<const i32, 2, i64>(b0.get(), strides_2d);
+        auto a1 = AccessorContiguous<i32, 2, i64>(b0.get(), strides_2d);
+        auto a2 = AccessorContiguous<i32, 2, i64>(b1.get(), strides_2d);
         auto input = noa::forward_as_tuple(a0, a1);
         auto output = noa::forward_as_tuple(a2);
 
@@ -98,7 +98,7 @@ TEST_CASE("core::ReduceIwiseInterface") {
 
     AND_THEN("simple sum") {
         const auto buffer = std::make_unique<i32[]>(100);
-        auto array = AccessorContiguousI64<i32, 1>(buffer.get());
+        auto array = AccessorContiguous<i32, 1, i64>(buffer.get());
         std::fill_n(array.get(), 100, 1);
 
         auto op = [=](u32 i, int& sum) { sum += array[i]; };
@@ -113,11 +113,11 @@ TEST_CASE("core::ReduceIwiseInterface") {
 
     AND_THEN("serial sum and max") {
         const auto buffer = std::make_unique<i32[]>(100);
-        auto array = AccessorContiguousI64<i32, 1>(buffer.get());
+        auto array = AccessorContiguous<i32, 1, i64>(buffer.get());
         std::fill_n(array.get(), 100, 1);
         array[50] = 101; // expected max
 
-        auto op0 = [=](Vec1<u32> i, i64& sum, i32& max) {
+        auto op0 = [=](Vec<u32, 1> i, i64& sum, i32& max) {
             const auto& value = array[i[0]];
             sum += value;
             max = std::max(value, max);
@@ -139,7 +139,7 @@ TEST_CASE("core::ReduceIwiseInterface") {
 
     AND_THEN("parallel sum") {
         const auto buffer = std::make_unique<i64[]>(100);
-        auto array = AccessorContiguousI64<i64, 1>(buffer.get());
+        auto array = AccessorContiguous<i64, 1, i64>(buffer.get());
         std::fill_n(array.get(), 100, 1);
 
         auto init_op = [=](size_t i, i64& sum) { sum += array[i]; };
@@ -180,8 +180,8 @@ TEST_CASE("core::ReduceEwiseInterface") {
         std::fill_n(b0.get(), 100, 1);
         std::fill_n(b1.get(), 100, 2);
 
-        auto a0 = AccessorContiguousI64<const i32, 1>(b0.get());
-        auto a1 = AccessorContiguousI64<i32, 1>(b1.get());
+        auto a0 = AccessorContiguous<const i32, 1, i64>(b0.get());
+        auto a1 = AccessorContiguous<i32, 1, i64>(b1.get());
 
         auto op = [](Tuple<const i32&, i32&> inputs, int& sum) {
             auto[lhs, rhs] = inputs;

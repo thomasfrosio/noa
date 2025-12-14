@@ -20,7 +20,6 @@ namespace noa {
     };
 
     /// Sorts an array, in-place.
-    /// \tparam T               Any restricted scalar.
     /// \param[in,out] array    Array to sort, in-place.
     /// \param options          Sorting options.
     /// \note The sort algorithms make temporary copies of the data when sorting along any but the last axis.

@@ -46,19 +46,19 @@ namespace noa::traits {
     template<> struct proclaim_is_string<std::string_view> : std::true_type {};
 }
 
-namespace noa::string {
+namespace noa::details {
     // Left trims str.
     [[nodiscard]] inline std::string_view trim_left(std::string_view str) {
         auto is_not_space = [](int ch) { return !std::isspace(ch); };
         const char* start = std::find_if(str.begin(), str.end(), is_not_space);
-        return std::string_view{start, static_cast<size_t>(str.end() - start)};
+        return std::string_view{start, static_cast<usize>(str.end() - start)};
     }
 
     // Right trims str.
     [[nodiscard]] inline std::string_view trim_right(std::string_view str) {
         auto is_not_space = [](int ch) { return !std::isspace(ch); };
         const char* end = std::find_if(str.rbegin(), str.rend(), is_not_space).base();
-        return std::string_view{str.begin(), static_cast<size_t>(end - str.begin())};
+        return std::string_view{str.begin(), static_cast<usize>(end - str.begin())};
     }
 
     // Trims (left and right) str.
@@ -111,8 +111,8 @@ namespace noa::string {
         return str.rfind(prefix, 0) == 0;
     }
 
-    inline std::string_view offset_by(std::string_view str, size_t count) {
-        const size_t offset = std::min(str.size(), count);
+    inline std::string_view offset_by(std::string_view str, usize count) {
+        const usize offset = std::min(str.size(), count);
         return {str.data() + offset, str.size() - offset};
     }
 

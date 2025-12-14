@@ -28,12 +28,12 @@ namespace noa::cuda::details {
         Op op,
         Reduced reduced,
         Reduced* joined,
-        Vec4<Index> shape,
-        Vec2<u32> n_blocks_hw
+        Vec<Index, 4> shape,
+        Vec<u32, 2> n_blocks_hw
     ) {
         // Get the position within the 4d span.
-        const Vec2<u32> index = ni::offset2index(blockIdx.x, n_blocks_hw[1]);
-        const auto gid = Vec4<Index>::from_values(
+        const Vec<u32, 2> index = ni::offset2index(blockIdx.x, n_blocks_hw[1]);
+        const auto gid = Vec<Index, 4>::from_values(
             blockIdx.z,
             blockIdx.y,
             Block::block_size_y * index[0] + threadIdx.y,
@@ -59,9 +59,9 @@ namespace noa::cuda::details {
         Op op,
         Reduced reduced,
         Reduced* joined,
-        Vec3<Index> shape
+        Vec<Index, 3> shape
     ) {
-        const auto gid = Vec3<Index>::from_values(
+        const auto gid = Vec<Index, 3>::from_values(
             blockIdx.z,
             Block::block_size_y * blockIdx.y + threadIdx.y,
             Block::block_size_x * blockIdx.x + threadIdx.x
@@ -83,9 +83,9 @@ namespace noa::cuda::details {
         Op op,
         Reduced reduced,
         Reduced* joined,
-        Vec2<Index> shape
+        Vec<Index, 2> shape
     ) {
-        const auto gid = Vec2<Index>::from_values(
+        const auto gid = Vec<Index, 2>::from_values(
             Block::block_size_y * blockIdx.y + threadIdx.y,
             Block::block_size_x * blockIdx.x + threadIdx.x
         );
@@ -105,11 +105,11 @@ namespace noa::cuda::details {
         Op op,
         Reduced reduced,
         Reduced* joined,
-        Vec1<Index> shape
+        Vec<Index, 1> shape
     ) {
         const Index tid = threadIdx.x;
         const Index bid = blockIdx.x;
-        const auto gid = Vec1<Index>::from_values(Block::block_size * bid + tid);
+        const auto gid = Vec<Index, 1>::from_values(Block::block_size * bid + tid);
 
         for (Index cw = gid[0]; cw < shape[0]; cw += Block::block_size * gridDim.x)
             Interface::init(op, reduced, cw);
@@ -135,8 +135,8 @@ namespace noa::cuda::details {
 
     template<typename Block, typename Interface, typename Op, typename Index, typename Reduced, typename Output>
     __global__ __launch_bounds__(Block::block_size)
-    void reduce_iwise_4d_small(Op op, Reduced reduced, Output output, Vec4<Index> shape) {
-        const auto gid = Vec4<Index>::from_values(0, 0, threadIdx.y, threadIdx.x);
+    void reduce_iwise_4d_small(Op op, Reduced reduced, Output output, Vec<Index, 4> shape) {
+        const auto gid = Vec<Index, 4>::from_values(0, 0, threadIdx.y, threadIdx.x);
 
         for (Index i = gid[0]; i < shape[0]; ++i)
             for (Index j = gid[1]; j < shape[1]; ++j)
@@ -150,8 +150,8 @@ namespace noa::cuda::details {
 
     template<typename Block, typename Interface, typename Op, typename Index, typename Reduced, typename Output>
     __global__ __launch_bounds__(Block::block_size)
-    void reduce_iwise_3d_small(Op op, Reduced reduced, Output output, Vec3<Index> shape) {
-        const auto gid = Vec3<Index>::from_values(0, threadIdx.y, threadIdx.x);
+    void reduce_iwise_3d_small(Op op, Reduced reduced, Output output, Vec<Index, 3> shape) {
+        const auto gid = Vec<Index, 3>::from_values(0, threadIdx.y, threadIdx.x);
 
         for (Index i = gid[0]; i < shape[0]; ++i)
             for (Index j = gid[1]; j < shape[1]; j += Block::block_size_y)
@@ -164,8 +164,8 @@ namespace noa::cuda::details {
 
     template<typename Block, typename Interface, typename Op, typename Index, typename Reduced, typename Output>
     __global__ __launch_bounds__(Block::block_size)
-    void reduce_iwise_2d_small(Op op, Reduced reduced, Output output, Vec2<Index> shape) {
-        const auto gid = Vec2<Index>::from_values(threadIdx.y, threadIdx.x);
+    void reduce_iwise_2d_small(Op op, Reduced reduced, Output output, Vec<Index, 2> shape) {
+        const auto gid = Vec<Index, 2>::from_values(threadIdx.y, threadIdx.x);
 
         for (Index i = gid[0]; i < shape[0]; i += Block::block_size_y)
             for (Index j = gid[1]; j < shape[1]; j += Block::block_size_x)
@@ -177,8 +177,8 @@ namespace noa::cuda::details {
 
     template<typename Block, typename Interface, typename Op, typename Index, typename Reduced, typename Output>
     __global__ __launch_bounds__(Block::block_size)
-    void reduce_iwise_1d_small(Op op, Reduced reduced, Output output, Vec1<Index> shape) {
-        const auto gid = Vec1<Index>::from_values(threadIdx.x);
+    void reduce_iwise_1d_small(Op op, Reduced reduced, Output output, Vec<Index, 1> shape) {
+        const auto gid = Vec<Index, 1>::from_values(threadIdx.x);
 
         for (Index i = gid[0]; i < shape[0]; i += Block::block_size)
             Interface::init(op, reduced, i);
@@ -189,19 +189,19 @@ namespace noa::cuda::details {
 
 namespace noa::cuda::details {
     template<typename Block, size_t N>
-    auto reduce_iwise_nd_first_config(const Shape<i64, N>& shape) {
-        constexpr auto max_grid_size = static_cast<i64>(Block::max_grid_size);
+    auto reduce_iwise_nd_first_config(const Shape<isize, N>& shape) {
+        constexpr auto max_grid_size = static_cast<isize>(Block::max_grid_size);
         constexpr auto block_size = [] {
             if constexpr (N > 1) // 2d blocks
-                return Vec4<i64>::from_values(1, 1, Block::block_size_y, Block::block_size_x);
+                return Vec<isize, 4>::from_values(1, 1, Block::block_size_y, Block::block_size_x);
             else // 1d blocks
-                return Vec4<i64>::from_values(1, 1, 1, Block::block_size);
+                return Vec<isize, 4>::from_values(1, 1, 1, Block::block_size);
         }();
 
         // Set the number of blocks, while keep the total number of blocks within the maximum allowed.
-        auto n_blocks = Vec4<i64>::from_value(1);
+        auto n_blocks = Vec<isize, 4>::from_value(1);
         const auto shape_whdb = shape.flip();
-        for (i64 i = 0; i <  static_cast<i64>(N); ++i) {
+        for (isize i = 0; i <  static_cast<isize>(N); ++i) {
             const auto n_blocks_allowed = max_grid_size / product(n_blocks);
             n_blocks[3 - i] = min(divide_up(shape_whdb[i], block_size[3 - i]), n_blocks_allowed);
         }
@@ -249,8 +249,8 @@ namespace noa::cuda {
         using OutputDecay = std::decay_t<Output>;
         using Interface = Config::interface;
 
-        const auto n_elements = shape.template as_safe<i64>().n_elements();
-        constexpr auto SMALL_THRESHOLD = static_cast<i64>(Config::block_size * 32);
+        const auto n_elements = shape.template as_safe<isize>().n_elements();
+        constexpr auto SMALL_THRESHOLD = static_cast<isize>(Config::block_size * 32);
 
         if (n_elements <= SMALL_THRESHOLD) {
             if constexpr (N == 1) {
@@ -285,19 +285,19 @@ namespace noa::cuda {
                 static_assert(nt::always_false<Op>);
             }
         } else {
-            const auto shape_i64 = shape.template as_safe<i64>();
+            const auto shape_iz = shape.template as_safe<isize>();
             using Buffer = AllocatorDevice::allocate_type<ReducedDecay>;
             Buffer joined;
             Index n_joined;
             auto allocate_joined = [&](u32 n) {
                 n_joined = static_cast<Index>(n);
-                joined = AllocatorDevice::allocate_async<ReducedDecay>(static_cast<i64>(n_joined), stream);
+                joined = AllocatorDevice::allocate_async<ReducedDecay>(static_cast<isize>(n_joined), stream);
             };
 
             // First kernel.
             if constexpr (N == 1) {
                 using Block = details::ReduceIwise1dBlock<Config>;
-                auto [config, n_blocks, _] = details::reduce_iwise_nd_first_config<Block>(shape_i64);
+                auto [config, n_blocks, _] = details::reduce_iwise_nd_first_config<Block>(shape_iz);
                 allocate_joined(n_blocks);
                 stream.enqueue(
                     details::reduce_iwise_1d_first<Block, Interface, OpDecay, Index, ReducedDecay>,
@@ -305,7 +305,7 @@ namespace noa::cuda {
                 );
             } else if constexpr (N == 2) {
                 using Block = details::ReduceIwise2dBlock<Config>;
-                auto [config, n_blocks, _] = details::reduce_iwise_nd_first_config<Block>(shape_i64);
+                auto [config, n_blocks, _] = details::reduce_iwise_nd_first_config<Block>(shape_iz);
                 allocate_joined(n_blocks);
                 stream.enqueue(
                     details::reduce_iwise_2d_first<Block, Interface, OpDecay, Index, ReducedDecay>,
@@ -313,7 +313,7 @@ namespace noa::cuda {
                 );
             } else if constexpr (N == 3) {
                 using Block = details::ReduceIwise2dBlock<Config>;
-                auto [config, n_blocks, _] = details::reduce_iwise_nd_first_config<Block>(shape_i64);
+                auto [config, n_blocks, _] = details::reduce_iwise_nd_first_config<Block>(shape_iz);
                 allocate_joined(n_blocks);
                 stream.enqueue(
                     details::reduce_iwise_3d_first<Block, Interface, OpDecay, Index, ReducedDecay>,
@@ -321,7 +321,7 @@ namespace noa::cuda {
                 );
             } else if constexpr (N == 4) {
                 using Block = details::ReduceIwise2dBlock<Config>;
-                auto [config, n_blocks, n_blocks_hw] = details::reduce_iwise_nd_first_config<Block>(shape_i64);
+                auto [config, n_blocks, n_blocks_hw] = details::reduce_iwise_nd_first_config<Block>(shape_iz);
                 allocate_joined(n_blocks);
                 stream.enqueue(
                     details::reduce_iwise_4d_first<Block, Interface, OpDecay, Index, ReducedDecay>,

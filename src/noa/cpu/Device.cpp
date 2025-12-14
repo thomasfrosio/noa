@@ -85,10 +85,10 @@ namespace {
 namespace {
     using namespace noa;
 
-    size_t parse_size_from_line(const std::string& line) {
-        const size_t colon_id = line.find_first_of(':');
+    usize parse_size_from_line(const std::string& line) {
+        const usize colon_id = line.find_first_of(':');
         const auto start = std::string_view(line.c_str() + colon_id + 1);
-        auto size = noa::string::parse<size_t>(start);
+        auto size = nd::parse<usize>(start);
         check(size, "Could not retrieve file size. Line={}", start);
         return *size;
     }
@@ -99,9 +99,9 @@ namespace {
         std::string line;
         io::InputTextFile mem_info("/proc/meminfo", {.read=true});
         while (mem_info.next_line(line)) {
-            if (noa::string::starts_with(line, "MemTotal"))
+            if (nd::starts_with(line, "MemTotal"))
                 ret.total = parse_size_from_line(line) * 1024; // in bytes
-            else if (noa::string::starts_with(line, "MemAvailable"))
+            else if (nd::starts_with(line, "MemAvailable"))
                 ret.free = parse_size_from_line(line) * 1024; // in bytes
         }
         check(not mem_info.bad(), "Error while reading {}", mem_info.path());
@@ -112,9 +112,9 @@ namespace {
         io::InputTextFile cpu_info("/proc/cpuinfo", {.read=true});
         std::string line;
         while (cpu_info.next_line(line)) {
-            if (noa::string::starts_with(line, "model name")) {
-                const size_t colon_id = line.find_first_of(':');
-                const size_t nonspace_id = line.find_first_not_of(" \t", colon_id + 1);
+            if (nd::starts_with(line, "model name")) {
+                const usize colon_id = line.find_first_of(':');
+                const usize nonspace_id = line.find_first_not_of(" \t", colon_id + 1);
                 return line.c_str() + nonspace_id; // assume right trimmed
             }
         }
@@ -129,10 +129,10 @@ namespace {
         io::InputTextFile cpu_info("/proc/cpuinfo", {.read=true});
         std::string line;
         while (cpu_info.next_line(line)) {
-            if (not got_logical and noa::string::starts_with(line, "siblings")) {
+            if (not got_logical and nd::starts_with(line, "siblings")) {
                 out.logical = parse_size_from_line(line);
                 got_logical = true;
-            } else if (not got_physical and noa::string::starts_with(line, "cpu cores")) {
+            } else if (not got_physical and nd::starts_with(line, "cpu cores")) {
                 out.physical = parse_size_from_line(line);
                 got_physical = true;
             }
@@ -189,17 +189,17 @@ namespace {
         cpu::DeviceMemory ret{};
 
         u64 memsize{};
-        size_t len = sizeof(memsize);
+        usize len = sizeof(memsize);
         if (sysctlbyname("hw.memsize", &memsize, &len, nullptr, 0) == 0) {
-            ret.total = static_cast<size_t>(memsize);
+            ret.total = static_cast<usize>(memsize);
         }
 
         mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
         vm_statistics64_data_t vmstat;
         if (host_statistics64(mach_host_self(), HOST_VM_INFO64, reinterpret_cast<host_info64_t>(&vmstat), &count) == KERN_SUCCESS) {
-            const auto page_size = safe_cast<size_t>(sysconf(_SC_PAGESIZE));
-            const auto free_bytes = safe_cast<size_t>(vmstat.free_count * page_size);
-            const auto inactive_bytes = safe_cast<size_t>(vmstat.inactive_count * page_size);
+            const auto page_size = safe_cast<usize>(sysconf(_SC_PAGESIZE));
+            const auto free_bytes = safe_cast<usize>(vmstat.free_count * page_size);
+            const auto inactive_bytes = safe_cast<usize>(vmstat.inactive_count * page_size);
             ret.free = free_bytes + inactive_bytes;
         }
 
@@ -208,7 +208,7 @@ namespace {
 
     std::string get_cpu_name_macos() {
         char buffer[256];
-        size_t size = sizeof(buffer);
+        usize size = sizeof(buffer);
         check(sysctlbyname("machdep.cpu.brand_string", buffer, &size, nullptr, 0) == 0,
               "Could not retrieve CPU name");
         return std::string(buffer, size - 1);
@@ -218,7 +218,7 @@ namespace {
         cpu::DeviceCore out{};
 
         u32 logical = 0, physical = 0;
-        size_t size = sizeof(u32);
+        usize size = sizeof(u32);
         check(sysctlbyname("hw.logicalcpu", &logical, &size, nullptr, 0) == 0,
               "Could not retrieve logical core count");
         check(sysctlbyname("hw.physicalcpu", &physical, &size, nullptr, 0) == 0,
@@ -240,13 +240,13 @@ namespace {
         check(level > 0 and level <= 3);
 
         u64 cache_size{};
-        size_t size = sizeof(cache_size);
+        usize size = sizeof(cache_size);
         if (sysctlbyname(cache_sysctls[level - 1], &cache_size, &size, nullptr, 0) == 0) {
-            out.size = static_cast<size_t>(cache_size);
+            out.size = static_cast<usize>(cache_size);
         } else if (level == 3) {
             // L3 isn't exposed, use SLC instead. From https://en.wikipedia.org/wiki/Apple_silicon
-            out.size = [&]() -> size_t {
-                constexpr size_t MB = 1024 * 1024;
+            out.size = [&]() -> usize {
+                constexpr usize MB = 1024 * 1024;
                 const auto name = get_cpu_name_macos();
                 if (name.find("M1 Ultra") != std::string::npos) return 96 * MB;
                 if (name.find("M1 Max")   != std::string::npos) return 48 * MB;
@@ -268,7 +268,7 @@ namespace {
         u64 line_size{};
         size = sizeof(line_size);
         if (sysctlbyname("hw.cachelinesize", &line_size, &size, nullptr, 0) == 0)
-            out.line_size = static_cast<size_t>(line_size);
+            out.line_size = static_cast<usize>(line_size);
 
         return out;
     }
@@ -315,11 +315,11 @@ namespace noa::cpu {
 
     auto Device::name() -> std::string {
         #if defined(NOA_PLATFORM_LINUX)
-        return std::string(noa::string::trim(get_cpu_name_linux()));
+        return std::string(nd::trim(get_cpu_name_linux()));
         #elif defined(NOA_PLATFORM_WINDOWS)
-        return std::string{noa::string::trim(get_cpu_name_windows())};
+        return std::string{nd::trim(get_cpu_name_windows())};
         #elif defined(NOA_PLATFORM_APPLE)
-        return std::string{noa::string::trim(get_cpu_name_macos())};
+        return std::string{nd::trim(get_cpu_name_macos())};
         #else
         return {};
         #endif

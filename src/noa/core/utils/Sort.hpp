@@ -5,7 +5,7 @@
 
 namespace noa {
     // In-place stable sort for small arrays.
-    template<size_t N, typename T, typename U> requires (N <= 4)
+    template<usize N, typename T, typename U> requires (N <= 4)
     NOA_HD constexpr void small_stable_sort(T* begin, U&& comp) noexcept {
         auto sswap = [](auto& a, auto& b) {
             T tmp = a;
@@ -47,7 +47,7 @@ namespace noa {
     }
 
     // In-place stable sort for small arrays. Sort in ascending order.
-    template<size_t N, typename T> requires (N <= 4)
+    template<usize N, typename T> requires (N <= 4)
     NOA_HD constexpr void small_stable_sort(T* begin) noexcept {
         small_stable_sort<N>(begin, [](const T& a, const T& b) { return a < b; });
     }

@@ -101,8 +101,8 @@ namespace noa {
 
     /// Permutes the input by reordering its dimensions. The returned object points to the same data.
     template<nt::varray_decay Input>
-    auto permute(Input&& input, const Vec<i64, 4>& permutation) {
-        check(all(permutation <= 3) and sum(permutation) == 6, "Permutation {} is not valid", permutation);
+    auto permute(Input&& input, const Vec<i32, 4>& permutation) {
+        check(permutation <= 3 and sum(permutation) == 6, "Permutation {} is not valid", permutation);
         auto permuted_shape = ni::reorder(input.shape(), permutation);
         auto permuted_strides = ni::reorder(input.strides(), permutation);
         using output_t = std::decay_t<Input>;
@@ -122,15 +122,15 @@ namespace noa {
     ///       Anything else calls copy(), which is slower.
     template<nt::readable_varray_decay Input,
              nt::writable_varray_decay_of_any<nt::mutable_value_type_t<Input>> Output>
-    void permute_copy(Input&& input, Output&& output, const Vec4<i64>& permutation) {
+    void permute_copy(Input&& input, Output&& output, const Vec<i32, 4>& permutation) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
-        check(all(permutation <= 3) and sum(permutation) == 6, "Permutation {} is not valid", permutation);
+        check(permutation <= 3 and sum(permutation) == 6, "Permutation {} is not valid", permutation);
 
         // To enable broadcasting, we need to permute the input.
         auto input_strides = input.strides();
         auto input_shape = input.shape();
-        for (i64 i{}; i < 4; ++i) {
-            const i64 d = permutation[i];
+        for (isize i{}; i < 4; ++i) {
+            const auto d = permutation[i];
             if (input.shape()[d] == 1 and output.shape()[i] != 1) {
                 input_strides[d] = 0; // broadcast this dimension
                 input_shape[d] = output.shape()[i];
@@ -184,7 +184,7 @@ namespace noa {
     /// \param[in] input    VArray to permute.
     /// \param permutation  Permutation with the axes numbered from 0 to 3.
     template<nt::varray_decay Input>
-    auto permute_copy(Input&& input, const Vec4<i64>& permutation) {
+    auto permute_copy(Input&& input, const Vec<i32, 4>& permutation) {
         auto permuted_shape = ni::reorder(input.shape(), permutation);
         auto output = Array<nt::mutable_value_type_t<Input>>(permuted_shape, input.options());
         permute_copy(std::forward<Input>(input), output, permutation);
@@ -327,7 +327,7 @@ namespace noa::inline types {
         using value_type = T;
         using mutable_value_type = std::remove_const_t<T>;
         using const_value_type = std::add_const_t<mutable_value_type>;
-        using index_type = i64;
+        using index_type = isize;
         using strides_type = Strides<index_type, 4>;
         using view_type = View;
         using shape_type = Shape<index_type, 4>;
@@ -337,15 +337,15 @@ namespace noa::inline types {
         static constexpr PointerTraits POINTER_TRAIT = span_type::POINTER_TRAIT;
         static constexpr bool IS_CONTIGUOUS = span_type::IS_CONTIGUOUS;
         static constexpr bool IS_RESTRICT = span_type::IS_RESTRICT;
-        static constexpr size_t SIZE = 4;
-        static constexpr int64_t SSIZE = 4;
+        static constexpr usize SIZE = 4;
+        static constexpr isize SSIZE = 4;
 
     public: // Constructors
         /// Creates an empty view.
         constexpr View() = default;
 
         /// Creates a view of a contiguous row-vector.
-        constexpr explicit View(pointer_type data, i64 n_elements = 1, ArrayOption options = {}) noexcept :
+        constexpr explicit View(pointer_type data, isize n_elements = 1, ArrayOption options = {}) noexcept :
             m_shape{1, 1, 1, n_elements},
             m_strides{n_elements, n_elements, n_elements, 1},
             m_ptr{data},
@@ -427,8 +427,8 @@ namespace noa::inline types {
         [[nodiscard]] constexpr auto strides() const noexcept -> const strides_type& { return m_strides; }
         [[nodiscard]] constexpr auto strides_full() const noexcept -> const strides_type& { return m_strides; }
         [[nodiscard]] constexpr auto n_elements() const noexcept -> index_type { return shape().n_elements(); }
-        [[nodiscard]] constexpr auto ssize() const noexcept -> index_type { return n_elements(); }
-        [[nodiscard]] constexpr auto size() const noexcept -> size_t { return static_cast<size_t>(n_elements()); }
+        [[nodiscard]] constexpr auto ssize() const noexcept -> isize { return n_elements(); }
+        [[nodiscard]] constexpr auto size() const noexcept -> usize { return static_cast<usize>(n_elements()); }
 
         template<char ORDER = 'C'>
         [[nodiscard]] constexpr bool are_contiguous() const noexcept {
@@ -467,29 +467,41 @@ namespace noa::inline types {
             return span_type(get(), shape(), strides());
         }
 
-        template<typename U, size_t N = 4, typename I = index_type, StridesTraits STRIDES_TRAIT = STRIDES_TRAIT>
+        template<typename U, usize N = 4,
+                 typename I = index_type,
+                 StridesTraits NewStridesTrait = STRIDES_TRAIT,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto span() const {
-            return span().template span<U, N, I, STRIDES_TRAIT>();
+            return span().template span<U, N, I, NewStridesTrait, NewPointerTrait>();
         }
 
-        template<typename U = value_type, size_t N = 4, typename I = index_type>
+        template<typename U = value_type, usize N = 4,
+                 typename I = index_type,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto span_contiguous() const {
-            return span<U, N, I, StridesTraits::CONTIGUOUS>();
+            return span<U, N, I, StridesTraits::CONTIGUOUS, NewPointerTrait>();
         }
 
-        template<typename U = value_type, typename I = index_type, StridesTraits STRIDES_TRAIT = StridesTraits::CONTIGUOUS>
+        template<typename U = value_type,
+                 typename I = index_type,
+                 StridesTraits NewStridesTrait = STRIDES_TRAIT,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto span_1d() const {
-            return span<U, 1, I, STRIDES_TRAIT>();
+            return span<U, 1, I, NewStridesTrait, NewPointerTrait>();
         }
 
-        template<typename U = value_type, typename I = index_type>
+        template<typename U = value_type,
+                 typename I = index_type,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto span_1d_contiguous() const {
-            return span<U, 1, I, StridesTraits::CONTIGUOUS>();
+            return span<U, 1, I, StridesTraits::CONTIGUOUS, NewPointerTrait>();
         }
 
-        template<typename U = value_type, typename I = index_type>
+        template<typename U = value_type,
+                 typename I = index_type,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto span_1d_strided() const {
-            return span<U, 1, I, StridesTraits::STRIDED>();
+            return span<U, 1, I, StridesTraits::STRIDED, NewPointerTrait>();
         }
 
         /// Returns a (const-)view of the view.
@@ -603,12 +615,12 @@ namespace noa::inline types {
 
         /// Permutes the dimensions of the view.
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
-        [[nodiscard]] constexpr auto permute(const Vec4<i64>& permutation) const -> View {
+        [[nodiscard]] constexpr auto permute(const Vec<i32, 4>& permutation) const -> View {
             auto new_span = span().permute(permutation);
             return View(new_span.data(), new_span.shape(), new_span.strides(), options(), Unchecked{});
         }
 
-        [[nodiscard]] auto permute_copy(const Vec4<i64>& permutation) const -> Array<mutable_value_type> {
+        [[nodiscard]] auto permute_copy(const Vec<i32, 4>& permutation) const -> Array<mutable_value_type> {
             return noa::permute_copy(*this, permutation);
         }
 

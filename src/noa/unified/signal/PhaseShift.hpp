@@ -11,7 +11,7 @@
 
 namespace noa::signal::details {
     /// 4d iwise operator to phase shift the ((D)H)W dimension by size / 2 (floating-point division).
-    template<nf::Layout REMAP, size_t N,
+    template<nf::Layout REMAP, usize N,
              nt::sinteger Index,
              nt::readable_nd_or_empty<4> Input,
              nt::writable_nd<4> Output>
@@ -142,10 +142,10 @@ namespace noa::signal::details {
     template<nf::Layout REMAP, typename Input, typename Output, typename Shift>
     void check_phase_shift_parameters(
         const Input& input, const Output& output,
-        const Shape4<i64>& shape, const Shift& shifts
+        const Shape4& shape, const Shift& shifts
     ) {
         check(not output.is_empty(), "Empty array detected");
-        check(vall(Equal{}, output.shape(), REMAP.is_hx2hx() ? shape.rfft() : shape),
+        check(output.shape() == (REMAP.is_hx2hx() ? shape.rfft() : shape),
               "Given the logical shape {} and FFT layout {}, the expected physical shape should be {}, but got {}",
               shape, REMAP, REMAP.is_hx2hx() ? shape.rfft() : shape, output.shape());
 
@@ -168,7 +168,7 @@ namespace noa::signal::details {
     }
 
     template<nf::Layout REMAP, typename Input, typename Output>
-    void no_phase_shift(Input&& input, Output&& output, const Shape4<i64>& shape) {
+    void no_phase_shift(Input&& input, Output&& output, const Shape4& shape) {
         if (input.is_empty()) {
             using value_t = nt::value_type_t<Output>;
             fill(std::forward<Output>(output), value_t{1, 0});
@@ -208,7 +208,7 @@ namespace noa::signal {
     /// \note \p input and \p output can be equal as long as the layout is unchanged.
     /// \note \p N refers to the dimensionality of the shift(s), not the input/output.
     ///       For instance, one can apply a 1d shift on a 3d array to translate it along its width.
-    template<nf::Layout REMAP, size_t N,
+    template<nf::Layout REMAP, usize N,
              nt::writable_varray_decay_of_complex Output,
              nt::readable_varray_decay_of_complex Input = View<nt::const_value_type_t<Output>>,
              nt::varray_decay_or_value_of_almost_any<Vec<f32, N>, Vec<f64, N>> Shift>
@@ -216,13 +216,13 @@ namespace noa::signal {
     void phase_shift(
         Input&& input,
         Output&& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Shift&& shifts,
         f64 fftfreq_cutoff = 1
     ) {
         using coord_t = nt::mutable_value_type_twice_t<Shift>;
-        using input_accessor_t = Accessor<nt::const_value_type_t<Input>, 4, i64>;
-        using output_accessor_t = Accessor<nt::value_type_t<Output>, 4, i64>;
+        using input_accessor_t = Accessor<nt::const_value_type_t<Input>, 4, isize>;
+        using output_accessor_t = Accessor<nt::value_type_t<Output>, 4, isize>;
 
         details::check_phase_shift_parameters<REMAP>(input, output, shape, shifts);
 
@@ -236,20 +236,19 @@ namespace noa::signal {
         const auto output_accessor = output_accessor_t(output.get(), output.strides());
 
         if constexpr (not nt::varray_decay<Shift>) { // single shift
-            if (vall(IsZero{}, shifts))
+            if (allclose(shifts, 0))
                 return details::no_phase_shift<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape);
 
             const auto half_shifts = shape.filter_nd<N>().vec.pop_front().template as<coord_t>() / 2;
-            const auto is_half_shift = [&](auto shift, auto half_shift) { return allclose(abs(shift), half_shift); };
-            if (vall(is_half_shift, shifts, half_shifts) and fftfreq_cutoff >= sqrt(0.5)) {
-                using op_t = details::PhaseShiftHalf<REMAP, N, i64, input_accessor_t, output_accessor_t>;
+            if (allclose(abs(shifts), half_shifts) and fftfreq_cutoff >= sqrt(0.5)) {
+                using op_t = details::PhaseShiftHalf<REMAP, N, isize, input_accessor_t, output_accessor_t>;
                 return iwise(iwise_shape, output.device(), op_t(input_accessor, output_accessor, shape.pop_front()),
                              std::forward<Input>(input), std::forward<Output>(output));
             }
         }
 
         using shift_t = decltype(details::extract_shift(shifts));
-        using op_t = details::PhaseShift<REMAP, i64, shift_t, input_accessor_t, output_accessor_t>;
+        using op_t = details::PhaseShift<REMAP, isize, shift_t, input_accessor_t, output_accessor_t>;
         auto op = op_t(
             input_accessor, output_accessor, shape.pop_front(), details::extract_shift(shifts),
             static_cast<coord_t>(fftfreq_cutoff)
@@ -263,12 +262,12 @@ namespace noa::signal {
     template<nf::Layout REMAP,
              nt::writable_varray_decay_of_complex Output,
              nt::readable_varray_decay_of_complex Input = View<nt::const_value_type_t<Output>>,
-             nt::varray_decay_or_value_of_almost_any<Vec1<f32>, Vec1<f64>> Shift>
+             nt::varray_decay_or_value_of_almost_any<Vec<f32, 1>, Vec<f64, 1>> Shift>
     requires (REMAP.is_hx2hx() or REMAP.is_fx2fx())
     void phase_shift_1d(
         Input&& input,
         Output&& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Shift&& shifts,
         f64 fftfreq_cutoff = 1
     ) {
@@ -278,12 +277,12 @@ namespace noa::signal {
     template<nf::Layout REMAP,
              nt::writable_varray_decay_of_complex Output,
              nt::readable_varray_decay_of_complex Input = View<nt::const_value_type_t<Output>>,
-             nt::varray_decay_or_value_of_almost_any<Vec2<f32>, Vec2<f64>> Shift>
+             nt::varray_decay_or_value_of_almost_any<Vec<f32, 2>, Vec<f64, 2>> Shift>
     requires (REMAP.is_hx2hx() or REMAP.is_fx2fx())
     void phase_shift_2d(
         Input&& input,
         Output&& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Shift&& shifts,
         f64 fftfreq_cutoff = 1
     ) {
@@ -293,12 +292,12 @@ namespace noa::signal {
     template<nf::Layout REMAP,
              nt::writable_varray_decay_of_complex Output,
              nt::readable_varray_decay_of_complex Input = View<nt::const_value_type_t<Output>>,
-             nt::varray_decay_or_value_of_almost_any<Vec3<f32>, Vec3<f64>> Shift>
+             nt::varray_decay_or_value_of_almost_any<Vec<f32, 3>, Vec<f64, 3>> Shift>
     requires (REMAP.is_hx2hx() or REMAP.is_fx2fx())
     void phase_shift_3d(
         Input&& input,
         Output&& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Shift&& shifts,
         f64 fftfreq_cutoff = 1
     ) {

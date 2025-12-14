@@ -122,7 +122,7 @@ TEMPLATE_TEST_CASE("core::Mat", "", f32, f64) {
                                                        42, 66, 64, 108,
                                                        16, 36, 91, 208,
                                                        45, 8, 2, 55)));
-            REQUIRE(noa::allclose(noa::outer_product(Vec4<TestType>{1, 2, 3, 4}, Vec4<TestType>{5, 6, 7, 8}),
+            REQUIRE(noa::allclose(noa::outer_product(Vec<TestType, 4>{1, 2, 3, 4}, Vec<TestType, 4>{5, 6, 7, 8}),
                                   mat44_t::from_values(5, 6, 7, 8, 10, 12, 14, 16, 15, 18, 21, 24, 20, 24, 28, 32)));
             REQUIRE(noa::allclose(noa::transpose(m0),
                                   mat44_t::from_values(2, 6, 4, 3,
@@ -178,14 +178,14 @@ TEMPLATE_TEST_CASE("core::Mat", "", f32, f64) {
         REQUIRE(noa::allclose(tmp2 * tmp3, mat22_t::from_values(9, 15, 41, 75)));
         REQUIRE(noa::allclose(tmp2 * real_t(2.7), mat22_t::from_values(2.7, 5.4, 24.3, 21.6)));
         REQUIRE(noa::allclose(real_t(2.7) * tmp2, mat22_t::from_values(2.7, 5.4, 24.3, 21.6)));
-        REQUIRE(noa::all(noa::allclose(tmp2 * vec2_t::from_values(1.4, 1.5), vec2_t::from_values(4.4, 24.6))));
-        REQUIRE(noa::all(noa::allclose(vec2_t::from_values(1.4, 1.5) * tmp2, vec2_t::from_values(14.9, 14.8))));
+        REQUIRE(noa::allclose(tmp2 * vec2_t::from_values(1.4, 1.5), vec2_t::from_values(4.4, 24.6)));
+        REQUIRE(noa::allclose(vec2_t::from_values(1.4, 1.5) * tmp2, vec2_t::from_values(14.9, 14.8)));
 
         REQUIRE(noa::allclose(tmp2 / tmp3, mat22_t::from_values(0.33333333, 0.16666667, -3.66666667, 3.16666667)));
         REQUIRE(noa::allclose(tmp2 / real_t(2.8), mat22_t::from_values(0.35714286, 0.71428571, 3.21428571, 2.85714286)));
         REQUIRE(noa::allclose(real_t(-2.8) / tmp2, mat22_t::from_values(-2.8, -1.4, -0.31111111, -0.35)));
-        REQUIRE(noa::all(noa::allclose(tmp3 / vec2_t::from_values(1.4, 1.5), vec2_t::from_values(-0.65, 0.68333333))));
-        REQUIRE(noa::all(noa::allclose(vec2_t::from_values(1.4, 1.5) / tmp3, vec2_t::from_values(-0.4, 0.45))));
+        REQUIRE(noa::allclose(tmp3 / vec2_t::from_values(1.4, 1.5), vec2_t::from_values(-0.65, 0.68333333)));
+        REQUIRE(noa::allclose(vec2_t::from_values(1.4, 1.5) / tmp3, vec2_t::from_values(-0.4, 0.45)));
     }
 
     AND_THEN("Boolean operators") {
@@ -196,7 +196,7 @@ TEMPLATE_TEST_CASE("core::Mat", "", f32, f64) {
     }
 
     AND_THEN("Others") {
-        REQUIRE(noa::string::stringify<Mat23<f32>>() == "Mat<f32,2,3>");
-        REQUIRE(noa::string::stringify<Mat44<f64>>() == "Mat<f64,4,4>");
+        REQUIRE(noa::details::stringify<Mat23<f32>>() == "Mat<f32,2,3>");
+        REQUIRE(noa::details::stringify<Mat44<f64>>() == "Mat<f64,4,4>");
     }
 }

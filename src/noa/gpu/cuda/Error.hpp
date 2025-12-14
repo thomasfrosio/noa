@@ -17,7 +17,7 @@ namespace noa::cuda {
     }
 
     /// Formats the CUDA error to a human-readable string.
-    inline std::string error2string(cudaError_t result) {
+    inline auto error2string(cudaError_t result) -> std::string {
         return fmt::format("{}: {}", cudaGetErrorName(result), cudaGetErrorString(result));
     }
 }

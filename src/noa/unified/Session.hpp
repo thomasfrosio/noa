@@ -68,10 +68,10 @@ namespace noa::inline types {
         ///                     threads and use this number instead.
         /// \note This is the maximum number of internal threads stream can use. Users can of course create additional
         ///       threads using tools from the library, e.g. ThreadPool or asynchronous streams.
-        static void set_thread_limit(i64 n_threads);
+        static void set_thread_limit(i32 n_threads);
 
         /// Returns the maximum number of internal threads.
-        [[nodiscard]] static auto thread_limit() noexcept -> i64 {
+        [[nodiscard]] static auto thread_limit() noexcept -> i32 {
             if (m_thread_limit <= 0) // if not initialized, do it now
                 set_thread_limit(0);
             return m_thread_limit;
@@ -90,29 +90,29 @@ namespace noa::inline types {
         /// \warning This function doesn't synchronize before clearing the cache, so the caller should make sure
         ///          that none of the plans are being used. This can be easily done by synchronizing the relevant
         ///          streams or the device.
-        static auto clear_fft_cache(Device device) -> i64;
+        static auto clear_fft_cache(Device device) -> i32;
 
         /// Sets the maximum number of plans the FFT cache can hold on a given device.
         /// Returns how many plans were cleared from the resizing of the cache.
         /// \note Some backends may not allow setting this parameter, in which case -1 is returned.
-        static auto set_fft_cache_limit(i64 count, Device device) -> i64;
+        static auto set_fft_cache_limit(i32 count, Device device) -> i32;
 
         /// Gets the maximum number of plans the FFT cache can hold on a given device.
         /// \note Some backends may not support retrieving this parameter or may have a
         ///       dynamic cache without a fixed capacity. In these cases, -1 is returned.
-        [[nodiscard]] static auto fft_cache_limit(Device device) -> i64;
+        [[nodiscard]] static auto fft_cache_limit(Device device) -> i32;
 
         /// Returns the current cache size, i.e. how many plans are currently cached.
         /// \note This number may be different from the number of transforms that have been launched.
         ///       Indeed, FFT planners (like FFTW) may create and cache many plans for a single transformation.
         ///       Similarly, transforms may be divided internally into multiple transforms.
         /// \note Some backends may not support retrieving this parameter, in which case, -1 is returned.
-        [[nodiscard]] static auto fft_cache_size(Device device) -> i64;
+        [[nodiscard]] static auto fft_cache_size(Device device) -> isize;
 
         /// Returns the number of bytes that are left to allocate from previous plan creations.
         /// \see noa::fft::FFTOptions.record_and_share_workspace for more details.
         /// \note Some backends (e.g., FFTW) do not support explicit workspace management and always return 0.
-        [[nodiscard]] static auto fft_workspace_left_to_allocate(Device device) -> i64;
+        [[nodiscard]] static auto fft_workspace_left_to_allocate(Device device) -> isize;
 
         /// Assigns cached plans without a workspace to this buffer.
         /// \details The buffer should be on the device and contiguous, otherwise an error will be thrown. The number of
@@ -121,7 +121,7 @@ namespace noa::inline types {
         /// \see noa::fft::FFTOptions.record_and_share_workspace for more details.
         /// \note Some backends (e.g., FFTW) do not support explicit workspace management and always return 0.
         template<nt::varray_decay T>
-        static auto fft_set_workspace(Device device, const T& buffer) -> i64 {
+        static auto fft_set_workspace(Device device, const T& buffer) -> i32 {
             check(buffer.device() == device,
                   "The buffer should be on the device, but got device={} and buffer:device={}",
                   device, buffer.device());
@@ -129,7 +129,7 @@ namespace noa::inline types {
             return fft_set_workspace(
                 device,
                 std::reinterpret_pointer_cast<std::byte[]>(buffer.share()),
-                buffer.ssize() * static_cast<i64>(sizeof(nt::value_type_t<T>))
+                buffer.ssize() * static_cast<isize>(sizeof(nt::value_type_t<T>))
             );
         }
 
@@ -140,9 +140,9 @@ namespace noa::inline types {
         static void clear_blas_cache(Device device);
 
     private:
-        static auto fft_set_workspace(Device device, const std::shared_ptr<std::byte[]>& buffer, i64 buffer_bytes) -> i64;
+        static auto fft_set_workspace(Device device, const std::shared_ptr<std::byte[]>& buffer, isize buffer_bytes) -> i32;
 
     private:
-        static i64 m_thread_limit;
+        static i32 m_thread_limit;
     };
 }

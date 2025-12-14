@@ -3,7 +3,7 @@
 #include "Catch.hpp"
 
 using namespace ::noa::types;
-namespace ns = ::noa::string;
+namespace ns = ::noa::details;
 
 TEST_CASE("core::string::trim_left", "[noa][core]") {
     std::string result;

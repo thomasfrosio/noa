@@ -33,16 +33,16 @@ namespace noa::fft::details {
 
         using dh_shape_type = std::conditional_t<
             MODE == FourierResizeMode::CROP_H2H or MODE == FourierResizeMode::PAD_H2H,
-            Shape2<index_type>, Empty>;
+            Shape<index_type, 2>, Empty>;
         using dhw_vec_type = std::conditional_t<
             MODE == FourierResizeMode::CROP_F2F or MODE == FourierResizeMode::PAD_F2F,
-            Shape3<index_type>, Empty>;
+            Shape<index_type, 3>, Empty>;
 
         constexpr FourierResize(
             const input_type& input,
             const output_type& output,
-            const Shape3<index_type>& input_shape,
-            const Shape3<index_type>& output_shape
+            const Shape<index_type, 3>& input_shape,
+            const Shape<index_type, 3>& output_shape
         ) : m_input(input),
             m_output(output)
         {
@@ -117,14 +117,14 @@ namespace noa::fft {
     template<Layout REMAP, nt::readable_varray_decay Input, nt::writable_varray_decay Output>
     requires (nt::varray_decay_with_compatible_or_spectrum_types<Input, Output> and not REMAP.has_layout_change())
     void resize(
-        Input&& input, Shape4<i64> input_shape,
-        Output&& output, Shape4<i64> output_shape
+        Input&& input, Shape4 input_shape,
+        Output&& output, Shape4 output_shape
     ) {
         using details::FourierResizeMode;
         using input_value_t = nt::mutable_value_type_t<Input>;
         using output_value_t = nt::value_type_t<Output>;
 
-        if (vall(Equal{}, input_shape, output_shape)) {
+        if (input_shape == output_shape) {
             if constexpr (nt::same_as<input_value_t, output_value_t>) {
                 return copy(std::forward<Input>(input), std::forward<Output>(output));
             } else {
@@ -133,14 +133,14 @@ namespace noa::fft {
         }
 
         constexpr bool is_full = REMAP.is_fx2fx();
-        check(not input.is_empty() and not output.is_empty(), "Empty array detected");
+        check(nd::are_arrays_valid(input, output), "Empty array detected");
         check(not ni::are_overlapped(input, output), "Input and output arrays should not overlap");
         check(input.shape()[0] == output.shape()[0], "The batch dimension cannot be resized");
 
-        check(vall(Equal{}, input.shape(), (is_full ? input_shape : input_shape.rfft())),
+        check(input.shape() == (is_full ? input_shape : input_shape.rfft()),
               "Given the {} remap, the input fft is expected to have a physical shape of {}, but got {}",
               REMAP, is_full ? input_shape : input_shape.rfft(), input.shape());
-        check(vall(Equal{}, output.shape(), (is_full ? output_shape : output_shape.rfft())),
+        check(output.shape() == (is_full ? output_shape : output_shape.rfft()),
               "Given the {} remap, the output fft is expected to have a physical shape of {}, but got {}",
               REMAP, is_full ? output_shape : output_shape.rfft(), output.shape());
 
@@ -161,12 +161,12 @@ namespace noa::fft {
 
         } else {
             FourierResizeMode mode{};
-            if (vall(GreaterEqual{}, input_shape, output_shape)) {
+            if (input_shape >= output_shape) {
                 if constexpr (REMAP == Layout::H2H)
                     mode = FourierResizeMode::CROP_H2H;
                 else if constexpr (REMAP == Layout::F2F)
                     mode = FourierResizeMode::CROP_F2F;
-            } else if (vall(LessEqual{}, input_shape, output_shape)) {
+            } else if (input_shape <= output_shape) {
                 if constexpr (REMAP == Layout::H2H)
                     mode = FourierResizeMode::PAD_H2H;
                 else if constexpr (REMAP == Layout::F2F)
@@ -183,7 +183,7 @@ namespace noa::fft {
             auto output_strides = output.strides();
             if (REMAP == Layout::F2F) { // TODO h2h depth-height can be reordered
                 const auto order_3d = ni::order(output_strides.pop_front(), output_shape.pop_front());
-                if (vany(NotEqual{}, order_3d, Vec{0, 1, 2})) {
+                if (order_3d != Vec<isize, 3>{0, 1, 2}) {
                     const auto order = (order_3d + 1).push_front(0);
                     input_strides = input_strides.reorder(order);
                     output_strides = output_strides.reorder(order);
@@ -192,8 +192,8 @@ namespace noa::fft {
                 }
             }
 
-            using input_accessor_t = AccessorRestrictI64<const input_value_t, 4>;
-            using output_accessor_t = AccessorRestrictI64<output_value_t, 4>;
+            using input_accessor_t = AccessorRestrict<const input_value_t, 4, isize>;
+            using output_accessor_t = AccessorRestrict<output_value_t, 4, isize>;
             const auto input_accessor = input_accessor_t(input.get(), input_strides);
             const auto output_accessor = output_accessor_t(output.get(), output_strides);
             const auto input_shape_3d = input_shape.pop_front();
@@ -203,25 +203,25 @@ namespace noa::fft {
             // in the output are NOT set and the backend should make sure these are set to zeros at some point.
             switch (mode) {
                 case FourierResizeMode::PAD_H2H: {
-                    auto op = details::FourierResize<FourierResizeMode::PAD_H2H, i64, input_accessor_t, output_accessor_t>(
+                    auto op = details::FourierResize<FourierResizeMode::PAD_H2H, isize, input_accessor_t, output_accessor_t>(
                             input_accessor, output_accessor, input_shape_3d, output_shape_3d);
                     return iwise(input_shape.rfft(), device, op,
                                  std::forward<Input>(input), std::forward<Output>(output));
                 }
                 case FourierResizeMode::PAD_F2F: {
-                    auto op = details::FourierResize<FourierResizeMode::PAD_F2F, i64, input_accessor_t, output_accessor_t>(
+                    auto op = details::FourierResize<FourierResizeMode::PAD_F2F, isize, input_accessor_t, output_accessor_t>(
                             input_accessor, output_accessor, input_shape_3d, output_shape_3d);
                     return iwise(input_shape, device, op,
                                  std::forward<Input>(input), std::forward<Output>(output));
                 }
                 case FourierResizeMode::CROP_H2H: {
-                    auto op = details::FourierResize<FourierResizeMode::CROP_H2H, i64, input_accessor_t, output_accessor_t>(
+                    auto op = details::FourierResize<FourierResizeMode::CROP_H2H, isize, input_accessor_t, output_accessor_t>(
                             input_accessor, output_accessor, input_shape_3d, output_shape_3d);
                     return iwise(output_shape.rfft(), device, op,
                                  std::forward<Input>(input), std::forward<Output>(output));
                 }
                 case FourierResizeMode::CROP_F2F: {
-                    auto op = details::FourierResize<FourierResizeMode::CROP_F2F, i64, input_accessor_t, output_accessor_t>(
+                    auto op = details::FourierResize<FourierResizeMode::CROP_F2F, isize, input_accessor_t, output_accessor_t>(
                             input_accessor, output_accessor, input_shape_3d, output_shape_3d);
                     return iwise(output_shape, device, op,
                                  std::forward<Input>(input), std::forward<Output>(output));
@@ -241,11 +241,11 @@ namespace noa::fft {
     requires (not REMAP.has_layout_change())
     [[nodiscard]] auto resize(
         Input&& input,
-        const Shape4<i64>& input_shape,
-        const Shape4<i64>& output_shape
+        const Shape4& input_shape,
+        const Shape4& output_shape
     ) {
         using value_t = nt::mutable_value_type_t<Input>;
-        Array<value_t> output(REMAP.is_fx2fx() ? output_shape : output_shape.rfft(), input.options());
+        auto output = Array<value_t>(REMAP.is_fx2fx() ? output_shape : output_shape.rfft(), input.options());
         resize<REMAP>(std::forward<Input>(input), input_shape, output, output_shape);
         return output;
     }

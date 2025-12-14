@@ -9,23 +9,23 @@ namespace {
 
     // Multithreading really helps for large arrays, and thanks to memory mapping,
     // we can easily encode data in files directly in-place and in parallel.
-    auto actual_n_threads_(i64 n_elements, i32 n_threads) -> i32 {
+    auto actual_n_threads_(isize n_elements, i32 n_threads) -> i32 {
         // The encoding is very cheap to compute, using multiple threads should only be useful for huge arrays.
-        constexpr i64 N_ELEMENTS_PER_THREAD = 8'388'608;
-        i64 actual_n_threads = n_elements <= N_ELEMENTS_PER_THREAD ? 1 : n_threads;
+        constexpr isize N_ELEMENTS_PER_THREAD = 8'388'608;
+        isize actual_n_threads = n_elements <= N_ELEMENTS_PER_THREAD ? 1 : n_threads;
         if (actual_n_threads > 1)
-            actual_n_threads = min<i64>(n_threads, n_elements / N_ELEMENTS_PER_THREAD);
+            actual_n_threads = min<isize>(n_threads, n_elements / N_ELEMENTS_PER_THREAD);
         return static_cast<i32>(actual_n_threads);
     }
 
     auto remaining_bytes_from_file(std::FILE* file) {
         // Get the current position.
-        i64 pos = std::ftell(file);
+        isize pos = std::ftell(file);
         check_runtime(pos != -1, std::strerror(errno));
 
         // Get the position at the end of the file.
         check_runtime(std::fseek(file, 0, SEEK_END) == 0, std::strerror(errno));
-        i64 size = std::ftell(file);
+        isize size = std::ftell(file);
         check_runtime(size != -1, std::strerror(errno));
 
         // Reset the current position.
@@ -51,14 +51,14 @@ namespace {
     void encode_1d_(
         const Input* NOA_RESTRICT_ATTRIBUTE input,
         std::byte* NOA_RESTRICT_ATTRIBUTE output,
-        i64 n_elements, bool clamp, bool swap_endian, i32 n_threads
+        isize n_elements, bool clamp, bool swap_endian, i32 n_threads
     ) {
         auto ptr = reinterpret_cast<Output*>(output);
         auto encoder = Encoder<Input, Output>{clamp, swap_endian};
 
         // TODO This still can be auto vectorized...
         #pragma omp parallel for num_threads(n_threads)
-        for (i64 idx = 0; idx < n_elements; ++idx)
+        for (isize idx = 0; idx < n_elements; ++idx)
             ptr[idx] = encoder(input[idx]);
     }
 
@@ -77,13 +77,13 @@ namespace {
         if (n_threads > 1) {
             // Collapse manually since we need to keep track of a linear index anyway...
             #pragma omp parallel for num_threads(n_threads)
-            for (i64 i = 0; i < input.ssize(); ++i)
+            for (isize i = 0; i < input.ssize(); ++i)
                 ptr[i] = encoder(input(ni::offset2index(i, input.shape())));
         } else {
-            for (i64 i = 0; i < input.shape()[0]; ++i)
-                for (i64 j = 0; j < input.shape()[1]; ++j)
-                    for (i64 k = 0; k < input.shape()[2]; ++k)
-                        for (i64 l = 0; l < input.shape()[3]; ++l)
+            for (isize i = 0; i < input.shape()[0]; ++i)
+                for (isize j = 0; j < input.shape()[1]; ++j)
+                    for (isize k = 0; k < input.shape()[2]; ++k)
+                        for (isize l = 0; l < input.shape()[3]; ++l)
                             *(ptr++) = encoder(input(i, j, k, l));
         }
     }
@@ -104,14 +104,14 @@ namespace {
     void decode_1d_(
         const std::byte* NOA_RESTRICT_ATTRIBUTE input,
         Output* NOA_RESTRICT_ATTRIBUTE output,
-        i64 n_elements, bool clamp, bool swap_endian, i32 n_threads
+        isize n_elements, bool clamp, bool swap_endian, i32 n_threads
     ) {
         auto ptr = reinterpret_cast<const Input*>(input);
         auto decoder = Decoder<Input, Output>{clamp, swap_endian};
 
         // TODO This still can be auto vectorized...
         #pragma omp parallel for num_threads(n_threads)
-        for (i64 idx = 0; idx < n_elements; ++idx)
+        for (isize idx = 0; idx < n_elements; ++idx)
             output[idx] = decoder(ptr[idx]);
     }
 
@@ -130,13 +130,13 @@ namespace {
         if (n_threads > 1) {
             // Collapse manually since we need to keep track of a linear index anyway...
             #pragma omp parallel for num_threads(n_threads)
-            for (i64 i = 0; i < output.ssize(); ++i)
+            for (isize i = 0; i < output.ssize(); ++i)
                 output(ni::offset2index(i, output.shape())) = decoder(ptr[i]);
         } else {
-            for (i64 i = 0; i < output.shape()[0]; ++i)
-                for (i64 j = 0; j < output.shape()[1]; ++j)
-                    for (i64 k = 0; k < output.shape()[2]; ++k)
-                        for (i64 l = 0; l < output.shape()[3]; ++l)
+            for (isize i = 0; i < output.shape()[0]; ++i)
+                for (isize j = 0; j < output.shape()[1]; ++j)
+                    for (isize k = 0; k < output.shape()[2]; ++k)
+                        for (isize l = 0; l < output.shape()[3]; ++l)
                             output(i, j, k, l) = decoder(*(ptr++));
         }
     }
@@ -145,13 +145,13 @@ namespace {
     void encode_4bits_(
         const T* NOA_RESTRICT_ATTRIBUTE input,
         std::byte* NOA_RESTRICT_ATTRIBUTE output,
-        i64 n_elements, i32 n_threads
+        isize n_elements, i32 n_threads
     ) {
         // The order of the first and second elements in the output are the 4 LSB and 4 MSB, respectively.
         // Note: We don't support odd rows, but if the row had an odd number of elements, the last byte of
         // the row has the 4 MSB unset.
         #pragma omp parallel for num_threads(n_threads)
-        for (i64 i = 0; i < n_elements / 2; ++i) {
+        for (isize i = 0; i < n_elements / 2; ++i) {
             u32 l_val = clamp_cast<u32>(noa::round(input[2 * i]));
             u32 h_val = clamp_cast<u32>(noa::round(input[2 * i + 1]));
             l_val = noa::clamp(l_val, 0u, 15u);
@@ -165,12 +165,12 @@ namespace {
     void decode_4bits_(
         const std::byte* NOA_RESTRICT_ATTRIBUTE input,
         T* NOA_RESTRICT_ATTRIBUTE output,
-        i64 n_elements, i32 n_threads
+        isize n_elements, i32 n_threads
     ) {
         constexpr unsigned char MASK_4LSB{0b00001111};
 
         #pragma omp parallel for num_threads(n_threads)
-        for (i64 i = 0; i < n_elements / 2; ++i) {
+        for (isize i = 0; i < n_elements / 2; ++i) {
             const auto tmp = static_cast<unsigned char>(input[i]);
             output[i * 2] = static_cast<T>(tmp & MASK_4LSB);
             output[i * 2 + 1] = static_cast<T>((tmp >> 4) & MASK_4LSB);
@@ -186,36 +186,36 @@ namespace {
         bool clamp, bool swap_endian,
         i32 n_threads
     ) {
-        constexpr i64 N_BYTES_PER_BLOCK = 1 << 16; // 64KB
-        constexpr i64 N_BYTES_PER_ELEMENT = sizeof(Output);
+        constexpr isize N_BYTES_PER_BLOCK = 1 << 16; // 64KB
+        constexpr isize N_BYTES_PER_ELEMENT = sizeof(Output);
         static_assert(is_multiple_of(N_BYTES_PER_BLOCK, N_BYTES_PER_ELEMENT));
 
-        const i64 n_elements = input.ssize();
-        const i64 n_bytes = std::same_as<Output, u4_encoding> ? n_elements / 2 : n_elements * N_BYTES_PER_ELEMENT;
-        const i64 n_blocks = noa::divide_up(n_bytes, N_BYTES_PER_BLOCK);
+        const isize n_elements = input.ssize();
+        const isize n_bytes = std::same_as<Output, u4_encoding> ? n_elements / 2 : n_elements * N_BYTES_PER_ELEMENT;
+        const isize n_blocks = noa::divide_up(n_bytes, N_BYTES_PER_BLOCK);
 
-        const auto buffer_ptr = std::make_unique<char[]>(static_cast<size_t>(n_threads * N_BYTES_PER_BLOCK));
-        const auto buffer_span = Span(buffer_ptr.get(), Shape<i64, 2>{n_threads, N_BYTES_PER_BLOCK});
+        const auto buffer_ptr = std::make_unique<char[]>(static_cast<usize>(n_threads * N_BYTES_PER_BLOCK));
+        const auto buffer_span = Span(buffer_ptr.get(), Shape<isize, 2>{n_threads, N_BYTES_PER_BLOCK});
 
-        const i64 start_offset = std::ftell(output);
+        const isize start_offset = std::ftell(output);
         check(start_offset != -1, "Could not get the current position of the stream, {}", std::strerror(errno));
 
         const bool input_is_contiguous = input.are_contiguous();
 
         #pragma omp parallel for num_threads(n_threads)
-        for (i64 n_block = 0; n_block < n_blocks; ++n_block) {
+        for (isize n_block = 0; n_block < n_blocks; ++n_block) {
             i32 thread_id = omp_get_thread_num();
             char* per_thread_buffer = buffer_span[thread_id].data();
 
-            const i64 offset = n_block * N_BYTES_PER_BLOCK;
-            const i64 n_bytes_to_write = std::min(N_BYTES_PER_BLOCK, n_bytes - offset);
+            const isize offset = n_block * N_BYTES_PER_BLOCK;
+            const isize n_bytes_to_write = std::min(N_BYTES_PER_BLOCK, n_bytes - offset);
             NOA_ASSERT(n_bytes_to_write > 0);
 
-            const i64 n_elements_to_write = n_bytes_to_write / N_BYTES_PER_ELEMENT;
-            const i64 n_elements_offset = offset / N_BYTES_PER_ELEMENT;
+            const isize n_elements_to_write = n_bytes_to_write / N_BYTES_PER_ELEMENT;
+            const isize n_elements_offset = offset / N_BYTES_PER_ELEMENT;
 
             const Input* input_ptr = input.get() + n_elements_offset;
-            for (i64 i = 0; i < n_elements_to_write; ++i) {
+            for (isize i = 0; i < n_elements_to_write; ++i) {
                 if constexpr (std::same_as<Output, u4_encoding>) {
                     u32 l_val = clamp_cast<u32>(noa::round(input_ptr[2 * i]));
                     u32 h_val = clamp_cast<u32>(noa::round(input_ptr[2 * i + 1]));
@@ -240,10 +240,10 @@ namespace {
                 check(std::fseek(output, start_offset + offset, SEEK_SET) == 0,
                       "Failed to seek at position {}. {}",
                       start_offset + offset, std::strerror(errno));
-                check(static_cast<size_t>(n_elements_to_write) == std::fwrite(
+                check(static_cast<usize>(n_elements_to_write) == std::fwrite(
                           per_thread_buffer,
-                          static_cast<size_t>(N_BYTES_PER_ELEMENT),
-                          static_cast<size_t>(n_elements_to_write),
+                          static_cast<usize>(N_BYTES_PER_ELEMENT),
+                          static_cast<usize>(n_elements_to_write),
                           output),
                       "Failed to read from the file");
             }
@@ -257,49 +257,49 @@ namespace {
         bool clamp, bool swap_endian,
         i32 n_threads
     ) {
-        constexpr i64 N_BYTES_PER_BLOCK = 1 << 16; // 64KB
-        constexpr i64 N_BYTES_PER_ELEMENT = sizeof(Input);
+        constexpr isize N_BYTES_PER_BLOCK = 1 << 16; // 64KB
+        constexpr isize N_BYTES_PER_ELEMENT = sizeof(Input);
         static_assert(is_multiple_of(N_BYTES_PER_BLOCK, N_BYTES_PER_ELEMENT));
 
-        const i64 n_elements = output.ssize();
-        const i64 n_bytes = std::same_as<Input, u4_encoding> ? n_elements / 2 : n_elements * N_BYTES_PER_ELEMENT;
-        const i64 n_blocks = noa::divide_up(n_bytes, N_BYTES_PER_BLOCK);
+        const isize n_elements = output.ssize();
+        const isize n_bytes = std::same_as<Input, u4_encoding> ? n_elements / 2 : n_elements * N_BYTES_PER_ELEMENT;
+        const isize n_blocks = noa::divide_up(n_bytes, N_BYTES_PER_BLOCK);
 
-        const auto buffer_ptr = std::make_unique<char[]>(static_cast<size_t>(n_threads * N_BYTES_PER_BLOCK));
-        const auto buffer_span = Span(buffer_ptr.get(), Shape<i64, 2>{n_threads, N_BYTES_PER_BLOCK});
+        const auto buffer_ptr = std::make_unique<char[]>(static_cast<usize>(n_threads * N_BYTES_PER_BLOCK));
+        const auto buffer_span = Span(buffer_ptr.get(), Shape<isize, 2>{n_threads, N_BYTES_PER_BLOCK});
 
-        const i64 start_offset = std::ftell(input);
+        const isize start_offset = std::ftell(input);
         check(start_offset != -1, "Could not get the current position of the stream, {}", std::strerror(errno));
 
         const bool output_is_contiguous = output.are_contiguous();
 
         #pragma omp parallel for num_threads(n_threads)
-        for (i64 n_block = 0; n_block < n_blocks; ++n_block) {
+        for (isize n_block = 0; n_block < n_blocks; ++n_block) {
             i32 thread_id = omp_get_thread_num();
             char* per_thread_buffer = buffer_span[thread_id].data();
 
-            const i64 offset = n_block * N_BYTES_PER_BLOCK;
-            const i64 n_bytes_to_read = std::min(N_BYTES_PER_BLOCK, n_bytes - offset);
+            const isize offset = n_block * N_BYTES_PER_BLOCK;
+            const isize n_bytes_to_read = std::min(N_BYTES_PER_BLOCK, n_bytes - offset);
             NOA_ASSERT(n_bytes_to_read > 0);
 
-            const i64 n_elements_to_read = n_bytes_to_read / N_BYTES_PER_ELEMENT;
-            const i64 n_elements_offset = offset / N_BYTES_PER_ELEMENT;
+            const isize n_elements_to_read = n_bytes_to_read / N_BYTES_PER_ELEMENT;
+            const isize n_elements_offset = offset / N_BYTES_PER_ELEMENT;
 
             #pragma omp critical
             {
                 check(std::fseek(input, start_offset + offset, SEEK_SET) == 0,
                       "Failed to seek at position {}. {}",
                       start_offset + offset, std::strerror(errno));
-                check(static_cast<size_t>(n_elements_to_read) == std::fread(
+                check(static_cast<usize>(n_elements_to_read) == std::fread(
                           per_thread_buffer,
-                          static_cast<size_t>(N_BYTES_PER_ELEMENT),
-                          static_cast<size_t>(n_elements_to_read),
+                          static_cast<usize>(N_BYTES_PER_ELEMENT),
+                          static_cast<usize>(n_elements_to_read),
                           input),
                       "Failed to read from the file");
             }
 
             Output* output_ptr = output.get() + n_elements_offset;
-            for (i64 i = 0; i < n_elements_to_read; ++i) {
+            for (isize i = 0; i < n_elements_to_read; ++i) {
                 if constexpr (std::same_as<Input, u4_encoding>) {
                     constexpr char MASK_4LSB{0b00001111};
                     output_ptr[i * 2] = static_cast<Output>(per_thread_buffer[i] & MASK_4LSB);
@@ -327,8 +327,8 @@ namespace noa::io {
         const DataType& output_dtype,
         const EncodeOptions& options
     ) {
-        const i64 n_elements = input.ssize();
-        const i64 n_encoded_bytes = output_dtype.n_bytes(n_elements);
+        const isize n_elements = input.ssize();
+        const isize n_encoded_bytes = output_dtype.n_bytes(n_elements);
         const auto n_threads = actual_n_threads_(n_elements, options.n_threads);
 
         check(n_encoded_bytes <= output.ssize(), "The encoded array is not big enough to contain the input array");
@@ -405,7 +405,7 @@ namespace noa::io {
             case DataType::UNKNOWN:
                 break;
         }
-        panic("{} cannot be encoded into {}", noa::string::stringify<T>(), output_dtype);
+        panic("{} cannot be encoded into {}", nd::stringify<T>(), output_dtype);
     }
 
     void encode(
@@ -459,9 +459,9 @@ namespace noa::io {
         const DataType& output_dtype,
         const EncodeOptions& options
     ) {
-        const i64 n_elements = input.ssize();
-        const i64 n_encoded_bytes = output_dtype.n_bytes(n_elements);
-        const i64 remaining_bytes = remaining_bytes_from_file(output);
+        const isize n_elements = input.ssize();
+        const isize n_encoded_bytes = output_dtype.n_bytes(n_elements);
+        const isize remaining_bytes = remaining_bytes_from_file(output);
         const auto n_threads = actual_n_threads_(n_elements, options.n_threads);
 
         check(n_encoded_bytes <= remaining_bytes,
@@ -539,7 +539,7 @@ namespace noa::io {
             case DataType::UNKNOWN:
                 break;
         }
-        panic("{} cannot be encoded into {}", noa::string::stringify<T>(), output_dtype);
+        panic("{} cannot be encoded into {}", nd::stringify<T>(), output_dtype);
     }
 
     void encode(
@@ -593,8 +593,8 @@ namespace noa::io {
         const Span<T, 4>& output,
         const DecodeOptions& options
     ) {
-        const i64 n_elements = output.ssize();
-        const i64 n_encoded_bytes = input_dtype.n_bytes(n_elements);
+        const isize n_elements = output.ssize();
+        const isize n_encoded_bytes = input_dtype.n_bytes(n_elements);
         const auto n_threads = actual_n_threads_(n_elements, options.n_threads);
 
         check(n_encoded_bytes <= input.ssize(), "The encoded array is not big enough to contain the output array");
@@ -671,7 +671,7 @@ namespace noa::io {
             case DataType::UNKNOWN:
                 break;
         }
-        panic("{} cannot be decoded into {}", input_dtype, noa::string::stringify<T>());
+        panic("{} cannot be decoded into {}", input_dtype, nd::stringify<T>());
     }
 
     void decode(
@@ -725,9 +725,9 @@ namespace noa::io {
         const Span<T, 4>& output,
         const DecodeOptions& options
     ) {
-        const i64 n_elements = output.n_elements();
-        const i64 n_encoded_bytes = input_dtype.n_bytes(n_elements);
-        const i64 remaining_bytes = remaining_bytes_from_file(input);
+        const isize n_elements = output.n_elements();
+        const isize n_encoded_bytes = input_dtype.n_bytes(n_elements);
+        const isize remaining_bytes = remaining_bytes_from_file(input);
         const auto n_threads = actual_n_threads_(n_elements, options.n_threads);
 
         check(n_encoded_bytes <= remaining_bytes,
@@ -809,7 +809,7 @@ namespace noa::io {
             case DataType::UNKNOWN:
                 break;
         }
-        panic("{} cannot be decoded into {}", input_dtype, noa::string::stringify<T>());
+        panic("{} cannot be decoded into {}", input_dtype, nd::stringify<T>());
     }
 
     void decode(

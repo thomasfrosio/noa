@@ -31,7 +31,7 @@ TEST_CASE("unified::permute()", "[asset]") {
             const YAML::Node& test = tests[nb];
             const auto filename_input = path_base / test["input"].as<fs::path>();
             const auto filename_expected = path_base / test["expected"].as<fs::path>();
-            const auto permutation = test["permutation"].as<Vec4<i64>>();
+            const auto permutation = test["permutation"].as<Vec<i32, 4>>();
             const auto inplace = test["inplace"].as<bool>();
 
             const auto input = noa::read_image<f32>(filename_input, {}, options).data;
@@ -53,12 +53,12 @@ TEST_CASE("unified::permute()", "[asset]") {
 
 TEMPLATE_TEST_CASE("unified::permute", "", i32, f32, f64, c32) {
     constexpr std::array permutations{
-        Vec4<i64>{0, 1, 2, 3},
-        Vec4<i64>{0, 1, 3, 2},
-        Vec4<i64>{0, 3, 1, 2},
-        Vec4<i64>{0, 3, 2, 1},
-        Vec4<i64>{0, 2, 1, 3},
-        Vec4<i64>{0, 2, 3, 1}
+        Vec{0, 1, 2, 3},
+        Vec{0, 1, 3, 2},
+        Vec{0, 3, 1, 2},
+        Vec{0, 3, 2, 1},
+        Vec{0, 2, 1, 3},
+        Vec{0, 2, 3, 1}
     };
     const i64 ndim = GENERATE(2, 3);
     const bool pad = GENERATE(false, true);
@@ -88,7 +88,7 @@ TEMPLATE_TEST_CASE("unified::permute", "", i32, f32, f64, c32) {
                 noa::indexing::Slice{0, shape[3]});
 
         for (const auto& permutation: permutations) {
-            if (ndim == 2 and not (all(permutation == Vec4<i64>{0, 1, 2, 3}) or all(permutation == Vec4<i64>{0, 1, 3, 2})))
+            if (ndim == 2 and not (permutation == Vec{0, 1, 2, 3} or permutation == Vec{0, 1, 3, 2}))
                 return; // while this is technically OK, it doesn't make much sense to test these...
 
             const auto expected = noa::permute(data, permutation);
@@ -100,14 +100,14 @@ TEMPLATE_TEST_CASE("unified::permute", "", i32, f32, f64, c32) {
 
 TEST_CASE("unified::permute, broadcast") {
     constexpr std::array permutations{
-        Vec4<i64>{0, 1, 2, 3},
-        Vec4<i64>{0, 1, 3, 2},
-        Vec4<i64>{0, 3, 1, 2},
-        Vec4<i64>{0, 3, 2, 1},
-        Vec4<i64>{0, 2, 1, 3},
-        Vec4<i64>{0, 2, 3, 1}
+        Vec{0, 1, 2, 3},
+        Vec{0, 1, 3, 2},
+        Vec{0, 3, 1, 2},
+        Vec{0, 3, 2, 1},
+        Vec{0, 2, 1, 3},
+        Vec{0, 2, 3, 1}
     };
-    constexpr auto shape = Shape4<i64>{1, 20, 50, 60};
+    constexpr auto shape = Shape4{1, 20, 50, 60};
 
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())

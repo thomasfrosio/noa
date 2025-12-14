@@ -11,7 +11,7 @@
 
 namespace noa::cuda::details {
     template<typename T>
-    __global__ void cubic_bspline_prefilter_1d_x_inplace(T* input, Strides2<u32> strides, Shape2<u32> shape) {
+    __global__ void cubic_bspline_prefilter_1d_x_inplace(T* input, Strides<u32, 2> strides, Shape<u32, 2> shape) {
         // process lines in x-direction
         const u32 batch = blockIdx.x * blockDim.x + threadIdx.x;
         if (batch >= shape[0])
@@ -22,9 +22,9 @@ namespace noa::cuda::details {
 
     template<typename T>
     __global__ void cubic_bspline_prefilter_1d_x(
-        const T* __restrict__ input, Strides2<u32> input_strides,
-        T* __restrict__ output, Strides2<u32> output_strides,
-        Shape2<u32> shape
+        const T* __restrict__ input, Strides<u32, 2> input_strides,
+        T* __restrict__ output, Strides<u32, 2> output_strides,
+        Shape<u32, 2> shape
     ) {
         // process lines in x-direction
         const u32 batch = blockIdx.x * blockDim.x + threadIdx.x;
@@ -37,7 +37,7 @@ namespace noa::cuda::details {
     }
 
     template<typename T>
-    __global__ void cubic_bspline_prefilter_2d_x_inplace(Accessor<T, 3, u32> input, Shape2<u32> shape) {
+    __global__ void cubic_bspline_prefilter_2d_x_inplace(Accessor<T, 3, u32> input, Shape<u32, 2> shape) {
         // process lines in x-direction
         const u32 y = blockIdx.x * blockDim.x + threadIdx.x;
         if (y >= shape[0])
@@ -51,7 +51,7 @@ namespace noa::cuda::details {
     __global__ void cubic_bspline_prefilter_2d_x(
         AccessorRestrict<const T, 3, u32> input,
         AccessorRestrict<T, 3, u32> output,
-        Shape2<u32> shape
+        Shape<u32, 2> shape
     ) {
         // process lines in x-direction
         const u32 y = blockIdx.x * blockDim.x + threadIdx.x;
@@ -65,7 +65,7 @@ namespace noa::cuda::details {
     }
 
     template<typename T>
-    __global__ void cubic_bspline_prefilter_2d_y(T* input, Strides3<u32> strides, Shape2<u32> shape) {
+    __global__ void cubic_bspline_prefilter_2d_y(T* input, Strides<u32, 3> strides, Shape<u32, 2> shape) {
         // process lines in y-direction
         const u32 x = blockIdx.x * blockDim.x + threadIdx.x;
         if (x >= shape[1])
@@ -75,7 +75,7 @@ namespace noa::cuda::details {
     }
 
     template<typename T>
-    __global__ void cubic_bspline_prefilter_3d_x_inplace(Accessor<T, 4, u32> input, Shape3<u32> shape) {
+    __global__ void cubic_bspline_prefilter_3d_x_inplace(Accessor<T, 4, u32> input, Shape<u32, 3> shape) {
         // process lines in x-direction
         const u32 y = blockIdx.x * blockDim.x + threadIdx.x;
         const u32 z = blockIdx.y * blockDim.y + threadIdx.y;
@@ -90,7 +90,7 @@ namespace noa::cuda::details {
     __global__ void cubic_bspline_prefilter_3d_x(
         AccessorRestrict<const T, 4, u32> input,
         AccessorRestrict<T, 4, u32> output,
-        Shape3<u32> shape
+        Shape<u32, 3> shape
     ) {
         // process lines in x-direction
         const u32 y = blockIdx.x * blockDim.x + threadIdx.x;
@@ -105,7 +105,7 @@ namespace noa::cuda::details {
     }
 
     template<typename T>
-    __global__ void cubic_bspline_prefilter_3d_y(T* input, Strides4<u32> strides, Shape3<u32> shape) {
+    __global__ void cubic_bspline_prefilter_3d_y(T* input, Strides<u32, 4> strides, Shape<u32, 3> shape) {
         // process lines in y-direction
         const u32 x = blockIdx.x * blockDim.x + threadIdx.x;
         const u32 z = blockIdx.y * blockDim.y + threadIdx.y;
@@ -116,7 +116,7 @@ namespace noa::cuda::details {
     }
 
     template<typename T>
-    __global__ void cubic_bspline_prefilter_3d_z(T* input, Strides4<u32> strides, Shape3<u32> shape) {
+    __global__ void cubic_bspline_prefilter_3d_z(T* input, Strides<u32, 4> strides, Shape<u32, 3> shape) {
         // process lines in z-direction
         const u32 x = blockIdx.x * blockDim.x + threadIdx.x;
         const u32 y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -130,9 +130,9 @@ namespace noa::cuda::details {
 namespace noa::cuda::details {
     template<typename T>
     void cubic_bspline_prefilter_1d(
-        const T* input, const Strides2<u32>& input_strides,
-        T* output, const Strides2<u32>& output_strides,
-        const Shape2<u32>& shape, Stream& stream
+        const T* input, const Strides<u32, 2>& input_strides,
+        T* output, const Strides<u32, 2>& output_strides,
+        const Shape<u32, 2>& shape, Stream& stream
     ) {
         // Each thread processes an entire batch.
         // This has the same problem as the 2d/3d case, memory reads/writes are not coalesced.
@@ -153,9 +153,9 @@ namespace noa::cuda::details {
 
     template<typename T>
     void cubic_bspline_prefilter_2d(
-        const T* input, const Strides3<u32>& input_strides,
-        T* output, const Strides3<u32>& output_strides,
-        const Shape3<u32>& shape, Stream& stream
+        const T* input, const Strides<u32, 3>& input_strides,
+        T* output, const Strides<u32, 3>& output_strides,
+        const Shape<u32, 3>& shape, Stream& stream
     ) {
         // Each thread processes an entire line. The line is first x, then y.
         const u32 n_threads_x = shape[1] <= 128u ? 32u : 64u;
@@ -184,9 +184,9 @@ namespace noa::cuda::details {
 
     template<typename T>
     void cubic_bspline_prefilter_3d(
-        const T* input, const Strides4<u32>& input_strides,
-        T* output, const Strides4<u32>& output_strides,
-        const Shape4<u32>& shape, Stream& stream
+        const T* input, const Strides<u32, 4>& input_strides,
+        T* output, const Strides<u32, 4>& output_strides,
+        const Shape<u32, 4>& shape, Stream& stream
     ) {
         // Determine the optimal block dimensions:
         auto get_launch_config_3d = [](u32 batch, u32 dim0, u32 dim1) {
@@ -228,13 +228,13 @@ namespace noa::cuda::details {
 namespace noa::cuda {
     template<typename Value>
     void cubic_bspline_prefilter(
-        const Value* input, Strides4<i64> input_strides,
-        Value* output, Strides4<i64> output_strides,
-        Shape4<i64> shape, Stream& stream
+        const Value* input, Strides4 input_strides,
+        Value* output, Strides4 output_strides,
+        Shape4 shape, Stream& stream
     ) {
         // Reorder to rightmost.
         const auto order = ni::order(output_strides.pop_front(), shape.pop_front());
-        if (vany(NotEqual{}, order, Vec{0, 1, 2})) {
+        if (order != Vec<isize, 3>{0, 1, 2}) {
             const auto order_4d = (order + 1).push_front(0);
             input_strides = input_strides.reorder(order_4d);
             output_strides = output_strides.reorder(order_4d);

@@ -11,10 +11,10 @@ namespace noa::cpu::details {
     public:
         using interface = nd::ReduceEwiseInterface<ZipInput, ZipReduced, ZipOutput>;
 
-        template<i32 MODE, typename Op, typename Input, typename Reduced, typename Output, typename Index, size_t N>
+        template<i32 MODE, typename Op, typename Input, typename Reduced, typename Output, typename Index, usize N>
         NOA_NOINLINE static void parallel(
             const Shape<Index, N>& shape, Op op,
-            Input input, Reduced reduced, Output output, i64 threads
+            Input input, Reduced reduced, Output output, i32 threads
         ) {
             auto original_reduced = reduced;
             #pragma omp parallel default(none) num_threads(threads) shared(shape, input, reduced, output, original_reduced) firstprivate(op)
@@ -104,7 +104,7 @@ namespace noa::cpu::details {
 
         template<i32 MODE, typename Op, typename Input, typename Reduced, typename Output, typename Index>
         NOA_NOINLINE static constexpr void serial(
-            const Shape4<Index>& shape, Op op,
+            const Shape<Index, 4>& shape, Op op,
             Input input, Reduced reduced, Output output
         ) {
             if constexpr (MODE == 1) {
@@ -123,29 +123,15 @@ namespace noa::cpu::details {
             }
         }
     };
-
-    template<typename Index>
-    constexpr auto get_reduced_axes(
-        const Shape4<Index>& input_shape,
-        const Shape4<Index>& output_shape
-    ) -> Vec4<bool> {
-        const auto axes_to_reduce = input_shape != output_shape;
-        if (any(axes_to_reduce and (output_shape != 1))) {
-            panic("Dimensions should match the input shape, or be 1, "
-                  "indicating the dimension should be reduced to one element. "
-                  "Got shape input={}, output={}", input_shape, output_shape);
-        }
-        return axes_to_reduce;
-    }
 }
 
 namespace noa::cpu {
-    template<bool ZipInput = false, bool ZipReduced = false, bool ZipOutput = false, i64 ElementsPerThread = 1'048'576>
+    template<bool ZipInput = false, bool ZipReduced = false, bool ZipOutput = false, isize ElementsPerThread = 1'048'576>
     struct ReduceAxesEwiseConfig {
         static constexpr bool zip_input = ZipInput;
         static constexpr bool zip_reduced = ZipReduced;
         static constexpr bool zip_output = ZipOutput;
-        static constexpr i64 n_elements_per_thread = ElementsPerThread;
+        static constexpr isize n_elements_per_thread = ElementsPerThread;
     };
 
     template<typename Config = ReduceAxesEwiseConfig<>,
@@ -155,28 +141,27 @@ namespace noa::cpu {
               nt::tuple_of_accessor_pure_nd<std::decay_t<Output>, 4> and
               nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
     NOA_NOINLINE constexpr void reduce_axes_ewise(
-        const Shape4<Index>& input_shape,
-        const Shape4<Index>& output_shape,
+        const Shape<Index, 4>& input_shape,
+        const Shape<Index, 4>& output_shape,
         Op&& op,
         Input&& input,
         Reduced&& reduced,
         Output&& output,
-        i64 n_threads = 1
+        i32 n_threads = 1
     ) {
         using reduce_axes_ewise_t = details::ReduceAxesEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
-        const auto axes_to_reduce = input_shape != output_shape;
-        if (any(axes_to_reduce and (output_shape != 1))) {
-            panic("Dimensions should match the input shape, or be 1, "
-                  "indicating the dimension should be reduced to one element. "
-                  "Got shape input={}, output={}", input_shape, output_shape);
-        } else if (all(axes_to_reduce == false)) {
-            panic("No reduction to compute. Got shape input={}, output={}. Please use ewise instead.",
-                  input_shape, output_shape);
-        }
-        const bool are_aliased = not nt::enable_vectorization_v<Op> and nd::are_accessors_aliased(input, output);
+        const auto axes_to_reduce = input_shape.cmp_ne(output_shape);
+        check((axes_to_reduce and output_shape.cmp_ne(1)) == false,
+              "Dimensions should match the input shape, or be 1, "
+              "indicating the dimension should be reduced to one element. "
+              "Got shape input={}, output={}", input_shape, output_shape);
+        check(axes_to_reduce.any_eq(true),
+              "No reduction to compute. Got shape input={}, output={}. Please use ewise instead.",
+              input_shape, output_shape);
 
-        const auto axes_empty_or_to_reduce = output_shape == 1 or axes_to_reduce;
-        if (all(axes_empty_or_to_reduce)) { // reduce to a single value
+        const bool are_aliased = not nt::enable_vectorization_v<Op> and nd::are_accessors_aliased(input, output);
+        const auto axes_empty_or_to_reduce = output_shape.cmp_eq(1) or axes_to_reduce;
+        if (axes_empty_or_to_reduce == true) { // reduce to a single value
             // Reduce to a single value.
             constexpr auto to_1d = nd::AccessorConfig<1>{.enforce_contiguous=true, .filter={0}};
             auto output_1d = nd::reconfig_accessors<to_1d>(output);
@@ -187,13 +172,13 @@ namespace noa::cpu {
                 std::forward<Reduced>(reduced),
                 output_1d, n_threads);
 
-        } else if (all(axes_empty_or_to_reduce.pop_front())) { // reduce to one value per batch
+        } else if (axes_empty_or_to_reduce.pop_front() == true) { // reduce to one value per batch
             const auto n_batches = output_shape[0];
-            const auto n_elements_to_reduce = input_shape.pop_front().template as<i64>().n_elements();
-            const bool are_contiguous = all(ni::is_contiguous(input, input_shape).pop_front());
-            const auto actual_n_threads = min(n_batches, n_threads);
+            const auto n_elements_to_reduce = input_shape.pop_front().template as<isize>().n_elements();
+            const bool are_contiguous = ni::is_contiguous(input, input_shape).pop_front() == true;
+            const auto actual_n_threads = min(clamp_cast<i32>(n_batches), n_threads);
 
-            const auto shape_2d = Shape2<Index>{n_batches, n_elements_to_reduce};
+            const auto shape_2d = Shape<Index, 2>{n_batches, n_elements_to_reduce};
             constexpr auto contiguous_restrict_2d = nd::AccessorConfig<2>{
                 .enforce_contiguous = true,
                 .enforce_restrict = true,
@@ -205,7 +190,7 @@ namespace noa::cpu {
                 <nd::AccessorConfig<1>{.filter = {0}}>
                 (std::forward<Output>(output));
 
-            if (n_elements_to_reduce > Config::n_elements_per_thread and n_batches < n_threads) {
+            if (n_elements_to_reduce > Config::n_elements_per_thread and clamp_cast<i32>(n_batches) < n_threads) {
                 if (are_contiguous and not are_aliased) {
                     auto input_2d = nd::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
                     reduce_axes_ewise_t::template parallel<3>(
@@ -261,7 +246,7 @@ namespace noa::cpu {
         // Move the reduced dimension to the rightmost dimension.
         const auto order = ni::squeeze_left(axes_to_reduce.template as<i32>() + 1);
         auto reordered_shape = input_shape.reorder(order);
-        if (vany(NotEqual{}, order, Vec{0, 1, 2, 3})) {
+        if (order != Vec{0, 1, 2, 3}) {
             input_.for_each([&order](auto& accessor) { accessor.reorder(order); });
             output_.for_each([&order](auto& accessor) { accessor.reorder(order); });
         }
@@ -272,8 +257,8 @@ namespace noa::cpu {
 
         // This function distributes the threads on the dimensions that are not reduced.
         // In other words, the reduction is done by the same thread.
-        const i64 n_iterations = reordered_shape.pop_back().template as<i64>().n_elements();
-        const i64 actual_n_threads = n_iterations > 1024 ? n_threads : 1; // TODO Improve this heuristic
+        const isize n_iterations = reordered_shape.pop_back().template as<isize>().n_elements();
+        const i32 actual_n_threads = n_iterations > 1024 ? n_threads : 1; // TODO Improve this heuristic
         const bool is_contiguous = ni::is_contiguous(input_, reordered_shape)[3];
 
         if (is_contiguous and not are_aliased) {

@@ -8,7 +8,7 @@
 
 namespace noa::geometry::details {
     template<
-        size_t N,
+        usize N,
         nt::sinteger Index,
         typename DrawOp,
         typename BinaryOp,
@@ -84,14 +84,14 @@ namespace noa::geometry::details {
         NOA_NO_UNIQUE_ADDRESS binary_op_type m_binary_op;
     };
 
-    template<size_t N, typename Input, typename Output, typename Transform>
+    template<usize N, typename Input, typename Output, typename Transform>
     auto check_draw_parameters(
         const Input& input,
         const Output& output,
         const Transform& transform
     ) {
         const Device device = output.device();
-        check(output.shape().ndim() <= static_cast<i64>(N), "3d arrays are not supported with 2d drawing operators");
+        check(output.shape().ndim() <= static_cast<isize>(N), "3d arrays are not supported with 2d drawing operators");
 
         if (input.is_empty()) {
             check(not output.is_empty(), "Empty array detected");
@@ -150,7 +150,7 @@ namespace noa::geometry::details {
         const BinaryOp& binary_op
     ) {
         using drawable_t = std::decay_t<Drawable>;
-        constexpr size_t N = drawable_t::SIZE;
+        constexpr usize N = drawable_t::SIZE;
 
         // Prepare the input/output accessors.
         // TODO Reorder to rightmost? Only possible with zero or one transform.
@@ -183,7 +183,7 @@ namespace noa::geometry::details {
                 if constexpr (nt::is_mat_of_shape_v<xform_t, N + 1, N + 1>) {
                     return BatchedParameter{affine2truncated(inverse_transform)};
                 } else if constexpr (nt::is_varray_v<xform_t>) {
-                    using accessor_t = AccessorRestrictContiguousI64<nt::const_value_type_t<xform_t>, 1>;
+                    using accessor_t = AccessorRestrictContiguous<nt::const_value_type_t<xform_t>, 1, isize>;
                     return BatchedParameter{accessor_t(inverse_transform.get())}; // inverse_transform is contiguous
                 } else if constexpr (nt::is_mat_v<xform_t> or nt::is_quaternion_v<xform_t> or std::is_empty_v<xform_t>) {
                     return BatchedParameter{inverse_transform};
@@ -260,7 +260,7 @@ namespace noa::geometry {
         Transform&& inverse_transforms = {},
         BinaryOp binary_op = {}
     ) {
-        constexpr size_t N = std::decay_t<Drawable>::SIZE;
+        constexpr usize N = std::decay_t<Drawable>::SIZE;
         details::check_draw_parameters<N>(input, output, inverse_transforms);
 
         if (output.device().is_gpu() and
@@ -277,7 +277,7 @@ namespace noa::geometry {
             std::terminate(); // unreachable
             #endif
         }
-        return details::launch_draw<IwiseOptions{}, i64>(
+        return details::launch_draw<IwiseOptions{}, isize>(
             std::forward<Input>(input),
             std::forward<Output>(output),
             std::forward<Drawable>(drawable),

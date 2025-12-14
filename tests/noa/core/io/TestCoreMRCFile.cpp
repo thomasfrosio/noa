@@ -25,7 +25,7 @@ TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[asset]") {
 
     AND_THEN("write and read to a volume") {
         // Output shape and spacing.
-        constexpr auto shape = Shape4<i64>{1, 64, 64, 64};
+        constexpr auto shape = Shape4{1, 64, 64, 64};
         constexpr auto spacing = Vec{1.23, 1.23, 1.23};
 
         // Create an MRC file...
@@ -52,8 +52,8 @@ TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[asset]") {
 
         // Reading the file and check that it matches.
         auto file_to_read = MrcFile(file1, {.read = true});
-        REQUIRE(noa::all(file_to_read.shape() == shape));
-        REQUIRE(noa::all(file_to_read.spacing().as<f32>() == spacing.as<f32>()));
+        REQUIRE(file_to_read.shape() == shape);
+        REQUIRE(file_to_read.spacing().as<f32>() == spacing.as<f32>());
         REQUIRE((file_to_read.stats().min == -1. and file_to_read.stats().max == 1.));
 
         const auto to_read = std::make_unique<f32[]>(size);
@@ -64,7 +64,7 @@ TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[asset]") {
 
     AND_THEN("write and read to a stack of volumes") {
         // Output shape and spacing.
-        constexpr auto shape = Shape4<i64>{5, 64, 64, 64};
+        constexpr auto shape = Shape4{5, 64, 64, 64};
         constexpr auto spacing = Vec{1.23, 1.23, 1.23};
 
         // Create an MRC file.
@@ -89,8 +89,8 @@ TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[asset]") {
 
         // Read the file and check that it matches.
         auto file_to_read = MrcFile(file1, {.read = true});
-        REQUIRE(noa::all(file_to_read.shape() == shape));
-        REQUIRE(noa::all(file_to_read.spacing().as<f32>() == spacing.as<f32>()));
+        REQUIRE(file_to_read.shape() == shape);
+        REQUIRE(file_to_read.spacing().as<f32>() == spacing.as<f32>());
         REQUIRE((file_to_read.stats().min == -1. and file_to_read.stats().max == 1.));
 
         const auto to_read = std::make_unique<f32[]>(size);
@@ -100,7 +100,7 @@ TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[asset]") {
     }
 
     AND_THEN("write and read a stack of 2d images") {
-        constexpr auto shape = Shape4<i64>{41, 1, 64, 64};
+        constexpr auto shape = Shape4{41, 1, 64, 64};
         constexpr auto spacing = Vec{1., 1.23, 1.23};
 
         // Create an MRC file...
@@ -125,8 +125,8 @@ TEST_CASE("core::io::BasicImageFile<EncoderMrc>: real dtype", "[asset]") {
 
         // Read the file and check that it matches.
         auto file_to_read = MrcFile(file1, {.read = true});
-        REQUIRE(noa::all(file_to_read.shape() == shape));
-        REQUIRE(noa::all(file_to_read.spacing().as<f32>() == spacing.as<f32>()));
+        REQUIRE(file_to_read.shape() == shape);
+        REQUIRE(file_to_read.spacing().as<f32>() == spacing.as<f32>());
 
         const auto to_read = std::make_unique<f32[]>(size);
         const auto s1 = Span(to_read.get(), shape);

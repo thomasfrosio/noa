@@ -18,12 +18,12 @@ TEST_CASE("cpu::ewise") {
     using noa::cpu::EwiseConfig;
 
     AND_THEN("check operator") {
-        const auto shape = Shape4<i64>{1, 1, 1, 1};
+        const auto shape = Shape<i64, 4>{1, 1, 1, 1};
         std::array<int, 2> buffer[2]{};
         Tuple<AccessorValue<Tracked>> input{};
         auto output_contiguous = noa::make_tuple(
-                AccessorI64<std::array<int, 2>, 4>(buffer + 0, shape.strides()),
-                AccessorI64<std::array<int, 2>, 4>(buffer + 1, shape.strides()));
+                Accessor<std::array<int, 2>, 4, i64>(buffer + 0, shape.strides()),
+                Accessor<std::array<int, 2>, 4, i64>(buffer + 1, shape.strides()));
 
         struct Op {
             Tracked t1{};
@@ -47,10 +47,10 @@ TEST_CASE("cpu::ewise") {
         REQUIRE((buffer[1][0] == 0 and buffer[1][1] == 1)); // operator is moved once
 
         // Create a non-contiguous case by broadcasting.
-        auto shape_strided = Shape4<i64>{1, 1, 1, 2};
+        auto shape_strided = Shape<i64, 4>{1, 1, 1, 2};
         auto output_strided = noa::make_tuple(
-            AccessorI64<std::array<int, 2>, 4>(buffer + 0, Strides4<i64>{}),
-            AccessorI64<std::array<int, 2>, 4>(buffer + 1, Strides4<i64>{}));
+            Accessor<std::array<int, 2>, 4, i64>(buffer + 0, Strides<i64, 4>{}),
+            Accessor<std::array<int, 2>, 4, i64>(buffer + 1, Strides<i64, 4>{}));
 
         ewise(shape_strided, op1, input, output_strided);
         REQUIRE((buffer[0][0] == 1 and buffer[0][1] == 0)); // input is copied once*
@@ -63,7 +63,7 @@ TEST_CASE("cpu::ewise") {
     }
 
     AND_THEN("simply fill and copy") {
-        const auto shape = Shape4<i64>{1, 1, 1, 100};
+        const auto shape = Shape<i64, 4>{1, 1, 1, 100};
         const auto elements = shape.n_elements();
 
         const auto buffer = std::make_unique<f64[]>(static_cast<size_t>(elements));
@@ -83,7 +83,7 @@ TEST_CASE("cpu::ewise") {
     }
 
     AND_THEN("no outputs, simple memset") {
-        const auto shape = Shape4<i64>{1, 1, 1, 100};
+        const auto shape = Shape<i64, 4>{1, 1, 1, 100};
         const auto elements = shape.n_elements();
 
         const auto buffer = std::make_unique<f64[]>(static_cast<size_t>(elements));
@@ -103,7 +103,7 @@ TEST_CASE("cpu::ewise") {
     }
 
     AND_THEN("fill using runtime value") {
-        const auto shape = Shape4<i64>{1, 1, 1, 100};
+        const auto shape = Shape<i64, 4>{1, 1, 1, 100};
         const auto elements = shape.n_elements();
 
         auto value = AccessorValue<f64>(1.57);

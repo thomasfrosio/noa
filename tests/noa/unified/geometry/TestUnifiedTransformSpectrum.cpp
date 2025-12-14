@@ -40,10 +40,10 @@ TEST_CASE("unified::geometry::transform_spectrum_2d, vs scipy", "[asset]") {
         const YAML::Node& test = param["tests"][nb];
         const auto input_filename = path_base / test["input"].as<Path>();
         const auto expected_filename = path_base / test["expected"].as<Path>();
-        const auto scale = test["scale"].as<Vec2<f64>>();
+        const auto scale = test["scale"].as<Vec<f64, 2>>();
         const auto rotate = noa::deg2rad(test["rotate"].as<f64>());
-        const auto center = test["center"].as<Vec2<f32>>();
-        const auto shift = test["shift"].as<Vec2<f32>>();
+        const auto center = test["center"].as<Vec<f32, 2>>();
+        const auto shift = test["shift"].as<Vec<f32, 2>>();
         const auto cutoff = test["cutoff"].as<f64>();
         const auto interp = test["interp"].as<Interp>();
         constexpr auto FFT_NORM = noa::fft::Norm::ORTHO;
@@ -105,10 +105,10 @@ TEST_CASE("unified::geometry::transform_spectrum_3d, vs scipy", "[asset]") {
         const YAML::Node& test = param["tests"][nb];
         const auto input_filename = path_base / test["input"].as<Path>();
         const auto expected_filename = path_base / test["expected"].as<Path>();
-        const auto scale = test["scale"].as<Vec3<f64>>();
-        const auto rotate = noa::deg2rad(test["rotate"].as<Vec3<f64>>());
-        const auto center = test["center"].as<Vec3<f32>>();
-        const auto shift = test["shift"].as<Vec3<f32>>();
+        const auto scale = test["scale"].as<Vec<f64, 3>>();
+        const auto rotate = noa::deg2rad(test["rotate"].as<Vec<f64, 3>>());
+        const auto center = test["center"].as<Vec<f32, 3>>();
+        const auto shift = test["shift"].as<Vec<f32, 3>>();
         const auto cutoff = test["cutoff"].as<f64>();
         const auto interp = test["interp"].as<Interp>();
         constexpr auto FFT_NORM = noa::fft::Norm::ORTHO;
@@ -159,7 +159,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_2d(), remap", "", f32,
 
     test::Randomizer<f64> randomizer(-3, 3);
     auto transforms = Array<Mat22<f32>>(shape[0]);
-    auto shifts = Array<Vec2<f32>>(shape[0]);
+    auto shifts = Array<Vec<f32, 2>>(shape[0]);
 
     for (auto& transform: transforms.span_1d()) {
         const auto scale = Vec{0.9, 1.1};
@@ -217,7 +217,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32,
 
     test::Randomizer<f64> randomizer(-3, 3);
     auto transforms = Array<Mat33<f32>>(shape[0]);
-    auto shifts = Array<Vec3<f32>>(shape[0]);
+    auto shifts = Array<Vec<f32, 3>>(shape[0]);
 
     for (auto& transform: transforms.span_1d()) {
         const auto scale = Vec{0.9, 1.1, 0.85};
@@ -275,7 +275,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32,
 
 // // The hermitian symmetry isn't broken by transform_2d and transform_3d.
 // TEST_CASE("unified::geometry::transform_spectrum_2d, check redundancy", "[.]") {
-//     const auto shape = Shape4<i64>{1, 1, 128, 128};
+//     const auto shape = Shape<i64, 4>{1, 1, 128, 128};
 //     const Path output_path = test::NOA_DATA_PATH / "geometry" / "fft";
 //     const auto option = ArrayOption("gpu", Allocator::MANAGED);
 //
@@ -291,7 +291,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32,
 // }
 //
 // TEST_CASE("unified::geometry::transform_spectrum_3d, check redundancy", "[.]") {
-//     const auto shape = Shape4<i64>{1, 128, 128, 128};
+//     const auto shape = Shape<i64, 4>{1, 128, 128, 128};
 //     const Path output_path = test::NOA_DATA_PATH / "geometry" / "fft";
 //     const auto option = ArrayOption(Device("gpu"), Allocator::MANAGED);
 //
@@ -301,13 +301,13 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32,
 //
 //     Array output1 = noa::like(output0);
 //     const Mat33 rotation = ng::euler2matrix(noa::deg2rad(Vec{45.f, 0.f, 0.f}), {.axes="zyx", .intrinsic = false});
-//     ng::transform_spectrum_3d<"HC2HC">(output0, output1, shape, rotation, Vec3<f32>{});
+//     ng::transform_spectrum_3d<"HC2HC">(output0, output1, shape, rotation, Vec<f32, 3>{});
 //     noa::write_image(noa::real(output1), output_path / "test_output1_real.mrc");
 //     noa::write_image(noa::imag(output1), output_path / "test_output1_imag.mrc");
 // }
 //
 // TEST_CASE("unified::geometry::transform_spectrum_2d, 0", ".") {
-//     constexpr auto shape = Shape4<i64>{1, 1, 256, 256};
+//     constexpr auto shape = Shape<i64, 4>{1, 1, 256, 256};
 //
 //     auto data = noa::empty<f32>(shape);
 //     ng::draw_shape({}, data, ng::Rectangle{
@@ -334,7 +334,7 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_spectrum_3d(), remap", "", f32,
 // }
 //
 // TEST_CASE("unified::geometry::transform_spectrum_2d, 1", ".") {
-//     constexpr auto shape = Shape4<i64>{5, 1, 256, 256};
+//     constexpr auto shape = Shape<i64, 4>{5, 1, 256, 256};
 //     constexpr auto center = Vec{128., 128.};
 //
 //     auto input = noa::empty<f32>(shape.set<0>(1));

@@ -29,19 +29,19 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
         INFO("test number = " << nb);
 
         const YAML::Node& parameters = tests["tests"][nb];
-        const auto slice_shape = parameters["slice_shape"].as<Shape4<i64>>();
-        const auto volume_shape = parameters["volume_shape"].as<Shape4<i64>>();
-        const auto target_shape = parameters["target_shape"].as<Shape4<i64>>();
-        const auto scale = Vec2<f32>::from_value(parameters["scale"].as<f32>());
+        const auto slice_shape = parameters["slice_shape"].as<Shape4>();
+        const auto volume_shape = parameters["volume_shape"].as<Shape4>();
+        const auto target_shape = parameters["target_shape"].as<Shape4>();
+        const auto scale = Vec<f32, 2>::from_value(parameters["scale"].as<f32>());
         const auto rotate = parameters["rotate"].as<std::vector<f32>>();
         const auto fftfreq_cutoff = parameters["fftfreq_cutoff"].as<f64>();
-        const auto ews_radius = Vec2<f64>::from_value(parameters["ews_radius"].as<f64>());
+        const auto ews_radius = Vec<f64, 2>::from_value(parameters["ews_radius"].as<f64>());
         const auto fftfreq_sinc = parameters["fftfreq_sinc"].as<f64>();
         const auto fftfreq_blackman = parameters["fftfreq_blackman"].as<f64>();
         const auto volume_filename = path / parameters["volume_filename"].as<Path>();
 
         const auto fwd_scaling_matrix = ng::scale(scale);
-        auto inv_rotation_matrices = noa::empty<Mat33<f32>>(static_cast<i64>(rotate.size()));
+        auto inv_rotation_matrices = noa::empty<Mat33<f32>>(std::ssize(rotate));
         for (size_t i{}; auto& inv_rotation_matrix: inv_rotation_matrices.span_1d_contiguous())
             inv_rotation_matrix = ng::rotate_y(noa::deg2rad(-rotate[i++]));
 
@@ -82,8 +82,8 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
 //     if (Device::is_any_gpu())
 //         devices.emplace_back("gpu");
 //
-//     constexpr auto slice_shape = Shape4<i64>{20, 1, 64, 64};
-//     constexpr auto grid_shape = Shape4<i64>{1, 64, 64, 64};
+//     constexpr auto slice_shape = Shape<i64, 4>{20, 1, 64, 64};
+//     constexpr auto grid_shape = Shape<i64, 4>{1, 64, 64, 64};
 //
 //     auto fwd_rotation_matrices = noa::empty<Mat33<f32>>(slice_shape[0]);
 //     for (i64 i{}; auto& fwd_rotation_matrix: fwd_rotation_matrices.span_1d_contiguous())
@@ -118,8 +118,8 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
 //         devices.emplace_back("gpu");
 //
 //     const i64 slice_count = GENERATE(1, 20);
-//     const auto slice_shape = Shape4<i64>{slice_count, 1, 64, 64};
-//     constexpr auto grid_shape = Shape4<i64>{1, 128, 128, 128};
+//     const auto slice_shape = Shape<i64, 4>{slice_count, 1, 64, 64};
+//     constexpr auto grid_shape = Shape<i64, 4>{1, 128, 128, 128};
 //     constexpr auto windowed_sinc = ng::WindowedSinc{0.02, 0.06};
 //
 //     auto inv_rotation_matrices = noa::empty<Mat33<f32>>(slice_shape[0]);

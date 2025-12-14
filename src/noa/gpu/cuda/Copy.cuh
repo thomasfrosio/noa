@@ -18,11 +18,11 @@
 
 namespace noa::cuda::details {
     template<typename T>
-    cudaMemcpy3DParms to_copy_parameters(
-        const T* src, i64 src_pitch,
-        T* dst, i64 dst_pitch,
-        const Shape4<i64>& shape
-    ) {
+    auto to_copy_parameters(
+        const T* src, isize src_pitch,
+        T* dst, isize dst_pitch,
+        const Shape4& shape
+    ) -> cudaMemcpy3DParms {
         const auto s_shape = shape.as_safe<size_t>();
         cudaMemcpy3DParms params{};
         params.srcPtr = {const_cast<T*>(src), static_cast<size_t>(src_pitch) * sizeof(T), s_shape[3], s_shape[2]};
@@ -33,11 +33,11 @@ namespace noa::cuda::details {
     }
 
     template<typename T>
-    cudaMemcpy3DParms to_copy_parameters(
+    auto to_copy_parameters(
         const cudaArray* src,
-        T* dst, i64 dst_pitch,
-        const Shape3<i64>& shape
-    ) {
+        T* dst, isize dst_pitch,
+        const Shape3& shape
+    ) -> cudaMemcpy3DParms {
         const auto s_shape = shape.as_safe<size_t>();
         cudaMemcpy3DParms params{};
         params.srcArray = const_cast<cudaArray*>(src);
@@ -48,11 +48,11 @@ namespace noa::cuda::details {
     }
 
     template<typename T>
-    cudaMemcpy3DParms to_copy_parameters(
-        const T* src, i64 src_pitch,
+    auto to_copy_parameters(
+        const T* src, isize src_pitch,
         cudaArray* dst,
-        const Shape3<i64>& shape
-    ) {
+        const Shape3& shape
+    ) -> cudaMemcpy3DParms {
         const auto s_shape = shape.as_safe<size_t>();
         cudaMemcpy3DParms params{};
         params.srcPtr = {const_cast<T*>(src), static_cast<size_t>(src_pitch) * sizeof(T), s_shape[2], s_shape[1]};
@@ -63,16 +63,16 @@ namespace noa::cuda::details {
     }
 
     template<typename T>
-    void memcpy(const T* src, T* dst, i64 elements, Stream& stream) {
+    void memcpy(const T* src, T* dst, isize elements, Stream& stream) {
         const auto count = static_cast<size_t>(elements) * sizeof(T);
         check(cudaMemcpyAsync(dst, src, count, cudaMemcpyDefault, stream.id()));
     }
 
     template<typename T>
     void memcpy(
-        const T* src, i64 src_pitch,
-        T* dst, i64 dst_pitch,
-        const Shape4<i64>& shape, Stream& stream
+        const T* src, isize src_pitch,
+        T* dst, isize dst_pitch,
+        const Shape4& shape, Stream& stream
     ) {
         const auto params = details::to_copy_parameters(src, src_pitch, dst, dst_pitch, shape);
         check(cudaMemcpy3DAsync(&params, stream.id()));
@@ -80,9 +80,9 @@ namespace noa::cuda::details {
 
     template<typename Config = EwiseConfig<>, typename T> requires (not std::is_trivially_copyable_v<T>)
     void copy_non_trivial_contiguous(
-        const T* src, Strides4<i64> src_strides,
-        T* dst, Strides4<i64> dst_strides,
-        Shape4<i64> shape, Stream& stream
+        const T* src, Strides4 src_strides,
+        T* dst, Strides4 dst_strides,
+        Shape4 shape, Stream& stream
     ) {
         static_assert(cudaMemoryTypeUnregistered == 0);
         static_assert(cudaMemoryTypeHost == 1);
@@ -97,8 +97,8 @@ namespace noa::cuda::details {
                   "Copying elements of a non-trivially copyable type between device memory of two different devices "
                   "(device:src={}, device:dst={}) is not supported", src_attr.device, dst_attr.device);
 
-            auto input = make_tuple(AccessorRestrictContiguousI64<const T, 4>(src, src_strides));
-            auto output = make_tuple(AccessorRestrictContiguousI64<T, 4>(dst, dst_strides));
+            auto input = make_tuple(AccessorRestrictContiguous<const T, 4, isize>(src, src_strides));
+            auto output = make_tuple(AccessorRestrictContiguous<T, 4, isize>(dst, dst_strides));
             ewise<Config>(shape, Copy{}, std::move(input), std::move(output), stream);
 
         } else if (src_attr.type >= 1 and dst_attr.type >= 1) {
@@ -118,20 +118,20 @@ namespace noa::cuda::details {
             // TODO For managed pointers, use cudaMemPrefetchAsync()?
             auto src_ptr = static_cast<const T*>(src_attr.devicePointer);
             auto dst_ptr = static_cast<T*>(dst_attr.devicePointer);
-            auto input = make_tuple(AccessorRestrictContiguousI64<const T, 4>(src_ptr, src_strides));
-            auto output = make_tuple(AccessorRestrictContiguousI64<T, 4>(dst_ptr, dst_strides));
+            auto input = make_tuple(AccessorRestrictContiguous<const T, 4, isize>(src_ptr, src_strides));
+            auto output = make_tuple(AccessorRestrictContiguous<T, 4, isize>(dst_ptr, dst_strides));
             ewise<Config>(shape, Copy{}, std::move(input), std::move(output), stream);
 
         } else if ((src_attr.type <= 1 or src_attr.type == 3) and
                    (dst_attr.type <= 1 or dst_attr.type == 3)) {
             // Both can be accessed on the host. Realistically, this never happens.
-            const auto src_accessor = AccessorRestrictContiguous<const T, 4, i64>(src, src_strides);
-            const auto dst_accessor = AccessorRestrictContiguous<T, 4, i64>(dst, dst_strides);
+            const auto src_accessor = AccessorRestrictContiguous<const T, 4, isize>(src, src_strides);
+            const auto dst_accessor = AccessorRestrictContiguous<T, 4, isize>(dst, dst_strides);
             stream.synchronize(); // TODO Use a callback instead?
-            for (i64 i = 0; i < shape[0]; ++i)
-                for (i64 j = 0; j < shape[1]; ++j)
-                    for (i64 k = 0; k < shape[2]; ++k)
-                        for (i64 l = 0; l < shape[3]; ++l)
+            for (isize i = 0; i < shape[0]; ++i)
+                for (isize j = 0; j < shape[1]; ++j)
+                    for (isize k = 0; k < shape[2]; ++k)
+                        for (isize l = 0; l < shape[3]; ++l)
                             dst_accessor(i, j, k, l) = src_accessor(i, j, k, l);
 
         } else {
@@ -148,8 +148,8 @@ namespace noa::cuda {
         if constexpr (std::is_trivially_copyable_v<T>) {
             details::memcpy(src, dst, 1, stream);
         } else {
-            const auto shape = Shape4<i64>::from_value(1);
-            const auto strides = Strides4<i64>::from_value(1);
+            const auto shape = Shape4::from_value(1);
+            const auto strides = Strides4::from_value(1);
             using config = EwiseConfig<false, false, 1, 1>; // 1 thread
             details::copy_non_trivial_contiguous<config>(src, strides, dst, strides, shape, stream);
         }
@@ -157,24 +157,24 @@ namespace noa::cuda {
 
     /// Copy a contiguous range, asynchronously.
     template<typename T>
-    void copy(const T* src, T* dst, i64 elements, Stream& stream) {
+    void copy(const T* src, T* dst, isize elements, Stream& stream) {
         if constexpr (std::is_trivially_copyable_v<T>) {
             details::memcpy(src, dst, elements, stream);
         } else {
-            const auto shape = Shape4<i64>{1, 1, 1, elements};
-            const auto strides = Strides4<i64>::from_value(1);
+            const auto shape = Shape4{1, 1, 1, elements};
+            const auto strides = Strides4::from_value(1);
             details::copy_non_trivial_contiguous(src, strides, dst, strides, shape, stream);
         }
     }
 
     /// Copy a pitched range, asynchronously.
     template<typename T>
-    void copy(const T* src, i64 src_pitch, T* dst, i64 dst_pitch, const Shape4<i64>& shape, Stream& stream) {
+    void copy(const T* src, isize src_pitch, T* dst, isize dst_pitch, const Shape4& shape, Stream& stream) {
         if constexpr (std::is_trivially_copyable_v<T>) {
             details::memcpy(src, src_pitch, dst, dst_pitch, shape, stream);
         } else {
-            const auto src_strides = Strides4<i64>{src_pitch, src_pitch, src_pitch, 1};
-            const auto dst_strides = Strides4<i64>{dst_pitch, dst_pitch, dst_pitch, 1};
+            const auto src_strides = Strides4{src_pitch, src_pitch, src_pitch, 1};
+            const auto dst_strides = Strides4{dst_pitch, dst_pitch, dst_pitch, 1};
             details::copy_non_trivial_contiguous(src, src_strides, dst, dst_strides, shape, stream);
         }
     }
@@ -182,14 +182,14 @@ namespace noa::cuda {
     /// Copies a strided range, asynchronously.
     template<typename T>
     void copy(
-        const T* src, Strides4<i64> src_strides,
-        T* dst, Strides4<i64> dst_strides,
-        Shape4<i64> shape, Stream& stream
+        const T* src, Strides4 src_strides,
+        T* dst, Strides4 dst_strides,
+        Shape4 shape, Stream& stream
     ) {
         // If contiguous or with a pitch, then we can rely on the CUDA runtime.
         // Given that we reorder to rightmost order and collapse the contiguous dimensions together,
         // this ends up being 99% of cases.
-        Vec4<bool> is_contiguous;
+        Vec<bool, 4> is_contiguous;
         for (i32 test = 0; test <= 1; ++test) {
             // Rearrange to the rightmost order. Empty and broadcast dimensions in the output are moved to the left.
             // The input can be broadcast onto the output shape. While it is not valid for the output to broadcast
@@ -197,7 +197,7 @@ namespace noa::cuda {
             // so the corresponding input dimension isn't used and everything is fine.
             shape = ni::effective_shape(shape, dst_strides);
             const auto order = ni::order(dst_strides, shape);
-            if (vany(NotEqual{}, order, Vec{0, 1, 2, 3})) {
+            if (order != Vec<isize, 4>{0, 1, 2, 3}) {
                 shape = ni::reorder(shape, order);
                 src_strides = ni::reorder(src_strides, order);
                 dst_strides = ni::reorder(dst_strides, order);
@@ -217,7 +217,7 @@ namespace noa::cuda {
                 // collapse the contiguous dimensions together, and check again. This can reveal
                 // 2d pitched layouts.
                 auto collapsed_shape = shape;
-                for (i64 i = 0; i < 3; ++i) {
+                for (isize i = 0; i < 3; ++i) {
                     if (is_contiguous[i] and is_contiguous[i + 1]) {
                         // Starting from the outermost dim, if the current dim and the next dim
                         // are contiguous, move the current dim to the next one.
@@ -226,8 +226,8 @@ namespace noa::cuda {
                     }
                 }
                 // We have a new shape, so compute the new strides.
-                Strides4<i64> new_src_strides;
-                Strides4<i64> new_dst_strides;
+                Strides4 new_src_strides;
+                Strides4 new_dst_strides;
                 if (ni::reshape(shape, src_strides, collapsed_shape, new_src_strides) and
                     ni::reshape(shape, dst_strides, collapsed_shape, new_dst_strides)) {
                     // Update and try again.
@@ -253,8 +253,8 @@ namespace noa::cuda {
                   "to (device:{}, strides:{}) ",
                   shape, src_attr.device, src_strides, dst_attr.device, dst_strides);
 
-            auto input = make_tuple(AccessorRestrictI64<const T, 4>(src, src_strides));
-            auto output = make_tuple(AccessorRestrictI64<T, 4>(dst, dst_strides));
+            auto input = make_tuple(AccessorRestrict<const T, 4, isize>(src, src_strides));
+            auto output = make_tuple(AccessorRestrict<T, 4, isize>(dst, dst_strides));
             ewise(shape, Copy{}, std::move(input), std::move(output), stream);
 
         } else if (src_attr.type >= 1 and dst_attr.type >= 1) { // between pinned/device/managed memory
@@ -266,19 +266,19 @@ namespace noa::cuda {
             // TODO For managed pointers, use cudaMemPrefetchAsync()?
             auto src_ptr = static_cast<const T*>(src_attr.devicePointer);
             auto dst_ptr = static_cast<T*>(dst_attr.devicePointer);
-            auto input = make_tuple(AccessorRestrictI64<const T, 4>(src_ptr, src_strides));
-            auto output = make_tuple(AccessorRestrictI64<T, 4>(dst_ptr, dst_strides));
+            auto input = make_tuple(AccessorRestrict<const T, 4, isize>(src_ptr, src_strides));
+            auto output = make_tuple(AccessorRestrict<T, 4, isize>(dst_ptr, dst_strides));
             ewise(shape, Copy{}, std::move(input), std::move(output), stream);
 
         } else if ((src_attr.type <= 1 or src_attr.type == 3) and
                    (dst_attr.type <= 1 or dst_attr.type == 3)) { // between unregistered-host and managed memory
-            const auto src_accessor = AccessorRestrict<const T, 4, i64>(src, src_strides);
-            const auto dst_accessor = AccessorRestrict<T, 4, i64>(dst, dst_strides);
+            const auto src_accessor = AccessorRestrict<const T, 4, isize>(src, src_strides);
+            const auto dst_accessor = AccessorRestrict<T, 4, isize>(dst, dst_strides);
             stream.synchronize(); // FIXME Use a callback instead?
-            for (i64 i = 0; i < shape[0]; ++i)
-                for (i64 j = 0; j < shape[1]; ++j)
-                    for (i64 k = 0; k < shape[2]; ++k)
-                        for (i64 l = 0; l < shape[3]; ++l)
+            for (isize i = 0; i < shape[0]; ++i)
+                for (isize j = 0; j < shape[1]; ++j)
+                    for (isize k = 0; k < shape[2]; ++k)
+                        for (isize l = 0; l < shape[3]; ++l)
                             dst_accessor(i, j, k, l) = src_accessor(i, j, k, l);
 
         } else if (all(is_contiguous.pop_back())) {
@@ -288,7 +288,7 @@ namespace noa::cuda {
             // Note: This is the last resort because it should be less efficient than our custom copy
             // (on host or device), so this is only if the copy is between unregister host and device, and
             // has a stride in the innermost dimension.
-            const auto shape_2d_pitched = Shape4<i64>{1, shape[0] * shape[1] * shape[2], shape[3], 1};
+            const auto shape_2d_pitched = Shape4{1, shape[0] * shape[1] * shape[2], shape[3], 1};
             return copy(src, src_strides[3], dst, dst_strides[3], shape_2d_pitched, stream);
 
         } else {
@@ -300,25 +300,25 @@ namespace noa::cuda {
 
 namespace noa::cuda {
     template<typename T>
-    void copy(const T* src, i64 src_pitch, cudaArray* dst, const Shape3<i64>& shape) {
+    void copy(const T* src, isize src_pitch, cudaArray* dst, const Shape3& shape) {
         cudaMemcpy3DParms params = details::to_copy_parameters(src, src_pitch, dst, shape);
         check(cudaMemcpy3D(&params));
     }
 
     template<typename T>
-    void copy(const T* src, i64 src_pitch, cudaArray* dst, const Shape3<i64>& shape, Stream& stream) {
+    void copy(const T* src, isize src_pitch, cudaArray* dst, const Shape3& shape, Stream& stream) {
         cudaMemcpy3DParms params = details::to_copy_parameters(src, src_pitch, dst, shape);
         check(cudaMemcpy3DAsync(&params, stream.id()));
     }
 
     template<typename T>
-    void copy(const cudaArray* src, T* dst, i64 dst_pitch, const Shape3<i64>& shape) {
+    void copy(const cudaArray* src, T* dst, isize dst_pitch, const Shape3& shape) {
         cudaMemcpy3DParms params = details::to_copy_parameters(src, dst, dst_pitch, shape);
         check(cudaMemcpy3D(&params));
     }
 
     template<typename T>
-    void copy(const cudaArray* src, T* dst, i64 dst_pitch, const Shape3<i64>& shape, Stream& stream) {
+    void copy(const cudaArray* src, T* dst, isize dst_pitch, const Shape3& shape, Stream& stream) {
         cudaMemcpy3DParms params = details::to_copy_parameters(src, dst, dst_pitch, shape);
         check(cudaMemcpy3DAsync(&params, stream.id()));
     }
@@ -330,8 +330,8 @@ namespace noa::cuda {
     ///  - If the CUDA array is NOT layered, its shape should match the DHW dimensions of the source.
     template<typename T>
     void copy(
-        const T* src, const Strides4<i64>& src_strides, cudaArray* dst,
-        const Shape4<i64>& shape, Stream& stream
+        const T* src, const Strides4& src_strides, cudaArray* dst,
+        const Shape4& shape, Stream& stream
     ) {
         const auto[desc_, actual_extent, flags] = AllocatorTexture::array_info(dst);
         const bool is_layered = flags & cudaArrayLayered;
@@ -344,11 +344,11 @@ namespace noa::cuda {
 
         // cudaExtent for CUDA array has empty dimensions equal to 0.
         // However, for cudaMemcpy3D, dimensions equal to 0 are invalid.
-        auto shape_3d = Shape3<i64>::from_values(expected_extent.depth, expected_extent.height, expected_extent.width);
-        shape_3d += Shape3<i64>::from_vec(shape_3d == 0);
+        auto shape_3d = Shape3::from_values(expected_extent.depth, expected_extent.height, expected_extent.width);
+        shape_3d += Shape3::from_vec(shape_3d == 0);
 
         const bool is_column = shape[2] >= 1 and shape[3] == 1;
-        const auto src_strides_3d = Strides3<i64>{
+        const auto src_strides_3d = Strides3{
             src_strides[not is_layered],
             src_strides[2 + is_column],
             src_strides[3 - is_column]
@@ -366,7 +366,7 @@ namespace noa::cuda {
     }
 
     template<typename T>
-    void copy(cudaArray* src, T* dst, const Strides4<i64>& dst_strides, const Shape4<i64>& shape, Stream& stream) {
+    void copy(cudaArray* src, T* dst, const Strides4& dst_strides, const Shape4& shape, Stream& stream) {
         const auto[_, actual_extent, flags] = AllocatorTexture::array_info(src);
         const bool is_layered = flags & cudaArrayLayered;
         const cudaExtent expected_extent = AllocatorTexture::shape2extent(shape, is_layered);
@@ -378,11 +378,11 @@ namespace noa::cuda {
 
         // cudaExtent for CUDA array has empty dimensions equal to 0.
         // However, for cudaMemcpy3D, dimensions equal to 0 are invalid.
-        auto shape_3d = Shape3<i64>::from_values(expected_extent.depth, expected_extent.height, expected_extent.width);
-        shape_3d += Shape3<i64>::from_vec(shape_3d == 0);
+        auto shape_3d = Shape3::from_values(expected_extent.depth, expected_extent.height, expected_extent.width);
+        shape_3d += Shape3::from_vec(shape_3d == 0);
 
         const bool is_column = shape[2] >= 1 and shape[3] == 1;
-        const auto dst_strides_3d = Strides3<i64>{
+        const auto dst_strides_3d = Strides3{
             dst_strides[not is_layered],
             dst_strides[2 + is_column],
             dst_strides[3 - is_column]
@@ -401,7 +401,7 @@ namespace noa::cuda {
 
     /// Copies \p src to the constant memory at \p dst.
     template<typename T> requires std::is_trivially_copyable_v<T>
-    void copy_to_constant_memory(const T* src, const void* dst, i64 elements, i64 offset, Stream& stream) {
+    void copy_to_constant_memory(const T* src, const void* dst, isize elements, isize offset, Stream& stream) {
         check(cudaMemcpyToSymbolAsync(
             /*symbol=*/ dst,
             /*src=*/ const_cast<T*>(src),
@@ -412,7 +412,7 @@ namespace noa::cuda {
     }
 
     template<typename T> requires std::is_trivially_copyable_v<T>
-    void fill_with_zeroes(T* ptr, i64 n_elements, Stream& stream) {
+    void fill_with_zeroes(T* ptr, isize n_elements, Stream& stream) {
         check(cudaMemsetAsync(ptr, 0, static_cast<size_t>(n_elements) * sizeof(T), stream.id()));
     }
 }

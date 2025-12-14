@@ -21,9 +21,9 @@ TEST_CASE("unified::geometry::spectrum2polar") {
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    constexpr auto spectrum_shape = Shape<i64, 4>{3, 1, 256, 256};
-    constexpr auto spectrum_1d_shape = Shape<i64, 4>{1, 1, 1, 256};
-    constexpr auto polar_shape = Shape<i64, 4>{3, 1, 256, 129};
+    constexpr auto spectrum_shape = Shape<isize, 4>{3, 1, 256, 256};
+    constexpr auto spectrum_1d_shape = Shape<isize, 4>{1, 1, 1, 256};
+    constexpr auto polar_shape = Shape<isize, 4>{3, 1, 256, 129};
     const auto ctf = noa::signal::CTFIsotropic<f64>::Parameters{
         .pixel_size = 3.,
         .defocus = 2.,
@@ -221,11 +221,11 @@ TEST_CASE("unified::geometry::rotational_average") {
         }
     );
 
-    const i64 n_batch = 3;
-    const auto shape = Shape4<i64>{n_batch, 1, size, size};
+    const isize n_batch = 3;
+    const auto shape = Shape4{n_batch, 1, size, size};
     const auto rotational_average_size = noa::min(shape.filter(2, 3)) / 2 + 1;
-    const auto polar_shape = Shape4<i64>{n_batch, 1, 256, rotational_average_size};
-    const auto rotational_average_shape = Shape4<i64>{n_batch, 1, 1, rotational_average_size};
+    const auto polar_shape = Shape4{n_batch, 1, 256, rotational_average_size};
+    const auto rotational_average_shape = Shape4{n_batch, 1, 1, rotational_average_size};
     const auto center = (shape.vec.filter(2, 3) / 2).as<f64>();
 
     for (auto device: devices) {
@@ -293,7 +293,7 @@ TEST_CASE("unified::geometry::rotational_average_anisotropic, vs isotropic") {
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    const auto shape = Shape4<i64>{1, 1, 1024, 1024}; //test::get_random_shape4_batched(2);
+    const auto shape = Shape4{1, 1, 1024, 1024}; //test::get_random_shape4_batched(2);
     const auto n_shells = noa::min(shape.filter(2, 3)) / 2 + 1;
 
     using CTFIsotropic64 = noa::signal::CTFIsotropic<f64>;
@@ -479,7 +479,7 @@ TEST_CASE("unified::geometry::phase_spectra") {
 
 TEST_CASE("unified::geometry::rotational_average_anisotropic, test", "[.]") {
     const auto directory = test::NOA_DATA_PATH / "geometry";
-    const auto shape = Shape4<i64>{1, 1, 1024, 1024};
+    const auto shape = Shape4{1, 1, 1024, 1024};
     const auto n_shells = noa::min(shape.filter(2, 3)) / 2 + 1;
 
     using CTFAnisotropic64 = noa::signal::CTFAnisotropic<f64>;

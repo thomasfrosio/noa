@@ -35,10 +35,10 @@ TEST_CASE("unified::geometry::transform_3d, rotate vs scipy", "[asset]") {
         const auto border = test["border"].as<noa::Border>();
         const auto expected_filename = path_base / test["expected"].as<Path>();
 
-        const auto center = test["center"].as<Vec3<f64>>();
-        const auto scale = test["scale"].as<Vec3<f64>>();
-        const auto euler = noa::deg2rad(test["euler"].as<Vec3<f64>>());
-        const auto shift = test["shift"].as<Vec3<f64>>();
+        const auto center = test["center"].as<Vec<f64, 3>>();
+        const auto scale = test["scale"].as<Vec<f64, 3>>();
+        const auto euler = noa::deg2rad(test["euler"].as<Vec<f64, 3>>());
+        const auto shift = test["shift"].as<Vec<f64, 3>>();
         const auto inv_matrix = noa::inverse(
             noa::geometry::translate(center) *
             noa::geometry::translate(shift) *
@@ -97,9 +97,9 @@ TEST_CASE("unified::geometry::transform_3d(), others", "[asset]") {
     const auto input_filename = path_base / param["input"].as<Path>();
 
     const auto cvalue = param["cvalue"].as<f32>();
-    const auto center = param["center"].as<Vec3<f64>>();
-    const auto scale = param["scale"].as<Vec3<f64>>();
-    const auto euler = noa::deg2rad(param["euler"].as<Vec3<f64>>());
+    const auto center = param["center"].as<Vec<f64, 3>>();
+    const auto scale = param["scale"].as<Vec<f64, 3>>();
+    const auto euler = noa::deg2rad(param["euler"].as<Vec<f64, 3>>());
     const auto inv_matrix = noa::geometry::affine2truncated(noa::inverse(
         noa::geometry::translate(center) *
         noa::geometry::linear2affine(noa::geometry::euler2matrix(euler, {.axes = "zyz"})) *

@@ -62,7 +62,7 @@ TEST_CASE("unified::Stream") {
 
     // Thread limit.
     {
-        const i64 old_limit = Session::thread_limit();
+        const i32 old_limit = Session::thread_limit();
         Session::set_thread_limit(old_limit + 1);
         Stream f(Device{});
         REQUIRE(f.thread_limit() == old_limit + 1);

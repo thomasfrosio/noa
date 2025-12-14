@@ -5,14 +5,14 @@
 
 namespace noa::cuda {
     // Gets the latest version of CUDA supported by the driver. Format 1000 * major + 10 * minor.
-    inline i32 version_driver() {
+    inline auto version_driver() -> i32 {
         i32 version;
         check(cudaDriverGetVersion(&version));
         return version;
     }
 
     // Gets the CUDA runtime version. Format 1000 * major + 10 * minor.
-    inline i32 version_runtime() {
+    inline auto version_runtime() -> i32 {
         i32 version;
         check(cudaRuntimeGetVersion(&version));
         return version;

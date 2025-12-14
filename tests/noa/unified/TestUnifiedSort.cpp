@@ -22,13 +22,13 @@ TEST_CASE("unified::sort", "[asset]") {
 
         const auto input_filename = path / test["input"].as<Path>();
         const auto output_filename = path / test["output"].as<Path>();
-        const auto shape = test["shape"].as<Shape4<i64>>();
+        const auto shape = test["shape"].as<Shape4>();
         const auto axis = test["axis"].as<i32>();
         const auto ascending = test["ascending"].as<bool>();
 
         Array input = noa::read_image<f32>(input_filename).data;
         Array expected = noa::read_image<f32>(output_filename).data;
-        REQUIRE((noa::all(input.shape() == shape) and noa::all(expected.shape() == shape)));
+        REQUIRE((input.shape() == shape and expected.shape() == shape));
 
         for (auto& device: devices) {
             const auto guard = DeviceGuard(device);

@@ -60,8 +60,8 @@ namespace noa {
               "The input should be (batched) column or row vectors, but got lhs:shape={} and rhs:shape={}",
               lhs.shape(), rhs.shape());
 
-        const i64 lhs_n_elements = lhs.shape()[2] * lhs.shape()[3];
-        const i64 rhs_n_elements = rhs.shape()[2] * rhs.shape()[3];
+        const auto lhs_n_elements = lhs.shape()[2] * lhs.shape()[3];
+        const auto rhs_n_elements = rhs.shape()[2] * rhs.shape()[3];
         check(lhs_n_elements == rhs_n_elements,
               "The input vectors don't have the same number of elements. Got lhs:size={} and rhs:size={}",
               lhs_n_elements, rhs_n_elements);
@@ -70,8 +70,8 @@ namespace noa {
               "The output should be a contiguous vector, but got output:shape={} and output:stride={}",
               output.shape(), output.strides());
 
-        const i64 batch = output.n_elements();
-        const auto full_shape = Shape4<i64>{batch, 1, 1, lhs_n_elements};
+        const auto batch = output.n_elements();
+        const auto full_shape = Shape4{batch, 1, 1, lhs_n_elements};
         auto inputs = wrap(std::forward<Lhs>(lhs).reshape(full_shape),
                            std::forward<Rhs>(rhs).reshape(full_shape));
 

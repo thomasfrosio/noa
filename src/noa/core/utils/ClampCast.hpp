@@ -43,19 +43,19 @@ namespace noa {
             //        representable value will be selected, although if IEEE arithmetic is supported, rounding defaults
             //        to nearest. If the source type is bool, the value false is converted to zero, and the value true
             //        is converted to one.
-            //      - Half can only represent the range of (u)int8_t and int16_t. Note that the rounding may cause
-            //        the casting to be non-reversible (e.g. int(32767) -> Half -> int(32768)). For larger integral
+            //      - f16 can only represent the range of (u)int8_t and int16_t. Note that the rounding may cause
+            //        the casting to be non-reversible (e.g. int(32767) -> f16 -> int(32768)). For larger integral
             //        or floating-point types, full clamping is required.
-            if constexpr (std::is_same_v<TTo, Half>) {
+            if constexpr (std::is_same_v<TTo, f16>) {
                 if constexpr (sizeof(TFrom) == 1 or (sizeof(TFrom) == 2 and std::is_signed_v<TFrom>)) {
-                    return TTo(src); // (u)int8_t/int16_t -> Half
+                    return TTo(src); // (u)int8_t/int16_t -> f16
                 } else if constexpr (std::is_unsigned_v<TFrom>) {
-                    return TTo(min(src, TFrom(std::numeric_limits<TTo>::max()))); // uint(16|32|64)_t -> Half
-                } else { // int(32|64)_t -> Half, float/double -> Half
+                    return TTo(min(src, TFrom(std::numeric_limits<TTo>::max()))); // uint(16|32|64)_t -> f16
+                } else { // int(32|64)_t -> f16, float/double -> f16
                     return TTo(clamp(src, TFrom(std::numeric_limits<TTo>::lowest()), TFrom(std::numeric_limits<TTo>::max())));
                 }
             } else if constexpr (std::is_integral_v<TFrom> or (sizeof(TFrom) < sizeof(TTo))) {
-                return TTo(src); // implicit integral/Half->float/double conversion or float->double
+                return TTo(src); // implicit integral/f16->float/double conversion or float->double
             } else { // double->float
                 return TTo(clamp(src, TFrom(std::numeric_limits<TTo>::lowest()), TFrom(std::numeric_limits<TTo>::max())));
             }
@@ -68,16 +68,16 @@ namespace noa {
             //        See https://stackoverflow.com/a/26097083 for some exceptional cases.
             //        See https://stackoverflow.com/a/3793950 for largest int value that can be accurately represented
             //        by IEEE-754 floats.
-            //      - Half is an exception since some integral types have a wider range. In these cases, no need to
+            //      - f16 is an exception since some integral types have a wider range. In these cases, no need to
             //        clamp, but still check for NaN and +/-Inf.
             using int_limits = std::numeric_limits<TTo>;
             constexpr bool IS_WIDER_THAN_HALF = sizeof(TTo) > 2 or (sizeof(TTo) == 2 and std::is_unsigned_v<TTo>);
-            if constexpr (std::is_same_v<TFrom, Half> && IS_WIDER_THAN_HALF) {
+            if constexpr (std::is_same_v<TFrom, f16> && IS_WIDER_THAN_HALF) {
                 if (is_nan(src)) {
                     return 0;
-                } else if (src == Half::from_bits(0x7C00)) { // +inf
+                } else if (src == f16::from_bits(0x7C00)) { // +inf
                     return int_limits::max();
-                } else if (src == Half::from_bits(0xFC00)) { // -inf
+                } else if (src == f16::from_bits(0xFC00)) { // -inf
                     return int_limits::min();
                 } else {
                     if constexpr (std::is_unsigned_v<TTo>)

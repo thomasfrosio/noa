@@ -15,7 +15,7 @@
 
 namespace noa::details {
     template<typename VArray>
-    auto axes_to_output_shape(const VArray& varray, ReduceAxes axes) -> Shape4<i64> {
+    auto axes_to_output_shape(const VArray& varray, ReduceAxes axes) -> Shape4 {
         auto output_shape = varray.shape();
         if (axes.batch)
             output_shape[0] = 1;
@@ -28,9 +28,9 @@ namespace noa::details {
         return output_shape;
     }
 
-    inline auto n_elements_to_reduce(const Shape4<i64>& input_shape, const Shape4<i64>& output_shape) -> i64 {
-        i64 n_elements_to_reduce{1};
-        for (size_t i{}; i < 4; ++i) {
+    inline auto n_elements_to_reduce(const Shape4& input_shape, const Shape4& output_shape) -> isize {
+        isize n_elements_to_reduce{1};
+        for (usize i{}; i < 4; ++i) {
             if (input_shape[i] > 1 and output_shape[i] == 1)
                 n_elements_to_reduce *= input_shape[i];
         }
@@ -40,9 +40,9 @@ namespace noa::details {
     template<typename Input, typename ReducedValue, typename ReducedOffset, typename ArgValue, typename ArgOffset,
          typename InputValue = nt::value_type_t<Input>,
          typename ArgValue_ = std::conditional_t<nt::empty<ArgValue>, InputValue, nt::value_type_t<ArgValue>>,
-         typename ArgOffset_ = std::conditional_t<nt::empty<ArgOffset>, i64, nt::value_type_t<ArgOffset>>,
+         typename ArgOffset_ = std::conditional_t<nt::empty<ArgOffset>, isize, nt::value_type_t<ArgOffset>>,
          typename ReducedValue_ = std::conditional_t<std::is_void_v<ReducedValue>, InputValue, ReducedValue>,
-         typename ReducedOffset_ = std::conditional_t<std::is_void_v<ReducedOffset>, i64, ReducedOffset>>
+         typename ReducedOffset_ = std::conditional_t<std::is_void_v<ReducedOffset>, isize, ReducedOffset>>
     concept arg_reduceable =
         nt::readable_varray_decay<Input> and
         (nt::writable_varray_decay<ArgValue> or nt::empty<ArgValue>) and
@@ -83,7 +83,7 @@ namespace noa {
         /// In standard statistical practice, ddof=1 provides an unbiased estimator of the variance
         /// of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate
         /// of the variance for normally distributed variables.
-        i64 ddof = 0;
+        i32 ddof = 0;
     };
 
     struct MedianOptions {
@@ -280,15 +280,15 @@ namespace noa {
         return output;
     }
 
-    /// Returns {maximum, offset: i64} of an array.
+    /// Returns {maximum, offset: isize} of an array.
     /// \note If the maximum value appears more than once, this function makes no guarantee to which one is selected.
     /// \note To get the corresponding 4d indices, noa::indexing::offset2index(offset, input) can be used.
     template<nt::readable_varray_of_numeric Input>
     [[nodiscard]] auto argmax(const Input& input) {
         using value_t = nt::mutable_value_type_t<Input>;
-        using reduced_t = Pair<value_t, i64>;
-        using op_t = ReduceFirstMax<AccessorI64<const value_t, 4>, reduced_t>;
-        reduced_t reduced{std::numeric_limits<value_t>::lowest(), i64{}};
+        using reduced_t = Pair<value_t, isize>;
+        using op_t = ReduceFirstMax<Accessor<const value_t, 4, isize>, reduced_t>;
+        reduced_t reduced{std::numeric_limits<value_t>::lowest(), isize{}};
         reduced_t output{};
         reduce_iwise(
             input.shape(), input.device(), reduced,
@@ -298,15 +298,15 @@ namespace noa {
         return output;
     }
 
-    /// Returns {minimum, offset: i64} of an array.
+    /// Returns {minimum, offset: isize} of an array.
     /// \note If the minimum value appears more than once, this function makes no guarantee to which one is selected.
     /// \note To get the corresponding 4d indices, noa::indexing::offset2index(offset, input) can be used.
     template<nt::readable_varray_of_numeric Input>
     [[nodiscard]] auto argmin(const Input& input) {
         using value_t = nt::mutable_value_type_t<Input>;
-        using reduced_t = Pair<value_t, i64>;
-        using op_t = ReduceFirstMin<AccessorI64<const value_t, 4>, reduced_t>;
-        reduced_t reduced{std::numeric_limits<value_t>::max(), i64{}};
+        using reduced_t = Pair<value_t, isize>;
+        using op_t = ReduceFirstMin<Accessor<const value_t, 4, isize>, reduced_t>;
+        reduced_t reduced{std::numeric_limits<value_t>::max(), isize{}};
         reduced_t output{};
         reduce_iwise(
             input.shape(), input.device(), reduced,
@@ -503,7 +503,7 @@ namespace noa {
         void mean_variance_or_stddev(Input&& input, Mean&& means, Variance&& variances, const VarianceOptions options) {
             constexpr bool HAS_MEAN = not nt::empty<std::remove_reference_t<Mean>>;
             if constexpr (HAS_MEAN) {
-                check(vall(Equal{}, means.shape(), variances.shape()),
+                check(means.shape() == variances.shape(),
                       "The means and variances should have the same shape, but got means={} and variances={}",
                       means.shape(), variances.shape());
             }
@@ -675,7 +675,7 @@ namespace noa {
     ///                             The input is explicitly converted to this type.
     ///                             If real and the input is complex, the abs_squared of the input is first computed.
     /// \tparam ReducedOffset       Offset type used for the reduction. Any integer or void.
-    ///                             If void, this defaults to the input index type (i64).
+    ///                             If void, this defaults to the input index type (isize).
     /// \param[in] input            Array to reduce.
     /// \param[out] output_values   Array where to save the maximum values, or empty.
     ///                             If real and the reduced value is complex, the power is computed.
@@ -700,9 +700,9 @@ namespace noa {
             auto accessor = nd::to_accessor(input);
 
             using input_value_t = nt::mutable_value_type_t<Input>;
-            using accessor_t = AccessorI64<const input_value_t, 4>;
+            using accessor_t = Accessor<const input_value_t, 4, i64>;
             using reduce_value_t = std::conditional_t<std::is_void_v<ReducedValue>, input_value_t, ReducedValue>;
-            using reduce_offset_t = std::conditional_t<std::is_void_v<ReducedOffset>, i64, ReducedOffset>;
+            using reduce_offset_t = std::conditional_t<std::is_void_v<ReducedOffset>, isize, ReducedOffset>;
             using pair_t = Pair<reduce_value_t, reduce_offset_t>;
             auto reduced = pair_t{std::numeric_limits<reduce_value_t>::lowest(), reduce_offset_t{}};
 
@@ -726,7 +726,7 @@ namespace noa {
                 // Reorder DHW to rightmost if offsets are not computed.
                 auto arg_values = output_values.view();
                 const auto order_3d = ni::order(input.strides().pop_front(), shape.pop_front());
-                if (vany(NotEqual{}, order_3d, Vec{0, 1, 2})) {
+                if (order_3d != Vec<isize, 3>{0, 1, 2}) {
                     auto order_4d = (order_3d + 1).push_front(0);
                     shape = shape.reorder(order_4d);
                     accessor.reorder(order_4d);
@@ -750,7 +750,7 @@ namespace noa {
     ///                             The input is explicitly converted to this type.
     ///                             If real and the input is complex, the power spectrum of the input is first computed.
     /// \tparam ReducedOffset       Offset type used for the reduction. Any integer or void.
-    ///                             If void, this defaults to the input index type (i64).
+    ///                             If void, this defaults to the input index type (isize).
     /// \param[in] input            Array to reduce.
     /// \param[out] output_values   Array where to save the minimum values, or empty.
     ///                             If real and the reduced value is complex, the power is computed.
@@ -776,9 +776,9 @@ namespace noa {
             auto accessor = nd::to_accessor(input);
 
             using input_value_t = nt::mutable_value_type_t<Input>;
-            using accessor_t = AccessorI64<const input_value_t, 4>;
+            using accessor_t = Accessor<const input_value_t, 4, isize>;
             using reduce_value_t = std::conditional_t<std::is_void_v<ReducedValue>, input_value_t, ReducedValue>;
-            using reduce_offset_t = std::conditional_t<std::is_void_v<ReducedOffset>, i64, ReducedOffset>;
+            using reduce_offset_t = std::conditional_t<std::is_void_v<ReducedOffset>, isize, ReducedOffset>;
             using pair_t = Pair<reduce_value_t, reduce_offset_t>;
             auto reduced = pair_t{std::numeric_limits<reduce_value_t>::max(), reduce_offset_t{}};
 
@@ -801,8 +801,8 @@ namespace noa {
             } else {
                 // Reorder DHW to rightmost if offsets are not computed.
                 auto arg_values = output_values.view();
-                const auto order_3d = ni::order(input.strides().pop_front(), shape.pop_front());
-                if (vany(NotEqual{}, order_3d, Vec{0, 1, 2})) {
+                const auto order_3d = ni::order(input.strides().pop_front(), shape.pop_front()).template as<i32>();
+                if (order_3d != Vec{0, 1, 2}) {
                     auto order_4d = (order_3d + 1).push_front(0);
                     shape = shape.reorder(order_4d);
                     accessor.reorder(order_4d);
@@ -829,7 +829,7 @@ namespace noa {
 
         /// Same as VarianceOptions::ddof.
         /// Only used if mode == Norm::MEAN_STD.
-        i64 ddof = 0;
+        i32 ddof = 0;
     };
 
     /// Normalizes an array, according to a normalization mode.
@@ -873,7 +873,7 @@ namespace noa {
         ReduceAxes axes,
         const NormalizeOptions& options = {}
     ) {
-        check(vall(Equal{}, input.shape(), output.shape()),
+        check(input.shape() == output.shape(),
               "The input and output arrays should have the same shape, but got input={} and output={}",
               input.shape(), output.shape());
 

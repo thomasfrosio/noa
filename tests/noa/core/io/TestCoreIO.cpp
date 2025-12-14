@@ -30,7 +30,7 @@ TEMPLATE_TEST_CASE("core::io::encoding and decoding - real types", "", u8, i16, 
     const bool swap = GENERATE(true, false);
     auto options = nio::EncodeOptions{.clamp = clamp, .endian_swap = swap};
 
-    const auto shape = test::random_shape<i64>(1, {
+    const auto shape = test::random_shape<isize>(1, {
         .batch_range={1, 10},
         .only_even_sizes = dtype == nio::DataType::U4
     });
@@ -100,7 +100,7 @@ TEMPLATE_TEST_CASE("core::io::encoding and decoding - complex", "", c16, c32, c6
     const bool swap = GENERATE(true, false);
     const nio::DataType dtype = GENERATE(nio::DataType::C16, nio::DataType::C32, nio::DataType::C64);
     const auto options = nio::EncodeOptions{.clamp=clamp, .endian_swap=swap};
-    const auto shape = test::random_shape<i64>(1, {.batch_range{1, 5}});
+    const auto shape = test::random_shape<isize>(1, {.batch_range{1, 5}});
 
     const auto ssize = shape.n_elements();
     const auto size = static_cast<size_t>(ssize);
@@ -157,7 +157,7 @@ TEST_CASE("core::io::encoding and decoding - many elements") {
         .endian_swap = true,
         .n_threads = 4,
     };
-    constexpr auto shape = Shape4<i64>{2, 256, 256, 256};
+    constexpr auto shape = Shape4{2, 256, 256, 256};
     constexpr auto ssize = shape.n_elements();
     constexpr auto size = static_cast<size_t>(ssize);
 

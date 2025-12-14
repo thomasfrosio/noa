@@ -38,6 +38,9 @@ namespace noa::inline types {
     using i32 = int32_t;
     using i64 = int64_t;
 
+    using usize = size_t;
+    using isize = std::make_signed_t<size_t>; // ssize_t
+
     using f32 = float;
     using f64 = double;
     static_assert(sizeof(f32) == 4);
@@ -72,7 +75,7 @@ namespace noa::traits {
         };
     }
 
-    template<typename T, size_t N, template<typename...> class TT>
+    template<typename T, usize N, template<typename...> class TT>
     struct repeat {
         using type = details::append_to_type_seq<T, typename repeat<T, N - 1, TT>::type>::type;
     };
@@ -82,7 +85,7 @@ namespace noa::traits {
         using type = TT<>;
     };
 
-    template<typename T, size_t N, template<typename...> class L>
+    template<typename T, usize N, template<typename...> class L>
     using repeat_t = repeat<T, N, L>::type;
 
     // std::conjunction equivalent that default to false_type if no types are specified.
@@ -178,30 +181,30 @@ namespace noa::traits {
 }
 
 namespace noa::traits {
-    template<typename, size_t S, typename = void>
+    template<typename, usize S, typename = void>
     struct size_or {
-        static constexpr size_t value = S;
+        static constexpr usize value = S;
     };
-    template<typename T, size_t S>
+    template<typename T, usize S>
     struct size_or<T, S, std::void_t<decltype(std::remove_reference_t<T>::SIZE)>> {
-        static constexpr size_t value = std::remove_reference_t<T>::SIZE;
+        static constexpr usize value = std::remove_reference_t<T>::SIZE;
     };
-    template<typename T, size_t S>
-    constexpr size_t size_or_v = size_or<T, S>::value;
+    template<typename T, usize S>
+    constexpr usize size_or_v = size_or<T, S>::value;
 
     template<typename... Ts>
     struct have_same_size {
-        static constexpr size_t N = first_t<std::remove_reference_t<Ts>...>::SIZE;
+        static constexpr usize N = first_t<std::remove_reference_t<Ts>...>::SIZE;
         static constexpr bool value = ((N == std::remove_reference_t<Ts>::SIZE) and ...);
     };
     template<typename T>
     struct have_same_size<T> {
-        static constexpr size_t N = first_t<std::remove_reference_t<T>>::SIZE;
+        static constexpr usize N = first_t<std::remove_reference_t<T>>::SIZE;
         static constexpr bool value = true;
     };
     template<>
     struct have_same_size<> {
-        static constexpr size_t N = 0;
+        static constexpr usize N = 0;
         static constexpr bool value = true;
     };
     template<typename... Ts>
@@ -223,12 +226,12 @@ namespace noa::traits {
     template<typename... T> concept name = are_##name##_v<T...>
 
 #define NOA_GENERATE_PROCLAIM_FULL_ND(name)                                                                               \
-    template<typename T, size_t N> struct proclaim_is_##name : std::false_type {};                                        \
-    template<typename T, size_t... N> using is_##name = std::disjunction<proclaim_is_##name<std::remove_cv_t<T>, N>...>;  \
-    template<typename T, size_t... N> constexpr bool is_##name##_v = is_##name<T, N...>::value;                           \
-    template<typename T, size_t... N> concept name = is_##name##_v<T, N...>;                                              \
-    template<size_t N, typename... T> using are_##name = noa::traits::conjunction_or_false<is_##name<T, N>...>;           \
-    template<size_t N, typename... T> constexpr bool are_##name##_v = are_##name<N, T...>::value;
+    template<typename T, usize N> struct proclaim_is_##name : std::false_type {};                                        \
+    template<typename T, usize... N> using is_##name = std::disjunction<proclaim_is_##name<std::remove_cv_t<T>, N>...>;  \
+    template<typename T, usize... N> constexpr bool is_##name##_v = is_##name<T, N...>::value;                           \
+    template<typename T, usize... N> concept name = is_##name##_v<T, N...>;                                              \
+    template<usize N, typename... T> using are_##name = noa::traits::conjunction_or_false<is_##name<T, N>...>;           \
+    template<usize N, typename... T> constexpr bool are_##name##_v = are_##name<N, T...>::value;
 
 namespace noa::traits {
     NOA_GENERATE_PROCLAIM_FULL(integer);
@@ -324,8 +327,8 @@ namespace noa::traits {
     template<typename... T> concept accessor_value = accessor<T...> and are_accessor_value_v<T...>;
 
     NOA_GENERATE_PROCLAIM_FULL_ND(accessor_nd);
-    template<typename T, size_t... N> using is_accessor_pure_nd = std::conjunction<is_accessor_pure<T>, is_accessor_nd<T, N...>>;
-    template<typename T, size_t... N>  constexpr bool is_accessor_pure_nd_v = is_accessor_pure_nd<T, N...>::value;
+    template<typename T, usize... N> using is_accessor_pure_nd = std::conjunction<is_accessor_pure<T>, is_accessor_nd<T, N...>>;
+    template<typename T, usize... N>  constexpr bool is_accessor_pure_nd_v = is_accessor_pure_nd<T, N...>::value;
     template<typename T, size_t... N> concept accessor_pure_nd = accessor_nd<T, N...> and accessor_pure<T>;
     template<size_t N, typename... T> using are_accessor_pure_nd = conjunction_or_false<is_accessor_pure_nd<T, N>...>;
     template<size_t N, typename... T> constexpr bool are_accessor_pure_nd_v = are_accessor_pure_nd<N, T...>::value;

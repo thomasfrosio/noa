@@ -9,7 +9,7 @@
 
 #include "noa/core/Error.hpp"
 #include "noa/core/Traits.hpp"
-#include "noa/core/utils/ClampCast.hpp"
+#include "noa/core/utils/SafeCast.hpp"
 #include "noa/core/utils/Irange.hpp"
 
 namespace noa {
@@ -64,7 +64,7 @@ namespace noa::io {
         }
 
         static auto from_stdio(std::string_view mode, bool backup = true) -> Open {
-            mode = noa::string::trim(mode);
+            mode = nd::trim(mode);
             if (mode == "r")
                 return {.read = true, .backup = backup};
             if (mode == "r+")
@@ -94,10 +94,10 @@ namespace noa::io {
         return value;
     }
 
-    template<size_t SIZEOF>
-    auto swap_endian(void* value, i64 n_elements) noexcept {
+    template<usize SIZEOF>
+    auto swap_endian(void* value, isize n_elements) noexcept {
         auto* ptr = static_cast<std::byte*>(value);
-        for (i64 i{}; i < n_elements; ++i) {
+        for (isize i{}; i < n_elements; ++i) {
             std::reverse(ptr, ptr + SIZEOF);
         }
     }
@@ -183,9 +183,9 @@ namespace noa::io {
     /// Gets the size, in bytes, of a regular file. Symlinks are followed.
     /// \note The result of attempting to determine the size of a directory (as well as any other
     ///       file that is not a regular file or a symlink) is implementation-defined.
-    inline auto file_size(const fs::path& path) -> int64_t {
+    inline auto file_size(const fs::path& path) -> isize {
         try {
-            return clamp_cast<int64_t>(fs::file_size(path));
+            return safe_cast<isize>(fs::file_size(path));
         } catch (const fs::filesystem_error& e) {
             panic_runtime(e.what());
         } catch (const std::exception& e) {

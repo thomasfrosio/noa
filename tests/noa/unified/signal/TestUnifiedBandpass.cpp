@@ -24,7 +24,7 @@ TEST_CASE("unified::signal::lowpass()", "[asset]") {
         INFO("test number = " << nb);
 
         const YAML::Node& test = tests[nb];
-        const auto shape = test["shape"].as<Shape4<i64>>();
+        const auto shape = test["shape"].as<Shape4>();
         const auto cutoff = test["cutoff"].as<f64>();
         const auto width = test["width"].as<f64>();
         const auto filename_expected = path_base / test["path"].as<Path>();
@@ -118,7 +118,7 @@ TEST_CASE("unified::signal::highpass()", "[asset]") {
         INFO("test number = " << nb);
 
         const YAML::Node& test = tests[nb];
-        const auto shape = test["shape"].as<Shape4<i64>>();
+        const auto shape = test["shape"].as<Shape4>();
         const auto cutoff = test["cutoff"].as<f64>();
         const auto width = test["width"].as<f64>();
         const auto filename_expected = path_base / test["path"].as<Path>();
@@ -211,7 +211,7 @@ TEST_CASE("unified::signal::bandpass()", "[asset]") {
         INFO("test number = " << nb);
 
         const YAML::Node& test = tests[nb];
-        const auto shape = test["shape"].as<Shape4<i64>>();
+        const auto shape = test["shape"].as<Shape4>();
         const auto cutoff = test["cutoff"].as<std::vector<f64>>();
         const auto width = test["width"].as<std::vector<f64>>();
         const auto bandpass_options = noa::signal::Bandpass{cutoff[0], width[0], cutoff[1], width[1]};

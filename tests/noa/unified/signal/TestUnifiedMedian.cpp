@@ -27,7 +27,7 @@ TEST_CASE("unified::signal::median_filter()", "[asset]") {
 
             const YAML::Node& test = tests[nb];
             const auto filename_input = path_base / test["input"].as<Path>();
-            const auto window = test["window"].as<i64>();
+            const auto window = test["window"].as<i32>();
             const auto dim = test["dim"].as<i32>();
             const auto border = test["border"].as<noa::Border>();
             const auto filename_expected = path_base / test["expected"].as<Path>();
@@ -56,7 +56,7 @@ TEMPLATE_TEST_CASE("unified::signal::median_filter(), cpu vs gpu", "", i32, f16,
 
     const i64 ndim = GENERATE(1, 2, 3);
     const noa::Border mode = GENERATE(noa::Border::ZERO, noa::Border::REFLECT);
-    i64 window = test::Randomizer<i64>(2, 11).get();
+    auto window = test::Randomizer<i32>(2, 11).get();
     if (noa::is_even(window))
         window -= 1;
     if (ndim == 3 and window > 5)

@@ -54,10 +54,10 @@ TEST_CASE("unified::geometry::symmetrize_2d", "[asset]") {
         const YAML::Node& test = param["tests"][nb];
         const auto expected_filename = path_base / test["expected"].as<Path>();
         const auto angle = noa::deg2rad(test["angle"].as<f64>());
-        const auto center = test["center"].as<Vec2<f64>>();
+        const auto center = test["center"].as<Vec<f64, 2>>();
         const auto interp = test["interp"].as<Interp>();
-        const auto pre_shift = test["pre_shift"].as<Vec2<f64>>();
-        const auto post_shift = test["post_shift"].as<Vec2<f64>>();
+        const auto pre_shift = test["pre_shift"].as<Vec<f64, 2>>();
+        const auto post_shift = test["post_shift"].as<Vec<f64, 2>>();
 
         const auto inverse_pre_matrix = ng::translate(-pre_shift).as<f32>();
         const auto inverse_post_matrix = (
@@ -145,9 +145,9 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[asset]") {
         const YAML::Node& test = param["tests"][nb];
         const auto input_filename = path_base / test["input"].as<Path>();
         const auto expected_filename = path_base / test["expected"].as<Path>();
-        const auto shift = test["shift"].as<Vec3<f64>>();
-        const auto angles = noa::deg2rad(test["angles"].as<Vec3<f64>>());
-        const auto center = test["center"].as<Vec3<f64>>();
+        const auto shift = test["shift"].as<Vec<f64, 3>>();
+        const auto angles = noa::deg2rad(test["angles"].as<Vec<f64, 3>>());
+        const auto center = test["center"].as<Vec<f64, 3>>();
         const auto interp = test["interp"].as<Interp>();
 
         const auto inverse_pre_matrix = ng::translate(-shift).as<f32>();

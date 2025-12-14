@@ -26,7 +26,7 @@ TEST_CASE("unified::signal::ctf_isotropic, assets", "[asset]") {
 
         const auto& test = tests[nb];
         const auto filename_asset = path_base / test["output"].as<Path>();
-        const auto shape = test["shape"].as<Shape4<i64>>();
+        const auto shape = test["shape"].as<Shape4>();
         const auto pixel_size = test["pixel_size"].as<f64>();
         const auto defocus = test["defocus"].as<f64>();
         const auto voltage = test["voltage"].as<f64>();
@@ -144,10 +144,10 @@ TEST_CASE("unified::signal::ctf_isotropic, range") {
     const bool endpoint = GENERATE(true, false);
 
     const auto trimmed_range = [endpoint](
-        const Vec2<f64>& fitting_range, // angstrom
-        const Vec2<f64>& spacing, // angstrom/pixel
+        const Vec<f64, 2>& fitting_range, // angstrom
+        const Vec<f64, 2>& spacing, // angstrom/pixel
         i64 logical_size
-    ) -> std::tuple<i64, noa::indexing::Slice, Vec2<f64>> {
+    ) -> std::tuple<i64, noa::indexing::Slice, Vec<f64, 2>> {
         const auto logical_size_f = static_cast<f64>(logical_size);
         auto frequency_cutoff = noa::round(spacing / fitting_range * logical_size_f);
         const auto index_cutoff = frequency_cutoff.as<i64>();
@@ -173,7 +173,7 @@ TEST_CASE("unified::signal::ctf_isotropic, range") {
         const auto options = ArrayOption{.device = device, .allocator = Allocator::MANAGED};
 
         // Generate full range.
-        const auto shape = Shape4<i64>{1, 1, 1, 512};
+        const auto shape = Shape4{1, 1, 1, 512};
         const auto output = noa::empty<f32>(shape.rfft(), options);
         noa::signal::ctf_isotropic<"H2H">({}, output, shape, ctf, {.ctf_squared=true});
 
@@ -214,9 +214,9 @@ TEST_CASE("unified::signal::ctf_anisotropic, assets", "[asset]") {
 
         const auto& test = tests[nb];
         const auto filename_asset = path_base / test["output"].as<Path>();
-        const auto shape = test["shape"].as<Shape4<i64>>();
-        const auto pixel_size = test["pixel_size"].as<Vec2<f64>>();
-        const auto defocus = test["defocus"].as<Vec3<f64>>();
+        const auto shape = test["shape"].as<Shape4>();
+        const auto pixel_size = test["pixel_size"].as<Vec<f64, 2>>();
+        const auto defocus = test["defocus"].as<Vec<f64, 3>>();
         const auto voltage = test["voltage"].as<f64>();
         const auto amplitude = test["amplitude"].as<f64>();
         const auto cs = test["cs"].as<f64>();

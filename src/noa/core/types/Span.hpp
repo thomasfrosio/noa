@@ -56,8 +56,9 @@ namespace noa::details {
 
 namespace noa::inline types {
     /// Multidimensional span.
-    template<typename T, size_t N = 1, typename I = i64,
-             StridesTraits StridesTrait = StridesTraits::STRIDED>
+    template<typename T, usize N = 1, typename I = isize,
+             StridesTraits StridesTrait = StridesTraits::STRIDED,
+             PointerTraits PointerTrait = PointerTraits::DEFAULT>
     class Span : public ni::Indexer<Span<T, N, I, StridesTrait>, N> {
     public:
         static_assert(not std::is_reference_v<T> and
@@ -66,11 +67,11 @@ namespace noa::inline types {
                       std::is_integral_v<I>);
 
         static constexpr StridesTraits STRIDES_TRAIT = StridesTrait;
-        static constexpr PointerTraits POINTER_TRAIT = PointerTraits::DEFAULT;
+        static constexpr PointerTraits POINTER_TRAIT = PointerTrait;
         static constexpr bool IS_CONTIGUOUS = STRIDES_TRAIT == StridesTraits::CONTIGUOUS;
         static constexpr bool IS_RESTRICT = POINTER_TRAIT == PointerTraits::DEFAULT;
-        static constexpr size_t SIZE = N;
-        static constexpr int64_t SSIZE = N;
+        static constexpr usize SIZE = N;
+        static constexpr isize SSIZE = N;
 
         using value_type = T;
         using mutable_value_type = std::remove_const_t<T>;
@@ -79,13 +80,11 @@ namespace noa::inline types {
         using const_pointer_type = const_value_type*;
         using reference_type = std::add_lvalue_reference_t<value_type>;
         using index_type = I;
-        using ssize_type = std::make_signed_t<index_type>;
-        using size_type = std::make_unsigned_t<index_type>;
         using shape_type = Shape<index_type, N>;
         using strides_type = Strides<index_type, N - IS_CONTIGUOUS>;
         using strides_full_type = Strides<index_type, N>;
         using span_iterator_type = nd::SpanIterator<value_type, index_type, STRIDES_TRAIT>;
-        using contiguous_span_type = Span<value_type, SIZE, index_type, StridesTraits::CONTIGUOUS>;
+        using contiguous_span_type = Span<value_type, SIZE, index_type, StridesTraits::CONTIGUOUS, POINTER_TRAIT>;
 
     public: // Constructors
         /// Creates an empty span.
@@ -101,7 +100,7 @@ namespace noa::inline types {
             m_strides{strides_type::from_value(1)} {}
 
         /// Creates a span of rightmost contiguous nd data.
-        template<size_t A>
+        template<usize A>
         NOA_HD constexpr Span(
             pointer_type data,
             const Shape<index_type, SIZE, A>& shape
@@ -109,7 +108,7 @@ namespace noa::inline types {
 
         /// Creates a span of nd data.
         /// For contiguous spans, since the width stride (strides[N-1]) is ignored, it doesn't have to be specified.
-        template<size_t A, size_t B> requires IS_CONTIGUOUS
+        template<usize A, usize B> requires IS_CONTIGUOUS
         NOA_HD constexpr Span(
             pointer_type pointer,
             const Shape<index_type, SIZE, A>& shape,
@@ -121,7 +120,7 @@ namespace noa::inline types {
 
         /// Creates a span of nd data.
         /// If the span is contiguous, the width stride (strides[N-1]) is ignored and assumed to be 1.
-        template<size_t A, size_t B>
+        template<usize A, usize B>
         NOA_HD constexpr Span(
             pointer_type pointer,
             const Shape<index_type, SIZE, A>& shape,
@@ -132,12 +131,12 @@ namespace noa::inline types {
             m_strides{strides_type::from_pointer(strides.data())} {}
 
         /// Creates a span of 1d contiguous data.
-        template<typename U, size_t S> requires (not std::is_void_v<value_type>)
+        template<typename U, usize S> requires (not std::is_void_v<value_type>)
         NOA_HD constexpr explicit Span(U (& data)[S]) noexcept: Span(data, S) {}
 
         /// Creates a const span from an existing non-const span, or from/to a void span.
         template<typename U> requires (nt::mutable_of<U, value_type> or std::is_void_v<U> or std::is_void_v<value_type>)
-        NOA_HD constexpr /*implicit*/ Span(const Span<U, SIZE, index_type, STRIDES_TRAIT>& span) noexcept :
+        NOA_HD constexpr /*implicit*/ Span(const Span<U, SIZE, index_type, STRIDES_TRAIT, POINTER_TRAIT>& span) noexcept :
             m_ptr{span.get()},
             m_shape{span.shape()},
             m_strides{span.strides()} {}
@@ -150,8 +149,8 @@ namespace noa::inline types {
             m_strides{span.strides_full()} {}
 
     public: // Accessing strides
-        template<size_t INDEX>
-        [[nodiscard]] NOA_HD constexpr index_type stride() const noexcept {
+        template<usize INDEX>
+        [[nodiscard]] NOA_HD constexpr auto stride() const noexcept -> index_type {
             static_assert(INDEX < N);
             if constexpr (IS_CONTIGUOUS and INDEX == SIZE - 1)
                 return index_type{1};
@@ -159,8 +158,8 @@ namespace noa::inline types {
                 return m_strides[INDEX];
         }
 
-        [[nodiscard]] NOA_HD constexpr index_type stride(nt::integer auto index) const noexcept {
-            NOA_ASSERT(not is_empty() and static_cast<i64>(index) < SSIZE);
+        [[nodiscard]] NOA_HD constexpr auto stride(nt::integer auto index) const noexcept -> index_type {
+            NOA_ASSERT(not is_empty() and static_cast<isize>(index) < SSIZE);
             if (IS_CONTIGUOUS and index == SIZE - 1)
                 return index_type{1};
             else
@@ -171,7 +170,7 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr auto strides() const noexcept -> const strides_type& { return m_strides; }
         [[nodiscard]] NOA_HD constexpr auto strides_full() const noexcept -> decltype(auto) {
             if constexpr (IS_CONTIGUOUS) {
-                return [this]<size_t... J>(std::index_sequence<J...>){
+                return [this]<usize... J>(std::index_sequence<J...>){
                     return Strides{(*this).template stride<J>()...}; // returns by value
                 }(std::make_index_sequence<SIZE>{});
             } else {
@@ -187,8 +186,8 @@ namespace noa::inline types {
 
     public: // Range
         [[nodiscard]] NOA_HD constexpr auto n_elements() const noexcept -> index_type { return m_shape.n_elements(); }
-        [[nodiscard]] NOA_HD constexpr auto size() const noexcept -> size_type { return static_cast<size_type>(n_elements()); };
-        [[nodiscard]] NOA_HD constexpr auto ssize() const noexcept -> ssize_type { return static_cast<ssize_type>(n_elements()); };
+        [[nodiscard]] NOA_HD constexpr auto size() const noexcept -> usize { return static_cast<usize>(n_elements()); };
+        [[nodiscard]] NOA_HD constexpr auto ssize() const noexcept -> isize { return static_cast<isize>(n_elements()); };
 
         [[nodiscard]] NOA_HD constexpr auto begin() const noexcept -> span_iterator_type requires (N == 1) {
             return span_iterator_type(get(), stride<0>());
@@ -197,12 +196,12 @@ namespace noa::inline types {
             return span_iterator_type(get() + ssize(), stride<0>());
         }
 
-        [[nodiscard]] NOA_HD constexpr reference_type front() const noexcept requires (N == 1 and not std::is_void_v<value_type>) {
+        [[nodiscard]] NOA_HD constexpr auto front() const noexcept -> reference_type requires (N == 1 and not std::is_void_v<value_type>) {
             NOA_ASSERT(not is_empty());
             return (*this)[0];
         }
 
-        [[nodiscard]] NOA_HD constexpr reference_type back() const noexcept requires (N == 1 and not std::is_void_v<value_type>) {
+        [[nodiscard]] NOA_HD constexpr auto back() const noexcept -> reference_type requires (N == 1 and not std::is_void_v<value_type>) {
             NOA_ASSERT(not is_empty());
             return (*this)[ssize() - 1];
         }
@@ -213,7 +212,7 @@ namespace noa::inline types {
         ) const noexcept requires (N > 1) {
             NOA_ASSERT(not is_empty());
             ni::bounds_check(shape(), index);
-            using output_t = Span<value_type, N - 1, index_type, STRIDES_TRAIT>;
+            using output_t = Span<value_type, N - 1, index_type, STRIDES_TRAIT, POINTER_TRAIT>;
             return output_t(get() + ni::offset_at(stride<0>(), index), shape().pop_front(), strides().pop_front());
         }
 
@@ -247,9 +246,11 @@ namespace noa::inline types {
         /// \details While constructing the span, this function can also reinterpret the current value type.
         ///          This is only well-defined in cases where Span::as<U>() is well-defined.
         ///          If N < NewN, the outer-dimensions are stacked together.
-        template<typename NewT = T, size_t NewN = N, typename NewI = index_type, StridesTraits NewStridesTrait = STRIDES_TRAIT>
+        template<typename NewT = T, usize NewN = N, typename NewI = index_type,
+                 StridesTraits NewStridesTrait = STRIDES_TRAIT,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto span() const {
-            using output_span_t = Span<NewT, NewN, NewI, NewStridesTrait>;
+            using output_span_t = Span<NewT, NewN, NewI, NewStridesTrait, NewPointerTrait>;
 
             const auto reinterpreted = ni::ReinterpretLayout(shape(), strides_full(), get()).template as<NewT>();
 
@@ -267,7 +268,7 @@ namespace noa::inline types {
                     reinterpreted.strides.template as_safe<NewI>());
             } else if constexpr (NewN > N) {
                 // Add empty dimensions on the left.
-                constexpr size_t n_dimensions_to_add = NewN - N;
+                constexpr usize n_dimensions_to_add = NewN - N;
                 auto new_truncated_shape = reinterpreted.shape.template as_safe<NewI>();
                 auto new_truncated_strides = reinterpreted.strides.template as_safe<NewI>();
                 auto new_leftmost_stride = new_truncated_strides[0] * new_truncated_shape[0];
@@ -277,9 +278,9 @@ namespace noa::inline types {
                     new_truncated_strides.template push_front<n_dimensions_to_add>(new_leftmost_stride));
             } else {
                 // Construct the new shape by stacking the outer dimensions together.
-                constexpr size_t OFFSET = N - NewN;
+                constexpr usize OFFSET = N - NewN;
                 auto new_shape = Shape<index_type, N>::filled_with(1);
-                for (size_t i{}; i < N; ++i)
+                for (usize i{}; i < N; ++i)
                     new_shape[max(i, OFFSET)] *= reinterpreted.shape[i];
 
                 // Reshape.
@@ -296,64 +297,91 @@ namespace noa::inline types {
             }
         }
 
-        template<typename NewT, size_t NewN = N, typename NewI = index_type, StridesTraits NewStridesTrait = STRIDES_TRAIT>
+        template<typename NewT, usize NewN = N,
+                 typename NewI = index_type,
+                 StridesTraits NewStridesTrait = STRIDES_TRAIT,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto as() const {
-            return span<NewT, NewN, NewI, NewStridesTrait>();
+            return span<NewT, NewN, NewI, NewStridesTrait, NewPointerTrait>();
         }
 
-        template<size_t NewN = N, typename NewI = index_type, StridesTraits NewStridesTrait = STRIDES_TRAIT>
+        template<usize NewN = N,
+                 typename NewI = index_type,
+                 StridesTraits NewStridesTrait = STRIDES_TRAIT,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto as_const() const {
-            return Span<const_value_type, NewN, NewI, NewStridesTrait>(*this);
+            return Span<const_value_type, NewN, NewI, NewStridesTrait, NewPointerTrait>(*this);
         }
 
-        template<size_t NewN = N, typename NewI = index_type, StridesTraits NewStridesTrait = STRIDES_TRAIT>
+        template<usize NewN = N,
+                 typename NewI = index_type,
+                 StridesTraits NewStridesTrait = STRIDES_TRAIT,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto as_bytes() const {
             using output_t = std::conditional_t<std::is_const_v<value_type>, const Byte, Byte>;
-            return span<output_t, NewN, NewI, NewStridesTrait>();
+            return span<output_t, NewN, NewI, NewStridesTrait, NewPointerTrait>();
         }
 
-        template<typename U = value_type, size_t NewN = N, typename NewI = index_type>
+        template<typename U = value_type, usize NewN = N,
+                 typename NewI = index_type,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto as_strided() const {
-            return span<U, NewN, NewI, StridesTraits::STRIDED>();
+            return span<U, NewN, NewI, StridesTraits::STRIDED, NewPointerTrait>();
         }
 
-        template<typename U = value_type, size_t NewN = N, typename NewI = index_type>
+        template<typename U = value_type, usize NewN = N,
+                 typename NewI = index_type,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto as_contiguous() const {
-            return span<U, NewN, NewI, StridesTraits::CONTIGUOUS>();
+            return span<U, NewN, NewI, StridesTraits::CONTIGUOUS, NewPointerTrait>();
         }
 
-        template<typename U = value_type, typename NewI = index_type, StridesTraits NewStridesTrait = StridesTraits::CONTIGUOUS>
+        template<typename U = value_type,
+                 typename NewI = index_type,
+                 StridesTraits NewStridesTrait = StridesTraits::CONTIGUOUS,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto as_1d() const {
-            return span<U, 1, NewI, NewStridesTrait>();
+            return span<U, 1, NewI, NewStridesTrait, NewPointerTrait>();
         }
 
-        template<typename U = value_type, typename NewI = index_type>
+        template<typename U = value_type,
+                 typename NewI = index_type,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto as_1d_contiguous() const {
-            return span<U, 1, NewI, StridesTraits::CONTIGUOUS>();
+            return span<U, 1, NewI, StridesTraits::CONTIGUOUS, NewPointerTrait>();
         }
 
-        template<typename U = value_type, typename NewI = index_type>
+        template<typename U = value_type,
+                 typename NewI = index_type,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto as_1d_strided() const {
-            return span<U, 1, NewI, StridesTraits::STRIDED>();
+            return span<U, 1, NewI, StridesTraits::STRIDED, NewPointerTrait>();
         }
 
-        template<typename U = value_type, typename NewI = index_type, StridesTraits NewStridesTrait = STRIDES_TRAIT>
+        template<typename U = value_type,
+                 typename NewI = index_type,
+                 StridesTraits NewStridesTrait = STRIDES_TRAIT,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto as_4d() const {
-            return span<U, 4, NewI, NewStridesTrait>();
+            return span<U, 4, NewI, NewStridesTrait, NewPointerTrait>();
         }
 
-        template<typename U = value_type, typename NewI = index_type>
+        template<typename U = value_type,
+                 typename NewI = index_type,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto as_4d_contiguous() const {
-            return span<U, 4, NewI, StridesTraits::CONTIGUOUS>();
+            return span<U, 4, NewI, StridesTraits::CONTIGUOUS, NewPointerTrait>();
         }
 
-        template<typename U = value_type, typename NewI = index_type>
+        template<typename U = value_type,
+                 typename NewI = index_type,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto as_4d_strided() const {
-            return span<U, 4, NewI, StridesTraits::STRIDED>();
+            return span<U, 4, NewI, StridesTraits::STRIDED, NewPointerTrait>();
         }
 
         /// Reshapes the view (must have the same number of elements as the current view).
-        [[nodiscard]] Span reshape(shape_type new_shape) const {
+        [[nodiscard]] auto reshape(shape_type new_shape) const -> Span {
             // Infer the size, if needed.
             check(ni::infer_size(new_shape, n_elements()),
                   "The desired shape {} is not compatible with the current shape {}, "
@@ -370,7 +398,7 @@ namespace noa::inline types {
 
         /// Reshapes the array in a vector along a particular axis.
         /// Returns a row vector by default (axis = 3).
-        [[nodiscard]] Span flat(i32 axis = N - 1) const {
+        [[nodiscard]] auto flat(i32 axis = N - 1) const -> Span {
             ni::bounds_check<true>(N, axis);
             auto output_shape = shape_type::filled_with(1);
             output_shape[axis] = shape().n_elements();
@@ -379,12 +407,12 @@ namespace noa::inline types {
 
         /// Permutes the dimensions of the view.
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
-        [[nodiscard]] constexpr Span permute(const Vec<i64, N>& permutation) const {
+        [[nodiscard]] constexpr auto permute(const Vec<i32, N>& permutation) const -> Span {
             return Span(get(), shape().reorder(permutation), strides_full().reorder(permutation));
         }
 
         /// See permute().
-        [[nodiscard]] constexpr Span reorder(const Vec<i64, N>& permutation) const {
+        [[nodiscard]] constexpr auto reorder(const Vec<i32, N>& permutation) const -> Span {
             return permute(permutation);
         }
 
@@ -397,10 +425,10 @@ namespace noa::inline types {
 
         /// Subregion indexing. Extracts a subregion from the current span.
         template<typename... U>
-        [[nodiscard]] constexpr Span subregion(const ni::Subregion<SIZE, U...>& subregion) const {
+        [[nodiscard]] constexpr auto subregion(const ni::Subregion<SIZE, U...>& subregion) const -> Span {
             auto [new_shape, new_strides, offset] = subregion.extract_from(
-                shape().template as_safe<ssize_type>(),
-                strides_full().template as_safe<ssize_type>());
+                shape().template as_safe<isize>(),
+                strides_full().template as_safe<isize>());
             return Span(get() + offset,
                         new_shape.template as_safe<index_type>(),
                         new_strides.template as_safe<index_type>());
@@ -409,7 +437,7 @@ namespace noa::inline types {
         /// Subregion indexing. Extracts a subregion from the current span.
         /// \see noa::indexing::Subregion for more details on the variadic parameters to enter.
         template<typename... Ts> requires nt::subregion_indexing<N, Ts...>
-        [[nodiscard]] constexpr Span subregion(const Ts&... indices) const {
+        [[nodiscard]] constexpr auto subregion(const Ts&... indices) const -> Span {
             return subregion(ni::Subregion<N, Ts...>(indices...));
         }
 
@@ -424,23 +452,23 @@ namespace noa::inline types {
     Span(T*, I) -> Span<T, 1, I, StridesTraits::CONTIGUOUS>;
 
     /// Deduction guide. Span(ptr, shape) creates a contiguous span.
-    template<typename T, nt::integer I, size_t N, size_t A>
+    template<typename T, nt::integer I, usize N, usize A>
     Span(T*, const Shape<I, N, A>&) -> Span<T, N, I, StridesTraits::CONTIGUOUS>;
 
     /// Deduction guide. Span(c_array) creates a contiguous span.
-    template<typename T, size_t S>
-    Span(T (&)[S]) -> Span<T, 1, i64, StridesTraits::CONTIGUOUS>;
+    template<typename T, usize S>
+    Span(T (&)[S]) -> Span<T, 1, isize, StridesTraits::CONTIGUOUS>;
 
-    template<typename T, size_t N = 1, typename I = i64>
+    template<typename T, usize N = 1, typename I = isize>
     using SpanContiguous = Span<T, N, I, StridesTraits::CONTIGUOUS>;
 }
 
 namespace noa::traits {
-    template<typename T, size_t N, typename I, StridesTraits S> struct proclaim_is_span<noa::Span<T, N, I, S>> : std::true_type {};
-    template<typename T, size_t N, typename I> struct proclaim_is_span_contiguous<noa::Span<T, N, I, StridesTraits::CONTIGUOUS>> : std::true_type {};
+    template<typename T, usize N, typename I, StridesTraits S> struct proclaim_is_span<noa::Span<T, N, I, S>> : std::true_type {};
+    template<typename T, usize N, typename I> struct proclaim_is_span_contiguous<noa::Span<T, N, I, StridesTraits::CONTIGUOUS>> : std::true_type {};
 
-    template<typename T, size_t N1, typename I, StridesTraits S, size_t N2> struct proclaim_is_span_nd<noa::Span<T, N1, I, S>, N2> : std::bool_constant<N1 == N2> {};
-    template<typename T, size_t N1, typename I, size_t N2> struct proclaim_is_span_contiguous_nd<noa::Span<T, N1, I, StridesTraits::CONTIGUOUS>, N2> : std::bool_constant<N1 == N2> {};
+    template<typename T, usize N1, typename I, StridesTraits S, usize N2> struct proclaim_is_span_nd<noa::Span<T, N1, I, S>, N2> : std::bool_constant<N1 == N2> {};
+    template<typename T, usize N1, typename I, usize N2> struct proclaim_is_span_contiguous_nd<noa::Span<T, N1, I, StridesTraits::CONTIGUOUS>, N2> : std::bool_constant<N1 == N2> {};
 }
 
 namespace noa::indexing {
@@ -457,9 +485,9 @@ namespace noa::indexing {
 
     /// Returns the multidimensional indices of \p span corresponding to a memory \p offset.
     /// \note 0 indicates the beginning of the span. The span should not have any broadcast dimension.
-    template<typename T, size_t N, typename I, StridesTraits S>
-    [[nodiscard]] constexpr auto offset2index(i64 offset, const Span<T, N, I, S>& span) -> Vec<i64, N> {
-        check(all(span.strides() > 0),
+    template<typename T, usize N, typename I, StridesTraits S>
+    [[nodiscard]] constexpr auto offset2index(isize offset, const Span<T, N, I, S>& span) -> Vec<isize, N> {
+        check(span.strides() > 0,
               "Cannot retrieve the indices from a broadcast span. Got strides:{}",
               span.strides());
         return offset2index(offset, span.strides(), span.shape());

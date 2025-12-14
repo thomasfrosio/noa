@@ -21,10 +21,10 @@ namespace noa::fft {
         return highest_normalized_frequency<T>(size);
     }
 
-    template<nt::real T, nt::integer U, size_t N> requires (N >= 1 and N <= 3)
+    template<nt::real T, nt::integer U, usize N> requires (N >= 1 and N <= 3)
     [[nodiscard]] constexpr auto highest_fftfreq(const Shape<U, N>& shape) noexcept {
         Vec<T, N> max_fftfreq;
-        for (size_t i{}; i < N; ++i)
+        for (usize i{}; i < N; ++i)
             max_fftfreq[i] = highest_fftfreq<T>(shape[i]);
         return max_fftfreq;
     }
@@ -40,11 +40,11 @@ namespace noa::fft {
     template<nt::vec_integer T>
     [[nodiscard]] constexpr auto fftshift(const T& indices, const T& sizes) noexcept -> T {
         T shifted_indices;
-        for (size_t i{}; i < T::SIZE; ++i)
+        for (usize i{}; i < T::SIZE; ++i)
             shifted_indices[i] = fftshift(indices[i], sizes[i]);
         return shifted_indices;
     }
-    template<nt::integer T, size_t N, size_t A>
+    template<nt::integer T, usize N, usize A>
     [[nodiscard]] constexpr auto fftshift(
         const Vec<T, N, A>& indices,
         const Shape<T, N, A>& shape
@@ -63,11 +63,11 @@ namespace noa::fft {
     template<nt::vec_integer T>
     [[nodiscard]] constexpr auto ifftshift(const T& indices, const T& sizes) noexcept -> T {
         T shifted_indices;
-        for (size_t i{}; i < T::SIZE; ++i)
+        for (usize i{}; i < T::SIZE; ++i)
             shifted_indices[i] = ifftshift(indices[i], sizes[i]);
         return shifted_indices;
     }
-    template<nt::integer T, size_t N, size_t A>
+    template<nt::integer T, usize N, usize A>
     [[nodiscard]] constexpr auto ifftshift(
         const Vec<T, N, A>& indices,
         const Shape<T, N, A>& shape
@@ -92,7 +92,7 @@ namespace noa::fft {
     /// For the rfft, the index along the width (ie rightmost dimension) is the frequency, so the width
     /// value is ignored and can be omitted from the shape.
     template<bool IS_CENTERED, bool IS_RFFT,
-             nt::sinteger T, size_t N0, size_t N1, size_t A0, size_t A1>
+             nt::sinteger T, usize N0, usize N1, usize A0, usize A1>
     requires (1 <= N0 and N0 <= 3 and ((N0 == N1) or (IS_RFFT and N0 - 1 == N1)))
     [[nodiscard]] constexpr auto index2frequency(
         Vec<T, N0, A0> indices,
@@ -101,7 +101,7 @@ namespace noa::fft {
         if constexpr (N0 == 1 and not IS_RFFT) {
             indices[0] = index2frequency<IS_CENTERED>(indices[0], shape[0]);
         } else if constexpr (N0 > 1) {
-            for (size_t i{}; i < N0; ++i) {
+            for (usize i{}; i < N0; ++i) {
                 if (not (IS_RFFT and i == N0 - 1)) // if width of rfft, frequency == index
                     indices[i] = index2frequency<IS_CENTERED>(indices[i], shape[i]);
             }
@@ -127,7 +127,7 @@ namespace noa::fft {
     /// For the rfft, the index along the width (ie rightmost dimension) is the frequency, so the width
     /// value is ignored and can be omitted from the shape.
     template<bool IS_CENTERED, bool IS_RFFT,
-             typename T, nt::sinteger U, size_t N0, size_t N1, size_t A0, size_t A1>
+             typename T, nt::sinteger U, usize N0, usize N1, usize A0, usize A1>
     requires ((nt::real<T> or nt::sinteger<T>) and
               1 <= N0 and N0 <= 3 and
               ((N0 == N1) or (IS_RFFT and N0 - 1 == N1)))
@@ -138,7 +138,7 @@ namespace noa::fft {
         if constexpr (N0 == 1 and not IS_RFFT) {
             frequency[0] = frequency2index<IS_CENTERED>(frequency[0], shape[0]);
         } else if constexpr (N0 > 1) {
-            for (size_t i{}; i < N0; ++i) {
+            for (usize i{}; i < N0; ++i) {
                 if (not (IS_RFFT and i == N0 - 1)) // if width of rfft, frequency == index
                     frequency[i] = frequency2index<IS_CENTERED>(frequency[i], shape[i]);
             }
@@ -158,7 +158,7 @@ namespace noa::fft {
     /// Returns the multidimensional centered index given the multidimensional (non-)centered index, assuming ((D)H)W order.
     /// For rffts, the centering doesn't apply to the width (ie rightmost dimension) and the index is left unchanged.
     template<bool IS_CENTERED, bool IS_RFFT,
-             nt::sinteger T, size_t N0, size_t N1, size_t A0, size_t A1>
+             nt::sinteger T, usize N0, usize N1, usize A0, usize A1>
     requires (1 <= N0 and N0 <= 3 and ((N0 == N1) or (IS_RFFT and N0 - 1 == N1)))
     constexpr auto to_centered_indices(
         Vec<T, N0, A0> indices,
@@ -168,7 +168,7 @@ namespace noa::fft {
             if constexpr (N0 == 1 and not IS_RFFT) {
                 indices[0] = fftshift(indices[0], shape[0]);
             } else if constexpr (N0 > 1) {
-                for (size_t i{}; i < N0; ++i) {
+                for (usize i{}; i < N0; ++i) {
                     if (not (IS_RFFT and i == N0 - 1))
                         indices[i] = fftshift(indices[i], shape[i]);
                 }
@@ -195,7 +195,7 @@ namespace noa::fft {
     /// This function is limited to input/output being both rffts or both ffts.
     /// For rffts, the centering doesn't apply to the width (ie rightmost dimension) and the index is left unchanged.
     template<Layout REMAP, bool FLIP_REMAP = false,
-             nt::integer T, size_t N0, size_t N1, size_t A0, size_t A1>
+             nt::integer T, usize N0, usize N1, usize A0, usize A1>
     requires (1 <= N0 and N0 <= 3)
     constexpr auto remap_indices(
         Vec<T, N0, A0> indices,
@@ -214,7 +214,7 @@ namespace noa::fft {
                 else // input is not centered, output is centered
                     indices[0] = fftshift(indices[0], shape[0]);
             } else if constexpr (N0 > 1) {
-                for (size_t i{}; i < N0; ++i) {
+                for (usize i{}; i < N0; ++i) {
                     if (not (IS_RFFT and i == N0 - 1)) {
                         if constexpr (IS_INPUT_CENTERED) // input is centered, output isn't
                             indices[i] = ifftshift(indices[i], shape[i]);
@@ -230,7 +230,7 @@ namespace noa::fft {
     /// Computes the phase shift at a given normalized-frequency.
     /// \param shift    ((D)H)W shift.
     /// \param fftfreq  ((D)H)W normalized frequency.
-    template<nt::complex T, nt::any_of<f32, f64> R, size_t N0, size_t A0, size_t N1, size_t A1>
+    template<nt::complex T, nt::any_of<f32, f64> R, usize N0, usize A0, usize N1, usize A1>
     requires ((1 <= N0 and N0 <= 3) and (N0 <= N1 and N1 <= 3))
     [[nodiscard]] constexpr auto phase_shift(
         const Vec<R, N0, A0>& shift,
@@ -257,12 +257,12 @@ namespace noa::fft {
     /// n=5 (half) -> frequency=[0, 1, 2]             -> left=0,  right=2
     /// n=6 (half) -> frequency=[0, 1, 2, 3]          -> left=0,  right=3
     /// \endcode
-    template<bool IS_RFFT, nt::sinteger T, size_t N, size_t A> requires (N >= 1 and N <= 3)
+    template<bool IS_RFFT, nt::sinteger T, usize N, usize A> requires (N >= 1 and N <= 3)
     [[nodiscard]] constexpr auto frequency_bounds(const Shape<T, N, A>& shape) noexcept {
         using bound_t = Vec<T, N, A>;
         Pair<bound_t, bound_t> bounds;
         if constexpr (IS_RFFT) {
-            for (size_t i{}; i < N - 1; ++i) {
+            for (usize i{}; i < N - 1; ++i) {
                 bounds.first[i] = -shape[i] / 2;
                 bounds.second[i] = (shape[i] - 1) / 2;
             }
@@ -276,11 +276,11 @@ namespace noa::fft {
     }
 
     /// Whether the (unnormalized) frequency is within bounds.
-    /// TODO Finish optimization IS_RFFT and IS_FLIPPED
-    template<bool IS_RFFT, bool IS_FLIPPED = false, nt::sinteger T, size_t N, size_t A, nt::pair U>
+    /// TODO do IS_RFFT and IS_FLIPPED
+    template<bool IS_RFFT, bool IS_FLIPPED = false, nt::sinteger T, usize N, usize A, nt::pair U>
     requires (N >= 1 and N <= 3)
     [[nodiscard]] constexpr auto is_inbound(const Vec<T, N, A>& frequency, const U& bounds) noexcept {
-        for (size_t i{}; i < N; ++i) {
+        for (usize i{}; i < N; ++i) {
             if (frequency[i] < bounds.first[i] or frequency[i] > bounds.second[i])
                 return false;
         }

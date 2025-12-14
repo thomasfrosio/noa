@@ -44,12 +44,12 @@ TEST_CASE("unified::geometry::project_3d, project sphere", "[asset]") {
         noa::write_image(asset, input_filename);
     }
 
-    constexpr auto volume_shape = Shape<i64, 3>{80, 256, 256};
+    constexpr auto volume_shape = Shape<isize, 3>{80, 256, 256};
     constexpr auto center = (volume_shape.vec / 2).as<f64>();
 
     auto backward_projection_matrices = noa::empty<Mat<f64, 2, 4>>(n_images);
     auto forward_projection_matrices = noa::empty<Mat<f64, 3, 4>>(n_images);
-    i64 projection_window_size{};
+    isize projection_window_size{};
 
     for (auto&& [backward_matrix, forward_matrix, shift, tilt]: noa::zip(
              backward_projection_matrices.span_1d(),
@@ -123,7 +123,7 @@ TEST_CASE("unified::geometry::project_3d, fused", "[asset]") {
 
     constexpr bool COMPUTE_ASSETS = false;
     constexpr size_t n_images = 5;
-    constexpr auto volume_shape = Shape<i64, 3>{80, 256, 256};
+    constexpr auto volume_shape = Shape<isize, 3>{80, 256, 256};
     constexpr auto center = (volume_shape.vec / 2).as<f64>();
     constexpr auto tilts = std::array{-60., -30., 0., 30., 60.};
 
@@ -141,7 +141,7 @@ TEST_CASE("unified::geometry::project_3d, fused", "[asset]") {
         ng::linear2affine(ng::euler2matrix(noa::deg2rad(Vec{0., 40., 90.}), {.axes = "zyx", .intrinsic = false})) *
         ng::translate(-center)
     ).inverse().pop_back();
-    i64 projection_window_size = ng::forward_projection_window_size(volume_shape, forward_projection_matrix);
+    auto projection_window_size = ng::forward_projection_window_size(volume_shape, forward_projection_matrix);
     REQUIRE(projection_window_size == 259);
 
     constexpr auto circle = ng::Sphere{.center = Vec{128., 128.}, .radius = 32., .smoothness = 5.};
@@ -196,7 +196,7 @@ TEST_CASE("unified::geometry::project_3d, fused", "[asset]") {
 TEST_CASE("unified::geometry::project_3d, projection window", "[.]") {
     const Path path_base = test::NOA_DATA_PATH / "geometry";
 
-    constexpr auto volume_shape = Shape<i64, 3>{64, 256, 256};
+    constexpr auto volume_shape = Shape<isize, 3>{64, 256, 256};
     constexpr auto center = (volume_shape.vec / 2).as<f64>();
 
     const auto volume = noa::ones<f32>(volume_shape.push_front(1));

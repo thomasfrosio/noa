@@ -33,7 +33,7 @@ namespace noa::cuda::details {
     void permute_0132_(
         AccessorRestrict<const T, 4, u32> input,
         AccessorRestrict<T, 4, u32> output,
-        Shape2<u32> shape_yx,
+        Shape<u32, 2> shape_yx,
         Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
@@ -46,9 +46,9 @@ namespace noa::cuda::details {
         const auto input_2d = input[bid[0]][bid[1]];
         const auto output_2d = output[bid[0]][bid[1]];
 
-        const Vec2<u32> tid = thread_indices<u32, 2>();
-        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
-        const Vec2<u32> offset = TILE_SIZE * index;
+        const Vec<u32, 2> tid = thread_indices<u32, 2>();
+        const Vec<u32, 2> index = ni::offset2index(bid[2], blocks_x);
+        const Vec<u32, 2> offset = TILE_SIZE * index;
 
         // Read tile to shared memory.
         const auto old_gid = offset + tid;
@@ -85,9 +85,9 @@ namespace noa::cuda::details {
         const auto output_2d = output[bid[0]][bid[1]];
 
         // Get the current indexes.
-        const Vec2<u32> tid = thread_indices<u32, 2>();
-        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
-        const Vec2<u32> offset = TILE_SIZE * index;
+        const Vec<u32, 2> tid = thread_indices<u32, 2>();
+        const Vec<u32, 2> index = ni::offset2index(bid[2], blocks_x);
+        const Vec<u32, 2> offset = TILE_SIZE * index;
 
         if (offset[0] > offset[1]) { // lower triangle
             const auto src_gid = offset + tid;
@@ -148,14 +148,14 @@ namespace noa::cuda::details {
     void permute_0213_(
         AccessorRestrict<const T, 4, u32> input,
         AccessorRestrict<T, 4, u32> output_swapped,
-        Shape2<u32> shape_yx, Vec<u32, 2> block_offset_zy, u32 blocks_x
+        Shape<u32, 2> shape_yx, Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
 
         auto bid = block_indices<u32, 3>();
-        const Vec2<u32> tid = thread_indices<u32, 2>();
-        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
-        const Vec2<u32> gid = TILE_SIZE * index + tid;
+        const Vec<u32, 2> tid = thread_indices<u32, 2>();
+        const Vec<u32, 2> index = ni::offset2index(bid[2], blocks_x);
+        const Vec<u32, 2> gid = TILE_SIZE * index + tid;
         if (not IsMultipleOfTile and gid[1] >= shape_yx[1])
             return;
 
@@ -178,7 +178,7 @@ namespace noa::cuda::details {
     template<bool IsMultipleOfTile, typename T>
     __global__ __launch_bounds__(PermuteConfig::block_size)
     void permute_0213_inplace_(
-        Accessor<T, 4, u32> output, Shape2<u32> shape,
+        Accessor<T, 4, u32> output, Shape<u32, 2> shape,
         Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
@@ -188,9 +188,9 @@ namespace noa::cuda::details {
         bid[0] += block_offset_zy[0];
         bid[1] += block_offset_zy[1];
 
-        const Vec2<u32> tid = thread_indices<u32, 2>();
-        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
-        const Vec4<u32> gid{
+        const Vec<u32, 2> tid = thread_indices<u32, 2>();
+        const Vec<u32, 2> index = ni::offset2index(bid[2], blocks_x);
+        const Vec<u32, 4> gid{
             bid[0],
             bid[1],
             TILE_SIZE * index[0] + tid[0],
@@ -222,7 +222,7 @@ namespace noa::cuda::details {
     void permute_0231_(
         AccessorRestrict<const T, 4, u32> input_swapped,
         AccessorRestrict<T, 4, u32> output,
-        Shape2<u32> shape_zx, Vec<u32, 2> block_offset_zy, u32 blocks_x
+        Shape<u32, 2> shape_zx, Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
         __shared__ T tile[TILE_SIZE][TILE_SIZE + 1];
@@ -235,9 +235,9 @@ namespace noa::cuda::details {
         const auto output_ = output[bid[0]][bid[1]];
 
         // Get the current indexes.
-        const Vec2<u32> tid = thread_indices<u32, 2>();
-        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
-        const Vec2<u32> offset = TILE_SIZE * index; // ZX
+        const Vec<u32, 2> tid = thread_indices<u32, 2>();
+        const Vec<u32, 2> index = ni::offset2index(bid[2], blocks_x);
+        const Vec<u32, 2> offset = TILE_SIZE * index; // ZX
 
         // Read tile to shared memory.
         const auto old_gid = offset + tid;
@@ -265,7 +265,7 @@ namespace noa::cuda::details {
     void permute_0312_(
         AccessorRestrict<const T, 4, u32> input,
         AccessorRestrict<T, 4, u32> output_swapped,
-        Shape2<u32> shape_yx /* YX */, Vec<u32, 2> block_offset_zy, u32 blocks_x
+        Shape<u32, 2> shape_yx /* YX */, Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
         __shared__ T tile[TILE_SIZE][TILE_SIZE + 1];
@@ -277,9 +277,9 @@ namespace noa::cuda::details {
         const auto input_ = input[bid[0]][bid[1]];
         const auto output_swapped_ = output_swapped[bid[0]][bid[1]];
 
-        const Vec2<u32> tid = thread_indices<u32, 2>();
-        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
-        const Vec2<u32> offset = TILE_SIZE * index;
+        const Vec<u32, 2> tid = thread_indices<u32, 2>();
+        const Vec<u32, 2> index = ni::offset2index(bid[2], blocks_x);
+        const Vec<u32, 2> offset = TILE_SIZE * index;
 
         // Read tile to shared memory.
         const auto old_gid = offset + tid;
@@ -307,7 +307,7 @@ namespace noa::cuda::details {
     void permute_0321_(
         AccessorRestrict<const T, 4, u32> input_swapped,
         AccessorRestrict<T, 4, u32> output_swapped,
-        Shape2<u32> shape_zx, Vec<u32, 2> block_offset_zy, u32 blocks_x
+        Shape<u32, 2> shape_zx, Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
         __shared__ T tile[TILE_SIZE][TILE_SIZE + 1];
@@ -320,9 +320,9 @@ namespace noa::cuda::details {
         const auto output_swapped_ = output_swapped[bid[0]][bid[1]];
 
         // Get the current indexes.
-        const Vec2<u32> tid = thread_indices<u32, 2>();
-        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
-        const Vec2<u32> offset = TILE_SIZE * index; // ZX
+        const Vec<u32, 2> tid = thread_indices<u32, 2>();
+        const Vec<u32, 2> index = ni::offset2index(bid[2], blocks_x);
+        const Vec<u32, 2> offset = TILE_SIZE * index; // ZX
 
         // Read tile to shared memory.
         const auto old_gid = offset + tid;
@@ -360,9 +360,9 @@ namespace noa::cuda::details {
         const auto output_swapped_ = output_swapped[bid[0]][bid[1]];
 
         // Get the current indexes.
-        const Vec2<u32> tid = thread_indices<u32, 2>();
-        const Vec2<u32> index = ni::offset2index(bid[2], blocks_x);
-        const Vec2<u32> offset = TILE_SIZE * index; // ZX
+        const Vec<u32, 2> tid = thread_indices<u32, 2>();
+        const Vec<u32, 2> index = ni::offset2index(bid[2], blocks_x);
+        const Vec<u32, 2> offset = TILE_SIZE * index; // ZX
 
         if (offset[0] > offset[1]) { // lower t
             const auto src_gid = offset + tid; // ZX
@@ -421,9 +421,9 @@ namespace noa::cuda::details {
 namespace noa::cuda::details {
     template<typename T>
     void permute_0132(
-        const T* input, const Strides4<i64>& input_strides,
-        T* output, const Strides4<i64>& output_strides,
-        const Shape4<i64>& shape, Stream& stream
+        const T* input, const Strides4& input_strides,
+        T* output, const Strides4& output_strides,
+        const Shape4& shape, Stream& stream
     ) {
         const auto u_shape = shape.as_safe<u32>();
         const auto shape_2d = u_shape.filter(2, 3);
@@ -463,9 +463,9 @@ namespace noa::cuda::details {
 
     template<typename T>
     void permute_0213(
-        const T* input, const Strides4<i64>& input_strides,
-        T* output, const Strides4<i64>& output_strides,
-        const Shape4<i64>& shape, Stream& stream
+        const T* input, const Strides4& input_strides,
+        T* output, const Strides4& output_strides,
+        const Shape4& shape, Stream& stream
     ) {
         const auto u_shape = shape.as_safe<u32>();
         const auto shape_2d = u_shape.filter(2, 3);
@@ -505,9 +505,9 @@ namespace noa::cuda::details {
 
     template<typename T>
     void permute_0312(
-        const T* input, const Strides4<i64>& input_strides,
-        T* output, const Strides4<i64>& output_strides,
-        const Shape4<i64>& shape, Stream& stream
+        const T* input, const Strides4& input_strides,
+        T* output, const Strides4& output_strides,
+        const Shape4& shape, Stream& stream
     ) {
         const auto u_shape = shape.as_safe<u32>();
         const auto shape_2d = u_shape.filter(2, 3);
@@ -545,9 +545,9 @@ namespace noa::cuda::details {
 
     template<typename T>
     void permute_0231(
-        const T* input, const Strides4<i64>& input_strides,
-        T* output, const Strides4<i64>& output_strides,
-        const Shape4<i64>& shape, Stream& stream
+        const T* input, const Strides4& input_strides,
+        T* output, const Strides4& output_strides,
+        const Shape4& shape, Stream& stream
     ) {
         const auto u_shape = shape.as_safe<u32>();
         const auto shape_2d = u_shape.filter(1, 3);
@@ -587,9 +587,9 @@ namespace noa::cuda::details {
 
     template<typename T>
     void permute_0321(
-        const T* input, const Strides4<i64>& input_strides,
-        T* output, const Strides4<i64>& output_strides,
-        const Shape4<i64>& shape, Stream& stream
+        const T* input, const Strides4& input_strides,
+        T* output, const Strides4& output_strides,
+        const Shape4& shape, Stream& stream
     ) {
         const auto u_shape = shape.as_safe<u32>();
         const auto shape_2d = u_shape.filter(1, 3);
@@ -629,8 +629,8 @@ namespace noa::cuda::details {
 
     template<typename T>
     void permute_0132_inplace(
-        T* output, const Strides4<i64>& output_strides,
-        const Shape4<i64>& shape, Stream& stream
+        T* output, const Strides4& output_strides,
+        const Shape4& shape, Stream& stream
     ) {
         check(shape[3] == shape[2], "For a \"0132\" in-place permutation, shape[2] should be equal to shape[3]. Got shape={}", shape);
 
@@ -666,8 +666,8 @@ namespace noa::cuda::details {
 
     template<typename T>
     void permute_0213_inplace(
-        T* output, const Strides4<i64>& output_strides,
-        const Shape4<i64>& shape, Stream& stream
+        T* output, const Strides4& output_strides,
+        const Shape4& shape, Stream& stream
     ) {
         check(shape[1] == shape[2],
               "For a \"0213\" in-place permutation, shape[1] should be equal to shape[2]. Got shape={}", shape);
@@ -706,8 +706,8 @@ namespace noa::cuda::details {
 
     template<typename T>
     void permute_0321_inplace(
-        T* output, const Strides4<i64>& output_strides,
-        const Shape4<i64>& shape, Stream& stream
+        T* output, const Strides4& output_strides,
+        const Shape4& shape, Stream& stream
     ) {
         check(shape[1] == shape[3],
               "For a \"0321\" in-place permutation, shape[1] should be equal to shape[3]. Got shape={}", shape);
@@ -747,9 +747,9 @@ namespace noa::cuda::details {
 namespace noa::cuda {
     template<typename T>
     void permute_copy(
-        const T* input, const Strides4<i64>& input_strides, const Shape4<i64>& input_shape,
-        T* output, const Strides4<i64>& output_strides,
-        const Vec4<i64>& permutation, Stream& stream
+        const T* input, const Strides4& input_strides, const Shape4& input_shape,
+        T* output, const Strides4& output_strides,
+        const Vec<isize, 4>& permutation, Stream& stream
     ) {
         const auto idx =
             permutation[0] * 1000 +

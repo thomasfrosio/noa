@@ -50,7 +50,7 @@ namespace {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::signal, correlation peak", "", Vec2<f32>, Vec2<f64>, Vec3<f32>, Vec3<f64>) {
+TEMPLATE_TEST_CASE("unified::signal, correlation peak", "", (Vec<f32, 2>), (Vec<f64, 2>), (Vec<f32, 3>), (Vec<f64, 3>)) {
     using value_t = TestType::value_type;
     constexpr size_t N = TestType::SIZE;
 
@@ -58,7 +58,7 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak", "", Vec2<f32>, Vec2<f64>
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    auto shape = test::random_shape(N) + Shape<i64, N>::from_value(N == 2 ? 200 : 50).template push_front<4 - N>(0);
+    auto shape = test::random_shape(N) + Shape<isize, N>::from_value(N == 2 ? 200 : 50).template push_front<4 - N>(0);
     auto data = generate_data<N>(shape);
 
     for (auto correlation_mode: cross_correlation_modes) {
@@ -121,7 +121,7 @@ TEMPLATE_TEST_CASE("unified::signal, correlation peak", "", Vec2<f32>, Vec2<f64>
     }
 }
 
-TEMPLATE_TEST_CASE("unified::signal, correlation peak batched", "", Vec2<f32>, Vec2<f64>, Vec3<f32>,  Vec3<f64>) {
+TEMPLATE_TEST_CASE("unified::signal, correlation peak batched", "", (Vec<f32, 2>), (Vec<f64, 2>), (Vec<f32, 3>),  (Vec<f64, 3>)) {
     using value_t = TestType::value_type;
     constexpr size_t N = TestType::SIZE;
 
@@ -224,7 +224,7 @@ TEST_CASE("unified::signal, autocorrelate") {
 
         // turn off the reduction, take the zero-lag
         const auto shift2 = ns::cross_correlation_peak_3d<"f">(xmap, {.maximum_lag = {}}).first;
-        REQUIRE(all(shift == shift2));
+        REQUIRE(shift == shift2);
     }
 }
 
@@ -284,7 +284,7 @@ TEST_CASE("unified::signal::cross_correlation_peak, no registration") {
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    const auto shape = Shape<i64, 4>{1, 1, 64, 64};
+    const auto shape = Shape<isize, 4>{1, 1, 64, 64};
     for (auto& device: devices) {
         const auto stream = noa::StreamGuard(device);
         const auto options = noa::ArrayOption(device, Allocator::MANAGED);
@@ -304,7 +304,7 @@ TEST_CASE("unified::signal::cross_correlation_peak, no registration") {
         // Using a cross-correlation map.
         const auto xmap = noa::like(rhs);
         ns::cross_correlation_map<"h2fc">(lhs_rfft, rhs_rfft, xmap, {.ifft_norm = nf::Norm::BACKWARD});
-        auto [peak_coord, peak_value] = ns::cross_correlation_peak_2d<"fc2fc">(xmap, {.registration_radius = Vec<i64, 2>{}});
+        auto [peak_coord, peak_value] = ns::cross_correlation_peak_2d<"fc2fc">(xmap, {.registration_radius = Vec<i32, 2>{}});
 
         // Using argmax.
         auto [argmax_value, argmax_offset] = noa::argmax(xmap);
@@ -312,6 +312,6 @@ TEST_CASE("unified::signal::cross_correlation_peak, no registration") {
 
         REQUIRE(noa::allclose(argmax_value, peak_value));
         REQUIRE((indices[0] == 0 and indices[1] == 0));
-        REQUIRE(noa::all(noa::allclose(indices.filter(2, 3).as<f64>(), peak_coord)));
+        REQUIRE(noa::allclose(indices.filter(2, 3).as<f64>(), peak_coord));
     }
 }

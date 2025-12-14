@@ -19,15 +19,15 @@ namespace noa::cuda {
     /// This grid can be divided into multiple kernel launches to bypass CUDA's grid-size limits.
     /// \param T    Integer type used by the kernel for indexing.
     /// \param S    CUDA maximum grid size along the dimension.
-    template<i64 S>
+    template<isize S>
     class Grid {
     public:
         constexpr Grid(nt::integer auto size, u32 block_work_size) {
-            m_n_blocks_total = divide_up(safe_cast<i64>(size), static_cast<i64>(block_work_size));
+            m_n_blocks_total = divide_up(safe_cast<isize>(size), static_cast<isize>(block_work_size));
             m_n_blocks_per_launch = min(m_n_blocks_total, S);
             m_n_launches = safe_cast<u32>(divide_up(m_n_blocks_total, m_n_blocks_per_launch));
 
-            auto max_offset = m_n_blocks_per_launch * static_cast<i64>(m_n_launches - 1);
+            auto max_offset = m_n_blocks_per_launch * static_cast<isize>(m_n_launches - 1);
             check(is_safe_cast<u32>(max_offset),
                   "The grid offset is larger than the maximum supported offset. "
                   "size={}, block_work_size={}, max_grid_size={}",
@@ -35,15 +35,15 @@ namespace noa::cuda {
         }
 
         [[nodiscard]] constexpr auto n_launches() const -> u32 { return m_n_launches; }
-        [[nodiscard]] constexpr auto n_blocks_total() const -> i64 { return m_n_blocks_total; }
+        [[nodiscard]] constexpr auto n_blocks_total() const -> isize { return m_n_blocks_total; }
         [[nodiscard]] constexpr auto n_blocks(u32 launch) const -> u32 {
             check(launch < m_n_launches);
-            auto offset = m_n_blocks_per_launch * static_cast<i64>(launch);
+            auto offset = m_n_blocks_per_launch * static_cast<isize>(launch);
             auto left = m_n_blocks_total - offset;
             return static_cast<u32>(std::min(left, m_n_blocks_per_launch));
         }
         [[nodiscard]] constexpr auto offset(u32 launch) const -> u32 {
-            return static_cast<u32>(m_n_blocks_per_launch * static_cast<i64>(launch));
+            return static_cast<u32>(m_n_blocks_per_launch * static_cast<isize>(launch));
         }
         [[nodiscard]] constexpr auto offset_additive(u32 launch) const -> u32 {
             check(launch < m_n_launches);
@@ -53,12 +53,12 @@ namespace noa::cuda {
         }
 
     private:
-        i64 m_n_blocks_total;
-        i64 m_n_blocks_per_launch;
+        isize m_n_blocks_total;
+        isize m_n_blocks_per_launch;
         u32 m_n_launches;
     };
 
-    template<i64 S>
+    template<isize S>
     class GridFused {
     public:
         constexpr GridFused(
@@ -67,34 +67,34 @@ namespace noa::cuda {
             u32 block_work_size_x,
             u32 block_work_size_y
         ) {
-            const i64 n_blocks_x = divide_up(safe_cast<i64>(size_x), static_cast<i64>(block_work_size_x));
-            const i64 n_blocks_y = divide_up(safe_cast<i64>(size_y), static_cast<i64>(block_work_size_y));
+            const isize n_blocks_x = divide_up(safe_cast<isize>(size_x), static_cast<isize>(block_work_size_x));
+            const isize n_blocks_y = divide_up(safe_cast<isize>(size_y), static_cast<isize>(block_work_size_y));
             m_n_blocks_x = safe_cast<u32>(n_blocks_x);
             m_n_blocks_total = n_blocks_x * n_blocks_y;
             m_n_blocks_per_launch = min(m_n_blocks_total, S);
             m_n_launches = safe_cast<u32>(divide_up(m_n_blocks_total, m_n_blocks_per_launch));
 
-            auto max_offset = m_n_blocks_per_launch * static_cast<i64>(m_n_launches - 1);
+            auto max_offset = m_n_blocks_per_launch * static_cast<isize>(m_n_launches - 1);
             check(is_safe_cast<u32>(max_offset),
                   "The grid offset is larger than the maximum supported offset. "
                   "size_x={}, size_y={}, block_work_size_x={}, block_work_size_y={}, max_grid_size={}",
                   size_x, size_y, block_work_size_x, block_work_size_y, S);
         }
         [[nodiscard]] constexpr auto n_launches() const -> u32 { return m_n_launches; }
-        [[nodiscard]] constexpr auto n_blocks_total() const -> i64 { return m_n_blocks_total; }
+        [[nodiscard]] constexpr auto n_blocks_total() const -> isize { return m_n_blocks_total; }
         [[nodiscard]] constexpr auto n_blocks_x() const -> u32 { return m_n_blocks_x; }
         [[nodiscard]] constexpr auto n_blocks(u32 launch) const -> u32 {
-            auto offset = m_n_blocks_per_launch * static_cast<i64>(launch);
+            auto offset = m_n_blocks_per_launch * static_cast<isize>(launch);
             auto left = m_n_blocks_total - offset;
             return static_cast<u32>(std::min(left, m_n_blocks_per_launch));
         }
         [[nodiscard]] constexpr auto offset(u32 launch) const -> u32 {
-            return static_cast<u32>(m_n_blocks_per_launch * static_cast<i64>(launch));
+            return static_cast<u32>(m_n_blocks_per_launch * static_cast<isize>(launch));
         }
 
     private:
-        i64 m_n_blocks_per_launch;
-        i64 m_n_blocks_total;
+        isize m_n_blocks_per_launch;
+        isize m_n_blocks_total;
         u32 m_n_launches;
         u32 m_n_blocks_x;
     };
@@ -140,10 +140,10 @@ namespace noa::cuda::details {
     template<typename T>
     using vectorized_tuple_t = vectorized_tuple<std::decay_t<T>>::type;
 
-    template<size_t N, typename Index, typename T>
+    template<usize N, typename Index, typename T>
     struct joined_tuple { using type = T; };
 
-    template<size_t N, typename Index, typename... T>
+    template<usize N, typename Index, typename... T>
     struct joined_tuple<N, Index, Tuple<T...>> {
         using type = Tuple<AccessorRestrictContiguous<typename T::mutable_value_type, N, Index>...>;
     };
@@ -153,7 +153,7 @@ namespace noa::cuda::details {
     /// which can then be loaded as an input using vectorized loads. Note that the constness of the AccessorValue(s)
     /// has to be dropped (because kernels do expect to write then read from these accessors), but this is fine since
     /// the reduced AccessorValue(s) should not be const anyway.
-    template<size_t N, typename Index, typename T>
+    template<usize N, typename Index, typename T>
     using joined_tuple_t = joined_tuple<N, Index, std::decay_t<T>>::type;
 
     /// Synchronizes the block.
@@ -162,7 +162,7 @@ namespace noa::cuda::details {
         __syncthreads();
     }
 
-    template<nt::integer T = u32, size_t N = 3>
+    template<nt::integer T = u32, usize N = 3>
     NOA_FD auto block_indices() -> Vec<T, N> {
         if constexpr (N == 3)
             return Vec<T, N>::from_values(blockIdx.z, blockIdx.y, blockIdx.x);
@@ -174,7 +174,7 @@ namespace noa::cuda::details {
             return Vec<T, 0>{};
     }
 
-    template<nt::integer T = u32, size_t N = 3>
+    template<nt::integer T = u32, usize N = 3>
     NOA_FD auto thread_indices() -> Vec<T, N> {
         if constexpr (N == 3)
             return Vec<T, N>::from_values(threadIdx.z, threadIdx.y, threadIdx.x);
@@ -254,7 +254,7 @@ namespace noa::cuda::details {
     }
 
     /// Returns a per-thread unique ID, i.e. each thread in the grid gets a unique value.
-    template<size_t N = 0>
+    template<usize N = 0>
     NOA_FD u32 thread_uid() {
         if constexpr (N == 1) {
             return blockIdx.x * blockDim.x + threadIdx.x;
@@ -285,10 +285,10 @@ namespace noa::cuda::details {
         Output* __restrict__ per_thread_output,
         i32 thread_index
     ) {
-        per_block_input.for_each_enumerate([&]<size_t I, typename T>(T& accessor) {
+        per_block_input.for_each_enumerate([&]<usize I, typename T>(T& accessor) {
             if constexpr (nt::is_accessor_value_v<T>) {
                 auto& input_value = accessor.ref();
-                for (size_t i{}; i < ELEMENTS_PER_THREAD; ++i) {
+                for (usize i{}; i < ELEMENTS_PER_THREAD; ++i) {
                     // Use .ref_() to be able to write into AccessorValue<const V> types.
                     // We want to keep the const on the core interfaces, but here we actually
                     // need to initialize the underlying values.
@@ -304,7 +304,7 @@ namespace noa::cuda::details {
 
                 // If we need more than one vectorized load, we offset the input by
                 // the entire block size and offset the output by the vector size.
-                constexpr size_t VECTOR_SIZE = aligned_buffer_t::SIZE;
+                constexpr usize VECTOR_SIZE = aligned_buffer_t::SIZE;
                 static_assert(ELEMENTS_PER_THREAD >= VECTOR_SIZE);
                 static_assert(is_multiple_of(ELEMENTS_PER_THREAD, VECTOR_SIZE));
 
@@ -338,12 +338,12 @@ namespace noa::cuda::details {
         const Output& per_block_output,
         i32 thread_index
     ) {
-        per_block_output.for_each_enumerate([&]<size_t I, typename T>(T& accessor) {
+        per_block_output.for_each_enumerate([&]<usize I, typename T>(T& accessor) {
             if constexpr (nt::is_accessor_v<T>) {
                 using aligned_buffer_t = std::tuple_element_t<I, AlignedBuffers>;
                 NOA_ASSERT(is_multiple_of(reinterpret_cast<uintptr_t>(accessor.get()), alignof(aligned_buffer_t)));
 
-                constexpr size_t VECTOR_SIZE = aligned_buffer_t::SIZE;
+                constexpr usize VECTOR_SIZE = aligned_buffer_t::SIZE;
                 static_assert(ELEMENTS_PER_THREAD >= VECTOR_SIZE);
                 static_assert(is_multiple_of(ELEMENTS_PER_THREAD, VECTOR_SIZE));
                 constexpr i32 VECTORIZED_LOADS = ELEMENTS_PER_THREAD / VECTOR_SIZE;
@@ -422,7 +422,7 @@ namespace noa::cuda::details {
         if (index_within_block == 0) {
             if constexpr (nt::is_tuple_of_accessor_v<Joined>) {
                 // Tuple of Accessor(s), corresponding to Reduced, e.g. Tuple<Accessor<i32, 1>, Accessor<f64, 1>>
-                joined.for_each_enumerate([&]<size_t I>(auto& accessor) {
+                joined.for_each_enumerate([&]<usize I>(auto& accessor) {
                     accessor(indices_within_grid...) = reduced[Tag<I>{}].ref();
                 });
             } else if constexpr (nt::is_accessor_v<Joined>) {

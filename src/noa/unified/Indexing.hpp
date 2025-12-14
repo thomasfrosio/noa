@@ -8,7 +8,7 @@
 namespace noa {
     /// Broadcasts an array to a given shape.
     template<nt::varray_decay T>
-    [[nodiscard]] auto broadcast(T&& input, const Shape4<i64>& shape) {
+    [[nodiscard]] auto broadcast(T&& input, const Shape4& shape) {
         auto strides = input.strides();
         if (not ni::broadcast(input.shape(), strides, shape))
             panic("Cannot broadcast an array of shape {} into an array of shape {}", input.shape(), shape);
@@ -32,8 +32,8 @@ namespace noa::indexing {
 
     /// Returns the multidimensional indexes of \p array corresponding to a memory \p offset.
     /// \note 0 indicates the beginning of the array. The array should not have any broadcast dimension.
-    [[nodiscard]] constexpr Vec4<i64> offset2index(i64 offset, const nt::varray auto& array) {
-        check(all(array.strides() > 0),
+    [[nodiscard]] constexpr auto offset2index(isize offset, const nt::varray auto& array) -> Vec<isize, 4> {
+        check(array.strides() > 0,
               "Cannot retrieve the 4d index from a broadcast array. Got strides:{}",
               array.strides());
         return offset2index(offset, array.strides(), array.shape());
@@ -52,7 +52,6 @@ namespace noa::indexing {
     /// Whether the input is a contiguous vector or a contiguous/strided batch of contiguous vectors.
     /// The batch stride doesn't have to be contiguous.
     [[nodiscard]] constexpr bool is_contiguous_vector_batched_strided(const nt::varray auto& input) {
-        return is_vector(input.shape(), true) and
-               vall(Equal{}, input.is_contiguous().pop_front(), Vec<bool, 3>::filled_with(true));
+        return is_vector(input.shape(), true) and input.is_contiguous().pop_front() == true;
     }
 }

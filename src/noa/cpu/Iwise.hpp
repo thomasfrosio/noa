@@ -8,8 +8,8 @@
 namespace noa::cpu::details {
     class Iwise {
     public:
-        template<size_t N, typename Index, typename Operator>
-        NOA_NOINLINE static void parallel(const Shape<Index, N>& shape, Operator op, i64 n_threads) {
+        template<usize N, typename Index, typename Operator>
+        NOA_NOINLINE static void parallel(const Shape<Index, N>& shape, Operator op, i32 n_threads) {
             // firstprivate(op) vs shared(op):
             //  - We assume op is cheap to copy, so the once-per-thread call to the copy constructor with
             //    firstprivate(op) is assumed to be non-significant compared to the rest of the function.
@@ -61,7 +61,7 @@ namespace noa::cpu::details {
             }
         }
 
-        template<size_t N, typename Index, typename Operator>
+        template<usize N, typename Index, typename Operator>
         NOA_NOINLINE static constexpr void serial(const Shape<Index, N>& shape, Operator op) {
             using interface = nd::IwiseInterface;
             interface::init(op, 0);
@@ -95,18 +95,18 @@ namespace noa::cpu::details {
 }
 
 namespace noa::cpu {
-    template<i64 ElementsPerThread = 1'048'576>
+    template<isize ElementsPerThread = 1'048'576>
     struct IwiseConfig {
-        static constexpr i64 n_elements_per_thread = ElementsPerThread;
+        static constexpr isize n_elements_per_thread = ElementsPerThread;
     };
 
-    template<typename Config = IwiseConfig<>, size_t N, typename Index, typename Op>
-    constexpr void iwise(const Shape<Index, N>& shape, Op&& op, i64 n_threads = 1) {
+    template<typename Config = IwiseConfig<>, usize N, typename Index, typename Op>
+    constexpr void iwise(const Shape<Index, N>& shape, Op&& op, i32 n_threads = 1) {
         if constexpr (Config::n_elements_per_thread >= 1) {
-            const i64 n_elements = shape.template as<i64>().n_elements();
-            i64 actual_n_threads = n_elements <= Config::n_elements_per_thread ? 1 : n_threads;
+            const isize n_elements = shape.template as<isize>().n_elements();
+            i32 actual_n_threads = n_elements <= Config::n_elements_per_thread ? 1 : n_threads;
             if (actual_n_threads > 1)
-                actual_n_threads = min(n_threads, n_elements / Config::n_elements_per_thread);
+                actual_n_threads = min(n_threads, clamp_cast<i32>(n_elements / Config::n_elements_per_thread));
 
             if (actual_n_threads > 1)
                 return details::Iwise::parallel(shape, std::forward<Op>(op), actual_n_threads);

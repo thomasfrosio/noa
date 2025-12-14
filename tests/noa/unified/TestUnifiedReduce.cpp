@@ -13,7 +13,7 @@ TEST_CASE("unified::reduce - vs numpy", "[asset]") {
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
 
     const YAML::Node& input = tests["input"];
-    const auto shape = input["shape"].as<Shape4<i64>>();
+    const auto shape = input["shape"].as<Shape4>();
     const auto input_filename = path / input["path"].as<Path>();
     const auto output_filename = path / tests["all"]["output_path"].as<Path>();
 
@@ -28,7 +28,7 @@ TEST_CASE("unified::reduce - vs numpy", "[asset]") {
     const auto expected_var = expected["var"].as<f64>();
 
     auto data = noa::read_image<f64>(input_filename).data;
-    REQUIRE(all(data.shape() == shape));
+    REQUIRE(data.shape() == shape);
 
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
@@ -72,7 +72,7 @@ TEST_CASE("unified::reduce - vs numpy", "[asset]") {
 TEST_CASE("unified::reduce - complex vs numpy", "[assets]") {
     const auto path = test::NOA_DATA_PATH / "math";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_complex"];
-    const auto shape = tests["shape"].as<Shape4<i64>>();
+    const auto shape = tests["shape"].as<Shape4>();
     const auto input_filename = path / tests["input_path"].as<Path>();
     const auto output_filename = path / tests["output_path"].as<Path>();
 
@@ -85,7 +85,7 @@ TEST_CASE("unified::reduce - complex vs numpy", "[assets]") {
 
     auto data = noa::read_image<c64>(input_filename).data;
 
-    REQUIRE(noa::all(data.shape() == shape));
+    REQUIRE(data.shape() == shape);
 
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
@@ -128,7 +128,7 @@ TEMPLATE_TEST_CASE("unified::reduce - cpu vs gpu", "", f32) { // , c32, c64
         return;
 
     const auto pad = GENERATE(true, false);
-    const auto subregion_shape = test::random_shape_batched(3) + Shape4<i64>{1, 164, 164, 164};
+    const auto subregion_shape = test::random_shape_batched(3) + Shape4{1, 164, 164, 164};
     auto shape = subregion_shape;
     if (pad) {
         shape[1] += 10;

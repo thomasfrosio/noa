@@ -180,11 +180,11 @@ namespace noa::signal::details {
         }
     };
 
-    template<bool IS_CENTERED, size_t REGISTRATION_RADIUS_LIMIT, typename T, typename I, size_t N>
+    template<bool IS_CENTERED, usize REGISTRATION_RADIUS_LIMIT, typename T, nt::sinteger I, usize N>
     constexpr auto subpixel_registration_using_1d_parabola(
         auto input,
         const Shape<I, N>& shape,
-        const Vec<I, N>& registration_radius,
+        const Vec<i32, N>& registration_radius,
         const Vec<I, N>& peak_indices,
         const T& original_value
     ) {
@@ -192,30 +192,30 @@ namespace noa::signal::details {
 
             f64 peak_value{};
             Vec<f64, N> peak_coordinate;
-            for (size_t dim{}; dim < N; ++dim) {
+            for (usize dim{}; dim < N; ++dim) {
                 // Reduce the problem to 1d by offsetting to the peak location, except for the current dimension.
                 const auto* input_line = input.get();
-                for (size_t i{}; i < N; ++i)
+                for (usize i{}; i < N; ++i)
                     input_line += (peak_indices[i] * input.strides()[i]) * (dim != i);
 
-                auto peak_radius = registration_radius[dim];
+                auto peak_radius = static_cast<I>(registration_radius[dim]);
                 auto peak_window = Span(buffer.data(), peak_radius * 2 + 1);
                 auto peak_index = peak_indices[dim];
-                const i64 input_size = shape[dim];
-                const i64 input_stride = static_cast<I>(input.strides()[dim]);
+                const auto input_size = shape[dim];
+                const auto input_stride = static_cast<I>(input.strides()[dim]);
 
                 // If non-centered, the peak window can be split across two separate quadrants.
                 // As such, retrieve the frequency and if it is a valid frequency, convert back
                 // to an index and compute the memory offset.
-                const i64 peak_frequency = nf::index2frequency<IS_CENTERED>(peak_index, input_size);
-                for (i64 i = -peak_radius, c{}; i <= peak_radius; ++i, ++c) {
+                const auto peak_frequency = nf::index2frequency<IS_CENTERED>(peak_index, input_size);
+                for (I i = -peak_radius, c{}; i <= peak_radius; ++i, ++c) {
                     if (i == 0) {
                         peak_window[c] = original_value;
                         continue;
                     }
-                    const i64 frequency = peak_frequency + i;
+                    const auto frequency = peak_frequency + i;
                     if (-input_size / 2 <= frequency and frequency <= (input_size - 1) / 2) {
-                        const i64 index = nf::frequency2index<IS_CENTERED>(frequency, input_size);
+                        const auto index = nf::frequency2index<IS_CENTERED>(frequency, input_size);
                         peak_window[c] = input_line[index * input_stride];
                     }
                 }
@@ -251,7 +251,7 @@ namespace noa::signal::details {
             return Pair{peak_value, peak_coordinate};
     }
 
-    template<size_t N, bool IS_CENTERED, size_t REGISTRATION_RADIUS_LIMIT,
+    template<usize N, bool IS_CENTERED, usize REGISTRATION_RADIUS_LIMIT,
              nt::readable_nd<N + 1> Input,
              nt::writable_nd_optional<1> PeakCoordinates,
              nt::writable_nd_optional<1> PeakValues>
@@ -275,14 +275,14 @@ namespace noa::signal::details {
             const peak_coordinates_type& peak_coordinates,
             const peak_values_type& peak_values,
             const Shape<index_type, N + 1>& shape,
-            const index_n_type& registration_radius
+            const Vec<i32, N>& registration_radius
         ) : m_input(input),
             m_peak_coordinates(peak_coordinates),
             m_peak_values(peak_values),
             m_shape(shape.pop_front()),
             m_registration_radius(registration_radius)
         {
-            NOA_ASSERT(all(registration_radius <= static_cast<index_type>(REGISTRATION_RADIUS_LIMIT)));
+            NOA_ASSERT(registration_radius <= static_cast<index_type>(REGISTRATION_RADIUS_LIMIT));
         }
 
         constexpr void operator()(index_type batch) const {
@@ -303,10 +303,10 @@ namespace noa::signal::details {
         peak_coordinates_type m_peak_coordinates;
         peak_values_type m_peak_values;
         shape_type m_shape;
-        index_n_type m_registration_radius;
+        Vec<i32, N> m_registration_radius;
     };
 
-    template<size_t N, bool IS_CENTERED, size_t REGISTRATION_RADIUS_LIMIT,
+    template<usize N, bool IS_CENTERED, usize REGISTRATION_RADIUS_LIMIT,
              nt::readable_nd<N + 1> Input,
              nt::writable_nd_optional<1> PeakCoordinates,
              nt::writable_nd_optional<1> PeakValues>
@@ -334,7 +334,7 @@ namespace noa::signal::details {
             const peak_coordinates_type& peak_coordinates,
             const peak_values_type& peak_values,
             const Shape<index_type, N + 1>& shape,
-            const index_n_type& registration_radius,
+            const Vec<i32, N>& registration_radius,
             const index_n_type& subregion_offset,
             const index_n_type& maximum_lag,
             bool apply_ellipse
@@ -353,7 +353,7 @@ namespace noa::signal::details {
                 constexpr auto is_inverted = false;
                 m_ellipse = ellipse_type(center, maximum_lag.template as<f32>(), cvalue, is_inverted);
             }
-            NOA_ASSERT(all(registration_radius <= static_cast<index_type>(REGISTRATION_RADIUS_LIMIT)));
+            NOA_ASSERT(registration_radius <= static_cast<index_type>(REGISTRATION_RADIUS_LIMIT));
         }
 
     public:
@@ -402,13 +402,13 @@ namespace noa::signal::details {
         peak_values_type m_peak_values;
         shape_type m_shape;
         index_type m_batch;
-        index_n_type m_registration_radius;
+        Vec<i32, N> m_registration_radius;
         ellipse_type m_ellipse;
         subregion_offset_type m_subregion_offset;
         bool m_apply_ellipse;
     };
 
-    template<size_t NDIM, typename Input, typename PeakCoord, typename PeakValue>
+    template<usize NDIM, typename Input, typename PeakCoord, typename PeakValue>
     void check_cross_correlation_peak_parameters(
         const Input& xmap,
         const PeakCoord& peak_coordinates = {},
@@ -476,8 +476,8 @@ namespace noa::signal {
         Output&& scores,
         const CrossCorrelationScoreOptions& options = {}
     ) {
-        check(not lhs.is_empty() and not rhs.is_empty() and not scores.is_empty(), "Empty array detected");
-        check(vall(Equal{}, lhs.shape(), rhs.shape()),
+        check(nd::are_arrays_valid(lhs, rhs, scores), "Empty array detected");
+        check(lhs.shape() == rhs.shape(),
               "Inputs should have the same shape, but got lhs:shape={}, rhs:shape={}",
               lhs.shape(), rhs.shape());
         check(lhs.device() == rhs.device() and rhs.device() == scores.device(),
@@ -532,7 +532,7 @@ namespace noa::signal {
     requires (nt::varray_decay_of_real<Lhs, Rhs> or nt::varray_decay_of_complex<Lhs, Rhs>)
     [[nodiscard]] auto cross_correlation_score(Lhs&& lhs, Rhs&& rhs, const CrossCorrelationScoreOptions& options = {}) {
         check(not lhs.is_empty() and not rhs.is_empty(), "Empty array detected");
-        check(vall(Equal{}, lhs.shape(), rhs.shape()) and not rhs.shape().is_batched(),
+        check(lhs.shape() == rhs.shape() and not rhs.shape().is_batched(),
               "Arrays should have the same shape and should not be batched, but got lhs:shape={}, rhs:shape={}",
               lhs.shape(), rhs.shape());
         check(lhs.device() == rhs.device(),
@@ -635,7 +635,7 @@ namespace noa::signal {
     ) {
         const Device device = output.device();
         const auto expected_shape = output.shape().rfft();
-        check(not lhs.is_empty() and not rhs.is_empty() and not output.is_empty(), "Empty array detected");
+        check(nd::are_arrays_valid(lhs, rhs, output), "Empty array detected");
         check(device == lhs.device() and device == rhs.device(),
               "The lhs, rhs and output arrays must be on the same device, "
               "but got lhs:device={}, rhs:device={} and output:device={}",
@@ -653,7 +653,7 @@ namespace noa::signal {
             check(device == buffer.device(),
                   "The temporary and output arrays must be on the same device, buffer:device={} and output:device={}",
                   buffer.device(), device);
-            check(vall(Equal{}, buffer.shape(), expected_shape) and
+            check(buffer.shape() == expected_shape and
                   ni::are_elements_unique(buffer.strides(), buffer.shape()),
                   "Given an output map of shape {}, the buffer should be of shape {} and have unique elements, "
                   "but got buffer:shape={}, buffer:strides={}",
@@ -682,7 +682,7 @@ namespace noa::signal {
 
         if constexpr (REMAP == nf::Layout::H2FC) {
             using real_t = nt::value_type_t<complex_t>;
-            const Shape4<i64> shape = output.shape();
+            const Shape4 shape = output.shape();
             if (shape.ndim() == 3) {
                 phase_shift_3d<"h2h">(tmp, tmp, shape, (shape.pop_front<1>() / 2).vec.as<real_t>());
             } else {
@@ -699,12 +699,12 @@ namespace noa::signal {
         }
     }
 
-    template<size_t N>
+    template<usize N>
     struct CrossCorrelationPeakOptions {
         /// ((D)H)W radius of the registration window, centered on the peak.
         /// To get subpixel-accuracy of the peak position and value, a 1d parabola is fitted along each dimension.
         /// This parameter specifies the radius of these parabolas. Zero is valid and turns off the registration.
-        Vec<i64, N> registration_radius{Vec<i64, N>::from_value(1)};
+        Vec<i32, N> registration_radius{Vec<i32, N>::from_value(1)};
 
         /// ((D)H)W maximum lag allowed, i.e., the peak is selected within this elliptical radius.
         /// If negative, it is ignored and the entire map is searched. If zero, the central peak at lag zero is
@@ -714,43 +714,14 @@ namespace noa::signal {
         Vec<f64, N> maximum_lag{Vec<f64, N>::from_value(-1)};
     };
 
-//     template<size_t N>
-// struct CrossCorrelationPeakOptions {
-//         /// ((D)H)W maximum lag allowed, i.e. the peak is selected within this elliptical radius.
-//         /// If negative or 0, it is ignored and the returned peak can be anywhere on the map.
-//         /// Otherwise, an elliptical mask is applied on the centered cross-correlation map before selecting the peak.
-//         Vec<f64, N> maximum_lag{Vec<f64, N>::from_value(-1)};
-//
-//         /// CCW (when looking at the origin) in-plane angle (in radius) of the distortion present in the
-//         /// cross-correlation map. This rotation is corrected (the map is rotated by -distortion_angle) just after
-//         /// the maximum lag mask. This improves the accuracy of the subpixel-registration by aligning the 1d parabolas
-//         /// with the distortion of the peak, but is also important when base_correction=true.
-//         f64 distortion_angle{0.};
-//
-//         /// ((D)H)W radius of the registration window, centered on the peak.
-//         /// To get subpixel-accuracy of the peak position and value, a 1d parabola is fitted along each dimension.
-//         /// The vertex of these parabolas
-//         Vec<i64, N> registration_radius{Vec<i64, N>::from_value(1)};
-//
-//         /// Whether the peak heights should be adjusted using their base value.
-//         /// This is useful to select the correct lobe from multi-lobe peaks or sharper peaks. In these cases, some lobes
-//         bool base_correction{false};
-//
-//         f64 trial_threshold{0.8};
-//
-//
-//         Shape<i64, N> grid_shape{Shape<i64, N>::from_value(1)};
-//         Shape<i64, N> block_shape{Shape<i64, N>::from_value(5)};
-//     };
-
     /// Find the cross-correlation peak(s) of the cross-correlation map(s).
     /// \tparam REMAP                       Whether xmap is centered. Should be F2F or FC2FC.
     /// \param[in] cross_correlation_map    1d, 2d or 3d cross-correlation map.
     /// \param[out] peak_coordinates        Output ((D)H)W coordinate of the highest peak. One per batch or empty.
     /// \param[out] peak_values             Output value of the highest peak. One per batch or empty.
     /// \param options                      Picking and registration options.
-    template<nf::Layout REMAP, size_t N,
-             nt::readable_varray_decay_of_almost_any<f32, f64> Input,
+    template<nf::Layout REMAP, usize N,
+             nt::readable_varray_decay_of_any<f32, f64> Input,
              nt::writable_varray_decay_of_any<Vec<f32, N>, Vec<f64, N>> PeakCoord = View<Vec<f64, N>>,
              nt::writable_varray_decay_of_almost_same_type<Input> PeakValue = View<nt::mutable_value_type_t<Input>>>
     requires (1 <= N and N <= 3 and (REMAP == nf::Layout::F2F or REMAP == nf::Layout::FC2FC))
@@ -760,9 +731,9 @@ namespace noa::signal {
         PeakValue&& peak_values = {},
         const CrossCorrelationPeakOptions<N>& options = {}
     ) {
-        constexpr size_t REGISTRATION_RADIUS_LIMIT = 4;
+        constexpr usize REGISTRATION_RADIUS_LIMIT = 4;
         details::check_cross_correlation_peak_parameters<N>(cross_correlation_map, peak_coordinates, peak_values);
-        check(all(options.registration_radius >= 0 and options.registration_radius <= REGISTRATION_RADIUS_LIMIT),
+        check(options.registration_radius >= 0 and options.registration_radius <= REGISTRATION_RADIUS_LIMIT,
               "The registration radius should be a small positive value (less than {}), but got {}",
               REGISTRATION_RADIUS_LIMIT, options.registration_radius);
 
@@ -777,9 +748,9 @@ namespace noa::signal {
 
         using value_t = nt::mutable_value_type_t<Input>;
         using index_t = nt::index_type_t<Input>;
-        using input_accessor_t = AccessorRestrictI64<const value_t, N + 1>;
-        using peak_values_accessor_t = AccessorRestrictContiguousI64<value_t, 1>;
-        using peak_coordinates_accessor_t = AccessorRestrictContiguousI64<nt::value_type_t<PeakCoord>, 1>;
+        using input_accessor_t = AccessorRestrict<const value_t, N + 1, isize>;
+        using peak_values_accessor_t = AccessorRestrictContiguous<value_t, 1, isize>;
+        using peak_coordinates_accessor_t = AccessorRestrictContiguous<nt::value_type_t<PeakCoord>, 1, isize>;
 
         auto input_accessor = input_accessor_t(cross_correlation_map.get(), filter_nd(cross_correlation_map.strides()));
         auto peak_values_accessor = peak_values_accessor_t(peak_values.get());
@@ -787,7 +758,7 @@ namespace noa::signal {
         auto shape_nd = filter_nd(shape);
 
         // Special case that doesn't require a reduction, just the subpixel registration.
-        if (all(options.maximum_lag == 0)) {
+        if (options.maximum_lag == 0) {
             auto op = details::PeakRegistration<
                 N, REMAP.is_xc2xx(), REGISTRATION_RADIUS_LIMIT,
                 input_accessor_t, peak_coordinates_accessor_t, peak_values_accessor_t>(
@@ -808,7 +779,7 @@ namespace noa::signal {
         Vec<index_t, N> maximum_lag;
         Vec<index_t, N> subregion_offset;
         Shape<index_t, N> subregion_shape;
-        for (size_t i{}; i < N; ++i) {
+        for (usize i{}; i < N; ++i) {
             if (options.maximum_lag[i] < 0) {
                 maximum_lag[i] = maximum_allowed_lag[i];
             } else {
@@ -842,7 +813,7 @@ namespace noa::signal {
         );
     }
 
-    template<nf::Layout REMAP, size_t N, nt::readable_varray_decay_of_almost_any<f32, f64> Input>
+    template<nf::Layout REMAP, usize N, nt::readable_varray_decay_of_almost_any<f32, f64> Input>
     auto cross_correlation_peak(
         const Input& cross_correlation_map,
         const CrossCorrelationPeakOptions<N>& options = {}
@@ -869,7 +840,7 @@ namespace noa::signal {
     }
 
     template<nf::Layout REMAP, typename Input,
-             typename PeakCoord = View<Vec1<f32>>,
+             typename PeakCoord = View<Vec<f32, 1>>,
              typename PeakValue = View<nt::mutable_value_type_t<Input>>>
     void cross_correlation_peak_1d(
         const Input& xmap,
@@ -880,7 +851,7 @@ namespace noa::signal {
         cross_correlation_peak<REMAP>(xmap, peak_coordinates, peak_values, options);
     }
     template<nf::Layout REMAP, typename Input,
-             nt::varray_decay PeakCoord = View<Vec2<f32>>,
+             nt::varray_decay PeakCoord = View<Vec<f32, 2>>,
              nt::varray_decay PeakValue = View<nt::mutable_value_type_t<Input>>>
     void cross_correlation_peak_2d(
         const Input& xmap,
@@ -891,7 +862,7 @@ namespace noa::signal {
         cross_correlation_peak<REMAP>(xmap, peak_coordinates, peak_values, options);
     }
     template<nf::Layout REMAP, typename Input,
-             typename PeakCoord = View<Vec3<f32>>,
+             typename PeakCoord = View<Vec<f32, 3>>,
              typename PeakValue = View<nt::mutable_value_type_t<Input>>>
     void cross_correlation_peak_3d(
         const Input& xmap,

@@ -1,4 +1,3 @@
-#include <noa/core/geometry/Euler.hpp>
 #include <noa/unified/geometry/CubicBSplinePrefilter.hpp>
 #include <noa/unified/geometry/Transform.hpp>
 #include <noa/unified/IO.hpp>
@@ -35,10 +34,10 @@ TEST_CASE("unified::geometry::transform_2d, vs scipy", "[asset]") {
         const auto border = test["border"].as<Border>();
         const auto expected_filename = path_base / test["expected"].as<Path>();
 
-        const auto center = test["center"].as<Vec2<f64>>();
-        const auto scale = test["scale"].as<Vec2<f64>>();
+        const auto center = test["center"].as<Vec<f64, 2>>();
+        const auto scale = test["scale"].as<Vec<f64, 2>>();
         const auto rotate = noa::deg2rad(test["rotate"].as<f64>());
-        const auto shift = test["shift"].as<Vec2<f64>>();
+        const auto shift = test["shift"].as<Vec<f64, 2>>();
         const auto inv_matrix = noa::inverse(
             noa::geometry::translate(center) *
             noa::geometry::translate(shift) *
@@ -106,8 +105,8 @@ TEST_CASE("unified::geometry::transform_2d(), others", "[asset]") {
     const auto input_filename = path_base / param["input"].as<Path>();
 
     const auto cvalue = param["cvalue"].as<f32>();
-    const auto center = param["center"].as<Vec2<f64>>();
-    const auto scale = param["scale"].as<Vec2<f64>>();
+    const auto center = param["center"].as<Vec<f64, 2>>();
+    const auto scale = param["scale"].as<Vec<f64, 2>>();
     const auto rotate = noa::deg2rad(param["rotate"].as<f64>());
     const auto inv_matrix = noa::geometry::affine2truncated(noa::inverse(
         noa::geometry::translate(center) *

@@ -54,9 +54,9 @@ namespace {
     // Just makes sure OMP launches the exact number of necessary threads, as opposed to:
     // https://github.com/FFTW/fftw3/blob/master/threads/openmp.c#L77
     // See https://www.fftw.org/fftw3_doc/Usage-of-Multi_002dthreaded-FFTW.html
-    void fftw_callback_(void *(*work)(char *), char *jobdata, size_t elsize, i32 njobs, void*) {
+    void fftw_callback_(void *(*work)(char *), char *jobdata, usize elsize, i32 njobs, void*) {
         #pragma omp parallel for num_threads(njobs)
-        for (size_t i = 0; i < static_cast<size_t>(njobs); ++i)
+        for (usize i = 0; i < static_cast<usize>(njobs); ++i)
             work(jobdata + elsize * i);
     }
 
@@ -70,9 +70,9 @@ namespace {
         using fftw_complex_t = std::conditional_t<is_single_precision, fftwf_complex, fftw_complex>;
 
         static plan_t create_r2c(
-            real_t* input, const Strides4<i32>& input_strides,
-            complex_t* output, const Strides4<i32>& output_strides,
-            i32 batch, const Shape3<i32>& shape_3d, i32 rank, i64 max_n_threads, u32 flags
+            real_t* input, const Strides<i32, 4>& input_strides,
+            complex_t* output, const Strides<i32, 4>& output_strides,
+            i32 batch, const Shape<i32, 3>& shape_3d, i32 rank, i32 max_n_threads, u32 flags
         ) {
             const auto lock = std::scoped_lock(mutex);
             set_planner_(batch, shape_3d, max_n_threads);
@@ -105,9 +105,9 @@ namespace {
         }
 
         static plan_t create_c2r(
-            complex_t* input, const Strides4<i32>& input_strides,
-            real_t* output, const Strides4<i32>& output_strides,
-            i32 batch, const Shape3<i32>& shape_3d, i32 rank, i64 max_n_threads, u32 flags
+            complex_t* input, const Strides<i32, 4>& input_strides,
+            real_t* output, const Strides<i32, 4>& output_strides,
+            i32 batch, const Shape<i32, 3>& shape_3d, i32 rank, i32 max_n_threads, u32 flags
         ) {
             const auto lock = std::scoped_lock(mutex);
             set_planner_(batch, shape_3d, max_n_threads);
@@ -143,10 +143,10 @@ namespace {
         }
 
         static plan_t create_c2c(
-            complex_t* input, const Strides4<i32>& input_strides,
-            complex_t* output, const Strides4<i32>& output_strides,
+            complex_t* input, const Strides<i32, 4>& input_strides,
+            complex_t* output, const Strides<i32, 4>& output_strides,
             nf::Sign sign,
-            i32 batch, const Shape3<i32>& shape_3d, i32 rank, i64 max_n_threads, u32 flags
+            i32 batch, const Shape<i32, 3>& shape_3d, i32 rank, i32 max_n_threads, u32 flags
         ) {
             const auto lock = std::scoped_lock(mutex);
             set_planner_(batch, shape_3d, max_n_threads);
@@ -234,7 +234,7 @@ namespace {
             auto view = std::string_view(string);
             auto pattern = std::string_view(is_single_precision ? "fftwf_" : "fftw_");
             i32 count{};
-            size_t pos = view.find(pattern);
+            usize pos = view.find(pattern);
             while (pos != std::string_view::npos) {
                 count++;
                 pos = view.find(pattern, pos + pattern.length());
@@ -252,7 +252,7 @@ namespace {
 
         // Gets the number of threads given a shape, batches and rank. From IMOD/libfft/fftw_wrap.c.
         // FFTW3 seems to works best with few threads. If too many threads, the plan creation is unreasonably slow.
-        static i32 suggest_n_threads_(i32 batch, const Shape3<i32>& shape, i32 rank) noexcept {
+        static i32 suggest_n_threads_(i32 batch, const Shape<i32, 3>& shape, i32 rank) noexcept {
             f64 geom_size;
             if (rank == 1) {
                 const auto n_elements = static_cast<f64>(shape[2] * batch);
@@ -263,13 +263,13 @@ namespace {
             }
 
             const auto n_threads = static_cast<i32>((std::log(geom_size) / std::log(2.) - 5.95) * 2.);
-            const bool is_fast_shape = noa::all(noa::cpu::fft::fast_shape(shape) == shape) ;
+            const bool is_fast_shape = noa::cpu::fft::fast_shape(shape) == shape;
             return std::clamp(n_threads, 1, is_fast_shape ? 8 : 4);
         }
 
         // All subsequent plans will use this number of threads.
         // This function is not thread-safe; it should be called from a thread-safe environment.
-        static void set_planner_(i32 batch, const Shape3<i32>& shape, i64 max_threads) {
+        static void set_planner_(i32 batch, const Shape<i32, 3>& shape, i32 max_threads) {
             #ifdef NOA_CPU_FFTW3_MULTITHREADED
             // Initialize (once)...
             static bool is_initialized = false;
@@ -287,7 +287,7 @@ namespace {
 
             if (max_threads > 1) {
                 const i32 suggested_n_threads = suggest_n_threads_(batch, shape, shape.ndim());
-                const i32 actual_n_threads = std::min(suggested_n_threads, static_cast<i32>(max_threads));
+                const i32 actual_n_threads = std::min(suggested_n_threads, max_threads);
 
                 if constexpr (is_single_precision)
                     fftwf_plan_with_nthreads(actual_n_threads);
@@ -308,9 +308,9 @@ namespace {
 }
 
 namespace noa::cpu::fft {
-    i64 fast_size(i64 size) {
+    isize fast_size(isize size) {
         for (u16 nice_size: sizes_even_fftw_) {
-            const auto tmp = static_cast<i64>(nice_size);
+            const auto tmp = static_cast<isize>(nice_size);
             if (size <= tmp)
                 return tmp;
         }
@@ -321,9 +321,9 @@ namespace noa::cpu::fft {
 namespace noa::cpu::fft {
     template<typename T>
     Plan<T>::Plan(
-        T* input, const Strides4<i64>& input_strides,
-        Complex<T>* output, const Strides4<i64>& output_strides,
-        const Shape4<i64>& shape, u32 flag, i64 max_n_threads
+        T* input, const Strides4& input_strides,
+        Complex<T>* output, const Strides4& output_strides,
+        const Shape4& shape, u32 flag, isize max_n_threads
     ) {
         auto [batch, shape_3d] = shape.as_safe<i32>().split_batch();
         const i32 rank = shape_3d.ndim();
@@ -336,14 +336,17 @@ namespace noa::cpu::fft {
             std::swap(istrides[2], istrides[3]);
             std::swap(ostrides[2], ostrides[3]);
         }
-        m_plan = FFTW<T>::create_r2c(input, istrides, output, ostrides, batch, shape_3d, rank, max_n_threads, flag);
+        m_plan = FFTW<T>::create_r2c(
+            input, istrides, output, ostrides,
+            batch, shape_3d, rank, static_cast<i32>(max_n_threads), flag
+        );
     }
 
     template<typename T>
     Plan<T>::Plan(
-        Complex<T>* input, const Strides4<i64>& input_strides,
-        T* output, const Strides4<i64>& output_strides,
-        const Shape4<i64>& shape, u32 flag, i64 max_n_threads
+        Complex<T>* input, const Strides4& input_strides,
+        T* output, const Strides4& output_strides,
+        const Shape4& shape, u32 flag, isize max_n_threads
     ) {
         auto [batch, shape_3d] = shape.as_safe<i32>().split_batch();
         const i32 rank = shape_3d.ndim();
@@ -356,14 +359,17 @@ namespace noa::cpu::fft {
             std::swap(istrides[2], istrides[3]);
             std::swap(ostrides[2], ostrides[3]);
         }
-        m_plan = FFTW<T>::create_c2r(input, istrides, output, ostrides, batch, shape_3d, rank, max_n_threads, flag);
+        m_plan = FFTW<T>::create_c2r(
+            input, istrides, output, ostrides,
+            batch, shape_3d, rank, static_cast<i32>(max_n_threads), flag
+        );
     }
 
     template<typename T>
     Plan<T>::Plan(
-        Complex<T>* input, const Strides4<i64>& input_strides,
-        Complex<T>* output, const Strides4<i64>& output_strides,
-        const Shape4<i64>& shape, nf::Sign sign, u32 flag, i64 max_n_threads
+        Complex<T>* input, const Strides4& input_strides,
+        Complex<T>* output, const Strides4& output_strides,
+        const Shape4& shape, nf::Sign sign, u32 flag, isize max_n_threads
     ) {
         auto [batch, shape_3d] = shape.as_safe<i32>().split_batch();
         const i32 rank = shape_3d.ndim();
@@ -377,7 +383,10 @@ namespace noa::cpu::fft {
             std::swap(istrides[2], istrides[3]);
             std::swap(ostrides[2], ostrides[3]);
         }
-        m_plan = FFTW<T>::create_c2c(input, istrides, output, ostrides, sign, batch, shape_3d, rank, max_n_threads, flag);
+        m_plan = FFTW<T>::create_c2c(
+            input, istrides, output, ostrides, sign,
+            batch, shape_3d, rank, static_cast<i32>(max_n_threads), flag
+        );
     }
 
     template<typename T>

@@ -46,17 +46,17 @@ TEST_CASE("unified::copy, strided data from GPU to CPU") {
     if (not Device::is_any(Device::GPU))
         return;
 
-    const auto shape = Shape4<i64>{1, 10, 10, 10};
+    const auto shape = Shape4{1, 10, 10, 10};
     const auto gpu_array_full = noa::arange(shape, noa::Arange{0, 1}, {.device="gpu"});
 
     // Select top half
     using namespace ::noa::indexing;
     const auto gpu_array_top = gpu_array_full.subregion(Ellipsis{}, Slice{5, 10}, Full{});
-    REQUIRE(noa::all(gpu_array_top.shape() == Shape4<i64>{1, 10, 5, 10}));
+    REQUIRE(gpu_array_top.shape() == Shape4{1, 10, 5, 10});
 
     // Try to copy to CPU
     const auto cpu_array_top = gpu_array_top.to({.device="cpu"});
-    REQUIRE(noa::all(cpu_array_top.shape() == Shape4<i64>{1, 10, 5, 10}));
+    REQUIRE(cpu_array_top.shape() == Shape4{1, 10, 5, 10});
 
     // Check the copy was successful.
     const auto cpu_array_full = noa::arange(shape, noa::Arange<i32>{});

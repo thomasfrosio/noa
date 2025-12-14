@@ -15,7 +15,7 @@ namespace noa::inline types {
     /// Unified device/workers. Can either point to a CPU or a GPU.
     class Device {
     public:
-        struct Memory { size_t total; size_t free; };
+        struct Memory { usize total; usize free; };
         // struct Unchecked {};
         enum class Type { CPU, GPU };
         using enum Type;
@@ -90,7 +90,7 @@ namespace noa::inline types {
         /// Sets the amount of reserved memory in bytes by the device memory pool to hold onto before trying to
         /// release memory back to the OS. Defaults to 0 bytes (i.e. stream synchronization frees the cached memory).
         /// \note This has no effect on the CPU.
-        void set_cache_threshold(size_t threshold_bytes) const {
+        void set_cache_threshold(usize threshold_bytes) const {
             if (is_gpu()) {
                 #ifdef NOA_ENABLE_CUDA
                 const auto device = noa::cuda::Device(id(), Unchecked{});
@@ -105,7 +105,7 @@ namespace noa::inline types {
         /// reserved bytes, or there is no more memory that the allocator can safely release. The allocator cannot
         /// release OS allocations that back outstanding asynchronous allocations.
         /// \note This has no effect on the CPU.
-        void trim_cache(size_t bytes_to_keep) const {
+        void trim_cache(usize bytes_to_keep) const {
             if (is_gpu()) {
                 #ifdef NOA_ENABLE_CUDA
                 const auto device = noa::cuda::Device(id(), Unchecked{});
@@ -200,7 +200,7 @@ namespace noa::inline types {
                 #ifdef NOA_ENABLE_CUDA
                 std::vector<Device> devices;
                 const i32 count = noa::cuda::Device::count();
-                devices.reserve(static_cast<size_t>(count));
+                devices.reserve(static_cast<usize>(count));
                 for (auto id: irange(count))
                     devices.emplace_back(GPU, id, Unchecked{});
                 return devices;
@@ -228,22 +228,22 @@ namespace noa::inline types {
 
     private:
         static auto parse_name_and_validate_(std::string_view name) -> i32 {
-            std::string string = noa::string::to_lower(noa::string::trim(name));
-            const size_t length = string.length();
+            std::string string = nd::to_lower(nd::trim(name));
+            const usize length = string.length();
 
             i32 id{};
-            if (noa::string::starts_with(string, "cpu")) {
+            if (nd::starts_with(string, "cpu")) {
                 check(length == 3, "CPU device name \"{}\" is not supported", string);
                 id = -1;
 
-            } else if (noa::string::starts_with(string, "gpu") or noa::string::starts_with(string, "cuda")) {
-                const size_t offset = string[0] == 'c' ? 1 : 0;
+            } else if (nd::starts_with(string, "gpu") or nd::starts_with(string, "cuda")) {
+                const usize offset = string[0] == 'c' ? 1 : 0;
                 if (length == 3 + offset) {
                     id = 0;
                     check(is_any_gpu(), "GPU device ID 0 is not valid");
                 } else if (length >= 5 + offset and string[3 + offset] == ':') {
-                    std::string_view specifier = noa::string::offset_by(string, 4 + offset);
-                    std::optional<u32> result = noa::string::parse<u32>(specifier);
+                    std::string_view specifier = nd::offset_by(string, 4 + offset);
+                    std::optional<u32> result = nd::parse<u32>(specifier);
                     if (result.has_value()) {
                         id = static_cast<i32>(*result);
                         check(id < count_gpus(), "GPU device ID {} is not valid", id);

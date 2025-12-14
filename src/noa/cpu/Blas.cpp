@@ -27,11 +27,11 @@
 namespace noa::cpu {
     template<typename T>
     void matmul(
-        const T* lhs, const Strides4<i64>& lhs_strides, const Shape4<i64>& lhs_shape,
-        const T* rhs, const Strides4<i64>& rhs_strides, const Shape4<i64>& rhs_shape,
+        const T* lhs, const Strides4& lhs_strides, const Shape4& lhs_shape,
+        const T* rhs, const Strides4& rhs_strides, const Shape4& rhs_shape,
         T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
-        T* output, const Strides4<i64>& output_strides, const Shape4<i64>& output_shape,
-        i64 n_threads
+        T* output, const Strides4& output_strides, const Shape4& output_shape,
+        isize n_threads
     ) {
         auto [mnk, labc, are_column_major] = ni::extract_matmul_layout(
             lhs_strides, lhs_shape, rhs_strides, rhs_shape, output_strides, output_shape,
@@ -72,7 +72,7 @@ namespace noa::cpu {
 
         Eigen::setNbThreads(static_cast<int>(n_threads));
 
-        for (i64 batch = 0; batch < output_shape[0]; ++batch) {
+        for (isize batch = 0; batch < output_shape[0]; ++batch) {
             imap_t lhs_matrix(lhs_ + sabc[0] * batch, mnk[0], mnk[2], strides_t(labc[0], 1));
             imap_t rhs_matrix(rhs_ + sabc[1] * batch, mnk[2], mnk[1], strides_t(labc[1], 1));
             omap_t out_matrix(out_ + sabc[2] * batch, mnk[0], mnk[1], strides_t(labc[2], 1));
@@ -101,13 +101,13 @@ namespace noa::cpu {
         }
     }
 
-    #define INSTANTIATE_GEMM_(T)                            \
-    template void matmul<T>(                                \
-        const T*, const Strides4<i64>&, const Shape4<i64>&, \
-        const T*, const Strides4<i64>&, const Shape4<i64>&, \
-        T, T, bool, bool,                                   \
-        T*, const Strides4<i64>&, const Shape4<i64>&,       \
-        i64)
+    #define INSTANTIATE_GEMM_(T)                                \
+    template void matmul<T>(                                    \
+        const T*, const Strides4&, const Shape4&, \
+        const T*, const Strides4&, const Shape4&, \
+        T, T, bool, bool,                                       \
+        T*, const Strides4&, const Shape4&,       \
+        isize)
 
     INSTANTIATE_GEMM_(f32);
     INSTANTIATE_GEMM_(f64);

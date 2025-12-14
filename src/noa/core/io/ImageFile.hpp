@@ -29,7 +29,7 @@ namespace noa::io {
 
     struct ImageFileHeader {
         /// BDHW shape of the (new) file.
-        Shape<i64, 4> shape{};
+        Shape4 shape{};
 
         /// DHW spacing (in Angstrom/pix) of the (new) file.
         Vec<f64, 3> spacing{};
@@ -63,12 +63,12 @@ namespace noa::traits {
         std::FILE* file,
         const Span<U, 4>& span,
         const Span<const U, 4>& span_const,
-        const Shape<i64, 4>& shape,
+        const Shape4& shape,
         const Vec<f64, 3>& spacing,
         io::DataType dtype,
         io::Compression compression,
         io::ImageFileStats stats,
-        Vec<i64, 2>& offset,
+        Vec<isize, 2>& offset,
         bool clamp,
         i32 n_threads,
         std::string_view extension
@@ -91,7 +91,7 @@ namespace noa::traits {
         /// should be resized to. When write_header is called, the provided file stream will have that exact size.
         /// Some encoders may return -1, indicating that they will resize the stream on-the-fly when opening the file
         /// (i.e. during write_header) or when writing to the file.
-        { T::required_file_size(shape, dtype) } noexcept -> std::same_as<i64>;
+        { T::required_file_size(shape, dtype) } noexcept -> std::same_as<isize>;
 
         /// Returns the closest supported data-type.
         /// This may allow users to better prepare for encoding files before even creating a new file.
@@ -99,7 +99,7 @@ namespace noa::traits {
 
         /// Reads and extracts the image file header from the opened stream.
         { t.read_header(file) } -> std::same_as<
-            Tuple<Shape<i64, 4>, Vec<f64, 3>, io::DataType, io::Compression, io::ImageFileStats>>;
+            Tuple<Shape4, Vec<f64, 3>, io::DataType, io::Compression, io::ImageFileStats>>;
 
         /// Sets the metadata of the new file.
         /// The file doesn't have to be created at this point, this is just to initialize the encoder with user data.
@@ -131,14 +131,14 @@ namespace noa::io {
     class BasicImageFile {
     public:
         using encoders_type = Tuple<Encoders...>;
-        static constexpr size_t N_ENCODERS = sizeof...(Encoders);
+        static constexpr usize N_ENCODERS = sizeof...(Encoders);
 
         using Stats = ImageFileStats;
         using Header = ImageFileHeader;
 
     public: // static functions
         [[nodiscard]] static constexpr auto is_supported_extension(std::string_view extension) noexcept -> bool {
-            return [&extension]<size_t... Is>(std::index_sequence<Is...>) {
+            return [&extension]<usize... Is>(std::index_sequence<Is...>) {
                 return ((is_supported_extension_<Is>(extension)) or ...);
             }(std::make_index_sequence<N_ENCODERS>{});
         }
@@ -147,7 +147,7 @@ namespace noa::io {
             std::string_view extension,
             DataType dtype
         ) noexcept -> DataType {
-            [&extension, &dtype]<size_t... Is>(std::index_sequence<Is...>) {
+            [&extension, &dtype]<usize... Is>(std::index_sequence<Is...>) {
                 return (set_closest_dtype_<Is>(extension, dtype) or ...);
             }(std::make_index_sequence<N_ENCODERS>{});
             return dtype;
@@ -200,14 +200,14 @@ namespace noa::io {
             if (mode.truncate or (mode.write and not mode.read)) {
                 // If we create a new file, use the extension to decide which encoder to select.
                 auto extension = path.extension().string();
-                const bool has_been_initialized = [&extension, this]<size_t... Is>(std::index_sequence<Is...>) {
+                const bool has_been_initialized = [&extension, this]<usize... Is>(std::index_sequence<Is...>) {
                     return (this->initialize_encoder_with_extension_<Is>(extension) or ...);
                 }(std::make_index_sequence<N_ENCODERS>{});
                 check(has_been_initialized, "Extension \"{}\" is not supported by any encoder", extension);
 
                 // Ask the encoder if we should resize the file. If this returns -1, the file will not be resized,
                 // and we expect the encoder to resize it later during the write_(slice|all) operations.
-                const i64 new_size = std::visit([&](auto&& f) {
+                const isize new_size = std::visit([&](auto&& f) {
                     return f.required_file_size(new_header.shape, new_header.dtype);
                 }, m_encoders);
 
@@ -217,7 +217,7 @@ namespace noa::io {
                 // Set the header.
                 check(not new_header.shape.is_empty(),
                       "The data shape should be non-zero positive, but got new_header.shape={}", new_header.shape);
-                check(all(new_header.spacing >= 0),
+                check(new_header.spacing >= 0,
                       "The data spacing should be positive, but got new_header.spacing={}", new_header.spacing);
                 m_header = new_header;
                 std::visit([this](auto& f) {
@@ -233,7 +233,7 @@ namespace noa::io {
             } else {
                 // In read-only mode, ask if any encoder recognizes the file.
                 m_file.open(path, mode);
-                const bool has_been_initialized = [this]<size_t... Is>(std::index_sequence<Is...>) {
+                const bool has_been_initialized = [this]<usize... Is>(std::index_sequence<Is...>) {
                     return (initialize_encoder_with_stream_<Is>(m_file.stream()) or ...);
                 }(std::make_index_sequence<N_ENCODERS>{});
                 check(has_been_initialized, "{} is not supported by any encoder", path);
@@ -260,7 +260,7 @@ namespace noa::io {
         [[nodiscard]] auto path() const noexcept -> const Path& { return m_file.path(); }
 
         [[nodiscard]] auto header() const noexcept -> const Header& { return m_header; }
-        [[nodiscard]] auto shape() const noexcept -> const Shape<i64, 4>& { return m_header.shape; }
+        [[nodiscard]] auto shape() const noexcept -> const Shape4& { return m_header.shape; }
         [[nodiscard]] auto spacing() const noexcept -> const Vec<f64, 3>& { return m_header.spacing; }
         [[nodiscard]] auto dtype() const noexcept -> const DataType& { return m_header.dtype; }
         [[nodiscard]] auto compression() const noexcept -> const Compression& { return m_header.compression; }
@@ -280,7 +280,7 @@ namespace noa::io {
         struct Parameters {
             /// Batch and depth offset of the slice(s) within the file.
             /// When reading/writing the whole file, this should be left to zero.
-            Vec<i64, 2> bd_offset{};
+            Vec<isize, 2> bd_offset{};
 
             /// Whether the values should be clamped to the destination type.
             bool clamp{};
@@ -292,10 +292,10 @@ namespace noa::io {
 
         /// Reads one or multiple consecutive 2d slices from a file describing a stack of 2d images or 3d volumes.
         template<nt::image_encorder_supported_value_type T, StridesTraits S>
-        void read_slice(const Span<T, 4, i64, S>& output, Parameters parameters) {
+        void read_slice(const Span<T, 4, isize, S>& output, Parameters parameters) {
             check(is_open(), "The file should be open");
 
-            check(noa::all(parameters.bd_offset >= 0),
+            check(parameters.bd_offset >= 0,
                   "Batch-depth offset should be positive, but got bd_offset={}",
                   parameters.bd_offset);
 
@@ -317,12 +317,12 @@ namespace noa::io {
 
         /// Reads the whole data from the file.
         template<nt::image_encorder_supported_value_type T, StridesTraits S>
-        void read_all(const Span<T, 4, i64, S>& output, Parameters parameters = {}) {
+        void read_all(const Span<T, 4, isize, S>& output, Parameters parameters = {}) {
             check(is_open(), "The file should be open");
-            check(noa::all(parameters.bd_offset == 0),
+            check(parameters.bd_offset == 0,
                   "Offsets should be 0, but got bd_offset={}",
                   parameters.bd_offset);
-            check(all(output.shape() == shape()),
+            check(output.shape() == shape(),
                   "File: {}. Shapes do not match, got output:shape={} and file:shape={}",
                   path(), output.shape(), shape());
 
@@ -338,10 +338,10 @@ namespace noa::io {
         /// \note TIFF files can only write slices sequentially, so an error will be thrown if inputs are written
         ///       in a different order.
         template<nt::image_encorder_supported_value_type T, StridesTraits S>
-        void write_slice(const Span<const T, 4, i64, S>& input, Parameters parameters) {
+        void write_slice(const Span<const T, 4, isize, S>& input, Parameters parameters) {
             check(is_open(), "The file should be open");
 
-            check(noa::all(parameters.bd_offset >= 0),
+            check(parameters.bd_offset >= 0,
                   "Batch-depth offset should be positive, but got bd_offset={}",
                   parameters.bd_offset);
 
@@ -363,12 +363,12 @@ namespace noa::io {
         /// Writes the data into the file.
         /// \note Multithreading is disabled for TIFF files. Parameters::n_threads is ignored.
         template<nt::image_encorder_supported_value_type T, StridesTraits S>
-        void write_all(const Span<const T, 4, i64, S>& input, Parameters parameters = {}) {
+        void write_all(const Span<const T, 4, isize, S>& input, Parameters parameters = {}) {
             check(is_open(), "The file should be open");
-            check(noa::all(parameters.bd_offset == 0),
+            check(parameters.bd_offset == 0,
                   "Offsets should be 0, but got bd_offset={}",
                   parameters.bd_offset);
-            check(all(input.shape() == shape()),
+            check(input.shape() == shape(),
                   "File: {}. Shapes do not match, got input:shape={} and file:shape={}",
                   path(), input.shape(), shape());
 
@@ -379,13 +379,13 @@ namespace noa::io {
         }
 
     private:
-        template<size_t I>
+        template<usize I>
         [[nodiscard]] static auto is_supported_extension_(std::string_view extension) noexcept -> bool {
             using encoder_t = std::tuple_element_t<I, encoders_type>;
             return encoder_t::is_supported_extension(extension);
         }
 
-        template<size_t I>
+        template<usize I>
         [[nodiscard]] auto initialize_encoder_with_extension_(std::string_view extension) -> bool {
             if (is_supported_extension_<I>(extension)) {
                 m_encoders.template emplace<I>();
@@ -394,13 +394,13 @@ namespace noa::io {
             return false;
         }
 
-        template<size_t I>
+        template<usize I>
         [[nodiscard]] static auto is_supported_stream_(std::FILE* stream) noexcept -> bool {
             using encoder_t = std::tuple_element_t<I, encoders_type>;
             return encoder_t::is_supported_stream(stream);
         }
 
-        template<size_t I>
+        template<usize I>
         [[nodiscard]] auto initialize_encoder_with_stream_(std::FILE* stream) -> bool {
             if (is_supported_stream_<I>(stream)) {
                 m_encoders.template emplace<I>();
@@ -409,7 +409,7 @@ namespace noa::io {
             return false;
         }
 
-        template<size_t I>
+        template<usize I>
         [[nodiscard]] static auto set_closest_dtype_(std::string_view extension, DataType& dtype) -> bool {
             using encoder_t = std::tuple_element_t<I, encoders_type>;
             if (encoder_t::is_supported_extension(extension)) {
@@ -472,7 +472,7 @@ namespace noa::io {
             return stamp[2] == 0 and stamp[3] == 0;
         }
 
-        static auto required_file_size(const Shape<i64, 4>& shape, DataType dtype) noexcept -> i64 {
+        static auto required_file_size(const Shape4& shape, DataType dtype) noexcept -> isize {
             // The MRC encoder doesn't resize the stream, so let the BinaryFile do the resizing when opening the stream.
             return HEADER_SIZE + dtype.n_bytes(shape.n_elements());
         }
@@ -506,11 +506,11 @@ namespace noa::io {
     public:
         auto read_header(
             std::FILE* file
-        ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, DataType, Compression, ImageFileStats>;
+        ) -> Tuple<Shape4, Vec<f64, 3>, DataType, Compression, ImageFileStats>;
 
         auto write_header(
             std::FILE* file,
-            const Shape<i64, 4>& shape,
+            const Shape4& shape,
             const Vec<f64, 3>& spacing,
             const DataType& dtype,
             const Compression& compression,
@@ -525,11 +525,11 @@ namespace noa::io {
         void decode(
             std::FILE* file,
             const Span<T, 4>& output,
-            const Vec<i64, 2>& bd_offset,
+            const Vec<isize, 2>& bd_offset,
             bool clamp,
             i32 n_threads
         ) {
-            const i64 byte_offset =
+            const isize byte_offset =
                 HEADER_SIZE + m_extended_bytes_nb +
                 m_dtype.n_bytes(ni::offset_at(m_shape.strides(), bd_offset));
 
@@ -547,11 +547,11 @@ namespace noa::io {
         void encode(
             std::FILE* file,
             const Span<const T, 4>& input,
-            const Vec<i64, 2>& bd_offset,
+            const Vec<isize, 2>& bd_offset,
             bool clamp,
             i32 n_threads
         ) {
-            const i64 byte_offset =
+            const isize byte_offset =
                 HEADER_SIZE + m_extended_bytes_nb +
                 m_dtype.n_bytes(ni::offset_at(m_shape.strides(), bd_offset));
 
@@ -566,8 +566,8 @@ namespace noa::io {
         }
 
     private:
-        static constexpr i64 HEADER_SIZE = 1024;
-        Shape<i64, 4> m_shape{}; // BDHW order
+        static constexpr isize HEADER_SIZE = 1024;
+        Shape4 m_shape{}; // BDHW order
         Vec<f32, 3> m_spacing{}; // DHW order
         DataType m_dtype{};
         i32 m_extended_bytes_nb{};
@@ -613,7 +613,7 @@ namespace noa::io {
                    (stamp[1] == 0x002a or stamp[1] == 0x2a00);
         }
 
-        static auto required_file_size(const Shape<i64, 4>&, DataType) noexcept -> i64 {
+        static auto required_file_size(const Shape4&, DataType) noexcept -> isize {
             return -1; // the TIFF encoder will handle the stream resizing during writing operations
         }
 
@@ -624,11 +624,11 @@ namespace noa::io {
     public:
         auto read_header(
             std::FILE* file
-        ) -> Tuple<Shape<i64, 4>, Vec<f64, 3>, DataType, Compression, ImageFileStats>;
+        ) -> Tuple<Shape4, Vec<f64, 3>, DataType, Compression, ImageFileStats>;
 
         auto write_header(
             std::FILE* file,
-            const Shape<i64, 4>& shape,
+            const Shape4& shape,
             const Vec<f64, 3>& spacing,
             const DataType& dtype,
             const Compression& compression,
@@ -641,7 +641,7 @@ namespace noa::io {
         void decode(
             std::FILE* file,
             const Span<T, 4>& output,
-            const Vec<i64, 2>& bd_offset,
+            const Vec<isize, 2>& bd_offset,
             bool clamp,
             i32 n_threads
         );
@@ -650,7 +650,7 @@ namespace noa::io {
         void encode(
             std::FILE* file,
             const Span<const T, 4>& input,
-            const Vec<i64, 2>& bd_offset,
+            const Vec<isize, 2>& bd_offset,
             bool clamp,
             i32 n_threads
         );
@@ -691,7 +691,7 @@ namespace noa::io {
         using handle_type = Pair<Handle, void*>;
 
     private:
-        Shape<i64, 3> m_shape{}; // BHW order
+        Shape<isize, 3> m_shape{}; // BHW order
         Vec<f32, 2> m_spacing{}; // HW order
         DataType m_dtype{};
         Compression m_compression{};

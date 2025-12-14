@@ -8,12 +8,14 @@
 #include "noa/gpu/cuda/Texture.cuh"
 #endif
 
+#include "noa/unified/Traits.hpp"
+
 namespace noa::details {
     /// Returns the input type for the Interpolator.
     /// - Supports View, Array and Texture.
     ///   For GPU textures, use EXTRACT_GPU_TEXTURE to extract the GPU texture; otherwise array is used.
     /// - Automatically broadcasts the batch dimension if the input batch is 1.
-    template<size_t N, typename Index, typename Coord, Interp INTERP, Border BORDER, bool EXTRACT_GPU_TEXTURE, nt::varray_or_texture T>
+    template<usize N, typename Index, typename Coord, Interp INTERP, Border BORDER, bool EXTRACT_GPU_TEXTURE, nt::varray_or_texture T>
     constexpr auto to_interpolator_input(const T& input) {
         if constexpr (nt::texture<T> and EXTRACT_GPU_TEXTURE) {
             #ifdef NOA_ENABLE_CUDA
@@ -44,7 +46,7 @@ namespace noa::details {
     }
 
     /// Creates an Interpolator.
-    template<size_t N, Interp INTERP, Border BORDER, typename Index, typename Coord, bool EXTRACT_GPU_TEXTURE, nt::varray_or_texture T>
+    template<usize N, Interp INTERP, Border BORDER, typename Index, typename Coord, bool EXTRACT_GPU_TEXTURE, nt::varray_or_texture T>
     constexpr auto to_interpolator(const T& input, nt::mutable_value_type_t<T> cvalue = {}) {
         constexpr Interp INTERP_ = to_interpolator_interp<INTERP, BORDER, EXTRACT_GPU_TEXTURE, T>();
         auto interp_input = to_interpolator_input<N, Index, Coord, INTERP_, BORDER, EXTRACT_GPU_TEXTURE>(input);
@@ -53,7 +55,7 @@ namespace noa::details {
     }
 
     /// Creates an InterpolatorSpectrum.
-    template<size_t N, nf::Layout REMAP, Interp INTERP, typename Coord, bool EXTRACT_GPU_TEXTURE, nt::varray_or_texture T, typename Index>
+    template<usize N, nf::Layout REMAP, Interp INTERP, typename Coord, bool EXTRACT_GPU_TEXTURE, nt::varray_or_texture T, typename Index>
     constexpr auto to_interpolator_spectrum(const T& input, const Shape<Index, 4>& logical_shape) {
         constexpr Interp INTERP_ = to_interpolator_interp<INTERP, Border::ZERO, EXTRACT_GPU_TEXTURE, T>();
         auto interp_input = to_interpolator_input<N, Index, Coord, INTERP_, Border::ZERO, EXTRACT_GPU_TEXTURE>(input);

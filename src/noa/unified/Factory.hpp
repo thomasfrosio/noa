@@ -14,7 +14,7 @@ namespace noa {
         #ifdef NOA_ENABLE_CUDA
         using value_t = nt::mutable_value_type_t<Output>;
         if constexpr (nt::numeric<value_t> or nt::vec<value_t> or nt::mat<value_t>) { // TODO zero-initialize-able
-            if (output.device().is_gpu() and output.are_contiguous() and all(value_t{} == value)) {
+            if (output.device().is_gpu() and output.are_contiguous() and value_t{} == value) {
                 auto& cuda_stream = Stream::current(output.device()).gpu();
                 noa::cuda::fill_with_zeroes(output.get(), output.ssize(), cuda_stream);
                 return;
@@ -30,10 +30,10 @@ namespace noa {
     /// \param value    The value to assign.
     /// \param option   Options of the created array.
     template<typename T>
-    [[nodiscard]] auto fill(const Shape4<i64>& shape, T value, ArrayOption option = {}) -> Array<T> {
+    [[nodiscard]] auto fill(const Shape4& shape, T value, ArrayOption option = {}) -> Array<T> {
         // Trivial types can be zeroed with calloc. Complex isn't trivial due to the zero-init
         if constexpr (nt::numeric<T> or nt::vec<T> or nt::mat<T>) { // TODO zero-initialize-able
-            if (all(value == T{}) and option.device.is_cpu() and
+            if (value == T{} and option.device.is_cpu() and
                 (not Device::is_any_gpu() or
                  option.allocator.is_any(Allocator::DEFAULT, Allocator::ASYNC, Allocator::PITCHED))) {
                 return Array<T>(noa::cpu::AllocatorHeap::calloc<T>(shape.n_elements()),
@@ -47,8 +47,8 @@ namespace noa {
 
     /// Returns an array filled with a given value.
     template<typename T>
-    [[nodiscard]] auto fill(i64 elements, T value, ArrayOption option = {}) -> Array<T> {
-        return fill(Shape4<i64>{1, 1, 1, elements}, value, option);
+    [[nodiscard]] auto fill(isize elements, T value, ArrayOption option = {}) -> Array<T> {
+        return fill(Shape4{1, 1, 1, elements}, value, option);
     }
 
     /// Returns an array filled with zeros.
@@ -56,13 +56,13 @@ namespace noa {
     /// \param shape    Shape of the array.
     /// \param option   Options of the created array.
     template<typename T>
-    [[nodiscard]] auto zeros(const Shape4<i64>& shape, ArrayOption option = {}) -> Array<T> {
+    [[nodiscard]] auto zeros(const Shape4& shape, ArrayOption option = {}) -> Array<T> {
         return fill(shape, T{}, option);
     }
 
     /// Returns an array filled with zeros.
     template<typename T>
-    [[nodiscard]] auto zeros(i64 elements, ArrayOption option = {}) -> Array<T> {
+    [[nodiscard]] auto zeros(isize elements, ArrayOption option = {}) -> Array<T> {
         return fill(elements, T{}, option);
     }
 
@@ -71,13 +71,13 @@ namespace noa {
     /// \param shape    Shape of the array.
     /// \param option   Options of the created array.
     template<typename T>
-    [[nodiscard]] auto ones(const Shape4<i64>& shape, ArrayOption option = {}) -> Array<T> {
+    [[nodiscard]] auto ones(const Shape4& shape, ArrayOption option = {}) -> Array<T> {
         return fill(shape, T{1}, option);
     }
 
     /// Returns an array filled with ones.
     template<typename T>
-    [[nodiscard]] auto ones(i64 elements, ArrayOption option = {}) -> Array<T> {
+    [[nodiscard]] auto ones(isize elements, ArrayOption option = {}) -> Array<T> {
         return fill(elements, T{1}, option);
     }
 
@@ -86,13 +86,13 @@ namespace noa {
     /// \param shape    Shape of the array.
     /// \param option   Options of the created array.
     template<typename T>
-    [[nodiscard]] auto empty(const Shape4<i64>& shape, ArrayOption option = {}) -> Array<T> {
+    [[nodiscard]] auto empty(const Shape4& shape, ArrayOption option = {}) -> Array<T> {
         return Array<T>(shape, option);
     }
 
     /// Returns an uninitialized array.
     template<typename T>
-    [[nodiscard]] auto empty(i64 elements, ArrayOption option = {}) -> Array<T> {
+    [[nodiscard]] auto empty(isize elements, ArrayOption option = {}) -> Array<T> {
         return Array<T>(elements, option);
     }
 
@@ -115,13 +115,13 @@ namespace noa {
         check(not output.is_empty(), "Empty array detected");
         if (output.are_contiguous()) {
             auto accessor = nd::to_accessor_contiguous_1d(output);
-            using op_t = nd::IwiseRange<1, decltype(accessor), i64, Arange<T>>;
+            using op_t = nd::IwiseRange<1, decltype(accessor), isize, Arange<T>>;
             iwise(Shape{output.n_elements()}, output.device(),
-                  op_t(accessor, Shape<i64, 1>{}, params),
+                  op_t(accessor, Shape<isize, 1>{}, params),
                   std::forward<Output>(output));
         } else {
             auto accessor = nd::to_accessor(output);
-            using op_t = nd::IwiseRange<4, decltype(accessor), i64, Arange<T>>;
+            using op_t = nd::IwiseRange<4, decltype(accessor), isize, Arange<T>>;
             iwise(output.shape(), output.device(),
                   op_t(accessor, output.shape(), params),
                   std::forward<Output>(output));
@@ -135,7 +135,7 @@ namespace noa {
     /// \param option   Options of the created array.
     template<typename T = void, typename U = T>
     [[nodiscard]] auto arange(
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Arange<U> params = Arange<U>{},
         ArrayOption option = {}
     ) {
@@ -152,7 +152,7 @@ namespace noa {
     /// \param option       Options of the created array.
     template<typename T = void, typename U = T>
     [[nodiscard]] auto arange(
-        i64 n_elements,
+        isize n_elements,
         Arange<U> params = Arange<U>{},
         ArrayOption option = {}
     ) {
@@ -177,13 +177,13 @@ namespace noa {
 
         if (output.are_contiguous()) {
             auto accessor = nd::to_accessor_contiguous_1d(output);
-            using op_t = nd::IwiseRange<1, decltype(accessor), i64, decltype(linspace)>;
+            using op_t = nd::IwiseRange<1, decltype(accessor), isize, decltype(linspace)>;
             iwise(Shape{n_elements}, output.device(),
-                  op_t(accessor, Shape<i64, 1>{}, linspace),
+                  op_t(accessor, Shape<isize, 1>{}, linspace),
                   std::forward<Output>(output));
         } else {
             auto accessor = nd::to_accessor(output);
-            using op_t = nd::IwiseRange<4, decltype(accessor), i64, decltype(linspace)>;
+            using op_t = nd::IwiseRange<4, decltype(accessor), isize, decltype(linspace)>;
             iwise(output.shape(), output.device(),
                   op_t(accessor, output.shape(), linspace),
                   std::forward<Output>(output));
@@ -198,7 +198,7 @@ namespace noa {
     /// \param option   Options of the created array.
     template<typename T = void, typename U = T>
     [[nodiscard]] auto linspace(
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Linspace<U> params,
         ArrayOption option = {}
     ) {
@@ -215,7 +215,7 @@ namespace noa {
     /// \param option       Options of the created array.
     template<typename T = void, typename U = T>
     [[nodiscard]] auto linspace(
-        i64 n_elements,
+        isize n_elements,
         Linspace<U> params,
         ArrayOption option = {}
     ) {
@@ -259,7 +259,7 @@ namespace noa {
     ///                 this is equivalent to `arange` with a start of 0 and step of 1.
     /// \param option   Options of the created array.
     template<typename T, nt::integer U>
-    [[nodiscard]] auto iota(const Shape4<i64>& shape, const Vec<U, 4>& tile, ArrayOption option = {}) -> Array<T> {
+    [[nodiscard]] auto iota(const Shape4& shape, const Vec<U, 4>& tile, ArrayOption option = {}) -> Array<T> {
         auto out = Array<T>(shape, option);
         iota(out, tile);
         return out;
@@ -272,7 +272,7 @@ namespace noa {
     ///                     this is equivalent to `arange` with a start of 0 and step of 1.
     /// \param option       Options of the created array.
     template<typename T, nt::integer U>
-    [[nodiscard]] auto iota(i64 n_elements, U tile, ArrayOption option = {}) -> Array<T> {
+    [[nodiscard]] auto iota(isize n_elements, U tile, ArrayOption option = {}) -> Array<T> {
         auto out = Array<T>(n_elements, option);
         iota(out, Vec<U, 4>{1, 1, 1, tile});
         return out;

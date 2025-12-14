@@ -13,29 +13,29 @@
 #include "noa/unified/Session.hpp"
 #include "noa/core/utils/Strings.hpp"
 
-noa::i64 noa::Session::m_thread_limit = 0;
+noa::i32 noa::Session::m_thread_limit = 0;
 
 namespace noa::inline types {
-    void Session::set_thread_limit(i64 n_threads) {
+    void Session::set_thread_limit(i32 n_threads) {
         if (n_threads > 0) {
             m_thread_limit = n_threads;
         } else {
-            i64 max_threads;
+            i32 max_threads;
             const char* str = std::getenv("NOA_THREADS");
             if (str) {
-                max_threads = noa::string::parse<i64>(str).value_or(1);
+                max_threads = nd::parse<i32>(str).value_or(1);
             } else {
                 #ifdef NOA_ENABLE_OPENMP
                 str = std::getenv("OMP_NUM_THREADS");
                 if (str)
-                    max_threads = noa::string::parse<i64>(str).value_or(1);
+                    max_threads = nd::parse<i32>(str).value_or(1);
                 else
-                    max_threads = static_cast<i64>(omp_get_max_threads());
+                    max_threads = static_cast<i32>(omp_get_max_threads());
                 #else
                 max_threads = std::thread::hardware_concurrency();
                 #endif
             }
-            m_thread_limit = std::max(max_threads, i64{1});
+            m_thread_limit = std::max(max_threads, i32{1});
         }
     }
 
@@ -55,7 +55,7 @@ namespace noa::inline types {
         #endif
     }
 
-    auto Session::clear_fft_cache(Device device) -> i64 {
+    auto Session::clear_fft_cache(Device device) -> i32 {
         if (device.is_cpu())
             return noa::cpu::fft::clear_cache();
         #ifdef NOA_ENABLE_CUDA
@@ -66,7 +66,7 @@ namespace noa::inline types {
         #endif
     }
 
-    auto Session::set_fft_cache_limit(i64 count, Device device) -> i64 {
+    auto Session::set_fft_cache_limit(i32 count, Device device) -> i32 {
         #ifdef NOA_ENABLE_CUDA
         if (device.is_gpu()) {
             auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
@@ -79,7 +79,7 @@ namespace noa::inline types {
         return -1;
     }
 
-    auto Session::fft_cache_limit(Device device) -> i64 {
+    auto Session::fft_cache_limit(Device device) -> i32 {
         #ifdef NOA_ENABLE_CUDA
         if (device.is_gpu()) {
             auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
@@ -91,7 +91,7 @@ namespace noa::inline types {
         return -1;
     }
 
-    auto Session::fft_cache_size(Device device) -> i64 {
+    auto Session::fft_cache_size(Device device) -> isize {
         if (device.is_cpu())
             return noa::cpu::fft::cache_size();
         #ifdef NOA_ENABLE_CUDA
@@ -102,7 +102,7 @@ namespace noa::inline types {
         #endif
     }
 
-    auto Session::fft_workspace_left_to_allocate(Device device) -> i64 {
+    auto Session::fft_workspace_left_to_allocate(Device device) -> isize {
         #ifdef NOA_ENABLE_CUDA
         if (device.is_gpu()) {
             auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
@@ -114,7 +114,7 @@ namespace noa::inline types {
         return 0;
     }
 
-    auto Session::fft_set_workspace(Device device, const std::shared_ptr<std::byte[]>& buffer, i64 buffer_bytes) -> i64 {
+    auto Session::fft_set_workspace(Device device, const std::shared_ptr<std::byte[]>& buffer, isize buffer_bytes) -> i32 {
         #ifdef NOA_ENABLE_CUDA
         if (device.is_gpu()) {
             auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});

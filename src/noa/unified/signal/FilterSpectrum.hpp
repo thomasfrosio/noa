@@ -16,13 +16,13 @@ namespace noa::signal::details {
     using filter_spectrum_default_coord_t =
         std::conditional_t<nt::has_value_type_v<Filter>, nt::value_type_t<Filter>, InputCoord>;
 
-    template<typename Filter, size_t N, typename Input,
+    template<typename Filter, usize N, typename Input,
              typename Coord = filter_spectrum_default_coord_t<Input, Filter>>
     concept filterable_nd =
         (not nt::has_value_type_v<Filter> or nt::any_of<nt::value_type_t<Filter>, f32, f64>) and
-        nt::real_or_complex<std::invoke_result_t<std::decay_t<Filter>&, const Vec<Coord, N>&, i64>>; // nvcc bug - use requires
+        nt::real_or_complex<std::invoke_result_t<std::decay_t<Filter>&, const Vec<Coord, N>&, isize>>; // nvcc bug - use requires
 
-    template<size_t N, nf::Layout REMAP,
+    template<usize N, nf::Layout REMAP,
              nt::integer Index,
              nt::real Coord,
              nt::readable_nd_optional<N + 1> Input,
@@ -72,7 +72,7 @@ namespace noa::signal::details {
         {
             // If frequency.end is negative, defaults to the highest frequency.
             // In this case, and if the frequency.start is 0, this results in the full frequency range.
-            for (size_t i{}; i < N; ++i) {
+            for (usize i{}; i < N; ++i) {
                 const auto max_sample_size = shape[i] / 2 + 1;
                 const auto frequency_end =
                     fftfreq_range.stop <= 0 ?
@@ -117,11 +117,11 @@ namespace noa::signal::details {
         filter_type m_filter;
     };
 
-    template<size_t N, nf::Layout REMAP, typename Input, typename Output>
+    template<usize N, nf::Layout REMAP, typename Input, typename Output>
     void check_filter_spectrum_parameters(
         const Input& input,
         const Output& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         noa::Linspace<f64>& fftfreq_range
     ) {
         check(not output.is_empty(), "Empty array detected");
@@ -132,7 +132,7 @@ namespace noa::signal::details {
             check(shape[1] == 1, "2d spectra are expected, but got shape={}", shape);
 
         const auto expected_output_shape = REMAP.is_xx2hx() ? shape.rfft() : shape;
-        check(vall(Equal{}, output.shape(), expected_output_shape),
+        check(output.shape() == expected_output_shape,
               "Given the logical shape {} and {} remap, the expected output shape should be {}, but got {}",
               shape, REMAP, expected_output_shape, output.shape());
 
@@ -142,7 +142,7 @@ namespace noa::signal::details {
                   input.device(), output.device());
 
             const auto expected_input_shape = REMAP.is_hx2xx() ? shape.rfft() : shape;
-            check(vall(Equal{}, input.shape(), expected_input_shape),
+            check(input.shape() == expected_input_shape,
                   "Given the logical shape {} and {} remap, the expected input shape should be {}, but got {}",
                   shape, REMAP, expected_input_shape, input.shape());
 
@@ -171,14 +171,14 @@ namespace noa::signal {
     /// \param[out] output  Filtered spectrum. Can be equal to the input (in-place filtering) if there's no remapping.
     ///                     If real and the filtered input is complex, the power spectrum of the filter input is saved.
     /// \param[in] shape    BDHW logical shape.
-    /// \param[in] filter   Filter operator: filter(Vec<value_type, N> fftfreq, i64 batch) -> return_type.
+    /// \param[in] filter   Filter operator: filter(Vec<value_type, N> fftfreq, isize batch) -> return_type.
     ///                     The Filter type can specialize value_type, otherwise, it defaults to f64 if the input is
     ///                     f64|c64, or to f32 if the input is f16|f32|c16|c32. The return_type should be real or
     ///                     complex.
     /// \param[in] options  Spectrum options.
     ///
     /// \note Like an iwise operator, each computing thread holds a copy of the given filter object.
-    template<nf::Layout REMAP, size_t N = 3,
+    template<nf::Layout REMAP, usize N = 3,
              nt::writable_varray_decay Output,
              nt::readable_varray_decay Input = View<nt::const_value_type_t<Output>>,
              details::filterable_nd<N, Input> Filter>
@@ -186,20 +186,20 @@ namespace noa::signal {
     void filter_spectrum(
         Input&& input,
         Output&& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Filter&& filter,
         FilterSpectrumOptions options = {}
     ) {
         details::check_filter_spectrum_parameters<N, REMAP>(input, output, shape, options.fftfreq_range);
 
-        auto input_accessor = AccessorI64<nt::const_value_type_t<Input>, N + 1>(
+        auto input_accessor = Accessor<nt::const_value_type_t<Input>, N + 1, isize>(
             input.get(), input.strides().template filter_nd<N>());
-        auto output_accessor = AccessorI64<nt::value_type_t<Output>, N + 1>(
+        auto output_accessor = Accessor<nt::value_type_t<Output>, N + 1, isize>(
             output.get(), output.strides().template filter_nd<N>());
 
         using coord_t = details::filter_spectrum_default_coord_t<Input, Filter>;
         using op_t = details::FilterSpectrum<
-            N, REMAP, i64, coord_t, decltype(input_accessor), decltype(output_accessor), std::decay_t<Filter>>;
+            N, REMAP, isize, coord_t, decltype(input_accessor), decltype(output_accessor), std::decay_t<Filter>>;
         auto op = op_t(
             input_accessor, output_accessor, shape.filter_nd<N>().pop_front(),
             std::forward<Filter>(filter), options.fftfreq_range.as<coord_t>()
@@ -218,7 +218,7 @@ namespace noa::signal {
     void filter_spectrum_1d(
         Input&& input,
         Output&& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Filter&& filter,
         FilterSpectrumOptions options = {}
     ) {
@@ -237,7 +237,7 @@ namespace noa::signal {
     void filter_spectrum_2d(
         Input&& input,
         Output&& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Filter&& filter,
         FilterSpectrumOptions options = {}
     ) {
@@ -256,7 +256,7 @@ namespace noa::signal {
     void filter_spectrum_3d(
         Input&& input,
         Output&& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Filter&& filter,
         FilterSpectrumOptions options = {}
     ) {

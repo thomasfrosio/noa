@@ -16,8 +16,8 @@ namespace noa::fft::details {
     class FourierRemapInplace {
     public:
         using index_type = Index;
-        using dhw_shape_type = Shape3<index_type>;
-        using dh_shape_type = Shape2<index_type>;
+        using dhw_shape_type = Shape<index_type, 3>;
+        using dh_shape_type = Shape<index_type, 2>;
         using output_type = Output;
         using value_type = nt::mutable_value_type_t<output_type>;
 
@@ -61,7 +61,7 @@ namespace noa::fft::details {
     class FourierRemap {
     public:
         using index_type = Index;
-        using dhw_shape_type = Shape3<index_type>;
+        using dhw_shape_type = Shape<index_type, 3>;
         using input_type = Input;
         using output_type = Output;
         using input_value_type = nt::mutable_value_type_t<input_type>;
@@ -202,16 +202,16 @@ namespace noa::fft {
     template<nt::readable_varray_decay Input,
              nt::writable_varray_decay Output>
     requires nt::varray_decay_with_compatible_or_spectrum_types<Input, Output>
-    void remap(Layout remap, Input&& input, Output&& output, Shape4<i64> shape) {
+    void remap(Layout remap, Input&& input, Output&& output, Shape4 shape) {
         using input_t = nt::mutable_value_type_t<Input>;
         using output_t = nt::value_type_t<Output>;
 
         // Check shape.
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
-        check(vall(Equal{}, input.shape(), (remap.is_fx2xx() ? shape : shape.rfft())),
+        check(input.shape() == (remap.is_fx2xx() ? shape : shape.rfft()),
               "Given the {} remap, the input fft is expected to have a physical shape of {}, but got {}",
               remap, remap.is_fx2xx() ? shape : shape.rfft(), input.shape());
-        check(vall(Equal{}, output.shape(), (remap.is_xx2fx() ? shape : shape.rfft())),
+        check(output.shape() == (remap.is_xx2fx() ? shape : shape.rfft()),
               "Given the {} remap, the output fft is expected to have a physical shape of {}, but got {}",
               remap, remap.is_xx2fx() ? shape : shape.rfft(), output.shape());
 
@@ -232,7 +232,7 @@ namespace noa::fft {
             check(remap.is_any(Layout::H2HC, Layout::HC2H),
                   "In-place remapping is not supported with {}", remap);
             check(static_cast<const void*>(input.get()) == static_cast<const void*>(output.get()) and
-                  vall(Equal{}, input.strides(), output.strides()),
+                  input.strides() == output.strides(),
                   "Arrays are overlapping (which triggers in-place remapping), but do not point to the same elements. "
                   "Got input:data={}, input:strides={}, output:data={} and output:strides={}",
                   static_cast<const void*>(input.get()), input.strides(),
@@ -254,7 +254,7 @@ namespace noa::fft {
         auto output_strides = output.strides();
         if (remap.is_any(Layout::FC2F, Layout::F2FC)) {
             const auto order_3d = ni::order(output_strides.pop_front(), shape.pop_front());
-            if (vany(NotEqual{}, order_3d, Vec{0, 1, 2})) {
+            if (order_3d != Vec<isize, 3>{0, 1, 2}) {
                 const auto order = (order_3d + 1).push_front(0);
                 input_strides = input_strides.reorder(order);
                 output_strides = output_strides.reorder(order);
@@ -262,15 +262,15 @@ namespace noa::fft {
             }
         }
 
-        using input_accessor_t = AccessorRestrictI64<const input_t, 4>;
-        using output_accessor_t = AccessorRestrictI64<output_t, 4>;
+        using input_accessor_t = AccessorRestrict<const input_t, 4, isize>;
+        using output_accessor_t = AccessorRestrict<output_t, 4, isize>;
         const auto input_accessor = input_accessor_t(input.get(), input_strides);
         const auto output_accessor = output_accessor_t(output.get(), output_strides);
         const auto shape_3d = shape.pop_front();
 
         auto iwise_shape = remap.is_xx2fx() ? shape : shape.rfft();
         if (is_inplace)
-            iwise_shape[2] = max(iwise_shape[2] / 2, i64{1}); // iterate only through half of height
+            iwise_shape[2] = max(iwise_shape[2] / 2, isize{1}); // iterate only through half of height
 
         switch (remap) {
             case Layout::H2H:
@@ -280,69 +280,69 @@ namespace noa::fft {
                 break;
             case Layout::H2HC: {
                 if (is_inplace) {
-                    auto op = details::FourierRemapInplace<Layout::H2HC, i64, output_accessor_t>(output_accessor, shape_3d);
+                    auto op = details::FourierRemapInplace<Layout::H2HC, isize, output_accessor_t>(output_accessor, shape_3d);
                     return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
                 }
-                auto op = details::FourierRemap<Layout::H2HC, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::H2HC, isize, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::HC2H: {
                 if (is_inplace) {
-                    auto op = details::FourierRemapInplace<Layout::HC2H, i64, output_accessor_t>(output_accessor, shape_3d);
+                    auto op = details::FourierRemapInplace<Layout::HC2H, isize, output_accessor_t>(output_accessor, shape_3d);
                     return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
                 }
-                auto op = details::FourierRemap<Layout::HC2H, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::HC2H, isize, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::H2F: {
-                auto op = details::FourierRemap<Layout::H2F, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::H2F, isize, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::F2H: {
-                auto op = details::FourierRemap<Layout::F2H, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::F2H, isize, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::F2FC: {
-                auto op = details::FourierRemap<Layout::F2FC, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::F2FC, isize, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::FC2F: {
-                auto op = details::FourierRemap<Layout::FC2F, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::FC2F, isize, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::HC2F: {
-                auto op = details::FourierRemap<Layout::HC2F, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::HC2F, isize, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::F2HC: {
-                auto op = details::FourierRemap<Layout::F2HC, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::F2HC, isize, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::FC2H: {
-                auto op = details::FourierRemap<Layout::FC2H, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::FC2H, isize, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::FC2HC: {
-                auto op = details::FourierRemap<Layout::FC2HC, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::FC2HC, isize, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::HC2FC: {
-                auto op = details::FourierRemap<Layout::HC2FC, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::HC2FC, isize, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::H2FC: {
-                auto op = details::FourierRemap<Layout::H2FC, i64, input_accessor_t, output_accessor_t>(
+                auto op = details::FourierRemap<Layout::H2FC, isize, input_accessor_t, output_accessor_t>(
                     input_accessor, output_accessor, shape_3d);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
@@ -351,9 +351,9 @@ namespace noa::fft {
 
     /// Remaps fft(s).
     template<nt::readable_varray_decay_of_numeric Input>
-    [[nodiscard]] auto remap(Layout remap, Input&& input, const Shape4<i64>& shape) {
+    [[nodiscard]] auto remap(Layout remap, Input&& input, const Shape4& shape) {
         using value_t = nt::mutable_value_type_t<Input>;
-        Array<value_t> output(remap.is_xx2fx() ? shape : shape.rfft(), input.options());
+        auto output = Array<value_t>(remap.is_xx2fx() ? shape : shape.rfft(), input.options());
         nf::remap(remap, std::forward<Input>(input), output, shape);
         return output;
     }

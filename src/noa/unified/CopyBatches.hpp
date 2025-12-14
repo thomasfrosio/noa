@@ -1,5 +1,6 @@
 #pragma once
 
+#include "noa/core/utils/Zip.hpp"
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Subregion.hpp"
 
@@ -14,16 +15,16 @@ namespace noa {
     ///                             are consecutive, or not on the same device.
     template<nt::readable_varray_decay Input,
              nt::writable_varray_decay Output,
-             nt::readable_varray_decay_of_almost_any<i32, i64> Indices>
+             nt::readable_varray_decay_of_almost_any<i32, i64, isize> Indices>
     requires nt::varray_decay_of_almost_same_type<Input, Output>
     void copy_batches(
         Input&& input,
         Output&& output,
         Indices&& batch_indices,
-        i64 group_copy_at_count = 3
+        isize group_copy_at_count = 3
     ) {
-        check(not input.is_empty() and not output.is_empty() and not batch_indices.is_empty(), "Empty array detected");
-        check(all(input.shape().pop_front() == output.shape().pop_front() or input.shape().pop_front() == 1),
+        check(nd::are_arrays_valid(input, output, batch_indices), "Empty array detected");
+        check(ni::is_broadcastable(input.shape().pop_front(), output.shape().pop_front()),
               "Cannot copy batches of shape {} into batches of shape {}",
               input.shape().pop_front(), output.shape().pop_front());
         check(input.device() == output.device(),
@@ -37,13 +38,13 @@ namespace noa {
               batch_indices.device());
 
         const auto n_batches_to_copy = output.shape()[0];
-        const auto batch_indices_1d = batch_indices.span_1d_contiguous();
+        const auto batch_indices_1d = batch_indices.span_1d();
 
         // If the batches to copy to the output are next to each other,
         // this becomes a slice operation. So try to identify this case:
         using index_t = nt::mutable_value_type_t<Indices>;
         index_t index{};
-        for (i64 i{}; i < n_batches_to_copy; ++i, ++index) {
+        for (isize i{}; i < n_batches_to_copy; ++i, ++index) {
             const auto current_index = batch_indices_1d[i];
             check(current_index >= 0 and current_index < input.shape()[0],
                   "At least one input batch index is out of bound: 0 <= indices[{}]={} < input:batch={} is not true",
@@ -70,17 +71,19 @@ namespace noa {
         //       one by one copy for small number of batches.
         const auto device = output.device();
         if (input.device() == device and n_batches_to_copy >= group_copy_at_count) {
-            Array<Vec4<i32>> batch_origins(n_batches_to_copy);
-            for (size_t i{}; i < n_batches_to_copy; ++i)
-                batch_origins(0, 0, 0, i) = {safe_cast<i32>(batch_indices_1d[i]), 0, 0, 0};
+            auto batch_origins = Array<Vec<i32, 4>>(n_batches_to_copy);
+            for (auto&& [origin, batch]: zip(batch_origins.span_1d(), batch_indices_1d))
+                origin = {safe_cast<i32>(batch), 0, 0, 0};
             if (device.is_gpu())
-                batch_origins = batch_origins.to(ArrayOption{device, Allocator::DEFAULT_ASYNC});
+                batch_origins = batch_origins.to(ArrayOption{device, Allocator::ASYNC});
             return extract_subregions(
-                std::forward<Input>(input), std::forward<Output>(output), batch_origins, Border::NOTHING);
+                std::forward<Input>(input), std::forward<Output>(output),
+                batch_origins, Border::NOTHING
+            );
         }
 
         // Worst case scenario, copy batches one by one across devices.
-        for (i64 i{}; i < n_batches_to_copy - 1; ++i)
+        for (isize i{}; i < n_batches_to_copy - 1; ++i)
             input.view().subregion(batch_indices_1d[i]).to(output.view().subregion(i));
         std::forward<Input>(input)
             .subregion(batch_indices_1d[n_batches_to_copy - 1])

@@ -25,7 +25,7 @@ namespace {
 }
 
 TEMPLATE_TEST_CASE("unified::reduce_ewise - simple", "", i32, f64) {
-    auto shape = Shape4<i64>{5, 35, 64, 81};
+    auto shape = Shape4{5, 35, 64, 81};
 
     auto input = noa::empty<TestType>(shape);
     auto randomizer = test::Randomizer<TestType>(-50, 100);

@@ -24,8 +24,8 @@ namespace noa::geometry::details {
         using input_value_type = nt::mutable_value_type_t<input_type>;
         using output_value_type = nt::value_type_t<output_type>;
         using coord_type = Coord;
-        using coord2_type = Vec2<coord_type>;
-        using shape2_type = Shape2<index_type>;
+        using coord2_type = Vec<coord_type, 2>;
+        using shape2_type = Shape<index_type, 2>;
         static_assert(nt::spectrum_types<input_value_type, output_value_type>);
 
     public:
@@ -87,8 +87,8 @@ namespace noa::geometry::details {
         using input_value_type = nt::mutable_value_type_t<input_type>;
         using output_value_type = nt::value_type_t<output_type>;
         using coord_type = Coord;
-        using coord2_type = Vec2<coord_type>;
-        using shape2_type = Shape2<index_type>;
+        using coord2_type = Vec<coord_type, 2>;
+        using shape2_type = Shape<index_type, 2>;
         static_assert(nt::spectrum_types<input_value_type, output_value_type>);
 
     public:
@@ -137,8 +137,8 @@ namespace noa::geometry::details {
     };
 
     inline void set_polar_window_range_to_default(
-        const Shape4<i64>& cartesian_shape,
-        const Vec2<f64>& cartesian_center,
+        const Shape4& cartesian_shape,
+        const Vec<f64, 2>& cartesian_center,
         Linspace<f64>& radius_range,
         Linspace<f64>& angle_range
     ) {
@@ -181,7 +181,7 @@ namespace noa::geometry::details {
     void launch_cartesian_polar(
         Input&& input,
         Output&& output,
-        const Vec2<f64>& cartesian_center,
+        const Vec<f64, 2>& cartesian_center,
         const Options& options
     ) {
         using coord_t = nt::value_type_twice_t<Output>;
@@ -266,7 +266,7 @@ namespace noa::geometry {
     void cartesian2polar(
         Input&& cartesian,
         Output&& polar,
-        const Vec2<f64>& cartesian_center,
+        const Vec<f64, 2>& cartesian_center,
         PolarTransformOptions options = {}
     ) {
         details::polar_check_parameters(cartesian, polar);
@@ -281,7 +281,7 @@ namespace noa::geometry {
             } else {
                 check(nd::is_accessor_access_safe<i32>(cartesian, cartesian.shape()) and
                       nd::is_accessor_access_safe<i32>(polar, polar.shape()),
-                      "i64 indexing not instantiated for GPU devices");
+                      "isize indexing not instantiated for GPU devices");
                 details::launch_cartesian_polar<true, true, i32>(
                     std::forward<Input>(cartesian),
                     std::forward<Output>(polar),
@@ -291,7 +291,7 @@ namespace noa::geometry {
             panic_no_gpu_backend(); // unreachable
             #endif
         } else {
-            details::launch_cartesian_polar<true, false, i64>(
+            details::launch_cartesian_polar<true, false, isize>(
                 std::forward<Input>(cartesian),
                 std::forward<Output>(polar),
                 cartesian_center, options);
@@ -309,7 +309,7 @@ namespace noa::geometry {
     void polar2cartesian(
         Input&& polar,
         Output&& cartesian,
-        const Vec2<f64>& cartesian_center,
+        const Vec<f64, 2>& cartesian_center,
         PolarTransformOptions options = {}
     ) {
         details::polar_check_parameters(polar, cartesian);
@@ -324,7 +324,7 @@ namespace noa::geometry {
             } else {
                 check(nd::is_accessor_access_safe<i32>(cartesian, cartesian.shape()) and
                       nd::is_accessor_access_safe<i32>(polar, polar.shape()),
-                      "i64 indexing not instantiated for GPU devices");
+                      "isize indexing not instantiated for GPU devices");
                 details::launch_cartesian_polar<false, true, i32>(
                     std::forward<Input>(cartesian),
                     std::forward<Output>(polar),
@@ -334,7 +334,7 @@ namespace noa::geometry {
             panic_no_gpu_backend(); // unreachable
             #endif
         } else {
-            details::launch_cartesian_polar<false, false, i64>(
+            details::launch_cartesian_polar<false, false, isize>(
                 std::forward<Input>(polar),
                 std::forward<Output>(cartesian),
                 cartesian_center, options);

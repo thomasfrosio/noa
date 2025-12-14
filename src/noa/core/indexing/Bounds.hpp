@@ -27,8 +27,8 @@ namespace noa::indexing::details {
 #endif
 
 namespace noa::inline types {
-    template<typename, size_t, size_t> class Vec;
-    template<typename, size_t, size_t> class Shape;
+    template<typename, usize, usize> class Vec;
+    template<typename, usize, usize> class Shape;
 }
 
 namespace noa::indexing {
@@ -58,52 +58,42 @@ namespace noa::indexing {
         }
     }
 
-    template<bool ENFORCE = false, nt::integer T, nt::integer U, size_t N0, size_t N1, size_t A0, size_t A1> requires (N1 <= N0)
+    template<bool ENFORCE = false, nt::integer T, nt::integer U, usize N0, usize N1, usize A0, usize A1> requires (N1 <= N0)
     NOA_FHD constexpr void bounds_check(const Shape<T, N0, A0>& shape, const Vec<U, N1, A1>& indices) {
-        for (size_t i{}; i < N1; ++i)
+        for (usize i{}; i < N1; ++i)
             bounds_check<ENFORCE>(shape[i], indices[i]);
     }
 
-    template<bool ENFORCE = false, nt::integer T, nt::integer... U, size_t N, size_t A> requires (sizeof...(U) <= N)
+    template<bool ENFORCE = false, nt::integer T, nt::integer... U, usize N, usize A> requires (sizeof...(U) <= N)
     NOA_FHD constexpr void bounds_check(const Shape<T, N, A>& shape, U... indices) {
-        [&shape]<size_t... I>(std::index_sequence<I...>, auto... indices_) {
+        [&shape]<usize... I>(std::index_sequence<I...>, auto... indices_) {
             (bounds_check<ENFORCE>(shape[I], indices_), ...);
         }(std::make_index_sequence<sizeof...(U)>{}, indices...); // nvcc bug
     }
 
-    /// Whether the indices are in-bound, i.e. 0 <= indices < shape.
-    template<nt::integer T, size_t N0, size_t N1, size_t A0, size_t A1> requires (N1 <= N0)
+    /// Whether the indices are in-bound, i.e., 0 <= indices < shape.
+    template<nt::integer T, usize N0, usize N1, usize A0, usize A1> requires (N1 <= N0)
     [[nodiscard]] NOA_FHD constexpr bool is_inbound(
         const Shape<T, N0, A0>& shape,
         const Vec<T, N1, A1>& indices
     ) noexcept {
         if constexpr (nt::sinteger<T>) {
-            for (size_t i{}; i < N1; ++i) {
-                if (indices[i] < T{} or indices[i] >= shape[i])
-                    return false;
-            }
+            return indices >= 0 and indices < shape.vec;
         } else {
-            for (size_t i{}; i < N1; ++i)
-                if (indices[i] >= shape[i])
-                    return false;
+            return indices < shape.vec;
         }
-        return true;
     }
 
-    /// Whether the indices are in-bound, i.e. 0 <= indices < shape.
-    template<nt::integer T, size_t N, size_t A, nt::same_as<T>... U> requires (sizeof...(U) <= N)
+    /// Whether the indices are in-bound, i.e., 0 <= indices < shape.
+    template<nt::integer T, usize N, usize A, nt::same_as<T>... U> requires (sizeof...(U) <= N)
     [[nodiscard]] NOA_FHD constexpr bool is_inbound(
         const Shape<T, N, A>& shape,
         const U&... indices
     ) noexcept {
         if constexpr (nt::sinteger<T>) {
-            return [&shape]<size_t... I>(std::index_sequence<I...>, auto&... indices_) {
-                return ((indices_ >= T{} and indices_ < shape[I]) and ...);
-            }(std::make_index_sequence<sizeof...(U)>{}, indices...); // nvcc bug
+            return Vec{indices...} >= 0 and Vec{indices...} < shape.vec;
         } else {
-            return [&shape]<size_t... I>(std::index_sequence<I...>, auto&... indices_) {
-                return ((indices_ < shape[I]) and ...);
-            }(std::make_index_sequence<sizeof...(U)>{}, indices...); // nvcc bug
+            return Vec{indices...} < shape.vec;
         }
     }
 }

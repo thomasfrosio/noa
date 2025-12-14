@@ -5,20 +5,20 @@
 #include "noa/core/types/Tuple.hpp"
 
 namespace noa::inline types {
-    template<typename Int, size_t N, size_t A>
+    template<typename Int, usize N, usize A>
     class Strides;
 }
 
 namespace noa::inline types {
-    template<typename T, size_t N, size_t A = 0>
+    template<typename T, usize N, usize A = 0>
     class Shape {
     public:
         static_assert(nt::integer<T> and N <= 4);
         using vector_type = Vec<T, N, A>;
         using value_type = vector_type::value_type;
         using mutable_value_type = value_type;
-        static constexpr i64 SSIZE = N;
-        static constexpr size_t SIZE = N;
+        static constexpr isize SSIZE = N;
+        static constexpr usize SIZE = N;
 
     public:
         NOA_NO_UNIQUE_ADDRESS vector_type vec; // uninitialized
@@ -39,12 +39,12 @@ namespace noa::inline types {
             return {vector_type::from_values(values...)};
         }
 
-        template<nt::integer U, size_t AR>
+        template<nt::integer U, usize AR>
         [[nodiscard]] NOA_HD static constexpr Shape from_vec(const Vec<U, SIZE, AR>& vector) noexcept {
             return {vector_type::from_vec(vector)};
         }
 
-        template<typename U, size_t AR>
+        template<typename U, usize AR>
         [[nodiscard]] NOA_HD static constexpr Shape from_shape(const Shape<U, SIZE, AR>& shape) noexcept {
             return from_vec(shape.vec);
         }
@@ -57,13 +57,13 @@ namespace noa::inline types {
     public:
         // Allow explicit conversion constructor (while still being an aggregate)
         // and add support for static_cast<Shape<U>>(Shape<T>{}).
-        template<typename U, size_t AR>
+        template<typename U, usize AR>
         [[nodiscard]] NOA_HD constexpr explicit operator Shape<U, SIZE, AR>() const noexcept {
             return Shape<U, SIZE, AR>::from_shape(*this);
         }
 
         // Allow implicit conversion from a shape with a different alignment.
-        template<size_t AR> requires (A != AR)
+        template<usize AR> requires (A != AR)
         [[nodiscard]] NOA_HD constexpr /*implicit*/ operator Shape<value_type, SIZE, AR>() const noexcept {
             return Shape<value_type, SIZE, AR>::from_shape(*this);
         }
@@ -87,8 +87,8 @@ namespace noa::inline types {
 
         [[nodiscard]] NOA_HD constexpr auto data()   const noexcept -> const value_type* { return vec.data(); }
         [[nodiscard]] NOA_HD constexpr auto data()         noexcept -> value_type* { return vec.data(); }
-        [[nodiscard]] NOA_HD static constexpr auto size()  noexcept -> size_t { return SIZE; };
-        [[nodiscard]] NOA_HD static constexpr auto ssize() noexcept -> i64 { return SSIZE; };
+        [[nodiscard]] NOA_HD static constexpr auto size()  noexcept -> usize { return SIZE; };
+        [[nodiscard]] NOA_HD static constexpr auto ssize() noexcept -> isize { return SSIZE; };
 
     public: // Iterators -- support for range loops
         [[nodiscard]] NOA_HD constexpr       value_type* begin()        noexcept { return vec.begin(); }
@@ -99,112 +99,142 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr const value_type* cend()   const noexcept { return vec.cend(); }
 
     public: // Assignment operators
-        NOA_HD constexpr Shape& operator=(value_type size) noexcept {
+        NOA_FHD constexpr auto operator=(value_type size) noexcept -> Shape& {
             *this = Shape::filled_with(size);
             return *this;
         }
 
-        #define NOA_SHAPE_ASSIGN_(name, op)                                 \
-        NOA_HD constexpr name& operator op##=(const name& shape) noexcept { \
-            *this = *this op shape;                                         \
-            return *this;                                                   \
-        }                                                                   \
-        NOA_HD constexpr name& operator op##=(value_type value) noexcept {  \
-            *this = *this op value;                                         \
-            return *this;                                                   \
-        }
-        NOA_SHAPE_ASSIGN_(Shape, +)
-        NOA_SHAPE_ASSIGN_(Shape, -)
-        NOA_SHAPE_ASSIGN_(Shape, *)
-        NOA_SHAPE_ASSIGN_(Shape, /)
+        NOA_FHD constexpr auto operator+=(const Shape& shape) noexcept -> Shape& { *this = *this + shape; return *this; }
+        NOA_FHD constexpr auto operator-=(const Shape& shape) noexcept -> Shape& { *this = *this - shape; return *this; }
+        NOA_FHD constexpr auto operator*=(const Shape& shape) noexcept -> Shape& { *this = *this * shape; return *this; }
+        NOA_FHD constexpr auto operator/=(const Shape& shape) noexcept -> Shape& { *this = *this / shape; return *this; }
+
+        NOA_FHD constexpr auto operator+=(value_type value) noexcept -> Shape& { *this = *this + value; return *this; }
+        NOA_FHD constexpr auto operator-=(value_type value) noexcept -> Shape& { *this = *this - value; return *this; }
+        NOA_FHD constexpr auto operator*=(value_type value) noexcept -> Shape& { *this = *this * value; return *this; }
+        NOA_FHD constexpr auto operator/=(value_type value) noexcept -> Shape& { *this = *this / value; return *this; }
 
     public: // Non-member functions
-        [[nodiscard]] friend NOA_HD constexpr Shape operator+(const Shape& shape) noexcept {
+        [[nodiscard]] NOA_FHD friend constexpr Shape operator+(const Shape& shape) noexcept {
             return shape;
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Shape operator-(Shape shape) noexcept {
+        [[nodiscard]] NOA_FHD friend constexpr Shape operator-(Shape shape) noexcept {
             return {-shape.vec};
         }
 
-        #define NOA_SHAPE_ARITH_(name, op)                                                                  \
-        [[nodiscard]] friend NOA_HD constexpr name operator op(name lhs, name rhs) noexcept {               \
-            return {lhs.vec op rhs.vec};                                                                    \
-        }                                                                                                   \
-        [[nodiscard]] friend NOA_HD constexpr name operator op(const name& lhs, value_type rhs) noexcept {  \
-            return lhs op name::filled_with(rhs);                                                           \
-        }                                                                                                   \
-        [[nodiscard]] friend NOA_HD constexpr name operator op(value_type lhs, const name& rhs) noexcept {  \
-            return name::filled_with(lhs) op rhs;                                                           \
-        }
-        NOA_SHAPE_ARITH_(Shape, +)
-        NOA_SHAPE_ARITH_(Shape, -)
-        NOA_SHAPE_ARITH_(Shape, *)
-        NOA_SHAPE_ARITH_(Shape, /)
+        [[nodiscard]] NOA_FHD friend constexpr Shape operator+(Shape lhs, Shape rhs) noexcept { return {lhs.vec + rhs.vec}; }
+        [[nodiscard]] NOA_FHD friend constexpr Shape operator-(Shape lhs, Shape rhs) noexcept { return {lhs.vec - rhs.vec}; }
+        [[nodiscard]] NOA_FHD friend constexpr Shape operator*(Shape lhs, Shape rhs) noexcept { return {lhs.vec * rhs.vec}; }
+        [[nodiscard]] NOA_FHD friend constexpr Shape operator/(Shape lhs, Shape rhs) noexcept { return {lhs.vec / rhs.vec}; }
 
-        #define NOA_SHAPE_COMP_(name, op)                                                                   \
-        [[nodiscard]] friend NOA_HD constexpr auto operator op(name lhs, name rhs) noexcept {               \
-            return lhs.vec op rhs.vec;                                                                      \
-        }                                                                                                   \
-        [[nodiscard]] friend NOA_HD constexpr auto operator op(const name& lhs, value_type rhs) noexcept {  \
-            return lhs op name::filled_with(rhs);                                                           \
-        }                                                                                                   \
-        [[nodiscard]] friend NOA_HD constexpr auto operator op(value_type lhs, const name& rhs) noexcept {  \
-            return name::filled_with(lhs) op rhs;                                                           \
-        }
-        NOA_SHAPE_COMP_(Shape, >)
-        NOA_SHAPE_COMP_(Shape, <)
-        NOA_SHAPE_COMP_(Shape, >=)
-        NOA_SHAPE_COMP_(Shape, <=)
-        NOA_SHAPE_COMP_(Shape, ==)
-        NOA_SHAPE_COMP_(Shape, !=)
+        [[nodiscard]] NOA_FHD friend constexpr Shape operator+(const Shape& lhs, value_type rhs) noexcept { return lhs + Shape::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr Shape operator-(const Shape& lhs, value_type rhs) noexcept { return lhs - Shape::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr Shape operator*(const Shape& lhs, value_type rhs) noexcept { return lhs * Shape::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr Shape operator/(const Shape& lhs, value_type rhs) noexcept { return lhs / Shape::filled_with(rhs); }
+
+        [[nodiscard]] NOA_FHD friend constexpr Shape operator+(value_type lhs, const Shape& rhs) noexcept { return Shape::filled_with(lhs) + rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr Shape operator-(value_type lhs, const Shape& rhs) noexcept { return Shape::filled_with(lhs) - rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr Shape operator*(value_type lhs, const Shape& rhs) noexcept { return Shape::filled_with(lhs) * rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr Shape operator/(value_type lhs, const Shape& rhs) noexcept { return Shape::filled_with(lhs) / rhs; }
+
+    public: // comparison operators
+        [[nodiscard]] NOA_FHD friend constexpr bool operator==(const Shape& lhs, const Shape& rhs) noexcept { return nd::vec_op_bool<Equal>(lhs.vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator!=(const Shape& lhs, const Shape& rhs) noexcept { return nd::vec_op_bool<NotEqual>(lhs.vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator<=(const Shape& lhs, const Shape& rhs) noexcept { return nd::vec_op_bool<LessEqual>(lhs.vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator>=(const Shape& lhs, const Shape& rhs) noexcept { return nd::vec_op_bool<GreaterEqual>(lhs.vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator<(const Shape& lhs, const Shape& rhs) noexcept { return nd::vec_op_bool<Less>(lhs.vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator>(const Shape& lhs, const Shape& rhs) noexcept { return nd::vec_op_bool<Greater>(lhs.vec, rhs.vec); }
+
+        [[nodiscard]] NOA_FHD friend constexpr bool operator==(const Shape& lhs, const value_type& rhs) noexcept { return lhs == Shape::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator!=(const Shape& lhs, const value_type& rhs) noexcept { return lhs != Shape::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator<=(const Shape& lhs, const value_type& rhs) noexcept { return lhs <= Shape::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator>=(const Shape& lhs, const value_type& rhs) noexcept { return lhs >= Shape::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator<(const Shape& lhs, const value_type& rhs) noexcept { return lhs < Shape::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator>(const Shape& lhs, const value_type& rhs) noexcept { return lhs > Shape::filled_with(rhs); }
+
+        [[nodiscard]] NOA_FHD friend constexpr bool operator==(const value_type& lhs, const Shape& rhs) noexcept { return Shape::filled_with(lhs) == rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator!=(const value_type& lhs, const Shape& rhs) noexcept { return Shape::filled_with(lhs) != rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator<=(const value_type& lhs, const Shape& rhs) noexcept { return Shape::filled_with(lhs) <= rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator>=(const value_type& lhs, const Shape& rhs) noexcept { return Shape::filled_with(lhs) >= rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator<(const value_type& lhs, const Shape& rhs) noexcept { return Shape::filled_with(lhs) < rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator>(const value_type& lhs, const Shape& rhs) noexcept { return Shape::filled_with(lhs) > rhs; }
+
+    public: // element-wise comparison
+        [[nodiscard]] NOA_FHD constexpr auto cmp_eq(const Shape& rhs) const noexcept { return nd::vec_cmp<Equal>(vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_ne(const Shape& rhs) const noexcept { return nd::vec_cmp<NotEqual>(vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_le(const Shape& rhs) const noexcept { return nd::vec_cmp<LessEqual>(vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_ge(const Shape& rhs) const noexcept { return nd::vec_cmp<GreaterEqual>(vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_lt(const Shape& rhs) const noexcept { return nd::vec_cmp<Less>(vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_gt(const Shape& rhs) const noexcept { return nd::vec_cmp<Greater>(vec, rhs.vec); }
+
+        [[nodiscard]] NOA_FHD constexpr auto cmp_eq(const value_type& rhs) const noexcept { return nd::vec_cmp<Equal>(vec, vector_type::filled_with(rhs)); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_ne(const value_type& rhs) const noexcept { return nd::vec_cmp<NotEqual>(vec, vector_type::filled_with(rhs)); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_le(const value_type& rhs) const noexcept { return nd::vec_cmp<LessEqual>(vec, vector_type::filled_with(rhs)); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_ge(const value_type& rhs) const noexcept { return nd::vec_cmp<GreaterEqual>(vec, vector_type::filled_with(rhs)); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_lt(const value_type& rhs) const noexcept { return nd::vec_cmp<Less>(vec, vector_type::filled_with(rhs)); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_gt(const value_type& rhs) const noexcept { return nd::vec_cmp<Greater>(vec, vector_type::filled_with(rhs)); }
+
+        [[nodiscard]] NOA_FHD constexpr bool any_eq(const Shape& rhs) const noexcept { return vec.any_eq(rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr bool any_ne(const Shape& rhs) const noexcept { return vec.any_ne(rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr bool any_le(const Shape& rhs) const noexcept { return vec.any_le(rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr bool any_ge(const Shape& rhs) const noexcept { return vec.any_ge(rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr bool any_lt(const Shape& rhs) const noexcept { return vec.any_lt(rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr bool any_gt(const Shape& rhs) const noexcept { return vec.any_gt(rhs.vec); }
+
+        [[nodiscard]] NOA_FHD constexpr bool any_eq(const value_type& rhs) const noexcept { return vec.any_eq(rhs); }
+        [[nodiscard]] NOA_FHD constexpr bool any_ne(const value_type& rhs) const noexcept { return vec.any_ne(rhs); }
+        [[nodiscard]] NOA_FHD constexpr bool any_le(const value_type& rhs) const noexcept { return vec.any_le(rhs); }
+        [[nodiscard]] NOA_FHD constexpr bool any_ge(const value_type& rhs) const noexcept { return vec.any_ge(rhs); }
+        [[nodiscard]] NOA_FHD constexpr bool any_lt(const value_type& rhs) const noexcept { return vec.any_lt(rhs); }
+        [[nodiscard]] NOA_FHD constexpr bool any_gt(const value_type& rhs) const noexcept { return vec.any_gt(rhs); }
 
     public: // Type casts
-        template<nt::integer U, size_t AR = 0>
+        template<nt::integer U, usize AR = 0>
         [[nodiscard]] NOA_HD constexpr auto as() const noexcept {
             return static_cast<Shape<U, SIZE, AR>>(*this);
         }
 
-        template<nt::integer U, size_t AR = 0>
+        template<nt::integer U, usize AR = 0>
         [[nodiscard]] NOA_HD constexpr auto as_clamp() const noexcept {
             return clamp_cast<Shape<U, SIZE, AR>>(*this);
         }
 
-        template<nt::integer U, size_t AR = 0>
+        template<nt::integer U, usize AR = 0>
         [[nodiscard]] constexpr auto as_safe() const {
             return safe_cast<Shape<U, SIZE, AR>>(*this);
         }
 
     public:
-        template<size_t S = 1, size_t AR = 0> requires (SIZE >= S)
+        template<usize S = 1, usize AR = 0> requires (SIZE >= S)
         [[nodiscard]] NOA_HD constexpr auto pop_front() const noexcept {
             return Shape<value_type, SIZE - S, AR>::from_pointer(data() + S);
         }
 
-        template<size_t S = 1, size_t AR = 0> requires (SIZE >= S)
+        template<usize S = 1, usize AR = 0> requires (SIZE >= S)
         [[nodiscard]] NOA_HD constexpr auto pop_back() const noexcept {
             return Shape<value_type, SIZE - S, AR>::from_pointer(data());
         }
 
-        template<size_t S = 1, size_t AR = 0>
+        template<usize S = 1, usize AR = 0>
         [[nodiscard]] NOA_HD constexpr auto push_front(value_type value) const noexcept {
             return Shape<value_type, SIZE + S, AR>{vec.template push_front<S, AR>(value)};
         }
 
-        template<size_t S = 1, size_t AR = 0>
+        template<usize S = 1, usize AR = 0>
         [[nodiscard]] NOA_HD constexpr auto push_back(value_type value) const noexcept {
             return Shape<value_type, SIZE + S, AR>{vec.template push_back<S, AR>(value)};
         }
 
-        template<size_t AR = 0, size_t S, size_t AR0>
+        template<usize AR = 0, usize S, usize AR0>
         [[nodiscard]] NOA_HD constexpr auto push_front(const Vec<value_type, S, AR0>& vector) const noexcept {
-            constexpr size_t NEW_SIZE = SIZE + S;
+            constexpr usize NEW_SIZE = SIZE + S;
             return Shape<value_type, NEW_SIZE, AR>{vec.template push_front<AR>(vector)};
         }
 
-        template<size_t AR = 0, size_t S, size_t AR0>
+        template<usize AR = 0, usize S, usize AR0>
         [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, S, AR0>& vector) const noexcept {
-            constexpr size_t NEW_SIZE = SIZE + S;
+            constexpr usize NEW_SIZE = SIZE + S;
             return Shape<value_type, NEW_SIZE, AR>{vec.template push_back<AR>(vector)};
         }
 
@@ -213,7 +243,7 @@ namespace noa::inline types {
             return Shape<value_type, sizeof...(U)>{(*this)[ts]...};
         }
 
-        template<size_t S> requires (S < N and N == 4)
+        template<usize S> requires (S < N and N == 4)
         [[nodiscard]] constexpr auto filter_nd() const noexcept {
             if constexpr (S == 1)
                 return filter(0, 3);
@@ -229,12 +259,12 @@ namespace noa::inline types {
             return {vec.flip()};
         }
 
-        template<nt::integer I = value_type, size_t AR>
+        template<nt::integer I = value_type, usize AR>
         [[nodiscard]] NOA_HD constexpr Shape reorder(const Vec<I, SIZE, AR>& order) const noexcept {
             return {vec.reorder(order)};
         }
 
-        [[nodiscard]] NOA_HD constexpr Shape circular_shift(i64 count) const noexcept {
+        [[nodiscard]] NOA_HD constexpr Shape circular_shift(isize count) const noexcept {
             return {vec.circular_shift(count)};
         }
 
@@ -242,7 +272,7 @@ namespace noa::inline types {
             return *this;
         }
 
-        template<size_t INDEX> requires (INDEX < SIZE)
+        template<usize INDEX> requires (INDEX < SIZE)
         [[nodiscard]] NOA_HD constexpr Shape set(value_type value) const noexcept {
             auto output = *this;
             output[INDEX] = value;
@@ -255,7 +285,7 @@ namespace noa::inline types {
                 return 0;
             } else {
                 auto output = vec[0];
-                for (size_t i{1}; i < SIZE; ++i)
+                for (usize i{1}; i < SIZE; ++i)
                     output *= vec[i];
                 return output;
             }
@@ -263,7 +293,7 @@ namespace noa::inline types {
 
         /// Whether the shape has at least one dimension equal to 0.
         [[nodiscard]] NOA_HD constexpr bool is_empty() const noexcept {
-            for (size_t i{}; i < SIZE; ++i)
+            for (usize i{}; i < SIZE; ++i)
                 if (vec[i] == 0)
                     return true;
             return false;
@@ -280,13 +310,21 @@ namespace noa::inline types {
             if constexpr (SIZE <= 1) {
                 return static_cast<value_type>(SIZE);
             } else if constexpr (SIZE == 2) {
-                return vec[0] > 1 and vec[1] > 1 ? 2 : 1;
+                if (vec[0] > 1 and vec[1] > 1)
+                    return 2;
+                return 1;
             } else if constexpr (SIZE == 3) {
-                return vec[0] > 1 ? 3 :
-                       vec[1] > 1 and vec[2] > 1 ? 2 : 1;
+                if (vec[0] > 1)
+                    return 3;
+                if (vec[1] > 1 and vec[2] > 1)
+                    return 2;
+                return 1;
             } else {
-                return vec[1] > 1 ? 3 :
-                       vec[2] > 1 and vec[3] > 1 ? 2 : 1;
+                if (vec[1] > 1)
+                    return 3;
+                if (vec[2] > 1 and vec[3] > 1)
+                    return 2;
+                return 1;
             }
         }
 
@@ -346,7 +384,7 @@ namespace noa::inline types {
         /// e.g. {4,1,1,5} is describing 4 row vectors with a length of 5.
         [[nodiscard]] NOA_FHD constexpr bool is_vector(bool can_be_batched = false) const noexcept requires (SIZE == 4) {
             int non_empty_dimension = 0;
-            for (size_t i{}; i < SIZE; ++i) {
+            for (usize i{}; i < SIZE; ++i) {
                 if (vec[i] == 0)
                     return false; // empty/invalid shape
                 if ((not can_be_batched or i != 0) and vec[i] > 1)
@@ -360,7 +398,7 @@ namespace noa::inline types {
         /// By this definition, the shapes {1,1,1}, {5,1,1} and {1,1,5} are all vectors.
         [[nodiscard]] NOA_FHD constexpr bool is_vector() const noexcept requires (SIZE > 0 and SIZE <= 3) {
             int non_empty_dimension = 0;
-            for (size_t i{}; i < SIZE; ++i) {
+            for (usize i{}; i < SIZE; ++i) {
                 if (vec[i] == 0)
                     return false; // empty/invalid shape
                 if (vec[i] > 1)
@@ -404,21 +442,21 @@ namespace noa::inline types {
     };
 
     /// Deduction guide.
-    template<nt::integer T, size_t N, size_t A>
+    template<nt::integer T, usize N, usize A>
     Shape(Vec<T, N, A>) -> Shape<T, N, A>;
 
     template<nt::integer T, nt::same_as<T>... U>
     Shape(T, U...) -> Shape<T, 1 + sizeof...(U)>;
 
-    template<typename T, size_t N, size_t A = 0>
+    template<typename T, usize N, usize A = 0>
     class Strides {
     public:
         static_assert(nt::integer<T> and N <= 4);
         using vector_type = Vec<T, N, A>;
         using value_type = vector_type::value_type;
         using mutable_value_type = value_type;
-        static constexpr i64 SSIZE = N;
-        static constexpr size_t SIZE = N;
+        static constexpr isize SSIZE = N;
+        static constexpr usize SIZE = N;
 
     public:
         NOA_NO_UNIQUE_ADDRESS vector_type vec; // uninitialized
@@ -439,12 +477,12 @@ namespace noa::inline types {
             return {vector_type::from_values(values...)};
         }
 
-        template<nt::integer U, size_t AR>
+        template<nt::integer U, usize AR>
         [[nodiscard]] NOA_HD static constexpr Strides from_vec(const Vec<U, SIZE, AR>& vector) noexcept {
             return {vector_type::from_vec(vector)};
         }
 
-        template<nt::integer U, size_t AR>
+        template<nt::integer U, usize AR>
         [[nodiscard]] NOA_HD static constexpr Strides from_strides(const Strides<U, SIZE, AR>& strides) noexcept {
             return from_vec(strides.vec);
         }
@@ -457,13 +495,13 @@ namespace noa::inline types {
     public:
         // Allow explicit conversion constructor (while still being an aggregate)
         // and add support for static_cast<Strides<U>>(Strides<T>{}).
-        template<typename U, size_t AR>
+        template<typename U, usize AR>
         [[nodiscard]] NOA_HD constexpr explicit operator Strides<U, SIZE, AR>() const noexcept {
             return Strides<U, SIZE, AR>::from_strides(*this);
         }
 
         // Allow implicit conversion from a strides with a different alignment.
-        template<size_t AR> requires (A != AR)
+        template<usize AR> requires (A != AR)
         [[nodiscard]] NOA_HD constexpr /*implicit*/ operator Strides<value_type, SIZE, AR>() const noexcept {
             return Strides<value_type, SIZE, AR>::from_strides(*this);
         }
@@ -487,8 +525,8 @@ namespace noa::inline types {
 
         [[nodiscard]] NOA_HD constexpr auto data()   const noexcept -> const value_type* { return vec.data(); }
         [[nodiscard]] NOA_HD constexpr auto data()         noexcept -> value_type* { return vec.data(); }
-        [[nodiscard]] NOA_HD static constexpr auto size()  noexcept -> size_t { return SIZE; }
-        [[nodiscard]] NOA_HD static constexpr auto ssize() noexcept -> i64 { return SSIZE; }
+        [[nodiscard]] NOA_HD static constexpr auto size()  noexcept -> usize { return SIZE; }
+        [[nodiscard]] NOA_HD static constexpr auto ssize() noexcept -> isize { return SSIZE; }
 
     public: // Iterators -- support for range loops
         [[nodiscard]] NOA_HD constexpr       value_type* begin()        noexcept { return vec.begin(); }
@@ -499,86 +537,142 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr const value_type* cend()   const noexcept { return vec.cend(); }
 
     public: // Assignment operators
-        NOA_HD constexpr Strides& operator=(value_type size) noexcept {
+        NOA_FHD constexpr Strides& operator=(value_type size) noexcept {
             *this = Strides::filled_with(size);
             return *this;
         }
 
-        NOA_SHAPE_ASSIGN_(Strides, +)
-        NOA_SHAPE_ASSIGN_(Strides, -)
-        NOA_SHAPE_ASSIGN_(Strides, *)
-        NOA_SHAPE_ASSIGN_(Strides, /)
-        #undef NOA_SHAPE_ASSIGN_
+        NOA_FHD constexpr auto operator+=(const Strides& shape) noexcept -> Strides& { *this = *this + shape; return *this; }
+        NOA_FHD constexpr auto operator-=(const Strides& shape) noexcept -> Strides& { *this = *this - shape; return *this; }
+        NOA_FHD constexpr auto operator*=(const Strides& shape) noexcept -> Strides& { *this = *this * shape; return *this; }
+        NOA_FHD constexpr auto operator/=(const Strides& shape) noexcept -> Strides& { *this = *this / shape; return *this; }
+
+        NOA_FHD constexpr auto operator+=(value_type value) noexcept -> Strides& { *this = *this + value; return *this; }
+        NOA_FHD constexpr auto operator-=(value_type value) noexcept -> Strides& { *this = *this - value; return *this; }
+        NOA_FHD constexpr auto operator*=(value_type value) noexcept -> Strides& { *this = *this * value; return *this; }
+        NOA_FHD constexpr auto operator/=(value_type value) noexcept -> Strides& { *this = *this / value; return *this; }
 
     public: // Non-member functions
-        [[nodiscard]] friend NOA_HD constexpr Strides operator+(const Strides& strides) noexcept {
+        [[nodiscard]] NOA_FHD friend constexpr Strides operator+(const Strides& strides) noexcept {
             return strides;
         }
 
-        [[nodiscard]] friend NOA_HD constexpr Strides operator-(Strides strides) noexcept {
+        [[nodiscard]] NOA_FHD friend constexpr Strides operator-(Strides strides) noexcept {
             return {-strides.vec};
         }
 
-        NOA_SHAPE_ARITH_(Strides, +)
-        NOA_SHAPE_ARITH_(Strides, -)
-        NOA_SHAPE_ARITH_(Strides, *)
-        NOA_SHAPE_ARITH_(Strides, /)
-        #undef NOA_SHAPE_ARITH_
+        [[nodiscard]] NOA_FHD friend constexpr Strides operator+(Strides lhs, Strides rhs) noexcept { return {lhs.vec + rhs.vec}; }
+        [[nodiscard]] NOA_FHD friend constexpr Strides operator-(Strides lhs, Strides rhs) noexcept { return {lhs.vec - rhs.vec}; }
+        [[nodiscard]] NOA_FHD friend constexpr Strides operator*(Strides lhs, Strides rhs) noexcept { return {lhs.vec * rhs.vec}; }
+        [[nodiscard]] NOA_FHD friend constexpr Strides operator/(Strides lhs, Strides rhs) noexcept { return {lhs.vec / rhs.vec}; }
 
-        NOA_SHAPE_COMP_(Strides, >)
-        NOA_SHAPE_COMP_(Strides, <)
-        NOA_SHAPE_COMP_(Strides, >=)
-        NOA_SHAPE_COMP_(Strides, <=)
-        NOA_SHAPE_COMP_(Strides, ==)
-        NOA_SHAPE_COMP_(Strides, !=)
-        #undef NOA_SHAPE_COMP_
+        [[nodiscard]] NOA_FHD friend constexpr Strides operator+(const Strides& lhs, value_type rhs) noexcept { return lhs + Strides::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr Strides operator-(const Strides& lhs, value_type rhs) noexcept { return lhs - Strides::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr Strides operator*(const Strides& lhs, value_type rhs) noexcept { return lhs * Strides::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr Strides operator/(const Strides& lhs, value_type rhs) noexcept { return lhs / Strides::filled_with(rhs); }
+
+        [[nodiscard]] NOA_FHD friend constexpr Strides operator+(value_type lhs, const Strides& rhs) noexcept { return Strides::filled_with(lhs) + rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr Strides operator-(value_type lhs, const Strides& rhs) noexcept { return Strides::filled_with(lhs) - rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr Strides operator*(value_type lhs, const Strides& rhs) noexcept { return Strides::filled_with(lhs) * rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr Strides operator/(value_type lhs, const Strides& rhs) noexcept { return Strides::filled_with(lhs) / rhs; }
+
+    public: // comparison operators
+        [[nodiscard]] NOA_FHD friend constexpr bool operator==(const Strides& lhs, const Strides& rhs) noexcept { return nd::vec_op_bool<Equal>(lhs.vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator!=(const Strides& lhs, const Strides& rhs) noexcept { return nd::vec_op_bool<NotEqual>(lhs.vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator<=(const Strides& lhs, const Strides& rhs) noexcept { return nd::vec_op_bool<LessEqual>(lhs.vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator>=(const Strides& lhs, const Strides& rhs) noexcept { return nd::vec_op_bool<GreaterEqual>(lhs.vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator<(const Strides& lhs, const Strides& rhs) noexcept { return nd::vec_op_bool<Less>(lhs.vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator>(const Strides& lhs, const Strides& rhs) noexcept { return nd::vec_op_bool<Greater>(lhs.vec, rhs.vec); }
+
+        [[nodiscard]] NOA_FHD friend constexpr bool operator==(const Strides& lhs, const value_type& rhs) noexcept { return lhs == Strides::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator!=(const Strides& lhs, const value_type& rhs) noexcept { return lhs != Strides::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator<=(const Strides& lhs, const value_type& rhs) noexcept { return lhs <= Strides::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator>=(const Strides& lhs, const value_type& rhs) noexcept { return lhs >= Strides::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator<(const Strides& lhs, const value_type& rhs) noexcept { return lhs < Strides::filled_with(rhs); }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator>(const Strides& lhs, const value_type& rhs) noexcept { return lhs > Strides::filled_with(rhs); }
+
+        [[nodiscard]] NOA_FHD friend constexpr bool operator==(const value_type& lhs, const Strides& rhs) noexcept { return Strides::filled_with(lhs) == rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator!=(const value_type& lhs, const Strides& rhs) noexcept { return Strides::filled_with(lhs) != rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator<=(const value_type& lhs, const Strides& rhs) noexcept { return Strides::filled_with(lhs) <= rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator>=(const value_type& lhs, const Strides& rhs) noexcept { return Strides::filled_with(lhs) >= rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator<(const value_type& lhs, const Strides& rhs) noexcept { return Strides::filled_with(lhs) < rhs; }
+        [[nodiscard]] NOA_FHD friend constexpr bool operator>(const value_type& lhs, const Strides& rhs) noexcept { return Strides::filled_with(lhs) > rhs; }
+
+    public: // element-wise comparison
+        [[nodiscard]] NOA_FHD constexpr auto cmp_eq(const Strides& rhs) const noexcept { return nd::vec_cmp<Equal>(vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_ne(const Strides& rhs) const noexcept { return nd::vec_cmp<NotEqual>(vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_le(const Strides& rhs) const noexcept { return nd::vec_cmp<LessEqual>(vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_ge(const Strides& rhs) const noexcept { return nd::vec_cmp<GreaterEqual>(vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_lt(const Strides& rhs) const noexcept { return nd::vec_cmp<Less>(vec, rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_gt(const Strides& rhs) const noexcept { return nd::vec_cmp<Greater>(vec, rhs.vec); }
+
+        [[nodiscard]] NOA_FHD constexpr auto cmp_eq(const value_type& rhs) const noexcept { return nd::vec_cmp<Equal>(vec, vector_type::filled_with(rhs)); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_ne(const value_type& rhs) const noexcept { return nd::vec_cmp<NotEqual>(vec, vector_type::filled_with(rhs)); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_le(const value_type& rhs) const noexcept { return nd::vec_cmp<LessEqual>(vec, vector_type::filled_with(rhs)); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_ge(const value_type& rhs) const noexcept { return nd::vec_cmp<GreaterEqual>(vec, vector_type::filled_with(rhs)); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_lt(const value_type& rhs) const noexcept { return nd::vec_cmp<Less>(vec, vector_type::filled_with(rhs)); }
+        [[nodiscard]] NOA_FHD constexpr auto cmp_gt(const value_type& rhs) const noexcept { return nd::vec_cmp<Greater>(vec, vector_type::filled_with(rhs)); }
+
+        [[nodiscard]] NOA_FHD constexpr bool any_eq(const Strides& rhs) const noexcept { return vec.any_eq(rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr bool any_ne(const Strides& rhs) const noexcept { return vec.any_ne(rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr bool any_le(const Strides& rhs) const noexcept { return vec.any_le(rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr bool any_ge(const Strides& rhs) const noexcept { return vec.any_ge(rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr bool any_lt(const Strides& rhs) const noexcept { return vec.any_lt(rhs.vec); }
+        [[nodiscard]] NOA_FHD constexpr bool any_gt(const Strides& rhs) const noexcept { return vec.any_gt(rhs.vec); }
+
+        [[nodiscard]] NOA_FHD constexpr bool any_eq(const value_type& rhs) const noexcept { return vec.any_eq(rhs); }
+        [[nodiscard]] NOA_FHD constexpr bool any_ne(const value_type& rhs) const noexcept { return vec.any_ne(rhs); }
+        [[nodiscard]] NOA_FHD constexpr bool any_le(const value_type& rhs) const noexcept { return vec.any_le(rhs); }
+        [[nodiscard]] NOA_FHD constexpr bool any_ge(const value_type& rhs) const noexcept { return vec.any_ge(rhs); }
+        [[nodiscard]] NOA_FHD constexpr bool any_lt(const value_type& rhs) const noexcept { return vec.any_lt(rhs); }
+        [[nodiscard]] NOA_FHD constexpr bool any_gt(const value_type& rhs) const noexcept { return vec.any_gt(rhs); }
 
     public: // Type casts
-        template<nt::integer U, size_t AR = 0>
+        template<nt::integer U, usize AR = 0>
         [[nodiscard]] NOA_HD constexpr auto as() const noexcept {
             return static_cast<Strides<U, SIZE, AR>>(*this);
         }
 
-        template<nt::integer U, size_t AR = 0>
+        template<nt::integer U, usize AR = 0>
         [[nodiscard]] NOA_HD constexpr auto as_clamp() const noexcept {
             return clamp_cast<Strides<U, SIZE, AR>>(*this);
         }
 
-        template<nt::integer U, size_t AR = 0>
+        template<nt::integer U, usize AR = 0>
         [[nodiscard]] constexpr auto as_safe() const {
             return safe_cast<Strides<U, SIZE, AR>>(*this);
         }
 
     public:
-        template<size_t S = 1, size_t AR = 0> requires (SIZE >= S)
+        template<usize S = 1, usize AR = 0> requires (SIZE >= S)
         [[nodiscard]] NOA_HD constexpr auto pop_front() const noexcept {
             return Strides<value_type, SIZE - S, AR>::from_pointer(data() + S);
         }
 
-        template<size_t S = 1, size_t AR = 0> requires (SIZE >= S)
+        template<usize S = 1, usize AR = 0> requires (SIZE >= S)
         [[nodiscard]] NOA_HD constexpr auto pop_back() const noexcept {
             return Strides<value_type, SIZE - S, AR>::from_pointer(data());
         }
 
-        template<size_t S = 1, size_t AR = 0>
+        template<usize S = 1, usize AR = 0>
         [[nodiscard]] NOA_HD constexpr auto push_front(value_type value) const noexcept {
             return Strides<value_type, SIZE + S, AR>{vec.template push_front<S, AR>(value)};
         }
 
-        template<size_t S = 1, size_t AR = 0>
+        template<usize S = 1, usize AR = 0>
         [[nodiscard]] NOA_HD constexpr auto push_back(value_type value) const noexcept {
             return Strides<value_type, SIZE + S, AR>{vec.template push_back<S, AR>(value)};
         }
 
-        template<size_t AR = 0, size_t S, size_t AR0>
+        template<usize AR = 0, usize S, usize AR0>
         [[nodiscard]] NOA_HD constexpr auto push_front(const Vec<value_type, S, AR0>& vector) const noexcept {
-            constexpr size_t NEW_SIZE = SIZE + S;
+            constexpr usize NEW_SIZE = SIZE + S;
             return Strides<value_type, NEW_SIZE, AR>{vec.template push_front<AR>(vector)};
         }
 
-        template<size_t AR = 0, size_t S, size_t AR0>
+        template<usize AR = 0, usize S, usize AR0>
         [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, S, AR0>& vector) const noexcept {
-            constexpr size_t NEW_SIZE = SIZE + S;
+            constexpr usize NEW_SIZE = SIZE + S;
             return Strides<value_type, NEW_SIZE, AR>{vec.template push_back<AR>(vector)};
         }
 
@@ -587,7 +681,7 @@ namespace noa::inline types {
             return Strides<value_type, sizeof...(U)>{(*this)[ts]...};
         }
 
-        template<size_t S> requires (S < N and N == 4)
+        template<usize S> requires (S < N and N == 4)
         [[nodiscard]] constexpr auto filter_nd() const noexcept {
             if constexpr (S == 1)
                 return filter(0, 3);
@@ -603,12 +697,12 @@ namespace noa::inline types {
             return {vec.flip()};
         }
 
-        template<nt::integer I = value_type, size_t AR>
+        template<nt::integer I = value_type, usize AR>
         [[nodiscard]] NOA_HD constexpr Strides reorder(const Vec<I, SIZE, AR>& order) const noexcept {
             return {vec.reorder(order)};
         }
 
-        [[nodiscard]] NOA_HD constexpr Strides circular_shift(i64 count) const noexcept {
+        [[nodiscard]] NOA_HD constexpr Strides circular_shift(isize count) const noexcept {
             return {vec.circular_shift(count)};
         }
 
@@ -616,7 +710,7 @@ namespace noa::inline types {
             return *this;
         }
 
-        template<size_t INDEX> requires (INDEX < SIZE)
+        template<usize INDEX> requires (INDEX < SIZE)
         [[nodiscard]] NOA_HD constexpr Strides set(value_type value) const noexcept {
             auto output = *this;
             output[INDEX] = value;
@@ -626,7 +720,7 @@ namespace noa::inline types {
     public:
         /// Whether there's at least one dimension equal to 0.
         [[nodiscard]] NOA_HD constexpr bool is_broadcast() const noexcept {
-            for (size_t i{}; i < SIZE; ++i)
+            for (usize i{}; i < SIZE; ++i)
                 if (vec[i] == 0)
                     return true;
             return false;
@@ -636,7 +730,7 @@ namespace noa::inline types {
         /// Rightmost order is when the innermost stride (i.e. the dimension with the smallest stride)
         /// is on the right, and strides increase right-to-left.
         [[nodiscard]] NOA_HD constexpr bool is_rightmost() const noexcept requires (SIZE > 0) {
-            for (size_t i{}; i < SIZE - 1; ++i)
+            for (usize i{}; i < SIZE - 1; ++i)
                 if (vec[i] < vec[i + 1])
                     return false;
             return true;
@@ -683,7 +777,7 @@ namespace noa::inline types {
     };
 
     /// Deduction guide.
-    template<nt::integer T, size_t N, size_t A>
+    template<nt::integer T, usize N, usize A>
     Strides(Vec<T, N, A>) -> Strides<T, N, A>;
 
     template<nt::integer T, nt::same_as<T>... U>
@@ -692,79 +786,79 @@ namespace noa::inline types {
 
 // Support for structure bindings:
 namespace std {
-    template<typename T, size_t N, size_t A>
-    struct tuple_size<noa::Shape<T, N, A>> : std::integral_constant<size_t, N> {};
+    template<typename T, noa::usize N, noa::usize A>
+    struct tuple_size<noa::Shape<T, N, A>> : std::integral_constant<noa::usize, N> {};
 
-    template<size_t I, size_t N, size_t A, typename T>
+    template<noa::usize I, noa::usize N, noa::usize A, typename T>
     struct tuple_element<I, noa::Shape<T, N, A>> { using type = T; };
 
-    template<typename T, size_t N, size_t A>
-    struct tuple_size<noa::Strides<T, N, A>> : std::integral_constant<size_t, N> {};
+    template<typename T, noa::usize N, noa::usize A>
+    struct tuple_size<noa::Strides<T, N, A>> : std::integral_constant<noa::usize, N> {};
 
-    template<size_t I, size_t N, size_t A, typename T>
+    template<noa::usize I, noa::usize N, noa::usize A, typename T>
     struct tuple_element<I, noa::Strides<T, N, A>> { using type = T; };
 
-    template<typename T, size_t N, size_t A>
-    struct tuple_size<const noa::Shape<T, N, A>> : std::integral_constant<size_t, N> {};
+    template<typename T, noa::usize N, noa::usize A>
+    struct tuple_size<const noa::Shape<T, N, A>> : std::integral_constant<noa::usize, N> {};
 
-    template<size_t I, size_t N, size_t A, typename T>
+    template<noa::usize I, noa::usize N, noa::usize A, typename T>
     struct tuple_element<I, const noa::Shape<T, N, A>> { using type = const T; };
 
-    template<typename T, size_t N, size_t A>
-    struct tuple_size<const noa::Strides<T, N, A>> : std::integral_constant<size_t, N> {};
+    template<typename T, noa::usize N, noa::usize A>
+    struct tuple_size<const noa::Strides<T, N, A>> : std::integral_constant<noa::usize, N> {};
 
-    template<size_t I, size_t N, size_t A, typename T>
+    template<noa::usize I, noa::usize N, noa::usize A, typename T>
     struct tuple_element<I, const noa::Strides<T, N, A>> { using type = const T; };
 }
 
 // Type aliases:
 namespace noa::inline types {
-    template<typename T> using Shape1 = Shape<T, 1>;
-    template<typename T> using Shape2 = Shape<T, 2>;
-    template<typename T> using Shape3 = Shape<T, 3>;
-    template<typename T> using Shape4 = Shape<T, 4>;
+    using Shape1 = Shape<isize, 1>;
+    using Shape2 = Shape<isize, 2>;
+    using Shape3 = Shape<isize, 3>;
+    using Shape4 = Shape<isize, 4>;
 
-    template<typename T> using Strides1 = Strides<T, 1>;
-    template<typename T> using Strides2 = Strides<T, 2>;
-    template<typename T> using Strides3 = Strides<T, 3>;
-    template<typename T> using Strides4 = Strides<T, 4>;
+    using Strides1 = Strides<isize, 1>;
+    using Strides2 = Strides<isize, 2>;
+    using Strides3 = Strides<isize, 3>;
+    using Strides4 = Strides<isize, 4>;
 }
 
 namespace noa::traits {
-    template<typename T, size_t N, size_t A> struct proclaim_is_shape<noa::Shape<T, N, A>> : std::true_type {};
-    template<typename V1, size_t N, size_t A, typename V2> struct proclaim_is_shape_of_type<noa::Shape<V1, N, A>, V2> : std::bool_constant<std::is_same_v<V1, V2>> {};
-    template<typename V, size_t N1, size_t A, size_t N2> struct proclaim_is_shape_of_size<noa::Shape<V, N1, A>, N2> : std::bool_constant<N1 == N2> {};
+    template<typename T, usize N, usize A> struct proclaim_is_shape<noa::Shape<T, N, A>> : std::true_type {};
+    template<typename V1, usize N, usize A, typename V2> struct proclaim_is_shape_of_type<noa::Shape<V1, N, A>, V2> : std::bool_constant<std::is_same_v<V1, V2>> {};
+    template<typename V, usize N1, usize A, usize N2> struct proclaim_is_shape_of_size<noa::Shape<V, N1, A>, N2> : std::bool_constant<N1 == N2> {};
 
-    template<typename T, size_t N, size_t A> struct proclaim_is_strides<noa::Strides<T, N, A>> : std::true_type {};
-    template<typename V1, size_t N, size_t A, typename V2> struct proclaim_is_strides_of_type<noa::Strides<V1, N, A>, V2> : std::bool_constant<std::is_same_v<V1, V2>> {};
-    template<typename V, size_t N1, size_t A, size_t N2> struct proclaim_is_strides_of_size<noa::Strides<V, N1, A>, N2> : std::bool_constant<N1 == N2> {};
+    template<typename T, usize N, usize A> struct proclaim_is_strides<noa::Strides<T, N, A>> : std::true_type {};
+    template<typename V1, usize N, usize A, typename V2> struct proclaim_is_strides_of_type<noa::Strides<V1, N, A>, V2> : std::bool_constant<std::is_same_v<V1, V2>> {};
+    template<typename V, usize N1, usize A, usize N2> struct proclaim_is_strides_of_size<noa::Strides<V, N1, A>, N2> : std::bool_constant<N1 == N2> {};
 }
 
 namespace noa::inline types {
     // -- Modulo Operator --
     template<nt::shape_or_strides T> requires (T::SIZE > 0)
     [[nodiscard]] NOA_HD constexpr T operator%(T lhs, const T& rhs) noexcept {
-        for (size_t i{}; i < T::SIZE; ++i)
+        for (usize i{}; i < T::SIZE; ++i)
             lhs[i] %= rhs[i];
         return lhs;
     }
 
-    template<nt::integer T, size_t N, size_t A> requires (N > 0)
+    template<nt::integer T, usize N, usize A> requires (N > 0)
     [[nodiscard]] NOA_HD constexpr auto operator%(const Shape<T, N, A>& lhs, std::type_identity_t<T> rhs) noexcept {
         return lhs % Shape<T, N, A>::filled_with(rhs);
     }
 
-    template<nt::integer T, size_t N, size_t A> requires (N > 0)
+    template<nt::integer T, usize N, usize A> requires (N > 0)
     [[nodiscard]] NOA_HD constexpr auto operator%(std::type_identity_t<T> lhs, const Shape<T, N, A>& rhs) noexcept {
         return Shape<T, N, A>::filled_with(lhs) % rhs;
     }
 
-    template<nt::integer T, size_t N, size_t A> requires (N > 0)
+    template<nt::integer T, usize N, usize A> requires (N > 0)
     [[nodiscard]] NOA_HD constexpr auto operator%(const Strides<T, N, A>& lhs, std::type_identity_t<T> rhs) noexcept {
         return lhs % Strides<T, N, A>::filled_with(rhs);
     }
 
-    template<nt::integer T, size_t N, size_t A> requires (N > 0)
+    template<nt::integer T, usize N, usize A> requires (N > 0)
     [[nodiscard]] NOA_HD constexpr auto operator%(std::type_identity_t<T> lhs, const Strides<T, N, A>& rhs) noexcept {
         return Strides<T, N, A>::filled_with(lhs) % rhs;
     }
@@ -772,23 +866,23 @@ namespace noa::inline types {
 
 namespace noa {
     // Cast Shape->Shape
-    template<typename To, typename T, size_t N, size_t A> requires nt::shape_of_size<To, N>
+    template<typename To, typename T, usize N, usize A> requires nt::shape_of_size<To, N>
     [[nodiscard]] NOA_FHD constexpr bool is_safe_cast(const Shape<T, N, A>& src) noexcept {
         return is_safe_cast<typename To::vector_type>(src.vec);
     }
 
-    template<typename To, typename T, size_t N, size_t A> requires nt::shape_of_size<To, N>
+    template<typename To, typename T, usize N, usize A> requires nt::shape_of_size<To, N>
     [[nodiscard]] NOA_FHD constexpr To clamp_cast(const Shape<T, N, A>& src) noexcept {
         return To{clamp_cast<typename To::vector_type>(src.vec)};
     }
 
     // Cast Strides->Strides
-    template<typename To, typename T, size_t N, size_t A> requires nt::strides_of_size<To, N>
+    template<typename To, typename T, usize N, usize A> requires nt::strides_of_size<To, N>
     [[nodiscard]] NOA_FHD constexpr bool is_safe_cast(const Strides<T, N, A>& src) noexcept {
         return is_safe_cast<typename To::vector_type>(src.vec);
     }
 
-    template<typename To, typename T, size_t N, size_t A> requires nt::strides_of_size<To, N>
+    template<typename To, typename T, usize N, usize A> requires nt::strides_of_size<To, N>
     [[nodiscard]] NOA_FHD constexpr To clamp_cast(const Strides<T, N, A>& src) noexcept {
         return To{clamp_cast<typename To::vector_type>(src.vec)};
     }
@@ -872,21 +966,21 @@ namespace noa {
 }
 
 namespace noa::inline types {
-    template<typename T, size_t N>
+    template<typename T, usize N>
     std::ostream& operator<<(std::ostream& os, const Shape<T, N>& v) {
         os << fmt::format("{}", v.vec);
         return os;
     }
 
-    template<typename T, size_t N>
+    template<typename T, usize N>
     std::ostream& operator<<(std::ostream& os, const Strides<T, N>& v) {
         os << fmt::format("{}", v.vec);
         return os;
     }
 }
 
-namespace noa::string {
-    template<typename T, size_t N, size_t A>
+namespace noa::details {
+    template<typename T, usize N, usize A>
     struct Stringify<Shape<T, N, A>> {
         static auto get() -> std::string {
             if constexpr (A == 0)
@@ -895,7 +989,7 @@ namespace noa::string {
                 return fmt::format("Shape<{},{},{}>", stringify<T>(), N, A);
         }
     };
-    template<typename T, size_t N, size_t A>
+    template<typename T, usize N, usize A>
     struct Stringify<Strides<T, N, A>> {
         static auto get() -> std::string {
             if constexpr (A == 0)

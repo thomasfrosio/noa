@@ -53,13 +53,13 @@
 #   endif
 #else // __CUDACC__
 #   ifndef NOA_FD
-#       define NOA_FD inline
+#       define NOA_FD inline __attribute__((always_inline))
 #   endif
 #   ifndef NOA_FH
-#       define NOA_FH inline
+#       define NOA_FH inline __attribute__((always_inline))
 #   endif
 #   ifndef NOA_FHD
-#       define NOA_FHD inline
+#       define NOA_FHD inline __attribute__((always_inline))
 #   endif
 #   ifndef NOA_ID
 #       define NOA_ID inline

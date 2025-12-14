@@ -4,9 +4,9 @@
 #include <string>
 
 namespace noa::cpu {
-    struct DeviceMemory { size_t free; size_t total; }; // bytes
-    struct DeviceCore { size_t logical; size_t physical; };
-    struct DeviceCache { size_t size; size_t line_size; }; // bytes
+    struct DeviceMemory { usize free; usize total; }; // bytes
+    struct DeviceCore { usize logical; usize physical; };
+    struct DeviceCache { usize size; usize line_size; }; // bytes
 
     class Device {
     public:

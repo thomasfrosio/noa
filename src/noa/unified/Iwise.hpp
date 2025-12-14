@@ -32,11 +32,22 @@ namespace noa {
         ///   cpu_number_of_indices_per_threads=1 and the Stream::set_thread_limit(n). The only difference is that
         ///   in this case the optimizer may not be able to identify which of the parallel or serial nd-loops is
         ///   needed, thus both implementations will be likely generated even if only one is needed.
-        i64 cpu_launch_n_threads{0};
+        i32 cpu_launch_n_threads{0};
 
         /// Each CPU thread is assigned to work on at least this number of indices.
         /// As such, the parallel version of the nd-loop is only called if there are more elements than this value.
-        i64 cpu_number_of_indices_per_threads{1'048'576}; // 2^20
+        isize cpu_number_of_indices_per_threads{1'048'576}; // 2^20
+
+        /// GPU thread block.
+        /// \note CUDA:
+        ///     By default, 1d sizes map to a 1d block of 256 threads, and higher dimensions use a 2d block
+        ///     of (x=32, y=8) threads. The number of elements per thread is 1 by default. These values can
+        ///     be changed using this parameter. The index-wise function maps the block as follows:
+        ///     1d: (block.x) -> (width). 2d or 3d blocks are not allowed.
+        ///     2d: (block.y, block.x) -> (height, width). 3d blocks are not allowed.
+        ///     3d: (block.z, block.y, block.x) -> (depth, height, width).
+        ///     4d: (1, block.z, block.y, block.x) -> (batch, depth, height, width).
+        // GpuThreadBlock gpu_thread_block{};
     };
 
     /// Index-wise core function; dispatches an index-wise operator across N-dimensional (parallel) for-loops.
@@ -58,7 +69,7 @@ namespace noa {
     ///       is done executing the loop, the shared_ptr will be deleted. The CPU backend deletes the shared_ptr
     ///       immediately, but note that other backends (e.g. CUDA) may not destroy these shared_ptr right away and
     ///       instead delay the destruction to the next synchronization or enqueueing call.
-    template<IwiseOptions OPTIONS = IwiseOptions{}, typename Op, typename I, size_t N, typename... Ts>
+    template<IwiseOptions OPTIONS = IwiseOptions{}, typename Op, typename I, usize N, typename... Ts>
     void iwise(const Shape<I, N>& shape, const Device& device, Op&& op, Ts&&... attachments) {
         Stream& stream = Stream::current(device);
         if constexpr (OPTIONS.generate_cpu) {
@@ -66,7 +77,7 @@ namespace noa {
                 auto& cpu_stream = stream.cpu();
 
                 constexpr bool LAUNCH_EXACT = OPTIONS.cpu_launch_n_threads > 0;
-                constexpr i64 N_ELEMENTS_PER_THREAD = LAUNCH_EXACT ? 1 : OPTIONS.cpu_number_of_indices_per_threads;
+                constexpr isize N_ELEMENTS_PER_THREAD = LAUNCH_EXACT ? 1 : OPTIONS.cpu_number_of_indices_per_threads;
                 const auto n_threads = LAUNCH_EXACT ? OPTIONS.cpu_launch_n_threads : cpu_stream.thread_limit();
                 using config_t = noa::cpu::IwiseConfig<N_ELEMENTS_PER_THREAD>;
 
@@ -79,7 +90,7 @@ namespace noa {
                         cpu_stream.enqueue(
                             [shape, n_threads,
                                 op_ = std::forward<Op>(op),
-                                h = details::extract_shared_handle(noa::forward_as_tuple(std::forward<Ts>(attachments)...))
+                                h = nd::extract_shared_handle(noa::forward_as_tuple(std::forward<Ts>(attachments)...))
                             ] {
                                 noa::cpu::iwise<config_t>(shape, std::move(op_), n_threads);
                             });

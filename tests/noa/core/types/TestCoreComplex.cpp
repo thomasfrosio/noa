@@ -85,7 +85,7 @@ TEMPLATE_TEST_CASE("core::Complex", "", f16, f32, f64) {
         INFO("scalar5_nonzero=" << scalar5_nonzero);
         INFO("scalar6_nonzero=" << scalar6_nonzero);
 
-        f64 epsilon = std::is_same_v<Half, real_t> ? 5e-3 : 1e-6;
+        f64 epsilon = std::is_same_v<f16, real_t> ? 5e-3 : 1e-6;
 
         AND_THEN("Operators: '+=', '-=', '*=', '/='") {
             std_complex += scalar1;
@@ -164,7 +164,7 @@ TEMPLATE_TEST_CASE("core::Complex", "", f16, f32, f64) {
         }
 
         AND_THEN("Other non-member functions") {
-            if constexpr (std::is_same_v<real_t, Half>) {
+            if constexpr (std::is_same_v<real_t, f16>) {
                 auto f1 = static_cast<f32>(scalar1);
                 auto f2 = static_cast<f32>(scalar2);
                 auto f3 = static_cast<f32>(scalar3);
@@ -229,8 +229,8 @@ TEMPLATE_TEST_CASE("core::Complex", "", f16, f32, f64) {
         noa::Complex<TestType> z{};
         REQUIRE((fmt::format("{:.3f}", z) == std::string{"(0.000,0.000)"}));
         REQUIRE(fmt::format("{::.2f}", std::array<c32, 2>{}) == "[(0.00,0.00), (0.00,0.00)]");
-        REQUIRE((noa::string::stringify<c16>() == "c16" and
-                 noa::string::stringify<c32>() == "c32" and
-                 noa::string::stringify<c64>() == "c64"));
+        REQUIRE((noa::details::stringify<c16>() == "c16" and
+                 noa::details::stringify<c32>() == "c32" and
+                 noa::details::stringify<c64>() == "c64"));
     }
 }

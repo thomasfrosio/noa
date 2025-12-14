@@ -63,29 +63,29 @@ namespace noa::fft {
     /// \warning This function doesn't synchronize before clearing the cache, so the caller should make sure
     ///          that none of the plans are being used. This can be easily done by synchronizing the relevant
     ///          streams or the device.
-    inline auto clear_cache(Device device) -> i64 { return Session::clear_fft_cache(device); }
+    inline auto clear_cache(Device device) -> i32 { return Session::clear_fft_cache(device); }
 
     /// Sets the maximum number of plans the FFT cache can hold on a given device.
     /// Returns how many plans were cleared from the resizing of the cache. See Session for more details.
     /// \note Some backends may not allow setting this parameter, in which case -1 is returned.
-    inline auto set_cache_limit(i64 count, Device device) -> i64 { return Session::set_fft_cache_limit(count, device); }
+    inline auto set_cache_limit(i32 count, Device device) -> i32 { return Session::set_fft_cache_limit(count, device); }
 
     /// Gets the maximum number of plans the FFT cache can hold on a given device.
     /// \note Some backends may not support retrieving this parameter or may have a dynamic cache without a
     ///       fixed capacity. In these cases, -1 is returned. See Session for more details.
-    [[nodiscard]] inline auto cache_limit(Device device) -> i64 { return Session::fft_cache_limit(device); }
+    [[nodiscard]] inline auto cache_limit(Device device) -> i32 { return Session::fft_cache_limit(device); }
 
     /// Returns the current cache size, i.e. how many plans are currently cached.
     /// \note This number may be different from the number of transforms that have been launched.
     ///       Indeed, FFT planners (like FFTW) may create and cache many plans for a single transformation.
     ///       Similarly, transforms may be divided internally into multiple transforms. See Session for more details.
     /// \note Some backends may not support retrieving this parameter, in which case, -1 is returned.
-    [[nodiscard]] inline auto cache_size(Device device) -> i64 { return Session::fft_cache_size(device); }
+    [[nodiscard]] inline auto cache_size(Device device) -> isize { return Session::fft_cache_size(device); }
 
     /// Returns the number of bytes that are left to allocate from previous plan creations.
     /// \see noa::fft::FFTOptions.record_and_share_workspace for more details.
     /// \note Some backends (e.g., FFTW) do not support explicit workspace management and always return 0.
-    [[nodiscard]] inline auto workspace_left_to_allocate(Device device) -> i64 {
+    [[nodiscard]] inline auto workspace_left_to_allocate(Device device) -> isize {
         return Session::fft_workspace_left_to_allocate(device);
     }
 
@@ -96,14 +96,14 @@ namespace noa::fft {
     /// \see noa::fft::FFTOptions.record_and_share_workspace for more details.
     /// \note Some backends (e.g., FFTW) do not support explicit workspace management and always return 0.
     template<typename T>
-    auto set_workspace(Device device, const Array<T>& buffer) -> i64 {
+    auto set_workspace(Device device, const Array<T>& buffer) -> i32 {
         return Session::fft_set_workspace(device, buffer);
     }
 }
 
 namespace noa::fft::details {
     template<typename T>
-    void normalize(T&& array, const Shape4<i64>& shape, Sign sign, Norm norm) {
+    void normalize(T&& array, const Shape4& shape, Sign sign, Norm norm) {
         using real_t = nt::mutable_value_type_twice_t<T>;
         const auto count = static_cast<real_t>(product(shape.pop_front()));
         const auto scale = norm == Norm::ORTHO ? sqrt(count) : count;
@@ -125,7 +125,7 @@ namespace noa::fft {
     void r2c(Input&& input, Output&& output, FFTOptions options = {}) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         const auto logical_shape = input.shape();
-        check(vall(Equal{}, output.shape(), logical_shape.rfft()),
+        check(output.shape() == logical_shape.rfft(),
               "Given the real input with a shape of {}, the non-redundant shape of the complex output "
               "should be {}, but got {}", logical_shape, logical_shape.rfft(), output.shape());
 
@@ -171,7 +171,7 @@ namespace noa::fft {
     template<nt::varray_decay_of_almost_any<f32, f64> Input>
     [[nodiscard]] auto r2c(Input&& input, FFTOptions options = {}) {
         using real_t = nt::mutable_value_type_twice_t<Input>;
-        Array<Complex<real_t>> output(input.shape().rfft(), input.options());
+        auto output = Array<Complex<real_t>>(input.shape().rfft(), input.options());
         r2c(std::forward<Input>(input), output, options);
         return output;
     }
@@ -187,7 +187,7 @@ namespace noa::fft {
     void c2r(Input&& input, Output&& output, FFTOptions options = {}) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         const auto logical_shape = output.shape();
-        check(vall(Equal{}, input.shape(), logical_shape.rfft()),
+        check(input.shape() == logical_shape.rfft(),
               "Given the real output with a shape of {}, the non-redundant shape of the complex input "
               "should be {}, but got {}", logical_shape, logical_shape.rfft(), input.shape());
 
@@ -233,9 +233,9 @@ namespace noa::fft {
     /// \return Real space array.
     /// \note For multidimensional c2r transforms, the input is not preserved.
     template<nt::varray_decay_of_almost_any<c32, c64> Input>
-    [[nodiscard]] auto c2r(Input&& input, const Shape4<i64> shape, FFTOptions options = {}) {
+    [[nodiscard]] auto c2r(Input&& input, const Shape4 shape, FFTOptions options = {}) {
         using real_t = nt::mutable_value_type_twice_t<Input>;
-        Array<real_t> output(shape, input.options());
+        auto output = Array<real_t>(shape, input.options());
         c2r(std::forward<Input>(input), output, options);
         return output;
     }
@@ -251,7 +251,7 @@ namespace noa::fft {
     void c2c(Input&& input, Output&& output, Sign sign, FFTOptions options = {}) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         const auto logical_shape = input.shape();
-        check(vall(Equal{}, logical_shape, output.shape()),
+        check(logical_shape == output.shape(),
               "The input and output shape should match (no broadcasting allowed), but got input {} and output {}",
               logical_shape, output.shape());
 
@@ -299,7 +299,7 @@ namespace noa::fft {
     template<nt::varray_decay_of_almost_any<c32, c64> Input>
     [[nodiscard]] auto c2c(Input&& input, Sign sign, FFTOptions options = {}) {
         using complex_t = nt::mutable_value_type_t<Input>;
-        Array<complex_t> output(input.shape(), input.options());
+        auto output = Array<complex_t>(input.shape(), input.options());
         c2c(std::forward<Input>(input), output, sign, options);
         return output;
     }

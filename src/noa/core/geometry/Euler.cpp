@@ -8,11 +8,11 @@ namespace {
     using namespace ::noa::types;
 
     template<typename T>
-    auto rotm2xyx(Mat33<T> rotm) -> Vec3<T> {
+    auto rotm2xyx(Mat33<T> rotm) -> Vec<T, 3> {
         // Rx(k3) @ Ry(k2) @ Rx(k1) = { c1c2c3-s1s3,  s1c2c3+c1s3, -s2c3,
         //                             -c1c2s3-s1c3, -s1c2s3+c1c3,  s2s3,
         //                                     c1s2,         s1s2,    c2}
-        Vec3<T> euler;
+        Vec<T, 3> euler;
         euler[1] = noa::acos(rotm[2][2]);
         if (noa::abs(rotm[2][0]) < static_cast<T>(1e-4)) { // Gimbal lock
             euler[0] = noa::atan2(-rotm[1][0], rotm[1][1]);
@@ -25,11 +25,11 @@ namespace {
     }
 
     template<typename T>
-    auto rotm2yzy(Mat33<T> rotm) -> Vec3<T> {
+    auto rotm2yzy(Mat33<T> rotm) -> Vec<T, 3> {
         // Ry(k3) @ Rz(k2) @ Ry(k1) = { c1c2c3-s1s3, -s2c3,  s1c2c3+c1c3,
         //                                     c1s2,    c2,         s1s2,
         //                                  -c1c2s3,  s2s3, -s1c2s3+c1c3}
-        Vec3<T> euler;
+        Vec<T, 3> euler;
         euler[1] = noa::acos(rotm[1][1]);
         if (noa::abs(rotm[1][2]) < static_cast<T>(1e-4)) { // Gimbal lock
             euler[0] = noa::atan2(-rotm[0][2], rotm[0][0]);
@@ -42,11 +42,11 @@ namespace {
     }
 
     template<typename T>
-    auto rotm2zxz(Mat33<T> rotm) -> Vec3<T> {
+    auto rotm2zxz(Mat33<T> rotm) -> Vec<T, 3> {
         // Rz(k3) @ Rx(k2) @ Rz(k1) = { -s1c2s3+c1c3, -c1c2s3-s1c3,  s2s3,
         //                               s1c2c3+s1s3,  c1c2c3-s1s3, -s2c3,
         //                                      s1s2,         c1s2,    c2}
-        Vec3<T> euler;
+        Vec<T, 3> euler;
         euler[1] = noa::acos(rotm[0][0]);
         if (noa::abs(rotm[2][0]) < static_cast<T>(1e-4)) { // Gimbal lock
             euler[0] = noa::atan2(-rotm[2][1], rotm[2][2]);
@@ -59,11 +59,11 @@ namespace {
     }
 
     template<typename T>
-    auto rotm2xzx(Mat33<T> rotm) -> Vec3<T> {
+    auto rotm2xzx(Mat33<T> rotm) -> Vec<T, 3> {
         // Rx(k3) @ Rz(k2) @ Rx(k1) = {  c2,       -c1s2,         s1s2,
         //                             s2c3,   c1c2c3-s3, -s1c2c3-c1s3,
         //                             s2s3, c1c2s3+s1c3, -s1c2s3+c1c3}
-        Vec3<T> euler;
+        Vec<T, 3> euler;
         euler[1] = noa::acos(rotm[2][2]);
         if (noa::abs(rotm[2][0]) < static_cast<T>(1e-4)) { // Gimbal lock
             euler[0] = noa::atan2(rotm[0][1], rotm[0][0]);
@@ -76,11 +76,11 @@ namespace {
     }
 
     template<typename T>
-    auto rotm2yxy(Mat33<T> rotm) -> Vec3<T> {
+    auto rotm2yxy(Mat33<T> rotm) -> Vec<T, 3> {
         // Ry(k3) @ Rx(k2) @ Ry(k1) = { -s1c2s3+c1c3, s2s3, c1c2s3+s1c3,
         //                                      s1s2,   c2,       -c1s2,
         //                              -s1c2c3-c1s3, s2c3, c1c2c3-s1s3}
-        Vec3<T> euler;
+        Vec<T, 3> euler;
         euler[1] = noa::acos(rotm[1][1]);
         if (noa::abs(rotm[2][1]) < static_cast<T>(1e-4)) { // Gimbal lock
             euler[0] = noa::atan2(rotm[2][0], rotm[2][2]);
@@ -93,11 +93,11 @@ namespace {
     }
 
     template<typename T>
-    auto rotm2zyz(Mat33<T> rotm) -> Vec3<T> {
+    auto rotm2zyz(Mat33<T> rotm) -> Vec<T, 3> {
         // Rz(k3) @ Ry(k2) @ Rz(k1) = { c1c2c3-s1s3, -s1c2c3-c1s3, s2c3,
         //                              c1c2s3+s1c3, -s1c2s3+c1c3, s2s3,
         //                                    -c1s2,         s1s2,   c2}
-        Vec3<T> euler;
+        Vec<T, 3> euler;
         euler[1] = noa::acos(rotm[0][0]);
         if (noa::abs(rotm[2][0]) < static_cast<T>(1e-4)) { // Gimbal lock
             euler[0] = noa::atan2(rotm[1][2], rotm[1][1]);
@@ -110,11 +110,11 @@ namespace {
     }
 
     template<typename T>
-    auto rotm2xyz(Mat33<T> rotm) -> Vec3<T> {
+    auto rotm2xyz(Mat33<T> rotm) -> Vec<T, 3> {
         // Rz(k3) @ Ry(k2) @ Rx(k1) = { c2c3, s1s2c3-c1s3, c1s2c3+s1s3,
         //                              c2s3, s1s2s3+c1c3, c1s2s3-s1c3,
         //                               -s2,        s1c2,        c1c2}
-        Vec3<T> euler;
+        Vec<T, 3> euler;
         euler[1] = -noa::asin(rotm[0][2]);
         if (noa::abs(rotm[2][2]) < static_cast<T>(1e-4)) { // Gimbal lock
             euler[0] = noa::atan2(-rotm[1][0], rotm[1][1]);
@@ -127,11 +127,11 @@ namespace {
     }
 
     template<typename T>
-    auto rotm2yzx(Mat33<T> rotm) -> Vec3<T> {
+    auto rotm2yzx(Mat33<T> rotm) -> Vec<T, 3> {
         // Rx(k3) @ Rz(k2) @ Ry(k1) = {        c1c2,  -s2,        s1c2,
         //                              c1s2c3+s1s3, c2c3, s1s2c3-c1s3,
         //                              c1s2s3-s1c3, c2s3, s1s2s3+c1c3}
-        Vec3<T> euler;
+        Vec<T, 3> euler;
         euler[1] = -noa::asin(rotm[2][1]);
         if (noa::abs(rotm[2][2]) < static_cast<T>(1e-4)) { // Gimbal lock
             euler[0] = noa::atan2(-rotm[0][2], rotm[0][0]);
@@ -144,11 +144,11 @@ namespace {
     }
 
     template<typename T>
-    auto rotm2zxy(Mat33<T> rotm) -> Vec3<T> {
+    auto rotm2zxy(Mat33<T> rotm) -> Vec<T, 3> {
         // Ry(k3) @ Rx(k2) @ Rz(k1) = { s1s2s3+c1c3, c1s2s3-s1c3, c2s3,
         //                                     s1c2,        c1c2,  -s2,
         //                              s1s2c3-c1s3, c1s2c3+s1s3, c2c3}
-        Vec3<T> euler;
+        Vec<T, 3> euler;
         euler[1] = -noa::asin(rotm[1][0]);
         if (noa::abs(rotm[1][2]) < static_cast<T>(1e-4)) { // Gimbal lock
             euler[0] = noa::atan2(-rotm[2][1], rotm[2][2]);
@@ -161,11 +161,11 @@ namespace {
     }
 
     template<typename T>
-    auto rotm2xzy(Mat33<T> rotm) -> Vec3<T> {
+    auto rotm2xzy(Mat33<T> rotm) -> Vec<T, 3> {
         // Ry(k3) @ Rz(k2) @ Rx(k1) = { c2c3, -c1s2c3+s1s3,  s1s2c3+c1s3,
         //                                s2,         c1c2,        -s1c2,
         //                             -c2s3,  c1s2s3+s1c3, -s1s2s3+c1c3}
-        Vec3<T> euler;
+        Vec<T, 3> euler;
         euler[1] = noa::asin(rotm[1][2]);
         if (noa::abs(rotm[2][2]) < static_cast<T>(1e-4)) { // Gimbal lock
             euler[0] = noa::atan2(rotm[0][1], rotm[0][0]);
@@ -178,11 +178,11 @@ namespace {
     }
 
     template<typename T>
-    auto rotm2yxz(Mat33<T> rotm) -> Vec3<T> {
+    auto rotm2yxz(Mat33<T> rotm) -> Vec<T, 3> {
         // Rz(k3) @ Rx(k2) @ Ry(k1) = {-s1s2s3+c1c3, -c2s3,  c1s2s3+s1c3,
         //                              s1s2c3+c1s3,  c2c3, -c1s2c3+s1s3,
         //                                    -s1c2,    s2,         c1c2}
-        Vec3<T> euler;
+        Vec<T, 3> euler;
         euler[1] = noa::asin(rotm[0][1]);
         if (noa::abs(rotm[1][1]) < static_cast<T>(1e-4)) { // Gimbal lock
             euler[0] = noa::atan2(rotm[2][0], rotm[2][2]);
@@ -195,11 +195,11 @@ namespace {
     }
 
     template<typename T>
-    auto rotm2zyx(Mat33<T> rotm) -> Vec3<T> {
+    auto rotm2zyx(Mat33<T> rotm) -> Vec<T, 3> {
         // Rx(k3) @ Ry(k2) @ Rz(k1) = {        c1c2,        -s1c2,    s2,
         //                              c1s2s3+s1c3, -s1s2s3+c1c3, -c2s3,
         //                             -c1s2c3+s1s3,  s1s2c3+c1s3,  c2c3}
-        Vec3<T> euler;
+        Vec<T, 3> euler;
         euler[1] = noa::asin(rotm[2][0]);
         if (noa::abs(rotm[1][1]) < static_cast<T>(1e-4)) { // Gimbal lock
             euler[0] = noa::atan2(rotm[1][2], rotm[1][1]);
@@ -214,8 +214,8 @@ namespace {
 
 namespace noa::geometry {
     template<nt::any_of<f32, f64> T>
-    auto euler2matrix(Vec3<T> angles, const EulerOptions& options) -> Mat33<T> {
-        const std::string lower_axes = noa::string::to_upper(noa::string::trim(options.axes));
+    auto euler2matrix(Vec<T, 3> angles, const EulerOptions& options) -> Mat33<T> {
+        const std::string lower_axes = nd::to_upper(nd::trim(options.axes));
         angles = options.right_handed ? angles : angles * -1;
 
         Mat33<T> r1, r2, r3;
@@ -273,16 +273,16 @@ namespace noa::geometry {
         return options.intrinsic ? r1 * r2 * r3 : r3 * r2 * r1;
     }
 
-    template auto euler2matrix<f32>(Vec3<f32>, const EulerOptions&) -> Mat33<f32>;
-    template auto euler2matrix<f64>(Vec3<f64>, const EulerOptions&) -> Mat33<f64>;
+    template auto euler2matrix<f32>(Vec<f32, 3>, const EulerOptions&) -> Mat33<f32>;
+    template auto euler2matrix<f64>(Vec<f64, 3>, const EulerOptions&) -> Mat33<f64>;
 
     template<nt::any_of<f32, f64> T>
-    auto matrix2euler(const Mat33<T>& rotation, const EulerOptions& options) -> Vec3<T> {
-        std::string lower_axes = noa::string::to_upper(noa::string::trim(options.axes));
+    auto matrix2euler(const Mat33<T>& rotation, const EulerOptions& options) -> Vec<T, 3> {
+        std::string lower_axes = nd::to_upper(nd::trim(options.axes));
         if (options.intrinsic)
-            lower_axes = noa::string::reverse(std::move(lower_axes));
+            lower_axes = nd::reverse(std::move(lower_axes));
 
-        Vec3<T> euler;
+        Vec<T, 3> euler;
         if (lower_axes == "ZYZ") {
             euler = rotm2zyz(rotation);
         } else if (lower_axes == "ZXZ") {
@@ -318,6 +318,6 @@ namespace noa::geometry {
         return euler;
     }
 
-    template auto matrix2euler<f32>(const Mat33<f32>&, const EulerOptions&) -> Vec3<f32>;
-    template auto matrix2euler<f64>(const Mat33<f64>&, const EulerOptions&) -> Vec3<f64>;
+    template auto matrix2euler<f32>(const Mat33<f32>&, const EulerOptions&) -> Vec<f32, 3>;
+    template auto matrix2euler<f64>(const Mat33<f64>&, const EulerOptions&) -> Vec<f64, 3>;
 }

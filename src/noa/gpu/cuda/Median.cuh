@@ -11,8 +11,8 @@ namespace noa::cuda {
     template<typename T>
     auto median(
         T* input,
-        Strides4<i64> strides,
-        Shape4<i64> shape,
+        Strides4 strides,
+        Shape4 shape,
         bool overwrite,
         Stream& stream
     ) {
@@ -39,7 +39,7 @@ namespace noa::cuda {
         }
 
         // Sort the entire contiguous array.
-        const auto shape_1d = Shape4<i64>{1, 1, 1, n_elements};
+        const auto shape_1d = Shape4{1, 1, 1, n_elements};
         sort(to_sort, shape_1d.strides(), shape_1d, true, -1, stream);
 
         // Retrieve the median.

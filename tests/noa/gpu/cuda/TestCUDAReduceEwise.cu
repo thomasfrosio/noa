@@ -35,7 +35,7 @@ TEST_CASE("cuda::reduce_ewise") {
     Stream stream(Device::current());
 
     SECTION("simple sum, contiguous") {
-        const std::array shapes = {Shape4<i64>{1, 50, 1, 100}, test::random_shape_batched(4, {.only_even_sizes = true})};
+        const std::array shapes = {Shape<i64, 4>{1, 50, 1, 100}, test::random_shape_batched(4, {.only_even_sizes = true})};
         for (const auto& shape: shapes) {
             INFO("shape=" << shape);
             const auto n_elements = shape.n_elements();
@@ -65,7 +65,7 @@ TEST_CASE("cuda::reduce_ewise") {
     }
 
     SECTION("simple sum, small strided") {
-        const std::array shapes{Shape4<i64>{1, 8, 8, 100}, test::random_shape(3, {.only_even_sizes = true})};
+        const std::array shapes{Shape<i64, 4>{1, 8, 8, 100}, test::random_shape(3, {.only_even_sizes = true})};
         for (const auto& shape: shapes) {
             INFO("shape=" << shape);
             const auto n_elements = shape.n_elements();

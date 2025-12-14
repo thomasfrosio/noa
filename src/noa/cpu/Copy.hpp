@@ -14,24 +14,24 @@ namespace noa::cpu {
 
     /// Copies src into dst.
     template<typename T>
-    void copy(const T* src, T* dst, i64 n_elements) {
+    void copy(const T* src, T* dst, isize n_elements) {
         copy(src, src + n_elements, dst);
     }
 
     /// Copies all logical elements from src to dst.
     template<typename T>
     void copy(
-        const T* src, const Strides4<i64>& src_strides,
-        T* dst, const Strides4<i64>& dst_strides,
-        const Shape4<i64>& shape, i64 n_threads
+        const T* src, const Strides4& src_strides,
+        T* dst, const Strides4& dst_strides,
+        const Shape4& shape, i32 n_threads
     ) {
         if (shape.n_elements() == 1) {
             *dst = *src;
             return;
         }
         ewise(shape, Copy{},
-              make_tuple(AccessorRestrictI64<const T, 4>(src, src_strides)),
-              make_tuple(AccessorRestrictI64<T, 4>(dst, dst_strides)),
+              make_tuple(AccessorRestrict<const T, 4, isize>(src, src_strides)),
+              make_tuple(AccessorRestrict<T, 4, isize>(dst, dst_strides)),
               n_threads);
     }
 }

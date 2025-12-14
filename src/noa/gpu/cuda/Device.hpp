@@ -10,7 +10,7 @@
 #include "noa/gpu/cuda/Version.hpp"
 
 namespace noa::cuda {
-    struct DeviceMemory { size_t free; size_t total; }; // bytes
+    struct DeviceMemory { usize free; usize total; }; // bytes
     struct DeviceCapability { int major; int minor; };
 
     /// A CUDA device.
@@ -84,7 +84,7 @@ namespace noa::cuda {
 
         /// Returns the free and total amount of memory available for allocation by the device, in bytes.
         [[nodiscard]] DeviceMemory memory() const {
-            size_t mem_free, mem_total;
+            usize mem_free, mem_total;
 
             const Device previous_current = Device::current();
             set_current(*this);
@@ -120,8 +120,8 @@ namespace noa::cuda {
         }
 
         /// Gets resource limits for the current device.
-        [[nodiscard]] size_t limit(cudaLimit resource_limit) const {
-            size_t limit;
+        [[nodiscard]] usize limit(cudaLimit resource_limit) const {
+            usize limit;
             const Device previous_current = current();
             set_current(*this);
             check(cudaDeviceGetLimit(&limit, resource_limit));
@@ -148,9 +148,9 @@ namespace noa::cuda {
         // Returns the number of compute-capable devices.
         static std::vector<Device> all() {
             std::vector<Device> devices{};
-            const auto count = static_cast<size_t>(Device::count());
+            const auto count = static_cast<usize>(Device::count());
             devices.reserve(count);
-            for (size_t id = 0; id < count; ++id)
+            for (usize id = 0; id < count; ++id)
                 devices.emplace_back(id);
             return devices;
         }
@@ -178,9 +178,9 @@ namespace noa::cuda {
         /// Gets the device with the most free memory available for allocation.
         static Device most_free() {
             Device most_free(0, Unchecked{});
-            size_t available_mem{};
+            usize available_mem{};
             for (auto& device: all()) {
-                const size_t dev_available_mem = device.memory().free;
+                const usize dev_available_mem = device.memory().free;
                 if (dev_available_mem > available_mem) {
                     most_free = device;
                     available_mem = dev_available_mem;
@@ -191,7 +191,7 @@ namespace noa::cuda {
 
     private:
         static void validate_(i32 id) {
-            const i64 count = Device::count();
+            const isize count = Device::count();
             check(id < count, "Invalid device ID. Got ID={}, count:{}", id, count);
         }
 

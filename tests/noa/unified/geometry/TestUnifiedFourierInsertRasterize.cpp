@@ -29,17 +29,17 @@ TEST_CASE("unified::geometry::rasterize_central_slices_3d", "[asset]") {
         INFO("test number = " << nb);
 
         const YAML::Node& parameters = tests["tests"][nb];
-        const auto slice_shape = parameters["slice_shape"].as<Shape4<i64>>();
-        const auto volume_shape = parameters["volume_shape"].as<Shape4<i64>>();
-        const auto target_shape = parameters["target_shape"].as<Shape4<i64>>();
-        const auto scale = Vec2<f32>::from_value(parameters["scale"].as<f32>());
+        const auto slice_shape = parameters["slice_shape"].as<Shape4>();
+        const auto volume_shape = parameters["volume_shape"].as<Shape4>();
+        const auto target_shape = parameters["target_shape"].as<Shape4>();
+        const auto scale = Vec<f32, 2>::from_value(parameters["scale"].as<f32>());
         const auto rotate = parameters["rotate"].as<std::vector<f32>>();
         const auto fftfreq_cutoff = parameters["fftfreq_cutoff"].as<f64>();
-        const auto ews_radius = Vec2<f64>::from_value(parameters["ews_radius"].as<f64>());
+        const auto ews_radius = Vec<f64, 2>::from_value(parameters["ews_radius"].as<f64>());
         const auto volume_filename = path / parameters["volume_filename"].as<Path>();
 
         const auto inv_scaling_matrix = noa::geometry::scale(1 / scale);
-        auto fwd_rotation_matrices = noa::empty<Mat33<f32>>(static_cast<i64>(rotate.size()));
+        auto fwd_rotation_matrices = noa::empty<Mat33<f32>>(std::ssize(rotate));
         for (size_t i{}; auto& fwd_rotation_matrix: fwd_rotation_matrices.span_1d_contiguous())
             fwd_rotation_matrix = noa::geometry::euler2matrix(
                 noa::deg2rad(Vec{0.f, rotate[i++], 0.f}), {.axes="zyx"});
@@ -75,13 +75,13 @@ TEMPLATE_TEST_CASE("unified::geometry::rasterize_central_slices_3d, remap", "", 
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    constexpr auto slice_shape = Shape4<i64>{20, 1, 64, 64};
-    constexpr auto grid_shape = Shape4<i64>{1, 128, 128, 128};
+    constexpr auto slice_shape = Shape4{20, 1, 64, 64};
+    constexpr auto grid_shape = Shape4{1, 128, 128, 128};
 
     Array<Mat33<f32>> fwd_rotation_matrices(slice_shape[0]);
     for (size_t i{}; auto& matrix: fwd_rotation_matrices.span_1d_contiguous())
         matrix = noa::geometry::euler2matrix(
-            noa::deg2rad(Vec3<f32>::from_values(0, i++ * 2, 0)), {.axes="zyx"});
+            noa::deg2rad(Vec<f32, 3>::from_values(0, i++ * 2, 0)), {.axes="zyx"});
 
     for (auto& device: devices) {
         const auto stream = StreamGuard(device);
@@ -125,13 +125,13 @@ TEMPLATE_TEST_CASE("unified::geometry::rasterize_central_slices_3d, weights", ""
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    constexpr auto slice_shape = Shape4<i64>{20, 1, 64, 64};
-    constexpr auto grid_shape = Shape4<i64>{1, 64, 64, 64};
+    constexpr auto slice_shape = Shape4{20, 1, 64, 64};
+    constexpr auto grid_shape = Shape4{1, 64, 64, 64};
 
     auto fwd_rotation_matrices = noa::empty<Mat33<f64>>(slice_shape[0]);
     for (i64 i{}; auto& fwd_rotation_matrix: fwd_rotation_matrices.span_1d_contiguous())
         fwd_rotation_matrix = ng::euler2matrix(
-            noa::deg2rad(Vec3<f64>::from_values(0, i * 2, 0)), {.axes="zyx"});
+            noa::deg2rad(Vec<f64, 3>::from_values(0, i * 2, 0)), {.axes="zyx"});
 
     for (auto& device: devices) {
         const auto stream = StreamGuard(device);

@@ -98,13 +98,13 @@ namespace noa::inline types {
         }
 
         /// Sets the maximum number of threads the CPU backend is allowed to use.
-        void set_thread_limit(i64 n_threads) noexcept {
+        void set_thread_limit(i32 n_threads) noexcept {
             auto* stream = std::get_if<cpu_stream>(&m_stream);
             if (stream)
                 stream->set_thread_limit(n_threads);
         }
 
-        [[nodiscard]] auto thread_limit() const noexcept -> i64 {
+        [[nodiscard]] auto thread_limit() const noexcept -> i32 {
             const auto* stream = std::get_if<cpu_stream>(&m_stream);
             if (stream)
                 return stream->thread_limit();

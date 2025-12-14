@@ -123,9 +123,9 @@ namespace noa::details {
         Outputs&& outputs,
         Op&& reduce_operator
     ) {
-        constexpr i64 index_of_first_varray = nd::index_of_first_varray<Inputs>();
+        constexpr isize index_of_first_varray = nd::index_of_first_varray<Inputs>();
         static_assert(index_of_first_varray >= 0, "There should be at least one input varray");
-        constexpr auto index = static_cast<size_t>(index_of_first_varray);
+        constexpr auto index = static_cast<usize>(index_of_first_varray);
 
         static_assert(nd::are_all_varrays<Outputs>(), "All of the outputs should be varrays");
         static_assert(std::tuple_size_v<Outputs> > 0, "There should be at least one output");
@@ -142,25 +142,25 @@ namespace noa::details {
         // If reduce to one element or one element per batch, and if the inputs have the same stride order,
         // then try to reorder the input(s) to the rightmost order. Don't reorder the batch axis if it is
         // not reduced.
-        const Vec4<bool> reduced_dimensions = output_shape == 1 or input_shape != output_shape;
+        const Vec<bool, 4> reduced_dimensions = output_shape.cmp_eq(1) or input_shape.cmp_ne(output_shape);
         bool do_reorder{};
-        Vec4<i64> order;
-        if (all(reduced_dimensions.pop_front())) {
+        Vec<isize, 4> order;
+        if (reduced_dimensions.pop_front() == true) {
             auto strides = first_input_array.strides();
             if (not reduced_dimensions[0])
-                strides[0] = std::numeric_limits<i64>::max(); // keep batch to leftmost
+                strides[0] = std::numeric_limits<isize>::max(); // keep batch to leftmost
             order = ni::order(strides, input_shape);
-            do_reorder = vany(NotEqual{}, order, Vec{0, 1, 2, 3});
+            do_reorder = order != Vec<isize, 4>{0, 1, 2, 3};
         }
 
-        inputs.for_each_enumerate([&]<size_t I, typename T>(T& input) {
+        inputs.for_each_enumerate([&]<usize I, typename T>(T& input) {
             if constexpr (nt::varray<T>) {
                 check(device == input.device(),
                       "Input arrays should be on the same device as the output(s), but got output device={} and device:{}={}",
                       device, I, input.device());
             }
             if constexpr (I > index and nt::varray<T>) {
-                check(vany(Equal{}, input_shape, input.shape()),
+                check(input_shape == input.shape(),
                       "Input arrays should have the same shape, but got shape:0={} and shape:{}={}",
                       input_shape, I, input.shape());
 
@@ -168,18 +168,18 @@ namespace noa::details {
                 if (do_reorder) {
                     auto strides = input.strides();
                     if (not reduced_dimensions[0])
-                        strides[0] = std::numeric_limits<i64>::max(); // keep batch to leftmost
-                    do_reorder = vall(Equal{}, order, ni::order(strides, input_shape));
+                        strides[0] = std::numeric_limits<isize>::max(); // keep batch to leftmost
+                    do_reorder = order == ni::order(strides, input_shape);
                 }
             }
         });
 
-        outputs.for_each_enumerate([&]<size_t I, typename T>(T& output) {
+        outputs.for_each_enumerate([&]<usize I, typename T>(T& output) {
             if constexpr (I > 0) {
                 check(device == output.device(),
                       "Output arrays should be on the same device, but got device:0={} and device:{}={}",
                       device, I, output.device());
-                check(vany(Equal{}, output_shape, output.shape()),
+                check(output_shape == output.shape(),
                       "Output arrays should have the same shape, but got shape:0={} and shape:{}={}",
                       output_shape, I, output.shape());
             }
@@ -243,7 +243,7 @@ namespace noa::details {
                     cuda_stream);
 
                 // Enqueue the shared handles. See ewise() for more details.
-                [&]<size_t... I, size_t... O>(std::index_sequence<I...>, std::index_sequence<O...>) {
+                [&]<usize... I, usize... O>(std::index_sequence<I...>, std::index_sequence<O...>) {
                     auto ih = nd::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs));
                     auto oh = nd::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs));
                     cuda_stream.enqueue_attach(std::move(ih)[Tag<I>{}]..., std::move(oh)[Tag<O>{}]...);

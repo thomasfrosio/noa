@@ -89,7 +89,7 @@ namespace noa::signal {
     void standardize_ifft(
         const Input& input,
         const Output& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         nf::Norm norm = nf::NORM_DEFAULT
     ) {
 
@@ -98,7 +98,7 @@ namespace noa::signal {
         const auto actual_shape = is_full ? shape : shape.rfft();
 
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
-        check(all(input.shape() == actual_shape) and all(output.shape() == actual_shape),
+        check(input.shape() == actual_shape and output.shape() == actual_shape,
               "The input {} and output {} {}redundant FFTs don't match the expected shape {}",
               input.shape(), output.shape(), is_full ? "" : "non-", actual_shape);
         check(input.device() == output.device(),
@@ -113,9 +113,9 @@ namespace noa::signal {
 
         auto dc_position = ni::make_subregion<4>(
             ni::Full{},
-            is_centered ? nf::fftshift(i64{}, shape[1]) : 0,
-            is_centered ? nf::fftshift(i64{}, shape[2]) : 0,
-            is_centered and is_full ? nf::fftshift(i64{}, shape[3]) : 0);
+            is_centered ? nf::fftshift(isize{}, shape[1]) : 0,
+            is_centered ? nf::fftshift(isize{}, shape[2]) : 0,
+            is_centered and is_full ? nf::fftshift(isize{}, shape[3]) : 0);
 
         if constexpr (REMAP == nf::Layout::F2F or REMAP == nf::Layout::FC2FC) {
             // Compute the energy of the input (excluding the dc).

@@ -98,8 +98,8 @@ namespace noa {
 namespace noa::details {
     template<EwiseOptions OPTIONS, bool ZIP_INPUT, bool ZIP_OUTPUT, typename Inputs, typename Outputs, typename EwiseOp>
     void ewise(Inputs&& inputs, Outputs&& outputs, EwiseOp&& ewise_op) {
-        constexpr size_t N_INPUTS = std::tuple_size_v<std::decay_t<Inputs>>;
-        constexpr size_t N_OUTPUTS = std::tuple_size_v<std::decay_t<Outputs>>;
+        constexpr usize N_INPUTS = std::tuple_size_v<std::decay_t<Inputs>>;
+        constexpr usize N_OUTPUTS = std::tuple_size_v<std::decay_t<Outputs>>;
         if constexpr (N_INPUTS == 0 and N_OUTPUTS == 0) {
             return; // valid, do nothing
         } else {
@@ -109,9 +109,9 @@ namespace noa::details {
             Tuple input_accessors = details::to_tuple_of_accessors(std::forward<Inputs>(inputs));
             Tuple output_accessors = details::to_tuple_of_accessors(std::forward<Outputs>(outputs));
 
-            Shape4<i64> shape;
+            Shape4 shape;
             Device device;
-            Vec4<i64> order;
+            Vec<isize, 4> order;
             bool do_reorder{};
 
             if constexpr (N_OUTPUTS >= 1) {
@@ -120,21 +120,21 @@ namespace noa::details {
                     shape = first_output.shape();
                     device = first_output.device();
                     order = ni::order(first_output.strides(), shape);
-                    do_reorder = vany(NotEqual{}, order, Vec{0, 1, 2, 3});
+                    do_reorder = order != Vec<isize, 4>{0, 1, 2, 3};
 
-                    outputs.for_each_enumerate([&]<size_t I>(const nt::varray auto& output) {
+                    outputs.for_each_enumerate([&]<usize I>(const nt::varray auto& output) {
                         check(not output.is_empty(), "Empty output array detected (index={})", I);
-                        check(all(output.strides() > 0),
+                        check(output.strides() > 0,
                               "Output arrays cannot be broadcast, i.e. strides should not be 0, but got strides:{}={}",
                               I, output.strides());
                         if constexpr (I > 0) {
                             check(device == output.device(),
                                   "Output arrays should be on the same device, but got device:0={} and device:{}={}",
                                   device, I, output.device());
-                            check(vall(Equal{}, shape, output.shape()),
+                            check(shape == output.shape(),
                                   "Output arrays should have the same shape, but got shape:0={} and shape:{}={}",
                                   shape, I, output.shape());
-                            check(vall(Equal{}, order, ni::order(output.strides(), shape)),
+                            check(order == ni::order(output.strides(), shape),
                                   "Output arrays should have the same stride order, but got strides:0={} and strides:{}={}",
                                   first_output.strides(), I, output.strides());
                         }
@@ -143,7 +143,7 @@ namespace noa::details {
                     // Automatic broadcasting of the inputs.
                     // "inputs" is used after forward, but as mentioned above "to_tuple_of_accessors"
                     // doesn't actually move varrays and here we only read varrays.
-                    input_accessors.for_each_enumerate([&inputs, &shape, &device]<size_t I, typename T>(T& accessor) {
+                    input_accessors.for_each_enumerate([&inputs, &shape, &device]<usize I, typename T>(T& accessor) {
                         if constexpr (nt::varray_decay<decltype(inputs[Tag<I>{}])>) {
                             static_assert(nt::accessor_pure<T>);
 
@@ -166,29 +166,29 @@ namespace noa::details {
                     static_assert(nt::always_false<>, "The outputs should be varrays");
                 }
             } else { // N_INPUTS >= 1
-                constexpr i64 index_of_first_varray = details::index_of_first_varray<Inputs>();
+                constexpr isize index_of_first_varray = details::index_of_first_varray<Inputs>();
                 if constexpr (index_of_first_varray >= 0) {
-                    constexpr auto INDEX = static_cast<size_t>(index_of_first_varray);
+                    constexpr auto INDEX = static_cast<usize>(index_of_first_varray);
                     const auto& first_input_array = inputs[Tag<INDEX>{}];
                     shape = first_input_array.shape();
                     device = first_input_array.device();
                     order = ni::order(first_input_array.strides(), shape);
-                    do_reorder = vany(NotEqual{}, order, Vec{0, 1, 2, 3});
+                    do_reorder = order != Vec<isize, 4>{0, 1, 2, 3};
 
-                    inputs.for_each_enumerate([&]<size_t I, typename T>(T& input) {
+                    inputs.for_each_enumerate([&]<usize I, typename T>(T& input) {
                         if constexpr (nt::varray<T>)
                             check(not input.is_empty(), "Empty input array detected (index={})", I);
                         if constexpr (I > INDEX and nt::varray<T>) {
                             check(device == input.device(),
                                   "Input arrays should be on the same device, but got device:0={} and device:{}={}",
                                   device, I, input.device());
-                            check(vall(Equal{}, shape, input.shape()),
+                            check(shape == input.shape(),
                                   "Input arrays should have the same shape, but got shape:0={} and shape:{}={}",
                                   shape, I, input.shape());
 
                             // Only reorder if all the inputs have the same order.
                             if (do_reorder)
-                                do_reorder = vall(Equal{}, order, ni::order(input.strides(), shape));
+                                do_reorder = order == ni::order(input.strides(), shape);
                             // TODO Forcing the same order is okay, but may be a bit too restrictive since it effectively
                             //      prevents automatic broadcasting (the caller can still explicitly broadcast though).
                             //      We may instead find the input with the largest effective shape and use it as
@@ -202,7 +202,7 @@ namespace noa::details {
 
             if (do_reorder) {
                 shape = shape.reorder(order);
-                details::reorder_accessors(order, input_accessors, output_accessors);
+                nd::reorder_accessors(order, input_accessors, output_accessors);
             }
 
             Stream& stream = Stream::current(device);
@@ -223,8 +223,8 @@ namespace noa::details {
                             op = std::forward<EwiseOp>(ewise_op),
                             ia = std::move(input_accessors),
                             oa = std::move(output_accessors),
-                            ih = details::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs)),
-                            oh = details::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs))
+                            ih = nd::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs)),
+                            oh = nd::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs))
                         ] {
                             noa::cpu::ewise<config>(shape, std::move(op), std::move(ia), std::move(oa), n_threads);
                         });
@@ -249,7 +249,7 @@ namespace noa::details {
 
                     // Enqueue the shared handles.
                     // Doing it using a single call to enqueue_attach is slightly more efficient.
-                    [&]<size_t... I, size_t... O>(std::index_sequence<I...>, std::index_sequence<O...>) {
+                    [&]<usize... I, usize... O>(std::index_sequence<I...>, std::index_sequence<O...>) {
                         // "enqueue_attach" saves shared_ptr types and anything with a .share() that returns
                         // a shared_ptr, and ignores everything else. As such, we could directly pass the values
                         // of "inputs" and "outputs", but here we explicitly only want to save the shared_ptr

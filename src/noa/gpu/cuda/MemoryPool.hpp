@@ -18,7 +18,7 @@ namespace noa::cuda {
     class MemoryPool {
     public:
         // Gets the default memory pool of device.
-        static cudaMemPool_t current(Device device) {
+        static auto current(Device device) -> cudaMemPool_t {
             cudaMemPool_t pool{};
             check(cudaDeviceGetDefaultMemPool(&pool, device.id()));
             return pool;
@@ -45,7 +45,7 @@ namespace noa::cuda {
         // When more than the release threshold bytes of memory are held by the memory pool, the allocator will
         // try to release memory back to the OS on the next call to stream, event or context synchronize. The
         // default value is 0 bytes (i.e. stream synchronization frees the cached memory).
-        void set_threshold(size_t threshold_bytes) const {
+        void set_threshold(usize threshold_bytes) const {
             check(cudaMemPoolSetAttribute(m_pool, cudaMemPoolAttrReleaseThreshold, &threshold_bytes));
         }
 
@@ -54,12 +54,12 @@ namespace noa::cuda {
         // allocations that back outstanding asynchronous allocations. The OS allocations may happen at different
         // granularity from the user allocations. If the pool has less than this amount reserved, do nothing.
         // Otherwise, the pool will be guaranteed to have at least that amount of bytes reserved.
-        void trim(size_t n_bytes_to_keep) const {
+        void trim(usize n_bytes_to_keep) const {
             cudaMemPoolTrimTo(m_pool, n_bytes_to_keep);
         }
 
-        [[nodiscard]] cudaMemPool_t get() const noexcept { return m_pool; }
-        [[nodiscard]] cudaMemPool_t id() const noexcept { return m_pool; }
+        [[nodiscard]] auto get() const noexcept -> cudaMemPool_t { return m_pool; }
+        [[nodiscard]] auto id() const noexcept -> cudaMemPool_t { return m_pool; }
 
     private:
         cudaMemPool_t m_pool{nullptr};

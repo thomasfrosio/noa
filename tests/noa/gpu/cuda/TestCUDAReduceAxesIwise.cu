@@ -69,7 +69,7 @@ TEST_CASE("cuda::reduce_axes_iwise - 4d") {
             const auto output_elements = output_shape.n_elements();
 
             const auto expected_buffer = AllocatorManaged::allocate<i64>(output_elements, stream);
-            auto compute_expected_reduction = [](Shape4<i64> shape, const auto& input, const auto& expected) {
+            auto compute_expected_reduction = [](Shape<i64, 4> shape, const auto& input, const auto& expected) {
                 for (i64 i = 0; i < shape[0]; ++i) {
                     for (i64 j = 0; j < shape[1]; ++j) {
                         for (i64 k = 0; k < shape[2]; ++k) {
@@ -144,7 +144,7 @@ TEST_CASE("cuda::reduce_axes_iwise - 4d") {
                 expected_buffer.get()[i] = tmp + 1;
             }
 
-            const auto output_shape = Shape4<i64>{input_shape[0], 1, 1, 1};
+            const auto output_shape = Shape<i64, 4>{input_shape[0], 1, 1, 1};
             const auto output_elements = output_shape.n_elements();
             const auto output_buffer = AllocatorManaged::allocate<i64>(output_elements, stream);
             const auto output = noa::make_tuple(AccessorI64<i64, 4>(output_buffer.get(), output_shape.strides()));
@@ -185,7 +185,7 @@ TEST_CASE("cuda::reduce_axes_iwise - 3d") {
             const auto output_elements = output_shape.n_elements();
 
             const auto expected_buffer = AllocatorManaged::allocate<i64>(output_elements, stream);
-            auto compute_expected_reduction = [](Shape3<i64> shape, const auto& input, const auto& expected) {
+            auto compute_expected_reduction = [](Shape<i64, 3> shape, const auto& input, const auto& expected) {
                 for (i64 i = 0; i < shape[0]; ++i) {
                     for (i64 j = 0; j < shape[1]; ++j) {
                         i64 tmp = 0;
@@ -250,7 +250,7 @@ TEST_CASE("cuda::reduce_axes_iwise - 3d") {
                 expected_buffer.get()[i] = tmp + 1;
             }
 
-            const auto output_shape = Shape3<i64>{input_shape[0], 1, 1};
+            const auto output_shape = Shape<i64, 3>{input_shape[0], 1, 1};
             const auto output_elements = output_shape.n_elements();
             const auto output_buffer = AllocatorManaged::allocate<i64>(output_elements, stream);
             const auto output = noa::make_tuple(AccessorI64<i64, 3>(output_buffer.get(), output_shape.strides()));
@@ -312,7 +312,7 @@ TEST_CASE("cuda::reduce_axes_iwise - 2d") {
             const auto output_elements = output_shape.n_elements();
 
             const auto expected_buffer = AllocatorManaged::allocate<i64>(output_elements, stream);
-            auto compute_expected_reduction = [](Shape2<i64> shape, const auto& input, const auto& expected) {
+            auto compute_expected_reduction = [](Shape<i64, 2> shape, const auto& input, const auto& expected) {
                 for (i64 i = 0; i < shape[0]; ++i) {
                     i64 tmp = 0;
                     for (i64 j = 0; j < shape[1]; ++j)
@@ -363,7 +363,7 @@ TEST_CASE("cuda::reduce_axes_iwise - 1d") {
     auto reduced = noa::make_tuple(AccessorValue<i64>(0));
     auto sum_op = SumOp<1>{.accessor={buffer.get(), input_strides}};
 
-    auto output_shape = Shape1<i64>{1};
+    auto output_shape = Shape<i64, 1>{1};
 
     i64 expected{1};
     for (i64 i = 0; i < input_shape[0]; ++i)

@@ -8,14 +8,14 @@ namespace noa::cpu::fft {
     /// An optimum size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d)*(11^e)*(13^f), with e + f = 0 or 1.
     /// If "size" is >16896, this function will simply return the next even number and will not necessarily
     /// satisfy the aforementioned requirements.
-    i64 fast_size(i64 size);
+    isize fast_size(isize size);
 
     /// Returns the optimum BDHW logical shape.
-    template<typename T, size_t N>
+    template<typename T, usize N>
     auto fast_shape(Shape<T, N> shape) noexcept -> Shape<T, N> {
-        for (size_t i = 1; i < N; ++i) // ignore batch dimension
+        for (usize i = 1; i < N; ++i) // ignore batch dimension
             if (shape[i] > 1)
-                shape[i] = static_cast<T>(fast_size(static_cast<i64>(shape[i])));
+                shape[i] = static_cast<T>(fast_size(static_cast<isize>(shape[i])));
         return shape;
     }
 
@@ -78,17 +78,17 @@ namespace noa::cpu::fft {
         using complex_type = Complex<T>;
 
     public:
-        Plan(real_type* input, const Strides4<i64>& input_strides,
-             complex_type* output, const Strides4<i64>& output_strides,
-             const Shape4<i64>& shape, u32 flags, i64 max_n_threads);
+        Plan(real_type* input, const Strides4& input_strides,
+             complex_type* output, const Strides4& output_strides,
+             const Shape4& shape, u32 flags, isize max_n_threads);
 
-        Plan(complex_type* input, const Strides4<i64>& input_strides,
-             real_type* output, const Strides4<i64>& output_strides,
-             const Shape4<i64>& shape, u32 flags, i64 max_n_threads);
+        Plan(complex_type* input, const Strides4& input_strides,
+             real_type* output, const Strides4& output_strides,
+             const Shape4& shape, u32 flags, isize max_n_threads);
 
-        Plan(complex_type* input, const Strides4<i64>& input_strides,
-             complex_type* output, const Strides4<i64>& output_strides,
-             const Shape4<i64>& shape, nf::Sign sign, u32 flags, i64 max_n_threads);
+        Plan(complex_type* input, const Strides4& input_strides,
+             complex_type* output, const Strides4& output_strides,
+             const Shape4& shape, nf::Sign sign, u32 flags, isize max_n_threads);
 
     public:
         Plan(const Plan&) = delete;

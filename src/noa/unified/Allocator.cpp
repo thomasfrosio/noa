@@ -84,7 +84,7 @@ namespace noa::inline types {
     }
 
     Allocator::Enum Allocator::parse_(std::string_view name) {
-        std::string str_ = noa::string::to_lower(noa::string::trim(name));
+        std::string str_ = nd::to_lower(nd::trim(name));
         std::ranges::replace(str_, '-', '_');
 
         if (str_ == "default") {

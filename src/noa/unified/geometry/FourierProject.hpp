@@ -26,7 +26,7 @@ namespace noa::geometry::details {
         nt::real<Coord> and
         nt::any_of<ScaleValue, Empty, Mat22<Coord>> and
         nt::any_of<RotateValue, Mat33<Coord>, Quaternion<Coord>> and
-        nt::any_of<Ews, Empty, Coord, Vec2<Coord>>;
+        nt::any_of<Ews, Empty, Coord, Vec<Coord, 2>>;
 
     template<typename Input, typename Output>
     concept fourier_projection_types = nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>;
@@ -49,12 +49,12 @@ namespace noa::geometry::details {
              nt::integer Integer,
              typename EWSOrEmpty>
     NOA_IHD constexpr auto fourier_slice2grid(
-        Vec2<Coord> fftfreq,
+        Vec<Coord, 2> fftfreq,
         const ScaleOrEmpty& inv_scaling,
         const Rotate& fwd_rotation,
         Integer batch,
         EWSOrEmpty inv_ews_diameter
-    ) -> Vec3<Coord> {
+    ) -> Vec<Coord, 3> {
         // If we apply the EWS curvature, the scaling factors should be corrected
         // before applying the curvature, and therefore before applying the rotation.
         // That way, we use the correct frequencies to compute the EWS, e.g., resulting
@@ -65,7 +65,7 @@ namespace noa::geometry::details {
         //      so the frequency (u,v) is unchanged. Look at the cisTEM implementation
         //      to remove this approximation? RELION shows that even for low voltages
         //      and large boxes, it is probably not worth it though.
-        Vec3<Coord> fftfreq_3d{0, fftfreq[0], fftfreq[1]};
+        Vec<Coord, 3> fftfreq_3d{0, fftfreq[0], fftfreq[1]};
         if constexpr (not nt::empty<EWSOrEmpty>)
             fftfreq_3d[0] = sum(inv_ews_diameter * fftfreq * fftfreq);
 
@@ -79,15 +79,15 @@ namespace noa::geometry::details {
              nt::integer Integer,
              typename EWSOrEmpty>
     NOA_IHD constexpr auto fourier_grid2slice(
-        Vec3<Coord> frequency,
+        Vec<Coord, 3> frequency,
         const ScaleOrEmpty& fwd_scaling_matrices,
         const Rotate& inv_rotation,
         Integer batch,
         EWSOrEmpty inv_ews_diameter
-    ) -> Pair<Coord, Vec2<Coord>> {
+    ) -> Pair<Coord, Vec<Coord, 2>> {
         frequency = transform_vector(inv_rotation[batch], frequency);
 
-        Vec2<Coord> freq_2d{frequency[1], frequency[2]};
+        Vec<Coord, 2> freq_2d{frequency[1], frequency[2]};
         Coord freq_z = frequency[0];
         if constexpr (not nt::empty<EWSOrEmpty>)
             freq_z -= sum(inv_ews_diameter * freq_2d * freq_2d);
@@ -182,9 +182,9 @@ namespace noa::geometry::details {
         using rotate_type = Rotate;
         using ews_type = EWSCurvature;
         using coord_type = nt::value_type_twice_t<rotate_type>;
-        using coord2_type = Vec2<coord_type>;
-        using coord3_type = Vec3<coord_type>;
-        using shape3_type = Shape3<index_type>;
+        using coord2_type = Vec<coord_type, 2>;
+        using coord3_type = Vec<coord_type, 3>;
+        using shape3_type = Shape<index_type, 3>;
 
         using input_type = InputSlice;
         using output_type = OutputVolume;
@@ -204,14 +204,14 @@ namespace noa::geometry::details {
         constexpr FourierInsertRasterize(
             const input_type& input_slices,
             const input_weight_type& input_weights,
-            const Shape4<index_type>& input_slice_shape,
+            const Shape<index_type, 4>& input_slice_shape,
             const output_type& output_volume,
             const output_weight_type& output_weights,
-            const Shape4<index_type>& output_volume_shape,
+            const Shape<index_type, 4>& output_volume_shape,
             const scale_type& inv_scaling,
             const rotate_type& fwd_rotation,
             coord_type fftfreq_cutoff,
-            const Shape4<index_type>& target_shape,
+            const Shape<index_type, 4>& target_shape,
             const ews_type& ews_radius
         ) :
             m_input_slices(input_slices),
@@ -227,13 +227,13 @@ namespace noa::geometry::details {
             m_f_slice_shape = coord2_type::from_vec(slice_shape_2d.vec);
 
             // Use the grid shape as backup.
-            const auto target_shape_3d = any(target_shape == 0) ? m_grid_shape : target_shape.pop_front();
+            const auto target_shape_3d = target_shape.any_eq(0) ? m_grid_shape : target_shape.pop_front();
             m_f_target_shape = coord3_type::from_vec(target_shape_3d.vec);
 
             // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
             // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
             if constexpr (not nt::empty<ews_type>)
-                m_ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_type{};
+                m_ews_diam_inv = ews_radius != 0 ? 1 / (2 * ews_radius) : ews_type{};
 
             m_fftfreq_cutoff_sqd = max(fftfreq_cutoff, coord_type{});
             m_fftfreq_cutoff_sqd *= m_fftfreq_cutoff_sqd;
@@ -292,13 +292,13 @@ namespace noa::geometry::details {
         // The gridding/rasterization kernel is a trilinear pulse.
         // The total weight within the 2x2x2 cube is 1.
         NOA_HD static constexpr void set_rasterization_weights_(
-            const Vec3<index_type>& base0,
-            const Vec3<coord_type>& freq,
+            const Vec<index_type, 3>& base0,
+            const Vec<coord_type, 3>& freq,
             coord_type o_weights[2][2][2]
         ) noexcept {
             // So if the coordinate is centered in the bottom left corner of the cube (base0),
             // i.e., its decimal is 0, the corresponding fraction for this element should be 1.
-            Vec3<coord_type> fraction[2];
+            Vec<coord_type, 3> fraction[2];
             fraction[1] = freq - base0.template as<coord_type>();
             fraction[0] = 1 - fraction[1];
             for (index_type w{}; w < 2; ++w)
@@ -313,7 +313,7 @@ namespace noa::geometry::details {
         NOA_HD void rasterize_on_3d_grid_(
             output_value_type value,
             const output_weight_value_type& weight,
-            const Vec3<coord_type>& frequency // in samples
+            const Vec<coord_type, 3>& frequency // in samples
         ) const noexcept {
             const auto base0 = floor(frequency).template as<index_type>();
 
@@ -414,8 +414,8 @@ namespace noa::geometry::details {
         using rotate_type = Rotate;
         using ews_type = EWSCurvature;
         using coord_type = nt::value_type_twice_t<rotate_type>;
-        using coord2_type = Vec2<coord_type>;
-        using coord3_type = Vec3<coord_type>;
+        using coord2_type = Vec<coord_type, 2>;
+        using coord3_type = Vec<coord_type, 3>;
         using shape_nd_type = Shape<index_type, 3 - IS_VOLUME_RFFT>;
 
         using input_type = InputSlice;
@@ -439,16 +439,16 @@ namespace noa::geometry::details {
         FourierInsertInterpolate(
             const input_type& input_slices,
             const input_weight_type& input_weights,
-            const Shape4<index_type>& input_slice_shape,
+            const Shape<index_type, 4>& input_slice_shape,
             const output_type& output_volume,
             const output_weight_type& output_weights,
-            const Shape4<index_type>& output_volume_shape,
+            const Shape<index_type, 4>& output_volume_shape,
             const scale_type& fwd_scaling,
             const rotate_type& inv_rotation,
             coord_type fftfreq_sinc,
             coord_type fftfreq_blackman,
             coord_type fftfreq_cutoff,
-            const Shape4<index_type>& target_shape,
+            const Shape<index_type, 4>& target_shape,
             const ews_type& ews_radius
         ) :
             m_input_slices(input_slices),
@@ -463,14 +463,14 @@ namespace noa::geometry::details {
             m_f_slice_shape = coord2_type::from_vec(slice_shape_2d.vec);
 
             const auto grid_shape = output_volume_shape.pop_front();
-            const auto l_target_shape = any(target_shape == 0) ? grid_shape : target_shape.pop_front();
+            const auto l_target_shape = target_shape.any_eq(0) ? grid_shape : target_shape.pop_front();
             m_grid_shape = grid_shape.template pop_back<IS_VOLUME_RFFT>();
             m_f_target_shape = coord3_type::from_vec(l_target_shape.vec);
 
             // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
             // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
             if constexpr (not nt::empty<ews_type>)
-                m_ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_type{};
+                m_ews_diam_inv = ews_radius != 0 ? 1 / (2 * ews_radius) : ews_type{};
 
             m_fftfreq_cutoff_sqd = max(fftfreq_cutoff, coord_type{});
             m_fftfreq_cutoff_sqd *= m_fftfreq_cutoff_sqd;
@@ -574,8 +574,8 @@ namespace noa::geometry::details {
         using batched_rotate_type = Rotate;
         using ews_type = EWSCurvature;
         using coord_type = nt::value_type_twice_t<batched_rotate_type>;
-        using coord2_type = Vec2<coord_type>;
-        using coord3_type = Vec3<coord_type>;
+        using coord2_type = Vec<coord_type, 2>;
+        using coord3_type = Vec<coord_type, 3>;
 
         static_assert(details::fourier_projection_transform_types<batched_scale_type, batched_rotate_type, ews_type> and
                       details::fourier_projection_types<input_type, output_type> and
@@ -590,16 +590,16 @@ namespace noa::geometry::details {
         FourierExtract(
             const input_type& input_volume,
             const input_weight_type& input_weights,
-            const Shape4<index_type>& input_volume_shape,
+            const Shape<index_type, 4>& input_volume_shape,
             const output_type& output_slices,
             const output_weight_type& output_weights,
-            const Shape4<index_type>& output_slice_shape,
+            const Shape<index_type, 4>& output_slice_shape,
             const batched_scale_type& inv_scaling,
             const batched_rotate_type& fwd_rotation,
             coord_type fftfreq_sinc,
             coord_type fftfreq_blackman,
             coord_type fftfreq_cutoff,
-            const Shape4<index_type>& target_shape,
+            const Shape<index_type, 4>& target_shape,
             const ews_type& ews_radius
         ) :
             m_input_volume(input_volume),
@@ -615,13 +615,13 @@ namespace noa::geometry::details {
 
             // Use the grid shape as backup.
             const auto grid_shape_3d = input_volume_shape.pop_front();
-            const auto target_shape_3d = any(target_shape == 0) ? grid_shape_3d : target_shape.pop_front();
+            const auto target_shape_3d = target_shape.any_eq(0) ? grid_shape_3d : target_shape.pop_front();
             m_f_target_shape = coord3_type::from_vec(target_shape_3d.vec);
 
             // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
             // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
             if constexpr (not nt::empty<ews_type>)
-                m_ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_type{};
+                m_ews_diam_inv = ews_radius != 0 ? 1 / (2 * ews_radius) : ews_type{};
 
             m_fftfreq_cutoff_sqd = max(fftfreq_cutoff, coord_type{0});
             m_fftfreq_cutoff_sqd *= m_fftfreq_cutoff_sqd;
@@ -772,8 +772,8 @@ namespace noa::geometry::details {
         using output_rotate_type = OutputRotate;
         using ews_type = EWSCurvature;
         using coord_type = nt::value_type_twice_t<input_rotate_type>;
-        using coord2_type = Vec2<coord_type>;
-        using coord3_type = Vec3<coord_type>;
+        using coord2_type = Vec<coord_type, 2>;
+        using coord3_type = Vec<coord_type, 3>;
 
         // Input/Output value types:
         using input_type = InputSlice;
@@ -802,10 +802,10 @@ namespace noa::geometry::details {
         FourierInsertExtract(
             const input_type& input_slices,
             const input_weight_type& input_weights,
-            const Shape4<index_type>& input_shape,
+            const Shape<index_type, 4>& input_shape,
             const output_type& output_slices,
             const output_weight_type& output_weights,
-            const Shape4<index_type>& output_shape,
+            const Shape<index_type, 4>& output_shape,
             const input_scale_type& insert_fwd_scaling,
             const input_rotate_type& insert_inv_rotation,
             const output_scale_type& extract_inv_scaling,
@@ -840,7 +840,7 @@ namespace noa::geometry::details {
             // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
             // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
             if constexpr (not nt::empty<ews_type>)
-                m_ews_diam_inv = any(ews_radius != 0) ? 1 / (2 * ews_radius) : ews_type{};
+                m_ews_diam_inv = ews_radius != 0 ? 1 / (2 * ews_radius) : ews_type{};
 
             m_fftfreq_cutoff_sqd = max(fftfreq_cutoff, coord_type{0});
             m_fftfreq_cutoff_sqd *= m_fftfreq_cutoff_sqd;
@@ -1026,7 +1026,7 @@ namespace noa::geometry::details {
              nt::writable_nd<4> Output>
     class GriddingCorrection {
         using coord_type = Coord;
-        using coord3_type = Vec3<coord_type>;
+        using coord3_type = Vec<coord_type, 3>;
         using input_type = Input;
         using output_type = Output;
         using output_value_type = nt::value_type_t<output_type>;
@@ -1038,7 +1038,7 @@ namespace noa::geometry::details {
         constexpr GriddingCorrection(
             const input_type& input,
             const output_type& output,
-            const Shape4<T>& shape
+            const Shape<T, 4>& shape
         ) :
             m_input(input),
             m_output(output)
@@ -1112,9 +1112,9 @@ namespace noa::geometry::details {
              typename InputScale, typename InputRotate,
              typename OutputScale = Mat22<f64>, typename OutputRotate = Mat33<f64>>
     void fourier_projection_check_parameters(
-        const Input& input, const InputWeight& input_weight, const Shape4<i64>& input_shape,
-        const Output& output, const OutputWeight& output_weight, const Shape4<i64>& output_shape,
-        const Shape4<i64>& target_shape,
+        const Input& input, const InputWeight& input_weight, const Shape4& input_shape,
+        const Output& output, const OutputWeight& output_weight, const Shape4& output_shape,
+        const Shape4& target_shape,
         const InputScale& input_scaling,
         const InputRotate& input_rotation,
         const OutputScale& output_scaling = {},
@@ -1122,7 +1122,7 @@ namespace noa::geometry::details {
     ) {
         check(not output.is_empty(), "Empty array detected");
         const Device output_device = output.device();
-        check(vall(Equal{}, output.shape(), output_shape.rfft()),
+        check(output.shape() == output_shape.rfft(),
               "The shape of the rfft output does not match the expected shape. Got output:shape={} and expected:shape={}",
               output.shape(), output_shape.rfft());
 
@@ -1141,7 +1141,7 @@ namespace noa::geometry::details {
                 check(device == output_device,
                       "The arrays should be on the same device, but got {}:device={} and output:device={}",
                       name, device, output_device);
-                check(vall(Equal{}, array.shape(), input_shape.rfft()),
+                check(array.shape() == input_shape.rfft(),
                       "The shape of the rfft does not match the expected shape. Got {}:shape={} and shape={}",
                       name, array.shape(), input_shape.rfft());
             }
@@ -1155,7 +1155,7 @@ namespace noa::geometry::details {
             check(output_weight.device() == output_device,
                   "The arrays should be on the same device, but got output_weight:device={} and output:device={}",
                   output_weight.device(), output_device);
-            check(vall(Equal{}, output_weight.shape(), output_shape.rfft()),
+            check(output_weight.shape() == output_shape.rfft(),
                   "The shape of the rfft does not match the expected shape. Got output_weight:shape={} and shape={}",
                   output_weight.shape(), output_shape.rfft());
         }
@@ -1177,7 +1177,7 @@ namespace noa::geometry::details {
                   input_shape, output_shape);
         }
 
-        auto check_transform = [&](const auto& transform, i64 required_size, std::string_view name) {
+        auto check_transform = [&](const auto& transform, isize required_size, std::string_view name) {
             check(not transform.is_empty(), "{} should not be empty", name);
             check(ni::is_contiguous_vector(transform) and transform.n_elements() == required_size,
                   "{} should be a contiguous vector with n_slices={} elements, but got {}:shape={}, {}:strides={}",
@@ -1230,7 +1230,7 @@ namespace noa::geometry::details {
         return interp;
     }
 
-    template<size_t N, nf::Layout REMAP, bool IS_GPU, Interp INTERP, typename Coord, typename Index, typename T>
+    template<usize N, nf::Layout REMAP, bool IS_GPU, Interp INTERP, typename Coord, typename Index, typename T>
     auto fourier_projection_to_interpolator(const T& input, const Shape<Index, 4>& shape) {
         if constexpr (nt::varray_or_texture<T>) {
             return nd::to_interpolator_spectrum<N, REMAP, INTERP, Coord, IS_GPU>(input, shape);
@@ -1276,8 +1276,8 @@ namespace noa::geometry::details {
              typename Output, typename OutputWeight,
              typename Scale, typename Rotate>
     void launch_rasterize_central_slices_3d(
-        Input&& slice, InputWeight&& slice_weight, const Shape4<i64>& slice_shape,
-        Output&& volume, OutputWeight&& volume_weight, const Shape4<i64>& volume_shape,
+        Input&& slice, InputWeight&& slice_weight, const Shape4& slice_shape,
+        Output&& volume, OutputWeight&& volume_weight, const Shape4& volume_shape,
         Scale&& scaling, Rotate&& rotation, const auto& options
     ) {
         constexpr auto input_accessor_config = nd::AccessorConfig<3>{
@@ -1323,7 +1323,7 @@ namespace noa::geometry::details {
                   std::forward<Scale>(scaling), std::forward<Rotate>(rotation));
         };
 
-        const auto has_ews = any(options.ews_radius != 0);
+        const auto has_ews = options.ews_radius != 0;
         const bool has_scale = fourier_project_has_scale(scaling);
         if (has_ews or has_scale)
             return launch(WrapNoEwaldAndScale<false>{});
@@ -1335,8 +1335,8 @@ namespace noa::geometry::details {
              typename Output, typename OutputWeight,
              typename Scale, typename Rotate>
     void launch_insert_central_slices_3d(
-        Input&& slice, InputWeight&& slice_weight, const Shape4<i64>& slice_shape,
-        Output&& volume, OutputWeight&& volume_weight, const Shape4<i64>& volume_shape,
+        Input&& slice, InputWeight&& slice_weight, const Shape4& slice_shape,
+        Output&& volume, OutputWeight&& volume_weight, const Shape4& volume_shape,
         Scale&& scaling, Rotate&& rotation, const auto& options
     ) {
         constexpr auto accessor_config = nd::AccessorConfig<3>{
@@ -1380,7 +1380,7 @@ namespace noa::geometry::details {
                   std::forward<Scale>(scaling), std::forward<Rotate>(rotation));
         };
 
-        const auto has_ews = any(options.ews_radius != 0);
+        const auto has_ews = options.ews_radius != 0;
         const bool has_scale = fourier_project_has_scale(scaling);
         auto launch_scale = [&](auto interp) {
             if (has_ews or has_scale)
@@ -1412,8 +1412,8 @@ namespace noa::geometry::details {
              typename Output, typename OutputWeight,
              typename Scale, typename Rotate>
     void launch_extract_central_slices_3d(
-        Input&& volume, InputWeight&& volume_weight, const Shape4<i64>& volume_shape,
-        Output&& slice, OutputWeight&& slice_weight, const Shape4<i64>& slice_shape,
+        Input&& volume, InputWeight&& volume_weight, const Shape4& volume_shape,
+        Output&& slice, OutputWeight&& slice_weight, const Shape4& slice_shape,
         Scale&& scaling, Rotate&& rotation, const auto& options
     ) {
         constexpr auto accessor_config = nd::AccessorConfig<3>{
@@ -1473,7 +1473,7 @@ namespace noa::geometry::details {
             }
         };
 
-        const auto has_ews = any(options.ews_radius != 0);
+        const auto has_ews = options.ews_radius != 0;
         const bool has_scale = fourier_project_has_scale(scaling);
         auto launch_scale = [&] (auto interp){
             if (has_ews or has_scale)
@@ -1506,8 +1506,8 @@ namespace noa::geometry::details {
              typename InputScale, typename InputRotate,
              typename OutputScale, typename OutputRotate>
     void launch_insert_and_extract_central_slices_3d(
-        Input&& input_slice, InputWeight&& input_weight, const Shape4<i64>& input_shape,
-        Output&& output_slice, OutputWeight&& output_weight, const Shape4<i64>& output_shape,
+        Input&& input_slice, InputWeight&& input_weight, const Shape4& input_shape,
+        Output&& output_slice, OutputWeight&& output_weight, const Shape4& output_shape,
         InputScale&& input_scaling, InputRotate&& input_rotation,
         OutputScale&& output_scaling, OutputRotate&& output_rotation,
         const auto& options
@@ -1584,7 +1584,7 @@ namespace noa::geometry::details {
             }
         };
 
-        const auto has_ews = any(options.ews_radius != 0);
+        const auto has_ews = options.ews_radius != 0;
         const bool has_scale = fourier_project_has_scale(input_scaling) or fourier_project_has_scale(output_scaling);
         auto launch_scale = [&](auto interp) {
             if (has_ews or has_scale)
@@ -1625,7 +1625,7 @@ namespace noa::geometry {
         /// This parameter specifies the size of the volume onto which the slice frequencies should be mapped against.
         /// By default, i.e. empty target_shape or target_shape == volume_shape, the slice frequencies are mapped onto
         /// the volume frequencies, as mentioned above.
-        Shape4<i64> target_shape{};
+        Shape4 target_shape{};
 
         /// HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
         /// If negative, the negative curve is computed. If {0,0}, the slices are projections.
@@ -1637,7 +1637,7 @@ namespace noa::geometry {
         /// EWS is computed using the original frequencies (from the scattering) and is therefore spherical even
         /// under anisotropic magnification. If ews_radius is 0, the scaling factors can be merged with the rotation
         /// matrices.
-        Vec2<f64> ews_radius{};
+        Vec<f64, 2> ews_radius{};
     };
 
     /// Inserts 2d Fourier central-slice(s) into a 3d Fourier volume, using tri-linear rasterization.
@@ -1674,10 +1674,10 @@ namespace noa::geometry {
     void rasterize_central_slices_3d(
         Input&& slice,
         InputWeight&& slice_weight,
-        const Shape4<i64>& slice_shape,
+        const Shape4& slice_shape,
         Output&& volume,
         OutputWeight&& volume_weight,
-        const Shape4<i64>& volume_shape,
+        const Shape4& volume_shape,
         Scale&& inv_scaling,
         Rotate&& fwd_rotation,
         const RasterizeCentralSlicesOptions& options = {}
@@ -1689,7 +1689,7 @@ namespace noa::geometry {
         if (volume.device().is_gpu()) {
             #ifdef NOA_ENABLE_GPU
             check(details::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
-                  "i64 indexing not instantiated for GPU devices");
+                  "isize indexing not instantiated for GPU devices");
             return details::launch_rasterize_central_slices_3d<REMAP, i32>(
                 std::forward<Input>(slice), std::forward<InputWeight>(slice_weight), slice_shape,
                 std::forward<Output>(volume), std::forward<OutputWeight>(volume_weight), volume_shape,
@@ -1699,7 +1699,7 @@ namespace noa::geometry {
             #endif
         }
 
-        details::launch_rasterize_central_slices_3d<REMAP, i64>(
+        details::launch_rasterize_central_slices_3d<REMAP, isize>(
             std::forward<Input>(slice), std::forward<InputWeight>(slice_weight), slice_shape,
             std::forward<Output>(volume), std::forward<OutputWeight>(volume_weight), volume_shape,
             std::forward<Scale>(inv_scaling), std::forward<Rotate>(fwd_rotation), options);
@@ -1745,11 +1745,11 @@ namespace noa::geometry {
 
         /// Actual BDHW logical shape of the 3d volume.
         /// See RasterizeCentralSlicesOptions for more details.
-        Shape4<i64> target_shape{};
+        Shape4 target_shape{};
 
         /// HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
         /// See RasterizeCentralSlicesOptions for more details.
-        Vec2<f64> ews_radius{};
+        Vec<f64, 2> ews_radius{};
     };
 
     /// Fourier-insertion using 2d-interpolation to insert central-slices in the volume.
@@ -1791,10 +1791,10 @@ namespace noa::geometry {
     void insert_central_slices_3d(
         Input&& slice,
         InputWeight&& slice_weight,
-        const Shape4<i64>& slice_shape,
+        const Shape4& slice_shape,
         Output&& volume,
         OutputWeight&& volume_weight,
-        const Shape4<i64>& volume_shape,
+        const Shape4& volume_shape,
         Scale&& fwd_scaling,
         Rotate&& inv_rotation,
         const InsertCentralSlicesOptions& options = {}
@@ -1811,7 +1811,7 @@ namespace noa::geometry {
                 std::terminate(); // unreachable
             } else {
                 check(details::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
-                      "i64 indexing not instantiated for GPU devices");
+                      "isize indexing not instantiated for GPU devices");
                 return details::launch_insert_central_slices_3d<REMAP, i32, true>(
                     std::forward<Input>(slice), std::forward<InputWeight>(slice_weight), slice_shape,
                     std::forward<Output>(volume), std::forward<OutputWeight>(volume_weight), volume_shape,
@@ -1822,7 +1822,7 @@ namespace noa::geometry {
             #endif
         }
 
-        details::launch_insert_central_slices_3d<REMAP, i64, false>(
+        details::launch_insert_central_slices_3d<REMAP, isize, false>(
             std::forward<Input>(slice), std::forward<InputWeight>(slice_weight), slice_shape,
             std::forward<Output>(volume), std::forward<OutputWeight>(volume_weight), volume_shape,
             std::forward<Scale>(fwd_scaling), std::forward<Rotate>(inv_rotation), options);
@@ -1844,11 +1844,11 @@ namespace noa::geometry {
 
         /// Actual BDHW logical shape of the 3d volume.
         /// See RasterizeCentralSlicesOptions for more details.
-        Shape4<i64> target_shape{};
+        Shape4 target_shape{};
 
         /// HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
         /// See RasterizeCentralSlicesOptions for more details.
-        Vec2<f64> ews_radius{};
+        Vec<f64, 2> ews_radius{};
     };
 
     /// Extracts 2d central-slice(s) from a volume.
@@ -1890,10 +1890,10 @@ namespace noa::geometry {
     void extract_central_slices_3d(
         Input&& volume,
         InputWeight&& volume_weight,
-        const Shape4<i64>& volume_shape,
+        const Shape4& volume_shape,
         Output&& slice,
         OutputWeight&& slice_weight,
-        const Shape4<i64>& slice_shape,
+        const Shape4& slice_shape,
         Scale&& inv_scaling,
         Rotate&& fwd_rotation,
         const ExtractCentralSlicesOptions& options = {}
@@ -1910,7 +1910,7 @@ namespace noa::geometry {
                 std::terminate(); // unreachable
             } else {
                 check(details::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
-                      "i64 indexing not instantiated for GPU devices");
+                      "isize indexing not instantiated for GPU devices");
                 return details::launch_extract_central_slices_3d<REMAP, i32, true>(
                     std::forward<Input>(volume), std::forward<InputWeight>(volume_weight), volume_shape,
                     std::forward<Output>(slice), std::forward<OutputWeight>(slice_weight), slice_shape,
@@ -1921,7 +1921,7 @@ namespace noa::geometry {
             #endif
         }
 
-        details::launch_extract_central_slices_3d<REMAP, i64, false>(
+        details::launch_extract_central_slices_3d<REMAP, isize, false>(
             std::forward<Input>(volume), std::forward<InputWeight>(volume_weight), volume_shape,
             std::forward<Output>(slice), std::forward<OutputWeight>(slice_weight), slice_shape,
             std::forward<Scale>(inv_scaling), std::forward<Rotate>(fwd_rotation), options);
@@ -1961,7 +1961,7 @@ namespace noa::geometry {
 
         /// HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
         /// See RasterizeCentralSlicesOptions for more details.
-        Vec2<f64> ews_radius{};
+        Vec<f64, 2> ews_radius{};
     };
 
     /// Extracts 2d central-slice(s) from a virtual volume filled by other central-slices.
@@ -2010,10 +2010,10 @@ namespace noa::geometry {
     void insert_and_extract_central_slices_3d(
         Input&& input_slice,
         InputWeight&& input_weight,
-        const Shape4<i64>& input_slice_shape,
+        const Shape4& input_slice_shape,
         Output&& output_slice,
         OutputWeight&& output_weight,
-        const Shape4<i64>& output_slice_shape,
+        const Shape4& output_slice_shape,
         InputScale&& input_fwd_scaling,
         InputRotate&& input_inv_rotation,
         OutputScale&& output_inv_scaling,
@@ -2027,7 +2027,7 @@ namespace noa::geometry {
         using coord_t = nt::value_type_twice_t<OutputRotate>;
         const auto volume_z = static_cast<coord_t>(min(output_slice_shape.filter(2, 3)));
         const auto fftfreq_blackman = static_cast<coord_t>(options.w_windowed_sinc.fftfreq_blackman);
-        const auto w_blackman_size = details::blackman_window_size<i64>(fftfreq_blackman, volume_z);
+        const auto w_blackman_size = details::blackman_window_size<isize>(fftfreq_blackman, volume_z);
         check(not options.correct_weights or (not options.add_to_output and w_blackman_size == 1),
               "options.correct_weights=true is not compatible with "
               "options.add_to_output=true and options.w_windowed_sinc.fftfreq_blackman={} (={} pixels)",
@@ -2041,7 +2041,7 @@ namespace noa::geometry {
                 std::terminate(); // unreachable
             } else {
                 check(details::fourier_projection_is_i32_safe_access(input_slice, input_weight, output_slice, output_weight),
-                      "i64 indexing not instantiated for GPU devices");
+                      "isize indexing not instantiated for GPU devices");
                 return details::launch_insert_and_extract_central_slices_3d<REMAP, i32, true>(
                     std::forward<Input>(input_slice), std::forward<InputWeight>(input_weight), input_slice_shape,
                     std::forward<Output>(output_slice), std::forward<OutputWeight>(output_weight), output_slice_shape,
@@ -2054,7 +2054,7 @@ namespace noa::geometry {
             #endif
         }
 
-        details::launch_insert_and_extract_central_slices_3d<REMAP, i64>(
+        details::launch_insert_and_extract_central_slices_3d<REMAP, isize>(
             std::forward<Input>(input_slice), std::forward<InputWeight>(input_weight), input_slice_shape,
             std::forward<Output>(output_slice), std::forward<OutputWeight>(output_weight), output_slice_shape,
             std::forward<InputScale>(input_fwd_scaling), std::forward<InputRotate>(input_inv_rotation),
@@ -2084,8 +2084,8 @@ namespace noa::geometry {
         using coord_t = std::conditional_t<nt::any_of<f64, input_value_t, output_value_t>, f64, f32>;
         const auto output_shape = output.shape();
         const auto input_strides = nd::broadcast_strides(input, output);
-        const auto input_accessor = Accessor<const input_value_t, 4, i64>(input.get(), input_strides.template as<i64>());
-        const auto output_accessor = Accessor<output_value_t, 4, i64>(output.get(), output.strides().template as<i64>());
+        const auto input_accessor = Accessor<const input_value_t, 4, isize>(input.get(), input_strides.template as<isize>());
+        const auto output_accessor = Accessor<output_value_t, 4, isize>(output.get(), output.strides().template as<isize>());
 
         if (post_correction) {
             const auto op = details::GriddingCorrection<true, coord_t, decltype(input_accessor), decltype(output_accessor)>(

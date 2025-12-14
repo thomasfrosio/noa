@@ -105,8 +105,8 @@ namespace noa::inline types {
         /// \note Allocated PINNED and MANAGED memory are counted for the GPU used for the allocation, as well as for
         ///       the CPU. Allocated MANAGED_GLOBAL memory is counted for the CPU and all GPU. The counted memory
         ///       allocated as CUDA_ARRAY is only an estimate, and CUDA may allocate slightly more than that.
-        [[nodiscard]] static auto bytes_currently_allocated(Device device) -> size_t {
-            size_t n_bytes{};
+        [[nodiscard]] static auto bytes_currently_allocated(Device device) -> usize {
+            usize n_bytes{};
             if (device.is_cpu()) {
                 n_bytes += noa::cpu::AllocatorHeap::bytes_currently_allocated();
                 #ifdef NOA_ENABLE_CUDA
@@ -162,7 +162,7 @@ namespace noa::inline types {
         ///       (they have different deleters), so we have to type erase them with the shared_ptr.
         template<typename T>
         auto allocate(
-            i64 n_elements,
+            isize n_elements,
             const Device& device
         ) -> std::shared_ptr<T[]> {
             if (not n_elements)
@@ -203,7 +203,7 @@ namespace noa::inline types {
                         const auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
                         // AllocatorDevicePadded requires sizeof(T) <= 16 bytes.
                         if constexpr (nt::numeric<T>) {
-                            auto shape = Shape<i64, 4>::from_values(1, 1, 1, n_elements);
+                            auto shape = Shape4::from_values(1, 1, 1, n_elements);
                             return noa::cuda::AllocatorDevicePadded::allocate<T>(shape, cuda_device).first;
                         } else {
                             return noa::cuda::AllocatorDevice::allocate<T>(n_elements, cuda_device);
@@ -263,9 +263,9 @@ namespace noa::inline types {
         /// memory alignment. Of course, this padding is encoded in the returned strides.
         template<typename T>
         auto allocate_pitched(
-            const Shape4<i64>& shape,
+            const Shape4& shape,
             const Device& device
-        ) -> Pair<std::shared_ptr<T[]>, Strides4<i64>> {
+        ) -> Pair<std::shared_ptr<T[]>, Strides4> {
             switch (value) {
                 case Allocator::NONE:
                     return {};

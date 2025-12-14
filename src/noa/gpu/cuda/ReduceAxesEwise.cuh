@@ -26,7 +26,7 @@ namespace noa::cuda::details {
     template<typename Block, typename Interface, typename Op, typename Index,
              typename Input, typename InputAlignedBuffer, typename Reduced, typename Output>
     __global__ __launch_bounds__(Block::block_size)
-    void reduce_width_ewise(Op op, Input input, Shape2<Index> shape_hw, Reduced reduced, Output output) {
+    void reduce_width_ewise(Op op, Input input, Shape<Index, 2> shape_hw, Reduced reduced, Output output) {
         const auto tid = Vec<Index, 2>::from_values(threadIdx.y, threadIdx.x);
         const auto gid = Vec<Index, 4>::from_values(
             blockIdx.z,
@@ -75,7 +75,7 @@ namespace noa::cuda::details {
 
     template<typename Block, typename Interface, typename Op, typename Index, typename Input, typename Reduced, typename Output>
     __global__ __launch_bounds__(Block::block_size)
-    void reduce_height_ewise(Op op, Input input, Shape2<Index> shape_hw, Reduced reduced, Output output) {
+    void reduce_height_ewise(Op op, Input input, Shape<Index, 2> shape_hw, Reduced reduced, Output output) {
         const auto gid = Vec<Index, 4>::from_values(
             blockIdx.z,
             blockIdx.y,
@@ -352,23 +352,22 @@ namespace noa::cuda {
         Output&& output,
         Stream& stream
     ) {
-        const auto axes_to_reduce = input_shape != output_shape;
-        if (any(axes_to_reduce and (output_shape != 1))) {
-            panic("Dimensions should match the input shape, or be 1, "
-                  "indicating the dimension should be reduced to one element. "
-                  "Got shape input={}, output={}", input_shape, output_shape);
-        } else if (all(axes_to_reduce == false)) {
-            panic("No reduction to compute. Got shape input={}, output={}. Please use ewise instead.",
-                  input_shape, output_shape);
-        }
+        const auto axes_to_reduce = input_shape.cmp_ne(output_shape);
+        check((axes_to_reduce and output_shape.cmp_ne(1)) == false,
+              "Dimensions should match the input shape, or be 1, "
+              "indicating the dimension should be reduced to one element. "
+              "Got shape input={}, output={}", input_shape, output_shape);
+        check(axes_to_reduce.any_eq(true),
+              "No reduction to compute. Got shape input={}, output={}. Please use ewise instead.",
+              input_shape, output_shape);
 
-        const auto axes_empty_or_to_reduce = output_shape == 1 or axes_to_reduce;
-        if (all(axes_empty_or_to_reduce.pop_front())) { // reduce to one value or one value per batch
+        const auto axes_empty_or_to_reduce = output_shape.cmp_eq(1) or axes_to_reduce;
+        if (axes_empty_or_to_reduce.pop_front() == true) { // reduce to one value or one value per batch
             const auto batches = safe_cast<Index>(output_shape[0]);
-            const auto input_shape_i64 = input_shape.template as_safe<i64>();
+            const auto input_shape_iz = input_shape.template as_safe<isize>();
             const bool reduce_all = axes_empty_or_to_reduce[0];
-            const auto n_elements_to_reduce_i64 = reduce_all ? input_shape_i64.n_elements() : input_shape_i64.pop_front().n_elements();
-            const auto n_elements_to_reduce = safe_cast<Index>(n_elements_to_reduce_i64);
+            const auto n_elements_to_reduce_iz = reduce_all ? input_shape_iz.n_elements() : input_shape_iz.pop_front().n_elements();
+            const auto n_elements_to_reduce = safe_cast<Index>(n_elements_to_reduce_iz);
 
             Vec<bool, 4> is_contiguous = ni::is_contiguous(input, input_shape);
             if (not reduce_all)
@@ -377,7 +376,7 @@ namespace noa::cuda {
             auto output_1d = nd::reconfig_accessors<nd::AccessorConfig<1>{.filter = {0}}>(std::forward<Output>(output));
 
             constexpr auto SMALL_THRESHOLD = Config::block_work_size * 4;
-            if (all(is_contiguous.pop_back())) {
+            if (is_contiguous.pop_back() == true) {
                 if (n_elements_to_reduce <= SMALL_THRESHOLD) {
                     details::launch_reduce_ewise_small_2d<Config>(
                         std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),

@@ -29,16 +29,16 @@ namespace noa {
             return is_safe_cast<typename To::value_type>(src);
 
         } else if constexpr(nt::is_real_v<To>) {
-            if constexpr (std::is_same_v<To, Half>) {
+            if constexpr (std::is_same_v<To, f16>) {
                 if constexpr (sizeof(From) == 1 or (sizeof(From) == 2 and std::is_signed_v<From>)) {
-                    return true; // (u)int8_t/int16_t -> Half
+                    return true; // (u)int8_t/int16_t -> f16
                 } else if constexpr (std::is_unsigned_v<From>) {
-                    return src <= From(std::numeric_limits<To>::max()); // uint(16|32|64)_t -> Half
-                } else { // int(32|64)_t -> Half, float/double -> Half
+                    return src <= From(std::numeric_limits<To>::max()); // uint(16|32|64)_t -> f16
+                } else { // int(32|64)_t -> f16, float/double -> f16
                     return From(std::numeric_limits<To>::lowest()) <= src and src <= From(std::numeric_limits<To>::max());
                 }
             } else if constexpr (std::is_integral_v<From> or (sizeof(From) < sizeof(To))) {
-                return true; // implicit integral/Half->float/double conversion or float->double
+                return true; // implicit integral/f16->float/double conversion or float->double
             } else { // double->float
                 return From(std::numeric_limits<To>::lowest()) <= src and src <= From(std::numeric_limits<To>::max());
             }
@@ -46,10 +46,10 @@ namespace noa {
         } else if constexpr (std::is_integral_v<To> and nt::is_real_v<From>) {
             using int_limits = std::numeric_limits<To>;
             constexpr bool IS_WIDER_THAN_HALF = sizeof(To) > 2 or (sizeof(To) == 2 and std::is_unsigned_v<To>);
-            if constexpr (std::is_same_v<From, Half> and IS_WIDER_THAN_HALF) {
+            if constexpr (std::is_same_v<From, f16> and IS_WIDER_THAN_HALF) {
                 if (is_nan(src) or
-                    src == Half::from_bits(0x7C00) or
-                    src == Half::from_bits(0xFC00)) {
+                    src == f16::from_bits(0x7C00) or
+                    src == f16::from_bits(0xFC00)) {
                     return false;
                 } else {
                     if constexpr (std::is_unsigned_v<To>)
@@ -102,7 +102,7 @@ namespace noa {
     [[nodiscard]] constexpr To safe_cast(const From& src) {
         if (is_safe_cast<To>(src))
             return static_cast<To>(src);
-        panic("Cannot safely cast {} to {} type", src, noa::string::stringify<To>());
+        panic("Cannot safely cast {} to {} type", src, nd::stringify<To>());
     }
 
     template<typename To, typename From, typename... Ts> requires nt::safe_castable_to<From, To>

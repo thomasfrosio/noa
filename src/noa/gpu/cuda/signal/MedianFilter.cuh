@@ -68,7 +68,7 @@ namespace noa::cuda::signal::details {
 
     template<typename Config, typename Input, typename Output, bool BORDER_REFLECT, i32 WINDOW_SIZE>
     __global__ __launch_bounds__(Config::block_size)
-    void median_filter_1d(Input input, Output output, Shape2<i32> shape, i32 n_blocks_x) {
+    void median_filter_1d(Input input, Output output, Shape<i32, 2> shape, i32 n_blocks_x) {
         static_assert(is_odd(WINDOW_SIZE));
         using input_value_t = Input::mutable_value_type;
         using output_value_t = Output::value_type;
@@ -76,13 +76,13 @@ namespace noa::cuda::signal::details {
         // The shared memory is the shape of the block + the padding in the first dimension.
         constexpr i32 PADDING = WINDOW_SIZE - 1;
         constexpr i32 HALO = PADDING / 2;
-        constexpr auto SHARED_SHAPE = Shape2<i32>{Config::block_size_y, Config::block_size_x + PADDING};
+        constexpr auto SHARED_SHAPE = Shape<i32, 2>{Config::block_size_y, Config::block_size_x + PADDING};
         constexpr auto SHARED_SIZE = SHARED_SHAPE.n_elements();
         __shared__ input_value_t shared_mem[SHARED_SIZE];
 
         const auto index = ni::offset2index(static_cast<i32>(blockIdx.x), n_blocks_x);
-        const auto tid = Vec2<i32>::from_values(threadIdx.y, threadIdx.x);
-        const auto gid = Vec4<i32>::from_values(
+        const auto tid = Vec<i32, 2>::from_values(threadIdx.y, threadIdx.x);
+        const auto gid = Vec<i32, 4>::from_values(
             blockIdx.z,
             blockIdx.y,
             Config::block_size_y * index[0] + tid[0],
@@ -172,7 +172,7 @@ namespace noa::cuda::signal::details {
 
     template<typename Config, typename Input, typename Output, bool BORDER_REFLECT, i32 WINDOW_SIZE>
     __global__ __launch_bounds__(Config::block_size)
-    void median_filter_2d(Input input, Output output, Shape2<i32> shape, i32 n_blocks_x) {
+    void median_filter_2d(Input input, Output output, Shape<i32, 2> shape, i32 n_blocks_x) {
         static_assert(is_odd(WINDOW_SIZE));
         using input_value_t = Input::mutable_value_type;
         using output_value_t = Output::value_type;
@@ -181,13 +181,13 @@ namespace noa::cuda::signal::details {
         constexpr i32 TILE_SIZE = WINDOW_SIZE * WINDOW_SIZE;
         constexpr i32 PADDING = WINDOW_SIZE - 1; // assume odd
         constexpr i32 HALO = PADDING / 2;
-        constexpr auto SHARED_SHAPE = Shape2<u32>{Config::block_size_y + PADDING, Config::block_size_x + PADDING};
+        constexpr auto SHARED_SHAPE = Shape<u32, 2>{Config::block_size_y + PADDING, Config::block_size_x + PADDING};
         constexpr auto SHARED_SIZE = SHARED_SHAPE.n_elements();
         __shared__ input_value_t shared_mem[SHARED_SIZE];
 
         const auto index = ni::offset2index(static_cast<i32>(blockIdx.x), n_blocks_x);
-        const auto tid = Vec2<i32>::from_values(threadIdx.y, threadIdx.x);
-        const auto gid = Vec4<i32>::from_values(
+        const auto tid = Vec<i32, 2>::from_values(threadIdx.y, threadIdx.x);
+        const auto gid = Vec<i32, 4>::from_values(
             blockIdx.z,
             blockIdx.y,
             Config::block_size_y * index[0] + tid[0],
@@ -281,7 +281,7 @@ namespace noa::cuda::signal::details {
     // The launch config and block size is like median_filter_1d_.
     template<typename Config, typename Input, typename Output, bool BORDER_REFLECT, i32 WINDOW_SIZE>
     __global__ __launch_bounds__(Config::block_size_x * Config::block_size_y)
-    void median_filter_3d(Input input, Output output, Shape3<i32> shape, i32 n_blocks_x) {
+    void median_filter_3d(Input input, Output output, Shape<i32, 3> shape, i32 n_blocks_x) {
         static_assert(is_odd(WINDOW_SIZE));
         using input_value_t = Input::mutable_value_type;
         using output_value_t = Output::value_type;
@@ -291,13 +291,13 @@ namespace noa::cuda::signal::details {
         constexpr i32 TILE_SIZE = WINDOW_SIZE * WINDOW_SIZE * WINDOW_SIZE;
         constexpr i32 PADDING = WINDOW_SIZE - 1; // assume odd
         constexpr i32 HALO = PADDING / 2;
-        constexpr auto SHARED_SHAPE = Shape3<i32>{WINDOW_SIZE, Config::block_size_y + PADDING, Config::block_size_x + PADDING};
+        constexpr auto SHARED_SHAPE = Shape<i32, 3>{WINDOW_SIZE, Config::block_size_y + PADDING, Config::block_size_x + PADDING};
         constexpr auto SHARED_SIZE = SHARED_SHAPE.n_elements();
         __shared__ input_value_t shared_mem[SHARED_SIZE];
 
         const auto index = ni::offset2index(static_cast<i32>(blockIdx.x), n_blocks_x);
-        const auto tid = Vec2<i32>::from_values(threadIdx.y, threadIdx.x);
-        const auto gid = Vec4<i32>::from_values(
+        const auto tid = Vec<i32, 2>::from_values(threadIdx.y, threadIdx.x);
+        const auto gid = Vec<i32, 4>::from_values(
             blockIdx.z,
             blockIdx.y,
             Config::block_size_y * index[0] + tid[0],
@@ -358,9 +358,9 @@ namespace noa::cuda::signal {
 
     template<typename T, typename U, typename I>
     void median_filter_1d(
-        const T* input, const Strides4<I>& input_strides,
-        U* output, const Strides4<I>& output_strides,
-        const Shape4<i64>& shape, Border border_mode, i64 window_size, Stream& stream
+        const T* input, const Strides<I, 4>& input_strides,
+        U* output, const Strides<I, 4>& output_strides,
+        const Shape4& shape, Border border_mode, isize window_size, Stream& stream
     ) {
         using config_t = MedianFilterConfig;
         const auto shape_2d = shape.filter(2, 3).as<i32>();
@@ -446,12 +446,12 @@ namespace noa::cuda::signal {
 
     template<typename T, typename U, typename I>
     void median_filter_2d(
-        const T* input, Strides4<I> input_strides,
-        U* output, Strides4<I> output_strides,
-        Shape4<i64> shape, Border border_mode, i64 window_size, Stream& stream
+        const T* input, Strides<I, 4> input_strides,
+        U* output, Strides<I, 4> output_strides,
+        Shape4 shape, Border border_mode, isize window_size, Stream& stream
     ) {
         const auto order_2d = ni::order(output_strides.filter(2, 3), shape.filter(2, 3).as<I>());
-        if (vany(NotEqual{}, order_2d, Vec{0, 1})) {
+        if (order_2d != Vec<isize, 2>{0, 1}) {
             std::swap(input_strides[2], input_strides[3]);
             std::swap(output_strides[2], output_strides[3]);
             std::swap(shape[2], shape[3]);
@@ -511,12 +511,12 @@ namespace noa::cuda::signal {
 
     template<typename T, typename U, typename I>
     void median_filter_3d(
-        const T* input, Strides4<I> input_strides,
-        U* output, Strides4<I> output_strides,
-        Shape4<i64> shape, Border border_mode, i64 window_size, Stream& stream
+        const T* input, Strides<I, 4> input_strides,
+        U* output, Strides<I, 4> output_strides,
+        Shape4 shape, Border border_mode, isize window_size, Stream& stream
     ) {
         const auto order_3d = ni::order(output_strides.pop_front(), shape.pop_front().as<I>());
-        if (vany(NotEqual{}, order_3d, Vec{0, 1, 2})) {
+        if (order_3d != Vec<isize, 3>{0, 1, 2}) {
             const auto order = (order_3d + 1).push_front(0);
             input_strides = input_strides.reorder(order);
             output_strides = output_strides.reorder(order);

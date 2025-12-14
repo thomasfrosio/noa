@@ -8,7 +8,7 @@
 namespace noa::geometry {
     /// Returns a 2x2 HW scaling matrix.
     /// \param s HW scaling factors for each axis.
-    template<bool AFFINE = false, nt::real T, size_t A>
+    template<bool AFFINE = false, nt::real T, usize A>
     constexpr auto scale(const Vec<T, 2, A>& s) -> Mat<T, 2 + AFFINE, 2 + AFFINE> {
         if constexpr (AFFINE)
             return Mat33<T>::from_diagonal(s.push_back(1));
@@ -34,21 +34,21 @@ namespace noa::geometry {
 
     /// Returns the DHW 3x3 affine translation matrix encoding the
     /// HW translation \p shift, in elements.
-    template<nt::real T, size_t A = 0>
+    template<nt::real T, usize A = 0>
     constexpr auto translate(const Vec<T, 2, A>& shift) -> Mat33<T> {
         return {{{1, 0, shift[0]},
                  {0, 1, shift[1]},
                  {0, 0, 1}}};
     }
 
-    template<typename T, size_t A = 0>
+    template<typename T, usize A = 0>
     constexpr auto linear2affine(const Mat22<T>& linear, const Vec<T, 2, A>& translate = {}) -> Mat33<T> {
         return {{{linear[0][0], linear[0][1], translate[0]},
                  {linear[1][0], linear[1][1], translate[1]},
                  {0, 0, 1}}};
     }
 
-    template<typename T, size_t A = 0>
+    template<typename T, usize A = 0>
     constexpr auto linear2truncated(const Mat22<T>& linear, const Vec<T, 2, A>& translate = {}) -> Mat23<T> {
         return {{{linear[0][0], linear[0][1], translate[0]},
                  {linear[1][0], linear[1][1], translate[1]}}};
@@ -83,7 +83,7 @@ namespace noa::geometry {
 namespace noa::geometry {
     /// Returns a DHW 3x3 scaling matrix.
     /// \param s DHW scaling factors for each axis.
-    template<bool AFFINE = false, nt::real T, size_t A>
+    template<bool AFFINE = false, nt::real T, usize A>
     constexpr auto scale(const Vec<T, 3, A>& s) -> Mat<T, 3 + AFFINE, 3 + AFFINE> {
         if constexpr (AFFINE)
             return Mat44<T>::from_diagonal(s.push_back(1));
@@ -148,7 +148,7 @@ namespace noa::geometry {
     /// Returns a DHW 3x3 matrix describing a rotation by an \p angle around a given \p axis.
     /// \param axis     Normalized axis, using the rightmost {Z,Y,X} coordinates.
     /// \param angle    Rotation angle, in radians.
-    template<nt::real T, size_t A>
+    template<nt::real T, usize A>
     constexpr auto rotate(const Vec<T, 3, A>& axis, T angle) -> Mat33<T> {
         // see https://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToMatrix/index.htm
         NOA_ASSERT(allclose(norm(axis), static_cast<T>(1))); // axis should be normalized.
@@ -169,7 +169,7 @@ namespace noa::geometry {
 
     /// Returns a DHW 4x4 affine translation matrix encoding the
     /// DHW translation \p shift, in elements.
-    template<nt::real T, size_t A>
+    template<nt::real T, usize A>
     constexpr auto translate(const Vec<T, 3, A>& shift) -> Mat44<T> {
         return {{{1, 0, 0, shift[0]},
                  {0, 1, 0, shift[1]},
@@ -177,7 +177,7 @@ namespace noa::geometry {
                  {0, 0, 0, 1}}};
     }
 
-    template<nt::real T, size_t A = 0>
+    template<nt::real T, usize A = 0>
     constexpr auto linear2affine(const Mat33<T>& linear, const Vec<T, 3, A>& translate = {}) -> Mat44<T> {
         return {{{linear[0][0], linear[0][1], linear[0][2], translate[0]},
                  {linear[1][0], linear[1][1], linear[1][2], translate[1]},
@@ -185,7 +185,7 @@ namespace noa::geometry {
                  {0, 0, 0, 1}}};
     }
 
-    template<nt::real T, size_t A = 0>
+    template<nt::real T, usize A = 0>
     constexpr auto linear2truncated(const Mat33<T>& linear, const Vec<T, 3, A>& translate = {}) -> Mat34<T> {
         return {{{linear[0][0], linear[0][1], linear[0][2], translate[0]},
                  {linear[1][0], linear[1][1], linear[1][2], translate[1]},
@@ -227,7 +227,7 @@ namespace noa::geometry {
     /// \param xform    Transform operator.
     /// \param vector   Coordinate. The non-homogeneous vector should be passed.
     template<nt::any_of<f32, f64> T,
-             size_t N, size_t A,
+             usize N, usize A,
              typename X>
     requires (N == 2 or N == 3)
     constexpr auto transform_vector(

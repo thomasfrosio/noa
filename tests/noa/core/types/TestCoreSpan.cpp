@@ -25,11 +25,11 @@ TEST_CASE("core::Span") {
     // resulting in the Span only storing a pointer and a size (like std::span).
     {
         using t0 = Span<const f64>;
-        using t1 = Span<const f64, 3, i64, StridesTraits::CONTIGUOUS>;
-        using t2 = Span<const f64, 1, i64, StridesTraits::CONTIGUOUS>;
-        static_assert(std::is_same_v<t0, Span<const f64, 1, i64, StridesTraits::STRIDED>>);
-        static_assert(std::is_same_v<t1::strides_type, Strides<i64, 3 - 1>>);
-        static_assert(std::is_same_v<t2::strides_type, Strides<i64, 0>> and t2{nullptr, 1}.stride<0>() == 1);
+        using t1 = Span<const f64, 3, isize, StridesTraits::CONTIGUOUS>;
+        using t2 = Span<const f64, 1, isize, StridesTraits::CONTIGUOUS>;
+        static_assert(std::is_same_v<t0, Span<const f64, 1, isize, StridesTraits::STRIDED>>);
+        static_assert(std::is_same_v<t1::strides_type, Strides<isize, 3 - 1>>);
+        static_assert(std::is_same_v<t2::strides_type, Strides<isize, 0>> and t2{nullptr, 1}.stride<0>() == 1);
     }
 
     // While StridesTraits::STRIDED is the default, Span comes with deduction guides that make it
@@ -42,7 +42,7 @@ TEST_CASE("core::Span") {
 
         i32 p1[10]{};
         auto s1 = Span{p1};
-        static_assert(std::is_same_v<decltype(s1), Span<i32, 1, i64, StridesTraits::CONTIGUOUS>>);
+        static_assert(std::is_same_v<decltype(s1), Span<i32, 1, isize, StridesTraits::CONTIGUOUS>>);
         REQUIRE(s1.size() == 10);
 
         auto s2 = Span{p0, Shape{10, 10}};
@@ -74,11 +74,11 @@ TEST_CASE("core::Span") {
 
     {
         // Similar to pointers, mutable to const are implicitly convertible, same as void conversion.
-        auto s0 = Span<f64>(buffer.data(), static_cast<i64>(buffer.size()));
-        static_assert(std::is_same_v<decltype(s0.as_const()), Span<const f64, 1, i64>>); // explicit
+        auto s0 = Span<f64>(buffer.data(), static_cast<isize>(buffer.size()));
+        static_assert(std::is_same_v<decltype(s0.as_const()), Span<const f64, 1, isize>>); // explicit
         [[maybe_unused]] Span<const f64> s1 = s0; // implicit
         [[maybe_unused]] Span<const void> s2 = s0;
-        REQUIRE(all(s2.shape() == s0.shape())); // conversion to void only reinterprets the pointer
+        REQUIRE(s2.shape() == s0.shape()); // conversion to void only reinterprets the pointer
 
         // Conversion to bytes correctly changes the shape/strides to the new type.
         Span<const std::byte> s4 = s0.as_bytes(); // + implicit conversion to const
@@ -96,8 +96,8 @@ TEST_CASE("core::Span") {
         auto p0 = std::make_unique<i32[]>(static_cast<size_t>(shape_4d.n_elements()));
         auto s0 = Span(p0.get(), shape_4d); // contiguous
         REQUIRE(s0.n_elements() == shape_4d.n_elements());
-        REQUIRE(all(s0.strides() == shape_4d.strides().pop_back()));
-        REQUIRE(all(s0.strides_full() == shape_4d.strides()));
+        REQUIRE(s0.strides() == shape_4d.strides().pop_back());
+        REQUIRE(s0.strides_full() == shape_4d.strides());
 
         // Multidimensional indexing.
         for (i32 i{}; i < s0.shape()[0]; ++i)
@@ -125,12 +125,12 @@ TEST_CASE("core::Span") {
 
         auto s2 = s0.span<const i32, 2, i64, StridesTraits::STRIDED>();
         REQUIRE(s2.get() == s0.get());
-        REQUIRE(all(s2.shape() == Shape2<i64>{shape_4d.pop_back().n_elements(), shape_4d[3]}));
-        REQUIRE(all(s2.strides() == Strides2<i64>{shape_4d[3], 1}));
+        REQUIRE(s2.shape() == Shape<i64, 2>{shape_4d.pop_back().n_elements(), shape_4d[3]});
+        REQUIRE(s2.strides() == Strides<i64, 2>{shape_4d[3], 1});
 
         // Reshape, subregion and dimension conversion.
         REQUIRE_NOTHROW(s0.reshape({1, 6, 1, 20}));
-        REQUIRE(all(s0.flat().reorder({3, 0, 1, 2}).shape() == Shape{shape_4d.n_elements(), 1, 1, 1}));
+        REQUIRE(s0.flat().reorder({3, 0, 1, 2}).shape() == Shape{shape_4d.n_elements(), 1, 1, 1});
         REQUIRE(s0.span<i32, 4, u64>().subregion(1, 1).data() == s0.get() + s0.offset_at(1, 1));
     }
 }

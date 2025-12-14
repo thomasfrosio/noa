@@ -24,9 +24,9 @@ namespace noa::indexing {
     /// \param strides  Strides associated with these indices.
     /// \param indices  Multi-dimensional indices.
     /// \note If the resulting offset is used for pointer arithmetic, prefer to use the safer offset_pointer.
-    template<nt::integer T, size_t N, size_t A, nt::integer... I> requires (N >= sizeof...(I))
+    template<nt::integer T, usize N, usize A, nt::integer... I> requires (N >= sizeof...(I))
     [[nodiscard]] NOA_FHD constexpr auto offset_at(const Strides<T, N, A>& strides, I... indices) noexcept {
-        return [&strides]<size_t... J>(std::index_sequence<J...>, auto&... indices_) {
+        return [&strides]<usize... J>(std::index_sequence<J...>, auto&... indices_) {
             return (ni::offset_at(strides[J], indices_) + ...);
         }(std::make_index_sequence<sizeof...(I)>{}, indices...); // nvcc bug - capture indices fails
     }
@@ -35,12 +35,12 @@ namespace noa::indexing {
     /// \param strides  Strides associated with these indices.
     /// \param indices  Multi-dimensional indices.
     /// \note If the resulting offset is used for pointer arithmetic, prefer to use the safer offset_pointer.
-    template<nt::integer T, size_t N0, size_t A0, nt::integer U, size_t N1, size_t A1> requires (N0 >= N1)
+    template<nt::integer T, usize N0, usize A0, nt::integer U, usize N1, usize A1> requires (N0 >= N1)
     [[nodiscard]] NOA_FHD constexpr auto offset_at(
         const Strides<T, N0, A0>& strides,
         const Vec<U, N1, A1>& indices
     ) noexcept {
-        return [&]<size_t... I>(std::index_sequence<I...>) {
+        return [&]<usize... I>(std::index_sequence<I...>) {
             return (ni::offset_at(strides[I], indices[I]) + ...);
         }(std::make_index_sequence<N1>{});
     }
@@ -50,19 +50,19 @@ namespace noa::indexing {
         const T& indexable,
         I... indices
     ) noexcept {
-        return [&indexable]<size_t... J>(std::index_sequence<J...>, auto&... indices_) {
+        return [&indexable]<usize... J>(std::index_sequence<J...>, auto&... indices_) {
             typename T::index_type offset{};
             ((offset += ni::offset_at(indexable.template stride<J>(), indices_)), ...);
             return offset;
         }(std::make_index_sequence<sizeof...(indices)>{}, indices...);
     }
 
-    template<nt::integer I, size_t N, size_t A, nt::indexable_nd<N> T>
+    template<nt::integer I, usize N, usize A, nt::indexable_nd<N> T>
     [[nodiscard]] NOA_FHD constexpr auto offset_at(
         const T& indexable,
         const Vec<I, N, A>& indices
     ) noexcept {
-        return [&]<size_t... J>(std::index_sequence<J...>) {
+        return [&]<usize... J>(std::index_sequence<J...>) {
             typename T::index_type offset{};
             ((offset += ni::offset_at(indexable.template stride<J>(), indices[J])), ...);
             return offset;
@@ -80,19 +80,19 @@ namespace noa::indexing {
         P pointer,
         I... indices
     ) noexcept -> P {
-        return [&]<size_t... J>(std::index_sequence<J...>, auto&... indices_) {
+        return [&]<usize... J>(std::index_sequence<J...>, auto&... indices_) {
             ((pointer += ni::offset_at(indexable.template stride<J>(), indices_)), ...);
             return pointer;
         }(std::make_index_sequence<sizeof...(I)>{}, indices...);
     }
 
-    template<nt::integer I, size_t N, size_t A, nt::indexable_nd<N> T, nt::pointer P>
+    template<nt::integer I, usize N, usize A, nt::indexable_nd<N> T, nt::pointer P>
     [[nodiscard]] NOA_FHD constexpr auto offset_pointer(
         const T& indexable,
         P pointer,
         const Vec<I, N, A>& indices
     ) noexcept -> P {
-        return [&]<size_t... J>(std::index_sequence<J...>) {
+        return [&]<usize... J>(std::index_sequence<J...>) {
             ((pointer += ni::offset_at(indexable.template stride<J>(), indices[J])), ...);
             return pointer;
         }(std::make_index_sequence<N>{});
@@ -132,7 +132,7 @@ namespace noa::indexing {
 
     /// CRTP-type adding indexing related member functions to the type T.
     /// Both Accessor and Span uses this type to index pointers and read values.
-    template<typename T, size_t N>
+    template<typename T, usize N>
     struct Indexer {
         template<typename... I> requires nt::offset_indexing<N, I...>
         NOA_HD constexpr auto offset_inplace(const I&... indices) noexcept -> T& {
@@ -205,13 +205,13 @@ namespace noa::indexing {
         return idx;
     }
 
-    template<Border MODE, nt::sinteger T, size_t N, size_t A0, size_t A1>
+    template<Border MODE, nt::sinteger T, usize N, usize A0, usize A1>
     [[nodiscard]] NOA_HD constexpr auto index_at(
         const Vec<T, N, A0>& indices,
         const Shape<T, N, A1>& shape
     ) noexcept {
         Vec<T, N, A0> out;
-        for (size_t i{}; i < N; ++i)
+        for (usize i{}; i < N; ++i)
             out[i] = index_at<MODE>(indices[i], shape[i]);
         return out;
     }
@@ -219,7 +219,7 @@ namespace noa::indexing {
     /// Returns the 2d rightmost indexes corresponding to
     /// the given memory offset in a contiguous layout.
     template<nt::integer T>
-    [[nodiscard]] NOA_HD constexpr auto offset2index(T offset, T size) noexcept -> Vec2<T> {
+    [[nodiscard]] NOA_HD constexpr auto offset2index(T offset, T size) noexcept -> Vec<T, 2> {
         NOA_ASSERT(size > 0);
         const auto i0 = offset / size;
         const auto i1 = offset - i0 * size;
@@ -231,7 +231,7 @@ namespace noa::indexing {
     /// \param offset   Linear memory offset.
     /// \param s0,s1    DH sizes.
     template<nt::integer T>
-    [[nodiscard]] NOA_HD constexpr auto offset2index(T offset, T s0, T s1) noexcept -> Vec3<T> {
+    [[nodiscard]] NOA_HD constexpr auto offset2index(T offset, T s0, T s1) noexcept -> Vec<T, 3> {
         NOA_ASSERT(s0 > 0 and s1 > 0);
         const auto i0 = offset / (s0 * s1);
         offset -= i0 * s0 * s1;
@@ -245,7 +245,7 @@ namespace noa::indexing {
     /// \param offset   Linear memory offset.
     /// \param s0,s1,s2 DHW sizes.
     template<nt::integer T>
-    [[nodiscard]] NOA_HD constexpr auto offset2index(T offset, T s0, T s1, T s2) noexcept -> Vec4<T> {
+    [[nodiscard]] NOA_HD constexpr auto offset2index(T offset, T s0, T s1, T s2) noexcept -> Vec<T, 4> {
         NOA_ASSERT(s0 > 0 and s1 > 0 and s2 > 0);
         const auto i0 = offset / (s0 * s1 * s2);
         offset -= i0 * s0 * s1 * s2;
@@ -259,7 +259,7 @@ namespace noa::indexing {
     /// Returns the multidimensional indices corresponding to a memory \p offset, assuming BDHW C-contiguity.
     /// \param offset   Memory offset within the array.
     /// \param shape    Shape of the array.
-    template<nt::integer T, size_t N>
+    template<nt::integer T, usize N>
     [[nodiscard]] NOA_FHD constexpr auto offset2index(
         std::type_identity_t<T> offset,
         const Shape<T, N>& shape
@@ -282,7 +282,7 @@ namespace noa::indexing {
     /// \param offset   Memory offset within the array.
     /// \param strides  Strides of the array.
     /// \param shape    Shape of the array.
-    template<bool ASSUME_RIGHTMOST = false, nt::integer T, size_t N>
+    template<bool ASSUME_RIGHTMOST = false, nt::integer T, usize N>
     [[nodiscard]] NOA_HD constexpr auto offset2index(
         std::type_identity_t<T> offset,
         const Strides<T, N>& strides,
@@ -293,7 +293,7 @@ namespace noa::indexing {
         T remain = offset;
 
         if constexpr (ASSUME_RIGHTMOST) {
-            for (size_t i{}; i < N; ++i) {
+            for (usize i{}; i < N; ++i) {
                 if (shape[i] > 1) { // if empty, ignore it.
                     NOA_ASSERT(strides[i] > 0);
                     out[i] = remain / strides[i]; // single-divide optimization should kick in
@@ -302,7 +302,7 @@ namespace noa::indexing {
             }
         } else {
             const auto rightmost_order = order(strides, shape);
-            for (size_t i{}; i < N; ++i) {
+            for (usize i{}; i < N; ++i) {
                 const auto idx = rightmost_order[i];
                 if (shape[idx] > 1) {
                     NOA_ASSERT(strides[idx] > 0);

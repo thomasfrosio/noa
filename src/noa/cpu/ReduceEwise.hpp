@@ -10,10 +10,10 @@ namespace noa::cpu::details {
     public:
         using interface = nd::ReduceEwiseInterface<ZipInput, ZipReduced, ZipOutput>;
 
-        template<typename Op, typename Input, typename Reduced, typename Output, typename Index, size_t N>
+        template<typename Op, typename Input, typename Reduced, typename Output, typename Index, usize N>
         NOA_NOINLINE static void parallel(
             const Shape<Index, N>& shape, Op op,
-            Input input, Reduced reduced, Output& output, i64 n_threads
+            Input input, Reduced reduced, Output& output, i32 n_threads
         ) {
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, input, reduced) firstprivate(op)
             {
@@ -44,7 +44,7 @@ namespace noa::cpu::details {
             interface::final(op, reduced, output, 0);
         }
 
-        template<typename Op, typename Input, typename Reduced, typename Output, typename Index, size_t N>
+        template<typename Op, typename Input, typename Reduced, typename Output, typename Index, usize N>
         NOA_NOINLINE static void serial(
             const Shape<Index, N>& shape, Op op,
             Input input, Reduced reduced, Output& output
@@ -68,12 +68,12 @@ namespace noa::cpu::details {
 }
 
 namespace noa::cpu {
-    template<bool ZipInput = false, bool ZipReduced = false, bool ZipOutput = false, i64 ElementsPerThread = 1'048'576>
+    template<bool ZipInput = false, bool ZipReduced = false, bool ZipOutput = false, isize ElementsPerThread = 1'048'576>
     struct ReduceEwiseConfig {
         static constexpr bool zip_input = ZipInput;
         static constexpr bool zip_reduced = ZipReduced;
         static constexpr bool zip_output = ZipOutput;
-        static constexpr i64 n_elements_per_thread = ElementsPerThread;
+        static constexpr isize n_elements_per_thread = ElementsPerThread;
     };
 
     template<typename Config = ReduceEwiseConfig<>,
@@ -83,19 +83,19 @@ namespace noa::cpu {
               nt::tuple_of_accessor_nd<Output, 1> and
               nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
     void reduce_ewise(
-        const Shape4<Index>& shape,
+        const Shape<Index, 4>& shape,
         Op&& op,
         Input&& input,
         Reduced&& reduced,
         Output& output,
-        i64 n_threads = 1
+        i32 n_threads = 1
     ) {
         // Check contiguity.
         const bool are_all_contiguous = ni::are_contiguous(input, shape);
-        const i64 n_elements = shape.template as<i64>().n_elements();
-        i64 actual_n_threads = n_elements <= Config::n_elements_per_thread ? 1 : n_threads;
+        const isize n_elements = shape.template as<isize>().n_elements();
+        i32 actual_n_threads = n_elements <= Config::n_elements_per_thread ? 1 : n_threads;
         if (actual_n_threads > 1)
-            actual_n_threads = min(n_threads, n_elements / Config::n_elements_per_thread);
+            actual_n_threads = min(n_threads, clamp_cast<i32>(n_elements / Config::n_elements_per_thread));
 
         using reduce_ewise_t = details::ReduceEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
 
@@ -103,7 +103,7 @@ namespace noa::cpu {
         //       In most cases, the inputs are not expected to be aliases of each other, so only
         //       optimise for the 1d-contig restrict case? remove 1d-contig non-restrict case
         if (are_all_contiguous) {
-            auto shape_1d = Shape1<Index>::from_value(n_elements);
+            auto shape_1d = Shape<Index, 1>::from_value(n_elements);
             if (not nt::enable_vectorization_v<Op> and nd::are_accessors_aliased(input, output)) {
                 constexpr auto contiguous_1d = nd::AccessorConfig<1>{
                     .enforce_contiguous = true,

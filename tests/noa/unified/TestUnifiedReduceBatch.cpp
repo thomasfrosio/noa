@@ -14,13 +14,13 @@ TEST_CASE("unified::reduce - batched reductions vs numpy", "[asset]") {
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
 
     const YAML::Node& input = tests["input"];
-    const auto shape = input["shape"].as<Shape4<i64>>();
-    const auto output_shape = tests["batch"]["output_shape"].as<Shape4<i64>>();
+    const auto shape = input["shape"].as<Shape4>();
+    const auto output_shape = tests["batch"]["output_shape"].as<Shape4>();
     const auto input_filename = path / input["path"].as<Path>();
     const auto output_filename = path / tests["batch"]["output_path"].as<Path>();
 
     auto data = noa::read_image<f64>(input_filename).data;
-    REQUIRE(noa::all(data.shape() == shape));
+    REQUIRE(data.shape() == shape);
 
     const YAML::Node expected = YAML::LoadFile(output_filename);
     std::vector<f32> expected_max, expected_min, expected_mean, expected_norm, expected_std, expected_sum, expected_var;
@@ -82,7 +82,7 @@ TEMPLATE_TEST_CASE("unified::reduce - batched reductions, cpu vs gpu", "", i64, 
     const auto large = GENERATE(true, false);
     const auto subregion_shape =
         test::random_shape_batched(3) +
-        (large ? Shape4<i64>{1, 164, 164, 164} : Shape4<i64>{});
+        (large ? Shape4{1, 164, 164, 164} : Shape4{});
     auto shape = subregion_shape;
     if (pad) {
         shape[1] += 10;
@@ -111,7 +111,7 @@ TEMPLATE_TEST_CASE("unified::reduce - batched reductions, cpu vs gpu", "", i64, 
 
     using real_t = noa::traits::value_type_t<TestType>;
     const real_t eps = std::is_same_v<real_t, f32> ? static_cast<real_t>(1e-4) : static_cast<real_t>(1e-10);
-    const auto output_shape = Shape4<i64>{subregion_shape.batch(), 1, 1, 1};
+    const auto output_shape = Shape4{subregion_shape.batch(), 1, 1, 1};
 
     if constexpr (not noa::traits::complex<TestType>) {
         const Array<TestType> cpu_results({2, 1, 1, output_shape.n_elements()});
@@ -144,7 +144,7 @@ TEMPLATE_TEST_CASE("unified::reduce - batched reductions, cpu vs gpu", "", i64, 
         noa::l2_norm(gpu_data, gpu_norm);
         REQUIRE(test::allclose_abs_safe(cpu_norm.to_cpu(), gpu_norm.to_cpu(), eps));
 
-        for (i64 ddof = 0; ddof < 2; ++ddof) {
+        for (i32 ddof = 0; ddof < 2; ++ddof) {
             INFO("ddof: " << ddof);
             noa::variance(cpu_data, cpu_var, {.ddof = ddof});
             noa::stddev(cpu_data, cpu_std, {.ddof = ddof});

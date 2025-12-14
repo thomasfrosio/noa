@@ -22,11 +22,11 @@ TEST_CASE("unified::geometry::cartesian2polar", "[asset]") {
         INFO("test number = " << nb);
 
         const YAML::Node& test = tests[nb];
-        const auto cartesian_shape = test["cartesian_shape"].as<Shape4<i64>>();
-        const auto polar_shape = test["polar_shape"].as<Shape4<i64>>();
-        const auto cartesian_center = test["cartesian_center"].as<Vec2<f64>>();
-        const auto radius_range = test["radius_range"].as<Vec2<f64>>();
-        const auto angle_range = test["angle_range"].as<Vec2<f64>>();
+        const auto cartesian_shape = test["cartesian_shape"].as<Shape4>();
+        const auto polar_shape = test["polar_shape"].as<Shape4>();
+        const auto cartesian_center = test["cartesian_center"].as<Vec<f64, 2>>();
+        const auto radius_range = test["radius_range"].as<Vec<f64, 2>>();
+        const auto angle_range = test["angle_range"].as<Vec<f64, 2>>();
         const auto interpolation_mode = test["interpolation_mode"].as<noa::Interp>();
         const auto input_filename = path_base / test["input"].as<Path>();
         const auto output_filename = path_base / test["output"].as<Path>();
@@ -58,7 +58,7 @@ TEST_CASE("unified::geometry::cartesian2polar", "[asset]") {
             INFO(device);
 
             const auto input = noa::read_image<f32>(input_filename, {.enforce_2d_stack = false}, option).data;
-            if (noa::any(input.shape() != cartesian_shape))
+            if (input.shape() != cartesian_shape)
                 FAIL("input shape is not correct");
 
             const auto output = noa::empty<f32>(polar_shape, option);

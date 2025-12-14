@@ -22,14 +22,14 @@ TEST_CASE("unified::ImageFile") {
         noa::write_image(a0, cwd, {.spacing = s0});
 
         auto file = nio::ImageFile(cwd, {.read = true});
-        REQUIRE(noa::all(file.shape() == a0.shape()));
-        REQUIRE(noa::all(file.spacing().as<f32>() == s0.as<f32>()));
+        REQUIRE(file.shape() == a0.shape());
+        REQUIRE(file.spacing().as<f32>() == s0.as<f32>());
         REQUIRE(file.dtype() == nio::DataType::F32);
     }
     {
         auto&& [a1, h1] = noa::read_image<f32>(cwd);
         REQUIRE(test::allclose_abs(a0, a1));
-        REQUIRE(noa::all(h1.spacing.as<f32>() == s0.as<f32>()));
+        REQUIRE(h1.spacing.as<f32>() == s0.as<f32>());
     }
     {
         auto a1 = nio::read_image<f32>(cwd).data;

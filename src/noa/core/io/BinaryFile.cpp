@@ -11,7 +11,7 @@
 namespace {
     using namespace noa::types;
 
-    void optimize_for_access_(i64 offset, i64 size, void* file, i64 file_size, i32 flag) {
+    void optimize_for_access_(isize offset, isize size, void* file, isize file_size, i32 flag) {
         if (file == nullptr or file_size == 0)
             return;
 
@@ -19,7 +19,7 @@ namespace {
         if (size < 0)
             size = file_size;
         size = noa::clamp(size, 0, file_size - offset);
-        noa::check(::madvise(static_cast<std::byte*>(file) + offset, static_cast<size_t>(size), flag) != -1,
+        noa::check(::madvise(static_cast<std::byte*>(file) + offset, static_cast<usize>(size), flag) != -1,
                    "Failed to madvise. {}", std::strerror(errno));
     }
 }
@@ -87,7 +87,7 @@ namespace noa::io {
 
         // Align the size to the next page.
         int pagesize = ::getpagesize();
-        i64 msize = m_size;
+        isize msize = m_size;
         msize += pagesize - (msize % pagesize);
 
         int mprot{};
@@ -98,7 +98,7 @@ namespace noa::io {
         int mflags = parameters.keep_private or not mode.write ? MAP_PRIVATE : MAP_SHARED;
 
         // Memory map the entire file.
-        m_data = ::mmap(nullptr, static_cast<size_t>(msize), mprot, mflags, fd, 0);
+        m_data = ::mmap(nullptr, static_cast<usize>(msize), mprot, mflags, fd, 0);
         noa::check(m_data != reinterpret_cast<void*>(-1), "Failed to mmap: {}", std::strerror(errno));
     }
 
@@ -108,9 +108,9 @@ namespace noa::io {
 
         if (m_data) {
             int pagesize = ::getpagesize();
-            i64 psize = m_size;
+            isize psize = m_size;
             psize += pagesize - (psize % pagesize);
-            check(::munmap(m_data, static_cast<size_t>(psize)) != -1, "Failed to munmap: {}", std::strerror(errno));
+            check(::munmap(m_data, static_cast<usize>(psize)) != -1, "Failed to munmap: {}", std::strerror(errno));
             m_data = nullptr;
         }
 
@@ -118,16 +118,16 @@ namespace noa::io {
         m_file = nullptr;
     }
 
-    void BinaryFile::optimize_for_sequential_access(i64 offset, i64 size) const {
+    void BinaryFile::optimize_for_sequential_access(isize offset, isize size) const {
         optimize_for_access_(offset, size, m_data, m_size, MADV_SEQUENTIAL);
     }
-    void BinaryFile::optimize_for_random_access(i64 offset, i64 size) const {
+    void BinaryFile::optimize_for_random_access(isize offset, isize size) const {
         optimize_for_access_(offset, size, m_data, m_size, MADV_RANDOM);
     }
-    void BinaryFile::optimize_for_no_access(i64 offset, i64 size) const {
+    void BinaryFile::optimize_for_no_access(isize offset, isize size) const {
         optimize_for_access_(offset, size, m_data, m_size, MADV_DONTNEED);
     }
-    void BinaryFile::optimize_for_normal_access(i64 offset, i64 size) const {
+    void BinaryFile::optimize_for_normal_access(isize offset, isize size) const {
         optimize_for_access_(offset, size, m_data, m_size, MADV_NORMAL);
     }
 }

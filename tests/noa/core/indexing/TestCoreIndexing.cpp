@@ -112,151 +112,151 @@ TEST_CASE("core::indexing::index_at()") {
 
 TEST_CASE("core:: shape, strides") {
     AND_THEN("C- contiguous") {
-        const Shape4<u64> shape{2, 128, 64, 65};
+        const Shape<u64, 4> shape{2, 128, 64, 65};
         const auto strides = shape.strides();
         const auto physical_shape = strides.physical_shape();
-        REQUIRE(noa::all(is_contiguous(strides, shape)));
+        REQUIRE(is_contiguous(strides, shape) == true);
         REQUIRE(are_contiguous(strides, shape));
-        REQUIRE(noa::all(Strides4<u64>{532480, 4160, 65, 1} == strides));
-        REQUIRE(noa::all(Shape3<u64>{128, 64, 65} == physical_shape));
+        REQUIRE(Strides<u64, 4>{532480, 4160, 65, 1} == strides);
+        REQUIRE(Shape<u64, 3>{128, 64, 65} == physical_shape);
     }
 
     AND_THEN("F- contiguous") {
-        const Shape4<u64> shape{2, 128, 64, 65};
+        const Shape<u64, 4> shape{2, 128, 64, 65};
         const auto strides = shape.strides<'F'>();
         const auto physical_shape = strides.physical_shape<'F'>();
-        REQUIRE(noa::all(is_contiguous<'F'>(strides, shape)));
+        REQUIRE(is_contiguous<'F'>(strides, shape) == true);
         REQUIRE(are_contiguous<'F'>(strides, shape));
-        REQUIRE(noa::all(Strides4<u64>{532480, 4160, 1, 64} == strides));
-        REQUIRE(noa::all(Shape3<u64>{128, 64, 65} == physical_shape));
+        REQUIRE(Strides<u64, 4>{532480, 4160, 1, 64} == strides);
+        REQUIRE(Shape<u64, 3>{128, 64, 65} == physical_shape);
     }
 
     AND_THEN("C- inner stride") {
-        const Shape4<u64> shape{3, 128, 64, 64};
+        const Shape<u64, 4> shape{3, 128, 64, 64};
         const auto strides = shape.strides() * 2;
         const auto physical_shape = strides.physical_shape();
-        REQUIRE(noa::all(is_contiguous(strides, shape) == Vec4<bool>{1, 1, 1, 0}));
-        REQUIRE(noa::all(Strides4<u64>{1048576, 8192, 128, 2} == strides));
-        REQUIRE(noa::all(Shape3<u64>{128, 64, 128} == physical_shape));
+        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 1, 1, 0});
+        REQUIRE(Strides<u64, 4>{1048576, 8192, 128, 2} == strides);
+        REQUIRE(Shape<u64, 3>{128, 64, 128} == physical_shape);
     }
 
     AND_THEN("F- inner stride") {
-        const Shape4<u64> shape{3, 128, 64, 64};
+        const Shape<u64, 4> shape{3, 128, 64, 64};
         const auto strides = shape.strides<'F'>() * 2;
         const auto physical_shape = strides.physical_shape<'F'>();
-        REQUIRE(noa::all(is_contiguous<'F'>(strides, shape) == Vec4<bool>{1, 1, 0, 1}));
-        REQUIRE(noa::all(Strides4<u64>{1048576, 8192, 2, 128} == strides));
-        REQUIRE(noa::all(Shape3<u64>{128, 128, 64} == physical_shape));
+        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 1, 0, 1});
+        REQUIRE(Strides<u64, 4>{1048576, 8192, 2, 128} == strides);
+        REQUIRE(Shape<u64, 3>{128, 128, 64} == physical_shape);
     }
 
     AND_THEN("is_contiguous<'C'>") {
-        Shape4<u64> shape{3, 128, 64, 64};
+        Shape<u64, 4> shape{3, 128, 64, 64};
         auto strides = shape.strides();
         strides[0] *= 2;
         strides[1] *= 2;
         strides[2] *= 2;
-        REQUIRE(noa::all(is_contiguous(strides, shape) == Vec4<bool>{1, 1, 0, 1}));
+        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 1, 0, 1});
 
         strides = shape.strides();
         strides[0] *= 6;
         strides[1] *= 6;
         strides[2] *= 6;
         strides[3] *= 3;
-        REQUIRE(noa::all(is_contiguous(strides, shape) == Vec4<bool>{1, 1, 0, 0}));
+        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 1, 0, 0});
 
         strides = shape.strides();
         strides[0] *= 2;
         strides[1] *= 2;
-        REQUIRE(noa::all(is_contiguous(strides, shape) == Vec4<bool>{1, 0, 1, 1}));
+        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 0, 1, 1});
 
         strides = shape.strides();
         strides[0] *= 2;
-        REQUIRE(noa::all(is_contiguous(strides, shape) == Vec4<bool>{0, 1, 1, 1}));
+        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{0, 1, 1, 1});
 
         strides = shape.strides();
         strides[0] *= 4;
         strides[1] *= 2;
-        REQUIRE(noa::all(is_contiguous(strides, shape) == Vec4<bool>{0, 0, 1, 1}));
+        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{0, 0, 1, 1});
 
         // Empty is contiguous by definition.
         shape = {3, 128, 1, 64};
         strides = {8192, 64, 64, 1};
-        REQUIRE(noa::all(is_contiguous(strides, shape) == Vec4<bool>{1, 1, 1, 1}));
+        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 1, 1, 1});
         strides *= 2;
-        REQUIRE(noa::all(is_contiguous(strides, shape) == Vec4<bool>{1, 1, 1, 0}));
+        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 1, 1, 0});
         strides[2] *= 2;
-        REQUIRE(noa::all(is_contiguous(strides, shape) == Vec4<bool>{1, 1, 1, 0}));
+        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 1, 1, 0});
         strides[0] *= 2;
         strides[1] *= 2;
         strides[2] *= 2;
-        REQUIRE(noa::all(is_contiguous(strides, shape) == Vec4<bool>{1, 0, 1, 0}));
+        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 0, 1, 0});
     }
 
     AND_THEN("is_contiguous<'C'> - broadcast") {
-        const Shape4<u64> original_shape{3, 128, 1, 64};
-        const Shape4<u64> broadcast_shape{3, 128, 32, 64};
+        const Shape<u64, 4> original_shape{3, 128, 1, 64};
+        const Shape<u64, 4> broadcast_shape{3, 128, 32, 64};
         auto strides = original_shape.strides();
-        REQUIRE(noa::all(is_contiguous(strides, original_shape) == Vec4<bool>{1, 1, 1, 1}));
+        REQUIRE(is_contiguous(strides, original_shape) == Vec<bool, 4>{1, 1, 1, 1});
 
         REQUIRE(broadcast(original_shape, strides, broadcast_shape));
-        REQUIRE(noa::all(is_contiguous(strides, broadcast_shape) == Vec4<bool>{1, 1, 0, 1}));
+        REQUIRE(is_contiguous(strides, broadcast_shape) == Vec<bool, 4>{1, 1, 0, 1});
 
-        REQUIRE(noa::all(is_contiguous({0, 0, 0, 1}, broadcast_shape) == Vec4<bool>{0, 0, 0, 1}));
-        REQUIRE(noa::all(is_contiguous({0, 64, 0, 1}, broadcast_shape) == Vec4<bool>{0, 1, 0, 1}));
-        REQUIRE(noa::all(is_contiguous({128 * 64, 64, 0, 1}, broadcast_shape) == Vec4<bool>{1, 1, 0, 1}));
-        REQUIRE(noa::all(is_contiguous({64, 0, 0, 1}, broadcast_shape) == Vec4<bool>{1, 0, 0, 1}));
+        REQUIRE(is_contiguous({0, 0, 0, 1}, broadcast_shape) == Vec<bool, 4>{0, 0, 0, 1});
+        REQUIRE(is_contiguous({0, 64, 0, 1}, broadcast_shape) == Vec<bool, 4>{0, 1, 0, 1});
+        REQUIRE(is_contiguous({128 * 64, 64, 0, 1}, broadcast_shape) == Vec<bool, 4>{1, 1, 0, 1});
+        REQUIRE(is_contiguous({64, 0, 0, 1}, broadcast_shape) == Vec<bool, 4>{1, 0, 0, 1});
     }
 
     AND_THEN("is_contiguous<'F'>") {
-        Shape4<u64> shape{3, 128, 64, 64};
+        Shape<u64, 4> shape{3, 128, 64, 64};
         auto strides = shape.strides<'F'>();
         strides[0] *= 2;
         strides[1] *= 2;
         strides[3] *= 2;
-        REQUIRE(noa::all(is_contiguous<'F'>(strides, shape) == Vec4<bool>{1, 1, 1, 0}));
+        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 1, 1, 0});
 
         strides = shape.strides<'F'>();
         strides[0] *= 6;
         strides[1] *= 6;
         strides[2] *= 3;
         strides[3] *= 6;
-        REQUIRE(noa::all(is_contiguous<'F'>(strides, shape) == Vec4<bool>{1, 1, 0, 0}));
+        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 1, 0, 0});
 
         strides = shape.strides<'F'>();
         strides[0] *= 2;
         strides[1] *= 2;
-        REQUIRE(noa::all(is_contiguous<'F'>(strides, shape) == Vec4<bool>{1, 0, 1, 1}));
+        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 0, 1, 1});
 
         strides = shape.strides<'F'>();
         strides[0] *= 2;
-        REQUIRE(noa::all(is_contiguous<'F'>(strides, shape) == Vec4<bool>{0, 1, 1, 1}));
+        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{0, 1, 1, 1});
 
         strides = shape.strides<'F'>();
         strides[0] *= 4;
         strides[1] *= 2;
-        REQUIRE(noa::all(is_contiguous<'F'>(strides, shape) == Vec4<bool>{0, 0, 1, 1}));
+        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{0, 0, 1, 1});
 
         shape = {3, 128, 64, 1};
         strides = {8192, 64, 1, 64};
-        REQUIRE(noa::all(is_contiguous<'F'>(strides, shape) == Vec4<bool>{1, 1, 1, 1}));
+        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 1, 1, 1});
         strides *= 2;
-        REQUIRE(noa::all(is_contiguous<'F'>(strides, shape) == Vec4<bool>{1, 1, 0, 1}));
+        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 1, 0, 1});
         strides[3] *= 2;
-        REQUIRE(noa::all(is_contiguous<'F'>(strides, shape) == Vec4<bool>{1, 1, 0, 1}));
+        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 1, 0, 1});
         strides[0] *= 2;
         strides[1] *= 2;
         strides[3] *= 2;
-        REQUIRE(noa::all(is_contiguous<'F'>(strides, shape) == Vec4<bool>{1, 0, 0, 1}));
+        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 0, 0, 1});
     }
 
     AND_THEN("is_contiguous<'F'> - broadcast") {
-        const Shape4<u64> original_shape{3, 128, 1, 64};
-        const Shape4<u64> broadcast_shape{3, 128, 64, 64};
+        const Shape<u64, 4> original_shape{3, 128, 1, 64};
+        const Shape<u64, 4> broadcast_shape{3, 128, 64, 64};
         auto strides = original_shape.strides<'F'>();
-        REQUIRE(noa::all(is_contiguous<'F'>(strides, original_shape) == Vec4<bool>{1, 1, 1, 1}));
+        REQUIRE(is_contiguous<'F'>(strides, original_shape) == Vec<bool, 4>{1, 1, 1, 1});
 
         REQUIRE(broadcast(original_shape, strides, broadcast_shape));
-        REQUIRE(noa::all(is_contiguous<'F'>(strides, broadcast_shape) == Vec4<bool>{1, 1, 0, 1}));
+        REQUIRE(is_contiguous<'F'>(strides, broadcast_shape) == Vec<bool, 4>{1, 1, 0, 1});
     }
 
     AND_THEN("physical shape") {
@@ -264,16 +264,16 @@ TEST_CASE("core:: shape, strides") {
         for (size_t i = 0; i < 20; ++i) {
             auto shape = test::random_shape(ndim, {.batch_range={1, 5}});
             auto strides = shape.strides();
-            REQUIRE(noa::all(shape.pop_front() == strides.physical_shape()));
+            REQUIRE(shape.pop_front() == strides.physical_shape());
 
             strides *= 3;
             shape[3] *= 3;
-            REQUIRE(noa::all(shape.pop_front() == strides.physical_shape()));
+            REQUIRE(shape.pop_front() == strides.physical_shape());
         }
     }
 
     AND_THEN("is_rightmost") {
-        Shape4<u64> shape{3, 128, 65, 64};
+        Shape<u64, 4> shape{3, 128, 65, 64};
         REQUIRE(is_rightmost(shape.strides()));
         REQUIRE_FALSE(is_rightmost(shape.strides<'F'>()));
 
@@ -283,7 +283,7 @@ TEST_CASE("core:: shape, strides") {
     }
 
     AND_THEN("is_vector") {
-        Shape4<u64> shape{3, 128, 65, 64};
+        Shape<u64, 4> shape{3, 128, 65, 64};
         REQUIRE_FALSE(is_vector(shape));
 
         shape = {3, 128, 1, 1};
@@ -307,22 +307,22 @@ TEST_CASE("core:: shape, strides") {
     }
 
     AND_THEN("effective_shape") {
-        const Shape4<u64> original_shape{3, 128, 1, 64};
-        const Shape4<u64> broadcast_shape{3, 128, 64, 64};
+        const Shape<u64, 4> original_shape{3, 128, 1, 64};
+        const Shape<u64, 4> broadcast_shape{3, 128, 64, 64};
         auto strides = original_shape.strides();
         REQUIRE(broadcast(original_shape, strides, broadcast_shape));
-        REQUIRE(noa::all(effective_shape(broadcast_shape, strides) == original_shape));
+        REQUIRE(effective_shape(broadcast_shape, strides) == original_shape);
     }
 }
 
 TEST_CASE("core::indexing:: order(), squeeze()") {
-    const Shape4<u64> shape{2, 32, 64, 128};
-    REQUIRE(noa::all(order(shape.strides(), shape) == Vec4<u64>{0, 1, 2, 3}));
-    REQUIRE(noa::all(order(shape.strides<'F'>(), shape) == Vec4<u64>{0, 1, 3, 2}));
+    const Shape<u64, 4> shape{2, 32, 64, 128};
+    REQUIRE(order(shape.strides(), shape) == Vec<u64, 4>{0, 1, 2, 3});
+    REQUIRE(order(shape.strides<'F'>(), shape) == Vec<u64, 4>{0, 1, 3, 2});
 
     // Order will move the broadcast dimensions to the right,
     // because they are indeed the dimensions with the smallest strides.
-    REQUIRE(noa::all(order(Strides4<u64>{8192, 0, 128, 1}, shape) == Vec4<u64>{0, 2, 3, 1}));
+    REQUIRE(order(Strides<u64, 4>{8192, 0, 128, 1}, shape) == Vec<u64, 4>{0, 2, 3, 1});
 
     // We almost always call order() on the output array and rearrange the layout to make the output
     // as rightmost as possible. The output is rarely broadcast and in most cases it is actually invalid
@@ -332,32 +332,32 @@ TEST_CASE("core::indexing:: order(), squeeze()") {
     // on the output shape beforehand, "tagging" these broadcast dimension as empty, so that order()
     // moves them to the left.
     // TL-DR: If is often best to call effective_shape() on the layout that is about to be reordered.
-    const auto strides = Strides4<u64>{8192, 0, 128, 1};
-    REQUIRE(noa::all(order(strides, effective_shape(shape, strides)) == Vec4<u64>{1, 0, 2, 3}));
+    const auto strides = Strides<u64, 4>{8192, 0, 128, 1};
+    REQUIRE(order(strides, effective_shape(shape, strides)) == Vec<u64, 4>{1, 0, 2, 3});
 
-    REQUIRE(noa::all(order(Strides4<i64>{8192, 0, 128, 1}, Shape4<i64>{2, 1, 64, 128}) == Vec4<i64>{1, 0, 2, 3}));
-    REQUIRE(noa::all(order(Strides4<i64>{8192, 8192, 8192, 1}, Shape4<i64>{1, 1, 1, 8192}) == Vec4<i64>{0, 1, 2, 3}));
-    REQUIRE(noa::all(order(Strides4<i64>{4096, 128, 128, 1}, Shape4<i64>{2, 32, 1, 128}) == Vec4<i64>{2, 0, 1, 3}));
-    REQUIRE(noa::all(order(Strides4<i64>{4096, 4096, 128, 1}, Shape4<i64>{2, 32, 1, 128}) == Vec4<i64>{2, 0, 1, 3}));
-    REQUIRE(noa::all(order(Strides4<i64>{128, 4096, 128, 1}, Shape4<i64>{2, 32, 1, 128}) == Vec4<i64>{2, 1, 0, 3}));
-    REQUIRE(noa::all(order(Strides4<i64>{2, 2, 2, 2}, Shape4<i64>{1, 1, 1, 1}) == Vec4<i64>{0, 1, 2, 3}));
+    REQUIRE(order(Strides<i64, 4>{8192, 0, 128, 1}, Shape<i64, 4>{2, 1, 64, 128}) == Vec<i64, 4>{1, 0, 2, 3});
+    REQUIRE(order(Strides<i64, 4>{8192, 8192, 8192, 1}, Shape<i64, 4>{1, 1, 1, 8192}) == Vec<i64, 4>{0, 1, 2, 3});
+    REQUIRE(order(Strides<i64, 4>{4096, 128, 128, 1}, Shape<i64, 4>{2, 32, 1, 128}) == Vec<i64, 4>{2, 0, 1, 3});
+    REQUIRE(order(Strides<i64, 4>{4096, 4096, 128, 1}, Shape<i64, 4>{2, 32, 1, 128}) == Vec<i64, 4>{2, 0, 1, 3});
+    REQUIRE(order(Strides<i64, 4>{128, 4096, 128, 1}, Shape<i64, 4>{2, 32, 1, 128}) == Vec<i64, 4>{2, 1, 0, 3});
+    REQUIRE(order(Strides<i64, 4>{2, 2, 2, 2}, Shape<i64, 4>{1, 1, 1, 1}) == Vec<i64, 4>{0, 1, 2, 3});
 
-    REQUIRE(noa::all(squeeze_left(shape) == Vec4<u64>{0, 1, 2, 3}));
-    REQUIRE(noa::all(squeeze_left(Shape4<u64>{1, 1, 3, 4}) == Vec4<u64>{0, 1, 2, 3}));
-    REQUIRE(noa::all(squeeze_left(Shape4<u64>{1, 1, 3, 1}) == Vec4<u64>{0, 1, 3, 2}));
-    REQUIRE(noa::all(squeeze_left(Shape4<u64>{1, 1, 1, 1}) == Vec4<u64>{0, 1, 2, 3}));
-    REQUIRE(noa::all(squeeze_left(Shape4<u64>{5, 1, 3, 1}) == Vec4<u64>{1, 3, 0, 2}));
-    REQUIRE(noa::all(squeeze_left(Shape4<u64>{5, 1, 1, 1}) == Vec4<u64>{1, 2, 3, 0}));
+    REQUIRE(squeeze_left(shape) == Vec<u64, 4>{0, 1, 2, 3});
+    REQUIRE(squeeze_left(Shape<u64, 4>{1, 1, 3, 4}) == Vec<u64, 4>{0, 1, 2, 3});
+    REQUIRE(squeeze_left(Shape<u64, 4>{1, 1, 3, 1}) == Vec<u64, 4>{0, 1, 3, 2});
+    REQUIRE(squeeze_left(Shape<u64, 4>{1, 1, 1, 1}) == Vec<u64, 4>{0, 1, 2, 3});
+    REQUIRE(squeeze_left(Shape<u64, 4>{5, 1, 3, 1}) == Vec<u64, 4>{1, 3, 0, 2});
+    REQUIRE(squeeze_left(Shape<u64, 4>{5, 1, 1, 1}) == Vec<u64, 4>{1, 2, 3, 0});
 
-    REQUIRE(noa::all(squeeze_right(Shape4<u64>{1, 1, 3, 4}) == Vec4<u64>{2, 3, 0, 1}));
-    REQUIRE(noa::all(squeeze_right(Shape4<u64>{1, 1, 3, 1}) == Vec4<u64>{2, 0, 1, 3}));
-    REQUIRE(noa::all(squeeze_right(Shape4<u64>{1, 1, 1, 1}) == Vec4<u64>{0, 1, 2, 3}));
-    REQUIRE(noa::all(squeeze_right(Shape4<u64>{5, 1, 3, 1}) == Vec4<u64>{0, 2, 1, 3}));
-    REQUIRE(noa::all(squeeze_right(Shape4<u64>{5, 1, 1, 1}) == Vec4<u64>{0, 1, 2, 3}));
+    REQUIRE(squeeze_right(Shape<u64, 4>{1, 1, 3, 4}) == Vec<u64, 4>{2, 3, 0, 1});
+    REQUIRE(squeeze_right(Shape<u64, 4>{1, 1, 3, 1}) == Vec<u64, 4>{2, 0, 1, 3});
+    REQUIRE(squeeze_right(Shape<u64, 4>{1, 1, 1, 1}) == Vec<u64, 4>{0, 1, 2, 3});
+    REQUIRE(squeeze_right(Shape<u64, 4>{5, 1, 3, 1}) == Vec<u64, 4>{0, 2, 1, 3});
+    REQUIRE(squeeze_right(Shape<u64, 4>{5, 1, 1, 1}) == Vec<u64, 4>{0, 1, 2, 3});
 }
 
 TEST_CASE("core::indexing:: memory layouts") {
-    Shape4<u64> shape{2, 32, 64, 128};
+    Shape<u64, 4> shape{2, 32, 64, 128};
     auto strides = shape.strides();
     REQUIRE(is_row_major(strides));
     REQUIRE(is_row_major(strides, shape));
@@ -374,7 +374,7 @@ TEST_CASE("core::indexing:: memory layouts") {
     // Indeed, only the height/rows and width/columns are affected by 'C' vs 'F'. As such, if these two dimensions
     // are empty, 'C' and 'F' makes no difference.
     shape = {64, 32, 1, 1};
-    REQUIRE(noa::all(shape.strides<'C'>() == shape.strides<'F'>()));
+    REQUIRE(shape.strides<'C'>() == shape.strides<'F'>());
 
     // For column and row vectors (or any vector actually), none of this really matters since we can just squeeze
     // the empty dimensions and get the rightmost order (i.e. row vectors).
@@ -395,27 +395,27 @@ TEST_CASE("core::indexing:: memory layouts") {
         auto order = squeeze_left(shape);
         shape = reorder(shape, order);
         strides = reorder(strides, order);
-        REQUIRE(noa::all(is_contiguous(strides, shape)));
+        REQUIRE(is_contiguous(strides, shape) == true);
     }
 }
 
 TEST_CASE("core::indexing:: Reinterpret") {
-    const auto shape = test::random_shape(3, {.batch_range={1, 10}});
+    const auto shape = test::random_shape<i64>(3, {.batch_range={1, 10}});
     auto strides = shape.strides();
     c32* ptr = nullptr;
     auto real = ReinterpretLayout(shape, strides, ptr).as<float>();
-    REQUIRE(noa::all(real.shape == Shape4<i64>{shape[0], shape[1], shape[2], shape[3] * 2}));
-    REQUIRE(noa::all(real.strides == Strides4<i64>{strides[0] * 2, strides[1] * 2, strides[2] * 2, 1}));
+    REQUIRE(real.shape == Shape<i64, 4>{shape[0], shape[1], shape[2], shape[3] * 2});
+    REQUIRE(real.strides == Strides<i64, 4>{strides[0] * 2, strides[1] * 2, strides[2] * 2, 1});
 
     // Reinterpret moves everything to the rightmost order,
     // compute the new shape and strides, then moves back to original order.
     strides = shape.strides<'F'>();
     real = ReinterpretLayout(shape, strides, ptr).as<float>();
-    REQUIRE(noa::all(real.shape == Shape4<i64>{shape[0], shape[1], shape[2] * 2, shape[3]}));
-    REQUIRE(noa::all(real.strides == Strides4<i64>{strides[0] * 2, strides[1] * 2, 1, strides[3] * 2}));
+    REQUIRE(real.shape == Shape<i64, 4>{shape[0], shape[1], shape[2] * 2, shape[3]});
+    REQUIRE(real.strides == Strides<i64, 4>{strides[0] * 2, strides[1] * 2, 1, strides[3] * 2});
 }
 
-TEMPLATE_TEST_CASE("core::indexing::offset2index(), 4D", "", Vec4<i64>, Vec4<u64>) {
+TEMPLATE_TEST_CASE("core::indexing::offset2index(), 4D", "", (Vec<i64, 4>), (Vec<u64, 4>)) {
     const u32 ndim = GENERATE(1u, 2u, 3u);
 
     using value_t = noa::traits::value_type_t<TestType>;
@@ -439,11 +439,11 @@ TEMPLATE_TEST_CASE("core::indexing::offset2index(), 4D", "", Vec4<i64>, Vec4<u64
         INFO(idx_expected);
         INFO(idx_result);
 
-        REQUIRE(all(idx_expected == idx_result));
+        REQUIRE(idx_expected == idx_result);
     }
 }
 
-TEMPLATE_TEST_CASE("core::indexing::offset2index()", "", Vec1<i64>, Vec2<i64>, Vec3<i64>, Vec4<i64>) {
+TEMPLATE_TEST_CASE("core::indexing::offset2index()", "", (Vec<i64, 1>), (Vec<i64, 2>), (Vec<i64, 3>), (Vec<i64, 4>)) {
     constexpr size_t N = TestType::SIZE;
     using value_t = noa::traits::value_type_t<TestType>;
     test::Randomizer<value_t> randomizer(2, 3);
@@ -468,11 +468,11 @@ TEMPLATE_TEST_CASE("core::indexing::offset2index()", "", Vec1<i64>, Vec2<i64>, V
 
         // Now find the nd index back.
         auto idx_result = offset2index(offset_strided, strides_strided, shape_nd);
-        REQUIRE(noa::all(idx_expected == idx_result));
+        REQUIRE(idx_expected == idx_result);
         idx_result = offset2index(offset_contiguous, strides_contiguous, shape_nd);
-        REQUIRE(noa::all(idx_expected == idx_result));
+        REQUIRE(idx_expected == idx_result);
         idx_result = offset2index(offset_contiguous, shape_nd);
-        REQUIRE(noa::all(idx_expected == idx_result));
+        REQUIRE(idx_expected == idx_result);
     }
 }
 
@@ -485,13 +485,13 @@ TEMPLATE_TEST_CASE("core::indexing:: reorder matrices", "", u32, i32, i64, u64) 
             for (u64 j = 0; j < 2; ++j)
             matrix[i][j] = randomizer.get();
 
-        Vec2<f64> vector{randomizer.get(), randomizer.get()};
-        Vec2<f64> expected = matrix * vector;
+        Vec<f64, 2> vector{randomizer.get(), randomizer.get()};
+        Vec<f64, 2> expected = matrix * vector;
 
-        Vec2<TestType> order{1, 0};
+        Vec<TestType, 2> order{1, 0};
         vector = reorder(vector, order);
         matrix = reorder(matrix, order);
-        Vec2<f64> result = matrix * vector;
+        Vec<f64, 2> result = matrix * vector;
         REQUIRE(noa::allclose(expected[0], result[1], 1e-12));
         REQUIRE(noa::allclose(expected[1], result[0], 1e-12));
     }
@@ -502,12 +502,12 @@ TEMPLATE_TEST_CASE("core::indexing:: reorder matrices", "", u32, i32, i64, u64) 
             for (u64 j = 0; j < 2; ++j)
                 matrix[i][j] = randomizer.get();
 
-        Vec3<f64> vector{randomizer.get(), randomizer.get(), 1};
-        Vec2<f64> expected = matrix * vector;
+        Vec<f64, 3> vector{randomizer.get(), randomizer.get(), 1};
+        Vec<f64, 2> expected = matrix * vector;
 
-        vector = reorder(vector, Vec3<TestType>{1, 0, 2});
-        matrix = reorder(matrix, Vec2<TestType>{1, 0});
-        Vec2<f64> result = matrix * vector;
+        vector = reorder(vector, Vec<TestType, 3>{1, 0, 2});
+        matrix = reorder(matrix, Vec<TestType, 2>{1, 0});
+        Vec<f64, 2> result = matrix * vector;
         REQUIRE(noa::allclose(expected[0], result[1], 1e-12));
         REQUIRE(noa::allclose(expected[1], result[0], 1e-12));
     }
@@ -518,15 +518,15 @@ TEMPLATE_TEST_CASE("core::indexing:: reorder matrices", "", u32, i32, i64, u64) 
             for (u64 j = 0; j < 3; ++j)
                 matrix[i][j] = randomizer.get();
 
-        Vec3<f64> vector{randomizer.get(), randomizer.get(), randomizer.get()};
-        Vec3<f64> expected = matrix * vector;
+        Vec<f64, 3> vector{randomizer.get(), randomizer.get(), randomizer.get()};
+        Vec<f64, 3> expected = matrix * vector;
 
-        using order_t = Vec3<TestType>;
+        using order_t = Vec<TestType, 3>;
         std::vector<order_t> orders{{0, 1, 2}, {0, 2, 1}, {2, 1, 0}, {1, 0, 2}};
         for (const auto& order: orders) {
             vector = reorder(vector, order);
             matrix = reorder(matrix, order);
-            Vec3<f64> result = matrix * vector;
+            Vec<f64, 3> result = matrix * vector;
             expected = reorder(expected, order);
 
             INFO(order);
@@ -538,18 +538,18 @@ TEMPLATE_TEST_CASE("core::indexing:: reorder matrices", "", u32, i32, i64, u64) 
 }
 
 TEST_CASE("core::indexing::reshape, broadcasting") {
-    const auto shape1 = Shape4<u64>{30, 20, 10, 5};
-    const auto strides1 = Strides4<u64>{1000, 50, 5, 1};
+    const auto shape1 = Shape<u64, 4>{30, 20, 10, 5};
+    const auto strides1 = Strides<u64, 4>{1000, 50, 5, 1};
 
     // Reshape contiguous array to a row vector.
-    Strides4<u64> new_strides;
-    auto new_shape = Shape4<u64>{1, 1, 1, product(shape1)};
+    Strides<u64, 4> new_strides;
+    auto new_shape = Shape<u64, 4>{1, 1, 1, product(shape1)};
     bool success = reshape(shape1, strides1, new_shape, new_strides);
     REQUIRE(success);
-    REQUIRE(noa::all(new_strides == new_shape.strides()));
+    REQUIRE(new_strides == new_shape.strides());
 
     // Broadcast the shape2 onto shape1.
-    const auto shape2 = Shape4<u64>{30, 1, 10, 5};
+    const auto shape2 = Shape<u64, 4>{30, 1, 10, 5};
     auto strides2 = shape2.strides();
     success = broadcast(shape2, strides2, shape1);
     REQUIRE(success);
@@ -558,26 +558,26 @@ TEST_CASE("core::indexing::reshape, broadcasting") {
     new_shape = {1, 1, 1, product(shape2)};
     success = reshape(shape2, strides2, new_shape, new_strides);
     REQUIRE(success);
-    REQUIRE(noa::all(new_strides == new_shape.strides()));
+    REQUIRE(new_strides == new_shape.strides());
 }
 
 TEST_CASE("core::indexing::Subregion") {
-    constexpr auto shape = Shape4<i64>{30, 20, 10, 5};
+    constexpr auto shape = Shape<i64, 4>{30, 20, 10, 5};
     constexpr auto strides = shape.strides();
     constexpr std::uintptr_t offset = 5;
 
     auto subregion = make_subregion<4>(0, 0).extract_from(shape, strides, offset);
-    REQUIRE(noa::all(subregion.shape == Shape4<i64>{1, 1, 10, 5}));
-    REQUIRE(noa::all(subregion.strides == strides));
-    REQUIRE(noa::all(subregion.offset == offset));
+    REQUIRE(subregion.shape == Shape<i64, 4>{1, 1, 10, 5});
+    REQUIRE(subregion.strides == strides);
+    REQUIRE(subregion.offset == offset);
 
     subregion = make_subregion<4>(Ellipsis{}, 5, 2).extract_from(shape, strides, offset);
-    REQUIRE(noa::all(subregion.shape == Shape4<i64>{30, 20, 1, 1}));
-    REQUIRE(noa::all(subregion.strides == strides));
-    REQUIRE(noa::all(subregion.offset == offset + offset_at(strides, 0, 0, 5, 2)));
+    REQUIRE(subregion.shape == Shape<i64, 4>{30, 20, 1, 1});
+    REQUIRE(subregion.strides == strides);
+    REQUIRE(subregion.offset == offset + offset_at(strides, 0, 0, 5, 2));
 
     subregion = make_subregion<4>(Slice{10, 20}, Full{}, Slice{2, 5}, 3).extract_from(shape, strides, offset);
-    REQUIRE(noa::all(subregion.shape == Shape4<i64>{10, 20, 3, 1}));
-    REQUIRE(noa::all(subregion.strides == strides));
-    REQUIRE(noa::all(subregion.offset == offset + offset_at(strides, 10, 0, 2, 3)));
+    REQUIRE(subregion.shape == Shape<i64, 4>{10, 20, 3, 1});
+    REQUIRE(subregion.strides == strides);
+    REQUIRE(subregion.offset == offset + offset_at(strides, 10, 0, 2, 3));
 }

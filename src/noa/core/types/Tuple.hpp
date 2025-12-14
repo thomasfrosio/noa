@@ -38,10 +38,10 @@ namespace noa::inline types {
 }
 
 namespace noa::details {
-    template<size_t I, typename T>
+    template<usize I, typename T>
     struct TupleElement {
         using type = T;
-        static constexpr size_t INDEX = I;
+        static constexpr usize INDEX = I;
         NOA_NO_UNIQUE_ADDRESS T value;
 
         // std::get<I>(...) equivalent.
@@ -70,7 +70,7 @@ namespace noa::details {
     //    template <class IndexSequence, class... T>
     //    struct _get_tuple_base;
     //
-    //    template <size_t... I, class... T>
+    //    template <uz... I, class... T>
     //    struct _get_tuple_base<std::index_sequence<I...>, T...> {
     //        using type = TypeMap<TupleElement<I, T>...>;
     //    };
@@ -80,7 +80,7 @@ namespace noa::details {
     // while using type deduction. Note that there's no need to define this function; the declaration is all we need.
     template<typename... T>
     struct GetTypeMap {
-        template<size_t... I>
+        template<usize... I>
         constexpr auto operator()(std::index_sequence<I...>) -> TypeMap<TupleElement<I, T>...>;
     };
 
@@ -94,52 +94,52 @@ namespace noa::details {
 }
 
 namespace noa::details {
-    template<typename Tup, typename F, size_t... B>
+    template<typename Tup, typename F, usize... B>
     constexpr void tuple_for_each(Tup&& t, F&& f, std::index_sequence<B...>) {
         ((std::forward<F>(f)(std::forward<Tup>(t)[Tag<B>{}])), ...);
     }
 
-    template<typename Tup, typename F, size_t... B>
+    template<typename Tup, typename F, usize... B>
     constexpr void tuple_for_each_enumerate(Tup&& t, F&& f, std::index_sequence<B...>) {
         ((std::forward<F>(f).template operator()<B>(std::forward<Tup>(t)[Tag<B>{}])), ...);
     }
 
-    template<typename Tup, typename F, size_t... B>
+    template<typename Tup, typename F, usize... B>
     constexpr bool tuple_any(Tup&& t, F&& f, std::index_sequence<B...>) {
         return (static_cast<bool>(std::forward<F>(f)(std::forward<Tup>(t)[Tag<B>{}])) || ...);
     }
 
-    template<typename Tup, typename F, size_t... B>
+    template<typename Tup, typename F, usize... B>
     constexpr bool tuple_any_enumerate(Tup&& t, F&& f, std::index_sequence<B...>) {
         return (static_cast<bool>(std::forward<F>(f).template operator()<B>(std::forward<Tup>(t)[Tag<B>{}])) || ...);
     }
 
-    template<typename Tup, typename F, size_t... B>
+    template<typename Tup, typename F, usize... B>
     constexpr bool tuple_all(Tup&& t, F&& f, std::index_sequence<B...>) {
         return (static_cast<bool>(std::forward<F>(f)(std::forward<Tup>(t)[Tag<B>{}])) && ...);
     }
 
-    template<typename Tup, typename F, size_t... B>
+    template<typename Tup, typename F, usize... B>
     constexpr bool tuple_all_enumerate(Tup&& t, F&& f, std::index_sequence<B...>) {
         return (static_cast<bool>(std::forward<F>(f).template operator()<B>(std::forward<Tup>(t)[Tag<B>{}])) && ...);
     }
 
-    template<typename Tup, typename F, size_t... B>
+    template<typename Tup, typename F, usize... B>
     constexpr auto tuple_map(Tup&& t, F&& f, std::index_sequence<B...>) {
         return Tuple{std::forward<F>(f)(std::forward<Tup>(t)[Tag<B>{}])...};
     }
 
-    template<typename Tup, typename F, size_t... B>
+    template<typename Tup, typename F, usize... B>
     constexpr auto tuple_map_enumerate(Tup&& t, F&& f, std::index_sequence<B...>) {
         return Tuple{std::forward<F>(f).template operator()<B>(std::forward<Tup>(t)[Tag<B>{}])...};
     }
 
-    template<typename Tup, typename F, size_t... B>
+    template<typename Tup, typename F, usize... B>
     constexpr decltype(auto) tuple_apply(Tup&& t, F&& f, std::index_sequence<B...>) {
         return std::forward<F>(f)(std::forward<Tup>(t)[Tag<B>{}]...);
     }
 
-    template<typename U, typename Tup, size_t... B>
+    template<typename U, typename Tup, usize... B>
     constexpr U tuple_convert(Tup&& t, std::index_sequence<B...>) {
         return U{std::forward<Tup>(t)[Tag<B>{}]...};
     }
@@ -149,7 +149,8 @@ namespace noa::inline types {
     /// Efficient tuple aggregate-type.
     template<typename... T>
     struct Tuple : details::TupleBase<T...> {
-        constexpr static size_t SIZE = sizeof...(T);
+        constexpr static usize SIZE = sizeof...(T);
+        constexpr static isize SSIZE = static_cast<isize>(SIZE);
         constexpr static bool nothrow_swappable = (std::is_nothrow_swappable_v<T> && ...);
 
         using super = details::TupleBase<T...>;
@@ -241,18 +242,18 @@ namespace noa::inline types {
         }
 
     private:
-        template<size_t... I>
+        template<usize... I>
         constexpr void swap_(Tuple& other, std::index_sequence<I...>) noexcept(nothrow_swappable) {
             using std::swap;
             (swap((*this)[Tag<I>{}], other[Tag<I>{}]), ...);
         }
 
-        template<typename U, size_t... I>
+        template<typename U, usize... I>
         constexpr void assign_tuple_(U&& tuple, std::index_sequence<I...>) {
             (((*this)[Tag<I>{}] = std::forward<U>(tuple)[Tag<I>{}]), ...);
         }
 
-        template<size_t... I, class... U>
+        template<usize... I, class... U>
         constexpr void assign_value_(std::index_sequence<I...>, U&&... values) {
             (((*this)[Tag<I>{}] = std::forward<U>(values)), ...);
         }
@@ -260,7 +261,7 @@ namespace noa::inline types {
 
     template<>
     struct Tuple<> : details::TupleBase<> {
-        constexpr static size_t SIZE = 0;
+        constexpr static usize SIZE = 0;
         constexpr static bool nothrow_swappable = true;
         using super = details::TupleBase<>;
         using element_list = nt::TypeList<>;
@@ -445,15 +446,15 @@ namespace noa {
 }
 
 namespace std {
-    template<class... T> struct tuple_size<noa::Tuple<T...>> : std::integral_constant<size_t, sizeof...(T)> {};
-    template<class... T> struct tuple_size<const noa::Tuple<T...>> : std::integral_constant<size_t, sizeof...(T)> {};
+    template<class... T> struct tuple_size<noa::Tuple<T...>> : std::integral_constant<noa::usize, sizeof...(T)> {};
+    template<class... T> struct tuple_size<const noa::Tuple<T...>> : std::integral_constant<noa::usize, sizeof...(T)> {};
 
-    template<size_t I, typename... T>
+    template<noa::usize I, typename... T>
     struct tuple_element<I, noa::Tuple<T...>> {
         using type = decltype(noa::Tuple<T...>::declval(noa::Tag<I>()))::type;
     };
 
-    template<size_t I, typename... T>
+    template<noa::usize I, typename... T>
     struct tuple_element<I, const noa::Tuple<T...>> {
         using type = const decltype(noa::Tuple<T...>::declval(noa::Tag<I>()))::type;
     };
@@ -468,7 +469,7 @@ namespace noa::traits {
     template<typename... T> struct proclaim_is_tuple_of_accessor_value<noa::Tuple<T...>> : std::bool_constant<nt::are_accessor_value<T...>::value> {};
     template<typename... T> struct proclaim_is_tuple_of_accessor_or_empty<noa::Tuple<T...>> : std::bool_constant<nt::are_accessor<T...>::value> {};
     template<>              struct proclaim_is_tuple_of_accessor_or_empty<noa::Tuple<>> : std::true_type {};
-    template<size_t N, typename... T> struct proclaim_is_tuple_of_accessor_nd<noa::Tuple<T...>, N> : std::bool_constant<nt::are_accessor_nd<N, T...>::value> {};
+    template<usize N, typename... T> struct proclaim_is_tuple_of_accessor_nd<noa::Tuple<T...>, N> : std::bool_constant<nt::are_accessor_nd<N, T...>::value> {};
 }
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
@@ -485,7 +486,7 @@ namespace fmt {
         char close_char = ')';
         constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
             constexpr auto npos = std::string_view::npos;
-            std::string_view view(ctx.begin(), static_cast<size_t>(ctx.end() - ctx.begin()));
+            std::string_view view(ctx.begin(), static_cast<noa::usize>(ctx.end() - ctx.begin()));
             if (view.empty()) {
                 return ctx.begin();
             } else if (view.size() == 3) {

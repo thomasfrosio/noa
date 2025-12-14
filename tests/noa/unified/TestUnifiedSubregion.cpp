@@ -26,9 +26,9 @@ TEST_CASE("unified::extract_subregions()", "[asset]") {
             INFO("test number = " << nb);
 
             const YAML::Node& test = tests[nb];
-            const auto shape = test["shape"].as<Shape4<i64>>();
-            const auto subregion_shape = test["sub_shape"].as<Shape4<i64>>();
-            const auto subregion_origins = test["sub_origins"].as<std::vector<Vec4<i64>>>();
+            const auto shape = test["shape"].as<Shape4>();
+            const auto subregion_shape = test["sub_shape"].as<Shape4>();
+            const auto subregion_origins = test["sub_origins"].as<std::vector<Vec<isize, 4>>>();
             const auto border_mode = test["border"].as<noa::Border>();
             const auto border_value = test["border_value"].as<f32>();
 
@@ -84,7 +84,7 @@ TEMPLATE_TEST_CASE("unified::extract|insert_subregions()", "", i32, f32, f64, c3
 
         const auto data = noa::random(noa::Uniform<TestType>{-5, 5}, {2, 100, 200, 300}, options);
         const auto subregions = noa::fill({3, 64, 64, 64}, TestType{0}, options);
-        const auto origins = noa::empty<Vec4<i64>>({1, 1, 1, 3}, options);
+        const auto origins = noa::empty<Vec<i64, 4>>({1, 1, 1, 3}, options);
         origins(0, 0, 0, 0) = {0, 0, 0, 0};
         origins(0, 0, 0, 1) = {0, 34, 130, -20};
         origins(0, 0, 0, 2) = {1, 60, 128, 255};
@@ -100,8 +100,8 @@ TEMPLATE_TEST_CASE("unified::extract|insert_subregions()", "", i32, f32, f64, c3
 TEMPLATE_TEST_CASE("unified::atlas_layout(), insert_subregions()", "", i32, f32) {
     const i64 ndim = GENERATE(2, 3);
     test::Randomizer<u32> dim_randomizer(40, 60);
-    const auto subregion_shape = Shape4<i64>{
-        test::Randomizer<i64>(10, 40).get(), // subregion count
+    const auto subregion_shape = Shape4{
+        test::Randomizer<isize>(10, 40).get(), // subregion count
         ndim == 3 ? dim_randomizer.get() : 1,
         dim_randomizer.get(),
         dim_randomizer.get()};

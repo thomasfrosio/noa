@@ -14,7 +14,7 @@ namespace noa::io {
             ///   provided (new_size=-1), the stream is simply opened, no memory-mapping can be done (an error
             ///   will be thrown if memory_map=true), and size() returns -1. This behavior is intended for cases
             ///   where the stream() is to be manipulated directly.
-            i64 new_size{-1};
+            isize new_size{-1};
 
             /// Whether to memory map the file after opening it.
             /// This allows accessing the file as an array of bytes, using the as_bytes function.
@@ -78,8 +78,8 @@ namespace noa::io {
         /// Returns the file size.
         /// \warning This is the size when opening the file, after resizing.
         ///          If the file size was changed after that, the returned value will not be correct.
-        [[nodiscard]] auto ssize() const -> i64 { return m_size; }
-        [[nodiscard]] auto size() const -> u64 { return static_cast<u64>(m_size); }
+        [[nodiscard]] auto ssize() const -> isize { return m_size; }
+        [[nodiscard]] auto size() const -> usize { return static_cast<usize>(m_size); }
 
         /// Retrieves the memory-mapped range.
         /// This function requires the file to be memory-mapped.
@@ -95,16 +95,16 @@ namespace noa::io {
         [[nodiscard]] auto stream() const -> std::FILE* { return m_file; }
 
         /// Advise the kernel regarding accesses.
-        void optimize_for_sequential_access(i64 offset = 0, i64 size = -1) const;
-        void optimize_for_random_access(i64 offset = 0, i64 size = -1) const;
-        void optimize_for_no_access(i64 offset = 0, i64 size = -1) const;
-        void optimize_for_normal_access(i64 offset = 0, i64 size = -1) const;
+        void optimize_for_sequential_access(isize offset = 0, isize size = -1) const;
+        void optimize_for_random_access(isize offset = 0, isize size = -1) const;
+        void optimize_for_no_access(isize offset = 0, isize size = -1) const;
+        void optimize_for_normal_access(isize offset = 0, isize size = -1) const;
 
     private:
         Path m_path{};
         std::FILE* m_file{};
         void* m_data{};
-        i64 m_size{};
+        isize m_size{};
         Open m_open{};
     };
 }

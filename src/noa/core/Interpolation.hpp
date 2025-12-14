@@ -16,9 +16,9 @@
 
 namespace noa::traits {
     namespace details {
-        template<typename T, size_t... N>
+        template<typename T, usize... N>
         struct fetchable_nd_t {
-            template<size_t S, size_t... J>
+            template<usize S, usize... J>
             static consteval bool has_fetch(std::index_sequence<J...>) {
                 using vec_t = Vec<f32, S>;
                 using out_t = mutable_value_type_t<T>;
@@ -33,23 +33,23 @@ namespace noa::traits {
         };
     }
 
-    template<typename T, Border BORDER, size_t... N>
+    template<typename T, Border BORDER, usize... N>
     concept textureable_nd = std::copyable<std::remove_cv_t<T>> and T::BORDER == BORDER and requires {
         typename T::value_type;
         typename T::index_type;
     } and details::fetchable_nd_t<T, N...>::value;
 
-    template<typename T, Border BORDER, size_t... N>
+    template<typename T, Border BORDER, usize... N>
     concept lerpable_nd = textureable_nd<T, BORDER, N...> and T::INTERP == Interp::LINEAR_FAST;
 
-    template<typename T, Border BORDER, size_t... N>
+    template<typename T, Border BORDER, usize... N>
     concept nearestable_nd = textureable_nd<T, BORDER, N...> and T::INTERP == Interp::NEAREST_FAST;
 
-    template<typename T, Border BORDER, size_t... N>
+    template<typename T, Border BORDER, usize... N>
     concept interpable_nd =
         std::copyable<std::remove_cv_t<T>> and
         nt::real_or_complex<typename T::value_type> and
-        nt::any_of<typename T::index_type, i32, u32, i64, u64> and
+        nt::integer<typename T::index_type> and sizeof(typename T::index_type) >= 4 and
         (readable_nd<std::remove_reference_t<decltype(std::declval<const T&>()[0])>, N...> or
          textureable_nd<std::remove_reference_t<decltype(std::declval<const T&>()[0])>, BORDER, N...>);
 }
@@ -71,7 +71,7 @@ namespace noa {
             // In practice, the rounding is done by the interpolation function
             // and only the correct element (with weight=1) is read/fetched.
             Vec<Weight, 2> coefficients{};
-            for (size_t i{}; auto e: round(f))
+            for (usize i{}; auto e: round(f))
                 coefficients[i++][static_cast<i32>(e)] = 1;
             return coefficients;
 
@@ -100,8 +100,8 @@ namespace noa {
                        ONE_SIXTH * squared * f};
 
         } else if constexpr (INTERP.is_almost_any(Interp::LANCZOS4, Interp::LANCZOS6, Interp::LANCZOS8)) {
-            constexpr size_t SIZE = INTERP.window_size();
-            constexpr size_t CENTER = SIZE / 2 - 1;
+            constexpr usize SIZE = INTERP.window_size();
+            constexpr usize CENTER = SIZE / 2 - 1;
 
             // Instead of computing the windowed-sinc for every point in the nd-window, use this trick from OpenCV
             // to only compute one sin and cos per dimension, regardless of the window size. See:
@@ -115,7 +115,7 @@ namespace noa {
 
             Weight sum{};
             Vec<Weight, SIZE> coefficients{};
-            for (size_t j{}; j < Weight::SIZE; ++j) {
+            for (usize j{}; j < Weight::SIZE; ++j) {
                 if (f[j] <= std::numeric_limits<real_t>::epsilon()) {
                     coefficients[CENTER][j] = 1;
                     sum[j] = 1;
@@ -127,7 +127,7 @@ namespace noa {
                     const real_t y0 = x0 * PI * static_cast<real_t>(0.25);
                     const auto sc0 = sincos(y0);
 
-                    for (size_t i{}; i < SIZE; i++) {
+                    for (usize i{}; i < SIZE; i++) {
                         const auto fij = -(f[j] + CENTER - static_cast<real_t>(i));
                         const auto yj = fij * PI * static_cast<real_t>(0.25);
                         coefficients[i][j] = (cs[i][0] * sc0[0] + cs[i][1] * sc0[1]) / (yj * yj);
@@ -145,10 +145,10 @@ namespace noa {
         }
     }
 
-    template<Interp INTERP, Border BORDER, size_t N,
+    template<Interp INTERP, Border BORDER, usize N,
              nt::any_of<f32, f64> Coord,
              nt::sinteger SInt,
-             size_t A0, size_t A1>
+             usize A0, usize A1>
     requires (1 <= N and N <= 3)
     [[nodiscard]] NOA_FHD constexpr auto is_within_interpolation_window(
         const Vec<Coord, N, A0>& coordinate,
@@ -161,7 +161,7 @@ namespace noa {
             constexpr SInt START = -(SIZE - 1) / 2;
             constexpr SInt END = SIZE / 2;
 
-            for (size_t i{}; i < N; ++i) {
+            for (usize i{}; i < N; ++i) {
                 auto index = static_cast<SInt>(floor(coordinate[i]));
                 if (index + END < 0 or index + START >= shape[i])
                     return false;
@@ -177,11 +177,11 @@ namespace noa {
     /// \param coordinate   ((D)H)W coordinates to interpolate at.
     /// \param shape        ((D)H)W shape of the input array.
     /// \param cvalue       Constant value, only used for BORDER == Border::VALUE.
-    template<Interp INTERP, Border BORDER, size_t N,
+    template<Interp INTERP, Border BORDER, usize N,
              nt::any_of<f32, f64> Coord,
              nt::readable_nd<N> T,
              nt::sinteger SInt,
-             size_t A0, size_t A1, typename C>
+             usize A0, usize A1, typename C>
     requires (1 <= N and N <= 3 and (BORDER != Border::VALUE or nt::same_as_mutable_value_type_of<C, T>))
     [[nodiscard]] NOA_FHD constexpr auto interpolate(
         const T& input,
@@ -239,7 +239,14 @@ namespace noa {
 
             // If indices are inbound, no need to interpolate in the case of AccessorValue.
             if constexpr (nt::accessor_value<T>) {
-                if (vall([](auto i, auto s) { return i + START >= 0 and i + END < s; }, indices, shape))
+                bool is_inbound{true};
+                for (usize i{}; i < N; ++i) {
+                    if (indices[i] + START < 0 or indices[i] + END >= shape[i]) {
+                        is_inbound = false;
+                        break;
+                    }
+                }
+                if (is_inbound)
                     return input();
             }
 
@@ -289,7 +296,7 @@ namespace noa {
     /// \tparam N           Number of dimensions.
     /// \param input        Texture-like object mapping a N-d input array.
     /// \param coordinate   ((D)H)W coordinates to interpolate at.
-    template<Interp INTERP, Border BORDER, size_t N, size_t A,
+    template<Interp INTERP, Border BORDER, usize N, size_t A,
              nt::textureable_nd<BORDER, N> T,
              nt::any_of<f32, f64> Coord>
     requires (1 <= N and N <= 3)

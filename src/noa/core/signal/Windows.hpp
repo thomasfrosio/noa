@@ -7,19 +7,19 @@ namespace noa::signal::details {
     template<typename Derived>
     class Window {
     public:
-        constexpr explicit Window(i64 n_elements, bool half_window = false) :
+        constexpr explicit Window(isize n_elements, bool half_window = false) :
             m_n_elements(n_elements),
             m_offset(half_window ? n_elements / 2 : 0),
             m_center(window_center_coordinate_(n_elements)) {}
 
-        [[nodiscard]] constexpr auto n_elements() const noexcept -> i64 { return m_n_elements; }
-        [[nodiscard]] constexpr auto offset() const noexcept -> i64 { return m_offset; }
+        [[nodiscard]] constexpr auto n_elements() const noexcept -> isize { return m_n_elements; }
+        [[nodiscard]] constexpr auto offset() const noexcept -> isize { return m_offset; }
         [[nodiscard]] constexpr auto center() const noexcept -> f64 { return m_center; }
 
         template<nt::real Real>
         constexpr void generate(Real* output, bool normalize = true) const noexcept {
             f64 sum{};
-            for (i64 i = m_offset; i < m_n_elements; ++i) {
+            for (isize i = m_offset; i < m_n_elements; ++i) {
                 const f64 n = static_cast<f64>(i);
                 const f64 window = static_cast<const Derived*>(this)->window(n, m_center);
                 sum += window;
@@ -29,13 +29,13 @@ namespace noa::signal::details {
                 window_normalize_(output, m_n_elements - m_offset, sum);
         }
 
-        [[nodiscard]] constexpr auto sample(i64 index) const noexcept -> f64 {
+        [[nodiscard]] constexpr auto sample(isize index) const noexcept -> f64 {
             const f64 n = static_cast<f64>(index + m_offset);
             return static_cast<const Derived*>(this)->window(n, m_center);
         }
 
     private:
-        [[nodiscard]] static constexpr auto window_center_coordinate_(i64 n_elements) noexcept -> f64 {
+        [[nodiscard]] static constexpr auto window_center_coordinate_(isize n_elements) noexcept -> f64 {
             auto half = static_cast<f64>(n_elements / 2);
             if (is_even(n_elements))
                 half -= 0.5;
@@ -43,21 +43,21 @@ namespace noa::signal::details {
         }
 
         template<typename Real>
-        static constexpr void window_normalize_(Real* output, i64 n_elements, f64 sum) noexcept {
+        static constexpr void window_normalize_(Real* output, isize n_elements, f64 sum) noexcept {
             const auto sum_real = static_cast<Real>(sum);
-            for (i64 i = 0; i < n_elements; ++i)
+            for (isize i = 0; i < n_elements; ++i)
                 output[i] /= sum_real;
         }
 
     private:
-        i64 m_n_elements;
-        i64 m_offset;
+        isize m_n_elements;
+        isize m_offset;
         f64 m_center;
     };
 
     struct WindowGaussian : Window<WindowGaussian> {
         f64 sig2;
-        constexpr explicit WindowGaussian(i64 elements, bool half_window, f64 stddev) :
+        constexpr explicit WindowGaussian(isize elements, bool half_window, f64 stddev) :
             Window(elements, half_window), sig2(2 * stddev * stddev) {}
 
         [[nodiscard]] auto window(f64 i, f64 center) const noexcept -> f64 {
@@ -67,7 +67,7 @@ namespace noa::signal::details {
     };
 
     struct WindowBlackman : Window<WindowBlackman> {
-        constexpr explicit WindowBlackman(i64 elements, bool half_window) :
+        constexpr explicit WindowBlackman(isize elements, bool half_window) :
             Window(elements, half_window) {}
 
         [[nodiscard]] auto window(f64 i, f64) const noexcept -> f64 {
@@ -81,7 +81,7 @@ namespace noa::signal::details {
 
     struct WindowSinc : Window<WindowSinc> {
         f64 constant;
-        constexpr explicit WindowSinc(i64 elements, bool half_window, f64 constant_) :
+        constexpr explicit WindowSinc(isize elements, bool half_window, f64 constant_) :
             Window(elements, half_window), constant(constant_) {}
 
         [[nodiscard]] auto window(f64 i, f64 center) const noexcept -> f64 {
@@ -108,7 +108,7 @@ namespace noa::signal {
     /// \param stddev       Standard deviation of the gaussian.
     /// \param options      Window options.
     template<nt::real T>
-    constexpr void window_gaussian(T* output, i64 elements, f64 stddev, WindowOptions options = {}) {
+    constexpr void window_gaussian(T* output, isize elements, f64 stddev, WindowOptions options = {}) {
         if (elements <= 0)
             return;
         details::WindowGaussian(elements, options.half_window, stddev).generate(output, options.normalize);
@@ -119,7 +119,7 @@ namespace noa::signal {
     /// \param elements     Number of elements in the window.
     /// \param stddev       Standard deviation of the gaussian.
     /// \param options      Window options. Note that `normalize` is ignored.
-    [[nodiscard]] constexpr auto window_gaussian(i64 index, i64 elements, f64 stddev, WindowOptions options = {}) -> f64 {
+    [[nodiscard]] constexpr auto window_gaussian(isize index, isize elements, f64 stddev, WindowOptions options = {}) -> f64 {
         if (elements <= 0)
             return 0.;
         return details::WindowGaussian(elements, options.half_window, stddev).sample(index);
@@ -130,7 +130,7 @@ namespace noa::signal {
     /// \param elements     Number of elements in the full-window.
     /// \param options      Window options.
     template<nt::real T>
-    constexpr void window_blackman(T* output, i64 elements, WindowOptions options = {}) {
+    constexpr void window_blackman(T* output, isize elements, WindowOptions options = {}) {
         if (elements <= 0)
             return;
         details::WindowBlackman(elements, options.half_window).generate(output, options.normalize);
@@ -140,7 +140,7 @@ namespace noa::signal {
     /// \param index        Index where to sample.
     /// \param elements     Number of elements in the window.
     /// \param options      Window options. Note that `normalize` is ignored.
-    [[nodiscard]] constexpr auto window_blackman(i64 index, i64 elements, WindowOptions options = {}) -> f64 {
+    [[nodiscard]] constexpr auto window_blackman(isize index, isize elements, WindowOptions options = {}) -> f64 {
         if (elements <= 0)
             return 0;
         return details::WindowBlackman(elements, options.half_window).sample(index);
@@ -152,7 +152,7 @@ namespace noa::signal {
     /// \param constant     Additional constant factor. \c sin(constant*pi*x)/(pi*x) is computed.
     /// \param options      Window options.
     template<nt::real T>
-    constexpr void window_sinc(T* output, i64 elements, f64 constant, WindowOptions options = {}) {
+    constexpr void window_sinc(T* output, isize elements, f64 constant, WindowOptions options = {}) {
         if (elements <= 0)
             return;
         details::WindowSinc(elements, options.half_window, constant).generate(output, options.normalize);
@@ -163,7 +163,7 @@ namespace noa::signal {
     /// \param elements     Number of elements in the window. Should be >= 1.
     /// \param constant     Additional constant factor. \c sin(constant*pi*x)/(pi*x) is computed.
     /// \param options      Window options. Note that `normalize` is ignored.
-    [[nodiscard]] constexpr auto window_sinc(i64 index, i64 elements, f64 constant, WindowOptions options = {}) -> f64 {
+    [[nodiscard]] constexpr auto window_sinc(isize index, isize elements, f64 constant, WindowOptions options = {}) -> f64 {
         if (elements <= 0)
             return 0;
         return details::WindowSinc(elements, options.half_window, constant).sample(index);

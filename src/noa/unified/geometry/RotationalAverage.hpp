@@ -10,6 +10,7 @@
 #include "noa/unified/Ewise.hpp"
 #include "noa/unified/Iwise.hpp"
 #include "noa/unified/Factory.hpp"
+#include "noa/unified/Interpolation.hpp"
 
 namespace noa::geometry::details {
     struct RotationalAverageUtils {
@@ -50,7 +51,7 @@ namespace noa::geometry::details {
     /// - If input is complex and output real, the input is preprocessed to abs(input)^2.
     /// - The 2d distortion from the anisotropic ctf can be corrected.
     template<nf::Layout REMAP,
-             size_t N,
+             usize N,
              nt::real Coord,
              nt::sinteger Index,
              nt::readable_nd<N + 1> Input,
@@ -67,7 +68,7 @@ namespace noa::geometry::details {
         using coord_type = Coord;
         using shape_type = Shape<index_type, N - IS_RFFT>;
         using coord_nd_type = Vec<coord_type, N>;
-        using coord2_type = Vec2<coord_type>;
+        using coord2_type = Vec<coord_type, 2>;
         using shape_nd_type = Shape<index_type, N>;
 
         using input_type = Input;
@@ -106,7 +107,7 @@ namespace noa::geometry::details {
             // In this case, and if the frequency.start is 0, this results in the full frequency range.
             // The input is N-d, so we have to handle each axis separately.
             coord_type max_input_fftfreq{-1};
-            for (size_t i{}; i < N; ++i) {
+            for (usize i{}; i < N; ++i) {
                 const auto max_sample_size = input_shape[i] / 2 + 1;
                 const auto fftfreq_end =
                     input_fftfreq.stop <= 0 ?
@@ -190,7 +191,7 @@ namespace noa::geometry::details {
         using index_type = Index;
         using coord_type = Coord;
         using coord_nd_type = Vec<coord_type, 1>;
-        using coord2_type = Vec2<coord_type>;
+        using coord2_type = Vec<coord_type, 2>;
 
         using input_type = Input;
         using output_type = Output;
@@ -345,7 +346,7 @@ namespace noa::geometry::details {
 
     template<typename T>
     auto check_parameters_ctf(
-        const T& ctf, i64 batch, Device device,
+        const T& ctf, isize batch, Device device,
         const std::source_location& location = std::source_location::current()
     ) {
         if constexpr (nt::varray<T>) {
@@ -365,16 +366,16 @@ namespace noa::geometry::details {
     template<nf::Layout REMAP, typename Input, typename Output, typename Weight, typename Ctf = Empty>
     auto check_parameters_rotational_average(
         const Input& input,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         const Ctf& input_ctf,
         const Output& output,
         const Weight& weights,
         const Linspace<f64>& input_fftfreq
-    ) -> i64 {
+    ) -> isize {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         const bool weights_is_empty = weights.is_empty();
 
-        check(all(input.shape() == (REMAP.is_hx2xx() ? shape.rfft() : shape)),
+        check(input.shape() == (REMAP.is_hx2xx() ? shape.rfft() : shape),
               "The input array does not match the logical shape. Got input:shape={}, shape={}, remap={}",
               input.shape(), shape, REMAP);
 
@@ -388,14 +389,14 @@ namespace noa::geometry::details {
               "The output must be a (batch of) contiguous vector(s), but got output:shape={} and output:strides={}",
               output.shape(), output.strides());
 
-        const i64 n_shells = output.shape().pop_front().n_elements();
+        const isize n_shells = output.shape().pop_front().n_elements();
         if (not weights_is_empty) {
             check(ni::is_contiguous_vector_batched_strided(weights),
                   "The weights must be a (batch of) contiguous vector(s), "
                   "but got weights:shape={} and weights:strides={}",
                   weights.shape(), weights.strides());
 
-            const i64 weights_n_shells = weights.shape().pop_front().n_elements();
+            const isize weights_n_shells = weights.shape().pop_front().n_elements();
             check(n_shells == weights_n_shells,
                   "The number of shells does not match the output shape. "
                   "Got output:n_shells={} and weights:n_shells={}",
@@ -479,8 +480,8 @@ namespace noa::geometry::details {
              typename Input, typename Index, typename Ctf,
              typename Output, typename Weight, typename Options>
     void launch_rotational_average(
-        Input&& input, const Shape4<Index>& input_shape, Ctf&& input_ctf,
-        Output&& output, Weight&& weight, i64 n_shells, const Options& options
+        Input&& input, const Shape<Index, 4>& input_shape, Ctf&& input_ctf,
+        Output&& output, Weight&& weight, isize n_shells, const Options& options
     ) {
         using input_value_t = nt::const_value_type_t<Input>;
         using output_value_t = nt::value_type_t<Output>;
@@ -506,8 +507,8 @@ namespace noa::geometry::details {
 
         using output_accessor_t = AccessorRestrictContiguous<output_value_t, 2, Index>;
         using weight_accessor_t = AccessorRestrictContiguous<weight_value_t, 2, Index>;
-        auto output_accessor = output_accessor_t(output_view.get(), Strides1<Index>::from_value(output_view.strides()[0]));
-        auto weight_accessor = weight_accessor_t(weight_view.get(), Strides1<Index>::from_value(weight_view.strides()[0]));
+        auto output_accessor = output_accessor_t(output_view.get(), Strides<Index, 1>::from_value(output_view.strides()[0]));
+        auto weight_accessor = weight_accessor_t(weight_view.get(), Strides<Index, 1>::from_value(weight_view.strides()[0]));
 
         const auto input_fftfreq = options.input_fftfreq.template as<coord_t>();
         const auto output_fftfreq = options.output_fftfreq.template as<coord_t>();
@@ -732,7 +733,7 @@ namespace noa::geometry {
     requires (REMAP.is_xx2h() and nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
     NOA_NOINLINE void rotational_average(
         Input&& input,
-        const Shape4<i64>& input_shape,
+        const Shape4& input_shape,
         Output&& output,
         Weight&& weights = {},
         RotationalAverageOptions options = {}
@@ -740,7 +741,7 @@ namespace noa::geometry {
         const auto n_shells = details::check_parameters_rotational_average<REMAP>(
             input, input_shape, Empty{}, output, weights, options.input_fftfreq);
         details::launch_rotational_average<REMAP>(
-            std::forward<Input>(input), input_shape.as<i64>(), Empty{},
+            std::forward<Input>(input), input_shape.as<isize>(), Empty{},
             std::forward<Output>(output),
             std::forward<Weight>(weights),
             n_shells, options
@@ -772,7 +773,7 @@ namespace noa::geometry {
     requires (REMAP.is_xx2h() and nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
     NOA_NOINLINE void rotational_average_anisotropic(
         Input&& input,
-        const Shape4<i64>& input_shape,
+        const Shape4& input_shape,
         Ctf&& input_ctf,
         Output&& output,
         Weight&& weights = {},
@@ -781,7 +782,7 @@ namespace noa::geometry {
         const auto n_shells = details::check_parameters_rotational_average<REMAP>(
             input, input_shape, input_ctf, output, weights, options.input_fftfreq);
         details::launch_rotational_average<REMAP>(
-            std::forward<Input>(input), input_shape.as<i64>(),
+            std::forward<Input>(input), input_shape.as<isize>(),
             std::forward<Ctf>(input_ctf),
             std::forward<Output>(output),
             std::forward<Weight>(weights),
@@ -838,7 +839,7 @@ namespace noa::geometry {
         details::check_parameters_fuse_spectra<true>(
             input, input_fftfreq, input_ctf, output, output_fftfreq, output_ctf, weights
         );
-        details::launch_fuse_spectra<i64>(
+        details::launch_fuse_spectra<isize>(
             std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
             std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
             std::forward<Weight>(weights), options
@@ -876,7 +877,7 @@ namespace noa::geometry {
         details::check_parameters_fuse_spectra<false>(
             input, input_fftfreq, input_ctf, output, output_fftfreq, output_ctf
         );
-        details::launch_phase_spectra<i64>(
+        details::launch_phase_spectra<isize>(
             std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
             std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
             options

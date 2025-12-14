@@ -19,7 +19,7 @@ namespace noa::geometry::details {
     /// \tparam BatchedPostShift    BatchedParameter of Empty or Vec<T, N>.
     /// \tparam Input               N-d spectrum interpolator.
     /// \tparam Output              (N + 1)-d writable.
-    template<size_t N, nf::Layout REMAP,
+    template<usize N, nf::Layout REMAP,
              nt::integer Index,
              nt::batched_parameter BatchedRotate,
              nt::batched_parameter BatchedPostShift,
@@ -107,9 +107,9 @@ namespace noa::geometry::details {
         NOA_NO_UNIQUE_ADDRESS batched_postshift_type m_post_forward_shift;
     };
 
-    template<size_t N, typename Input, typename Output, typename Matrix, typename Shift>
+    template<usize N, typename Input, typename Output, typename Matrix, typename Shift>
     void check_parameters_transform_spectrum_nd(
-        const Input& input, const Output& output, const Shape4<i64>& shape,
+        const Input& input, const Output& output, const Shape4& shape,
         const Matrix& inverse_rotation, const Shift& post_shifts
     ) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
@@ -177,12 +177,12 @@ namespace noa::geometry::details {
         consteval auto operator()() const -> bool { return VALUE;}
     };
 
-    template<nf::Layout REMAP, size_t N, typename Index, bool IS_GPU = false,
+    template<nf::Layout REMAP, usize N, typename Index, bool IS_GPU = false,
              typename Input, typename Output, typename Matrix, typename Shift>
     void launch_transform_spectrum_nd(
         Input&& input,
         Output&& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Matrix&& inverse_rotations,
         Shift&& post_shifts,
         const auto& options
@@ -245,7 +245,7 @@ namespace noa::geometry::details {
         if constexpr (nt::varray<shift_t>)
             has_shift = not post_shifts.is_empty();
         else if constexpr (nt::vec<shift_t>)
-            has_shift = any(post_shifts != shift_t{});
+            has_shift = post_shifts.any_ne(0);
 
         if (nt::complex<nt::value_type_t<Input>> and has_shift)
             launch_interp(WrapNoShift<false>{});
@@ -253,19 +253,19 @@ namespace noa::geometry::details {
             launch_interp(WrapNoShift<true>{});
     }
 
-    template<size_t N, typename Rotation, typename RotationValue = nt::value_type_t<Rotation>>
+    template<usize N, typename Rotation, typename RotationValue = nt::value_type_t<Rotation>>
     concept transform_spectrum_nd_rotation =
         nt::mat_of_shape<std::decay_t<Rotation>, N, N> or
         (N == 3 and nt::quaternion<std::decay_t<Rotation>>) or
         (nt::varray_decay<Rotation> and (nt::mat_of_shape<RotationValue, N, N> or (N == 3 and nt::quaternion<RotationValue>)));
 
-    template<size_t N, typename Shift>
+    template<usize N, typename Shift>
     concept transform_spectrum_nd_shift =
         nt::empty<std::decay_t<Shift>> or
         nt::vec_of_size<std::decay_t<Shift>, N> or
         (nt::varray_decay<Shift> and nt::vec_of_size<nt::value_type_t<Shift>, N>);
 
-    template<size_t N, typename Rotation, typename Shift>
+    template<usize N, typename Rotation, typename Shift>
     concept transform_spectrum_nd_rotation_shift =
         transform_spectrum_nd_rotation<N, Rotation> and
         transform_spectrum_nd_shift<N, Shift> and
@@ -295,7 +295,7 @@ namespace noa::geometry {
     ///
     /// \tparam REMAP                   Remap operation. Every layout is supported.
     /// \tparam Rotation                Mat22<Coord> or a varray of that type.
-    /// \tparam Shift                   Vec2<Coord>, a varray of that type, or Empty.
+    /// \tparam Shift                   Vec<Coord, 2>, a varray of that type, or Empty.
     /// \param[in] input                2d (r)FFT(s) to transform, of type f32, f64, c32, c64.
     /// \param[out] output              Transformed 2d (r)FFT(s).
     /// \param shape                    BDHW logical shape of input and output.
@@ -317,7 +317,7 @@ namespace noa::geometry {
     void transform_spectrum_2d(
         Input&& input,
         Output&& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Rotation&& inverse_rotations,
         Shift&& post_shifts = {},
         const TransformSpectrumOptions& options = {}
@@ -331,7 +331,7 @@ namespace noa::geometry {
             } else {
                 check(nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
                       nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
-                      "i64 indexing not instantiated for GPU devices");
+                      "isize indexing not instantiated for GPU devices");
                 details::launch_transform_spectrum_nd<REMAP, 2, i32, true>(
                     std::forward<Input>(input),
                     std::forward<Output>(output), shape,
@@ -345,7 +345,7 @@ namespace noa::geometry {
             #endif
         }
 
-        details::launch_transform_spectrum_nd<REMAP, 2, i64>(
+        details::launch_transform_spectrum_nd<REMAP, 2, isize>(
             std::forward<Input>(input),
             std::forward<Output>(output), shape,
             std::forward<Rotation>(inverse_rotations),
@@ -363,7 +363,7 @@ namespace noa::geometry {
     ///
     /// \tparam REMAP                   Remap operation. Every layout is supported.
     /// \tparam Rotation                Mat33<Coord> or a varray of that type.
-    /// \tparam Shift                   Vec3<Coord>, Quaternion<Coord>, a varray of these types, or Empty.
+    /// \tparam Shift                   Vec<Coord, 3>, Quaternion<Coord>, a varray of these types, or Empty.
     /// \param[in] input                3d (r)FFT(s) to transform, of type f32, f64, c32, c64.
     /// \param[out] output              Transformed 3d (r)FFT(s).
     /// \param shape                    BDHW logical shape of input and output.
@@ -385,7 +385,7 @@ namespace noa::geometry {
     void transform_spectrum_3d(
         Input&& input,
         Output&& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Rotation&& inverse_rotations,
         Shift&& post_shifts = {},
         const TransformSpectrumOptions& options = {}
@@ -406,8 +406,8 @@ namespace noa::geometry {
                         std::forward<Shift>(post_shifts),
                         options);
                 } else {
-                    // For large volumes (>1290^3), i64 indexing is required.
-                    details::launch_transform_spectrum_nd<REMAP, 3, i64, true>(
+                    // For large volumes (>1290^3), isize indexing is required.
+                    details::launch_transform_spectrum_nd<REMAP, 3, isize, true>(
                         std::forward<Input>(input),
                         std::forward<Output>(output), shape,
                         std::forward<Rotation>(inverse_rotations),
@@ -421,7 +421,7 @@ namespace noa::geometry {
             #endif
         }
 
-        details::launch_transform_spectrum_nd<REMAP, 3, i64>(
+        details::launch_transform_spectrum_nd<REMAP, 3, isize>(
             std::forward<Input>(input),
             std::forward<Output>(output), shape,
             std::forward<Rotation>(inverse_rotations),

@@ -4,6 +4,7 @@
 #include "noa/core/Interpolation.hpp"
 #include "noa/core/indexing/Layout.hpp"
 #include "noa/core/types/Shape.hpp"
+#include "noa/core/types/Mat.hpp"
 #include "noa/core/utils/Atomic.hpp"
 #include "noa/unified/Array.hpp"
 #include "noa/unified/Interpolation.hpp"
@@ -263,7 +264,7 @@ namespace noa::geometry::details {
             }
 
             // Smooth the volume edges using a linear weighting.
-            for (size_t j{}; j < 3; ++j) {
+            for (usize j{}; j < 3; ++j) {
                 if (volume_coordinates[j] < 0) {
                     const auto fraction = volume_coordinates[j] + 1;
                     value = value * static_cast<output_real_type>(fraction);
@@ -326,7 +327,7 @@ namespace noa::geometry::details {
             check(output.shape()[1] == 1, messages[1], output.shape());
         }
 
-        auto check_transform = [&](const auto& transform, i64 required_size, std::string_view name) {
+        auto check_transform = [&](const auto& transform, isize required_size, std::string_view name) {
             check(not transform.is_empty(), "{} should not be empty", name);
             check(ni::is_contiguous_vector(transform) and transform.n_elements() == required_size,
                   "{} should be a contiguous vector with n_images={} elements, but got {}:shape={}, {}:strides={}",
@@ -380,7 +381,7 @@ namespace noa::geometry::details {
     template<typename Index, bool IS_GPU = false, typename Input, typename Output, typename Transform>
     void launch_forward_projection(
         Input&& input, Output&& output, Transform&& projection_matrices,
-        i64 projection_window_size, auto& options
+        isize projection_window_size, auto& options
     ) {
         if (not options.add_to_output)
             fill(output, {}); // the operator adds to the output, so we need to initialize it in this case
@@ -430,10 +431,10 @@ namespace noa::geometry::details {
     template<typename Index, bool IS_GPU = false, typename Input, typename Output,
              typename BackwardTransform, typename ForwardTransform>
     void launch_fused_projection(
-        Input&& input, Output&& output, const Shape<i64, 3>& volume_shape,
+        Input&& input, Output&& output, const Shape<isize, 3>& volume_shape,
         BackwardTransform&& backward_projection_matrices,
         ForwardTransform&& forward_projection_matrices,
-        i64 projection_window_size, auto& options
+        isize projection_window_size, auto& options
     ) {
         if (not options.add_to_output)
             fill(output, {}); // the operator adds to the output, so we need to initialize it in this case
@@ -512,11 +513,11 @@ namespace noa::geometry {
     ///
     /// \param[in] volume_shape         DHW shape of the volume to forward project.
     /// \param[in] projection_matrix    Matrices defining the transformation from image to volume space.
-    template<typename T, size_t R> requires (R == 3 or R == 4)
+    template<typename T, usize R> requires (R == 3 or R == 4)
     constexpr auto forward_projection_window_size(
-        const Shape<i64, 3>& volume_shape,
+        const Shape<isize, 3>& volume_shape,
         const Mat<T, R, 4>& projection_matrix
-    ) -> i64 {
+    ) -> isize {
         const auto projection_axis = projection_matrix.col(0);
         const auto projection_window_center = (volume_shape.vec / 2).as<f64>();
 
@@ -526,7 +527,7 @@ namespace noa::geometry {
                 distance_to_volume_edge[i] = abs(projection_window_center[i] / projection_axis[i]);
 
         const auto index = argmin(distance_to_volume_edge);
-        const auto projection_window_radius = static_cast<i64>(ceil(distance_to_volume_edge[index]));
+        const auto projection_window_radius = static_cast<isize>(ceil(distance_to_volume_edge[index]));
         return (projection_window_radius + 1) * 2 + 1;
     }
 
@@ -559,7 +560,7 @@ namespace noa::geometry {
             } else {
                 check(nd::is_accessor_access_safe<i32>(input_images.strides(), input_images.shape()) and
                       nd::is_accessor_access_safe<i32>(output_volume.strides(), output_volume.shape()),
-                      "i64 indexing not instantiated for GPU devices");
+                      "isize indexing not instantiated for GPU devices");
 
                 details::launch_backward_projection<i32, true>(
                     std::forward<Input>(input_images),
@@ -572,7 +573,7 @@ namespace noa::geometry {
             panic_no_gpu_backend();
             #endif
         }
-        details::launch_backward_projection<i64>(
+        details::launch_backward_projection<isize>(
             std::forward<Input>(input_images),
             std::forward<Output>(output_volume),
             std::forward<Transform>(projection_matrices),
@@ -597,7 +598,7 @@ namespace noa::geometry {
         Input&& input_volume,
         Output&& output_images,
         Transform&& projection_matrices,
-        i64 projection_window_size,
+        isize projection_window_size,
         const ProjectionOptions& options = {}
     ) {
         details::check_projection_parameters<details::ProjectionType::FORWARD>(
@@ -610,7 +611,7 @@ namespace noa::geometry {
             } else {
                 check(nd::is_accessor_access_safe<i32>(input_volume.strides(), input_volume.shape()) and
                       nd::is_accessor_access_safe<i32>(output_images.strides(), output_images.shape()),
-                      "i64 indexing not instantiated for GPU devices");
+                      "isize indexing not instantiated for GPU devices");
 
                 details::launch_forward_projection<i32, true>(
                     std::forward<Input>(input_volume),
@@ -623,7 +624,7 @@ namespace noa::geometry {
             panic_no_gpu_backend();
             #endif
         }
-        details::launch_forward_projection<i64>(
+        details::launch_forward_projection<isize>(
             std::forward<Input>(input_volume),
             std::forward<Output>(output_images),
             std::forward<Transform>(projection_matrices),
@@ -667,10 +668,10 @@ namespace noa::geometry {
     void backward_and_forward_project_3d(
         Input&& input_images,
         Output&& output_images,
-        const Shape<i64, 3>& volume_shape,
+        const Shape<isize, 3>& volume_shape,
         InputTransform&& backward_projection_matrices,
         OutputTransform&& forward_projection_matrices,
-        i64 projection_window_size,
+        isize projection_window_size,
         const ProjectionOptions& options = {}
     ) {
         details::check_projection_parameters<details::ProjectionType::FUSED>(
@@ -683,7 +684,7 @@ namespace noa::geometry {
             } else {
                 check(nd::is_accessor_access_safe<i32>(input_images.strides(), input_images.shape()) and
                       nd::is_accessor_access_safe<i32>(output_images.strides(), output_images.shape()),
-                      "i64 indexing not instantiated for GPU devices");
+                      "isize indexing not instantiated for GPU devices");
 
                 details::launch_fused_projection<i32, true>(
                     std::forward<Input>(input_images),
@@ -697,7 +698,7 @@ namespace noa::geometry {
             panic_no_gpu_backend();
             #endif
         }
-        details::launch_fused_projection<i64>(
+        details::launch_fused_projection<isize>(
             std::forward<Input>(input_images),
             std::forward<Output>(output_images), volume_shape,
             std::forward<InputTransform>(backward_projection_matrices),

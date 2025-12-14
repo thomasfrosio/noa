@@ -18,30 +18,30 @@ namespace noa::indexing {
     /// Indexes will be clamped to the dimension size.
     /// The step must be non-zero positive (negative strides are not supported).
     struct Slice {
-        template<nt::integer T = i64, nt::integer U = i64, nt::integer V = i64>
+        template<nt::integer T = isize, nt::integer U = isize, nt::integer V = isize>
         constexpr explicit Slice(
             T start_ = 0,
-            U end_ = std::numeric_limits<i64>::max(),
+            U end_ = std::numeric_limits<isize>::max(),
             V step_ = V{1}
         ) noexcept :
-            start{static_cast<i64>(start_)},
-            end{static_cast<i64>(end_)},
-            step{static_cast<i64>(step_)} {}
+            start{static_cast<isize>(start_)},
+            end{static_cast<isize>(end_)},
+            step{static_cast<isize>(step_)} {}
 
-        i64 start{};
-        i64 end{};
-        i64 step{};
+        isize start{};
+        isize end{};
+        isize step{};
     };
 
     struct Offset {
-        template<nt::integer T = i64>
-        constexpr explicit Offset(T start_ = 0) noexcept : start{static_cast<i64>(start_)} {}
-        i64 start{};
+        template<nt::integer T = isize>
+        constexpr explicit Offset(T start_ = 0) noexcept : start{static_cast<isize>(start_)} {}
+        isize start{};
     };
 }
 
 namespace noa::indexing::details {
-    template<size_t N, typename... T>
+    template<usize N, typename... T>
     struct SubregionParser {
         template<typename U>
         static consteval auto is_subregion_indexer_no_ellipsis() {
@@ -64,12 +64,12 @@ namespace noa::indexing::details {
 }
 
 namespace noa::traits {
-    template<size_t N, typename... T>
+    template<usize N, typename... T>
     concept subregion_indexing = ni::details::SubregionParser<N, T...>::value;
 }
 
 namespace noa::indexing {
-    template<typename T, size_t N>
+    template<typename T, usize N>
     struct SubregionResult {
         Shape<T, N> shape;
         Strides<T, N> strides;
@@ -83,7 +83,7 @@ namespace noa::indexing {
     /// -   Slice: Slice operator. Slices are clamped to the dimension size. Negative values are allowed.
     /// -   Offset: Offset the dimension. Equivalent to Slice{offset}.
     /// -   Ellipsis: Fills all unspecified dimensions with Full.
-    template<size_t N, typename... T> requires nt::subregion_indexing<N, T...>
+    template<usize N, typename... T> requires nt::subregion_indexing<N, T...>
     struct Subregion {
         /// Creates a new subregion.
         constexpr explicit Subregion(const T&... indices) noexcept : m_ops{make_tuple(indices...)} {}
@@ -104,13 +104,13 @@ namespace noa::indexing {
         }
 
     private:
-        template<size_t I>
+        template<usize I>
         constexpr decltype(auto) dim() const {
-            constexpr size_t COUNT = sizeof...(T);
+            constexpr usize COUNT = sizeof...(T);
             if constexpr (COUNT == N) {
                 return m_ops[Tag<I>{}];
             } else if constexpr (COUNT < N) {
-                constexpr size_t J = N - COUNT;
+                constexpr usize J = N - COUNT;
                 if constexpr (nt::almost_same_as<decltype(m_ops[Tag<0>{}]), Ellipsis>) {
                     if constexpr (I <= J)
                         return Full{};
@@ -185,7 +185,7 @@ namespace noa::indexing {
         Tuple<std::decay_t<T>...> m_ops{};
     };
 
-    template<size_t N, typename... T> requires nt::subregion_indexing<N, T...>
+    template<usize N, typename... T> requires nt::subregion_indexing<N, T...>
     constexpr auto make_subregion(const T&... indices) noexcept {
         return Subregion<N, T...>(indices...);
     }

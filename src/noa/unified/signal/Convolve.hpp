@@ -24,7 +24,7 @@ namespace noa::signal {
              nt::writable_varray_decay_of_real Output,
              nt::readable_varray_decay_of_real Filter>
     void convolve(Input&& input, Output&& output, Filter&& filter, const ConvolveOptions& options = {}) {
-        check(not input.is_empty() and not output.is_empty() and not filter.is_empty(), "Empty array detected");
+        check(nd::are_arrays_valid(input, output, filter), "Empty array detected");
         check(not ni::are_overlapped(input, output), "The input and output array should not overlap");
 
         auto input_strides = input.strides();
@@ -39,7 +39,7 @@ namespace noa::signal {
 
         const auto filter_shape = filter.shape().pop_front();
         auto ndim = output.shape().ndim();
-        check(filter_shape.ndim() <= ndim and all(filter_shape % 2 == 1),
+        check(filter_shape.ndim() <= ndim and (filter_shape % 2) == 1,
               "Given a {}d (batched) output, the input filter should be {}d at most and each dimension "
               "should have an odd number of elements, but got filter shape {}", ndim, ndim, filter_shape);
 
@@ -124,7 +124,7 @@ namespace noa::signal {
         Buffer&& buffer = Buffer{},
         const ConvolveOptions& options = {}
     ) {
-        check(not input.is_empty() and not output.is_empty(), "Empty array detected");
+        check(nd::are_arrays_valid(input, output), "Empty array detected");
         check(not ni::are_overlapped(input, output), "The input and output array should not overlap");
 
         auto input_strides = input.strides();
@@ -158,7 +158,7 @@ namespace noa::signal {
         check_separable_filter(filter_width, std::source_location::current());
 
         if (not buffer.is_empty()) {
-            check(all(buffer.shape() == output.shape()) and ni::are_elements_unique(buffer.strides(), output.shape()),
+            check(buffer.shape() == output.shape() and ni::are_elements_unique(buffer.strides(), output.shape()),
                   "The temporary array should be able to hold an array of shape {}, but got shape {} and strides {}",
                   output.shape(), buffer.shape(), buffer.strides());
             check(device == buffer.device(),

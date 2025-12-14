@@ -8,8 +8,8 @@
 #include "noa/core/Traits.hpp"
 
 namespace noa::inline types {
-    template<size_t I>
-    using Tag = std::integral_constant<size_t, I>;
+    template<usize I>
+    using Tag = std::integral_constant<usize, I>;
 }
 
 namespace noa::traits {
@@ -26,7 +26,8 @@ namespace noa::traits {
 namespace noa::inline types {
     template<typename First, typename Second>
     struct Pair {
-        constexpr static size_t SIZE = 2;
+        constexpr static usize SIZE = 2;
+        constexpr static isize SSIZE = 2;
         constexpr static bool nothrow_swappable =
             std::is_nothrow_swappable_v<First> and
             std::is_nothrow_swappable_v<Second>;
@@ -39,7 +40,7 @@ namespace noa::inline types {
         NOA_NO_UNIQUE_ADDRESS First first;
         NOA_NO_UNIQUE_ADDRESS Second second;
 
-        template<size_t I>
+        template<usize I>
         constexpr auto operator[](Tag<I>) & noexcept -> std::conditional_t<I == 0, First, Second>& {
             if constexpr (I == 0)
                 return first;
@@ -49,7 +50,7 @@ namespace noa::inline types {
                 static_assert(I < 2);
         }
 
-        template<size_t I>
+        template<usize I>
         constexpr auto operator[](Tag<I>) const& noexcept -> std::conditional_t<I == 0, First, Second> const& {
             if constexpr (I == 0)
                 return first;
@@ -59,7 +60,7 @@ namespace noa::inline types {
                 static_assert(I < 2);
         }
 
-        template<size_t I>
+        template<usize I>
         constexpr auto operator[](Tag<I>) && noexcept -> std::conditional_t<I == 0, First, Second>&& {
             if constexpr (I == 0)
                 return std::forward<Pair>(*this).first;
@@ -69,7 +70,7 @@ namespace noa::inline types {
                 static_assert(I < 2);
         }
 
-        template<size_t I>
+        template<usize I>
         constexpr auto operator[](Tag<I>) const && noexcept -> std::conditional_t<I == 0, First, Second> const && {
             if constexpr (I == 0)
                 return std::forward<const Pair>(*this).first;
@@ -106,7 +107,7 @@ namespace noa::inline types {
 }
 
 namespace noa {
-    template<size_t I, typename Tup>
+    template<usize I, typename Tup>
     requires (nt::tuple<std::decay_t<Tup>> or nt::pair<std::decay_t<Tup>>)
     constexpr auto get(Tup&& tup) -> decltype(auto) {
         return std::forward<Tup>(tup)[Tag<I>{}];

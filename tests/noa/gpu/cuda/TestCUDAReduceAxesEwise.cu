@@ -15,7 +15,7 @@ TEST_CASE("cuda::reduce_axes_ewise") {
     Stream stream(Device::current());
 
     SECTION("sum over one axis") {
-        std::array input_shapes{Shape4<i64>{10, 34, 65, 130}, test::random_shape_batched(4)};
+        std::array input_shapes{Shape<i64, 4>{10, 34, 65, 130}, test::random_shape_batched(4)};
         for (auto& input_shape: input_shapes) {
             if (input_shape[0] == 1)
                 input_shape[0] += 1; // make sure there's something to reduce
@@ -46,9 +46,9 @@ TEST_CASE("cuda::reduce_axes_ewise") {
     }
 
     SECTION("sum per batch") {
-        const std::array input_shapes{Shape4<i64>{6, 8, 13, 99}, Shape4<i64>{4, 35, 55, 130}};
+        const std::array input_shapes{Shape<i64, 4>{6, 8, 13, 99}, Shape<i64, 4>{4, 35, 55, 130}};
         for (const auto& input_shape: input_shapes) {
-            const auto output_shape = Shape4<i64>{input_shape[0], 1, 1, 1};
+            const auto output_shape = Shape<i64, 4>{input_shape[0], 1, 1, 1};
             const auto input_n_elements = input_shape.n_elements();
             const auto output_n_elements = output_shape.n_elements();
             const f64 expected_value = static_cast<f64>(input_shape.pop_front().n_elements());

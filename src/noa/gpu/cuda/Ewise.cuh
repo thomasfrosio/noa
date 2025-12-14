@@ -93,7 +93,7 @@ namespace noa::cuda::details {
     // 3d grid of 2d blocks.
     template<typename Block, typename Interface, typename Op, typename Input, typename Output, typename Index>
     __global__ __launch_bounds__(Block::block_size)
-    void ewise_4d(Op op, Input input, Output output, Shape2<Index> shape_hw, u32 n_blocks_x) {
+    void ewise_4d(Op op, Input input, Output output, Shape<Index, 2> shape_hw, u32 n_blocks_x) {
         const auto gid = global_indices_4d<Index, Block>(n_blocks_x);
 
         auto to_2d = [&gid]<typename T>(T&& accessor) {
@@ -121,7 +121,7 @@ namespace noa::cuda::details {
 
 namespace noa::cuda::details {
     // nvcc bug - this could be a lambda, but nvcc <=12.6 is broken...
-    template<size_t ALIGNMENT, typename Config, typename Input, typename Output,  typename Op, typename Index>
+    template<usize ALIGNMENT, typename Config, typename Input, typename Output,  typename Op, typename Index>
     void launch_ewise_2d(
         Op&& op,
         Input&& input,
@@ -131,12 +131,12 @@ namespace noa::cuda::details {
         u32 batch
     ) {
         using OpDecay = std::decay_t<Op>;
-        constexpr size_t VEC_SIZE = maximum_allowed_aligned_buffer_size<ALIGNMENT, Input, Output>();
+        constexpr usize VEC_SIZE = maximum_allowed_aligned_buffer_size<ALIGNMENT, Input, Output>();
         using InputVec = to_aligned_buffer_t<Input, ALIGNMENT, VEC_SIZE>;
         using OutputVec = to_aligned_buffer_t<Output, ALIGNMENT, VEC_SIZE>;
         constexpr bool VECTORIZE = is_vectorized<InputVec, OutputVec>();
 
-        constexpr u32 N_ELEMENTS_PER_THREAD = max(static_cast<size_t>(Config::n_elements_per_thread), VEC_SIZE);
+        constexpr u32 N_ELEMENTS_PER_THREAD = max(static_cast<usize>(Config::n_elements_per_thread), VEC_SIZE);
         using Block = StaticBlock<Config::block_size, 1, 1, N_ELEMENTS_PER_THREAD, 1, 1>;
         using Interface = Config::interface;
 
@@ -214,13 +214,13 @@ namespace noa::cuda {
         if (is_contiguous[1] and is_contiguous[2]) { // 2d-like
             // If batches are not contiguous to each other, keep them separated in a different grid.y.
             const auto batch = is_contiguous[0] ? 1u : safe_cast<u32>(shape[0]);
-            const auto shape_i64 = shape.template as_safe<i64>();
-            const auto n_elements_i64 = is_contiguous[0] ? shape_i64.n_elements() : shape_i64.pop_front().n_elements();
-            const auto n_elements = safe_cast<Index>(n_elements_i64);
+            const auto shape_iz = shape.template as_safe<isize>();
+            const auto n_elements_iz = is_contiguous[0] ? shape_iz.n_elements() : shape_iz.pop_front().n_elements();
+            const auto n_elements = safe_cast<Index>(n_elements_iz);
 
             if constexpr (Config::enable_vectorization and nt::enable_vectorization_v<Op>) {
                 const auto shape_3d = Shape{batch, 1u, 1u};
-                size_t alignment = min(
+                usize alignment = min(
                     min_address_alignment(input, shape_3d),
                     min_address_alignment(output, shape_3d)
                 );

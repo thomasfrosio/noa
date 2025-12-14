@@ -22,8 +22,8 @@ namespace noa::geometry::details {
         using input_value_type = nt::mutable_value_type_t<input_type>;
         using output_value_type = nt::value_type_t<output_type>;
         using coord_type = Coord;
-        using coord2_type = Vec2<coord_type>;
-        using shape2_type = Shape2<Index>;
+        using coord2_type = Vec<coord_type, 2>;
+        using shape2_type = Shape<Index, 2>;
         static_assert(nt::spectrum_types<input_value_type, output_value_type>);
 
     public:
@@ -40,7 +40,7 @@ namespace noa::geometry::details {
             m_polar(polar)
         {
             coord_type spectrum_stop{};
-            for (size_t i{}; i < 2; ++i) {
+            for (usize i{}; i < 2; ++i) {
                 const auto max_sample_size = spectrum_shape[i] / 2 + 1;
                 const auto highest_fftfreq = nf::highest_fftfreq<coord_type>(spectrum_shape[i]);
 
@@ -92,7 +92,7 @@ namespace noa::geometry::details {
     template<nf::Layout REMAP, bool IS_GPU = false, typename Index, typename Input, typename Output, typename Options>
     void launch_spectrum2polar(
         Input&& spectrum,
-        const Shape4<Index>& spectrum_shape,
+        const Shape<Index, 4>& spectrum_shape,
         Output&& polar,
         const Options& options
     ) {
@@ -189,13 +189,13 @@ namespace noa::geometry {
     requires (REMAP.is_xx2fc() and nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
     void spectrum2polar(
         Input&& spectrum,
-        const Shape4<i64>& spectrum_shape,
+        const Shape4& spectrum_shape,
         Output&& polar,
         PolarTransformSpectrumOptions options = {}
     ) {
         details::polar_check_parameters(spectrum, polar);
 
-        check(all(spectrum.shape() == (REMAP.is_hx2xx() ? spectrum_shape.rfft() : spectrum_shape)),
+        check(spectrum.shape() == (REMAP.is_hx2xx() ? spectrum_shape.rfft() : spectrum_shape),
               "The logical shape {} does not match the spectrum shape. Got spectrum:shape={}, REMAP={}",
               spectrum_shape, spectrum.shape(), REMAP);
         check(allclose(options.spectrum_fftfreq.start, 0.),
@@ -208,7 +208,7 @@ namespace noa::geometry {
                 std::terminate(); // unreachable
             } else {
                 details::launch_spectrum2polar<REMAP, true>(
-                    std::forward<Input>(spectrum), spectrum_shape.as<i64>(),
+                    std::forward<Input>(spectrum), spectrum_shape.as<isize>(),
                     std::forward<Output>(polar), options
                 );
             }
@@ -217,7 +217,7 @@ namespace noa::geometry {
             #endif
         } else {
             details::launch_spectrum2polar<REMAP>(
-                std::forward<Input>(spectrum), spectrum_shape.as<i64>(),
+                std::forward<Input>(spectrum), spectrum_shape.as<isize>(),
                 std::forward<Output>(polar), options
             );
         }

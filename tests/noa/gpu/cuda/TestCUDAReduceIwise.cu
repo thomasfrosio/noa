@@ -45,11 +45,11 @@ TEST_CASE("cuda::reduce_iwise") {
     Stream stream(Device::current());
 
     const Tuple shapes = noa::make_tuple(
-        Shape1<i64>{2451}, Shape1<i64>{524289},
-        Shape2<i64>{72, 130}, Shape2<i64>{542, 845},
-        Shape3<i64>{4, 45, 35}, Shape3<i64>{64, 64, 64},
-        Shape4<i64>{2, 3, 25, 35}, Shape4<i64>{3, 64, 64, 64},
-        Shape4<i64>{2, 128, 128, 128}
+        Shape<i64, 1>{2451}, Shape<i64, 1>{524289},
+        Shape<i64, 2>{72, 130}, Shape<i64, 2>{542, 845},
+        Shape<i64, 3>{4, 45, 35}, Shape<i64, 3>{64, 64, 64},
+        Shape<i64, 4>{2, 3, 25, 35}, Shape<i64, 4>{3, 64, 64, 64},
+        Shape<i64, 4>{2, 128, 128, 128}
     );
     shapes.for_each([&]<size_t N>(const Shape<i64, N>& shape) {
         INFO("shape=" << shape);

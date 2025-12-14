@@ -32,17 +32,17 @@ TEST_CASE("unified::resize()", "[asset]") {
             const YAML::Node& test = tests[nb];
             const auto expected_filename = path_base / test["expected"].as<Path>();
             const auto is_centered = test["is_centered"].as<bool>();
-            const auto input_shape = test["shape"].as<Shape4<i64>> ();
+            const auto input_shape = test["shape"].as<Shape4> ();
             const auto border_mode = test["border"].as<noa::Border>();
             const auto border_value = test["border_value"].as<f32>();
 
-            Shape4<i64> output_shape;
-            Vec4<i64> left, right;
+            Shape4 output_shape;
+            Vec<isize, 4> left, right;
             if (is_centered) {
-                output_shape = test["o_shape"].as<Shape4<i64>>();
+                output_shape = test["o_shape"].as<Shape4>();
             } else {
-                left = test["left"].as<Vec4 <i64>>();
-                right = test["right"].as<Vec4<i64>>();
+                left = test["left"].as<Vec<isize, 4>>();
+                right = test["right"].as<Vec<isize, 4>>();
                 output_shape = Shape{input_shape.vec + left + right};
             }
 
@@ -116,8 +116,8 @@ TEMPLATE_TEST_CASE("unified::resize(), borders", "", i32, f32, f64) {
 
     const auto border_mode = GENERATE(noa::Border::VALUE, noa::Border::PERIODIC);
     const auto border_value = TestType{2};
-    const auto border_left = Vec4<i64>{1, 10, -5, 20};
-    const auto border_right = Vec4<i64>{1, -3, 25, 41};
+    const auto border_left = Vec<isize, 4>{1, 10, -5, 20};
+    const auto border_right = Vec<isize, 4>{1, -3, 25, 41};
     const auto output_shape = Shape{shape.vec + border_left + border_right};
 
     auto data = noa::random(noa::Uniform<TestType>{-5, 5}, shape);
@@ -138,7 +138,7 @@ TEMPLATE_TEST_CASE("unified::resize(), borders", "", i32, f32, f64) {
             data = data.to(options);
 
         const auto result = noa::resize(data, border_left, border_right, border_mode, border_value);
-        REQUIRE(noa::all(result.shape() == output_shape));
+        REQUIRE(result.shape() == output_shape);
         REQUIRE(test::allclose_abs(expected, result, 1e-8));
     }
 }

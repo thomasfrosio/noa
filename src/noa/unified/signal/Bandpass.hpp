@@ -17,8 +17,8 @@ namespace noa::signal::details {
     public:
         using enum BandpassType;
         using coord_type = Coord;
-        using coord3_type = Vec3<coord_type>;
-        using cutoff_type = std::conditional_t<PASS != BANDPASS, Vec1<coord_type>, Vec2<coord_type>>;
+        using coord3_type = Vec<coord_type, 3>;
+        using cutoff_type = std::conditional_t<PASS != BANDPASS, Vec<coord_type, 1>, Vec<coord_type, 2>>;
         using width_type = std::conditional_t<SOFT, cutoff_type, Empty>;
 
     public:
@@ -169,7 +169,7 @@ namespace noa::signal {
     void lowpass(
         Input&& input,
         Output&& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         const Lowpass& pass,
         FilterSpectrumOptions options = {}
     ) {
@@ -200,7 +200,7 @@ namespace noa::signal {
     void highpass(
         Input&& input,
         Output&& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         const Highpass& pass,
         FilterSpectrumOptions options = {}
     ) {
@@ -231,7 +231,7 @@ namespace noa::signal {
     void bandpass(
         Input&& input,
         Output&& output,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         const Bandpass& pass,
         FilterSpectrumOptions options = {}
     ) {

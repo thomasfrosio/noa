@@ -8,7 +8,7 @@
 #include "noa/unified/Iwise.hpp"
 
 namespace noa::signal {
-    constexpr auto n_shells(const Shape4<i64>& shape) -> i64 {
+    constexpr auto n_shells(const Shape4& shape) -> isize {
         switch (shape.ndim()) {
             case 1:
                 return (shape[3] > 1 ? shape[3] : shape[2]) / 2 + 1;
@@ -42,8 +42,8 @@ namespace noa::signal::details {
 
         using index_type = Index;
         using coord_type = Coord;
-        using coord3_type = Vec3<coord_type>;
-        using shape3_type = Shape3<index_type>;
+        using coord3_type = Vec<coord_type, 3>;
+        using shape3_type = Shape<index_type, 3>;
         using shape_nd_type = Shape<index_type, 3 - IS_RFFT>;
 
         using input_type = Input;
@@ -147,8 +147,8 @@ namespace noa::signal::details {
 
         using index_type = Index;
         using coord_type = Coord;
-        using coord3_type = Vec3<coord_type>;
-        using shape3_type = Shape3<index_type>;
+        using coord3_type = Vec<coord_type, 3>;
+        using shape3_type = Shape<index_type, 3>;
         using shape_nd_type = Shape<index_type, 3 - IS_RFFT>;
 
         using input_type = Input;
@@ -269,16 +269,16 @@ namespace noa::signal::details {
 
     template<typename Lhs, typename Rhs, typename Output, typename Cones = Empty>
     void check_fsc_parameters(
-        const Lhs& lhs, const Rhs& rhs, const Output& fsc, const Shape4<i64>& shape,
+        const Lhs& lhs, const Rhs& rhs, const Output& fsc, const Shape4& shape,
         const Cones& cone_directions = {}
     ) {
         check(not lhs.is_empty() and not rhs.is_empty() and not fsc.is_empty(), "Empty array detected");
         check(not ni::are_overlapped(lhs, rhs), "Computing the FSC on the same array is not allowed");
 
-        check(vall(Equal{}, rhs.shape(), shape.rfft()),
+        check(rhs.shape() == shape.rfft(),
               "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
               shape, shape.rfft(), rhs.shape());
-        check(vall(Equal{}, lhs.shape(), rhs.shape()),
+        check(lhs.shape() == rhs.shape(),
               "The two input arrays should have the same shape. Got lhs:{} and rhs:{}",
               lhs.shape(), rhs.shape());
 
@@ -287,7 +287,7 @@ namespace noa::signal::details {
               "The input and output arrays must be on the same device, but got lhs:{}, rhs:{}, fsc:{}",
               lhs.device(), rhs.device(), device);
 
-        i64 n_cones{1};
+        isize n_cones{1};
         if constexpr (not nt::empty<Cones>) {
             check(not cone_directions.is_empty(), "Empty array detected");
             check(device == cone_directions.device(),
@@ -300,8 +300,8 @@ namespace noa::signal::details {
             n_cones = cone_directions.ssize();
         }
 
-        const auto expected_shape = Shape4<i64>{shape[0], 1, n_cones, n_shells(lhs.shape())};
-        check(vall(Equal{}, fsc.shape(), expected_shape) and fsc.are_contiguous(),
+        const auto expected_shape = Shape4{shape[0], 1, n_cones, n_shells(lhs.shape())};
+        check(fsc.shape() == expected_shape and fsc.are_contiguous(),
               "The FSC does not have the correct shape. Given the input shape {}, and the number of cones ({}),"
               "the expected shape is {}, but got {}",
               shape, n_cones, expected_shape, fsc.shape());
@@ -324,21 +324,21 @@ namespace noa::signal::fft {
         Lhs&& lhs,
         Rhs&& rhs,
         Output&& fsc,
-        const Shape4<i64>& shape
+        const Shape4& shape
     ) {
         details::check_fsc_parameters(lhs, rhs, fsc, shape);
 
         using complex_t = nt::const_value_type_t<Lhs>;
         using real_t = nt::value_type_t<Output>;
-        using input_accessor_t = AccessorRestrictI64<complex_t, 4>;
-        using output_accessor_t = AccessorRestrictContiguousI32<real_t, 2>;
+        using input_accessor_t = AccessorRestrict<complex_t, 4, isize>;
+        using output_accessor_t = AccessorRestrictContiguous<real_t, 2, i32>;
 
         const auto options = lhs.options().set_allocator(Allocator::DEFAULT_ASYNC);
         const auto denominator = Array<real_t>(fsc.shape().template set<1>(2), options);
         auto denominator_lhs = denominator.subregion(ni::Full{}, 0);
         auto denominator_rhs = denominator.subregion(ni::Full{}, 1);
 
-        const auto reduction_op = FSCIsotropic<REMAP, real_t, i64, input_accessor_t, output_accessor_t>(
+        const auto reduction_op = FSCIsotropic<REMAP, real_t, isize, input_accessor_t, output_accessor_t>(
                 input_accessor_t(lhs.get(), lhs.strides()),
                 input_accessor_t(rhs.get(), rhs.strides()), shape.pop_front(),
                 output_accessor_t(fsc.get(), fsc.strides().filter(0, 3).template as_safe<i32>()),
@@ -363,7 +363,7 @@ namespace noa::signal::fft {
     auto fsc_isotropic(
         Lhs&& lhs,
         Rhs&& rhs,
-        const Shape4<i64>& shape
+        const Shape4& shape
     ) {
         using value_t = nt::mutable_value_type_t<Lhs>;
         auto fsc = Array<value_t>({shape[0], 1, 1, n_shells(rhs.shape())}, rhs.options());
@@ -394,7 +394,7 @@ namespace noa::signal::fft {
         Lhs&& lhs,
         Rhs&& rhs,
         Output&& fsc,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Cones&& cone_directions,
         f64 cone_aperture
     ) {
@@ -402,16 +402,16 @@ namespace noa::signal::fft {
 
         using coord_t = nt::mutable_value_type_t<Cones>;
         using real_t = nt::value_type_t<Output>;
-        using input_accessor_t = AccessorRestrictI64<nt::const_value_type_t<Lhs>, 4>;
-        using output_accessor_t = AccessorRestrictContiguousI32<real_t, 3>;
-        using direction_accessor_t = AccessorRestrictContiguousI32<nt::const_value_type_t<Cones>, 1>;
+        using input_accessor_t = AccessorRestrict<nt::const_value_type_t<Lhs>, 4, isize>;
+        using output_accessor_t = AccessorRestrictContiguous<real_t, 3, i32>;
+        using direction_accessor_t = AccessorRestrictContiguous<nt::const_value_type_t<Cones>, 1, i32>;
 
         const auto options = lhs.options().set_allocator(Allocator::DEFAULT_ASYNC);
         const auto denominator = Array<real_t>(fsc.shape().template set<1>(2), options);
         auto denominator_lhs = denominator.subregion(ni::Full{}, 0);
         auto denominator_rhs = denominator.subregion(ni::Full{}, 1);
 
-        auto reduction_op = FSCAnisotropic<REMAP, coord_t, i64, input_accessor_t, output_accessor_t, direction_accessor_t>(
+        auto reduction_op = FSCAnisotropic<REMAP, coord_t, isize, input_accessor_t, output_accessor_t, direction_accessor_t>(
             input_accessor_t(lhs.get(), lhs.strides()),
             input_accessor_t(rhs.get(), rhs.strides()), shape.pop_front(),
             output_accessor_t(fsc.get(), fsc.strides().filter(0, 2, 3).template as_safe<i32>()),
@@ -450,7 +450,7 @@ namespace noa::signal::fft {
     auto fsc_anisotropic(
         Lhs&& lhs,
         Rhs&& rhs,
-        const Shape4<i64>& shape,
+        const Shape4& shape,
         Cones&& cone_directions,
         f32 cone_aperture
     ) {

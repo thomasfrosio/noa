@@ -14,8 +14,8 @@ namespace noa::cpu::details {
 
         // Take the input and output by value, a reference will be passed to each thread.
         // Take the operator by reference since a copy will be passed to each thread.
-        template<size_t N, typename Index, typename Op, typename Input, typename Output>
-        NOA_NOINLINE static void parallel(const Shape<Index, N>& shape, Op op, Input input, Output output, i64 n_threads) {
+        template<usize N, typename Index, typename Op, typename Input, typename Output>
+        NOA_NOINLINE static void parallel(const Shape<Index, N>& shape, Op op, Input input, Output output, i32 n_threads) {
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, input, output) firstprivate(op)
             {
                 interface::init(op, omp_get_thread_num());
@@ -41,7 +41,7 @@ namespace noa::cpu::details {
             }
         }
 
-        template<size_t N, typename Index, typename Op, typename Input, typename Output>
+        template<usize N, typename Index, typename Op, typename Input, typename Output>
         NOA_NOINLINE static constexpr void serial(const Shape<Index, N>& shape, Op op, Input input, Output output) {
             interface::init(op, 0);
 
@@ -66,11 +66,11 @@ namespace noa::cpu::details {
 }
 
 namespace noa::cpu {
-    template<bool ZipInput = false, bool ZipOutput = false, i64 ElementsPerThread = 1'048'576>
+    template<bool ZipInput = false, bool ZipOutput = false, isize ElementsPerThread = 1'048'576>
     struct EwiseConfig {
         static constexpr bool zip_input = ZipInput;
         static constexpr bool zip_output = ZipOutput;
-        static constexpr i64 n_elements_per_thread = ElementsPerThread;
+        static constexpr isize n_elements_per_thread = ElementsPerThread;
     };
 
     template<typename Config = EwiseConfig<>,
@@ -78,11 +78,11 @@ namespace noa::cpu {
     requires (nt::tuple_of_accessor_nd_or_empty<std::decay_t<Input>, 4> and
               nt::tuple_of_accessor_pure_nd_or_empty<std::decay_t<Output>, 4>)
     constexpr void ewise(
-        const Shape4<Index>& shape,
+        const Shape<Index, 4>& shape,
         Op&& op,
         Input&& input,
         Output&& output,
-        i64 n_threads = 1
+        i32 n_threads = 1
     ) {
         // Check contiguity.
         // TODO We could try collapse contiguous dimensions first.
@@ -90,15 +90,15 @@ namespace noa::cpu {
             ni::are_contiguous(input, shape) and
             ni::are_contiguous(output, shape);
 
-        const i64 elements = shape.template as<i64>().n_elements();
-        i64 actual_n_threads = elements <= Config::n_elements_per_thread ? 1 : n_threads;
+        const isize elements = shape.template as<isize>().n_elements();
+        i32 actual_n_threads = elements <= Config::n_elements_per_thread ? 1 : n_threads;
         if (actual_n_threads > 1)
-            actual_n_threads = min(n_threads, elements / Config::n_elements_per_thread);
+            actual_n_threads = min(n_threads, clamp_cast<i32>(elements / Config::n_elements_per_thread));
 
         using ewise_t = details::Ewise<Config::zip_input, Config::zip_output>;
 
         if (are_all_contiguous) {
-            auto shape_1d = Shape1<Index>{shape.n_elements()};
+            auto shape_1d = Shape<Index, 1>{shape.n_elements()};
             if (not nt::enable_vectorization_v<Op> and nd::are_accessors_aliased(input, output)) {
                 constexpr auto accessor_config_1d = nd::AccessorConfig<1>{
                     .enforce_contiguous=true,

@@ -15,10 +15,10 @@ TEST_CASE("unified::reduce - axis reductions vs numpy", "[assets]") {
 
     const YAML::Node& input = tests["input"];
     const auto input_filename = path / input["path"].as<Path>();
-    const auto shape = input["shape"].as<Shape4<i64>>();
+    const auto shape = input["shape"].as<Shape4>();
 
     auto data = noa::read_image<f64>(input_filename).data;
-    REQUIRE(noa::all(data.shape() == shape));
+    REQUIRE(data.shape() == shape);
 
    std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
@@ -34,7 +34,7 @@ TEST_CASE("unified::reduce - axis reductions vs numpy", "[assets]") {
         const auto output_path_norm = path / tests[key]["output_norm"].as<Path>();
         const auto output_path_var = path / tests[key]["output_var"].as<Path>();
         const auto output_path_std = path / tests[key]["output_std"].as<Path>();
-        const auto output_shape = tests[key]["output_shape"].as<Shape4<i64>>();
+        const auto output_shape = tests[key]["output_shape"].as<Shape4>();
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device, Stream::DEFAULT);
@@ -92,7 +92,7 @@ TEMPLATE_TEST_CASE("unified::reduce - axis reductions, cpu vs gpu", "[noa]", i64
     const auto large = GENERATE(true, false);
     const auto subregion_shape =
         test::random_shape(3, {.batch_range = {2, 10}}) +
-        (large ? Shape4<i64>{1, 64, 64, 64} : Shape4<i64>{});
+        (large ? Shape4{1, 64, 64, 64} : Shape4{});
     auto shape = subregion_shape;
     if (pad) {
         shape[1] += 10;
@@ -150,7 +150,7 @@ TEMPLATE_TEST_CASE("unified::reduce - axis reductions, cpu vs gpu", "[noa]", i64
             auto gpu_norm = noa::l2_norm(gpu_data, noa::ReduceAxes::from_shape(output_shape));
             REQUIRE(test::allclose_abs_safe(std::move(cpu_norm), std::move(gpu_norm), eps));
 
-            for (i64 ddof = 0; ddof < 2; ++ddof) {
+            for (i32 ddof = 0; ddof < 2; ++ddof) {
                 INFO("ddof: " << ddof);
                 const Array<real_t> cpu_results({2, 1, 1, output_shape.n_elements()});
                 const auto cpu_var = cpu_results.view().subregion(0).reshape(output_shape);
@@ -201,7 +201,7 @@ TEMPLATE_TEST_CASE("unified::reduce - axis reductions, cpu vs gpu", "[noa]", i64
 
 TEST_CASE("unified::reduce - argmax/argmin()", "[noa]") {
     const bool small = GENERATE(true, false);
-    const auto shape = small ? Shape4<i64>{3, 8, 41, 65} : Shape4<i64>{3, 256, 256, 300};
+    const auto shape = small ? Shape4{3, 8, 41, 65} : Shape4{3, 256, 256, 300};
     const auto n_elements_per_batch = shape.pop_front().as<u32>().n_elements();
 
     std::vector<Device> devices{"cpu"};

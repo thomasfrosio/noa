@@ -9,7 +9,7 @@ TEST_CASE("core::Interpolator") {
     using namespace noa;
 
     {
-        auto shape = Shape3<i64>{3, 64, 64};
+        auto shape = Shape<i64, 3>{3, 64, 64};
         auto buffer = test::random<f32>(shape.n_elements(), test::Randomizer<f32>(-10, 10));
         auto data_2d = Span<f32, 3, i64>{buffer.get(), shape};
         auto accessor = Accessor<const f32, 3, i64>{data_2d.get(), data_2d.strides()};

@@ -19,7 +19,7 @@ TEST_CASE("unified::fft::resize()", "[asset]") {
     constexpr bool GENERATE_ASSETS = false;
     if constexpr (GENERATE_ASSETS) {
         for (const YAML::Node& node : tests["input"]) {
-            const auto shape = node["shape"].as<Shape4<i64>>();
+            const auto shape = node["shape"].as<Shape4>();
             const auto path_input = path / node["path"].as<fs::path>();
             const auto input = noa::random(noa::Uniform{-128.f, 128.f}, shape.rfft());
             noa::write_image(input, path_input);
@@ -38,8 +38,8 @@ TEST_CASE("unified::fft::resize()", "[asset]") {
             const YAML::Node& test = tests["tests"][i];
             const auto filename_input = path / test["input"].as<fs::path>();
             const auto filename_expected = path / test["expected"].as<fs::path>();
-            const auto shape_input = test["shape_input"].as<Shape4<i64>>();
-            const auto shape_expected = test["shape_expected"].as<Shape4<i64>>();
+            const auto shape_input = test["shape_input"].as<Shape4>();
+            const auto shape_expected = test["shape_expected"].as<Shape4>();
 
             const auto input = noa::read_image<f32>(filename_input, {}, options).data;
             const auto output = noa::empty<f32>(shape_expected.rfft(), options);
