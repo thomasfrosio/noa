@@ -5,12 +5,14 @@
 #include <type_traits>
 #include <random>
 
-#include <noa/core/Traits.hpp>
-#include <noa/core/types/Half.hpp>
-#include <noa/core/types/Shape.hpp>
-#include <noa/core/types/Span.hpp>
-#include <noa/core/indexing/Offset.hpp>
-#include <noa/core/io/IO.hpp>
+#include <noa/base/Complex.hpp>
+#include <noa/base/Half.hpp>
+#include <noa/runtime/core/Traits.hpp>
+#include <noa/runtime/core/Shape.hpp>
+#include <noa/runtime/core/Span.hpp>
+#include <noa/runtime/core/Offset.hpp>
+
+#include <noa/io/Encoding.hpp>
 
 namespace test {
     extern noa::Path NOA_DATA_PATH; // defined at runtime by main.
@@ -259,8 +261,8 @@ namespace test {
             result_type result{.shape=m_shape, .match=true};
 
             auto compare_values = [&, this](auto... indices) {
-                value_type lhs = m_lhs[noa::indexing::offset_at(m_lhs_strides, indices...)];
-                value_type rhs = m_rhs[noa::indexing::offset_at(m_rhs_strides, indices...)];
+                value_type lhs = m_lhs[noa::offset_at(m_lhs_strides, indices...)];
+                value_type rhs = m_rhs[noa::offset_at(m_rhs_strides, indices...)];
                 const auto [passed, abs_diff] = value_checker(lhs, rhs, epsilon);
 
                 result.total_abs_diff += abs_diff;

@@ -1,0 +1,249 @@
+#include <noa/runtime/Array.hpp>
+
+#include "Catch.hpp"
+#include "Utils.hpp"
+
+using namespace ::noa::types;
+
+namespace {
+    struct Simple {
+        i32 a[5];
+    };
+}
+
+TEMPLATE_TEST_CASE("runtime::Array, allocate", "", i32, f32, c32, (Vec<i32, 4>), Simple) {
+    auto guard = StreamGuard(Device{}, Stream::DEFAULT);
+    Array<TestType> a;
+    REQUIRE(a.is_empty());
+
+    const auto shape = test::random_shape(2);
+    const Allocator allocator = GENERATE(as<Allocator>(),
+        Allocator::DEFAULT,
+        Allocator::DEFAULT_ASYNC,
+        Allocator::PITCHED,
+        Allocator::PINNED,
+        Allocator::MANAGED,
+        Allocator::MANAGED_GLOBAL,
+        Allocator::PITCHED_MANAGED);
+
+    // CPU
+    a = Array<TestType>(shape, {.device=Device{}, .allocator=allocator});
+    REQUIRE(a.device().is_cpu());
+    REQUIRE(a.allocator() == allocator);
+    REQUIRE(a.shape() == shape);
+    REQUIRE(a.get());
+    REQUIRE_FALSE(a.is_empty());
+
+    // GPU
+    if (not Device::is_any_gpu())
+        return;
+
+    Array<TestType> b(shape, {"gpu:0", allocator});
+    REQUIRE(b.device().is_gpu());
+    REQUIRE(b.allocator() == allocator);
+    REQUIRE(b.shape() == shape);
+    REQUIRE(b.get());
+    REQUIRE_FALSE(b.is_empty());
+
+    if (allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL, Allocator::PITCHED_MANAGED)) {
+        Array<TestType> c = a.reinterpret_as(Device::GPU, {.prefetch = true});
+        REQUIRE(c.device().is_gpu());
+        c = b.reinterpret_as(Device::CPU, {.prefetch = true});
+        REQUIRE(c.device() == Device{});
+    } else {
+        REQUIRE_THROWS_AS(a.reinterpret_as(Device::GPU), noa::Exception);
+        REQUIRE_THROWS_AS(b.reinterpret_as(Device::CPU), noa::Exception);
+    }
+}
+
+TEMPLATE_TEST_CASE("runtime::Array, copy metadata", "", i32, u64, f32, f64, c32, c64) {
+    StreamGuard guard(Device{}, Stream::DEFAULT);
+    const auto shape = test::random_shape(2);
+    const auto allocator = GENERATE(as<Allocator>(),
+        Allocator::DEFAULT,
+        Allocator::DEFAULT_ASYNC,
+        Allocator::PITCHED,
+        Allocator::PINNED,
+        Allocator::MANAGED,
+        Allocator::MANAGED_GLOBAL,
+        Allocator::PITCHED_MANAGED);
+
+    // CPU
+    Array<TestType> a(shape, {Device{}, allocator});
+    REQUIRE(a.device().is_cpu());
+    REQUIRE(a.allocator() == allocator);
+    REQUIRE(a.get());
+
+    Array<TestType> b = a.to({.device=Device(Device::CPU)});
+    REQUIRE(b.device().is_cpu());
+    REQUIRE(b.allocator() == Allocator::DEFAULT);
+    REQUIRE(b.get());
+    REQUIRE(b.get() != a.get());
+
+    // GPU
+    if (!Device::is_any(Device::GPU))
+        return;
+    const Device gpu("gpu:0");
+    a = Array<TestType>(shape, ArrayOption{}.set_device(gpu).set_allocator(allocator));
+    REQUIRE(a.device().is_gpu());
+    REQUIRE(a.allocator() == allocator);
+    REQUIRE(a.get());
+
+    b = a.to(ArrayOption{.device=gpu});
+    REQUIRE(b.device().is_gpu());
+    REQUIRE(b.allocator() == Allocator::DEFAULT);
+    REQUIRE(b.get());
+    REQUIRE(b.get() != a.get());
+
+    a = b.to(ArrayOption{.device=Device(Device::CPU)});
+    REQUIRE(a.device().is_cpu());
+    REQUIRE(a.allocator() == Allocator::DEFAULT);
+    REQUIRE(a.get());
+    REQUIRE(a.get() != b.get());
+
+    a = b.to(ArrayOption{}.set_device(gpu).set_allocator(Allocator::PITCHED));
+    REQUIRE(a.device().is_gpu());
+    REQUIRE(a.allocator() == Allocator::PITCHED);
+    REQUIRE(a.get());
+    REQUIRE(b.get() != a.get());
+}
+
+TEMPLATE_TEST_CASE("runtime::Array, copy values", "", i32, u64, f32, f64, c32, c64) {
+    StreamGuard guard(Device{}, Stream::DEFAULT);
+    const auto shape = test::random_shape(3);
+    const auto input = Array<TestType>(shape, {.allocator="managed"});
+
+    // arange
+    using real_t = noa::traits::value_type_t<TestType>;
+    for (i64 i{}; auto& e: input.span_1d())
+        e = static_cast<real_t>(i++);
+
+    AND_THEN("cpu -> cpu") {
+        const auto output = input.copy();
+        REQUIRE(test::allclose_abs(input, output, 1e-10));
+    }
+
+    AND_THEN("cpu -> gpu") {
+        if (Device::is_any(Device::GPU)) {
+            const auto output = input.to({.device="gpu", .allocator="managed"});
+            REQUIRE(test::allclose_abs(input, output, 1e-10));
+        }
+    }
+
+    AND_THEN("gpu -> gpu") {
+        if (Device::is_any(Device::GPU)) {
+            const auto output0 = input.to({.device="gpu", .allocator="managed"});
+            const auto output1 = output0.copy();
+            REQUIRE(test::allclose_abs(output0, output1, 1e-10));
+        }
+    }
+
+    AND_THEN("gpu -> cpu") {
+        if (Device::is_any(Device::GPU)) {
+            const auto output0 = input.to({.device="gpu", .allocator="managed"});
+            const auto output1 = output0.to_cpu();
+            REQUIRE(test::allclose_abs(output0, output1, 1e-10));
+        }
+    }
+}
+
+TEST_CASE("runtime::Array, .to returns the output") {
+    auto a0 = Array<f32>(1);
+    auto a1 = Array<f32>(1);
+
+    REQUIRE(a1.get() == std::move(a0).to(a1).get());
+}
+
+TEMPLATE_TEST_CASE("runtime::Array, shape manipulation", "", i32, u64, f32, f64, c32, c64) {
+    StreamGuard guard(Device{}, Stream::DEFAULT);
+    AND_THEN("as another type") {
+        Array<f64> c({2, 3, 4, 5});
+        Array<unsigned char> d = c.reinterpret_as<unsigned char>();
+        REQUIRE(d.shape() == Shape4{2, 3, 4, 40});
+        REQUIRE(d.strides() == Strides4{480, 160, 40, 1});
+
+        Array<c64> e({2, 3, 4, 5});
+        Array f = e.reinterpret_as<f64>();
+        REQUIRE(f.shape() == Shape4{2, 3, 4, 10});
+        REQUIRE(f.strides() == Strides4{120, 40, 10, 1});
+
+        e = f.reinterpret_as<c64>();
+        REQUIRE(e.shape() == Shape4{2, 3, 4, 5});
+        REQUIRE(e.strides() == Strides4{60, 20, 5, 1});
+    }
+
+    AND_THEN("reshape") {
+        Array<TestType> a({4, 10, 50, 30});
+        a = a.flat();
+        REQUIRE(a.strides() == a.shape().strides());
+        REQUIRE((a.shape().is_vector() && a.shape().ndim() == 1));
+        a = a.reshape({4, 10, 50, 30});
+        REQUIRE(a.strides() == a.shape().strides());
+        a = a.reshape({10, 4, 30, 50});
+        REQUIRE(a.strides() == a.shape().strides());
+        REQUIRE(a.shape() == Shape4{10, 4, 30, 50});
+    }
+
+    AND_THEN("permute") {
+        Array<TestType> a({4, 10, 50, 30});
+        Array<TestType> b = a.permute({0, 1, 2, 3});
+        REQUIRE(b.shape() == Shape4{4, 10, 50, 30});
+        REQUIRE(b.strides() == Strides4{15000, 1500, 30, 1});
+
+        b = a.permute({1, 0, 3, 2});
+        REQUIRE(b.shape() == Shape4{10, 4, 30, 50});
+        REQUIRE(b.strides() == Strides4{1500, 15000, 1, 30});
+
+        b = a.permute_copy({1, 0, 3, 2});
+        REQUIRE(b.shape() == Shape4{10, 4, 30, 50});
+        REQUIRE(b.strides() == Strides4{6000, 1500, 50, 1});
+    }
+}
+
+TEST_CASE("runtime::Array, overlap") {
+    Array<f32> lhs;
+    Array<f32> rhs;
+
+    REQUIRE_FALSE(noa::are_overlapped(lhs, rhs));
+
+    lhs = Array<f32>(4);
+    REQUIRE_FALSE(noa::are_overlapped(lhs, rhs));
+    rhs = Array<f32>(4);
+    REQUIRE_FALSE(noa::are_overlapped(lhs, rhs));
+
+    rhs = lhs.subregion(noa::Ellipsis{}, 1);
+    REQUIRE(noa::are_overlapped(lhs, rhs));
+    REQUIRE(noa::are_overlapped(rhs, lhs));
+}
+
+TEST_CASE("runtime::Array, span") {
+    StreamGuard guard(Device{"cpu"}, Stream::DEFAULT);
+    Array<f32> lhs({9, 10, 11, 12});
+
+    for (i64 i{}; auto& e: lhs.span_1d_contiguous())
+        e = static_cast<f32>(i++);
+
+    const i64 offset = noa::offset_at(lhs.strides(), 3, 5, 1, 10);
+    REQUIRE(lhs.span_1d()[offset] == static_cast<f32>(offset));
+
+    const auto span = lhs.span<unsigned char, 4>();
+    for (i64 i{}; i < span.shape()[0]; ++i)
+        for (i64 j{}; j < span.shape()[1]; ++j)
+            for (i64 k{}; k < span.shape()[2]; ++k)
+                for (i64 l{}; l < span.shape()[3]; ++l)
+                    span(i, j, k, l) = 0;
+    REQUIRE(test::allclose_abs(lhs, 0.f, 1e-10));
+}
+
+TEST_CASE("runtime::Array, drop") {
+    auto a = Array<f32>(10);
+    auto b = a.drop();
+
+    REQUIRE(a.is_empty());
+    REQUIRE(a.data() == nullptr);
+
+    a = std::move(b).drop();
+    REQUIRE(b.is_empty());
+    REQUIRE(b.data() == nullptr);
+    REQUIRE(a.size() == 10);
+}

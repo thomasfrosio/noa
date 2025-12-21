@@ -71,7 +71,7 @@ if(NOA_ENABLE_WARNINGS)
 endif()
 
 # Project targets.
-add_subdirectory(src/noa)
+add_subdirectory(src)
 
 if (PROJECT_IS_TOP_LEVEL AND NOA_BUILD_TESTS)
     add_subdirectory(tests)

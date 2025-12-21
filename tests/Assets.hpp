@@ -1,9 +1,10 @@
 #pragma once
 
-#include <noa/core/types/Vec.hpp>
-#include <noa/core/types/Shape.hpp>
-#include <noa/core/io/IO.hpp>
-#include <noa/core/Enums.hpp>
+#include <noa/base/Vec.hpp>
+#include <noa/runtime/core/Shape.hpp>
+#include <noa/io/Encoding.hpp>
+#include <noa/xform/core/Interpolation.hpp>
+#include <noa/fft/core/Layout.hpp>
 
 #if defined(NOA_COMPILER_CLANG)
 #pragma GCC diagnostic push
@@ -89,53 +90,6 @@ namespace YAML {
     };
 
     template<>
-    struct convert<noa::Interp> {
-        static Node encode(const noa::Interp& rhs) {
-            std::ostringstream stream;
-            stream << rhs;
-            return convert<std::string>::encode(stream.str());
-        }
-
-        static bool decode(const Node& node, noa::Interp& rhs) {
-            if (not node.IsScalar())
-                return false;
-            const std::string& buffer = node.Scalar();
-
-            if (buffer == "INTERP_NEAREST")
-                rhs = noa::Interp::NEAREST;
-            else if (buffer == "INTERP_NEAREST_FAST")
-                rhs = noa::Interp::NEAREST_FAST;
-            else if (buffer == "INTERP_LINEAR")
-                rhs = noa::Interp::LINEAR;
-            else if (buffer == "INTERP_LINEAR_FAST")
-                rhs = noa::Interp::LINEAR_FAST;
-            else if (buffer == "INTERP_CUBIC")
-                rhs = noa::Interp::CUBIC;
-            else if (buffer == "INTERP_CUBIC_FAST")
-                rhs = noa::Interp::CUBIC_FAST;
-            else if (buffer == "INTERP_CUBIC_BSPLINE")
-                rhs = noa::Interp::CUBIC_BSPLINE;
-            else if (buffer == "INTERP_CUBIC_BSPLINE_FAST")
-                rhs = noa::Interp::CUBIC_BSPLINE_FAST;
-            else if (buffer == "INTERP_LANCZOS4")
-                rhs = noa::Interp::LANCZOS4;
-            else if (buffer == "INTERP_LANCZOS4_FAST")
-                rhs = noa::Interp::LANCZOS4_FAST;
-            else if (buffer == "INTERP_LANCZOS6")
-                rhs = noa::Interp::LANCZOS6;
-            else if (buffer == "INTERP_LANCZOS6_FAST")
-                rhs = noa::Interp::LANCZOS6_FAST;
-            else if (buffer == "INTERP_LANCZOS8")
-                rhs = noa::Interp::LANCZOS8;
-            else if (buffer == "INTERP_LANCZOS8_FAST")
-                rhs = noa::Interp::LANCZOS8_FAST;
-            else
-                return false;
-            return true;
-        }
-    };
-
-    template<>
     struct convert<noa::Border> {
         static Node encode(const noa::Border& rhs) {
             std::ostringstream stream;
@@ -162,6 +116,53 @@ namespace YAML {
                 rhs = noa::Border::MIRROR;
             else if (buffer == "BORDER_PERIODIC")
                 rhs = noa::Border::PERIODIC;
+            else
+                return false;
+            return true;
+        }
+    };
+
+    template<>
+    struct convert<noa::xform::Interp> {
+        static Node encode(const noa::xform::Interp& rhs) {
+            std::ostringstream stream;
+            stream << rhs;
+            return convert<std::string>::encode(stream.str());
+        }
+
+        static bool decode(const Node& node, noa::xform::Interp& rhs) {
+            if (not node.IsScalar())
+                return false;
+            const std::string& buffer = node.Scalar();
+
+            if (buffer == "INTERP_NEAREST")
+                rhs = noa::xform::Interp::NEAREST;
+            else if (buffer == "INTERP_NEAREST_FAST")
+                rhs = noa::xform::Interp::NEAREST_FAST;
+            else if (buffer == "INTERP_LINEAR")
+                rhs = noa::xform::Interp::LINEAR;
+            else if (buffer == "INTERP_LINEAR_FAST")
+                rhs = noa::xform::Interp::LINEAR_FAST;
+            else if (buffer == "INTERP_CUBIC")
+                rhs = noa::xform::Interp::CUBIC;
+            else if (buffer == "INTERP_CUBIC_FAST")
+                rhs = noa::xform::Interp::CUBIC_FAST;
+            else if (buffer == "INTERP_CUBIC_BSPLINE")
+                rhs = noa::xform::Interp::CUBIC_BSPLINE;
+            else if (buffer == "INTERP_CUBIC_BSPLINE_FAST")
+                rhs = noa::xform::Interp::CUBIC_BSPLINE_FAST;
+            else if (buffer == "INTERP_LANCZOS4")
+                rhs = noa::xform::Interp::LANCZOS4;
+            else if (buffer == "INTERP_LANCZOS4_FAST")
+                rhs = noa::xform::Interp::LANCZOS4_FAST;
+            else if (buffer == "INTERP_LANCZOS6")
+                rhs = noa::xform::Interp::LANCZOS6;
+            else if (buffer == "INTERP_LANCZOS6_FAST")
+                rhs = noa::xform::Interp::LANCZOS6_FAST;
+            else if (buffer == "INTERP_LANCZOS8")
+                rhs = noa::xform::Interp::LANCZOS8;
+            else if (buffer == "INTERP_LANCZOS8_FAST")
+                rhs = noa::xform::Interp::LANCZOS8_FAST;
             else
                 return false;
             return true;

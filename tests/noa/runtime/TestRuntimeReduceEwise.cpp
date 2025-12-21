@@ -1,0 +1,55 @@
+#include <noa/runtime/core/Reduce.hpp>
+#include <noa/runtime/Array.hpp>
+#include <noa/runtime/Factory.hpp>
+#include <noa/runtime/ReduceEwise.hpp>
+
+#include "Catch.hpp"
+#include "Utils.hpp"
+
+using namespace noa::types;
+
+namespace {
+    template<typename A>
+    struct SumAdd {
+        A accessor;
+        constexpr void init(const auto& indices, f64& sum) const {
+            sum += static_cast<f64>(accessor(indices));
+        }
+        constexpr void join(f64 isum, f64& sum) const {
+            sum += isum;
+        }
+        constexpr void final(f64 sum, auto& output) const {
+            output += static_cast<std::decay_t<decltype(output)>>(sum);
+        }
+    };
+}
+
+TEMPLATE_TEST_CASE("runtime::reduce_ewise - simple", "", i32, f64) {
+    auto shape = Shape4{5, 35, 64, 81};
+
+    auto input = noa::empty<TestType>(shape);
+    auto randomizer = test::Randomizer<TestType>(-50, 100);
+
+    f64 sum{};
+    for (auto& value: input.span_1d_contiguous()) {
+        value = randomizer.get();
+        sum += static_cast<f64>(value);
+    }
+
+    std::vector<Device> devices{"cpu"};
+    if (Device::is_any_gpu())
+        devices.emplace_back("gpu");
+
+    for (auto& device: devices) {
+        auto stream = StreamGuard(device, Stream::DEFAULT);
+        const auto options = ArrayOption{device, "managed"};
+        INFO(device);
+
+        if (device != input.device())
+            input = input.to(options);
+
+        f64 output{};
+        noa::reduce_ewise(input, f64{}, output, noa::ReduceSum{});
+        REQUIRE_THAT(output, Catch::Matchers::WithinAbs(sum, 1e-5));
+    }
+}

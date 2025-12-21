@@ -1,7 +1,8 @@
 #pragma once
 
-#include "noa/core/io/IO.hpp"
-#include "noa/core/io/ImageFile.hpp"
-#include "noa/core/io/BinaryFile.hpp"
-#include "noa/core/io/TextFile.hpp"
-#include "noa/unified/IO.hpp"
+#include "noa/io/BinaryFile.hpp"
+#include "noa/io/Encoding.hpp"
+#include "noa/io/ImageFile.hpp"
+#include "noa/io/IO.hpp"
+#include "noa/io/OS.hpp"
+#include "noa/io/TextFile.hpp"

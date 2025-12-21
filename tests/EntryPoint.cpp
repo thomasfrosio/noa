@@ -1,6 +1,7 @@
-// This is the entry point to ALL tests.
+// The entry point to ALL tests.
 
-#include <noa/Session.hpp>
+#include <noa/runtime/Session.hpp>
+
 #include <catch2/catch_session.hpp>
 #include <filesystem>
 #include <iostream>
