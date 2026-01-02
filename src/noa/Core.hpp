@@ -6,6 +6,8 @@
 #include "noa/fft/core/Layout.hpp"
 #include "noa/fft/core/Transform.hpp"
 
+#include "noa/io/Encoding.hpp"
+
 #include "noa/runtime/core/Access.hpp"
 #include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/core/Atomic.hpp"

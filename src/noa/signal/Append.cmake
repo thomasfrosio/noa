@@ -1,5 +1,7 @@
 list(APPEND NOA_HEADERS
+    noa/signal/core/Correlation.hpp
     noa/signal/core/CTF.hpp
+    noa/signal/core/LeastSquare.hpp
     noa/signal/core/Window.hpp
 
     noa/signal/Bandpass.hpp
@@ -11,6 +13,7 @@ list(APPEND NOA_HEADERS
     noa/signal/MedianFilter.hpp
     noa/signal/PhaseShift.hpp
     noa/signal/Standardize.hpp
+    noa/signal/Traits.hpp
     noa/signal/Window.hpp
 )
 

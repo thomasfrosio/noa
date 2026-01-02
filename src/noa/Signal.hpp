@@ -14,4 +14,5 @@
 #include "noa/signal/MedianFilter.hpp"
 #include "noa/signal/PhaseShift.hpp"
 #include "noa/signal/Standardize.hpp"
+#include "noa/signal/Traits.hpp"
 #include "noa/signal/Window.hpp"

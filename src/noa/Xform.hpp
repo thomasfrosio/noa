@@ -19,5 +19,6 @@
 #include "noa/xform/RotationalAverage.hpp"
 #include "noa/xform/Symmetry.hpp"
 #include "noa/xform/Texture.hpp"
+#include "noa/xform/Traits.hpp"
 #include "noa/xform/Transform.hpp"
 #include "noa/xform/TransformSpectrum.hpp"

@@ -18,6 +18,7 @@ list(APPEND NOA_HEADERS
     noa/xform/RotationalAverage.hpp
     noa/xform/Symmetry.hpp
     noa/xform/Texture.hpp
+    noa/xform/Traits.hpp
     noa/xform/Transform.hpp
     noa/xform/TransformSpectrum.hpp
 )
@@ -35,7 +36,7 @@ endif ()
 if (NOA_ENABLE_CUDA)
     list(APPEND NOA_HEADERS
         noa/xform/cuda/Allocators.hpp
-        noa/xform/cuda/Texture.cuh
         noa/xform/cuda/CubicBSplinePrefilter.cuh
+        noa/xform/cuda/Texture.cuh
     )
 endif ()
