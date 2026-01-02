@@ -40,7 +40,7 @@ int main() {
     // Create an array of uninitialized values of two 1024x1024 images on the GPU.
     auto images = noa::Array<float>({2, 1, 1024, 1024}, {.device = "gpu"});
 
-    // .. initialize the images, for instance, from an MRC file ..
+    // .. initialize the images... or for instance get the images from an MRC file:
     // auto images = noa::read_image<float>("image.mrc"));
 
     // Create the affine matrix, rotating the images around their center by 45deg.
