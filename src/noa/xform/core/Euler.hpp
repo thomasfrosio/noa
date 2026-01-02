@@ -1,7 +1,7 @@
 #pragma once
 
+#include "noa/base/Mat.hpp"
 #include "noa/runtime/core/Span.hpp"
-#include "noa/xform/core/Mat.hpp"
 
 namespace noa::xform {
     struct EulerOptions {

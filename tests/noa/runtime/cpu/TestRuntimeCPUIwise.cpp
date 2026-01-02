@@ -7,9 +7,9 @@
 namespace {
     struct Tracked {
         std::array<int, 3> count{};
-        Tracked() { count[0] += 1; }
-        Tracked(const Tracked& t) : count(t.count) { count[1] += 1; }
-        Tracked(Tracked&& t)  noexcept : count(t.count) { count[2] += 1; }
+        constexpr Tracked() { count[0] += 1; }
+        constexpr Tracked(const Tracked& t) : count(t.count) { count[1] += 1; }
+        constexpr Tracked(Tracked&& t)  noexcept : count(t.count) { count[2] += 1; }
     };
 }
 
@@ -26,7 +26,7 @@ TEST_CASE("runtime::cpu::iwise") {
             Tracked tracked;
             std::array<int, 3>* ptr;
 
-            void operator()(i64 i) const {
+            constexpr void operator()(i64 i) const {
                 ptr[i] = tracked.count;
             }
         };
@@ -76,7 +76,7 @@ TEST_CASE("runtime::cpu::iwise") {
 
         const auto buffer = std::make_unique<i32[]>(static_cast<size_t>(elements));
         const auto accessor = AccessorContiguous<i32, 3, i64>(buffer.get(), shape.strides());
-        iwise(shape, [=, i = int{}](Vec<i64, 3> indices) mutable { accessor(indices) = i++; });
+        iwise(shape, [=, i = 0](const Vec<i64, 3>& indices) mutable { accessor(indices) = i++; });
 
         const auto expected = std::make_unique<i32[]>(static_cast<size_t>(elements));
         for (i32 i{}; auto& e: Span(expected.get(), elements))
@@ -91,7 +91,7 @@ TEST_CASE("runtime::cpu::iwise") {
 
         const auto buffer = std::make_unique<i32[]>(static_cast<size_t>(elements));
         const auto accessor = AccessorContiguous<i32, 4, i64>(buffer.get(), shape.strides());
-        iwise(shape, [=, i = int{}](Vec<i64, 4> indices) mutable { accessor(indices) = i++; });
+        iwise(shape, [=, i = 0](Vec<i64, 4> indices) mutable { accessor(indices) = i++; });
 
         const auto expected = std::make_unique<i32[]>(static_cast<size_t>(elements));
         for (i32 i{}; auto& e: Span(expected.get(), elements))

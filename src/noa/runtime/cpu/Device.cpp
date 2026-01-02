@@ -142,10 +142,10 @@ namespace {
     cpu::DeviceCache get_cpu_cache_linux(int level) {
         cpu::DeviceCache out{};
         std::ifstream cache_info;
-        const Path prefix = fmt::format("/sys/devices/system/cpu/cpu0/cache/index{}", level);
+        const auto prefix = std::filesystem::path(fmt::format("/sys/devices/system/cpu/cpu0/cache/index{}", level));
         // FIXME index1 is the instruction L1 cache on my machine...
 
-        Path cache_size_path = prefix / "size";
+        auto cache_size_path = prefix / "size";
         if (std::filesystem::is_regular_file(cache_size_path)) {
             cache_info.open(cache_size_path.string());
             char suffix;
@@ -368,9 +368,9 @@ namespace noa::cpu {
         );
     }
 
-    void Device::reset() const {
+    void Device::reset() {
         auto lock = std::lock_guard(g_mutex);
         for (auto p: g_callbacks)
-            p(*this);
+            p(-1);
     }
 }

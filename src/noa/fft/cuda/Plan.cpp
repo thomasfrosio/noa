@@ -3,10 +3,9 @@
 #include <deque>
 #include <ranges>
 
-#include "noa/runtime/core/Strings.hpp"
+#include "noa/base/Strings.hpp"
 #include "noa/runtime/cuda/Allocators.hpp"
 #include "noa/runtime/cuda/Error.hpp"
-
 #include "noa/fft/cuda/Plan.hpp"
 
 namespace noa::fft::cuda {
@@ -32,25 +31,39 @@ namespace noa::fft::cuda {
                 return "CUFFT_INVALID_SIZE";
             case CUFFT_UNALIGNED_DATA:
                 return "CUFFT_UNALIGNED_DATA";
-            case CUFFT_INCOMPLETE_PARAMETER_LIST:
-                return "CUFFT_INCOMPLETE_PARAMETER_LIST";
             case CUFFT_INVALID_DEVICE:
                 return "CUFFT_INVALID_DEVICE";
-            case CUFFT_PARSE_ERROR:
-                return "CUFFT_PARSE_ERROR";
             case CUFFT_NO_WORKSPACE:
                 return "CUFFT_NO_WORKSPACE";
             case CUFFT_NOT_IMPLEMENTED:
                 return "CUFFT_NOT_IMPLEMENTED";
-            case CUFFT_LICENSE_ERROR:
-                return "CUFFT_LICENSE_ERROR";
             case CUFFT_NOT_SUPPORTED:
                 return "CUFFT_NOT_SUPPORTED";
+            #if CUDART_VERSION < 13000
+            case CUFFT_INCOMPLETE_PARAMETER_LIST:
+                return "CUFFT_INCOMPLETE_PARAMETER_LIST";
+            case CUFFT_PARSE_ERROR:
+                return "CUFFT_PARSE_ERROR";
+            case CUFFT_LICENSE_ERROR:
+                return "CUFFT_LICENSE_ERROR";
+            #else
+            case CUFFT_MISSING_DEPENDENCY:
+                return "CUFFT_MISSING_DEPENDENCY";
+            case CUFFT_NVRTC_FAILURE:
+                return "CUFFT_NVRTC_FAILURE";
+            case CUFFT_NVJITLINK_FAILURE:
+                return "CUFFT_NVJITLINK_FAILURE";
+            case CUFFT_NVSHMEM_FAILURE:
+                return "CUFFT_NVSHMEM_FAILURE";
+            #endif
         }
         return {};
     }
 
-    constexpr void check(cufftResult_t result, const std::source_location& location = std::source_location::current()) {
+    using noa::cuda::check;
+
+    template<typename T> requires std::same_as<std::decay_t<T>, cufftResult_t>
+    constexpr void check(T&& result, const std::source_location& location = std::source_location::current()) {
         if (result == CUFFT_SUCCESS) {
             /*do nothing*/
         } else {
@@ -62,8 +75,6 @@ namespace noa::fft::cuda {
 namespace {
     using namespace ::noa::types;
     using namespace ::noa::fft::cuda;
-    using noa::check;
-    using noa::cuda::check;
 
     // Even values satisfying (2^a) * (3^b) * (5^c) * (7^d).
     constexpr u32 sizes_even_cufft_[315] = {
@@ -183,38 +194,21 @@ namespace {
             if (m_workspace_size <= 0)
                 return; // no need to allocate; plans are ready for execution
 
-            using workspace_deleter_t = noa::cuda::AllocatorDevice::Deleter;
+            using workspace_alloc_t = noa::cuda::AllocatorDevice;
             using workspace_shared_ptr_t = std::shared_ptr<std::byte[]>;
             workspace_shared_ptr_t workspace{nullptr};
-
-            // Allocate memory on the device, safely.
-            // AllocatorDevice::allocate(...) throws if it can't allocate, which isn't what we want here.
-            auto allocate = [&]() -> bool {
-                const auto guard = noa::cuda::DeviceGuard(device);
-                void* tmp{nullptr};
-                cudaError_t err = cudaMalloc(&tmp, m_workspace_size);
-                if (err == cudaSuccess) {
-                    workspace = workspace_shared_ptr_t(
-                        static_cast<std::byte*>(tmp),
-                        workspace_deleter_t{.size = static_cast<isize>(m_workspace_size)}
-                    );
-                    return true;
-                }
-                return false;
-            };
 
             // If the allocation fails, release some cached plans
             // (with the hope to release some memory) and try again.
             const i32 n_trials = size() + 1;
-            bool success{false};
             for (i32 i{}; i < n_trials; ++i) {
                 if (i > 0)
                     pop();
-                success = allocate();
-                if (success)
+                workspace = workspace_alloc_t::try_allocate<std::byte>(static_cast<isize>(m_workspace_size), device);
+                if (workspace)
                     break;
             }
-            check(success, "Could not allocate {} bytes for the cuFFT workspace", m_workspace_size);
+            check(workspace, "Could not allocate {} bytes for the cuFFT workspace", m_workspace_size);
 
             // Set the newly allocated buffer as the workspace for the plans that were waiting for one.
             for (auto& plan: m_queue | std::views::values) {
@@ -259,7 +253,7 @@ namespace {
         usize m_workspace_size{};
     };
 
-    void device_reset_callback(Device device);
+    void device_reset_callback(i32 device);
 
     // Since a cufft plan can only be used by one thread at a time, for simplicity,
     // have a per-host-thread cache. Each GPU has its own cache, of course.
@@ -277,8 +271,8 @@ namespace {
         return *cache;
     }
 
-    void device_reset_callback(Device device) {
-        get_cache_(device).clear();
+    void device_reset_callback(i32 device) {
+        get_cache_(Device(device, Unchecked{})).clear();
     }
 
     // Offset the type if double precision.
@@ -345,11 +339,11 @@ namespace {
         cufftHandle handle{};
         cufftResult_t err{};
         err = ::cufftCreate(&handle);
-        check(err == CUFFT_SUCCESS, "Failed to create cufftHandle. {}", noa::cuda::error2string(err));
+        check(err == CUFFT_SUCCESS, "Failed to create cufftHandle. {}", error2string(err));
 
         if (record_workspace) {
             err = cufftSetAutoAllocation(handle, 0);
-            check(err == CUFFT_SUCCESS, "Failed to turn off cufft auto allocation. {}", noa::cuda::error2string(err));
+            check(err == CUFFT_SUCCESS, "Failed to turn off cufft auto allocation. {}", error2string(err));
         }
 
         // If the allocation fails, release some cached plans (with the hope to release some memory) and try again.
@@ -366,7 +360,7 @@ namespace {
             if (err == CUFFT_SUCCESS)
                 break;
         }
-        check(err == CUFFT_SUCCESS, "Failed to make the plan. {}", noa::cuda::error2string(err));
+        check(err == CUFFT_SUCCESS, "Failed to make the plan. {}", error2string(err));
 
         if (save_in_cache or cache.limit() > 0) {
             cache.push(std::move(hash), handle, record_workspace ? work_size : 0);
@@ -394,7 +388,7 @@ namespace noa::fft::cuda::details {
     ) -> std::shared_ptr<void> {
         auto [batch, shape_3d] = shape.as<long long int>().split_batch();
         const auto rank = static_cast<int>(shape_3d.ndim());
-        check(rank == 1 or not ni::is_vector(shape_3d));
+        check(rank == 1 or not shape_3d.is_vector());
         if (rank == 1 and shape_3d[2] == 1) // column vector -> row vector
             std::swap(shape_3d[1], shape_3d[2]);
 
@@ -424,7 +418,7 @@ namespace noa::fft::cuda::details {
         auto [batch, shape_3d] = shape.as_safe<lli>().split_batch();
         const auto rank = static_cast<int>(shape_3d.ndim());
 
-        check(rank == 1 or not ni::is_vector(shape_3d));
+        check(rank == 1 or not shape_3d.is_vector());
         if (rank == 1 and shape_3d[2] == 1) { // column vector -> row vector
             std::swap(shape_3d[1], shape_3d[2]);
             std::swap(input_strides[2], input_strides[3]);
@@ -544,7 +538,7 @@ namespace noa::fft::cuda {
     }
 
     template<typename T>
-    void Plan<T>::execute(Complex<T>* input, Complex<T>* output, nf::Sign sign, Stream& stream) && {
+    void Plan<T>::execute(Complex<T>* input, Complex<T>* output, Sign sign, Stream& stream) && {
         if (m_plan == nullptr)
             return;
 

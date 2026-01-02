@@ -28,7 +28,7 @@ namespace noa::inline types {
                 if (str)
                     max_threads = nd::parse<i32>(str).value_or(1);
                 else
-                    max_threads = static_cast<i32>(omp_get_max_threads());
+                    max_threads = omp_get_max_threads();
                 #else
                 max_threads = std::thread::hardware_concurrency();
                 #endif
@@ -57,8 +57,7 @@ namespace noa::inline types {
         if (device.is_cpu())
             return;
         #ifdef NOA_ENABLE_CUDA
-        auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
-        noa::cuda::cublas_clear_cache(cuda_device);
+        noa::cuda::cublas_clear_cache(device.id());
         #else
         (void) device;
         #endif

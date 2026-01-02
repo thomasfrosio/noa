@@ -9,7 +9,7 @@ namespace nio = ::noa::io;
 namespace fs = std::filesystem;
 
 TEST_CASE("io::ImageFile - MRC: real dtype", "[asset]") {
-    const auto data_file = test::NOA_DATA_PATH / "common" / "io" / "files" / "example_MRCFile.mrc";
+    const auto data_file = test::NOA_DATA_PATH / "io" / "example_MRCFile.mrc";
     const Path test_dir = fs::current_path() / "test_MRCFile";
     fs::remove_all(test_dir);
 

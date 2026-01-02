@@ -25,14 +25,14 @@ namespace noa::signal {
              nt::readable_varray_decay_of_real Filter>
     void convolve(Input&& input, Output&& output, Filter&& filter, const ConvolveOptions& options = {}) {
         check(nd::are_arrays_valid(input, output, filter), "Empty array detected");
-        check(not ni::are_overlapped(input, output), "The input and output array should not overlap");
+        check(not are_overlapped(input, output), "The input and output array should not overlap");
 
         auto input_strides = input.strides();
-        check(ni::broadcast(input.shape(), input_strides, output.shape()),
+        check(broadcast(input.shape(), input_strides, output.shape()),
               "Cannot broadcast an array of shape {} into an array of shape {}",
               input.shape(), output.shape());
 
-        check(not filter.shape().is_batched() and filter.are_contiguous(),
+        check(not filter.shape().is_batched() and filter.is_contiguous(),
               "The input filter shouldn't be batched and should be contiguous, "
               "but got filter:shape={} and filter:strides={}",
               filter.shape(), filter.strides());
@@ -125,10 +125,10 @@ namespace noa::signal {
         const ConvolveOptions& options = {}
     ) {
         check(nd::are_arrays_valid(input, output), "Empty array detected");
-        check(not ni::are_overlapped(input, output), "The input and output array should not overlap");
+        check(not are_overlapped(input, output), "The input and output array should not overlap");
 
         auto input_strides = input.strides();
-        check(ni::broadcast(input.shape(), input_strides, output.shape()),
+        check(broadcast(input.shape(), input_strides, output.shape()),
               "Cannot broadcast an array of shape {} into an array of shape {}",
               input.shape(), output.shape());
 
@@ -144,7 +144,7 @@ namespace noa::signal {
             if (filter.is_empty())
                 return;
             check_at_location(
-                location, ni::is_contiguous_vector(filter) and is_odd(filter.n_elements()),
+                location, is_contiguous_vector(filter) and is_odd(filter.n_elements()),
                 "The input filters should be contiguous vectors with an odd number of elements, "
                 "but got a filter with a shape {} and strides {}", filter.shape(), filter.strides());
             check_at_location(
@@ -158,7 +158,7 @@ namespace noa::signal {
         check_separable_filter(filter_width, std::source_location::current());
 
         if (not buffer.is_empty()) {
-            check(buffer.shape() == output.shape() and ni::are_elements_unique(buffer.strides(), output.shape()),
+            check(buffer.shape() == output.shape() and nd::are_elements_unique(buffer.strides(), output.shape()),
                   "The temporary array should be able to hold an array of shape {}, but got shape {} and strides {}",
                   output.shape(), buffer.shape(), buffer.strides());
             check(device == buffer.device(),

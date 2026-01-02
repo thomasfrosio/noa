@@ -1,7 +1,7 @@
 #pragma once
 
-#include "noa/runtime/core/Complex.hpp"
-#include "noa/runtime/core/Math.hpp"
+#include "noa/base/Complex.hpp"
+#include "noa/base/Math.hpp"
 #include "noa/runtime/ReduceAxesEwise.hpp"
 #include "noa/runtime/Factory.hpp"
 
@@ -112,8 +112,8 @@ namespace noa::signal {
         const auto scale = norm == nf::Norm::FORWARD ? 1 : norm == nf::Norm::ORTHO ? sqrt(count) : count;
         const auto options = ArrayOption{input.device(), Allocator::DEFAULT_ASYNC};
 
-        auto dc_position = ni::make_subregion<4>(
-            ni::Full{},
+        auto dc_position = make_subregion<4>(
+            Full{},
             is_centered ? nf::fftshift(isize{}, shape[1]) : 0,
             is_centered ? nf::fftshift(isize{}, shape[2]) : 0,
             is_centered and is_full ? nf::fftshift(isize{}, shape[3]) : 0);
@@ -134,32 +134,32 @@ namespace noa::signal {
             const bool is_even = noa::is_even(shape[3]);
 
             auto energies = zeros<real_t>({shape[0], 3, 1, 1}, options);
-            auto energies_0 = energies.view().subregion(ni::Full{}, 0, 0, 0);
-            auto energies_1 = energies.view().subregion(ni::Full{}, 1, 0, 0);
-            auto energies_2 = energies.view().subregion(ni::Full{}, 2, 0, 0);
+            auto energies_0 = energies.view().subregion(Full{}, 0, 0, 0);
+            auto energies_1 = energies.view().subregion(Full{}, 1, 0, 0);
+            auto energies_2 = energies.view().subregion(Full{}, 2, 0, 0);
 
             // Reduce unique chunk:
-            reduce_axes_ewise(input.view().subregion(ni::Ellipsis{}, ni::Slice{1, input.shape()[3] - is_even}),
+            reduce_axes_ewise(input.view().subregion(Ellipsis{}, Slice{1, input.shape()[3] - is_even}),
                               real_t{}, energies_0, details::rFFTSpectrumEnergy{});
 
             // Reduce common column/plane containing the DC:
-            reduce_axes_ewise(input.view().subregion(ni::Ellipsis{}, 0),
+            reduce_axes_ewise(input.view().subregion(Ellipsis{}, 0),
                               real_t{}, energies_1, details::rFFTSpectrumEnergy{});
 
             if (is_even) {
                 // Reduce common column/plane containing the real Nyquist:
-                reduce_axes_ewise(input.view().subregion(ni::Ellipsis{}, -1),
+                reduce_axes_ewise(input.view().subregion(Ellipsis{}, -1),
                                   real_t{}, energies_2, details::rFFTSpectrumEnergy{});
             }
 
             // Standardize.
             ewise(wrap(input.view().subregion(dc_position), energies_1, energies_2), energies_0,
                   details::CombineSpectrumEnergies<complex_t, real_t>{static_cast<real_t>(scale)}); // if batch=1, this is one single value...
-            ewise(wrap(input, energies.subregion(ni::Full{}, 0, 0, 0)), output.view(), Multiply{});
+            ewise(wrap(input, energies.subregion(Full{}, 0, 0, 0)), output.view(), Multiply{});
             fill(output.subregion(dc_position), {});
 
         } else {
-            static_assert(nt::always_false<>);
+            static_assert(nt::always_false<real_t>);
         }
     }
 }

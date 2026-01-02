@@ -11,6 +11,12 @@ include(${PROJECT_SOURCE_DIR}/cmake/ext/yaml-cpp.cmake)
 # Treat the sources as CUDA sources if CUDA is enabled
 if (NOA_ENABLE_CUDA)
     set_source_files_properties(${TEST_SOURCES} PROPERTIES LANGUAGE CUDA)
+
+    # The preprocessing in CUDA is super annoying because it generates a few useless casts.
+    # So turn this specific warning off. Note that for CPU only, we still want all warnings.
+    set_source_files_properties(${TEST_SOURCES} PROPERTIES
+        COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:CUDA>:-Wno-useless-cast>"
+    )
 endif ()
 
 add_executable(noa_tests ${TEST_SOURCES})
@@ -33,10 +39,6 @@ target_include_directories(noa_tests
 
 if (NOA_ENABLE_CUDA)
     set_target_properties(noa_tests PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-
-    # The preprocessing in CUDA is super annoying because it generates a few useless casts.
-    # So turn this specific warning off. Note that for CPU only, we still want all warnings.
-    target_compile_options(noa_tests PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: "-Wno-useless-cast" >)
 endif()
 
 install(

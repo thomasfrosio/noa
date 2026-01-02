@@ -33,8 +33,8 @@ TEMPLATE_TEST_CASE("runtime::reduce_iwise - simple", "", i32, f64) {
     auto randomizer = test::Randomizer<TestType>(-50, 50);
     for (auto& value: input.span_1d_contiguous())
         value = randomizer.get();
-    input(min_indices) = -51;
-    input(max_indices) = 51;
+    input.span()(min_indices) = -51;
+    input.span()(max_indices) = 51;
 
     f64 sum{};
     for (auto& value: input.span_1d_contiguous())

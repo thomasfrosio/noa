@@ -3,8 +3,8 @@
 
 #include "noa/runtime/core/Interfaces.hpp"
 #include "noa/runtime/cuda/Block.cuh"
-#include "noa/cuda/Constants.hpp"
-#include "noa/cuda/Stream.hpp"
+#include "noa/runtime/cuda/Constants.hpp"
+#include "noa/runtime/cuda/Stream.hpp"
 
 namespace noa::cuda::details {
     template<typename Block, typename Interface, typename Op, typename Index>

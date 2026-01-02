@@ -1,7 +1,7 @@
 #pragma once
 
 #include "noa/runtime/core/Interfaces.hpp"
-#include "noa/runtime/core/Layout.hpp"
+#include "noa/runtime/core/Utilities.hpp"
 #include "noa/runtime/Traits.hpp"
 #include "noa/runtime/Stream.hpp"
 #include "noa/runtime/Utilities.hpp"
@@ -149,7 +149,7 @@ namespace noa::details {
             auto strides = first_input_array.strides();
             if (not reduced_dimensions[0])
                 strides[0] = std::numeric_limits<isize>::max(); // keep batch to leftmost
-            order = rightmost_order(strides, input_shape);
+            order = strides.rightmost_order(input_shape);
             do_reorder = order != Vec<isize, 4>{0, 1, 2, 3};
         }
 
@@ -169,7 +169,7 @@ namespace noa::details {
                     auto strides = input.strides();
                     if (not reduced_dimensions[0])
                         strides[0] = std::numeric_limits<isize>::max(); // keep batch to leftmost
-                    do_reorder = order == rightmost_order(strides, input_shape);
+                    do_reorder = order == strides.rightmost_order(input_shape);
                 }
             }
         });
@@ -187,8 +187,8 @@ namespace noa::details {
 
         // No need to reorder the output shape, since we only reorder axes that are empty in the output.
         if (do_reorder) {
-            input_shape = input_shape.reorder(order);
-            nd::reorder_accessors(order, input_accessors);
+            input_shape = input_shape.permute(order);
+            nd::permute_accessors(order, input_accessors);
         }
 
         Stream& stream = Stream::current(device);

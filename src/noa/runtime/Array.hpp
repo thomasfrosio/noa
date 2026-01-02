@@ -193,13 +193,13 @@ namespace noa::inline types {
 
         /// Whether the dimensions of the array are C or F contiguous.
         template<char ORDER = 'C'>
-        [[nodiscard]] constexpr bool are_contiguous() const noexcept {
-            return noa::are_contiguous<ORDER>(strides(), shape());
+        [[nodiscard]] constexpr bool is_contiguous() const noexcept {
+            return strides().template is_contiguous<ORDER>(shape());
         }
 
         template<char ORDER = 'C'>
-        [[nodiscard]] constexpr auto is_contiguous() const noexcept {
-            return noa::is_contiguous<ORDER>(strides(), shape());
+        [[nodiscard]] constexpr auto contiguity() const noexcept -> Vec<bool, 4> {
+            return strides().template contiguity<ORDER>(shape());
         }
 
         /// Whether the array is empty. An array is empty if not initialized or if one of its dimension is 0.
@@ -424,16 +424,16 @@ namespace noa::inline types {
         [[nodiscard]] constexpr auto permute(const Vec<i32, 4>& permutation) const& -> Array {
             return Array(
                 m_shared,
-                reorder(shape(), permutation),
-                reorder(strides(), permutation),
+                shape().permute(permutation),
+                strides().permute(permutation),
                 options(), Unchecked{}
             );
         }
         [[nodiscard]] constexpr auto permute(const Vec<i32, 4>& permutation) && -> Array {
             return Array(
                 std::move(m_shared),
-                reorder(shape(), permutation),
-                reorder(strides(), permutation),
+                shape().permute(permutation),
+                strides().permute(permutation),
                 options(), Unchecked{}
             );
         }
@@ -467,19 +467,6 @@ namespace noa::inline types {
         }
 
     public:
-        /// Element access (unsafe if not synchronized). For efficient access, prefer to use Span.
-        template<typename... U> requires nt::iwise_indexing<SIZE, U...>
-        [[nodiscard]] constexpr auto at(const U&... indices) const -> value_type& {
-            check(is_dereferenceable(), "Memory buffer cannot be accessed from the CPU");
-            return span().at(indices...);
-        }
-
-        /// Element access (unsafe). For efficient access, prefer to use Span or Accessor.
-        template<typename... U> requires nt::iwise_indexing<SIZE, U...>
-        [[nodiscard]] constexpr auto operator()(const U&... indices) const -> value_type& {
-            return span()(indices...);
-        }
-
         /// Subregion indexing. Extracts a subregion from the current array.
         template<typename... U>
         [[nodiscard]] constexpr auto subregion(const Subregion<4, U...>& subregion) const& -> Array {

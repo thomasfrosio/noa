@@ -1,13 +1,12 @@
 #pragma once
 
-#include "noa/runtime/core/Enums.hpp"
 #include "noa/runtime/core/Iwise.hpp"
-#include "noa/runtime/core/Math.hpp"
 #include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/Array.hpp"
 #include "noa/runtime/Iwise.hpp"
 #include "noa/xform/core/Polar.hpp"
 #include "noa/xform/core/Interpolation.hpp"
+#include "noa/xform/Traits.hpp"
 
 namespace noa::xform::details {
     /// 3d iwise operator to compute 2d cartesian->polar transformation(s).
@@ -159,16 +158,16 @@ namespace noa::xform::details {
               "The input and output arrays must be on the same device, "
               "but got input:device={} and output:device={}", input.device(), output.device());
 
-        check(ni::are_elements_unique(output.strides(), output.shape()),
+        check(nd::are_elements_unique(output.strides(), output.shape()),
               "The elements in the output should not overlap in memory, "
               "otherwise a data-race might occur. Got output output:strides={} and output:shape={}",
               output.strides(), output.shape());
 
         if constexpr (nt::varray<Input>) {
-            check(not ni::are_overlapped(input, output),
+            check(not are_overlapped(input, output),
                   "Input and output arrays should not overlap");
         } else {
-            check(input.device().is_gpu() or not ni::are_overlapped(input.view(), output),
+            check(input.device().is_gpu() or not are_overlapped(input.view(), output),
                   "The input and output arrays should not overlap");
             check(input.border() == Border::ZERO,
                   "The input border mode should be {}, but got {}", Border::ZERO, input.border());
@@ -192,7 +191,7 @@ namespace noa::xform::details {
         const auto output_shape = output.shape().filter(0, 2, 3).template as<Index>();
 
         auto launch_iwise = [&](auto interp) {
-            auto interpolator = nd::to_interpolator<2, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
+            auto interpolator = to_interpolator<2, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
             auto op = [&]{
                 if constexpr (CARTESIAN_TO_POLAR) {
                     return Cartesian2Polar<Index, coord_t, decltype(interpolator), output_accessor_t>(
@@ -216,20 +215,20 @@ namespace noa::xform::details {
         if constexpr (nt::texture_decay<Input>)
             interp = input.interp();
         switch (interp) {
-            case Interp::NEAREST:            return launch_iwise(nd::WrapInterp<Interp::NEAREST>{});
-            case Interp::NEAREST_FAST:       return launch_iwise(nd::WrapInterp<Interp::NEAREST_FAST>{});
-            case Interp::LINEAR:             return launch_iwise(nd::WrapInterp<Interp::LINEAR>{});
-            case Interp::LINEAR_FAST:        return launch_iwise(nd::WrapInterp<Interp::LINEAR_FAST>{});
-            case Interp::CUBIC:              return launch_iwise(nd::WrapInterp<Interp::CUBIC>{});
-            case Interp::CUBIC_FAST:         return launch_iwise(nd::WrapInterp<Interp::CUBIC_FAST>{});
-            case Interp::CUBIC_BSPLINE:      return launch_iwise(nd::WrapInterp<Interp::CUBIC_BSPLINE>{});
-            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(nd::WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
-            case Interp::LANCZOS4:           return launch_iwise(nd::WrapInterp<Interp::LANCZOS4>{});
-            case Interp::LANCZOS6:           return launch_iwise(nd::WrapInterp<Interp::LANCZOS6>{});
-            case Interp::LANCZOS8:           return launch_iwise(nd::WrapInterp<Interp::LANCZOS8>{});
-            case Interp::LANCZOS4_FAST:      return launch_iwise(nd::WrapInterp<Interp::LANCZOS4_FAST>{});
-            case Interp::LANCZOS6_FAST:      return launch_iwise(nd::WrapInterp<Interp::LANCZOS6_FAST>{});
-            case Interp::LANCZOS8_FAST:      return launch_iwise(nd::WrapInterp<Interp::LANCZOS8_FAST>{});
+            case Interp::NEAREST:            return launch_iwise(WrapInterp<Interp::NEAREST>{});
+            case Interp::NEAREST_FAST:       return launch_iwise(WrapInterp<Interp::NEAREST_FAST>{});
+            case Interp::LINEAR:             return launch_iwise(WrapInterp<Interp::LINEAR>{});
+            case Interp::LINEAR_FAST:        return launch_iwise(WrapInterp<Interp::LINEAR_FAST>{});
+            case Interp::CUBIC:              return launch_iwise(WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_FAST:         return launch_iwise(WrapInterp<Interp::CUBIC_FAST>{});
+            case Interp::CUBIC_BSPLINE:      return launch_iwise(WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::CUBIC_BSPLINE_FAST: return launch_iwise(WrapInterp<Interp::CUBIC_BSPLINE_FAST>{});
+            case Interp::LANCZOS4:           return launch_iwise(WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:           return launch_iwise(WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:           return launch_iwise(WrapInterp<Interp::LANCZOS8>{});
+            case Interp::LANCZOS4_FAST:      return launch_iwise(WrapInterp<Interp::LANCZOS4_FAST>{});
+            case Interp::LANCZOS6_FAST:      return launch_iwise(WrapInterp<Interp::LANCZOS6_FAST>{});
+            case Interp::LANCZOS8_FAST:      return launch_iwise(WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
 }

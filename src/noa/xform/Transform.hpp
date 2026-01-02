@@ -19,7 +19,7 @@ namespace noa::xform::details {
             if constexpr (ENFORCE_EMPTY)
                 return nd::Batch<Empty>{};
             else {
-                NOA_ASSERT(xform.are_contiguous());
+                NOA_ASSERT(xform.is_contiguous());
                 return nd::Batch<value_t*>{xform.get()};
             }
         } else {
@@ -96,7 +96,7 @@ namespace noa::xform::details {
         const Device device = output.device();
 
         if constexpr (nt::varray<Matrix>) {
-            check(ni::is_contiguous_vector(matrix) and matrix.n_elements() == output.shape()[0],
+            check(is_contiguous_vector(matrix) and matrix.n_elements() == output.shape()[0],
                   "The number of matrices, specified as a contiguous vector, should be equal to the batch size "
                   "of the output, but got matrix:shape={}, matrix:strides={} and output:batch={}",
                   matrix.shape(), matrix.strides(), output.shape()[0]);
@@ -109,16 +109,16 @@ namespace noa::xform::details {
               "The input array/texture and output array must be on the same device, "
               "but got input:device={} and output:device={}",
               input.device(), device);
-        check(ni::are_elements_unique(output.strides(), output.shape()),
+        check(nd::are_elements_unique(output.strides(), output.shape()),
               "The elements in the output should not overlap in memory, otherwise a data-race might occur. "
               "Got output:strides={} and output:shape={}",
               output.strides(), output.shape());
 
         if constexpr (nt::varray<Input>) {
-            check(not ni::are_overlapped(input, output),
+            check(not are_overlapped(input, output),
                   "The input and output arrays should not overlap");
         } else {
-            check(input.device().is_gpu() or not ni::are_overlapped(input.view(), output),
+            check(input.device().is_gpu() or not are_overlapped(input.view(), output),
                   "The input and output arrays should not overlap");
         }
     }
@@ -128,7 +128,7 @@ namespace noa::xform::details {
     void launch_transform_nd(Input&& input, Output&& output, Matrix&& inverse_matrices, auto options) {
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, N + 1, Index>;
         auto output_accessor = output_accessor_t(output.get(), output.strides().template filter_nd<N>().template as<Index>());
-        auto batched_inverse_matrices = nd::to_batched_transform(inverse_matrices);
+        auto batched_inverse_matrices = to_batched_transform(inverse_matrices);
 
         if constexpr (nt::texture_decay<Input>) {
             options.interp = input.interp();

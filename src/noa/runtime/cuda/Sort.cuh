@@ -116,7 +116,7 @@ namespace noa::cuda::details {
         for (isize i = 0; i < iter_shape[0]; ++i) {
             for (isize j = 0; j < iter_shape[1]; ++j) {
                 for (isize k = 0; k < iter_shape[2]; ++k) {
-                    T* values_iter = values + ni::offset_at(iter_strides, i, j, k);
+                    T* values_iter = values + offset_at(iter_strides, i, j, k);
 
                     // (Re)set the buffers.
                     keys.selector = 0;
@@ -159,7 +159,7 @@ namespace noa::cuda::details {
         T* values, const Strides4& strides, const Shape4& shape,
         i32 dim, bool ascending, Stream& stream
     ) {
-        const bool is_contiguous = ni::are_contiguous(strides, shape);
+        const bool is_contiguous = strides.is_contiguous(shape);
         const auto n_elements = safe_cast<i32>(shape.n_elements());
         const auto shape_i32 = shape.as<i32>();
 
@@ -168,7 +168,7 @@ namespace noa::cuda::details {
         const auto key_buffer_alt = AllocatorDevice::allocate_async<u32>(n_elements, stream);
         Vec<i32, 4> tile = shape_i32.vec;
         tile[dim] = 1; // mark elements with their original line.
-        iwise(shape_i32, nd::Iota(AccessorContiguousI32<u32, 4>(key_buffer.get(), shape_i32.strides()), shape_i32, tile), stream);
+        iwise(shape_i32, nd::Iota(AccessorContiguous<u32, 4, i32>(key_buffer.get(), shape_i32.strides()), shape_i32, tile), stream);
 
         // Prepare the values.
         using unique_t = AllocatorDevice::allocate_type<T>;
@@ -224,8 +224,8 @@ namespace noa::cuda::details {
         // Permutation. Since we do 2 sorts, it seems that the result is always at position 0. If "values" was
         // contiguous, it means the result is already in "values" but with a possible permutation. In this case,
         // we have to permute in the alternate buffer and then copy the result back to "values"...
-        const auto current_strides_permuted = reorder(input_shape.strides(), permutation);
-        if (values == cub_values.Current() and permutation != Vec<isize, 4>{0, 1, 2, 3}) {
+        const auto current_strides_permuted = input_shape.strides().permute(permutation);
+        if (values == cub_values.Current() and permutation != Vec{0, 1, 2, 3}) {
             copy(values, current_strides_permuted, val_buffer_alt.get(), shape.strides(), shape, stream);
             copy(val_buffer_alt.get(), shape.strides(), values, strides, shape, stream);
         } else {

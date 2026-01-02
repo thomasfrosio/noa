@@ -1,18 +1,17 @@
 #pragma once
 
-#include "noa/runtime/core/Complex.hpp"
-#include "noa/runtime/core/Vec.hpp"
-#include "noa/runtime/core/Pair.hpp"
-#include "noa/runtime/core/utils/LeastSquare.hpp"
-
+#include "noa/base/Complex.hpp"
+#include "noa/base/Pair.hpp"
+#include "noa/base/Vec.hpp"
+#include "noa/fft/Transform.hpp"
 #include "noa/runtime/Array.hpp"
-#include "noa/runtime/ReduceEwise.hpp"
 #include "noa/runtime/ReduceAxesEwise.hpp"
 #include "noa/runtime/ReduceAxesIwise.hpp"
-
-#include "noa/xform/core/Draw.hpp"
-#include "noa/fft/Transform.hpp"
+#include "noa/runtime/ReduceEwise.hpp"
+#include "noa/signal/core/Correlation.hpp"
+#include "noa/signal/core/LeastSquare.hpp"
 #include "noa/signal/PhaseShift.hpp"
+#include "noa/xform/core/Draw.hpp"
 
 namespace noa::signal::details {
     struct CrossCorrelationScore {
@@ -176,7 +175,7 @@ namespace noa::signal::details {
                 const R magnitude_sqrt = sqrt(abs(product));
                 o = product / (magnitude_sqrt + EPSILON);
             } else {
-                static_assert(nt::always_false<>);
+                static_assert(nt::always_false<R>);
             }
         }
     };
@@ -226,7 +225,7 @@ namespace noa::signal::details {
 
                 // Subpixel registration.
                 if (peak_radius == 1) {
-                    auto [x, y] = nd::lstsq_fit_quadratic_vertex_3points(peak_window[0], peak_window[1], peak_window[2]);
+                    auto [x, y] = lstsq_fit_quadratic_vertex_3points(peak_window[0], peak_window[1], peak_window[2]);
                     // Add x directly, since it's relative to peak_index.
                     peak_coordinate[dim] = static_cast<f64>(peak_index) + static_cast<f64>(x);
                     peak_value += static_cast<f64>(y);
@@ -235,7 +234,7 @@ namespace noa::signal::details {
                     peak_coordinate[dim] = static_cast<f64>(peak_index);
                     peak_value += static_cast<f64>(peak_window[0]);
                 } else {
-                    nd::QuadraticCurve<f64> curve = nd::lstsq_fit_quadratic(peak_window.as_const());
+                    QuadraticCurve<f64> curve = lstsq_fit_quadratic(peak_window.as_const());
                     if (abs(curve.a) < 1e-6) {
                         const f64 x = -curve.b / (2 * curve.a);
                         const f64 y = curve.a * x * x + curve.b * x + curve.c;
@@ -385,7 +384,7 @@ namespace noa::signal::details {
         }
 
         constexpr void final(const reduced_type& reduced) { // single-threaded, one thread per batch
-            const auto peak_indices = ni::offset2index(reduced.second, m_input.strides(), m_shape.push_front(m_batch));
+            const auto peak_indices = offset2index(reduced.second, m_input.strides(), m_shape.push_front(m_batch));
             const auto batch = peak_indices[0];
 
             auto [peak_value, peak_coordinate] =
@@ -423,7 +422,7 @@ namespace noa::signal::details {
 
         if constexpr (nt::is_varray_v<PeakCoord>) {
             if (not peak_coordinates.is_empty()) {
-                check(ni::is_contiguous_vector(peak_coordinates) and
+                check(is_contiguous_vector(peak_coordinates) and
                       peak_coordinates.n_elements() == xmap.shape()[0],
                       "The number of peak coordinates, specified as a contiguous vector, should be equal to "
                       "the batch size of the cross-correlation map. Got n_peaks={} and batch={}",
@@ -437,7 +436,7 @@ namespace noa::signal::details {
 
         if constexpr (nt::is_varray_v<PeakValue>) {
             if (not peak_values.is_empty()) {
-                check(ni::is_contiguous_vector(peak_values) and
+                check(is_contiguous_vector(peak_values) and
                       peak_values.n_elements() == xmap.shape()[0],
                       "The number of peak values, specified as a contiguous vector, should be equal to "
                       "the batch size of the cross-correlation map. Got n_peaks={} and batch={}",
@@ -486,7 +485,7 @@ namespace noa::signal {
               lhs.device(), rhs.device(), scores.device());
 
         const auto batch = lhs.shape()[0];
-        check(ni::is_contiguous_vector(scores) and scores.n_elements() == batch,
+        check(is_contiguous_vector(scores) and scores.n_elements() == batch,
               "The number of scores, specified as a contiguous vector, should be equal to the batch size. "
               "Got scores:shape={}, scores:strides={}, and batch={}",
               scores.shape(), scores.strides(), batch);
@@ -645,7 +644,7 @@ namespace noa::signal {
         using complex_t = nt::value_type_t<Buffer>;
         View<complex_t> tmp;
         if (buffer.is_empty()) {
-            check(ni::are_elements_unique(rhs.strides(), expected_shape),
+            check(nd::are_elements_unique(rhs.strides(), expected_shape),
                   "Since no temporary buffer is passed, the rhs input is used as buffer, "
                   "thus should have unique elements (e.g. no broadcasting) with a shape of {}, "
                   "but got rhs:shape={}, rhs:strides={}", expected_shape, rhs.shape(), rhs.strides());
@@ -655,7 +654,7 @@ namespace noa::signal {
                   "The temporary and output arrays must be on the same device, buffer:device={} and output:device={}",
                   buffer.device(), device);
             check(buffer.shape() == expected_shape and
-                  ni::are_elements_unique(buffer.strides(), buffer.shape()),
+                  nd::are_elements_unique(buffer.strides(), buffer.shape()),
                   "Given an output map of shape {}, the buffer should be of shape {} and have unique elements, "
                   "but got buffer:shape={}, buffer:strides={}",
                   output.shape(), expected_shape, buffer.shape(), buffer.strides());

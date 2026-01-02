@@ -1,11 +1,10 @@
 #pragma once
 #include "noa/runtime/cuda/IncludeGuard.cuh"
 
-#include "noa/runtime/core/Config.hpp"
+#include "noa/base/Config.hpp"
+#include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/core/Interfaces.hpp"
-#include "../../core/Accessor.hpp"
-#include "noa/runtime/core/types/Shape.hpp"
-#include "noa/runtime/core/indexing/Layout.hpp"
+#include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/cuda/Block.cuh"
 #include "noa/runtime/cuda/Constants.hpp"
 #include "noa/runtime/cuda/Pointers.hpp"
@@ -207,8 +206,8 @@ namespace noa::cuda {
         Stream& stream
     ) {
         const Vec<bool, 4> is_contiguous =
-            ni::is_contiguous(input, shape) and
-            ni::is_contiguous(output, shape);
+            nd::accessors_contiguity(input, shape) and
+            nd::accessors_contiguity(output, shape);
 
         // TODO fused contiguous dimensions together, e.g. 2d unbatched should be ok here
         if (is_contiguous[1] and is_contiguous[2]) { // 2d-like

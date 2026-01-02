@@ -11,7 +11,7 @@
 using namespace noa::types;
 
 TEST_CASE("runtime::reduce - batched reductions vs numpy", "[asset]") {
-    const auto path = test::NOA_DATA_PATH / "math";
+    const auto path = test::NOA_DATA_PATH / "runtime";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
 
     const YAML::Node& input = tests["input"];
@@ -64,13 +64,13 @@ TEST_CASE("runtime::reduce - batched reductions vs numpy", "[asset]") {
         data.eval();
 
         for (u32 batch = 0; batch < shape[0]; ++batch) {
-            REQUIRE_THAT(mins(batch, 0, 0, 0), Catch::Matchers::WithinAbs(static_cast<double>(expected_min[batch]), 1e-6));
-            REQUIRE_THAT(maxs(batch, 0, 0, 0), Catch::Matchers::WithinAbs(static_cast<double>(expected_max[batch]), 1e-6));
-            REQUIRE_THAT(sums(batch, 0, 0, 0), Catch::Matchers::WithinRel(expected_sum[batch]));
-            REQUIRE_THAT(means(batch, 0, 0, 0), Catch::Matchers::WithinRel(expected_mean[batch]));
-            REQUIRE_THAT(norms(batch, 0, 0, 0), Catch::Matchers::WithinRel(expected_norm[batch]));
-            REQUIRE_THAT(vars(batch, 0, 0, 0), Catch::Matchers::WithinRel(expected_var[batch]));
-            REQUIRE_THAT(stds(batch, 0, 0, 0), Catch::Matchers::WithinRel(expected_std[batch]));
+            REQUIRE_THAT(mins.span_1d()[batch], Catch::Matchers::WithinAbs(static_cast<double>(expected_min[batch]), 1e-6));
+            REQUIRE_THAT(maxs.span_1d()[batch], Catch::Matchers::WithinAbs(static_cast<double>(expected_max[batch]), 1e-6));
+            REQUIRE_THAT(sums.span_1d()[batch], Catch::Matchers::WithinRel(expected_sum[batch]));
+            REQUIRE_THAT(means.span_1d()[batch], Catch::Matchers::WithinRel(expected_mean[batch]));
+            REQUIRE_THAT(norms.span_1d()[batch], Catch::Matchers::WithinRel(expected_norm[batch]));
+            REQUIRE_THAT(vars.span_1d()[batch], Catch::Matchers::WithinRel(expected_var[batch]));
+            REQUIRE_THAT(stds.span_1d()[batch], Catch::Matchers::WithinRel(expected_std[batch]));
         }
     }
 }

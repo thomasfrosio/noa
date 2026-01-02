@@ -28,42 +28,41 @@ This is a `C++20` static library, aiming to provide basic signal and image proce
 
 ## `Example`
 
-This library provides high-level functionalities traditionally useful in cryoEM. For example, to transform 2d images using bilinear interpolation, one could do:
+This library provides high-level abstractions traditionally useful in cryoEM. For example, to transform 2d images using bilinear interpolation on a GPU, one could do:
 
 ```c++
-#include <noa/Array.hpp>
-#include <noa/Geometry.hpp>
+#include <noa/Runtime.hpp>
+#include <noa/Xform.hpp>
+
+namespace nx = noa::xform;
 
 int main() {
-    namespace ng = noa::geometry;
-
     // Create an array of uninitialized values of two 1024x1024 images on the GPU.
-    noa::Array images = noa::empty<float>({2, 1, 1024, 1024}, {.device = "gpu"});
-  
-    // .. initialize the images, e.g. load from file ..
-    // Note: reading from file can be as simple as:
-    //       noa::Array images = noa::read_data<float>(path));
+    auto images = noa::Array<float>({2, 1, 1024, 1024}, {.device = "gpu"});
+
+    // .. initialize the images, for instance, from an MRC file ..
+    // auto images = noa::read_image<float>("image.mrc"));
 
     // Create the affine matrix, rotating the images around their center by 45deg.
     const auto rotation_center = noa::Vec{512., 512.};
-    const auto rotation_matrix = ng::rotate(noa::deg2rad(45.));
+    const auto rotation_matrix = nx::rotate(noa::deg2rad(45.));
 
     noa::Mat<double, 3, 3> inverse_transform = (
-        ng::translate(rotation_center) *
-        ng::linear2affine(rotation_matrix) *
-        ng::translate(-rotation_center)
+        nx::translate(rotation_center) *
+        nx::affine(rotation_matrix) *
+        nx::translate(-rotation_center)
     ).inverse(); // transform_2d expects the inverse transform
 
     // Compute the affine transformation.
     noa::Array<float> output = noa::like(images);
-    ng::transform_2d(images, output, inverse_transform, {
-        .interp = noa::Interp::LINEAR, // optional
-        .border = noa::Border::ZERO,   // optional
+    nx::transform_2d(images, output, inverse_transform, {
+        .interp = nx::Interp::LINEAR, // optional
+        .border = noa::Border::ZERO,  // optional
     });
 }
 ```
 
-However, it is unreasonable to expect this library to implement everything. Instead, we provide a few [core functions](docs/030_core_functions.md), like `noa::iwise` (index-wise), so that users can implement their own operators. For instance, the same example above could be implemented like so:
+However, it is unreasonable to expect this library to implement everything. Instead, the runtime provide a few [core functions](docs/030_core_functions.md), like `noa::iwise` (for "index-wise", essentially an n-dimensional for-loop), so that users can implement their own operators. For instance, the example above could be implemented like so:
 
 ```c++
 struct MyAffineTransform {
@@ -75,10 +74,10 @@ struct MyAffineTransform {
     constexpr void operator()(int batch, int y, int x) {
         auto coordinates = noa::Vec<double, 2>::from_values(y, x);
         coordinates = (inverse_transform * coordinates.push_back(1)).pop_back();
-        
+
         // Bilinear interpolation.
-        // Note: we also provide an Interpolator that can do all of this.
-        const auto floored = noa::floor(coordinates);
+        // Note: we provide an Interpolator that can do all of this.
+        const auto floored = floor(coordinates);
         const auto indices = floored.as<int>();
         const auto fraction = (coordinates - floored).as<float>();
         const auto weights = noa::Vec{1 - fraction, fraction};
@@ -113,7 +112,7 @@ void my_transform_2d(
                input.shape(), output.shape());
 
     // Construct the operator.
-    MyAffineTransform op{
+    auto op = MyAffineTransform{
         .input = input.span().filter(0, 2, 3),   // bdhw -> bhw
         .output = output.span().filter(0, 2, 3), // bdhw -> bhw
         .inverse_transform = inverse_transform,

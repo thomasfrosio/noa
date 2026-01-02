@@ -1,8 +1,10 @@
 #pragma once
 #include "noa/runtime/cuda/IncludeGuard.cuh"
 
-#include "noa/runtime/core/Config.hpp"
-#include "noa/runtime/core/Vec.hpp"
+#include "noa/base/Config.hpp"
+#include "noa/base/Complex.hpp"
+#include "noa/base/Tuple.hpp"
+#include "noa/base/Vec.hpp"
 #include "noa/runtime/cuda/Runtime.hpp"
 
 namespace noa::cuda::details {
@@ -11,7 +13,7 @@ namespace noa::cuda::details {
     concept shuffable = nt::numeric<T> or nt::any_of<T, half, half2>;
 
     template<shuffable T>
-    NOA_FD T warp_shuffle(T value, i32 source, i32 width = 32, u32 mask = 0xffffffff) {
+    NOA_FD auto warp_shuffle(T value, i32 source, i32 width = 32, u32 mask = 0xffffffff) -> T {
         if constexpr (nt::almost_same_as<c16, T>) {
             __half2 tmp = __shfl_sync(mask, *reinterpret_cast<__half2*>(&value), source, width);
             return *reinterpret_cast<c16*>(&tmp);
@@ -28,7 +30,7 @@ namespace noa::cuda::details {
     }
 
     template<shuffable T>
-    NOA_FD T warp_suffle_down(T value, u32 delta, i32 width = 32, u32 mask = 0xffffffff) {
+    NOA_FD auto warp_suffle_down(T value, u32 delta, i32 width = 32, u32 mask = 0xffffffff) -> T {
         if constexpr (nt::almost_same_as<c16, T>) {
             __half2 tmp = __shfl_down_sync(mask, *reinterpret_cast<__half2*>(&value), delta, width);
             return *reinterpret_cast<c16*>(&tmp);

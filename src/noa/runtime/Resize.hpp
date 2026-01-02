@@ -187,16 +187,8 @@ namespace noa {
             }
         }
 
-        // Rearrange output to rightmost:
-        const auto order = rightmost_order(output_strides, output_shape);
-        if (order != Vec<isize, 4>{0, 1, 2, 3}) {
-            input_strides = reorder(input_strides, order);
-            input_shape = reorder(input_shape, order);
-            border_left = reorder(border_left, order);
-            border_right = reorder(border_right, order);
-            output_strides = reorder(output_strides, order);
-            output_shape = reorder(output_shape, order);
-        }
+        nd::permute_all_to_rightmost_order<true>(output_strides, output_shape,
+            input_strides, input_shape, border_left, border_right, output_strides, output_shape);
 
         using input_accessor_t = AccessorRestrict<nt::const_value_type_t<Input>, 4, isize>;
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, 4, isize>;

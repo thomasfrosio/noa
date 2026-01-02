@@ -119,7 +119,7 @@ namespace noa::inline types {
                 n_bytes += noa::cuda::AllocatorDevicePadded::bytes_currently_allocated(device.id());
                 n_bytes += noa::cuda::AllocatorPinned::bytes_currently_allocated(device.id());
                 n_bytes += noa::cuda::AllocatorManaged::bytes_currently_allocated(device.id());
-                n_bytes += noa::cuda::AllocatorTexture::bytes_currently_allocated(device.id());
+                n_bytes += noa::cuda::AllocatorArray::bytes_currently_allocated(device.id());
                 #endif
             }
             return n_bytes;
@@ -147,7 +147,7 @@ namespace noa::inline types {
                 } else if constexpr (std::convertible_to<decltype(v), std::string_view>) {
                     return parse_(v);
                 } else {
-                    static_assert(nt::always_false<>);
+                    static_assert(nt::always_false<T>);
                 }
             };
             return ((value == get_resource(values)) or ...);

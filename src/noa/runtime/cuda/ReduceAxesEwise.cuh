@@ -1,7 +1,7 @@
 #pragma once
 #include "noa/runtime/cuda/IncludeGuard.cuh"
 
-#include "noa/runtime/core/Config.hpp"
+#include "noa/base/Config.hpp"
 #include "noa/runtime/core/Interfaces.hpp"
 #include "noa/runtime/cuda/Block.cuh"
 #include "noa/runtime/cuda/ReduceEwise.cuh"
@@ -55,7 +55,8 @@ namespace noa::cuda::details {
         }
 
         // Share the threads' initial reduction with the rest of the block.
-        __shared__ Reduced shared_buffer[Block::block_size];
+        __shared__ Uninitialized<Reduced> shared_buffer_[Block::block_size];
+        auto* shared_buffer = reinterpret_cast<Reduced*>(shared_buffer_);
         Reduced* joined = shared_buffer + tid[0] * Block::block_size_x;
         joined[tid[1]] = reduced;
         block_synchronize();
@@ -90,7 +91,8 @@ namespace noa::cuda::details {
             Interface::init(op, input, reduced, 0, 0, tidy, gid[3]);
 
         // Share the threads' initial reduction with the rest of the block.
-        __shared__ Reduced shared_buffer[Block::block_size];
+        __shared__ Uninitialized<Reduced> shared_buffer_[Block::block_size];
+        auto* shared_buffer = reinterpret_cast<Reduced*>(shared_buffer_);
         Reduced* joined = shared_buffer + threadIdx.y * Block::block_size_x + threadIdx.x;
         *joined = reduced;
         block_synchronize();
@@ -269,13 +271,13 @@ namespace noa::cuda::details {
 
         // The kernel needs the axis to reduce at the "height" position.
         // The width should still be at the rightmost dimension.
-        auto order = ni::squeeze_left(axes_to_reduce.as<i32>() + 1);
+        auto order = squeeze_left(axes_to_reduce.as<i32>() + 1);
         order = order.filter(0, 1, 3, 2); // move the width back to rightmost
 
         // Reorder to (X, X, axis_to_reduce, width).
-        const auto reordered_shape = shape.reorder(order);
-        input_.for_each([&order](auto& accessor) { accessor.reorder(order); });
-        output_.for_each([&order](auto& accessor) { accessor.reorder(order); });
+        const auto reordered_shape = shape.permute(order);
+        input_.for_each([&order](auto& accessor) { accessor = accessor.permute(order); });
+        output_.for_each([&order](auto& accessor) { accessor = accessor.permute(order); });
 
         // Remove the empty/reduced axis from the output.
         constexpr auto TO_3D = nd::AccessorConfig<3>{.filter = {0, 1, 3}};
@@ -369,14 +371,14 @@ namespace noa::cuda {
             const auto n_elements_to_reduce_iz = reduce_all ? input_shape_iz.n_elements() : input_shape_iz.pop_front().n_elements();
             const auto n_elements_to_reduce = safe_cast<Index>(n_elements_to_reduce_iz);
 
-            Vec<bool, 4> is_contiguous = ni::is_contiguous(input, input_shape);
+            Vec<bool, 4> contiguity = nd::accessors_contiguity(input, input_shape);
             if (not reduce_all)
-                is_contiguous[0] = true;
+                contiguity[0] = true;
 
             auto output_1d = nd::reconfig_accessors<nd::AccessorConfig<1>{.filter = {0}}>(std::forward<Output>(output));
 
             constexpr auto SMALL_THRESHOLD = Config::block_work_size * 4;
-            if (is_contiguous.pop_back() == true) {
+            if (contiguity.pop_back() == true) {
                 if (n_elements_to_reduce <= SMALL_THRESHOLD) {
                     details::launch_reduce_ewise_small_2d<Config>(
                         std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),

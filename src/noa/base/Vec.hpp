@@ -31,6 +31,9 @@ namespace noa::details {
         return alignof(T);
     }
 
+    template<typename T, usize N, usize A>
+    constexpr usize vec_alignas = vec_alignment<T, N, A>(); // nvcc bug
+
     // Add support for empty vectors.
     template<typename T, usize N>
     struct VecStorage {
@@ -295,7 +298,7 @@ namespace noa::inline types {
     /// \tparam N Size of the vector. Empty vectors (N=0) are allowed.
     /// \tparam A Alignment requirement of the vector.
     template<typename T, usize N, usize A = 0>
-    class alignas(nd::vec_alignment<T, N, A>()) Vec {
+    class alignas(nd::vec_alignas<T, N, A>) Vec {
     public:
         static_assert(nt::numeric<T> or nt::vec<T>);
         static_assert(not std::is_const_v<T>);
@@ -516,7 +519,6 @@ namespace noa::inline types {
         [[nodiscard]] NOA_FHD constexpr auto cmp_gt(const value_type& rhs) const noexcept { return nd::vec_cmp<Greater>(*this, Vec::filled_with(rhs)); }
         // [[nodiscard]] NOA_FHD constexpr auto cmp_allclose(const value_type& rhs) const noexcept { return nd::vec_cmp<Greater>(*this, Vec::filled_with(rhs)); }
 
-
         [[nodiscard]] NOA_FHD constexpr bool any_eq(const Vec& rhs) const noexcept { return nd::vec_any<Equal>(*this, rhs); }
         [[nodiscard]] NOA_FHD constexpr bool any_ne(const Vec& rhs) const noexcept { return nd::vec_any<NotEqual>(*this, rhs); }
         [[nodiscard]] NOA_FHD constexpr bool any_le(const Vec& rhs) const noexcept { return nd::vec_any<LessEqual>(*this, rhs); }
@@ -627,13 +629,13 @@ namespace noa::inline types {
         }
 
         template<nt::integer I = std::conditional_t<nt::integer<value_type>, value_type, isize>, usize AR = 0>
-        [[nodiscard]] NOA_FHD constexpr auto reorder(const Vec<I, SIZE, AR>& order) const noexcept -> Vec {
+        [[nodiscard]] NOA_FHD constexpr auto permute(const Vec<I, SIZE, AR>& permutation) const noexcept -> Vec {
             if constexpr (SIZE == 0) {
                 return {};
             } else {
                 Vec output;
                 for (usize i{}; i < SIZE; ++i)
-                    output[i] = (*this)[order[i]];
+                    output[i] = (*this)[permutation[i]];
                 return output;
             }
         }
@@ -704,7 +706,7 @@ namespace noa::traits {
     template<typename V, usize N1, usize A, usize N2> struct proclaim_is_vec_of_size<noa::Vec<V, N1, A>, N2> : std::bool_constant<N1 == N2> {};
 }
 
-namespace noa::inline types {
+namespace noa {
     template<typename T, usize N, usize A> requires (nt::boolean<T> or nt::vec<T>)
     [[nodiscard]] NOA_HD constexpr auto operator!(Vec<T, N, A> vector) noexcept {
         if constexpr (N > 0) {
@@ -732,7 +734,6 @@ namespace noa::inline types {
         return lhs;
     }
 
-    // -- Modulo Operator --
     template<nt::vec_integer V>
     [[nodiscard]] NOA_HD constexpr V operator%(V lhs, const V& rhs) noexcept {
         if constexpr (V::SSIZE > 0) {

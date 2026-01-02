@@ -1,10 +1,9 @@
-#include <noa/core/geometry/Transform.hpp>
-#include <../../../../src/noa/xform/Euler.hpp>
-#include <noa/unified/geometry/FourierProject.hpp>
-#include <noa/unified/IO.hpp>
-#include <noa/unified/Factory.hpp>
+#include <noa/xform/core/Transform.hpp>
+#include <noa/xform/core/Euler.hpp>
+#include <noa/xform/FourierProject.hpp>
 
-#include <noa/Array.hpp>
+#include <noa/Runtime.hpp>
+#include <noa/IO.hpp>
 #include <noa/Signal.hpp>
 #include <noa/FFT.hpp>
 
@@ -13,11 +12,11 @@
 #include "Utils.hpp"
 
 using namespace ::noa::types;
-namespace ng = noa::geometry;
-using Interp = noa::Interp;
+namespace nx = noa::xform;
+using Interp = nx::Interp;
 
-TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
-    const Path path = test::NOA_DATA_PATH / "geometry" / "fft";
+TEST_CASE("xform::insert_central_slices_3d", "[asset]") {
+    const Path path = test::NOA_DATA_PATH / "xform";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["insert_central_slices_3d"];
     constexpr bool COMPUTE_ASSETS = false;
 
@@ -40,10 +39,10 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
         const auto fftfreq_blackman = parameters["fftfreq_blackman"].as<f64>();
         const auto volume_filename = path / parameters["volume_filename"].as<Path>();
 
-        const auto fwd_scaling_matrix = ng::scale(scale);
+        const auto fwd_scaling_matrix = nx::scale(scale);
         auto inv_rotation_matrices = noa::empty<Mat33<f32>>(std::ssize(rotate));
         for (size_t i{}; auto& inv_rotation_matrix: inv_rotation_matrices.span_1d_contiguous())
-            inv_rotation_matrix = ng::rotate_y(noa::deg2rad(-rotate[i++]));
+            inv_rotation_matrix = nx::rotate_y(noa::deg2rad(-rotate[i++]));
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device);
@@ -56,7 +55,7 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
             // Backward project.
             const Array slice_fft = noa::linspace(slice_shape.rfft(), noa::Linspace{1.f, 10.f, true}, options);
             const Array volume_fft = noa::zeros<f32>(volume_shape.rfft(), options);
-            ng::insert_central_slices_3d<"hc2hc">(
+            nx::insert_central_slices_3d<"hc2hc">(
                 slice_fft.eval(), {}, slice_shape, volume_fft, {}, volume_shape,
                 fwd_scaling_matrix, inv_rotation_matrices, {
                     .interp = Interp::LINEAR,
@@ -77,7 +76,7 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
     }
 }
 
-// TEMPLATE_TEST_CASE("unified::geometry::insert_central_slices_3d, weights", "", f32, f64) {
+// TEMPLATE_TEST_CASE("xform::insert_central_slices_3d, weights", "", f32, f64) {
 //     std::vector<Device> devices{"cpu"};
 //     if (Device::is_any_gpu())
 //         devices.emplace_back("gpu");
@@ -87,7 +86,7 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
 //
 //     auto fwd_rotation_matrices = noa::empty<Mat33<f32>>(slice_shape[0]);
 //     for (i64 i{}; auto& fwd_rotation_matrix: fwd_rotation_matrices.span_1d_contiguous())
-//         fwd_rotation_matrix = ng::rotate_y(noa::deg2rad(static_cast<f32>(i++ * 2)));
+//         fwd_rotation_matrix = nx::rotate_y(noa::deg2rad(static_cast<f32>(i++ * 2)));
 //
 //     for (auto& device: devices) {
 //         const auto stream = StreamGuard(device);
@@ -101,7 +100,7 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
 //         const Array grid_fft0 = noa::zeros<TestType>(grid_shape.rfft(), options);
 //         const Array grid_fft1 = grid_fft0.copy();
 //
-//         ng::insert_central_slices_3d<"hc2hc">(
+//         nx::insert_central_slices_3d<"hc2hc">(
 //             slice_fft, slice_fft.copy(), slice_shape,
 //             grid_fft0, grid_fft1, grid_shape,
 //             {}, fwd_rotation_matrices, {
@@ -112,7 +111,7 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
 //     }
 // }
 //
-// TEMPLATE_TEST_CASE("unified::geometry::insert_central_slices_3d, texture/remap", "", f32, c32) {
+// TEMPLATE_TEST_CASE("xform::insert_central_slices_3d, texture/remap", "", f32, c32) {
 //     std::vector<Device> devices{"cpu"};
 //     if (Device::is_any_gpu())
 //         devices.emplace_back("gpu");
@@ -120,11 +119,11 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
 //     const i64 slice_count = GENERATE(1, 20);
 //     const auto slice_shape = Shape<i64, 4>{slice_count, 1, 64, 64};
 //     constexpr auto grid_shape = Shape<i64, 4>{1, 128, 128, 128};
-//     constexpr auto windowed_sinc = ng::WindowedSinc{0.02, 0.06};
+//     constexpr auto windowed_sinc = nx::WindowedSinc{0.02, 0.06};
 //
 //     auto inv_rotation_matrices = noa::empty<Mat33<f32>>(slice_shape[0]);
 //     for (i64 i{}; auto& inv_rotation_matrix: inv_rotation_matrices.span_1d_contiguous())
-//         inv_rotation_matrix = ng::rotate_y(noa::deg2rad(-static_cast<f32>(i++) * 2));
+//         inv_rotation_matrix = nx::rotate_y(noa::deg2rad(-static_cast<f32>(i++) * 2));
 //
 //     for (auto& device: devices) {
 //         const auto stream = StreamGuard(device);
@@ -141,10 +140,10 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
 //
 //         { // Texture
 //             const auto texture_slice_fft = Texture<TestType>{slice_fft, device, Interp::LINEAR};
-//             ng::insert_central_slices_3d<"hc2h">(
+//             nx::insert_central_slices_3d<"hc2h">(
 //                 slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
 //                 {}, inv_rotation_matrices, {.windowed_sinc=windowed_sinc, .fftfreq_cutoff=0.45});
-//             ng::insert_central_slices_3d<"hc2h">(
+//             nx::insert_central_slices_3d<"hc2h">(
 //                 texture_slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
 //                 {}, inv_rotation_matrices, {.windowed_sinc=windowed_sinc, .fftfreq_cutoff=0.45});
 //
@@ -154,10 +153,10 @@ TEST_CASE("unified::geometry::insert_central_slices_3d", "[asset]") {
 //         { // Remap
 //             noa::fill(grid_fft0, {});
 //             noa::fill(grid_fft1, {});
-//             ng::insert_central_slices_3d<"hc2hc">(
+//             nx::insert_central_slices_3d<"hc2hc">(
 //                 slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
 //                 {}, inv_rotation_matrices, {.windowed_sinc = windowed_sinc, .fftfreq_cutoff = 0.5});
-//             ng::insert_central_slices_3d<"hc2h">(
+//             nx::insert_central_slices_3d<"hc2h">(
 //                 slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
 //                 {}, inv_rotation_matrices, {.windowed_sinc = windowed_sinc, .fftfreq_cutoff = 0.5});
 //             noa::fft::remap("h2hc", grid_fft1, grid_fft2, grid_shape);

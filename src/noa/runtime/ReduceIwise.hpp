@@ -9,7 +9,7 @@
 #ifdef NOA_ENABLE_CUDA
 #include "noa/runtime/cuda/Allocators.hpp"
 #include "noa/runtime/cuda/Copy.cuh"
-#include "noa/cuda/ReduceIwise.cuh"
+#include "noa/runtime/cuda/ReduceIwise.cuh"
 #endif
 
 namespace noa::details {

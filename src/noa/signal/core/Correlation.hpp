@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "noa/runtime/core/Strings.hpp"
+#include "noa/base/Strings.hpp"
 
 namespace noa::signal {
     /// Correlation mode to compute the cross-correlation map.

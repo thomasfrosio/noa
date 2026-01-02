@@ -1,8 +1,8 @@
 #pragma once
 #include "noa/runtime/cuda/IncludeGuard.cuh"
 
-#include "noa/runtime/core/Ewise.hpp"
-#include "../../core/Shape.hpp"
+#include "noa/base/Operators.hpp"
+#include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/cuda/Allocators.hpp"
 #include "noa/runtime/cuda/Ewise.cuh"
 #include "noa/runtime/cuda/Error.hpp"
@@ -112,8 +112,7 @@ namespace noa::cuda::details {
             // and let the driver check for pinned and managed if needed.
             check((src_attr.type != 2 or src_attr.device == stream.device().id()) and
                   (dst_attr.type != 2 or dst_attr.device == stream.device().id()),
-                  "Copying elements of a non-trivially copyable type from or to a device that "
-                  "is not the stream's device is not supported");
+                  "Copying elements of a non-trivially copyable type from or to a device that is not the stream's device is not supported");
 
             // TODO For managed pointers, use cudaMemPrefetchAsync()?
             auto src_ptr = static_cast<const T*>(src_attr.devicePointer);
@@ -135,8 +134,7 @@ namespace noa::cuda::details {
                             dst_accessor(i, j, k, l) = src_accessor(i, j, k, l);
 
         } else {
-            panic("Copying elements of a non-trivially copyable type between an unregistered "
-                  "host region and a device is not supported");
+            panic("Copying elements of a non-trivially copyable type between an unregistered host region and a device is not supported");
         }
     }
 }
@@ -195,16 +193,10 @@ namespace noa::cuda {
             // The input can be broadcast onto the output shape. While it is not valid for the output to broadcast
             // a non-empty dimension in the input, here, broadcast dimensions in the output are treated as empty,
             // so the corresponding input dimension isn't used and everything is fine.
-            shape = ni::effective_shape(shape, dst_strides);
-            const auto order = rightmost_order(dst_strides, shape);
-            if (order != Vec<isize, 4>{0, 1, 2, 3}) {
-                shape = reorder(shape, order);
-                src_strides = reorder(src_strides, order);
-                dst_strides = reorder(dst_strides, order);
-            }
+            shape = dst_strides.effective_shape(shape);
+            nd::permute_all_to_rightmost_order(dst_strides, shape, shape, src_strides, dst_strides);
 
-            is_contiguous = ni::is_contiguous(src_strides, shape) and
-                            ni::is_contiguous(dst_strides, shape);
+            is_contiguous = src_strides.contiguity(shape) and dst_strides.contiguity(shape);
             if (is_contiguous[0] and is_contiguous[1] and is_contiguous[3]) {
                 if (is_contiguous[2]) // contiguous
                     return copy(src, dst, shape.n_elements(), stream);
@@ -228,8 +220,8 @@ namespace noa::cuda {
                 // We have a new shape, so compute the new strides.
                 Strides4 new_src_strides;
                 Strides4 new_dst_strides;
-                if (ni::reshape(shape, src_strides, collapsed_shape, new_src_strides) and
-                    ni::reshape(shape, dst_strides, collapsed_shape, new_dst_strides)) {
+                if (nd::reshape(shape, src_strides, collapsed_shape, new_src_strides) and
+                    nd::reshape(shape, dst_strides, collapsed_shape, new_dst_strides)) {
                     // Update and try again.
                     shape = collapsed_shape;
                     src_strides = new_src_strides;
@@ -281,7 +273,7 @@ namespace noa::cuda {
                         for (isize l = 0; l < shape[3]; ++l)
                             dst_accessor(i, j, k, l) = src_accessor(i, j, k, l);
 
-        } else if (all(is_contiguous.pop_back())) {
+        } else if (is_contiguous.pop_back() == true) {
             // Last resort for strided row-vector(s). Since 3 first dimensions are contiguous, collapse them.
             // Non-contiguous row vector can be reshaped to a 2D pitch array so that it can be passed to the CUDA API.
             // This works for column vectors as well, since we've swapped everything to the rightmost order.
@@ -333,9 +325,9 @@ namespace noa::cuda {
         const T* src, const Strides4& src_strides, cudaArray* dst,
         const Shape4& shape, Stream& stream
     ) {
-        const auto[desc_, actual_extent, flags] = AllocatorTexture::array_info(dst);
+        const auto[desc_, actual_extent, flags] = AllocatorArray::array_info(dst);
         const bool is_layered = flags & cudaArrayLayered;
-        const cudaExtent expected_extent = AllocatorTexture::shape2extent(shape, is_layered);
+        const cudaExtent expected_extent = AllocatorArray::shape2extent(shape, is_layered);
 
         check(expected_extent.depth == actual_extent.depth and
               expected_extent.height == actual_extent.height and
@@ -345,7 +337,7 @@ namespace noa::cuda {
         // cudaExtent for CUDA array has empty dimensions equal to 0.
         // However, for cudaMemcpy3D, dimensions equal to 0 are invalid.
         auto shape_3d = Shape3::from_values(expected_extent.depth, expected_extent.height, expected_extent.width);
-        shape_3d += Shape3::from_vec(shape_3d == 0);
+        shape_3d += Shape3::from_vec(shape_3d.cmp_eq(0));
 
         const bool is_column = shape[2] >= 1 and shape[3] == 1;
         const auto src_strides_3d = Strides3{
@@ -353,7 +345,7 @@ namespace noa::cuda {
             src_strides[2 + is_column],
             src_strides[3 - is_column]
         };
-        const bool is_rightmost = ni::is_rightmost(src_strides_3d);
+        const bool is_rightmost = src_strides_3d.is_rightmost();
         const bool has_valid_pitch = src_strides_3d[1] >= shape_3d[2];
         const bool is_contiguous_2 = src_strides_3d[2] == 1;
         const bool is_contiguous_0 = src_strides_3d[0] == src_strides_3d[1] * shape_3d[1];
@@ -367,9 +359,9 @@ namespace noa::cuda {
 
     template<typename T>
     void copy(cudaArray* src, T* dst, const Strides4& dst_strides, const Shape4& shape, Stream& stream) {
-        const auto[_, actual_extent, flags] = AllocatorTexture::array_info(src);
+        const auto[_, actual_extent, flags] = AllocatorArray::array_info(src);
         const bool is_layered = flags & cudaArrayLayered;
-        const cudaExtent expected_extent = AllocatorTexture::shape2extent(shape, is_layered);
+        const cudaExtent expected_extent = AllocatorArray::shape2extent(shape, is_layered);
 
         check(expected_extent.depth == actual_extent.depth and
               expected_extent.height == actual_extent.height and
@@ -379,7 +371,7 @@ namespace noa::cuda {
         // cudaExtent for CUDA array has empty dimensions equal to 0.
         // However, for cudaMemcpy3D, dimensions equal to 0 are invalid.
         auto shape_3d = Shape3::from_values(expected_extent.depth, expected_extent.height, expected_extent.width);
-        shape_3d += Shape3::from_vec(shape_3d == 0);
+        shape_3d += Shape3::from_vec(shape_3d.cmp_eq(0));
 
         const bool is_column = shape[2] >= 1 and shape[3] == 1;
         const auto dst_strides_3d = Strides3{
@@ -387,7 +379,7 @@ namespace noa::cuda {
             dst_strides[2 + is_column],
             dst_strides[3 - is_column]
         };
-        const bool is_rightmost = ni::is_rightmost(dst_strides_3d);
+        const bool is_rightmost = dst_strides_3d.is_rightmost();
         const bool has_valid_pitch = dst_strides_3d[1] >= shape_3d[2];
         const bool is_contiguous_2 = dst_strides_3d[2] == 1;
         const bool is_contiguous_0 = dst_strides_3d[0] == dst_strides_3d[1] * shape_3d[1];

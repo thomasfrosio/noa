@@ -7,10 +7,10 @@
 
 #include <noa/base/Complex.hpp>
 #include <noa/base/Half.hpp>
-#include <noa/runtime/core/Traits.hpp>
+#include <noa/runtime/core/Access.hpp>
 #include <noa/runtime/core/Shape.hpp>
 #include <noa/runtime/core/Span.hpp>
-#include <noa/runtime/core/Offset.hpp>
+#include <noa/runtime/core/Traits.hpp>
 
 #include <noa/io/Encoding.hpp>
 

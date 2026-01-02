@@ -63,8 +63,8 @@ namespace noa::cpu::details {
         const Pair<u32, T>* src, const Strides4& src_strides, const Shape4& src_shape,
         T* dst, const Strides4& dst_strides, const Vec<isize, 4>& permutation
     ) {
-        const auto dst_shape = src_shape.reorder(permutation);
-        const auto src_strides_permuted = src_strides.reorder(permutation);
+        const auto dst_shape = src_shape.permute(permutation);
+        const auto src_strides_permuted = src_strides.permute(permutation);
 
         for (isize i{}; i < dst_shape[0]; ++i)
             for (isize j{}; j < dst_shape[1]; ++j)

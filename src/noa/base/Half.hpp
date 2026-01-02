@@ -130,7 +130,7 @@ namespace noa::inline types {
                 } else if constexpr (std::is_same_v<U, unsigned long long> or std::is_same_v<U, ulong>) {
                     return __ull2half_rn(value);
                 } else {
-                    static_assert(nt::always_false<>);
+                    static_assert(nt::always_false<T>);
                 }
             } else if constexpr (std::is_same_v<U, native_type>) { // native_type -> built-in
                 if constexpr (std::is_same_v<T, float>) {
@@ -158,10 +158,10 @@ namespace noa::inline types {
                 } else if constexpr (std::is_same_v<T, unsigned long long> or std::is_same_v<T, ulong>) {
                     return static_cast<T>(__half2ull_rn(value));
                 } else {
-                    static_assert(nt::always_false<>);
+                    static_assert(nt::always_false<T>);
                 }
             } else {
-                static_assert(nt::always_false<>);
+                static_assert(nt::always_false<T>);
             }
             #else
             if constexpr (std::is_same_v<T, U>) {
@@ -426,8 +426,16 @@ namespace noa {
         #endif
     }
 
+    [[nodiscard]] NOA_FHD f16 tan(f16 x) {
+        #if defined(__CUDA_ARCH__)
+        return f16(tan(static_cast<f16::arithmetic_type>(x)));
+        #else
+        return f16(half_float::tan(x.native()));
+        #endif
+    }
+
     NOA_FHD void sincos(f16 x, f16* s, f16* c) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+        #if defined(__CUDA_ARCH__)
         *s = sin(x);
         *c = cos(x);
         #else
@@ -440,26 +448,28 @@ namespace noa {
     }
 
     [[nodiscard]] NOA_FHD f16 cosh(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(cos(static_cast<f16::arithmetic_type>(x)));
+        #if defined(__CUDA_ARCH__)
+        return f16(cosh(static_cast<f16::arithmetic_type>(x)));
         #else
         return f16(half_float::cosh(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 sinh(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(cos(static_cast<f16::arithmetic_type>(x)));
+        #if defined(__CUDA_ARCH__)
+        return f16(sinh(static_cast<f16::arithmetic_type>(x)));
         #else
         return f16(half_float::sinh(x.native()));
         #endif
     }
 
-    [[nodiscard]] NOA_FHD f16 tan(f16 x) {
-        #if defined(__CUDA_ARCH__)
-        return f16(tan(static_cast<f16::arithmetic_type>(x)));
+    [[nodiscard]] NOA_FHD f16 tanh(f16 x) {
+        #if CUDART_VERSION >= 13000 && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+        return f16(htanh(x.native()));
+        #elif defined(__CUDA_ARCH__)
+        return f16(tanh(static_cast<f16::arithmetic_type>(x)));
         #else
-        return f16(half_float::tan(x.native()));
+        return f16(half_float::tanh(x.native()));
         #endif
     }
 
@@ -470,26 +480,12 @@ namespace noa {
         return f16(half_float::acos(x.native()));
         #endif
     }
-    [[nodiscard]] NOA_FHD f16 acosh(f16 x) {
-        #if defined(__CUDA_ARCH__)
-        return f16(acosh(static_cast<f16::arithmetic_type>(x)));
-        #else
-        return f16(half_float::acosh(x.native()));
-        #endif
-    }
 
     [[nodiscard]] NOA_FHD f16 asin(f16 x) {
         #if defined(__CUDA_ARCH__)
         return f16(asin(static_cast<f16::arithmetic_type>(x)));
         #else
         return f16(half_float::asin(x.native()));
-        #endif
-    }
-    [[nodiscard]] NOA_FHD f16 asinh(f16 x) {
-        #if defined(__CUDA_ARCH__)
-        return f16(asinh(static_cast<f16::arithmetic_type>(x)));
-        #else
-        return f16(half_float::asinh(x.native()));
         #endif
     }
 
@@ -501,22 +497,36 @@ namespace noa {
         #endif
     }
 
+    [[nodiscard]] NOA_FHD f16 acosh(f16 x) {
+        #if defined(__CUDA_ARCH__)
+        return f16(acosh(static_cast<f16::arithmetic_type>(x)));
+        #else
+        return f16(half_float::acosh(x.native()));
+        #endif
+    }
+
+    [[nodiscard]] NOA_FHD f16 asinh(f16 x) {
+        #if defined(__CUDA_ARCH__)
+        return f16(asinh(static_cast<f16::arithmetic_type>(x)));
+        #else
+        return f16(half_float::asinh(x.native()));
+        #endif
+    }
+
+    [[nodiscard]] NOA_FHD f16 atanh(f16 x) {
+        #if defined(__CUDA_ARCH__)
+        return f16(atanh(static_cast<f16::arithmetic_type>(x)));
+        #else
+        return f16(half_float::atanh(x.native()));
+        #endif
+    }
+
     [[nodiscard]] NOA_FHD f16 atan2(f16 y, f16 x) {
         #if defined(__CUDA_ARCH__)
         return f16(atan2(static_cast<f16::arithmetic_type>(y),
                           static_cast<f16::arithmetic_type>(x)));
         #else
         return f16(half_float::atan2(y.native(), x.native()));
-        #endif
-    }
-
-    [[nodiscard]] NOA_FHD f16 atanh(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(hatanh(x.native()));
-        #elif defined(__CUDA_ARCH__)
-        return f16(atanh(static_cast<f16::arithmetic_type>(x)));
-        #else
-        return f16(half_float::atan(x.native()));
         #endif
     }
 

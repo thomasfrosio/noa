@@ -1,6 +1,6 @@
 ## `BDHW order`
 
-The library uses a fixed 4-dimensional (4d) model to manipulate multidimensional data. The dimension order is always following the Batch-Depth-Height-Width (BDHW) order.
+The library uses a fixed 4-dimensional (4d) model to manipulate multidimensional data. The dimension order is always following: Batch-Depth-Height-Width (BDHW) order.
 
 First, having a fixed number of dimensions allows us to encode the shape and strides in static arrays, instead of dynamic arrays saved on the heap. These arrays can be easily created and efficiently passed around, without involving dynamic allocations. The optimizations of having a fixed sized array are also welcomed.
 

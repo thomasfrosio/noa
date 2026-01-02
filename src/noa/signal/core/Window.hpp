@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/runtime/core/Math.hpp"
+#include "noa/base/Math.hpp"
 
 namespace noa::signal::details {
     template<typename Derived>

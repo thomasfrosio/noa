@@ -1,14 +1,12 @@
 #pragma once
 
-#include "noa/runtime/core/Shape.hpp"
-#include "noa/runtime/core/Batch.hpp"
-
-#include "noa/runtime/Array.hpp"
-#include "noa/runtime/Iwise.hpp"
-#include "noa/runtime/Factory.hpp"
-
 #include "noa/fft/core/Frequency.hpp"
 #include "noa/fft/Remap.hpp"
+#include "noa/runtime/Array.hpp"
+#include "noa/runtime/core/Batch.hpp"
+#include "noa/runtime/core/Shape.hpp"
+#include "noa/runtime/Factory.hpp"
+#include "noa/runtime/Iwise.hpp"
 
 namespace noa::signal::details {
     /// 4d iwise operator to phase shift the ((D)H)W dimension by size / 2 (floating-point division).
@@ -159,7 +157,7 @@ namespace noa::signal::details {
         }
 
         if constexpr (nt::varray<Shift>) {
-            check(ni::is_contiguous_vector(shifts) and shifts.n_elements() == output.shape()[0],
+            check(is_contiguous_vector(shifts) and shifts.n_elements() == output.shape()[0],
                   "The input shift(s) should be entered as a 1d contiguous vector, with one shift per output batch, "
                   "but got shift {} and output {}", shifts.shape(), output.shape());
             check(output.device() == shifts.device(),
@@ -228,7 +226,7 @@ namespace noa::signal {
         details::check_phase_shift_parameters<REMAP>(input, output, shape, shifts);
 
         auto input_strides = input.strides();
-        if (not input.is_empty() and not ni::broadcast(input.shape(), input_strides, output.shape())) {
+        if (not input.is_empty() and not broadcast(input.shape(), input_strides, output.shape())) {
             panic("Cannot broadcast an array of shape {} into an array of shape {}",
                   input.shape(), output.shape());
         }

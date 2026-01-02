@@ -50,11 +50,14 @@ namespace noa::inline types {
         /// \warning On the CPU, only the current stream is synchronized.
         void synchronize() const;
 
-        /// Explicitly synchronizes, destroys and cleans up all resources associated with the device in the
-        /// current process. The current stream for that device is synchronized and reset to the default stream.
+        /// Explicitly synchronizes, destroys, and cleans up all resources associated with the device in the
+        /// current process. The current stream for that device is synchronized then removed from the current
+        /// stream internal buffer. Subsequent calls to Stream::current(device) will return the new default stream.
+        ///
         /// \warning For GPUs, it is the caller's responsibility to ensure that resources in all host threads
         ///          (streams and pinned|device arrays) attached to that device are destructed before calling this
-        ///          function. The library's internal data will be handled automatically, e.g. FFT plans.
+        ///          function. The library's internal data will be handled automatically, e.g., FFT plans.
+        /// \see Device::add_reset_callback, Device::remove_reset_callback
         void reset() const;
 
         /// Returns a brief printable summary about the device.
@@ -225,6 +228,21 @@ namespace noa::inline types {
 
         /// Gets the device of this type with the most free memory.
         [[nodiscard]] static auto most_free_gpu() -> Device { return most_free(GPU); }
+
+    public:
+        /// The library keeps track of some global resources that need to be deleted upon Device::reset().
+        /// To do so, callbacks can be added to (and removed from) an internal thread-safe set managed by Device.
+        /// When calling device.reset(), these callbacks are called once, with the device ID as argument,
+        /// after the device synchronization but before the reset.
+        using reset_callback_type = void (*)(i32 device_id);
+
+        /// Add a callback to be called upon device reset.
+        /// This function is thread-safe. Adding the same callback multiple times is a no-op.
+        static void add_reset_callback(reset_callback_type callback);
+
+        /// Remove a callback to be called upon device reset.
+        /// This function is thread-safe.
+        static void remove_reset_callback(reset_callback_type callback);
 
     private:
         static auto parse_name_and_validate_(std::string_view name) -> i32 {

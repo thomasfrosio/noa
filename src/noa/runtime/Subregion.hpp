@@ -55,7 +55,7 @@ namespace noa::details {
         constexpr void operator()(const index4_type& output_indices) const {
             // TODO For CUDA, the origins could copied to constant memory.
             //      Although these can be loaded in a single vectorized instruction.
-            const auto corner_left = m_subregion_origins[output_indices[0]].reorder(m_order).template as<index_type>();
+            const auto corner_left = m_subregion_origins[output_indices[0]].permute(m_order).template as<index_type>();
 
             index4_type input_indices;
             if constexpr (origins_type::SIZE == 2) {
@@ -73,7 +73,7 @@ namespace noa::details {
                         output_indices[3] + corner_left[3],
                 };
             } else {
-                static_assert(nt::always_false<>);
+                static_assert(nt::always_false<origins_type>);
             }
 
             if constexpr (MODE == Border::NOTHING) {
@@ -143,7 +143,7 @@ namespace noa::details {
         constexpr void operator()(const index4_type& input_indices) const {
             // TODO For CUDA, the origins could copied to constant memory.
             //      Although these can be loaded in a single vectorized instruction.
-            const auto corner_left = m_subregion_origins[input_indices[0]].reorder(m_order).template as<index_type>();
+            const auto corner_left = m_subregion_origins[input_indices[0]].permute(m_order).template as<index_type>();
 
             index4_type output_indices;
             if constexpr (origins_type::SIZE == 2) {
@@ -161,7 +161,7 @@ namespace noa::details {
                         input_indices[3] + corner_left[3],
                 };
             } else {
-                static_assert(nt::always_false<>);
+                static_assert(nt::always_false<origins_type>);
             }
 
             // We assume no overlap in the output between subregions.
@@ -230,20 +230,16 @@ namespace noa {
         indice_t order;
         Vec<isize, 4> order_4d;
         if constexpr (indice_t::SIZE == 4) {
-            const auto order_3d = rightmost_order(subregion_strides.pop_front(), subregion_shape.pop_front()) + 1;
+            const auto order_3d = subregion_strides.pop_front().rightmost_order(subregion_shape.pop_front()) + 1;
             order_4d = order_3d.push_front(0);
             order = indice_t::from_values(0, order_3d[0], order_3d[1], order_3d[2]);
         } else {
-            const auto order_2d = rightmost_order(subregion_strides.filter(2, 3), subregion_shape.filter(2, 3));
+            const auto order_2d = subregion_strides.filter(2, 3).rightmost_order(subregion_shape.filter(2, 3));
             order_4d = (order_2d + 2).push_front(Vec<isize, 2>{0, 1});
             order = indice_t::from_vec(order_2d);
         }
-        if (order_4d != Vec<isize, 4>{0, 1, 2, 3}) {
-            input_strides = reorder(input_strides, order_4d);
-            input_shape = reorder(input_shape, order_4d);
-            subregion_strides = reorder(subregion_strides, order_4d);
-            subregion_shape = reorder(subregion_shape, order_4d);
-        }
+        if (order_4d != Vec<isize, 4>{0, 1, 2, 3})
+            nd::permute_all(order_4d, input_strides, input_shape, subregion_strides, subregion_shape);
 
         using input_accessor_t = AccessorRestrict<nt::const_value_type_t<Input>, 4, isize>;
         using subregion_accessor_t = AccessorRestrict<nt::value_type_t<Subregion>, 4, isize>;
@@ -314,20 +310,16 @@ namespace noa {
         indice_t order;
         Vec<isize, 4> order_4d;
         if constexpr (indice_t::SIZE == 4) {
-            const auto order_3d = rightmost_order(subregion_strides.pop_front(), subregion_shape.pop_front()) + 1;
+            const auto order_3d = subregion_strides.pop_front().rightmost_order(subregion_shape.pop_front()) + 1;
             order_4d = order_3d.push_front(0);
             order = indice_t::from_values(0, order_3d[0], order_3d[1], order_3d[2]);
         } else {
-            const auto order_2d = rightmost_order(subregion_strides.filter(2, 3), subregion_shape.filter(2, 3));
+            const auto order_2d = subregion_strides.filter(2, 3).rightmost_order(subregion_shape.filter(2, 3));
             order_4d = (order_2d + 2).push_front(Vec<isize, 2>{0, 1});
             order = indice_t::from_vec(order_2d);
         }
-        if (order_4d != Vec<isize, 4>{0, 1, 2, 3}) {
-            output_strides = reorder(output_strides, order_4d);
-            output_shape = reorder(output_shape, order_4d);
-            subregion_strides = reorder(subregion_strides, order_4d);
-            subregion_shape = reorder(subregion_shape, order_4d);
-        }
+        if (order_4d != Vec<isize, 4>{0, 1, 2, 3})
+            nd::permute_all(order_4d, output_strides, output_shape, subregion_strides, subregion_shape);
 
         using subregion_accessor_t = AccessorRestrict<nt::const_value_type_t<Subregion>, 4, isize>;
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, 4, isize>;

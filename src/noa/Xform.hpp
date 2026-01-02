@@ -2,10 +2,9 @@
 
 #include "noa/xform/core/CubicBSplinePrefilter.hpp"
 #include "noa/xform/core/Draw.hpp"
-#include "noa/xform/core/Euler.cpp"
 #include "noa/xform/core/Euler.hpp"
+#include "noa/xform/core/Interp.hpp"
 #include "noa/xform/core/Interpolation.hpp"
-#include "noa/xform/core/Mat.hpp"
 #include "noa/xform/core/Polar.hpp"
 #include "noa/xform/core/Quaternion.hpp"
 #include "noa/xform/core/Symmetry.hpp"

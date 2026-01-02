@@ -48,22 +48,13 @@ noa::iwise(
 
 ## `noa::ewise`
 
-The element-wise core function, `noa::ewise`, can be seen as a wrapper over the index-wise
-core function. This function is useful when the position of the element in the array(s)
-is not required, e.g. copy, fill, for arithmetics or other maths functions like `sin`. This
-takes the input and output arrays, and an element-wise operator. One advantage of this
-function over the `noa::iwise` function is that it can analyze the input and output array(s)
-to deduce the most efficient way to traverse them, by reordering the dimensions, collapsing
-contiguous dimensions together (up to 1d), and can trigger vectorization by checking for
-data contiguity and aliasing. For instance, `noa::ewise(input, output, noa::Copy{})`
-can be optimized up to a memcpy CPU instruction, and similarly, `noa::ewise(input, output, noa::Fill{0})`
-can be optimized up to a memset CPU instruction. On the GPU, vectorized load/store instructions can also be [used](031_gpu_vectorization.md).
+The element-wise core function, `noa::ewise`, can be seen as a wrapper over the index-wise core function. This function is useful when the position of the element in the array(s) is not required by the operator, e.g. copy, fill, for arithmetics or other maths functions like `sin`. `noa::ewise` takes the input and output arrays, and an element-wise operator. One advantage of this function over the `noa::iwise` function is that it can analyze the input and output array(s) to deduce the most efficient way to traverse them, by reordering the dimensions, collapsing contiguous dimensions together (up to 1d), and can trigger vectorization by checking for data contiguity and aliasing. For instance, `noa::ewise(input, output, noa::Copy{})` can be optimized up to a memcpy call, and similarly, `noa::ewise(input, output, noa::Fill{0})` an be optimized up to a memset call. On the GPU, [vectorized load/store instructions](031_gpu_vectorization.md) can also be used.
 
 The element-wise interface is defined as the following:
 ```c++
-// Zero/One input - Zero/One output.
+// Example with zero or one input, and zero or one output.
 
-// The template-function declaration looks like:
+// The template-function declaration looks something like:
 // template<typename Inputs, typename Outputs, typename F>
 // void noa::ewise(const Inputs&, const Outputs&, F&&);
 
@@ -72,24 +63,24 @@ The element-wise interface is defined as the following:
 // As such, any of the following would work.
 View<const f32> a;
 View<f64> b;
-noa::ewise(a, b, [](const f32&, f64&) {});
-noa::ewise(a, b, [](f32, f64&) {});
-noa::ewise(b, b, [](f64&, f64&) {});
+noa::ewise(a, b, [](const f32&, f64&) {/*...*/});
+noa::ewise(a, b, [](f32, f64&) {/*...*/});
+noa::ewise(b, b, [](f64&, f64&) {/*...*/});
 
-// Empty inputs or outputs are allowed:
-noa::ewise(a, {}, [](f32) {});
-noa::ewise({}, b, [](f64&) {});
+// No inputs or outputs are allowed:
+noa::ewise(a, {}, [](f32) {/*...*/});
+noa::ewise({}, b, [](f64&) {/*...*/});
 ```
 
 ```c++
-// Multiple inputs and outputs.
+// Example with multiple inputs and outputs.
 
 // To pass multiple arguments, noa::wrap and/or noa::fuse should be used.
 // These are simple types that behave (almost) as std::forward_as_tuple and
 // that can be understood by the ewise function.
 
-// noa::wrap says that the arguments should be passed as is, in the same order as specified.
-// noa::fuse says that the arguments should be fused in a Tuple. As mentionned above,
+// noa::wrap encodes that the arguments should be passed as is, in the same order as specified.
+// noa::fuse encodes that the arguments should be fused into a Tuple. As mentionned above,
 // the arguments are passed as lvalue references. The Tuple itself is also passed as a
 // lvalue reference.
 
@@ -97,16 +88,16 @@ View<const f32> a;
 View<const i32> b;
 View<f64> c;
 View<i64> d;
-noa::ewise(noa::wrap(a, b), noa::wrap(c, d), [](const f32&, const i32&, f64&, i64&) {});
-noa::ewise(noa::wrap(a, b), noa::wrap(c, d), [](f32, i32, f64&, i64&) {}); // inputs by value
+noa::ewise(noa::wrap(a, b), noa::wrap(c, d), [](const f32&, const i32&, f64&, i64&) {/*...*/});
+noa::ewise(noa::wrap(a, b), noa::wrap(c, d), [](f32, i32, f64&, i64&) {/*...*/}); // inputs by value
 noa::ewise(noa::fuse(a, b), noa::fuse(c, d),
-    [](const Tuple<const f32&, const i32&>&, const Tuple<f64&, i64&>&) {});
+    [](const Tuple<const f32&, const i32&>&, const Tuple<f64&, i64&>&) {/*...*/});
 
 // Fuse is mostly useful when the operator is meant to handle a variable number of inputs:
-struct EwiseSum {
+struct ReducePlus {
     // If inputs is a parameter pack, output cannot be specified due to how C++ works...
     // constexpr void operator()(auto... inputs, f32 output) {}
-
+    // So to circumvent this:
     template<typename... T>
     constexpr void operator()(const Tuple<const T&...>& inputs, f64& output) { // ok
         output = [&]<size_t... I>(std::index_sequence<I...>) {
@@ -114,19 +105,19 @@ struct EwiseSum {
         }(std::make_index_sequence<sizeof...(T)>{});
     }
 };
-noa::ewise(noa::fuse(a, b, d), c, EwiseSum{});
+noa::ewise(noa::fuse(a, b, d), c, ReducePlus{});
 ```
 
 Here's a slightly more real example:
 ```c++
-using namespace ::noa::types; // to imports i32, f32 and Tuple
+using namespace ::noa::types; // to imports i32, f32, Tuple and Array
 
 const auto buffer = noa::arange<f32>(300).reshape({3,1,10,10});
 const auto lhs = buffer.view().subregion(0); // shape=(1,1,10,10)
 const auto mhs = buffer.view().subregion(1); // same shape
 const auto rhs = buffer.view().subregion(2); // same shape
 
-const auto output_0 = noa::empty<f32>({1, 1, 10, 10});
+const auto output_0 = Array<f32>({1, 1, 10, 10});
 const auto output_1 = noa::like(output_1);
 
 // All inputs and outputs should be on the same device and have compatible shapes.
@@ -136,7 +127,7 @@ noa::ewise(
     [](i32 l, i32 m, i32 r, const Tuple<f32&, f32&>& outputs) {
         auto& [o0, o1] = outputs;
         o0 = l + m * 2;
-        o1 = noa::cos(m / l + r);
+        o1 = std::cos(m / l + r);
     });
 
 // The (sort of) equivalent in NumPy would be:

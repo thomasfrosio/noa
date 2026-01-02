@@ -2,7 +2,6 @@
 
 #include "noa/runtime/core/Border.hpp"
 #include "noa/runtime/core/Shape.hpp"
-#include "noa/runtime/core/Layout.hpp" // order
 
 namespace noa::inline types {
     enum class PointerTraits { DEFAULT, RESTRICT }; // TODO ATOMIC?
@@ -302,7 +301,7 @@ namespace noa {
                 }
             }
         } else {
-            const auto rightmost_order = noa::rightmost_order(strides, shape);
+            const auto rightmost_order = strides.rightmost_order(shape);
             for (usize i{}; i < N; ++i) {
                 const auto idx = rightmost_order[i];
                 if (shape[idx] > 1) {

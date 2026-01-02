@@ -204,7 +204,7 @@ namespace noa::details {
             else if constexpr (N == 4)
                 return {0, 1, 2, 3};
             else
-                static_assert(nt::always_false<>);
+                static_assert(nt::always_false<Outputs>);
         }();
 
         Shape<Index, N> output_shape;
@@ -215,8 +215,10 @@ namespace noa::details {
             static_assert(std::tuple_size_v<Outputs> > 0, "There should be at least one output");
 
             auto desired_shape = outputs[Tag<0>{}].shape().template as_safe<Index>();
+            NOA_NV_DIAG_SUPPRESS(186)
             for (usize i{}; i < 4 - N; ++i)
                 check(desired_shape[i] == 1, "For N={}, the output dimension {} must be empty", N, i);
+            NOA_NV_DIAG_DEFAULT(186)
 
             outputs.for_each_enumerate([&]<usize I, typename T>(T& output) {
                 check(device == output.device(),

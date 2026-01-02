@@ -1,7 +1,7 @@
 #pragma once
 
+#include "noa/runtime/core/Access.hpp"
 #include "noa/runtime/core/Shape.hpp"
-#include "noa/runtime/core/Offset.hpp"
 
 namespace noa {
     /// Defines evenly spaced values within a given interval.

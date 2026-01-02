@@ -91,7 +91,7 @@ namespace noa::cpu {
         i32 n_threads = 1
     ) {
         // Check contiguity.
-        const bool are_all_contiguous = noa::are_contiguous(input, shape);
+        const bool are_all_contiguous = nd::are_accessors_contiguous(input, shape);
         const isize n_elements = shape.template as<isize>().n_elements();
         i32 actual_n_threads = n_elements <= Config::n_elements_per_thread ? 1 : n_threads;
         if (actual_n_threads > 1)

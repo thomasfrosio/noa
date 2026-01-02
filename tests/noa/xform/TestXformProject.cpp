@@ -1,22 +1,23 @@
-#include <noa/unified/Array.hpp>
-#include <noa/unified/Factory.hpp>
-#include <noa/unified/geometry/Draw.hpp>
-#include <noa/unified/geometry/Project.hpp>
-#include <noa/unified/IO.hpp>
-#include <noa/core/utils/Zip.hpp>
+#include <noa/xform/core/Transform.hpp>
+#include <noa/xform/core/Euler.hpp>
+#include <noa/xform/Draw.hpp>
+#include <noa/xform/Project.hpp>
 
-#include <../../../../src/noa/xform/Euler.hpp>
-#include <noa/unified/Reduce.hpp>
+#include <noa/Runtime.hpp>
+#include <noa/IO.hpp>
+#include <noa/Signal.hpp>
+#include <noa/FFT.hpp>
 
 #include "Assets.hpp"
 #include "Catch.hpp"
 #include "Utils.hpp"
 
-using namespace noa::types;
-namespace ng = noa::geometry;
+using namespace ::noa::types;
+namespace nx = noa::xform;
+using Interp = nx::Interp;
 
-TEST_CASE("unified::geometry::project_3d, project sphere", "[asset]") {
-    const Path path_base = test::NOA_DATA_PATH / "geometry";
+TEST_CASE("xform::project_3d, project sphere", "[asset]") {
+    const Path path_base = test::NOA_DATA_PATH / "xform";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["project_3d"][0];
     const auto input_filename = path_base / param["input_images"].as<Path>();
     const auto output_volume_filename = path_base / param["output_volume"].as<Path>();
@@ -36,11 +37,11 @@ TEST_CASE("unified::geometry::project_3d, project sphere", "[asset]") {
     if constexpr (COMPUTE_ASSETS) {
         const auto inverse_matrices = noa::empty<Mat<f64, 2, 3>>(n_images);
         for (auto&& [matrix, shift]: noa::zip(inverse_matrices.span_1d(), shifts))
-            matrix = ng::translate(-shift).pop_back();
+            matrix = nx::translate(-shift).pop_back();
 
-        constexpr auto circle = ng::Sphere{.center = Vec{128., 128.}, .radius = 32., .smoothness = 5.};
+        constexpr auto circle = nx::Sphere{.center = Vec{128., 128.}, .radius = 32., .smoothness = 5.};
         const auto asset = noa::empty<f32>({n_images, 1, 256, 256});
-        ng::draw({}, asset, circle.draw(), inverse_matrices);
+        nx::draw({}, asset, circle.draw(), inverse_matrices);
         noa::write_image(asset, input_filename);
     }
 
@@ -57,16 +58,16 @@ TEST_CASE("unified::geometry::project_3d, project sphere", "[asset]") {
              shifts, tilts))
     {
         auto matrix =
-            ng::translate((center.pop_front() + shift).push_front(0)) *
-            ng::linear2affine(ng::rotate_y(noa::deg2rad(tilt))) *
-            ng::translate(-center);
+            nx::translate((center.pop_front() + shift).push_front(0)) *
+            nx::affine(nx::rotate_y(noa::deg2rad(tilt))) *
+            nx::translate(-center);
 
         backward_matrix = matrix.filter_rows(1, 2);
         forward_matrix = matrix.inverse().pop_back();
 
         projection_window_size = noa::max(
             projection_window_size,
-            ng::forward_projection_window_size(volume_shape, forward_matrix)
+            nx::forward_projection_window_size(volume_shape, forward_matrix)
         );
     }
 
@@ -86,7 +87,7 @@ TEST_CASE("unified::geometry::project_3d, project sphere", "[asset]") {
         {
             auto images = noa::read_image<f32>(input_filename, {}, options).data;
             auto volume = noa::empty<f32>(volume_shape.push_front(1), options);
-            ng::backward_project_3d(images, volume, backward_projection_matrices);
+            nx::backward_project_3d(images, volume, backward_projection_matrices);
             if constexpr (COMPUTE_ASSETS) {
                 noa::write_image(volume, output_volume_filename);
             } else {
@@ -98,10 +99,10 @@ TEST_CASE("unified::geometry::project_3d, project sphere", "[asset]") {
         // Forward project.
         {
             const auto volume = noa::empty<f32>(volume_shape.push_front(1), options);
-            ng::draw({}, volume, ng::Sphere{.center = center, .radius = 32., .smoothness = 0.}.draw());
+            nx::draw({}, volume, nx::Sphere{.center = center, .radius = 32., .smoothness = 0.}.draw());
 
             auto images = noa::zeros<f32>({n_images, 1, 256, 256}, options);
-            ng::forward_project_3d(
+            nx::forward_project_3d(
                 volume, images, forward_projection_matrices,
                 projection_window_size, {.add_to_output = true}
             );
@@ -115,8 +116,8 @@ TEST_CASE("unified::geometry::project_3d, project sphere", "[asset]") {
     }
 }
 
-TEST_CASE("unified::geometry::project_3d, fused", "[asset]") {
-    const Path path_base = test::NOA_DATA_PATH / "geometry";
+TEST_CASE("xform::project_3d, fused", "[asset]") {
+    const Path path_base = test::NOA_DATA_PATH / "xform";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["project_3d"][1];
     const auto image_normal = path_base / param["image_normal"].as<Path>();
     const auto image_fused = path_base / param["image_fused"].as<Path>();
@@ -130,23 +131,23 @@ TEST_CASE("unified::geometry::project_3d, fused", "[asset]") {
     auto backward_projection_matrices = noa::empty<Mat<f64, 2, 4>>(n_images);
     for (auto&& [backward_matrix, tilt]: noa::zip(backward_projection_matrices.span_1d(), tilts)) {
         backward_matrix = (
-            ng::translate((center.pop_front()).push_front(0)) *
-            ng::linear2affine(ng::rotate_y(noa::deg2rad(tilt))) *
-            ng::translate(-center)
+            nx::translate((center.pop_front()).push_front(0)) *
+            nx::affine(nx::rotate_y(noa::deg2rad(tilt))) *
+            nx::translate(-center)
         ).filter_rows(1, 2);
     }
 
     auto forward_projection_matrix = (
-        ng::translate((center.pop_front()).push_front(0)) *
-        ng::linear2affine(ng::euler2matrix(noa::deg2rad(Vec{0., 40., 90.}), {.axes = "zyx", .intrinsic = false})) *
-        ng::translate(-center)
+        nx::translate((center.pop_front()).push_front(0)) *
+        nx::affine(nx::euler2matrix(noa::deg2rad(Vec{0., 40., 90.}), {.axes = "zyx", .intrinsic = false})) *
+        nx::translate(-center)
     ).inverse().pop_back();
-    auto projection_window_size = ng::forward_projection_window_size(volume_shape, forward_projection_matrix);
+    auto projection_window_size = nx::forward_projection_window_size(volume_shape, forward_projection_matrix);
     REQUIRE(projection_window_size == 259);
 
-    constexpr auto circle = ng::Sphere{.center = Vec{128., 128.}, .radius = 32., .smoothness = 5.};
+    constexpr auto circle = nx::Sphere{.center = Vec{128., 128.}, .radius = 32., .smoothness = 5.};
     auto images = noa::empty<f32>({n_images, 1, 256, 256});
-    ng::draw({}, images, circle.draw());
+    nx::draw({}, images, circle.draw());
 
     std::vector<Device> devices{"cpu"};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
@@ -164,8 +165,8 @@ TEST_CASE("unified::geometry::project_3d, fused", "[asset]") {
 
         { // normal
             auto volume = noa::empty<f32>(volume_shape.push_front(1), options);
-            ng::backward_project_3d(images, volume, backward_projection_matrices, {.interp = noa::Interp::CUBIC});
-            ng::forward_project_3d(
+            nx::backward_project_3d(images, volume, backward_projection_matrices, {.interp = Interp::CUBIC});
+            nx::forward_project_3d(
                 volume, projected_image, forward_projection_matrix,
                 projection_window_size, {.add_to_output = true}
             );
@@ -178,10 +179,10 @@ TEST_CASE("unified::geometry::project_3d, fused", "[asset]") {
         }
 
         { // fused
-            ng::backward_and_forward_project_3d(
+            nx::backward_and_forward_project_3d(
                 images, projected_image, volume_shape,
                 backward_projection_matrices, forward_projection_matrix,
-                projection_window_size, {.interp = noa::Interp::CUBIC}
+                projection_window_size, {.interp = nx::Interp::CUBIC}
             );
             if constexpr (COMPUTE_ASSETS) {
                 noa::write_image(projected_image, image_fused);
@@ -193,8 +194,8 @@ TEST_CASE("unified::geometry::project_3d, fused", "[asset]") {
     }
 }
 
-TEST_CASE("unified::geometry::project_3d, projection window", "[.]") {
-    const Path path_base = test::NOA_DATA_PATH / "geometry";
+TEST_CASE("xform::project_3d, projection window", "[.]") {
+    const Path path_base = test::NOA_DATA_PATH / "xform";
 
     constexpr auto volume_shape = Shape<isize, 3>{64, 256, 256};
     constexpr auto center = (volume_shape.vec / 2).as<f64>();
@@ -204,13 +205,13 @@ TEST_CASE("unified::geometry::project_3d, projection window", "[.]") {
 
     for (auto tilt: std::array{60.}) {
         auto forward_matrix = (
-            ng::translate(center) *
-            ng::linear2affine(ng::rotate_y(noa::deg2rad(tilt + 180))) *
-            ng::translate(-center)
+            nx::translate(center) *
+            nx::affine(nx::rotate_y(noa::deg2rad(tilt + 180))) *
+            nx::translate(-center)
         ).inverse().pop_back();
 
-        auto projection_window_size = ng::forward_projection_window_size(volume_shape, forward_matrix);
-        ng::forward_project_3d(volume, images, forward_matrix, projection_window_size, {.interp = noa::Interp::CUBIC});
+        auto projection_window_size = nx::forward_projection_window_size(volume_shape, forward_matrix);
+        nx::forward_project_3d(volume, images, forward_matrix, projection_window_size, {.interp = Interp::CUBIC});
         noa::write_image(images, path_base / "test_image.mrc");
     }
 }

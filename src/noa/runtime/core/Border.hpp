@@ -39,7 +39,7 @@ namespace noa {
             NOTHING
         } value;
 
-    public: // simplify Interp::Method into Interp
+    public:
         using enum Method;
         constexpr Border() noexcept = default;
         NOA_HD constexpr /*implicit*/ Border(Method value_) noexcept: value(value_) {}
@@ -81,7 +81,7 @@ namespace noa {
     inline auto operator<<(std::ostream& os, Border::Method interp) -> std::ostream& { return os << Border(interp); }
 }
 
-// fmt 9.1.0 fix (Disabled automatic std::ostream insertion operator)
 namespace fmt {
     template<> struct formatter<noa::Border> : ostream_formatter {};
+    template<> struct formatter<noa::Border::Method> : ostream_formatter {};
 }

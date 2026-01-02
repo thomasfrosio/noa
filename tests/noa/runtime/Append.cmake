@@ -1,4 +1,6 @@
 list(APPEND TEST_SOURCES
+    noa/runtime/test.cpp
+
     noa/runtime/core/TestRuntimeCoreAccessor.cpp
     noa/runtime/core/TestRuntimeCoreIndexing.cpp
     noa/runtime/core/TestRuntimeCoreInterfaces.cpp

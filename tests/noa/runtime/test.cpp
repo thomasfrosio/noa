@@ -1,23 +1,24 @@
-#include <iostream>
-
 #include <noa/Runtime.hpp>
-#include <noa/Signal.hpp>
-#include <noa/Geometry.hpp>
-#include <noa/IO.hpp>
-
+#include <noa/Xform.hpp>
+#include <noa/FFT.hpp>
 #include "Catch.hpp"
-#include "Utils.hpp"
 
-namespace {
-    using namespace noa::types;
-    namespace ns = noa::signal;
-    namespace ng = noa::geometry;
-    namespace nf = noa::fft;
-}
+namespace nx = noa::xform;
 
-TEST_CASE("test::Array BDHW", "[.]") {
-    auto xmap = noa::read_image<f32>("~/Tmp/noa/test_peak/xmap.mrc").data;
-    auto shape = Shape4{1, 2, 3, 4};
+TEST_CASE("xxtest") {
+    // Create an array of uninitialized values of two 1024x1024 images on the GPU.
+    auto images = noa::zeros<float>({1, 1, 512, 512}, {.device = "gpu", .allocator = "managed"});
 
-    noa::
+    // auto matmul = noa::like(images);
+    // noa::matmul(images, images, matmul);
+    auto rfft = noa::fft::r2c(images);
+    auto device = images.device();
+    images = {};
+    rfft = {};
+
+    device.reset();
+    images = noa::zeros<float>({1, 1, 512, 512}, {.device = device, .allocator = "managed"});
+    // noa::matmul(images, images, matmul);
+    rfft = noa::fft::r2c(images);
+    fmt::println("dot product\n");
 }

@@ -119,7 +119,7 @@ namespace noa::details {
                     const auto& first_output = outputs[Tag<0>{}];
                     shape = first_output.shape();
                     device = first_output.device();
-                    order = noa::rightmost_order(first_output.strides(), shape);
+                    order = first_output.strides().rightmost_order(shape);
                     do_reorder = order != Vec<isize, 4>{0, 1, 2, 3};
 
                     outputs.for_each_enumerate([&]<usize I>(const nt::varray auto& output) {
@@ -134,7 +134,7 @@ namespace noa::details {
                             check(shape == output.shape(),
                                   "Output arrays should have the same shape, but got shape:0={} and shape:{}={}",
                                   shape, I, output.shape());
-                            check(order == noa::rightmost_order(output.strides(), shape),
+                            check(order == output.strides().rightmost_order(shape),
                                   "Output arrays should have the same stride order, but got strides:0={} and strides:{}={}",
                                   first_output.strides(), I, output.strides());
                         }
@@ -163,7 +163,7 @@ namespace noa::details {
                         }
                     });
                 } else {
-                    static_assert(nt::always_false<>, "The outputs should be varrays");
+                    static_assert(nt::always_false<Outputs>, "The outputs should be varrays");
                 }
             } else { // N_INPUTS >= 1
                 constexpr isize index_of_first_varray = details::index_of_first_varray<Inputs>();
@@ -172,7 +172,7 @@ namespace noa::details {
                     const auto& first_input_array = inputs[Tag<INDEX>{}];
                     shape = first_input_array.shape();
                     device = first_input_array.device();
-                    order = noa::rightmost_order(first_input_array.strides(), shape);
+                    order = first_input_array.strides().rightmost_order(shape);
                     do_reorder = order != Vec<isize, 4>{0, 1, 2, 3};
 
                     inputs.for_each_enumerate([&]<usize I, typename T>(T& input) {
@@ -188,7 +188,7 @@ namespace noa::details {
 
                             // Only reorder if all the inputs have the same order.
                             if (do_reorder)
-                                do_reorder = order == noa::rightmost_order(input.strides(), shape);
+                                do_reorder = order == input.strides().rightmost_order(shape);
                             // TODO Forcing the same order is okay, but may be a bit too restrictive since it effectively
                             //      prevents automatic broadcasting (the caller can still explicitly broadcast though).
                             //      We may instead find the input with the largest effective shape and use it as
@@ -196,13 +196,13 @@ namespace noa::details {
                         }
                     });
                 } else {
-                    static_assert(nt::always_false<>, "For cases with inputs but without outputs, there should be at least one input varray");
+                    static_assert(nt::always_false<Outputs>, "For cases with inputs but without outputs, there should be at least one input varray");
                 }
             }
 
             if (do_reorder) {
-                shape = shape.reorder(order);
-                nd::reorder_accessors(order, input_accessors, output_accessors);
+                shape = shape.permute(order);
+                nd::permute_accessors(order, input_accessors, output_accessors);
             }
 
             Stream& stream = Stream::current(device);

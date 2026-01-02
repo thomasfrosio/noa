@@ -1,14 +1,12 @@
-#include <noa/core/io/TextFile.hpp>
-#include <noa/core/utils/Zip.hpp>
-#include <noa/unified/IO.hpp>
-
-#include <noa/unified/fft/Remap.hpp>
-#include <noa/unified/geometry/Draw.hpp>
-#include <noa/unified/geometry/CubicBSplinePrefilter.hpp>
-#include <noa/unified/geometry/PolarTransformSpectrum.hpp>
-#include <noa/unified/geometry/RotationalAverage.hpp>
-#include <noa/unified/Reduce.hpp>
-#include <noa/unified/signal/CTF.hpp>
+#include <noa/fft/Remap.hpp>
+#include <noa/IO.hpp>
+#include <noa/base/Zip.hpp>
+#include <noa/runtime/Reduce.hpp>
+#include <noa/signal/CTF.hpp>
+#include <noa/xform/CubicBSplinePrefilter.hpp>
+#include <noa/xform/Draw.hpp>
+#include <noa/xform/PolarTransformSpectrum.hpp>
+#include <noa/xform/RotationalAverage.hpp>
 
 #include "Assets.hpp"
 #include "Utils.hpp"
@@ -16,7 +14,7 @@
 
 using namespace noa::types;
 
-TEST_CASE("unified::geometry::spectrum2polar") {
+TEST_CASE("xform::spectrum2polar") {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -45,14 +43,14 @@ TEST_CASE("unified::geometry::spectrum2polar") {
         });
 
         const auto polar = noa::Array<f32>(polar_shape, options);
-        noa::geometry::spectrum2polar<"h2fc">(spectrum, spectrum_shape, polar, {
+        noa::xform::spectrum2polar<"h2fc">(spectrum, spectrum_shape, polar, {
             .spectrum_fftfreq = noa::Linspace{0., 0.4, true},
             .rho_range = noa::Linspace{0.1, 0.35, true},
-            .interp = noa::Interp::CUBIC,
+            .interp = noa::xform::Interp::CUBIC,
         });
 
         const auto polar_1d = noa::Array<f32>(polar.shape().set<2>(1), options);
-        noa::reduce_axes_ewise(polar, f64{}, polar_1d, noa::ReduceMean{static_cast<f64>(polar.shape()[2])});
+        noa::reduce_axes_ewise(polar, f64{0}, polar_1d, noa::ReduceMean{static_cast<f64>(polar.shape()[2])});
 
         auto spectrum_1d = noa::Array<f32>(spectrum_1d_shape.rfft(), options);
         noa::signal::ctf_isotropic<"h2h">(spectrum_1d, spectrum_1d_shape, ctf, {
@@ -127,7 +125,7 @@ TEST_CASE("unified::geometry::spectrum2polar") {
 //     };
 // }
 //
-// TEST_CASE("unified::geometry::spectrum2polar, anisotropic") {
+// TEST_CASE("xform::spectrum2polar, anisotropic") {
 //     std::vector<Device> devices{"cpu"};
 //     if (Device::is_any_gpu())
 //         devices.emplace_back("gpu");
@@ -165,11 +163,11 @@ TEST_CASE("unified::geometry::spectrum2polar") {
 //
 //         auto spectrum2 = spectrum.copy();
 //         noa::cubic_bspline_prefilter(spectrum2, spectrum2);
-//         noa::geometry::spectrum2polar<"h2fc">(spectrum2, spectrum_shape, polar, {
+//         noa::xform::spectrum2polar<"h2fc">(spectrum2, spectrum_shape, polar, {
 //             .spectrum_fftfreq = input_range,
 //             .rho_range = rho_range,
 //             .phi_range = phi_range,
-//             .interp = noa::Interp::CUBIC_BSPLINE,
+//             .interp = noa::xform::Interp::CUBIC_BSPLINE,
 //         });
 //
 //         noa::write_image(polar, "/Users/cix56657/Tmp/test_polar.mrc");
@@ -189,7 +187,7 @@ TEST_CASE("unified::geometry::spectrum2polar") {
 //         noa::write_image(rotational_average, "/Users/cix56657/Tmp/test_rotational_average.mrc");
 //
 //         const auto rotational_average2 = noa::Array<f32>(polar.shape().set<2>(1), options);
-//         noa::geometry::rotational_average_anisotropic<"h2h">(spectrum, spectrum_shape, ctf, rotational_average2, {}, {
+//         noa::xform::rotational_average_anisotropic<"h2h">(spectrum, spectrum_shape, ctf, rotational_average2, {}, {
 //             .input_fftfreq = input_range,
 //             .output_fftfreq = rho_range
 //         });
@@ -198,7 +196,7 @@ TEST_CASE("unified::geometry::spectrum2polar") {
 //     }
 // }
 
-TEST_CASE("unified::geometry::rotational_average") {
+TEST_CASE("xform::rotational_average") {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -213,9 +211,9 @@ TEST_CASE("unified::geometry::rotational_average") {
     };
     const i64 frequency_range_n_shells = size == 64 ? 13 : 14;
     const auto frequency_range_start_index = size == 64 ? 8 : 13;
-    const auto subregion_within_full_range = noa::indexing::make_subregion<4>(
-        noa::indexing::Ellipsis{},
-        noa::indexing::Slice{
+    const auto subregion_within_full_range = noa::make_subregion<4>(
+        Ellipsis{},
+        Slice{
             frequency_range_start_index,
             frequency_range_start_index + frequency_range_n_shells
         }
@@ -233,7 +231,7 @@ TEST_CASE("unified::geometry::rotational_average") {
         INFO(device);
 
         const auto input = noa::zeros<f32>(shape, options);
-        noa::geometry::draw({}, input, noa::geometry::Sphere{
+        noa::xform::draw({}, input, noa::xform::Sphere{
             .center=center,
             .radius=0.,
             .smoothness=noa::min(center),
@@ -242,14 +240,14 @@ TEST_CASE("unified::geometry::rotational_average") {
         // Rotational average using polar transformation.
         const auto input_rfft = noa::fft::remap("FC2HC", input, shape);
         const auto polar = noa::zeros<f32>(polar_shape, options);
-        noa::geometry::spectrum2polar<"HC2FC">(input_rfft, shape, polar);
+        noa::xform::spectrum2polar<"HC2FC">(input_rfft, shape, polar);
         const auto polar_reduced = noa::zeros<f32>(rotational_average_shape, options);
         noa::mean(polar, polar_reduced);
 
         // Rotational average.
         const auto output = noa::empty<f32>(rotational_average_shape, options);
         const auto weight = noa::empty<f32>(rotational_average_shape, options);
-        noa::geometry::rotational_average<"HC2H">(input_rfft, shape, output, weight);
+        noa::xform::rotational_average<"HC2H">(input_rfft, shape, output, weight);
 
         // fmt::print("{:.3f}\n", fmt::join(polar_reduced.eval().span_1d(), ","));
         // fmt::print("{:.3f}\n", fmt::join(output.eval().span_1d(), ","));
@@ -261,7 +259,7 @@ TEST_CASE("unified::geometry::rotational_average") {
         // Use the same number of shells, so it can be compared with the full range.
         const auto output_range = noa::empty<f32>({n_batch, 1, 1, frequency_range_n_shells}, options);
         const auto weight_range = noa::like(output_range);
-        noa::geometry::rotational_average<"HC2H">(
+        noa::xform::rotational_average<"HC2H">(
             input_rfft, shape, output_range, weight_range, {.output_fftfreq = frequency_range});
 
         const auto output_cropped = output.subregion(subregion_within_full_range);
@@ -274,7 +272,6 @@ TEST_CASE("unified::geometry::rotational_average") {
         // that happens when collecting the signal from every frequency. Here, the cutoff excludes everything
         // that is not in the range, but with the full range and then cropping, we still have the contribution
         // from the frequencies between the first and first-1 shells, and last and last+1 shells.
-        using namespace noa::indexing;
         REQUIRE(test::allclose_abs(
             output_cropped.subregion(Ellipsis{}, Slice{1, -1}),
             output_range.subregion(Ellipsis{}, Slice{1, -1}),
@@ -286,7 +283,7 @@ TEST_CASE("unified::geometry::rotational_average") {
     }
 }
 
-TEST_CASE("unified::geometry::rotational_average_anisotropic, vs isotropic") {
+TEST_CASE("xform::rotational_average_anisotropic, vs isotropic") {
     // Test that with an isotropic ctf it gives the same results as the classic rotational average.
 
     std::vector<Device> devices{"cpu"};
@@ -321,8 +318,8 @@ TEST_CASE("unified::geometry::rotational_average_anisotropic, vs isotropic") {
 
         noa::signal::ctf_isotropic<"H2H">(simulated_ctf, shape, ctf_iso);
 
-        noa::geometry::rotational_average<"H2H">(simulated_ctf, shape, result);
-        noa::geometry::rotational_average_anisotropic<"H2H">(
+        noa::xform::rotational_average<"H2H">(simulated_ctf, shape, result);
+        noa::xform::rotational_average_anisotropic<"H2H">(
             simulated_ctf, shape, CTFAnisotropic64::from_isotropic_ctf(ctf_iso), expected);
 
         REQUIRE(test::allclose_abs(result, expected, 1e-4));
@@ -347,7 +344,7 @@ TEST_CASE("unified::geometry::rotational_average_anisotropic, vs isotropic") {
         const auto ctfs_array = View(ctfs.data(), ctfs.size()).to(options);
 
         noa::signal::ctf_anisotropic<"H2H">(simulated_ctf, batched_shape, ctfs_array);
-        noa::geometry::rotational_average_anisotropic<"H2H">(
+        noa::xform::rotational_average_anisotropic<"H2H">(
             simulated_ctf, batched_shape, ctfs_array, rotational_averages);
 
         const auto expected = rotational_averages.subregion(0);
@@ -360,7 +357,7 @@ TEST_CASE("unified::geometry::rotational_average_anisotropic, vs isotropic") {
 namespace {
     template<typename Real>
     void save_vector_to_text(View<Real> x, const Path& filename) {
-        noa::check(noa::indexing::is_contiguous_vector_batched_strided(x));
+        noa::check(noa::is_contiguous_vector_batched_strided(x));
 
         std::string format;
         for (auto i: noa::irange(x.shape().batch()))
@@ -369,9 +366,9 @@ namespace {
     }
 }
 
-TEST_CASE("unified::geometry::fuse_spectra") {
+TEST_CASE("xform::fuse_spectra") {
     // Simulate two 1d CTFs with different spacing and defocus, then fuse to another CTF, and check that they match.
-    // const auto directory = test::NOA_DATA_PATH / "geometry";
+    // const auto directory = test::NOA_DATA_PATH / "xform";
 
     using CTFIsotropic64 = noa::signal::CTFIsotropic<f64>;
     constexpr auto defocus = std::array{2.15, 2.90, 2.4};
@@ -413,7 +410,7 @@ TEST_CASE("unified::geometry::fuse_spectra") {
 
     // Output CTF.
     const auto output = noa::like(target);
-    noa::geometry::fuse_spectra(
+    noa::xform::fuse_spectra(
         input, {.start = 0., .stop = 0.5}, input_ctfs,
         output, {.start = 0.1, .stop = 0.4}, target_ctf
     );
@@ -424,7 +421,7 @@ TEST_CASE("unified::geometry::fuse_spectra") {
 }
 
 // TODO Add better tests...
-TEST_CASE("unified::geometry::phase_spectra") {
+TEST_CASE("xform::phase_spectra") {
     using CTFIsotropic64 = noa::signal::CTFIsotropic<f64>;
     constexpr auto defocus = std::array{2.15, 2.90, 2.4};
     constexpr auto spacing = std::array{1.80, 2.40, 2.};
@@ -465,20 +462,20 @@ TEST_CASE("unified::geometry::phase_spectra") {
 
     // Output CTF.
     const auto output = noa::like(input);
-    noa::geometry::phase_spectra(
+    noa::xform::phase_spectra(
         input, {.start = 0., .stop = 0.5}, input_ctfs,
         output, {.start = 0.1, .stop = 0.4}, target_ctf
     );
 
-    const auto directory = test::NOA_DATA_PATH / "geometry";
+    const auto directory = test::NOA_DATA_PATH / "xform";
     save_vector_to_text(target.view(), directory / "test_expected_average.txt");
     save_vector_to_text(output.view(), directory / "test_result_average.txt");
 
-    REQUIRE(test::allclose_abs(noa::indexing::broadcast(target, output.shape()), output, 5e-2));
+    REQUIRE(test::allclose_abs(noa::broadcast(target, output.shape()), output, 5e-2));
 }
 
-TEST_CASE("unified::geometry::rotational_average_anisotropic, test", "[.]") {
-    const auto directory = test::NOA_DATA_PATH / "geometry";
+TEST_CASE("xform::rotational_average_anisotropic, test", "[.]") {
+    const auto directory = test::NOA_DATA_PATH / "xform";
     const auto shape = Shape4{1, 1, 1024, 1024};
     const auto n_shells = noa::min(shape.filter(2, 3)) / 2 + 1;
 
@@ -490,7 +487,7 @@ TEST_CASE("unified::geometry::rotational_average_anisotropic, test", "[.]") {
     noa::write_image(ctf, directory / "test_simulated_ctf.mrc");
 
     const auto rotational_average = noa::empty<f32>(n_shells);
-    noa::geometry::rotational_average_anisotropic<"FC2H">(
+    noa::xform::rotational_average_anisotropic<"FC2H">(
         ctf, shape, ctf_aniso, rotational_average);
     noa::write_text(
         fmt::format("{}", fmt::join(rotational_average.span_1d(), ",")),

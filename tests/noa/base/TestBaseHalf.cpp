@@ -39,7 +39,7 @@ TEST_CASE("base::Half") {
     REQUIRE(true == static_cast<bool>(hb));
     REQUIRE(i16{4} == static_cast<i16>(hb));
     REQUIRE(u16{4} == static_cast<u16>(hb));
-    REQUIRE(i32{4} == static_cast<i32>(hb));
+    REQUIRE(4 == static_cast<i32>(hb));
     REQUIRE(u32{4} == static_cast<u32>(hb));
     REQUIRE(i64{4} == static_cast<i64>(hb));
     REQUIRE(u64{4} == static_cast<u64>(hb));

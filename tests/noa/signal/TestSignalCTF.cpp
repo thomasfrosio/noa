@@ -18,7 +18,7 @@ TEST_CASE("signal::ctf_isotropic, assets", "[asset]") {
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";
+    const Path path_base = test::NOA_DATA_PATH / "signal";
     const YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["ctf_isotropic"];
     using CTFIsotropic64 = noa::signal::CTFIsotropic<f64>;
 
@@ -148,7 +148,7 @@ TEST_CASE("signal::ctf_isotropic, range") {
         const Vec<f64, 2>& fitting_range, // angstrom
         const Vec<f64, 2>& spacing, // angstrom/pixel
         i64 logical_size
-    ) -> std::tuple<i64, noa::indexing::Slice, Vec<f64, 2>> {
+    ) -> std::tuple<i64, Slice, Vec<f64, 2>> {
         const auto logical_size_f = static_cast<f64>(logical_size);
         auto frequency_cutoff = noa::round(spacing / fitting_range * logical_size_f);
         const auto index_cutoff = frequency_cutoff.as<i64>();
@@ -162,7 +162,7 @@ TEST_CASE("signal::ctf_isotropic, range") {
         const auto new_size = index_cutoff[1] - index_cutoff[0];
         const auto new_logical_size = (new_size - 1) * 2;
 
-        return {new_logical_size, noa::indexing::Slice{index_cutoff[0], index_cutoff[1]}, actual_fitting_range};
+        return {new_logical_size, Slice{index_cutoff[0], index_cutoff[1]}, actual_fitting_range};
     };
 
     std::vector<Device> devices{"cpu"};
@@ -181,7 +181,7 @@ TEST_CASE("signal::ctf_isotropic, range") {
         // Get the truncated range and truncate the full range.
         const auto [trimmed_size, trimmed_slice, trimmed_resolution_range] =
             trimmed_range(resolution_range, Vec<f64, 2>::from_value(ctf.pixel_size()), shape.n_elements());
-        const auto output_truncated = output.subregion(noa::indexing::Ellipsis{}, trimmed_slice);
+        const auto output_truncated = output.subregion(Ellipsis{}, trimmed_slice);
 
         // Generate the truncated
         const auto output_range = noa::empty<f32>(trimmed_size / 2 + 1, options);
@@ -205,7 +205,7 @@ TEST_CASE("signal::ctf_anisotropic, assets", "[asset]") {
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";
+    const Path path_base = test::NOA_DATA_PATH / "signal";
     const YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["ctf_anisotropic"];
     using CTFAnisotropic64 = noa::signal::CTFAnisotropic<f64>;
     using DefocusAstigmatic64 = noa::signal::DefocusAstigmatic<f64>;

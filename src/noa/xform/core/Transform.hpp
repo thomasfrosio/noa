@@ -1,10 +1,8 @@
 #pragma once
 
-#include "noa/runtime/core/Config.hpp"
-#include "noa/runtime/core/Math.hpp"
-#include "noa/runtime/core/Traits.hpp"
-#include "noa/xform/core/Interpolation.hpp"
-#include "noa/xform/core/Mat.hpp"
+#include "noa/base/Mat.hpp"
+#include "noa/base/Math.hpp"
+#include "noa/xform/Traits.hpp"
 
 namespace noa::xform {
     /// Returns a 2x2 HW scaling matrix.
@@ -21,8 +19,7 @@ namespace noa::xform {
     /// in-plane rotation by \p angle radians.
     template<bool AFFINE = false, nt::real T>
     constexpr auto rotate(T angle) -> Mat<T, 2 + AFFINE, 2 + AFFINE> {
-        T c = cos(angle);
-        T s = sin(angle);
+        auto [s, c] = sincos(angle);
         if constexpr (AFFINE) {
             return {{{ c, s, 0},
                      {-s, c, 0},
@@ -43,41 +40,29 @@ namespace noa::xform {
     }
 
     template<typename T, usize A = 0>
-    constexpr auto linear2affine(const Mat22<T>& linear, const Vec<T, 2, A>& translate = {}) -> Mat33<T> {
+    constexpr auto affine(const Mat22<T>& linear, const Vec<T, 2, A>& translate = {}) -> Mat33<T> {
         return {{{linear[0][0], linear[0][1], translate[0]},
                  {linear[1][0], linear[1][1], translate[1]},
                  {0, 0, 1}}};
     }
 
-    template<typename T, usize A = 0>
-    constexpr auto linear2truncated(const Mat22<T>& linear, const Vec<T, 2, A>& translate = {}) -> Mat23<T> {
-        return {{{linear[0][0], linear[0][1], translate[0]},
-                 {linear[1][0], linear[1][1], translate[1]}}};
-    }
-
     template<typename T>
-    constexpr auto truncated2affine(const Mat23<T>& truncated) -> Mat33<T> {
+    constexpr auto affine(const Mat23<T>& truncated) -> Mat33<T> {
         return {{{truncated[0][0], truncated[0][1], truncated[0][2]},
                  {truncated[1][0], truncated[1][1], truncated[1][2]},
                  {0, 0, 1}}};
     }
 
     template<typename T>
-    constexpr auto affine2linear(const Mat33<T>& affine) -> Mat22<T> {
+    constexpr auto linear(const Mat33<T>& affine) -> Mat22<T> {
         return {{{affine[0][0], affine[0][1]},
                  {affine[1][0], affine[1][1]}}};
     }
 
     template<typename T>
-    constexpr auto truncated2linear(const Mat23<T>& truncated) -> Mat22<T> {
+    constexpr auto linear(const Mat23<T>& truncated) -> Mat22<T> {
         return {{{truncated[0][0], truncated[0][1]},
                  {truncated[1][0], truncated[1][1]}}};
-    }
-
-    template<typename T>
-    constexpr auto affine2truncated(const Mat33<T>& affine) -> Mat23<T> {
-        return {{{affine[0][0], affine[0][1], affine[0][2]},
-                 {affine[1][0], affine[1][1], affine[1][2]}}};
     }
 }
 
@@ -96,8 +81,7 @@ namespace noa::xform {
     /// by \p angle radians around the outermost axis.
     template<bool AFFINE = false, nt::real T>
     constexpr auto rotate_z(T angle) -> Mat<T, 3 + AFFINE, 3 + AFFINE> {
-        T c = cos(angle);
-        T s = sin(angle);
+        auto [s, c] = sincos(angle);
         if constexpr (AFFINE) {
             return {{{1, 0, 0, 0},
                      {0, c, s, 0},
@@ -114,8 +98,7 @@ namespace noa::xform {
     /// by \p angle radians around the second-most axis.
     template<bool AFFINE = false, nt::real T>
     constexpr auto rotate_y(T angle) -> Mat<T, 3 + AFFINE, 3 + AFFINE> {
-        T c = cos(angle);
-        T s = sin(angle);
+        auto [s, c] = sincos(angle);
         if constexpr (AFFINE) {
             return {{{c, 0,-s, 0},
                      {0, 1, 0, 0},
@@ -132,8 +115,7 @@ namespace noa::xform {
     /// by \p angle radians around the innermost axis.
     template<bool AFFINE = false, nt::real T>
     constexpr auto rotate_x(T angle) -> Mat<T, 3 + AFFINE, 3 + AFFINE> {
-        T c = cos(angle);
-        T s = sin(angle);
+        auto [s, c] = sincos(angle);
         if constexpr (AFFINE) {
             return {{{ c, s, 0, 0},
                      {-s, c, 0, 0},
@@ -154,8 +136,7 @@ namespace noa::xform {
         // see https://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToMatrix/index.htm
         NOA_ASSERT(allclose(norm(axis), static_cast<T>(1))); // axis should be normalized.
 
-        T c = cos(static_cast<T>(angle));
-        T s = sin(static_cast<T>(angle));
+        auto [s, c] = sincos(static_cast<T>(angle));
         T t = 1 - c;
         return {{{axis[0] * axis[0] * t + c,
                   axis[1] * axis[0] * t + axis[2] * s,
@@ -179,22 +160,15 @@ namespace noa::xform {
     }
 
     template<nt::real T, usize A = 0>
-    constexpr auto linear2affine(const Mat33<T>& linear, const Vec<T, 3, A>& translate = {}) -> Mat44<T> {
+    constexpr auto affine(const Mat33<T>& linear, const Vec<T, 3, A>& translate = {}) -> Mat44<T> {
         return {{{linear[0][0], linear[0][1], linear[0][2], translate[0]},
                  {linear[1][0], linear[1][1], linear[1][2], translate[1]},
                  {linear[2][0], linear[2][1], linear[2][2], translate[2]},
                  {0, 0, 0, 1}}};
     }
 
-    template<nt::real T, usize A = 0>
-    constexpr auto linear2truncated(const Mat33<T>& linear, const Vec<T, 3, A>& translate = {}) -> Mat34<T> {
-        return {{{linear[0][0], linear[0][1], linear[0][2], translate[0]},
-                 {linear[1][0], linear[1][1], linear[1][2], translate[1]},
-                 {linear[2][0], linear[2][1], linear[2][2], translate[2]}}};
-    }
-
     template<typename T>
-    constexpr auto truncated2affine(const Mat34<T>& truncated) -> Mat44<T> {
+    constexpr auto affine(const Mat34<T>& truncated) -> Mat44<T> {
         return {{{truncated[0][0], truncated[0][1], truncated[0][2], truncated[0][3]},
                  {truncated[1][0], truncated[1][1], truncated[1][2], truncated[1][3]},
                  {truncated[2][0], truncated[2][1], truncated[2][2], truncated[2][3]},
@@ -202,24 +176,17 @@ namespace noa::xform {
     }
 
     template<typename T>
-    constexpr auto affine2linear(const Mat44<T>& affine) -> Mat33<T> {
+    constexpr auto linear(const Mat44<T>& affine) -> Mat33<T> {
         return {{{affine[0][0], affine[0][1], affine[0][2]},
                  {affine[1][0], affine[1][1], affine[1][2]},
                  {affine[2][0], affine[2][1], affine[2][2]}}};
     }
 
     template<typename T>
-    constexpr auto truncated2linear(const Mat34<T>& truncated) -> Mat33<T> {
+    constexpr auto linear(const Mat34<T>& truncated) -> Mat33<T> {
         return {{{truncated[0][0], truncated[0][1], truncated[0][2]},
                  {truncated[1][0], truncated[1][1], truncated[1][2]},
                  {truncated[2][0], truncated[2][1], truncated[2][2]}}};
-    }
-
-    template<typename T>
-    constexpr auto affine2truncated(const Mat44<T>& affine) -> Mat34<T> {
-        return {{{affine[0][0], affine[0][1], affine[0][2], affine[0][3]},
-                 {affine[1][0], affine[1][1], affine[1][2], affine[1][3]},
-                 {affine[2][0], affine[2][1], affine[2][2], affine[2][3]}}};
     }
 }
 
@@ -238,9 +205,9 @@ namespace noa::xform {
         if constexpr (nt::mat_of_shape<X, N, N>) {
             return xform * vector;
         } else if constexpr (nt::mat_of_shape<X, N, N + 1>) {
-            return xform * vector.push_back(1); // truncated
+            return xform * vector.push_back(1);
         } else if constexpr (nt::mat_of_shape<X, N + 1, N + 1>) {
-            return affine2truncated(xform) * vector.push_back(1); // affine
+            return xform.pop_back() * vector.push_back(1);
         } else if constexpr (N == 3 and nt::quaternion<X>) {
             return xform.rotate(vector);
         } else if constexpr (nt::empty<X>) {

@@ -1,12 +1,12 @@
 #pragma once
 #include "noa/runtime/cuda/IncludeGuard.cuh"
 
-#include "noa/runtime/core/Config.hpp"
-#include "../../core/Accessor.hpp"
-#include "../../core/Tuple.hpp"
-#include "noa/cuda/Constants.hpp"
-#include "noa/cuda/Pointers.hpp"
-#include "noa/cuda/Warp.cuh"
+#include "noa/base/Config.hpp"
+#include "noa/base/Tuple.hpp"
+#include "noa/runtime/core/Accessor.hpp"
+#include "noa/runtime/cuda/Constants.hpp"
+#include "noa/runtime/cuda/Pointers.hpp"
+#include "noa/runtime/cuda/Warp.cuh"
 
 // TODO CUDA's cub seems to have some load and store functions. Surely some of them can be used here.
 
@@ -415,7 +415,8 @@ namespace noa::cuda::details {
         Index index_within_block,
         Indices... indices_within_grid // per block nd-indices where to save the per-block reduced value in joined
     ) {
-        __shared__ Reduced shared[BLOCK_SIZE];
+        __shared__ Uninitialized<Reduced> shared_[BLOCK_SIZE];
+        auto* shared = reinterpret_cast<Reduced*>(shared_);
         shared[index_within_block] = reduced;
         block_synchronize();
         reduced = block_reduce_shared<Interface, BLOCK_SIZE>(op, shared, index_within_block);
@@ -445,7 +446,8 @@ namespace noa::cuda::details {
         Index index_within_block,
         Indices... indices_within_output
     ) {
-        __shared__ Reduced shared[BLOCK_SIZE];
+        __shared__ Uninitialized<Reduced> shared_[BLOCK_SIZE];
+        auto* shared = reinterpret_cast<Reduced*>(shared_);
         shared[index_within_block] = reduced;
         block_synchronize();
         reduced = block_reduce_shared<Interface, BLOCK_SIZE>(op, shared, index_within_block);

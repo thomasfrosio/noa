@@ -1,4 +1,4 @@
-#include "noa/gpu/cuda/Device.hpp"
+#include "noa/runtime/cuda/Device.hpp"
 
 #include "Catch.hpp"
 

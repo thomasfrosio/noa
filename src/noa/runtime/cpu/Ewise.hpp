@@ -4,7 +4,6 @@
 #include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/core/Interfaces.hpp"
 #include "noa/runtime/core/Shape.hpp"
-#include "noa/runtime/core/Layout.hpp"
 
 namespace noa::cpu::details {
     template<bool ZipInput, bool ZipOutput>
@@ -87,8 +86,8 @@ namespace noa::cpu {
         // Check contiguity.
         // TODO We could try collapse contiguous dimensions first.
         const bool are_all_contiguous =
-            noa::are_contiguous(input, shape) and
-            noa::are_contiguous(output, shape);
+            nd::are_accessors_contiguous(input, shape) and
+            nd::are_accessors_contiguous(output, shape);
 
         const isize elements = shape.template as<isize>().n_elements();
         i32 actual_n_threads = elements <= Config::n_elements_per_thread ? 1 : n_threads;

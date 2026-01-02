@@ -1,5 +1,6 @@
 #pragma once
 
+#include "noa/base/Complex.hpp"
 #include "noa/base/Config.hpp"
 #include "noa/base/Half.hpp"
 #include "noa/runtime/core/Accessor.hpp"

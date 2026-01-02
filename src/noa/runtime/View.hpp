@@ -18,8 +18,8 @@
 #include "noa/runtime/cpu/Permute.hpp"
 #ifdef NOA_ENABLE_CUDA
 #include "noa/runtime/cuda/Copy.cuh"
-#include "noa/cuda/Permute.cuh"
-#include "noa/cuda/Allocators.hpp"
+#include "noa/runtime/cuda/Permute.cuh"
+#include "noa/runtime/cuda/Allocators.hpp"
 #endif
 
 namespace noa::inline types {
@@ -28,6 +28,58 @@ namespace noa::inline types {
 }
 
 namespace noa {
+    [[nodiscard]] constexpr auto is_broadcastable(
+        const nt::varray auto& array,
+        const Shape4& shape
+    ) -> bool {
+        return is_broadcastable(array.shape(), shape);
+    }
+
+    /// Broadcasts an array to a given shape.
+    template<nt::varray_decay T>
+    [[nodiscard]] auto broadcast(T&& input, const Shape4& shape) {
+        auto strides = input.strides();
+        if (not broadcast(input.shape(), strides, shape))
+            panic("Cannot broadcast shape={} into a shape={}", input.shape(), shape);
+        return std::decay_t<T>(std::forward<T>(input).share(), shape, strides, input.options());
+    }
+
+    /// Whether lhs and rhs overlap in memory.
+    [[nodiscard]] bool are_overlapped(nt::varray auto const& lhs, nt::varray auto const& rhs) {
+        if (lhs.is_empty() or rhs.is_empty())
+            return false;
+        auto const lhs_start = reinterpret_cast<uintptr_t>(lhs.get());
+        auto const rhs_start = reinterpret_cast<uintptr_t>(rhs.get());
+        auto const lhs_end = reinterpret_cast<uintptr_t>(lhs.get() + offset_at(lhs.strides(), (lhs.shape() - 1).vec));
+        auto const rhs_end = reinterpret_cast<uintptr_t>(rhs.get() + offset_at(rhs.strides(), (rhs.shape() - 1).vec));
+        return details::are_overlapped(lhs_start, lhs_end, rhs_start, rhs_end);
+    }
+
+    /// Returns the multidimensional indexes of \p array corresponding to a memory \p offset.
+    /// \note 0 indicates the beginning of the array. The array should not have any broadcast dimension.
+    [[nodiscard]] constexpr auto offset2index(isize offset, nt::varray auto const& array) -> Vec<isize, 4> {
+        check(array.strides() > 0,
+              "Cannot retrieve the 4d index from a broadcast dimension. Got strides={}",
+              array.strides());
+        return offset2index(offset, array.strides(), array.shape());
+    }
+
+    /// Whether the input is a contiguous vector.
+    [[nodiscard]] constexpr bool is_contiguous_vector(nt::varray auto const& input) {
+        return input.shape().is_vector() and input.is_contiguous();
+    }
+
+    /// Whether the input is a contiguous vector or a contiguous batch of contiguous vectors.
+    [[nodiscard]] constexpr bool is_contiguous_vector_batched(nt::varray auto const& input) {
+        return input.shape().is_vector(true) and input.is_contiguous();
+    }
+
+    /// Whether the input is a contiguous vector or a contiguous/strided batch of contiguous vectors.
+    /// The batch stride doesn't have to be contiguous.
+    [[nodiscard]] constexpr bool is_contiguous_vector_batched_strided(nt::varray auto const& input) {
+        return input.shape().is_vector(true) and input.contiguity().pop_front() == true;
+    }
+
     struct CopyOptions {
         /// When transferring from a GPU to the CPU, the copy is enqueued to the input's (GPU) current stream.
         /// By default, this stream is synchronized before returning to guarantee that the copy is completed so
@@ -105,14 +157,13 @@ namespace noa {
     template<nt::varray_decay Input>
     auto permute(Input&& input, const Vec<i32, 4>& permutation) {
         check(permutation <= 3 and sum(permutation) == 6, "Permutation {} is not valid", permutation);
-        auto permuted_shape = noa::reorder(input.shape(), permutation);
-        auto permuted_strides = noa::reorder(input.strides(), permutation);
+        auto permuted_shape = input.shape().permute(permutation);
+        auto permuted_strides = input.strides().permute(permutation);
         using output_t = std::decay_t<Input>;
         return output_t(std::forward<Input>(input).share(), permuted_shape, permuted_strides, input.options());
     }
 
     /// Permutes, in memory, the axes of an array.
-    /// \tparam T           Any numeric type.
     /// \param[in] input    Array to permute.
     /// \param[out] output  Permuted array. Its shape and strides should be already permuted.
     /// \param permutation  Permutation. Axes are numbered from 0 to 3.
@@ -138,7 +189,7 @@ namespace noa {
                 input_shape[d] = output.shape()[i];
             } else if (input.shape()[d] != output.shape()[i]) {
                 panic("Cannot broadcast an array of shape {} into an array of shape {}",
-                      noa::reorder(input.shape(), permutation), output.shape());
+                      input.shape().permute(permutation), output.shape());
             }
         }
 
@@ -187,7 +238,7 @@ namespace noa {
     /// \param permutation  Permutation with the axes numbered from 0 to 3.
     template<nt::varray_decay Input>
     auto permute_copy(Input&& input, const Vec<i32, 4>& permutation) {
-        auto permuted_shape = noa::reorder(input.shape(), permutation);
+        auto permuted_shape = input.shape().permute(permutation);
         auto output = Array<nt::mutable_value_type_t<Input>>(permuted_shape, input.options());
         permute_copy(std::forward<Input>(input), output, permutation);
         return output;
@@ -433,13 +484,13 @@ namespace noa::inline types {
         [[nodiscard]] constexpr auto size() const noexcept -> usize { return static_cast<usize>(n_elements()); }
 
         template<char ORDER = 'C'>
-        [[nodiscard]] constexpr bool are_contiguous() const noexcept {
-            return noa::are_contiguous<ORDER>(strides(), shape());
+        [[nodiscard]] constexpr bool is_contiguous() const noexcept {
+            return strides().template is_contiguous<ORDER>(shape());
         }
 
         template<char ORDER = 'C'>
-        [[nodiscard]] constexpr auto is_contiguous() const noexcept {
-            return noa::is_contiguous<ORDER>(strides(), shape());
+        [[nodiscard]] constexpr auto contiguity() const noexcept -> Vec<bool, 4> {
+            return strides().template contiguity<ORDER>(shape());
         }
 
         /// Whether the view is empty. A View is empty if not initialized,
@@ -640,19 +691,6 @@ namespace noa::inline types {
         }
 
     public:
-        /// Element access (unsafe if not synchronized). For efficient access, prefer to use Span.
-        template<typename... U> requires nt::iwise_indexing<SIZE, U...>
-        [[nodiscard]] constexpr auto at(const U&... indices) const -> value_type& {
-            check(is_dereferenceable(), "Memory buffer cannot be accessed from the CPU");
-            return span().at(indices...);
-        }
-
-        /// Element access (unsafe). For efficient access, prefer to use Span.
-        template<typename... U> requires nt::iwise_indexing<SIZE, U...>
-        [[nodiscard]] constexpr auto operator()(const U&... indices) const -> value_type& {
-            return span()(indices...);
-        }
-
         /// Subregion indexing. Extracts a subregion from the current view.
         template<typename... U>
         [[nodiscard]] constexpr auto subregion(const Subregion<4, U...>& subregion) const -> View {

@@ -77,7 +77,7 @@ function(noa_set_compiler_warnings target enable_warnings_as_errors)
 
         if (CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA")
             set(_cuda_warnings ${_nvcc_warnings})
-        elseif ()
+        else ()
             message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CUDA_COMPILER_ID}' compiler.")
         endif ()
         target_compile_options(${target} INTERFACE $<$<COMPILE_LANGUAGE:CUDA>: ${_cuda_warnings}>)

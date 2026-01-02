@@ -1,7 +1,7 @@
 #pragma once
 
-#include "noa/runtime/core/Math.hpp"
-#include "noa/runtime/core/Pair.hpp"
+#include "noa/base/Math.hpp"
+#include "noa/base/Pair.hpp"
 #include "noa/runtime/core/Span.hpp"
 
 // More details at: https://www.codeproject.com/Articles/63170/Least-Squares-Regression-for-Quadratic-Curve-Fitti

@@ -1,10 +1,7 @@
 #pragma once
 
 #include "noa/runtime/core/Accessor.hpp"
-#include "noa/runtime/core/Ewise.hpp"
 #include "noa/runtime/core/Shape.hpp"
-#include "noa/runtime/core/indexing/Layout.hpp"
-#include "noa/runtime/core/utils/Misc.hpp"
 
 #include "noa/runtime/cpu/Allocators.hpp"
 #include "noa/runtime/cpu/Ewise.hpp"
@@ -43,7 +40,7 @@ namespace noa::signal::cpu::details {
                         if (il >= 0 and il < m_shape[0])
                             conv += static_cast<filter_value_type>(m_input(i, j, k, il)) * m_filter[wl];
                     } else {
-                        const auto idx = ni::index_at<BORDER>(il, m_shape[0]);
+                        const auto idx = index_at<BORDER>(il, m_shape[0]);
                         conv += static_cast<filter_value_type>(m_input(i, j, k, idx)) * m_filter[wl];
                     }
                 }
@@ -62,10 +59,10 @@ namespace noa::signal::cpu::details {
                     }
                 } else {
                     for (isize wk{}; wk < m_filter_shape[0]; ++wk) {
-                        const isize ik = ni::index_at<BORDER>(k - m_halo[0] + wk, m_shape[0]);
+                        const isize ik = index_at<BORDER>(k - m_halo[0] + wk, m_shape[0]);
                         const isize tmp = wk * m_filter_shape[1];
                         for (isize wl{}; wl < m_filter_shape[1]; ++wl) {
-                            const isize il = ni::index_at<BORDER>(l - m_halo[1] + wl, m_shape[1]);
+                            const isize il = index_at<BORDER>(l - m_halo[1] + wl, m_shape[1]);
                             conv += static_cast<filter_value_type>(m_input(i, j, ik, il)) * m_filter[tmp + wl];
                         }
                     }
@@ -91,20 +88,20 @@ namespace noa::signal::cpu::details {
                     }
                 } else {
                     for (isize wj{}; wj < m_filter_shape[0]; ++wj) {
-                        const isize ij = ni::index_at<BORDER>(j - m_halo[0] + wj, m_shape[0]);
+                        const isize ij = index_at<BORDER>(j - m_halo[0] + wj, m_shape[0]);
                         const isize tmp_z = wj * m_filter_shape[1] * m_filter_shape[2];
                         for (isize wk{}; wk < m_filter_shape[1]; ++wk) {
-                            const isize ik = ni::index_at<BORDER>(k - m_halo[1] + wk, m_shape[1]);
+                            const isize ik = index_at<BORDER>(k - m_halo[1] + wk, m_shape[1]);
                             const isize tmp = tmp_z + wk * m_filter_shape[2];
                             for (isize wl{}; wl < m_filter_shape[2]; ++wl) {
-                                const isize il = ni::index_at<BORDER>(l - m_halo[2] + wl, m_shape[2]);
+                                const isize il = index_at<BORDER>(l - m_halo[2] + wl, m_shape[2]);
                                 conv += static_cast<filter_value_type>(m_input(i, ij, ik, il)) * m_filter[tmp + wl];
                             }
                         }
                     }
                 }
             } else {
-                static_assert(nt::always_false<>);
+                static_assert(nt::always_false<output_value_type>);
             }
             m_output(i, j, k, l) = static_cast<output_value_type>(conv);
         }
@@ -152,7 +149,7 @@ namespace noa::signal::cpu::details {
                         if (il >= 0 and il < m_dim_size)
                             conv += static_cast<filter_value_type>(m_input(i, j, k, il)) * m_filter[wl];
                     } else {
-                        const auto idx = ni::index_at<BORDER>(il, m_dim_size);
+                        const auto idx = index_at<BORDER>(il, m_dim_size);
                         conv += static_cast<filter_value_type>(m_input(i, j, k, idx)) * m_filter[wl];
                     }
                 }
@@ -163,7 +160,7 @@ namespace noa::signal::cpu::details {
                         if (ik >= 0 and ik < m_dim_size)
                             conv += static_cast<filter_value_type>(m_input(i, j, ik, l)) * m_filter[wk];
                     } else {
-                        const auto idx = ni::index_at<BORDER>(ik, m_dim_size);
+                        const auto idx = index_at<BORDER>(ik, m_dim_size);
                         conv += static_cast<filter_value_type>(m_input(i, j, idx, l)) * m_filter[wk];
                     }
                 }
@@ -174,7 +171,7 @@ namespace noa::signal::cpu::details {
                         if (ij >= 0 and ij < m_dim_size)
                             conv += static_cast<filter_value_type>(m_input(i, ij, k, l)) * m_filter[wj];
                     } else {
-                        const auto idx = ni::index_at<BORDER>(ij, m_dim_size);
+                        const auto idx = index_at<BORDER>(ij, m_dim_size);
                         conv += static_cast<filter_value_type>(m_input(i, idx, k, l)) * m_filter[wj];
                     }
                 }
@@ -281,11 +278,7 @@ namespace noa::signal::cpu {
             noa::cpu::iwise(shape, kernel, n_threads);
 
         } else if (filter_shape == 1) {
-            auto order = ni::order(output_strides, shape);
-            if (order != Vec<isize, 4>{0, 1, 2, 3}) {
-                input_strides = ni::reorder(input_strides, order);
-                output_strides = ni::reorder(output_strides, order);
-            }
+            nd::permute_all_to_rightmost_order<true>(output_strides, shape, input_strides, output_strides);
             const auto input_accessor = AccessorRestrict<const T, 4, isize>(input, input_strides);
             const auto output_accessor = AccessorRestrict<U, 4, isize>(output, output_strides);
             const auto value = AccessorValue<T>(static_cast<T>(filter[0]));

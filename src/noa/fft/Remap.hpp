@@ -253,12 +253,10 @@ namespace noa::fft {
         auto input_strides = input.strides();
         auto output_strides = output.strides();
         if (remap.is_any(Layout::FC2F, Layout::F2FC)) {
-            const auto order_3d = rightmost_order(output_strides.pop_front(), shape.pop_front());
+            const auto order_3d = output_strides.pop_front().rightmost_order(shape.pop_front());
             if (order_3d != Vec<isize, 3>{0, 1, 2}) {
                 const auto order = (order_3d + 1).push_front(0);
-                input_strides = input_strides.reorder(order);
-                output_strides = output_strides.reorder(order);
-                shape = shape.reorder(order);
+                nd::permute_all(order, input_strides, output_strides, shape);
             }
         }
 

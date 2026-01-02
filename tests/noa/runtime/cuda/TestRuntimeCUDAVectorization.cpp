@@ -7,6 +7,8 @@
 TEST_CASE("runtime::cuda::ewise vectorization") {
     using namespace noa::types;
     using namespace noa::cuda;
+    using noa::Accessor;
+    using noa::AccessorValue;
 
     using aligned_1 = Vec<i8, 1>;
     using aligned_2 = Vec<i8, 2>;
@@ -15,13 +17,13 @@ TEST_CASE("runtime::cuda::ewise vectorization") {
     using aligned_16 = Vec<i8, 16>;
     using unaligned_2 = Vec<f32, 2, 4>;
 
-    using accessor_1 = Accessor<aligned_1, 4, i64>;
-    using accessor_2 = Accessor<aligned_2, 4, i64>;
-    using accessor_4 = Accessor<aligned_4, 4, i64>;
-    using accessor_8 = Accessor<aligned_8, 4, i64>;
-    using accessor_16 = Accessor<aligned_16, 4, i64>;
+    using accessor_1 = Accessor<aligned_1, 4>;
+    using accessor_2 = Accessor<aligned_2, 4>;
+    using accessor_4 = Accessor<aligned_4, 4>;
+    using accessor_8 = Accessor<aligned_8, 4>;
+    using accessor_16 = Accessor<aligned_16, 4>;
     using value_16 = AccessorValue<aligned_8>;
-    using accessor_u2 = Accessor<unaligned_2, 4, i64>;
+    using accessor_u2 = Accessor<unaligned_2, 4>;
 
     {
         using t0 = Tuple<accessor_1, value_16>;

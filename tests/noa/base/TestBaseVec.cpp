@@ -276,7 +276,7 @@ TEMPLATE_TEST_CASE("base::Vec", "", i32, i64, u32, u64, f32, f64) {
         REQUIRE(b.push_front(vec2_t{1, 2}) == vec6_t{1, 2, 123, 43, 32, 12});
         REQUIRE(b.push_back(vec2_t{1, 2}) == vec6_t{123, 43, 32, 12, 1, 2});
 
-        REQUIRE(b.reorder({1, 0, 3, 2}) == b.filter(1, 0, 3, 2));
+        REQUIRE(b.permute({1, 0, 3, 2}) == b.filter(1, 0, 3, 2));
         REQUIRE(b.filter(0, 1) == vec2_t{123, 43});
         REQUIRE(b.filter(2)[0] == b[2]);
         REQUIRE(b.template set<3>(0)[3] == TestType{0});

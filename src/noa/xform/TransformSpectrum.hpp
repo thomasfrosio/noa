@@ -1,7 +1,5 @@
 #pragma once
 
-#include "noa/runtime/core/Enums.hpp"
-#include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/Array.hpp"
 #include "noa/runtime/Utilities.hpp"
 #include "noa/runtime/Iwise.hpp"
@@ -133,7 +131,7 @@ namespace noa::xform::details {
               "but got input:device={} and output:device={}", input.device(), device);
 
         if constexpr (nt::varray<Matrix>) {
-            check(ni::is_contiguous_vector(inverse_rotation) and inverse_rotation.n_elements() == output.shape()[0],
+            check(is_contiguous_vector(inverse_rotation) and inverse_rotation.n_elements() == output.shape()[0],
                   "The number of rotations, specified as a contiguous vector, should be equal to the batch size "
                   "in the output, but got inverse_rotation:shape={}, inverse_rotation:strides={} and output:batch={}",
                   inverse_rotation.shape(), inverse_rotation.strides(), output.shape()[0]);
@@ -143,7 +141,7 @@ namespace noa::xform::details {
         }
         if constexpr (nt::varray<Shift>) {
             if (not post_shifts.is_empty()) {
-                check(ni::is_contiguous_vector(post_shifts) and post_shifts.n_elements() == output.shape()[0],
+                check(is_contiguous_vector(post_shifts) and post_shifts.n_elements() == output.shape()[0],
                       "The number of shifts, specified as a contiguous vector, should be equal to the batch size"
                       "in the output, but got post_shifts:shape={}, post_shifts:strides={} and output:batch={}",
                       post_shifts.shape(), post_shifts.strides(), output.shape()[0]);
@@ -156,16 +154,16 @@ namespace noa::xform::details {
         check(device == input.device(),
               "The input and output arrays must be on the same device, "
               "but got input:device={} and output:device={}", input.device(), device);
-        check(ni::are_elements_unique(output.strides(), output.shape()),
+        check(nd::are_elements_unique(output.strides(), output.shape()),
               "The elements in the output should not overlap in memory, "
               "otherwise a data-race might occur. Got output:strides={} and output:shape={}",
               output.strides(), output.shape());
 
         if constexpr (nt::varray<Input>) {
-            check(not ni::are_overlapped(input, output),
+            check(not are_overlapped(input, output),
                   "The input and output arrays should not overlap");
         } else {
-            check(input.device().is_gpu() or not ni::are_overlapped(input.view(), output),
+            check(input.device().is_gpu() or not are_overlapped(input.view(), output),
                   "The input and output arrays should not overlap");
             check(input.border() == Border::ZERO,
                   "The texture addressing should be {}, but got {}", Border::ZERO, input.border());
@@ -191,10 +189,10 @@ namespace noa::xform::details {
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, N + 1, Index>;
         auto output_accessor = output_accessor_t(output.get(), output.strides().template filter_nd<N>().template as<Index>());
         auto logical_shape = shape.as<Index>();
-        auto batched_inverse_rotations = nd::to_batched_transform(inverse_rotations);
+        auto batched_inverse_rotations = to_batched_transform(inverse_rotations);
 
         auto launch_iwise = [&](auto no_shift, auto interp) {
-            auto batched_post_shifts = nd::to_batched_transform<true, no_shift()>(post_shifts);
+            auto batched_post_shifts = to_batched_transform<true, no_shift()>(post_shifts);
 
             // Get the interpolator.
             using coord_t = nt::mutable_value_type_twice_t<Matrix>;

@@ -1,15 +1,16 @@
 #pragma once
 
-#include "noa/runtime/core/Config.hpp"
-#include "noa/runtime/core/Math.hpp"
-#include "noa/xform/Traits.hpp"
-#include "noa/runtime/core/Tuple.hpp"
-#include "noa/runtime/core/Vec.hpp"
+#include "noa/base/Math.hpp"
+#include "noa/base/Traits.hpp"
+#include "noa/base/Tuple.hpp"
+#include "noa/base/Vec.hpp"
 
-namespace noa::xform {
+namespace noa::inline types {
     template<typename T, usize R, usize C>
     class alignas(16) Mat;
+}
 
+namespace noa {
     template<typename T, usize R, usize C>
     NOA_HD constexpr auto transpose(const Mat<T, R, C>& m) noexcept -> Mat<T, C, R> {
         return [&]<usize... I>(std::index_sequence<I...>) {
@@ -170,7 +171,7 @@ namespace noa::xform {
     }
 }
 
-namespace noa::xform {
+namespace noa::inline types {
     /// Aggregate type representing an RxC geometric (row-major) matrix.
     template<typename T, usize R, usize C>
     class alignas(16) Mat {
@@ -316,12 +317,12 @@ namespace noa::xform {
         }
 
         NOA_HD constexpr auto operator*=(const Mat& m) noexcept -> Mat& requires (ROWS == COLS)  {
-            *this = nx::matmul(*this, m);
+            *this = matmul(*this, m);
             return *this;
         }
 
         NOA_HD constexpr auto operator/=(const Mat& m) noexcept -> Mat& requires (ROWS == COLS) {
-            *this *= nx::inverse(m);
+            *this *= noa::inverse(m);
             return *this;
         }
 
@@ -449,12 +450,12 @@ namespace noa::xform {
 
         template<usize A> requires (ROWS == COLS)
         [[nodiscard]] friend NOA_HD constexpr column_type operator/(const Mat& m, const Vec<value_type, C, A>& c) noexcept {
-            return nx::inverse(m) * c;
+            return noa::inverse(m) * c;
         }
 
         template<usize A> requires (ROWS == COLS)
         [[nodiscard]] friend NOA_HD constexpr row_type operator/(const Vec<value_type, R, A>& r, const Mat& m) noexcept {
-            return r * nx::inverse(m);
+            return r * noa::inverse(m);
         }
 
         [[nodiscard]] friend NOA_HD constexpr bool operator==(const Mat& m1, const Mat& m2) noexcept {
@@ -519,11 +520,23 @@ namespace noa::xform {
         }
 
         [[nodiscard]] NOA_IHD constexpr auto transpose() const noexcept -> Mat {
-            return nx::transpose(*this);
+            return noa::transpose(*this);
         }
 
         [[nodiscard]] NOA_IHD constexpr auto inverse() const noexcept -> Mat {
-            return nx::inverse(*this);
+            return noa::inverse(*this);
+        }
+
+        template<nt::integer I, usize N> requires (ROWS == N)
+        [[nodiscard]] NOA_HD constexpr auto permute(const Vec<I, N>& permutation) noexcept -> Mat {
+            Mat reordered_matrix;
+            for (usize row{}; row < N; ++row) {
+                row_type reordered_row{}; // no need to initialize, but g++ warn it may be uninitialized before use...
+                for (usize column{}; column < N; ++column)
+                    reordered_row[column] = (*this)[row][permutation[column]];
+                reordered_matrix[permutation[row]] = reordered_row;
+            }
+            return reordered_matrix;
         }
     };
 
@@ -536,49 +549,37 @@ namespace noa::xform {
 
 namespace std {
     template<typename T, noa::usize R, noa::usize C>
-    struct tuple_size<noa::xform::Mat<T, R, C>> : std::integral_constant<noa::usize, R> {};
+    struct tuple_size<noa::Mat<T, R, C>> : std::integral_constant<noa::usize, R> {};
 
     template<typename T, noa::usize R, noa::usize C>
-    struct tuple_size<const noa::xform::Mat<T, R, C>> : std::integral_constant<noa::usize, R> {};
+    struct tuple_size<const noa::Mat<T, R, C>> : std::integral_constant<noa::usize, R> {};
 
     template<noa::usize I, noa::usize R, noa::usize C, typename T>
-    struct tuple_element<I, noa::xform::Mat<T, R, C>> { using type = T; };
+    struct tuple_element<I, noa::Mat<T, R, C>> { using type = T; };
 
     template<noa::usize I, noa::usize R, noa::usize C, typename T>
-    struct tuple_element<I, const noa::xform::Mat<T, R, C>> { using type = const T; };
+    struct tuple_element<I, const noa::Mat<T, R, C>> { using type = const T; };
 }
 
 namespace noa::traits {
     template<typename T, usize R, usize C>
-    struct proclaim_is_mat<nx::Mat<T, R, C>> : std::true_type {};
+    struct proclaim_is_mat<Mat<T, R, C>> : std::true_type {};
 
     template<typename T, usize R0, usize C0, usize R, usize C>
-    struct proclaim_is_mat_of_shape<nx::Mat<T, R0, C0>, R, C> : std::bool_constant<R0 == R and C0 == C> {};
+    struct proclaim_is_mat_of_shape<Mat<T, R0, C0>, R, C> : std::bool_constant<R0 == R and C0 == C> {};
+
+    template<typename T, usize R0, usize C0, usize R>
+    struct proclaim_is_mat_of_row<Mat<T, R0, C0>, R> : std::bool_constant<R0 == R> {};
+
+    template<typename T, usize R0, usize C0, usize C>
+    struct proclaim_is_mat_of_col<Mat<T, R0, C0>, C> : std::bool_constant<C0 == C> {};
 
     template<mat T> struct proclaim_is_trivial_zero<T> : std::true_type {};
 }
 
-namespace noa::access {
-    /// Returns the reordered matrix according to the indexes in \p order.
-    /// The columns are reordered, and then the rows. This can be useful to swap the axes of a matrix.
-    /// \param[in] matrix   Square and (truncated) affine matrix to reorder.
-    /// \param[in] order    Order of indexes. Should have the same number of elements as the matrices are rows.
-    template<nt::mat T, nt::integer I, usize N> requires (T::ROWS == N)
-    [[nodiscard]] NOA_HD constexpr T reorder(const T& matrix, const Vec<I, N>& order) noexcept {
-        T reordered_matrix;
-        for (usize row{}; row < N; ++row) {
-            typename T::row_type reordered_row{}; // no need to initialize, but g++ warn it may be uninitialized before use...
-            for (usize column{}; column < N; ++column)
-                reordered_row[column] = matrix[row][order[column]];
-            reordered_matrix[order[row]] = reordered_row;
-        }
-        return reordered_matrix;
-    }
-}
-
 namespace noa::details {
     template<typename T, usize R, usize C>
-    struct Stringify<nx::Mat<T, R, C>> {
+    struct Stringify<Mat<T, R, C>> {
         static auto get() -> std::string {
             return fmt::format("Mat<{},{},{}>", stringify<T>(), R, C);
         }

@@ -4,7 +4,6 @@
 #include "noa/base/Error.hpp"
 #include "noa/base/Irange.hpp"
 #include "noa/base/Utils.hpp"
-#include "noa/runtime/core/Layout.hpp"
 #include "noa/fft/cpu/Plan.hpp"
 
 namespace {
@@ -328,7 +327,7 @@ namespace noa::fft::cpu {
         auto istrides = input_strides.as_safe<i32>();
         auto ostrides = output_strides.as_safe<i32>();
 
-        NOA_ASSERT(rank == 1 or not is_vector(shape_3d));
+        NOA_ASSERT(rank == 1 or not shape_3d.is_vector());
         if (rank == 1 and shape_3d[2] == 1) { // column vector -> row vector
             std::swap(shape_3d[1], shape_3d[2]);
             std::swap(istrides[2], istrides[3]);
@@ -351,7 +350,7 @@ namespace noa::fft::cpu {
         auto istrides = input_strides.as_safe<i32>();
         auto ostrides = output_strides.as_safe<i32>();
 
-        NOA_ASSERT(rank == 1 or not is_vector(shape_3d));
+        NOA_ASSERT(rank == 1 or not shape_3d.is_vector());
         if (rank == 1 and shape_3d[2] == 1) { // column vector -> row vector
             std::swap(shape_3d[1], shape_3d[2]);
             std::swap(istrides[2], istrides[3]);
@@ -374,8 +373,8 @@ namespace noa::fft::cpu {
         auto istrides = input_strides.as_safe<i32>();
         auto ostrides = output_strides.as_safe<i32>();
 
-        NOA_ASSERT(rank == 1 or not is_vector(shape_3d));
-        if (is_column_major(istrides) and is_column_major(ostrides)) {
+        NOA_ASSERT(rank == 1 or not shape_3d.is_vector());
+        if (istrides.is_column_major() and ostrides.is_column_major()) {
             // column major -> row major
             std::swap(shape_3d[1], shape_3d[2]);
             std::swap(istrides[2], istrides[3]);

@@ -1,8 +1,7 @@
 #pragma once
 
-#include "noa/runtime/core/Math.hpp"
-#include "noa/runtime/core/Vec.hpp"
-#include "noa/runtime/core/Batch.hpp"
+#include "noa/base/Math.hpp"
+#include "noa/base/Vec.hpp"
 #include "noa/xform/core/Transform.hpp"
 #include "noa/xform/core/Polar.hpp"
 

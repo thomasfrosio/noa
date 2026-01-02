@@ -7,7 +7,7 @@ namespace {
 }
 
 namespace noa::cuda {
-    void Device::add_reset_callback(Device::reset_callback_type callback) {
+    void Device::add_reset_callback(reset_callback_type callback) {
         if (callback == nullptr)
             return;
 
@@ -18,7 +18,7 @@ namespace noa::cuda {
         g_callbacks.push_back(callback);
     }
 
-    void Device::remove_reset_callback(Device::reset_callback_type callback) {
+    void Device::remove_reset_callback(reset_callback_type callback) {
         auto lock = std::lock_guard(g_mutex);
         std::erase(g_callbacks, callback);
     }
@@ -29,7 +29,7 @@ namespace noa::cuda {
 
         auto lock = std::lock_guard(g_mutex);
         for (auto p: g_callbacks)
-            p(*this);
+            p(this->id());
 
         check(cudaDeviceReset());
     }

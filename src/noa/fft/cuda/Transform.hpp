@@ -1,9 +1,7 @@
 #pragma once
 
-#include "noa/runtime/core/Config.hpp"
-#include "noa/runtime/core/Enums.hpp"
-#include "noa/runtime/gpu/cuda/Stream.hpp"
-#include "noa/runtime/gpu/cuda/fft/Plan.hpp"
+#include "noa/runtime/cuda/Stream.hpp"
+#include "noa/fft/cuda/Plan.hpp"
 
 namespace noa::fft::cuda {
     template<typename T>
@@ -60,7 +58,7 @@ namespace noa::fft::cuda {
     void c2c(
         Complex<T>* input, const Strides4& input_strides,
         Complex<T>* output, const Strides4& output_strides,
-        const Shape4& shape, nf::Sign sign,
+        const Shape4& shape, Sign sign,
         bool cache_plan, bool plan_only, bool record_workspace, Stream& stream
     ) {
         Plan<T>(
@@ -72,7 +70,7 @@ namespace noa::fft::cuda {
     template<typename T>
     void c2c(
         Complex<T>* data, const Strides4& strides, const Shape4& shape,
-        nf::Sign sign, bool cache_plan, bool plan_only, bool record_workspace, Stream& stream
+        Sign sign, bool cache_plan, bool plan_only, bool record_workspace, Stream& stream
     ) {
         c2c(data, strides, data, strides, shape, sign, cache_plan,  plan_only, record_workspace, stream);
     }

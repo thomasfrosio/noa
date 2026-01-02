@@ -12,7 +12,7 @@ using namespace ::noa::types;
 
 TEST_CASE("runtime::extract_subregions()", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
-    const Path path_base = test::NOA_DATA_PATH / "memory";
+    const Path path_base = test::NOA_DATA_PATH / "runtime";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["subregions"];
 
     std::vector<Device> devices{"cpu"};
@@ -86,9 +86,9 @@ TEMPLATE_TEST_CASE("runtime::extract|insert_subregions()", "", i32, f32, f64, c3
         const auto data = noa::random(noa::Uniform<TestType>{-5, 5}, {2, 100, 200, 300}, options);
         const auto subregions = noa::fill({3, 64, 64, 64}, TestType{0}, options);
         const auto origins = noa::empty<Vec<i64, 4>>({1, 1, 1, 3}, options);
-        origins(0, 0, 0, 0) = {0, 0, 0, 0};
-        origins(0, 0, 0, 1) = {0, 34, 130, -20};
-        origins(0, 0, 0, 2) = {1, 60, 128, 255};
+        origins.span_1d()[0] = {0, 0, 0, 0};
+        origins.span_1d()[1] = {0, 34, 130, -20};
+        origins.span_1d()[2] = {1, 60, 128, 255};
 
         noa::extract_subregions(data, subregions, origins);
         const Array result = data.to(options);

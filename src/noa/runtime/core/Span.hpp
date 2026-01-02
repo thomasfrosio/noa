@@ -1,9 +1,9 @@
 #pragma once
 
+#include "noa/runtime/core/Access.hpp"
 #include "noa/runtime/core/Shape.hpp"
-#include "noa/runtime/core/Layout.hpp"
-#include "noa/runtime/core/Offset.hpp"
 #include "noa/runtime/core/Subregion.hpp"
+#include "noa/runtime/core/Utilities.hpp"
 
 namespace noa::details {
     template<typename T, typename I, StridesTraits StrideTrait>
@@ -225,13 +225,8 @@ namespace noa::inline types {
 
     public:
         template<char ORDER = 'C'>
-        [[nodiscard]] constexpr bool are_contiguous() const noexcept requires (SIZE == 4) {
-            return noa::are_contiguous<ORDER>(strides_full(), shape());
-        }
-
-        template<char ORDER = 'C'>
-        [[nodiscard]] constexpr auto is_contiguous() const noexcept requires (SIZE == 4) {
-            return noa::is_contiguous<ORDER>(strides_full(), shape());
+        [[nodiscard]] constexpr bool is_contiguous() const noexcept requires (SIZE == 4) {
+            return strides_full().template is_contiguous<ORDER>(shape());
         }
 
         /// Whether the span is empty. A span is empty if not initialized,
@@ -405,12 +400,7 @@ namespace noa::inline types {
         /// Permutes the dimensions of the view.
         /// \param permutation  Permutation with the axes numbered from 0 to 3.
         [[nodiscard]] constexpr auto permute(const Vec<i32, N>& permutation) const -> Span {
-            return Span(get(), shape().reorder(permutation), strides_full().reorder(permutation));
-        }
-
-        /// See permute().
-        [[nodiscard]] constexpr auto reorder(const Vec<i32, N>& permutation) const -> Span {
-            return permute(permutation);
+            return Span(get(), shape().permute(permutation), strides_full().permute(permutation));
         }
 
         /// Returns a span with the given axes.
@@ -469,15 +459,35 @@ namespace noa::traits {
 }
 
 namespace noa {
+    template<typename T, usize N, typename I, StridesTraits S, PointerTraits P>
+    [[nodiscard]] constexpr auto is_broadcastable(
+        const Span<T, N, I, S, P>& span,
+        const Shape<I, N>& shape
+    ) -> bool {
+        return is_broadcastable(span.shape(), shape);
+    }
+
+    /// Broadcasts an array to a given shape.
+    template<typename T, usize N, typename I, StridesTraits S, PointerTraits P>
+    [[nodiscard]] auto broadcast(
+        const Span<T, N, I, S, P>& span,
+        const Shape<I, N>& shape
+    ) {
+        auto strides = span.strides();
+        if (not broadcast(span.shape(), strides, shape))
+            panic("Cannot broadcast shape={} into a shape={}", span.shape(), shape);
+        return Span<T, N, I, S, P>(span.get(), shape, strides);
+    }
+
     /// Whether \p lhs and \p rhs overlap in memory.
     [[nodiscard]] bool are_overlapped(const nt::span auto& lhs, const nt::span auto& rhs) {
         if (lhs.is_empty() or rhs.is_empty())
             return false;
-        return details::are_overlapped(
-                reinterpret_cast<uintptr_t>(lhs.get()),
-                reinterpret_cast<uintptr_t>(lhs.get() + offset_at(lhs, (lhs.shape() - 1).vec)),
-                reinterpret_cast<uintptr_t>(rhs.get()),
-                reinterpret_cast<uintptr_t>(rhs.get() + offset_at(rhs, (rhs.shape() - 1).vec)));
+        auto const lhs_start = reinterpret_cast<uintptr_t>(lhs.get());
+        auto const rhs_start = reinterpret_cast<uintptr_t>(rhs.get());
+        auto const lhs_end = reinterpret_cast<uintptr_t>(lhs.get() + offset_at(lhs.strides_full(), (lhs.shape() - 1).vec));
+        auto const rhs_end = reinterpret_cast<uintptr_t>(rhs.get() + offset_at(rhs.strides_full(), (rhs.shape() - 1).vec));
+        return details::are_overlapped(lhs_start, lhs_end, rhs_start, rhs_end);
     }
 
     /// Returns the multidimensional indices of \p span corresponding to a memory \p offset.
@@ -485,7 +495,7 @@ namespace noa {
     template<typename T, usize N, typename I, StridesTraits S>
     [[nodiscard]] constexpr auto offset2index(isize offset, const Span<T, N, I, S>& span) -> Vec<isize, N> {
         check(span.strides() > 0,
-              "Cannot retrieve the indices from a broadcast span. Got strides:{}",
+              "Cannot retrieve the indices from broadcast strides. Got strides={}",
               span.strides());
         return offset2index(offset, span.strides(), span.shape());
     }

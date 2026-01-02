@@ -10,14 +10,23 @@
 #include "noa/runtime/cuda/IncludeGuard.cuh"
 #include "noa/runtime/cuda/Allocators.hpp"
 #include "noa/runtime/cuda/Copy.cuh"
+#include "noa/xform/cuda/Texture.cuh"
 namespace noa::xform::gpu {
     template<typename>
-    using TextureResource = AllocatorTexture::allocate_type;
+    struct TextureResource {
+        struct Managed {
+            noa::cuda::AllocatorArray::allocate_type array;
+            noa::xform::cuda::AllocatorTexture::allocate_type texture;
+        };
+        std::shared_ptr<Managed> handle{};
+    };
 }
 #else
 namespace noa::xform::gpu {
     template<typename>
-    using TextureResource = std::shared_ptr<void>;
+    struct TextureResource {
+        std::shared_ptr<void> handle;
+    };
 }
 #endif
 
@@ -32,15 +41,15 @@ namespace noa::xform::cpu {
 }
 
 namespace noa::xform {
-    /// Unified texture.
+    /// Interpolating texture.
     /// \details This class template constructs and encapsulates a texture. Textures are used for fast interpolation
     ///          and/or multidimensional caching. On the CPU, this simply points to an array. However, on the GPU,
     ///          it allocates and initializes a proper GPU texture.
     ///
-    /// \note CUDA textures have limitations on the addressing/Border, but the Interpolator hides them from the user by
+    /// \note CUDA textures have limitations on the addressing/Border, but the Interpolator class hides it away by
     ///       adding software support for the modes that CUDA does not natively support. As such, if a GPU texture
     ///       is created with Border::{VALUE|REFLECT|NOTHING} (addressing modes that are not supported by CUDA),
-    ///       hardware interpolation is turned off and the Interpolator falls back using software interpolation and
+    ///       hardware interpolation is turned off and the Interpolator falls back to using software interpolation and
     ///       addressing. Note that the texture is still used to read values, so the texture cache can still speed up
     ///       the interpolation.
     ///
@@ -124,31 +133,37 @@ namespace noa::xform {
                       "CPU textures can only be constructed/updated from other CPU arrays, but got array:device={}",
                       array.device());
                 m_options = array.options();
-                m_texture = cpu_texture_type{
+                auto texture = cpu_texture_type{
                     .strides = array.strides(),
                     .pointer = array.get(),
                 };
-                if constexpr (nt::view_decay<VArray>)
-                    m_texture.handle = std::forward<VArray>(array).share();
+                if constexpr (nt::array_decay<VArray>)
+                    texture.handle = std::forward<VArray>(array).share();
+                m_texture = std::move(texture);
 
             } else {
                 #ifdef NOA_ENABLE_CUDA
                 if constexpr (sizeof(nt::value_type_t<value_type>) >= 8) {
                     panic("Double-precision textures are not supported by the CUDA backend");
                 } else {
-                    auto texture = noa::cuda::AllocatorTexture::allocate<value_type>(
-                        array.shape(), interp, options.border,
-                        noa::cuda::Device(device_target.id(), Unchecked{}));
+                    auto texture = gpu_texture_type{};
+                    texture.handle = std::make_shared<typename gpu_texture_type::Managed>();
 
-                    // Copy input to CUDA array.
+                    // Allocate the CUDA array.
+                    auto& cuda_array = texture.handle->array;
+                    auto cuda_device = noa::cuda::Device(device_target.id(), Unchecked{});
+                    cuda_array = noa::cuda::AllocatorArray::allocate<value_type>(array.shape(), cuda_device);
+
+                    // Copy input into CUDA array.
                     if (device_target != array.device())
                         array.eval();
                     auto& cuda_stream = Stream::current(device_target).cuda();
-                    noa::cuda::copy(
-                        array.get(), array.strides(),
-                        texture->array, array.shape(),
-                        cuda_stream);
-                    cuda_stream.enqueue_attach(std::forward<VArray>(array), texture);
+                    noa::cuda::copy(array.get(), array.strides(), cuda_array.get(), array.shape(), cuda_stream);
+                    cuda_stream.enqueue_attach(std::forward<VArray>(array), texture.handle);
+
+                    // Create the texture.
+                    texture.handle->texture = noa::xform::cuda::AllocatorTexture::allocate(
+                        cuda_array.get(), interp, options.border);
 
                     m_texture = std::move(texture);
                     m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
@@ -185,8 +200,13 @@ namespace noa::xform {
                 if constexpr (sizeof(nt::value_type_t<value_type>) >= 8) {
                     panic("Double-precision textures are not supported by the CUDA backend");
                 } else {
-                    m_texture = noa::cuda::AllocatorTexture::allocate<value_type>(
-                        shape, interp, options.border, noa::cuda::Device(device_target.id(), Unchecked{}));
+                    auto texture = gpu_texture_type{};
+                    texture.handle = std::make_shared<typename gpu_texture_type::Managed>();
+                    texture.handle->array = noa::cuda::AllocatorArray::allocate<value_type>(
+                        shape, noa::cuda::Device(device_target.id(), Unchecked{}));
+                    texture.handle->texture = noa::xform::cuda::AllocatorTexture::allocate(
+                       texture.handle->array.get(), interp, options.border);
+                    m_texture = std::move(texture);
                     m_options = ArrayOption{device_target, Allocator::CUDA_ARRAY};
                 }
                 #else
@@ -239,7 +259,7 @@ namespace noa::xform {
                 cpu_texture.strides = array.strides();
                 cpu_texture.pointer = array.get();
                 if constexpr (nt::array_decay<VArray>)
-                    cpu_texture.handle = array.share();
+                    cpu_texture.handle = std::forward<VArray>(array).share();
 
             } else {
                 #ifdef NOA_ENABLE_CUDA
@@ -250,13 +270,10 @@ namespace noa::xform {
                         array.eval();
 
                     // Update the CUDA array with the new values.
-                    gpu_texture_type& cuda_texture = cuda_();
+                    auto& handle = cuda_().handle;
                     auto& cuda_stream = Stream::current(device_target).cuda();
-                    noa::cuda::copy(
-                        array.get(), array.strides(),
-                        cuda_texture->array,
-                        m_shape, cuda_stream);
-                    cuda_stream.enqueue_attach(std::forward<VArray>(array), cuda_texture);
+                    noa::cuda::copy(array.get(), array.strides(), handle->array.get(), m_shape, cuda_stream);
+                    cuda_stream.enqueue_attach(std::forward<VArray>(array), handle);
                 }
                 #else
                 panic();
@@ -283,9 +300,9 @@ namespace noa::xform {
 
         /// Whether the dimensions of the array are C or F contiguous.
         template<char ORDER = 'C'>
-        [[nodiscard]] auto are_contiguous() const noexcept -> bool {
+        [[nodiscard]] auto is_contiguous() const noexcept -> bool {
             if (device().is_cpu())
-                return ni::are_contiguous<ORDER>(cpu().strides, m_shape);
+                return cpu().strides.template is_contiguous<ORDER>(m_shape);
             return ORDER == 'C' or ORDER == 'c';
         }
 
@@ -320,16 +337,14 @@ namespace noa::xform {
         ///          reading/writing to this pointer may be illegal or create a data race.
         [[nodiscard]] auto share() const noexcept {
             return std::visit([]<typename U>(const U& t) -> std::shared_ptr<void> {
-                if constexpr (std::is_same_v<U, cpu_texture_type>)
+                if constexpr (nt::any_of<U, cpu_texture_type, gpu_texture_type>)
                     return t.handle;
-                else if constexpr (std::is_same_v<U, gpu_texture_type>)
-                    return t;
                 else // std::monostate
                     return {};
             }, m_texture);
         }
 
-        /// Gets the underlying texture, assuming it is a CPU texture (i.e. device is CPU).
+        /// Gets the underlying texture, assuming it is a CPU texture (i.e., device is CPU).
         /// Otherwise, throw an exception.
         [[nodiscard]] auto cpu() const -> const cpu_texture_type& {
             auto* ptr = std::get_if<cpu_texture_type>(&m_texture);
@@ -337,7 +352,7 @@ namespace noa::xform {
             return *ptr;
         }
 
-        /// Gets the underlying texture, assuming it is a GPU texture (i.e. device is GPU).
+        /// Gets the underlying texture, assuming it is a GPU texture (i.e., device is GPU).
         /// Otherwise, throw an exception.
         [[nodiscard]] auto gpu() const -> const gpu_texture_type& {
             #ifdef NOA_ENABLE_CUDA
@@ -348,7 +363,7 @@ namespace noa::xform {
         }
 
 #ifdef NOA_ENABLE_CUDA
-        /// Gets the underlying texture, assuming it is a CUDA texture (i.e. device is a CUDA-capable GPU).
+        /// Gets the underlying texture, assuming it is a CUDA texture (i.e., device is a CUDA-capable GPU).
         /// Otherwise, throw an exception.
         [[nodiscard]] auto cuda() const -> const gpu_texture_type& {
             auto* ptr = std::get_if<gpu_texture_type>(&m_texture);

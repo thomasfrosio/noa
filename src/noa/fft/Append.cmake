@@ -24,7 +24,7 @@ endif ()
 
 if (NOA_ENABLE_CUDA)
     list(APPEND NOA_HEADERS
-        noa/fft/cuda/Plan.cpp
+        noa/fft/cuda/Plan.hpp
         noa/fft/cuda/Transform.hpp
     )
     list(APPEND NOA_SOURCES

@@ -7,9 +7,9 @@
 namespace {
     struct Tracked {
         std::array<int, 2> count{};
-        Tracked() = default;
-        Tracked(const Tracked& t) : count(t.count) { count[0] += 1; }
-        Tracked(Tracked&& t)  noexcept : count(t.count) { count[1] += 1; }
+        constexpr Tracked() = default;
+        constexpr Tracked(const Tracked& t) : count(t.count) { count[0] += 1; }
+        constexpr Tracked(Tracked&& t)  noexcept : count(t.count) { count[1] += 1; }
     };
 }
 
@@ -77,7 +77,7 @@ TEST_CASE("runtime::cpu::ewise") {
         const auto input = noa::make_tuple(Accessor<f64, 4, i64>(buffer.get(), shape.strides()));
         const auto output = noa::make_tuple(Accessor<f64, 4, i64>(expected.get(), shape.strides()));
 
-        ewise(shape, [i = i64{}](f64& e) mutable { e = static_cast<f64>(i++); }, input, Tuple<>{});
+        ewise(shape, [i = 0](f64& e) mutable { e = static_cast<f64>(i++); }, input, Tuple<>{});
         REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 1e-8));
 
         std::fill_n(expected.get(), elements, 0.);

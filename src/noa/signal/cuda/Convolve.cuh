@@ -1,13 +1,13 @@
 #pragma once
-#include "noa/runtime/gpu/cuda/IncludeGuard.cuh"
+#include "noa/runtime/cuda/IncludeGuard.cuh"
 
-#include "noa/runtime/gpu/cuda/Allocators.hpp"
-#include "noa/runtime/gpu/cuda/Block.cuh"
-#include "noa/runtime/gpu/cuda/Copy.cuh"
-#include "noa/runtime/gpu/cuda/Stream.hpp"
+#include "noa/runtime/cuda/Allocators.hpp"
+#include "noa/runtime/cuda/Block.cuh"
+#include "noa/runtime/cuda/Copy.cuh"
+#include "noa/runtime/cuda/Stream.hpp"
 
 namespace noa::signal::cuda::details {
-    using ConvolveBlock = StaticBlock<16, 16, 1>;
+    using ConvolveBlock = noa::cuda::StaticBlock<16, 16, 1>;
 
     template<bool BORDER_ZERO, typename Block, typename Input, typename Output, typename Filter>
     __global__ __launch_bounds__(Block::block_size)
@@ -16,8 +16,8 @@ namespace noa::signal::cuda::details {
         Shape2 shape, i32 filter_size,
         Vec<u32, 2> block_offset_zy, u32 n_blocks_x
     ) {
-        const auto gid = global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
-        const auto tid = thread_indices<i32, 2>();
+        const auto gid = noa::cuda::details::global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
+        const auto tid = noa::cuda::details::thread_indices<i32, 2>();
         const auto input_1d = input[gid[0]][gid[1]][gid[2]];
 
         using output_value_t = nt::value_type_t<Output>;
@@ -41,12 +41,12 @@ namespace noa::signal::cuda::details {
                     if (ix >= 0 and ix < shape[1])
                         value = static_cast<filter_value_t>(input_1d[ix]);
                 } else {
-                    const auto ix_reflected = ni::index_at<Border::REFLECT>(ix, shape[1]);
+                    const auto ix_reflected = index_at<Border::REFLECT>(ix, shape[1]);
                     value = static_cast<filter_value_t>(input_1d[ix_reflected]);
                 }
                 shared[lx] = value;
             }
-            block_synchronize();
+            noa::cuda::details::block_synchronize();
 
             if (gid[3] < shape[1]) {
                 filter_value_t result{0};
@@ -64,8 +64,8 @@ namespace noa::signal::cuda::details {
         Shape2 shape, Shape<i32, 2> filter_shape,
         Vec<u32, 2> block_offset_zy, u32 n_blocks_x
     ) {
-        const auto gid = global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
-        const auto tid = thread_indices<i32, 2>();
+        const auto gid = noa::cuda::details::global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
+        const auto tid = noa::cuda::details::thread_indices<i32, 2>();
         const auto input_2d = input[gid[0]][gid[1]];
 
         const auto OFFSET = static_cast<i32>(Block::block_size_x);
@@ -90,14 +90,14 @@ namespace noa::signal::cuda::details {
                     if (iy >= 0 and iy < shape[0] and ix >= 0 and ix < shape[1])
                         value = static_cast<filter_value_t>(input_2d(iy, ix));
                 } else {
-                    const auto iy_reflected = ni::index_at<Border::REFLECT>(iy, shape[0]);
-                    const auto ix_reflected = ni::index_at<Border::REFLECT>(ix, shape[1]);
+                    const auto iy_reflected = index_at<Border::REFLECT>(iy, shape[0]);
+                    const auto ix_reflected = index_at<Border::REFLECT>(ix, shape[1]);
                     value = static_cast<filter_value_t>(input_2d(iy_reflected, ix_reflected));
                 }
                 shared[ly * SHARED_LEN[1] + lx] = value;
             }
         }
-        block_synchronize();
+        noa::cuda::details::block_synchronize();
 
         if (gid[2] < shape[0] and gid[3] < shape[1]) {
             filter_value_t result{};
@@ -124,8 +124,8 @@ namespace noa::signal::cuda::details {
         );
         constexpr auto SHARED_SIZE = SHARED_SHAPE.n_elements();
 
-        const auto gid = global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
-        const auto tid = thread_indices<i32, 2>();
+        const auto gid = noa::cuda::details::global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
+        const auto tid = noa::cuda::details::thread_indices<i32, 2>();
         const auto input_3d = input[gid[0]];
 
         using output_value_t = nt::value_type_t<Output>;
@@ -144,19 +144,19 @@ namespace noa::signal::cuda::details {
 
                     filter_value_t value{};
                     if constexpr (BORDER_ZERO) {
-                        if (ni::is_inbound(shape, iz, iy, ix))
+                        if (is_inbound(shape, iz, iy, ix))
                             value = static_cast<filter_value_t>(input_3d(iz, iy, ix));
                     } else {
-                        const auto iz_reflected = ni::index_at<Border::REFLECT>(iz, shape[0]);
-                        const auto iy_reflected = ni::index_at<Border::REFLECT>(iy, shape[1]);
-                        const auto ix_reflected = ni::index_at<Border::REFLECT>(ix, shape[2]);
+                        const auto iz_reflected = index_at<Border::REFLECT>(iz, shape[0]);
+                        const auto iy_reflected = index_at<Border::REFLECT>(iy, shape[1]);
+                        const auto ix_reflected = index_at<Border::REFLECT>(ix, shape[2]);
                         value = static_cast<filter_value_t>(input_3d(iz_reflected, iy_reflected, ix_reflected));
                     }
                     shared[(lz * SHARED_SHAPE[1] + ly) * SHARED_SHAPE[2] + lx] = value;
                 }
             }
         }
-        block_synchronize();
+        noa::cuda::details::block_synchronize();
 
         if (gid[2] < shape[1] and gid[3] < shape[2]) {
             // Weighted sum.
@@ -184,8 +184,8 @@ namespace noa::signal::cuda::details {
             Block::block_size_y + padding[1],
             Block::block_size_x + padding[2]);
 
-        const auto gid = global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
-        const auto tid = thread_indices<i32, 2>();
+        const auto gid = noa::cuda::details::global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
+        const auto tid = noa::cuda::details::thread_indices<i32, 2>();
         const auto input_3d = input[gid[0]];
 
         using output_value_t = nt::value_type_t<Output>;
@@ -204,19 +204,19 @@ namespace noa::signal::cuda::details {
 
                     filter_value_t value{};
                     if constexpr (BORDER_ZERO) {
-                        if (ni::is_inbound(shape, iz, iy, ix))
+                        if (is_inbound(shape, iz, iy, ix))
                             value = static_cast<filter_value_t>(input_3d(iz, iy, ix));
                     } else {
-                        const auto iz_reflected = ni::index_at<Border::REFLECT>(iz, shape[0]);
-                        const auto iy_reflected = ni::index_at<Border::REFLECT>(iy, shape[1]);
-                        const auto ix_reflected = ni::index_at<Border::REFLECT>(ix, shape[2]);
+                        const auto iz_reflected = index_at<Border::REFLECT>(iz, shape[0]);
+                        const auto iy_reflected = index_at<Border::REFLECT>(iy, shape[1]);
+                        const auto ix_reflected = index_at<Border::REFLECT>(ix, shape[2]);
                         value = static_cast<filter_value_t>(input_3d(iz_reflected, iy_reflected, ix_reflected));
                     }
                     shared[(lz * shared_shape[1] + ly) * shared_shape[2] + lx] = value;
                 }
             }
         }
-        block_synchronize();
+        noa::cuda::details::block_synchronize();
 
         if (gid[2] < shape[1] and gid[3] < shape[2]) {
             filter_value_t result{};
@@ -237,8 +237,8 @@ namespace noa::signal::cuda::details {
         Shape2 shape_yx, i32 filter_size,
         Vec<u32, 2> block_offset_zy, u32 n_blocks_x
     ) {
-        const auto gid = global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
-        const auto tid = thread_indices<i32, 2>();
+        const auto gid = noa::cuda::details::global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
+        const auto tid = noa::cuda::details::thread_indices<i32, 2>();
         const auto input_x = input[gid[0]][gid[1]][gid[2]];
 
         using output_value_t = nt::value_type_t<Output>;
@@ -263,12 +263,12 @@ namespace noa::signal::cuda::details {
                     if (ix >= 0 and ix < shape_yx[1])
                         value = static_cast<filter_value_t>(input_x[ix]);
                 } else {
-                    const auto ix_reflected = ni::index_at<Border::REFLECT>(ix, shape_yx[1]);
+                    const auto ix_reflected = index_at<Border::REFLECT>(ix, shape_yx[1]);
                     value = static_cast<filter_value_t>(input_x[ix_reflected]);
                 }
                 row[lx] = value;
             }
-            block_synchronize();
+            noa::cuda::details::block_synchronize();
 
             if (gid[3] < shape_yx[1]) {
                 filter_value_t result{};
@@ -286,8 +286,8 @@ namespace noa::signal::cuda::details {
         Shape2 shape_yx, i32 filter_size,
         Vec<u32, 2> block_offset_zy, u32 n_blocks_x
     ) {
-        const auto gid = global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
-        const auto tid = thread_indices<i32, 2>();
+        const auto gid = noa::cuda::details::global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy);
+        const auto tid = noa::cuda::details::thread_indices<i32, 2>();
         const auto input_yx = input[gid[0]][gid[1]];
 
         using output_value_t = nt::value_type_t<Output>;
@@ -310,12 +310,12 @@ namespace noa::signal::cuda::details {
                     if (iy >= 0 and iy < shape_yx[0])
                         value = static_cast<filter_value_t>(input_yx(iy, gid[3]));
                 } else {
-                    const auto iy_reflected = ni::index_at<Border::REFLECT>(iy, shape_yx[0]);
+                    const auto iy_reflected = index_at<Border::REFLECT>(iy, shape_yx[0]);
                     value = static_cast<filter_value_t>(input_yx(iy_reflected, gid[3]));
                 }
                 shared[ly * Block::block_size_x + tid[1]] = value;
             }
-            block_synchronize();
+            noa::cuda::details::block_synchronize();
 
             if (gid[2] < shape_yx[0]) {
                 filter_value_t result{};
@@ -333,8 +333,8 @@ namespace noa::signal::cuda::details {
         Shape2 shape_zx, i32 filter_size,
         Vec<u32, 2> block_offset_zy, u32 n_blocks_x
     ) {
-        const auto gid = global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy).filter(0, 2, 1, 3);
-        const auto tid = thread_indices<i32, 2>();
+        const auto gid = noa::cuda::details::global_indices_4d<isize, Block>(n_blocks_x, block_offset_zy).filter(0, 2, 1, 3);
+        const auto tid = noa::cuda::details::thread_indices<i32, 2>();
         const auto input_3d = input[gid[0]];
 
         using output_value_t = nt::value_type_t<Output>;
@@ -356,12 +356,12 @@ namespace noa::signal::cuda::details {
                     if (iz >= 0 and iz < shape_zx[0])
                         value = static_cast<filter_value_t>(input_3d(iz, gid[2], gid[3]));
                 } else {
-                    const auto iz_reflected = ni::index_at<Border::REFLECT>(iz, shape_zx[0]);
+                    const auto iz_reflected = index_at<Border::REFLECT>(iz, shape_zx[0]);
                     value = static_cast<filter_value_t>(input_3d(iz_reflected, gid[2], gid[3]));
                 }
                 shared[lz * Block::block_size_x + tid[1]] = value;
             }
-            block_synchronize();
+            noa::cuda::details::block_synchronize();
 
             if (gid[1] < shape_zx[0]) {
                 filter_value_t result{};
@@ -378,21 +378,21 @@ namespace noa::signal::cuda::details {
     void launch_convolve_separable_x(
         const T* input, const Strides4& input_strides,
         U* output, const Strides4& output_strides, const Shape4& shape,
-        const V* filter, isize filter_size, Stream& stream
+        const V* filter, isize filter_size, noa::cuda::Stream& stream
     ) {
         using namespace noa::signal::cuda::details;
-        using input_t = AccessorRestrictI64<const T, 4>;
-        using output_t = AccessorRestrictI64<U, 4>;
-        using filter_t = AccessorRestrictContiguousI32<const V, 1>;
+        using input_t = AccessorRestrict<const T, 4, isize>;
+        using output_t = AccessorRestrict<U, 4, isize>;
+        using filter_t = AccessorRestrictContiguous<const V, 1, i32>;
 
-        const auto grid_x = GridXY(shape[3], shape[2], ConvolveBlock::block_size_x, ConvolveBlock::block_size_y);
-        const auto grid_y = GridY(shape[1], 1);
-        const auto grid_z = GridY(shape[0], 1);
+        const auto grid_x = noa::cuda::GridXY(shape[3], shape[2], ConvolveBlock::block_size_x, ConvolveBlock::block_size_y);
+        const auto grid_y = noa::cuda::GridY(shape[1], 1);
+        const auto grid_z = noa::cuda::GridY(shape[0], 1);
         check(grid_x.n_launches() == 1);
 
         for (u32 z{}; z < grid_z.n_launches(); ++z) {
             for (u32 y{}; y < grid_y.n_launches(); ++y) {
-                const auto config = LaunchConfig{
+                const auto config = noa::cuda::LaunchConfig{
                     .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
                     .n_threads = dim3(ConvolveBlock::block_size_x, ConvolveBlock::block_size_y),
                     .n_bytes_of_shared_memory =
@@ -414,21 +414,21 @@ namespace noa::signal::cuda::details {
     void launch_convolve_separable_y(
         const T* input, const Strides4& input_strides,
         U* output, const Strides4& output_strides, const Shape4& shape,
-        const V* filter, isize filter_size, Stream& stream
+        const V* filter, isize filter_size, noa::cuda::Stream& stream
     ) {
         using namespace noa::signal::cuda::details;
-        using input_t = AccessorRestrictI64<const T, 4>;
-        using output_t = AccessorRestrictI64<U, 4>;
-        using filter_t = AccessorRestrictContiguousI32<const V, 1>;
+        using input_t = AccessorRestrict<const T, 4, isize>;
+        using output_t = AccessorRestrict<U, 4, isize>;
+        using filter_t = AccessorRestrictContiguous<const V, 1, i32>;
 
-        const auto grid_x = GridXY(shape[3], shape[2], ConvolveBlock::block_size_x, ConvolveBlock::block_size_y);
-        const auto grid_y = GridY(shape[1], 1);
-        const auto grid_z = GridY(shape[0], 1);
+        const auto grid_x = noa::cuda::GridXY(shape[3], shape[2], ConvolveBlock::block_size_x, ConvolveBlock::block_size_y);
+        const auto grid_y = noa::cuda::GridY(shape[1], 1);
+        const auto grid_z = noa::cuda::GridY(shape[0], 1);
         check(grid_x.n_launches() == 1);
 
         for (u32 z{}; z < grid_z.n_launches(); ++z) {
             for (u32 y{}; y < grid_y.n_launches(); ++y) {
-                const auto config = LaunchConfig{
+                const auto config = noa::cuda::LaunchConfig{
                     .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
                     .n_threads = dim3(ConvolveBlock::block_size_x, ConvolveBlock::block_size_y),
                     .n_bytes_of_shared_memory =
@@ -450,21 +450,21 @@ namespace noa::signal::cuda::details {
     void launch_convolve_separable_z(
         const T* input, const Strides4& input_strides,
         U* output, const Strides4& output_strides, const Shape4& shape,
-        const V* filter, isize filter_size, Stream& stream
+        const V* filter, isize filter_size, noa::cuda::Stream& stream
     ) {
         using namespace noa::signal::cuda::details;
-        using input_t = AccessorRestrictI64<const T, 4>;
-        using output_t = AccessorRestrictI64<U, 4>;
-        using filter_t = AccessorRestrictContiguousI32<const V, 1>;
+        using input_t = AccessorRestrict<const T, 4, isize>;
+        using output_t = AccessorRestrict<U, 4, isize>;
+        using filter_t = AccessorRestrictContiguous<const V, 1, i32>;
 
-        const auto grid_x = GridXY(shape[3], shape[1], ConvolveBlock::block_size_x, ConvolveBlock::block_size_y);
-        const auto grid_y = GridY(shape[2], 1);
-        const auto grid_z = GridY(shape[0], 1);
+        const auto grid_x = noa::cuda::GridXY(shape[3], shape[1], ConvolveBlock::block_size_x, ConvolveBlock::block_size_y);
+        const auto grid_y = noa::cuda::GridY(shape[2], 1);
+        const auto grid_z = noa::cuda::GridY(shape[0], 1);
         check(grid_x.n_launches() == 1);
 
         for (u32 z{}; z < grid_z.n_launches(); ++z) {
             for (u32 y{}; y < grid_y.n_launches(); ++y) {
-                const auto config = LaunchConfig{
+                const auto config = noa::cuda::LaunchConfig{
                     .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
                     .n_threads = dim3(ConvolveBlock::block_size_x, ConvolveBlock::block_size_y),
                     .n_bytes_of_shared_memory =
@@ -488,15 +488,15 @@ namespace noa::signal::cuda {
     void convolve(
         const T* input, Strides4 input_strides,
         U* output, Strides4 output_strides, const Shape4& shape,
-        const V* filter, const Shape3& filter_shape, Stream& stream
+        const V* filter, const Shape3& filter_shape, noa::cuda::Stream& stream
     ) {
         using namespace noa::signal::cuda::details;
-        using input_accessor_t = AccessorRestrictI64<const T, 4>;
-        using output_accessor_t = AccessorRestrictI64<U, 4>;
-        using filter_accessor_t = AccessorRestrictContiguousI32<const V, 1>;
+        using input_accessor_t = AccessorRestrict<const T, 4, isize>;
+        using output_accessor_t = AccessorRestrict<U, 4, isize>;
+        using filter_accessor_t = AccessorRestrictContiguous<const V, 1, i32>;
         constexpr bool BORDER_ZERO = BORDER == Border::ZERO;
 
-        const auto n_dimensions_to_convolve = sum(filter_shape > 1);
+        const auto n_dimensions_to_convolve = sum(filter_shape.cmp_gt(1));
         const auto ndim = filter_shape.ndim();
         if (n_dimensions_to_convolve == 1) {
             if (filter_shape[0] > 1) {
@@ -516,14 +516,14 @@ namespace noa::signal::cuda {
             const auto filter_shape_2d = filter_shape.pop_front().as<i32>();
             const auto shape_2d = shape.filter(2, 3);
 
-            const auto grid_x = GridXY(shape[3], shape[2], ConvolveBlock::block_size_x, ConvolveBlock::block_size_y);
-            const auto grid_y = GridY(shape[1], 1);
-            const auto grid_z = GridZ(shape[0], 1);
+            const auto grid_x = noa::cuda::GridXY(shape[3], shape[2], ConvolveBlock::block_size_x, ConvolveBlock::block_size_y);
+            const auto grid_y = noa::cuda::GridY(shape[1], 1);
+            const auto grid_z = noa::cuda::GridZ(shape[0], 1);
             check(grid_x.n_launches() == 1);
 
             for (u32 z{}; z < grid_z.n_launches(); ++z) {
                 for (u32 y{}; y < grid_y.n_launches(); ++y) {
-                    const auto config = LaunchConfig{
+                    const auto config = noa::cuda::LaunchConfig{
                         .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
                         .n_threads = dim3(ConvolveBlock::block_size_x, ConvolveBlock::block_size_y),
                         .n_bytes_of_shared_memory =
@@ -539,15 +539,15 @@ namespace noa::signal::cuda {
                 }
             }
         } else if (ndim == 3) {
-            const auto grid_x = GridXY(shape[3], shape[2], ConvolveBlock::block_size_x, ConvolveBlock::block_size_y);
-            const auto grid_y = GridY(shape[1], 1);
-            const auto grid_z = GridZ(shape[0], 1);
+            const auto grid_x = noa::cuda::GridXY(shape[3], shape[2], ConvolveBlock::block_size_x, ConvolveBlock::block_size_y);
+            const auto grid_y = noa::cuda::GridY(shape[1], 1);
+            const auto grid_z = noa::cuda::GridZ(shape[0], 1);
             check(grid_x.n_launches() == 1);
 
             const auto shape_3d = shape.pop_front();
             for (u32 z{}; z < grid_z.n_launches(); ++z) {
                 for (u32 y{}; y < grid_y.n_launches(); ++y) {
-                    auto config = LaunchConfig{
+                    auto config = noa::cuda::LaunchConfig{
                         .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
                         .n_threads = dim3(ConvolveBlock::block_size_x, ConvolveBlock::block_size_y),
                     };
@@ -582,11 +582,7 @@ namespace noa::signal::cuda {
             V filter_value;
             copy(filter, &filter_value, 1, stream);
 
-            auto order = ni::order(output_strides, shape);
-            if (order != Vec<isize, 4>{0, 1, 2, 3}) {
-                input_strides = ni::reorder(input_strides, order);
-                output_strides = ni::reorder(output_strides, order);
-            }
+            nd::permute_all_to_rightmost_order<true>(output_strides, shape, input_strides, output_strides);
             const auto input_accessor = input_accessor_t(input, input_strides);
             const auto output_accessor = output_accessor_t(output, output_strides);
             const auto value = AccessorValue<T>(static_cast<T>(filter_value));
@@ -603,7 +599,7 @@ namespace noa::signal::cuda {
         const V* filter_depth, isize filter_depth_size,
         const V* filter_height, isize filter_height_size,
         const V* filter_width, isize filter_width_size,
-        V* tmp, Strides4 tmp_strides, Stream& stream
+        V* tmp, Strides4 tmp_strides, noa::cuda::Stream& stream
     ) {
         if (filter_depth_size <= 0)
             filter_depth = nullptr;
@@ -620,9 +616,9 @@ namespace noa::signal::cuda {
             count += 1;
         if (filter_width)
             count += 1;
-        AllocatorDevice::allocate_type<V> buffer{};
+        noa::cuda::AllocatorDevice::allocate_type<V> buffer{};
         if (not tmp and count > 1) {
-            buffer = AllocatorDevice::allocate_async<V>(shape.n_elements(), stream);
+            buffer = noa::cuda::AllocatorDevice::allocate_async<V>(shape.n_elements(), stream);
             tmp = buffer.get();
             tmp_strides = shape.strides();
         }

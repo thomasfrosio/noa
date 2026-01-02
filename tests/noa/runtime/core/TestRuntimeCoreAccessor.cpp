@@ -92,6 +92,16 @@ TEMPLATE_TEST_CASE("runtime::core:: Accessor", "", i32, i64, u32, u64) {
 
         REQUIRE((av == bv and av == cv and av == dv and av == ev and av == fv));
     }
+
+    AND_THEN("permute") {
+        REQUIRE(accessor.permute(Vec{0, 1, 2, 3}).strides() == strides.permute(Vec{0, 1, 2, 3}));
+        REQUIRE(accessor.strides() == strides);
+        auto a1 = accessor;
+        auto a2 = accessor;
+        noa::details::permute_all(Vec{3, 0, 2, 1}, a1, a2);
+        REQUIRE(a1.strides() == strides.permute(Vec{3, 0, 2, 1}));
+        REQUIRE(a2.strides() == strides.permute(Vec{3, 0, 2, 1}));
+    }
 }
 
 TEMPLATE_TEST_CASE("runtime::core:: AccessorValue", "", i32, i64, u32, u64) {

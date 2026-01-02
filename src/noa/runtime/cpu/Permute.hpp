@@ -16,8 +16,8 @@ namespace noa::cpu::details {
         const Vec<i32, 4>& permutation, i32 threads
     ) {
         NOA_ASSERT(input != output);
-        const auto output_shape = reorder(input_shape, permutation);
-        const auto input_strides_permuted = reorder(input_strides, permutation);
+        const auto output_shape = input_shape.permute(permutation);
+        const auto input_strides_permuted = input_strides.permute(permutation);
         copy(input, input_strides_permuted, output, output_strides, output_shape, threads);
     }
 

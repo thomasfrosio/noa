@@ -725,12 +725,10 @@ namespace noa {
             } else {
                 // Reorder DHW to rightmost if offsets are not computed.
                 auto arg_values = output_values.view();
-                const auto order_3d = rightmost_order(input.strides().pop_front(), shape.pop_front());
+                const auto order_3d = input.strides().pop_front().rightmost_order(shape.pop_front());
                 if (order_3d != Vec<isize, 3>{0, 1, 2}) {
                     auto order_4d = (order_3d + 1).push_front(0);
-                    shape = shape.reorder(order_4d);
-                    accessor.reorder(order_4d);
-                    arg_values = arg_values.permute(order_4d);
+                    nd::permute_all(order_4d, shape, accessor, arg_values);
                 }
 
                 reduce_axes_iwise(
@@ -801,12 +799,10 @@ namespace noa {
             } else {
                 // Reorder DHW to rightmost if offsets are not computed.
                 auto arg_values = output_values.view();
-                const auto order_3d = rightmost_order(input.strides().pop_front(), shape.pop_front()).template as<i32>();
+                const auto order_3d = input.strides().pop_front().rightmost_order(shape.pop_front()).template as<i32>();
                 if (order_3d != Vec{0, 1, 2}) {
                     auto order_4d = (order_3d + 1).push_front(0);
-                    shape = shape.reorder(order_4d);
-                    accessor.reorder(order_4d);
-                    arg_values = arg_values.permute(order_4d);
+                    nd::permute_all(order_4d, shape, accessor, arg_values);
                 }
 
                 reduce_axes_iwise(

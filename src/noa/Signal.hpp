@@ -1,6 +1,8 @@
 #pragma once
 
+#include "noa/signal/core/Correlation.hpp"
 #include "noa/signal/core/CTF.hpp"
+#include "noa/signal/core/LeastSquare.hpp"
 #include "noa/signal/core/Window.hpp"
 
 #include "noa/signal/Bandpass.hpp"

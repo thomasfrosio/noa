@@ -7,7 +7,7 @@ TEST_CASE("runtime::core::Span") {
 
     // The library doesn't use std::span and std::mdspan, the main reason being that these were not available
     // when I started this project. Instead, we have noa::Span, which is a simpler version of mdspan but
-    // matches to the library's API and conventions.
+    // matches the library's API and conventions.
 
     // noa::Span is intended to be used by user (e.g. to iterate through an array) and is sometimes found in the
     // library's frontend. The library's core and backends rarely use it and prefer the lighter noa::Accessor.
@@ -107,12 +107,12 @@ TEST_CASE("runtime::core::Span") {
                         s0(i, j, k, l) = ((i * shape_4d[1] + j) * shape_4d[2] + k) * shape_4d[3] + l;
 
         // Dimensions can be collapsed.
-        auto s1 = s0.as_1d_contiguous();
+        auto s1 = s0.as_1d();
         static_assert(std::is_same_v<decltype(s1), SpanContiguous<i32, 1, i32>>);
         REQUIRE(s1.size() == s0.size());
 
         bool is_ok{true};
-        for (i32 i{}; auto& e: s0.as_1d_contiguous()) {
+        for (i32 i{}; auto& e: s0.as_1d()) {
             if (e != i++)
                 is_ok = false;
         }
@@ -130,7 +130,7 @@ TEST_CASE("runtime::core::Span") {
 
         // Reshape, subregion and dimension conversion.
         REQUIRE_NOTHROW(s0.reshape({1, 6, 1, 20}));
-        REQUIRE(s0.flat().reorder({3, 0, 1, 2}).shape() == Shape{shape_4d.n_elements(), 1, 1, 1});
+        REQUIRE(s0.flat().permute({3, 0, 1, 2}).shape() == Shape{shape_4d.n_elements(), 1, 1, 1});
         REQUIRE(s0.span<i32, 4, u64>().subregion(1, 1).data() == s0.get() + s0.offset_at(1, 1));
     }
 }

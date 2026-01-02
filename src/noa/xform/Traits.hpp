@@ -3,25 +3,6 @@
 #include "noa/runtime/Traits.hpp"
 
 namespace noa::traits {
-    NOA_GENERATE_PROCLAIM_FULL(mat);
-
-    template<typename, size_t, size_t> struct proclaim_is_mat_of_shape : std::false_type {};
-    template<typename T, size_t R, size_t C> using is_mat_of_shape = proclaim_is_mat_of_shape<std::remove_cv_t<T>, R, C>;
-    template<typename T, size_t R, size_t C> constexpr bool is_mat_of_shape_v = is_mat_of_shape<T, R, C>::value;
-    template<typename T, size_t R, size_t C> concept mat_of_shape = mat<T> and is_mat_of_shape_v<T, R, C>;
-    template<size_t R, size_t C, typename... T> using are_mat_of_shape = conjunction_or_false<is_mat_of_shape<T, R, C>...>;
-    template<size_t R, size_t C, typename... T> constexpr bool are_mat_of_shape_v = are_mat_of_shape<R, C, std::decay_t<T>...>::value;
-
-    #define NOA_TRAITS_MAT_(R, C)                                                   \
-    template<typename T> using is_mat##R##C = is_mat_of_shape<T, R, C>::value;      \
-    template<typename T> constexpr bool is_mat##R##C##_v = is_mat##R##C<T>::value;  \
-    template<typename T> concept mat##R##C = mat_of_shape<T, R, C>
-    NOA_TRAITS_MAT_(2, 2);
-    NOA_TRAITS_MAT_(2, 3);
-    NOA_TRAITS_MAT_(3, 3);
-    NOA_TRAITS_MAT_(3, 4);
-    NOA_TRAITS_MAT_(4, 4);
-
     NOA_GENERATE_PROCLAIM_FULL(quaternion);
     template<typename... T> concept quaternion_f32 = quaternion<T...> and same_as<f32, value_type_t<T>...>;
     template<typename... T> concept quaternion_f64 = quaternion<T...> and same_as<f64, value_type_t<T>...>;

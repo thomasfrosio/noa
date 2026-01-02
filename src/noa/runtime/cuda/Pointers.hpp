@@ -1,11 +1,22 @@
 #pragma once
 
-#include "../../core/Shape.hpp"
+#include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/cuda/Device.hpp"
-#include "noa/cuda/Error.hpp"
-#include "noa/cuda/Runtime.hpp"
+#include "noa/runtime/cuda/Error.hpp"
+#include "noa/runtime/cuda/Runtime.hpp"
 
 namespace noa::cuda {
+    /// Static initialization of shared variables is illegal in CUDA. Types that require an initialization
+    /// cannot be used with the __shared__ attribute. This Uninitialized type bypasses this limit.
+    /// \details Uninitialized<T> has the same size and alignment as T and is meant to be used for the
+    /// declaration/allocation of static shared pointers/arrays. Then this type can be reinterpreted to T "safely"
+    /// (we are most likely in C++ undefined behavior, but in CUDA C++, this is fine).
+    /// \note nvcc 11.7 and above seem to support zero-initialization for __shared__, but still give warning.
+    template<typename T>
+    struct alignas(alignof(T)) Uninitialized {
+        unsigned char array[sizeof(T)];
+    };
+
     /// Aligned array that generates vectorized load/store in CUDA.
     /// TODO Replace with Vec<T, VECTOR_SIZE, sizeof(T) * VECTOR_SIZE>?
     template<typename T, usize VECTOR_SIZE>
@@ -194,7 +205,7 @@ namespace noa::cuda {
     /// Whether the aligned buffers are actually over-aligned compared to the original type.
     /// In other words, whether using vectorized loads/stores is useful.
     /// This is used to fall back on a non-vectorized implementation at compile time,
-    /// thus reducing the number of kernels that need to be generated.
+    /// reducing the number of kernels that need to be generated.
     template<typename... T>
     constexpr auto is_vectorized() -> usize {
         constexpr auto aligned_buffers = (nt::type_list_t<T>{} + ...);

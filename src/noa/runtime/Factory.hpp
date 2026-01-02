@@ -14,7 +14,7 @@ namespace noa {
         #ifdef NOA_ENABLE_CUDA
         using value_t = nt::mutable_value_type_t<Output>;
         if constexpr (nt::trivial_zero<value_t>) {
-            if (output.device().is_gpu() and output.are_contiguous() and value_t{} == value) {
+            if (output.device().is_gpu() and output.is_contiguous() and value_t{} == value) {
                 auto& cuda_stream = Stream::current(output.device()).gpu();
                 noa::cuda::fill_with_zeroes(output.get(), output.ssize(), cuda_stream);
                 return;
@@ -112,7 +112,7 @@ namespace noa {
     template<nt::writable_varray_decay Output, typename T = nt::value_type_t<Output>>
     void arange(Output&& output, Arange<T> params = {}) {
         check(not output.is_empty(), "Empty array detected");
-        if (output.are_contiguous()) {
+        if (output.is_contiguous()) {
             auto accessor = nd::to_accessor_contiguous_1d(output);
             using op_t = nd::IwiseRange<1, decltype(accessor), isize, Arange<T>>;
             iwise(Shape{output.n_elements()}, output.device(),
@@ -174,7 +174,7 @@ namespace noa {
         const auto n_elements = output.n_elements();
         auto linspace = params.for_size(n_elements);
 
-        if (output.are_contiguous()) {
+        if (output.is_contiguous()) {
             auto accessor = nd::to_accessor_contiguous_1d(output);
             using op_t = nd::IwiseRange<1, decltype(accessor), isize, decltype(linspace)>;
             iwise(Shape{n_elements}, output.device(),
@@ -236,7 +236,7 @@ namespace noa {
         check(not output.is_empty(), "Empty array detected");
 
         auto shape = output.shape().template as_safe<T>();
-        if (output.are_contiguous()) {
+        if (output.is_contiguous()) {
             auto accessor = nd::to_accessor_contiguous(output);
             using op_t = nd::Iota<4, decltype(accessor), T>;
             iwise(shape, output.device(),

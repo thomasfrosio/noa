@@ -2,15 +2,15 @@
 
 #include <optional>
 
-#include "noa/runtime/core/Config.hpp"
-#include "noa/runtime/core/Traits.hpp"
-#include "noa/runtime/core/Strings.hpp"
+#include "noa/base/Mat.hpp"
+#include "noa/base/Strings.hpp"
 #include "noa/runtime/core/Span.hpp"
+#include "noa/runtime/core/Traits.hpp"
 #include "noa/runtime/Array.hpp"
-#include "noa/runtime/Utilities.hpp"
 #include "noa/runtime/Iwise.hpp"
-#include "noa/xform/core/Mat.hpp"
+#include "noa/runtime/Utilities.hpp"
 #include "noa/xform/core/Interpolation.hpp"
+#include "noa/xform/core/Symmetry.hpp"
 #include "noa/xform/Texture.hpp"
 #include "noa/xform/Transform.hpp"
 
@@ -51,7 +51,7 @@ namespace noa::xform {
             m_buffer(std::forward<A>(matrices)),
             m_code(code)
         {
-            check(ni::is_contiguous_vector(m_buffer),
+            check(is_contiguous_vector(m_buffer),
                   "The symmetry matrices should be saved in a contiguous vector, "
                   "but got matrices:shape={} and matrices:strides={}",
                   m_buffer.shape(), m_buffer.strides());
@@ -240,16 +240,16 @@ namespace noa::xform::details {
               "The input array/texture, output array and symmetry matrices must be on the same device, "
               "but got input:device={} and output:device={}, symmetry:device={}",
               input.device(), device, symmetry.device());
-        check(ni::are_elements_unique(output.strides(), output.shape()),
+        check(nd::are_elements_unique(output.strides(), output.shape()),
               "The elements in the output should not overlap in memory, otherwise a data-race might occur. "
               "Got output:strides={} and output:shape={}",
               output.strides(), output.shape());
 
         if constexpr (nt::varray<Input>) {
-            check(not ni::are_overlapped(input, output),
+            check(not are_overlapped(input, output),
                   "The input and output arrays should not overlap");
         } else {
-            check(input.device().is_gpu() or not ni::are_overlapped(input.view(), output),
+            check(input.device().is_gpu() or not are_overlapped(input.view(), output),
                   "The input and output arrays should not overlap");
             check(input.border() == Border::ZERO, "Texture border mode is expected to be {}, but got {}",
                   Border::ZERO, input.border());
@@ -269,8 +269,8 @@ namespace noa::xform::details {
             output.get(), output.strides().template filter_nd<N>().template as<Index>());
 
         // Batch the optional pre/post matrices.
-        auto batched_pre_inverse_matrices = nd::to_batched_transform<true>(pre_inverse_matrices);
-        auto batched_post_inverse_matrices = nd::to_batched_transform<true>(post_inverse_matrices);
+        auto batched_pre_inverse_matrices = to_batched_transform<true>(pre_inverse_matrices);
+        auto batched_post_inverse_matrices = to_batched_transform<true>(post_inverse_matrices);
 
         // Prepare the symmetry.
         using real_t = nt::mutable_value_type_twice_t<Input>;

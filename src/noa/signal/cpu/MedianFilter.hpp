@@ -213,7 +213,7 @@ namespace noa::signal::cpu {
         const T* input, const Strides4& input_strides,
         U* output, const Strides4& output_strides,
         const Shape4& shape, Border border_mode,
-        isize window_size, isize n_threads
+        isize window_size, i32 n_threads
     ) {
         using compute_t = std::conditional_t<std::is_same_v<f16, T>, f32, T>;
         const auto buffer = noa::cpu::AllocatorHeap::allocate<compute_t>(window_size * n_threads);
@@ -250,9 +250,9 @@ namespace noa::signal::cpu {
     void median_filter_2d(
         const T* input, Strides4 input_strides,
         U* output, Strides4 output_strides,
-        Shape4 shape, Border border_mode, isize window_size, isize n_threads
+        Shape4 shape, Border border_mode, isize window_size, i32 n_threads
     ) {
-        const auto order_2d = ni::order(output_strides.filter(2, 3), shape.filter(2, 3));
+        const auto order_2d = output_strides.filter(2, 3).rightmost_order(shape.filter(2, 3));
         if (order_2d != Vec<isize, 2>{0, 1}) {
             std::swap(input_strides[2], input_strides[3]);
             std::swap(output_strides[2], output_strides[3]);
@@ -295,14 +295,12 @@ namespace noa::signal::cpu {
     void median_filter_3d(
         const T* input, Strides4 input_strides,
         U* output, Strides4 output_strides,
-        Shape4 shape, Border border_mode, isize window_size, isize n_threads
+        Shape4 shape, Border border_mode, isize window_size, i32 n_threads
     ) {
-        const auto order_3d = ni::order(output_strides.pop_front(), shape.pop_front());
+        const auto order_3d = output_strides.pop_front().rightmost_order(shape.pop_front());
         if (order_3d != Vec<isize, 3>{0, 1, 2}) {
             const auto order = (order_3d + 1).push_front(0);
-            input_strides = ni::reorder(input_strides, order);
-            output_strides = ni::reorder(output_strides, order);
-            shape = ni::reorder(shape, order);
+            nd::permute_all(order, input_strides, output_strides, shape);
         }
 
         using compute_t = std::conditional_t<std::is_same_v<f16, T>, f32, T>;

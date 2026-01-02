@@ -53,8 +53,8 @@ namespace noa {
              nt::writable_varray_decay Output>
     requires nt::varray_decay_of_almost_same_type<Lhs, Rhs, Output>
     void dot(Lhs&& lhs, Rhs&& rhs, Output&& output, const SumOptions& options = {}) {
-        check(is_vector(lhs.shape(), true) and
-              is_vector(rhs.shape(), true) and
+        check(lhs.shape().is_vector(true) and
+              rhs.shape().is_vector(true) and
               lhs.shape()[1] == 1 and rhs.shape()[1] == 1,
               "The input should be (batched) column or row vectors, but got lhs:shape={} and rhs:shape={}",
               lhs.shape(), rhs.shape());

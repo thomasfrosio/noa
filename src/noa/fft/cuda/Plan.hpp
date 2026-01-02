@@ -2,13 +2,12 @@
 
 #include <memory>
 
-#include "noa/runtime/core/indexing/Layout.hpp"
-#include "noa/runtime/core/Complex.hpp"
+#include "noa/base/Complex.hpp"
 #include "noa/runtime/core/Shape.hpp"
-#include "noa/runtime/core/Enums.hpp"
 
 #include "noa/runtime/cuda/Device.hpp"
 #include "noa/runtime/cuda/Stream.hpp"
+#include "noa/fft/core/Transform.hpp"
 
 // TODO Add f16/c16 support. https://docs.nvidia.com/cuda/cufft/index.html#half-precision-transforms
 
@@ -90,8 +89,8 @@ namespace noa::fft::cuda {
         ) {
             const auto input_shape = type == Type::C2R ? shape.rfft() : shape;
             const auto output_shape = type == Type::R2C ? shape.rfft() : shape;
-            if (ni::are_contiguous(input_strides, input_shape) and
-                ni::are_contiguous(output_strides, output_shape)) {
+            if (input_strides.is_contiguous(input_shape) and
+                output_strides.is_contiguous(output_shape)) {
                 m_plan = details::get_plan(
                     type, is_single_precision, shape, device,
                     save_to_cache, plan_only, record_workspace);
@@ -105,7 +104,7 @@ namespace noa::fft::cuda {
         /// The shape, strides, alignment and type (that includes in-place or not) should match the plan.
         void execute(T* input, Complex<T>* output, Stream& stream) &&;
         void execute(Complex<T>* input, T* output, Stream& stream) &&;
-        void execute(Complex<T>* input, Complex<T>* output, nf::Sign sign, Stream& stream) &&;
+        void execute(Complex<T>* input, Complex<T>* output, Sign sign, Stream& stream) &&;
 
     private:
         std::shared_ptr<void> m_plan{};

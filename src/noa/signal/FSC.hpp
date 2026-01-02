@@ -1,6 +1,5 @@
 #pragma once
 
-#include "noa/runtime/core/Enums.hpp"
 #include "noa/runtime/core/Atomic.hpp"
 #include "noa/runtime/Array.hpp"
 #include "noa/runtime/Ewise.hpp"
@@ -275,7 +274,7 @@ namespace noa::signal::details {
         const Cones& cone_directions = {}
     ) {
         check(not lhs.is_empty() and not rhs.is_empty() and not fsc.is_empty(), "Empty array detected");
-        check(not ni::are_overlapped(lhs, rhs), "Computing the FSC on the same array is not allowed");
+        check(not are_overlapped(lhs, rhs), "Computing the FSC on the same array is not allowed");
 
         check(rhs.shape() == shape.rfft(),
               "Given the logical shape {}, the expected non-redundant shape should be {}, but got {}",
@@ -296,14 +295,14 @@ namespace noa::signal::details {
                   "The input and output arrays must be on the same device, "
                   "but got fsc:{}, cones:{}",
                   device, cone_directions.device());
-            check(ni::is_contiguous_vector(cone_directions),
+            check(is_contiguous_vector(cone_directions),
                   "The cone directions should be specified as a contiguous vector, but got shape:{}, strides:{}",
                   cone_directions.shape(), cone_directions.strides());
             n_cones = cone_directions.ssize();
         }
 
         const auto expected_shape = Shape4{shape[0], 1, n_cones, n_shells(lhs.shape())};
-        check(fsc.shape() == expected_shape and fsc.are_contiguous(),
+        check(fsc.shape() == expected_shape and fsc.is_contiguous(),
               "The FSC does not have the correct shape. Given the input shape {}, and the number of cones ({}),"
               "the expected shape is {}, but got {}",
               shape, n_cones, expected_shape, fsc.shape());
@@ -337,8 +336,8 @@ namespace noa::signal::fft {
 
         const auto options = lhs.options().set_allocator(Allocator::DEFAULT_ASYNC);
         const auto denominator = Array<real_t>(fsc.shape().template set<1>(2), options);
-        auto denominator_lhs = denominator.subregion(ni::Full{}, 0);
-        auto denominator_rhs = denominator.subregion(ni::Full{}, 1);
+        auto denominator_lhs = denominator.subregion(Full{}, 0);
+        auto denominator_rhs = denominator.subregion(Full{}, 1);
 
         const auto reduction_op = FSCIsotropic<REMAP, real_t, isize, input_accessor_t, output_accessor_t>(
                 input_accessor_t(lhs.get(), lhs.strides()),
@@ -410,8 +409,8 @@ namespace noa::signal::fft {
 
         const auto options = lhs.options().set_allocator(Allocator::DEFAULT_ASYNC);
         const auto denominator = Array<real_t>(fsc.shape().template set<1>(2), options);
-        auto denominator_lhs = denominator.subregion(ni::Full{}, 0);
-        auto denominator_rhs = denominator.subregion(ni::Full{}, 1);
+        auto denominator_lhs = denominator.subregion(Full{}, 0);
+        auto denominator_rhs = denominator.subregion(Full{}, 1);
 
         auto reduction_op = FSCAnisotropic<REMAP, coord_t, isize, input_accessor_t, output_accessor_t, direction_accessor_t>(
             input_accessor_t(lhs.get(), lhs.strides()),

@@ -1,18 +1,20 @@
-#include "noa/gpu/cuda/Stream.hpp"
-#include "noa/gpu/cuda/Event.hpp"
+#include "noa/runtime/cuda/Stream.hpp"
+#include "noa/runtime/cuda/Event.hpp"
 
 #include "Catch.hpp"
 
 namespace {
+    NOA_NV_DIAG_SUPPRESS(177)
     struct TestCUDAShareable {
         std::shared_ptr<float[]> ptr;
-        [[nodiscard]] auto share() const noexcept -> const std::shared_ptr<float[]>& { return ptr; }
+        [[nodiscard, maybe_unused]] auto share() const noexcept -> const std::shared_ptr<float[]>& { return ptr; }
     };
 
     struct TestCUDANonShareable {
         std::shared_ptr<float[]> ptr;
-        [[nodiscard]] auto share() const noexcept -> float* { return ptr.get(); }
+        [[nodiscard, maybe_unused]] auto share() const noexcept -> float* { return ptr.get(); }
     };
+    NOA_NV_DIAG_DEFAULT(177)
 
     using noa::traits::shareable;
     using noa::traits::shareable_using_share;

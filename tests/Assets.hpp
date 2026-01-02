@@ -3,7 +3,7 @@
 #include <noa/base/Vec.hpp>
 #include <noa/runtime/core/Shape.hpp>
 #include <noa/io/Encoding.hpp>
-#include <noa/xform/core/Interpolation.hpp>
+#include <noa/xform/core/Interp.hpp>
 #include <noa/fft/core/Layout.hpp>
 
 #if defined(NOA_COMPILER_CLANG)

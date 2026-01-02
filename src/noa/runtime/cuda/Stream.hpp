@@ -2,15 +2,13 @@
 
 #include <list>
 #include <mutex>
-#include <condition_variable>
 #include <atomic>
 
-#include "noa/runtime/core/Traits.hpp"
-#include "noa/runtime/core/utils/Misc.hpp"
-#include "noa/runtime/core/utils/Shareable.hpp"
+#include "noa/base/Utils.hpp"
+#include "noa/runtime/core/Shareable.hpp"
 #include "noa/runtime/cuda/Error.hpp"
-#include "noa/cuda/Device.hpp"
-#include "noa/cuda/Runtime.hpp"
+#include "noa/runtime/cuda/Device.hpp"
+#include "noa/runtime/cuda/Runtime.hpp"
 
 namespace noa::cuda::details {
     // Registry to attach a shared_ptr to a stream, using a FIFO buffer.

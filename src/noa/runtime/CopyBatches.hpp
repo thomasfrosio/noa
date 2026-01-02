@@ -30,7 +30,7 @@ namespace noa {
         check(input.device() == output.device(),
               "The input and output should be on the same device, but got input={} and output={}",
               input.device(), output.device());
-        check(ni::is_contiguous_vector(batch_indices) and output.shape()[0] == batch_indices.n_elements(),
+        check(is_contiguous_vector(batch_indices) and output.shape()[0] == batch_indices.n_elements(),
               "The indices should be specified as a contiguous vector of size {}, but got shape={} and strides={}",
               output.shape()[0], batch_indices.shape(), batch_indices.strides());
         check(batch_indices.device().is_cpu(),

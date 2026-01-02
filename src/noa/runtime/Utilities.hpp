@@ -3,8 +3,9 @@
 #include "noa/base/Tuple.hpp"
 #include "noa/base/Vec.hpp"
 #include "noa/runtime/core/Accessor.hpp"
-#include "noa/runtime/core/Shareable.hpp"
 #include "noa/runtime/core/Batch.hpp"
+#include "noa/runtime/core/Shareable.hpp"
+#include "noa/runtime/core/Utilities.hpp"
 #include "noa/runtime/Traits.hpp"
 
 namespace noa::details {
@@ -19,15 +20,6 @@ namespace noa::details {
                 return to_accessor_value<EnforceConst>(std::forward<U>(v));
             }
         });
-    }
-
-    /// Reorders the tuple(s) of accessors (in-place).
-    template<typename Index, nt::tuple_of_accessor_or_empty... T>
-    constexpr void reorder_accessors(const Vec<Index, 4>& order, T&... accessors) {
-        (accessors.for_each([&order]<typename U>(U& accessor) {
-            if constexpr (nt::accessor_pure<U>)
-                accessor.reorder(order);
-        }), ...);
     }
 
     template<typename Tup>
@@ -91,7 +83,7 @@ namespace noa::details {
     /// \note Accessors increment the pointer on dimension at a time! So the offset of each dimension
     ///       is converted to ptrdiff_t (by the compiler) and added to the pointer. This makes it less
     ///       likely to reach the integer upper limit.
-    template<typename Int, typename T, typename I, usize N>
+    template<typename Int, typename I, usize N>
     [[nodiscard]] constexpr bool is_accessor_access_safe(const Strides<I, N>& input, const Shape<I, N>& shape) {
         for (usize i{}; i < N; ++i) {
             const auto end = static_cast<isize>(shape[i] - 1) * static_cast<isize>(input[i]);
@@ -148,7 +140,7 @@ namespace noa::details {
             else
                 static_assert(nt::always_false<T>);
         } else if constexpr (nt::varray<T>) {
-            NOA_ASSERT(value.are_contiguous());
+            NOA_ASSERT(value.is_contiguous());
             return nd::Batch<value_t*>{value.get()};
         } else {
             return nd::Batch{value};

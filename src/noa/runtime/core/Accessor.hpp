@@ -1,9 +1,9 @@
 #pragma once
 
 #include "noa/base/Tuple.hpp"
+#include "noa/runtime/core/Access.hpp"
 #include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/core/Traits.hpp"
-#include "noa/runtime/core/Offset.hpp"
 
 namespace noa {
     template<typename T, usize N, typename I,
@@ -142,9 +142,8 @@ namespace noa {
         }
 
         template<nt::integer Int>
-        NOA_FHD constexpr auto reorder(const Vec<Int, N>& order) noexcept -> Accessor& {
-            strides() = strides().reorder(order);
-            return *this;
+        [[nodiscard]] NOA_FHD constexpr auto permute(const Vec<Int, N>& permutation) const noexcept -> Accessor {
+            return Accessor(m_ptr, m_strides.permute(permutation));
         }
 
         NOA_HD constexpr void reset_pointer(pointer_type new_pointer) noexcept { m_ptr = new_pointer; }
@@ -336,8 +335,8 @@ namespace noa {
         [[nodiscard]] NOA_HD constexpr bool is_empty() const noexcept { return false; }
         [[nodiscard]] NOA_HD constexpr explicit operator bool() const noexcept { return not is_empty(); }
 
-        NOA_HD constexpr void reset_pointer(pointer_type) noexcept {}
-        NOA_FHD constexpr auto reorder(const nt::vec_integer auto&) noexcept -> AccessorValue& { return *this; }
+        NOA_HD constexpr void reset_pointer(pointer_type) const noexcept {}
+        [[nodiscard]] NOA_FHD constexpr auto permute(const nt::vec_integer auto&) const noexcept -> AccessorValue { return *this; }
 
     public:
         [[nodiscard]] NOA_HD constexpr auto operator[](nt::integer auto) const noexcept -> const_reference_type { return m_value; }
@@ -543,6 +542,15 @@ namespace noa::details {
             });
     }
 
+    /// Reorders the tuple(s) of accessors (in-place).
+    template<typename Index, nt::tuple_of_accessor_or_empty... T>
+    constexpr void permute_accessors(const Vec<Index, 4>& order, T&... accessors) {
+        (accessors.for_each([&order]<typename U>(U& accessor) {
+            if constexpr (nt::accessor_pure<U>)
+                accessor = accessor.permute(order);
+        }), ...);
+    }
+
     /// Whether the accessors are aliases of each others. If empty, return false.
     /// TODO Take a shape and see if end of array doesn't overlap with other arrays? like are_overlapped
     template<nt::tuple_of_accessor_or_empty... T>
@@ -588,5 +596,37 @@ namespace noa::details {
             }
         };
         (accessors.for_each(add_offset), ...);
+    }
+
+    /// Checks whether all the 4d accessors are contiguous.
+    template<char ORDER = 'C', nt::tuple_of_accessor_or_empty T, nt::integer I>
+    NOA_HD constexpr auto are_accessors_contiguous(
+        const T& accessors,
+        const Shape<I, 4>& shape
+    ) noexcept -> bool {
+        return accessors.all([&shape]<typename U>(const U& accessor) {
+            if constexpr (nt::accessor_value<U>) {
+                return true;
+            } else {
+                static_assert(U::SIZE == 4);
+                return accessor.strides_full().template is_contiguous<ORDER>(shape);
+            }
+        });
+    }
+
+    /// Checks whether all the 4d accessors are contiguous.
+    template<char ORDER = 'C', nt::tuple_of_accessor_or_empty T, nt::integer I>
+    auto accessors_contiguity(
+        const T& accessors,
+        const Shape<I, 4>& shape
+    ) noexcept -> Vec<bool, 4> {
+        auto out = Vec<bool, 4>::from_value(true);
+        accessors.for_each([&shape, &out]<typename U>(const U& accessor) {
+            if constexpr (not nt::accessor_value<U>) {
+                static_assert(U::SIZE == 4);
+                out = out and accessor.strides_full().template as<I>().template contiguity<ORDER>(shape);
+            }
+        });
+        return out;
     }
 }

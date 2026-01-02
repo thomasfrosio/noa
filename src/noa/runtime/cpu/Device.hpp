@@ -11,11 +11,7 @@ namespace noa::cpu {
 
     class Device {
     public:
-        /// The library keeps track of some global resources that need to be deleted upon Device::reset().
-        /// This is the mechanism by which we can attach resources to a device: callbacks can be added (and removed)
-        /// to an internal thread-safe set managed by Device. When calling Device::reset(), these callbacks are
-        /// called once after the device synchronization but before the reset.
-        using reset_callback_type = void (*)(Device);
+        using reset_callback_type = void (*)(i32);
         static void add_reset_callback(reset_callback_type);
         static void remove_reset_callback(reset_callback_type);
 
@@ -38,6 +34,6 @@ namespace noa::cpu {
         constexpr Device() = default;
 
         /// Clears the internal data of the CPU backend.
-        void reset() const;
+        static void reset();
     };
 }

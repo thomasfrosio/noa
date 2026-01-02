@@ -2,12 +2,14 @@
 
 #include <memory> // std::unique_ptr, std::shared_ptr
 
-#include "noa/runtime/core/Enums.hpp"
-#include "../../core/Pair.hpp"
-#include "noa/runtime/core/types/Shape.hpp"
-#include "noa/cuda/Runtime.hpp"
-#include "noa/cuda/Error.hpp"
-#include "noa/cuda/Stream.hpp"
+#include "noa/base/Complex.hpp"
+#include "noa/base/Half.hpp"
+#include "noa/base/Pair.hpp"
+#include "noa/runtime/core/Shape.hpp"
+#include "noa/runtime/cuda/Device.hpp"
+#include "noa/runtime/cuda/Error.hpp"
+#include "noa/runtime/cuda/Runtime.hpp"
+#include "noa/runtime/cuda/Stream.hpp"
 
 // Add specialization for our complex types. Used for CUDA arrays and textures.
 template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::f16>() { return cudaCreateChannelDesc<half>(); }
@@ -60,18 +62,26 @@ namespace noa::cuda {
         using allocate_type = std::unique_ptr<T[], Deleter>;
 
     public:
-        /// Allocates device memory using cudaMalloc, with an alignment of at least 256 bytes.
-        /// This function throws if the allocation fails.
         template<nt::allocatable_type T>
-        static auto allocate(isize n_elements, Device device = Device::current()) -> allocate_type<T> {
+        static auto try_allocate(isize n_elements, Device device = Device::current()) -> allocate_type<T> {
             if (n_elements <= 0)
                 return {};
             const auto guard = DeviceGuard(device);
             void* tmp{nullptr}; // X** to void** is not allowed
             const auto n_bytes = n_elements * static_cast<isize>(sizeof(T));
-            check(cudaMalloc(&tmp, static_cast<usize>(n_bytes)));
+            if (cudaMalloc(&tmp, static_cast<usize>(n_bytes)) != cudaSuccess)
+                return {};
             add_bytes(device.id(), n_bytes);
             return {static_cast<T*>(tmp), Deleter{.size=n_bytes, .device_id=device.id()}};
+        }
+
+        /// Allocates device memory using cudaMalloc, with an alignment of at least 256 bytes.
+        /// This function throws if the allocation fails.
+        template<nt::allocatable_type T>
+        static auto allocate(isize n_elements, Device device = Device::current()) -> allocate_type<T> {
+            auto ptr = try_allocate<T>(n_elements, device);
+            check(ptr);
+            return ptr;
         }
 
         /// Allocates device memory asynchronously using cudaMallocAsync, with an alignment of at least 256 bytes.
@@ -304,17 +314,25 @@ namespace noa::cuda {
         /// Prefetches the memory region to the stream's GPU.
         template<nt::allocatable_type T>
         static void prefetch_to_gpu(const T* pointer, isize n_elements, Stream& stream) {
-            check(cudaMemPrefetchAsync(
-                pointer, static_cast<usize>(n_elements) * sizeof(T),
-                stream.device().id(), stream.id()));
+            const auto n_bytes = static_cast<usize>(n_elements) * sizeof(T);
+            #if CUDART_VERSION < 13000
+            check(cudaMemPrefetchAsync(pointer, n_bytes, stream.device().id(), stream.id()));
+            #else
+            auto location = cudaMemLocation{.type = cudaMemLocationTypeDevice, .id = stream.device().id()};
+            cudaMemPrefetchAsync(pointer, n_bytes, location, {}, stream.id());
+            #endif
         }
 
         /// Prefetches the memory region to the cpu.
         template<nt::allocatable_type T>
         static void prefetch_to_cpu(const T* pointer, isize n_elements, Stream& stream) {
-            check(cudaMemPrefetchAsync(
-                pointer, static_cast<usize>(n_elements) * sizeof(T),
-                cudaCpuDeviceId, stream.id()));
+            const auto n_bytes = static_cast<usize>(n_elements) * sizeof(T);
+            #if CUDART_VERSION < 13000
+            check(cudaMemPrefetchAsync(pointer, n_bytes, cudaCpuDeviceId, stream.id()));
+            #else
+            auto location = cudaMemLocation{.type = cudaMemLocationTypeHost, .id = 0};
+            cudaMemPrefetchAsync(pointer, n_bytes, location, {}, stream.id());
+            #endif
         }
 
         /// Returns the number of bytes currently allocated on the device.
@@ -450,13 +468,7 @@ namespace noa::cuda {
         inline static std::atomic<isize> m_bytes_currently_allocated[MAX_DEVICES]{};
     };
 
-    template<usize N, Interp INTERP, Border BORDER,
-             typename Value, typename Coord, typename Index,
-             bool NORMALIZED, bool LAYERED>
-    class Texture;
-
-    /// Creates 1d, 2d, or 3d texture objects bounded to a CUDA array.
-    ///
+    /// Creates 1d, 2d, or 3d CUDA array.
     /// CUDA arrays:
     ///  - Data resides in global memory. The host can cudaMemcpy to it, and the device can only access it
     ///    through texture reads or surface reads and writes.
@@ -469,77 +481,37 @@ namespace noa::cuda {
     ///  - Surfaces and textures can be bound to same CUDA array.
     ///  - They are mostly used when the content changes rarely.
     ///    Although reusing them with cudaMemcpy is possible and surfaces can write to it.
-    ///
-    /// CUDA textures:
-    ///  -   Address mode: How out of range coordinates are handled. This can be specified for each coordinates (although
-    ///                    the current implementation specifies the same mode for all the dimensions. It is either wrap,
-    ///                    mirror, border or clamp (default).
-    ///                    Note: This is ignored for 1D textures since they don't support addressing modes.
-    ///                    Note: mirror and wrap are only supported for normalized coordinates, otherwise, fallback to clamp.
-    ///  -   Filter mode:  Filtering used when fetching. Either point (neighbour) or linear.
-    ///                    Note: The linear mode is only allowed for float types.
-    ///                    Note: This is ignored for 1D textures since they don't perform any interpolation.
-    ///  -   Read mode:    Whether or not integer data should be converted to floating point when fetching. If signed,
-    ///                    returns float within [-1., 1.]. If unsigned, returns float within [0., 1.].
-    ///                    Note: This only applies to 8-bit and 16-bit integer formats. 32-bits are not promoted.
-    ///  -   Normalized coordinates: Whether or not the coordinates are normalized when fetching.
-    ///                              If false (default): textures are fetched using floating point coordinates in range
-    ///                                                  [0, N-1], where N is the size of that particular dimension.
-    ///                              If true:            textures are fetched using floating point coordinates in range
-    ///                                                  [0., 1. -1/N], where N is the size of that particular dimension.
-    ///
-    /// Textures are bound to global memory, either through a device pointer or a CUDA array.
-    /// -- Data in the bounded CUDA array can be updated but texture cache is unchanged until a new kernel is launched.
-    /// -- The device pointer or a CUDA array should not be freed while the texture is being used.
-    class AllocatorTexture {
+    class AllocatorArray {
     public:
-        // Textures can map pitch memory (2d only) and linear memory (1d only), but we don't support these
-        // use cases as they are either less performant or are very limited compared to a CUDA array.
-        struct Resource {
-            cudaArray_t array{}; // pointer
-            cudaTextureObject_t texture{}; // usize
+        struct Deleter {
             isize size{};
             i32 device_id{};
-
-            Resource() = default;
-            ~Resource() {
-                [[maybe_unused]] cudaError_t err;
-                err = cudaDestroyTextureObject(texture);
-                NOA_ASSERT(err == cudaSuccess);
-                err = cudaFreeArray(array);
+            void operator()(cudaArray_t ptr) const noexcept {
+                [[maybe_unused]] auto err = cudaFreeArray(ptr);
                 NOA_ASSERT(err == cudaSuccess);
                 add_bytes(device_id, -size);
             }
         };
 
-        using allocate_type = std::shared_ptr<Resource>;
+        using allocate_type = std::unique_ptr<cudaArray, Deleter>;
 
     public:
-        /// Allocates a CUDA array and create a texture from that array.
-        /// The returned array and texture are configured to work with the interpolation functions
-        /// (see convert_to_description() for more details).
+        /// Allocates a CUDA array.
         template<nt::any_of<i8, i16, i32, u8, u16, u32, f16, f32, c16, c32> T>
         static auto allocate(
             const Shape4& shape,
-            Interp interp,
-            Border border,
             Device device = Device::current()
-        ) -> std::shared_ptr<Resource> {
-            auto resource = std::make_shared<Resource>();
-
-            // Create the array.
+        ) -> allocate_type {
             const auto device_guard = DeviceGuard(device);
             const auto desc = cudaCreateChannelDesc<T>();
             const auto is_layered = shape.ndim() == 2;
             const auto extent = shape2extent(shape, is_layered);
-            check(cudaMalloc3DArray(&resource->array, &desc, extent, is_layered ? cudaArrayLayered : cudaArrayDefault));
+            cudaArray_t ptr;
+            check(cudaMalloc3DArray(&ptr, &desc, extent, is_layered ? cudaArrayLayered : cudaArrayDefault));
 
-            // Create the texture.
-            const auto [filter, address, read_mode, normalized_coords] = convert_to_description(interp, border);
-            resource->texture = create_texture(resource->array, filter, address, read_mode, normalized_coords);
-
-            add_bytes(device.id(), shape.n_elements() * static_cast<isize>(sizeof(T))); // TODO include pitch
-            return resource;
+            auto n_bytes = shape.n_elements() * static_cast<isize>(sizeof(T));
+            add_bytes(device.id(), n_bytes); // TODO include pitch
+            return allocate_type(ptr, Deleter{.size = n_bytes, .device_id = device_guard.id()});
         }
 
     public: // static array utilities
@@ -554,7 +526,7 @@ namespace noa::cuda {
             // 1D:          111W  -> 00W
             // 2D layered:  B1HW  -> DHW
             // 1D layered:  B11W  -> D0W
-            check(all(shape > 0) and shape[is_layered] == 1,
+            check(shape > 0 and shape[is_layered] == 1,
                   "The input shape cannot be converted to a CUDA array extent. "
                   "Dimensions with a size of 0 are not allowed, and the {} should be 1. Shape: {}",
                   is_layered ? "depth dimension (for layered arrays)" : "batch dimension", shape);
@@ -570,7 +542,7 @@ namespace noa::cuda {
 
         static auto extent2shape(cudaExtent extent, bool is_layered) noexcept -> Shape4 {
             auto u_extent = Shape{extent.depth, extent.height, extent.width};
-            u_extent += Shape<usize, 3>::from_vec(u_extent == 0); // set empty dimensions to 1
+            u_extent += Shape<usize, 3>::from_vec(u_extent.cmp_eq(0)); // set empty dimensions to 1
 
             // Column vectors are "lost" in the conversion.
             // 1d extents are interpreted as row vectors.
@@ -592,128 +564,6 @@ namespace noa::cuda {
             // Not sure whether the flags are mutually exclusive, so just check the bit for layered textures.
             return flags & cudaArrayLayered;
         }
-
-    public: // static texture utilities
-        static constexpr auto convert_to_texture(
-            Interp interp,
-            Border border
-        ) -> Pair<Interp, Border> {
-            bool is_addressable = border.is_any(Border::ZERO, Border::CLAMP, Border::MIRROR, Border::PERIODIC);
-            Border border_tex = is_addressable ? border : Border{Border::ZERO};
-            Interp interp_tex =
-                is_addressable and interp.is_any(Interp::LINEAR_FAST, Interp::CUBIC_BSPLINE_FAST) ?
-                Interp::LINEAR_FAST : Interp::NEAREST_FAST;
-            return {interp_tex, border_tex};
-        }
-
-        static auto convert_to_description(
-            Interp interp,
-            Border border
-        ) -> Tuple<cudaTextureFilterMode, cudaTextureAddressMode, cudaTextureReadMode, bool> {
-            auto [interp_tex, border_tex] = convert_to_texture(interp, border);
-
-            cudaTextureFilterMode filter_mode =
-                interp_tex == Interp::LINEAR_FAST ? cudaFilterModeLinear : cudaFilterModePoint;
-
-            cudaTextureAddressMode address_mode{};
-            bool normalized_coordinates{false};
-            switch (border_tex) {
-                case Border::PERIODIC: {
-                    address_mode = cudaAddressModeWrap;
-                    normalized_coordinates = true;
-                    break;
-                }
-                case Border::MIRROR: {
-                    address_mode = cudaAddressModeMirror;
-                    normalized_coordinates = true;
-                    break;
-                }
-                case Border::CLAMP: {
-                    address_mode = cudaAddressModeClamp;
-                    break;
-                }
-                case Border::ZERO: {
-                    address_mode = cudaAddressModeBorder;
-                    break;
-                }
-                default: panic();
-            }
-            return make_tuple(filter_mode, address_mode, cudaReadModeElementType, normalized_coordinates);
-        }
-
-        /// Creates a 1d, 2d or 3d texture from a CUDA array.
-        /// \param array                        CUDA array. Its lifetime should exceed the lifetime of this new object.
-        /// \param filter_mode                  Filter mode, either cudaFilterModePoint or cudaFilterModeLinear.
-        /// \param address_mode                 Address mode, either cudaAddressModeWrap, cudaAddressModeClamp,
-        ///                                     cudaAddressModeMirror or cudaAddressModeBorder.
-        /// \param normalized_reads_to_float    Whether 8-, 16-integer data should be converted to float when fetching.
-        ///                                     Either cudaReadModeElementType or cudaReadModeNormalizedFloat.
-        /// \param normalized_coordinates       Whether the coordinates are normalized when fetching.
-        /// \note cudaAddressModeMirror and cudaAddressModeWrap are only available with normalized coordinates.
-        ///       If normalized_coordinates is false, border_mode is switched (internally by CUDA) to cudaAddressModeClamp.
-        static auto create_texture(
-            const cudaArray* array,
-            cudaTextureFilterMode filter_mode,
-            cudaTextureAddressMode address_mode,
-            cudaTextureReadMode normalized_reads_to_float,
-            bool normalized_coordinates
-        ) -> cudaTextureObject_t {
-            cudaResourceDesc res_desc{};
-            res_desc.resType = cudaResourceTypeArray;
-            res_desc.res.array.array = const_cast<cudaArray*>(array); // one example where we need const_cast...
-            // TODO cudaArrayGetInfo can be used to extract the array type and make
-            //      sure it matches T, but is it really useful? Maybe just an assert?
-
-            cudaTextureDesc tex_desc{};
-            tex_desc.addressMode[0] = address_mode;
-            tex_desc.addressMode[1] = address_mode; // ignored if 1d array.
-            tex_desc.addressMode[2] = address_mode; // ignored if 1d or 2d array.
-            tex_desc.filterMode = filter_mode;
-            tex_desc.readMode = normalized_reads_to_float;
-            tex_desc.normalizedCoords = normalized_coordinates;
-
-            cudaTextureObject_t texture{};
-            if (cudaCreateTextureObject(&texture, &res_desc, &tex_desc, nullptr))
-                panic("Creating the texture object from a CUDA array failed");
-            return texture;
-        }
-
-        /// Returns a texture object's texture descriptor.
-        static auto texture_description(cudaTextureObject_t texture) -> cudaTextureDesc {
-            cudaTextureDesc tex_desc{};
-            check(cudaGetTextureObjectTextureDesc(&tex_desc, texture));
-            return tex_desc;
-        }
-
-        /// Returns a texture object's texture descriptor.
-        static auto texture_resource(cudaTextureObject_t texture) -> cudaResourceDesc {
-            cudaResourceDesc tex_desc{};
-            check(cudaGetTextureObjectResourceDesc(&tex_desc, texture));
-            return tex_desc;
-        }
-
-        static auto texture_array(cudaTextureObject_t texture) -> cudaArray* {
-            const auto array_resource = texture_resource(texture);
-            check(array_resource.resType == cudaResourceTypeArray, "The texture is not bound to a CUDA array");
-            return array_resource.res.array.array;
-        }
-
-        /// Whether texture is using normalized coordinates.
-        static bool has_normalized_coordinates(cudaTextureObject_t texture) {
-            return texture_description(texture).normalizedCoords;
-        }
-
-        template<usize N, Interp INTERP, Border BORDER, typename Value, typename Coord, typename Index>
-        struct texture_type_ {
-            static constexpr bool LAYERED = N == 2;
-            static constexpr bool NORMALIZED = BORDER == Border::MIRROR or BORDER == Border::PERIODIC;
-            static constexpr auto TEX = convert_to_texture(INTERP, BORDER);
-            using type = Texture<N, TEX.first, TEX.second, Value, Coord, Index, NORMALIZED, LAYERED>;
-        };
-
-        /// The corresponding Texture type created by the allocator.
-        template<usize N, Interp INTERP, Border BORDER, typename Value, typename Coord, typename Index>
-        using texture_type = texture_type_<N, INTERP, BORDER, Value, Coord, Index>::type;
 
         /// Returns the number of bytes currently allocated on the device.
         [[nodiscard]] static auto bytes_currently_allocated(i32 device_id) -> usize {

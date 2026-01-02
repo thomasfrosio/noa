@@ -1,7 +1,8 @@
 #pragma once
 
-#include "noa/runtime/core/Vec.hpp"
-#include "noa/xform/core/Mat.hpp"
+#include "noa/base/Mat.hpp"
+#include "noa/base/Vec.hpp"
+#include "noa/xform/Traits.hpp"
 
 namespace noa::xform {
     /// Quaternion type to represent 3d rotations. The coefficients are saved in the z, y, x, w order.
@@ -93,7 +94,7 @@ namespace noa::xform {
         }
 
         [[nodiscard]] NOA_HD constexpr auto operator[](nt::integer auto i) noexcept -> value_type& {
-            ni::bounds_check(4, i);
+            noa::bounds_check(4, i);
             if (i == 0)
                 return z;
             if (i == 1)
@@ -104,7 +105,7 @@ namespace noa::xform {
         }
 
         [[nodiscard]] NOA_HD constexpr auto operator[](nt::integer auto i) const noexcept -> const value_type& {
-            ni::bounds_check(4, i);
+            noa::bounds_check(4, i);
             if (i == 0)
                 return z;
             if (i == 1)
@@ -184,7 +185,7 @@ namespace noa::xform {
         }
 
         [[nodiscard]] NOA_HD constexpr auto normalize() const noexcept -> Quaternion {
-            return from_coefficients(noa::normalize(to_vec()));
+            return from_coefficients(noa::normalize(to_vec())); // FIXME
         }
 
         [[nodiscard]] NOA_HD constexpr auto conj() const noexcept -> Quaternion {

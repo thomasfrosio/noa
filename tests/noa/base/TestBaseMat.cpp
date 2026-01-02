@@ -1,10 +1,11 @@
-#include <../../../../src/noa/xform/core/Mat.hpp>
+#include <noa/base/Mat.hpp>
 
 #include "Catch.hpp"
+#include "Utils.hpp"
 
 using namespace ::noa::types;
 
-TEMPLATE_TEST_CASE("core::Mat", "", f32, f64) {
+TEMPLATE_TEST_CASE("base::Mat", "", f32, f64) {
     // Loading matrices onto the GPU can be quite expensive, especially for matrices made of vectors
     // with an odd number of elements. To fix this, force to a 16-bytes alignment.
     using real_t = TestType;
@@ -215,8 +216,8 @@ TEMPLATE_TEST_CASE("core::indexing:: reorder matrices", "", u32, i32, i64, u64) 
         Vec<f64, 2> expected = matrix * vector;
 
         Vec<TestType, 2> order{1, 0};
-        vector = reorder(vector, order);
-        matrix = reorder(matrix, order);
+        vector = vector.permute(order);
+        matrix = matrix.permute(order);
         Vec<f64, 2> result = matrix * vector;
         REQUIRE(noa::allclose(expected[0], result[1], 1e-12));
         REQUIRE(noa::allclose(expected[1], result[0], 1e-12));
@@ -231,8 +232,8 @@ TEMPLATE_TEST_CASE("core::indexing:: reorder matrices", "", u32, i32, i64, u64) 
         Vec<f64, 3> vector{randomizer.get(), randomizer.get(), 1};
         Vec<f64, 2> expected = matrix * vector;
 
-        vector = reorder(vector, Vec<TestType, 3>{1, 0, 2});
-        matrix = reorder(matrix, Vec<TestType, 2>{1, 0});
+        vector = vector.permute(Vec<TestType, 3>{1, 0, 2});
+        matrix = matrix.permute(Vec<TestType, 2>{1, 0});
         Vec<f64, 2> result = matrix * vector;
         REQUIRE(noa::allclose(expected[0], result[1], 1e-12));
         REQUIRE(noa::allclose(expected[1], result[0], 1e-12));
@@ -250,10 +251,10 @@ TEMPLATE_TEST_CASE("core::indexing:: reorder matrices", "", u32, i32, i64, u64) 
         using order_t = Vec<TestType, 3>;
         std::vector<order_t> orders{{0, 1, 2}, {0, 2, 1}, {2, 1, 0}, {1, 0, 2}};
         for (const auto& order: orders) {
-            vector = reorder(vector, order);
-            matrix = reorder(matrix, order);
+            vector = vector.permute(order);
+            matrix = matrix.permute(order);
             Vec<f64, 3> result = matrix * vector;
-            expected = reorder(expected, order);
+            expected = expected.permute(order);
 
             INFO(order);
             REQUIRE_THAT(result[0], Catch::Matchers::WithinAbs(expected[0], 1e-6));

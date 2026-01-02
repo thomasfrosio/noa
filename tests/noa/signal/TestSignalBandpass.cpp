@@ -14,7 +14,7 @@ using namespace noa::types;
 
 TEST_CASE("signal::lowpass()", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
-    const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";
+    const Path path_base = test::NOA_DATA_PATH / "signal";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["lowpass"];
 
     std::vector<Device> devices{"cpu"};
@@ -40,7 +40,7 @@ TEST_CASE("signal::lowpass()", "[asset]") {
         }
 
         // Get expected filter. Asset is not batched so broadcast batch dimension.
-        auto filter_expected = noa::indexing::broadcast(noa::read_image<f32>(filename_expected).data, shape.rfft());
+        auto filter_expected = noa::broadcast(noa::read_image<f32>(filename_expected).data, shape.rfft());
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device, Stream::DEFAULT);
@@ -108,7 +108,7 @@ TEMPLATE_TEST_CASE("signal::lowpass(), remap", "", f16, f32, f64) {
 
 TEST_CASE("signal::highpass()", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
-    const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";
+    const Path path_base = test::NOA_DATA_PATH / "signal";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["highpass"];
 
     std::vector<Device> devices{"cpu"};
@@ -134,7 +134,7 @@ TEST_CASE("signal::highpass()", "[asset]") {
         }
 
         // Get expected filter. Asset is not batched so copy to all batches.
-        auto filter_expected = noa::indexing::broadcast(noa::read_image<f32>(filename_expected).data, shape.rfft());
+        auto filter_expected = noa::broadcast(noa::read_image<f32>(filename_expected).data, shape.rfft());
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device, Stream::DEFAULT);
@@ -201,7 +201,7 @@ TEMPLATE_TEST_CASE("signal::highpass(), remap", "", f16, f32, f64) {
 
 TEST_CASE("signal::bandpass()", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
-    const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";
+    const Path path_base = test::NOA_DATA_PATH / "signal";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["bandpass"];
 
     std::vector<Device> devices{"cpu"};
@@ -228,7 +228,7 @@ TEST_CASE("signal::bandpass()", "[asset]") {
         }
 
         // Get expected filter. Asset is not batched so copy to all batches.
-        auto filter_expected = noa::indexing::broadcast(noa::read_image<f32>(filename_expected).data, shape.rfft());
+        auto filter_expected = noa::broadcast(noa::read_image<f32>(filename_expected).data, shape.rfft());
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device, Stream::DEFAULT);

@@ -1,15 +1,11 @@
 #pragma once
 
-#include "noa/runtime/core/Iwise.hpp"
-#include "noa/runtime/core/Math.hpp"
-#include "noa/runtime/core/Vec.hpp"
-#include "noa/runtime/core/Shape.hpp"
-
-#include "noa/runtime/Array.hpp"
-#include "noa/runtime/Iwise.hpp"
-
 #include "noa/fft/core/Frequency.hpp"
 #include "noa/fft/core/Layout.hpp"
+#include "noa/runtime/Array.hpp"
+#include "noa/runtime/core/Iwise.hpp"
+#include "noa/runtime/core/Shape.hpp"
+#include "noa/runtime/Iwise.hpp"
 
 namespace noa::signal::details {
     template<typename Input, typename Filter = Empty,
@@ -148,7 +144,7 @@ namespace noa::signal::details {
                   "Given the logical shape {} and {} remap, the expected input shape should be {}, but got {}",
                   shape, REMAP, expected_input_shape, input.shape());
 
-            check(not REMAP.has_layout_change() or not ni::are_overlapped(input, output),
+            check(not REMAP.has_layout_change() or not are_overlapped(input, output),
                   "In-place remapping is not allowed");
         }
         check(N == 1 or allclose(fftfreq_range.start, 0.),

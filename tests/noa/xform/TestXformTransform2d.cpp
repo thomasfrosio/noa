@@ -1,20 +1,19 @@
-#include <../../../../src/noa/xform/CubicBSplinePrefilter.hpp>
-#include <noa/unified/geometry/Transform.hpp>
-#include <noa/unified/IO.hpp>
-#include <noa/unified/Factory.hpp>
-#include <noa/unified/Random.hpp>
-#include <noa/unified/Texture.hpp>
+#include <noa/xform/CubicBSplinePrefilter.hpp>
+#include <noa/xform/Transform.hpp>
+#include <noa/xform/Texture.hpp>
+#include <noa/IO.hpp>
+#include <noa/Runtime.hpp>
 
 #include "Assets.hpp"
 #include "Catch.hpp"
 #include "Utils.hpp"
 
 using namespace ::noa::types;
-using Interp = noa::Interp;
+using Interp = noa::xform::Interp;
 using Border = noa::Border;
 
-TEST_CASE("unified::geometry::transform_2d, vs scipy", "[asset]") {
-    const Path path_base = test::NOA_DATA_PATH / "geometry";
+TEST_CASE("xform::transform_2d, vs scipy", "[asset]") {
+    const Path path_base = test::NOA_DATA_PATH / "xform";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform_2d"];
     const auto input_filename = path_base / param["input"].as<Path>();
 
@@ -39,11 +38,11 @@ TEST_CASE("unified::geometry::transform_2d, vs scipy", "[asset]") {
         const auto rotate = noa::deg2rad(test["rotate"].as<f64>());
         const auto shift = test["shift"].as<Vec<f64, 2>>();
         const auto inv_matrix = noa::inverse(
-            noa::geometry::translate(center) *
-            noa::geometry::translate(shift) *
-            noa::geometry::linear2affine(noa::geometry::rotate(rotate)) *
-            noa::geometry::linear2affine(noa::geometry::scale(scale)) *
-            noa::geometry::translate(-center)
+            noa::xform::translate(center) *
+            noa::xform::translate(shift) *
+            noa::xform::affine(noa::xform::rotate(rotate)) *
+            noa::xform::affine(noa::xform::scale(scale)) *
+            noa::xform::translate(-center)
         ).as<f32>();
 
         for (auto& device: devices) {
@@ -57,9 +56,9 @@ TEST_CASE("unified::geometry::transform_2d, vs scipy", "[asset]") {
             // With arrays:
             const auto output = noa::like(expected);
             if (interp.is_almost_any(Interp::CUBIC_BSPLINE))
-                noa::cubic_bspline_prefilter(input, input);
+                noa::xform::cubic_bspline_prefilter(input, input);
 
-            noa::geometry::transform_2d(input, output, inv_matrix, {
+            noa::xform::transform_2d(input, output, inv_matrix, {
                 .interp = interp,
                 .border = border,
                 .cvalue = cvalue,
@@ -78,16 +77,16 @@ TEST_CASE("unified::geometry::transform_2d, vs scipy", "[asset]") {
 
             // With textures:
             // The input is prefiltered at this point, so no need for prefiltering here.
-            const auto input_texture = noa::Texture<f32>(input, device, interp, {
+            const auto input_texture = noa::xform::Texture<f32>(input, device, interp, {
                 .border = border,
                 .cvalue = cvalue,
                 .prefilter = false, // already prefiltered
             });
 
             noa::fill(output, 0); // erase
-            noa::geometry::transform_2d(input_texture, output, inv_matrix);
+            noa::xform::transform_2d(input_texture, output, inv_matrix);
 
-            if (interp == noa::Interp::NEAREST) {
+            if (interp == noa::xform::Interp::NEAREST) {
                 const test::MatchResult results = test::allclose_abs(expected, output, 1e-4f);
                 REQUIRE_THAT(results.total_abs_diff, Catch::Matchers::WithinAbs(0, 1e-6));
             } else {
@@ -98,9 +97,9 @@ TEST_CASE("unified::geometry::transform_2d, vs scipy", "[asset]") {
     REQUIRE(count == expected_count);
 }
 
-TEST_CASE("unified::geometry::transform_2d(), others", "[asset]") {
+TEST_CASE("xform::transform_2d(), others", "[asset]") {
     constexpr bool GENERATE_TEST_DATA = false;
-    const Path path_base = test::NOA_DATA_PATH / "geometry";
+    const Path path_base = test::NOA_DATA_PATH / "xform";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform_2d_more"];
     const auto input_filename = path_base / param["input"].as<Path>();
 
@@ -108,12 +107,12 @@ TEST_CASE("unified::geometry::transform_2d(), others", "[asset]") {
     const auto center = param["center"].as<Vec<f64, 2>>();
     const auto scale = param["scale"].as<Vec<f64, 2>>();
     const auto rotate = noa::deg2rad(param["rotate"].as<f64>());
-    const auto inv_matrix = noa::geometry::affine2truncated(noa::inverse(
-        noa::geometry::translate(center) *
-        noa::geometry::linear2affine(noa::geometry::rotate(rotate)) *
-        noa::geometry::linear2affine(noa::geometry::scale(scale)) *
-        noa::geometry::translate(-center)
-    ).as<f32>());
+    const auto inv_matrix = (
+        noa::xform::translate(center) *
+        noa::xform::affine(noa::xform::rotate(rotate)) *
+        noa::xform::affine(noa::xform::scale(scale)) *
+        noa::xform::translate(-center)
+    ).inverse().pop_back().as<f32>();
 
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
@@ -123,16 +122,16 @@ TEST_CASE("unified::geometry::transform_2d(), others", "[asset]") {
         INFO("test number = " << nb);
 
         const YAML::Node& test = param["tests"][nb];
-        const auto interp = test["interp"].as<noa::Interp>();
+        const auto interp = test["interp"].as<noa::xform::Interp>();
         const auto border = test["border"].as<noa::Border>();
         const auto expected_filename = path_base / test["expected"].as<Path>();
 
         if constexpr (GENERATE_TEST_DATA) {
             const auto input = noa::read_image<f32>(input_filename, {.enforce_2d_stack = true}).data;
             const auto output = noa::like(input);
-            if (interp.is_almost_any(noa::Interp::CUBIC_BSPLINE))
-                noa::cubic_bspline_prefilter(input, input);
-            noa::geometry::transform_2d(input, output, inv_matrix, {interp, border, cvalue});
+            if (interp.is_almost_any(noa::xform::Interp::CUBIC_BSPLINE))
+                noa::xform::cubic_bspline_prefilter(input, input);
+            noa::xform::transform_2d(input, output, inv_matrix, {interp, border, cvalue});
             noa::write_image(output, expected_filename);
             continue;
         }
@@ -144,32 +143,32 @@ TEST_CASE("unified::geometry::transform_2d(), others", "[asset]") {
 
             const auto input = noa::read_image<f32>(input_filename, {.enforce_2d_stack = true}, options).data;
             const auto expected = noa::read_image<f32>(expected_filename, {.enforce_2d_stack = true}, options).data;
-            if (interp.is_almost_any(noa::Interp::CUBIC_BSPLINE))
-                noa::cubic_bspline_prefilter(input, input);
+            if (interp.is_almost_any(noa::xform::Interp::CUBIC_BSPLINE))
+                noa::xform::cubic_bspline_prefilter(input, input);
 
             // With arrays:
             const auto output = noa::like(expected);
-            noa::geometry::transform_2d(input, output, inv_matrix, {interp, border, cvalue});
+            noa::xform::transform_2d(input, output, inv_matrix, {interp, border, cvalue});
 
             // It is usually around 2e-5, but there are some outliers...
             REQUIRE(test::allclose_abs_safe(expected, output, 1e-4f));
 
 
             // With textures:
-            const auto input_texture = noa::Texture<f32>(input, device, interp, {
+            const auto input_texture = noa::xform::Texture<f32>(input, device, interp, {
                 .border = border,
                 .cvalue = cvalue,
                 .prefilter= false, // already prefiltered
             });
             noa::fill(output, 0); // erase
-            noa::geometry::transform_2d(input_texture, output, inv_matrix);
+            noa::xform::transform_2d(input_texture, output, inv_matrix);
 
             REQUIRE(test::allclose_abs_safe(expected, output, 1e-4f));
         }
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::transform_2d, cpu vs gpu", "", f32, f64, c32, c64) {
+TEMPLATE_TEST_CASE("xform::transform_2d, cpu vs gpu", "", f32, f64, c32, c64) {
     if (not Device::is_any_gpu())
         return;
 
@@ -195,9 +194,9 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_2d, cpu vs gpu", "", f32, f64, 
     const auto shape = test::random_shape_batched(2);
     const auto center = shape.filter(2, 3).vec.as<f64>() / test::Randomizer<f64>(1, 4).get();
     const auto inverse_rotation_matrix =
-        noa::geometry::translate(center) *
-        noa::geometry::linear2affine(noa::geometry::rotate(-rotation)) *
-        noa::geometry::translate(-center);
+        noa::xform::translate(center) *
+        noa::xform::affine(noa::xform::rotate(-rotation)) *
+        noa::xform::translate(-center);
 
     const auto input_cpu = noa::random(noa::Uniform<TestType>{-2, 2}, shape);
     const auto input_gpu = input_cpu.to({.device="gpu", .allocator="unified"});
@@ -205,16 +204,16 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_2d, cpu vs gpu", "", f32, f64, 
     const auto output_gpu = noa::like(input_gpu);
 
     if (interp.is_almost_any(Interp::CUBIC_BSPLINE)) {
-        noa::cubic_bspline_prefilter(input_cpu, input_cpu);
-        noa::cubic_bspline_prefilter(input_gpu, input_gpu);
+        noa::xform::cubic_bspline_prefilter(input_cpu, input_cpu);
+        noa::xform::cubic_bspline_prefilter(input_gpu, input_gpu);
     }
-    noa::geometry::transform_2d(input_cpu, output_cpu, inverse_rotation_matrix, {interp, border, value});
-    noa::geometry::transform_2d(input_gpu, output_gpu, inverse_rotation_matrix, {interp, border, value});
+    noa::xform::transform_2d(input_cpu, output_cpu, inverse_rotation_matrix, {interp, border, value});
+    noa::xform::transform_2d(input_gpu, output_gpu, inverse_rotation_matrix, {interp, border, value});
 
     REQUIRE(test::allclose_abs(output_cpu, output_gpu, 5e-4f));
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::transform_2d(), texture interpolation", "", f32, c32) {
+TEMPLATE_TEST_CASE("xform::transform_2d(), texture interpolation", "", f32, c32) {
     if (not Device::is_any_gpu())
         return;
 
@@ -247,20 +246,20 @@ TEMPLATE_TEST_CASE("unified::geometry::transform_2d(), texture interpolation", "
     auto shape = test::random_shape_batched(2);
     const auto center = shape.filter(2, 3).vec.as<f64>() / test::Randomizer<f64>(1, 4).get();
     const auto inverse_rotation_matrix =
-        noa::geometry::translate(center) *
-        noa::geometry::linear2affine(noa::geometry::rotate(-rotation)) *
-        noa::geometry::translate(-center);
+        noa::xform::translate(center) *
+        noa::xform::affine(noa::xform::rotate(-rotation)) *
+        noa::xform::translate(-center);
 
     const auto gpu_options = ArrayOption{.device="gpu", .allocator="unified"};
     const auto input_cpu = noa::random(noa::Uniform<TestType>{-2, 2}, shape);
-    const auto input_gpu = noa::Texture<TestType>(input_cpu, gpu_options.device, interp, {
+    const auto input_gpu = noa::xform::Texture<TestType>(input_cpu, gpu_options.device, interp, {
         .border = border, .cvalue = value, .prefilter  = false
     });
     const auto output_cpu = noa::like(input_cpu);
     const auto output_gpu = noa::empty<TestType>(shape, gpu_options);
 
-    noa::geometry::transform_2d(input_cpu, output_cpu, inverse_rotation_matrix, {interp, border, value});
-    noa::geometry::transform_2d(input_gpu, output_gpu, inverse_rotation_matrix);
+    noa::xform::transform_2d(input_cpu, output_cpu, inverse_rotation_matrix, {interp, border, value});
+    noa::xform::transform_2d(input_gpu, output_gpu, inverse_rotation_matrix);
 
     const bool is_textureable = border.is_any(Border::ZERO, Border::CLAMP, Border::MIRROR, Border::PERIODIC);
     f32 epsilon = 1e-5f; // usually around 1e-6 and 5e-6

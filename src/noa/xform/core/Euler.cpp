@@ -1,6 +1,6 @@
-#include "noa/runtime/core/Error.hpp"
-#include "noa/runtime/core/Math.hpp"
-#include "noa/runtime/core/Strings.hpp"
+#include "noa/base/Error.hpp"
+#include "noa/base/Math.hpp"
+#include "noa/base/Strings.hpp"
 #include "noa/xform/core/Euler.hpp"
 #include "noa/xform/core/Transform.hpp"
 

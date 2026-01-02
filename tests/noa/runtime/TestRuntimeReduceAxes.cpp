@@ -11,7 +11,7 @@
 using namespace noa::types;
 
 TEST_CASE("runtime::reduce - axis reductions vs numpy", "[assets]") {
-    const auto path = test::NOA_DATA_PATH / "math";
+    const auto path = test::NOA_DATA_PATH / "runtime";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
 
     const YAML::Node& input = tests["input"];
@@ -246,8 +246,8 @@ TEST_CASE("runtime::reduce - argmax/argmin()", "[noa]") {
 
         const auto input_2d = input.reshape({shape.batch(), 1, 1, -1});
         for (i64 batch = 0; batch < shape.batch(); ++batch) {
-            auto& offset = expected_min_offsets(batch, 0, 0, 0);
-            input_2d(batch, 0, 0, offset) = expected_min_values(batch, 0, 0, 0);
+            auto& offset = expected_min_offsets.span()(batch, 0, 0, 0);
+            input_2d.span()(batch, 0, 0, offset) = expected_min_values.span()(batch, 0, 0, 0);
             offset += static_cast<i32>(batch * n_elements_per_batch); // back to global offset
         }
 

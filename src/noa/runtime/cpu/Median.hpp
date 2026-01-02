@@ -2,16 +2,13 @@
 
 #include <algorithm>
 #include "noa/runtime/core/Shape.hpp"
-#include "noa/runtime/core/Layout.hpp"
+#include "noa/runtime/core/Utilities.hpp"
 #include "noa/runtime/cpu/Allocators.hpp"
 
 namespace noa::cpu {
     template<typename T>
     auto median(T* input, Strides4 strides, Shape4 shape, bool overwrite) {
-        // Make it in rightmost order.
-        const auto order = rightmost_order(strides, shape);
-        strides = reorder(strides, order);
-        shape = reorder(shape, order);
+        nd::permute_all_to_rightmost_order(strides, shape, strides, shape);
 
         const auto n_elements = shape.n_elements();
 
@@ -24,7 +21,7 @@ namespace noa::cpu {
             copy(input, strides, buffer.get(), shape.strides(), shape, 1);
             to_sort = buffer.get();
         } else {
-            if (overwrite and are_contiguous(strides, shape)) {
+            if (overwrite and strides.is_contiguous(shape)) {
                 to_sort = input;
             } else {
                 buffer = AllocatorHeap::allocate<mut_t>(n_elements);

@@ -10,9 +10,9 @@ namespace {
 
     // 1d sum and argmax fused into one operation.
     // In this example, we don't pay attention to taking the first or last max...
-    template<size_t N>
+    template<usize N>
     struct SumArgmax {
-        AccessorRestrictContiguousI32<f64, N> input;
+        noa::AccessorRestrictContiguous<f64, N, i32> input;
 
         constexpr void init(const auto& indices, f64& sum, Pair<f64, i32>& argmax) const {
             const auto value = input(indices);
@@ -45,13 +45,13 @@ TEST_CASE("runtime::cuda::reduce_iwise") {
     Stream stream(Device::current());
 
     const Tuple shapes = noa::make_tuple(
-        Shape<i64, 1>{2451}, Shape<i64, 1>{524289},
-        Shape<i64, 2>{72, 130}, Shape<i64, 2>{542, 845},
-        Shape<i64, 3>{4, 45, 35}, Shape<i64, 3>{64, 64, 64},
-        Shape<i64, 4>{2, 3, 25, 35}, Shape<i64, 4>{3, 64, 64, 64},
-        Shape<i64, 4>{2, 128, 128, 128}
+        Shape1{2451}, Shape1{524289},
+        Shape2{72, 130}, Shape2{542, 845},
+        Shape3{4, 45, 35}, Shape3{64, 64, 64},
+        Shape4{2, 3, 25, 35}, Shape4{3, 64, 64, 64},
+        Shape4{2, 128, 128, 128}
     );
-    shapes.for_each([&]<size_t N>(const Shape<i64, N>& shape) {
+    shapes.for_each([&]<usize N>(const Shape<isize, N>& shape) {
         INFO("shape=" << shape);
         const auto n_elements = shape.n_elements();
         const auto b0 = AllocatorManaged::allocate<f64>(n_elements, stream);
@@ -65,16 +65,16 @@ TEST_CASE("runtime::cuda::reduce_iwise") {
         const auto expected_sum = std::accumulate(b0.get(), b0.get() + n_elements, 0.);
 
         auto reduced = noa::make_tuple(
-            AccessorValue<f64>(0.),
-            AccessorValue<Pair<f64, i32>>({-10., 0})
+            noa::AccessorValue<f64>(0.),
+            noa::AccessorValue<Pair<f64, i32>>({-10., 0})
         );
         auto output = noa::make_tuple(
-            AccessorRestrictContiguousI32<f64, 1>(b1.get()),
-            AccessorRestrictContiguousI32<Pair<f64, i32>, 1>(b2.get())
+            noa::AccessorRestrictContiguous<f64, 1, i32>(b1.get()),
+            noa::AccessorRestrictContiguous<Pair<f64, i32>, 1, i32>(b2.get())
         );
 
         const auto shape_i32 = shape.template as<i32>();
-        auto op = SumArgmax{.input=AccessorRestrictContiguousI32<f64, N>(b0.get(), shape_i32.strides())};
+        auto op = SumArgmax{.input=noa::AccessorRestrictContiguous<f64, N, i32>(b0.get(), shape_i32.strides())};
         reduce_iwise(shape_i32, op, reduced, output, stream);
         stream.synchronize();
 

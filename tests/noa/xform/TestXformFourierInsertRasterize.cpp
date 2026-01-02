@@ -1,10 +1,9 @@
-#include <noa/core/geometry/Transform.hpp>
-#include <../../../../src/noa/xform/Euler.hpp>
-#include <noa/unified/geometry/FourierProject.hpp>
-#include <noa/unified/IO.hpp>
-#include <noa/unified/Factory.hpp>
+#include <noa/xform/core/Transform.hpp>
+#include <noa/xform/core/Euler.hpp>
+#include <noa/xform/FourierProject.hpp>
 
-#include <noa/Array.hpp>
+#include <noa/Runtime.hpp>
+#include <noa/IO.hpp>
 #include <noa/Signal.hpp>
 #include <noa/FFT.hpp>
 
@@ -13,11 +12,11 @@
 #include "Utils.hpp"
 
 using namespace ::noa::types;
-namespace ng = noa::geometry;
-using Interp = noa::Interp;
+namespace nx = noa::xform;
+using Interp = nx::Interp;
 
-TEST_CASE("unified::geometry::rasterize_central_slices_3d", "[asset]") {
-    const Path path = test::NOA_DATA_PATH / "geometry" / "fft";
+TEST_CASE("xform::rasterize_central_slices_3d", "[asset]") {
+    const Path path = test::NOA_DATA_PATH / "xform";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["rasterize_central_slices_3d"];
     constexpr bool COMPUTE_ASSETS = false;
 
@@ -38,10 +37,10 @@ TEST_CASE("unified::geometry::rasterize_central_slices_3d", "[asset]") {
         const auto ews_radius = Vec<f64, 2>::from_value(parameters["ews_radius"].as<f64>());
         const auto volume_filename = path / parameters["volume_filename"].as<Path>();
 
-        const auto inv_scaling_matrix = noa::geometry::scale(1 / scale);
+        const auto inv_scaling_matrix = nx::scale(1 / scale);
         auto fwd_rotation_matrices = noa::empty<Mat33<f32>>(std::ssize(rotate));
         for (size_t i{}; auto& fwd_rotation_matrix: fwd_rotation_matrices.span_1d_contiguous())
-            fwd_rotation_matrix = noa::geometry::euler2matrix(
+            fwd_rotation_matrix = nx::euler2matrix(
                 noa::deg2rad(Vec{0.f, rotate[i++], 0.f}), {.axes="zyx"});
 
         for (auto& device: devices) {
@@ -55,7 +54,7 @@ TEST_CASE("unified::geometry::rasterize_central_slices_3d", "[asset]") {
             // Backward project.
             const Array slice_fft = noa::linspace(slice_shape.rfft(), noa::Linspace<f32>{1, 10, true}, options);
             const Array volume_fft = noa::zeros<f32>(volume_shape.rfft(), options);
-            noa::geometry::rasterize_central_slices_3d<"HC2HC">(
+            nx::rasterize_central_slices_3d<"HC2HC">(
                 slice_fft, {}, slice_shape, volume_fft, {}, volume_shape,
                 inv_scaling_matrix, fwd_rotation_matrices,
                 {fftfreq_cutoff, target_shape, ews_radius});
@@ -70,7 +69,7 @@ TEST_CASE("unified::geometry::rasterize_central_slices_3d", "[asset]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::rasterize_central_slices_3d, remap", "", f32, c32) {
+TEMPLATE_TEST_CASE("xform::rasterize_central_slices_3d, remap", "", f32, c32) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -80,7 +79,7 @@ TEMPLATE_TEST_CASE("unified::geometry::rasterize_central_slices_3d, remap", "", 
 
     Array<Mat33<f32>> fwd_rotation_matrices(slice_shape[0]);
     for (size_t i{}; auto& matrix: fwd_rotation_matrices.span_1d_contiguous())
-        matrix = noa::geometry::euler2matrix(
+        matrix = nx::euler2matrix(
             noa::deg2rad(Vec<f32, 3>::from_values(0, i++ * 2, 0)), {.axes="zyx"});
 
     for (auto& device: devices) {
@@ -97,10 +96,10 @@ TEMPLATE_TEST_CASE("unified::geometry::rasterize_central_slices_3d, remap", "", 
         const Array grid_fft2 = grid_fft0.copy();
 
         // With centered slices.
-        ng::rasterize_central_slices_3d<"hc2hc">(
+        nx::rasterize_central_slices_3d<"hc2hc">(
             slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
-        ng::rasterize_central_slices_3d<"HC2H">(
+        nx::rasterize_central_slices_3d<"HC2H">(
             slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
         noa::fft::remap("h2hc", grid_fft1, grid_fft2, grid_shape);
@@ -109,10 +108,10 @@ TEMPLATE_TEST_CASE("unified::geometry::rasterize_central_slices_3d, remap", "", 
         // With non-centered slices.
         noa::fill(grid_fft0, TestType{});
         noa::fill(grid_fft1, TestType{});
-        ng::rasterize_central_slices_3d<"h2hc">(
+        nx::rasterize_central_slices_3d<"h2hc">(
             slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
-        ng::rasterize_central_slices_3d<"h2h">(
+        nx::rasterize_central_slices_3d<"h2h">(
             slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
         noa::fft::remap("h2hc", grid_fft1, grid_fft2, grid_shape);
@@ -120,7 +119,7 @@ TEMPLATE_TEST_CASE("unified::geometry::rasterize_central_slices_3d, remap", "", 
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::rasterize_central_slices_3d, weights", "", f32, f64) {
+TEMPLATE_TEST_CASE("xform::rasterize_central_slices_3d, weights", "", f32, f64) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -130,7 +129,7 @@ TEMPLATE_TEST_CASE("unified::geometry::rasterize_central_slices_3d, weights", ""
 
     auto fwd_rotation_matrices = noa::empty<Mat33<f64>>(slice_shape[0]);
     for (i64 i{}; auto& fwd_rotation_matrix: fwd_rotation_matrices.span_1d_contiguous())
-        fwd_rotation_matrix = ng::euler2matrix(
+        fwd_rotation_matrix = nx::euler2matrix(
             noa::deg2rad(Vec<f64, 3>::from_values(0, i * 2, 0)), {.axes="zyx"});
 
     for (auto& device: devices) {
@@ -145,7 +144,7 @@ TEMPLATE_TEST_CASE("unified::geometry::rasterize_central_slices_3d, weights", ""
         const Array grid_fft0 = noa::zeros<TestType>(grid_shape.rfft(), options);
         const Array grid_fft1 = grid_fft0.copy();
 
-        ng::rasterize_central_slices_3d<"hc2hc">(
+        nx::rasterize_central_slices_3d<"hc2hc">(
             slice_fft, slice_fft.copy(), slice_shape, grid_fft0, grid_fft1, grid_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
         REQUIRE(test::allclose_abs_safe(grid_fft0, grid_fft1, 5e-5));

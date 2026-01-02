@@ -8,7 +8,6 @@
 
 namespace {
     using namespace noa::types;
-    namespace ni = noa::indexing;
 
     struct Tracked {
         Vec<i32, 2> count{};
@@ -29,8 +28,8 @@ namespace {
     struct IwiseCopy {
         SpanContiguous<i64, N> span;
         NOA_HD constexpr void operator()(auto... indices) const {
-            span(indices...) = ni::is_inbound(span.shape(), indices...) ?
-                ni::offset_at(span.strides_full(), indices...) : -1;
+            span(indices...) = noa::is_inbound(span.shape(), indices...) ?
+                noa::offset_at(span.strides_full(), indices...) : -1;
         }
     };
 
@@ -44,7 +43,7 @@ namespace {
         Stream stream(Device::current());
 
         AND_THEN("check operator") {
-            constexpr auto shape = Shape<i64, 1>{2};
+            constexpr auto shape = Shape1{2};
             auto value = AllocatorManaged::allocate<Vec<i32, 2>>(2, stream);
             auto op0 = Op{value.get(), Tracked{}};
 
@@ -61,13 +60,13 @@ namespace {
 
         AND_THEN("1d") {
             const auto shapes = std::array{
-                Shape<i64, 1>{1000},
-                test::random_shape<i64, 1>(1),
+                Shape1{1000},
+                test::random_shape<isize, 1>(1),
             };
             for (const auto& shape: shapes) {
                 const auto n_elements = shape.n_elements();
                 const auto buffer = AllocatorManaged::allocate<i32>(n_elements, stream);
-                iwise(shape, [ptr = buffer.get()] __device__ (i64 i) { ptr[i] = static_cast<i32>(i); }, stream);
+                iwise(shape, [ptr = buffer.get()] __device__ (isize i) { ptr[i] = static_cast<i32>(i); }, stream);
 
                 const auto expected = std::make_unique<i32[]>(static_cast<size_t>(n_elements));
                 for (i32 i{}; auto& e: Span(expected.get(), n_elements))
@@ -80,15 +79,15 @@ namespace {
 
         AND_THEN("2d") {
             const auto shapes = std::array{
-                Shape<i64, 2>{150, 100},
-                test::random_shape<i64, 2>(1),
-                test::random_shape<i64, 2>(2),
+                Shape2{150, 100},
+                test::random_shape<isize, 2>(1),
+                test::random_shape<isize, 2>(2),
             };
             for (const auto& shape: shapes) {
                 const auto n_elements = shape.n_elements();
                 const auto buffer = AllocatorManaged::allocate<i32>(n_elements, stream);
-                const auto accessor = AccessorContiguousI64<i32, 2>(buffer.get(), shape.strides());
-                iwise(shape, [=] __device__(i64 i, i64 j) {
+                const auto accessor = noa::AccessorContiguous<i32, 2>(buffer.get(), shape.strides());
+                iwise(shape, [=] __device__(isize i, isize j) {
                     accessor(i, j) = static_cast<i32>(accessor.offset_at(i, j));
                 }, stream);
 
@@ -103,17 +102,17 @@ namespace {
 
         AND_THEN("3d") {
             const auto shapes = std::array{
-                Shape<i64, 3>{25, 15, 35},
-                test::random_shape<i64, 3>(1),
-                test::random_shape<i64, 3>(2),
-                test::random_shape<i64, 3>(3),
+                Shape3{25, 15, 35},
+                test::random_shape<isize, 3>(1),
+                test::random_shape<isize, 3>(2),
+                test::random_shape<isize, 3>(3),
             };
             for (const auto& shape: shapes) {
                 const auto n_elements = shape.n_elements();
 
                 const auto buffer = AllocatorManaged::allocate<i32>(n_elements, stream);
-                const auto accessor = AccessorContiguousI64<i32, 3>(buffer.get(), shape.strides());
-                iwise(shape, [=] __device__(const Vec<i64, 3>& indices) {
+                const auto accessor = noa::AccessorContiguous<i32, 3>(buffer.get(), shape.strides());
+                iwise(shape, [=] __device__(const Vec<isize, 3>& indices) {
                     accessor(indices) = static_cast<i32>(accessor.offset_at(indices));
                 }, stream);
 
@@ -128,7 +127,7 @@ namespace {
 
         AND_THEN("4d") {
             const auto shapes = std::array{
-                Shape<i64, 4>{3, 5, 25, 60},
+                Shape4{3, 5, 25, 60},
                 test::random_shape_batched(1),
                 test::random_shape_batched(2),
                 test::random_shape_batched(3),
@@ -138,8 +137,8 @@ namespace {
                 const auto n_elements = shape.n_elements();
 
                 const auto buffer = AllocatorManaged::allocate<i32>(n_elements, stream);
-                const auto accessor = AccessorContiguousI64<i32, 4>(buffer.get(), shape.strides());
-                iwise(shape, [=] __device__(const Vec<i64, 4>& indices) {
+                const auto accessor = noa::AccessorContiguous<i32, 4>(buffer.get(), shape.strides());
+                iwise(shape, [=] __device__(const Vec<isize, 4>& indices) {
                     accessor(indices) = static_cast<i32>(accessor.offset_at(indices));
                 }, stream);
 
@@ -165,7 +164,7 @@ TEST_CASE("runtime::cuda::iwise - multi-launch") {
     Stream stream(Device::current(), Stream::DEFAULT);
 
     {
-        auto shape = Shape<i64, 4>{140000, 10, 10, 32};
+        auto shape = Shape4{140000, 10, 10, 32};
         auto ptr = AllocatorManaged::allocate<i64>(shape.n_elements(), stream);
         auto span = Span(ptr.get(), shape);
 
@@ -183,7 +182,7 @@ TEST_CASE("runtime::cuda::iwise - multi-launch") {
         REQUIRE(is_ok);
     }
     {
-        auto shape = Shape<i64, 3>{70001, 10, 32};
+        auto shape = Shape3{70001, 10, 32};
         auto ptr = AllocatorManaged::allocate<i64>(shape.n_elements(), stream);
         auto span = Span(ptr.get(), shape);
 

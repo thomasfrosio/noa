@@ -6,6 +6,7 @@ list(APPEND NOA_HEADERS
     noa/base/Error.hpp
     noa/base/Half.hpp
     noa/base/Irange.hpp
+    noa/base/Mat.hpp
     noa/base/Math.hpp
     noa/base/Operators.hpp
     noa/base/Pair.hpp

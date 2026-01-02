@@ -1,7 +1,6 @@
 #pragma once
 
-#include "noa/runtime/core/Config.hpp"
-#include "noa/runtime/core/Vec.hpp"
+#include "noa/base/Vec.hpp"
 
 namespace noa::xform::details {
     /// BSpline prefilter utility.

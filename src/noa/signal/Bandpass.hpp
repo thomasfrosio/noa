@@ -1,9 +1,5 @@
 #pragma once
 
-#include "noa/runtime/core/Enums.hpp"
-#include "noa/runtime/core/Math.hpp"
-#include "noa/runtime/core/Vec.hpp"
-
 #include "noa/fft/core/Layout.hpp"
 #include "noa/signal/FilterSpectrum.hpp"
 
@@ -102,7 +98,7 @@ namespace noa::signal::details {
                     filter = (coord_type{1} + tmp) * coord_type{0.5};
                 }
             } else {
-                static_assert(nt::always_false<>);
+                static_assert(nt::always_false<coord_type>);
             }
             return filter;
         }
@@ -124,7 +120,7 @@ namespace noa::signal::details {
                 else
                     filter = 1;
             } else {
-                static_assert(nt::always_false<>);
+                static_assert(nt::always_false<coord_type>);
             }
             return filter;
         }

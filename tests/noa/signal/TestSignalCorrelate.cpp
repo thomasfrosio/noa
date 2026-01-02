@@ -138,13 +138,13 @@ TEMPLATE_TEST_CASE("signal:: correlation peak batched", "", (Vec<f32, 2>), (Vec<
     INFO(shape);
 
     std::vector<TestData<N>> data;
-    const auto lhs_inverse_affine_matrices = Array<ng::Mat<f32, N + 1, N + 1>>(shape[0]);
-    const auto rhs_inverse_affine_matrices = Array<ng::Mat<f32, N + 1, N + 1>>(shape[0]);
+    const auto lhs_inverse_affine_matrices = Array<Mat<f32, N + 1, N + 1>>(shape[0]);
+    const auto rhs_inverse_affine_matrices = Array<Mat<f32, N + 1, N + 1>>(shape[0]);
     for (auto i: noa::irange(shape[0])) {
         auto tmp = generate_data<N>(shape);
         data.emplace_back(tmp);
-        lhs_inverse_affine_matrices(0, 0, 0, i) = ng::translate(-tmp.lhs_center).template as<f32>();
-        rhs_inverse_affine_matrices(0, 0, 0, i) = ng::translate(-tmp.rhs_center).template as<f32>();
+        lhs_inverse_affine_matrices.span_1d()[i] = ng::translate(-tmp.lhs_center).template as<f32>();
+        rhs_inverse_affine_matrices.span_1d()[i] = ng::translate(-tmp.rhs_center).template as<f32>();
     }
 
     for (auto correlation_mode: cross_correlation_modes) {
@@ -181,7 +181,7 @@ TEMPLATE_TEST_CASE("signal:: correlation peak batched", "", (Vec<f32, 2>), (Vec<
 
                 for (size_t i{}; i < shifts.eval().size(); ++i) {
                     INFO(i);
-                    auto computed_shift = -(shifts(0, 0, 0, i).template as<f64>() - data[i].lhs_center);
+                    auto computed_shift = -(shifts.span_1d()[i].template as<f64>() - data[i].lhs_center);
                     if (correlation_mode == ns::Correlation::DOUBLE_PHASE)
                         computed_shift /= 2;
 
@@ -192,7 +192,7 @@ TEMPLATE_TEST_CASE("signal:: correlation peak batched", "", (Vec<f32, 2>), (Vec<
                         REQUIRE_THAT(computed_shift[j], Catch::Matchers::WithinAbs(data[i].expected_shift[j], 5e-2));
 
                     const auto max = noa::max(xmap.subregion(i));
-                    REQUIRE(max <= values(0, 0, 0, i));
+                    REQUIRE(max <= values.span_1d()[i]);
                 }
             };
             run.template operator()<"H2FC">();
@@ -309,7 +309,7 @@ TEST_CASE("signal::cross_correlation_peak, no registration") {
 
         // Using argmax.
         auto [argmax_value, argmax_offset] = noa::argmax(xmap);
-        auto indices = noa::indexing::offset2index(argmax_offset, xmap);
+        auto indices = noa::offset2index(argmax_offset, xmap);
 
         REQUIRE(noa::allclose(argmax_value, peak_value));
         REQUIRE((indices[0] == 0 and indices[1] == 0));

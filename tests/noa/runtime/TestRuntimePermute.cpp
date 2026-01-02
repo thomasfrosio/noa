@@ -12,7 +12,7 @@ using namespace ::noa::types;
 namespace fs = std::filesystem;
 
 TEST_CASE("runtime::permute()", "[asset]") {
-    const fs::path path_base = test::NOA_DATA_PATH / "memory";
+    const fs::path path_base = test::NOA_DATA_PATH / "runtime";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["transpose"]["tests"];
     const bool pad = GENERATE(false, true);
     INFO("pad=" << pad);
@@ -121,7 +121,7 @@ TEST_CASE("runtime::permute, broadcast") {
 
         for (const auto& permutation: permutations) {
             INFO(permutation);
-            const auto permuted_shape = shape.reorder(permutation);
+            const auto permuted_shape = shape.permute(permutation);
             const Array<f32> result0(permuted_shape, options);
             const Array<f32> result1(permuted_shape, options);
 

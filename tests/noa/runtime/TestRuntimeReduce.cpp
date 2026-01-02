@@ -10,7 +10,7 @@
 using namespace noa::types;
 
 TEST_CASE("runtime::reduce - vs numpy", "[asset]") {
-    const auto path = test::NOA_DATA_PATH / "math";
+    const auto path = test::NOA_DATA_PATH / "runtime";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
 
     const YAML::Node& input = tests["input"];
@@ -71,7 +71,7 @@ TEST_CASE("runtime::reduce - vs numpy", "[asset]") {
 }
 
 TEST_CASE("runtime::reduce - complex vs numpy", "[assets]") {
-    const auto path = test::NOA_DATA_PATH / "math";
+    const auto path = test::NOA_DATA_PATH / "runtime";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_complex"];
     const auto shape = tests["shape"].as<Shape4>();
     const auto input_filename = path / tests["input_path"].as<Path>();

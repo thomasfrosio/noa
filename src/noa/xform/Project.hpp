@@ -1,14 +1,12 @@
 #pragma once
 
-#include "noa/runtime/core/Enums.hpp"
-#include "noa/runtime/core/indexing/Layout.hpp"
-#include "noa/runtime/core/Shape.hpp"
-#include "noa/runtime/core/Atomic.hpp"
+#include "noa/base/Mat.hpp"
 #include "noa/runtime/Array.hpp"
+#include "noa/runtime/core/Atomic.hpp"
+#include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/Iwise.hpp"
-
-#include "noa/xform/core/Mat.hpp"
 #include "noa/xform/core/Interpolation.hpp"
+#include "noa/xform/Transform.hpp"
 
 namespace noa::xform::details {
     template<nt::any_of<f32, f64> T, typename X>
@@ -305,7 +303,7 @@ namespace noa::xform::details {
 
         check(not input.is_empty(), "Empty array detected");
         if constexpr (nt::varray<Input>)
-            check(not ni::are_overlapped(input, output), "Input and output arrays should not overlap");
+            check(not are_overlapped(input, output), "Input and output arrays should not overlap");
 
         const Device device = input.device();
         check(device == output_device,
@@ -329,7 +327,7 @@ namespace noa::xform::details {
 
         auto check_transform = [&](const auto& transform, isize required_size, std::string_view name) {
             check(not transform.is_empty(), "{} should not be empty", name);
-            check(ni::is_contiguous_vector(transform) and transform.n_elements() == required_size,
+            check(is_contiguous_vector(transform) and transform.n_elements() == required_size,
                   "{} should be a contiguous vector with n_images={} elements, but got {}:shape={}, {}:strides={}",
                   name, required_size, name, transform.shape(), name, transform.strides());
             check(transform.device() == output_device, "{} should be on the compute device", name);
@@ -344,7 +342,7 @@ namespace noa::xform::details {
     void launch_backward_projection(Input&& input, Output&& output, Transform&& projection_matrices, auto& options) {
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, 3, Index>;
         auto output_accessor = output_accessor_t(output.get(), output.strides().filter(1, 2, 3).template as<Index>());
-        auto batched_projection_matrices = nd::to_batched_transform(projection_matrices);
+        auto batched_projection_matrices = to_batched_transform(projection_matrices);
 
         if constexpr (nt::texture_decay<Input>)
             options.interp = input.interp();
@@ -388,7 +386,7 @@ namespace noa::xform::details {
 
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, 3, Index>;
         auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0, 2, 3).template as<Index>());
-        auto batched_projection_matrices = nd::to_batched_transform(projection_matrices);
+        auto batched_projection_matrices = to_batched_transform(projection_matrices);
 
         if constexpr (nt::texture_decay<Input>)
             options.interp = input.interp();
@@ -441,8 +439,8 @@ namespace noa::xform::details {
 
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, 3, Index>;
         auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0, 2, 3).template as<Index>());
-        auto batched_backward_projection_matrices = nd::to_batched_transform(backward_projection_matrices);
-        auto batched_forward_projection_matrices = nd::to_batched_transform(forward_projection_matrices);
+        auto batched_backward_projection_matrices = to_batched_transform(backward_projection_matrices);
+        auto batched_forward_projection_matrices = to_batched_transform(forward_projection_matrices);
 
         if constexpr (nt::texture_decay<Input>)
             options.interp = input.interp();

@@ -1,8 +1,6 @@
 #include <omp.h>
 #include <cstring>
 
-#include "noa/runtime/core/Layout.hpp"
-#include "noa/runtime/core/Offset.hpp"
 #include "noa/io/Encoding.hpp"
 
 namespace {
@@ -69,7 +67,7 @@ namespace {
         const SpanContiguous<std::byte, 1>& output,
         bool clamp, bool swap_endian, i32 n_threads
     ) {
-        if (input.are_contiguous())
+        if (input.is_contiguous())
             return encode_1d_<Output>(input.data(), output.data(), input.n_elements(), clamp, swap_endian, n_threads);
 
         auto* ptr = reinterpret_cast<Output*>(output.get());
@@ -122,7 +120,7 @@ namespace {
         const Span<Output, 4>& output,
         bool clamp, bool swap_endian, i32 n_threads
     ) {
-        if (output.are_contiguous())
+        if (output.is_contiguous())
             return decode_1d_<Input>(input.data(), output.data(), output.n_elements(), clamp, swap_endian, n_threads);
 
         auto* ptr = reinterpret_cast<const Input*>(input.get());
@@ -201,7 +199,7 @@ namespace {
         const isize start_offset = std::ftell(output);
         check(start_offset != -1, "Could not get the current position of the stream, {}", std::strerror(errno));
 
-        const bool input_is_contiguous = input.are_contiguous();
+        const bool input_is_contiguous = input.is_contiguous();
 
         #pragma omp parallel for num_threads(n_threads)
         for (isize n_block = 0; n_block < n_blocks; ++n_block) {
@@ -272,7 +270,7 @@ namespace {
         const isize start_offset = std::ftell(input);
         check(start_offset != -1, "Could not get the current position of the stream, {}", std::strerror(errno));
 
-        const bool output_is_contiguous = output.are_contiguous();
+        const bool output_is_contiguous = output.is_contiguous();
 
         #pragma omp parallel for num_threads(n_threads)
         for (isize n_block = 0; n_block < n_blocks; ++n_block) {
@@ -338,7 +336,7 @@ namespace noa::io {
         switch (output_dtype) {
             case DataType::U4:
                 if constexpr (nt::scalar<T>) {
-                    check(input.are_contiguous() and is_even(input.shape()[3]),
+                    check(input.is_contiguous() and is_even(input.shape()[3]),
                           "u4 encoding requires the input array to be contiguous and have even rows");
                     return encode_4bits_(input.data(), output.data(), input.n_elements(), n_threads);
                 }
@@ -472,7 +470,7 @@ namespace noa::io {
         switch (output_dtype) {
             case DataType::U4:
                 if constexpr (nt::scalar<T>) {
-                    check(input.are_contiguous() and is_even(n_elements),
+                    check(input.is_contiguous() and is_even(n_elements),
                           "u4 encoding requires the input array to be contiguous and have an even number of elements");
                     return encode_file_<u4_encoding>(input, output, options.clamp, options.endian_swap, n_threads);
                 }
@@ -604,7 +602,7 @@ namespace noa::io {
         switch (input_dtype) {
             case DataType::U4:
                 if constexpr (nt::scalar<T>) {
-                    check(output.are_contiguous() and is_even(n_elements),
+                    check(output.is_contiguous() and is_even(n_elements),
                           "u4 encoding requires the output array to be contiguous and have an even number of elements");
                     return decode_4bits_(input.data(), output.data(), output.n_elements(), n_threads);
                 }
@@ -738,7 +736,7 @@ namespace noa::io {
         switch (input_dtype) {
             case DataType::U4:
                 if constexpr (nt::scalar<T>) {
-                    check(output.are_contiguous() and is_even(n_elements),
+                    check(output.is_contiguous() and is_even(n_elements),
                           "u4 encoding requires the output array to be contiguous and have an even number of elements");
                     return decode_file_<u4_encoding>(input, output, options.clamp, options.endian_swap, n_threads);
                 }

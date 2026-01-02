@@ -1,16 +1,15 @@
 #pragma once
 
 #include "noa/runtime/core/Interfaces.hpp"
-#include "noa/runtime/core/Layout.hpp"
 #include "noa/runtime/Traits.hpp"
 #include "noa/runtime/Stream.hpp"
 #include "noa/runtime/Utilities.hpp"
 
 #include "noa/runtime/cpu/ReduceEwise.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/cuda/Allocators.hpp"
-#include "noa/cuda/Copy.cuh"
-#include "noa/cuda/ReduceEwise.cuh"
+#include "noa/runtime/cuda/Allocators.hpp"
+#include "noa/runtime/cuda/Copy.cuh"
+#include "noa/runtime/cuda/ReduceEwise.cuh"
 #endif
 
 namespace noa {
@@ -128,7 +127,7 @@ namespace noa::details {
         const auto& first_input_array = inputs[Tag<index>{}];
         auto shape = first_input_array.shape();
         const auto device = first_input_array.device();
-        const auto order = rightmost_order(first_input_array.strides(), shape);
+        const auto order = first_input_array.strides().rightmost_order(shape);
         bool do_reorder = order != Vec<isize, 4>{0, 1, 2, 3};
 
         inputs.for_each_enumerate([&]<usize I, typename T>(T& input) {
@@ -142,7 +141,7 @@ namespace noa::details {
 
                 // Only reorder if all the inputs have the same order.
                 if (do_reorder)
-                    do_reorder = order == rightmost_order(input.strides(), shape);
+                    do_reorder = order == input.strides().rightmost_order(shape);
                 // TODO Forcing the same order is okay, but may be a bit too restrictive since it effectively
                 //      prevents automatic broadcasting (the caller can still explicitly broadcast though).
                 //      We may instead find the input with the largest effective shape and use it as
@@ -151,8 +150,8 @@ namespace noa::details {
         });
 
         if (do_reorder) {
-            shape = shape.reorder(order);
-            nd::reorder_accessors(order, input_accessors);
+            shape = shape.permute(order);
+            nd::permute_accessors(order, input_accessors);
         }
 
         Stream& stream = Stream::current(device);

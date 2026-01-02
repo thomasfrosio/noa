@@ -1,11 +1,10 @@
 #pragma once
 
+#include "noa/fft/core/Frequency.hpp"
 #include "noa/runtime/Array.hpp"
 #include "noa/runtime/Iwise.hpp"
-
-#include "noa/fft/core/Frequency.hpp"
-#include "noa/xform/core/Polar.hpp"
 #include "noa/signal/core/CTF.hpp"
+#include "noa/xform/core/Polar.hpp"
 
 namespace noa::signal::details {
     /// Index-wise operator, to compute/apply CTFs to {1|2|3}d DFTs.
@@ -164,13 +163,13 @@ namespace noa::signal::details {
                       "The input and output arrays must be on the same device, "
                       "but got input:device={} and output:device={}",
                       input.device(), output.device());
-                check(not REMAP.has_layout_change() or not ni::are_overlapped(input, output),
+                check(not REMAP.has_layout_change() or not are_overlapped(input, output),
                       "This function cannot execute an in-place multiplication and a remapping");
             }
         }
 
         if constexpr (nt::varray<CTF>) {
-            check(not ctf.is_empty() and ni::is_contiguous_vector(ctf) and ctf.n_elements() == shape[0],
+            check(not ctf.is_empty() and is_contiguous_vector(ctf) and ctf.n_elements() == shape[0],
                   "The CTFs should be specified as a contiguous vector with {} elements, "
                   "but got ctf:shape={} and ctf:strides={}",
                   shape[0], ctf.shape(), ctf.strides());
@@ -240,7 +239,7 @@ namespace noa::signal {
             case 1: {
                 using output_accessor_t = Accessor<value_t, 2, isize>;
                 using op_t = details::CTF<REMAP, 1, coord_t, isize, Empty, output_accessor_t, ctf_t>;
-                auto index = ni::non_empty_dhw_dimension(shape);
+                auto index = nd::non_empty_dhw_dimension(shape);
                 auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0, index));
                 auto op = op_t(
                     {}, output_accessor, shape.filter(index), details::extract_ctf(ctf),
@@ -254,7 +253,7 @@ namespace noa::signal {
             }
             case 2: {
                 auto output_strides = output.strides();
-                const auto order = ni::order(output_strides.filter(2, 3), shape.filter(2, 3));
+                const auto order = output_strides.filter(2, 3).rightmost_order(shape.filter(2, 3));
                 if (order != Vec<isize, 2>{0, 1}) {
                     std::swap(output_strides[2], output_strides[3]);
                     std::swap(shape[2], shape[3]);
@@ -275,11 +274,10 @@ namespace noa::signal {
             }
             case 3: {
                 auto output_strides = output.strides();
-                const auto order = ni::order(output_strides.pop_front(), shape.pop_front());
+                const auto order = output_strides.pop_front().rightmost_order(shape.pop_front());
                 if (order != Vec<isize, 3>{0, 1, 2}) {
                     const auto order_3d = (order + 1).push_front(0);
-                    output_strides = ni::reorder(output_strides, order_3d);
-                    shape = ni::reorder(shape, order_3d);
+                    nd::permute_all(order_3d, output_strides, shape);
                 }
 
                 using output_accessor_t = Accessor<value_t, 4, isize>;
@@ -338,7 +336,7 @@ namespace noa::signal {
 
         switch (shape.ndim()) {
             case 1: {
-                auto index = ni::non_empty_dhw_dimension(shape);
+                auto index = nd::non_empty_dhw_dimension(shape);
                 auto iwise_shape = shape.filter(0, index);
                 if constexpr (REMAP.is_xx2hx())
                     iwise_shape = iwise_shape.rfft();
@@ -362,7 +360,7 @@ namespace noa::signal {
             }
             case 2: {
                 auto output_strides = output.strides();
-                const auto order = ni::order(output_strides.filter(2, 3), shape.filter(2, 3));
+                const auto order = output_strides.filter(2, 3).rightmost_order(shape.filter(2, 3));
                 if (order != Vec<isize, 2>{0, 1}) {
                     std::swap(input_strides[2], input_strides[3]);
                     std::swap(output_strides[2], output_strides[3]);
@@ -390,12 +388,10 @@ namespace noa::signal {
             }
             case 3: {
                 auto output_strides = output.strides();
-                const auto order = ni::order(output_strides.pop_front(), shape.pop_front());
+                const auto order = output_strides.pop_front().rightmost_order(shape.pop_front());
                 if (order != Vec<isize, 3>{0, 1, 2}) {
                     const auto order_3d = (order + 1).push_front(0);
-                    input_strides = ni::reorder(input_strides, order_3d);
-                    output_strides = ni::reorder(output_strides, order_3d);
-                    shape = ni::reorder(shape, order_3d);
+                    nd::permute_all(order_3d, input_strides, output_strides, shape);
                 }
 
                 using input_accessor_t = Accessor<input_value_t, 4, isize>;
@@ -444,7 +440,7 @@ namespace noa::signal {
         using ctf_t = decltype(details::extract_ctf(ctf));
 
         auto output_strides = output.strides();
-        const auto order = ni::order(output_strides.filter(2, 3), shape.filter(2, 3));
+        const auto order = output_strides.filter(2, 3).rightmost_order(shape.filter(2, 3));
         if (order != Vec<isize, 2>{0, 1}) {
             std::swap(output_strides[2], output_strides[3]);
             std::swap(shape[2], shape[3]);
@@ -496,7 +492,7 @@ namespace noa::signal {
 
         auto input_strides = nd::broadcast_strides_optional(input, output);
         auto output_strides = output.strides();
-        const auto order = ni::order(output_strides.filter(2, 3), shape.filter(2, 3));
+        const auto order = output_strides.filter(2, 3).rightmost_order(shape.filter(2, 3));
         if (order != Vec<isize, 2>{0, 1}) {
             std::swap(input_strides[2], input_strides[3]);
             std::swap(output_strides[2], output_strides[3]);

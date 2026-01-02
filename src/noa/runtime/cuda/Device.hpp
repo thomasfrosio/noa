@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "../core/Strings.hpp"
+#include "noa/base/Strings.hpp"
 #include "noa/runtime/cuda/Runtime.hpp"
 #include "noa/runtime/cuda/Error.hpp"
 #include "noa/runtime/cuda/Version.hpp"
@@ -16,11 +16,7 @@ namespace noa::cuda {
     /// A CUDA device.
     class Device {
     public:
-        /// The library keeps track of some global resources that need to be deleted upon Device::reset().
-        /// This is the mechanism by which we can attach resources to a device: callbacks can be added (and removed)
-        /// to an internal thread-safe set managed by Device. When calling Device::reset(), these callbacks are
-        /// called once after the device synchronization but before the reset.
-        using reset_callback_type = void (*)(Device);
+        using reset_callback_type = void (*)(i32);
         static void add_reset_callback(reset_callback_type);
         static void remove_reset_callback(reset_callback_type);
 
@@ -56,7 +52,7 @@ namespace noa::cuda {
         /// current process. Any subsequent API call to this device will reinitialize the device.
         /// It is the caller's responsibility to ensure that resources (streams, pinned|device arrays,
         /// CUDA arrays, textures) attached to that device are destructed before calling this function.
-        /// The library's internal data will be handled automatically, e.g. FFT plans.
+        /// The library's internal data will be handled automatically, e.g., FFT plans.
         void reset() const;
 
         /// Retrieves the properties of the device.

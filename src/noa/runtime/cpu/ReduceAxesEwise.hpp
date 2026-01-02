@@ -175,7 +175,7 @@ namespace noa::cpu {
         } else if (axes_empty_or_to_reduce.pop_front() == true) { // reduce to one value per batch
             const auto n_batches = output_shape[0];
             const auto n_elements_to_reduce = input_shape.pop_front().template as<isize>().n_elements();
-            const bool are_contiguous = noa::is_contiguous(input, input_shape).pop_front() == true;
+            const bool is_contiguous = nd::accessors_contiguity(input, input_shape).pop_front() == true;
             const auto actual_n_threads = min(clamp_cast<i32>(n_batches), n_threads);
 
             const auto shape_2d = Shape<Index, 2>{n_batches, n_elements_to_reduce};
@@ -191,7 +191,7 @@ namespace noa::cpu {
                 (std::forward<Output>(output));
 
             if (n_elements_to_reduce > Config::n_elements_per_thread and clamp_cast<i32>(n_batches) < n_threads) {
-                if (are_contiguous and not are_aliased) {
+                if (is_contiguous and not are_aliased) {
                     auto input_2d = nd::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
                     reduce_axes_ewise_t::template parallel<3>(
                         shape_2d,
@@ -210,7 +210,7 @@ namespace noa::cpu {
                         actual_n_threads);
                 }
             } else {
-                if (are_contiguous and not are_aliased) {
+                if (is_contiguous and not are_aliased) {
                     auto input_2d = nd::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
                     reduce_axes_ewise_t::template parallel<2>(
                         shape_2d,
@@ -245,10 +245,10 @@ namespace noa::cpu {
 
         // Move the reduced dimension to the rightmost dimension.
         const auto order = noa::squeeze_left(axes_to_reduce.template as<i32>() + 1);
-        auto reordered_shape = input_shape.reorder(order);
+        auto reordered_shape = input_shape.permute(order);
         if (order != Vec{0, 1, 2, 3}) {
-            input_.for_each([&order](auto& accessor) { accessor.reorder(order); });
-            output_.for_each([&order](auto& accessor) { accessor.reorder(order); });
+            input_.for_each([&order](auto& accessor) { accessor = accessor.permute(order); });
+            output_.for_each([&order](auto& accessor) { accessor = accessor.permute(order); });
         }
 
         auto output_3d = nd::reconfig_accessors
@@ -259,7 +259,7 @@ namespace noa::cpu {
         // In other words, the reduction is done by the same thread.
         const isize n_iterations = reordered_shape.pop_back().template as<isize>().n_elements();
         const i32 actual_n_threads = n_iterations > 1024 ? n_threads : 1; // TODO Improve this heuristic
-        const bool is_contiguous = noa::is_contiguous(input_, reordered_shape)[3];
+        const bool is_contiguous = nd::accessors_contiguity(input_, reordered_shape)[3];
 
         if (is_contiguous and not are_aliased) {
             constexpr auto contiguous_restrict = nd::AccessorConfig<0>{

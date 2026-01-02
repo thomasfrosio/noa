@@ -1,8 +1,6 @@
 #pragma once
 
-#include "noa/runtime/core/Math.hpp"
 #include "noa/runtime/Array.hpp"
-
 #include "noa/signal/core/Window.hpp"
 
 namespace noa::signal {

@@ -1,11 +1,10 @@
 #pragma once
 #include "noa/runtime/cuda/IncludeGuard.cuh"
 
-#include "noa/runtime/core/Config.hpp"
-#include "noa/runtime/core/Enums.hpp"
 #include "noa/runtime/cuda/Allocators.hpp"
+#include "noa/xform/cuda/Allocators.hpp"
 
-namespace noa::cuda {
+namespace noa::xform::cuda {
     /// Texture object used to interpolate data.
     /// This type is supported by the Interpolator(Spectrum) and the interpolate(_spectrum)_using_texture functions.
     template<size_t N,
@@ -151,7 +150,7 @@ namespace noa::cuda {
         /// Checks that the texture object matches the Texture
         static void validate(cudaTextureObject_t texture) {
             cudaArray* array = AllocatorTexture::texture_array(texture);
-            const bool is_layered = AllocatorTexture::is_layered(array);
+            const bool is_layered = noa::cuda::AllocatorArray::is_layered(array);
             check(is_layered == LAYERED, "The input texture object is not layered, but a layered Texture was created");
 
             const cudaTextureDesc description = AllocatorTexture::texture_description(texture);

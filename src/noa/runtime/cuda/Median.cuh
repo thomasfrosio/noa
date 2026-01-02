@@ -1,8 +1,8 @@
 #pragma once
 #include "noa/runtime/cuda/IncludeGuard.cuh"
 
-#include "noa/runtime/core/types/Shape.hpp"
-#include "noa/runtime/core/indexing/Layout.hpp"
+#include "noa/runtime/core/Shape.hpp"
+#include "noa/runtime/core/Utilities.hpp"
 #include "noa/runtime/cuda/Stream.hpp"
 #include "noa/runtime/cuda/Allocators.hpp"
 #include "noa/runtime/cuda/Sort.cuh"
@@ -16,9 +16,7 @@ namespace noa::cuda {
         bool overwrite,
         Stream& stream
     ) {
-        const auto order = rightmost_order(strides, shape);
-        strides = reorder(strides, order);
-        shape = reorder(shape, order);
+        nd::permute_all_to_rightmost_order(strides, shape, strides, shape);
 
         const auto n_elements = shape.n_elements();
         using mut_t = std::remove_const_t<T>;
@@ -29,7 +27,7 @@ namespace noa::cuda {
             to_sort = buffer.get();
             copy(input, strides, to_sort, shape.strides(), shape, stream);
         } else {
-            if (overwrite and ni::are_contiguous(strides, shape)) {
+            if (overwrite and strides.is_contiguous(shape)) {
                 to_sort = input;
             } else {
                 buffer = AllocatorDevice::allocate_async<mut_t>(n_elements, stream);

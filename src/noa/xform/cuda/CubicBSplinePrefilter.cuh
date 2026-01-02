@@ -111,7 +111,7 @@ namespace noa::xform::cuda::details {
         const u32 z = blockIdx.y * blockDim.y + threadIdx.y;
         if (z >= shape[0] or x >= shape[2])
             return;
-        input += ni::offset_at(strides, blockIdx.z, z) + x * strides[3];
+        input += offset_at(strides, blockIdx.z, z) + x * strides[3];
         nx::details::BSplinePrefilter1d<T, i32>::filter_inplace(input, strides[2], shape[1]);
     }
 
@@ -132,13 +132,13 @@ namespace noa::xform::cuda::details {
     void cubic_bspline_prefilter_1d(
         const T* input, const Strides<u32, 2>& input_strides,
         T* output, const Strides<u32, 2>& output_strides,
-        const Shape<u32, 2>& shape, Stream& stream
+        const Shape<u32, 2>& shape, noa::cuda::Stream& stream
     ) {
         // Each thread processes an entire batch.
         // This has the same problem as the 2d/3d case, memory reads/writes are not coalesced.
         const u32 n_threads = next_multiple_of(shape[0], 32u);
         const u32 n_blocks = divide_up(shape[0], n_threads);
-        const auto config = LaunchConfig{n_blocks, n_threads};
+        const auto config = noa::cuda::LaunchConfig{n_blocks, n_threads};
 
         if (input == output) {
             stream.enqueue(
@@ -155,24 +155,24 @@ namespace noa::xform::cuda::details {
     void cubic_bspline_prefilter_2d(
         const T* input, const Strides<u32, 3>& input_strides,
         T* output, const Strides<u32, 3>& output_strides,
-        const Shape<u32, 3>& shape, Stream& stream
+        const Shape<u32, 3>& shape, noa::cuda::Stream& stream
     ) {
         // Each thread processes an entire line. The line is first x, then y.
         const u32 n_threads_x = shape[1] <= 128u ? 32u : 64u;
         const u32 n_threads_y = shape[2] <= 128u ? 32u : 64u;
         const dim3 n_blocks_x(divide_up(shape[1], n_threads_x), shape[0]);
         const dim3 n_blocks_y(divide_up(shape[2], n_threads_y), shape[0]);
-        const auto config_x = LaunchConfig{n_blocks_x, n_threads_x};
-        const auto config_y = LaunchConfig{n_blocks_y, n_threads_y};
+        const auto config_x = noa::cuda::LaunchConfig{n_blocks_x, n_threads_x};
+        const auto config_y = noa::cuda::LaunchConfig{n_blocks_y, n_threads_y};
 
         if (input == output) {
-            const auto accessor = AccessorU32<T, 3>(output, output_strides);
+            const auto accessor = Accessor<T, 3, u32>(output, output_strides);
             stream.enqueue(
                 details::cubic_bspline_prefilter_2d_x_inplace<T>,
                 config_x, accessor, shape.pop_front());
         } else {
-            const auto input_accessor = AccessorRestrictU32<const T, 3>(input, input_strides);
-            const auto output_accessor = AccessorRestrictU32<T, 3>(output, output_strides);
+            const auto input_accessor = AccessorRestrict<const T, 3, u32>(input, input_strides);
+            const auto output_accessor = AccessorRestrict<T, 3, u32>(output, output_strides);
             stream.enqueue(
                 details::cubic_bspline_prefilter_2d_x<T>,
                 config_x, input_accessor, output_accessor, shape.pop_front());
@@ -186,13 +186,13 @@ namespace noa::xform::cuda::details {
     void cubic_bspline_prefilter_3d(
         const T* input, const Strides<u32, 4>& input_strides,
         T* output, const Strides<u32, 4>& output_strides,
-        const Shape<u32, 4>& shape, Stream& stream
+        const Shape<u32, 4>& shape, noa::cuda::Stream& stream
     ) {
         // Determine the optimal block dimensions:
         auto get_launch_config_3d = [](u32 batch, u32 dim0, u32 dim1) {
             const u32 n_threads_x = dim1 <= 128u ? 32u : 64u; // either 32 or 64 threads in the first dimension
             const u32 n_threads_y = min(next_multiple_of(dim0, 32u), 512u / n_threads_x); // 2d block up to 512 threads
-            return LaunchConfig{
+            return noa::cuda::LaunchConfig{
                 .n_blocks = dim3(divide_up(dim1, n_threads_x), divide_up(dim0, n_threads_y), batch),
                 .n_threads = dim3(n_threads_x, n_threads_y, 1),
             };
@@ -201,13 +201,13 @@ namespace noa::xform::cuda::details {
         auto shape_3d = shape.filter(1, 2, 3);
         auto launch_config = get_launch_config_3d(shape[0], shape[1], shape[2]);
         if (input == output) {
-            const auto accessor = AccessorU32<T, 4>(output, output_strides);
+            const auto accessor = Accessor<T, 4, u32>(output, output_strides);
             stream.enqueue(
                 details::cubic_bspline_prefilter_3d_x_inplace<T>,
                 launch_config, accessor, shape_3d);
         } else {
-            const auto input_accessor = AccessorRestrictU32<const T, 4>(input, input_strides);
-            const auto output_accessor = AccessorRestrictU32<T, 4>(output, output_strides);
+            const auto input_accessor = AccessorRestrict<const T, 4, u32>(input, input_strides);
+            const auto output_accessor = AccessorRestrict<T, 4, u32>(output, output_strides);
             stream.enqueue(
                 details::cubic_bspline_prefilter_3d_x<T>,
                 launch_config, input_accessor, output_accessor, shape_3d);
@@ -230,15 +230,13 @@ namespace noa::xform::cuda {
     void cubic_bspline_prefilter(
         const Value* input, Strides4 input_strides,
         Value* output, Strides4 output_strides,
-        Shape4 shape, Stream& stream
+        Shape4 shape, noa::cuda::Stream& stream
     ) {
         // Reorder to rightmost.
-        const auto order = ni::order(output_strides.pop_front(), shape.pop_front());
+        const auto order = output_strides.pop_front().rightmost_order(shape.pop_front());
         if (order != Vec<isize, 3>{0, 1, 2}) {
             const auto order_4d = (order + 1).push_front(0);
-            input_strides = input_strides.reorder(order_4d);
-            output_strides = output_strides.reorder(order_4d);
-            shape = shape.reorder(order_4d);
+            nd::permute_all(order_4d, input_strides, output_strides, shape);
         }
 
         const auto ndim = shape.ndim();

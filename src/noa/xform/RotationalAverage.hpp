@@ -1,6 +1,5 @@
 #pragma once
 
-#include "noa/runtime/core/Enums.hpp"
 #include "noa/runtime/core/Iwise.hpp"
 #include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/core/Atomic.hpp"
@@ -352,7 +351,7 @@ namespace noa::xform::details {
     ) {
         if constexpr (nt::varray<T>) {
             check_at_location(
-                location, ni::is_contiguous_vector(ctf) and ctf.n_elements() == batch,
+                location, is_contiguous_vector(ctf) and ctf.n_elements() == batch,
                 "The CTFs, specified as a contiguous vector, should have the same size "
                 "as the corresponding array batch size. Got ctf:strides={}, ctf:shape={}, batch={}",
                 ctf.strides(), ctf.shape(), batch
@@ -386,13 +385,13 @@ namespace noa::xform::details {
               shape[0], output.shape()[0],
               weights_is_empty ? "" : fmt::format(" and weights:batch={}", weights.shape()[0]));
 
-        check(ni::is_contiguous_vector_batched_strided(output),
+        check(is_contiguous_vector_batched_strided(output),
               "The output must be a (batch of) contiguous vector(s), but got output:shape={} and output:strides={}",
               output.shape(), output.strides());
 
         const isize n_shells = output.shape().pop_front().n_elements();
         if (not weights_is_empty) {
-            check(ni::is_contiguous_vector_batched_strided(weights),
+            check(is_contiguous_vector_batched_strided(weights),
                   "The weights must be a (batch of) contiguous vector(s), "
                   "but got weights:shape={} and weights:strides={}",
                   weights.shape(), weights.strides());
@@ -441,10 +440,10 @@ namespace noa::xform::details {
         // For simplicity, enforce contiguous row vectors for now.
         const auto [ib, id, ih, iw] = input.shape();
         const auto [ob, od, oh, ow] = output.shape();
-        check(ni::is_contiguous_vector_batched_strided(input) and id == 1 and ih == 1,
+        check(is_contiguous_vector_batched_strided(input) and id == 1 and ih == 1,
               "The input must be a (batch of) contiguous row vector(s), but got input:shape={} and input:strides={}",
               input.shape(), input.strides());
-        check(ni::is_contiguous_vector_batched_strided(output) and od == 1 and oh == 1,
+        check(is_contiguous_vector_batched_strided(output) and od == 1 and oh == 1,
               "The output must be a (batch of) contiguous row vector(s), but got output:shape={} and output:strides={}",
               output.shape(), output.strides());
         if constexpr (REDUCE) {
@@ -461,7 +460,7 @@ namespace noa::xform::details {
         if constexpr (not nt::empty<Weight>) {
             if (not weights.is_empty()) {
                 const auto [wb, wd, wh, ww] = weights.shape();
-                check(ni::is_contiguous_vector_batched_strided(weights) and wd == 1 and wh == 1,
+                check(is_contiguous_vector_batched_strided(weights) and wd == 1 and wh == 1,
                       "The weights must be a contiguous row vector, but got weights:shape={} and weights:strides={}",
                       weights.shape(), weights.strides());
                 check(ob == wb and ow == ww,
@@ -849,7 +848,7 @@ namespace noa::xform {
 
     struct PhaseSpectraOptions {
         /// Interpolation used for the scaling.
-        noa::Interp interp{noa::Interp::LINEAR};
+        Interp interp{Interp::LINEAR};
     };
 
     /// Scale 1d rfft spectra so that their CTF phases match with the target CTF.

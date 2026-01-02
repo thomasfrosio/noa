@@ -34,10 +34,10 @@ namespace noa::signal {
         }
 
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
-        check(not ni::are_overlapped(input, output), "The input and output array should not overlap");
+        check(not are_overlapped(input, output), "The input and output array should not overlap");
 
         auto input_strides = input.strides();
-        check(ni::broadcast(input.shape(), input_strides, output.shape()),
+        check(broadcast(input.shape(), input_strides, output.shape()),
               "Cannot broadcast an array of shape {} into an array of shape {}",
               input.shape(), output.shape());
 
@@ -93,10 +93,10 @@ namespace noa::signal {
         }
 
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
-        check(not ni::are_overlapped(input, output), "The input and output array should not overlap");
+        check(not are_overlapped(input, output), "The input and output array should not overlap");
 
         auto input_strides = input.strides();
-        check(ni::broadcast(input.shape(), input_strides, output.shape()),
+        check(broadcast(input.shape(), input_strides, output.shape()),
               "Cannot broadcast an array of shape {} into an array of shape {}",
               input.shape(), output.shape());
 
@@ -153,10 +153,10 @@ namespace noa::signal {
         }
 
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
-        check(not ni::are_overlapped(input, output), "The input and output array should not overlap");
+        check(not are_overlapped(input, output), "The input and output array should not overlap");
 
         auto input_strides = input.strides();
-        check(ni::broadcast(input.shape(), input_strides, output.shape()),
+        check(broadcast(input.shape(), input_strides, output.shape()),
               "Cannot broadcast an array of shape {} into an array of shape {}",
               input.shape(), output.shape());
 

@@ -261,8 +261,8 @@ namespace noa::inline types {
         }
 
         template<nt::integer I = value_type, usize AR>
-        [[nodiscard]] NOA_HD constexpr Shape reorder(const Vec<I, SIZE, AR>& order) const noexcept {
-            return {vec.reorder(order)};
+        [[nodiscard]] NOA_HD constexpr Shape permute(const Vec<I, SIZE, AR>& order) const noexcept {
+            return {vec.permute(order)};
         }
 
         [[nodiscard]] NOA_HD constexpr Shape circular_shift(isize count) const noexcept {
@@ -699,8 +699,8 @@ namespace noa::inline types {
         }
 
         template<nt::integer I = value_type, usize AR>
-        [[nodiscard]] NOA_HD constexpr Strides reorder(const Vec<I, SIZE, AR>& order) const noexcept {
-            return {vec.reorder(order)};
+        [[nodiscard]] NOA_HD constexpr Strides permute(const Vec<I, SIZE, AR>& order) const noexcept {
+            return {vec.permute(order)};
         }
 
         [[nodiscard]] NOA_HD constexpr Strides circular_shift(isize count) const noexcept {
@@ -719,12 +719,131 @@ namespace noa::inline types {
         }
 
     public:
-        /// Whether there's at least one dimension equal to 0.
-        [[nodiscard]] NOA_HD constexpr bool is_broadcast() const noexcept {
-            for (usize i{}; i < SIZE; ++i)
-                if (vec[i] == 0)
-                    return true;
-            return false;
+        /// Whether the strides describe a contiguous array with the given shape.
+        /// \tparam ORDER 'C' for C-contiguous (row-major) or 'F' for F-contiguous (column-major).
+        /// \note Empty dimensions are contiguous by definition since their strides are not used.
+        ///       Broadcast dimensions are NOT contiguous.
+        template<char ORDER = 'C'>
+        [[nodiscard]] NOA_HD constexpr bool is_contiguous(
+            const Shape<T, 4>& shape
+        ) const noexcept requires (SIZE == 4) {
+            if (shape.is_empty())
+                return false;
+
+            if constexpr (ORDER == 'c' or ORDER == 'C') {
+                return (shape[0] == 1 or (*this)[0] == shape[3] * shape[2] * shape[1]) and
+                       (shape[1] == 1 or (*this)[1] == shape[3] * shape[2]) and
+                       (shape[2] == 1 or (*this)[2] == shape[3]) and
+                       (shape[3] == 1 or (*this)[3] == 1);
+
+            } else if constexpr (ORDER == 'f' or ORDER == 'F') {
+                return (shape[0] == 1 or (*this)[0] == shape[3] * shape[2] * shape[1]) and
+                       (shape[1] == 1 or (*this)[1] == shape[3] * shape[2]) and
+                       (shape[2] == 1 or (*this)[2] == 1) and
+                       (shape[3] == 1 or (*this)[3] == shape[2]);
+
+            } else {
+                static_assert(nt::always_false<T>);
+            }
+        }
+
+        /// Contiguity profile.
+        /// \details This is to know at which dimension the contiguity is broken or if the contiguity is only
+        ///          required in for specific dimensions. It supports broadcasting and empty dimensions.
+        ///          It is also guarded against empty shapes.
+        /// \tparam ORDER 'C' for C-contiguous (row-major) or 'F' for F-contiguous (column-major).
+        /// \note To check whether the array is contiguous, while `strides.contiguity(shape) == true` is valid,
+        ///       strides.is_contiguous(shape) is clearer and slightly more efficient.
+        /// \note Broadcast dimensions are NOT contiguous. Only empty dimensions are treated as contiguous
+        ///       regardless of their stride. Functions that require broadcast dimensions to be "contiguous"
+        ///       should call strides.effective_shape(shape) first to "cancel" the broadcasting
+        ///       and mark the dimension as empty.
+        template<char ORDER = 'C'>
+        [[nodiscard]] NOA_HD constexpr auto contiguity(const Shape<T, 4>& shape) const noexcept requires (SIZE == 4) {
+            if (shape.is_empty()) // guard against empty array
+                return Vec<bool, 4>{};
+
+            auto strides = *this * Strides<T, 4>::from_vec(shape.cmp_ne(1)); // mark the stride of empty dimensions unusable
+
+            if constexpr (ORDER == 'c' or ORDER == 'C') {
+                // If dimension is broadcast or empty, we cannot use the stride
+                // and need to use the corrected stride one dimension up.
+                const auto corrected_stride_2 = strides[3] ? shape[3] * strides[3] : 1;
+                const auto corrected_stride_1 = strides[2] ? shape[2] * strides[2] : corrected_stride_2;
+                const auto corrected_stride_0 = strides[1] ? shape[1] * strides[1] : corrected_stride_1;
+
+                // If dimension is empty, it is by definition contiguous and its stride does not matter.
+                // Broadcast dimensions break the contiguity because the corrected_stride cannot be 0.
+                // This is true for empty dimensions, but empty dimensions are contiguous by definition
+                // and their strides do not matter, i.e. we skip the comparison.
+                return Vec{
+                    shape[0] == 1 or strides[0] == corrected_stride_0,
+                    shape[1] == 1 or strides[1] == corrected_stride_1,
+                    shape[2] == 1 or strides[2] == corrected_stride_2,
+                    shape[3] == 1 or strides[3] == 1
+                };
+            } else if constexpr (ORDER == 'f' or ORDER == 'F') {
+                const auto corrected_stride_3 = strides[2] ? shape[2] * strides[2] : 1;
+                const auto corrected_stride_1 = strides[3] ? shape[3] * strides[3] : corrected_stride_3;
+                const auto corrected_stride_0 = strides[1] ? shape[1] * strides[1] : corrected_stride_1;
+
+                return Vec{
+                    shape[0] == 1 or strides[0] == corrected_stride_0,
+                    shape[1] == 1 or strides[1] == corrected_stride_1,
+                    shape[2] == 1 or strides[2] == 1,
+                    shape[3] == 1 or strides[3] == corrected_stride_3
+                };
+            } else {
+                static_assert(nt::always_false<T>);
+            }
+        }
+
+        /// Whether the strides describe a column-major layout, assuming BDHW order.
+        [[nodiscard]] NOA_FHD constexpr bool is_column_major() const noexcept {
+            constexpr usize COL = N - 2;
+            constexpr usize ROW = N - 1;
+            return (*this)[COL] <= (*this)[ROW];
+        }
+
+        /// Whether the strides describe a column-major layout.
+        /// This function effectively squeezes the shape before checking the order.
+        /// Furthermore, strides of empty dimensions are ignored and are contiguous by definition.
+        template<typename U>
+        [[nodiscard]] NOA_FHD constexpr bool is_column_major(const Shape<U, N>& shape) const noexcept {
+            i32 second{-1}, first{-1};
+            for (i32 i = N - 1; i >= 0; --i) {
+                if (shape[i] > 1) {
+                    if (first == -1)
+                        first = i;
+                    else if (second == -1)
+                        second = i;
+                }
+            }
+            return second == -1 or first == -1 or (*this)[second] <= (*this)[first];
+        }
+
+        /// Whether the strides describe a row-major layout, assuming BDHW order.
+        [[nodiscard]] NOA_FHD constexpr bool is_row_major() const noexcept {
+            constexpr usize COL = N - 2;
+            constexpr usize ROW = N - 1;
+            return (*this)[COL] >= (*this)[ROW];
+        }
+
+        /// Whether the strides describe a row-major layout.
+        /// This function effectively squeezes the shape before checking the order.
+        /// Furthermore, strides of empty dimensions are ignored and are contiguous by definition.
+        template<typename U>
+        [[nodiscard]] NOA_HD constexpr bool is_row_major(const Shape<U, N>& shape) const noexcept {
+            i32 second{-1}, first{-1};
+            for (i32 i = N - 1; i >= 0; --i) {
+                if (shape[i] > 1) {
+                    if (first == -1)
+                        first = i;
+                    else if (second == -1)
+                        second = i;
+                }
+            }
+            return second == -1 or first == -1 or (*this)[second] >= (*this)[first];
         }
 
         /// Whether the strides are in the rightmost order.
@@ -735,6 +854,41 @@ namespace noa::inline types {
                 if (vec[i] < vec[i + 1])
                     return false;
             return true;
+        }
+
+        /// Returns the order the dimensions should be sorted so that they are in the rightmost order.
+        /// The input dimensions have the following indexes: {0, 1, 2, 3}.
+        /// For instance, if the strides are representing a F-contiguous order, this function returns {0, 1, 3, 2}.
+        /// Empty dimensions are pushed to the left side (the outermost side) and the corresponding strides are ignored.
+        /// This is mostly intended to find the fastest way through an array using nested loops in the rightmost order.
+        template<typename U>
+        [[nodiscard]] NOA_HD constexpr auto rightmost_order(const Shape<U, N>& shape) const noexcept {
+            Strides strides;
+            Vec<T, N> order;
+            for (usize i{}; i < N; ++i) {
+                order[i] = static_cast<T>(i);
+                strides[i] = shape[i] <= 1 ? std::numeric_limits<T>::max() : (*this)[i];
+            }
+
+            return stable_sort(order, [&strides](T a, T b) {
+                return strides[a] > strides[b];
+            });
+        }
+
+        /// Whether there's at least one dimension equal to 0.
+        [[nodiscard]] NOA_HD constexpr bool is_broadcast() const noexcept {
+            for (usize i{}; i < SIZE; ++i)
+                if (vec[i] == 0)
+                    return true;
+            return false;
+        }
+
+        /// Returns the effective shape: if a dimension has a stride of 0, the effective size is 1 (empty dimension).
+        template<typename U>
+        [[nodiscard]] NOA_FHD constexpr auto effective_shape(Shape<U, N> shape) const noexcept {
+            for (usize i{}; i < N; ++i)
+                shape[i] = (*this)[i] ? shape[i] : 1;
+            return shape;
         }
 
         /// Computes the physical layout (the actual memory footprint) encoded in these strides.
@@ -835,7 +989,7 @@ namespace noa::traits {
     template<typename V, usize N1, usize A, usize N2> struct proclaim_is_strides_of_size<noa::Strides<V, N1, A>, N2> : std::bool_constant<N1 == N2> {};
 }
 
-namespace noa::inline types {
+namespace noa {
     // -- Modulo Operator --
     template<nt::shape_or_strides T> requires (T::SIZE > 0)
     [[nodiscard]] NOA_HD constexpr T operator%(T lhs, const T& rhs) noexcept {
@@ -1005,9 +1159,89 @@ namespace noa {
             return Vec{indices...} < shape.vec;
         }
     }
+
+    /// Returns the order the dimensions should be sorted so that empty dimensions are on the left.
+    /// The input dimensions have the following indexes: {0, 1, 2, 3}.
+    /// Coupled with `permute`, this effectively pushes all zeros and ones in the shape to the left.
+    /// The difference with `rightmost_order` is that this function does not change the order of the non-empty
+    /// dimensions relative to each other. Note that the order of the empty dimensions is preserved.
+    template<typename T> requires (nt::vec_integer<T> or nt::shape_or_strides<T>)
+    [[nodiscard]] NOA_HD constexpr auto squeeze_left(const T& shape) noexcept {
+        using value_t = T::value_type;
+        constexpr auto SIZE = static_cast<value_t>(T::SIZE);
+        Vec<value_t, T::SIZE> order{};
+        value_t index{};
+        for (value_t i{}; i < SIZE; ++i) { // store empty dimensions
+            if (shape[i] <= 1)
+                order[index++] = i;
+        }
+        for (value_t i{}; i < SIZE; ++i) { // then valid dimensions
+            if (shape[i] > 1)
+                order[index++] = i;
+        }
+        return order;
+    }
+
+    template<typename T> requires (nt::vec_integer<T> or nt::shape_or_strides<T>)
+    [[nodiscard]] NOA_HD constexpr auto squeeze_right(const T& shape) noexcept {
+        using value_t = T::value_type;
+        constexpr auto SIZE = static_cast<value_t>(T::SIZE);
+        Vec<value_t, T::SIZE> order{};
+        value_t index{};
+        for (value_t i{}; i < SIZE; ++i) { // store valid dimensions
+            if (shape[i] > 1)
+                order[index++] = i;
+        }
+        for (value_t i{}; i < SIZE; ++i) { // then empty dimensions
+            if (shape[i] <= 1)
+                order[index++] = i;
+        }
+        return order;
+    }
+
+    /// Whether the input shape can be broadcast to the output shape.
+    /// That is, each input dimension should match the corresponding output dimension, or be 1.
+    template<typename T, usize N>
+    [[nodiscard]] constexpr bool is_broadcastable(const Shape<T, N>& input, const Shape<T, N>& output) {
+        return input.cmp_ne(output) == input.cmp_eq(1);
+    }
+
+    /// Sets the input stride so that the input can be iterated as if it as the same size as the output.
+    /// \param input_size           Size of the input. Should correspond to \p output_size or be 1.
+    /// \param[out] input_stride    Input stride. If broadcast, it is set to 0.
+    /// \param output_size          Size of the output.
+    /// \return Whether the input and output size are compatible.
+    template<nt::integer I>
+    [[nodiscard]] NOA_FHD constexpr bool broadcast(I input_size, I& input_stride, I output_size) noexcept {
+        if (input_size == 1 and output_size != 1)
+            input_stride = 0; // broadcast this dimension
+        else if (input_size != output_size)
+            return false; // dimension sizes don't match
+        return true;
+    }
+
+    /// Sets the input strides so that the input can be iterated as if it as the same shape as the output.
+    /// \param input_shape          Shape of the input. Each dimension should correspond to \p output_shape or be 1.
+    /// \param[out] input_strides   Input strides. Strides in dimensions that need to be broadcast are set to 0.
+    /// \param output_shape         Shape of the output.
+    /// \return Whether the input and output shape are compatible.
+    template<typename T, usize N>
+    [[nodiscard]] NOA_FHD constexpr bool broadcast(
+        const Shape<T, N>& input_shape,
+        Strides<T, N>& input_strides,
+        const Shape<T, N>& output_shape
+    ) noexcept {
+        for (usize i{}; i < N; ++i) {
+            if (input_shape[i] == 1 and output_shape[i] != 1)
+                input_strides[i] = 0; // broadcast this dimension
+            else if (input_shape[i] != output_shape[i])
+                return false; // dimension sizes don't match
+        }
+        return true;
+    }
 }
 
-namespace noa::inline types {
+namespace noa {
     template<typename T, usize N>
     std::ostream& operator<<(std::ostream& os, const Shape<T, N>& v) {
         os << fmt::format("{}", v.vec);

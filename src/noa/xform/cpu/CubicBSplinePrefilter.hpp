@@ -1,6 +1,8 @@
 #pragma once
 
+#include "noa/runtime/core/Access.hpp"
 #include "noa/runtime/core/Shape.hpp"
+#include "noa/runtime/core/Utilities.hpp"
 #include "noa/xform/core/CubicBSplinePrefilter.hpp"
 
 namespace noa::xform::cpu::details {
@@ -76,7 +78,7 @@ namespace noa::xform::cpu::details {
                     for (isize z = 0; z < shape[1]; ++z)
                         for (isize y = 0; y < shape[2]; ++y)
                             bspline::filter_inplace(
-                                output + ni::offset_at(output_strides, i, z, y),
+                                output + offset_at(output_strides, i, z, y),
                                 output_strides[3], shape[3]); // every row
                 #pragma omp for collapse(3)
                 for (isize i = 0; i < shape[0]; ++i)
@@ -102,8 +104,8 @@ namespace noa::xform::cpu::details {
                     for (isize z = 0; z < shape[1]; ++z)
                         for (isize y = 0; y < shape[2]; ++y)
                             bspline::filter(
-                                input + ni::offset_at(input_strides, i, z, y), input_strides[3],
-                                output + ni::offset_at(output_strides, i, z, y), output_strides[3],
+                                input + offset_at(input_strides, i, z, y), input_strides[3],
+                                output + offset_at(output_strides, i, z, y), output_strides[3],
                                 shape[3]); // every row
                 #pragma omp for collapse(3)
                 for (isize i = 0; i < shape[0]; ++i)
@@ -132,12 +134,10 @@ namespace noa::xform::cpu {
         Shape4 shape, isize n_threads
     ) {
         // Reorder to rightmost.
-        const auto order = ni::order(output_strides.pop_front(), shape.pop_front());
+        const auto order = output_strides.pop_front().rightmost_order(shape.pop_front());
         if (order != Vec<isize, 3>{0, 1, 2}) {
             const auto order_4d = (order + 1).push_front(0);
-            input_strides = input_strides.reorder(order_4d);
-            output_strides = output_strides.reorder(order_4d);
-            shape = shape.reorder(order_4d);
+            nd::permute_all(order_4d, input_strides, output_strides, shape);
         }
 
         const auto ndim = shape.ndim();

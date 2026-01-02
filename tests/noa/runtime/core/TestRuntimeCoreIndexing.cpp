@@ -1,7 +1,5 @@
 #include <noa/base/Complex.hpp>
 #include <noa/runtime/core/Shape.hpp>
-#include <noa/runtime/core/Offset.hpp>
-#include <noa/runtime/core/Layout.hpp>
 #include <noa/runtime/core/Subregion.hpp>
 
 #include "Catch.hpp"
@@ -113,8 +111,8 @@ TEST_CASE("runtime::core:: shape, strides") {
         const Shape<u64, 4> shape{2, 128, 64, 65};
         const auto strides = shape.strides();
         const auto physical_shape = strides.physical_shape();
-        REQUIRE(is_contiguous(strides, shape) == true);
-        REQUIRE(are_contiguous(strides, shape));
+        REQUIRE(strides.contiguity(shape) == true);
+        REQUIRE(strides.is_contiguous(shape));
         REQUIRE(Strides<u64, 4>{532480, 4160, 65, 1} == strides);
         REQUIRE(Shape<u64, 3>{128, 64, 65} == physical_shape);
     }
@@ -123,8 +121,8 @@ TEST_CASE("runtime::core:: shape, strides") {
         const Shape<u64, 4> shape{2, 128, 64, 65};
         const auto strides = shape.strides<'F'>();
         const auto physical_shape = strides.physical_shape<'F'>();
-        REQUIRE(is_contiguous<'F'>(strides, shape) == true);
-        REQUIRE(are_contiguous<'F'>(strides, shape));
+        REQUIRE(strides.contiguity<'F'>(shape) == true);
+        REQUIRE(strides.is_contiguous<'F'>(shape));
         REQUIRE(Strides<u64, 4>{532480, 4160, 1, 64} == strides);
         REQUIRE(Shape<u64, 3>{128, 64, 65} == physical_shape);
     }
@@ -133,7 +131,7 @@ TEST_CASE("runtime::core:: shape, strides") {
         const Shape<u64, 4> shape{3, 128, 64, 64};
         const auto strides = shape.strides() * 2;
         const auto physical_shape = strides.physical_shape();
-        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 1, 1, 0});
+        REQUIRE(strides.contiguity(shape) == Vec<bool, 4>{1, 1, 1, 0});
         REQUIRE(Strides<u64, 4>{1048576, 8192, 128, 2} == strides);
         REQUIRE(Shape<u64, 3>{128, 64, 128} == physical_shape);
     }
@@ -142,7 +140,7 @@ TEST_CASE("runtime::core:: shape, strides") {
         const Shape<u64, 4> shape{3, 128, 64, 64};
         const auto strides = shape.strides<'F'>() * 2;
         const auto physical_shape = strides.physical_shape<'F'>();
-        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 1, 0, 1});
+        REQUIRE(strides.contiguity<'F'>(shape) == Vec<bool, 4>{1, 1, 0, 1});
         REQUIRE(Strides<u64, 4>{1048576, 8192, 2, 128} == strides);
         REQUIRE(Shape<u64, 3>{128, 128, 64} == physical_shape);
     }
@@ -153,56 +151,56 @@ TEST_CASE("runtime::core:: shape, strides") {
         strides[0] *= 2;
         strides[1] *= 2;
         strides[2] *= 2;
-        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 1, 0, 1});
+        REQUIRE(strides.contiguity(shape) == Vec<bool, 4>{1, 1, 0, 1});
 
         strides = shape.strides();
         strides[0] *= 6;
         strides[1] *= 6;
         strides[2] *= 6;
         strides[3] *= 3;
-        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 1, 0, 0});
+        REQUIRE(strides.contiguity(shape) == Vec<bool, 4>{1, 1, 0, 0});
 
         strides = shape.strides();
         strides[0] *= 2;
         strides[1] *= 2;
-        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 0, 1, 1});
+        REQUIRE(strides.contiguity(shape) == Vec<bool, 4>{1, 0, 1, 1});
 
         strides = shape.strides();
         strides[0] *= 2;
-        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{0, 1, 1, 1});
+        REQUIRE(strides.contiguity(shape) == Vec<bool, 4>{0, 1, 1, 1});
 
         strides = shape.strides();
         strides[0] *= 4;
         strides[1] *= 2;
-        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{0, 0, 1, 1});
+        REQUIRE(strides.contiguity(shape) == Vec<bool, 4>{0, 0, 1, 1});
 
         // Empty is contiguous by definition.
         shape = {3, 128, 1, 64};
         strides = {8192, 64, 64, 1};
-        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 1, 1, 1});
+        REQUIRE(strides.contiguity(shape) == Vec<bool, 4>{1, 1, 1, 1});
         strides *= 2;
-        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 1, 1, 0});
+        REQUIRE(strides.contiguity(shape) == Vec<bool, 4>{1, 1, 1, 0});
         strides[2] *= 2;
-        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 1, 1, 0});
+        REQUIRE(strides.contiguity(shape) == Vec<bool, 4>{1, 1, 1, 0});
         strides[0] *= 2;
         strides[1] *= 2;
         strides[2] *= 2;
-        REQUIRE(is_contiguous(strides, shape) == Vec<bool, 4>{1, 0, 1, 0});
+        REQUIRE(strides.contiguity(shape) == Vec<bool, 4>{1, 0, 1, 0});
     }
 
     AND_THEN("is_contiguous<'C'> - broadcast") {
-        const Shape<u64, 4> original_shape{3, 128, 1, 64};
-        const Shape<u64, 4> broadcast_shape{3, 128, 32, 64};
+        const Shape4 original_shape{3, 128, 1, 64};
+        const Shape4 broadcast_shape{3, 128, 32, 64};
         auto strides = original_shape.strides();
-        REQUIRE(is_contiguous(strides, original_shape) == Vec<bool, 4>{1, 1, 1, 1});
+        REQUIRE(strides.contiguity(original_shape) == Vec<bool, 4>{1, 1, 1, 1});
 
         REQUIRE(broadcast(original_shape, strides, broadcast_shape));
-        REQUIRE(is_contiguous(strides, broadcast_shape) == Vec<bool, 4>{1, 1, 0, 1});
+        REQUIRE(strides.contiguity(broadcast_shape) == Vec<bool, 4>{1, 1, 0, 1});
 
-        REQUIRE(is_contiguous({0, 0, 0, 1}, broadcast_shape) == Vec<bool, 4>{0, 0, 0, 1});
-        REQUIRE(is_contiguous({0, 64, 0, 1}, broadcast_shape) == Vec<bool, 4>{0, 1, 0, 1});
-        REQUIRE(is_contiguous({128 * 64, 64, 0, 1}, broadcast_shape) == Vec<bool, 4>{1, 1, 0, 1});
-        REQUIRE(is_contiguous({64, 0, 0, 1}, broadcast_shape) == Vec<bool, 4>{1, 0, 0, 1});
+        REQUIRE((Strides4{0, 0, 0, 1}.contiguity(broadcast_shape) == Vec<bool, 4>{0, 0, 0, 1}));
+        REQUIRE((Strides4{0, 64, 0, 1}.contiguity(broadcast_shape) == Vec<bool, 4>{0, 1, 0, 1}));
+        REQUIRE((Strides4{128 * 64, 64, 0, 1}.contiguity(broadcast_shape) == Vec<bool, 4>{1, 1, 0, 1}));
+        REQUIRE((Strides4{64, 0, 0, 1}.contiguity(broadcast_shape) == Vec<bool, 4>{1, 0, 0, 1}));
     }
 
     AND_THEN("is_contiguous<'F'>") {
@@ -211,50 +209,50 @@ TEST_CASE("runtime::core:: shape, strides") {
         strides[0] *= 2;
         strides[1] *= 2;
         strides[3] *= 2;
-        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 1, 1, 0});
+        REQUIRE(strides.contiguity<'F'>(shape) == Vec{1, 1, 1, 0}.as<bool>());
 
         strides = shape.strides<'F'>();
         strides[0] *= 6;
         strides[1] *= 6;
         strides[2] *= 3;
         strides[3] *= 6;
-        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 1, 0, 0});
+        REQUIRE(strides.contiguity<'F'>(shape) == Vec{1, 1, 0, 0}.as<bool>());
 
         strides = shape.strides<'F'>();
         strides[0] *= 2;
         strides[1] *= 2;
-        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 0, 1, 1});
+        REQUIRE(strides.contiguity<'F'>(shape) == Vec{1, 0, 1, 1}.as<bool>());
 
         strides = shape.strides<'F'>();
         strides[0] *= 2;
-        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{0, 1, 1, 1});
+        REQUIRE(strides.contiguity<'F'>(shape) == Vec{0, 1, 1, 1}.as<bool>());
 
         strides = shape.strides<'F'>();
         strides[0] *= 4;
         strides[1] *= 2;
-        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{0, 0, 1, 1});
+        REQUIRE(strides.contiguity<'F'>(shape) == Vec{0, 0, 1, 1}.as<bool>());
 
         shape = {3, 128, 64, 1};
         strides = {8192, 64, 1, 64};
-        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 1, 1, 1});
+        REQUIRE(strides.contiguity<'F'>(shape) == Vec{1, 1, 1, 1}.as<bool>());
         strides *= 2;
-        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 1, 0, 1});
+        REQUIRE(strides.contiguity<'F'>(shape) == Vec{1, 1, 0, 1}.as<bool>());
         strides[3] *= 2;
-        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 1, 0, 1});
+        REQUIRE(strides.contiguity<'F'>(shape) == Vec{1, 1, 0, 1}.as<bool>());
         strides[0] *= 2;
         strides[1] *= 2;
         strides[3] *= 2;
-        REQUIRE(is_contiguous<'F'>(strides, shape) == Vec<bool, 4>{1, 0, 0, 1});
+        REQUIRE(strides.contiguity<'F'>(shape) == Vec{1, 0, 0, 1}.as<bool>());
     }
 
     AND_THEN("is_contiguous<'F'> - broadcast") {
         const Shape<u64, 4> original_shape{3, 128, 1, 64};
         const Shape<u64, 4> broadcast_shape{3, 128, 64, 64};
         auto strides = original_shape.strides<'F'>();
-        REQUIRE(is_contiguous<'F'>(strides, original_shape) == Vec<bool, 4>{1, 1, 1, 1});
+        REQUIRE(strides.contiguity<'F'>(original_shape) == Vec<bool, 4>{1, 1, 1, 1});
 
         REQUIRE(broadcast(original_shape, strides, broadcast_shape));
-        REQUIRE(is_contiguous<'F'>(strides, broadcast_shape) == Vec<bool, 4>{1, 1, 0, 1});
+        REQUIRE(strides.contiguity<'F'>(broadcast_shape) == Vec<bool, 4>{1, 1, 0, 1});
     }
 
     AND_THEN("physical shape") {
@@ -272,36 +270,36 @@ TEST_CASE("runtime::core:: shape, strides") {
 
     AND_THEN("is_rightmost") {
         Shape<u64, 4> shape{3, 128, 65, 64};
-        REQUIRE(is_rightmost(shape.strides()));
-        REQUIRE_FALSE(is_rightmost(shape.strides<'F'>()));
+        REQUIRE(shape.strides().is_rightmost());
+        REQUIRE_FALSE(shape.strides<'F'>().is_rightmost());
 
         shape = {3, 128, 1, 1};
-        REQUIRE(is_rightmost(shape.strides()));
-        REQUIRE(is_rightmost(shape.strides<'F'>()));
+        REQUIRE(shape.strides().is_rightmost());
+        REQUIRE(shape.strides<'F'>().is_rightmost());
     }
 
     AND_THEN("is_vector") {
         Shape<u64, 4> shape{3, 128, 65, 64};
-        REQUIRE_FALSE(is_vector(shape));
+        REQUIRE_FALSE(shape.is_vector());
 
         shape = {3, 128, 1, 1};
-        REQUIRE_FALSE(is_vector(shape));
+        REQUIRE_FALSE(shape.is_vector());
 
         shape = {1, 1, 1, 128};
-        REQUIRE(is_vector(shape));
+        REQUIRE(shape.is_vector());
         shape = {1, 1, 128, 1};
-        REQUIRE(is_vector(shape));
+        REQUIRE(shape.is_vector());
         shape = {1, 128, 1, 1};
-        REQUIRE(is_vector(shape));
+        REQUIRE(shape.is_vector());
         shape = {128, 1, 1, 1};
-        REQUIRE(is_vector(shape));
+        REQUIRE(shape.is_vector());
 
         shape = {3, 1, 1, 128};
-        REQUIRE(is_vector(shape, true));
-        REQUIRE_FALSE(is_vector(shape, false));
+        REQUIRE(shape.is_vector(true));
+        REQUIRE_FALSE(shape.is_vector(false));
         shape = {3, 128, 1, 1};
-        REQUIRE(is_vector(shape, true));
-        REQUIRE_FALSE(is_vector(shape, false));
+        REQUIRE(shape.is_vector(true));
+        REQUIRE_FALSE(shape.is_vector(false));
     }
 
     AND_THEN("effective_shape") {
@@ -309,18 +307,18 @@ TEST_CASE("runtime::core:: shape, strides") {
         const Shape<u64, 4> broadcast_shape{3, 128, 64, 64};
         auto strides = original_shape.strides();
         REQUIRE(broadcast(original_shape, strides, broadcast_shape));
-        REQUIRE(effective_shape(broadcast_shape, strides) == original_shape);
+        REQUIRE(strides.effective_shape(broadcast_shape) == original_shape);
     }
 }
 
 TEST_CASE("runtime::core:: rightmost_order(), squeeze()") {
     const Shape<u64, 4> shape{2, 32, 64, 128};
-    REQUIRE(rightmost_order(shape.strides(), shape) == Vec<u64, 4>{0, 1, 2, 3});
-    REQUIRE(rightmost_order(shape.strides<'F'>(), shape) == Vec<u64, 4>{0, 1, 3, 2});
+    REQUIRE(shape.strides().rightmost_order(shape) == Vec<u64, 4>{0, 1, 2, 3});
+    REQUIRE(shape.strides<'F'>().rightmost_order(shape) == Vec<u64, 4>{0, 1, 3, 2});
 
     // Order will move the broadcast dimensions to the right,
     // because they are indeed the dimensions with the smallest strides.
-    REQUIRE(rightmost_order(Strides<u64, 4>{8192, 0, 128, 1}, shape) == Vec<u64, 4>{0, 2, 3, 1});
+    REQUIRE(Strides<u64, 4>{8192, 0, 128, 1}.rightmost_order(shape) == Vec<u64, 4>{0, 2, 3, 1});
 
     // We almost always call order() on the output array and rearrange the layout to make the output
     // as rightmost as possible. The output is rarely broadcast and in most cases it is actually invalid
@@ -331,14 +329,14 @@ TEST_CASE("runtime::core:: rightmost_order(), squeeze()") {
     // moves them to the left.
     // TL-DR: If is often best to call effective_shape() on the layout that is about to be reordered.
     const auto strides = Strides<u64, 4>{8192, 0, 128, 1};
-    REQUIRE(rightmost_order(strides, effective_shape(shape, strides)) == Vec<u64, 4>{1, 0, 2, 3});
+    REQUIRE(strides.rightmost_order(strides.effective_shape(shape)) == Vec<u64, 4>{1, 0, 2, 3});
 
-    REQUIRE(rightmost_order(Strides<i64, 4>{8192, 0, 128, 1}, Shape<i64, 4>{2, 1, 64, 128}) == Vec<i64, 4>{1, 0, 2, 3});
-    REQUIRE(rightmost_order(Strides<i64, 4>{8192, 8192, 8192, 1}, Shape<i64, 4>{1, 1, 1, 8192}) == Vec<i64, 4>{0, 1, 2, 3});
-    REQUIRE(rightmost_order(Strides<i64, 4>{4096, 128, 128, 1}, Shape<i64, 4>{2, 32, 1, 128}) == Vec<i64, 4>{2, 0, 1, 3});
-    REQUIRE(rightmost_order(Strides<i64, 4>{4096, 4096, 128, 1}, Shape<i64, 4>{2, 32, 1, 128}) == Vec<i64, 4>{2, 0, 1, 3});
-    REQUIRE(rightmost_order(Strides<i64, 4>{128, 4096, 128, 1}, Shape<i64, 4>{2, 32, 1, 128}) == Vec<i64, 4>{2, 1, 0, 3});
-    REQUIRE(rightmost_order(Strides<i64, 4>{2, 2, 2, 2}, Shape<i64, 4>{1, 1, 1, 1}) == Vec<i64, 4>{0, 1, 2, 3});
+    REQUIRE((Strides<i64, 4>{8192, 0, 128, 1}.rightmost_order(Shape<i64, 4>{2, 1, 64, 128}) == Vec<i64, 4>{1, 0, 2, 3}));
+    REQUIRE((Strides<i64, 4>{8192, 8192, 8192, 1}.rightmost_order(Shape<i64, 4>{1, 1, 1, 8192}) == Vec<i64, 4>{0, 1, 2, 3}));
+    REQUIRE((Strides<i64, 4>{4096, 128, 128, 1}.rightmost_order(Shape<i64, 4>{2, 32, 1, 128}) == Vec<i64, 4>{2, 0, 1, 3}));
+    REQUIRE((Strides<i64, 4>{4096, 4096, 128, 1}.rightmost_order(Shape<i64, 4>{2, 32, 1, 128}) == Vec<i64, 4>{2, 0, 1, 3}));
+    REQUIRE((Strides<i64, 4>{128, 4096, 128, 1}.rightmost_order(Shape<i64, 4>{2, 32, 1, 128}) == Vec<i64, 4>{2, 1, 0, 3}));
+    REQUIRE((Strides<i64, 4>{2, 2, 2, 2}.rightmost_order(Shape<i64, 4>{1, 1, 1, 1}) == Vec<i64, 4>{0, 1, 2, 3}));
 
     REQUIRE(squeeze_left(shape) == Vec<u64, 4>{0, 1, 2, 3});
     REQUIRE(squeeze_left(Shape<u64, 4>{1, 1, 3, 4}) == Vec<u64, 4>{0, 1, 2, 3});
@@ -357,16 +355,16 @@ TEST_CASE("runtime::core:: rightmost_order(), squeeze()") {
 TEST_CASE("runtime::core:: memory layouts") {
     Shape<u64, 4> shape{2, 32, 64, 128};
     auto strides = shape.strides();
-    REQUIRE(is_row_major(strides));
-    REQUIRE(is_row_major(strides, shape));
-    REQUIRE_FALSE(is_column_major(strides));
-    REQUIRE_FALSE(is_column_major(strides, shape));
+    REQUIRE(strides.is_row_major());
+    REQUIRE(strides.is_row_major(shape));
+    REQUIRE_FALSE(strides.is_column_major());
+    REQUIRE_FALSE(strides.is_column_major(shape));
 
     strides = shape.strides<'F'>();
-    REQUIRE_FALSE(is_row_major(strides));
-    REQUIRE_FALSE(is_row_major(strides, shape));
-    REQUIRE(is_column_major(strides));
-    REQUIRE(is_column_major(strides, shape));
+    REQUIRE_FALSE(strides.is_row_major());
+    REQUIRE_FALSE(strides.is_row_major(shape));
+    REQUIRE(strides.is_column_major());
+    REQUIRE(strides.is_column_major(shape));
 
     // Even in the 'F' version, we still follow the BDHW order, so in our case, 'F' is not synonym of left-most.
     // Indeed, only the height/rows and width/columns are affected by 'C' vs 'F'. As such, if these two dimensions
@@ -387,13 +385,13 @@ TEST_CASE("runtime::core:: memory layouts") {
 
         // The is_x_major overload taking a shape squeezes everything before checking the order and because it is
         // a vector and empty dimensions are contiguous, vectors are row-major and column-major.
-        REQUIRE(is_row_major(strides, shape));
-        REQUIRE(is_column_major(strides, shape));
+        REQUIRE(strides.is_row_major(shape));
+        REQUIRE(strides.is_column_major(shape));
 
         auto order = squeeze_left(shape);
-        shape = reorder(shape, order);
-        strides = reorder(strides, order);
-        REQUIRE(is_contiguous(strides, shape) == true);
+        shape = shape.permute(order);
+        strides = strides.permute(order);
+        REQUIRE(strides.contiguity(shape) == true);
     }
 }
 
@@ -508,12 +506,12 @@ TEST_CASE("runtime::core::Subregion") {
     REQUIRE(subregion.strides == strides);
     REQUIRE(subregion.offset == offset);
 
-    subregion = make_subregion<4>(Ellipsis{}, 5, 2).extract_from(shape, strides, offset);
+    subregion = noa::make_subregion<4>(Ellipsis{}, 5, 2).extract_from(shape, strides, offset);
     REQUIRE(subregion.shape == Shape<i64, 4>{30, 20, 1, 1});
     REQUIRE(subregion.strides == strides);
     REQUIRE(subregion.offset == offset + offset_at(strides, 0, 0, 5, 2));
 
-    subregion = make_subregion<4>(Slice{10, 20}, Full{}, Slice{2, 5}, 3).extract_from(shape, strides, offset);
+    subregion = noa::make_subregion<4>(Slice{10, 20}, Full{}, Slice{2, 5}, 3).extract_from(shape, strides, offset);
     REQUIRE(subregion.shape == Shape<i64, 4>{10, 20, 3, 1});
     REQUIRE(subregion.strides == strides);
     REQUIRE(subregion.offset == offset + offset_at(strides, 10, 0, 2, 3));

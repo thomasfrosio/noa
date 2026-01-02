@@ -1,12 +1,9 @@
 #include <cublas_v2.h>
 
-#include "noa/runtime/core/indexing/Layout.hpp"
-#include "noa/cuda/Blas.hpp"
-#include "noa/cuda/Error.hpp"
-
-namespace noa::cuda {
-    void cublas_clear_cache(Device device);
-}
+#include "noa/base/Complex.hpp"
+#include "noa/runtime/core/Utilities.hpp"
+#include "noa/runtime/cuda/Blas.hpp"
+#include "noa/runtime/cuda/Error.hpp"
 
 namespace {
     using namespace noa::types;
@@ -41,7 +38,7 @@ namespace {
         auto& cache = g_cache[device.id()];
         if (not cache) {
             cache = std::make_unique<CuBlasHandle>();
-            Device::add_reset_callback(noa::cuda::cublas_clear_cache);
+            noa::cuda::Device::add_reset_callback(noa::cuda::cublas_clear_cache);
         }
         return cache;
     }
@@ -106,8 +103,8 @@ namespace {
 }
 
 namespace noa::cuda {
-    void cublas_clear_cache(Device device) {
-        std::unique_ptr<CuBlasHandle>& cached_handle = cublas_cache_handle_(device);
+    void cublas_clear_cache(i32 device) {
+        std::unique_ptr<CuBlasHandle>& cached_handle = cublas_cache_handle_(Device(device, Unchecked{}));
         cached_handle = nullptr;
     }
 
@@ -119,24 +116,25 @@ namespace noa::cuda {
         T* output, const Strides4& output_strides, const Shape4& output_shape,
         Stream& stream
     ) {
-        auto [mnk, secondmost_strides, are_column_major] = ni::extract_matmul_layout(
+        auto [mnk, secondmost_strides, are_column_major] = nd::extract_matmul_layout(
             lhs_strides, lhs_shape, rhs_strides, rhs_shape, output_strides, output_shape,
             lhs_transpose, rhs_transpose);
 
         const auto labc = secondmost_strides.vec.as_safe<i32>();
         const auto sabc = Vec<isize, 3>{lhs_strides[0], rhs_strides[0], output_strides[0]};
 
-        cublas_gemm_(are_column_major, lhs_transpose, rhs_transpose,
-                     mnk.as_safe<i32>(), labc, sabc, static_cast<i32>(output_shape[0]), alpha, beta,
-                     lhs, rhs, output, stream);
+        cublas_gemm_(
+            are_column_major, lhs_transpose, rhs_transpose,
+            mnk.as_safe<i32>(), labc, sabc, static_cast<i32>(output_shape[0]), alpha, beta,
+            lhs, rhs, output, stream);
     }
 
-    #define NOA_INSTANTIATE_MATMUL_(T)                          \
-    template void matmul<T>(                                    \
-        const T*, const Strides4&, const Shape4&, \
-        const T*, const Strides4&, const Shape4&, \
-        T, T, bool, bool,                                       \
-        T*, const Strides4&, const Shape4&,       \
+    #define NOA_INSTANTIATE_MATMUL_(T)              \
+    template void matmul<T>(                        \
+        const T*, const Strides4&, const Shape4&,   \
+        const T*, const Strides4&, const Shape4&,   \
+        T, T, bool, bool,                           \
+        T*, const Strides4&, const Shape4&,         \
         Stream&)
 
     NOA_INSTANTIATE_MATMUL_(f32);

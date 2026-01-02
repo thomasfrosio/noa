@@ -1,9 +1,7 @@
 #pragma once
 
 #include "noa/runtime/Array.hpp"
-#include "noa/runtime/Factory.hpp"
 #include "noa/runtime/Ewise.hpp"
-#include "noa/runtime/Session.hpp"
 
 #include "noa/fft/core/Transform.hpp"
 #include "noa/fft/cpu/Transform.hpp"
@@ -39,7 +37,6 @@ namespace noa::fft {
     ///       Forward and backward transforms are considered different plans in FFTW3. In fact, a single transform
     ///       can generate many (>16) entries in the cache.
     ///     - FFTW3's wisdom is well-optimized and doesn't require a lot of memory.
-    ///
     struct FFTOptions {
         /// Normalization mode.
         Norm norm = NORM_DEFAULT;
@@ -129,7 +126,7 @@ namespace noa::fft {
         check(buffer.device() == device,
               "The buffer should be on the device, but got device={} and buffer:device={}",
               device, buffer.device());
-        check(buffer.are_contiguous(), "The workspace should be a contiguous array");
+        check(buffer.is_contiguous(), "The workspace should be a contiguous array");
         return details::set_workspace(
             device,
             std::reinterpret_pointer_cast<std::byte[]>(buffer.share()),

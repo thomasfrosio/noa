@@ -260,10 +260,12 @@ namespace noa::fft {
         using bound_t = Vec<T, N, A>;
         Pair<bound_t, bound_t> bounds;
         if constexpr (IS_RFFT) {
+            NOA_NV_DIAG_SUPPRESS(186)
             for (usize i{}; i < N - 1; ++i) {
                 bounds.first[i] = -shape[i] / 2;
                 bounds.second[i] = (shape[i] - 1) / 2;
             }
+            NOA_NV_DIAG_DEFAULT(186)
             bounds.first[N - 1] = 0;
             bounds.second[N - 1] = shape[N - 1] / 2;
         } else {

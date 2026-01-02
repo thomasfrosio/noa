@@ -24,4 +24,4 @@ To support TIFF files, we require the `libtiff` shared library. CMake should be 
 
 The library comes with a few other public (like `{fmt}`) and private (like `Eigen`) dependencies. These are fetched from the internet during the CMake generation step. Private dependencies are not exposed to our headers, but public dependencies are.
 
-The only public dependency that may cause an issue is `{fmt}`. By default, it is fetched from GitHub and will be installed with this library, so you have nothing to do. However, if you use `{fmt}` in your project, you should either use the version that came with `noa`, or force `noa` to use your libraries by including the `fmt::fmt` target before including `noa::noa`.
+The only public dependency that may cause an issue is `{fmt}`. By default, it is fetched from GitHub and will be installed with this library, so you have nothing to do. However, if you use `{fmt}` in your project, you should either use the version that comes with `noa`, or force `noa` to use your libraries by including the `fmt::fmt` target before including `noa::noa`.

@@ -2,10 +2,9 @@
 
 #include <optional>
 
+#include "noa/base/Mat.hpp"
+#include "noa/base/Strings.hpp"
 #include "noa/runtime/core/Span.hpp"
-#include "noa/runtime/core/Strings.hpp"
-#include "noa/runtime/core/Traits.hpp"
-#include "noa/xform/core/Mat.hpp"
 #include "noa/xform/core/Transform.hpp"
 
 namespace noa::xform {

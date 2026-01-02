@@ -56,7 +56,7 @@ namespace noa::xform::details {
             } else if constexpr (nt::integer<T>) {
                 return input * static_cast<scalar_t>(round(shape));
             } else {
-                static_assert(nt::always_false<>);
+                static_assert(nt::always_false<T>);
             }
         }
 
@@ -111,7 +111,7 @@ namespace noa::xform::details {
             check(transform.device() == device,
                   "The input and output arrays must be on the same device, but got transform:device={}, output:device={}",
                   transform.device(), device);
-            check(ni::is_contiguous_vector(transform) and transform.n_elements() == output.shape()[0],
+            check(is_contiguous_vector(transform) and transform.n_elements() == output.shape()[0],
                   "The transforms (matrices or quaternions) should be specified as a contiguous vector of size {}, "
                   "but got transforms:shape={} and transforms:strides={}",
                   output.shape()[0], transform.shape(), transform.strides());
@@ -171,7 +171,7 @@ namespace noa::xform::details {
         else if constexpr (nt::mat<xform_t>)
             has_transform = inverse_transform != xform_t::eye(1);
         else if constexpr (not nt::empty<xform_t>)
-            static_assert(nt::always_false<>);
+            static_assert(nt::always_false<xform_t>);
 
         // Loop through every element of the output.
         auto iwise_shape = output.shape().template filter_nd<N>().template as<Index>();
@@ -179,14 +179,14 @@ namespace noa::xform::details {
         if (has_transform) {
             auto extract_transform = [&] {
                 if constexpr (nt::is_mat_of_shape_v<xform_t, N + 1, N + 1>) {
-                    return nd::Batch{affine2truncated(inverse_transform)};
+                    return nd::Batch{inverse_transform.pop_back()};
                 } else if constexpr (nt::is_varray_v<xform_t>) {
                     using accessor_t = AccessorRestrictContiguous<nt::const_value_type_t<xform_t>, 1, isize>;
                     return nd::Batch{accessor_t(inverse_transform.get())}; // inverse_transform is contiguous
                 } else if constexpr (nt::is_mat_v<xform_t> or nt::is_quaternion_v<xform_t> or std::is_empty_v<xform_t>) {
                     return nd::Batch{inverse_transform};
                 } else {
-                    static_assert(nt::always_false<>);
+                    static_assert(nt::always_false<xform_t>);
                 }
             };
             using transform_t = decltype(extract_transform());

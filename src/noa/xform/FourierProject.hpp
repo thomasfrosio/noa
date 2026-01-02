@@ -1,6 +1,5 @@
 #pragma once
 
-#include "noa/runtime/core/Enums.hpp"
 #include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/core/Atomic.hpp"
 #include "noa/runtime/Array.hpp"
@@ -123,7 +122,7 @@ namespace noa::xform::details {
         //  rfftfreq_samples=4.6->5, window_size=11
         //  computed_window=[-0.25,-0.2,-0.15,-0.1,-0.05,0.,0.05,0.1,0.15,0.2,0.25]
         auto rfftfreq_samples = static_cast<f64>(spectrum_size) * static_cast<f64>(fftfreq_blackman);
-        if (allclose(rfftfreq_samples, 1.)) {
+        if (noa::allclose(rfftfreq_samples, 1.)) {
             // Due to floating-point precision errors, the default value (1/spectrum_size)
             // may be slightly greater than 1. In this case, we really mean 1.
             rfftfreq_samples = round(rfftfreq_samples);
@@ -193,9 +192,9 @@ namespace noa::xform::details {
         using output_real_type = nt::value_type_t<output_value_type>;
         using output_weight_value_type = nt::value_type_t<output_weight_type>;
 
-        static_assert(details::fourier_projection_transform_types<scale_type, rotate_type, ews_type> and
-                      details::fourier_projection_types<input_type, output_type> and
-                      details::fourier_projection_weight_types<input_weight_type, output_weight_type>);
+        static_assert(fourier_projection_transform_types<scale_type, rotate_type, ews_type> and
+                      fourier_projection_types<input_type, output_type> and
+                      fourier_projection_weight_types<input_weight_type, output_weight_type>);
 
     public:
         constexpr FourierInsertRasterize(
@@ -242,7 +241,7 @@ namespace noa::xform::details {
             // The oversampling is implicitly handled when scaling back to the target shape.
             const index_type v = nf::index2frequency<ARE_SLICES_CENTERED>(y, m_slice_size_y);
             const auto fftfreq_2d = coord2_type::from_values(v, u) / m_f_slice_shape;
-            coord3_type fftfreq_3d = details::fourier_slice2grid(
+            coord3_type fftfreq_3d = fourier_slice2grid(
                 fftfreq_2d, m_inv_scaling, m_fwd_rotation, batch, m_ews_diam_inv);
 
             // The frequency rate won't change from that point, so check for the cutoff.
@@ -428,9 +427,9 @@ namespace noa::xform::details {
         using input_weight_value_type = std::conditional_t<
             has_input_weights, nt::mutable_value_type_t<input_weight_type>, output_weight_value_type>;
 
-        static_assert(details::fourier_projection_transform_types<scale_type, rotate_type, ews_type> and
-                      details::fourier_projection_types<input_type, output_type> and
-                      details::fourier_projection_weight_types<input_weight_type, output_weight_type>);
+        static_assert(fourier_projection_transform_types<scale_type, rotate_type, ews_type> and
+                      fourier_projection_types<input_type, output_type> and
+                      fourier_projection_weight_types<input_weight_type, output_weight_type>);
 
     public:
         FourierInsertInterpolate(
@@ -490,13 +489,13 @@ namespace noa::xform::details {
             input_weight_value_type weights{};
 
             for (index_type i{}; i < m_slice_count; ++i) {
-                const auto [fftfreq_z, fftfreq_2d] = details::fourier_grid2slice(
+                const auto [fftfreq_z, fftfreq_2d] = fourier_grid2slice(
                     fftfreq, m_fwd_scaling, m_inv_rotation, i, m_ews_diam_inv);
 
                 input_value_type i_value{};
                 input_weight_value_type i_weights{};
                 if (abs(fftfreq_z) <= m_fftfreq_blackman) { // the slice affects the voxel
-                    const auto window = details::windowed_sinc(fftfreq_z, m_fftfreq_sinc, m_fftfreq_blackman);
+                    const auto window = windowed_sinc(fftfreq_z, m_fftfreq_sinc, m_fftfreq_blackman);
                     const auto frequency_2d = fftfreq_2d * m_f_slice_shape;
 
                     i_value = m_input_slices.interpolate_spectrum_at(frequency_2d, i) *
@@ -574,9 +573,9 @@ namespace noa::xform::details {
         using coord2_type = Vec<coord_type, 2>;
         using coord3_type = Vec<coord_type, 3>;
 
-        static_assert(details::fourier_projection_transform_types<batched_scale_type, batched_rotate_type, ews_type> and
-                      details::fourier_projection_types<input_type, output_type> and
-                      details::fourier_projection_weight_types<input_weight_type, output_weight_type>);
+        static_assert(fourier_projection_transform_types<batched_scale_type, batched_rotate_type, ews_type> and
+                      fourier_projection_types<input_type, output_type> and
+                      fourier_projection_weight_types<input_weight_type, output_weight_type>);
 
         // Optional operator requires atomic_add.
         static constexpr bool are_outputs_atomic =
@@ -707,7 +706,7 @@ namespace noa::xform::details {
             const auto frequency_2d = nf::index2frequency<ARE_SLICES_CENTERED, ARE_SLICES_RFFT>(
                 Vec{oy, ox}, m_slice_shape);
             const auto fftfreq_2d = coord2_type::from_vec(frequency_2d) / m_f_slice_shape;
-            return details::fourier_slice2grid(
+            return fourier_slice2grid(
                 fftfreq_2d, m_inv_scaling, m_fwd_rotation, batch, m_ews_diam_inv);
         }
 
@@ -785,10 +784,10 @@ namespace noa::xform::details {
         static constexpr bool has_input_weights = not nt::empty<input_weight_type>;
         static constexpr bool has_output_weights = not nt::empty<output_weight_type>;
 
-        static_assert(details::fourier_projection_transform_types<input_scale_type, input_rotate_type, ews_type> and
-                      details::fourier_projection_transform_types<output_scale_type, output_rotate_type, ews_type> and
-                      details::fourier_projection_types<input_type, output_type> and
-                      details::fourier_projection_weight_types<input_weight_type, output_weight_type>);
+        static_assert(fourier_projection_transform_types<input_scale_type, input_rotate_type, ews_type> and
+                      fourier_projection_transform_types<output_scale_type, output_rotate_type, ews_type> and
+                      fourier_projection_types<input_type, output_type> and
+                      fourier_projection_weight_types<input_weight_type, output_weight_type>);
 
         // Optional operator requires atomic_add.
         static constexpr bool are_outputs_atomic =
@@ -1127,7 +1126,7 @@ namespace noa::xform::details {
             if constexpr (nt::varray<T> or nt::texture<T>) {
                 check(not array.is_empty(), "Empty array detected");
                 if constexpr (nt::varray<Input>)
-                    check(not ni::are_overlapped(array, output), "Input and output arrays should not overlap");
+                    check(not are_overlapped(array, output), "Input and output arrays should not overlap");
 
                 if constexpr (nt::texture<Input>) {
                     check(array.border() == Border::ZERO,
@@ -1148,7 +1147,7 @@ namespace noa::xform::details {
 
         if constexpr (not nt::empty<OutputWeight>) {
             check(not output_weight.is_empty(), "Empty array detected");
-            check(not ni::are_overlapped(output_weight, output), "Output arrays should not overlap");
+            check(not are_overlapped(output_weight, output), "Output arrays should not overlap");
             check(output_weight.device() == output_device,
                   "The arrays should be on the same device, but got output_weight:device={} and output:device={}",
                   output_weight.device(), output_device);
@@ -1176,7 +1175,7 @@ namespace noa::xform::details {
 
         auto check_transform = [&](const auto& transform, isize required_size, std::string_view name) {
             check(not transform.is_empty(), "{} should not be empty", name);
-            check(ni::is_contiguous_vector(transform) and transform.n_elements() == required_size,
+            check(is_contiguous_vector(transform) and transform.n_elements() == required_size,
                   "{} should be a contiguous vector with n_slices={} elements, but got {}:shape={}, {}:strides={}",
                   name, required_size, name, transform.shape(), name, transform.strides());
             check(transform.device() == output_device, "{} should be on the compute device", name);
@@ -1230,7 +1229,7 @@ namespace noa::xform::details {
     template<usize N, nf::Layout REMAP, bool IS_GPU, Interp INTERP, typename Coord, typename Index, typename T>
     auto fourier_projection_to_interpolator(const T& input, const Shape<Index, 4>& shape) {
         if constexpr (nt::varray_or_texture<T>) {
-            return nd::to_interpolator_spectrum<N, REMAP, INTERP, Coord, IS_GPU>(input, shape);
+            return details::to_interpolator_spectrum<N, REMAP, INTERP, Coord, IS_GPU>(input, shape);
 
         } else if constexpr (nt::empty<T>) {
             return input;
@@ -1295,12 +1294,12 @@ namespace noa::xform::details {
 
         const auto s_input_slice_shape = slice_shape.as<Index>();
         const auto s_volume_shape = volume_shape.as<Index>();
-        auto batched_rotation = nd::to_batched_transform(rotation);
+        auto batched_rotation = to_batched_transform(rotation);
         using coord_t = nt::value_type_twice_t<Rotate>;
 
         auto launch = [&](auto no_ews_and_scale) {
             auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
-            auto batched_scaling = nd::to_batched_transform<true, no_ews_and_scale()>(scaling);
+            auto batched_scaling = to_batched_transform<true, no_ews_and_scale()>(scaling);
 
             using op_t = FourierInsertRasterize<
                 REMAP, Index,
@@ -1346,7 +1345,7 @@ namespace noa::xform::details {
 
         const auto s_slice_shape = slice_shape.as<Index>();
         const auto s_volume_shape = volume_shape.as<Index>();
-        auto batched_rotation = nd::to_batched_transform<false>(rotation);
+        auto batched_rotation = to_batched_transform<false>(rotation);
         using coord_t = nt::value_type_twice_t<Rotate>;
 
         auto launch = [&](auto no_ews_and_scale, auto interp) {
@@ -1355,7 +1354,7 @@ namespace noa::xform::details {
             auto slice_weight_interpolator = fourier_projection_to_interpolator
                 <2, REMAP, IS_GPU, interp(), coord_t>(slice_weight, s_slice_shape);
 
-            auto batched_scaling = nd::to_batched_transform<true, no_ews_and_scale()>(scaling);
+            auto batched_scaling = to_batched_transform<true, no_ews_and_scale()>(scaling);
             auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
 
             using op_t = FourierInsertInterpolate<
@@ -1420,7 +1419,7 @@ namespace noa::xform::details {
         };
         auto slice_accessor = nd::to_accessor<accessor_config, Index>(slice);
         auto slice_weight_accessor = nd::to_accessor<accessor_config, Index>(slice_weight);
-        auto batched_rotation = nd::to_batched_transform(rotation);
+        auto batched_rotation = to_batched_transform(rotation);
 
         const auto s_slice_shape = slice_shape.as<Index>();
         const auto s_volume_shape = volume_shape.as<Index>();
@@ -1433,7 +1432,7 @@ namespace noa::xform::details {
             auto volume_weight_interpolator = fourier_projection_to_interpolator
                 <3, REMAP, IS_GPU, interp(), coord_t>(volume_weight, s_volume_shape);
 
-            auto batched_scale = nd::to_batched_transform<true, no_ews_and_scale()>(scaling);
+            auto batched_scale = to_batched_transform<true, no_ews_and_scale()>(scaling);
             auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
 
             using op_t = FourierExtract<
@@ -1516,8 +1515,8 @@ namespace noa::xform::details {
         };
         auto output_slice_accessor = nd::to_accessor<output_config, Index>(output_slice);
         auto output_weight_accessor = nd::to_accessor<output_config, Index>(output_weight);
-        auto input_rotation_accessor = nd::to_batched_transform(input_rotation);
-        auto output_rotation_accessor = nd::to_batched_transform(output_rotation);
+        auto input_rotation_accessor = to_batched_transform(input_rotation);
+        auto output_rotation_accessor = to_batched_transform(output_rotation);
 
         const auto s_input_shape = input_shape.as<Index>();
         const auto s_output_shape = output_shape.as<Index>();
@@ -1530,8 +1529,8 @@ namespace noa::xform::details {
                 <2, REMAP, IS_GPU, interp(), coord_t>(input_weight, s_input_shape);
 
             auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
-            auto input_scaling_accessor = nd::to_batched_transform<true, no_ews_and_scale()>(input_scaling);
-            auto output_scaling_accessor = nd::to_batched_transform<true, no_ews_and_scale()>(output_scaling);
+            auto input_scaling_accessor = to_batched_transform<true, no_ews_and_scale()>(input_scaling);
+            auto output_scaling_accessor = to_batched_transform<true, no_ews_and_scale()>(output_scaling);
 
             using op_t = FourierInsertExtract<
                 REMAP, Index,

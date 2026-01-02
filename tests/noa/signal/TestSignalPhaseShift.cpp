@@ -13,7 +13,7 @@ using namespace noa::types;
 namespace nf = noa::fft;
 
 TEST_CASE("signal::phase_shift_2d()", "[asset]") {
-    const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";
+    const Path path_base = test::NOA_DATA_PATH / "signal";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["2d"];
 
     std::vector<Device> devices{"cpu"};
@@ -129,7 +129,7 @@ TEMPLATE_TEST_CASE("signal::phase_shift_2d(), batch", "", c32, c64) {
 }
 
 TEST_CASE("signal::phase_shift_3d()", "[asset]") {
-    const Path path_base = test::NOA_DATA_PATH / "signal" / "fft";
+    const Path path_base = test::NOA_DATA_PATH / "signal";
     const YAML::Node params = YAML::LoadFile(path_base / "tests.yaml")["shift"]["3d"];
 
     std::vector<Device> devices{"cpu"};

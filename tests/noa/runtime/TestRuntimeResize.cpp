@@ -13,7 +13,7 @@ using namespace ::noa::types;
 
 TEST_CASE("runtime::resize()", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
-    const Path path_base = test::NOA_DATA_PATH / "memory";
+    const Path path_base = test::NOA_DATA_PATH / "runtime";
     const YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["resize"];
     const bool pad = GENERATE(false, true);
     INFO("pad=" << pad);
@@ -66,7 +66,7 @@ TEST_CASE("runtime::resize()", "[asset]") {
             if (is_centered) {
                 const auto center = input_shape / 2;
                 for (i64 batch = 0; batch < input_shape[0]; ++batch)
-                    input(batch, center[1], center[2], center[3]) = 0;
+                    input.span()(batch, center[1], center[2], center[3]) = 0;
             }
 
             if (device != input.device())

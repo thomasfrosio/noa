@@ -64,9 +64,7 @@ Stream::set_current(my_stream);
 ## `Asynchronous eager execution`
 
 
-The library currently only supports an (asynchronous) eager execution model (as opposed to a lazy-evaluation model), that is, functions are dispatched to the underlying hardware as soon as possible. Depending on the
-device and the stream, these functions are executed asynchronously on the underlying hardware, meaning that the program execution is not blocked and that functions may return before completion. One exception is for functions that return scalars, for instance, `noa::sum(const Array<f64>&)->f64`. In this case, the current stream is synchronized before the function returns. Note that alternative functions that don’t synchronize by returning
-array(s) instead of scalars are often available.
+The library currently only supports an (asynchronous) eager execution model (as opposed to a lazy-evaluation model), that is, functions are dispatched to the underlying hardware as soon as possible. Depending on the device and the stream, these functions are executed asynchronously on the underlying hardware, meaning that the program execution is not blocked and that functions may return before completion. One exception is for functions that return scalars, for instance, `noa::sum(const Array<f64>&)->f64`. In this case, the current stream is synchronized before the function returns. Note that alternative functions that don’t synchronize by returning array instead of scalars are often available.
 
 ```c++
 // import i64, f64, Shape, Array, ArrayOption, Allocator, ReduceAxes
@@ -76,7 +74,7 @@ using namespace ::noa::types;
 // "random" enqueue an operator (Randomizer<Uniform>) to initialise
 // the values with random numbers with an uniform distribution,
 // between -1 and 1.
-const auto shape = Shape4<i64>{1, 256, 256, 256};
+const auto shape = Shape4{1, 256, 256, 256};
 const Array array = noa::random(noa::Uniform{-1., 1.}, shape, {
     .device = "gpu:0", .allocator = Allocator::ASYNC,
 });

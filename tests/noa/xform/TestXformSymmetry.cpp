@@ -1,21 +1,21 @@
-#include <../../../../src/noa/xform/Euler.hpp>
-#include <noa/unified/geometry/CubicBSplinePrefilter.hpp>
-#include <noa/unified/geometry/Draw.hpp>
-#include <noa/unified/geometry/Symmetry.hpp>
-#include <noa/unified/geometry/Transform.hpp>
-#include <noa/unified/IO.hpp>
-#include <noa/unified/Factory.hpp>
+#include <noa/xform/core/Euler.hpp>
+#include <noa/xform/CubicBSplinePrefilter.hpp>
+#include <noa/xform/Draw.hpp>
+#include <noa/xform/Symmetry.hpp>
+#include <noa/xform/Transform.hpp>
+#include <noa/IO.hpp>
+#include <noa/Runtime.hpp>
 
 #include "Assets.hpp"
 #include "Catch.hpp"
 #include "Utils.hpp"
 
-namespace ng = ::noa::geometry;
+namespace nx = ::noa::xform;
 using namespace ::noa::types;
-using Interp = noa::Interp;
+using Interp = nx::Interp;
 
-TEST_CASE("unified::geometry::symmetrize_2d", "[asset]") {
-    const Path path_base = test::NOA_DATA_PATH / "geometry";
+TEST_CASE("xform::symmetrize_2d", "[asset]") {
+    const Path path_base = test::NOA_DATA_PATH / "xform";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["symmetry_2d"];
     const auto input_filename = path_base / param["input"].as<Path>();
 
@@ -23,17 +23,17 @@ TEST_CASE("unified::geometry::symmetrize_2d", "[asset]") {
     if constexpr (COMPUTE_ASSETS) {
         const auto asset = noa::empty<f32>({1, 1, 512, 512});
         const auto center = Vec{256., 256.};
-        ng::draw({}, asset, ng::Rectangle{
+        nx::draw({}, asset, nx::Rectangle{
             .center = center,
             .radius = Vec{64., 128.},
             .smoothness = 5.,
         }.draw());
-        ng::draw(asset, asset, ng::Rectangle{
+        nx::draw(asset, asset, nx::Rectangle{
             .center = center + Vec{64., 128.},
             .radius = Vec{32., 32.},
             .smoothness = 3.,
         }.draw(), {}, noa::Plus{});
-        ng::draw(asset, asset, ng::Rectangle{
+        nx::draw(asset, asset, nx::Rectangle{
             .center = center,
             .radius = Vec{2. ,2.},
             .smoothness = 0.,
@@ -59,14 +59,14 @@ TEST_CASE("unified::geometry::symmetrize_2d", "[asset]") {
         const auto pre_shift = test["pre_shift"].as<Vec<f64, 2>>();
         const auto post_shift = test["post_shift"].as<Vec<f64, 2>>();
 
-        const auto inverse_pre_matrix = ng::translate(-pre_shift).as<f32>();
+        const auto inverse_pre_matrix = nx::translate(-pre_shift).as<f32>();
         const auto inverse_post_matrix = (
-            ng::translate(center + post_shift) *
-            ng::linear2affine(ng::rotate(angle)) *
-            ng::translate(-center)
+            nx::translate(center + post_shift) *
+            nx::affine(nx::rotate(angle)) *
+            nx::translate(-center)
         ).inverse().as<f32>();
 
-        auto symmetry = ng::Symmetry<f32, 2>(test["symmetry"].as<std::string>());
+        auto symmetry = nx::Symmetry<f32, 2>(test["symmetry"].as<std::string>());
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device);
@@ -78,11 +78,11 @@ TEST_CASE("unified::geometry::symmetrize_2d", "[asset]") {
 
             const auto input = noa::read_image<f32>(input_filename, {.enforce_2d_stack = true}, options).data;
             if (interp.is_almost_any(Interp::CUBIC_BSPLINE))
-                noa::cubic_bspline_prefilter(input, input);
+                nx::cubic_bspline_prefilter(input, input);
 
             // With arrays:
             const auto output = noa::like(input);
-            ng::symmetrize_2d(
+            nx::symmetrize_2d(
                 input, output, symmetry,
                 {.symmetry_center = center, .interp = interp},
                 inverse_pre_matrix, inverse_post_matrix);
@@ -97,14 +97,14 @@ TEST_CASE("unified::geometry::symmetrize_2d", "[asset]") {
             ++count;
 
             // With textures:
-            const auto input_texture = noa::Texture<f32>(input, device, interp, {
+            const auto input_texture = nx::Texture<f32>(input, device, interp, {
                 .border = noa::Border::ZERO,
                 .cvalue = 0.f,
                 .prefilter = false,
             });
 
             noa::fill(output, 0); // erase
-            ng::symmetrize_2d(
+            nx::symmetrize_2d(
                 input_texture, output, symmetry,
                 {.symmetry_center=center},
                 inverse_pre_matrix, inverse_post_matrix);
@@ -114,18 +114,18 @@ TEST_CASE("unified::geometry::symmetrize_2d", "[asset]") {
     REQUIRE(count == expected_count);
 }
 
-TEST_CASE("unified::geometry::transform_3d, symmetry", "[asset]") {
-    const Path path_base = test::NOA_DATA_PATH / "geometry";
+TEST_CASE("xform::transform_3d, symmetry", "[asset]") {
+    const Path path_base = test::NOA_DATA_PATH / "xform";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["symmetry_3d"];
 
     constexpr bool COMPUTE_ASSETS = false;
     if constexpr (COMPUTE_ASSETS) {
         const auto asset = noa::empty<f32>({1, 150, 150, 150});
         constexpr auto center = Vec<f64, 3>::from_value(150 / 2);
-        ng::draw({}, asset, ng::Rectangle{.center = center, .radius = Vec{34., 24., 24.}, .smoothness = 3.}.draw());
+        nx::draw({}, asset, nx::Rectangle{.center = center, .radius = Vec{34., 24., 24.}, .smoothness = 3.}.draw());
         noa::write_image(asset, path_base / param["input"][0].as<Path>());
 
-        ng::draw(asset, asset, ng::Rectangle{
+        nx::draw(asset, asset, nx::Rectangle{
             .center = center + Vec{15., 15., 15.},
             .radius = Vec{15., 15., 15.},
             .smoothness = 3.
@@ -150,14 +150,14 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[asset]") {
         const auto center = test["center"].as<Vec<f64, 3>>();
         const auto interp = test["interp"].as<Interp>();
 
-        const auto inverse_pre_matrix = ng::translate(-shift).as<f32>();
+        const auto inverse_pre_matrix = nx::translate(-shift).as<f32>();
         const auto inverse_post_matrix = (
-            ng::translate(center) *
-            ng::linear2affine(ng::euler2matrix(angles, {.axes="zyz"})) *
-            ng::translate(-center)
+            nx::translate(center) *
+            nx::affine(nx::euler2matrix(angles, {.axes="zyz"})) *
+            nx::translate(-center)
         ).inverse().as<f32>();
 
-        auto symmetry = ng::Symmetry<f32, 3>(test["symmetry"].as<std::string>());
+        auto symmetry = nx::Symmetry<f32, 3>(test["symmetry"].as<std::string>());
 
         for (auto& device: devices) {
             const auto stream = noa::StreamGuard(device);
@@ -169,12 +169,12 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[asset]") {
 
             const auto input = noa::read_image<f32>(input_filename, {.enforce_2d_stack = false}, options).data;
             if (interp.is_almost_any(Interp::CUBIC_BSPLINE))
-                noa::cubic_bspline_prefilter(input, input);
+                nx::cubic_bspline_prefilter(input, input);
 
             // With arrays:
             const auto output = noa::like(input);
 
-            ng::symmetrize_3d(
+            nx::symmetrize_3d(
                 input, output, symmetry,
                 {.symmetry_center=center, .interp=interp},
                 inverse_pre_matrix, inverse_post_matrix);
@@ -189,13 +189,13 @@ TEST_CASE("unified::geometry::transform_3d, symmetry", "[asset]") {
             ++count;
 
             // With textures:
-            const auto input_texture = noa::Texture<f32>(input, device, interp, {
+            const auto input_texture = nx::Texture<f32>(input, device, interp, {
                 .border=noa::Border::ZERO,
                 .cvalue=0.f,
                 .prefilter=false,
             });
             noa::fill(output, 0.); // erase
-            ng::symmetrize_3d(
+            nx::symmetrize_3d(
                 input_texture, output, symmetry,
                 {.symmetry_center=center},
                 inverse_pre_matrix, inverse_post_matrix);

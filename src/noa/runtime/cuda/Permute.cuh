@@ -1,13 +1,10 @@
 #pragma once
 #include "noa/runtime/cuda/IncludeGuard.cuh"
 
-#include "noa/runtime/core/Config.hpp"
-#include "noa/runtime/core/indexing/Layout.hpp"
-#include "noa/runtime/core/math/Generic.hpp"
-#include "noa/runtime/core/types/Accessor.hpp"
+#include "noa/base/Math.hpp"
+#include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/cuda/Block.cuh"
 #include "noa/runtime/cuda/Copy.cuh"
-#include "noa/runtime/cuda/Error.hpp"
 #include "noa/runtime/cuda/Stream.hpp"
 
 // Logic from:
@@ -37,7 +34,8 @@ namespace noa::cuda::details {
         Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
-        __shared__ T tile[TILE_SIZE][TILE_SIZE + 1]; // +1 so that elements in a column map to different banks.
+        __shared__ Uninitialized<T> tile_[TILE_SIZE][TILE_SIZE + 1]; // +1 so that elements in a column map to different banks
+        T(& tile)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_);
 
         auto bid = block_indices<u32, 3>();
         bid[0] += block_offset_zy[0];
@@ -75,8 +73,10 @@ namespace noa::cuda::details {
     __global__ __launch_bounds__(PermuteConfig::block_size)
     void permute_0132_inplace_(Accessor<T, 4, u32> output, u32 size, Vec<u32, 2> block_offset_zy, u32 blocks_x) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
-        __shared__ T tile_src[TILE_SIZE][TILE_SIZE + 1];
-        __shared__ T tile_dst[TILE_SIZE][TILE_SIZE + 1];
+        __shared__ Uninitialized<T> tile_src_[TILE_SIZE][TILE_SIZE + 1];
+        __shared__ Uninitialized<T> tile_dst_[TILE_SIZE][TILE_SIZE + 1];
+        T(& tile_src)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_src_);
+        T(& tile_dst)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_dst_);
 
         auto bid = block_indices<u32, 3>();
         bid[0] += block_offset_zy[0];
@@ -182,7 +182,9 @@ namespace noa::cuda::details {
         Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
-        __shared__ T tile[PermuteConfig::block_size_y][PermuteConfig::block_size_x];
+        __shared__ Uninitialized<T> tile_[PermuteConfig::block_size_y][PermuteConfig::block_size_x];
+        T(& tile)[PermuteConfig::block_size_y][PermuteConfig::block_size_x] =
+            *reinterpret_cast<T(*)[PermuteConfig::block_size_y][PermuteConfig::block_size_x]>(&tile_);
 
         auto bid = block_indices<u32, 3>();
         bid[0] += block_offset_zy[0];
@@ -225,7 +227,8 @@ namespace noa::cuda::details {
         Shape<u32, 2> shape_zx, Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
-        __shared__ T tile[TILE_SIZE][TILE_SIZE + 1];
+        __shared__ Uninitialized<T> tile_[TILE_SIZE][TILE_SIZE + 1];
+        T(& tile)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_);
 
         auto bid = block_indices<u32, 3>();
         bid[0] += block_offset_zy[0];
@@ -268,7 +271,8 @@ namespace noa::cuda::details {
         Shape<u32, 2> shape_yx /* YX */, Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
-        __shared__ T tile[TILE_SIZE][TILE_SIZE + 1];
+        __shared__ Uninitialized<T> tile_[TILE_SIZE][TILE_SIZE + 1];
+        T(& tile)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_);
 
         auto bid = block_indices<u32, 3>();
         bid[0] += block_offset_zy[0];
@@ -310,7 +314,8 @@ namespace noa::cuda::details {
         Shape<u32, 2> shape_zx, Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
-        __shared__ T tile[TILE_SIZE][TILE_SIZE + 1];
+        __shared__ Uninitialized<T> tile_[TILE_SIZE][TILE_SIZE + 1];
+        T(& tile)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_);
 
         auto bid = block_indices<u32, 3>();
         bid[0] += block_offset_zy[0];
@@ -350,8 +355,10 @@ namespace noa::cuda::details {
         Vec<u32, 2> block_offset_zy, u32 blocks_x
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
-        __shared__ T tile_src[TILE_SIZE][TILE_SIZE + 1];
-        __shared__ T tile_dst[TILE_SIZE][TILE_SIZE + 1];
+        __shared__ Uninitialized<T> tile_src_[TILE_SIZE][TILE_SIZE + 1];
+        __shared__ Uninitialized<T> tile_dst_[TILE_SIZE][TILE_SIZE + 1];
+        T(& tile_src)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_src_);
+        T(& tile_dst)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_dst_);
 
         auto bid = block_indices<u32, 3>();
         bid[0] += block_offset_zy[0];
@@ -749,7 +756,7 @@ namespace noa::cuda {
     void permute_copy(
         const T* input, const Strides4& input_strides, const Shape4& input_shape,
         T* output, const Strides4& output_strides,
-        const Vec<isize, 4>& permutation, Stream& stream
+        const Vec<i32, 4>& permutation, Stream& stream
     ) {
         const auto idx =
             permutation[0] * 1000 +
@@ -786,8 +793,8 @@ namespace noa::cuda {
                     return details::permute_0321(input, input_strides, output, output_strides, input_shape, stream);
                 default:
                     // Expected to be much slower...
-                    const auto output_shape = reorder(input_shape, permutation);
-                    const auto input_strides_permuted = reorder(input_strides, permutation);
+                    const auto output_shape = input_shape.permute(permutation);
+                    const auto input_strides_permuted = input_strides.permute(permutation);
                     copy(input, input_strides_permuted, output, output_strides, output_shape, stream);
             }
         }

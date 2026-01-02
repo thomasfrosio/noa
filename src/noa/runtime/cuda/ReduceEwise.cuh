@@ -1,10 +1,10 @@
 #pragma once
 #include "noa/runtime/cuda/IncludeGuard.cuh"
 
-#include "noa/runtime/core/Config.hpp"
+#include "noa/base/Config.hpp"
+#include "noa/base/Vec.hpp"
 #include "noa/runtime/core/Interfaces.hpp"
-#include "noa/runtime/core/types/Accessor.hpp"
-#include "noa/runtime/core/types/Vec.hpp"
+#include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/cuda/Allocators.hpp"
 #include "noa/runtime/cuda/Block.cuh"
 
@@ -710,10 +710,10 @@ namespace noa::cuda {
         Stream& stream
     ) {
         const auto n_elements = safe_cast<Index>(shape.template as_safe<isize>().n_elements());
-        const Vec<bool, 4> is_contiguous = ni::is_contiguous(input, shape);
+        const Vec<bool, 4> contiguity = nd::accessors_contiguity(input, shape);
 
         constexpr auto SMALL_THRESHOLD = Config::block_work_size * 4;
-        if (is_contiguous.pop_back() == true) {
+        if (contiguity.pop_back() == true) {
             if (n_elements <= SMALL_THRESHOLD) {
                 details::launch_reduce_ewise_small_2d<Config>(
                     std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),

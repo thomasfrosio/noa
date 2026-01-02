@@ -5,7 +5,7 @@ By default, the element-wise interfaces (`ewise`, `reduce_ewise` and `reduce_axe
 
 ## `CUDA vectorized global memory accesses`
 
-For instance, the CUDA backend supports "vectorized" reads/writes from/to global memory, which may help to increase the data throughput on the GPU. However, to do so, we use temporary input/output values and pass these values to the operator instead of the values from the input/output arrays. For instance, in the case of `ewise`, we would do something like:
+For instance, the CUDA backend supports "vectorized" reads/writes from/to global memory, which may help to increase the data throughput on the GPU. However, to do so, we use temporary input/output values and pass these values to the operator instead of the values from the input/output arrays. For instance, in the case of `ewise`, we do something like:
 
 ```c++
 // noa::ewise(input: a, output: b, op) ->
@@ -41,9 +41,9 @@ static_assert(noa::traits::enable_vectorization_v<Zero>);
 
 This means that doing `noa::ewise(a, {}, noa::Zero{})` on the GPU is likely to return `a` unchanged because `a` is passed as an input. Indeed, using the example above, this means that `a_buffer` is passed to `Zero`, which zeroes it, but `a_buffer` is not written back to `a`. `noa::ewise({}, a, noa::Zero{})` should be used instead.
 
-Note: if the definition of the operator cannot be modified, template specialization can also be used:
+Note: if the definition of the operator cannot be modified, template specialization can be used instead:
 ```c++
-template<> struct enable_vectorization<MyOperator> : std::true_type {};
+template<> struct noa::traits::enable_vectorization<MyOperator> : std::true_type {};
 ```
 
 ## `CPU restrict pointers`

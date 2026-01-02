@@ -1,6 +1,5 @@
 #pragma once
 
-#include "noa/runtime/core/Enums.hpp"
 #include "noa/runtime/core/Iwise.hpp"
 #include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/Array.hpp"

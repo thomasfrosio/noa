@@ -1,10 +1,9 @@
-#include <noa/core/geometry/Transform.hpp>
-#include <../../../../src/noa/xform/Euler.hpp>
-#include <noa/unified/geometry/FourierProject.hpp>
-#include <noa/unified/IO.hpp>
-#include <noa/unified/Factory.hpp>
+#include <noa/xform/core/Transform.hpp>
+#include <noa/xform/core/Euler.hpp>
+#include <noa/xform/FourierProject.hpp>
 
-#include <noa/Array.hpp>
+#include <noa/Runtime.hpp>
+#include <noa/IO.hpp>
 #include <noa/Signal.hpp>
 #include <noa/FFT.hpp>
 
@@ -13,11 +12,11 @@
 #include "Utils.hpp"
 
 using namespace ::noa::types;
-namespace ng = noa::geometry;
-using Interp = noa::Interp;
+namespace nx = noa::xform;
+using Interp = nx::Interp;
 
-TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
-    const Path path = test::NOA_DATA_PATH / "geometry" / "fft";
+TEST_CASE("xform::extract_central_slices_3d", "[asset]") {
+    const Path path = test::NOA_DATA_PATH / "xform";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["extract_central_slices_3d"];
 
     constexpr bool COMPUTE_ASSETS = false;
@@ -28,7 +27,7 @@ TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
 
         const auto insert_inv_rotation_matrices = noa::empty<Mat33<f32>>(36);
         for (i64 i{}; auto& matrix: insert_inv_rotation_matrices.span_1d()) {
-            matrix = ng::euler2matrix(
+            matrix = nx::euler2matrix(
                 noa::deg2rad(Vec{90.f, 0.f, static_cast<f32>(i++ * 10)}),
                 {.axes = "xyz", .intrinsic = false}
             ).transpose();
@@ -37,7 +36,7 @@ TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
         const Array volume_fft = noa::empty<f32>(volume_shape.rfft());
 
         const Array slice_fft = noa::linspace(insert_slice_shape.rfft(), noa::Linspace{1.f, 20.f});
-        ng::insert_central_slices_3d<"hc2hc">(
+        nx::insert_central_slices_3d<"hc">(
             slice_fft, {}, insert_slice_shape, volume_fft, {}, volume_shape,
             {}, insert_inv_rotation_matrices, {.windowed_sinc = {-1, 0.1}});
         noa::write_image(volume_fft, volume_filename);
@@ -51,7 +50,7 @@ TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
 
         const auto slice_shape = Shape4{1, 1, volume_shape[2], volume_shape[3]};
         const auto slice_fft = noa::linspace(slice_shape.rfft(), noa::Linspace{1.f, 20.f});
-        ng::insert_central_slices_3d<"hc2hc">(
+        nx::insert_central_slices_3d<"hc">(
             slice_fft, {}, slice_shape, volume_fft, {}, volume_shape,
             {}, Mat33<f32>::eye(1), {.windowed_sinc = {0.0234375, 1}});
         noa::write_image(volume_fft, volume_filename);
@@ -78,10 +77,10 @@ TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
         const auto fftfreq_z_blackman = parameters["fftfreq_z_blackman"].as<f64>();
         const auto ews_radius = Vec<f64, 2>::from_value(parameters["ews_radius"].as<f64>());
 
-        const Mat22<f32> inv_scaling_matrix = ng::scale(1 / slice_scale);
+        const Mat22<f32> inv_scaling_matrix = nx::scale(1 / slice_scale);
         auto fwd_rotation_matrices = noa::empty<Mat33<f32>>(std::ssize(slice_rotate));
         for (size_t i{}; auto& matrix: fwd_rotation_matrices.span_1d())
-            matrix = ng::euler2matrix(noa::deg2rad(Vec<f32, 3>{0.f, slice_rotate[i++], 0.f}), {.axes = "zyx"});
+            matrix = nx::euler2matrix(noa::deg2rad(Vec<f32, 3>{0.f, slice_rotate[i++], 0.f}), {.axes = "zyx"});
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device);
@@ -95,7 +94,7 @@ TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
             const Array slice_fft = noa::empty<f32>(slice_shape.rfft(), options);
 
             // Forward project.
-            ng::extract_central_slices_3d<"hc2hc">(
+            nx::extract_central_slices_3d<"hc">(
                 volume_fft, {}, volume_shape, slice_fft, {}, slice_shape,
                 inv_scaling_matrix, fwd_rotation_matrices, {
                     .w_windowed_sinc = {fftfreq_z_sinc, fftfreq_z_blackman},
@@ -114,7 +113,7 @@ TEST_CASE("unified::geometry::extract_central_slices_3d", "[asset]") {
     }
 }
 
-TEMPLATE_TEST_CASE("unified::geometry::extract_central_slices_3d, using texture API and remap", "", f32, c32) {
+TEMPLATE_TEST_CASE("xform::extract_central_slices_3d, using texture API and remap", "", f32, c32) {
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
@@ -124,7 +123,7 @@ TEMPLATE_TEST_CASE("unified::geometry::extract_central_slices_3d, using texture 
 
     Array fwd_rotation_matrices = noa::empty<Mat33<f32>>(slice_shape[0]);
     for (i64 i{}; auto& fwd_rotation_matrix: fwd_rotation_matrices.span_1d())
-        fwd_rotation_matrix = ng::rotate_y(noa::deg2rad(static_cast<f32>(i++ * 2)));
+        fwd_rotation_matrix = nx::rotate_y(noa::deg2rad(static_cast<f32>(i++ * 2)));
 
     for (auto& device: devices) {
         const auto stream = StreamGuard(device);
@@ -140,12 +139,12 @@ TEMPLATE_TEST_CASE("unified::geometry::extract_central_slices_3d, using texture 
         const Array slice_fft1 = slice_fft0.copy();
         const Array slice_fft2 = slice_fft0.copy();
 
-        const auto texture_grid_fft = Texture<TestType>(grid_fft, device, Interp::LINEAR);
-        ng::extract_central_slices_3d<"hc2hc">(
+        const auto texture_grid_fft = nx::Texture<TestType>(grid_fft, device, Interp::LINEAR);
+        nx::extract_central_slices_3d<"hc2hc">(
             texture_grid_fft, {}, grid_shape,
             slice_fft0, {}, slice_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
-        ng::extract_central_slices_3d<"hc2h">(
+        nx::extract_central_slices_3d<"hc2h">(
             grid_fft, {}, grid_shape, slice_fft1, {}, slice_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
         noa::fft::remap("h2hc", slice_fft1, slice_fft2, slice_shape);

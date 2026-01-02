@@ -1,7 +1,7 @@
 #pragma once
 
-#include "noa/runtime/core/Math.hpp"
-#include "noa/runtime/core/Vec.hpp"
+#include "noa/base/Math.hpp"
+#include "noa/base/Vec.hpp"
 
 /// Convention:
 ///  - Cartesian: x, y(, z)
