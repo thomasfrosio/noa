@@ -5,9 +5,9 @@
 
 namespace nx = noa::xform;
 
-TEST_CASE("xxtest") {
+TEST_CASE("xxtest", "[.]") {
     // Create an array of uninitialized values of two 1024x1024 images on the GPU.
-    auto images = noa::zeros<float>({1, 1, 512, 512}, {.device = "gpu", .allocator = "managed"});
+    auto images = noa::zeros<float>({1, 1, 512, 512}, {.device = "cpu", .allocator = "managed"});
 
     // auto matmul = noa::like(images);
     // noa::matmul(images, images, matmul);

@@ -28,7 +28,7 @@ This is a `C++20` static library, aiming to provide basic signal and image proce
 
 ## `Example`
 
-This library provides high-level abstractions traditionally useful in cryoEM. For example, to transform 2d images using bilinear interpolation on a GPU, one could do:
+This library comes with high-level abstractions traditionally useful in cryoEM. For example, to transform 2d images using bilinear interpolation on a GPU, one could do:
 
 ```c++
 #include <noa/Runtime.hpp>
@@ -40,7 +40,7 @@ int main() {
     // Create an array of uninitialized values of two 1024x1024 images on the GPU.
     auto images = noa::Array<float>({2, 1, 1024, 1024}, {.device = "gpu"});
 
-    // .. initialize the images, for instance, from an MRC file ..
+    // .. initialize the images... or for instance get the images from an MRC file:
     // auto images = noa::read_image<float>("image.mrc"));
 
     // Create the affine matrix, rotating the images around their center by 45deg.
@@ -62,7 +62,7 @@ int main() {
 }
 ```
 
-However, it is unreasonable to expect this library to implement everything. Instead, the runtime provide a few [core functions](docs/030_core_functions.md), like `noa::iwise` (for "index-wise", essentially an n-dimensional for-loop), so that users can implement their own operators. For instance, the example above could be implemented like so:
+However, it is unreasonable to expect this library to implement everything. Instead, the runtime provides a few [core functions](docs/030_core_functions.md), like `noa::iwise` (for "index-wise", essentially an n-dimensional for-loop), so that we can implement our own operators directly. For instance, the example above could be implemented like so:
 
 ```c++
 struct MyAffineTransform {
@@ -76,7 +76,7 @@ struct MyAffineTransform {
         coordinates = (inverse_transform * coordinates.push_back(1)).pop_back();
 
         // Bilinear interpolation.
-        // Note: we provide an Interpolator that can do all of this.
+        // Note: we could also use noa::xform::Interpolator instead.
         const auto floored = floor(coordinates);
         const auto indices = floored.as<int>();
         const auto fraction = (coordinates - floored).as<float>();
