@@ -5,6 +5,8 @@
 #include "noa/runtime/Array.hpp"
 #include "noa/runtime/ArrayOption.hpp"
 #include "noa/xform/CubicBSplinePrefilter.hpp"
+#include "noa/xform/core/Interp.hpp"
+#include "noa/xform/Traits.hpp"
 
 #ifdef NOA_ENABLE_CUDA
 #include "noa/runtime/cuda/IncludeGuard.cuh"
