@@ -5,6 +5,7 @@ set(NOA_HEADERS
     noa/FFT.hpp
     noa/IO.hpp
     noa/Runtime.hpp
+    noa/Session.hpp
     noa/Signal.hpp
     noa/Types.hpp
     noa/Version.hpp
