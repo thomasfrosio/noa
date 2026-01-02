@@ -537,7 +537,7 @@ namespace noa::inline types {
 
         template<typename U = value_type,
                  typename I = index_type,
-                 StridesTraits NewStridesTrait = STRIDES_TRAIT,
+                 StridesTraits NewStridesTrait = StridesTraits::CONTIGUOUS,
                  PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto span_1d() const {
             return span<U, 1, I, NewStridesTrait, NewPointerTrait>();
