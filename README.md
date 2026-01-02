@@ -76,7 +76,7 @@ struct MyAffineTransform {
         coordinates = (inverse_transform * coordinates.push_back(1)).pop_back();
 
         // Bilinear interpolation.
-        // Note: we could also use noa::Interpolator instead.
+        // Note: we could also use noa::xform::Interpolator instead.
         const auto floored = floor(coordinates);
         const auto indices = floored.as<int>();
         const auto fraction = (coordinates - floored).as<float>();
