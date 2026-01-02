@@ -28,7 +28,7 @@ This is a `C++20` static library, aiming to provide basic signal and image proce
 
 ## `Example`
 
-This library provides high-level abstractions traditionally useful in cryoEM. For example, to transform 2d images using bilinear interpolation on a GPU, one could do:
+This library comes with high-level abstractions traditionally useful in cryoEM. For example, to transform 2d images using bilinear interpolation on a GPU, one could do:
 
 ```c++
 #include <noa/Runtime.hpp>
@@ -62,7 +62,7 @@ int main() {
 }
 ```
 
-However, it is unreasonable to expect this library to implement everything. Instead, the runtime provide a few [core functions](docs/030_core_functions.md), like `noa::iwise` (for "index-wise", essentially an n-dimensional for-loop), so that users can implement their own operators. For instance, the example above could be implemented like so:
+However, it is unreasonable to expect this library to implement everything. Instead, the runtime provides a few [core functions](docs/030_core_functions.md), like `noa::iwise` (for "index-wise", essentially an n-dimensional for-loop), so that we can implement our own operators directly. For instance, the example above could be implemented like so:
 
 ```c++
 struct MyAffineTransform {
