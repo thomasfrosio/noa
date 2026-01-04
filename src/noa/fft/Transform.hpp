@@ -130,7 +130,7 @@ namespace noa::fft {
         return details::set_workspace(
             device,
             std::reinterpret_pointer_cast<std::byte[]>(buffer.share()),
-            buffer.ssize() * static_cast<isize>(sizeof(nt::value_type_t<T>))
+            buffer.ssize() * static_cast<isize>(sizeof(T))
         );
     }
 }
