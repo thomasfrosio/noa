@@ -3,7 +3,7 @@
 #include "noa/runtime/core/Interfaces.hpp"
 #include "noa/runtime/Traits.hpp"
 #include "noa/runtime/Stream.hpp"
-#include "noa/runtime/Utilities.hpp"
+#include "noa/runtime/Utils.hpp"
 
 #include "noa/runtime/cpu/ReduceIwise.hpp"
 #ifdef NOA_ENABLE_CUDA

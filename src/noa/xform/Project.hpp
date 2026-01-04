@@ -7,6 +7,7 @@
 #include "noa/runtime/Iwise.hpp"
 #include "noa/xform/core/Interpolation.hpp"
 #include "noa/xform/Transform.hpp"
+#include "noa/xform/Utils.hpp"
 
 namespace noa::xform::details {
     template<nt::any_of<f32, f64> T, typename X>

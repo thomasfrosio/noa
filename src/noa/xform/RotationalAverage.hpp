@@ -10,7 +10,7 @@
 
 #include "noa/fft/core/Frequency.hpp"
 #include "noa/signal/core/CTF.hpp" // FIXME can be removed
-#include "noa/xform/core/Interpolation.hpp"
+#include "noa/xform/Utils.hpp"
 
 namespace noa::xform::details {
     struct RotationalAverageUtils {

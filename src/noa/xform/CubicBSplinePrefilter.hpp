@@ -6,7 +6,7 @@
 #endif
 
 #include "noa/runtime/Array.hpp"
-#include "noa/runtime/Utilities.hpp"
+#include "noa/runtime/Utils.hpp"
 
 namespace noa::xform {
     /// Applies a prefilter to \p input so that the cubic B-spline values will pass through the sample data.

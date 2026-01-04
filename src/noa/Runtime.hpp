@@ -14,7 +14,7 @@
 #include "noa/runtime/core/Span.hpp"
 #include "noa/runtime/core/Subregion.hpp"
 #include "noa/runtime/core/Traits.hpp"
-#include "noa/runtime/core/Utilities.hpp"
+#include "noa/runtime/core/Utils.hpp"
 
 #include "noa/runtime/Allocator.hpp"
 #include "noa/runtime/Array.hpp"
@@ -42,5 +42,5 @@
 #include "noa/runtime/Stream.hpp"
 #include "noa/runtime/Subregion.hpp"
 #include "noa/runtime/Traits.hpp"
-#include "noa/runtime/Utilities.hpp"
+#include "noa/runtime/Utils.hpp"
 #include "noa/runtime/View.hpp"

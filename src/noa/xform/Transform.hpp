@@ -1,10 +1,10 @@
 #pragma once
 
 #include "noa/runtime/Array.hpp"
-#include "noa/runtime/Utilities.hpp"
+#include "noa/runtime/Utils.hpp"
 #include "noa/runtime/Iwise.hpp"
-#include "noa/xform/core/Interpolation.hpp"
 #include "noa/xform/core/Transform.hpp"
+#include "noa/xform/Utils.hpp"
 
 namespace noa::xform::details {
     template<bool ALLOW_EMPTY = false, bool ENFORCE_EMPTY = false, typename Xform>

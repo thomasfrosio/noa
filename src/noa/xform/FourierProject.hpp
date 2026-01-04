@@ -5,13 +5,14 @@
 #include "noa/runtime/Array.hpp"
 #include "noa/runtime/Ewise.hpp"
 #include "noa/runtime/Iwise.hpp"
-#include "noa/runtime/Utilities.hpp"
+#include "noa/runtime/Utils.hpp"
 #include "noa/fft/core/Frequency.hpp"
 #include "noa/xform/core/Interpolation.hpp"
 #include "noa/xform/core/Euler.hpp"
 #include "noa/xform/core/Quaternion.hpp"
 #include "noa/xform/Transform.hpp"
 #include "noa/xform/Texture.hpp"
+#include "noa/xform/Utils.hpp"
 
 namespace noa::xform::details {
     template<typename ScaleBatched, typename RotateBatched, typename Ews,

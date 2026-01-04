@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #include "noa/runtime/core/Shape.hpp"
-#include "noa/runtime/core/Utilities.hpp"
+#include "noa/runtime/core/Utils.hpp"
 #include "noa/runtime/cpu/Allocators.hpp"
 
 namespace noa::cpu {

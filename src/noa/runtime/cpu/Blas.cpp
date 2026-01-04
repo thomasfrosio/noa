@@ -1,6 +1,6 @@
 #include "noa/base/Config.hpp"
 #include "noa/base/Complex.hpp"
-#include "noa/runtime/core/Utilities.hpp"
+#include "noa/runtime/core/Utils.hpp"
 #include "noa/runtime/cpu/Blas.hpp"
 
 // Suppress Eigen warnings...

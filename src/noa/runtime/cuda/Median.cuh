@@ -2,7 +2,7 @@
 #include "noa/runtime/cuda/IncludeGuard.cuh"
 
 #include "noa/runtime/core/Shape.hpp"
-#include "noa/runtime/core/Utilities.hpp"
+#include "noa/runtime/core/Utils.hpp"
 #include "noa/runtime/cuda/Stream.hpp"
 #include "noa/runtime/cuda/Allocators.hpp"
 #include "noa/runtime/cuda/Sort.cuh"

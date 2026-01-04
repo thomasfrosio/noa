@@ -22,7 +22,7 @@
 #include "noa/runtime/core/Span.hpp"
 #include "noa/runtime/core/Subregion.hpp"
 #include "noa/runtime/core/Traits.hpp"
-#include "noa/runtime/core/Utilities.hpp"
+#include "noa/runtime/core/Utils.hpp"
 
 #include "noa/signal/core/Correlation.hpp"
 #include "noa/signal/core/CTF.hpp"

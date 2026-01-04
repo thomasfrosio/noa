@@ -8,11 +8,11 @@
 #include "noa/runtime/core/Traits.hpp"
 #include "noa/runtime/Array.hpp"
 #include "noa/runtime/Iwise.hpp"
-#include "noa/runtime/Utilities.hpp"
-#include "noa/xform/core/Interpolation.hpp"
+#include "noa/runtime/Utils.hpp"
 #include "noa/xform/core/Symmetry.hpp"
 #include "noa/xform/Texture.hpp"
 #include "noa/xform/Transform.hpp"
+#include "noa/xform/Utils.hpp"
 
 namespace noa::xform {
     /// Symmetry utility class, storing and managing symmetry rotation matrices.

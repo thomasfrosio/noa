@@ -5,7 +5,7 @@
 #include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/core/Batch.hpp"
 #include "noa/runtime/core/Shareable.hpp"
-#include "noa/runtime/core/Utilities.hpp"
+#include "noa/runtime/core/Utils.hpp"
 #include "noa/runtime/Traits.hpp"
 
 namespace noa::details {

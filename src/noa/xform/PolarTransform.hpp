@@ -7,6 +7,7 @@
 #include "noa/xform/core/Polar.hpp"
 #include "noa/xform/core/Interpolation.hpp"
 #include "noa/xform/Traits.hpp"
+#include "noa/xform/Utils.hpp"
 
 namespace noa::xform::details {
     /// 3d iwise operator to compute 2d cartesian->polar transformation(s).

@@ -2,7 +2,7 @@
 
 #include "noa/runtime/core/Access.hpp"
 #include "noa/runtime/core/Shape.hpp"
-#include "noa/runtime/core/Utilities.hpp"
+#include "noa/runtime/core/Utils.hpp"
 #include "noa/xform/core/CubicBSplinePrefilter.hpp"
 
 namespace noa::xform::cpu::details {

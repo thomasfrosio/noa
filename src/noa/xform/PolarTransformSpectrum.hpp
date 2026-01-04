@@ -7,6 +7,7 @@
 
 #include "noa/xform/core/Interpolation.hpp"
 #include "noa/xform/PolarTransform.hpp"
+#include "noa/xform/Utils.hpp"
 
 namespace noa::xform::details {
     /// 3d iwise operator to compute the spectrum->polar transformation of 2d (r)FFT(s).

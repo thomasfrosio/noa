@@ -1,7 +1,7 @@
 #include <cublas_v2.h>
 
 #include "noa/base/Complex.hpp"
-#include "noa/runtime/core/Utilities.hpp"
+#include "noa/runtime/core/Utils.hpp"
 #include "noa/runtime/cuda/Blas.hpp"
 #include "noa/runtime/cuda/Error.hpp"
 

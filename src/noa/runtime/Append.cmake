@@ -13,7 +13,7 @@ list(APPEND NOA_HEADERS
     noa/runtime/core/Span.hpp
     noa/runtime/core/Subregion.hpp
     noa/runtime/core/Traits.hpp
-    noa/runtime/core/Utilities.hpp
+    noa/runtime/core/Utils.hpp
 
     noa/runtime/Allocator.hpp
     noa/runtime/Array.hpp
@@ -41,7 +41,7 @@ list(APPEND NOA_HEADERS
     noa/runtime/Stream.hpp
     noa/runtime/Subregion.hpp
     noa/runtime/Traits.hpp
-    noa/runtime/Utilities.hpp
+    noa/runtime/Utils.hpp
     noa/runtime/View.hpp
 )
 

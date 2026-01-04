@@ -22,3 +22,4 @@
 #include "noa/xform/Traits.hpp"
 #include "noa/xform/Transform.hpp"
 #include "noa/xform/TransformSpectrum.hpp"
+#include "noa/xform/Utils.hpp"

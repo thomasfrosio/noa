@@ -3,7 +3,7 @@
 #include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/Device.hpp"
 #include "noa/runtime/Stream.hpp"
-#include "noa/runtime/Utilities.hpp"
+#include "noa/runtime/Utils.hpp"
 
 #include "noa/runtime/cpu/Iwise.hpp"
 #ifdef NOA_ENABLE_CUDA

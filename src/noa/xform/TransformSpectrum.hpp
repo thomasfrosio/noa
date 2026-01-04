@@ -1,12 +1,13 @@
 #pragma once
 
 #include "noa/runtime/Array.hpp"
-#include "noa/runtime/Utilities.hpp"
+#include "noa/runtime/Utils.hpp"
 #include "noa/runtime/Iwise.hpp"
 
 #include "noa/fft/core/Frequency.hpp"
 #include "noa/xform/core/Interpolation.hpp"
 #include "noa/xform/Transform.hpp"
+#include "noa/xform/Utils.hpp"
 
 namespace noa::xform::details {
     /// 3d or 4d iwise operator to compute linear transformations (one rotation/scaling followed by one translation)

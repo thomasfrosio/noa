@@ -21,6 +21,7 @@ list(APPEND NOA_HEADERS
     noa/xform/Traits.hpp
     noa/xform/Transform.hpp
     noa/xform/TransformSpectrum.hpp
+    noa/xform/Utils.hpp
 )
 
 list(APPEND NOA_SOURCES
