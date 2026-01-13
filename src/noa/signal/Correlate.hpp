@@ -610,6 +610,10 @@ namespace noa::signal {
     ///       should likely be zero-padded before taking the rFFT to cancel the circular convolution effect of
     ///       the DFT. The amount of padding along a dimension is equal to the maximum lag allowed.\n
     ///
+    /// \note The resulting cross-correlation map is relative to \p rhs, and the lags describe by how much \p rhs should
+    ///       be translated to match \p lhs. For instance, if \p rhs is a [y=+20, x=+10] translated version of \p lhs,
+    ///       the resulting peak in the map is at lag [y=-20, x=-10].\n
+    ///
     /// \note As opposed to the cross_correlation_score function, this function does not take normalization flags.
     ///       To get the (Z)(N)CC scores, normalize the inputs appropriately before computing their rFFT (for instance,
     ///       the ZNCC needs zero-centered and L2-normalized real-space inputs). Importantly, the FFT normalization
