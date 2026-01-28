@@ -626,7 +626,7 @@ namespace noa::xform::details {
             // This is along the w of the grid.
             m_fftfreq_sinc = max(fftfreq_sinc, 1 / m_f_target_shape[0]);
             m_fftfreq_blackman = max(fftfreq_blackman, 1 / m_f_target_shape[0]);
-            tie(m_blackman_size, m_w_window_sum) = details::z_window_spec<index_type>(
+            tie(m_blackman_size, std::ignore) = details::z_window_spec<index_type>(
                 m_fftfreq_sinc, m_fftfreq_blackman, m_f_target_shape[0]);
         }
 
@@ -675,8 +675,7 @@ namespace noa::xform::details {
                 return;
 
             const auto frequency_3d = fftfreq_3d * m_f_target_shape;
-            const auto convolution_weight =
-                details::windowed_sinc(fftfreq_z_offset, m_fftfreq_sinc, m_fftfreq_blackman) / m_w_window_sum;
+            const auto convolution_weight = details::windowed_sinc(fftfreq_z_offset, m_fftfreq_sinc, m_fftfreq_blackman);
 
             const auto value = m_input_volume.interpolate_spectrum_at(frequency_3d);
             nd::atomic_add(
@@ -724,7 +723,6 @@ namespace noa::xform::details {
         coord_type m_fftfreq_sinc;
         coord_type m_fftfreq_blackman;
         index_type m_blackman_size;
-        coord_type m_w_window_sum;
 
         NOA_NO_UNIQUE_ADDRESS input_weight_type m_input_weights;
         NOA_NO_UNIQUE_ADDRESS output_weight_type m_output_weights;
@@ -848,7 +846,7 @@ namespace noa::xform::details {
             m_insert_fftfreq_blackman = max(insert_fftfreq_blackman, 1 / m_volume_z);
             m_extract_fftfreq_sinc = max(extract_fftfreq_sinc, 1 / m_volume_z);
             m_extract_fftfreq_blackman = max(extract_fftfreq_blackman, 1 / m_volume_z);
-            tie(m_extract_blackman_size, m_extract_window_total_weight) = details::z_window_spec<index_type>(
+            tie(m_extract_blackman_size, std::ignore) = details::z_window_spec<index_type>(
                 m_extract_fftfreq_sinc, m_extract_fftfreq_blackman, m_volume_z);
         }
 
@@ -913,8 +911,7 @@ namespace noa::xform::details {
 
             // z-windowed sinc.
             const auto convolution_weight =
-                details::windowed_sinc(fftfreq_z_offset, m_extract_fftfreq_sinc, m_extract_fftfreq_blackman) /
-                m_extract_window_total_weight;
+                details::windowed_sinc(fftfreq_z_offset, m_extract_fftfreq_sinc, m_extract_fftfreq_blackman);
 
             // Add the contribution for this z-offset. The z-convolution is essentially a simple weighted mean.
             nd::atomic_add(
@@ -979,7 +976,7 @@ namespace noa::xform::details {
 
             // Correct for the multiplicity (assuming this is all the signal at that frequency).
             if (correct_weights) {
-                const auto final_weight = max(input_weight_value_type{1}, weight);
+                const auto final_weight = max(input_weight_value_type{1}, abs(weight));
                 value /= static_cast<input_real_type>(final_weight);
             }
 
@@ -1004,7 +1001,6 @@ namespace noa::xform::details {
         coord_type m_extract_fftfreq_sinc;
         coord_type m_extract_fftfreq_blackman;
         index_type m_extract_blackman_size;
-        coord_type m_extract_window_total_weight;
 
         NOA_NO_UNIQUE_ADDRESS input_weight_type m_input_weights;
         NOA_NO_UNIQUE_ADDRESS output_weight_type m_output_weights;
@@ -1944,7 +1940,7 @@ namespace noa::xform {
         bool add_to_output{false};
 
         /// Correct for the weights, i.e. divide the output sampled values by their corresponding weight.
-        /// This is the equivalent of doing `output_slice/max(1, output_weight)` after the function and assumes all
+        /// This is the equivalent of doing `output_slice/max(1, |output_weight|)` after the function and assumes all
         /// the input slices are included in the same function call. It is not compatible with add_to_output=true or
         /// with a non-default w_windowed_sinc.
         /// This can be useful for cases where there's no real-space mask to apply before the forward projection and
