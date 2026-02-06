@@ -626,8 +626,8 @@ namespace noa::xform::details {
             // This is along the w of the grid.
             m_fftfreq_sinc = max(fftfreq_sinc, 1 / m_f_target_shape[0]);
             m_fftfreq_blackman = max(fftfreq_blackman, 1 / m_f_target_shape[0]);
-            tie(m_blackman_size, std::ignore) = details::z_window_spec<index_type>(
-                m_fftfreq_sinc, m_fftfreq_blackman, m_f_target_shape[0]);
+            m_blackman_size = details::z_window_spec<index_type>(
+                m_fftfreq_sinc, m_fftfreq_blackman, m_f_target_shape[0]).first;
         }
 
         [[nodiscard]] constexpr index_type windowed_sinc_size() const noexcept { return m_blackman_size; }
@@ -846,8 +846,8 @@ namespace noa::xform::details {
             m_insert_fftfreq_blackman = max(insert_fftfreq_blackman, 1 / m_volume_z);
             m_extract_fftfreq_sinc = max(extract_fftfreq_sinc, 1 / m_volume_z);
             m_extract_fftfreq_blackman = max(extract_fftfreq_blackman, 1 / m_volume_z);
-            tie(m_extract_blackman_size, std::ignore) = details::z_window_spec<index_type>(
-                m_extract_fftfreq_sinc, m_extract_fftfreq_blackman, m_volume_z);
+            m_extract_blackman_size = details::z_window_spec<index_type>(
+                m_extract_fftfreq_sinc, m_extract_fftfreq_blackman, m_volume_z).first;
         }
 
         // Whether the operator is 4d. Otherwise, it is 3d.
