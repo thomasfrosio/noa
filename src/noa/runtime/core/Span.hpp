@@ -302,7 +302,7 @@ namespace noa::inline types {
                  StridesTraits NewStridesTrait = STRIDES_TRAIT,
                  PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto as_const() const {
-            return Span<const_value_type, NewN, NewI, NewStridesTrait, NewPointerTrait>(*this);
+            return span<const_value_type, NewN, NewI, NewStridesTrait, NewPointerTrait>();
         }
 
         template<usize NewN = N,
