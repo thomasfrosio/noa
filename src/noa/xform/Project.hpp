@@ -2,8 +2,6 @@
 
 #include "noa/base/Mat.hpp"
 #include "noa/runtime/Array.hpp"
-#include "noa/runtime/core/Atomic.hpp"
-#include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/Iwise.hpp"
 #include "noa/xform/core/Interpolation.hpp"
 #include "noa/xform/Transform.hpp"
@@ -114,11 +112,11 @@ namespace noa::xform::details {
         // Alternative implementation to benchmark. This exposes the number of images to backproject
         // so to have more work to distribute, but requires the output to be already set and to write
         // atomically...
-        constexpr void operator()(index_type i, index_type z, index_type y, index_type x) const {
+        constexpr void operator()(nt::compute_handle auto& ch, index_type i, index_type z, index_type y, index_type x) const {
             const auto output_coordinates = coord_4d_type::from_values(z, y, x, 1);
             const auto input_coordinates = project_vector(m_batched_inverse_matrices[i], output_coordinates);
             const auto value = static_cast<output_value_type>(m_input.interpolate_at(input_coordinates, i));
-            nd::atomic_add(m_output, value, z, y, x);
+            ch.grid().atomic_add(value, m_output, z, y, x);
         }
 
     private:
@@ -166,7 +164,7 @@ namespace noa::xform::details {
 
         // For every pixel (y,x) of the forward projected output image (i is the batch).
         // z is the extra dimension for the projection window (the longest diagonal).
-        constexpr void operator()(index_type i, index_type z, index_type y, index_type x) const {
+        constexpr void operator()(nt::compute_handle auto& ch, index_type i, index_type z, index_type y, index_type x) const {
             const auto affine = m_batched_forward_matrices[i].filter_rows(0, 1, 2); // truncated
             const auto image_coordinates = coord_3d_type::from_values(z - m_projection_window_radius, y, x);
             const auto volume_coordinates = forward_projection_transform_vector(
@@ -179,7 +177,7 @@ namespace noa::xform::details {
                 return;
 
             const auto value = static_cast<output_value_type>(m_input.interpolate_at(volume_coordinates, i));
-            nd::atomic_add(m_output, value, i, y, x); // sum along z
+            ch.grid().atomic_add(value, m_output, i, y, x); // sum along z
         }
 
     private:
@@ -238,7 +236,7 @@ namespace noa::xform::details {
     public:
         // For every pixel (y,x) of the forward projected output image (i is the batch).
         // z is the extra dimension for the projection window (the longest diagonal).
-        constexpr void operator()(index_type i, index_type z, index_type y, index_type x) const {
+        constexpr void operator()(nt::compute_handle auto& ch, index_type i, index_type z, index_type y, index_type x) const {
             const auto affine = m_batched_forward_matrices[i].filter_rows(0, 1, 2);
             const auto image_coordinates = coord_3d_type::from_values(z - m_projection_window_radius, y, x);
             const auto volume_coordinates = forward_projection_transform_vector(
@@ -274,7 +272,7 @@ namespace noa::xform::details {
                 }
             }
 
-            nd::atomic_add(m_output, value, i, y, x); // sum along z
+            ch.grid().atomic_add(value, m_output, i, y, x); // sum along z
         }
 
     private:

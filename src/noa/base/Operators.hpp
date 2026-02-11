@@ -7,6 +7,7 @@ namespace noa {
     #define NOA_UNARY_OP_(name, src_op)                                     \
     struct name {                                                           \
         using enable_vectorization = bool;                                  \
+        using remove_compute_handle = bool;                                 \
         template<typename T>                                                \
         NOA_HD constexpr auto operator()(const T& src) const {              \
             src_op;                                                         \
@@ -75,6 +76,7 @@ namespace noa {
     #define NOA_BINARY_OP_(name, src_op)                                                \
     struct name {                                                                       \
         using enable_vectorization = bool;                                              \
+        using remove_compute_handle = bool;                                             \
         template<typename T, typename U>                                                \
         NOA_HD constexpr auto operator()(const T& lhs, const U& rhs) const {            \
             src_op;                                                                     \
@@ -111,6 +113,7 @@ namespace noa {
     #define NOA_TRINARY_OP_(name, src_op)                                                           \
     struct name {                                                                                   \
         using enable_vectorization = bool;                                                          \
+        using remove_compute_handle = bool;                                                         \
         template<typename T, typename U, typename V>                                                \
         NOA_HD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {          \
             src_op;                                                                                 \
@@ -142,6 +145,7 @@ namespace noa {
     template<typename T>
     struct Fill {
         using enable_vectorization = bool;
+        using remove_compute_handle = bool;
         T value;
 
         template<typename U>
@@ -152,6 +156,7 @@ namespace noa {
 
     template<typename T>
     struct Scale {
+        using remove_compute_handle = bool;
         T value;
 
         template<typename U>
@@ -162,6 +167,7 @@ namespace noa {
 
     struct Zero {
         using enable_vectorization = bool;
+        using remove_compute_handle = bool;
 
         template<typename... U>
         NOA_HD constexpr void operator()(U&... dst) const {
@@ -171,6 +177,7 @@ namespace noa {
 
     struct Cast {
         using enable_vectorization = bool;
+        using remove_compute_handle = bool;
         bool clamp{};
 
         template<typename T, typename U>
@@ -187,6 +194,7 @@ namespace noa {
 
     struct ComplexFuse {
         using enable_vectorization = bool;
+        using remove_compute_handle = bool;
 
         template<typename C>
         NOA_HD constexpr void operator()(auto r, auto i, C& c) const {
@@ -195,6 +203,7 @@ namespace noa {
     };
     struct ComplexDecompose {
         using enable_vectorization = bool;
+        using remove_compute_handle = bool;
 
         template<typename R, typename I>
         NOA_HD constexpr void operator()(const auto& c, R& r, I& i) const {
@@ -205,6 +214,7 @@ namespace noa {
 
     struct NormalizeMinMax {
         using enable_vectorization = bool;
+        using remove_compute_handle = bool;
 
         template<typename T>
         NOA_HD constexpr auto operator()(const T& value, const T& min, const T& max) const {
@@ -218,6 +228,7 @@ namespace noa {
 
     struct NormalizeMeanStddev {
         using enable_vectorization = bool;
+        using remove_compute_handle = bool;
 
         template<typename T, typename U, typename V>
         NOA_HD constexpr auto operator()(const T& value, const U& mean, const V& stddev) const {
@@ -231,6 +242,7 @@ namespace noa {
 
     struct NormalizeNorm {
         using enable_vectorization = bool;
+        using remove_compute_handle = bool;
 
         template<typename T, typename U>
         NOA_HD constexpr auto operator()(const T& value, const U& norm) const {

@@ -4,6 +4,7 @@
 #include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/core/Interfaces.hpp"
 #include "noa/runtime/core/Shape.hpp"
+#include "noa/runtime/cpu/ComputeHandle.hpp"
 
 namespace noa::cpu::details {
     template<bool ZipInput, bool ZipOutput>
@@ -17,7 +18,8 @@ namespace noa::cpu::details {
         NOA_NOINLINE static void parallel(const Shape<Index, N>& shape, Op op, Input input, Output output, i32 n_threads) {
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, input, output) firstprivate(op)
             {
-                interface::init(op, omp_get_thread_num());
+                constexpr auto ci = ComputeHandle<Index, true>{};
+                interface::init(ci, op);
 
                 if constexpr (N == 4) {
                     #pragma omp for collapse(4)
@@ -25,41 +27,42 @@ namespace noa::cpu::details {
                         for (Index j = 0; j < shape[1]; ++j)
                             for (Index k = 0; k < shape[2]; ++k)
                                 for (Index l = 0; l < shape[3]; ++l)
-                                    interface::call(op, input, output, i, j, k, l);
+                                    interface::call(ci, op, input, output, i, j, k, l);
 
                 } else if constexpr (N == 1) {
                     #pragma omp for
                     for (Index i = 0; i < shape[0]; ++i)
-                        interface::call(op, input, output, i);
+                        interface::call(ci, op, input, output, i);
 
                 } else {
                     static_assert(nt::always_false<Op>);
                 }
 
-                interface::final(op, omp_get_thread_num());
+                interface::deinit(ci, op);
             }
         }
 
         template<usize N, typename Index, typename Op, typename Input, typename Output>
         NOA_NOINLINE static constexpr void serial(const Shape<Index, N>& shape, Op op, Input input, Output output) {
-            interface::init(op, 0);
+            constexpr auto ci = ComputeHandle<Index, true>{};
+            interface::init(ci, op);
 
             if constexpr (N == 4) {
                 for (Index i = 0; i < shape[0]; ++i)
                     for (Index j = 0; j < shape[1]; ++j)
                         for (Index k = 0; k < shape[2]; ++k)
                             for (Index l = 0; l < shape[3]; ++l)
-                                interface::call(op, input, output, i, j, k, l);
+                                interface::call(ci, op, input, output, i, j, k, l);
 
             } else if constexpr (N == 1) {
                 for (Index i = 0; i < shape[0]; ++i)
-                    interface::call(op, input, output, i);
+                    interface::call(ci, op, input, output, i);
 
             } else {
                 static_assert(nt::always_false<Op>);
             }
 
-            interface::final(op, 0);
+            interface::deinit(ci, op);
         }
     };
 }

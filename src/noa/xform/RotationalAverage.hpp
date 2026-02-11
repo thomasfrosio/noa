@@ -1,8 +1,6 @@
 #pragma once
 
 #include "noa/runtime/core/Iwise.hpp"
-#include "noa/runtime/core/Shape.hpp"
-#include "noa/runtime/core/Atomic.hpp"
 #include "noa/runtime/Array.hpp"
 #include "noa/runtime/Ewise.hpp"
 #include "noa/runtime/Iwise.hpp"
@@ -14,8 +12,8 @@
 
 namespace noa::xform::details {
     struct RotationalAverageUtils {
-        template<typename T, typename U, typename C, typename I>
-        NOA_FHD static void lerp_to_output(const T& op, const U& value, C fftfreq, I batch) noexcept {
+        template<typename G, typename T, typename U, typename C, typename I>
+        NOA_FHD static void lerp_to_output(const G& cg, const T& op, const U& value, C fftfreq, I batch) noexcept {
             // fftfreq to output index.
             const C scaled_fftfreq = (fftfreq - op.m_output_fftfreq_start) / op.m_output_fftfreq_span;
             const C radius = scaled_fftfreq * static_cast<C>(op.m_max_shell_index);
@@ -29,15 +27,15 @@ namespace noa::xform::details {
 
             // TODO In CUDA, we could do the atomic reduction in shared memory to reduce global memory transfers?
             if (shell_low >= 0 and shell_low <= op.m_max_shell_index) {
-                nd::atomic_add(op.m_output, value * static_cast<T::output_real_type>(fraction_low), batch, shell_low);
+                cg.atomic_add(value * static_cast<T::output_real_type>(fraction_low), op.m_output, batch, shell_low);
                 if (op.m_weight)
-                    nd::atomic_add(op.m_weight, static_cast<T::weight_value_type>(fraction_low), batch, shell_low);
+                    cg.atomic_add(static_cast<T::weight_value_type>(fraction_low), op.m_weight, batch, shell_low);
             }
 
             if (shell_high >= 0 and shell_high <= op.m_max_shell_index) {
-                nd::atomic_add(op.m_output, value * static_cast<T::output_real_type>(fraction_high), batch, shell_high);
+                cg.atomic_add(value * static_cast<T::output_real_type>(fraction_high), op.m_output, batch, shell_high);
                 if (op.m_weight)
-                    nd::atomic_add(op.m_weight, static_cast<T::weight_value_type>(fraction_high), batch, shell_high);
+                    cg.atomic_add(static_cast<T::weight_value_type>(fraction_high), op.m_weight, batch, shell_high);
             }
         }
     };
@@ -143,8 +141,8 @@ namespace noa::xform::details {
         }
 
         // 2d or 3d rotational average, with an optional anisotropic field correction.
-        template<nt::same_as<index_type>... I> requires (N == sizeof...(I))
-        NOA_HD void operator()(index_type batch, I... indices) const noexcept {
+        template<nt::compute_handle C, nt::same_as<index_type>... I> requires (N == sizeof...(I))
+        NOA_HD void operator()(const C& ch, index_type batch, I... indices) const noexcept {
             // Input indices to fftfreq.
             const auto frequency = nf::index2frequency<IS_CENTERED, IS_RFFT>(Vec{indices...}, m_shape);
             const auto fftfreq_nd = coord_nd_type::from_vec(frequency) * m_input_fftfreq_step;
@@ -162,7 +160,7 @@ namespace noa::xform::details {
                 return;
 
             const auto value = cast_or_abs_squared<output_value_type>(m_input(batch, indices...));
-            RotationalAverageUtils::lerp_to_output(*this, value, fftfreq, batch);
+            RotationalAverageUtils::lerp_to_output(ch.grid(), *this, value, fftfreq, batch);
         }
 
     private:
@@ -248,7 +246,7 @@ namespace noa::xform::details {
             m_fftfreq_cutoff[1] = output_fftfreq.stop + static_cast<coord_type>(m_max_shell_index) * output_fftfreq_step;
         }
 
-        NOA_HD void operator()(index_type batch, index_type index) const noexcept {
+        NOA_HD void operator()(nt::compute_handle auto& ch, index_type batch, index_type index) const noexcept {
             const auto output_batch = batch / m_chunk_size;
             const auto input_fftfreq = m_input_fftfreq_start + static_cast<coord_type>(index) * m_input_fftfreq_step;
             const auto input_phase = m_input_ctf[batch].phase_at(input_fftfreq);
@@ -260,7 +258,7 @@ namespace noa::xform::details {
 
             const auto value = cast_or_abs_squared<output_value_type>(m_input(batch, index));
             const auto weight = static_cast<output_real_type>(m_input_ctf[batch].scale());
-            RotationalAverageUtils::lerp_to_output(*this, value * weight, fftfreq, output_batch);
+            RotationalAverageUtils::lerp_to_output(ch.grid(), *this, value * weight, fftfreq, output_batch);
         }
 
     private:

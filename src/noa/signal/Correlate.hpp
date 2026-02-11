@@ -17,16 +17,16 @@ namespace noa::signal::details {
     struct CrossCorrelationScore {
         using enable_vectorization = bool;
 
-        template<typename X, typename Y, typename T>
-        static constexpr void init(const X& x, const Y& y, T& sum_xy) {
-            if constexpr (nt::complex<decltype(y)>) {
+        template<nt::real_or_complex I, nt::real T>
+        constexpr void operator()(const I& x, const I& y, T& sum_xy) {
+            if constexpr (nt::complex<I>) {
                 sum_xy += static_cast<T>(x * conj(y));
             } else {
                 sum_xy += static_cast<T>(x * y);
             }
         }
 
-        template<typename T>
+        template<nt::real T>
         static constexpr void join(const T& isum_xy, T& sum_xy) {
             sum_xy += isum_xy;
         }
@@ -36,26 +36,27 @@ namespace noa::signal::details {
         using enable_vectorization = bool;
         using remove_default_final = bool;
 
-        template<typename X, typename Y, typename T, typename U>
-        static constexpr void init(const X& x, const Y& y, T& sum_xx, T& sum_yy, U& sum_xy) {
+        template<typename I, typename U, nt::real T>
+           requires (nt::real<I, U> or nt::complex<I, U>)
+        constexpr void operator()(const I& x, const I& y, T& sum_xx, T& sum_yy, U& sum_xy) {
             sum_xx += static_cast<T>(abs_squared(x));
             sum_yy += static_cast<T>(abs_squared(y));
-            if constexpr (nt::complex<Y>) {
+            if constexpr (nt::complex<I>) {
                 sum_xy += static_cast<U>(x * conj(y));
             } else {
                 sum_xy += static_cast<U>(x * y);
             }
         }
 
-        template<typename T, typename U>
+        template<nt::real T, nt::real_or_complex U>
         static constexpr void join(const T& isum_xx, const T& isum_yy, const U& isum_xy, T& sum_xx, T& sum_yy, U& sum_xy) {
             sum_xx += isum_xx;
             sum_yy += isum_yy;
             sum_xy += isum_xy;
         }
 
-        template<typename T, typename U, typename V>
-        static constexpr void final(const T& sum_xx, const T& sum_yy, const U& sum_xy, V& ncc) {
+        template<nt::real T, nt::real_or_complex U, typename V>
+        static constexpr void post(const T& sum_xx, const T& sum_yy, const U& sum_xy, V& ncc) {
             const auto denom = sum_xx * sum_yy;
             if (denom <= 0) {
                 ncc = V{};
@@ -68,29 +69,30 @@ namespace noa::signal::details {
     template<typename S>
     struct CrossCorrelationScoreCentered {
         using enable_vectorization = bool;
-        using remove_default_final = bool;
+        using remove_default_post = bool;
         S size;
 
-        template<typename L, typename R, typename T>
-        static constexpr void init(const L& x, const R& y, T& sum_x, T& sum_y, T& sum_xy) {
+        template<typename I, typename T>
+            requires (nt::real<I, T> or nt::complex<I, T>)
+        constexpr void operator()(const I& x, const I& y, T& sum_x, T& sum_y, T& sum_xy) {
             sum_x += static_cast<T>(x);
             sum_y += static_cast<T>(y);
-            if constexpr (nt::complex<R>) {
+            if constexpr (nt::complex<I>) {
                 sum_xy += static_cast<T>(x * conj(y));
             } else {
                 sum_xy += static_cast<T>(x * y);
             }
         }
 
-        template<typename T>
+        template<nt::real_or_complex T>
         static constexpr void join(const T& isum_x, const T& isum_y, const T& isum_xy, T& sum_x, T& sum_y, T& sum_xy) {
             sum_x += isum_x;
             sum_y += isum_y;
             sum_xy += isum_xy;
         }
 
-        template<typename T, typename U>
-        constexpr void final(const T& sum_x, const T& sum_y, const T& sum_xy, U& zcc) {
+        template<nt::real_or_complex T, typename U>
+        constexpr void post(const T& sum_x, const T& sum_y, const T& sum_xy, U& zcc) {
             if constexpr (nt::complex<U>)
                 zcc = static_cast<U>(sum_xy - (sum_x * conj(sum_y)) / size);
             else
@@ -101,23 +103,24 @@ namespace noa::signal::details {
     template<typename S>
     struct CrossCorrelationScoreCenteredNormalized {
         using enable_vectorization = bool;
-        using remove_default_final = bool;
+        using remove_default_post = bool;
         S size;
 
-        template<typename X, typename Y, typename T, typename U>
-        static constexpr void init(const X& x, const Y& y, T& sum_xx, T& sum_yy, U& sum_x, U& sum_y, U& sum_xy) {
+        template<typename I, typename U, nt::real T>
+           requires (nt::real<I, U> or nt::complex<I, U>)
+        constexpr void operator()(const I& x, const I& y, T& sum_xx, T& sum_yy, U& sum_x, U& sum_y, U& sum_xy) {
             sum_xx += static_cast<T>(abs_squared(x));
             sum_yy += static_cast<T>(abs_squared(y));
             sum_x += static_cast<U>(x);
             sum_y += static_cast<U>(y);
-            if constexpr (nt::complex<Y>) {
+            if constexpr (nt::complex<I>) {
                 sum_xy += static_cast<U>(x * conj(y));
             } else {
                 sum_xy += static_cast<U>(x * y);
             }
         }
 
-        template<typename T, typename U>
+        template<nt::real T, nt::real_or_complex U>
         static constexpr void join(
             const T& isum_xx, const T& isum_yy, const U& isum_x, const U& isum_y, const U& isum_xy,
             T& sum_xx, T& sum_yy, U& sum_x, U& sum_y, U& sum_xy
@@ -129,8 +132,8 @@ namespace noa::signal::details {
             sum_xy += isum_xy;
         }
 
-        template<typename T, typename U, typename V>
-        constexpr void final(
+        template<nt::real T, nt::real_or_complex U, typename V>
+        constexpr void post(
             const T& sum_xx, const T& sum_yy, const U& sum_x, const U& sum_y, const U& sum_xy, V& zncc
         ) {
             const auto denom_x = sum_xx - abs_squared(sum_x) / size;
@@ -358,7 +361,7 @@ namespace noa::signal::details {
 
     public:
         template<nt::vec_of_size<N + 1> S> // nvcc segfaults if the concept is used with the auto syntax
-        constexpr void init(const S& subregion_indices, reduced_type& reduced) const {
+        constexpr void operator()(const S& subregion_indices, reduced_type& reduced) const {
             auto batch = subregion_indices[0];
             auto indices = subregion_indices.pop_front();
 
@@ -383,7 +386,7 @@ namespace noa::signal::details {
                 reduced = current;
         }
 
-        constexpr void final(const reduced_type& reduced) { // single-threaded, one thread per batch
+        constexpr void post(const reduced_type& reduced) { // single-threaded, one thread per batch
             const auto peak_indices = offset2index(reduced.second, m_input.strides(), m_shape.push_front(m_batch));
             const auto batch = peak_indices[0];
 

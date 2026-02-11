@@ -14,13 +14,13 @@ TEST_CASE("runtime::cpu::reduce_axes_iwise - 4d") {
     struct SumOp {
         AccessorContiguous<const i64, 4, i64> accessor;
 
-        void init(const Vec<i64, 4>& indices, i64& reduced) const {
+        void operator()(const Vec<i64, 4>& indices, i64& reduced) const {
             reduced += accessor(indices);
         }
         void join(i64 to_reduce, i64& reduced) const {
             reduced += to_reduce;
         }
-        void final(i64 reduced, i64& output) const {
+        void post(i64 reduced, i64& output) const {
             output += reduced;
         }
     };
@@ -139,13 +139,13 @@ TEST_CASE("runtime::cpu::reduce_axes_iwise - 3d") {
     struct SumOp {
         AccessorContiguous<const i64, 3, i64> accessor;
 
-        void init(const Vec<i64, 3>& indices, i64& reduced) const {
+        void operator()(const Vec<i64, 3>& indices, i64& reduced) const {
             reduced += accessor(indices);
         }
         void join(i64 to_reduce, i64& reduced) const {
             reduced += to_reduce;
         }
-        void final(i64 reduced, i64& output) const {
+        void post(i64 reduced, i64& output) const {
             output += reduced;
         }
     };
@@ -252,13 +252,13 @@ TEST_CASE("runtime::cpu::reduce_axes_iwise - 2d") {
     struct SumOp {
         AccessorContiguous<const i64, 2, i64> accessor;
 
-        void init(const Vec<i64, 2>& indices, i64& reduced) const {
+        void operator()(const Vec<i64, 2>& indices, i64& reduced) const {
             reduced += accessor(indices);
         }
         void join(i64 to_reduce, i64& reduced) const {
             reduced += to_reduce;
         }
-        void final(i64 reduced, i64& output) const {
+        void post(i64 reduced, i64& output) const {
             output += reduced;
         }
     };
@@ -319,13 +319,13 @@ TEST_CASE("runtime::cpu::reduce_axes_iwise - 1d") {
     struct SumOp {
         AccessorContiguous<const i64, 1, i64> accessor;
 
-        void init(const Vec<i64, 1>& indices, i64& reduced) const {
+        void operator()(const Vec<i64, 1>& indices, i64& reduced) const {
             reduced += accessor(indices);
         }
         void join(i64 to_reduce, i64& reduced) const {
             reduced += to_reduce;
         }
-        void final(i64 reduced, i64& output) const {
+        void post(i64 reduced, i64& output) const {
             output += reduced;
         }
     };

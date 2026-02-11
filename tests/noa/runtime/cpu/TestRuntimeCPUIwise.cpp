@@ -1,4 +1,5 @@
 #include <noa/runtime/cpu/Iwise.hpp>
+#include <noa/runtime/core/Accessor.hpp>
 #include <noa/runtime/core/Span.hpp>
 
 #include "Catch.hpp"

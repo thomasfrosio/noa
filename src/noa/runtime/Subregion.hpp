@@ -1,7 +1,6 @@
 #pragma once
 
 #include "noa/runtime/Array.hpp"
-#include "noa/runtime/Indexing.hpp"
 #include "noa/runtime/Iwise.hpp"
 
 namespace noa::details {

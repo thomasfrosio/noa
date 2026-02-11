@@ -12,13 +12,13 @@ namespace {
     template<typename A>
     struct SumAdd {
         A accessor;
-        constexpr void init(const auto& indices, f64& sum) const {
+        constexpr void operator()(const auto& indices, f64& sum) const {
             sum += static_cast<f64>(accessor(indices));
         }
         constexpr void join(f64 isum, f64& sum) const {
             sum += isum;
         }
-        constexpr void final(f64 sum, auto& output) const {
+        constexpr void post(f64 sum, auto& output) const {
             output += static_cast<std::decay_t<decltype(output)>>(sum);
         }
     };

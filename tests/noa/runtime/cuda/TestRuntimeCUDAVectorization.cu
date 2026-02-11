@@ -1,6 +1,7 @@
 #include <noa/runtime/core/Accessor.hpp>
 #include <noa/runtime/cpu/Allocators.hpp>
 #include <noa/runtime/cuda/Pointers.hpp>
+#include <noa/runtime/cuda/Utils.cuh>
 
 #include "Catch.hpp"
 

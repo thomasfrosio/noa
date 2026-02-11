@@ -31,9 +31,10 @@ namespace noa::signal::cpu::details {
             m_width(shape.width()), m_window(window),
             m_window_half(window / 2) {}
 
-        void init(isize thread) noexcept {
+        using remove_default_init = bool;
+        void init(nt::compute_handle auto& handle) noexcept {
             // Before starting the loop, offset to the thread workspace.
-            m_buffer = BufferAccessor(m_buffer.get() + thread * m_window);
+            m_buffer = BufferAccessor(m_buffer.get() + handle.thread().uid() * m_window);
         }
 
         void operator()(isize i, isize j, isize k, isize l) const noexcept {
@@ -86,9 +87,10 @@ namespace noa::signal::cpu::details {
             m_window_size(window * window),
             m_window_half((window * window) / 2) {}
 
-        void init(isize thread) noexcept {
+        using remove_default_init = bool;
+        void init(nt::compute_handle auto& handle) noexcept {
             // Before starting the loop, offset to the thread buffer.
-            m_buffer = BufferAccessor(m_buffer.get() + thread * m_window_size);
+            m_buffer = BufferAccessor(m_buffer.get() + handle.thread().uid() * m_window_size);
         }
 
         void operator()(isize i, isize j, isize k, isize l) const noexcept {
@@ -149,9 +151,10 @@ namespace noa::signal::cpu::details {
             m_window_size(window * window * window),
             m_window_half((window * window * window) / 2) {}
 
-        void init(isize thread) noexcept {
+        using remove_default_init = bool;
+        void init(nt::compute_handle auto& handle) noexcept {
             // Before starting the loop, offset to the thread buffer.
-            m_buffer = BufferAccessor(m_buffer.get() + thread * m_window_size);
+            m_buffer = BufferAccessor(m_buffer.get() + handle.thread().uid() * m_window_size);
         }
 
         void operator()(isize i, isize j, isize k, isize l) const noexcept {

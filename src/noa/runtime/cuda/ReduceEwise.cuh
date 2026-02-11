@@ -7,6 +7,7 @@
 #include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/cuda/Allocators.hpp"
 #include "noa/runtime/cuda/Block.cuh"
+#include "noa/runtime/cuda/ComputeHandle.cuh"
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #pragma GCC diagnostic push
@@ -68,24 +69,29 @@ namespace noa::cuda::details {
             }
         });
 
+        const auto ci = ComputeHandle<Index, 2, 1, false, not Block::is_final>{};
+        Interface::init(ci, op, batch);
+
         for (Index cid = starting_index; cid < n_elements_per_batch; cid += grid_work_size) {
             input_1d.for_each_enumerate([&input, cid]<size_t I>(auto& accessor) {
                 accessor.reset_pointer(input[Tag<I>{}].get());
                 accessor.offset_inplace(cid);
             });
-            block_reduce_ewise_1d_init
+            block_call_ewise_1d
                 <Block::block_size, Block::n_elements_per_thread, InputAlignedBuffers, Interface>
-                (op, input_1d, n_elements_per_batch - cid, reduced, tid);
+                (ci, op, input_1d, n_elements_per_batch - cid, reduced, tid);
         }
+
+        Interface::deinit(ci, op, batch);
 
         if constexpr (Block::is_final) {
             // There's one block per batch, so compute the reduced value for the block
             // and save it in the output at the batch index.
-            block_reduce_join_and_final<Interface, Block::block_size>(op, reduced, output, tid, batch);
+            block_join_and_post<Interface, Block::block_size, true>(op, reduced, output, tid, batch);
         } else {
             // The output is the "joined" buffer, which is a buffer with one value per block and per batch.
             // These values will then be reduced by the second reduction kernel (see below).
-            block_reduce_join<Interface, Block::block_size>(op, reduced, output, tid, batch, bid);
+            block_join<Interface, Block::block_size, true>(op, reduced, output, tid, batch, bid);
         }
     }
 
@@ -125,6 +131,9 @@ namespace noa::cuda::details {
             }
         });
 
+        const auto ci = ComputeHandle<Index, 2, 2, false, not Block::is_final>{};
+        Interface::init(ci, op, batch);
+
         for (Index row = initial_row; row < n_rows; row += n_rows_per_grid) { // for every row (within a batch)
             // If there batched are fused (gridDim.y==0), bdh[0] is always 0.
             Vec<Index, 3> bdh = offset2index(row, shape_dhw[0], shape_dhw[1]);
@@ -137,17 +146,19 @@ namespace noa::cuda::details {
                         accessor_1d.reset_pointer(new_pointer);
                     }
                 });
-                block_reduce_ewise_1d_init
+                block_call_ewise_1d
                     <Block::block_size_x, Block::n_elements_per_thread_x, InputAlignedBuffers, Interface>
-                    (op, input_1d, shape_dhw[2] - cid, reduced, static_cast<Index>(threadIdx.x));
+                    (ci, op, input_1d, shape_dhw[2] - cid, reduced, static_cast<Index>(threadIdx.x));
             }
         }
 
+        Interface::deinit(ci, op, batch);
+
         const Index tid = threadIdx.y * Block::block_size_x + threadIdx.x;
         if constexpr (Block::is_final)
-            block_reduce_join_and_final<Interface, Block::block_size>(op, reduced, output, tid, batch);
+            block_join_and_post<Interface, Block::block_size, true>(op, reduced, output, tid, batch);
         else
-            block_reduce_join<Interface, Block::block_size>(op, reduced, output, tid, batch, bid);
+            block_join<Interface, Block::block_size, true>(op, reduced, output, tid, batch, bid);
     }
 
     // One 1d block per batch to finish joining the reduced values and compute the final output.
@@ -164,18 +175,20 @@ namespace noa::cuda::details {
         const Index batch = blockIdx.x;
         const Index tid = threadIdx.x;
 
-        auto joined_1d = joined.map([&](auto& accessor) { return accessor[batch]; });
-        for (Index cid = 0; cid < n_elements; cid += Block::block_work_size) {
-            block_reduce_ewise_1d_join
-                <Block::block_size, Block::n_elements_per_thread, JoinedAlignedBuffers, Interface>
-                (op, joined_1d, n_elements - cid, reduced, tid);
-            joined_1d.for_each([](auto& accessor) {
-                constexpr auto OFFSET = Block::block_work_size;
-                accessor.offset_inplace(OFFSET);
-            });
+        if constexpr (not nt::empty_tuple<Reduced>) {
+            auto joined_1d = joined.map([&](auto& accessor) { return accessor[batch]; });
+            for (Index cid = 0; cid < n_elements; cid += Block::block_work_size) {
+                block_join_ewise_1d
+                    <Block::block_size, Block::n_elements_per_thread, JoinedAlignedBuffers, Interface>
+                    (op, joined_1d, n_elements - cid, reduced, tid);
+                joined_1d.for_each([](auto& accessor) {
+                    constexpr auto OFFSET = Block::block_work_size;
+                    accessor.offset_inplace(OFFSET);
+                });
+            }
         }
 
-        block_reduce_join_and_final<Interface, Block::block_size>(op, reduced, output, tid, batch);
+        block_join_and_post<Interface, Block::block_size, true>(op, reduced, output, tid, batch);
     }
 }
 
@@ -447,15 +460,17 @@ namespace noa::cuda::details {
         Stream& stream
     ) {
         // In this config, the inputs can be interpreted as 1d arrays. If the innermost dimension is contiguous,
-        // i.e. if all elements to reduce are contiguous, we can vectorize loads for the first kernel.
+        // i.e., if all elements to reduce are contiguous, we can vectorize loads for the first kernel.
 
         // First kernel, limit the number of blocks, otherwise the second kernel would have too much work to do.
+        // This is not true if there's no value to reduce, in which case the grid can be maximized.
         const auto grid_x = Grid<Config::max_grid_size>(shape[1], Config::block_work_size);
         const auto grid_y = GridY(shape[0], 1);
         const auto n_blocks_x = grid_x.n_blocks(0);
         const auto n_blocks_y = safe_cast<u32>(grid_y.n_blocks_total());
 
         // Allocate the joined buffer.
+        // If Reduced is an empty tuple, Joined will be empty too and no allocation will be performed.
         using Joined = joined_tuple_t<2, Index, Reduced>; // Tuple<AccessorRestrictContiguous<T, 2, Index>,...>
         constexpr size_t JOINED_VEC_SIZE = maximum_allowed_aligned_buffer_size<16, Joined>();
         using JoinedVec = to_aligned_buffer_t<Joined, 16, JOINED_VEC_SIZE>;
@@ -464,7 +479,7 @@ namespace noa::cuda::details {
             n_blocks_x, n_blocks_y, joined, JOINED_VEC_SIZE, stream);
 
         if constexpr (Config::enable_vectorization and nt::enable_vectorization_v<Op>) {
-            size_t alignment = min_address_alignment(input, Shape<Index, 3>{shape[0], 1, 1});
+            const usize alignment = min_address_alignment(input, Shape<Index, 3>{shape[0], 1, 1});
             if (alignment == 16) {
                 launch_reduce_ewise_large_2d_<16, Config>(
                     op, std::forward<Input>(input), reduced, joined, stream, shape, n_blocks_x, grid_y
@@ -498,9 +513,11 @@ namespace noa::cuda::details {
         using OutputDecay = std::decay_t<Output>;
         using SecondBlock = ReduceEwise2dConfig<Config, JOINED_VEC_SIZE>;
         using Interface = Config::interface;
+        // TODO If Reduced is an empty tuple, check op has a valid post, otherwise don't even run this.
+        constexpr bool HAS_REDUCED = not nt::empty_tuple<Reduced>;
         stream.enqueue(
             reduce_ewise_second<SecondBlock, Interface, OpDecay, Index, Joined, JoinedVec, ReducedDecay, OutputDecay>,
-            LaunchConfig{.n_blocks = n_blocks_y, .n_threads = Config::block_size},
+            LaunchConfig{.n_blocks = n_blocks_y, .n_threads = HAS_REDUCED ? Config::block_size : 1},
             std::forward<Op>(op), joined, n_blocks_x, std::forward<Reduced>(reduced), std::forward<Output>(output)
         );
     }
@@ -577,6 +594,7 @@ namespace noa::cuda::details {
         const auto n_blocks_y = safe_cast<u32>(grid_y.n_blocks_total());
 
         // Allocate the joined buffer.
+        // If Reduced is an empty tuple, Joined will be empty too and no allocation will be performed.
         using Joined = joined_tuple_t<2, Index, Reduced>; // Tuple<AccessorRestrictContiguous<T, 2, Index>,...>
         constexpr size_t JOINED_VEC_SIZE = maximum_allowed_aligned_buffer_size<16, Joined>();
         using JoinedVec = to_aligned_buffer_t<Joined, 16, JOINED_VEC_SIZE>;
@@ -667,10 +685,12 @@ namespace noa::cuda::details {
         using SecondBlock = ReduceEwise2dConfig<Config, JOINED_VEC_SIZE>;
         using Interface = Config::interface;
 
-        const auto config = LaunchConfig{.n_blocks = n_blocks_y, .n_threads = Config::block_size};
+        // TODO If Reduced is an empty tuple, check op has a valid post, otherwise don't even run this.
+        constexpr bool HAS_REDUCED = not nt::empty_tuple<Reduced>;
         stream.enqueue(
             reduce_ewise_second<SecondBlock, Interface, OpDecay, Index, Joined, JoinedVec, ReducedDecay, OutputDecay>,
-            config, std::forward<Op>(op), joined, n_blocks_x, std::forward<Reduced>(reduced), output
+            LaunchConfig{.n_blocks = n_blocks_y, .n_threads = HAS_REDUCED ? Config::block_size : 1},
+            std::forward<Op>(op), joined, n_blocks_x, std::forward<Reduced>(reduced), output
         );
     }
 }

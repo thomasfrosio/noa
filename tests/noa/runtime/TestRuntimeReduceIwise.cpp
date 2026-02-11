@@ -12,13 +12,13 @@ namespace {
     template<typename A>
     struct SumAdd {
         A accessor;
-        constexpr void init(const auto& indices, f64& sum) const {
+        constexpr void operator()(const auto& indices, f64& sum) const {
             sum += static_cast<f64>(accessor(indices));
         }
         constexpr void join(f64 isum, f64& sum) const {
             sum += isum;
         }
-        constexpr void final(f64 sum, auto& output) const {
+        constexpr void post(f64 sum, auto& output) const {
             output += static_cast<std::decay_t<decltype(output)>>(sum);
         }
     };
@@ -54,7 +54,7 @@ TEMPLATE_TEST_CASE("runtime::reduce_iwise - simple", "", i32, f64) {
 
         using accessor_t = noa::Accessor<const TestType, 4, isize>;
         using reduce_t = Pair<TestType, i64>;
-        using op_t = noa::ReduceFirstMax<accessor_t, reduce_t>;
+        using op_t = noa::ReduceFirstMax<accessor_t, reduce_t, true, true>;
         auto op = op_t{noa::details::to_accessor(input)};
         auto initial = reduce_t{std::numeric_limits<TestType>::lowest(), 0};
 

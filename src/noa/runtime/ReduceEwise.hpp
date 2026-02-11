@@ -20,11 +20,21 @@ namespace noa {
         /// Whether to compile for the GPU compute device.
         bool generate_gpu{true};
 
-        /// GPU kernel configurations.
-        u32 gpu_n_elements_per_thread{8};
-        u32 gpu_block_size{512};
-        u32 gpu_max_grid_size{4096};
+        /// Whether the implementation can use vectorized load/store instructions.
+        ///  See the corresponding option in EwiseOptions for more details.
         bool gpu_enable_vectorization{true};
+
+        /// Size of the block. The shape of the block is implementation defined and depends on the inputs.
+        /// See the corresponding option in ReduceIwiseOptions for more details.
+        u32 gpu_block_size{512};
+
+        /// The maximum number of blocks to launch.
+        /// See the corresponding option in ReduceIwiseOptions for more details.
+        u32 gpu_max_grid_size{4096};
+
+        /// Sets the number of elements done by each thread.
+        /// See the corresponding option in EwiseOptions for more details.
+        u32 gpu_n_elements_per_thread{8};
     };
 }
 
@@ -35,13 +45,37 @@ namespace noa::details {
 
 namespace noa {
     /// Dispatches an element-wise reduction operator.
-    /// \param[in,out] inputs   Input varray or an adaptor containing at least one varray.
-    ///                         If multiple varrays are entered, they should have the same shape and device.
-    /// \param[in] reduced      Initial value for the reduction, or an adaptor containing these value(s).
-    /// \param[in,out] outputs  Output value, or an adaptor containing (a reference of) the output value(s).
-    ///                         When this function returns, the output values will have been updated.
-    /// \param[in] op           Operator satisfying the reduce_ewise core interface. The operator is perfectly
-    ///                         forwarded to the backend (it is moved or copied to the backend compute kernel).
+    /// \param[in,out] inputs:
+    ///     Input varray or an adaptor containing at least one varray.
+    ///     If multiple varrays are entered, they should have the same shape and device.
+    /// \param[in] reduced:
+    ///     Same as reduce-iwise.
+    /// \param[in,out] outputs:
+    ///     Output value, or an adaptor containing (a reference of) the output value(s).
+    ///     When this function returns, the output values will have been updated.
+    ///
+    /// \param[in] op:
+    ///     Operator satisfying the reduce-iwise interface described below.
+    ///     The operator is forwarded to the backend and ultimately copied to each compute thread.
+    ///     The implementation calls the operator in the following manner:
+    ///
+    /// ->  op.init(...): Same as reduce-iwise.
+    ///
+    /// ->  op(handle, inputs&..., reduced&...) or
+    ///     op(inputs&..., reduced&...):
+    ///         Main reduction step, called once per input element, according to the provided input and output adaptors.
+    ///         The reduced values are initialized (using \p reduced) or already joined, and should be updated during
+    ///         this step. An empty adaptor can be passed to \p reduced, in which case no reduced values will be passed
+    ///         (an empty fuse adaptor will pass an empty tuple).
+    ///
+    /// ->  op.deinit(...): Same as reduce-iwise.
+    ///
+    /// ->  op.join(reduced&..., reduced&...) or
+    ///     op(reduced&..., reduced&...):
+    ///         Same as reduce-iwise, except that it can default to operator(), which is useful for reductions
+    ///         where the input type(s) are the same as the reduced type(s).
+    ///
+    /// ->  op.post(...): Same as reduce-iwise.
     template<ReduceEwiseOptions OPTIONS = ReduceEwiseOptions{},
              typename Inputs = nd::AdaptorUnzip<>,
              typename Reduced = nd::AdaptorUnzip<>,
@@ -177,7 +211,7 @@ namespace noa::details {
 
         if constexpr (OPTIONS.generate_gpu) {
             if (device.is_gpu()) {
-#ifdef NOA_ENABLE_CUDA
+                #ifdef NOA_ENABLE_CUDA
                 auto& cuda_stream = stream.cuda();
 
                 // Create the accessors as placeholders for device pointers.
@@ -238,10 +272,9 @@ namespace noa::details {
                 });
                 if constexpr (use_device_memory)
                     cuda_stream.synchronize();
-                return;
-#else
+                #else
                 panic_no_gpu_backend();
-#endif
+                #endif
             }
         }
     }

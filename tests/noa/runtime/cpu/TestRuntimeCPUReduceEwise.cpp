@@ -48,7 +48,7 @@ TEST_CASE("runtime::cpu::reduce_ewise") {
         struct reduce_op_t {
             Tracked tracked{};
 
-            void init(f32 input, f64& sum, f32& max) const {
+            void operator()(f32 input, f64& sum, f32& max) const {
                 sum += static_cast<f64>(input);
                 max = std::max(max, input);
             }
@@ -56,7 +56,7 @@ TEST_CASE("runtime::cpu::reduce_ewise") {
                 sum += current_sum;
                 max = std::max(max, current_max);
             }
-            void final(f64& sum, f32& max, Tuple<f64&, f32&>& output) {
+            void post(f64& sum, f32& max, Tuple<f64&, f32&>& output) {
                 auto& [a, b] = output;
                 a = sum + static_cast<f64>(tracked.count[0]);
                 b = max + static_cast<f32>(tracked.count[1]);

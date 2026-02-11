@@ -1,6 +1,5 @@
 #pragma once
 
-#include "noa/runtime/core/Atomic.hpp"
 #include "noa/runtime/Array.hpp"
 #include "noa/runtime/Ewise.hpp"
 #include "noa/runtime/Iwise.hpp"
@@ -77,7 +76,10 @@ namespace noa::signal::details {
         }
 
         // Initial reduction.
-        NOA_HD void operator()(index_type batch, index_type z, index_type y, index_type x) const {
+        NOA_HD void operator()(
+            nt::compute_handle auto& ch,
+            index_type batch, index_type z, index_type y, index_type x
+        ) const {
             // Compute the normalized frequency.
             auto frequency = nf::index2frequency<IS_CENTERED, IS_RFFT>(Vec{z, y, x}, m_shape);
             auto fftfreq = coord3_type::from_vec(frequency) * m_norm;
@@ -106,12 +108,13 @@ namespace noa::signal::details {
             // Atomic save.
             // TODO In CUDA, we could do the atomic reduction in shared memory to reduce global memory transfers.
             using oreal_t = output_value_type;
-            nd::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_low), batch, shell_low);
-            nd::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_high), batch, shell_high);
-            nd::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_low), batch, shell_low);
-            nd::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_high), batch, shell_high);
-            nd::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_low), batch, shell_low);
-            nd::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_high), batch, shell_high);
+            const auto grid = ch.grid();
+            grid.atomic_add(static_cast<oreal_t>(numerator * fraction_low), m_numerator_and_output, batch, shell_low);
+            grid.atomic_add(static_cast<oreal_t>(numerator * fraction_high), m_numerator_and_output, batch, shell_high);
+            grid.atomic_add(static_cast<oreal_t>(denominator_lhs * fraction_low), m_denominator_lhs, batch, shell_low);
+            grid.atomic_add(static_cast<oreal_t>(denominator_lhs * fraction_high), m_denominator_lhs, batch, shell_high);
+            grid.atomic_add(static_cast<oreal_t>(denominator_rhs * fraction_low), m_denominator_rhs, batch, shell_low);
+            grid.atomic_add(static_cast<oreal_t>(denominator_rhs * fraction_high), m_denominator_rhs, batch, shell_high);
         }
 
     private:
@@ -191,7 +194,10 @@ namespace noa::signal::details {
         }
 
         // Initial reduction.
-        NOA_HD void operator()(index_type batch, index_type z, index_type y, index_type x) const {
+        NOA_HD void operator()(
+            nt::compute_handle auto& ch,
+            index_type batch, index_type z, index_type y, index_type x
+        ) const {
             // Compute the normalized frequency.
             auto frequency = nf::index2frequency<IS_CENTERED, IS_RFFT>(Vec{z, y, x}, m_shape);
             auto fftfreq = coord3_type::from_vec(frequency) * m_norm;
@@ -233,12 +239,13 @@ namespace noa::signal::details {
                 // Atomic save.
                 // TODO In CUDA, we could do the atomic reduction in shared memory to reduce global memory transfers.
                 using oreal_t = output_value_type;
-                nd::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_low), batch, cone, shell_low);
-                nd::atomic_add(m_numerator_and_output, static_cast<oreal_t>(numerator * fraction_high), batch, cone, shell_high);
-                nd::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_low), batch, cone, shell_low);
-                nd::atomic_add(m_denominator_lhs, static_cast<oreal_t>(denominator_lhs * fraction_high), batch, cone, shell_high);
-                nd::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_low), batch, cone, shell_low);
-                nd::atomic_add(m_denominator_rhs, static_cast<oreal_t>(denominator_rhs * fraction_high), batch, cone, shell_high);
+                const auto grid = ch.grid();
+                grid.atomic_add(static_cast<oreal_t>(numerator * fraction_low), m_numerator_and_output, batch, cone, shell_low);
+                grid.atomic_add(static_cast<oreal_t>(numerator * fraction_high), m_numerator_and_output, batch, cone, shell_high);
+                grid.atomic_add(static_cast<oreal_t>(denominator_lhs * fraction_low), m_denominator_lhs, batch, cone, shell_low);
+                grid.atomic_add(static_cast<oreal_t>(denominator_lhs * fraction_high), m_denominator_lhs, batch, cone, shell_high);
+                grid.atomic_add(static_cast<oreal_t>(denominator_rhs * fraction_low), m_denominator_rhs, batch, cone, shell_low);
+                grid.atomic_add(static_cast<oreal_t>(denominator_rhs * fraction_high), m_denominator_rhs, batch, cone, shell_high);
             }
         }
 

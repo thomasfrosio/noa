@@ -8,7 +8,6 @@
 #endif
 
 #include "noa/runtime/Array.hpp"
-#include "noa/runtime/Indexing.hpp"
 #include "noa/runtime/Reduce.hpp"
 
 namespace noa {

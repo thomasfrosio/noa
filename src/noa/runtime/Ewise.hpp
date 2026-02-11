@@ -3,7 +3,6 @@
 #include "noa/runtime/core/Interfaces.hpp"
 #include "noa/runtime/Traits.hpp"
 #include "noa/runtime/Stream.hpp"
-#include "noa/runtime/Indexing.hpp"
 #include "noa/runtime/Utils.hpp"
 
 #include "noa/runtime/cpu/Ewise.hpp"
@@ -19,10 +18,22 @@ namespace noa {
         /// Whether to compile for the GPU compute device.
         bool generate_gpu{true};
 
-        /// GPU kernel configuration.
+        /// Each CPU thread is assigned to work on at least this number of elements.
+        /// As such, the parallel version of the nd-loop is only called if there are more elements than this value.
+        isize cpu_number_of_indices_per_threads{1'048'576}; // 2^20
+
+        /// Whether the implementation can use vectorized load/store instructions.
+        /// Enabling vectorization also requires the type Op::enable_vectorization to be defined.
+        /// See the enable_vectorization trait for more details.
+        bool gpu_enable_vectorization{true};
+
+        /// GPU thread block size.
         u32 gpu_block_size{128};
+
+        /// Sets the number of elements done by each thread.
+        /// Increasing this value decreases the parallelism (the number of blocks launched),
+        /// but may still be beneficial for operators doing little work per iteration.
         u32 gpu_n_elements_per_thread{4};
-        bool gpu_vectorize{true};
     };
 }
 
@@ -33,24 +44,33 @@ namespace noa::details {
 
 namespace noa {
     /// Generic element-wise transformation.
-    /// \param[in] inputs   Input varray(s) and/or values to transform.
-    /// \param[out] outputs Output varray(s).
-    /// \param op           Operator satisfying the ewise core interface.
-    ///                     The operator is perfectly forwarded to the backend, but note that more than
-    ///                     one move can happen by the time the operator reaches the compute kernel.
-    ///                     Each computing thread holds a copy of this operator.
+    /// \param[in,out] inputs:  Input varray(s) and/or values to transform.
+    /// \param[in,out] outputs: Output varray(s).
+    /// \param op:
+    ///     Operator satisfying the ewise interface described below.
+    ///     The operator is forwarded to the backend and ultimately copied to each compute thread.
+    ///     The implementation calls the operator in the following manner:
+    ///
+    /// -> op.init(...): Same as iwise.
+    ///
+    /// -> op(handle, inputs&..., outputs&...) or
+    ///    op(inputs&..., outputs&...):
+    ///     Called once per element, according to the provided input and output adaptors.
+    ///     Specifically, the fuse adaptor results in packing the elements in a tuple, e.g. Tuple<inputs&...>.
+    ///
+    /// -> op.deinit(...): Same as iwise.
     ///
     /// \note Compared to iwise, this function can analyze the inputs and outputs to deduce the most efficient way to
     ///       traverse the arrays. For instance, it can reorder dimensions, collapse contiguous dimensions together
     ///       (up to 1d), and can trigger the vectorization for the 1d case by checking for data contiguity and aliasing.
-    ///       Note that because the core interface allows the operator to write/read to the inputs/outputs and
-    ///       allows the inputs/outputs to alias each other, GPU vectorization is only enabled if the
+    ///       Note that because the compute interface allows the operator to write/read to the inputs/outputs and
+    ///       allows the inputs/outputs to alias each other, GPU vectorization is enabled only if the
     ///       enable_vectorization<op> trait is true.
     ///
     /// \note Views or Arrays (i.e. varrays) are supported and handled separately from other types. Varrays are
-    ///       converted and wrapped into a tuple of accessors, and sent to the backends' ewise core functions. For
+    ///       converted and wrapped into a tuple of accessors, and sent to the backends' ewise functions. For
     ///       asynchronous cases (async CPU stream or GPU), the shared handle of every Array (see Array::share())
-    ///       is moved/copied and will be released (i.e. destructed) when the core function finishes, thus ensuring
+    ///       is moved/copied and will be released (i.e. destructed) when the function finishes, thus ensuring
     ///       that the Array's resource stays alive during the processing. Other types (so everything that is not a
     ///       varray) are moved/copied into an owning wrapper (AccessorValue). The stored value is passed by (const)
     ///       lvalue reference to the operator. No other actions are performed on these types, so it is the
@@ -240,7 +260,7 @@ namespace noa::details {
                         ZIP_INPUT, ZIP_OUTPUT,
                         OPTIONS.gpu_block_size,
                         OPTIONS.gpu_n_elements_per_thread,
-                        OPTIONS.gpu_vectorize>;
+                        OPTIONS.gpu_enable_vectorization>;
                     noa::cuda::ewise<config>(
                         shape, std::forward<EwiseOp>(ewise_op),
                         std::move(input_accessors),
@@ -262,7 +282,6 @@ namespace noa::details {
                         if constexpr (sizeof...(I) == 0) (void) ih;
                         if constexpr (sizeof...(O) == 0) (void) oh;
                     }(nt::index_list_t<Inputs>{}, nt::index_list_t<Outputs>{});
-                    return;
                     #else
                     panic_no_gpu_backend();
                     #endif

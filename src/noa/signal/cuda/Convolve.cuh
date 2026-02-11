@@ -5,6 +5,7 @@
 #include "noa/runtime/cuda/Block.cuh"
 #include "noa/runtime/cuda/Copy.cuh"
 #include "noa/runtime/cuda/Stream.hpp"
+#include "noa/runtime/cuda/Utils.cuh"
 
 namespace noa::signal::cuda::details {
     using ConvolveBlock = noa::cuda::StaticBlock<16, 16, 1>;
@@ -22,7 +23,7 @@ namespace noa::signal::cuda::details {
 
         using output_value_t = nt::value_type_t<Output>;
         using filter_value_t = nt::mutable_value_type_t<Filter>;
-        extern __shared__ filter_value_t shared[];
+        auto* shared = noa::cuda::details::dynamic_shared_memory_pointer<filter_value_t>();
 
         if (gid[2] < shape[0]) {
             const i32 PADDING = filter_size - 1;
@@ -190,7 +191,7 @@ namespace noa::signal::cuda::details {
 
         using output_value_t = nt::value_type_t<Output>;
         using filter_value_t = nt::mutable_value_type_t<Filter>;
-        extern __shared__ filter_value_t shared[];
+        auto* shared = noa::cuda::details::dynamic_shared_memory_pointer<filter_value_t>();
 
         // Load shared memory. Loop to take into account padding.
         i32 lz, ly, lx;
@@ -243,7 +244,7 @@ namespace noa::signal::cuda::details {
 
         using output_value_t = nt::value_type_t<Output>;
         using filter_value_t = nt::mutable_value_type_t<Filter>;
-        extern __shared__ filter_value_t shared[];
+        auto* shared = noa::cuda::details::dynamic_shared_memory_pointer<filter_value_t>();
 
         // Filter along x.
         if (gid[2] < shape_yx[0]) {
@@ -292,7 +293,7 @@ namespace noa::signal::cuda::details {
 
         using output_value_t = nt::value_type_t<Output>;
         using filter_value_t = nt::mutable_value_type_t<Filter>;
-        extern __shared__ filter_value_t shared[];
+        auto* shared = noa::cuda::details::dynamic_shared_memory_pointer<filter_value_t>();
 
         // Filter along y.
         if (gid[3] < shape_yx[1]) {
@@ -339,7 +340,7 @@ namespace noa::signal::cuda::details {
 
         using output_value_t = nt::value_type_t<Output>;
         using filter_value_t = nt::mutable_value_type_t<Filter>;
-        extern __shared__ filter_value_t shared[];
+        auto* shared = noa::cuda::details::dynamic_shared_memory_pointer<filter_value_t>();
 
         if (gid[3] < shape_zx[1]) {
             const i32 padding = filter_size - 1;

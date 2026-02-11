@@ -3,6 +3,7 @@
 #include <random>
 
 #include "noa/base/Math.hpp"
+#include "noa/runtime/core/Interfaces.hpp"
 
 namespace noa {
     /// Uniform distribution.
@@ -240,7 +241,11 @@ namespace noa {
         constexpr explicit Randomizer(const Distribution& distribution, u64 seed = 0) noexcept :
             m_distribution(distribution), random_seed(seed) {}
 
-        constexpr void init(auto uid) noexcept {
+        using remove_default_init = bool;
+        constexpr void init(const nt::compute_handle auto& ch) noexcept {
+            m_generator = RandomBitsGenerator(random_seed + static_cast<u64>(ch.thread().uid()) + 1);
+        }
+        constexpr void init(const nt::integer auto& uid) noexcept {
             m_generator = RandomBitsGenerator(random_seed + static_cast<u64>(uid) + 1);
         }
 
@@ -267,7 +272,7 @@ namespace noa {
     /// Use the call operator to get a value.
     template<nt::distribution T>
     [[nodiscard]] auto random_generator(const T& distribution) noexcept -> Randomizer<T> {
-        Randomizer randomizer(distribution);
+        auto randomizer = Randomizer(distribution);
         randomizer.init(std::random_device{}());
         return randomizer;
     }

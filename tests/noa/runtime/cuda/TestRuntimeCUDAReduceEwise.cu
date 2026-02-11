@@ -8,7 +8,7 @@ namespace {
     using namespace noa::types;
 
     struct SumMaxOp {
-        static constexpr void init(f32 input, f64& sum, f32& max) {
+        constexpr void operator()(f32 input, f64& sum, f32& max) {
             sum += static_cast<f64>(input);
             max = std::max(max, input);
         }
@@ -16,7 +16,7 @@ namespace {
             sum += current_sum;
             max = std::max(max, current_max);
         }
-        static constexpr void final(f64& sum, f32& max, Tuple<f64&, i32&>& output) {
+        static constexpr void post(f64& sum, f32& max, Tuple<f64&, i32&>& output) {
             auto& [a, b] = output;
             a = sum + 1;
             b = static_cast<i32>(max + 1);

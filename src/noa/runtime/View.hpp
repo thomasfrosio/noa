@@ -10,7 +10,6 @@
 #include "noa/runtime/ArrayOption.hpp"
 #include "noa/runtime/Stream.hpp"
 #include "noa/runtime/Traits.hpp"
-#include "noa/runtime/Indexing.hpp"
 #include "noa/runtime/Utils.hpp"
 #include "noa/runtime/Ewise.hpp"
 

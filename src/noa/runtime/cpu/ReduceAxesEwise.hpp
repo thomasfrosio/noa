@@ -4,6 +4,7 @@
 #include "noa/runtime/core/Interfaces.hpp"
 #include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/cpu/ReduceEwise.hpp"
+#include "noa/runtime/cpu/ComputeHandle.hpp"
 
 namespace noa::cpu::details {
     template<bool ZipInput, bool ZipReduced, bool ZipOutput>
@@ -19,16 +20,19 @@ namespace noa::cpu::details {
             auto original_reduced = reduced;
             #pragma omp parallel default(none) num_threads(threads) shared(shape, input, reduced, output, original_reduced) firstprivate(op)
             {
+                constexpr auto ci = ComputeHandle<Index, true>{};
                 if constexpr (MODE == 3 and N == 4) {
                     // The first 3 rightmost dimensions to reduce contain many elements,
                     // and there are fewer batches than threads.
                     for (Index i = 0; i < shape[0]; ++i) {
+                        interface::init(ci, op, i);
                         auto local = reduced;
                         #pragma omp for collapse(3)
                         for (Index j = 0; j < shape[1]; ++j)
                             for (Index k = 0; k < shape[2]; ++k)
                                 for (Index l = 0; l < shape[3]; ++l)
-                                    interface::init(op, input, local, i, j, k, l);
+                                    interface::call(ci, op, input, local, i, j, k, l);
+                        interface::deinit(ci, op, i);
 
                         #pragma omp critical
                         interface::join(op, local, reduced);
@@ -36,7 +40,7 @@ namespace noa::cpu::details {
                         #pragma omp barrier
                         #pragma omp single
                         {
-                            interface::final(op, reduced, output, i);
+                            interface::post(op, reduced, output, i);
                             reduced = original_reduced;
                         }
                     }
@@ -44,10 +48,12 @@ namespace noa::cpu::details {
                     // Same as above, but the 3 dimensions to reduce are collapsed
                     // for cases where the inputs are contiguous.
                     for (Index i = 0; i < shape[0]; ++i) {
+                        interface::init(ci, op, i);
                         auto local = reduced;
                         #pragma omp for
                         for (Index j = 0; j < shape[1]; ++j)
-                            interface::init(op, input, local, i, j);
+                            interface::call(ci, op, input, local, i, j);
+                        interface::deinit(ci, op, i);
 
                         #pragma omp critical
                         interface::join(op, local, reduced);
@@ -55,7 +61,7 @@ namespace noa::cpu::details {
                         #pragma omp barrier
                         #pragma omp single
                         {
-                            interface::final(op, reduced, output, i);
+                            interface::post(op, reduced, output, i);
                             reduced = original_reduced;
                         }
                     }
@@ -64,22 +70,26 @@ namespace noa::cpu::details {
                     // thus making the reduction serial.
                     #pragma omp for
                     for (Index i = 0; i < shape[0]; ++i) {
+                        interface::init(ci, op, i);
                         auto local = reduced;
                         for (Index j = 0; j < shape[1]; ++j)
                             for (Index k = 0; k < shape[2]; ++k)
                                 for (Index l = 0; l < shape[3]; ++l)
-                                    interface::init(op, input, local, i, j, k, l);
-                        interface::final(op, local, output, i);
+                                    interface::call(ci, op, input, local, i, j, k, l);
+                        interface::deinit(ci, op, i);
+                        interface::post(op, local, output, i);
                     }
                 } else if constexpr (MODE == 2 and N == 2) {
                     // Same as above, but the 3 dimensions to reduce are collapsed
                     // for cases where the inputs are contiguous.
                     #pragma omp for
                     for (Index i = 0; i < shape[0]; ++i) {
+                        interface::init(ci, op, i);
                         auto local = reduced;
                         for (Index j = 0; j < shape[1]; ++j)
-                            interface::init(op, input, local, i, j);
-                        interface::final(op, local, output, i);
+                            interface::call(ci, op, input, local, i, j);
+                        interface::deinit(ci, op, i);
+                        interface::post(op, local, output, i);
                     }
                 } else if constexpr (MODE == 1 and N == 4) {
                     // Reduce one axis.
@@ -89,10 +99,12 @@ namespace noa::cpu::details {
                     for (Index i = 0; i < shape[0]; ++i) {
                         for (Index j = 0; j < shape[1]; ++j) {
                             for (Index k = 0; k < shape[2]; ++k) {
+                                interface::init(ci, op, i, j, k);
                                 auto local = reduced;
                                 for (Index l = 0; l < shape[3]; ++l)
-                                    interface::init(op, input, local, i, j, k, l);
-                                interface::final(op, local, output, i, j, k);
+                                    interface::call(ci, op, input, local, i, j, k, l);
+                                interface::deinit(ci, op, i, j, k);
+                                interface::post(op, local, output, i, j, k);
                             }
                         }
                     }
@@ -108,13 +120,16 @@ namespace noa::cpu::details {
             Input input, Reduced reduced, Output output
         ) {
             if constexpr (MODE == 1) {
+                constexpr auto ci = ComputeHandle<Index, false>{};
                 for (Index i = 0; i < shape[0]; ++i) {
                     for (Index j = 0; j < shape[1]; ++j) {
                         for (Index k = 0; k < shape[2]; ++k) {
+                            interface::init(ci, op, i, j, k);
                             auto local = reduced;
                             for (Index l = 0; l < shape[3]; ++l)
-                                interface::init(op, input, local, i, j, k, l);
-                            interface::final(op, local, output, i, j, k);
+                                interface::call(ci, op, input, local, i, j, k, l);
+                            interface::deinit(ci, op, i, j, k);
+                            interface::post(op, local, output, i, j, k);
                         }
                     }
                 }

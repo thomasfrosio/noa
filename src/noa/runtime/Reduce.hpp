@@ -287,7 +287,7 @@ namespace noa {
     [[nodiscard]] auto argmax(const Input& input) {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduced_t = Pair<value_t, isize>;
-        using op_t = ReduceFirstMax<Accessor<const value_t, 4, isize>, reduced_t>;
+        using op_t = ReduceFirstMax<Accessor<const value_t, 4, isize>, reduced_t, true, true>;
         reduced_t reduced{std::numeric_limits<value_t>::lowest(), isize{}};
         reduced_t output{};
         reduce_iwise(
@@ -305,7 +305,7 @@ namespace noa {
     [[nodiscard]] auto argmin(const Input& input) {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduced_t = Pair<value_t, isize>;
-        using op_t = ReduceFirstMin<Accessor<const value_t, 4, isize>, reduced_t>;
+        using op_t = ReduceFirstMin<Accessor<const value_t, 4, isize>, reduced_t, true, true>;
         reduced_t reduced{std::numeric_limits<value_t>::max(), isize{}};
         reduced_t output{};
         reduce_iwise(
@@ -710,7 +710,7 @@ namespace noa {
             if constexpr (has_offsets and has_values) {
                 reduce_axes_iwise(
                     shape, device, reduced, wrap(output_values.view(), output_offsets.view()),
-                    ReduceFirstMax<accessor_t, pair_t, true>{{accessor}},
+                    ReduceFirstMax<accessor_t, pair_t, true, true>{{accessor}},
                     std::forward<Input>(input),
                     std::forward<Values>(output_values),
                     std::forward<Offsets>(output_offsets));
@@ -718,7 +718,7 @@ namespace noa {
             } else if constexpr (has_offsets) {
                 reduce_axes_iwise(
                     shape, device, reduced, output_offsets.view(),
-                    ReduceFirstMax<accessor_t, pair_t, false>{{accessor}},
+                    ReduceFirstMax<accessor_t, pair_t, false, true>{{accessor}},
                     std::forward<Input>(input),
                     std::forward<Offsets>(output_offsets));
 
@@ -733,7 +733,7 @@ namespace noa {
 
                 reduce_axes_iwise(
                     shape, device, reduced, arg_values,
-                    ReduceFirstMax<accessor_t, pair_t, true>{{accessor}},
+                    ReduceFirstMax<accessor_t, pair_t, true, false>{{accessor}},
                     std::forward<Input>(input),
                     std::forward<Values>(output_values));
             }
@@ -784,7 +784,7 @@ namespace noa {
             if constexpr (has_offsets and has_values) {
                 reduce_axes_iwise(
                     shape, device, reduced, wrap(output_values.view(), output_offsets.view()),
-                    ReduceFirstMin<accessor_t, pair_t, true>{{accessor}},
+                    ReduceFirstMin<accessor_t, pair_t, true, true>{{accessor}},
                     std::forward<Input>(input),
                     std::forward<Values>(output_values),
                     std::forward<Offsets>(output_offsets));
@@ -792,7 +792,7 @@ namespace noa {
             } else if constexpr (has_offsets) {
                 reduce_axes_iwise(
                     shape, device, reduced, output_offsets.view(),
-                    ReduceFirstMin<accessor_t, pair_t, false>{{accessor}},
+                    ReduceFirstMin<accessor_t, pair_t, false, true>{{accessor}},
                     std::forward<Input>(input),
                     std::forward<Offsets>(output_offsets));
 
@@ -807,7 +807,7 @@ namespace noa {
 
                 reduce_axes_iwise(
                     shape, device, reduced, arg_values,
-                    ReduceFirstMin<accessor_t, pair_t, true>{{accessor}},
+                    ReduceFirstMin<accessor_t, pair_t, true, false>{{accessor}},
                     std::forward<Input>(input),
                     std::forward<Values>(output_values));
             }

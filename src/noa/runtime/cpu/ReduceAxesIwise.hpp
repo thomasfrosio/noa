@@ -4,6 +4,7 @@
 #include "noa/runtime/core/Interfaces.hpp"
 #include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/cpu/ReduceIwise.hpp"
+#include "noa/runtime/cpu/ComputeHandle.hpp"
 
 namespace noa::cpu::details {
     template<bool ZipReduced, bool ZipOutput>
@@ -20,26 +21,29 @@ namespace noa::cpu::details {
             if (n_threads > 1) {
                 #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output) firstprivate(op)
                 {
+                    constexpr auto ci = ComputeHandle<Index, true>{};
                     if constexpr (N == 4) {
                         #pragma omp for collapse(3)
                         for (Index i = 0; i < shape[0]; ++i) {
                             for (Index j = 0; j < shape[1]; ++j) {
                                 for (Index k = 0; k < shape[2]; ++k) {
+                                    interface::deinit(ci, op, i, j, k);
                                     auto local = reduced;
                                     for (Index l = 0; l < shape[3]; ++l) {
                                         if constexpr (R == 0) {
-                                            interface::init(op, local, l, i, j, k);
+                                            interface::call(ci, op, local, l, i, j, k);
                                         } else if constexpr (R == 1) {
-                                            interface::init(op, local, i, l, j, k);
+                                            interface::call(ci, op, local, i, l, j, k);
                                         } else if constexpr (R == 2) {
-                                            interface::init(op, local, i, j, l, k);
+                                            interface::call(ci, op, local, i, j, l, k);
                                         } else if constexpr (R == 3) {
-                                            interface::init(op, local, i, j, k, l);
+                                            interface::call(ci, op, local, i, j, k, l);
                                         } else {
                                             static_assert(nt::always_false<Op>);
                                         }
                                     }
-                                    interface::final(op, local, output, i, j, k);
+                                    interface::deinit(ci, op, i, j, k);
+                                    interface::post(op, local, output, i, j, k);
                                 }
                             }
                         }
@@ -47,90 +51,101 @@ namespace noa::cpu::details {
                         #pragma omp for collapse(2)
                         for (Index i = 0; i < shape[0]; ++i) {
                             for (Index j = 0; j < shape[1]; ++j) {
+                                interface::deinit(ci, op, i, j);
                                 auto local = reduced;
                                 for (Index k = 0; k < shape[2]; ++k) {
                                     if constexpr (R == 0) {
-                                        interface::init(op, local, k, i, j);
+                                        interface::call(ci, op, local, k, i, j);
                                     } else if constexpr (R == 1) {
-                                        interface::init(op, local, i, k, j);
+                                        interface::call(ci, op, local, i, k, j);
                                     } else if constexpr (R == 2) {
-                                        interface::init(op, local, i, j, k);
+                                        interface::call(ci, op, local, i, j, k);
                                     } else {
                                         static_assert(nt::always_false<Op>);
                                     }
                                 }
-                                interface::final(op, local, output, i, j);
+                                interface::deinit(ci, op, i, j);
+                                interface::post(op, local, output, i, j);
                             }
                         }
                     } else if constexpr (N == 2) {
                         #pragma omp for
                         for (Index i = 0; i < shape[0]; ++i) {
+                            interface::deinit(ci, op, i);
                             auto local = reduced;
                             for (Index j = 0; j < shape[1]; ++j) {
                                 if constexpr (R == 0) {
-                                    interface::init(op, local, j, i);
+                                    interface::call(ci, op, local, j, i);
                                 } else {
                                     static_assert(nt::always_false<Op>);
                                 }
                             }
-                            interface::final(op, local, output, i);
+                            interface::deinit(ci, op, i);
+                            interface::post(op, local, output, i);
                         }
                     } else {
                         static_assert(nt::always_false<Op>);
                     }
                 }
             } else {
+                constexpr auto ci = ComputeHandle<Index, false>{};
                 if constexpr (N == 4) {
                     for (Index i = 0; i < shape[0]; ++i) {
                         for (Index j = 0; j < shape[1]; ++j) {
                             for (Index k = 0; k < shape[2]; ++k) {
+                                interface::init(ci, op, i, j, k);
                                 auto local = reduced;
                                 for (Index l = 0; l < shape[3]; ++l) {
                                     if constexpr (R == 0) {
-                                        interface::init(op, local, l, i, j, k);
+                                        interface::call(ci, op, local, l, i, j, k);
                                     } else if constexpr (R == 1) {
-                                        interface::init(op, local, i, l, j, k);
+                                        interface::call(ci, op, local, i, l, j, k);
                                     } else if constexpr (R == 2) {
-                                        interface::init(op, local, i, j, l, k);
+                                        interface::call(ci, op, local, i, j, l, k);
                                     } else if constexpr (R == 3) {
-                                        interface::init(op, local, i, j, k, l);
+                                        interface::call(ci, op, local, i, j, k, l);
                                     } else {
                                         static_assert(nt::always_false<Op>);
                                     }
                                 }
-                                interface::final(op, local, output, i, j, k);
+                                interface::deinit(ci, op, i, j, k);
+                                interface::post(op, local, output, i, j, k);
                             }
                         }
                     }
                 } else if constexpr (N == 3) {
                     for (Index i = 0; i < shape[0]; ++i) {
                         for (Index j = 0; j < shape[1]; ++j) {
+                            interface::init(ci, op, i, j);
                             auto local = reduced;
                             for (Index k = 0; k < shape[2]; ++k) {
                                 if constexpr (R == 0) {
-                                    interface::init(op, local, k, i, j);
+                                    interface::call(ci, op, local, k, i, j);
                                 } else if constexpr (R == 1) {
-                                    interface::init(op, local, i, k, j);
+                                    interface::call(ci, op, local, i, k, j);
                                 } else if constexpr (R == 2) {
-                                    interface::init(op, local, i, j, k);
+                                    interface::call(ci, op, local, i, j, k);
                                 } else {
                                     static_assert(nt::always_false<Op>);
                                 }
                             }
-                            interface::final(op, local, output, i, j);
+                            interface::deinit(ci, op, i, j);
+                            interface::post(op, local, output, i, j);
                         }
                     }
                 } else if constexpr (N == 2) {
                     for (Index i = 0; i < shape[0]; ++i) {
+                        interface::init(ci, op, i);
                         auto local = reduced;
                         for (Index j = 0; j < shape[1]; ++j) {
                             if constexpr (R == 0) {
-                                interface::init(op, local, j, i);
+                                interface::call(ci, op, local, j, i);
                             } else {
                                 static_assert(nt::always_false<Op>);
                             }
                         }
-                        interface::final(op, local, output, i);
+                        interface::deinit(ci, op, i);
+                        interface::post(op, local, output, i);
                     }
                 } else {
                     static_assert(nt::always_false<Op>);
@@ -148,31 +163,37 @@ namespace noa::cpu::details {
             auto original_reduced = reduced;
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
             {
+                constexpr auto ci = ComputeHandle<Index, true>{};
                 if constexpr (MODE == ReductionMode::SerialReduction) {
                     #pragma omp for
                     for (Index i = 0; i < shape[0]; ++i) {
+                        interface::init(ci, op, i);
                         auto local = reduced;
                         for (Index j = 0; j < shape[1]; ++j)
                             for (Index k = 0; k < shape[2]; ++k)
                                 for (Index l = 0; l < shape[3]; ++l)
-                                    interface::init(op, local, i, j, k, l);
-                        interface::final(op, local, output, i);
+                                    interface::call(ci, op, local, i, j, k, l);
+                        interface::deinit(ci, op, i);
+                        interface::post(op, local, output, i);
                     }
                 } else if constexpr (MODE == ReductionMode::ParallelReduction) {
                     for (Index i = 0; i < shape[0]; ++i) {
+                        interface::init(ci, op, i);
                         auto local = reduced;
                         #pragma omp for collapse(3)
                         for (Index j = 0; j < shape[1]; ++j)
                             for (Index k = 0; k < shape[2]; ++k)
                                 for (Index l = 0; l < shape[3]; ++l)
-                                    interface::init(op, local, i, j, k, l);
+                                    interface::call(ci, op, local, i, j, k, l);
+                        interface::deinit(ci, op, i);
+
                         #pragma omp critical
                         interface::join(op, local, reduced);
 
                         #pragma omp barrier
                         #pragma omp single
                         {
-                            interface::final(op, reduced, output, i);
+                            interface::post(op, reduced, output, i);
                             reduced = original_reduced;
                         }
                     }
@@ -182,13 +203,16 @@ namespace noa::cpu::details {
 
         template<typename Index>
         NOA_NOINLINE static constexpr void serial_4d(const Shape<Index, 4>& shape, auto op, auto reduced, auto output) {
+            constexpr auto ci = ComputeHandle<Index, false>{};
             for (Index i = 0; i < shape[0]; ++i) {
+                interface::init(ci, op, i);
                 auto local = reduced;
                 for (Index j = 0; j < shape[1]; ++j)
                     for (Index k = 0; k < shape[2]; ++k)
                         for (Index l = 0; l < shape[3]; ++l)
-                            interface::init(op, local, i, j, k, l);
-                interface::final(op, local, output, i);
+                            interface::call(ci, op, local, i, j, k, l);
+                interface::deinit(ci, op, i);
+                interface::post(op, local, output, i);
             }
         }
 
@@ -197,29 +221,35 @@ namespace noa::cpu::details {
             auto original_reduced = reduced;
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
             {
+                constexpr auto ci = ComputeHandle<Index, true>{};
                 if constexpr (MODE == ReductionMode::SerialReduction) {
                     #pragma omp for
                     for (Index i = 0; i < shape[0]; ++i) {
+                        interface::init(ci, op, i);
                         auto local = reduced;
                         for (Index j = 0; j < shape[1]; ++j)
                             for (Index k = 0; k < shape[2]; ++k)
-                                interface::init(op, local, i, j, k);
-                        interface::final(op, local, output, i);
+                                interface::call(ci, op, local, i, j, k);
+                        interface::deinit(ci, op, i);
+                        interface::post(op, local, output, i);
                     }
                 } else if constexpr (MODE == ReductionMode::ParallelReduction) {
                     for (Index i = 0; i < shape[0]; ++i) {
+                        interface::init(ci, op, i);
                         auto local = reduced;
                         #pragma omp for collapse(2)
                         for (Index j = 0; j < shape[1]; ++j)
                             for (Index k = 0; k < shape[2]; ++k)
-                                interface::init(op, local, i, j, k);
+                                interface::call(ci, op, local, i, j, k);
+                        interface::deinit(ci, op, i);
+
                         #pragma omp critical
                         interface::join(op, local, reduced);
 
                         #pragma omp barrier
                         #pragma omp single
                         {
-                            interface::final(op, reduced, output, i);
+                            interface::post(op, reduced, output, i);
                             reduced = original_reduced;
                         }
                     }
@@ -231,12 +261,15 @@ namespace noa::cpu::details {
 
         template<typename Index>
         NOA_NOINLINE static constexpr void serial_3d(const Shape<Index, 3>& shape, auto op, auto reduced, auto output) {
+            constexpr auto ci = ComputeHandle<Index, false>{};
             for (Index d = 0; d < shape[0]; ++d) {
+                interface::init(ci, op, d);
                 auto local = reduced;
                 for (Index h = 0; h < shape[1]; ++h)
                     for (Index w = 0; w < shape[2]; ++w)
-                        interface::init(op, local, d, h, w);
-                interface::final(op, local, output, d);
+                        interface::call(ci, op, local, d, h, w);
+                interface::deinit(ci, op, d);
+                interface::post(op, local, output, d);
             }
         }
 
@@ -245,27 +278,33 @@ namespace noa::cpu::details {
             auto original_reduced = reduced;
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, reduced, output, original_reduced) firstprivate(op)
             {
+                constexpr auto ci = ComputeHandle<Index, true>{};
                 if constexpr (MODE == ReductionMode::SerialReduction) {
                     #pragma omp for
                     for (Index i = 0; i < shape[0]; ++i) {
+                        interface::init(ci, op, i);
                         auto local = reduced;
                         for (Index j = 0; j < shape[1]; ++j)
-                            interface::init(op, local, i, j);
-                        interface::final(op, local, output, i);
+                            interface::call(ci, op, local, i, j);
+                        interface::deinit(ci, op, i);
+                        interface::post(op, local, output, i);
                     }
                 } else if constexpr (MODE == ReductionMode::ParallelReduction) {
                     for (Index i = 0; i < shape[0]; ++i) {
+                        interface::init(ci, op, i);
                         auto local = reduced;
                         #pragma omp for
                         for (Index j = 0; j < shape[1]; ++j)
-                            interface::init(op, local, i, j);
+                            interface::call(ci, op, local, i, j);
+                        interface::deinit(ci, op, i);
+
                         #pragma omp critical
                         interface::join(op, local, reduced);
 
                         #pragma omp barrier
                         #pragma omp single
                         {
-                            interface::final(op, reduced, output, i);
+                            interface::post(op, reduced, output, i);
                             reduced = original_reduced;
                         }
                     }
@@ -277,11 +316,14 @@ namespace noa::cpu::details {
 
         template<typename Index>
         NOA_NOINLINE static constexpr void serial_2d(const Shape<Index, 2>& shape, auto op, auto reduced, auto output) {
+            constexpr auto ci = ComputeHandle<Index, false>{};
             for (Index h = 0; h < shape[0]; ++h) {
+                interface::init(ci, op, h);
                 auto local = reduced;
                 for (Index w = 0; w < shape[1]; ++w)
-                    interface::init(op, local, h, w);
-                interface::final(op, local, output, h);
+                    interface::call(ci, op, local, h, w);
+                interface::deinit(ci, op, h);
+                interface::post(op, local, output, h);
             }
         }
     };
@@ -298,7 +340,7 @@ namespace noa::cpu {
     template<typename Config = ReduceAxesIwiseConfig<>,
             typename Op, usize N, typename Reduced, typename Output, typename Index>
     requires (nt::tuple_of_accessor_pure_nd_or_empty<std::decay_t<Output>, N> and
-              nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
+              nt::tuple_of_accessor_value_or_empty<std::decay_t<Reduced>>)
     NOA_NOINLINE constexpr void reduce_axes_iwise(
         const Shape<Index, N>& input_shape,
         const Shape<Index, N>& output_shape,

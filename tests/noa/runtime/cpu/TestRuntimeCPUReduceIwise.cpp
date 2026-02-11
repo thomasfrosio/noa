@@ -33,13 +33,13 @@ TEST_CASE("runtime::cpu::reduce_iwise") {
             accessor_t accessor;
             Tracked tracked{};
 
-            void init(i64 i, f64& reduced) const {
+            void operator()(i64 i, f64& reduced) const {
                 reduced += static_cast<f64>(accessor[i]);
             }
             void join(f64 to_reduce, f64& reduced) const {
                 reduced += to_reduce;
             }
-            void final(f64 reduced, Pair<i32, i32>& final) const {
+            void post(f64 reduced, Pair<i32, i32>& final) const {
                 final.first = static_cast<i32>(reduced + tracked.count[0]);
                 final.second = static_cast<i32>(reduced + tracked.count[1]);
             }

@@ -13,13 +13,13 @@ namespace {
     struct SumOp {
         noa::AccessorContiguous<const isize, N> accessor;
 
-        NOA_HD void init(const Vec<isize, N>& indices, isize& reduced) const {
+        NOA_HD void operator()(const Vec<isize, N>& indices, isize& reduced) const {
             reduced += accessor(indices);
         }
         NOA_HD static void join(isize to_reduce, isize& reduced) {
             reduced += to_reduce;
         }
-        NOA_HD static void final(isize reduced, isize& output) {
+        NOA_HD static void post(isize reduced, isize& output) {
             output += reduced;
         }
     };
@@ -28,13 +28,13 @@ namespace {
     struct SumOp2 {
         SpanContiguous<const isize, N> span;
 
-        NOA_HD void init(const Vec<isize, N>& indices, isize& reduced) const {
+        NOA_HD void operator()(const Vec<isize, N>& indices, isize& reduced) const {
             reduced += span(indices);
         }
         NOA_HD static void join(isize to_reduce, isize& reduced) {
             reduced += to_reduce;
         }
-        NOA_HD static void final(isize reduced, isize& output) {
+        NOA_HD static void post(isize reduced, isize& output) {
             output += reduced;
         }
     };

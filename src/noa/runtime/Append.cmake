@@ -1,7 +1,6 @@
 list(APPEND NOA_HEADERS
     noa/runtime/core/Access.hpp
     noa/runtime/core/Accessor.hpp
-    noa/runtime/core/Atomic.hpp
     noa/runtime/core/Batch.hpp
     noa/runtime/core/Border.hpp
     noa/runtime/core/Interfaces.hpp
@@ -26,7 +25,6 @@ list(APPEND NOA_HEADERS
     noa/runtime/Event.hpp
     noa/runtime/Ewise.hpp
     noa/runtime/Factory.hpp
-    noa/runtime/Indexing.hpp
     noa/runtime/Iwise.hpp
     noa/runtime/Layout.hpp
     noa/runtime/Random.hpp
@@ -56,6 +54,7 @@ if (NOA_ENABLE_CPU)
     list(APPEND NOA_HEADERS
         noa/runtime/cpu/Allocators.hpp
         noa/runtime/cpu/Blas.hpp
+        noa/runtime/cpu/ComputeHandle.hpp
         noa/runtime/cpu/Copy.hpp
         noa/runtime/cpu/Device.hpp
         noa/runtime/cpu/Event.hpp
@@ -83,6 +82,7 @@ if (NOA_ENABLE_CUDA)
         noa/runtime/cuda/Allocators.hpp
         noa/runtime/cuda/Blas.hpp
         noa/runtime/cuda/Block.cuh
+        noa/runtime/cuda/ComputeHandle.cuh
         noa/runtime/cuda/Constants.hpp
         noa/runtime/cuda/Copy.cuh
         noa/runtime/cuda/Device.hpp
@@ -102,6 +102,7 @@ if (NOA_ENABLE_CUDA)
         noa/runtime/cuda/Runtime.hpp
         noa/runtime/cuda/Sort.cuh
         noa/runtime/cuda/Stream.hpp
+        noa/runtime/cuda/Utils.cuh
         noa/runtime/cuda/Version.hpp
         noa/runtime/cuda/Warp.cuh
     )

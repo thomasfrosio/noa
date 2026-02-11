@@ -136,8 +136,8 @@ namespace noa::cuda::details {
 
 namespace noa::cuda {
     struct LaunchConfig {
-        dim3 n_blocks;
-        dim3 n_threads;
+        dim3 n_blocks{};
+        dim3 n_threads{};
         size_t n_bytes_of_shared_memory{};
         bool is_cooperative{};
     };

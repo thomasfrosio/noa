@@ -10,7 +10,6 @@
 
 #include "noa/runtime/core/Access.hpp"
 #include "noa/runtime/core/Accessor.hpp"
-#include "noa/runtime/core/Atomic.hpp"
 #include "noa/runtime/core/Batch.hpp"
 #include "noa/runtime/core/Border.hpp"
 #include "noa/runtime/core/Interfaces.hpp"

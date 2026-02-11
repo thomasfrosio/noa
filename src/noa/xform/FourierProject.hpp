@@ -1,7 +1,5 @@
 #pragma once
 
-#include "noa/runtime/core/Shape.hpp"
-#include "noa/runtime/core/Atomic.hpp"
 #include "noa/runtime/Array.hpp"
 #include "noa/runtime/Ewise.hpp"
 #include "noa/runtime/Iwise.hpp"
@@ -237,7 +235,7 @@ namespace noa::xform::details {
         }
 
         // For every pixel of every central slice to insert.
-        NOA_HD void operator()(index_type batch, index_type y, index_type u) const { // x == u
+        NOA_HD void operator()(nt::compute_handle auto& ch, index_type batch, index_type y, index_type u) const { // x == u
             // We compute the forward transformation and use normalized frequencies.
             // The oversampling is implicitly handled when scaling back to the target shape.
             const index_type v = nf::index2frequency<ARE_SLICES_CENTERED>(y, m_slice_size_y);
@@ -261,6 +259,7 @@ namespace noa::xform::details {
             const auto frequency_3d = fftfreq_3d * m_f_target_shape;
 
             rasterize_on_3d_grid_(
+                ch.grid(),
                 get_input_value_(conjugate, batch, y, u),
                 get_input_weight_(batch, y, u),
                 frequency_3d
@@ -308,6 +307,7 @@ namespace noa::xform::details {
         // This is called gridding, but is also referred as rasterization with antialiasing.
         // "frequency" is the frequency, in samples, centered on DC, with negative frequencies on the left.
         NOA_HD void rasterize_on_3d_grid_(
+            const auto& ch_grid,
             output_value_type value,
             const output_weight_value_type& weight,
             const Vec<coord_type, 3>& frequency // in samples
@@ -331,15 +331,13 @@ namespace noa::xform::details {
                             idx_v >= 0 and idx_v < m_grid_shape[1] and
                             idx_u >= 0 and idx_u < m_grid_shape[2]) {
                             const auto fraction = kernel[w][v][u];
-                            nd::atomic_add(
-                                m_output_volume,
+                            ch_grid.atomic_add(
                                 value * static_cast<output_real_type>(fraction),
-                                idx_w, idx_v, idx_u);
+                                m_output_volume, idx_w, idx_v, idx_u);
                             if constexpr (has_weights) {
-                                nd::atomic_add(
-                                    m_output_weights,
+                                ch_grid.atomic_add(
                                     weight * static_cast<output_weight_value_type>(fraction),
-                                    idx_w, idx_v, idx_u);
+                                    m_output_weights, idx_w, idx_v, idx_u);
                             }
                         }
                     }
@@ -360,15 +358,13 @@ namespace noa::xform::details {
                         if (idx_w >= 0 and idx_w < m_grid_shape[0] and
                             idx_v >= 0 and idx_v < m_grid_shape[1]) {
                             const auto fraction = kernel[w][v][0];
-                            nd::atomic_add(
-                                m_output_volume,
+                            ch_grid.atomic_add(
                                 value * static_cast<output_real_type>(fraction),
-                                idx_w, idx_v, index_type{});
+                                m_output_volume, idx_w, idx_v, index_type{});
                             if constexpr (has_weights) {
-                                nd::atomic_add(
-                                    m_output_weights,
+                                ch_grid.atomic_add(
                                     weight * static_cast<output_weight_value_type>(fraction),
-                                    idx_w, idx_v, index_type{});
+                                    m_output_weights, idx_w, idx_v, index_type{});
                             }
                         }
                     }
@@ -663,6 +659,7 @@ namespace noa::xform::details {
         // For every pixel of every slice to extract.
         // w is the index within the windowed-sinc convolution along the z of the grid.
         NOA_HD constexpr void operator()(
+            nt::compute_handle auto& ch,
             index_type batch, index_type ow, index_type oy, index_type ox
         ) const requires are_outputs_atomic {
             coord3_type fftfreq_3d = compute_fftfreq_in_volume_(batch, oy, ox);
@@ -678,11 +675,9 @@ namespace noa::xform::details {
             const auto convolution_weight = details::windowed_sinc(fftfreq_z_offset, m_fftfreq_sinc, m_fftfreq_blackman);
 
             const auto value = m_input_volume.interpolate_spectrum_at(frequency_3d);
-            nd::atomic_add(
-                m_output_slices,
-                cast_or_abs_squared<output_value_type>(value) *
-                static_cast<output_real_type>(convolution_weight),
-                batch, oy, ox);
+            ch.grid().atomic_add(
+                cast_or_abs_squared<output_value_type>(value) * static_cast<output_real_type>(convolution_weight),
+                m_output_slices, batch, oy, ox);
 
             if constexpr (not nt::empty<output_weight_type>) {
                 output_weight_value_type weight;
@@ -692,10 +687,9 @@ namespace noa::xform::details {
                 } else {
                     weight = 1;
                 }
-                nd::atomic_add(
-                    m_output_weights,
+                ch.grid().atomic_add(
                     weight * static_cast<output_weight_value_type>(convolution_weight),
-                    batch, oy, ox);
+                    m_output_weights, batch, oy, ox);
             }
         }
 
@@ -894,6 +888,7 @@ namespace noa::xform::details {
         // Of course, this makes the extraction much more expensive. Also, the output-slice could be unset, so
         // the caller may have to fill it with zeros first, depending on add_to_output.
         NOA_HD constexpr void operator()(
+            nt::compute_handle auto& ch,
             index_type batch, index_type w, index_type y, index_type x
         ) const requires are_outputs_atomic {
             coord3_type fftfreq_3d = compute_fftfreq_in_volume_(batch, y, x);
@@ -914,17 +909,15 @@ namespace noa::xform::details {
                 details::windowed_sinc(fftfreq_z_offset, m_extract_fftfreq_sinc, m_extract_fftfreq_blackman);
 
             // Add the contribution for this z-offset. The z-convolution is essentially a simple weighted mean.
-            nd::atomic_add(
-                m_output_slices,
+            ch.grid().atomic_add(
                 cast_or_abs_squared<output_value_type>(value_and_weight.first) *
                 static_cast<output_real_type>(convolution_weight),
-                batch, y, x);
+                m_output_slices, batch, y, x);
             if constexpr (has_output_weights) {
-                nd::atomic_add(
-                    m_output_weights,
+                ch.grid().atomic_add(
                     static_cast<output_weight_value_type>(value_and_weight.second) *
                     static_cast<output_weight_value_type>(convolution_weight),
-                    batch, y, x);
+                    m_output_weights, batch, y, x);
             }
         }
 

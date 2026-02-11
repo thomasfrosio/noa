@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include "noa/runtime/core/Access.hpp"
 #include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/cpu/Allocators.hpp"
 

@@ -1,3 +1,5 @@
+TODO Update to new interface
+
 # `Core functions`
 
 The library heavily relies on pointwise operations and provides core functions for generic algorithms.

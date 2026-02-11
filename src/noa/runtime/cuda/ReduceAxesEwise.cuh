@@ -43,28 +43,36 @@ namespace noa::cuda::details {
                 return accessor[gid[0]][gid[1]][gid[2]];
         });
 
+        const auto ci = ComputeHandle<Index, 3, 2>{};
+        Interface::init(ci, op, gid[0], gid[1], gid[2]);
+
         // Initial reduction. Loop until the end of the row is reached.
         constexpr auto OFFSET = Block::block_work_size_x;
         for (Index cid = 0; cid < shape_hw[1] and is_valid_row; cid += OFFSET) {
-            block_reduce_ewise_1d_init
+            block_call_ewise_1d
                 <Block::block_size_x, Block::n_elements_per_thread_x, InputAlignedBuffer, Interface>
-                (op, input_row, shape_hw[1] - cid, reduced, tid[1]);
+                (ci, op, input_row, shape_hw[1] - cid, reduced, tid[1]);
 
             // Offset to the next work space.
             input_row.for_each([](auto& accessor) { accessor.offset_inplace(OFFSET); });
         }
 
-        // Share the threads' initial reduction with the rest of the block.
-        __shared__ Uninitialized<Reduced> shared_buffer_[Block::block_size];
-        auto* shared_buffer = reinterpret_cast<Reduced*>(shared_buffer_);
-        Reduced* joined = shared_buffer + tid[0] * Block::block_size_x;
-        joined[tid[1]] = reduced;
-        block_synchronize();
+        Interface::deinit(ci, op, gid[0], gid[1], gid[2]);
 
-        // Reduce shared data to one element.
-        reduced = block_reduce_shared<Interface, Block::block_size_x>(op, joined, tid[1]);
+        if constexpr (not nt::empty_tuple<Reduced>) {
+            // Share the threads' initial reduction with the rest of the block.
+            __shared__ Uninitialized<Reduced> shared_buffer_[Block::block_size];
+            auto* shared_buffer = reinterpret_cast<Reduced*>(shared_buffer_);
+            Reduced* joined = shared_buffer + tid[0] * Block::block_size_x;
+            joined[tid[1]] = reduced;
+            block_synchronize();
+
+            // Reduce shared data to one element.
+            reduced = block_join_shared<Interface, Block::block_size_x>(op, joined, tid[1]);
+        }
+
         if (gid[3] == 0 and is_valid_row)
-            Interface::final(op, reduced, output, gid[0], gid[1], gid[2]);
+            Interface::post(op, reduced, output, gid[0], gid[1], gid[2]);
     }
 
     template<typename Config, u32 BlockSizeX>
@@ -85,28 +93,36 @@ namespace noa::cuda::details {
         );
         const bool is_valid_column = gid[3] < shape_hw[1];
 
+        const auto ci = ComputeHandle<Index, 3, 2>{};
+        Interface::init(ci, op, gid[0], gid[1], gid[3]);
+
         // Process every row.
         input.for_each([&](auto& accessor) { accessor.offset_inplace(gid[0], gid[1]); });
         for (Index tidy = gid[2]; tidy < shape_hw[0] and is_valid_column; tidy += Block::block_size_y)
-            Interface::init(op, input, reduced, 0, 0, tidy, gid[3]);
+            Interface::call(ci, op, input, reduced, 0, 0, tidy, gid[3]);
 
-        // Share the threads' initial reduction with the rest of the block.
-        __shared__ Uninitialized<Reduced> shared_buffer_[Block::block_size];
-        auto* shared_buffer = reinterpret_cast<Reduced*>(shared_buffer_);
-        Reduced* joined = shared_buffer + threadIdx.y * Block::block_size_x + threadIdx.x;
-        *joined = reduced;
-        block_synchronize();
+        Interface::deinit(ci, op, gid[0], gid[1], gid[3]);
 
-        // Reduce the height of the block.
-        #pragma unroll
-        for (u32 size = Block::block_size_y; size >= 2; size /= 2) {
-            if (threadIdx.y < size / 2)
-                Interface::join(op, joined[Block::block_size_x * size / 2], *joined);
+        if constexpr (not nt::empty_tuple<Reduced>) {
+            // Share the threads' initial reduction with the rest of the block.
+            __shared__ Uninitialized<Reduced> shared_buffer_[Block::block_size];
+            auto* shared_buffer = reinterpret_cast<Reduced*>(shared_buffer_);
+            Reduced* joined = shared_buffer + threadIdx.y * Block::block_size_x + threadIdx.x;
+            *joined = reduced;
             block_synchronize();
+
+            // Reduce the height of the block.
+            #pragma unroll
+            for (u32 size = Block::block_size_y; size >= 2; size /= 2) {
+                if (threadIdx.y < size / 2)
+                    Interface::join(op, joined[Block::block_size_x * size / 2], *joined);
+                block_synchronize();
+            }
+            reduced = *joined;
         }
 
         if (threadIdx.y == 0 and is_valid_column)
-            Interface::final(op, *joined, output, gid[0], gid[1], gid[3]);
+            Interface::post(op, reduced, output, gid[0], gid[1], gid[3]);
     }
 }
 

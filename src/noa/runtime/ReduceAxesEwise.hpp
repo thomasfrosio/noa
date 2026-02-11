@@ -11,47 +11,28 @@
 #include "noa/runtime/cuda/ReduceAxesEwise.cuh"
 #endif
 
-namespace noa {
-    struct ReduceAxesEwiseOptions {
-        /// Whether to compile for the CPU compute device.
-        bool generate_cpu{true};
-
-        /// Whether to compile for the GPU compute device.
-        bool generate_gpu{true};
-
-        /// GPU kernel configurations.
-        u32 gpu_n_elements_per_thread{8};
-        u32 gpu_block_size{512};
-        u32 gpu_max_grid_size{4096};
-        bool gpu_enable_vectorization{true};
-    };
-}
+#include "noa/runtime/ReduceEwise.hpp"
+#include "noa/runtime/ReduceAxesIwise.hpp"
 
 namespace noa::details {
-    template<ReduceAxesEwiseOptions, bool, bool, bool, typename Inputs, typename Reduced, typename Outputs, typename Op>
+    template<ReduceEwiseOptions, bool, bool, bool, typename Inputs, typename Reduced, typename Outputs, typename Op>
     constexpr void reduce_axes_ewise(Inputs&&, Reduced&&, Outputs&&, Op&&);
 }
 
 namespace noa {
     /// Computes an element-wise reduction along one or multiple axes.
-    /// \details The size of each output array(s)'s dimension should match the input shape, or be 1, indicating
-    ///          the dimension should be reduced. There should be at least one axis being reduced. Currently, reducing
-    ///          more than one axis at a time is only supported if the reduction results to having one value or one
-    ///          value per batch, i.e. if the DHW dimensions are empty after reduction. As opposed to reduce_ewise,
-    ///          this function is asynchronous and does not perform any synchronization. If all axes are reduced,
-    ///          it is otherwise equivalent to reduce_ewise.
+    /// \param[in,out] inputs:
+    ///     Input varray or an adaptor containing at least one varray.
+    ///     If multiple varrays are entered, they should have the same shape.
+    ///     Input arrays should be on the same device as the output arrays.
+    /// \param[in,out] outputs:
+    ///     Output array, or an adaptor containing the output array(s). While the input adaptor can contain
+    ///     non-varray types, the output should only contain varrays, all of which should be on the same device.
+    ///     As opposed to reduce_axes_ewise, this function is asynchronous and does not perform any synchronization.
     ///
-    /// \param[in,out] inputs   Input varray or an adaptor containing at least one varray.
-    ///                         If multiple varrays are entered, they should have the same shape.
-    ///                         Input arrays should be on the same device as the output arrays.
-    /// \param[in] reduced      Initial value for the reduction, or an adaptor containing these value(s).
-    /// \param[in,out] outputs  Output array, or an adaptor containing the output array(s). While the input adaptor
-    ///                         can contain non-varray types, the output should only contain varrays, all of which
-    ///                         should be on the same device.
-    /// \param[in] op           Operator satisfying the reduce_(axes_)ewise core interface. The operator is perfectly
-    ///                         forwarded to the backend (it is moved or copied to the backend compute kernel).
-    ///                         Each compute (CPU or GPU) thread holds a copy of the operator.
-    template<ReduceAxesEwiseOptions OPTIONS = ReduceAxesEwiseOptions{},
+    /// \param[in] reduced: Same as reduce-ewise.
+    /// \param[in] op:      Same as reduce-ewise.
+    template<ReduceEwiseOptions OPTIONS = ReduceEwiseOptions{},
              typename Inputs = nd::AdaptorUnzip<>,
              typename Reduced = nd::AdaptorUnzip<>,
              typename Outputs = nd::AdaptorUnzip<>,
@@ -115,7 +96,7 @@ namespace noa {
 }
 
 namespace noa::details {
-    template<ReduceAxesEwiseOptions OPTIONS, bool ZIP_INPUTS, bool ZIP_REDUCED, bool ZIP_OUTPUTS,
+    template<ReduceEwiseOptions OPTIONS, bool ZIP_INPUTS, bool ZIP_REDUCED, bool ZIP_OUTPUTS,
              typename Inputs, typename Reduced, typename Outputs, typename Op>
     constexpr void reduce_axes_ewise(
         Inputs&& inputs,
@@ -226,7 +207,7 @@ namespace noa::details {
         }
         if constexpr (OPTIONS.generate_gpu) {
             if (device.is_gpu()) {
-#ifdef NOA_ENABLE_CUDA
+                #ifdef NOA_ENABLE_CUDA
                 auto& cuda_stream = Stream::current(device).cuda();
                 using config = noa::cuda::ReduceAxesEwiseConfig<
                     ZIP_INPUTS, ZIP_REDUCED, ZIP_OUTPUTS,
@@ -251,10 +232,9 @@ namespace noa::details {
                     if constexpr (sizeof...(I) == 0) (void) ih;
                     if constexpr (sizeof...(O) == 0) (void) oh;
                 }(nt::index_list_t<Inputs>{}, nt::index_list_t<Outputs>{});
-                return;
-#else
+                #else
                 panic_no_gpu_backend();
-#endif
+                #endif
             }
         }
     }

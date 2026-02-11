@@ -3,6 +3,7 @@
 #include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/core/Interfaces.hpp"
 #include "noa/runtime/core/Shape.hpp"
+#include "noa/runtime/cpu/ComputeHandle.hpp"
 
 namespace noa::cpu::details {
     template<bool ZipInput, bool ZipReduced, bool ZipOutput>
@@ -17,23 +18,25 @@ namespace noa::cpu::details {
         ) {
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape, input, reduced) firstprivate(op)
             {
-                // Local copy of the reduced values.
-                auto local_reduce = reduced;
+                constexpr auto ci = ComputeHandle<Index, true>{};
+                interface::init(ci, op, Index{});
 
+                auto local_reduce = reduced;
                 if constexpr (N == 4) {
                     #pragma omp for collapse(4)
                     for (Index i = 0; i < shape[0]; ++i)
                         for (Index j = 0; j < shape[1]; ++j)
                             for (Index k = 0; k < shape[2]; ++k)
                                 for (Index l = 0; l < shape[3]; ++l)
-                                    interface::init(op, input, local_reduce, i, j, k, l);
+                                    interface::call(ci, op, input, local_reduce, i, j, k, l);
                 } else if constexpr (N == 1) {
                     #pragma omp for collapse(1)
                     for (Index i = 0; i < shape[0]; ++i)
-                        interface::init(op, input, local_reduce, i);
+                        interface::call(ci, op, input, local_reduce, i);
                 } else {
                     static_assert(nt::always_false<Op>);
                 }
+                interface::deinit(ci, op, Index{});
 
                 #pragma omp critical
                 {
@@ -41,7 +44,7 @@ namespace noa::cpu::details {
                     interface::join(op, local_reduce, reduced);
                 }
             }
-            interface::final(op, reduced, output, 0);
+            interface::post(op, reduced, output, Index{});
         }
 
         template<typename Op, typename Input, typename Reduced, typename Output, typename Index, usize N>
@@ -49,20 +52,24 @@ namespace noa::cpu::details {
             const Shape<Index, N>& shape, Op op,
             Input input, Reduced reduced, Output& output
         ) {
+            constexpr auto ci = ComputeHandle<Index, false>{};
+            interface::init(ci, op, Index{});
+
             if constexpr (N == 4) {
                 for (Index i = 0; i < shape[0]; ++i)
                     for (Index j = 0; j < shape[1]; ++j)
                         for (Index k = 0; k < shape[2]; ++k)
                             for (Index l = 0; l < shape[3]; ++l)
-                                interface::init(op, input, reduced, i, j, k, l);
+                                interface::call(ci, op, input, reduced, i, j, k, l);
             } else if constexpr (N == 1) {
                 for (Index i = 0; i < shape[0]; ++i)
-                    interface::init(op, input, reduced, i);
+                    interface::call(ci, op, input, reduced, i);
             } else {
                 static_assert(nt::always_false<Op>);
             }
 
-            interface::final(op, reduced, output, 0);
+            interface::deinit(ci, op, Index{});
+            interface::post(op, reduced, output, Index{});
         }
     };
 }

@@ -12,12 +12,12 @@
 namespace noa::signal::details {
     struct FFTSpectrumEnergy {
         using enable_vectorization = bool;
-        using remove_default_final = bool;
+        using remove_default_post = bool;
 
         f64 scale;
 
         template<nt::complex C, nt::real R>
-        static constexpr void init(const C& input, R& sum) {
+        constexpr void operator()(const C& input, R& sum) {
             sum += static_cast<nt::value_type_t<C>>(abs_squared(input));
         }
 
@@ -27,7 +27,7 @@ namespace noa::signal::details {
         }
 
         template<typename R, typename F, typename C>
-        constexpr void final(const R& sum, F& energy, const C& dc) const {
+        constexpr void post(const R& sum, F& energy, const C& dc) const {
             energy = 1 / (sqrt(sum - abs_squared(dc)) / static_cast<R>(scale)); // remove the dc=0
         }
     };
@@ -36,7 +36,7 @@ namespace noa::signal::details {
         using enable_vectorization = bool;
 
         template<nt::complex C, nt::real R>
-        static constexpr void init(const C& input, R& sum) {
+        constexpr void operator()(const C& input, R& sum) {
             sum += static_cast<nt::value_type_t<C>>(abs_squared(input));
         }
 
@@ -58,9 +58,9 @@ namespace noa::signal::details {
 
     struct SpectrumAccurateEnergy {
         using enable_vectorization = bool;
-        using remove_default_final = bool;
+        using remove_default_post = bool;
 
-        static constexpr void init(const auto& input, f64& sum, f64& error) {
+        constexpr void operator()(const auto& input, f64& sum, f64& error) {
             kahan_sum(static_cast<f64>(abs_squared(input)), sum, error);
         }
 
@@ -70,7 +70,7 @@ namespace noa::signal::details {
         }
 
         template<typename F>
-        static constexpr void final(const f64& global_sum, const f64& global_error, F& final) {
+        static constexpr void post(const f64& global_sum, const f64& global_error, F& final) {
             final = static_cast<F>(sqrt(global_sum + global_error));
         }
     };

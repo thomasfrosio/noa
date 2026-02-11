@@ -1,9 +1,8 @@
 #pragma once
 
-#include <omp.h>
-#include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/core/Interfaces.hpp"
 #include "noa/runtime/core/Shape.hpp"
+#include "noa/runtime/cpu/ComputeHandle.hpp"
 
 namespace noa::cpu::details {
     class Iwise {
@@ -28,7 +27,8 @@ namespace noa::cpu::details {
             #pragma omp parallel default(none) num_threads(n_threads) shared(shape) firstprivate(op)
             {
                 using interface = nd::IwiseInterface;
-                interface::init(op, omp_get_thread_num());
+                constexpr auto ci = ComputeHandle<Index, true>{};
+                interface::init(ci, op);
 
                 if constexpr (N == 4) {
                     #pragma omp for collapse(4)
@@ -36,60 +36,61 @@ namespace noa::cpu::details {
                         for (Index j = 0; j < shape[1]; ++j)
                             for (Index k = 0; k < shape[2]; ++k)
                                 for (Index l = 0; l < shape[3]; ++l)
-                                    interface::call(op, i, j, k, l);
+                                    interface::call(ci, op, i, j, k, l);
 
                 } else if constexpr (N == 3) {
                     #pragma omp for collapse(3)
                     for (Index i = 0; i < shape[0]; ++i)
                         for (Index j = 0; j < shape[1]; ++j)
                             for (Index k = 0; k < shape[2]; ++k)
-                                interface::call(op, i, j, k);
+                                interface::call(ci, op, i, j, k);
 
                 } else if constexpr (N == 2) {
                     #pragma omp for collapse(2)
                     for (Index i = 0; i < shape[0]; ++i)
                         for (Index j = 0; j < shape[1]; ++j)
-                            interface::call(op, i, j);
+                            interface::call(ci, op, i, j);
 
                 } else if constexpr (N == 1) {
                     #pragma omp for collapse(1)
                     for (Index i = 0; i < shape[0]; ++i)
-                        interface::call(op, i);
+                        interface::call(ci, op, i);
                 }
 
-                interface::final(op, omp_get_thread_num());
+                interface::deinit(ci, op);
             }
         }
 
         template<usize N, typename Index, typename Operator>
         NOA_NOINLINE static constexpr void serial(const Shape<Index, N>& shape, Operator op) {
             using interface = nd::IwiseInterface;
-            interface::init(op, 0);
+            constexpr auto ci = ComputeHandle<Index, false>{};
+            interface::init(ci, op);
 
             if constexpr (N == 4) {
                 for (Index i = 0; i < shape[0]; ++i)
                     for (Index j = 0; j < shape[1]; ++j)
                         for (Index k = 0; k < shape[2]; ++k)
                             for (Index l = 0; l < shape[3]; ++l)
-                                interface::call(op, i, j, k, l);
+                                interface::call(ci, op, i, j, k, l);
 
             } else if constexpr (N == 3) {
                 for (Index i = 0; i < shape[0]; ++i)
                     for (Index j = 0; j < shape[1]; ++j)
                         for (Index k = 0; k < shape[2]; ++k)
-                            interface::call(op, i, j, k);
+                            interface::call(ci, op, i, j, k);
 
             } else if constexpr (N == 2) {
                 for (Index i = 0; i < shape[0]; ++i)
                     for (Index j = 0; j < shape[1]; ++j)
-                        interface::call(op, i, j);
+                        interface::call(ci, op, i, j);
 
             } else if constexpr (N == 1) {
                 for (Index i = 0; i < shape[0]; ++i)
-                    interface::call(op, i);
+                    interface::call(ci, op, i);
             }
 
-            interface::final(op, 0);
+            interface::deinit(ci, op);
         }
     };
 }

@@ -14,7 +14,7 @@ namespace {
     struct SumArgmax {
         noa::AccessorRestrictContiguous<f64, N, i32> input;
 
-        constexpr void init(const auto& indices, f64& sum, Pair<f64, i32>& argmax) const {
+        constexpr void operator()(const auto& indices, f64& sum, Pair<f64, i32>& argmax) const {
             const auto value = input(indices);
             sum += value;
             if (value > argmax.first) {

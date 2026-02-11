@@ -10,6 +10,8 @@
 #include "noa/runtime/cuda/ReduceAxesIwise.cuh"
 #endif
 
+#include "noa/runtime/ReduceIwise.hpp"
+
 namespace noa::inline types {
     struct ReduceAxes {
         bool batch{};
@@ -77,38 +79,37 @@ namespace noa::inline types {
 }
 
 namespace noa::details {
-    template<bool, bool, bool, typename Index, usize N, typename Reduced, typename Outputs, typename Op, typename... Ts>
+    template<ReduceIwiseOptions, bool, bool, bool, typename Index, usize N, typename Reduced, typename Outputs, typename Op, typename... Ts>
     constexpr void reduce_axes_iwise(const Shape<Index, N>&, Device, Reduced&&, Outputs&&, Op&&, ReduceAxes, Ts&&...);
 }
 
 namespace noa {
     /// Computes an index-wise reduction along one or multiple axes.
-    /// \details The output axes are mapped from right to left, i.e.:
+    /// \param shape:
+    ///     Shape of the 1-, 2-, 3- or 4-dimensional loop.
+    ///     The output axes are mapped from right to left, i.e.:
     ///          N=4 -> BDHW
-    ///          N=3 -> DHW  (B must be empy)
-    ///          N=2 -> HW   (BD must be empy)
-    ///          N=1 -> W    (BDH must be empy)
+    ///          N=3 -> DHW  (B must be empy, an error is thrown otherwise)
+    ///          N=2 -> HW   (BD must be empy, an error is thrown otherwise)
+    ///          N=1 -> W    (BDH must be empy, an error is thrown otherwise)
     ///
-    /// \details The size of each output axis should match the input shape, or be 1, indicating the axis
-    ///          should be reduced. There should be at least one axis being reduced. Currently, reducing more than
-    ///          one axis at a time is only supported if the reduction results in having one value or one value per
-    ///          leftmost dimension. Or in other words, if the DHW axes for N=4, or the HW axes for N==3, are empty
-    ///          after reduction. As opposed to reduce_iwise, this function is asynchronous and does not perform any
-    ///          synchronization. If all axes are reduced, it is otherwise equivalent to reduce_iwise.
+    /// \param device:
+    ///     Device on which to dispatch the reduction. Should match the outputs.
+    ///     As opposed to reduce_iwise, this function is asynchronous and does not perform any synchronization.
     ///
-    /// \param shape            Shape of the 1-, 2-, 3- or 4-dimensional loop.
-    /// \param device           Device on which to dispatch the reduction. Should match the outputs.
-    /// \param[in] reduced      Initial reduction value, or an adaptor containing the initial reduction value(s).
-    /// \param[in,out] outputs  Output array, an adaptor containing the output array(s) (all of which should be on the
-    ///                         same device), or an empty adaptor.
-    /// \param[in] op           Operator satisfying the reduce_(axes_)ewise core interface. The operator is perfectly
-    ///                         forwarded to the backend (it is moved or copied to the backend compute kernel).
-    ///                         Each compute (CPU or GPU) thread holds a copy of the operator.
-    /// \param[in] attachments  Resources to attach to the function call. These are usually Arrays that hold the
-    ///                         resources used by the operator, but other attachments can be passed too (see iwise).
-    ///                         Note that the output arrays are already attached, so this should only be used to attach
-    ///                         additional resources.
-    template<typename Index, usize N,
+    /// \param[in,out] outputs:
+    ///     Output array, an adaptor containing the output array(s) (all of which should be on the same device),
+    ///     or an empty adaptor. The size of each output axis should match the input shape, or be 1, indicating
+    ///     the axis should be reduced. There should be at least one axis being reduced. Currently, reducing more
+    ///     than one axis at a time is only supported if the reduction results in having one value or one value per
+    ///     leftmost dimension. Or in other words, if the DHW axes for N=4, or the HW axes for N==3, are empty
+    ///     after reduction. If all axes are reduced, it is equivalent to reduce_iwise.
+    ///
+    /// \param[in] reduced:     Same as reduce-iwise.
+    /// \param[in] op:          Same as reduce-iwise.
+    /// \param[in] attachments: Same as iwise.
+    template<ReduceIwiseOptions OPTIONS = ReduceIwiseOptions{},
+             typename Index, usize N,
              typename Reduced = nd::AdaptorUnzip<>,
              typename Outputs = nd::AdaptorUnzip<>,
              typename Operator, typename... Ts>
@@ -121,28 +122,28 @@ namespace noa {
         Ts&&... attachments
     ) {
         if constexpr (nd::adaptor_decay<Reduced, Outputs>) {
-            nd::reduce_axes_iwise<std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP, false>(
+            nd::reduce_axes_iwise<OPTIONS, std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP, false>(
                 shape, device,
                 std::forward<Reduced>(reduced).tuple,
                 std::forward<Outputs>(outputs).tuple,
                 std::forward<Operator>(op), {},
                 std::forward<Ts>(attachments)...);
         } else if constexpr (nd::adaptor_decay<Reduced>) {
-            nd::reduce_axes_iwise<std::decay_t<Reduced>::ZIP, false, false>(
+            nd::reduce_axes_iwise<OPTIONS, std::decay_t<Reduced>::ZIP, false, false>(
                 shape, device,
                 std::forward<Reduced>(reduced).tuple,
                 noa::forward_as_tuple(std::forward<Outputs>(outputs)),
                 std::forward<Operator>(op), {},
                 std::forward<Ts>(attachments)...);
         } else if constexpr (nd::adaptor_decay<Outputs>) {
-            nd::reduce_axes_iwise<false, std::decay_t<Outputs>::ZIP, false>(
+            nd::reduce_axes_iwise<OPTIONS, false, std::decay_t<Outputs>::ZIP, false>(
                 shape, device,
                 noa::forward_as_tuple(std::forward<Reduced>(reduced)),
                 std::forward<Outputs>(outputs).tuple,
                 std::forward<Operator>(op), {},
                 std::forward<Ts>(attachments)...);
         } else {
-            nd::reduce_axes_iwise<false, false, false>(
+            nd::reduce_axes_iwise<OPTIONS, false, false, false>(
                 shape, device,
                 noa::forward_as_tuple(std::forward<Reduced>(reduced)),
                 noa::forward_as_tuple(std::forward<Outputs>(outputs)),
@@ -153,7 +154,8 @@ namespace noa {
 
     /// Computes an index-wise reduction along one or multiple axes.
     /// \details This overload does not have output array(s), and the axes to reduce are specified explicitly.
-    template<typename Index, usize N,
+    template<ReduceIwiseOptions OPTIONS = ReduceIwiseOptions{},
+             typename Index, usize N,
              typename Reduced = nd::AdaptorUnzip<>,
              typename Operator, typename... Ts>
     void reduce_axes_iwise(
@@ -165,14 +167,14 @@ namespace noa {
         Ts&&... attachments
     ) {
         if constexpr (nd::adaptor_decay<Reduced>) {
-            nd::reduce_axes_iwise<std::decay_t<Reduced>::ZIP, false, true>(
+            nd::reduce_axes_iwise<OPTIONS, std::decay_t<Reduced>::ZIP, false, true>(
                 shape, device,
                 std::forward<Reduced>(reduced).tuple,
                 Tuple{},
                 std::forward<Operator>(op), {},
                 std::forward<Ts>(attachments)...);
         } else {
-            nd::reduce_axes_iwise<false, false, true>(
+            nd::reduce_axes_iwise<OPTIONS, false, false, true>(
                 shape, device,
                 noa::forward_as_tuple(std::forward<Reduced>(reduced)),
                 Tuple{},
@@ -183,7 +185,7 @@ namespace noa {
 }
 
 namespace noa::details {
-    template<bool ZIP_REDUCED, bool ZIP_OUTPUT, bool ALLOW_NO_OUTPUTS,
+    template<ReduceIwiseOptions OPTIONS, bool ZIP_REDUCED, bool ZIP_OUTPUT, bool ALLOW_NO_OUTPUTS,
              typename Index, usize N, typename Reduced, typename Outputs, typename Op, typename... Ts>
     constexpr void reduce_axes_iwise(
         const Shape<Index, N>& input_shape,
@@ -244,53 +246,66 @@ namespace noa::details {
         Tuple output_accessors_nd = nd::reconfig_accessors<nd::AccessorConfig<N>{.filter=FILTER_ND}>(output_accessors);
 
         Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            auto& cpu_stream = stream.cpu();
-            auto n_threads = cpu_stream.thread_limit();
-            using config = noa::cpu::ReduceAxesIwiseConfig<ZIP_REDUCED, ZIP_OUTPUT>;
+        if constexpr (OPTIONS.generate_cpu) {
+            if (device.is_cpu()) {
+                auto& cpu_stream = stream.cpu();
+                auto n_threads = cpu_stream.thread_limit();
+                using config = noa::cpu::ReduceAxesIwiseConfig<ZIP_REDUCED, ZIP_OUTPUT>;
 
-            if (cpu_stream.is_sync()) {
-                noa::cpu::reduce_axes_iwise<config>(
+                if (cpu_stream.is_sync()) {
+                    noa::cpu::reduce_axes_iwise<config>(
+                        input_shape, output_shape,
+                        std::forward<Op>(reduce_operator),
+                        std::move(reduced_accessors),
+                        output_accessors_nd,
+                        n_threads);
+                } else {
+                    cpu_stream.enqueue(
+                        [=,
+                            op = std::forward<Op>(reduce_operator),
+                            ra = std::move(reduced_accessors),
+                            oh = nd::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs)),
+                            ah = nd::extract_shared_handle(noa::forward_as_tuple(std::forward<Ts>(attachments)...))
+                        ] {
+                            noa::cpu::reduce_axes_iwise<config>(
+                                input_shape, output_shape, std::move(op),
+                                std::move(ra), output_accessors_nd, n_threads);
+                        });
+                }
+                return;
+            }
+        }
+        if constexpr (OPTIONS.generate_gpu) {
+            if (device.is_gpu()) {
+                #ifdef NOA_ENABLE_CUDA
+                auto& cuda_stream = Stream::current(device).cuda();
+                using config = noa::cuda::ReduceIwiseConfig<
+                    ZIP_REDUCED, ZIP_OUTPUT,
+                    OPTIONS.gpu_block_size,
+                    OPTIONS.gpu_max_grid_size,
+                    OPTIONS.gpu_allow_two_kernels
+                >;
+                noa::cuda::reduce_axes_iwise<config>(
                     input_shape, output_shape,
                     std::forward<Op>(reduce_operator),
                     std::move(reduced_accessors),
                     output_accessors_nd,
-                    n_threads);
-            } else {
-                cpu_stream.enqueue(
-                    [=,
-                        op = std::forward<Op>(reduce_operator),
-                        ra = std::move(reduced_accessors),
-                        oh = nd::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs)),
-                        ah = nd::extract_shared_handle(noa::forward_as_tuple(std::forward<Ts>(attachments)...))
-                    ] {
-                        noa::cpu::reduce_axes_iwise<config>(
-                            input_shape, output_shape, std::move(op),
-                            std::move(ra), output_accessors_nd, n_threads);
-                    });
+                    cuda_stream,
+                    OPTIONS.gpu_scratch_size
+                );
+
+                // Enqueue the shared handles. See ewise() for more details.
+                [&]<usize... O>(std::index_sequence<O...>) {
+                    auto oh = nd::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs));
+                    cuda_stream.enqueue_attach(std::move(oh)[Tag<O>{}]..., std::forward<Ts>(attachments)...);
+
+                    // Work-around to remove spurious warning of set but unused variable (g++11).
+                    if constexpr (sizeof...(O) == 0) (void) oh;
+                }(nt::index_list_t<Outputs>{});
+                #else
+                panic_no_gpu_backend();
+                #endif
             }
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            auto& cuda_stream = Stream::current(device).cuda();
-            using config = noa::cuda::ReduceIwiseConfig<ZIP_REDUCED, ZIP_OUTPUT>;
-            noa::cuda::reduce_axes_iwise<config>(
-                input_shape, output_shape,
-                std::forward<Op>(reduce_operator),
-                std::move(reduced_accessors),
-                output_accessors_nd,
-                cuda_stream);
-
-            // Enqueue the shared handles. See ewise() for more details.
-            [&]<usize... O>(std::index_sequence<O...>) {
-                auto oh = nd::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs));
-                cuda_stream.enqueue_attach(std::move(oh)[Tag<O>{}]..., std::forward<Ts>(attachments)...);
-
-                // Work-around to remove spurious warning of set but unused variable (g++11).
-                if constexpr (sizeof...(O) == 0) (void) oh;
-            }(nt::index_list_t<Outputs>{});
-            #else
-            panic_no_gpu_backend();
-            #endif
         }
     }
 }

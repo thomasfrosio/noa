@@ -8,6 +8,7 @@
 
 namespace {
     using namespace noa::types;
+    namespace nt = noa::traits;
 
     struct Tracked {
         Vec<i32, 2> count{};
@@ -27,7 +28,7 @@ namespace {
     template<size_t N>
     struct IwiseCopy {
         SpanContiguous<i64, N> span;
-        NOA_HD constexpr void operator()(auto... indices) const {
+        NOA_HD constexpr void operator()(nt::integer auto... indices) const {
             span(indices...) = noa::is_inbound(span.shape(), indices...) ?
                 noa::offset_at(span.strides_full(), indices...) : -1;
         }

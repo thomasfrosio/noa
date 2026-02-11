@@ -5,9 +5,17 @@
 #include "Catch.hpp"
 #include "Utils.hpp"
 
+namespace {
+    struct MyComputeHandle {};
+}
+namespace noa::traits {
+    template <> struct proclaim_is_compute_handle<MyComputeHandle> : std::true_type {};
+}
+
 TEST_CASE("runtime::core::IwiseInterface") {
     using namespace noa::types;
     using namespace noa::details;
+    const auto ch = MyComputeHandle{};
 
     constexpr size_t size = 1000;
     const auto b0 = std::make_unique<i32[]>(size);
@@ -17,7 +25,7 @@ TEST_CASE("runtime::core::IwiseInterface") {
     AND_THEN("simple 1d") {
         auto op0 = [&](size_t i) { b0[i] = static_cast<i32>(i); };
         for (auto i: noa::irange(size)) {
-            IwiseInterface::call(op0, i);
+            IwiseInterface::call(ch, op0, i);
             b1[i] = static_cast<i32>(i);
         }
         REQUIRE(test::allclose_abs(b0.get(), b1.get(), size, 1e-6));
@@ -37,8 +45,8 @@ TEST_CASE("runtime::core::IwiseInterface") {
         for (size_t i{}; i < 10; ++i) {
             for (size_t j{}; j < 10; ++j) {
                 for (size_t k{}; k < 10; ++k) {
-                    IwiseInterface::call(op1, i, j, k);
-                    IwiseInterface::call(op2, i, j, k);
+                    IwiseInterface::call(ch, op1, i, j, k);
+                    IwiseInterface::call(ch, op2, i, j, k);
                     b2[i * 100 + j * 10 + k] = static_cast<i32>(i + j + k);
                 }
             }
@@ -52,6 +60,7 @@ TEST_CASE("runtime::core::EwiseInterface") {
     using namespace noa::types;
     using namespace noa::details;
     using noa::AccessorContiguous;
+    const auto ch = MyComputeHandle{};
 
     constexpr size_t size = 200;
     const auto b0 = std::make_unique<i32[]>(size);
@@ -65,7 +74,7 @@ TEST_CASE("runtime::core::EwiseInterface") {
         auto output = noa::forward_as_tuple(a0);
 
         for (auto i: noa::irange(size)) {
-            EwiseInterface<false, false>::call(op0, input, output, i);
+            EwiseInterface<false, false>::call(ch, op0, input, output, i);
             b1[i] = 1;
         }
         REQUIRE(test::allclose_abs(b0.get(), b1.get(), size, 1e-6));
@@ -85,7 +94,7 @@ TEST_CASE("runtime::core::EwiseInterface") {
 
         for (size_t i{}; i < 4; ++i) {
             for (size_t j{}; j < 50; ++j) {
-                EwiseInterface<true, false>::call(op0, input, output, i, j);
+                EwiseInterface<true, false>::call(ch, op0, input, output, i, j);
                 b2[i * 50 + j] = 2;
             }
         }
@@ -98,18 +107,23 @@ TEST_CASE("runtime::core::ReduceIwiseInterface") {
     using noa::AccessorValue;
     using noa::AccessorContiguous;
     using noa::details::ReduceIwiseInterface;
+    const auto ch = MyComputeHandle{};
 
     AND_THEN("simple sum") {
         const auto buffer = std::make_unique<i32[]>(100);
         auto array = AccessorContiguous<i32, 1, i64>(buffer.get());
         std::fill_n(array.get(), 100, 1);
 
-        auto op = [=](u32 i, int& sum) { sum += array[i]; };
+        struct A {
+            AccessorContiguous<i32, 1, i64> a;
+            void operator()(u32 i, int& sum) const { sum += a[i]; }
+        } op{array};
+
         Tuple sum = noa::make_tuple(AccessorValue(0));
 
         using interface_t = ReduceIwiseInterface<false, false>;
         for (auto i: noa::irange<u32>(100))
-            interface_t::init(op, sum, i);
+            interface_t::call(ch, op, sum, i);
 
         REQUIRE(noa::get<0>(sum).ref() == 100);
     }
@@ -120,21 +134,19 @@ TEST_CASE("runtime::core::ReduceIwiseInterface") {
         std::fill_n(array.get(), 100, 1);
         array[50] = 101; // expected max
 
-        auto op0 = [=](Vec<u32, 1> i, i64& sum, i32& max) {
-            const auto& value = array[i[0]];
-            sum += value;
-            max = std::max(value, max);
-        };
-//        auto op1 = [=](u32 i, i64& sum, i32& max) {
-//            const auto& value = array[i];
-//            sum += value;
-//            max = std::max(value, max);
-//        };
+        struct A {
+            AccessorContiguous<i32, 1, i64> a;
+            void operator()(Vec<u32, 1> i, i64& sum, i32& max) const {
+                const auto& value = a[i[0]];
+                sum += value;
+                max = std::max(value, max);
+            }
+        } op0{array};
         Tuple sum_max = noa::make_tuple(AccessorValue<i64>(0), AccessorValue<i32>(0));
 
         using interface_t = ReduceIwiseInterface<false, false>;
         for (auto i: noa::irange<u32>(100)) {
-            interface_t::init(op0, sum_max, i);
+            interface_t::call(ch, op0, sum_max, i);
         }
         REQUIRE(noa::get<0>(sum_max).ref() == 200);
         REQUIRE(noa::get<1>(sum_max).ref() == 101);
@@ -145,10 +157,16 @@ TEST_CASE("runtime::core::ReduceIwiseInterface") {
         auto array = AccessorContiguous<i64, 1, i64>(buffer.get());
         std::fill_n(array.get(), 100, 1);
 
-        auto init_op = [=](size_t i, i64& sum) { sum += array[i]; };
-        auto join_op = [](i64 lhs, i64& rhs) { rhs += lhs; };
+        auto call_op = [=](size_t i, i64& sum) { sum += array[i]; };
+
+        struct join_op_t {
+            static void join(i64 lhs, i64& rhs) {
+                rhs += lhs;
+            }
+        } join_op{};
+
         struct final_op_t {
-            static void final(i64 lhs, i64& rhs) {
+            static void post(i64 lhs, i64& rhs) {
                 rhs = lhs + 1;
             }
         } final_op{};
@@ -159,16 +177,16 @@ TEST_CASE("runtime::core::ReduceIwiseInterface") {
 
         using interface_t = ReduceIwiseInterface<false, false>;
         for (auto i: noa::irange<size_t>(50)) { // divide the reduction in two
-            interface_t::init(init_op, sum0, i);
-            interface_t::init(init_op, sum1, i + 50);
+            interface_t::call(ch, call_op, sum0, i);
+            interface_t::call(ch, call_op, sum1, i + 50);
         }
         interface_t::join(join_op, sum0, sum1);
         REQUIRE(noa::get<0>(sum1).ref() == 100);
 
-        interface_t::final(join_op, sum1, sum); // default .final() simply copies
+        interface_t::post(join_op, sum1, sum, 0); // default .post() simply copies
         REQUIRE(noa::get<0>(sum).ref() == 100);
 
-        interface_t::final(final_op, sum1, sum); // check that .final() is detected
+        interface_t::post(final_op, sum1, sum, 0); // check that .post() is detected
         REQUIRE(noa::get<0>(sum).ref() == 101);
     }
 }
@@ -178,6 +196,7 @@ TEST_CASE("runtime::core::ReduceEwiseInterface") {
     using noa::AccessorContiguous;
     using noa::AccessorValue;
     using noa::details::ReduceEwiseInterface;
+    const auto ch = MyComputeHandle{};
 
     AND_THEN("simple sum") {
         const auto b0 = std::make_unique<i32[]>(100);
@@ -197,7 +216,7 @@ TEST_CASE("runtime::core::ReduceEwiseInterface") {
 
         using interface_t = ReduceEwiseInterface<true, false, false>;
         for (auto i: noa::irange<u32>(100))
-            interface_t::init(op, input, sum, i);
+            interface_t::call(ch, op, input, sum, i);
 
         REQUIRE(noa::get<0>(sum).ref() == 300);
     }

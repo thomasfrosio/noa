@@ -6,6 +6,7 @@
 #include "noa/runtime/core/Interfaces.hpp"
 #include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/cuda/Block.cuh"
+#include "noa/runtime/cuda/ComputeHandle.cuh"
 #include "noa/runtime/cuda/Constants.hpp"
 #include "noa/runtime/cuda/Pointers.hpp"
 #include "noa/runtime/cuda/Stream.hpp"
@@ -21,16 +22,16 @@ namespace noa::cuda::details {
     template<typename Block, typename Interface, typename Op, typename Input, typename Output, typename Index>
     __global__ __launch_bounds__(Block::block_size)
     void ewise_2d(Op op, Input input, Output output, Index width) {
-        const Vec<Index, 2> gid = global_indices_2d<Index, Block>();
+        const auto ci = ComputeHandle<Index, 2, 1>{};
+        Interface::init(ci, op);
 
-        Interface::init(op, thread_uid<2>());
-
+        const auto gid = global_indices_2d<Index, Block>();
         for (Index i = 0; i < Block::n_elements_per_thread_x; ++i) {
             const Index cid = gid[1] + i * Block::block_size_x;
             if (cid < width)
-                Interface::call(op, input, output, gid[0], cid);
+                Interface::call(ci, op, input, output, gid[0], cid);
         }
-        Interface::final(op, thread_uid<2>());
+        Interface::deinit(ci, op);
     }
 
     template<typename Block, typename Interface, typename Op, typename Index,
@@ -38,7 +39,8 @@ namespace noa::cuda::details {
              typename Output, typename OutputAlignedBuffer>
     __global__ __launch_bounds__(Block::block_size)
     void ewise_2d_vectorized(Op op, Input input, Output output, Index width) {
-        Interface::init(op, thread_uid<2>());
+        const auto ci = ComputeHandle<Index, 2, 1>{};
+        Interface::init(ci, op);
 
         // Offset to the current row.
         // AccessorValue(s) are simply moved, and 2d Accessor(s) return 1d AccessorReference(s).
@@ -62,7 +64,7 @@ namespace noa::cuda::details {
             for (Index i = 0; i < Block::n_elements_per_thread_x; ++i) {
                 const Index cid = gid + i * Block::block_size_x;
                 if (cid < width)
-                    Interface::call(op, input_1d, output_1d, cid);
+                    Interface::call(ci, op, input_1d, output_1d, cid);
             }
         } else {
             // Offset the accessors to the start of the block workspace.
@@ -79,22 +81,24 @@ namespace noa::cuda::details {
             // and does not read from the output(s).
             vectorized_tuple_t<Output> vectorized_output[Block::n_elements_per_thread_x];
             for (Index i = 0; i < Block::n_elements_per_thread_x; ++i)
-                Interface::call(op, vectorized_input[i], vectorized_output[i], 0);
+                Interface::call(ci, op, vectorized_input[i], vectorized_output[i], Index{});
 
             // Store the output values back to global memory.
             block_store<Block::block_size_x, Block::n_elements_per_thread_x, OutputAlignedBuffer>(
                 vectorized_output, output_1d, threadIdx.x);
         }
 
-        Interface::final(op, thread_uid<2>());
+        Interface::deinit(ci, op);
     }
 
     // 3d grid of 2d blocks.
     template<typename Block, typename Interface, typename Op, typename Input, typename Output, typename Index>
     __global__ __launch_bounds__(Block::block_size)
     void ewise_4d(Op op, Input input, Output output, Shape<Index, 2> shape_hw, u32 n_blocks_x) {
-        const auto gid = global_indices_4d<Index, Block>(n_blocks_x);
+        const auto ci = ComputeHandle<Index, 3, Block::block_ndim>{};
+       Interface::init(ci, op);
 
+        const auto gid = global_indices_4d<Index, Block>(n_blocks_x);
         auto to_2d = [&gid]<typename T>(T&& accessor) {
             if constexpr (nt::is_accessor_value_v<T>)
                 return std::forward<T>(accessor); // move AccessorValue
@@ -104,17 +108,15 @@ namespace noa::cuda::details {
         auto input_2d = std::move(input).map(to_2d);
         auto output_2d = std::move(output).map(to_2d);
 
-       Interface::init(op, thread_uid());
-
         for (u32 h = 0; h < Block::n_elements_per_thread_y; ++h) {
             for (u32 w = 0; w < Block::n_elements_per_thread_x; ++w) {
                 const Index ih = gid[2] + Block::block_size_y * h;
                 const Index iw = gid[3] + Block::block_size_x * w;
                 if (ih < shape_hw[0] and iw < shape_hw[1])
-                   Interface::call(op, input_2d, output_2d, ih, iw);
+                   Interface::call(ci, op, input_2d, output_2d, ih, iw);
             }
         }
-       Interface::final(op, thread_uid());
+       Interface::deinit(ci, op);
     }
 }
 

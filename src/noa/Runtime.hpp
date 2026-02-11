@@ -2,7 +2,6 @@
 
 #include "noa/runtime/core/Access.hpp"
 #include "noa/runtime/core/Accessor.hpp"
-#include "noa/runtime/core/Atomic.hpp"
 #include "noa/runtime/core/Batch.hpp"
 #include "noa/runtime/core/Border.hpp"
 #include "noa/runtime/core/Interfaces.hpp"
@@ -27,7 +26,6 @@
 #include "noa/runtime/Event.hpp"
 #include "noa/runtime/Ewise.hpp"
 #include "noa/runtime/Factory.hpp"
-#include "noa/runtime/Indexing.hpp"
 #include "noa/runtime/Layout.hpp"
 #include "noa/runtime/Iwise.hpp"
 #include "noa/runtime/Random.hpp"
