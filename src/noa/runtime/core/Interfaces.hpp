@@ -110,7 +110,128 @@ namespace noa::details {
 #endif
 
 namespace noa::traits {
-    NOA_GENERATE_PROCLAIM_FULL(compute_handle);
+    /// Hook to bypass the interface detection.
+    template<typename> struct proclaim_is_compute_handle : std::false_type {};
+
+    /// Compute handle.
+    ///
+    /// \note
+    /// The API description below is for documentation only. Use the proclaim_is_compute_handle to make a type actually
+    /// conform to the compute_handle concept. We unfortunately don't check for the API explicitly mostly because
+    /// 1) C++20 concepts and require expressions have a rather limited ability to exhaustively detect APIs (how to say
+    /// that a certain template function exists and test that, for instance, it can only accept integers?) and
+    /// 2) because some of the compute_handle might be device-only code and nvcc freaks out.
+    ///
+    /// \details Grid of thread-blocks. Grids are 1d, 2d, or 3d.
+    /// compute_handle.grid() -> {
+    ///     Integer type used for indexing.
+    ///     { T::index_type } -> integer;
+    ///
+    ///     Number of dimensions of the grid.
+    ///     { grid.ndim() } -> same_as<typename T::index_type>;
+    ///     { grid.template ndim<i32>() } -> same_as<i32>;
+    ///
+    ///     Grid size, i.e., number of blocks in the grid.
+    ///     { grid.size() } -> same_as<typename T::index_type>;
+    ///     { grid.template size<i32>() } -> same_as<i32>;
+    ///
+    ///     Grid shape, i.e., the number of blocks along the specified dimensions of the grid.
+    ///     If a shape with a higher dimension than the grid is requested, these higher dimensions have a size of 1.
+    ///     If a shape with a lower dimension than the grid is requested, the additional dimensions are simply ignored.
+    ///     { grid.template shape<integer, 3>() } -> same_as<Shape<I, 3>>;
+    ///
+    ///     Atomically adds a value.
+    ///     This function guarantees no data-races between the threads of the grid.
+    ///     { grid.atomic_add(value, accessor, indices...)
+    ///
+    ///     Whether the grid is part of a two-part reduction
+    ///     (and thus whether this is called from the first kernel).
+    ///     { grid.is_two_part_reduction() } -> same_as<bool>;
+    /// }
+    ///
+    /// \details Thread-blocks. Blocks are 1d, 2d, or 3d.
+    /// compute_handle.block() -> {
+    ///     Integer type used for indexing.
+    ///     { T::index_type } -> integer;
+    ///
+    ///     Number of dimensions of the block.
+    ///     { block.ndim() } -> same_as<typename T::index_type>;
+    ///     { block.template ndim<I>() } -> same_as<I>;
+    ///
+    ///     Block size, i.e., number of threads in the block.
+    ///     { block.size() } -> same_as<typename T::index_type>;
+    ///     { block.template size<I>() } -> same_as<I>;
+    ///
+    ///     Block shape, i.e., the number of threads along the specified dimensions of the block.
+    ///     If a shape with a higher dimension than the block is requested, these higher dimensions have a size of 1.
+    ///     If a shape with a lower dimension than the block is requested, the additional dimensions are simply ignored.
+    ///     { block.template shape<I, N>() } -> same_as<Shape<I, N>>;
+    ///
+    ///     Linear index of the block within the grid.
+    ///     { block.lid() } -> same_as<typename T::index_type>;
+    ///     { block.template lid<I>() } -> same_as<I>;
+    ///
+    ///     Returns the block nd-indices within the grid.
+    ///     If the grid has fewer dimensions than the requested indices, the extra indices are set to 0.
+    ///     If the grid has more dimensions than the requested indices, these higher dimensions are simply ignored.
+    ///     { block.template id<I, N>() } -> same_as<Vec<I, N>>;
+    ///
+    ///     Whether the block has some scratch memory available.
+    ///     In CUDA, the scratch is dynamic shared memory.
+    ///     { block.has_scratch() } -> same_as<bool>;
+    ///
+    ///     Returns the scratch span, which can be empty if the block doesn't have any scratch memory available
+    ///     { block.scratch() } -> details::scratch_span;
+    ///     { block.template scratch<T, I>() } -> details::scratch_span<T, I>;
+    ///
+    ///     Returns the scratch pointer, which can be null if the block doesn't have any scratch memory available
+    ///     { block.scratch_pointer() } -> same_as<std::byte*>;
+    ///     { block.template scratch_pointer<T>() } -> same_as<T*>;
+    ///
+    ///     Sets all bytes of the available scratch to zero and returns the scratch span.
+    ///     If the block doesn't have any scratch memory available, this does nothing and returns an empty span.
+    ///     { block.zeroed_scratch() } -> details::scratch_span;
+    ///     { block.template zeroed_scratch<T, I>() } -> details::scratch_span<T, I>;
+    ///
+    ///     Waits for all threads in the block to reach this point.
+    ///     After this point, memory writes are visible to other threads in the block.
+    ///     { block.synchronize() } -> same_as<void>;
+    ///
+    ///     Atomically adds a value, guarantees no data-races between the threads of the block.
+    ///     { block.atomic_add(value, accessor, indices...) }
+    /// }
+    ///
+    /// \details Thread
+    /// compute_handle.threads() -> {
+    ///     /// Integer type used for indexing.
+    ///     { T::index_type } -> integer;
+    ///
+    ///     Linear index of the thread within the block.
+    ///     { thread.lid() } -> same_as<typename T::index_type>;
+    ///     { thread.template lid<I>() } -> same_as<I>;
+    ///
+    ///     Returns the thread nd-indices within the block.
+    ///     If the block has fewer dimensions than the requested indices, the extra indices are set to 0.
+    ///     If the block has more dimensions than the requested indices, these higher dimensions are simply ignored.
+    ///     { thread.template id<I, N>() } -> same_as<Vec<I, N>>;
+    ///
+    ///     Returns the thread global index, i.e., the index within the grid of threads.
+    ///     This 1d-index is unique to each thread.
+    ///     { thread.gid() } -> same_as<typename T::index_type>;
+    ///     { thread.template gid<I>() } -> same_as<I>;
+    /// }
+    ///
+    /// \warning
+    /// Note that certain implementations (CUDA) may launch multi-grid kernels. At the moment, the compute handle
+    /// doesn't support this except thread().gid() which correctly computes the global multi-grid index thereby
+    /// ensuring a unique ID per-thread. The other member functions query the current grid. We could correct this
+    /// by tracking the grid shape (we already track the offset of the block indices), but the usefullness/cost ratio
+    /// seems quite low.
+    template<typename T>
+    concept compute_handle = proclaim_is_compute_handle<std::decay_t<T>>::value;
+
+    template<typename T> concept compute_handle_cpu = compute_handle<T> and T::is_cpu();
+    template<typename T> concept compute_handle_gpu = compute_handle<T> and T::is_gpu();
 }
 
 namespace noa::details {

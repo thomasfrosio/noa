@@ -21,8 +21,11 @@
 namespace noa::cuda::details {
     template<typename Block, typename Interface, typename Op, typename Input, typename Output, typename Index>
     __global__ __launch_bounds__(Block::block_size)
-    void ewise_2d(Op op, Input input, Output output, Index width) {
-        const auto ci = ComputeHandle<Index, 2, 1>{};
+    void ewise_2d(
+        Op op, Input input, Output output, Index width,
+        Vec<u32, 1> grid_size_y, Vec<u32, 1> block_index_offset_y
+    ) {
+        const auto ci = ComputeHandle<Index, 2, 1, true, false, false>(grid_size_y, block_index_offset_y);
         Interface::init(ci, op);
 
         const auto gid = global_indices_2d<Index, Block>();
@@ -38,8 +41,11 @@ namespace noa::cuda::details {
              typename Input, typename InputAlignedBuffer,
              typename Output, typename OutputAlignedBuffer>
     __global__ __launch_bounds__(Block::block_size)
-    void ewise_2d_vectorized(Op op, Input input, Output output, Index width) {
-        const auto ci = ComputeHandle<Index, 2, 1>{};
+    void ewise_2d_vectorized(
+        Op op, Input input, Output output, Index width,
+        Vec<u32, 1> grid_size_y, Vec<u32, 1> block_index_offset_y
+    ) {
+        const auto ci = ComputeHandle<Index, 2, 1, true, false, false>(grid_size_y, block_index_offset_y);
         Interface::init(ci, op);
 
         // Offset to the current row.
@@ -94,8 +100,12 @@ namespace noa::cuda::details {
     // 3d grid of 2d blocks.
     template<typename Block, typename Interface, typename Op, typename Input, typename Output, typename Index>
     __global__ __launch_bounds__(Block::block_size)
-    void ewise_4d(Op op, Input input, Output output, Shape<Index, 2> shape_hw, u32 n_blocks_x) {
-        const auto ci = ComputeHandle<Index, 3, Block::block_ndim>{};
+    void ewise_4d(
+        Op op, Input input, Output output, Shape<Index, 2> shape_hw,
+        Vec<u32, 2> grid_shape_zy, Vec<u32, 2> block_index_offset_zy, u32 n_blocks_x
+    ) {
+        const auto ci = ComputeHandle<Index, 3, Block::block_ndim, true, false, false>(
+            grid_shape_zy, block_index_offset_zy);
        Interface::init(ci, op);
 
         const auto gid = global_indices_4d<Index, Block>(n_blocks_x);
@@ -162,15 +172,17 @@ namespace noa::cuda::details {
                 .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y)),
                 .n_threads = dim3(Block::block_size, 1),
             };
+            const auto grid_size = Vec{grid_y.n_blocks_total()}.template as<u32>();
+            const auto grid_offset = Vec{grid_y.offset(y)};
             if constexpr (VECTORIZE) {
                 stream.enqueue(
                     details::ewise_2d_vectorized<Block, Interface, OpDecay, Index, Input2D, InputVec, Output2D, OutputVec>,
-                    config, op, input_2d, output_2d, n_elements
+                    config, op, input_2d, output_2d, n_elements, grid_size, grid_offset
                 );
             } else {
                 stream.enqueue(
                     details::ewise_2d<Block, Interface, OpDecay, Input2D, Output2D, Index>,
-                    config, op, input_2d, output_2d, n_elements
+                    config, op, input_2d, output_2d, n_elements, grid_size, grid_offset
                 );
             }
         }
@@ -298,9 +310,12 @@ namespace noa::cuda {
                         .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
                         .n_threads = dim3(Block::block_size_x, Block::block_size_y),
                     };
+                    const auto grid_size = Vec{grid_z.n_blocks_total(), grid_y.n_blocks_total()}.template as<u32>();
+                    const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
                     stream.enqueue(
                         details::ewise_4d<Block, Interface, OpDecay, InputDecay, OutputDecay, Index>,
-                        config, op, input_mut, output_mut, shape.filter(2, 3), grid_x.n_blocks_x()
+                        config, op, input_mut, output_mut, shape.filter(2, 3),
+                        grid_size, grid_offset, grid_x.n_blocks_x()
                     );
                 }
             }

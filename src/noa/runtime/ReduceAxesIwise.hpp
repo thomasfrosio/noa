@@ -171,7 +171,7 @@ namespace noa {
                 shape, device,
                 std::forward<Reduced>(reduced).tuple,
                 Tuple{},
-                std::forward<Operator>(op), {},
+                std::forward<Operator>(op), reduce_axes,
                 std::forward<Ts>(attachments)...);
         } else {
             nd::reduce_axes_iwise<OPTIONS, false, false, true>(
@@ -281,8 +281,12 @@ namespace noa::details {
                 auto& cuda_stream = Stream::current(device).cuda();
                 using config = noa::cuda::ReduceIwiseConfig<
                     ZIP_REDUCED, ZIP_OUTPUT,
-                    OPTIONS.gpu_block_size,
+                    OPTIONS.gpu_block_shape[1],
+                    OPTIONS.gpu_block_shape[0],
+                    OPTIONS.gpu_number_of_indices_per_threads[1],
+                    OPTIONS.gpu_number_of_indices_per_threads[0],
                     OPTIONS.gpu_max_grid_size,
+                    OPTIONS.gpu_optimize_block_shape,
                     OPTIONS.gpu_allow_two_kernels
                 >;
                 noa::cuda::reduce_axes_iwise<config>(

@@ -12,22 +12,30 @@ namespace noa::cpu::details {
         static constexpr auto is_cpu() -> bool { return true; }
         static constexpr auto is_gpu() -> bool { return false; }
 
-        /// The grid is the OpenMP team (aka the parallel region).
-        /// While this is quite different from, for instance, Kokkos, it works quite well for this library.
+        // The grid is the OpenMP team (aka the parallel region).
+        // While this is quite different from, for instance, Kokkos, it works quite well for this library.
         struct Grid {
             using index_type = Index;
 
-            /// Grid size, i.e., the number of blocks in the grid.
-            static constexpr auto size() -> Index {
-                return static_cast<Index>(1);
+            template<typename T = index_type>
+            static constexpr auto ndim() -> T { return static_cast<T>(1); }
+
+            template<typename T = index_type>
+            static constexpr auto size() -> T {
                 if constexpr (PARALLEL)
-                    return static_cast<Index>(omp_get_num_threads());
+                    return static_cast<T>(omp_get_num_threads());
                 else
-                    return static_cast<Index>(1);
+                    return static_cast<T>(1);
             }
 
-            /// Atomic add.
-            /// This function guarantees no data-races between the threads of the grid.
+            template<typename T, usize N> requires (1 <= N and N <= 3)
+            static constexpr auto shape() -> Shape<T, N> {
+                auto shape = Shape<T, N>::from_value(1);
+                if constexpr (PARALLEL)
+                    shape[N - 1] = size<T>();
+                return shape;
+            }
+
             template<typename... I, nt::atomic_addable_nd<sizeof...(I)> T>
             static NOA_HD auto atomic_add(const nt::mutable_value_type_t<T>& value, const T& accessor, I... indices) {
                 if constexpr (PARALLEL) {
@@ -49,34 +57,52 @@ namespace noa::cpu::details {
             static constexpr auto is_two_part_reduction() -> bool { return false; }
         };
 
-        /// Blocks are made of one (OpenMP) thread.
+        // Blocks are made of one (OpenMP) thread.
         struct Block {
             using index_type = Index;
 
+            template<typename T = index_type>
+            static constexpr auto ndim() -> T { return static_cast<T>(1); }
+
             [[nodiscard]] static constexpr auto has_scratch() -> bool { return false; }
-            [[nodiscard]] static constexpr auto scratch() -> SpanContiguous<std::byte> { return {}; }
-            static constexpr auto zeroed_scratch() -> SpanContiguous<std::byte> { return {}; }
 
-            /// Linear index of the block within the grid.
-            static constexpr auto lid() -> Index {
+            template<typename T = std::byte, typename I = index_type>
+            [[nodiscard]] static constexpr auto scratch() -> SpanContiguous<T, 1, I> { return {}; }
+
+            template<typename T = std::byte>
+            [[nodiscard]] static constexpr auto scratch_pointer() -> T* { return {}; }
+
+            template<typename T = std::byte, typename I = index_type>
+            static constexpr auto zeroed_scratch() -> SpanContiguous<T, 1, I> { return {}; }
+
+            template<typename I = index_type>
+            static constexpr auto lid() -> I {
                 if constexpr (PARALLEL)
-                    return static_cast<Index>(omp_get_thread_num());
+                    return static_cast<I>(omp_get_thread_num());
                 else
-                    return static_cast<Index>(0);
+                    return static_cast<I>(0);
             }
 
-            /// Block size, i.e. number of threads in the block.
-            static constexpr auto size() -> Index {
-                return static_cast<Index>(1);
+            template<typename I = index_type, usize N> requires (1 <= N and N <= 3)
+            static constexpr auto id() -> Vec<I, N> {
+                auto bid = Vec<I, N>{};
+                if constexpr (PARALLEL)
+                    bid[N - 1] = lid<I>();
+                return bid;
             }
 
-            /// Synchronizes the threads in the block.
-            static constexpr void synchronize() {
-                // no-op
+            template<typename I = index_type>
+            static constexpr auto size() -> I {
+                return static_cast<I>(1);
             }
 
-            /// Atomic add.
-            /// This function guarantees no data-races between the threads of the same block.
+            template<typename I, usize N> requires (1 <= N and N <= 3)
+            static constexpr auto shape() -> Shape<I, N> {
+                return Shape<I, N>::from_value(1);
+            }
+
+            static constexpr void synchronize() {}
+
             template<typename... I, nt::atomic_addable_nd<sizeof...(I)> T>
             static constexpr auto atomic_add(const nt::mutable_value_type_t<T>& value, const T& accessor, I... indices) {
                 accessor(indices...) += value;
@@ -86,12 +112,17 @@ namespace noa::cpu::details {
         struct Thread {
             using index_type = Index;
 
-            /// Linear index of the thread within the block.
-            static constexpr auto lid() -> Index { return 0; }
+            template<typename I = index_type>
+            static constexpr auto lid() -> I { return static_cast<I>(0); }
 
-            /// Returns a per-thread unique ID, i.e., each thread in the grid gets a unique value.
-            static constexpr auto uid() -> Index {
-                return block().lid();
+            template<typename I, usize N> requires (1 <= N and N <= 3)
+            static constexpr auto id() -> Vec<I, N> {
+                return {};
+            }
+
+            template<typename I = index_type>
+            static constexpr auto gid() -> I {
+                return block().template lid<I>();
             }
         };
 

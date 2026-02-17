@@ -7,11 +7,25 @@
 #include "noa/runtime/cuda/ReduceIwise.cuh"
 
 namespace noa::cuda::details {
-    template<typename Config, u32 BlockSizeX>
-    struct ReduceAxesIwiseWidthBlock {
-        static constexpr u32 block_size = max(BlockSizeX, Config::block_size);
-        static constexpr u32 block_size_x = BlockSizeX;
-        static constexpr u32 block_size_y = block_size / block_size_x;
+    template<typename Config, u32 WarpCountBlockSizeX>
+    struct ReduceIwiseSingleAxisBlock {
+        // Get a warp count that makes block_size_x a multiple of block_size.
+        static consteval auto best_block_size_x() {
+            u32 c = max(1u, WarpCountBlockSizeX);
+            for (;;) {
+                if (Constant::WARP_SIZE * c <= Config::block_size and
+                    is_multiple_of(Config::block_size, Constant::WARP_SIZE * c)) {
+                    break;
+                }
+                --c; // try a block size smaller by one warp
+            }
+            return Constant::WARP_SIZE * c;
+        }
+
+        static constexpr u32 block_size = Config::block_size; // is multiple of WARP_SIZE
+        static constexpr u32 block_size_x = Config::allow_block_reshape ? best_block_size_x() : Config::block_size_x;
+        static constexpr u32 block_size_y = Config::allow_block_reshape ? block_size / block_size_x : Config::block_size_y;
+        static constexpr u32 block_ndim = block_size_y > 1 ? 2 : 1;
     };
 
     template<size_t N, typename Block, typename Interface, typename Op, typename Index, typename Reduced, typename Output>
@@ -21,8 +35,9 @@ namespace noa::cuda::details {
         Shape<Index, 2> shape_hw,
         Reduced reduced,
         Output output,
-        Vec<u32, N - 2> grid_offset,
-        u32 scratch_size
+        u32 scratch_size,
+        Vec<u32, N - 2> grid_size,
+        Vec<u32, N - 2> grid_offset
     ) {
         // Multigrid case.
         auto bid = block_indices<u32, 3>();
@@ -40,7 +55,7 @@ namespace noa::cuda::details {
             tid[1]);
         const bool is_valid_row = gid[2] < shape_hw[0];
 
-        const auto ci = ComputeHandle<Index, 3, 2, true, false>(scratch_size);
+        const auto ci = ComputeHandle<Index, N - 1, 2, true, true, false>(scratch_size, grid_size, grid_offset);
         if constexpr (N == 4)
             Interface::init(ci, op, gid[0], gid[1], gid[2]);
         else if constexpr (N == 3)
@@ -86,13 +101,6 @@ namespace noa::cuda::details {
         }
     }
 
-    template<typename Config, u32 BlockSizeX>
-    struct ReduceAxesIwiseHeightBlock {
-        static constexpr u32 block_size = max(BlockSizeX, Config::block_size);
-        static constexpr u32 block_size_x = BlockSizeX;
-        static constexpr u32 block_size_y = block_size / block_size_x;
-    };
-
     template<size_t N, size_t R, typename Block, typename Interface, typename Op, typename Index, typename Reduced, typename Output>
     __global__ __launch_bounds__(Block::block_size)
     void reduce_height_iwise(
@@ -100,8 +108,9 @@ namespace noa::cuda::details {
         Shape<Index, 2> shape_hw,
         Reduced reduced,
         Output output,
-        Vec<u32, N - 2> grid_offset,
-        u32 scratch_size
+        u32 scratch_size,
+        Vec<u32, N - 2> grid_size,
+        Vec<u32, N - 2> grid_offset
     ) {
         // Multigrid case.
         auto bid = block_indices<u32, 3>();
@@ -118,7 +127,7 @@ namespace noa::cuda::details {
             bid[2] * Block::block_size_x + threadIdx.x);
         const bool is_valid_column = gid[3] < shape_hw[1];
 
-        const auto ci = ComputeHandle<Index, 3, 2, true, false>(scratch_size);
+        const auto ci = ComputeHandle<Index, N - 1, 2, true, true, false>(scratch_size, grid_size, grid_offset);
         if constexpr (N == 4)
             Interface::init(ci, op, gid[0], gid[1], gid[3]);
         else if constexpr (N == 3)
@@ -192,15 +201,9 @@ namespace noa::cuda::details {
                 static_assert(nt::always_false<Interface>);
         }
     }
+}
 
-    template<typename Config, size_t N> requires (N == 1 or N == 2)
-    struct ReduceAxesIwiseBlock {
-        static constexpr u32 max_grid_size = Config::max_grid_size;
-        static constexpr u32 block_size = max(Constant::WARP_SIZE, Config::block_size);
-        static constexpr u32 block_size_x = N == 1 ? block_size : Constant::WARP_SIZE;
-        static constexpr u32 block_size_y = block_size / block_size_x;
-    };
-
+namespace noa::cuda::details {
     template<typename Block, typename Interface, typename Op, typename Index, typename Reduced, typename Joined>
     __global__ __launch_bounds__(Block::block_size)
     void reduce_axes_iwise_4d_first(
@@ -209,11 +212,12 @@ namespace noa::cuda::details {
         Joined joined, // 2d Accessor of Reduced
         Vec<Index, 3> shape_dhw,
         Vec<u32, 2> n_blocks_hw,
-        u32 offset,
-        u32 scratch_size
+        u32 scratch_size,
+        u32 grid_size_z,
+        u32 block_index_offset_z
     ) {
         // Get the position within the 4d span.
-        const Index cb = blockIdx.z + offset;
+        const Index cb = blockIdx.z + block_index_offset_z;
         const Vec<u32, 2> index = offset2index(blockIdx.x, n_blocks_hw[1]);
         const auto gid = Vec<Index, 3>::from_values(
             blockIdx.y,
@@ -221,7 +225,8 @@ namespace noa::cuda::details {
             Block::block_size_x * index[1] + threadIdx.x
         );
 
-        const auto ci = ComputeHandle<Index, 3, 2, true, true>(scratch_size);
+        const auto ci = ComputeHandle<Index, 3, 2, true, true, true>(
+            scratch_size, Vec<u32, 2>{grid_size_z, 1}, Vec<u32, 2>{block_index_offset_z, 0});
         Interface::init(ci, op, cb);
 
         // Traverse the entire 3d span of this batch.
@@ -245,16 +250,18 @@ namespace noa::cuda::details {
         Reduced reduced,
         Joined joined, // 2d Accessor of Reduced
         Vec<Index, 2> shape_hw,
-        u32 offset,
-        u32 scratch_size
+        u32 scratch_size,
+        u32 grid_size_z,
+        u32 block_index_offset_z
     ) {
-        const Index cd = blockIdx.z + offset;
+        const Index cd = blockIdx.z + block_index_offset_z;
         const auto gid = Vec<Index, 2>::from_values(
             Block::block_size_y * blockIdx.y + threadIdx.y,
             Block::block_size_x * blockIdx.x + threadIdx.x
         );
 
-        const auto ci = ComputeHandle<Index, 3, 2, true, true>(scratch_size);
+        const auto ci = ComputeHandle<Index, 3, 2, true, true, true>(
+            scratch_size, Vec<u32, 2>{grid_size_z, 1}, Vec<u32, 2>{block_index_offset_z, 0});
         Interface::init(ci, op, cd);
 
         for (Index ch = gid[0]; ch < shape_hw[0]; ch += Block::block_size_y * gridDim.y)
@@ -275,14 +282,16 @@ namespace noa::cuda::details {
         Reduced reduced,
         Joined joined,
         Vec<Index, 1> shape,
-        u32 offset,
-        u32 scratch_size
+        u32 scratch_size,
+        u32 grid_size_z,
+        u32 block_index_offset_z
     ) {
         static_assert(Block::block_size_y == 1);
-        const Index ch = blockIdx.z + offset;
+        const Index ch = blockIdx.z + block_index_offset_z;
         const Index gid = Block::block_size_x * blockIdx.x + threadIdx.x;
 
-        const auto ci = ComputeHandle<Index, 3, 1, true, true>(scratch_size);
+        const auto ci = ComputeHandle<Index, 3, 1, true, true, true>(
+            scratch_size, Vec<u32, 2>{grid_size_z, 1}, Vec<u32, 2>{block_index_offset_z, 0});
         Interface::init(ci, op, ch);
 
         for (Index cw = gid; cw < shape[0]; cw += Block::block_size_x * gridDim.x)
@@ -295,8 +304,8 @@ namespace noa::cuda::details {
         block_join<Interface, Block::block_size, false>(op, reduced, joined, tid, ch, bid);
     }
 
-    template<typename Block, typename Interface, typename Op, typename Index, typename Joined, typename Reduced, typename Output>
-    __global__ __launch_bounds__(Block::block_size)
+    template<u32 BlockSize, typename Interface, typename Op, typename Index, typename Joined, typename Reduced, typename Output>
+    __global__ __launch_bounds__(BlockSize)
     void reduce_axes_iwise_second(
         Op op,
         Joined to_join,
@@ -307,10 +316,10 @@ namespace noa::cuda::details {
         const Index batch = blockIdx.x;
         const Index tid = threadIdx.x;
         if constexpr (not nt::empty_tuple<Reduced>) {
-            for (Index cid = tid; cid < n_to_join; cid += Block::block_size)
+            for (Index cid = tid; cid < n_to_join; cid += BlockSize)
                 Interface::join(op, to_join(batch, cid), reduced);
         }
-        block_join_and_post<Interface, Block::block_size, true>(op, reduced, output, tid, batch);
+        block_join_and_post<Interface, BlockSize, true>(op, reduced, output, tid, batch);
     }
 
     template<typename Block, typename Interface, typename Op, typename Index, typename Reduced, typename Output>
@@ -318,7 +327,7 @@ namespace noa::cuda::details {
     void reduce_axes_iwise_4d_small(Op op, Reduced reduced, Output output, Vec<Index, 3> shape_dhw, u32 scratch_size) {
         const Index cb = blockIdx.x;
 
-        const auto ci = ComputeHandle<Index, 1, 2, true, false>(scratch_size);
+        const auto ci = ComputeHandle<Index, 1, 2, false, true, false>(scratch_size);
         Interface::init(ci, op, cb);
 
         const auto gid = Vec<Index, 3>::from_values(0, threadIdx.y, threadIdx.x);
@@ -338,7 +347,7 @@ namespace noa::cuda::details {
     void reduce_axes_iwise_3d_small(Op op, Reduced reduced, Output output, Vec<Index, 2> shape_hw, u32 scratch_size) {
         const Index cd = blockIdx.x;
 
-        const auto ci = ComputeHandle<Index, 1, 2, true, false>(scratch_size);
+        const auto ci = ComputeHandle<Index, 1, 2, false, true, false>(scratch_size);
         Interface::init(ci, op, cd);
 
         const auto gid = Vec<Index, 2>::from_values(threadIdx.y, threadIdx.x);
@@ -358,7 +367,7 @@ namespace noa::cuda::details {
         static_assert(Block::block_size_y == 1);
         const Index ch = blockIdx.x;
 
-        const auto ci = ComputeHandle<Index, 1, 2, true, false>(scratch_size);
+        const auto ci = ComputeHandle<Index, 1, 2, false, true, false>(scratch_size);
         Interface::init(ci, op, ch);
 
         const Index tid = threadIdx.x;
@@ -372,37 +381,6 @@ namespace noa::cuda::details {
 }
 
 namespace noa::cuda::details {
-    template<typename Config, size_t N>
-    auto reduce_axes_iwise_nd_first_config(const Shape<isize, N>& shape) {
-        // Note that while we could increase the grid size when the reduced tuple is empty, we keep it as specified
-        // by the caller. The default value is large enough, and it's only for large reductions that increasing
-        // would help. In this rare case, it's up to the user, for now at least.
-        constexpr auto max_grid_size = static_cast<isize>(Config::max_grid_size);
-        constexpr auto block_size = Vec<isize, 3>::from_values(1, Config::block_size_y, Config::block_size_x);
-        static_assert(N >= 2 or Config::block_size_y == 1);
-
-        // Set the number of blocks while keeping the total number of blocks under the maximum allowed.
-        auto n_blocks = Vec<isize, 3>::from_value(1);
-        const auto shape_whd = shape.flip();
-        for (isize i = 0; i <  static_cast<isize>(N); ++i) {
-            const auto n_blocks_allowed = max_grid_size / product(n_blocks);
-            n_blocks[2 - i] = min(divide_up(shape_whd[i], block_size[2 - i]), n_blocks_allowed);
-        }
-
-        const auto n_blocks_u32 = n_blocks.as<u32>();
-        const auto n_threads = dim3(block_size[2], block_size[1], 1);
-        const auto n_blocks_dim3 = [&] {
-            if constexpr (N == 3)
-                return dim3(n_blocks_u32[2] * n_blocks_u32[1], n_blocks_u32[0]);
-            else
-                return dim3(n_blocks_u32[2], n_blocks_u32[1]);
-        }();
-
-        auto config = LaunchConfig{.n_blocks=n_blocks_dim3, .n_threads=n_threads};
-        auto n_blocks_yx = Vec{n_blocks_u32[1], n_blocks_u32[2]};
-        return make_tuple(config, product(n_blocks_u32), n_blocks_yx);
-    }
-
     template<typename Config, typename Op, typename Reduced, typename Output, typename Index>
     void launch_reduce_axes_iwise_4d(
         const Shape<Index, 4>& input_shape,
@@ -431,10 +409,11 @@ namespace noa::cuda::details {
             using Output3D = decltype(output_3d);
 
             // Block shape.
-            u32 n_threads_x = shape_u32[3] > 512 ? 256u : 64u;
-            if (not is_multiple_of(Config::block_size, n_threads_x))
-                n_threads_x = Constant::WARP_SIZE;
-            const u32 n_threads_y = max(Config::block_size, n_threads_x) / n_threads_x;
+            using block_big_x = ReduceIwiseSingleAxisBlock<Config, 8>;
+            using block_small_x = ReduceIwiseSingleAxisBlock<Config, 2>;
+            const bool is_big_x = shape_u32[3] > 512;
+            const auto n_threads_x = is_big_x ? block_big_x::block_size_x : block_small_x::block_size_x;
+            const auto n_threads_y = is_big_x ? block_big_x::block_size_y : block_small_x::block_size_y;
             const auto n_threads = dim3(n_threads_x, n_threads_y);
 
             // Grid shape.
@@ -450,18 +429,19 @@ namespace noa::cuda::details {
                         .n_threads = n_threads,
                         .n_bytes_of_shared_memory = n_bytes_of_shared_memory,
                     };
+                    const auto grid_size = Vec{grid_z.n_blocks_total(), grid_y.n_blocks_total()}.template as<u32>();
                     const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
-                    if (n_threads_x == 256) {
-                        using Block = ReduceAxesIwiseWidthBlock<Config, 256>;
+                    if (is_big_x) {
                         stream.enqueue(
-                            reduce_width_iwise<4, Block, Interface, OpDecay, Index, ReducedDecay, Output3D>,
-                            config, op, shape_hw, reduced, output_3d, grid_offset, static_cast<u32>(scratch_size)
+                            reduce_width_iwise<4, block_big_x, Interface, OpDecay, Index, ReducedDecay, Output3D>,
+                            config, op, shape_hw, reduced, output_3d,
+                            static_cast<u32>(scratch_size), grid_size, grid_offset
                         );
                     } else {
-                        using Block = ReduceAxesIwiseWidthBlock<Config, 64>;
                         stream.enqueue(
-                            reduce_width_iwise<4, Block, Interface, OpDecay, Index, ReducedDecay, Output3D>,
-                            config, op, shape_hw, reduced, output_3d, grid_offset, static_cast<u32>(scratch_size)
+                            reduce_width_iwise<4, block_small_x, Interface, OpDecay, Index, ReducedDecay, Output3D>,
+                            config, op, shape_hw, reduced, output_3d,
+                            static_cast<u32>(scratch_size), grid_size, grid_offset
                         );
                     }
                 }
@@ -484,17 +464,15 @@ namespace noa::cuda::details {
             using ReorderedOutput3D = decltype(reordered_output_3d);
 
             // Block shape.
-            constexpr u32 N_THREADS_X = Constant::WARP_SIZE;
-            constexpr u32 N_THREADS_Y = max(Config::block_size, N_THREADS_X) / N_THREADS_X;
-            const auto n_threads = dim3(N_THREADS_X, N_THREADS_Y);
+            using Block = ReduceIwise2dBlock<Config>;
+            const auto n_threads = dim3(Block::block_size_x, Block::block_size_y);
 
             // Grid shape.
-            const auto grid_x = GridX(reordered_shape[3], N_THREADS_X);
+            const auto grid_x = GridX(reordered_shape[3], Block::block_size_x);
             const auto grid_y = GridY(reordered_shape[1], 1);
             const auto grid_z = GridZ(reordered_shape[0], 1);
             check(grid_x.n_launches() == 1);
 
-            using Block = ReduceAxesIwiseHeightBlock<Config, N_THREADS_X>;
             const auto shape_2d = reordered_shape.template pop_front<2>();
 
             for (u32 z{}; z < grid_z.n_launches(); ++z) {
@@ -504,21 +482,25 @@ namespace noa::cuda::details {
                         .n_threads = n_threads,
                         .n_bytes_of_shared_memory = n_bytes_of_shared_memory,
                     };
+                    const auto grid_size = Vec{grid_z.n_blocks_total(), grid_y.n_blocks_total()}.template as<u32>();
                     const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
                     if (axes_to_reduce[2]) {
                         stream.enqueue(
                             reduce_height_iwise<4, 2, Block, Interface, OpDecay, Index, ReducedDecay, ReorderedOutput3D>,
-                            config, op, shape_2d, reduced, reordered_output_3d, grid_offset, static_cast<u32>(scratch_size)
+                            config, op, shape_2d, reduced, reordered_output_3d,
+                             static_cast<u32>(scratch_size), grid_size, grid_offset
                         );
                     } else if (axes_to_reduce[1]) {
                         stream.enqueue(
                             reduce_height_iwise<4, 1, Block, Interface, OpDecay, Index, ReducedDecay, ReorderedOutput3D>,
-                            config, op, shape_2d, reduced, reordered_output_3d, grid_offset, static_cast<u32>(scratch_size)
+                            config, op, shape_2d, reduced, reordered_output_3d,
+                             static_cast<u32>(scratch_size), grid_size, grid_offset
                         );
                     } else {
                         stream.enqueue(
                             reduce_height_iwise<4, 0, Block, Interface, OpDecay, Index, ReducedDecay, ReorderedOutput3D>,
-                            config, op, shape_2d, reduced, reordered_output_3d, grid_offset, static_cast<u32>(scratch_size)
+                            config, op, shape_2d, reduced, reordered_output_3d,
+                             static_cast<u32>(scratch_size), grid_size, grid_offset
                         );
                     }
                 }
@@ -554,10 +536,11 @@ namespace noa::cuda::details {
             using Output2D = decltype(output_2d);
 
             // Block shape.
-            u32 n_threads_x = shape_u32[2] > 512 ? 256u : 64u;
-            if (not is_multiple_of(Config::block_size, n_threads_x))
-                n_threads_x = Constant::WARP_SIZE;
-            const u32 n_threads_y = max(Config::block_size, n_threads_x) / n_threads_x;
+            using block_big_x = ReduceIwiseSingleAxisBlock<Config, 8>;
+            using block_small_x = ReduceIwiseSingleAxisBlock<Config, 2>;
+            const bool is_big_x = shape_u32[2] > 512;
+            const auto n_threads_x = is_big_x ? block_big_x::block_size_x : block_small_x::block_size_x;
+            const auto n_threads_y = is_big_x ? block_big_x::block_size_y : block_small_x::block_size_y;
             const auto n_threads = dim3(n_threads_x, n_threads_y);
 
             // Grid shape.
@@ -571,18 +554,19 @@ namespace noa::cuda::details {
                     .n_threads = n_threads,
                     .n_bytes_of_shared_memory = n_bytes_of_shared_memory,
                 };
+                const auto grid_size = Vec{grid_y.n_blocks_total()}.template as<u32>();;
                 const auto grid_offset = Vec{grid_y.offset(y)};
-                if (n_threads_x == 256) {
-                    using Block = ReduceAxesIwiseWidthBlock<Config, 256>;
+                if (is_big_x) {
                     stream.enqueue(
-                        reduce_width_iwise<3, Block, Interface, OpDecay, Index, ReducedDecay, Output2D>,
-                        config, op, shape_hw, reduced, output_2d, grid_offset, static_cast<u32>(scratch_size)
+                        reduce_width_iwise<3, block_big_x, Interface, OpDecay, Index, ReducedDecay, Output2D>,
+                        config, op, shape_hw, reduced, output_2d,
+                        static_cast<u32>(scratch_size), grid_size, grid_offset
                     );
                 } else {
-                    using Block = ReduceAxesIwiseWidthBlock<Config, 64>;
                     stream.enqueue(
-                        reduce_width_iwise<3, Block, Interface, OpDecay, Index, ReducedDecay, Output2D>,
-                        config, op, shape_hw, reduced, output_2d, grid_offset, static_cast<u32>(scratch_size)
+                        reduce_width_iwise<3, block_small_x, Interface, OpDecay, Index, ReducedDecay, Output2D>,
+                        config, op, shape_hw, reduced, output_2d,
+                        static_cast<u32>(scratch_size), grid_size, grid_offset
                     );
                 }
             }
@@ -604,16 +588,14 @@ namespace noa::cuda::details {
             using ReorderedOutput2D = decltype(reordered_output_2d);
 
             // Block shape.
-            constexpr u32 N_THREADS_X = Constant::WARP_SIZE;
-            constexpr u32 N_THREADS_Y = max(Config::block_size, N_THREADS_X) / N_THREADS_X;
-            const auto n_threads = dim3(N_THREADS_X, N_THREADS_Y);
+            using Block = ReduceIwise2dBlock<Config>;
+            const auto n_threads = dim3(Block::block_size_x, Block::block_size_y);
 
             // Grid shape.
-            const auto grid_x = GridX(reordered_shape[2], N_THREADS_X);
+            const auto grid_x = GridX(reordered_shape[2], Block::block_size_x);
             const auto grid_y = GridY(reordered_shape[0], 1);
             check(grid_x.n_launches() == 1);
 
-            using Block = ReduceAxesIwiseHeightBlock<Config, N_THREADS_X>;
             const auto shape_2d = reordered_shape.template pop_front<1>();
 
             for (u32 y{}; y < grid_y.n_launches(); ++y) {
@@ -622,16 +604,19 @@ namespace noa::cuda::details {
                     .n_threads = n_threads,
                     .n_bytes_of_shared_memory = n_bytes_of_shared_memory,
                 };
+                const auto grid_size = Vec{grid_y.n_blocks_total()}.template as<u32>();
                 const auto grid_offset = Vec{grid_y.offset(y)};
                 if (axes_to_reduce[1]) {
                     stream.enqueue(
                         reduce_height_iwise<3, 1, Block, Interface, OpDecay, Index, ReducedDecay, ReorderedOutput2D>,
-                        config, op, shape_2d, reduced, reordered_output_2d, grid_offset, static_cast<u32>(scratch_size)
+                        config, op, shape_2d, reduced, reordered_output_2d,
+                        static_cast<u32>(scratch_size), grid_size, grid_offset
                     );
                 } else {
                     stream.enqueue(
                         reduce_height_iwise<3, 0, Block, Interface, OpDecay, Index, ReducedDecay, ReorderedOutput2D>,
-                        config, op, shape_2d, reduced, reordered_output_2d, grid_offset, static_cast<u32>(scratch_size)
+                        config, op, shape_2d, reduced, reordered_output_2d,
+                        static_cast<u32>(scratch_size), grid_size, grid_offset
                     );
                 }
             }
@@ -657,12 +642,12 @@ namespace noa::cuda::details {
 
         if (axes_to_reduce[0]) {
             const auto input_shape_u32 = input_shape.template as<u32>();
-            constexpr u32 N_THREADS_X = Constant::WARP_SIZE;
-            constexpr u32 N_THREADS_Y = max(Config::block_size, N_THREADS_X) / N_THREADS_X;
-            const u32 n_blocks_x = divide_up(input_shape_u32[1], N_THREADS_X);
+
+            using Block = ReduceIwise2dBlock<Config>;
+            const u32 n_blocks_x = divide_up(input_shape_u32[1], Block::block_size_x);
             const auto config = LaunchConfig{
                 .n_blocks = dim3(n_blocks_x, 1, 1),
-                .n_threads = dim3(N_THREADS_X, N_THREADS_Y),
+                .n_threads = dim3(Block::block_size_x, Block::block_size_y),
                 .n_bytes_of_shared_memory = n_bytes_of_shared_memory,
             };
 
@@ -670,12 +655,11 @@ namespace noa::cuda::details {
             auto output_1d = nd::reconfig_accessors<TO_1D>(output);
             using Output1D = decltype(output_1d);
 
-            using Block = ReduceAxesIwiseHeightBlock<Config, N_THREADS_X>;
             using Interface = Config::interface;
             stream.enqueue(
                 reduce_height_iwise<2, 0, Block, Interface, OpDecay, Index, ReducedDecay, Output1D>,
-                config, std::forward<Op>(op), input_shape,
-                std::forward<Reduced>(reduced), output_1d, Vec<u32, 0>{}, static_cast<u32>(scratch_size)
+                config, std::forward<Op>(op), input_shape, std::forward<Reduced>(reduced), output_1d,
+                static_cast<u32>(scratch_size), Vec<u32, 0>{}, Vec<u32, 0>{}
             );
         } else {
             panic("unreachable");
@@ -684,22 +668,9 @@ namespace noa::cuda::details {
 }
 
 namespace noa::cuda {
-    template<bool ZipReduced = false,
-             bool ZipOutput = false,
-             u32 BlockSize = 512,
-             u32 MaxGridSize = 4096,
-             bool AllowTwoKernels = true>
-    struct ReduceAxesIwiseConfig {
-        static_assert(is_multiple_of(BlockSize, Constant::WARP_SIZE) and BlockSize <= Limits::MAX_THREADS);
-        using interface = nd::ReduceIwiseInterface<ZipReduced, ZipOutput>;
-        static constexpr u32 block_size = BlockSize;
-        static constexpr u32 max_grid_size = MaxGridSize;
-        static constexpr bool allow_two_kernels = AllowTwoKernels;
-    };
-
-    template<typename Config = ReduceAxesIwiseConfig<>,
+    template<typename Config = ReduceIwiseConfig<>,
              typename Op, typename Reduced, typename Output, typename Index, size_t N>
-    requires (nt::tuple_of_accessor_value<std::decay_t<Reduced>> and
+    requires (nt::tuple_of_accessor_value_or_empty<std::decay_t<Reduced>> and
               nt::tuple_of_accessor_pure_nd_or_empty<Output, N>)
     NOA_NOINLINE void reduce_axes_iwise(
         const Shape<Index, N>& input_shape,
@@ -745,7 +716,9 @@ namespace noa::cuda {
 
             // Reduce to one value per leftmost.
             if (axes_empty_or_to_reduce.pop_front() == true) {
-                using Block = details::ReduceAxesIwiseBlock<Config, N == 2 ? 1 : 2>;
+                using block_1d = details::ReduceIwise1dBlock<Config>;
+                using block_2d = details::ReduceIwise2dBlock<Config>;
+                using Block = std::conditional_t<N == 2, block_1d, block_2d>;
                 using Interface = Config::interface;
 
                 const auto n_elements = shape_to_reduce_iz.n_elements();
@@ -781,37 +754,43 @@ namespace noa::cuda {
                         );
                     }
                 } else {
+                    // Compute the grid shape necessary to loop through the reduced elements.
+                    // We add one to the shape_to_reduce so that the returned config has config.n_blocks.z == 1.
+                    // This is because the leftmost dimension is on a separate dimension of the grid (z).
                     auto [config, n_blocks_per_batch, n_blocks_hw] =
-                        details::reduce_axes_iwise_nd_first_config<Block>(shape_to_reduce_iz);
-                    config.n_bytes_of_shared_memory = n_bytes_of_shared_memory;
+                        details::reduce_iwise_nd_first_config<Block>(
+                            shape_to_reduce_iz.push_front(1));
 
                     // Allocate the 2d buffer.
                     constexpr bool HAS_REDUCED = not nt::empty_tuple<Reduced>;
                     const auto joined_size = HAS_REDUCED ? n_blocks_per_batch * batch : 0;
                     using Joined = AccessorRestrictContiguous<ReducedDecay, 2, Index>;
                     auto buffer = AllocatorDevice::allocate_async<ReducedDecay>(joined_size, stream);
-                    auto joined = Joined(buffer.get(), Strides<Index, 2>{n_blocks_per_batch, 1});
+                    auto joined = Joined(buffer.get(), Strides<Index, 2>::from_values(n_blocks_per_batch, 1));
+
+                    config.n_bytes_of_shared_memory = n_bytes_of_shared_memory;
 
                     auto grid_z = GridZ(batch, 1);
                     for (u32 z{}; z < grid_z.n_launches(); ++z) {
                         config.n_blocks.z = grid_z.n_blocks(z);
+
                         if constexpr (N == 4) {
                             stream.enqueue(
                                 details::reduce_axes_iwise_4d_first<Block, Interface, OpDecay, Index, ReducedDecay, Joined>,
-                                config, op, reduced, joined, shape_to_reduce.vec, n_blocks_hw, grid_z.offset(z),
-                                static_cast<u32>(scratch_size)
+                                config, op, reduced, joined, shape_to_reduce.vec, n_blocks_hw,
+                                static_cast<u32>(scratch_size), static_cast<u32>(grid_z.n_blocks_total()), grid_z.offset(z)
                             );
                         } else if constexpr (N == 3) {
                             stream.enqueue(
                                 details::reduce_axes_iwise_3d_first<Block, Interface, OpDecay, Index, ReducedDecay, Joined>,
-                                config, op, reduced, joined, shape_to_reduce.vec, grid_z.offset(z),
-                                static_cast<u32>(scratch_size)
+                                config, op, reduced, joined, shape_to_reduce.vec,
+                                static_cast<u32>(scratch_size), static_cast<u32>(grid_z.n_blocks_total()), grid_z.offset(z)
                             );
                         } else {
                             stream.enqueue(
                                 details::reduce_axes_iwise_2d_first<Block, Interface, OpDecay, Index, ReducedDecay, Joined>,
-                                config, op, reduced, joined, shape_to_reduce.vec, grid_z.offset(z),
-                                static_cast<u32>(scratch_size)
+                                config, op, reduced, joined, shape_to_reduce.vec,
+                                static_cast<u32>(scratch_size), static_cast<u32>(grid_z.n_blocks_total()), grid_z.offset(z)
                             );
                         }
                     }
@@ -819,9 +798,10 @@ namespace noa::cuda {
                     // Second kernel.
                     // TODO If there's no value to reduce, check that op has a valid post and if not skip the launch.
                     stream.enqueue(
-                        details::reduce_axes_iwise_second<Config, Interface, OpDecay, Index, Joined, ReducedDecay, Output1d>,
+                        details::reduce_axes_iwise_second<Config::block_size, Interface, OpDecay, Index, Joined, ReducedDecay, Output1d>,
                         LaunchConfig{.n_blocks = batch, .n_threads = HAS_REDUCED ? Config::block_size : 1},
-                        std::forward<Op>(op), joined, n_blocks_per_batch, std::forward<Reduced>(reduced), output_1d
+                        std::forward<Op>(op), joined, static_cast<Index>(n_blocks_per_batch),
+                        std::forward<Reduced>(reduced), output_1d
                     );
                 }
                 return;

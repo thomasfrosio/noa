@@ -399,14 +399,14 @@ TEST_CASE("runtime::core:: Reinterpret") {
     const auto shape = test::random_shape<i64>(3, {.batch_range={1, 10}});
     auto strides = shape.strides();
     c32* ptr = nullptr;
-    auto real = noa::details::ReinterpretLayout(shape, strides, ptr).as<float>();
+    auto real = noa::details::ReinterpretLayoutStrided<4, c32, i64>(shape, strides, ptr).as<float>();
     REQUIRE(real.shape == Shape<i64, 4>{shape[0], shape[1], shape[2], shape[3] * 2});
     REQUIRE(real.strides == Strides<i64, 4>{strides[0] * 2, strides[1] * 2, strides[2] * 2, 1});
 
     // Reinterpret moves everything to the rightmost order,
     // compute the new shape and strides, then moves back to original order.
     strides = shape.strides<'F'>();
-    real = noa::details::ReinterpretLayout(shape, strides, ptr).as<float>();
+    real = noa::details::ReinterpretLayoutStrided<4, c32, i64>(shape, strides, ptr).as<float>();
     REQUIRE(real.shape == Shape<i64, 4>{shape[0], shape[1], shape[2] * 2, shape[3]});
     REQUIRE(real.strides == Strides<i64, 4>{strides[0] * 2, strides[1] * 2, 1, strides[3] * 2});
 }

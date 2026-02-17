@@ -27,7 +27,7 @@ namespace noa::cpu::details {
                         for (Index i = 0; i < shape[0]; ++i) {
                             for (Index j = 0; j < shape[1]; ++j) {
                                 for (Index k = 0; k < shape[2]; ++k) {
-                                    interface::deinit(ci, op, i, j, k);
+                                    interface::init(ci, op, i, j, k);
                                     auto local = reduced;
                                     for (Index l = 0; l < shape[3]; ++l) {
                                         if constexpr (R == 0) {
@@ -51,7 +51,7 @@ namespace noa::cpu::details {
                         #pragma omp for collapse(2)
                         for (Index i = 0; i < shape[0]; ++i) {
                             for (Index j = 0; j < shape[1]; ++j) {
-                                interface::deinit(ci, op, i, j);
+                                interface::init(ci, op, i, j);
                                 auto local = reduced;
                                 for (Index k = 0; k < shape[2]; ++k) {
                                     if constexpr (R == 0) {
@@ -71,7 +71,7 @@ namespace noa::cpu::details {
                     } else if constexpr (N == 2) {
                         #pragma omp for
                         for (Index i = 0; i < shape[0]; ++i) {
-                            interface::deinit(ci, op, i);
+                            interface::init(ci, op, i);
                             auto local = reduced;
                             for (Index j = 0; j < shape[1]; ++j) {
                                 if constexpr (R == 0) {
@@ -369,91 +369,95 @@ namespace noa::cpu {
         using reduce_axes_iwise_t = details::ReduceAxesIwise<Config::zip_reduced, Config::zip_output>;
         const auto shape = input_shape.template as<isize>();
         const auto n_batches = clamp_cast<i32>(shape[0]);
-        const isize n_elements_to_reduce = input_shape.template as<isize>().n_elements();
+        const isize n_elements_to_reduce = shape.n_elements();
         const bool is_small = n_elements_to_reduce <= Config::n_elements_per_thread;
+
+        i32 actual_n_threads = is_small ? 1 : n_threads;
+        if (actual_n_threads > 1)
+            actual_n_threads = min(n_threads, clamp_cast<i32>(n_elements_to_reduce / Config::n_elements_per_thread));
 
         if constexpr (N == 4) {
             if (axes_empty_or_to_reduce.pop_front() == true) { // reduce to one value per batch
                 auto output_1d = nd::reconfig_accessors<nd::AccessorConfig<1>{.filter = {0}}>(output);
-                if (is_small or n_threads <= 1) {
+                if (is_small) {
                     reduce_axes_iwise_t::serial_4d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
-                } else if (n_batches < n_threads) {
+                } else if (n_batches < actual_n_threads) {
                     reduce_axes_iwise_t::template parallel_4d<reduce_axes_iwise_t::ParallelReduction>(
-                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
+                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, actual_n_threads);
                 } else {
                     reduce_axes_iwise_t::template parallel_4d<reduce_axes_iwise_t::SerialReduction>(
-                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
+                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, actual_n_threads);
                 }
             } else {
                 if (axes_to_reduce[3]) {
                     auto output_3d = nd::reconfig_accessors<nd::AccessorConfig<3>{.filter = {0, 1, 2}}>(output);
                     reduce_axes_iwise_t::template single_axis<3>(
                         input_shape, std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_3d, n_threads);
+                        std::forward<Reduced>(reduced), output_3d, actual_n_threads);
                 } else if (axes_to_reduce[2]) {
                     auto output_3d = nd::reconfig_accessors<nd::AccessorConfig<3>{.filter = {0, 1, 3}}>(output);
                     reduce_axes_iwise_t::template single_axis<2>(
                         input_shape.filter(0, 1, 3, 2), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_3d, n_threads);
+                        std::forward<Reduced>(reduced), output_3d, actual_n_threads);
                 } else if (axes_to_reduce[1]) {
                     auto output_3d = nd::reconfig_accessors<nd::AccessorConfig<3>{.filter = {0, 2, 3}}>(output);
                     reduce_axes_iwise_t::template single_axis<1>(
                         input_shape.filter(0, 2, 3, 1), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_3d, n_threads);
+                        std::forward<Reduced>(reduced), output_3d, actual_n_threads);
                 } else {
                     auto output_3d = nd::reconfig_accessors<nd::AccessorConfig<3>{.filter = {1, 2, 3}}>(output);
                     reduce_axes_iwise_t::template single_axis<0>(
                         input_shape.filter(1, 2, 3, 0), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_3d, n_threads);
+                        std::forward<Reduced>(reduced), output_3d, actual_n_threads);
                 }
             }
         } else if constexpr (N == 3) {
             if (axes_empty_or_to_reduce.pop_front() == true) { // reduce to one value per batch
                 auto output_1d = nd::reconfig_accessors<nd::AccessorConfig<1>{.filter={0}}>(output);
-                if (is_small or n_threads <= 1) {
+                if (is_small) {
                     reduce_axes_iwise_t::serial_3d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
-                } else if (n_batches < n_threads) {
+                } else if (n_batches < actual_n_threads) {
                     reduce_axes_iwise_t::template parallel_3d<reduce_axes_iwise_t::ParallelReduction>(
-                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
+                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, actual_n_threads);
                 } else {
                     reduce_axes_iwise_t::template parallel_3d<reduce_axes_iwise_t::SerialReduction>(
-                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
+                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, actual_n_threads);
                 }
             } else {
                 if (axes_to_reduce[2]) {
                     auto output_2d = nd::reconfig_accessors<nd::AccessorConfig<2>{.filter = {0, 1}}>(output);
                     reduce_axes_iwise_t::template single_axis<2>(
                         input_shape, std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_2d, n_threads);
+                        std::forward<Reduced>(reduced), output_2d, actual_n_threads);
                 } else if (axes_to_reduce[1]) {
                     auto output_2d = nd::reconfig_accessors<nd::AccessorConfig<2>{.filter = {0, 2}}>(output);
                     reduce_axes_iwise_t::template single_axis<1>(
                         input_shape.filter(0, 2, 1), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_2d, n_threads);
+                        std::forward<Reduced>(reduced), output_2d, actual_n_threads);
                 } else {
                     auto output_2d = nd::reconfig_accessors<nd::AccessorConfig<2>{.filter = {1, 2}}>(output);
                     reduce_axes_iwise_t::template single_axis<0>(
                         input_shape.filter(1, 2, 0), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_2d, n_threads);
+                        std::forward<Reduced>(reduced), output_2d, actual_n_threads);
                 }
             }
         } else if constexpr (N == 2) {
             if (axes_to_reduce[1]) {
                 auto output_1d = nd::reconfig_accessors<nd::AccessorConfig<1>{.filter = {0}}>(output);
-                if (is_small or n_threads <= 1) {
+                if (is_small) {
                     reduce_axes_iwise_t::serial_2d(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
-                } else if (n_batches < n_threads) {
+                } else if (n_batches < actual_n_threads) {
                     reduce_axes_iwise_t::template parallel_2d<reduce_axes_iwise_t::ParallelReduction>(
-                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
+                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, actual_n_threads);
                 } else {
                     reduce_axes_iwise_t::template parallel_2d<reduce_axes_iwise_t::SerialReduction>(
-                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
+                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, actual_n_threads);
                 }
             } else {
                 auto output_1d = nd::reconfig_accessors<nd::AccessorConfig<1>{.filter = {1}}>(output);
                 reduce_axes_iwise_t::template single_axis<0>(
                     input_shape.filter(1, 0), std::forward<Op>(op),
-                    std::forward<Reduced>(reduced), output_1d, n_threads);
+                    std::forward<Reduced>(reduced), output_1d, actual_n_threads);
             }
         }
     }

@@ -26,7 +26,10 @@ namespace noa::cuda::details {
     template<typename Block, typename Interface, typename Op, typename Index,
              typename Input, typename InputAlignedBuffer, typename Reduced, typename Output>
     __global__ __launch_bounds__(Block::block_size)
-    void reduce_width_ewise(Op op, Input input, Shape<Index, 2> shape_hw, Reduced reduced, Output output) {
+    void reduce_width_ewise(
+        Op op, Input input, Shape<Index, 2> shape_hw, Reduced reduced, Output output,
+        Vec<u32, 2> grid_size_zy, Vec<u32, 2> block_index_offset_zy
+    ) {
         const auto tid = Vec<Index, 2>::from_values(threadIdx.y, threadIdx.x);
         const auto gid = Vec<Index, 4>::from_values(
             blockIdx.z,
@@ -43,7 +46,7 @@ namespace noa::cuda::details {
                 return accessor[gid[0]][gid[1]][gid[2]];
         });
 
-        const auto ci = ComputeHandle<Index, 3, 2>{};
+        const auto ci = ComputeHandle<Index, 3, 2, true, false, false>(grid_size_zy, block_index_offset_zy);
         Interface::init(ci, op, gid[0], gid[1], gid[2]);
 
         // Initial reduction. Loop until the end of the row is reached.
@@ -84,7 +87,10 @@ namespace noa::cuda::details {
 
     template<typename Block, typename Interface, typename Op, typename Index, typename Input, typename Reduced, typename Output>
     __global__ __launch_bounds__(Block::block_size)
-    void reduce_height_ewise(Op op, Input input, Shape<Index, 2> shape_hw, Reduced reduced, Output output) {
+    void reduce_height_ewise(
+        Op op, Input input, Shape<Index, 2> shape_hw, Reduced reduced, Output output,
+        Vec<u32, 2> grid_size_zy, Vec<u32, 2> block_index_offset_zy
+    ) {
         const auto gid = Vec<Index, 4>::from_values(
             blockIdx.z,
             blockIdx.y,
@@ -93,7 +99,7 @@ namespace noa::cuda::details {
         );
         const bool is_valid_column = gid[3] < shape_hw[1];
 
-        const auto ci = ComputeHandle<Index, 3, 2>{};
+        const auto ci = ComputeHandle<Index, 3, 2, true, false, false>(grid_size_zy, block_index_offset_zy);
         Interface::init(ci, op, gid[0], gid[1], gid[3]);
 
         // Process every row.
@@ -170,9 +176,12 @@ namespace noa::cuda::details {
                     .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
                     .n_threads = n_threads,
                 };
+                const auto grid_size = Vec{grid_z.n_blocks_total(), grid_y.n_blocks_total()}.template as<u32>();
+                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
                 stream.enqueue(
                     reduce_width_ewise<Block, Interface, OpDecay, Index, Input4D, InputVec, ReducedDecay, Output3D>,
-                    config, op, input_4d, shape.filter(2, 3), reduced, output_3d
+                    config, op, input_4d, shape.filter(2, 3), reduced, output_3d,
+                    grid_size, grid_offset
                 );
             }
         }
@@ -326,9 +335,12 @@ namespace noa::cuda::details {
                     .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
                     .n_threads = N_THREADS,
                 };
+                const auto grid_size = Vec{grid_z.n_blocks_total(), grid_y.n_blocks_total()}.template as<u32>();
+                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
                 stream.enqueue(
                     reduce_height_ewise<Block, Interface, OpDecay, Index, InputDecay, ReducedDecay, Output3D>,
-                    config, op, input_, reordered_shape.template pop_front<2>(), reduced, output_3d
+                    config, op, input_, reordered_shape.template pop_front<2>(), reduced, output_3d,
+                    grid_size, grid_offset
                 );
             }
         }
@@ -336,31 +348,12 @@ namespace noa::cuda::details {
 }
 
 namespace noa::cuda {
-    template<bool ZipInput = false,
-             bool ZipReduced = false,
-             bool ZipOutput = false,
-             u32 ElementsPerThread = 8,
-             u32 BlockSize = 512,
-             u32 MaxGridSize = 4096,
-             bool EnableVectorization = true>
-    struct ReduceAxesEwiseConfig {
-        static_assert(is_power_of_2(ElementsPerThread));
-        static_assert(is_power_of_2(BlockSize) and BlockSize <= Limits::MAX_THREADS);
-
-        using interface = nd::ReduceEwiseInterface<ZipInput, ZipReduced, ZipOutput>;
-        static constexpr u32 max_grid_size = MaxGridSize;
-        static constexpr u32 block_size = BlockSize;
-        static constexpr u32 n_elements_per_thread = ElementsPerThread;
-        static constexpr u32 block_work_size = block_size * n_elements_per_thread;
-        static constexpr bool enable_vectorization = EnableVectorization;
-    };
-
-    template<typename Config = ReduceAxesEwiseConfig<>,
+    template<typename Config = ReduceEwiseConfig<>,
              typename Op, typename Input, typename Reduced, typename Output, typename Index>
     requires (nt::tuple_of_accessor_nd<std::decay_t<Input>, 4> and
               not nt::tuple_of_accessor_value<std::decay_t<Input>> and // at least one varray
               nt::tuple_of_accessor_pure_nd<std::decay_t<Output>, 4> and
-              nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
+              nt::tuple_of_accessor_value_or_empty<std::decay_t<Reduced>>)
     NOA_NOINLINE void reduce_axes_ewise(
         const Shape<Index, 4>& input_shape,
         const Shape<Index, 4>& output_shape,

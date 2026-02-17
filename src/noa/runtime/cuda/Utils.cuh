@@ -284,7 +284,7 @@ namespace noa::cuda {
 }
 
 namespace noa::cuda::details {
-        template<typename Tup>
+    template<typename Tup>
     struct vectorized_tuple { using type = Tup; };
 
     template<typename... T>
@@ -312,7 +312,10 @@ namespace noa::cuda::details {
     /// the reduced AccessorValue(s) should not be const anyway.
     template<usize N, typename Index, typename T>
     using joined_tuple_t = joined_tuple<N, Index, std::decay_t<T>>::type;
+}
 
+// TODO Some of these functions could be moved to ComputeHandle.
+namespace noa::cuda::details {
     /// Synchronizes the block.
     /// TODO Cooperative groups may be the way to go and do offer more granularity.
     NOA_FD void block_synchronize() {
@@ -427,7 +430,7 @@ namespace noa::cuda::details {
         }
     }
 
-        NOA_FD i32 atomic_add(i32* address, i32 val) {
+    NOA_FD i32 atomic_add(i32* address, i32 val) {
         return ::atomicAdd(address, val);
     }
 

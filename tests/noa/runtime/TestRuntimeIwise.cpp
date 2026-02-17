@@ -5,6 +5,7 @@
 #include "Utils.hpp"
 
 using namespace ::noa::types;
+namespace nt = noa::traits;
 
 namespace {
     struct Arange4d {
@@ -15,14 +16,24 @@ namespace {
         }
     };
 
+    std::atomic<i32> iwise_init{};
+    std::atomic<i32> iwise_deinit{};
+
     struct ThreadPoolLike {
         SpanContiguous<i32> array;
+        i32 value{-1};
+
+        void init(nt::compute_handle auto& handle) {
+            iwise_init += 1;
+            value = handle.thread().gid();
+        }
+
         void operator()(i32 index) const {
-            #ifdef NOA_ENABLE_OPENMP
-            array[index] = omp_in_parallel() ? omp_get_thread_num() : 1;
-            #elif
-            array[index] = 1;
-            #endif
+            array[index] = value;
+        }
+
+        static void deinit() {
+            iwise_deinit += 1;
         }
     };
 }
@@ -48,7 +59,7 @@ TEST_CASE("runtime::iwise") {
 }
 
 TEST_CASE("runtime::iwise - threadpool-like") {
-    auto data = Vec<i32, 4>{};
+    auto data = Vec<i32, 4>::from_value(-1);
     auto span = Span(data.data(), data.ssize());
     auto op = ThreadPoolLike{span};
 
@@ -57,13 +68,16 @@ TEST_CASE("runtime::iwise - threadpool-like") {
 
     // By default, only one thread should be launched for this shape.
     constexpr auto OPTIONS1 = noa::IwiseOptions{.generate_gpu = false};
+    REQUIRE((iwise_init == 0 and iwise_deinit == 0));
     noa::iwise<OPTIONS1>(Shape{4}, stream.device(), op);
-    for (auto e: data)
-        REQUIRE(e == 1);
+    REQUIRE((iwise_init == 1 and iwise_deinit == 1));
+    REQUIRE(data == 0);
 
     // But we can enforce the number of threads.
     constexpr auto OPTIONS2 = noa::IwiseOptions{.generate_gpu = false, .cpu_launch_n_threads = 4};
+    iwise_init = 0;
+    iwise_deinit = 0;
     noa::iwise<OPTIONS2>(Shape{4}, stream.device(), op);
-    for (i32 i{}; auto e: data)
-        REQUIRE(e == i++);
+    REQUIRE((iwise_init == 4 and iwise_deinit == 4));
+    REQUIRE(data == Vec{0, 1, 2, 3});
 }

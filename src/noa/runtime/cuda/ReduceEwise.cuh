@@ -49,7 +49,10 @@ namespace noa::cuda::details {
     template<typename Block, typename Interface, typename Op, typename Index,
              typename Input, typename InputAlignedBuffers, typename Reduced, typename Output>
     __global__ __launch_bounds__(Block::block_size)
-    void reduce_ewise_2d(Op op, Input input, Index n_elements_per_batch, Reduced reduced, Output output) {
+    void reduce_ewise_2d(
+        Op op, Input input, Index n_elements_per_batch, Reduced reduced, Output output,
+        Vec<u32, 1> grid_size_y, Vec<u32, 1> block_index_offset_y
+    ) {
         const Index batch = blockIdx.y;
         const Index bid = blockIdx.x;
         const Index tid = threadIdx.x;
@@ -69,7 +72,7 @@ namespace noa::cuda::details {
             }
         });
 
-        const auto ci = ComputeHandle<Index, 2, 1, false, not Block::is_final>{};
+        const auto ci = ComputeHandle<Index, 2, 1, true, false, not Block::is_final>(grid_size_y, block_index_offset_y);
         Interface::init(ci, op, batch);
 
         for (Index cid = starting_index; cid < n_elements_per_batch; cid += grid_work_size) {
@@ -111,7 +114,9 @@ namespace noa::cuda::details {
         Reduced reduced,
         Shape<Index, 3> shape_dhw,
         Index n_rows,
-        Output output
+        Output output,
+        Vec<u32, 1> grid_size_y,
+        Vec<u32, 1> block_index_offset_y
     ) {
         const Index batch = blockIdx.y;
         const Index bid = blockIdx.x;
@@ -131,7 +136,7 @@ namespace noa::cuda::details {
             }
         });
 
-        const auto ci = ComputeHandle<Index, 2, 2, false, not Block::is_final>{};
+        const auto ci = ComputeHandle<Index, 2, 2, true, false, not Block::is_final>(grid_size_y, block_index_offset_y);
         Interface::init(ci, op, batch);
 
         for (Index row = initial_row; row < n_rows; row += n_rows_per_grid) { // for every row (within a batch)
@@ -231,7 +236,8 @@ namespace noa::cuda::details {
             };
             stream.enqueue(
                 reduce_ewise_2d<Block, Interface, OpDecay, Index, Input2D, InputVec, ReducedDecay, OutputDecay>,
-                config, op, input_2d, shape[1], reduced, output
+                config, op, input_2d, shape[1], reduced, output,
+                Vec{grid_y.n_blocks_total()}.template as<u32>(), Vec{grid_y.offset(y)}
             );
         }
     }
@@ -335,7 +341,8 @@ namespace noa::cuda::details {
             };
             stream.enqueue(
                 reduce_ewise_4d<Block, Interface, OpDecay, Index, Input4D, InputVec, ReducedDecay, OutputDecay>,
-                config, op, input_4d, reduced, shape.pop_front(), n_rows, output
+                config, op, input_4d, reduced, shape.pop_front(), n_rows, output,
+                Vec{grid_y.n_blocks_total()}.template as<u32>(), Vec{grid_y.offset(y)}
             );
         }
     }
@@ -443,7 +450,8 @@ namespace noa::cuda::details {
             };
             stream.enqueue(
                 reduce_ewise_2d<Block, Interface, Op, Index, Input2D, InputVec, Reduced, Joined>,
-                config, op, input_2d, shape[1], reduced, joined
+                config, op, input_2d, shape[1], reduced, joined,
+                Vec{grid_y.n_blocks_total()}.template as<u32>(), Vec{grid_y.offset(y)}
             );
         }
     }
@@ -558,7 +566,8 @@ namespace noa::cuda::details {
             };
             stream.enqueue(
                 reduce_ewise_4d<Block, Interface, Op, Index, Input4D, InputVec, Reduced, Joined>,
-                config, op, input_4d, reduced, shape.pop_front(), n_rows, joined
+                config, op, input_4d, reduced, shape.pop_front(), n_rows, joined,
+                Vec{grid_y.n_blocks_total()}.template as<u32>(), Vec{grid_y.offset(y)}
             );
         }
     }
@@ -720,7 +729,7 @@ namespace noa::cuda {
     requires (nt::tuple_of_accessor_nd<std::decay_t<Input>, 4> and
               not nt::tuple_of_accessor_value<std::decay_t<Input>> and // at least one varray
               nt::tuple_of_accessor_pure_nd<std::decay_t<Output>, 1> and
-              nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
+              nt::tuple_of_accessor_value_or_empty<std::decay_t<Reduced>>)
     NOA_NOINLINE void reduce_ewise(
         const Shape<Index, 4>& shape,
         Op&& op,

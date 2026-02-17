@@ -25,7 +25,7 @@ namespace noa {
         bool gpu_enable_vectorization{true};
 
         /// Size of the block. The shape of the block is implementation defined and depends on the inputs.
-        /// See the corresponding option in ReduceIwiseOptions for more details.
+        /// See ReduceIwiseOptions::gpu_block_shape for more details.
         u32 gpu_block_size{512};
 
         /// The maximum number of blocks to launch.

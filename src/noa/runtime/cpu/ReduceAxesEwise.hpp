@@ -154,7 +154,7 @@ namespace noa::cpu {
     requires (nt::tuple_of_accessor_nd<std::decay_t<Input>, 4> and
               not nt::tuple_of_accessor_value<std::decay_t<Input>> and // at least one varray
               nt::tuple_of_accessor_pure_nd<std::decay_t<Output>, 4> and
-              nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
+              nt::tuple_of_accessor_value_or_empty<std::decay_t<Reduced>>)
     NOA_NOINLINE constexpr void reduce_axes_ewise(
         const Shape<Index, 4>& input_shape,
         const Shape<Index, 4>& output_shape,

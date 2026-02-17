@@ -10,11 +10,11 @@
 namespace noa::cuda::details {
     template<typename Block, typename Interface, typename Op, typename Index>
     __global__ __launch_bounds__(Block::block_size)
-    void iwise_4d_static(Op op, Vec<Index, 3> shape, Vec<u32, 2> block_offset_zy, u32 n_blocks_x) {
-        const auto ci = ComputeHandle<Index, 3, Block::block_ndim>{};
+    void iwise_4d_static(Op op, Vec<Index, 3> shape, Vec<u32, 2> grid_size_zy, Vec<u32, 2> block_index_offset_zy, u32 n_blocks_x) {
+        const auto ci = ComputeHandle<Index, 3, Block::block_ndim, true, false, false>(grid_size_zy, block_index_offset_zy);
         Interface::init(ci, op);
 
-        const auto gid = global_indices_4d<Index, Block>(n_blocks_x, block_offset_zy);
+        const auto gid = global_indices_4d<Index, Block>(n_blocks_x, block_index_offset_zy);
         for (Index d = 0; d < Block::n_elements_per_thread_z; ++d) {
             for (Index h = 0; h < Block::n_elements_per_thread_y; ++h) {
                 for (Index w = 0; w < Block::n_elements_per_thread_x; ++w) {
@@ -31,11 +31,11 @@ namespace noa::cuda::details {
 
     template<typename Block, typename Interface, typename Op, typename Index>
     __global__ __launch_bounds__(Block::block_size)
-    void iwise_3d_static(Op op, Vec<Index, 3> shape, Vec<u32, 2> block_offset_y) {
-        const auto ci = ComputeHandle<Index, 3, Block::block_ndim>{};
+    void iwise_3d_static(Op op, Vec<Index, 3> shape, Vec<u32, 2> grid_size_zy, Vec<u32, 2> block_index_offset_zy) {
+        const auto ci = ComputeHandle<Index, 3, Block::block_ndim, true, false, false>(grid_size_zy, block_index_offset_zy);
         Interface::init(ci, op);
 
-        const auto gid = global_indices_3d<Index, Block>(block_offset_y);
+        const auto gid = global_indices_3d<Index, Block>(block_index_offset_zy);
         for (Index d = 0; d < Block::n_elements_per_thread_z; ++d) {
             for (Index h = 0; h < Block::n_elements_per_thread_y; ++h) {
                 for (Index w = 0; w < Block::n_elements_per_thread_x; ++w) {
@@ -52,8 +52,8 @@ namespace noa::cuda::details {
 
     template<typename Block, typename Interface, typename Op, typename Index>
     __global__ __launch_bounds__(Block::block_size)
-    void iwise_2d_static(Op op, Vec<Index, 2> shape, Vec<u32, 1> block_offset_y) {
-        const auto ci = ComputeHandle<Index, 2, Block::block_ndim>{};
+    void iwise_2d_static(Op op, Vec<Index, 2> shape, Vec<u32, 1> n_blocks_y, Vec<u32, 1> block_offset_y) {
+        const auto ci = ComputeHandle<Index, 2, Block::block_ndim, true, false, false>(n_blocks_y, block_offset_y);
         Interface::init(ci, op);
 
         const auto gid = global_indices_2d<Index, Block>(block_offset_y);
@@ -71,7 +71,7 @@ namespace noa::cuda::details {
     template<typename Block, typename Interface, typename Op, typename Index>
     __global__ __launch_bounds__(Block::block_size)
     void iwise_1d_static(Op op, Vec<Index, 1> shape) {
-        const auto ci = ComputeHandle<Index, 1, Block::block_ndim>{};
+        const auto ci = ComputeHandle<Index, 1, Block::block_ndim, false, false, false>{};
         Interface::init(ci, op);
 
         const auto gid = global_indices_1d<Index, Block>();
@@ -86,85 +86,88 @@ namespace noa::cuda::details {
 
 namespace noa::cuda {
     template<usize N>
-    using IwiseConfig = std::conditional_t<
+    using IwiseDefaultConfig = std::conditional_t<
         N == 1,
         StaticBlock<Constant::WARP_SIZE * 8, 1, 1>,
         StaticBlock<Constant::WARP_SIZE, 256 / Constant::WARP_SIZE, 1>>;
 
-    template<usize N, typename Config = IwiseConfig<N>, typename Index, typename Op>
+    template<usize N, typename Block = IwiseDefaultConfig<N>, typename Index, typename Op>
     NOA_NOINLINE void iwise(
         const Shape<Index, N>& shape,
         Op&& op,
         Stream& stream,
         usize scratch_size = 0
     ) {
-        static_assert(N >= Config::block_ndim);
+        static_assert(N >= Block::block_ndim, "Shape n-dimensions must be greater than thread-block n-dimensions");
         using Interface = nd::IwiseInterface;
 
         if constexpr (N == 4) {
-            auto grid_x = GridXY(shape[3], shape[2], Config::block_work_size_x, Config::block_work_size_y);
-            auto grid_y = GridY(shape[1], Config::block_work_size_z);
+            auto grid_x = GridXY(shape[3], shape[2], Block::block_work_size_x, Block::block_work_size_y);
+            auto grid_y = GridY(shape[1], Block::block_work_size_z);
             auto grid_z = GridZ(shape[0], 1);
             check(grid_x.n_launches() == 1);
             for (u32 z{}; z < grid_z.n_launches(); ++z) {
                 for (u32 y{}; y < grid_y.n_launches(); ++y) {
                     const auto config = LaunchConfig{
                         .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
-                        .n_threads = dim3(Config::block_size_x, Config::block_size_y, Config::block_size_z),
+                        .n_threads = dim3(Block::block_size_x, Block::block_size_y, Block::block_size_z),
                         .n_bytes_of_shared_memory = scratch_size,
                     };
+                    const auto grid_size = Vec{grid_z.n_blocks_total(), grid_y.n_blocks_total()}.template as<u32>();
                     const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
                     stream.enqueue(
-                        details::iwise_4d_static<Config, Interface, std::decay_t<Op>, Index>,
-                        config, op, shape.vec.pop_front(), grid_offset, grid_x.n_blocks_x()
+                        details::iwise_4d_static<Block, Interface, std::decay_t<Op>, Index>,
+                        config, op, shape.vec.pop_front(), grid_size, grid_offset, grid_x.n_blocks_x()
                     );
                 }
             }
         } else if constexpr (N == 3) {
-            auto grid_x = GridX(shape[2], Config::block_work_size_x);
-            auto grid_y = GridY(shape[1], Config::block_work_size_y);
-            auto grid_z = GridZ(shape[0], Config::block_work_size_z);
+            auto grid_x = GridX(shape[2], Block::block_work_size_x);
+            auto grid_y = GridY(shape[1], Block::block_work_size_y);
+            auto grid_z = GridZ(shape[0], Block::block_work_size_z);
             check(grid_x.n_launches() == 1);
             for (u32 z{}; z < grid_z.n_launches(); ++z) {
                 for (u32 y{}; y < grid_y.n_launches(); ++y) {
                     const auto config = LaunchConfig{
                         .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
-                        .n_threads = dim3(Config::block_size_x, Config::block_size_y, Config::block_size_z),
+                        .n_threads = dim3(Block::block_size_x, Block::block_size_y, Block::block_size_z),
                         .n_bytes_of_shared_memory = scratch_size,
                     };
+                    const auto grid_size = Vec{grid_z.n_blocks_total(), grid_y.n_blocks_total()}.template as<u32>();;
                     const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
                     stream.enqueue(
-                        details::iwise_3d_static<Config, Interface, std::decay_t<Op>, Index>,
-                        config, op, shape.vec, grid_offset
+                        details::iwise_3d_static<Block, Interface, std::decay_t<Op>, Index>,
+                        config, op, shape.vec, grid_size, grid_offset
                     );
                 }
             }
         } else if constexpr (N == 2) {
-            auto grid_x = GridX(shape[1], Config::block_work_size_x);
-            auto grid_y = GridY(shape[0], Config::block_work_size_y);
+            auto grid_x = GridX(shape[1], Block::block_work_size_x);
+            auto grid_y = GridY(shape[0], Block::block_work_size_y);
             check(grid_x.n_launches() == 1);
             for (u32 y{}; y < grid_y.n_launches(); ++y) {
                 const auto config = LaunchConfig{
                     .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y)),
-                    .n_threads = dim3(Config::block_size_x, Config::block_size_y),
+                    .n_threads = dim3(Block::block_size_x, Block::block_size_y),
                     .n_bytes_of_shared_memory = scratch_size,
                 };
+                const auto grid_size = Vec{grid_y.n_blocks_total()}.template as<u32>();;
                 const auto grid_offset = Vec{grid_y.offset(y)};
                 stream.enqueue(
-                    details::iwise_2d_static<Config, Interface, std::decay_t<Op>, Index>,
-                    config, op, shape.vec, grid_offset
+                    details::iwise_2d_static<Block, Interface, std::decay_t<Op>, Index>,
+                    config, op, shape.vec, grid_size, grid_offset
                 );
             }
         } else if constexpr (N == 1) {
-            auto grid_x = GridX(shape[0], Config::block_work_size_x);
+            auto grid_x = GridX(shape[0], Block::block_work_size_x);
             check(grid_x.n_launches() == 1);
             const auto config = LaunchConfig{
                 .n_blocks = dim3(grid_x.n_blocks(0)),
-                .n_threads = dim3(Config::block_size_x),
+                .n_threads = dim3(Block::block_size_x),
                 .n_bytes_of_shared_memory = scratch_size,
             };
             stream.enqueue(
-                details::iwise_1d_static<Config, Interface, std::decay_t<Op>, Index>,
+                details::iwise_1d_static<Block, Interface, std::decay_t<Op>, Index>,
                 config, op, shape.vec
             );
         }

@@ -36,17 +36,21 @@ namespace noa {
         /// As such, the parallel version of the nd-loop is only called if there are more elements than this value.
         isize cpu_number_of_indices_per_threads{1'048'576}; // 2^20
 
-        /// GPU thread block size.
-        /// 1d shapes map to a 1d block of gpu_block_size threads, and higher dimensions use a 2d block of
-        /// (height=WARP_SIZE/gpu_block_size, width=WARP_SIZE) threads.
-        /// TODO Would a gpu_block_shape be more useful?
-        u32 gpu_block_size{512};
+        /// GPU thread-block shape.
+        /// Blocks are 1d, 2d, or 3d and are mapping the nd-shape exactly:
+        ///     N=4 -> 1DHW     (each batch has a different block)
+        ///     N=3 -> DHW
+        ///     N=2 -> HW       (D must be 1, except if gpu_optimize_block_shape=true)
+        ///     N=1 -> W        (DH must be 1, except if gpu_optimize_block_shape=true)
+        Shape<u32, 3> gpu_block_shape{Shape<u32, 3>{1, 1, 512}};
 
-        /// Sets the number of iterations along the width done by each thread.
+        /// Whether the block can be reshaped (keeping the overall block size) for better performance.
+        bool gpu_optimize_block_shape{true};
+
+        /// Sets the number of iterations done by each thread for each block dimension.
         /// Increasing this value decreases the parallelism (the number of blocks launched),
         /// but may still be beneficial for operators doing little work per iteration.
-        /// TODO Make this more flexible and allow to increase it for depth and height too?
-        u32 gpu_number_of_indices_per_threads{1};
+        Vec<u32, 3> gpu_number_of_indices_per_threads{Vec<u32, 3>{1, 1, 1}};
 
         /// Allocate the specified number of bytes for the per-block scratch (shared memory in CUDA).
         /// The maximum alignment is std::max_align_t (16 in CUDA), which should be fine for most cases.
@@ -132,16 +136,36 @@ namespace noa {
             if (device.is_gpu()) {
                 #ifdef NOA_ENABLE_CUDA
                 namespace nc = noa::cuda;
-                constexpr auto BLOCK_SIZE = OPTIONS.gpu_block_size;
+                constexpr auto BLOCK_SIZE = OPTIONS.gpu_block_shape.n_elements();
                 constexpr auto WARP_SIZE = nc::Constant::WARP_SIZE;
                 static_assert(is_multiple_of(BLOCK_SIZE, WARP_SIZE));
-                using Config = std::conditional_t<
-                    N == 1,
-                    nc::StaticBlock<BLOCK_SIZE, 1, 1, OPTIONS.gpu_number_of_indices_per_threads>,
-                    nc::StaticBlock<WARP_SIZE, BLOCK_SIZE / WARP_SIZE, 1, OPTIONS.gpu_number_of_indices_per_threads>>;
+
+                using exact_block = nc::StaticBlock<
+                    OPTIONS.gpu_block_shape[2],
+                    OPTIONS.gpu_block_shape[1],
+                    OPTIONS.gpu_block_shape[0],
+                    OPTIONS.gpu_number_of_indices_per_threads[2],
+                    OPTIONS.gpu_number_of_indices_per_threads[1],
+                    OPTIONS.gpu_number_of_indices_per_threads[0]
+                >;
+                using default_block_1d = nc::StaticBlock<
+                    BLOCK_SIZE, 1, 1,
+                    OPTIONS.gpu_number_of_indices_per_threads[2],
+                    OPTIONS.gpu_number_of_indices_per_threads[1],
+                    OPTIONS.gpu_number_of_indices_per_threads[0]
+                >;
+                using default_block_2d = nc::StaticBlock<
+                    WARP_SIZE, BLOCK_SIZE / WARP_SIZE, 1,
+                    OPTIONS.gpu_number_of_indices_per_threads[2],
+                    OPTIONS.gpu_number_of_indices_per_threads[1],
+                    OPTIONS.gpu_number_of_indices_per_threads[0]
+                >;
+                using block =
+                    std::conditional_t<not OPTIONS.gpu_optimize_block_shape, exact_block,
+                    std::conditional_t<N == 1, default_block_1d, default_block_2d>>;
 
                 auto& cuda_stream = stream.cuda();
-                nc::iwise<N, Config>(shape, std::forward<Op>(op), cuda_stream, OPTIONS.gpu_scratch_size);
+                nc::iwise<N, block>(shape, std::forward<Op>(op), cuda_stream, OPTIONS.gpu_scratch_size);
                 cuda_stream.enqueue_attach(std::forward<Ts>(attachments)...);
                 #else
                 panic_no_gpu_backend();

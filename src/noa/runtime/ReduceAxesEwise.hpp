@@ -209,7 +209,7 @@ namespace noa::details {
             if (device.is_gpu()) {
                 #ifdef NOA_ENABLE_CUDA
                 auto& cuda_stream = Stream::current(device).cuda();
-                using config = noa::cuda::ReduceAxesEwiseConfig<
+                using config = noa::cuda::ReduceEwiseConfig<
                     ZIP_INPUTS, ZIP_REDUCED, ZIP_OUTPUTS,
                     OPTIONS.gpu_n_elements_per_thread,
                     OPTIONS.gpu_block_size,

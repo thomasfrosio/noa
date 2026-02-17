@@ -33,20 +33,33 @@ namespace noa {
         /// two kernels just to call the "post" step.
         bool gpu_allow_two_kernels{true};
 
-        /// Size of the block. Blocks are up to 2d when more than one axis is reduced, 1d otherwise.
+        /// Shape of the block.
+        /// The width of the block always maps to the width of the nd-shape. The height of the block can map any
+        /// (or all) of the other dimensions (so, BDH) depending on the nd-shape and type of reductions. As a
+        /// consequence, 1d-shapes require 1d-blocks (except if gpu_optimize_block_shape=true, in which case 2d blocks
+        /// are reshaped to 1d). The block size needs to be a multiple of gpu::WARP_SIZE. For the two-kernel reductions,
+        /// the second kernel has a 1d block of gpu_block_shape.size() threads.
         /// Increasing the block size might increase performance for some large reductions, but it also increases
         /// the size threshold above which the two-kernel reduction is used, so predicting the performance impact
         /// is challenging. This value often goes hand in hand with .gpu_scratch_size.
-        u32 gpu_block_size{512};
+        Shape<u32, 2> gpu_block_shape{Shape<u32, 2>{1, 512}};
 
-        /// TODO Add gpu_number_of_indices_per_threads?
+        /// Whether the block can be reshaped (keeping the overall block size) for better performance.
+        bool gpu_optimize_block_shape{true};
 
-        /// The maximum number of blocks to launch. This is only relevant for the two-kernel reductions,
-        /// i.e. for large reductions, as it limits the size of the temporary buffer that needs to be reduced by the
-        /// second kernel (with one block per reduced axis). Reductions without reduced values are an exception as
-        /// this temporary buffer is elided and the second kernel is a single thread kernel calling post. In this case,
-        /// it may be good to increase the grid size to increase the parallelism of the first kernel, but even then the
-        /// default value is usually fine.
+        /// Sets the minimum number of iterations done by each thread, for each block dimension.
+        /// This is only relevant for the two-kernel reductions, i.e., for large reductions. Indeed, single kernel
+        /// reductions assign one block per output element, and the block loops through the reduced dimension(s).
+        /// Increasing this value decreases the parallelism (the number of blocks launched), but may still be
+        /// beneficial for operators doing little work per iteration.
+        Vec<u32, 2> gpu_number_of_indices_per_threads{Vec<u32, 2>{1, 1}};
+
+        /// The maximum number of blocks to launch per output element.
+        /// This is only relevant for the two-kernel reductions, i.e., for large reductions, as it limits the size of
+        /// the temporary buffer that needs to be reduced by the second kernel (with one block per reduced axis).
+        /// Reductions without reduced values are an exception as this temporary buffer is elided and the second kernel
+        /// is a single thread kernel calling op::post. In this case, it may be good to increase the grid size to
+        /// increase the parallelism of the first kernel, but even then the default value is usually fine.
         u32 gpu_max_grid_size{4096};
 
         /// Allocate the specified number of bytes for the per-block scratch (shared memory in CUDA).
@@ -247,8 +260,12 @@ namespace noa::details {
                 // Compute the reduction.
                 using config = noa::cuda::ReduceIwiseConfig<
                     ZIP_REDUCED, ZIP_OUTPUT,
-                    OPTIONS.gpu_block_size,
+                    OPTIONS.gpu_block_shape[1],
+                    OPTIONS.gpu_block_shape[0],
+                    OPTIONS.gpu_number_of_indices_per_threads[1],
+                    OPTIONS.gpu_number_of_indices_per_threads[0],
                     OPTIONS.gpu_max_grid_size,
+                    OPTIONS.gpu_optimize_block_shape,
                     OPTIONS.gpu_allow_two_kernels
                 >;
                 noa::cuda::reduce_iwise<config>(

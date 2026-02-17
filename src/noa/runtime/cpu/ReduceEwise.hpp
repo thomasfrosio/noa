@@ -88,7 +88,7 @@ namespace noa::cpu {
     requires (nt::tuple_of_accessor_nd<std::decay_t<Input>, 4> and
               not nt::tuple_of_accessor_value<std::decay_t<Input>> and // at least one varray
               nt::tuple_of_accessor_nd<Output, 1> and
-              nt::tuple_of_accessor_value<std::decay_t<Reduced>>)
+              nt::tuple_of_accessor_value_or_empty<std::decay_t<Reduced>>)
     void reduce_ewise(
         const Shape<Index, 4>& shape,
         Op&& op,

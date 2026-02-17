@@ -24,6 +24,7 @@ list(APPEND TEST_SOURCES
     noa/runtime/TestRuntimeDevice.cpp
     noa/runtime/TestRuntimeEwise.cpp
     noa/runtime/TestRuntimeFactory.cpp
+    noa/runtime/TestRuntimeHistogram.cpp
     noa/runtime/TestRuntimeIwise.cpp
     noa/runtime/TestRuntimePermute.cpp
     noa/runtime/TestRuntimeRandom.cpp
@@ -50,6 +51,6 @@ if (NOA_ENABLE_CUDA)
         noa/runtime/cuda/TestRuntimeCUDAReduceEwise.cu
         noa/runtime/cuda/TestRuntimeCUDAReduceIwise.cu
         noa/runtime/cuda/TestRuntimeCUDAStream.cpp
-        noa/runtime/cuda/TestRuntimeCUDAVectorization.cpp
+        noa/runtime/cuda/TestRuntimeCUDAVectorization.cu
     )
 endif ()

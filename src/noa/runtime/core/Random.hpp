@@ -243,7 +243,7 @@ namespace noa {
 
         using remove_default_init = bool;
         constexpr void init(const nt::compute_handle auto& ch) noexcept {
-            m_generator = RandomBitsGenerator(random_seed + static_cast<u64>(ch.thread().uid()) + 1);
+            m_generator = RandomBitsGenerator(random_seed + static_cast<u64>(ch.thread().gid()) + 1);
         }
         constexpr void init(const nt::integer auto& uid) noexcept {
             m_generator = RandomBitsGenerator(random_seed + static_cast<u64>(uid) + 1);
