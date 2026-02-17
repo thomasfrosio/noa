@@ -31,12 +31,12 @@ namespace {
         }
     };
 
-    std::unique_ptr<CuBlasHandle>& cublas_cache_handle_(noa::cuda::Device device) {
+    auto cublas_cache_handle_(noa::cuda::Device device, bool create_if_empty = true) -> std::unique_ptr<CuBlasHandle>& {
         constexpr usize MAX_DEVICES = 16;
         thread_local std::unique_ptr<CuBlasHandle> g_cache[MAX_DEVICES];
 
         auto& cache = g_cache[device.id()];
-        if (not cache) {
+        if (not cache and create_if_empty) {
             cache = std::make_unique<CuBlasHandle>();
             noa::cuda::Device::add_reset_callback(noa::cuda::cublas_clear_cache);
         }
@@ -104,7 +104,7 @@ namespace {
 
 namespace noa::cuda {
     void cublas_clear_cache(i32 device) {
-        std::unique_ptr<CuBlasHandle>& cached_handle = cublas_cache_handle_(Device(device, Unchecked{}));
+        auto& cached_handle = cublas_cache_handle_(Device(device, Unchecked{}), false);
         cached_handle = nullptr;
     }
 

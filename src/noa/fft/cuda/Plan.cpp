@@ -8,6 +8,8 @@
 #include "noa/runtime/cuda/Error.hpp"
 #include "noa/fft/cuda/Plan.hpp"
 
+#include <iostream>
+
 namespace noa::fft::cuda {
     auto error2string(cufftResult_t result) -> std::string {
         switch (result) {
@@ -257,22 +259,23 @@ namespace {
 
     // Since a cufft plan can only be used by one thread at a time, for simplicity,
     // have a per-host-thread cache. Each GPU has its own cache, of course.
-    auto get_cache_(noa::cuda::Device device) -> CufftCache& {
+    auto get_cache_(noa::cuda::Device device, bool create_if_empty = true) -> std::unique_ptr<CufftCache>& {
         constexpr i32 MAX_DEVICES = 64;
         check(device.id() < MAX_DEVICES,
               "Internal buffer for caching cufft plans is limited to 64 visible devices");
 
         thread_local std::unique_ptr<CufftCache> g_cache[MAX_DEVICES];
         std::unique_ptr<CufftCache>& cache = g_cache[device.id()];
-        if (not cache) {
+        if (not cache and create_if_empty) {
             cache = std::make_unique<CufftCache>();
             Device::add_reset_callback(device_reset_callback);
         }
-        return *cache;
+        return cache;
     }
 
     void device_reset_callback(i32 device) {
-        get_cache_(Device(device, Unchecked{})).clear();
+        if (const auto& cache = get_cache_(Device(device, Unchecked{}), false))
+            cache->clear();
     }
 
     // Offset the type if double precision.
@@ -311,7 +314,7 @@ namespace {
         bool plan_only,
         bool record_workspace
     ) -> std::shared_ptr<void> {
-        CufftCache& cache = get_cache_(device);
+        CufftCache& cache = *get_cache_(device);
 
         // Set the workspace for previous calls that had record_workspace=true and needed a temp buffer.
         if (not record_workspace)
@@ -477,27 +480,27 @@ namespace noa::fft::cuda {
     }
 
     auto clear_cache(Device device) noexcept -> i32 {
-        return get_cache_(device).clear();
+        return get_cache_(device)->clear();
     }
 
     auto cache_limit(Device device) noexcept -> i32 {
-        return get_cache_(device).limit();
+        return get_cache_(device)->limit();
     }
 
     auto cache_size(Device device) noexcept -> i32 {
-        return get_cache_(device).size();
+        return get_cache_(device)->size();
     }
 
     auto set_cache_limit(Device device, i32 count) noexcept -> i32 {
-        return get_cache_(device).set_limit(count);
+        return get_cache_(device)->set_limit(count);
     }
 
     auto workspace_left_to_allocate(Device device) noexcept -> isize {
-        return get_cache_(device).workspace_size();
+        return get_cache_(device)->workspace_size();
     }
 
     auto set_workspace(Device device, const std::shared_ptr<std::byte[]>& buffer, isize buffer_size) -> i32 {
-        return get_cache_(device).set_workspace(buffer, buffer_size);
+        return get_cache_(device)->set_workspace(buffer, buffer_size);
     }
 
     template<typename T>
