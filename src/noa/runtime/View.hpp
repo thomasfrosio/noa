@@ -648,7 +648,8 @@ namespace noa::inline types {
         ///       numbers with the same precision.
         template<typename U>
         [[nodiscard]] auto reinterpret_as() const -> View<U> {
-            const auto out = details::ReinterpretLayout(shape(), strides(), get()).template as<U>();
+            using reinterpret_t = details::ReinterpretLayoutStrided<4, value_type, index_type>;
+            const auto out = reinterpret_t(shape(), strides(), get()).template as<U>();
             return View<U>(out.ptr, out.shape, out.strides, options(), Unchecked{});
         }
 

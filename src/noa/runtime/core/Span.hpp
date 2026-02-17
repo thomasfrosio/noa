@@ -244,7 +244,8 @@ namespace noa::inline types {
         [[nodiscard]] constexpr auto span() const {
             using output_span_t = Span<NewT, NewN, NewI, NewStridesTrait, NewPointerTrait>;
 
-            const auto reinterpreted = details::ReinterpretLayout(shape(), strides_full(), get()).template as<NewT>();
+            const auto reinterpreted = details::ReinterpretLayout<N, value_type, index_type, STRIDES_TRAIT>(
+                shape(), strides_full(), get()).template as<NewT>();
 
             if constexpr (STRIDES_TRAIT != StridesTraits::CONTIGUOUS and
                           NewStridesTrait == StridesTraits::CONTIGUOUS) {

@@ -863,16 +863,20 @@ namespace noa::inline types {
         /// This is mostly intended to find the fastest way through an array using nested loops in the rightmost order.
         template<typename U>
         [[nodiscard]] NOA_HD constexpr auto rightmost_order(const Shape<U, N>& shape) const noexcept {
-            Strides strides;
-            Vec<T, N> order;
-            for (usize i{}; i < N; ++i) {
-                order[i] = static_cast<T>(i);
-                strides[i] = shape[i] <= 1 ? std::numeric_limits<T>::max() : (*this)[i];
-            }
+            if constexpr (N <= 1) {
+                return Vec<T, N>{};
+            } else {
+                Strides strides;
+                Vec<T, N> order;
+                for (usize i{}; i < N; ++i) {
+                    order[i] = static_cast<T>(i);
+                    strides[i] = shape[i] <= 1 ? std::numeric_limits<T>::max() : (*this)[i];
+                }
 
-            return stable_sort(order, [&strides](T a, T b) {
-                return strides[a] > strides[b];
-            });
+                return stable_sort(order, [&strides](T a, T b) {
+                    return strides[a] > strides[b];
+                });
+            }
         }
 
         /// Whether there's at least one dimension equal to 0.

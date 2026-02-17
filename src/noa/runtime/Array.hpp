@@ -379,12 +379,14 @@ namespace noa::inline types {
         ///       or to switch between complex and real floating-point numbers with the same precision.
         template<typename U>
         [[nodiscard]] auto reinterpret_as() const& -> Array<U> {
-            const auto out = details::ReinterpretLayout(shape(), strides(), get()).template as<U>();
+            using reinterpret_t = details::ReinterpretLayoutStrided<4, value_type, index_type>;
+            const auto out = reinterpret_t(shape(), strides(), get()).template as<U>();
             return Array<U>(std::shared_ptr<U[]>(m_shared, out.ptr), out.shape, out.strides, options(), Unchecked{});
         }
         template<typename U>
         [[nodiscard]] auto reinterpret_as() && -> Array<U> {
-            const auto out = details::ReinterpretLayout(shape(), strides(), get()).template as<U>();
+            using reinterpret_t = details::ReinterpretLayoutStrided<4, value_type, index_type>;
+            const auto out = reinterpret_t(shape(), strides(), get()).template as<U>();
             return Array<U>(std::shared_ptr<U[]>(std::move(m_shared), out.ptr), out.shape, out.strides, options(), Unchecked{});
         }
 

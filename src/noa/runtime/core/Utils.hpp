@@ -1,5 +1,6 @@
 #pragma once
 
+#include "noa/runtime/core/Access.hpp"
 #include "noa/runtime/core/Shape.hpp"
 
 namespace noa::details {
@@ -273,7 +274,7 @@ namespace noa::details {
     ///       shape/strides should be compatible, otherwise an error will be thrown. This is mostly to represent
     ///       any data type as a array of bytes, or to switch between complex and real floating-point numbers with
     ///       the same precision.
-    template<usize N, typename T, nt::integer I>
+    template<usize N, typename T, nt::integer I, StridesTraits StridesTrait>
     struct ReinterpretLayout {
     public:
         using old_type = T;
@@ -281,6 +282,13 @@ namespace noa::details {
         using shape_type = Shape<index_type, N>;
         using strides_type = Strides<index_type, N>;
         using vec_type = Vec<index_type, N>;
+
+        static constexpr StridesTraits STRIDES_TRAIT = StridesTrait;
+        static constexpr bool IS_CONTIGUOUS = STRIDES_TRAIT == StridesTraits::CONTIGUOUS;
+        static constexpr usize SIZE = N;
+        static constexpr isize SSIZE = N;
+
+        static constexpr bool EASY_REINTERPRET = std::is_void_v<old_type> or N == 0;
 
     public:
         shape_type shape{};
@@ -299,13 +307,10 @@ namespace noa::details {
 
     public:
         template<typename New>
-        [[nodiscard]] auto as() const {
-            using return_t = ReinterpretLayout<N, New, index_type>;
+        [[nodiscard]] constexpr auto as() const {
+            using return_t = ReinterpretLayout<N, New, index_type, STRIDES_TRAIT>;
 
-            if constexpr (nt::is_almost_same_v<old_type, New> or
-                          std::is_void_v<New> or
-                          std::is_void_v<old_type> or
-                          N == 0) {
+            if constexpr (nt::is_almost_same_v<old_type, New> or std::is_void_v<New> or std::is_void_v<old_type> or N == 0) {
                 return return_t(shape, strides, static_cast<New*>(ptr));
             } else {
                 auto out = return_t(shape, strides, reinterpret_cast<New*>(ptr));
@@ -315,9 +320,11 @@ namespace noa::details {
 
                 if constexpr (sizeof(old_type) > sizeof(New)) { // downsize
                     constexpr index_type ratio = sizeof(old_type) / sizeof(New);
-                    check(strides[rightmost_order[N - 1]] == 1,
-                          "The stride of the innermost dimension must be 1 to view a {} as a {}",
-                          nd::stringify<old_type>(), nd::stringify<New>());
+                    if constexpr (not IS_CONTIGUOUS) {
+                        check(strides[rightmost_order[N - 1]] == 1,
+                              "The stride of the innermost dimension must be 1 to view a {} as a {}",
+                              nd::stringify<old_type>(), nd::stringify<New>());
+                    }
                     NOA_NV_DIAG_SUPPRESS(186)
                     for (usize i{}; i < N - 1; ++i)
                         out.strides[rightmost_order[i]] *= ratio;
@@ -335,9 +342,11 @@ namespace noa::details {
                           "The memory offset should be at least aligned to {} bytes to be viewed as a {}, but got {}",
                           alignof(New), nd::stringify<New>(), static_cast<const void*>(ptr));
 
-                    check(out.strides[rightmost_order[N - 1]] == 1,
-                          "The stride of the innermost dimension must be 1 to view a {} as a {}",
-                          nd::stringify<old_type>(), nd::stringify<New>());
+                    if constexpr (not IS_CONTIGUOUS) {
+                        check(out.strides[rightmost_order[N - 1]] == 1,
+                              "The stride of the innermost dimension must be 1 to view a {} as a {}",
+                              nd::stringify<old_type>(), nd::stringify<New>());
+                    }
 
                     for (usize i{}; i < N - 1; ++i) {
                         check(not (out.strides[i] % ratio),
@@ -352,4 +361,10 @@ namespace noa::details {
             }
         }
     };
+
+    template<usize N, typename T, nt::integer I>
+    using ReinterpretLayoutStrided = ReinterpretLayout<N, T, I, StridesTraits::STRIDED>;
+
+    template<usize N, typename T, nt::integer I>
+    using ReinterpretLayoutContiguous = ReinterpretLayout<N, T, I, StridesTraits::CONTIGUOUS>;
 }
