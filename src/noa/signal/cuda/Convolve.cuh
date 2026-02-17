@@ -76,7 +76,7 @@ namespace noa::signal::cuda::details {
 
         using output_value_t = nt::value_type_t<Output>;
         using filter_value_t = nt::mutable_value_type_t<Filter>;
-        extern __shared__ filter_value_t shared[];
+        auto* shared = noa::cuda::details::dynamic_shared_memory_pointer<filter_value_t>();
 
         // Load to shared memory. Loop to take into account padding.
         i32 ly, lx;
