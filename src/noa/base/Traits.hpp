@@ -185,11 +185,13 @@ namespace noa::traits {
     template<typename T, typename... U> constexpr bool is_almost_any_v = is_almost_any<T, U...>::value;
     template<typename T, typename... U> concept almost_any_of = (almost_same_as<T, U> or ...); // "fold or" defaults to false
 
+    template<typename T, typename U> concept same_as_index_type_of = same_as<T, index_type_t<U>>;
     template<typename T, typename U> concept same_as_value_type_of = same_as<T, value_type_t<U>>;
     template<typename T, typename U> concept same_as_mutable_value_type_of = same_as<T, mutable_value_type_t<U>>;
     template<typename T, typename U> concept almost_same_as_value_type_of = almost_same_as<T, value_type_t<U>>;
     template<typename T, typename U> concept almost_same_as_mutable_value_type_of = almost_same_as<T, mutable_value_type_t<U>>;
 
+    template<typename T, typename... U> concept same_index_type = (same_as<index_type_t<T>, index_type_t<U>> and ...);
     template<typename T, typename... U> concept same_value_type = (same_as<value_type_t<T>, value_type_t<U>> and ...);
     template<typename T, typename... U> concept same_mutable_value_type = (same_as<mutable_value_type_t<T>, mutable_value_type_t<U>> and ...);
 
