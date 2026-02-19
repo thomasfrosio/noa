@@ -92,6 +92,9 @@ namespace noa::cuda {
                 return {};
             void* tmp{nullptr}; // X** to void** is not allowed
             const auto n_bytes = n_elements * static_cast<isize>(sizeof(T));
+
+            // We need to set the current device in case the stream is a null stream.
+            const auto guard = DeviceGuard(stream.device());
             check(cudaMallocAsync(&tmp, static_cast<usize>(n_bytes), stream.id()));
             add_bytes(stream.device().id(), n_bytes);
             return {static_cast<T*>(tmp), Deleter{.stream = stream.core(), .size=n_bytes, .device_id=stream.device().id()}};
@@ -290,6 +293,9 @@ namespace noa::cuda {
             void* tmp{nullptr}; // X** to void** is not allowed
             const auto n_bytes = static_cast<usize>(n_elements) * sizeof(T);
             check(cudaMallocManaged(&tmp, n_bytes, cudaMemAttachHost));
+
+            // We need to set the current device in case the stream is a null stream.
+            const auto guard = DeviceGuard(stream.device());
             check(cudaStreamAttachMemAsync(stream.id(), tmp));
             add_bytes(stream.device().id(), static_cast<isize>(n_bytes));
             stream.synchronize(); // FIXME is this necessary since cudaMemAttachHost is used?

@@ -17,6 +17,8 @@ namespace noa::cuda {
     /// If ptr cannot be accessed by the device, returns nullptr.
     template<typename T>
     auto device_pointer(T* ptr, Device device) -> T* {
+        // The device pointer is null if ptr cannot be accessed to the current device.
+        auto guard = DeviceGuard(device);
         const auto attr = pointer_attributes(ptr);
         switch (attr.type) {
             case cudaMemoryTypeUnregistered:
