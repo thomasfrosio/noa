@@ -758,37 +758,26 @@ namespace noa::io {
         }
     }
 
-    template<typename T>
-    void ImageFileEncoderTiff::decode(
+    template<typename T, usize N, StridesTraits S>
+    void ImageFileEncoderTiff::decode_(
         std::FILE* file,
-        const Span<T, 4>& output,
-        const Vec<isize, 2>& bd_offset,
+        const Span<T, N, isize, S>& output,
+        const DataType& output_dtype,
+        isize start,
+        isize end,
         bool clamp,
         i32 n_threads
     ) {
-        check(m_handles, "Encoder is not initialized");
-        check(file == m_handles[0].first.file, "File stream mismatch");
-
-        const auto [b, d, h, w] = output.shape();
-        const isize start = bd_offset[0];
-        const isize end = bd_offset[0] + b;
-
-        check(m_shape[1] == h and m_shape[2] == w,
-              "Cannot read 2d slice(s) with shape={} from a file with 2d slice(s) with shape{}",
-              output.shape().filter(2, 3), m_shape.pop_front());
-        check(d == 1 and bd_offset[1] == 0,
-              "Can only read 2d slice(s), but asked to read shape={}, bd_offset={}",
-              output.shape(), bd_offset);
+        check(not m_is_write, "Cannot read slices from a newly created file");
+        const auto n_batches = end - start;
         check(m_shape[0] >= end,
               "The file has less slices ({}) that what is about to be read (start:{}, count:{})",
-              m_shape[0], start, b);
-
-        check(not m_is_write, "Cannot read slices from a newly created file");
+              m_shape[0], start, n_batches);
 
         // One thread per directory, at most.
         // Each thread has its own TIFF file, all pointing to the same file stream.
         n_threads = std::min(n_threads, static_cast<i32>(NOA_TIFF_MAX_HANDLES));
-        n_threads = std::min(n_threads, static_cast<i32>(b));
+        n_threads = std::min(n_threads, static_cast<i32>(n_batches));
         for (usize i = 1; i < clamp_cast<usize>(n_threads); ++i) {
             if (m_handles[i].second == nullptr) {
                 m_handles[i].first = Handle{.mutex = &m_mutex, .file = file};
@@ -836,11 +825,20 @@ namespace noa::io {
                 const auto n_rows = n_elements / m_shape[2];
 
                 // Convert and transfer to the output.
-                io::decode(
-                    SpanContiguous(buffer.get(), n_bytes), m_dtype,
-                    output.subregion(slice, 0, Slice{row_offset, row_offset + n_rows}),
-                    DecodeOptions{.clamp = clamp, .endian_swap = false, .n_threads = 1}
-                );
+                auto decode_options = DecodeOptions{.clamp = clamp, .endian_swap = false, .n_threads = 1};
+                if constexpr (std::same_as<T, std::byte> and N == 3) {
+                    io::decode(
+                        SpanContiguous(buffer.get(), n_bytes), m_dtype,
+                        output.subregion(slice, Slice{row_offset, row_offset + n_rows}).as_1d(), output_dtype,
+                        decode_options
+                    );
+                } else {
+                    io::decode(
+                        SpanContiguous(buffer.get(), n_bytes), m_dtype,
+                        output.subregion(slice, 0, Slice{row_offset, row_offset + n_rows}),
+                        decode_options
+                    );
+                }
                 row_offset += n_rows;
             }
 
@@ -848,10 +846,14 @@ namespace noa::io {
             u16 orientation{};
             ::TIFFGetFieldDefaulted(tiff, TIFFTAG_ORIENTATION, &orientation);
             if (orientation == ORIENTATION_TOPLEFT) { // this is the default
-                if (output.stride(0) == 1)
-                    flip_rows_(output.subregion(slice).filter(2, 3).as_contiguous());
-                else
-                    flip_rows_(output.subregion(slice).filter(2, 3));
+                if constexpr (std::same_as<T, std::byte> and N == 3) {
+                    flip_rows_(output[slice]);
+                } else {
+                    if (output.stride(0) == 1)
+                        flip_rows_(output.subregion(slice).filter(2, 3).as_contiguous());
+                    else
+                        flip_rows_(output.subregion(slice).filter(2, 3));
+                }
             } else if (orientation != ORIENTATION_BOTLEFT) {
                 panic("The orientation of the slice {} is not supported. "
                       "The origin should be at the bottom left (fastest) or top left", slice);
@@ -860,29 +862,78 @@ namespace noa::io {
     }
 
     template<typename T>
-    void ImageFileEncoderTiff::encode(
+    void ImageFileEncoderTiff::decode(
         std::FILE* file,
-        const Span<const T, 4>& input,
+        const Span<T, 4>& output,
         const Vec<isize, 2>& bd_offset,
+        bool clamp,
+        i32 n_threads
+    ) {
+        check(m_handles, "Encoder is not initialized");
+        check(file == m_handles[0].first.file, "File stream mismatch");
+
+        const auto [b, d, h, w] = output.shape();
+        const isize start = bd_offset[0];
+        const isize end = bd_offset[0] + b;
+
+        check(m_shape[1] == h and m_shape[2] == w,
+              "Cannot read 2d slice(s) with shape={} from a file with 2d slice(s) with shape{}",
+              output.shape().filter(2, 3), m_shape.pop_front());
+        check(d == 1 and bd_offset[1] == 0,
+              "Can only read 2d slice(s), but asked to read shape={}, bd_offset={}",
+              output.shape(), bd_offset);
+
+        decode_(file, output, DataType{}, start, end, clamp, n_threads);
+    }
+
+    void ImageFileEncoderTiff::decode(
+        std::FILE* file,
+        const SpanContiguous<std::byte, 1>& output,
+        const DataType& output_dtype,
+        const Vec<isize, 2>& bd_offset,
+        bool clamp,
+        i32 n_threads
+    ) {
+        check(m_handles, "Encoder is not initialized");
+        check(file == m_handles[0].first.file, "File stream mismatch");
+
+        const auto n_bytes_per_elements = output_dtype.n_bytes(1);
+        check(is_multiple_of(output.ssize(), n_bytes_per_elements),
+              "Output size doesn't match its dtype size, got output:n_bytes={}, output:dtype={}",
+              output.ssize(), output_dtype);
+        const auto n_output_elements = output.ssize() / n_bytes_per_elements;
+        const auto n_elements_per_slice = m_shape[1] * m_shape[2];
+        check(is_multiple_of(n_output_elements, n_elements_per_slice),
+              "Output size isn't a multiple of the image size, got output:n_elements={}, input:n_elements={}",
+              n_output_elements, n_elements_per_slice);
+
+        const auto b = n_output_elements / n_elements_per_slice;
+        const isize start = bd_offset[0];
+        const isize end = bd_offset[0] + b;
+
+        check(bd_offset[1] == 0, "Can only read 2d slice(s), but asked to read with bd_offset={}", bd_offset);
+
+        const auto output_3d = output.as<std::byte, 3>().reshape({b, m_shape[1], m_shape[2] * n_bytes_per_elements});
+        decode_(file, output_3d, output_dtype, start, end, clamp, n_threads);
+    }
+
+    template<typename T, usize N, StridesTraits S>
+    void ImageFileEncoderTiff::encode_(
+        std::FILE* file,
+        const Span<const T, N, isize, S>& input,
+        const DataType& input_dtype,
+        isize start,
+        isize end,
         bool clamp,
         i32 n_threads
     ) {
         (void) n_threads; // no multithreading for you
         check(file == m_handles[0].first.file, "File stream mismatch");
 
-        const auto [b, d, h, w] = input.shape();
-        const isize start = bd_offset[0];
-        const isize end = bd_offset[0] + b;
-
-        check(m_shape[1] == h and m_shape[2] == w,
-              "Cannot write 2d slice(s) with shape={} from a file with 2d slice(s) with shape{}",
-              input.shape().filter(2, 3), m_shape.pop_front());
-        check(d == 1 and bd_offset[1] == 0,
-              "Can only read 2d slice(s), but asked to read shape={}, bd_offset={}",
-              input.shape(), bd_offset);
+        const auto n_batches = end - start;
         check(m_shape[0] >= end,
-              "The file has less slices ({}) that what is about to be writen (start:{}, count:{})",
-              m_shape[0], start, b);
+              "The file has less slices ({}) that what is about to be written (start:{}, count:{})",
+              m_shape[0], start, n_batches);
 
         u16 tiff_compression{};
         switch (m_compression) {
@@ -961,12 +1012,19 @@ namespace noa::io {
 
             isize irow{};
             for (tstrip_t strip = 0; strip < n_strips; ++strip) {
-                io::encode(
-                    input.subregion(slice, 0, Slice{irow, irow + n_rows_per_strip}),
-                    SpanContiguous(buffer.get(), bytes_per_strip), m_dtype,
-                    EncodeOptions{.clamp = clamp, .endian_swap = false, .n_threads = 1}
-                );
-
+                if constexpr (std::same_as<T, std::byte> and N == 3) {
+                    io::encode(
+                        input.subregion(slice, Slice{irow, irow + n_rows_per_strip}).as_1d(), input_dtype,
+                        SpanContiguous(buffer.get(), bytes_per_strip), m_dtype,
+                        EncodeOptions{.clamp = clamp, .endian_swap = false, .n_threads = 1}
+                    );
+                } else {
+                    io::encode(
+                        input.subregion(slice, 0, Slice{irow, irow + n_rows_per_strip}),
+                        SpanContiguous(buffer.get(), bytes_per_strip), m_dtype,
+                        EncodeOptions{.clamp = clamp, .endian_swap = false, .n_threads = 1}
+                    );
+                }
                 check(::TIFFWriteEncodedStrip(tiff, strip, buffer.get(), static_cast<tmsize_t>(bytes_per_strip)) != -1,
                       "An error occurred while writing slice={}, strip={}. {}",
                       slice, strip, s_error_buffer);
@@ -976,6 +1034,62 @@ namespace noa::io {
             check(::TIFFWriteDirectory(tiff), "Failed to write slice={}, {}", slice, s_error_buffer);
             current_directory += 1;
         }
+    }
+
+    template<typename T>
+    void ImageFileEncoderTiff::encode(
+        std::FILE* file,
+        const Span<const T, 4>& input,
+        const Vec<isize, 2>& bd_offset,
+        bool clamp,
+        i32 n_threads
+    ) {
+        (void) n_threads; // no multithreading for you
+        check(file == m_handles[0].first.file, "File stream mismatch");
+
+        const auto [b, d, h, w] = input.shape();
+        const isize start = bd_offset[0];
+        const isize end = bd_offset[0] + b;
+
+        check(m_shape[1] == h and m_shape[2] == w,
+              "Cannot write 2d slice(s) with shape={} from a file with 2d slice(s) with shape{}",
+              input.shape().filter(2, 3), m_shape.pop_front());
+        check(d == 1 and bd_offset[1] == 0,
+              "Can only read 2d slice(s), but asked to read shape={}, bd_offset={}",
+              input.shape(), bd_offset);
+
+        encode_(file, input, {}, start, end, clamp, n_threads);
+    }
+
+    void ImageFileEncoderTiff::encode(
+        std::FILE* file,
+        const SpanContiguous<const std::byte, 1>& input,
+        const DataType& input_dtype,
+        const Vec<isize, 2>& bd_offset,
+        bool clamp,
+        i32 n_threads
+    ) {
+        (void) n_threads; // no multithreading for you
+        check(file == m_handles[0].first.file, "File stream mismatch");
+
+        const auto n_bytes_per_elements = input_dtype.n_bytes(1);
+        check(is_multiple_of(input.ssize(), n_bytes_per_elements),
+              "Input size doesn't match its dtype size, got input:n_bytes={}, input:dtype={}",
+              input.ssize(), input_dtype);
+        const auto n_input_elements = input.ssize() / n_bytes_per_elements;
+        const auto n_elements_per_slice = m_shape[1] * m_shape[2];
+        check(is_multiple_of(n_input_elements, n_elements_per_slice),
+              "Input size isn't a multiple of the image size, got input:n_elements={}, input:n_elements={}",
+              n_input_elements, n_elements_per_slice);
+
+        const auto b = n_input_elements / n_elements_per_slice;
+        const isize start = bd_offset[0];
+        const isize end = bd_offset[0] + b;
+
+        check(bd_offset[1] == 0, "Can only read 2d slice(s), but asked to read with bd_offset={}", bd_offset);
+
+        const auto input_3d = input.as<const std::byte, 3>().reshape({b, m_shape[1], m_shape[2] * n_bytes_per_elements});
+        encode_(file, input_3d, input_dtype, start, end, clamp, n_threads);
     }
 
     #define NOA_ENCODERTIFF_(T)                                                                                             \

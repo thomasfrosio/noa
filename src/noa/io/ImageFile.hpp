@@ -64,6 +64,8 @@ namespace noa::traits {
         std::FILE* file,
         const Span<U, 4>& span,
         const Span<const U, 4>& span_const,
+        const SpanContiguous<std::byte, 1>& span_byte,
+        const SpanContiguous<const std::byte, 1>& span_byte_const,
         const Shape4& shape,
         const Vec<f64, 3>& spacing,
         io::DataType dtype,
@@ -118,6 +120,8 @@ namespace noa::traits {
         /// Decodes or encodes some data from the opened file.
         { t.decode(file, span, offset, clamp, n_threads) } -> std::same_as<void>;
         { t.encode(file, span_const, offset, clamp, n_threads) } -> std::same_as<void>;
+        { t.decode(file, span_byte, dtype, offset, clamp, n_threads) } -> std::same_as<void>;
+        { t.encode(file, span_byte_const, dtype, offset, clamp, n_threads) } -> std::same_as<void>;
     };
 
     template<typename T>
@@ -316,6 +320,47 @@ namespace noa::io {
             }, m_encoders);
         }
 
+        /// Reads one or multiple consecutive 2d slices from a file describing a stack of 2d images or a 3d volume.
+        void read_slice(const SpanContiguous<std::byte>& output, const DataType& output_dtype, Parameters parameters) {
+            check(is_open(), "The file should be open");
+
+            check(parameters.bd_offset >= 0,
+                  "Batch-depth offset should be positive, but got bd_offset={}",
+                  parameters.bd_offset);
+
+            check(is_multiple_of(output.ssize(), output_dtype.n_bytes(1)),
+                  "Output size doesn't match its dtype size, got output:n_bytes={}, output:dtype={}",
+                  output.ssize(), output_dtype);
+
+            /// TODO Not sure about the API yet so limit to a single volume
+            ///      so that there's no ambiguity about the reshaping of the output.
+            const auto is_batched = shape()[0] > 1;
+            const auto is_volume = shape()[1] > 1;
+            check(is_batched or is_volume,
+                "TODO: This overload is currently limited to 2d images or a 3d volume, "
+                "but the file describe batched 3d volumes");
+
+            const auto n_output_elements = output.ssize() / output_dtype.n_bytes(1);
+            const auto n_elements_per_slice = shape()[2] * shape()[3];
+            check(is_multiple_of(n_output_elements, n_elements_per_slice),
+                  "Output size isn't a multiple of the image size, got output:n_elements={}, input:n_elements={}",
+                  n_output_elements, n_elements_per_slice);
+            const auto n = n_output_elements / n_elements_per_slice;
+            const auto b = is_batched ? n : 0;
+            const auto d = is_volume ? n : 0;
+
+            check(shape()[0] >= parameters.bd_offset[0] + b and
+                  shape()[1] >= parameters.bd_offset[1] + d,
+                  "File: {}. Batch-depth shapes do not match, got bd_offset={}, output:shape={} and file:shape={}",
+                  path(), parameters.bd_offset, Shape{b, d}, shape().filter(0, 1));
+
+            // Read and decode.
+            std::visit([&, this](auto& f) {
+                f.decode(m_file.stream(), output, output_dtype,
+                         parameters.bd_offset, parameters.clamp, parameters.n_threads);
+            }, m_encoders);
+        }
+
         /// Reads the whole data from the file.
         template<nt::image_encorder_supported_value_type T, StridesTraits S>
         void read_all(const Span<T, 4, isize, S>& output, Parameters parameters = {}) {
@@ -330,6 +375,26 @@ namespace noa::io {
             // Read and decode.
             std::visit([&, this](auto& f) {
                 f.decode(m_file.stream(), output.as_strided(),
+                         parameters.bd_offset, parameters.clamp, parameters.n_threads);
+            }, m_encoders);
+        }
+
+        /// Reads the whole data from the file.
+        void read_all(const SpanContiguous<std::byte>& output, const DataType& output_dtype, Parameters parameters = {}) {
+            check(is_open(), "The file should be open");
+            check(parameters.bd_offset == 0,
+                  "Offsets should be 0, but got bd_offset={}",
+                  parameters.bd_offset);
+
+            const auto expected_n_bytes = output_dtype.n_bytes(shape().n_elements());
+            check(output.ssize() == expected_n_bytes,
+                  "File: {}. Output buffer doesn't match expected size, "
+                  "got output:n_bytes={} and file:shape={}, file:dtype={}, expected_n_bytes={}",
+                  path(), output.ssize(), shape(), output_dtype, expected_n_bytes);
+
+            // Read and decode.
+            std::visit([&, this](auto& f) {
+                f.decode(m_file.stream(), output, output_dtype,
                          parameters.bd_offset, parameters.clamp, parameters.n_threads);
             }, m_encoders);
         }
@@ -361,6 +426,48 @@ namespace noa::io {
             }, m_encoders);
         }
 
+        /// Writes one or multiple consecutive 2d slices into a file describing a stack of 2d images or a 3d volume.
+        /// \note Multithreading is disabled for TIFF files. Parameters::n_threads is ignored.
+        /// \note TIFF files can only write slices sequentially, so an error will be thrown if inputs are written
+        ///       in a different order.
+        void write_slice(const SpanContiguous<const std::byte>& input, const DataType& input_dtype, Parameters parameters) {
+            check(is_open(), "The file should be open");
+
+            check(parameters.bd_offset >= 0,
+                  "Batch-depth offset should be positive, but got bd_offset={}",
+                  parameters.bd_offset);
+            check(is_multiple_of(input.ssize(), input_dtype.n_bytes(1)),
+                  "Output size doesn't match its dtype size, got input:n_bytes={}, input:dtype={}",
+                  input.ssize(), input_dtype);
+
+            /// TODO Not sure about the API yet so limit to a single volume
+            ///      so that there's no ambiguity about the reshaping of the input.
+            const auto is_batched = shape()[0] > 1;
+            const auto is_volume = shape()[1] > 1;
+            check(is_batched or is_volume,
+                "TODO: This overload is currently limited to 2d images or a 3d volume, "
+                "but the file describe batched 3d volumes");
+
+            const auto n_input_elements = input.ssize() / input_dtype.n_bytes(1);
+            const auto n_elements_per_slice = shape()[2] * shape()[3];
+            check(is_multiple_of(n_input_elements, n_elements_per_slice),
+                  "Input size isn't a multiple of the image size, got input:n_elements={}, output:n_elements={}",
+                  n_input_elements, n_elements_per_slice);
+            const auto n = n_input_elements / n_elements_per_slice;
+            const auto b = is_batched ? n : 0;
+            const auto d = is_volume ? n : 0;
+
+            check(shape()[0] >= parameters.bd_offset[0] + b and
+                  shape()[1] >= parameters.bd_offset[1] + d,
+                  "File: {}. Batch-depth shapes do not match, got bd_offset={}, input:shape={} and file:shape={}",
+                  path(), parameters.bd_offset, Shape{b, d}, shape().filter(0, 1));
+
+            std::visit([&, this](auto& f) {
+                f.encode(m_file.stream(), input, input_dtype,
+                         parameters.bd_offset, parameters.clamp, parameters.n_threads);
+            }, m_encoders);
+        }
+
         /// Writes the data into the file.
         /// \note Multithreading is disabled for TIFF files. Parameters::n_threads is ignored.
         template<nt::image_encorder_supported_value_type T, StridesTraits S>
@@ -375,6 +482,26 @@ namespace noa::io {
 
             std::visit([&, this](auto& f) {
                 f.encode(m_file.stream(), input.as_strided(),
+                         parameters.bd_offset, parameters.clamp, parameters.n_threads);
+            }, m_encoders);
+        }
+
+        /// Writes the data into the file.
+        /// \note Multithreading is disabled for TIFF files. Parameters::n_threads is ignored.
+        void write_all(const SpanContiguous<const std::byte>& input, const DataType& input_dtype, Parameters parameters = {}) {
+            check(is_open(), "The file should be open");
+            check(parameters.bd_offset == 0,
+                  "Offsets should be 0, but got bd_offset={}",
+                  parameters.bd_offset);
+
+            const auto expected_n_bytes = input_dtype.n_bytes(shape().n_elements());
+            check(input.ssize() == expected_n_bytes,
+                  "File: {}. Input buffer doesn't match expected size, "
+                  "got input:n_bytes={} and file:shape={}, file:dtype={}, expected_n_bytes={}",
+                  path(), input.ssize(), shape(), input_dtype, expected_n_bytes);
+
+            std::visit([&, this](auto& f) {
+                f.encode(m_file.stream(), input, input_dtype,
                          parameters.bd_offset, parameters.clamp, parameters.n_threads);
             }, m_encoders);
         }
@@ -529,7 +656,7 @@ namespace noa::io {
             const Vec<isize, 2>& bd_offset,
             bool clamp,
             i32 n_threads
-        ) {
+        ) const {
             const isize byte_offset =
                 HEADER_SIZE + m_extended_bytes_nb +
                 m_dtype.n_bytes(offset_at(m_shape.strides(), bd_offset));
@@ -544,6 +671,28 @@ namespace noa::io {
             });
         }
 
+        void decode(
+            std::FILE* file,
+            const SpanContiguous<std::byte, 1>& output,
+            const DataType& output_dtype,
+            const Vec<isize, 2>& bd_offset,
+            bool clamp,
+            i32 n_threads
+        ) const {
+            const isize byte_offset =
+                HEADER_SIZE + m_extended_bytes_nb +
+                m_dtype.n_bytes(offset_at(m_shape.strides(), bd_offset));
+
+            check(std::fseek(file, byte_offset, SEEK_SET) == 0,
+                  "Failed to seek at bd_offset={} (bytes={}). {}",
+                  bd_offset, byte_offset, std::strerror(errno));
+            noa::io::decode(file, m_dtype, output, output_dtype, {
+                .clamp = clamp,
+                .endian_swap = m_is_endian_swapped,
+                .n_threads = n_threads,
+            });
+        }
+
         template<typename T>
         void encode(
             std::FILE* file,
@@ -551,7 +700,7 @@ namespace noa::io {
             const Vec<isize, 2>& bd_offset,
             bool clamp,
             i32 n_threads
-        ) {
+        ) const {
             const isize byte_offset =
                 HEADER_SIZE + m_extended_bytes_nb +
                 m_dtype.n_bytes(offset_at(m_shape.strides(), bd_offset));
@@ -560,6 +709,28 @@ namespace noa::io {
                   "Failed to seek at bd_offset={} (bytes={}). {}",
                   bd_offset, byte_offset, std::strerror(errno));
             noa::io::encode(input, file, m_dtype, {
+                .clamp = clamp,
+                .endian_swap = m_is_endian_swapped,
+                .n_threads = n_threads,
+            });
+        }
+
+        void encode(
+            std::FILE* file,
+            const SpanContiguous<const std::byte, 1>& input,
+            const DataType& input_dtype,
+            const Vec<isize, 2>& bd_offset,
+            bool clamp,
+            i32 n_threads
+        ) const {
+            const isize byte_offset =
+                HEADER_SIZE + m_extended_bytes_nb +
+                m_dtype.n_bytes(offset_at(m_shape.strides(), bd_offset));
+
+            check(std::fseek(file, byte_offset, SEEK_SET) == 0,
+                  "Failed to seek at bd_offset={} (bytes={}). {}",
+                  bd_offset, byte_offset, std::strerror(errno));
+            noa::io::encode(input, input_dtype, file, m_dtype, {
                 .clamp = clamp,
                 .endian_swap = m_is_endian_swapped,
                 .n_threads = n_threads,
@@ -647,10 +818,28 @@ namespace noa::io {
             i32 n_threads
         );
 
+        void decode(
+            std::FILE* file,
+            const SpanContiguous<std::byte, 1>& output,
+            const DataType& output_dtype,
+            const Vec<isize, 2>& bd_offset,
+            bool clamp,
+            i32 n_threads
+        );
+
         template<typename T>
         void encode(
             std::FILE* file,
             const Span<const T, 4>& input,
+            const Vec<isize, 2>& bd_offset,
+            bool clamp,
+            i32 n_threads
+        );
+
+        void encode(
+            std::FILE* file,
+            const SpanContiguous<const std::byte, 1>& input,
+            const DataType& input_dtype,
             const Vec<isize, 2>& bd_offset,
             bool clamp,
             i32 n_threads
@@ -690,6 +879,29 @@ namespace noa::io {
             long offset{};
         };
         using handle_type = Pair<Handle, void*>;
+
+    private:
+        template<typename T, usize N, StridesTraits S>
+        void encode_(
+            std::FILE* file,
+            const Span<const T, N, isize, S>& input,
+            const DataType& input_dtype,
+            isize start,
+            isize end,
+            bool clamp,
+            i32 n_threads
+        );
+
+        template<typename T, usize N, StridesTraits S>
+        void decode_(
+            std::FILE* file,
+            const Span<T, N, isize, S>& output,
+            const DataType& output_dtype,
+            isize batch_start,
+            isize batch_end,
+            bool clamp,
+            i32 n_threads
+        );
 
     private:
         Shape<isize, 3> m_shape{}; // BHW order

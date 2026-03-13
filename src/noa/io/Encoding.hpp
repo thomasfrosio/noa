@@ -47,7 +47,7 @@ namespace noa::io {
                 value = I32;
             else if (name_ == "u32" or name_ == "U32")
                 value = U32;
-            else if (name_ == "iz" or name_ == "I64")
+            else if (name_ == "i64" or name_ == "I64")
                 value = I64;
             else if (name_ == "u64" or name_ == "U64")
                 value = U64;
@@ -82,8 +82,8 @@ namespace noa::io {
 
     public:
         /// Returns the number of bytes necessary to hold a given number of elements with the current dtype.
-        [[nodiscard]] static constexpr auto n_bytes(DataType dtype, isize n_elements) -> isize {
-            switch (dtype) {
+        [[nodiscard]] constexpr auto n_bytes(isize n_elements) const noexcept -> isize {
+            switch (value) {
                 case U4: {
                     check(is_even(n_elements), "dtype=u4 requires an even number of elements");
                     return n_elements / 2;
@@ -114,8 +114,16 @@ namespace noa::io {
             return 0; // unreachable
         }
 
-        [[nodiscard]] constexpr auto n_bytes(isize n_elements) const noexcept -> isize {
-            return n_bytes(value, n_elements);
+        [[nodiscard]] constexpr auto is_static_type() const -> bool {
+            return not (value == U4 or value == CI16 or value == UNKNOWN);
+        }
+
+        [[nodiscard]] constexpr auto closest_static_type() const -> DataType {
+            if (value == U4)
+                return U8;
+            if (value == CI16)
+                return C32; // FIXME C16 maybe?
+            return value;
         }
 
         /// Returns the data type corresponding to the type \p T.

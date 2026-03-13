@@ -6,4 +6,5 @@ list(APPEND TEST_SOURCES
     noa/io/TestIOOS.cpp
     noa/io/TestIOTextFile.cpp
     noa/io/TestIOTiffFile.cpp
+    noa/io/TestIOCast.cpp
 )

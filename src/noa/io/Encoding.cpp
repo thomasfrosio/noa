@@ -447,7 +447,7 @@ namespace noa::io {
             case DataType::CI16:
                 panic("TODO: u4 and ci16 cannot be reinterpreted to valid types, they would require special cases");
             case DataType::UNKNOWN:
-                break;
+                panic("Unknown data type");
         }
     }
 
@@ -581,7 +581,7 @@ namespace noa::io {
             case DataType::CI16:
                 panic("TODO: u4 and ci16 cannot be reinterpreted to valid types, they would require special cases");
             case DataType::UNKNOWN:
-                break;
+                panic("Unknown data type");
         }
     }
 
@@ -713,7 +713,7 @@ namespace noa::io {
             case DataType::CI16:
                 panic("TODO: u4 and ci16 cannot be reinterpreted to valid types, they would require special cases");
             case DataType::UNKNOWN:
-                break;
+                panic("Unknown data type");
         }
     }
 
@@ -851,7 +851,7 @@ namespace noa::io {
             case DataType::CI16:
                 panic("TODO: u4 and ci16 cannot be reinterpreted to valid types, they would require special cases");
             case DataType::UNKNOWN:
-                break;
+                panic("Unknown data type");
         }
     }
 

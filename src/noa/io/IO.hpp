@@ -16,6 +16,11 @@ namespace noa::io {
         /// Whether the decoded values should be clamped to the output type range.
         bool clamp{true};
 
+        /// Output dtype.
+        /// This is only used for the read_image<std::byte> overload.
+        /// If UNKNOWN, defaults to file.dtype().closest_static_type().
+        DataType dtype{DataType::UNKNOWN};
+
         /// Number of threads to read and decode the data.
         i32 n_threads{1};
     };
@@ -48,6 +53,45 @@ namespace noa::io {
         const auto& shape = data.shape();
         if (read_option.enforce_2d_stack and (shape[0] == 1 and shape[1] > 1))
             data = std::move(data).reshape(shape.filter(1, 0, 2, 3));
+
+        return {std::move(data), file.header()};
+    }
+
+    /// Loads the file into a new type-erased array.
+    /// \return BDHW C-contiguous output array containing the whole data array of the file, and its header.
+    template<nt::byte T>
+    [[nodiscard]] auto read_image(
+        const Path& path,
+        ReadOption read_option = {},
+        ArrayOption array_option = {}
+    ) -> ReadOutput<T> {
+        auto file = ImageFile(path, Open{.read = true});
+
+        auto dtype = read_option.dtype;
+        if (dtype == DataType::UNKNOWN)
+            dtype = file.dtype().closest_static_type();
+
+        const auto n_bytes_per_element = dtype.n_bytes(1);
+        const auto shape = file.shape();
+        const auto shape_byte = shape.set<3>(shape[3] * n_bytes_per_element);
+
+        auto data = Array<std::byte>(shape_byte, array_option);
+        if (array_option.is_dereferenceable()) {
+            file.read_all(data.span_1d(), dtype, {
+                .clamp = read_option.clamp,
+                .n_threads = read_option.n_threads,
+            });
+        } else {
+            auto tmp = Array<std::byte>(shape_byte);
+            file.read_all(tmp.span_1d(), dtype, {
+                .clamp = read_option.clamp,
+                .n_threads = read_option.n_threads,
+            });
+            std::move(tmp).to(data);
+        }
+
+        if (read_option.enforce_2d_stack and (shape_byte[0] == 1 and shape_byte[1] > 1))
+            data = std::move(data).reshape(shape_byte.filter(1, 0, 2, 3));
 
         return {std::move(data), file.header()};
     }
@@ -122,6 +166,63 @@ namespace noa::io {
             .compression = write_option.compression,
             .stats = write_option.stats,
         }).write_all(span, {
+            .clamp = write_option.clamp,
+            .n_threads = write_option.n_threads,
+        });
+    }
+
+    /// Saves the type-erased input array into a new file.
+    /// \param[in] input    Type-erased C-contiguous array to save to disk.
+    /// \param input_dtype  Input dtype.
+    /// \param[in] filename Path of the new file.
+    /// \param write_option Options.
+    template<nt::readable_varray_decay_of_byte Input>
+    void write_image(
+        Input&& input,
+        DataType input_dtype,
+        const Path& filename,
+        WriteOption write_option = {}
+    ) {
+        using value_t = nt::mutable_value_type_t<Input>;
+        check(input.is_contiguous(),
+              "Input array should be C-contiguous, but got input:shape={}, input:strides={}",
+              input.shape(), input.strides());
+
+        const auto type_erased_shape = input.shape();
+        const auto n_bytes_per_element = input_dtype.n_bytes(1);
+        check(is_multiple_of(type_erased_shape[3], n_bytes_per_element),
+              "Type-erased input array is not valid, got input:shape={}, input:dtype={}",
+              type_erased_shape, input_dtype);
+        const auto input_shape = type_erased_shape.template set<3>(type_erased_shape[3] / n_bytes_per_element);
+
+        auto dtype = write_option.dtype;
+        if (dtype == DataType::UNKNOWN)
+            dtype = ImageFile::closest_supported_dtype(filename.extension().string(), input_dtype);
+
+        Array<value_t> tmp;
+        SpanContiguous<const value_t> span;
+        if (input.device().is_cpu()) {
+            // Unfortunately, the IO is currently part of the core, thus is not stream-aware.
+            // To account for asynchronous CPU streams, it is important to synchronize here!
+            span = input.eval().span_1d();
+        } else if (input.is_dereferenceable()) {
+            // The input is on the GPU, reinterpret_as will prefetch and sync, making sure
+            // the GPU is done with the input and that the memory can be accessed by the CPU.
+            span = input.reinterpret_as_cpu({.prefetch = true}).span_1d();
+        } else {
+            // The input is on the GPU but cannot be reinterpreted, so copy to cpu.
+            // to_cpu() synchronizes both the CPU and GPU stream in this case.
+            tmp = std::forward<Input>(input).to_cpu();
+            span = tmp.span_1d();
+        }
+
+        ImageFile(filename, Open{.write = true}, {
+            .shape = input_shape,
+            .spacing = write_option.spacing,
+            .dtype = dtype,
+            .compression = write_option.compression,
+            .stats = write_option.stats,
+        }).write_all(span, input_dtype, {
             .clamp = write_option.clamp,
             .n_threads = write_option.n_threads,
         });
