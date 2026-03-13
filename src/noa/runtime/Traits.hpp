@@ -43,6 +43,7 @@ namespace noa::traits {
     NOA_TRAITS_GENERATE_VARRAY(scalar);
     NOA_TRAITS_GENERATE_VARRAY(numeric);
     NOA_TRAITS_GENERATE_VARRAY(boolean);
+    NOA_TRAITS_GENERATE_VARRAY(byte);
     #undef NOA_TRAITS_GENERATE_VARRAY
 
     #define NOA_TRAITS_GENERATE_VARRAY_SAME_AS(suffix, constrain)                                                                                               \

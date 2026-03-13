@@ -280,6 +280,10 @@ namespace noa::traits {
     template<> struct proclaim_is_boolean<bool> : std::true_type {};
     template<typename... T> concept boolean = uinteger<T...> and are_boolean_v<T...>;
 
+    NOA_GENERATE_PROCLAIM(byte);
+    template<> struct proclaim_is_byte<std::byte> : std::true_type {};
+    template<typename... T> concept byte = are_byte_v<T...>;
+
     NOA_GENERATE_PROCLAIM(complex);
     template<typename... T> concept complex = are_complex_v<T...>;
 
