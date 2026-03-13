@@ -446,6 +446,8 @@ namespace {
                     return DataType::I16;
                 if (bits_per_sample == 32)
                     return DataType::I32;
+                if (bits_per_sample == 64)
+                    return DataType::I64;
             break;
             case SAMPLEFORMAT_UINT:
                 if (bits_per_sample == 8)
@@ -454,6 +456,8 @@ namespace {
                     return DataType::U16;
                 if (bits_per_sample == 32)
                     return DataType::U32;
+                if (bits_per_sample == 64)
+                    return DataType::U64;
                 if (bits_per_sample == 4)
                     return DataType::U4;
             break;
