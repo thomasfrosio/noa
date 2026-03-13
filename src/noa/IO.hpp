@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/io/BinaryFile.hpp"
+#include "noa/io/Cast.hpp"
 #include "noa/io/Encoding.hpp"
 #include "noa/io/ImageFile.hpp"
 #include "noa/io/IO.hpp"

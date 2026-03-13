@@ -1,5 +1,6 @@
 list(APPEND NOA_HEADERS
     noa/io/BinaryFile.hpp
+    noa/io/Cast.hpp
     noa/io/Encoding.hpp
     noa/io/ImageFile.hpp
     noa/io/IO.hpp
