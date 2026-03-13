@@ -30,8 +30,8 @@ namespace noa::cpu {
             return;
         }
         ewise(shape, Copy{},
-              make_tuple(AccessorRestrict<const T, 4, isize>(src, src_strides)),
-              make_tuple(AccessorRestrict<T, 4, isize>(dst, dst_strides)),
+              noa::make_tuple(AccessorRestrict<const T, 4, isize>(src, src_strides)),
+              noa::make_tuple(AccessorRestrict<T, 4, isize>(dst, dst_strides)),
               n_threads);
     }
 }
