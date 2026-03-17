@@ -229,12 +229,14 @@ namespace {
                 return 0;
 
             // The user provided a workspace that is big enough, so use it.
+            auto pointer = buffer.get();
             i32 count{};
             for (auto& plan: m_queue | std::views::values) {
                 if (not plan->has_workspace) {
-                    check(::cufftSetWorkArea(plan->handle, buffer.get()));
+                    check(::cufftSetWorkArea(plan->handle, pointer));
                     plan->has_workspace = true;
-                    plan->workspace = std::forward<T>(buffer);
+                    if (buffer)
+                        plan->workspace = std::forward<T>(buffer);
                     ++count;
                 }
             }
