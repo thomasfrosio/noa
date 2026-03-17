@@ -88,7 +88,7 @@ namespace noa {
     struct Subregion {
         /// Creates a new subregion.
         constexpr explicit Subregion(const T&... access_sequence) noexcept :
-            m_ops{make_tuple(access_sequence...)} {}
+            m_ops{noa::make_tuple(access_sequence...)} {}
 
         /// Extracts the subregion from the provided layout.
         template<nt::sinteger I>

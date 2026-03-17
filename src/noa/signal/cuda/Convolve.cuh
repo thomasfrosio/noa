@@ -587,7 +587,7 @@ namespace noa::signal::cuda {
             const auto input_accessor = input_accessor_t(input, input_strides);
             const auto output_accessor = output_accessor_t(output, output_strides);
             const auto value = AccessorValue<T>(static_cast<T>(filter_value));
-            return ewise(shape, Multiply{}, make_tuple(input_accessor, value), make_tuple(output_accessor), stream);
+            return ewise(shape, Multiply{}, noa::make_tuple(input_accessor, value), noa::make_tuple(output_accessor), stream);
         } else {
             panic("unreachable");
         }

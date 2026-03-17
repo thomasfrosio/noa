@@ -277,7 +277,7 @@ namespace noa::cuda::details {
             .n_threads=dim3(Block::block_size_x, Block::block_size_y, 1),
         };
         auto n_blocks_yx = Vec{n_blocks[2], n_blocks[3]}; // only for 4d
-        return make_tuple(config, product(n_blocks), n_blocks_yx);
+        return noa::make_tuple(config, product(n_blocks), n_blocks_yx);
     }
 }
 

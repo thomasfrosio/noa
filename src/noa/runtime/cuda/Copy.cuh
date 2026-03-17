@@ -97,8 +97,8 @@ namespace noa::cuda::details {
                   "Copying elements of a non-trivially copyable type between device memory of two different devices "
                   "(device:src={}, device:dst={}) is not supported", src_attr.device, dst_attr.device);
 
-            auto input = make_tuple(AccessorRestrictContiguous<const T, 4, isize>(src, src_strides));
-            auto output = make_tuple(AccessorRestrictContiguous<T, 4, isize>(dst, dst_strides));
+            auto input = noa::make_tuple(AccessorRestrictContiguous<const T, 4, isize>(src, src_strides));
+            auto output = noa::make_tuple(AccessorRestrictContiguous<T, 4, isize>(dst, dst_strides));
             ewise<Config>(shape, Copy{}, std::move(input), std::move(output), stream);
 
         } else if (src_attr.type >= 1 and dst_attr.type >= 1) {
@@ -117,8 +117,8 @@ namespace noa::cuda::details {
             // TODO For managed pointers, use cudaMemPrefetchAsync()?
             auto src_ptr = static_cast<const T*>(src_attr.devicePointer);
             auto dst_ptr = static_cast<T*>(dst_attr.devicePointer);
-            auto input = make_tuple(AccessorRestrictContiguous<const T, 4, isize>(src_ptr, src_strides));
-            auto output = make_tuple(AccessorRestrictContiguous<T, 4, isize>(dst_ptr, dst_strides));
+            auto input = noa::make_tuple(AccessorRestrictContiguous<const T, 4, isize>(src_ptr, src_strides));
+            auto output = noa::make_tuple(AccessorRestrictContiguous<T, 4, isize>(dst_ptr, dst_strides));
             ewise<Config>(shape, Copy{}, std::move(input), std::move(output), stream);
 
         } else if ((src_attr.type <= 1 or src_attr.type == 3) and
@@ -245,8 +245,8 @@ namespace noa::cuda {
                   "to (device:{}, strides:{}) ",
                   shape, src_attr.device, src_strides, dst_attr.device, dst_strides);
 
-            auto input = make_tuple(AccessorRestrict<const T, 4, isize>(src, src_strides));
-            auto output = make_tuple(AccessorRestrict<T, 4, isize>(dst, dst_strides));
+            auto input = noa::make_tuple(AccessorRestrict<const T, 4, isize>(src, src_strides));
+            auto output = noa::make_tuple(AccessorRestrict<T, 4, isize>(dst, dst_strides));
             ewise(shape, Copy{}, std::move(input), std::move(output), stream);
 
         } else if (src_attr.type >= 1 and dst_attr.type >= 1) { // between pinned/device/managed memory
@@ -258,8 +258,8 @@ namespace noa::cuda {
             // TODO For managed pointers, use cudaMemPrefetchAsync()?
             auto src_ptr = static_cast<const T*>(src_attr.devicePointer);
             auto dst_ptr = static_cast<T*>(dst_attr.devicePointer);
-            auto input = make_tuple(AccessorRestrict<const T, 4, isize>(src_ptr, src_strides));
-            auto output = make_tuple(AccessorRestrict<T, 4, isize>(dst_ptr, dst_strides));
+            auto input = noa::make_tuple(AccessorRestrict<const T, 4, isize>(src_ptr, src_strides));
+            auto output = noa::make_tuple(AccessorRestrict<T, 4, isize>(dst_ptr, dst_strides));
             ewise(shape, Copy{}, std::move(input), std::move(output), stream);
 
         } else if ((src_attr.type <= 1 or src_attr.type == 3) and

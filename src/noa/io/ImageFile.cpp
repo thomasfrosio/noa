@@ -163,7 +163,7 @@ namespace noa::io {
             .stddev = static_cast<f64>(mrc_stats[3]),
         };
 
-        return make_tuple(m_shape, m_spacing.as<f64>(), m_dtype, Compression::NONE, stats);
+        return noa::make_tuple(m_shape, m_spacing.as<f64>(), m_dtype, Compression::NONE, stats);
     }
 
     auto ImageFileEncoderMrc::write_header(
@@ -292,7 +292,7 @@ namespace noa::io {
         check(std::fseek(file, 0, SEEK_SET) == 0, "Failed to seek {}", std::strerror(errno));
         check(std::fwrite(buffer, 1, 1024, file) == 1024, "Failed to write the header (1024 bytes). {}", std::strerror(errno));
 
-        return make_tuple(m_dtype, Compression::NONE);
+        return noa::make_tuple(m_dtype, Compression::NONE);
     }
 }
 
@@ -697,7 +697,7 @@ namespace noa::io {
         // Don't bother resetting the current directory to the first one,
         // read/write operations will reset the directory whenever necessary.
 
-        return make_tuple(
+        return noa::make_tuple(
             Shape4{m_shape[0], 1, m_shape[1], m_shape[2]},
             m_spacing.as<f64>().push_front(m_spacing[0] == 0 and m_spacing[1] == 0 ? 0 : 1),
             m_dtype, compression, ImageFileStats{.min = min, .max = max}
@@ -740,7 +740,7 @@ namespace noa::io {
         m_is_write = true;
 
         // Every dtype and compression are supported.
-        return make_tuple(m_dtype, m_compression);
+        return noa::make_tuple(m_dtype, m_compression);
     }
 
     void ImageFileEncoderTiff::close() const {

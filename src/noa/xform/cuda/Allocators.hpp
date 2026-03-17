@@ -132,7 +132,7 @@ namespace noa::xform::cuda {
                 }
                 default: panic();
             }
-            return make_tuple(filter_mode, address_mode, cudaReadModeElementType, normalized_coordinates);
+            return noa::make_tuple(filter_mode, address_mode, cudaReadModeElementType, normalized_coordinates);
         }
 
         /// Creates a 1d, 2d or 3d texture from a CUDA array.

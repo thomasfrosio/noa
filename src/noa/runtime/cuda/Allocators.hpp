@@ -562,7 +562,7 @@ namespace noa::cuda {
             cudaExtent extent{};
             u32 flags{};
             check(cudaArrayGetInfo(&desc, &extent, &flags, array));
-            return make_tuple(desc, extent, flags);
+            return noa::make_tuple(desc, extent, flags);
         }
 
         static bool is_layered(cudaArray* array) {

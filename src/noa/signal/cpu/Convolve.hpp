@@ -282,7 +282,7 @@ namespace noa::signal::cpu {
             const auto input_accessor = AccessorRestrict<const T, 4, isize>(input, input_strides);
             const auto output_accessor = AccessorRestrict<U, 4, isize>(output, output_strides);
             const auto value = AccessorValue<T>(static_cast<T>(filter[0]));
-            return noa::cpu::ewise(shape, Multiply{}, make_tuple(input_accessor, value), make_tuple(output_accessor), n_threads);
+            return noa::cpu::ewise(shape, Multiply{}, noa::make_tuple(input_accessor, value), noa::make_tuple(output_accessor), n_threads);
 
         } else {
             panic();

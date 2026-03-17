@@ -25,8 +25,8 @@ namespace noa::cpu {
     template<typename T>
     void fill(T* src, const Strides4& strides, const Shape4& shape, T value, isize n_threads) {
         ewise(shape, Fill<T>{value},
-              make_tuple(),
-              make_tuple(Accessor<T, 4>(src, strides)),
+              noa::make_tuple(),
+              noa::make_tuple(Accessor<T, 4>(src, strides)),
               n_threads);
     }
 }
