@@ -223,10 +223,8 @@ namespace {
             m_workspace_size = 0; // reset for future calls with record_workspace=true
         }
 
-        auto set_workspace(
-            const std::shared_ptr<std::byte[]>& buffer,
-            isize buffer_size
-        ) -> i32 {
+        template<typename T>
+        auto set_workspace(T&& buffer, isize buffer_size) -> i32 {
             if (m_workspace_size <= 0 or not buffer or static_cast<usize>(buffer_size) < m_workspace_size)
                 return 0;
 
@@ -234,9 +232,9 @@ namespace {
             i32 count{};
             for (auto& plan: m_queue | std::views::values) {
                 if (not plan->has_workspace) {
-                    plan->has_workspace = true;
-                    plan->workspace = buffer;
                     check(::cufftSetWorkArea(plan->handle, buffer.get()));
+                    plan->has_workspace = true;
+                    plan->workspace = std::forward<T>(buffer);
                     ++count;
                 }
             }
@@ -501,6 +499,10 @@ namespace noa::fft::cuda {
 
     auto set_workspace(Device device, const std::shared_ptr<std::byte[]>& buffer, isize buffer_size) -> i32 {
         return get_cache_(device)->set_workspace(buffer, buffer_size);
+    }
+
+    auto set_workspace(Device device, std::shared_ptr<std::byte[]>&& buffer, isize buffer_size) -> i32 {
+        return get_cache_(device)->set_workspace(std::move(buffer), buffer_size);
     }
 
     template<typename T>

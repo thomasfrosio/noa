@@ -112,6 +112,7 @@ namespace noa::fft {
     [[nodiscard]] auto workspace_left_to_allocate(Device device) -> isize;
 
     namespace details {
+        auto set_workspace(Device device, std::shared_ptr<std::byte[]>&& buffer, isize buffer_bytes) -> i32;
         auto set_workspace(Device device, const std::shared_ptr<std::byte[]>& buffer, isize buffer_bytes) -> i32;
     }
 
@@ -121,17 +122,25 @@ namespace noa::fft {
     ///          workspace_left_to_allocate(device), the buffer cannot be used and 0 is returned.
     /// \see noa::fft::FFTOptions.record_and_share_workspace for more details.
     /// \note Some backends (e.g., FFTW) do not support explicit workspace management and always return 0.
-    template<typename T>
-    auto set_workspace(Device device, const Array<T>& buffer) -> i32 {
+    template<nt::array_decay T>
+    auto set_workspace(Device device, T&& buffer) -> i32 {
         check(buffer.device() == device,
               "The buffer should be on the device, but got device={} and buffer:device={}",
               device, buffer.device());
         check(buffer.is_contiguous(), "The workspace should be a contiguous array");
         return details::set_workspace(
             device,
-            std::reinterpret_pointer_cast<std::byte[]>(buffer.share()),
-            buffer.ssize() * static_cast<isize>(sizeof(T))
+            std::reinterpret_pointer_cast<std::byte[]>(std::forward<T>(buffer).share()),
+            buffer.ssize() * static_cast<isize>(sizeof(nt::value_type_t<T>))
         );
+    }
+
+    /// Assigns cached plans without a workspace to a newly allocated buffer.
+    /// \see set_workspace for more details.
+    inline auto allocate_workspace(Device device, Allocator allocator) -> i32 {
+        if (const auto n_bytes = workspace_left_to_allocate(device); n_bytes > 0)
+            return set_workspace(device, Array<std::byte>(n_bytes, {.device = device, .allocator = allocator}));
+        return 0;
     }
 }
 

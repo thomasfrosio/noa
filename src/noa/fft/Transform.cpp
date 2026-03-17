@@ -66,6 +66,19 @@ namespace noa::fft {
     }
 
     namespace details {
+        auto set_workspace(Device device, std::shared_ptr<std::byte[]>&& buffer, isize buffer_bytes) -> i32 {
+            #ifdef NOA_ENABLE_CUDA
+            if (device.is_gpu()) {
+                auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
+                return noa::fft::cuda::set_workspace(cuda_device, std::move(buffer), buffer_bytes);
+            }
+            #else
+            (void) device;
+            (void) buffer;
+            (void) buffer_bytes;
+            #endif
+            return 0;
+        }
         auto set_workspace(Device device, const std::shared_ptr<std::byte[]>& buffer, isize buffer_bytes) -> i32 {
             #ifdef NOA_ENABLE_CUDA
             if (device.is_gpu()) {
