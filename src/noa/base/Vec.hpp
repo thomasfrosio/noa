@@ -825,11 +825,11 @@ namespace noa {
         }(std::make_index_sequence<N>{});
     }
 
-    template<typename T, usize N, usize A>
+    template<nt::numeric T, usize N, usize A>
     [[nodiscard]] NOA_HD constexpr auto mean(const Vec<T, N, A>& vector) noexcept {
         if constexpr (std::same_as<T, f16>)
             return mean(vector.template as<typename T::arithmetic_type>()).template as<T, A>();
-        return sum(vector) / 2;
+        return sum(vector) / static_cast<nt::value_type_twice_t<T>>(N);
     }
 
     template<typename T, usize N, usize A> requires (N > 0)
