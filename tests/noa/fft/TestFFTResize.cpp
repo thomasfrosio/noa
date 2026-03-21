@@ -1,10 +1,12 @@
 #include <noa/runtime/Random.hpp>
 #include <noa/runtime/Factory.hpp>
+#include <noa/runtime/Reduce.hpp>
 #include <noa/io/IO.hpp>
 
 #include <noa/fft/core/Layout.hpp>
 #include <noa/fft/Resize.hpp>
 #include <noa/fft/Remap.hpp>
+#include <noa/fft/Transform.hpp>
 
 #include "Assets.hpp"
 #include "Catch.hpp"
@@ -22,9 +24,16 @@ TEST_CASE("fft::resize()", "[asset]") {
     if constexpr (GENERATE_ASSETS) {
         for (const YAML::Node& node : tests["input"]) {
             const auto shape = node["shape"].as<Shape4>();
-            const auto path_input = path / node["path"].as<fs::path>();
-            const auto input = noa::random(noa::Uniform{-128.f, 128.f}, shape.rfft());
-            noa::write_image(input, path_input);
+            const auto path_input_rfft = path / node["path_h"].as<fs::path>();
+            const auto path_input_fft = path / node["path_f"].as<fs::path>();
+
+            const auto input = noa::random(noa::Uniform{-64.f, 64.f}, shape);
+            const auto input_rfft = nf::r2c(input);
+            noa::write_image(input_rfft, path_input_rfft);
+
+            auto tmp = noa::like<c32>(input);
+            nf::remap("h2f", input_rfft, tmp, tmp.shape());
+            noa::write_image(tmp, path_input_fft);
         }
     }
 
@@ -33,7 +42,7 @@ TEST_CASE("fft::resize()", "[asset]") {
         devices.emplace_back("gpu");
 
     for (auto& device: devices) {
-        const auto stream = StreamGuard(device);
+        const auto stream = StreamGuard(device, Stream::SYNC);
         const auto options = ArrayOption(device, Allocator::MANAGED);
 
         for (size_t i = 0; i < tests["tests"].size(); ++i) {
@@ -42,15 +51,24 @@ TEST_CASE("fft::resize()", "[asset]") {
             const auto filename_expected = path / test["expected"].as<fs::path>();
             const auto shape_input = test["shape_input"].as<Shape4>();
             const auto shape_expected = test["shape_expected"].as<Shape4>();
+            const auto correct_nyquist = test["correct_nyquist"].as<bool>();
+            const auto rfft = test["rfft"].as<bool>();
 
-            const auto input = noa::read_image<f32>(filename_input, {}, options).data;
-            const auto output = noa::empty<f32>(shape_expected.rfft(), options);
-            nf::resize<"h2h">(input, shape_input, output, shape_expected);
+            const auto input = noa::read_image<c32>(filename_input, {}, options).data;
+
+            Array<c32> output;
+            if (rfft) {
+                output = noa::empty<c32>(shape_expected.rfft(), options);
+                nf::resize<"h2h">(input, shape_input, output, shape_expected, {.correct_nyquist = correct_nyquist});
+            } else {
+                output = noa::empty<c32>(shape_expected, options);
+                nf::resize<"f2f">(input, shape_input, output, shape_expected, {.correct_nyquist = correct_nyquist});
+            }
 
             if constexpr (GENERATE_ASSETS) {
                 noa::io::write_image(output, filename_expected);
             } else {
-                const auto expected = noa::read_image<f32>(filename_expected, {}, options).data;
+                const auto expected = noa::read_image<c32>(filename_expected, {}, options).data;
                 REQUIRE(test::allclose_abs(expected, output, 1e-10));
             }
         }
