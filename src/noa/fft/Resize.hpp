@@ -19,8 +19,6 @@ namespace noa::fft::details {
         using input_type = Input;
         using output_type = Output;
         using input_value_type = nt::mutable_value_type_t<input_type>;
-        using input_real_type = nt::value_type_t<input_value_type>;
-        using scaling_value_type = nt::at_least_single_precision_t<input_real_type>;
         using output_value_type = nt::value_type_t<output_type>;
 
         static_assert(nt::compatible_or_spectrum_types<input_value_type, output_value_type>);
@@ -100,7 +98,6 @@ namespace noa::fft::details {
         dh_shape_type m_output_shape{};
         dhw_vec_type m_offset{};
         dhw_vec_type m_limit{};
-        scaling_value_type m_scaling_factor{};
     };
 
     template<bool IS_CENTERED, bool IS_HALF,

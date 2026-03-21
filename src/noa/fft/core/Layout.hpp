@@ -160,7 +160,6 @@ namespace noa::fft {
         [[nodiscard]] constexpr bool is_h()  const noexcept { return is_h2xx() and is_xx2h(); }
         [[nodiscard]] constexpr bool is_hc()  const noexcept { return is_hc2xx() and is_xx2hc(); }
 
-
         /// Convert to non-centered output.
         [[nodiscard]] constexpr Layout to_xx2x() const noexcept {
             return static_cast<Enum>(to_u8_() & (~Bitset::DST_CENTERED));
