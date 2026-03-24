@@ -198,6 +198,7 @@ namespace {
         //      and have our own caching system on top of FFTW's wisdom.
         static void destroy(void* plan) noexcept {
             if (plan) {
+                const auto lock = std::scoped_lock(mutex);
                 if constexpr (is_single_precision)
                     fftwf_destroy_plan(static_cast<plan_t>(plan));
                 else
