@@ -224,10 +224,14 @@ namespace noa::signal {
             // Floating-point precision errors are a real thing, switch everything to double precision.
             const auto a = static_cast<f64>(m_k2);
             const auto b = static_cast<f64>(m_k1) * static_cast<f64>(m_defocus_angstroms);
-            const auto c = -static_cast<f64>(phase) - static_cast<f64>(m_phase_shift) - static_cast<f64>(m_k3);
-            const auto d = b * b - 4 * a * c;
+            const auto c = -(static_cast<f64>(phase) + static_cast<f64>(m_phase_shift) + static_cast<f64>(m_k3));
 
-            const auto numerator = -b - sqrt(d);
+            // TODO If Cs=0, fftfreq=sqrt(-c/b). In practice, clamping Cs=1e-5 might be better though.
+
+            // Choose the root based on the sign of the defocus.
+            const auto d = b * b - 4 * a * c;
+            const auto sqrt_d = sqrt(d);
+            const auto numerator = -b + copysign(sqrt_d, b);
             const auto denominator = 2 * a;
             auto fftfreq = sqrt(abs(numerator / denominator));
             fftfreq *= static_cast<f64>(m_pixel_size);
