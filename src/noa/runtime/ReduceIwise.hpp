@@ -38,7 +38,7 @@ namespace noa {
         /// (or all) of the other dimensions (so, BDH) depending on the nd-shape and type of reductions. As a
         /// consequence, 1d-shapes require 1d-blocks (except if gpu_optimize_block_shape=true, in which case 2d blocks
         /// are reshaped to 1d). The block size needs to be a multiple of gpu::WARP_SIZE. For the two-kernel reductions,
-        /// the second kernel has a 1d block of gpu_block_shape.size() threads.
+        /// the second kernel has a 1d block of gpu_block_shape.n_elements() threads.
         /// Increasing the block size might increase performance for some large reductions, but it also increases
         /// the size threshold above which the two-kernel reduction is used, so predicting the performance impact
         /// is challenging. This value often goes hand in hand with .gpu_scratch_size.
