@@ -529,7 +529,7 @@ namespace noa::details {
             if constexpr (ZipReduced) {
                 auto pi = noa::forward_as_tuple(to_reduce[Tag<R>{}].ref()...);
                 auto po = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
-                if constexpr (not nt::remove_compute_handle_v<Op> and ReduceJoinChecker::check_0<Op, decltype(pi), decltype(po)>()) {
+                if constexpr (ReduceJoinChecker::check_0<Op, decltype(pi), decltype(po)>()) {
                     op.join(pi, po);
                 } else if constexpr (AllowCall and ReduceJoinChecker::check_1<Op, decltype(pi), decltype(po)>()) {
                     op(pi, po);
@@ -537,7 +537,7 @@ namespace noa::details {
                     static_assert(nt::empty_tuple<Reduced>, "op.join(...) is not defined or is invalid");
                 }
             } else {
-                if constexpr (not nt::remove_compute_handle_v<Op> and ReduceJoinChecker::check_0<Op, decltype(to_reduce[Tag<R>{}].ref())..., decltype(reduced[Tag<R>{}].ref())...>()) {
+                if constexpr (ReduceJoinChecker::check_0<Op, decltype(to_reduce[Tag<R>{}].ref())..., decltype(reduced[Tag<R>{}].ref())...>()) {
                     op.join(to_reduce[Tag<R>{}].ref()..., reduced[Tag<R>{}].ref()...);
                 } else if constexpr (AllowCall and ReduceJoinChecker::check_1<Op, decltype(to_reduce[Tag<R>{}].ref())..., decltype(reduced[Tag<R>{}].ref())...>()) {
                     op(to_reduce[Tag<R>{}].ref()..., reduced[Tag<R>{}].ref()...);
