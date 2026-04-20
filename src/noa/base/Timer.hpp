@@ -22,6 +22,8 @@ namespace noa {
             return *this;
         }
 
+        [[nodiscard]] auto is_running() const noexcept -> bool { return m_running; }
+
         /// Returns the elapsed time, in milliseconds, between the last start() and stop().
         /// If the timer is still running (stop() was not called), elapsed() takes the current time
         /// and uses it, but does not stop the timer.
