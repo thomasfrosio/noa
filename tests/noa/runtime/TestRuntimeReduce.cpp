@@ -124,7 +124,7 @@ TEST_CASE("runtime::reduce - complex vs numpy", "[assets]") {
     }
 }
 
-TEMPLATE_TEST_CASE("runtime::reduce - cpu vs gpu", "", f32) { // , c32, c64
+TEMPLATE_TEST_CASE("runtime::reduce - cpu vs gpu", "", f32, c32, c64) {
     if (not Device::is_any_gpu())
         return;
 
@@ -200,4 +200,34 @@ TEMPLATE_TEST_CASE("runtime::reduce - cpu vs gpu", "", f32) { // , c32, c64
 
     REQUIRE(test::allclose_abs_safe(&cpu_sum, &gpu_sum, 1, eps));
     REQUIRE(test::allclose_abs_safe(&cpu_mean, &gpu_mean, 1, eps));
+}
+
+TEMPLATE_TEST_CASE("runtime::reduce - mean_l2_norm", "", f32, f64, c32, c64) {
+    std::vector<Device> devices{"cpu"};
+    if (Device::is_any_gpu())
+        devices.emplace_back("gpu");
+
+    for (auto& device: devices) {
+        const auto stream = StreamGuard(device);
+        const auto options = ArrayOption(device, "managed");
+        INFO(device);
+
+        const auto shape = test::random_shape_batched(2);
+        auto random = test::random<TestType>(shape.n_elements(), test::Randomizer<TestType>{-40., 50.});
+        auto data = View(random.get(), shape).to(options);
+
+        noa::normalize(data, data, {.mode = noa::Norm::MEAN_STD});
+
+        auto mean = noa::mean(data);
+        auto l2_norm = noa::l2_norm(data);
+        auto results = noa::mean_l2_norm(data);
+        REQUIRE(noa::allclose(mean, results.first, 1e-5));
+        REQUIRE(noa::allclose(l2_norm, results.second, 1e-5));
+
+        auto means = Array<noa::traits::double_precision_t<TestType>>(1);
+        auto l2_norms = Array<f64>(1);
+        noa::mean_l2_norm(data, means, l2_norms);
+        REQUIRE(noa::allclose(mean, means.first(), 1e-5));
+        REQUIRE(noa::allclose(l2_norm, l2_norms.first(), 1e-5));
+    }
 }

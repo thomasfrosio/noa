@@ -306,6 +306,70 @@ namespace noa {
         }
     };
 
+    template<nt::real S>
+    struct ReduceMeanL2Norm {
+        using enable_vectorization = bool;
+        using remove_default_post = bool;
+
+        S size;
+
+        template<typename I, typename T, typename U>
+        constexpr void operator()(const I& value, T& sum, U& sum_sqd) {
+            const auto v = static_cast<T>(value);
+            sum += v;
+            sum_sqd += abs_squared(v);
+        }
+        template<typename T, typename U>
+        static constexpr void join(const T& isum, const U& isum_sqd, T& sum, U& sum_sqd) {
+            sum += isum;
+            sum_sqd += isum_sqd;
+        }
+        template<typename T, typename U, typename V, nt::real W>
+        constexpr void post(const T& sum, const U& sum_sqd, V& mean, W& norm) const {
+            using t0 = std::conditional_t<nt::integer<T>, S, T>;
+            using t1 = std::conditional_t<nt::integer<U>, S, U>;
+
+            mean = static_cast<V>(static_cast<t0>(sum) / size);
+
+            auto tmp = static_cast<t1>(abs_squared(sum)) / size;
+            norm = static_cast<W>(sqrt(static_cast<t1>(sum_sqd) - tmp));
+        }
+    };
+
+    template<nt::real S>
+    struct ReduceMeanL2NormKahan {
+        using enable_vectorization = bool;
+        using remove_default_post = bool;
+        S size{};
+
+        template<nt::real_or_complex I, typename T, typename U>
+        constexpr void operator()(const I& value, Vec<T, 2>& sum, Vec<U, 2>& sum_sqd) {
+            const auto x = static_cast<T>(value);
+            noa::kahan_sum(x, sum[0], sum[1]);
+            noa::kahan_sum(abs_squared(x), sum_sqd[0], sum_sqd[1]);
+        }
+        template<typename T, typename U>
+        static constexpr void join(
+            const Vec<T, 2>& isum,
+            const Vec<U, 2>& isum_sqd,
+            Vec<T, 2>& sum,
+            Vec<U, 2>& sum_sqd
+        ) {
+            sum += isum;
+            sum_sqd += isum_sqd;
+        }
+        template<typename T, typename U, typename V, nt::real W>
+        constexpr void post(const Vec<T, 2>& sum, const Vec<U, 2>& sum_sqd, V& mean, W& norm) const {
+            auto sum_ = sum[0] + sum[1];
+            mean = static_cast<V>(sum_ / size);
+
+            auto sum_sqd_ = sum_sqd[0] + sum_sqd[1];
+            auto tmp = abs_squared(sum_) / size;
+            U norm_ = sqrt(sum_sqd_ - tmp);
+            norm = static_cast<W>(norm_);
+        }
+    };
+
     template<nt::scalar T>
     struct ReduceRMSD {
         using enable_vectorization = bool;

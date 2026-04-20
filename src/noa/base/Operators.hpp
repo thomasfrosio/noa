@@ -240,17 +240,32 @@ namespace noa {
         }
     };
 
+    template<typename C>
     struct NormalizeNorm {
         using enable_vectorization = bool;
         using remove_compute_handle = bool;
 
         template<typename T, typename U>
         NOA_HD constexpr auto operator()(const T& value, const U& norm) const {
-            return value / norm;
+            return static_cast<C>(value) / norm;
         }
         template<typename T, typename U, typename V>
         NOA_HD constexpr void operator()(const T& value, const U& norm, V& output) const {
             output = static_cast<V>((*this)(value, norm));
+        }
+    };
+
+    struct NormalizeMeanNorm {
+        using enable_vectorization = bool;
+        using remove_compute_handle = bool;
+
+        template<typename T, typename U, typename V>
+        NOA_HD constexpr auto operator()(const T& value, const U& mean, const V& norm) const {
+            return (static_cast<U>(value) - mean) / norm;
+        }
+        template<typename T, typename U, typename V, typename W>
+        NOA_HD constexpr void operator()(const T& value, const U& mean, const V& norm, W& output) const {
+            output = static_cast<W>((*this)(value, mean, norm));
         }
     };
 }

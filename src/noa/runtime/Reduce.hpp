@@ -200,10 +200,46 @@ namespace noa {
             if (options.accurate) {
                 reduce_ewise(array, Vec<reduce_t, 2>{}, output, ReduceL2NormKahan{});
                 return output;
-            };
+            }
         }
         reduce_ewise(array, reduce_t{}, output, ReduceL2Norm{});
         return output;
+    }
+
+    /// Returns the mean and the centered L2-norm of the input array.
+    /// If the array's mean is not zero, this centered L2-norm will be
+    /// different from the one computed by the l2_norm function.
+    template<nt::readable_varray_of_numeric Input>
+    [[nodiscard]] auto mean_l2_norm(const Input& array, const SumOptions& options = {}) {
+        using value_t = nt::mutable_value_type_t<Input>;
+        using sum_t =
+            std::conditional_t<nt::sinteger<value_t>, i64,
+            std::conditional_t<nt::uinteger<value_t>, u64,
+            nt::double_precision_t<value_t>>>;
+        using sum_sqd_t = std::conditional_t<nt::integer<value_t>, u64, f64>;
+
+        using output_mean_t = std::conditional_t<nt::integer<value_t>, f64, sum_t>;
+        using output_norm_t = f64;
+        const auto size = static_cast<f64>(array.ssize());
+
+        output_mean_t mean;
+        output_norm_t l2_norm;
+        if constexpr (nt::real_or_complex<value_t>) {
+            if (options.accurate) {
+                using sum_error_t = Vec<sum_t, 2>;
+                using sum_sqd_error_t = Vec<sum_sqd_t, 2>;
+                reduce_ewise(
+                    array, wrap(sum_error_t{}, sum_sqd_error_t{}),
+                    wrap(mean, l2_norm), ReduceMeanL2NormKahan<f64>{size}
+                );
+                return Pair{mean, l2_norm};
+            }
+        }
+        reduce_ewise(
+            array, wrap(sum_t{}, sum_sqd_t{}), wrap(mean, l2_norm),
+            ReduceMeanL2Norm<f64>{size}
+        );
+        return Pair{mean, l2_norm};
     }
 
     namespace details {
@@ -488,13 +524,63 @@ namespace noa {
         );
     }
 
-    /// Reduces an array along some dimensions by taking the norm.
+    /// Reduces an array along some dimensions by taking the L2-norm.
     /// \see reduce_axes_ewise for more details about the reduction.
     template<nt::writable_varray_decay_of_numeric Input>
     [[nodiscard]] auto l2_norm(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
         using real_t = nt::mutable_value_type_twice_t<Input>;
         auto output = Array<real_t>(details::axes_to_output_shape(input, axes), input.options());
         l2_norm(std::forward<Input>(input), output, options);
+        return output;
+    }
+
+    /// Reduces an array along some dimensions by taking the mean and centered L2-norm.
+    /// If the array's mean is not zero, this centered L2-norm will be
+    /// different from the one computed by the l2_norm function.
+    /// \see reduce_axes_ewise for more details about the reduction.
+    template<typename Input, typename Mean, typename Norm>
+    void mean_l2_norm(Input&& input, Mean&& means, Norm&& norms, const SumOptions options = {}) {
+        using value_t = nt::mutable_value_type_t<Input>;
+        using sum_t =
+            std::conditional_t<nt::sinteger<value_t>, i64,
+            std::conditional_t<nt::uinteger<value_t>, u64,
+            nt::double_precision_t<value_t>>>;
+        using sum_sqd_t = std::conditional_t<nt::integer<value_t>, u64, f64>;
+
+        const auto size = static_cast<f64>(details::n_elements_to_reduce(input.shape(), norms.shape()));
+
+        if constexpr (nt::real_or_complex<value_t>) {
+            if (options.accurate) {
+                using sum_error_t = Vec<sum_t, 2>;
+                using sum_sqd_error_t = Vec<sum_sqd_t, 2>;
+                reduce_axes_ewise(
+                    std::forward<Input>(input),
+                    wrap(sum_error_t{}, sum_sqd_error_t{}),
+                    wrap(std::forward<Mean>(means), std::forward<Norm>(norms)),
+                    ReduceMeanL2NormKahan<f64>{size}
+                );
+            }
+        }
+        reduce_axes_ewise(
+            std::forward<Input>(input),
+            wrap(sum_t{}, sum_sqd_t{}),
+            wrap(std::forward<Mean>(means), std::forward<Norm>(norms)),
+            ReduceMeanL2Norm<f64>{size}
+        );
+    }
+
+    /// Reduces an array along some dimensions by taking the mean and centered L2-norm.
+    /// \see reduce_axes_ewise for more details about the reduction.
+    template<nt::writable_varray_decay_of_numeric Input>
+    [[nodiscard]] auto mean_l2_norm(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
+        using mean_t = nt::mutable_value_type_t<Input>;
+        using norm_t = nt::mutable_value_type_twice_t<Input>;
+        auto output_shape = details::axes_to_output_shape(input, axes);
+        Pair output{
+            Array<mean_t>(output_shape, input.options()),
+            Array<norm_t>(output_shape, input.options()),
+        };
+        mean_l2_norm(std::forward<Input>(input), output.first, output.second, options);
         return output;
     }
 
@@ -823,8 +909,11 @@ namespace noa {
         /// Set the mean to 0, and standard deviation to 1.
         MEAN_STD,
 
-        /// Set the l2_norm to 1.
-        L2
+        /// Set the l2-norm to 1.
+        L2,
+
+        /// Set the mean to 0, and the l2-norm to 1.
+        MEAN_L2,
     };
 
     inline auto operator<<(std::ostream& os, Norm norm) -> std::ostream& {
@@ -835,6 +924,8 @@ namespace noa {
                 return os << "Norm::MEAN_STD";
             case Norm::L2:
                 return os << "Norm::L2";
+            case Norm::MEAN_L2:
+                return os << "Norm::MEAN_L2";
         }
         return os;
     }
@@ -880,8 +971,15 @@ namespace noa {
             }
             case Norm::L2: {
                 const auto norm = l2_norm(input, {.accurate = options.accurate});
+                using norm_t = std::remove_const_t<decltype(norm)>;
+                using tmp_t = std::conditional_t<nt::complex<nt::value_type_t<Input>>, Complex<norm_t>, norm_t>;
                 return ewise(wrap(std::forward<Input>(input), norm),
-                             std::forward<Output>(output), NormalizeNorm{});
+                             std::forward<Output>(output), NormalizeNorm<tmp_t>{});
+            }
+            case Norm::MEAN_L2: {
+                const auto [mean, norm] = mean_l2_norm(input, {.accurate = options.accurate});
+                return ewise(wrap(std::forward<Input>(input), mean, norm),
+                             std::forward<Output>(output), NormalizeMeanNorm{});
             }
         }
     }
@@ -917,8 +1015,16 @@ namespace noa {
             }
             case Norm::L2: {
                 const auto l2_norms = l2_norm(input, axes, {.accurate = options.accurate});
+                using norm_t = nt::mutable_value_type_t<decltype(l2_norms)>;
+                using tmp_t = std::conditional_t<nt::complex<nt::value_type_t<Input>>, Complex<norm_t>, norm_t>;
                 ewise(wrap(std::forward<Input>(input), l2_norms),
-                      std::forward<Output>(output), NormalizeNorm{});
+                      std::forward<Output>(output), NormalizeNorm<tmp_t>{});
+                break;
+            }
+            case Norm::MEAN_L2: {
+                const auto [means, l2_norms] = mean_l2_norm(input, axes, {.accurate = options.accurate});
+                ewise(wrap(std::forward<Input>(input), means, l2_norms),
+                      std::forward<Output>(output), NormalizeMeanNorm{});
                 break;
             }
         }
