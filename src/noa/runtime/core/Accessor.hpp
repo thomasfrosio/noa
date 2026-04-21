@@ -4,6 +4,7 @@
 #include "noa/runtime/core/Access.hpp"
 #include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/core/Traits.hpp"
+#include "noa/runtime/core/Utils.hpp"
 
 namespace noa {
     template<typename T, usize N, typename I,
@@ -463,6 +464,9 @@ namespace noa::details {
         /// Whether the reconfigured accessor(s) should be made contiguous.
         bool enforce_contiguous{false};
 
+        /// Whether the reconfigured accessor(s) should be made strided.
+        bool enforce_strided{false};
+
         /// Whether the reconfigured accessor(s) should be made restrict.
         bool enforce_restrict{false};
 
@@ -487,7 +491,11 @@ namespace noa::details {
         } else { // Span, Accessor(Reference), View, Array, Texture
             using index_t = std::conditional_t<std::is_void_v<Index>, nt::index_type_t<input_t>, Index>;
             using value_t = std::conditional_t<config.enforce_const, nt::const_value_type_t<input_t>, nt::value_type_t<input_t>>;
-            constexpr auto strides_traits = config.enforce_contiguous ? StridesTraits::CONTIGUOUS : input_t::STRIDES_TRAIT;
+            static_assert(static_cast<i32>(config.enforce_contiguous) + static_cast<i32>(config.enforce_strided) < 2);
+            constexpr auto strides_traits =
+                config.enforce_contiguous ? StridesTraits::CONTIGUOUS :
+                config.enforce_strided ? StridesTraits::STRIDED :
+                input_t::STRIDES_TRAIT;
             constexpr auto pointer_traits = config.enforce_restrict ? PointerTraits::RESTRICT : input_t::POINTER_TRAIT;
 
             constexpr usize original_ndim = input_t::SIZE;
@@ -533,12 +541,12 @@ namespace noa::details {
     }
 
     /// Reconfigures the Accessor(s).
-    template<AccessorConfig config, typename T>
+    template<AccessorConfig config, typename Index = void, typename T>
     requires nt::tuple_of_accessor_or_empty<std::decay_t<T>>
     [[nodiscard]] constexpr auto reconfig_accessors(T&& accessors) {
         return std::forward<T>(accessors).map(
             []<typename U>(U&& accessor) {
-                return to_accessor<config>(std::forward<U>(accessor));
+                return to_accessor<config, Index>(std::forward<U>(accessor));
             });
     }
 
@@ -549,6 +557,31 @@ namespace noa::details {
             if constexpr (nt::accessor_pure<U>)
                 accessor = accessor.permute(order);
         }), ...);
+    }
+
+    template<typename Index, usize N, typename T> requires (nt::accessor_pure<T> or nt::accessor_value<T>)
+    constexpr bool reshape_accessor(const Shape<Index, N>& old_shape, const Shape<Index, N>& new_shape, T& accessor) {
+        if constexpr (nt::accessor_pure<T>) {
+            static_assert(not T::IS_CONTIGUOUS);
+            static_assert(T::SIZE == N);
+            Strides<Index, N> new_strides;
+            if (not nd::reshape(old_shape, accessor.strides_full(), new_shape, new_strides))
+               return false;
+            accessor = T(accessor.data(), new_strides);
+        }
+        return true;
+    }
+
+    /// Reshape the tuple(s) of accessors (in-place).
+    /// Accessors should have the same index type as the input shapes, mutable, and strided.
+    template<typename Index, usize N, nt::tuple_of_accessor_or_empty... T>
+    constexpr bool reshape_accessors(const Shape<Index, N>& old_shape, const Shape<Index, N>& new_shape, T&... accessors) {
+        bool success{true};
+        (accessors.for_each([&]<typename U>(U& accessor) {
+            if (not reshape_accessor(old_shape, new_shape, accessor))
+                success = false;
+        }), ...);
+        return success;
     }
 
     /// Whether the accessors are aliases of each others. If empty, return false.
@@ -614,7 +647,8 @@ namespace noa::details {
         });
     }
 
-    /// Checks whether all the 4d accessors are contiguous.
+    /// Returns the combined contiguity profile of the accessors.
+    /// For one dimension to be contiguous, all accessors have to be contiguous along that dimension.
     template<char ORDER = 'C', nt::tuple_of_accessor_or_empty T, nt::integer I>
     auto accessors_contiguity(
         const T& accessors,
@@ -625,6 +659,23 @@ namespace noa::details {
             if constexpr (not nt::accessor_value<U>) {
                 static_assert(U::SIZE == 4);
                 out = out and accessor.strides_full().template as<I>().template contiguity<ORDER>(shape);
+            }
+        });
+        return out;
+    }
+
+    /// Returns the combined broadcasting profile of the accessors.
+    /// If one accessor is broadcast along a dimension, this dimension is marked as broadcast.
+    template<nt::tuple_of_accessor_or_empty T, nt::integer I>
+    auto accessors_broadcasting(
+        const T& accessors,
+        const Shape<I, 4>& shape
+    ) noexcept -> Vec<bool, 4> {
+        auto out = Vec<bool, 4>::from_value(false);
+        accessors.for_each([&shape, &out]<typename U>(const U& accessor) {
+            if constexpr (not nt::accessor_value<U>) {
+                static_assert(U::SIZE == 4);
+                out = out or accessor.strides_full().broadcasting(shape);
             }
         });
         return out;

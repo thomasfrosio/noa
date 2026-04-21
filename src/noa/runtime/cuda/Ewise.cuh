@@ -154,7 +154,7 @@ namespace noa::cuda::details {
         constexpr auto TO_2D = nd::AccessorConfig<2>{
             .enforce_contiguous = VECTORIZE,
             .enforce_restrict = false,
-            .filter = {0, 3},
+            .filter = {2, 3},
         };
         auto input_2d = nd::reconfig_accessors<TO_2D>(std::forward<Input>(input));
         auto output_2d = nd::reconfig_accessors<TO_2D>(std::forward<Output>(output));
@@ -219,105 +219,122 @@ namespace noa::cuda {
         Output&& output,
         Stream& stream
     ) {
-        const Vec<bool, 4> is_contiguous =
+        // Try to collapse to two dimensions.
+        const auto shape_iz = shape.template as_safe<isize>();
+        const auto contiguity =
             nd::accessors_contiguity(input, shape) and
             nd::accessors_contiguity(output, shape);
+        const auto broadcasting =
+            nd::accessors_broadcasting(input, shape) and
+            nd::accessors_broadcasting(output, shape);
+        auto collapsed_shape = nd::collapse_contiguous_dimensions(shape_iz, contiguity, broadcasting);
+        collapsed_shape = collapsed_shape.permute(squeeze_left(collapsed_shape));
 
-        // TODO fused contiguous dimensions together, e.g. 2d unbatched should be ok here
-        if (is_contiguous[1] and is_contiguous[2]) { // 2d-like
-            // If batches are not contiguous to each other, keep them separated in a different grid.y.
-            const auto batch = is_contiguous[0] ? 1u : safe_cast<u32>(shape[0]);
-            const auto shape_iz = shape.template as_safe<isize>();
-            const auto n_elements_iz = is_contiguous[0] ? shape_iz.n_elements() : shape_iz.pop_front().n_elements();
-            const auto n_elements = safe_cast<Index>(n_elements_iz);
+        if (collapsed_shape[0] == 1 and collapsed_shape[1] == 1) {
+            // Reshape the accessors to the new 2d shape.
+            // TODO Unfortunately, this means we lose the possible StridesTrait::CONTIGUOUS of the accessor(s)
+            //      if there's no vectorization. This is still worth it, and if this is called from the runtime
+            //      the accessors are always strided, but check whether or not we can guarantee that if a rightmost
+            //      stride of 1 is preserved during this collapse/reshape operation.
+            constexpr auto TO_STRIDED = nd::AccessorConfig{.enforce_strided = true};
+            auto input_2d = nd::reconfig_accessors<TO_STRIDED, isize>(std::forward<Input>(input));
+            auto output_2d = nd::reconfig_accessors<TO_STRIDED, isize>(std::forward<Output>(output));
+
+            check(nd::reshape_accessors(shape_iz, collapsed_shape, input_2d) and
+                  nd::reshape_accessors(shape_iz, collapsed_shape, output_2d),
+                  "INTERNAL: reshape failed, please report this issue, shape={}, contiguity={}, broadcasting={}",
+                  shape_iz, contiguity, broadcasting);
+
+            const auto batch = safe_cast<u32>(collapsed_shape[2]);
+            const auto n_elements = safe_cast<Index>(collapsed_shape[3]);
 
             if constexpr (Config::enable_vectorization and nt::enable_vectorization_v<Op>) {
                 const auto shape_3d = Shape{batch, 1u, 1u};
                 usize alignment = min(
-                    min_address_alignment(input, shape_3d),
-                    min_address_alignment(output, shape_3d)
+                    min_address_alignment(input_2d, shape_3d),
+                    min_address_alignment(output_2d, shape_3d)
                 );
                 if (alignment == 16) {
                     return details::launch_ewise_2d<16, Config>(
                         std::forward<Op>(op),
-                        std::forward<Input>(input),
-                        std::forward<Output>(output),
+                        std::move(input_2d),
+                        std::move(output_2d),
                         stream, n_elements, batch
                     );
                 } else if (alignment == 8) {
                     return details::launch_ewise_2d<8, Config>(
                         std::forward<Op>(op),
-                        std::forward<Input>(input),
-                        std::forward<Output>(output),
+                        std::move(input_2d),
+                        std::move(output_2d),
                         stream, n_elements, batch
                     );
                 } else if (alignment == 4) {
                     return details::launch_ewise_2d<4, Config>(
                         std::forward<Op>(op),
-                        std::forward<Input>(input),
-                        std::forward<Output>(output),
+                        std::move(input_2d),
+                        std::move(output_2d),
                         stream, n_elements, batch
                     );
                 } else if (alignment == 2) {
                     return details::launch_ewise_2d<2, Config>(
                         std::forward<Op>(op),
-                        std::forward<Input>(input),
-                        std::forward<Output>(output),
+                        std::move(input_2d),
+                        std::move(output_2d),
                         stream, n_elements, batch
                     );
                 }
             }
-            details::launch_ewise_2d<1, Config>(
+            return details::launch_ewise_2d<1, Config>(
                 std::forward<Op>(op),
-                std::forward<Input>(input),
-                std::forward<Output>(output),
+                std::move(input_2d),
+                std::move(output_2d),
                 stream, n_elements, batch
             );
-        } else {
-            using InputDecay = std::decay_t<Input>;
-            using OutputDecay = std::decay_t<Output>;
-            using OpDecay = std::decay_t<Op>;
-            using Interface = Config::interface;
+        }
 
-            // 2d block.
-            // The goal is to waste as fewer threads as possible, assuming 2d/3d/4d arrays have a
-            // similar number of elements in their two innermost dimensions, so make the block
-            // (and block work shape) as square as possible.
-            static constexpr u32 BLOCK_SIZE_X = min(Config::block_size, Constant::WARP_SIZE);
-            static constexpr u32 BLOCK_SIZE_Y = Config::block_size / BLOCK_SIZE_X;
-            static constexpr u32 N_ELEMENTS_PER_THREAD_X = max(Config::n_elements_per_thread / 2, 1u);
-            static constexpr u32 N_ELEMENTS_PER_THREAD_Y = max(Config::n_elements_per_thread - N_ELEMENTS_PER_THREAD_X, 1u);
-            using Block = StaticBlock<
-                BLOCK_SIZE_X, BLOCK_SIZE_Y, 1,
-                N_ELEMENTS_PER_THREAD_X, N_ELEMENTS_PER_THREAD_Y, 1>;
+        using InputDecay = std::decay_t<Input>;
+        using OutputDecay = std::decay_t<Output>;
+        using OpDecay = std::decay_t<Op>;
+        using Interface = Config::interface;
 
-            auto grid_x = GridXY(shape[3], shape[2], Block::block_work_size_x, Block::block_work_size_y);
-            auto grid_y = GridY(shape[1], 1);
-            auto grid_z = GridZ(shape[0], 1);
-            check(grid_x.n_launches() == 1);
+        // 2d block.
+        // The goal is to waste as fewer threads as possible, assuming 2d/3d/4d arrays have a
+        // similar number of elements in their two innermost dimensions, so make the block
+        // (and block work shape) as square as possible.
+        static constexpr u32 BLOCK_SIZE_X = min(Config::block_size, Constant::WARP_SIZE);
+        static constexpr u32 BLOCK_SIZE_Y = Config::block_size / BLOCK_SIZE_X;
+        static constexpr u32 N_ELEMENTS_PER_THREAD_X = max(Config::n_elements_per_thread / 2, 1u);
+        static constexpr u32 N_ELEMENTS_PER_THREAD_Y = max(Config::n_elements_per_thread - N_ELEMENTS_PER_THREAD_X, 1u);
+        using Block = StaticBlock<
+            BLOCK_SIZE_X, BLOCK_SIZE_Y, 1,
+            N_ELEMENTS_PER_THREAD_X, N_ELEMENTS_PER_THREAD_Y, 1>;
 
-            // Save mutable versions of the accessors since we may need to offset them in-place.
-            auto input_mut = std::forward<Input>(input);
-            auto output_mut = std::forward<Output>(output);
+        auto grid_x = GridXY(shape[3], shape[2], Block::block_work_size_x, Block::block_work_size_y);
+        auto grid_y = GridY(shape[1], 1);
+        auto grid_z = GridZ(shape[0], 1);
+        check(grid_x.n_launches() == 1);
 
-            // Launch the grid.
-            for (u32 z{}; z < grid_z.n_launches(); ++z) {
-                for (u32 y{}; y < grid_y.n_launches(); ++y) {
-                    const auto offset = Vec{grid_z.offset_additive(z), grid_y.offset_additive(y)};
-                    nd::offset_accessors(offset, input_mut, output_mut);
+        // Save mutable versions of the accessors since we may need to offset them in-place.
+        auto input_mut = std::forward<Input>(input);
+        auto output_mut = std::forward<Output>(output);
 
-                    const auto config = LaunchConfig{
-                        .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
-                        .n_threads = dim3(Block::block_size_x, Block::block_size_y),
-                    };
-                    const auto grid_size = Vec{grid_z.n_blocks_total(), grid_y.n_blocks_total()}.template as<u32>();
-                    const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
-                    stream.enqueue(
-                        details::ewise_4d<Block, Interface, OpDecay, InputDecay, OutputDecay, Index>,
-                        config, op, input_mut, output_mut, shape.filter(2, 3),
-                        grid_size, grid_offset, grid_x.n_blocks_x()
-                    );
-                }
+        // Launch the grid.
+        for (u32 z{}; z < grid_z.n_launches(); ++z) {
+            for (u32 y{}; y < grid_y.n_launches(); ++y) {
+                const auto offset = Vec{grid_z.offset_additive(z), grid_y.offset_additive(y)};
+                nd::offset_accessors(offset, input_mut, output_mut);
+
+                const auto config = LaunchConfig{
+                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
+                    .n_threads = dim3(Block::block_size_x, Block::block_size_y),
+                };
+                const auto grid_size = Vec{grid_z.n_blocks_total(), grid_y.n_blocks_total()}.template as<u32>();
+                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
+                stream.enqueue(
+                    details::ewise_4d<Block, Interface, OpDecay, InputDecay, OutputDecay, Index>,
+                    config, op, input_mut, output_mut, shape.filter(2, 3),
+                    grid_size, grid_offset, grid_x.n_blocks_x()
+                );
             }
         }
     }

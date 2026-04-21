@@ -294,9 +294,15 @@ namespace noa::inline types {
 
         /// Whether the shape has at least one dimension equal to 0.
         [[nodiscard]] NOA_HD constexpr bool is_empty() const noexcept {
-            for (usize i{}; i < SIZE; ++i)
-                if (vec[i] == 0)
-                    return true;
+            if constexpr (nt::sinteger<value_type>) {
+                for (usize i{}; i < SIZE; ++i)
+                    if (vec[i] <= 0)
+                        return true;
+            } else {
+                for (usize i{}; i < SIZE; ++i)
+                    if (vec[i] == 0)
+                        return true;
+            }
             return false;
         }
 
@@ -885,6 +891,19 @@ namespace noa::inline types {
                 if (vec[i] == 0)
                     return true;
             return false;
+        }
+
+        /// Returns the broadcasting profile.
+        template<typename U>
+        [[nodiscard]] NOA_HD constexpr auto broadcasting(Shape<U, N> shape) const noexcept {
+            if (shape.is_empty()) // guard against empty array
+                return Vec<bool, 4>{};
+
+            auto out = Vec<bool, SIZE>{};
+            for (usize i{}; i < SIZE; ++i)
+                if (vec[i] == 0 and shape[i] != 1)
+                    out[i] = true;
+            return out;
         }
 
         /// Returns the effective shape: if a dimension has a stride of 0, the effective size is 1 (empty dimension).

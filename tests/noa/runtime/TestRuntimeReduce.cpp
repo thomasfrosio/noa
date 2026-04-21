@@ -224,8 +224,8 @@ TEMPLATE_TEST_CASE("runtime::reduce - mean_l2_norm", "", f32, f64, c32, c64) {
         REQUIRE(noa::allclose(mean, results.first, 1e-5));
         REQUIRE(noa::allclose(l2_norm, results.second, 1e-5));
 
-        auto means = Array<noa::traits::double_precision_t<TestType>>(1);
-        auto l2_norms = Array<f64>(1);
+        auto means = Array<noa::traits::double_precision_t<TestType>>(1, options);
+        auto l2_norms = Array<f64>(1, options);
         noa::mean_l2_norm(data, means, l2_norms);
         REQUIRE(noa::allclose(mean, means.first(), 1e-5));
         REQUIRE(noa::allclose(l2_norm, l2_norms.first(), 1e-5));

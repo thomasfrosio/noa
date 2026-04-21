@@ -516,3 +516,62 @@ TEST_CASE("runtime::core::Subregion") {
     REQUIRE(subregion.strides == strides);
     REQUIRE(subregion.offset == offset + offset_at(strides, 10, 0, 2, 3));
 }
+
+TEST_CASE("runtime::core::collapse_dimensions") {
+    namespace nd = noa::details;
+
+    constexpr auto shape = Shape4{11, 22, 33, 44};
+    auto run = [&](const Strides4& strides) {
+        const auto contiguity = strides.contiguity(shape);
+        const auto broadcasting = strides.broadcasting(shape);
+
+        auto collapsed_shape = nd::collapse_contiguous_dimensions(shape, contiguity, broadcasting);
+        collapsed_shape = collapsed_shape.permute(noa::squeeze_left(collapsed_shape));
+
+        Strides4 collapsed_strides;
+        const bool worked = nd::reshape(shape, strides, collapsed_shape, collapsed_strides);
+
+        INFO(shape);
+        INFO(strides);
+        INFO(collapsed_shape);
+        INFO(collapsed_strides);
+        REQUIRE(worked);
+    };
+
+    constexpr auto broadcastings = std::array{
+        Vec{1, 1, 1, 1}, Vec{0, 0, 0, 0},
+        Vec{1, 1, 1, 0}, Vec{1, 1, 0, 1}, Vec{1, 0, 1, 1}, Vec{0, 1, 1, 1},
+        Vec{1, 1, 0, 0}, Vec{1, 0, 0, 1}, Vec{0, 0, 1, 1}, Vec{0, 1, 1, 0},
+        Vec{1, 0, 0, 0}, Vec{0, 0, 0, 1}, Vec{0, 0, 1, 0}, Vec{0, 1, 0, 0},
+    };
+
+    constexpr auto multipliers = std::array{
+        Vec{1, 1, 1, 1},
+        Vec{2, 2, 2, 2}, Vec{2, 2, 2, 1}, Vec{2, 2, 1, 1}, Vec{2, 1, 1, 1},
+
+        Vec{4, 4, 4, 1}, Vec{4, 4, 1, 1}, Vec{4, 1, 1, 1},
+        Vec{8, 8, 4, 1}, Vec{8, 4, 1, 1},
+        Vec{16, 8, 4, 1},
+
+        Vec{4, 4, 4, 2}, Vec{4, 4, 2, 2}, Vec{4, 2, 2, 2},
+        Vec{8, 8, 4, 2}, Vec{8, 4, 2, 2},
+        Vec{16, 8, 4, 2},
+    };
+
+    for (auto broadcasting : broadcastings) {
+        for (auto multiplier : multipliers) {
+            auto strides = shape.strides();
+            if (broadcasting[0]) strides[0] = 0;
+            if (broadcasting[1]) strides[1] = 0;
+            if (broadcasting[2]) strides[2] = 0;
+            if (broadcasting[3]) strides[3] = 0;
+
+            strides[0] *= multiplier[0];
+            strides[1] *= multiplier[1];
+            strides[2] *= multiplier[2];
+            strides[3] *= multiplier[3];
+
+            run(strides);
+        }
+    }
+}

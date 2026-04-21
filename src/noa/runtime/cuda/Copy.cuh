@@ -208,15 +208,11 @@ namespace noa::cuda {
                 // Before trying to call our own kernels, which cannot copy between devices/host,
                 // collapse the contiguous dimensions together, and check again. This can reveal
                 // 2d pitched layouts.
-                auto collapsed_shape = shape;
-                for (isize i = 0; i < 3; ++i) {
-                    if (is_contiguous[i] and is_contiguous[i + 1]) {
-                        // Starting from the outermost dim, if the current dim and the next dim
-                        // are contiguous, move the current dim to the next one.
-                        collapsed_shape[i + 1] *= collapsed_shape[i];
-                        collapsed_shape[i] = 1;
-                    }
-                }
+                const auto contiguity = src_strides.contiguity(shape) and dst_strides.contiguity(shape);
+                const auto broadcasting = src_strides.broadcasting(shape) and dst_strides.broadcasting(shape);
+                auto collapsed_shape = nd::collapse_contiguous_dimensions(shape, contiguity, broadcasting);
+                collapsed_shape = collapsed_shape.permute(squeeze_left(collapsed_shape));
+
                 // We have a new shape, so compute the new strides.
                 Strides4 new_src_strides;
                 Strides4 new_dst_strides;
@@ -227,8 +223,7 @@ namespace noa::cuda {
                     src_strides = new_src_strides;
                     dst_strides = new_dst_strides;
                 } else {
-                    panic("Copy failed. This should not have happened. Please report this issue. "
-                          "shape:{}, src_strides:{}, dst_strides:{}",
+                    panic("INTERNAL: reshape failed, please report this issue, shape:{}, src_strides:{}, dst_strides:{}",
                           shape, src_strides, dst_strides);
                 }
             }

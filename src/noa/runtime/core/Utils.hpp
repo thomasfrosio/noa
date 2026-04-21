@@ -4,6 +4,26 @@
 #include "noa/runtime/core/Shape.hpp"
 
 namespace noa::details {
+    /// Returns the collapsed shape by fusing contiguous dimensions together.
+    template<typename T, usize N>
+    [[nodiscard]] NOA_FHD constexpr auto collapse_contiguous_dimensions(
+        Shape<T, N> shape,
+        const Vec<bool, N>& contiguity,
+        const Vec<bool, N>& broadcasting
+    ) {
+        if constexpr (N > 1) {
+            for (usize i{}; i < N - 1; ++i) {
+                if (contiguity[i] and (contiguity[i + 1] or not broadcasting[i + 1])) {
+                    // Collapse the current dimension with the next one. If the next dimension is broadcast=true,
+                    // we can still collapse knowing the next iteration is not contiguous, thus not collapsable.
+                    shape[i + 1] *= shape[i];
+                    shape[i] = 1;
+                }
+            }
+        }
+        return shape;
+    }
+
     /// Returns the index of the first non-empty dimension, excluding the batch dimension, going from left to right.
     /// If all dimensions are empty, the index of the width dimension is returned, ie 3.
     template<typename T>
