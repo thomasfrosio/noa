@@ -209,7 +209,7 @@ namespace noa::cuda {
                 // collapse the contiguous dimensions together, and check again. This can reveal
                 // 2d pitched layouts.
                 const auto contiguity = src_strides.contiguity(shape) and dst_strides.contiguity(shape);
-                const auto broadcasting = src_strides.broadcasting(shape) and dst_strides.broadcasting(shape);
+                const auto broadcasting = src_strides.broadcasting(shape) or dst_strides.broadcasting(shape);
                 auto collapsed_shape = nd::collapse_contiguous_dimensions(shape, contiguity, broadcasting);
                 collapsed_shape = collapsed_shape.permute(squeeze_left(collapsed_shape));
 

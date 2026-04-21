@@ -225,12 +225,14 @@ namespace noa::cuda {
             nd::accessors_contiguity(input, shape) and
             nd::accessors_contiguity(output, shape);
         const auto broadcasting =
-            nd::accessors_broadcasting(input, shape) and
+            nd::accessors_broadcasting(input, shape) or
             nd::accessors_broadcasting(output, shape);
         auto collapsed_shape = nd::collapse_contiguous_dimensions(shape_iz, contiguity, broadcasting);
         collapsed_shape = collapsed_shape.permute(squeeze_left(collapsed_shape));
 
-        if (collapsed_shape[0] == 1 and collapsed_shape[1] == 1) {
+        if (collapsed_shape[0] == 1 and collapsed_shape[1] == 1 and
+            collapsed_shape[2] <= Limits::MAX_YZ_BLOCKS * 2 and
+            collapsed_shape[3] >= Config::block_size * 2) {
             // Reshape the accessors to the new 2d shape.
             // TODO Unfortunately, this means we lose the possible StridesTrait::CONTIGUOUS of the accessor(s)
             //      if there's no vectorization. This is still worth it, and if this is called from the runtime
@@ -249,8 +251,8 @@ namespace noa::cuda {
             const auto n_elements = safe_cast<Index>(collapsed_shape[3]);
 
             if constexpr (Config::enable_vectorization and nt::enable_vectorization_v<Op>) {
-                const auto shape_3d = Shape{batch, 1u, 1u};
-                usize alignment = min(
+                const auto shape_3d = Shape{1u, batch, 1u};
+                const auto alignment = min(
                     min_address_alignment(input_2d, shape_3d),
                     min_address_alignment(output_2d, shape_3d)
                 );

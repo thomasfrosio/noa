@@ -231,3 +231,29 @@ TEMPLATE_TEST_CASE("runtime::reduce - mean_l2_norm", "", f32, f64, c32, c64) {
         REQUIRE(noa::allclose(l2_norm, l2_norms.first(), 1e-5));
     }
 }
+
+TEMPLATE_TEST_CASE("runtime::reduce - normalize rows", "", f64, c64) {
+    std::vector<Device> devices{"cpu"};
+    if (Device::is_any_gpu())
+        devices.emplace_back("gpu");
+
+    for (auto& device: devices) {
+        const auto stream = StreamGuard(device);
+        const auto options = ArrayOption(device, "managed");
+        INFO(device);
+
+        auto shape = test::random_shape_batched(3, {.batch_range = {2, 10}});
+        shape[3] += 200;
+        auto random = test::arange<TestType>(shape.n_elements(), 0., 0.1);
+        auto data = View(random.get(), shape).to(options);
+
+        noa::normalize(data, data, ReduceAxes{.width = true}, {.mode = noa::Norm::MEAN_STD});
+
+        const auto [mean, stddev] = noa::mean_stddev(data, ReduceAxes{.width = true});
+        REQUIRE(mean.shape() == shape.set<3>(1));
+        REQUIRE(stddev.shape() == shape.set<3>(1));
+
+        REQUIRE(test::allclose_abs(mean, 0., 1e-4));
+        REQUIRE(test::allclose_abs(stddev, 1., 1e-4));
+    }
+}
