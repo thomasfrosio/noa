@@ -68,7 +68,7 @@ TEST_CASE("xform::transform_spectrum_2d, vs scipy", "[asset]") {
                 matrix, center + shift, {interp, cutoff});
 
             noa::fft::c2r(output_fft, output, {.norm=FFT_NORM});
-            REQUIRE(test::allclose_abs_safe(expected, output, 1e-4f));
+            REQUIRE(test::allclose_abs_safe(expected, output, 1e-4f)); // FIXME update asset
 
             ++count;
 

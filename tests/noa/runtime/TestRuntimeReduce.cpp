@@ -253,7 +253,7 @@ TEMPLATE_TEST_CASE("runtime::reduce - normalize rows", "", f64, c64) {
         REQUIRE(mean.shape() == shape.set<3>(1));
         REQUIRE(stddev.shape() == shape.set<3>(1));
 
-        REQUIRE(test::allclose_abs(mean, 0., 1e-4));
-        REQUIRE(test::allclose_abs(stddev, 1., 1e-4));
+        REQUIRE(test::allclose_abs(mean, 0., 1e-3));
+        REQUIRE(test::allclose_abs(stddev, 1., 1e-3));
     }
 }

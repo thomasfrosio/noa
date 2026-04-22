@@ -108,7 +108,7 @@ TEST_CASE("xform::extract_central_slices_3d", "[asset]") {
             }
 
             const Array asset_slice_fft = noa::read_image<f32>(slice_filename).data;
-            REQUIRE(test::allclose_abs_safe(asset_slice_fft, slice_fft, 5e-5));
+            REQUIRE(test::allclose_abs_safe(asset_slice_fft, slice_fft, 5e-5)); // FIXME update asset
         }
     }
 }

@@ -413,5 +413,5 @@ namespace noa::details {
 }
 
 namespace noa::traits {
-    template<typename T> struct proclaim_is_batched_parameter<nd::BatchedParameteredParameter<T>> : std::true_type {};
+    template<typename T> struct proclaim_is_batched_parameter<nd::BatchedParameter<T>> : std::true_type {};
 }
