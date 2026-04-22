@@ -211,7 +211,7 @@ namespace noa::cuda {
                 const auto contiguity = src_strides.contiguity(shape) and dst_strides.contiguity(shape);
                 const auto broadcasting = src_strides.broadcasting(shape) or dst_strides.broadcasting(shape);
                 auto collapsed_shape = nd::collapse_contiguous_dimensions(shape, contiguity, broadcasting);
-                collapsed_shape = collapsed_shape.permute(squeeze_left(collapsed_shape));
+                collapsed_shape = collapsed_shape.permute(squeeze_empty_dimensions_left(collapsed_shape));
 
                 // We have a new shape, so compute the new strides.
                 Strides4 new_src_strides;

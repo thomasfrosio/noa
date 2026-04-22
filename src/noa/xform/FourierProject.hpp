@@ -39,8 +39,8 @@ namespace noa::xform::details {
     // This is a forward transformation of the frequency, but because it is in Fourier-space,
     // the real-space scaling is inverted.
     template<nt::real Coord,
-             nt::batch ScaleOrEmpty,
-             nt::batch Rotate,
+             nt::batched_parameter ScaleOrEmpty,
+             nt::batched_parameter Rotate,
              nt::integer Integer,
              typename EWSOrEmpty>
     NOA_IHD constexpr auto fourier_slice2grid(
@@ -69,8 +69,8 @@ namespace noa::xform::details {
 
     // Same as above, but in the other direction.
     template<nt::real Coord,
-             nt::batch ScaleOrEmpty,
-             nt::batch Rotate,
+             nt::batched_parameter ScaleOrEmpty,
+             nt::batched_parameter Rotate,
              nt::integer Integer,
              typename EWSOrEmpty>
     NOA_IHD constexpr auto fourier_grid2slice(
@@ -160,8 +160,8 @@ namespace noa::xform::details {
 
     template<nf::Layout REMAP,
              nt::sinteger Index,
-             nt::batch Scale,
-             nt::batch Rotate,
+             nt::batched_parameter Scale,
+             nt::batched_parameter Rotate,
              typename EWSCurvature,
              nt::readable_nd<3> InputSlice,
              nt::readable_nd_or_empty<3> InputWeight,
@@ -391,8 +391,8 @@ namespace noa::xform::details {
 
     template<nf::Layout REMAP,
              nt::sinteger Index,
-             nt::batch Scale,
-             nt::batch Rotate,
+             nt::batched_parameter Scale,
+             nt::batched_parameter Rotate,
              typename EWSCurvature,
              nt::interpolator_spectrum_nd<2> InputSlice,
              nt::interpolator_spectrum_nd_or_empty<2> InputSliceWeight,
@@ -540,8 +540,8 @@ namespace noa::xform::details {
 
     template<nf::Layout REMAP,
              nt::sinteger Index,
-             nt::batch Scale,
-             nt::batch Rotate,
+             nt::batched_parameter Scale,
+             nt::batched_parameter Rotate,
              typename EWSCurvature,
              nt::interpolator_spectrum_nd<3> InputVolume,
              nt::interpolator_spectrum_nd_or_empty<3> InputWeight,
@@ -738,10 +738,10 @@ namespace noa::xform::details {
     ///       and weights in the same operator is often more efficient.
     template<nf::Layout REMAP,
              nt::sinteger Index,
-             nt::batch InputScale,
-             nt::batch InputRotate,
-             nt::batch OutputScale,
-             nt::batch OutputRotate,
+             nt::batched_parameter InputScale,
+             nt::batched_parameter InputRotate,
+             nt::batched_parameter OutputScale,
+             nt::batched_parameter OutputRotate,
              typename EWSCurvature,
              nt::interpolator_spectrum_nd<2> InputSlice,
              nt::interpolator_spectrum_nd_or_empty<2> InputSliceWeight,

@@ -7,7 +7,6 @@
 #include "noa/base/Tuple.hpp"
 #include "noa/base/Vec.hpp"
 
-#include "noa/runtime/core/Batch.hpp"
 #include "noa/runtime/core/Border.hpp"
 #include "noa/runtime/core/Random.hpp"
 #include "noa/runtime/core/Shape.hpp"

@@ -3,7 +3,6 @@
 #include "noa/base/Tuple.hpp"
 #include "noa/base/Vec.hpp"
 #include "noa/runtime/core/Accessor.hpp"
-#include "noa/runtime/core/Batch.hpp"
 #include "noa/runtime/core/Shareable.hpp"
 #include "noa/runtime/core/Utils.hpp"
 #include "noa/runtime/Traits.hpp"
@@ -136,14 +135,14 @@ namespace noa::details {
         using value_t = nt::const_value_type_t<T>;
         if constexpr (nt::empty<T>) {
             if constexpr (ALLOW_EMPTY)
-                return nd::Batch<Empty>{};
+                return nd::BatchedParameter<Empty>{};
             else
                 static_assert(nt::always_false<T>);
         } else if constexpr (nt::varray<T>) {
             NOA_ASSERT(value.is_contiguous());
-            return nd::Batch<value_t*>{value.get()};
+            return nd::BatchedParameter<value_t*>{value.get()};
         } else {
-            return nd::Batch{value};
+            return nd::BatchedParameter{value};
         }
     }
 

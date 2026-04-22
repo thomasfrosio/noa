@@ -12,15 +12,15 @@ namespace noa::xform::details {
         using value_t = nt::const_value_type_t<Xform>;
         if constexpr (nt::mat<Xform> or nt::vec<Xform> or nt::quaternion<Xform> or (ALLOW_EMPTY and nt::empty<Xform>)) {
             if constexpr (ENFORCE_EMPTY)
-                return nd::Batch<Empty>{};
+                return nd::BatchedParameter<Empty>{};
             else
-                return nd::Batch{xform};
+                return nd::BatchedParameter{xform};
         } else if constexpr (nt::varray<Xform> and (nt::mat<value_t> or nt::vec<value_t> or nt::quaternion<value_t>)) {
             if constexpr (ENFORCE_EMPTY)
-                return nd::Batch<Empty>{};
+                return nd::BatchedParameter<Empty>{};
             else {
                 NOA_ASSERT(xform.is_contiguous());
-                return nd::Batch<value_t*>{xform.get()};
+                return nd::BatchedParameter<value_t*>{xform.get()};
             }
         } else {
             static_assert(nt::always_false<Xform>);
@@ -43,7 +43,7 @@ namespace noa::xform::details {
     ///    every dimension of the output.
     template<usize N,
              nt::integer Index,
-             nt::batch Xform,
+             nt::batched_parameter Xform,
              nt::interpolator_nd<N> Input,
              nt::writable_nd<N + 1> Output>
     requires (N == 2 or N == 3)

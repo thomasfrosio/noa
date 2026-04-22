@@ -10,7 +10,7 @@ namespace noa::xform::details {
         nt::sinteger Index,
         typename DrawOp,
         typename BinaryOp,
-        nt::batch Xform,
+        nt::batched_parameter Xform,
         nt::readable_nd_optional<N + 1> Input,
         nt::writable_nd<N + 1> Output>
     requires (N == 2 or N == 3)
@@ -179,12 +179,12 @@ namespace noa::xform::details {
         if (has_transform) {
             auto extract_transform = [&] {
                 if constexpr (nt::is_mat_of_shape_v<xform_t, N + 1, N + 1>) {
-                    return nd::Batch{inverse_transform.pop_back()};
+                    return nd::BatchedParameter{inverse_transform.pop_back()};
                 } else if constexpr (nt::is_varray_v<xform_t>) {
                     using accessor_t = AccessorRestrictContiguous<nt::const_value_type_t<xform_t>, 1, isize>;
-                    return nd::Batch{accessor_t(inverse_transform.get())}; // inverse_transform is contiguous
+                    return nd::BatchedParameter{accessor_t(inverse_transform.get())}; // inverse_transform is contiguous
                 } else if constexpr (nt::is_mat_v<xform_t> or nt::is_quaternion_v<xform_t> or std::is_empty_v<xform_t>) {
-                    return nd::Batch{inverse_transform};
+                    return nd::BatchedParameter{inverse_transform};
                 } else {
                     static_assert(nt::always_false<xform_t>);
                 }
@@ -199,8 +199,8 @@ namespace noa::xform::details {
                 std::forward<Transform>(inverse_transform)
             );
         } else {
-            using op_t = Draw<N, Index, drawable_t, BinaryOp, nd::Batch<Empty>, input_accessor_t, output_accessor_t>;
-            auto op = op_t(input_accessor, output_accessor, drawable, nd::Batch<Empty>{}, binary_op);
+            using op_t = Draw<N, Index, drawable_t, BinaryOp, nd::BatchedParameter<Empty>, input_accessor_t, output_accessor_t>;
+            auto op = op_t(input_accessor, output_accessor, drawable, nd::BatchedParameter<Empty>{}, binary_op);
             return iwise<OPTIONS>(
                 iwise_shape, output.device(), std::move(op),
                 std::forward<Input>(input),

@@ -21,8 +21,8 @@ namespace noa::xform::details {
     /// \tparam Output              (N + 1)-d writable.
     template<usize N, nf::Layout REMAP,
              nt::integer Index,
-             nt::batch BatchedRotate,
-             nt::batch BatchedPostShift,
+             nt::batched_parameter BatchedRotate,
+             nt::batched_parameter BatchedPostShift,
              nt::interpolator_spectrum_nd<N> Input,
              nt::writable_nd<N + 1> Output>
     class TransformSpectrum {

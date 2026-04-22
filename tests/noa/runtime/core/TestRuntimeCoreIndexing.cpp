@@ -338,18 +338,18 @@ TEST_CASE("runtime::core:: rightmost_order(), squeeze()") {
     REQUIRE((Strides<i64, 4>{128, 4096, 128, 1}.rightmost_order(Shape<i64, 4>{2, 32, 1, 128}) == Vec<i64, 4>{2, 1, 0, 3}));
     REQUIRE((Strides<i64, 4>{2, 2, 2, 2}.rightmost_order(Shape<i64, 4>{1, 1, 1, 1}) == Vec<i64, 4>{0, 1, 2, 3}));
 
-    REQUIRE(squeeze_left(shape) == Vec<u64, 4>{0, 1, 2, 3});
-    REQUIRE(squeeze_left(Shape<u64, 4>{1, 1, 3, 4}) == Vec<u64, 4>{0, 1, 2, 3});
-    REQUIRE(squeeze_left(Shape<u64, 4>{1, 1, 3, 1}) == Vec<u64, 4>{0, 1, 3, 2});
-    REQUIRE(squeeze_left(Shape<u64, 4>{1, 1, 1, 1}) == Vec<u64, 4>{0, 1, 2, 3});
-    REQUIRE(squeeze_left(Shape<u64, 4>{5, 1, 3, 1}) == Vec<u64, 4>{1, 3, 0, 2});
-    REQUIRE(squeeze_left(Shape<u64, 4>{5, 1, 1, 1}) == Vec<u64, 4>{1, 2, 3, 0});
+    REQUIRE(squeeze_empty_dimensions_left(shape) == Vec<u64, 4>{0, 1, 2, 3});
+    REQUIRE(squeeze_empty_dimensions_left(Shape<u64, 4>{1, 1, 3, 4}) == Vec<u64, 4>{0, 1, 2, 3});
+    REQUIRE(squeeze_empty_dimensions_left(Shape<u64, 4>{1, 1, 3, 1}) == Vec<u64, 4>{0, 1, 3, 2});
+    REQUIRE(squeeze_empty_dimensions_left(Shape<u64, 4>{1, 1, 1, 1}) == Vec<u64, 4>{0, 1, 2, 3});
+    REQUIRE(squeeze_empty_dimensions_left(Shape<u64, 4>{5, 1, 3, 1}) == Vec<u64, 4>{1, 3, 0, 2});
+    REQUIRE(squeeze_empty_dimensions_left(Shape<u64, 4>{5, 1, 1, 1}) == Vec<u64, 4>{1, 2, 3, 0});
 
-    REQUIRE(squeeze_right(Shape<u64, 4>{1, 1, 3, 4}) == Vec<u64, 4>{2, 3, 0, 1});
-    REQUIRE(squeeze_right(Shape<u64, 4>{1, 1, 3, 1}) == Vec<u64, 4>{2, 0, 1, 3});
-    REQUIRE(squeeze_right(Shape<u64, 4>{1, 1, 1, 1}) == Vec<u64, 4>{0, 1, 2, 3});
-    REQUIRE(squeeze_right(Shape<u64, 4>{5, 1, 3, 1}) == Vec<u64, 4>{0, 2, 1, 3});
-    REQUIRE(squeeze_right(Shape<u64, 4>{5, 1, 1, 1}) == Vec<u64, 4>{0, 1, 2, 3});
+    REQUIRE(squeeze_empty_dimensions_right(Shape<u64, 4>{1, 1, 3, 4}) == Vec<u64, 4>{2, 3, 0, 1});
+    REQUIRE(squeeze_empty_dimensions_right(Shape<u64, 4>{1, 1, 3, 1}) == Vec<u64, 4>{2, 0, 1, 3});
+    REQUIRE(squeeze_empty_dimensions_right(Shape<u64, 4>{1, 1, 1, 1}) == Vec<u64, 4>{0, 1, 2, 3});
+    REQUIRE(squeeze_empty_dimensions_right(Shape<u64, 4>{5, 1, 3, 1}) == Vec<u64, 4>{0, 2, 1, 3});
+    REQUIRE(squeeze_empty_dimensions_right(Shape<u64, 4>{5, 1, 1, 1}) == Vec<u64, 4>{0, 1, 2, 3});
 }
 
 TEST_CASE("runtime::core:: memory layouts") {
@@ -388,7 +388,7 @@ TEST_CASE("runtime::core:: memory layouts") {
         REQUIRE(strides.is_row_major(shape));
         REQUIRE(strides.is_column_major(shape));
 
-        auto order = squeeze_left(shape);
+        auto order = squeeze_empty_dimensions_left(shape);
         shape = shape.permute(order);
         strides = strides.permute(order);
         REQUIRE(strides.contiguity(shape) == true);
@@ -526,7 +526,7 @@ TEST_CASE("runtime::core::collapse_dimensions") {
         const auto broadcasting = strides.broadcasting(shape);
 
         auto collapsed_shape = nd::collapse_contiguous_dimensions(shape, contiguity, broadcasting);
-        collapsed_shape = collapsed_shape.permute(noa::squeeze_left(collapsed_shape));
+        collapsed_shape = collapsed_shape.permute(noa::squeeze_empty_dimensions_left(collapsed_shape));
 
         Strides4 collapsed_strides;
         const bool worked = nd::reshape(shape, strides, collapsed_shape, collapsed_strides);

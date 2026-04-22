@@ -259,7 +259,7 @@ namespace noa::cpu {
         auto output_ = std::forward<Output>(output);
 
         // Move the reduced dimension to the rightmost dimension.
-        const auto order = noa::squeeze_left(axes_to_reduce.template as<i32>() + 1);
+        const auto order = noa::squeeze_empty_dimensions_left(axes_to_reduce.template as<i32>() + 1);
         auto reordered_shape = input_shape.permute(order);
         if (order != Vec{0, 1, 2, 3}) {
             input_.for_each([&order](auto& accessor) { accessor = accessor.permute(order); });

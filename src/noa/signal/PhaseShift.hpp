@@ -3,8 +3,8 @@
 #include "noa/fft/core/Frequency.hpp"
 #include "noa/fft/Remap.hpp"
 #include "noa/runtime/Array.hpp"
-#include "noa/runtime/core/Batch.hpp"
 #include "noa/runtime/core/Shape.hpp"
+#include "noa/runtime/core/Utils.hpp"
 #include "noa/runtime/Factory.hpp"
 #include "noa/runtime/Iwise.hpp"
 
@@ -72,7 +72,7 @@ namespace noa::signal::details {
     /// 4d iwise operator to apply ((D)H)W phase-shifts.
     template<nf::Layout REMAP,
              nt::sinteger Index,
-             nt::batch Shift,
+             nt::batched_parameter Shift,
              nt::readable_nd_optional<4> Input,
              nt::writable_nd<4> Output>
     class PhaseShift {
@@ -184,10 +184,10 @@ namespace noa::signal::details {
     template<typename T>
     auto extract_shift(const T& shift) {
         if constexpr (nt::vec<T>) {
-            return nd::Batch{shift};
+            return nd::BatchedParameter{shift};
         } else {
             using ptr_t = nt::const_value_type_t<T>*;
-            return nd::Batch<ptr_t>{shift.get()};
+            return nd::BatchedParameter<ptr_t>{shift.get()};
         }
     }
 }

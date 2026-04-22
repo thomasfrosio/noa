@@ -119,8 +119,8 @@ namespace noa::xform::details {
             nt::span_contiguous_nd<1> SymmetryMatrices,
             nt::interpolator_nd<N> Input,
             nt::writable_nd<N + 1> Output,
-            nt::batch PreInvAffine,
-            nt::batch PostInvAffine>
+            nt::batched_parameter PreInvAffine,
+            nt::batched_parameter PostInvAffine>
     requires (N == 2 or N == 3)
     class Symmetrize {
     public:

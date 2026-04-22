@@ -16,7 +16,7 @@ namespace noa::signal::details {
              nt::sinteger Index,
              nt::readable_nd_or_empty<N + 1> Input,
              nt::writable_nd<N + 1> Output,
-             nt::batch BatchedCTF>
+             nt::batched_parameter BatchedCTF>
     class CTF {
     public:
         static_assert(REMAP.is_any(nf::Layout::H2H, nf::Layout::HC2HC, nf::Layout::HC2H, nf::Layout::H2HC,
@@ -191,9 +191,9 @@ namespace noa::signal::details {
     constexpr auto extract_ctf(const CTF& ctf) {
         if constexpr (nt::varray<CTF>) {
             using accessor_t = AccessorRestrictContiguous<nt::const_value_type_t<CTF>, 1, isize>;
-            return nd::Batch{accessor_t(ctf.get())};
+            return nd::BatchedParameter{accessor_t(ctf.get())};
         } else {
-            return nd::Batch{ctf};
+            return nd::BatchedParameter{ctf};
         }
     }
 }

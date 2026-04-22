@@ -1,7 +1,6 @@
 list(APPEND NOA_HEADERS
     noa/runtime/core/Access.hpp
     noa/runtime/core/Accessor.hpp
-    noa/runtime/core/Batch.hpp
     noa/runtime/core/Border.hpp
     noa/runtime/core/Interfaces.hpp
     noa/runtime/core/Iwise.hpp

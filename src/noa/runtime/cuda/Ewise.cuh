@@ -228,7 +228,7 @@ namespace noa::cuda {
             nd::accessors_broadcasting(input, shape) or
             nd::accessors_broadcasting(output, shape);
         auto collapsed_shape = nd::collapse_contiguous_dimensions(shape_iz, contiguity, broadcasting);
-        collapsed_shape = collapsed_shape.permute(squeeze_left(collapsed_shape));
+        collapsed_shape = collapsed_shape.permute(squeeze_empty_dimensions_left(collapsed_shape));
 
         if (collapsed_shape[0] == 1 and collapsed_shape[1] == 1 and
             collapsed_shape[2] <= Limits::MAX_YZ_BLOCKS * 2 and

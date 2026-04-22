@@ -1189,7 +1189,7 @@ namespace noa {
     /// The difference with `rightmost_order` is that this function does not change the order of the non-empty
     /// dimensions relative to each other. Note that the order of the empty dimensions is preserved.
     template<typename T> requires (nt::vec_integer<T> or nt::shape_or_strides<T>)
-    [[nodiscard]] NOA_HD constexpr auto squeeze_left(const T& shape) noexcept {
+    [[nodiscard]] NOA_HD constexpr auto squeeze_empty_dimensions_left(const T& shape) noexcept {
         using value_t = T::value_type;
         constexpr auto SIZE = static_cast<value_t>(T::SIZE);
         Vec<value_t, T::SIZE> order{};
@@ -1206,7 +1206,7 @@ namespace noa {
     }
 
     template<typename T> requires (nt::vec_integer<T> or nt::shape_or_strides<T>)
-    [[nodiscard]] NOA_HD constexpr auto squeeze_right(const T& shape) noexcept {
+    [[nodiscard]] NOA_HD constexpr auto squeeze_empty_dimensions_right(const T& shape) noexcept {
         using value_t = T::value_type;
         constexpr auto SIZE = static_cast<value_t>(T::SIZE);
         Vec<value_t, T::SIZE> order{};

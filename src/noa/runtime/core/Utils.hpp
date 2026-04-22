@@ -387,4 +387,31 @@ namespace noa::details {
 
     template<usize N, typename T, nt::integer I>
     using ReinterpretLayoutContiguous = ReinterpretLayout<N, T, I, StridesTraits::CONTIGUOUS>;
+
+    template<typename T>
+    struct BatchedParameter {
+        static constexpr bool IS_BATCHED = nt::pointer<T> or nt::accessor_nd<T, 1> or nt::span_nd<T, 1>;
+        using type = T;
+        using value_type = std::conditional_t<IS_BATCHED, nt::value_type_t<T>, T>;
+
+        constexpr auto& operator[](nt::integer auto i) const noexcept {
+            if constexpr (IS_BATCHED)
+                return value[i];
+            else
+                return value;
+        }
+
+        constexpr auto& operator[](nt::integer auto i) noexcept {
+            if constexpr (IS_BATCHED)
+                return value[i];
+            else
+                return value;
+        }
+
+        NOA_NO_UNIQUE_ADDRESS T value;
+    };
+}
+
+namespace noa::traits {
+    template<typename T> struct proclaim_is_batched_parameter<nd::BatchedParameteredParameter<T>> : std::true_type {};
 }

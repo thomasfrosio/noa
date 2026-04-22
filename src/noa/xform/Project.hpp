@@ -66,7 +66,7 @@ namespace noa::xform::details {
     template<nt::sinteger Index,
              nt::interpolator_nd<2> Input,
              nt::writable_nd<3> Output,
-             nt::batch BatchedMatrix>
+             nt::batched_parameter BatchedMatrix>
     class BackwardProject {
     public:
         using index_type = Index;
@@ -130,7 +130,7 @@ namespace noa::xform::details {
     template<nt::sinteger Index,
              nt::interpolator_nd<3> Input,
              nt::atomic_addable_nd<3> Output,
-             nt::batch BatchedMatrix>
+             nt::batched_parameter BatchedMatrix>
     class ForwardProject {
     public:
         using index_type = Index;
@@ -192,8 +192,8 @@ namespace noa::xform::details {
     template<nt::sinteger Index,
              nt::interpolator_nd<2> Input,
              nt::atomic_addable_nd<3> Output,
-             nt::batch BatchedInputMatrix,
-             nt::batch BatchedOutputMatrix>
+             nt::batched_parameter BatchedInputMatrix,
+             nt::batched_parameter BatchedOutputMatrix>
     class BackwardForwardProject {
     public:
         using index_type = Index;

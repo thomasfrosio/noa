@@ -449,7 +449,7 @@ namespace noa::cuda::details {
         } else {
             // The kernel needs the axis to reduce at the "height" position.
             // The width should still be at the rightmost dimension.
-            auto order = squeeze_left(axes_to_reduce.as<i32>() + 1);
+            auto order = squeeze_empty_dimensions_left(axes_to_reduce.as<i32>() + 1);
             order = order.filter(0, 1, 3, 2); // move the width back to rightmost
 
             // Reorder to (X, X, axis_to_reduce, width).
@@ -573,7 +573,7 @@ namespace noa::cuda::details {
         } else {
             // The kernel needs the axis to reduce at the "height" position.
             // The width should still be at the rightmost dimension.
-            auto order = squeeze_left(axes_to_reduce.as<i32>() + 1);
+            auto order = squeeze_empty_dimensions_left(axes_to_reduce.as<i32>() + 1);
             order = order.filter(0, 2, 1); // move the width back to rightmost
 
             // Reorder to (X, axis_to_reduce, width).

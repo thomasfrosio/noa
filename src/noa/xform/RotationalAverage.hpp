@@ -55,7 +55,7 @@ namespace noa::xform::details {
              nt::readable_nd<N + 1> Input,
              nt::atomic_addable_nd<2> Output,
              nt::atomic_addable_nd_optional<2> Weight,
-             nt::batch Ctf>
+             nt::batched_parameter Ctf>
     class RotationalAverage {
     public:
         static_assert((N == 2 or N == 3) and REMAP.is_xx2h());
@@ -182,8 +182,8 @@ namespace noa::xform::details {
              nt::readable_nd<2> Input,
              nt::atomic_addable_nd<2> Output,
              nt::atomic_addable_nd_optional<2> Weight,
-             nt::batch InputCtf,
-             nt::batch OutputCtf>
+             nt::batched_parameter InputCtf,
+             nt::batched_parameter OutputCtf>
     class FuseSpectra {
     public:
         using index_type = Index;
@@ -281,8 +281,8 @@ namespace noa::xform::details {
              nt::sinteger Index,
              nt::interpolator_spectrum_nd<1> Input,
              nt::writable_nd<2> Output,
-             nt::batch InputCtf,
-             nt::batch OutputCtf>
+             nt::batched_parameter InputCtf,
+             nt::batched_parameter OutputCtf>
     class PhaseSpectra {
     public:
         using index_type = Index;
@@ -530,7 +530,7 @@ namespace noa::xform::details {
         } else {
             using input_accessor_t = AccessorRestrict<input_value_t, 4, Index>;
             auto op = RotationalAverage
-                <REMAP, 3, coord_t, Index, input_accessor_t, output_accessor_t, weight_accessor_t, nd::Batch<Empty>>(
+                <REMAP, 3, coord_t, Index, input_accessor_t, output_accessor_t, weight_accessor_t, nd::BatchedParameter<Empty>>(
                     input_accessor_t(input.get(), input_strides), input_shape.filter(1, 2, 3), {},
                     output_accessor, weight_accessor, static_cast<Index>(n_shells), input_fftfreq, output_fftfreq
                 );
