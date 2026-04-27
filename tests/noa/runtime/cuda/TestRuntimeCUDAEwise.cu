@@ -8,20 +8,20 @@
 namespace {
     using namespace noa::types;
 
-    struct Tracked {
-        Vec<i32, 2> count{};
-         constexpr Tracked() = default;
-         constexpr Tracked(const Tracked& t) : count(t.count) { count[0] += 1; }
-         constexpr Tracked(Tracked&& t) noexcept : count(t.count) { count[1] += 1; }
-    };
-
-    struct Op {
-        Tracked t1{};
-        constexpr void operator()(const Tracked& t0, Vec<i32, 2>& o0, Vec<i32, 2>& o1) const {
-            o0 = t0.count;
-            o1 = t1.count;
-        }
-    };
+    // struct Tracked {
+    //     Vec<i32, 2> count{};
+    //      constexpr Tracked() = default;
+    //      constexpr Tracked(const Tracked& t) : count(t.count) { count[0] += 1; }
+    //      constexpr Tracked(Tracked&& t) noexcept : count(t.count) { count[1] += 1; }
+    // };
+    //
+    // struct Op {
+    //     Tracked t1{};
+    //     constexpr void operator()(const Tracked& t0, Vec<i32, 2>& o0, Vec<i32, 2>& o1) const {
+    //         o0 = t0.count;
+    //         o1 = t1.count;
+    //     }
+    // };
 
     struct Op1 {
         using enable_vectorization = bool;

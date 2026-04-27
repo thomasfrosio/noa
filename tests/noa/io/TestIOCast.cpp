@@ -24,7 +24,7 @@ TEST_CASE("io::cast") {
             auto s0 = Vec{1., 2., 3.};
             auto randomizer = test::Randomizer<i32>(-128, 128);
             for (auto& e: a0.span_1d_contiguous())
-                e = randomizer.get();
+                e = static_cast<f32>(randomizer.get());
 
             noa::write_image(a0, file_0, {.spacing = s0, .dtype = dtype});
             noa::write_image(a0.reinterpret_as<std::byte>(), "f32", file_1, {.spacing = s0, .dtype = dtype});
