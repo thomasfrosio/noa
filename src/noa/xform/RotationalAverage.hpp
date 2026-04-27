@@ -250,15 +250,15 @@ namespace noa::xform::details {
             const auto output_batch = batch / m_chunk_size;
             const auto input_fftfreq = m_input_fftfreq_start + static_cast<coord_type>(index) * m_input_fftfreq_step;
             const auto input_phase = m_input_ctf[batch].phase_at(input_fftfreq);
-            const auto fftfreq = static_cast<coord_type>(m_output_ctf[output_batch].fftfreq_at(input_phase));
+            const auto fftfreq = m_output_ctf[output_batch].template fftfreq_at<coord_type>(input_phase);
 
             // Remove most out-of-bounds asap.
-            if (fftfreq < m_fftfreq_cutoff[0] or fftfreq > m_fftfreq_cutoff[1])
+            if (not fftfreq.has_value() or *fftfreq < m_fftfreq_cutoff[0] or *fftfreq > m_fftfreq_cutoff[1])
                 return;
 
             const auto value = cast_or_abs_squared<output_value_type>(m_input(batch, index));
             const auto weight = static_cast<output_real_type>(m_input_ctf[batch].scale());
-            RotationalAverageUtils::lerp_to_output(ch.grid(), *this, value * weight, fftfreq, output_batch);
+            RotationalAverageUtils::lerp_to_output(ch.grid(), *this, value * weight, *fftfreq, output_batch);
         }
 
     private:
@@ -323,9 +323,13 @@ namespace noa::xform::details {
         NOA_HD void operator()(index_type batch, index_type index) const noexcept {
             const auto output_fftfreq = m_output_fftfreq_start + static_cast<coord_type>(index) * m_output_fftfreq_step;
             const auto phase = m_output_ctf[batch].phase_at(output_fftfreq);
-            const auto input_fftfreq = static_cast<coord_type>(m_input_ctf[batch].fftfreq_at(phase));
+            const auto input_fftfreq = m_input_ctf[batch].template fftfreq_at<coord_type>(phase);
+            if (not input_fftfreq.has_value()) {
+                m_output(batch, index) = 0;
+                return;
+            }
 
-            const auto input_frequency = (input_fftfreq - m_input_fftfreq_start) / m_input_fftfreq_step;
+            const auto input_frequency = (*input_fftfreq - m_input_fftfreq_start) / m_input_fftfreq_step;
             const auto interpolated_value = m_input.interpolate_spectrum_at(Vec{input_frequency}, batch);
             m_output(batch, index) = cast_or_abs_squared<output_value_type>(interpolated_value);
         }

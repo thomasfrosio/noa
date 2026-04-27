@@ -220,7 +220,9 @@ namespace noa::signal {
             return exp(m_bfactor_forth * r2) * m_scale;
         }
 
-        [[nodiscard]] constexpr auto fftfreq_at(nt::real auto phase) const -> value_type {
+        /// Computes the fftfreq at which this CTF reaches the given phase.
+        template<nt::real O = value_type, nt::real I>
+        [[nodiscard]] constexpr auto fftfreq_at(I phase) const -> std::optional<O> {
             // Floating-point precision errors are a real thing, switch everything to double precision.
             const auto a = static_cast<f64>(m_k2);
             const auto b = static_cast<f64>(m_k1) * static_cast<f64>(m_defocus_angstroms);
@@ -228,15 +230,18 @@ namespace noa::signal {
 
             // TODO If Cs=0, fftfreq=sqrt(-c/b). In practice, clamping Cs=1e-5 might be better though.
 
-            // Choose the root based on the sign of the defocus.
             const auto d = b * b - 4 * a * c;
+            if (d < 0)
+                return std::nullopt;
+
+            // Choose the root based on the sign of the defocus.
             const auto sqrt_d = sqrt(d);
             const auto numerator = -b + copysign(sqrt_d, b);
             const auto denominator = 2 * a;
             auto fftfreq = sqrt(abs(numerator / denominator));
             fftfreq *= static_cast<f64>(m_pixel_size);
 
-            return static_cast<value_type>(fftfreq);
+            return static_cast<O>(fftfreq);
         }
 
     private:
