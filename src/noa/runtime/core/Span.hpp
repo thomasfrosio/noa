@@ -56,7 +56,7 @@ namespace noa::inline types {
     template<typename T, usize N = 1, typename I = isize,
              StridesTraits StridesTrait = StridesTraits::STRIDED,
              PointerTraits PointerTrait = PointerTraits::DEFAULT>
-    class Span : public details::Indexer<Span<T, N, I, StridesTrait>, N> {
+    class Span : public nd::Indexer<Span<T, N, I, StridesTrait>, N> {
     public:
         static_assert(not std::is_reference_v<T> and
                       not std::is_pointer_v<T> and
@@ -235,59 +235,15 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr explicit operator bool() const noexcept { return not is_empty(); }
 
         /// Returns a new Span.
-        /// \details While constructing the span, this function can also reinterpret the current value type.
-        ///          This is only well-defined in cases where Span::as<U>() is well-defined.
-        ///          If N < NewN, the outer-dimensions are stacked together.
+        /// See ReinterpretLayout for more details.
         template<typename NewT = T, usize NewN = N, typename NewI = index_type,
                  StridesTraits NewStridesTrait = STRIDES_TRAIT,
                  PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto span() const {
-            using output_span_t = Span<NewT, NewN, NewI, NewStridesTrait, NewPointerTrait>;
-
-            const auto reinterpreted = details::ReinterpretLayout<N, value_type, index_type, STRIDES_TRAIT>(
-                shape(), strides_full(), get()).template as<NewT>();
-
-            if constexpr (STRIDES_TRAIT != StridesTraits::CONTIGUOUS and
-                          NewStridesTrait == StridesTraits::CONTIGUOUS) {
-                check(reinterpreted.strides[N - 1] == 1,
-                      "Cannot convert a non-contiguous span (strides={}) to a contiguous span",
-                      reinterpreted.strides);
-            }
-
-            if constexpr (NewN == N) {
-                return output_span_t(
-                    reinterpreted.ptr,
-                    reinterpreted.shape.template as_safe<NewI>(),
-                    reinterpreted.strides.template as_safe<NewI>());
-            } else if constexpr (NewN > N) {
-                // Add empty dimensions on the left.
-                constexpr usize n_dimensions_to_add = NewN - N;
-                auto new_truncated_shape = reinterpreted.shape.template as_safe<NewI>();
-                auto new_truncated_strides = reinterpreted.strides.template as_safe<NewI>();
-                auto new_leftmost_stride = new_truncated_strides[0] * new_truncated_shape[0];
-                return output_span_t(
-                    reinterpreted.ptr,
-                    new_truncated_shape.template push_front<n_dimensions_to_add>(1),
-                    new_truncated_strides.template push_front<n_dimensions_to_add>(new_leftmost_stride));
-            } else {
-                // Construct the new shape by stacking the outer dimensions together.
-                constexpr usize OFFSET = N - NewN;
-                auto new_shape = Shape<index_type, N>::filled_with(1);
-                for (usize i{}; i < N; ++i)
-                    new_shape[max(i, OFFSET)] *= reinterpreted.shape[i];
-
-                // Reshape.
-                Strides<index_type, N> new_stride{};
-                check(details::reshape(reinterpreted.shape, reinterpreted.strides, new_shape, new_stride),
-                      "An array of shape {} and strides {} cannot be reshaped to shape {}",
-                      reinterpreted.shape, reinterpreted.strides, new_shape);
-
-                // Then remove the outer empty dimensions.
-                return output_span_t(
-                    reinterpreted.ptr,
-                    new_shape.template pop_front<OFFSET>().template as_safe<NewI>(),
-                    new_stride.template pop_front<OFFSET>().template as_safe<NewI>());
-            }
+            using reinterpret_t = nd::ReinterpretLayout<value_type, N, index_type, STRIDES_TRAIT>;
+            const auto reinterpreted = reinterpret_t(get(), shape(), strides_full()).template as<NewT, NewN, NewI, NewStridesTrait>();
+            return Span<NewT, NewN, NewI, NewStridesTrait, NewPointerTrait>(
+                reinterpreted.ptr, reinterpreted.shape, reinterpreted.strides);
         }
 
         template<typename NewT, usize NewN = N,
@@ -351,46 +307,30 @@ namespace noa::inline types {
             return span<U, 1, NewI, StridesTraits::STRIDED, NewPointerTrait>();
         }
 
-        template<typename U = value_type,
+        template<usize NewN,
+                 typename NewT = value_type,
                  typename NewI = index_type,
                  StridesTraits NewStridesTrait = STRIDES_TRAIT,
                  PointerTraits NewPointerTrait = POINTER_TRAIT>
-        [[nodiscard]] constexpr auto as_4d() const {
-            return span<U, 4, NewI, NewStridesTrait, NewPointerTrait>();
+        [[nodiscard]] constexpr auto as_nd() const {
+            return span<NewT, NewN, NewI, NewStridesTrait, NewPointerTrait>();
         }
 
-        template<typename U = value_type,
-                 typename NewI = index_type,
-                 PointerTraits NewPointerTrait = POINTER_TRAIT>
-        [[nodiscard]] constexpr auto as_4d_contiguous() const {
-            return span<U, 4, NewI, StridesTraits::CONTIGUOUS, NewPointerTrait>();
-        }
-
-        template<typename U = value_type,
-                 typename NewI = index_type,
-                 PointerTraits NewPointerTrait = POINTER_TRAIT>
-        [[nodiscard]] constexpr auto as_4d_strided() const {
-            return span<U, 4, NewI, StridesTraits::STRIDED, NewPointerTrait>();
-        }
-
-        /// Reshapes the view (must have the same number of elements as the current view).
-        [[nodiscard]] auto reshape(shape_type new_shape) const -> Span {
-            // Infer the size, if needed.
-            check(nd::infer_size(new_shape, n_elements()),
+        /// Reshapes the span, with size inference.
+        template<usize NewN>
+        [[nodiscard]] auto reshape(Shape<index_type, NewN> new_shape) const {
+            Strides<index_type, NewN> new_stride;
+            check(noa::infer_size(new_shape, n_elements()),
                   "The desired shape {} is not compatible with the current shape {}, "
                   "or the size inference is invalid or ambiguous", new_shape, shape());
-
-            // Then reshape.
-            strides_full_type new_stride;
-            check(nd::reshape(shape(), strides_full(), new_shape, new_stride),
+            check(noa::reshape(shape(), strides_full(), new_shape, new_stride),
                   "An memory region of shape {} and stride {} cannot be reshaped to a shape of {}",
                   shape(), strides_full(), new_shape);
-
-            return Span(get(), new_shape, new_stride);
+            return Span<value_type, NewN, index_type, STRIDES_TRAIT>(get(), new_shape, new_stride);
         }
 
         /// Reshapes the array in a vector along a particular axis.
-        /// Returns a row vector by default (axis = 3).
+        /// Returns a row vector by default (axis = N-1).
         [[nodiscard]] auto flat(i32 axis = N - 1) const -> Span {
             bounds_check<true>(N, axis);
             auto output_shape = shape_type::filled_with(1);
@@ -398,8 +338,8 @@ namespace noa::inline types {
             return reshape(output_shape);
         }
 
-        /// Permutes the dimensions of the view.
-        /// \param permutation  Permutation with the axes numbered from 0 to 3.
+        /// Permutes the dimensions of the span.
+        /// \param permutation  Permutation, with axes numbered from 0.
         [[nodiscard]] constexpr auto permute(const Vec<i32, N>& permutation) const -> Span {
             return Span(get(), shape().permute(permutation), strides_full().permute(permutation));
         }
@@ -411,7 +351,7 @@ namespace noa::inline types {
                 get(), shape().filter(axes...), strides().filter(axes...));
         }
 
-        /// Subregion indexing. Extracts a subregion from the current span.
+        /// Extracts a subregion from the current span.
         template<typename... U>
         [[nodiscard]] constexpr auto subregion(const Subregion<SIZE, U...>& subregion) const -> Span {
             auto [new_shape, new_strides, offset] = subregion.extract_from(
@@ -422,8 +362,8 @@ namespace noa::inline types {
                         new_strides.template as_safe<index_type>());
         }
 
-        /// Subregion indexing. Extracts a subregion from the current span.
-        /// \see noa::indexing::Subregion for more details on the variadic parameters to enter.
+        /// Extracts a subregion from the current span.
+        /// \see noa::Subregion for more details on the variadic parameters to enter.
         template<typename... Ts> requires nt::subregion_access_sequence<N, Ts...>
         [[nodiscard]] constexpr auto subregion(const Ts&... access_sequence) const -> Span {
             return subregion(Subregion<N, Ts...>(access_sequence...));

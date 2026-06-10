@@ -85,25 +85,18 @@ namespace noa::details {
 
 namespace noa {
     /// Computes an index-wise reduction along one or multiple axes.
-    /// \param shape:
-    ///     Shape of the 1-, 2-, 3- or 4-dimensional loop.
-    ///     The output axes are mapped from right to left, i.e.:
-    ///          N=4 -> BDHW
-    ///          N=3 -> DHW  (B must be empy, an error is thrown otherwise)
-    ///          N=2 -> HW   (BD must be empy, an error is thrown otherwise)
-    ///          N=1 -> W    (BDH must be empy, an error is thrown otherwise)
-    ///
+    /// \param shape: Shape of the 1-, 2-, 3- or 4-dimensional loop.
     /// \param device:
     ///     Device on which to dispatch the reduction. Should match the outputs.
     ///     As opposed to reduce_iwise, this function is asynchronous and does not perform any synchronization.
     ///
     /// \param[in,out] outputs:
     ///     Output array, an adaptor containing the output array(s) (all of which should be on the same device),
-    ///     or an empty adaptor. The size of each output axis should match the input shape, or be 1, indicating
-    ///     the axis should be reduced. There should be at least one axis being reduced. Currently, reducing more
-    ///     than one axis at a time is only supported if the reduction results in having one value or one value per
-    ///     leftmost dimension. Or in other words, if the DHW axes for N=4, or the HW axes for N==3, are empty
-    ///     after reduction. If all axes are reduced, it is equivalent to reduce_iwise.
+    ///     or an empty adaptor. The arrays should have the same number of axes as the input shape. The size of each
+    ///     output axis should match the input shape, or be 1, indicating the axis should be reduced.
+    ///     There should be at least one axis being reduced. Currently, reducing more than one axis at a time is
+    ///     only supported if all the axes are reduced, or all the axes except the leftmost axis.
+    ///     If all axes are reduced, it is equivalent to reduce_iwise.
     ///
     /// \param[in] reduced:     Same as reduce-iwise.
     /// \param[in] op:          Same as reduce-iwise.
@@ -196,54 +189,36 @@ namespace noa::details {
         ReduceAxes reduce_axes,
         Ts&&... attachments
     ) {
-        constexpr auto FILTER_ND = []() -> Vec<usize, N> {
-            if constexpr (N == 1)
-                return {3};
-            else if constexpr (N == 2)
-                return {2, 3};
-            else if constexpr (N == 3)
-                return {1, 2, 3};
-            else if constexpr (N == 4)
-                return {0, 1, 2, 3};
-            else
-                static_assert(nt::always_false<Outputs>);
-        }();
-
         Shape<Index, N> output_shape;
         if constexpr (ALLOW_NO_OUTPUTS) {
             output_shape = reduce_axes.to_reduced_shape(input_shape);
         } else {
-            static_assert(nd::are_all_varrays<Outputs>(), "All of the outputs should be varrays");
+            static_assert(nd::are_all_arrays_nd<Outputs, N>(), "All of the outputs should be arrays with the same number of axes as the input shape");
             static_assert(std::tuple_size_v<Outputs> > 0, "There should be at least one output");
 
-            auto desired_shape = outputs[Tag<0>{}].shape().template as_safe<Index>();
-            NOA_NV_DIAG_SUPPRESS(186)
-            for (usize i{}; i < 4 - N; ++i)
-                check(desired_shape[i] == 1, "For N={}, the output dimension {} must be empty", N, i);
-            NOA_NV_DIAG_DEFAULT(186)
-
+            output_shape = outputs[Tag<0>{}].shape().template as_safe<Index>();
             outputs.for_each_enumerate([&]<usize I, typename T>(T& output) {
                 check(device == output.device(),
                       "Output arrays should be on device={}, but got output:{}:device={}",
                       device, I, output.device());
                 if constexpr (I > 0) {
-                    check(desired_shape == output.shape(),
+                    check(output_shape == output.shape(),
                           "Output arrays should have the same shape, but got output:0:shape={} and output:{}:shape={}",
-                          desired_shape, I, output.shape());
+                          output_shape, I, output.shape());
                 }
             });
 
-            // Go from the 4d shape to the nd one.
-            output_shape = [&desired_shape]<usize... I>(std::index_sequence<I...>, const auto& filter) {
-                return Shape{desired_shape[filter[I]]...};
-            }(std::make_index_sequence<N>{}, FILTER_ND);
+            const auto axes_to_reduce = input_shape.cmp_ne(output_shape);
+            check((axes_to_reduce and output_shape.cmp_ne(1)) == false,
+                  "Dimensions should match the input shape, or be 1, indicating the dimension should be reduced to one element. "
+                  "Got shape input:shape={}, output:shape={}", input_shape, output_shape);
+            check(axes_to_reduce.any_eq(true),
+                  "No reduction to compute. Got shape input:shape={}, output:shape={}. Use iwise instead.",
+                  input_shape, output_shape);
         }
 
-        Tuple reduced_accessors = nd::to_tuple_of_accessors(std::forward<Reduced>(reduced));
+        Tuple reduced_accessors = nd::to_tuple_of_accessor_values(std::forward<Reduced>(reduced));
         Tuple output_accessors = nd::to_tuple_of_accessors(outputs);
-
-        // Backends expect the output accessors to have N dimensions, i.e. we need to remove the leftmost axes.
-        Tuple output_accessors_nd = nd::reconfig_accessors<nd::AccessorConfig<N>{.filter=FILTER_ND}>(output_accessors);
 
         Stream& stream = Stream::current(device);
         if constexpr (OPTIONS.generate_cpu) {
@@ -257,7 +232,7 @@ namespace noa::details {
                         input_shape, output_shape,
                         std::forward<Op>(reduce_operator),
                         std::move(reduced_accessors),
-                        output_accessors_nd,
+                        output_accessors,
                         n_threads);
                 } else {
                     cpu_stream.enqueue(
@@ -269,7 +244,7 @@ namespace noa::details {
                         ] {
                             noa::cpu::reduce_axes_iwise<config>(
                                 input_shape, output_shape, std::move(op),
-                                std::move(ra), output_accessors_nd, n_threads);
+                                std::move(ra), output_accessors, n_threads);
                         });
                 }
                 return;
@@ -293,7 +268,7 @@ namespace noa::details {
                     input_shape, output_shape,
                     std::forward<Op>(reduce_operator),
                     std::move(reduced_accessors),
-                    output_accessors_nd,
+                    output_accessors,
                     cuda_stream,
                     OPTIONS.gpu_scratch_size
                 );

@@ -16,3 +16,9 @@
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #   pragma GCC diagnostic pop
 #endif
+
+// FIXME Temporary fix
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wc2y-extensions"
+#  endif

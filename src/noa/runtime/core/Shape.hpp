@@ -14,7 +14,7 @@ namespace noa::inline types {
     template<typename T, usize N, usize A = 0>
     class Shape {
     public:
-        static_assert(nt::integer<T> and N <= 4);
+        static_assert(nt::integer<T>);
         using vector_type = Vec<T, N, A>;
         using value_type = vector_type::value_type;
         using mutable_value_type = value_type;
@@ -73,8 +73,8 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr auto operator[](nt::integer auto i)       noexcept ->       value_type& requires (SIZE > 0) { return vec[i]; }
         [[nodiscard]] NOA_HD constexpr auto operator[](nt::integer auto i) const noexcept -> const value_type& requires (SIZE > 0) { return vec[i]; }
 
-        [[nodiscard]] NOA_HD constexpr auto batch()        noexcept ->       value_type& requires (SIZE == 4) { return vec[0]; }
-        [[nodiscard]] NOA_HD constexpr auto batch()  const noexcept -> const value_type& requires (SIZE == 4) { return vec[0]; }
+        [[nodiscard]] NOA_HD constexpr auto batch()        noexcept ->       value_type& requires (SIZE >= 4) { return vec[SIZE - 4]; }
+        [[nodiscard]] NOA_HD constexpr auto batch()  const noexcept -> const value_type& requires (SIZE >= 4) { return vec[SIZE - 4]; }
         [[nodiscard]] NOA_HD constexpr auto depth()        noexcept ->       value_type& requires (SIZE >= 3) { return vec[SIZE - 3]; }
         [[nodiscard]] NOA_HD constexpr auto depth()  const noexcept -> const value_type& requires (SIZE >= 3) { return vec[SIZE - 3]; }
         [[nodiscard]] NOA_HD constexpr auto height()       noexcept ->       value_type& requires (SIZE >= 2) { return vec[SIZE - 2]; }
@@ -239,6 +239,12 @@ namespace noa::inline types {
             return Shape<value_type, NEW_SIZE, AR>{vec.template push_back<AR>(vector)};
         }
 
+        template<usize S, usize AR = 0>
+        [[nodiscard]] NOA_HD constexpr auto extend_front_to(value_type value) const noexcept {
+            constexpr usize MAX = std::max(SIZE, S);
+            return Shape<value_type, S, AR>{vec.template push_front<MAX - SIZE, AR>(value)};
+        }
+
         template<nt::integer... U>
         [[nodiscard]] NOA_HD constexpr auto filter(U... ts) const noexcept {
             return Shape<value_type, sizeof...(U)>{(*this)[ts]...};
@@ -336,43 +342,30 @@ namespace noa::inline types {
         }
 
         /// Computes the strides, in elements, in C- or F-order.
-        /// Note that if the height and width dimensions are empty, 'C' and 'F' returns the same strides.
-        template<char ORDER = 'C'> requires (SIZE > 0)
+        template<char ORDER = 'C'>
         [[nodiscard]] NOA_HD constexpr auto strides() const noexcept {
-            using output_strides = Strides<value_type, SIZE, A>;
+            constexpr bool ORDER_C = ORDER == 'c' or ORDER == 'C';
+            constexpr bool ORDER_F = ORDER == 'f' or ORDER == 'F';
+            static_assert(ORDER_C or ORDER_F);
 
-            if constexpr (ORDER == 'C' or ORDER == 'c') {
-                if constexpr (SIZE == 4) {
-                    return output_strides{vec[3] * vec[2] * vec[1],
-                                          vec[3] * vec[2],
-                                          vec[3],
-                                          1};
-                } else if constexpr (SIZE == 3) {
-                    return output_strides{vec[2] * vec[1],
-                                          vec[2],
-                                          1};
-                } else if constexpr (SIZE == 2) {
-                    return output_strides{vec[1], 1};
-                } else {
-                    return output_strides{1};
-                }
-            } else if constexpr (ORDER == 'F' or ORDER == 'f') {
-                if constexpr (SIZE == 4) {
-                    return output_strides{vec[3] * vec[2] * vec[1],
-                                          vec[3] * vec[2],
-                                          1,
-                                          vec[2]};
-                } else if constexpr (SIZE == 3) {
-                    return output_strides{vec[2] * vec[1],
-                                          1,
-                                          vec[1]};
-                } else if constexpr (SIZE == 2) {
-                    return output_strides{1, vec[0]};
-                } else {
-                    return output_strides{1};
-                }
+            using output_strides = Strides<value_type, N, A>;
+            if constexpr (N == 0) {
+                return output_strides{};
+            } else if constexpr (N == 1) {
+                return output_strides{1};
             } else {
-                static_assert(nt::always_false<value_type>);
+                constexpr usize FIRST = ORDER_C ? N - 1 : N - 2;
+                constexpr usize SECOND = ORDER_C ? N - 2 : N - 1;
+                output_strides out;
+                out[FIRST] = 1;
+                out[SECOND] = vec[FIRST];
+                if constexpr (N >= 3)
+                    out[N - 3] = vec[SECOND] * vec[FIRST];
+                if constexpr (N >= 4) {
+                    for (usize i{}; i < N - 3; ++i)
+                        out[N - 4 - i] = out[N - 3 - i] * vec[N - 3 - i];
+                }
+                return out;
             }
         }
 
@@ -380,7 +373,7 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr Shape rfft() const noexcept {
             Shape output = *this;
             if constexpr (SIZE > 0)
-                output[SIZE - 1] = output[SIZE - 1] / 2 + 1;
+                output[SIZE - 1] = (output[SIZE - 1] / 2) + 1;
             return output;
         }
 
@@ -400,9 +393,8 @@ namespace noa::inline types {
             return non_empty_dimension <= 1;
         }
 
-        /// Whether the shape describes vector.
-        /// A vector has one dimension with a size >= 1 and all the other dimensions empty (i.e. size == 1).
-        /// By this definition, the shapes {1,1,1}, {5,1,1} and {1,1,5} are all vectors.
+        /// Whether the shape describes a vector.
+        /// A vector has one dimension with a size >= 1 and all the other dimensions empty (size == 1).
         [[nodiscard]] NOA_FHD constexpr bool is_vector() const noexcept requires (SIZE > 0 and SIZE <= 3) {
             int non_empty_dimension = 0;
             for (usize i{}; i < SIZE; ++i) {
@@ -683,6 +675,12 @@ namespace noa::inline types {
             return Strides<value_type, NEW_SIZE, AR>{vec.template push_back<AR>(vector)};
         }
 
+        template<usize S, usize AR = 0>
+        [[nodiscard]] NOA_HD constexpr auto extend_front_to(value_type value) const noexcept {
+            constexpr usize MAX = std::max(SIZE, S);
+            return Strides<value_type, S, AR>{vec.template push_front<MAX - SIZE, AR>(value)};
+        }
+
         template<nt::integer... U>
         [[nodiscard]] NOA_HD constexpr auto filter(U... ts) const noexcept {
             return Strides<value_type, sizeof...(U)>{(*this)[ts]...};
@@ -728,79 +726,84 @@ namespace noa::inline types {
         /// Whether the strides describe a contiguous array with the given shape.
         /// \tparam ORDER 'C' for C-contiguous (row-major) or 'F' for F-contiguous (column-major).
         /// \note Empty dimensions are contiguous by definition since their strides are not used.
-        ///       Broadcast dimensions are NOT contiguous.
+        ///       Broadcast dimensions (stride==0) are NOT contiguous.
         template<char ORDER = 'C'>
-        [[nodiscard]] NOA_HD constexpr bool is_contiguous(
-            const Shape<T, 4>& shape
-        ) const noexcept requires (SIZE == 4) {
+        [[nodiscard]] NOA_HD constexpr bool is_contiguous(const Shape<T, N>& shape) const noexcept {
+            constexpr bool ORDER_C = ORDER == 'c' or ORDER == 'C';
+            constexpr bool ORDER_F = ORDER == 'f' or ORDER == 'F';
+            static_assert(ORDER_C or ORDER_F);
             if (shape.is_empty())
                 return false;
 
-            if constexpr (ORDER == 'c' or ORDER == 'C') {
-                return (shape[0] == 1 or (*this)[0] == shape[3] * shape[2] * shape[1]) and
-                       (shape[1] == 1 or (*this)[1] == shape[3] * shape[2]) and
-                       (shape[2] == 1 or (*this)[2] == shape[3]) and
-                       (shape[3] == 1 or (*this)[3] == 1);
-
-            } else if constexpr (ORDER == 'f' or ORDER == 'F') {
-                return (shape[0] == 1 or (*this)[0] == shape[3] * shape[2] * shape[1]) and
-                       (shape[1] == 1 or (*this)[1] == shape[3] * shape[2]) and
-                       (shape[2] == 1 or (*this)[2] == 1) and
-                       (shape[3] == 1 or (*this)[3] == shape[2]);
-
+            if constexpr (N == 0) {
+                return false;
+            } else if constexpr (N == 1) {
+                return shape[0] == 1 or (*this)[0] == 1;
             } else {
-                static_assert(nt::always_false<T>);
+                constexpr usize FIRST = ORDER_C ? N - 1 : N - 2;
+                constexpr usize SECOND = ORDER_C ? N - 2 : N - 1;
+                if ((shape[FIRST] != 1 and (*this)[FIRST] != 1) or
+                    (shape[SECOND] != 1 and (*this)[SECOND] != shape[FIRST]))
+                    return false;
+
+                if constexpr (N > 2) {
+                    auto offset = shape[N - 1];
+                    for (usize i{}; i < N - 2; ++i) {
+                        offset *= shape[N - 2 - i];
+                        if (shape[N - 3 - i] != 1 and (*this)[N - 3 - i] != offset)
+                            return false;
+                    }
+                }
+                return true;
             }
         }
 
         /// Contiguity profile.
-        /// \details This is to know at which dimension the contiguity is broken or if the contiguity is only
-        ///          required in for specific dimensions. It supports broadcasting and empty dimensions.
-        ///          It is also guarded against empty shapes.
+        /// \details When to know which dimensions break contiguity, or equally, which dimensions are contiguous.
+        ///          Supports broadcasting, empty dimensions, and guards against empty shapes.
         /// \tparam ORDER 'C' for C-contiguous (row-major) or 'F' for F-contiguous (column-major).
         /// \note To check whether the array is contiguous, while `strides.contiguity(shape) == true` is valid,
-        ///       strides.is_contiguous(shape) is clearer and slightly more efficient.
+        ///       strides.is_contiguous(shape) is recommended.
         /// \note Broadcast dimensions are NOT contiguous. Only empty dimensions are treated as contiguous
         ///       regardless of their stride. Functions that require broadcast dimensions to be "contiguous"
         ///       should call strides.effective_shape(shape) first to "cancel" the broadcasting
         ///       and mark the dimension as empty.
         template<char ORDER = 'C'>
-        [[nodiscard]] NOA_HD constexpr auto contiguity(const Shape<T, 4>& shape) const noexcept requires (SIZE == 4) {
-            if (shape.is_empty()) // guard against empty array
-                return Vec<bool, 4>{};
+        [[nodiscard]] NOA_HD constexpr auto contiguity(const Shape<T, N>& shape) const noexcept {
+            constexpr bool ORDER_C = ORDER == 'c' or ORDER == 'C';
+            constexpr bool ORDER_F = ORDER == 'f' or ORDER == 'F';
+            static_assert(ORDER_C or ORDER_F);
 
-            auto strides = *this * Strides<T, 4>::from_vec(shape.cmp_ne(1)); // mark the stride of empty dimensions unusable
-
-            if constexpr (ORDER == 'c' or ORDER == 'C') {
-                // If dimension is broadcast or empty, we cannot use the stride
-                // and need to use the corrected stride one dimension up.
-                const auto corrected_stride_2 = strides[3] ? shape[3] * strides[3] : 1;
-                const auto corrected_stride_1 = strides[2] ? shape[2] * strides[2] : corrected_stride_2;
-                const auto corrected_stride_0 = strides[1] ? shape[1] * strides[1] : corrected_stride_1;
-
-                // If dimension is empty, it is by definition contiguous and its stride does not matter.
-                // Broadcast dimensions break the contiguity because the corrected_stride cannot be 0.
-                // This is true for empty dimensions, but empty dimensions are contiguous by definition
-                // and their strides do not matter, i.e. we skip the comparison.
-                return Vec{
-                    shape[0] == 1 or strides[0] == corrected_stride_0,
-                    shape[1] == 1 or strides[1] == corrected_stride_1,
-                    shape[2] == 1 or strides[2] == corrected_stride_2,
-                    shape[3] == 1 or strides[3] == 1
-                };
-            } else if constexpr (ORDER == 'f' or ORDER == 'F') {
-                const auto corrected_stride_3 = strides[2] ? shape[2] * strides[2] : 1;
-                const auto corrected_stride_1 = strides[3] ? shape[3] * strides[3] : corrected_stride_3;
-                const auto corrected_stride_0 = strides[1] ? shape[1] * strides[1] : corrected_stride_1;
-
-                return Vec{
-                    shape[0] == 1 or strides[0] == corrected_stride_0,
-                    shape[1] == 1 or strides[1] == corrected_stride_1,
-                    shape[2] == 1 or strides[2] == 1,
-                    shape[3] == 1 or strides[3] == corrected_stride_3
-                };
+            if constexpr (N == 0) {
+                return Vec<bool, N>{};
+            } else if constexpr (N == 1) {
+                if (shape.is_empty())
+                    return Vec<bool, N>{};
+                return Vec{shape[0] == 1 or (*this)[0] == 1};
             } else {
-                static_assert(nt::always_false<T>);
+                if constexpr (ORDER_F) {
+                    auto strides = *this;
+                    auto shape_ = shape;
+                    std::swap(strides[N - 1], strides[N - 2]);
+                    std::swap(shape_[N - 1], shape_[N - 2]);
+                    auto output = strides.template contiguity<'c'>(shape_);
+                    std::swap(output[N - 1], output[N - 2]);
+                    return output;
+                } else {
+                    if (shape.is_empty())
+                        return Vec<bool, N>{};
+                    Vec<value_type, N> contiguous_strides;
+                    contiguous_strides[N - 1] = 1;
+                    for (usize i{}; i < N - 1; ++i) {
+                        const auto j = N - 1 - i;
+                        const bool empty_or_broadcast = shape[j] == 1 or (*this)[j] == 0;
+                        contiguous_strides[N - 2 - i] = empty_or_broadcast ? contiguous_strides[j] : shape[j] * (*this)[j];
+                    }
+                    Vec<bool, N> output;
+                    for (usize i{}; i < N; ++i)
+                        output[i] = shape[i] == 1 or (*this)[i] == contiguous_strides[i];
+                    return output;
+                }
             }
         }
 
@@ -863,12 +866,11 @@ namespace noa::inline types {
         }
 
         /// Returns the order the dimensions should be sorted so that they are in the rightmost order.
-        /// The input dimensions have the following indexes: {0, 1, 2, 3}.
-        /// For instance, if the strides are representing a F-contiguous order, this function returns {0, 1, 3, 2}.
+        /// For instance, for N==4, for F-contiguous strides, this function returns {0, 1, 3, 2}.
         /// Empty dimensions are pushed to the left side (the outermost side) and the corresponding strides are ignored.
         /// This is mostly intended to find the fastest way through an array using nested loops in the rightmost order.
         template<typename U>
-        [[nodiscard]] NOA_HD constexpr auto rightmost_order(const Shape<U, N>& shape) const noexcept {
+        [[nodiscard]] constexpr auto rightmost_order(const Shape<U, N>& shape) const noexcept {
             if constexpr (N <= 1) {
                 return Vec<T, N>{};
             } else {
@@ -878,10 +880,13 @@ namespace noa::inline types {
                     order[i] = static_cast<T>(i);
                     strides[i] = shape[i] <= 1 ? std::numeric_limits<T>::max() : (*this)[i];
                 }
-
-                return stable_sort(order, [&strides](T a, T b) {
-                    return strides[a] > strides[b];
-                });
+                auto f = [&strides](T a, T b) { return strides[a] > strides[b]; };
+                if constexpr (N <= 4) {
+                    return stable_sort(order, f);
+                } else {
+                    std::stable_sort(order.begin(), order.end(), f);
+                    return order;
+                }
             }
         }
 
@@ -896,13 +901,12 @@ namespace noa::inline types {
         /// Returns the broadcasting profile.
         template<typename U>
         [[nodiscard]] NOA_HD constexpr auto broadcasting(Shape<U, N> shape) const noexcept {
-            if (shape.is_empty()) // guard against empty array
-                return Vec<bool, 4>{};
-
             auto out = Vec<bool, SIZE>{};
-            for (usize i{}; i < SIZE; ++i)
-                if (vec[i] == 0 and shape[i] != 1)
-                    out[i] = true;
+            if (not shape.is_empty()) {
+                for (usize i{}; i < SIZE; ++i)
+                    if (vec[i] == 0 and shape[i] != 1)
+                        out[i] = true;
+            }
             return out;
         }
 
@@ -916,32 +920,27 @@ namespace noa::inline types {
 
         /// Computes the physical layout (the actual memory footprint) encoded in these strides.
         /// Note that the left-most size is not-encoded in the strides, and therefore cannot be recovered.
-        template<char ORDER = 'C'> requires (SIZE >= 2)
+        template<char ORDER = 'C'> requires (SIZE >= 1)
         [[nodiscard]] NOA_HD constexpr auto physical_shape() const noexcept {
             NOA_ASSERT(not is_broadcast() and "Cannot recover the physical shape from broadcast strides");
             using output_shape = Shape<value_type, SIZE - 1>;
-
-            if constexpr (ORDER == 'C' || ORDER == 'c') {
-                if constexpr (SIZE == 4) {
-                    return output_shape{vec[0] / vec[1],
-                                        vec[1] / vec[2],
-                                        vec[2]};
-                } else if constexpr (SIZE == 3) {
-                    return output_shape{vec[0] / vec[1],
-                                        vec[1]};
-                } else {
-                    return output_shape{vec[0]};
+            if constexpr (ORDER == 'C' or ORDER == 'c') {
+                output_shape out;
+                if constexpr (N >= 2) {
+                    for (usize i{}; i < N - 2; ++i)
+                        out[i] = vec[i] / vec[i + 1];
+                    out[N - 2] = vec[N - 2];
                 }
-            } else if constexpr (ORDER == 'F' || ORDER == 'f') {
-                if constexpr (SIZE == 4) {
-                    return output_shape{vec[0] / vec[1],
-                                        vec[3],
-                                        vec[1] / vec[3]};
-                } else if constexpr (SIZE == 3) {
-                    return output_shape{vec[2],
-                                        vec[0] / vec[2]};
+                return out;
+            } else if constexpr (ORDER == 'F' or ORDER == 'f') {
+                if constexpr (N >= 2) {
+                    auto strides = *this;
+                    std::swap(strides[N - 1], strides[N - 2]);
+                    auto output = strides.template physical_shape<'c'>();
+                    std::swap(output[N - 2], output[N - 3]); // FIXME
+                    return output;
                 } else {
-                    return output_shape{vec[1]};
+                    return output_shape{};
                 }
             } else {
                 static_assert(nt::always_false<value_type>);
@@ -1261,6 +1260,107 @@ namespace noa {
                 return false; // dimension sizes don't match
         }
         return true;
+    }
+
+    /// Returns the collapsed shape by fusing contiguous dimensions together.
+    template<typename T, usize N, typename U = T>
+    [[nodiscard]] NOA_FHD constexpr auto collapse_contiguous_dimensions(
+        Shape<T, N> shape,
+        const Vec<bool, N>& contiguity,
+        const Vec<bool, N>& broadcasting,
+        const Vec<U, N>& groups = Vec<U, N>{}
+    ) -> Shape<T, N> {
+        if constexpr (N > 1) {
+            for (usize i{}; i < N - 1; ++i) {
+                if (groups[i] == groups[i + 1] and contiguity[i] and (contiguity[i + 1] or not broadcasting[i + 1])) {
+                    // Collapse the current dimension with the next one. If the next dimension is broadcast=true,
+                    // we can still collapse knowing the next iteration is not contiguous, thus not collapsable.
+                    shape[i + 1] *= shape[i];
+                    shape[i] = 1;
+                }
+            }
+        }
+        return shape;
+    }
+
+    /// Computes the new strides of an array after reshaping.
+    /// \param old_shape        Old shape. An empty shape (dimension of 0) returns false.
+    /// \param old_strides      Old strides.
+    /// \param new_shape        New shape.
+    /// \param[out] new_strides New strides.
+    /// \return Whether the input and output shape and strides are compatible.
+    ///         If false, \p new_strides is left in an undefined state.
+    /// \note Zero strides are allowed.
+    template<typename T, typename U, usize OldN, usize NewN>
+    [[nodiscard]] constexpr bool reshape(
+        const Shape<T, OldN>& old_shape,
+        const Strides<U, OldN>& old_strides,
+        const Shape<T, NewN>& new_shape,
+        Strides<U, NewN>& new_strides
+    ) noexcept {
+        // from https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/TensorUtils.cpp
+        if (old_shape.is_empty())
+            return false;
+
+        auto view_d = static_cast<isize>(NewN) - 1;
+        U chunk_base_strides = old_strides[OldN - 1];
+        U tensor_numel = 1;
+        U view_numel = 1;
+        for (isize tensor_d = static_cast<isize>(OldN) - 1; tensor_d >= 0; --tensor_d) {
+            tensor_numel *= static_cast<U>(old_shape[tensor_d]);
+            // if end of tensor size chunk, check view
+            if ((tensor_d == 0) or (old_shape[tensor_d - 1] != 1 and old_strides[tensor_d - 1] != tensor_numel * chunk_base_strides)) {
+                while (view_d >= 0 and (view_numel < tensor_numel or new_shape[view_d] == 1)) {
+                    new_strides[view_d] = view_numel * chunk_base_strides;
+                    view_numel *= static_cast<U>(new_shape[view_d]);
+                    --view_d;
+                }
+
+                if (view_numel != tensor_numel)
+                    return false;
+                if (tensor_d > 0) {
+                    chunk_base_strides = old_strides[tensor_d - 1];
+                    tensor_numel = 1;
+                    view_numel = 1;
+                }
+            }
+        }
+        return view_d == -1;
+    }
+
+    /// Tries to infer the size of a dimension with size -1, if it exists.
+    /// Also checks that the new shape is compatible with the number of elements.
+    /// If the inference failed or if the inferred shape isn't correct, returns false.
+    template<typename T, usize N> requires (N > 0)
+    [[nodiscard]] constexpr bool infer_size(Shape<T, N>& shape, T n_elements) noexcept {
+        // Adapted from https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/InferSize.h
+        T infer_dim{-1};
+        T new_size{1};
+        for (usize dim{}; dim < N; ++dim) {
+            if (shape[dim] == -1) {
+                if (infer_dim != -1)
+                    return false; // only one dimension can be inferred
+                infer_dim = static_cast<T>(dim);
+            } else if (shape[dim] >= 0) {
+                new_size *= shape[dim];
+            } else {
+                return false; // invalid shape dimension
+            }
+        }
+
+        // Only the number of elements matters. So non-inferred dimensions can have different sizes
+        // as long as the number of elements is the same. If inference, find the integer multiple to
+        // complete the shape.
+        if (n_elements == new_size) {
+            if (infer_dim != -1)
+                shape[infer_dim] = 1; // the dimension asked for inference is empty
+            return true;
+        } else if (infer_dim != -1 and new_size > 0 and n_elements % new_size == 0) {
+            shape[infer_dim] = n_elements / new_size;
+            return true; // inferred
+        } else {
+            return false; // shape and n_elements don't match, or empty array
+        }
     }
 }
 

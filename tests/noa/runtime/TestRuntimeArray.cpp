@@ -158,16 +158,16 @@ TEMPLATE_TEST_CASE("runtime::Array, shape manipulation", "", i32, u64, f32, f64,
     StreamGuard guard(Device{}, Stream::DEFAULT);
     AND_THEN("as another type") {
         Array<f64> c({2, 3, 4, 5});
-        Array<unsigned char> d = c.reinterpret_as<unsigned char>();
+        Array<unsigned char> d = c.as<unsigned char>();
         REQUIRE(d.shape() == Shape4{2, 3, 4, 40});
         REQUIRE(d.strides() == Strides4{480, 160, 40, 1});
 
         Array<c64> e({2, 3, 4, 5});
-        Array f = e.reinterpret_as<f64>();
+        Array f = e.as<f64>();
         REQUIRE(f.shape() == Shape4{2, 3, 4, 10});
         REQUIRE(f.strides() == Strides4{120, 40, 10, 1});
 
-        e = f.reinterpret_as<c64>();
+        e = f.as<c64>();
         REQUIRE(e.shape() == Shape4{2, 3, 4, 5});
         REQUIRE(e.strides() == Strides4{60, 20, 5, 1});
     }
@@ -177,9 +177,9 @@ TEMPLATE_TEST_CASE("runtime::Array, shape manipulation", "", i32, u64, f32, f64,
         a = a.flat();
         REQUIRE(a.strides() == a.shape().strides());
         REQUIRE((a.shape().is_vector() && a.shape().ndim() == 1));
-        a = a.reshape({4, 10, 50, 30});
+        a = a.reshape(Shape4{4, 10, 50, 30});
         REQUIRE(a.strides() == a.shape().strides());
-        a = a.reshape({10, 4, 30, 50});
+        a = a.template reshape<4>({10, 4, 30, 50});
         REQUIRE(a.strides() == a.shape().strides());
         REQUIRE(a.shape() == Shape4{10, 4, 30, 50});
     }
@@ -246,4 +246,24 @@ TEST_CASE("runtime::Array, drop") {
     REQUIRE(b.is_empty());
     REQUIRE(b.data() == nullptr);
     REQUIRE(a.size() == 10);
+}
+template<typename T, usize N>
+using ArrayView = Array<T, N, ArrayOwnership::VIEW>;
+
+TEST_CASE("runtime::Array, to view") {
+    auto a = Array<f32, 1>(10);
+
+    ArrayView<const f32, 1> a1 = a.view();
+
+    auto b = a.view();
+    auto b1 = b;
+    Array b2 = b;
+
+    auto c = Array<f32, 1>(a.share(), b.shape(), b.strides());
+    auto d = c.to_cpu();
+
+    auto e = Array<f32, 4>({1,10,10,10});
+
+    noa::ewise(c, e, noa::Copy{});
+    static_assert(noa::traits::array_nd<Array<f32, 4>> == false);
 }

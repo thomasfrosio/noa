@@ -15,8 +15,8 @@
 
 namespace noa::details {
     template<typename VArray>
-    auto axes_to_output_shape(const VArray& varray, ReduceAxes axes) -> Shape4 {
-        auto output_shape = varray.shape();
+    auto axes_to_output_shape(const VArray& array, ReduceAxes axes) -> Shape4 {
+        auto output_shape = array.shape();
         if (axes.batch)
             output_shape[0] = 1;
         if (axes.depth)
@@ -44,9 +44,9 @@ namespace noa::details {
          typename ReducedValue_ = std::conditional_t<std::is_void_v<ReducedValue>, InputValue, ReducedValue>,
          typename ReducedOffset_ = std::conditional_t<std::is_void_v<ReducedOffset>, isize, ReducedOffset>>
     concept arg_reduceable =
-        nt::readable_varray_decay<Input> and
-        (nt::writable_varray_decay<ArgValue> or nt::empty<ArgValue>) and
-        (nt::writable_varray_decay<ArgOffset> or nt::empty<ArgOffset>) and
+        nt::readable_array_decay<Input> and
+        (nt::writable_array_decay<ArgValue> or nt::empty<ArgValue>) and
+        (nt::writable_array_decay<ArgOffset> or nt::empty<ArgOffset>) and
         (nt::numeric<InputValue, ReducedValue_> or (nt::complex<InputValue> and nt::real<ReducedValue_>)) and
         nt::numeric<ArgValue_> and nt::integer<ArgOffset_, ReducedOffset_>;
 }
@@ -97,7 +97,7 @@ namespace noa {
 
 namespace noa {
     /// Returns the minimum value of the input array.
-    template<nt::readable_varray_of_numeric Input>
+    template<nt::readable_array_of_numeric Input>
     [[nodiscard]] auto min(const Input& array) {
         using value_type = nt::mutable_value_type_t<Input>;
         auto init = std::numeric_limits<value_type>::max();
@@ -107,7 +107,7 @@ namespace noa {
     }
 
     /// Returns the maximum value of the input array.
-    template<nt::readable_varray_of_numeric Input>
+    template<nt::readable_array_of_numeric Input>
     [[nodiscard]] auto max(const Input& array) {
         using value_type = nt::mutable_value_type_t<Input>;
         auto init = std::numeric_limits<value_type>::lowest();
@@ -117,7 +117,7 @@ namespace noa {
     }
 
     /// Returns a pair with the minimum and maximum value of the input array.
-    template<nt::readable_varray_of_numeric Input>
+    template<nt::readable_array_of_numeric Input>
     [[nodiscard]] auto min_max(const Input& array) {
         using value_type = nt::mutable_value_type_t<Input>;
         auto init_min = std::numeric_limits<value_type>::max();
@@ -128,7 +128,7 @@ namespace noa {
     }
 
     /// Returns the median of an array.
-    template<nt::readable_varray_of_scalar Input>
+    template<nt::readable_array_of_scalar Input>
     [[nodiscard]] auto median(const Input& array, const MedianOptions& options = {}) {
         check(not array.is_empty(), "Empty array detected");
         const Device device = array.device();
@@ -146,7 +146,7 @@ namespace noa {
     }
 
     /// Returns the sum of an array.
-    template<nt::readable_varray Input>
+    template<nt::readable_array Input>
     [[nodiscard]] auto sum(const Input& array, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduce_t = std::conditional_t<nt::real<value_t>, f64,
@@ -167,7 +167,7 @@ namespace noa {
     }
 
     /// Returns the mean of an array.
-    template<nt::readable_varray Input>
+    template<nt::readable_array Input>
     [[nodiscard]] auto mean(const Input& array, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduce_t = std::conditional_t<nt::real<value_t>, f64,
@@ -190,7 +190,7 @@ namespace noa {
     }
 
     /// Returns the L2-norm of the input array.
-    template<nt::readable_varray_of_numeric Input>
+    template<nt::readable_array_of_numeric Input>
     [[nodiscard]] auto l2_norm(const Input& array, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduce_t = std::conditional_t<nt::integer<value_t>, u64, f64>;
@@ -209,7 +209,7 @@ namespace noa {
     /// Returns the mean and the centered L2-norm of the input array.
     /// If the array's mean is not zero, this centered L2-norm will be
     /// different from the one computed by the l2_norm function.
-    template<nt::readable_varray_of_numeric Input>
+    template<nt::readable_array_of_numeric Input>
     [[nodiscard]] auto mean_l2_norm(const Input& array, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using sum_t =
@@ -279,34 +279,34 @@ namespace noa {
     }
 
     /// Returns the mean and variance of an array.
-    template<nt::readable_varray_of_numeric Input>
+    template<nt::readable_array_of_numeric Input>
     [[nodiscard]] auto mean_variance(const Input& array, const VarianceOptions& options = {}) {
         return details::mean_variance_or_stddev<false>(array, options);
     }
 
     /// Returns the mean and standard deviation of an array.
-    template<nt::readable_varray_of_numeric Input>
+    template<nt::readable_array_of_numeric Input>
     [[nodiscard]] auto mean_stddev(const Input& array, const VarianceOptions& options = {}) {
         return details::mean_variance_or_stddev<true>(array, options);
     }
 
     /// Returns the variance of an array.
-    template<nt::readable_varray_of_numeric Input>
+    template<nt::readable_array_of_numeric Input>
     [[nodiscard]] auto variance(const Input& array, const VarianceOptions& options = {}) {
         const auto& [mean, variance] = mean_variance(array, options);
         return variance;
     }
 
     /// Returns the standard-deviation of an array.
-    template<nt::readable_varray_of_numeric Input>
+    template<nt::readable_array_of_numeric Input>
     [[nodiscard]] auto stddev(const Input& array, const VarianceOptions& options = {}) {
         const auto& [mean, stddev] = mean_stddev(array, options);
         return stddev;
     }
 
     /// Returns the root-mean-square deviation.
-    template<nt::readable_varray_of_real Lhs,
-             nt::readable_varray_of_real Rhs>
+    template<nt::readable_array_of_real Lhs,
+             nt::readable_array_of_real Rhs>
     [[nodiscard]] auto rmsd(const Lhs& lhs, const Rhs& rhs) {
         using lhs_value_t = nt::mutable_value_type_t<Lhs>;
         using rhs_value_t = nt::mutable_value_type_t<Rhs>;
@@ -319,7 +319,7 @@ namespace noa {
     /// Returns {maximum, offset: isize} of an array.
     /// \note If the maximum value appears more than once, this function makes no guarantee to which one is selected.
     /// \note To get the corresponding 4d indices, offset2index(offset, input) can be used.
-    template<nt::readable_varray_of_numeric Input>
+    template<nt::readable_array_of_numeric Input>
     [[nodiscard]] auto argmax(const Input& input) {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduced_t = Pair<value_t, isize>;
@@ -337,7 +337,7 @@ namespace noa {
     /// Returns {minimum, offset: isize} of an array.
     /// \note If the minimum value appears more than once, this function makes no guarantee to which one is selected.
     /// \note To get the corresponding 4d indices, offset2index(offset, input) can be used.
-    template<nt::readable_varray_of_numeric Input>
+    template<nt::readable_array_of_numeric Input>
     [[nodiscard]] auto argmin(const Input& input) {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduced_t = Pair<value_t, isize>;
@@ -356,8 +356,8 @@ namespace noa {
 namespace noa {
     /// Reduces an array along some dimensions by taking the minimum value.
     //// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay_of_numeric Input,
-             nt::writable_varray_decay_of_numeric Output>
+    template<nt::readable_array_decay_of_numeric Input,
+             nt::writable_array_decay_of_numeric Output>
     void min(Input&& input, Output&& output) {
         using value_type = nt::mutable_value_type_t<Input>;
         auto init = std::numeric_limits<value_type>::max();
@@ -366,7 +366,7 @@ namespace noa {
 
     /// Reduces an array along some dimension by taking the minimum value.
     /// //// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay_of_numeric Input>
+    template<nt::readable_array_decay_of_numeric Input>
     [[nodiscard]] auto min(Input&& input, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
         auto output = Array<value_t>(details::axes_to_output_shape(input, axes), input.options());
@@ -376,8 +376,8 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the maximum value.
     //// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay_of_numeric Input,
-             nt::writable_varray_decay_of_numeric Output>
+    template<nt::readable_array_decay_of_numeric Input,
+             nt::writable_array_decay_of_numeric Output>
     void max(Input&& input, Output&& output) {
         using value_type = nt::mutable_value_type_t<Input>;
         auto init = std::numeric_limits<value_type>::lowest();
@@ -386,7 +386,7 @@ namespace noa {
 
     /// Reduces an array along some dimension by taking the maximum value.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay_of_numeric Input>
+    template<nt::readable_array_decay_of_numeric Input>
     [[nodiscard]] auto max(Input&& input, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
         auto output = Array<value_t>(details::axes_to_output_shape(input, axes), input.options());
@@ -396,9 +396,9 @@ namespace noa {
 
     /// Reduces an array along some dimension(s) by taking the minimum and maximum values.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay_of_numeric Input,
-             nt::writable_varray_decay_of_numeric Min,
-             nt::writable_varray_decay_of_numeric Max>
+    template<nt::readable_array_decay_of_numeric Input,
+             nt::writable_array_decay_of_numeric Min,
+             nt::writable_array_decay_of_numeric Max>
     void min_max(Input&& input, Min&& min, Max&& max) {
         using value_type = nt::mutable_value_type_t<Input>;
         auto init_min = std::numeric_limits<value_type>::max();
@@ -413,7 +413,7 @@ namespace noa {
 
     /// Reduces an array along some dimension(s) by taking the minimum and maximum values.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay_of_numeric Input>
+    template<nt::readable_array_decay_of_numeric Input>
     [[nodiscard]] auto min_max(Input&& input, ReduceAxes axes) {
         using value_t = nt::mutable_value_type_t<Input>;
         auto output_shape = details::axes_to_output_shape(input, axes);
@@ -429,8 +429,8 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the sum.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay Input,
-             nt::writable_varray_decay Output>
+    template<nt::readable_array_decay Input,
+             nt::writable_array_decay Output>
     void sum(Input&& input, Output&& output, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduce_t =
@@ -456,7 +456,7 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the sum.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay Input>
+    template<nt::readable_array_decay Input>
     [[nodiscard]] auto sum(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         auto output = Array<value_t>(details::axes_to_output_shape(input, axes), input.options());
@@ -466,8 +466,8 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the mean.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay Input,
-             nt::writable_varray_decay Output>
+    template<nt::readable_array_decay Input,
+             nt::writable_array_decay Output>
     void mean(Input&& input, Output&& output, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduce_t =
@@ -494,7 +494,7 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the average.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay Input>
+    template<nt::readable_array_decay Input>
     [[nodiscard]] auto mean(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         auto output = Array<value_t>(details::axes_to_output_shape(input, axes), input.options());
@@ -504,8 +504,8 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the L2-norm.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay_of_numeric Input,
-             nt::writable_varray_decay_of_numeric Output>
+    template<nt::readable_array_decay_of_numeric Input,
+             nt::writable_array_decay_of_numeric Output>
     void l2_norm(Input&& input, Output&& output, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduce_t = std::conditional_t<nt::integer<value_t>, u64, f64>;
@@ -526,7 +526,7 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the L2-norm.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::writable_varray_decay_of_numeric Input>
+    template<nt::writable_array_decay_of_numeric Input>
     [[nodiscard]] auto l2_norm(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
         using real_t = nt::mutable_value_type_twice_t<Input>;
         auto output = Array<real_t>(details::axes_to_output_shape(input, axes), input.options());
@@ -571,7 +571,7 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the mean and centered L2-norm.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::writable_varray_decay_of_numeric Input>
+    template<nt::writable_array_decay_of_numeric Input>
     [[nodiscard]] auto mean_l2_norm(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
         using mean_t = nt::mutable_value_type_t<Input>;
         using norm_t = nt::mutable_value_type_twice_t<Input>;
@@ -645,11 +645,11 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the mean and variance.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay Input,
-             nt::writable_varray_decay Mean,
-             nt::writable_varray_decay Variance>
-    requires ((nt::varray_decay_of_complex<Input, Mean> and nt::varray_decay_of_real<Variance>) or
-               nt::varray_decay_of_scalar<Input, Mean, Variance>)
+    template<nt::readable_array_decay Input,
+             nt::writable_array_decay Mean,
+             nt::writable_array_decay Variance>
+    requires ((nt::array_decay_of_complex<Input, Mean> and nt::array_decay_of_real<Variance>) or
+               nt::array_decay_of_scalar<Input, Mean, Variance>)
     void mean_variance(Input&& input, Mean&& means, Variance&& variances, const VarianceOptions options = {}) {
         details::mean_variance_or_stddev<false>(
             std::forward<Input>(input),
@@ -661,7 +661,7 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the mean and variance.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay_of_numeric Input>
+    template<nt::readable_array_decay_of_numeric Input>
     [[nodiscard]] auto mean_variance(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
         using mean_t = nt::mutable_value_type_t<Input>;
         using variance_t = nt::mutable_value_type_twice_t<Input>;
@@ -676,11 +676,11 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the mean and standard deviation.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay Input,
-             nt::writable_varray_decay Mean,
-             nt::writable_varray_decay Stddev>
-    requires ((nt::varray_decay_of_complex<Input, Mean> and nt::varray_decay_of_real<Stddev>) or
-               nt::varray_decay_of_scalar<Input, Mean, Stddev>)
+    template<nt::readable_array_decay Input,
+             nt::writable_array_decay Mean,
+             nt::writable_array_decay Stddev>
+    requires ((nt::array_decay_of_complex<Input, Mean> and nt::array_decay_of_real<Stddev>) or
+               nt::array_decay_of_scalar<Input, Mean, Stddev>)
     void mean_stddev(Input&& input, Mean&& means, Stddev&& stddevs, const VarianceOptions options = {}) {
         details::mean_variance_or_stddev<true>(
            std::forward<Input>(input),
@@ -692,7 +692,7 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the mean and standard deviation.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay_of_numeric Input>
+    template<nt::readable_array_decay_of_numeric Input>
     [[nodiscard]] auto mean_stddev(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
         using mean_t = nt::mutable_value_type_t<Input>;
         using variance_t = nt::value_type_t<mean_t>;
@@ -707,8 +707,8 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the variance.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay_of_numeric Input,
-             nt::writable_varray_decay_of_real Output>
+    template<nt::readable_array_decay_of_numeric Input,
+             nt::writable_array_decay_of_real Output>
     void variance(Input&& input, Output&& output, const VarianceOptions options = {}) {
         details::mean_variance_or_stddev<false>(
             std::forward<Input>(input),
@@ -720,7 +720,7 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the variance.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay_of_numeric Input>
+    template<nt::readable_array_decay_of_numeric Input>
     [[nodiscard]] auto variance(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using variance_t = nt::value_type_t<value_t>;
@@ -731,8 +731,8 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the standard-deviation.
     ///\see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay_of_numeric Input,
-             nt::writable_varray_decay_of_real Output>
+    template<nt::readable_array_decay_of_numeric Input,
+             nt::writable_array_decay_of_real Output>
     void stddev(Input&& input, Output&& output, const VarianceOptions options = {}) {
         details::mean_variance_or_stddev<true>(
             std::forward<Input>(input),
@@ -744,7 +744,7 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the standard-deviation.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_varray_decay_of_numeric Input>
+    template<nt::readable_array_decay_of_numeric Input>
     [[nodiscard]] auto stddev(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using stddev_t = nt::value_type_t<value_t>;
@@ -950,9 +950,9 @@ namespace noa {
 
     /// Normalizes an array, according to a normalization mode.
     /// Can be in-place or out-of-place.
-    template<nt::readable_varray_decay Input, nt::writable_varray_decay Output>
-    requires (nt::varray_decay_of_complex<Input, Output> or
-              nt::varray_decay_of_real<Input, Output>)
+    template<nt::readable_array_decay Input, nt::writable_array_decay Output>
+    requires (nt::array_decay_of_complex<Input, Output> or
+              nt::array_decay_of_real<Input, Output>)
     void normalize(
         Input&& input,
         Output&& output,
@@ -987,9 +987,9 @@ namespace noa {
     /// Normalizes an array, according to a normalization mode.
     /// The normalization bounds are computed by reducing the provided axes.
     /// Can be in-place or out-of-place.
-    template<nt::readable_varray_decay Input, nt::writable_varray_decay Output>
-    requires (nt::varray_decay_of_complex<Input, Output> or
-              nt::varray_decay_of_real<Input, Output>)
+    template<nt::readable_array_decay Input, nt::writable_array_decay Output>
+    requires (nt::array_decay_of_complex<Input, Output> or
+              nt::array_decay_of_real<Input, Output>)
     void normalize(
         Input&& input,
         Output&& output,
@@ -1032,9 +1032,9 @@ namespace noa {
 
     /// Normalizes each batch of an array, according to a normalization mode.
     /// Can be in-place or out-of-place.
-    template<nt::readable_varray_decay Input, nt::writable_varray_decay Output>
-    requires (nt::varray_decay_of_complex<Input, Output> or
-              nt::varray_decay_of_real<Input, Output>)
+    template<nt::readable_array_decay Input, nt::writable_array_decay Output>
+    requires (nt::array_decay_of_complex<Input, Output> or
+              nt::array_decay_of_real<Input, Output>)
     void normalize_per_batch(
         Input&& input,
         Output&& output,

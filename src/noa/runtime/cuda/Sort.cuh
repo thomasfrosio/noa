@@ -242,11 +242,7 @@ namespace noa::cuda {
         T* array, const Strides4& strides, const Shape4& shape,
         bool ascending, i32 dim, Stream& stream
     ) {
-        // Allow dim = -1 to specify the first non-empty dimension in the rightmost order.
-        if (dim == -1)
-            dim = shape[3] > 1 ? 3 : shape[2] > 1 ? 2 : shape[1] > 1 ? 1 : 0;
         NOA_ASSERT(dim >= 0 and dim <= 3);
-
         if (strides[dim] == 0)
             return; // there's only one value in the dimension to sort...
 

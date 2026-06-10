@@ -4,26 +4,6 @@
 #include "noa/runtime/core/Shape.hpp"
 
 namespace noa::details {
-    /// Returns the collapsed shape by fusing contiguous dimensions together.
-    template<typename T, usize N>
-    [[nodiscard]] NOA_FHD constexpr auto collapse_contiguous_dimensions(
-        Shape<T, N> shape,
-        const Vec<bool, N>& contiguity,
-        const Vec<bool, N>& broadcasting
-    ) {
-        if constexpr (N > 1) {
-            for (usize i{}; i < N - 1; ++i) {
-                if (contiguity[i] and (contiguity[i + 1] or not broadcasting[i + 1])) {
-                    // Collapse the current dimension with the next one. If the next dimension is broadcast=true,
-                    // we can still collapse knowing the next iteration is not contiguous, thus not collapsable.
-                    shape[i + 1] *= shape[i];
-                    shape[i] = 1;
-                }
-            }
-        }
-        return shape;
-    }
-
     /// Returns the index of the first non-empty dimension, excluding the batch dimension, going from left to right.
     /// If all dimensions are empty, the index of the width dimension is returned, ie 3.
     template<typename T>
@@ -32,87 +12,6 @@ namespace noa::details {
             if (shape[i] > 1)
                 return i;
         return 3;
-    }
-
-    /// Computes the new strides of an array after reshaping.
-    /// \param old_shape        Old shape. An empty shape (dimension of 0) returns false.
-    /// \param old_strides      Old strides.
-    /// \param new_shape        New shape.
-    /// \param[out] new_strides New strides.
-    /// \return Whether the input and output shape and strides are compatible.
-    ///         If false, \p new_strides is left in an undefined state.
-    /// \note Zero strides are allowed.
-    template<typename T, usize OldN, usize NewN>
-    [[nodiscard]] constexpr bool reshape(
-        const Shape<T, OldN>& old_shape,
-        const Strides<T, OldN>& old_strides,
-        const Shape<T, NewN>& new_shape,
-        Strides<T, NewN>& new_strides
-    ) noexcept {
-        // from https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/TensorUtils.cpp
-        if (old_shape.is_empty())
-            return false;
-
-        auto view_d = static_cast<isize>(NewN) - 1;
-        T chunk_base_strides = old_strides[OldN - 1];
-        T tensor_numel = 1;
-        T view_numel = 1;
-        for (isize tensor_d = static_cast<isize>(OldN) - 1; tensor_d >= 0; --tensor_d) {
-            tensor_numel *= old_shape[tensor_d];
-            // if end of tensor size chunk, check view
-            if ((tensor_d == 0) or
-                (old_shape[tensor_d - 1] != 1 and old_strides[tensor_d - 1] != tensor_numel * chunk_base_strides)) {
-                while (view_d >= 0 and (view_numel < tensor_numel or new_shape[view_d] == 1)) {
-                    new_strides[view_d] = view_numel * chunk_base_strides;
-                    view_numel *= new_shape[view_d];
-                    --view_d;
-                }
-
-                if (view_numel != tensor_numel)
-                    return false;
-                if (tensor_d > 0) {
-                    chunk_base_strides = old_strides[tensor_d - 1];
-                    tensor_numel = 1;
-                    view_numel = 1;
-                }
-            }
-        }
-        return view_d == -1;
-    }
-
-    /// Tries to infer the size of a dimension with size -1, if it exists.
-    /// Also checks that new shape is compatible with the number of elements.
-    /// If the inference failed or if the inferred shape isn't correct, returns false.
-    template<typename T, usize N> requires (N > 0)
-    [[nodiscard]] constexpr bool infer_size(Shape<T, N>& shape, T n_elements) noexcept {
-        // Adapted from https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/InferSize.h
-        T infer_dim{-1};
-        T new_size{1};
-        for (usize dim{}; dim < N; ++dim) {
-            if (shape[dim] == -1) {
-                if (infer_dim != -1)
-                    return false; // only one dimension can be inferred
-                infer_dim = static_cast<T>(dim);
-            } else if (shape[dim] >= 0) {
-                new_size *= shape[dim];
-            } else {
-                return false; // invalid shape dimension
-            }
-        }
-
-        // Only the number of elements matters. So non-inferred dimensions can have different sizes
-        // as long as the number of elements is the same. If inference, find the integer multiple to
-        // complete the shape.
-        if (n_elements == new_size) {
-            if (infer_dim != -1)
-                shape[infer_dim] = 1; // the dimension asked for inference is empty
-            return true;
-        } else if (infer_dim != -1 and new_size > 0 and n_elements % new_size == 0) {
-            shape[infer_dim] = n_elements / new_size;
-            return true; // inferred
-        } else {
-            return false; // shape and n_elements don't match, or empty array
-        }
     }
 
     template<nt::integer I, usize N, typename... T>
@@ -194,37 +93,33 @@ namespace noa::details {
         return shape[N - 1] <= 1 or strides[N - 1] >= 1;
     }
 
-    template<typename Int>
+    template<typename T>
     [[nodiscard]] auto extract_matmul_layout(
-        const Strides<Int, 4>& lhs_strides, const Shape<Int, 4>& lhs_shape,
-        const Strides<Int, 4>& rhs_strides, const Shape<Int, 4>& rhs_shape,
-        const Strides<Int, 4>& output_strides, const Shape<Int, 4>& output_shape,
+        const Strides<T, 2>& lhs_strides, const Shape<T, 2>& lhs_shape,
+        const Strides<T, 2>& rhs_strides, const Shape<T, 2>& rhs_shape,
+        const Strides<T, 2>& output_strides, const Shape<T, 2>& output_shape,
         bool lhs_transpose, bool rhs_transpose
-    ) -> std::tuple<Shape<Int, 3>, Strides<Int, 3>, bool> {
+    ) -> Tuple<Shape<T, 3>, Strides<T, 3>, bool> {
 
-        // First extract and check the shape: MxK @ KxN = MxN
-        const auto m = lhs_shape[2 + lhs_transpose];
-        const auto n = rhs_shape[3 - rhs_transpose];
-        const auto k = lhs_shape[3 - lhs_transpose];
-        check(lhs_shape[1] == 1 and rhs_shape[1] == 1 and output_shape[1] == 1,
-              "Only 2d matrices are supported, but got shape lhs:shape={}, rhs:shape={} and output:shape={}",
-              lhs_shape, rhs_shape, output_shape);
-        check(m == output_shape[2] and
-              n == output_shape[3] and
-              k == rhs_shape[2 + rhs_transpose],
+        // First, extract and check the shape: MxK @ KxN = MxN
+        const auto m = lhs_shape[0 + lhs_transpose];
+        const auto n = rhs_shape[1 - rhs_transpose];
+        const auto k = lhs_shape[1 - lhs_transpose];
+        check(m == output_shape[0] and
+              n == output_shape[1] and
+              k == rhs_shape[0 + rhs_transpose],
               "The matrix multiplication (MxK * KxN = MxN) is invalid. "
               "Got lhs:shape={}, rhs:shape={} and output:shape={}, lhs_transpose={}, rhs_transpose={}",
-              lhs_shape.filter(2, 3), rhs_shape.filter(2, 3), output_shape.filter(2, 3),
-              lhs_transpose, rhs_transpose);
+              lhs_shape, rhs_shape, output_shape, lhs_transpose, rhs_transpose);
 
-        const std::array strides{&lhs_strides, &rhs_strides, &output_strides};
-        const std::array shapes{&lhs_shape, &rhs_shape, &output_shape};
-        const Vec is_vector{
-            lhs_shape.is_vector(true),
-            rhs_shape.is_vector(true),
-            output_shape.is_vector(true)
+        const auto strides = std::array{&lhs_strides, &rhs_strides, &output_strides};
+        const auto shapes = std::array{&lhs_shape, &rhs_shape, &output_shape};
+        const auto is_vector = Vec{
+            lhs_shape.is_vector(),
+            rhs_shape.is_vector(),
+            output_shape.is_vector()
         };
-        const Vec is_column_major{
+        const auto is_column_major = Vec{
             lhs_strides.is_column_major(),
             rhs_strides.is_column_major(),
             output_strides.is_column_major()
@@ -233,7 +128,7 @@ namespace noa::details {
         // Enforce common order and extract the secondmost stride (lda, ldb, ldc).
         bool are_column_major{true};
         bool is_order_found{false};
-        Strides<Int, 3> secondmost_strides;
+        Strides<T, 3> secondmost_strides;
         for (usize i = 0; i < 3; ++i) {
             if (not is_vector[i]) {
                 const auto& stride = *strides[i];
@@ -241,7 +136,7 @@ namespace noa::details {
 
                 // OpenBLAS and cublas require:
                 //  1) the matrices should be either all row major or all column major.
-                //  2) the innermost stride should be 1, i.e. contiguous
+                //  2) the innermost stride should be 1.
                 //  3) the secondmost stride should be >= than the innermost extent.
 
                 check(not is_order_found or are_column_major == is_column_major[i],
@@ -250,12 +145,12 @@ namespace noa::details {
                     are_column_major = is_column_major[i];
                 is_order_found = true;
 
-                secondmost_strides[i] = stride[2 + are_column_major];
-                check(stride[3 - are_column_major] == 1 and
-                      secondmost_strides[i] >= shape[3 - are_column_major],
+                secondmost_strides[i] = stride[0 + are_column_major];
+                check(stride[1 - are_column_major] == 1 and
+                      secondmost_strides[i] >= shape[1 - are_column_major],
                       "The innermost dimension of the matrices (before the optional transposition) "
-                      "should be contiguous and the second-most dimension cannot be broadcast. "
-                      "Got shape={}, strides={}, layout={}",
+                      "should be contiguous and the second-most dimension cannot be broadcast, "
+                      "but got shape={}, strides={}, layout={}",
                       shape, stride, are_column_major ? "column" : "row");
             }
         }
@@ -265,23 +160,21 @@ namespace noa::details {
                 const auto& stride = *strides[i];
                 const auto& shape = *shapes[i];
 
-                // For vectors, it is more difficult here, so for now enforce contiguity.
+                // For vectors, for now, enforce contiguity.
                 check(stride.is_contiguous(shape),
                       "Only contiguous vectors are currently supported, but got shape={} and strides={}",
                       shape, stride);
 
-                const bool is_column_vector = shape[2] >= shape[3];
+                const bool is_column_vector = shape[0] >= shape[1];
                 if (is_column_vector == are_column_major) {
-                    secondmost_strides[i] = shape[3 - is_column_vector];
+                    secondmost_strides[i] = shape[1 - is_column_vector];
                 } else {
                     secondmost_strides[i] = 1;
                 }
             }
         }
 
-        return {{m, n, k},
-                secondmost_strides,
-                are_column_major};
+        return noa::make_tuple(Shape<T, 3>{m, n, k}, secondmost_strides, are_column_major);
     }
 
     /// Reinterprets (i.e. casts) a ND array.
@@ -294,10 +187,10 @@ namespace noa::details {
     ///       shape/strides should be compatible, otherwise an error will be thrown. This is mostly to represent
     ///       any data type as a array of bytes, or to switch between complex and real floating-point numbers with
     ///       the same precision.
-    template<usize N, typename T, nt::integer I, StridesTraits StridesTrait>
+    template<typename T, usize N, nt::integer I, StridesTraits StridesTrait>
     struct ReinterpretLayout {
     public:
-        using old_type = T;
+        using value_type = T;
         using index_type = I;
         using shape_type = Shape<index_type, N>;
         using strides_type = Strides<index_type, N>;
@@ -308,42 +201,88 @@ namespace noa::details {
         static constexpr usize SIZE = N;
         static constexpr isize SSIZE = N;
 
-        static constexpr bool EASY_REINTERPRET = std::is_void_v<old_type> or N == 0;
-
     public:
         shape_type shape{};
         strides_type strides{};
-        old_type* ptr{};
+        value_type* ptr{};
 
     public:
         constexpr ReinterpretLayout(
+            value_type* a_ptr,
             const Shape<index_type, N>& a_shape,
-            const Strides<index_type, N>& a_strides,
-            old_type* a_ptr
+            const Strides<index_type, N>& a_strides
         ) noexcept :
             shape{a_shape},
             strides{a_strides},
             ptr{a_ptr} {}
 
     public:
-        template<typename New>
+        template<typename NewT, usize NewN = N, nt::integer NewI = I, StridesTraits NewStridesTrait = StridesTrait>
         [[nodiscard]] constexpr auto as() const {
-            using return_t = ReinterpretLayout<N, New, index_type, STRIDES_TRAIT>;
+            const auto reinterpreted = as_<NewT>();
+            if constexpr (STRIDES_TRAIT != StridesTraits::CONTIGUOUS and
+                          NewStridesTrait == StridesTraits::CONTIGUOUS) {
+                check(reinterpreted.strides[N - 1] == 1,
+                      "Cannot convert a non-contiguous layout with a rightmost stride of {} to a contiguous layout",
+                      reinterpreted.strides[N - 1]);
+            }
 
-            if constexpr (nt::is_almost_same_v<old_type, New> or std::is_void_v<New> or std::is_void_v<old_type> or N == 0) {
-                return return_t(shape, strides, static_cast<New*>(ptr));
+            using output_t = ReinterpretLayout<NewT, NewN, NewI, NewStridesTrait>;
+            if constexpr (NewN == N) {
+                return output_t(
+                    reinterpreted.ptr,
+                    reinterpreted.shape.template as_safe<NewI>(),
+                    reinterpreted.strides.template as_safe<NewI>());
+            } else if constexpr (NewN > N) {
+                // Add empty dimensions on the left.
+                constexpr usize n_dimensions_to_add = NewN - N;
+                auto new_truncated_shape = reinterpreted.shape.template as_safe<NewI>();
+                auto new_truncated_strides = reinterpreted.strides.template as_safe<NewI>();
+                auto new_leftmost_stride = new_truncated_strides[0] * new_truncated_shape[0];
+                return output_t(
+                    reinterpreted.ptr,
+                    new_truncated_shape.template push_front<n_dimensions_to_add>(1),
+                    new_truncated_strides.template push_front<n_dimensions_to_add>(new_leftmost_stride));
             } else {
-                auto out = return_t(shape, strides, reinterpret_cast<New*>(ptr));
+                // Construct the new shape by stacking the outer dimensions together.
+                constexpr usize OFFSET = N - NewN;
+                auto new_shape = Shape<index_type, N>::filled_with(1);
+                for (usize i{}; i < N; ++i)
+                    new_shape[max(i, OFFSET)] *= reinterpreted.shape[i];
+
+                // Reshape.
+                Strides<index_type, N> new_stride{};
+                check(noa::reshape(reinterpreted.shape, reinterpreted.strides, new_shape, new_stride),
+                      "An array of shape {} and strides {} cannot be reshaped to shape {}",
+                      reinterpreted.shape, reinterpreted.strides, new_shape);
+
+                // Then remove the outer empty dimensions.
+                return output_t(
+                    reinterpreted.ptr,
+                    new_shape.template pop_front<OFFSET>().template as_safe<NewI>(),
+                    new_stride.template pop_front<OFFSET>().template as_safe<NewI>());
+            }
+        }
+
+    private:
+        template<typename NewT>
+        [[nodiscard]] constexpr auto as_() const {
+            using return_t = ReinterpretLayout<NewT, N, index_type, STRIDES_TRAIT>;
+
+            if constexpr (nt::is_almost_same_v<value_type, NewT> or std::is_void_v<NewT> or std::is_void_v<value_type> or N == 0) {
+                return return_t(static_cast<NewT*>(ptr), shape, strides);
+            } else {
+                auto out = return_t(reinterpret_cast<NewT*>(ptr), shape, strides);
 
                 // The "downsize" and "upsize" branches expects the strides and shape to be in the rightmost order.
                 const vec_type rightmost_order = out.strides.rightmost_order(out.shape);
 
-                if constexpr (sizeof(old_type) > sizeof(New)) { // downsize
-                    constexpr index_type ratio = sizeof(old_type) / sizeof(New);
+                if constexpr (sizeof(value_type) > sizeof(NewT)) { // downsize
+                    constexpr index_type ratio = sizeof(value_type) / sizeof(NewT);
                     if constexpr (not IS_CONTIGUOUS) {
                         check(strides[rightmost_order[N - 1]] == 1,
                               "The stride of the innermost dimension must be 1 to view a {} as a {}",
-                              nd::stringify<old_type>(), nd::stringify<New>());
+                              nd::stringify<value_type>(), nd::stringify<NewT>());
                     }
                     NOA_NV_DIAG_SUPPRESS(186)
                     for (usize i{}; i < N - 1; ++i)
@@ -352,26 +291,26 @@ namespace noa::details {
                     out.strides[rightmost_order[N - 1]] = 1;
                     out.shape[rightmost_order[N - 1]] *= ratio;
 
-                } else if constexpr (sizeof(old_type) < sizeof(New)) { // upsize
-                    constexpr index_type ratio = sizeof(New) / sizeof(old_type);
+                } else if constexpr (sizeof(value_type) < sizeof(NewT)) { // upsize
+                    constexpr index_type ratio = sizeof(NewT) / sizeof(value_type);
                     check(out.shape[rightmost_order[N - 1]] % ratio == 0,
                           "The size of the innermost dimension must be divisible by {} to view a {} as a {}",
-                          ratio, nd::stringify<old_type>(), nd::stringify<New>());
+                          ratio, nd::stringify<value_type>(), nd::stringify<NewT>());
 
-                    check(not (reinterpret_cast<std::uintptr_t>(ptr) % alignof(New)),
+                    check(not (reinterpret_cast<std::uintptr_t>(ptr) % alignof(NewT)),
                           "The memory offset should be at least aligned to {} bytes to be viewed as a {}, but got {}",
-                          alignof(New), nd::stringify<New>(), static_cast<const void*>(ptr));
+                          alignof(NewT), nd::stringify<NewT>(), static_cast<const void*>(ptr));
 
                     if constexpr (not IS_CONTIGUOUS) {
                         check(out.strides[rightmost_order[N - 1]] == 1,
                               "The stride of the innermost dimension must be 1 to view a {} as a {}",
-                              nd::stringify<old_type>(), nd::stringify<New>());
+                              nd::stringify<value_type>(), nd::stringify<NewT>());
                     }
 
                     for (usize i{}; i < N - 1; ++i) {
                         check(not (out.strides[i] % ratio),
                               "The strides must be divisible by {} to view a {} as a {}",
-                              ratio, nd::stringify<old_type>(), nd::stringify<New>());
+                              ratio, nd::stringify<value_type>(), nd::stringify<NewT>());
                         out.strides[i] /= ratio;
                     }
                     out.strides[rightmost_order[N - 1]] = 1;
@@ -382,11 +321,11 @@ namespace noa::details {
         }
     };
 
-    template<usize N, typename T, nt::integer I>
-    using ReinterpretLayoutStrided = ReinterpretLayout<N, T, I, StridesTraits::STRIDED>;
+    template<typename T, usize N, nt::integer I>
+    using ReinterpretLayoutStrided = ReinterpretLayout<T, N, I, StridesTraits::STRIDED>;
 
-    template<usize N, typename T, nt::integer I>
-    using ReinterpretLayoutContiguous = ReinterpretLayout<N, T, I, StridesTraits::CONTIGUOUS>;
+    template<typename T, usize N, nt::integer I>
+    using ReinterpretLayoutContiguous = ReinterpretLayout<T, N, I, StridesTraits::CONTIGUOUS>;
 
     template<typename T>
     struct BatchedParameter {

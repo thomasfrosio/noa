@@ -380,7 +380,7 @@ namespace noa::cuda {
             const auto n_elements_to_reduce_iz = reduce_all ? input_shape_iz.n_elements() : input_shape_iz.pop_front().n_elements();
             const auto n_elements_to_reduce = safe_cast<Index>(n_elements_to_reduce_iz);
 
-            Vec<bool, 4> contiguity = nd::accessors_contiguity(input, input_shape);
+            Vec<bool, 4> contiguity = nd::accessors_contiguity(input_shape, input);
             if (not reduce_all)
                 contiguity[0] = true;
 

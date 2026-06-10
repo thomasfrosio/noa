@@ -104,73 +104,80 @@ namespace noa::details {
         Outputs&& outputs,
         Op&& reduce_operator
     ) {
-        constexpr isize index_of_first_varray = nd::index_of_first_varray<Inputs>();
-        static_assert(index_of_first_varray >= 0, "There should be at least one input varray");
-        constexpr auto index = static_cast<usize>(index_of_first_varray);
+        constexpr auto INDEX_OF_FIRST_ARRAY = [] {
+            constexpr isize INDEX = nd::index_of_first_array<Inputs>();
+            static_assert(INDEX >= 0, "There should be at least one input varray");
+            return static_cast<usize>(INDEX);
+        }();
 
-        static_assert(nd::are_all_varrays<Outputs>(), "All of the outputs should be varrays");
+        static_assert(nd::are_all_arrays<Outputs>(), "All of the outputs should be arrays");
         static_assert(std::tuple_size_v<Outputs> > 0, "There should be at least one output");
 
-        Tuple input_accessors = nd::to_tuple_of_accessors(std::forward<Inputs>(inputs));
-        Tuple reduced_accessors = nd::to_tuple_of_accessors(std::forward<Reduced>(reduced));
-        Tuple output_accessors = nd::to_tuple_of_accessors(std::forward<Outputs>(outputs));
+        constexpr usize NDIM = nd::maximum_nd_axes_of_arrays<Inputs, Outputs>();
+        Tuple input_accessors = nd::to_tuple_of_accessors_nd<NDIM>(std::forward<Inputs>(inputs));
+        Tuple reduced_accessors = nd::to_tuple_of_accessor_values(std::forward<Reduced>(reduced));
+        Tuple output_accessors = nd::to_tuple_of_accessors_nd<NDIM>(std::forward<Outputs>(outputs));
 
-        const auto& first_input_array = inputs[Tag<index>{}];
-        auto input_shape = first_input_array.shape();
+        const auto& first_input_array = inputs[Tag<INDEX_OF_FIRST_ARRAY>{}];
+        auto input_shape = first_input_array.shape().template extend_front_to<NDIM>();
         auto output_shape = outputs[Tag<0>{}].shape();
         const auto device = outputs[Tag<0>{}].device();
 
-        // If reduce to one element or one element per batch, and if the inputs have the same stride order,
-        // then try to reorder the input(s) to the rightmost order. Don't reorder the batch axis if it is
-        // not reduced.
-        const Vec<bool, 4> reduced_dimensions = output_shape.cmp_eq(1) or input_shape.cmp_ne(output_shape);
-        bool do_reorder{};
-        Vec<isize, 4> order;
-        if (reduced_dimensions.pop_front() == true) {
-            auto strides = first_input_array.strides();
-            if (not reduced_dimensions[0])
-                strides[0] = std::numeric_limits<isize>::max(); // keep batch to leftmost
-            order = strides.rightmost_order(input_shape);
-            do_reorder = order != Vec<isize, 4>{0, 1, 2, 3};
-        }
-
         inputs.for_each_enumerate([&]<usize I, typename T>(T& input) {
-            if constexpr (nt::varray<T>) {
+            if constexpr (nt::array<T>) {
                 check(device == input.device(),
-                      "Input arrays should be on the same device as the output(s), but got output device={} and device:{}={}",
+                      "Input arrays should be on the same device as the output(s), but got output device={} and input:{}:device={}",
                       device, I, input.device());
             }
-            if constexpr (I > index and nt::varray<T>) {
-                check(input_shape == input.shape(),
-                      "Input arrays should have the same shape, but got shape:0={} and shape:{}={}",
-                      input_shape, I, input.shape());
-
-                // Only reorder if all the inputs have the same order.
-                if (do_reorder) {
-                    auto strides = input.strides();
-                    if (not reduced_dimensions[0])
-                        strides[0] = std::numeric_limits<isize>::max(); // keep batch to leftmost
-                    do_reorder = order == strides.rightmost_order(input_shape);
-                }
+            if constexpr (I > INDEX_OF_FIRST_ARRAY and nt::array<T>) {
+                const auto shape = input.shape().template extend_front_to<NDIM>();
+                check(input_shape == shape,
+                      "Input arrays should have the same shape, but got input:0:shape={} and input:{}:shape={}",
+                      input_shape, I, shape);
             }
         });
 
         outputs.for_each_enumerate([&]<usize I, typename T>(T& output) {
             if constexpr (I > 0) {
                 check(device == output.device(),
-                      "Output arrays should be on the same device, but got device:0={} and device:{}={}",
+                      "Output arrays should be on the same device, but got output:0:device={} and output:{}:device={}",
                       device, I, output.device());
-                check(output_shape == output.shape(),
-                      "Output arrays should have the same shape, but got shape:0={} and shape:{}={}",
-                      output_shape, I, output.shape());
+                const auto shape = output.shape().template extend_front_to<NDIM>();
+                check(output_shape == shape,
+                      "Output arrays should have the same shape, but got output:0:shape={} and output:{}:shape={}",
+                      output_shape, I, shape);
             }
         });
 
-        // No need to reorder the output shape, since we only reorder axes that are empty in the output.
-        if (do_reorder) {
-            input_shape = input_shape.permute(order);
-            nd::permute_accessors(order, input_accessors);
+        // Preprocessing.
+        auto axes_to_reduce = input_shape.cmp_ne(output_shape);
+        check((axes_to_reduce and output_shape.cmp_ne(1)) == false,
+              "The output shape should match the input shape, or be 1, indicating the dimension should be reduced to one element. Got input:shape={}, output:shape={}",
+              input_shape, output_shape);
+        check(axes_to_reduce.any_eq(true),
+              "No reduction to compute. Got input:shape={}, output:shape={}. Use ewise instead.",
+              input_shape, output_shape);
+
+        nd::optimize_reduce_axes_ewise_layout(input_shape, output_shape, input_accessors, output_accessors);
+
+        // Check the reduction is supported.
+        axes_to_reduce = input_shape.cmp_ne(output_shape);
+        i32 n_axes_reduced{0};
+        bool reduction{false};
+        bool batch_reduction{true};
+        for (usize i{}; i < NDIM; ++i) {
+            if (input_shape[i] > 1)
+                continue;
+            if (axes_to_reduce[i]) {
+                n_axes_reduced++;
+                reduction = true;
+            } else if (reduction) {
+                batch_reduction = false;
+            }
         }
+        check(n_axes_reduced == 1 or batch_reduction,
+              "Reducing more than one axis at a time (after collapsing contiguous dimensions together) is currently limited to a reduction of all axes except the leftmost axis. Got collapsed_input_shape={}, collapsed_output_shape={}, axes_to_reduce={}",
+              input_shape, output_shape, axes_to_reduce);
 
         Stream& stream = Stream::current(device);
         if constexpr (OPTIONS.generate_cpu) {

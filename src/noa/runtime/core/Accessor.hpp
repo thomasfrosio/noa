@@ -1,10 +1,10 @@
 #pragma once
 
+#include "catch2/internal/catch_decomposer.hpp"
 #include "noa/base/Tuple.hpp"
 #include "noa/runtime/core/Access.hpp"
 #include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/core/Traits.hpp"
-#include "noa/runtime/core/Utils.hpp"
 
 namespace noa {
     template<typename T, usize N, typename I,
@@ -174,7 +174,7 @@ namespace noa {
         static constexpr usize SIZE = N;
         static constexpr isize SSIZE = N;
 
-        using accessor_type = Accessor<T, N, I, STRIDES_TRAIT, POINTER_TRAIT>;
+        using accessor_type = Accessor<T, N, I, StridesTrait, PointerTrait>;
         using value_type = accessor_type::value_type;
         using mutable_value_type = accessor_type::mutable_value_type;
         using index_type = accessor_type::index_type;
@@ -195,7 +195,7 @@ namespace noa {
 
         /// Creates a const accessor from an existing non-const accessor.
         template<nt::mutable_of<value_type> U>
-        NOA_HD constexpr AccessorReference(const AccessorReference<U, N, I, STRIDES_TRAIT, POINTER_TRAIT>& accessor) :
+        NOA_HD constexpr AccessorReference(const AccessorReference<U, N, I, StridesTrait, PointerTrait>& accessor) :
             m_ptr(accessor.get()), m_strides(accessor.strides()) {}
 
     public: // Accessing strides
@@ -474,15 +474,14 @@ namespace noa::details {
         /// If so, empty inputs are allowed but ignored.
         bool allow_empty{false};
 
-        /// Dimensions to store in the reconfigured accessor(s).
-        /// This is equivalent to the Vec::filter(...) member function.
-        /// If an empty filter is passed (default), the original dimensions are preserved.
-        Vec<usize, N> filter{};
+        /// Enforce a minimum nb of accessors.
+        /// If the accessor has fewer axes (after applying the axes filter), empty axes are added to the left.
+        usize minimum_nd_axes{0};
     };
 
     /// Constructs an accessor from the input.
-    template<AccessorConfig config = AccessorConfig{}, typename Index = void, typename T>
-    [[nodiscard]] constexpr auto to_accessor(T&& input) {
+    template<AccessorConfig config = AccessorConfig{}, typename Index = void, typename T, nt::integer... I>
+    [[nodiscard]] constexpr auto to_accessor(T&& input, I... axes) {
         using input_t = std::decay_t<T>;
         if constexpr (config.allow_empty and nt::empty<input_t>) {
             return input;
@@ -499,20 +498,25 @@ namespace noa::details {
             constexpr auto pointer_traits = config.enforce_restrict ? PointerTraits::RESTRICT : input_t::POINTER_TRAIT;
 
             constexpr usize original_ndim = input_t::SIZE;
-            constexpr usize vec_ndim = decltype(config.filter)::SIZE;
-            constexpr usize new_ndim = vec_ndim == 0 ? original_ndim : vec_ndim;
+            constexpr usize axes_ndim = sizeof...(I);
+            constexpr usize tmp_ndim = axes_ndim == 0 ? original_ndim : axes_ndim;
+            constexpr usize new_ndim = std::max(config.minimum_nd_axes, tmp_ndim);
             using accessor_t = Accessor<value_t, new_ndim, index_t, strides_traits, pointer_traits>;
 
-            if constexpr (original_ndim == new_ndim) {
-                return accessor_t(input.get(), input.strides_full().template as<index_t>());
-            } else {
-                auto strides = [&input]<usize... I>(std::index_sequence<I...>, const auto& filter) {
-                    auto&& tmp = input.strides_full();
-                    return Strides{static_cast<index_t>(tmp[filter[I]])...};
-                }(std::make_index_sequence<new_ndim>{}, config.filter);
-                return accessor_t(input.get(), strides.template as<index_t>());
-            }
+            Strides<index_t, tmp_ndim> strides;
+            if constexpr (axes_ndim == 0)
+                strides = input.strides_full();
+            else
+                strides = input.strides_full().filter(axes...);
+            return accessor_t(input.get(), strides.template as<index_t>().template push_front<new_ndim - tmp_ndim>(0));
         }
+    }
+
+    template<AccessorConfig config = AccessorConfig{}, typename Index = void, typename T, nt::integer I, usize N>
+    [[nodiscard]] constexpr auto to_accessor(T&& input, const Vec<I, N>& axes) {
+        return [&]<usize... J>(std::index_sequence<J...>) {
+            return to_accessor<config, Index>(std::forward<T>(input), axes[J]...);
+        }(std::make_index_sequence<N>{});
     }
 
     template<bool ENFORCE_CONST = false, typename T>
@@ -541,44 +545,51 @@ namespace noa::details {
     }
 
     /// Reconfigures the Accessor(s).
-    template<AccessorConfig config, typename Index = void, typename T>
-    requires nt::tuple_of_accessor_or_empty<std::decay_t<T>>
-    [[nodiscard]] constexpr auto reconfig_accessors(T&& accessors) {
+    template<AccessorConfig config = {}, typename Index = void, typename T, typename... I>
+        requires nt::tuple_of_accessor_or_empty<std::decay_t<T>>
+    [[nodiscard]] constexpr auto reconfig_accessors(T&& accessors, I... axes) {
         return std::forward<T>(accessors).map(
-            []<typename U>(U&& accessor) {
-                return to_accessor<config, Index>(std::forward<U>(accessor));
+            [&]<typename U>(U&& accessor) {
+                return to_accessor<config, Index>(std::forward<U>(accessor), axes...);
             });
     }
 
     /// Reorders the tuple(s) of accessors (in-place).
-    template<typename Index, nt::tuple_of_accessor_or_empty... T>
-    constexpr void permute_accessors(const Vec<Index, 4>& order, T&... accessors) {
+    template<typename Index, usize N, nt::tuple_of_accessor_or_empty... T>
+    constexpr void permute_accessors(const Vec<Index, N>& order, T&... accessors) {
         (accessors.for_each([&order]<typename U>(U& accessor) {
             if constexpr (nt::accessor_pure<U>)
                 accessor = accessor.permute(order);
         }), ...);
     }
 
-    template<typename Index, usize N, typename T> requires (nt::accessor_pure<T> or nt::accessor_value<T>)
+    /// Reshape the accessor (in-place).
+    /// Accessors should have the same index type as the input shapes.
+    /// If ALLOW_CONTIGUOUS, contiguous accessors are allowed (StridesTrait::CONTIGUOUS),
+    /// but this requires that the new rightmost stride is 1. Some reshaping can guarantee this,
+    /// hence the option, but a runtime check is done to validate.
+    template<bool ALLOW_CONTIGUOUS = false, typename Index, usize N, typename T>
+        requires (nt::accessor_pure<T> or nt::accessor_value<T>)
     constexpr bool reshape_accessor(const Shape<Index, N>& old_shape, const Shape<Index, N>& new_shape, T& accessor) {
         if constexpr (nt::accessor_pure<T>) {
-            static_assert(not T::IS_CONTIGUOUS);
+            static_assert(ALLOW_CONTIGUOUS or not T::IS_CONTIGUOUS);
             static_assert(T::SIZE == N);
-            Strides<Index, N> new_strides;
-            if (not nd::reshape(old_shape, accessor.strides_full(), new_shape, new_strides))
+            Strides<typename T::index_type, N> new_strides;
+            if (not reshape(old_shape, accessor.strides_full(), new_shape, new_strides))
                return false;
+            if (ALLOW_CONTIGUOUS and T::IS_CONTIGUOUS)
+                check(new_strides[N - 1] == 1);
             accessor = T(accessor.data(), new_strides);
         }
         return true;
     }
 
     /// Reshape the tuple(s) of accessors (in-place).
-    /// Accessors should have the same index type as the input shapes, mutable, and strided.
-    template<typename Index, usize N, nt::tuple_of_accessor_or_empty... T>
+    template<bool ALLOW_CONTIGUOUS = false, typename Index, usize N, nt::tuple_of_accessor_or_empty... T>
     constexpr bool reshape_accessors(const Shape<Index, N>& old_shape, const Shape<Index, N>& new_shape, T&... accessors) {
         bool success{true};
         (accessors.for_each([&]<typename U>(U& accessor) {
-            if (not reshape_accessor(old_shape, new_shape, accessor))
+            if (not reshape_accessor<ALLOW_CONTIGUOUS>(old_shape, new_shape, accessor))
                 success = false;
         }), ...);
         return success;
@@ -600,8 +611,8 @@ namespace noa::details {
                 if constexpr (I != J) {
                     // If nullptr, whether because it's an AccessorValue or because
                     // the accessor actually points to a nullptr, it does not alias.
-                    auto* pi = static_cast<const void*>(ei);
-                    auto* pj = static_cast<const void*>(ej);
+                    const auto* pi = static_cast<const void*>(ei);
+                    const auto* pj = static_cast<const void*>(ej);
                     return pi != nullptr and pj != nullptr and pi == pj;
                 }
                 return false;
@@ -632,52 +643,185 @@ namespace noa::details {
     }
 
     /// Checks whether all the 4d accessors are contiguous.
-    template<char ORDER = 'C', nt::tuple_of_accessor_or_empty T, nt::integer I>
+    template<char ORDER = 'C', nt::integer I, usize N, nt::tuple_of_accessor_or_empty... T>
     NOA_HD constexpr auto are_accessors_contiguous(
-        const T& accessors,
-        const Shape<I, 4>& shape
+        const Shape<I, N>& shape,
+        const T&... accessors
     ) noexcept -> bool {
-        return accessors.all([&shape]<typename U>(const U& accessor) {
+        return (accessors.all([&shape]<typename U>(const U& accessor) {
             if constexpr (nt::accessor_value<U>) {
                 return true;
             } else {
-                static_assert(U::SIZE == 4);
+                static_assert(U::SIZE == N);
                 return accessor.strides_full().template is_contiguous<ORDER>(shape);
             }
-        });
+        }) and ...);
     }
 
     /// Returns the combined contiguity profile of the accessors.
     /// For one dimension to be contiguous, all accessors have to be contiguous along that dimension.
-    template<char ORDER = 'C', nt::tuple_of_accessor_or_empty T, nt::integer I>
+    template<char ORDER = 'C', nt::integer I, usize N, nt::tuple_of_accessor_or_empty... T>
     auto accessors_contiguity(
-        const T& accessors,
-        const Shape<I, 4>& shape
-    ) noexcept -> Vec<bool, 4> {
-        auto out = Vec<bool, 4>::from_value(true);
-        accessors.for_each([&shape, &out]<typename U>(const U& accessor) {
+        const Shape<I, N>& shape,
+        const T&... accessors
+    ) noexcept -> Vec<bool, N> {
+        auto out = Vec<bool, N>::from_value(true);
+        (accessors.for_each([&shape, &out]<typename U>(const U& accessor) {
             if constexpr (not nt::accessor_value<U>) {
-                static_assert(U::SIZE == 4);
+                static_assert(U::SIZE == N);
                 out = out and accessor.strides_full().template as<I>().template contiguity<ORDER>(shape);
             }
-        });
+        }), ...);
         return out;
     }
 
     /// Returns the combined broadcasting profile of the accessors.
     /// If one accessor is broadcast along a dimension, this dimension is marked as broadcast.
-    template<nt::tuple_of_accessor_or_empty T, nt::integer I>
+    template<nt::integer I, usize N, nt::tuple_of_accessor_or_empty... T>
     auto accessors_broadcasting(
-        const T& accessors,
-        const Shape<I, 4>& shape
-    ) noexcept -> Vec<bool, 4> {
-        auto out = Vec<bool, 4>::from_value(false);
-        accessors.for_each([&shape, &out]<typename U>(const U& accessor) {
+        const Shape<I, N>& shape,
+        const T&... accessors
+    ) noexcept -> Vec<bool, N> {
+        auto out = Vec<bool, N>::from_value(false);
+        (accessors.for_each([&shape, &out]<typename U>(const U& accessor) {
             if constexpr (not nt::accessor_value<U>) {
-                static_assert(U::SIZE == 4);
+                static_assert(U::SIZE == N);
                 out = out or accessor.strides_full().broadcasting(shape);
             }
-        });
+        }), ...);
         return out;
+    }
+
+    /// Returns the optimal axis order for fast traversal by moving the empty dimensions to the left,
+    /// and if the accessors have the same order, by ordering non-empty dimensions to the rightmost order.
+    template<nt::integer I, usize N, typename... T>
+        requires (nt::tuple_of_accessor_nd_or_empty<std::remove_reference_t<T>, N>, ...)
+    auto optimal_layout_for_accessors(const Shape<I, N>& shape, T&&... accessors) -> Vec<I, N> {
+        bool has_accessor{false};
+        bool same_order{true};
+        Vec<I, N> order;
+        (accessors.for_each([&]<typename U>(const U& accessor) {
+            if constexpr (nt::accessor_pure<U> or nt::accessor_reference<U>) {
+                if (not same_order)
+                    return;
+                auto i_order = accessor.strides_full().rightmost_order(shape).template as<I>(); // moves empty to the left
+                if (not has_accessor) {
+                    order = i_order;
+                    has_accessor = true;
+                } else {
+                    if (order != i_order)
+                        same_order = false;
+                }
+            } else if constexpr (not nt::accessor_value<U>) {
+                static_assert(nt::always_false<U>);
+            }
+        }), ...);
+        if (not has_accessor or not same_order)
+            order = squeeze_empty_dimensions_left(shape);
+        return order;
+    }
+
+    /// Reorder and collapse dimensions to optimize ewise traversal.
+    template<typename Index, usize N, typename Input, typename Output>
+        requires (nt::tuple_of_accessor_nd_or_empty<Input, N> and
+                  nt::tuple_of_accessor_pure_nd_or_empty<Output, N> and
+                  N >= 1)
+    void optimize_ewise_layout(Shape<Index, N>& shape, Input& input, Output& output) {
+        // Move empty dimensions to the left and try to reorder non-empty dimensions to rightmost.
+        const auto optimal_order =
+            nt::tuple_of_accessor<Output> ?
+            nd::optimal_layout_for_accessors(shape, output):
+            nd::optimal_layout_for_accessors(shape, input);
+        if (optimal_order != Vec<Index, N>::arange()) {
+            shape = shape.permute(optimal_order);
+            nd::permute_accessors(optimal_order, input, output);
+        }
+
+        // Collapse dimensions, when possible.
+        const auto contiguity = nd::accessors_contiguity(shape, input, output);
+        const auto broadcasting = nd::accessors_broadcasting(shape, input, output);
+        auto collapsed_shape = noa::collapse_contiguous_dimensions(shape, contiguity, broadcasting);
+        collapsed_shape = collapsed_shape.permute(noa::squeeze_empty_dimensions_left(collapsed_shape));
+
+        // Reshape accessors to the new shape.
+        // By default, we can't use ALLOW_CONTIGUOUS=true because
+        // the rightmost dimension might be empty and pushed out to the left.
+        if (nd::reshape_accessors(shape, collapsed_shape, input, output)) {
+            shape = collapsed_shape;
+        } else {
+            panic("Reshape failed, shape={}, contiguity={}, broadcasting={}. Please report this issue",
+                  shape, contiguity, broadcasting);
+        }
+    }
+
+    template<typename Index, usize N, typename Input>
+        requires (nt::tuple_of_accessor_nd<Input, N> and N >= 1)
+    void optimize_reduce_ewise_layout(Shape<Index, N>& input_shape, Input& input) {
+        // Move empty dimensions to the left and try to reorder non-empty dimensions to rightmost.
+        const auto optimal_order = nd::optimal_layout_for_accessors(input_shape, input);
+        if (optimal_order != Vec<Index, N>::arange()) {
+            input_shape = input_shape.permute(optimal_order);
+            nd::permute_accessors(optimal_order, input);
+        }
+
+        // Collapse dimensions.
+        const auto contiguity = nd::accessors_contiguity(input_shape, input);
+        const auto broadcasting = nd::accessors_broadcasting(input_shape, input);
+        auto collapsed_input_shape = noa::collapse_contiguous_dimensions(input_shape, contiguity, broadcasting);
+
+        // Squeeze the newly empty dimensions to the left.
+        // Don't use the output shape since it has the empty reduced dimensions.
+        const auto squeeze_order = noa::squeeze_empty_dimensions_left(collapsed_input_shape);
+        collapsed_input_shape = collapsed_input_shape.permute(squeeze_order);
+
+        // Instead of permuting the accessors, reshape them to the new shape.
+        if (nd::reshape_accessors(input_shape, collapsed_input_shape, input)) {
+            input_shape = collapsed_input_shape;
+        } else {
+            panic("Reshape failed, input_shape={}, contiguity={}, broadcasting={}. Please report this issue",
+                  input_shape, contiguity, broadcasting);
+        }
+    }
+
+    template<typename Index, usize N, typename Input, typename Output>
+        requires (nt::tuple_of_accessor_nd<Input, N> and
+                  nt::tuple_of_accessor_pure_nd<Output, N> and
+                  N >= 1)
+    void optimize_reduce_axes_ewise_layout(
+        Shape<Index, N>& input_shape,
+        Shape<Index, N>& output_shape,
+        Input& input,
+        Output& output
+    ) {
+        // Move empty dimensions to the left and try to reorder non-empty dimensions to rightmost.
+        const auto optimal_order = nd::optimal_layout_for_accessors(input_shape, input);
+        if (optimal_order != Vec<Index, N>::arange()) {
+            input_shape = input_shape.permute(optimal_order);
+            output_shape = output_shape.permute(optimal_order);
+            nd::permute_accessors(optimal_order, input, output);
+        }
+
+        // Collapse dimensions while making sure to preserve the reduction.
+        const auto contiguity = nd::accessors_contiguity(input_shape, input) and nd::accessors_contiguity(output_shape, output);
+        const auto broadcasting = nd::accessors_broadcasting(input_shape, input) or nd::accessors_broadcasting(output_shape, output);
+        const auto groups = input_shape.cmp_ne(output_shape).template as<i32>();
+        auto collapsed_input_shape = noa::collapse_contiguous_dimensions(input_shape, contiguity, broadcasting, groups);
+        auto collapsed_output_shape = noa::collapse_contiguous_dimensions(output_shape, contiguity, broadcasting, groups);
+
+        // Squeeze the newly empty dimensions to the left.
+        // Don't use the output shape since it has the empty reduced dimensions.
+        const auto squeeze_order = noa::squeeze_empty_dimensions_left(collapsed_input_shape);
+        collapsed_input_shape = collapsed_input_shape.permute(squeeze_order);
+        collapsed_output_shape = collapsed_output_shape.permute(squeeze_order);
+
+        // Instead of permuting the accessors, reshape them to the new shape.
+        if (nd::reshape_accessors(input_shape, collapsed_input_shape, input) and
+            nd::reshape_accessors(output_shape, collapsed_output_shape, output)) {
+            input_shape = collapsed_input_shape;
+            output_shape = collapsed_output_shape;
+        } else {
+            panic("Reshape failed, input_shape={}, output_shape={}, contiguity={}, broadcasting={}. Please report this issue",
+                  input_shape, output_shape, contiguity, broadcasting);
+        }
     }
 }

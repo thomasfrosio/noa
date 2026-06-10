@@ -612,6 +612,12 @@ namespace noa::inline types {
             return output;
         }
 
+        template<usize S, usize AR = 0>
+        [[nodiscard]] NOA_HD constexpr auto extend_front_to(value_type value) const noexcept {
+            constexpr usize MAX = std::max(SIZE, S);
+            return (*this).template push_front<MAX - SIZE, AR>(value);
+        }
+
         template<nt::integer... I>
         [[nodiscard]] NOA_FHD constexpr auto filter(I... indices) const noexcept {
             return Vec<value_type, sizeof...(I)>{(*this)[indices]...};

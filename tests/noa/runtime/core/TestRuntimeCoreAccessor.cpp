@@ -121,3 +121,46 @@ TEMPLATE_TEST_CASE("runtime::core:: AccessorValue", "", i32, i64, u32, u64) {
     accessor_value0.ref_() = 4; // "private" function to "bypass" the const
     REQUIRE(accessor_value0(0) == 4);
 }
+
+TEST_CASE("runtime::core:: Accessor - optimize ewise layout") {
+    namespace nd = noa::details;
+    i32* ptr{};
+    auto shape = Shape<isize, 4>{2, 30, 50, 1};
+    auto strides = shape.strides<'F'>();
+    auto input = noa::make_tuple(Accessor<i32, 4, isize>(ptr, strides), AccessorValue<i32>(1));
+    strides[0] *= 2;
+    // strides[1] *= 2;
+    // strides[2] *= 2;
+    // strides[3] *= 1;
+    auto output = noa::make_tuple(Accessor<i32, 4, isize>(ptr, strides));
+
+    nd::optimize_ewise_layout(shape, input, output);
+
+    fmt::println("shape={}, input={}, output={}", shape, input[Tag<0>{}].strides(), output[Tag<0>{}].strides());
+}
+
+TEST_CASE("runtime::core:: Accessor - optimize reduce ewise layout") {
+    namespace nd = noa::details;
+    i32* ptr{};
+    auto input_shape = Shape<isize, 4>{5, 30, 50, 60};
+    auto output_shape = Shape<isize, 4>{1, 30, 50, 1};
+
+    auto input_strides = input_shape.strides();
+    // input_strides[0] *= 2;
+    // input_strides[1] *= 2;
+    // input_strides[2] *= 1;
+    // input_strides[3] *= 1;
+    auto input = noa::make_tuple(Accessor<i32, 4, isize>(ptr, input_strides), AccessorValue<i32>(1));
+
+    auto output_strides = output_shape.strides();
+    output_strides[0] *= 2;
+    output_strides[1] *= 2;
+    output_strides[2] *= 2;
+    output_strides[3] *= 1;
+    auto output = noa::make_tuple(Accessor<i32, 4, isize>(ptr, output_strides));
+
+    nd::optimize_reduce_axes_ewise_layout(input_shape, output_shape, input, output);
+
+    fmt::println("input_shape={}, output_shape={}\n input={}, output={}",
+        input_shape, output_shape, input[Tag<0>{}].strides(), output[Tag<0>{}].strides());
+}

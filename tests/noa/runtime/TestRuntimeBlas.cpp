@@ -3,6 +3,7 @@
 #include <noa/runtime/Reduce.hpp>
 #include <noa/runtime/Factory.hpp>
 #include <noa/runtime/Ewise.hpp>
+#include <noa/runtime/core/Utils.hpp>
 
 #include "Catch.hpp"
 #include "Utils.hpp"
@@ -12,13 +13,15 @@ using namespace ::noa::types;
 namespace {
     template<typename T>
     void naive_matmul_(const Array<T>& lhs, const Array<T>& rhs, const Array<T>& out) {
-        const auto [mnk, t0, t1] = noa::details::extract_matmul_layout(
-            lhs.strides(), lhs.shape(), rhs.strides(), rhs.shape(), out.strides(), out.shape(),
-            false, false);
-
         const auto span_lhs = lhs.template span<const T, 3>();
         const auto span_rhs = rhs.template span<const T, 3>();
         const auto span_out = out.template span<T, 3>();
+        const auto [mnk, t0, t1] = noa::details::extract_matmul_layout(
+            span_lhs.strides().pop_front(), span_lhs.shape().pop_front(),
+            span_rhs.strides().pop_front(), span_rhs.shape().pop_front(),
+            span_out.strides().pop_front(), span_out.shape().pop_front(),
+            false, false
+        );
 
         for (isize batch{}; batch < out.shape()[0]; ++batch) {
             for (isize m{}; m < mnk[0]; ++m) {

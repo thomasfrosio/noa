@@ -22,15 +22,19 @@ namespace noa::cuda::details {
         static constexpr NOA_FD auto is_gpu() -> bool { return true; }
 
     public:
-        NOA_FD explicit ComputeHandle() requires (not IsUsingDynamicSharedMemory and not IsMultiGridKernel) = default;
+        NOA_FD explicit ComputeHandle()
+            requires (not IsUsingDynamicSharedMemory and not IsMultiGridKernel) = default;
 
-        NOA_FD explicit ComputeHandle(u32 scratch_size) requires (IsUsingDynamicSharedMemory and not IsMultiGridKernel)
+        NOA_FD explicit ComputeHandle(u32 scratch_size)
+            requires (IsUsingDynamicSharedMemory and not IsMultiGridKernel)
             : m_scratch_size{scratch_size} {}
 
-        NOA_FD explicit ComputeHandle(vec_zy_type grid_dim_zy, vec_zy_type block_idx_offset_zy) requires (not IsUsingDynamicSharedMemory and IsMultiGridKernel)
+        NOA_FD explicit ComputeHandle(vec_zy_type grid_dim_zy, vec_zy_type block_idx_offset_zy)
+            requires (not IsUsingDynamicSharedMemory and IsMultiGridKernel)
             : m_grid_size_zy{grid_dim_zy}, m_block_index_offset_zy{block_idx_offset_zy} {}
 
-        NOA_FD explicit ComputeHandle(u32 scratch_size, vec_zy_type grid_dim_zy, vec_zy_type block_idx_offset_zy) requires (IsUsingDynamicSharedMemory and IsMultiGridKernel)
+        NOA_FD explicit ComputeHandle(u32 scratch_size, vec_zy_type grid_dim_zy, vec_zy_type block_idx_offset_zy)
+            requires (IsUsingDynamicSharedMemory and IsMultiGridKernel)
             : m_scratch_size{scratch_size}, m_grid_size_zy{grid_dim_zy}, m_block_index_offset_zy{block_idx_offset_zy} {}
 
     public:
@@ -372,5 +376,6 @@ namespace noa::cuda::details {
 }
 
 namespace noa::traits {
-    template<typename T, u32 G, u32 B, bool F0, bool F1, bool F2> struct proclaim_is_compute_handle<noa::cuda::details::ComputeHandle<T, G, B, F0, F1, F2>> : std::true_type {};
+    template<typename T, u32 G, u32 B, bool F0, bool F1, bool F2>
+    struct proclaim_is_compute_handle<noa::cuda::details::ComputeHandle<T, G, B, F0, F1, F2>> : std::true_type {};
 }

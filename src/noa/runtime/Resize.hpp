@@ -9,9 +9,9 @@ namespace noa::details {
     ///          or pad (positive value) on the left or right side of each dimension. Padded elements are handled
     ///          according to the Border. The input and output arrays should not overlap.
     template<Border MODE,
-             nt::sinteger Index,
-             nt::readable_nd<4> Input,
-             nt::writable_nd<4> Output>
+             nt::sinteger Index, usize N,
+             nt::readable_nd<N> Input,
+             nt::writable_nd<N> Output>
     class Resize {
     public:
         static_assert(MODE != Border::NOTHING);
@@ -20,8 +20,8 @@ namespace noa::details {
         using output_accessor_type = Output;
         using output_value_type = nt::value_type_t<output_accessor_type>;
         using index_type = Index;
-        using indices_type = Vec<index_type, 4>;
-        using shape_type = Shape<index_type, 4>;
+        using indices_type = Vec<index_type, N>;
+        using shape_type = Shape<index_type, N>;
         using output_value_or_empty_type = std::conditional_t<MODE == Border::VALUE, output_value_type, Empty>;
 
         static constexpr bool IS_BOUNDLESS = MODE != Border::VALUE and MODE != Border::ZERO;
@@ -88,28 +88,25 @@ namespace noa::details {
 
     /// Computes the common subregions between the input and output.
     /// These can then be used to copy the input subregion into the output subregion.
+    template<usize N>
     [[nodiscard]] constexpr auto extract_common_subregion(
-        const Shape4& input_shape, const Shape4& output_shape,
-        const Vec<isize, 4>& border_left, const Vec<isize, 4>& border_right
-    ) noexcept -> Pair<Subregion<4, Slice, Slice, Slice, Slice>,
-                       Subregion<4, Slice, Slice, Slice, Slice>> {
+        const Shape<isize, N>& input_shape, const Shape<isize, N>& output_shape,
+        const Vec<isize, N>& border_left, const Vec<isize, N>& border_right
+    ) noexcept -> Pair<Subregion<N, Slice, Slice, Slice, Slice>,
+                       Subregion<N, Slice, Slice, Slice, Slice>> {
         // Exclude the regions in the input that don't end up in the output.
         const auto crop_left = min(border_left, 0) * -1;
         const auto crop_right = min(border_right, 0) * -1;
-        const auto cropped_input = make_subregion<4>(
-            Slice{crop_left[0], input_shape[0] - crop_right[0]},
-            Slice{crop_left[1], input_shape[1] - crop_right[1]},
-            Slice{crop_left[2], input_shape[2] - crop_right[2]},
-            Slice{crop_left[3], input_shape[3] - crop_right[3]});
+        const auto cropped_input = [&]<usize... I>{
+            return noa::make_subregion<N>(Slice{crop_left[I], input_shape[I] - crop_right[I]}...);
+        }(std::index_sequence<N>{});
 
         // Exclude the regions in the output that are not from the input.
         const auto pad_left = max(border_left, 0);
         const auto pad_right = max(border_right, 0);
-        const auto cropped_output = make_subregion<4>(
-            Slice{pad_left[0], output_shape[0] - pad_right[0]},
-            Slice{pad_left[1], output_shape[1] - pad_right[1]},
-            Slice{pad_left[2], output_shape[2] - pad_right[2]},
-            Slice{pad_left[3], output_shape[3] - pad_right[3]});
+        const auto cropped_output = [&]<usize... I>{
+            return noa::make_subregion<N>(Slice{pad_left[I], output_shape[I] - pad_right[I]}...);
+        }(std::index_sequence<N>{});
 
         // One can now copy cropped_input -> cropped_output.
         return {cropped_input, cropped_output};
@@ -124,7 +121,7 @@ namespace noa {
     /// \return             1: The number of elements to add/remove from the left side of the dimensions.
     ///                     2: The number of elements to add/remove from the right side of the dimension.
     ///                     Positive values correspond to padding, while negative values correspond to cropping.
-    template<usize N> requires (1 <= N and N <= 4)
+    template<usize N> requires (N >= 1)
     [[nodiscard]] auto shape2borders(const Shape<isize, N>& input_shape, const Shape<isize, N>& output_shape) {
         const auto diff = output_shape - input_shape;
         const auto border_left = output_shape / 2 - input_shape / 2;
@@ -140,14 +137,14 @@ namespace noa {
     /// \param border_mode  Border mode to use. See Border for more details.
     /// \param border_value Border value. Only used for padding if \p mode is Border::VALUE.
     /// \note \p output should not overlap with \p input.
-    template<nt::readable_varray_decay Input,
-             nt::writable_varray_decay Output>
-    requires (nt::varray_decay_with_compatible_or_spectrum_types<Input, Output>)
+    template<nt::readable_array_decay Input, nt::writable_array_decay Output>
+        requires (nt::array_decay_with_same_nd<Input, Output> and
+                  nt::array_decay_with_compatible_or_spectrum_types<Input, Output>)
     void resize(
         Input&& input,
         Output&& output,
-        Vec<isize, 4> border_left,
-        Vec<isize, 4> border_right,
+        Vec<isize, nt::array_size_v<Input>> border_left,
+        Vec<isize, nt::array_size_v<Input>> border_right,
         Border border_mode = Border::ZERO,
         nt::value_type_t<Output> border_value = {}
     ) {
@@ -190,8 +187,9 @@ namespace noa {
         nd::permute_all_to_rightmost_order<true>(output_strides, output_shape,
             input_strides, input_shape, border_left, border_right, output_strides, output_shape);
 
-        using input_accessor_t = AccessorRestrict<nt::const_value_type_t<Input>, 4, isize>;
-        using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, 4, isize>;
+        constexpr auto N = std::remove_reference_t<Input>::SIZE;
+        using input_accessor_t = AccessorRestrict<nt::const_value_type_t<Input>, N, isize>;
+        using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, N, isize>;
         auto input_accessor = input_accessor_t(input.get(), input_strides);
         auto output_accessor = output_accessor_t(output.get(), output_strides);
 
@@ -226,20 +224,21 @@ namespace noa {
     /// \param border_right Elements to add/remove from the right side of the axes.
     /// \param border_mode  Border mode to use. See Border for more details.
     /// \param border_value Border value. Only used for padding if \p mode is Border::VALUE.
-    template<nt::readable_varray_decay_of_numeric Input>
+    template<nt::readable_array_decay_of_numeric Input>
     [[nodiscard]] auto resize(
         Input&& input,
-        const Vec<isize, 4>& border_left,
-        const Vec<isize, 4>& border_right,
+        const Vec<isize, nt::array_size_v<Input>>& border_left,
+        const Vec<isize, nt::array_size_v<Input>>& border_right,
         Border border_mode = Border::ZERO,
         nt::mutable_value_type_t<Input> border_value = {}
     ) {
-        const auto output_shape = Shape4(input.shape().vec + border_left + border_right);
+        const auto output_shape = Shape(input.shape().vec + border_left + border_right);
         check(not output_shape.is_empty(),
               "Cannot resize [left:{}, right:{}] an array of shape {} into an array of shape {}",
               border_left, border_right, input.shape(), output_shape);
 
-        auto output = Array<decltype(border_value)>(output_shape, input.options());
+        constexpr auto N = std::remove_reference_t<Input>::SIZE;
+        auto output = Array<decltype(border_value), N>(output_shape, input.options());
         resize(std::forward<Input>(input), output, border_left, border_right, border_mode, border_value);
         return output;
     }
@@ -250,9 +249,9 @@ namespace noa {
     /// \param border_mode  Border mode to use. See Border for more details.
     /// \param border_value Border value. Only used if \p mode is Border::VALUE.
     /// \note \p output == \p input is not valid.
-    template<nt::readable_varray_decay Input,
-             nt::writable_varray_decay Output>
-    requires nt::varray_decay_with_compatible_or_spectrum_types<Input, Output>
+    template<nt::readable_array_decay Input, nt::writable_array_decay Output>
+        requires (nt::array_decay_with_same_nd<Input, Output> and
+                  nt::array_decay_with_compatible_or_spectrum_types<Input, Output>)
     void resize(
         Input&& input, Output&& output,
         Border border_mode = Border::ZERO,
@@ -268,14 +267,14 @@ namespace noa {
     /// \param[out] output_shape    Output shape.
     /// \param border_mode          Border mode to use. See Border for more details.
     /// \param border_value         Border value. Only used if \p mode is Border::VALUE.
-    template<nt::readable_varray_decay Input>
+    template<nt::readable_array_decay Input>
     [[nodiscard]] auto resize(
         Input&& input,
-        const Shape4& output_shape,
+        const Shape<isize, nt::array_size_v<Input>>& output_shape,
         Border border_mode = Border::ZERO,
         nt::mutable_value_type_t<Input> border_value = {}
     ) {
-        auto output = Array<decltype(border_value)>(output_shape, input.options());
+        auto output = Array<decltype(border_value), nt::array_size_v<Input>>(output_shape, input.options());
         resize(std::forward<Input>(input), output, border_mode, border_value);
         return output;
     }

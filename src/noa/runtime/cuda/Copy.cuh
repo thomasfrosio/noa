@@ -210,14 +210,14 @@ namespace noa::cuda {
                 // 2d pitched layouts.
                 const auto contiguity = src_strides.contiguity(shape) and dst_strides.contiguity(shape);
                 const auto broadcasting = src_strides.broadcasting(shape) or dst_strides.broadcasting(shape);
-                auto collapsed_shape = nd::collapse_contiguous_dimensions(shape, contiguity, broadcasting);
+                auto collapsed_shape = collapse_contiguous_dimensions(shape, contiguity, broadcasting);
                 collapsed_shape = collapsed_shape.permute(squeeze_empty_dimensions_left(collapsed_shape));
 
                 // We have a new shape, so compute the new strides.
                 Strides4 new_src_strides;
                 Strides4 new_dst_strides;
-                if (nd::reshape(shape, src_strides, collapsed_shape, new_src_strides) and
-                    nd::reshape(shape, dst_strides, collapsed_shape, new_dst_strides)) {
+                if (reshape(shape, src_strides, collapsed_shape, new_src_strides) and
+                    reshape(shape, dst_strides, collapsed_shape, new_dst_strides)) {
                     // Update and try again.
                     shape = collapsed_shape;
                     src_strides = new_src_strides;

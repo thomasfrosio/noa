@@ -151,42 +151,34 @@ namespace noa::details {
         Outputs&& outputs,
         Op&& op
     ) {
-        constexpr isize index_of_first_varray = nd::index_of_first_varray<Inputs>();
-        static_assert(index_of_first_varray >= 0, "There should be at least one input varray");
-        constexpr auto index = static_cast<usize>(index_of_first_varray);
+        constexpr auto INDEX_OF_FIRST_ARRAY = [] {
+            constexpr isize INDEX = nd::index_of_first_array<Inputs>();
+            static_assert(INDEX >= 0, "There should be at least one input varray");
+            return static_cast<usize>(INDEX);
+        }();
 
-        Tuple input_accessors = nd::to_tuple_of_accessors(std::forward<Inputs>(inputs));
-        Tuple reduced_accessors = nd::to_tuple_of_accessors(std::forward<Reduced>(reduced));
+        static_assert(nd::are_all_not_arrays_and_mutable<Reduced, Outputs>(), "The initial reduction and output values should be mutable and not arrays");
+        constexpr auto NDIM = nd::maximum_nd_axes_of_arrays<Inputs>();
+        Tuple input_accessors = nd::to_tuple_of_accessors_nd<NDIM>(std::forward<Inputs>(inputs));
+        Tuple reduced_accessors = nd::to_tuple_of_accessor_values(std::forward<Reduced>(reduced));
 
-        const auto& first_input_array = inputs[Tag<index>{}];
-        auto shape = first_input_array.shape();
+        const auto& first_input_array = inputs[Tag<INDEX_OF_FIRST_ARRAY>{}];
+        auto shape = first_input_array.shape().template extend_front_to<NDIM>(1);
         const auto device = first_input_array.device();
-        const auto order = first_input_array.strides().rightmost_order(shape);
-        bool do_reorder = order != Vec<isize, 4>{0, 1, 2, 3};
 
         inputs.for_each_enumerate([&]<usize I, typename T>(T& input) {
-            if constexpr (I > index and nt::varray<T>) {
+            if constexpr (I > INDEX_OF_FIRST_ARRAY and nt::array<T>) {
                 check(device == input.device(),
-                      "Input arrays should be on the same device, but got device:0={} and device:{}={}",
+                      "Input arrays should be on the same device, but got input:0:device={} and input:{}:device={}",
                       device, I, input.device());
-                check(shape == input.shape(),
-                      "Input arrays should have the same shape, but got shape:0={} and shape:{}={}",
-                      shape, I, input.shape());
-
-                // Only reorder if all the inputs have the same order.
-                if (do_reorder)
-                    do_reorder = order == input.strides().rightmost_order(shape);
-                // TODO Forcing the same order is okay, but may be a bit too restrictive since it effectively
-                //      prevents automatic broadcasting (the caller can still explicitly broadcast though).
-                //      We may instead find the input with the largest effective shape and use it as
-                //      as reference for reordering the inputs?
+                const auto input_shape = input.shape().template extend_front_to<NDIM>(1);
+                check(shape == input_shape,
+                      "Input arrays should have the same shape, but got input:0:shape={} and input:{}:shape={}",
+                      shape, I, input_shape);
             }
         });
 
-        if (do_reorder) {
-            shape = shape.permute(order);
-            nd::permute_accessors(order, input_accessors);
-        }
+        nd::optimize_reduce_ewise_layout(shape, input_accessors);
 
         Stream& stream = Stream::current(device);
 

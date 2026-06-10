@@ -13,7 +13,7 @@ namespace noa::cpu::details {
         using interface = nd::ReduceEwiseInterface<ZipInput, ZipReduced, ZipOutput>;
 
         template<i32 MODE, typename Op, typename Input, typename Reduced, typename Output, typename Index, usize N>
-        NOA_NOINLINE static void parallel(
+        NOA_NOINLINE static void run(
             const Shape<Index, N>& shape, Op op,
             Input input, Reduced reduced, Output output, i32 threads
         ) {
@@ -21,17 +21,42 @@ namespace noa::cpu::details {
             #pragma omp parallel default(none) num_threads(threads) shared(shape, input, reduced, output, original_reduced) firstprivate(op)
             {
                 constexpr auto ci = ComputeHandle<Index, true>{};
-                if constexpr (MODE == 3 and N == 4) {
-                    // The first 3 rightmost dimensions to reduce contain many elements,
-                    // and there are fewer batches than threads.
+                if constexpr (MODE == 3) {
+                    // Parallel reduction.
                     for (Index i = 0; i < shape[0]; ++i) {
                         interface::init(ci, op, i);
                         auto local = reduced;
-                        #pragma omp for collapse(3)
-                        for (Index j = 0; j < shape[1]; ++j)
-                            for (Index k = 0; k < shape[2]; ++k)
-                                for (Index l = 0; l < shape[3]; ++l)
-                                    interface::call(ci, op, input, local, i, j, k, l);
+                        if constexpr (N == 6) {
+                            #pragma omp for collapse(5)
+                            for (Index j = 0; j < shape[1]; ++j)
+                                for (Index k = 0; k < shape[2]; ++k)
+                                    for (Index l = 0; l < shape[3]; ++l)
+                                        for (Index m = 0; m < shape[4]; ++m)
+                                            for (Index n = 0; n < shape[5]; ++n)
+                                                interface::call(ci, op, input, local, i, j, k, l, m, n);
+                        } else if constexpr (N == 5) {
+                            #pragma omp for collapse(4)
+                            for (Index j = 0; j < shape[1]; ++j)
+                                for (Index k = 0; k < shape[2]; ++k)
+                                    for (Index l = 0; l < shape[3]; ++l)
+                                        for (Index m = 0; m < shape[4]; ++m)
+                                            interface::call(ci, op, input, local, i, j, k, l, m);
+                        } else if constexpr (N == 4) {
+                            #pragma omp for collapse(3)
+                            for (Index j = 0; j < shape[1]; ++j)
+                                for (Index k = 0; k < shape[2]; ++k)
+                                    for (Index l = 0; l < shape[3]; ++l)
+                                        interface::call(ci, op, input, local, i, j, k, l);
+                        } else if constexpr (N == 3) {
+                            #pragma omp for collapse(2)
+                            for (Index j = 0; j < shape[1]; ++j)
+                                for (Index k = 0; k < shape[2]; ++k)
+                                    interface::call(ci, op, input, local, i, j, k);
+                        } else if constexpr (N == 2) {
+                            #pragma omp for
+                            for (Index j = 0; j < shape[1]; ++j)
+                                interface::call(ci, op, input, local, i, j);
+                        }
                         interface::deinit(ci, op, i);
 
                         #pragma omp critical
@@ -44,97 +69,117 @@ namespace noa::cpu::details {
                             reduced = original_reduced;
                         }
                     }
-                } else if constexpr (MODE == 3 and N == 2) {
-                    // Same as above, but the 3 dimensions to reduce are collapsed
-                    // for cases where the inputs are contiguous.
+                } else if constexpr (MODE == 2) {
+                    // Batch reduction.
+                    #pragma omp for
                     for (Index i = 0; i < shape[0]; ++i) {
                         interface::init(ci, op, i);
                         auto local = reduced;
-                        #pragma omp for
-                        for (Index j = 0; j < shape[1]; ++j)
-                            interface::call(ci, op, input, local, i, j);
-                        interface::deinit(ci, op, i);
-
-                        #pragma omp critical
-                        interface::join(op, local, reduced);
-
-                        #pragma omp barrier
-                        #pragma omp single
-                        {
-                            interface::post(op, reduced, output, i);
-                            reduced = original_reduced;
+                        if constexpr (N == 6) {
+                            for (Index j = 0; j < shape[1]; ++j)
+                                for (Index k = 0; k < shape[2]; ++k)
+                                    for (Index l = 0; l < shape[3]; ++l)
+                                        for (Index m = 0; m < shape[4]; ++m)
+                                            for (Index n = 0; n < shape[5]; ++n)
+                                                interface::call(ci, op, input, local, i, j, k, l, m, n);
+                        } else if constexpr (N == 5) {
+                            for (Index j = 0; j < shape[1]; ++j)
+                                for (Index k = 0; k < shape[2]; ++k)
+                                    for (Index l = 0; l < shape[3]; ++l)
+                                        for (Index m = 0; m < shape[4]; ++m)
+                                            interface::call(ci, op, input, local, i, j, k, l, m);
+                        } else if constexpr (N == 4) {
+                            for (Index j = 0; j < shape[1]; ++j)
+                                for (Index k = 0; k < shape[2]; ++k)
+                                    for (Index l = 0; l < shape[3]; ++l)
+                                        interface::call(ci, op, input, local, i, j, k, l);
+                        } else if constexpr (N == 3) {
+                            for (Index j = 0; j < shape[1]; ++j)
+                                for (Index k = 0; k < shape[2]; ++k)
+                                    interface::call(ci, op, input, local, i, j, k);
+                        } else if constexpr (N == 2) {
+                            for (Index j = 0; j < shape[1]; ++j)
+                                interface::call(ci, op, input, local, i, j);
                         }
-                    }
-                } else if constexpr (MODE == 2 and N == 4) {
-                    // There are more batches than threads, so distribute to one thread per reduction,
-                    // thus making the reduction serial.
-                    #pragma omp for
-                    for (Index i = 0; i < shape[0]; ++i) {
-                        interface::init(ci, op, i);
-                        auto local = reduced;
-                        for (Index j = 0; j < shape[1]; ++j)
-                            for (Index k = 0; k < shape[2]; ++k)
-                                for (Index l = 0; l < shape[3]; ++l)
-                                    interface::call(ci, op, input, local, i, j, k, l);
                         interface::deinit(ci, op, i);
                         interface::post(op, local, output, i);
                     }
-                } else if constexpr (MODE == 2 and N == 2) {
-                    // Same as above, but the 3 dimensions to reduce are collapsed
-                    // for cases where the inputs are contiguous.
-                    #pragma omp for
-                    for (Index i = 0; i < shape[0]; ++i) {
-                        interface::init(ci, op, i);
-                        auto local = reduced;
-                        for (Index j = 0; j < shape[1]; ++j)
-                            interface::call(ci, op, input, local, i, j);
-                        interface::deinit(ci, op, i);
-                        interface::post(op, local, output, i);
-                    }
-                } else if constexpr (MODE == 1 and N == 4) {
-                    // Reduce one axis.
-                    // Assuming there are more elements in the 3 leftmost dimensions
-                    // than there are threads, so distribute the reductions.
-                    #pragma omp for collapse(3)
-                    for (Index i = 0; i < shape[0]; ++i) {
-                        for (Index j = 0; j < shape[1]; ++j) {
-                            for (Index k = 0; k < shape[2]; ++k) {
-                                interface::init(ci, op, i, j, k);
-                                auto local = reduced;
-                                for (Index l = 0; l < shape[3]; ++l)
-                                    interface::call(ci, op, input, local, i, j, k, l);
-                                interface::deinit(ci, op, i, j, k);
-                                interface::post(op, local, output, i, j, k);
+                } else if constexpr (MODE == 1) {
+                    // Single axis reduction.
+                    if constexpr (N == 6) {
+                        #pragma omp for collapse(5)
+                        for (Index i = 0; i < shape[0]; ++i) {
+                            for (Index j = 0; j < shape[1]; ++j) {
+                                for (Index k = 0; k < shape[2]; ++k) {
+                                    for (Index l = 0; l < shape[3]; ++l) {
+                                        for (Index m = 0; m < shape[4]; ++m) {
+                                            interface::init(ci, op, i, j, k, l, m);
+                                            auto local = reduced;
+                                            for (Index n = 0; n < shape[5]; ++n)
+                                                interface::call(ci, op, input, local, i, j, k, l, m, n);
+                                            interface::deinit(ci, op, i, j, k, l, m);
+                                            interface::post(op, local, output, i, j, k, l, m);
+                                        }
+                                    }
+                                }
                             }
+                        }
+                    } else if constexpr (N == 5) {
+                        #pragma omp for collapse(4)
+                        for (Index i = 0; i < shape[0]; ++i) {
+                            for (Index j = 0; j < shape[1]; ++j) {
+                                for (Index k = 0; k < shape[2]; ++k) {
+                                    for (Index l = 0; l < shape[3]; ++l) {
+                                        interface::init(ci, op, i, j, k, l);
+                                        auto local = reduced;
+                                        for (Index m = 0; m < shape[4]; ++m)
+                                            interface::call(ci, op, input, local, i, j, k, l, m);
+                                        interface::deinit(ci, op, i, j, k, l);
+                                        interface::post(op, local, output, i, j, k, l);
+                                    }
+                                }
+                            }
+                        }
+                    } else if constexpr (N == 4) {
+                        #pragma omp for collapse(3)
+                        for (Index i = 0; i < shape[0]; ++i) {
+                            for (Index j = 0; j < shape[1]; ++j) {
+                                for (Index k = 0; k < shape[2]; ++k) {
+                                    interface::init(ci, op, i, j, k);
+                                    auto local = reduced;
+                                    for (Index l = 0; l < shape[3]; ++l)
+                                        interface::call(ci, op, input, local, i, j, k, l);
+                                    interface::deinit(ci, op, i, j, k);
+                                    interface::post(op, local, output, i, j, k);
+                                }
+                            }
+                        }
+                    } else if constexpr (N == 3) {
+                        #pragma omp for collapse(2)
+                        for (Index i = 0; i < shape[0]; ++i) {
+                            for (Index j = 0; j < shape[1]; ++j) {
+                                interface::init(ci, op, i, j);
+                                auto local = reduced;
+                                for (Index k = 0; k < shape[2]; ++k)
+                                    interface::call(ci, op, input, local, i, j, k);
+                                interface::deinit(ci, op, i, j);
+                                interface::post(op, local, output, i, j);
+                            }
+                        }
+                    } else if constexpr (N == 2) {
+                        #pragma omp for
+                        for (Index i = 0; i < shape[0]; ++i) {
+                            interface::init(ci, op, i);
+                            auto local = reduced;
+                            for (Index j = 0; j < shape[1]; ++j)
+                                interface::call(ci, op, input, local, i, j);
+                            interface::deinit(ci, op, i);
+                            interface::post(op, local, output, i);
                         }
                     }
                 } else {
                     static_assert(nt::always_false<Op>);
                 }
-            }
-        }
-
-        template<i32 MODE, typename Op, typename Input, typename Reduced, typename Output, typename Index>
-        NOA_NOINLINE static constexpr void serial(
-            const Shape<Index, 4>& shape, Op op,
-            Input input, Reduced reduced, Output output
-        ) {
-            if constexpr (MODE == 1) {
-                constexpr auto ci = ComputeHandle<Index, false>{};
-                for (Index i = 0; i < shape[0]; ++i) {
-                    for (Index j = 0; j < shape[1]; ++j) {
-                        for (Index k = 0; k < shape[2]; ++k) {
-                            interface::init(ci, op, i, j, k);
-                            auto local = reduced;
-                            for (Index l = 0; l < shape[3]; ++l)
-                                interface::call(ci, op, input, local, i, j, k, l);
-                            interface::deinit(ci, op, i, j, k);
-                            interface::post(op, local, output, i, j, k);
-                        }
-                    }
-                }
-            } else {
-                static_assert(nt::always_false<Op>);
             }
         }
     };
@@ -150,14 +195,14 @@ namespace noa::cpu {
     };
 
     template<typename Config = ReduceAxesEwiseConfig<>,
-             typename Op, typename Input, typename Reduced, typename Output, typename Index>
-    requires (nt::tuple_of_accessor_nd<std::decay_t<Input>, 4> and
+             typename Op, typename Input, typename Reduced, typename Output, typename Index, usize N>
+    requires (nt::tuple_of_accessor_nd<std::decay_t<Input>, N> and
               not nt::tuple_of_accessor_value<std::decay_t<Input>> and // at least one varray
-              nt::tuple_of_accessor_pure_nd<std::decay_t<Output>, 4> and
+              nt::tuple_of_accessor_pure_nd<std::decay_t<Output>, N> and
               nt::tuple_of_accessor_value_or_empty<std::decay_t<Reduced>>)
     NOA_NOINLINE constexpr void reduce_axes_ewise(
-        const Shape<Index, 4>& input_shape,
-        const Shape<Index, 4>& output_shape,
+        const Shape<Index, N>& input_shape,
+        const Shape<Index, N>& output_shape,
         Op&& op,
         Input&& input,
         Reduced&& reduced,
@@ -166,155 +211,135 @@ namespace noa::cpu {
     ) {
         using reduce_axes_ewise_t = details::ReduceAxesEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
         const auto axes_to_reduce = input_shape.cmp_ne(output_shape);
-        check((axes_to_reduce and output_shape.cmp_ne(1)) == false,
-              "Dimensions should match the input shape, or be 1, "
-              "indicating the dimension should be reduced to one element. "
-              "Got shape input={}, output={}", input_shape, output_shape);
-        check(axes_to_reduce.any_eq(true),
-              "No reduction to compute. Got shape input={}, output={}. Please use ewise instead.",
-              input_shape, output_shape);
-
-        const bool are_aliased = not nt::enable_vectorization_v<Op> and nd::are_accessors_aliased(input, output);
         const auto axes_empty_or_to_reduce = output_shape.cmp_eq(1) or axes_to_reduce;
-        if (axes_empty_or_to_reduce == true) { // reduce to a single value
-            // Reduce to a single value.
-            constexpr auto to_1d = nd::AccessorConfig<1>{.enforce_contiguous=true, .filter={0}};
-            auto output_1d = nd::reconfig_accessors<to_1d>(output);
-            return reduce_ewise(
+
+        // Reduce all dimensions into a single value.
+        if (axes_empty_or_to_reduce == true) {
+            // The output has a single value, so its stride doesn't matter, and taking any axis works.
+            auto output_1d = nd::reconfig_accessors<nd::AccessorConfig{.enforce_contiguous = true}>(output, 0);
+            reduce_ewise(
                 input_shape,
                 std::forward<Op>(op),
                 std::forward<Input>(input),
                 std::forward<Reduced>(reduced),
-                output_1d, n_threads);
-
-        } else if (axes_empty_or_to_reduce.pop_front() == true) { // reduce to one value per batch
-            const auto n_batches = output_shape[0];
-            const auto n_elements_to_reduce = input_shape.pop_front().template as<isize>().n_elements();
-            const bool is_contiguous = nd::accessors_contiguity(input, input_shape).pop_front() == true;
-            const auto actual_n_threads = min(clamp_cast<i32>(n_batches), n_threads);
-
-            const auto shape_2d = Shape<Index, 2>{n_batches, n_elements_to_reduce};
-            constexpr auto contiguous_restrict_2d = nd::AccessorConfig<2>{
-                .enforce_contiguous = true,
-                .enforce_restrict = true,
-                .filter = {0, 3},
-            };
-
-            // Extract the batch from the output(s).
-            auto output_1d = nd::reconfig_accessors
-                <nd::AccessorConfig<1>{.filter = {0}}>
-                (std::forward<Output>(output));
-
-            if (n_elements_to_reduce > Config::n_elements_per_thread and clamp_cast<i32>(n_batches) < n_threads) {
-                if (is_contiguous and not are_aliased) {
-                    auto input_2d = nd::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
-                    reduce_axes_ewise_t::template parallel<3>(
-                        shape_2d,
-                        std::forward<Op>(op),
-                        std::move(input_2d),
-                        std::forward<Reduced>(reduced),
-                        std::move(output_1d),
-                        actual_n_threads);
-                } else {
-                    reduce_axes_ewise_t::template parallel<3>(
-                        input_shape,
-                        std::forward<Op>(op),
-                        std::forward<Input>(input),
-                        std::forward<Reduced>(reduced),
-                        std::move(output_1d),
-                        actual_n_threads);
-                }
-            } else {
-                if (is_contiguous and not are_aliased) {
-                    auto input_2d = nd::reconfig_accessors<contiguous_restrict_2d>(std::forward<Input>(input));
-                    reduce_axes_ewise_t::template parallel<2>(
-                        shape_2d,
-                        std::forward<Op>(op),
-                        std::move(input_2d),
-                        std::forward<Reduced>(reduced),
-                        std::move(output_1d),
-                        actual_n_threads);
-                } else {
-                    reduce_axes_ewise_t::template parallel<2>(
-                        input_shape,
-                        std::forward<Op>(op),
-                        std::forward<Input>(input),
-                        std::forward<Reduced>(reduced),
-                        std::move(output_1d),
-                        actual_n_threads);
-                }
-            }
+                output_1d, n_threads
+            );
             return;
         }
+        NOA_ASSERT(N != 1);
 
-        const i32 nb_axes_to_reduce = sum(axes_to_reduce.template as<i32>());
-        check(nb_axes_to_reduce == 1,
-              "Reducing more than one axis at a time is currently limited to a reduction that would "
-              "result in one value per batch, i.e. the DHW dimensions should empty after reduction. "
-              "Got input_shape={}, output_shape={}, axes_to_reduce={}",
-              input_shape, output_shape, axes_to_reduce);
-
-        // First copy|move the input and output since they'll need to be reordered.
-        auto input_ = std::forward<Input>(input);
-        auto output_ = std::forward<Output>(output);
-
-        // Move the reduced dimension to the rightmost dimension.
-        const auto order = noa::squeeze_empty_dimensions_left(axes_to_reduce.template as<i32>() + 1);
-        auto reordered_shape = input_shape.permute(order);
-        if (order != Vec{0, 1, 2, 3}) {
-            input_.for_each([&order](auto& accessor) { accessor = accessor.permute(order); });
-            output_.for_each([&order](auto& accessor) { accessor = accessor.permute(order); });
-        }
-
-        auto output_3d = nd::reconfig_accessors
-            <nd::AccessorConfig<3>{.filter={0, 1, 2}}>
-            (std::move(output_));
-
-        // This function distributes the threads on the dimensions that are not reduced.
-        // In other words, the reduction is done by the same thread.
-        const isize n_iterations = reordered_shape.pop_back().template as<isize>().n_elements();
-        const i32 actual_n_threads = n_iterations > 1024 ? n_threads : 1; // TODO Improve this heuristic
-        const bool is_contiguous = nd::accessors_contiguity(input_, reordered_shape)[3];
-
-        if (is_contiguous and not are_aliased) {
-            constexpr auto contiguous_restrict = nd::AccessorConfig<0>{
-                .enforce_contiguous = true,
-                .enforce_restrict = true,
-            };
-            auto contiguous_input = nd::reconfig_accessors<contiguous_restrict>(std::move(input_));
-            if (actual_n_threads > 1) {
-                reduce_axes_ewise_t::template parallel<1>(
-                    reordered_shape,
-                    std::forward<Op>(op),
-                    std::move(contiguous_input),
-                    std::forward<Reduced>(reduced),
-                    std::move(output_3d),
-                    actual_n_threads);
-            } else {
-                reduce_axes_ewise_t::template serial<1>(
-                    reordered_shape,
-                    std::forward<Op>(op),
-                    std::move(contiguous_input),
-                    std::forward<Reduced>(reduced),
-                    std::move(output_3d));
+        if constexpr (N >= 2) {
+            // Find the first non-empty axis.
+            usize first_non_empty{N - 1};
+            for (usize i = 0; i < N - 1; ++i) {
+                if (input_shape[i] > 1) {
+                    first_non_empty = i;
+                    break;
+                }
             }
-        } else {
-            if (actual_n_threads > 1) {
-                reduce_axes_ewise_t::template parallel<1>(
-                    reordered_shape,
-                    std::forward<Op>(op),
-                    std::move(input_),
-                    std::forward<Reduced>(reduced),
-                    std::move(output_3d),
-                    actual_n_threads);
-            } else {
-                reduce_axes_ewise_t::template serial<1>(
-                    reordered_shape,
-                    std::forward<Op>(op),
-                    std::move(input_),
-                    std::forward<Reduced>(reduced),
-                    std::move(output_3d));
+
+            // Batch reduction is when all axes after first non-empty axis are empty or reduced.
+            bool batched_reduction{true};
+            for (usize i = first_non_empty + 1; i < N; ++i)
+                if (not axes_empty_or_to_reduce[i])
+                    batched_reduction = false;
+
+            if (batched_reduction) {
+                const auto n_reductions = output_shape[first_non_empty];
+                const auto actual_n_threads = min(clamp_cast<i32>(n_reductions), n_threads);
+                isize n_elements_per_reduction{1};
+                for (usize i = first_non_empty + 1; i < N; ++i)
+                    n_elements_per_reduction *= static_cast<isize>(input_shape[i]);
+
+                auto output_1d = nd::reconfig_accessors(std::forward<Output>(output), first_non_empty);
+                const bool parallel_reduction =
+                    n_elements_per_reduction > Config::n_elements_per_thread and
+                    clamp_cast<i32>(n_reductions) < n_threads;
+
+                // Optimize for 2d case.
+                const bool is_2d = first_non_empty == N - 2;
+                const auto shape_2d = Shape<Index, 2>{n_reductions, n_elements_per_reduction};
+                constexpr auto CONTIGUOUS_RESTRICT_2D = nd::AccessorConfig<2>{
+                    .enforce_contiguous = true,
+                    .enforce_restrict = true,
+                };
+
+                // SAFETY: If the operator has enabled vectorization, this function de facto
+                // assumes that the none of inputs and outputs are not aliasing.
+                const bool is_restrict =
+                    nt::enable_vectorization_v<Op> or
+                    not nd::are_accessors_aliased(input, output);
+
+                if (parallel_reduction) {
+                    if (is_2d and is_restrict) {
+                        auto input_2d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT_2D>(
+                            std::forward<Input>(input), N - 2, N - 1);
+                        reduce_axes_ewise_t::template run<3>(
+                            shape_2d,
+                            std::forward<Op>(op),
+                            std::move(input_2d),
+                            std::forward<Reduced>(reduced),
+                            std::move(output_1d),
+                            actual_n_threads);
+                    } else {
+                        reduce_axes_ewise_t::template run<3>(
+                            input_shape,
+                            std::forward<Op>(op),
+                            std::forward<Input>(input),
+                            std::forward<Reduced>(reduced),
+                            std::move(output_1d),
+                            actual_n_threads);
+                    }
+                } else {
+                    if (is_2d and is_restrict) {
+                        auto input_2d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT_2D>(
+                            std::forward<Input>(input), N - 2, N - 1);
+                        reduce_axes_ewise_t::template run<2>(
+                            shape_2d,
+                            std::forward<Op>(op),
+                            std::move(input_2d),
+                            std::forward<Reduced>(reduced),
+                            std::move(output_1d),
+                            actual_n_threads);
+                    } else {
+                        reduce_axes_ewise_t::template run<2>(
+                            input_shape,
+                            std::forward<Op>(op),
+                            std::forward<Input>(input),
+                            std::forward<Reduced>(reduced),
+                            std::move(output_1d),
+                            actual_n_threads);
+                    }
+                }
+                return;
             }
+            NOA_ASSERT(sum(axes_to_reduce.template as<i32>()) == 1);
+
+            // Single axis reduction.
+            // First copy|move the input and output since they'll need to be reordered.
+            auto input_ = std::forward<Input>(input);
+            auto output_ = std::forward<Output>(output);
+
+            // Move the reduced dimension to the rightmost dimension (width).
+            const auto order = noa::squeeze_empty_dimensions_left(axes_to_reduce.template as<i32>() + 1);
+            auto reordered_shape = input_shape.permute(order);
+            if (order != Vec<i32, N>::arange())
+                nd::permute_accessors(order, input_, output_);
+
+            // Exclude the reduced width from the output.
+            auto output_nd = nd::reconfig_accessors(std::move(output_), Vec<usize, N - 1>::arange());
+
+            // Single-threaded reductions while distributing reductions across threads.
+            const auto n_reductions = reordered_shape.pop_back().template as<isize>().n_elements();
+            const auto actual_n_threads = min(clamp_cast<i32>(n_reductions), n_threads);
+            reduce_axes_ewise_t::template run<1>(
+                reordered_shape,
+                std::forward<Op>(op),
+                std::move(input_),
+                std::forward<Reduced>(reduced),
+                std::move(output_nd),
+                actual_n_threads
+            );
         }
     }
 }

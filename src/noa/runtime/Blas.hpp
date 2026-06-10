@@ -135,6 +135,10 @@ namespace noa {
         check(not lhs.is_empty() and not rhs.is_empty() and not output.is_empty(), "Empty array detected");
         check(not are_overlapped(lhs, output) and not are_overlapped(rhs, output),
               "Input and output arrays should not overlap");
+        check(lhs.shape()[1] == 1 and rhs.shape()[1] == 1 and output.shape()[1] == 1,
+              "Only 2d matrices are supported, but got shape lhs:shape={}, rhs:shape={} and output:shape={}",
+              lhs.shape(), rhs.shape(), output.shape()
+        );
 
         const Device device = output.device();
         check(device == lhs.device() and device == rhs.device(),
@@ -152,20 +156,20 @@ namespace noa {
                 o = std::forward<Output>(output)
             ] {
                 noa::cpu::matmul(
-                    l.get(), l.strides(), l.shape(),
-                    r.get(), r.strides(), r.shape(),
+                    l.get(), l.strides().filter(0, 2, 3), l.shape().filter(0, 2, 3),
+                    r.get(), r.strides().filter(0, 2, 3), r.shape().filter(0, 2, 3),
                     options.alpha, options.beta, options.lhs_transpose, options.rhs_transpose,
-                    o.get(), o.strides(), o.shape(),
+                    o.get(), o.strides().filter(0, 2, 3), o.shape().filter(0, 2, 3),
                     n_threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
             noa::cuda::matmul(
-                lhs.get(), lhs.strides(), lhs.shape(),
-                rhs.get(), rhs.strides(), rhs.shape(),
+                lhs.get(), lhs.strides().filter(0, 2, 3), lhs.shape().filter(0, 2, 3),
+                rhs.get(), rhs.strides().filter(0, 2, 3), rhs.shape().filter(0, 2, 3),
                 options.alpha, options.beta, options.lhs_transpose, options.rhs_transpose,
-                output.get(), output.strides(), output.shape(),
+                output.get(), output.strides().filter(0, 2, 3), output.shape().filter(0, 2, 3),
                 cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), std::forward<Output>(output));
             #else

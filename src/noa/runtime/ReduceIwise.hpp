@@ -194,14 +194,8 @@ namespace noa::details {
         Reduced&& reduced,
         Output&& outputs
     ) {
-        []<typename... T>(nt::TypeList<T...>){
-            static_assert(((not nt::varray<std::remove_reference_t<T>>) and ...),
-                          "The initial reduced or the output values should not be varrays");
-            static_assert(((not std::is_const_v<std::remove_reference_t<T>>) and ...),
-                          "The initial reduced or the output values should not be const qualified");
-        }(nt::type_list_t<Reduced>{} + nt::type_list_t<Output>{});
-
-        Tuple reduced_accessors = details::to_tuple_of_accessors(std::forward<Reduced>(reduced));
+        static_assert(nd::are_all_not_arrays_and_mutable<Reduced, Output>(), "The initial reduction and output values should be mutable and not arrays");
+        Tuple reduced_accessors = details::to_tuple_of_accessor_values(std::forward<Reduced>(reduced));
         Stream& stream = Stream::current(device);
 
         if constexpr (OPTIONS.generate_cpu) {

@@ -30,7 +30,26 @@ namespace noa::cpu::details {
                 constexpr auto ci = ComputeHandle<Index, true>{};
                 interface::init(ci, op);
 
-                if constexpr (N == 4) {
+                if constexpr (N == 6) {
+                    #pragma omp for collapse(6)
+                    for (Index i = 0; i < shape[0]; ++i)
+                        for (Index j = 0; j < shape[1]; ++j)
+                            for (Index k = 0; k < shape[2]; ++k)
+                                for (Index l = 0; l < shape[3]; ++l)
+                                    for (Index m = 0; m < shape[4]; ++m)
+                                        for (Index n = 0; n < shape[5]; ++n)
+                                            interface::call(ci, op, i, j, k, l, m, n);
+
+                } else if constexpr (N == 5) {
+                    #pragma omp for collapse(5)
+                    for (Index i = 0; i < shape[0]; ++i)
+                        for (Index j = 0; j < shape[1]; ++j)
+                            for (Index k = 0; k < shape[2]; ++k)
+                                for (Index l = 0; l < shape[3]; ++l)
+                                    for (Index m = 0; m < shape[4]; ++m)
+                                        interface::call(ci, op, i, j, k, l, m);
+
+                } else if constexpr (N == 4) {
                     #pragma omp for collapse(4)
                     for (Index i = 0; i < shape[0]; ++i)
                         for (Index j = 0; j < shape[1]; ++j)
@@ -67,7 +86,24 @@ namespace noa::cpu::details {
             constexpr auto ci = ComputeHandle<Index, false>{};
             interface::init(ci, op);
 
-            if constexpr (N == 4) {
+            if constexpr (N == 6) {
+                for (Index i = 0; i < shape[0]; ++i)
+                    for (Index j = 0; j < shape[1]; ++j)
+                        for (Index k = 0; k < shape[2]; ++k)
+                            for (Index l = 0; l < shape[3]; ++l)
+                                for (Index m = 0; m < shape[4]; ++m)
+                                    for (Index n = 0; n < shape[5]; ++n)
+                                        interface::call(ci, op, i, j, k, l, m, n);
+
+            } else if constexpr (N == 5) {
+                for (Index i = 0; i < shape[0]; ++i)
+                    for (Index j = 0; j < shape[1]; ++j)
+                        for (Index k = 0; k < shape[2]; ++k)
+                            for (Index l = 0; l < shape[3]; ++l)
+                                for (Index m = 0; m < shape[4]; ++m)
+                                    interface::call(ci, op, i, j, k, l, m);
+
+            } else if constexpr (N == 4) {
                 for (Index i = 0; i < shape[0]; ++i)
                     for (Index j = 0; j < shape[1]; ++j)
                         for (Index k = 0; k < shape[2]; ++k)

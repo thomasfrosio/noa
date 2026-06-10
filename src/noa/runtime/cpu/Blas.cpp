@@ -28,15 +28,18 @@
 namespace noa::cpu {
     template<typename T>
     void matmul(
-        const T* lhs, const Strides4& lhs_strides, const Shape4& lhs_shape,
-        const T* rhs, const Strides4& rhs_strides, const Shape4& rhs_shape,
+        const T* lhs, const Strides3& lhs_strides, const Shape3& lhs_shape,
+        const T* rhs, const Strides3& rhs_strides, const Shape3& rhs_shape,
         T alpha, T beta, bool lhs_transpose, bool rhs_transpose,
-        T* output, const Strides4& output_strides, const Shape4& output_shape,
+        T* output, const Strides3& output_strides, const Shape3& output_shape,
         isize n_threads
     ) {
         auto [mnk, labc, are_column_major] = nd::extract_matmul_layout(
-            lhs_strides, lhs_shape, rhs_strides, rhs_shape, output_strides, output_shape,
-            lhs_transpose, rhs_transpose);
+            lhs_strides.pop_front<1>(), lhs_shape.pop_front<1>(),
+            rhs_strides.pop_front<1>(), rhs_shape.pop_front<1>(),
+            output_strides.pop_front<1>(), output_shape.pop_front<1>(),
+            lhs_transpose, rhs_transpose
+        );
         auto sabc = Strides{lhs_strides[0], rhs_strides[0], output_strides[0]};
 
         // We use column major matrices in Eigen, so if the inputs are row-major, we need to compute B.T @ A.T = C.T
@@ -104,10 +107,10 @@ namespace noa::cpu {
 
     #define INSTANTIATE_GEMM_(T)                  \
     template void matmul<T>(                      \
-        const T*, const Strides4&, const Shape4&, \
-        const T*, const Strides4&, const Shape4&, \
+        const T*, const Strides3&, const Shape3&, \
+        const T*, const Strides3&, const Shape3&, \
         T, T, bool, bool,                         \
-        T*, const Strides4&, const Shape4&,       \
+        T*, const Strides3&, const Shape3&,       \
         isize)
 
     INSTANTIATE_GEMM_(f32);

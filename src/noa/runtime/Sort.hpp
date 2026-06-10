@@ -10,6 +10,8 @@
 #include "noa/runtime/Stream.hpp"
 #include "noa/runtime/Traits.hpp"
 
+// TODO expose backend allocation
+
 namespace noa {
     struct SortOptions {
         /// Whether to sort in ascending or descending order.
@@ -26,14 +28,31 @@ namespace noa {
     /// \note The sort algorithms make temporary copies of the data when sorting along any but the last axis.
     ///       Consequently, sorting along the last axis is faster and uses less memory than sorting along any
     ///       other axis.
-    template<nt::writable_varray_decay_of_scalar VArray>
+    template<nt::writable_array_decay_of_scalar VArray>
     void sort(VArray&& array, SortOptions options = {}) {
         check(not array.is_empty(), "Empty array detected");
+
+        if (options.axis == -1) {
+            // Set to the first non-empty dimension, starting from the right.
+            for (i32 i = 3; i >= 0; --i) {
+                if (array.shape()[i] > 1) {
+                    options.axis = i;
+                    break;
+                }
+            }
+        } else {
+            check(options.axis >= 0 and options.axis <= 3, "Invalid axis");
+        }
+        if (array.shape() == 1 or array.strides()[options.axis] == 0)
+            return; // nothing to sort
+
+        // TODO rightmost and collapse with group
+
         const Device device = array.device();
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            cpu_stream.enqueue([=, a = std::forward<VArray>(array)](){
+            cpu_stream.enqueue([=, a = std::forward<VArray>(array)]{
                 noa::cpu::sort(a.get(), a.strides(), a.shape(), options.ascending, options.axis);
             });
         } else {

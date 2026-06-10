@@ -10,7 +10,6 @@ namespace noa::cpu {
     // Fills an array to a given value.
     template<typename T>
     void fill(T* first, T* last, T value) {
-        // std::fill is calling memset, https://godbolt.org/z/1zEzTnoTK
         return std::fill(first, last, value);
     }
 
@@ -22,11 +21,11 @@ namespace noa::cpu {
     }
 
     // Fills an array with a given value.
-    template<typename T>
-    void fill(T* src, const Strides4& strides, const Shape4& shape, T value, isize n_threads) {
+    template<typename T, usize N>
+    void fill(T* src, const Strides<isize, N>& strides, const Shape<isize, N>& shape, T value, isize n_threads) {
         ewise(shape, Fill<T>{value},
               noa::make_tuple(),
-              noa::make_tuple(Accessor<T, 4>(src, strides)),
+              noa::make_tuple(Accessor<T, N, isize>(src, strides)),
               n_threads);
     }
 }

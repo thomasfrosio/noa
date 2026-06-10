@@ -44,8 +44,8 @@ namespace noa::details {
 
 namespace noa {
     /// Generic element-wise transformation.
-    /// \param[in,out] inputs:  Input varray(s) and/or values to transform.
-    /// \param[in,out] outputs: Output varray(s).
+    /// \param[in,out] inputs:  Input array(s) and/or values to transform.
+    /// \param[in,out] outputs: Output array(s).
     /// \param op:
     ///     Operator satisfying the ewise interface described below.
     ///     The operator is forwarded to the backend and ultimately copied to each compute thread.
@@ -63,29 +63,27 @@ namespace noa {
     /// \note Compared to iwise, this function can analyze the inputs and outputs to deduce the most efficient way to
     ///       traverse the arrays. For instance, it can reorder dimensions, collapse contiguous dimensions together
     ///       (up to 1d), and can trigger the vectorization for the 1d case by checking for data contiguity and aliasing.
-    ///       Note that because the compute interface allows the operator to write/read to the inputs/outputs and
-    ///       allows the inputs/outputs to alias each other, GPU vectorization is enabled only if the
-    ///       enable_vectorization<op> trait is true.
+    ///       Note that because we allow the operator to write/read to the inputs/outputs and allow the inputs/outputs
+    ///       to alias each other, vectorization is enabled only if the enable_vectorization<op> trait is true.
     ///
-    /// \note Views or Arrays (i.e. varrays) are supported and handled separately from other types. Varrays are
-    ///       converted and wrapped into a tuple of accessors, and sent to the backends' ewise functions. For
+    /// \note Arrays are supported and handled separately from other types. Arrays are converted and wrapped into a
+    ///       tuple of accessors and sent to the backends' ewise functions. For
     ///       asynchronous cases (async CPU stream or GPU), the shared handle of every Array (see Array::share())
     ///       is moved/copied and will be released (i.e. destructed) when the function finishes, thus ensuring
     ///       that the Array's resource stays alive during the processing. Other types (so everything that is not a
-    ///       varray) are moved/copied into an owning wrapper (AccessorValue). The stored value is passed by (const)
+    ///       array) are moved/copied into an owning wrapper (AccessorValue). The stored value is passed by (const)
     ///       lvalue reference to the operator. No other actions are performed on these types, so it is the
     ///       responsibility of the caller to make sure these objects (and more specifically, the resources that they
     ///       may be pointing to) stay valid until completion.
     ///
-    /// \note \p inputs and \p outputs can be left empty, but note that there should be at least one varray
-    ///       (in either \p inputs or \p outputs), otherwise the function will not compile.
-    ///       If no outputs are provided, all varray inputs should have the same shape. If they do have the same
+    /// \note \p inputs and \p outputs can be left empty, but note that there should be at least one array
+    ///       (in either \p inputs or \p outputs) if either one is specified, otherwise the function will not compile.
+    ///       If no outputs are provided, all array inputs should have the same shape. If they do have the same
     ///       stride layout, they will be reordered to the rightmost layout for better performance.
-    ///       If outputs are provided, there should all be varrays with the same shape, have the same stride order
-    ///       and cannot be broadcast (strides of zeros are not allowed). In this case, the varray inputs will
-    ///       need to match the output shape or be broadcastable to the output shape. If the stride order of the
-    ///       outputs is not the rightmost order, output varrays are reordered to the rightmost order to maximize
-    ///       performance. Of course, this means that input varrays are reordered as well for correctness.
+    ///       If outputs are provided, there should all be arrays with the same shape and cannot be broadcast
+    ///       (strides of zeros are not allowed). In this case, the array inputs will need to match the output shape
+    ///       or be broadcastable to the output shape. If the outputs have the same strid order and if it is not the
+    ///       rightmost order, axes are reordered to the rightmost order.
     template<EwiseOptions OPTIONS = EwiseOptions{},
              typename Input = nd::AdaptorUnzip<>,
              typename Output = nd::AdaptorUnzip<>,
@@ -123,48 +121,39 @@ namespace noa::details {
         if constexpr (N_INPUTS == 0 and N_OUTPUTS == 0) {
             return; // valid, do nothing
         } else {
-            // While these are forwarded, varrays are actually never moved, it simply returns the .accessor().
-            // For anything other than varrays, it can be moved thus left in an unspecified state,
-            // i.e. we shouldn't read from these elements again.
-            Tuple input_accessors = details::to_tuple_of_accessors(std::forward<Inputs>(inputs));
-            Tuple output_accessors = details::to_tuple_of_accessors(std::forward<Outputs>(outputs));
+            // SAFETY: While these are forwarded, to_tuple_of_accessors doesn't actually move arrays.
+            // For anything other than arrays, however, objects can be moved, thus left in an unspecified state.
+            constexpr auto NDIM = nd::maximum_nd_axes_of_arrays<Inputs, Outputs>();
+            Tuple input_accessors = nd::to_tuple_of_accessors_nd<NDIM>(std::forward<Inputs>(inputs));
+            Tuple output_accessors = nd::to_tuple_of_accessors_nd<NDIM>(std::forward<Outputs>(outputs));
 
-            Shape4 shape;
+            Shape<isize, NDIM> shape;
             Device device;
-            Vec<isize, 4> order;
-            bool do_reorder{};
-
             if constexpr (N_OUTPUTS >= 1) {
-                if constexpr (details::are_all_varrays<Outputs>()) {
+                if constexpr (nd::are_all_arrays<Outputs>()) {
                     const auto& first_output = outputs[Tag<0>{}];
-                    shape = first_output.shape();
+                    shape = first_output.shape().template extend_front_to<NDIM>(1);
                     device = first_output.device();
-                    order = first_output.strides().rightmost_order(shape);
-                    do_reorder = order != Vec<isize, 4>{0, 1, 2, 3};
 
-                    outputs.for_each_enumerate([&]<usize I>(const nt::varray auto& output) {
+                    outputs.for_each_enumerate([&]<usize I>(const nt::array auto& output) {
                         check(not output.is_empty(), "Empty output array detected (index={})", I);
                         check(output.strides() > 0,
-                              "Output arrays cannot be broadcast, i.e. strides should not be 0, but got strides:{}={}",
+                              "Output arrays cannot be broadcast: strides should not be 0, but got strides:{}={}",
                               I, output.strides());
                         if constexpr (I > 0) {
                             check(device == output.device(),
                                   "Output arrays should be on the same device, but got device:0={} and device:{}={}",
                                   device, I, output.device());
-                            check(shape == output.shape(),
+                            const auto output_shape = output.shape().template extend_front_to<NDIM>(1);
+                            check(shape == output_shape,
                                   "Output arrays should have the same shape, but got shape:0={} and shape:{}={}",
-                                  shape, I, output.shape());
-                            check(order == output.strides().rightmost_order(shape),
-                                  "Output arrays should have the same stride order, but got strides:0={} and strides:{}={}",
-                                  first_output.strides(), I, output.strides());
+                                  shape, I, output_shape);
                         }
                     });
 
                     // Automatic broadcasting of the inputs.
-                    // "inputs" is used after forward, but as mentioned above "to_tuple_of_accessors"
-                    // doesn't actually move varrays and here we only read varrays.
                     input_accessors.for_each_enumerate([&inputs, &shape, &device]<usize I, typename T>(T& accessor) {
-                        if constexpr (nt::varray_decay<decltype(inputs[Tag<I>{}])>) {
+                        if constexpr (nt::array_decay<decltype(inputs[Tag<I>{}])>) {
                             static_assert(nt::accessor_pure<T>);
 
                             const auto& input = inputs[Tag<I>{}];
@@ -173,7 +162,7 @@ namespace noa::details {
                                   "Input arrays should be on the output device, but got device={} and input:{}:device={}",
                                   device, I, input.device());
 
-                            const auto& input_shape = input.shape();
+                            const auto input_shape = input.shape().template extend_front_to<NDIM>(1);
                             if (not broadcast(input_shape, accessor.strides(), shape)) {
                                 panic("Cannot broadcast an array of shape {} into an array of shape {}",
                                       input_shape, shape);
@@ -183,47 +172,35 @@ namespace noa::details {
                         }
                     });
                 } else {
-                    static_assert(nt::always_false<Outputs>, "The outputs should be varrays");
+                    static_assert(nt::always_false<Outputs>, "The outputs should be arrays");
                 }
             } else { // N_INPUTS >= 1
-                constexpr isize index_of_first_varray = details::index_of_first_varray<Inputs>();
-                if constexpr (index_of_first_varray >= 0) {
-                    constexpr auto INDEX = static_cast<usize>(index_of_first_varray);
+                constexpr isize INDEX_OF_FIRST_ARRAY = nd::index_of_first_array<Inputs>();
+                if constexpr (INDEX_OF_FIRST_ARRAY >= 0) {
+                    constexpr auto INDEX = static_cast<usize>(INDEX_OF_FIRST_ARRAY);
                     const auto& first_input_array = inputs[Tag<INDEX>{}];
-                    shape = first_input_array.shape();
+                    shape = first_input_array.shape().template extend_front_to<NDIM>(1);
                     device = first_input_array.device();
-                    order = first_input_array.strides().rightmost_order(shape);
-                    do_reorder = order != Vec<isize, 4>{0, 1, 2, 3};
 
                     inputs.for_each_enumerate([&]<usize I, typename T>(T& input) {
-                        if constexpr (nt::varray<T>)
+                        if constexpr (nt::array<T>)
                             check(not input.is_empty(), "Empty input array detected (index={})", I);
-                        if constexpr (I > INDEX and nt::varray<T>) {
+                        if constexpr (I > INDEX and nt::array<T>) {
                             check(device == input.device(),
                                   "Input arrays should be on the same device, but got device:0={} and device:{}={}",
                                   device, I, input.device());
-                            check(shape == input.shape(),
+                            const auto input_shape = input.shape().template extend_front_to<NDIM>(1);
+                            check(shape == input_shape,
                                   "Input arrays should have the same shape, but got shape:0={} and shape:{}={}",
-                                  shape, I, input.shape());
-
-                            // Only reorder if all the inputs have the same order.
-                            if (do_reorder)
-                                do_reorder = order == input.strides().rightmost_order(shape);
-                            // TODO Forcing the same order is okay, but may be a bit too restrictive since it effectively
-                            //      prevents automatic broadcasting (the caller can still explicitly broadcast though).
-                            //      We may instead find the input with the largest effective shape and use it as
-                            //      as reference for reordering the inputs?
+                                  shape, I, input_shape);
                         }
                     });
                 } else {
-                    static_assert(nt::always_false<Outputs>, "For cases with inputs but without outputs, there should be at least one input varray");
+                    static_assert(nt::always_false<Outputs>, "For cases with inputs but without outputs, there should be at least one input array");
                 }
             }
 
-            if (do_reorder) {
-                shape = shape.permute(order);
-                nd::permute_accessors(order, input_accessors, output_accessors);
-            }
+            nd::optimize_ewise_layout(shape, input_accessors, output_accessors);
 
             Stream& stream = Stream::current(device);
             if constexpr (OPTIONS.generate_cpu) {

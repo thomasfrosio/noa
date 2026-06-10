@@ -399,14 +399,14 @@ TEST_CASE("runtime::core:: Reinterpret") {
     const auto shape = test::random_shape<i64>(3, {.batch_range={1, 10}});
     auto strides = shape.strides();
     c32* ptr = nullptr;
-    auto real = noa::details::ReinterpretLayoutStrided<4, c32, i64>(shape, strides, ptr).as<float>();
+    auto real = noa::details::ReinterpretLayoutStrided<c32, 4, i64>(ptr, shape, strides).as<float>();
     REQUIRE(real.shape == Shape<i64, 4>{shape[0], shape[1], shape[2], shape[3] * 2});
     REQUIRE(real.strides == Strides<i64, 4>{strides[0] * 2, strides[1] * 2, strides[2] * 2, 1});
 
     // Reinterpret moves everything to the rightmost order,
     // compute the new shape and strides, then moves back to original order.
     strides = shape.strides<'F'>();
-    real = noa::details::ReinterpretLayoutStrided<4, c32, i64>(shape, strides, ptr).as<float>();
+    real = noa::details::ReinterpretLayoutStrided<c32, 4, i64>(ptr, shape, strides).as<float>();
     REQUIRE(real.shape == Shape<i64, 4>{shape[0], shape[1], shape[2] * 2, shape[3]});
     REQUIRE(real.strides == Strides<i64, 4>{strides[0] * 2, strides[1] * 2, 1, strides[3] * 2});
 }
@@ -479,7 +479,7 @@ TEST_CASE("runtime::core::reshape, broadcasting") {
     // Reshape contiguous array to a row vector.
     Strides<u64, 4> new_strides;
     auto new_shape = Shape<u64, 4>{1, 1, 1, product(shape1)};
-    bool success = noa::details::reshape(shape1, strides1, new_shape, new_strides);
+    bool success = noa::reshape(shape1, strides1, new_shape, new_strides);
     REQUIRE(success);
     REQUIRE(new_strides == new_shape.strides());
 
@@ -491,7 +491,7 @@ TEST_CASE("runtime::core::reshape, broadcasting") {
 
     // Reshape the broadcast array to a row vector.
     new_shape = {1, 1, 1, product(shape2)};
-    success = noa::details::reshape(shape2, strides2, new_shape, new_strides);
+    success = noa::reshape(shape2, strides2, new_shape, new_strides);
     REQUIRE(success);
     REQUIRE(new_strides == new_shape.strides());
 }
@@ -518,18 +518,16 @@ TEST_CASE("runtime::core::Subregion") {
 }
 
 TEST_CASE("runtime::core::collapse_dimensions") {
-    namespace nd = noa::details;
-
     constexpr auto shape = Shape4{11, 22, 33, 44};
     auto run = [&](const Strides4& strides) {
         const auto contiguity = strides.contiguity(shape);
         const auto broadcasting = strides.broadcasting(shape);
 
-        auto collapsed_shape = nd::collapse_contiguous_dimensions(shape, contiguity, broadcasting);
+        auto collapsed_shape = noa::collapse_contiguous_dimensions(shape, contiguity, broadcasting);
         collapsed_shape = collapsed_shape.permute(noa::squeeze_empty_dimensions_left(collapsed_shape));
 
         Strides4 collapsed_strides;
-        const bool worked = nd::reshape(shape, strides, collapsed_shape, collapsed_strides);
+        const bool worked = noa::reshape(shape, strides, collapsed_shape, collapsed_strides);
 
         INFO(shape);
         INFO(strides);

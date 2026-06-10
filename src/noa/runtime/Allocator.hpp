@@ -261,11 +261,11 @@ namespace noa::inline types {
         /// Similar to allocate, but for 4d shapes. If Allocator::PITCHED, the returned memory is optimized for
         /// efficient per-row access. This may be done at the cost of an extra padding of the rows to preserve the
         /// memory alignment. Of course, this padding is encoded in the returned strides.
-        template<typename T>
+        template<typename T, usize N>
         auto allocate_pitched(
-            const Shape4& shape,
+            const Shape<isize, N>& shape,
             const Device& device
-        ) -> Pair<std::shared_ptr<T[]>, Strides4> {
+        ) -> Pair<std::shared_ptr<T[]>, Strides<isize, N>> {
             switch (value) {
                 case Allocator::NONE:
                     return {};

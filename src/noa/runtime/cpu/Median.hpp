@@ -6,8 +6,8 @@
 #include "noa/runtime/cpu/Allocators.hpp"
 
 namespace noa::cpu {
-    template<typename T>
-    auto median(T* input, Strides4 strides, Shape4 shape, bool overwrite) {
+    template<typename T, usize N>
+    auto median(T* input, Strides<isize, N> strides, Shape<isize, N> shape, bool overwrite) {
         nd::permute_all_to_rightmost_order(strides, shape, strides, shape);
 
         const auto n_elements = shape.n_elements();

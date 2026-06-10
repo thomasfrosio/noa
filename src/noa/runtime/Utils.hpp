@@ -8,13 +8,48 @@
 #include "noa/runtime/Traits.hpp"
 
 namespace noa::details {
-    /// Extracts the accessors from the varrays in the tuple.
-    /// For types other than varrays, forward the object into an AccessorValue.
+    template<nt::tuple_decay... T>
+    [[nodiscard]] consteval auto maximum_nd_axes_of_arrays() {
+        usize max_size{0};
+        ([&]<typename... U>(nt::TypeList<U...>) {
+            ((max_size = std::max(max_size, std::remove_reference_t<U>::SIZE)), ...);
+        }(nt::type_list_t<T>{}), ...);
+        return max_size;
+    }
+    template<nt::array_decay... T>
+    [[nodiscard]] consteval auto maximum_nd_axes_of_arrays() {
+        usize max_size{0};
+        ((max_size = std::max(max_size, std::remove_reference_t<T>::SIZE)), ...);
+        return max_size;
+    }
+
+    /// Extracts the accessors from the arrays in the tuple.
+    /// For types other than arrays, forward the object into an AccessorValue.
     template<bool EnforceConst = false, nt::tuple_decay T>
     [[nodiscard]] constexpr auto to_tuple_of_accessors(T&& tuple) {
         return std::forward<T>(tuple).map([]<typename U>(U&& v) {
-            if constexpr (nt::varray_decay<U>) {
+            if constexpr (nt::array_decay<U>) {
                 return to_accessor<AccessorConfig{.enforce_const = EnforceConst}>(v);
+            } else {
+                return to_accessor_value<EnforceConst>(std::forward<U>(v));
+            }
+        });
+    }
+    template<usize N, bool EnforceConst = false, nt::tuple_decay T>
+    [[nodiscard]] constexpr auto to_tuple_of_accessors_nd(T&& tuple) {
+        return std::forward<T>(tuple).map([]<typename U>(U&& v) {
+            if constexpr (nt::array_decay<U>) {
+                return to_accessor<AccessorConfig{.enforce_const = EnforceConst, .minimum_nd_axes = N}>(v);
+            } else {
+                return to_accessor_value<EnforceConst>(std::forward<U>(v));
+            }
+        });
+    }
+    template<bool EnforceConst = false, nt::tuple_decay T>
+    [[nodiscard]] constexpr auto to_tuple_of_accessor_values(T&& tuple) {
+        return std::forward<T>(tuple).map([]<typename U>(U&& v) {
+            if constexpr (nt::array_decay<U>) {
+                static_assert(nt::always_false<U>);
             } else {
                 return to_accessor_value<EnforceConst>(std::forward<U>(v));
             }
@@ -22,10 +57,32 @@ namespace noa::details {
     }
 
     template<typename Tup>
-    [[nodiscard]] constexpr bool are_all_varrays() {
+    [[nodiscard]] consteval bool are_all_arrays() {
         return []<typename... T>(nt::TypeList<T...>) {
-            return nt::varray_decay<T...>;
+            return nt::array_decay<T...>;
         }(nt::type_list_t<Tup>{});
+    }
+
+    template<typename Tup>
+    [[nodiscard]] consteval bool are_all_arrays_of_same_nd() {
+        return []<typename... T>(nt::TypeList<T...>) {
+            return nt::array_decay_with_same_nd<T...>;
+        }(nt::type_list_t<Tup>{});
+    }
+
+    template<typename Tup, usize... N>
+    [[nodiscard]] consteval bool are_all_arrays_nd() {
+        return []<typename... T>(nt::TypeList<T...>) {
+            return ((nt::array_decay_nd<T, N...>) and ...);
+        }(nt::type_list_t<Tup>{});
+    }
+
+    template<typename... Tup>
+    [[nodiscard]] consteval bool are_all_not_arrays_and_mutable() {
+        return []<typename... T>(nt::TypeList<T...>) {
+            return ((not nt::array<std::remove_reference_t<T>>) and ...) and
+                   ((not std::is_const_v<std::remove_reference_t<T>>) and ...);
+        }((nt::type_list_t<Tup>{} + ...));
     }
 
     template<typename Tup>
@@ -38,10 +95,10 @@ namespace noa::details {
     /// Returns the index of the first varray in the tuple.
     /// Returns -1 if there's no varray in the tuple.
     template<nt::tuple_decay T>
-    [[nodiscard]] constexpr isize index_of_first_varray() {
+    [[nodiscard]] constexpr isize index_of_first_array() {
         isize index{-1};
         auto is_varray = [&]<usize I>() {
-            if constexpr (nt::varray_decay<decltype(std::declval<T>()[Tag<I>{}])>) {
+            if constexpr (nt::array_decay<decltype(std::declval<T>()[Tag<I>{}])>) {
                 index = I;
                 return true;
             }
@@ -70,7 +127,7 @@ namespace noa::details {
     template<nt::tuple_decay T>
     [[nodiscard]] auto extract_shared_handle_from_arrays(T&& tuple) {
         return std::forward<T>(tuple).map([]<typename U>(U&& value) {
-            if constexpr (nt::array_decay<U>) {
+            if constexpr (nt::array_rc_decay<U>) {
                 return std::forward<U>(value).share();
             } else {
                 return Empty{};
@@ -92,7 +149,7 @@ namespace noa::details {
         return true;
     }
     template<typename Int, typename T, typename I, usize N>
-        requires (nt::accessor_nd<T, N> or (nt::varray<T> and N == 4 and nt::same_as<I, isize>))
+        requires (nt::accessor_nd<T, N> or (nt::array<T> and nt::same_as<I, isize>))
     [[nodiscard]] constexpr bool is_accessor_access_safe(const T& input, const Shape<I, N>& shape) {
         return is_accessor_access_safe<Int>(input.strides_full(), shape);
     }
@@ -102,12 +159,12 @@ namespace noa::details {
         return true;
     }
 
-    template<nt::varray_decay Input, nt::varray_decay Output>
+    template<nt::array_decay Input, nt::array_decay Output>
     [[nodiscard]] auto broadcast_strides(
         const Input& input,
         const Output& output,
         std::source_location location = std::source_location::current()
-    ) -> Strides<isize, 4> {
+    ) {
         auto input_strides = input.strides();
         if (not broadcast(input.shape(), input_strides, output.shape())) {
             panic_at_location(location, "Cannot broadcast an array of shape {} into an array of shape {}",
@@ -116,12 +173,12 @@ namespace noa::details {
         return input_strides;
     }
 
-    template<nt::varray_decay Input, nt::varray_decay Output>
+    template<nt::array_decay Input, nt::array_decay Output>
     [[nodiscard]] auto broadcast_strides_optional(
         const Input& input,
         const Output& output,
         std::source_location location = std::source_location::current()
-    ) -> Strides<isize, 4> {
+    ) {
         auto input_strides = input.strides();
         if (not input.is_empty() and not broadcast(input.shape(), input_strides, output.shape())) {
             panic_at_location(location, "Cannot broadcast an array of shape {} into an array of shape {}",
@@ -138,7 +195,7 @@ namespace noa::details {
                 return nd::BatchedParameter<Empty>{};
             else
                 static_assert(nt::always_false<T>);
-        } else if constexpr (nt::varray<T>) {
+        } else if constexpr (nt::array<T>) {
             NOA_ASSERT(value.is_contiguous());
             return nd::BatchedParameter<value_t*>{value.get()};
         } else {
@@ -146,7 +203,7 @@ namespace noa::details {
         }
     }
 
-    template<nt::varray_decay... T>
+    template<nt::array_decay... T>
     constexpr bool are_arrays_valid(const T&... inputs) {
         return (not inputs.is_empty() and ...);
     }

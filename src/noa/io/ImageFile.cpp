@@ -913,7 +913,7 @@ namespace noa::io {
 
         check(bd_offset[1] == 0, "Can only read 2d slice(s), but asked to read with bd_offset={}", bd_offset);
 
-        const auto output_3d = output.as<std::byte, 3>().reshape({b, m_shape[1], m_shape[2] * n_bytes_per_elements});
+        const auto output_3d = output.as<std::byte, 3>().reshape(Shape{b, m_shape[1], m_shape[2] * n_bytes_per_elements});
         decode_(file, output_3d, output_dtype, start, end, clamp, n_threads);
     }
 
@@ -1088,7 +1088,7 @@ namespace noa::io {
 
         check(bd_offset[1] == 0, "Can only read 2d slice(s), but asked to read with bd_offset={}", bd_offset);
 
-        const auto input_3d = input.as<const std::byte, 3>().reshape({b, m_shape[1], m_shape[2] * n_bytes_per_elements});
+        const auto input_3d = input.as<const std::byte, 3>().reshape(Shape{b, m_shape[1], m_shape[2] * n_bytes_per_elements});
         encode_(file, input_3d, input_dtype, start, end, clamp, n_threads);
     }
 

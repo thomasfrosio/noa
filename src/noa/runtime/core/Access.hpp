@@ -216,8 +216,9 @@ namespace noa {
         return out;
     }
 
-    /// Returns the 2d rightmost indexes corresponding to
-    /// the given memory offset in a contiguous layout.
+    /// Returns the 2D rightmost HW indices corresponding to the given memory offset in a contiguous layout.
+    /// \param offset   Linear memory offset.
+    /// \param size     W size.
     template<nt::integer T>
     [[nodiscard]] NOA_HD constexpr auto offset2index(T offset, T size) noexcept -> Vec<T, 2> {
         NOA_ASSERT(size > 0);
@@ -226,38 +227,104 @@ namespace noa {
         return {i0, i1};
     }
 
-    /// Returns the 3d rightmost indexes corresponding to
-    /// the given memory offset in a contiguous layout.
+    /// Returns the 3D rightmost DHW indices corresponding to the given memory offset in a contiguous layout.
     /// \param offset   Linear memory offset.
-    /// \param s0,s1    DH sizes.
+    /// \param s0,s1    HW sizes.
     template<nt::integer T>
     [[nodiscard]] NOA_HD constexpr auto offset2index(T offset, T s0, T s1) noexcept -> Vec<T, 3> {
         NOA_ASSERT(s0 > 0 and s1 > 0);
-        const auto i0 = offset / (s0 * s1);
-        offset -= i0 * s0 * s1;
+        const auto s01 = s0 * s1;
+        const auto i0 = offset / s01;
+        offset -= i0 * s01;
         const auto i1 = offset / s1;
         offset -= i1 * s1;
         return {i0, i1, offset};
     }
 
-    /// Returns the 4D rightmost indexes corresponding to
-    /// the given memory offset in a contiguous layout.
+    /// Returns the 4D rightmost BDHW indices corresponding to the given memory offset in a contiguous layout.
     /// \param offset   Linear memory offset.
     /// \param s0,s1,s2 DHW sizes.
     template<nt::integer T>
     [[nodiscard]] NOA_HD constexpr auto offset2index(T offset, T s0, T s1, T s2) noexcept -> Vec<T, 4> {
         NOA_ASSERT(s0 > 0 and s1 > 0 and s2 > 0);
-        const auto i0 = offset / (s0 * s1 * s2);
-        offset -= i0 * s0 * s1 * s2;
-        const auto i1 = offset / (s1 * s2);
-        offset -= i1 * s1 * s2;
+        const auto s12 = s2 * s1;
+        const auto s012 = s12 * s0;
+        const auto i0 = offset / s012;
+        offset -= i0 * s012;
+        const auto i1 = offset / s12;
+        offset -= i1 * s12;
         const auto i2 = offset / s2;
         offset -= i2 * s2;
         return {i0, i1, i2, offset};
     }
 
-    /// Returns the multidimensional indices corresponding to a memory \p offset, assuming BDHW C-contiguity.
-    /// \param offset   Memory offset within the array.
+    /// Returns the 5D rightmost CBDHW indices corresponding to the given memory offset in a contiguous layout.
+    /// \param offset      Linear memory offset.
+    /// \param s0,s1,s2,s3 BDHW sizes.
+    template<nt::integer T>
+    [[nodiscard]] NOA_HD constexpr auto offset2index(T offset, T s0, T s1, T s2, T s3) noexcept -> Vec<T, 5> {
+        NOA_ASSERT(s0 > 0 and s1 > 0 and s2 > 0 and s3 > 0);
+        const auto s23 = s3 * s2;
+        const auto s123 = s23 * s1;
+        const auto s0123 = s123 * s0;
+        const auto i0 = offset / s0123;
+        offset -= i0 * s0123;
+        const auto i1 = offset / s123;
+        offset -= i1 * s123;
+        const auto i2 = offset / s23;
+        offset -= i2 * s23;
+        const auto i3 = offset / s3;
+        offset -= i3 * s3;
+        return {i0, i1, i2, i3, offset};
+    }
+
+    /// Returns the 6D rightmost VCBDHW indices corresponding to the given memory offset in a contiguous layout.
+    /// \param offset         Linear memory offset.
+    /// \param s0,s1,s2,s3,s4 CBDHW sizes.
+    template<nt::integer T>
+    [[nodiscard]] NOA_HD constexpr auto offset2index(T offset, T s0, T s1, T s2, T s3, T s4) noexcept -> Vec<T, 6> {
+        NOA_ASSERT(s0 > 0 and s1 > 0 and s2 > 0 and s3 > 0 and s4 > 0);
+        const auto s34 = s3 * s4;
+        const auto s234 = s34 * s2;
+        const auto s1234 = s234 * s1;
+        const auto s01234 = s1234 * s0;
+        const auto i0 = offset / s01234;
+        offset -= i0 * s01234;
+        const auto i1 = offset / s1234;
+        offset -= i1 * s1234;
+        const auto i2 = offset / s234;
+        offset -= i2 * s234;
+        const auto i3 = offset / s34;
+        offset -= i3 * s34;
+        const auto i4 = offset / s4;
+        offset -= i4 * s4;
+        return {i0, i1, i2, i3, i4, offset};
+    }
+
+    /// Returns the multidimensional indices corresponding to the given memory offset, assuming rightmost contiguity.
+    /// \param offset   Linear memory offset.
+    /// \param sizes    Sizes that would have been passed to the overloads taking integers (shape without leftmost).
+    template<nt::integer T, usize N>
+    [[nodiscard]] NOA_HD constexpr auto offset2index(T offset, const Vec<T, N>& sizes) noexcept -> Vec<T, N + 1> {
+        if constexpr (N == 0) {
+            return Vec<T, N>{offset};
+        } else if constexpr (N == 1) {
+            return offset2index(offset, sizes[0]);
+        } else if constexpr (N == 2) {
+            return offset2index(offset, sizes[0], sizes[1]);
+        } else if constexpr (N == 3) {
+            return offset2index(offset, sizes[0], sizes[1], sizes[2]);
+        } else if constexpr (N == 4) {
+            return offset2index(offset, sizes[0], sizes[1], sizes[2], sizes[3]);
+        } else if constexpr (N == 5) {
+            return offset2index(offset, sizes[0], sizes[1], sizes[2], sizes[3], sizes[4]);
+        } else {
+            static_assert(nt::always_false<T>);
+        }
+    }
+
+    /// Returns the multidimensional indices corresponding to a memory offset, assuming rightmost contiguity.
+    /// \param offset   Linear memory offset.
     /// \param shape    Shape of the array.
     template<nt::integer T, usize N>
     [[nodiscard]] NOA_FHD constexpr auto offset2index(
@@ -270,14 +337,20 @@ namespace noa {
             return offset2index(offset, shape[1]);
         } else if constexpr (N == 3) {
             return offset2index(offset, shape[1], shape[2]);
-        } else {
+        } else if constexpr (N == 4) {
             return offset2index(offset, shape[1], shape[2], shape[3]);
+        } else if constexpr (N == 5) {
+            return offset2index(offset, shape[1], shape[2], shape[3], shape[4]);
+        } else if constexpr (N == 6) {
+            return offset2index(offset, shape[1], shape[2], shape[3], shape[4], shape[5]);
+        } else {
+            static_assert(nt::always_false<T>);
         }
     }
 
-    /// Returns the multidimensional indices corresponding to a memory \p offset.
+    /// Returns the multidimensional indices corresponding to a memory offset.
     /// \details Given a memory layout (i.e. strides and shape), this function computes the nd logical indices
-    ///          pointing at the given memory \p offset. Broadcasting is not supported, so the strides should
+    ///          pointing at the given memory offset. Broadcasting is not supported, so the strides should
     ///          be greater than 0. Otherwise, any ordering is supported.
     /// \param offset   Memory offset within the array.
     /// \param strides  Strides of the array.

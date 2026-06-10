@@ -36,7 +36,7 @@ namespace noa::cuda {
             }
         }
 
-        // Sort the entire contiguous array.
+        // Sort the entire contiguous array, in-place.
         const auto shape_1d = Shape4{1, 1, 1, n_elements};
         sort(to_sort, shape_1d.strides(), shape_1d, true, -1, stream);
 

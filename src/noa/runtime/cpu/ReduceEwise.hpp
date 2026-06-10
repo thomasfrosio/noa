@@ -22,13 +22,41 @@ namespace noa::cpu::details {
                 interface::init(ci, op, Index{});
 
                 auto local_reduce = reduced;
-                if constexpr (N == 4) {
+                if constexpr (N == 6) {
+                    #pragma omp for collapse(6)
+                    for (Index i = 0; i < shape[0]; ++i)
+                        for (Index j = 0; j < shape[1]; ++j)
+                            for (Index k = 0; k < shape[2]; ++k)
+                                for (Index l = 0; l < shape[3]; ++l)
+                                    for (Index m = 0; m < shape[4]; ++m)
+                                        for (Index n = 0; n < shape[5]; ++n)
+                                            interface::call(ci, op, input, local_reduce, i, j, k, l, m, n);
+                } else if constexpr (N == 5) {
+                    #pragma omp for collapse(5)
+                    for (Index i = 0; i < shape[0]; ++i)
+                        for (Index j = 0; j < shape[1]; ++j)
+                            for (Index k = 0; k < shape[2]; ++k)
+                                for (Index l = 0; l < shape[3]; ++l)
+                                    for (Index m = 0; m < shape[4]; ++m)
+                                        interface::call(ci, op, input, local_reduce, i, j, k, l, m);
+                } else if constexpr (N == 4) {
                     #pragma omp for collapse(4)
                     for (Index i = 0; i < shape[0]; ++i)
                         for (Index j = 0; j < shape[1]; ++j)
                             for (Index k = 0; k < shape[2]; ++k)
                                 for (Index l = 0; l < shape[3]; ++l)
                                     interface::call(ci, op, input, local_reduce, i, j, k, l);
+                } else if constexpr (N == 3) {
+                    #pragma omp for collapse(3)
+                    for (Index i = 0; i < shape[0]; ++i)
+                        for (Index j = 0; j < shape[1]; ++j)
+                            for (Index k = 0; k < shape[2]; ++k)
+                                interface::call(ci, op, input, local_reduce, i, j, k);
+                } else if constexpr (N == 2) {
+                    #pragma omp for collapse(2)
+                    for (Index i = 0; i < shape[0]; ++i)
+                        for (Index j = 0; j < shape[1]; ++j)
+                            interface::call(ci, op, input, local_reduce, i, j);
                 } else if constexpr (N == 1) {
                     #pragma omp for collapse(1)
                     for (Index i = 0; i < shape[0]; ++i)
@@ -55,12 +83,36 @@ namespace noa::cpu::details {
             constexpr auto ci = ComputeHandle<Index, false>{};
             interface::init(ci, op, Index{});
 
-            if constexpr (N == 4) {
+            if constexpr (N == 6) {
+                for (Index i = 0; i < shape[0]; ++i)
+                    for (Index j = 0; j < shape[1]; ++j)
+                        for (Index k = 0; k < shape[2]; ++k)
+                            for (Index l = 0; l < shape[3]; ++l)
+                                for (Index m = 0; m < shape[4]; ++m)
+                                    for (Index n = 0; n < shape[5]; ++n)
+                                        interface::call(ci, op, input, reduced, i, j, k, l, m, n);
+            } else if constexpr (N == 5) {
+                for (Index i = 0; i < shape[0]; ++i)
+                    for (Index j = 0; j < shape[1]; ++j)
+                        for (Index k = 0; k < shape[2]; ++k)
+                            for (Index l = 0; l < shape[3]; ++l)
+                                for (Index m = 0; m < shape[4]; ++m)
+                                    interface::call(ci, op, input, reduced, i, j, k, l, m);
+            } else if constexpr (N == 4) {
                 for (Index i = 0; i < shape[0]; ++i)
                     for (Index j = 0; j < shape[1]; ++j)
                         for (Index k = 0; k < shape[2]; ++k)
                             for (Index l = 0; l < shape[3]; ++l)
                                 interface::call(ci, op, input, reduced, i, j, k, l);
+            } else if constexpr (N == 3) {
+                for (Index i = 0; i < shape[0]; ++i)
+                    for (Index j = 0; j < shape[1]; ++j)
+                        for (Index k = 0; k < shape[2]; ++k)
+                            interface::call(ci, op, input, reduced, i, j, k);
+            } else if constexpr (N == 2) {
+                for (Index i = 0; i < shape[0]; ++i)
+                    for (Index j = 0; j < shape[1]; ++j)
+                        interface::call(ci, op, input, reduced, i, j);
             } else if constexpr (N == 1) {
                 for (Index i = 0; i < shape[0]; ++i)
                     interface::call(ci, op, input, reduced, i);
@@ -84,13 +136,13 @@ namespace noa::cpu {
     };
 
     template<typename Config = ReduceEwiseConfig<>,
-             typename Input, typename Reduced, typename Output, typename Index, typename Op>
-    requires (nt::tuple_of_accessor_nd<std::decay_t<Input>, 4> and
+             typename Input, typename Reduced, typename Output, typename Index, typename Op, usize N>
+    requires (nt::tuple_of_accessor_nd<std::decay_t<Input>, N> and
               not nt::tuple_of_accessor_value<std::decay_t<Input>> and // at least one varray
               nt::tuple_of_accessor_nd<Output, 1> and
               nt::tuple_of_accessor_value_or_empty<std::decay_t<Reduced>>)
     void reduce_ewise(
-        const Shape<Index, 4>& shape,
+        const Shape<Index, N>& shape,
         Op&& op,
         Input&& input,
         Reduced&& reduced,
@@ -98,7 +150,7 @@ namespace noa::cpu {
         i32 n_threads = 1
     ) {
         // Check contiguity.
-        const bool are_all_contiguous = nd::are_accessors_contiguous(input, shape);
+        const bool are_all_contiguous = nd::are_accessors_contiguous(shape, input);
         const isize n_elements = shape.template as<isize>().n_elements();
         i32 actual_n_threads = n_elements <= Config::n_elements_per_thread ? 1 : n_threads;
         if (actual_n_threads > 1)
@@ -106,18 +158,21 @@ namespace noa::cpu {
 
         using reduce_ewise_t = details::ReduceEwise<Config::zip_input, Config::zip_reduced, Config::zip_output>;
 
-        // FIXME We could try collapse contiguous dimensions to still have a contiguous loop.
-        //       In most cases, the inputs are not expected to be aliases of each other, so only
-        //       optimise for the 1d-contig restrict case? remove 1d-contig non-restrict case
         if (are_all_contiguous) {
             auto shape_1d = Shape<Index, 1>::from_value(n_elements);
-            if (not nt::enable_vectorization_v<Op> and nd::are_accessors_aliased(input, output)) {
-                constexpr auto contiguous_1d = nd::AccessorConfig<1>{
+
+            // SAFETY: If the operator has enabled vectorization, this function de facto
+            // assumes that the none of inputs and outputs are not aliasing.
+            const bool is_restrict =
+                nt::enable_vectorization_v<Op> or
+                not nd::are_accessors_aliased(input, output);
+
+            if (is_restrict) {
+                constexpr auto contiguous_restrict_1d = nd::AccessorConfig<1>{
                     .enforce_contiguous = true,
-                    .enforce_restrict = false,
-                    .filter = {3},
+                    .enforce_restrict = true,
                 };
-                auto input_1d = nd::reconfig_accessors<contiguous_1d>(std::forward<Input>(input));
+                auto input_1d = nd::reconfig_accessors<contiguous_restrict_1d>(std::forward<Input>(input), N - 1);
                 if (actual_n_threads > 1) {
                     reduce_ewise_t::parallel(
                         shape_1d,
@@ -134,12 +189,11 @@ namespace noa::cpu {
                         output);
                 }
             } else {
-                constexpr auto contiguous_restrict_1d = nd::AccessorConfig<1>{
+                constexpr auto contiguous_1d = nd::AccessorConfig<1>{
                     .enforce_contiguous = true,
-                    .enforce_restrict = true,
-                    .filter = {3},
+                    .enforce_restrict = false,
                 };
-                auto input_1d = nd::reconfig_accessors<contiguous_restrict_1d>(std::forward<Input>(input));
+                auto input_1d = nd::reconfig_accessors<contiguous_1d>(std::forward<Input>(input), N - 1);
                 if (actual_n_threads > 1) {
                     reduce_ewise_t::parallel(
                         shape_1d,
