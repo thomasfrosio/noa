@@ -25,7 +25,6 @@ list(APPEND NOA_HEADERS
     noa/runtime/Ewise.hpp
 #    noa/runtime/Factory.hpp
     noa/runtime/Iwise.hpp
-    noa/runtime/Layout.hpp
 #    noa/runtime/Random.hpp
 #    noa/runtime/Reduce.hpp
     noa/runtime/ReduceAxesEwise.hpp
