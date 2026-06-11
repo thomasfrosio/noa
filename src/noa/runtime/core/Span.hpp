@@ -373,6 +373,24 @@ namespace noa::inline types {
             return span<U, 4, NewI, StridesTraits::STRIDED, NewPointerTrait>();
         }
 
+        template<usize NewN = N,
+                 typename NewT = value_type,
+                 typename NewI = index_type,
+                 StridesTraits NewStridesTrait = STRIDES_TRAIT,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
+        [[nodiscard]] constexpr auto as_nd() const {
+            return span<NewT, NewN, NewI, NewStridesTrait, NewPointerTrait>();
+        }
+
+        template<typename NewI,
+                 typename NewT = value_type,
+                 usize NewN = N,
+                 StridesTraits NewStridesTrait = STRIDES_TRAIT,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
+        [[nodiscard]] constexpr auto as_index() const {
+            return span<NewT, NewN, NewI, NewStridesTrait, NewPointerTrait>();
+        }
+
         /// Reshapes the view (must have the same number of elements as the current view).
         [[nodiscard]] auto reshape(shape_type new_shape) const -> Span {
             // Infer the size, if needed.
