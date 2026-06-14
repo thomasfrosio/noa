@@ -127,6 +127,16 @@ TEST_CASE("runtime::core:: shape, strides") {
         REQUIRE(Shape<u64, 3>{128, 64, 65} == physical_shape);
     }
 
+    AND_THEN("F- contiguous 2d") {
+        const Shape<isize, 2> shape{10, 11};
+        const auto strides = shape.strides<'F'>();
+        const auto physical_shape = strides.physical_shape<'F'>();
+        REQUIRE(strides.contiguity<'F'>(shape) == true);
+        REQUIRE(strides.is_contiguous<'F'>(shape));
+        REQUIRE(Strides<isize, 2>{1, 10} == strides);
+        REQUIRE(Shape<isize, 1>{10} == physical_shape);
+    }
+
     AND_THEN("C- inner stride") {
         const Shape<u64, 4> shape{3, 128, 64, 64};
         const auto strides = shape.strides() * 2;

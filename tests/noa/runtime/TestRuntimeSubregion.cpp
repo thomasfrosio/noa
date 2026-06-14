@@ -50,7 +50,7 @@ TEST_CASE("runtime::extract_subregions()", "[asset]") {
                     file.write_all(subregions.span().as_const().subregion(i));
                 }
             } else {
-                const auto expected_subregions = noa::like(subregions);
+                const auto expected_subregions = noa::empty_like(subregions);
                 noa::io::ImageFile file;
                 for (size_t i{}; i < subregion_count; ++i) {
                     file.open(path_base / expected_subregion_filenames[i], {.read=true});
@@ -83,9 +83,9 @@ TEMPLATE_TEST_CASE("runtime::extract|insert_subregions()", "", i32, f32, f64, c3
         const auto stream = StreamGuard(device);
         const auto options = ArrayOption(device, Allocator::MANAGED);
 
-        const auto data = noa::random(noa::Uniform<TestType>{-5, 5}, {2, 100, 200, 300}, options);
-        const auto subregions = noa::fill({3, 64, 64, 64}, TestType{0}, options);
-        const auto origins = noa::empty<Vec<i64, 4>>({1, 1, 1, 3}, options);
+        const auto data = noa::random(noa::Uniform<TestType>{-5, 5}, Shape{2, 100, 200, 300}.as<isize>(), options);
+        const auto subregions = noa::fill(Shape{3, 64, 64, 64}.as<isize>(), TestType{0}, options);
+        const auto origins = noa::empty<Vec<i64, 4>>(Shape{1, 1, 1, 3}.as<isize>(), options);
         origins.span_1d()[0] = {0, 0, 0, 0};
         origins.span_1d()[1] = {0, 34, 130, -20};
         origins.span_1d()[2] = {1, 60, 128, 255};

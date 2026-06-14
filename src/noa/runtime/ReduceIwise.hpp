@@ -78,7 +78,7 @@ namespace noa::details {
 namespace noa {
     /// Dispatches an index-wise reduction operator across N-dimensional (parallel) for-loops.
     /// \param shape:
-    ///     Shape of the 1-, 2-, 3- or 4-dimensional loop.
+    ///     Shape of the 1-to-6-dimensional loop.
     ///     The index type of the shape defines the index type for the indices.
     /// \param device:
     ///     Device on which to dispatch the reduction.

@@ -445,12 +445,12 @@ namespace noa::cpu {
             using reduce_axes_iwise_t = details::ReduceAxesIwise<Config::zip_reduced, Config::zip_output>;
             const auto shape = input_shape.template as<isize>();
             const auto n_batches = clamp_cast<i32>(shape[0]);
-            const isize n_elements_to_reduce = shape.n_elements();
-            const bool is_small = n_elements_to_reduce <= Config::n_elements_per_thread;
+            const isize n_elements = shape.n_elements();
+            const bool is_small = n_elements <= Config::n_elements_per_thread;
 
             i32 actual_n_threads = is_small ? 1 : n_threads;
             if (actual_n_threads > 1)
-                actual_n_threads = min(n_threads, clamp_cast<i32>(n_elements_to_reduce / Config::n_elements_per_thread));
+                actual_n_threads = min(n_threads, clamp_cast<i32>(n_elements / Config::n_elements_per_thread));
 
             // Batch reduction.
             if (axes_empty_or_to_reduce.pop_front() == true) {
@@ -464,6 +464,7 @@ namespace noa::cpu {
                     reduce_axes_iwise_t::template batch_reduction_nd_parallel<reduce_axes_iwise_t::SerialReduction>(
                         input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, actual_n_threads);
                 }
+                return;
             }
 
             // Single axis reduction.

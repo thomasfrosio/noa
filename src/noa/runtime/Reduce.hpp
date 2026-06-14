@@ -14,23 +14,10 @@
 #endif
 
 namespace noa::details {
-    template<typename VArray>
-    auto axes_to_output_shape(const VArray& array, ReduceAxes axes) -> Shape4 {
-        auto output_shape = array.shape();
-        if (axes.batch)
-            output_shape[0] = 1;
-        if (axes.depth)
-            output_shape[1] = 1;
-        if (axes.height)
-            output_shape[2] = 1;
-        if (axes.width)
-            output_shape[3] = 1;
-        return output_shape;
-    }
-
-    inline auto n_elements_to_reduce(const Shape4& input_shape, const Shape4& output_shape) -> isize {
+    template<usize N>
+    auto n_elements_to_reduce(const Shape<isize, N>& input_shape, const Shape<isize, N>& output_shape) -> isize {
         isize n_elements_to_reduce{1};
-        for (usize i{}; i < 4; ++i) {
+        for (usize i{}; i < N; ++i) {
             if (input_shape[i] > 1 and output_shape[i] == 1)
                 n_elements_to_reduce *= input_shape[i];
         }
@@ -43,7 +30,7 @@ namespace noa::details {
          typename ArgOffset_ = std::conditional_t<nt::empty<ArgOffset>, isize, nt::value_type_t<ArgOffset>>,
          typename ReducedValue_ = std::conditional_t<std::is_void_v<ReducedValue>, InputValue, ReducedValue>,
          typename ReducedOffset_ = std::conditional_t<std::is_void_v<ReducedOffset>, isize, ReducedOffset>>
-    concept arg_reduceable =
+    concept arg_reduceable = // TODO check N
         nt::readable_array_decay<Input> and
         (nt::writable_array_decay<ArgValue> or nt::empty<ArgValue>) and
         (nt::writable_array_decay<ArgOffset> or nt::empty<ArgOffset>) and
@@ -281,13 +268,13 @@ namespace noa {
     /// Returns the mean and variance of an array.
     template<nt::readable_array_of_numeric Input>
     [[nodiscard]] auto mean_variance(const Input& array, const VarianceOptions& options = {}) {
-        return details::mean_variance_or_stddev<false>(array, options);
+        return nd::mean_variance_or_stddev<false>(array, options);
     }
 
     /// Returns the mean and standard deviation of an array.
     template<nt::readable_array_of_numeric Input>
     [[nodiscard]] auto mean_stddev(const Input& array, const VarianceOptions& options = {}) {
-        return details::mean_variance_or_stddev<true>(array, options);
+        return nd::mean_variance_or_stddev<true>(array, options);
     }
 
     /// Returns the variance of an array.
@@ -318,12 +305,13 @@ namespace noa {
 
     /// Returns {maximum, offset: isize} of an array.
     /// \note If the maximum value appears more than once, this function makes no guarantee to which one is selected.
-    /// \note To get the corresponding 4d indices, offset2index(offset, input) can be used.
+    /// \note To get the corresponding ND indices, offset2index(offset, input) can be used.
     template<nt::readable_array_of_numeric Input>
     [[nodiscard]] auto argmax(const Input& input) {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduced_t = Pair<value_t, isize>;
-        using op_t = ReduceFirstMax<Accessor<const value_t, 4, isize>, reduced_t, true, true>;
+        using accessor_t = Accessor<const value_t, nt::array_size_v<Input>, isize>;
+        using op_t = ReduceFirstMax<accessor_t, reduced_t, true, true>;
         reduced_t reduced{std::numeric_limits<value_t>::lowest(), isize{}};
         reduced_t output{};
         reduce_iwise(
@@ -336,12 +324,13 @@ namespace noa {
 
     /// Returns {minimum, offset: isize} of an array.
     /// \note If the minimum value appears more than once, this function makes no guarantee to which one is selected.
-    /// \note To get the corresponding 4d indices, offset2index(offset, input) can be used.
+    /// \note To get the corresponding ND indices, offset2index(offset, input) can be used.
     template<nt::readable_array_of_numeric Input>
     [[nodiscard]] auto argmin(const Input& input) {
         using value_t = nt::mutable_value_type_t<Input>;
         using reduced_t = Pair<value_t, isize>;
-        using op_t = ReduceFirstMin<Accessor<const value_t, 4, isize>, reduced_t, true, true>;
+        using accessor_t = Accessor<const value_t, nt::array_size_v<Input>, isize>;
+        using op_t = ReduceFirstMin<accessor_t, reduced_t, true, true>;
         reduced_t reduced{std::numeric_limits<value_t>::max(), isize{}};
         reduced_t output{};
         reduce_iwise(
@@ -366,10 +355,11 @@ namespace noa {
 
     /// Reduces an array along some dimension by taking the minimum value.
     /// //// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_array_decay_of_numeric Input>
-    [[nodiscard]] auto min(Input&& input, ReduceAxes axes) {
+    template<nt::readable_array_decay_of_numeric Input, usize N>
+        requires nt::array_decay_nd<Input, N>
+    [[nodiscard]] auto min(Input&& input, ReduceAxes<N> axes) {
         using value_t = nt::mutable_value_type_t<Input>;
-        auto output = Array<value_t>(details::axes_to_output_shape(input, axes), input.options());
+        auto output = Array<value_t, N>(axes.to_reduced_shape(input.shape()), input.options());
         min(std::forward<Input>(input), output);
         return output;
     }
@@ -386,10 +376,11 @@ namespace noa {
 
     /// Reduces an array along some dimension by taking the maximum value.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_array_decay_of_numeric Input>
-    [[nodiscard]] auto max(Input&& input, ReduceAxes axes) {
+    template<nt::readable_array_decay_of_numeric Input, usize N>
+        requires nt::array_decay_nd<Input, N>
+    [[nodiscard]] auto max(Input&& input, ReduceAxes<N> axes) {
         using value_t = nt::mutable_value_type_t<Input>;
-        auto output = Array<value_t>(details::axes_to_output_shape(input, axes), input.options());
+        auto output = Array<value_t, N>(axes.to_reduced_shape(input.shape()), input.options());
         max(std::forward<Input>(input), output);
         return output;
     }
@@ -413,13 +404,14 @@ namespace noa {
 
     /// Reduces an array along some dimension(s) by taking the minimum and maximum values.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_array_decay_of_numeric Input>
-    [[nodiscard]] auto min_max(Input&& input, ReduceAxes axes) {
+    template<nt::readable_array_decay_of_numeric Input, usize N>
+        requires nt::array_decay_nd<Input, N>
+    [[nodiscard]] auto min_max(Input&& input, ReduceAxes<N> axes) {
         using value_t = nt::mutable_value_type_t<Input>;
-        auto output_shape = details::axes_to_output_shape(input, axes);
+        auto output_shape = axes.to_reduced_shape(input.shape());
         Pair output{
-            Array<value_t>(output_shape, input.options()),
-            Array<value_t>(output_shape, input.options()),
+            Array<value_t, N>(output_shape, input.options()),
+            Array<value_t, N>(output_shape, input.options()),
         };
         min_max(std::forward<Input>(input), output.first, output.second);
         return output;
@@ -456,10 +448,11 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the sum.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_array_decay Input>
-    [[nodiscard]] auto sum(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
+    template<nt::readable_array_decay Input, usize N>
+        requires nt::array_decay_nd<Input, N>
+    [[nodiscard]] auto sum(Input&& input, ReduceAxes<N> axes, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
-        auto output = Array<value_t>(details::axes_to_output_shape(input, axes), input.options());
+        auto output = Array<value_t, N>(axes.to_reduced_shape(input.shape()), input.options());
         sum(std::forward<Input>(input), output, options);
         return output;
     }
@@ -477,7 +470,7 @@ namespace noa {
             std::conditional_t<nt::uinteger<value_t>, u64,
             value_t>>>>;
 
-        const auto size = static_cast<f64>(details::n_elements_to_reduce(input.shape(), output.shape()));
+        const auto size = static_cast<f64>(nd::n_elements_to_reduce(input.shape(), output.shape()));
         if constexpr (nt::real_or_complex<value_t>) {
             if (options.accurate) {
                 return reduce_axes_ewise(
@@ -494,10 +487,11 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the average.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_array_decay Input>
-    [[nodiscard]] auto mean(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
+    template<nt::readable_array_decay Input, usize N>
+        requires nt::array_decay_nd<Input, N>
+    [[nodiscard]] auto mean(Input&& input, ReduceAxes<N> axes, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
-        auto output = Array<value_t>(details::axes_to_output_shape(input, axes), input.options());
+        auto output = Array<value_t, N>(axes.to_reduced_shape(input.shape()), input.options());
         mean(std::forward<Input>(input), output, options);
         return output;
     }
@@ -526,10 +520,11 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the L2-norm.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::writable_array_decay_of_numeric Input>
-    [[nodiscard]] auto l2_norm(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
+    template<nt::writable_array_decay_of_numeric Input, usize N>
+        requires nt::array_decay_nd<Input, N>
+    [[nodiscard]] auto l2_norm(Input&& input, ReduceAxes<N> axes, const SumOptions& options = {}) {
         using real_t = nt::mutable_value_type_twice_t<Input>;
-        auto output = Array<real_t>(details::axes_to_output_shape(input, axes), input.options());
+        auto output = Array<real_t, N>(axes.to_reduced_shape(input.shape()), input.options());
         l2_norm(std::forward<Input>(input), output, options);
         return output;
     }
@@ -547,7 +542,7 @@ namespace noa {
             nt::double_precision_t<value_t>>>;
         using sum_sqd_t = std::conditional_t<nt::integer<value_t>, u64, f64>;
 
-        const auto size = static_cast<f64>(details::n_elements_to_reduce(input.shape(), norms.shape()));
+        const auto size = static_cast<f64>(nd::n_elements_to_reduce(input.shape(), norms.shape()));
 
         if constexpr (nt::real_or_complex<value_t>) {
             if (options.accurate) {
@@ -571,14 +566,15 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the mean and centered L2-norm.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::writable_array_decay_of_numeric Input>
-    [[nodiscard]] auto mean_l2_norm(Input&& input, ReduceAxes axes, const SumOptions& options = {}) {
+    template<nt::writable_array_decay_of_numeric Input, usize N>
+        requires nt::array_decay_nd<Input, N>
+    [[nodiscard]] auto mean_l2_norm(Input&& input, ReduceAxes<N> axes, const SumOptions& options = {}) {
         using mean_t = nt::mutable_value_type_t<Input>;
         using norm_t = nt::mutable_value_type_twice_t<Input>;
-        auto output_shape = details::axes_to_output_shape(input, axes);
+        auto output_shape = axes.to_reduced_shape(input.shape());
         Pair output{
-            Array<mean_t>(output_shape, input.options()),
-            Array<norm_t>(output_shape, input.options()),
+            Array<mean_t, N>(output_shape, input.options()),
+            Array<norm_t, N>(output_shape, input.options()),
         };
         mean_l2_norm(std::forward<Input>(input), output.first, output.second, options);
         return output;
@@ -601,7 +597,7 @@ namespace noa {
                 nt::double_precision_t<value_t>>>;
             using sum_sqd_t = std::conditional_t<nt::integer<value_t>, u64, f64>;
 
-            const auto size = static_cast<f64>(details::n_elements_to_reduce(input.shape(), variances.shape()));
+            const auto size = static_cast<f64>(nd::n_elements_to_reduce(input.shape(), variances.shape()));
             const auto ddof = static_cast<f64>(options.ddof);
 
             if constexpr (nt::real_or_complex<value_t>) {
@@ -651,7 +647,7 @@ namespace noa {
     requires ((nt::array_decay_of_complex<Input, Mean> and nt::array_decay_of_real<Variance>) or
                nt::array_decay_of_scalar<Input, Mean, Variance>)
     void mean_variance(Input&& input, Mean&& means, Variance&& variances, const VarianceOptions options = {}) {
-        details::mean_variance_or_stddev<false>(
+        nd::mean_variance_or_stddev<false>(
             std::forward<Input>(input),
             std::forward<Mean>(means),
             std::forward<Variance>(variances),
@@ -661,14 +657,15 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the mean and variance.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_array_decay_of_numeric Input>
-    [[nodiscard]] auto mean_variance(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
+    template<nt::readable_array_decay_of_numeric Input, usize N>
+        requires nt::array_decay_nd<Input, N>
+    [[nodiscard]] auto mean_variance(Input&& input, ReduceAxes<N> axes, const VarianceOptions options = {}) {
         using mean_t = nt::mutable_value_type_t<Input>;
         using variance_t = nt::mutable_value_type_twice_t<Input>;
-        auto output_shape = details::axes_to_output_shape(input, axes);
+        auto output_shape = axes.to_reduced_shape(input.shape());
         Pair output{
-            Array<mean_t>(output_shape, input.options()),
-            Array<variance_t>(output_shape, input.options()),
+            Array<mean_t, N>(output_shape, input.options()),
+            Array<variance_t, N>(output_shape, input.options()),
         };
         mean_variance(std::forward<Input>(input), output.first, output.second, options);
         return output;
@@ -682,7 +679,7 @@ namespace noa {
     requires ((nt::array_decay_of_complex<Input, Mean> and nt::array_decay_of_real<Stddev>) or
                nt::array_decay_of_scalar<Input, Mean, Stddev>)
     void mean_stddev(Input&& input, Mean&& means, Stddev&& stddevs, const VarianceOptions options = {}) {
-        details::mean_variance_or_stddev<true>(
+        nd::mean_variance_or_stddev<true>(
            std::forward<Input>(input),
            std::forward<Mean>(means),
            std::forward<Stddev>(stddevs),
@@ -692,14 +689,15 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the mean and standard deviation.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_array_decay_of_numeric Input>
-    [[nodiscard]] auto mean_stddev(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
+    template<nt::readable_array_decay_of_numeric Input, usize N>
+        requires nt::array_decay_nd<Input, N>
+    [[nodiscard]] auto mean_stddev(Input&& input, ReduceAxes<N> axes, const VarianceOptions options = {}) {
         using mean_t = nt::mutable_value_type_t<Input>;
         using variance_t = nt::value_type_t<mean_t>;
-        auto output_shape = details::axes_to_output_shape(input, axes);
+        auto output_shape = axes.to_reduced_shape(input.shape());
         Pair output{
-            Array<mean_t>(output_shape, input.options()),
-            Array<variance_t>(output_shape, input.options()),
+            Array<mean_t, N>(output_shape, input.options()),
+            Array<variance_t, N>(output_shape, input.options()),
         };
         mean_stddev(std::forward<Input>(input), output.first, output.second, options);
         return output;
@@ -710,7 +708,7 @@ namespace noa {
     template<nt::readable_array_decay_of_numeric Input,
              nt::writable_array_decay_of_real Output>
     void variance(Input&& input, Output&& output, const VarianceOptions options = {}) {
-        details::mean_variance_or_stddev<false>(
+        nd::mean_variance_or_stddev<false>(
             std::forward<Input>(input),
             Empty{},
             std::forward<Output>(output),
@@ -720,11 +718,12 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the variance.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_array_decay_of_numeric Input>
-    [[nodiscard]] auto variance(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
+    template<nt::readable_array_decay_of_numeric Input, usize N>
+        requires nt::array_decay_nd<Input, N>
+    [[nodiscard]] auto variance(Input&& input, ReduceAxes<N> axes, const VarianceOptions options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using variance_t = nt::value_type_t<value_t>;
-        auto variances = Array<variance_t>(details::axes_to_output_shape(input, axes), input.options());
+        auto variances = Array<variance_t, N>(axes.to_reduced_shape(input.shape()), input.options());
         variance(std::forward<Input>(input), variances, options);
         return variances;
     }
@@ -734,7 +733,7 @@ namespace noa {
     template<nt::readable_array_decay_of_numeric Input,
              nt::writable_array_decay_of_real Output>
     void stddev(Input&& input, Output&& output, const VarianceOptions options = {}) {
-        details::mean_variance_or_stddev<true>(
+        nd::mean_variance_or_stddev<true>(
             std::forward<Input>(input),
             Empty{},
             std::forward<Output>(output),
@@ -744,11 +743,12 @@ namespace noa {
 
     /// Reduces an array along some dimensions by taking the standard-deviation.
     /// \see reduce_axes_ewise for more details about the reduction.
-    template<nt::readable_array_decay_of_numeric Input>
-    [[nodiscard]] auto stddev(Input&& input, ReduceAxes axes, const VarianceOptions options = {}) {
+    template<nt::readable_array_decay_of_numeric Input, usize N>
+        requires nt::array_decay_nd<Input, N>
+    [[nodiscard]] auto stddev(Input&& input, ReduceAxes<N> axes, const VarianceOptions options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         using stddev_t = nt::value_type_t<value_t>;
-        auto stddevs = Array<stddev_t>(details::axes_to_output_shape(input, axes), input.options());
+        auto stddevs = Array<stddev_t, N>(axes.to_reduced_shape(input.shape()), input.options());
         stddev(std::forward<Input>(input), stddevs, options);
         return stddevs;
     }
@@ -772,7 +772,7 @@ namespace noa {
              typename Input,
              typename Values = Empty,
              typename Offsets = Empty>
-    requires details::arg_reduceable<Input, ReducedValue, ReducedOffset, Values, Offsets>
+    requires nd::arg_reduceable<Input, ReducedValue, ReducedOffset, Values, Offsets>
     void argmax(
         Input&& input,
         Values&& output_values,
@@ -786,7 +786,7 @@ namespace noa {
             auto accessor = nd::to_accessor(input);
 
             using input_value_t = nt::mutable_value_type_t<Input>;
-            using accessor_t = Accessor<const input_value_t, 4, i64>;
+            using accessor_t = Accessor<const input_value_t, nt::array_size_v<Input>, i64>;
             using reduce_value_t = std::conditional_t<std::is_void_v<ReducedValue>, input_value_t, ReducedValue>;
             using reduce_offset_t = std::conditional_t<std::is_void_v<ReducedOffset>, isize, ReducedOffset>;
             using pair_t = Pair<reduce_value_t, reduce_offset_t>;
@@ -809,14 +809,8 @@ namespace noa {
                     std::forward<Offsets>(output_offsets));
 
             } else {
-                // Reorder DHW to rightmost if offsets are not computed.
                 auto arg_values = output_values.view();
-                const auto order_3d = input.strides().pop_front().rightmost_order(shape.pop_front());
-                if (order_3d != Vec<isize, 3>{0, 1, 2}) {
-                    auto order_4d = (order_3d + 1).push_front(0);
-                    nd::permute_all(order_4d, shape, accessor, arg_values);
-                }
-
+                nd::permute_all_to_rightmost_order(input.strides(), shape, shape, accessor, arg_values);
                 reduce_axes_iwise(
                     shape, device, reduced, arg_values,
                     ReduceFirstMax<accessor_t, pair_t, true, false>{{accessor}},
@@ -845,13 +839,12 @@ namespace noa {
              typename Input,
              typename Values = Empty,
              typename Offsets = Empty>
-    requires details::arg_reduceable<Input, ReducedValue, ReducedOffset, Values, Offsets>
+    requires nd::arg_reduceable<Input, ReducedValue, ReducedOffset, Values, Offsets>
     void argmin(
         Input&& input,
         Values&& output_values,
         Offsets&& output_offsets
     ) {
-        // noa::argmin(f32, f64, {});
         constexpr bool has_values = not nt::empty<Values>;
         constexpr bool has_offsets = not nt::empty<Offsets>;
         if constexpr (has_offsets or has_values) {
@@ -860,7 +853,7 @@ namespace noa {
             auto accessor = nd::to_accessor(input);
 
             using input_value_t = nt::mutable_value_type_t<Input>;
-            using accessor_t = Accessor<const input_value_t, 4, isize>;
+            using accessor_t = Accessor<const input_value_t, nt::array_size_v<Input>, isize>;
             using reduce_value_t = std::conditional_t<std::is_void_v<ReducedValue>, input_value_t, ReducedValue>;
             using reduce_offset_t = std::conditional_t<std::is_void_v<ReducedOffset>, isize, ReducedOffset>;
             using pair_t = Pair<reduce_value_t, reduce_offset_t>;
@@ -883,14 +876,8 @@ namespace noa {
                     std::forward<Offsets>(output_offsets));
 
             } else {
-                // Reorder DHW to rightmost if offsets are not computed.
                 auto arg_values = output_values.view();
-                const auto order_3d = input.strides().pop_front().rightmost_order(shape.pop_front()).template as<i32>();
-                if (order_3d != Vec{0, 1, 2}) {
-                    auto order_4d = (order_3d + 1).push_front(0);
-                    nd::permute_all(order_4d, shape, accessor, arg_values);
-                }
-
+                nd::permute_all_to_rightmost_order(input.strides(), shape, shape, accessor, arg_values);
                 reduce_axes_iwise(
                     shape, device, reduced, arg_values,
                     ReduceFirstMin<accessor_t, pair_t, true, false>{{accessor}},
@@ -987,13 +974,13 @@ namespace noa {
     /// Normalizes an array, according to a normalization mode.
     /// The normalization bounds are computed by reducing the provided axes.
     /// Can be in-place or out-of-place.
-    template<nt::readable_array_decay Input, nt::writable_array_decay Output>
-    requires (nt::array_decay_of_complex<Input, Output> or
-              nt::array_decay_of_real<Input, Output>)
+    template<nt::readable_array_decay Input, nt::writable_array_decay Output, usize N>
+    requires ((nt::array_decay_of_complex<Input, Output> or nt::array_decay_of_real<Input, Output>) and
+              nt::array_decay_with_same_nd<Input, Output> and nt::array_decay_nd<Input, N>)
     void normalize(
         Input&& input,
         Output&& output,
-        ReduceAxes axes,
+        ReduceAxes<N> axes,
         const NormalizeOptions& options = {}
     ) {
         check(input.shape() == output.shape(),
@@ -1040,6 +1027,7 @@ namespace noa {
         Output&& output,
         const NormalizeOptions& options = {}
     ) {
-        normalize(std::forward<Input>(input), std::forward<Output>(output), ReduceAxes::all_but(0), options);
+        normalize(std::forward<Input>(input), std::forward<Output>(output),
+                  ReduceAxes<nt::array_size_v<Input>>::all_but(0), options);
     }
 }

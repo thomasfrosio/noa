@@ -53,7 +53,7 @@ namespace {
         auto ptr = reinterpret_cast<Output*>(output);
         auto encoder = Encoder<Input, Output>{clamp, swap_endian};
 
-        // TODO This still can be auto vectorized...
+        // TODO This still can't be auto vectorized...
         #pragma omp parallel for num_threads(n_threads)
         for (isize idx = 0; idx < n_elements; ++idx)
             ptr[idx] = encoder(input[idx]);

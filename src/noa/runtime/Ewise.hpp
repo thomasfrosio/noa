@@ -163,7 +163,7 @@ namespace noa::details {
                                   device, I, input.device());
 
                             const auto input_shape = input.shape().template extend_front_to<NDIM>(1);
-                            if (not broadcast(input_shape, accessor.strides(), shape)) {
+                            if (not noa::broadcast(input_shape, accessor.strides(), shape)) {
                                 panic("Cannot broadcast an array of shape {} into an array of shape {}",
                                       input_shape, shape);
                             }

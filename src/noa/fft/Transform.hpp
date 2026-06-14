@@ -163,8 +163,8 @@ namespace noa::fft {
     /// \param[out] output  Non-redundant non-centered, aka "h" layout, FFT(s).
     /// \note In-place transforms are allowed if the \p input is appropriately padded to account
     ///       for the extra one (if odd) or two (if even) real element along the width dimension.
-    template<nt::varray_decay_of_almost_any<f32, f64> Input,
-             nt::varray_decay_of_any<Complex<nt::mutable_value_type_t<Input>>> Output>
+    template<nt::array_decay_of_almost_any<f32, f64> Input,
+             nt::array_decay_of_any<Complex<nt::mutable_value_type_t<Input>>> Output>
     void r2c(Input&& input, Output&& output, FFTOptions options = {}) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         const auto logical_shape = input.shape();
@@ -211,7 +211,7 @@ namespace noa::fft {
     /// Computes the forward r2c transform of (batched) 2d/3d array(s) or column/row vector(s).
     /// \param[in] input    Real space array.
     /// \return Non-redundant non-centered, aka "h" layout, FFT(s).
-    template<nt::varray_decay_of_almost_any<f32, f64> Input>
+    template<nt::array_decay_of_almost_any<f32, f64> Input>
     [[nodiscard]] auto r2c(Input&& input, FFTOptions options = {}) {
         using real_t = nt::mutable_value_type_twice_t<Input>;
         auto output = Array<Complex<real_t>>(input.shape().rfft(), input.options());
@@ -225,8 +225,8 @@ namespace noa::fft {
     /// \note In-place transforms are allowed if the \p output is appropriately padded to account
     ///       for the extra one (if odd) or two (if even) real element in the width dimension.
     /// \note For multidimensional c2r transforms, the input is not preserved.
-    template<nt::varray_decay_of_almost_any<c32, c64> Input,
-             nt::varray_decay_of_any<nt::mutable_value_type_twice_t<Input>> Output>
+    template<nt::array_decay_of_almost_any<c32, c64> Input,
+             nt::array_decay_of_any<nt::mutable_value_type_twice_t<Input>> Output>
     void c2r(Input&& input, Output&& output, FFTOptions options = {}) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         const auto logical_shape = output.shape();
@@ -275,7 +275,7 @@ namespace noa::fft {
     /// \param shape            BDHW logical shape of \p input.
     /// \return Real space array.
     /// \note For multidimensional c2r transforms, the input is not preserved.
-    template<nt::varray_decay_of_almost_any<c32, c64> Input>
+    template<nt::array_decay_of_almost_any<c32, c64> Input>
     [[nodiscard]] auto c2r(Input&& input, const Shape4 shape, FFTOptions options = {}) {
         using real_t = nt::mutable_value_type_twice_t<Input>;
         auto output = Array<real_t>(shape, input.options());
@@ -289,8 +289,8 @@ namespace noa::fft {
     /// \param sign         Sign of the exponent in the formula that defines the Fourier transform.
     ///                     It can be −1 (\c Sign::FORWARD) or +1 (\c Sign::BACKWARD).
     /// \note In-place transforms are allowed.
-    template<nt::varray_decay_of_almost_any<c32, c64> Input,
-             nt::varray_decay_of_any<nt::mutable_value_type_t<Input>> Output>
+    template<nt::array_decay_of_almost_any<c32, c64> Input,
+             nt::array_decay_of_any<nt::mutable_value_type_t<Input>> Output>
     void c2c(Input&& input, Output&& output, Sign sign, FFTOptions options = {}) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         const auto logical_shape = input.shape();
@@ -339,7 +339,7 @@ namespace noa::fft {
     /// \param sign         Sign of the exponent in the formula that defines the Fourier transform.
     ///                     It can be −1 (\c Sign::FORWARD) or +1 (\c Sign::BACKWARD).
     /// \return Non-centered, aka "f" layout, FFT(s).
-    template<nt::varray_decay_of_almost_any<c32, c64> Input>
+    template<nt::array_decay_of_almost_any<c32, c64> Input>
     [[nodiscard]] auto c2c(Input&& input, Sign sign, FFTOptions options = {}) {
         using complex_t = nt::mutable_value_type_t<Input>;
         auto output = Array<complex_t>(input.shape(), input.options());

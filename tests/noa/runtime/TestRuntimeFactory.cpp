@@ -199,7 +199,7 @@ TEST_CASE("runtime:: Factory functions") {
     }
 
     AND_THEN("iota") {
-        Array expected = noa::empty<f64>({2, 20, 20, 20});
+        Array expected = noa::empty<f64, 4>({2, 20, 20, 20});
         auto tile = Vec{1, 5, 5, 5};
 
         Span span = expected.span_contiguous();

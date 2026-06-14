@@ -1,92 +1,134 @@
 #pragma once
 
-#include "noa/base/Zip.hpp"
 #include "noa/runtime/Array.hpp"
-#include "noa/runtime/Subregion.hpp"
+#include "noa/runtime/Iwise.hpp"
+
+namespace noa::details {
+    template<
+        usize N, usize BATCH_DIM,
+        nt::readable_nd<N> Input,
+        nt::writable_nd<N> Output,
+        nt::readable_nd<1> Indices>
+    struct CopyBatches {
+        using input_type = std::remove_const_t<Input>;
+        using output_type = std::remove_const_t<Output>;
+        using indices_type = std::remove_const_t<Indices>;
+
+        input_type input;
+        output_type output;
+        indices_type batch_indices;
+
+        template<nt::integer I>
+        NOA_HD constexpr void operator()(const Vec<I, N>& output_indices) const {
+            auto input_indices = output_indices;
+            input_indices[BATCH_DIM] = batch_indices[BATCH_DIM];
+            output(output_indices) = input(input_indices);
+        }
+    };
+}
 
 namespace noa {
-    /// (Deep-)Copies batches across arrays.
-    /// \param[in] input            Input array to copy.
-    /// \param[out] output          Output array.
-    /// \param[in] batch_indices    Contiguous vector with the input batch indices to copy into \p output.
-    /// \param group_copy_at_count  If the batches are not consecutive, this function will either do a per-batch
-    ///                             copy or a grouped copy using extract_subregions(). This parameter sets
-    ///                             the threshold when to use a grouped copy. This has no effect if the batches
-    ///                             are consecutive, or not on the same device.
-    template<nt::readable_varray_decay Input,
-             nt::writable_varray_decay Output,
-             nt::readable_varray_decay_of_almost_any<i32, i64, isize> Indices>
-    requires nt::varray_decay_of_almost_same_type<Input, Output>
+    /// Deep-copies batches of an array.
+    /// \tparam BATCH_DIM
+    ///     Index of the "batch" axis.
+    /// \param[in] input:
+    ///     (...n) Input array to copy.
+    ///     All axes except the "batch" axis should match the output or be 1 (broadcast).
+    /// \param[out] output:
+    ///     (...n) Output array.
+    /// \param[in] batch_indices
+    ///     Contiguous vector with the input batch indices to copy into output.
+    ///     If the input and output are on the same device, it is faster for the indices to be on the output device too.
+    ///     Otherwise, it is faster for the indices to be on the CPU.
+    /// \safety The batch indices are not checked, so the caller should make sure they are pointing within the input.
+    template<usize BATCH_DIM = 0,
+             nt::readable_array_decay Input,
+             nt::writable_array_decay Output,
+             nt::readable_array_decay_of_sinteger Indices>
+        requires (nt::array_decay_of_almost_same_type<Input, Output> and
+                  nt::array_decay_with_same_nd<Input, Output> and
+                  nt::array_decay_nd<Indices, 1> and
+                  nt::array_size_v<Input> > BATCH_DIM and
+                  nt::array_size_v<Input> >= 2)
     void copy_batches(
         Input&& input,
         Output&& output,
-        Indices&& batch_indices,
-        isize group_copy_at_count = 3
+        Indices&& batch_indices
     ) {
         check(nd::are_arrays_valid(input, output, batch_indices), "Empty array detected");
-        check(is_broadcastable(input.shape().pop_front(), output.shape().pop_front()),
-              "Cannot copy batches of shape {} into batches of shape {}",
-              input.shape().pop_front(), output.shape().pop_front());
-        check(input.device() == output.device(),
-              "The input and output should be on the same device, but got input={} and output={}",
-              input.device(), output.device());
-        check(is_contiguous_vector(batch_indices) and output.shape()[0] == batch_indices.n_elements(),
+        check(batch_indices.is_contiguous() and output.shape()[BATCH_DIM] == batch_indices.n_elements(),
               "The indices should be specified as a contiguous vector of size {}, but got shape={} and strides={}",
-              output.shape()[0], batch_indices.shape(), batch_indices.strides());
-        check(batch_indices.device().is_cpu(),
-              "The indices should be on the CPU, got device={}",
-              batch_indices.device());
+              output.shape()[BATCH_DIM], batch_indices.shape(), batch_indices.strides());
 
-        const auto n_batches_to_copy = output.shape()[0];
-        const auto batch_indices_1d = batch_indices.span_1d();
+        // Broadcast axes except at BATCH_DIM.
+        // TODO reorder to rightmost except for BATCH_DIM
+        const auto input_batch_shape = input.shape().set<BATCH_DIM>(1);
+        const auto output_batch_shape = output.shape().set<BATCH_DIM>(1);
+        auto input_strides = input.strides();
+        check(noa::broadcast(input_batch_shape, input_strides, output_batch_shape),
+              "Cannot broadcast shape={} into a shape={}", input_batch_shape, output_batch_shape);
 
-        // If the batches to copy to the output are next to each other,
-        // this becomes a slice operation. So try to identify this case:
-        using index_t = nt::mutable_value_type_t<Indices>;
-        index_t index{};
-        for (isize i{}; i < n_batches_to_copy; ++i, ++index) {
-            const auto current_index = batch_indices_1d[i];
-            check(current_index >= 0 and current_index < input.shape()[0],
-                  "At least one input batch index is out of bound: 0 <= indices[{}]={} < input:batch={} is not true",
-                  i, current_index, input.shape()[0]);
+        constexpr usize N = nt::array_size_v<Input>;
+        const auto n = output.shape()[BATCH_DIM];
+        if (n == 0)
+            return;
 
-            // Check if it's a sequence with step 1.
-            if (i == 0) {
-                index = current_index;
-            } else {
-                if (index != current_index)
-                    index = -2;
+        // If device is unchanged, a simple iwise is best.
+        if (input.device() == output.device()) {
+            auto buffer = Array<nt::value_type_t<Indices>, 1>{};
+            auto buffer_ptr = batch_indices.data();
+            if (batch_indices.device() != output.device()) {
+                buffer = std::forward<Indices>(batch_indices)
+                    .to(ArrayOption{.device = output.device(), .allocator = Allocator::ASYNC});
+                buffer_ptr = buffer.data();
             }
+            using input_t = AccessorRestrict<nt::const_value_type_t<Input>, N, isize>;
+            using output_t = AccessorRestrict<nt::value_type_t<Output>, N, isize>;
+            using indices_t = AccessorRestrictContiguous<nt::const_value_type_t<Indices>, 1, isize>;
+            using op_t = nd::CopyBatches<N, BATCH_DIM, input_t, output_t, indices_t>;
+            auto input_ = input_t(input.data(), input_strides);
+            auto output_ = output_t(output.data(), output.strides());
+            auto batch_indices_ = indices_t(buffer_ptr);
+            noa::iwise(output.shape(), output.device(), op_t{
+                .input = input_,
+                .output = output_,
+                .batch_indices = batch_indices_,
+            }, std::forward<Input>(input), std::forward<Output>(output), std::move(buffer));
+            return;
         }
-        if (index > 0) {
-            NOA_ASSERT(batch_indices_1d[0] + n_batches_to_copy == index);
+
+        // Make sure the indices are ready and dereferenceable.
+        auto buffer = Array<nt::value_type_t<Indices>, 1>{};
+        if (not batch_indices.device().is_cpu())
+            buffer = std::forward<Indices>(batch_indices).to(ArrayOption{.device = Device{}});
+        else
+            buffer = std::forward<Indices>(batch_indices);
+        const auto batch_indices_1d = buffer.eval().span_1d();
+
+        // If the batches to copy to the output are next to each other, this becomes a slice operation.
+        // So try to identify this case by checking if the batch indices are describing a sequence with step 1.
+        using index_t = nt::mutable_value_type_t<Indices>;
+        bool is_sequence{true};
+        index_t index = batch_indices_1d[0];
+        for (isize i{1}; i < n; ++i) {
+            if (index != batch_indices_1d[i]) {
+                is_sequence = false;
+                break;
+            }
+            ++index;
+        }
+        if (is_sequence) {
             std::forward<Input>(input)
                 .subregion(Slice{batch_indices_1d[0], index})
                 .to(std::forward<Output>(output));
             return;
         }
 
-        // Otherwise, if the arrays are on the same device, we can use extract_subregions (only one iwise call).
-        // FIXME Benchmark to check whether this is faster than the simple
-        //       one by one copy for small number of batches.
-        const auto device = output.device();
-        if (input.device() == device and n_batches_to_copy >= group_copy_at_count) {
-            auto batch_origins = Array<Vec<i32, 4>>(n_batches_to_copy);
-            for (auto&& [origin, batch]: zip(batch_origins.span_1d(), batch_indices_1d))
-                origin = {safe_cast<i32>(batch), 0, 0, 0};
-            if (device.is_gpu())
-                batch_origins = batch_origins.to(ArrayOption{device, Allocator::ASYNC});
-            return extract_subregions(
-                std::forward<Input>(input), std::forward<Output>(output),
-                batch_origins, Border::NOTHING
-            );
-        }
-
         // Worst case scenario, copy batches one by one across devices.
-        for (isize i{}; i < n_batches_to_copy - 1; ++i)
+        for (isize i{}; i < n - 1; ++i)
             input.view().subregion(batch_indices_1d[i]).to(output.view().subregion(i));
         std::forward<Input>(input)
-            .subregion(batch_indices_1d[n_batches_to_copy - 1])
-            .to(std::forward<Output>(output).subregion(n_batches_to_copy - 1));
+            .subregion(batch_indices_1d[n - 1])
+            .to(std::forward<Output>(output).subregion(n - 1));
     }
 }

@@ -61,7 +61,7 @@ namespace noa {
 
     /// Index-wise core function; dispatches an index-wise operator across N-dimensional (parallel) for-loops.
     /// \param shape:
-    ///     Shape of the N-dimensional loop. Between 1d and 4d.
+    ///     Shape of the N-dimensional loop. Between 1d and 6d.
     ///     The index type is the integer type of the multidimensional indices.
     /// \param device:
     ///     Device on which to dispatch the operator.

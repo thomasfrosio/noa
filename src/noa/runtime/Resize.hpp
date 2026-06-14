@@ -25,7 +25,7 @@ namespace noa::details {
         using output_value_or_empty_type = std::conditional_t<MODE == Border::VALUE, output_value_type, Empty>;
 
         static constexpr bool IS_BOUNDLESS = MODE != Border::VALUE and MODE != Border::ZERO;
-        using index4_or_empty_type = std::conditional_t<IS_BOUNDLESS, Empty, indices_type>;
+        using index_nd_or_empty_type = std::conditional_t<IS_BOUNDLESS, Empty, indices_type>;
 
     public:
         constexpr Resize(
@@ -82,7 +82,7 @@ namespace noa::details {
         shape_type m_input_shape;
         indices_type m_crop_left;
         indices_type m_pad_left;
-        NOA_NO_UNIQUE_ADDRESS index4_or_empty_type m_right;
+        NOA_NO_UNIQUE_ADDRESS index_nd_or_empty_type m_right;
         NOA_NO_UNIQUE_ADDRESS output_value_or_empty_type m_cvalue;
     };
 
@@ -194,14 +194,14 @@ namespace noa {
         auto output_accessor = output_accessor_t(output.get(), output_strides);
 
         switch (border_mode) {
-            #define NOA_GENERATE_RESIZE_(border)                                                \
-            case border: {                                                                      \
-                const auto op = nd::Resize<border, isize, input_accessor_t, output_accessor_t>( \
-                    input_accessor, output_accessor, input_shape, output_shape,                 \
-                    border_left, border_right, border_value);                                   \
-                return iwise(output_shape, device, op,                                          \
-                             std::forward<Input>(input),                                        \
-                             std::forward<Output>(output));                                     \
+            #define NOA_GENERATE_RESIZE_(border)                                                    \
+            case border: {                                                                          \
+                const auto op = nd::Resize<border, isize, N, input_accessor_t, output_accessor_t>(  \
+                    input_accessor, output_accessor, input_shape, output_shape,                     \
+                    border_left, border_right, border_value);                                       \
+                return iwise(output_shape, device, op,                                              \
+                             std::forward<Input>(input),                                            \
+                             std::forward<Output>(output));                                         \
             }
             NOA_GENERATE_RESIZE_(Border::ZERO)
             NOA_GENERATE_RESIZE_(Border::VALUE)

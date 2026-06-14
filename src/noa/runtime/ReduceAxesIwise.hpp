@@ -13,40 +13,18 @@
 #include "noa/runtime/ReduceIwise.hpp"
 
 namespace noa::inline types {
+    template<usize N>
     struct ReduceAxes {
-        bool batch{};
-        bool depth{};
-        bool height{};
-        bool width{};
+        Vec<bool, N> axes;
 
-        constexpr auto reduce_batch(bool flag) -> ReduceAxes& { batch = flag; return *this; }
-        constexpr auto reduce_depth(bool flag) -> ReduceAxes& { depth = flag; return *this; }
-        constexpr auto reduce_height(bool flag) -> ReduceAxes& { height = flag; return *this; }
-        constexpr auto reduce_width(bool flag) -> ReduceAxes& { width = flag; return *this; }
+        constexpr auto reduce_axis(nt::integer auto i) -> ReduceAxes& { axes[i] = true; return *this; }
+        constexpr auto keep_axis(nt::integer auto i) -> ReduceAxes& { axes[i] = false; return *this; }
 
-        constexpr auto operator[](nt::integer auto i) const -> const bool& {
-            noa::bounds_check<true>(4, i);
-            switch (i) {
-                case 0: return batch;
-                case 1: return depth;
-                case 2: return height;
-                case 3: return width;
-                default: unreachable();
-            }
-        }
-        constexpr auto operator[](nt::integer auto i) -> bool& {
-            noa::bounds_check<true>(4, i);
-            switch (i) {
-                case 0: return batch;
-                case 1: return depth;
-                case 2: return height;
-                case 3: return width;
-                default: unreachable();
-            }
-        }
+        constexpr auto operator[](nt::integer auto i) const -> const bool& { return axes[i]; }
+        constexpr auto operator[](nt::integer auto i) -> bool& { return axes[i]; }
 
         static constexpr auto all() -> ReduceAxes {
-            return {true, true, true, true};
+            return {.axes = Vec<bool, N>::from_value(true)};
         }
 
         static constexpr auto all_but(nt::integer auto i) -> ReduceAxes {
@@ -55,24 +33,20 @@ namespace noa::inline types {
             return out;
         }
 
-        template<usize N> requires (1 <= N and N <= 4)
         static constexpr auto from_vec(const Vec<bool, N>& reduce_axes) -> ReduceAxes {
-            ReduceAxes axes{};
-            for (usize i{}; i < N; ++i)
-                axes[4 - N + i] = reduce_axes[i];
-            return axes;
+            return {.axes = reduce_axes};
         }
 
-        template<usize N>
-        static constexpr auto from_shape(const Shape<isize, N>& output_shape) -> ReduceAxes {
+        template<typename T>
+        static constexpr auto from_shape(const Shape<T, N>& output_shape) -> ReduceAxes {
             return from_vec(output_shape.cmp_eq(1));
         }
 
-        template<typename T, usize N>
+        template<typename T>
         constexpr auto to_reduced_shape(const Shape<T, N>& input_shape) {
             Shape<T, N> output_shape;
             for (usize i{}; i < N; ++i)
-                output_shape[i] = (*this)[4 - N + i] ? 1 : input_shape[i];
+                output_shape[i] = axes[i] ? 1 : input_shape[i];
             return output_shape;
         }
     };
@@ -80,12 +54,12 @@ namespace noa::inline types {
 
 namespace noa::details {
     template<ReduceIwiseOptions, bool, bool, bool, typename Index, usize N, typename Reduced, typename Outputs, typename Op, typename... Ts>
-    constexpr void reduce_axes_iwise(const Shape<Index, N>&, Device, Reduced&&, Outputs&&, Op&&, ReduceAxes, Ts&&...);
+    constexpr void reduce_axes_iwise(const Shape<Index, N>&, Device, Reduced&&, Outputs&&, Op&&, ReduceAxes<N>, Ts&&...);
 }
 
 namespace noa {
     /// Computes an index-wise reduction along one or multiple axes.
-    /// \param shape: Shape of the 1-, 2-, 3- or 4-dimensional loop.
+    /// \param shape: Shape of the 1-to-6-dimensional loop.
     /// \param device:
     ///     Device on which to dispatch the reduction. Should match the outputs.
     ///     As opposed to reduce_iwise, this function is asynchronous and does not perform any synchronization.
@@ -119,28 +93,28 @@ namespace noa {
                 shape, device,
                 std::forward<Reduced>(reduced).tuple,
                 std::forward<Outputs>(outputs).tuple,
-                std::forward<Operator>(op), {},
+                std::forward<Operator>(op), ReduceAxes<N>{},
                 std::forward<Ts>(attachments)...);
         } else if constexpr (nd::adaptor_decay<Reduced>) {
             nd::reduce_axes_iwise<OPTIONS, std::decay_t<Reduced>::ZIP, false, false>(
                 shape, device,
                 std::forward<Reduced>(reduced).tuple,
                 noa::forward_as_tuple(std::forward<Outputs>(outputs)),
-                std::forward<Operator>(op), {},
+                std::forward<Operator>(op), ReduceAxes<N>{},
                 std::forward<Ts>(attachments)...);
         } else if constexpr (nd::adaptor_decay<Outputs>) {
             nd::reduce_axes_iwise<OPTIONS, false, std::decay_t<Outputs>::ZIP, false>(
                 shape, device,
                 noa::forward_as_tuple(std::forward<Reduced>(reduced)),
                 std::forward<Outputs>(outputs).tuple,
-                std::forward<Operator>(op), {},
+                std::forward<Operator>(op), ReduceAxes<N>{},
                 std::forward<Ts>(attachments)...);
         } else {
             nd::reduce_axes_iwise<OPTIONS, false, false, false>(
                 shape, device,
                 noa::forward_as_tuple(std::forward<Reduced>(reduced)),
                 noa::forward_as_tuple(std::forward<Outputs>(outputs)),
-                std::forward<Operator>(op), {},
+                std::forward<Operator>(op), ReduceAxes<N>{},
                 std::forward<Ts>(attachments)...);
         }
     }
@@ -155,7 +129,7 @@ namespace noa {
         const Shape<Index, N>& shape,
         Device device,
         Reduced&& reduced,
-        ReduceAxes reduce_axes,
+        ReduceAxes<N> reduce_axes,
         Operator&& op,
         Ts&&... attachments
     ) {
@@ -186,7 +160,7 @@ namespace noa::details {
         Reduced&& reduced,
         Outputs&& outputs,
         Op&& reduce_operator,
-        ReduceAxes reduce_axes,
+        ReduceAxes<N> reduce_axes,
         Ts&&... attachments
     ) {
         Shape<Index, N> output_shape;

@@ -241,8 +241,7 @@ namespace noa::inline types {
 
         template<usize S, usize AR = 0>
         [[nodiscard]] NOA_HD constexpr auto extend_front_to(value_type value) const noexcept {
-            constexpr usize MAX = std::max(SIZE, S);
-            return Shape<value_type, S, AR>{vec.template push_front<MAX - SIZE, AR>(value)};
+            return Shape<value_type, S, AR>{vec.template extend_front_to<S, AR>(value)};
         }
 
         template<nt::integer... U>
@@ -677,8 +676,7 @@ namespace noa::inline types {
 
         template<usize S, usize AR = 0>
         [[nodiscard]] NOA_HD constexpr auto extend_front_to(value_type value) const noexcept {
-            constexpr usize MAX = std::max(SIZE, S);
-            return Strides<value_type, S, AR>{vec.template push_front<MAX - SIZE, AR>(value)};
+            return Strides<value_type, S, AR>{vec.template extend_front_to<S, AR>(value)};
         }
 
         template<nt::integer... U>
@@ -936,8 +934,9 @@ namespace noa::inline types {
                 if constexpr (N >= 2) {
                     auto strides = *this;
                     std::swap(strides[N - 1], strides[N - 2]);
-                    auto output = strides.template physical_shape<'c'>();
-                    std::swap(output[N - 2], output[N - 3]); // FIXME
+                    auto output = strides.template physical_shape<'C'>();
+                    if constexpr (N >= 3)
+                        std::swap(output[N - 2], output[N - 3]);
                     return output;
                 } else {
                     return output_shape{};
@@ -1355,24 +1354,24 @@ namespace noa {
             if (infer_dim != -1)
                 shape[infer_dim] = 1; // the dimension asked for inference is empty
             return true;
-        } else if (infer_dim != -1 and new_size > 0 and n_elements % new_size == 0) {
+        }
+        if (infer_dim != -1 and new_size > 0 and n_elements % new_size == 0) {
             shape[infer_dim] = n_elements / new_size;
             return true; // inferred
-        } else {
-            return false; // shape and n_elements don't match, or empty array
         }
+        return false; // shape and n_elements don't match, or empty array
     }
 }
 
 namespace noa {
     template<typename T, usize N>
-    std::ostream& operator<<(std::ostream& os, const Shape<T, N>& v) {
+    auto operator<<(std::ostream& os, const Shape<T, N>& v) -> std::ostream& {
         os << fmt::format("{}", v.vec);
         return os;
     }
 
     template<typename T, usize N>
-    std::ostream& operator<<(std::ostream& os, const Strides<T, N>& v) {
+    auto operator<<(std::ostream& os, const Strides<T, N>& v) -> std::ostream& {
         os << fmt::format("{}", v.vec);
         return os;
     }

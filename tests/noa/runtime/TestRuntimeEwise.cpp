@@ -10,8 +10,8 @@ using namespace noa::types;
 TEMPLATE_TEST_CASE("runtime::ewise - simple", "", i32, f64) {
     auto shape = test::random_shape_batched(3);
     Array lhs = noa::empty<TestType>(shape);
-    Array rhs = noa::like(lhs);
-    Array expected = noa::like<i64>(lhs);
+    Array rhs = noa::empty_like(lhs);
+    Array expected = noa::empty_like<i64>(lhs);
 
     auto randomizer = test::Randomizer<TestType>(-50, 50);
     Span lhs_span = lhs.span_1d_contiguous();
@@ -36,7 +36,7 @@ TEMPLATE_TEST_CASE("runtime::ewise - simple", "", i32, f64) {
             lhs = lhs.to(options);
             rhs = rhs.to(options);
         }
-        auto output = noa::like<i64>(lhs);
+        auto output = noa::empty_like<i64>(lhs);
 
         noa::ewise(noa::wrap(lhs, rhs), output, noa::Plus{});
         REQUIRE(test::allclose_abs(output, expected, 0));
@@ -73,7 +73,7 @@ TEMPLATE_TEST_CASE("runtime::ewise - broadcast", "", i32, f32, f64, c32) {
             const Array<TestType> rhs(shape, options);
             test::fill(lhs.get(), lhs.n_elements(), lhs_value);
             test::fill(rhs.get(), rhs.n_elements(), rhs_value);
-            const auto expected = noa::like(lhs);
+            const auto expected = noa::empty_like(lhs);
             noa::ewise(noa::wrap(lhs, rhs), expected, noa::Minus{});
 
             // Test passing a single value.
@@ -88,7 +88,7 @@ TEMPLATE_TEST_CASE("runtime::ewise - broadcast", "", i32, f32, f64, c32) {
             test::fill(output.get(), output.n_elements(), value_t{});
 
             // Test broadcasting all dimensions.
-            noa::ewise(noa::wrap(lhs, View(&rhs_value, 1).to(options)), output, noa::Minus{});
+            noa::ewise(noa::wrap(lhs, Array<value_t, 1, ArrayOwnership::VIEW>(&rhs_value, 1).to(options)), output, noa::Minus{});
             REQUIRE(test::allclose_abs(expected, output, 1e-6));
             test::fill(output.get(), output.n_elements(), value_t{});
 
@@ -114,8 +114,8 @@ TEST_CASE("runtime::ewise - zip vs wrap") {
 
     for (const auto& shape: shapes) {
         auto lhs = noa::empty<i64>(shape);
-        auto mhs = noa::like(lhs);
-        auto rhs = noa::like(lhs);
+        auto mhs = noa::empty_like(lhs);
+        auto rhs = noa::empty_like(lhs);
 
         test::Randomizer<i64> randomizer(-100, 30);
         test::randomize(lhs.get(), lhs.n_elements(), randomizer);
@@ -123,8 +123,8 @@ TEST_CASE("runtime::ewise - zip vs wrap") {
         test::randomize(rhs.get(), rhs.n_elements(), randomizer);
 
         // Generate the expected results.
-        auto expected0 = noa::like<f64>(lhs);
-        auto expected1 = noa::like<f64>(lhs);
+        auto expected0 = noa::empty_like<f64>(lhs);
+        auto expected1 = noa::empty_like<f64>(lhs);
         for (i64 i{}; i < lhs.n_elements(); ++i) {
             auto sum = lhs.get()[i] + mhs.get()[i] + rhs.get()[i];
             expected0.get()[i] = static_cast<f64>(sum);
@@ -141,8 +141,8 @@ TEST_CASE("runtime::ewise - zip vs wrap") {
                 rhs = rhs.to(options);
             }
 
-            auto output0 = noa::like<f64>(lhs);
-            auto output1 = noa::like(output0);
+            auto output0 = noa::empty_like<f64>(lhs);
+            auto output1 = noa::empty_like(output0);
             noa::ewise(noa::fuse(lhs, mhs, rhs), noa::wrap(output0, output1),
                        []NOA_HD(const Tuple<i64&, i64&, i64&>& inputs, f64& o0, f64& o1) {
                            const auto sum = inputs.apply([](auto& ... i) {

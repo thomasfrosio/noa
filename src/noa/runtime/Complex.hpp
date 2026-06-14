@@ -63,7 +63,7 @@ namespace noa {
     [[nodiscard]] auto real(C&& input) {
         using real_t = nt::value_type_twice_t<C>;
         constexpr auto N = std::remove_reference_t<C>::SIZE;
-        Array<real_t> output(input.shape(), input.options());
+        Array<real_t, N> output(input.shape(), input.options());
         real(std::forward<C>(input), output);
         return output;
     }
@@ -73,7 +73,7 @@ namespace noa {
     [[nodiscard]] auto imag(C&& input) {
         using real_t = nt::value_type_twice_t<C>;
         constexpr auto N = std::remove_reference_t<C>::SIZE;
-        Array<real_t> output(input.shape(), input.options());
+        Array<real_t, N> output(input.shape(), input.options());
         imag(std::forward<C>(input), output);
         return output;
     }

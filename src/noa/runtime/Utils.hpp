@@ -12,14 +12,14 @@ namespace noa::details {
     [[nodiscard]] consteval auto maximum_nd_axes_of_arrays() {
         usize max_size{0};
         ([&]<typename... U>(nt::TypeList<U...>) {
-            ((max_size = std::max(max_size, std::remove_reference_t<U>::SIZE)), ...);
+            ((max_size = std::max(max_size, nt::array_size_v<U>)), ...);
         }(nt::type_list_t<T>{}), ...);
         return max_size;
     }
     template<nt::array_decay... T>
     [[nodiscard]] consteval auto maximum_nd_axes_of_arrays() {
         usize max_size{0};
-        ((max_size = std::max(max_size, std::remove_reference_t<T>::SIZE)), ...);
+        ((max_size = std::max(max_size, nt::array_size_v<T>)), ...);
         return max_size;
     }
 

@@ -144,18 +144,10 @@ namespace noa::cpu::details {
 
 namespace noa::cpu {
     template<typename T, usize N>
-    void sort(T* array, Strides<isize, N> strides, Shape<isize, N> shape, bool ascending, i32 dim) {
+    void sort(T* array, const Strides<isize, N>& strides, const Shape<isize, N>& shape, bool ascending, i32 dim) {
         if constexpr (N == 1) {
             details::sort_iterative_(array, Strides<isize, 2>{0, strides}, Shape<isize, 2>{1, shape}, 1, ascending);
         } else {
-            // Permute to rightmost.
-            const auto order = strides.rightmost_order(shape); // TODO collapse
-            if (order != Vec<isize, N>::arange(N)) {
-                strides = strides.permute(order);
-                shape = shape.permute(order);
-                dim = static_cast<i32>(order[dim]);
-            }
-
             // If there are not a lot of axes to sort, use the iterative version which uses less memory
             // and does a single sort per axis. Otherwise, use the batched version which uses more memory
             // but uses 2 sorts (1 being a stable sort), and a permutation/copy, for the entire array.

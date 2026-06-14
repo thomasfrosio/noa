@@ -185,7 +185,7 @@ namespace noa {
     template<nt::array_decay Input>
     auto permute(Input&& input, const Vec<i32, std::remove_reference_t<Input>::SIZE>& permutation) {
         constexpr auto N = std::remove_reference_t<Input>::SIZE;
-        check(permutation <= N - 1 and sum(permutation) == (N - 1) * (N - 2) / 2,
+        check(permutation <= N - 1 and sum(permutation) == N * (N - 1) / 2,
               "Permutation {} is not valid for an array with {} dimension(s)", permutation, N);
         auto permuted_shape = input.shape().permute(permutation);
         auto permuted_strides = input.strides().permute(permutation);
@@ -209,7 +209,7 @@ namespace noa {
     void permute_copy(Input&& input, Output&& output, const Vec<i32, std::remove_reference_t<Input>::SIZE>& permutation) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         constexpr auto N = std::remove_reference_t<Input>::SIZE;
-        check(permutation <= N - 1 and sum(permutation) == (N - 1) * (N - 2) / 2,
+        check(permutation <= N - 1 and sum(permutation) == N * (N - 1) / 2,
               "Permutation {} is not valid for an array with {} dimension(s)", permutation, N);
 
         // To enable broadcasting, we need to permute the input.

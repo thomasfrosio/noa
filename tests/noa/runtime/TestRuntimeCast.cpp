@@ -34,7 +34,7 @@ TEMPLATE_TEST_CASE("runtime::cast", "", i32, f32, f64) {
         const Array data0 = noa::random(noa::Uniform(-50, 50), results.shape(), options);
         noa::cast(data0, results);
 
-        const auto data1 = noa::like<i32>(results);
+        const auto data1 = noa::empty_like<i32>(results);
         noa::cast(results, data1);
         REQUIRE(test::allclose_abs(data0, data1));
     }

@@ -130,7 +130,7 @@ namespace noa::io {
     /// \param[in] input    Array to save to disk.
     /// \param[in] filename Path of the new file.
     /// \param write_option Options.
-    template<nt::readable_varray_decay_of_numeric Input>
+    template<nt::readable_array_decay_of_numeric Input>
     void write_image(
         Input&& input,
         const Path& filename,
@@ -176,7 +176,7 @@ namespace noa::io {
     /// \param input_dtype  Input dtype.
     /// \param[in] filename Path of the new file.
     /// \param write_option Options.
-    template<nt::readable_varray_decay_of_byte Input>
+    template<nt::readable_array_decay_of_byte Input>
     void write_image(
         Input&& input,
         DataType input_dtype,
