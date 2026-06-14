@@ -254,7 +254,7 @@ namespace noa::fft {
         if (options.correct_nyquist) {
             auto correct_redundant_plane = [&]<bool IS_X_FULL>(const auto& plane, i32 i, i32 j) {
                 auto span = plane.span().filter(0, i, j);
-                auto accessor = AccessorRestrict<output_value_t, 3>(span.get(), span.strides());
+                // auto accessor = AccessorRestrict<output_value_t, 3>(span.get(), span.strides());
                 auto iwise_shape = output_shape.filter(i, j);
                 auto op = details::FourierResizeCorrect<IS_CENTERED, not IS_X_FULL, isize, decltype(span)>{
                     .output = span,

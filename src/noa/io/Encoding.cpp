@@ -1,7 +1,5 @@
-#include <omp.h>
-#include <cstring>
-
 #include "noa/io/Encoding.hpp"
+#include "noa/runtime/cpu/Allocators.hpp"
 
 namespace {
     using namespace ::noa;
@@ -178,6 +176,14 @@ namespace {
 
     struct u4_encoding {};
 
+    #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wsign-conversion"
+    #pragma GCC diagnostic ignored "-Wsign-compare"
+    #elif defined(NOA_COMPILER_MSVC)
+    #pragma warning(push, 0)
+    #endif
+
     template<typename Output, typename Input>
     void encode_file_(
         const Span<const Input, 4>& input,
@@ -185,66 +191,95 @@ namespace {
         bool clamp, bool swap_endian,
         i32 n_threads
     ) {
-        constexpr isize N_BYTES_PER_BLOCK = 1 << 16; // 64KB
+        // Chunk size.
+        constexpr isize N_BYTES_PER_CHUNK = 32 * 1024 * 1024;
         constexpr isize N_BYTES_PER_ELEMENT = sizeof(Output);
-        static_assert(is_multiple_of(N_BYTES_PER_BLOCK, N_BYTES_PER_ELEMENT));
 
         const isize n_elements = input.ssize();
         const isize n_bytes = std::same_as<Output, u4_encoding> ? n_elements / 2 : n_elements * N_BYTES_PER_ELEMENT;
-        const isize n_blocks = noa::divide_up(n_bytes, N_BYTES_PER_BLOCK);
-
-        const auto buffer_ptr = std::make_unique<char[]>(static_cast<usize>(n_threads * N_BYTES_PER_BLOCK));
-        const auto buffer_span = Span(buffer_ptr.get(), Shape<isize, 2>{n_threads, N_BYTES_PER_BLOCK});
-
-        const isize start_offset = std::ftell(output);
-        check(start_offset != -1, "Could not get the current position of the stream, {}", std::strerror(errno));
-
         const bool input_is_contiguous = input.is_contiguous();
 
-        #pragma omp parallel for num_threads(n_threads)
-        for (isize n_block = 0; n_block < n_blocks; ++n_block) {
-            i32 thread_id = omp_get_thread_num();
-            char* per_thread_buffer = buffer_span[thread_id].data();
+        // Allocate two double-buffers to encode and write in parallel.
+        constexpr usize ALIGNMENT = 64;
+        std::unique_ptr buffer_0 = noa::cpu::AllocatorHeap::allocate<char, ALIGNMENT>(N_BYTES_PER_CHUNK);
+        std::unique_ptr buffer_1 = noa::cpu::AllocatorHeap::allocate<char, ALIGNMENT>(N_BYTES_PER_CHUNK);
 
-            const isize offset = n_block * N_BYTES_PER_BLOCK;
-            const isize n_bytes_to_write = std::min(N_BYTES_PER_BLOCK, n_bytes - offset);
-            NOA_ASSERT(n_bytes_to_write > 0);
+        // Encode and write.
+        const i32 io_threads = 1;
+        const i32 encode_threads = std::clamp(n_threads - 1, 1, 6);
 
-            const isize n_elements_to_write = n_bytes_to_write / N_BYTES_PER_ELEMENT;
-            const isize n_elements_offset = offset / N_BYTES_PER_ELEMENT;
+        #pragma omp parallel num_threads(io_threads + encode_threads)
+        #pragma omp single
+        {
+            isize current_byte_offset = 0;
+            char* active_buffer = buffer_0.get();
+            char* alternative_buffer = buffer_1.get();
 
-            const Input* input_ptr = input.get() + n_elements_offset;
-            for (isize i = 0; i < n_elements_to_write; ++i) {
-                if constexpr (std::same_as<Output, u4_encoding>) {
-                    u32 l_val = clamp_cast<u32>(noa::round(input_ptr[2 * i]));
-                    u32 h_val = clamp_cast<u32>(noa::round(input_ptr[2 * i + 1]));
-                    l_val = noa::clamp(l_val, 0u, 15u);
-                    h_val = noa::clamp(h_val, 0u, 15u);
-                    u32 tmp = l_val + (h_val << 4);
-                    std::memcpy(per_thread_buffer + i, &tmp, 1);
-                } else {
-                    auto* output_ptr = reinterpret_cast<Output*>(per_thread_buffer);
-                    auto encoder = Encoder<Input, Output>{clamp, swap_endian};
+            // Calculate chunk sizes for the absolute first encoding pass.
+            isize n_bytes_to_encode = std::min(N_BYTES_PER_CHUNK, n_bytes - current_byte_offset);
+            isize n_elements_to_encode = n_bytes_to_encode / N_BYTES_PER_ELEMENT;
+
+            while (n_bytes_to_encode > 0) {
+                // Prepare boundaries for the encoding task
+                char* encoding_buffer = active_buffer;
+                isize encoding_offset = current_byte_offset;
+                isize encoding_elements = n_elements_to_encode;
+
+                #pragma omp task firstprivate(encoding_buffer, encoding_offset, encoding_elements) depend(out: encoding_buffer[0])
+                {
+                    const isize n_elements_offset = encoding_offset / N_BYTES_PER_ELEMENT;
                     if (input_is_contiguous) {
-                        output_ptr[i] = encoder(input_ptr[i]);
+                        #pragma omp taskloop num_tasks(encode_threads) shared(input)
+                        for (isize i = 0; i < encoding_elements; ++i) {
+                            const Input* input_ptr = input.get() + n_elements_offset;
+                            if constexpr (std::same_as<Output, u4_encoding>) {
+                                u32 l_val = clamp_cast<u32>(noa::round(input_ptr[i * 2]));
+                                u32 h_val = clamp_cast<u32>(noa::round(input_ptr[i * 2 + 1]));
+                                l_val = noa::clamp(l_val, 0u, 15u);
+                                h_val = noa::clamp(h_val, 0u, 15u);
+                                encoding_buffer[i] = static_cast<char>(l_val + (h_val << 4));
+                            } else {
+                                auto* output_ptr = reinterpret_cast<Output*>(encoding_buffer);
+                                output_ptr[i] = Encoder<Input, Output>{clamp, swap_endian}(input_ptr[i]);
+                            }
+                        }
                     } else {
-                        auto indices = offset2index(n_elements_offset + i, input.shape());
-                        output_ptr[i] = encoder(input(indices));
+                        if constexpr (not std::same_as<Output, u4_encoding>) {
+                            #pragma omp taskloop num_tasks(encode_threads) shared(input)
+                            for (isize i = 0; i < encoding_elements; ++i) {
+                                auto* output_ptr = reinterpret_cast<Output*>(encoding_buffer);
+                                auto indices = noa::offset2index(n_elements_offset + i, input.shape());
+                                output_ptr[i] = Encoder<Input, Output>{clamp, swap_endian}(input(indices));
+                            }
+                        } else {
+                            unreachable();
+                        }
                     }
                 }
-            }
 
-            #pragma omp critical
-            {
-                check(std::fseek(output, start_offset + offset, SEEK_SET) == 0,
-                      "Failed to seek at position {}. {}",
-                      start_offset + offset, std::strerror(errno));
-                check(static_cast<usize>(n_elements_to_write) == std::fwrite(
-                          per_thread_buffer,
-                          static_cast<usize>(N_BYTES_PER_ELEMENT),
-                          static_cast<usize>(n_elements_to_write),
-                          output),
-                      "Failed to read from the file");
+                // While the encoding is running on the main buffer, write the previous chunk located in the alternative buffer.
+                // For the first iteration, there's nothing to write, this is skipped.
+                isize n_bytes_to_write = encoding_offset;
+                if (n_bytes_to_write > 0) {
+                    isize prev_chunk_bytes = std::min(N_BYTES_PER_CHUNK, n_bytes - (encoding_offset - N_BYTES_PER_CHUNK));
+                    usize bytes_written = std::fwrite(alternative_buffer, 1, static_cast<usize>(prev_chunk_bytes), output);
+                    check(bytes_written == static_cast<usize>(prev_chunk_bytes), "Write failed");
+                }
+
+                // Wait for the encoding task and prepare next iteration.
+                #pragma omp taskwait
+
+                current_byte_offset += n_bytes_to_encode;
+                isize next_bytes_to_encode = std::min(N_BYTES_PER_CHUNK, n_bytes - current_byte_offset);
+                if (next_bytes_to_encode == 0) {
+                    // Encoding is all done, this is the last iteration, so write the encoded chunk.
+                    usize bytes_written = std::fwrite(encoding_buffer, 1, static_cast<usize>(n_bytes_to_encode), output);
+                    check(bytes_written == static_cast<usize>(n_bytes_to_encode), "Write failed");
+                }
+
+                std::swap(active_buffer, alternative_buffer);
+                n_bytes_to_encode = next_bytes_to_encode;
+                n_elements_to_encode = n_bytes_to_encode / N_BYTES_PER_ELEMENT;
             }
         }
     }
@@ -256,66 +291,95 @@ namespace {
         bool clamp, bool swap_endian,
         i32 n_threads
     ) {
-        constexpr isize N_BYTES_PER_BLOCK = 1 << 16; // 64KB
+        // Chunk size.
+        constexpr isize N_BYTES_PER_CHUNK = 32 * 1024 * 1024;
         constexpr isize N_BYTES_PER_ELEMENT = sizeof(Input);
-        static_assert(is_multiple_of(N_BYTES_PER_BLOCK, N_BYTES_PER_ELEMENT));
 
         const isize n_elements = output.ssize();
         const isize n_bytes = std::same_as<Input, u4_encoding> ? n_elements / 2 : n_elements * N_BYTES_PER_ELEMENT;
-        const isize n_blocks = noa::divide_up(n_bytes, N_BYTES_PER_BLOCK);
-
-        const auto buffer_ptr = std::make_unique<char[]>(static_cast<usize>(n_threads * N_BYTES_PER_BLOCK));
-        const auto buffer_span = Span(buffer_ptr.get(), Shape<isize, 2>{n_threads, N_BYTES_PER_BLOCK});
-
-        const isize start_offset = std::ftell(input);
-        check(start_offset != -1, "Could not get the current position of the stream, {}", std::strerror(errno));
-
         const bool output_is_contiguous = output.is_contiguous();
 
-        #pragma omp parallel for num_threads(n_threads)
-        for (isize n_block = 0; n_block < n_blocks; ++n_block) {
-            i32 thread_id = omp_get_thread_num();
-            char* per_thread_buffer = buffer_span[thread_id].data();
+        // Allocate two double-buffers to read and decode in parallel.
+        constexpr usize ALIGNMENT = 64;
+        std::unique_ptr buffer_0 = noa::cpu::AllocatorHeap::allocate<char, ALIGNMENT>(N_BYTES_PER_CHUNK);
+        std::unique_ptr buffer_1 = noa::cpu::AllocatorHeap::allocate<char, ALIGNMENT>(N_BYTES_PER_CHUNK);
 
-            const isize offset = n_block * N_BYTES_PER_BLOCK;
-            const isize n_bytes_to_read = std::min(N_BYTES_PER_BLOCK, n_bytes - offset);
-            NOA_ASSERT(n_bytes_to_read > 0);
+        // Read and decode.
+        const i32 io_threads = 1;
+        const i32 decode_threads = std::clamp(n_threads - 1, 1, 6);
 
-            const isize n_elements_to_read = n_bytes_to_read / N_BYTES_PER_ELEMENT;
-            const isize n_elements_offset = offset / N_BYTES_PER_ELEMENT;
+        #pragma omp parallel num_threads(io_threads + decode_threads)
+        #pragma omp single
+        {
+            isize current_byte_offset = 0;
+            char* active_buffer = buffer_0.get();
+            char* alternative_buffer = buffer_1.get();
 
-            #pragma omp critical
-            {
-                check(std::fseek(input, start_offset + offset, SEEK_SET) == 0,
-                      "Failed to seek at position {}. {}",
-                      start_offset + offset, std::strerror(errno));
-                check(static_cast<usize>(n_elements_to_read) == std::fread(
-                          per_thread_buffer,
-                          static_cast<usize>(N_BYTES_PER_ELEMENT),
-                          static_cast<usize>(n_elements_to_read),
-                          input),
-                      "Failed to read from the file");
-            }
+            // Read the first chunk into the active buffer before entering the loop.
+            isize n_bytes_to_read = std::min(N_BYTES_PER_CHUNK, n_bytes - current_byte_offset);
+            isize n_elements_to_read = n_bytes_to_read / N_BYTES_PER_ELEMENT;
+            usize bytes_read = std::fread(active_buffer, 1, static_cast<usize>(n_bytes_to_read), input);
+            check(bytes_read == static_cast<usize>(n_bytes_to_read), "Read failed");
 
-            Output* output_ptr = output.get() + n_elements_offset;
-            for (isize i = 0; i < n_elements_to_read; ++i) {
-                if constexpr (std::same_as<Input, u4_encoding>) {
-                    constexpr char MASK_4LSB{0b00001111};
-                    output_ptr[i * 2] = static_cast<Output>(per_thread_buffer[i] & MASK_4LSB);
-                    output_ptr[i * 2 + 1] = static_cast<Output>((per_thread_buffer[i] >> 4) & MASK_4LSB);
-                } else {
-                    auto* input_ptr = reinterpret_cast<Input*>(per_thread_buffer);
-                    auto decoded = Decoder<Input, Output>{clamp, swap_endian}(input_ptr[i]);
+            while (n_bytes_to_read > 0) {
+                // Prepare and launch the decoding task.
+                char* decoding_buffer = active_buffer;
+                isize decoding_offset = current_byte_offset;
+                isize decoding_elements = n_elements_to_read;
+
+                #pragma omp task firstprivate(decoding_buffer, decoding_offset, decoding_elements) depend(out: decoding_buffer[0])
+                {
+                    const isize n_elements_offset = decoding_offset / N_BYTES_PER_ELEMENT;
                     if (output_is_contiguous) {
-                        output_ptr[i] = decoded;
+                        #pragma omp taskloop num_tasks(decode_threads) shared(output)
+                        for (isize i = 0; i < decoding_elements; ++i) {
+                            Output* output_ptr = output.get() + n_elements_offset;
+                            if constexpr (std::same_as<Input, u4_encoding>) {
+                                constexpr char MASK_4LSB{0b00001111};
+                                const char byte = decoding_buffer[i];
+                                output_ptr[i * 2] = static_cast<Output>(byte & MASK_4LSB);
+                                output_ptr[i * 2 + 1] = static_cast<Output>((byte >> 4) & MASK_4LSB);
+                            } else {
+                                auto* input_ptr = reinterpret_cast<Input*>(decoding_buffer);
+                                output_ptr[i] = Decoder<Input, Output>{clamp, swap_endian}(input_ptr[i]);
+                            }
+                        }
                     } else {
-                        auto indices = offset2index(n_elements_offset + i, output.shape());
-                        output(indices) = decoded;
+                        if constexpr (not std::same_as<Input, u4_encoding>) {
+                            #pragma omp taskloop num_tasks(decode_threads) shared(output)
+                            for (isize i = 0; i < decoding_elements; ++i) {
+                                auto* input_ptr = reinterpret_cast<Input*>(decoding_buffer);
+                                auto indices = noa::offset2index(n_elements_offset + i, output.shape());
+                                output(indices) = Decoder<Input, Output>{clamp, swap_endian}(input_ptr[i]);
+                            }
+                        } else {
+                            unreachable();
+                        }
                     }
                 }
+
+                // While the decoding is running on the main buffer, read the next chunk into the alternative buffer.
+                current_byte_offset += n_bytes_to_read;
+                isize next_bytes_to_read = std::min(N_BYTES_PER_CHUNK, n_bytes - current_byte_offset);
+                if (next_bytes_to_read > 0) {
+                    usize next_read = std::fread(alternative_buffer, 1, static_cast<usize>(next_bytes_to_read), input);
+                    check(next_read == static_cast<usize>(next_bytes_to_read), "Read failed");
+                }
+
+                // Wait for the decoding task and prepare next iteration.
+                #pragma omp taskwait
+                std::swap(active_buffer, alternative_buffer);
+                n_bytes_to_read = next_bytes_to_read;
+                n_elements_to_read = n_bytes_to_read / N_BYTES_PER_ELEMENT;
             }
         }
     }
+
+#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+#pragma GCC diagnostic pop
+#elif defined(NOA_COMPILER_MSVC)
+#pragma warning(pop)
+#endif
 }
 
 namespace noa::io {
