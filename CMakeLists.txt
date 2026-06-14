@@ -82,11 +82,5 @@ else ()
     message(STATUS "Skipping target: noa::noa_tests")
 endif ()
 
-#if (PROJECT_IS_TOP_LEVEL AND NOA_BUILD_BENCHMARKS)
-#    add_subdirectory(benchmarks)
-#else ()
-#    message(STATUS "Skipping target: noa::noa_benchmarks")
-#endif ()
-
 # Export the project.
 include(cmake/ProjectExport.cmake)
