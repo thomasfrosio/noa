@@ -5,7 +5,7 @@ if (TARGET Catch2::Catch2)
     message(STATUS "Target already exists: Catch2::Catch2")
 else ()
     set(Catch2_REPOSITORY https://github.com/catchorg/Catch2.git)
-    set(Catch2_TAG v3.8.0)
+    set(Catch2_TAG v3.15.1)
 
     message(STATUS "Repository: ${Catch2_REPOSITORY}")
     message(STATUS "Git tag: ${Catch2_TAG}")
