@@ -51,6 +51,16 @@ namespace noa::inline types {
         }
     };
 }
+namespace noa::traits {
+    namespace details {
+        template<typename>
+        struct IsReduceAxes : std::false_type {};
+        template<usize N>
+        struct IsReduceAxes<ReduceAxes<N>> : std::true_type {};
+    }
+    template<typename T>
+    concept reduce_axes = details::IsReduceAxes<std::decay_t<T>>::value;
+}
 
 namespace noa::details {
     template<ReduceIwiseOptions, bool, bool, bool, typename Index, usize N, typename Reduced, typename Outputs, typename Op, typename... Ts>
@@ -80,6 +90,7 @@ namespace noa {
              typename Reduced = nd::AdaptorUnzip<>,
              typename Outputs = nd::AdaptorUnzip<>,
              typename Operator, typename... Ts>
+        requires (not nt::reduce_axes<Outputs>)
     void reduce_axes_iwise(
         const Shape<Index, N>& shape,
         Device device,

@@ -30,7 +30,7 @@ namespace noa {
     /// \param value    The value to assign.
     /// \param option   Options of the created array.
     template<typename T, usize N>
-    [[nodiscard]] auto fill(const Shape<isize, N>& shape, T value, ArrayOption option = {}) -> Array<T> {
+    [[nodiscard]] auto fill(const Shape<isize, N>& shape, T value, ArrayOption option = {}) -> Array<T, N> {
         if constexpr (nt::trivial_zero<T>) {
             if (value == T{} and option.device.is_cpu() and
                 (not Device::is_any_gpu() or
@@ -46,7 +46,7 @@ namespace noa {
 
     /// Returns an array filled with a given value.
     template<typename T, usize N = 1>
-    [[nodiscard]] auto fill(isize elements, T value, ArrayOption option = {}) -> Array<T> {
+    [[nodiscard]] auto fill(isize elements, T value, ArrayOption option = {}) -> Array<T, N> {
         return fill(Shape{elements}.extend_front_to<N>(1), value, option);
     }
 

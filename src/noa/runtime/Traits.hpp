@@ -13,18 +13,10 @@ namespace noa::traits {
     template<typename... T> concept array_view_decay = array_view<std::decay_t<T>...>;
 
     namespace details {
-        template<typename T>
-        consteval auto array_size() -> usize {
-            if constexpr (array<T>)
-                return T::SIZE;
-            return 0;
-        }
-        template<typename T>
-        consteval auto array_ssize() -> usize {
-            if constexpr (array<T>)
-                return T::SIZE;
-            return 0;
-        }
+        template<typename> consteval auto array_size() -> usize { return 0; }
+        template<typename> consteval auto array_ssize() -> isize { return 0; }
+        template<array T> consteval auto array_size() -> usize { return T::SIZE; }
+        template<array T> consteval auto array_ssize() -> usize { return T::SSIZE; }
     }
     template<typename T> constexpr usize array_size_v = details::array_size<std::decay_t<T>>();
     template<typename T> constexpr usize array_ssize_v = details::array_ssize<std::decay_t<T>>();

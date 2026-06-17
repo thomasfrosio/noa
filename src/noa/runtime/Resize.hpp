@@ -97,16 +97,16 @@ namespace noa::details {
         // Exclude the regions in the input that don't end up in the output.
         const auto crop_left = min(border_left, 0) * -1;
         const auto crop_right = min(border_right, 0) * -1;
-        const auto cropped_input = [&]<usize... I>{
+        const auto cropped_input = [&]<usize... I>(std::index_sequence<I...>) {
             return noa::make_subregion<N>(Slice{crop_left[I], input_shape[I] - crop_right[I]}...);
-        }(std::index_sequence<N>{});
+        }(std::make_index_sequence<N>{});
 
         // Exclude the regions in the output that are not from the input.
         const auto pad_left = max(border_left, 0);
         const auto pad_right = max(border_right, 0);
-        const auto cropped_output = [&]<usize... I>{
+        const auto cropped_output = [&]<usize... I>(std::index_sequence<I...>) {
             return noa::make_subregion<N>(Slice{pad_left[I], output_shape[I] - pad_right[I]}...);
-        }(std::index_sequence<N>{});
+        }(std::make_index_sequence<N>{});
 
         // One can now copy cropped_input -> cropped_output.
         return {cropped_input, cropped_output};

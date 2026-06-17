@@ -120,7 +120,7 @@ namespace noa::details {
 
         const auto& first_input_array = inputs[Tag<INDEX_OF_FIRST_ARRAY>{}];
         auto input_shape = first_input_array.shape().template extend_front_to<NDIM>(1);
-        auto output_shape = outputs[Tag<0>{}].shape();
+        auto output_shape = outputs[Tag<0>{}].shape().template extend_front_to<NDIM>(1);
         const auto device = outputs[Tag<0>{}].device();
 
         inputs.for_each_enumerate([&]<usize I, typename T>(T& input) {
