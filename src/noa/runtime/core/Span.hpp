@@ -225,8 +225,21 @@ namespace noa::inline types {
 
     public:
         template<char ORDER = 'C'>
-        [[nodiscard]] constexpr bool is_contiguous() const noexcept requires (SIZE == 4) {
+        [[nodiscard]] constexpr auto contiguity() const noexcept -> Vec<bool, N> {
+            return strides_full().template contiguity<ORDER>(shape());
+        }
+
+        template<char ORDER = 'C'>
+        [[nodiscard]] constexpr bool is_contiguous() const noexcept {
             return strides_full().template is_contiguous<ORDER>(shape());
+        }
+
+        [[nodiscard]] constexpr auto broadcasting() const noexcept -> Vec<bool, N> {
+            return strides_full().broadcasting(shape());
+        }
+
+        [[nodiscard]] constexpr bool is_broadcast() const noexcept {
+            return strides_full().is_broadcast();
         }
 
         /// Whether the span is empty. A span is empty if not initialized,
@@ -316,6 +329,15 @@ namespace noa::inline types {
             return span<NewT, NewN, NewI, NewStridesTrait, NewPointerTrait>();
         }
 
+        template<typename NewI,
+                 usize NewN,
+                 typename NewT = value_type,
+                 StridesTraits NewStridesTrait = STRIDES_TRAIT,
+                 PointerTraits NewPointerTrait = POINTER_TRAIT>
+        [[nodiscard]] constexpr auto as_index() const {
+            return span<NewT, NewN, NewI, NewStridesTrait, NewPointerTrait>();
+        }
+
         /// Reshapes the span, with size inference.
         template<usize NewN>
         [[nodiscard]] auto reshape(Shape<index_type, NewN> new_shape) const {
@@ -331,16 +353,20 @@ namespace noa::inline types {
 
         /// Reshapes the array in a vector along a particular axis.
         /// Returns a row vector by default (axis = N-1).
-        [[nodiscard]] auto flat(i32 axis = N - 1) const -> Span {
+        template<nt::integer U = usize>
+        [[nodiscard]] auto flat(U axis = static_cast<U>(N - 1)) const -> Span {
             bounds_check<true>(N, axis);
-            auto output_shape = shape_type::filled_with(1);
-            output_shape[axis] = shape().n_elements();
-            return reshape(output_shape);
+            return reshape(shape().flat(axis));
         }
 
         /// Permutes the dimensions of the span.
         /// \param permutation  Permutation, with axes numbered from 0.
-        [[nodiscard]] constexpr auto permute(const Vec<i32, N>& permutation) const -> Span {
+        template<nt::integer... U> requires (sizeof...(U) == N and STRIDES_TRAIT == StridesTraits::STRIDED)
+        [[nodiscard]] constexpr auto permute(U... permutation) const -> Span {
+            return Span(get(), shape().permute(permutation...), strides_full().permute(permutation...));
+        }
+        template<nt::integer U = index_type> requires (STRIDES_TRAIT == StridesTraits::STRIDED)
+        [[nodiscard]] constexpr auto permute(const Vec<U, N>& permutation) const -> Span {
             return Span(get(), shape().permute(permutation), strides_full().permute(permutation));
         }
 
@@ -349,6 +375,11 @@ namespace noa::inline types {
         [[nodiscard]] constexpr auto filter(U... axes) const {
             return Span<value_type, sizeof...(U), index_type, STRIDES_TRAIT>(
                 get(), shape().filter(axes...), strides().filter(axes...));
+        }
+        template<nt::integer U, usize M> requires (STRIDES_TRAIT == StridesTraits::STRIDED)
+        [[nodiscard]] constexpr auto filter(const Vec<U, M>& axes) const {
+            return Span<value_type, M, index_type, STRIDES_TRAIT>(
+                get(), shape().filter(axes), strides().filter(axes));
         }
 
         /// Extracts a subregion from the current span.

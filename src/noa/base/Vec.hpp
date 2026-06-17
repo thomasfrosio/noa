@@ -534,114 +534,119 @@ namespace noa::inline types {
         [[nodiscard]] NOA_FHD constexpr bool any_gt(const value_type& rhs) const noexcept { return nd::vec_any<Greater>(*this, Vec::filled_with(rhs)); }
 
     public: // Type casts
-        template<nt::static_castable_to<value_type> U, usize AR = 0>
+        template<nt::static_castable_to<value_type> U, usize A1 = 0>
         [[nodiscard]] NOA_FHD constexpr auto as() const noexcept {
-            return static_cast<Vec<U, SIZE, AR>>(*this);
+            return static_cast<Vec<U, SIZE, A1>>(*this);
         }
 
-        template<nt::static_castable_to<value_type> U, usize AR = 0>
+        template<nt::static_castable_to<value_type> U, usize A1 = 0>
         [[nodiscard]] NOA_FHD constexpr auto as_clamp() const noexcept {
-            return clamp_cast<Vec<U, SIZE, AR>>(*this);
+            return clamp_cast<Vec<U, SIZE, A1>>(*this);
         }
 
-        template<nt::static_castable_to<value_type> U, usize AR = 0>
+        template<nt::static_castable_to<value_type> U, usize A1 = 0>
         [[nodiscard]] constexpr auto as_safe() const {
-            return safe_cast<Vec<U, SIZE, AR>>(*this);
+            return safe_cast<Vec<U, SIZE, A1>>(*this);
         }
 
     public:
-        template<usize S = 1, usize AR = 0> requires (N >= S)
+        template<usize P = 1, usize A1 = 0> requires (N >= P)
         [[nodiscard]] NOA_FHD constexpr auto pop_front() const noexcept {
-            return Vec<value_type, N - S, AR>::from_pointer(data() + S);
+            return Vec<value_type, N - P, A1>::from_pointer(data() + P);
         }
 
-        template<usize S = 1, usize AR = 0> requires (N >= S)
+        template<usize P = 1, usize A1 = 0> requires (N >= P)
         [[nodiscard]] NOA_FHD constexpr auto pop_back() const noexcept {
-            return Vec<value_type, N - S, AR>::from_pointer(data());
+            return Vec<value_type, N - P, A1>::from_pointer(data());
         }
 
-        template<usize S = 1, usize AR = 0>
+        template<usize P = 1, usize A1 = 0>
         [[nodiscard]] NOA_FHD constexpr auto push_front(const value_type& value) const noexcept {
-            Vec<value_type, N + S, AR> output;
-            for (usize i{}; i < S; ++i)
+            Vec<value_type, N + P, A1> output;
+            for (usize i{}; i < P; ++i)
                 output[i] = value;
             if constexpr (N > 0) {
                 for (usize i{}; i < N; ++i)
-                    output[i + S] = (*this)[i];
+                    output[i + P] = (*this)[i];
             }
             return output;
         }
 
-        template<usize S = 1, usize AR = 0>
+        template<usize P = 1, usize A1 = 0>
         [[nodiscard]] NOA_FHD constexpr auto push_back(const value_type& value) const noexcept {
-            Vec<value_type, N + S, AR> output;
+            Vec<value_type, N + P, A1> output;
             if constexpr (N > 0) {
                 for (usize i{}; i < N; ++i)
                     output[i] = (*this)[i];
             }
-            for (usize i{}; i < S; ++i)
+            for (usize i{}; i < P; ++i)
                 output[N + i] = value;
             return output;
         }
 
-        template<usize AR = 0, usize S, usize AR0>
-        [[nodiscard]] NOA_FHD constexpr auto push_front(const Vec<value_type, S, AR0>& vector) const noexcept {
-            Vec<value_type, N + S, AR> output;
-            if constexpr (S > 0) {
-                for (usize i{}; i < S; ++i)
+        template<usize A1 = 0, usize P, usize A2>
+        [[nodiscard]] NOA_FHD constexpr auto push_front(const Vec<value_type, P, A2>& vector) const noexcept {
+            Vec<value_type, N + P, A1> output;
+            if constexpr (P > 0) {
+                for (usize i{}; i < P; ++i)
                     output[i] = vector[i];
             }
             if constexpr (N > 0) {
                 for (usize i{}; i < N; ++i)
-                    output[i + S] = (*this)[i];
+                    output[i + P] = (*this)[i];
             }
             return output;
         }
 
-        template<usize AR = 0, usize S, usize AR0>
-        [[nodiscard]] NOA_FHD constexpr auto push_back(const Vec<value_type, S, AR0>& vector) const noexcept {
-            Vec<value_type, N + S, AR> output;
+        template<usize A1 = 0, usize P, usize A2>
+        [[nodiscard]] NOA_FHD constexpr auto push_back(const Vec<value_type, P, A2>& vector) const noexcept {
+            Vec<value_type, N + P, A1> output;
             if constexpr (N > 0) {
                 for (usize i{}; i < N; ++i)
                     output[i] = (*this)[i];
             }
-            if constexpr (S > 0) {
-                for (usize i{}; i < S; ++i)
+            if constexpr (P > 0) {
+                for (usize i{}; i < P; ++i)
                     output[i + N] = vector[i];
             }
             return output;
         }
 
-        template<usize S, usize AR = 0>
+        template<usize N1, usize A1 = 0>
         [[nodiscard]] NOA_HD constexpr auto extend_front_to(value_type value) const noexcept {
-            constexpr usize MAX = std::max(SIZE, S);
-            return push_front<MAX - SIZE, AR>(value);
+            constexpr usize MAX = std::max(N, N1);
+            return push_front<MAX - N, A1>(value);
         }
 
-        template<nt::integer... I>
+        template<usize A1 = 0, nt::integer... I>
         [[nodiscard]] NOA_FHD constexpr auto filter(I... indices) const noexcept {
-            return Vec<value_type, sizeof...(I)>{(*this)[indices]...};
+            return Vec<value_type, sizeof...(I), A1>{(*this)[indices]...};
+        }
+
+        template< usize A1 = 0, nt::integer I, usize N1, usize A2>
+        [[nodiscard]] NOA_FHD constexpr auto filter(const Vec<I, N1, A2> indices) const noexcept {
+            return [&]<usize... V>(std::index_sequence<V...>) {
+                return Vec<value_type, N1, A1>{(*this)[indices[V]]...};
+            }(std::make_index_sequence<N1>{});
+        }
+
+        template<usize A1 = 0, nt::integer... I> requires (sizeof...(I) == N)
+        [[nodiscard]] NOA_FHD constexpr auto permute(I... permutation) const noexcept -> Vec<T, N, A1> {
+            return filter<A1>(permutation...);
+        }
+
+        template<usize A1 = 0, nt::integer I = std::conditional_t<nt::integer<value_type>, value_type, isize>, usize A2 = 0>
+        [[nodiscard]] NOA_FHD constexpr auto permute(const Vec<I, N, A2>& permutation) const noexcept -> Vec<T, N, A1> {
+            return filter<A1>(permutation);
         }
 
         [[nodiscard]] NOA_FHD constexpr auto flip() const noexcept -> Vec {
-            if constexpr (SIZE == 0) {
+            if constexpr (N == 0) {
                 return {};
             } else {
                 Vec output;
-                for (usize i{}; i < SIZE; ++i)
+                for (usize i{}; i < N; ++i)
                     output[i] = (*this)[(N - 1) - i];
-                return output;
-            }
-        }
-
-        template<nt::integer I = std::conditional_t<nt::integer<value_type>, value_type, isize>, usize AR = 0>
-        [[nodiscard]] NOA_FHD constexpr auto permute(const Vec<I, SIZE, AR>& permutation) const noexcept -> Vec {
-            if constexpr (SIZE == 0) {
-                return {};
-            } else {
-                Vec output;
-                for (usize i{}; i < SIZE; ++i)
-                    output[i] = (*this)[permutation[i]];
                 return output;
             }
         }

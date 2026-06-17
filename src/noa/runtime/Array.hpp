@@ -400,7 +400,6 @@ namespace noa::inline types {
     /// - Memory ownership:
     /// Arrays can manage reference-counted memory regions (using a std::shared_ptr) or be simple views over existing memory.
     /// This behavior is controlled at compile time by the ArrayOwnership template parameter.
-    /// On top of being slightly more lightweight due to owning a simple pointer, views can have a const value type.
     ///
     /// - Memory resource:
     /// The memory resource and location depend on the ArrayOption used to create the array. Arrays are therefore
@@ -410,7 +409,8 @@ namespace noa::inline types {
     /// - Value type:
     /// Arrays are usually managing "numeric" types, like integers or (complex) floating-points. However, any trivially
     /// destructible type is supported, such as Vec or Matrices, except for references, pointers, and extents.
-    /// Owning arrays cannot have const-qualified value types.
+    /// Arrays can have const-qualified value types, however owning arrays must have mutable value-types when
+    /// using the allocating constructors.
     ///
     /// - Eager asynchronous execution:
     /// The library is stream-ordered and starts computation eagerly by enqueing backend calls to the current stream.
@@ -446,7 +446,6 @@ namespace noa::inline types {
         static constexpr ArrayOwnership ARRAY_OWNERSHIP = O;
         static constexpr bool IS_VIEW = ARRAY_OWNERSHIP == ArrayOwnership::VIEW;
 
-        static_assert(not std::is_const_v<T> or IS_VIEW);
         static_assert(not std::is_pointer_v<T>);
         static_assert(not std::is_reference_v<T>);
         static_assert(std::is_trivially_destructible_v<T>);
@@ -513,9 +512,8 @@ namespace noa::inline types {
         /// \param[in,out] data Data to encapsulate.
         /// \param n_elements   Number of elements in data.
         /// \param option       Options of data.
-        template<std::convertible_to<shared_type> P>
-        constexpr Array(P&& data, isize n_elements, ArrayOption option = {}) :
-            m_shared(std::forward<P>(data)),
+        constexpr Array(shared_type data, isize n_elements, ArrayOption option = {}) :
+            m_shared(std::move(data)),
             m_options{option}
         {
             for (usize i = 0; i < N - 1; ++i) {
@@ -531,15 +529,14 @@ namespace noa::inline types {
         /// \param[in,out] data Data to encapsulate.
         /// \param shape        Shape of data.
         /// \param option       Options of data.
-        template<std::convertible_to<shared_type> P>
         constexpr Array(
-            P&& data,
+            shared_type data,
             const shape_type& shape,
             ArrayOption option = {}
         ) :
             m_shape{shape},
             m_strides{shape.strides()},
-            m_shared(std::forward<P>(data)),
+            m_shared(std::move(data)),
             m_options{option}
         {
             allocator().validate(get(), device());
@@ -550,16 +547,15 @@ namespace noa::inline types {
         /// \param shape        Shape of data.
         /// \param strides      Strides of data.
         /// \param option       Options of data.
-        template<std::convertible_to<shared_type> P>
         constexpr Array(
-            P&& data,
+            shared_type data,
             const shape_type& shape,
             const strides_type& strides,
             ArrayOption option = {}
         ) :
             m_shape{shape},
             m_strides{strides},
-            m_shared(std::forward<P>(data)),
+            m_shared(std::move(data)),
             m_options{option}
         {
             allocator().validate(get(), device());
@@ -570,9 +566,8 @@ namespace noa::inline types {
         /// \param shape        Shape of data.
         /// \param strides      Strides of data.
         /// \param option       Options of data.
-        template<std::convertible_to<shared_type> P>
         constexpr Array(
-            P&& data,
+            shared_type data,
             const shape_type& shape,
             const strides_type& strides,
             ArrayOption option,
@@ -580,7 +575,7 @@ namespace noa::inline types {
         ) :
             m_shape{shape},
             m_strides{strides},
-            m_shared(std::forward<P>(data)),
+            m_shared(std::move(data)),
             m_options{option} {}
 
         /// Creates a view from a span.
@@ -594,14 +589,13 @@ namespace noa::inline types {
             allocator().validate(span.data(), device());
         }
 
-        /// Creates a const view from an existing non-const view.
-        template<nt::mutable_of<value_type> U>
-            requires (IS_VIEW and std::is_const_v<value_type>)
-        constexpr /*implicit*/ Array(const Array<U, N, ArrayOwnership::VIEW>& view) noexcept :
-            m_shape{view.shape()},
-            m_strides{view.strides()},
-            m_shared{view.data()},
-            m_options{view.options()} {}
+        /// Creates a const array from an existing non-const array.
+        template<nt::mutable_of<value_type> U> requires std::is_const_v<value_type>
+        constexpr /*implicit*/ Array(Array<U, N, O> array) noexcept :
+            m_shape{array.shape()},
+            m_strides{array.strides()},
+            m_shared{std::move(array).share()},
+            m_options{array.options()} {}
 
         /// Creates a view of an owning array.
         template<nt::almost_same_as<value_type> U> requires IS_VIEW
@@ -646,16 +640,22 @@ namespace noa::inline types {
         [[nodiscard]] constexpr auto ssize() const noexcept -> isize { return static_cast<isize>(n_elements()); }
         [[nodiscard]] constexpr auto size() const noexcept -> usize { return static_cast<usize>(n_elements()); }
 
-        /// Whether the dimensions of the array are C or F contiguous.
+        template<char ORDER = 'C'>
+        [[nodiscard]] constexpr auto contiguity() const noexcept -> Vec<bool, N> {
+            return strides().template contiguity<ORDER>(shape());
+        }
+
         template<char ORDER = 'C'>
         [[nodiscard]] constexpr bool is_contiguous() const noexcept {
             return strides().template is_contiguous<ORDER>(shape());
         }
 
-        /// Computes the contiguity profile of the array.
-        template<char ORDER = 'C'>
-        [[nodiscard]] constexpr auto contiguity() const noexcept -> Vec<bool, N> {
-            return strides().template contiguity<ORDER>(shape());
+        [[nodiscard]] constexpr auto broadcasting() const noexcept -> Vec<bool, N> {
+            return strides().broadcasting(shape());
+        }
+
+        [[nodiscard]] constexpr bool is_broadcast() const noexcept {
+            return strides().is_broadcast();
         }
 
         /// Whether the array is empty.
@@ -850,7 +850,7 @@ namespace noa::inline types {
             static_assert((NewArrayOwnership == ArrayOwnership::RC and not IS_VIEW) or
                           NewArrayOwnership == ArrayOwnership::VIEW, "Cannot create an owning array from a view");
 
-            using output_t = Array<NewT, N, ARRAY_OWNERSHIP>;
+            using output_t = Array<NewT, NewN, ARRAY_OWNERSHIP>;
             using reinterpret_t = nd::ReinterpretLayoutStrided<value_type, N, index_type>;
             const auto reinterpreted = reinterpret_t(data(), shape(), strides()).template as<NewT, NewN>();
 
@@ -866,7 +866,7 @@ namespace noa::inline types {
             static_assert((NewArrayOwnership == ArrayOwnership::RC and not IS_VIEW) or
                           NewArrayOwnership == ArrayOwnership::VIEW, "Cannot create an owning array from a view");
 
-            using output_t = Array<NewT, N, ARRAY_OWNERSHIP>;
+            using output_t = Array<NewT, NewN, ARRAY_OWNERSHIP>;
             using reinterpret_t = nd::ReinterpretLayoutStrided<value_type, N, index_type>;
             const auto reinterpreted = reinterpret_t(data(), shape(), strides()).template as<NewT, NewN>();
 
@@ -879,29 +879,50 @@ namespace noa::inline types {
         }
 
         template<typename NewT, usize NewN = N>
-        [[nodiscard]] constexpr auto as() const {
+        [[nodiscard]] constexpr auto as() const& {
             return array<NewT, NewN>();
         }
-
-        template<usize NewN = N>
-        [[nodiscard]] constexpr auto as_const() const {
-            return array<const_value_type, NewN>();
+        template<typename NewT, usize NewN = N>
+        [[nodiscard]] constexpr auto as() && {
+            return std::move(*this).template array<NewT, NewN>();
         }
 
         template<usize NewN = N>
-        [[nodiscard]] constexpr auto as_bytes() const {
+        [[nodiscard]] constexpr auto as_const() const& {
+            return array<const_value_type, NewN>();
+        }
+        template<usize NewN = N>
+        [[nodiscard]] constexpr auto as_const() && {
+            return std::move(*this).template array<const_value_type, NewN>();
+        }
+
+        template<usize NewN = N>
+        [[nodiscard]] constexpr auto as_bytes() const& {
             using output_t = std::conditional_t<std::is_const_v<value_type>, const Byte, Byte>;
             return array<output_t, NewN>();
         }
+        template<usize NewN = N>
+        [[nodiscard]] constexpr auto as_bytes() && {
+            using output_t = std::conditional_t<std::is_const_v<value_type>, const Byte, Byte>;
+            return std::move(*this).template array<output_t, NewN>();
+        }
 
         template<typename NewT = value_type>
-        [[nodiscard]] constexpr auto as_1d() const {
+        [[nodiscard]] constexpr auto as_1d() const& {
             return array<NewT, 1>();
+        }
+        template<typename NewT = value_type>
+        [[nodiscard]] constexpr auto as_1d() && {
+            return std::move(*this).template array<NewT, 1>();
         }
 
         template<usize NewN, typename NewT = value_type>
-        [[nodiscard]] constexpr auto as_nd() const {
+        [[nodiscard]] constexpr auto as_nd() const& {
             return array<NewT, NewN>();
+        }
+        template<usize NewN, typename NewT = value_type>
+        [[nodiscard]] constexpr auto as_nd() && {
+            return std::move(*this).template array<NewT, NewN>();
         }
 
         /// Returns a (const-)view of the array.
@@ -939,45 +960,53 @@ namespace noa::inline types {
 
         /// Reshapes the array in a vector along a particular axis.
         /// Returns a row vector by default (axis = N - 1).
-        [[nodiscard]] constexpr auto flat(isize axis = N - 1) const & -> Array {
+        template<nt::integer I = usize>
+        [[nodiscard]] constexpr auto flat(I axis = static_cast<I>(N - 1)) const & -> Array {
             bounds_check<true>(N, axis);
-            auto output_shape = shape_type::filled_with(1);
-            output_shape[axis] = shape().n_elements();
-            return this->reshape(output_shape);
+            return this->reshape(shape().flat(axis));
         }
-        [[nodiscard]] constexpr auto flat(isize axis = N - 1) && -> Array {
+        template<nt::integer I = usize>
+        [[nodiscard]] constexpr auto flat(I axis = static_cast<I>(N - 1)) && -> Array {
             bounds_check<true>(N, axis);
-            auto output_shape = shape_type::filled_with(1);
-            output_shape[axis] = shape().n_elements();
-            return std::move(*this).reshape(output_shape);
+            return std::move(*this).reshape(shape().flat(axis));
         }
 
         /// Permutes the dimensions of the view.
         /// \param permutation  Permutation with the axes numbered from 0 to N - 1.
-        [[nodiscard]] constexpr auto permute(const Vec<i32, N>& permutation) const& -> Array {
-            return Array(
-                m_shared,
-                shape().permute(permutation),
-                strides().permute(permutation),
-                options(), Unchecked{}
-            );
+        template<nt::integer... I>
+        [[nodiscard]] constexpr auto permute(I... permutation) const& -> Array {
+            return Array(m_shared, shape().permute(permutation...), strides().permute(permutation...), options(), Unchecked{});
         }
-        [[nodiscard]] constexpr auto permute(const Vec<i32, N>& permutation) && -> Array {
-            return Array(
-                std::move(m_shared),
-                shape().permute(permutation),
-                strides().permute(permutation),
-                options(), Unchecked{}
-            );
+        template<nt::integer... I>
+        [[nodiscard]] constexpr auto permute(I... permutation) && -> Array {
+            return Array(std::move(m_shared), shape().permute(permutation...), strides().permute(permutation...), options(), Unchecked{});
+        }
+        template<nt::integer I = i32>
+        [[nodiscard]] constexpr auto permute(const Vec<I, N>& permutation) const& -> Array {
+            return Array(m_shared, shape().permute(permutation), strides().permute(permutation), options(), Unchecked{});
+        }
+        template<nt::integer I = i32>
+        [[nodiscard]] constexpr auto permute(const Vec<I, N>& permutation) && -> Array {
+            return Array(std::move(m_shared), shape().permute(permutation), strides().permute(permutation), options(), Unchecked{});
         }
 
         /// Permutes the array by performing a deep-copy. The returned Array is a new C-contiguous array.
         /// \param permutation  Permutation with the axes numbered from 0 to N - 1.
-        [[nodiscard]] auto permute_copy(const Vec<i32, N>& permutation) const& -> array_type {
-            return noa::permute_copy(*this, permutation);
+        template<nt::integer... I>
+        [[nodiscard]] auto permute_copy(I... permutation) const& -> array_type {
+            return noa::permute_copy(*this, Vec{static_cast<i32>(permutation)...});
         }
-        [[nodiscard]] auto permute_copy(const Vec<i32, N>& permutation) && -> array_type {
-            return noa::permute_copy(std::move(*this), permutation);
+        template<nt::integer... I>
+        [[nodiscard]] auto permute_copy(I... permutation) && -> array_type {
+            return noa::permute_copy(std::move(*this), Vec{static_cast<i32>(permutation)...});
+        }
+        template<nt::integer I = isize>
+        [[nodiscard]] auto permute_copy(const Vec<I, N>& permutation) const& -> array_type {
+            return noa::permute_copy(*this, permutation.template as<i32>());
+        }
+        template<nt::integer I = isize>
+        [[nodiscard]] auto permute_copy(const Vec<I, N>& permutation) && -> array_type {
+            return noa::permute_copy(std::move(*this), permutation.template as<i32>());
         }
 
         /// Returns an array with the given axes.
@@ -990,6 +1019,16 @@ namespace noa::inline types {
         [[nodiscard]] constexpr auto filter(U... axes) && {
             return Array<value_type, sizeof...(U), ARRAY_OWNERSHIP>(
                 std::move(m_shared), shape().filter(axes...), strides().filter(axes...));
+        }
+        template<nt::integer U, usize M>
+        [[nodiscard]] constexpr auto filter(const Vec<U, M>& axes) const& {
+            return Array<value_type, M, ARRAY_OWNERSHIP>(
+                m_shared, shape().filter(axes), strides().filter(axes));
+        }
+        template<nt::integer U, usize M>
+        [[nodiscard]] constexpr auto filter(const Vec<U, M>& axes) && {
+            return Array<value_type, M, ARRAY_OWNERSHIP>(
+                std::move(m_shared), shape().filter(axes), strides().filter(axes));
         }
 
     public:

@@ -207,91 +207,99 @@ namespace noa::inline types {
         }
 
     public:
-        template<usize S = 1, usize AR = 0> requires (SIZE >= S)
+        template<usize P = 1, usize A1 = 0> requires (N >= P)
         [[nodiscard]] NOA_HD constexpr auto pop_front() const noexcept {
-            return Shape<value_type, SIZE - S, AR>::from_pointer(data() + S);
+            return Shape<value_type, N - P, A1>::from_pointer(data() + P);
         }
 
-        template<usize S = 1, usize AR = 0> requires (SIZE >= S)
+        template<usize P = 1, usize A1 = 0> requires (N >= P)
         [[nodiscard]] NOA_HD constexpr auto pop_back() const noexcept {
-            return Shape<value_type, SIZE - S, AR>::from_pointer(data());
+            return Shape<value_type, N - P, A1>::from_pointer(data());
         }
 
-        template<usize S = 1, usize AR = 0>
+        template<usize P = 1, usize A1 = 0>
         [[nodiscard]] NOA_HD constexpr auto push_front(value_type value) const noexcept {
-            return Shape<value_type, SIZE + S, AR>{vec.template push_front<S, AR>(value)};
+            return Shape<value_type, N + P, A1>{vec.template push_front<P, A1>(value)};
         }
 
-        template<usize S = 1, usize AR = 0>
+        template<usize P = 1, usize A1 = 0>
         [[nodiscard]] NOA_HD constexpr auto push_back(value_type value) const noexcept {
-            return Shape<value_type, SIZE + S, AR>{vec.template push_back<S, AR>(value)};
+            return Shape<value_type, N + P, A1>{vec.template push_back<P, A1>(value)};
         }
 
-        template<usize AR = 0, usize S, usize AR0>
-        [[nodiscard]] NOA_HD constexpr auto push_front(const Vec<value_type, S, AR0>& vector) const noexcept {
-            constexpr usize NEW_SIZE = SIZE + S;
-            return Shape<value_type, NEW_SIZE, AR>{vec.template push_front<AR>(vector)};
+        template<usize A1 = 0, usize P, usize A2>
+        [[nodiscard]] NOA_HD constexpr auto push_front(const Vec<value_type, P, A2>& vector) const noexcept {
+            constexpr usize N1 = N + P;
+            return Shape<value_type, N1, A1>{vec.template push_front<A1>(vector)};
         }
 
-        template<usize AR = 0, usize S, usize AR0>
-        [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, S, AR0>& vector) const noexcept {
-            constexpr usize NEW_SIZE = SIZE + S;
-            return Shape<value_type, NEW_SIZE, AR>{vec.template push_back<AR>(vector)};
+        template<usize A1 = 0, usize P, usize A2>
+        [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, P, A2>& vector) const noexcept {
+            constexpr usize N1 = N + P;
+            return Shape<value_type, N1, A1>{vec.template push_back<A1>(vector)};
         }
 
-        template<usize S, usize AR = 0>
+        template<usize P, usize A1 = 0>
         [[nodiscard]] NOA_HD constexpr auto extend_front_to(value_type value) const noexcept {
-            return Shape<value_type, S, AR>{vec.template extend_front_to<S, AR>(value)};
+            return Shape<value_type, P, A1>{vec.template extend_front_to<P, A1>(value)};
         }
 
-        template<nt::integer... U>
-        [[nodiscard]] NOA_HD constexpr auto filter(U... ts) const noexcept {
-            return Shape<value_type, sizeof...(U)>{(*this)[ts]...};
+        template<usize A1 = 0, nt::integer... I>
+        [[nodiscard]] NOA_HD constexpr auto filter(I... a) const noexcept {
+            return Shape<value_type, sizeof...(I), A1>{vec.template filter<A1>(a...)};
+        }
+        template<usize A1 = 0, nt::integer I, usize N1, usize A2>
+        [[nodiscard]] NOA_HD constexpr auto filter(const Vec<I, N1, A2>& a) const noexcept {
+            return Shape<value_type, N1, A1>{vec.template filter<A1>(a)};
         }
 
-        template<usize S> requires (S < N and N == 4)
-        [[nodiscard]] constexpr auto filter_nd() const noexcept {
-            if constexpr (S == 1)
-                return filter(0, 3);
-            else if constexpr (S == 2)
-                return filter(0, 2, 3);
-            else if constexpr (S == 3)
-                return *this;
-            else
-                static_assert(nt::always_false<T>);
+        template<usize A1 = 0, nt::integer... I> requires (sizeof...(I) == N)
+        [[nodiscard]] NOA_HD constexpr auto permute(I... order) const noexcept -> Shape {
+            return {vec.template permute<A1>(order...)};
         }
 
-        [[nodiscard]] NOA_HD constexpr Shape flip() const noexcept {
+        template<usize A1 = 0, nt::integer I = value_type, usize A2 = 0>
+        [[nodiscard]] NOA_HD constexpr auto permute(const Vec<I, N, A2>& order) const noexcept -> Shape {
+            return {vec.template permute<A1>(order)};
+        }
+
+        [[nodiscard]] NOA_HD constexpr auto flip() const noexcept -> Shape {
             return {vec.flip()};
         }
 
-        template<nt::integer I = value_type, usize AR>
-        [[nodiscard]] NOA_HD constexpr Shape permute(const Vec<I, SIZE, AR>& order) const noexcept {
-            return {vec.permute(order)};
-        }
-
-        [[nodiscard]] NOA_HD constexpr Shape circular_shift(isize count) const noexcept {
+        [[nodiscard]] NOA_HD constexpr auto circular_shift(isize count) const noexcept -> Shape {
             return {vec.circular_shift(count)};
         }
 
-        [[nodiscard]] NOA_HD constexpr Shape copy() const noexcept {
+        [[nodiscard]] NOA_HD constexpr auto copy() const noexcept -> Shape {
             return *this;
         }
 
-        template<usize INDEX> requires (INDEX < SIZE)
-        [[nodiscard]] NOA_HD constexpr Shape set(value_type value) const noexcept {
+        template<usize INDEX> requires (INDEX < N)
+        [[nodiscard]] NOA_HD constexpr auto set(value_type value) const noexcept -> Shape {
             auto output = *this;
             output[INDEX] = value;
             return output;
         }
 
+        template<nt::integer I = usize>
+        [[nodiscard]] NOA_HD constexpr auto flat(I axis = static_cast<I>(N - 1)) const noexcept -> Shape {
+            if constexpr (N == 0) {
+                return Shape{};
+            } else {
+                auto output_shape = Shape::filled_with(1);
+                output_shape[axis] = n_elements();
+                return output_shape;
+            }
+        }
+
     public:
         [[nodiscard]] NOA_HD constexpr value_type n_elements() const noexcept {
-            if constexpr (SIZE == 0) {
+            if constexpr (N == 0) {
                 return 0;
             } else {
                 auto output = vec[0];
-                for (usize i{1}; i < SIZE; ++i)
+                for (usize i{1}; i < N; ++i)
                     output *= vec[i];
                 return output;
             }
@@ -449,7 +457,7 @@ namespace noa::inline types {
     template<typename T, usize N, usize A = 0>
     class Strides {
     public:
-        static_assert(nt::integer<T> and N <= 4);
+        static_assert(nt::integer<T>);
         using vector_type = Vec<T, N, A>;
         using value_type = vector_type::value_type;
         using mutable_value_type = value_type;
@@ -642,79 +650,76 @@ namespace noa::inline types {
         }
 
     public:
-        template<usize S = 1, usize AR = 0> requires (SIZE >= S)
+        template<usize P = 1, usize A1 = 0> requires (N >= P)
         [[nodiscard]] NOA_HD constexpr auto pop_front() const noexcept {
-            return Strides<value_type, SIZE - S, AR>::from_pointer(data() + S);
+            return Strides<value_type, N - P, A1>::from_pointer(data() + P);
         }
 
-        template<usize S = 1, usize AR = 0> requires (SIZE >= S)
+        template<usize P = 1, usize A1 = 0> requires (N >= P)
         [[nodiscard]] NOA_HD constexpr auto pop_back() const noexcept {
-            return Strides<value_type, SIZE - S, AR>::from_pointer(data());
+            return Strides<value_type, N - P, A1>::from_pointer(data());
         }
 
-        template<usize S = 1, usize AR = 0>
+        template<usize P = 1, usize A1 = 0>
         [[nodiscard]] NOA_HD constexpr auto push_front(value_type value) const noexcept {
-            return Strides<value_type, SIZE + S, AR>{vec.template push_front<S, AR>(value)};
+            return Strides<value_type, N + P, A1>{vec.template push_front<P, A1>(value)};
         }
 
-        template<usize S = 1, usize AR = 0>
+        template<usize P = 1, usize A1 = 0>
         [[nodiscard]] NOA_HD constexpr auto push_back(value_type value) const noexcept {
-            return Strides<value_type, SIZE + S, AR>{vec.template push_back<S, AR>(value)};
+            return Strides<value_type, N + P, A1>{vec.template push_back<P, A1>(value)};
         }
 
-        template<usize AR = 0, usize S, usize AR0>
-        [[nodiscard]] NOA_HD constexpr auto push_front(const Vec<value_type, S, AR0>& vector) const noexcept {
-            constexpr usize NEW_SIZE = SIZE + S;
-            return Strides<value_type, NEW_SIZE, AR>{vec.template push_front<AR>(vector)};
+        template<usize A1 = 0, usize P, usize A2>
+        [[nodiscard]] NOA_HD constexpr auto push_front(const Vec<value_type, P, A2>& vector) const noexcept {
+            constexpr usize N1 = N + P;
+            return Strides<value_type, N1, A1>{vec.template push_front<A1>(vector)};
         }
 
-        template<usize AR = 0, usize S, usize AR0>
-        [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, S, AR0>& vector) const noexcept {
-            constexpr usize NEW_SIZE = SIZE + S;
-            return Strides<value_type, NEW_SIZE, AR>{vec.template push_back<AR>(vector)};
+        template<usize A1 = 0, usize P, usize A2>
+        [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, P, A2>& vector) const noexcept {
+            constexpr usize N1 = N + P;
+            return Strides<value_type, N1, A1>{vec.template push_back<A1>(vector)};
         }
 
-        template<usize S, usize AR = 0>
+        template<usize P, usize A1 = 0>
         [[nodiscard]] NOA_HD constexpr auto extend_front_to(value_type value) const noexcept {
-            return Strides<value_type, S, AR>{vec.template extend_front_to<S, AR>(value)};
+            return Strides<value_type, P, A1>{vec.template extend_front_to<P, A1>(value)};
         }
 
-        template<nt::integer... U>
-        [[nodiscard]] NOA_HD constexpr auto filter(U... ts) const noexcept {
-            return Strides<value_type, sizeof...(U)>{(*this)[ts]...};
+        template<usize A1 = 0, nt::integer... I>
+        [[nodiscard]] NOA_HD constexpr auto filter(I... a) const noexcept {
+            return Strides<value_type, sizeof...(I), A1>{vec.template filter<A1>(a...)};
+        }
+        template<usize A1 = 0, nt::integer I, usize N1, usize A2>
+        [[nodiscard]] NOA_HD constexpr auto filter(const Vec<I, N1, A2>& a) const noexcept {
+            return Strides<value_type, N1, A1>{vec.template filter<A1>(a)};
         }
 
-        template<usize S> requires (S < N and N == 4)
-        [[nodiscard]] constexpr auto filter_nd() const noexcept {
-            if constexpr (S == 1)
-                return filter(0, 3);
-            else if constexpr (S == 2)
-                return filter(0, 2, 3);
-            else if constexpr (S == 3)
-                return *this;
-            else
-                static_assert(nt::always_false<T>);
+        template<usize A1 = 0, nt::integer... I> requires (sizeof...(I) == N)
+        [[nodiscard]] NOA_HD constexpr auto permute(I... order) const noexcept -> Strides {
+            return {vec.template permute<A1>(order...)};
         }
 
-        [[nodiscard]] NOA_HD constexpr Strides flip() const noexcept {
+        template<usize A1 = 0, nt::integer I = value_type, usize A2 = 0>
+        [[nodiscard]] NOA_HD constexpr auto permute(const Vec<I, N, A2>& order) const noexcept -> Strides {
+            return {vec.template permute<A1>(order)};
+        }
+
+        [[nodiscard]] NOA_HD constexpr auto flip() const noexcept -> Strides {
             return {vec.flip()};
         }
 
-        template<nt::integer I = value_type, usize AR>
-        [[nodiscard]] NOA_HD constexpr Strides permute(const Vec<I, SIZE, AR>& order) const noexcept {
-            return {vec.permute(order)};
-        }
-
-        [[nodiscard]] NOA_HD constexpr Strides circular_shift(isize count) const noexcept {
+        [[nodiscard]] NOA_HD constexpr auto circular_shift(isize count) const noexcept -> Strides {
             return {vec.circular_shift(count)};
         }
 
-        [[nodiscard]] NOA_HD constexpr Strides copy() const noexcept {
+        [[nodiscard]] NOA_HD constexpr auto copy() const noexcept -> Strides {
             return *this;
         }
 
         template<usize INDEX> requires (INDEX < SIZE)
-        [[nodiscard]] NOA_HD constexpr Strides set(value_type value) const noexcept {
+        [[nodiscard]] NOA_HD constexpr auto set(value_type value) const noexcept -> Strides {
             auto output = *this;
             output[INDEX] = value;
             return output;
@@ -946,9 +951,9 @@ namespace noa::inline types {
             }
         }
 
-        [[nodiscard]] NOA_HD constexpr auto split_batch() const noexcept
-        -> Pair<value_type, Strides<value_type, 3>> requires (SIZE == 4) {
-            return {batch(), pop_front()};
+        [[nodiscard]] NOA_HD constexpr auto split_last() const noexcept
+        -> Pair<value_type, Strides<value_type, N - 1>> requires (N >= 2) {
+            return {vec[0], pop_front()};
         }
     };
 
@@ -993,11 +998,15 @@ namespace noa::inline types {
     using Shape2 = Shape<isize, 2>;
     using Shape3 = Shape<isize, 3>;
     using Shape4 = Shape<isize, 4>;
+    using Shape5 = Shape<isize, 5>;
+    using Shape6 = Shape<isize, 6>;
 
     using Strides1 = Strides<isize, 1>;
     using Strides2 = Strides<isize, 2>;
     using Strides3 = Strides<isize, 3>;
     using Strides4 = Strides<isize, 4>;
+    using Strides5 = Strides<isize, 5>;
+    using Strides6 = Strides<isize, 6>;
 }
 
 namespace noa::traits {
