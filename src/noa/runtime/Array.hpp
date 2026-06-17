@@ -1096,6 +1096,22 @@ namespace noa::inline types {
         ArrayOption m_options{};
     };
 
+    /// Deduction guides for ctor encapsulating data.
+    template<typename T, nt::integer I>
+    Array(T*, I, ArrayOption a = {}) -> Array<T, 1, ArrayOwnership::VIEW>;
+    template<typename T, nt::integer I>
+    Array(std::shared_ptr<T[]>, I, ArrayOption a = {}) -> Array<T, 1, ArrayOwnership::RC>;
+
+    template<typename T, nt::integer I, usize N>
+    Array(T*, Shape<I, N>, ArrayOption a = {}) -> Array<T, N, ArrayOwnership::VIEW>;
+    template<typename T, nt::integer I, usize N>
+    Array(std::shared_ptr<T[]>, Shape<I, N>, ArrayOption a = {}) -> Array<T, N, ArrayOwnership::RC>;
+
+    template<typename T, nt::integer I, usize N>
+    Array(T*, Shape<I, N>, Strides<I, N>, ArrayOption a = {}) -> Array<T, N, ArrayOwnership::VIEW>;
+    template<typename T, nt::integer I, usize N>
+    Array(std::shared_ptr<T[]>, Shape<I, N>, Strides<I, N>, ArrayOption a = {}) -> Array<T, N, ArrayOwnership::RC>;
+
     template<typename T, usize N>
     using View = Array<T, N, ArrayOwnership::VIEW>;
 }
