@@ -25,7 +25,6 @@
 #include "noa/runtime/Event.hpp"
 #include "noa/runtime/Ewise.hpp"
 #include "noa/runtime/Factory.hpp"
-#include "noa/runtime/Layout.hpp"
 #include "noa/runtime/Iwise.hpp"
 #include "noa/runtime/Random.hpp"
 #include "noa/runtime/Reduce.hpp"
@@ -40,4 +39,3 @@
 #include "noa/runtime/Subregion.hpp"
 #include "noa/runtime/Traits.hpp"
 #include "noa/runtime/Utils.hpp"
-#include "noa/runtime/View.hpp"
