@@ -214,7 +214,7 @@ TEMPLATE_TEST_CASE("runtime::reduce - mean_l2_norm", "", f32, f64, c32, c64) {
 
         const auto shape = test::random_shape_batched(2);
         auto random = test::random<TestType>(shape.n_elements(), test::Randomizer<TestType>{-40., 50.});
-        auto data = View(random.get(), shape).to(options);
+        auto data = Array<TestType, 4, ArrayOwnership::VIEW>(random.get(), shape).to(options);
 
         noa::normalize(data, data, {.mode = noa::Norm::MEAN_STD});
 
@@ -245,11 +245,11 @@ TEMPLATE_TEST_CASE("runtime::reduce - normalize rows", "", f64, c64) {
         auto shape = test::random_shape_batched(3, {.batch_range = {2, 10}});
         shape[3] += 200;
         auto random = test::arange<TestType>(shape.n_elements(), 0., 0.1);
-        auto data = View(random.get(), shape).to(options);
+        auto data = Array<TestType, 4, ArrayOwnership::VIEW>(random.get(), shape).to(options);
 
-        noa::normalize(data, data, ReduceAxes{.width = true}, {.mode = noa::Norm::MEAN_STD});
+        noa::normalize(data, data, ReduceAxes<4>{}.reduce_axis(3), {.mode = noa::Norm::MEAN_STD});
 
-        const auto [mean, stddev] = noa::mean_stddev(data, ReduceAxes{.width = true});
+        const auto [mean, stddev] = noa::mean_stddev(data, ReduceAxes<4>{}.reduce_axis(3));
         REQUIRE(mean.shape() == shape.set<3>(1));
         REQUIRE(stddev.shape() == shape.set<3>(1));
 

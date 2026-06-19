@@ -288,28 +288,22 @@ TEST_CASE("runtime::core:: shape, strides") {
         REQUIRE(shape.strides<'F'>().is_rightmost());
     }
 
-    AND_THEN("is_vector") {
-        Shape<u64, 4> shape{3, 128, 65, 64};
-        REQUIRE_FALSE(shape.is_vector());
+    AND_THEN("as_nd") {
+        auto shape1 = Shape{3, 128, 65, 64};
+        REQUIRE(shape1.as_nd<6>() == Shape{1, 1, 3, 128, 65, 64});
+        REQUIRE(shape1.as_nd<5>() == Shape{1, 3, 128, 65, 64});
+        REQUIRE(shape1.as_nd<4>() == Shape{3, 128, 65, 64});
+        REQUIRE(shape1.as_nd<3>() == Shape{3 * 128, 65, 64});
+        REQUIRE(shape1.as_nd<2>() == Shape{3 * 128 * 65, 64});
+        REQUIRE(shape1.as_nd<1>() == Shape{3 * 128 * 65 * 64});
 
-        shape = {3, 128, 1, 1};
-        REQUIRE_FALSE(shape.is_vector());
-
-        shape = {1, 1, 1, 128};
-        REQUIRE(shape.is_vector());
-        shape = {1, 1, 128, 1};
-        REQUIRE(shape.is_vector());
-        shape = {1, 128, 1, 1};
-        REQUIRE(shape.is_vector());
-        shape = {128, 1, 1, 1};
-        REQUIRE(shape.is_vector());
-
-        shape = {3, 1, 1, 128};
-        REQUIRE(shape.is_vector(true));
-        REQUIRE_FALSE(shape.is_vector(false));
-        shape = {3, 128, 1, 1};
-        REQUIRE(shape.is_vector(true));
-        REQUIRE_FALSE(shape.is_vector(false));
+        auto shape2 = Shape{65, 64};
+        REQUIRE(shape2.as_nd<6>() == Shape{1, 1, 1, 1, 65, 64});
+        REQUIRE(shape2.as_nd<5>() == Shape{1, 1, 1, 65, 64});
+        REQUIRE(shape2.as_nd<4>() == Shape{1, 1, 65, 64});
+        REQUIRE(shape2.as_nd<3>() == Shape{1, 65, 64});
+        REQUIRE(shape2.as_nd<2>() == Shape{65, 64});
+        REQUIRE(shape2.as_nd<1>() == Shape{65 * 64});
     }
 
     AND_THEN("effective_shape") {

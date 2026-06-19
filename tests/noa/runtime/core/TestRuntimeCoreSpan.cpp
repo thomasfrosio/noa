@@ -130,7 +130,7 @@ TEST_CASE("runtime::core::Span") {
 
         // Reshape, subregion and dimension conversion.
         REQUIRE_NOTHROW(s0.reshape<4>({1, 6, 1, 20}));
-        REQUIRE(s0.flat().permute({3, 0, 1, 2}).shape() == Shape{shape_4d.n_elements(), 1, 1, 1});
+        REQUIRE(s0.flat().as_strided().permute({3, 0, 1, 2}).shape() == Shape{shape_4d.n_elements(), 1, 1, 1});
         REQUIRE(s0.span<i32, 4, u64>().subregion(1, 1).data() == s0.get() + s0.offset_at(1, 1));
     }
 }

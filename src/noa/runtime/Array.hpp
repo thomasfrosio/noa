@@ -446,6 +446,7 @@ namespace noa::inline types {
         static constexpr ArrayOwnership ARRAY_OWNERSHIP = O;
         static constexpr bool IS_VIEW = ARRAY_OWNERSHIP == ArrayOwnership::VIEW;
 
+        static_assert(N >= 1); // TODO Support N==0
         static_assert(not std::is_pointer_v<T>);
         static_assert(not std::is_reference_v<T>);
         static_assert(std::is_trivially_destructible_v<T>);
@@ -1111,9 +1112,6 @@ namespace noa::inline types {
     Array(T*, Shape<I, N>, Strides<I, N>, ArrayOption a = {}) -> Array<T, N, ArrayOwnership::VIEW>;
     template<typename T, nt::integer I, usize N>
     Array(std::shared_ptr<T[]>, Shape<I, N>, Strides<I, N>, ArrayOption a = {}) -> Array<T, N, ArrayOwnership::RC>;
-
-    template<typename T, usize N>
-    using View = Array<T, N, ArrayOwnership::VIEW>;
 }
 
 namespace noa::traits {

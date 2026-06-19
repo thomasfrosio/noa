@@ -73,15 +73,6 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr auto operator[](nt::integer auto i)       noexcept ->       value_type& requires (SIZE > 0) { return vec[i]; }
         [[nodiscard]] NOA_HD constexpr auto operator[](nt::integer auto i) const noexcept -> const value_type& requires (SIZE > 0) { return vec[i]; }
 
-        [[nodiscard]] NOA_HD constexpr auto batch()        noexcept ->       value_type& requires (SIZE >= 4) { return vec[SIZE - 4]; }
-        [[nodiscard]] NOA_HD constexpr auto batch()  const noexcept -> const value_type& requires (SIZE >= 4) { return vec[SIZE - 4]; }
-        [[nodiscard]] NOA_HD constexpr auto depth()        noexcept ->       value_type& requires (SIZE >= 3) { return vec[SIZE - 3]; }
-        [[nodiscard]] NOA_HD constexpr auto depth()  const noexcept -> const value_type& requires (SIZE >= 3) { return vec[SIZE - 3]; }
-        [[nodiscard]] NOA_HD constexpr auto height()       noexcept ->       value_type& requires (SIZE >= 2) { return vec[SIZE - 2]; }
-        [[nodiscard]] NOA_HD constexpr auto height() const noexcept -> const value_type& requires (SIZE >= 2) { return vec[SIZE - 2]; }
-        [[nodiscard]] NOA_HD constexpr auto width()        noexcept ->       value_type& requires (SIZE >= 1) { return vec[SIZE - 1]; }
-        [[nodiscard]] NOA_HD constexpr auto width()  const noexcept -> const value_type& requires (SIZE >= 1) { return vec[SIZE - 1]; }
-
         // Structure binding support.
         template<int I> [[nodiscard]] NOA_HD constexpr       value_type& get() noexcept { return vec[I]; }
         template<int I> [[nodiscard]] NOA_HD constexpr const value_type& get() const noexcept { return vec[I]; }
@@ -319,32 +310,23 @@ namespace noa::inline types {
             return false;
         }
 
-        /// Returns the logical number of dimensions in the BDHW convention.
-        /// This returns a value from 0 to 3. The batch dimension is ignored,
-        /// and is_batched() should be used to know whether the array is batched.
-        /// Note that both row and column vectors are considered to be 1d, but
-        /// if the depth dimension is greater than 1, ndim() == 3 even if both the
-        /// height and width are 1.
-        [[nodiscard]] NOA_HD constexpr value_type ndim() const noexcept {
-            NOA_ASSERT(not is_empty());
-            if constexpr (SIZE <= 1) {
-                return static_cast<value_type>(SIZE);
-            } else if constexpr (SIZE == 2) {
-                if (vec[0] > 1 and vec[1] > 1)
-                    return 2;
-                return 1;
-            } else if constexpr (SIZE == 3) {
-                if (vec[0] > 1)
-                    return 3;
-                if (vec[1] > 1 and vec[2] > 1)
-                    return 2;
-                return 1;
+        template<usize N1>
+        [[nodiscard]] NOA_HD constexpr auto as_nd() const noexcept -> Shape<T, N1> {
+            if constexpr (N1 == N) {
+                return *this;
+            } else if constexpr (N1 > N) {
+                // Add empty dimensions on the left.
+                constexpr usize n_dimensions_to_add = N1 - N;
+                return push_front<n_dimensions_to_add>(1);
             } else {
-                if (vec[1] > 1)
-                    return 3;
-                if (vec[2] > 1 and vec[3] > 1)
-                    return 2;
-                return 1;
+                // Construct the new shape by stacking the outer dimensions together.
+                constexpr usize OFFSET = N - N1;
+                auto new_shape = *this;
+                for (usize i{}; i < OFFSET; ++i) {
+                    new_shape[i + 1] *= new_shape[i]; // i+1 exists
+                    // new_shape[i] = 1; will be popped
+                }
+                return new_shape.template pop_front<OFFSET>();
             }
         }
 
@@ -376,33 +358,17 @@ namespace noa::inline types {
             }
         }
 
-        /// Returns the shape of the non-redundant FFT, in elements,
-        [[nodiscard]] NOA_HD constexpr Shape rfft() const noexcept {
+        /// Returns the shape of the non-redundant FFT, in elements.
+        /// This is using the convention that the non-redundant dimension is the rightmost dimension, aka width.
+        [[nodiscard]] NOA_HD constexpr auto rfft() const noexcept -> Shape {
             Shape output = *this;
             if constexpr (SIZE > 0)
                 output[SIZE - 1] = (output[SIZE - 1] / 2) + 1;
             return output;
         }
 
-        /// Whether the shape describes vector.
-        /// A vector has one dimension with a size >= 1 and all the other dimensions empty (i.e. size == 1).
-        /// By this definition, the shapes {1,1,1,1}, {5,1,1,1} and {1,1,1,5} are all vectors.
-        /// If "can_be_batched" is true, the shape can describe a batch of vectors,
-        /// e.g. {4,1,1,5} is describing 4 row vectors with a length of 5.
-        [[nodiscard]] NOA_FHD constexpr bool is_vector(bool can_be_batched = false) const noexcept requires (SIZE == 4) {
-            int non_empty_dimension = 0;
-            for (usize i{}; i < SIZE; ++i) {
-                if (vec[i] == 0)
-                    return false; // empty/invalid shape
-                if ((not can_be_batched or i != 0) and vec[i] > 1)
-                    ++non_empty_dimension;
-            }
-            return non_empty_dimension <= 1;
-        }
-
-        /// Whether the shape describes a vector.
-        /// A vector has one dimension with a size >= 1 and all the other dimensions empty (size == 1).
-        [[nodiscard]] NOA_FHD constexpr bool is_vector() const noexcept requires (SIZE > 0 and SIZE <= 3) {
+        /// Whether the shape has a unique non-empty dimension.
+        [[nodiscard]] NOA_FHD constexpr bool is_vector() const noexcept requires (SIZE >= 1) {
             int non_empty_dimension = 0;
             for (usize i{}; i < SIZE; ++i) {
                 if (vec[i] == 0)
@@ -411,39 +377,6 @@ namespace noa::inline types {
                     ++non_empty_dimension;
             }
             return non_empty_dimension <= 1;
-        }
-
-        /// Whether this is a (batched) column vector.
-        [[nodiscard]] NOA_HD constexpr bool is_column() const noexcept requires (SIZE >= 2) {
-            return vec[SIZE - 2] >= 1 and vec[SIZE - 1] == 1;
-        }
-
-        /// Whether this is a (batched) row vector.
-        [[nodiscard]] NOA_HD constexpr bool is_row() const noexcept requires (SIZE >= 2) {
-            return vec[SIZE - 2] == 1 and vec[SIZE - 1] >= 1;
-        }
-
-        /// Whether this is a (batched) column vector.
-        [[nodiscard]] NOA_HD constexpr bool is_batched() const noexcept requires (SIZE == 4) {
-            return vec[0] > 1;
-        }
-
-        /// Move the first non-empty dimension (starting from the front) to the batch dimension.
-        [[nodiscard]] NOA_HD constexpr Shape to_batched() const noexcept requires (SIZE == 4) {
-            if (vec[0] > 1)
-                return *this; // already batched
-            if (vec[1] > 1)
-                return Shape{vec[1], 1, vec[2], vec[3]};
-            if (vec[2] > 1)
-                return Shape{vec[2], 1, 1, vec[3]};
-            if (vec[3] > 1)
-                return Shape{vec[3], 1, 1, 1};
-            return *this; // {1,1,1,1}
-        }
-
-        [[nodiscard]] NOA_HD constexpr auto split_batch() const noexcept
-            -> Pair<value_type, Shape<value_type, 3>> requires (SIZE == 4) {
-            return {batch(), pop_front()};
         }
     };
 
@@ -515,15 +448,6 @@ namespace noa::inline types {
     public: // Accessor operators and functions
         [[nodiscard]] NOA_HD constexpr auto operator[](nt::integer auto i) noexcept -> value_type& requires (SIZE > 0) { return vec[i]; }
         [[nodiscard]] NOA_HD constexpr auto operator[](nt::integer auto i) const noexcept -> const value_type& requires (SIZE > 0) { return vec[i]; }
-
-        [[nodiscard]] NOA_HD constexpr auto batch()  noexcept       -> value_type&       requires (SIZE == 4) { return vec[0]; }
-        [[nodiscard]] NOA_HD constexpr auto batch()  const noexcept -> const value_type& requires (SIZE == 4) { return vec[0]; }
-        [[nodiscard]] NOA_HD constexpr auto depth()  noexcept       -> value_type&       requires (SIZE >= 3) { return vec[SIZE - 3]; }
-        [[nodiscard]] NOA_HD constexpr auto depth()  const noexcept -> const value_type& requires (SIZE >= 3) { return vec[SIZE - 3]; }
-        [[nodiscard]] NOA_HD constexpr auto height() noexcept       -> value_type&       requires (SIZE >= 2) { return vec[SIZE - 2]; }
-        [[nodiscard]] NOA_HD constexpr auto height() const noexcept -> const value_type& requires (SIZE >= 2) { return vec[SIZE - 2]; }
-        [[nodiscard]] NOA_HD constexpr auto width()  noexcept       -> value_type&       requires (SIZE >= 1) { return vec[SIZE - 1]; }
-        [[nodiscard]] NOA_HD constexpr auto width()  const noexcept -> const value_type& requires (SIZE >= 1) { return vec[SIZE - 1]; }
 
         // Structure binding support.
         template<int I> [[nodiscard]] NOA_HD constexpr const value_type& get() const noexcept { return vec[I]; }
@@ -951,10 +875,10 @@ namespace noa::inline types {
             }
         }
 
-        [[nodiscard]] NOA_HD constexpr auto split_last() const noexcept
-        -> Pair<value_type, Strides<value_type, N - 1>> requires (N >= 2) {
-            return {vec[0], pop_front()};
-        }
+        // [[nodiscard]] NOA_HD constexpr auto split_last() const noexcept
+        // -> Pair<value_type, Strides<value_type, N - 1>> requires (N >= 2) {
+        //     return {vec[0], pop_front()};
+        // }
     };
 
     /// Deduction guide.

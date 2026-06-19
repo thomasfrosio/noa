@@ -28,33 +28,32 @@ TEST_CASE("runtime::extract_subregions()", "[asset]") {
 
             const YAML::Node& test = tests[nb];
             const auto shape = test["shape"].as<Shape4>();
-            const auto subregion_shape = test["sub_shape"].as<Shape4>();
+            const auto subregion_shape = test["sub_shape"].as<Shape4>(); // b1dhw
             const auto subregion_origins = test["sub_origins"].as<std::vector<Vec<isize, 4>>>();
             const auto border_mode = test["border"].as<noa::Border>();
             const auto border_value = test["border_value"].as<f32>();
 
             const auto input = noa::arange(shape, noa::Arange<f32>{}, options);
-            const auto subregions = noa::fill(subregion_shape, 4.f, options);
-            const auto origins = View(subregion_origins.data(), static_cast<i64>(subregion_origins.size())).to(options);
+            const auto subregions = noa::fill(subregion_shape.push_front(std::ssize(subregion_origins)), 4.f, options);
+            const auto origins = Array(subregion_origins.data(), static_cast<i64>(subregion_origins.size())).to(options);
 
             // Extract:
             noa::extract_subregions(input, subregions, origins, border_mode, border_value);
             subregions.eval();
 
             const auto expected_subregion_filenames = test["expected_extract"].as<std::vector<Path>>();
-            const auto subregion_count = static_cast<size_t>(subregion_shape[0]);
             if constexpr (COMPUTE_ASSETS) {
                 noa::io::ImageFile file;
-                for (size_t i{}; i < subregion_count; ++i) {
+                for (size_t i{}; i < std::size(subregion_origins); ++i) {
                     file.open(path_base / expected_subregion_filenames[i], {.write=true});
-                    file.write_all(subregions.span().as_const().subregion(i));
+                    file.write_all(subregions.span().as_const().subregion(i).as_nd<4>());
                 }
             } else {
                 const auto expected_subregions = noa::empty_like(subregions);
                 noa::io::ImageFile file;
-                for (size_t i{}; i < subregion_count; ++i) {
+                for (size_t i{}; i < std::size(subregion_origins); ++i) {
                     file.open(path_base / expected_subregion_filenames[i], {.read=true});
-                    file.read_all(expected_subregions.span().subregion(i));
+                    file.read_all(expected_subregions.span().subregion(i).as_nd<4>());
                 }
                 REQUIRE(test::allclose_abs_safe(expected_subregions, subregions, 1e-7));
             }
@@ -84,8 +83,8 @@ TEMPLATE_TEST_CASE("runtime::extract|insert_subregions()", "", i32, f32, f64, c3
         const auto options = ArrayOption(device, Allocator::MANAGED);
 
         const auto data = noa::random(noa::Uniform<TestType>{-5, 5}, Shape{2, 100, 200, 300}.as<isize>(), options);
-        const auto subregions = noa::fill(Shape{3, 64, 64, 64}.as<isize>(), TestType{0}, options);
-        const auto origins = noa::empty<Vec<i64, 4>>(Shape{1, 1, 1, 3}.as<isize>(), options);
+        const auto subregions = noa::fill(Shape{3, 1, 64, 64, 64}.as<isize>(), TestType{0}, options);
+        const auto origins = noa::empty<Vec<i64, 4>, 1>(3, options);
         origins.span_1d()[0] = {0, 0, 0, 0};
         origins.span_1d()[1] = {0, 34, 130, -20};
         origins.span_1d()[2] = {1, 60, 128, 255};
@@ -101,19 +100,18 @@ TEMPLATE_TEST_CASE("runtime::extract|insert_subregions()", "", i32, f32, f64, c3
 TEMPLATE_TEST_CASE("runtime::atlas_layout(), insert_subregions()", "", i32, f32) {
     const i64 ndim = GENERATE(2, 3);
     test::Randomizer<u32> dim_randomizer(40, 60);
-    const auto subregion_shape = Shape4{
-        test::Randomizer<isize>(10, 40).get(), // subregion count
+    const auto n_subregions = test::Randomizer<isize>(10, 40).get();
+    const auto subregion_shape = Shape3{
         ndim == 3 ? dim_randomizer.get() : 1,
         dim_randomizer.get(),
         dim_randomizer.get()};
 
     // Prepare subregions.
-    auto subregions = noa::empty<TestType>(subregion_shape);
-    for (i64 idx{}; idx < subregion_shape[0]; ++idx)
-        noa::fill(subregions.subregion(idx), static_cast<TestType>(idx));
-    // The loop could be replaced by: noa::arange<TestType>(subregion_shape[0]).flat(0).to(subregions);
+    auto subregions = noa::empty<TestType>(subregion_shape.push_front(n_subregions));
+    for (i64 i{}; i < n_subregions; ++i)
+        noa::fill(subregions.subregion(i), static_cast<TestType>(i));
 
-    auto [atlas_shape, atlas_origins] = noa::atlas_layout<i64, 2>(subregion_shape);
+    auto [atlas_shape, atlas_origins] = noa::atlas_layout(subregion_shape, n_subregions);
 
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
@@ -132,7 +130,7 @@ TEMPLATE_TEST_CASE("runtime::atlas_layout(), insert_subregions()", "", i32, f32)
         noa::insert_subregions(subregions, atlas, atlas_origins);
 
         // Extract from atlas
-        const auto o_subregions = noa::like(subregions);
+        const auto o_subregions = noa::empty_like(subregions);
         noa::extract_subregions(atlas, o_subregions, atlas_origins);
 
         REQUIRE(test::allclose_abs(subregions, o_subregions, 1e-8));

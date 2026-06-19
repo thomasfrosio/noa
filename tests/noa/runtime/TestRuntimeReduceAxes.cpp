@@ -147,8 +147,8 @@ TEMPLATE_TEST_CASE("runtime::reduce - axis reductions, cpu vs gpu", "[noa]", i64
         }
 
         if constexpr (not noa::traits::integer<TestType>) {
-            auto cpu_norm = noa::l2_norm(cpu_data, noa::ReduceAxes::from_shape(output_shape));
-            auto gpu_norm = noa::l2_norm(gpu_data, noa::ReduceAxes::from_shape(output_shape));
+            auto cpu_norm = noa::l2_norm(cpu_data, noa::ReduceAxes<4>::from_shape(output_shape));
+            auto gpu_norm = noa::l2_norm(gpu_data, noa::ReduceAxes<4>::from_shape(output_shape));
             REQUIRE(test::allclose_abs_safe(std::move(cpu_norm), std::move(gpu_norm), eps));
 
             for (i32 ddof = 0; ddof < 2; ++ddof) {
@@ -236,16 +236,16 @@ TEST_CASE("runtime::reduce - argmax/argmin()", "[noa]") {
         Array<f32> input(shape);
         test::randomize(input.get(), input.n_elements(), test::Randomizer<f32>(-100., 100.));
 
-        Array expected_min_values = noa::empty<f32>({shape.batch(), 1, 1, 1});
-        Array expected_min_offsets = noa::like<i32>(expected_min_values);
+        Array expected_min_values = noa::empty<f32, 4>({shape[0], 1, 1, 1});
+        Array expected_min_offsets = noa::empty_like<i32>(expected_min_values);
 
         test::randomize(expected_min_values.get(), expected_min_values.n_elements(),
                         test::Randomizer<f32>(-200, -101));
         test::randomize(expected_min_offsets.get(), expected_min_offsets.n_elements(),
                         test::Randomizer<i32>(0u, n_elements_per_batch - 1));
 
-        const auto input_2d = input.reshape({shape.batch(), 1, 1, -1});
-        for (i64 batch = 0; batch < shape.batch(); ++batch) {
+        const auto input_2d = input.reshape(Shape4{shape[0], 1, 1, -1});
+        for (i64 batch = 0; batch < shape[0]; ++batch) {
             auto& offset = expected_min_offsets.span()(batch, 0, 0, 0);
             input_2d.span()(batch, 0, 0, offset) = expected_min_values.span()(batch, 0, 0, 0);
             offset += static_cast<i32>(batch * n_elements_per_batch); // back to global offset

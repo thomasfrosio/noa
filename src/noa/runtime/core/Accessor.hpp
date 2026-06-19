@@ -1,6 +1,5 @@
 #pragma once
 
-#include "catch2/internal/catch_decomposer.hpp"
 #include "noa/base/Tuple.hpp"
 #include "noa/runtime/core/Access.hpp"
 #include "noa/runtime/core/Shape.hpp"

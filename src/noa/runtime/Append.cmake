@@ -17,28 +17,27 @@ list(APPEND NOA_HEADERS
     noa/runtime/Array.hpp
     noa/runtime/ArrayOption.hpp
     noa/runtime/Backend.hpp
-#    noa/runtime/Blas.hpp
-#    noa/runtime/Complex.hpp
-#    noa/runtime/CopyBatches.hpp
+    noa/runtime/Blas.hpp
+    noa/runtime/Complex.hpp
+    noa/runtime/CopyBatches.hpp
     noa/runtime/Device.hpp
     noa/runtime/Event.hpp
     noa/runtime/Ewise.hpp
-#    noa/runtime/Factory.hpp
+    noa/runtime/Factory.hpp
     noa/runtime/Iwise.hpp
-#    noa/runtime/Random.hpp
-#    noa/runtime/Reduce.hpp
+    noa/runtime/Random.hpp
+    noa/runtime/Reduce.hpp
     noa/runtime/ReduceAxesEwise.hpp
     noa/runtime/ReduceAxesIwise.hpp
     noa/runtime/ReduceEwise.hpp
     noa/runtime/ReduceIwise.hpp
-#    noa/runtime/Resize.hpp
+    noa/runtime/Resize.hpp
     noa/runtime/Session.hpp
-#    noa/runtime/Sort.hpp
+    noa/runtime/Sort.hpp
     noa/runtime/Stream.hpp
-#    noa/runtime/Subregion.hpp
+    noa/runtime/Subregion.hpp
     noa/runtime/Traits.hpp
     noa/runtime/Utils.hpp
-#    noa/runtime/View.hpp
 )
 
 list(APPEND NOA_SOURCES

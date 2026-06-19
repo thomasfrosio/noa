@@ -249,6 +249,12 @@ namespace noa::details {
                 auto new_shape = Shape<index_type, N>::filled_with(1);
                 for (usize i{}; i < N; ++i)
                     new_shape[max(i, OFFSET)] *= reinterpreted.shape[i];
+                // TODO replace with this:
+                // auto new_shape = reinterpreted.shape;
+                // for (usize i{}; i < OFFSET; ++i) {
+                //     new_shape[i + 1] *= new_shape[i]; // i+1 exists
+                //     new_shape[i] = 1;
+                // }
 
                 // Reshape.
                 Strides<index_type, N> new_stride{};

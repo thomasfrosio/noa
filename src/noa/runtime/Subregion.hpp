@@ -121,7 +121,6 @@ namespace noa::details {
         subregions_type m_subregions;
         origins_type m_origins;
         shape_type m_output_shape;
-        origins_type m_order;
     };
 
 }
@@ -284,13 +283,13 @@ namespace noa {
         const auto span = output_origins.span_1d();
         for (isize y{}; y < rows; ++y) {
             for (isize x{}; x < columns; ++x) {
-                const isize idx = y * columns + x;
-                if (idx >= subregion_shape[0])
+                const isize i = y * columns + x;
+                if (i >= n_subregions)
                     break;
                 auto origin = T{};
                 origin[N - 2] = y * subregion_shape[N - 2];
                 origin[N - 1] = x * subregion_shape[N - 1];
-                span[idx] = origin;
+                span[i] = origin;
             }
         }
         return atlas_shape;

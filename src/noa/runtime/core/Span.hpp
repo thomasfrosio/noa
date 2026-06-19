@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/runtime/core/Access.hpp"
+#include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/core/Shape.hpp"
 #include "noa/runtime/core/Subregion.hpp"
 #include "noa/runtime/core/Utils.hpp"
@@ -58,6 +59,7 @@ namespace noa::inline types {
              PointerTraits PointerTrait = PointerTraits::DEFAULT>
     class Span : public nd::Indexer<Span<T, N, I, StridesTrait>, N> {
     public:
+        static_assert(N >= 1); // TODO Support N==0
         static_assert(not std::is_reference_v<T> and
                       not std::is_pointer_v<T> and
                       not std::extent_v<T> and
@@ -80,6 +82,7 @@ namespace noa::inline types {
         using shape_type = Shape<index_type, N>;
         using strides_type = Strides<index_type, N - IS_CONTIGUOUS>;
         using strides_full_type = Strides<index_type, N>;
+        using accessor_type = Accessor<value_type, N, index_type, STRIDES_TRAIT, POINTER_TRAIT>;
         using span_iterator_type = nd::SpanIterator<value_type, index_type, STRIDES_TRAIT>;
         using contiguous_span_type = Span<value_type, SIZE, index_type, StridesTraits::CONTIGUOUS, POINTER_TRAIT>;
 
@@ -180,6 +183,9 @@ namespace noa::inline types {
 
         [[nodiscard]] NOA_HD constexpr auto get() const noexcept -> pointer_type { return m_ptr; }
         [[nodiscard]] NOA_HD constexpr auto data() const noexcept -> pointer_type { return m_ptr; }
+        [[nodiscard]] NOA_HD constexpr auto accessor() const noexcept -> accessor_type {
+            return accessor_type(data(), strides());
+        }
 
     public: // Range
         [[nodiscard]] NOA_HD constexpr auto n_elements() const noexcept -> index_type { return m_shape.n_elements(); }

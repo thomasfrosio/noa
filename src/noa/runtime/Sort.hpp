@@ -13,6 +13,17 @@
 
 // TODO expose backend allocation
 
+namespace noa::details {
+    template<usize N>
+    constexpr auto permute_sort_axis(i32 sort_axis, const Vec<isize, N>& order) -> i32 {
+        for (i32 i{}; i < static_cast<i32>(N); ++i) {
+            if (sort_axis == order[i])
+                return i;
+        }
+        return sort_axis;
+    }
+}
+
 namespace noa {
     struct SortOptions {
         /// Whether to sort in ascending or descending order.
@@ -20,7 +31,7 @@ namespace noa {
 
         /// Axis along which to sort.
         /// The default is -1, which sorts along the first non-empty dimension from the right.
-        /// Otherwise, it should be from 0 to N, excluded.
+        /// Otherwise, it should be from 0 to N-1.
         i32 axis{-1};
     };
 
@@ -34,20 +45,23 @@ namespace noa {
     void sort(Input&& array, SortOptions options = {}) {
         check(not array.is_empty(), "Empty array detected");
 
+        // Check the axis to sort.
         constexpr auto N = nt::array_size_v<Input>;
         if (options.axis == -1) {
             // Set to the first non-empty dimension, starting from the right.
-            for (i32 i = N; i >= 0; --i) {
+            for (i32 i = N - 1; i >= 0; --i) {
                 if (array.shape()[i] > 1) {
                     options.axis = i;
                     break;
                 }
             }
         } else {
-            check(options.axis >= 0 and options.axis < N, "Invalid axis");
+            noa::bounds_check<true>(N, options.axis);
         }
-        if (array.shape() == 1 or array.strides()[options.axis] == 0)
-            return; // nothing to sort
+
+        // If there's nothing to sort, return.
+        if (array.shape()[options.axis] == 1 or array.strides()[options.axis] == 0)
+            return;
 
         using accessor_t = AccessorRestrict<nt::value_type_t<Input>, N>;
         auto shape = array.shape();
@@ -57,7 +71,7 @@ namespace noa {
         const auto optimal_order = nd::optimal_layout_for_accessors(shape, accessors);
         if (optimal_order != Vec<isize, N>::arange()) {
             shape = shape.permute(optimal_order);
-            options.axis = optimal_order[options.axis];
+            options.axis = nd::permute_sort_axis(options.axis, optimal_order);
             nd::permute_accessors(optimal_order, accessors);
         }
 
@@ -71,15 +85,13 @@ namespace noa {
         // Squeeze the newly empty dimensions to the left.
         const auto squeeze_order = noa::squeeze_empty_dimensions_left(collapsed_shape);
         collapsed_shape = collapsed_shape.permute(squeeze_order);
-        options.axis = squeeze_order[options.axis];
+        options.axis = nd::permute_sort_axis(options.axis, squeeze_order);
 
         // Instead of permuting the accessors, reshape them to the new shape.
-        if (nd::reshape_accessors(shape, collapsed_shape, accessors)) {
-            shape = collapsed_shape;
-        } else {
-            panic("Reshape failed, shape={}, contiguity={}, broadcasting={}. Please report this issue",
-                  shape, contiguity, broadcasting);
-        }
+        check(nd::reshape_accessors(shape, collapsed_shape, accessors),
+              "Reshape failed, shape={}, contiguity={}, broadcasting={}. Please report this issue",
+              shape, contiguity, broadcasting);
+        shape = collapsed_shape;
         auto accessor = accessors[Tag<0>{}];
 
         const Device device = array.device();

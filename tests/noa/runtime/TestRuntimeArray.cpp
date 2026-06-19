@@ -12,11 +12,12 @@ namespace {
 }
 
 TEMPLATE_TEST_CASE("runtime::Array, allocate", "", i32, f32, c32, (Vec<i32, 4>), Simple) {
+    constexpr usize N = 4;
     auto guard = StreamGuard(Device{}, Stream::DEFAULT);
-    Array<TestType> a;
+    Array<TestType, N> a;
     REQUIRE(a.is_empty());
 
-    const auto shape = test::random_shape(2);
+    const auto shape = test::random_shape<isize, N>(2);
     const Allocator allocator = GENERATE(as<Allocator>(),
         Allocator::DEFAULT,
         Allocator::DEFAULT_ASYNC,
@@ -27,7 +28,7 @@ TEMPLATE_TEST_CASE("runtime::Array, allocate", "", i32, f32, c32, (Vec<i32, 4>),
         Allocator::PITCHED_MANAGED);
 
     // CPU
-    a = Array<TestType>(shape, {.device=Device{}, .allocator=allocator});
+    a = Array<TestType, N>(shape, {.device=Device{}, .allocator=allocator});
     REQUIRE(a.device().is_cpu());
     REQUIRE(a.allocator() == allocator);
     REQUIRE(a.shape() == shape);
@@ -38,7 +39,7 @@ TEMPLATE_TEST_CASE("runtime::Array, allocate", "", i32, f32, c32, (Vec<i32, 4>),
     if (not Device::is_any_gpu())
         return;
 
-    Array<TestType> b(shape, {"gpu:0", allocator});
+    auto b = Array<TestType, N>(shape, {"gpu:0", allocator});
     REQUIRE(b.device().is_gpu());
     REQUIRE(b.allocator() == allocator);
     REQUIRE(b.shape() == shape);
@@ -46,7 +47,7 @@ TEMPLATE_TEST_CASE("runtime::Array, allocate", "", i32, f32, c32, (Vec<i32, 4>),
     REQUIRE_FALSE(b.is_empty());
 
     if (allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL, Allocator::PITCHED_MANAGED)) {
-        Array<TestType> c = a.reinterpret_as(Device::GPU, {.prefetch = true});
+        auto c = a.reinterpret_as(Device::GPU, {.prefetch = true});
         REQUIRE(c.device().is_gpu());
         c = b.reinterpret_as(Device::CPU, {.prefetch = true});
         REQUIRE(c.device() == Device{});
@@ -57,8 +58,9 @@ TEMPLATE_TEST_CASE("runtime::Array, allocate", "", i32, f32, c32, (Vec<i32, 4>),
 }
 
 TEMPLATE_TEST_CASE("runtime::Array, copy metadata", "", i32, u64, f32, f64, c32, c64) {
-    StreamGuard guard(Device{}, Stream::DEFAULT);
-    const auto shape = test::random_shape(2);
+    constexpr usize N = 2;
+    auto guard = StreamGuard(Device{}, Stream::DEFAULT);
+    const auto shape = test::random_shape<isize, N>(2);
     const auto allocator = GENERATE(as<Allocator>(),
         Allocator::DEFAULT,
         Allocator::DEFAULT_ASYNC,
@@ -69,12 +71,12 @@ TEMPLATE_TEST_CASE("runtime::Array, copy metadata", "", i32, u64, f32, f64, c32,
         Allocator::PITCHED_MANAGED);
 
     // CPU
-    Array<TestType> a(shape, {Device{}, allocator});
+    Array<TestType, N> a(shape, {Device{}, allocator});
     REQUIRE(a.device().is_cpu());
     REQUIRE(a.allocator() == allocator);
     REQUIRE(a.get());
 
-    Array<TestType> b = a.to({.device=Device(Device::CPU)});
+    Array<TestType, N> b = a.to({.device=Device(Device::CPU)});
     REQUIRE(b.device().is_cpu());
     REQUIRE(b.allocator() == Allocator::DEFAULT);
     REQUIRE(b.get());
@@ -84,7 +86,7 @@ TEMPLATE_TEST_CASE("runtime::Array, copy metadata", "", i32, u64, f32, f64, c32,
     if (!Device::is_any(Device::GPU))
         return;
     const Device gpu("gpu:0");
-    a = Array<TestType>(shape, ArrayOption{}.set_device(gpu).set_allocator(allocator));
+    a = Array<TestType, N>(shape, ArrayOption{}.set_device(gpu).set_allocator(allocator));
     REQUIRE(a.device().is_gpu());
     REQUIRE(a.allocator() == allocator);
     REQUIRE(a.get());
@@ -109,9 +111,10 @@ TEMPLATE_TEST_CASE("runtime::Array, copy metadata", "", i32, u64, f32, f64, c32,
 }
 
 TEMPLATE_TEST_CASE("runtime::Array, copy values", "", i32, u64, f32, f64, c32, c64) {
+    constexpr usize N = 3;
     StreamGuard guard(Device{}, Stream::DEFAULT);
-    const auto shape = test::random_shape(3);
-    const auto input = Array<TestType>(shape, {.allocator="managed"});
+    const auto shape = test::random_shape<isize, N>(3);
+    const auto input = Array<TestType, N>(shape, {.allocator="managed"});
 
     // arange
     using real_t = noa::traits::value_type_t<TestType>;
@@ -148,10 +151,25 @@ TEMPLATE_TEST_CASE("runtime::Array, copy values", "", i32, u64, f32, f64, c32, c
 }
 
 TEST_CASE("runtime::Array, .to returns the output") {
-    auto a0 = Array<f32>(1);
-    auto a1 = Array<f32>(1);
+    {
+        auto a0 = Array<f32, 1>(1);
+        auto a1 = Array<f32, 1>(1);
+        REQUIRE(a1.get() == std::move(a0).to(a1).get());
+    }
+    {
+        auto a0 = Array<f32, 6>(1);
+        auto a1 = Array<f32, 6>(1);
+        REQUIRE(a1.get() == std::move(a0).to(a1).get());
+    }
+}
 
-    REQUIRE(a1.get() == std::move(a0).to(a1).get());
+TEST_CASE("runtime::Array, encapsulate") {
+    auto a = Array<f32, 2>({10, 10});
+    auto b = Array(a.data(), a.shape());
+    static_assert(std::is_same_v<decltype(b), Array<f32, 2, ArrayOwnership::VIEW>>);
+    auto c = Array(a.share(), a.shape());
+    static_assert(std::is_same_v<decltype(c), Array<f32, 2, ArrayOwnership::RC>>);
+    REQUIRE(c.data() == a.data());
 }
 
 TEMPLATE_TEST_CASE("runtime::Array, shape manipulation", "", i32, u64, f32, f64, c32, c64) {
@@ -176,7 +194,7 @@ TEMPLATE_TEST_CASE("runtime::Array, shape manipulation", "", i32, u64, f32, f64,
         Array<TestType> a({4, 10, 50, 30});
         a = a.flat();
         REQUIRE(a.strides() == a.shape().strides());
-        REQUIRE((a.shape().is_vector() && a.shape().ndim() == 1));
+        REQUIRE((a.shape() == Shape4{1, 1, 1, 4 * 10 * 50 * 30}));
         a = a.reshape(Shape4{4, 10, 50, 30});
         REQUIRE(a.strides() == a.shape().strides());
         a = a.template reshape<4>({10, 4, 30, 50});
@@ -190,11 +208,11 @@ TEMPLATE_TEST_CASE("runtime::Array, shape manipulation", "", i32, u64, f32, f64,
         REQUIRE(b.shape() == Shape4{4, 10, 50, 30});
         REQUIRE(b.strides() == Strides4{15000, 1500, 30, 1});
 
-        b = a.permute({1, 0, 3, 2});
+        b = a.permute(Vec{1, 0, 3, 2});
         REQUIRE(b.shape() == Shape4{10, 4, 30, 50});
         REQUIRE(b.strides() == Strides4{1500, 15000, 1, 30});
 
-        b = a.permute_copy({1, 0, 3, 2});
+        b = a.permute_copy(Vec{1, 0, 3, 2});
         REQUIRE(b.shape() == Shape4{10, 4, 30, 50});
         REQUIRE(b.strides() == Strides4{6000, 1500, 50, 1});
     }
@@ -216,11 +234,15 @@ TEST_CASE("runtime::Array, overlap") {
     REQUIRE(noa::are_overlapped(rhs, lhs));
 }
 
-TEST_CASE("runtime::Array, span") {
+TEST_CASE("runtime::Array, nd and span") {
     StreamGuard guard(Device{"cpu"}, Stream::DEFAULT);
-    Array<f32> lhs({9, 10, 11, 12});
+    auto lhs = Array<f32, 4>({9, 10, 11, 12});
+    REQUIRE((Shape<isize, 1>{11880} == lhs.as_nd<1>().shape()));
+    REQUIRE((Shape<isize, 2>{990, 12} == lhs.as_nd<2>().shape()));
+    REQUIRE((Shape<isize, 3>{90, 11, 12} == lhs.as_nd<3>().shape()));
+    REQUIRE((Shape<isize, 5>{1, 9, 10, 11, 12} == lhs.as_nd<5>().shape()));
 
-    for (i64 i{}; auto& e: lhs.span_1d_contiguous())
+    for (i64 i{}; auto& e: lhs.span_1d())
         e = static_cast<f32>(i++);
 
     const i64 offset = noa::offset_at(lhs.strides(), 3, 5, 1, 10);
@@ -247,23 +269,23 @@ TEST_CASE("runtime::Array, drop") {
     REQUIRE(b.data() == nullptr);
     REQUIRE(a.size() == 10);
 }
-template<typename T, usize N>
-using ArrayView = Array<T, N, ArrayOwnership::VIEW>;
 
-TEST_CASE("runtime::Array, to view") {
+TEST_CASE("runtime::Array, to const / view") {
     auto a = Array<f32, 1>(10);
+    Array<const f32, 1, ArrayOwnership::VIEW> a1 = a.view();
+    REQUIRE(a.data() == a1.data());
+    REQUIRE(a.shape() == a1.shape());
+    REQUIRE(a.device() == a1.device());
+    REQUIRE(a.allocator() == a1.allocator());
 
-    ArrayView<const f32, 1> a1 = a.view();
+    Array<const f32, 1, ArrayOwnership::VIEW> a3(a);
+    REQUIRE(a3.data() == a1.data());
+    REQUIRE(a3.shape() == a1.shape());
+    REQUIRE(a3.device() == a1.device());
+    REQUIRE(a3.allocator() == a1.allocator());
 
-    auto b = a.view();
-    auto b1 = b;
-    Array b2 = b;
-
-    auto c = Array<f32, 1>(a.share(), b.shape(), b.strides());
-    auto d = c.to_cpu();
-
-    auto e = Array<f32, 4>({1,10,10,10});
-
-    noa::ewise(c, e, noa::Copy{});
-    static_assert(noa::traits::array_nd<Array<f32, 4>> == false);
+    Array<const f32, 1> b = a;
+    auto c = a.as_const();
+    static_assert(std::is_const_v<typename decltype(c)::value_type>);
+    REQUIRE(c.data() == b.data());
 }

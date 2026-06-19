@@ -35,8 +35,8 @@ TEST_CASE("runtime::permute()", "[asset]") {
             const auto permutation = test["permutation"].as<Vec<i32, 4>>();
             const auto inplace = test["inplace"].as<bool>();
 
-            const auto input = noa::read_image<f32>(filename_input, {}, options).data;
-            const auto expected = noa::read_image<f32>(filename_expected, {}, options).data;
+            const auto input = noa::read_image<f32, 4>(filename_input, {}, options).data;
+            const auto expected = noa::read_image<f32, 4>(filename_expected, {}, options).data;
 
             if (inplace) {
                 noa::permute_copy(input, input, permutation);
@@ -125,7 +125,7 @@ TEST_CASE("runtime::permute, broadcast") {
             const Array<f32> result0(permuted_shape, options);
             const Array<f32> result1(permuted_shape, options);
 
-            const Array<f32> data0 = noa::arange<f32>({1, 1, 50, 60}, noa::Arange{0, 1}, options);
+            const Array<f32> data0 = noa::arange<f32, 4>({1, 1, 50, 60}, noa::Arange{0, 1}, options);
             const Array<f32> data1({1, 20, 50, 60}, options);
             noa::copy(data0, data1);
 

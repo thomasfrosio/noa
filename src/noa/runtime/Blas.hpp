@@ -12,19 +12,21 @@
 
 namespace noa {
     /// Returns the vector-vector dot product.
-    /// \param[in] lhs  Single row or column vector.
-    /// \param[in] rhs  Single row or column vector.
+    /// \param[in] lhs, rhs:
+    ///     Input arrays.
+    ///     Ignoring empty dimensions (which are squeezed out):
+    ///     lhs:(n) x rhs:(n) -> output:1
     /// \param options  Sum options.
-    /// \note The input vector \p lhs and \p rhs are automatically reshaped in a row and column vector, respectively.
     template<typename Lhs, typename Rhs>
-    requires nt::readable_varray_decay_of_almost_same_type<Lhs, Rhs>
+    requires nt::readable_array_decay_of_almost_same_type<Lhs, Rhs>
     [[nodiscard]] auto dot(Lhs&& lhs, Rhs&& rhs, const SumOptions& options = {}) {
-        check(not lhs.shape().is_batched() and lhs.shape().ndim() <= 2 and
-              not rhs.shape().is_batched() and rhs.shape().ndim() <= 2,
-              "The inputs should be single row or column vectors, but got lhs:shape={} and rhs:shape={}",
+        const auto lhs_n_axes = noa::sum(lhs.shape().cmp_gt(1));
+        const auto rhs_n_axes = noa::sum(rhs.shape().cmp_gt(1));
+        check(lhs_n_axes == 1 and rhs_n_axes == 1,
+              "The inputs should be vectors, but got lhs:shape={} and rhs:shape={}",
               lhs.shape(), rhs.shape());
 
-        auto inputs = wrap(std::forward<Lhs>(lhs).flat(), std::forward<Rhs>(rhs).flat());
+        auto inputs = noa::wrap(std::forward<Lhs>(lhs).template as_nd<1>(), std::forward<Rhs>(rhs).template as_nd<1>());
         using value_t = nt::mutable_value_type_t<Lhs>;
         using reduce_t = std::conditional_t<nt::real<value_t>, f64,
                          std::conditional_t<nt::complex<value_t>, c64,
@@ -42,54 +44,62 @@ namespace noa {
     }
 
     /// Computes the (batched) vector-vector dot product.
-    /// \param[in] lhs      (Batched) row or column vector.
-    /// \param[in] rhs      (Batched) row or column vector.
-    /// \param[out] output  Output contiguous vector with the dot products. One element per batch.
-    /// \param options      Sum options.
-    /// \note The input vector \p lhs and \p rhs are automatically reshaped in a row and column vector, respectively.
-    template<nt::readable_varray_decay Lhs,
-             nt::readable_varray_decay Rhs,
-             nt::writable_varray_decay Output>
-    requires nt::varray_decay_of_almost_same_type<Lhs, Rhs, Output>
+    /// \param[in] lhs, rhs, output:
+    ///     Input and output arrays.
+    ///     Ignoring empty dimensions (which are squeezed out):
+    ///     lhs:(bn) x rhs:(bn) -> output:(b)
+    ///     lhs: (n) x rhs: (n) -> output:(1)
+    /// \param options:
+    ///     Sum options.
+    template<nt::readable_array_decay Lhs,
+             nt::readable_array_decay Rhs,
+             nt::writable_array_decay Output>
+    requires nt::array_decay_of_almost_same_type<Lhs, Rhs, Output>
     void dot(Lhs&& lhs, Rhs&& rhs, Output&& output, const SumOptions& options = {}) {
-        check(lhs.shape().is_vector(true) and
-              rhs.shape().is_vector(true) and
-              lhs.shape()[1] == 1 and rhs.shape()[1] == 1,
-              "The input should be (batched) column or row vectors, but got lhs:shape={} and rhs:shape={}",
+        const auto get_bn = [&]<usize N>(Shape<isize, N> const& shape) {
+            isize b{-1}, n{-1};
+            for (isize i{N - 1}; i >= 0; --i) {
+                if (shape[i] > 1) {
+                    if (n == -1)
+                        n = shape[i];
+                    else if (b == - 1)
+                        b = shape[i];
+                    else
+                        panic("The inputs should be compatible batched vectors, but got lhs:shape={} and rhs:shape={}",
+                              lhs.shape(), rhs.shape());
+                }
+            }
+            if (b == -1)
+                b = 1;
+            return Vec{b, n};
+        };
+        auto b = output.n_elements();
+        auto lhs_bn = get_bn(lhs.shape());
+        auto rhs_bn = get_bn(rhs.shape());
+        check(lhs_bn == rhs_bn,
+              "The inputs should be compatible batched vectors, but got lhs:shape={} and rhs:shape={}",
               lhs.shape(), rhs.shape());
+        check(noa::sum(output.shape().cmp_gt(1)) <= 1,
+              "The output should be a vector, but got output:shape={}", output.shape());
+        check(b == lhs_bn[0],
+              "The inputs and output batch dimension don't match: input:b={}, output:b={}",
+              b, lhs_bn[0]);
 
-        const auto lhs_n_elements = lhs.shape()[2] * lhs.shape()[3];
-        const auto rhs_n_elements = rhs.shape()[2] * rhs.shape()[3];
-        check(lhs_n_elements == rhs_n_elements,
-              "The input vectors don't have the same number of elements. Got lhs:size={} and rhs:size={}",
-              lhs_n_elements, rhs_n_elements);
-
-        check(is_contiguous_vector(output),
-              "The output should be a contiguous vector, but got output:shape={} and output:stride={}",
-              output.shape(), output.strides());
-
-        const auto batch = output.n_elements();
-        const auto full_shape = Shape4{batch, 1, 1, lhs_n_elements};
-        auto inputs = wrap(std::forward<Lhs>(lhs).reshape(full_shape),
-                           std::forward<Rhs>(rhs).reshape(full_shape));
+        const auto shape_2d = Shape2{b, lhs_bn[1]};
+        auto inputs = noa::wrap(
+            std::forward<Lhs>(lhs).reshape(shape_2d),
+            std::forward<Rhs>(rhs).reshape(shape_2d));
+        auto output_2d = std::forward<Output>(output).reshape(Shape2{b, 1});
 
         using value_t = nt::mutable_value_type_t<Lhs>;
         using reduce_t = std::conditional_t<nt::real<value_t>, f64,
                          std::conditional_t<nt::complex<value_t>, c64,
                          value_t>>;
 
-        if constexpr (nt::real_or_complex<value_t>) {
-            if (options.accurate) {
-                return reduce_axes_ewise(
-                    std::move(inputs), Vec<reduce_t, 2>{},
-                    std::forward<Output>(output), ReduceSumKahan{}
-                );
-            }
-        }
-        reduce_axes_ewise(
-            std::move(inputs), reduce_t{},
-            std::forward<Output>(output), ReduceSum{}
-        );
+        if constexpr (nt::real_or_complex<value_t>)
+            if (options.accurate)
+                return reduce_axes_ewise(std::move(inputs), Vec<reduce_t, 2>{}, std::move(output_2d), ReduceSumKahan{});
+        reduce_axes_ewise(std::move(inputs), reduce_t{}, std::move(output_2d), ReduceSum{});
     }
 
     template<nt::any_of<f32, f64, c32, c64> T>
@@ -100,76 +110,91 @@ namespace noa {
         /// Scalar for the scalar-matrix product. If zero, the output doesn't need to be set.
         T beta{};
 
-        /// Whether the lhs should be transposed before the operation. In this case, the {B,1,K,M} matrix is expected.
+        /// Whether the lhs should be transposed before the operation.
+        /// In this case, the {(b...,)k,m} matrix is expected.
         bool lhs_transpose{};
 
-        /// Whether the rhs should be transposed before the operation. In this case, the {B,1,N,K} matrix is expected.
+        /// Whether the rhs should be transposed before the operation.
+        /// In this case, the {(b...,)n,k} matrix is expected.
         bool rhs_transpose{};
     };
 
     /// Computes a scalar-matrix-matrix product, with general matrices and adds the result to a scalar-matrix product.
-    /// \details This function computes a matrix-matrix product, but it also accepts vectors.
-    ///          As such, it can compute a matrix-vector product, a vector-matrix product and
-    ///          the vector-vector outer-product or dot product. The operation is defined as:
-    ///          \p output = \p options.alpha * \p lhs * \p rhs + \p options.beta * \p output.
+    /// \details
+    ///     This function computes a matrix-matrix product, but it also accepts vectors. As such, it can compute a
+    ///     matrix-vector product, a vector-matrix product and the vector-vector outer-product or dot product.
+    ///     The operation is defined as: output = options.alpha * lhs * rhs + options.beta * output.
     ///
-    /// \param[in] lhs              Dense {B,1,M,K} matrix.
-    /// \param[in] rhs              Dense {B,1,K,N} matrix.
-    /// \param[out] output          Dense {B,1,M,N} matrix.
-    /// \param options              Matmul options.
+    /// \param[in] lhs:
+    ///     Dense {(b...,)m,k} matrix (or {(b...,)k,m} is options.lhs_transpose=true).
+    ///     The batch dimensions b... (if any) should be collapsable.
+    /// \param[in] rhs:
+    ///     Dense {(b...,)k,n} matrix (or {(b...,)n,k} is options.rhs_transpose=true).
+    ///     The batch dimensions b... (if any) should be collapsable.
+    /// \param[out] output:
+    ///     Dense {(b...,)m,n} matrix.
+    ///     The batch dimensions b... (if any) should be collapsable.
+    /// \param options:
+    ///     Matmul options.
     ///
-    /// \note The memory layout is restricted: \p lhs and \p rhs should not overlap with \p output. All matrices should
-    ///       either be row-major or column-major (before transposition). The innermost dimension of the matrices
-    ///       (before transposition) should be contiguous, and the second-most dimension cannot be broadcast.
-    template<nt::readable_varray_decay Lhs,
-             nt::readable_varray_decay Rhs,
-             nt::writable_varray_decay Output>
-    requires (nt::varray_decay_of_any<Output, f32, f64, c32, c64> and
-              nt::varray_decay_of_almost_same_type<Lhs, Rhs, Output>)
+    /// \note
+    ///     The memory layout is restricted: lhs and rhs should not overlap with output. All matrices should
+    ///     either be row-major or column-major (before transposition). The innermost dimension of the matrices
+    ///     (before transposition) should be contiguous, and the second-most dimension cannot be broadcast.
+    template<nt::readable_array_decay Lhs,
+             nt::readable_array_decay Rhs,
+             nt::writable_array_decay Output>
+    requires (nt::array_decay_of_any<Output, f32, f64, c32, c64> and
+              nt::array_decay_of_almost_same_type<Lhs, Rhs, Output> and
+              nt::array_size_v<Lhs> >= 2 and nt::array_size_v<Rhs> >= 2 and nt::array_size_v<Output> >= 2)
     void matmul(
-            Lhs&& lhs,
-            Rhs&& rhs,
-            Output&& output,
-            MatmulOptions<nt::mutable_value_type_t<Output>> options = {}
+        Lhs&& lhs,
+        Rhs&& rhs,
+        Output&& output,
+        MatmulOptions<nt::mutable_value_type_t<Output>> options = {}
     ) {
         check(not lhs.is_empty() and not rhs.is_empty() and not output.is_empty(), "Empty array detected");
-        check(not are_overlapped(lhs, output) and not are_overlapped(rhs, output),
+        check(not noa::are_overlapped(lhs, output) and not noa::are_overlapped(rhs, output),
               "Input and output arrays should not overlap");
-        check(lhs.shape()[1] == 1 and rhs.shape()[1] == 1 and output.shape()[1] == 1,
-              "Only 2d matrices are supported, but got shape lhs:shape={}, rhs:shape={} and output:shape={}",
-              lhs.shape(), rhs.shape(), output.shape()
-        );
-
         const Device device = output.device();
         check(device == lhs.device() and device == rhs.device(),
               "The input and output arrays must be on the same device, "
               "but got lhs:device={}, rhs:device={} and output:device={}",
               lhs.device(), rhs.device(), device);
 
+        auto lhs_span = lhs.span().template as_nd<3>();
+        auto rhs_span = rhs.span().template as_nd<3>();
+        auto output_span = output.span().template as_nd<3>();
+        check(output_span.shape()[0] == lhs_span.shape()[0] and
+              output_span.shape()[0] == rhs_span.shape()[0],
+              "The batch dimensions don't match, got shape lhs:shape={}, rhs:shape={} and output:shape={}",
+              lhs.shape(), rhs.shape(), output.shape()
+        );
+
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             const auto n_threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=,
-                l = std::forward<Lhs>(lhs),
-                r = std::forward<Rhs>(rhs),
-                o = std::forward<Output>(output)
+                handles = nd::extract_shared_handle_from_arrays(
+                    noa::forward_as_tuple(
+                        std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), std::forward<Output>(output)))
             ] {
                 noa::cpu::matmul(
-                    l.get(), l.strides().filter(0, 2, 3), l.shape().filter(0, 2, 3),
-                    r.get(), r.strides().filter(0, 2, 3), r.shape().filter(0, 2, 3),
+                    lhs_span.get(), lhs_span.strides(), lhs_span.shape(),
+                    rhs_span.get(), rhs_span.strides(), rhs_span.shape(),
                     options.alpha, options.beta, options.lhs_transpose, options.rhs_transpose,
-                    o.get(), o.strides().filter(0, 2, 3), o.shape().filter(0, 2, 3),
+                    output_span.get(), output_span.strides(), output_span.shape(),
                     n_threads);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
             noa::cuda::matmul(
-                lhs.get(), lhs.strides().filter(0, 2, 3), lhs.shape().filter(0, 2, 3),
-                rhs.get(), rhs.strides().filter(0, 2, 3), rhs.shape().filter(0, 2, 3),
+                lhs_span.get(), lhs_span.strides(), lhs_span.shape(),
+                rhs_span.get(), rhs_span.strides(), rhs_span.shape(),
                 options.alpha, options.beta, options.lhs_transpose, options.rhs_transpose,
-                output.get(), output.strides().filter(0, 2, 3), output.shape().filter(0, 2, 3),
+                output_span.get(), output_span.strides(), output_span.shape(),
                 cuda_stream);
             cuda_stream.enqueue_attach(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), std::forward<Output>(output));
             #else

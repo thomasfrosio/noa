@@ -112,7 +112,7 @@ TEMPLATE_TEST_CASE("runtime::reduce - batched reductions, cpu vs gpu", "", i64, 
 
     using real_t = noa::traits::value_type_t<TestType>;
     const real_t eps = std::is_same_v<real_t, f32> ? static_cast<real_t>(1e-4) : static_cast<real_t>(1e-10);
-    const auto output_shape = Shape4{subregion_shape.batch(), 1, 1, 1};
+    const auto output_shape = Shape4{subregion_shape[0], 1, 1, 1};
 
     if constexpr (not noa::traits::complex<TestType>) {
         const Array<TestType> cpu_results({2, 1, 1, output_shape.n_elements()});

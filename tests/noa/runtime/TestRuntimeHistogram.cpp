@@ -124,7 +124,7 @@ TEST_CASE("runtime: histogram, cpu vs gpu") {
     if (not Device::is_any_gpu())
         return;
 
-    const auto inputs_cpu = noa::random<f32>(noa::Normal(0.f, 1.f), {5, 1, 1, 100 * 100});
+    const auto inputs_cpu = noa::random<f32, 4>(noa::Normal(0.f, 1.f), {5, 1, 1, 100 * 100});
     noa::normalize_per_batch(inputs_cpu, inputs_cpu, {.mode = noa::Norm::MIN_MAX});
 
     const auto inputs_gpu = inputs_cpu.to({.device = "gpu", .allocator = "managed"});
@@ -134,7 +134,7 @@ TEST_CASE("runtime: histogram, cpu vs gpu") {
     const auto histograms_gpu = Array<i32>({5, 1, 1, HISTOGRAM_SIZE}, inputs_gpu.options());
 
     const auto shape = inputs_cpu.shape().filter(0, 3).as<i32>();
-    const auto reduce_width = ReduceAxes{.width = true};
+    const auto reduce_width = ReduceAxes<2>{}.reduce_axis(1);
 
     // 1. Same implementation.
     noa::fill(histograms_cpu, 0);

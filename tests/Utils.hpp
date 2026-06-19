@@ -298,6 +298,21 @@ namespace test {
                         for (index_type k{}; k < m_shape[2]; ++k)
                             for (index_type l{}; l < m_shape[3]; ++l)
                                 compare_values(i, j, k, l);
+            } else if constexpr (N == 5) {
+                for (index_type i{}; i < m_shape[0]; ++i)
+                    for (index_type j{}; j < m_shape[1]; ++j)
+                        for (index_type k{}; k < m_shape[2]; ++k)
+                            for (index_type l{}; l < m_shape[3]; ++l)
+                                for (index_type m{}; m < m_shape[4]; ++m)
+                                    compare_values(i, j, k, l, m);
+            } else if constexpr (N == 6) {
+                for (index_type i{}; i < m_shape[0]; ++i)
+                    for (index_type j{}; j < m_shape[1]; ++j)
+                        for (index_type k{}; k < m_shape[2]; ++k)
+                            for (index_type l{}; l < m_shape[3]; ++l)
+                                for (index_type m{}; m < m_shape[4]; ++m)
+                                    for (index_type n{}; n < m_shape[5]; ++n)
+                                        compare_values(i, j, k, l, m, n);
             } else {
                 static_assert(nt::always_false<F>);
             }
