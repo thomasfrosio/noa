@@ -9,8 +9,7 @@
 namespace noa::io {
     /// Compression scheme.
     /// TODO This is a very rudimentary support of compression schemes.
-    ///      We currently only support this in BasicImageFile,
-    ///      and the compression is done through the libtiff library.
+    ///      We currently only support this in BasicImageFile, and the compression is done through the libtiff library.
     enum class Compression {
         NONE = 0, UNKNOWN = 1,
         LZW, DEFLATE
@@ -227,14 +226,7 @@ namespace noa::io {
 
     auto operator<<(std::ostream& os, DataType::Enum dtype) -> std::ostream&;
     auto operator<<(std::ostream& os, DataType encoding) -> std::ostream&;
-}
 
-namespace fmt {
-    template<> struct formatter<noa::io::DataType::Enum> : ostream_formatter {};
-    template<> struct formatter<noa::io::DataType> : ostream_formatter {};
-}
-
-namespace noa::io {
     struct EncodeOptions {
         /// Whether the values should be clamped to the value range of the destination type.
         /// If false, out-of-range values are undefined.
@@ -248,8 +240,63 @@ namespace noa::io {
         i32 n_threads{1};
     };
     using DecodeOptions = EncodeOptions;
+}
 
-    /// Encodes the values in the input array into the output array. Values are saved in the BDHW order.
+namespace noa::io::details {
+    template<typename T, usize N, StridesTraits S> // instantiated: 2-contiguous or 6-strided
+    void encode_(
+        const Span<const T, N, isize, S>& input,
+        const SpanContiguous<std::byte, 1>& output,
+        const DataType& output_dtype,
+        const EncodeOptions& options
+    );
+
+    template<typename T, usize N, StridesTraits S> // instantiated: 1-contiguous or 6-strided
+    void encode_(
+        const Span<const T, N, isize, S>& input,
+        std::FILE* output,
+        const DataType& output_dtype,
+        const EncodeOptions& options
+    );
+
+    template<typename T, usize N, StridesTraits S> // instantiated: 2-contiguous or 6-strided
+    void decode_(
+        const SpanContiguous<const std::byte, 1>& input,
+        const DataType& input_dtype,
+        const Span<T, N, isize, S>& output,
+        const DecodeOptions& options = {}
+    );
+
+    template<typename T, usize N, StridesTraits S> // instantiated: 1-contiguous or 6-strided
+    void decode_(
+        std::FILE* input,
+        const DataType& input_dtype,
+        const Span<T, N, isize, S>& output,
+        const DecodeOptions& options = {}
+    );
+
+    template<nt::numeric T, usize N> requires (N >= 1)
+    auto optimize_layout(Span<T, N>& input) -> bool{
+        auto collapsed_shape = noa::collapse_contiguous_dimensions(input.shape(), input.contiguity(), input.broadcasting());
+        collapsed_shape = collapsed_shape.permute(noa::squeeze_empty_dimensions_left(collapsed_shape));
+        input = input.reshape(collapsed_shape);
+
+        // We optimize for the 2d-contiguous case (batch of contiguous rows), so detect it.
+        if (input.template stride<N - 1>() == 1) {
+            bool is_2d{true};
+            if constexpr (N >= 2) {
+                for (usize i{}; i < N - 2; ++i)
+                    if (input.strides()[i] != 1)
+                        is_2d = false;
+            }
+            return is_2d;
+        }
+        return false;
+    }
+}
+
+namespace noa::io {
+    /// Encodes the values in the input array into the output array. Values are saved in the rightmost order.
     /// \tparam T           If complex, the input is reinterpreted to the corresponding real type array,
     ///                     requiring its innermost dimension to be contiguous.
     /// \param[in] input    Values to encode.
@@ -257,13 +304,18 @@ namespace noa::io {
     ///                     and should be at least of size output_dtype.n_bytes(input.n_elements()).
     /// \param output_dtype Output data type.
     /// \param options      Encoding options.
-    template<nt::numeric T>
+    template<nt::numeric T, usize N> requires (N >= 1 and N <= 6)
     void encode(
-        const Span<const T, 4>& input,
+        Span<const T, N> input,
         const SpanContiguous<std::byte, 1>& output,
         const DataType& output_dtype,
         const EncodeOptions& options = {}
-    );
+    ) {
+        if (details::optimize_layout(input))
+            details::encode_(input.template as_nd<2>().as_contiguous(), output, output_dtype, options);
+        else
+            details::encode_(input.template as_nd<6>(), output, output_dtype, options);
+    }
 
     /// Encodes the values in the input array into the file.
     /// The input type is specified by the input data type.
@@ -279,13 +331,18 @@ namespace noa::io {
     /// Encodes the values in the input array into the output array.
     /// The encoding starts at the current cursor position of the file.
     /// This is otherwise similar to the overload taking an array of bytes.
-    template<nt::numeric T>
+    template<nt::numeric T, usize N> requires (N >= 1 and N <= 6)
     void encode(
-        const Span<const T, 4>& input,
+        const Span<const T, N>& input,
         std::FILE* output,
         const DataType& output_dtype,
         const EncodeOptions& options = {}
-    );
+    ) {
+        if (input.is_contiguous())
+            details::encode_(input.as_1d(), output, output_dtype, options);
+        else
+            details::encode_(input.template as_nd<6>(), output, output_dtype, options);
+    }
 
     /// Encodes the values in the input array into the file.
     /// The encoding starts at the current cursor position of the file.
@@ -301,7 +358,7 @@ namespace noa::io {
 }
 
 namespace noa::io {
-    /// Decodes the values in the input array into the output array. Values are saved in the BDHW order.
+    /// Decodes the values in the input array into the output array. Values are saved in the rightmost order.
     /// \tparam T           If complex, the input is reinterpreted to the corresponding real type array,
     ///                     requiring its innermost dimension to be contiguous.
     /// \param[in] input    Bytes to decode. It is not allowed to overlap with the output
@@ -309,13 +366,18 @@ namespace noa::io {
     /// \param input_dtype  Data type of the input.
     /// \param[out] output  Array where the decoded values are saved.
     /// \param options      Decoding options
-    template<nt::numeric T>
+    template<nt::numeric T, usize N> requires (N >= 1 and N <= 6)
     void decode(
         const SpanContiguous<const std::byte, 1>& input,
         const DataType& input_dtype,
-        const Span<T, 4>& output,
+        Span<T, N> output,
         const DecodeOptions& options = {}
-    );
+    ) {
+        if (details::optimize_layout(output))
+            details::decode_(input, input_dtype, output.template as_nd<2>().as_contiguous(), options);
+        else
+            details::decode_(input, input_dtype, output.template as_nd<6>(), options);
+    }
 
     /// Decodes the values in the input array into the output array.
     /// The output type is specified by the output data type.
@@ -331,13 +393,18 @@ namespace noa::io {
     /// Decodes the values in the file into the output array.
     /// The decoding starts at the current cursor position of the file.
     /// This is otherwise similar to the overload taking an array of bytes.
-    template<nt::numeric T>
+    template<nt::numeric T, usize N> requires (N >= 1 and N <= 6)
     void decode(
         std::FILE* input,
         const DataType& input_dtype,
-        const Span<T, 4>& output,
+        const Span<T, N>& output,
         const DecodeOptions& options = {}
-    );
+    ) {
+        if (output.is_contiguous())
+            details::decode_(input, input_dtype, output.as_1d(), options);
+        else
+            details::decode_(input, input_dtype, output.template as_nd<6>(), options);
+    }
 
     /// Decodes the values in the file into the output array.
     /// The decoding starts at the current cursor position of the file.
@@ -350,4 +417,9 @@ namespace noa::io {
         const DataType& output_dtype,
         const DecodeOptions& options = {}
     );
+}
+
+namespace fmt {
+    template<> struct formatter<noa::io::DataType::Enum> : ostream_formatter {};
+    template<> struct formatter<noa::io::DataType> : ostream_formatter {};
 }

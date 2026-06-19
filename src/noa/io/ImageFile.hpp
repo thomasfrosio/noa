@@ -30,6 +30,7 @@ namespace noa::io {
 
     struct ImageFileHeader {
         /// BDHW shape of the (new) file.
+        /// 2d images are encoded as B1HW, a 3d volume as 1DHW and 3d volumes as BDHW.
         Shape4 shape{};
 
         /// DHW spacing (in Angstrom/pix) of the (new) file.

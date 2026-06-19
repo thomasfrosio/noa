@@ -71,15 +71,13 @@ namespace noa::io {
         }
 
         // Set the BDHW shape:
-        const auto ndim = shape.flip().ndim();
         check(shape > 0, "Invalid data. Logical shape should be greater than zero, got nx,ny,nz:{}", shape);
-
-        if (ndim <= 2) {
+        if (shape[2] == 1) { // depth==1
             check(grid_size == shape,
                   "1d or 2d data detected. The logical shape should be equal to the grid size. "
                   "Got nx,ny,nz:{}, mx,my,mz:{}", shape, grid_size);
             m_shape = {1, 1, shape[1], shape[0]};
-        } else { // ndim == 3
+        } else { // 3d
             if (space_group == 0) { // stack of 2D images
                 // FIXME We should check grid_size[2] == 1, but some packages ignore this, so do nothing for now.
                 check(shape[0] == grid_size[0] and shape[1] == grid_size[1],
@@ -213,9 +211,9 @@ namespace noa::io {
         Shape<i32, 3> whd_shape, grid_size;
         Vec<f32, 3> cell_size;
         auto bdhw_shape = m_shape.as<i32>(); // can be empty if nothing was written...
-        if (not bdhw_shape.is_batched()) { // 1d, 2d image, or 3d volume
+        if (bdhw_shape[0] == 1) { // 1d, 2d image, or 3d volume
             whd_shape = grid_size = bdhw_shape.pop_front().flip();
-            space_group =  bdhw_shape.ndim() == 3 ? 1 : 0;
+            space_group =  bdhw_shape[1] > 1 ? 1 : 0;
         } else { // ndim == 4
             if (bdhw_shape[1] == 1) { // treat as stack of 2d images
                 whd_shape[0] = grid_size[0] = bdhw_shape[3];

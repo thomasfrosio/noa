@@ -44,44 +44,47 @@ namespace {
         }
     };
 
-    template<typename Output, typename Input>
-    void encode_1d_(
-        const Input* NOA_RESTRICT_ATTRIBUTE input,
-        std::byte* NOA_RESTRICT_ATTRIBUTE output,
-        isize n_elements, bool clamp, bool swap_endian, i32 n_threads
-    ) {
-        auto ptr = reinterpret_cast<Output*>(output);
-        auto encoder = Encoder<Input, Output>{clamp, swap_endian};
-
-        // TODO This still can't be auto vectorized...
-        #pragma omp parallel for num_threads(n_threads)
-        for (isize idx = 0; idx < n_elements; ++idx)
-            ptr[idx] = encoder(input[idx]);
-    }
-
-    template<typename Output, typename Input>
-    void encode_4d_(
-        const Span<const Input, 4>& input,
+    template<typename Output, typename Input, usize N, StridesTraits S>
+    void actual_encode_(
+        const Span<const Input, N, isize, S>& input,
         const SpanContiguous<std::byte, 1>& output,
         bool clamp, bool swap_endian, i32 n_threads
     ) {
-        if (input.is_contiguous())
-            return encode_1d_<Output>(input.data(), output.data(), input.n_elements(), clamp, swap_endian, n_threads);
-
         auto* ptr = reinterpret_cast<Output*>(output.get());
         auto encoder = Encoder<Input, Output>{clamp, swap_endian};
 
-        if (n_threads > 1) {
-            // Collapse manually since we need to keep track of a linear index anyway...
-            #pragma omp parallel for num_threads(n_threads)
-            for (isize i = 0; i < input.ssize(); ++i)
-                ptr[i] = encoder(input(noa::offset2index(i, input.shape())));
+        if constexpr (N == 2) {
+            if (n_threads == 1) {
+                for (isize i = 0; i < input.shape()[0]; ++i)
+                    for (isize j = 0; j < input.shape()[1]; ++j)
+                        ptr[i * input.shape()[1] + j] = encoder(input(i, j));
+            } else {
+                #pragma omp parallel for num_threads(n_threads) collapse(2)
+                for (isize i = 0; i < input.shape()[0]; ++i)
+                    for (isize j = 0; j < input.shape()[1]; ++j)
+                        ptr[i * input.shape()[1] + j] = encoder(input(i, j));
+            }
         } else {
-            for (isize i = 0; i < input.shape()[0]; ++i)
-                for (isize j = 0; j < input.shape()[1]; ++j)
-                    for (isize k = 0; k < input.shape()[2]; ++k)
-                        for (isize l = 0; l < input.shape()[3]; ++l)
-                            *(ptr++) = encoder(input(i, j, k, l));
+            if (n_threads > 1) {
+                auto strides = input.shape().strides();
+                #pragma omp parallel for num_threads(n_threads) collapse(6)
+                for (isize i = 0; i < input.shape()[0]; ++i)
+                    for (isize j = 0; j < input.shape()[1]; ++j)
+                        for (isize k = 0; k < input.shape()[2]; ++k)
+                            for (isize l = 0; l < input.shape()[3]; ++l)
+                                for (isize m = 0; m < input.shape()[4]; ++m)
+                                    for (isize n = 0; n < input.shape()[5]; ++n)
+                                        ptr[noa::offset_at(strides, i, j, k, l, m, n)] =
+                                            encoder(input(i, j, k, l, m, n));
+            } else {
+                for (isize i = 0; i < input.shape()[0]; ++i)
+                    for (isize j = 0; j < input.shape()[1]; ++j)
+                        for (isize k = 0; k < input.shape()[2]; ++k)
+                            for (isize l = 0; l < input.shape()[3]; ++l)
+                                for (isize m = 0; m < input.shape()[4]; ++m)
+                                    for (isize n = 0; n < input.shape()[5]; ++n)
+                                        *(ptr++) = encoder(input(i, j, k, l, m, n));
+            }
         }
     }
 
@@ -97,44 +100,47 @@ namespace {
         }
     };
 
-    template<typename Input, typename Output>
-    void decode_1d_(
-        const std::byte* NOA_RESTRICT_ATTRIBUTE input,
-        Output* NOA_RESTRICT_ATTRIBUTE output,
-        isize n_elements, bool clamp, bool swap_endian, i32 n_threads
-    ) {
-        auto ptr = reinterpret_cast<const Input*>(input);
-        auto decoder = Decoder<Input, Output>{clamp, swap_endian};
-
-        // TODO This still can be auto vectorized...
-        #pragma omp parallel for num_threads(n_threads)
-        for (isize idx = 0; idx < n_elements; ++idx)
-            output[idx] = decoder(ptr[idx]);
-    }
-
-    template<typename Input, typename Output>
-    void decode_4d_(
+    template<typename Input, typename Output, usize N, StridesTraits S>
+    void actual_decode_(
         SpanContiguous<const std::byte, 1> input,
-        const Span<Output, 4>& output,
+        const Span<Output, N, isize, S>& output,
         bool clamp, bool swap_endian, i32 n_threads
     ) {
-        if (output.is_contiguous())
-            return decode_1d_<Input>(input.data(), output.data(), output.n_elements(), clamp, swap_endian, n_threads);
-
         auto* ptr = reinterpret_cast<const Input*>(input.get());
         auto decoder = Decoder<Input, Output>{clamp, swap_endian};
 
-        if (n_threads > 1) {
-            // Collapse manually since we need to keep track of a linear index anyway...
-            #pragma omp parallel for num_threads(n_threads)
-            for (isize i = 0; i < output.ssize(); ++i)
-                output(offset2index(i, output.shape())) = decoder(ptr[i]);
+        if constexpr (N == 2) {
+            if (n_threads == 1) {
+                for (isize i = 0; i < output.shape()[0]; ++i)
+                    for (isize j = 0; j < output.shape()[1]; ++j)
+                        output(i, j) = decoder(ptr[i * output.shape()[1] + j]);
+            } else {
+                #pragma omp parallel for num_threads(n_threads) collapse(2)
+                for (isize i = 0; i < output.shape()[0]; ++i)
+                    for (isize j = 0; j < output.shape()[1]; ++j)
+                        output(i, j) = decoder(ptr[i * output.shape()[1] + j]);
+            }
         } else {
-            for (isize i = 0; i < output.shape()[0]; ++i)
-                for (isize j = 0; j < output.shape()[1]; ++j)
-                    for (isize k = 0; k < output.shape()[2]; ++k)
-                        for (isize l = 0; l < output.shape()[3]; ++l)
-                            output(i, j, k, l) = decoder(*(ptr++));
+            if (n_threads > 1) {
+                auto strides = output.shape().strides();
+                #pragma omp parallel for num_threads(n_threads) collapse(6)
+                for (isize i = 0; i < output.shape()[0]; ++i)
+                    for (isize j = 0; j < output.shape()[1]; ++j)
+                        for (isize k = 0; k < output.shape()[2]; ++k)
+                            for (isize l = 0; l < output.shape()[3]; ++l)
+                                for (isize m = 0; m < output.shape()[4]; ++m)
+                                    for (isize n = 0; n < output.shape()[5]; ++n)
+                                        output(i, j, k, l, m, n) =
+                                            decoder(ptr[noa::offset_at(strides, i, j, k, l, m, n)]);
+            } else {
+                for (isize i = 0; i < output.shape()[0]; ++i)
+                    for (isize j = 0; j < output.shape()[1]; ++j)
+                        for (isize k = 0; k < output.shape()[2]; ++k)
+                            for (isize l = 0; l < output.shape()[3]; ++l)
+                                for (isize m = 0; m < output.shape()[4]; ++m)
+                                    for (isize n = 0; n < output.shape()[5]; ++n)
+                                        output(i, j, k, l, m, n) = decoder(*(ptr++));
+            }
         }
     }
 
@@ -184,9 +190,9 @@ namespace {
     #pragma warning(push, 0)
     #endif
 
-    template<typename Output, typename Input>
+    template<typename Output, typename Input, usize N, StridesTraits S>
     void encode_file_(
-        const Span<const Input, 4>& input,
+        const Span<const Input, N, isize, S>& input,
         std::FILE* output,
         bool clamp, bool swap_endian,
         i32 n_threads
@@ -197,7 +203,6 @@ namespace {
 
         const isize n_elements = input.ssize();
         const isize n_bytes = std::same_as<Output, u4_encoding> ? n_elements / 2 : n_elements * N_BYTES_PER_ELEMENT;
-        const bool input_is_contiguous = input.is_contiguous();
 
         // Allocate two double-buffers to encode and write in parallel.
         constexpr usize ALIGNMENT = 64;
@@ -228,7 +233,7 @@ namespace {
                 #pragma omp task firstprivate(encoding_buffer, encoding_offset, encoding_elements) depend(out: encoding_buffer[0])
                 {
                     const isize n_elements_offset = encoding_offset / N_BYTES_PER_ELEMENT;
-                    if (input_is_contiguous) {
+                    if constexpr (N == 1) {
                         #pragma omp taskloop num_tasks(encode_threads) shared(input)
                         for (isize i = 0; i < encoding_elements; ++i) {
                             const Input* input_ptr = input.get() + n_elements_offset;
@@ -284,10 +289,10 @@ namespace {
         }
     }
 
-    template<typename Input, typename Output>
+    template<typename Input, typename Output, usize N, StridesTraits S>
     void decode_file_(
         std::FILE* input,
-        const Span<Output, 4>& output,
+        const Span<Output, N, isize, S>& output,
         bool clamp, bool swap_endian,
         i32 n_threads
     ) {
@@ -297,7 +302,6 @@ namespace {
 
         const isize n_elements = output.ssize();
         const isize n_bytes = std::same_as<Input, u4_encoding> ? n_elements / 2 : n_elements * N_BYTES_PER_ELEMENT;
-        const bool output_is_contiguous = output.is_contiguous();
 
         // Allocate two double-buffers to read and decode in parallel.
         constexpr usize ALIGNMENT = 64;
@@ -330,7 +334,7 @@ namespace {
                 #pragma omp task firstprivate(decoding_buffer, decoding_offset, decoding_elements) depend(out: decoding_buffer[0])
                 {
                     const isize n_elements_offset = decoding_offset / N_BYTES_PER_ELEMENT;
-                    if (output_is_contiguous) {
+                    if constexpr (N == 1) {
                         #pragma omp taskloop num_tasks(decode_threads) shared(output)
                         for (isize i = 0; i < decoding_elements; ++i) {
                             Output* output_ptr = output.get() + n_elements_offset;
@@ -382,10 +386,10 @@ namespace {
 #endif
 }
 
-namespace noa::io {
-    template<nt::numeric T>
-    void encode(
-        const Span<const T, 4>& input,
+namespace noa::io::details {
+    template<typename T, usize N, StridesTraits S> // instantiated: 2-contiguous or 6-strided
+    void encode_(
+        const Span<const T, N, isize, S>& input,
         const SpanContiguous<std::byte, 1>& output,
         const DataType& output_dtype,
         const EncodeOptions& options
@@ -400,70 +404,70 @@ namespace noa::io {
         switch (output_dtype) {
             case DataType::U4:
                 if constexpr (nt::scalar<T>) {
-                    check(input.is_contiguous() and is_even(input.shape()[3]),
-                          "u4 encoding requires the input array to be contiguous and have even rows");
+                    check(input.is_contiguous() and is_even(n_elements),
+                          "u4 encoding requires the input array to be contiguous and have an even number of elements");
                     return encode_4bits_(input.data(), output.data(), input.n_elements(), n_threads);
                 }
                 break;
             case DataType::I8:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<i8>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_encode_<i8>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::U8:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<u8>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_encode_<u8>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::I16:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<i16>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_encode_<i16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::U16:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<u16>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_encode_<u16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::I32:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<i32>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_encode_<i32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::U32:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<u32>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_encode_<u32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::I64:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<i64>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_encode_<i64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::U64:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<u64>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_encode_<u64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::F16:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<f16>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_encode_<f16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::F32:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<f32>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_encode_<f32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::F64:
                 if constexpr (nt::scalar<T>)
-                    return encode_4d_<f64>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_encode_<f64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::CI16:
                 if constexpr (nt::complex<T>)
-                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::I16, options);
+                    return details::encode_(input.template as<nt::const_value_type_t<T>>(), output, DataType::I16, options);
                 break;
             case DataType::C16:
                 if constexpr (nt::complex<T>)
-                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::F16, options);
+                    return details::encode_(input.template as<nt::const_value_type_t<T>>(), output, DataType::F16, options);
                 break;
             case DataType::C32:
                 if constexpr (nt::complex<T>)
-                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::F32, options);
+                    return details::encode_(input.template as<nt::const_value_type_t<T>>(), output, DataType::F32, options);
                 break;
             case DataType::C64:
                 if constexpr (nt::complex<T>)
-                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::F64, options);
+                    return details::encode_(input.template as<nt::const_value_type_t<T>>(), output, DataType::F64, options);
                 break;
             case DataType::UNKNOWN:
                 break;
@@ -471,53 +475,9 @@ namespace noa::io {
         panic("{} cannot be encoded into {}", nd::stringify<T>(), output_dtype);
     }
 
-    void encode(
-        const SpanContiguous<const std::byte, 1>& input,
-        const DataType& input_dtype,
-        const SpanContiguous<std::byte, 1>& output,
-        const DataType& output_dtype,
-        const EncodeOptions& options
-    ) {
-        switch (input_dtype) {
-            case DataType::I8:
-                return encode(input.as_strided<const i8, 4>(), output, output_dtype, options);
-            case DataType::I16:
-                return encode(input.as_strided<const i16, 4>(), output, output_dtype, options);
-            case DataType::I32:
-                return encode(input.as_strided<const i32, 4>(), output, output_dtype, options);
-            case DataType::I64:
-                return encode(input.as_strided<const i64, 4>(), output, output_dtype, options);
-            case DataType::U8:
-                return encode(input.as_strided<const u8, 4>(), output, output_dtype, options);
-            case DataType::U16:
-                return encode(input.as_strided<const u16, 4>(), output, output_dtype, options);
-            case DataType::U32:
-                return encode(input.as_strided<const u32, 4>(), output, output_dtype, options);
-            case DataType::U64:
-                return encode(input.as_strided<const u64, 4>(), output, output_dtype, options);
-            case DataType::F16:
-                return encode(input.as_strided<const f16, 4>(), output, output_dtype, options);
-            case DataType::F32:
-                return encode(input.as_strided<const f32, 4>(), output, output_dtype, options);
-            case DataType::F64:
-                return encode(input.as_strided<const f64, 4>(), output, output_dtype, options);
-            case DataType::C16:
-                return encode(input.as_strided<const c16, 4>(), output, output_dtype, options);
-            case DataType::C32:
-                return encode(input.as_strided<const c32, 4>(), output, output_dtype, options);
-            case DataType::C64:
-                return encode(input.as_strided<const c64, 4>(), output, output_dtype, options);
-            case DataType::U4:
-            case DataType::CI16:
-                panic("TODO: u4 and ci16 cannot be reinterpreted to valid types, they would require special cases");
-            case DataType::UNKNOWN:
-                panic("Unknown data type");
-        }
-    }
-
-    template<nt::numeric T>
-    void encode(
-        const Span<const T, 4>& input,
+    template<typename T, usize N, StridesTraits S> // instantiated: 1-contiguous or 6-strided
+    void encode_(
+        const Span<const T, N, isize, S>& input,
         std::FILE* output,
         const DataType& output_dtype,
         const EncodeOptions& options
@@ -585,19 +545,19 @@ namespace noa::io {
                 break;
             case DataType::CI16:
                 if constexpr (nt::complex<T>)
-                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::I16, options);
+                    return encode_(input.template as<nt::const_value_type_t<T>>(), output, DataType::I16, options);
                 break;
             case DataType::C16:
                 if constexpr (nt::complex<T>)
-                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::F16, options);
+                    return encode_(input.template as<nt::const_value_type_t<T>>(), output, DataType::F16, options);
                 break;
             case DataType::C32:
                 if constexpr (nt::complex<T>)
-                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::F32, options);
+                    return encode_(input.template as<nt::const_value_type_t<T>>(), output, DataType::F32, options);
                 break;
             case DataType::C64:
                 if constexpr (nt::complex<T>)
-                    return encode(input.template as<nt::const_value_type_t<T>>(), output, DataType::F64, options);
+                    return encode_(input.template as<nt::const_value_type_t<T>>(), output, DataType::F64, options);
                 break;
             case DataType::UNKNOWN:
                 break;
@@ -605,55 +565,11 @@ namespace noa::io {
         panic("{} cannot be encoded into {}", nd::stringify<T>(), output_dtype);
     }
 
-    void encode(
+    template<typename T, usize N, StridesTraits S> // instantiated: 2-contiguous or 6-strided
+    void decode_(
         const SpanContiguous<const std::byte, 1>& input,
         const DataType& input_dtype,
-        std::FILE* output,
-        const DataType& output_dtype,
-        const EncodeOptions& options
-    ) {
-        switch (input_dtype) {
-            case DataType::I8:
-                return encode(input.as_strided<const i8, 4>(), output, output_dtype, options);
-            case DataType::I16:
-                return encode(input.as_strided<const i16, 4>(), output, output_dtype, options);
-            case DataType::I32:
-                return encode(input.as_strided<const i32, 4>(), output, output_dtype, options);
-            case DataType::I64:
-                return encode(input.as_strided<const i64, 4>(), output, output_dtype, options);
-            case DataType::U8:
-                return encode(input.as_strided<const u8, 4>(), output, output_dtype, options);
-            case DataType::U16:
-                return encode(input.as_strided<const u16, 4>(), output, output_dtype, options);
-            case DataType::U32:
-                return encode(input.as_strided<const u32, 4>(), output, output_dtype, options);
-            case DataType::U64:
-                return encode(input.as_strided<const u64, 4>(), output, output_dtype, options);
-            case DataType::F16:
-                return encode(input.as_strided<const f16, 4>(), output, output_dtype, options);
-            case DataType::F32:
-                return encode(input.as_strided<const f32, 4>(), output, output_dtype, options);
-            case DataType::F64:
-                return encode(input.as_strided<const f64, 4>(), output, output_dtype, options);
-            case DataType::C16:
-                return encode(input.as_strided<const c16, 4>(), output, output_dtype, options);
-            case DataType::C32:
-                return encode(input.as_strided<const c32, 4>(), output, output_dtype, options);
-            case DataType::C64:
-                return encode(input.as_strided<const c64, 4>(), output, output_dtype, options);
-            case DataType::U4:
-            case DataType::CI16:
-                panic("TODO: u4 and ci16 cannot be reinterpreted to valid types, they would require special cases");
-            case DataType::UNKNOWN:
-                panic("Unknown data type");
-        }
-    }
-
-    template<nt::numeric T>
-    void decode(
-        const SpanContiguous<const std::byte, 1>& input,
-        const DataType& input_dtype,
-        const Span<T, 4>& output,
+        const Span<T, N, isize, S>& output,
         const DecodeOptions& options
     ) {
         const isize n_elements = output.ssize();
@@ -673,63 +589,63 @@ namespace noa::io {
                 break;
             case DataType::I8:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<i8>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_decode_<i8>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::U8:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<u8>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_decode_<u8>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::I16:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<i16>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_decode_<i16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::U16:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<u16>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_decode_<u16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::I32:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<i32>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_decode_<i32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::U32:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<u32>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_decode_<u32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::I64:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<i64>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_decode_<i64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::U64:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<u64>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_decode_<u64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::F16:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<f16>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_decode_<f16>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::F32:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<f32>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_decode_<f32>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::F64:
                 if constexpr (nt::scalar<T>)
-                    return decode_4d_<f64>(input, output, options.clamp, options.endian_swap, n_threads);
+                    return actual_decode_<f64>(input, output, options.clamp, options.endian_swap, n_threads);
                 break;
             case DataType::CI16:
                 if constexpr (nt::complex<T>)
-                    return decode(input, DataType::I16, output.template as<typename T::value_type>(), options);
+                    return details::decode_(input, DataType::I16, output.template as<typename T::value_type>(), options);
                 break;
             case DataType::C16:
                 if constexpr (nt::complex<T>)
-                    return decode(input, DataType::F16, output.template as<typename T::value_type>(), options);
+                    return details::decode_(input, DataType::F16, output.template as<typename T::value_type>(), options);
                 break;
             case DataType::C32:
                 if constexpr (nt::complex<T>)
-                    return decode(input, DataType::F32, output.template as<typename T::value_type>(), options);
+                    return details::decode_(input, DataType::F32, output.template as<typename T::value_type>(), options);
                 break;
             case DataType::C64:
                 if constexpr (nt::complex<T>)
-                    return decode(input, DataType::F64, output.template as<typename T::value_type>(), options);
+                    return details::decode_(input, DataType::F64, output.template as<typename T::value_type>(), options);
                 break;
             case DataType::UNKNOWN:
                 break;
@@ -737,55 +653,11 @@ namespace noa::io {
         panic("{} cannot be decoded into {}", input_dtype, nd::stringify<T>());
     }
 
-    void decode(
-        const SpanContiguous<const std::byte, 1>& input,
-        const DataType& input_dtype,
-        const SpanContiguous<std::byte, 1>& output,
-        const DataType& output_dtype,
-        const DecodeOptions& options
-    ) {
-        switch (output_dtype) {
-            case DataType::I8:
-                return decode(input, input_dtype, output.as_strided<i8, 4>(), options);
-            case DataType::I16:
-                return decode(input, input_dtype, output.as_strided<i16, 4>(), options);
-            case DataType::I32:
-                return decode(input, input_dtype, output.as_strided<i32, 4>(), options);
-            case DataType::I64:
-                return decode(input, input_dtype, output.as_strided<i64, 4>(), options);
-            case DataType::U8:
-                return decode(input, input_dtype, output.as_strided<u8, 4>(), options);
-            case DataType::U16:
-                return decode(input, input_dtype, output.as_strided<u16, 4>(), options);
-            case DataType::U32:
-                return decode(input, input_dtype, output.as_strided<u32, 4>(), options);
-            case DataType::U64:
-                return decode(input, input_dtype, output.as_strided<u64, 4>(), options);
-            case DataType::F16:
-                return decode(input, input_dtype, output.as_strided<f16, 4>(), options);
-            case DataType::F32:
-                return decode(input, input_dtype, output.as_strided<f32, 4>(), options);
-            case DataType::F64:
-                return decode(input, input_dtype, output.as_strided<f64, 4>(), options);
-            case DataType::C16:
-                return decode(input, input_dtype, output.as_strided<c16, 4>(), options);
-            case DataType::C32:
-                return decode(input, input_dtype, output.as_strided<c32, 4>(), options);
-            case DataType::C64:
-                return decode(input, input_dtype, output.as_strided<c64, 4>(), options);
-            case DataType::U4:
-            case DataType::CI16:
-                panic("TODO: u4 and ci16 cannot be reinterpreted to valid types, they would require special cases");
-            case DataType::UNKNOWN:
-                panic("Unknown data type");
-        }
-    }
-
-    template<nt::numeric T>
-    void decode(
+    template<typename T, usize N, StridesTraits S> // instantiated: 1-contiguous or 6-strided
+    void decode_(
         std::FILE* input,
         const DataType& input_dtype,
-        const Span<T, 4>& output,
+        const Span<T, N, isize, S>& output,
         const DecodeOptions& options
     ) {
         const isize n_elements = output.n_elements();
@@ -851,28 +723,162 @@ namespace noa::io {
                 break;
             case DataType::CI16:
                 if constexpr (nt::complex<T>) {
-                    return decode(input, DataType::I16, output.template as<typename T::value_type>(), options);
+                    return details::decode_(input, DataType::I16, output.template as<typename T::value_type>(), options);
                 }
                 break;
             case DataType::C16:
                 if constexpr (nt::complex<T>) {
-                    return decode(input, DataType::F16, output.template as<typename T::value_type>(), options);
+                    return details::decode_(input, DataType::F16, output.template as<typename T::value_type>(), options);
                 }
                 break;
             case DataType::C32:
                 if constexpr (nt::complex<T>) {
-                    return decode(input, DataType::F32, output.template as<typename T::value_type>(), options);
+                    return details::decode_(input, DataType::F32, output.template as<typename T::value_type>(), options);
                 }
                 break;
             case DataType::C64:
                 if constexpr (nt::complex<T>) {
-                    return decode(input, DataType::F64, output.template as<typename T::value_type>(), options);
+                    return details::decode_(input, DataType::F64, output.template as<typename T::value_type>(), options);
                 }
                 break;
             case DataType::UNKNOWN:
                 break;
         }
         panic("{} cannot be decoded into {}", input_dtype, nd::stringify<T>());
+    }
+}
+
+namespace noa::io {
+    void encode(
+        const SpanContiguous<const std::byte, 1>& input,
+        const DataType& input_dtype,
+        const SpanContiguous<std::byte, 1>& output,
+        const DataType& output_dtype,
+        const EncodeOptions& options
+    ) {
+        switch (input_dtype) {
+            case DataType::I8:
+                return details::encode_(input.as_contiguous<const i8, 2>(), output, output_dtype, options);
+            case DataType::I16:
+                return details::encode_(input.as_contiguous<const i16, 2>(), output, output_dtype, options);
+            case DataType::I32:
+                return details::encode_(input.as_contiguous<const i32, 2>(), output, output_dtype, options);
+            case DataType::I64:
+                return details::encode_(input.as_contiguous<const i64, 2>(), output, output_dtype, options);
+            case DataType::U8:
+                return details::encode_(input.as_contiguous<const u8, 2>(), output, output_dtype, options);
+            case DataType::U16:
+                return details::encode_(input.as_contiguous<const u16, 2>(), output, output_dtype, options);
+            case DataType::U32:
+                return details::encode_(input.as_contiguous<const u32, 2>(), output, output_dtype, options);
+            case DataType::U64:
+                return details::encode_(input.as_contiguous<const u64, 2>(), output, output_dtype, options);
+            case DataType::F16:
+                return details::encode_(input.as_contiguous<const f16, 2>(), output, output_dtype, options);
+            case DataType::F32:
+                return details::encode_(input.as_contiguous<const f32, 2>(), output, output_dtype, options);
+            case DataType::F64:
+                return details::encode_(input.as_contiguous<const f64, 2>(), output, output_dtype, options);
+            case DataType::C16:
+                return details::encode_(input.as_contiguous<const c16, 2>(), output, output_dtype, options);
+            case DataType::C32:
+                return details::encode_(input.as_contiguous<const c32, 2>(), output, output_dtype, options);
+            case DataType::C64:
+                return details::encode_(input.as_contiguous<const c64, 2>(), output, output_dtype, options);
+            case DataType::U4:
+            case DataType::CI16:
+                panic("TODO: u4 and ci16 cannot be reinterpreted to valid types, they would require special cases");
+            case DataType::UNKNOWN:
+                panic("Unknown data type");
+        }
+    }
+
+    void encode(
+        const SpanContiguous<const std::byte, 1>& input,
+        const DataType& input_dtype,
+        std::FILE* output,
+        const DataType& output_dtype,
+        const EncodeOptions& options
+    ) {
+        switch (input_dtype) {
+            case DataType::I8:
+                return details::encode_(input.as_contiguous<const i8, 2>(), output, output_dtype, options);
+            case DataType::I16:
+                return details::encode_(input.as_contiguous<const i16, 2>(), output, output_dtype, options);
+            case DataType::I32:
+                return details::encode_(input.as_contiguous<const i32, 2>(), output, output_dtype, options);
+            case DataType::I64:
+                return details::encode_(input.as_contiguous<const i64, 2>(), output, output_dtype, options);
+            case DataType::U8:
+                return details::encode_(input.as_contiguous<const u8, 2>(), output, output_dtype, options);
+            case DataType::U16:
+                return details::encode_(input.as_contiguous<const u16, 2>(), output, output_dtype, options);
+            case DataType::U32:
+                return details::encode_(input.as_contiguous<const u32, 2>(), output, output_dtype, options);
+            case DataType::U64:
+                return details::encode_(input.as_contiguous<const u64, 2>(), output, output_dtype, options);
+            case DataType::F16:
+                return details::encode_(input.as_contiguous<const f16, 2>(), output, output_dtype, options);
+            case DataType::F32:
+                return details::encode_(input.as_contiguous<const f32, 2>(), output, output_dtype, options);
+            case DataType::F64:
+                return details::encode_(input.as_contiguous<const f64, 2>(), output, output_dtype, options);
+            case DataType::C16:
+                return details::encode_(input.as_contiguous<const c16, 2>(), output, output_dtype, options);
+            case DataType::C32:
+                return details::encode_(input.as_contiguous<const c32, 2>(), output, output_dtype, options);
+            case DataType::C64:
+                return details::encode_(input.as_contiguous<const c64, 2>(), output, output_dtype, options);
+            case DataType::U4:
+            case DataType::CI16:
+                panic("TODO: u4 and ci16 cannot be reinterpreted to valid types, they would require special cases");
+            case DataType::UNKNOWN:
+                panic("Unknown data type");
+        }
+    }
+
+    void decode(
+        const SpanContiguous<const std::byte, 1>& input,
+        const DataType& input_dtype,
+        const SpanContiguous<std::byte, 1>& output,
+        const DataType& output_dtype,
+        const DecodeOptions& options
+    ) {
+        switch (output_dtype) {
+            case DataType::I8:
+                return details::decode_(input, input_dtype, output.as_contiguous<i8, 2>(), options);
+            case DataType::I16:
+                return details::decode_(input, input_dtype, output.as_contiguous<i16, 2>(), options);
+            case DataType::I32:
+                return details::decode_(input, input_dtype, output.as_contiguous<i32, 2>(), options);
+            case DataType::I64:
+                return details::decode_(input, input_dtype, output.as_contiguous<i64, 2>(), options);
+            case DataType::U8:
+                return details::decode_(input, input_dtype, output.as_contiguous<u8, 2>(), options);
+            case DataType::U16:
+                return details::decode_(input, input_dtype, output.as_contiguous<u16, 2>(), options);
+            case DataType::U32:
+                return details::decode_(input, input_dtype, output.as_contiguous<u32, 2>(), options);
+            case DataType::U64:
+                return details::decode_(input, input_dtype, output.as_contiguous<u64, 2>(), options);
+            case DataType::F16:
+                return details::decode_(input, input_dtype, output.as_contiguous<f16, 2>(), options);
+            case DataType::F32:
+                return details::decode_(input, input_dtype, output.as_contiguous<f32, 2>(), options);
+            case DataType::F64:
+                return details::decode_(input, input_dtype, output.as_contiguous<f64, 2>(), options);
+            case DataType::C16:
+                return details::decode_(input, input_dtype, output.as_contiguous<c16, 2>(), options);
+            case DataType::C32:
+                return details::decode_(input, input_dtype, output.as_contiguous<c32, 2>(), options);
+            case DataType::C64:
+                return details::decode_(input, input_dtype, output.as_contiguous<c64, 2>(), options);
+            case DataType::U4:
+            case DataType::CI16:
+                panic("TODO: u4 and ci16 cannot be reinterpreted to valid types, they would require special cases");
+            case DataType::UNKNOWN:
+                panic("Unknown data type");
+        }
     }
 
     void decode(
@@ -884,33 +890,33 @@ namespace noa::io {
     ) {
         switch (output_dtype) {
             case DataType::I8:
-                return decode(input, input_dtype, output.as_strided<i8, 4>(), options);
+                return details::decode_(input, input_dtype, output.as_contiguous<i8, 2>(), options);
             case DataType::I16:
-                return decode(input, input_dtype, output.as_strided<i16, 4>(), options);
+                return details::decode_(input, input_dtype, output.as_contiguous<i16, 2>(), options);
             case DataType::I32:
-                return decode(input, input_dtype, output.as_strided<i32, 4>(), options);
+                return details::decode_(input, input_dtype, output.as_contiguous<i32, 2>(), options);
             case DataType::I64:
-                return decode(input, input_dtype, output.as_strided<i64, 4>(), options);
+                return details::decode_(input, input_dtype, output.as_contiguous<i64, 2>(), options);
             case DataType::U8:
-                return decode(input, input_dtype, output.as_strided<u8, 4>(), options);
+                return details::decode_(input, input_dtype, output.as_contiguous<u8, 2>(), options);
             case DataType::U16:
-                return decode(input, input_dtype, output.as_strided<u16, 4>(), options);
+                return details::decode_(input, input_dtype, output.as_contiguous<u16, 2>(), options);
             case DataType::U32:
-                return decode(input, input_dtype, output.as_strided<u32, 4>(), options);
+                return details::decode_(input, input_dtype, output.as_contiguous<u32, 2>(), options);
             case DataType::U64:
-                return decode(input, input_dtype, output.as_strided<u64, 4>(), options);
+                return details::decode_(input, input_dtype, output.as_contiguous<u64, 2>(), options);
             case DataType::F16:
-                return decode(input, input_dtype, output.as_strided<f16, 4>(), options);
+                return details::decode_(input, input_dtype, output.as_contiguous<f16, 2>(), options);
             case DataType::F32:
-                return decode(input, input_dtype, output.as_strided<f32, 4>(), options);
+                return details::decode_(input, input_dtype, output.as_contiguous<f32, 2>(), options);
             case DataType::F64:
-                return decode(input, input_dtype, output.as_strided<f64, 4>(), options);
+                return details::decode_(input, input_dtype, output.as_contiguous<f64, 2>(), options);
             case DataType::C16:
-                return decode(input, input_dtype, output.as_strided<c16, 4>(), options);
+                return details::decode_(input, input_dtype, output.as_contiguous<c16, 2>(), options);
             case DataType::C32:
-                return decode(input, input_dtype, output.as_strided<c32, 4>(), options);
+                return details::decode_(input, input_dtype, output.as_contiguous<c32, 2>(), options);
             case DataType::C64:
-                return decode(input, input_dtype, output.as_strided<c64, 4>(), options);
+                return details::decode_(input, input_dtype, output.as_contiguous<c64, 2>(), options);
             case DataType::U4:
             case DataType::CI16:
                 panic("TODO: u4 and ci16 cannot be reinterpreted to valid types, they would require special cases");
@@ -919,26 +925,34 @@ namespace noa::io {
         }
     }
 
-    #define NOA_IO_ENCODE_(T) \
-    template void encode<T>(const Span<const T, 4>&, const SpanContiguous<std::byte, 1>&, const DataType&, const EncodeOptions&);  \
-    template void encode<T>(const Span<const T, 4>&, std::FILE*, const DataType&, const EncodeOptions&);                           \
-    template void decode<T>(const SpanContiguous<const std::byte, 1>&, const DataType&, const Span<T, 4>&, const DecodeOptions&);  \
-    template void decode<T>(std::FILE*, const DataType&, const Span<T, 4>&, const DecodeOptions&)
+    #define NOA_IO_ENCODE_SPAN_(T, N, S) \
+        template void details::encode_<T, N, S>(const Span<const T, N, isize, S>&, const SpanContiguous<std::byte, 1>&, const DataType&, const EncodeOptions&); \
+        template void details::decode_<T, N, S>(const SpanContiguous<const std::byte, 1>&, const DataType&, const Span<T, N, isize, S>&, const DecodeOptions&)
 
-    NOA_IO_ENCODE_(i8);
-    NOA_IO_ENCODE_(u8);
-    NOA_IO_ENCODE_(i16);
-    NOA_IO_ENCODE_(u16);
-    NOA_IO_ENCODE_(i32);
-    NOA_IO_ENCODE_(u32);
-    NOA_IO_ENCODE_(i64);
-    NOA_IO_ENCODE_(u64);
-    NOA_IO_ENCODE_(f16);
-    NOA_IO_ENCODE_(f32);
-    NOA_IO_ENCODE_(f64);
-    NOA_IO_ENCODE_(c16);
-    NOA_IO_ENCODE_(c32);
-    NOA_IO_ENCODE_(c64);
+    #define NOA_IO_ENCODE_FILE_(T, N, S) \
+        template void details::encode_<T, N, S>(const Span<const T, N, isize, S>&, std::FILE*, const DataType&, const EncodeOptions&); \
+        template void details::decode_<T, N, S>(std::FILE*, const DataType&, const Span<T, N, isize, S>&, const DecodeOptions&)
+
+    #define NOA_IO_ENCODE_ND_(T) \
+        NOA_IO_ENCODE_SPAN_(T, 2, StridesTraits::CONTIGUOUS);   \
+        NOA_IO_ENCODE_SPAN_(T, 6, StridesTraits::STRIDED);      \
+        NOA_IO_ENCODE_FILE_(T, 1, StridesTraits::CONTIGUOUS);   \
+        NOA_IO_ENCODE_FILE_(T, 6, StridesTraits::STRIDED)
+
+    NOA_IO_ENCODE_ND_(i8);
+    NOA_IO_ENCODE_ND_(u8);
+    NOA_IO_ENCODE_ND_(i16);
+    NOA_IO_ENCODE_ND_(u16);
+    NOA_IO_ENCODE_ND_(i32);
+    NOA_IO_ENCODE_ND_(u32);
+    NOA_IO_ENCODE_ND_(i64);
+    NOA_IO_ENCODE_ND_(u64);
+    NOA_IO_ENCODE_ND_(f16);
+    NOA_IO_ENCODE_ND_(f32);
+    NOA_IO_ENCODE_ND_(f64);
+    NOA_IO_ENCODE_ND_(c16);
+    NOA_IO_ENCODE_ND_(c32);
+    NOA_IO_ENCODE_ND_(c64);
 }
 
 namespace noa::io {

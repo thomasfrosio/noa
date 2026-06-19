@@ -1,4 +1,6 @@
 #include <noa/runtime/Factory.hpp>
+#include <noa/runtime/Random.hpp>
+#include <noa/base/Timer.hpp>
 
 #include <noa/io/IO.hpp>
 
@@ -38,7 +40,7 @@ TEST_CASE("io::ImageFile") {
     }
 
     {
-        auto a1 = noa::like<f16>(a0);
+        auto a1 = noa::empty_like<f16>(a0);
         noa::cast(a0, a1);
         noa::cast(a1, a0);
 
@@ -48,4 +50,30 @@ TEST_CASE("io::ImageFile") {
     }
 
     fs::remove_all(cwd.parent_path());
+}
+
+TEST_CASE("io::ImageFile - bench", "[.]") {
+    f64 time_read{};
+    f64 time_write{};
+    for (auto i: noa::irange(10)) {
+        auto path = Path(fs::current_path() / "test_io" / fmt::format("file_{}.mrc", i));
+        auto a0 = noa::random<f32, 4>(noa::Uniform{-100.,100.}, {41, 1, 4096, 4096});
+
+        auto t0 = noa::Timer{}.start();
+        noa::write_image(a0, path, {.dtype = "i32", .n_threads = 2});
+        auto t00 = t0.elapsed();
+        time_write += t00.count();
+        fmt::println("write took {}", t00);
+
+        auto t1 = noa::Timer{}.start();
+        auto a1 = noa::read_image<f32>(path, {.clamp = false, .n_threads = 2});
+        auto t11 = t1.elapsed();
+        time_read += t11.count();
+        fmt::println("read took {}", t11);
+
+        fs::remove(path);
+    }
+
+    fmt::println("total write took {}", time_write);
+    fmt::println("total read took {}", time_read);
 }

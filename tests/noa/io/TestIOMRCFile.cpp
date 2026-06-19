@@ -155,7 +155,7 @@ TEST_CASE("io::ImageFile - MRC: real dtype", "[asset]") {
         const auto n_elements_per_slice = file.shape()[2] * file.shape()[3];
         const auto ptr = std::make_unique<f32[]>(static_cast<size_t>(n_elements_per_slice));
         const auto s0 = Span(ptr.get(), n_elements_per_slice);
-        REQUIRE_THROWS_AS(file.write_slice(s0.as_const().as_4d(), {}), noa::Exception);
+        REQUIRE_THROWS_AS(file.write_slice(s0.as_const().as_nd<4>(), {}), noa::Exception);
     }
 
     AND_THEN("writing to an existing file") {
