@@ -31,7 +31,7 @@ TEST_CASE("fft::resize()", "[asset]") {
             const auto input_rfft = nf::r2c(input);
             noa::write_image(input_rfft, path_input_rfft);
 
-            auto tmp = noa::like<c32>(input);
+            auto tmp = noa::empty_like<c32>(input);
             nf::remap("h2f", input_rfft, tmp, tmp.shape());
             noa::write_image(tmp, path_input_fft);
         }

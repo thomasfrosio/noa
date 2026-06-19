@@ -72,7 +72,7 @@ namespace {
             i32 batch, const Shape<i32, 3>& shape_3d, i32 rank, i32 max_n_threads, u32 flags
         ) {
             const auto lock = std::scoped_lock(mutex);
-            set_planner_(batch, shape_3d, max_n_threads);
+            set_planner_(batch, shape_3d, rank, max_n_threads);
             plan_t plan;
 
             const auto inembed = input_strides.physical_shape();
@@ -107,7 +107,7 @@ namespace {
             i32 batch, const Shape<i32, 3>& shape_3d, i32 rank, i32 max_n_threads, u32 flags
         ) {
             const auto lock = std::scoped_lock(mutex);
-            set_planner_(batch, shape_3d, max_n_threads);
+            set_planner_(batch, shape_3d, rank, max_n_threads);
             plan_t plan;
 
             const auto inembed = input_strides.physical_shape();
@@ -146,7 +146,7 @@ namespace {
             i32 batch, const Shape<i32, 3>& shape_3d, i32 rank, i32 max_n_threads, u32 flags
         ) {
             const auto lock = std::scoped_lock(mutex);
-            set_planner_(batch, shape_3d, max_n_threads);
+            set_planner_(batch, shape_3d, rank, max_n_threads);
             plan_t plan;
 
             const auto inembed = input_strides.physical_shape();
@@ -267,7 +267,7 @@ namespace {
 
         // All subsequent plans will use this number of threads.
         // This function is not thread-safe; it should be called from a thread-safe environment.
-        static void set_planner_(i32 batch, const Shape<i32, 3>& shape, i32 max_threads) {
+        static void set_planner_(i32 batch, const Shape<i32, 3>& shape, i32 rank, i32 max_threads) {
             #ifdef NOA_CPU_FFTW3_MULTITHREADED
             // Initialize (once)...
             static bool is_initialized = false;
@@ -284,7 +284,7 @@ namespace {
             }
 
             if (max_threads > 1) {
-                const i32 suggested_n_threads = suggest_n_threads_(batch, shape, shape.ndim());
+                const i32 suggested_n_threads = suggest_n_threads_(batch, shape, rank);
                 const i32 actual_n_threads = std::min(suggested_n_threads, max_threads);
 
                 if constexpr (is_single_precision)
@@ -316,6 +316,10 @@ namespace noa::fft::cpu {
     }
 }
 
+namespace noa::fft::cpu::details {
+
+}
+
 namespace noa::fft::cpu {
     template<typename T>
     Plan<T>::Plan(
@@ -323,19 +327,10 @@ namespace noa::fft::cpu {
         Complex<T>* output, const Strides4& output_strides,
         const Shape4& shape, u32 flag, isize max_n_threads
     ) {
-        auto [batch, shape_3d] = shape.as_safe<i32>().split_batch();
-        const i32 rank = shape_3d.ndim();
-        auto istrides = input_strides.as_safe<i32>();
-        auto ostrides = output_strides.as_safe<i32>();
-
-        NOA_ASSERT(rank == 1 or not shape_3d.is_vector());
-        if (rank == 1 and shape_3d[2] == 1) { // column vector -> row vector
-            std::swap(shape_3d[1], shape_3d[2]);
-            std::swap(istrides[2], istrides[3]);
-            std::swap(ostrides[2], ostrides[3]);
-        }
+        const auto [shape_3d, batch, rank] = transform_shape_info(shape.as_safe<i32>());
         m_plan = FFTW<T>::create_r2c(
-            input, istrides, output, ostrides,
+            input, input_strides.as_safe<i32>(),
+            output, output_strides.as_safe<i32>(),
             batch, shape_3d, rank, static_cast<i32>(max_n_threads), flag
         );
     }
@@ -346,19 +341,10 @@ namespace noa::fft::cpu {
         T* output, const Strides4& output_strides,
         const Shape4& shape, u32 flag, isize max_n_threads
     ) {
-        auto [batch, shape_3d] = shape.as_safe<i32>().split_batch();
-        const i32 rank = shape_3d.ndim();
-        auto istrides = input_strides.as_safe<i32>();
-        auto ostrides = output_strides.as_safe<i32>();
-
-        NOA_ASSERT(rank == 1 or not shape_3d.is_vector());
-        if (rank == 1 and shape_3d[2] == 1) { // column vector -> row vector
-            std::swap(shape_3d[1], shape_3d[2]);
-            std::swap(istrides[2], istrides[3]);
-            std::swap(ostrides[2], ostrides[3]);
-        }
+        const auto [shape_3d, batch, rank] = transform_shape_info(shape.as_safe<i32>());
         m_plan = FFTW<T>::create_c2r(
-            input, istrides, output, ostrides,
+            input, input_strides.as_safe<i32>(),
+            output, output_strides.as_safe<i32>(),
             batch, shape_3d, rank, static_cast<i32>(max_n_threads), flag
         );
     }
@@ -369,21 +355,11 @@ namespace noa::fft::cpu {
         Complex<T>* output, const Strides4& output_strides,
         const Shape4& shape, nf::Sign sign, u32 flag, isize max_n_threads
     ) {
-        auto [batch, shape_3d] = shape.as_safe<i32>().split_batch();
-        const i32 rank = shape_3d.ndim();
-        auto istrides = input_strides.as_safe<i32>();
-        auto ostrides = output_strides.as_safe<i32>();
-
-        NOA_ASSERT(rank == 1 or not shape_3d.is_vector());
-        if (istrides.is_column_major() and ostrides.is_column_major()) {
-            // column major -> row major
-            std::swap(shape_3d[1], shape_3d[2]);
-            std::swap(istrides[2], istrides[3]);
-            std::swap(ostrides[2], ostrides[3]);
-        }
+        const auto [shape_3d, batch, rank] = transform_shape_info(shape.as_safe<i32>());
         m_plan = FFTW<T>::create_c2c(
-            input, istrides, output, ostrides, sign,
-            batch, shape_3d, rank, static_cast<i32>(max_n_threads), flag
+            input, input_strides.as_safe<i32>(),
+            output, output_strides.as_safe<i32>(),
+            sign, batch, shape_3d, rank, static_cast<i32>(max_n_threads), flag
         );
     }
 

@@ -6,16 +6,16 @@
 #include "noa/fft/core/Transform.hpp"
 
 namespace noa::fft::cpu {
-    /// Returns the optimum even size, greater or equal than "size".
+    /// Returns the optimal even size, greater or equal than "size".
     /// An optimum size is an even integer satisfying (2^a)*(3^b)*(5^c)*(7^d)*(11^e)*(13^f), with e + f = 0 or 1.
     /// If "size" is >16896, this function will simply return the next even number and will not necessarily
     /// satisfy the aforementioned requirements.
     auto fast_size(isize size) -> isize;
 
-    /// Returns the optimum BDHW logical shape.
+    /// Returns the optimal BDHW logical shape.
     template<typename T, usize N>
     auto fast_shape(Shape<T, N> shape) noexcept -> Shape<T, N> {
-        for (usize i = 1; i < N; ++i) // ignore batch dimension
+        for (usize i = N == 4 ? 1 : 0; i < N; ++i) // ignore batch dimension
             if (shape[i] > 1)
                 shape[i] = static_cast<T>(fast_size(static_cast<isize>(shape[i])));
         return shape;

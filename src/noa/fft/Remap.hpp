@@ -6,6 +6,7 @@
 #include "noa/runtime/Iwise.hpp"
 
 #include "noa/fft/core/Frequency.hpp"
+#include "noa/fft/core/Transform.hpp"
 #include "noa/fft/core/Layout.hpp"
 
 namespace noa::fft::details {
@@ -179,11 +180,23 @@ namespace noa::fft::details {
 }
 
 namespace noa::fft {
-    /// Remaps fft(s).
-    /// \param remap        Remapping operation.
-    /// \param[in] input    Input fft to remap.
-    /// \param[out] output  Remapped fft.
-    /// \param shape        BDHW logical shape.
+    struct RemapOptions {
+        /// Rank of the transform.
+        /// See transform_shape for more details.
+        i32 rank{-1};
+    };
+
+    /// Remaps FFT(s).
+    /// \param remap:
+    ///     Remapping operation.
+    /// \param[in] input:
+    ///     Input FFT to remap.
+    ///     Should be reshapeable to 4D.
+    /// \param[out] output:
+    ///     Remapped FFT.
+    ///     Should be reshapeable to 4D.
+    /// \param shape:
+    ///     Logical shape.
     ///
     /// \note If \p remap is \c h2hc, \p input can be equal to \p output, iff the height and depth are even or 1.
     /// \note This function can also perform a cast or compute the power spectrum of the input, depending on the
@@ -199,10 +212,11 @@ namespace noa::fft {
     ///      visualization anyway, 2) if the remap is done directly after a dft, it will work since the field is
     ///      isotropic in this case, and 3) the problematic frequencies are past the Nyquist frequency, so lowpass
     ///      filtering to Nyquist (fftfreq=0.5) fixes this issue.
-    template<nt::readable_varray_decay Input,
-             nt::writable_varray_decay Output>
-    requires nt::varray_decay_with_compatible_or_spectrum_types<Input, Output>
-    void remap(Layout remap, Input&& input, Output&& output, Shape4 shape) {
+    template<nt::readable_array_decay Input, nt::writable_array_decay Output, usize N>
+        requires (nt::array_decay_with_compatible_or_spectrum_types<Input, Output> and
+                  nt::array_decay_nd<Input, N> and
+                  nt::array_decay_nd<Output, N>)
+    void remap(Layout remap, Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
         using input_t = nt::mutable_value_type_t<Input>;
         using output_t = nt::value_type_t<Output>;
 
@@ -227,6 +241,12 @@ namespace noa::fft {
             return;
         }
 
+        // Transform to BDHW.
+        auto input_4d = input.span().template as_nd<4>();
+        auto output_4d = output.span().template as_nd<4>();
+        auto shape_4d = input_4d.shape().template set<3>(shape[3]);
+        details::prepare_spans(input_4d, output_4d, shape_4d, options.rank);
+
         // Special in-place rfft case:
         if (is_inplace) {
             check(remap.is_any(Layout::H2HC, Layout::HC2H),
@@ -237,10 +257,10 @@ namespace noa::fft {
                   "Got input:data={}, input:strides={}, output:data={} and output:strides={}",
                   static_cast<const void*>(input.get()), input.strides(),
                   static_cast<const void*>(output.get()), output.strides());
-            check((shape[2] == 1 or is_even(shape[2])) and
-                  (shape[1] == 1 or is_even(shape[1])),
+            check((shape_4d[2] == 1 or is_even(shape_4d[2])) and
+                  (shape_4d[1] == 1 or is_even(shape_4d[1])),
                   "In-place remapping requires the depth and height dimensions to have an even number of elements, "
-                  "but got shape={}", shape);
+                  "but got shape_4d={}", shape_4d);
         }
 
         const Device device = output.device();
@@ -248,25 +268,13 @@ namespace noa::fft {
               "The input and output arrays must be on the same device, but got input:device={}, output:device={}",
               input.device(), device);
 
-        // Reordering is only possible for some remaps.
-        // Regardless, the batch dimension cannot be reordered.
-        auto input_strides = input.strides();
-        auto output_strides = output.strides();
-        if (remap.is_any(Layout::FC2F, Layout::F2FC)) {
-            const auto order_3d = output_strides.pop_front().rightmost_order(shape.pop_front());
-            if (order_3d != Vec<isize, 3>{0, 1, 2}) {
-                const auto order = (order_3d + 1).push_front(0);
-                nd::permute_all(order, input_strides, output_strides, shape);
-            }
-        }
-
         using input_accessor_t = AccessorRestrict<const input_t, 4, isize>;
         using output_accessor_t = AccessorRestrict<output_t, 4, isize>;
-        const auto input_accessor = input_accessor_t(input.get(), input_strides);
-        const auto output_accessor = output_accessor_t(output.get(), output_strides);
-        const auto shape_3d = shape.pop_front();
+        const auto input_accessor = input_accessor_t(input_4d.get(), input_4d.strides());
+        const auto output_accessor = output_accessor_t(output_4d.get(), output_4d.strides());
+        const auto shape_3d = shape_4d.pop_front();
 
-        auto iwise_shape = remap.is_xx2fx() ? shape : shape.rfft();
+        auto iwise_shape = remap.is_xx2fx() ? shape_4d : shape_4d.rfft();
         if (is_inplace)
             iwise_shape[2] = max(iwise_shape[2] / 2, isize{1}); // iterate only through half of height
 
@@ -348,11 +356,12 @@ namespace noa::fft {
     }
 
     /// Remaps fft(s).
-    template<nt::readable_varray_decay_of_numeric Input>
-    [[nodiscard]] auto remap(Layout remap, Input&& input, const Shape4& shape) {
+    template<nt::readable_array_decay_of_numeric Input, usize N>
+        requires nt::array_decay_nd<Input, N>
+    [[nodiscard]] auto remap(Layout remap, Input&& input, const Shape<isize, N>& shape, RemapOptions options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
-        auto output = Array<value_t>(remap.is_xx2fx() ? shape : shape.rfft(), input.options());
-        nf::remap(remap, std::forward<Input>(input), output, shape);
+        auto output = Array<value_t, N>(remap.is_xx2fx() ? shape : shape.rfft(), input.options());
+        nf::remap(remap, std::forward<Input>(input), output, shape, options);
         return output;
     }
 }

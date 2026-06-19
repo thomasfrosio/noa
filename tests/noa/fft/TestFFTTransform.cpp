@@ -182,12 +182,12 @@ TEST_CASE("fft, caching plans") {
         nf::clear_cache(device);
         nf::set_cache_limit(5, device);
 
-        auto a = Array<f32>(64, {.device = device});
+        auto a = Array<f32, 4>(64, {.device = device});
         auto a_rfft = nf::r2c(a).eval();
         auto a_s = nf::cache_size(device);
         REQUIRE((a_s == -1 or a_s > 0));
 
-        auto b = Array<f32>(128, {.device = device});
+        auto b = Array<f32, 4>(128, {.device = device});
         auto b_rfft = nf::r2c(b).eval();
         auto b_s = nf::cache_size(device);
         REQUIRE((b_s == -1 or b_s >= a_s));
@@ -195,11 +195,11 @@ TEST_CASE("fft, caching plans") {
         nf::clear_cache(device);
         REQUIRE(nf::cache_size(device) <= 0);
 
-        auto c = Array<f32>({2, 1, 1024, 1024}, {.device = device});
+        auto c = Array<f32, 4>({2, 1, 1024, 1024}, {.device = device});
         auto c_rfft = nf::r2c(c).eval();
         auto c_s = nf::cache_size(device);
 
-        auto d = Array<f32>({2, 1, 1024, 1024}, {.device = device});
+        auto d = Array<f32, 4>({2, 1, 1024, 1024}, {.device = device});
         auto d_rfft = nf::r2c(d).eval();
         auto d_s = nf::cache_size(device);
 
@@ -274,5 +274,27 @@ TEST_CASE("fft, caching plans, shared workspace") {
         auto buffer = Array<std::byte>(n_bytes, {.device = device, .allocator = Allocator::DEFAULT});
         nf::set_workspace(device, buffer);
         REQUIRE(nf::workspace_left_to_allocate(device) == 0);
+    }
+}
+
+TEST_CASE("fft::rank") {
+    std::vector<Device> devices{"cpu"};
+    if (Device::is_any_gpu())
+        devices.emplace_back("gpu");
+
+    for (const auto& device: devices) {
+        const auto stream = StreamGuard(device);
+        const auto options = ArrayOption(device, Allocator::MANAGED);
+
+        auto a = noa::random<f32, 3>(noa::Uniform{-10.f, 10.f}, {64, 64, 64}, options);
+        {
+            auto a_rfft = nf::r2c(a); // defaults to rank=-1 -> rank=3
+            auto b_rfft = nf::r2c(a.reshape<4>({1, 64, 64, 64}));
+            REQUIRE(test::allclose_abs_safe(a_rfft.as_1d(), b_rfft.as_1d(), 1e-5));
+        } {
+            auto a_rfft = nf::r2c(a, {.rank = 2});
+            auto b_rfft = nf::r2c(a.reshape<4>({64, 1, 64, 64}));
+            REQUIRE(test::allclose_abs_safe(a_rfft.as_1d(), b_rfft.as_1d(), 1e-5));
+        }
     }
 }

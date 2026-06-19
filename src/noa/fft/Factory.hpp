@@ -33,53 +33,54 @@ namespace noa::fft {
         return shape;
     }
 
-    /// Returns the real-valued alias of \p rfft.
-    /// \param[in] rfft VArray of the rfft(s) to alias.
-    /// \param shape    BDHW logical shape of \p rfft.
-    template<nt::varray_decay_of_complex Complex>
-    [[nodiscard]] auto alias_to_real(Complex&& rfft, const Shape4& shape) {
+    /// Returns the real-valued alias of rfft.
+    /// \param[in] rfft Array of the rfft(s) to alias.
+    /// \param shape    Logical shape of rfft.
+    template<nt::array_decay_of_complex Complex, usize N>
+        requires nt::array_decay_nd<Complex, N>
+    [[nodiscard]] auto alias_to_real(Complex&& rfft, const Shape<isize, N>& shape) {
         check(rfft.shape() == shape.rfft(),
               "Given the {} logical shape, the rfft should have a shape of {}, but got {}",
               shape, shape.rfft(), rfft.shape());
-        using real_t = nt::mutable_value_type_twice_t<Complex>;
-        auto tmp = std::forward<Complex>(rfft).template reinterpret_as<real_t>();
+        using real_t = nt::value_type_twice_t<Complex>;
+        auto tmp = std::forward<Complex>(rfft).template as<real_t>();
         auto strides = tmp.strides();
         auto options = tmp.options();
         return decltype(tmp)(std::move(tmp).share(), shape, strides, options);
     }
 
     /// Returns a rfft (and its real-valued alias) filled with zeros.
-    /// \param shape    BDHW shape of the real-space array.
+    /// \param shape    Shape of the real-space array.
     /// \param option   Options of the created array.
     /// \return         The allocated array. Both the real and complex views are pointing to the same memory,
     ///                 i.e. the real array has enough padding and alignment to support inplace r2c transforms.
-    template<nt::any_of<f32, f64> T>
-    [[nodiscard]] auto zeros(const Shape4& shape, ArrayOption option = {}) -> Pair<Array<T>, Array<Complex<T>>> {
-        Array complex = noa::zeros<Complex<T>>(shape.rfft(), option);
+    template<nt::any_of<f32, f64> T, usize N>
+    [[nodiscard]] auto zeros(const Shape<isize, N>& shape, ArrayOption option = {}) -> Pair<Array<T>, Array<Complex<T>>> {
+        Array complex = noa::zeros<Complex<T>, N>(shape.rfft(), option);
         Array real = alias_to_real(complex, shape);
         return {std::move(real), std::move(complex)};
     }
 
     /// Returns a rfft (and its real-valued alias) filled with ones.
-    /// \param shape    BDHW shape of the real-space array.
+    /// \param shape    Shape of the real-space array.
     /// \param option   Options of the created array.
     /// \return         The allocated array. Both the real and complex views are pointing to the same memory,
     ///                 i.e. the real array has enough padding and alignment to support inplace r2c transforms.
-    template<nt::any_of<f32, f64> T>
-    [[nodiscard]] auto ones(const Shape4& shape, ArrayOption option = {}) -> Pair<Array<T>, Array<Complex<T>>> {
-        Array complex = noa::ones<Complex<T>>(shape.rfft(), option);
+    template<nt::any_of<f32, f64> T, usize N>
+    [[nodiscard]] auto ones(const Shape<isize, N>& shape, ArrayOption option = {}) -> Pair<Array<T>, Array<Complex<T>>> {
+        Array complex = noa::ones<Complex<T>, N>(shape.rfft(), option);
         Array real = alias_to_real(complex, shape);
         return {std::move(real), std::move(complex)};
     }
 
     /// Returns a "padded" (as real and complex) uninitialized array.
-    /// \param shape    BDHW shape of the real-space array.
+    /// \param shape    Shape of the real-space array.
     /// \param option   Options of the created array.
     /// \return         The allocated array. Both the real and complex views are pointing to the same memory,
     ///                 i.e. the real array has enough padding and alignment to support inplace r2c transforms.
-    template<nt::any_of<f32, f64> T>
-    [[nodiscard]] auto empty(const Shape4& shape, ArrayOption option = {}) -> Pair<Array<T>, Array<Complex<T>>> {
-        Array complex = noa::empty<Complex<T>>(shape.rfft(), option);
+    template<nt::any_of<f32, f64> T, usize N>
+    [[nodiscard]] auto empty(const Shape<isize, N>& shape, ArrayOption option = {}) -> Pair<Array<T>, Array<Complex<T>>> {
+        Array complex = noa::empty<Complex<T>, N>(shape.rfft(), option);
         Array real = alias_to_real(complex, shape);
         return {std::move(real), std::move(complex)};
     }
