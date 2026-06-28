@@ -4,6 +4,8 @@
 #include "noa/base/SafeCast.hpp"
 #include "noa/runtime/cpu/Device.hpp"
 
+#include <mutex>
+
 // TODO maybe use something a bit more robust like pytorch/cpuinfo?
 // FIXME should this be in noa/core ?
 // FIXME For unsupported plateforms, this still compiles but returns zeros for everything.
