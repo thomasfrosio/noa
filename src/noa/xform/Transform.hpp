@@ -15,7 +15,7 @@ namespace noa::xform::details {
                 return nd::BatchedParameter<Empty>{};
             else
                 return nd::BatchedParameter{xform};
-        } else if constexpr (nt::varray<Xform> and (nt::mat<value_t> or nt::vec<value_t> or nt::quaternion<value_t>)) {
+        } else if constexpr (nt::array<Xform> and (nt::mat<value_t> or nt::vec<value_t> or nt::quaternion<value_t>)) {
             if constexpr (ENFORCE_EMPTY)
                 return nd::BatchedParameter<Empty>{};
             else {
@@ -84,22 +84,22 @@ namespace noa::xform::details {
     };
 
     template<usize N, typename Input, typename Output, typename Matrix>
-    void check_parameters_transform_nd(const Input& input, const Output& output, const Matrix& matrix) {
+    auto check_parameters_transform_nd(const Input& input, const Output& output, const Matrix& matrix) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
-        check(N == 3 or (input.shape()[1] == 1 and output.shape()[1] == 1),
-              "The input and output arrays should be 2d, but got input:shape={}, output:shape={}",
-              input.shape(), output.shape());
-        check(input.shape()[0] == 1 or input.shape()[0] == output.shape()[0],
+
+        auto input_span = input.span().template as_nd<N + 1>();
+        auto output_span = output.span().template as_nd<N + 1>();
+        check(input_span.shape()[0] == 1 or input_span.shape()[0] == output_span.shape()[0],
               "The batch size in the input ({}) is not compatible with the batch size in the output ({})",
-              input.shape()[0], output.shape()[0]);
+              input_span.shape()[0], output_span.shape()[0]);
 
         const Device device = output.device();
 
-        if constexpr (nt::varray<Matrix>) {
-            check(is_contiguous_vector(matrix) and matrix.n_elements() == output.shape()[0],
+        if constexpr (nt::array<Matrix>) {
+            check(matrix.is_contiguous() and matrix.n_elements() == output_span.shape()[0],
                   "The number of matrices, specified as a contiguous vector, should be equal to the batch size "
                   "of the output, but got matrix:shape={}, matrix:strides={} and output:batch={}",
-                  matrix.shape(), matrix.strides(), output.shape()[0]);
+                  matrix.shape(), matrix.strides(), output_span.shape()[0]);
             check(device == matrix.device(),
                   "The transformation matrices should be on the same device as the output, "
                   "but got matrices:device={} and output:device={}", matrix.device(), device);
@@ -109,25 +109,27 @@ namespace noa::xform::details {
               "The input array/texture and output array must be on the same device, "
               "but got input:device={} and output:device={}",
               input.device(), device);
-        check(nd::are_elements_unique(output.strides(), output.shape()),
+        check(nd::are_elements_unique(output_span.strides(), output_span.shape()),
               "The elements in the output should not overlap in memory, otherwise a data-race might occur. "
               "Got output:strides={} and output:shape={}",
               output.strides(), output.shape());
 
-        if constexpr (nt::varray<Input>) {
-            check(not are_overlapped(input, output),
+        if constexpr (nt::array<Input>) {
+            check(not are_overlapped(input_span, output_span),
                   "The input and output arrays should not overlap");
         } else {
-            check(input.device().is_gpu() or not are_overlapped(input.view(), output),
+            check(input.device().is_gpu() or not are_overlapped(input_span, output_span),
                   "The input and output arrays should not overlap");
         }
+        return Pair{input_span, output_span};
     }
 
     // GPU path instantiates 42 kernels with arrays and 54 kernels with textures...
     template<usize N, typename Index, bool IS_GPU = false, typename Input, typename Output, typename Matrix>
     void launch_transform_nd(Input&& input, Output&& output, Matrix&& inverse_matrices, auto options) {
         using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, N + 1, Index>;
-        auto output_accessor = output_accessor_t(output.get(), output.strides().template filter_nd<N>().template as<Index>());
+        auto output_span = output.span().template as<nt::value_type_t<Output>, N + 1, Index>();
+        auto output_accessor = output_accessor_t(output_span.get(), output_span.strides());
         auto batched_inverse_matrices = to_batched_transform(inverse_matrices);
 
         if constexpr (nt::texture_decay<Input>) {
@@ -144,7 +146,7 @@ namespace noa::xform::details {
             iwise<IwiseOptions{
                 .generate_cpu = not IS_GPU,
                 .generate_gpu = IS_GPU,
-            }>(output.shape().template filter_nd<N>().template as<Index>(), output.device(),
+            }>(output_span.shape(), output.device(),
                op_t(interpolator, output_accessor, batched_inverse_matrices),
                std::forward<Input>(input),
                std::forward<Output>(output),
@@ -187,7 +189,7 @@ namespace noa::traits {
     concept transform_parameter_nd =
         mat_of_shape<U, N, N + 1> or
         mat_of_shape<U, N + 1, N + 1> or
-        (nt::varray<U> and (mat_of_shape<V, N, N + 1> or mat_of_shape<V, N + 1, N + 1>));
+        (nt::array_nd<U, 1> and (mat_of_shape<V, N, N + 1> or mat_of_shape<V, N + 1, N + 1>));
 }
 
 namespace noa::xform {
@@ -206,22 +208,25 @@ namespace noa::xform {
     };
 
     /// Applies one or multiple 2d affine transforms.
-    /// \details The input and output array can have different shapes. The output window starts at the same index
-    ///          as the input window, so by entering a translation in \p inverse_matrices, one can move the center
-    ///          of the output window relative to the input window.
-    /// \details The input and output arrays should be 2d arrays. If the output is batched, a different matrix will
-    ///          be applied to each batch. In this case, the input can be batched as well, resulting in a fully
-    ///          batched operation (N input -> N output). Furthermore, if the input is not batched, it is broadcast
-    ///          to all output batches (1 input -> N output).
-    ///
-    /// \param[in] input            Input 2d array(s).
-    /// \param[out] output          Output 2d array(s).
-    /// \param[in] inverse_matrices 2x3 or 3x3 inverse HW affine matrices.
-    ///                             One, or if an array is entered, one per output batch.
-    ///                             Sets the floating-point precision of the transformation and interpolation.
-    /// \param options              Interpolation and border options.
-    template<nt::varray_or_texture_decay_of_real_or_complex Input,
-             nt::writable_varray_decay_of_any<nt::mutable_value_type_t<Input>> Output,
+    /// \param[in] input:
+    ///     ((b...,)h,w) Input 2d array(s) or 2d texture.
+    ///     The batch dimensions (if any) should be collapsable into one dimension.
+    ///     If not batched (b=1), it is broadcast to the output batch (1 input -> N output).
+    /// \param[out] output:
+    ///     ((b...,)h,w) Output 2d array(s).
+    ///     The batch dimensions (if any) should be collapsable into one dimension.
+    /// \param[in] inverse_matrices:
+    ///     2x3 or 3x3 inverse HW affine matrices.
+    ///     One matrix, or if an array is entered, a contiguous vector with one matrix per output batch.
+    ///     Sets the floating-point precision of the transformation and interpolation.
+    /// \param options:
+    ///     Interpolation and border options.
+    /// \note
+    ///     The input and output array can have different shapes. The output window starts at the same index
+    ///     as the input window, so by entering a translation in inverse_matrices, one can move the center
+    ///     of the output window relative to the input window, e.g. to render only a specific subregion.
+    template<nt::array_or_texture_decay_of_real_or_complex Input,
+             nt::writable_array_decay_of_any<nt::mutable_value_type_t<Input>> Output,
              nt::transform_parameter_nd<2> Matrix>
     void transform_2d(
         Input&& input,
@@ -259,22 +264,25 @@ namespace noa::xform {
     }
 
     /// Applies one or multiple 3d affine transforms.
-    /// \details The input and output array can have different shapes. The output window starts at the same index
-    ///          as the input window, so by entering a translation in \p inverse_matrices, one can move the center
-    ///          of the output window relative to the input window.
-    /// \details The input and output arrays should be 3d arrays. If the output is batched, a different matrix will
-    ///          be applied to each batch. In this case, the input can be batched as well, resulting in a fully
-    ///          batched operation (N input -> N output). Furthermore, if the input is not batched, it is broadcast
-    ///          to all output batches (1 input -> N output).
-    ///
-    /// \param[in] input            Input 3d array(s).
-    /// \param[out] output          Output 3d array(s).
-    /// \param[in] inverse_matrices 3x4 or 4x4 inverse DHW affine matrices.
-    ///                             One, or if an array is entered, one per output batch.
-    ///                             Sets the floating-point precision of the transformation and interpolation.
-    /// \param options              Interpolation and border options.
-    template<nt::varray_or_texture_decay_of_real_or_complex Input,
-             nt::writable_varray_decay_of_any<nt::mutable_value_type_t<Input>> Output,
+    /// \param[in] input:
+    ///     ((b...,)d,h,w) Input 3d array(s) or 3d texture.
+    ///     The batch dimensions (if any) should be collapsable into one dimension.
+    ///     If not batched (b=1), it is broadcast to the output batch (1 input -> N output).
+    /// \param[out] output:
+    ///     ((b...,)d,h,w) Output 3d array(s).
+    ///     The batch dimensions (if any) should be collapsable into one dimension.
+    /// \param[in] inverse_matrices:
+    ///     3x4 or 4x4 inverse HW affine matrices.
+    ///     One matrix, or if an array is entered, a contiguous vector with one matrix per output batch.
+    ///     Sets the floating-point precision of the transformation and interpolation.
+    /// \param options:
+    ///     Interpolation and border options.
+    /// \note
+    ///     The input and output array can have different shapes. The output window starts at the same index
+    ///     as the input window, so by entering a translation in inverse_matrices, one can move the center
+    ///     of the output window relative to the input window, e.g. to render only a specific subregion.
+    template<nt::array_or_texture_decay_of_real_or_complex Input,
+             nt::writable_array_decay_of_any<nt::mutable_value_type_t<Input>> Output,
              nt::transform_parameter_nd<3> Matrix>
     void transform_3d(
         Input&& input,

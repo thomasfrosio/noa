@@ -31,6 +31,9 @@ namespace noa::traits {
     template<typename... T> concept array_with_same_nd = array<T...> and ((T::SIZE == first_t<T...>::SIZE) and ...);
     template<typename... T> concept array_decay_with_same_nd = array_with_same_nd<std::decay_t<T>...>;
 
+    template<typename T, usize L, usize H> concept array_between_nd = array_nd<T> and L <= array_size_v<T> and array_size_v<T> <= H;
+    template<typename T, usize L, usize H> concept array_decay_between_nd = array_decay_nd<T> and L <= array_size_v<T> and array_size_v<T> <= H;
+
     template<typename... T> concept readable_array = array<T...> and ((not std::is_void_v<value_type_t<T>>) and ...);
     template<typename... T> concept writable_array = readable_array<T...> and ((not std::is_const_v<value_type_t<T>>) and ...);
     template<typename... T> concept readable_array_decay = array_decay<T...> and ((not std::is_void_v<value_type_t<T>>) and ...);

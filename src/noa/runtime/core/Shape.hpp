@@ -258,6 +258,12 @@ namespace noa::inline types {
             return {vec.flip()};
         }
 
+        template<usize N1> requires (N1 <= N)
+        [[nodiscard]] NOA_FHD constexpr auto split() const noexcept {
+            auto pair = vec.template split<N1>();
+            return Pair{Shape<value_type, N1>{pair.first}, Shape<value_type, pair.second.size()>{pair.second}};
+        }
+
         [[nodiscard]] NOA_HD constexpr auto circular_shift(isize count) const noexcept -> Shape {
             return {vec.circular_shift(count)};
         }
@@ -377,6 +383,45 @@ namespace noa::inline types {
                     ++non_empty_dimension;
             }
             return non_empty_dimension <= 1;
+        }
+
+        /// Rank of the shape, using the (B..)DHW convention.
+        ///     1 -> (B..)11W, where W > 1.
+        ///     2 -> (B..)1HW, where H > 1.
+        ///     3 -> (B..)DHW, where D > 1.
+        /// This convention is simple to understand and use, but limited and sometimes ambiguous:
+        /// - (B..)1H1, i.e., column vectors, have a rank of 2.
+        /// - Shapes with N <= 3 cannot encode a batch dimension, e.g., DHW is not possible.
+        ///   To limit ambiguities, rank_checked was added.
+        [[nodiscard]] NOA_FHD constexpr auto rank() const noexcept -> i32 {
+            if constexpr (N >= 3)
+                if (vec[N - 3] > 1)
+                    return 3;
+            if constexpr (N >= 2)
+                if (vec[N - 2] > 1)
+                    return 2;
+            return 1;
+        }
+
+        /// Returns the rank of the shape if there are no ambiguities.
+        /// If the rank is set (1, 2 or 3), it is simply returned.
+        /// If the rank is -1, it is deduced if N = 1 (rank = 1) or N >= 4 (using rank()),
+        /// otherwise (N = 2 or 3) an error is thrown.
+        [[nodiscard]] constexpr auto rank_checked(i32 rank) const noexcept -> i32 {
+            // If the rank is specified, all good.
+            if (rank > 0 and rank <= 3)
+                return rank;
+
+            // Otherwise, try to deduce it.
+            if constexpr (N <= 1)
+                return 1; // unambiguous
+            if constexpr (N == 2)
+                panic("The rank of 2D shapes is ambiguous (BW or HW). Set the rank explicitly or use at least 4 dimensions to rely on the B(..)DHW convention");
+            if constexpr (N == 3)
+                panic("The rank of 3D shapes is ambiguous (DHW, BHW or BBW). Set the rank explicitly or use at least 4 dimensions to rely on the B(..)DHW convention");
+            if constexpr (N >= 4)
+                return this->rank(); // use b(..)dhw convention
+            unreachable();
         }
     };
 
@@ -632,6 +677,12 @@ namespace noa::inline types {
 
         [[nodiscard]] NOA_HD constexpr auto flip() const noexcept -> Strides {
             return {vec.flip()};
+        }
+
+        template<usize N1> requires (N1 <= N)
+        [[nodiscard]] NOA_FHD constexpr auto split() const noexcept {
+            auto pair = vec.template split<N1>();
+            return Pair{Strides<value_type, N1>{pair.first}, Strides<value_type, pair.second.size()>{pair.second}};
         }
 
         [[nodiscard]] NOA_HD constexpr auto circular_shift(isize count) const noexcept -> Strides {
@@ -1195,8 +1246,9 @@ namespace noa {
     }
 
     /// Returns the collapsed shape by fusing contiguous dimensions together.
+    /// This assumes broadcast dimensions are not contiguous.
     template<typename T, usize N, typename U = T>
-    [[nodiscard]] NOA_FHD constexpr auto collapse_contiguous_dimensions(
+    [[nodiscard]] NOA_FHD constexpr auto collapse(
         Shape<T, N> shape,
         const Vec<bool, N>& contiguity,
         const Vec<bool, N>& broadcasting,
@@ -1204,12 +1256,22 @@ namespace noa {
     ) -> Shape<T, N> {
         if constexpr (N > 1) {
             for (usize i{}; i < N - 1; ++i) {
-                if (groups[i] == groups[i + 1] and contiguity[i] and (contiguity[i + 1] or not broadcasting[i + 1])) {
-                    // Collapse the current dimension with the next one. If the next dimension is broadcast=true,
-                    // we can still collapse knowing the next iteration is not contiguous, thus not collapsable.
-                    shape[i + 1] *= shape[i];
-                    shape[i] = 1;
-                }
+                NOA_ASSERT(not contiguity[i] or not broadcasting[i]);
+
+                // To be collapsed, dimensions need to be part of the same group...
+                if (groups[i] != groups[i + 1])
+                    continue;
+
+                // ... or the current one be contiguous and the next one not broadcast...
+                if (not (contiguity[i] and not broadcasting[i + 1]))
+                    continue;
+
+                // ... or be both broadcast.
+                if (not (broadcasting[i] and broadcasting[i + 1]))
+                    continue;
+
+                shape[i + 1] *= shape[i];
+                shape[i] = 1;
             }
         }
         return shape;
@@ -1230,7 +1292,7 @@ namespace noa {
         const Shape<T, NewN>& new_shape,
         Strides<U, NewN>& new_strides
     ) noexcept {
-        // from https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/TensorUtils.cpp
+        // Adapted from https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/TensorUtils.cpp
         if (old_shape.is_empty())
             return false;
 

@@ -126,16 +126,27 @@ namespace noa {
 
     public:
         /// C-style indexing operator, decrementing the dimensionality of the accessor by 1.
-        template<typename Int> requires (SIZE > 1)
-        [[nodiscard]] NOA_HD constexpr auto operator[](Int index) const noexcept {
+        template<nt::integer I1> requires (N > 1)
+        [[nodiscard]] NOA_HD constexpr auto operator[](I1 index) const noexcept {
             NOA_ASSERT(not is_empty());
-            using output_t = AccessorReference<value_type, SIZE - 1, index_type, STRIDES_TRAIT, POINTER_TRAIT>;
+            using output_t = AccessorReference<value_type, N - 1, index_type, STRIDES_TRAIT, POINTER_TRAIT>;
             return output_t(get() + noa::offset_at(stride<0>(), index), strides().data() + 1);
+        }
+
+        template<nt::integer I1, usize N1, usize A1> requires (N > N1)
+        [[nodiscard]] NOA_HD constexpr auto operator[](const Vec<I1, N1, A1>& index) const noexcept {
+            NOA_ASSERT(not is_empty());
+            using output_t = AccessorReference<value_type, N - N1, index_type, STRIDES_TRAIT, POINTER_TRAIT>;
+            using common_t = std::common_type_t<I, I1>;
+            common_t offset{0};
+            for (usize i{}; i < N1; ++i)
+                offset += noa::offset_at(stride(i), index[i]);
+            return output_t(get() + offset, strides().data() + N1);
         }
 
         /// C-style indexing operator, decrementing the dimensionality of the accessor by 1.
         /// When done on a 1d accessor, this acts as a pointer/array indexing and dereferences the data.
-        template<typename Int> requires (SIZE == 1)
+        template<typename Int> requires (N == 1)
         [[nodiscard]] NOA_HD constexpr auto& operator[](Int index) const noexcept {
             NOA_ASSERT(not is_empty());
             return get()[noa::offset_at(stride<0>(), index)];
@@ -229,13 +240,24 @@ namespace noa {
 
     public:
         /// C-style indexing operator, decrementing the dimensionality of the accessor by 1.
-        [[nodiscard]] NOA_HD constexpr auto operator[](nt::integer auto index) const noexcept requires (SIZE > 1){
+        [[nodiscard]] NOA_HD constexpr auto operator[](nt::integer auto index) const noexcept requires (N > 1) {
             NOA_ASSERT(not is_empty());
-            using output_t = AccessorReference<value_type, SIZE - 1, index_type, STRIDES_TRAIT, POINTER_TRAIT>;
+            using output_t = AccessorReference<value_type, N - 1, index_type, STRIDES_TRAIT, POINTER_TRAIT>;
             return output_t(get() + noa::offset_at(stride<0>(), index), strides() + 1);
         }
 
-        [[nodiscard]] NOA_HD constexpr auto& operator[](nt::integer auto index) const noexcept requires (SIZE == 1) {
+        template<nt::integer I1, usize N1, usize A1> requires (N > N1)
+        [[nodiscard]] NOA_HD constexpr auto operator[](const Vec<I1, N1, A1>& index) const noexcept {
+            NOA_ASSERT(not is_empty());
+            using output_t = AccessorReference<value_type, N - N1, index_type, STRIDES_TRAIT, POINTER_TRAIT>;
+            using common_t = std::common_type_t<I, I1>;
+            common_t offset{0};
+            for (usize i{}; i < N1; ++i)
+                offset += noa::offset_at(stride(i), index[i]);
+            return output_t(get() + offset, strides() + N1);
+        }
+
+        [[nodiscard]] NOA_HD constexpr auto& operator[](nt::integer auto index) const noexcept requires (N == 1) {
             NOA_ASSERT(not is_empty());
             return get()[noa::offset_at(stride<0>(), index)];
         }
@@ -739,7 +761,7 @@ namespace noa::details {
         // Collapse dimensions, when possible.
         const auto contiguity = nd::accessors_contiguity(shape, input, output);
         const auto broadcasting = nd::accessors_broadcasting(shape, input, output);
-        auto collapsed_shape = noa::collapse_contiguous_dimensions(shape, contiguity, broadcasting);
+        auto collapsed_shape = noa::collapse(shape, contiguity, broadcasting);
         collapsed_shape = collapsed_shape.permute(noa::squeeze_empty_dimensions_left(collapsed_shape));
 
         // Reshape accessors to the new shape.
@@ -766,7 +788,7 @@ namespace noa::details {
         // Collapse dimensions.
         const auto contiguity = nd::accessors_contiguity(input_shape, input);
         const auto broadcasting = nd::accessors_broadcasting(input_shape, input);
-        auto collapsed_input_shape = noa::collapse_contiguous_dimensions(input_shape, contiguity, broadcasting);
+        auto collapsed_input_shape = noa::collapse(input_shape, contiguity, broadcasting);
 
         // Squeeze the newly empty dimensions to the left.
         // Don't use the output shape since it has the empty reduced dimensions.
@@ -804,8 +826,8 @@ namespace noa::details {
         const auto contiguity = nd::accessors_contiguity(input_shape, input) and nd::accessors_contiguity(output_shape, output);
         const auto broadcasting = nd::accessors_broadcasting(input_shape, input) or nd::accessors_broadcasting(output_shape, output);
         const auto groups = input_shape.cmp_ne(output_shape).template as<i32>();
-        auto collapsed_input_shape = noa::collapse_contiguous_dimensions(input_shape, contiguity, broadcasting, groups);
-        auto collapsed_output_shape = noa::collapse_contiguous_dimensions(output_shape, contiguity, broadcasting, groups);
+        auto collapsed_input_shape = noa::collapse(input_shape, contiguity, broadcasting, groups);
+        auto collapsed_output_shape = noa::collapse(output_shape, contiguity, broadcasting, groups);
 
         // Squeeze the newly empty dimensions to the left.
         // Don't use the output shape since it has the empty reduced dimensions.

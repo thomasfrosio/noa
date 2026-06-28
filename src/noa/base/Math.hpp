@@ -286,6 +286,16 @@ namespace noa {
     #endif
     }
 
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr auto is_within(T val, std::type_identity_t<T> low, std::type_identity_t<T> high) noexcept -> bool {
+        return low <= val and val <= high;
+    }
+
+    template<typename T>
+    [[nodiscard]] NOA_FHD constexpr auto is_between(T val, std::type_identity_t<T> low, std::type_identity_t<T> high) noexcept -> bool {
+        return low < val and val < high;
+    }
+
     /// Whether two floating-points are equal or almost equal to each other.
     /// \details For the relative epsilon, the machine epsilon has to be scaled to the magnitude of
     ///          the values used and multiplied by the desired precision in ULPs. Relative epsilons

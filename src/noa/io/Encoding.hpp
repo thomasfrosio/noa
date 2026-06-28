@@ -277,7 +277,7 @@ namespace noa::io::details {
 
     template<nt::numeric T, usize N> requires (N >= 1)
     auto optimize_layout(Span<T, N>& input) -> bool{
-        auto collapsed_shape = noa::collapse_contiguous_dimensions(input.shape(), input.contiguity(), input.broadcasting());
+        auto collapsed_shape = noa::collapse(input.shape(), input.contiguity(), input.broadcasting());
         collapsed_shape = collapsed_shape.permute(noa::squeeze_empty_dimensions_left(collapsed_shape));
         input = input.reshape(collapsed_shape);
 

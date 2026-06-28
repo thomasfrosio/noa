@@ -9,18 +9,19 @@
 #include "noa/runtime/Utils.hpp"
 
 namespace noa::xform {
-    /// Applies a prefilter to \p input so that the cubic B-spline values will pass through the sample data.
-    /// \details Without prefiltering, cubic B-spline filtering results in smoothened images. This is because the
-    ///          cubic B-spline filtering yields a function that does not pass through its coefficients. To end up
-    ///          with a cubic B-spline interpolated image that passes through the original samples, we need to
-    ///          pre-filter the input.
+    /// Applies a prefilter to the input so that the cubic B-spline values will pass through the sample data.
+    /// \details
+    ///     Without prefiltering, cubic B-spline filtering results in smoothened images. This is because the cubic
+    ///     B-spline filtering yields a function that does not pass through its coefficients, i.e., it is not an
+    ///     interpolating spline. To end up with cubic B-spline interpolated data that passes through the original
+    ///     samples, we need to prefilter the input.
     /// \param[in] input    Input array of f32, f64, c32, or c64.
-    /// \param[out] output  Output array. Can be equal to \p input.
+    /// \param[out] output  Output array. Can be equal to the input.
     ///
     /// \see http://www2.cs.uregina.ca/~anima/408/Notes/Interpolation/UniformBSpline.htm
     /// \see http://www.dannyruijters.nl/cubicinterpolation/ for more details.
-    template<nt::readable_varray_decay_of_almost_any<f32, f64, c32, c64> Input,
-             nt::writable_varray_decay_of_any<nt::mutable_value_type_t<Input>> Output>
+    template<nt::readable_array_decay_of_almost_any<f32, f64, c32, c64> Input,
+             nt::writable_array_decay_of_any<nt::mutable_value_type_t<Input>> Output>
     void cubic_bspline_prefilter(Input&& input, Output&& output) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
 

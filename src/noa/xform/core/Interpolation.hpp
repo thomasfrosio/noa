@@ -251,6 +251,8 @@ namespace noa::xform {
             }
 
             // Interpolate.
+            // TODO Add a fast path to check whether all indices are within the image and then call value_at<ASSUME_INBOUND>()
+            //      Check for each dim, but only for indices+START and indices+END? Benchmark
             Vec<weight_t, SIZE> weights = interpolation_weights<INTERP, weight_t>(fraction);
             value_t interpolant{};
             if constexpr (N == 1) {

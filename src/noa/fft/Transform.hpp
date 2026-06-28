@@ -39,7 +39,7 @@ namespace noa::fft {
     ///     - FFTW3's wisdom is well-optimized and doesn't require a lot of memory.
     struct FFTOptions {
         /// The rank of the transform.
-        /// See transform_shape for more details.
+        /// See ranked_shape for more details.
         i32 rank = -1;
 
         /// Normalization mode.
@@ -191,7 +191,7 @@ namespace noa::fft {
         auto input_4d = input.span().template as_nd<4>();
         auto output_4d = output.span().template as_nd<4>();
         auto shape_4d = input_4d.shape();
-        details::prepare_spans(input_4d, output_4d, shape_4d, options.rank);
+        details::prepare_ranked_spans(input_4d, output_4d, shape_4d, options.rank);
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
@@ -267,7 +267,7 @@ namespace noa::fft {
         auto input_4d = input.span().template as_nd<4>();
         auto output_4d = output.span().template as_nd<4>();
         auto shape_4d = output_4d.shape();
-        details::prepare_spans(input_4d, output_4d, shape_4d, options.rank);
+        details::prepare_ranked_spans(input_4d, output_4d, shape_4d, options.rank);
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
@@ -349,7 +349,7 @@ namespace noa::fft {
         auto input_4d = input.span().template as_nd<4>();
         auto output_4d = output.span().template as_nd<4>();
         auto shape_4d = input_4d.shape();
-        details::prepare_spans(input_4d, output_4d, shape_4d, options.rank);
+        details::prepare_ranked_spans(input_4d, output_4d, shape_4d, options.rank);
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {

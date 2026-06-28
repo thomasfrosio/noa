@@ -134,3 +134,45 @@ TEST_CASE("runtime::core::Span") {
         REQUIRE(s0.span<i32, 4, u64>().subregion(1, 1).data() == s0.get() + s0.offset_at(1, 1));
     }
 }
+
+TEST_CASE("Span::[vec]") {
+    using namespace noa::types;
+    const auto shape = Shape<usize, 4>{4, 5, 6, 7};
+    auto ptr = std::make_unique<i32[]>(shape.n_elements());
+    auto s1 = noa::Span<const i32, 4, usize>(ptr.get(), shape, shape.strides());
+    auto s2 = s1.as_contiguous();
+
+    for (usize i{}; i < shape[0]; ++i) {
+        {
+            auto a = s1[i];
+            auto b = s1[Vec{i}];
+            REQUIRE((a.get() == b.get() and a.shape() == b.shape() and a.strides() == b.strides()));
+
+            auto c = s2[i];
+            auto d = s2[Vec{i}];
+            REQUIRE((c.get() == d.get() and a.strides() == b.strides() and c.shape() == d.shape()));
+        }
+        for (usize j{}; j < shape[1]; ++j) {
+            {
+                auto a = s1[i][j];
+                auto b = s1[Vec{i, j}];
+                REQUIRE((a.get() == b.get() and a.shape() == b.shape() and a.strides() == b.strides()));
+
+                auto c = s2[i][j];
+                auto d = s2[Vec{i, j}];
+                REQUIRE((c.get() == d.get() and a.strides() == b.strides() and c.shape() == d.shape()));
+            }
+            for (usize k{}; k < shape[2]; ++k) {
+                {
+                    auto a = s1[i][j][k];
+                    auto b = s1[Vec{i, j, k}];
+                    REQUIRE((a.get() == b.get() and a.shape() == b.shape() and a.strides() == b.strides()));
+
+                    auto c = s2[i][j][k];
+                    auto d = s2[Vec{i, j, k}];
+                    REQUIRE((c.get() == d.get() and a.strides() == b.strides() and c.shape() == d.shape()));
+                }
+            }
+        }
+    }
+}

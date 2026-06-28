@@ -521,13 +521,13 @@ TEST_CASE("runtime::core::Subregion") {
     REQUIRE(subregion.offset == offset + offset_at(strides, 10, 0, 2, 3));
 }
 
-TEST_CASE("runtime::core::collapse_dimensions") {
+TEST_CASE("runtime::core::collapse") {
     constexpr auto shape = Shape4{11, 22, 33, 44};
     auto run = [&](const Strides4& strides) {
         const auto contiguity = strides.contiguity(shape);
         const auto broadcasting = strides.broadcasting(shape);
 
-        auto collapsed_shape = noa::collapse_contiguous_dimensions(shape, contiguity, broadcasting);
+        auto collapsed_shape = noa::collapse(shape, contiguity, broadcasting);
         collapsed_shape = collapsed_shape.permute(noa::squeeze_empty_dimensions_left(collapsed_shape));
 
         Strides4 collapsed_strides;
@@ -576,4 +576,6 @@ TEST_CASE("runtime::core::collapse_dimensions") {
             run(strides);
         }
     }
+
+    REQUIRE();
 }

@@ -104,6 +104,47 @@ TEMPLATE_TEST_CASE("runtime::core:: Accessor", "", i32, i64, u32, u64) {
     }
 }
 
+TEST_CASE("Accessor::[vec]") {
+    const auto shape = Shape<usize, 4>{4, 5, 6, 7};
+    auto ptr = std::make_unique<i32[]>(shape.n_elements());
+    auto s1 = noa::Accessor<const i32, 4, usize>(ptr.get(), shape.strides());
+    auto s2 = noa::AccessorContiguous<const i32, 4, usize>(ptr.get(), shape.strides());
+
+    for (usize i{}; i < shape[0]; ++i) {
+        {
+            auto a = s1[i];
+            auto b = s1[Vec{i}];
+            REQUIRE((a.get() == b.get() and a.strides() == b.strides()));
+
+            auto c = s2[i];
+            auto d = s2[Vec{i}];
+            REQUIRE((c.get() == d.get() and a.strides() == b.strides()));
+        }
+        for (usize j{}; j < shape[1]; ++j) {
+            {
+                auto a = s1[i][j];
+                auto b = s1[Vec{i, j}];
+                REQUIRE((a.get() == b.get() and a.strides() == b.strides()));
+
+                auto c = s2[i][j];
+                auto d = s2[Vec{i, j}];
+                REQUIRE((c.get() == d.get() and a.strides() == b.strides()));
+            }
+            for (usize k{}; k < shape[2]; ++k) {
+                {
+                    auto a = s1[i][j][k];
+                    auto b = s1[Vec{i, j, k}];
+                    REQUIRE((a.get() == b.get() and a.strides() == b.strides()));
+
+                    auto c = s2[i][j][k];
+                    auto d = s2[Vec{i, j, k}];
+                    REQUIRE((c.get() == d.get() and a.strides() == b.strides()));
+                }
+            }
+        }
+    }
+}
+
 TEMPLATE_TEST_CASE("runtime::core:: AccessorValue", "", i32, i64, u32, u64) {
     AccessorValue<TestType> accessor_value; // uninitialized
     accessor_value(0) = 1;

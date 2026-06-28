@@ -21,23 +21,32 @@ namespace noa::xform {
     /// \note Supported symmetries:
     ///     - CX, with X being a non-zero positive number.
     /// TODO Add quaternions and more symmetries...
-    template<typename Real, usize N>
+    template<typename T, usize N, ArrayOwnership O = ArrayOwnership::RC>
     class Symmetry {
     public:
-        using value_type = Real;
-        using matrix_type = Mat<value_type, N, N>;
-        using array_type = Array<matrix_type>;
+        static_assert(nt::real<T>);
+        static constexpr bool IS_VIEW = O == ArrayOwnership::VIEW;
+        static constexpr usize SIZE = N;
+        static constexpr usize SSIZE = N;
+
+        using value_type = T;
+        using mutable_value_type = std::remove_const_t<T>;
+        using mutable_matrix_type = Mat<mutable_value_type, N, N>;
+        using matrix_type = std::conditional_t<std::is_const_v<value_type>, const mutable_matrix_type, mutable_matrix_type>;
+        using array_type = Array<matrix_type, 1, O>;
         using shared_type = array_type::shared_type;
 
         /// Construct an empty object.
         constexpr Symmetry() = default;
 
         /// Allocates and initializes the symmetry matrices on the device.
-        constexpr explicit Symmetry(const SymmetryCode& code, const ArrayOption& options = {}) : m_code(code) {
+        constexpr explicit Symmetry(const SymmetryCode& code, const ArrayOption& options = {}) requires IS_VIEW :
+            m_code(code)
+        {
             validate_and_set_buffer_(options);
         }
 
-        constexpr explicit Symmetry(std::string_view code, const ArrayOption& options = {}) {
+        constexpr explicit Symmetry(std::string_view code, const ArrayOption& options = {}) requires IS_VIEW {
             const auto parsed_code = SymmetryCode::from_string(code);
             check(parsed_code.has_value(), "Failed to parse \"{}\" to a valid symmetry", code);
             m_code = parsed_code.value();
@@ -46,32 +55,31 @@ namespace noa::xform {
 
         /// Imports existing matrices. No validation is done.
         /// The identity matrix should not be included as it is implicitly applied by the "symmetrize" functions.
-        template<nt::almost_any_of<array_type> A>
-        constexpr explicit Symmetry(A&& matrices, const SymmetryCode& code) :
-            m_buffer(std::forward<A>(matrices)),
+        constexpr explicit Symmetry(Array<T, N, O> matrices, const SymmetryCode& code) :
+            m_array(std::move(matrices)),
             m_code(code)
         {
-            check(is_contiguous_vector(m_buffer),
+            check(m_array.is_contiguous(),
                   "The symmetry matrices should be saved in a contiguous vector, "
                   "but got matrices:shape={} and matrices:strides={}",
-                  m_buffer.shape(), m_buffer.strides());
+                  m_array.shape(), m_array.strides());
         }
 
     public:
         [[nodiscard]] auto code() const -> SymmetryCode { return m_code; }
-        [[nodiscard]] auto device() const { return m_buffer.device(); }
-        [[nodiscard]] auto options() const { return m_buffer.options(); }
-        [[nodiscard]] auto is_empty() const { return m_buffer.is_empty(); }
+        [[nodiscard]] auto device() const { return m_array.device(); }
+        [[nodiscard]] auto options() const { return m_array.options(); }
+        [[nodiscard]] auto is_empty() const { return m_array.is_empty(); }
 
-        [[nodiscard]] auto span() const -> Span<const matrix_type> {
-            return m_buffer.template span<const matrix_type>();
+        [[nodiscard]] auto span() const -> SpanContiguous<matrix_type> {
+            return m_array.span_1d();
         }
 
-        [[nodiscard]] auto share() const& -> const shared_type& { return m_buffer.share(); }
-        [[nodiscard]] auto share() && -> shared_type&& { return std::move(m_buffer).share(); }
+        [[nodiscard]] auto share() const& -> const shared_type& { return m_array.share(); }
+        [[nodiscard]] auto share() && -> shared_type&& { return std::move(m_array).share(); }
 
-        [[nodiscard]] auto array() const& -> const array_type& { return m_buffer; }
-        [[nodiscard]] auto array() && -> array_type&& { return std::move(m_buffer); }
+        [[nodiscard]] auto array() const& -> const array_type& { return m_array; }
+        [[nodiscard]] auto array() && -> array_type&& { return std::move(m_array); }
 
         [[nodiscard]] auto to(ArrayOption option) const& -> Symmetry {
             array_type out(array().shape(), option);
@@ -90,22 +98,22 @@ namespace noa::xform {
 
             isize n_matrices = m_code.order - 1; // -1 to remove the identity from the matrices
             if (options.device.is_cpu()) {
-                m_buffer = array_type(n_matrices, options);
-                details::set_cx_symmetry_matrices(m_buffer.span_1d_contiguous());
+                m_array = array_type(n_matrices, options);
+                details::set_cx_symmetry_matrices(m_array.span_1d());
             } else {
                 // Create a new sync stream so that the final copy doesn't sync the default cpu stream of the user.
                 const auto guard = StreamGuard(Device{}, Stream::DEFAULT);
                 array_type cpu_matrices(n_matrices);
-                details::set_cx_symmetry_matrices(cpu_matrices.span_1d_contiguous());
+                details::set_cx_symmetry_matrices(cpu_matrices.span_1d());
 
                 // Copy to gpu.
-                m_buffer = array_type(n_matrices, options);
-                copy(std::move(cpu_matrices), m_buffer);
+                m_array = array_type(n_matrices, options);
+                copy(std::move(cpu_matrices), m_array);
             }
         }
 
     private:
-        array_type m_buffer;
+        array_type m_array;
         SymmetryCode m_code;
     };
 }
@@ -209,8 +217,13 @@ namespace noa::xform::details {
         NOA_NO_UNIQUE_ADDRESS batched_post_inverse_affine_type m_post_inverse_affine_matrices;
     };
 
+    template<typename>
+    struct is_symmetry : std::false_type {};
+    template<typename T, usize N, ArrayOwnership O>
+    struct is_symmetry<Symmetry<T, N, O>> : std::true_type {};
+
     template<typename T, usize N>
-    concept symmetry_nd = nt::any_of<std::decay_t<T>, Symmetry<f32, N>, Symmetry<f64, N>>;
+    concept symmetry_nd = is_symmetry<std::decay_t<T>>::value and std::decay_t<T>::SIZE == N;
 
     template<typename T, typename Coord, usize N,
              typename U = std::remove_reference_t<T>,
@@ -221,7 +234,7 @@ namespace noa::xform::details {
         (nt::same_as<Coord, C> and (
             nt::mat_of_shape<U, N, N + 1> or
             nt::mat_of_shape<U, N + 1, N + 1> or
-            (nt::varray<U> and (nt::mat_of_shape<V, N, N + 1> or nt::mat_of_shape<V, N + 1, N + 1>))
+            (nt::array_nd<U, 1> and (nt::mat_of_shape<V, N, N + 1> or nt::mat_of_shape<V, N + 1, N + 1>))
          ));
 
     template<typename Input, typename Output, typename Coord, usize N>
@@ -245,7 +258,7 @@ namespace noa::xform::details {
               "Got output:strides={} and output:shape={}",
               output.strides(), output.shape());
 
-        if constexpr (nt::varray<Input>) {
+        if constexpr (nt::array<Input>) {
             check(not are_overlapped(input, output),
                   "The input and output arrays should not overlap");
         } else {
@@ -343,30 +356,39 @@ namespace noa::xform {
     };
 
     /// Symmetrizes 2d array(s).
-    /// \tparam PreMatrix, PostMatrix       Mat23, Mat33, a varray of these types, or Empty.
-    /// \param[in] input                    Input 2d array(s).
-    /// \param[out] output                  Output 2d array(s).
-    /// \param[in] symmetry                 Symmetry operator.
-    /// \param[in] options                  Symmetry and interpolation options.
-    /// \param[in] pre_inverse_matrices     HW inverse affine matrices to apply before the symmetry.
-    ///                                     This is used to align the input with the symmetry axis/center.
-    ///                                     In practice, this needs to be applied for each symmetry count
-    ///                                     as opposed to the post-transformation which is applied once per pixel,
-    ///                                     so it may be more efficient to apply it separately using transform_2d.
-    /// \param[in] post_inverse_matrices    HW inverse affine matrix to apply after the symmetry.
-    ///                                     This is often used to move the symmetrized output to the original input
-    ///                                     location, as if the symmetry was applied in-place.
-    ///
-    /// \note During transformation, out-of-bound elements are set to 0, i.e. Border::ZERO is used.
-    /// \note The input and output array can have different shapes. The output window starts at the same index
-    ///       as the input window, so by entering a translation in pre-/post-matrices, one can move the center
-    ///       of the output window relative to the input window.
-    template<nt::varray_or_texture_decay_of_real_or_complex Input,
-             nt::writable_varray_decay Output,
+    /// \param[in] input:
+    ///     Input 2d array(s).
+    ///     Should be reshapeable to ((b..,)h,w).
+    /// \param[out] output:
+    ///     Output 2d array(s).
+    ///     Should be reshapeable to ((b..,)h,w).
+    ///     The input and output array can have different shapes. The output window starts at the same index
+    ///     as the input window, so by entering a translation in pre-/post-matrices, one can move the center
+    ///     of the output window relative to the input window.
+    /// \param[in] symmetry:
+    ///     Symmetry operator.
+    /// \param[in] options:
+    ///     Symmetry and interpolation options.
+    ///      During transformation, out-of-bound elements are set to 0, i.e., Border::ZERO is used.
+    /// \param[in] pre_inverse_matrices:
+    ///     Mat23, Mat33, a 1D array of these types, or Empty.
+    ///     HW inverse affine matrices to apply before the symmetry.
+    ///     This is used to align the input with the symmetry axis/center.
+    ///     This needs to be applied for each symmetry count as opposed to the post-transformation which
+    ///     is applied once per pixel, so it may be more efficient to apply it separately using transform_2d.
+    /// \param[in] post_inverse_matrices:
+    ///     Mat23, Mat33, a 1D array of these types, or Empty.
+    ///     HW inverse affine matrix to apply after the symmetry.
+    ///     This is often used to move the symmetrized output to the original input location,
+    ///     as if the symmetry was applied in-place.
+    template<nt::array_or_texture_decay_of_real_or_complex Input,
+             nt::writable_array_decay Output,
              details::symmetry_nd<2> Symmetry,
              details::symmetry_matrix_parameter_nd<nt::value_type_t<Symmetry>, 2> PreMatrix = Empty,
              details::symmetry_matrix_parameter_nd<nt::value_type_t<Symmetry>, 2> PostMatrix = Empty>
-    requires nt::compatible_types<nt::value_type_t<Input>, nt::value_type_t<Output>>
+        requires (nt::array_size_v<Input> >= 2 and
+                  nt::array_size_v<Output> >= 2 and
+                  nt::compatible_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
     void symmetrize_2d(
         Input&& input, Output&& output, Symmetry&& symmetry,
         const SymmetrizeOptions<2>& options = {},
@@ -404,30 +426,39 @@ namespace noa::xform {
     }
 
     /// Symmetrizes 3d array(s).
-    /// \tparam PreMatrix, PostMatrix       Mat34, Mat44, a varray of these types, or Empty.
-    /// \param[in] input                    Input 3d array(s).
-    /// \param[out] output                  Output 3d array(s).
-    /// \param[in] symmetry                 Symmetry operator.
-    /// \param[in] options                  Symmetry and interpolation options.
-    /// \param[in] pre_inverse_matrices     HW inverse affine matrices to apply before the symmetry.
-    ///                                     This is used to align the input with the symmetry axis/center.
-    ///                                     In practice, this needs to be applied for each symmetry count
-    ///                                     as opposed to the post-transformation which is applied once per pixel,
-    ///                                     so it may be more efficient to apply it separately using transform_3d.
-    /// \param[in] post_inverse_matrices    HW inverse affine matrix to apply after the symmetry.
-    ///                                     This is often used to move the symmetrized output to the original input
-    ///                                     location, as if the symmetry was applied in-place.
-    ///
-    /// \note During transformation, out-of-bound elements are set to 0, i.e. Border::ZERO is used.
-    /// \note The input and output array can have different shapes. The output window starts at the same index
-    ///       as the input window, so by entering a translation in pre-/post-matrices, one can move the center
-    ///       of the output window relative to the input window.
-    template<nt::varray_or_texture_decay_of_real_or_complex Input,
-             nt::writable_varray_decay Output,
+    /// \param[in] input:
+    ///     Input 3d array(s).
+    ///     Should be reshapeable to ((b..,)d,h,w).
+    /// \param[out] output:
+    ///     Output 3d array(s).
+    ///     Should be reshapeable to ((b..,)d,h,w).
+    ///     The input and output array can have different shapes. The output window starts at the same index
+    ///     as the input window, so by entering a translation in pre-/post-matrices, one can move the center
+    ///     of the output window relative to the input window.
+    /// \param[in] symmetry:
+    ///     Symmetry operator.
+    /// \param[in] options:
+    ///     Symmetry and interpolation options.
+    ///     During transformation, out-of-bound elements are set to 0, i.e., Border::ZERO is used.
+    /// \param[in] pre_inverse_matrices:
+    ///     Mat34, Mat44, a varray of these types, or Empty.
+    ///     HW inverse affine matrices to apply before the symmetry.
+    ///     This is used to align the input with the symmetry axis/center.
+    ///     This needs to be applied for each symmetry count as opposed to the post-transformation which
+    ///     is applied once per pixel, so it may be more efficient to apply it separately using transform_3d.
+    /// \param[in] post_inverse_matrices:
+    ///     Mat34, Mat44, a varray of these types, or Empty.
+    ///     HW inverse affine matrix to apply after the symmetry.
+    ///     This is often used to move the symmetrized output to the original input location,
+    ///     as if the symmetry was applied in-place.
+    template<nt::array_or_texture_decay_of_real_or_complex Input,
+             nt::writable_array_decay Output,
              details::symmetry_nd<3> Symmetry,
              details::symmetry_matrix_parameter_nd<nt::value_type_t<Symmetry>, 3> PreMatrix = Empty,
              details::symmetry_matrix_parameter_nd<nt::value_type_t<Symmetry>, 3> PostMatrix = Empty>
-    requires nt::compatible_types<nt::value_type_t<Input>, nt::value_type_t<Output>>
+        requires (nt::array_size_v<Input> >= 2 and
+                  nt::array_size_v<Output> >= 2 and
+                  nt::compatible_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
     void symmetrize_3d(
         Input&& input, Output&& output, Symmetry&& symmetry,
         const SymmetrizeOptions<3>& options = {},

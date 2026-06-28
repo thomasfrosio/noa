@@ -2,7 +2,7 @@
 
 #include "noa/signal/cpu/MedianFilter.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/signal/cuda/MedianFilter.cuh"
+#   include "noa/signal/cuda/MedianFilter.cuh"
 #endif
 
 #include "noa/runtime/Array.hpp"
@@ -21,12 +21,12 @@ namespace noa::signal {
         Border border_mode{Border::REFLECT};
     };
 
-    /// Computes the median filter using a 1D window.
-    /// \param[in] input    Array to filter.
-    /// \param[out] output  Filtered array. Should not overlap with \p input.
+    /// Computes the median filter using a 1D window along the width.
+    /// \param[in] input    ((B..,)W) Array to filter.
+    /// \param[out] output  ((B..,)W) Filtered array. Should not overlap with the input.
     /// \param options      Filter options.
-    template<nt::readable_varray_decay_of_scalar Input,
-             nt::writable_varray_decay_of_scalar Output>
+    template<nt::readable_array_decay_of_scalar Input, nt::writable_array_decay_of_scalar Output>
+        requires nt::array_decay_with_same_nd<Input, Output>
     void median_filter_1d(Input&& input, Output&& output, const MedianFilterOptions& options) {
         if (options.window_size <= 1) {
             std::forward<Input>(input).to(output);
@@ -41,10 +41,11 @@ namespace noa::signal {
               "Cannot broadcast an array of shape {} into an array of shape {}",
               input.shape(), output.shape());
 
+        constexpr auto N = nt::array_size_v<Input>;
         check(is_odd(options.window_size), "Only odd windows are currently supported");
-        check(options.border_mode == Border::ZERO or output.shape()[3] >= options.window_size / 2 + 1,
+        check(options.border_mode == Border::ZERO or output.shape()[N - 1] >= options.window_size / 2 + 1,
               "With Border::REFLECT and a window of {}, the width should be larger or equal than {}, but got {}",
-              options.window_size, options.window_size / 2 + 1, output.shape()[3]);
+              options.window_size, options.window_size / 2 + 1, output.shape()[N - 1]);
 
         const Device device = output.device();
         check(device == input.device(),
@@ -80,12 +81,12 @@ namespace noa::signal {
         }
     }
 
-    /// Computes the median filter using a 2d square window.
-    /// \param[in] input    Array to filter.
-    /// \param[out] output  Filtered array. Should not overlap with \p input.
+    /// Computes the median filter using a 2D square window along the height and width.
+    /// \param[in] input    ((B..,)HW) Array to filter.
+    /// \param[out] output  ((B..,)HW) Filtered array. Should not overlap with the input.
     /// \param options      Filter options.
-    template<nt::readable_varray_decay_of_scalar Input,
-             nt::writable_varray_decay_of_scalar Output>
+    template<nt::readable_array_decay_of_scalar Input, nt::writable_array_decay_of_scalar Output>
+        requires (nt::array_decay_with_same_nd<Input, Output> and nt::array_size_v<Input> >= 2)
     void median_filter_2d(Input&& input, Output&& output, const MedianFilterOptions& options) {
         if (options.window_size <= 1) {
             std::forward<Input>(input).to(output);
@@ -100,11 +101,13 @@ namespace noa::signal {
               "Cannot broadcast an array of shape {} into an array of shape {}",
               input.shape(), output.shape());
 
+        constexpr auto N = nt::array_size_v<Input>;
         check(is_odd(options.window_size), "Only odd windows are currently supported");
         check(options.border_mode == Border::ZERO or
-              (output.shape()[3] >= options.window_size / 2 + 1 and output.shape()[2] >= options.window_size / 2 + 1),
+              (output.shape()[N - 1] >= options.window_size / 2 + 1 and
+               output.shape()[N - 2] >= options.window_size / 2 + 1),
               "With Border::REFLECT and a window of {}, the height and width should be larger or equal than {}, but got {}",
-              options.window_size, options.window_size / 2 + 1, output.shape().filter(2, 3));
+              options.window_size, options.window_size / 2 + 1, output.shape().filter(N - 2, N - 1));
 
         const Device device = output.device();
         check(device == input.device(),
@@ -140,12 +143,12 @@ namespace noa::signal {
         }
     }
 
-    /// Computes the median filter using a 3d cubic window.
-    /// \param[in] input    Array to filter.
-    /// \param[out] output  Filtered array. Should not overlap with \p input.
+    /// Computes the median filter using a 3D cubic window along the depth, height and width.
+    /// \param[in] input    ((B..,)DHW) Array to filter.
+    /// \param[out] output  ((B..,)DHW) Filtered array. Should not overlap with the input.
     /// \param options      Filter options.
-    template<nt::readable_varray_decay_of_scalar Input,
-             nt::writable_varray_decay_of_scalar Output>
+    template<nt::readable_array_decay_of_scalar Input, nt::writable_array_decay_of_scalar Output>
+        requires (nt::array_decay_with_same_nd<Input, Output> and nt::array_size_v<Input> >= 3)
     void median_filter_3d(Input&& input, Output&& output, const MedianFilterOptions& options) {
         if (options.window_size <= 1) {
             std::forward<Input>(input).to(output);
@@ -160,10 +163,12 @@ namespace noa::signal {
               "Cannot broadcast an array of shape {} into an array of shape {}",
               input.shape(), output.shape());
 
+        constexpr auto N = nt::array_size_v<Input>;
         check(is_odd(options.window_size), "Only odd windows are currently supported");
-        check(options.border_mode == Border::ZERO or output.shape().pop_front() >= options.window_size / 2 + 1,
+        const auto shape_3d = output.shape().filter(N - 3, N - 2, N - 1);
+        check(options.border_mode == Border::ZERO or shape_3d >= options.window_size / 2 + 1,
               "With Border::REFLECT and a window of {}, the depth, height and width should be >= than {}, but got {}",
-              options.window_size, options.window_size / 2 + 1, output.shape().pop_front());
+              options.window_size, options.window_size / 2 + 1, shape_3d);
 
         const Device device = output.device();
         check(device == input.device(),

@@ -77,25 +77,40 @@ namespace noa::signal::details {
 }
 
 namespace noa::signal {
+    struct StandardizeIFFTOptions {
+        /// The rank of the transform.
+        /// See ranked_shape for more details.
+        i32 rank = -1;
+
+        /// Normalization mode.
+        nf::Norm norm = nf::NORM_DEFAULT;
+    };
+
     /// Standardizes (mean=0, stddev=1) a real-space signal, by modifying its Fourier coefficients.
-    /// \tparam REMAP       Remapping operator. Should be H2H, HC2HC, F2F or FC2FC.
-    /// \param[in] input    Input (r)FFT.
-    /// \param[out] output  Output (r)FFT. Can be equal to \p input.
-    ///                     The c2r transform of \p output has its mean set to 0 and its stddev set to 1.
-    /// \param shape        BDHW logical shape of \p input and \p output.
-    /// \param norm         Normalization mode of \p input.
-    template<nf::Layout REMAP,
-             nt::readable_varray_decay_of_complex Input,
-             nt::writable_varray_decay_of_complex Output>
-    requires (REMAP.is_any(nf::Layout::H2H, nf::Layout::HC2HC, nf::Layout::F2F, nf::Layout::FC2FC))
+    /// \tparam LAYOUT:
+    ///     Layout of the transform.
+    /// \param[in] input:
+    ///     Input (r)FFT.
+    ///     Should be reshapeable to 4D.
+    /// \param[out] output:
+    ///     Output (r)FFT. Should be reshapeable to 4D. Can be equal to the input.
+    ///     The c2r transform of the output has its mean set to 0 and its stddev set to 1.
+    /// \param shape:
+    ///     Logical shape of the input and output.
+    /// \param options:
+    ///     FFT options.
+    template<nf::Layout LAYOUT, usize N,
+             nt::readable_array_decay_of_complex Input,
+             nt::writable_array_decay_of_complex Output>
+    requires (not LAYOUT.has_layout_change())
     void standardize_ifft(
         const Input& input,
         const Output& output,
-        const Shape4& shape,
-        nf::Norm norm = nf::NORM_DEFAULT
+        const Shape<isize, N>& shape,
+        const StandardizeIFFTOptions& options = {}
     ) {
-        constexpr bool is_full = REMAP == nf::Layout::F2F or REMAP == nf::Layout::FC2FC;
-        constexpr bool is_centered = REMAP == nf::Layout::FC2FC or REMAP == nf::Layout::HC2HC;
+        constexpr bool is_full = LAYOUT == nf::Layout::F2F or LAYOUT == nf::Layout::FC2FC;
+        constexpr bool is_centered = LAYOUT == nf::Layout::FC2FC or LAYOUT == nf::Layout::HC2HC;
         const auto actual_shape = is_full ? shape : shape.rfft();
 
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
@@ -109,54 +124,62 @@ namespace noa::signal {
         using real_t = nt::value_type_twice_t<Output>;
         using complex_t = Complex<real_t>;
         const auto count = static_cast<f64>(shape.pop_front().n_elements());
-        const auto scale = norm == nf::Norm::FORWARD ? 1 : norm == nf::Norm::ORTHO ? sqrt(count) : count;
-        const auto options = ArrayOption{input.device(), Allocator::DEFAULT_ASYNC};
+        const auto scale = options.norm == nf::Norm::FORWARD ? 1 : options.norm == nf::Norm::ORTHO ? sqrt(count) : count;
+        const auto array_options = ArrayOption{input.device(), Allocator::DEFAULT_ASYNC};
+
+        // Reshape to BDHW.
+        auto input_4d = std::forward<Input>(input).template as_nd<4>();
+        auto output_4d = std::forward<Output>(output).template as_nd<4>();
+        auto shape_4d = input_4d.shape();
+        shape_4d = ranked_shape(shape_4d, options.rank);
+        input_4d = std::move(input_4d).reshape(shape_4d.set<3>(input_4d.shape()[3]));
+        output_4d = std::move(output_4d).reshape(shape_4d.set<3>(output_4d.shape()[3]));
 
         auto dc_position = make_subregion<4>(
             Full{},
-            is_centered ? nf::fftshift(isize{}, shape[1]) : 0,
-            is_centered ? nf::fftshift(isize{}, shape[2]) : 0,
-            is_centered and is_full ? nf::fftshift(isize{}, shape[3]) : 0);
+            is_centered ? nf::fftshift(isize{}, shape_4d[1]) : 0,
+            is_centered ? nf::fftshift(isize{}, shape_4d[2]) : 0,
+            is_centered and is_full ? nf::fftshift(isize{}, shape_4d[3]) : 0);
 
-        if constexpr (REMAP == nf::Layout::F2F or REMAP == nf::Layout::FC2FC) {
+        if constexpr (LAYOUT == nf::Layout::F2F or LAYOUT == nf::Layout::FC2FC) {
             // Compute the energy of the input (excluding the dc).
-            auto dc_components = input.view().subregion(dc_position);
-            auto energies = Array<real_t>(dc_components.shape(), options);
+            auto dc_components = input_4d.view().subregion(dc_position);
+            auto energies = Array<real_t, 4>(dc_components.shape(), array_options);
             reduce_axes_ewise(
-                input.view(), real_t{}, wrap(energies.view(), dc_components),
+                input_4d.view(), real_t{}, wrap(energies.view(), dc_components),
                 details::FFTSpectrumEnergy{scale});
 
             // Standardize.
-            ewise(wrap(input, std::move(energies)), output.view(), Multiply{});
-            fill(output.subregion(dc_position), {});
+            ewise(wrap(std::move(input_4d), std::move(energies)), output_4d.view(), Multiply{});
+            fill(std::move(output_4d).subregion(dc_position), {});
 
-        } else if constexpr (REMAP == nf::Layout::H2H or REMAP == nf::Layout::HC2HC) {
-            const bool is_even = noa::is_even(shape[3]);
+        } else if constexpr (LAYOUT == nf::Layout::H2H or LAYOUT == nf::Layout::HC2HC) {
+            const bool is_even = noa::is_even(shape_4d[3]);
 
-            auto energies = zeros<real_t>({shape[0], 3, 1, 1}, options);
+            auto energies = zeros<real_t, 4>({shape_4d[0], 3, 1, 1}, array_options);
             auto energies_0 = energies.view().subregion(Full{}, 0, 0, 0);
             auto energies_1 = energies.view().subregion(Full{}, 1, 0, 0);
             auto energies_2 = energies.view().subregion(Full{}, 2, 0, 0);
 
             // Reduce unique chunk:
-            reduce_axes_ewise(input.view().subregion(Ellipsis{}, Slice{1, input.shape()[3] - is_even}),
+            reduce_axes_ewise(input_4d.view().subregion(Ellipsis{}, Slice{1, input_4d.shape()[3] - is_even}),
                               real_t{}, energies_0, details::rFFTSpectrumEnergy{});
 
             // Reduce common column/plane containing the DC:
-            reduce_axes_ewise(input.view().subregion(Ellipsis{}, 0),
+            reduce_axes_ewise(input_4d.view().subregion(Ellipsis{}, 0),
                               real_t{}, energies_1, details::rFFTSpectrumEnergy{});
 
             if (is_even) {
                 // Reduce common column/plane containing the real Nyquist:
-                reduce_axes_ewise(input.view().subregion(Ellipsis{}, -1),
+                reduce_axes_ewise(input_4d.view().subregion(Ellipsis{}, -1),
                                   real_t{}, energies_2, details::rFFTSpectrumEnergy{});
             }
 
             // Standardize.
-            ewise(wrap(input.view().subregion(dc_position), energies_1, energies_2), energies_0,
+            ewise(wrap(input_4d.view().subregion(dc_position), energies_1, energies_2), energies_0,
                   details::CombineSpectrumEnergies<complex_t, real_t>{static_cast<real_t>(scale)}); // if batch=1, this is one single value...
-            ewise(wrap(input, energies.subregion(Full{}, 0, 0, 0)), output.view(), Multiply{});
-            fill(output.subregion(dc_position), {});
+            ewise(wrap(std::move(input_4d), energies.subregion(Full{}, 0, 0, 0)), output_4d.view(), Multiply{});
+            fill(std::move(output_4d).subregion(dc_position), {});
 
         } else {
             static_assert(nt::always_false<real_t>);

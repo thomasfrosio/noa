@@ -301,7 +301,7 @@ namespace noa::xform::details {
         const Device output_device = output.device();
 
         check(not input.is_empty(), "Empty array detected");
-        if constexpr (nt::varray<Input>)
+        if constexpr (nt::array<Input>)
             check(not are_overlapped(input, output), "Input and output arrays should not overlap");
 
         const Device device = input.device();
@@ -331,9 +331,9 @@ namespace noa::xform::details {
                   name, required_size, name, transform.shape(), name, transform.strides());
             check(transform.device() == output_device, "{} should be on the compute device", name);
         };
-        if constexpr (nt::varray<BackwardTransform>)
+        if constexpr (nt::array<BackwardTransform>)
             check_transform(backward_transforms, input.shape()[0], "backward_projection_matrices");
-        if constexpr (nt::varray<ForwardTransform>)
+        if constexpr (nt::array<ForwardTransform>)
             check_transform(forward_transforms, output.shape()[0], "forward_projection_matrices");
     }
 
@@ -529,7 +529,7 @@ namespace noa::xform {
     }
 
     /// Backward project 2d images into a 3d volume using real space backprojection.
-    /// \tparam Transform               Mat44, Mat24, or a varray of these types.
+    /// \tparam Transform               Mat44, Mat24, or a array of these types.
     /// \param[in] input_images         Input images to backproject.
     /// \param[out] output_volume       Output volume.
     /// \param[in] projection_matrices  4x4 or 2x4 (y-x rows) matrices defining the transformation from
@@ -538,8 +538,8 @@ namespace noa::xform {
     /// \note Supporting affine matrices allows complete control on the projection center and axis.
     ///       Note that the input and output can have different dimension sizes, thus allowing to
     ///       only render small regions of the projected output.
-    template<nt::varray_or_texture_decay_of_real_or_complex Input,
-             nt::varray_decay_compatible_with<Input> Output,
+    template<nt::array_or_texture_decay_of_real_or_complex Input,
+             nt::array_decay_compatible_with<Input> Output,
              nt::transform_projection_nd<3> Transform>
     void backward_project_3d(
         Input&& input_images,
@@ -578,7 +578,7 @@ namespace noa::xform {
     }
 
     /// Forward project a 3d volume onto 2d images using real space backprojection.
-    /// \tparam Transform               Mat44, Mat34, or a varray of these types.
+    /// \tparam Transform               Mat44, Mat34, or a array of these types.
     /// \param[in] input_volume         Input volume to forward-project.
     /// \param[out] output_images       Output projected images.
     /// \param[in] projection_matrices  4x4 or 3x4 (zyx rows) matrices defining the transformation from
@@ -588,8 +588,8 @@ namespace noa::xform {
     /// \note Supporting affine matrices allows complete control on the projection center and axis.
     ///       Note that the input and output can have different dimension sizes, thus allowing to
     ///       only render small regions of the projected output.
-    template<nt::varray_or_texture_decay_of_real_or_complex Input,
-             nt::varray_decay_compatible_with<Input> Output,
+    template<nt::array_or_texture_decay_of_real_or_complex Input,
+             nt::array_decay_compatible_with<Input> Output,
              nt::transform_affine_nd<3> Transform>
     void forward_project_3d(
         Input&& input_volume,
@@ -631,8 +631,8 @@ namespace noa::xform {
     /// Backward project 2d images into a 3d virtual volume and immediately forward project
     /// this volume onto 2d images, using real space backprojection.
     ///
-    /// \tparam InputTransform                  Mat44, Mat24, or a varray of these types.
-    /// \tparam OutputTransform                 Mat44, Mat34, or a varray of these types.
+    /// \tparam InputTransform                  Mat44, Mat24, or a array of these types.
+    /// \tparam OutputTransform                 Mat44, Mat34, or a array of these types.
     /// \param[in] input_images                 Input images to backproject.
     /// \param[out] output_images               Output projected images.
     /// \param[in] volume_shape                 Shape of the virtual volume (batch is ignored).
@@ -657,8 +657,8 @@ namespace noa::xform {
     ///       within the volume_shape, plus adds a linear antialiasing at the edges to remove sharp edges. As such,
     ///       while the elements within the volume_shape are unaffected, due to this divergence in handling elements at
     ///       the edges, these output images can be slightly different from the forward_project_3d output images.
-    template<nt::varray_or_texture_decay_of_real_or_complex Input,
-             nt::varray_decay_compatible_with<Input> Output,
+    template<nt::array_or_texture_decay_of_real_or_complex Input,
+             nt::array_decay_compatible_with<Input> Output,
              nt::transform_projection_nd<3> InputTransform,
              nt::transform_affine_nd<3> OutputTransform>
     requires nt::almost_same_as<nt::value_type_twice_t<InputTransform>, nt::value_type_twice_t<OutputTransform>>

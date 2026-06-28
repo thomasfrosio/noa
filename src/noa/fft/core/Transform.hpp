@@ -33,7 +33,7 @@ namespace noa::fft {
     ///     Shape 1DHW or BDHW sets rank 3,
     ///     Other shapes throw an error.
     template<typename T>
-    constexpr auto transform_shape(const Shape<T, 4>& shape, i32& rank) {
+    constexpr auto ranked_shape(const Shape<T, 4>& shape, i32& rank) {
         const auto& [b, d, h, w] = shape;
         if (rank == -1) {
             if (d == 1 and h == 1)
@@ -44,6 +44,7 @@ namespace noa::fft {
                 rank = 3;
             else
                 panic("Cannot deduce rank from shape={}", shape);
+            return shape;
         }
         if (rank == 1)
             return Shape4{b * d * h, 1, 1, w};
@@ -53,26 +54,20 @@ namespace noa::fft {
         return shape;
     }
 
-    /// Rank of the transformed shape.
-    template<typename T, usize N> requires (N == 3 or N == 4)
-    [[nodiscard]] constexpr auto transform_shape_rank(const Shape<T, N>& shape) noexcept -> i32 {
-        if (shape[N - 3] > 1)
-            return 3;
-        if (shape[N - 2] > 1 and shape[N - 1] > 1)
-            return 2;
-        return 1;
-    }
-
-    /// Returns [shape_3d, batch, rank].
+    /// Returns [batches, shape_dhw, rank].
     template<typename T>
-    [[nodiscard]] constexpr auto transform_shape_info(const Shape<T, 4>& shape) noexcept {
-        return noa::make_tuple(shape.pop_front(), shape[0], transform_shape_rank(shape));
+    [[nodiscard]] constexpr auto ranked_shape_info(const Shape<T, 4>& shape) noexcept {
+        return noa::make_tuple(
+            shape.template pop_back<3>(),
+            shape.template pop_front<1>(),
+            shape.rank()
+        );
     }
 
     namespace details {
         template<typename T, typename U>
-        void prepare_spans(Span<T, 4>& input, Span<U, 4>& output, Shape4& logical_shape, i32& rank) {
-            logical_shape = transform_shape(logical_shape, rank);
+        void prepare_ranked_spans(Span<T, 4>& input, Span<U, 4>& output, Shape<isize, 4>& logical_shape, i32& rank) {
+            logical_shape = ranked_shape(logical_shape, rank);
             input = input.reshape(logical_shape.set<3>(input.shape()[3]));
             output = output.reshape(logical_shape.set<3>(output.shape()[3]));
         }

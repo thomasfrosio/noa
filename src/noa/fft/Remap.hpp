@@ -9,6 +9,9 @@
 #include "noa/fft/core/Transform.hpp"
 #include "noa/fft/core/Layout.hpp"
 
+// TODO Add compile-time rank (B+RANK dimensions), to not have to collapse
+//      batch dimensions and keep problem to RANK-D instead of 3D.
+
 namespace noa::fft::details {
     template<Layout REMAP,
              nt::sinteger Index,
@@ -26,17 +29,17 @@ namespace noa::fft::details {
             const output_type& array,
             const dhw_shape_type& shape
         ) : m_array(array),
-            m_shape(shape.pop_back()) {}
+            m_shape_dh(shape.pop_back()) {}
 
         constexpr void operator()(index_type oi, index_type oj, index_type ok, index_type ol) const {
             index_type ij;
             index_type ik;
             if constexpr (REMAP == Layout::H2HC) {
-                ij = ifftshift(oj, m_shape[0]);
-                ik = ifftshift(ok, m_shape[1]);
+                ij = ifftshift(oj, m_shape_dh[0]);
+                ik = ifftshift(ok, m_shape_dh[1]);
             } else if constexpr (REMAP == Layout::HC2H) {
-                ij = fftshift(oj, m_shape[0]);
-                ik = fftshift(ok, m_shape[1]);
+                ij = fftshift(oj, m_shape_dh[0]);
+                ik = fftshift(ok, m_shape_dh[1]);
             } else {
                 static_assert(nt::always_false<output_type>);
             }
@@ -52,7 +55,7 @@ namespace noa::fft::details {
 
     private:
         output_type m_array;
-        dh_shape_type m_shape;
+        dh_shape_type m_shape_dh;
     };
 
     template<Layout REMAP,
@@ -182,7 +185,9 @@ namespace noa::fft::details {
 namespace noa::fft {
     struct RemapOptions {
         /// Rank of the transform.
-        /// See transform_shape for more details.
+        /// This determines which dimensions are considered batch dimensions.
+        /// Batch dimensions are collapsed to a single dimensions and should therefore be collapsible.
+        /// See Shape::rank_checked and ranked_shape for more details.
         i32 rank{-1};
     };
 
@@ -191,12 +196,14 @@ namespace noa::fft {
     ///     Remapping operation.
     /// \param[in] input:
     ///     Input FFT to remap.
-    ///     Should be reshapeable to 4D.
+    ///     The rank of the transform, therefore which dimensions are batch dimensions, depends on options.rank.
     /// \param[out] output:
     ///     Remapped FFT.
-    ///     Should be reshapeable to 4D.
+    ///     The rank of the transform, therefore which dimensions are batch dimensions, depends on options.rank.
     /// \param shape:
     ///     Logical shape.
+    /// \param options:
+    ///     Remap options.
     ///
     /// \note If \p remap is \c h2hc, \p input can be equal to \p output, iff the height and depth are even or 1.
     /// \note This function can also perform a cast or compute the power spectrum of the input, depending on the
@@ -217,8 +224,8 @@ namespace noa::fft {
                   nt::array_decay_nd<Input, N> and
                   nt::array_decay_nd<Output, N>)
     void remap(Layout remap, Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        using input_t = nt::mutable_value_type_t<Input>;
-        using output_t = nt::value_type_t<Output>;
+        using input_value_t = nt::mutable_value_type_t<Input>;
+        using output_value_t = nt::value_type_t<Output>;
 
         // Check shape.
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
@@ -232,7 +239,7 @@ namespace noa::fft {
         // Shortcut if there's no remapping.
         const bool is_inplace = are_overlapped(input, output);
         if (not remap.has_layout_change()) {
-            if constexpr (nt::same_as<input_t, output_t>) {
+            if constexpr (nt::same_as<input_value_t, output_value_t>) {
                 if (not is_inplace)
                     copy(std::forward<Input>(input), std::forward<Output>(output));
             } else {
@@ -241,11 +248,14 @@ namespace noa::fft {
             return;
         }
 
-        // Transform to BDHW.
-        auto input_4d = input.span().template as_nd<4>();
-        auto output_4d = output.span().template as_nd<4>();
-        auto shape_4d = input_4d.shape().template set<3>(shape[3]);
-        details::prepare_spans(input_4d, output_4d, shape_4d, options.rank);
+        // Transform to B(N=DHW).
+        constexpr usize B = 1; // collapse batch dimensions to 1, or add empty batch for N <= 3
+        constexpr usize BN = B + 3; // scale 1D and 2D to 3D.
+        auto input_bn = input.span().template as_nd<BN>();
+        auto output_bn = output.span().template as_nd<BN>();
+        auto shape_bn = shape.template as_nd<BN>();
+        i32 rank = shape.rank_checked(options.rank);
+        details::prepare_ranked_spans(input_bn, output_bn, shape_bn, rank);
 
         // Special in-place rfft case:
         if (is_inplace) {
@@ -257,10 +267,10 @@ namespace noa::fft {
                   "Got input:data={}, input:strides={}, output:data={} and output:strides={}",
                   static_cast<const void*>(input.get()), input.strides(),
                   static_cast<const void*>(output.get()), output.strides());
-            check((shape_4d[2] == 1 or is_even(shape_4d[2])) and
-                  (shape_4d[1] == 1 or is_even(shape_4d[1])),
+            check((shape_bn[N - 2] == 1 or is_even(shape_bn[N - 2])) and
+                  (shape_bn[N - 1] == 1 or is_even(shape_bn[N - 1])),
                   "In-place remapping requires the depth and height dimensions to have an even number of elements, "
-                  "but got shape_4d={}", shape_4d);
+                  "but got shape_nd={}", shape_bn);
         }
 
         const Device device = output.device();
@@ -268,17 +278,18 @@ namespace noa::fft {
               "The input and output arrays must be on the same device, but got input:device={}, output:device={}",
               input.device(), device);
 
-        using input_accessor_t = AccessorRestrict<const input_t, 4, isize>;
-        using output_accessor_t = AccessorRestrict<output_t, 4, isize>;
-        const auto input_accessor = input_accessor_t(input_4d.get(), input_4d.strides());
-        const auto output_accessor = output_accessor_t(output_4d.get(), output_4d.strides());
-        const auto shape_3d = shape_4d.pop_front();
+        using input_t = AccessorRestrict<const input_value_t, BN, isize>;
+        using output_t = AccessorRestrict<output_value_t, BN, isize>;
+        const auto iaccessor = input_t(input_bn.get(), input_bn.strides());
+        const auto oaccessor = output_t(output_bn.get(), output_bn.strides());
+        const auto shape_n = shape_bn.template pop_front<B>();
 
-        auto iwise_shape = remap.is_xx2fx() ? shape_4d : shape_4d.rfft();
+        auto iwise_shape = remap.is_xx2fx() ? shape_bn : shape_bn.rfft();
         if (is_inplace)
-            iwise_shape[2] = max(iwise_shape[2] / 2, isize{1}); // iterate only through half of height
+            iwise_shape[N - 2] = max(iwise_shape[N - 2] / 2, isize{1}); // iterate only through half of height
 
         switch (remap) {
+            using namespace details;
             case Layout::H2H:
             case Layout::HC2HC:
             case Layout::F2F:
@@ -286,70 +297,58 @@ namespace noa::fft {
                 break;
             case Layout::H2HC: {
                 if (is_inplace) {
-                    auto op = details::FourierRemapInplace<Layout::H2HC, isize, output_accessor_t>(output_accessor, shape_3d);
+                    auto op = FourierRemapInplace<Layout::H2HC, isize, output_t>(oaccessor, shape_n);
                     return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
                 }
-                auto op = details::FourierRemap<Layout::H2HC, isize, input_accessor_t, output_accessor_t>(
-                    input_accessor, output_accessor, shape_3d);
+                auto op = FourierRemap<Layout::H2HC, isize, input_t, output_t>(iaccessor, oaccessor, shape_n);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::HC2H: {
                 if (is_inplace) {
-                    auto op = details::FourierRemapInplace<Layout::HC2H, isize, output_accessor_t>(output_accessor, shape_3d);
+                    auto op = FourierRemapInplace<Layout::HC2H, isize, output_t>(oaccessor, shape_n);
                     return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
                 }
-                auto op = details::FourierRemap<Layout::HC2H, isize, input_accessor_t, output_accessor_t>(
-                    input_accessor, output_accessor, shape_3d);
+                auto op = FourierRemap<Layout::HC2H, isize, input_t, output_t>(iaccessor, oaccessor, shape_n);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::H2F: {
-                auto op = details::FourierRemap<Layout::H2F, isize, input_accessor_t, output_accessor_t>(
-                    input_accessor, output_accessor, shape_3d);
+                auto op = FourierRemap<Layout::H2F, isize, input_t, output_t>(iaccessor, oaccessor, shape_n);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::F2H: {
-                auto op = details::FourierRemap<Layout::F2H, isize, input_accessor_t, output_accessor_t>(
-                    input_accessor, output_accessor, shape_3d);
+                auto op = FourierRemap<Layout::F2H, isize, input_t, output_t>(iaccessor, oaccessor, shape_n);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::F2FC: {
-                auto op = details::FourierRemap<Layout::F2FC, isize, input_accessor_t, output_accessor_t>(
-                    input_accessor, output_accessor, shape_3d);
+                auto op = FourierRemap<Layout::F2FC, isize, input_t, output_t>(iaccessor, oaccessor, shape_n);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::FC2F: {
-                auto op = details::FourierRemap<Layout::FC2F, isize, input_accessor_t, output_accessor_t>(
-                    input_accessor, output_accessor, shape_3d);
+                auto op = FourierRemap<Layout::FC2F, isize, input_t, output_t>(iaccessor, oaccessor, shape_n);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::HC2F: {
-                auto op = details::FourierRemap<Layout::HC2F, isize, input_accessor_t, output_accessor_t>(
-                    input_accessor, output_accessor, shape_3d);
+                auto op = FourierRemap<Layout::HC2F, isize, input_t, output_t>(iaccessor, oaccessor, shape_n);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::F2HC: {
-                auto op = details::FourierRemap<Layout::F2HC, isize, input_accessor_t, output_accessor_t>(
-                    input_accessor, output_accessor, shape_3d);
+                auto op = FourierRemap<Layout::F2HC, isize, input_t, output_t>(iaccessor, oaccessor, shape_n);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::FC2H: {
-                auto op = details::FourierRemap<Layout::FC2H, isize, input_accessor_t, output_accessor_t>(
-                    input_accessor, output_accessor, shape_3d);
+                auto op = FourierRemap<Layout::FC2H, isize, input_t, output_t>(iaccessor, oaccessor, shape_n);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::FC2HC: {
-                auto op = details::FourierRemap<Layout::FC2HC, isize, input_accessor_t, output_accessor_t>(
-                    input_accessor, output_accessor, shape_3d);
+                auto op = FourierRemap<Layout::FC2HC, isize, input_t, output_t>(iaccessor, oaccessor, shape_n);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::HC2FC: {
-                auto op = details::FourierRemap<Layout::HC2FC, isize, input_accessor_t, output_accessor_t>(
-                    input_accessor, output_accessor, shape_3d);
+                auto op = FourierRemap<Layout::HC2FC, isize, input_t, output_t>(iaccessor, oaccessor, shape_n);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
             case Layout::H2FC: {
-                auto op = details::FourierRemap<Layout::H2FC, isize, input_accessor_t, output_accessor_t>(
-                    input_accessor, output_accessor, shape_3d);
+                auto op = FourierRemap<Layout::H2FC, isize, input_t, output_t>(iaccessor, oaccessor, shape_n);
                 return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
             }
         }

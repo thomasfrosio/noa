@@ -269,6 +269,32 @@ TEMPLATE_TEST_CASE("base::Vec", "", i32, i64, u32, u64, f32, f64) {
         REQUIRE(b.pop_front()[0] == b[1]);
         REQUIRE(b.pop_back()[0] == b[0]);
         REQUIRE(b.template pop_back<2>() == vec2_t{123, 43});
+        {
+            auto [b1, b2] = b.template split<0>();
+            static_assert(std::is_same_v<decltype(b1), Vec<TestType, 0>>);
+            REQUIRE(b2 == Vec<TestType, 4>::from_values(123, 43, 32, 12));
+        }
+        {
+            auto [b1, b2] = b.template split<1>();
+            REQUIRE(b1 == Vec<TestType, 1>{123});
+            REQUIRE(b2 == Vec<TestType, 3>::from_values(43, 32, 12));
+        }
+        {
+            auto [b1, b2] = b.template split<2>();
+            REQUIRE(b1 == Vec<TestType, 2>::from_values(123, 43));
+            REQUIRE(b2 == Vec<TestType, 2>::from_values(32, 12));
+        }
+        {
+            auto [b1, b2] = b.template split<3>();
+            REQUIRE(b1 == Vec<TestType, 3>::from_values(123, 43, 32));
+            REQUIRE(b2 == Vec<TestType, 1>::from_values(12));
+        }
+        {
+            auto [b1, b2] = b.template split<4>();
+            REQUIRE(b1 == Vec<TestType, 4>::from_values(123, 43, 32, 12));
+            static_assert(std::is_same_v<decltype(b2), Vec<TestType, 0>>);
+
+        }
 
         REQUIRE(b.push_front(1) == vec5_t{1, 123, 43, 32, 12});
         REQUIRE(b.template push_front<2>(1) == vec6_t{1, 1, 123, 43, 32, 12});

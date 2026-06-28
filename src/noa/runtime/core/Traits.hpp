@@ -184,6 +184,9 @@ namespace noa::traits {
     concept writable_nd_or_empty = writable_nd<T, N...> or nt::empty<T>;
 
     template<typename T, size_t... N>
+    concept writable_nd_optional_or_empty = writable_nd_optional<T, N...> or nt::empty<T>;
+
+    template<typename T, size_t... N>
     concept atomic_addable_nd =
         std::copyable<std::remove_cv_t<T>> and
         numeric<typename T::value_type> and
@@ -194,6 +197,9 @@ namespace noa::traits {
 
     template<typename T, size_t... N>
     concept atomic_addable_nd_or_empty = atomic_addable_nd<T, N...> or nt::empty<T>;
+
+    template<typename T, size_t... N>
+    concept atomic_addable_nd_optional_or_empty = atomic_addable_nd_optional<T, N...> or nt::empty<T>;
 
     template<typename T>
     concept readable_pointer_like =

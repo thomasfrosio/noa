@@ -5,6 +5,7 @@
 #include "noa/base/Bounds.hpp"
 #include "noa/base/ClampCast.hpp"
 #include "noa/base/Config.hpp"
+#include "noa/base/Pair.hpp"
 #include "noa/base/Math.hpp"
 #include "noa/base/Operators.hpp"
 #include "noa/base/SafeCast.hpp"
@@ -649,6 +650,21 @@ namespace noa::inline types {
                     output[i] = (*this)[(N - 1) - i];
                 return output;
             }
+        }
+
+        template<usize N1> requires (N1 <= N)
+        [[nodiscard]] NOA_FHD constexpr auto split() const noexcept {
+            constexpr usize N2 = N1 > N ? 0 : N - N1;
+            using vec1_t = Vec<T, N1>;
+            using vec2_t = Vec<T, N2>;
+            Pair<vec1_t, vec2_t> pair;
+            if constexpr (N1 > 0)
+                for (usize i{}; i < N1; ++i)
+                    pair.first[i] = (*this)[i];
+            if constexpr (N2 > 0)
+                for (usize i{}; i < N2; ++i)
+                    pair.second[i] = (*this)[N1 + i];
+            return pair;
         }
 
         // Circular shifts the vector by a given amount.

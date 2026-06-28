@@ -700,7 +700,7 @@ namespace noa::inline types {
             return span_type(get(), shape(), strides());
         }
 
-        template<typename U, usize NewN = 4,
+        template<typename U, usize NewN = N,
                  typename I = index_type,
                  StridesTraits NewStridesTrait = STRIDES_TRAIT,
                  PointerTraits NewPointerTrait = POINTER_TRAIT>
@@ -708,7 +708,7 @@ namespace noa::inline types {
             return span().template span<U, NewN, I, NewStridesTrait, NewPointerTrait>();
         }
 
-        template<typename U = value_type, usize NewN = 4,
+        template<typename U = value_type, usize NewN = N,
                  typename I = index_type,
                  PointerTraits NewPointerTrait = POINTER_TRAIT>
         [[nodiscard]] constexpr auto span_contiguous() const {

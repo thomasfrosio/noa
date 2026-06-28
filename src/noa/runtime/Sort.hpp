@@ -80,7 +80,7 @@ namespace noa {
         const auto broadcasting = nd::accessors_broadcasting(shape, accessors);
         auto groups = Vec<isize, N>{};
         groups[options.axis] = 1;
-        auto collapsed_shape = noa::collapse_contiguous_dimensions(shape, contiguity, broadcasting, groups);
+        auto collapsed_shape = noa::collapse(shape, contiguity, broadcasting, groups);
 
         // Squeeze the newly empty dimensions to the left.
         const auto squeeze_order = noa::squeeze_empty_dimensions_left(collapsed_shape);
