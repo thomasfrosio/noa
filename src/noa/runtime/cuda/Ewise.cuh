@@ -317,7 +317,7 @@ namespace noa::cuda {
         const auto shape_iz = shape.template as_safe<isize>();
         const auto contiguity = nd::accessors_contiguity(shape, input, output);
         const auto broadcasting = nd::accessors_broadcasting(shape, input, output);
-        auto collapsed_shape = noa::collapse_contiguous_dimensions(shape_iz, contiguity, broadcasting);
+        auto collapsed_shape = noa::collapse(shape_iz, contiguity, broadcasting);
         collapsed_shape = collapsed_shape.permute(squeeze_empty_dimensions_left(collapsed_shape));
 
         // Reshape the accessors to the new shape.
