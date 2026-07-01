@@ -576,6 +576,4 @@ TEST_CASE("runtime::core::collapse") {
             run(strides);
         }
     }
-
-    REQUIRE();
 }
