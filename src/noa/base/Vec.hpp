@@ -12,6 +12,8 @@
 #include "noa/base/Strings.hpp"
 #include "noa/base/Traits.hpp"
 
+NOA_NV_DIAG_SUPPRESS(186) // spurious nvcc warning - pointless comparison to unsigned int
+
 namespace noa::details {
     template<typename T, usize N, usize A>
     consteval auto vec_alignment() -> usize {
@@ -1136,3 +1138,5 @@ namespace noa::details {
         }
     };
 }
+
+NOA_NV_DIAG_DEFAULT(186) // spurious nvcc warning - pointless comparison to unsigned int

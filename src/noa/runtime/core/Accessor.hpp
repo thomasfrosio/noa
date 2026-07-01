@@ -566,7 +566,7 @@ namespace noa::details {
     }
 
     /// Reconfigures the Accessor(s).
-    template<AccessorConfig config = {}, typename Index = void, typename T, typename... I>
+    template<AccessorConfig config = AccessorConfig{}, typename Index = void, typename T, typename... I>
         requires nt::tuple_of_accessor_or_empty<std::decay_t<T>>
     [[nodiscard]] constexpr auto reconfig_accessors(T&& accessors, I... axes) {
         return std::forward<T>(accessors).map(

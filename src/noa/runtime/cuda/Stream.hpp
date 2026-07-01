@@ -16,7 +16,7 @@ namespace noa::cuda::details {
     // Kernel execution is asynchronous relative to the host. As such, we need a way to know when the
     // kernel is running and when it's done, so that we can make sure the resources used by this kernel
     // will never be deleted while the kernel is running. As a solution to this, this registry can attach
-    // resources to a stream and can release (using callbacks) these resources when the kernel is done executing.
+    // resources to a stream and can release these resources (using callbacks) when the kernel is done executing.
     //
     // Any type can be passed to try_insert(), but only std::shared_ptr(s) can and will be added to the registry.
     // Types with a .share() method returning a type that can be converted to a std::shared_ptr (e.g., Array or Texture)
@@ -25,7 +25,7 @@ namespace noa::cuda::details {
     // 1) try_insert() should be called after the kernel launch. It forwards the shared_ptr(s) at the back
     //    of the registry. Resources are attached to a unique key, and the key is per try_insert() call, meaning that
     //    all resources passed to the same try_insert() call have the same lifetime.
-    // 2) then a callback is enqueued to the stream. When the kernel is done execution, the callback is
+    // 2) Then, a callback is enqueued to the stream. When the kernel is done execution, the callback is
     //    called. Note that the callback isn't allowed to call the CUDA API, so it cannot remove the registered
     //    shared_ptr(s) in case one of them calls its deleter (which may use the CUDA API). Instead, the callback
     //    simply increments the "callback_count", signaling the stream reached this point and the callback was called.
@@ -69,7 +69,7 @@ namespace noa::cuda::details {
                         m_registry.emplace_back(key, std::forward<T>(arg));
                     else if constexpr (nt::shareable_using_share<T>)
                         m_registry.emplace_back(key, std::forward<T>(arg).share());
-                    // else: do nothing?
+                    // else: do nothing
                 }(std::forward<Args>(args)), ...);
                 return true;
             } else {

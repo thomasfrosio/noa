@@ -56,7 +56,7 @@ namespace noa::cuda {
         void reset() const;
 
         /// Retrieves the properties of the device.
-        [[nodiscard]] cudaDeviceProp properties() const {
+        [[nodiscard]] auto properties() const -> cudaDeviceProp {
             cudaDeviceProp properties{};
             check(cudaGetDeviceProperties(&properties, m_id));
             return properties;
@@ -66,21 +66,21 @@ namespace noa::cuda {
         /// The following attributes require PCIe reads and are therefore much slower to get:
         /// cudaDevAttrClockRate, cudaDevAttrKernelExecTimeout, cudaDevAttrMemoryClockRate,
         /// and cudaDevAttrSingleToDoublePrecisionPerfRatio
-        [[nodiscard]] int attribute(cudaDeviceAttr attribute) const {
+        [[nodiscard]] auto attribute(cudaDeviceAttr attribute) const -> int {
             int attribute_value;
             check(cudaDeviceGetAttribute(&attribute_value, attribute, m_id));
             return attribute_value;
         }
 
         /// Gets the device's hardware architecture generation numeric designator.
-        [[nodiscard]] int architecture() const {
+        [[nodiscard]] auto architecture() const -> int {
             int major;
             check(cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, m_id));
             return major;
         }
 
         /// Gets the device's compute capability (major, minor) numeric designator.
-        [[nodiscard]] DeviceCapability capability() const {
+        [[nodiscard]] auto capability() const -> DeviceCapability {
             int major, minor;
             check(cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, m_id));
             check(cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, m_id));
@@ -88,7 +88,7 @@ namespace noa::cuda {
         }
 
         /// Returns the free and total amount of memory available for allocation by the device, in bytes.
-        [[nodiscard]] DeviceMemory memory() const {
+        [[nodiscard]] auto memory() const -> DeviceMemory {
             usize mem_free, mem_total;
 
             const Device previous_current = Device::current();
@@ -98,8 +98,8 @@ namespace noa::cuda {
             return {mem_free, mem_total};
         }
 
-        /// Retrieves a summary of the device. This is quite an "expensive" operation.
-        [[nodiscard]] std::string summary() const {
+        /// Retrieves a summary of the device.
+        [[nodiscard]] auto summary() const -> std::string {
             const cudaDeviceProp prop = properties();
             const DeviceMemory mem = memory();
             const auto version_formatter = [](int version) -> std::pair<int, int> {
@@ -125,7 +125,7 @@ namespace noa::cuda {
         }
 
         /// Gets resource limits for the current device.
-        [[nodiscard]] usize limit(cudaLimit resource_limit) const {
+        [[nodiscard]] auto limit(cudaLimit resource_limit) const -> usize {
             usize limit;
             const Device previous_current = current();
             set_current(*this);
@@ -134,24 +134,24 @@ namespace noa::cuda {
             return limit;
         }
 
-        [[nodiscard]] i32 get() const noexcept { return m_id; }
-        [[nodiscard]] i32 id() const noexcept { return m_id; }
+        [[nodiscard]] auto get() const noexcept -> i32 { return m_id; }
+        [[nodiscard]] auto id() const noexcept -> i32 { return m_id; }
 
     public: // Static functions
         /// Returns the number of compute-capable devices.
-        static i32 count() {
+        static auto count() -> i32 {
             int count{};
             check(cudaGetDeviceCount(&count));
             return count;
         }
 
         /// Whether there's any CUDA capable device.
-        static bool is_any() {
+        static auto is_any() -> bool {
             return count() != 0;
         }
 
         // Returns the number of compute-capable devices.
-        static std::vector<Device> all() {
+        static auto all() -> std::vector<Device> {
             std::vector<Device> devices{};
             const auto count = static_cast<usize>(Device::count());
             devices.reserve(count);
@@ -162,7 +162,7 @@ namespace noa::cuda {
 
         /// Returns the device on which the active host thread executes the device code.
         /// The default device is the first device, i.e. device with ID=0.
-        static Device current() {
+        static auto current() -> Device {
             Device device(0, Unchecked{});
             check(cudaGetDevice(&device.m_id));
             return device;
@@ -181,7 +181,7 @@ namespace noa::cuda {
         }
 
         /// Gets the device with the most free memory available for allocation.
-        static Device most_free() {
+        static auto most_free() -> Device {
             Device most_free(0, Unchecked{});
             usize available_mem{};
             for (auto& device: all()) {

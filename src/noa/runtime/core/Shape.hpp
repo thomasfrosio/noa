@@ -5,6 +5,8 @@
 #include "noa/base/Vec.hpp"
 #include "noa/runtime/core/Traits.hpp"
 
+NOA_NV_DIAG_SUPPRESS(186) // spurious nvcc warning - pointless comparison to unsigned int
+
 namespace noa::inline types {
     template<typename Int, usize N, usize A>
     class Strides;
@@ -1392,3 +1394,5 @@ namespace noa::details {
         }
     };
 }
+
+NOA_NV_DIAG_DEFAULT(186) // spurious nvcc warning - pointless comparison to unsigned int
