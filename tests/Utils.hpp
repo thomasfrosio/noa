@@ -88,28 +88,28 @@ namespace test {
         /// Randomize the batch dimension within this range.
         Pair<i32, i32> batch_range{1, 1};
 
-        /// Whether the DHW dimensions should have only even sizes.
+        /// Whether the inner dimensions should have only even sizes.
         bool only_even_sizes{false};
 
-        /// Whether the DHW dimensions should have only odd sizes.
+        /// Whether the inner dimensions should have only odd sizes.
         bool only_odd_sizes{false};
     };
 
     /// Generates a random shape.
     template<std::integral T = isize, size_t N = 4> requires (N >= 1)
     constexpr auto random_shape(
-            std::integral auto ndim,
-            RandomShapeOptions options = {}
+        std::integral auto rank,
+        RandomShapeOptions options = {}
     ) -> Shape<T, N> {
-        noa::check(1 <= ndim and ndim <= 4);
-        Vec min{32, 32, 32, 32};
-        Vec max{1024, 512, 128, 128};
+        noa::check(1 <= rank and rank <= 3);
+        Vec min{32, 32, 32};
+        Vec max{1024, 512, 128};
 
         constexpr auto n_ = static_cast<i32>(N);
-        const auto ndim_ = static_cast<i32>(ndim);
-        auto randomizer = Randomizer<T>(min[ndim_ - 1], max[ndim_ - 1]);
-        const i32 n_iter = std::min(ndim_, n_);
-        const i32 offset = std::max(0, n_ - ndim_);
+        const auto rank_ = static_cast<i32>(rank);
+        auto randomizer = Randomizer<T>(min[rank_ - 1], max[rank_ - 1]);
+        const i32 n_iter = std::min(rank_, n_);
+        const i32 offset = std::max(0, n_ - rank_);
 
         auto shape = Shape<T, N>::from_value(1);
         for (i32 i{}; i < n_iter; ++i) {
@@ -120,17 +120,16 @@ namespace test {
             shape[offset + i] = size;
         }
 
-        if (N == 4) {
-            shape[0] = Randomizer<T>( // FIXME
-                options.batch_range.first,
-                options.batch_range.second).get();
-        }
+        auto batch_randomizer = Randomizer<T>(options.batch_range.first, options.batch_range.second);
+        for (i32 i{}; i < offset; ++i)
+            shape[i] = batch_randomizer.get();
         return shape;
     }
+
     template<std::integral T = isize, size_t N = 4> requires (N >= 1)
     constexpr auto random_shape_batched(
-            std::integral auto ndim,
-            RandomShapeOptions options = RandomShapeOptions{.batch_range={1, 10}}
+        std::integral auto ndim,
+        RandomShapeOptions options = RandomShapeOptions{.batch_range={1, 10}}
     ) -> Shape<T, N> {
         if (options.batch_range.first == 1 and options.batch_range.second == 1)
             options.batch_range = {1, 10};
