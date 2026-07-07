@@ -12,7 +12,7 @@ using namespace ::noa::types;
 
 TEST_CASE("runtime::extract_subregions()", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
-    const Path path_base = test::NOA_DATA_PATH / "runtime";
+    const Path path_base = test::noa_data_path() / "runtime";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["subregions"];
 
     std::vector<Device> devices{"cpu"};

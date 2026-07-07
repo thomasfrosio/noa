@@ -13,7 +13,7 @@ using namespace ::noa::types;
 
 TEST_CASE("runtime::resize()", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
-    const Path path_base = test::NOA_DATA_PATH / "runtime";
+    const Path path_base = test::noa_data_path() / "runtime";
     const YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["resize"];
     const bool pad = GENERATE(false, true);
     INFO("pad=" << pad);

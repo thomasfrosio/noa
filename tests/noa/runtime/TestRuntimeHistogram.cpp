@@ -60,7 +60,7 @@ namespace {
 }
 
 TEST_CASE("runtime: histogram", "[asset]") {
-    // const auto path = test::NOA_DATA_PATH / "runtime";
+    // const auto path = test::noa_data_path() / "runtime";
     // const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
     //
     // const YAML::Node& input = tests["input"];

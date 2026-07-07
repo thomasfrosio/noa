@@ -17,6 +17,22 @@
 #pragma GCC diagnostic pop
 #endif
 
+#include <filesystem>
+
+namespace test {
+    inline auto noa_data_path() -> const std::filesystem::path& {
+        static std::filesystem::path NOA_DATA_PATH{};
+        if (NOA_DATA_PATH.empty()) {
+            const char* path = std::getenv("NOA_DATA_PATH");
+            if (path == nullptr)
+                throw std::runtime_error("The environmental variable \"NOA_DATA_PATH\" is empty. Set it to the path of the noa-data repository and try again.\n");
+            NOA_DATA_PATH = path;
+            NOA_DATA_PATH /= "assets";
+        }
+        return NOA_DATA_PATH;
+    }
+}
+
 namespace YAML {
     template<typename T, size_t N>
     struct convert<noa::Shape<T, N>> {

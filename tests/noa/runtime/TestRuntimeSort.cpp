@@ -10,7 +10,7 @@
 using namespace noa::types;
 
 TEST_CASE("runtime::sort", "[asset]") {
-    const auto path = test::NOA_DATA_PATH / "runtime";
+    const auto path = test::noa_data_path() / "runtime";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["sort"];
 
     std::vector<Device> devices{"cpu"};
