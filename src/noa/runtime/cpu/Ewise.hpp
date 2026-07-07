@@ -146,12 +146,12 @@ namespace noa::cpu {
             auto shape_1d = Shape<Index, 1>{shape.n_elements()};
             if constexpr (nt::enable_vectorization_v<Op>) {
                 if (not nd::are_accessors_aliased(input, output)) {
-                    constexpr auto accessor_config_1d = nd::AccessorConfig<1>{
+                    constexpr auto CONTIGUOUS_RESTRICT = nd::AccessorConfig{
                         .enforce_contiguous=true,
                         .enforce_restrict=true,
                     };
-                    auto input_1d = nd::reconfig_accessors<accessor_config_1d>(std::forward<Input>(input), N - 1);
-                    auto output_1d = nd::reconfig_accessors<accessor_config_1d>(output, N - 1);
+                    auto input_1d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT>(std::forward<Input>(input), N - 1);
+                    auto output_1d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT>(output, N - 1);
                     if (actual_n_threads > 1)
                         ewise_t::parallel(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d, actual_n_threads);
                     else
@@ -159,12 +159,12 @@ namespace noa::cpu {
                     return;
                 }
             }
-            constexpr auto accessor_config_1d = nd::AccessorConfig<1>{
+            constexpr auto CONTIGUOUS = nd::AccessorConfig{
                 .enforce_contiguous=true,
                 .enforce_restrict=false,
             };
-            auto input_1d = nd::reconfig_accessors<accessor_config_1d>(std::forward<Input>(input), N - 1);
-            auto output_1d = nd::reconfig_accessors<accessor_config_1d>(output, N - 1);
+            auto input_1d = nd::reconfig_accessors<CONTIGUOUS>(std::forward<Input>(input), N - 1);
+            auto output_1d = nd::reconfig_accessors<CONTIGUOUS>(output, N - 1);
             if (actual_n_threads > 1)
                 ewise_t::parallel(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d, actual_n_threads);
             else
