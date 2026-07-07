@@ -1260,20 +1260,13 @@ namespace noa {
             for (usize i{}; i < N - 1; ++i) {
                 NOA_ASSERT(not contiguity[i] or not broadcasting[i]);
 
-                // To be collapsed, dimensions need to be part of the same group...
-                if (groups[i] != groups[i + 1])
-                    continue;
-
-                // ... or the current one be contiguous and the next one not broadcast...
-                if (not (contiguity[i] and not broadcasting[i + 1]))
-                    continue;
-
-                // ... or be both broadcast.
-                if (not (broadcasting[i] and broadcasting[i + 1]))
-                    continue;
-
-                shape[i + 1] *= shape[i];
-                shape[i] = 1;
+                // To be collapsed, dimensions need to be part of the same group,
+                // and the current one be contiguous and the next one not broadcast,
+                // or they should both be broadcast.
+                if (groups[i] == groups[i + 1] and ((contiguity[i] and not broadcasting[i + 1]) or (broadcasting[i] and broadcasting[i + 1]))) {
+                    shape[i + 1] *= shape[i];
+                    shape[i] = 1;
+                }
             }
         }
         return shape;
