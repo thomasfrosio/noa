@@ -21,15 +21,14 @@ namespace noa::fft {
         #endif
     }
 
-    /// Returns the next optimum (((B)D)H)W shape.
-    /// \note Dimensions of size 0 or 1 are ignored as well as the batch dimension,
-    ///       e.g. {3,1,53,53} is rounded up to {3,1,54,54}.
-    template<usize N>
-    [[nodiscard]] auto next_fast_shape(Shape<isize, N> shape) -> Shape<isize, N> {
-        constexpr usize START_INDEX = N == 4 ? 1 : 0; // BDHW -> ignore batch
-        for (usize i = START_INDEX; i < N; ++i)
+    /// Returns the next optimal transform shape.
+    template<typename T, usize N>
+    [[nodiscard]] auto next_fast_shape(Shape<T, N> shape, i32 rank = -1) -> Shape<T, N> {
+        rank = shape.rank_checked(rank);
+        const usize start_index = std::max(0, static_cast<i32>(N) - rank); // ignore batch axes
+        for (usize i = start_index; i < N; ++i)
             if (shape[i] > 1)
-                shape[i] = next_fast_size(shape[i]);
+                shape[i] = static_cast<T>(next_fast_size(static_cast<isize>(shape[i])));
         return shape;
     }
 

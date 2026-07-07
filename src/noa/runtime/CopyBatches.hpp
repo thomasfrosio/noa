@@ -62,8 +62,8 @@ namespace noa {
 
         // Broadcast axes except at BATCH_DIM.
         // TODO reorder to rightmost except for BATCH_DIM
-        const auto input_batch_shape = input.shape().set<BATCH_DIM>(1);
-        const auto output_batch_shape = output.shape().set<BATCH_DIM>(1);
+        const auto input_batch_shape = input.shape().template set<BATCH_DIM>(1);
+        const auto output_batch_shape = output.shape().template set<BATCH_DIM>(1);
         auto input_strides = input.strides();
         check(noa::broadcast(input_batch_shape, input_strides, output_batch_shape),
               "Cannot broadcast shape={} into a shape={}", input_batch_shape, output_batch_shape);

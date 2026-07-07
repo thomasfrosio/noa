@@ -58,7 +58,7 @@ namespace noa::fft {
     template<typename T>
     [[nodiscard]] constexpr auto ranked_shape_info(const Shape<T, 4>& shape) noexcept {
         return noa::make_tuple(
-            shape.template pop_back<3>(),
+            shape[0],
             shape.template pop_front<1>(),
             shape.rank()
         );

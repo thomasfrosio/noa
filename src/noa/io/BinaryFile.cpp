@@ -3,9 +3,7 @@
 
 #include <sys/mman.h>
 #include <sys/stat.h>
-#ifdef NOA_PLATFORM_APPLE
-#   include <unistd.h>
-#endif
+#include <unistd.h>
 
 namespace {
     using namespace noa::types;

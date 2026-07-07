@@ -6,6 +6,7 @@
 #include "noa/base/Strings.hpp"
 #include "noa/runtime/cuda/Allocators.hpp"
 #include "noa/runtime/cuda/Error.hpp"
+#include "noa/fft/core/Transform.hpp"
 #include "noa/fft/cuda/Plan.hpp"
 
 #include <iostream>
@@ -389,11 +390,7 @@ namespace noa::fft::cuda::details {
         const Shape4& shape, Device device,
         bool save_in_cache, bool plan_only, bool record_workspace
     ) -> std::shared_ptr<void> {
-        auto [batch, shape_3d] = shape.as<long long int>().split_batch();
-        const auto rank = static_cast<int>(shape_3d.ndim());
-        check(rank == 1 or not shape_3d.is_vector());
-        if (rank == 1 and shape_3d[2] == 1) // column vector -> row vector
-            std::swap(shape_3d[1], shape_3d[2]);
+        auto [batch, shape_3d, rank] = ranked_shape_info(shape.as_safe<long long int>());
 
         const auto i_type = to_underlying(type);
         std::string hash;
@@ -418,15 +415,7 @@ namespace noa::fft::cuda::details {
         bool save_in_cache, bool plan_only, bool record_workspace
     ) -> std::shared_ptr<void> {
         using lli = long long int;
-        auto [batch, shape_3d] = shape.as_safe<lli>().split_batch();
-        const auto rank = static_cast<int>(shape_3d.ndim());
-
-        check(rank == 1 or not shape_3d.is_vector());
-        if (rank == 1 and shape_3d[2] == 1) { // column vector -> row vector
-            std::swap(shape_3d[1], shape_3d[2]);
-            std::swap(input_strides[2], input_strides[3]);
-            std::swap(output_strides[2], output_strides[3]);
-        }
+        auto [batch, shape_3d, rank] = ranked_shape_info(shape.as_safe<lli>());
 
         const auto i_strides = input_strides.as<lli>();
         const auto o_strides = output_strides.as<lli>();
@@ -439,15 +428,15 @@ namespace noa::fft::cuda::details {
         {
             std::ostringstream tmp;
             tmp << rank << ':';
-            for (int i{}; i < rank; ++i)
+            for (i32 i{}; i < rank; ++i)
                 tmp << shape_3d[offset + i] << ',';
 
-            for (int i{}; i < rank; ++i)
+            for (i32 i{}; i < rank; ++i)
                 tmp << i_pitch[offset + i] << ',';
             tmp << i_strides[3] << ':';
             tmp << i_strides[0] << ':';
 
-            for (int i{}; i < rank; ++i)
+            for (i32 i{}; i < rank; ++i)
                 tmp << o_pitch[offset + i] << ',';
             tmp << o_strides[3] << ':';
             tmp << o_strides[0] << ':';

@@ -14,7 +14,7 @@ namespace noa::cuda::details {
              bool IsTwoPartReduction>
     struct ComputeHandle {
         using vec_zy_type = std::conditional_t<IsMultiGridKernel, Vec<u32, GridNDim - 1>, Empty>;
-        using scratch_type = std::conditional_t<IsUsingDynamicSharedMemory, u32, Empty>;
+        using scratch_size_type = std::conditional_t<IsUsingDynamicSharedMemory, u32, Empty>;
         using index_type = Index;
 
     public:
@@ -369,7 +369,7 @@ namespace noa::cuda::details {
         }
 
     private:
-        NOA_NO_UNIQUE_ADDRESS scratch_type m_scratch_size;
+        NOA_NO_UNIQUE_ADDRESS scratch_size_type m_scratch_size;
         NOA_NO_UNIQUE_ADDRESS vec_zy_type m_grid_size_zy;
         NOA_NO_UNIQUE_ADDRESS vec_zy_type m_block_index_offset_zy;
     };

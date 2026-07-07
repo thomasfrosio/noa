@@ -331,7 +331,7 @@ namespace noa::fft::cpu {
         m_plan = FFTW<T>::create_r2c(
             input, input_strides.as_safe<i32>(),
             output, output_strides.as_safe<i32>(),
-            batches[0], shape_3d, rank, static_cast<i32>(max_n_threads), flag
+            batches, shape_3d, rank, static_cast<i32>(max_n_threads), flag
         );
     }
 
@@ -345,7 +345,7 @@ namespace noa::fft::cpu {
         m_plan = FFTW<T>::create_c2r(
             input, input_strides.as_safe<i32>(),
             output, output_strides.as_safe<i32>(),
-            batches[0], shape_3d, rank, static_cast<i32>(max_n_threads), flag
+            batches, shape_3d, rank, static_cast<i32>(max_n_threads), flag
         );
     }
 
@@ -359,7 +359,7 @@ namespace noa::fft::cpu {
         m_plan = FFTW<T>::create_c2c(
             input, input_strides.as_safe<i32>(),
             output, output_strides.as_safe<i32>(),
-            sign, batches[0], shape_3d, rank, static_cast<i32>(max_n_threads), flag
+            sign, batches, shape_3d, rank, static_cast<i32>(max_n_threads), flag
         );
     }
 

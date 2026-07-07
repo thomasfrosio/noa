@@ -411,19 +411,19 @@ namespace noa::inline types {
         /// otherwise (N = 2 or 3) an error is thrown.
         [[nodiscard]] constexpr auto rank_checked(i32 rank) const noexcept -> i32 {
             // If the rank is specified, all good.
-            if (rank > 0 and rank <= 3)
+            if (1 <= rank and rank <= 3)
                 return rank;
-
-            // Otherwise, try to deduce it.
-            if constexpr (N <= 1)
-                return 1; // unambiguous
-            if constexpr (N == 2)
-                panic("The rank of 2D shapes is ambiguous (BW or HW). Set the rank explicitly or use at least 4 dimensions to rely on the B(..)DHW convention");
-            if constexpr (N == 3)
-                panic("The rank of 3D shapes is ambiguous (DHW, BHW or BBW). Set the rank explicitly or use at least 4 dimensions to rely on the B(..)DHW convention");
-            if constexpr (N >= 4)
-                return this->rank(); // use b(..)dhw convention
-            unreachable();
+            if (rank == -1) { // try to deduce it.
+                if constexpr (N <= 1)
+                    return 1; // unambiguous
+                if constexpr (N == 2)
+                    panic("The rank of 2D shapes is ambiguous (BW or HW). Set the rank explicitly or use at least 4 dimensions to rely on the B(..)DHW convention");
+                if constexpr (N == 3)
+                    panic("The rank of 3D shapes is ambiguous (DHW, BHW or BBW). Set the rank explicitly or use at least 4 dimensions to rely on the B(..)DHW convention");
+                if constexpr (N >= 4)
+                    return this->rank(); // use b(..)dhw convention
+            }
+            panic("The rank should be 1, 2, 3 or -1, but got {}", rank);
         }
     };
 

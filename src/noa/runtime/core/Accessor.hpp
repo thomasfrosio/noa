@@ -201,7 +201,7 @@ namespace noa {
             m_ptr(pointer), m_strides(strides) {}
 
         NOA_HD constexpr explicit AccessorReference(accessor_type accessor) noexcept :
-            AccessorReference(accessor.ptr, accessor.strides().data()) {}
+            AccessorReference(accessor.get(), accessor.strides().data()) {}
 
         /// Creates a const accessor from an existing non-const accessor.
         template<nt::mutable_of<value_type> U>
@@ -477,7 +477,6 @@ namespace noa::traits {
 }
 
 namespace noa::details {
-    template<usize N = 0>
     struct AccessorConfig {
         /// Whether the reconfigured accessor(s) should be made const
         bool enforce_const{false};

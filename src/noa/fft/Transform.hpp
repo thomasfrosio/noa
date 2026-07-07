@@ -213,8 +213,8 @@ namespace noa::fft {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
             noa::fft::cuda::r2c(
-                input.get(), input.strides(),
-                output.get(), output.strides(), input.shape(),
+                input_4d.get(), input_4d.strides(),
+                output_4d.get(), output_4d.strides(), shape_4d,
                 options.cache_plan, options.plan_only, options.record_and_share_workspace,
                 cuda_stream
             );
@@ -289,8 +289,8 @@ namespace noa::fft {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
             noa::fft::cuda::c2r(
-                input.get(), input.strides(),
-                output.get(), output.strides(), output.shape(),
+                input_4d.get(), input_4d.strides(),
+                output_4d.get(), output_4d.strides(), shape_4d,
                 options.cache_plan, options.plan_only, options.record_and_share_workspace,
                 cuda_stream
             );
@@ -371,8 +371,8 @@ namespace noa::fft {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
             noa::fft::cuda::c2c(
-                input.get(), input.strides(),
-                output.get(), output.strides(), input.shape(), sign,
+                input_4d.get(), input_4d.strides(),
+                output_4d.get(), output_4d.strides(), shape_4d, sign,
                 options.cache_plan, options.plan_only, options.record_and_share_workspace,
                 cuda_stream
             );
