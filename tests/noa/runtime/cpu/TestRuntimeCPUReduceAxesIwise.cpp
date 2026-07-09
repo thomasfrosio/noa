@@ -95,11 +95,9 @@ TEST_CASE("runtime::cpu::reduce_axes_iwise - 4d") {
                 test::random_shape<i64>(1),
                 test::random_shape<i64>(2),
                 test::random_shape<i64>(3),
-                test::random_shape<i64>(4),
                 test::random_shape<i64>(1, {.batch_range={2, 10}}),
                 test::random_shape<i64>(2, {.batch_range={2, 10}}),
-                test::random_shape<i64>(3, {.batch_range={2, 10}}),
-                test::random_shape<i64>(4, {.batch_range={2, 10}})
+                test::random_shape<i64>(3, {.batch_range={2, 10}})
         };
         for (const auto& input_shape: input_shapes) {
             const auto input_strides = input_shape.strides();

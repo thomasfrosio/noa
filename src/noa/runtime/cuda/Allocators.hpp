@@ -375,7 +375,7 @@ namespace noa::cuda {
         ///         2: Strides describing the allocated layout.
         template<nt::allocatable_type T, typename I, usize N> requires (N >= 2)
         static auto allocate(
-            const Shape<I, N>& shape, // ((B)D)HW order
+            const Shape<I, N>& shape,
             Stream& stream
         ) -> Pair<allocate_type<T>, Strides<I, N>> {
             if (shape.is_empty())
@@ -388,7 +388,7 @@ namespace noa::cuda {
                   "The pitch must be a multiple of sizeof({})={}, but got {}",
                   nd::stringify<T>(), sizeof(T), pitch);
 
-            auto width = next_multiple_of(shape.width(), safe_cast<I>(pitch / sizeof(T)));
+            auto width = next_multiple_of(shape[N - 1], safe_cast<I>(pitch / sizeof(T)));
             auto padded_shape = shape.template set<N - 1>(width);
             return {AllocatorManaged::allocate<T>(padded_shape.n_elements(), stream), padded_shape.strides()};
         }
@@ -503,17 +503,25 @@ namespace noa::cuda {
 
     public:
         /// Allocates a CUDA array.
-        template<nt::any_of<i8, i16, i32, u8, u16, u32, f16, f32, c16, c32> T>
+        /// \param shape:
+        ///     BDHW shape, such as:
+        ///     - B11W -> 1D array. If B > 1, layered should be true.
+        ///     - B1DH -> 2D array. If B > 1, layered should be true.
+        ///     - 1DHW -> 3D array.
+        /// \param layered:
+        ///     Whether the array should be layered.
+        ///     3D layered arrays are not supported and trying to create one will throw an error.
+        template<nt::any_of<i8, i16, i32, u8, u16, u32, f16, f32, c16, c32> T, usize N>
         static auto allocate(
             const Shape4& shape,
+            bool layered = true,
             Device device = Device::current()
         ) -> allocate_type {
             const auto device_guard = DeviceGuard(device);
             const auto desc = cudaCreateChannelDesc<T>();
-            const auto is_layered = shape.ndim() == 2;
-            const auto extent = shape2extent(shape, is_layered);
+            const auto extent = shape2extent(shape, layered);
             cudaArray_t ptr;
-            check(cudaMalloc3DArray(&ptr, &desc, extent, is_layered ? cudaArrayLayered : cudaArrayDefault));
+            check(cudaMalloc3DArray(&ptr, &desc, extent, layered ? cudaArrayLayered : cudaArrayDefault));
 
             auto n_bytes = shape.n_elements() * static_cast<isize>(sizeof(T));
             add_bytes(device.id(), n_bytes); // TODO include pitch
@@ -524,7 +532,7 @@ namespace noa::cuda {
         static auto shape2extent(Shape4 shape, bool is_layered) -> cudaExtent {
             // Special case: treat column vectors as row vectors.
             if (shape[2] >= 1 and shape[3] == 1)
-                std::swap(shape[2], shape[3]);
+                panic("Column vectors are not supported. Reshape to a row vector.");
 
             // Conversion:  shape -> CUDA extent
             // 3D:          1DHW  -> DHW
@@ -533,8 +541,7 @@ namespace noa::cuda {
             // 2D layered:  B1HW  -> DHW
             // 1D layered:  B11W  -> D0W
             check(shape > 0 and shape[is_layered] == 1,
-                  "The input shape cannot be converted to a CUDA array extent. "
-                  "Dimensions with a size of 0 are not allowed, and the {} should be 1. Shape: {}",
+                  "The input shape cannot be converted to a CUDA array extent. Dimensions with a size of 0 are not allowed, and the {} should be 1. Got shape={}",
                   is_layered ? "depth dimension (for layered arrays)" : "batch dimension", shape);
 
             auto shape_3d = shape.filter(static_cast<isize>(not is_layered), 2, 3).as_safe<usize>();

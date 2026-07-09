@@ -158,6 +158,73 @@ namespace test {
         return data;
     }
 
+    template<typename T, usize N>
+    constexpr void arange(Span<T, N> span, std::type_identity_t<T> start = 0, std::type_identity_t<T> step = 1) {
+        if constexpr (N == 1) {
+            for (isize i = 0; i < span.shape()[0]; ++i) {
+                span(i) = start;
+                start += step;
+            }
+        } else if constexpr (N == 2) {
+            for (isize i = 0; i < span.shape()[0]; ++i) {
+                for (isize j = 0; j < span.shape()[1]; ++j) {
+                    span(i, j) = start;
+                    start += step;
+                }
+            }
+        } else if constexpr (N == 3) {
+            for (isize i = 0; i < span.shape()[0]; ++i) {
+                for (isize j = 0; j < span.shape()[1]; ++j) {
+                    for (isize k = 0; k < span.shape()[2]; ++k) {
+                        span(i, j, k) = start;
+                        start += step;
+                    }
+                }
+            }
+        } else if constexpr (N == 4) {
+            for (isize i = 0; i < span.shape()[0]; ++i) {
+                for (isize j = 0; j < span.shape()[1]; ++j) {
+                    for (isize k = 0; k < span.shape()[2]; ++k) {
+                        for (isize l = 0; l < span.shape()[3]; ++l) {
+                            span(i, j, k, l) = start;
+                            start += step;
+                        }
+                    }
+                }
+            }
+        } else if constexpr (N == 5) {
+            for (isize i = 0; i < span.shape()[0]; ++i) {
+                for (isize j = 0; j < span.shape()[1]; ++j) {
+                    for (isize k = 0; k < span.shape()[2]; ++k) {
+                        for (isize l = 0; l < span.shape()[3]; ++l) {
+                            for (isize m = 0; m < span.shape()[4]; ++m) {
+                                span(i, j, k, l, m) = start;
+                                start += step;
+                            }
+                        }
+                    }
+                }
+            }
+        } else if constexpr (N == 6) {
+            for (isize i = 0; i < span.shape()[0]; ++i) {
+                for (isize j = 0; j < span.shape()[1]; ++j) {
+                    for (isize k = 0; k < span.shape()[2]; ++k) {
+                        for (isize l = 0; l < span.shape()[3]; ++l) {
+                            for (isize m = 0; m < span.shape()[4]; ++m) {
+                                for (isize n = 0; n < span.shape()[5]; ++n) {
+                                    span(i, j, k, l, m, n) = start;
+                                    start += step;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            static_assert(nt::always_false<T>);
+        }
+    }
+
     template<typename T, typename U = i64>
     constexpr void arange(T* data, nt::integer auto n_elements, U start = 0, U step = 1) {
         for (i64 i = 0; i < static_cast<i64>(n_elements); ++i, start += step)

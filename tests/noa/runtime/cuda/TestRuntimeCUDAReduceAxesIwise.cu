@@ -40,18 +40,18 @@ namespace {
     };
 }
 
-TEST_CASE("runtime::cuda::reduce_axes_iwise - 4d") {
+TEMPLATE_TEST_CASE("runtime::cuda::reduce_axes_iwise", "", Tag<1>, Tag<2>, Tag<3>, Tag<4>, Tag<5>, Tag<6>) {
     using namespace noa::types;
     using noa::cuda::reduce_axes_iwise;
     using noa::cuda::AllocatorManaged;
     using noa::cuda::Device;
     using noa::cuda::Stream;
+    constexpr usize N = TestType::value;;
 
     Stream stream(Device{});
 
     SECTION("sum one axis") {
-        auto input_shape = test::random_shape_batched(4);
-        input_shape[0] += 1; // make sure there's something to reduce
+        auto input_shape = test::random_shape_batched<isize, N>(3, {.batch_range = {2, 6}});
         const auto input_strides = input_shape.strides();
         const auto n_elements = input_shape.n_elements();
 
@@ -59,9 +59,9 @@ TEST_CASE("runtime::cuda::reduce_axes_iwise - 4d") {
         test::arange(buffer.get(), n_elements);
 
         auto reduced = noa::make_tuple(noa::AccessorValue<isize>(0));
-        auto sum_op = SumOp<4>{.accessor={buffer.get(), input_strides}};
+        auto sum_op = SumOp<N>{.accessor={buffer.get(), input_strides}};
 
-        for (auto axis: noa::irange(4)) {
+        for (auto axis: noa::irange(N)) {
             INFO("axis=" << axis << ", shape=" << input_shape);
             auto output_shape = input_shape;
             output_shape[axis] = 1;
@@ -69,44 +69,58 @@ TEST_CASE("runtime::cuda::reduce_axes_iwise - 4d") {
             const auto output_elements = output_shape.n_elements();
 
             const auto expected_buffer = AllocatorManaged::allocate<isize>(output_elements, stream);
-            auto compute_expected_reduction = [](Shape<isize, 4> shape, const auto& input, const auto& expected) {
-                for (isize i = 0; i < shape[0]; ++i) {
-                    for (isize j = 0; j < shape[1]; ++j) {
-                        for (isize k = 0; k < shape[2]; ++k) {
-                            isize tmp = 0;
-                            for (isize l = 0; l < shape[3]; ++l)
-                                tmp += input(i, j, k, l);
-                            expected(i, j, k) = tmp + 1; // +1: add to output
-                        }
-                    }
+            auto compute_expected_reduction = [](Shape<isize, N> shape, const auto& input, const auto& expected) {
+                auto reduce = [](const auto& src, auto& dst, isize n) {
+                    isize tmp = 0;
+                    for (isize i = 0; i < n; ++i)
+                        tmp += src[i];
+                    dst = tmp + 1; // +1: add to output
+                };
+                if constexpr (N == 1) {
+                    reduce(input, expected(0), shape[0]);
+                } else if constexpr (N == 2) {
+                    for (isize i = 0; i < shape[0]; ++i)
+                        reduce(input[i], expected(i), shape[1]);
+                } else if constexpr (N == 3) {
+                    for (isize i = 0; i < shape[0]; ++i)
+                        for (isize j = 0; j < shape[1]; ++j)
+                            reduce(input[i][j], expected(i, j), shape[2]);
+                } else if constexpr (N == 4) {
+                    for (isize i = 0; i < shape[0]; ++i)
+                        for (isize j = 0; j < shape[1]; ++j)
+                            for (isize k = 0; k < shape[2]; ++k)
+                                reduce(input[i][j][k], expected(i, j, k), shape[3]);
+                } else if constexpr (N == 5) {
+                    for (isize i = 0; i < shape[0]; ++i)
+                        for (isize j = 0; j < shape[1]; ++j)
+                            for (isize k = 0; k < shape[2]; ++k)
+                                for (isize l = 0; l < shape[3]; ++l)
+                                    reduce(input[Vec{i, j, k, l}], expected(i, j, k, l), shape[4]);
+                } else {
+                    for (isize i = 0; i < shape[0]; ++i)
+                        for (isize j = 0; j < shape[1]; ++j)
+                            for (isize k = 0; k < shape[2]; ++k)
+                                for (isize l = 0; l < shape[3]; ++l)
+                                    for (isize m = 0; m < shape[4]; ++m)
+                                        reduce(input[Vec{i, j, k, l, m}], expected(i, j, k, l, m), shape[5]);
                 }
             };
-            using expected_t = noa::Accessor<const isize, 4>;
-            if (axis == 0) {
-                compute_expected_reduction(
-                    input_shape.filter(1, 2, 3, 0),
-                    expected_t(buffer.get(), input_strides.filter(1, 2, 3, 0)),
-                    noa::Accessor<isize, 3>(expected_buffer.get(), output_strides.filter(1, 2, 3)));
-            } else if (axis == 1) {
-                compute_expected_reduction(
-                    input_shape.filter(0, 2, 3, 1),
-                    expected_t(buffer.get(), input_strides.filter(0, 2, 3, 1)),
-                    noa::Accessor<isize, 3>(expected_buffer.get(), output_strides.filter(0, 2, 3)));
-            } else if (axis == 2) {
-                compute_expected_reduction(
-                    input_shape.filter(0, 1, 3, 2),
-                    expected_t(buffer.get(), input_strides.filter(0, 1, 3, 2)),
-                    noa::Accessor<isize, 3>(expected_buffer.get(), output_strides.filter(0, 1, 3)));
-            } else {
-                compute_expected_reduction(
-                    input_shape,
-                    expected_t(buffer.get(), input_strides),
-                    noa::Accessor<isize, 3>(expected_buffer.get(), output_strides.filter(0, 1, 2)));
-            }
+            using expected_t = noa::Accessor<const isize, N>;
+
+            auto axis_to_reduce = Vec<i32, N>::from_value(1);
+            axis_to_reduce[axis] = 2;
+            auto input_order = noa::squeeze_empty_dimensions_left(axis_to_reduce);
+            auto expected_order = input_order.template pop_back<N == 1 ? 0 : 1>();
+
+            compute_expected_reduction(
+                input_shape.filter(input_order),
+                expected_t(buffer.get(), input_strides.filter(input_order)),
+                noa::Accessor<isize, (N == 1 ? 1 : N - 1)>(expected_buffer.get(), output_strides.filter(expected_order))
+            );
 
             const auto output_buffer = AllocatorManaged::allocate<isize>(output_elements, stream);
-            auto output = noa::make_tuple(noa::Accessor<isize, 4>(output_buffer.get(), output_strides));
-            std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
+            auto output = noa::make_tuple(noa::Accessor<isize, N>(output_buffer.get(), output_strides));
+            std::fill_n(output_buffer.get(), output_elements, 1);
             reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, stream);
             stream.synchronize();
             REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
@@ -115,14 +129,12 @@ TEST_CASE("runtime::cuda::reduce_axes_iwise - 4d") {
 
     SECTION("per batch") {
         const auto input_shapes = std::array{
-            test::random_shape(1),
-            test::random_shape(2),
-            test::random_shape(3),
-            test::random_shape(4),
-            test::random_shape_batched(1),
-            test::random_shape_batched(2),
-            test::random_shape_batched(3),
-            test::random_shape_batched(4)
+            test::random_shape<isize, N>(1),
+            test::random_shape<isize, N>(2),
+            test::random_shape<isize, N>(3),
+            test::random_shape_batched<isize, N>(1),
+            test::random_shape_batched<isize, N>(2),
+            test::random_shape_batched<isize, N>(3)
         };
         for (const auto& input_shape: input_shapes) {
             const auto input_strides = input_shape.strides();
@@ -132,7 +144,7 @@ TEST_CASE("runtime::cuda::reduce_axes_iwise - 4d") {
             test::arange(buffer.get(), n_elements);
 
             auto reduced = noa::make_tuple(noa::AccessorValue<isize>(0));
-            auto sum_op = SumOp<4>{.accessor={buffer.get(), input_strides}};
+            auto sum_op = SumOp<N>{.accessor={buffer.get(), input_strides}};
 
             const auto expected_buffer = AllocatorManaged::allocate<isize>(input_shape[0], stream);
             const auto per_batch_n_elements = input_shape.pop_front().n_elements();
@@ -144,118 +156,13 @@ TEST_CASE("runtime::cuda::reduce_axes_iwise - 4d") {
                 expected_buffer.get()[i] = tmp + 1;
             }
 
-            const auto output_shape = Shape4{input_shape[0], 1, 1, 1};
+            const auto output_shape = Shape<isize, N>::from_value(1).template set<0>(input_shape[0]);
             const auto output_elements = output_shape.n_elements();
             const auto output_buffer = AllocatorManaged::allocate<isize>(output_elements, stream);
-            const auto output = noa::make_tuple(noa::Accessor<isize, 4>(output_buffer.get(), output_shape.strides()));
+            const auto output = noa::make_tuple(noa::Accessor<isize, N>(output_buffer.get(), output_shape.strides()));
+            INFO(input_shape);
 
-            std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
-            reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, stream);
-            stream.synchronize();
-            REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
-        }
-    }
-}
-
-TEST_CASE("runtime::cuda::reduce_axes_iwise - 3d") {
-    using namespace noa::types;
-    using noa::cuda::reduce_axes_iwise;
-    using noa::cuda::AllocatorManaged;
-    using noa::cuda::Device;
-    using noa::cuda::Stream;
-
-    Stream stream(Device{});
-
-    SECTION("sum one axis") {
-        const auto input_shape = test::random_shape<isize, 3>(3);
-        const auto input_strides = input_shape.strides();
-        const auto n_elements = input_shape.n_elements();
-
-        const auto buffer = AllocatorManaged::allocate<isize>(n_elements, stream);
-        test::arange(buffer.get(), n_elements);
-
-        auto reduced = noa::make_tuple(noa::AccessorValue<isize>(0));
-        auto sum_op = SumOp<3>{.accessor={buffer.get(), input_strides}};
-
-        for (auto axis: noa::irange(3)) {
-            INFO("axis=" << axis << ", shape=" << input_shape);
-            auto output_shape = input_shape;
-            output_shape[axis] = 1;
-            const auto output_strides = output_shape.strides();
-            const auto output_elements = output_shape.n_elements();
-
-            const auto expected_buffer = AllocatorManaged::allocate<isize>(output_elements, stream);
-            auto compute_expected_reduction = [](Shape<isize, 3> shape, const auto& input, const auto& expected) {
-                for (isize i = 0; i < shape[0]; ++i) {
-                    for (isize j = 0; j < shape[1]; ++j) {
-                        isize tmp = 0;
-                        for (isize k = 0; k < shape[2]; ++k)
-                            tmp += input(i, j, k);
-                        expected(i, j) = tmp + 1; // +1: add to output
-                    }
-                }
-            };
-            using expected_t = noa::Accessor<const isize, 3>;
-            if (axis == 0) {
-                compute_expected_reduction(
-                    input_shape.filter(1, 2, 0),
-                    expected_t(buffer.get(), input_strides.filter(1, 2, 0)),
-                    noa::Accessor<isize, 2>(expected_buffer.get(), output_strides.filter(1, 2)));
-            } else if (axis == 1) {
-                compute_expected_reduction(
-                    input_shape.filter(0, 2, 1),
-                    expected_t(buffer.get(), input_strides.filter(0, 2, 1)),
-                    noa::Accessor<isize, 2>(expected_buffer.get(), output_strides.filter(0, 2)));
-            } else {
-                compute_expected_reduction(
-                    input_shape,
-                    expected_t(buffer.get(), input_strides),
-                    noa::Accessor<isize, 2>(expected_buffer.get(), output_strides.filter(0, 1)));
-            }
-
-            const auto output_buffer = AllocatorManaged::allocate<isize>(output_elements, stream);
-            auto output = noa::make_tuple(noa::Accessor<isize, 3>(output_buffer.get(), output_strides));
-
-            std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
-            reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, stream);
-            stream.synchronize();
-            REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
-        }
-    }
-
-    SECTION("per batch") {
-        const auto input_shapes = std::array{
-            test::random_shape<isize, 3>(1),
-            test::random_shape<isize, 3>(2),
-            test::random_shape<isize, 3>(3),
-            test::random_shape<isize, 3>(4),
-        };
-        for (const auto& input_shape: input_shapes) {
-            const auto input_strides = input_shape.strides();
-            const auto n_elements = input_shape.n_elements();
-
-            const auto buffer = AllocatorManaged::allocate<isize>(n_elements, stream);
-            test::arange(buffer.get(), n_elements);
-
-            auto reduced = noa::make_tuple(noa::AccessorValue<isize>(0));
-            auto sum_op = SumOp<3>{.accessor={buffer.get(), input_strides}};
-
-            const auto expected_buffer = AllocatorManaged::allocate<isize>(input_shape[0], stream);
-            const auto per_batch_n_elements = input_shape.pop_front().n_elements();
-            for (isize i = 0; i < input_shape[0]; ++i) {
-                const isize* input = buffer.get() + input_strides[0] * i;
-                isize tmp = 0;
-                for (isize j = 0; j < per_batch_n_elements; ++j)
-                    tmp += input[j];
-                expected_buffer.get()[i] = tmp + 1;
-            }
-
-            const auto output_shape = Shape<isize, 3>{input_shape[0], 1, 1};
-            const auto output_elements = output_shape.n_elements();
-            const auto output_buffer = AllocatorManaged::allocate<isize>(output_elements, stream);
-            const auto output = noa::make_tuple(noa::Accessor<isize, 3>(output_buffer.get(), output_shape.strides()));
-
-            std::fill(output_buffer.get(), output_buffer.get() + output_elements, 1);
+            std::fill_n(output_buffer.get(), output_elements, 1);
             reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, stream);
             stream.synchronize();
             REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
@@ -282,97 +189,4 @@ TEST_CASE("runtime::cuda::reduce_axes_iwise - 3d") {
         stream.synchronize();
         REQUIRE(test::allclose_abs(output_buffer.get(), input_shape[1], output_shape.n_elements(), 0));
     }
-}
-
-TEST_CASE("runtime::cuda::reduce_axes_iwise - 2d") {
-    using namespace noa::types;
-    using noa::cuda::reduce_axes_iwise;
-    using noa::cuda::AllocatorManaged;
-    using noa::cuda::Device;
-    using noa::cuda::Stream;
-
-    Stream stream(Device{});
-
-    SECTION("sum one axis") {
-        const auto input_shape = test::random_shape<isize, 2>(2);
-        const auto input_strides = input_shape.strides();
-        const auto n_elements = input_shape.n_elements();
-
-        const auto buffer = AllocatorManaged::allocate<isize>(n_elements, stream);
-        test::arange(buffer.get(), n_elements);
-
-        auto reduced = noa::make_tuple(noa::AccessorValue<isize>(0));
-        auto sum_op = SumOp<2>{.accessor={buffer.get(), input_strides}};
-
-        for (auto axis: noa::irange(2)) {
-            INFO("axis=" << axis << ", shape=" << input_shape);
-            auto output_shape = input_shape;
-            output_shape[axis] = 1;
-            const auto output_strides = output_shape.strides();
-            const auto output_elements = output_shape.n_elements();
-
-            const auto expected_buffer = AllocatorManaged::allocate<isize>(output_elements, stream);
-            auto compute_expected_reduction = [](Shape<isize, 2> shape, const auto& input, const auto& expected) {
-                for (isize i = 0; i < shape[0]; ++i) {
-                    isize tmp = 0;
-                    for (isize j = 0; j < shape[1]; ++j)
-                        tmp += input(i, j);
-                    expected(i) = tmp + 1; // +1: add to output
-                }
-            };
-            using expected_t = noa::Accessor<const isize, 2>;
-            if (axis == 0) {
-                compute_expected_reduction(
-                    input_shape.filter(1, 0),
-                    expected_t(buffer.get(), input_strides.filter(1, 0)),
-                    noa::Accessor<isize, 1>(expected_buffer.get(), output_strides.filter(1)));
-            } else {
-                compute_expected_reduction(
-                    input_shape,
-                    expected_t(buffer.get(), input_strides),
-                    noa::Accessor<isize, 1>(expected_buffer.get(), output_strides.filter(0)));
-            }
-
-            const auto output_buffer = AllocatorManaged::allocate<isize>(output_elements, stream);
-            auto output = noa::make_tuple(noa::Accessor<isize, 2>(output_buffer.get(), output_strides));
-
-            std::fill_n(output_buffer.get(), output_elements, 1);
-            reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, stream);
-            stream.synchronize();
-            REQUIRE(test::allclose_abs(output_buffer.get(), expected_buffer.get(), output_elements, 0));
-        }
-    }
-}
-
-TEST_CASE("runtime::cuda::reduce_axes_iwise - 1d") {
-    using namespace noa::types;
-    using noa::cuda::reduce_axes_iwise;
-    using noa::cuda::AllocatorManaged;
-    using noa::cuda::Device;
-    using noa::cuda::Stream;
-
-    Stream stream(Device{});
-
-    const auto input_shape = test::random_shape<isize, 1>(1) * 50;
-    const auto input_strides = input_shape.strides();
-    const auto n_elements = input_shape.n_elements();
-
-    const auto buffer = AllocatorManaged::allocate<isize>(n_elements, stream);
-    test::arange(buffer.get(), n_elements);
-
-    auto reduced = noa::make_tuple(noa::AccessorValue<isize>(0));
-    auto sum_op = SumOp<1>{.accessor={buffer.get(), input_strides}};
-
-    auto output_shape = Shape1{1};
-
-    isize expected{1};
-    for (isize i = 0; i < input_shape[0]; ++i)
-        expected += sum_op.accessor(i);
-
-    auto output = AllocatorManaged::allocate<isize>(1, stream);
-    output[0] = 1;
-    auto output_accessor = noa::make_tuple(noa::AccessorContiguous<isize, 1>(output.get()));
-    reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output_accessor, stream);
-    stream.synchronize();
-    REQUIRE(expected == output[0]);
 }

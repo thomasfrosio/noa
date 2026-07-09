@@ -113,14 +113,14 @@ namespace noa::details {
         static_assert(nd::are_all_arrays<Outputs>(), "All of the outputs should be arrays");
         static_assert(std::tuple_size_v<Outputs> > 0, "There should be at least one output");
 
-        constexpr usize NDIM = nd::maximum_nd_axes_of_arrays<Inputs, Outputs>();
-        Tuple input_accessors = nd::to_tuple_of_accessors_nd<NDIM>(std::forward<Inputs>(inputs));
+        constexpr usize N = nd::maximum_nd_axes_of_arrays<Inputs, Outputs>();
+        Tuple input_accessors = nd::to_tuple_of_accessors_nd<N>(std::forward<Inputs>(inputs));
         Tuple reduced_accessors = nd::to_tuple_of_accessor_values(std::forward<Reduced>(reduced));
-        Tuple output_accessors = nd::to_tuple_of_accessors_nd<NDIM>(std::forward<Outputs>(outputs));
+        Tuple output_accessors = nd::to_tuple_of_accessors_nd<N>(std::forward<Outputs>(outputs));
 
         const auto& first_input_array = inputs[Tag<INDEX_OF_FIRST_ARRAY>{}];
-        auto input_shape = first_input_array.shape().template extend_front_to<NDIM>(1);
-        auto output_shape = outputs[Tag<0>{}].shape().template extend_front_to<NDIM>(1);
+        auto input_shape = first_input_array.shape().template extend_front_to<N>(1);
+        auto output_shape = outputs[Tag<0>{}].shape().template extend_front_to<N>(1);
         const auto device = outputs[Tag<0>{}].device();
 
         inputs.for_each_enumerate([&]<usize I, typename T>(T& input) {
@@ -130,7 +130,7 @@ namespace noa::details {
                       device, I, input.device());
             }
             if constexpr (I > INDEX_OF_FIRST_ARRAY and nt::array<T>) {
-                const auto shape = input.shape().template extend_front_to<NDIM>(1);
+                const auto shape = input.shape().template extend_front_to<N>(1);
                 check(input_shape == shape,
                       "Input arrays should have the same shape, but got input:0:shape={} and input:{}:shape={}",
                       input_shape, I, shape);
@@ -142,7 +142,7 @@ namespace noa::details {
                 check(device == output.device(),
                       "Output arrays should be on the same device, but got output:0:device={} and output:{}:device={}",
                       device, I, output.device());
-                const auto shape = output.shape().template extend_front_to<NDIM>(1);
+                const auto shape = output.shape().template extend_front_to<N>(1);
                 check(output_shape == shape,
                       "Output arrays should have the same shape, but got output:0:shape={} and output:{}:shape={}",
                       output_shape, I, shape);
@@ -162,21 +162,22 @@ namespace noa::details {
 
         // Check the reduction is supported.
         axes_to_reduce = input_shape.cmp_ne(output_shape);
-        i32 n_axes_reduced{0};
-        bool reduction{false};
-        bool batch_reduction{true};
-        for (usize i{}; i < NDIM; ++i) {
-            if (input_shape[i] > 1)
-                continue;
-            if (axes_to_reduce[i]) {
-                n_axes_reduced++;
-                reduction = true;
-            } else if (reduction) {
-                batch_reduction = false;
+        usize first_non_empty{N - 1};
+        if constexpr (N > 1) {
+            for (usize i = 0; i < N - 1; ++i) {
+                if (input_shape[i] > 1) {
+                    first_non_empty = i;
+                    break;
+                }
             }
         }
-        check(n_axes_reduced == 1 or batch_reduction,
-              "Reducing more than one axis at a time (after collapsing contiguous dimensions together) is currently limited to a reduction of all axes except the leftmost axis. Got collapsed_input_shape={}, collapsed_output_shape={}, axes_to_reduce={}",
+        bool batched_reduction{true};
+        for (usize i = first_non_empty + 1; i < N; ++i)
+            if (not axes_to_reduce[i] and output_shape[i] > 1)
+                batched_reduction = false;
+
+        check(batched_reduction or sum(axes_to_reduce.template as<i32>()) == 1,
+              "Reducing more than one axis at a time (after collapsing contiguous dimensions together) is currently limited to a reduction of all axes except the leftmost non-empty axis. Got collapsed_input_shape={}, collapsed_output_shape={}, axes_to_reduce={}",
               input_shape, output_shape, axes_to_reduce);
 
         Stream& stream = Stream::current(device);

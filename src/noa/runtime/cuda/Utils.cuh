@@ -65,7 +65,7 @@ namespace noa::cuda {
     ///     Empty dimensions do not affect the alignment, so if certain dimensions are known to be contiguous,
     ///     the dimension size can be set to 1 to skip it.
     template<typename T, typename Index, usize N>
-    requires (nt::tuple_of_accessor_nd<T, N + 1> or nt::empty_tuple<T>)
+        requires (nt::tuple_of_accessor_nd<T, N + 1> or nt::empty_tuple<T>)
     constexpr auto min_address_alignment(
         const T& accessors,
         const Shape<Index, N>& shape_without_width
@@ -91,18 +91,20 @@ namespace noa::cuda {
                 // If rightmost dimension is contiguous, find the minimum alignment of any given row.
                 if (accessor.stride(N) == 1) {
                     usize i_alignment = get_alignment(accessor.get());
-                    const auto strides = accessor.strides().template as_safe<usize>();
 
-                    // If one row was found with a lower alignment, start over by decreasing
-                    // the alignment and repeat until the minimum alignment for this type is reached.
-                    constexpr auto SIZE = sizeof(typename U::value_type);
-                    for (; i_alignment >= 2; i_alignment /= 2) {
-                        i32 aligned{};
-                        for (usize i{}; i < N; ++i)
-                            if (shape_without_width[i] == 1 or is_multiple_of(strides[i] * SIZE, i_alignment))
-                                ++aligned;
-                        if (aligned == N)
-                            break;
+                    if constexpr (N >= 1) {
+                        // If one row was found with a lower alignment, start over by decreasing
+                        // the alignment and repeat until the minimum alignment for this type is reached.
+                        constexpr auto SIZE = sizeof(typename U::value_type);
+                        const auto strides = accessor.strides().template as_safe<usize>();
+                        for (; i_alignment >= 2; i_alignment /= 2) {
+                            i32 aligned{};
+                            for (usize i{}; i < N; ++i)
+                                if (shape_without_width[i] == 1 or noa::is_multiple_of(strides[i] * SIZE, i_alignment))
+                                    ++aligned;
+                            if (aligned == N)
+                                break;
+                        }
                     }
                     alignment = min(alignment, i_alignment);
                 } else {
@@ -326,7 +328,7 @@ namespace noa::cuda {
     template<usize N>
     class GridND {
     public:
-        static constexpr u32 N_DIMENSIONS_IN_X = N >= 3 ? N - 2 : 1;
+        static constexpr u32 N_DIMENSIONS_IN_X = N >= 4 ? N - 2 : 1;
 
         constexpr GridND(
             Shape<isize, N> shape,
@@ -360,8 +362,7 @@ namespace noa::cuda {
 
             const auto max_offset = m_n_blocks_per_launch.as<isize>() * (m_n_launches.as<isize>() - 1);
             check(noa::is_safe_cast<Vec<u32, 3>>(max_offset),
-                  "The grid is larger than the maximum allowed. "
-                  "shape={}, block_work_shape={}, grid_shape={}",
+                  "The grid is larger than the maximum allowed. shape={}, block_work_shape={}, grid_shape={}",
                   shape, block_work_shape, m_shape);
         }
 
@@ -488,6 +489,44 @@ namespace noa::cuda::details {
             return Vec<T, 0>{};
     }
 
+    template<nt::integer T, usize N, typename Block> requires (N >= 4)
+    NOA_FD auto global_indices_nd(Vec<u32, N - 3> fused_shape, const Vec<u32, 2>& block_offset_zy = Vec<u32, 2>{}) {
+        auto bid = block_indices<u32, 3>();
+        bid[0] += block_offset_zy[0];
+        bid[1] += block_offset_zy[1];
+
+        // N=4: fused_shape=W   -> bid_unrolled=HW
+        // N=5: fused_shape=HW  -> bid_unrolled=DHW
+        // N=6: fused_shape=DHW -> bid_unrolled=BDHW
+        const Vec<u32, N - 2> bid_unrolled = noa::offset2index(bid[2], fused_shape);
+        Vec<T, N> gid;
+        gid[0] = static_cast<T>(bid[0]);
+        if constexpr (N == 6) {
+            gid[1] = static_cast<T>(bid[1]);
+            gid[2] = static_cast<T>(bid_unrolled[0]);
+            gid[3] = static_cast<T>(Block::block_work_size_z) * static_cast<T>(bid_unrolled[1]);
+            gid[4] = static_cast<T>(Block::block_work_size_y) * static_cast<T>(bid_unrolled[2]);
+            gid[5] = static_cast<T>(Block::block_work_size_x) * static_cast<T>(bid_unrolled[3]);
+        } else if constexpr (N == 5) {
+            gid[1] = static_cast<T>(bid[1]);
+            gid[2] = static_cast<T>(Block::block_work_size_z) * static_cast<T>(bid_unrolled[0]);
+            gid[3] = static_cast<T>(Block::block_work_size_y) * static_cast<T>(bid_unrolled[1]);
+            gid[4] = static_cast<T>(Block::block_work_size_x) * static_cast<T>(bid_unrolled[2]);
+        } else if constexpr (N == 4) {
+            gid[1] = static_cast<T>(Block::block_work_size_z * bid[1]);
+            gid[2] = static_cast<T>(Block::block_work_size_y) * static_cast<T>(bid_unrolled[0]);
+            gid[3] = static_cast<T>(Block::block_work_size_x) * static_cast<T>(bid_unrolled[1]);
+        }
+
+        if constexpr (Block::block_ndim == 3)
+            gid[N - 3] += static_cast<T>(threadIdx.z);
+        if constexpr (Block::block_ndim >= 2)
+            gid[N - 2] += static_cast<T>(threadIdx.y);
+        if constexpr (Block::block_ndim >= 1)
+            gid[N - 1] += static_cast<T>(threadIdx.x);
+        return gid;
+    }
+
     template<nt::integer T, typename Block>
     NOA_FD auto global_indices_4d(u32 grid_size_x, const Vec<u32, 2>& block_offset_zy = Vec<u32, 2>{}) {
         auto bid = block_indices<T, 3>();
@@ -556,11 +595,11 @@ namespace noa::cuda::details {
     }
 
     /// Computes the indices within the grid.
-    /// \param fused_shape
-    ///     Fused shape along grid.x, with the width popped out.
+    /// \param grid_fused_shape_in_x_unbatched:
+    ///     Fused shape along grid.x, with the leftmost dimension popped out (see offset2index).
     ///     If N <= 3, the 3d grid is enough to contain the original shape,
     ///     no dimensions are fused, so Shape<u32, 0> is passed.
-    /// \param block_offset
+    /// \param grid_outer_offset:
     ///     (Z)Y block offset for this launch.
     ///     We don't support multi launches along grid.x,
     ///     so that block offset is assumed to be zero.
@@ -568,17 +607,17 @@ namespace noa::cuda::details {
              usize FusedShapePoppedN = (N <= 3 ? 0 : N - 3),
              usize BlockOffsetN = (N == 1 ? 0 : N == 2 ? 1 : 2)>
     NOA_FD auto global_indices(
-        const Shape<u32, FusedShapePoppedN>& fused_shape,
-        const Vec<u32, BlockOffsetN>& block_offset = Vec<u32, BlockOffsetN>{}
+        const Vec<u32, FusedShapePoppedN>& grid_fused_shape_in_x_unbatched,
+        const Vec<u32, BlockOffsetN>& grid_outer_offset = Vec<u32, BlockOffsetN>{}
     ) {
         if constexpr (N == 1) {
             return global_indices_1d<T, Config>();
         } else if constexpr (N == 2) {
-            return global_indices_2d<T, Config>(block_offset);
+            return global_indices_2d<T, Config>(grid_outer_offset);
         } else if constexpr (N == 3) {
-            return global_indices_3d<T, Config>(block_offset);
-        } else if constexpr (N == 4) {
-            return global_indices_4d<T, Config>(fused_shape[0], block_offset);
+            return global_indices_3d<T, Config>(grid_outer_offset);
+        } else if constexpr (N >= 4) {
+            return global_indices_nd<T, N, Config>(grid_fused_shape_in_x_unbatched, grid_outer_offset);
         } else {
             static_assert(nt::always_false<T>);
         }

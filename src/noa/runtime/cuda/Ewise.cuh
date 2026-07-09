@@ -66,63 +66,14 @@ namespace noa::cuda::details {
              typename Output, typename OutputAlignedBuffer>
     __global__ __launch_bounds__(Block::block_size)
     void ewise_1d_vectorized(Op op, Input input, Output output, Index width) {
-        using compute_handle_t = ComputeHandle<Index,
-            /*GridDim=*/ 1,
-            /*BlockDim=*/ 1,
-            /*IsMultiGridKernel=*/ true,
-            /*IsUsingDynamicSharedMemory=*/ false,
-            /*IsTwoPartReduction=*/ false
-        >;
-        const auto ci = compute_handle_t({}, {});
+        const auto ci = ComputeHandle<Index, 1, 1, false, false, false>();
         ewise_vectorized<Block, Interface, InputAlignedBuffer, OutputAlignedBuffer>(op, input, output, width, ci);
-    }
-
-    template<typename Block, typename Interface, typename Op, typename Index,
-         typename Input, typename InputAlignedBuffer,
-         typename Output, typename OutputAlignedBuffer>
-    __global__ __launch_bounds__(Block::block_size)
-    void ewise_2d_vectorized(
-        Op op, Input input, Output output, Index width,
-        Vec<u32, 1> grid_size_y, Vec<u32, 1> block_index_offset_y
-    ) {
-        using compute_handle_t = ComputeHandle<Index,
-            /*GridDim=*/ 2,
-            /*BlockDim=*/ 1,
-            /*IsMultiGridKernel=*/ true,
-            /*IsUsingDynamicSharedMemory=*/ false,
-            /*IsTwoPartReduction=*/ false
-        >;
-        const auto ci = compute_handle_t(grid_size_y, block_index_offset_y);
-
-        // Offset to the current row.
-        // AccessorValue(s) are simply moved, and 2d Accessor(s) return 1d AccessorReference(s).
-        // Note that AccessorReference points to the strides of the original Accessor, but since
-        // the move is non-destructive (it's just a cast here), everything is fine.
-        auto to_1d = []<typename T>(T&& accessor) {
-            if constexpr (nt::is_accessor_value_v<T>)
-                return std::forward<T>(accessor);
-            else
-                return accessor[blockIdx.y]; // AccessorReference
-        };
-        auto input_1d = std::move(input).map(to_1d);
-        auto output_1d = std::move(output).map(to_1d);
-
-        ewise_vectorized<Block, Interface, InputAlignedBuffer, OutputAlignedBuffer>(op, input_1d, output_1d, width, ci);
     }
 
     template<typename Block, typename Interface, typename Op, typename Input, typename Output, typename Index>
     __global__ __launch_bounds__(Block::block_size)
-    void ewise_1d(
-        Op op, Input input, Output output, Index width
-    ) {
-        using compute_handle_t = ComputeHandle<Index,
-            /*GridDim=*/ 1,
-            /*BlockDim=*/ 1,
-            /*IsMultiGridKernel=*/ true,
-            /*IsUsingDynamicSharedMemory=*/ false,
-            /*IsTwoPartReduction=*/ false
-        >;
-        const auto ci = compute_handle_t({}, {});
+    void ewise_1d(Op op, Input input, Output output, Index width) {
+        const auto ci = ComputeHandle<Index, 1, 1, false, false, false>();
         Interface::init(ci, op);
 
         const auto gid = global_indices_1d<Index, Block>();
@@ -134,20 +85,39 @@ namespace noa::cuda::details {
         Interface::deinit(ci, op);
     }
 
+    template<typename Block, typename Interface, typename Op, typename Index,
+         typename Input, typename InputAlignedBuffer,
+         typename Output, typename OutputAlignedBuffer>
+    __global__ __launch_bounds__(Block::block_size)
+    void ewise_2d_vectorized(
+        Op op, Input input, Output output, Index width,
+        Vec<u32, 1> grid_outer_size, Vec<u32, 1> grid_outer_offset
+    ) {
+        const auto ci = ComputeHandle<Index, 2, 1, true, false, false>(grid_outer_size, grid_outer_offset);
+
+        // Offset to the current row.
+        // AccessorValue(s) are simply moved, and 2d Accessor(s) return 1d AccessorReference(s).
+        // Note that AccessorReference points to the strides of the original Accessor, but since
+        // the move is non-destructive (it's just a cast here), everything is fine.
+        auto to_1d = []<typename T>(T&& accessor) {
+            if constexpr (nt::is_accessor_value_v<T>)
+                return std::forward<T>(accessor);
+            else
+                return accessor[blockIdx.y];
+        };
+        auto input_1d = std::move(input).map(to_1d);
+        auto output_1d = std::move(output).map(to_1d);
+
+        ewise_vectorized<Block, Interface, InputAlignedBuffer, OutputAlignedBuffer>(op, input_1d, output_1d, width, ci);
+    }
+
     template<typename Block, typename Interface, typename Op, typename Input, typename Output, typename Index>
     __global__ __launch_bounds__(Block::block_size)
     void ewise_2d(
         Op op, Input input, Output output, Index width,
-        Vec<u32, 1> grid_size_y, Vec<u32, 1> block_index_offset_y
+        Vec<u32, 1> grid_outer_size, Vec<u32, 1> grid_outer_offset
     ) {
-        using compute_handle_t = ComputeHandle<Index,
-            /*GridDim=*/ 2,
-            /*BlockDim=*/ 1,
-            /*IsMultiGridKernel=*/ true,
-            /*IsUsingDynamicSharedMemory=*/ false,
-            /*IsTwoPartReduction=*/ false
-        >;
-        const auto ci = compute_handle_t(grid_size_y, block_index_offset_y);
+        const auto ci = ComputeHandle<Index, 2, 1, true, false, false>(grid_outer_size, grid_outer_offset);
         Interface::init(ci, op);
 
         const auto gid = global_indices_2d<Index, Block>();
@@ -159,32 +129,29 @@ namespace noa::cuda::details {
         Interface::deinit(ci, op);
     }
 
-    // Element-wise kernel, for N > 2.
+    // N >= 3.
     template<usize N, typename Block, typename Interface, typename Op, typename Input, typename Output, typename Index>
     __global__ __launch_bounds__(Block::block_size)
     void ewise_nd(
         Op op, Input input, Output output, Shape<Index, 2> shape_hw,
-        Vec<u32, 2> grid_shape_zy, Vec<u32, 2> block_index_offset_zy, Shape<u32, N - 3> fused_shape
+        Vec<u32, 2> grid_outer_shape,
+        Vec<u32, 2> grid_outer_offset,
+        Vec<u32, N - 3> grid_fused_shape_in_x_unbatched
     ) {
-        using compute_handle = ComputeHandle<Index,
-            /*GridDim=*/ 3,
-            /*BlockDim=*/ Block::block_ndim,
-            /*IsMultiGridKernel=*/ true,
-            /*IsUsingDynamicSharedMemory=*/ false,
-            /*IsTwoPartReduction=*/ false
-        >;
-
-        const auto ci = compute_handle(grid_shape_zy, block_index_offset_zy);
+        const auto ci = ComputeHandle<Index, 3, Block::block_ndim, true, false, false>(grid_outer_shape, grid_outer_offset);
         Interface::init(ci, op);
 
-        const auto gid = global_indices<Index, N, Block>(fused_shape);
+        // Compute the global indices.
+        // Unfused grid axes along the X axis.
+        // Handle multigrid support by adding the grid offset.
+        const auto gid = global_indices<Index, N, Block>(grid_fused_shape_in_x_unbatched, grid_outer_offset);
+
         auto to_2d = [&gid]<typename T>(T&& accessor) {
             if constexpr (nt::is_accessor_value_v<T>) {
-                return std::forward<T>(accessor); // move AccessorValue
-            } else if constexpr (N == 3) {
-                return accessor[gid[0]]; // 3d Accessor -> 2d AccessorReference
-            } else if constexpr (N == 4) {
-                return accessor[gid[0]][gid[1]]; // 4d Accessor -> 2d AccessorReference
+                return std::forward<T>(accessor);
+            } else if constexpr (N >= 3) {
+                // Index the outer dimensions, leaving HW.
+                return accessor[gid.template pop_back<2>()];
             } else {
                 static_assert(nt::always_false<T>);
             }
@@ -206,8 +173,8 @@ namespace noa::cuda::details {
     template<usize ALIGNMENT, usize N, typename Config, typename Input, typename Output,  typename Op, typename Index>
     void launch_ewise_1d_or_2d(
         Op&& op,
-        Input&& input,
-        Output&& output,
+        Input&& input, // (((1..,)H,)W)
+        Output&& output, // (((1..,)H,)W)
         Stream& stream,
         Index n_elements,
         u32 batch
@@ -231,10 +198,7 @@ namespace noa::cuda::details {
             };
             if constexpr (VECTORIZE) {
                 stream.enqueue(
-                    details::ewise_1d_vectorized<
-                        Block, Interface, OpDecay, Index,
-                        std::decay_t<Input>, InputVec,
-                        std::decay_t<Output>, OutputVec>,
+                    details::ewise_1d_vectorized<Block, Interface, OpDecay, Index, std::decay_t<Input>, InputVec, std::decay_t<Output>, OutputVec>,
                     config, op, std::forward<Input>(input), std::forward<Output>(output), n_elements
                 );
             } else {
@@ -244,13 +208,12 @@ namespace noa::cuda::details {
                 );
             }
         } else {
-            constexpr auto DIMENSIONS = Vec<usize, 2>{0, 1} + N - 2;
-            constexpr auto CONFIG = nd::AccessorConfig<2>{
+            constexpr auto CONFIG = nd::AccessorConfig{
                 .enforce_contiguous = VECTORIZE,
                 .enforce_restrict = false,
             };
-            auto input_2d = nd::reconfig_accessors<CONFIG>(std::forward<Input>(input), DIMENSIONS);
-            auto output_2d = nd::reconfig_accessors<CONFIG>(std::forward<Output>(output), DIMENSIONS);
+            auto input_2d = nd::reconfig_accessors<CONFIG>(std::forward<Input>(input), N - 2, N - 1);
+            auto output_2d = nd::reconfig_accessors<CONFIG>(std::forward<Output>(output), N - 2, N - 1);
             using Input2D = decltype(input_2d);
             using Output2D = decltype(output_2d);
 
@@ -259,22 +222,25 @@ namespace noa::cuda::details {
             check(grid_x.n_launches() == 1, "grid.x is larger than the maximum size currently allowed");
 
             for (u32 y{}; y < grid_y.n_launches(); ++y) {
+                // We can offset the accessors directly because the grid Y has a block size of 1,
+                // meaning the grid offset is equal to the actual index in the arrays.
                 nd::offset_accessors(Vec{grid_y.offset_additive(y)}, input_2d, output_2d);
+
                 const auto config = LaunchConfig{
                     .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y)),
                     .n_threads = dim3(Block::block_size, 1),
                 };
-                const auto grid_size = Vec{grid_y.n_blocks_total()}.template as<u32>();
-                const auto grid_offset = Vec{grid_y.offset(y)};
+                const auto grid_outer_size = Vec{grid_y.n_blocks_total()}.template as<u32>();
+                const auto grid_outer_offset = Vec{grid_y.offset(y)};
                 if constexpr (VECTORIZE) {
                     stream.enqueue(
                         details::ewise_2d_vectorized<Block, Interface, OpDecay, Index, Input2D, InputVec, Output2D, OutputVec>,
-                        config, op, input_2d, output_2d, n_elements, grid_size, grid_offset
+                        config, op, input_2d, output_2d, n_elements, grid_outer_size, grid_outer_offset
                     );
                 } else {
                     stream.enqueue(
                         details::ewise_2d<Block, Interface, OpDecay, Input2D, Output2D, Index>,
-                        config, op, input_2d, output_2d, n_elements, grid_size, grid_offset
+                        config, op, input_2d, output_2d, n_elements, grid_outer_size, grid_outer_offset
                     );
                 }
             }
@@ -313,75 +279,63 @@ namespace noa::cuda {
         Output&& output,
         Stream& stream
     ) {
-        // Collapse contiguous dimensions.
-        const auto shape_iz = shape.template as_safe<isize>();
-        const auto contiguity = nd::accessors_contiguity(shape, input, output);
-        const auto broadcasting = nd::accessors_broadcasting(shape, input, output);
-        auto collapsed_shape = noa::collapse(shape_iz, contiguity, broadcasting);
-        collapsed_shape = collapsed_shape.permute(squeeze_empty_dimensions_left(collapsed_shape));
-
-        // Reshape the accessors to the new shape.
-        auto input_collapsed = std::forward<Input>(input);
-        auto output_collapsed = std::forward<Output>(output);
-        check(nd::reshape_accessors<true>(shape_iz, collapsed_shape, input_collapsed, output_collapsed),
-              "INTERNAL: reshape failed, please report this issue, shape={}, contiguity={}, broadcasting={}",
-              shape_iz, contiguity, broadcasting);
-
-        // Check whether we can use the 1d/2d kernels.
-        // TODO Collapsing dimensions together may end up causing multi kernel launches. If so, revert back to original shape?
-        bool use_rows{true};
-        if constexpr (N >= 3) {
-            for (usize i{}; i < N - 2; ++i)
-                if (collapsed_shape[i] > 1)
-                    use_rows = false;
+        // Assume layout is optimized and shape is collapsed.
+        bool use_row_kernels{true};
+        if constexpr (N > 1) {
+            for (usize i{}; i < N - 1; ++i)
+                if (shape[i] > 1)
+                    use_row_kernels = false;
         }
 
-        if (use_rows) {
-            const auto n_rows = N == 1 ? u32{1} : safe_cast<u32>(collapsed_shape[N - 2]);
-            const auto width = safe_cast<Index>(collapsed_shape[N - 1]);
+        if (use_row_kernels) {
+            const auto n_rows = N == 1 ? u32{1} : safe_cast<u32>(shape[N - 2]);
+            const auto width = safe_cast<Index>(shape[N - 1]);
             if constexpr (Config::enable_vectorization and nt::enable_vectorization_v<Op>) {
                 // Find the minimum row alignment.
-                auto shape_without_width = Shape<u32, N - 1>::from_value(1);
+                auto shape_no_width = Shape<u32, N - 1>::from_value(1);
                 if constexpr (N >= 2)
-                    shape_without_width[N - 2] = n_rows;
+                    shape_no_width[N - 2] = n_rows;
                 const auto alignment = min(
-                    min_address_alignment(input_collapsed, shape_without_width),
-                    min_address_alignment(output_collapsed, shape_without_width)
+                    min_address_alignment(input, shape_no_width),
+                    min_address_alignment(output, shape_no_width)
                 );
                 if (alignment == 16) {
                     return details::launch_ewise_1d_or_2d<16, N, Config>(
                         std::forward<Op>(op),
-                        std::move(input_collapsed),
-                        std::move(output_collapsed),
+                        std::forward<Input>(input),
+                        std::forward<Output>(output),
                         stream, width, n_rows
                     );
-                } else if (alignment == 8) {
+                }
+                if (alignment == 8) {
                     return details::launch_ewise_1d_or_2d<8, N, Config>(
                         std::forward<Op>(op),
-                        std::move(input_collapsed),
-                        std::move(output_collapsed),
+                        std::forward<Input>(input),
+                        std::forward<Output>(output),
                         stream, width, n_rows
                     );
-                } else if (alignment == 4) {
+                }
+                if (alignment == 4) {
                     return details::launch_ewise_1d_or_2d<4, N, Config>(
                         std::forward<Op>(op),
-                        std::move(input_collapsed),
-                        std::move(output_collapsed),
+                        std::forward<Input>(input),
+                        std::forward<Output>(output),
                         stream, width, n_rows
                     );
-                } else if (alignment == 2) {
+                }
+                if (alignment == 2) {
                     return details::launch_ewise_1d_or_2d<2, N, Config>(
                         std::forward<Op>(op),
-                        std::move(input_collapsed),
-                        std::move(output_collapsed),
+                        std::forward<Input>(input),
+                        std::forward<Output>(output),
                         stream, width, n_rows
                     );
                 }
             }
             return details::launch_ewise_1d_or_2d<1, N, Config>(
                 std::forward<Op>(op),
-                std::move(input_collapsed),
-                std::move(output_collapsed),
+                std::forward<Input>(input),
+                std::forward<Output>(output),
                 stream, width, n_rows
             );
         }
@@ -403,22 +357,21 @@ namespace noa::cuda {
             block_work_shape[N - 2] = Block::block_work_size_y;
             block_work_shape[N - 1] = Block::block_work_size_x;
 
-            auto grid = GridND(collapsed_shape, block_work_shape.template as<isize>());
-            check(grid.n_launches_x() == 1, "grid.x is larger than the maximum size currently allowed");
+            auto grid = GridND(shape, block_work_shape.template as<isize>());
+            check(grid.n_launches_x() == 1);
             using Interface = Config::interface;
 
             // Launch the grid.
             for (u32 z{}; z < grid.n_launches_z(); ++z) {
                 for (u32 y{}; y < grid.n_launches_y(); ++y) {
-                    nd::offset_accessors(grid.incremental_block_offset_for_launch(z, y), input_collapsed, output_collapsed);
                     const auto config = LaunchConfig{
                         .n_blocks = grid.dim3_shape_for_launch(z, y, 0),
                         .n_threads = dim3(Block::block_size_x, Block::block_size_y, 1),
                     };
                     stream.enqueue(
                         details::ewise_nd<N, Block, Interface, std::decay_t<Op>, std::decay_t<Input>, std::decay_t<Output>, Index>,
-                        config, op, input_collapsed, output_collapsed, collapsed_shape.template pop_front<N - 2>(),
-                        grid.outer_shape().vec, grid.block_offset_for_launch(z, y), grid.fused_shape().pop_front()
+                        config, op, input, output, shape.filter(N - 2, N - 1),
+                        grid.outer_shape().vec, grid.block_offset_for_launch(z, y), grid.fused_shape().vec.pop_front()
                     );
                 }
             }

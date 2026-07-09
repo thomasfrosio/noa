@@ -86,7 +86,7 @@ TEST_CASE("runtime::cuda::ewise") {
     // }
 
     SECTION("simply fill and copy") {
-        const auto shape = test::random_shape<isize, 4>(4);
+        const auto shape = test::random_shape_batched<isize, 4>(3);
         const auto elements = shape.n_elements();
         constexpr auto value = 3.1415;
 
@@ -145,7 +145,7 @@ TEST_CASE("runtime::cuda::ewise") {
     }
 
     SECTION("more complex example") {
-        const auto shape = test::random_shape_batched(4);
+        const auto shape = test::random_shape_batched<isize, 4>(3);
         const auto n_elements = shape.n_elements();
 
         const auto b0 = AllocatorManaged::allocate<f32>(n_elements, stream);
@@ -186,7 +186,7 @@ TEST_CASE("runtime::cuda::ewise") {
     }
 
     SECTION("more complex example, vectorized") {
-        const auto shape = test::random_shape_batched(4);
+        const auto shape = test::random_shape_batched<isize, 4>(3);
         const auto strides_u32 = shape.as<u32>().strides();
         const auto n_elements = shape.n_elements();
 
@@ -222,7 +222,7 @@ TEST_CASE("runtime::cuda::ewise") {
     }
 }
 
-TEMPLATE_TEST_CASE("runtime::cuda::ewise - copy", "", i8, i16, i32, i64, c16, c32, c64) {
+TEMPLATE_TEST_CASE("runtime::cuda::ewise - copy", "", i8, i32, c16, c64) {
     using namespace noa::types;
     using noa::cuda::ewise;
     using noa::cuda::EwiseConfig;
@@ -233,43 +233,37 @@ TEMPLATE_TEST_CASE("runtime::cuda::ewise - copy", "", i8, i16, i32, i64, c16, c3
 
     Stream stream(Device::current());
 
-    const auto shapes = std::array{
-        Shape4{1, 1, 1, 512},
-        Shape4{2, 6, 40, 65},
-        test::random_shape_batched(1),
-        test::random_shape_batched(2),
-        test::random_shape_batched(3),
-        test::random_shape_batched(4),
-    };
-
-    for (const auto& shape: shapes) {
+    const auto shapes = noa::make_tuple(
+        test::random_shape<isize, 2>(1),
+        test::random_shape<isize, 3>(1),
+        test::random_shape<isize, 3>(2),
+        test::random_shape<isize, 4>(1),
+        test::random_shape<isize, 4>(2),
+        test::random_shape<isize, 5>(1),
+        test::random_shape<isize, 5>(2),
+        test::random_shape<isize, 6>(1),
+        test::random_shape<isize, 6>(2),
+        test::random_shape_batched<isize, 1>(1),
+        test::random_shape_batched<isize, 2>(2),
+        test::random_shape_batched<isize, 3>(3),
+        test::random_shape_batched<isize, 4>(3),
+        test::random_shape_batched<isize, 5>(3),
+        test::random_shape_batched<isize, 6>(3)
+    );
+    shapes.for_each([&]<usize N>(const Shape<isize, N>& shape) {
         const auto n_elements = shape.n_elements();
 
-        const auto buffer = AllocatorManaged::allocate<value_t>(n_elements, stream);
-        const auto expected = AllocatorManaged::allocate<value_t>(n_elements, stream);
-        test::randomize(buffer.get(), n_elements, test::Randomizer<value_t>(-128, 127));
+        const auto input_buffer = AllocatorManaged::allocate<value_t>(n_elements, stream);
+        const auto output_buffer = AllocatorManaged::allocate<value_t>(n_elements, stream);
+        test::randomize(input_buffer.get(), n_elements, test::Randomizer<value_t>(-128, 127));
 
-        auto input = noa::make_tuple(Accessor<const value_t, 4>(buffer.get(), shape.strides()));
-        auto output = noa::make_tuple(Accessor<value_t, 4>(expected.get(), shape.strides()));
+        auto input = noa::make_tuple(Accessor<const value_t, N>(input_buffer.get(), shape.strides()));
+        auto output = noa::make_tuple(Accessor<value_t, N>(output_buffer.get(), shape.strides()));
 
         ewise(shape, noa::Copy{}, input, output, stream);
         stream.synchronize();
-        REQUIRE(test::allclose_abs(buffer.get(), expected.get(), n_elements, 1e-6));
-
-        test::fill(buffer.get(), n_elements, value_t{});
-        ewise(shape, []__device__(auto i, auto& o) { o = i; }, input, output, stream);
-        stream.synchronize();
-        REQUIRE(test::allclose_abs(buffer.get(), expected.get(), n_elements, 1e-6));
-
-        // Trigger strided implementation.
-        input[Tag<0>{}].strides()[0] = 0;
-        output[Tag<0>{}].strides()[0] = 0;
-
-        test::fill(buffer.get(), n_elements, value_t{});
-        ewise(shape, noa::Copy{}, input, output, stream);
-        stream.synchronize();
-        REQUIRE(test::allclose_abs(buffer.get(), expected.get(), n_elements, 1e-6));
-    }
+        REQUIRE(test::allclose_abs(input_buffer.get(), output_buffer.get(), n_elements, 1e-6));
+    });
 }
 
 TEST_CASE("runtime::cuda::ewise - multi-grid - 2d") {

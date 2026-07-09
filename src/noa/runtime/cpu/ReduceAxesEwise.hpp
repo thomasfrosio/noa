@@ -258,11 +258,17 @@ namespace noa::cpu {
 
                 // Optimize for 2d case.
                 const bool is_2d = first_non_empty == N - 2;
-                const auto shape_2d = Shape<Index, 2>{n_reductions, n_elements_per_reduction};
-                constexpr auto CONTIGUOUS_RESTRICT_2D = nd::AccessorConfig<2>{
+                const auto shape_2d = Shape<Index, 2>{n_reductions, safe_cast<Index>(n_elements_per_reduction)};
+                constexpr auto CONTIGUOUS_RESTRICT = nd::AccessorConfig{
                     .enforce_contiguous = true,
                     .enforce_restrict = true,
                 };
+
+                // Otherwise, do the nd batch reduction.
+                // The batch should be the leftmost dimensions. In cases with empty dimensions before the first
+                // non-empty axis, the input and input shape should be reordered.
+                auto order_to_batch = Vec<usize, N>::arange();
+                std::swap(order_to_batch[0], order_to_batch[first_non_empty]);
 
                 // SAFETY: If the operator has enabled vectorization, this function de facto
                 // assumes that the none of inputs and outputs are not aliasing.
@@ -272,7 +278,7 @@ namespace noa::cpu {
 
                 if (parallel_reduction) {
                     if (is_2d and is_restrict) {
-                        auto input_2d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT_2D>(
+                        auto input_2d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT>(
                             std::forward<Input>(input), N - 2, N - 1);
                         reduce_axes_ewise_t::template run<3>(
                             shape_2d,
@@ -282,17 +288,20 @@ namespace noa::cpu {
                             std::move(output_1d),
                             actual_n_threads);
                     } else {
+                        auto input_nd = std::forward<Input>(input);
+                        nd::permute_accessors(order_to_batch, input_nd);
+                        auto input_shape_nd = input_shape.filter(order_to_batch);
                         reduce_axes_ewise_t::template run<3>(
-                            input_shape,
+                            input_shape_nd,
                             std::forward<Op>(op),
-                            std::forward<Input>(input),
+                            std::move(input_nd),
                             std::forward<Reduced>(reduced),
                             std::move(output_1d),
                             actual_n_threads);
                     }
                 } else {
                     if (is_2d and is_restrict) {
-                        auto input_2d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT_2D>(
+                        auto input_2d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT>(
                             std::forward<Input>(input), N - 2, N - 1);
                         reduce_axes_ewise_t::template run<2>(
                             shape_2d,
@@ -302,10 +311,13 @@ namespace noa::cpu {
                             std::move(output_1d),
                             actual_n_threads);
                     } else {
+                        auto input_nd = std::forward<Input>(input);
+                        nd::permute_accessors(order_to_batch, input_nd);
+                        auto input_shape_nd = input_shape.filter(order_to_batch);
                         reduce_axes_ewise_t::template run<2>(
-                            input_shape,
+                            input_shape_nd,
                             std::forward<Op>(op),
-                            std::forward<Input>(input),
+                            std::move(input_nd),
                             std::forward<Reduced>(reduced),
                             std::move(output_1d),
                             actual_n_threads);

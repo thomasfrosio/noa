@@ -48,8 +48,9 @@ TEST_CASE("runtime::cuda::reduce_iwise") {
         Shape1{2451}, Shape1{524289},
         Shape2{72, 130}, Shape2{542, 845},
         Shape3{4, 45, 35}, Shape3{64, 64, 64},
-        Shape4{2, 3, 25, 35}, Shape4{3, 64, 64, 64},
-        Shape4{2, 128, 128, 128}
+        Shape4{2, 3, 25, 35}, Shape4{3, 64, 64, 64}, Shape4{2, 128, 128, 128},
+        Shape5{2, 3, 18, 56, 55}, Shape5{2, 3, 4, 32, 64}, Shape5{2, 3, 4, 2, 32},
+        Shape6{2, 3, 4, 8, 56, 55}, Shape6{2, 3, 4, 5, 32, 64}, Shape6{2, 3, 4, 2, 3, 16}
     );
     shapes.for_each([&]<usize N>(const Shape<isize, N>& shape) {
         INFO("shape=" << shape);
@@ -59,9 +60,9 @@ TEST_CASE("runtime::cuda::reduce_iwise") {
         const auto b2 = AllocatorManaged::allocate<Pair<f64, i32>>(1, stream);
         test::randomize(b0.get(), n_elements, test::Randomizer<f64>(-5, 10));
 
-        const i32 expected_index = 1751;
+        const i32 expected_index = static_cast<i32>(test::random_value(isize{}, n_elements - 1));
         const f64 expected_max = 16.23;
-        b0[expected_index] = expected_max;
+        b0[static_cast<usize>(expected_index)] = expected_max;
         const auto expected_sum = std::accumulate(b0.get(), b0.get() + n_elements, 0.);
 
         auto reduced = noa::make_tuple(

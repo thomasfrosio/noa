@@ -78,11 +78,51 @@ namespace noa::cuda::details {
         check(cudaMemcpy3DAsync(&params, stream.id()));
     }
 
-    template<typename Config = EwiseConfig<>, typename T> requires (not std::is_trivially_copyable_v<T>)
+    template<typename T, typename U, usize N>
+    void copy_accessors_nd(T src, U dst, Shape<isize, N> shape) {
+        if constexpr (N == 1) {
+            for (isize i = 0; i < shape[0]; ++i)
+                dst(i) = src(i);
+        } else if constexpr (N == 2) {
+            for (isize i = 0; i < shape[0]; ++i)
+                for (isize j = 0; j < shape[1]; ++j)
+                    dst(i, j) = src(i, j);
+        } else if constexpr (N == 3) {
+            for (isize i = 0; i < shape[0]; ++i)
+                for (isize j = 0; j < shape[1]; ++j)
+                    for (isize k = 0; k < shape[2]; ++k)
+                        dst(i, j, k) = src(i, j, k);
+        } else if constexpr (N == 4) {
+            for (isize i = 0; i < shape[0]; ++i)
+                for (isize j = 0; j < shape[1]; ++j)
+                    for (isize k = 0; k < shape[2]; ++k)
+                        for (isize l = 0; l < shape[3]; ++l)
+                                dst(i, j, k, l) = src(i, j, k, l);
+        } else if constexpr (N == 5) {
+            for (isize i = 0; i < shape[0]; ++i)
+                for (isize j = 0; j < shape[1]; ++j)
+                    for (isize k = 0; k < shape[2]; ++k)
+                        for (isize l = 0; l < shape[3]; ++l)
+                            for (isize m = 0; m < shape[4]; ++m)
+                                dst(i, j, k, l, m) = src(i, j, k, l, m);
+        } else if constexpr (N == 6) {
+            for (isize i = 0; i < shape[0]; ++i)
+                for (isize j = 0; j < shape[1]; ++j)
+                    for (isize k = 0; k < shape[2]; ++k)
+                        for (isize l = 0; l < shape[3]; ++l)
+                            for (isize m = 0; m < shape[4]; ++m)
+                                for (isize n = 0; n < shape[5]; ++n)
+                                    dst(i, j, k, l, m, n) = src(i, j, k, l, m, n);
+        } else {
+            static_assert(nt::always_false<T>);
+        }
+    }
+
+    template<typename Config = EwiseConfig<>, typename T, usize N> requires (not std::is_trivially_copyable_v<T>)
     void copy_non_trivial_contiguous(
-        const T* src, Strides4 src_strides,
-        T* dst, Strides4 dst_strides,
-        Shape4 shape, Stream& stream
+        const T* src, Strides<isize, N> src_strides,
+        T* dst, Strides<isize, N> dst_strides,
+        Shape<isize, N> shape, Stream& stream
     ) {
         static_assert(cudaMemoryTypeUnregistered == 0);
         static_assert(cudaMemoryTypeHost == 1);
@@ -94,11 +134,11 @@ namespace noa::cuda::details {
 
         if (src_attr.type == 2 and dst_attr.type == 2) {
             check(src_attr.device == dst_attr.device,
-                  "Copying elements of a non-trivially copyable type between device memory of two different devices "
-                  "(device:src={}, device:dst={}) is not supported", src_attr.device, dst_attr.device);
+                  "Copying elements of a non-trivially copyable type between device memory of two different devices (device:src={}, device:dst={}) is not supported",
+                  src_attr.device, dst_attr.device);
 
-            auto input = noa::make_tuple(AccessorRestrictContiguous<const T, 4, isize>(src, src_strides));
-            auto output = noa::make_tuple(AccessorRestrictContiguous<T, 4, isize>(dst, dst_strides));
+            auto input = noa::make_tuple(AccessorRestrictContiguous<const T, N, isize>(src, src_strides));
+            auto output = noa::make_tuple(AccessorRestrictContiguous<T, N, isize>(dst, dst_strides));
             ewise<Config>(shape, Copy{}, std::move(input), std::move(output), stream);
 
         } else if (src_attr.type >= 1 and dst_attr.type >= 1) {
@@ -117,21 +157,17 @@ namespace noa::cuda::details {
             // TODO For managed pointers, use cudaMemPrefetchAsync()?
             auto src_ptr = static_cast<const T*>(src_attr.devicePointer);
             auto dst_ptr = static_cast<T*>(dst_attr.devicePointer);
-            auto input = noa::make_tuple(AccessorRestrictContiguous<const T, 4, isize>(src_ptr, src_strides));
-            auto output = noa::make_tuple(AccessorRestrictContiguous<T, 4, isize>(dst_ptr, dst_strides));
+            auto input = noa::make_tuple(AccessorRestrictContiguous<const T, N, isize>(src_ptr, src_strides));
+            auto output = noa::make_tuple(AccessorRestrictContiguous<T, N, isize>(dst_ptr, dst_strides));
             ewise<Config>(shape, Copy{}, std::move(input), std::move(output), stream);
 
         } else if ((src_attr.type <= 1 or src_attr.type == 3) and
                    (dst_attr.type <= 1 or dst_attr.type == 3)) {
             // Both can be accessed on the host. Realistically, this never happens.
-            const auto src_accessor = AccessorRestrictContiguous<const T, 4, isize>(src, src_strides);
-            const auto dst_accessor = AccessorRestrictContiguous<T, 4, isize>(dst, dst_strides);
+            const auto src_accessor = AccessorRestrictContiguous<const T, N, isize>(src, src_strides);
+            const auto dst_accessor = AccessorRestrictContiguous<T, N, isize>(dst, dst_strides);
             stream.synchronize(); // TODO Use a callback instead?
-            for (isize i = 0; i < shape[0]; ++i)
-                for (isize j = 0; j < shape[1]; ++j)
-                    for (isize k = 0; k < shape[2]; ++k)
-                        for (isize l = 0; l < shape[3]; ++l)
-                            dst_accessor(i, j, k, l) = src_accessor(i, j, k, l);
+            copy_accessors_nd(src_accessor, dst_accessor, shape);
 
         } else {
             panic("Copying elements of a non-trivially copyable type between an unregistered host region and a device is not supported");
@@ -178,16 +214,16 @@ namespace noa::cuda {
     }
 
     /// Copies a strided range, asynchronously.
-    template<typename T>
+    template<typename T, usize N>
     void copy(
-        const T* src, Strides4 src_strides,
-        T* dst, Strides4 dst_strides,
-        Shape4 shape, Stream& stream
+        const T* src, Strides<isize, N> src_strides,
+        T* dst, Strides<isize, N> dst_strides,
+        Shape<isize, N> shape, Stream& stream
     ) {
         // If contiguous or with a pitch, then we can rely on the CUDA runtime.
         // Given that we reorder to rightmost order and collapse the contiguous dimensions together,
         // this ends up being 99% of cases.
-        Vec<bool, 4> is_contiguous;
+        Vec<bool, N> is_contiguous;
         for (i32 test = 0; test <= 1; ++test) {
             // Rearrange to the rightmost order. Empty and broadcast dimensions in the output are moved to the left.
             // The input can be broadcast onto the output shape. While it is not valid for the output to broadcast
@@ -197,11 +233,14 @@ namespace noa::cuda {
             nd::permute_all_to_rightmost_order(dst_strides, shape, shape, src_strides, dst_strides);
 
             is_contiguous = src_strides.contiguity(shape) and dst_strides.contiguity(shape);
-            if (is_contiguous[0] and is_contiguous[1] and is_contiguous[3]) {
-                if (is_contiguous[2]) // contiguous
-                    return copy(src, dst, shape.n_elements(), stream);
-                if (src_strides[2] >= shape[3] and dst_strides[2] >= shape[3]) // 2d pitched
+            if (is_contiguous == true)
+                return copy(src, dst, shape.n_elements(), stream);
+            if constexpr (N >= 2) {
+                if (is_contiguous.set<(N - 2)>(true) == true and
+                    src_strides[N - 2] >= shape[N - 1] and
+                    dst_strides[N - 2] >= shape[N - 1]) {
                     return copy(src, src_strides[2], dst, dst_strides[2], shape, stream);
+                }
             }
 
             if (test == 0) { // try once
@@ -210,14 +249,14 @@ namespace noa::cuda {
                 // 2d pitched layouts.
                 const auto contiguity = src_strides.contiguity(shape) and dst_strides.contiguity(shape);
                 const auto broadcasting = src_strides.broadcasting(shape) or dst_strides.broadcasting(shape);
-                auto collapsed_shape = collapse_contiguous_dimensions(shape, contiguity, broadcasting);
-                collapsed_shape = collapsed_shape.permute(squeeze_empty_dimensions_left(collapsed_shape));
+                auto collapsed_shape = noa::collapse(shape, contiguity, broadcasting);
+                collapsed_shape = collapsed_shape.permute(noa::squeeze_empty_dimensions_left(collapsed_shape));
 
                 // We have a new shape, so compute the new strides.
-                Strides4 new_src_strides;
-                Strides4 new_dst_strides;
-                if (reshape(shape, src_strides, collapsed_shape, new_src_strides) and
-                    reshape(shape, dst_strides, collapsed_shape, new_dst_strides)) {
+                Strides<isize, N> new_src_strides;
+                Strides<isize, N> new_dst_strides;
+                if (noa::reshape(shape, src_strides, collapsed_shape, new_src_strides) and
+                    noa::reshape(shape, dst_strides, collapsed_shape, new_dst_strides)) {
                     // Update and try again.
                     shape = collapsed_shape;
                     src_strides = new_src_strides;
@@ -235,52 +274,34 @@ namespace noa::cuda {
 
         if (src_attr.type == 2 and dst_attr.type == 2) { // within device memory
             check(src_attr.device == dst_attr.device,
-                  "Copying strided regions, other than in the height dimension, between different devices "
-                  "is currently not supported. Trying to copy an array of shape {} from (device:{}, strides:{}) "
-                  "to (device:{}, strides:{}) ",
+                  "Copying strided regions with an uncollapsible layout between different devices is currently not supported. Trying to copy an array of shape {} from (device={}, strides={}) to (device={}, strides={}) ",
                   shape, src_attr.device, src_strides, dst_attr.device, dst_strides);
 
-            auto input = noa::make_tuple(AccessorRestrict<const T, 4, isize>(src, src_strides));
-            auto output = noa::make_tuple(AccessorRestrict<T, 4, isize>(dst, dst_strides));
+            auto input = noa::make_tuple(AccessorRestrict<const T, N, isize>(src, src_strides));
+            auto output = noa::make_tuple(AccessorRestrict<T, N, isize>(dst, dst_strides));
             ewise(shape, Copy{}, std::move(input), std::move(output), stream);
 
         } else if (src_attr.type >= 1 and dst_attr.type >= 1) { // between pinned/device/managed memory
             check((src_attr.type != 2 or src_attr.device == stream.device().id()) and
                   (dst_attr.type == 2 or dst_attr.device == stream.device().id()),
-                  "Copying strided regions, other than in the height dimension, "
-                  "from or to a device that is not the stream's device is not supported");
+                  "Copying strided regions with an uncollapsible layout from or to a device that is not the stream's device is not supported");
 
             // TODO For managed pointers, use cudaMemPrefetchAsync()?
             auto src_ptr = static_cast<const T*>(src_attr.devicePointer);
             auto dst_ptr = static_cast<T*>(dst_attr.devicePointer);
-            auto input = noa::make_tuple(AccessorRestrict<const T, 4, isize>(src_ptr, src_strides));
-            auto output = noa::make_tuple(AccessorRestrict<T, 4, isize>(dst_ptr, dst_strides));
+            auto input = noa::make_tuple(AccessorRestrict<const T, N, isize>(src_ptr, src_strides));
+            auto output = noa::make_tuple(AccessorRestrict<T, N, isize>(dst_ptr, dst_strides));
             ewise(shape, Copy{}, std::move(input), std::move(output), stream);
 
         } else if ((src_attr.type <= 1 or src_attr.type == 3) and
                    (dst_attr.type <= 1 or dst_attr.type == 3)) { // between unregistered-host and managed memory
-            const auto src_accessor = AccessorRestrict<const T, 4, isize>(src, src_strides);
-            const auto dst_accessor = AccessorRestrict<T, 4, isize>(dst, dst_strides);
+            const auto src_accessor = AccessorRestrict<const T, N, isize>(src, src_strides);
+            const auto dst_accessor = AccessorRestrict<T, N, isize>(dst, dst_strides);
             stream.synchronize(); // FIXME Use a callback instead?
-            for (isize i = 0; i < shape[0]; ++i)
-                for (isize j = 0; j < shape[1]; ++j)
-                    for (isize k = 0; k < shape[2]; ++k)
-                        for (isize l = 0; l < shape[3]; ++l)
-                            dst_accessor(i, j, k, l) = src_accessor(i, j, k, l);
-
-        } else if (is_contiguous.pop_back() == true) {
-            // Last resort for strided row-vector(s). Since 3 first dimensions are contiguous, collapse them.
-            // Non-contiguous row vector can be reshaped to a 2D pitch array so that it can be passed to the CUDA API.
-            // This works for column vectors as well, since we've swapped everything to the rightmost order.
-            // Note: This is the last resort because it should be less efficient than our custom copy
-            // (on host or device), so this is only if the copy is between unregister host and device, and
-            // has a stride in the innermost dimension.
-            const auto shape_2d_pitched = Shape4{1, shape[0] * shape[1] * shape[2], shape[3], 1};
-            return copy(src, src_strides[3], dst, dst_strides[3], shape_2d_pitched, stream);
+            details::copy_accessors_nd(src_accessor, dst_accessor, shape);
 
         } else {
-            panic("Copying strided regions, other than in the height dimension, "
-                  "between an unregistered host region and a device is not supported");
+            panic("Copying strided regions with an uncollapsible layout between an unregistered host region and a device is not supported");
         }
     }
 }
@@ -345,8 +366,7 @@ namespace noa::cuda {
         const bool is_contiguous_2 = src_strides_3d[2] == 1;
         const bool is_contiguous_0 = src_strides_3d[0] == src_strides_3d[1] * shape_3d[1];
         check(is_rightmost and has_valid_pitch and is_contiguous_0 and is_contiguous_2,
-              "Input layout cannot be copied into a CUDA array. The input should be in the rightmost order, "
-              "and its {} and width dimension should be contiguous, but got shape {} and strides {}",
+              "Input layout cannot be copied into a CUDA array. The input should be in the rightmost order, and its {} and width dimension should be contiguous, but got shape {} and strides {}",
               is_layered ? "batch" : "depth", shape, src_strides);
 
         copy(src, src_strides[2], dst, shape_3d, stream);
@@ -379,8 +399,7 @@ namespace noa::cuda {
         const bool is_contiguous_2 = dst_strides_3d[2] == 1;
         const bool is_contiguous_0 = dst_strides_3d[0] == dst_strides_3d[1] * shape_3d[1];
         check(is_rightmost and has_valid_pitch and is_contiguous_0 and is_contiguous_2,
-              "Input layout cannot be copied into a CUDA array. The input should be in the rightmost order, "
-              "and its {} and width dimension should be contiguous, but got shape {} and strides {}",
+              "Input layout cannot be copied into a CUDA array. The input should be in the rightmost order, and its {} and width dimension should be contiguous, but got shape {} and strides {}",
               is_layered ? "batch" : "depth", shape, dst_strides);
 
         copy(src, dst, dst_strides[2], shape_3d, stream);

@@ -192,15 +192,21 @@ namespace noa::details {
                           output_shape, I, output.shape());
                 }
             });
-
-            const auto axes_to_reduce = input_shape.cmp_ne(output_shape);
-            check((axes_to_reduce and output_shape.cmp_ne(1)) == false,
-                  "Dimensions should match the input shape, or be 1, indicating the dimension should be reduced to one element. "
-                  "Got shape input:shape={}, output:shape={}", input_shape, output_shape);
-            check(axes_to_reduce.any_eq(true),
-                  "No reduction to compute. Got shape input:shape={}, output:shape={}. Use iwise instead.",
-                  input_shape, output_shape);
         }
+
+        const auto axes_to_reduce = input_shape.cmp_ne(output_shape);
+        check((axes_to_reduce and output_shape.cmp_ne(1)) == false,
+              "Dimensions should match the input shape, or be 1, indicating the dimension should be reduced to one element. Got shape input:shape={}, output:shape={}",
+              input_shape, output_shape);
+        check(axes_to_reduce.any_eq(true),
+              "No reduction to compute. Got shape input:shape={}, output:shape={}. Use iwise instead.",
+              input_shape, output_shape);
+
+        const auto axes_empty_or_to_reduce = output_shape.cmp_eq(1) or axes_to_reduce;
+        check(axes_empty_or_to_reduce.template pop_front<N == 1 ? 0 : 1>() == true or
+              sum(axes_to_reduce.template as<i32>()) == 1,
+              "Reducing more than one axis at a time is currently limited to a reduction that would result in the leftmost axis, i.e., all dimensions except the leftmost dimension should empty after reduction. Got input_shape={}, output_shape={}, axes_to_reduce={}",
+              input_shape, output_shape, axes_to_reduce);
 
         Tuple reduced_accessors = nd::to_tuple_of_accessor_values(std::forward<Reduced>(reduced));
         Tuple output_accessors = nd::to_tuple_of_accessors(outputs);
