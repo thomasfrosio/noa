@@ -330,13 +330,15 @@ namespace noa::cuda {
     public:
         static constexpr u32 N_DIMENSIONS_IN_X = N >= 4 ? N - 2 : 1;
 
+        template<typename T>
         constexpr GridND(
-            Shape<isize, N> shape,
-            Shape<isize, N> block_work_shape
+            Shape<T, N> shape,
+            Shape<T, N> block_work_shape
         ) {
             auto n_blocks = Vec<u32, N>{};
             for (usize i{}; i < N; ++i)
-                n_blocks[i] = safe_cast<u32>(divide_up(shape[i], block_work_shape[i]));
+                n_blocks[i] = safe_cast<u32>(divide_up(
+                    safe_cast<isize>(shape[i]), safe_cast<isize>(block_work_shape[i])));
 
             if constexpr (N == 1) {
                 m_fused_shape = n_blocks[0];
@@ -489,7 +491,7 @@ namespace noa::cuda::details {
             return Vec<T, 0>{};
     }
 
-    template<nt::integer T, usize N, typename Block> requires (N >= 4)
+    template<nt::integer T, usize N, typename Block, bool AddThreadIndices = true> requires (N >= 4)
     NOA_FD auto global_indices_nd(Vec<u32, N - 3> fused_shape, const Vec<u32, 2>& block_offset_zy = Vec<u32, 2>{}) {
         auto bid = block_indices<u32, 3>();
         bid[0] += block_offset_zy[0];
@@ -518,16 +520,18 @@ namespace noa::cuda::details {
             gid[3] = static_cast<T>(Block::block_work_size_x) * static_cast<T>(bid_unrolled[1]);
         }
 
-        if constexpr (Block::block_ndim == 3)
-            gid[N - 3] += static_cast<T>(threadIdx.z);
-        if constexpr (Block::block_ndim >= 2)
-            gid[N - 2] += static_cast<T>(threadIdx.y);
-        if constexpr (Block::block_ndim >= 1)
-            gid[N - 1] += static_cast<T>(threadIdx.x);
+        if constexpr (AddThreadIndices) {
+            if constexpr (Block::block_ndim == 3)
+                gid[N - 3] += static_cast<T>(threadIdx.z);
+            if constexpr (Block::block_ndim >= 2)
+                gid[N - 2] += static_cast<T>(threadIdx.y);
+            if constexpr (Block::block_ndim >= 1)
+                gid[N - 1] += static_cast<T>(threadIdx.x);
+        }
         return gid;
     }
 
-    template<nt::integer T, typename Block>
+    template<nt::integer T, typename Block, bool AddThreadIndices = true>
     NOA_FD auto global_indices_4d(u32 grid_size_x, const Vec<u32, 2>& block_offset_zy = Vec<u32, 2>{}) {
         auto bid = block_indices<T, 3>();
         bid[0] += block_offset_zy[0];
@@ -540,16 +544,18 @@ namespace noa::cuda::details {
             static_cast<T>(Block::block_work_size_y) * bid_yx[0],
             static_cast<T>(Block::block_work_size_x) * bid_yx[1],
         };
-        if constexpr (Block::block_ndim == 3)
-            gid[1] += static_cast<T>(threadIdx.z);
-        if constexpr (Block::block_ndim >= 2)
-            gid[2] += static_cast<T>(threadIdx.y);
-        if constexpr (Block::block_ndim >= 1)
-            gid[3] += static_cast<T>(threadIdx.x);
+        if constexpr (AddThreadIndices) {
+            if constexpr (Block::block_ndim == 3)
+                gid[1] += static_cast<T>(threadIdx.z);
+            if constexpr (Block::block_ndim >= 2)
+                gid[2] += static_cast<T>(threadIdx.y);
+            if constexpr (Block::block_ndim >= 1)
+                gid[3] += static_cast<T>(threadIdx.x);
+        }
         return gid;
     }
 
-    template<nt::integer T, typename Config>
+    template<nt::integer T, typename Config, bool AddThreadIndices = true>
     NOA_FD auto global_indices_3d(const Vec<u32, 2>& block_offset_zy = Vec<u32, 2>{}) {
         auto bid = block_indices<T, 3>();
         bid[0] += block_offset_zy[0];
@@ -560,16 +566,18 @@ namespace noa::cuda::details {
             static_cast<T>(Config::block_work_size_y) * static_cast<T>(bid[1]),
             static_cast<T>(Config::block_work_size_x) * static_cast<T>(bid[2]),
         };
-        if constexpr (Config::block_ndim == 3)
-            gid[0] += static_cast<T>(threadIdx.z);
-        if constexpr (Config::block_ndim >= 2)
-            gid[1] += static_cast<T>(threadIdx.y);
-        if constexpr (Config::block_ndim >= 1)
-            gid[2] += static_cast<T>(threadIdx.x);
+        if constexpr (AddThreadIndices) {
+            if constexpr (Config::block_ndim == 3)
+                gid[0] += static_cast<T>(threadIdx.z);
+            if constexpr (Config::block_ndim >= 2)
+                gid[1] += static_cast<T>(threadIdx.y);
+            if constexpr (Config::block_ndim >= 1)
+                gid[2] += static_cast<T>(threadIdx.x);
+        }
         return gid;
     }
 
-    template<nt::integer T, typename Config>
+    template<nt::integer T, typename Config, bool AddThreadIndices = true>
     NOA_FD auto global_indices_2d(const Vec<u32, 1>& block_offset_y = Vec<u32, 1>{}) {
         auto bid = block_indices<T, 2>();
         bid[0] += block_offset_y[0];
@@ -578,20 +586,21 @@ namespace noa::cuda::details {
             static_cast<T>(Config::block_work_size_y) * bid[0],
             static_cast<T>(Config::block_work_size_x) * bid[1],
         };
-        if constexpr (Config::block_ndim >= 2)
-            gid[0] += static_cast<T>(threadIdx.y);
-        if constexpr (Config::block_ndim >= 1)
-            gid[1] += static_cast<T>(threadIdx.x);
+        if constexpr (AddThreadIndices) {
+            if constexpr (Config::block_ndim >= 2)
+                gid[0] += static_cast<T>(threadIdx.y);
+            if constexpr (Config::block_ndim >= 1)
+                gid[1] += static_cast<T>(threadIdx.x);
+        }
         return gid;
     }
 
-    template<nt::integer T, typename Config>
+    template<nt::integer T, typename Config, bool AddThreadIndices = true>
     NOA_FD auto global_indices_1d() {
-        const auto bid = block_indices<T, 1>();
-        const auto tid = thread_indices<T, 1>();
-        return Vec{
-            static_cast<T>(Config::block_work_size_x) * bid[0] + tid[0],
-        };
+        auto gid = static_cast<T>(Config::block_work_size_x) * block_indices<T, 1>();
+        if constexpr (AddThreadIndices)
+            gid += thread_indices<T, 1>();
+        return gid;
     }
 
     /// Computes the indices within the grid.
@@ -603,7 +612,7 @@ namespace noa::cuda::details {
     ///     (Z)Y block offset for this launch.
     ///     We don't support multi launches along grid.x,
     ///     so that block offset is assumed to be zero.
-    template<nt::integer T, usize N, typename Config,
+    template<nt::integer T, usize N, typename Config, bool AddThreadIndices = true,
              usize FusedShapePoppedN = (N <= 3 ? 0 : N - 3),
              usize BlockOffsetN = (N == 1 ? 0 : N == 2 ? 1 : 2)>
     NOA_FD auto global_indices(
@@ -611,13 +620,13 @@ namespace noa::cuda::details {
         const Vec<u32, BlockOffsetN>& grid_outer_offset = Vec<u32, BlockOffsetN>{}
     ) {
         if constexpr (N == 1) {
-            return global_indices_1d<T, Config>();
+            return global_indices_1d<T, Config, AddThreadIndices>();
         } else if constexpr (N == 2) {
-            return global_indices_2d<T, Config>(grid_outer_offset);
+            return global_indices_2d<T, Config, AddThreadIndices>(grid_outer_offset);
         } else if constexpr (N == 3) {
-            return global_indices_3d<T, Config>(grid_outer_offset);
+            return global_indices_3d<T, Config, AddThreadIndices>(grid_outer_offset);
         } else if constexpr (N >= 4) {
-            return global_indices_nd<T, N, Config>(grid_fused_shape_in_x_unbatched, grid_outer_offset);
+            return global_indices_nd<T, N, Config, AddThreadIndices>(grid_fused_shape_in_x_unbatched, grid_outer_offset);
         } else {
             static_assert(nt::always_false<T>);
         }
