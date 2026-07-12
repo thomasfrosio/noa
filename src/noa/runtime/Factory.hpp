@@ -47,7 +47,7 @@ namespace noa {
     /// Returns an array filled with a given value.
     template<typename T, usize N = 1>
     [[nodiscard]] auto fill(isize elements, T value, ArrayOption option = {}) -> Array<T, N> {
-        return fill(Shape{elements}.extend_front_to<N>(1), value, option);
+        return fill(Shape{elements}.extend_front<N>(1), value, option);
     }
 
     /// Returns an array filled with zeros.
@@ -286,7 +286,7 @@ namespace noa {
     template<typename T, usize N = 1, nt::integer U>
     [[nodiscard]] auto iota(isize n_elements, U tile, ArrayOption option = {}) -> Array<T> {
         auto out = Array<T, N>(n_elements, option);
-        iota(out, Vec{tile}.template extend_front_to<N>(1));
+        iota(out, Vec{tile}.template extend_front<N>(1));
         return out;
     }
 }

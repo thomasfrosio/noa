@@ -233,8 +233,8 @@ namespace noa::inline types {
         }
 
         template<usize P, usize A1 = 0>
-        [[nodiscard]] NOA_HD constexpr auto extend_front_to(value_type value) const noexcept {
-            return Shape<value_type, P, A1>{vec.template extend_front_to<P, A1>(value)};
+        [[nodiscard]] NOA_HD constexpr auto extend_front(value_type value) const noexcept {
+            return Shape<value_type, P, A1>{vec.template extend_front<P, A1>(value)};
         }
 
         template<usize A1 = 0, nt::integer... I>
@@ -654,8 +654,8 @@ namespace noa::inline types {
         }
 
         template<usize P, usize A1 = 0>
-        [[nodiscard]] NOA_HD constexpr auto extend_front_to(value_type value) const noexcept {
-            return Strides<value_type, P, A1>{vec.template extend_front_to<P, A1>(value)};
+        [[nodiscard]] NOA_HD constexpr auto extend_front(value_type value) const noexcept {
+            return Strides<value_type, P, A1>{vec.template extend_front<P, A1>(value)};
         }
 
         template<usize A1 = 0, nt::integer... I>

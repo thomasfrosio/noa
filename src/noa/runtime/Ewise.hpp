@@ -123,16 +123,16 @@ namespace noa::details {
         } else {
             // SAFETY: While these are forwarded, to_tuple_of_accessors doesn't actually move arrays.
             // For anything other than arrays, however, objects can be moved, thus left in an unspecified state.
-            constexpr auto NDIM = nd::maximum_nd_axes_of_arrays<Inputs, Outputs>();
-            Tuple input_accessors = nd::to_tuple_of_accessors_nd<NDIM>(std::forward<Inputs>(inputs));
-            Tuple output_accessors = nd::to_tuple_of_accessors_nd<NDIM>(std::forward<Outputs>(outputs));
+            constexpr auto N = nd::maximum_nd_axes_of_arrays<Inputs, Outputs>();
+            Tuple input_accessors = nd::to_tuple_of_accessors_nd<N>(std::forward<Inputs>(inputs));
+            Tuple output_accessors = nd::to_tuple_of_accessors_nd<N>(std::forward<Outputs>(outputs));
 
-            Shape<isize, NDIM> shape;
+            Shape<isize, N> shape;
             Device device;
             if constexpr (N_OUTPUTS >= 1) {
                 if constexpr (nd::are_all_arrays<Outputs>()) {
                     const auto& first_output = outputs[Tag<0>{}];
-                    shape = first_output.shape().template extend_front_to<NDIM>(1);
+                    shape = first_output.shape().template extend_front<N>(1);
                     device = first_output.device();
 
                     outputs.for_each_enumerate([&]<usize I>(const nt::array auto& output) {
@@ -144,7 +144,7 @@ namespace noa::details {
                             check(device == output.device(),
                                   "Output arrays should be on the same device, but got device:0={} and device:{}={}",
                                   device, I, output.device());
-                            const auto output_shape = output.shape().template extend_front_to<NDIM>(1);
+                            const auto output_shape = output.shape().template extend_front<N>(1);
                             check(shape == output_shape,
                                   "Output arrays should have the same shape, but got shape:0={} and shape:{}={}",
                                   shape, I, output_shape);
@@ -162,7 +162,7 @@ namespace noa::details {
                                   "Input arrays should be on the output device, but got device={} and input:{}:device={}",
                                   device, I, input.device());
 
-                            const auto input_shape = input.shape().template extend_front_to<NDIM>(1);
+                            const auto input_shape = input.shape().template extend_front<N>(1);
                             if (not noa::broadcast(input_shape, accessor.strides(), shape)) {
                                 panic("Cannot broadcast an array of shape {} into an array of shape {}",
                                       input_shape, shape);
@@ -179,7 +179,7 @@ namespace noa::details {
                 if constexpr (INDEX_OF_FIRST_ARRAY >= 0) {
                     constexpr auto INDEX = static_cast<usize>(INDEX_OF_FIRST_ARRAY);
                     const auto& first_input_array = inputs[Tag<INDEX>{}];
-                    shape = first_input_array.shape().template extend_front_to<NDIM>(1);
+                    shape = first_input_array.shape().template extend_front<N>(1);
                     device = first_input_array.device();
 
                     inputs.for_each_enumerate([&]<usize I, typename T>(T& input) {
@@ -189,7 +189,7 @@ namespace noa::details {
                             check(device == input.device(),
                                   "Input arrays should be on the same device, but got device:0={} and device:{}={}",
                                   device, I, input.device());
-                            const auto input_shape = input.shape().template extend_front_to<NDIM>(1);
+                            const auto input_shape = input.shape().template extend_front<N>(1);
                             check(shape == input_shape,
                                   "Input arrays should have the same shape, but got shape:0={} and shape:{}={}",
                                   shape, I, input_shape);

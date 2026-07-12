@@ -163,7 +163,7 @@ namespace noa::details {
         Tuple reduced_accessors = nd::to_tuple_of_accessor_values(std::forward<Reduced>(reduced));
 
         const auto& first_input_array = inputs[Tag<INDEX_OF_FIRST_ARRAY>{}];
-        auto shape = first_input_array.shape().template extend_front_to<NDIM>(1);
+        auto shape = first_input_array.shape().template extend_front<NDIM>(1);
         const auto device = first_input_array.device();
 
         inputs.for_each_enumerate([&]<usize I, typename T>(T& input) {
@@ -171,7 +171,7 @@ namespace noa::details {
                 check(device == input.device(),
                       "Input arrays should be on the same device, but got input:0:device={} and input:{}:device={}",
                       device, I, input.device());
-                const auto input_shape = input.shape().template extend_front_to<NDIM>(1);
+                const auto input_shape = input.shape().template extend_front<NDIM>(1);
                 check(shape == input_shape,
                       "Input arrays should have the same shape, but got input:0:shape={} and input:{}:shape={}",
                       shape, I, input_shape);

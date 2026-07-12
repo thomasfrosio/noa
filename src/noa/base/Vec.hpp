@@ -616,7 +616,7 @@ namespace noa::inline types {
         }
 
         template<usize N1, usize A1 = 0>
-        [[nodiscard]] NOA_HD constexpr auto extend_front_to(value_type value) const noexcept {
+        [[nodiscard]] NOA_HD constexpr auto extend_front(value_type value) const noexcept {
             constexpr usize MAX = std::max(N, N1);
             return push_front<MAX - N, A1>(value);
         }

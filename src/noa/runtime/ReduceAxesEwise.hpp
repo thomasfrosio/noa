@@ -119,8 +119,8 @@ namespace noa::details {
         Tuple output_accessors = nd::to_tuple_of_accessors_nd<N>(std::forward<Outputs>(outputs));
 
         const auto& first_input_array = inputs[Tag<INDEX_OF_FIRST_ARRAY>{}];
-        auto input_shape = first_input_array.shape().template extend_front_to<N>(1);
-        auto output_shape = outputs[Tag<0>{}].shape().template extend_front_to<N>(1);
+        auto input_shape = first_input_array.shape().template extend_front<N>(1);
+        auto output_shape = outputs[Tag<0>{}].shape().template extend_front<N>(1);
         const auto device = outputs[Tag<0>{}].device();
 
         inputs.for_each_enumerate([&]<usize I, typename T>(T& input) {
@@ -130,7 +130,7 @@ namespace noa::details {
                       device, I, input.device());
             }
             if constexpr (I > INDEX_OF_FIRST_ARRAY and nt::array<T>) {
-                const auto shape = input.shape().template extend_front_to<N>(1);
+                const auto shape = input.shape().template extend_front<N>(1);
                 check(input_shape == shape,
                       "Input arrays should have the same shape, but got input:0:shape={} and input:{}:shape={}",
                       input_shape, I, shape);
@@ -142,7 +142,7 @@ namespace noa::details {
                 check(device == output.device(),
                       "Output arrays should be on the same device, but got output:0:device={} and output:{}:device={}",
                       device, I, output.device());
-                const auto shape = output.shape().template extend_front_to<N>(1);
+                const auto shape = output.shape().template extend_front<N>(1);
                 check(output_shape == shape,
                       "Output arrays should have the same shape, but got output:0:shape={} and output:{}:shape={}",
                       output_shape, I, shape);
