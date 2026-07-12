@@ -38,10 +38,10 @@ namespace noa {
 
         /// GPU thread-block shape.
         /// Blocks are 1d, 2d, or 3d and are mapping the nd-shape exactly:
-        ///     N=4 -> 1DHW     (each batch has a different block)
-        ///     N=3 -> DHW
-        ///     N=2 -> HW       (D must be 1, except if gpu_optimize_block_shape=true)
-        ///     N=1 -> W        (DH must be 1, except if gpu_optimize_block_shape=true)
+        ///     N>=4 -> (1..)DHW    (batch dimensions are assigned different blocks)
+        ///     N=3  -> DHW
+        ///     N=2  -> HW          (D must be 1, except if gpu_optimize_block_shape=true)
+        ///     N=1  -> W           (DH must be 1, except if gpu_optimize_block_shape=true)
         Shape<u32, 3> gpu_block_shape{Shape<u32, 3>{1, 1, 512}};
 
         /// Whether the block can be reshaped (keeping the overall block size) for better performance.

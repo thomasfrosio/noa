@@ -168,9 +168,9 @@ namespace noa::cuda {
         /// Returns 1: Unique pointer pointing to the device memory.
         ///         2: Strides describing the allocated layout.
         template<nt::allocatable_type T, typename I, usize N>
-        requires (sizeof(T) <= 16 and N >= 2)
+            requires (sizeof(T) <= 16 and N >= 2)
         static auto allocate(
-            const Shape<I, N>& shape, // ((B)D)HW order
+            const Shape<I, N>& shape, // (B..W)
             Device device = Device::current()
         ) -> Pair<allocate_type<T>, Strides<I, N>> {
             if (shape.is_empty())

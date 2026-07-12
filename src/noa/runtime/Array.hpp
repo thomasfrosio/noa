@@ -45,8 +45,8 @@ namespace noa {
     }
 
     /// Broadcasts an array to a given shape.
-    template<nt::array_decay T, usize N> // FIXME
-    [[nodiscard]] auto broadcast(T&& input, const Shape<usize, N>& shape) {
+    template<usize N, nt::array_decay_nd<N> T>
+    [[nodiscard]] auto broadcast(T&& input, const Shape<isize, N>& shape) {
         auto strides = input.strides();
         if (not broadcast(input.shape(), strides, shape))
             panic("Cannot broadcast shape={} into a shape={}", input.shape(), shape);
@@ -78,17 +78,6 @@ namespace noa {
         return input.shape().is_vector() and input.is_contiguous();
     }
 
-    /// Whether the input is a contiguous vector or a contiguous batch of contiguous vectors.
-    [[nodiscard]] constexpr bool is_contiguous_vector_batched(nt::array auto const& input) {
-        return input.shape().is_vector(true) and input.is_contiguous();
-    }
-
-    /// Whether the input is a contiguous vector or a contiguous/strided batch of contiguous vectors.
-    /// The batch stride doesn't have to be contiguous.
-    [[nodiscard]] constexpr bool is_contiguous_vector_batched_strided(nt::array auto const& input) {
-        return input.shape().is_vector(true) and input.contiguity().pop_front() == true;
-    }
-
     struct CopyOptions {
         /// When transferring from a GPU to the CPU, the copy is enqueued to the input's (GPU) current stream.
         /// By default, this stream is synchronized before returning to guarantee that the copy is completed so
@@ -98,9 +87,12 @@ namespace noa {
     };
 
     /// (Deep-)Copies arrays.
-    /// \param[in] input    Source.
-    /// \param[out] output  Destination. It should not overlap with \p input.
-    /// \param options      Copy options.
+    /// \param[in,out] input, output:
+    ///     Source and destination, without overlap.
+    ///     If they don't have the same number of axes, they are extended with empty left dimensions.
+    ///     The input should be broadcastable to the output shape.
+    /// \param options:
+    ///     Copy options.
     /// \note Contiguous regions of memory have no copy restrictions and can be copied to any device. This is
     ///       also true for pitched layouts and colum or row vectors. However, other non-contiguous memory
     ///       layouts can only be copied if the source and destination are both on the same GPU or on the CPU.
@@ -117,10 +109,8 @@ namespace noa {
         const auto output_strides = output.strides().template push_front<NDIM - output_t::SIZE>(0);
         const auto input_shape = input.shape().template push_front<NDIM - input_t::SIZE>(1);
         auto input_strides = input.strides().template push_front<NDIM - input_t::SIZE>(0);
-        if (not noa::broadcast(input_shape, input_strides, output_shape)) {
-            panic("Cannot broadcast an array of shape {} into an array of shape {}",
-                  input_shape, output.shape());
-        }
+        if (not noa::broadcast(input_shape, input_strides, output_shape))
+            panic("Cannot broadcast an array of shape {} into an array of shape {}", input_shape, output_shape);
 
         const Device input_device = input.device();
         const Device output_device = output.device();
@@ -268,7 +258,7 @@ namespace noa {
 
     /// Permutes the input by performing a deep-copy. The returned Array is a new C-contiguous array.
     /// \param[in] input    VArray to permute.
-    /// \param permutation  Permutation with the axes numbered from 0 to 3.
+    /// \param permutation  Permutation with the axes numbered from 0 to N-1.
     template<nt::array_decay Input>
     auto permute_copy(Input&& input, const Vec<i32, std::remove_reference_t<Input>::SIZE>& permutation) {
         auto permuted_shape = input.shape().permute(permutation);
@@ -322,8 +312,7 @@ namespace noa {
         if (options.device.is_gpu()) {
             check(not change_device or
                   options.allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL, Allocator::PITCHED_MANAGED),
-                  "GPU memory {} cannot be reinterpreted as a CPU memory-region. "
-                  "This is only supported for pinned and managed memory-regions",
+                  "GPU memory {} cannot be reinterpreted as a CPU memory-region. This is only supported for pinned and managed memory-regions",
                   options.allocator);
 
             Stream& input_stream = Stream::current(options.device);
@@ -347,8 +336,7 @@ namespace noa {
             if (change_device) {
                 check(Device::is_any_gpu(), "No GPU detected");
                 check(options.allocator.is_any(Allocator::PINNED, Allocator::MANAGED, Allocator::MANAGED_GLOBAL, Allocator::PITCHED_MANAGED),
-                      "CPU memory-region with the allocator {} cannot be reinterpreted as a GPU memory-region. "
-                      "This is only supported for pinned and managed memory-regions",
+                      "CPU memory-region with the allocator {} cannot be reinterpreted as a GPU memory-region. This is only supported for pinned and managed memory-regions",
                       options.allocator);
             }
 
@@ -491,9 +479,11 @@ namespace noa::inline types {
         constexpr explicit Array(isize n_elements, ArrayOption option = {}) requires (not IS_VIEW):
             m_options{option}
         {
-            for (usize i = 0; i < N - 1; ++i) {
-                m_shape[i] = 1;
-                m_strides[i] = n_elements;
+            if constexpr (N > 1) {
+                for (usize i = 0; i < N - 1; ++i) {
+                    m_shape[i] = 1;
+                    m_strides[i] = n_elements;
+                }
             }
             m_shape[N - 1] = n_elements;
             m_strides[N - 1] = 1;
@@ -517,9 +507,11 @@ namespace noa::inline types {
             m_shared(std::move(data)),
             m_options{option}
         {
-            for (usize i = 0; i < N - 1; ++i) {
-                m_shape[i] = 1;
-                m_strides[i] = n_elements;
+            if constexpr (N > 1) {
+                for (usize i = 0; i < N - 1; ++i) {
+                    m_shape[i] = 1;
+                    m_strides[i] = n_elements;
+                }
             }
             m_shape[N - 1] = n_elements;
             m_strides[N - 1] = 1;
@@ -1072,11 +1064,11 @@ namespace noa::inline types {
 
         /// Subregion indexing. Extracts a subregion from the current array.
         /// \see noa::Subregion for more details on the variadic parameters to enter.
-        template<typename... U> requires nt::subregion_access_sequence<4, U...>
+        template<typename... U> requires nt::subregion_access_sequence<N, U...>
         [[nodiscard]] constexpr auto subregion(const U&... access_sequence) const& -> Array {
             return subregion(Subregion<N, U...>(access_sequence...));
         }
-        template<typename... U> requires nt::subregion_access_sequence<4, U...>
+        template<typename... U> requires nt::subregion_access_sequence<N, U...>
         [[nodiscard]] constexpr auto subregion(const U&... access_sequence) && -> Array {
             return std::move(*this).subregion(Subregion<N, U...>(access_sequence...));
         }

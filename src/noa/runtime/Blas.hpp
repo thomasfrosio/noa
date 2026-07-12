@@ -15,18 +15,21 @@ namespace noa {
     /// \param[in] lhs, rhs:
     ///     Input arrays.
     ///     Ignoring empty dimensions (which are squeezed out):
-    ///     lhs:(n) x rhs:(n) -> output:1
+    ///     lhs:(N) x rhs:(N) -> output:1
     /// \param options  Sum options.
     template<typename Lhs, typename Rhs>
     requires nt::readable_array_decay_of_almost_same_type<Lhs, Rhs>
     [[nodiscard]] auto dot(Lhs&& lhs, Rhs&& rhs, const SumOptions& options = {}) {
-        const auto lhs_n_axes = noa::sum(lhs.shape().cmp_gt(1));
-        const auto rhs_n_axes = noa::sum(rhs.shape().cmp_gt(1));
+        const auto lhs_n_axes = noa::sum(lhs.shape().cmp_gt(1).template as<i32>());
+        const auto rhs_n_axes = noa::sum(rhs.shape().cmp_gt(1).template as<i32>());
         check(lhs_n_axes == 1 and rhs_n_axes == 1,
               "The inputs should be vectors, but got lhs:shape={} and rhs:shape={}",
               lhs.shape(), rhs.shape());
 
-        auto inputs = noa::wrap(std::forward<Lhs>(lhs).template as_nd<1>(), std::forward<Rhs>(rhs).template as_nd<1>());
+        auto inputs = noa::wrap(
+            std::forward<Lhs>(lhs).template as_nd<1>(),
+            std::forward<Rhs>(rhs).template as_nd<1>()
+        );
         using value_t = nt::mutable_value_type_t<Lhs>;
         using reduce_t = std::conditional_t<nt::real<value_t>, f64,
                          std::conditional_t<nt::complex<value_t>, c64,
@@ -47,8 +50,8 @@ namespace noa {
     /// \param[in] lhs, rhs, output:
     ///     Input and output arrays.
     ///     Ignoring empty dimensions (which are squeezed out):
-    ///     lhs:(bn) x rhs:(bn) -> output:(b)
-    ///     lhs: (n) x rhs: (n) -> output:(1)
+    ///     lhs:(B,N) x rhs:(B,N) -> output:(B)
+    ///     lhs:  (N) x rhs:  (N) -> output:(1)
     /// \param options:
     ///     Sum options.
     template<nt::readable_array_decay Lhs,
@@ -58,7 +61,7 @@ namespace noa {
     void dot(Lhs&& lhs, Rhs&& rhs, Output&& output, const SumOptions& options = {}) {
         const auto get_bn = [&]<usize N>(Shape<isize, N> const& shape) {
             isize b{-1}, n{-1};
-            for (isize i{N - 1}; i >= 0; --i) {
+            for (isize i{static_cast<isize>(N) - 1}; i >= 0; --i) {
                 if (shape[i] > 1) {
                     if (n == -1)
                         n = shape[i];
@@ -79,7 +82,7 @@ namespace noa {
         check(lhs_bn == rhs_bn,
               "The inputs should be compatible batched vectors, but got lhs:shape={} and rhs:shape={}",
               lhs.shape(), rhs.shape());
-        check(noa::sum(output.shape().cmp_gt(1)) <= 1,
+        check(noa::sum(output.shape().cmp_gt(1).template as<i32>()) <= 1,
               "The output should be a vector, but got output:shape={}", output.shape());
         check(b == lhs_bn[0],
               "The inputs and output batch dimension don't match: input:b={}, output:b={}",
@@ -88,7 +91,8 @@ namespace noa {
         const auto shape_2d = Shape2{b, lhs_bn[1]};
         auto inputs = noa::wrap(
             std::forward<Lhs>(lhs).reshape(shape_2d),
-            std::forward<Rhs>(rhs).reshape(shape_2d));
+            std::forward<Rhs>(rhs).reshape(shape_2d)
+        );
         auto output_2d = std::forward<Output>(output).reshape(Shape2{b, 1});
 
         using value_t = nt::mutable_value_type_t<Lhs>;
@@ -111,11 +115,11 @@ namespace noa {
         T beta{};
 
         /// Whether the lhs should be transposed before the operation.
-        /// In this case, the {(b...,)k,m} matrix is expected.
+        /// In this case, the ((B...,)K,M) matrix is expected.
         bool lhs_transpose{};
 
         /// Whether the rhs should be transposed before the operation.
-        /// In this case, the {(b...,)n,k} matrix is expected.
+        /// In this case, the ((B...,)N,K) matrix is expected.
         bool rhs_transpose{};
     };
 
@@ -126,14 +130,14 @@ namespace noa {
     ///     The operation is defined as: output = options.alpha * lhs * rhs + options.beta * output.
     ///
     /// \param[in] lhs:
-    ///     Dense {(b...,)m,k} matrix (or {(b...,)k,m} is options.lhs_transpose=true).
-    ///     The batch dimensions b... (if any) should be collapsable.
+    ///     Dense ((B...,)M,K) matrix (or ((B...,)K,M) is options.lhs_transpose=true).
+    ///     The batch dimensions B... (if any) should be collapsible.
     /// \param[in] rhs:
-    ///     Dense {(b...,)k,n} matrix (or {(b...,)n,k} is options.rhs_transpose=true).
-    ///     The batch dimensions b... (if any) should be collapsable.
+    ///     Dense ((B...,)K,N) matrix (or ((B...,)N,K) is options.rhs_transpose=true).
+    ///     The batch dimensions B... (if any) should be collapsible.
     /// \param[out] output:
-    ///     Dense {(b...,)m,n} matrix.
-    ///     The batch dimensions b... (if any) should be collapsable.
+    ///     Dense ((B...,)M,N) matrix.
+    ///     The batch dimensions B... (if any) should be collapsible.
     /// \param options:
     ///     Matmul options.
     ///

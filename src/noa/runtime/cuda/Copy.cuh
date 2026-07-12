@@ -21,13 +21,13 @@ namespace noa::cuda::details {
     auto to_copy_parameters(
         const T* src, isize src_pitch,
         T* dst, isize dst_pitch,
-        const Shape4& shape
+        const Shape3& shape
     ) -> cudaMemcpy3DParms {
         const auto s_shape = shape.as_safe<size_t>();
         cudaMemcpy3DParms params{};
-        params.srcPtr = {const_cast<T*>(src), static_cast<size_t>(src_pitch) * sizeof(T), s_shape[3], s_shape[2]};
-        params.dstPtr = {dst, static_cast<size_t>(dst_pitch) * sizeof(T), s_shape[3], s_shape[2]};
-        params.extent = {s_shape[3] * sizeof(T), s_shape[2], s_shape[1] * s_shape[0]};
+        params.srcPtr = {const_cast<T*>(src), static_cast<size_t>(src_pitch) * sizeof(T), s_shape[2], s_shape[1]};
+        params.dstPtr = {dst, static_cast<size_t>(dst_pitch) * sizeof(T), s_shape[2], s_shape[1]};
+        params.extent = {s_shape[2] * sizeof(T), s_shape[1], s_shape[0]};
         params.kind = cudaMemcpyDefault;
         return params;
     }
@@ -72,7 +72,7 @@ namespace noa::cuda::details {
     void memcpy(
         const T* src, isize src_pitch,
         T* dst, isize dst_pitch,
-        const Shape4& shape, Stream& stream
+        const Shape3& shape, Stream& stream
     ) {
         const auto params = details::to_copy_parameters(src, src_pitch, dst, dst_pitch, shape);
         check(cudaMemcpy3DAsync(&params, stream.id()));
@@ -203,12 +203,12 @@ namespace noa::cuda {
 
     /// Copy a pitched range, asynchronously.
     template<typename T>
-    void copy(const T* src, isize src_pitch, T* dst, isize dst_pitch, const Shape4& shape, Stream& stream) {
+    void copy(const T* src, isize src_pitch, T* dst, isize dst_pitch, const Shape3& shape, Stream& stream) {
         if constexpr (std::is_trivially_copyable_v<T>) {
             details::memcpy(src, src_pitch, dst, dst_pitch, shape, stream);
         } else {
-            const auto src_strides = Strides4{src_pitch, src_pitch, src_pitch, 1};
-            const auto dst_strides = Strides4{dst_pitch, dst_pitch, dst_pitch, 1};
+            const auto src_strides = Strides3{src_pitch * shape[1], src_pitch, 1};
+            const auto dst_strides = Strides3{dst_pitch * shape[1], dst_pitch, 1};
             details::copy_non_trivial_contiguous(src, src_strides, dst, dst_strides, shape, stream);
         }
     }
@@ -234,12 +234,16 @@ namespace noa::cuda {
 
             is_contiguous = src_strides.contiguity(shape) and dst_strides.contiguity(shape);
             if (is_contiguous == true)
-                return copy(src, dst, shape.n_elements(), stream);
+                return copy(src, dst, shape.n_elements(), stream); // contiguous
+
             if constexpr (N >= 2) {
-                if (is_contiguous.set<(N - 2)>(true) == true and
+                if (is_contiguous.template set<(N - 2)>(true) == true and
                     src_strides[N - 2] >= shape[N - 1] and
                     dst_strides[N - 2] >= shape[N - 1]) {
-                    return copy(src, src_strides[2], dst, dst_strides[2], shape, stream);
+                    auto shape_3d = Shape<isize, 3>{1, shape[N - 2], shape[N - 1]};
+                    if constexpr (N >= 3)
+                        shape_3d[0] = shape.template pop_back<2>().n_elements();
+                    return copy(src, src_strides[N - 2], dst, dst_strides[N - 2], shape_3d, stream); // pitched
                 }
             }
 

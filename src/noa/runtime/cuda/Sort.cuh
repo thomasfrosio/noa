@@ -2,6 +2,7 @@
 #include "noa/runtime/cuda/IncludeGuard.cuh"
 
 #include "noa/runtime/core/Iwise.hpp"
+#include "noa/runtime/cpu/Iwise.hpp"
 #include "noa/runtime/cuda/Allocators.hpp"
 #include "noa/runtime/cuda/Copy.cuh"
 #include "noa/runtime/cuda/Iwise.cuh"
@@ -68,17 +69,15 @@ namespace noa::cuda::details {
     // Sorts the third dimension of "values" using cub radix sort.
     // Works with non-contiguous strides. If dim is non-contiguous, allocates one row.
     // If there's a lot of rows to sort, sort_batched_ should be faster.
-    template<typename T>
+    template<typename T, usize N>
     void sort_iterative_(
-        T* values, const Strides4& strides, const Shape4& shape,
+        T* values, const Strides<isize, N>& strides, const Shape<isize, N>& shape,
         i32 dim, bool ascending, Stream& stream
     ) {
-        NOA_ASSERT(strides[dim] > 0); // nothing to sort if dim is broadcast
-
         const bool dim_is_contiguous = strides[dim] == 1;
         const auto dim_size = safe_cast<i32>(shape[dim]);
-        const auto dim_shape = Shape4{1, 1, 1, shape[dim]};
-        const auto dim_strides = Strides4{1, 1, 1, strides[dim]};
+        const auto dim_shape = Shape{shape[dim]};
+        const auto dim_strides = Strides{strides[dim]};
 
         // Prepare the alternate buffer.
         // TODO Do one single allocation for buffer(s) and tmp storage. Problem is the alignment?
@@ -92,7 +91,7 @@ namespace noa::cuda::details {
             key_buffer = AllocatorDevice::allocate_async<T>(dim_size, stream);
             key_buffer_alt = AllocatorDevice::allocate_async<T>(dim_size, stream);
         }
-        cub::DoubleBuffer<T> keys(key_buffer.get(), key_buffer_alt.get());
+        auto keys = cub::DoubleBuffer<T>(key_buffer.get(), key_buffer_alt.get());
 
         // Allocates for the small tmp storage.
         usize temp_storage_bytes{};
@@ -101,10 +100,10 @@ namespace noa::cuda::details {
             static_cast<isize>(temp_storage_bytes), stream);
 
         // Prepare the iterations.
-        Shape3 iter_shape;
-        Strides3 iter_strides;
+        Shape<isize, N - 1> iter_shape;
+        Strides<isize, N - 1> iter_strides;
         i32 count = 0;
-        for (i32 i = 0; i < 4; ++i) {
+        for (usize i{}; i < N; ++i) {
             if (i != dim) {
                 iter_shape[count] = shape[i];
                 iter_strides[count] = strides[i];
@@ -113,62 +112,58 @@ namespace noa::cuda::details {
         }
 
         // Sort the axis.
-        for (isize i = 0; i < iter_shape[0]; ++i) {
-            for (isize j = 0; j < iter_shape[1]; ++j) {
-                for (isize k = 0; k < iter_shape[2]; ++k) {
-                    T* values_iter = values + offset_at(iter_strides, i, j, k);
+        noa::cpu::iwise<noa::cpu::IwiseConfig<0>>(iter_shape, [&](const Vec<isize, N - 1>& indices) {
+            T* values_iter = values + offset_at(iter_strides, indices);
 
-                    // (Re)set the buffers.
-                    keys.selector = 0;
-                    if (dim_is_contiguous) {
-                        keys.d_buffers[0] = values_iter;
-                    } else {
-                        copy(values_iter, dim_strides,
-                             key_buffer.get(), dim_shape.strides(),
-                             dim_shape, stream);
-                    }
-
-                    check(cub_radix_sort_keys_<T>(
-                        temp_storage.get(), temp_storage_bytes, keys,
-                        dim_size, ascending, stream));
-
-                    if (dim_is_contiguous) {
-                        if (keys.selector != 0) {
-                            // Unfortunately, the results are in the alternate buffer,
-                            // so copy it back to the original array.
-                            copy(key_buffer_alt.get(), dim_shape.strides(),
-                                 values_iter /* or key_buffer */, dim_strides,
-                                 dim_shape, stream);
-                        }
-                    } else {
-                        copy(keys.selector == 0 ? key_buffer.get() : key_buffer_alt.get(),
-                             dim_shape.strides(),
-                             values_iter, dim_strides,
-                             dim_shape, stream);
-                    }
-                }
+            // (Re)set the buffers.
+            keys.selector = 0;
+            if (dim_is_contiguous) {
+                keys.d_buffers[0] = values_iter;
+            } else {
+                copy(values_iter, dim_strides,
+                     key_buffer.get(), Strides<isize, 1>{1},
+                     dim_shape, stream);
             }
-        }
+
+            check(cub_radix_sort_keys_<T>(
+                temp_storage.get(), temp_storage_bytes, keys,
+                dim_size, ascending, stream));
+
+            if (dim_is_contiguous) {
+                if (keys.selector != 0) {
+                    // Unfortunately, the results are in the alternate buffer,
+                    // so copy it back to the original array.
+                    copy(key_buffer_alt.get(), Strides<isize, 1>{1},
+                         values_iter /* or key_buffer */, dim_strides,
+                         dim_shape, stream);
+                }
+            } else {
+                copy(keys.selector == 0 ? key_buffer.get() : key_buffer_alt.get(),
+                     Strides<isize, 1>{1},
+                     values_iter, dim_strides,
+                     dim_shape, stream);
+            }
+        });
     }
 
-    // Sort any dimension [0..3] of the input array, in-place.
+    // Sort any dimension [0..N-1] of the input array, in-place.
     // The array can have non-contiguous strides in any dimension.
     // Basically allocates 3 to 4 times the shape...
-    template<typename T>
+    template<typename T, usize N>
     void sort_batched_(
-        T* values, const Strides4& strides, const Shape4& shape,
+        T* values, const Strides<isize, N>& strides, const Shape<isize, N>& shape,
         i32 dim, bool ascending, Stream& stream
     ) {
         const bool is_contiguous = strides.is_contiguous(shape);
         const auto n_elements = safe_cast<i32>(shape.n_elements());
-        const auto shape_i32 = shape.as<i32>();
+        const auto shape_i32 = shape.template as<i32>();
 
         // Prepare the keys.
         const auto key_buffer = AllocatorDevice::allocate_async<u32>(n_elements, stream);
         const auto key_buffer_alt = AllocatorDevice::allocate_async<u32>(n_elements, stream);
-        Vec<i32, 4> tile = shape_i32.vec;
+        auto tile = shape_i32.vec;
         tile[dim] = 1; // mark elements with their original line.
-        iwise(shape_i32, nd::Iota(AccessorContiguous<u32, 4, i32>(key_buffer.get(), shape_i32.strides()), shape_i32, tile), stream);
+        iwise(shape_i32, nd::Iota(AccessorContiguous<u32, N, i32>(key_buffer.get(), shape_i32.strides()), shape_i32, tile), stream);
 
         // Prepare the values.
         using unique_t = AllocatorDevice::allocate_type<T>;
@@ -186,16 +181,16 @@ namespace noa::cuda::details {
         }
 
         // Gather them in the cub interface.
-        cub::DoubleBuffer<u32> cub_keys(key_buffer.get(), key_buffer_alt.get());
-        cub::DoubleBuffer<T> cub_values(val_ptr, val_buffer_alt.get());
+        auto cub_keys = cub::DoubleBuffer<u32>(key_buffer.get(), key_buffer_alt.get());
+        auto cub_values = cub::DoubleBuffer<T>(val_ptr, val_buffer_alt.get());
 
         // Allocates for the small tmp storage.
         // The documentation says this should be a small value and is relative to the input size.
         usize tmp_bytes0{}, tmp_bytes1{};
         const cudaError err0 = cub_radix_sort_pairs_<u32, T>(
-                nullptr, tmp_bytes0, cub_keys, cub_values, n_elements, ascending, stream);
+            nullptr, tmp_bytes0, cub_keys, cub_values, n_elements, ascending, stream);
         const cudaError err1 = cub_radix_sort_pairs_<T, u32>(
-                nullptr, tmp_bytes1, cub_values, cub_keys, n_elements, ascending, stream);
+            nullptr, tmp_bytes1, cub_values, cub_keys, n_elements, ascending, stream);
         check(err0 == cudaSuccess and err1 == cudaSuccess,
               "Could not find temporary allocation size. 0=({}), 1=({})",
               error2string(err0), error2string(err1));
@@ -210,10 +205,10 @@ namespace noa::cuda::details {
 
         // Then permute it back to the original order.
         // Find the permutation from "key_val" to "values":
-        auto input_shape = Shape4::from_value(shape[dim]);
-        auto permutation = Vec<i32, 4>::from_value(3);
+        auto input_shape = Shape<isize, N>::from_value(shape[dim]);
+        auto permutation = Vec<i32, N>::from_value(N - 1);
         i32 count = 0;
-        for (i32 i = 0; i < 4; ++i) {
+        for (i32 i = 0; i < N; ++i) {
             if (i != dim) {
                 input_shape[count] = shape[i];
                 permutation[i] = count;
@@ -225,36 +220,35 @@ namespace noa::cuda::details {
         // contiguous, it means the result is already in "values" but with a possible permutation. In this case,
         // we have to permute in the alternate buffer and then copy the result back to "values"...
         const auto current_strides_permuted = input_shape.strides().permute(permutation);
-        if (values == cub_values.Current() and permutation != Vec{0, 1, 2, 3}) {
+        if (values == cub_values.Current() and permutation != Vec<i32, N>::arange()) {
             copy(values, current_strides_permuted, val_buffer_alt.get(), shape.strides(), shape, stream);
             copy(val_buffer_alt.get(), shape.strides(), values, strides, shape, stream);
         } else {
-            copy(cub_values.selector == 0 ? val_ptr : val_buffer_alt.get(),
-                 current_strides_permuted,
+            copy(cub_values.selector == 0 ? val_ptr : val_buffer_alt.get(), current_strides_permuted,
                  values, strides, shape, stream);
         }
     }
 }
 
 namespace noa::cuda {
-    template<typename T>
+    template<typename T, usize N>
     void sort(
-        T* array, const Strides4& strides, const Shape4& shape,
+        T* array, const Strides<isize, N>& strides, const Shape<isize, N>& shape,
         bool ascending, i32 dim, Stream& stream
     ) {
-        NOA_ASSERT(dim >= 0 and dim <= 3);
-        if (strides[dim] == 0)
-            return; // there's only one value in the dimension to sort...
-
-        // If there's not a lot of lines to sort, use the iterative version which uses less memory
-        // and does a single sort per line. Otherwise, use the batched version which uses more memory
-        // but uses 2 sorts (1 being a stable sort), and a possible permutation, for the entire array.
-        auto shape_4d = shape;
-        shape_4d[dim] = 1;
-        const auto n_iterations = shape_4d.n_elements();
-        if (n_iterations < 10)
-            details::sort_iterative_(array, strides, shape, dim, ascending, stream);
-        else
-            details::sort_batched_(array, strides, shape, dim, ascending, stream);
+        if constexpr (N == 1) {
+            details::sort_iterative_(array, Strides<isize, 2>{0, strides}, Shape<isize, 2>{1, shape}, 1, ascending, stream);
+        } else {
+            // If there's not a lot of lines to sort, use the iterative version which uses less memory
+            // and does a single sort per line. Otherwise, use the batched version which uses more memory
+            // but uses 2 sorts (1 being a stable sort), and a possible permutation, for the entire array.
+            auto shape_nd = shape;
+            shape_nd[dim] = 1;
+            const auto n_iterations = shape_nd.n_elements();
+            if (n_iterations < 10)
+                details::sort_iterative_(array, strides, shape, dim, ascending, stream);
+            else
+                details::sort_batched_(array, strides, shape, dim, ascending, stream);
+        }
     }
 }

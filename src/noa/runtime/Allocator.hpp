@@ -276,7 +276,7 @@ namespace noa::inline types {
                         #ifdef NOA_ENABLE_CUDA
                         // AllocatorDevicePadded requires sizeof(T) <= 16 bytes.
                         const auto cuda_device = noa::cuda::Device(device.id(), Unchecked{});
-                        if constexpr (nt::numeric<T>) {
+                        if constexpr (nt::numeric<T> and N > 1) {
                             auto [ptr, strides] = noa::cuda::AllocatorDevicePadded::allocate<T>(shape, cuda_device);
                             return {std::move(ptr), strides};
                         } else {
@@ -293,8 +293,12 @@ namespace noa::inline types {
                     } else {
                         #ifdef NOA_ENABLE_CUDA
                         auto& cuda_stream = Stream::current(device).cuda();
-                        auto [ptr, strides] = noa::cuda::AllocatorManagedPadded::allocate<T>(shape, cuda_stream);
-                        return {std::move(ptr), strides};
+                        if constexpr (N > 1) {
+                            auto [ptr, strides] = noa::cuda::AllocatorManagedPadded::allocate<T>(shape, cuda_stream);
+                            return {std::move(ptr), strides};
+                        } else {
+                            return {noa::cuda::AllocatorManaged::allocate<T>(shape.n_elements(), cuda_stream), shape.strides()};
+                        }
                         #else
                         panic_no_gpu_backend();
                         #endif

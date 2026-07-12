@@ -115,6 +115,7 @@ namespace noa {
     }
 
     /// Returns the median of an array.
+    /// TODO add 1D nth_element (maybe partial_sort on gpu), and implement the median using those.
     template<nt::readable_array_of_scalar Input>
     [[nodiscard]] auto median(const Input& array, const MedianOptions& options = {}) {
         check(not array.is_empty(), "Empty array detected");

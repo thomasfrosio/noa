@@ -39,7 +39,7 @@ namespace noa::traits {
     template<typename... T> concept readable_array_decay = array_decay<T...> and ((not std::is_void_v<value_type_t<T>>) and ...);
     template<typename... T> concept writable_array_decay = readable_array_decay<T...> and ((not std::is_const_v<value_type_t<T>>) and ...);
 
-    #define NOA_TRAITS_GENERATE_VARRAY(name)                                                                                    \
+    #define NOA_TRAITS_GENERATE_VARRAY(name)                                                                                  \
     template<typename... T> concept array_of_##name = array<T...> and name<value_type_t<T>...>;                               \
     template<typename... T> concept array_decay_of_##name = array_decay<T...> and name<value_type_t<T>...>;                   \
     template<typename... T> concept readable_array_of_##name = readable_array<T...> and name<value_type_t<T>...>;             \
@@ -58,7 +58,7 @@ namespace noa::traits {
     NOA_TRAITS_GENERATE_VARRAY(byte);
     #undef NOA_TRAITS_GENERATE_VARRAY
 
-    #define NOA_TRAITS_GENERATE_VARRAY_SAME_AS(suffix, constrain)                                                                                               \
+    #define NOA_TRAITS_GENERATE_VARRAY_SAME_AS(suffix, constrain)                                                                                             \
     template<typename T, typename... U> concept array_of_##suffix = array<T> and constrain<value_type_t<T>, U...>;                                            \
     template<typename T, typename... U> concept array_decay_of_##suffix = array_decay<T> and constrain<value_type_t<T>, U...>;                                \
     template<typename T, typename... U> concept readable_array_decay_of_##suffix = readable_array_decay<T> and constrain<value_type_t<T>, U...>;              \

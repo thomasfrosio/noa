@@ -151,9 +151,9 @@ namespace noa::cpu {
             // If there are not a lot of axes to sort, use the iterative version which uses less memory
             // and does a single sort per axis. Otherwise, use the batched version which uses more memory
             // but uses 2 sorts (1 being a stable sort), and a permutation/copy, for the entire array.
-            auto shape_ = shape;
-            shape_[dim] = 1;
-            const auto iterations = shape_.n_elements();
+            auto shape_nd = shape;
+            shape_nd[dim] = 1;
+            const auto iterations = shape_nd.n_elements();
             if (iterations < 100)
                 details::sort_iterative_(array, strides, shape, dim, ascending);
             else

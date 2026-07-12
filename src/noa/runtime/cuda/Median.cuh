@@ -8,11 +8,11 @@
 #include "noa/runtime/cuda/Sort.cuh"
 
 namespace noa::cuda {
-    template<typename T>
+    template<typename T, usize N>
     auto median(
         T* input,
-        Strides4 strides,
-        Shape4 shape,
+        Strides<isize, N> strides,
+        Shape<isize, N> shape,
         bool overwrite,
         Stream& stream
     ) {
@@ -37,8 +37,7 @@ namespace noa::cuda {
         }
 
         // Sort the entire contiguous array, in-place.
-        const auto shape_1d = Shape4{1, 1, 1, n_elements};
-        sort(to_sort, shape_1d.strides(), shape_1d, true, -1, stream);
+        sort(to_sort, Strides<isize, 1>{1}, Shape<isize, 1>{n_elements}, true, 0, stream);
 
         // Retrieve the median.
         const bool is_even = noa::is_even(n_elements);
