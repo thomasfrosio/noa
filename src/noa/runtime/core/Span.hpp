@@ -219,12 +219,16 @@ namespace noa::inline types {
             return output_t(get() + noa::offset_at(stride<0>(), index), shape().pop_front(), strides().pop_front());
         }
 
-        template<nt::integer I1, usize N1, usize A1> requires (N > 1 and N > N1)
+        template<nt::integer I1, usize N1, usize A1> requires (N > N1)
         [[nodiscard]] NOA_HD constexpr auto operator[](const Vec<I1, N1, A1>& index) const noexcept {
-            NOA_ASSERT(not is_empty());
-            noa::bounds_check(shape(), index);
-            using output_t = Span<value_type, N - N1, index_type, STRIDES_TRAIT, POINTER_TRAIT>;
-            return output_t(get() + noa::offset_at(strides(), index), shape().template pop_front<N1>(), strides().template pop_front<N1>());
+            if constexpr (N1 == 0) {
+                return *this;
+            } else {
+                NOA_ASSERT(not is_empty());
+                noa::bounds_check(shape(), index);
+                using output_t = Span<value_type, N - N1, index_type, STRIDES_TRAIT, POINTER_TRAIT>;
+                return output_t(get() + noa::offset_at(strides(), index), shape().template pop_front<N1>(), strides().template pop_front<N1>());
+            }
         }
 
         /// C-style indexing operator, decrementing the dimensionality of the span by 1.
