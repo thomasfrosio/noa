@@ -52,18 +52,15 @@ TEST_CASE("runtime::permute()", "[asset]") {
     }
 }
 
-TEMPLATE_TEST_CASE("runtime::permute", "", i32, f32, f64, c32) {
-    constexpr std::array permutations{
-        Vec{0, 1, 2, 3},
-        Vec{0, 1, 3, 2},
-        Vec{0, 3, 1, 2},
-        Vec{0, 3, 2, 1},
-        Vec{0, 2, 1, 3},
-        Vec{0, 2, 3, 1}
-    };
-    const i64 ndim = GENERATE(2, 3);
-    const bool pad = GENERATE(false, true);
-    INFO("pad=" << pad);
+TEST_CASE("runtime::permute") {
+    const auto shapes = noa::make_tuple(
+        test::random_shape<isize, 1>(1, {.size_range = {5, 20}}),
+        test::random_shape<isize, 2>(2, {.size_range = {5, 20}}),
+        test::random_shape<isize, 3>(3, {.size_range = {5, 20}}),
+        test::random_shape<isize, 4>(3, {.size_range = {5, 20}, .batch_range = {2, 6}}),
+        test::random_shape<isize, 5>(3, {.size_range = {5, 20}, .batch_range = {2, 6}}),
+        test::random_shape<isize, 6>(3, {.size_range = {5, 20}, .batch_range = {2, 6}})
+    );
 
     std::vector<Device> devices{"cpu"};
     if (Device::is_any(Device::GPU))
@@ -74,28 +71,55 @@ TEMPLATE_TEST_CASE("runtime::permute", "", i32, f32, f64, c32) {
         const auto options = ArrayOption(device, Allocator::MANAGED);
         INFO(device);
 
-        const auto shape = test::random_shape_batched(ndim);
-        auto padded_shape = shape;
-        if (pad) {
-            padded_shape[1] += 10;
-            padded_shape[2] += 11;
-            padded_shape[3] += 12;
-        }
-        Array<TestType> data = noa::random<TestType>(noa::Uniform{-5, 5}, padded_shape, options);
-        data = data.subregion(
-            Ellipsis{},
-            Slice{0, shape[1]},
-            Slice{0, shape[2]},
-            Slice{0, shape[3]});
+        shapes.for_each([&]<usize N>(const Shape<isize, N>& shape) {
+            auto permutation = Vec<i32, N>::arange();
 
-        for (const auto& permutation: permutations) {
-            if (ndim == 2 and not (permutation == Vec{0, 1, 2, 3} or permutation == Vec{0, 1, 3, 2}))
-                return; // while this is technically OK, it doesn't make much sense to test these...
+            do {
+                INFO(permutation);
+                for (bool pad: {false, true}) {
+                    auto padded_shape = shape;
+                    if (pad)
+                        padded_shape += 3;
 
-            const auto expected = noa::permute(data, permutation);
-            const auto result = noa::permute_copy(data, permutation);
-            REQUIRE(test::allclose_abs(expected, result, 1e-8));
-        }
+                    auto data = noa::random<i32, N>(noa::Uniform{-500, 500}, padded_shape, options);
+                    data = data.subregion(Slices<N>{.start = {}, .end = shape.vec});
+
+                    const auto expected = noa::permute(data, permutation);
+                    const auto result = noa::permute_copy(data, permutation);
+                    REQUIRE(test::allclose_abs(expected, result, 1e-8));
+                }
+            } while (std::ranges::next_permutation(permutation).found);
+
+            // Inplace.
+            do {
+                const auto permuted_axes = permutation.cmp_ne(Vec<i32, N>::arange());
+                if (sum(permuted_axes.template as<i32>()) != 2)
+                    continue;
+
+                // Swapped axes should have the same size.
+                auto valid_shape = shape;
+                auto size = isize{};
+                for (usize i{}; i < N; ++i)
+                    if (permuted_axes[i])
+                        size = valid_shape[i];
+                for (usize i{}; i < N; ++i)
+                    if (permuted_axes[i])
+                        valid_shape[i] = size;
+
+                INFO(permutation);
+                for (bool pad: {false, true}) {
+                    auto padded_shape = valid_shape;
+                    if (pad)
+                        padded_shape += 3;
+                    auto data = noa::random<i32, N>(noa::Uniform{-500, 500}, padded_shape, options);
+                    data = data.subregion(Slices<N>{.start = {}, .end = valid_shape.vec});
+
+                    const auto expected = noa::permute(data, permutation).copy();
+                    noa::permute_copy(data, data, permutation);
+                    REQUIRE(test::allclose_abs(expected, data, 1e-8));
+                }
+            } while (std::ranges::next_permutation(permutation).found);
+        });
     }
 }
 

@@ -16,7 +16,7 @@
 #include "noa/runtime/Traits.hpp"
 #include "noa/runtime/Utils.hpp"
 #include "noa/runtime/Ewise.hpp"
-#include <type_traits>
+#include "noa/runtime/Iwise.hpp"
 
 #ifdef NOA_ENABLE_CUDA
 #include "noa/runtime/cuda/Copy.cuh"
@@ -182,38 +182,43 @@ namespace noa {
         return std::decay_t<Input>(std::forward<Input>(input).share(), permuted_shape, permuted_strides, input.options());
     }
 
+    namespace details {
+        template<typename T, usize N>
+        struct PermuteInplaceDH {
+            Accessor<T, N> array;
+            NOA_HD constexpr void operator()(const Vec<isize, N>& indices) const {
+                auto [batch_indices, dhw] = indices.template split<N - 3>();
+                if (dhw[0] < dhw[1]) { // upper triangle, excluding diagonal
+                    auto array_dhw = array[batch_indices];
+                    auto& src = array_dhw(dhw);
+                    auto& dst = array_dhw(dhw.swap(0, 1));
+                    std::swap(src, dst);
+                }
+            }
+        };
+    }
+
     /// Permutes, in memory, the axes of an array.
     /// \param[in] input    Array to permute.
     /// \param[out] output  Permuted array. Its shape and strides should be already permuted.
-    /// \param permutation  Permutation. Axes are numbered from 0 to 3.
-    /// \note For in-place permutations, only 0123, 0213, 0132, and 0321 are supported. Anything else throws an error.
-    /// \note The in-place 0213 permutation requires the axis 1 and 2 to have the same size.
-    ///       The in-place 0132 permutation requires the axis 3 and 2 to have the same size.
-    ///       The in-place 0321 permutation requires the axis 3 and 1 to have the same size.
-    /// \note On the GPU, the following permutations are optimized: 0123, 0132, 0312, 0321, 0213, 0231.
-    ///       Anything else calls copy(), which is slower.
+    /// \param permutation  Permutation. Axes are numbered from 0 to N-1.
+    /// \note For in-place permutations, only two axes can be permuted. Anything else throws an error.
     template<typename Input, typename Output>
         requires (nt::readable_array_decay<Input> and
                   nt::writable_array_decay_of_any<Output, nt::mutable_value_type_t<Input>> and
                   nt::array_decay_with_same_nd<Input, Output>)
     void permute_copy(Input&& input, Output&& output, const Vec<i32, std::remove_reference_t<Input>::SIZE>& permutation) {
-        check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         constexpr auto N = std::remove_reference_t<Input>::SIZE;
-        check(permutation <= N - 1 and sum(permutation) == N * (N - 1) / 2,
+        check(not input.is_empty() and not output.is_empty(), "Empty array detected");
+        check(noa::sort(permutation) == Vec<i32, N>::arange(),
               "Permutation {} is not valid for an array with {} dimension(s)", permutation, N);
 
-        // To enable broadcasting, we need to permute the input.
-        auto input_strides = input.strides();
-        auto input_shape = input.shape();
-        for (usize i{}; i < N; ++i) {
-            const auto d = permutation[i];
-            if (input.shape()[d] == 1 and output.shape()[i] != 1) {
-                input_strides[d] = 0; // broadcast this dimension
-                input_shape[d] = output.shape()[i];
-            } else if (input.shape()[d] != output.shape()[i]) {
-                panic("Cannot broadcast an array of shape {} into an array of shape {}",
-                      input.shape().permute(permutation), output.shape());
-            }
+        const bool is_inplace = input.data() == output.data();
+        if (permutation == Vec<i32, N>::arange()) {
+            if (is_inplace)
+                return;
+            noa::copy(std::forward<Input>(input), std::forward<Output>(output));
+            return;
         }
 
         const Device device = output.device();
@@ -222,37 +227,134 @@ namespace noa {
               input.device(), device);
 
         Stream& stream = Stream::current(device);
-        if (device.is_cpu()) {
-            auto& cpu_stream = stream.cpu();
-            const auto n_threads = cpu_stream.thread_limit();
-            if ((nt::array_decay<Input> or nt::array_decay<Output>) and cpu_stream.is_async()) {
+        auto input_nd = input.span();
+        auto output_nd = output.span();
+
+        // Implicit broadcast.
+        auto input_strides = input.strides();
+        auto input_shape = input.shape();
+        if (not is_inplace) {
+            for (usize i{}; i < N; ++i) {
+                const auto d = permutation[i];
+                if (input.shape()[d] == 1 and output.shape()[i] != 1) {
+                    input_strides[d] = 0; // broadcast this dimension
+                    input_shape[d] = output.shape()[i];
+                } else if (input.shape()[d] != output.shape()[i]) {
+                    panic("Cannot broadcast an array of shape {} into an array of shape {}",
+                          input.shape().permute(permutation), output.shape());
+                }
+            }
+            input_nd = Span<nt::value_type_t<Input>, N>(input.data(), input_shape, input_strides);
+        }
+
+        // Check for the simple case of no transposition, i.e., width is unchanged.
+        if (permutation[N - 1] == static_cast<i32>(N - 1)) {
+            if constexpr (N >= 3) {
+                if (is_inplace) {
+                    // Check only two axes are permuted.
+                    auto axes_to_permute = Vec<i32, 2>{};
+                    auto c = i32{};
+                    for (i32 i{}; i < static_cast<i32>(N - 1); ++i) {
+                        if (permutation[i] != i) {
+                            check(c < 2, "Cannot inplace permute more than 2 outer axes, but got permutation={}", permutation);
+                            axes_to_permute[c++] = i;
+                        }
+                    }
+                    NOA_ASSERT(c == 2);
+
+                    // Move the permuted axes to DH.
+                    auto order_no_width = Vec<i32, N - 1>::from_value(1);
+                    order_no_width[axes_to_permute[0]] += 1;
+                    order_no_width[axes_to_permute[1]] += 1;
+                    auto order = noa::squeeze_empty_dimensions_left(Shape{order_no_width}).push_back(N - 1);
+
+                    // Check DH have same size
+                    auto output_nd_with_correct_dh = output_nd.permute(order);
+                    check(output_nd_with_correct_dh.shape()[N - 3] == output_nd_with_correct_dh.shape()[N - 2],
+                          "Inplace permutation requires the permuted axes to have the same size. Got output:shape={}, axes_to_permute={}",
+                          output.shape(), axes_to_permute);
+
+                    using value_t = nt::mutable_value_type_t<Input>;
+                    noa::iwise(
+                        output_nd_with_correct_dh.shape(), device,
+                        nd::PermuteInplaceDH<value_t, N>{output_nd_with_correct_dh.accessor()},
+                        std::forward<Input>(input), std::forward<Output>(output)
+                    );
+                } else {
+                    input_nd = input_nd.permute(permutation);
+                    auto input_broadcast_permuted = std::decay_t<Input>(
+                        std::forward<Input>(input).share(), input_nd.shape(), input_nd.strides(), input.options());
+                    noa::copy(std::move(input_broadcast_permuted), std::forward<Output>(output));
+                }
+                return;
+            } else {
+                panic("unreachable");
+            }
+        }
+
+        if constexpr (N >= 2) {
+            // First move the corresponding output width in the input to the input height.
+            auto input_permutation = Vec<i32, N>::arange();
+            if (permutation[N - 1] != static_cast<i32>(N - 2)) {
+                auto output_innermost_axis = permutation[N - 1];
+                input_permutation[N - 2] = output_innermost_axis;
+                auto j = i32{};
+                for (i32 i{}; i < static_cast<i32>(N - 1); ++i)
+                    if (i != output_innermost_axis)
+                        input_permutation[j++] = i;
+                input_nd = input_nd.permute(input_permutation);
+            }
+
+            if (is_inplace) {
+                check(input_nd.shape()[N - 2] == input_nd.shape()[N - 1],
+                  "Inplace permutation requires the permuted axes to have the same size. Got output:shape={}, axes_to_permute={}",
+                  output.shape(), input_permutation.filter(N - 2, N - 1));
+
+                check(sum(permutation.cmp_ne(Vec<i32, N>::arange()).template as<i32>()) == 2,
+                      "Cannot inplace permute more than 2 outer axes, but got permutation={}", permutation);
+
+                // In-place HW permutation use the output, so move the new height in the output too.
+                output_nd = output_nd.permute(input_permutation);
+            } else {
+                // Add the effect of the HW permutation.
+                std::swap(input_permutation[N - 2], input_permutation[N - 1]);
+
+                // Then swap the outer axes to match the input permutation.
+                // This way the HW permutation saves the output outer axes
+                // in the order specified by the given permutation.
+                auto output_permutation = Vec<i32, N>::arange();
+                for (i32 i{}; i < static_cast<i32>(N - 1); ++i)
+                    for (i32 j{}; j < static_cast<i32>(N - 1); ++j)
+                        if (permutation[i] == input_permutation[j])
+                            output_permutation[j] = i;
+
+                output_nd = output_nd.permute(output_permutation);
+
+                // By this point the input and output should just be HW transposed of each other.
+                NOA_ASSERT(input_nd.shape() == output_nd.shape().swap(N - 1, N - 2));
+            }
+
+            if (device.is_cpu()) {
+                auto& cpu_stream = stream.cpu();
+                const auto n_threads = cpu_stream.thread_limit();
                 cpu_stream.enqueue(
-                    [=,
-                     input_ = std::forward<Input>(input),
-                     output_ = std::forward<Output>(output)
-                    ] {
-                        noa::cpu::permute_copy(
-                            input_.get(), input_strides, input_shape,
-                            output_.get(), output_.strides(),
-                            permutation, n_threads);
+                    [=, handles = nd::extract_shared_handle_from_arrays(
+                        noa::forward_as_tuple(std::forward<Input>(input), std::forward<Output>(output)))] {
+                        noa::cpu::permute_copy_hw(
+                            input_nd.get(), input_nd.strides(), input_nd.shape(),
+                            output_nd.get(), output_nd.strides(), n_threads);
                     });
             } else {
-                noa::cpu::permute_copy(
-                    input.get(), input_strides, input_shape,
-                    output.get(), output.strides(),
-                    permutation, n_threads);
+                #ifdef NOA_ENABLE_CUDA
+                noa::cuda::Stream& cuda_stream = stream.cuda();
+                noa::cuda::permute_copy_hw(
+                    input_nd.get(), input_nd.strides(), input_nd.shape(),
+                    output_nd.get(), output_nd.strides(), cuda_stream);
+                cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
+                #else
+                panic_no_gpu_backend();
+                #endif
             }
-        } else {
-            #ifdef NOA_ENABLE_CUDA
-            noa::cuda::Stream& cuda_stream = stream.cuda();
-            noa::cuda::permute_copy(
-                input.get(), input_strides, input_shape,
-                output.get(), output.strides(),
-                permutation, cuda_stream);
-            cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
-            #else
-            panic_no_gpu_backend();
-            #endif
         }
     }
 

@@ -4,7 +4,6 @@
 #include "noa/base/Math.hpp"
 #include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/cuda/Block.cuh"
-#include "noa/runtime/cuda/Copy.cuh"
 #include "noa/runtime/cuda/Stream.hpp"
 
 // Logic from:
@@ -20,111 +19,109 @@ namespace noa::cuda::details {
         static constexpr u32 block_size = 256;
         static constexpr u32 block_size_x = tile_size;
         static constexpr u32 block_size_y = block_size / block_size_x;
+        static constexpr u32 block_size_z = 1;
+        static constexpr u32 block_work_size_x = tile_size;
+        static constexpr u32 block_work_size_y = tile_size;
+        static constexpr u32 block_work_size_z = 1;
+        static constexpr u32 block_ndim = 2;
     };
 
-    // Out-of-place.
-    // Transpose XY plane (by chunk of 32x32 tiles) for every Z.
-    // XY tile along Z becomes X'Y' (X'=Y, Y'=X) along Z' (Z'=Z)
-    template<bool IsMultipleOfTile, typename T>
+    // Out-of-place permutation of the two rightmost axes (height and width).
+    // This is used to permute any axis to the rightmost and the rightmost/innermost axis to the second rightmost.
+    template<bool IsMultipleOfTile, typename T, usize N>
     __global__ __launch_bounds__(PermuteConfig::block_size)
-    void permute_0132_(
-        AccessorRestrict<const T, 4, u32> input,
-        AccessorRestrict<T, 4, u32> output,
-        Shape<u32, 2> shape_yx,
-        Vec<u32, 2> block_offset_zy, u32 blocks_x
+    void permute_hw_(
+        AccessorRestrict<const T, N, u32> input,
+        AccessorRestrict<T, N, u32> output,
+        Shape<u32, 2> shape_hw,
+        Vec<u32, (N == 2 ? 1 : 2)> grid_outer_offset, // ((z,)y)
+        Vec<u32, (N <= 3 ? 0 : N - 3)> grid_fused_shape_in_x_unbatched
     ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
         __shared__ Uninitialized<T> tile_[TILE_SIZE][TILE_SIZE + 1]; // +1 so that elements in a column map to different banks
         T(& tile)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_);
 
-        auto bid = block_indices<u32, 3>();
-        bid[0] += block_offset_zy[0];
-        bid[1] += block_offset_zy[1];
+        const auto [gid_batches, gid_hw] = global_indices<u32, N, PermuteConfig, false>(
+            grid_fused_shape_in_x_unbatched, grid_outer_offset).template split<N - 2>();
 
-        const auto input_2d = input[bid[0]][bid[1]];
-        const auto output_2d = output[bid[0]][bid[1]];
-
-        const Vec<u32, 2> tid = thread_indices<u32, 2>();
-        const Vec<u32, 2> index = offset2index(bid[2], blocks_x);
-        const Vec<u32, 2> offset = TILE_SIZE * index;
+        const auto tid = thread_indices<u32, 2>();
 
         // Read tile to shared memory.
-        const auto old_gid = offset + tid;
+        const auto input_2d = input[gid_batches];
+        const auto input_gid = gid_hw + tid;
         for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-            const u32 gy = old_gid[0] + repeat;
-            if (IsMultipleOfTile or (old_gid[1] < shape_yx[1] and gy < shape_yx[0])) // x could be checked earlier
-                tile[tid[0] + repeat][tid[1]] = input_2d(gy, old_gid[1]);
+            const u32 gy = input_gid[0] + repeat;
+            if (IsMultipleOfTile or (input_gid[1] < shape_hw[1] and gy < shape_hw[0])) // x could be checked earlier
+                tile[tid[0] + repeat][tid[1]] = input_2d(gy, input_gid[1]);
         }
 
         block_synchronize();
 
         // Write permuted tile to global memory.
-        const auto new_gid = offset.flip() + tid; // Y->X', X->Y'
+        const auto output_hw = output[gid_batches];
+        const auto output_gid = gid_hw.flip() + tid; // Y->X', X->Y'
         for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-            const u32 gy = new_gid[0] + repeat;
-            if (IsMultipleOfTile or (new_gid[1] < shape_yx[0] and gy < shape_yx[1]))
-                output_2d(gy, new_gid[1]) = tile[tid[1]][tid[0] + repeat];
+            const u32 gy = output_gid[0] + repeat;
+            if (IsMultipleOfTile or (output_gid[1] < shape_hw[0] and gy < shape_hw[1]))
+                output_hw(gy, output_gid[1]) = tile[tid[1]][tid[0] + repeat];
         }
     }
 
-    // In-place.
-    // Since the last dimension is unchanged, we can simply in-place permute the XY slices one at a time.
-    template<bool IsMultipleOfTile, typename T>
+    template<bool IsMultipleOfTile, typename T, usize N>
     __global__ __launch_bounds__(PermuteConfig::block_size)
-    void permute_0132_inplace_(Accessor<T, 4, u32> output, u32 size, Vec<u32, 2> block_offset_zy, u32 blocks_x) {
+    void permute_hw_inplace_(
+        AccessorRestrict<T, N, u32> output, u32 size,
+        Vec<u32, (N == 2 ? 1 : 2)> grid_outer_offset, // ((z,)y)
+        Vec<u32, (N <= 3 ? 0 : N - 3)> grid_fused_shape_in_x_unbatched
+    ) {
         constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
         __shared__ Uninitialized<T> tile_src_[TILE_SIZE][TILE_SIZE + 1];
         __shared__ Uninitialized<T> tile_dst_[TILE_SIZE][TILE_SIZE + 1];
         T(& tile_src)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_src_);
         T(& tile_dst)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_dst_);
 
-        auto bid = block_indices<u32, 3>();
-        bid[0] += block_offset_zy[0];
-        bid[1] += block_offset_zy[1];
+        const auto [gid_batches, gid_hw] = global_indices<u32, N, PermuteConfig, false>(
+            grid_fused_shape_in_x_unbatched, grid_outer_offset).template split<N - 2>();
 
-        const auto output_2d = output[bid[0]][bid[1]];
+        const auto tid = thread_indices<u32, 2>();
+        const auto output_hw = output[gid_batches];
 
-        // Get the current indexes.
-        const Vec<u32, 2> tid = thread_indices<u32, 2>();
-        const Vec<u32, 2> index = offset2index(bid[2], blocks_x);
-        const Vec<u32, 2> offset = TILE_SIZE * index;
-
-        if (offset[0] > offset[1]) { // lower triangle
-            const auto src_gid = offset + tid;
-            const auto dst_gid = offset.flip() + tid; // Y->X', X->Y'
+        if (gid_hw[0] > gid_hw[1]) { // lower triangle
+            const auto input_gid = gid_hw + tid;
+            const auto output_gid = gid_hw.flip() + tid; // Y->X', X->Y'
 
             // Read tiles to shared memory.
             for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-                const u32 gy = src_gid[0] + repeat;
-                if (IsMultipleOfTile or (src_gid[1] < size and gy < size))
-                    tile_src[tid[0] + repeat][tid[1]] = output_2d(gy, src_gid[1]);
+                const u32 iy = input_gid[0] + repeat;
+                if (IsMultipleOfTile or (input_gid[1] < size and iy < size))
+                    tile_src[tid[0] + repeat][tid[1]] = output_hw(iy, input_gid[1]);
 
-                const u32 dy = dst_gid[0] + repeat;
-                if (IsMultipleOfTile or (dst_gid[1] < size and dy < size))
-                    tile_dst[tid[0] + repeat][tid[1]] = output_2d(dy, dst_gid[1]);
+                const u32 oy = output_gid[0] + repeat;
+                if (IsMultipleOfTile or (output_gid[1] < size and oy < size))
+                    tile_dst[tid[0] + repeat][tid[1]] = output_hw(oy, output_gid[1]);
             }
 
             block_synchronize();
 
             // Write permuted tiles to global memory.
             for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-                const u32 dy = dst_gid[0] + repeat;
-                if (IsMultipleOfTile or (dst_gid[1] < size and dy < size))
-                    output_2d(dy, dst_gid[1]) = tile_src[tid[1]][tid[0] + repeat];
+                const u32 oy = output_gid[0] + repeat;
+                if (IsMultipleOfTile or (output_gid[1] < size and oy < size))
+                    output_hw(oy, output_gid[1]) = tile_src[tid[1]][tid[0] + repeat];
 
-                const u32 gy = src_gid[0] + repeat;
-                if (IsMultipleOfTile or (src_gid[1] < size and gy < size))
-                    output_2d(gy, src_gid[1]) = tile_dst[tid[1]][tid[0] + repeat];
+                const u32 iy = input_gid[0] + repeat;
+                if (IsMultipleOfTile or (input_gid[1] < size and iy < size))
+                    output_hw(iy, input_gid[1]) = tile_dst[tid[1]][tid[0] + repeat];
             }
 
-        } else if (offset[0] == offset[1]) { // diagonal
-            const auto gid = offset + tid;
+        } else if (gid_hw[0] == gid_hw[1]) { // diagonal
+            const auto gid = gid_hw + tid;
 
             // Read tile to shared memory.
             for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
                 const u32 gy = gid[0] + repeat;
                 if (IsMultipleOfTile or (gid[1] < size and gy < size))
-                    tile_src[tid[0] + repeat][tid[1]] = output_2d(gy, gid[1]);
+                    tile_src[tid[0] + repeat][tid[1]] = output_hw(gy, gid[1]);
             }
 
             block_synchronize();
@@ -133,669 +130,67 @@ namespace noa::cuda::details {
             for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
                 const u32 gy = gid[0] + repeat;
                 if (IsMultipleOfTile or (gid[1] < size and gy < size))
-                    output_2d(gy, gid[1]) = tile_src[tid[1]][tid[0] + repeat];
-            }
-        }
-    }
-
-    // Out-of-place.
-    // Transpose 0213 is a specific case: the innermost dimension is unchanged,
-    // which makes everything much simpler. Only the last two dimensions are swapped:
-    //  - input_strides[1]->output_strides[2]
-    //  - input_strides[2]->output_strides[1]
-    template<bool IsMultipleOfTile, typename T>
-    __global__ __launch_bounds__(PermuteConfig::block_size)
-    void permute_0213_(
-        AccessorRestrict<const T, 4, u32> input,
-        AccessorRestrict<T, 4, u32> output_swapped,
-        Shape<u32, 2> shape_yx, Vec<u32, 2> block_offset_zy, u32 blocks_x
-    ) {
-        constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
-
-        auto bid = block_indices<u32, 3>();
-        const Vec<u32, 2> tid = thread_indices<u32, 2>();
-        const Vec<u32, 2> index = offset2index(bid[2], blocks_x);
-        const Vec<u32, 2> gid = TILE_SIZE * index + tid;
-        if (not IsMultipleOfTile and gid[1] >= shape_yx[1])
-            return;
-
-        bid[0] += block_offset_zy[0];
-        bid[1] += block_offset_zy[1];
-        const auto input_ = input[bid[0]][bid[1]];
-        const auto output_ = output_swapped[bid[0]][bid[1]];
-
-        for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-            const u32 gy = gid[0] + repeat;
-            if (IsMultipleOfTile or gy < shape_yx[0])
-                output_(gy, gid[1]) = input_(gy, gid[1]);
-        }
-    }
-
-    // In-place.
-    // This is simply swapping the Y with the X, such as swap(o[z][y][x], o[y][z][x]).
-    // Only process one triangle, plus the diagonal. The other blocks are idle...
-    // The shared memory simply acts as a per thread buffer.
-    template<bool IsMultipleOfTile, typename T>
-    __global__ __launch_bounds__(PermuteConfig::block_size)
-    void permute_0213_inplace_(
-        Accessor<T, 4, u32> output, Shape<u32, 2> shape,
-        Vec<u32, 2> block_offset_zy, u32 blocks_x
-    ) {
-        constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
-        __shared__ Uninitialized<T> tile_[PermuteConfig::block_size_y][PermuteConfig::block_size_x];
-        T(& tile)[PermuteConfig::block_size_y][PermuteConfig::block_size_x] =
-            *reinterpret_cast<T(*)[PermuteConfig::block_size_y][PermuteConfig::block_size_x]>(&tile_);
-
-        auto bid = block_indices<u32, 3>();
-        bid[0] += block_offset_zy[0];
-        bid[1] += block_offset_zy[1];
-
-        const Vec<u32, 2> tid = thread_indices<u32, 2>();
-        const Vec<u32, 2> index = offset2index(bid[2], blocks_x);
-        const Vec<u32, 4> gid{
-            bid[0],
-            bid[1],
-            TILE_SIZE * index[0] + tid[0],
-            TILE_SIZE * index[1] + tid[1]
-        };
-        if (gid[3] >= shape[1])
-            return;
-
-        const auto output_ = output[gid[0]];
-        for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-            const u32 gy = gid[2] + repeat;
-            if (gid[1] > gy) // process one triangle + diagonal
-                continue;
-
-            if (IsMultipleOfTile or gy < shape[0]) {
-                T& src = output_(gid[1], gy, gid[3]);
-                T& dst = output_(gy, gid[1], gid[3]); // permutation 1 <-> 2
-                tile[tid[0]][tid[1]] = dst;
-                dst = src;
-                src = tile[tid[0]][tid[1]];
-            }
-        }
-    }
-
-    // Transpose XZ plane (by chunk of 32x32 tiles) for every Y.
-    // The XZ tile along Y becomes X'Y' (X'=Z, Y'=X) along Z' (Z'=Y)
-    template<bool IsMultipleOfTile, typename T>
-    __global__ __launch_bounds__(PermuteConfig::block_size)
-    void permute_0231_(
-        AccessorRestrict<const T, 4, u32> input_swapped,
-        AccessorRestrict<T, 4, u32> output,
-        Shape<u32, 2> shape_zx, Vec<u32, 2> block_offset_zy, u32 blocks_x
-    ) {
-        constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
-        __shared__ Uninitialized<T> tile_[TILE_SIZE][TILE_SIZE + 1];
-        T(& tile)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_);
-
-        auto bid = block_indices<u32, 3>();
-        bid[0] += block_offset_zy[0];
-        bid[1] += block_offset_zy[1];
-
-        const auto input_swapped_ = input_swapped[bid[0]][bid[1]];
-        const auto output_ = output[bid[0]][bid[1]];
-
-        // Get the current indexes.
-        const Vec<u32, 2> tid = thread_indices<u32, 2>();
-        const Vec<u32, 2> index = offset2index(bid[2], blocks_x);
-        const Vec<u32, 2> offset = TILE_SIZE * index; // ZX
-
-        // Read tile to shared memory.
-        const auto old_gid = offset + tid;
-        for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-            const u32 gz = old_gid[0] + repeat;
-            if (IsMultipleOfTile or (old_gid[1] < shape_zx[1] and gz < shape_zx[0]))
-                tile[tid[0] + repeat][tid[1]] = input_swapped_(gz, old_gid[1]);
-        }
-
-        block_synchronize();
-
-        // Write permuted tile to global memory.
-        const auto new_gid = offset.flip() + tid; // ZX.flip() -> XZ -> Y'X'
-        for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-            const u32 gy = new_gid[0] + repeat;
-            if (IsMultipleOfTile or (new_gid[1] < shape_zx[0] and gy < shape_zx[1]))
-                output_(gy, new_gid[1]) = tile[tid[1]][tid[0] + repeat];
-        }
-    }
-
-    // Transpose XY plane (by chunk of 32x32 tiles) for every Z.
-    // The XY tile along Z becomes X'Z' (X'=Y, Z'=X) along Y' (Y'=Z)
-    template<bool IsMultipleOfTile, typename T>
-    __global__ __launch_bounds__(PermuteConfig::block_size)
-    void permute_0312_(
-        AccessorRestrict<const T, 4, u32> input,
-        AccessorRestrict<T, 4, u32> output_swapped,
-        Shape<u32, 2> shape_yx /* YX */, Vec<u32, 2> block_offset_zy, u32 blocks_x
-    ) {
-        constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
-        __shared__ Uninitialized<T> tile_[TILE_SIZE][TILE_SIZE + 1];
-        T(& tile)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_);
-
-        auto bid = block_indices<u32, 3>();
-        bid[0] += block_offset_zy[0];
-        bid[1] += block_offset_zy[1];
-
-        const auto input_ = input[bid[0]][bid[1]];
-        const auto output_swapped_ = output_swapped[bid[0]][bid[1]];
-
-        const Vec<u32, 2> tid = thread_indices<u32, 2>();
-        const Vec<u32, 2> index = offset2index(bid[2], blocks_x);
-        const Vec<u32, 2> offset = TILE_SIZE * index;
-
-        // Read tile to shared memory.
-        const auto old_gid = offset + tid;
-        for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-            const u32 gy = old_gid[0] + repeat;
-            if (IsMultipleOfTile or (old_gid[1] < shape_yx[1] and gy < shape_yx[0]))
-                tile[tid[0] + repeat][tid[1]] = input_(gy, old_gid[1]);
-        }
-
-        block_synchronize();
-
-        // Write permuted tile to global memory.
-        const auto new_gid = offset.flip() + tid;
-        for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-            const u32 gz = new_gid[0] + repeat;
-            if (IsMultipleOfTile or (new_gid[1] < shape_yx[0] and gz < shape_yx[1]))
-                output_swapped_(gz, new_gid[1]) = tile[tid[1]][tid[0] + repeat];
-        }
-    }
-
-    // Transpose XZ plane (by chunk of 32x32 tiles) for every Y.
-    // The XZ tile along Y becomes X'Z' (X'=Z, Z'=X) along Y' (Y'=Y)
-    template<bool IsMultipleOfTile, typename T>
-    __global__ __launch_bounds__(PermuteConfig::block_size)
-    void permute_0321_(
-        AccessorRestrict<const T, 4, u32> input_swapped,
-        AccessorRestrict<T, 4, u32> output_swapped,
-        Shape<u32, 2> shape_zx, Vec<u32, 2> block_offset_zy, u32 blocks_x
-    ) {
-        constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
-        __shared__ Uninitialized<T> tile_[TILE_SIZE][TILE_SIZE + 1];
-        T(& tile)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_);
-
-        auto bid = block_indices<u32, 3>();
-        bid[0] += block_offset_zy[0];
-        bid[1] += block_offset_zy[1];
-
-        const auto input_swapped_ = input_swapped[bid[0]][bid[1]];
-        const auto output_swapped_ = output_swapped[bid[0]][bid[1]];
-
-        // Get the current indexes.
-        const Vec<u32, 2> tid = thread_indices<u32, 2>();
-        const Vec<u32, 2> index = offset2index(bid[2], blocks_x);
-        const Vec<u32, 2> offset = TILE_SIZE * index; // ZX
-
-        // Read tile to shared memory.
-        const auto old_gid = offset + tid;
-        for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-            u32 gz = old_gid[0] + repeat;
-            if (IsMultipleOfTile or (old_gid[1] < shape_zx[1] and gz < shape_zx[0]))
-                tile[tid[0] + repeat][tid[1]] = input_swapped_(gz, old_gid[1]);
-        }
-
-        block_synchronize();
-
-        // Write permuted tile to global memory.
-        const auto new_gid = offset.flip() + tid; // ZX.flip() -> XZ -> Z'X'
-        for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-            u32 gz = new_gid[0] + repeat;
-            if (IsMultipleOfTile or (new_gid[1] < shape_zx[0] and gz < shape_zx[1]))
-                output_swapped_(gz, new_gid[1]) = tile[tid[1]][tid[0] + repeat];
-        }
-    }
-
-    template<bool IsMultipleOfTile, typename T>
-    __global__ __launch_bounds__(PermuteConfig::block_size)
-    void permute_0321_inplace_(
-        Accessor<T, 4, u32> output_swapped, u32 shape,
-        Vec<u32, 2> block_offset_zy, u32 blocks_x
-    ) {
-        constexpr u32 TILE_SIZE = PermuteConfig::tile_size;
-        __shared__ Uninitialized<T> tile_src_[TILE_SIZE][TILE_SIZE + 1];
-        __shared__ Uninitialized<T> tile_dst_[TILE_SIZE][TILE_SIZE + 1];
-        T(& tile_src)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_src_);
-        T(& tile_dst)[TILE_SIZE][TILE_SIZE + 1] = *reinterpret_cast<T(*)[TILE_SIZE][TILE_SIZE + 1]>(&tile_dst_);
-
-        auto bid = block_indices<u32, 3>();
-        bid[0] += block_offset_zy[0];
-        bid[1] += block_offset_zy[1];
-
-        const auto output_swapped_ = output_swapped[bid[0]][bid[1]];
-
-        // Get the current indexes.
-        const Vec<u32, 2> tid = thread_indices<u32, 2>();
-        const Vec<u32, 2> index = offset2index(bid[2], blocks_x);
-        const Vec<u32, 2> offset = TILE_SIZE * index; // ZX
-
-        if (offset[0] > offset[1]) { // lower t
-            const auto src_gid = offset + tid; // ZX
-            const auto dst_gid = offset.flip() + tid; // ZX.flip() -> XZ -> Z'X'
-
-            // Read tiles to shared memory.
-            for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-                const u32 sz = src_gid[0] + repeat;
-                if (IsMultipleOfTile or (src_gid[1] < shape and sz < shape))
-                    tile_src[tid[0] + repeat][tid[1]] = output_swapped_(sz, src_gid[1]);
-
-                const u32 dz = dst_gid[0] + repeat;
-                if (IsMultipleOfTile or (dst_gid[1] < shape and dz < shape))
-                    tile_dst[tid[0] + repeat][tid[1]] = output_swapped_(dz, dst_gid[1]);
-            }
-
-            block_synchronize();
-
-            // Write permuted tiles to global memory.
-            for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-                const u32 dz = dst_gid[0] + repeat;
-                if (IsMultipleOfTile or (dst_gid[1] < shape and dz < shape))
-                    output_swapped_(dz, dst_gid[1]) = tile_src[tid[1]][tid[0] + repeat];
-
-                const u32 sz = src_gid[0] + repeat;
-                if (IsMultipleOfTile or (src_gid[1] < shape and sz < shape))
-                    output_swapped_(sz, src_gid[1]) = tile_dst[tid[1]][tid[0] + repeat];
-            }
-
-        } else if (offset[0] == offset[1]) { // diagonal
-            const auto gid = offset + tid; // ZX
-
-            // Read tile to shared memory.
-            for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-                const u32 gz = gid[0] + repeat;
-                if (IsMultipleOfTile or (gid[1] < shape and gz < shape))
-                    tile_src[tid[0] + repeat][tid[1]] = output_swapped_(gz, gid[1]);
-            }
-
-            block_synchronize();
-
-            // Write permuted tile to global memory.
-            for (u32 repeat = 0; repeat < TILE_SIZE; repeat += PermuteConfig::block_size_y) {
-                const u32 gz = gid[0] + repeat;
-                if (IsMultipleOfTile or (gid[1] < shape and gz < shape))
-                    output_swapped_(gz, gid[1]) = tile_src[tid[1]][tid[0] + repeat];
-            }
-        }
-    }
-
-    // Since all axes are permuted, in-place permute cannot easily be expressed as a 2D transposition
-    // along a COMMON plane. https://www.aldapa.eus/res/cuTranspose/Readme.html has an implementation
-    // based on a 3D shared memory array, but since it is unlikely to be used anyway, don't bother for now.
-}
-
-namespace noa::cuda::details {
-    template<typename T>
-    void permute_0132(
-        const T* input, const Strides4& input_strides,
-        T* output, const Strides4& output_strides,
-        const Shape4& shape, Stream& stream
-    ) {
-        const auto u_shape = shape.as_safe<u32>();
-        const auto shape_2d = u_shape.filter(2, 3);
-        const bool are_multiple_tile =
-            is_multiple_of(shape_2d[0], PermuteConfig::tile_size) and
-            is_multiple_of(shape_2d[1], PermuteConfig::tile_size);
-
-        const auto input_accessor = AccessorRestrict<const T, 4, u32>(input, input_strides.as_safe<u32>());
-        const auto output_accessor = AccessorRestrict<T, 4, u32>(output, output_strides.as_safe<u32>());
-
-        const auto grid_x = GridXY(shape[3], shape[2], PermuteConfig::tile_size, PermuteConfig::tile_size);
-        const auto grid_y = GridY(shape[1], 1);
-        const auto grid_z = GridZ(shape[0], 1);
-        check(grid_x.n_launches() == 1);
-
-        for (u32 z{}; z < grid_z.n_launches(); ++z) {
-            for (u32 y{}; y < grid_y.n_launches(); ++y) {
-                const auto config = LaunchConfig{
-                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
-                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-                };
-                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
-                if (are_multiple_tile) {
-                    stream.enqueue(
-                        permute_0132_<true, T>,
-                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
-                    );
-                } else {
-                    stream.enqueue(
-                        permute_0132_<false, T>,
-                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
-                    );
-                }
-            }
-        }
-    }
-
-    template<typename T>
-    void permute_0213(
-        const T* input, const Strides4& input_strides,
-        T* output, const Strides4& output_strides,
-        const Shape4& shape, Stream& stream
-    ) {
-        const auto u_shape = shape.as_safe<u32>();
-        const auto shape_2d = u_shape.filter(2, 3);
-        const bool are_multiple_tile =
-            is_multiple_of(shape_2d[0], PermuteConfig::tile_size) and
-            is_multiple_of(shape_2d[1], PermuteConfig::tile_size);
-
-        const auto input_accessor = AccessorRestrict<const T, 4, u32>(input, input_strides.as_safe<u32>());
-        const auto output_accessor = AccessorRestrict<T, 4, u32>(output, output_strides.as_safe<u32>().filter(0, 2, 1, 3));
-
-        const auto grid_x = GridXY(shape[3], shape[2], PermuteConfig::tile_size, PermuteConfig::tile_size);
-        const auto grid_y = GridY(shape[1], 1);
-        const auto grid_z = GridZ(shape[0], 1);
-        check(grid_x.n_launches() == 1);
-
-        for (u32 z{}; z < grid_z.n_launches(); ++z) {
-            for (u32 y{}; y < grid_y.n_launches(); ++y) {
-                const auto config = LaunchConfig{
-                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
-                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-                };
-                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
-                if (are_multiple_tile) {
-                    stream.enqueue(
-                        permute_0213_<true, T>,
-                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
-                    );
-                } else {
-                    stream.enqueue(
-                        permute_0213_<false, T>,
-                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
-                    );
-                }
-            }
-        }
-    }
-
-    template<typename T>
-    void permute_0312(
-        const T* input, const Strides4& input_strides,
-        T* output, const Strides4& output_strides,
-        const Shape4& shape, Stream& stream
-    ) {
-        const auto u_shape = shape.as_safe<u32>();
-        const auto shape_2d = u_shape.filter(2, 3);
-        const bool are_multiple_tile =
-            is_multiple_of(shape_2d[0], PermuteConfig::tile_size) and
-            is_multiple_of(shape_2d[1], PermuteConfig::tile_size);
-
-        const auto input_accessor = AccessorRestrict<const T, 4, u32>(input, input_strides.as_safe<u32>());
-        const auto output_accessor = AccessorRestrict<T, 4, u32>(output, output_strides.as_safe<u32>().filter(0, 2, 1, 3));
-
-        const auto grid_x = GridXY(shape[3], shape[2], PermuteConfig::tile_size, PermuteConfig::tile_size);
-        const auto grid_y = GridY(shape[1], 1);
-        const auto grid_z = GridZ(shape[0], 1);
-        check(grid_x.n_launches() == 1);
-
-        for (u32 z{}; z < grid_z.n_launches(); ++z) {
-            for (u32 y{}; y < grid_y.n_launches(); ++y) {
-                const auto config = LaunchConfig{
-                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
-                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-                };
-                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
-                if (are_multiple_tile) {
-                    stream.enqueue(
-                        permute_0312_<true, T>,
-                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x());
-                } else {
-                    stream.enqueue(
-                        permute_0312_<false, T>,
-                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x());
-                }
-            }
-        }
-    }
-
-    template<typename T>
-    void permute_0231(
-        const T* input, const Strides4& input_strides,
-        T* output, const Strides4& output_strides,
-        const Shape4& shape, Stream& stream
-    ) {
-        const auto u_shape = shape.as_safe<u32>();
-        const auto shape_2d = u_shape.filter(1, 3);
-        const bool are_multiple_tile =
-            is_multiple_of(shape_2d[0], PermuteConfig::tile_size) and
-            is_multiple_of(shape_2d[1], PermuteConfig::tile_size);
-
-        const auto input_accessor = AccessorRestrict<const T, 4, u32>(input, input_strides.as_safe<u32>().filter(0, 2, 1, 3)); // Y -> Z'
-        const auto output_accessor = AccessorRestrict<T, 4, u32>(output, output_strides.as_safe<u32>());
-
-        const auto grid_x = GridXY(shape[3], shape[1], PermuteConfig::tile_size, PermuteConfig::tile_size);
-        const auto grid_y = GridY(shape[2], 1);
-        const auto grid_z = GridZ(shape[0], 1);
-        check(grid_x.n_launches() == 1);
-
-        for (u32 z{}; z < grid_z.n_launches(); ++z) {
-            for (u32 y{}; y < grid_y.n_launches(); ++y) {
-                const auto config = LaunchConfig{
-                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
-                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-                };
-                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
-                if (are_multiple_tile) {
-                    stream.enqueue(
-                        permute_0231_<true, T>,
-                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
-                    );
-                } else {
-                    stream.enqueue(
-                        permute_0231_<false, T>,
-                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
-                    );
-                }
-            }
-        }
-    }
-
-    template<typename T>
-    void permute_0321(
-        const T* input, const Strides4& input_strides,
-        T* output, const Strides4& output_strides,
-        const Shape4& shape, Stream& stream
-    ) {
-        const auto u_shape = shape.as_safe<u32>();
-        const auto shape_2d = u_shape.filter(1, 3);
-        const bool are_multiple_tile =
-            is_multiple_of(shape_2d[0], PermuteConfig::tile_size) and
-            is_multiple_of(shape_2d[1], PermuteConfig::tile_size);
-
-        const auto input_accessor = AccessorRestrict<const T, 4, u32>(input, input_strides.as_safe<u32>().filter(0, 2, 1, 3));
-        const auto output_accessor = AccessorRestrict<T, 4, u32>(output, output_strides.as_safe<u32>().filter(0, 2, 1, 3));
-
-        const auto grid_x = GridXY(shape[3], shape[1], PermuteConfig::tile_size, PermuteConfig::tile_size);
-        const auto grid_y = GridY(shape[2], 1);
-        const auto grid_z = GridZ(shape[0], 1);
-        check(grid_x.n_launches() == 1);
-
-        for (u32 z{}; z < grid_z.n_launches(); ++z) {
-            for (u32 y{}; y < grid_y.n_launches(); ++y) {
-                const auto config = LaunchConfig{
-                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
-                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-                };
-                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
-                if (are_multiple_tile) {
-                    stream.enqueue(
-                        permute_0321_<true, T>,
-                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
-                    );
-                } else {
-                    stream.enqueue(
-                        permute_0321_<false, T>,
-                        config, input_accessor, output_accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
-                    );
-                }
-            }
-        }
-    }
-
-    template<typename T>
-    void permute_0132_inplace(
-        T* output, const Strides4& output_strides,
-        const Shape4& shape, Stream& stream
-    ) {
-        check(shape[3] == shape[2], "For a \"0132\" in-place permutation, shape[2] should be equal to shape[3]. Got shape={}", shape);
-
-        const auto shape_u32 = shape.as_safe<u32>();
-        const bool is_multiple_tile = is_multiple_of(shape_u32[3], PermuteConfig::tile_size);
-        const auto accessor = Accessor<T, 4, u32>(output, output_strides.as_safe<u32>());
-
-        const auto grid_x = GridXY(shape[3], shape[3], PermuteConfig::tile_size, PermuteConfig::tile_size);
-        const auto grid_y = GridY(shape[1], 1);
-        const auto grid_z = GridZ(shape[0], 1);
-        check(grid_x.n_launches() == 1);
-
-        for (u32 z{}; z < grid_z.n_launches(); ++z) {
-            for (u32 y{}; y < grid_y.n_launches(); ++y) {
-                const auto config = LaunchConfig{
-                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)), // about less than half will be no-op blocks...
-                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-                };
-                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
-                if (is_multiple_tile)
-                    stream.enqueue(
-                        permute_0132_inplace_<true, T>,
-                        config, accessor, shape_u32[3], grid_offset, grid_x.n_blocks_x()
-                    );
-                else
-                    stream.enqueue(
-                        permute_0132_inplace_<false, T>,
-                        config, accessor, shape_u32[3], grid_offset, grid_x.n_blocks_x()
-                    );
-            }
-        }
-    }
-
-    template<typename T>
-    void permute_0213_inplace(
-        T* output, const Strides4& output_strides,
-        const Shape4& shape, Stream& stream
-    ) {
-        check(shape[1] == shape[2],
-              "For a \"0213\" in-place permutation, shape[1] should be equal to shape[2]. Got shape={}", shape);
-
-        const auto shape_u32 = shape.as_safe<u32>();
-        const auto shape_2d = shape_u32.filter(2, 3);
-        const bool is_multiple_tile = is_multiple_of(shape_2d[0], PermuteConfig::tile_size);
-        const auto accessor = Accessor<T, 4, u32>(output, output_strides.as_safe<u32>());
-
-        const auto grid_x = GridXY(shape[3], shape[2], PermuteConfig::tile_size, PermuteConfig::tile_size);
-        const auto grid_y = GridY(shape[1], 1);
-        const auto grid_z = GridZ(shape[0], 1);
-        check(grid_x.n_launches() == 1);
-
-        for (u32 z{}; z < grid_z.n_launches(); ++z) {
-            for (u32 y{}; y < grid_y.n_launches(); ++y) {
-                const auto config = LaunchConfig{
-                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
-                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-                };
-                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
-                if (is_multiple_tile) {
-                    stream.enqueue(
-                        permute_0213_inplace_<true, T>,
-                        config, accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
-                    );
-                } else {
-                    stream.enqueue(
-                        permute_0213_inplace_<false, T>,
-                        config, accessor, shape_2d, grid_offset, grid_x.n_blocks_x()
-                    );
-                }
-            }
-        }
-    }
-
-    template<typename T>
-    void permute_0321_inplace(
-        T* output, const Strides4& output_strides,
-        const Shape4& shape, Stream& stream
-    ) {
-        check(shape[1] == shape[3],
-              "For a \"0321\" in-place permutation, shape[1] should be equal to shape[3]. Got shape={}", shape);
-
-        const auto shape_u32 = shape.as_safe<u32>();
-        const bool is_multiple_tile = is_multiple_of(shape_u32[1], PermuteConfig::tile_size);
-        const auto output_accessor = Accessor<T, 4, u32>(output, output_strides.as_safe<u32>().filter(0, 2, 1, 3));
-
-        const auto grid_x = GridXY(shape[1], shape[1], PermuteConfig::tile_size, PermuteConfig::tile_size);
-        const auto grid_y = GridY(shape[2], 1);
-        const auto grid_z = GridZ(shape[0], 1);
-        check(grid_x.n_launches() == 1);
-
-        for (u32 z{}; z < grid_z.n_launches(); ++z) {
-            for (u32 y{}; y < grid_y.n_launches(); ++y) {
-                const auto config = LaunchConfig{
-                    .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
-                    .n_threads = dim3(PermuteConfig::block_size_x, PermuteConfig::block_size_y, 1),
-                };
-                const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
-                if (is_multiple_tile) {
-                    stream.enqueue(
-                        permute_0321_inplace_<true, T>,
-                        config, output_accessor, shape_u32[1], grid_offset, grid_x.n_blocks_x()
-                    );
-                } else {
-                    stream.enqueue(
-                        permute_0321_inplace_<false, T>,
-                        config, output_accessor, shape_u32[1], grid_offset, grid_x.n_blocks_x()
-                    );
-                }
+                    output_hw(gy, gid[1]) = tile_src[tid[1]][tid[0] + repeat];
             }
         }
     }
 }
 
 namespace noa::cuda {
-    template<typename T>
-    void permute_copy(
-        const T* input, const Strides4& input_strides, const Shape4& input_shape,
-        T* output, const Strides4& output_strides,
-        const Vec<i32, 4>& permutation, Stream& stream
+    template<typename T, usize N> requires (N >= 2)
+    void permute_copy_hw(
+        const T* input, const Strides<isize, N>& input_strides, const Shape<isize, N>& input_shape,
+        T* output, const Strides<isize, N>& output_strides, Stream& stream
     ) {
-        const auto idx =
-            permutation[0] * 1000 +
-            permutation[1] * 100 +
-            permutation[2] * 10 +
-            permutation[3];
+        const auto shape_2d = input_shape.filter(N - 2, N - 1).template as_safe<u32>();
+        const bool is_inplace = input == output;
+        const bool are_multiple_tile =
+            noa::is_multiple_of(shape_2d[0], details::PermuteConfig::tile_size) and
+            noa::is_multiple_of(shape_2d[1], details::PermuteConfig::tile_size);
 
-        if (input == output) {
-            switch (idx) {
-                case 123:
-                    return;
-                case 213:
-                    return details::permute_0213_inplace(output, output_strides, input_shape, stream);
-                case 132:
-                    return details::permute_0132_inplace(output, output_strides, input_shape, stream);
-                case 321:
-                    return details::permute_0321_inplace(output, output_strides, input_shape, stream);
-                default:
-                    panic("The in-place permutation {} is not supported", permutation);
-            }
-        } else {
-            switch (idx) {
-                case 123:
-                    return copy(input, input_strides, output, output_strides, input_shape, stream);
-                case 213:
-                    return details::permute_0213(input, input_strides, output, output_strides, input_shape, stream);
-                case 132:
-                    return details::permute_0132(input, input_strides, output, output_strides, input_shape, stream);
-                case 312:
-                    return details::permute_0312(input, input_strides, output, output_strides, input_shape, stream);
-                case 231:
-                    return details::permute_0231(input, input_strides, output, output_strides, input_shape, stream);
-                case 321:
-                    return details::permute_0321(input, input_strides, output, output_strides, input_shape, stream);
-                default:
-                    // Expected to be much slower...
-                    const auto output_shape = input_shape.permute(permutation);
-                    const auto input_strides_permuted = input_strides.permute(permutation);
-                    copy(input, input_strides_permuted, output, output_strides, output_shape, stream);
+        const auto input_accessor = AccessorRestrict<const T, N, u32>(input, input_strides.template as_safe<u32>());
+        const auto output_accessor = AccessorRestrict<T, N, u32>(output, output_strides.template as_safe<u32>());
+
+        auto block_shape = Shape<isize, N>::from_value(1);
+        block_shape[N - 2] = details::PermuteConfig::tile_size;
+        block_shape[N - 1] = details::PermuteConfig::tile_size;
+        const auto grid = GridND(input_shape, block_shape);
+        const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().vec.pop_front();
+        check(grid.n_launches() == 1);
+
+        for (u32 z{}; z < grid.n_launches_z(); ++z) {
+            for (u32 y{}; y < grid.n_launches_y(); ++y) {
+                const auto config = LaunchConfig{
+                    .n_blocks = grid.dim3_shape_for_launch(z, y, 0), // for inplace about less than half will be no-op blocks...
+                    .n_threads = dim3(details::PermuteConfig::block_size_x, details::PermuteConfig::block_size_y, 1),
+                };
+
+                const auto grid_outer_offset = grid.block_offset_for_launch(z, y).template pop_front<(N == 2 ? 1 : 0)>();
+                if (are_multiple_tile) {
+                    if (is_inplace) {
+                        stream.enqueue(
+                            details::permute_hw_inplace_<true, T, N>,
+                            config, output_accessor, shape_2d[1], grid_outer_offset, grid_fused_shape_in_x_unbatched
+                        );
+                    } else {
+                        stream.enqueue(
+                            details::permute_hw_<true, T, N>, config,
+                            input_accessor, output_accessor, shape_2d, grid_outer_offset, grid_fused_shape_in_x_unbatched
+                        );
+                    }
+                } else {
+                    if (is_inplace) {
+                        stream.enqueue(
+                            details::permute_hw_inplace_<false, T, N>,
+                            config, output_accessor, shape_2d[1], grid_outer_offset, grid_fused_shape_in_x_unbatched
+                        );
+                    } else {
+                        stream.enqueue(
+                            details::permute_hw_<false, T, N>, config,
+                            input_accessor, output_accessor, shape_2d, grid_outer_offset, grid_fused_shape_in_x_unbatched
+                        );
+                    }
+                }
             }
         }
     }
