@@ -59,10 +59,10 @@ TEMPLATE_TEST_CASE("runtime::ewise - broadcast", "", i32, f32, f64, c32) {
     }
 
     const auto shapes = std::array{
-            test::random_shape_batched(1),
-            test::random_shape_batched(2),
-            test::random_shape_batched(3),
-            test::random_shape_batched(4)};
+        test::random_shape_batched<isize, 4>(1),
+        test::random_shape_batched<isize, 4>(2),
+        test::random_shape_batched<isize, 4>(3)
+    };
 
     for (const auto& shape: shapes) {
         for (auto& device: devices) {
@@ -107,10 +107,10 @@ TEST_CASE("runtime::ewise - zip vs wrap") {
         devices.emplace_back("gpu");
 
     const auto shapes = std::array{
-            test::random_shape_batched(1),
-            test::random_shape_batched(2),
-            test::random_shape_batched(3),
-            test::random_shape_batched(4)};
+        test::random_shape_batched<isize, 4>(1),
+        test::random_shape_batched<isize, 4>(2),
+        test::random_shape_batched<isize, 4>(3)
+    };
 
     for (const auto& shape: shapes) {
         auto lhs = noa::empty<i64>(shape);
@@ -163,7 +163,7 @@ TEST_CASE("runtime::ewise - no inputs/outputs") {
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    const auto shape = test::random_shape_batched(4);
+    const auto shape = test::random_shape_batched(3);
     for (auto& device: devices) {
         const auto stream = StreamGuard(device, Stream::ASYNC);
         const auto options = ArrayOption(device, "managed");

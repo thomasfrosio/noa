@@ -401,8 +401,7 @@ namespace noa {
                 nt::TypeList<Outer...>,
                 nt::TypeList<Inner...>
         ) -> Tuple<nt::type_type_t<Inner>...> {
-            return {std::forward<nt::type_type_t<Outer>>(tup[Tag<std::decay_t<Outer>::INDEX>{}])
-                    [Tag<std::decay_t<Inner>::INDEX>{}]...};
+            return {std::forward<nt::type_type_t<Outer>>(tup[Tag<std::decay_t<Outer>::INDEX>{}])[Tag<std::decay_t<Inner>::INDEX>{}]...};
         }
     }
 

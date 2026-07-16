@@ -85,6 +85,8 @@ namespace test {
     }
 
     struct RandomShapeOptions {
+        Pair<i32, i32> size_range{-1, -1};
+
         /// Randomize the batch dimension within this range.
         Pair<i32, i32> batch_range{1, 1};
 
@@ -102,12 +104,15 @@ namespace test {
         RandomShapeOptions options = {}
     ) -> Shape<T, N> {
         noa::check(1 <= rank and rank <= 3);
-        Vec min{32, 32, 32};
-        Vec max{1024, 512, 128};
+        constexpr auto MIN = Vec{32, 32, 32};
+        constexpr auto MAX = Vec{1024, 512, 128};
 
         constexpr auto n_ = static_cast<i32>(N);
         const auto rank_ = static_cast<i32>(rank);
-        auto randomizer = Randomizer<T>(min[rank_ - 1], max[rank_ - 1]);
+        auto randomizer = Randomizer<T>(
+            options.size_range.first <= -1 ? MIN[rank_ - 1] : options.size_range.first,
+            options.size_range.second <= -1 ? MAX[rank_ - 1] : options.size_range.second
+        );
         const i32 n_iter = std::min(rank_, n_);
         const i32 offset = std::max(0, n_ - rank_);
 
