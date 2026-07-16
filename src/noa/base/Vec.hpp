@@ -621,6 +621,13 @@ namespace noa::inline types {
             return push_front<MAX - N, A1>(value);
         }
 
+        template<nt::integer I, nt::integer J>
+        [[nodiscard]] NOA_FHD constexpr auto swap(I i, J j) const noexcept -> Vec {
+            auto output = *this;
+            std::swap(output[i], output[j]);
+            return output;
+        }
+
         template<usize A1 = 0, nt::integer... I>
         [[nodiscard]] NOA_FHD constexpr auto filter(I... indices) const noexcept {
             return Vec<value_type, sizeof...(I), A1>{(*this)[indices]...};

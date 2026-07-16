@@ -232,6 +232,11 @@ namespace noa::inline types {
             return Shape<value_type, N1, A1>{vec.template push_back<A1>(vector)};
         }
 
+        template<nt::integer I, nt::integer J>
+        [[nodiscard]] NOA_FHD constexpr auto swap(I i, J j) const noexcept -> Shape {
+            return {vec.swap(i, j)};
+        }
+
         template<usize P, usize A1 = 0>
         [[nodiscard]] NOA_HD constexpr auto extend_front(value_type value) const noexcept {
             return Shape<value_type, P, A1>{vec.template extend_front<P, A1>(value)};
@@ -651,6 +656,11 @@ namespace noa::inline types {
         [[nodiscard]] NOA_HD constexpr auto push_back(const Vec<value_type, P, A2>& vector) const noexcept {
             constexpr usize N1 = N + P;
             return Strides<value_type, N1, A1>{vec.template push_back<A1>(vector)};
+        }
+
+        template<nt::integer I, nt::integer J>
+        [[nodiscard]] NOA_FHD constexpr auto swap(I i, J j) const noexcept -> Strides {
+            return {vec.swap(i, j)};
         }
 
         template<usize P, usize A1 = 0>
