@@ -2,7 +2,7 @@ set(TEST_SOURCES
     Main.cpp
 )
 
-#include(${PROJECT_SOURCE_DIR}/tests/noa/base/Append.cmake)
+include(${PROJECT_SOURCE_DIR}/tests/noa/base/Append.cmake)
 include(${PROJECT_SOURCE_DIR}/tests/noa/runtime/Append.cmake)
 #include(${PROJECT_SOURCE_DIR}/tests/noa/fft/Append.cmake)
 #include(${PROJECT_SOURCE_DIR}/tests/noa/io/Append.cmake)
