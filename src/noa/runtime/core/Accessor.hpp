@@ -751,59 +751,64 @@ namespace noa::details {
                   nt::tuple_of_accessor_pure_nd_or_empty<Output, N> and
                   N >= 1)
     void optimize_ewise_layout(Shape<Index, N>& shape, Input& input, Output& output) {
-        // Move empty dimensions to the left and try to reorder non-empty dimensions to rightmost.
-        const auto optimal_order =
-            nt::tuple_of_accessor<Output> ?
-            nd::optimal_layout_for_accessors(shape, output):
-            nd::optimal_layout_for_accessors(shape, input);
-        if (optimal_order != Vec<Index, N>::arange()) {
-            shape = shape.permute(optimal_order);
-            nd::permute_accessors(optimal_order, input, output);
-        }
+        if constexpr (N > 1) {
+            // Move empty dimensions to the left and try to reorder non-empty dimensions to rightmost.
+            const auto optimal_order =
+                nt::tuple_of_accessor<Output> ?
+                nd::optimal_layout_for_accessors(shape, output):
+                nd::optimal_layout_for_accessors(shape, input);
+            if (optimal_order != Vec<Index, N>::arange()) {
+                shape = shape.permute(optimal_order);
 
-        // Collapse dimensions, when possible.
-        const auto contiguity = nd::accessors_contiguity(shape, input, output);
-        const auto broadcasting = nd::accessors_broadcasting(shape, input, output);
-        auto collapsed_shape = noa::collapse(shape, contiguity, broadcasting);
-        collapsed_shape = collapsed_shape.permute(noa::squeeze_empty_dimensions_left(collapsed_shape));
+                nd::permute_accessors(optimal_order, input, output);
+            }
 
-        // Reshape accessors to the new shape.
-        // By default, we can't use ALLOW_CONTIGUOUS=true because
-        // the rightmost dimension might be empty and pushed out to the left.
-        if (nd::reshape_accessors(shape, collapsed_shape, input, output)) {
-            shape = collapsed_shape;
-        } else {
-            panic("Reshape failed, shape={}, contiguity={}, broadcasting={}. Please report this issue",
-                  shape, contiguity, broadcasting);
+            // Collapse dimensions, when possible.
+            const auto contiguity = nd::accessors_contiguity(shape, input, output);
+            const auto broadcasting = nd::accessors_broadcasting(shape, input, output);
+            auto collapsed_shape = noa::collapse(shape, contiguity, broadcasting);
+            collapsed_shape = collapsed_shape.permute(noa::squeeze_empty_dimensions_left(collapsed_shape));
+
+            // Reshape accessors to the new shape.
+            // By default, we can't use ALLOW_CONTIGUOUS=true because
+            // the rightmost dimension might be empty and pushed out to the left.
+            if (nd::reshape_accessors(shape, collapsed_shape, input, output)) {
+                shape = collapsed_shape;
+            } else {
+                panic("Reshape failed, shape={}, contiguity={}, broadcasting={}. Please report this issue",
+                      shape, contiguity, broadcasting);
+            }
         }
     }
 
     template<typename Index, usize N, typename Input>
         requires (nt::tuple_of_accessor_nd<Input, N> and N >= 1)
     void optimize_reduce_ewise_layout(Shape<Index, N>& input_shape, Input& input) {
-        // Move empty dimensions to the left and try to reorder non-empty dimensions to rightmost.
-        const auto optimal_order = nd::optimal_layout_for_accessors(input_shape, input);
-        if (optimal_order != Vec<Index, N>::arange()) {
-            input_shape = input_shape.permute(optimal_order);
-            nd::permute_accessors(optimal_order, input);
-        }
+        if constexpr (N > 1) {
+            // Move empty dimensions to the left and try to reorder non-empty dimensions to rightmost.
+            const auto optimal_order = nd::optimal_layout_for_accessors(input_shape, input);
+            if (optimal_order != Vec<Index, N>::arange()) {
+                input_shape = input_shape.permute(optimal_order);
+                nd::permute_accessors(optimal_order, input);
+            }
 
-        // Collapse dimensions.
-        const auto contiguity = nd::accessors_contiguity(input_shape, input);
-        const auto broadcasting = nd::accessors_broadcasting(input_shape, input);
-        auto collapsed_input_shape = noa::collapse(input_shape, contiguity, broadcasting);
+            // Collapse dimensions.
+            const auto contiguity = nd::accessors_contiguity(input_shape, input);
+            const auto broadcasting = nd::accessors_broadcasting(input_shape, input);
+            auto collapsed_input_shape = noa::collapse(input_shape, contiguity, broadcasting);
 
-        // Squeeze the newly empty dimensions to the left.
-        // Don't use the output shape since it has the empty reduced dimensions.
-        const auto squeeze_order = noa::squeeze_empty_dimensions_left(collapsed_input_shape);
-        collapsed_input_shape = collapsed_input_shape.permute(squeeze_order);
+            // Squeeze the newly empty dimensions to the left.
+            // Don't use the output shape since it has the empty reduced dimensions.
+            const auto squeeze_order = noa::squeeze_empty_dimensions_left(collapsed_input_shape);
+            collapsed_input_shape = collapsed_input_shape.permute(squeeze_order);
 
-        // Instead of permuting the accessors, reshape them to the new shape.
-        if (nd::reshape_accessors(input_shape, collapsed_input_shape, input)) {
-            input_shape = collapsed_input_shape;
-        } else {
-            panic("Reshape failed, input_shape={}, contiguity={}, broadcasting={}. Please report this issue",
-                  input_shape, contiguity, broadcasting);
+            // Instead of permuting the accessors, reshape them to the new shape.
+            if (nd::reshape_accessors(input_shape, collapsed_input_shape, input)) {
+                input_shape = collapsed_input_shape;
+            } else {
+                panic("Reshape failed, input_shape={}, contiguity={}, broadcasting={}. Please report this issue",
+                      input_shape, contiguity, broadcasting);
+            }
         }
     }
 
@@ -817,35 +822,37 @@ namespace noa::details {
         Input& input,
         Output& output
     ) {
-        // Move empty dimensions to the left and try to reorder non-empty dimensions to rightmost.
-        const auto optimal_order = nd::optimal_layout_for_accessors(input_shape, input);
-        if (optimal_order != Vec<Index, N>::arange()) {
-            input_shape = input_shape.permute(optimal_order);
-            output_shape = output_shape.permute(optimal_order);
-            nd::permute_accessors(optimal_order, input, output);
-        }
+        if constexpr (N > 1) {
+            // Move empty dimensions to the left and try to reorder non-empty dimensions to rightmost.
+            const auto optimal_order = nd::optimal_layout_for_accessors(input_shape, input);
+            if (optimal_order != Vec<Index, N>::arange()) {
+                input_shape = input_shape.permute(optimal_order);
+                output_shape = output_shape.permute(optimal_order);
+                nd::permute_accessors(optimal_order, input, output);
+            }
 
-        // Collapse dimensions while making sure to preserve the reduction.
-        const auto contiguity = nd::accessors_contiguity(input_shape, input) and nd::accessors_contiguity(output_shape, output);
-        const auto broadcasting = nd::accessors_broadcasting(input_shape, input) or nd::accessors_broadcasting(output_shape, output);
-        const auto groups = input_shape.cmp_ne(output_shape).template as<i32>();
-        auto collapsed_input_shape = noa::collapse(input_shape, contiguity, broadcasting, groups);
-        auto collapsed_output_shape = noa::collapse(output_shape, contiguity, broadcasting, groups);
+            // Collapse dimensions while making sure to preserve the reduction.
+            const auto contiguity = nd::accessors_contiguity(input_shape, input) and nd::accessors_contiguity(output_shape, output);
+            const auto broadcasting = nd::accessors_broadcasting(input_shape, input) or nd::accessors_broadcasting(output_shape, output);
+            const auto groups = input_shape.cmp_ne(output_shape).template as<i32>();
+            auto collapsed_input_shape = noa::collapse(input_shape, contiguity, broadcasting, groups);
+            auto collapsed_output_shape = noa::collapse(output_shape, contiguity, broadcasting, groups);
 
-        // Squeeze the newly empty dimensions to the left.
-        // Don't use the output shape since it has the empty reduced dimensions.
-        const auto squeeze_order = noa::squeeze_empty_dimensions_left(collapsed_input_shape);
-        collapsed_input_shape = collapsed_input_shape.permute(squeeze_order);
-        collapsed_output_shape = collapsed_output_shape.permute(squeeze_order);
+            // Squeeze the newly empty dimensions to the left.
+            // Don't use the output shape since it has the empty reduced dimensions.
+            const auto squeeze_order = noa::squeeze_empty_dimensions_left(collapsed_input_shape);
+            collapsed_input_shape = collapsed_input_shape.permute(squeeze_order);
+            collapsed_output_shape = collapsed_output_shape.permute(squeeze_order);
 
-        // Instead of permuting the accessors, reshape them to the new shape.
-        if (nd::reshape_accessors(input_shape, collapsed_input_shape, input) and
-            nd::reshape_accessors(output_shape, collapsed_output_shape, output)) {
-            input_shape = collapsed_input_shape;
-            output_shape = collapsed_output_shape;
-        } else {
-            panic("Reshape failed, input_shape={}, output_shape={}, contiguity={}, broadcasting={}. Please report this issue",
-                  input_shape, output_shape, contiguity, broadcasting);
+            // Instead of permuting the accessors, reshape them to the new shape.
+            if (nd::reshape_accessors(input_shape, collapsed_input_shape, input) and
+                nd::reshape_accessors(output_shape, collapsed_output_shape, output)) {
+                input_shape = collapsed_input_shape;
+                output_shape = collapsed_output_shape;
+                } else {
+                    panic("Reshape failed, input_shape={}, output_shape={}, contiguity={}, broadcasting={}. Please report this issue",
+                          input_shape, output_shape, contiguity, broadcasting);
+                }
         }
     }
 }
