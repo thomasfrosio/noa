@@ -281,8 +281,8 @@ namespace noa::cuda {
     ) {
         // Assume layout is optimized and shape is collapsed.
         bool use_row_kernels{true};
-        if constexpr (N > 1) {
-            for (usize i{}; i < N - 1; ++i)
+        if constexpr (N >= 3) {
+            for (usize i{}; i < N - 2; ++i)
                 if (shape[i] > 1)
                     use_row_kernels = false;
         }
