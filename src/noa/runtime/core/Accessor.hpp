@@ -135,13 +135,17 @@ namespace noa {
 
         template<nt::integer I1, usize N1, usize A1> requires (N > N1)
         [[nodiscard]] NOA_HD constexpr auto operator[](const Vec<I1, N1, A1>& index) const noexcept {
-            NOA_ASSERT(not is_empty());
             using output_t = AccessorReference<value_type, N - N1, index_type, STRIDES_TRAIT, POINTER_TRAIT>;
-            using common_t = std::common_type_t<I, I1>;
-            common_t offset{0};
-            for (usize i{}; i < N1; ++i)
-                offset += noa::offset_at(stride(i), index[i]);
-            return output_t(get() + offset, strides().data() + N1);
+            if constexpr (N1 == 0) {
+                return output_t(get(), strides().data());
+            } else {
+                NOA_ASSERT(not is_empty());
+                using common_t = std::common_type_t<I, I1>;
+                common_t offset{0};
+                for (usize i{}; i < N1; ++i)
+                    offset += noa::offset_at(stride(i), index[i]);
+                return output_t(get() + offset, strides().data() + N1);
+            }
         }
 
         /// C-style indexing operator, decrementing the dimensionality of the accessor by 1.
