@@ -501,24 +501,29 @@ TEST_CASE("runtime::core::reshape, broadcasting") {
 }
 
 TEST_CASE("runtime::core::Subregion") {
-    constexpr auto shape = Shape<i64, 4>{30, 20, 10, 5};
+    constexpr auto shape = Shape<i64, 6>{10, 11, 12, 13, 14, 15};
     constexpr auto strides = shape.strides();
     constexpr std::uintptr_t offset = 5;
 
-    auto subregion = noa::make_subregion<4>(0, 0).extract_from(shape, strides, offset);
-    REQUIRE(subregion.shape == Shape<i64, 4>{1, 1, 10, 5});
+    auto subregion = noa::Subregion().extract_from(shape, strides, offset);
+    REQUIRE(subregion.shape == shape);
     REQUIRE(subregion.strides == strides);
     REQUIRE(subregion.offset == offset);
 
-    subregion = noa::make_subregion<4>(Ellipsis{}, 5, 2).extract_from(shape, strides, offset);
-    REQUIRE(subregion.shape == Shape<i64, 4>{30, 20, 1, 1});
+    subregion = noa::Subregion(Ellipsis{}, 5, 2, Full<4>{}).extract_from(shape, strides, offset);
+    REQUIRE(subregion.shape == Shape<i64, 6>{1, 1, 12, 13, 14, 15});
     REQUIRE(subregion.strides == strides);
-    REQUIRE(subregion.offset == offset + offset_at(strides, 0, 0, 5, 2));
+    REQUIRE(subregion.offset == offset + offset_at(strides, 5, 2));
 
-    subregion = noa::make_subregion<4>(Slice{10, 20}, Full{}, Slice{2, 5}, 3).extract_from(shape, strides, offset);
-    REQUIRE(subregion.shape == Shape<i64, 4>{10, 20, 3, 1});
+    subregion = noa::Subregion(Ellipsis{}, 5, 2).extract_from(shape, strides, offset);
+    REQUIRE(subregion.shape == Shape<i64, 6>{10, 11, 12, 13, 1, 1});
     REQUIRE(subregion.strides == strides);
-    REQUIRE(subregion.offset == offset + offset_at(strides, 10, 0, 2, 3));
+    REQUIRE(subregion.offset == offset + offset_at(strides, 0, 0, 0, 0, 5, 2));
+
+    subregion = noa::Subregion(Slice{5, 20}, Full{}, Slice{2, 5}, Slices<2>{.start = {3, 4}, .end = {10, 10}}).extract_from(shape, strides, offset);
+    REQUIRE(subregion.shape == Shape<i64, 6>{5, 11, 3, 7, 6, 15});
+    REQUIRE(subregion.strides == strides);
+    REQUIRE(subregion.offset == offset + offset_at(strides, 5, 0, 2, 3, 4, 0));
 }
 
 TEST_CASE("runtime::core::collapse") {

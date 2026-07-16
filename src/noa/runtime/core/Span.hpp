@@ -402,7 +402,7 @@ namespace noa::inline types {
 
         /// Extracts a subregion from the current span.
         template<typename... U>
-        [[nodiscard]] constexpr auto subregion(const Subregion<SIZE, U...>& subregion) const -> Span {
+        [[nodiscard]] constexpr auto subregion(const Subregion<U...>& subregion) const -> Span {
             auto [new_shape, new_strides, offset] = subregion.extract_from(
                 shape().template as_safe<isize>(),
                 strides_full().template as_safe<isize>());
@@ -413,9 +413,9 @@ namespace noa::inline types {
 
         /// Extracts a subregion from the current span.
         /// \see noa::Subregion for more details on the variadic parameters to enter.
-        template<typename... Ts> requires nt::subregion_access_sequence<N, Ts...>
+        template<typename... Ts> requires nt::subregion_access_sequence<Ts...>
         [[nodiscard]] constexpr auto subregion(const Ts&... access_sequence) const -> Span {
-            return subregion(Subregion<N, Ts...>(access_sequence...));
+            return subregion(Subregion<Ts...>(access_sequence...));
         }
 
     private:

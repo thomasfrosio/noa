@@ -1046,7 +1046,7 @@ namespace noa::inline types {
     public:
         /// Subregion indexing. Extracts a subregion from the current array.
         template<typename... U>
-        [[nodiscard]] constexpr auto subregion(const Subregion<N, U...>& subregion) const& -> Array {
+        [[nodiscard]] constexpr auto subregion(const Subregion<U...>& subregion) const& -> Array {
             auto [new_shape, new_strides, offset] = subregion.extract_from(shape(), strides());
             if constexpr (IS_VIEW)
                 return Array(get() + offset, new_shape, new_strides, options(), Unchecked{});
@@ -1054,7 +1054,7 @@ namespace noa::inline types {
                 return Array(shared_type(m_shared, get() + offset), new_shape, new_strides, options(), Unchecked{});
         }
         template<typename... U>
-        [[nodiscard]] constexpr auto subregion(const Subregion<N, U...>& subregion) && -> Array {
+        [[nodiscard]] constexpr auto subregion(const Subregion<U...>& subregion) && -> Array {
             auto [new_shape, new_strides, offset] = subregion.extract_from(shape(), strides());
             if constexpr (IS_VIEW)
                 return Array(get() + offset, new_shape, new_strides, options(), Unchecked{});
@@ -1064,13 +1064,13 @@ namespace noa::inline types {
 
         /// Subregion indexing. Extracts a subregion from the current array.
         /// \see noa::Subregion for more details on the variadic parameters to enter.
-        template<typename... U> requires nt::subregion_access_sequence<N, U...>
+        template<typename... U> requires nt::subregion_access_sequence<U...>
         [[nodiscard]] constexpr auto subregion(const U&... access_sequence) const& -> Array {
-            return subregion(Subregion<N, U...>(access_sequence...));
+            return subregion(Subregion<U...>(access_sequence...));
         }
-        template<typename... U> requires nt::subregion_access_sequence<N, U...>
+        template<typename... U> requires nt::subregion_access_sequence<U...>
         [[nodiscard]] constexpr auto subregion(const U&... access_sequence) && -> Array {
-            return std::move(*this).subregion(Subregion<N, U...>(access_sequence...));
+            return std::move(*this).subregion(Subregion<U...>(access_sequence...));
         }
 
     private:

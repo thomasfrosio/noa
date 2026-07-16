@@ -92,21 +92,16 @@ namespace noa::details {
     [[nodiscard]] constexpr auto extract_common_subregion(
         const Shape<isize, N>& input_shape, const Shape<isize, N>& output_shape,
         const Vec<isize, N>& border_left, const Vec<isize, N>& border_right
-    ) noexcept -> Pair<Subregion<N, Slice, Slice, Slice, Slice>,
-                       Subregion<N, Slice, Slice, Slice, Slice>> {
+    ) noexcept -> Pair<Subregion<Slices<N>>, Subregion<Slices<N>>> {
         // Exclude the regions in the input that don't end up in the output.
         const auto crop_left = min(border_left, 0) * -1;
         const auto crop_right = min(border_right, 0) * -1;
-        const auto cropped_input = [&]<usize... I>(std::index_sequence<I...>) {
-            return noa::make_subregion<N>(Slice{crop_left[I], input_shape[I] - crop_right[I]}...);
-        }(std::make_index_sequence<N>{});
+        const auto cropped_input = Subregion(Slices{crop_left, input_shape.vec - crop_right});
 
         // Exclude the regions in the output that are not from the input.
         const auto pad_left = max(border_left, 0);
         const auto pad_right = max(border_right, 0);
-        const auto cropped_output = [&]<usize... I>(std::index_sequence<I...>) {
-            return noa::make_subregion<N>(Slice{pad_left[I], output_shape[I] - pad_right[I]}...);
-        }(std::make_index_sequence<N>{});
+        const auto cropped_output = Subregion(Slices{pad_left, output_shape.vec - pad_right});
 
         // One can now copy cropped_input -> cropped_output.
         return {cropped_input, cropped_output};
