@@ -48,7 +48,9 @@ endif ()
 # Optional TIFF support.
 if (NOA_ENABLE_TIFF)
     include(${PROJECT_SOURCE_DIR}/cmake/ext/tiff.cmake)
-    target_link_libraries(noa PRIVATE TIFF::TIFF)
+    if (NOA_ENABLE_TIFF AND TARGET TIFF::TIFF)
+        target_link_libraries(noa PRIVATE TIFF::TIFF)
+    endif ()
 endif ()
 
 # CUDA backend:

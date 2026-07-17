@@ -21,7 +21,7 @@ macro(noa_set_options)
     option(NOA_ENABLE_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
     # TIFF:
-    option(NOA_ENABLE_TIFF "Enable support for the TIFF file format. Requires libtiff" ON)
+    option(NOA_ENABLE_TIFF "Enable support for the TIFF file format" ON)
 
     # Additional targets:
     option(NOA_BUILD_TESTS "Build tests" ON)
