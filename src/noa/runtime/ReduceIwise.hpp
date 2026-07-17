@@ -147,7 +147,7 @@ namespace noa {
              typename Reduced = nd::AdaptorUnzip<>,
              typename Outputs = nd::AdaptorUnzip<>,
              typename Operator, typename Index, usize N>
-    requires (N <= 4)
+    requires (N <= 6)
     void reduce_iwise(
         const Shape<Index, N>& shape,
         Device device,

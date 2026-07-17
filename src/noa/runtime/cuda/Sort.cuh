@@ -104,7 +104,7 @@ namespace noa::cuda::details {
         Strides<isize, N - 1> iter_strides;
         i32 count = 0;
         for (usize i{}; i < N; ++i) {
-            if (i != dim) {
+            if (i != static_cast<usize>(dim)) {
                 iter_shape[count] = shape[i];
                 iter_strides[count] = strides[i];
                 ++count;
@@ -208,7 +208,7 @@ namespace noa::cuda::details {
         auto input_shape = Shape<isize, N>::from_value(shape[dim]);
         auto permutation = Vec<i32, N>::from_value(N - 1);
         i32 count = 0;
-        for (i32 i = 0; i < N; ++i) {
+        for (i32 i = 0; i < static_cast<i32>(N); ++i) {
             if (i != dim) {
                 input_shape[count] = shape[i];
                 permutation[i] = count;
@@ -237,7 +237,7 @@ namespace noa::cuda {
         bool ascending, i32 dim, Stream& stream
     ) {
         if constexpr (N == 1) {
-            details::sort_iterative_(array, Strides<isize, 2>{0, strides}, Shape<isize, 2>{1, shape}, 1, ascending, stream);
+            details::sort_iterative_(array, Strides<isize, 2>{0, strides[0]}, Shape<isize, 2>{1, shape[0]}, 1, ascending, stream);
         } else {
             // If there's not a lot of lines to sort, use the iterative version which uses less memory
             // and does a single sort per line. Otherwise, use the batched version which uses more memory

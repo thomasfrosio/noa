@@ -1,7 +1,7 @@
 #include <noa/runtime/core/Reduce.hpp>
 #include <noa/runtime/Array.hpp>
-#include <noa/runtime/Factory.hpp>
 #include <noa/runtime/ReduceEwise.hpp>
+#include <noa/runtime/Random.hpp>
 
 #include "Catch.hpp"
 #include "Utils.hpp"
@@ -25,31 +25,37 @@ namespace {
 }
 
 TEMPLATE_TEST_CASE("runtime::reduce_ewise - simple", "", i32, f64) {
-    auto shape = Shape4{5, 35, 64, 81};
-
-    auto input = noa::empty<TestType>(shape);
-    auto randomizer = test::Randomizer<TestType>(-50, 100);
-
-    f64 sum{};
-    for (auto& value: input.span_1d_contiguous()) {
-        value = randomizer.get();
-        sum += static_cast<f64>(value);
-    }
+    const auto shapes = noa::make_tuple(
+        test::random_shape<isize, 1>(1),
+        test::random_shape<isize, 2>(2),
+        test::random_shape<isize, 3>(3),
+        test::random_shape<isize, 4>(3, {.batch_range = {10, 20}}),
+        test::random_shape<isize, 5>(3, {.size_range = {15, 20}, .batch_range = {15, 20}}),
+        test::random_shape<isize, 6>(3, {.size_range = {15, 20}, .batch_range = {15, 20}})
+    );
 
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    for (auto& device: devices) {
-        auto stream = StreamGuard(device, Stream::DEFAULT);
-        const auto options = ArrayOption{device, "managed"};
-        INFO(device);
+    shapes.for_each([&]<usize N>(const Shape<isize, N>& shape) {
+        auto input = noa::random(noa::Uniform<TestType>{-50, 50}, shape);
 
-        if (device != input.device())
-            input = input.to(options);
+        f64 sum{};
+        for (auto& value: input.span_1d())
+            sum += static_cast<f64>(value);
 
-        f64 output{};
-        noa::reduce_ewise(input, f64{}, output, noa::ReduceSum{});
-        REQUIRE_THAT(output, Catch::Matchers::WithinAbs(sum, 1e-5));
-    }
+        for (auto& device: devices) {
+            auto stream = StreamGuard(device, Stream::DEFAULT);
+            const auto options = ArrayOption{device, "managed"};
+            INFO(device);
+
+            if (device != input.device())
+                input = input.to(options);
+
+            f64 output{};
+            noa::reduce_ewise(input, f64{}, output, noa::ReduceSum{});
+            REQUIRE_THAT(output, Catch::Matchers::WithinAbs(sum, 1e-5));
+        }
+    });
 }

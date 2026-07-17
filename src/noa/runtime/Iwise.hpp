@@ -100,6 +100,7 @@ namespace noa {
     ///     may not destroy these shared_ptr right away and instead delay the destruction to the next synchronization
     ///     or enqueueing call.
     template<IwiseOptions OPTIONS = IwiseOptions{}, typename Op, typename I, usize N, typename... Ts>
+        requires (N <= 6)
     void iwise(const Shape<I, N>& shape, const Device& device, Op&& op, Ts&&... attachments) {
         Stream& stream = Stream::current(device);
 

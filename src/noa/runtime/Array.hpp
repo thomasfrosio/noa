@@ -66,11 +66,12 @@ namespace noa {
 
     /// Returns the multidimensional indexes of \p array corresponding to a memory \p offset.
     /// \note 0 indicates the beginning of the array. The array should not have any broadcast dimension.
-    [[nodiscard]] constexpr auto offset2index(isize offset, nt::array auto const& array) -> Vec<isize, 4> {
+    template<typename T, usize N, ArrayOwnership O>
+    [[nodiscard]] constexpr auto offset2index(isize offset, const Array<T, N, O>& array) -> Vec<isize, N> {
         check(array.strides() > 0,
-              "Cannot retrieve the 4d index from a broadcast dimension. Got strides={}",
+              "Cannot retrieve the index from a broadcast dimension. Got strides={}",
               array.strides());
-        return offset2index(offset, array.strides(), array.shape());
+        return noa::offset2index(offset, array.strides(), array.shape());
     }
 
     /// Whether the input is a contiguous vector.
@@ -536,7 +537,7 @@ namespace noa::inline types {
         static constexpr ArrayOwnership ARRAY_OWNERSHIP = O;
         static constexpr bool IS_VIEW = ARRAY_OWNERSHIP == ArrayOwnership::VIEW;
 
-        static_assert(N >= 1); // TODO Support N==0
+        static_assert(N >= 1 and N <= 6); // TODO Support N==0
         static_assert(not std::is_pointer_v<T>);
         static_assert(not std::is_reference_v<T>);
         static_assert(std::is_trivially_destructible_v<T>);

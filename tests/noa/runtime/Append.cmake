@@ -24,19 +24,19 @@ list(APPEND TEST_SOURCES
     noa/runtime/TestRuntimeDevice.cpp
     noa/runtime/TestRuntimeEwise.cpp
     noa/runtime/TestRuntimeFactory.cpp
-#    noa/runtime/TestRuntimeHistogram.cpp
     noa/runtime/TestRuntimeIwise.cpp
     noa/runtime/TestRuntimePermute.cpp
     noa/runtime/TestRuntimeRandom.cpp
-#    noa/runtime/TestRuntimeReduce.cpp
-#    noa/runtime/TestRuntimeReduceAxes.cpp
-#    noa/runtime/TestRuntimeReduceBatch.cpp
-#    noa/runtime/TestRuntimeReduceEwise.cpp
-#    noa/runtime/TestRuntimeReduceIwise.cpp
+    noa/runtime/TestRuntimeReduce.cpp
+    noa/runtime/TestRuntimeReduceAxes.cpp
+    noa/runtime/TestRuntimeReduceBatch.cpp
+    noa/runtime/TestRuntimeReduceEwise.cpp
+    noa/runtime/TestRuntimeReduceIwise.cpp
     noa/runtime/TestRuntimeResize.cpp
     noa/runtime/TestRuntimeSort.cpp
     noa/runtime/TestRuntimeStream.cpp
     noa/runtime/TestRuntimeSubregion.cpp
+#    noa/runtime/TestRuntimeHistogram.cpp
 )
 
 if (NOA_ENABLE_CUDA)

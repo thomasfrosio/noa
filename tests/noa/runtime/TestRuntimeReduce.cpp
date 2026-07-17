@@ -207,14 +207,16 @@ TEMPLATE_TEST_CASE("runtime::reduce - mean_l2_norm", "", f32, f64, c32, c64) {
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
+    constexpr usize N = 5;
+
     for (auto& device: devices) {
         const auto stream = StreamGuard(device);
         const auto options = ArrayOption(device, "managed");
         INFO(device);
 
-        const auto shape = test::random_shape_batched(2);
+        const auto shape = test::random_shape_batched<isize, N>(2);
         auto random = test::random<TestType>(shape.n_elements(), test::Randomizer<TestType>{-40., 50.});
-        auto data = Array<TestType, 4, ArrayOwnership::VIEW>(random.get(), shape).to(options);
+        auto data = Array<TestType, N, ArrayOwnership::VIEW>(random.get(), shape).to(options);
 
         noa::normalize(data, data, {.mode = noa::Norm::MEAN_STD});
 
@@ -224,8 +226,8 @@ TEMPLATE_TEST_CASE("runtime::reduce - mean_l2_norm", "", f32, f64, c32, c64) {
         REQUIRE(noa::allclose(mean, results.first, 1e-5));
         REQUIRE(noa::allclose(l2_norm, results.second, 1e-5));
 
-        auto means = Array<noa::traits::double_precision_t<TestType>>(1, options);
-        auto l2_norms = Array<f64>(1, options);
+        auto means = Array<noa::traits::double_precision_t<TestType>, N>(1, options);
+        auto l2_norms = Array<f64, N>(1, options);
         noa::mean_l2_norm(data, means, l2_norms);
         REQUIRE(noa::allclose(mean, means.first(), 1e-5));
         REQUIRE(noa::allclose(l2_norm, l2_norms.first(), 1e-5));
@@ -237,21 +239,23 @@ TEMPLATE_TEST_CASE("runtime::reduce - normalize rows", "", f64, c64) {
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
+    constexpr usize N = 6;
+
     for (auto& device: devices) {
         const auto stream = StreamGuard(device);
         const auto options = ArrayOption(device, "managed");
         INFO(device);
 
-        auto shape = test::random_shape_batched(3, {.batch_range = {2, 10}});
-        shape[3] += 200;
+        auto shape = test::random_shape_batched<isize, N>(3, {.size_range = {5, 10}, .batch_range = {5, 10}});
+        shape[N - 1] += 1024;
         auto random = test::arange<TestType>(shape.n_elements(), 0., 0.1);
-        auto data = Array<TestType, 4, ArrayOwnership::VIEW>(random.get(), shape).to(options);
+        auto data = Array<TestType, N, ArrayOwnership::VIEW>(random.get(), shape).to(options);
 
-        noa::normalize(data, data, ReduceAxes<4>{}.reduce_axis(3), {.mode = noa::Norm::MEAN_STD});
+        noa::normalize(data, data, ReduceAxes<N>{}.reduce_axis(N - 1), {.mode = noa::Norm::MEAN_STD});
 
-        const auto [mean, stddev] = noa::mean_stddev(data, ReduceAxes<4>{}.reduce_axis(3));
-        REQUIRE(mean.shape() == shape.set<3>(1));
-        REQUIRE(stddev.shape() == shape.set<3>(1));
+        const auto [mean, stddev] = noa::mean_stddev(data, ReduceAxes<N>{}.reduce_axis(N - 1));
+        REQUIRE(mean.shape() == shape.set<N - 1>(1));
+        REQUIRE(stddev.shape() == shape.set<N - 1>(1));
 
         REQUIRE(test::allclose_abs(mean, 0., 1e-3));
         REQUIRE(test::allclose_abs(stddev, 1., 1e-3));

@@ -142,7 +142,8 @@ namespace noa::cpu {
     template<typename Config = ReduceIwiseConfig<>,
              typename Op, typename Reduced, typename Output, typename Index, usize N>
     requires (nt::tuple_of_accessor_value_or_empty<std::decay_t<Reduced>> and
-              nt::tuple_of_accessor_nd_or_empty<Output, 1>)
+              nt::tuple_of_accessor_nd_or_empty<Output, 1> and
+              N <= 6)
     constexpr void reduce_iwise(
         const Shape<Index, N>& shape,
         Op&& op,
