@@ -9,12 +9,18 @@ else ()
     set(_tiff_old_lib_suffix ${CMAKE_FIND_LIBRARY_SUFFIXES})
     set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_SHARED_LIBRARY_SUFFIX})
 
-    find_package(TIFF ${ARGN} REQUIRED)
+    find_package(TIFF ${ARGN} QUIET)
 
     set(CMAKE_FIND_LIBRARY_SUFFIXES ${_tiff_old_lib_suffix})
     unset(_tiff_old_lib_suffix)
 
-    message(STATUS "New imported target available: TIFF::TIFF")
+    if (TARGET TIFF::TIFF)
+        message(STATUS "New imported target available: TIFF::TIFF")
+    else ()
+        message(STATUS "TIFF not found; disabling TIFF support")
+        set(NOA_ENABLE_TIFF OFF)
+        set(NOA_ENABLE_TIFF OFF PARENT_SCOPE)
+    endif ()
 endif ()
 
 message(STATUS "[out] TIFF_INCLUDE_DIR: ${TIFF_INCLUDE_DIR}")
