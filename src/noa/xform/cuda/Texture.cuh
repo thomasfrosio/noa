@@ -1,27 +1,22 @@
 #pragma once
 #include "noa/runtime/cuda/IncludeGuard.cuh"
-
 #include "noa/runtime/cuda/Allocators.hpp"
-#include "noa/xform/cuda/Allocators.hpp"
 
 namespace noa::xform::cuda {
-    /// Texture object used to interpolate data.
-    /// This type is supported by the Interpolator(Spectrum) and the interpolate(_spectrum)_using_texture functions.
-    template<size_t N,
-             Interp INTERP_,
-             Border BORDER_,
-             typename Value,
-             typename Coord,
-             typename Index,
-             bool NORMALIZED,
-             bool LAYERED>
-    class Texture {
+    /// Accessor interface and texture fetching used to interpolate data.
+    /// This type can be passed by the Interpolator(Spectrum) and the interpolate(_spectrum)_using_texture functions.
+    template<Interp INTERP_, Border BORDER_,
+             typename Value, typename Coord, typename Index,
+             usize B, usize R,
+             bool NORMALIZED, bool LAYERED>
+    class AccessorTexture {
     public:
         static constexpr Interp INTERP = INTERP_;
         static constexpr Border BORDER = BORDER_;
-        static constexpr size_t SIZE = N;
+        static constexpr size_t SIZE = B + R;
 
-        static_assert(N == 2 or N == 3);
+        static_assert(R == 2 or R == 3);
+        static_assert((R == 2 and LAYERED) or (R == 3 and not LAYERED));
         static_assert(nt::any_of<Value, f32, c32> and nt::any_of<Coord, f32, f64>);
         static_assert(INTERP.is_any(Interp::NEAREST_FAST, Interp::LINEAR_FAST));
         static_assert(BORDER == Border::MIRROR or
@@ -29,57 +24,60 @@ namespace noa::xform::cuda {
                       BORDER == Border::ZERO or
                       BORDER == Border::CLAMP);
         static_assert(not NORMALIZED or (BORDER == Border::MIRROR or BORDER == Border::PERIODIC));
-        static_assert(not LAYERED or N == 2);
 
         using value_type = Value;
         using coord_type = Coord;
         using index_type = Index;
-        using coord_n_type = Vec<coord_type, N>;
-        using f_shape_type = std::conditional_t<NORMALIZED, coord_n_type, Empty>;
+        using coord_r_type = Vec<coord_type, R>;
+        using norm_type = std::conditional_t<NORMALIZED, coord_r_type, Empty>;
         using layer_type = std::conditional_t<LAYERED, i32, Empty>;
-        using layer_flag_type = std::conditional_t<LAYERED, bool, Empty>;
+        using strides_type = Strides<index_type, B>;
 
     public:
-        template<typename I>
-        Texture(cudaTextureObject_t texture, const Shape<I, N + 1>& shape) :
-            m_texture(texture)
+        AccessorTexture(
+            cudaTextureObject_t texture,
+            const Shape<index_type, R>& shape_ranked,
+            const Strides<index_type, B>& strides_batches,
+            layer_type layer = 0
+        ) :
+            m_texture{texture}, m_layer{layer}
         {
-            if constexpr (NORMALIZED)
-                m_norm = 1 / shape.vec.pop_front().template as<coord_type>();
-            if constexpr (LAYERED)
-                m_broadcast_layer = shape[0] == 1; // automatically broadcasts if one layer
             validate(texture);
+            if constexpr (NORMALIZED)
+                m_norm = 1 / shape_ranked.vec.template as<coord_type>();
+            if constexpr (LAYERED)
+                m_strides = strides_batches;
         }
 
     public:
-        template<nt::real T, size_t A>
-        [[nodiscard]] NOA_HD auto fetch_preprocess(Vec<T, N, A> coordinates) const -> Vec<T, N, A> {
+        template<nt::real T, size_t A> requires (B == 0)
+        [[nodiscard]] NOA_HD auto fetch_preprocess(Vec<T, R, A> coordinates) const -> Vec<T, R, A> {
             coordinates += static_cast<T>(0.5); // to texture coordinate system
             if constexpr (NORMALIZED)
                 coordinates *= m_norm.template as<T, A>();
             return coordinates;
         }
 
-        template<nt::real... T> requires (sizeof...(T) == N)
+        template<nt::real... T> requires (B == 0 and sizeof...(T) == R)
         [[nodiscard]] NOA_HD auto fetch(T... coordinates) const noexcept -> value_type {
-            return fetch_raw(fetch_preprocess(coord_n_type::from_values(coordinates...)));
+            return fetch_raw(fetch_preprocess(coord_r_type::from_values(coordinates...)));
         }
 
-        template<nt::real T, size_t A>
-        [[nodiscard]] NOA_HD auto fetch(const Vec<T, N, A>& coordinates) const noexcept -> value_type {
+        template<nt::real T, size_t A> requires (B == 0)
+        [[nodiscard]] NOA_HD auto fetch(const Vec<T, R, A>& coordinates) const noexcept -> value_type {
             return fetch_raw(fetch_preprocess(coordinates.template as<coord_type>()));
         }
 
-        template<nt::real... T> requires (sizeof...(T) == N)
+        template<nt::real... T> requires (B == 0 and sizeof...(T) == R)
         [[nodiscard]] NOA_HD auto fetch_raw(T... coordinates) const noexcept -> value_type {
-            return fetch_raw(coord_n_type::from_values(coordinates...));
+            return fetch_raw(coord_r_type::from_values(coordinates...));
         }
 
-        template<nt::real T, size_t A>
-        [[nodiscard]] NOA_HD auto fetch_raw(const Vec<T, N, A>& coordinates) const noexcept -> value_type {
+        template<nt::real T, size_t A> requires (B == 0)
+        [[nodiscard]] NOA_HD auto fetch_raw(const Vec<T, R, A>& coordinates) const noexcept -> value_type {
             auto vec = coordinates.template as<coord_type>();
             #ifdef __CUDACC__
-            if constexpr (N == 2) {
+            if constexpr (R == 2) {
                 if constexpr (std::same_as<value_type, f32>) {
                     if constexpr (LAYERED) {
                         return ::tex2DLayered<f32>(m_texture, vec[1], vec[0], m_layer);
@@ -96,7 +94,7 @@ namespace noa::xform::cuda {
                 } else {
                     static_assert(nt::always_false<value_type>);
                 }
-            } else if constexpr (N == 3) {
+            } else if constexpr (R == 3) {
                 if constexpr (std::same_as<value_type, f32>) {
                     return ::tex3D<f32>(m_texture, vec[2], vec[1], vec[0]);
                 } else if constexpr (std::same_as<value_type, c32>) {
@@ -115,45 +113,46 @@ namespace noa::xform::cuda {
         }
 
     public:
-        NOA_HD void set_layer(nt::integer auto layer) noexcept {
-            if constexpr (LAYERED)
-                m_layer = m_broadcast_layer ? 0 : static_cast<i32>(layer);
+        // Indexing through the batch axes.
+        template<nt::integer I, usize S, usize A> requires (B >= S)
+        [[nodiscard]] NOA_HD auto operator[](const Vec<I, S, A>& batches) const noexcept -> AccessorTexture {
+            AccessorTexture<INTERP, BORDER, Value, Coord, Index, B - S, R, NORMALIZED, LAYERED> output;
+            output.m_texture = m_texture;
+            output.m_norm = m_norm;
+            output.m_layer = m_layer + noa::offset_at(m_strides, batches);
+            output.m_strides = m_strides.template pop_front<S>();
+            return output;
         }
 
-        [[nodiscard]] NOA_HD auto operator[](nt::integer auto layer) const noexcept -> Texture {
-            Texture new_texture = *this;
-            new_texture.set_layer(layer);
-            return new_texture;
+        template<nt::integer I> requires (B >= 1)
+        [[nodiscard]] NOA_HD auto operator[](I batch) const noexcept -> AccessorTexture {
+            AccessorTexture<INTERP, BORDER, Value, Coord, Index, B - 1, R, NORMALIZED, LAYERED> output;
+            output.m_texture = m_texture;
+            output.m_norm = m_norm;
+            output.m_layer = m_layer + noa::offset_at(m_strides[0], batch);
+            output.m_strides = m_strides.template pop_front<1>();
+            return output;
         }
 
     public:
-        template<nt::integer... I> requires (N == sizeof...(I))
+        template<nt::integer I, usize S, usize A> requires (SIZE == S)
+        NOA_HD auto operator()(const Vec<I, S, A>& batched_indices) const noexcept -> value_type {
+            const auto& [batches, indices] = batched_indices.template split<B>();
+            return (*this)[batches].fetch(indices.template as<coord_type>());
+        }
+
+        template<nt::integer... I> requires (SIZE == sizeof...(I))
         NOA_HD auto operator()(I... indices) const noexcept -> value_type {
-            return fetch(static_cast<coord_type>(indices)...);
+            return (*this)(Vec{static_cast<coord_type>(indices)...});
         }
 
-        template<nt::integer... I> requires (N == sizeof...(I))
-        NOA_HD auto operator()(nt::integer auto batch, I... indices) const noexcept -> value_type {
-            return (*this)[batch](indices...);
-        }
-
-        template<nt::integer I, size_t S, size_t A> requires (N == S)
-        NOA_HD auto operator()(const Vec<I, S, A>& indices) const noexcept -> value_type {
-            return fetch(indices.template as<coord_type>());
-        }
-
-        template<nt::integer I, size_t S, size_t A> requires (N + 1 == S)
-        NOA_HD auto operator()(const Vec<I, S, A>& indices) const noexcept -> value_type {
-            return (*this)[indices[0]](indices.pop_front());
-        }
-
-        /// Checks that the texture object matches the Texture
+        /// Checks that the texture object matches the AccessorTexture
         static void validate(cudaTextureObject_t texture) {
-            cudaArray* array = AllocatorTexture::texture_array(texture);
+            cudaArray* array = noa::cuda::AllocatorArray::texture_array(texture);
             const bool is_layered = noa::cuda::AllocatorArray::is_layered(array);
             check(is_layered == LAYERED, "The input texture object is not layered, but a layered Texture was created");
 
-            const cudaTextureDesc description = AllocatorTexture::texture_description(texture);
+            const cudaTextureDesc description = noa::cuda::AllocatorArray::texture_description(texture);
             constexpr bool IS_ADDRESSABLE = BORDER.is_any(Border::ZERO, Border::CLAMP, Border::MIRROR, Border::PERIODIC);
             if constexpr (IS_ADDRESSABLE and INTERP == Interp::LINEAR_FAST) {
                 check(description.filterMode == cudaFilterModeLinear,
@@ -173,9 +172,9 @@ namespace noa::xform::cuda {
         }
 
     private:
-        cudaTextureObject_t m_texture{}; // size_t
-        NOA_NO_UNIQUE_ADDRESS f_shape_type m_norm{};
+        cudaTextureObject_t m_texture{}; // usize
+        NOA_NO_UNIQUE_ADDRESS norm_type m_norm{};
         NOA_NO_UNIQUE_ADDRESS layer_type m_layer{};
-        NOA_NO_UNIQUE_ADDRESS layer_flag_type m_broadcast_layer{};
+        NOA_NO_UNIQUE_ADDRESS strides_type m_strides{};
     };
 }
