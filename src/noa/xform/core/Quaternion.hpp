@@ -2,7 +2,7 @@
 
 #include "noa/base/Mat.hpp"
 #include "noa/base/Vec.hpp"
-#include "noa/xform/Traits.hpp"
+#include "noa/xform/core/Traits.hpp"
 
 namespace noa::xform {
     /// Quaternion type to represent 3d rotations. The coefficients are saved in the z, y, x, w order.
@@ -17,7 +17,7 @@ namespace noa::xform {
         using value_type = T;
         using vec4_type = Vec<value_type, 4>;
         using vec3_type = Vec<value_type, 3>;
-        using mat33_type = Mat33<value_type>;
+        using mat33_type = Mat<value_type, 3, 3>;
 
     public:
         value_type z, y, x, w;
@@ -26,7 +26,7 @@ namespace noa::xform {
         /// Converts a 3x3 orthogonal matrix to a quaternion.
         /// \warning Only pure rotations are supported, so the matrix should have no scaling and no reflection.
         template<typename U>
-        [[nodiscard]] NOA_HD static constexpr auto from_matrix(const Mat33<U>& matrix) noexcept -> Quaternion {
+        [[nodiscard]] NOA_HD static constexpr auto from_matrix(const Mat<U, 3, 3>& matrix) noexcept -> Quaternion {
             // This is also interesting, to handle the case with a scaling factor:
             // https://github.com/scipy/scipy/blob/main/scipy/spatial/transform/_rotation.pyx#L978-L1001
 

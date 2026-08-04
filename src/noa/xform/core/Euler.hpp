@@ -14,13 +14,13 @@ namespace noa::xform {
     /// \param angles       Euler angles, in radians.
     /// \param options      Euler angles options.
     template<nt::any_of<f32, f64> T>
-    auto euler2matrix(Vec<T, 3> angles, const EulerOptions& options = {}) -> Mat33<T>;
+    auto euler2matrix(Vec<T, 3> angles, const EulerOptions& options = {}) -> Mat<T, 3, 3>;
 
     /// Derives the Euler angles, in radians, from the rotation matrix.
     /// \param rotation     Rotation (orthogonal) matrix to decompose.
     /// \param options      Euler angles options.
     template<nt::any_of<f32, f64> T>
-    auto matrix2euler(const Mat33<T>& rotation, const EulerOptions& options = {}) -> Vec<T, 3>;
+    auto matrix2euler(const Mat<T, 3, 3>& rotation, const EulerOptions& options = {}) -> Vec<T, 3>;
 
     /// Extracts a set of 3x3 rotation matrices from the Euler angles.
     /// \tparam T               f32 or f64.
@@ -32,12 +32,12 @@ namespace noa::xform {
              typename I1, StridesTraits S1>
     void euler2matrix(
         const Span<const Vec<T, 3>, 1, I0, S0>& angles,
-        const Span<Mat33<T>, 1, I1, S1>& matrices,
+        const Span<Mat<T, 3, 3>, 1, I1, S1>& matrices,
         const EulerOptions& options = {}
     ) {
         check(angles.size() == matrices.size(), "angles and matrices don't have the same size");
-        for (usize batch{}; batch < angles.size(); ++batch)
-            matrices[batch] = euler2matrix(angles[batch], options);
+        for (usize i{}; i < angles.size(); ++i)
+            matrices[i] = euler2matrix(angles[i], options);
     }
 
     /// Derives a set of Euler angles, in radians, from a set of rotation matrices.
@@ -49,12 +49,12 @@ namespace noa::xform {
              typename I0, StridesTraits S0,
              typename I1, StridesTraits S1>
     void matrix2euler(
-        const Span<Mat33<T>, 1, I0, S0>& matrices,
+        const Span<Mat<T, 3, 3>, 1, I0, S0>& matrices,
         const Span<const Vec<T, 3>, 1, I1, S1>& angles,
         const EulerOptions& options = {}
     ) {
         check(angles.size() == matrices.size(), "angles and matrices don't have the same size");
-        for (usize batch{}; batch < angles.size(); ++batch)
-            angles[batch] = matrix2euler(matrices[batch], options);
+        for (usize i{}; i < angles.size(); ++i)
+            angles[i] = matrix2euler(matrices[i], options);
     }
 }
