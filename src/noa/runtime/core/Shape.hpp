@@ -403,9 +403,10 @@ namespace noa::inline types {
         ///     3 -> (B..)DHW, where D > 1.
         /// This convention is simple to understand and use, but limited and sometimes ambiguous:
         /// - (B..)1H1, i.e., column vectors, have a rank of 2.
-        /// - Shapes with N <= 3 cannot encode a batch dimension, e.g., DHW is not possible.
-        ///   To limit ambiguities, rank_checked was added.
-        [[nodiscard]] NOA_FHD constexpr auto rank() const noexcept -> i32 {
+        /// - Shapes with N <= 3 cannot encode a batch dimension, e.g., BHW is not possible.
+        ///   To limit ambiguities, rank_check was added.
+        template<nt::integer I = usize>
+        [[nodiscard]] NOA_FHD constexpr auto rank() const noexcept -> I {
             if constexpr (N >= 3)
                 if (vec[N - 3] > 1)
                     return 3;
@@ -416,14 +417,16 @@ namespace noa::inline types {
         }
 
         /// Returns the rank of the shape if there are no ambiguities.
-        /// If the rank is set (1, 2 or 3), it is simply returned.
-        /// If the rank is -1, it is deduced if N = 1 (rank = 1) or N >= 4 (using rank()),
+        /// If the rank is set (1, 2 or 3), min(rank, N) is returned, ensuring rank <= N.
+        /// If the rank is <=0, it is deduced if N = 1 (rank = 1) or N >= 4 (using rank()),
         /// otherwise (N = 2 or 3) an error is thrown.
-        [[nodiscard]] constexpr auto rank_checked(i32 rank) const noexcept -> i32 {
+        template<nt::integer I = usize>
+        [[nodiscard]] constexpr auto rank_checked(I rank) const -> I {
             // If the rank is specified, all good.
             if (1 <= rank and rank <= 3)
-                return rank;
-            if (rank == -1) { // try to deduce it.
+                return std::min(rank, static_cast<I>(N));
+
+            if (rank <= 0) { // try to deduce it.
                 if constexpr (N <= 1)
                     return 1; // unambiguous
                 if constexpr (N == 2)
@@ -431,9 +434,37 @@ namespace noa::inline types {
                 if constexpr (N == 3)
                     panic("The rank of 3D shapes is ambiguous (DHW, BHW or BBW). Set the rank explicitly or use at least 4 dimensions to rely on the B(..)DHW convention");
                 if constexpr (N >= 4)
-                    return this->rank(); // use b(..)dhw convention
+                    return this->rank<I>(); // use b(..)dhw convention
             }
-            panic("The rank should be 1, 2, 3 or -1, but got {}", rank);
+            panic("The rank should be 1, 2, 3 or <=0, but got {}", rank);
+        }
+
+        /// Collapses the batch dimensions, which are set according to the rank, into the leftmost axis.
+        template<nt::integer I = usize>
+        constexpr auto ranked(I rank) const -> Shape {
+            check(rank >= 1 and rank <= 3, "Invalid rank. Should be 1, 2, or 3, got {}", rank);
+            if (static_cast<I>(N) <= rank)
+                return *this;
+
+            Shape out;
+            if constexpr (N >= 1) {
+                const auto b = N - static_cast<usize>(rank);
+                if constexpr (N >= 2) {
+                    // Collapse batch axes, if any.
+                    out[0] = 1;
+                    for (usize i{}; i < b; ++i)
+                        out[0] *= vec[i];
+                }
+                if constexpr (N >= 3) {
+                    // Fill empty dimensions, if any.
+                    for (usize i{1}; i < b; ++i)
+                        out[i] = 1;
+                }
+                // Set the ranked axes.
+                for (usize i{b}; i < N; ++i)
+                    out[i] = vec[i];
+            }
+            return out;
         }
     };
 
