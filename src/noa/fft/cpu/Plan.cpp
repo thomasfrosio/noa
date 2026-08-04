@@ -327,7 +327,7 @@ namespace noa::fft::cpu {
         Complex<T>* output, const Strides4& output_strides,
         const Shape4& shape, u32 flag, isize max_n_threads
     ) {
-        const auto [batches, shape_3d, rank] = ranked_shape_info(shape.as_safe<i32>());
+        const auto [batches, shape_3d, rank] = noa::fft::details::ranked_shape_info(shape.as_safe<i32>());
         m_plan = FFTW<T>::create_r2c(
             input, input_strides.as_safe<i32>(),
             output, output_strides.as_safe<i32>(),
@@ -341,7 +341,7 @@ namespace noa::fft::cpu {
         T* output, const Strides4& output_strides,
         const Shape4& shape, u32 flag, isize max_n_threads
     ) {
-        const auto [batches, shape_3d, rank] = ranked_shape_info(shape.as_safe<i32>());
+        const auto [batches, shape_3d, rank] = noa::fft::details::ranked_shape_info(shape.as_safe<i32>());
         m_plan = FFTW<T>::create_c2r(
             input, input_strides.as_safe<i32>(),
             output, output_strides.as_safe<i32>(),
@@ -355,7 +355,7 @@ namespace noa::fft::cpu {
         Complex<T>* output, const Strides4& output_strides,
         const Shape4& shape, nf::Sign sign, u32 flag, isize max_n_threads
     ) {
-        const auto [batches, shape_3d, rank] = ranked_shape_info(shape.as_safe<i32>());
+        const auto [batches, shape_3d, rank] = noa::fft::details::ranked_shape_info(shape.as_safe<i32>());
         m_plan = FFTW<T>::create_c2c(
             input, input_strides.as_safe<i32>(),
             output, output_strides.as_safe<i32>(),

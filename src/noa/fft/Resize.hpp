@@ -15,9 +15,9 @@
 
 namespace noa::fft::details {
     template<Layout LAYOUT, bool CROP,
-             nt::sinteger Index,
-             nt::readable_nd<4> Input,
-             nt::writable_nd<4> Output>
+             nt::sinteger Index, usize B, usize R,
+             nt::readable_nd<B + R> Input,
+             nt::writable_nd<B + R> Output>
     class FourierResize {
     public:
         using index_type = Index;
@@ -30,14 +30,14 @@ namespace noa::fft::details {
         static constexpr bool IS_CENTERED = LAYOUT.is_xc2xx();
         static constexpr bool IS_HALF = LAYOUT.is_hx2xx();
 
-        using dh_shape_type = std::conditional_t<IS_HALF, Shape<index_type, 2>, Empty>;
-        using dhw_vec_type = std::conditional_t<not IS_HALF or IS_CENTERED, Shape<index_type, 3 - (IS_CENTERED and IS_HALF)>, Empty>;
+        using shape_no_width_type = std::conditional_t<IS_HALF, Shape<index_type, R - 1>, Empty>;
+        using vec_type = std::conditional_t<not IS_HALF or IS_CENTERED, Shape<index_type, R - (IS_CENTERED and IS_HALF)>, Empty>;
 
         constexpr FourierResize(
             const input_type& input,
             const output_type& output,
-            const Shape<index_type, 3>& input_shape,
-            const Shape<index_type, 3>& output_shape
+            const Shape<index_type, R>& input_shape,
+            const Shape<index_type, R>& output_shape
         ) : m_input(input),
             m_output(output)
         {
@@ -53,45 +53,68 @@ namespace noa::fft::details {
                     m_limit = (input_shape + 1) / 2;
                 }
             } else {
-                const auto border_left = output_shape / 2 - input_shape / 2;
-                m_offset = abs(border_left.template pop_back<IS_HALF>());
+                if constexpr (not IS_HALF or R >= 2) {
+                    const auto border_left = output_shape / 2 - input_shape / 2;
+                    m_offset = abs(border_left.template pop_back<IS_HALF>());
+                }
             }
         }
 
-        constexpr void operator()(index_type i, index_type j, index_type k, index_type l) const {
+        constexpr void operator()(const Vec<index_type, B + R>& batched_indices) const {
+            const auto [batches, indices] = batched_indices.template split<B>();
+
             if constexpr (IS_CENTERED) {
-                const auto j_ = j + m_offset[0];
-                const auto k_ = k + m_offset[1];
-                auto l_ = l;
+                Vec<index_type, R> new_indices;
+                if constexpr (R >= 2) {
+                    for (usize i{}; i < R - 1; ++i)
+                        new_indices[i] = indices[i] + m_offset[i];
+                }
+                new_indices[R - 1] = indices[R - 1];
                 if constexpr (not IS_HALF)
-                    l_ += m_offset[2];
+                    new_indices[R - 1] += m_offset[R - 1];
                 if constexpr (not CROP) {
-                    m_output(i, j_, k_, l_) = cast_or_abs_squared<output_value_type>(m_input(i, j, k, l));
+                    m_output(batches.push_back(new_indices)) =
+                        cast_or_abs_squared<output_value_type>(m_input(batched_indices));
                 } else {
-                    m_output(i, j, k, l) = cast_or_abs_squared<output_value_type>(m_input(i, j_, k_, l_));
+                    m_output(batched_indices) =
+                        cast_or_abs_squared<output_value_type>(m_input(batches.push_back(new_indices)));
                 }
             } else {
                 if constexpr (CROP and IS_HALF) {
-                    const auto ij = j < (m_output_shape[0] + 1) / 2 ? j : j + m_input_shape[0] - m_output_shape[0];
-                    const auto ik = k < (m_output_shape[1] + 1) / 2 ? k : k + m_input_shape[1] - m_output_shape[1];
-                    m_output(i, j, k, l) = cast_or_abs_squared<output_value_type>(m_input(i, ij, ik, l));
+                    Vec<index_type, R> input_indices;
+                    if constexpr (R >= 2) {
+                        for (usize i{}; i < R - 1; ++i)
+                            input_indices[i] = indices[i] < (m_output_shape[i] + 1) / 2 ?
+                                indices[i] : indices[i] + m_input_shape[i] - m_output_shape[i];
+                    }
+                    input_indices[R - 1] = indices[R - 1];
+                    m_output(batched_indices) =
+                        cast_or_abs_squared<output_value_type>(m_input(batches.push_back(input_indices)));
 
                 } else if constexpr (not CROP and IS_HALF) {
-                    const auto oj = j < (m_input_shape[0] + 1) / 2 ? j : j + m_output_shape[0] - m_input_shape[0];
-                    const auto ok = k < (m_input_shape[1] + 1) / 2 ? k : k + m_output_shape[1] - m_input_shape[1];
-                    m_output(i, oj, ok, l) = cast_or_abs_squared<output_value_type>(m_input(i, j, k, l));
+                    Vec<index_type, R> output_indices;
+                    if constexpr (R >= 2) {
+                        for (usize i{}; i < R - 1; ++i)
+                            output_indices[i] = indices[i] < (m_input_shape[i] + 1) / 2 ?
+                                indices[i] : indices[i] + m_output_shape[i] - m_input_shape[i];
+                    }
+                    output_indices[R - 1] = indices[R - 1];
+                    m_output(batches.push_back(output_indices)) =
+                        cast_or_abs_squared<output_value_type>(m_input(batched_indices));
 
                 } else if constexpr (CROP and not IS_HALF) {
-                    const auto ij = j < m_limit[0] ? j : j + m_offset[0];
-                    const auto ik = k < m_limit[1] ? k : k + m_offset[1];
-                    const auto il = l < m_limit[2] ? l : l + m_offset[2];
-                    m_output(i, j, k, l) = cast_or_abs_squared<output_value_type>(m_input(i, ij, ik, il));
+                    Vec<index_type, R> input_indices;
+                    for (usize i{}; i < R; ++i)
+                        input_indices[i] = indices[i] < m_limit[i] ? indices[i] : indices[i] + m_offset[i];
+                    m_output(batched_indices) =
+                        cast_or_abs_squared<output_value_type>(m_input(batches.push_back(input_indices)));
 
                 } else if constexpr (not CROP and not IS_HALF) {
-                    const auto oj = j < m_limit[0] ? j : j + m_offset[0];
-                    const auto ok = k < m_limit[1] ? k : k + m_offset[1];
-                    const auto ol = l < m_limit[2] ? l : l + m_offset[2];
-                    m_output(i, oj, ok, ol) = cast_or_abs_squared<output_value_type>(m_input(i, j, k, l));
+                    Vec<index_type, R> output_indices;
+                    for (usize i{}; i < R; ++i)
+                        output_indices[i] = indices[i] < m_limit[i] ? indices[i] : indices[i] + m_offset[i];
+                    m_output(batches.push_back(output_indices)) =
+                        cast_or_abs_squared<output_value_type>(m_input(batched_indices));
                 }
             }
         }
@@ -99,22 +122,23 @@ namespace noa::fft::details {
     private:
         input_type m_input;
         output_type m_output;
-        dh_shape_type m_input_shape{};
-        dh_shape_type m_output_shape{};
-        dhw_vec_type m_offset{};
-        dhw_vec_type m_limit{};
+        shape_no_width_type m_input_shape{};
+        shape_no_width_type m_output_shape{};
+        vec_type m_offset{};
+        vec_type m_limit{};
     };
 
     template<bool IS_CENTERED, bool IS_HALF,
-             nt::sinteger Index,
-             nt::writable_nd<3> Output>
+             nt::sinteger Index, usize B, usize R,
+             nt::writable_nd<B + R - 1> Output>
+        requires (R == 2 or R == 3)
     struct FourierResizeCorrect {
         using index_type = Index;
         using output_type = Output;
         using value_type = nt::value_type_t<output_type>;
 
         output_type output;
-        Shape<index_type, 2 - IS_HALF> shape{};
+        Shape<index_type, R - 1 - IS_HALF> shape{};
 
         static constexpr void average_pairs(const auto& span, const auto& indices, const auto& indices_pair) {
             auto& a = span.at(indices);
@@ -129,44 +153,47 @@ namespace noa::fft::details {
             b = avg;
         }
 
-        constexpr void symmetrize_plane(const auto& span, const Vec<index_type, 2>& indices) const {
+        constexpr void symmetrize_plane(const auto& span, const Vec<index_type, R - 1>& indices) const {
             const auto frequency = index2frequency<IS_CENTERED, IS_HALF>(indices, shape);
 
             // Get the Hermitian pair.
             // N = 10: [-5,-4,-3,-2,-1,+0,+1,+2,+3,+4], e.g. pair=[-5,-5], pair=[-4, 4], .., pair[0, 0]
             // N = 9:     [-4,-3,-2,-1,+0,+1,+2,+3,+4], e.g. pair=[-4, 4], ..., pair[0, 0]
             auto frequency_pair = frequency;
-            for (i32 l{}; l < 2 - IS_HALF; ++l) {
-                // If nyquist or zero, conjugate-average with itself, aka set imaginary to 0.
-                const auto nyquist = -(shape[l] + 1) / 2;
-                if (frequency[l] != nyquist)
-                    frequency_pair[l] = -frequency[l];
+            if constexpr (R - 1 - IS_HALF >= 1) {
+                for (usize l{}; l < R - 1 - IS_HALF; ++l) {
+                    // If nyquist or zero, conjugate-average with itself, aka set imaginary to 0.
+                    const auto nyquist = -(shape[l] + 1) / 2;
+                    if (frequency[l] != nyquist)
+                        frequency_pair[l] = -frequency[l];
+                }
             }
 
             const auto indices_pair = frequency2index<IS_CENTERED, IS_HALF>(frequency_pair, shape);
             average_pairs(span, indices, indices_pair);
         }
 
-        constexpr void operator()(index_type b, index_type i, index_type j) const {
-            symmetrize_plane(output[b], Vec{i, j});
+        constexpr void operator()(const Vec<index_type, B + R - 1>& batched_indices) const {
+            const auto [batches, indices] = batched_indices.template split<B>();
+            symmetrize_plane(output[batches], indices);
         }
     };
 }
 
 namespace noa::fft {
     struct ResizeOptions {
-        /// Rank of the transform.
+        /// Rank of the transform. Unused if the rank is specified at compile time.
         /// This determines which dimensions are considered batch dimensions.
         /// Batch dimensions are collapsed to a single dimensions and should therefore be collapsible.
         /// See Shape::rank_checked and ranked_shape for more details.
-        i32 rank{-1};
+        usize rank{};
 
-        /// When cropping to a new logical even-size, the new nyquist frequencies need to be corrected to restore
-        /// the Hermitian symmetry. The correction applied here consists in conjugate-averaging the Hermitian pairs
-        /// (the imaginary value of frequencies without pairs is set to zero). This correction can be skipped if a
-        /// lowpass filter removing Nyquist is applied before computing the c2r transform. Otherwise, without this
-        /// correction, the c2r transform is implementation defined (cuFFT will likely generate a different output
-        /// compared to FFTW).
+        /// For rank 2 or 3 transforms, when cropping to a new logical even-size, the new nyquist frequencies need
+        /// to be corrected to restore the Hermitian symmetry. The correction applied here consists in conjugate-
+        /// averaging the Hermitian pairs (the imaginary value of frequencies without pairs is set to zero).
+        /// This correction can be skipped if a lowpass filter removing Nyquist is applied before computing the c2r
+        /// transform. Otherwise, without this correction, the c2r transform is implementation defined (cuFFT will
+        /// likely generate a different output compared to FFTW).
         bool correct_nyquist{false};
     };
 
@@ -174,20 +201,25 @@ namespace noa::fft {
     /// \tparam LAYOUT
     ///     FFT layout.
     ///     Should be H2H, HC2HC, F2F or FC2FC.
+    /// \tparam RANK:
+    ///     Rank of the transform.
+    ///     This determines which dimensions are considered batch dimensions.
+    ///     Should be 1, 2, 3, or 0. If 0, fallback to runtime options.rank, in which case the batch dimensions
+    ///     are collapsed to a single dimension and should therefore be collapsible.
     /// \param[in] input, input_shape:
     ///     The FFT to resize and its logical shape.
-    ///     The rank of the transform, therefore which dimensions are batch dimensions, depends on options.rank.
+    ///     ((B..,)R), where R is W (RANK=1), HW (RANK=2), or DHW (RANK=3).
     /// \param[out] output, output_shape:
     ///     The resized FFT and its logical shape.
-    ///     The rank of the transform, therefore which dimensions are batch dimensions, depends on options.rank.
+    ///     ((B..,)R), where R is W (RANK=1), HW (RANK=2), or DHW (RANK=3).
     ///     If real and the input is complex, the power-spectrum is computed.
     /// \param options:
     ///     Resizing options.
-    template<Layout LAYOUT, nt::readable_array_decay Input, nt::writable_array_decay Output, usize N>
+    template<Layout LAYOUT, usize RANK = 0, nt::readable_array_decay Input, nt::writable_array_decay Output, usize N>
         requires (nt::array_decay_with_compatible_or_spectrum_types<Input, Output> and
-                  nt::array_decay_nd<Input, N> and
-                  nt::array_decay_nd<Output, N> and
-                  not LAYOUT.has_layout_change())
+                  nt::array_size_v<Input> == N and
+                  nt::array_size_v<Output> == N and
+                  not LAYOUT.has_layout_change() and RANK <= 3)
     void resize(
         Input&& input, Shape<isize, N> input_shape,
         Output&& output, Shape<isize, N> output_shape,
@@ -231,87 +263,151 @@ namespace noa::fft {
                   input_shape, output_shape);
         }
 
-        // Transform to BDHW.
-        constexpr usize B = 1;
-        constexpr usize BN = B + 3;
-        i32 rank = output_shape.rank_checked(options.rank);
-        auto transform_bdhw = [&]<typename T>(const auto& a, const T& a_shape) {
-            auto a_ = a.span().template as_nd<BN>();
-            auto a_shape_ = ranked_shape(a_.shape(), rank);
-            a_ = a_.reshape(a_shape_);
-            a_shape_[BN - 1] = a_shape[N - 1];
-            return Pair{a_, a_shape_};
-        };
-        auto [input_bn, input_shape_bn] = transform_bdhw(input, input_shape);
-        auto [output_bn, output_shape_bn] = transform_bdhw(output, output_shape);
-        const auto input_shape_n = input_shape_bn.pop_front();
-        const auto output_shape_n = output_shape_bn.pop_front();
-        check(input_shape_bn[0] == output_shape_bn[0], "The batch dimension cannot be resized");
+        // Transform to BR.
+        constexpr bool RUNTIME_RANK = RANK == 0;
+        constexpr usize R = RUNTIME_RANK ? 3 : RANK;
+        constexpr usize B = RUNTIME_RANK ? 1 : N <= RANK ? 0 : N - RANK;
+        constexpr usize BR = B + R;
+        const usize rank = RUNTIME_RANK ? output_shape.rank_checked(options.rank) : R;
 
-        using input_accessor_t = AccessorRestrict<const input_value_t, BN, isize>;
-        using output_accessor_t = AccessorRestrict<output_value_t, BN, isize>;
-        const auto input_accessor = input_accessor_t(input_bn.get(), input_bn.strides());
-        const auto output_accessor = output_accessor_t(output_bn.get(), output_bn.strides());
+        auto get_span = [&](const auto& a, const auto& a_shape) {
+            if constexpr (RUNTIME_RANK) {
+                // Convert to BDHW, fusing the batch dimensions into B, according to the rank.
+                auto a_ = a.span().template as_nd<BR>();
+                auto a_shape_ = a_.shape().ranked(rank);
+                a_ = a_.reshape(a_shape_);
+                a_shape_[BR - 1] = a_shape[N - 1]; // if rfft, reset to logical width
+                return Pair{a_, a_shape_};
+            } else {
+                return Pair{a.span(), a_shape};
+            }
+        };
+        auto [input_br, input_shape_br] = get_span(input, input_shape);
+        auto [output_br, output_shape_br] = get_span(output, output_shape);
+        const auto [input_shape_b, input_shape_r] = input_shape_br.template split<B>();
+        const auto [output_shape_b, output_shape_r] = output_shape_br.template split<B>();
+
+        if constexpr (RUNTIME_RANK) {
+            Vec<isize, N> mask{};
+            for (usize i{}; i < N - static_cast<usize>(rank); ++i)
+                mask[i] = 1;
+            check(input_shape.vec * mask == output_shape.vec * mask, "The batch dimensions cannot be resized, {}, {}, {}",mask, input_shape, output_shape);
+        } else if constexpr (B > 0) {
+            check(input_shape_b == output_shape_b, "The batch dimensions cannot be resized");
+        }
+
+        using input_accessor_t = AccessorRestrict<const input_value_t, BR, isize>;
+        using output_accessor_t = AccessorRestrict<output_value_t, BR, isize>;
+        const auto input_accessor = input_accessor_t(input_br.get(), input_br.strides());
+        const auto output_accessor = output_accessor_t(output_br.get(), output_br.strides());
 
         // Loop through the smallest shape.
         if (crop) {
-            auto op = details::FourierResize<LAYOUT, true, isize, input_accessor_t, output_accessor_t>(
-                input_accessor, output_accessor, input_shape_n, output_shape_n);
-            noa::iwise(IS_FULL ? output_shape_bn : output_shape_bn.rfft(), device, op, std::forward<Input>(input), output);
+            auto op = details::FourierResize<LAYOUT, true, isize, B, R, input_accessor_t, output_accessor_t>(
+                input_accessor, output_accessor, input_shape_r, output_shape_r);
+            noa::iwise(IS_FULL ? output_shape_br : output_shape_br.rfft(), device, op, std::forward<Input>(input), output);
         } else {
-            auto op = details::FourierResize<LAYOUT, false, isize, input_accessor_t, output_accessor_t>(
-                input_accessor, output_accessor, input_shape_n, output_shape_n);
-            noa::iwise(IS_FULL ? input_shape_bn : input_shape_bn.rfft(), device, op, std::forward<Input>(input), output);
+            auto op = details::FourierResize<LAYOUT, false, isize, B, R, input_accessor_t, output_accessor_t>(
+                input_accessor, output_accessor, input_shape_r, output_shape_r);
+            noa::iwise(IS_FULL ? input_shape_br : input_shape_br.rfft(), device, op, std::forward<Input>(input), output);
         }
 
-        if (options.correct_nyquist) {
-            auto correct_redundant_plane = [&]<bool IS_X_FULL>(const auto& plane, i32 i, i32 j) {
-                auto span = plane.span().filter(0, i, j);
-                auto iwise_shape = output_shape_bn.filter(i, j);
-                auto op = details::FourierResizeCorrect<IS_CENTERED, not IS_X_FULL, isize, decltype(span)>{
-                    .output = span,
-                    .shape = iwise_shape.template pop_back<not IS_X_FULL>(),
-                };
-                // Loop through the first half + Nyquist.
-                // For ZX and YX plane, only the lines x=0 and x=nyquist need to be corrected.
-                // But since the ZY plane corrects x=nyquist, only x=0 needs to be corrected.
-                iwise_shape[1] = IS_X_FULL ? iwise_shape[1] / 2 + 1 : 1;
-                noa::iwise(iwise_shape.push_front(output_shape_bn[0]), device, op, output);
-            };
+        if constexpr (R >= 2) {
+            if (options.correct_nyquist) {
+                auto correct_redundant_plane = [&]<bool IS_NEW_RIGHTMOST_FULL_LENGTH>(const auto& plane, usize axis_to_exclude) {
+                    // Remove the axis to exclude.
+                    // For R=2, the are dealing with lines (1D), and for R=3 with planes (2D).
+                    auto rank_axes = Vec<i32, R>::arange().exclude_axis(axis_to_exclude);
 
-            if (is_even(output_shape_bn[3]) and input_shape_bn[3] > output_shape_bn[3]) {
-                const auto nyquist_x = output_shape_bn[3] / 2;
-                const auto plane = output_bn.subregion(Full{}, Full{}, Full{}, nyquist_x); // (b,z,y,1)
-                correct_redundant_plane.template operator()<true>(plane, 1, 2); // ZY is always full
-            }
-            if (output_shape_bn[2] > 1 and is_even(output_shape_bn[2]) and input_shape_bn[2] > output_shape_bn[2]) {
-                const auto nyquist_y = nf::frequency2index<IS_CENTERED>(-output_shape_bn[2] / 2, output_shape_bn[2]);
-                auto plane = output_bn.subregion(Full{}, Full{}, nyquist_y, Full{}); // (b,z,1,x)
-                correct_redundant_plane.template operator()<IS_FULL>(plane, 1, 3);
-            }
-            if (output_shape_bn[1] > 1 and is_even(output_shape_bn[1]) and input_shape_bn[1] > output_shape_bn[1]) {
-                const auto nyquist_z = nf::frequency2index<IS_CENTERED>(-output_shape_bn[1] / 2, output_shape_bn[1]);
-                auto plane = output_bn.subregion(Full{}, nyquist_z, Full{}, Full{}); // (b,1,y,x)
-                correct_redundant_plane.template operator()<IS_FULL>(plane, 2, 3);
+                    // Add the batches.
+                    const auto batch_axes = Vec<i32, B>::arange();
+                    rank_axes += B;
+
+                    // Construct the operator.
+                    auto span = plane.span().filter(batch_axes.push_back(rank_axes));
+                    auto iwise_shape = output_shape_br.filter(rank_axes);
+                    auto op = details::FourierResizeCorrect<IS_CENTERED, not IS_NEW_RIGHTMOST_FULL_LENGTH, isize, B, R, decltype(span)>{
+                        .output = span,
+                        .shape = iwise_shape.template pop_back<not IS_NEW_RIGHTMOST_FULL_LENGTH>(),
+                    };
+
+                    // For RFFT, things can be simplified:
+                    //  - The first correction fixes the ZY plane (or Y column for R=2) at X=nyquist.
+                    //  - The second correction fixes the ZX plane (or X row for R=2) at Y=nyquist.
+                    //      Because ZY is already corrected, we don't need to iterate through X, only through Z.
+                    //      For R=3, this is a line along Z. For 2D, this is a single element.
+                    //  - The third correction fixes the YX plane at Z=nyquist.
+                    //      Because ZY and ZX are already corrected, we don't need to iterate through X, only through Y.
+                    iwise_shape[R - 2] = IS_NEW_RIGHTMOST_FULL_LENGTH ? iwise_shape[R - 2] / 2 + 1 : 1;
+                    noa::iwise(iwise_shape.push_front(output_shape_b.vec), device, op, output);
+                };
+
+                if (is_even(output_shape_r[R - 1]) and input_shape_r[R - 1] > output_shape_r[R - 1]) {
+                    // For 2D transforms, this fixes the column (y=all,x=nyquist).
+                    const auto nyquist_x = output_shape_r[R - 1] / 2;
+                    const auto plane = output_br.subregion(Ellipsis{}, nyquist_x); // ((b..,)h,1)
+                    correct_redundant_plane.template operator()<true>(plane, R - 1);
+                }
+                if (output_shape_r[R - 2] > 1 and is_even(output_shape_r[R - 2]) and input_shape_r[R - 2] > output_shape_r[R - 2]) {
+                    // For 2D transforms, this only fixes one element at (y=nyquist,x=0) making sure its imag=0.
+                    // The element (y=nyquist,x=nyquist) was already made real by the previous correction.
+                    const auto nyquist_y = nf::frequency2index<IS_CENTERED>(-output_shape_r[R - 2] / 2, output_shape_r[R - 2]);
+                    auto plane = output_br.subregion(Ellipsis{}, nyquist_y, Full{}); // ((b..,)1,w)
+                    correct_redundant_plane.template operator()<IS_FULL>(plane, R - 2);
+                }
+                if constexpr (R == 3) {
+                    if (output_shape_r[R - 3] > 1 and is_even(output_shape_r[R - 3]) and input_shape_r[R - 3] > output_shape_r[R - 3]) {
+                        const auto nyquist_z = nf::frequency2index<IS_CENTERED>(-output_shape_r[R - 3] / 2, output_shape_r[R - 3]);
+                        auto plane = output_br.subregion(Ellipsis{}, nyquist_z, Full{}, Full{}); // ((b..,)1,h,w)
+                        correct_redundant_plane.template operator()<IS_FULL>(plane, R - 3);
+                    }
+                }
             }
         }
     }
+    template<Layout LAYOUT, typename Input, typename Output, usize N>
+    void resize_1d(
+        Input&& input, Shape<isize, N> input_shape,
+        Output&& output, Shape<isize, N> output_shape,
+        ResizeOptions options = {}
+    ) {
+        resize<LAYOUT, 1>(std::forward<Input>(input), input_shape, std::forward<Output>(output), output_shape, options);
+    }
+    template<Layout LAYOUT, typename Input, typename Output, usize N>
+    void resize_2d(
+        Input&& input, Shape<isize, N> input_shape,
+        Output&& output, Shape<isize, N> output_shape,
+        ResizeOptions options = {}
+    ) {
+        resize<LAYOUT, 2>(std::forward<Input>(input), input_shape, std::forward<Output>(output), output_shape, options);
+    }
+    template<Layout LAYOUT, typename Input, typename Output, usize N>
+    void resize_3d(
+        Input&& input, Shape<isize, N> input_shape,
+        Output&& output, Shape<isize, N> output_shape,
+        ResizeOptions options = {}
+    ) {
+        resize<LAYOUT, 3>(std::forward<Input>(input), input_shape, std::forward<Output>(output), output_shape, options);
+    }
 
     /// Returns cropped or zero-padded (r)FFT(s).
-    /// \param output_shape Logical shape of the output.
-    /// \param options      Resizing options.
     /// \tparam LAYOUT
     ///     FFT layout.
     ///     Should be H2H, HC2HC, F2F or FC2FC.
+    /// \tparam RANK:
+    ///     Rank of the transform.
+    ///     This determines which dimensions are considered batch dimensions.
+    ///     Should be 1, 2, 3, or 0. If 0, fallback to runtime options.rank, in which case the batch dimensions
+    ///     are collapsed to a single dimension and should therefore be collapsible.
     /// \param[in] input, input_shape:
     ///     The FFT to resize and its logical shape.
-    ///     The rank of the transform, therefore which dimensions are batch dimensions, depends on options.rank.
+    ///     ((B..,)R), where R is W (RANK=1), HW (RANK=2), or DHW (RANK=3).
     /// \param[out] output_shape:
     ///     The logical shape of the output.
-    ///     The rank of the transform, therefore which dimensions are batch dimensions, depends on options.rank.
+    ///     ((B..,)R), where R is W (RANK=1), HW (RANK=2), or DHW (RANK=3).
     /// \param options:
     ///     Resizing options.
-    template<Layout LAYOUT, nt::readable_array_decay_of_numeric Input, usize N>
+    template<Layout LAYOUT, usize RANK = 0, nt::readable_array_decay_of_numeric Input, usize N>
         requires (nt::array_decay_nd<Input, N> and not LAYOUT.has_layout_change())
     [[nodiscard]] auto resize(
         Input&& input,
@@ -321,7 +417,34 @@ namespace noa::fft {
     ) {
         using value_t = nt::mutable_value_type_t<Input>;
         auto output = Array<value_t, N>(LAYOUT.is_fx2fx() ? output_shape : output_shape.rfft(), input.options());
-        resize<LAYOUT>(std::forward<Input>(input), input_shape, output, output_shape, options);
+        resize<LAYOUT, RANK>(std::forward<Input>(input), input_shape, output, output_shape, options);
         return output;
+    }
+    template<Layout LAYOUT, typename Input, usize N>
+    [[nodiscard]] auto resize_1d(
+        Input&& input,
+        const Shape<isize, N>& input_shape,
+        const Shape<isize, N>& output_shape,
+        const ResizeOptions& options = {}
+    ) {
+        return resize<LAYOUT, 1>(std::forward<Input>(input), input_shape, output_shape, options);
+    }
+    template<Layout LAYOUT, typename Input, usize N>
+    [[nodiscard]] auto resize_2d(
+        Input&& input,
+        const Shape<isize, N>& input_shape,
+        const Shape<isize, N>& output_shape,
+        const ResizeOptions& options = {}
+    ) {
+        return resize<LAYOUT, 2>(std::forward<Input>(input), input_shape, output_shape, options);
+    }
+    template<Layout LAYOUT, typename Input, usize N>
+    [[nodiscard]] auto resize_3d(
+        Input&& input,
+        const Shape<isize, N>& input_shape,
+        const Shape<isize, N>& output_shape,
+        const ResizeOptions& options = {}
+    ) {
+        return resize<LAYOUT, 3>(std::forward<Input>(input), input_shape, output_shape, options);
     }
 }

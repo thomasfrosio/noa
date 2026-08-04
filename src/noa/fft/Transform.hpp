@@ -39,8 +39,11 @@ namespace noa::fft {
     ///     - FFTW3's wisdom is well-optimized and doesn't require a lot of memory.
     struct FFTOptions {
         /// The rank of the transform.
-        /// See ranked_shape for more details.
-        i32 rank = -1;
+        /// This determines which axes are considered batch axes, and therefore which axes are to be transformed.
+        /// Batch axes are collapsed to a single axis, requiring the corresponding axes in the input and output
+        /// to be collapsible. For 2D and 3D arrays, the rank should be specified as it cannot be deduced (-1).
+        /// See Shape::rank_checked and Shape::ranked for more details.
+        usize rank{};
 
         /// Normalization mode.
         Norm norm = NORM_DEFAULT;
@@ -53,8 +56,8 @@ namespace noa::fft {
         /// This is intended for caching plans early. As such, using this option with cache_plan=false does nothing.
         bool plan_only = false;
 
-        /// Whether the plan workspace (the memory buffer allocated for the plan) should be postponed and
-        /// shared with later transforms also using this option.
+        /// Whether the allocation for the plan workspace (the memory buffer allocated for the plan) should be postponed
+        /// and shared with later transforms also using this option.
         /// \details On CPU (built with FFTW3), this is equivalent to plan_only=true since the workspace cannot be set.
         /// However, note that FFTW3 is very memory efficient, and there shouldn't be any issue storing many plans in
         /// the first place.
@@ -149,6 +152,13 @@ namespace noa::fft {
 }
 
 namespace noa::fft::details {
+    template<typename T, typename U>
+    void prepare_ranked_spans(Span<T, 4>& input, Span<U, 4>& output, Shape<isize, 4>& logical_shape, usize rank) {
+        logical_shape = logical_shape.ranked(rank);
+        input = input.reshape(logical_shape.set<3>(input.shape()[3]));
+        output = output.reshape(logical_shape.set<3>(output.shape()[3]));
+    }
+
     template<typename T>
     void normalize(T&& array, const Shape4& shape, Sign sign, Norm norm) {
         using real_t = nt::mutable_value_type_twice_t<T>;
@@ -163,17 +173,14 @@ namespace noa::fft::details {
 
 namespace noa::fft {
     /// Computes the forward r2c transform of (batched) 1d/2d/3d array(s).
-    /// \param[in] input:
-    ///     Real space array.
-    ///     Should be reshapeable to 4D.
-    /// \param[out] output:
-    ///     Non-redundant non-centered, aka "h" layout, FFT(s).
-    ///     Should be reshapeable to 4D.
-    /// \param options:
-    ///     FFT options.
+    /// \param[in] input: Input real space array.
+    /// \param[out] output: Non-redundant non-centered FFT(s).
     /// \note
+    ///     Batch dimensions should be collapsible according to options.rank.
     ///     In-place transforms are allowed if the input is appropriately padded to account
     ///     for the extra one (if odd) or two (if even) real element along the width dimension.
+    /// \param options:
+    ///     FFT options.
     template<nt::array_decay_of_almost_any<f32, f64> Input,
              nt::array_decay_of_any<Complex<nt::mutable_value_type_t<Input>>> Output>
         requires nt::array_decay_with_same_nd<Input, Output>
@@ -188,10 +195,12 @@ namespace noa::fft {
               "The input and output arrays must be on the same device, but got input:device={}, output:device={}",
               input.device(), device);
 
+        // Transform to BDHW.
         auto input_4d = input.span().template as_nd<4>();
         auto output_4d = output.span().template as_nd<4>();
         auto shape_4d = input_4d.shape();
-        details::prepare_ranked_spans(input_4d, output_4d, shape_4d, options.rank);
+        const auto rank = output.shape().rank_checked(options.rank);
+        details::prepare_ranked_spans(input_4d, output_4d, shape_4d, rank);
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
@@ -226,10 +235,31 @@ namespace noa::fft {
         if (not options.plan_only and not options.record_and_share_workspace)
             details::normalize(std::forward<Output>(output), shape_4d, Sign::FORWARD, options.norm);
     }
+    template<typename Input, typename Output>
+    void rfft(Input&& input, Output&& output, FFTOptions options = {}) {
+        r2c(std::forward<Input>(input), std::forward<Output>(output), options);
+    }
+    template<typename Input, typename Output>
+    void rfft1(Input&& input, Output&& output, FFTOptions options = {}) {
+        options.rank = 1;
+        r2c(std::forward<Input>(input), std::forward<Output>(output), options);
+    }
+    template<typename Input, typename Output>
+    void rfft2(Input&& input, Output&& output, FFTOptions options = {}) {
+        options.rank = 2;
+        r2c(std::forward<Input>(input), std::forward<Output>(output), options);
+    }
+    template<typename Input, typename Output>
+    void rfft3(Input&& input, Output&& output, FFTOptions options = {}) {
+        options.rank = 3;
+        r2c(std::forward<Input>(input), std::forward<Output>(output), options);
+    }
 
     /// Computes the forward r2c transform of (batched) 1d/2d/3d array(s).
-    /// \param[in] input:   Real space array.
-    /// \return Non-redundant non-centered, aka "h" layout, FFT(s).
+    /// \param[in] input:
+    ///     Real space array.
+    ///     Batch dimensions should be collapsible (options.rank sets which axes are batch axes).
+    /// \return Non-redundant non-centered FFT(s).
     template<nt::array_decay_of_almost_any<f32, f64> Input>
     [[nodiscard]] auto r2c(Input&& input, FFTOptions options = {}) {
         using real_t = nt::mutable_value_type_twice_t<Input>;
@@ -237,16 +267,31 @@ namespace noa::fft {
         r2c(std::forward<Input>(input), output, options);
         return output;
     }
+    template<typename Input>
+    void rfft(Input&& input,  FFTOptions options = {}) {
+        r2c(std::forward<Input>(input), options);
+    }
+    template<typename Input>
+    void rfft1(Input&& input, FFTOptions options = {}) {
+        options.rank = 1;
+        r2c(std::forward<Input>(input), options);
+    }
+    template<typename Input>
+    void rfft2(Input&& input, FFTOptions options = {}) {
+        options.rank = 2;
+        r2c(std::forward<Input>(input), options);
+    }
+    template<typename Input>
+    void rfft3(Input&& input, FFTOptions options = {}) {
+        options.rank = 3;
+        r2c(std::forward<Input>(input), options);
+    }
 
     /// Computes the backward c2r transform of (batched) 1d/2d/3d array(s).
-    /// \param[in,out] input:
-    ///     Non-redundant non-centered, aka "h" layout, FFT(s).
-    ///     Should be reshapeable to 4D.
-    /// \param[out] output:
-    ///     Real space array.
-    ///     Should be reshapeable to 4D.
-    /// \note
-    ///     In-place transforms are allowed if the \p output is appropriately padded to account
+    /// \param[in,out] input, output:
+    ///     Non-redundant non-centered FFT(s), and the real space output array.
+    ///     Batch dimensions should be collapsible (options.rank sets which axes are batch axes).
+    ///     In-place transforms are allowed if the output is appropriately padded to account
     ///     for the extra one (if odd) or two (if even) real element in the width dimension.
     /// \note
     ///     For multidimensional c2r transforms, the input is not preserved.
@@ -267,7 +312,8 @@ namespace noa::fft {
         auto input_4d = input.span().template as_nd<4>();
         auto output_4d = output.span().template as_nd<4>();
         auto shape_4d = output_4d.shape();
-        details::prepare_ranked_spans(input_4d, output_4d, shape_4d, options.rank);
+        const auto rank = output.shape().rank_checked(options.rank);
+        details::prepare_ranked_spans(input_4d, output_4d, shape_4d, rank);
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
@@ -302,11 +348,30 @@ namespace noa::fft {
         if (not options.plan_only and not options.record_and_share_workspace)
             details::normalize(std::forward<Output>(output), shape_4d, Sign::BACKWARD, options.norm);
     }
+    template<typename Input, typename Output>
+    void irfft(Input&& input, Output&& output, FFTOptions options = {}) {
+        c2r(std::forward<Input>(input), std::forward<Output>(output), options);
+    }
+    template<typename Input, typename Output>
+    void irfft1(Input&& input, Output&& output, FFTOptions options = {}) {
+        options.rank = 1;
+        c2r(std::forward<Input>(input), std::forward<Output>(output), options);
+    }
+    template<typename Input, typename Output>
+    void irfft2(Input&& input, Output&& output, FFTOptions options = {}) {
+        options.rank = 2;
+        c2r(std::forward<Input>(input), std::forward<Output>(output), options);
+    }
+    template<typename Input, typename Output>
+    void irfft3(Input&& input, Output&& output, FFTOptions options = {}) {
+        options.rank = 3;
+        c2r(std::forward<Input>(input), std::forward<Output>(output), options);
+    }
 
     /// Computes and returns the backward c2r transform of (batched) 1d/2d/3d array(s).
     /// \param[in,out] input:
-    ///     Non-redundant non-centered, aka "h" layout, FFT(s).
-    ///     Should be reshapeable to 4D.
+    ///     Non-redundant non-centered FFT(s).
+    ///     Batch dimensions should be collapsible (options.rank sets which axes are batch axes).
     /// \param shape:
     ///     Logical shape of the input.
     /// \note
@@ -319,19 +384,34 @@ namespace noa::fft {
         c2r(std::forward<Input>(input), output, options);
         return output;
     }
+    template<typename Input>
+    void irfft(Input&& input,  FFTOptions options = {}) {
+        c2r(std::forward<Input>(input), options);
+    }
+    template<typename Input>
+    void irfft1(Input&& input, FFTOptions options = {}) {
+        options.rank = 1;
+        c2r(std::forward<Input>(input), options);
+    }
+    template<typename Input>
+    void irfft2(Input&& input, FFTOptions options = {}) {
+        options.rank = 2;
+        c2r(std::forward<Input>(input), options);
+    }
+    template<typename Input>
+    void irfft3(Input&& input, FFTOptions options = {}) {
+        options.rank = 3;
+        c2r(std::forward<Input>(input), options);
+    }
 
     /// Computes the c2c transform of (batched) 1d/2d/3d array(s).
-    /// \param[in] input:
-    ///     Input complex data.
-    ///     Should be reshapeable to 4D.
-    /// \param[out] output:
-    ///     Non-centered, aka "f" layout, FFT(s).
-    ///     Should be reshapeable to 4D.
+    /// \param[in,out] input:
+    ///     Input complex data, and the non-centered output FFT(s).
+    ///     Batch dimensions should be collapsible (options.rank sets which axes are batch axes).
+    ///     In-place transforms are allowed.
     /// \param sign:
     ///     Sign of the exponent in the formula that defines the Fourier transform.
     ///     It can be −1 (Sign::FORWARD) or +1 (Sign::BACKWARD).
-    /// \note
-    ///     In-place transforms are allowed.
     template<nt::array_decay_of_almost_any<c32, c64> Input,
              nt::array_decay_of_any<nt::mutable_value_type_t<Input>> Output>
         requires nt::array_decay_with_same_nd<Input, Output>
@@ -349,7 +429,8 @@ namespace noa::fft {
         auto input_4d = input.span().template as_nd<4>();
         auto output_4d = output.span().template as_nd<4>();
         auto shape_4d = input_4d.shape();
-        details::prepare_ranked_spans(input_4d, output_4d, shape_4d, options.rank);
+        const auto rank = output.shape().rank_checked(options.rank);
+        details::prepare_ranked_spans(input_4d, output_4d, shape_4d, rank);
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
@@ -384,11 +465,49 @@ namespace noa::fft {
         if (not options.plan_only and not options.record_and_share_workspace)
             details::normalize(std::forward<Output>(output), shape_4d, sign, options.norm);
     }
+    template<typename Input, typename Output>
+    void fft(Input&& input, Output&& output, FFTOptions options = {}) {
+        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::FORWARD, options);
+    }
+    template<typename Input, typename Output>
+    void fft1(Input&& input, Output&& output, FFTOptions options = {}) {
+        options.rank = 1;
+        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::FORWARD, options);
+    }
+    template<typename Input, typename Output>
+    void fft2(Input&& input, Output&& output, FFTOptions options = {}) {
+        options.rank = 2;
+        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::FORWARD, options);
+    }
+    template<typename Input, typename Output>
+    void fft3(Input&& input, Output&& output, FFTOptions options = {}) {
+        options.rank = 3;
+        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::FORWARD, options);
+    }
+    template<typename Input, typename Output>
+    void ifft(Input&& input, Output&& output, FFTOptions options = {}) {
+        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::BACKWARD, options);
+    }
+    template<typename Input, typename Output>
+    void ifft1(Input&& input, Output&& output, FFTOptions options = {}) {
+        options.rank = 1;
+        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::BACKWARD, options);
+    }
+    template<typename Input, typename Output>
+    void ifft2(Input&& input, Output&& output, FFTOptions options = {}) {
+        options.rank = 2;
+        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::BACKWARD, options);
+    }
+    template<typename Input, typename Output>
+    void ifft3(Input&& input, Output&& output, FFTOptions options = {}) {
+        options.rank = 3;
+        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::BACKWARD, options);
+    }
 
     /// Computes and returns the c2c transform 1d/2d/3d array(s).
     /// \param[in] input:
     ///     Input complex data.
-    ///     Should be reshapeable to 4D.
+    ///     Batch dimensions should be collapsible (options.rank sets which axes are batch axes).
     /// \param sign:
     ///     Sign of the exponent in the formula that defines the Fourier transform.
     ///     It can be −1 (Sign::FORWARD) or +1 (Sign::BACKWARD).
@@ -398,5 +517,43 @@ namespace noa::fft {
         auto output = Array<complex_t, nt::array_size_v<Input>>(input.shape(), input.options());
         c2c(std::forward<Input>(input), output, sign, options);
         return output;
+    }
+    template<typename Input>
+    void fft(Input&& input, FFTOptions options = {}) {
+        c2c(std::forward<Input>(input), Sign::FORWARD, options);
+    }
+    template<typename Input>
+    void fft1(Input&& input, FFTOptions options = {}) {
+        options.rank = 1;
+        c2c(std::forward<Input>(input), Sign::FORWARD, options);
+    }
+    template<typename Input>
+    void fft2(Input&& input, FFTOptions options = {}) {
+        options.rank = 2;
+        c2c(std::forward<Input>(input), Sign::FORWARD, options);
+    }
+    template<typename Input>
+    void fft3(Input&& input, FFTOptions options = {}) {
+        options.rank = 3;
+        c2c(std::forward<Input>(input), Sign::FORWARD, options);
+    }
+    template<typename Input>
+    void ifft(Input&& input, FFTOptions options = {}) {
+        c2c(std::forward<Input>(input), Sign::BACKWARD, options);
+    }
+    template<typename Input>
+    void ifft1(Input&& input, FFTOptions options = {}) {
+        options.rank = 1;
+        c2c(std::forward<Input>(input), Sign::BACKWARD, options);
+    }
+    template<typename Input>
+    void ifft2(Input&& input, FFTOptions options = {}) {
+        options.rank = 2;
+        c2c(std::forward<Input>(input), Sign::BACKWARD, options);
+    }
+    template<typename Input>
+    void ifft3(Input&& input, FFTOptions options = {}) {
+        options.rank = 3;
+        c2c(std::forward<Input>(input), Sign::BACKWARD, options);
     }
 }

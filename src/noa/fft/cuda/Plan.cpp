@@ -390,7 +390,7 @@ namespace noa::fft::cuda::details {
         const Shape4& shape, Device device,
         bool save_in_cache, bool plan_only, bool record_workspace
     ) -> std::shared_ptr<void> {
-        auto [batch, shape_3d, rank] = ranked_shape_info(shape.as_safe<long long int>());
+        auto [batch, shape_3d, rank] = noa::fft::details::ranked_shape_info(shape.as_safe<long long int>());
 
         const auto i_type = to_underlying(type);
         std::string hash;
@@ -415,7 +415,7 @@ namespace noa::fft::cuda::details {
         bool save_in_cache, bool plan_only, bool record_workspace
     ) -> std::shared_ptr<void> {
         using lli = long long int;
-        auto [batch, shape_3d, rank] = ranked_shape_info(shape.as_safe<lli>());
+        auto [batch, shape_3d, rank] = noa::fft::details::ranked_shape_info(shape.as_safe<lli>());
 
         const auto i_strides = input_strides.as<lli>();
         const auto o_strides = output_strides.as<lli>();
