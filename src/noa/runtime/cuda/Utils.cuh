@@ -614,7 +614,7 @@ namespace noa::cuda::details {
     ///     so that block offset is assumed to be zero.
     template<nt::integer T, usize N, typename Config, bool AddThreadIndices = true,
              usize FusedShapePoppedN = (N <= 3 ? 0 : N - 3),
-             usize BlockOffsetN = (N == 1 ? 0 : N == 2 ? 1 : 2)>
+             usize BlockOffsetN = (N <= 2 ? N - 1 : 2)>
     NOA_FD auto global_indices(
         const Vec<u32, FusedShapePoppedN>& grid_fused_shape_in_x_unbatched,
         const Vec<u32, BlockOffsetN>& grid_outer_offset = Vec<u32, BlockOffsetN>{}
