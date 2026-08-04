@@ -367,6 +367,8 @@ namespace noa {
     public:
         [[nodiscard]] NOA_HD constexpr auto operator[](nt::integer auto) const noexcept -> const_reference_type { return m_value; }
         [[nodiscard]] NOA_HD constexpr auto operator[](nt::integer auto) noexcept -> reference_type { return m_value; }
+        [[nodiscard]] NOA_HD constexpr auto operator[](nt::vec_integer auto const&) const noexcept -> const_reference_type { return m_value; }
+        [[nodiscard]] NOA_HD constexpr auto operator[](nt::vec_integer auto const&) noexcept -> reference_type { return m_value; }
 
     public:
         template<typename... U> requires nt::offset_indexing<4, U...>

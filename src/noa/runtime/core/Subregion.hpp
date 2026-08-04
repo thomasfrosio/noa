@@ -186,7 +186,7 @@ namespace noa {
             return [&, this]<I... J>(std::integer_sequence<I, J...>) {
                 SubregionResult<I, N> output{};
                 (this->extract_dim_(
-                    dim<N, J>(), J, clamp_cast<isize>(shape[J]), clamp_cast<isize>(strides[J]),
+                    dim<N, J>(), J, shape[J], strides[J],
                     output.shape[J], output.strides[J], offset), ...);
                 output.offset = offset;
                 return output;
