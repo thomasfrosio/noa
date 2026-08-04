@@ -573,6 +573,8 @@ namespace noa::cpu {
                 reduce_axes_iwise_t::template single_axis<0>(
                     input_shape.filter(1, 0), std::forward<Op>(op),
                     std::forward<Reduced>(reduced), output_1d, actual_n_threads);
+            } else {
+                static_assert(nt::always_false<Op>);
             }
         }
     }

@@ -74,6 +74,8 @@ namespace noa::cpu::details {
                     #pragma omp for collapse(1)
                     for (Index i = 0; i < shape[0]; ++i)
                         interface::call(ci, op, i);
+                } else {
+                    static_assert(nt::always_false<Operator>);
                 }
 
                 interface::deinit(ci, op);
@@ -124,6 +126,8 @@ namespace noa::cpu::details {
             } else if constexpr (N == 1) {
                 for (Index i = 0; i < shape[0]; ++i)
                     interface::call(ci, op, i);
+            } else {
+                static_assert(nt::always_false<Operator>);
             }
 
             interface::deinit(ci, op);
@@ -137,7 +141,7 @@ namespace noa::cpu {
         static constexpr isize n_elements_per_thread = ElementsPerThread;
     };
 
-    template<typename Config = IwiseConfig<>, usize N, typename Index, typename Op> requires (N <= 6)
+    template<typename Config = IwiseConfig<>, usize N, typename Index, typename Op>
     constexpr void iwise(const Shape<Index, N>& shape, Op&& op, i32 n_threads = 1) {
         if constexpr (Config::n_elements_per_thread >= 1) {
             const isize n_elements = shape.template as<isize>().n_elements();

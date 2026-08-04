@@ -66,6 +66,8 @@ namespace noa::cpu::details {
                     #pragma omp for collapse(1)
                     for (Index i = 0; i < shape[0]; ++i)
                         interface::call(ci, op, local_reduce, i);
+                } else {
+                    static_assert(nt::always_false<Op>);
                 }
                 interface::deinit(ci, op, Index{});
 
@@ -123,6 +125,8 @@ namespace noa::cpu::details {
             } else if constexpr (N == 1) {
                 for (Index i = 0; i < shape[0]; ++i)
                     interface::call(ci, op, reduced, i);
+            } else {
+                static_assert(nt::always_false<Op>);
             }
 
             interface::deinit(ci, op, Index{});
@@ -142,8 +146,7 @@ namespace noa::cpu {
     template<typename Config = ReduceIwiseConfig<>,
              typename Op, typename Reduced, typename Output, typename Index, usize N>
     requires (nt::tuple_of_accessor_value_or_empty<std::decay_t<Reduced>> and
-              nt::tuple_of_accessor_nd_or_empty<Output, 1> and
-              N <= 6)
+              nt::tuple_of_accessor_nd_or_empty<Output, 1>)
     constexpr void reduce_iwise(
         const Shape<Index, N>& shape,
         Op&& op,

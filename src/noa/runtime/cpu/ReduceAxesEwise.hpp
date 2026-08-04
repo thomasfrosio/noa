@@ -56,6 +56,8 @@ namespace noa::cpu::details {
                             #pragma omp for
                             for (Index j = 0; j < shape[1]; ++j)
                                 interface::call(ci, op, input, local, i, j);
+                        } else {
+                            static_assert(nt::always_false<Op>);
                         }
                         interface::deinit(ci, op, i);
 
@@ -100,6 +102,8 @@ namespace noa::cpu::details {
                         } else if constexpr (N == 2) {
                             for (Index j = 0; j < shape[1]; ++j)
                                 interface::call(ci, op, input, local, i, j);
+                        } else {
+                            static_assert(nt::always_false<Op>);
                         }
                         interface::deinit(ci, op, i);
                         interface::post(op, local, output, i);

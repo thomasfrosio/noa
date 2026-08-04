@@ -90,7 +90,7 @@ namespace noa {
              typename Reduced = nd::AdaptorUnzip<>,
              typename Outputs = nd::AdaptorUnzip<>,
              typename Operator, typename... Ts>
-        requires (not nt::reduce_axes<Outputs> and N <= 6)
+        requires (not nt::reduce_axes<Outputs> and N >= 1 and N <= 6)
     void reduce_axes_iwise(
         const Shape<Index, N>& shape,
         Device device,
@@ -136,7 +136,7 @@ namespace noa {
              typename Index, usize N,
              typename Reduced = nd::AdaptorUnzip<>,
              typename Operator, typename... Ts>
-        requires (N <= 6)
+        requires (N >= 1 and N <= 6)
     void reduce_axes_iwise(
         const Shape<Index, N>& shape,
         Device device,
