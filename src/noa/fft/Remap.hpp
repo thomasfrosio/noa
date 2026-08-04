@@ -137,8 +137,9 @@ namespace noa::fft::details {
                     // Rebase to the symmetric row in the non-redundant input.
                     // Then copy in reverse order.
                     Vec<index_type, R> input_indices;
-                    for (usize i = 0; i < R - 1; ++i)
-                        input_indices[i] = fftshift(output_indices[i] != 0 ? m_shape[i] - output_indices[i] : output_indices[i], m_shape[i]);
+                    if constexpr (R > 1)
+                        for (usize i = 0; i < R - 1; ++i)
+                            input_indices[i] = fftshift(output_indices[i] != 0 ? m_shape[i] - output_indices[i] : output_indices[i], m_shape[i]);
                     input_indices[R - 1] = m_shape[R - 1] - output_indices[R - 1];
                     value = input(input_indices);
                     if constexpr (nt::complex<output_value_type>)
@@ -161,8 +162,9 @@ namespace noa::fft::details {
                     // Rebase to the symmetric row in the non-redundant input.
                     // Then copy in reverse order.
                     Vec<index_type, R> input_indices;
-                    for (usize i = 0; i < R - 1; ++i)
-                        input_indices[i] = output_indices[i] != 0 ? m_shape[i] - output_indices[i] : output_indices[i];
+                    if constexpr (R > 1)
+                        for (usize i = 0; i < R - 1; ++i)
+                            input_indices[i] = output_indices[i] != 0 ? m_shape[i] - output_indices[i] : output_indices[i];
                     input_indices[R - 1] = m_shape[R - 1] - output_indices[R - 1];
                     value = input(input_indices);
                     if constexpr (nt::complex<output_value_type>)

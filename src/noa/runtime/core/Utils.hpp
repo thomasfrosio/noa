@@ -290,10 +290,9 @@ namespace noa::details {
                               "The stride of the innermost dimension must be 1 to view a {} as a {}",
                               nd::stringify<value_type>(), nd::stringify<NewT>());
                     }
-                    NOA_NV_DIAG_SUPPRESS(186)
-                    for (usize i{}; i < N - 1; ++i)
-                        out.strides[rightmost_order[i]] *= ratio;
-                    NOA_NV_DIAG_DEFAULT(186)
+                    if constexpr (N > 1)
+                        for (usize i{}; i < N - 1; ++i)
+                            out.strides[rightmost_order[i]] *= ratio;
                     out.strides[rightmost_order[N - 1]] = 1;
                     out.shape[rightmost_order[N - 1]] *= ratio;
 
@@ -313,11 +312,13 @@ namespace noa::details {
                               nd::stringify<value_type>(), nd::stringify<NewT>());
                     }
 
-                    for (usize i{}; i < N - 1; ++i) {
-                        check(not (out.strides[i] % ratio),
-                              "The strides must be divisible by {} to view a {} as a {}",
-                              ratio, nd::stringify<value_type>(), nd::stringify<NewT>());
-                        out.strides[i] /= ratio;
+                    if constexpr (N > 1) {
+                        for (usize i{}; i < N - 1; ++i) {
+                            check(not (out.strides[i] % ratio),
+                                  "The strides must be divisible by {} to view a {} as a {}",
+                                  ratio, nd::stringify<value_type>(), nd::stringify<NewT>());
+                            out.strides[i] /= ratio;
+                        }
                     }
                     out.strides[rightmost_order[N - 1]] = 1;
                     out.shape[rightmost_order[N - 1]] /= ratio;
