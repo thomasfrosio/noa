@@ -13,6 +13,7 @@
 #pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wuseless-cast"
 #pragma GCC diagnostic ignored "-Wbool-compare"
+#pragma GCC diagnostic ignored "-Wduplicated-branches"
 #elif defined(NOA_COMPILER_CLANG)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-compare"
@@ -22,6 +23,9 @@
 #elif defined(NOA_COMPILER_MSVC)
 #pragma warning(push, 0)
 #endif
+
+NOA_NV_DIAG_SUPPRESS(514)
+NOA_NV_DIAG_SUPPRESS(186)
 
 // Override half-precision host implementation to use this type for arithmetic operations
 // and math functions, since this can result in improved performance. For CUDA device
@@ -38,6 +42,9 @@
 #else
 #include <half/half.hpp>
 #endif
+
+NOA_NV_DIAG_DEFAULT(514)
+NOA_NV_DIAG_DEFAULT(186)
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #pragma GCC diagnostic pop
