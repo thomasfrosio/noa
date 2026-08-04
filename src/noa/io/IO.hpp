@@ -10,10 +10,12 @@
 
 namespace noa::io {
     struct ReadOption {
-        /// Whether to enforce the output array to be a stack of 2d images, instead of a single 3d volume.
-        /// This is useful for MRC files as some software tend to encode stack of images a 3d volume.
-        /// This only has an effect for N >= 4.
-        bool enforce_2d_stack{};
+        /// Rank of the returned array.
+        /// If 0, the returned ND array is returned as encoded in the file.
+        /// If 1, 2 or 3, the ND array is reshaped to the ranked shape before returning. The ranked shape collapses
+        /// batch axes to the leftmost axis. Setting the rank is usually used to correct wrongly encoded MRC files.
+        /// This only has an effect for N > (rank + 1).
+        usize rank{0};
 
         /// Whether the decoded values should be clamped to the output type range.
         bool clamp{true};
@@ -34,7 +36,7 @@ namespace noa::io {
     };
 
     /// Returns a new C-contiguous array of type T containing the whole file data, and the file header.
-    /// Files map to BDHW dimensions (see ImageFile) but this function then reshapes the 4D shape to N dimensions.
+    /// Files map to BDHW dimensions (see ImageFile) but this function can reshape the 4D shape to ND, possibly ranked, shape.
     template<nt::numeric T, usize N = 4>
     [[nodiscard]] auto read_image(
         const Path& path,
@@ -58,15 +60,14 @@ namespace noa::io {
             std::move(tmp).to(data);
         }
 
-        const auto& shape = data.shape();
-        if (read_option.enforce_2d_stack and (shape[0] == 1 and shape[1] > 1))
-            data = std::move(data).reshape(shape.filter(1, 0, 2, 3));
-
-        return {std::move(data).template as_nd<N>(), file.header()};
+        auto data_nd = std::move(data).template as_nd<N>();
+        if (read_option.rank != 0)
+            data_nd = std::move(data_nd).reshape(data_nd.shape().ranked(read_option.rank));
+        return {std::move(data_nd), file.header()};
     }
 
     /// Returns a new C-contiguous array of bytes containing the whole file data, and the file header.
-    /// Files map to BDHW dimensions (see ImageFile) but this function then reshapes the 4D shape to N dimensions.
+    /// Files map to BDHW dimensions (see ImageFile) but this function can reshape the 4D shape to ND, possibly ranked, shape.
     template<nt::byte T, usize N>
     [[nodiscard]] auto read_image(
         const Path& path,
@@ -98,16 +99,19 @@ namespace noa::io {
             std::move(tmp).to(data);
         }
 
-        if (read_option.enforce_2d_stack and (shape_byte[0] == 1 and shape_byte[1] > 1))
-            data = std::move(data).reshape(shape_byte.filter(1, 0, 2, 3));
-
-        return {std::move(data).as_nd<N>(), file.header()};
+        auto data_nd = std::move(data).as_nd<N>();
+        if (read_option.rank != 0)
+            data_nd = std::move(data_nd).reshape(data_nd.shape().ranked(read_option.rank));
+        return {std::move(data_nd), file.header()};
     }
 
     struct WriteOption {
-        /// Whether to write the input array as a stack of 2d images, instead of a single 3d volume.
-        /// This only has an effect for N >= 3, and is necessary to distinguish between DHW and BHW 3D arrays.
-        bool enforce_2d_stack{};
+        /// Rank of the written array.
+        /// If 0, the ND array is written as is in the file.
+        /// If 1, 2 or 3, the ND array is reshaped to the ranked shape before writing. The ranked shape collapses
+        /// batch axes to the leftmost axis. Setting the rank is usually used to distinguish between DHW and BHW 3D arrays.
+        /// This only has an effect for N > rank.
+        usize rank{0};
 
         /// DHW spacing (in Angstrom/pix) of the new file.
         Vec<f64, 3> spacing{};
@@ -173,8 +177,8 @@ namespace noa::io {
         }
 
         auto span_4d = span.template as_nd<4>();
-        if (write_option.enforce_2d_stack and span_4d.shape()[0] == 1 and span_4d.shape()[1] > 1)
-            span_4d = span_4d.filter(1, 0, 2, 3);
+        if (write_option.rank != 0)
+            span_4d = span_4d.reshape(span_4d.shape().ranked(write_option.rank));
 
         ImageFile(filename, Open{.write = true}, {
             .shape = span_4d.shape(),
@@ -200,7 +204,7 @@ namespace noa::io {
         const Path& filename,
         WriteOption write_option = {}
     ) {
-        using value_t = nt::mutable_value_type_t<Input>;
+        using byte_t = nt::mutable_value_type_t<Input>;
         check(input.is_contiguous(),
               "Input array should be C-contiguous, but got input:shape={}, input:strides={}",
               input.shape(), input.strides());
@@ -217,8 +221,8 @@ namespace noa::io {
         if (dtype == DataType::UNKNOWN)
             dtype = ImageFile::closest_supported_dtype(filename.extension().string(), input_dtype);
 
-        Array<value_t, N> tmp;
-        Span<const value_t, N> span;
+        Array<byte_t, N> tmp;
+        Span<const byte_t, N> span;
         if (input.device().is_cpu()) {
             // Unfortunately, the IO is currently part of the core, thus is not stream-aware.
             // To account for asynchronous CPU streams, it is important to synchronize here!
@@ -235,8 +239,8 @@ namespace noa::io {
         }
 
         auto span_4d = span.template as_nd<4>();
-        if (write_option.enforce_2d_stack and span_4d.shape()[0] == 1 and span_4d.shape()[1] > 1)
-            span_4d = span_4d.filter(1, 0, 2, 3);
+        if (write_option.rank != 0)
+            span_4d = span_4d.reshape(span_4d.shape().ranked(write_option.rank));
 
         ImageFile(filename, Open{.write = true}, {
             .shape = span_4d.shape().template set<3>(width),
