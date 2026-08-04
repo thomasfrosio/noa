@@ -1,13 +1,10 @@
 #pragma once
 
-#include "noa/base/Complex.hpp"
-#include "noa/base/Vec.hpp"
 #include "noa/fft/core/Frequency.hpp"
 #include "noa/fft/core/Layout.hpp"
-#include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/core/Shape.hpp"
-#include "noa/runtime/core/Traits.hpp"
-#include "noa/xform/Traits.hpp"
+#include "noa/runtime/core/Border.hpp"
+#include "noa/xform/core/Traits.hpp"
 #include "noa/xform/core/Interp.hpp"
 
 // TODO These interpolation functions originally prioritized simplicity.
@@ -50,8 +47,13 @@ namespace noa::traits {
         std::copyable<std::remove_cv_t<T>> and
         nt::real_or_complex<typename T::value_type> and
         nt::integer<typename T::index_type> and sizeof(typename T::index_type) >= 4 and
-        (readable_nd<std::remove_reference_t<decltype(std::declval<const T&>()[0])>, N...> or
-         textureable_nd<std::remove_reference_t<decltype(std::declval<const T&>()[0])>, BORDER, N...>);
+        (readable_nd<std::remove_reference_t<T>, N...> or
+         textureable_nd<std::remove_reference_t<T>, BORDER, N...>);
+
+    template<typename T, usize N>
+    concept shapeable_nd = requires {
+        { std::declval<const std::decay_t<T>&>().shape() } -> almost_same_as<Shape<typename T::index_type, N>>;
+    };
 }
 
 namespace noa::xform {
@@ -576,7 +578,7 @@ namespace noa::xform {
                 const real_t conj = details::flip_frequency<FLIP_PER_INDEX, real_t>(freq);
                 freq = nf::frequency2index<IS_CENTERED, IS_RFFT>(freq, shape);
                 value_t fetched = input.fetch(static_cast<coordn_t>(freq));
-                if constexpr (FLIP_PER_INDEX and nt::is_complex_v<value_t>)
+                if constexpr (FLIP_PER_INDEX and nt::complex<value_t>)
                     fetched.imag = conj;
                 return fetched;
             };
@@ -661,240 +663,196 @@ namespace noa::xform {
     }
 
     /// Interpolates {1|2|3}d (complex) floating-point data, using a given interpolation and border mode.
+    /// \tparam N       Number of dimensions of the data. Between 1 and 3.
+    /// \tparam INTERP_ Interpolation method.
+    /// \tparam BORDER_ Border mode, aka addressing mode.
+    /// \tparam NO_SHAPE:
+    ///     Whether the nd-shape should be stored inside the class.
+    ///     If true, the interpolated input should be texture-able or shapeable.
+    /// \tparam TEXTURE_ONLY:
+    ///     Whether only texture-able inputs are expected. If true, implies NO_SHAPE=true.
+    ///     This allowed, both the shape and cvalue are ingored and the class is empty.
     ///
-    /// \details
-    /// Input trait:
-    ///     - The input data is abstracted behind the readable and textureable concepts, allowing to support different
-    ///       memory layouts and pointer traits (all accessor/span types are supported). Hardware interpolation and
-    ///       addressing are supported via the textureable concept. See the `interpolate_using_texture` function for
-    ///       more details. See the `interpable_nd` concept for more details about the requirements on the input type.
-    ///     - The interpolator propagates the readable trait, i.e. if the input type is readable, so is the interpolator.
+    /// \note Out-of-bounds coordinates:
+    ///     One of the main differences between these interpolations and what we can find in other cryoEM packages,
+    ///     is that the interpolation window can be partially out-of-bound (OOB), that is, elements that are OOB
+    ///     are replaced according to a Border. cryoEM packages usually check that all elements are inbound,
+    ///     and if there's even one element OOB, they don't interpolate.
+    ///     In texture mode, the texture is responsible for the addressing, so some Border modes may not be supported.
+    ///     See interpolate_using_texture for more details. If the texture does not have the required mode, i.e.,
+    ///     BORDER != Input::BORDER, the interpolator tries to fall back on the `interpolate` function.
     ///
-    /// Out-of-bounds:
-    ///     - One of the main differences between these interpolations and what we can find in other cryoEM packages,
-    ///       is that the interpolation window can be partially out-of-bound (OOB), that is, elements that are OOB
-    ///       are replaced according to a Border. cryoEM packages usually check that all elements are inbound,
-    ///       and if there's even one element OOB, they don't interpolate.
-    ///     - In texture mode, the texture is responsible for the addressing, so some Border modes may not be supported.
-    ///       See `interpolate_using_texture` for more details. If the texture does not have the required mode, i.e.
-    ///       BORDER != Input::BORDER, the interpolator tries to fall back on the `interpolate` function (which
-    ///       requires the readable_nd trait. If the texture is not readable, a compile time error is given.
-    ///
-    /// Coordinate system:
+    /// \note Coordinate system:
     ///     The coordinate system matches the indexing, as expected.
     ///     For instance, the first data sample at index 0 is located at the coordinate 0 and the coordinate 0.5
     ///     is exactly in between the first and second element. As such, the fractional part of the coordinate
     ///     corresponds to the ratio/weight used by the interpolation functions. In other words, the coordinate system
     ///     locates the data between -0.5 and N-1 + 0.5.
-    ///
-    /// \tparam N       Number of dimensions of the data. Between 1 and 3.
-    /// \tparam INTERP_ Interpolation method.
-    /// \tparam BORDER_ Border mode, aka addressing mode.
-    /// \tparam Input   Batched input data. Readable or textureable.
-    /// \example
-    /// \code
-    /// auto data_2d = Span<f32, 4, i64>{...}; // input data, using the BDHW convention (like Array/View)
-    /// auto accessor = Accessor<const f32, 3, i64>{data_2d.get(), data_2d.strides().filter(0, 2, 3)}; // 2d batch data, depth=1
-    /// auto op = Interpolator<2, Interp::CUBIC, Border::ZERO, decltype(accessor)>(accessor, data_2d.shape().filter(2, 3));
-    /// auto coordinate = Vec<f64, 2>{...};
-    /// auto interpolated_value_batch0 = op.interpolate(coordinate);
-    /// auto interpolated_value_batch2 = op.interpolate(coordinate, 2);
-    /// auto value = op(6, 7); // batch=0, height=6, width=7
-    /// auto value = op(2, 6, 7); // batch=2, height=6, width=7
-    /// \endcode
-    template<size_t N, Interp INTERP_, Border BORDER_, nt::interpable_nd<BORDER_, N> Input>
+    template<Interp INTERP_, Border BORDER_, typename T, usize N, nt::integer I, bool NO_SHAPE = false, bool TEXTURE_ONLY = false>
     class Interpolator {
     public:
-        using input_type = Input;
-        using value_type = input_type::value_type;
-        using offset_type = input_type::index_type;
-        using mutable_value_type = nt::mutable_value_type_t<input_type>;
+        using value_type = T;
+        using offset_type = I;
+        using mutable_value_type = std::remove_const_t<T>;
         using index_type = std::make_signed_t<offset_type>;
 
         static constexpr Interp INTERP = INTERP_;
         static constexpr Border BORDER = BORDER_;
         static constexpr size_t SIZE = N;
-        static constexpr bool IS_TEXTUREABLE =
-            nt::textureable_nd<decltype(std::declval<const input_type&>()[0]), BORDER, N>; // nvcc bug
+        static_assert(N == 1 or N == 2 or N == 3);
 
         using shape_nd_type = Shape<index_type, N>;
-        using shape_nd_or_empty_type = std::conditional_t<IS_TEXTUREABLE, Empty, shape_nd_type>;
-        using value_or_empty_type = std::conditional_t<BORDER == Border::VALUE, mutable_value_type, Empty>;
+        using shape_nd_or_empty_type = std::conditional_t<NO_SHAPE or TEXTURE_ONLY, Empty, shape_nd_type>;
+        using value_or_empty_type = std::conditional_t<not TEXTURE_ONLY and BORDER == Border::VALUE, mutable_value_type, Empty>;
 
     public:
         /// Unsafe default construction...
         constexpr Interpolator() = default;
 
-        /// Constructs an interpolator from an accessor-like object.
-        /// This stores a copy of the input accessor, shape and cvalue. The created instance
-        /// can then be used to interpolate the nd-data (as described in the interpolate function).
-        template<size_t A>
+        /// Creates a new interpolator by storing a copy of the shape and cvalue.
+        /// If NO_SHAPE=true, the shape is ignored.
+        /// If TEXTURE_ONLY=true, both the shape and cvalue are ignored.
+        template<usize A>
         NOA_HD constexpr Interpolator(
-            const input_type& input,
             const Shape<index_type, N, A>& shape,
             mutable_value_type cvalue = mutable_value_type{}
-        ) noexcept requires (not IS_TEXTUREABLE) :
-            m_input(input),
-            m_shape(shape_nd_type::from_shape(shape))
-        {
-            if constexpr (not std::is_empty_v<value_or_empty_type>)
-                m_cvalue = cvalue;
-        }
-
-        /// Constructs an interpolator from a texture-like object.
-        /// This stores a copy of the input texture. Note that the texture handles the addressing (as described
-        /// in the interpolate_using_texture function), so the shape and cvalue are ignored and only provided here
-        /// to match the constructor taking readable inputs.
-        template<size_t A> requires IS_TEXTUREABLE
-        NOA_HD constexpr explicit Interpolator(
-            const input_type& input,
-            const Shape<index_type, N, A>& = {},
-            mutable_value_type = mutable_value_type{}
-        ) noexcept :
-            m_input(input) {}
-
-    public:
-        /// N-d interpolation of the input data at a given coordinate and batch.
-        /// \param coordinates  Un-normalized coordinates.
-        /// \param batch        Optional batch index. The input object is allowed to ignore the batch
-        ///                     and can thus effectively broadcast the input along the batch dimension.
-        template<nt::any_of<f32, f64> T, size_t A, nt::integer I = index_type>
-        NOA_HD constexpr auto interpolate_at(const Vec<T, N, A>& coordinates, I batch = I{}) const -> mutable_value_type {
-            if constexpr (IS_TEXTUREABLE) {
-                return nx::interpolate_using_texture<INTERP, BORDER>(m_input[batch], coordinates);
-            } else { // readable
-                return nx::interpolate<INTERP, BORDER>(m_input[batch], coordinates, m_shape, m_cvalue);
+        ) noexcept {
+            if constexpr (not TEXTURE_ONLY) {
+                if constexpr (not NO_SHAPE)
+                    m_shape = shape_nd_type::from_shape(shape);
+                if constexpr (not std::is_empty_v<value_or_empty_type>)
+                    m_cvalue = cvalue;
             }
         }
 
-    public: // independently, make it readable if input supports it
-        template<nt::integer... I>
-        requires (N + 1 == sizeof...(I) and nt::readable_nd<input_type, N + 1>)
-        NOA_HD constexpr auto operator()(I... indices) const -> mutable_value_type {
-            return m_input(indices...);
+    public:
+        /// N-d interpolation of the input data at a given coordinates.
+        /// \param input        Unbatched ND input.
+        /// \param coordinates  Un-normalized ND coordinates.
+        template<nt::interpable_nd<BORDER_, N> Input, nt::any_of<f32, f64> C, usize A>
+        [[nodiscard]] NOA_HD constexpr auto operator()(const Input& input, const Vec<C, N, A>& coordinates) const -> mutable_value_type {
+            if constexpr (nt::textureable_nd<Input, BORDER, N>) {
+                return nx::interpolate_using_texture<INTERP, BORDER>(input, coordinates);
+            } else if constexpr (not TEXTURE_ONLY) {
+                if constexpr (nt::shapeable_nd<Input, N>)
+                    return nx::interpolate<INTERP, BORDER>(input, coordinates, input.shape(), m_cvalue);
+                else if constexpr (not NO_SHAPE)
+                    return nx::interpolate<INTERP, BORDER>(input, coordinates, m_shape, m_cvalue);
+                else
+                    static_assert(nt::always_false<Input>, "A valid shape cannot be retrieved from the input and the shape was not stored (NO_SHAPE=true)");
+            } else {
+                static_assert(nt::always_false<Input>, "The input is not texture-able (given the BORDER and number of axes N) and the interpolator is TEXTURE_ONLY=true");
+            }
         }
 
-        template<nt::integer... I>
-        requires (N == sizeof...(I) and nt::readable_nd<input_type, N + 1>)
-        NOA_HD constexpr auto operator()(I... indices) const -> mutable_value_type {
-            return m_input(0, indices...);
-        }
-
-        template<nt::integer I, size_t S, size_t A>
-        requires (N + 1 == S and nt::readable_nd<input_type, N + 1>)
-        NOA_HD constexpr auto operator()(const Vec<I, S, A>& indices) const -> mutable_value_type {
-            return m_input(indices);
-        }
-
-        template<nt::integer I, size_t S, size_t A>
-        requires (N == S and nt::readable_nd<input_type, N + 1>)
-        NOA_HD constexpr auto operator()(const Vec<I, S, A>& indices) const -> mutable_value_type {
-            return m_input(indices.push_front(1));
+        /// N-d interpolation of the input data at a given coordinates.
+        /// Overload specifying the fallback shape (if the input doesn't have a shape) instead of the shape stored in the interpolator.
+        template<nt::interpable_nd<BORDER_, N> Input, nt::any_of<f32, f64> C, usize A1, usize A2>
+        [[nodiscard]] NOA_HD constexpr auto operator()(const Input& input, const Shape<index_type, N, A1>& shape, const Vec<C, N, A2>& coordinates) const -> mutable_value_type {
+            if constexpr (nt::textureable_nd<Input, BORDER, N>) {
+                return nx::interpolate_using_texture<INTERP, BORDER>(input, coordinates);
+            } else if constexpr (not TEXTURE_ONLY) {
+                if constexpr (nt::shapeable_nd<Input, N>)
+                    return nx::interpolate<INTERP, BORDER>(input, coordinates, input.shape(), m_cvalue);
+                else
+                    return nx::interpolate<INTERP, BORDER>(input, coordinates, shape, m_cvalue);
+            } else {
+                static_assert(nt::always_false<Input>, "The input is not texture-able (given the BORDER and number of axes N) and the interpolator is TEXTURE_ONLY=true");
+            }
         }
 
     private:
-        input_type m_input{};
         NOA_NO_UNIQUE_ADDRESS shape_nd_or_empty_type m_shape{};
         NOA_NO_UNIQUE_ADDRESS value_or_empty_type m_cvalue{};
     };
 
     /// Interpolates {1|2|3}d (power) spectra with a given FFT layout, using a given interpolation.
-    /// \tparam N       Number of dimensions of the data. Between 1 and 3.
     /// \tparam REMAP   FFT layout of the input. The output layout is ignored.
-    /// \tparam INTERP_ Interpolation method.
-    /// \tparam Input   Batched input data. Readable or textureable.
-    ///
     /// \warning rfft inputs with even sizes results in slight interpolation error. This affects only a few elements
     ///          at the Nyquist frequencies (the ones on the central axes, e.g. x=0) on the input and weights the
     ///          interpolated values towards zero. This only affects Interp::LINEAR(_FAST), and while this can be fixed
     ///          easily (see FLIP_PER_INDEX=true in interpolate_spectrum), we are leaving it like this for now as this
     ///          error is realistically negligible and the fix has a slight performance cost...
-    template<size_t N, nf::Layout REMAP, Interp INTERP_, nt::interpable_nd<Border::ZERO, N> Input>
+    template<nf::Layout REMAP, Interp INTERP_, typename T, usize N, nt::integer I, bool NO_SHAPE = false, bool TEXTURE_ONLY = false>
     class InterpolatorSpectrum {
     public:
-        using input_type = Input;
-        using value_type = input_type::value_type;
-        using offset_type = input_type::index_type;
-        using mutable_value_type = nt::mutable_value_type_t<input_type>;
+        using value_type = T;
+        using mutable_value_type = std::remove_const_t<T>;
+        using offset_type = I;
         using index_type = std::make_signed_t<offset_type>;
         using shape_nd_type = Shape<index_type, N>;
+        using shape_nd_or_empty_type = std::conditional_t<NO_SHAPE or TEXTURE_ONLY, Empty, shape_nd_type>;
 
         static constexpr Interp INTERP = INTERP_;
         static constexpr Border BORDER = Border::ZERO;
         static constexpr size_t SIZE = N;
-        static constexpr bool IS_TEXTUREABLE = requires(const input_type& t) {
-            { t[0] } -> nt::textureable_nd<Border::ZERO, N>;
-        };
+        static_assert(N == 1 or N == 2 or N == 3);
 
     public:
         /// Unsafe default construction...
         constexpr InterpolatorSpectrum() = default;
 
         /// Constructs an interpolator.
-        /// The created instance can then be used to interpolate the nd-spectrum
-        /// (as described in the interpolate_spectrum(_using_texture) function(s)).
-        NOA_HD constexpr InterpolatorSpectrum(
-            const input_type& input,
-            shape_nd_type shape
-        ) noexcept :
-            m_input(input),
-            m_shape(shape) {}
+        NOA_HD constexpr InterpolatorSpectrum(shape_nd_type shape) noexcept {
+            if constexpr (not NO_SHAPE)
+                m_shape = shape;
+        }
 
     public:
-        /// N-d interpolation of the input spectrum at a given frequency and batch.
+        /// N-d interpolation of the input spectrum at a given frequency.
+        /// \param input        Unbatched ND input.
         /// \param frequency    Unnormalized and centered frequency.
-        /// \param batch        Optional batch index. The input object is allowed to ignore the batch
-        ///                     and can thus effectively broadcast the input along the batch dimension.
-        template<nt::any_of<f32, f64> T, size_t A, nt::integer I = index_type>
-        NOA_HD constexpr auto interpolate_spectrum_at(const Vec<T, N, A>& frequency, I batch = I{}) const -> mutable_value_type {
-            if constexpr (IS_TEXTUREABLE) {
-                return nx::interpolate_spectrum_using_texture<REMAP, INTERP>(m_input[batch], frequency, m_shape);
-            } else { // readable
-                return nx::interpolate_spectrum<REMAP, INTERP>(m_input[batch], frequency, m_shape);
+        template<nt::interpable_nd<Border::ZERO, N> Input, nt::any_of<f32, f64> C, usize A> requires (not NO_SHAPE)
+        [[nodiscard]] NOA_HD constexpr auto operator()(const Input& input, const Vec<C, N, A>& frequency) const -> mutable_value_type {
+            if constexpr (nt::textureable_nd<Input, BORDER, N>) {
+                if constexpr (nt::shapeable_nd<Input, N>)
+                    return nx::interpolate_spectrum_using_texture<REMAP, INTERP>(input, frequency, input.shape());
+                else
+                    return nx::interpolate_spectrum_using_texture<REMAP, INTERP>(input, frequency, m_shape);
+            } else if constexpr (not TEXTURE_ONLY) {
+                if constexpr (nt::shapeable_nd<Input, N>)
+                    return nx::interpolate_spectrum<REMAP, INTERP>(input, frequency, input.shape());
+                else
+                    return nx::interpolate_spectrum<REMAP, INTERP>(input, frequency, m_shape);
+            } else {
+                static_assert(nt::always_false<Input>, "The input is not texture-able (given the BORDER and number of axes N) and the interpolator is TEXTURE_ONLY=true");
             }
         }
 
-    public: // independently, make it readable if input supports it
-        template<nt::integer... I>
-        requires (N + 1 == sizeof...(I) and nt::readable_nd<input_type, N + 1>)
-        NOA_HD constexpr auto operator()(I... indices) const -> mutable_value_type {
-            return m_input(indices...);
-        }
-
-        template<nt::integer... I>
-        requires (N == sizeof...(I) and nt::readable_nd<input_type, N + 1>)
-        NOA_HD constexpr auto operator()(I... indices) const -> mutable_value_type {
-            return m_input(0, indices...);
-        }
-
-        template<nt::integer I, size_t S, size_t A>
-        requires (N + 1 == S and nt::readable_nd<input_type, N + 1>)
-        NOA_HD constexpr auto operator()(const Vec<I, S, A>& indices) const -> mutable_value_type {
-            return m_input(indices);
-        }
-
-        template<nt::integer I, size_t S, size_t A>
-        requires (N == S and nt::readable_nd<input_type, N + 1>)
-        NOA_HD constexpr auto operator()(const Vec<I, S, A>& indices) const -> mutable_value_type {
-            return m_input(indices.push_front(1));
+        /// N-d interpolation of the input data at a given frequency.
+        /// Overload specifying the fallback shape (if the input doesn't have a shape) instead of the shape stored in the interpolator.
+        template<nt::interpable_nd<Border::ZERO, N> Input, nt::any_of<f32, f64> C, usize A1, usize A2>
+        [[nodiscard]] NOA_HD constexpr auto operator()(const Input& input, const Shape<index_type, N, A1>& shape, const Vec<C, N, A2>& frequency) const -> mutable_value_type {
+            if constexpr (nt::textureable_nd<Input, BORDER, N>) {
+                if constexpr (nt::shapeable_nd<Input, N>)
+                    return nx::interpolate_spectrum_using_texture<REMAP, INTERP>(input, frequency, input.shape());
+                else
+                    return nx::interpolate_spectrum_using_texture<REMAP, INTERP>(input, frequency, shape);
+            } else if constexpr (not TEXTURE_ONLY) {
+                if constexpr (nt::shapeable_nd<Input, N>)
+                    return nx::interpolate_spectrum<REMAP, INTERP>(input, frequency, input.shape());
+                else
+                    return nx::interpolate_spectrum<REMAP, INTERP>(input, frequency, shape);
+            } else {
+                static_assert(nt::always_false<Input>, "The input is not texture-able (given the BORDER and number of axes N) and the interpolator is TEXTURE_ONLY=true");
+            }
         }
 
     private:
-        input_type m_input{};
-        NOA_NO_UNIQUE_ADDRESS shape_nd_type m_shape{};
+        NOA_NO_UNIQUE_ADDRESS shape_nd_or_empty_type m_shape{};
     };
 }
 
 namespace noa::traits {
-    template<size_t N, nx::Interp INTERP, Border BORDER, typename Input>
-    struct proclaim_is_interpolator<nx::Interpolator<N, INTERP, BORDER, Input>> : std::true_type {};
+    template<nx::Interp INTERP, Border BORDER, typename T, usize N, typename I, bool A, bool B>
+    struct proclaim_is_interpolator<nx::Interpolator<INTERP, BORDER, T, N, I, A, B>> : std::true_type {};
 
-    template<size_t N, nx::Interp INTERP, Border BORDER, typename Input, size_t S>
-    struct proclaim_is_interpolator_nd<nx::Interpolator<N, INTERP, BORDER, Input>, S> : std::bool_constant<N == S> {};
+    template<nx::Interp INTERP, Border BORDER, typename T, usize N, typename I, bool A, bool B, usize S>
+    struct proclaim_is_interpolator_nd<nx::Interpolator<INTERP, BORDER, T, N, I, A, B>, S> : std::bool_constant<N == S> {};
 
-    template<size_t N, nf::Layout REMAP, nx::Interp INTERP, typename Input>
-    struct proclaim_is_interpolator_spectrum<nx::InterpolatorSpectrum<N, REMAP, INTERP, Input>> : std::true_type {};
+    template<nf::Layout REMAP, nx::Interp INTERP, typename T, usize N, typename I, bool A, bool B>
+    struct proclaim_is_interpolator_spectrum<nx::InterpolatorSpectrum<REMAP, INTERP, T, N, I, A, B>> : std::true_type {};
 
-    template<size_t N, nf::Layout REMAP, nx::Interp INTERP, typename Input, size_t S>
-    struct proclaim_is_interpolator_spectrum_nd<nx::InterpolatorSpectrum<N, REMAP, INTERP, Input>, S> : std::bool_constant<N == S> {};
+    template<nf::Layout REMAP, nx::Interp INTERP, typename T, usize N, typename I, bool A, bool B, usize S>
+    struct proclaim_is_interpolator_spectrum_nd<nx::InterpolatorSpectrum<REMAP, INTERP, T, N, I, A, B>, S> : std::bool_constant<N == S> {};
 }
