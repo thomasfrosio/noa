@@ -501,19 +501,33 @@ namespace noa::cuda {
 
         using allocate_type = std::unique_ptr<cudaArray, Deleter>;
 
+        struct ArrayAndTexture {
+            cudaArray_t array;
+            cudaTextureObject_t texture;
+
+            // Deleter.
+            isize size{};
+            i32 device_id{};
+            ~ArrayAndTexture() noexcept {
+                auto err = cudaDestroyTextureObject(texture);
+                NOA_ASSERT(err == cudaSuccess);
+                err = cudaFreeArray(array);
+                NOA_ASSERT(err == cudaSuccess);
+                add_bytes(device_id, -size);
+                (void) err;
+            }
+        };
+        using allocate_with_texture_type = std::unique_ptr<ArrayAndTexture>;
+
     public:
         /// Allocates a CUDA array.
-        /// \param shape:
-        ///     BDHW shape, such as:
-        ///     - B11W -> 1D array. If B > 1, layered should be true.
-        ///     - B1DH -> 2D array. If B > 1, layered should be true.
-        ///     - 1DHW -> 3D array.
+        /// \param shape: {B|D}HW shape, such as:
         /// \param layered:
-        ///     Whether the array should be layered.
+        ///     Whether the array should be layered, i.e., if so the leftmost dimension is the layer/batch.
         ///     3D layered arrays are not supported and trying to create one will throw an error.
-        template<nt::any_of<i8, i16, i32, u8, u16, u32, f16, f32, c16, c32> T, usize N>
+        template<nt::any_of<i8, i16, i32, u8, u16, u32, f16, f32, c16, c32> T>
         static auto allocate(
-            const Shape4& shape,
+            const Shape3& shape,
             bool layered = true,
             Device device = Device::current()
         ) -> allocate_type {
@@ -528,40 +542,61 @@ namespace noa::cuda {
             return allocate_type(ptr, Deleter{.size = n_bytes, .device_id = device_guard.id()});
         }
 
+        template<nt::any_of<i8, i16, i32, u8, u16, u32, f16, f32, c16, c32> T>
+        static auto allocate_with_texture(
+            const Shape3& shape,
+            bool layered,
+            Device device,
+            cudaTextureFilterMode filter_mode,
+            cudaTextureAddressMode address_mode,
+            cudaTextureReadMode normalized_reads_to_float,
+            bool normalized_coordinates
+        ) -> allocate_with_texture_type {
+            const auto device_guard = DeviceGuard(device);
+            const auto desc = cudaCreateChannelDesc<T>();
+            const auto extent = shape2extent(shape, layered);
+            cudaArray_t array;
+            check(cudaMalloc3DArray(&array, &desc, extent, layered ? cudaArrayLayered : cudaArrayDefault));
+
+            auto n_bytes = shape.n_elements() * static_cast<isize>(sizeof(T));
+            add_bytes(device.id(), n_bytes); // TODO include pitch
+
+            auto out = std::make_unique<ArrayAndTexture>();
+            out->array = array;
+            out->texture = create_texture(array, filter_mode, address_mode, normalized_reads_to_float, normalized_coordinates);
+            out->size = n_bytes;
+            out->device_id = device_guard.id();
+            return out;
+        }
+
     public: // static array utilities
-        static auto shape2extent(Shape4 shape, bool is_layered) -> cudaExtent {
+        static auto shape2extent(Shape3 shape, bool is_layered) -> cudaExtent {
             // Special case: treat column vectors as row vectors.
-            if (shape[2] >= 1 and shape[3] == 1)
+            if (shape[1] >= 1 and shape[2] == 1)
                 panic("Column vectors are not supported. Reshape to a row vector.");
 
             // Conversion:  shape -> CUDA extent
-            // 3D:          1DHW  -> DHW
-            // 2D:          11HW  -> 0HW
-            // 1D:          111W  -> 00W
-            // 2D layered:  B1HW  -> DHW
-            // 1D layered:  B11W  -> D0W
-            check(shape > 0 and shape[is_layered] == 1,
-                  "The input shape cannot be converted to a CUDA array extent. Dimensions with a size of 0 are not allowed, and the {} should be 1. Got shape={}",
-                  is_layered ? "depth dimension (for layered arrays)" : "batch dimension", shape);
-
-            auto shape_3d = shape.filter(static_cast<isize>(not is_layered), 2, 3).as_safe<usize>();
+            // 3D:          DHW  -> DHW
+            // 2D:          1HW  -> 0HW
+            // 1D:          11W  -> 00W
+            check(is_layered or shape[0] == 1, "3D layered arrays are not supported, but got shape={}, is_layered=true", shape);
+            check(shape > 0, "The input shape cannot be converted to a CUDA array extent. Dimensions with a size of 0 are not allowed, but got shape={}", shape);
+            auto shape_3d = shape.as_safe<usize>();
 
             // Set empty dimensions to 0. If layered, leave extent.depth to the batch value.
             if (not is_layered)
                 shape_3d[0] -= shape_3d[0] == 1;
             shape_3d[1] -= shape_3d[1] == 1;
-            return {shape_3d[2], shape_3d[1], shape_3d[0]};
+            return {.width = shape_3d[2], .height = shape_3d[1], .depth = shape_3d[0]};
         }
 
-        static auto extent2shape(cudaExtent extent, bool is_layered) noexcept -> Shape4 {
+        static auto extent2shape(cudaExtent extent) noexcept -> Shape3 {
             auto u_extent = Shape{extent.depth, extent.height, extent.width};
             u_extent += Shape<usize, 3>::from_vec(u_extent.cmp_eq(0)); // set empty dimensions to 1
 
             // Column vectors are "lost" in the conversion.
             // 1d extents are interpreted as row vectors.
-            auto shape = Shape4::from_values(1, 1, u_extent[1], u_extent[2]);
-            shape[not is_layered] = static_cast<isize>(u_extent[0]);
-            return shape;
+            return Shape3::from_values(u_extent[0], u_extent[1], u_extent[2]);
         }
 
         static auto array_info(cudaArray* array) {
@@ -578,6 +613,85 @@ namespace noa::cuda {
             return flags & cudaArrayLayered;
         }
 
+    public:
+        /// Creates a 1d, 2d or 3d texture from a CUDA array.
+        /// \param array:
+        ///     CUDA array. Its lifetime should exceed the lifetime of this new object.
+        ///     Data in the CUDA array can be updated but texture cache is unchanged until a new kernel is launched.
+        /// \param filter_mode:
+        ///     Filter mode, either cudaFilterModePoint or cudaFilterModeLinear.
+        ///     The linear mode is only allowed for float types.
+        ///     This is ignored for 1D textures since they don't perform any interpolation.
+        /// \param address_mode:
+        ///     Address mode, either cudaAddressModeWrap, cudaAddressModeClamp, cudaAddressModeMirror or cudaAddressModeBorder.
+        ///     Technically, this can be specified for each coordinates, but here it is specified for all the axes.
+        ///     This is ignored for 1D textures since they don't support addressing modes.
+        ///     Mirror and wrap are only supported for normalized coordinates, otherwise, fallback to clamp.
+        ///     cudaAddressModeMirror and cudaAddressModeWrap are only available with normalized coordinates (if normalized_coordinates
+        ///     is false, address_mode will be switched (internally by CUDA) to cudaAddressModeClamp.
+        /// \param normalized_reads_to_float:
+        ///     Whether 8-, 16-integer data should be converted to float when fetching.
+        ///     Either cudaReadModeElementType or cudaReadModeNormalizedFloat.
+        ///     If signed, returns float within [-1., 1.]. If unsigned, returns float within [0., 1.].
+        ///     This only applies to 8-bit and 16-bit integer formats. 32-bits are not promoted.
+        /// \param normalized_coordinates:
+        ///     Whether the coordinates are normalized when fetching.
+        ///     If false (default): textures are fetched using floating point coordinates in range [0, N-1], where N
+        ///     is the size of that particular axis. If true: textures are fetched using floating point coordinates
+        ///     in range [0., 1. -1/N], where N is the size of that particular axis.
+        static auto create_texture(
+            const cudaArray* array,
+            cudaTextureFilterMode filter_mode,
+            cudaTextureAddressMode address_mode,
+            cudaTextureReadMode normalized_reads_to_float,
+            bool normalized_coordinates
+        ) -> cudaTextureObject_t {
+            cudaResourceDesc res_desc{};
+            res_desc.resType = cudaResourceTypeArray;
+            res_desc.res.array.array = const_cast<cudaArray*>(array); // one example where we need const_cast...
+            // TODO cudaArrayGetInfo can be used to extract the array type and make
+            //      sure it matches T, but is it really useful? Maybe just an assert?
+
+            cudaTextureDesc tex_desc{};
+            tex_desc.addressMode[0] = address_mode;
+            tex_desc.addressMode[1] = address_mode; // ignored if 1d array.
+            tex_desc.addressMode[2] = address_mode; // ignored if 1d or 2d array.
+            tex_desc.filterMode = filter_mode;
+            tex_desc.readMode = normalized_reads_to_float;
+            tex_desc.normalizedCoords = normalized_coordinates;
+
+            cudaTextureObject_t texture{};
+            if (cudaCreateTextureObject(&texture, &res_desc, &tex_desc, nullptr))
+                panic("Creating the texture object from a CUDA array failed");
+            return texture;
+        }
+
+        /// Returns a texture object's texture descriptor.
+        static auto texture_description(cudaTextureObject_t texture) -> cudaTextureDesc {
+            cudaTextureDesc tex_desc{};
+            check(cudaGetTextureObjectTextureDesc(&tex_desc, texture));
+            return tex_desc;
+        }
+
+        /// Returns a texture object's texture descriptor.
+        static auto texture_resource(cudaTextureObject_t texture) -> cudaResourceDesc {
+            cudaResourceDesc tex_desc{};
+            check(cudaGetTextureObjectResourceDesc(&tex_desc, texture));
+            return tex_desc;
+        }
+
+        static auto texture_array(cudaTextureObject_t texture) -> cudaArray* {
+            const auto array_resource = texture_resource(texture);
+            check(array_resource.resType == cudaResourceTypeArray, "The texture is not bound to a CUDA array");
+            return array_resource.res.array.array;
+        }
+
+        /// Whether texture is using normalized coordinates.
+        static bool has_normalized_coordinates(cudaTextureObject_t texture) {
+            return texture_description(texture).normalizedCoords;
+        }
+
+    public:
         /// Returns the number of bytes currently allocated on the device.
         [[nodiscard]] static auto bytes_currently_allocated(i32 device_id) -> usize {
             if (device_id >= 0 and device_id < MAX_DEVICES)

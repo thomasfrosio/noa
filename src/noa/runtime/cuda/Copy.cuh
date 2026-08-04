@@ -337,13 +337,10 @@ namespace noa::cuda {
 
     /// Copy an array into a CUDA array.
     /// The source can be on any device or on the host.
-    /// The source BDHW shape should match the shape of the CUDA array such that:
-    ///  - If the CUDA array is layered, its shape should match the BHW dimensions of the source.
-    ///  - If the CUDA array is NOT layered, its shape should match the DHW dimensions of the source.
     template<typename T>
     void copy(
-        const T* src, const Strides4& src_strides, cudaArray* dst,
-        const Shape4& shape, Stream& stream
+        const T* src, const Strides3& src_strides, cudaArray* dst,
+        const Shape3& shape, Stream& stream
     ) {
         const auto[desc_, actual_extent, flags] = AllocatorArray::array_info(dst);
         const bool is_layered = flags & cudaArrayLayered;
@@ -359,25 +356,19 @@ namespace noa::cuda {
         auto shape_3d = Shape3::from_values(expected_extent.depth, expected_extent.height, expected_extent.width);
         shape_3d += Shape3::from_vec(shape_3d.cmp_eq(0));
 
-        const bool is_column = shape[2] >= 1 and shape[3] == 1;
-        const auto src_strides_3d = Strides3{
-            src_strides[not is_layered],
-            src_strides[2 + is_column],
-            src_strides[3 - is_column]
-        };
-        const bool is_rightmost = src_strides_3d.is_rightmost();
-        const bool has_valid_pitch = src_strides_3d[1] >= shape_3d[2];
-        const bool is_contiguous_2 = src_strides_3d[2] == 1;
-        const bool is_contiguous_0 = src_strides_3d[0] == src_strides_3d[1] * shape_3d[1];
+        const bool is_rightmost = src_strides.is_rightmost();
+        const bool has_valid_pitch = src_strides[1] >= shape_3d[2];
+        const bool is_contiguous_2 = src_strides[2] == 1;
+        const bool is_contiguous_0 = src_strides[0] == src_strides[1] * shape_3d[1];
         check(is_rightmost and has_valid_pitch and is_contiguous_0 and is_contiguous_2,
-              "Input layout cannot be copied into a CUDA array. The input should be in the rightmost order, and its {} and width dimension should be contiguous, but got shape {} and strides {}",
-              is_layered ? "batch" : "depth", shape, src_strides);
+              "Input layout cannot be copied into a CUDA array. The input should be in the rightmost order, and its leftmost and rightmost axes should be contiguous, but got shape={} and strides={}",
+              shape, src_strides);
 
-        copy(src, src_strides[2], dst, shape_3d, stream);
+        copy(src, src_strides[1], dst, shape_3d, stream);
     }
 
     template<typename T>
-    void copy(cudaArray* src, T* dst, const Strides4& dst_strides, const Shape4& shape, Stream& stream) {
+    void copy(cudaArray* src, T* dst, const Strides3& dst_strides, const Shape3& shape, Stream& stream) {
         const auto[_, actual_extent, flags] = AllocatorArray::array_info(src);
         const bool is_layered = flags & cudaArrayLayered;
         const cudaExtent expected_extent = AllocatorArray::shape2extent(shape, is_layered);
@@ -392,21 +383,15 @@ namespace noa::cuda {
         auto shape_3d = Shape3::from_values(expected_extent.depth, expected_extent.height, expected_extent.width);
         shape_3d += Shape3::from_vec(shape_3d.cmp_eq(0));
 
-        const bool is_column = shape[2] >= 1 and shape[3] == 1;
-        const auto dst_strides_3d = Strides3{
-            dst_strides[not is_layered],
-            dst_strides[2 + is_column],
-            dst_strides[3 - is_column]
-        };
-        const bool is_rightmost = dst_strides_3d.is_rightmost();
-        const bool has_valid_pitch = dst_strides_3d[1] >= shape_3d[2];
-        const bool is_contiguous_2 = dst_strides_3d[2] == 1;
-        const bool is_contiguous_0 = dst_strides_3d[0] == dst_strides_3d[1] * shape_3d[1];
+        const bool is_rightmost = dst_strides.is_rightmost();
+        const bool has_valid_pitch = dst_strides[1] >= shape_3d[2];
+        const bool is_contiguous_2 = dst_strides[2] == 1;
+        const bool is_contiguous_0 = dst_strides[0] == dst_strides[1] * shape_3d[1];
         check(is_rightmost and has_valid_pitch and is_contiguous_0 and is_contiguous_2,
-              "Input layout cannot be copied into a CUDA array. The input should be in the rightmost order, and its {} and width dimension should be contiguous, but got shape {} and strides {}",
-              is_layered ? "batch" : "depth", shape, dst_strides);
+              "Input layout cannot be copied into a CUDA array. The input should be in the rightmost order, and its leftmost and rightmost axes should be contiguous, but got shape={} and strides={}",
+              shape, dst_strides);
 
-        copy(src, dst, dst_strides[2], shape_3d, stream);
+        copy(src, dst, dst_strides[1], shape_3d, stream);
     }
 
     /// Copies \p src to the constant memory at \p dst.
