@@ -633,11 +633,23 @@ namespace noa::inline types {
             return Vec<value_type, sizeof...(I), A1>{(*this)[indices]...};
         }
 
-        template< usize A1 = 0, nt::integer I, usize N1, usize A2>
+        template<usize A1 = 0, nt::integer I, usize N1, usize A2>
         [[nodiscard]] NOA_FHD constexpr auto filter(const Vec<I, N1, A2> indices) const noexcept {
             return [&]<usize... V>(std::index_sequence<V...>) {
                 return Vec<value_type, N1, A1>{(*this)[indices[V]]...};
             }(std::make_index_sequence<N1>{});
+        }
+
+        template<usize A1 = 0>
+        [[nodiscard]] NOA_FHD constexpr auto exclude_axis(usize index) const noexcept {
+            Vec<value_type, N - 1, A1> output;
+            usize c{};
+            for (usize i{}; i < N - 1; ++i) {
+                if (i == index)
+                    continue;
+                output[c++] = (*this)[i];
+            }
+            return output;
         }
 
         template<usize A1 = 0, nt::integer... I> requires (sizeof...(I) == N)

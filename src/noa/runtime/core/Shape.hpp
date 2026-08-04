@@ -251,6 +251,11 @@ namespace noa::inline types {
             return Shape<value_type, N1, A1>{vec.template filter<A1>(a)};
         }
 
+        template<usize A1 = 0>
+        [[nodiscard]] NOA_FHD constexpr auto exclude_axis(usize index) const noexcept {
+            return Shape<value_type, N - 1, A1>{vec.template exclude_axis<A1>(index)};
+        }
+
         template<usize A1 = 0, nt::integer... I> requires (sizeof...(I) == N)
         [[nodiscard]] NOA_HD constexpr auto permute(I... order) const noexcept -> Shape {
             return {vec.template permute<A1>(order...)};
@@ -675,6 +680,11 @@ namespace noa::inline types {
         template<usize A1 = 0, nt::integer I, usize N1, usize A2>
         [[nodiscard]] NOA_HD constexpr auto filter(const Vec<I, N1, A2>& a) const noexcept {
             return Strides<value_type, N1, A1>{vec.template filter<A1>(a)};
+        }
+
+        template<usize A1 = 0>
+        [[nodiscard]] NOA_FHD constexpr auto exclude_axis(usize index) const noexcept {
+            return Strides<value_type, N - 1, A1>{vec.template exclude_axis<A1>(index)};
         }
 
         template<usize A1 = 0, nt::integer... I> requires (sizeof...(I) == N)
