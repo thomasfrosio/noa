@@ -69,8 +69,6 @@ namespace noa::traits {
     template<typename... T> concept tuple_of_accessor_pure_or_empty = conjunction_or_false<is_tuple_of_accessor_pure_or_empty<T>...>::value;
     template<typename... T> concept tuple_of_accessor_value_or_empty = conjunction_or_false<is_tuple_of_accessor_value_or_empty<T>...>::value;
 
-    NOA_GENERATE_PROCLAIM_FULL(batched_parameter);
-
     NOA_GENERATE_PROCLAIM_FULL(span);
     NOA_GENERATE_PROCLAIM_FULL(span_contiguous);
     NOA_GENERATE_PROCLAIM_FULL_ND(span_nd);
