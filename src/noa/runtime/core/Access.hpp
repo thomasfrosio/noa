@@ -24,6 +24,7 @@ namespace noa {
     /// \note If the resulting offset is used for pointer arithmetic, prefer to use the safer offset_pointer.
     template<nt::integer T, usize N, usize A, nt::integer... I> requires (N >= sizeof...(I))
     [[nodiscard]] NOA_FHD constexpr auto offset_at(const Strides<T, N, A>& strides, I... indices) noexcept {
+        // TODO Add N==0 support, return T{};
         return [&strides]<usize... J>(std::index_sequence<J...>, auto&... indices_) {
             return (noa::offset_at(strides[J], indices_) + ...);
         }(std::make_index_sequence<sizeof...(I)>{}, indices...); // nvcc bug - capture indices fails
@@ -38,6 +39,7 @@ namespace noa {
         const Strides<T, N0, A0>& strides,
         const Vec<U, N1, A1>& indices
     ) noexcept {
+        // TODO Add N==0 support, return T{};
         return [&]<usize... I>(std::index_sequence<I...>) {
             return (noa::offset_at(strides[I], indices[I]) + ...);
         }(std::make_index_sequence<N1>{});
@@ -48,6 +50,7 @@ namespace noa {
         const T& indexable,
         I... indices
     ) noexcept {
+        // TODO Add N==0 support, return T{};
         return [&indexable]<usize... J>(std::index_sequence<J...>, auto&... indices_) {
             typename T::index_type offset{};
             ((offset += noa::offset_at(indexable.template stride<J>(), indices_)), ...);
@@ -60,6 +63,7 @@ namespace noa {
         const T& indexable,
         const Vec<I, N, A>& indices
     ) noexcept {
+        // TODO Add N==0 support, return T{};
         return [&]<usize... J>(std::index_sequence<J...>) {
             typename T::index_type offset{};
             ((offset += noa::offset_at(indexable.template stride<J>(), indices[J])), ...);
@@ -78,6 +82,7 @@ namespace noa {
         P pointer,
         I... indices
     ) noexcept -> P {
+        // TODO Add N==0 support, return pointer;
         return [&]<usize... J>(std::index_sequence<J...>, auto&... indices_) {
             ((pointer += noa::offset_at(indexable.template stride<J>(), indices_)), ...);
             return pointer;
@@ -90,6 +95,7 @@ namespace noa {
         P pointer,
         const Vec<I, N, A>& indices
     ) noexcept -> P {
+        // TODO Add N==0 support, return pointer;
         return [&]<usize... J>(std::index_sequence<J...>) {
             ((pointer += noa::offset_at(indexable.template stride<J>(), indices[J])), ...);
             return pointer;
