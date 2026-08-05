@@ -348,7 +348,7 @@ namespace noa::inline types {
         }
 
         template<typename NewI,
-                 usize NewN,
+                 usize NewN = N,
                  typename NewT = value_type,
                  StridesTraits NewStridesTrait = STRIDES_TRAIT,
                  PointerTraits NewPointerTrait = POINTER_TRAIT>
