@@ -32,7 +32,7 @@ namespace noa::xform::cuda {
         using coord_r_type = Vec<coord_type, R>;
         using norm_type = std::conditional_t<NORMALIZED, coord_r_type, Empty>;
         using layer_type = std::conditional_t<LAYERED, i32, Empty>;
-        using strides_type = Strides<index_type, B>;
+        using strides_type = std::conditional_t<LAYERED, Strides<index_type, B>, Empty>;
 
     private:
         // Friend all instantiations.
@@ -46,7 +46,7 @@ namespace noa::xform::cuda {
             cudaTextureObject_t texture,
             const Shape<index_type, R>& shape_ranked,
             const Strides<index_type, B>& strides_batches,
-            layer_type layer = 0
+            layer_type layer = layer_type{}
         ) :
             m_texture{texture}, m_layer{layer}
         {
@@ -132,8 +132,10 @@ namespace noa::xform::cuda {
                 AccessorTexture<INTERP, BORDER, Value, Coord, Index, B - S, R, NORMALIZED, LAYERED> output;
                 output.m_texture = m_texture;
                 output.m_norm = m_norm;
-                output.m_layer = m_layer + static_cast<i32>(noa::offset_at(m_strides, batches));
-                output.m_strides = m_strides.template pop_front<S>();
+                if constexpr (LAYERED) {
+                    output.m_layer = m_layer + static_cast<i32>(noa::offset_at(m_strides, batches));
+                    output.m_strides = m_strides.template pop_front<S>();
+                }
                 return output;
             }
         }
@@ -145,8 +147,10 @@ namespace noa::xform::cuda {
             AccessorTexture<INTERP, BORDER, Value, Coord, Index, B - 1, R, NORMALIZED, LAYERED> output;
             output.m_texture = m_texture;
             output.m_norm = m_norm;
-            output.m_layer = m_layer + static_cast<i32>(noa::offset_at(m_strides[0], batch));
-            output.m_strides = m_strides.template pop_front<1>();
+            if constexpr (LAYERED) {
+                output.m_layer = m_layer + static_cast<i32>(noa::offset_at(m_strides[0], batch));
+                output.m_strides = m_strides.template pop_front<1>();
+            }
             return output;
         }
 

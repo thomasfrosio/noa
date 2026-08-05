@@ -19,16 +19,20 @@ namespace noa::xform::details {
         auto [strides_b, strides_r] = input.strides().template as_safe<Index>().template split<B>();
 
         // Automatically broadcast the batch axes.
-        for (usize i = 0; i < B; ++i) {
-            if (shape_b[i] == 1)
-                strides_b[i] = 0;
+        if constexpr (B > 0) {
+            for (usize i = 0; i < B; ++i) {
+                if (shape_b[i] == 1)
+                    strides_b[i] = 0;
+            }
         }
 
         using value_t = nt::const_value_type_t<T>;
         if constexpr (nt::texture<T> and EXTRACT_GPU_TEXTURE) {
             #ifdef NOA_ENABLE_CUDA
             check(input.device().is_gpu(), "Trying to construct a GPU texture from is a CPU texture");
-            NOA_ASSERT(strides_r == 0);
+            if constexpr (B > 0) {
+                NOA_ASSERT(strides_r == 0);
+            }
             using texture_t = noa::xform::cuda::AllocatorTexture::accessor_texture_type<INTERP, BORDER, value_t, Coord, Index, B, R>;
             return texture_t(input.gpu().share()->texture, shape_r, strides_b);
             #else

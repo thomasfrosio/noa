@@ -578,7 +578,6 @@ namespace noa::cuda {
             // 3D:          DHW  -> DHW
             // 2D:          1HW  -> 0HW
             // 1D:          11W  -> 00W
-            check(is_layered or shape[0] == 1, "3D layered arrays are not supported, but got shape={}, is_layered=true", shape);
             check(shape > 0, "The input shape cannot be converted to a CUDA array extent. Dimensions with a size of 0 are not allowed, but got shape={}", shape);
             auto shape_3d = shape.as_safe<usize>();
 

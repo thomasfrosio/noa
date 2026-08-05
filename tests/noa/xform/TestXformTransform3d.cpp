@@ -14,7 +14,7 @@ using Interp = noa::xform::Interp;
 using Border = noa::Border;
 
 TEST_CASE("xform::transform_3d, rotate vs scipy", "[asset]") {
-    const Path path_base = test::NOA_DATA_PATH / "xform";
+    const Path path_base = test::noa_data_path() / "xform";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform_3d"];
     const auto input_filename = path_base / param["input"].as<Path>();
 
@@ -51,13 +51,13 @@ TEST_CASE("xform::transform_3d, rotate vs scipy", "[asset]") {
             const auto options = noa::ArrayOption(device, noa::Allocator::MANAGED);
             INFO(device);
 
-            const auto input = noa::read_image<f32>(input_filename, {.enforce_2d_stack = false}, options).data;
-            const auto expected = noa::read_image<f32>(expected_filename, {.enforce_2d_stack = false}, options).data;
+            const auto input = noa::read_image<f32, 4>(input_filename, {.rank = 3}, options).data;
+            const auto expected = noa::read_image<f32, 4>(expected_filename, {.rank = 3}, options).data;
 
             // With arrays:
-            const auto output = noa::like(expected);
+            const auto output = noa::empty_like(expected);
             if (interp.is_almost_any(Interp::CUBIC_BSPLINE))
-                noa::xform::cubic_bspline_prefilter(input, input);
+                noa::xform::cubic_bspline_prefilter_3d(input, input);
             noa::xform::transform_3d(input, output, inv_matrix, {interp, border, cvalue});
 
             if (interp == Interp::NEAREST) {
@@ -73,7 +73,7 @@ TEST_CASE("xform::transform_3d, rotate vs scipy", "[asset]") {
 
             // With textures:
             // The input is prefiltered at this point, so no need for prefiltering here.
-            const auto input_texture = noa::xform::Texture<f32>(
+            const auto input_texture = noa::xform::Texture3D<f32, 4>(
                     input, device, interp, {.border = border, .cvalue = cvalue, .prefilter = false});
             noa::fill(output, 0); // erase
             noa::xform::transform_3d(input_texture, output, inv_matrix);
@@ -91,7 +91,7 @@ TEST_CASE("xform::transform_3d, rotate vs scipy", "[asset]") {
 
 TEST_CASE("xform::transform_3d(), others", "[asset]") {
     constexpr bool GENERATE_TEST_DATA = false;
-    const Path path_base = test::NOA_DATA_PATH / "xform";
+    const Path path_base = test::noa_data_path() / "xform";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform_3d_more"];
     const auto input_filename = path_base / param["input"].as<Path>();
 
@@ -119,12 +119,12 @@ TEST_CASE("xform::transform_3d(), others", "[asset]") {
         const auto expected_filename = path_base / test["expected"].as<Path>();
 
         if constexpr (GENERATE_TEST_DATA) {
-            const auto input = noa::read_image<f32>(input_filename).data;
-            const auto output = noa::like(input);
+            const auto input = noa::read_image<f32, 3>(input_filename).data;
+            const auto output = noa::empty_like(input);
             if (interp.is_almost_any(Interp::CUBIC_BSPLINE))
-                noa::xform::cubic_bspline_prefilter(input, input);
+                noa::xform::cubic_bspline_prefilter_3d(input, input);
             noa::xform::transform_3d(input, output, inv_matrix, {interp, border, cvalue});
-            noa::write_image(output, expected_filename);
+            noa::write_image(output, expected_filename, {.rank = 3});
             continue;
         }
 
@@ -133,19 +133,19 @@ TEST_CASE("xform::transform_3d(), others", "[asset]") {
             const auto options = noa::ArrayOption(device, noa::Allocator::MANAGED);
             INFO(device);
 
-            const auto input = noa::read_image<f32>(input_filename, {.enforce_2d_stack = false}, options).data;
-            const auto expected = noa::read_image<f32>(expected_filename, {.enforce_2d_stack = false}, options).data;
+            const auto input = noa::read_image<f32, 3>(input_filename, {.rank = 3}, options).data;
+            const auto expected = noa::read_image<f32, 3>(expected_filename, {.rank = 3}, options).data;
 
             // With arrays:
-            const auto output = noa::like(expected);
+            const auto output = noa::empty_like(expected);
             if (interp.is_almost_any(Interp::CUBIC_BSPLINE))
-                noa::xform::cubic_bspline_prefilter(input.copy(), input);
+                noa::xform::cubic_bspline_prefilter_3d(input.copy(), input);
             noa::xform::transform_3d(input, output, inv_matrix, {interp, border, cvalue});
             REQUIRE(test::allclose_abs_safe(expected, output, 1e-4f)); // usually around 2e-5, with some outliers...
 
             // With textures:
             // The input is prefiltered at this point, so no need for prefiltering here.
-            const auto input_texture = noa::xform::Texture<f32>(
+            const auto input_texture = noa::xform::Texture3D<f32, 3>(
                 input, device, interp, {.border = border, .cvalue = cvalue, .prefilter = false});
             noa::fill(output, 0); // erase
             noa::xform::transform_3d(input_texture, output, inv_matrix);
@@ -185,8 +185,8 @@ TEMPLATE_TEST_CASE("xform::transform_3d, cpu vs gpu", "", f32, f64, c32, c64) {
     };
     const auto matrix = noa::xform::euler2matrix(noa::deg2rad(eulers));
 
-    const auto shape = test::random_shape_batched(3);
-    const auto center = shape.pop_front().vec.as<f64>() / test::Randomizer<f64>(1, 4).get();
+    const auto shape = test::random_shape_batched<isize, 5>(3, {.size_range = {16, 32}, .batch_range = {2, 4}});
+    const auto center = shape.pop_front<2>().vec.as<f64>() / test::Randomizer<f64>(1, 4).get();
     const auto rotation_matrix =
         noa::xform::translate(center) *
         noa::xform::affine(matrix) *
@@ -194,12 +194,12 @@ TEMPLATE_TEST_CASE("xform::transform_3d, cpu vs gpu", "", f32, f64, c32, c64) {
 
     const auto input_cpu = noa::random(noa::Uniform<TestType>{-2, 2}, shape);
     const auto input_gpu = input_cpu.to({.device = "gpu", .allocator = "unified"});
-    const auto output_cpu = noa::like(input_cpu);
-    const auto output_gpu = noa::like(input_gpu);
+    const auto output_cpu = noa::empty_like(input_cpu);
+    const auto output_gpu = noa::empty_like(input_gpu);
 
     if (interp.is_almost_any(Interp::CUBIC_BSPLINE)) {
-        noa::xform::cubic_bspline_prefilter(input_cpu, input_cpu);
-        noa::xform::cubic_bspline_prefilter(input_gpu, input_gpu);
+        noa::xform::cubic_bspline_prefilter_3d(input_cpu, input_cpu);
+        noa::xform::cubic_bspline_prefilter_3d(input_gpu, input_gpu);
     }
     noa::xform::transform_3d(input_cpu, output_cpu, rotation_matrix, {interp, border, value});
     noa::xform::transform_3d(input_gpu, output_gpu, rotation_matrix, {interp, border, value});
@@ -238,7 +238,7 @@ TEMPLATE_TEST_CASE("xform::transform_3d, cpu vs gpu, texture interpolation", "",
     };
     const auto matrix = noa::xform::euler2matrix(noa::deg2rad(eulers));
 
-    const auto shape = test::random_shape(3);
+    const auto shape = test::random_shape<isize, 4>(3, {.batch_range = {1, 1}});
     const auto center = shape.pop_front().vec.as<f64>() / test::Randomizer<f64>(1, 4).get();
     const auto rotation_matrix =
         noa::xform::translate(center) *
@@ -247,10 +247,10 @@ TEMPLATE_TEST_CASE("xform::transform_3d, cpu vs gpu, texture interpolation", "",
 
     const auto gpu_options = ArrayOption{.device = "gpu", .allocator = "unified"};
     const auto input_cpu = noa::random(noa::Uniform<TestType>{-2, 2}, shape);
-    const auto input_gpu = noa::xform::Texture<TestType>(input_cpu, gpu_options.device, interp, {
+    const auto input_gpu = noa::xform::Texture3D<TestType, 4>(input_cpu, gpu_options.device, interp, {
         .border = border, .cvalue = value, .prefilter = false
     });
-    const auto output_cpu = noa::like(input_cpu);
+    const auto output_cpu = noa::empty_like(input_cpu);
     const auto output_gpu = noa::empty<TestType>(shape, gpu_options);
 
     noa::xform::transform_3d(input_cpu, output_cpu, rotation_matrix, {interp, border, value});

@@ -132,7 +132,7 @@ TEST_CASE("xform::transform_2d(), others", "[asset]") {
             if (interp.is_almost_any(noa::xform::Interp::CUBIC_BSPLINE))
                 noa::xform::cubic_bspline_prefilter_2d(input, input);
             noa::xform::transform_2d(input, output, inv_matrix, {interp, border, cvalue});
-            noa::write_image(output, expected_filename);
+            noa::write_image(output, expected_filename, {.rank = 2});
             continue;
         }
 

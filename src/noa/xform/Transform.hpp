@@ -95,11 +95,13 @@ namespace noa::xform::details {
         constexpr usize B = N - R;
         auto input_shape_b = input.shape().template pop_back<R>();
         auto output_shape_b = output.shape().template pop_back<R>();
-        for (usize i{}; i < B; ++i)
-            input_shape_b[i] = input_shape_b[i] == 1 ? output_shape_b[i] : input_shape_b[i];
-        check(input_shape_b == output_shape_b,
-              "The batch axes are not compatible, input:batches={}, output:batches={}",
-              input_shape_b, output_shape_b);
+        if constexpr (B >= 1) {
+            for (usize i{}; i < B; ++i)
+                input_shape_b[i] = input_shape_b[i] == 1 ? output_shape_b[i] : input_shape_b[i];
+            check(input_shape_b == output_shape_b,
+                  "The batch axes are not compatible, input:batches={}, output:batches={}",
+                  input_shape_b, output_shape_b);
+        }
 
         const Device device = output.device();
         if constexpr (nt::array<Matrix>) {
