@@ -534,22 +534,22 @@ namespace test {
         return Match<T, 1>(lhs, Strides<isize, 1>{1}, &val, Strides<isize, 1>{0}, shape).check(mode, epsilon);
     }
 
-    #define TEST_GENERATE_ALLCLOSE(short_name, long_name)                                                             \
-    template<span_like Lhs, span_like Rhs, typename T = nt::value_type_t<Lhs>, typename Epsilon = T>        \
-    auto allclose_##short_name(const Lhs& lhs, const Rhs& rhs, Epsilon epsilon = Epsilon{}) {                    \
-        return allclose(MatchMode::long_name, lhs, rhs, epsilon);                                                \
-    }                                                                                                       \
-    template<span_like Lhs, nt::numeric Rhs, typename T = nt::value_type_t<Lhs>, typename Epsilon = T>      \
-    auto allclose_##short_name(const Lhs& lhs, const Rhs& rhs, Epsilon epsilon = Epsilon{}) {                    \
-        return allclose(MatchMode::long_name, lhs, rhs, epsilon);                                                \
-    }                                                                                                       \
-    template<nt::numeric T, typename U = nt::value_type_t<T>, typename Epsilon = U>                         \
-    auto allclose_##short_name(const T* lhs, const T* rhs, auto n_elements, Epsilon epsilon = Epsilon{}) {       \
-        return allclose(MatchMode::long_name, lhs, rhs, n_elements, epsilon);                                    \
-    }                                                                                                       \
-    template<nt::numeric Lhs, nt::numeric Rhs, typename T = nt::value_type_t<Lhs>, typename Epsilon = T>    \
-    auto allclose_##short_name(const Lhs* lhs, const Rhs& rhs, auto n_elements, Epsilon epsilon = Epsilon{}) {   \
-        return allclose(MatchMode::long_name, lhs, rhs, n_elements, epsilon);                                    \
+    #define TEST_GENERATE_ALLCLOSE(short_name, long_name)                                                       \
+    template<span_like Lhs, span_like Rhs, typename T = nt::value_type_t<Lhs>, typename Epsilon = T>            \
+    auto allclose_##short_name(const Lhs& lhs, const Rhs& rhs, Epsilon epsilon = Epsilon{}) {                   \
+        return allclose(MatchMode::long_name, lhs, rhs, epsilon);                                               \
+    }                                                                                                           \
+    template<span_like Lhs, nt::numeric Rhs, typename T = nt::value_type_t<Lhs>, typename Epsilon = T>          \
+    auto allclose_##short_name(const Lhs& lhs, const Rhs& rhs, Epsilon epsilon = Epsilon{}) {                   \
+        return allclose(MatchMode::long_name, lhs, rhs, epsilon);                                               \
+    }                                                                                                           \
+    template<nt::numeric T, typename U = nt::value_type_t<T>, typename Epsilon = U>                             \
+    auto allclose_##short_name(const T* lhs, const T* rhs, auto n_elements, Epsilon epsilon = Epsilon{}) {      \
+        return allclose(MatchMode::long_name, lhs, rhs, n_elements, epsilon);                                   \
+    }                                                                                                           \
+    template<nt::numeric Lhs, nt::numeric Rhs, typename T = nt::value_type_t<Lhs>, typename Epsilon = T>        \
+    auto allclose_##short_name(const Lhs* lhs, const Rhs& rhs, auto n_elements, Epsilon epsilon = Epsilon{}) {  \
+        return allclose(MatchMode::long_name, lhs, rhs, n_elements, epsilon);                                   \
     }
 
     TEST_GENERATE_ALLCLOSE(abs, Absolute);

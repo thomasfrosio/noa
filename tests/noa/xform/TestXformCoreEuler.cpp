@@ -11,7 +11,7 @@ using namespace ::noa::types;
 namespace nio = ::noa::io;
 
 TEST_CASE("xform::euler2matrix", "[asset]") {
-    const Path path_base = test::NOA_DATA_PATH / "xform";
+    const Path path_base = test::noa_data_path() / "xform";
     YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["euler2matrix"];
     const auto path_expected = path_base / param["file"].as<Path>();
     const auto valid_axes = param["axes"].as<std::vector<std::string>>();
@@ -57,7 +57,7 @@ TEST_CASE("xform::euler2matrix", "[asset]") {
 }
 
 TEST_CASE("xform::matrix2euler", "[asset]") {
-    const Path path_base = test::NOA_DATA_PATH / "xform";
+    const Path path_base = test::noa_data_path() / "xform";
     YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["euler2matrix"];
     const auto valid_axes = param["axes"].as<std::vector<std::string>>();
     const auto eulers_to_test = noa::deg2rad(Vec{10., 20., 30.});

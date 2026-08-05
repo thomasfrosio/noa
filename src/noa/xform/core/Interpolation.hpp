@@ -743,6 +743,7 @@ namespace noa::xform {
             } else {
                 static_assert(nt::always_false<Input>, "The input is not texture-able (given the BORDER and number of axes N) and the interpolator is TEXTURE_ONLY=true");
             }
+            unreachable();
         }
 
         /// N-d interpolation of the input data at a given coordinates.
@@ -759,6 +760,7 @@ namespace noa::xform {
             } else {
                 static_assert(nt::always_false<Input>, "The input is not texture-able (given the BORDER and number of axes N) and the interpolator is TEXTURE_ONLY=true");
             }
+            unreachable();
         }
 
     private:
@@ -805,18 +807,13 @@ namespace noa::xform {
         template<nt::interpable_nd<Border::ZERO, N> Input, nt::any_of<f32, f64> C, usize A> requires (not NO_SHAPE)
         [[nodiscard]] NOA_HD constexpr auto operator()(const Input& input, const Vec<C, N, A>& frequency) const -> mutable_value_type {
             if constexpr (nt::textureable_nd<Input, BORDER, N>) {
-                if constexpr (nt::shapeable_nd<Input, N>)
-                    return nx::interpolate_spectrum_using_texture<REMAP, INTERP>(input, frequency, input.shape());
-                else
-                    return nx::interpolate_spectrum_using_texture<REMAP, INTERP>(input, frequency, m_shape);
+                return nx::interpolate_spectrum_using_texture<REMAP, INTERP>(input, frequency, m_shape);
             } else if constexpr (not TEXTURE_ONLY) {
-                if constexpr (nt::shapeable_nd<Input, N>)
-                    return nx::interpolate_spectrum<REMAP, INTERP>(input, frequency, input.shape());
-                else
-                    return nx::interpolate_spectrum<REMAP, INTERP>(input, frequency, m_shape);
+                return nx::interpolate_spectrum<REMAP, INTERP>(input, frequency, m_shape);
             } else {
                 static_assert(nt::always_false<Input>, "The input is not texture-able (given the BORDER and number of axes N) and the interpolator is TEXTURE_ONLY=true");
             }
+            unreachable();
         }
 
         /// N-d interpolation of the input data at a given frequency.
@@ -824,18 +821,13 @@ namespace noa::xform {
         template<nt::interpable_nd<Border::ZERO, N> Input, nt::any_of<f32, f64> C, usize A1, usize A2>
         [[nodiscard]] NOA_HD constexpr auto operator()(const Input& input, const Shape<index_type, N, A1>& shape, const Vec<C, N, A2>& frequency) const -> mutable_value_type {
             if constexpr (nt::textureable_nd<Input, BORDER, N>) {
-                if constexpr (nt::shapeable_nd<Input, N>)
-                    return nx::interpolate_spectrum_using_texture<REMAP, INTERP>(input, frequency, input.shape());
-                else
-                    return nx::interpolate_spectrum_using_texture<REMAP, INTERP>(input, frequency, shape);
+                return nx::interpolate_spectrum_using_texture<REMAP, INTERP>(input, frequency, shape);
             } else if constexpr (not TEXTURE_ONLY) {
-                if constexpr (nt::shapeable_nd<Input, N>)
-                    return nx::interpolate_spectrum<REMAP, INTERP>(input, frequency, input.shape());
-                else
-                    return nx::interpolate_spectrum<REMAP, INTERP>(input, frequency, shape);
+                return nx::interpolate_spectrum<REMAP, INTERP>(input, frequency, shape);
             } else {
                 static_assert(nt::always_false<Input>, "The input is not texture-able (given the BORDER and number of axes N) and the interpolator is TEXTURE_ONLY=true");
             }
+            unreachable();
         }
 
     private:

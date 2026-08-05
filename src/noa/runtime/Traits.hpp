@@ -13,13 +13,13 @@ namespace noa::traits {
     template<typename... T> concept array_view_decay = array_view<std::decay_t<T>...>;
 
     namespace details {
-        template<typename> consteval auto array_size() -> usize { return 0; }
-        template<typename> consteval auto array_ssize() -> isize { return 0; }
-        template<array T> consteval auto array_size() -> usize { return T::SIZE; }
-        template<array T> consteval auto array_ssize() -> usize { return T::SSIZE; }
+        template<typename> struct array_size { static constexpr usize value = 0; };
+        template<typename> struct array_ssize { static constexpr isize value = 0; };
+        template<array T> struct array_size<T> { static constexpr usize value = T::SIZE; };
+        template<array T> struct array_ssize<T> { static constexpr isize value = T::SSIZE; };
     }
-    template<typename T> constexpr usize array_size_v = details::array_size<std::decay_t<T>>();
-    template<typename T> constexpr usize array_ssize_v = details::array_ssize<std::decay_t<T>>();
+    template<typename T> constexpr usize array_size_v = details::array_size<std::decay_t<T>>::value;
+    template<typename T> constexpr usize array_ssize_v = details::array_ssize<std::decay_t<T>>::value;
 
     template<typename T, usize... N> concept array_nd = array<T> and ((std::remove_reference_t<T>::SIZE == N) or ...);
     template<typename T, usize... N> concept array_rc_nd = array_rc<T> and ((std::remove_reference_t<T>::SIZE == N) or ...);

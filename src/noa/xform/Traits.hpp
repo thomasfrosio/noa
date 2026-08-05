@@ -1,47 +1,21 @@
 #pragma once
 
 #include "noa/runtime/Traits.hpp"
-
-namespace noa::traits {
-    NOA_GENERATE_PROCLAIM_FULL(quaternion);
-    template<typename... T> concept quaternion_f32 = quaternion<T...> and same_as<f32, value_type_t<T>...>;
-    template<typename... T> concept quaternion_f64 = quaternion<T...> and same_as<f64, value_type_t<T>...>;
-
-    NOA_GENERATE_PROCLAIM_FULL(interpolator);
-    template<typename T, size_t N> struct proclaim_is_interpolator_nd : std::false_type {};
-    template<typename T, size_t... N> using is_interpolator_nd = std::disjunction<proclaim_is_interpolator_nd<std::remove_cv_t<T>, N>...>;
-    template<typename T, size_t... N> constexpr bool is_interpolator_nd_v = is_interpolator_nd<T, N...>::value;
-    template<typename T, size_t... N> concept interpolator_nd = interpolator<T> and is_interpolator_nd<T, N...>::value;
-    template<size_t N, typename... T> using are_interpolator_nd = conjunction_or_false<is_interpolator_nd<T, N>...>;
-    template<size_t N, typename... T> constexpr bool are_interpolator_nd_v = are_interpolator_nd<N, T...>::value;
-
-    NOA_GENERATE_PROCLAIM_FULL(interpolator_spectrum);
-    template<typename T, size_t N> struct proclaim_is_interpolator_spectrum_nd : std::false_type {};
-    template<typename T, size_t... N> using is_interpolator_spectrum_nd = std::disjunction<proclaim_is_interpolator_spectrum_nd<std::remove_cv_t<T>, N>...>;
-    template<typename T, size_t... N> constexpr bool is_interpolator_spectrum_nd_v = is_interpolator_spectrum_nd<T, N...>::value;
-    template<typename T, size_t... N> concept interpolator_spectrum_nd = interpolator_spectrum<T> and is_interpolator_spectrum_nd<T, N...>::value;
-    template<size_t N, typename... T> using are_interpolator_spectrum_nd = conjunction_or_false<is_interpolator_spectrum_nd<T, N>...>;
-    template<size_t N, typename... T> constexpr bool are_interpolator_spectrum_nd_v = are_interpolator_spectrum_nd<N, T...>::value;
-
-    template<typename... T> concept interpolator_or_empty = conjunction_or_false<std::disjunction<is_interpolator<T>, std::is_empty<T>>...>::value;
-    template<typename... T> concept interpolator_spectrum_or_empty = conjunction_or_false<std::disjunction<is_interpolator_spectrum<T>, std::is_empty<T>>...>::value;
-    template<typename T, size_t... N> concept interpolator_nd_or_empty = interpolator_nd<T, N...> or empty<T>;
-    template<typename T, size_t... N> concept interpolator_spectrum_nd_or_empty = interpolator_spectrum_nd<T, N...> or empty<T>;
-}
+#include "noa/xform/core/Traits.hpp"
 
 namespace noa::traits {
     NOA_GENERATE_PROCLAIM_FULL(texture);
     namespace details {
-        template<texture T> consteval auto array_size() -> usize { return T::SIZE + 1; }
-        template<texture T> consteval auto array_ssize() -> usize { return T::SSIZE + 1; }
+        template<texture T> struct array_size<T> { static constexpr usize value = T::SIZE; };
+        template<texture T> struct array_ssize<T> { static constexpr isize value = T::SSIZE; };
 
-        template<typename> consteval auto texture_size() -> usize { return 0; }
-        template<typename> consteval auto texture_ssize() -> isize { return 0; }
-        template<texture T> consteval auto texture_size() -> usize { return T::SIZE; }
-        template<texture T> consteval auto texture_ssize() -> usize { return T::SSIZE; }
+        template<typename> struct texture_size { static constexpr usize value = 0; };
+        template<typename> struct texture_ssize { static constexpr isize value = 0; };
+        template<texture T> struct texture_size<T> { static constexpr usize value = T::SIZE; };
+        template<texture T> struct texture_ssize<T> { static constexpr isize value = T::SSIZE; };
     }
-    template<typename T> constexpr usize texture_size_v = details::texture_size<std::decay_t<T>>();
-    template<typename T> constexpr usize texture_ssize_v = details::texture_ssize<std::decay_t<T>>();
+    template<typename T> constexpr usize texture_size_v = details::texture_size<std::decay_t<T>>::value;
+    template<typename T> constexpr usize texture_ssize_v = details::texture_ssize<std::decay_t<T>>::value;
 
     template<typename T> using is_texture_decay = is_texture<std::decay_t<T>>;
     NOA_GENERATE_PROCLAIM_UTILS(texture_decay);
@@ -80,8 +54,8 @@ namespace noa::traits {
         (array_decay<T, U...> or (texture_decay<T> and array_decay<U...>)) and
         (spectrum_types<value_type_t<T>, value_type_t<U>> and ...);
 
-    #define NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE(name)                                                         \
-    template<typename... T> concept array_or_texture_of_##name = array_or_texture<T...> and name<value_type_t<T>...>;    \
+    #define NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE(name)                                                                 \
+    template<typename... T> concept array_or_texture_of_##name = array_or_texture<T...> and name<value_type_t<T>...>;   \
     template<typename... T> concept array_or_texture_decay_of_##name = array_or_texture_decay<T...> and name<value_type_t<T>...>
     NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE(real);
     NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE(complex);

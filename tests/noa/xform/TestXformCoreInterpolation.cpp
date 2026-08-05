@@ -1,5 +1,4 @@
 #include "noa/xform/core/Interpolation.hpp"
-#include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/core/Span.hpp"
 
 #include "Catch.hpp"
@@ -8,22 +7,16 @@
 TEST_CASE("xform::Interpolator") {
     using namespace noa;
 
-    {
-        auto shape = Shape3{3, 64, 64};
-        auto buffer = test::random<f32>(shape.n_elements(), test::Randomizer<f32>(-10, 10));
-        auto data_2d = Span<f32, 3>{buffer.get(), shape};
-        auto accessor = Accessor<const f32, 3>{data_2d.get(), data_2d.strides()};
+    auto shape = Shape3{3, 64, 64};
+    auto buffer = test::random<f32>(shape.n_elements(), test::Randomizer<f32>(-10, 10));
+    auto data = Span<f32, 3>{buffer.get(), shape};
 
-        using interpolator_t = const nx::Interpolator<2, nx::Interp::CUBIC, Border::ZERO, decltype(accessor)>;
-        auto op = interpolator_t(accessor, data_2d.shape().pop_front());
+    using interpolator_t = const nx::Interpolator<nx::Interp::CUBIC, Border::ZERO, f64, 2, isize>;
+    auto op = interpolator_t(data.shape().pop_front());
 
-        [[maybe_unused]] auto coordinate = Vec<f64, 2>{1, 1};
-        [[maybe_unused]] auto interpolated_value_batch0 = op.interpolate_at(coordinate);
-        [[maybe_unused]] auto interpolated_value_batch2 = op.interpolate_at(coordinate, 2);
-
-        [[maybe_unused]] auto value0 = op(6, 7); // batch=0, height=6, width=7
-        [[maybe_unused]] auto value1 = op(2, 6, 7); // batch=2, height=6, width=7
-    }
+    [[maybe_unused]] auto coordinate = Vec<f64, 2>{1, 1};
+    [[maybe_unused]] auto interpolated_value_batch0 = op(data[0], coordinate);
+    [[maybe_unused]] auto interpolated_value_batch2 = op(data[1], data.shape().pop_front(), coordinate);
 }
 
 TEMPLATE_TEST_CASE("xform::interpolation_weight<LANCZOS>", "", float, double) {

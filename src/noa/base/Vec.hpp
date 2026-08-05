@@ -642,9 +642,10 @@ namespace noa::inline types {
 
         template<usize A1 = 0>
         [[nodiscard]] NOA_FHD constexpr auto exclude_axis(usize index) const noexcept {
+            NOA_ASSERT(index < N);
             Vec<value_type, N - 1, A1> output;
             usize c{};
-            for (usize i{}; i < N - 1; ++i) {
+            for (usize i{}; i < N; ++i) {
                 if (i == index)
                     continue;
                 output[c++] = (*this)[i];

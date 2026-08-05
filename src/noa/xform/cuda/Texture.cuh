@@ -17,7 +17,7 @@ namespace noa::xform::cuda {
 
         static_assert(R == 2 or R == 3);
         static_assert((R == 2 and LAYERED) or (R == 3 and not LAYERED));
-        static_assert(nt::any_of<Value, f32, c32> and nt::any_of<Coord, f32, f64>);
+        static_assert(nt::almost_any_of<Value, f32, c32> and nt::any_of<Coord, f32, f64>);
         static_assert(INTERP.is_any(Interp::NEAREST_FAST, Interp::LINEAR_FAST));
         static_assert(BORDER == Border::MIRROR or
                       BORDER == Border::PERIODIC or
@@ -26,6 +26,7 @@ namespace noa::xform::cuda {
         static_assert(not NORMALIZED or (BORDER == Border::MIRROR or BORDER == Border::PERIODIC));
 
         using value_type = Value;
+        using mutable_value_type = std::remove_const_t<value_type>;
         using coord_type = Coord;
         using index_type = Index;
         using coord_r_type = Vec<coord_type, R>;
@@ -33,7 +34,14 @@ namespace noa::xform::cuda {
         using layer_type = std::conditional_t<LAYERED, i32, Empty>;
         using strides_type = Strides<index_type, B>;
 
+    private:
+        // Friend all instantiations.
+        template<Interp, Border, typename, typename, typename, usize, usize, bool, bool>
+        friend class AccessorTexture;
+
     public:
+        AccessorTexture() = default;
+
         AccessorTexture(
             cudaTextureObject_t texture,
             const Shape<index_type, R>& shape_ranked,
@@ -59,32 +67,32 @@ namespace noa::xform::cuda {
         }
 
         template<nt::real... T> requires (B == 0 and sizeof...(T) == R)
-        [[nodiscard]] NOA_HD auto fetch(T... coordinates) const noexcept -> value_type {
+        [[nodiscard]] NOA_HD auto fetch(T... coordinates) const noexcept -> mutable_value_type {
             return fetch_raw(fetch_preprocess(coord_r_type::from_values(coordinates...)));
         }
 
         template<nt::real T, size_t A> requires (B == 0)
-        [[nodiscard]] NOA_HD auto fetch(const Vec<T, R, A>& coordinates) const noexcept -> value_type {
+        [[nodiscard]] NOA_HD auto fetch(const Vec<T, R, A>& coordinates) const noexcept -> mutable_value_type {
             return fetch_raw(fetch_preprocess(coordinates.template as<coord_type>()));
         }
 
         template<nt::real... T> requires (B == 0 and sizeof...(T) == R)
-        [[nodiscard]] NOA_HD auto fetch_raw(T... coordinates) const noexcept -> value_type {
+        [[nodiscard]] NOA_HD auto fetch_raw(T... coordinates) const noexcept -> mutable_value_type {
             return fetch_raw(coord_r_type::from_values(coordinates...));
         }
 
         template<nt::real T, size_t A> requires (B == 0)
-        [[nodiscard]] NOA_HD auto fetch_raw(const Vec<T, R, A>& coordinates) const noexcept -> value_type {
-            auto vec = coordinates.template as<coord_type>();
+        [[nodiscard]] NOA_HD auto fetch_raw(const Vec<T, R, A>& coordinates) const noexcept -> mutable_value_type {
+            auto vec = coordinates.template as<f32>();
             #ifdef __CUDACC__
             if constexpr (R == 2) {
-                if constexpr (std::same_as<value_type, f32>) {
+                if constexpr (std::same_as<mutable_value_type, f32>) {
                     if constexpr (LAYERED) {
                         return ::tex2DLayered<f32>(m_texture, vec[1], vec[0], m_layer);
                     } else {
                         return ::tex2D<f32>(m_texture, vec[1], vec[0]);
                     }
-                } else if constexpr (std::same_as<value_type, c32>) {
+                } else if constexpr (std::same_as<mutable_value_type, c32>) {
                     float2 tmp;
                     if constexpr (LAYERED)
                         tmp = ::tex2DLayered<float2>(m_texture, vec[1], vec[0], m_layer);
@@ -92,58 +100,66 @@ namespace noa::xform::cuda {
                         tmp = ::tex2D<float2>(m_texture, vec[1], vec[0]);
                     return {tmp.x, tmp.y};
                 } else {
-                    static_assert(nt::always_false<value_type>);
+                    static_assert(nt::always_false<mutable_value_type>);
                 }
             } else if constexpr (R == 3) {
-                if constexpr (std::same_as<value_type, f32>) {
+                if constexpr (std::same_as<mutable_value_type, f32>) {
                     return ::tex3D<f32>(m_texture, vec[2], vec[1], vec[0]);
-                } else if constexpr (std::same_as<value_type, c32>) {
+                } else if constexpr (std::same_as<mutable_value_type, c32>) {
                     auto tmp = ::tex3D<float2>(m_texture, vec[2], vec[1], vec[0]);
                     return {tmp.x, tmp.y};
                 } else {
-                    static_assert(nt::always_false<value_type>);
+                    static_assert(nt::always_false<mutable_value_type>);
                 }
             } else {
-                static_assert(nt::always_false<value_type>);
+                static_assert(nt::always_false<mutable_value_type>);
             }
             #else
             (void) coordinates;
-            return value_type{};
+            return mutable_value_type{};
             #endif
         }
 
     public:
         // Indexing through the batch axes.
         template<nt::integer I, usize S, usize A> requires (B >= S)
-        [[nodiscard]] NOA_HD auto operator[](const Vec<I, S, A>& batches) const noexcept -> AccessorTexture {
-            AccessorTexture<INTERP, BORDER, Value, Coord, Index, B - S, R, NORMALIZED, LAYERED> output;
-            output.m_texture = m_texture;
-            output.m_norm = m_norm;
-            output.m_layer = m_layer + noa::offset_at(m_strides, batches);
-            output.m_strides = m_strides.template pop_front<S>();
-            return output;
+        [[nodiscard]] NOA_HD auto operator[](const Vec<I, S, A>& batches) const noexcept
+        -> AccessorTexture<INTERP, BORDER, Value, Coord, Index, B - S, R, NORMALIZED, LAYERED>
+        {
+            if constexpr (S == 0) {
+                return *this;
+            } else {
+                AccessorTexture<INTERP, BORDER, Value, Coord, Index, B - S, R, NORMALIZED, LAYERED> output;
+                output.m_texture = m_texture;
+                output.m_norm = m_norm;
+                output.m_layer = m_layer + static_cast<i32>(noa::offset_at(m_strides, batches));
+                output.m_strides = m_strides.template pop_front<S>();
+                return output;
+            }
         }
 
         template<nt::integer I> requires (B >= 1)
-        [[nodiscard]] NOA_HD auto operator[](I batch) const noexcept -> AccessorTexture {
+        [[nodiscard]] NOA_HD auto operator[](I batch) const noexcept
+        -> AccessorTexture<INTERP, BORDER, Value, Coord, Index, B - 1, R, NORMALIZED, LAYERED>
+        {
             AccessorTexture<INTERP, BORDER, Value, Coord, Index, B - 1, R, NORMALIZED, LAYERED> output;
             output.m_texture = m_texture;
             output.m_norm = m_norm;
-            output.m_layer = m_layer + noa::offset_at(m_strides[0], batch);
+            output.m_layer = m_layer + static_cast<i32>(noa::offset_at(m_strides[0], batch));
             output.m_strides = m_strides.template pop_front<1>();
             return output;
         }
 
     public:
         template<nt::integer I, usize S, usize A> requires (SIZE == S)
-        NOA_HD auto operator()(const Vec<I, S, A>& batched_indices) const noexcept -> value_type {
+        NOA_HD auto operator()(const Vec<I, S, A>& batched_indices) const noexcept -> mutable_value_type {
             const auto& [batches, indices] = batched_indices.template split<B>();
             return (*this)[batches].fetch(indices.template as<coord_type>());
         }
 
         template<nt::integer... I> requires (SIZE == sizeof...(I))
-        NOA_HD auto operator()(I... indices) const noexcept -> value_type {
-            return (*this)(Vec{static_cast<coord_type>(indices)...});
+        NOA_HD auto operator()(I... indices) const noexcept -> mutable_value_type {
+            return (*this)(Vec{indices...});
         }
 
         /// Checks that the texture object matches the AccessorTexture

@@ -17,7 +17,7 @@ namespace nf = noa::fft;
 namespace fs = std::filesystem;
 
 TEST_CASE("fft::resize()", "[asset]") {
-    const fs::path path = test::NOA_DATA_PATH / "fft";
+    const fs::path path = test::noa_data_path() / "fft";
     YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["resize"];
 
     constexpr bool GENERATE_ASSETS = false;
@@ -53,10 +53,11 @@ TEST_CASE("fft::resize()", "[asset]") {
             const auto shape_expected = test["shape_expected"].as<Shape4>();
             const auto correct_nyquist = test["correct_nyquist"].as<bool>();
             const auto rfft = test["rfft"].as<bool>();
+            INFO(i);
 
             const auto input = noa::read_image<c32>(filename_input, {}, options).data;
 
-            Array<c32> output;
+            Array<c32, 4> output;
             if (rfft) {
                 output = noa::empty<c32>(shape_expected.rfft(), options);
                 nf::resize<"h2h">(input, shape_input, output, shape_expected, {.correct_nyquist = correct_nyquist});
@@ -80,34 +81,102 @@ TEMPLATE_TEST_CASE("fft::resize and remap", "", f32, f64, c32, c64) {
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    const auto input_shape = test::random_shape_batched(4);
-    auto output_shape = input_shape;
+    const auto shapes = noa::make_tuple(
+        Pair{test::random_shape_batched<isize, 1>(1), usize{1}},
+        Pair{test::random_shape_batched<isize, 2>(1), usize{1}},
+        Pair{test::random_shape_batched<isize, 2>(2), usize{2}},
+        Pair{test::random_shape_batched<isize, 3>(1), usize{1}},
+        Pair{test::random_shape_batched<isize, 3>(2), usize{2}},
+        Pair{test::random_shape_batched<isize, 3>(3), usize{3}},
+        Pair{test::random_shape_batched<isize, 4>(3), usize{3}},
+        Pair{test::random_shape_batched<isize, 5>(3), usize{3}},
+        Pair{test::random_shape_batched<isize, 6>(3), usize{3}}
+    );
 
-    test::Randomizer<i64> randomizer(0, 20);
-    output_shape[1] += randomizer.get();
-    output_shape[2] += randomizer.get();
-    output_shape[3] += randomizer.get();
+    shapes.for_each([&]<usize N>(const Pair<Shape<isize, N>, usize>& pair) {
+        const auto& [input_shape, rank] = pair;
+        auto output_shape = input_shape;
 
-    INFO(input_shape);
-    INFO(output_shape);
+        test::Randomizer<i64> randomizer(0, 20);
+        if constexpr (N >= 3)
+            if (rank >= 3)
+                output_shape[N - 3] += randomizer.get();
+        if constexpr (N >= 2)
+            if (rank >= 2)
+                output_shape[N - 2] += randomizer.get();
+        output_shape[N - 1] += randomizer.get();
 
-    for (auto& device: devices) {
-        const auto stream = StreamGuard(device);
-        const auto options = ArrayOption(device, Allocator::MANAGED);
-        INFO(device);
+        INFO(input_shape);
+        INFO(output_shape);
 
-        Array a0 = noa::random(noa::Uniform<TestType>{-50, 50}, input_shape.rfft(), options);
-        Array a1 = nf::resize<"h2h">(a0, input_shape, output_shape);
-        Array a2 = nf::remap(nf::Layout::H2HC, a1, output_shape);
-        Array a3 = nf::resize<"hc2hc">(a2, output_shape, input_shape);
-        Array a4 = nf::remap(nf::Layout::HC2H, a3, input_shape);
-        REQUIRE(test::allclose_abs_safe(a0, a4, 5e-6));
+        for (auto& device: devices) {
+            const auto stream = StreamGuard(device);
+            const auto options = ArrayOption(device, Allocator::MANAGED);
+            INFO(device);
 
-        a0 = noa::random(noa::Uniform<TestType>{-50, 50}, input_shape, options);
-        a1 = nf::resize<"f2f">(a0, input_shape, output_shape);
-        a2 = nf::remap(nf::Layout::F2FC, a1, output_shape);
-        a3 = nf::resize<"fc2fc">(a2, output_shape, input_shape);
-        a4 = nf::remap(nf::Layout::FC2F, a3, input_shape);
-        REQUIRE(test::allclose_abs_safe(a0, a4, 5e-6));
-    }
+            Array a0 = noa::random(noa::Uniform<TestType>{-50, 50}, input_shape.rfft(), options);
+            Array a1 = nf::resize<"h2h">(a0, input_shape, output_shape, {.rank = rank});
+            Array a2 = nf::remap(nf::Layout::H2HC, a1, output_shape, {.rank = rank});
+            Array a3 = nf::resize<"hc2hc">(a2, output_shape, input_shape, {.rank = rank});
+            Array a4 = nf::remap(nf::Layout::HC2H, a3, input_shape, {.rank = rank});
+            REQUIRE(test::allclose_abs_safe(a0, a4, 5e-6));
+
+            a0 = noa::random(noa::Uniform<TestType>{-50, 50}, input_shape, options);
+            a1 = nf::resize<"f2f">(a0, input_shape, output_shape, {.rank = rank});
+            a2 = nf::remap(nf::Layout::F2FC, a1, output_shape, {.rank = rank});
+            a3 = nf::resize<"fc2fc">(a2, output_shape, input_shape, {.rank = rank});
+            a4 = nf::remap(nf::Layout::FC2F, a3, input_shape, {.rank = rank});
+            REQUIRE(test::allclose_abs_safe(a0, a4, 5e-6));
+        }
+    });
+}
+
+TEST_CASE("fft::resize and remap, compile-time rank") {
+    std::vector<Device> devices{"cpu"};
+    if (Device::is_any_gpu())
+        devices.emplace_back("gpu");
+
+    const auto shapes = noa::make_tuple(
+        test::random_shape_batched<isize, 1>(1),
+        test::random_shape_batched<isize, 2>(2),
+        test::random_shape_batched<isize, 3>(3),
+        test::random_shape_batched<isize, 4>(3),
+        test::random_shape_batched<isize, 5>(3),
+        test::random_shape_batched<isize, 6>(3)
+    );
+
+    shapes.for_each([&]<usize N>(const Shape<isize, N>& input_shape) {
+        auto output_shape = input_shape;
+
+        test::Randomizer<i64> randomizer(0, 20);
+        if constexpr (N >= 3)
+            output_shape[N - 3] += randomizer.get();
+        if constexpr (N >= 2)
+            output_shape[N - 2] += randomizer.get();
+        output_shape[N - 1] += randomizer.get();
+
+        INFO(input_shape);
+        INFO(output_shape);
+
+        for (auto& device: devices) {
+            const auto stream = StreamGuard(device);
+            const auto options = ArrayOption(device, Allocator::MANAGED);
+            INFO(device);
+
+            constexpr usize RANK = std::min(N, usize{3});
+            Array a0 = noa::random(noa::Uniform{-50., 50.}, input_shape.rfft(), options);
+            Array a1 = nf::resize<"h2h", RANK>(a0, input_shape, output_shape);
+            Array a2 = nf::remap<RANK>(nf::Layout::H2HC, a1, output_shape);
+            Array a3 = nf::resize<"hc2hc", RANK>(a2, output_shape, input_shape);
+            Array a4 = nf::remap<RANK>(nf::Layout::HC2H, a3, input_shape);
+            REQUIRE(test::allclose_abs_safe(a0, a4, 5e-6));
+
+            a0 = noa::random(noa::Uniform{-50., 50.}, input_shape, options);
+            a1 = nf::resize<"f2f", RANK>(a0, input_shape, output_shape);
+            a2 = nf::remap<RANK>(nf::Layout::F2FC, a1, output_shape);
+            a3 = nf::resize<"fc2fc", RANK>(a2, output_shape, input_shape);
+            a4 = nf::remap<RANK>(nf::Layout::FC2F, a3, input_shape);
+            REQUIRE(test::allclose_abs_safe(a0, a4, 5e-6));
+        }
+    });
 }

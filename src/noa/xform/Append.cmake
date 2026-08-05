@@ -1,5 +1,4 @@
 list(APPEND NOA_HEADERS
-    noa/xform/core/CubicBSplinePrefilter.hpp
     noa/xform/core/Draw.hpp
     noa/xform/core/Euler.hpp
     noa/xform/core/Interp.hpp
@@ -28,16 +27,9 @@ list(APPEND NOA_SOURCES
     noa/xform/core/Euler.cpp
 )
 
-if (NOA_ENABLE_CPU)
-    list(APPEND NOA_HEADERS
-        noa/xform/cpu/CubicBSplinePrefilter.hpp
-    )
-endif ()
-
 if (NOA_ENABLE_CUDA)
     list(APPEND NOA_HEADERS
         noa/xform/cuda/Allocators.hpp
-        noa/xform/cuda/CubicBSplinePrefilter.cuh
         noa/xform/cuda/Texture.cuh
     )
 endif ()

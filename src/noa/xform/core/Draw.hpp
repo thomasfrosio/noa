@@ -4,6 +4,7 @@
 #include "noa/base/Vec.hpp"
 #include "noa/xform/core/Transform.hpp"
 #include "noa/xform/core/Polar.hpp"
+#include "noa/xform/core/Traits.hpp"
 
 namespace noa::traits {
     template<typename T, usize N, typename Coord>

@@ -12,164 +12,167 @@ using namespace ::noa::types;
 namespace nf = noa::fft;
 
 TEMPLATE_TEST_CASE("fft::r2c(), c2r()", "", f32, f64) {
-    const i64 ndim = GENERATE(1, 2, 3);
-    const bool pad = GENERATE(true, false);
-    INFO("ndim: " << ndim);
-    INFO("pad: " << pad);
-
-    const f64 abs_epsilon = std::is_same_v<TestType, f32> ? 1e-5 : 1e-9;
-    auto subregion_shape = test::random_shape_batched(ndim);
-    auto shape = subregion_shape;
-    if (pad)
-        shape += {0, ndim == 3 ? 11 : 0, ndim >= 2 ? 12 : 0, 13}; // don't change the dimensionality
-
-    subregion_shape = nf::next_fast_shape(subregion_shape);
-    shape = nf::next_fast_shape(shape);
+    const auto shapes = noa::make_tuple(
+        Pair{test::random_shape_batched<isize, 1>(1), usize{1}},
+        Pair{test::random_shape_batched<isize, 2>(1), usize{1}},
+        Pair{test::random_shape_batched<isize, 2>(2), usize{2}},
+        Pair{test::random_shape_batched<isize, 3>(1), usize{1}},
+        Pair{test::random_shape_batched<isize, 3>(2), usize{2}},
+        Pair{test::random_shape_batched<isize, 3>(3), usize{3}},
+        Pair{test::random_shape_batched<isize, 4>(3), usize{3}},
+        Pair{test::random_shape_batched<isize, 5>(3), usize{3}},
+        Pair{test::random_shape_batched<isize, 6>(3), usize{3}}
+    );
 
     std::vector<Device> devices{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    for (const auto& device: devices) {
-        const auto stream = StreamGuard(device);
-        const auto options = ArrayOption(device, Allocator::MANAGED);
+    const f64 abs_epsilon = std::is_same_v<TestType, f32> ? 1e-5 : 1e-9;
 
-        SECTION("out-of-place") {
-            Array expected = noa::random(noa::Uniform<TestType>{-5, 5}, shape, options);
-            expected = expected.subregion(
-                noa::Ellipsis{},
-                noa::Slice{0, subregion_shape[1]},
-                noa::Slice{0, subregion_shape[2]},
-                noa::Slice{0, subregion_shape[3]});
+    shapes.for_each([&]<usize N>(const Pair<Shape<isize, N>, usize>& pair) {
+        const auto& [original_shape, rank] = pair;
 
-            Array fft = noa::empty<Complex<TestType>>(shape.rfft(), options);
-            fft = fft.subregion(
-                noa::Ellipsis{},
-                noa::Slice{0, subregion_shape[1]},
-                noa::Slice{0, subregion_shape[2]},
-                noa::Slice{0, subregion_shape[3] / 2 + 1});
+        for (bool pad: {false, true}) {
+            auto shape = original_shape;
+            if (pad) {
+                shape[N - 1] += 13;
+                if constexpr (N >= 2)
+                    if (shape[N - 1] > 1)
+                        shape[N - 1] += 13;
+                if constexpr (N >= 3)
+                    if (shape[N - 2] > 1)
+                        shape[N - 2] += 13;
+            }
+            auto subregion_shape = nf::next_fast_shape(original_shape, rank);
+            shape = nf::next_fast_shape(shape, rank);
 
-            nf::r2c(expected, fft);
-            const auto result = nf::c2r(fft, expected.shape());
-            REQUIRE(test::allclose_abs_safe(expected, result, abs_epsilon));
+            INFO("original_shape=" << original_shape);
+            INFO("shape=" << shape);
+
+            for (const auto& device: devices) {
+                const auto stream = StreamGuard(device);
+                const auto options = ArrayOption(device, Allocator::MANAGED);
+
+                SECTION("rfft: out-of-place") {
+                    Array expected = noa::random(noa::Uniform<TestType>{-5, 5}, shape, options);
+                    expected = expected.subregion(noa::Slices{.end=subregion_shape.vec});
+
+                    Array fft = noa::empty<Complex<TestType>>(shape.rfft(), options);
+                    fft = fft.subregion(noa::Slices{.end=subregion_shape.rfft().vec});
+
+                    nf::r2c(expected, fft, {.rank = rank});
+                    const auto result = nf::c2r(fft, expected.shape(), {.rank = rank});
+                    REQUIRE(test::allclose_abs_safe(expected, result, abs_epsilon));
+                }
+
+                SECTION("rfft: in-place") {
+                    const auto [real, fft] = nf::empty<TestType>(shape, options);
+                    noa::randomize(noa::Uniform<TestType>{-5, 5}, real);
+                    const auto expected = real.copy();
+                    nf::r2c(real, fft, {.rank = rank});
+                    nf::c2r(fft, real, {.rank = rank});
+                    REQUIRE(test::allclose_abs_safe(expected, real, abs_epsilon));
+                }
+
+                using complex_t = Complex<TestType>;
+                SECTION("fft: out-of-place") {
+                    Array expected = noa::random(noa::Uniform<complex_t>{-5, 5}, shape, options);
+                    expected = expected.subregion(noa::Slices{.end=subregion_shape.vec});
+                    const auto fft = nf::c2c(expected, nf::Sign::FORWARD, {.rank = rank});
+                    const auto result = nf::c2c(fft, nf::Sign::BACKWARD, {.rank = rank});
+                    REQUIRE(test::allclose_abs_safe(expected, result, abs_epsilon));
+                }
+
+                SECTION("fft: in-place") {
+                    const Array input = noa::random(noa::Uniform<complex_t>{-5, 5}, shape, options);
+                    const auto expected = input.copy();
+                    nf::c2c(expected, expected, nf::Sign::FORWARD, {.rank = rank});
+                    nf::c2c(expected, expected, nf::Sign::BACKWARD, {.rank = rank});
+                    REQUIRE(test::allclose_abs_safe(input, expected, abs_epsilon));
+                }
+            }
         }
-
-        SECTION("in-place") {
-            const auto [real, fft] = nf::empty<TestType>(shape, options);
-            noa::randomize(noa::Uniform<TestType>{-5, 5}, real);
-            const auto expected = real.copy();
-            nf::r2c(real, fft);
-            nf::c2r(fft, real);
-            REQUIRE(test::allclose_abs_safe(expected, real, abs_epsilon));
-        }
-    }
+    });
 }
 
 TEMPLATE_TEST_CASE("fft::r2c/c2r(), cpu vs gpu", "", f32, f64) {
     if (not Device::is_any_gpu())
         return;
 
-    const i64 ndim = GENERATE(1, 2, 3);
-    const bool pad = GENERATE(true, false);
-    INFO("ndim: " << ndim);
-    INFO("pad: " << pad);
-
     // most are okay at 1e-5 but there are some outliers...
     const f64 abs_epsilon = std::is_same_v<TestType, f32> ? 1e-3 : 1e-9;
-    auto subregion_shape = test::random_shape_batched(ndim);
-    auto shape = subregion_shape;
-    if (pad)
-        shape += {0, ndim == 3 ? 11 : 0, ndim >= 2 ? 12 : 0, 13}; // don't change the dimensionality
 
-    subregion_shape = nf::next_fast_shape(subregion_shape);
-    shape = nf::next_fast_shape(shape);
+    const auto shapes = noa::make_tuple(
+        Pair{test::random_shape_batched<isize, 1>(1), usize{1}},
+        Pair{test::random_shape_batched<isize, 2>(1), usize{1}},
+        Pair{test::random_shape_batched<isize, 2>(2), usize{2}},
+        Pair{test::random_shape_batched<isize, 3>(1), usize{1}},
+        Pair{test::random_shape_batched<isize, 3>(2), usize{2}},
+        Pair{test::random_shape_batched<isize, 3>(3), usize{3}},
+        Pair{test::random_shape_batched<isize, 4>(3), usize{3}},
+        Pair{test::random_shape_batched<isize, 5>(3), usize{3}},
+        Pair{test::random_shape_batched<isize, 6>(3), usize{3}}
+    );
 
-    // Ensure CPU and GPU compute the FFTs concurrently.
-    const auto guard = StreamGuard(Device{}, Stream::ASYNC);
+    shapes.for_each([&]<usize N>(const Pair<Shape<isize, N>, usize>& pair) {
+        const auto& [original_shape, rank] = pair;
 
-    { // SECTION("out-of-place")
-        const auto cpu_real = noa::random(noa::Uniform<TestType>{-5, 5}, subregion_shape);
-        const auto gpu_buffer = noa::empty<TestType>(shape, ArrayOption("gpu", Allocator::MANAGED));
-        const auto gpu_real = gpu_buffer.view().subregion(
-            noa::Ellipsis{},
-            noa::Slice{0, subregion_shape[1]},
-            noa::Slice{0, subregion_shape[2]},
-            noa::Slice{0, subregion_shape[3]});
-        cpu_real.to(gpu_real);
+        for (bool pad: {false, true}) {
+            auto shape = original_shape;
+            if (pad) {
+                shape[N - 1] += 13;
+                if constexpr (N >= 2)
+                    if (shape[N - 1] > 1)
+                        shape[N - 1] += 13;
+                if constexpr (N >= 3)
+                    if (shape[N - 2] > 1)
+                        shape[N - 2] += 13;
+            }
+            auto subregion_shape = nf::next_fast_shape(original_shape, rank);
+            shape = nf::next_fast_shape(shape, rank);
 
-        const auto cpu_rfft = nf::r2c(cpu_real);
-        auto gpu_rfft = nf::r2c(gpu_real);
-        REQUIRE(test::allclose_abs_safe(cpu_rfft, gpu_rfft, abs_epsilon));
+            INFO("original_shape=" << original_shape);
+            INFO("shape=" << shape);
 
-        // c2r:
-        gpu_rfft = cpu_rfft.to(ArrayOption("gpu", Allocator::MANAGED)).eval(); // wait because c2r overwrites cpu_rfft
-        const auto cpu_result = nf::c2r(cpu_rfft, cpu_real.shape());
-        const auto gpu_result = nf::c2r(gpu_rfft, cpu_real.shape());
-        REQUIRE(test::allclose_abs_safe(cpu_result, gpu_result, abs_epsilon));
-    }
+            // Ensure CPU and GPU compute the FFTs concurrently.
+            const auto guard = StreamGuard(Device{}, Stream::ASYNC);
 
-    { // SECTION("in-place")
-        const auto [cpu_real, cpu_fft] = nf::empty<TestType>(shape);
-        const auto [gpu_real, gpu_fft] = nf::empty<TestType>(shape, {"gpu", Allocator::MANAGED});
-        noa::randomize(noa::Uniform<TestType>{-5, 5}, cpu_real);
-        cpu_real.to(gpu_real);
+            { // SECTION("out-of-place")
+                const auto cpu_real = noa::random(noa::Uniform<TestType>{-5, 5}, subregion_shape);
+                const auto gpu_buffer = noa::empty<TestType>(shape, ArrayOption("gpu", Allocator::MANAGED));
+                const auto gpu_real = gpu_buffer.view().subregion(noa::Slices{.end=subregion_shape.vec});
+                cpu_real.to(gpu_real);
 
-        nf::r2c(cpu_real, cpu_fft);
-        nf::r2c(gpu_real, gpu_fft);
-        REQUIRE(test::allclose_abs_safe(cpu_fft, gpu_fft, abs_epsilon));
+                const auto cpu_rfft = nf::r2c(cpu_real, {.rank = rank});
+                auto gpu_rfft = nf::r2c(gpu_real, {.rank = rank});
+                REQUIRE(test::allclose_abs_safe(cpu_rfft, gpu_rfft, abs_epsilon));
 
-        cpu_fft.to(gpu_fft);
-        gpu_fft.eval(); // c2r overwrites cpu_fft
-        nf::c2r(cpu_fft, cpu_real);
-        nf::c2r(gpu_fft, gpu_real);
-        REQUIRE(test::allclose_abs_safe(cpu_real, gpu_real, abs_epsilon));
-    }
-}
+                // c2r:
+                gpu_rfft = cpu_rfft.to(ArrayOption("gpu", Allocator::MANAGED)).eval(); // wait because c2r overwrites cpu_rfft
+                const auto cpu_result = nf::c2r(cpu_rfft, cpu_real.shape(), {.rank = rank});
+                const auto gpu_result = nf::c2r(gpu_rfft, cpu_real.shape(), {.rank = rank});
+                REQUIRE(test::allclose_abs_safe(cpu_result, gpu_result, abs_epsilon));
+            }
 
-TEMPLATE_TEST_CASE("fft::c2c()", "", f32, f64) {
-    const i64 ndim = GENERATE(1, 2, 3);
-    const bool pad = GENERATE(true, false);
-    INFO("ndim: " << ndim);
-    INFO("pad: " << pad);
+            { // SECTION("in-place")
+                const auto [cpu_real, cpu_fft] = nf::empty<TestType>(shape);
+                const auto [gpu_real, gpu_fft] = nf::empty<TestType>(shape, {"gpu", Allocator::MANAGED});
+                noa::randomize(noa::Uniform<TestType>{-5, 5}, cpu_real);
+                cpu_real.to(gpu_real);
 
-    const f64 abs_epsilon = std::is_same_v<TestType, f32> ? 1e-5 : 1e-9;
-    auto subregion_shape = test::random_shape_batched(ndim);
-    auto shape = subregion_shape;
-    if (pad)
-        shape += {0, ndim == 3 ? 11 : 0, ndim >= 2 ? 12 : 0, 13}; // don't change the dimensionality
+                nf::r2c(cpu_real, cpu_fft, {.rank = rank});
+                nf::r2c(gpu_real, gpu_fft, {.rank = rank});
+                REQUIRE(test::allclose_abs_safe(cpu_fft, gpu_fft, abs_epsilon));
 
-    subregion_shape = nf::next_fast_shape(subregion_shape);
-    shape = nf::next_fast_shape(shape);
-
-    std::vector<Device> devices{"cpu"};
-    if (Device::is_any_gpu())
-        devices.emplace_back("gpu");
-
-    for (const auto& device: devices) {
-        const auto stream = StreamGuard(device);
-        const auto options = ArrayOption(device, Allocator::MANAGED);
-        using complex_t = Complex<TestType>;
-
-        SECTION("out-of-place") {
-            Array expected = noa::random(noa::Uniform<complex_t>{-5, 5}, shape, options);
-            expected = expected.subregion(
-                    noa::Ellipsis{},
-                    noa::Slice{0, subregion_shape[1]},
-                    noa::Slice{0, subregion_shape[2]},
-                    noa::Slice{0, subregion_shape[3]});
-            const auto fft = nf::c2c(expected, nf::Sign::FORWARD);
-            const auto result = nf::c2c(fft, nf::Sign::BACKWARD);
-            REQUIRE(test::allclose_abs_safe(expected, result, abs_epsilon));
+                cpu_fft.to(gpu_fft);
+                gpu_fft.eval(); // c2r overwrites cpu_fft
+                nf::c2r(cpu_fft, cpu_real, {.rank = rank});
+                nf::c2r(gpu_fft, gpu_real, {.rank = rank});
+                REQUIRE(test::allclose_abs_safe(cpu_real, gpu_real, abs_epsilon));
+            }
         }
-
-        SECTION("in-place") {
-            const Array input = noa::random(noa::Uniform<complex_t>{-5, 5}, shape, options);
-            const auto expected = input.copy();
-            nf::c2c(expected, expected, nf::Sign::FORWARD);
-            nf::c2c(expected, expected, nf::Sign::BACKWARD);
-            REQUIRE(test::allclose_abs_safe(input, expected, abs_epsilon));
-        }
-    }
+    });
 }
 
 TEST_CASE("fft, caching plans") {
@@ -288,7 +291,7 @@ TEST_CASE("fft::rank") {
 
         auto a = noa::random<f32, 3>(noa::Uniform{-10.f, 10.f}, {64, 64, 64}, options);
         {
-            auto a_rfft = nf::r2c(a); // defaults to rank=-1 -> rank=3
+            auto a_rfft = nf::r2c(a, {.rank = 3});
             auto b_rfft = nf::r2c(a.reshape<4>({1, 64, 64, 64}));
             REQUIRE(test::allclose_abs_safe(a_rfft.as_1d(), b_rfft.as_1d(), 1e-5));
         } {

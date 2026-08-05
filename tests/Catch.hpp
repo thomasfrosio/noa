@@ -1,5 +1,6 @@
 #pragma once
 
+#include "noa/base/Config.hpp"
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #   pragma GCC diagnostic push
 #   pragma GCC diagnostic ignored "-Wdouble-promotion"

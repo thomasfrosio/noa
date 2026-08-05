@@ -498,7 +498,6 @@ namespace noa::cuda {
                 add_bytes(device_id, -size);
             }
         };
-
         using allocate_type = std::unique_ptr<cudaArray, Deleter>;
 
         struct ArrayAndTexture {

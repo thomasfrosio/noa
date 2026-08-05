@@ -52,11 +52,34 @@ TEST_CASE("io::ImageFile") {
     fs::remove_all(cwd.parent_path());
 }
 
+TEST_CASE("io::ImageFile - rank") {
+    const auto cwd = fs::current_path() / "test_image_file";
+
+    auto a0 = noa::random<f32>(noa::Uniform{-100.,100.}, Shape4{11, 1, 128, 128});
+    noa::write_image(a0, cwd / "test0.mrc");
+
+    auto a1 = noa::random<f32>(noa::Uniform{-100.,100.}, Shape3{11, 128, 128});
+    noa::write_image(a1, cwd / "test1.mrc", {.rank = 2});
+
+    auto a0_shape = noa::io::ImageFile(cwd / "test0.mrc", {.read = true}).shape();
+    auto a1_shape = noa::io::ImageFile(cwd / "test1.mrc", {.read = true}).shape();
+    REQUIRE(a0_shape == a1_shape);
+
+    for (usize rank: {usize{1}, usize{2}, usize{3}}) {
+        auto a2 = noa::random<f32>(noa::Uniform{-100.,100.}, Shape3{11, 128, 128});
+        noa::write_image(a2, cwd / "test2.mrc", {.rank = rank});
+        auto a2_shape = noa::io::ImageFile(cwd / "test2.mrc", {.read = true}).shape();
+        REQUIRE(a2_shape == Shape4{1, 11, 128, 128}.ranked(rank));
+    }
+
+    fs::remove_all(cwd);
+}
+
 TEST_CASE("io::ImageFile - bench", "[.]") {
     f64 time_read{};
     f64 time_write{};
     for (auto i: noa::irange(10)) {
-        auto path = Path(fs::current_path() / "test_io" / fmt::format("file_{}.mrc", i));
+        auto path = fs::current_path() / "test_io" / fmt::format("file_{}.mrc", i);
         auto a0 = noa::random<f32, 4>(noa::Uniform{-100.,100.}, {41, 1, 4096, 4096});
 
         auto t0 = noa::Timer{}.start();

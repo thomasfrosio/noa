@@ -49,15 +49,15 @@ TEST_CASE("fft::ranked_shape") {
         i32 rank = 1;
 
         s1 = {2, 1, 1, 10};
-        s2 = nf::ranked_shape(s1, rank);
+        s2 = s1.ranked(rank);
         REQUIRE(((s2 == s1) and rank == 1));
 
         s1 = {2, 1, 10, 10};
-        s2 = nf::ranked_shape(s1, rank);
+        s2 = s1.ranked(rank);
         REQUIRE(((s2 == Shape4{20, 1, 1, 10}) and rank == 1));
 
         s1 = {2, 10, 10, 10};
-        s2 = nf::ranked_shape(s1, rank);
+        s2 = s1.ranked(rank);
         REQUIRE(((s2 == Shape4{200, 1, 1, 10}) and rank == 1));
     } {
         auto s1 = Shape4{};
@@ -65,15 +65,15 @@ TEST_CASE("fft::ranked_shape") {
         i32 rank = 2;
 
         s1 = {2, 1, 1, 10};
-        s2 = nf::ranked_shape(s1, rank);
+        s2 = s1.ranked(rank);
         REQUIRE(((s2 == s1) and rank == 2));
 
         s1 = {2, 1, 10, 10};
-        s2 = nf::ranked_shape(s1, rank);
+        s2 = s1.ranked(rank);
         REQUIRE(((s2 == s1) and rank == 2));
 
         s1 = {2, 10, 10, 10};
-        s2 = nf::ranked_shape(s1, rank);
+        s2 = s1.ranked(rank);
         REQUIRE(((s2 == Shape4{20, 1, 10, 10}) and rank == 2));
     } {
         auto s1 = Shape4{};
@@ -81,37 +81,41 @@ TEST_CASE("fft::ranked_shape") {
         i32 rank = 3;
 
         s1 = {2, 1, 1, 10};
-        s2 = nf::ranked_shape(s1, rank);
+        s2 = s1.ranked(rank);
         REQUIRE(((s2 == s1) and rank == 3));
 
         s1 = {2, 1, 10, 10};
-        s2 = nf::ranked_shape(s1, rank);
+        s2 = s1.ranked(rank);
         REQUIRE(((s2 == s1) and rank == 3));
 
         s1 = {2, 10, 10, 10};
-        s2 = nf::ranked_shape(s1, rank);
+        s2 = s1.ranked(rank);
         REQUIRE(((s2 == s1) and rank == 3));
     } {
         auto s1 = Shape4{};
         auto s2 = Shape4{};
         i32 rank = -1;
         s1 = {2, 1, 1, 10};
-        s2 = nf::ranked_shape(s1, rank);
-        REQUIRE(((s2 == s1) and rank == 1));
+        auto rank_check = s1.rank_checked(rank);
+        s2 = s1.ranked(rank_check);
+        REQUIRE(((s2 == s1) and rank_check == 1));
 
         rank = -1;
         s1 = {2, 1, 10, 10};
-        s2 = nf::ranked_shape(s1, rank);
-        REQUIRE(((s2 == s1) and rank == 2));
+        rank_check = s1.rank_checked(rank);
+        s2 = s1.ranked(rank_check);
+        REQUIRE(((s2 == s1) and rank_check == 2));
 
         rank = -1;
         s1 = {2, 10, 10, 10};
-        s2 = nf::ranked_shape(s1, rank);
-        REQUIRE(((s2 == s1) and rank == 3));
+        rank_check = s1.rank_checked(rank);
+        s2 = s1.ranked(rank_check);
+        REQUIRE(((s2 == s1) and rank_check == 3));
 
         rank = -1;
         s1 = {2, 10, 10, 10};
-        s2 = nf::ranked_shape(s1, rank);
-        REQUIRE(((s2 == s1) and rank == 3));
+        rank_check = s1.rank_checked(rank);
+        s2 = s1.ranked(rank_check);
+        REQUIRE(((s2 == s1) and rank_check == 3));
     }
 }

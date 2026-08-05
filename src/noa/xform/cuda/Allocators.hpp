@@ -19,19 +19,44 @@ namespace noa::xform::cuda {
         using allocate_type = noa::cuda::AllocatorArray::allocate_with_texture_type;
 
     public:
-        template<nt::any_of<i8, i16, i32, u8, u16, u32, f16, f32, c16, c32> T, usize N>
+        template<usize N>
+        static auto array_shape(Shape<isize, N> shape, usize rank) -> Shape<isize, 3> {
+            check(rank == 1 or rank == 2 or rank == 3, "The rank isn't set, got rank={}", rank);
+            check(N >= rank, "The rank is too large for the number of axes, got N={}, rank={}", N, rank);
+            if constexpr (N >= 3) {
+                if (rank == 3) {
+                    for (usize i{}; i < N - rank; ++i)
+                        if (shape[i] != 1)
+                            panic("Non-empty batch axes with 3D CUDA textures are not supported. Got shape={}", shape);
+                }
+            }
+            return shape.template as_nd<3>().ranked(rank);
+        }
+
+        template<usize N>
+        static auto array_shape_and_strides(Shape<isize, N> shape, usize rank) -> Pair<Shape<isize, 3>, Strides<isize, N>> {
+            auto shape_3d = array_shape(shape, rank);
+            for (usize i{N - rank}; i < N; ++i)
+                shape[i] = 1;
+            auto strides = shape.strides();
+            for (usize i{N - rank}; i < N; ++i)
+                strides[i] = 0;
+            return {shape_3d, strides};
+        }
+
+        template<nt::any_of<i8, i16, i32, u8, u16, u32, f16, f32, c16, c32> T>
         static auto allocate(
-            const Shape<isize, N>& shape,
+            const Shape3& shape,
             usize rank,
-            Device device,
+            noa::cuda::Device device,
             Interp interp,
             Border border
         ) -> allocate_type {
-            rank = shape.rank_checked(rank);
-            auto shape_3d = shape.template as_nd<3>().ranked(rank);
+            check(rank == 1 or rank == 2 or rank == 3);
             const bool is_layered = rank == 2;
             const auto [filter, address, read_mode, normalized_coords] = convert_to_description(interp, border);
-            return noa::cuda::AllocatorArray::allocate_with_texture<T>(shape_3d, is_layered, device, filter, address, read_mode, normalized_coords);
+            return noa::cuda::AllocatorArray::allocate_with_texture<T>(
+                shape, is_layered, device, filter, address, read_mode, normalized_coords);
         }
 
     public: // static texture utilities
@@ -83,15 +108,15 @@ namespace noa::xform::cuda {
         }
 
         template<Interp INTERP, Border BORDER, typename Value, typename Coord, typename Index, usize B, usize R>
-        struct texture_type_ {
+        struct accessor_texture_type_ {
             static constexpr bool LAYERED = R == 2;
             static constexpr bool NORMALIZED = BORDER == Border::MIRROR or BORDER == Border::PERIODIC;
             static constexpr auto TEX = convert_to_texture(INTERP, BORDER);
             using type = AccessorTexture<TEX.first, TEX.second, Value, Coord, Index, B, R, NORMALIZED, LAYERED>;
         };
 
-        /// The corresponding Texture type created by the allocator.
+        /// The corresponding AccessorTexture type created by the allocator.
         template<Interp INTERP, Border BORDER, typename Value, typename Coord, typename Index, usize B, usize R>
-        using texture_type = texture_type_<INTERP, BORDER, Value, Coord, Index, B, R>::type;
+        using accessor_texture_type = accessor_texture_type_<INTERP, BORDER, Value, Coord, Index, B, R>::type;
     };
 }

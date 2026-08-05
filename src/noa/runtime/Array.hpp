@@ -676,7 +676,7 @@ namespace noa::inline types {
 
         /// Creates a view from a span.
         template<StridesTraits S> requires IS_VIEW
-        constexpr explicit Array(const Span<value_type, N, index_type, S>& span, ArrayOption options = {}) noexcept:
+        constexpr explicit Array(const Span<value_type, N, index_type, S>& span, ArrayOption options = {}) noexcept :
             m_shape{span.shape()},
             m_strides{span.strides_full()},
             m_shared{span.data()},
@@ -685,7 +685,7 @@ namespace noa::inline types {
             allocator().validate(span.data(), device());
         }
 
-        /// Creates a const array from an existing non-const array.
+        /// Creates a const array from an existing mutable array.
         template<nt::mutable_of<value_type> U> requires std::is_const_v<value_type>
         constexpr /*implicit*/ Array(Array<U, N, O> array) noexcept :
             m_shape{array.shape()},

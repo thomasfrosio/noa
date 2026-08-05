@@ -2,6 +2,63 @@
 
 #include "Catch.hpp"
 
+TEST_CASE("runtime::core::Shape - rank") {
+    using namespace noa::types;
+
+    auto test = [](auto shape, auto shape_ranked, usize rank) {
+        INFO(shape);
+        INFO(shape_ranked);
+        INFO(rank);
+        REQUIRE(shape.rank() == rank);
+        REQUIRE(shape_ranked.rank() == rank);
+        REQUIRE(shape.ranked(rank) == shape_ranked);
+    };
+
+    test(Shape{1}, Shape{1}, 1);
+    test(Shape{1,2}, Shape{1,2}, 1);
+    test(Shape{1,1,2}, Shape{1,1,2}, 1);
+    test(Shape{1,1,1,2}, Shape{1,1,1,2}, 1);
+    test(Shape{1,1,1,1,2}, Shape{1,1,1,1,2}, 1);
+    test(Shape{1,1,1,1,1,2}, Shape{1,1,1,1,1,2}, 1);
+
+    test(Shape{2}, Shape{2}, 1);
+    test(Shape{2,2}, Shape{2,2}, 2);
+    test(Shape{1,2,2}, Shape{1,2,2}, 2);
+    test(Shape{10,1,2,2}, Shape{10,1,2,2}, 2);
+    test(Shape{10,10,1,2,2}, Shape{100,1,1,2,2}, 2);
+    test(Shape{10,10,10,1,2,2}, Shape{1000,1,1,1,2,2}, 2);
+
+    test(Shape{2}, Shape{2}, 1);
+    test(Shape{2,2}, Shape{2,2}, 2);
+    test(Shape{2,2,2}, Shape{2,2,2}, 3);
+    test(Shape{1,2,2,2}, Shape{1,2,2,2}, 3);
+    test(Shape{10,10,2,2,2}, Shape{100,1,2,2,2}, 3);
+    test(Shape{10,10,10,2,2,2}, Shape{1000,1,1,2,2,2}, 3);
+
+    test(Shape{2}, Shape{2}, 1);
+    test(Shape{2,2}, Shape{2,2}, 2);
+    test(Shape{2,2,2}, Shape{2,2,2}, 3);
+    test(Shape{10,2,2,2}, Shape{10,2,2,2}, 3);
+    test(Shape{10,10,2,2,2}, Shape{100,1,2,2,2}, 3);
+    test(Shape{10,10,10,2,2,2}, Shape{1000,1,1,2,2,2}, 3);
+
+    REQUIRE(Shape{2}.ranked(2) == Shape{2});
+    REQUIRE(Shape{2,2}.ranked(3) == Shape{2,2});
+    REQUIRE(Shape{2,2,2}.ranked(3) == Shape{2,2,2});
+
+    REQUIRE(Shape{2}.rank_checked(1) == 1);
+    REQUIRE(Shape{2}.rank_checked(2) == 1);
+    REQUIRE(Shape{2}.rank_checked(3) == 1);
+
+    REQUIRE(Shape{2}.rank_checked(0) == 1);
+    REQUIRE(Shape{2,2}.rank_checked(2) == 2);
+    REQUIRE(Shape{2,2,2}.rank_checked(3) == 3);
+    REQUIRE(Shape{1,1,2,2}.rank_checked(0) == 2);
+    REQUIRE(Shape{1,2,2,2}.rank_checked(0) == 3);
+    REQUIRE_THROWS(Shape{2,2}.rank_checked(0));
+    REQUIRE_THROWS(Shape{2,2,2}.rank_checked(0));
+}
+
 TEST_CASE("runtime::core::Span") {
     using namespace noa::types;
 
