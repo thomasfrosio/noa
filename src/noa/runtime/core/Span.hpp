@@ -231,14 +231,17 @@ namespace noa::inline types {
             }
         }
 
-        /// C-style indexing operator, decrementing the dimensionality of the span by 1.
-        /// When done on a 1d span, this acts as a pointer/array indexing and dereferences the data.
-        [[nodiscard]] NOA_HD constexpr auto& operator[](
-            nt::integer auto index
-        ) const noexcept requires (N == 1 and not std::is_void_v<value_type>) {
-            NOA_ASSERT(not is_empty());
-            noa::bounds_check(shape(), index);
-            return get()[noa::offset_at(stride<0>(), index)];
+        /// Indexing elements.
+        /// TODO C++23, remove () and only use []. Allow [indices...].
+        template<nt::integer I1>
+            requires (N == 1 and not std::is_void_v<value_type>)
+        [[nodiscard]] NOA_HD constexpr auto& operator[](I1 index) const noexcept {
+            return (*this)(index);
+        }
+        template<nt::integer I1, usize A1>
+            requires (not std::is_void_v<value_type>)
+        [[nodiscard]] NOA_HD constexpr auto& operator[](const Vec<I1, N, A1>& indices) const noexcept {
+            return (*this)(indices);
         }
 
     public:

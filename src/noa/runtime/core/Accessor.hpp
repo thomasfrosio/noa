@@ -148,12 +148,15 @@ namespace noa {
             }
         }
 
-        /// C-style indexing operator, decrementing the dimensionality of the accessor by 1.
-        /// When done on a 1d accessor, this acts as a pointer/array indexing and dereferences the data.
-        template<typename Int> requires (N == 1)
-        [[nodiscard]] NOA_HD constexpr auto& operator[](Int index) const noexcept {
-            NOA_ASSERT(not is_empty());
-            return get()[noa::offset_at(stride<0>(), index)];
+        /// Indexing elements.
+        /// TODO C++23, remove () and only use []. Allow [indices...].
+        template<nt::integer Int> requires (N == 1)
+        [[nodiscard]] NOA_FHD constexpr auto& operator[](Int index) const noexcept {
+            return (*this)(index);
+        }
+        template<nt::integer Int, usize A1>
+        [[nodiscard]] NOA_FHD constexpr auto& operator[](const Vec<Int, N, A1>& indices) const noexcept {
+            return (*this)(indices);
         }
 
         template<nt::integer Int>
@@ -261,9 +264,13 @@ namespace noa {
             return output_t(get() + offset, strides() + N1);
         }
 
-        [[nodiscard]] NOA_HD constexpr auto& operator[](nt::integer auto index) const noexcept requires (N == 1) {
-            NOA_ASSERT(not is_empty());
-            return get()[noa::offset_at(stride<0>(), index)];
+        template<nt::integer Int> requires (N == 1)
+        [[nodiscard]] NOA_FHD constexpr auto& operator[](Int index) const noexcept {
+            return (*this)(index);
+        }
+        template<nt::integer Int, usize A1>
+        [[nodiscard]] NOA_FHD constexpr auto& operator[](const Vec<Int, N, A1>& indices) const noexcept {
+            return (*this)(indices);
         }
 
         NOA_HD constexpr void reset_pointer(pointer_type new_pointer) noexcept { m_ptr = new_pointer; }
