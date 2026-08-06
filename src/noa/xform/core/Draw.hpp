@@ -34,7 +34,17 @@ namespace noa::traits {
 
 namespace noa::xform {
     /// Draws at the transformed coordinates.
-    template<typename Drawable, usize N, typename Coord, typename Xform>
+    /// \param[in] drawable:
+    ///     Drawable object. Satisfying the drawable concept.
+    ///     The floating-point precision of the transform and coordinates should match its value-type.
+    /// \param[in] coordinates:
+    ///     Coordinates to draw.
+    ///     These correspond to the unmodified coordinate from the grid indices.
+    /// \param[in] inverse_transform:
+    ///     Inverse (D)HW (affine) matrix or quaternion to apply to the coordinates, or Empty.
+    ///     For non-affine matrices and quaternion(s), the rotation center is the center returned by drawable.center().
+    ///     If Empty (the default), no transformation is applied.
+    template<typename Drawable, usize N, typename Coord, typename Xform = Empty>
     requires nt::drawable<Drawable, N, Coord, Xform>
     [[nodiscard]] constexpr auto draw_at(
         const Drawable& drawable,
