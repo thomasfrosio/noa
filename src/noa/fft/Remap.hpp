@@ -443,63 +443,63 @@ namespace noa::fft {
         return output;
     }
     template<typename Input, usize N>
-    void remap_1d(Layout remap, Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<1>(remap, std::forward<Input>(input), shape, options);
+    auto remap_1d(Layout remap, Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
+        return noa::fft::remap<1>(remap, std::forward<Input>(input), shape, options);
     }
     template<typename Input, usize N>
-    void remap_2d(Layout remap, Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<2>(remap, std::forward<Input>(input), shape, options);
+    auto remap_2d(Layout remap, Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
+        return noa::fft::remap<2>(remap, std::forward<Input>(input), shape, options);
     }
     template<typename Input, usize N>
-    void remap_3d(Layout remap, Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<3>(remap, std::forward<Input>(input), shape, options);
+    auto remap_3d(Layout remap, Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
+        return noa::fft::remap<3>(remap, std::forward<Input>(input), shape, options);
     }
     template<typename Input, usize N>
-    void fftshift_1d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<1>(Layout::F2FC, std::forward<Input>(input), shape, options);
+    auto fftshift_1d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
+        return noa::fft::remap<1>(Layout::F2FC, std::forward<Input>(input), shape, options);
     }
     template<typename Input, usize N>
-    void fftshift_2d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<2>(Layout::F2FC, std::forward<Input>(input), shape, options);
+    auto fftshift_2d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
+        return noa::fft::remap<2>(Layout::F2FC, std::forward<Input>(input), shape, options);
     }
     template<typename Input, usize N>
-    void fftshift_3d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<3>(Layout::F2FC, std::forward<Input>(input), shape, options);
+    auto fftshift_3d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
+        return noa::fft::remap<3>(Layout::F2FC, std::forward<Input>(input), shape, options);
     }
     template<typename Input, usize N>
-    void rfftshift_1d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<1>(Layout::H2HC, std::forward<Input>(input), shape, options);
+    auto rfftshift_1d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
+        return noa::fft::remap<1>(Layout::H2HC, std::forward<Input>(input), shape, options);
     }
     template<typename Input, usize N>
-    void rfftshift_2d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<2>(Layout::H2HC, std::forward<Input>(input), shape, options);
+    auto rfftshift_2d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
+        return noa::fft::remap<2>(Layout::H2HC, std::forward<Input>(input), shape, options);
     }
     template<typename Input, usize N>
-    void rfftshift_3d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<3>(Layout::H2HC, std::forward<Input>(input), shape, options);
+    auto rfftshift_3d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
+        return noa::fft::remap<3>(Layout::H2HC, std::forward<Input>(input), shape, options);
     }
     template<typename Input, usize N>
-    void ifftshift_1d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<1>(Layout::FC2F, std::forward<Input>(input), shape, options);
+    auto ifftshift_1d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
+        return noa::fft::remap<1>(Layout::FC2F, std::forward<Input>(input), shape, options);
     }
     template<typename Input, usize N>
-    void ifftshift_2d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<2>(Layout::FC2F, std::forward<Input>(input), shape, options);
+    auto ifftshift_2d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
+        return noa::fft::remap<2>(Layout::FC2F, std::forward<Input>(input), shape, options);
     }
     template<typename Input, usize N>
-    void ifftshift_3d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<3>(Layout::FC2F, std::forward<Input>(input), shape, options);
+    auto ifftshift_3d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
+        return noa::fft::remap<3>(Layout::FC2F, std::forward<Input>(input), shape, options);
     }
     template<typename Input, usize N>
-    void irfftshift_1d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<1>(Layout::HC2H, std::forward<Input>(input), shape, options);
+    auto irfftshift_1d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
+        return noa::fft::remap<1>(Layout::HC2H, std::forward<Input>(input), shape, options);
     }
     template<typename Input, usize N>
-    void irfftshift_2d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<2>(Layout::HC2H, std::forward<Input>(input), shape, options);
+    auto irfftshift_2d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
+        return noa::fft::remap<2>(Layout::HC2H, std::forward<Input>(input), shape, options);
     }
     template<typename Input, usize N>
-    void irfftshift_3d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<3>(Layout::HC2H, std::forward<Input>(input), shape, options);
+    auto irfftshift_3d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
+        return noa::fft::remap<3>(Layout::HC2H, std::forward<Input>(input), shape, options);
     }
 }

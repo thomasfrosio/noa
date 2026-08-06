@@ -268,23 +268,23 @@ namespace noa::fft {
         return output;
     }
     template<typename Input>
-    void rfft(Input&& input,  FFTOptions options = {}) {
-        r2c(std::forward<Input>(input), options);
+    auto rfft(Input&& input,  FFTOptions options = {}) {
+        return r2c(std::forward<Input>(input), options);
     }
     template<typename Input>
-    void rfft1(Input&& input, FFTOptions options = {}) {
+    auto rfft1(Input&& input, FFTOptions options = {}) {
         options.rank = 1;
-        r2c(std::forward<Input>(input), options);
+        return r2c(std::forward<Input>(input), options);
     }
     template<typename Input>
-    void rfft2(Input&& input, FFTOptions options = {}) {
+    auto rfft2(Input&& input, FFTOptions options = {}) {
         options.rank = 2;
-        r2c(std::forward<Input>(input), options);
+        return r2c(std::forward<Input>(input), options);
     }
     template<typename Input>
-    void rfft3(Input&& input, FFTOptions options = {}) {
+    auto rfft3(Input&& input, FFTOptions options = {}) {
         options.rank = 3;
-        r2c(std::forward<Input>(input), options);
+        return r2c(std::forward<Input>(input), options);
     }
 
     /// Computes the backward c2r transform of (batched) 1d/2d/3d array(s).
@@ -385,23 +385,23 @@ namespace noa::fft {
         return output;
     }
     template<typename Input>
-    void irfft(Input&& input,  FFTOptions options = {}) {
-        c2r(std::forward<Input>(input), options);
+    auto irfft(Input&& input,  FFTOptions options = {}) {
+        return c2r(std::forward<Input>(input), options);
     }
     template<typename Input>
-    void irfft1(Input&& input, FFTOptions options = {}) {
+    auto irfft1(Input&& input, FFTOptions options = {}) {
         options.rank = 1;
-        c2r(std::forward<Input>(input), options);
+        return c2r(std::forward<Input>(input), options);
     }
     template<typename Input>
-    void irfft2(Input&& input, FFTOptions options = {}) {
+    auto irfft2(Input&& input, FFTOptions options = {}) {
         options.rank = 2;
-        c2r(std::forward<Input>(input), options);
+        return c2r(std::forward<Input>(input), options);
     }
     template<typename Input>
-    void irfft3(Input&& input, FFTOptions options = {}) {
+    auto irfft3(Input&& input, FFTOptions options = {}) {
         options.rank = 3;
-        c2r(std::forward<Input>(input), options);
+        return c2r(std::forward<Input>(input), options);
     }
 
     /// Computes the c2c transform of (batched) 1d/2d/3d array(s).
@@ -519,41 +519,41 @@ namespace noa::fft {
         return output;
     }
     template<typename Input>
-    void fft(Input&& input, FFTOptions options = {}) {
-        c2c(std::forward<Input>(input), Sign::FORWARD, options);
+    auto fft(Input&& input, FFTOptions options = {}) {
+        return c2c(std::forward<Input>(input), Sign::FORWARD, options);
     }
     template<typename Input>
-    void fft1(Input&& input, FFTOptions options = {}) {
+    auto fft1(Input&& input, FFTOptions options = {}) {
         options.rank = 1;
-        c2c(std::forward<Input>(input), Sign::FORWARD, options);
+        return c2c(std::forward<Input>(input), Sign::FORWARD, options);
     }
     template<typename Input>
-    void fft2(Input&& input, FFTOptions options = {}) {
+    auto fft2(Input&& input, FFTOptions options = {}) {
         options.rank = 2;
-        c2c(std::forward<Input>(input), Sign::FORWARD, options);
+        return c2c(std::forward<Input>(input), Sign::FORWARD, options);
     }
     template<typename Input>
-    void fft3(Input&& input, FFTOptions options = {}) {
+    auto fft3(Input&& input, FFTOptions options = {}) {
         options.rank = 3;
-        c2c(std::forward<Input>(input), Sign::FORWARD, options);
+        return c2c(std::forward<Input>(input), Sign::FORWARD, options);
     }
     template<typename Input>
-    void ifft(Input&& input, FFTOptions options = {}) {
-        c2c(std::forward<Input>(input), Sign::BACKWARD, options);
+    auto ifft(Input&& input, FFTOptions options = {}) {
+        return c2c(std::forward<Input>(input), Sign::BACKWARD, options);
     }
     template<typename Input>
-    void ifft1(Input&& input, FFTOptions options = {}) {
+    auto ifft1(Input&& input, FFTOptions options = {}) {
         options.rank = 1;
-        c2c(std::forward<Input>(input), Sign::BACKWARD, options);
+        return c2c(std::forward<Input>(input), Sign::BACKWARD, options);
     }
     template<typename Input>
-    void ifft2(Input&& input, FFTOptions options = {}) {
+    auto ifft2(Input&& input, FFTOptions options = {}) {
         options.rank = 2;
-        c2c(std::forward<Input>(input), Sign::BACKWARD, options);
+        return c2c(std::forward<Input>(input), Sign::BACKWARD, options);
     }
     template<typename Input>
-    void ifft3(Input&& input, FFTOptions options = {}) {
+    auto ifft3(Input&& input, FFTOptions options = {}) {
         options.rank = 3;
-        c2c(std::forward<Input>(input), Sign::BACKWARD, options);
+        return c2c(std::forward<Input>(input), Sign::BACKWARD, options);
     }
 }
