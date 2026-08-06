@@ -4,7 +4,7 @@
 #include <noa/IO.hpp>
 #include <noa/Runtime.hpp>
 #include <noa/FFT.hpp>
-#include <noa/Signal.hpp>
+#include <noa/signal/PhaseShift.hpp>
 
 #include "Assets.hpp"
 #include "Catch.hpp"
@@ -21,7 +21,7 @@ using Interp = nx::Interp;
 //      this bug in the library at Nyquist, but here we don't even measure that because of the 0.45 cutoff.
 
 TEST_CASE("xform::transform_spectrum_2d, vs scipy", "[asset]") {
-    const Path path_base = test::NOA_DATA_PATH / "xform";
+    const Path path_base = test::noa_data_path() / "xform";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform_spectrum_2d"];
 
     std::vector<Device> devices{"cpu"};
@@ -52,33 +52,33 @@ TEST_CASE("xform::transform_spectrum_2d, vs scipy", "[asset]") {
             const auto options = noa::ArrayOption(device, noa::Allocator::MANAGED);
             INFO(device);
 
-            const auto input = noa::read_image<f32>(input_filename, {.enforce_2d_stack = true}, options).data;
-            const auto expected = noa::read_image<f32>(expected_filename, {.enforce_2d_stack = true}, options).data;
-            const auto output = noa::like(expected);
+            const auto input = noa::read_image<f32, 3>(input_filename, {.rank = 3}, options).data;
+            const auto expected = noa::read_image<f32, 3>(expected_filename, {.rank = 3}, options).data;
+            const auto output = noa::empty_like(expected);
             const auto input_fft = noa::empty<c32>(input.shape().rfft(), options);
-            const auto input_fft_centered = noa::like(input_fft);
-            const auto output_fft = noa::like(input_fft_centered);
+            const auto input_fft_centered = noa::empty_like(input_fft);
+            const auto output_fft = noa::empty_like(input_fft_centered);
 
-            noa::fft::r2c(input, input_fft, {.norm=FFT_NORM});
+            noa::fft::rfft2(input, input_fft, {.norm=FFT_NORM});
             ns::phase_shift_2d<"H2HC">(input_fft, input_fft_centered, input.shape(), -center, cutoff);
 
             // With arrays:
             nx::transform_spectrum_2d<"HC2H">(
                 input_fft_centered, output_fft, input.shape(),
-                matrix, center + shift, {interp, cutoff});
+                matrix, center + shift, {.interp = interp, .fftfreq_cutoff = cutoff});
 
-            noa::fft::c2r(output_fft, output, {.norm=FFT_NORM});
+            noa::fft::irfft2(output_fft, output, {.norm=FFT_NORM});
             REQUIRE(test::allclose_abs_safe(expected, output, 1e-4f)); // FIXME update asset
 
             ++count;
 
             // With textures:
             noa::fill(output, 0); // erase
-            const auto input_fft_centered_texture = nx::Texture<c32>(input_fft_centered, device, interp);
+            const auto input_fft_centered_texture = nx::Texture2D<c32, 3>(input_fft_centered, device, interp);
             nx::transform_spectrum_2d<"HC2H">(
                 input_fft_centered_texture, output_fft, input.shape(),
                 matrix, center + shift, {.fftfreq_cutoff = cutoff});
-            noa::fft::c2r(output_fft, output, {.norm=FFT_NORM});
+            noa::fft::irfft2(output_fft, output, {.norm=FFT_NORM});
             REQUIRE(test::allclose_abs_safe(expected, output, 1e-4f));
         }
     }
@@ -86,7 +86,7 @@ TEST_CASE("xform::transform_spectrum_2d, vs scipy", "[asset]") {
 }
 
 TEST_CASE("xform::transform_spectrum_3d, vs scipy", "[asset]") {
-    const Path path_base = test::NOA_DATA_PATH / "xform";
+    const Path path_base = test::noa_data_path() / "xform";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["transform_spectrum_3d"];
 
     std::vector<Device> devices{"cpu"};
@@ -117,32 +117,32 @@ TEST_CASE("xform::transform_spectrum_3d, vs scipy", "[asset]") {
             const auto options = ArrayOption(device, Allocator::MANAGED);
             INFO(device);
 
-            const auto input = noa::read_image<f32>(input_filename, {}, options).data;
-            const auto expected = noa::read_image<f32>(expected_filename, {}, options).data;
-            const auto output = noa::like(expected);
+            const auto input = noa::read_image<f32, 4>(input_filename, {.rank = 3}, options).data;
+            const auto expected = noa::read_image<f32, 4>(expected_filename, {.rank = 3}, options).data;
+            const auto output = noa::empty_like(expected);
             const auto input_fft = noa::empty<c32>(input.shape().rfft(), options);
-            const auto input_fft_centered = noa::like(input_fft);
-            const auto output_fft = noa::like(input_fft_centered);
+            const auto input_fft_centered = noa::empty_like(input_fft);
+            const auto output_fft = noa::empty_like(input_fft_centered);
 
-            noa::fft::r2c(input, input_fft, {.norm=FFT_NORM});
+            noa::fft::rfft3(input, input_fft, {.norm=FFT_NORM});
             ns::phase_shift_3d<"H2HC">(input_fft, input_fft_centered, input.shape(), -center, cutoff);
 
             // With arrays:
             nx::transform_spectrum_3d<"HC2H">(
                 input_fft_centered, output_fft, input.shape(),
                 matrix, center + shift, {interp, cutoff});
-            noa::fft::c2r(output_fft, output, {.norm=FFT_NORM});
+            noa::fft::irfft3(output_fft, output, {.norm=FFT_NORM});
             REQUIRE(test::allclose_abs_safe(expected, output, 5e-3f)); // it was MATCH_ABS at 2e-4
 
             ++count;
 
             // With textures:
             noa::fill(output, 0); // erase
-            const auto input_fft_centered_texture = nx::Texture<c32>(input_fft_centered, device, interp);
+            const auto input_fft_centered_texture = nx::Texture3D<c32, 4>(input_fft_centered, device, interp);
             nx::transform_spectrum_3d<"HC2H">(
                 input_fft_centered_texture, output_fft, input.shape(),
                 matrix, center + shift, {.fftfreq_cutoff = cutoff});
-            noa::fft::c2r(output_fft, output, {.norm=FFT_NORM});
+            noa::fft::irfft3(output_fft, output, {.norm=FFT_NORM});
             REQUIRE(test::allclose_abs_safe(expected, output, 5e-3f));
         }
     }
@@ -150,13 +150,13 @@ TEST_CASE("xform::transform_spectrum_3d, vs scipy", "[asset]") {
 }
 
 TEMPLATE_TEST_CASE("xform::transform_spectrum_2d(), remap", "", f32, f64) {
-    const auto shape = test::random_shape_batched(2);
+    const auto shape = test::random_shape_batched<isize, 6>(2, {.size_range = {40, 60}});
     constexpr f64 cutoff = 0.5;
     constexpr auto interp = Interp::LINEAR;
 
     test::Randomizer<f64> randomizer(-3, 3);
-    auto transforms = Array<Mat22<f32>>(shape[0]);
-    auto shifts = Array<Vec<f32, 2>>(shape[0]);
+    auto transforms = Array<Mat22<f32>, 4>(shape.pop_back<2>());
+    auto shifts = Array<Vec<f32, 2>, 4>(shape.pop_back<2>());
 
     for (auto& transform: transforms.span_1d()) {
         const auto scale = Vec{0.9, 1.1};
@@ -176,12 +176,13 @@ TEMPLATE_TEST_CASE("xform::transform_spectrum_2d(), remap", "", f32, f64) {
         INFO(device);
 
         if (device != transforms.device()) {
-            transforms = transforms.to({device});
-            shifts = shifts.to({device});
+            transforms = transforms.to({.device = device});
+            shifts = shifts.to({.device = device});
         }
 
-        const auto input = noa::random(noa::Uniform<TestType>{-3, 3}, shape, options);
-        const auto input_rfft = noa::fft::r2c(input);
+        const auto input_shape = shape.filter(4, 5).push_front<4>(1);
+        const auto input = noa::random(noa::Uniform<TestType>{-3, 3}, input_shape, options);
+        const auto input_rfft = noa::fft::rfft2(input);
 
         using complex_t = Complex<TestType>;
         const auto output_rfft = noa::empty<complex_t>(shape.rfft(), options);
@@ -189,32 +190,32 @@ TEMPLATE_TEST_CASE("xform::transform_spectrum_2d(), remap", "", f32, f64) {
             input_rfft, output_rfft, shape, transforms, shifts, {interp, cutoff});
 
         if constexpr (std::is_same_v<TestType, f64>) {
-            const auto output_rfft_centered = noa::like(output_rfft);
+            const auto output_rfft_centered = noa::empty_like(output_rfft);
             nx::transform_spectrum_2d<"HC2HC">(
                 input_rfft, output_rfft_centered, shape,
                 transforms, shifts, {interp, cutoff});
-            const auto output_rfft_final = noa::fft::remap("HC2H", output_rfft_centered, shape);
+            const auto output_rfft_final = noa::fft::remap_2d("HC2H", output_rfft_centered, shape);
             REQUIRE(test::allclose_abs(output_rfft, output_rfft_final, 1e-7));
         } else {
-            const auto input_rfft_texture = nx::Texture<c32>(input_rfft, device, interp);
-            const auto output_rfft_centered = noa::like(output_rfft);
+            const auto input_rfft_texture = nx::Texture2D<c32, 6>(input_rfft, device, interp);
+            const auto output_rfft_centered = noa::empty_like(output_rfft);
             nx::transform_spectrum_2d<"HC2HC">(
                 input_rfft, output_rfft_centered, shape,
                 transforms, shifts, {interp, cutoff});
-            const auto output_rfft_final = noa::fft::remap("HC2H", output_rfft_centered, shape);
+            const auto output_rfft_final = noa::fft::remap_2d("HC2H", output_rfft_centered, shape);
             REQUIRE(test::allclose_abs(output_rfft, output_rfft_final, 1e-7));
         }
     }
 }
 
 TEMPLATE_TEST_CASE("xform::transform_spectrum_3d(), remap", "", f32, f64) {
-    const auto shape = test::random_shape(3);
+    const auto shape = test::random_shape_batched<isize, 5>(3, {.size_range = {30, 60}});
     constexpr f64 cutoff = 0.5;
     constexpr auto interp = Interp::LINEAR;
 
     test::Randomizer<f64> randomizer(-3, 3);
-    auto transforms = Array<Mat33<f32>>(shape[0]);
-    auto shifts = Array<Vec<f32, 3>>(shape[0]);
+    auto transforms = Array<Mat33<f32>, 2>(shape.filter(0, 1));
+    auto shifts = Array<Vec<f32, 3>, 2>(shape.filter(0, 1));
 
     for (auto& transform: transforms.span_1d()) {
         const auto scale = Vec{0.9, 1.1, 0.85};
@@ -243,29 +244,30 @@ TEMPLATE_TEST_CASE("xform::transform_spectrum_3d(), remap", "", f32, f64) {
             shifts = shifts.to({device});
         }
 
-        const auto input = noa::random(noa::Uniform<TestType>{-3, 3}, shape, options);
-        const auto input_fft = noa::fft::r2c(input);
+        const auto input_shape = shape.set<0>(1).set<1>(1); // broadcast input
+        const auto input = noa::random(noa::Uniform<TestType>{-3, 3}, input_shape, options);
+        const auto input_rfft = noa::fft::rfft3(input);
 
         using complex_t = Complex<TestType>;
-        const auto output_fft = noa::empty<complex_t>(shape.rfft(), options);
+        const auto output_rfft = noa::empty<complex_t>(shape.rfft(), options);
         nx::transform_spectrum_3d<"HC2H">(
-            input_fft, output_fft, shape, transforms, shifts, {interp, cutoff});
+            input_rfft, output_rfft, shape, transforms, shifts, {interp, cutoff});
 
         if constexpr (std::is_same_v<TestType, f64>) {
-            const auto output_fft_centered = noa::like(output_fft);
+            const auto output_rfft_centered = noa::empty_like(output_rfft);
             nx::transform_spectrum_3d<"HC2HC">(
-                input_fft, output_fft_centered, shape,
+                input_rfft, output_rfft_centered, shape,
                 transforms, shifts, {interp, cutoff});
-            const auto output_fft_final = noa::fft::remap("HC2H", output_fft_centered, shape);
-            REQUIRE(test::allclose_abs(output_fft, output_fft_final, 1e-7));
+            const auto output_rfft_final = noa::fft::remap_3d("HC2H", output_rfft_centered, shape);
+            REQUIRE(test::allclose_abs(output_rfft, output_rfft_final, 1e-7));
         } else {
-            const auto input_fft_texture = nx::Texture<c32>(input_fft, device, interp);
-            const auto output_fft_centered = noa::like(output_fft);
+            const auto input_rfft_texture = nx::Texture3D<c32, 5>(input_rfft, device, interp);
+            const auto output_rfft_centered = noa::empty_like(output_rfft);
             nx::transform_spectrum_3d<"HC2HC">(
-                input_fft, output_fft_centered, shape,
+                input_rfft, output_rfft_centered, shape,
                 transforms, shifts, {interp, cutoff});
-            const auto output_fft_final = noa::fft::remap("HC2H", output_fft_centered, shape);
-            REQUIRE(test::allclose_abs(output_fft, output_fft_final, 1e-7));
+            const auto output_rfft_final = noa::fft::remap_3d("HC2H", output_rfft_centered, shape);
+            REQUIRE(test::allclose_abs(output_rfft, output_rfft_final, 1e-7));
         }
     }
 }
@@ -273,14 +275,14 @@ TEMPLATE_TEST_CASE("xform::transform_spectrum_3d(), remap", "", f32, f64) {
 // // The hermitian symmetry isn't broken by transform_2d and transform_3d.
 // TEST_CASE("xform::transform_spectrum_2d, check redundancy", "[.]") {
 //     const auto shape = Shape<i64, 4>{1, 1, 128, 128};
-//     const Path output_path = test::NOA_DATA_PATH / "xform";
+//     const Path output_path = test::noa_data_path() / "xform";
 //     const auto option = ArrayOption("gpu", Allocator::MANAGED);
 //
 //     Array input = noa::linspace(shape, noa::Linspace<f32>{-10, 10, true}, option);
 //     Array output0 = noa::fft::r2c(input);
 //     noa::fft::remap("H2HC", output0, output0, shape);
 //
-//     Array output1 = noa::like(output0);
+//     Array output1 = noa::empty_like(output0);
 //     const Mat22 rotation = nx::rotate(noa::deg2rad(45.f));
 //     nx::transform_spectrum_2d<"HC2HC">(output0, output1, shape, rotation);
 //     noa::write_image(noa::real(output1), output_path / "test_output1_real.mrc");
@@ -289,14 +291,14 @@ TEMPLATE_TEST_CASE("xform::transform_spectrum_3d(), remap", "", f32, f64) {
 //
 // TEST_CASE("xform::transform_spectrum_3d, check redundancy", "[.]") {
 //     const auto shape = Shape<i64, 4>{1, 128, 128, 128};
-//     const Path output_path = test::NOA_DATA_PATH / "xform";
+//     const Path output_path = test::noa_data_path() / "xform";
 //     const auto option = ArrayOption(Device("gpu"), Allocator::MANAGED);
 //
 //     Array input = noa::linspace(shape, noa::Linspace<f32>{-10, 10, true}, option);
 //     Array output0 = noa::fft::r2c(input);
 //     noa::fft::remap(noa::Remap::H2HC, output0, output0, shape);
 //
-//     Array output1 = noa::like(output0);
+//     Array output1 = noa::empty_like(output0);
 //     const Mat33 rotation = nx::euler2matrix(noa::deg2rad(Vec{45.f, 0.f, 0.f}), {.axes="zyx", .intrinsic = false});
 //     nx::transform_spectrum_3d<"HC2HC">(output0, output1, shape, rotation, Vec<f32, 3>{});
 //     noa::write_image(noa::real(output1), output_path / "test_output1_real.mrc");
@@ -326,8 +328,8 @@ TEMPLATE_TEST_CASE("xform::transform_spectrum_3d(), remap", "", f32, f64) {
 //         input_rfft, output_rfft, shape,
 //         rotations, {}, {.interp = Interp::CUBIC_FAST, .fftfreq_cutoff = 1});
 //
-//     noa::write_image(input_rfft, test::NOA_DATA_PATH / "xform" / "test_input_rfft.mrc");
-//     noa::write_image(output_rfft, test::NOA_DATA_PATH / "xform" / "test_output_rfft.mrc");
+//     noa::write_image(input_rfft, test::noa_data_path() / "xform" / "test_input_rfft.mrc");
+//     noa::write_image(output_rfft, test::noa_data_path() / "xform" / "test_output_rfft.mrc");
 // }
 //
 // TEST_CASE("xform::transform_spectrum_2d, 1", ".") {
@@ -340,7 +342,7 @@ TEMPLATE_TEST_CASE("xform::transform_spectrum_3d(), remap", "", f32, f64) {
 //         .radius = Vec{64., 64.},
 //         .smoothness = 2.,
 //     });
-//     noa::write_image(input, test::NOA_DATA_PATH / "xform" / "test_input.mrc");
+//     noa::write_image(input, test::noa_data_path() / "xform" / "test_input.mrc");
 //
 //     auto rotations = noa::empty<Mat<f64, 2, 2>>(shape[0]);
 //     for (f64 i{5}; auto& rotation: rotations.span_1d_contiguous()) {
@@ -360,6 +362,6 @@ TEMPLATE_TEST_CASE("xform::transform_spectrum_3d(), remap", "", f32, f64) {
 //             });
 //
 //         auto output = noa::fft::c2r(output_rfft, shape);
-//         noa::write_image(output, test::NOA_DATA_PATH / "xform" / fmt::format("test_output_{}.mrc", interp));
+//         noa::write_image(output, test::noa_data_path() / "xform" / fmt::format("test_output_{}.mrc", interp));
 //     }
 // }

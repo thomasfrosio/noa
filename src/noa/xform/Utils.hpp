@@ -69,7 +69,6 @@ namespace noa::xform::details {
         interpolator_type interpolator;
     };
 
-    /// Returns the Interpolator.
     template<usize R, Interp INTERP, Border BORDER, bool IS_GPU, typename Index, typename Coord, bool NO_SHAPE, typename T>
     constexpr auto prepare_interpolation_inputs(const T& input, nt::mutable_value_type_t<T> cvalue = {}) {
         constexpr Interp INTERP_ = to_interpolator_interp<INTERP, BORDER, nt::texture_decay<T>, IS_GPU>();
@@ -88,11 +87,21 @@ namespace noa::xform::details {
         };
     }
 
-    /// Creates an InterpolatorSpectrum.
-    template<usize R, nf::Layout REMAP, Interp INTERP, bool NO_SHAPE, bool TEXTURE_ONLY, typename Value, typename Index, usize N>
-    constexpr auto to_interpolator_spectrum(const Shape<Index, N>& logical_shape) {
+    template<usize R, nf::Layout REMAP, Interp INTERP, bool IS_GPU, typename Coord, bool NO_SHAPE, typename T, typename Index>
+    constexpr auto prepare_interpolation_spectrum_inputs(const T& input, const Shape<Index, R>& logical_shape) {
+        constexpr Interp INTERP_ = to_interpolator_interp<INTERP, Border::ZERO, nt::texture_decay<T>, IS_GPU>();
+        constexpr usize N = nt::array_size_v<T>;
         constexpr usize B = N > R ? N - R : 0;
-        return InterpolatorSpectrum<REMAP, INTERP, Value, R, Index, NO_SHAPE, TEXTURE_ONLY>(logical_shape.template pop_front<B>());
+        using input_accessor_t = decltype(to_interpolator_input<R, Index, Coord, INTERP_, Border::ZERO, IS_GPU>(input));
+        using accessor_r_t = std::decay_t<decltype(std::declval<const input_accessor_t&>()[Vec<i32, B>{}])>;
+        using const_value_t = nt::const_value_type_t<T>;
+        constexpr bool TEXTURE_ONLY = nt::textureable_nd<accessor_r_t, Border::ZERO, R>;
+        constexpr bool NO_SHAPE_ = NO_SHAPE ? true : TEXTURE_ONLY;
+
+        return ToInterpolatorResult{
+            .input_accessor = to_interpolator_input<R, Index, Coord, INTERP_, Border::ZERO, IS_GPU>(input),
+            .interpolator = InterpolatorSpectrum<REMAP, INTERP_, const_value_t, R, Index, NO_SHAPE_, TEXTURE_ONLY>(logical_shape),
+        };
     }
 
     // nvcc struggles with C++20 template parameters in lambda, so use a worse C++17 syntax and create this type...

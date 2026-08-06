@@ -79,7 +79,8 @@ namespace noa::xform::details {
                 return AccessorValue<Empty>{};
             else {
                 NOA_ASSERT(xform.is_contiguous());
-                return AccessorRestrictContiguous<value_t, 1>{xform.get()};
+                constexpr usize B = nt::array_size_v<Xform>;
+                return AccessorRestrictContiguous<value_t, B>(xform.get(), xform.strides());
             }
         } else {
             static_assert(nt::always_false<Xform>);
@@ -106,10 +107,10 @@ namespace noa::xform::details {
         const Device device = output.device();
         if constexpr (nt::array<Matrix>) {
             check(matrix.is_contiguous() and matrix.shape() == output_shape_b,
-                  "The matrices, specified as a contiguous array, should match the output shape, but got matrices:shape={}, matrices:strides={} and output:batches={}",
+                  "The matrices, specified as a contiguous array, should match the output shape, but got inverse_matrices:shape={}, inverse_matrices:strides={} and output:batches={}",
                   matrix.shape(), matrix.strides(), output_shape_b);
             check(device == matrix.device(),
-                  "The transformation matrices should be on the same device as the output, but got matrices:device={} and output:device={}",
+                  "The transformation inverse_matrices should be on the same device as the output, but got inverse_matrices:device={} and output:device={}",
                   matrix.device(), device);
         }
 
