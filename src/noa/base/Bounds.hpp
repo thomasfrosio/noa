@@ -52,6 +52,14 @@ namespace noa {
             }
         }
     }
+    template<nt::integer T, nt::integer U>
+    NOA_FHD constexpr void bounds_check_always(T size, U index) {
+        bounds_check<true>(size, index);
+    }
+    template<nt::integer T, nt::integer U>
+    NOA_FHD constexpr void bounds_check_debug(T size, U index) {
+        bounds_check<false>(size, index);
+    }
 
     /// Whether the index is in-bound, i.e., 0 <= index < size.
     template<nt::integer T>

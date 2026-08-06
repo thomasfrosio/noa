@@ -94,7 +94,7 @@ namespace noa::xform {
         }
 
         [[nodiscard]] NOA_HD constexpr auto operator[](nt::integer auto i) noexcept -> value_type& {
-            noa::bounds_check(4, i);
+            noa::bounds_check_debug(4, i);
             if (i == 0)
                 return z;
             if (i == 1)
@@ -105,7 +105,7 @@ namespace noa::xform {
         }
 
         [[nodiscard]] NOA_HD constexpr auto operator[](nt::integer auto i) const noexcept -> const value_type& {
-            noa::bounds_check(4, i);
+            noa::bounds_check_debug(4, i);
             if (i == 0)
                 return z;
             if (i == 1)

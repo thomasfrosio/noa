@@ -56,7 +56,7 @@ namespace noa {
                 }
             }
         } else {
-            noa::bounds_check<true>(N, options.axis);
+            noa::bounds_check_always(N, options.axis);
         }
 
         // If there's nothing to sort, return.

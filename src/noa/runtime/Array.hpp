@@ -1058,12 +1058,12 @@ namespace noa::inline types {
         /// Returns a row vector by default (axis = N - 1).
         template<nt::integer I = usize>
         [[nodiscard]] constexpr auto flat(I axis = static_cast<I>(N - 1)) const & -> Array {
-            bounds_check<true>(N, axis);
+            noa::bounds_check_always(N, axis);
             return this->reshape(shape().flat(axis));
         }
         template<nt::integer I = usize>
         [[nodiscard]] constexpr auto flat(I axis = static_cast<I>(N - 1)) && -> Array {
-            bounds_check<true>(N, axis);
+            noa::bounds_check_always(N, axis);
             return std::move(*this).reshape(shape().flat(axis));
         }
 

@@ -1184,12 +1184,28 @@ namespace noa {
         for (usize i{}; i < N1; ++i)
             bounds_check<ENFORCE>(shape[i], indices[i]);
     }
+    template<nt::integer T, nt::integer U, usize N0, usize N1, usize A0, usize A1> requires (N1 <= N0)
+    NOA_FHD constexpr void bounds_check_always(const Shape<T, N0, A0>& shape, const Vec<U, N1, A1>& indices) {
+        bounds_check<true>(shape, indices);
+    }
+    template<nt::integer T, nt::integer U, usize N0, usize N1, usize A0, usize A1> requires (N1 <= N0)
+    NOA_FHD constexpr void bounds_check_debug(const Shape<T, N0, A0>& shape, const Vec<U, N1, A1>& indices) {
+        bounds_check<false>(shape, indices);
+    }
 
     template<bool ENFORCE = false, nt::integer T, nt::integer... U, usize N, usize A> requires (sizeof...(U) <= N)
     NOA_FHD constexpr void bounds_check(const Shape<T, N, A>& shape, U... indices) {
         [&shape]<usize... I>(std::index_sequence<I...>, auto... indices_) {
             (bounds_check<ENFORCE>(shape[I], indices_), ...);
         }(std::make_index_sequence<sizeof...(U)>{}, indices...); // nvcc bug
+    }
+    template<nt::integer T, nt::integer... U, usize N, usize A> requires (sizeof...(U) <= N)
+    NOA_FHD constexpr void bounds_check_always(const Shape<T, N, A>& shape, U... indices) {
+        bounds_check<true>(shape, indices...);
+    }
+    template<nt::integer T, nt::integer... U, usize N, usize A> requires (sizeof...(U) <= N)
+    NOA_FHD constexpr void bounds_check_debug(const Shape<T, N, A>& shape, U... indices) {
+        bounds_check<false>(shape, indices...);
     }
 
     /// Whether the indices are in-bound, i.e., 0 <= indices < shape.

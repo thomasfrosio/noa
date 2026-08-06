@@ -400,13 +400,13 @@ namespace noa::inline types {
     public: // Accessor operators and functions
         template<nt::integer I> requires (SIZE > 0)
         [[nodiscard]] NOA_FHD constexpr auto operator[](I i) noexcept -> value_type& {
-            noa::bounds_check(SSIZE, i);
+            noa::bounds_check_debug(SSIZE, i);
             return storage_type::ref(array, i);
         }
 
         template<nt::integer I> requires (SIZE > 0)
         [[nodiscard]] NOA_FHD constexpr auto operator[](I i) const noexcept -> const value_type& {
-            noa::bounds_check(SSIZE, i);
+            noa::bounds_check_debug(SSIZE, i);
             return storage_type::ref(array, i);
         }
 

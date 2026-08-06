@@ -214,7 +214,7 @@ namespace noa::inline types {
             nt::integer auto index
         ) const noexcept requires (N > 1) {
             NOA_ASSERT(not is_empty());
-            noa::bounds_check(shape(), index);
+            noa::bounds_check_debug(shape(), index);
             using output_t = Span<value_type, N - 1, index_type, STRIDES_TRAIT, POINTER_TRAIT>;
             return output_t(get() + noa::offset_at(stride<0>(), index), shape().pop_front(), strides().pop_front());
         }
@@ -225,7 +225,7 @@ namespace noa::inline types {
                 return *this;
             } else {
                 NOA_ASSERT(not is_empty());
-                noa::bounds_check(shape(), index);
+                noa::bounds_check_debug(shape(), index);
                 using output_t = Span<value_type, N - N1, index_type, STRIDES_TRAIT, POINTER_TRAIT>;
                 return output_t(get() + noa::offset_at(strides(), index), shape().template pop_front<N1>(), strides().template pop_front<N1>());
             }
@@ -373,7 +373,7 @@ namespace noa::inline types {
         /// Returns a row vector by default (axis = N-1).
         template<nt::integer U = usize>
         [[nodiscard]] auto flat(U axis = static_cast<U>(N - 1)) const -> Span {
-            bounds_check<true>(N, axis);
+            bounds_check_always(N, axis);
             return reshape(shape().flat(axis));
         }
 

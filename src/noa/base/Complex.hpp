@@ -38,7 +38,7 @@ namespace noa::inline types {
 
         template<std::integral I>
         NOA_HD constexpr auto operator[](I i) noexcept -> value_type& {
-            noa::bounds_check(SSIZE, i);
+            noa::bounds_check_debug(SSIZE, i);
             if (i == I{1})
                 return this->imag;
             else
@@ -47,7 +47,7 @@ namespace noa::inline types {
 
         template<std::integral I>
         NOA_HD constexpr auto operator[](I i) const noexcept -> const value_type& {
-            noa::bounds_check(SSIZE, i);
+            noa::bounds_check_debug(SSIZE, i);
             if (i == I{1})
                 return this->imag;
             else

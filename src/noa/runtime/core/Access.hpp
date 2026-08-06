@@ -118,7 +118,7 @@ namespace noa {
             NOA_ASSERT(not indexable.is_empty());
         }
         if constexpr (requires { indexable.shape(); })
-            bounds_check(indexable.shape(), indices...);
+            noa::bounds_check_debug(indexable.shape(), indices...);
 
         return *noa::offset_pointer(indexable, indexable.get(), indices...);
     }
@@ -129,7 +129,7 @@ namespace noa {
         if constexpr (requires { indexable.is_empty(); })
             check(not indexable.is_empty());
         if constexpr (requires { indexable.shape(); })
-            bounds_check<true>(indexable.shape(), indices...);
+            noa::bounds_check_always(indexable.shape(), indices...);
 
         return *noa::offset_pointer(indexable, indexable.get(), indices...);
     }
