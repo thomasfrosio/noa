@@ -242,6 +242,11 @@ namespace noa::inline types {
             return Shape<value_type, P, A1>{vec.template extend_front<P, A1>(value)};
         }
 
+        template<usize P, usize A1 = 0>
+        [[nodiscard]] NOA_HD constexpr auto extend_back(value_type value) const noexcept {
+            return Shape<value_type, P, A1>{vec.template extend_back<P, A1>(value)};
+        }
+
         template<usize A1 = 0, nt::integer... I>
         [[nodiscard]] NOA_HD constexpr auto filter(I... a) const noexcept {
             return Shape<value_type, sizeof...(I), A1>{vec.template filter<A1>(a...)};
@@ -251,9 +256,19 @@ namespace noa::inline types {
             return Shape<value_type, N1, A1>{vec.template filter<A1>(a)};
         }
 
-        template<usize A1 = 0>
-        [[nodiscard]] NOA_FHD constexpr auto exclude_axis(usize index) const noexcept {
-            return Shape<value_type, N - 1, A1>{vec.template exclude_axis<A1>(index)};
+        template<usize A1 = 0, nt::integer I> requires (N >= 1)
+        [[nodiscard]] NOA_FHD constexpr auto exclude(I index) const noexcept {
+            return Shape<value_type, N - 1, A1>{vec.template exclude<A1>(index)};
+        }
+
+        template<usize I, usize A1 = 0> requires (I <= N)
+        [[nodiscard]] NOA_FHD constexpr auto insert(value_type value) const noexcept {
+            return Shape<value_type, N + 1, A1>{vec.template insert<I, A1>(value)};
+        }
+
+        template<usize I, usize A1 = 0, usize P, usize A2> requires (I <= N)
+        [[nodiscard]] NOA_FHD constexpr auto insert(const Vec<value_type, P, A2>& values) const noexcept {
+            return Shape<value_type, N + P, A1>{vec.template insert<I, A1>(values)};
         }
 
         template<usize A1 = 0, nt::integer... I> requires (sizeof...(I) == N)
@@ -704,6 +719,11 @@ namespace noa::inline types {
             return Strides<value_type, P, A1>{vec.template extend_front<P, A1>(value)};
         }
 
+        template<usize P, usize A1 = 0>
+        [[nodiscard]] NOA_HD constexpr auto extend_back(value_type value) const noexcept {
+            return Strides<value_type, P, A1>{vec.template extend_back<P, A1>(value)};
+        }
+
         template<usize A1 = 0, nt::integer... I>
         [[nodiscard]] NOA_HD constexpr auto filter(I... a) const noexcept {
             return Strides<value_type, sizeof...(I), A1>{vec.template filter<A1>(a...)};
@@ -713,9 +733,19 @@ namespace noa::inline types {
             return Strides<value_type, N1, A1>{vec.template filter<A1>(a)};
         }
 
-        template<usize A1 = 0>
-        [[nodiscard]] NOA_FHD constexpr auto exclude_axis(usize index) const noexcept {
-            return Strides<value_type, N - 1, A1>{vec.template exclude_axis<A1>(index)};
+        template<usize A1 = 0, nt::integer I> requires (N >= 1)
+        [[nodiscard]] NOA_FHD constexpr auto exclude(I index) const noexcept {
+            return Strides<value_type, N - 1, A1>{vec.template exclude<A1>(index)};
+        }
+
+        template<usize I, usize A1 = 0> requires (I <= N)
+        [[nodiscard]] NOA_FHD constexpr auto insert(value_type value) const noexcept {
+            return Strides<value_type, N + 1, A1>{vec.template insert<I, A1>(value)};
+        }
+
+        template<usize I, usize A1 = 0, usize P, usize A2> requires (I <= N)
+        [[nodiscard]] NOA_FHD constexpr auto insert(const Vec<value_type, P, A2>& values) const noexcept {
+            return Strides<value_type, N + P, A1>{vec.template insert<I, A1>(values)};
         }
 
         template<usize A1 = 0, nt::integer... I> requires (sizeof...(I) == N)

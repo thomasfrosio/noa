@@ -317,7 +317,7 @@ namespace noa::fft {
                 auto correct_redundant_plane = [&]<bool IS_NEW_RIGHTMOST_FULL_LENGTH>(const auto& plane, usize axis_to_exclude) {
                     // Remove the axis to exclude.
                     // For R=2, the are dealing with lines (1D), and for R=3 with planes (2D).
-                    auto rank_axes = Vec<i32, R>::arange().exclude_axis(axis_to_exclude);
+                    auto rank_axes = Vec<i32, R>::arange().exclude(axis_to_exclude);
 
                     // Add the batches.
                     const auto batch_axes = Vec<i32, B>::arange();

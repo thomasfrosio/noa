@@ -616,9 +616,15 @@ namespace noa::inline types {
         }
 
         template<usize N1, usize A1 = 0>
-        [[nodiscard]] NOA_HD constexpr auto extend_front(value_type value) const noexcept {
+        [[nodiscard]] NOA_HD constexpr auto extend_front(const value_type& value) const noexcept {
             constexpr usize MAX = std::max(N, N1);
             return push_front<MAX - N, A1>(value);
+        }
+
+        template<usize N1, usize A1 = 0>
+        [[nodiscard]] NOA_HD constexpr auto extend_back(const value_type& value) const noexcept {
+            constexpr usize MAX = std::max(N, N1);
+            return push_back<MAX - N, A1>(value);
         }
 
         template<nt::integer I, nt::integer J>
@@ -640,17 +646,52 @@ namespace noa::inline types {
             }(std::make_index_sequence<N1>{});
         }
 
-        template<usize A1 = 0>
-        [[nodiscard]] NOA_FHD constexpr auto exclude_axis(usize index) const noexcept {
+        template<usize A1 = 0, nt::integer I> requires (N >= 1)
+        [[nodiscard]] NOA_FHD constexpr auto exclude(I index) const noexcept {
             NOA_ASSERT(index < N);
             Vec<value_type, N - 1, A1> output;
-            usize c{};
-            for (usize i{}; i < N; ++i) {
-                if (i == index)
-                    continue;
-                output[c++] = (*this)[i];
+            if constexpr (N > 1) {
+                for (usize i{}; i < static_cast<usize>(index); ++i)
+                    output[i] = (*this)[i];
+                for (auto i = static_cast<usize>(index); i < N - 1; ++i)
+                    output[i] = (*this)[i + 1];
             }
             return output;
+        }
+
+        template<usize I, usize A1 = 0> requires (I <= N)
+        [[nodiscard]] NOA_FHD constexpr auto insert(value_type value) const noexcept {
+            if constexpr (I == 0) {
+                return push_front<1, A1>(value);
+            } else if constexpr (I == N) {
+                return push_back<1, A1>(value);
+            } else {
+                Vec<value_type, N + 1, A1> output;
+                for (usize i{}; i < I; ++i)
+                    output[i] = (*this)[i];
+                output[I] = value;
+                for (usize i{I + 1}; i < N + 1; ++i)
+                    output[i] = (*this)[i - 1];
+                return output;
+            }
+        }
+
+        template<usize I, usize A1 = 0, usize P, usize A2> requires (I <= N)
+        [[nodiscard]] NOA_FHD constexpr auto insert(const Vec<value_type, P, A2>& values) const noexcept {
+            if constexpr (I == 0) {
+                return push_front<A1>(values);
+            } else if constexpr (I == N) {
+                return push_back<A1>(values);
+            } else {
+                Vec<value_type, N + P, A1> output;
+                for (usize i{}; i < I; ++i)
+                    output[i] = (*this)[i];
+                for (usize i{}; i < P; ++i)
+                    output[i + I] = values[i];
+                for (usize i{I + P}; i < N + P; ++i)
+                    output[i] = (*this)[i - P];
+                return output;
+            }
         }
 
         template<usize A1 = 0, nt::integer... I> requires (sizeof...(I) == N)
