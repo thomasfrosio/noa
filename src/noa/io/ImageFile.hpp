@@ -7,6 +7,8 @@
 #include "noa/io/Encoding.hpp"
 #include "noa/io/OS.hpp"
 
+#include <mutex>
+
 namespace noa::io {
     struct ImageFileStats {
         f64 min{std::numeric_limits<f64>::max()};
@@ -102,15 +104,15 @@ namespace noa::traits {
         { T::closest_supported_dtype(dtype) } noexcept -> std::same_as<io::DataType>;
 
         /// Reads and extracts the image file header from the opened stream.
-        { t.read_header(file) } -> std::same_as<
-            Tuple<Shape4, Vec<f64, 3>, io::DataType, io::Compression, io::ImageFileStats>>;
+        { t.read_header(file) } ->
+            std::same_as<Tuple<Shape4, Vec<f64, 3>, io::DataType, io::Compression, io::ImageFileStats>>;
 
         /// Sets the metadata of the new file.
         /// The file doesn't have to be created at this point, this is just to initialize the encoder with user data.
         /// Encoders are allowed to change the data-type and compression if the provided ones are not supported,
         /// so the actual data-type and compression scheme is returned.
-        { t.write_header(file, shape, spacing, dtype, compression, stats) } -> std::same_as<
-            Tuple<io::DataType, io::Compression>>;
+        { t.write_header(file, shape, spacing, dtype, compression, stats) } ->
+            std::same_as<Tuple<io::DataType, io::Compression>>;
 
         /// Closes the encoder. After that point, encoders may be reset by calling {read|write}_header again.
         /// Some encoders may do nothing here, some may need to clear some private data, some may need to write
