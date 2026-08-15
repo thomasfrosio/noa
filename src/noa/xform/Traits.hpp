@@ -13,13 +13,22 @@ namespace noa::traits {
         template<typename> struct texture_ssize { static constexpr isize value = 0; };
         template<texture T> struct texture_size<T> { static constexpr usize value = T::SIZE; };
         template<texture T> struct texture_ssize<T> { static constexpr isize value = T::SSIZE; };
+
+        template<typename> struct texture_rank { static constexpr usize value = 0; };
+        template<texture T> struct texture_rank<T> { static constexpr usize value = T::RANK; };
     }
     template<typename T> constexpr usize texture_size_v = details::texture_size<std::decay_t<T>>::value;
     template<typename T> constexpr usize texture_ssize_v = details::texture_ssize<std::decay_t<T>>::value;
+    template<typename T> constexpr usize texture_rank_v = details::texture_rank<std::decay_t<T>>::value;
 
     template<typename T> using is_texture_decay = is_texture<std::decay_t<T>>;
     NOA_GENERATE_PROCLAIM_UTILS(texture_decay);
     template<typename... T> concept texture_decay = are_texture_decay_v<T...>;
+
+    template<typename T, usize... N> concept texture_nd = texture<T> and ((std::remove_reference_t<T>::SIZE == N) or ...);
+    template<typename T, usize... R> concept texture_rd = texture<T> and ((std::remove_reference_t<T>::RANK == R) or ...);
+    template<typename T, usize... N> concept texture_decay_nd = texture_decay<T> and ((std::remove_reference_t<T>::SIZE == N) or ...);
+    template<typename T, usize... R> concept texture_decay_rd = texture_decay<T> and ((std::remove_reference_t<T>::RANK == R) or ...);
 
     #define NOA_TRAITS_GENERATE_TEXTURE(name)                                                           \
     template<typename... T> concept texture_of_##name = texture<T...> and name<value_type_t<T>...>;     \
@@ -44,6 +53,9 @@ namespace noa::traits {
     template<typename... T>
     concept array_or_texture_decay = ((array_decay<T> or texture_decay<T>) and ...);
 
+    template<typename T, usize R>
+    concept readable_array_or_texture_rd_decay = (readable_array_decay<T> or texture_decay_rd<T, R>) and nt::array_size_v<T> >= R;
+
     template<typename T, typename... U>
     concept array_or_texture_with_spectrum_types =
         (array<T, U...> or (texture<T> and array<U...>)) and
@@ -61,16 +73,4 @@ namespace noa::traits {
     NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE(complex);
     NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE(real_or_complex);
     #undef NOA_TRAITS_GENERATE_VARRAY_OR_TEXTURE
-
-    template<typename T, usize N, typename U = std::remove_reference_t<T>, typename V = value_type_t<T>>
-    concept transform_affine_nd =
-        mat_of_shape<U, N, N + 1> or
-        mat_of_shape<U, N + 1, N + 1> or
-        (nt::array<U> and (mat_of_shape<V, N, N + 1> or mat_of_shape<V, N + 1, N + 1>));
-
-    template<typename T, usize N, typename U = std::remove_reference_t<T>, typename V = value_type_t<T>>
-    concept transform_projection_nd =
-        mat_of_shape<U, N - 1, N + 1> or
-        mat_of_shape<U, N + 1, N + 1> or
-        (nt::array<U> and (mat_of_shape<V, N - 1, N + 1> or mat_of_shape<V, N + 1, N + 1>));
 }

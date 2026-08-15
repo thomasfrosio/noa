@@ -17,8 +17,10 @@
 namespace noa::xform::details {
     template<usize N, ArrayOwnership O>
     struct TextureGPUResource {
+        // The const-ness of the underlying array and texture of this type cannot easily be enforced here as it
+        // contains two pointers/handles that are itself not meant to be const.
         using object_type = noa::xform::cuda::AllocatorTexture::allocate_type::element_type;
-        using share_type = std::conditional_t<O == ArrayOwnership::RC, std::shared_ptr<object_type>, const object_type*>;
+        using share_type = std::conditional_t<O == ArrayOwnership::RC, std::shared_ptr<object_type>, object_type*>;
 
         Shape<isize, N> m_shape{};
         Strides<isize, N> m_strides{};
@@ -42,6 +44,12 @@ namespace noa::xform::details {
         constexpr auto options() const noexcept { return m_options; }
         auto share() const& noexcept -> const share_type& { return m_share; }
         auto share() && noexcept -> share_type&& { return std::move(m_share); }
+        auto data() const noexcept -> const object_type* {
+            if constexpr (O == ArrayOwnership::RC)
+                return m_share.get();
+            else
+                return m_share;
+        }
         auto view() const noexcept -> TextureGPUResource<N, ArrayOwnership::VIEW> {
             if constexpr (O == ArrayOwnership::RC) {
                 return {m_shape, m_options, m_share.get()};
@@ -53,8 +61,10 @@ namespace noa::xform::details {
 }
 #else
 namespace noa::xform::details {
-    template<usize N, ArrayOwnership>
+    template<usize N, ArrayOwnership O>
     struct TextureGPUResource {
+        using object_type = void;
+        using share_type = std::conditional_t<O == ArrayOwnership::RC, std::shared_ptr<object_type>, object_type*>;
         static auto from_rc(const TextureGPUResource<N, ArrayOwnership::RC>&) noexcept -> TextureGPUResource<N, ArrayOwnership::VIEW> { return {}; }
 
         template<char>
@@ -64,7 +74,8 @@ namespace noa::xform::details {
         constexpr auto strides() const noexcept { return Strides<isize, N>{}; }
         constexpr auto options() const noexcept { return ArrayOption{}; }
         auto view() const noexcept -> TextureGPUResource<N, ArrayOwnership::VIEW> { return {}; }
-        auto share() const noexcept -> std::shared_ptr<void> { return nullptr; }
+        auto share() const noexcept -> share_type { return nullptr; }
+        auto data() const noexcept -> const object_type* { return nullptr; }
     };
 }
 #endif
@@ -108,12 +119,13 @@ namespace noa::xform {
     ///     the interpolation. For spectrum interpolation, hardware interpolation and addressing are only supported
     ///     if the input spectrum is centered (see fftshift). Otherwise, the InterpolatorSpectrum falls back on
     ///     software interpolation and addressing. See Interpolator and InterpolatorSpectrum for more details.
-    template<usize RANK, typename T, usize N, ArrayOwnership O = ArrayOwnership::RC>
+    template<usize R, typename T, usize N, ArrayOwnership O = ArrayOwnership::RC>
     class Texture {
     public:
         static_assert(nt::almost_any_of<T, f32, f64, c32, c64>);
-        static_assert(RANK == 2 or RANK == 3);
-        static_assert(RANK <= N);
+        static_assert(R == 2 or R == 3);
+        static_assert(R <= N);
+        static constexpr usize RANK = R;
         static constexpr usize SIZE = N;
         static constexpr isize SSIZE = N;
         static constexpr bool IS_VIEW = O == ArrayOwnership::VIEW;
@@ -127,6 +139,8 @@ namespace noa::xform {
         using cpu_texture_type = Array<value_type, N, O>;
         using gpu_texture_type = details::TextureGPUResource<N, O>;
         using variant_type = std::variant<cpu_texture_type, gpu_texture_type>;
+        using void_type = std::conditional_t<IS_CONST, const void, void>;
+        using shared_type = std::conditional_t<IS_VIEW, void_type*, std::shared_ptr<void_type>>;
 
     public:
         /// Creates an empty texture.
@@ -431,12 +445,12 @@ namespace noa::xform {
 
         /// Returns a reference of the managed resource.
         [[nodiscard]] auto share() const& noexcept {
-            return std::visit([](const auto& v) -> std::shared_ptr<void> {
+            return std::visit([](const auto& v) -> shared_type {
                 return v.share();
             }, m_variant);
         }
         [[nodiscard]] auto share() && noexcept {
-            return std::visit([](auto&& v) -> std::shared_ptr<void> {
+            return std::visit([](auto&& v) -> shared_type {
                 return std::move(v).share();
             }, std::move(m_variant));
         }
