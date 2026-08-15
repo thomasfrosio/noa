@@ -5,7 +5,7 @@ if (TARGET benchmark::benchmark)
     message(STATUS "Target already exists: benchmark::benchmark")
 else ()
     set(google-benchmark_REPOSITORY https://github.com/google/benchmark.git)
-    set(google-benchmark_TAG 713b9177183375c8b1b25595e33daf2a1625df5b)
+    set(google-benchmark_TAG v1.9.5)
 
     message(STATUS "Repository: ${google-benchmark_REPOSITORY}")
     message(STATUS "Git tag: ${google-benchmark_TAG}")

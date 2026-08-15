@@ -25,4 +25,5 @@ macro(noa_set_options)
 
     # Additional targets:
     option(NOA_BUILD_TESTS "Build tests" ON)
+    option(NOA_BUILD_BENCHS "Build benchs" ON)
 endmacro()
