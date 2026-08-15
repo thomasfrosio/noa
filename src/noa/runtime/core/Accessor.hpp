@@ -55,7 +55,7 @@ namespace noa {
         using const_pointer_type = const_value_type*;
         using index_type = I;
         using shape_type = Shape<index_type, N>;
-        using strides_type = Strides<index_type, N - IS_CONTIGUOUS>;
+        using strides_type = Strides<index_type, (N == 0 ? 0 : N - IS_CONTIGUOUS)>;
         using reference_type = value_type&;
         using const_reference_type = const mutable_value_type&;
         using accessor_reference_type = AccessorReference<value_type, SIZE, index_type, STRIDES_TRAIT, POINTER_TRAIT>;
@@ -81,7 +81,7 @@ namespace noa {
             m_strides{strides_type::from_pointer(accessor_reference.strides())} {}
 
         /// Creates a contiguous 1d accessor, assuming the stride is 1.
-        NOA_HD constexpr explicit Accessor(pointer_type pointer) noexcept requires (SIZE == 1 and IS_CONTIGUOUS) :
+        NOA_HD constexpr explicit Accessor(pointer_type pointer) noexcept requires (SIZE <= 1 and IS_CONTIGUOUS) :
             m_ptr{pointer} {}
 
         /// Implicitly creates a const accessor from an existing non-const accessor.
@@ -98,7 +98,7 @@ namespace noa {
                 return m_strides[INDEX];
         }
 
-        [[nodiscard]] NOA_HD constexpr auto stride(nt::integer auto index) const noexcept -> index_type {
+        [[nodiscard]] NOA_HD constexpr auto stride(nt::integer auto index) const noexcept -> index_type requires (N > 0) {
             NOA_ASSERT(not is_empty() and static_cast<isize>(index) < SSIZE);
             if (IS_CONTIGUOUS and index == SIZE - 1)
                 return index_type{1};
@@ -133,7 +133,7 @@ namespace noa {
             return output_t(get() + noa::offset_at(stride<0>(), index), strides().data() + 1);
         }
 
-        template<nt::integer I1, usize N1, usize A1> requires (N > N1)
+        template<nt::integer I1, usize N1, usize A1> requires (N > N1 or N1 == 0)
         [[nodiscard]] NOA_HD constexpr auto operator[](const Vec<I1, N1, A1>& index) const noexcept {
             using output_t = AccessorReference<value_type, N - N1, index_type, STRIDES_TRAIT, POINTER_TRAIT>;
             if constexpr (N1 == 0) {
@@ -224,7 +224,7 @@ namespace noa {
                 return m_strides[INDEX];
         }
 
-        [[nodiscard]] NOA_HD constexpr auto stride(nt::integer auto index) const noexcept -> index_type {
+        [[nodiscard]] NOA_HD constexpr auto stride(nt::integer auto index) const noexcept -> index_type requires (N > 0) {
             NOA_ASSERT(not is_empty() and static_cast<isize>(index) < SSIZE);
             if (IS_CONTIGUOUS and index == SIZE - 1)
                 return index_type{1};
