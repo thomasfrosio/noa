@@ -40,7 +40,7 @@ namespace noa::signal::cpu::details {
                         if (il >= 0 and il < m_shape[0])
                             conv += static_cast<filter_value_type>(input_r(il)) * m_filter[wl];
                     } else {
-                        const auto idx = index_at<BORDER>(il, m_shape[0]);
+                        const auto idx = index_at<BORDER>(m_shape[0], il);
                         conv += static_cast<filter_value_type>(input_r(idx)) * m_filter[wl];
                     }
                 }
@@ -59,10 +59,10 @@ namespace noa::signal::cpu::details {
                     }
                 } else {
                     for (isize wk{}; wk < m_filter_shape[0]; ++wk) {
-                        const isize ik = index_at<BORDER>(indices[0] - m_halo[0] + wk, m_shape[0]);
+                        const isize ik = index_at<BORDER>(m_shape[0], indices[0] - m_halo[0] + wk);
                         const isize tmp = wk * m_filter_shape[1];
                         for (isize wl{}; wl < m_filter_shape[1]; ++wl) {
-                            const isize il = index_at<BORDER>(indices[1] - m_halo[1] + wl, m_shape[1]);
+                            const isize il = index_at<BORDER>(m_shape[1], indices[1] - m_halo[1] + wl);
                             conv += static_cast<filter_value_type>(input_r(ik, il)) * m_filter[tmp + wl];
                         }
                     }
@@ -88,13 +88,13 @@ namespace noa::signal::cpu::details {
                     }
                 } else {
                     for (isize wj{}; wj < m_filter_shape[0]; ++wj) {
-                        const isize ij = index_at<BORDER>(indices[0] - m_halo[0] + wj, m_shape[0]);
+                        const isize ij = index_at<BORDER>(m_shape[0], indices[0] - m_halo[0] + wj);
                         const isize tmp_z = wj * m_filter_shape[1] * m_filter_shape[2];
                         for (isize wk{}; wk < m_filter_shape[1]; ++wk) {
-                            const isize ik = index_at<BORDER>(indices[1] - m_halo[1] + wk, m_shape[1]);
+                            const isize ik = index_at<BORDER>(m_shape[1], indices[1] - m_halo[1] + wk);
                             const isize tmp = tmp_z + wk * m_filter_shape[2];
                             for (isize wl{}; wl < m_filter_shape[2]; ++wl) {
-                                const isize il = index_at<BORDER>(indices[2] - m_halo[2] + wl, m_shape[2]);
+                                const isize il = index_at<BORDER>(m_shape[2], indices[2] - m_halo[2] + wl);
                                 conv += static_cast<filter_value_type>(input_r(ij, ik, il)) * m_filter[tmp + wl];
                             }
                         }
@@ -144,7 +144,7 @@ namespace noa::signal::cpu::details {
                     if (input_indices[I] >= 0 and input_indices[I] < m_dim_size)
                         conv += static_cast<filter_value_type>(m_input(input_indices)) * m_filter[i];
                 } else {
-                    input_indices[I] = index_at<BORDER>(input_indices[I], m_dim_size);
+                    input_indices[I] = index_at<BORDER>(m_dim_size, input_indices[I]);
                     conv += static_cast<filter_value_type>(m_input(input_indices)) * m_filter[i];
                 }
             }

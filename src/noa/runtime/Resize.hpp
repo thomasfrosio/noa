@@ -71,7 +71,7 @@ namespace noa::details {
                         cast_or_abs_squared<output_value_type>(m_input(input_indices)) : output_value_type{};
                 }
             } else { // CLAMP or PERIODIC or MIRROR or REFLECT
-                const indices_type indices_bounded = index_at<MODE>(input_indices, m_input_shape);
+                const indices_type indices_bounded = index_at<MODE>(m_input_shape, input_indices);
                 m_output(output_indices) = cast_or_abs_squared<output_value_type>(m_input(indices_bounded));
             }
         }

@@ -171,7 +171,7 @@ namespace noa {
     /// If \p idx is out-of-bound, computes a valid index, i.e. [0, size-1], according to \p MODE.
     /// Otherwise, returns \p idx. \p size should be > 0.
     template<Border MODE, nt::sinteger T>
-    [[nodiscard]] NOA_HD constexpr auto index_at(T idx, T size) noexcept -> T {
+    [[nodiscard]] NOA_HD constexpr auto index_at(T size, T idx) noexcept -> T {
         static_assert(MODE == Border::CLAMP or MODE == Border::PERIODIC or
                       MODE == Border::MIRROR or MODE == Border::REFLECT);
         NOA_ASSERT(size > 0);
@@ -213,12 +213,24 @@ namespace noa {
 
     template<Border MODE, nt::sinteger T, usize N, usize A0, usize A1>
     [[nodiscard]] NOA_HD constexpr auto index_at(
-        const Vec<T, N, A0>& indices,
-        const Shape<T, N, A1>& shape
+        const Shape<T, N, A0>& shape,
+        const Vec<T, N, A1>& indices
+    ) noexcept {
+        Vec<T, N, A1> out;
+        for (usize i{}; i < N; ++i)
+            out[i] = index_at<MODE>(shape[i], indices[i]);
+        return out;
+    }
+
+    template<Border MODE, nt::sinteger T, usize N, usize A0, nt::same_as<T>... U>
+    [[nodiscard]] NOA_HD constexpr auto index_at(
+        const Shape<T, N, A0>& shape,
+        U... indices
     ) noexcept {
         Vec<T, N, A0> out;
-        for (usize i{}; i < N; ++i)
-            out[i] = index_at<MODE>(indices[i], shape[i]);
+        [&]<usize... I>(std::index_sequence<I...>) {
+            ((out[I] = index_at<MODE>(shape[I], indices)), ...);
+        }(std::make_index_sequence<N>{});
         return out;
     }
 

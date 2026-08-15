@@ -63,7 +63,7 @@ namespace noa::details {
                         cast_or_abs_squared<subregions_value_type>(m_input(input_indices)) :
                         m_cvalue;
             } else {
-                const auto bounded_indices = index_at<MODE>(input_indices, m_input_shape);
+                const auto bounded_indices = index_at<MODE>(m_input_shape, input_indices);
                 m_subregions(b, output_indices...) =
                     cast_or_abs_squared<subregions_value_type>(m_input(bounded_indices));
             }

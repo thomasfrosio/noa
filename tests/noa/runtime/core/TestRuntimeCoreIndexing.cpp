@@ -17,7 +17,7 @@ TEST_CASE("runtime::core::index_at()") {
         int len = 5;
         std::vector<int> data(55);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = noa::index_at<Border::PERIODIC>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = noa::index_at<Border::PERIODIC>(len, static_cast<int>(idx) - starts_at);
 
         REQUIRE(test::allclose_abs(expected_odd, data.data(), static_cast<i64>(data.size())));
 
@@ -28,7 +28,7 @@ TEST_CASE("runtime::core::index_at()") {
         len = 4;
         data = std::vector<int>(32);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = noa::index_at<Border::PERIODIC>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = noa::index_at<Border::PERIODIC>(len, static_cast<int>(idx) - starts_at);
 
         REQUIRE(test::allclose_abs(expected_even, data.data(), static_cast<i64>(data.size())));
     }
@@ -41,7 +41,7 @@ TEST_CASE("runtime::core::index_at()") {
         int len = 5;
         std::vector<int> data(35);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = noa::index_at<Border::CLAMP>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = noa::index_at<Border::CLAMP>(len, static_cast<int>(idx) - starts_at);
 
         REQUIRE(test::allclose_abs(expected_odd, data.data(), static_cast<i64>(data.size())));
 
@@ -52,7 +52,7 @@ TEST_CASE("runtime::core::index_at()") {
         len = 4;
         data = std::vector<int>(34);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = noa::index_at<Border::CLAMP>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = noa::index_at<Border::CLAMP>(len, static_cast<int>(idx) - starts_at);
 
         REQUIRE(test::allclose_abs(expected_even, data.data(), static_cast<i64>(data.size())));
     }
@@ -65,7 +65,7 @@ TEST_CASE("runtime::core::index_at()") {
         int len = 5;
         std::vector<int> data(45);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = noa::index_at<Border::MIRROR>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = noa::index_at<Border::MIRROR>(len, static_cast<int>(idx) - starts_at);
 
         REQUIRE(test::allclose_abs(expected_odd, data.data(), static_cast<i64>(data.size())));
 
@@ -76,7 +76,7 @@ TEST_CASE("runtime::core::index_at()") {
         len = 4;
         data = std::vector<int>(52);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = noa::index_at<Border::MIRROR>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = noa::index_at<Border::MIRROR>(len, static_cast<int>(idx) - starts_at);
 
         REQUIRE(test::allclose_abs(expected_even, data.data(), static_cast<i64>(data.size())));
     }
@@ -89,7 +89,7 @@ TEST_CASE("runtime::core::index_at()") {
         int len = 5;
         std::vector<int> data(53);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = noa::index_at<Border::REFLECT>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = noa::index_at<Border::REFLECT>(len, static_cast<int>(idx) - starts_at);
 
         REQUIRE(test::allclose_abs(expected_odd, data.data(), static_cast<i64>(data.size())));
 
@@ -100,7 +100,7 @@ TEST_CASE("runtime::core::index_at()") {
         len = 4;
         data = std::vector<int>(40);
         for (size_t idx = 0; idx < data.size(); ++idx)
-            data[idx] = noa::index_at<Border::REFLECT>(static_cast<int>(idx) - starts_at, len);
+            data[idx] = noa::index_at<Border::REFLECT>(len, static_cast<int>(idx) - starts_at);
 
         REQUIRE(test::allclose_abs(expected_even, data.data(), static_cast<i64>(data.size())));
     }
