@@ -2,9 +2,8 @@
 
 #include "noa/base/Vec.hpp"
 #include "noa/base/Math.hpp"
-#include "noa/runtime/core/Iwise.hpp"
 
-#include "noa/signal/Traits.hpp"
+#include "noa/signal/core/Traits.hpp"
 #include "noa/fft/core/Frequency.hpp"
 #include "noa/xform/core/Polar.hpp"
 

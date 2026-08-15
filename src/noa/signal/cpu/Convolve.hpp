@@ -209,55 +209,65 @@ namespace noa::signal::cpu {
     ) {
         const auto n_dimensions_to_convolve = sum(filter_shape.cmp_gt(1));
         if (n_dimensions_to_convolve == 1) {
-            if (filter_shape[0] > 1) {
-                details::launch_convolve_separable<0, BORDER>(
-                    input, input_strides, output, output_strides, shape,
-                    filter, filter_shape[0], n_threads);
-            } else if (filter_shape[1] > 1) {
-                details::launch_convolve_separable<1, BORDER>(
-                    input, input_strides, output, output_strides, shape,
-                    filter, filter_shape[1], n_threads);
-            } else {
-                details::launch_convolve_separable<2, BORDER>(
-                    input, input_strides, output, output_strides, shape,
-                    filter, filter_shape[2], n_threads);
+            if constexpr (R == 3) {
+                if (filter_shape[0] > 1) {
+                    details::launch_convolve_separable<N - 3, BORDER>(
+                        input, input_strides, output, output_strides, shape,
+                        filter, filter_shape[0], n_threads);
+                    return;
+                }
             }
+            if constexpr (R >= 2) {
+                if (filter_shape[R - 2] > 1) {
+                    details::launch_convolve_separable<N - 2, BORDER>(
+                        input, input_strides, output, output_strides, shape,
+                        filter, filter_shape[R - 2], n_threads);
+                    return;
+                }
+            }
+            details::launch_convolve_separable<N - 1, BORDER>(
+                input, input_strides, output, output_strides, shape,
+                filter, filter_shape[R - 1], n_threads);
             return;
         }
 
         const auto rank = filter_shape.rank();
-        if (rank == 2) {
-            using input_accessor_t = AccessorRestrict<const T, N, isize>;
-            using output_accessor_t = AccessorRestrict<U, N, isize>;
-            const auto input_accessor = input_accessor_t(input, input_strides);
-            const auto output_accessor = output_accessor_t(output, output_strides);
+        if constexpr (R >= 2) {
+            if (rank == 2) {
+                using input_accessor_t = AccessorRestrict<const T, N, isize>;
+                using output_accessor_t = AccessorRestrict<U, N, isize>;
+                const auto input_accessor = input_accessor_t(input, input_strides);
+                const auto output_accessor = output_accessor_t(output, output_strides);
 
-            const auto filter_shape_2d = filter_shape.pop_front();
-            const auto [filter_accessor, filter_buffer] = details::get_filter(filter, filter_shape_2d);
-            using filter_accessor_t = std::decay_t<decltype(filter_accessor)>;
+                const auto filter_shape_2d = filter_shape.pop_front();
+                const auto [filter_accessor, filter_buffer] = details::get_filter(filter, filter_shape_2d);
+                using filter_accessor_t = std::decay_t<decltype(filter_accessor)>;
 
-            constexpr auto B = N - 2;
-            using op_t = details::Convolution<B, 2, BORDER, input_accessor_t, output_accessor_t, filter_accessor_t>;
-            auto kernel = op_t(input_accessor, output_accessor, filter_accessor, shape.template pop_front<B>(), filter_shape_2d);
-            noa::cpu::iwise(shape, kernel, n_threads);
-
-        } else if (rank == 3) {
-            using input_accessor_t = AccessorRestrict<const T, N, isize>;
-            using output_accessor_t = AccessorRestrict<U, N, isize>;
-            const auto input_accessor = input_accessor_t(input, input_strides);
-            const auto output_accessor = output_accessor_t(output, output_strides);
-
-            const auto [filter_accessor, filter_buffer] = details::get_filter(filter, filter_shape);
-            using filter_accessor_t = std::decay_t<decltype(filter_accessor)>;
-
-            constexpr auto B = N - 3;
-            using op_t = details::Convolution<B, 3, BORDER, input_accessor_t, output_accessor_t, filter_accessor_t>;
-            auto kernel = op_t(input_accessor, output_accessor, filter_accessor, shape.template pop_front<B>(), filter_shape);
-            noa::cpu::iwise(shape, kernel, n_threads);
-
-        } else {
-            panic();
+                constexpr auto B = N - 2;
+                using op_t = details::Convolution<B, 2, BORDER, input_accessor_t, output_accessor_t, filter_accessor_t>;
+                auto kernel = op_t(input_accessor, output_accessor, filter_accessor, shape.template pop_front<B>(), filter_shape_2d);
+                noa::cpu::iwise(shape, kernel, n_threads);
+                return;
+            }
         }
+        if constexpr (R >= 3) {
+            if (rank == 3) {
+                using input_accessor_t = AccessorRestrict<const T, N, isize>;
+                using output_accessor_t = AccessorRestrict<U, N, isize>;
+                const auto input_accessor = input_accessor_t(input, input_strides);
+                const auto output_accessor = output_accessor_t(output, output_strides);
+
+                const auto [filter_accessor, filter_buffer] = details::get_filter(filter, filter_shape);
+                using filter_accessor_t = std::decay_t<decltype(filter_accessor)>;
+
+                constexpr auto B = N - 3;
+                using op_t = details::Convolution<B, 3, BORDER, input_accessor_t, output_accessor_t, filter_accessor_t>;
+                auto kernel = op_t(input_accessor, output_accessor, filter_accessor, shape.template pop_front<B>(), filter_shape);
+                noa::cpu::iwise(shape, kernel, n_threads);
+                return;
+            }
+        }
+        panic();
     }
 
     template<Border BORDER, typename T, typename U, typename V, usize N> requires nt::are_real_v<T, U, V>
@@ -269,9 +279,9 @@ namespace noa::signal::cpu {
         const V* filter_width, isize filter_width_size,
         V* tmp, Strides<isize, N> tmp_strides, i32 n_threads
     ) {
-        if (filter_depth_size <= 0)
+        if (filter_depth_size <= 0 or N <= 2)
             filter_depth = nullptr;
-        if (filter_height_size <= 0)
+        if (filter_height_size <= 0 or N <= 1)
             filter_height = nullptr;
         if (filter_width_size <= 0)
             filter_width = nullptr;

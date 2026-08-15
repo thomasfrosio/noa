@@ -279,7 +279,7 @@ namespace noa::fft {
     /// TODO do IS_RFFT and IS_FLIPPED
     template<bool IS_RFFT, bool IS_FLIPPED = false, nt::sinteger T, usize N, usize A, nt::pair U>
     requires (N >= 1 and N <= 3)
-    [[nodiscard]] constexpr auto is_inbound(const Vec<T, N, A>& frequency, const U& bounds) noexcept {
+    [[nodiscard]] constexpr auto is_inbound(const U& bounds, const Vec<T, N, A>& frequency) noexcept {
         for (usize i{}; i < N; ++i) {
             if (frequency[i] < bounds.first[i] or frequency[i] > bounds.second[i])
                 return false;

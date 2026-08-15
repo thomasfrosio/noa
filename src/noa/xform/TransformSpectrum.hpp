@@ -48,7 +48,7 @@ namespace noa::xform::details {
         TransformSpectrum(
             const input_type& input,
             const output_type& output,
-            const Shape<index_type, R>& output_shape,
+            const shape_type& output_shape,
             const Interpolator& interpolator,
             const batched_rotation_type& inverse_rotation,
             const batched_postshift_type& post_forward_shift,
@@ -57,7 +57,6 @@ namespace noa::xform::details {
             m_input(input),
             m_output(output),
             m_inverse_rotation(inverse_rotation),
-            m_shape(output_shape),
             m_f_shape(vec_type::from_vec(output_shape.vec)),
             m_post_forward_shift(post_forward_shift),
             m_interpolator(interpolator)
@@ -70,31 +69,30 @@ namespace noa::xform::details {
             const auto& [batches, indices] = batched_indices.template split<B>();
 
             // Given the output indices, compute the corresponding fftfreq.
-            const auto frequency = nf::index2frequency<IS_DST_CENTERED, IS_DST_RFFT>(indices, m_shape);
+            const auto frequency = nf::index2frequency<IS_DST_CENTERED, IS_DST_RFFT>(indices, m_interpolator.shape());
             const auto fftfreq = vec_type::from_vec(frequency) / m_f_shape;
 
             // Shortcut for the output cutoff.
             if (dot(fftfreq, fftfreq) > m_cutoff_fftfreq_sqd) {
-                m_output(batched_indices) = 0;
+                m_output[batched_indices] = 0;
                 return;
             }
 
             vec_type rotated_fftfreq = transform_vector(m_inverse_rotation[batches], fftfreq);
-            auto value = m_interpolator(m_input[batches], m_shape, rotated_fftfreq * m_f_shape);
+            auto value = m_interpolator.get(m_input[batches], rotated_fftfreq * m_f_shape);
 
             // Phase-shift the interpolated value.
             // It is a post-shift, so we need to use the original fftfreq (the ones in the output reference frame)
             if constexpr (nt::complex<input_value_type> and not nt::empty<postshift_type>)
                 value *= nf::phase_shift<input_value_type>(m_post_forward_shift[batches], fftfreq);
 
-            m_output(batched_indices) = cast_or_abs_squared<output_value_type>(value);
+            m_output[batched_indices] = cast_or_abs_squared<output_value_type>(value);
         }
 
     private:
         input_type m_input;
         output_type m_output;
         batched_rotation_type m_inverse_rotation;
-        shape_type m_shape;
         vec_type m_f_shape;
         coord_type m_cutoff_fftfreq_sqd;
         NOA_NO_UNIQUE_ADDRESS batched_postshift_type m_post_forward_shift;
@@ -201,25 +199,22 @@ namespace noa::xform::details {
 
             // Get the interpolator.
             using coord_t = nt::mutable_value_type_twice_t<Matrix>;
-            auto result = prepare_interpolation_spectrum_inputs<R, REMAP, interp(), IS_GPU, coord_t, true>(input, logical_shape_r);
+            auto result = prepare_interpolation_spectrum_inputs<R, REMAP, interp(), IS_GPU, coord_t, false>(input, logical_shape_r);
             using interpolator_t = decltype(result)::interpolator_type;
-            using input_accessor_t = decltype(result)::input_accessor_type;
+            using accessor_t = decltype(result)::accessor_type;
 
             using op_t = TransformSpectrum<
                 B, R, REMAP, Index, xform_accessor_t, postshift_accessor_t,
-                interpolator_t, input_accessor_t, output_accessor_t>;
+                interpolator_t, accessor_t, output_accessor_t>;
 
             iwise<IwiseOptions{
                 .generate_cpu = not IS_GPU,
                 .generate_gpu = IS_GPU,
             }>(output_span.shape(), output.device(),
-               op_t(result.input_accessor, output_accessor, logical_shape_r,
+               op_t(result.accessor, output_accessor, logical_shape_r,
                     result.interpolator, xform_accessor, postshift_accessor,
                     static_cast<coord_t>(options.fftfreq_cutoff)),
-               std::forward<Input>(input),
-               std::forward<Output>(output),
-               std::forward<Matrix>(xforms),
-               std::forward<Shift>(shifts));
+               NOA_FWD(input), NOA_FWD(output), NOA_FWD(xforms), NOA_FWD(shifts));
         };
 
         auto launch_interp = [&](auto no_shift) {
@@ -262,13 +257,13 @@ namespace noa::xform::details {
     concept transform_spectrum_nd_rotation =
         nt::mat_of_shape<std::decay_t<Rotation>, R, R> or
         (R == 3 and nt::quaternion<std::decay_t<Rotation>>) or
-        (nt::array_decay_nd<Rotation, (N > R ? N - R : 0)> and (nt::mat_of_shape<RotationValue, R, R> or (R == 3 and nt::quaternion<RotationValue>)));
+        (nt::array_decay_nd<Rotation, N - R> and (nt::mat_of_shape<RotationValue, R, R> or (R == 3 and nt::quaternion<RotationValue>)));
 
     template<usize R, usize N, typename Shift>
     concept transform_spectrum_nd_shift =
         nt::empty<std::decay_t<Shift>> or
         nt::vec_of_size<std::decay_t<Shift>, R> or
-        (nt::array_decay_nd<Shift, (N > R ? N - R : 0)> and nt::vec_of_size<nt::value_type_t<Shift>, R>);
+        (nt::array_decay_nd<Shift, N - R> and nt::vec_of_size<nt::value_type_t<Shift>, R>);
 
     template<usize R, typename Output, typename Rotation, typename Shift, usize N = nt::array_size_v<Output>>
     concept transform_spectrum_nd_rotation_shift =
@@ -276,6 +271,14 @@ namespace noa::xform::details {
         transform_spectrum_nd_shift<R, N, Shift> and
         (nt::empty<std::decay_t<Shift>> or
          nt::almost_same_as<nt::value_type_twice_t<Rotation>, nt::value_type_twice_t<Shift>>);
+
+    template<usize R, nf::Layout REMAP, typename Input, typename Output, typename Rotation, typename Shift, usize N>
+    concept transformable_spectrum_nd =
+        nt::readable_array_or_texture_rd_decay<Input, R> and
+        nt::writable_array_decay<Output> and
+        nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>> and
+        nt::array_size_v<Input> == nt::array_size_v<Output> and nt::array_size_v<Output> == N and N >= R and
+        transform_spectrum_nd_rotation_shift<R, Output, Rotation, Shift>;
 }
 
 namespace noa::xform {
@@ -299,11 +302,11 @@ namespace noa::xform {
     ///     Vec<Coord, 2>, a array of that type, or Empty.
     /// \param[in] input:
     ///     2D (r)FFT(s) to transform.
-    ///     ((Bi..,)Hi,Wi) Input 2D array(s) or 2D texture(s), of type f16, f32, f64, c16, c32, c64.
+    ///     ((Bi..,)H,Wi) Input 2D array(s) or 2D texture(s), of type f16, f32, f64, c16, c32, c64.
     ///     The batch axes are broadcast to the output batch axes.
     /// \param[out] output:
     ///     2D transformed (r)FFT(s).
-    ///     ((Bo..,)Ho,Wo) Output 2D array(s).
+    ///     ((Bo..,)H,Wo) Output 2D array(s).
     /// \param shape:
     ///     Logical shape of input and output.
     /// \param[in] inverse_rotations:
@@ -318,15 +321,8 @@ namespace noa::xform {
     ///     Transformation options.
     ///
     /// \note For more details, see InterpolatorSpectrum.
-    template<nf::Layout REMAP,
-             nt::array_or_texture_decay Input,
-             nt::writable_array_decay Output,
-             typename Rotation,
-             typename Shift = Empty,
-             usize N>
-        requires (nt::array_or_texture_decay_with_spectrum_types<Input, Output> and
-                  details::transform_spectrum_nd_rotation_shift<2, Output, Rotation, Shift> and
-                  nt::array_size_v<Input> == nt::array_size_v<Output> and nt::array_size_v<Output> == N and N >= 2)
+    template<nf::Layout REMAP, typename Input, typename Output, typename Rotation, typename Shift = Empty, usize N>
+        requires details::transformable_spectrum_nd<2, REMAP, Input, Output, Rotation, Shift, N>
     void transform_spectrum_2d(
         Input&& input,
         Output&& output,
@@ -346,10 +342,8 @@ namespace noa::xform {
                       nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
                       "isize indexing not instantiated for GPU devices");
                 details::launch_transform_spectrum_nd<REMAP, 2, i32, true>(
-                    std::forward<Input>(input),
-                    std::forward<Output>(output), shape,
-                    std::forward<Rotation>(inverse_rotations),
-                    std::forward<Shift>(post_shifts),
+                    NOA_FWD(input), NOA_FWD(output), shape,
+                    NOA_FWD(inverse_rotations), NOA_FWD(post_shifts),
                     options);
                 return;
             }
@@ -359,10 +353,8 @@ namespace noa::xform {
         }
 
         details::launch_transform_spectrum_nd<REMAP, 2, isize>(
-            std::forward<Input>(input),
-            std::forward<Output>(output), shape,
-            std::forward<Rotation>(inverse_rotations),
-            std::forward<Shift>(post_shifts),
+            NOA_FWD(input), NOA_FWD(output), shape,
+            NOA_FWD(inverse_rotations), NOA_FWD(post_shifts),
             options);
     }
 
@@ -398,15 +390,8 @@ namespace noa::xform {
     ///     The input and output array can have different shapes ((Di,Hi,Wi) vs (Do,Ho,Wo)). The output window starts at
     ///     the same index as the input window, so by entering a translation in inverse_matrices, one can move the
     ///     center of the output window relative to the input window, e.g., to render only a specific subregion.
-    template<nf::Layout REMAP,
-             nt::array_or_texture_decay Input,
-             nt::writable_array_decay Output,
-             typename Rotation,
-             typename Shift = Empty,
-             usize N>
-    requires (nt::array_or_texture_decay_with_spectrum_types<Input, Output> and
-              details::transform_spectrum_nd_rotation_shift<3, Output, Rotation, Shift> and
-              nt::array_size_v<Input> == nt::array_size_v<Output> and nt::array_size_v<Output> == N and N >= 3)
+    template<nf::Layout REMAP, typename Input, typename Output, typename Rotation, typename Shift = Empty, usize N>
+        requires details::transformable_spectrum_nd<3, REMAP, Input, Output, Rotation, Shift, N>
     void transform_spectrum_3d(
         Input&& input,
         Output&& output,
@@ -425,18 +410,14 @@ namespace noa::xform {
                 if (nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
                     nd::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
                     details::launch_transform_spectrum_nd<REMAP, 3, i32, true>(
-                        std::forward<Input>(input),
-                        std::forward<Output>(output), shape,
-                        std::forward<Rotation>(inverse_rotations),
-                        std::forward<Shift>(post_shifts),
+                        NOA_FWD(input), NOA_FWD(output), shape,
+                        NOA_FWD(inverse_rotations), NOA_FWD(post_shifts),
                         options);
                 } else {
                     // For large volumes (>1290^3), isize indexing is required.
                     details::launch_transform_spectrum_nd<REMAP, 3, isize, true>(
-                        std::forward<Input>(input),
-                        std::forward<Output>(output), shape,
-                        std::forward<Rotation>(inverse_rotations),
-                        std::forward<Shift>(post_shifts),
+                        NOA_FWD(input), NOA_FWD(output), shape,
+                        NOA_FWD(inverse_rotations), NOA_FWD(post_shifts),
                         options);
                 }
                 return;
@@ -447,10 +428,8 @@ namespace noa::xform {
         }
 
         details::launch_transform_spectrum_nd<REMAP, 3, isize>(
-            std::forward<Input>(input),
-            std::forward<Output>(output), shape,
-            std::forward<Rotation>(inverse_rotations),
-            std::forward<Shift>(post_shifts),
+            NOA_FWD(input), NOA_FWD(output), shape,
+            NOA_FWD(inverse_rotations), NOA_FWD(post_shifts),
             options);
     }
 }

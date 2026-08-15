@@ -22,13 +22,15 @@ namespace noa::signal {
     ///     ((B..,)R..) Convolved array.
     ///     Should not overlap with the input.
     /// \param[in] filter:
-    ///     (R..) Contiguous filter. The same filter is applied to all (B..) batch dimensions.
-    ///     Each R dimension should have an odd number of elements. Dimensions don't have to have the same size.
+    ///     (R..) Contiguous filter. R should be W, HW, DHW. The same filter is applied to all (B..) batch axes.
+    ///     Each axis should have an odd number of elements. Axes don't have to have the same size.
     ///     The floating-point precision of the convolution is set to the filter value type.
     template<nt::readable_array_decay_of_real Input,
              nt::writable_array_decay_of_real Output,
              nt::readable_array_decay_of_real Filter>
-        requires (nt::array_decay_with_same_nd<Input, Output> and nt::array_size_v<Input> >= nt::array_size_v<Filter>)
+        requires (nt::array_decay_with_same_nd<Input, Output> and
+                  nt::array_size_v<Input> >= nt::array_size_v<Filter> and
+                  nt::array_size_v<Filter> <= 3)
     void convolve(Input&& input, Output&& output, Filter&& filter, const ConvolveOptions& options = {}) {
         check(nd::are_arrays_valid(input, output, filter), "Empty array detected");
         check(not are_overlapped(input, output), "The input and output array should not overlap");
@@ -116,7 +118,7 @@ namespace noa::signal {
     ///     The precision of the convolution is the floating-point precision of the filters value type.
     /// \param[out] buffer:
     ///     Temporary array.
-    ///     If only one dimension is filtered, this is ignored.
+    ///     If only one dimension is filtered, no temporary buffer is needed and this is ignored.
     ///     Otherwise, it should be an array of the same shape as the output, or be an empty array,
     ///     in which case a temporary array will be allocated internally.
     template<nt::readable_array_decay_of_real Input,

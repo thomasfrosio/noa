@@ -24,6 +24,9 @@ TEST_CASE("xform::Texture - update") {
         static_assert(noa::traits::array_size_v<decltype(t1)> == 6);
         [[maybe_unused]] nx::Texture2D<f32, 6, ArrayOwnership::VIEW> t3 = t1.view();
         [[maybe_unused]] nx::Texture2D<const f32, 6> t4 = t1;
+        [[maybe_unused]] auto s4 = t4.share();
+        [[maybe_unused]] auto s3 = t3.share();
+        [[maybe_unused]] auto s1 = t1.share();
 
         auto o1 = noa::empty_like(array);
         nx::transform_2d(t1, o1, nx::rotate_z(noa::rad2deg(45.)));

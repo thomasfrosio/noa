@@ -9,6 +9,8 @@
 
 #include "noa/base/Config.hpp"
 
+#define NOA_FWD(v) std::forward<decltype(v)>(v)
+
 namespace noa {
     inline namespace types {}
 

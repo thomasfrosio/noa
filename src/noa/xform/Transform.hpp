@@ -8,18 +8,6 @@
 #include "noa/xform/Utils.hpp"
 
 namespace noa::xform::details {
-    /// Iwise operator computing 2d or 3d affine transformations:
-    ///  * Works on real and complex arrays.
-    ///  * The interpolated value is static_cast to Output::value_type.
-    ///  * The floating-point precision of the transformation and interpolation is set by Xform.
-    ///  * Use (truncated) affine matrices to transform coordinates.
-    ///    A single matrix can be used for every output batch. Otherwise, an array of matrices
-    ///    is expected. In this case, there should be as many matrices as they are output batches.
-    ///  * The matrices should be inverted since the inverse transformation is performed.
-    ///  * Multiple batches can be processed. The operator expects a "batch" index, which is passed
-    ///    to the interpolator. It is up to the interpolator to decide what to do with this index.
-    ///    The interpolator can ignore that batch index, effectively broadcasting the input to
-    ///    every dimension of the output.
     template<usize B, usize R,
              nt::integer Index,
              nt::readable_nd<B> Xform,
@@ -56,7 +44,7 @@ namespace noa::xform::details {
             const auto& [batches, indices] = batched_indices.template split<B>();
             auto coordinates = indices.template as<coord_type>();
             coordinates = transform_vector(m_inverse_xform[batches], coordinates);
-            m_output(batched_indices) = static_cast<output_value_type>(m_interpolator(m_input[batches], coordinates));
+            m_output[batched_indices] = static_cast<output_value_type>(m_interpolator.get(m_input[batches], coordinates));
         }
 
     private:
@@ -149,14 +137,14 @@ namespace noa::xform::details {
             using coord_t = nt::mutable_value_type_twice_t<Matrix>;
             auto result = prepare_interpolation_inputs<R, interp(), border(), IS_GPU, Index, coord_t, false>(input, options.cvalue);
             using interpolator_t = decltype(result)::interpolator_type;
-            using input_accessor_t = decltype(result)::input_accessor_type;
-            using op_t = Transform<B, R, Index, xform_accessor_t, interpolator_t, input_accessor_t, output_accessor_t>;
+            using accessor_t = decltype(result)::accessor_type;
+            using op_t = Transform<B, R, Index, xform_accessor_t, interpolator_t, accessor_t, output_accessor_t>;
 
             iwise<IwiseOptions{
                 .generate_cpu = not IS_GPU,
                 .generate_gpu = IS_GPU,
             }>(output_span.shape(), output.device(),
-               op_t(result.input_accessor, output_accessor, xform_accessor, result.interpolator),
+               op_t(result.accessor, output_accessor, xform_accessor, result.interpolator),
                std::forward<Input>(input),
                std::forward<Output>(output),
                std::forward<Matrix>(xform));
@@ -191,18 +179,23 @@ namespace noa::xform::details {
             case Interp::LANCZOS8_FAST:      return launch_border(WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
-}
 
-namespace noa::traits {
     template<typename Matrix, usize R>
-    concept transform_matrix_nd = mat_of_shape<Matrix, R, R + 1> or mat_of_shape<Matrix, R + 1, R + 1>;
+    concept transform_matrix_nd = nt::mat_of_shape<Matrix, R, R + 1> or nt::mat_of_shape<Matrix, R + 1, R + 1>;
 
     template<typename T, usize R, typename Output,
              typename U = std::remove_reference_t<T>,
-             typename V = value_type_t<T>,
+             typename V = nt::value_type_t<T>,
              usize N = nt::array_size_v<Output>>
     concept transform_matrices_nd =
-        transform_matrix_nd<U, R> or (nt::array_nd<U, (N > R ? N - R : 0)> and transform_matrix_nd<V, R>);
+        transform_matrix_nd<U, R> or (nt::array_nd<U, N - R> and transform_matrix_nd<V, R>);
+
+    template<usize R, typename Input, typename Output, typename Xform>
+    concept transformable_nd =
+        nt::readable_array_or_texture_rd_decay<Input, R> and
+        nt::writable_array_decay_of_any<Output, nt::mutable_value_type_t<Input>> and
+        (nt::array_size_v<Input> == nt::array_size_v<Output> and nt::array_size_v<Output> >= R) and
+        transform_matrices_nd<Xform, R, Output>;
 }
 
 namespace noa::xform {
@@ -236,10 +229,8 @@ namespace noa::xform {
     ///     The input and output array can have different shapes ((Hi,Wi) vs (Ho,Wo)). The output window starts at
     ///     the same index as the input window, so by entering a translation in inverse_matrices, one can move the
     ///     center of the output window relative to the input window, e.g., to render only a specific subregion.
-    template<nt::array_or_texture_decay_of_real_or_complex Input,
-             nt::writable_array_decay_of_any<nt::mutable_value_type_t<Input>> Output,
-             nt::transform_matrices_nd<2, Output> Matrix>
-        requires (nt::array_size_v<Input> == nt::array_size_v<Output> and nt::array_size_v<Output> >= 2)
+    template<typename Input, typename Output, typename Matrix>
+        requires details::transformable_nd<2, Input, Output, Matrix>
     void transform_2d(
         Input&& input,
         Output&& output,
@@ -291,10 +282,8 @@ namespace noa::xform {
     ///     The input and output array can have different shapes ((Di,Hi,Wi) vs (Do,Ho,Wo)). The output window starts at
     ///     the same index as the input window, so by entering a translation in inverse_matrices, one can move the
     ///     center of the output window relative to the input window, e.g., to render only a specific subregion.
-    template<nt::array_or_texture_decay_of_real_or_complex Input,
-             nt::writable_array_decay_of_any<nt::mutable_value_type_t<Input>> Output,
-             nt::transform_matrices_nd<3, Output> Matrix>
-        requires (nt::array_size_v<Input> == nt::array_size_v<Output> and nt::array_size_v<Output> >= 3)
+    template<typename Input, typename Output, typename Matrix>
+        requires details::transformable_nd<3, Input, Output, Matrix>
     void transform_3d(
         Input&& input,
         Output&& output,

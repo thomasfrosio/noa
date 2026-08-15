@@ -9,12 +9,12 @@ list(APPEND NOA_HEADERS
     noa/xform/core/Transform.hpp
 
     noa/xform/CubicBSplinePrefilter.hpp
-    noa/xform/Draw.hpp
+#    noa/xform/Draw.hpp
     noa/xform/FourierProject.hpp
     noa/xform/PolarTransform.hpp
     noa/xform/PolarTransformSpectrum.hpp
     noa/xform/Project.hpp
-    noa/xform/RotationalAverage.hpp
+#    noa/xform/RotationalAverage.hpp
     noa/xform/Symmetry.hpp
     noa/xform/Texture.hpp
     noa/xform/Traits.hpp

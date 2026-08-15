@@ -445,7 +445,7 @@ namespace noa::xform {
     public:
         /// Returns the drawing operator.
         template<nt::any_of<f32, f64> T = f64>
-        constexpr auto draw() const noexcept {
+        constexpr auto get() const noexcept {
             return DrawSphere<N, T, true>(
                 center.template as<T>(),
                 static_cast<T>(radius),
@@ -457,7 +457,7 @@ namespace noa::xform {
 
         /// Returns the drawing operator, enforcing zero smoothness.
         template<nt::any_of<f32, f64> T = f64>
-        constexpr auto draw_binary() const noexcept {
+        constexpr auto get_binary() const noexcept {
             return DrawSphere<N, T, false>(
                 center.template as<T>(),
                 static_cast<T>(radius),
@@ -493,7 +493,7 @@ namespace noa::xform {
     public:
         /// Returns the drawing operator.
         template<nt::any_of<f32, f64> T = f64>
-        constexpr auto draw() const noexcept {
+        constexpr auto get() const noexcept {
             return DrawEllipse<N, T, true>(
                 center.template as<T>(),
                 radius.template as<T>(),
@@ -505,7 +505,7 @@ namespace noa::xform {
 
         /// Returns the drawing operator, enforcing zero smoothness.
         template<nt::any_of<f32, f64> T = f64>
-        constexpr auto draw_binary() const noexcept {
+        constexpr auto get_binary() const noexcept {
             return DrawEllipse<N, T, false>(
                 center.template as<T>(),
                 radius.template as<T>(),
@@ -541,7 +541,7 @@ namespace noa::xform {
     public:
         /// Returns the drawing operator.
         template<nt::any_of<f32, f64> T = f64>
-        constexpr auto draw() const noexcept {
+        constexpr auto get() const noexcept {
             return DrawRectangle<N, T, true>(
                 center.template as<T>(),
                 radius.template as<T>(),
@@ -553,7 +553,7 @@ namespace noa::xform {
 
         /// Returns the drawing operator, enforcing zero smoothness.
         template<nt::any_of<f32, f64> T = f64>
-        constexpr auto draw_binary() const noexcept {
+        constexpr auto get_binary() const noexcept {
             return DrawRectangle<N, T, false>(
                 center.template as<T>(),
                 radius.template as<T>(),
@@ -590,7 +590,7 @@ namespace noa::xform {
     public:
         /// Returns the drawing operator.
         template<nt::any_of<f32, f64> T = f64>
-        constexpr auto draw() const noexcept {
+        constexpr auto get() const noexcept {
             return DrawCylinder<T, true>(
                 center.template as<T>(),
                 Vec<T, 2>::from_values(radius, length),
@@ -602,7 +602,7 @@ namespace noa::xform {
 
         /// Returns the drawing operator, enforcing zero smoothness.
         template<nt::any_of<f32, f64> T = f64>
-        constexpr auto draw_binary() const noexcept {
+        constexpr auto get_binary() const noexcept {
             return DrawCylinder<T, false>(
                 center.template as<T>(),
                 Vec<T, 2>::from_values(radius, length),

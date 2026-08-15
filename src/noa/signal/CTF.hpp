@@ -4,6 +4,7 @@
 #include "noa/fft/core/Transform.hpp"
 #include "noa/runtime/Array.hpp"
 #include "noa/runtime/Iwise.hpp"
+#include "noa/runtime/core/Iwise.hpp"
 #include "noa/signal/core/CTF.hpp"
 
 namespace noa::signal::details {
@@ -239,6 +240,7 @@ namespace noa::signal::details {
 
         if constexpr (nt::array_decay<CTF>) {
             constexpr auto RANK = N - nt::array_size_v<CTF>;
+            check(options.rank == -1 or options.rank == RANK);
             return run_rank(Tag<RANK>{});
         } else {
             const auto rank = shape.rank_checked(options.rank);
@@ -260,6 +262,7 @@ namespace noa::signal::details {
 namespace noa::signal {
     struct CTFOptions {
         /// Rank of the transform.
+        /// Only used if a single CTF value is passed.
         /// See Shape::rank_checked for more details.
         i32 rank{-1};
 
@@ -291,8 +294,8 @@ namespace noa::signal {
     ///     Logical shape of the output.
     /// \param[in] ctf:
     ///     Isotropic CTF(s).
-    ///   - If a single CTF value is passed, the rank is set at runtime using options.rank.
-    ///   - If a contiguous array is passed, it should be of shape (B..), matching the batch dimensions in the output.
+    ///   - If a single CTF value is passed, the spectrum rank is set at runtime using options.rank.
+    ///   - If a contiguous array is passed, it should be of shape (B..), matching the batch dimensions of the output.
     ///     In this case, the rank is set by the number of remaining dimensions (R..) and options.rank is ignored.
     ///     This also implies that if an array is passed, the input and output must be batched.
     /// \param options

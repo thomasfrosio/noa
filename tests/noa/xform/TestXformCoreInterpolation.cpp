@@ -15,8 +15,8 @@ TEST_CASE("xform::Interpolator") {
     auto op = interpolator_t(data.shape().pop_front());
 
     [[maybe_unused]] auto coordinate = Vec<f64, 2>{1, 1};
-    [[maybe_unused]] auto interpolated_value_batch0 = op(data[0], coordinate);
-    [[maybe_unused]] auto interpolated_value_batch2 = op(data[1], data.shape().pop_front(), coordinate);
+    [[maybe_unused]] auto interpolated_value_batch0 = op.get(data[0], coordinate);
+    [[maybe_unused]] auto interpolated_value_batch2 = op.get(data[1], coordinate, data.shape().pop_front());
 }
 
 TEMPLATE_TEST_CASE("xform::interpolation_weight<LANCZOS>", "", float, double) {

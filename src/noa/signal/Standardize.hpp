@@ -131,11 +131,11 @@ namespace noa::signal {
         auto input_4d = std::forward<Input>(input).template as_nd<4>();
         auto output_4d = std::forward<Output>(output).template as_nd<4>();
         auto shape_4d = input_4d.shape();
-        shape_4d = ranked_shape(shape_4d, options.rank);
+        shape_4d = shape_4d.ranked(options.rank);
         input_4d = std::move(input_4d).reshape(shape_4d.set<3>(input_4d.shape()[3]));
         output_4d = std::move(output_4d).reshape(shape_4d.set<3>(output_4d.shape()[3]));
 
-        auto dc_position = make_subregion<4>(
+        auto dc_position = Subregion(
             Full{},
             is_centered ? nf::fftshift(isize{}, shape_4d[1]) : 0,
             is_centered ? nf::fftshift(isize{}, shape_4d[2]) : 0,

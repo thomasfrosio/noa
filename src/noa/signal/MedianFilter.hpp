@@ -66,9 +66,7 @@ namespace noa::signal {
             #ifdef NOA_ENABLE_CUDA
             check(nd::is_accessor_access_safe<i32>(input, output.shape()) and
                   nd::is_accessor_access_safe<i32>(output, output.shape()),
-                  "GPU backend only instantiate i32-based accessor indexing, "
-                  "which is unsafe for the given input and output arrays. "
-                  "Please report this.");
+                  "GPU backend only instantiate i32-based accessor indexing, which is unsafe for the given input and output arrays. Please report this.");
             auto& cuda_stream = stream.cuda();
             noa::signal::cuda::median_filter_1d(
                 input.get(), input_strides.template as<i32>(),
@@ -128,9 +126,7 @@ namespace noa::signal {
             #ifdef NOA_ENABLE_CUDA
             check(nd::is_accessor_access_safe<i32>(input, output.shape()) and
                   nd::is_accessor_access_safe<i32>(output, output.shape()),
-                  "GPU backend only instantiate i32-based accessor indexing, "
-                  "which is unsafe for the given input and output arrays. "
-                  "Please report this.");
+                  "GPU backend only instantiate i32-based accessor indexing, which is unsafe for the given input and output arrays. Please report this.");
             auto& cuda_stream = stream.cuda();
             noa::signal::cuda::median_filter_2d(
                 input.get(), input_strides.template as<i32>(),
@@ -154,6 +150,8 @@ namespace noa::signal {
             std::forward<Input>(input).to(output);
             return;
         }
+
+        // TODO permute rightmost, preserving groups (B..)/(DHW)
 
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         check(not are_overlapped(input, output), "The input and output array should not overlap");
@@ -189,9 +187,7 @@ namespace noa::signal {
             #ifdef NOA_ENABLE_CUDA
             check(nd::is_accessor_access_safe<i32>(input, output.shape()) and
                   nd::is_accessor_access_safe<i32>(output, output.shape()),
-                  "GPU backend only instantiate i32-based accessor indexing, "
-                  "which is unsafe for the given input and output arrays. "
-                  "Please report this.");
+                  "GPU backend only instantiate i32-based accessor indexing, which is unsafe for the given input and output arrays. Please report this.");
             auto& cuda_stream = stream.cuda();
             noa::signal::cuda::median_filter_3d(
                 input.get(), input_strides.template as<i32>(),

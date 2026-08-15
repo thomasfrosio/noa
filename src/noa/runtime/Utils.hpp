@@ -192,14 +192,14 @@ namespace noa::details {
         using value_t = nt::const_value_type_t<T>;
         if constexpr (nt::empty<T>) {
             if constexpr (ALLOW_EMPTY)
-                return nd::BatchedParameter<Empty>{};
+                return AccessorValue<Empty>{};
             else
                 static_assert(nt::always_false<T>);
         } else if constexpr (nt::array<T>) {
             NOA_ASSERT(value.is_contiguous());
-            return nd::BatchedParameter<value_t*>{value.get()};
+            return AccessorRestrictContiguous<value_t, 1>{value.get()};
         } else {
-            return nd::BatchedParameter{value};
+            return AccessorValue{value};
         }
     }
 

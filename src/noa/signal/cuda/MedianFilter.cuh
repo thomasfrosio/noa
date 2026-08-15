@@ -6,6 +6,7 @@
 
 #include "noa/runtime/cuda/Block.cuh"
 #include "noa/runtime/cuda/Error.hpp"
+#include "noa/runtime/cuda/Stream.hpp"
 
 // The current implementations only supports small squared windows. This allows to:
 //  1)  Load the windows for all threads in a block in shared memory. This is useful because windows overlap.
@@ -15,6 +16,10 @@
 // TODO Maybe look at other implementations for larger windows (e.g. with textures)?
 
 namespace noa::signal::cuda::details {
+    using MedianFilterBlock1D = noa::cuda::StaticBlock<noa::cuda::Constant::WARP_SIZE * 4, 1, 1>;
+    using MedianFilterBlock2D = noa::cuda::StaticBlock<noa::cuda::Constant::WARP_SIZE / 2, noa::cuda::Constant::WARP_SIZE / 2, 1>;
+    template<usize N> using MedianFilterBlockND = std::conditional_t<N == 1, MedianFilterBlock1D, MedianFilterBlock2D>;
+
     // Ensures a < b. If not, swap.
     template<typename T>
     __forceinline__ __device__ void sort_swap_(T& a, T& b) {
@@ -65,9 +70,15 @@ namespace noa::signal::cuda::details {
         }
     }
 
-    template<typename Config, typename Input, typename Output, bool BORDER_REFLECT, i32 WINDOW_SIZE>
+    template<typename Config, usize N, usize R, typename Input, typename Output, bool BORDER_REFLECT, i32 WINDOW_SIZE>
     __global__ __launch_bounds__(Config::block_size)
-    void median_filter_1d(Input input, Output output, Shape<i32, 2> shape, i32 n_blocks_x) {
+    void median_filter_1d(
+        Input input,
+        Output output,
+        Shape<i32, R> shape, // ((y,)x)
+        Vec<u32, (N <= 2 ? N - 1 : 2)> grid_outer_offset, // ((z,)y)
+        Vec<u32, (N <= 3 ? 0 : N - 3)> grid_fused_shape_in_x_unbatched
+    ) {
         static_assert(is_odd(WINDOW_SIZE));
         using input_value_t = Input::mutable_value_type;
         using output_value_t = Output::value_type;
@@ -79,27 +90,28 @@ namespace noa::signal::cuda::details {
         constexpr auto SHARED_SIZE = SHARED_SHAPE.n_elements();
         __shared__ input_value_t shared_mem[SHARED_SIZE];
 
-        const auto index = offset2index(static_cast<i32>(blockIdx.x), n_blocks_x);
-        const auto tid = Vec<i32, 2>::from_values(threadIdx.y, threadIdx.x);
-        const auto gid = Vec<i32, 4>::from_values(
-            blockIdx.z,
-            blockIdx.y,
-            Config::block_size_y * index[0] + tid[0],
-            Config::block_size_x * index[1] + tid[1]);
+        const auto gid = noa::cuda::details::global_indices<i32, N, Config>(grid_fused_shape_in_x_unbatched, grid_outer_offset);
+        const auto tid = noa::cuda::details::thread_indices<i32, 2>();
+        const auto input_1d = input[gid.pop_back()];
+        auto* shared_mem_row = shared_mem + tid[0] * SHARED_SHAPE[1];
 
-        const auto input_1d = input[gid[0]][gid[1]][gid[2]];
+        bool is_valid_row;
+        if constexpr (N == 1)
+            is_valid_row = true;
+        else
+            is_valid_row = gid[N - 2] < shape[0];
 
         // There's no padding in y, so if out of bounds, stop.
-        if (gid[2] < shape[0]) {
+        if (is_valid_row) {
             // Load shared memory. Loop to take into account padding.
-            for (i32 lx = tid[1], gx = gid[3]; lx < SHARED_SHAPE[1]; lx += Config::block_size_x, gx += Config::block_size_x) {
+            for (i32 lx = tid[1], gx = gid[N - 1]; lx < SHARED_SHAPE[1]; lx += Config::block_size_x, gx += Config::block_size_x) {
                 median_filter_1d_load_to_shared<BORDER_REFLECT, HALO>(
-                    input_1d, shared_mem + tid[0] * SHARED_SHAPE[1] + lx, shape[1], gx - HALO);
+                    input_1d, shared_mem_row + lx, shape[R - 1], gx - HALO);
             }
             noa::cuda::details::block_synchronize();
 
             // Only continue if not out of bound.
-            if (gid[3] < shape[1]) {
+            if (gid[N - 1] < shape[R - 1]) {
                 // The goal is to reduce register pressure as much as possible, but still use registers
                 // to do the exchange sort. The window is divided into two half: the first "activated" half,
                 // which is where the sorting happens, and the second half, which is the pool of contestants
@@ -109,7 +121,7 @@ namespace noa::signal::cuda::details {
                 // Load active half to, hopefully, the local registers (otherwise spill to device memory).
                 input_value_t v[ACTIVE]; // all indexing are known at compile, so registers should be used
                 for (i32 x = 0; x < ACTIVE; ++x)
-                    v[x] = shared_mem[tid[0] * SHARED_SHAPE[1] + tid[1] + x];
+                    v[x] = shared_mem_row[tid[1] + x];
 
                 order_(v, ACTIVE); // ensure min at 0, max at ACTIVE - 1
 
@@ -118,7 +130,7 @@ namespace noa::signal::cuda::details {
                 // As such, as we add new contestants, we right-truncate the active half to ignore the previous max.
                 i32 length = ACTIVE;
                 for (i32 k = ACTIVE; k < WINDOW_SIZE; ++k) {
-                    v[0] = shared_mem[tid[0] * SHARED_SHAPE[1] + tid[1] + k]; // replace min by new contestant
+                    v[0] = shared_mem_row[tid[1] + k]; // replace min by new contestant
                     --length; // ignore the previous max at the end
                     order_(v, length); // min at 0, max at length - 1
                 }
@@ -169,9 +181,15 @@ namespace noa::signal::cuda::details {
         }
     }
 
-    template<typename Config, typename Input, typename Output, bool BORDER_REFLECT, i32 WINDOW_SIZE>
+    template<typename Config, usize N, typename Input, typename Output, bool BORDER_REFLECT, i32 WINDOW_SIZE>
     __global__ __launch_bounds__(Config::block_size)
-    void median_filter_2d(Input input, Output output, Shape<i32, 2> shape, i32 n_blocks_x) {
+    void median_filter_2d(
+        Input input,
+        Output output,
+        Shape<i32, 2> shape,
+        Vec<u32, (N <= 2 ? N - 1 : 2)> grid_outer_offset, // ((z,)y)
+        Vec<u32, (N <= 3 ? 0 : N - 3)> grid_fused_shape_in_x_unbatched
+    ) {
         static_assert(is_odd(WINDOW_SIZE));
         using input_value_t = Input::mutable_value_type;
         using output_value_t = Output::value_type;
@@ -184,26 +202,20 @@ namespace noa::signal::cuda::details {
         constexpr auto SHARED_SIZE = SHARED_SHAPE.n_elements();
         __shared__ input_value_t shared_mem[SHARED_SIZE];
 
-        const auto index = offset2index(static_cast<i32>(blockIdx.x), n_blocks_x);
-        const auto tid = Vec<i32, 2>::from_values(threadIdx.y, threadIdx.x);
-        const auto gid = Vec<i32, 4>::from_values(
-            blockIdx.z,
-            blockIdx.y,
-            Config::block_size_y * index[0] + tid[0],
-            Config::block_size_x * index[1] + tid[1]);
-
-        const auto input_2d = input[gid[0]][gid[1]];
+        const auto gid = noa::cuda::details::global_indices<i32, N, Config>(grid_fused_shape_in_x_unbatched, grid_outer_offset);
+        const auto tid = noa::cuda::details::thread_indices<i32, 2>();
+        const auto input_2d = input[gid.template pop_back<2>()];
 
         // Load shared memory. Loop to account for the halo.
-        for (i32 ly = tid[0], gy = gid[2]; ly < SHARED_SHAPE[0]; ly += Config::block_size_y, gy += Config::block_size_y)
-            for (i32 lx = tid[1], gx = gid[3]; lx < SHARED_SHAPE[1]; lx += Config::block_size_x, gx += Config::block_size_x)
+        for (i32 ly = tid[0], gy = gid[N - 2]; ly < SHARED_SHAPE[0]; ly += Config::block_size_y, gy += Config::block_size_y)
+            for (i32 lx = tid[1], gx = gid[N - 1]; lx < SHARED_SHAPE[1]; lx += Config::block_size_x, gx += Config::block_size_x)
                 median_filter_2d_load_to_shared<BORDER_REFLECT, HALO>(
                     input_2d, shared_mem + ly * SHARED_SHAPE[1] + lx,
                     shape[0], gy - HALO, shape[1], gx - HALO);
         noa::cuda::details::block_synchronize();
 
         // Only continue if not out of bound. gid.z cannot be out of bound.
-        if (gid[2] < shape[0] and gid[3] < shape[1]) {
+        if (gid[N - 2] < shape[0] and gid[N - 1] < shape[1]) {
             constexpr i32 ACTIVE = TILE_SIZE / 2 + 2;
 
             // Load active window from shared memory into this 1D array.
@@ -278,9 +290,15 @@ namespace noa::signal::cuda::details {
     }
 
     // The launch config and block size is like median_filter_1d_.
-    template<typename Config, typename Input, typename Output, bool BORDER_REFLECT, i32 WINDOW_SIZE>
+    template<typename Config, usize N, typename Input, typename Output, bool BORDER_REFLECT, i32 WINDOW_SIZE>
     __global__ __launch_bounds__(Config::block_size_x * Config::block_size_y)
-    void median_filter_3d(Input input, Output output, Shape<i32, 3> shape, i32 n_blocks_x) {
+    void median_filter_3d(
+        Input input,
+        Output output,
+        Shape<i32, 3> shape,
+        Vec<u32, (N <= 2 ? N - 1 : 2)> grid_outer_offset, // ((z,)y)
+        Vec<u32, (N <= 3 ? 0 : N - 3)> grid_fused_shape_in_x_unbatched
+    ) {
         static_assert(is_odd(WINDOW_SIZE));
         using input_value_t = Input::mutable_value_type;
         using output_value_t = Output::value_type;
@@ -294,21 +312,15 @@ namespace noa::signal::cuda::details {
         constexpr auto SHARED_SIZE = SHARED_SHAPE.n_elements();
         __shared__ input_value_t shared_mem[SHARED_SIZE];
 
-        const auto index = offset2index(static_cast<i32>(blockIdx.x), n_blocks_x);
-        const auto tid = Vec<i32, 2>::from_values(threadIdx.y, threadIdx.x);
-        const auto gid = Vec<i32, 4>::from_values(
-            blockIdx.z,
-            blockIdx.y,
-            Config::block_size_y * index[0] + tid[0],
-            Config::block_size_x * index[1] + tid[1]);
-
-        const auto input_3d = input[gid[0]];
+        const auto gid = noa::cuda::details::global_indices<i32, N, Config>(grid_fused_shape_in_x_unbatched, grid_outer_offset);
+        const auto tid = noa::cuda::details::thread_indices<i32, 2>();
+        const auto input_3d = input[gid.template pop_back<3>()];
 
         // Load shared memory.
         // Each thread processes at least WINDOW_SIZE elements (the z dimension).
-        for (i32 lz = 0, gz = gid[1]; lz < SHARED_SHAPE[0]; ++lz, ++gz)
-            for (i32 ly = tid[0], gy = gid[2]; ly < SHARED_SHAPE[1]; ly += Config::block_size_y, gy += Config::block_size_y)
-                for (i32 lx = tid[1], gx = gid[3]; lx < SHARED_SHAPE[2]; lx += Config::block_size_x, gx += Config::block_size_x)
+        for (i32 lz = 0, gz = gid[N - 3]; lz < SHARED_SHAPE[0]; ++lz, ++gz)
+            for (i32 ly = tid[0], gy = gid[N - 2]; ly < SHARED_SHAPE[1]; ly += Config::block_size_y, gy += Config::block_size_y)
+                for (i32 lx = tid[1], gx = gid[N - 1]; lx < SHARED_SHAPE[2]; lx += Config::block_size_x, gx += Config::block_size_x)
                     median_filter_3d_load_to_shared<BORDER_REFLECT, HALO>(
                         input_3d,
                         shared_mem + (lz * SHARED_SHAPE[1] + ly) * SHARED_SHAPE[2] + lx,
@@ -316,7 +328,7 @@ namespace noa::signal::cuda::details {
         noa::cuda::details::block_synchronize();
 
         // Only continue if not out of bound. gid.z cannot be out of bound.
-        if (gid[2] < shape[1] and gid[3] < shape[2]) {
+        if (gid[N - 2] < shape[1] and gid[N - 1] < shape[2]) {
             constexpr i32 ACTIVE = TILE_SIZE / 2 + 2;
 
             // Load active window from shared memory into this 1D array.
@@ -349,208 +361,217 @@ namespace noa::signal::cuda::details {
 }
 
 namespace noa::signal::cuda {
-    struct MedianFilterConfig {
-        static constexpr i32 block_size_x = 16;
-        static constexpr i32 block_size_y = 16;
-        static constexpr i32 block_size = block_size_x * block_size_y;
-    };
-
-    template<typename T, typename U, typename I>
+    template<typename T, typename U, usize N>
     void median_filter_1d(
-        const T* input, const Strides<I, 4>& input_strides,
-        U* output, const Strides<I, 4>& output_strides,
-        const Shape4& shape, Border border_mode, isize window_size, noa::cuda::Stream& stream
+        const T* input, const Strides<i32, N>& input_strides,
+        U* output, const Strides<i32, N>& output_strides,
+        const Shape<i32, N>& shape, Border border_mode, isize window_size, noa::cuda::Stream& stream
     ) {
-        using config_t = MedianFilterConfig;
-        const auto shape_2d = shape.filter(2, 3).as<i32>();
-        const i32 n_blocks_x = divide_up(shape_2d[1], config_t::block_size_x);
-        const i32 n_blocks_y = divide_up(shape_2d[0], config_t::block_size_y);
-        const auto launch_config = noa::cuda::LaunchConfig{
-            .n_blocks = dim3(static_cast<u32>(n_blocks_x * n_blocks_y),
-                             static_cast<u32>(shape[1]),
-                             static_cast<u32>(shape[0])),
-            .n_threads = dim3(config_t::block_size_x, config_t::block_size_y),
-        };
+        using Block = details::MedianFilterBlockND<N>;
+        auto block_shape = Shape<i32, N>::from_value(1);
+        if constexpr (N >= 2)
+            block_shape[N - 2] = static_cast<i32>(Block::block_size_y);
+        block_shape[N - 1] = static_cast<i32>(Block::block_size_x);
+        const auto grid = noa::cuda::GridND(shape, block_shape);
+        check(grid.n_launches() == 1);
 
-        using input_t = AccessorRestrict<const T, 4, I>;
-        using output_t = AccessorRestrict<U, 4, I>;
+        using input_t = AccessorRestrict<const T, N, i32>;
+        using output_t = AccessorRestrict<U, N, i32>;
         const auto input_accessor = input_t(input, input_strides);
         const auto output_accessor = output_t(output, output_strides);
 
-        switch (window_size) {
-            case 3:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_1d<config_t, input_t, output_t, true, 3> :
-                    details::median_filter_1d<config_t, input_t, output_t, false, 3>,
-                    launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
-            case 5:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_1d<config_t, input_t, output_t, true, 5> :
-                    details::median_filter_1d<config_t, input_t, output_t, false, 5>,
-                    launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
-            case 7:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_1d<config_t, input_t, output_t, true, 7> :
-                    details::median_filter_1d<config_t, input_t, output_t, false, 7>,
-                    launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
-            case 9:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_1d<config_t, input_t, output_t, true, 9> :
-                    details::median_filter_1d<config_t, input_t, output_t, false, 9>,
-                    launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
-            case 11:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_1d<config_t, input_t, output_t, true, 11> :
-                    details::median_filter_1d<config_t, input_t, output_t, false, 11>,
-                    launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
-            case 13:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_1d<config_t, input_t, output_t, true, 13> :
-                    details::median_filter_1d<config_t, input_t, output_t, false, 13>,
-                    launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
-            case 15:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_1d<config_t, input_t, output_t, true, 15> :
-                    details::median_filter_1d<config_t, input_t, output_t, false, 15>,
-                    launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
-            case 17:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_1d<config_t, input_t, output_t, true, 17> :
-                    details::median_filter_1d<config_t, input_t, output_t, false, 17>,
-                    launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
-            case 19:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_1d<config_t, input_t, output_t, true, 19> :
-                    details::median_filter_1d<config_t, input_t, output_t, false, 19>,
-                    launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
-            case 21:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_1d<config_t, input_t, output_t, true, 21> :
-                    details::median_filter_1d<config_t, input_t, output_t, false, 21>,
-                    launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
-            default:
-                panic("Unsupported window size. It should be an odd number from 1 to 21, got {}", window_size);
+        constexpr usize R = N == 1 ? 1 : 2;
+        Shape<i32, R> shape_2d;
+        if constexpr (N >= 2)
+            shape_2d = shape.filter(N - 2, N - 1);
+        else
+            shape_2d = shape.filter(N - 1);
+
+        const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().pop_back();
+        for (u32 z{}; z < grid.n_launches_z(); ++z) {
+            for (u32 y{}; y < grid.n_launches_y(); ++y) {
+                const auto config = noa::cuda::LaunchConfig{
+                    .n_blocks = grid.dim3_shape_for_launch(z, y, 0),
+                    .n_threads = dim3(Block::block_size_x, Block::block_size_y, 1),
+                };
+                const auto grid_offset = grid.block_offset_for_launch(z, y).template pop_front<(N <= 2 ? 3 - N : 0)>();
+                switch (window_size) {
+                    case 3:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT
+                                ? details::median_filter_1d<Block, N, R, input_t, output_t, true, 3>
+                                : details::median_filter_1d<Block, N, R, input_t, output_t, false, 3>,
+                            config, input_accessor, output_accessor, shape_2d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    case 5:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT
+                                ? details::median_filter_1d<Block, N, R, input_t, output_t, true, 5>
+                                : details::median_filter_1d<Block, N, R, input_t, output_t, false, 5>,
+                            config, input_accessor, output_accessor, shape_2d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    case 7:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT
+                                ? details::median_filter_1d<Block, N, R, input_t, output_t, true, 7>
+                                : details::median_filter_1d<Block, N, R, input_t, output_t, false, 7>,
+                            config, input_accessor, output_accessor, shape_2d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    case 9:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT
+                                ? details::median_filter_1d<Block, N, R, input_t, output_t, true, 9>
+                                : details::median_filter_1d<Block, N, R, input_t, output_t, false, 9>,
+                            config, input_accessor, output_accessor, shape_2d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    case 11:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT
+                                ? details::median_filter_1d<Block, N, R, input_t, output_t, true, 11>
+                                : details::median_filter_1d<Block, N, R, input_t, output_t, false, 11>,
+                            config, input_accessor, output_accessor, shape_2d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    case 13:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT
+                                ? details::median_filter_1d<Block, N, R, input_t, output_t, true, 13>
+                                : details::median_filter_1d<Block, N, R, input_t, output_t, false, 13>,
+                            config, input_accessor, output_accessor, shape_2d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    case 15:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT
+                                ? details::median_filter_1d<Block, N, R, input_t, output_t, true, 15>
+                                : details::median_filter_1d<Block, N, R, input_t, output_t, false, 15>,
+                            config, input_accessor, output_accessor, shape_2d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    case 17:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT
+                                ? details::median_filter_1d<Block, N, R, input_t, output_t, true, 17>
+                                : details::median_filter_1d<Block, N, R, input_t, output_t, false, 17>,
+                            config, input_accessor, output_accessor, shape_2d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    case 19:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT
+                                ? details::median_filter_1d<Block, N, R, input_t, output_t, true, 19>
+                                : details::median_filter_1d<Block, N, R, input_t, output_t, false, 19>,
+                            config, input_accessor, output_accessor, shape_2d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    case 21:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT
+                                ? details::median_filter_1d<Block, N, R, input_t, output_t, true, 21>
+                                : details::median_filter_1d<Block, N, R, input_t, output_t, false, 21>,
+                            config, input_accessor, output_accessor, shape_2d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    default:
+                        panic("Unsupported window size. It should be an odd number from 1 to 21, got {}", window_size);
+                }
+            }
         }
     }
 
-    template<typename T, typename U, typename I>
+    template<typename T, typename U, usize N>
     void median_filter_2d(
-        const T* input, Strides<I, 4> input_strides,
-        U* output, Strides<I, 4> output_strides,
-        Shape4 shape, Border border_mode, isize window_size, noa::cuda::Stream& stream
+        const T* input, const Strides<i32, N>& input_strides,
+        U* output, const Strides<i32, N>& output_strides,
+        const Shape<i32, N>& shape, Border border_mode, isize window_size, noa::cuda::Stream& stream
     ) {
-        const auto order_2d = output_strides.filter(2, 3).rightmost_order(shape.filter(2, 3).as<I>());
-        if (order_2d != Vec<I, 2>{0, 1}) {
-            std::swap(input_strides[2], input_strides[3]);
-            std::swap(output_strides[2], output_strides[3]);
-            std::swap(shape[2], shape[3]);
-        }
+        using Block = details::MedianFilterBlockND<N>;
+        auto block_shape = Shape<i32, N>::from_value(1);
+        block_shape[N - 2] = static_cast<i32>(Block::block_size_y);
+        block_shape[N - 1] = static_cast<i32>(Block::block_size_x);
+        const auto grid = noa::cuda::GridND(shape, block_shape);
+        check(grid.n_launches() == 1);
 
-        using config_t = MedianFilterConfig;
-        const auto shape_2d = shape.filter(2, 3).as<i32>();
-        const i32 n_blocks_x = divide_up(shape_2d[1], config_t::block_size_x);
-        const i32 n_blocks_y = divide_up(shape_2d[0], config_t::block_size_y);
-        const auto launch_config = noa::cuda::LaunchConfig{
-            .n_blocks = dim3(static_cast<u32>(n_blocks_x * n_blocks_y),
-                             static_cast<u32>(shape[1]),
-                             static_cast<u32>(shape[0])),
-            .n_threads = dim3(config_t::block_size_x, config_t::block_size_y),
-        };
-
-        using input_t = AccessorRestrict<const T, 4, I>;
-        using output_t = AccessorRestrict<U, 4, I>;
+        using input_t = AccessorRestrict<const T, N, i32>;
+        using output_t = AccessorRestrict<U, N, i32>;
         const auto input_accessor = input_t(input, input_strides);
         const auto output_accessor = output_t(output, output_strides);
 
-        switch (window_size) {
-            case 3:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_2d<config_t, input_t, output_t, true, 3> :
-                    details::median_filter_2d<config_t, input_t, output_t, false, 3>,
-                    launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
-            case 5:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_2d<config_t, input_t, output_t, true, 5> :
-                    details::median_filter_2d<config_t, input_t, output_t, false, 5>,
-                    launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
-            case 7:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_2d<config_t, input_t, output_t, true, 7> :
-                    details::median_filter_2d<config_t, input_t, output_t, false, 7>,
-                    launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
-            case 9:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_2d<config_t, input_t, output_t, true, 9> :
-                    details::median_filter_2d<config_t, input_t, output_t, false, 9>,
-                    launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
-            case 11:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_2d<config_t, input_t, output_t, true, 11> :
-                    details::median_filter_2d<config_t, input_t, output_t, false, 11>,
-                    launch_config, input_accessor, output_accessor, shape_2d, n_blocks_x);
-            default:
-                panic("Unsupported window size. It should be an odd number from 1 to 11, got {}", window_size);
+        const auto shape_2d = shape.filter(N - 2, N - 1);
+        const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().pop_back();
+        for (u32 z{}; z < grid.n_launches_z(); ++z) {
+            for (u32 y{}; y < grid.n_launches_y(); ++y) {
+                const auto config = noa::cuda::LaunchConfig{
+                    .n_blocks = grid.dim3_shape_for_launch(z, y, 0),
+                    .n_threads = dim3(Block::block_size_x, Block::block_size_y, 1),
+                };
+                const auto grid_offset = grid.block_offset_for_launch(z, y).template pop_front<(N <= 2 ? 3 - N : 0)>();
+                switch (window_size) {
+                    case 3:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT ?
+                            details::median_filter_2d<Block, N, input_t, output_t, true, 3> :
+                            details::median_filter_2d<Block, N, input_t, output_t, false, 3>,
+                            config, input_accessor, output_accessor, shape_2d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    case 5:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT ?
+                            details::median_filter_2d<Block, N, input_t, output_t, true, 5> :
+                            details::median_filter_2d<Block, N, input_t, output_t, false, 5>,
+                            config, input_accessor, output_accessor, shape_2d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    case 7:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT ?
+                            details::median_filter_2d<Block, N, input_t, output_t, true, 7> :
+                            details::median_filter_2d<Block, N, input_t, output_t, false, 7>,
+                            config, input_accessor, output_accessor, shape_2d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    case 9:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT ?
+                            details::median_filter_2d<Block, N, input_t, output_t, true, 9> :
+                            details::median_filter_2d<Block, N, input_t, output_t, false, 9>,
+                            config, input_accessor, output_accessor, shape_2d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    case 11:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT ?
+                            details::median_filter_2d<Block, N, input_t, output_t, true, 11> :
+                            details::median_filter_2d<Block, N, input_t, output_t, false, 11>,
+                            config, input_accessor, output_accessor, shape_2d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    default:
+                        panic("Unsupported window size. It should be an odd number from 1 to 11, got {}", window_size);
+                }
+            }
         }
     }
 
-    template<typename T, typename U, typename I>
+    template<typename T, typename U, usize N>
     void median_filter_3d(
-        const T* input, Strides<I, 4> input_strides,
-        U* output, Strides<I, 4> output_strides,
-        Shape4 shape, Border border_mode, isize window_size, noa::cuda::Stream& stream
+        const T* input, const Strides<i32, N>& input_strides,
+        U* output, const Strides<i32, N>& output_strides,
+        const Shape<i32, N>& shape, Border border_mode, isize window_size, noa::cuda::Stream& stream
     ) {
-        const auto order_3d = output_strides.pop_front().rightmost_order(shape.pop_front().as<I>());
-        if (order_3d != Vec<I, 3>{0, 1, 2}) {
-            const auto order = (order_3d + 1).push_front(0);
-            nd::permute_all(order, input_strides, output_strides, shape);
-        }
+        using Block = details::MedianFilterBlockND<N>;
+        auto block_shape = Shape<i32, N>::from_value(1);
+        block_shape[N - 2] = static_cast<i32>(Block::block_size_y);
+        block_shape[N - 1] = static_cast<i32>(Block::block_size_x);
+        const auto grid = noa::cuda::GridND(shape, block_shape);
+        check(grid.n_launches() == 1);
 
-        using config_t = MedianFilterConfig;
-        const auto shape_3d = shape.pop_front().as<i32>();
-        const i32 n_blocks_x = divide_up(shape_3d[2], config_t::block_size_x);
-        const i32 n_blocks_y = divide_up(shape_3d[1], config_t::block_size_y);
-        const auto launch_config = noa::cuda::LaunchConfig{
-            .n_blocks = dim3(static_cast<u32>(n_blocks_x * n_blocks_y),
-                             static_cast<u32>(shape_3d[0]),
-                             static_cast<u32>(shape[0])),
-            .n_threads = dim3(config_t::block_size_x, config_t::block_size_y),
-        };
-
-        using input_t = AccessorRestrict<const T, 4, I>;
-        using output_t = AccessorRestrict<U, 4, I>;
+        using input_t = AccessorRestrict<const T, N, i32>;
+        using output_t = AccessorRestrict<U, N, i32>;
         const auto input_accessor = input_t(input, input_strides);
         const auto output_accessor = output_t(output, output_strides);
 
-        switch (window_size) {
-            case 3:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_3d<config_t, input_t, output_t, true, 3> :
-                    details::median_filter_3d<config_t, input_t, output_t, false, 3>,
-                    launch_config, input_accessor, output_accessor, shape_3d, n_blocks_x);
-            case 5:
-                return stream.enqueue(
-                    border_mode == Border::REFLECT ?
-                    details::median_filter_3d<config_t, input_t, output_t, true, 5> :
-                    details::median_filter_3d<config_t, input_t, output_t, false, 5>,
-                    launch_config, input_accessor, output_accessor, shape_3d, n_blocks_x);
-            default:
-                panic("Unsupported window size. It should be an odd number from 1 to 11, got {}", window_size);
+        const auto shape_3d = shape.filter(N - 3, N - 2, N - 1);
+        const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().pop_back();
+        for (u32 z{}; z < grid.n_launches_z(); ++z) {
+            for (u32 y{}; y < grid.n_launches_y(); ++y) {
+                const auto config = noa::cuda::LaunchConfig{
+                    .n_blocks = grid.dim3_shape_for_launch(z, y, 0),
+                    .n_threads = dim3(Block::block_size_x, Block::block_size_y, 1),
+                };
+                const auto grid_offset = grid.block_offset_for_launch(z, y).template pop_front<(N <= 2 ? 3 - N : 0)>();
+                switch (window_size) {
+                    case 3:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT ?
+                            details::median_filter_3d<Block, N, input_t, output_t, true, 3> :
+                            details::median_filter_3d<Block, N, input_t, output_t, false, 3>,
+                            config, input_accessor, output_accessor, shape_3d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    case 5:
+                        return stream.enqueue(
+                            border_mode == Border::REFLECT ?
+                            details::median_filter_3d<Block, N, input_t, output_t, true, 5> :
+                            details::median_filter_3d<Block, N, input_t, output_t, false, 5>,
+                            config, input_accessor, output_accessor, shape_3d, grid_offset, grid_fused_shape_in_x_unbatched);
+                    default:
+                        panic("Unsupported window size. It should be an odd number from 1 to 5, got {}", window_size);
+                }
+            }
         }
     }
 }

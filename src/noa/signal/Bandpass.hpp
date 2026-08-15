@@ -49,8 +49,8 @@ namespace noa::signal::details {
         }
 
         template<usize R> requires (R >= 1 and R <= 3)
-        constexpr auto operator()(const Vec<coord_type, R>& fftfreq_r, auto) const -> coord_type {
-            const coord_type fftfreq_sqd = dot(fftfreq_r, fftfreq_r);
+        constexpr auto operator()(const Vec<coord_type, R>& fftfreq_rd) const -> coord_type {
+            const coord_type fftfreq_sqd = dot(fftfreq_rd, fftfreq_rd);
 
             if constexpr (SOFT) {
                 const auto fftfreq = sqrt(fftfreq_sqd);
@@ -166,7 +166,7 @@ namespace noa::signal {
     /// \param shape    Logical shape.
     /// \param pass     Lowpass filter parameters.
     /// \param options  Spectrum options.
-    template<nf::Layout REMAP, usize R = 3, typename Output, typename Input = Output, usize N>
+    template<nf::Layout REMAP, usize R, typename Output, typename Input = Output, usize N>
         requires details::filter_spectrum_able<REMAP, R, Input, Output, N>
     void lowpass(
         Input&& input,
@@ -234,7 +234,7 @@ namespace noa::signal {
     /// \param shape    Logical shape.
     /// \param pass     Highpass filter parameters.
     /// \param options  Spectrum options.
-    template<nf::Layout REMAP, usize R = 3, typename Output, typename Input = Output, usize N>
+    template<nf::Layout REMAP, usize R, typename Output, typename Input = Output, usize N>
         requires details::filter_spectrum_able<REMAP, R, Input, Output, N>
     void highpass(
         Input&& input,
@@ -302,7 +302,7 @@ namespace noa::signal {
     /// \param shape    Logical shape.
     /// \param pass     Bandpass filter parameters.
     /// \param options  Spectrum options.
-    template<nf::Layout REMAP, usize R = 3, typename Output, typename Input = Output, usize N>
+    template<nf::Layout REMAP, usize R, typename Output, typename Input = Output, usize N>
         requires details::filter_spectrum_able<REMAP, R, Input, Output, N>
     void bandpass(
         Input&& input,

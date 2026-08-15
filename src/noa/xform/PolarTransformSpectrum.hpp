@@ -11,14 +11,17 @@
 
 namespace noa::xform::details {
     /// 3d iwise operator to compute the spectrum->polar transformation of 2d (r)FFT(s).
-    template<nt::sinteger Index,
+    template<usize B,
+             nt::sinteger Index,
              nt::any_of<f32, f64> Coord,
-             nt::interpolator_spectrum_nd<2> Input,
-             nt::writable_nd<3> Output>
+             nt::interpolator_spectrum_nd<2> Interpolator,
+             nt::readable_nd<B + 2> Input,
+             nt::writable_nd<B + 2> Output>
     class Spectrum2Polar {
     public:
         using index_type = Index;
         using input_type = Input;
+        using interpolator_type = Interpolator;
         using output_type = Output;
         using input_value_type = nt::mutable_value_type_t<input_type>;
         using output_value_type = nt::value_type_t<output_type>;
@@ -30,6 +33,7 @@ namespace noa::xform::details {
     public:
         constexpr Spectrum2Polar(
             const input_type& spectrum,
+            const interpolator_type& interpolator_spectrum,
             const shape2_type& spectrum_shape,
             const Linspace<coord_type>& spectrum_fftfreq,
             const output_type& polar,
@@ -38,6 +42,7 @@ namespace noa::xform::details {
             const Linspace<coord_type>& phi
         ) :
             m_spectrum(spectrum),
+            m_interpolator_spectrum(interpolator_spectrum),
             m_polar(polar)
         {
             coord_type spectrum_stop{};
@@ -71,17 +76,19 @@ namespace noa::xform::details {
             m_phi_step = phi.for_size(polar_shape[0]).step;
         }
 
-        NOA_HD constexpr void operator()(index_type batch, index_type y, index_type x) const {
-            const auto polar_coordinate = coord2_type::from_values(y, x);
+        NOA_HD constexpr void operator()(const Vec<index_type, B + 2>& batched_indices) const {
+            const auto& [batches, indices] = batched_indices.template split<B>();
+            const auto polar_coordinate = indices.template as<coord_type>();
             const coord_type phi = polar_coordinate[0] * m_phi_step + m_phi_start;
             const coord_type rho = polar_coordinate[1] * m_rho_step + m_rho_start;
             const coord2_type frequency = (rho * sincos(phi)) * m_scale;
-            auto value = m_spectrum.interpolate_spectrum_at(frequency, batch);
-            m_polar(batch, y, x) = cast_or_abs_squared<output_value_type>(value);
+            auto value = m_interpolator_spectrum.get(m_spectrum[batches], frequency);
+            m_polar[batched_indices] = cast_or_abs_squared<output_value_type>(value);
         }
 
     private:
         input_type m_spectrum;
+        interpolator_type m_interpolator_spectrum;
         output_type m_polar;
         coord2_type m_scale;
         coord_type m_rho_start;
@@ -90,10 +97,10 @@ namespace noa::xform::details {
         coord_type m_phi_step;
     };
 
-    template<nf::Layout REMAP, bool IS_GPU = false, typename Index, typename Input, typename Output, typename Options>
+    template<nf::Layout REMAP, bool IS_GPU = false, typename Index, typename Input, usize N, typename Output, typename Options>
     void launch_spectrum2polar(
         Input&& spectrum,
-        const Shape<Index, 4>& spectrum_shape,
+        const Shape<Index, N>& spectrum_shape,
         Output&& polar,
         const Options& options
     ) {
@@ -105,23 +112,26 @@ namespace noa::xform::details {
         auto rho_range = options.rho_range.template as<coord_t>();
         auto phi_range = options.phi_range.template as<coord_t>();
 
-        using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, 3, Index>;
-        const auto output_accessor = output_accessor_t(polar.get(), polar.strides().filter(0, 2, 3).template as<Index>());
+        constexpr usize B = N - 2;
+        using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, N, Index>;
+        const auto output_span = polar.span().template as_index<Index>();
+        const auto output_accessor = output_accessor_t(output_span.get(), output_span.strides());
+        const auto spectrum_shape_r = spectrum_shape.template pop_front<B>();
 
         auto launch_iwise = [&](auto interp) {
-            auto interpolator = to_interpolator_spectrum<2, REMAP, interp(), coord_t, IS_GPU>(
-                spectrum, spectrum_shape
-            );
-            auto polar_shape = polar.shape().filter(0, 2, 3).template as<Index>();
-            auto op = Spectrum2Polar<Index, coord_t, decltype(interpolator), output_accessor_t>(
-                interpolator, spectrum_shape.filter(2, 3), spectrum_range,
-                output_accessor, polar_shape.pop_front(),
+            auto result = prepare_interpolation_spectrum_inputs<2, REMAP, interp(), IS_GPU, coord_t, false>(spectrum, spectrum_shape_r);
+            using interpolator_t = decltype(result)::interpolator_type;
+            using accessor_t = decltype(result)::accessor_type;
+
+            auto op = Spectrum2Polar<B, Index, coord_t, interpolator_t, accessor_t, output_accessor_t>(
+                result.accessor, result.interpolator, spectrum_shape_r, spectrum_range,
+                output_accessor, output_span.shape().template pop_front<B>(),
                 rho_range, phi_range
             );
             return iwise<IwiseOptions{
                 .generate_cpu = not IS_GPU,
                 .generate_gpu = IS_GPU,
-            }>(polar_shape, polar.device(), op,
+            }>(output_span.shape(), polar.device(), op,
                std::forward<Input>(spectrum), std::forward<Output>(polar));
         };
 
@@ -145,6 +155,12 @@ namespace noa::xform::details {
             case Interp::LANCZOS8_FAST:      return launch_iwise(WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
+
+    template<typename Input, typename Output, usize N>
+    concept polar_spectrum_transformable =
+        nt::readable_array_or_texture_rd_decay<Input, 2> and nt::writable_array_decay<Output> and
+        nt::array_size_v<Input> == nt::array_size_v<Output> and nt::array_size_v<Output> == N and N >= 2 and
+        nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>;
 }
 
 namespace noa::xform {
@@ -175,29 +191,33 @@ namespace noa::xform {
 
     // TODO Add polar2spectrum ?
 
-    /// Transforms 2d DFT(s) to polar coordinates.
-    /// \tparam REMAP           Every input layout is supported (see InterpolateSpectrum).
-    ///                         The output is denoted as "FC" (full-centered) to emphasize that it has a full shape
-    ///                         (equals to polar_shape) and can map the entire angular range (e.g. 0 to 2PI).
-    /// \param[in] spectrum     2d (r)FFT to interpolate onto the polar coordinate system.
-    /// \param spectrum_shape   BDHW logical shape of spectrum.
-    /// \param[out] polar       Transformed 2d array on the polar grid.
-    ///                         If real, and spectrum is complex, the power spectrum is computed.
-    /// \param options          Transformation options.
-    template<nf::Layout REMAP,
-             nt::varray_or_texture_decay Input,
-             nt::writable_varray_decay Output>
-    requires (REMAP.is_xx2fc() and nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
+    /// Transforms 2D DFT(s) to polar coordinates.
+    /// \tparam REMAP:
+    ///     Every input layout is supported (see InterpolateSpectrum).
+    ///     The output is denoted as "FC" (full-centered) to emphasize that it has a full shape (equals to
+    ///     polar.shape()) and can map the entire angular range (e.g. 0 to 2PI).
+    /// \param[in] spectrum:
+    ///     ((Bi..,)Hi,Wi) 2D (r)FFT to interpolate onto the polar coordinate system.
+    ///     The batch axes are broadcast to the output batch axes.
+    /// \param spectrum_shape:
+    ///     ((Bi..,)Hi,Wl) logical shape of spectrum.
+    /// \param[out] polar:
+    ///     ((Bo..,)Ho,Wo) Transformed 2D array on the polar grid.
+    ///     If real, and spectrum is complex, the power spectrum is computed.
+    /// \param options:
+    ///     Transformation options.
+    template<nf::Layout REMAP, typename Input, typename Output, usize N>
+        requires (details::polar_spectrum_transformable<Input, Output, N> and REMAP.is_xx2fc())
     void spectrum2polar(
         Input&& spectrum,
-        const Shape4& spectrum_shape,
+        const Shape<isize, N>& spectrum_shape,
         Output&& polar,
         PolarTransformSpectrumOptions options = {}
     ) {
         details::polar_check_parameters(spectrum, polar);
 
         check(spectrum.shape() == (REMAP.is_hx2xx() ? spectrum_shape.rfft() : spectrum_shape),
-              "The logical shape {} does not match the spectrum shape. Got spectrum:shape={}, REMAP={}",
+              "The logical shape {} does not match the spectrum shape. Got logical_shape={}, spectrum:shape={}, REMAP={}",
               spectrum_shape, spectrum.shape(), REMAP);
         check(allclose(options.spectrum_fftfreq.start, 0.),
               "For multidimensional cases, the starting fftfreq should be 0, but got {}",
@@ -209,7 +229,7 @@ namespace noa::xform {
                 std::terminate(); // unreachable
             } else {
                 details::launch_spectrum2polar<REMAP, true>(
-                    std::forward<Input>(spectrum), spectrum_shape.as<isize>(),
+                    std::forward<Input>(spectrum), spectrum_shape,
                     std::forward<Output>(polar), options
                 );
             }
@@ -218,7 +238,7 @@ namespace noa::xform {
             #endif
         } else {
             details::launch_spectrum2polar<REMAP>(
-                std::forward<Input>(spectrum), spectrum_shape.as<isize>(),
+                std::forward<Input>(spectrum), spectrum_shape,
                 std::forward<Output>(polar), options
             );
         }

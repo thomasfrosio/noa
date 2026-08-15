@@ -9,7 +9,7 @@ namespace noa::signal {
     /// \param stddev       Standard deviation of the gaussian.
     /// \param options      Window options.
     template<typename T, usize N = 1>
-    auto window_gaussian(isize n_elements, f64 stddev, WindowOptions options = {}) -> Array<T> {
+    [[nodiscard]] auto window_gaussian(isize n_elements, f64 stddev, WindowOptions options = {}) -> Array<T, N> {
         auto output = Array<T, N>(options.half_window ? (n_elements - 1) / 2 + 1 : n_elements);
         window_gaussian(output.data(), n_elements, stddev, {options.normalize, options.half_window});
         return output;
@@ -19,7 +19,7 @@ namespace noa::signal {
     /// \param n_elements   Number of elements in the full-window.
     /// \param options      Window options.
     template<typename T, usize N = 1>
-    auto window_blackman(isize n_elements, WindowOptions options = {}) -> Array<T> {
+    [[nodiscard]] auto window_blackman(isize n_elements, WindowOptions options = {}) -> Array<T, N> {
         auto output = Array<T, N>(options.half_window ? (n_elements - 1) / 2 + 1 : n_elements);
         window_blackman(output.data(), n_elements, {options.normalize, options.half_window});
         return output;
@@ -30,7 +30,7 @@ namespace noa::signal {
     /// \param constant     Additional constant factor. \c sin(constant*pi*x)/(pi*x) is computed.
     /// \param options      Window options.
     template<typename T, usize N = 1>
-    auto window_sinc(isize n_elements, f64 constant, WindowOptions options = {}) -> Array<T> {
+    [[nodiscard]] auto window_sinc(isize n_elements, f64 constant, WindowOptions options = {}) -> Array<T, N> {
         auto output = Array<T, N>(options.half_window ? (n_elements - 1) / 2 + 1 : n_elements);
         window_sinc(output.data(), n_elements, constant, {options.normalize, options.half_window});
         return output;

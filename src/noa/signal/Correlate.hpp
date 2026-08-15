@@ -194,7 +194,7 @@ namespace noa::signal::details {
         Vec<T, REGISTRATION_RADIUS_LIMIT * 2 + 1> buffer;
 
             f64 peak_value{};
-            Vec<f64, N> peak_coordinate;
+            Vec<f64, R> peak_coordinate;
             for (usize dim{}; dim < R; ++dim) {
                 // Reduce the problem to 1d by offsetting to the peak location, except for the current dimension.
                 const auto* input_line = input.get();
@@ -733,19 +733,20 @@ namespace noa::signal {
             return nf::c2r(std::forward<Buffer>(buffer), std::forward<Output>(output), c2r_options);
     }
 
-    template<usize N>
+    template<usize R>
     struct CrossCorrelationPeakOptions {
         /// ((D)H)W radius of the registration window, centered on the peak.
         /// To get subpixel-accuracy of the peak position and value, a 1d parabola is fitted along each dimension.
         /// This parameter specifies the radius of these parabolas. Zero is valid and turns off the registration.
-        Vec<i32, N> registration_radius{Vec<i32, N>::from_value(1)};
+        Vec<i32, R> registration_radius{Vec<i32, R>::from_value(1)};
 
         /// ((D)H)W maximum lag allowed, i.e., the peak is selected within this elliptical radius.
         /// If negative, it is ignored and the entire map is searched. If zero, the central peak at lag zero is
         /// guaranteed to be selected. Otherwise, an elliptical mask is applied on the centered cross-correlation
-        /// map before the search. Note that to maximize performance, the implementation will select the minimum
-        /// subregion within the map and only search within that subregion.
-        Vec<f64, N> maximum_lag{Vec<f64, N>::from_value(-1)};
+        /// map before the search. Note that the implementation selects the minimum subregion within the map
+        /// considering the ellipse and only search within that subregion, so this is worth specifying purely
+        /// for a performance reason.
+        Vec<f64, R> maximum_lag{Vec<f64, R>::from_value(-1)};
     };
 
     /// Find the cross-correlation peaks of the cross-correlation maps.

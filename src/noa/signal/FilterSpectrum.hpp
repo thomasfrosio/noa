@@ -228,15 +228,15 @@ namespace noa::signal {
     ///     Logical shape of the input and output.
     /// \param[in] filter:
     ///     Filter operator:
-    ///         filter(Vec<value_type, R> fftfreq, const Vec<index_type, N-R>& batches) -> real|complex, or
-    ///         filter(Vec<value_type, R> fftfreq, const index_type& batches...) -> real|complex, or
+    ///         filter(Vec<value_type, R> fftfreq, const Vec<index_type, N-R>& batch_indices) -> real|complex, or
+    ///         filter(Vec<value_type, R> fftfreq, const index_type& batch_indices...) -> real|complex, or
     ///         filter(Vec<value_type, R> fftfreq) -> real|complex.
     ///     The Filter type can specialize value_type, otherwise, it defaults to f64 if the input is f64|c64,
     ///     or to f32 if the input is f16|f32|c16|c32. Similarly, it can specialize the index_type, otherwise,
     ///     isize is used. Like an iwise operator, each computing thread holds a copy of the given filter object.
     /// \param[in] options:
     ///     Spectrum options.
-    template<nf::Layout REMAP, usize R = 3, typename Output, usize N, typename Input = Output, typename Filter>
+    template<nf::Layout REMAP, usize R, typename Output, usize N, typename Input = Output, typename Filter>
         requires (details::filter_spectrum_able<REMAP, R, Input, Output, N> and
                   details::filterable_nd<Input, Filter, N - R, R>)
     void filter_spectrum(

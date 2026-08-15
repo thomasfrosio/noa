@@ -24,7 +24,7 @@ TEST_CASE("signal::phase_shift_2d()", "[asset]") {
     for (size_t i = 0; i < params.size(); i++) {
         const YAML::Node& param = params[i];
         INFO("test=" << i);
-        const auto shape = param["shape"].as<Shape4>();
+        const auto shape = param["shape"].as<Shape4>().pop_front<2>();
         const auto shift = param["shift"].as<Vec<f32, 2>>();
         const auto path_output = path_base / param["output"].as<Path>(); // these are non-redundant non-centered
         const auto path_input = path_base / param["input"].as<Path>();
@@ -34,15 +34,15 @@ TEST_CASE("signal::phase_shift_2d()", "[asset]") {
             const auto options = ArrayOption(device, Allocator::MANAGED);
             INFO(device);
 
-            const auto expected = noa::read_image<c32>(path_output, {}, options).data;
+            const auto expected = noa::read_image<c32, 2>(path_output, {}, options).data;
 
             if (path_input.filename().empty()) {
-                const auto output = noa::empty<c32>(shape.rfft(), options);
+                const auto output = noa::empty<c32, 2>(shape.rfft(), options);
                 ns::phase_shift_2d<"h2h">({}, output, shape, shift);
                 REQUIRE(test::allclose_abs(expected, output, 1e-4f));
 
             } else {
-                const auto input = noa::read_image<c32>(path_input, {}, options).data;
+                const auto input = noa::read_image<c32, 2>(path_input, {}, options).data;
                 ns::phase_shift_2d<"h2h">(input, input, shape, shift);
                 REQUIRE(test::allclose_abs(expected, input, 1e-4f));
             }
@@ -149,7 +149,7 @@ TEST_CASE("signal::phase_shift_3d()", "[asset]") {
 
     for (size_t i = 0; i < params.size(); i++) {
         const YAML::Node& param = params[i];
-        const auto shape = param["shape"].as<Shape4>();
+        const auto shape = param["shape"].as<Shape4>().pop_front();
         const auto shift = param["shift"].as<Vec<f32, 3>>();
         const auto path_output = path_base / param["output"].as<Path>(); // these are non-redundant non-centered
         const auto path_input = path_base / param["input"].as<Path>();
@@ -159,15 +159,15 @@ TEST_CASE("signal::phase_shift_3d()", "[asset]") {
             const auto options = ArrayOption(device, Allocator::MANAGED);
             INFO(device);
 
-            const auto expected = noa::read_image<c32>(path_output, {}, options).data;
+            const auto expected = noa::read_image<c32, 3>(path_output, {}, options).data;
 
             if (path_input.filename().empty()) {
-                const auto output = noa::empty<c32>(shape.rfft(), options);
+                const auto output = noa::empty<c32, 3>(shape.rfft(), options);
                 ns::phase_shift_3d<"h2h">({}, output, shape, shift);
                 REQUIRE(test::allclose_abs(expected, output, 1e-4f));
 
             } else {
-                const auto input = noa::read_image<c32>(path_input, {}, options).data;
+                const auto input = noa::read_image<c32, 3>(path_input, {}, options).data;
                 ns::phase_shift_3d<"h2h">(input, input, shape, shift);
                 REQUIRE(test::allclose_abs(expected, input, 1e-4f));
             }

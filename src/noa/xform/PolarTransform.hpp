@@ -5,20 +5,22 @@
 #include "noa/runtime/Array.hpp"
 #include "noa/runtime/Iwise.hpp"
 #include "noa/xform/core/Polar.hpp"
-#include "noa/xform/core/Interpolation.hpp"
 #include "noa/xform/Traits.hpp"
 #include "noa/xform/Utils.hpp"
 
 namespace noa::xform::details {
-    /// 3d iwise operator to compute 2d cartesian->polar transformation(s).
-    template<nt::sinteger Index,
+    /// iwise operator to compute 2d cartesian->polar transformation(s).
+    template<usize B,
+             nt::sinteger Index,
              nt::any_of<f32, f64> Coord,
-             nt::interpolator_nd<2> Input,
-             nt::writable_nd<3> Output>
+             nt::interpolator_nd<2> Interpolator,
+             nt::readable_nd<B + 2> Input,
+             nt::writable_nd<B + 2> Output>
     class Polar2Cartesian {
     public:
         using index_type = Index;
         using input_type = Input;
+        using interpolator_type = Interpolator;
         using output_type = Output;
         using input_value_type = nt::mutable_value_type_t<input_type>;
         using output_value_type = nt::value_type_t<output_type>;
@@ -30,6 +32,7 @@ namespace noa::xform::details {
     public:
         Polar2Cartesian(
             const input_type& polar,
+            const interpolator_type& interpolator,
             const shape2_type& polar_shape,
             const output_type& cartesian,
             const coord2_type& cartesian_center,
@@ -37,19 +40,20 @@ namespace noa::xform::details {
             const Linspace<coord_type>& angle_range
         ) :
             m_polar(polar),
+            m_interpolator(interpolator),
             m_cartesian(cartesian),
             m_center(cartesian_center),
             m_start_angle(angle_range.start),
             m_start_radius(radius_range.start)
         {
             NOA_ASSERT(radius_range[1] - radius_range[0] >= 0);
-
             m_step_angle = angle_range.for_size(polar_shape[0]).step;
             m_step_radius = radius_range.for_size(polar_shape[1]).step;
         }
 
-        NOA_HD constexpr void operator()(index_type batch, index_type y, index_type x) const {
-            auto cartesian_coordinate = coord2_type::from_values(y, x);
+        NOA_HD constexpr void operator()(const Vec<index_type, B + 2>& batched_indices) const {
+            const auto& [batches, indices] = batched_indices.template split<B>();
+            auto cartesian_coordinate = indices.template as<coord_type>();
             cartesian_coordinate -= m_center;
 
             const coord_type phi = cartesian2phi(cartesian_coordinate);
@@ -59,12 +63,13 @@ namespace noa::xform::details {
                 (rho - m_start_radius) / m_step_radius
             };
 
-            auto value = m_polar.interpolate_at(polar_coordinate, batch);
-            m_cartesian(batch, y, x) = cast_or_abs_squared<output_value_type>(value);
+            auto value = m_interpolator.get(m_polar[batches], polar_coordinate);
+            m_cartesian[batched_indices] = cast_or_abs_squared<output_value_type>(value);
         }
 
     private:
         input_type m_polar;
+        interpolator_type m_interpolator;
         output_type m_cartesian;
         coord2_type m_center;
         coord_type m_step_angle;
@@ -74,14 +79,17 @@ namespace noa::xform::details {
     };
 
     /// 3d iwise operator to compute 2d polar->cartesian transformation(s).
-    template<nt::sinteger Index,
+    template<usize B,
+             nt::sinteger Index,
              nt::any_of<f32, f64> Coord,
-             nt::interpolator_nd<2> Input,
-             nt::writable_nd<3> Output>
+             nt::interpolator_nd<2> Interpolator,
+             nt::readable_nd<B + 2> Input,
+             nt::writable_nd<B + 2> Output>
     class Cartesian2Polar {
     public:
         using index_type = Index;
         using input_type = Input;
+        using interpolator_type = Interpolator;
         using output_type = Output;
         using input_value_type = nt::mutable_value_type_t<input_type>;
         using output_value_type = nt::value_type_t<output_type>;
@@ -93,6 +101,7 @@ namespace noa::xform::details {
     public:
         Cartesian2Polar(
             const input_type& cartesian,
+            const interpolator_type& interpolator,
             const output_type& polar,
             const shape2_type& polar_shape,
             const coord2_type& cartesian_center,
@@ -100,6 +109,7 @@ namespace noa::xform::details {
             const Linspace<coord_type>& angle_range
         ) :
             m_cartesian(cartesian),
+            m_interpolator(interpolator),
             m_polar(polar),
             m_center(cartesian_center),
             m_start_angle(angle_range.start),
@@ -112,8 +122,9 @@ namespace noa::xform::details {
             m_step_radius = radius_range.for_size(polar_shape[1]).step;
         }
 
-        NOA_HD constexpr void operator()(index_type batch, index_type y, index_type x) const {
-            const auto polar_coordinate = coord2_type::from_values(y, x);
+        NOA_HD constexpr void operator()(const Vec<index_type, B + 2>& batched_indices) const {
+            const auto& [batches, indices] = batched_indices.template split<B>();
+            const auto polar_coordinate = indices.template as<coord_type>();
             const coord_type phi = polar_coordinate[0] * m_step_angle + m_start_angle;
             const coord_type rho = polar_coordinate[1] * m_step_radius + m_start_radius;
 
@@ -121,12 +132,13 @@ namespace noa::xform::details {
             cartesian_coordinate *= rho;
             cartesian_coordinate += m_center;
 
-            auto value = m_cartesian.interpolate_at(cartesian_coordinate, batch);
-            m_polar(batch, y, x) = cast_or_abs_squared<output_value_type>(value);
+            auto value = m_interpolator.get(m_cartesian[batches], cartesian_coordinate);
+            m_polar[batched_indices] = cast_or_abs_squared<output_value_type>(value);
         }
 
     private:
         input_type m_cartesian;
+        interpolator_type m_interpolator;
         output_type m_polar;
         coord2_type m_center;
         coord_type m_step_angle;
@@ -135,14 +147,15 @@ namespace noa::xform::details {
         coord_type m_start_radius;
     };
 
-    inline void set_polar_window_range_to_default(
-        const Shape4& cartesian_shape,
+    template<usize N>
+    void set_polar_window_range_to_default(
+        const Shape<isize, N>& cartesian_shape,
         const Vec<f64, 2>& cartesian_center,
         Linspace<f64>& radius_range,
         Linspace<f64>& angle_range
     ) {
         if (radius_range.start == 0 and radius_range.stop == 0)
-            radius_range.stop = min(cartesian_shape.filter(2, 3).vec.as<f64>() - cartesian_center);
+            radius_range.stop = min(cartesian_shape.vec.filter(N - 2, N - 1).template as<f64>() - cartesian_center);
         if (angle_range.start == 0 and angle_range.stop == 0)
             angle_range.stop = 2 * Constant<f64>::PI;
     }
@@ -150,28 +163,36 @@ namespace noa::xform::details {
     template<typename Input, typename Output>
     void polar_check_parameters(const Input& input, const Output& output) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
-        check(input.shape()[1] == 1 and output.shape()[1] == 1, "3d arrays are not supported");
-        check(input.shape()[0] == 1 or input.shape()[0] == output.shape()[0],
-              "The input batch size ({}) is not compatible with the output batch size ({})",
-              input.shape()[0], output.shape()[0]);
+
+        // Check batch axes are compatible.
+        constexpr usize N = nt::array_size_v<Output>;
+        constexpr usize B = N - 2;
+        auto input_shape_b = input.shape().template pop_back<2>();
+        auto output_shape_b = output.shape().template pop_back<2>();
+        if constexpr (B >= 1) {
+            for (usize i{}; i < B; ++i)
+                input_shape_b[i] = input_shape_b[i] == 1 ? output_shape_b[i] : input_shape_b[i];
+            check(input_shape_b == output_shape_b,
+                  "The batch axes are not compatible, input:batches={}, output:batches={}",
+                  input_shape_b, output_shape_b);
+        }
 
         check(input.device() == output.device(),
-              "The input and output arrays must be on the same device, "
-              "but got input:device={} and output:device={}", input.device(), output.device());
-
+              "The input and output arrays must be on the same device, but got input:device={} and output:device={}",
+              input.device(), output.device());
         check(nd::are_elements_unique(output.strides(), output.shape()),
-              "The elements in the output should not overlap in memory, "
-              "otherwise a data-race might occur. Got output output:strides={} and output:shape={}",
+              "The elements in the output should not overlap in memory, otherwise a data-race might occur. Got output output:strides={} and output:shape={}",
               output.strides(), output.shape());
 
-        if constexpr (nt::varray<Input>) {
+        if constexpr (nt::array<Input>) {
             check(not are_overlapped(input, output),
                   "Input and output arrays should not overlap");
         } else {
-            check(input.device().is_gpu() or not are_overlapped(input.view(), output),
+            check(input.device().is_gpu() or not are_overlapped(input.cpu(), output),
                   "The input and output arrays should not overlap");
             check(input.border() == Border::ZERO,
-                  "The input border mode should be {}, but got {}", Border::ZERO, input.border());
+                  "The input border mode should be {}, but got {}",
+                  Border::ZERO, input.border());
         }
     }
 
@@ -183,25 +204,32 @@ namespace noa::xform::details {
         const Vec<f64, 2>& cartesian_center,
         const Options& options
     ) {
+        constexpr usize N = nt::array_size_v<Output>;
+        constexpr usize B = N - 2;
         using coord_t = nt::value_type_twice_t<Output>;
         auto rho_range = options.rho_range.template as<coord_t>();
         auto phi_range = options.phi_range.template as<coord_t>();
 
-        using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, 3, Index>;
-        const auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0, 2, 3).template as<Index>());
-        const auto output_shape = output.shape().filter(0, 2, 3).template as<Index>();
+        using output_accessor_t = AccessorRestrict<nt::value_type_t<Output>, N, Index>;
+        const auto output_span = output.span().template as_index<Index>();
+        const auto output_accessor = output_accessor_t(output_span.get(), output_span.strides());
 
         auto launch_iwise = [&](auto interp) {
-            auto interpolator = to_interpolator<2, interp(), Border::ZERO, Index, coord_t, IS_GPU>(input);
+            auto result = prepare_interpolation_inputs<2, interp(), Border::ZERO, IS_GPU, Index, coord_t, false>(input);
+            using interpolator_t = decltype(result)::interpolator_type;
+            using accessor_t = decltype(result)::accessor_type;
+
             auto op = [&]{
                 if constexpr (CARTESIAN_TO_POLAR) {
-                    return Cartesian2Polar<Index, coord_t, decltype(interpolator), output_accessor_t>(
-                        interpolator,
-                        output_accessor, output_shape.pop_front(), cartesian_center.as<coord_t>(),
+                    const auto polar_shape_r = output_span.shape().template pop_front<B>();
+                    return Cartesian2Polar<B, Index, coord_t, interpolator_t, accessor_t, output_accessor_t>(
+                        result.accessor, result.interpolator,
+                        output_accessor, polar_shape_r, cartesian_center.as<coord_t>(),
                         rho_range, phi_range);
                 } else {
-                    return Polar2Cartesian<Index, coord_t, decltype(interpolator), output_accessor_t>(
-                        interpolator, input.shape().filter(2, 3).template as<Index>(),
+                    const auto polar_shape_r = input.shape().template pop_front<B>().template as<Index>();
+                    return Polar2Cartesian<B, Index, coord_t, interpolator_t, accessor_t, output_accessor_t>(
+                        result.accessor, result.interpolator, polar_shape_r,
                         output_accessor, cartesian_center.as<coord_t>(),
                         rho_range, phi_range);
                 }
@@ -209,7 +237,8 @@ namespace noa::xform::details {
             return iwise<IwiseOptions{
                 .generate_cpu = not IS_GPU,
                 .generate_gpu = IS_GPU,
-            }>(output_shape, output.device(), op, std::forward<Input>(input), std::forward<Output>(output));
+            }>(output_span.shape(), output.device(), op,
+               std::forward<Input>(input), std::forward<Output>(output));
         };
 
         Interp interp = options.interp;
@@ -232,6 +261,12 @@ namespace noa::xform::details {
             case Interp::LANCZOS8_FAST:      return launch_iwise(WrapInterp<Interp::LANCZOS8_FAST>{});
         }
     }
+
+    template<typename Input, typename Output>
+    concept polar_transformable =
+        nt::readable_array_or_texture_rd_decay<Input, 2> and nt::writable_array_decay<Output> and
+        nt::array_size_v<Input> == nt::array_size_v<Output> and nt::array_size_v<Output> >= 2 and
+        nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>;
 }
 
 namespace noa::xform {
@@ -254,14 +289,18 @@ namespace noa::xform {
         Interp interp{Interp::LINEAR};
     };
 
-    /// Transforms 2d array(s) from cartesian to polar coordinates.
-    /// \param[in] cartesian        Input 2d cartesian array|texture to interpolate onto the new coordinate system.
-    /// \param[out] polar           Transformed 2d array on the polar grid.
-    /// \param cartesian_center     HW transformation center.
-    /// \param options              Transformation options.
-    template<nt::varray_or_texture_decay Input,
-             nt::writable_varray_decay Output>
-    requires nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>
+    /// Transforms 2D array(s) from cartesian to polar coordinates.
+    /// \param[in] cartesian:
+    ///     ((Bi..,)Hi,Wi) Input 2D cartesian array|texture to interpolate onto the new coordinate system.
+    ///     The batch axes are broadcast to the output batch axes.
+    /// \param[out] polar:
+    ///     ((Bo..,)Ho,Wo) Output 2D transformed array(s) on the polar grid.
+    /// \param cartesian_center:
+    ///     HW transformation center.
+    /// \param options:
+    ///     Transformation options.
+    template<typename Input, typename Output>
+        requires details::polar_transformable<Input, Output>
     void cartesian2polar(
         Input&& cartesian,
         Output&& polar,
@@ -297,14 +336,18 @@ namespace noa::xform {
         }
     }
 
-    /// Transforms 2d array(s) from polar to cartesian coordinates.
-    /// \param[in] polar            Input 2d polar array|texture to interpolate onto the new coordinate system.
-    /// \param[out] cartesian       Transformed 2d array on the cartesian grid.
-    /// \param cartesian_center     HW transformation center.
-    /// \param options              Transformation options.
-    template<nt::readable_varray_decay Input,
-             nt::writable_varray_decay Output>
-    requires nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>
+    /// Transforms 2D array(s) from polar to cartesian coordinates.
+    /// \param[in] polar:
+    ///     ((Bi..,)Hi,Wi) Input 2D polar array|texture to interpolate onto the new coordinate system.
+    ///     The batch axes are broadcast to the output batch axes.
+    /// \param[out] cartesian:
+    ///     ((Bo..,)Ho,Wo) Output 2D transformed array(s) on the cartesian grid.
+    /// \param cartesian_center:
+    ///     HW transformation center.
+    /// \param options:
+    ///     Transformation options.
+    template<typename Input, typename Output>
+        requires details::polar_transformable<Input, Output>
     void polar2cartesian(
         Input&& polar,
         Output&& cartesian,

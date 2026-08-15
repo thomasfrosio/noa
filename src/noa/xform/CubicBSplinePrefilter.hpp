@@ -37,14 +37,14 @@ namespace noa::xform::details {
             value_type* c = output;
             value_type previous_c; // cache the previously calculated c rather than look it up again (faster!)
             *c = previous_c = LAMBDA * initial_causal_coefficient_(c, strides, size);
-            for (sint_type n = 1; n < size; n++) {
+            for (sint_type n = 1; n < size; ++n) {
                 c += strides;
                 *c = previous_c = LAMBDA * *c + POLE * previous_c;
             }
 
             // anticausal initialization and recursion
             *c = previous_c = initial_anticausal_coefficient_(c);
-            for (sint_type n = size - 2; 0 <= n; n--) {
+            for (sint_type n = size - 2; 0 <= n; --n) {
                 c -= strides;
                 *c = previous_c = POLE * (previous_c - *c);
             }
@@ -59,7 +59,7 @@ namespace noa::xform::details {
             value_type* c = output;
             value_type previous_c;  // cache the previously calculated c rather than look it up again (faster!)
             *c = previous_c = LAMBDA * initial_causal_coefficient_(input, input_stride, size);
-            for (sint_type n = 1; n < size; n++) {
+            for (sint_type n = 1; n < size; ++n) {
                 input += input_stride;
                 c += output_stride;
                 *c = previous_c = LAMBDA * *input + POLE * previous_c;
@@ -67,7 +67,7 @@ namespace noa::xform::details {
 
             // anticausal initialization and recursion
             *c = previous_c = initial_anticausal_coefficient_(c);
-            for (sint_type n = size - 2; 0 <= n; n--) {
+            for (sint_type n = size - 2; 0 <= n; --n) {
                 c -= output_stride;
                 *c = previous_c = POLE * (previous_c - *c);
             }
@@ -82,7 +82,7 @@ namespace noa::xform::details {
             // this initialization corresponds to clamping boundaries accelerated loop
             real_type zn = POLE;
             value_type sum = *c;
-            for (sint_type n = 0; n < horizon; n++) {
+            for (sint_type n = 0; n < horizon; ++n) {
                 sum += zn * *c;
                 zn *= POLE;
                 c += stride;
@@ -220,7 +220,7 @@ namespace noa::xform {
             output_br = output_br.permute(order);
         } // FIXME reorder B axes?
 
-        // FIXME For width in CUDA, a single thread to go through the each line. Obviously, this leeds to poor performance.
+        // TODO For width in CUDA, a single thread to go through the each line. Obviously, this leeds to poor performance.
         if (input.data() == output.data()) {
             details::cubic_bspline_prefilter_width_inplace(
                 output_br, device,
@@ -246,7 +246,7 @@ namespace noa::xform {
         if constexpr (BR >= 3) {
             if (rank >= 3) {
                 // Move the depth to the rightmost position.
-                auto permutation = Vec<usize, BR>::arange().exclude_axis(BR - 3).push_back(BR - 3);
+                auto permutation = Vec<usize, BR>::arange().exclude(BR - 3).push_back(BR - 3);
                 auto output_br_hwd = output_br.permute(permutation);
                 details::cubic_bspline_prefilter_width_inplace(
                     output_br_hwd, device,
