@@ -433,10 +433,10 @@ namespace noa::inline types {
 
         /// Returns the rank of the shape if there are no ambiguities.
         /// If the rank is set (1, 2 or 3), min(rank, N) is returned, ensuring rank <= N.
-        /// If the rank is <=0, it is deduced if N = 1 (rank = 1) or N >= 4 (using rank()),
-        /// otherwise (N = 2 or 3) an error is thrown.
+        /// If the rank is <= 0, it is deduced if N = 1 (rank = 1) or N >= 4 (using rank()), guaranteeing rank <= N.
+        /// Otherwise (N = 2 or 3) an error is thrown.
         template<nt::integer I = usize>
-        [[nodiscard]] constexpr auto rank_checked(I rank) const -> I {
+        [[nodiscard]] constexpr auto rank_checked(I rank) const -> I { // TODO rename to checked_rank? rank?
             // If the rank is specified, all good.
             if (1 <= rank and rank <= 3)
                 return std::min(rank, static_cast<I>(N));

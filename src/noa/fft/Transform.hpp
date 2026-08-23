@@ -41,7 +41,8 @@ namespace noa::fft {
         /// The rank of the transform.
         /// This determines which axes are considered batch axes, and therefore which axes are to be transformed.
         /// Batch axes are collapsed to a single axis, requiring the corresponding axes in the input and output
-        /// to be collapsible. For 2D and 3D arrays, the rank should be specified as it cannot be deduced (-1).
+        /// to be collapsible. If 0, the rank is deduced. For 2D and 3D arrays, the rank should be specified as
+        /// it cannot be deduced.
         /// See Shape::rank_checked and Shape::ranked for more details.
         usize rank{};
 
@@ -187,8 +188,8 @@ namespace noa::fft {
     void r2c(Input&& input, Output&& output, FFTOptions options = {}) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         check(output.shape() == input.shape().rfft(),
-              "Given the real input with a shape of {}, the non-redundant shape of the complex output "
-              "should be {}, but got {}", input.shape(), input.shape().rfft(), output.shape());
+              "Given the real input with a shape of {}, the non-redundant shape of the complex output should be {}, but got {}",
+              input.shape(), input.shape().rfft(), output.shape());
 
         const Device device = output.device();
         check(device == input.device(),
@@ -235,6 +236,7 @@ namespace noa::fft {
         if (not options.plan_only and not options.record_and_share_workspace)
             details::normalize(std::forward<Output>(output), shape_4d, Sign::FORWARD, options.norm);
     }
+
     template<typename Input, typename Output>
     void rfft(Input&& input, Output&& output, FFTOptions options = {}) {
         r2c(std::forward<Input>(input), std::forward<Output>(output), options);
@@ -267,6 +269,7 @@ namespace noa::fft {
         r2c(std::forward<Input>(input), output, options);
         return output;
     }
+
     template<typename Input>
     auto rfft(Input&& input,  FFTOptions options = {}) {
         return r2c(std::forward<Input>(input), options);
@@ -301,8 +304,8 @@ namespace noa::fft {
     void c2r(Input&& input, Output&& output, FFTOptions options = {}) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         check(input.shape() == output.shape().rfft(),
-              "Given the real output with a shape of {}, the non-redundant shape of the complex input "
-              "should be {}, but got {}", output.shape(), output.shape().rfft(), input.shape());
+              "Given the real output with a shape of {}, the non-redundant shape of the complex input should be {}, but got {}",
+              output.shape(), output.shape().rfft(), input.shape());
 
         const Device device = output.device();
         check(device == input.device(),
@@ -348,6 +351,7 @@ namespace noa::fft {
         if (not options.plan_only and not options.record_and_share_workspace)
             details::normalize(std::forward<Output>(output), shape_4d, Sign::BACKWARD, options.norm);
     }
+
     template<typename Input, typename Output>
     void irfft(Input&& input, Output&& output, FFTOptions options = {}) {
         c2r(std::forward<Input>(input), std::forward<Output>(output), options);
@@ -384,6 +388,7 @@ namespace noa::fft {
         c2r(std::forward<Input>(input), output, options);
         return output;
     }
+
     template<typename Input>
     auto irfft(Input&& input,  FFTOptions options = {}) {
         return c2r(std::forward<Input>(input), options);
@@ -465,6 +470,7 @@ namespace noa::fft {
         if (not options.plan_only and not options.record_and_share_workspace)
             details::normalize(std::forward<Output>(output), shape_4d, sign, options.norm);
     }
+
     template<typename Input, typename Output>
     void fft(Input&& input, Output&& output, FFTOptions options = {}) {
         c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::FORWARD, options);
@@ -518,6 +524,7 @@ namespace noa::fft {
         c2c(std::forward<Input>(input), output, sign, options);
         return output;
     }
+
     template<typename Input>
     auto fft(Input&& input, FFTOptions options = {}) {
         return c2c(std::forward<Input>(input), Sign::FORWARD, options);

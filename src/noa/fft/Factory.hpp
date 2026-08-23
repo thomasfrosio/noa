@@ -25,11 +25,24 @@ namespace noa::fft {
     template<typename T, usize N>
     [[nodiscard]] auto next_fast_shape(Shape<T, N> shape, usize rank = 0) -> Shape<T, N> {
         rank = shape.rank_checked(rank);
-        const auto start_index = std::max(usize{0}, N - rank); // ignore batch axes
-        for (usize i = start_index; i < N; ++i)
+        const auto start_index = N - rank; // N >= rank
+        for (usize i = start_index; i < N; ++i) // ignore batch axes
             if (shape[i] > 1)
                 shape[i] = static_cast<T>(next_fast_size(static_cast<isize>(shape[i])));
         return shape;
+    }
+
+    template<typename T, usize N>
+    [[nodiscard]] auto next_fast_shape_1d(Shape<T, N> shape) -> Shape<T, N> {
+        return next_fast_shape(shape, 1);
+    }
+    template<typename T, usize N>
+    [[nodiscard]] auto next_fast_shape_2d(Shape<T, N> shape) -> Shape<T, N> {
+        return next_fast_shape(shape, 2);
+    }
+    template<typename T, usize N>
+    [[nodiscard]] auto next_fast_shape_3d(Shape<T, N> shape) -> Shape<T, N> {
+        return next_fast_shape(shape, 3);
     }
 
     /// Returns the real-valued alias of rfft.
@@ -51,8 +64,8 @@ namespace noa::fft {
     /// Returns a rfft (and its real-valued alias) filled with zeros.
     /// \param shape    Shape of the real-space array.
     /// \param option   Options of the created array.
-    /// \return         The allocated array. Both the real and complex views are pointing to the same memory,
-    ///                 i.e. the real array has enough padding and alignment to support inplace r2c transforms.
+    /// \return         The allocated array. Both the real and complex views are pointing to the same memory, i.e.,
+    ///                 the real array has enough padding and alignment to support inplace r2c transforms.
     template<nt::any_of<f32, f64> T, usize N>
     [[nodiscard]] auto zeros(const Shape<isize, N>& shape, ArrayOption option = {}) -> Pair<Array<T, N>, Array<Complex<T>, N>> {
         Array complex = noa::zeros<Complex<T>, N>(shape.rfft(), option);
@@ -63,8 +76,8 @@ namespace noa::fft {
     /// Returns a rfft (and its real-valued alias) filled with ones.
     /// \param shape    Shape of the real-space array.
     /// \param option   Options of the created array.
-    /// \return         The allocated array. Both the real and complex views are pointing to the same memory,
-    ///                 i.e. the real array has enough padding and alignment to support inplace r2c transforms.
+    /// \return         The allocated array. Both the real and complex views are pointing to the same memory, i.e.,
+    ///                 the real array has enough padding and alignment to support inplace r2c transforms.
     template<nt::any_of<f32, f64> T, usize N>
     [[nodiscard]] auto ones(const Shape<isize, N>& shape, ArrayOption option = {}) -> Pair<Array<T, N>, Array<Complex<T>, N>> {
         Array complex = noa::ones<Complex<T>, N>(shape.rfft(), option);
@@ -75,8 +88,8 @@ namespace noa::fft {
     /// Returns a "padded" (as real and complex) uninitialized array.
     /// \param shape    Shape of the real-space array.
     /// \param option   Options of the created array.
-    /// \return         The allocated array. Both the real and complex views are pointing to the same memory,
-    ///                 i.e. the real array has enough padding and alignment to support inplace r2c transforms.
+    /// \return         The allocated array. Both the real and complex views are pointing to the same memory, i.e.,
+    ///                 the real array has enough padding and alignment to support inplace r2c transforms.
     template<nt::any_of<f32, f64> T, usize N>
     [[nodiscard]] auto empty(const Shape<isize, N>& shape, ArrayOption option = {}) -> Pair<Array<T, N>, Array<Complex<T>, N>> {
         Array complex = noa::empty<Complex<T>, N>(shape.rfft(), option);
