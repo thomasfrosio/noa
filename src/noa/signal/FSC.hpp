@@ -7,6 +7,8 @@
 #include "noa/fft/core/Frequency.hpp"
 #include "noa/fft/core/Layout.hpp"
 
+// FIXME file is excluded from the build, update to new version
+
 namespace noa::signal {
     constexpr auto n_shells(const Shape4& shape) -> isize {
         switch (shape.ndim()) {
