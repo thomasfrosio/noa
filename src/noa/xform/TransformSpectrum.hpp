@@ -123,9 +123,11 @@ namespace noa::xform::details {
         auto input_shape_r = input.shape().template pop_front<B>();
         auto output_shape_r = output.shape().template pop_front<B>();
         auto shape_r = shape.template pop_front<B>();
-        check((REMAP.is_hx2xx() ? shape_r.rfft() : shape_r) == input_shape_r, "The input shape doesn't match the logical shape. Got input:shape={} and logical_shape={}, rfft={}",
+        check((REMAP.is_hx2xx() ? shape_r.rfft() : shape_r) == input_shape_r,
+              "The input shape doesn't match the logical shape. Got input:shape={} and logical_shape={}, rfft={}",
               input.shape(), shape, REMAP.is_hx2xx());
-        check((REMAP.is_xx2hx() ? shape_r.rfft() : shape_r) == output_shape_r, "The input shape doesn't match the logical shape. Got input:shape={} and logical_shape={}, rfft={}",
+        check((REMAP.is_xx2hx() ? shape_r.rfft() : shape_r) == output_shape_r,
+              "The input shape doesn't match the logical shape. Got input:shape={} and logical_shape={}, rfft={}",
               output.shape(), shape, REMAP.is_xx2hx());
 
         const Device device = output.device();
