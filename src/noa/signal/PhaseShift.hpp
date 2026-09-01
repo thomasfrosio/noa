@@ -200,8 +200,8 @@ namespace noa::signal {
     ///         R=2: ((B..,)H,W),
     ///         R=3: ((B..,)D,H,W).
     ///     Consequently, it is perfectly fine to pass, for instance, a 3D transform and 2D shifts, in which case the
-    ///     3D transform (DHW) will be interpreted as multiple 2D transforms (BHW), which is the expected behavior. If
-    ///     multiple 3D transforms (BDHW) are passed, the BD dimensions are both batch dimensions and if an array
+    ///     3D transform (DHW) will be interpreted as multiple 2D transforms (BHW), which produces the expected results.
+    ///     If multiple 3D transforms (BDHW) are passed, the BD dimensions are both batch dimensions and if an array
     ///     of shifts is passed it should be of shape BD.
     /// \param fftfreq_cutoff:
     ///     Maximum output frequency to consider, in cycle/pix.
@@ -265,16 +265,15 @@ namespace noa::signal {
 
         if constexpr (nt::vec<shift_t>) {
             if (noa::allclose(shifts, 0))
-                return details::no_phase_shift<REMAP, R>(
-                    std::forward<Input>(input), std::forward<Output>(output), shape);
+                return details::no_phase_shift<REMAP, R>(NOA_FWD(input), NOA_FWD(output), shape);
 
             if (fftfreq_cutoff >= std::sqrt(0.5)) {
                 const auto half_shifts = shape_r.vec.template as<coord_t>() / 2;
                 if (noa::allclose(abs(shifts), half_shifts)) {
                     using op_t = details::PhaseShiftHalf<REMAP, B, R, isize, iaccessor_t, oaccessor_t>;
-                    return iwise(
+                    return noa::iwise(
                         iwise_shape, output.device(), op_t(iaccessor, oaccessor, shape_r),
-                        std::forward<Input>(input), std::forward<Output>(output)
+                        NOA_FWD(input), NOA_FWD(output)
                     );
                 }
             }
@@ -284,12 +283,7 @@ namespace noa::signal {
         using saccessor_t = decltype(saccessor);
         using op_t = details::PhaseShift<REMAP, isize, B, R, saccessor_t, iaccessor_t, oaccessor_t>;
         auto op = op_t(iaccessor, oaccessor, shape_r, saccessor, static_cast<coord_t>(fftfreq_cutoff));
-        iwise(
-            iwise_shape, output.device(), op,
-            std::forward<Input>(input),
-            std::forward<Output>(output),
-            std::forward<Shift>(shifts)
-        );
+        noa::iwise(iwise_shape, output.device(), op, NOA_FWD(input), NOA_FWD(output), NOA_FWD(shifts));
     }
 
     template<nf::Layout REMAP, typename Output, typename Input = Output, usize N, typename Shift>
@@ -301,7 +295,7 @@ namespace noa::signal {
         Shift&& shifts,
         f64 fftfreq_cutoff = 1
     ) {
-        phase_shift<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, shifts, fftfreq_cutoff);
+        phase_shift<REMAP>(NOA_FWD(input), NOA_FWD(output), shape, shifts, fftfreq_cutoff);
     }
 
     template<nf::Layout REMAP, typename Output, typename Input = Output, usize N, typename Shift>
@@ -313,7 +307,7 @@ namespace noa::signal {
         Shift&& shifts,
         f64 fftfreq_cutoff = 1
     ) {
-        phase_shift<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, shifts, fftfreq_cutoff);
+        phase_shift<REMAP>(NOA_FWD(input), NOA_FWD(output), shape, shifts, fftfreq_cutoff);
     }
 
     template<nf::Layout REMAP, typename Output, typename Input = Output, usize N, typename Shift>
@@ -325,6 +319,6 @@ namespace noa::signal {
         Shift&& shifts,
         f64 fftfreq_cutoff = 1
     ) {
-        phase_shift<REMAP>(std::forward<Input>(input), std::forward<Output>(output), shape, shifts, fftfreq_cutoff);
+        phase_shift<REMAP>(NOA_FWD(input), NOA_FWD(output), shape, shifts, fftfreq_cutoff);
     }
 }

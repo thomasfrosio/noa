@@ -146,15 +146,16 @@ namespace noa::xform::details {
              typename DrawableDecay = std::decay_t<Drawable>,
              typename TransformDecay = std::decay_t<Transform>,
              typename DrawValue = std::conditional_t<nt::array<DrawableDecay>, nt::value_type_twice_t<Drawable>, nt::value_type_t<Drawable>>,
-             usize N = nt::array_size_v<Output>>
+             usize N = nt::array_size_v<Output>,
+             usize B = N - RANK>
     concept drawable_nd =
         N >= RANK and
         nt::readable_array_decay<Input> and nt::array_size_v<Input> == N and
         nt::writable_array_decay<Output> and
         drawable_binary_op<nt::mutable_value_type_t<Input>, nt::value_type_t<Output>, DrawValue, BinaryOp> and
-        ((nt::array_nd<DrawableDecay, N> and nt::array_nd<TransformDecay, N> and nt::drawable<nt::value_type_t<Drawable>, RANK, DrawValue, nt::value_type_t<Transform>>) or
-         (nt::array_nd<DrawableDecay, N> and nt::drawable<nt::value_type_t<Drawable>, RANK, DrawValue, TransformDecay>) or
-         (nt::array_nd<TransformDecay, N> and nt::drawable<DrawableDecay, RANK, DrawValue, nt::value_type_t<Transform>>) or
+        ((nt::array_nd<DrawableDecay, B> and nt::array_nd<TransformDecay, B> and nt::drawable<nt::value_type_t<Drawable>, RANK, DrawValue, nt::value_type_t<Transform>>) or
+         (nt::array_nd<DrawableDecay, B> and nt::drawable<nt::value_type_t<Drawable>, RANK, DrawValue, TransformDecay>) or
+         (nt::array_nd<TransformDecay, B> and nt::drawable<DrawableDecay, RANK, DrawValue, nt::value_type_t<Transform>>) or
          (nt::drawable<DrawableDecay, RANK, DrawValue, TransformDecay>));
 
     template<usize RANK, IwiseOptions OPTIONS,

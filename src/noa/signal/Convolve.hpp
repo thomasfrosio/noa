@@ -25,6 +25,8 @@ namespace noa::signal {
     ///     (R..) Contiguous filter. R should be W, HW, DHW. The same filter is applied to all (B..) batch axes.
     ///     Each axis should have an odd number of elements. Axes don't have to have the same size.
     ///     The floating-point precision of the convolution is set to the filter value type.
+    /// \param options:
+    ///     Convolution options.
     template<nt::readable_array_decay_of_real Input,
              nt::writable_array_decay_of_real Output,
              nt::readable_array_decay_of_real Filter>
@@ -51,22 +53,14 @@ namespace noa::signal {
 
         check(options.border.is_any(Border::ZERO, Border::REFLECT), "The provided border mode is not supported");
 
-        if (filter.shape() == 1) {
-            return ewise(
-                noa::wrap(std::forward<Input>(input), filter.first()),
-                std::forward<Output>(output),
-                noa::Multiply{}
-            );
-        }
+        if (filter.shape() == 1)
+            return ewise(noa::wrap(NOA_FWD(input), filter.first()), NOA_FWD(output), noa::Multiply{});
 
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.thread_limit();
-            cpu_stream.enqueue([=,
-                i = std::forward<Input>(input),
-                o = std::forward<Output>(output),
-                f = std::forward<Filter>(filter)] {
+            cpu_stream.enqueue([=, i = NOA_FWD(input), o = NOA_FWD(output), f = NOA_FWD(filter)] {
                 if (options.border == Border::ZERO) {
                     noa::signal::cpu::convolve<Border::ZERO>(
                         i.get(), input_strides,
@@ -94,9 +88,9 @@ namespace noa::signal {
                     filter.get(), filter.shape(), cuda_stream);
             }
             cuda_stream.enqueue_attach(
-                std::forward<Input>(input),
-                std::forward<Output>(output),
-                std::forward<Filter>(filter));
+                NOA_FWD(input),
+                NOA_FWD(output),
+                NOA_FWD(filter));
             #else
             panic_no_gpu_backend();
             #endif
@@ -121,13 +115,15 @@ namespace noa::signal {
     ///     If only one dimension is filtered, no temporary buffer is needed and this is ignored.
     ///     Otherwise, it should be an array of the same shape as the output, or be an empty array,
     ///     in which case a temporary array will be allocated internally.
+    /// \param options:
+    ///     Convolution options.
     template<nt::readable_array_decay_of_real Input,
              nt::writable_array_decay_of_real Output,
              nt::readable_array_decay_of_real FilterDepth = Array<nt::const_value_type_t<Input>, 1, ArrayOwnership::VIEW>,
              nt::readable_array_decay_of_real FilterHeight = Array<nt::const_value_type_t<Input>, 1, ArrayOwnership::VIEW>,
              nt::readable_array_decay_of_real FilterWidth = Array<nt::const_value_type_t<Input>, 1, ArrayOwnership::VIEW>,
-             nt::writable_array_decay_of_real Buffer = Array<nt::value_type_t<Output>, 1, ArrayOwnership::VIEW>>
-        requires (nt::array_with_same_nd<Input, Output> and
+             nt::writable_array_decay_of_real Buffer = Array<nt::value_type_t<Output>, nt::array_size_v<Output>, ArrayOwnership::VIEW>>
+        requires (nt::array_decay_with_same_nd<Input, Output, Buffer> and
                   nt::array_size_v<Output> >= 3 and
                   nt::array_decay_of_almost_same_type<FilterDepth, FilterHeight, FilterWidth, Buffer>)
     void convolve_separable(
@@ -186,12 +182,12 @@ namespace noa::signal {
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=,
-                i = std::forward<Input>(input),
-                o = std::forward<Output>(output),
-                fd = std::forward<FilterDepth>(filter_depth),
-                fh = std::forward<FilterHeight>(filter_height),
-                fw = std::forward<FilterWidth>(filter_width),
-                b = std::forward<Buffer>(buffer)] {
+                i = NOA_FWD(input),
+                o = NOA_FWD(output),
+                fd = NOA_FWD(filter_depth),
+                fh = NOA_FWD(filter_height),
+                fw = NOA_FWD(filter_width),
+                b = NOA_FWD(buffer)] {
                 if (options.border == Border::ZERO) {
                     noa::signal::cpu::convolve_separable<Border::ZERO>(
                         i.get(), input_strides,
@@ -231,12 +227,12 @@ namespace noa::signal {
                     buffer.get(), buffer.strides(), cuda_stream);
             }
             cuda_stream.enqueue_attach(
-                std::forward<Input>(input),
-                std::forward<Output>(output),
-                std::forward<FilterDepth>(filter_depth),
-                std::forward<FilterHeight>(filter_height),
-                std::forward<FilterWidth>(filter_width),
-                std::forward<Buffer>(buffer));
+                NOA_FWD(input),
+                NOA_FWD(output),
+                NOA_FWD(filter_depth),
+                NOA_FWD(filter_height),
+                NOA_FWD(filter_width),
+                NOA_FWD(buffer));
             #else
             panic_no_gpu_backend();
             #endif

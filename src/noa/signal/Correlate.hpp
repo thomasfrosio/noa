@@ -256,8 +256,8 @@ namespace noa::signal::details {
 
     template<usize B, usize R, bool IS_CENTERED, usize REGISTRATION_RADIUS_LIMIT,
              nt::readable_nd<B + R> Input,
-             nt::writable_nd_optional<R> PeakCoordinates,
-             nt::writable_nd_optional<R> PeakValues>
+             nt::writable_nd_optional<B> PeakCoordinates,
+             nt::writable_nd_optional<B> PeakValues>
     struct PeakRegistration {
         using input_type = Input;
         using peak_coordinates_type = PeakCoordinates;
@@ -270,43 +270,43 @@ namespace noa::signal::details {
         static_assert(nt::vec_real_size<coord_type, R>);
 
         using index_n_type = Vec<index_type, R>;
-        using shape_type = Shape<index_type, R>;
+        using shape_r_type = Shape<index_type, R>;
 
     public:
         constexpr PeakRegistration(
             const input_type& input,
             const peak_coordinates_type& peak_coordinates,
             const peak_values_type& peak_values,
-            const Shape<index_type, R>& shape,
+            const Shape<index_type, R>& shape_r,
             const Vec<i32, R>& registration_radius
         ) : m_input_bn(input),
             m_peak_coordinates(peak_coordinates),
             m_peak_values(peak_values),
-            m_shape_n(shape),
+            m_shape_r(shape_r),
             m_registration_radius(registration_radius)
         {
             NOA_ASSERT(registration_radius <= static_cast<index_type>(REGISTRATION_RADIUS_LIMIT));
         }
 
         constexpr void operator()(const Vec<index_type, B>& batches) const {
-            const auto peak_indices = IS_CENTERED ? m_shape_n.vec / 2 : index_n_type{0};
+            const auto peak_indices = IS_CENTERED ? m_shape_r.vec / 2 : index_n_type{0};
             const auto input_n = m_input_bn[batches];
-            const auto central_value = input_n(peak_indices);
+            const auto central_value = input_n[peak_indices];
             const auto [peak_value, peak_coordinate] =
                 subpixel_registration_using_1d_parabola<IS_CENTERED, REGISTRATION_RADIUS_LIMIT>(
-                    input_n, m_shape_n, m_registration_radius, peak_indices, central_value);
+                    input_n, m_shape_r, m_registration_radius, peak_indices, central_value);
 
             if (m_peak_coordinates)
-                m_peak_coordinates(batches) = static_cast<coord_type>(peak_coordinate);
+                m_peak_coordinates[batches] = static_cast<coord_type>(peak_coordinate);
             if (m_peak_values)
-                m_peak_values(batches) = static_cast<value_type>(peak_value);
+                m_peak_values[batches] = static_cast<value_type>(peak_value);
         }
 
     private:
         input_type m_input_bn;
         peak_coordinates_type m_peak_coordinates;
         peak_values_type m_peak_values;
-        shape_type m_shape_n;
+        shape_r_type m_shape_r;
         Vec<i32, R> m_registration_radius;
     };
 
@@ -326,10 +326,8 @@ namespace noa::signal::details {
         static_assert(nt::vec_real_size<coord_type, R>);
 
         using reduced_type = Pair<value_type, index_type>;
-        using index_n_type = Vec<index_type, R>;
-        using shape_type = Shape<index_type, R>;
-
-        using subregion_offset_type = Vec<index_type, R>;
+        using shape_b_type = Shape<index_type, B>;
+        using shape_r_type = Shape<index_type, R>;
         using ellipse_type = nx::DrawEllipse<R, f32, false>;
 
     public:
@@ -337,23 +335,23 @@ namespace noa::signal::details {
             const input_type& input,
             const peak_coordinates_type& peak_coordinates,
             const peak_values_type& peak_values,
-            const Shape<index_type, R>& shape_b,
-            const Shape<index_type, R>& shape_r,
+            const shape_b_type& shape_b,
+            const shape_r_type& shape_r,
             const Vec<i32, R>& registration_radius,
-            const index_n_type& subregion_offset,
-            const index_n_type& maximum_lag,
+            const Vec<index_type, R>& subregion_offset,
+            const Vec<index_type, R>& maximum_lag,
             bool apply_ellipse
         ) : m_input(input),
             m_peak_coordinates(peak_coordinates),
             m_peak_values(peak_values),
-            m_shape(shape_r),
-            m_batch(shape_b),
+            m_shape_b(shape_b),
+            m_shape_r(shape_r),
             m_registration_radius(registration_radius),
             m_apply_ellipse(apply_ellipse)
         {
             if (m_apply_ellipse) {
                 m_subregion_offset = subregion_offset;
-                const auto center = (m_shape.vec / 2).template as<f32>(); // DC position
+                const auto center = (m_shape_r.vec / 2).template as<f32>(); // DC position
                 constexpr auto cvalue = 1.f;
                 constexpr auto is_inverted = false;
                 m_ellipse = ellipse_type(center, maximum_lag.template as<f32>(), cvalue, is_inverted);
@@ -372,10 +370,10 @@ namespace noa::signal::details {
             }
 
             if constexpr (not IS_CENTERED)
-                indices = nf::ifftshift(indices, m_shape);
+                indices = nf::ifftshift(indices, m_shape_r);
             const auto batched_indices = indices.push_front(batches);
 
-            const auto value = m_input(batched_indices) * static_cast<value_type>(mask);
+            const auto value = m_input[batched_indices] * static_cast<value_type>(mask);
             const auto offset = m_input.offset_at(batched_indices);
             join(reduced_type{value, offset}, reduced);
         }
@@ -387,29 +385,29 @@ namespace noa::signal::details {
         }
 
         constexpr void post(const reduced_type& reduced) { // single-threaded, one thread per batch
-            const auto shape = m_batch.push_back(m_shape);
-            const auto peak_indices = noa::offset2index(reduced.second, m_input.strides(), shape);
+            const auto shape_br = m_shape_b.push_back(m_shape_r.vec);
+            const auto peak_indices = noa::offset2index(reduced.second, m_input.strides(), shape_br);
             const auto [batches, indices] = peak_indices.template split<B>();
 
             auto [peak_value, peak_coordinate] =
                 subpixel_registration_using_1d_parabola<IS_CENTERED, REGISTRATION_RADIUS_LIMIT>(
-                    m_input[batches], m_shape, m_registration_radius, peak_indices, reduced.first);
+                    m_input[batches], m_shape_r, m_registration_radius, indices, reduced.first);
 
             if (m_peak_coordinates)
-                m_peak_coordinates(batches) = static_cast<coord_type>(peak_coordinate);
+                m_peak_coordinates[batches] = static_cast<coord_type>(peak_coordinate);
             if (m_peak_values)
-                m_peak_values(batches) = static_cast<value_type>(peak_value);
+                m_peak_values[batches] = static_cast<value_type>(peak_value);
         }
 
     private:
         input_type m_input;
         peak_coordinates_type m_peak_coordinates;
         peak_values_type m_peak_values;
-        shape_type m_shape;
-        index_type m_batch;
+        shape_b_type m_shape_b;
+        shape_r_type m_shape_r;
         Vec<i32, R> m_registration_radius;
         ellipse_type m_ellipse;
-        subregion_offset_type m_subregion_offset;
+        Vec<index_type, R> m_subregion_offset;
         bool m_apply_ellipse;
     };
 
@@ -420,18 +418,17 @@ namespace noa::signal::details {
         nt::array_decay_with_same_nd<Lhs, Rhs> and
         nt::array_decay_between_nd<Output, 1, nt::array_size_v<Lhs>>;
 
-    template<nf::Layout REMAP, typename Lhs, typename Rhs, typename Output, typename Buffer = Empty,
-             typename BufferOrEmpty = std::conditional_t<nt::empty<Empty>, Rhs, Buffer>>
-    concept cross_correlation_mapable = nt::array_decay_of_complex<Lhs, Rhs, BufferOrEmpty> and
-         nt::array_decay_of_almost_same_type<Lhs, Rhs, BufferOrEmpty> and
-         nt::writable_array_decay<Rhs, BufferOrEmpty> and
+    template<nf::Layout REMAP, typename Lhs, typename Rhs, typename Output, typename BufferOrEmpty = Empty,
+             typename Buffer = std::conditional_t<nt::empty<BufferOrEmpty>, Rhs, BufferOrEmpty>>
+    concept cross_correlation_mapable = nt::array_decay_of_complex<Lhs, Rhs, Buffer> and
+         nt::array_decay_of_almost_same_type<Lhs, Rhs, Buffer> and
+         nt::writable_array_decay<Rhs, Buffer> and
          nt::writable_array_decay_of_any<Output, nt::value_type_twice_t<Rhs>> and
-         nt::array_decay_with_same_nd<Lhs, Rhs, BufferOrEmpty, Output> and
+         nt::array_decay_with_same_nd<Lhs, Rhs, Buffer, Output> and
          (REMAP == nf::Layout::H2F or REMAP == nf::Layout::H2FC);
 
     template<typename PeakCoord, typename PeakValue, usize B, usize R, typename InputValue>
-    concept cross_correlation_peaks_value_or_coord =
-        nt::array_size_v<PeakCoord> == nt::array_size_v<PeakValue> and (
+    concept cross_correlation_peaks_value_or_coord = (
         nt::empty<PeakCoord> or (
             nt::array_nd<PeakCoord, B> and
             nt::any_of<nt::value_type_t<PeakCoord>, Vec<f32, R>, Vec<f64, R>>
@@ -488,7 +485,7 @@ namespace noa::signal {
         constexpr auto B = nt::array_size_v<Output>;
         const auto [shape_b, shape_n] = rhs.shape().template split<B>();
         check(scores.is_contiguous() and scores.shape() == shape_b,
-              "The output scores, specified as a contiguous array, should match the batch dimensions of the inputs. Got scores:shape={}, scores:strides={}, and input:batches={}",
+              "The output scores, specified as a contiguous array, should match the batch axes of the inputs. Got scores:shape={}, scores:strides={}, and input:batches={}",
               scores.shape(), scores.strides(), shape_b);
 
         using value_t = nt::mutable_value_type_t<Lhs>;
@@ -497,31 +494,31 @@ namespace noa::signal {
         if (options.center and options.normalize) {
             const auto n_elements = static_cast<real_t>(shape_n.n_elements());
             reduce_axes_ewise(
-                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(NOA_FWD(lhs), NOA_FWD(rhs)),
                 wrap(real_t{}, real_t{}, sum_t{}, sum_t{}, sum_t{}),
-                std::forward<Output>(scores),
+                NOA_FWD(scores),
                 details::CrossCorrelationScoreCenteredNormalized{n_elements}
             );
         } else if (options.normalize) {
             reduce_axes_ewise(
-                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(NOA_FWD(lhs), NOA_FWD(rhs)),
                 wrap(real_t{}, real_t{}, sum_t{}),
-                std::forward<Output>(scores),
+                NOA_FWD(scores),
                 details::CrossCorrelationScoreNormalized{}
             );
         } else if (options.center) {
             const auto n_elements = static_cast<real_t>(shape_n.n_elements());
             reduce_axes_ewise(
-                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(NOA_FWD(lhs), NOA_FWD(rhs)),
                 wrap(sum_t{}, sum_t{}, sum_t{}),
-                std::forward<Output>(scores),
+                NOA_FWD(scores),
                 details::CrossCorrelationScoreCentered{n_elements}
             );
         } else {
             reduce_axes_ewise(
-                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(NOA_FWD(lhs), NOA_FWD(rhs)),
                 sum_t{},
-                std::forward<Output>(scores),
+                NOA_FWD(scores),
                 details::CrossCorrelationScore{}
             );
         }
@@ -534,8 +531,8 @@ namespace noa::signal {
         requires ((nt::array_decay_of_real<Lhs, Rhs> or nt::array_decay_of_complex<Lhs, Rhs>) and nt::array_decay_with_same_nd<Lhs, Rhs>)
     [[nodiscard]] auto cross_correlation_score(Lhs&& lhs, Rhs&& rhs, const CrossCorrelationScoreOptions& options = {}) {
         check(not lhs.is_empty() and not rhs.is_empty(), "Empty array detected");
-        check(lhs.shape() == rhs.shape() and not rhs.shape().is_batched(),
-              "Arrays should have the same shape and should not be batched, but got lhs:shape={}, rhs:shape={}",
+        check(lhs.shape() == rhs.shape(),
+              "Arrays should have the same shape, but got lhs:shape={}, rhs:shape={}",
               lhs.shape(), rhs.shape());
         check(lhs.device() == rhs.device(),
               "The lhs and rhs input arrays should be on the same device, but got lhs:device={} and rhs:device={}",
@@ -548,14 +545,14 @@ namespace noa::signal {
         if (options.center and options.normalize) {
             const auto n_elements = static_cast<real_t>(lhs.shape().n_elements());
             reduce_ewise(
-                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(NOA_FWD(lhs), NOA_FWD(rhs)),
                 wrap(real_t{}, real_t{}, sum_t{}, sum_t{}, sum_t{}),
                 score,
                 details::CrossCorrelationScoreCenteredNormalized{n_elements}
             );
         } else if (options.normalize) {
             reduce_ewise(
-                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(NOA_FWD(lhs), NOA_FWD(rhs)),
                 wrap(real_t{}, real_t{}, sum_t{}),
                 score,
                 details::CrossCorrelationScoreNormalized{}
@@ -563,14 +560,14 @@ namespace noa::signal {
         } else if (options.center) {
             const auto n_elements = static_cast<real_t>(lhs.shape().n_elements());
             reduce_ewise(
-                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(NOA_FWD(lhs), NOA_FWD(rhs)),
                 wrap(sum_t{}, sum_t{}, sum_t{}),
                 score,
                 details::CrossCorrelationScoreCentered{n_elements}
             );
         } else {
             reduce_ewise(
-                wrap(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)),
+                wrap(NOA_FWD(lhs), NOA_FWD(rhs)),
                 sum_t{},
                 score,
                 details::CrossCorrelationScore{}
@@ -585,7 +582,7 @@ namespace noa::signal {
 
         /// Rank of the transform.
         /// See Shape::rank_checked for more details.
-        i32 rank = -1;
+        usize rank{};
 
         /// Normalization mode to use for the C2R transform producing the final output.
         /// This should match the mode that was used to compute the input transforms.
@@ -600,27 +597,26 @@ namespace noa::signal {
     ///     Whether the output map(s) should be centered.
     ///     Should be H2F or H2FC.
     /// \param[in] lhs:
-    ///     ((B..,)N..) Non-centered rFFT of the signal to cross-correlate.
+    ///     ((B..,)R..) Non-centered rFFT of the signal to cross-correlate.
+    ///     The rank of the transform is set by options.rank, and the resulting batch axes should be collapsible.
     /// \param[in,out] rhs
-    ///     ((B..,)N..) Non-centered rFFT of the signal to cross-correlate.
-    ///     The rank of the transform, thus which dimensions are the B.. batch dimensions, is set by options.rank.
+    ///     ((B..,)R..) Non-centered rFFT of the signal to cross-correlate.
+    ///     The rank of the transform is set by options.rank, and the resulting batch axes should be collapsible.
     ///     Autocorrelation is allowed, so lhs can be equal to rhs.
     ///     Overwritten by default (see buffer).
     /// \param[out] output:
-    ///     ((B..,)N..) Cross-correlation map.
-    ///     The rank of the transform, thus which dimensions are the B.. batch dimensions, is set by options.rank.
+    ///     ((B..,)R..) Cross-correlation map.
+    ///     The rank of the transform is set by options.rank, and the resulting batch axes should be collapsible.
     ///     If REMAP is H2F, the zero-lags are at (B..,0..).
     ///     If REMAP is H2FC, the zero-lags are at {B..,N/2..).
     ///     Can overlap with the inputs (see buffer).
     /// \param options:
     ///     Correlation mode and ifft options.
-    ///     The rank of the transforms, thus which dimensions are the B.. batch dimensions, is set by options.rank.
-    ///
     /// \param[out] buffer:
-    ///     ((B..,)N..) buffer to hold the rFFT, no broadcasting allowed, or Empty.
+    ///     ((B..,)R..) buffer to hold the rFFT, no broadcasting allowed, or Empty.
     ///     Can be lhs or rhs. If empty, rhs is used instead (the default).
     ///     Can be an alias of output, in which case an in-place iFFT is computed.
-    ///     This is passed to the c2r, thus should be reshapeable to 4D (batch dimensions should be collapsible).
+    ///     This is passed to the c2r, thus should be reshapeable to 4D (batch axes should be collapsible).
     ///
     /// \note
     ///     As mentioned above, this function takes the rFFT of the real inputs to correlate. The score with zero lag
@@ -684,26 +680,22 @@ namespace noa::signal {
 
         switch (options.mode) {
             case Correlation::CONVENTIONAL:
-                ewise(wrap(std::forward<Lhs>(lhs), rhs), tmp,
-                      details::CrossCorrelationMap<Correlation::CONVENTIONAL>{});
+                ewise(wrap(NOA_FWD(lhs), rhs), tmp, details::CrossCorrelationMap<Correlation::CONVENTIONAL>{});
                 break;
             case Correlation::PHASE:
-                ewise(wrap(std::forward<Lhs>(lhs), rhs), tmp,
-                      details::CrossCorrelationMap<Correlation::PHASE>{});
+                ewise(wrap(NOA_FWD(lhs), rhs), tmp, details::CrossCorrelationMap<Correlation::PHASE>{});
                 break;
             case Correlation::DOUBLE_PHASE:
-                ewise(wrap(std::forward<Lhs>(lhs), rhs), tmp,
-                      details::CrossCorrelationMap<Correlation::DOUBLE_PHASE>{});
+                ewise(wrap(NOA_FWD(lhs), rhs), tmp, details::CrossCorrelationMap<Correlation::DOUBLE_PHASE>{});
                 break;
             case Correlation::MUTUAL:
-                ewise(wrap(std::forward<Lhs>(lhs), rhs), tmp,
-                      details::CrossCorrelationMap<Correlation::MUTUAL>{});
+                ewise(wrap(NOA_FWD(lhs), rhs), tmp, details::CrossCorrelationMap<Correlation::MUTUAL>{});
                 break;
         }
 
         if constexpr (REMAP == nf::Layout::H2FC) {
             using real_t = nt::value_type_t<complex_t>;
-            const auto shape_r = output.shape().vec.template as_nd<4>();
+            const auto shape_r = output.shape().template as_nd<4>().vec;
             if (rank == 1) {
                 auto half_shift = (shape_r.template pop_front<3>() / 2).template as<real_t>();
                 phase_shift_1d<"h2h">(tmp, tmp, output.shape(), half_shift);
@@ -728,9 +720,37 @@ namespace noa::signal {
             .cache_plan = options.ifft_cache_plan,
         };
         if (buffer_is_empty)
-            return nf::c2r(std::forward<Rhs>(rhs), std::forward<Output>(output), c2r_options);
+            return nf::c2r(NOA_FWD(rhs), NOA_FWD(output), c2r_options);
         if constexpr (nt::array_decay<Buffer>)
-            return nf::c2r(std::forward<Buffer>(buffer), std::forward<Output>(output), c2r_options);
+            return nf::c2r(NOA_FWD(buffer), NOA_FWD(output), c2r_options);
+    }
+
+    template<nf::Layout REMAP, typename Lhs, typename Rhs, typename Output, typename Buffer = Empty>
+    void cross_correlation_map_1d(
+        Lhs&& lhs, Rhs&& rhs, Output&& output,
+        CrossCorrelationMapOptions options = {},
+        Buffer&& buffer = {}
+    ) {
+        options.rank = 1;
+        cross_correlation_map<REMAP>(NOA_FWD(lhs), NOA_FWD(rhs), NOA_FWD(output), options, NOA_FWD(buffer));
+    }
+    template<nf::Layout REMAP, typename Lhs, typename Rhs, typename Output, typename Buffer = Empty>
+    void cross_correlation_map_2d(
+        Lhs&& lhs, Rhs&& rhs, Output&& output,
+        CrossCorrelationMapOptions options = {},
+        Buffer&& buffer = {}
+    ) {
+        options.rank = 2;
+        cross_correlation_map<REMAP>(NOA_FWD(lhs), NOA_FWD(rhs), NOA_FWD(output), options, NOA_FWD(buffer));
+    }
+    template<nf::Layout REMAP, typename Lhs, typename Rhs, typename Output, typename Buffer = Empty>
+    void cross_correlation_map_3d(
+        Lhs&& lhs, Rhs&& rhs, Output&& output,
+        CrossCorrelationMapOptions options = {},
+        Buffer&& buffer = {}
+    ) {
+        options.rank = 3;
+        cross_correlation_map<REMAP>(NOA_FWD(lhs), NOA_FWD(rhs), NOA_FWD(output), options, NOA_FWD(buffer));
     }
 
     template<usize R>
@@ -744,7 +764,7 @@ namespace noa::signal {
         /// If negative, it is ignored and the entire map is searched. If zero, the central peak at lag zero is
         /// guaranteed to be selected. Otherwise, an elliptical mask is applied on the centered cross-correlation
         /// map before the search. Note that the implementation selects the minimum subregion within the map
-        /// considering the ellipse and only search within that subregion, so this is worth specifying purely
+        /// considering the ellipse and only searches within that subregion, so this is worth specifying also
         /// for a performance reason.
         Vec<f64, R> maximum_lag{Vec<f64, R>::from_value(-1)};
     };
@@ -754,11 +774,12 @@ namespace noa::signal {
     ///     Whether the map is centered. Should be F2F or FC2FC.
     /// \param[in] cross_correlation_maps:
     ///     (B..R..) cross-correlation maps.
+    ///     The batch axes should be collapsible.
     /// \param[out] peak_coordinates:
-    ///     (B..) output array of (R..) coordinates of the highest peaks.
+    ///     (B..) output contiguous array of (R..) coordinates of the highest peaks.
     ///     Can be an empty array or Empty, in which case the peak coordinates are not returned.
     /// \param[out] peak_values:
-    ///     (B..) output array of values of the highest peaks.
+    ///     (B..) output contiguous array of values of the highest peaks.
     ///     Can be an empty array or Empty, in which case the peak coordinates are not returned.
     /// \param options:
     ///     Picking and registration options.
@@ -770,21 +791,19 @@ namespace noa::signal {
         PeakValue&& peak_values = {},
         const CrossCorrelationPeakOptions<R>& options = {}
     ) {
-        constexpr bool HAS_COORDINATES = nt::array<PeakCoord>;
-        constexpr bool HAS_VALUES = nt::array<PeakValue>;
-        constexpr auto N = nt::array_size_v<Input>;
+        constexpr bool HAS_COORDINATES = nt::array_decay<PeakCoord>;
+        constexpr bool HAS_VALUES = nt::array_decay<PeakValue>;
         constexpr auto B = std::max(nt::array_size_v<PeakCoord>, nt::array_size_v<PeakValue>);
 
         check(not cross_correlation_maps.is_empty(), "Empty array detected");
         check(not cross_correlation_maps.strides().is_broadcast(), "The cross-correlation map should not be broadcast");
         const auto& device = cross_correlation_maps.device();
         const auto& shape = cross_correlation_maps.shape();
-        auto [shape_b, shape_n] = shape.template split<B>();
+        auto [shape_b, shape_r] = shape.template split<B>();
 
         if constexpr (HAS_COORDINATES) {
             if (not peak_coordinates.is_empty()) {
-                check(peak_coordinates.is_contiguous() and
-                      peak_coordinates.shape() == shape_b,
+                check(peak_coordinates.is_contiguous() and peak_coordinates.shape() == shape_b,
                       "The number of peak coordinates, specified as a contiguous array, should be equal to the batch shape of the cross-correlation map. Got peak_coordinates:shape={}, peak_coordinates:strides={} and cross_correlation_maps:batches:shape={}",
                       peak_coordinates.shape(), peak_coordinates.strides(), shape_b);
                 check(device == peak_coordinates.device(),
@@ -795,8 +814,7 @@ namespace noa::signal {
 
         if constexpr (HAS_VALUES) {
             if (not peak_values.is_empty()) {
-                check(peak_values.is_contiguous() and
-                      peak_values.shape() == shape_b,
+                check(peak_values.is_contiguous() and peak_values.shape() == shape_b,
                       "The number of peak values, specified as a contiguous array, should be equal to the batch shape of the cross-correlation map. Got peak_values:shape={}, peak_values:strides={} and cross_correlation_maps:batches:shape={}",
                       peak_values.shape(), peak_values.strides(), shape_b);
                 check(device == peak_values.device(),
@@ -806,47 +824,52 @@ namespace noa::signal {
         }
 
         constexpr usize REGISTRATION_RADIUS_LIMIT = 4;
-        check(noa::is_within(options.registration_radius, 0, REGISTRATION_RADIUS_LIMIT),
-              "The registration radius should be a small positive value (less than {}), but got {}",
+        check(options.registration_radius >= 0 and options.registration_radius <= REGISTRATION_RADIUS_LIMIT,
+              "The registration radius should be a small positive value (less than or equal to {}), but got {}",
               REGISTRATION_RADIUS_LIMIT, options.registration_radius);
 
         if constexpr (HAS_COORDINATES or HAS_VALUES) {
             using value_t = nt::mutable_value_type_t<Input>;
             using index_t = nt::index_type_t<Input>;
             using coord_t = std::conditional_t<nt::empty<PeakCoord>, f64, nt::value_type_t<PeakCoord>>;
-            using input_accessor_t = AccessorRestrict<const value_t, N, isize>;
-            using peak_coordinates_accessor_t = AccessorRestrictContiguous<coord_t, B, isize>;
-            using peak_values_accessor_t = AccessorRestrictContiguous<value_t, B, isize>;
+            using input_accessor_t = AccessorRestrict<const value_t, 1 + R, isize>;
+            using peak_coordinates_accessor_t = AccessorRestrictContiguous<coord_t, 1, isize>;
+            using peak_values_accessor_t = AccessorRestrictContiguous<value_t, 1, isize>;
 
-            auto input_accessor = input_accessor_t(cross_correlation_maps.get(), cross_correlation_maps.strides());
+            // Fuse the batch dimensions, because reduce_axes_iwise needs a unique reduced left-axis.
+            auto collapsed_input = cross_correlation_maps.span().template as_nd<1 + R>();
+            auto shape_b1 = Shape{collapsed_input.shape()[0]};
+            NOA_ASSERT(shape_b1[0] == shape_b.n_elements());
+
+            auto input_accessor = input_accessor_t(collapsed_input.get(), collapsed_input.strides());
             auto peak_coordinates_accessor = peak_coordinates_accessor_t{};
             auto peak_values_accessor = peak_values_accessor_t{};
             if constexpr (HAS_COORDINATES)
-                peak_coordinates_accessor = peak_coordinates_accessor_t(peak_coordinates.get(), peak_coordinates.strides());
+                peak_coordinates_accessor = peak_coordinates_accessor_t(peak_coordinates.get()); // contiguous
             if constexpr (HAS_VALUES)
-                peak_values_accessor = peak_values_accessor_t(peak_values.get(), peak_values.strides());
+                peak_values_accessor = peak_values_accessor_t(peak_values.get()); // contiguous
 
             // Special case that doesn't require a reduction since we know where is the peak.
             // Just do the subpixel registration.
             if (options.maximum_lag == 0) {
                 auto op = details::PeakRegistration<
-                    B, R, LAYOUT.is_xc2xx(), REGISTRATION_RADIUS_LIMIT,
+                    1, R, LAYOUT.is_xc2xx(), REGISTRATION_RADIUS_LIMIT,
                     input_accessor_t, peak_coordinates_accessor_t, peak_values_accessor_t>(
                     input_accessor, peak_coordinates_accessor, peak_values_accessor,
-                    shape_n, options.registration_radius
+                    shape_r, options.registration_radius
                 );
                 iwise(
-                    shape_b, device, op,
-                    std::forward<Input>(cross_correlation_maps),
-                    std::forward<PeakCoord>(peak_coordinates),
-                    std::forward<PeakValue>(peak_values)
+                    shape_b1, device, op,
+                    NOA_FWD(cross_correlation_maps),
+                    NOA_FWD(peak_coordinates),
+                    NOA_FWD(peak_values)
                 );
                 return;
             }
 
             // Restrict the search window within the maximum allowed lag.
             bool apply_ellipse{};
-            auto maximum_allowed_lag = shape_n.vec.pop_front() / 2;
+            auto maximum_allowed_lag = shape_r.vec / 2;
             Vec<index_t, R> maximum_lag;
             Vec<index_t, R> subregion_offset;
             Shape<index_t, R> subregion_shape;
@@ -862,27 +885,24 @@ namespace noa::signal {
                 // The reduction is done within the subregion that goes up to the maximum lag
                 // (and centered on the original map center, of course).
                 subregion_offset[i] = maximum_allowed_lag[i] - maximum_lag[i];
-                subregion_shape[i] = min(maximum_lag[i] * 2 + 1, shape_n[i + 1]);
+                subregion_shape[i] = min(maximum_lag[i] * 2 + 1, shape_r[i]);
             }
 
             // Search for the peaks, and do the subpixel registration.
             using reducer_t = details::ReducePeak<
-                B, R, LAYOUT.is_xc2xx(), REGISTRATION_RADIUS_LIMIT,
+                1, R, LAYOUT.is_xc2xx(), REGISTRATION_RADIUS_LIMIT,
                 input_accessor_t, peak_coordinates_accessor_t, peak_values_accessor_t>;
 
-            auto reduce_axes = ReduceAxes<N>::all();
-            for (usize i{}; i < B; ++i)
-                reduce_axes[i] = false;
-
+            auto reduce_axes = ReduceAxes<1 + R>::all_but(0);
             auto initial_reduction_value = Pair{std::numeric_limits<value_t>::lowest(), index_t{}};
             reduce_axes_iwise(
-                subregion_shape.push_front(shape_b), device, initial_reduction_value, reduce_axes,
+                subregion_shape.push_front(shape_b1[0]), device, initial_reduction_value, reduce_axes,
                 reducer_t(input_accessor, peak_coordinates_accessor, peak_values_accessor,
-                          shape_n, options.registration_radius,
+                          shape_b1, shape_r, options.registration_radius,
                           subregion_offset, maximum_lag, apply_ellipse),
-                std::forward<Input>(cross_correlation_maps),
-                std::forward<PeakCoord>(peak_coordinates),
-                std::forward<PeakValue>(peak_values)
+                NOA_FWD(cross_correlation_maps),
+                NOA_FWD(peak_coordinates),
+                NOA_FWD(peak_values)
             );
         }
     }

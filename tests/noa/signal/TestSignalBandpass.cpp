@@ -14,7 +14,7 @@ using namespace noa::types;
 
 TEST_CASE("signal::lowpass()", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
-    const Path path_base = test::NOA_DATA_PATH / "signal";
+    const Path path_base = test::noa_data_path() / "signal";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["lowpass"];
 
     std::vector<Device> devices{"cpu"};
@@ -34,7 +34,7 @@ TEST_CASE("signal::lowpass()", "[asset]") {
             auto no_batch_shape = shape;
             no_batch_shape[0] = 1;
             const auto filter_expected = noa::empty<f32>(no_batch_shape.rfft());
-            noa::signal::lowpass<"h2h">({}, filter_expected, no_batch_shape, {cutoff, width});
+            noa::signal::lowpass_3d<"h2h">({}, filter_expected, no_batch_shape, {cutoff, width});
             noa::write_image(filter_expected, filename_expected);
             continue;
         }
@@ -52,17 +52,17 @@ TEST_CASE("signal::lowpass()", "[asset]") {
 
             // Test saving the mask.
             const Array filter_result = noa::empty<f32>(shape.rfft(), options);
-            noa::signal::lowpass<"h2h">({}, filter_result, shape, {cutoff, width});
+            noa::signal::lowpass_3d<"h2h">({}, filter_result, shape, {cutoff, width});
             noa::write_image(filter_result, path_base / "test.mrc");
             REQUIRE(test::allclose_abs(filter_expected, filter_result, 1e-6));
 
             // Test on-the-fly, in-place.
             const Array input = noa::random(noa::Uniform<f32>{-5, 5}, shape.rfft(), options);
-            const Array expected = noa::like(input);
+            const Array expected = noa::empty_like(input);
             noa::ewise(noa::wrap(input, filter_expected), expected, noa::Multiply{});
 
             const Array result = input.copy();
-            noa::signal::lowpass<"h2h">(result, result, shape, {cutoff, width});
+            noa::signal::lowpass_3d<"h2h">(result, result, shape, {cutoff, width});
 
             REQUIRE(test::allclose_abs(expected, result, 1e-6));
         }
@@ -70,7 +70,7 @@ TEST_CASE("signal::lowpass()", "[asset]") {
 }
 
 TEMPLATE_TEST_CASE("signal::lowpass(), remap", "", f16, f32, f64) {
-    const auto shape = test::random_shape_batched(3);
+    const auto shape = test::random_shape_batched<isize, 3>(2);
     constexpr f64 cutoff = 0.4;
     constexpr f64 width = 0.1;
 
@@ -84,31 +84,31 @@ TEMPLATE_TEST_CASE("signal::lowpass(), remap", "", f16, f32, f64) {
         INFO(device);
 
         const auto filter_expected = noa::empty<TestType>(shape.rfft(), options);
-        const auto filter_result = noa::like(filter_expected);
-        const auto filter_remapped = noa::like(filter_expected);
+        const auto filter_result = noa::empty_like(filter_expected);
+        const auto filter_remapped = noa::empty_like(filter_expected);
 
         // H2HC
-        noa::signal::lowpass<"h2h">({}, filter_expected, shape, {cutoff, width});
-        noa::signal::lowpass<"h2hc">({}, filter_result, shape, {cutoff, width});
-        noa::fft::remap("hc2h", filter_result, filter_remapped, shape);
+        noa::signal::lowpass_2d<"h2h">({}, filter_expected, shape, {cutoff, width});
+        noa::signal::lowpass_2d<"h2hc">({}, filter_result, shape, {cutoff, width});
+        noa::fft::remap_2d("hc2h", filter_result, filter_remapped, shape);
         REQUIRE(test::allclose_abs(filter_expected, filter_remapped, 1e-6));
 
         // HC2HC
-        noa::signal::lowpass<"h2h">({}, filter_expected, shape, {cutoff, width});
-        noa::signal::lowpass<"hc2hc">({}, filter_result, shape, {cutoff, width});
-        noa::fft::remap("hc2h", filter_result, filter_remapped, shape);
+        noa::signal::lowpass_2d<"h2h">({}, filter_expected, shape, {cutoff, width});
+        noa::signal::lowpass_2d<"hc2hc">({}, filter_result, shape, {cutoff, width});
+        noa::fft::remap_2d("hc2h", filter_result, filter_remapped, shape);
         REQUIRE(test::allclose_abs(filter_expected, filter_remapped, 1e-6));
 
         // HC2H
-        noa::signal::lowpass<"h2h">({}, filter_expected, shape, {cutoff, width});
-        noa::signal::lowpass<"hc2h">({}, filter_result, shape, {cutoff, width});
+        noa::signal::lowpass_2d<"h2h">({}, filter_expected, shape, {cutoff, width});
+        noa::signal::lowpass_2d<"hc2h">({}, filter_result, shape, {cutoff, width});
         REQUIRE(test::allclose_abs(filter_expected, filter_result, 1e-6));
     }
 }
 
 TEST_CASE("signal::highpass()", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
-    const Path path_base = test::NOA_DATA_PATH / "signal";
+    const Path path_base = test::noa_data_path() / "signal";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["highpass"];
 
     std::vector<Device> devices{"cpu"};
@@ -128,7 +128,7 @@ TEST_CASE("signal::highpass()", "[asset]") {
             auto no_batch_shape = shape;
             no_batch_shape[0] = 1;
             const auto filter_expected = noa::empty<f32>(no_batch_shape.rfft());
-            noa::signal::highpass<"h2h">({}, filter_expected, no_batch_shape, {cutoff, width});
+            noa::signal::highpass_3d<"h2h">({}, filter_expected, no_batch_shape, {cutoff, width});
             noa::write_image(filter_expected, filename_expected);
             continue;
         }
@@ -146,16 +146,16 @@ TEST_CASE("signal::highpass()", "[asset]") {
 
             // Test saving the mask.
             const auto filter_result = noa::empty<f32>(shape.rfft(), options);
-            noa::signal::highpass<"h2h">({}, filter_result, shape, {cutoff, width});
+            noa::signal::highpass_3d<"h2h">({}, filter_result, shape, {cutoff, width});
             REQUIRE(test::allclose_abs(filter_expected, filter_result, 1e-6));
 
             // Test on-the-fly, in-place.
             const auto input = noa::random(noa::Uniform<f32>{-5, 5}, shape.rfft(), options);
-            const auto expected = noa::like(input);
+            const auto expected = noa::empty_like(input);
             noa::ewise(noa::wrap(input, filter_expected), expected, noa::Multiply{});
 
             const auto result = input.copy();
-            noa::signal::highpass<"h2h">(result, result, shape, {cutoff, width});
+            noa::signal::highpass_3d<"h2h">(result, result, shape, {cutoff, width});
 
             REQUIRE(test::allclose_abs(expected, result, 1e-6));
         }
@@ -163,7 +163,7 @@ TEST_CASE("signal::highpass()", "[asset]") {
 }
 
 TEMPLATE_TEST_CASE("signal::highpass(), remap", "", f16, f32, f64) {
-    const auto shape = test::random_shape_batched(3);
+    const auto shape = test::random_shape_batched<isize, 6>(1);
     constexpr f64 cutoff = 0.4;
     constexpr f64 width = 0.1;
 
@@ -177,31 +177,31 @@ TEMPLATE_TEST_CASE("signal::highpass(), remap", "", f16, f32, f64) {
         INFO(device);
 
         const auto filter_expected = noa::empty<TestType>(shape.rfft(), options);
-        const auto filter_result = noa::like(filter_expected);
-        const auto filter_remapped = noa::like(filter_expected);
+        const auto filter_result = noa::empty_like(filter_expected);
+        const auto filter_remapped = noa::empty_like(filter_expected);
 
         // H2HC
-        noa::signal::highpass<"H2H">({}, filter_expected, shape, {cutoff, width});
-        noa::signal::highpass<"H2HC">({}, filter_result, shape, {cutoff, width});
-        noa::fft::remap("HC2H", filter_result, filter_remapped, shape);
+        noa::signal::highpass_1d<"H2H">({}, filter_expected, shape, {cutoff, width});
+        noa::signal::highpass_1d<"H2HC">({}, filter_result, shape, {cutoff, width});
+        noa::fft::remap_1d("HC2H", filter_result, filter_remapped, shape);
         REQUIRE(test::allclose_abs(filter_expected, filter_remapped, 1e-6));
 
         // HC2HC
-        noa::signal::highpass<"H2H">({}, filter_expected, shape, {cutoff, width});
-        noa::signal::highpass<"HC2HC">({}, filter_result, shape, {cutoff, width});
-        noa::fft::remap("HC2H", filter_result, filter_remapped, shape);
+        noa::signal::highpass_1d<"H2H">({}, filter_expected, shape, {cutoff, width});
+        noa::signal::highpass_1d<"HC2HC">({}, filter_result, shape, {cutoff, width});
+        noa::fft::remap_1d("HC2H", filter_result, filter_remapped, shape);
         REQUIRE(test::allclose_abs(filter_expected, filter_remapped, 1e-6));
 
         // HC2H
-        noa::signal::highpass<"H2H">({}, filter_expected, shape, {cutoff, width});
-        noa::signal::highpass<"HC2H">({}, filter_result, shape, {cutoff, width});
+        noa::signal::highpass_1d<"H2H">({}, filter_expected, shape, {cutoff, width});
+        noa::signal::highpass_1d<"HC2H">({}, filter_result, shape, {cutoff, width});
         REQUIRE(test::allclose_abs(filter_expected, filter_result, 1e-6));
     }
 }
 
 TEST_CASE("signal::bandpass()", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
-    const Path path_base = test::NOA_DATA_PATH / "signal";
+    const Path path_base = test::noa_data_path() / "signal";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["bandpass"];
 
     std::vector<Device> devices{"cpu"};
@@ -222,7 +222,7 @@ TEST_CASE("signal::bandpass()", "[asset]") {
             auto no_batch_shape = shape;
             no_batch_shape[0] = 1;
             const auto filter_expected = noa::empty<f32>(no_batch_shape.rfft());
-            noa::signal::bandpass<"h2h">({}, filter_expected, no_batch_shape, bandpass_options);
+            noa::signal::bandpass_3d<"h2h">({}, filter_expected, no_batch_shape, bandpass_options);
             noa::write_image(filter_expected, filename_expected);
             continue;
         }
@@ -240,16 +240,16 @@ TEST_CASE("signal::bandpass()", "[asset]") {
 
             // Test saving the mask.
             const auto filter_result = noa::empty<f32>(shape.rfft(), options);
-            noa::signal::bandpass<"h2h">({}, filter_result, shape, bandpass_options);
+            noa::signal::bandpass_3d<"h2h">({}, filter_result, shape, bandpass_options);
             REQUIRE(test::allclose_abs(filter_expected, filter_result, 1e-6));
 
             // Test on-the-fly, in-place.
             const auto input = noa::random(noa::Uniform<f32>{-5, 5}, shape.rfft(), options);
-            const auto expected = noa::like(input);
+            const auto expected = noa::empty_like(input);
             noa::ewise(noa::wrap(input, filter_expected), expected, noa::Multiply{});
 
             const auto result = input.copy();
-            noa::signal::bandpass<"h2h">(result, result, shape, bandpass_options);
+            noa::signal::bandpass_3d<"h2h">(result, result, shape, bandpass_options);
 
             REQUIRE(test::allclose_abs(expected, result, 1e-6));
         }
@@ -257,12 +257,12 @@ TEST_CASE("signal::bandpass()", "[asset]") {
 }
 
 TEMPLATE_TEST_CASE("signal::bandpass(), remap", "", f16, f32, f64) {
-    const auto shape = test::random_shape_batched(3);
+    const auto shape = test::random_shape_batched<isize, 3>(3);
     constexpr auto bandpass = noa::signal::Bandpass{
-        .highpass_cutoff=0.1,
-        .highpass_width=0.1,
-        .lowpass_cutoff=0.4,
-        .lowpass_width=0.1,
+        .highpass_cutoff = 0.1,
+        .highpass_width = 0.1,
+        .lowpass_cutoff = 0.4,
+        .lowpass_width = 0.1,
     };
 
     std::vector<Device> devices{"cpu"};
@@ -275,24 +275,24 @@ TEMPLATE_TEST_CASE("signal::bandpass(), remap", "", f16, f32, f64) {
         INFO(device);
 
         const auto filter_expected = noa::empty<TestType>(shape.rfft(), options);
-        const auto filter_result = noa::like(filter_expected);
-        const auto filter_remapped = noa::like(filter_expected);
+        const auto filter_result = noa::empty_like(filter_expected);
+        const auto filter_remapped = noa::empty_like(filter_expected);
 
         // H2HC
-        noa::signal::bandpass<"H2H">({}, filter_expected, shape, bandpass);
-        noa::signal::bandpass<"H2HC">({}, filter_result, shape, bandpass);
-        noa::fft::remap("HC2H", filter_result, filter_remapped, shape);
+        noa::signal::bandpass_3d<"H2H">({}, filter_expected, shape, bandpass);
+        noa::signal::bandpass_3d<"H2HC">({}, filter_result, shape, bandpass);
+        noa::fft::remap_3d("HC2H", filter_result, filter_remapped, shape);
         REQUIRE(test::allclose_abs(filter_expected, filter_remapped, 1e-6));
 
         // HC2HC
-        noa::signal::bandpass<"H2H">({}, filter_expected, shape, bandpass);
-        noa::signal::bandpass<"HC2HC">({}, filter_result, shape, bandpass);
-        noa::fft::remap("HC2H", filter_result, filter_remapped, shape);
+        noa::signal::bandpass_3d<"H2H">({}, filter_expected, shape, bandpass);
+        noa::signal::bandpass_3d<"HC2HC">({}, filter_result, shape, bandpass);
+        noa::fft::remap_3d("HC2H", filter_result, filter_remapped, shape);
         REQUIRE(test::allclose_abs(filter_expected, filter_remapped, 1e-6));
 
         // HC2H
-        noa::signal::bandpass<"H2H">({}, filter_expected, shape, bandpass);
-        noa::signal::bandpass<"HC2H">({}, filter_result, shape, bandpass);
+        noa::signal::bandpass_3d<"H2H">({}, filter_expected, shape, bandpass);
+        noa::signal::bandpass_3d<"HC2H">({}, filter_result, shape, bandpass);
         REQUIRE(test::allclose_abs(filter_expected, filter_result, 1e-6));
     }
 }
@@ -301,22 +301,22 @@ TEMPLATE_TEST_CASE("signal::bandpass(), cpu vs gpu", "", f32, f64) {
     if (not Device::is_any_gpu())
         return;
 
-    const auto shape = test::random_shape_batched(3);
+    const auto shape = test::random_shape_batched<isize, 4>(3);
     constexpr f64 cutoff = 0.4;
     constexpr f64 width = 0.1;
 
     const auto cpu_output = noa::empty<TestType>(shape.rfft());
-    const auto gpu_output = noa::empty<TestType>(shape.rfft(), {.device="gpu", .allocator="pitched"});
+    const auto gpu_output = noa::empty<TestType>(shape.rfft(), {.device = "gpu", .allocator = "pitched"});
 
-    noa::signal::lowpass<"h2h">({}, cpu_output, shape, {cutoff, width});
-    noa::signal::lowpass<"h2h">({}, gpu_output, shape, {cutoff, width});
+    noa::signal::lowpass_3d<"h2h">({}, cpu_output, shape, {cutoff, width});
+    noa::signal::lowpass_3d<"h2h">({}, gpu_output, shape, {cutoff, width});
     REQUIRE(test::allclose_abs(cpu_output, gpu_output.to_cpu(), 5e-6));
 
-    noa::signal::highpass<"h2h">({}, cpu_output, shape, {cutoff, width});
-    noa::signal::highpass<"h2h">({}, gpu_output, shape, {cutoff, width});
+    noa::signal::highpass_1d<"h2h">({}, cpu_output, shape, {cutoff, width});
+    noa::signal::highpass_1d<"h2h">({}, gpu_output, shape, {cutoff, width});
     REQUIRE(test::allclose_abs(cpu_output, gpu_output.to_cpu(), 5e-6));
 
-    noa::signal::bandpass<"h2h">({}, cpu_output, shape, {0.1, 0.1, 0.45, 0.05});
-    noa::signal::bandpass<"h2h">({}, gpu_output, shape, {0.1, 0.1, 0.45, 0.05});
+    noa::signal::bandpass_2d<"h2h">({}, cpu_output, shape, {0.1, 0.1, 0.45, 0.05});
+    noa::signal::bandpass_2d<"h2h">({}, gpu_output, shape, {0.1, 0.1, 0.45, 0.05});
     REQUIRE(test::allclose_abs(cpu_output, gpu_output.to_cpu(), 5e-6));
 }

@@ -48,6 +48,19 @@ namespace noa::signal::details {
         }
     };
 
+    template<typename Filter, usize B, usize R, typename Coord, typename Index>
+    constexpr auto get_filter(Filter& filter, const Vec<Coord, R>& fftfreq, const Vec<Index, B>& batches) {
+        if constexpr (FilterSpectrumChecker::check_0<Filter, B, R, Vec<Coord, R>, Index>()) {
+            return filter(fftfreq, batches);
+        } else if constexpr (FilterSpectrumChecker::check_1<Filter, B, R, Vec<Coord, R>, Index>()) {
+            return [&]<Index... I>(std::integer_sequence<Index, I...>) {
+                return filter(fftfreq, batches[I]...);
+            }(std::make_integer_sequence<Index, B>{});
+        } else {
+            return filter(fftfreq);
+        }
+    }
+
     template<typename Input, typename Filter, usize B, usize R,
              typename Coord = filter_spectrum_default_coord_t<Input, Filter>,
              typename Index = filter_spectrum_default_index_t<Filter>>
@@ -88,7 +101,8 @@ namespace noa::signal::details {
         using output_value_type = nt::value_type_t<output_type>;
         using filter_type = Filter;
 
-        using filter_value_type = std::decay_t<std::invoke_result_t<filter_type&, coord_nd_type, index_type>>;
+        using get_filter_type = decltype(get_filter<Filter, B, R, Coord, Index>);
+        using filter_value_type = std::decay_t<std::invoke_result_t<get_filter_type, Filter&, Vec<coord_type, R>, Vec<index_type, B>>>;
         using filter_real_type = nt::value_type_t<filter_value_type>;
         static_assert(nt::real_or_complex<filter_value_type>);
 
@@ -127,32 +141,20 @@ namespace noa::signal::details {
                 m_fftfreq_start = fftfreq_range.start;
         }
 
-        constexpr auto get_filter(const coord_nd_type& fftfreq, const Vec<index_type, B>& batches) {
-            if constexpr (FilterSpectrumChecker::check_0<filter_type, B, R, coord_nd_type, index_type>()) {
-                return m_filter(fftfreq, batches);
-            } else if constexpr (FilterSpectrumChecker::check_0<filter_type, B, R, coord_nd_type, index_type>()) {
-                return [&]<Index... I>(std::integer_sequence<Index, I...>) {
-                    return m_filter(fftfreq, batches[I]...);
-                }(std::make_integer_sequence<Index, B>{});
-            } else {
-                return m_filter(fftfreq);
-            }
-        }
-
-        constexpr void operator()(const Vec<index_type, R>& batched_indices) {
+        constexpr void operator()(const Vec<index_type, B + R>& batched_indices) {
             const auto [batches, indices] = batched_indices.template split<B>();
             const auto frequency = nf::index2frequency<IS_SRC_CENTERED, IS_RFFT>(indices, m_shape);
             auto fftfreq = coord_nd_type::from_vec(frequency) * m_fftfreq_step;
             if constexpr (R == 1)
                 fftfreq += m_fftfreq_start;
 
-            const auto filter = get_filter(fftfreq, batches);
+            const auto filter = get_filter(m_filter, fftfreq, batches);
             const auto output_indices = nf::remap_indices<REMAP>(indices, m_shape);
-            auto& output = m_output(output_indices.push_front(batches));
+            auto& output = m_output[output_indices.push_front(batches)];
 
             if (m_input) {
                 output = cast_or_abs_squared<output_value_type>(
-                    static_cast<input_result_type>(m_input(batched_indices)) *
+                    static_cast<input_result_type>(m_input[batched_indices]) *
                     static_cast<filter_result_type>(filter));
             } else {
                 output = cast_or_abs_squared<output_value_type>(filter);
@@ -168,11 +170,11 @@ namespace noa::signal::details {
         filter_type m_filter;
     };
 
-    template<usize N, nf::Layout REMAP, typename Input, typename Output>
+    template<usize R, nf::Layout REMAP, typename Input, typename Output, usize N>
     void check_filter_spectrum_parameters(
         const Input& input,
         const Output& output,
-        const Shape4& shape,
+        const Shape<isize, N>& shape,
         noa::Linspace<f64>& fftfreq_range
     ) {
         check(not output.is_empty(), "Empty array detected");
@@ -195,7 +197,7 @@ namespace noa::signal::details {
             check(not REMAP.has_layout_change() or not are_overlapped(input, output),
                   "In-place remapping is not allowed");
         }
-        check(N == 1 or allclose(fftfreq_range.start, 0.),
+        check(R == 1 or allclose(fftfreq_range.start, 0.),
               "For multidimensional cases, the starting fftfreq should be 0, but got {}", fftfreq_range.start);
     }
 }
@@ -209,7 +211,7 @@ namespace noa::signal {
         noa::Linspace<f64> fftfreq_range{.start = 0, .stop = -1, .endpoint = true};
     };
 
-    /// Filters a nd spectrum(s).
+    /// Filters a R-d spectrum(s).
     /// \tparam R:
     ///     Rank of the spectrum. 1, 2, or 3.
     /// \tparam REMAP:
@@ -258,10 +260,9 @@ namespace noa::signal {
         auto shape_r = shape.template pop_front<B>().template as<index_t>();
 
         using op_t = details::FilterSpectrum<REMAP, index_t, coord_t, B, R, input_t, output_t, std::decay_t<Filter>>;
-        auto op = op_t(input_br, output_br, shape_r, std::forward<Filter>(filter), options.fftfreq_range.as<coord_t>());
+        auto op = op_t(input_br, output_br, shape_r, NOA_FWD(filter), options.fftfreq_range.as<coord_t>());
 
-        iwise(output.shape(), output.device(), std::move(op),
-              std::forward<Input>(input), std::forward<Output>(output));
+        iwise(output.shape(), output.device(), std::move(op), NOA_FWD(input), NOA_FWD(output));
     }
 
     /// Filters 1d spectrum(s).
@@ -275,10 +276,7 @@ namespace noa::signal {
         Filter&& filter,
         FilterSpectrumOptions options = {}
     ) {
-        filter_spectrum<REMAP, 1>(
-            std::forward<Input>(input), std::forward<Output>(output), shape,
-            std::forward<Filter>(filter), options
-        );
+        filter_spectrum<REMAP, 1>(NOA_FWD(input), NOA_FWD(output), shape, NOA_FWD(filter), options);
     }
 
     /// Filters 1|2d spectrum(s).
@@ -292,10 +290,7 @@ namespace noa::signal {
         Filter&& filter,
         FilterSpectrumOptions options = {}
     ) {
-        filter_spectrum<REMAP, 2>(
-            std::forward<Input>(input), std::forward<Output>(output), shape,
-            std::forward<Filter>(filter), options
-        );
+        filter_spectrum<REMAP, 2>(NOA_FWD(input), NOA_FWD(output), shape, NOA_FWD(filter), options);
     }
 
     /// Filters 1|2|3d spectrum(s).
@@ -309,9 +304,6 @@ namespace noa::signal {
         Filter&& filter,
         FilterSpectrumOptions options = {}
     ) {
-        filter_spectrum<REMAP, 3>(
-            std::forward<Input>(input), std::forward<Output>(output), shape,
-            std::forward<Filter>(filter), options
-        );
+        filter_spectrum<REMAP, 3>(NOA_FWD(input), NOA_FWD(output), shape, NOA_FWD(filter), options);
     }
 }

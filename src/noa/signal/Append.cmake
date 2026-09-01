@@ -10,7 +10,7 @@ list(APPEND NOA_HEADERS
     noa/signal/Correlate.hpp
     noa/signal/CTF.hpp
     noa/signal/FilterSpectrum.hpp
-    noa/signal/FSC.hpp
+#    noa/signal/FSC.hpp
     noa/signal/MedianFilter.hpp
     noa/signal/PhaseShift.hpp
     noa/signal/Standardize.hpp

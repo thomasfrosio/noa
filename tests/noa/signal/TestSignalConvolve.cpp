@@ -11,7 +11,7 @@
 TEST_CASE("signal::convolve()", "[asset]") {
     using namespace noa::types;
 
-    const Path path_base = test::NOA_DATA_PATH / "signal";
+    const Path path_base = test::noa_data_path() / "signal";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["convolve"]["tests"];
 
     std::vector<Device> devices{"cpu"};
@@ -32,13 +32,13 @@ TEST_CASE("signal::convolve()", "[asset]") {
             const auto filename_expected = path_base / test["expected"].as<Path>();
 
             // Inputs:
-            const auto data = noa::read_image<f32>(filename_input, {}, options).data;
-            const auto expected = noa::read_image<f32>(filename_expected, {}, options).data;
-            auto filter = noa::read_image<f32>(filename_filter, {}, options).data;
-            if (filter.shape()[1] == 1 and filter.shape()[2] == 2) // for 1d case, the MRC file as an extra row to make it 2D.
-                filter = filter.subregion(0, 0, 0, Full{});
+            const auto data = noa::read_image<f32, 4>(filename_input, {}, options).data;
+            const auto expected = noa::read_image<f32, 4>(filename_expected, {}, options).data;
+            auto filter = noa::read_image<f32, 3>(filename_filter, {}, options).data;
+            if (filter.shape()[0] == 1 and filter.shape()[1] == 2) // for 1d case, the MRC file as an extra row to make it 2D.
+                filter = filter.subregion(0, 0, Full{});
 
-            const auto result = noa::like(data);
+            const auto result = noa::empty_like(data);
             noa::signal::convolve(data, result, filter);
             REQUIRE(test::allclose_abs_safe(expected, result, 1e-5));
         }
@@ -48,7 +48,7 @@ TEST_CASE("signal::convolve()", "[asset]") {
 TEST_CASE("signal::convolve_separable()", "[asset]") {
     using namespace noa::types;
 
-    const Path path_base = test::NOA_DATA_PATH / "signal";
+    const Path path_base = test::noa_data_path() / "signal";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["convolve_separable"]["tests"];
 
     std::vector<Device> devices{"cpu"};
@@ -70,13 +70,13 @@ TEST_CASE("signal::convolve_separable()", "[asset]") {
             const auto dim = test["dim"].as<std::vector<i32>>();
 
             // Input
-            const auto data = noa::read_image<f32>(filename_input, {}, options).data;
-            const auto filter = noa::read_image<f32>(filename_filter, {}, options).data.subregion(0, 0, 0, Full{});
-            const auto expected = noa::read_image<f32>(filename_expected, {}, options).data;
+            const auto data = noa::read_image<f32, 4>(filename_input, {}, options).data;
+            const auto filter = noa::read_image<f32, 4>(filename_filter, {}, options).data.subregion(0, 0, 0, Full{}).as_1d();
+            const auto expected = noa::read_image<f32, 4>(filename_expected, {}, options).data;
 
-            View<const f32> filter0;
-            View<const f32> filter1;
-            View<const f32> filter2;
+            Array<const f32, 1, ArrayOwnership::VIEW> filter0;
+            Array<const f32, 1, ArrayOwnership::VIEW> filter1;
+            Array<const f32, 1, ArrayOwnership::VIEW> filter2;
             for (auto i: dim) {
                 if (i == 0)
                     filter0 = filter.view();
@@ -86,7 +86,7 @@ TEST_CASE("signal::convolve_separable()", "[asset]") {
                     filter2 = filter.view();
             }
 
-            const auto result = noa::like(data);
+            const auto result = noa::empty_like(data);
             noa::signal::convolve_separable(data, result, filter0, filter1, filter2);
             REQUIRE(test::allclose_abs_safe(expected, result, 1e-5));
         }

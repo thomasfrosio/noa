@@ -11,7 +11,7 @@
 using namespace noa::types;
 
 TEST_CASE("signal::median_filter()", "[asset]") {
-    const Path path_base = test::NOA_DATA_PATH / "signal";
+    const Path path_base = test::noa_data_path() / "signal";
     YAML::Node tests = YAML::LoadFile(path_base / "tests.yaml")["median"]["tests"];
 
     std::vector<Device> devices{"cpu"};
@@ -33,10 +33,10 @@ TEST_CASE("signal::median_filter()", "[asset]") {
             const auto border = test["border"].as<noa::Border>();
             const auto filename_expected = path_base / test["expected"].as<Path>();
 
-            const auto input = noa::read_image<f32>(filename_input, {}, options).data;
-            const auto expected = noa::read_image<f32>(filename_expected, {}, options).data;
+            const auto input = noa::read_image<f32, 4>(filename_input, {}, options).data;
+            const auto expected = noa::read_image<f32, 4>(filename_expected, {}, options).data;
 
-            const auto result = noa::like(input);
+            const auto result = noa::empty_like(input);
             if (dim == 1)
                 noa::signal::median_filter_1d(input, result, {window, border});
             else if (dim == 2)
@@ -55,36 +55,59 @@ TEMPLATE_TEST_CASE("signal::median_filter(), cpu vs gpu", "", i32, f16, f32, f64
     if (not Device::is_any_gpu())
         return;
 
-    const i64 ndim = GENERATE(1, 2, 3);
-    const noa::Border mode = GENERATE(noa::Border::ZERO, noa::Border::REFLECT);
-    auto window = test::Randomizer<i32>(2, 11).get();
-    if (noa::is_even(window))
-        window -= 1;
-    if (ndim == 3 and window > 5)
-        window = 3;
+    constexpr auto shape_options = test::RandomShapeOptions{
+        .size_range = {32, 64},
+        .batch_range = {1, 4},
+    };
+    const auto shapes = noa::make_tuple(
+        Pair{test::random_shape_batched<isize, 1>(1, shape_options), 1},
+        Pair{test::random_shape_batched<isize, 2>(2, shape_options), 2},
+        Pair{test::random_shape_batched<isize, 3>(1, shape_options), 1},
+        Pair{test::random_shape_batched<isize, 3>(2, shape_options), 2},
+        Pair{test::random_shape_batched<isize, 3>(3, shape_options), 3},
+        Pair{test::random_shape_batched<isize, 5>(1, shape_options), 1},
+        Pair{test::random_shape_batched<isize, 5>(2, shape_options), 2},
+        Pair{test::random_shape_batched<isize, 5>(3, shape_options), 3}
+    );
+    shapes.for_each([&]<usize N>(const Pair<Shape<isize, N>, i32>& pair) {
+        const auto& [shape, rank] = pair;
+        const auto cpu_data = noa::random<TestType>(noa::Uniform<f32>{-128, 128}, shape);
+        const auto gpu_data = cpu_data.to({.device = "gpu", .allocator = Allocator::PITCHED_MANAGED});
 
-    auto shape = test::random_shape_batched(3);
-    if (ndim != 3 and test::Randomizer<i64>(16, 100).get() % 2)
-        shape[1] = 1; // randomly switch to 2d
-    INFO(fmt::format("ndim:{}, mode:{}, window:{}, shape:{}", ndim, mode, window, shape));
+        const auto cpu_result = noa::empty_like(cpu_data);
+        const auto gpu_result = noa::empty_like(gpu_data);
 
-    const auto options = ArrayOption(Device{"gpu"}, Allocator::PITCHED);
-    const auto cpu_data = noa::random<TestType>(noa::Uniform<f32>{-128, 128}, shape);
-    const auto gpu_data = cpu_data.to(options);
-
-    const auto cpu_result = noa::like(cpu_data);
-    const auto gpu_result = noa::like(gpu_data);
-
-    if (ndim == 1) {
-        noa::signal::median_filter_1d(cpu_data, cpu_result, {window, mode});
-        noa::signal::median_filter_1d(gpu_data, gpu_result, {window, mode});
-    } else if (ndim == 2) {
-        noa::signal::median_filter_2d(cpu_data, cpu_result, {window, mode});
-        noa::signal::median_filter_2d(gpu_data, gpu_result, {window, mode});
-    } else {
-        noa::signal::median_filter_3d(cpu_data, cpu_result, {window, mode});
-        noa::signal::median_filter_3d(gpu_data, gpu_result, {window, mode});
-    }
-
-    REQUIRE(test::allclose_abs(cpu_result, gpu_result.to_cpu(), 1e-5));
+        for (noa::Border border: {noa::Border::ZERO, noa::Border::REFLECT}) {
+            if constexpr (N >= 1) {
+                if (rank == 1) {
+                    auto window = test::Randomizer<i32>(2, 21).get();
+                    if (noa::is_even(window))
+                        window -= 1;
+                    noa::signal::median_filter_1d(cpu_data, cpu_result, {.window_size = window, .border_mode = border});
+                    noa::signal::median_filter_1d(gpu_data, gpu_result, {.window_size = window, .border_mode = border});
+                    REQUIRE(test::allclose_abs(cpu_result, gpu_result, 1e-5));
+                }
+            }
+            if constexpr (N >= 2) {
+                if (rank == 2) {
+                    auto window = test::Randomizer<i32>(2, 11).get();
+                    if (noa::is_even(window))
+                        window -= 1;
+                    noa::signal::median_filter_2d(cpu_data, cpu_result, {.window_size = window, .border_mode = border});
+                    noa::signal::median_filter_2d(gpu_data, gpu_result, {.window_size = window, .border_mode = border});
+                    REQUIRE(test::allclose_abs(cpu_result, gpu_result, 1e-5));
+                }
+            }
+            if constexpr (N >= 3) {
+                if (rank == 3) {
+                    auto window = test::Randomizer<i32>(2, 11).get();
+                    if (noa::is_even(window))
+                        window -= 1;
+                    noa::signal::median_filter_2d(cpu_data, cpu_result, {.window_size = window, .border_mode = border});
+                    noa::signal::median_filter_2d(gpu_data, gpu_result, {.window_size = window, .border_mode = border});
+                    REQUIRE(test::allclose_abs(cpu_result, gpu_result, 1e-5));
+                }
+            }
+        }
+    });
 }

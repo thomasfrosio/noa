@@ -45,8 +45,8 @@ namespace noa::signal::cpu::details {
             // Gather the window.
             if constexpr (MODE == Border::REFLECT) {
                 for (isize i{}; i < m_window; ++i) {
-                    input_indices[I] = median_filter_get_mirror_index(i, output_indices[I] - m_window_half + i);
-                    m_buffer[i] = static_cast<compute_type>(m_input(input_indices));
+                    input_indices[I] = median_filter_get_mirror_index(output_indices[I] - m_window_half + i, m_dim_size);
+                    m_buffer[i] = static_cast<compute_type>(m_input[input_indices]);
                 }
             } else { // Border::ZERO
                 for (isize i{}; i < m_window; ++i) {
@@ -54,13 +54,13 @@ namespace noa::signal::cpu::details {
                     if (input_indices[I] < 0 or input_indices[I] >= m_dim_size)
                         m_buffer[i] = compute_type{};
                     else
-                        m_buffer[i] = static_cast<compute_type>(m_input(input_indices));
+                        m_buffer[i] = static_cast<compute_type>(m_input[input_indices]);
                 }
             }
 
             // Sort the elements in the m_window to get the median.
             std::nth_element(m_buffer.get(), m_buffer.get() + m_window_half, m_buffer.get() + m_window);
-            m_output(output_indices) = static_cast<output_type>(m_buffer[m_window_half]);
+            m_output[output_indices] = static_cast<output_type>(m_buffer[m_window_half]);
         }
 
     private:
@@ -104,7 +104,7 @@ namespace noa::signal::cpu::details {
                     input_indices[I] = median_filter_get_mirror_index(output_indices[I] - m_window_1d_half + i, m_shape[0]);
                     for (isize j{}; j < m_window_1d; ++j) {
                         input_indices[J] = median_filter_get_mirror_index(output_indices[J] - m_window_1d_half + j, m_shape[1]);
-                        m_buffer[i * m_window_1d + j] = static_cast<compute_type>(m_input(input_indices));
+                        m_buffer[i * m_window_1d + j] = static_cast<compute_type>(m_input[input_indices]);
                     }
                 }
             } else { // Border::ZERO
@@ -116,7 +116,7 @@ namespace noa::signal::cpu::details {
                             input_indices[J] < 0 or input_indices[J] >= m_shape[1]) {
                             m_buffer[i * m_window_1d + j] = compute_type{};
                         } else {
-                            m_buffer[i * m_window_1d + j] = static_cast<compute_type>(m_input(input_indices));
+                            m_buffer[i * m_window_1d + j] = static_cast<compute_type>(m_input[input_indices]);
                         }
                     }
                 }
@@ -124,7 +124,7 @@ namespace noa::signal::cpu::details {
 
             // Sort the elements in the m_window to get the median.
             std::nth_element(m_buffer.get(), m_buffer.get() + m_window_half, m_buffer.get() + m_window_size);
-            m_output(output_indices) = static_cast<output_type>(m_buffer[m_window_half]);
+            m_output[output_indices] = static_cast<output_type>(m_buffer[m_window_half]);
         }
 
     private:
@@ -172,7 +172,7 @@ namespace noa::signal::cpu::details {
                         input_indices[J] = median_filter_get_mirror_index(output_indices[J] - m_window_1d_half + j, m_shape[1]);
                         for (isize k{}; k < m_window_1d; ++k) {
                             input_indices[K] = median_filter_get_mirror_index(output_indices[K] - m_window_1d_half + k, m_shape[2]);
-                            m_buffer[(i * m_window_1d + j) * m_window_1d + k] = static_cast<compute_type>(m_input(input_indices));
+                            m_buffer[(i * m_window_1d + j) * m_window_1d + k] = static_cast<compute_type>(m_input[input_indices]);
                         }
                     }
                 }
@@ -189,7 +189,7 @@ namespace noa::signal::cpu::details {
                                 input_indices[K] < 0 or input_indices[K] >= m_shape[2]) {
                                 m_buffer[idx] = compute_type{};
                             } else {
-                                m_buffer[idx] = static_cast<compute_type>(m_input(input_indices));
+                                m_buffer[idx] = static_cast<compute_type>(m_input[input_indices]);
                             }
                         }
                     }
@@ -198,7 +198,7 @@ namespace noa::signal::cpu::details {
 
             // Sort the elements in the window to get the median.
             std::nth_element(m_buffer.get(), m_buffer.get() + m_window_half, m_buffer.get() + m_window_size);
-            m_output(output_indices) = static_cast<output_type>(m_buffer[m_window_half]);
+            m_output[output_indices] = static_cast<output_type>(m_buffer[m_window_half]);
         }
 
     private:

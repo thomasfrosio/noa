@@ -173,7 +173,7 @@ namespace noa::signal {
         Output&& output,
         const Shape<isize, N>& shape,
         const Lowpass& pass,
-        FilterSpectrumOptions options = {}
+        const FilterSpectrumOptions& options = {}
     ) {
         using coord_t = details::filter_spectrum_default_coord_t<Input>;
         const auto cutoff = static_cast<coord_t>(pass.cutoff);
@@ -181,10 +181,10 @@ namespace noa::signal {
         if (pass.width > 1e-6) {
             const auto width = static_cast<coord_t>(pass.width);
             const auto filter = details::Bandpass<details::BandpassType::LOWPASS, true, coord_t>(cutoff, width);
-            filter_spectrum<REMAP, R>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
+            filter_spectrum<REMAP, R>(NOA_FWD(input), NOA_FWD(output), shape, filter, options);
         } else {
             const auto filter = details::Bandpass<details::BandpassType::LOWPASS, false, coord_t>(cutoff);
-            filter_spectrum<REMAP, R>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
+            filter_spectrum<REMAP, R>(NOA_FWD(input), NOA_FWD(output), shape, filter, options);
         }
     }
 
@@ -194,7 +194,7 @@ namespace noa::signal {
         Output&& output,
         const Shape<isize, N>& shape,
         const Lowpass& pass,
-        FilterSpectrumOptions options = {}
+        const FilterSpectrumOptions& options = {}
     ) {
         lowpass<REMAP, 1>(input, output, shape, pass, options);
     }
@@ -205,7 +205,7 @@ namespace noa::signal {
         Output&& output,
         const Shape<isize, N>& shape,
         const Lowpass& pass,
-        FilterSpectrumOptions options = {}
+        const FilterSpectrumOptions& options = {}
     ) {
         lowpass<REMAP, 2>(input, output, shape, pass, options);
     }
@@ -216,7 +216,7 @@ namespace noa::signal {
         Output&& output,
         const Shape<isize, N>& shape,
         const Lowpass& pass,
-        FilterSpectrumOptions options = {}
+        const FilterSpectrumOptions& options = {}
     ) {
         lowpass<REMAP, 3>(input, output, shape, pass, options);
     }
@@ -241,7 +241,7 @@ namespace noa::signal {
         Output&& output,
         const Shape<isize, N>& shape,
         const Highpass& pass,
-        FilterSpectrumOptions options = {}
+        const FilterSpectrumOptions& options = {}
     ) {
         using coord_t = details::filter_spectrum_default_coord_t<Input>;
         const auto cutoff = static_cast<coord_t>(pass.cutoff);
@@ -249,10 +249,10 @@ namespace noa::signal {
         if (pass.width > 1e-6) {
             const auto width = static_cast<coord_t>(pass.width);
             const auto filter = details::Bandpass<details::BandpassType::HIGHPASS, true, coord_t>(cutoff, width);
-            filter_spectrum<REMAP, R>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
+            filter_spectrum<REMAP, R>(NOA_FWD(input), NOA_FWD(output), shape, filter, options);
         } else {
             const auto filter = details::Bandpass<details::BandpassType::HIGHPASS, false, coord_t>(cutoff);
-            filter_spectrum<REMAP, R>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
+            filter_spectrum<REMAP, R>(NOA_FWD(input), NOA_FWD(output), shape, filter, options);
         }
     }
 
@@ -262,7 +262,7 @@ namespace noa::signal {
         Output&& output,
         const Shape<isize, N>& shape,
         const Highpass& pass,
-        FilterSpectrumOptions options = {}
+        const FilterSpectrumOptions& options = {}
     ) {
         highpass<REMAP, 1>(input, output, shape, pass, options);
     }
@@ -273,7 +273,7 @@ namespace noa::signal {
         Output&& output,
         const Shape<isize, N>& shape,
         const Highpass& pass,
-        FilterSpectrumOptions options = {}
+        const FilterSpectrumOptions& options = {}
     ) {
         highpass<REMAP, 2>(input, output, shape, pass, options);
     }
@@ -284,7 +284,7 @@ namespace noa::signal {
         Output&& output,
         const Shape<isize, N>& shape,
         const Highpass& pass,
-        FilterSpectrumOptions options = {}
+        const FilterSpectrumOptions& options = {}
     ) {
         highpass<REMAP, 3>(input, output, shape, pass, options);
     }
@@ -309,7 +309,7 @@ namespace noa::signal {
         Output&& output,
         const Shape<isize, N>& shape,
         const Bandpass& pass,
-        FilterSpectrumOptions options = {}
+        const FilterSpectrumOptions& options = {}
     ) {
         using coord_t = details::filter_spectrum_default_coord_t<Input>;
         const auto highpass_cutoff = static_cast<coord_t>(pass.highpass_cutoff);
@@ -320,11 +320,11 @@ namespace noa::signal {
             const auto lowpass_width = static_cast<coord_t>(pass.lowpass_width);
             using filter_t = details::Bandpass<details::BandpassType::BANDPASS, true, coord_t>;
             auto filter = filter_t(highpass_cutoff, lowpass_cutoff, highpass_width, lowpass_width);
-            filter_spectrum<REMAP, R>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
+            filter_spectrum<REMAP, R>(NOA_FWD(input), NOA_FWD(output), shape, filter, options);
         } else {
             using filter_t = details::Bandpass<details::BandpassType::BANDPASS, false, coord_t>;
             auto filter = filter_t(highpass_cutoff, lowpass_cutoff);
-            filter_spectrum<REMAP, R>(std::forward<Input>(input), std::forward<Output>(output), shape, filter, options);
+            filter_spectrum<REMAP, R>(NOA_FWD(input), NOA_FWD(output), shape, filter, options);
         }
     }
 
@@ -334,7 +334,7 @@ namespace noa::signal {
         Output&& output,
         const Shape<isize, N>& shape,
         const Bandpass& pass,
-        FilterSpectrumOptions options = {}
+        const FilterSpectrumOptions& options = {}
     ) {
         bandpass<REMAP, 1>(input, output, shape, pass, options);
     }
@@ -345,7 +345,7 @@ namespace noa::signal {
         Output&& output,
         const Shape<isize, N>& shape,
         const Bandpass& pass,
-        FilterSpectrumOptions options = {}
+        const FilterSpectrumOptions& options = {}
     ) {
         bandpass<REMAP, 2>(input, output, shape, pass, options);
     }
@@ -356,7 +356,7 @@ namespace noa::signal {
         Output&& output,
         const Shape<isize, N>& shape,
         const Bandpass& pass,
-        FilterSpectrumOptions options = {}
+        const FilterSpectrumOptions& options = {}
     ) {
         bandpass<REMAP, 3>(input, output, shape, pass, options);
     }

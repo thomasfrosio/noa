@@ -2,6 +2,7 @@
 #include <noa/runtime/Random.hpp>
 #include <noa/runtime/Reduce.hpp>
 #include <noa/runtime/Blas.hpp>
+#include <noa/base/Zip.hpp>
 
 #include <noa/fft/Transform.hpp>
 #include <noa/fft/Factory.hpp>
@@ -37,11 +38,11 @@ namespace {
     };
 
     template<size_t N>
-    auto generate_data(const auto& shape) {
+    auto generate_data(const Shape<isize, N>& shape) {
         auto data = TestData<N>{};
-        data.radius = Vec<f64, N>::from_value(N == 2 ? 25.: 20.);
+        data.radius = Vec<f64, N>::from_value(N == 2 ? 25. : 20.);
         data.smoothness = 7.;
-        data.lhs_center = (shape.vec.template pop_front<4 - N>() / 2).template as<f64>();
+        data.lhs_center = (shape.vec / 2).template as<f64>();
 
         constexpr auto max_shift = N == 2 ? 30.: 10.;
         test::Randomizer<f64> randomizer{-max_shift, max_shift};
@@ -51,7 +52,7 @@ namespace {
     }
 }
 
-TEMPLATE_TEST_CASE("signal:: correlation peak", "", (Vec<f32, 2>), (Vec<f64, 2>), (Vec<f32, 3>), (Vec<f64, 3>)) {
+TEMPLATE_TEST_CASE("signal::cross_correlation_map/peak", "", (Vec<f32, 2>), (Vec<f64, 2>), (Vec<f32, 3>), (Vec<f64, 3>)) {
     using value_t = TestType::value_type;
     constexpr size_t N = TestType::SIZE;
 
@@ -59,13 +60,14 @@ TEMPLATE_TEST_CASE("signal:: correlation peak", "", (Vec<f32, 2>), (Vec<f64, 2>)
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    auto shape = test::random_shape(N) + Shape<isize, N>::from_value(N == 2 ? 200 : 50).template push_front<4 - N>(0);
-    auto data = generate_data<N>(shape);
+    auto shape = test::random_shape<isize, N>(N) + Shape<isize, N>::from_value(N == 2 ? 200 : 50);
+    auto data = generate_data(shape);
 
     for (auto correlation_mode: cross_correlation_modes) {
         const auto xmap_options = ns::CrossCorrelationMapOptions{
-            .mode=correlation_mode,
-            .ifft_norm=nf::NORM_DEFAULT,
+            .mode = correlation_mode,
+            .rank = N,
+            .ifft_norm = nf::NORM_DEFAULT,
         };
 
         for (auto device: devices) {
@@ -74,13 +76,13 @@ TEMPLATE_TEST_CASE("signal:: correlation peak", "", (Vec<f32, 2>), (Vec<f64, 2>)
 
             auto [lhs, lhs_rfft] = nf::empty<value_t>(shape, options);
             auto [rhs, rhs_rfft] = nf::empty<value_t>(shape, options);
-            const auto xmap = Array<value_t>(shape, options);
-            const auto buffer = noa::like(lhs_rfft);
+            const auto xmap = Array<value_t, N>(shape, options);
+            const auto buffer = noa::empty_like(lhs_rfft);
 
-            ng::draw({}, lhs, ng::Rectangle{data.lhs_center, data.radius, data.smoothness}.draw());
-            ng::draw({}, rhs, ng::Rectangle{data.rhs_center, data.radius, data.smoothness}.draw());
-            nf::r2c(lhs, lhs_rfft);
-            nf::r2c(rhs, rhs_rfft);
+            ng::draw<N>({}, lhs, ng::Rectangle{data.lhs_center, data.radius, data.smoothness}.get());
+            ng::draw<N>({}, rhs, ng::Rectangle{data.rhs_center, data.radius, data.smoothness}.get());
+            nf::r2c(lhs, lhs_rfft, {.rank = N});
+            nf::r2c(rhs, rhs_rfft, {.rank = N});
 
             auto run = [&]<nf::Layout REMAP>(auto xpeak_options) {
                 ns::cross_correlation_map<REMAP>(lhs_rfft, rhs_rfft, xmap, xmap_options, buffer);
@@ -122,77 +124,92 @@ TEMPLATE_TEST_CASE("signal:: correlation peak", "", (Vec<f32, 2>), (Vec<f64, 2>)
     }
 }
 
-TEMPLATE_TEST_CASE("signal:: correlation peak batched", "", (Vec<f32, 2>), (Vec<f64, 2>), (Vec<f32, 3>),  (Vec<f64, 3>)) {
+TEMPLATE_TEST_CASE("signal::correlation_map/peak batched", "", (Vec<f32, 2>), (Vec<f64, 2>), (Vec<f32, 3>), (Vec<f64, 3>)) {
     using value_t = TestType::value_type;
-    constexpr size_t N = TestType::SIZE;
+    constexpr usize R = TestType::SIZE;
+    constexpr usize B = 2;
+    constexpr usize N = B + R;
 
     auto devices = std::vector<Device>{"cpu"};
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    auto shape = test::random_shape_batched(N, {.batch_range = {2, 3}});
-    if (N == 3)
-        shape[1] += 80;
-    shape[2] += 80;
-    shape[3] += 80;
+    auto shape = test::random_shape_batched<isize, N>(R, {.size_range = {64, 100}, .batch_range = {1, 3}});
+    if (R == 3)
+        shape[N - 3] += 80;
+    shape[N - 2] += 80;
+    shape[N - 1] += 80;
+    // shape = nf::next_fast_shape(shape, R); // much faster, but we want to test odd sizes too so leave commented out
     INFO(shape);
 
-    std::vector<TestData<N>> data;
-    const auto lhs_inverse_affine_matrices = Array<Mat<f32, N + 1, N + 1>>(shape[0]);
-    const auto rhs_inverse_affine_matrices = Array<Mat<f32, N + 1, N + 1>>(shape[0]);
-    for (auto i: noa::irange(shape[0])) {
-        auto tmp = generate_data<N>(shape);
-        data.emplace_back(tmp);
-        lhs_inverse_affine_matrices.span_1d()[i] = ng::translate(-tmp.lhs_center).template as<f32>();
-        rhs_inverse_affine_matrices.span_1d()[i] = ng::translate(-tmp.rhs_center).template as<f32>();
+    const auto [shape_b, shape_r] = shape.template split<B>();
+    const auto data_batched = Array<TestData<R>, B>(shape_b);
+    const auto lhs_inverse_affine_matrices = Array<Mat<f32, R + 1, R + 1>, B>(shape_b);
+    const auto rhs_inverse_affine_matrices = Array<Mat<f32, R + 1, R + 1>, B>(shape_b);
+    for (auto&& [data, lhs, rhs]: noa::zip(
+        data_batched.span_1d(),
+        lhs_inverse_affine_matrices.span_1d(),
+        rhs_inverse_affine_matrices.span_1d()
+    )) {
+        data = generate_data(shape_r);
+        lhs = ng::translate(-data.lhs_center).template as<f32>();
+        rhs = ng::translate(-data.rhs_center).template as<f32>();
     }
 
     for (auto correlation_mode: cross_correlation_modes) {
-        const auto xmap_options = ns::CrossCorrelationMapOptions{.mode=correlation_mode, .ifft_norm=nf::NORM_DEFAULT};
-        const auto xpeak_options = ns::CrossCorrelationPeakOptions<N>{};
+        const auto xmap_options = ns::CrossCorrelationMapOptions{
+            .mode=correlation_mode,
+            .rank = R,
+            .ifft_norm=nf::NORM_DEFAULT,
+        };
+        const auto xpeak_options = ns::CrossCorrelationPeakOptions<R>{};
 
         for (auto& device: devices) {
-            const auto stream = StreamGuard(device, Stream::DEFAULT);
+            const auto stream = StreamGuard(device, Stream::SYNC);
             const auto options = ArrayOption(device, Allocator::MANAGED);
 
             auto [lhs, lhs_rfft] = nf::empty<value_t>(shape, options);
             auto [rhs, rhs_rfft] = nf::empty<value_t>(shape, options);
-            const auto xmap = Array<value_t>(shape, options);
-            const auto buffer = noa::like(lhs_rfft);
+            const auto xmap = noa::empty<value_t>(shape, options);
+            const auto buffer = noa::empty_like(lhs_rfft);
 
-            ng::draw({}, lhs, ng::Rectangle{
-                .radius=data[0].radius, .smoothness=data[0].smoothness}.template draw<f32>(),
-                 lhs_inverse_affine_matrices.to({device}));
-            ng::draw({}, rhs, ng::Rectangle{
-                .radius=data[0].radius, .smoothness=data[0].smoothness}.template draw<f32>(),
-                 rhs_inverse_affine_matrices.to({device}));
+            const auto radius = data_batched.first().radius;
+            const auto smoothness = data_batched.first().smoothness;
+            const auto rectangle = ng::Rectangle{.radius=radius, .smoothness=smoothness}.template get<f32>();
+            ng::draw<R>({}, lhs, rectangle, lhs_inverse_affine_matrices.to({device}));
+            ng::draw<R>({}, rhs, rectangle, rhs_inverse_affine_matrices.to({device}));
 
-            nf::r2c(lhs, lhs_rfft);
-            nf::r2c(rhs, rhs_rfft);
+            nf::r2c(lhs, lhs_rfft, {.rank = R});
+            nf::r2c(rhs, rhs_rfft, {.rank = R});
 
             auto run = [&]<nf::Layout REMAP>(){
                 INFO(REMAP);
                 ns::cross_correlation_map<REMAP>(lhs_rfft, rhs_rfft, xmap, xmap_options, buffer);
 
-                const auto shifts = Array<Vec<f32, N>>(shape[0], options);
-                const auto values = Array<value_t>(shape[0], options);
+                const auto shifts = Array<Vec<f32, R>, B>(shape_b, options);
+                const auto values = Array<value_t, B>(shape_b, options);
                 constexpr auto REMAP_ = REMAP.flip().erase_output();
-                ns::cross_correlation_peak<REMAP_>(xmap, shifts, values, xpeak_options);
+                ns::cross_correlation_peaks<REMAP_>(xmap, shifts, values, xpeak_options);
 
-                for (size_t i{}; i < shifts.eval().size(); ++i) {
+                auto xmap_br = xmap.reshape(Shape{shape_b.n_elements(), shape_r.n_elements()});
+                for (usize i{}; auto&& [data, shift, value]: noa::zip(
+                    data_batched.span_1d(),
+                    shifts.span_1d(),
+                    values.span_1d()
+                )) {
                     INFO(i);
-                    auto computed_shift = -(shifts.span_1d()[i].template as<f64>() - data[i].lhs_center);
+                    auto computed_shift = -(shift.template as<f64>() - data.lhs_center);
                     if (correlation_mode == ns::Correlation::DOUBLE_PHASE)
                         computed_shift /= 2;
 
                     // fmt::println("Computed shift={::.6f}, expected={::.6f}, diff={::.6f}",
                     //              computed_shift, data[i].expected_shift, abs(computed_shift - data[i].expected_shift));
 
-                    for (size_t j: noa::irange(N))
-                        REQUIRE_THAT(computed_shift[j], Catch::Matchers::WithinAbs(data[i].expected_shift[j], 5e-2));
+                    for (size_t r: noa::irange(R))
+                        REQUIRE_THAT(computed_shift[r], Catch::Matchers::WithinAbs(data.expected_shift[r], 5e-2));
 
-                    const auto max = noa::max(xmap.subregion(i));
-                    REQUIRE(max <= values.span_1d()[i]);
+                    const auto max = noa::max(xmap_br.subregion(i++));
+                    REQUIRE(max <= value);
                 }
             };
             run.template operator()<"H2FC">();
@@ -206,18 +223,18 @@ TEST_CASE("signal:: autocorrelate") {
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    const auto shape = test::random_shape(3);
-    const auto center = (shape.pop_front() / 2).vec.as<f64>();
+    const auto shape = test::random_shape<isize, 3>(3);
+    const auto center = (shape / 2).vec.as<f64>();
 
     for (auto& device: devices) {
         const auto stream = StreamGuard(device);
         const auto options = ArrayOption(device, Allocator::MANAGED);
 
         const auto lhs = noa::random(noa::Uniform{-50.f, 50.f}, shape, options);
-        const auto lhs_rfft = nf::r2c(lhs);
+        const auto lhs_rfft = nf::rfft3(lhs);
         const auto rhs_rfft = lhs_rfft.copy();
-        const auto xmap = noa::like<f32>(lhs);
-        ns::cross_correlation_map<"H2F">(lhs_rfft, rhs_rfft, xmap);
+        const auto xmap = noa::empty_like<f32>(lhs);
+        ns::cross_correlation_map_3d<"H2F">(lhs_rfft, rhs_rfft, xmap);
         const auto [shift, _] = ns::cross_correlation_peak_3d<"f">(xmap);
         REQUIRE_THAT(shift[0], Catch::Matchers::WithinAbs(center[0], 5e-2));
         REQUIRE_THAT(shift[1], Catch::Matchers::WithinAbs(center[1], 5e-2));
@@ -248,16 +265,16 @@ TEST_CASE("signal::cross_correlation_score") {
         noa::normalize(rhs, rhs, {.mode = noa::Norm::MEAN_STD});
         noa::ewise(noa::wrap(rhs, 2.), rhs, noa::Plus{});
 
-        const auto lhs_l2_normalized = noa::like(lhs);
-        const auto lhs_zero_normalized = noa::like(lhs);
-        const auto lhs_zero_l2_normalized = noa::like(lhs);
+        const auto lhs_l2_normalized = noa::empty_like(lhs);
+        const auto lhs_zero_normalized = noa::empty_like(lhs);
+        const auto lhs_zero_l2_normalized = noa::empty_like(lhs);
         noa::normalize(lhs, lhs_l2_normalized, {.mode = noa::Norm::L2});
         noa::normalize(lhs, lhs_zero_normalized, {.mode = noa::Norm::MEAN_STD});
         noa::normalize(lhs_zero_normalized, lhs_zero_l2_normalized, {.mode = noa::Norm::L2});
 
-        const auto rhs_l2_normalized = noa::like(rhs);
-        const auto rhs_zero_normalized = noa::like(rhs);
-        const auto rhs_zero_l2_normalized = noa::like(rhs);
+        const auto rhs_l2_normalized = noa::empty_like(rhs);
+        const auto rhs_zero_normalized = noa::empty_like(rhs);
+        const auto rhs_zero_l2_normalized = noa::empty_like(rhs);
         noa::normalize(rhs, rhs_l2_normalized, {.mode = noa::Norm::L2});
         noa::normalize(rhs, rhs_zero_normalized, {.mode = noa::Norm::MEAN_STD});
         noa::normalize(rhs_zero_normalized, rhs_zero_l2_normalized, {.mode = noa::Norm::L2});
@@ -285,26 +302,26 @@ TEST_CASE("signal::cross_correlation_peak, no registration") {
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    const auto shape = Shape<isize, 4>{1, 1, 64, 64};
+    const auto shape = Shape<isize, 2>{64, 64};
     for (auto& device: devices) {
         const auto stream = noa::StreamGuard(device);
         const auto options = noa::ArrayOption(device, Allocator::MANAGED);
 
-        const auto lhs = Array<f64>(shape, options);
-        ng::draw({}, lhs, ng::Sphere{.center=Vec{32., 32.}, .radius=6., .smoothness = 4.}.draw());
+        const auto lhs = Array<f64, 2>(shape, options);
+        ng::draw_2d({}, lhs, ng::Sphere{.center=Vec{32., 32.}, .radius=6., .smoothness = 4.}.get());
         noa::normalize(lhs, lhs, {.mode = noa::Norm::MEAN_STD});
         noa::normalize(lhs, lhs, {.mode = noa::Norm::L2});
-        const auto lhs_rfft = nf::r2c(lhs, {.norm = nf::Norm::BACKWARD});
+        const auto lhs_rfft = nf::rfft2(lhs, {.norm = nf::Norm::BACKWARD});
 
-        const auto rhs = Array<f64>(shape, options);
-        ng::draw({}, rhs, ng::Sphere{.center=Vec{35., 34.}, .radius=6., .smoothness = 4.}.draw());
+        const auto rhs = Array<f64, 2>(shape, options);
+        ng::draw_2d({}, rhs, ng::Sphere{.center=Vec{35., 34.}, .radius=6., .smoothness = 4.}.get());
         noa::normalize(rhs, rhs, {.mode = noa::Norm::MEAN_STD});
         noa::normalize(rhs, rhs, {.mode = noa::Norm::L2});
-        const auto rhs_rfft = nf::r2c(rhs, {.norm = nf::Norm::BACKWARD});
+        const auto rhs_rfft = nf::rfft2(rhs, {.norm = nf::Norm::BACKWARD});
 
         // Using a cross-correlation map.
-        const auto xmap = noa::like(rhs);
-        ns::cross_correlation_map<"h2fc">(lhs_rfft, rhs_rfft, xmap, {.ifft_norm = nf::Norm::BACKWARD});
+        const auto xmap = noa::empty_like(rhs);
+        ns::cross_correlation_map_2d<"h2fc">(lhs_rfft, rhs_rfft, xmap, {.ifft_norm = nf::Norm::BACKWARD});
         auto [peak_coord, peak_value] = ns::cross_correlation_peak_2d<"fc2fc">(xmap, {.registration_radius = Vec<i32, 2>{}});
 
         // Using argmax.
@@ -312,7 +329,6 @@ TEST_CASE("signal::cross_correlation_peak, no registration") {
         auto indices = noa::offset2index(argmax_offset, xmap);
 
         REQUIRE(noa::allclose(argmax_value, peak_value));
-        REQUIRE((indices[0] == 0 and indices[1] == 0));
-        REQUIRE(noa::allclose(indices.filter(2, 3).as<f64>(), peak_coord));
+        REQUIRE(noa::allclose(indices.as<f64>(), peak_coord));
     }
 }

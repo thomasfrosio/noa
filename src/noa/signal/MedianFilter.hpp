@@ -7,6 +7,8 @@
 
 #include "noa/runtime/Array.hpp"
 
+// TODO permute rightmost, preserving groups (B..)/(((D)H)W)
+
 namespace noa::signal {
     struct MedianFilterOptions {
         /// Number of elements to consider for the computation of the median. Only odd numbers are supported.
@@ -29,7 +31,7 @@ namespace noa::signal {
         requires nt::array_decay_with_same_nd<Input, Output>
     void median_filter_1d(Input&& input, Output&& output, const MedianFilterOptions& options) {
         if (options.window_size <= 1) {
-            std::forward<Input>(input).to(output);
+            NOA_FWD(input).to(output);
             return;
         }
 
@@ -56,7 +58,7 @@ namespace noa::signal {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             const auto n_threads = cpu_stream.thread_limit();
-            cpu_stream.enqueue([=, i = std::forward<Input>(input), o = std::forward<Output>(output)] {
+            cpu_stream.enqueue([=, i = NOA_FWD(input), o = NOA_FWD(output)] {
                 noa::signal::cpu::median_filter_1d(
                     i.get(), input_strides,
                     o.get(), o.strides(), o.shape(),
@@ -72,7 +74,7 @@ namespace noa::signal {
                 input.get(), input_strides.template as<i32>(),
                 output.get(), output.strides().template as<i32>(), output.shape(),
                 options.border_mode, options.window_size, cuda_stream);
-            cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
+            cuda_stream.enqueue_attach(NOA_FWD(input), NOA_FWD(output));
             #else
             panic_no_gpu_backend();
             #endif
@@ -87,7 +89,7 @@ namespace noa::signal {
         requires (nt::array_decay_with_same_nd<Input, Output> and nt::array_size_v<Input> >= 2)
     void median_filter_2d(Input&& input, Output&& output, const MedianFilterOptions& options) {
         if (options.window_size <= 1) {
-            std::forward<Input>(input).to(output);
+            NOA_FWD(input).to(output);
             return;
         }
 
@@ -116,7 +118,7 @@ namespace noa::signal {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.thread_limit();
-            cpu_stream.enqueue([=, i = std::forward<Input>(input), o = std::forward<Output>(output)] {
+            cpu_stream.enqueue([=, i = NOA_FWD(input), o = NOA_FWD(output)] {
                 noa::signal::cpu::median_filter_2d(
                     i.get(), input_strides,
                     o.get(), o.strides(), o.shape(),
@@ -132,7 +134,7 @@ namespace noa::signal {
                 input.get(), input_strides.template as<i32>(),
                 output.get(), output.strides().template as<i32>(), output.shape(),
                 options.border_mode, options.window_size, cuda_stream);
-            cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
+            cuda_stream.enqueue_attach(NOA_FWD(input), NOA_FWD(output));
             #else
             panic_no_gpu_backend();
             #endif
@@ -147,11 +149,9 @@ namespace noa::signal {
         requires (nt::array_decay_with_same_nd<Input, Output> and nt::array_size_v<Input> >= 3)
     void median_filter_3d(Input&& input, Output&& output, const MedianFilterOptions& options) {
         if (options.window_size <= 1) {
-            std::forward<Input>(input).to(output);
+            NOA_FWD(input).to(output);
             return;
         }
-
-        // TODO permute rightmost, preserving groups (B..)/(DHW)
 
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
         check(not are_overlapped(input, output), "The input and output array should not overlap");
@@ -177,7 +177,7 @@ namespace noa::signal {
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
             const auto threads = cpu_stream.thread_limit();
-            cpu_stream.enqueue([=, i = std::forward<Input>(input), o = std::forward<Output>(output)] {
+            cpu_stream.enqueue([=, i = NOA_FWD(input), o = NOA_FWD(output)] {
                 noa::signal::cpu::median_filter_3d(
                     i.get(), input_strides,
                     o.get(), o.strides(), o.shape(),
@@ -193,7 +193,7 @@ namespace noa::signal {
                 input.get(), input_strides.template as<i32>(),
                 output.get(), output.strides().template as<i32>(), output.shape(),
                 options.border_mode, options.window_size, cuda_stream);
-            cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
+            cuda_stream.enqueue_attach(NOA_FWD(input), NOA_FWD(output));
             #else
             panic_no_gpu_backend();
             #endif
