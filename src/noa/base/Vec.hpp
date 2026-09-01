@@ -242,7 +242,7 @@ namespace noa::details {
     }
 
     // In-place stable sort for small arrays.
-    template<usize N, typename T, typename U> requires (N <= 4)
+    template<usize N, typename T, typename U>
     NOA_HD constexpr void small_stable_sort(T* begin, U&& comp) noexcept {
         auto sswap = [](auto& a, auto& b) {
             T tmp = a;
@@ -279,7 +279,15 @@ namespace noa::details {
             if (comp(begin[3], begin[2]))
                 sswap(begin[3], begin[2]);
         } else {
-            static_assert(nt::always_false<T>);
+            for (usize i = 1; i < N; ++i) {
+                for (usize j = i; j > 0; --j) {
+                    if (comp(begin[j], begin[j - 1])) {
+                        sswap(begin[j], begin[j - 1]);
+                    } else {
+                        break;
+                    }
+                }
+            }
         }
     }
 
@@ -1166,25 +1174,25 @@ namespace noa {
         return allclose<ULP>(Vec<T, N, A>::filled_with(lhs), rhs, epsilon);
     }
 
-    template<typename T, usize N, usize A, typename Op = Less> requires (N <= 4)
+    template<typename T, usize N, usize A, typename Op = Less> requires (N <= 8)
     [[nodiscard]] constexpr auto stable_sort(Vec<T, N, A> vector, Op&& comp = {}) noexcept {
         details::small_stable_sort<N>(vector.data(), std::forward<Op>(comp));
         return vector;
     }
 
-    template<typename T, usize N, usize A, typename Op = Less> requires (N <= 4)
+    template<typename T, usize N, usize A, typename Op = Less> requires (N <= 8)
     [[nodiscard]] constexpr auto sort(Vec<T, N, A> vector, Op&& comp = {}) noexcept {
         details::small_stable_sort<N>(vector.data(), std::forward<Op>(comp));
         return vector;
     }
 
-    template<typename T, usize N, usize A, typename Op = Less> requires (N > 4)
+    template<typename T, usize N, usize A, typename Op = Less> requires (N > 8)
     [[nodiscard]] auto stable_sort(Vec<T, N, A> vector, Op&& comp = {}) noexcept {
         std::stable_sort(vector.begin(), vector.end(), std::forward<Op>(comp));
         return vector;
     }
 
-    template<typename T, usize N, usize A, typename Op = Less> requires (N > 4)
+    template<typename T, usize N, usize A, typename Op = Less> requires (N > 8)
     [[nodiscard]] auto sort(Vec<T, N, A> vector, Op&& comp = {}) noexcept {
         std::sort(vector.begin(), vector.end(), std::forward<Op>(comp));
         return vector;
