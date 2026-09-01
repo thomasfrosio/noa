@@ -145,6 +145,7 @@ namespace noa::fft {
 
         [[nodiscard]] constexpr bool is_xc2xx()  const noexcept { return to_u8_() & Bitset::SRC_CENTERED; }
         [[nodiscard]] constexpr bool is_xx2xc()  const noexcept { return to_u8_() & Bitset::DST_CENTERED; }
+        [[nodiscard]] constexpr bool is_xc2xc()  const noexcept { return is_xc2xx() and is_xx2xc(); }
 
         [[nodiscard]] constexpr bool is_hc2xx() const noexcept { return is_hx2xx() and is_xc2xx(); }
         [[nodiscard]] constexpr bool is_h2xx()  const noexcept { return is_hx2xx() and not is_xc2xx(); }
