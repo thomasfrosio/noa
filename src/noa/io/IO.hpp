@@ -13,7 +13,8 @@ namespace noa::io {
         /// Rank of the returned array.
         /// If 0, the returned ND array is returned as encoded in the file.
         /// If 1, 2 or 3, the ND array is reshaped to the ranked shape before returning. The ranked shape collapses
-        /// batch axes to the leftmost axis. Setting the rank is usually used to correct wrongly encoded MRC files.
+        /// batch axes to the leftmost axis. Setting the rank is usually used to correct wrongly encoded MRC files,
+        /// for instance when a 3d volume is encoded as a stack of 2d images.
         /// This only has an effect for N > (rank + 1).
         usize rank{0};
 
@@ -67,7 +68,8 @@ namespace noa::io {
     }
 
     /// Returns a new C-contiguous array of bytes containing the whole file data, and the file header.
-    /// Files map to BDHW dimensions (see ImageFile) but this function can reshape the 4D shape to ND, possibly ranked, shape.
+    /// Files map to BDHW dimensions (see ImageFile) but this function can reshape the 4D shape to ND,
+    /// possibly ranked, shape.
     template<nt::byte T, usize N>
     [[nodiscard]] auto read_image(
         const Path& path,
@@ -109,7 +111,8 @@ namespace noa::io {
         /// Rank of the written array.
         /// If 0, the ND array is written as is in the file.
         /// If 1, 2 or 3, the ND array is reshaped to the ranked shape before writing. The ranked shape collapses
-        /// batch axes to the leftmost axis. Setting the rank is usually used to distinguish between DHW and BHW 3D arrays.
+        /// batch axes to the leftmost axis. Setting the rank is usually used to distinguish between a 3d volume and
+        /// a stack of 2d images.
         /// This only has an effect for N > rank.
         usize rank{0};
 
@@ -125,7 +128,7 @@ namespace noa::io {
         /// Compression scheme of the new file.
         /// Note that encoders are allowed to select a different compression scheme
         /// (a similar scheme or Compression::NONE) if this one is not supported.
-        ///  For MRC, compression is not supported and this is ignored.
+        /// For MRC, compression is not supported and this is ignored.
         Compression compression{};
 
         /// Statistics of the data in the new file.
@@ -255,7 +258,6 @@ namespace noa::io {
     }
 }
 
-// Expose read/write to noa.
 namespace noa {
     using noa::io::read_image;
     using noa::io::write_image;

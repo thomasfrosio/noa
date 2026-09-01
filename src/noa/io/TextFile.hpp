@@ -151,7 +151,7 @@ namespace noa::io {
             }
 
             auto operator*() const -> reference { return file->m_buffer; }
-            auto operator++() -> Iterator&{
+            auto operator++() -> Iterator& {
                 if (file and not std::getline(file->m_fstream, file->m_buffer)) {
                     check(file->eof(), "{}. Failed to read a line", file->m_path);
                     file = nullptr; // mark end

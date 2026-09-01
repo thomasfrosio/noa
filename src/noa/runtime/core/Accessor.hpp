@@ -858,10 +858,10 @@ namespace noa::details {
                 nd::reshape_accessors(output_shape, collapsed_output_shape, output)) {
                 input_shape = collapsed_input_shape;
                 output_shape = collapsed_output_shape;
-                } else {
-                    panic("Reshape failed, input_shape={}, output_shape={}, contiguity={}, broadcasting={}. Please report this issue",
-                          input_shape, output_shape, contiguity, broadcasting);
-                }
+            } else {
+                panic("Reshape failed, input_shape={}, output_shape={}, contiguity={}, broadcasting={}. Please report this issue",
+                      input_shape, output_shape, contiguity, broadcasting);
+            }
         }
     }
 }
