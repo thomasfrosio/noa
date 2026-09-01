@@ -68,7 +68,7 @@ namespace noa {
     template<typename T = Empty, nt::array Input>
     [[nodiscard]] auto zeros_like(const Input& array) {
         using value_t = std::conditional_t<nt::empty<T>, nt::mutable_value_type_t<Input>, T>;
-        return fill<value_t>(array.shape(), array.options());
+        return fill<value_t>(array.shape(), value_t{}, array.options());
     }
 
     /// Returns an array filled with ones.
