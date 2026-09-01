@@ -128,13 +128,13 @@ namespace noa::signal::details {
     void no_phase_shift(Input&& input, Output&& output, const Shape<isize, N>& shape) {
         if (input.is_empty()) {
             using value_t = nt::value_type_t<Output>;
-            fill(std::forward<Output>(output), value_t{1, 0});
+            fill(NOA_FWD(output), value_t{1, 0});
         } else {
             if constexpr (not REMAP.has_layout_change()) {
                 if (input.get() != output.get())
-                    copy(std::forward<Input>(input), std::forward<Output>(output));
+                    copy(NOA_FWD(input), NOA_FWD(output));
             } else {
-                nf::remap<RANK>(REMAP, std::forward<Input>(input), std::forward<Output>(output), shape);
+                nf::remap<RANK>(REMAP, NOA_FWD(input), NOA_FWD(output), shape);
             }
         }
     }
