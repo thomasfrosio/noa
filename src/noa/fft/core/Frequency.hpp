@@ -237,7 +237,7 @@ namespace noa::fft {
         using real_t = typename T::value_type;
         real_t factor;
         if constexpr (N0 == 1)
-            factor = static_cast<real_t>(-2 * Constant<R>::PI * shift[0], fftfreq[N1 - 1]);
+            factor = static_cast<real_t>(-(2 * Constant<R>::PI * shift[0] * fftfreq[N1 - 1]));
         else if constexpr (N0 == 2)
             factor = static_cast<real_t>(-dot(2 * Constant<R>::PI * shift, fftfreq.filter(N1 - 2, N1 - 1)));
         else if constexpr (N0 == 3)
