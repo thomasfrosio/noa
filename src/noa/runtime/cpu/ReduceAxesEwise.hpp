@@ -260,13 +260,20 @@ namespace noa::cpu {
                     n_elements_per_reduction > Config::n_elements_per_thread and
                     clamp_cast<i32>(n_reductions) < n_threads;
 
-                // Optimize for 2d case.
+                // Optimize for 2d contiguous and restrict case.
                 const bool is_2d = first_non_empty == N - 2;
                 const auto shape_2d = Shape<Index, 2>{n_reductions, safe_cast<Index>(n_elements_per_reduction)};
+                const bool is_contiguous = nd::are_accessors_contiguous(input_shape, input);
                 constexpr auto CONTIGUOUS_RESTRICT = nd::AccessorConfig{
                     .enforce_contiguous = true,
                     .enforce_restrict = true,
                 };
+
+                // SAFETY: If the operator has enabled vectorization, this function de facto
+                // assumes that the none of inputs and outputs are aliasing.
+                const bool is_restrict =
+                    nt::enable_vectorization_v<Op> or
+                    not nd::are_accessors_aliased(input, output);
 
                 // Otherwise, do the nd batch reduction.
                 // The batch should be the leftmost dimensions. In cases with empty dimensions before the first
@@ -274,14 +281,8 @@ namespace noa::cpu {
                 auto order_to_batch = Vec<usize, N>::arange();
                 std::swap(order_to_batch[0], order_to_batch[first_non_empty]);
 
-                // SAFETY: If the operator has enabled vectorization, this function de facto
-                // assumes that the none of inputs and outputs are not aliasing.
-                const bool is_restrict =
-                    nt::enable_vectorization_v<Op> or
-                    not nd::are_accessors_aliased(input, output);
-
                 if (parallel_reduction) {
-                    if (is_2d and is_restrict) {
+                    if (is_2d and is_contiguous and is_restrict) {
                         auto input_2d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT>(
                             std::forward<Input>(input), N - 2, N - 1);
                         reduce_axes_ewise_t::template run<3>(
@@ -304,7 +305,7 @@ namespace noa::cpu {
                             actual_n_threads);
                     }
                 } else {
-                    if (is_2d and is_restrict) {
+                    if (is_2d and is_contiguous and is_restrict) {
                         auto input_2d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT>(
                             std::forward<Input>(input), N - 2, N - 1);
                         reduce_axes_ewise_t::template run<2>(
