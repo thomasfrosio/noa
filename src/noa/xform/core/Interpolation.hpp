@@ -557,9 +557,9 @@ namespace noa::xform {
     ///     the interpolation window will be >= 0. For larger windows, this is not the case and flipping needs to be
     ///     done for each index in the window. Flipping early is therefore more efficient.
     ///     However, this early flip results in slight error with rFFTs with even sizes. This affects only a few
-    ///     elements at the Nyquist frequencies (the ones on the central axes, e.g. x=0) on the input and weights
-    ///     the interpolated values towards zero. This option is here to turn off early flipping to introduce the
-    ///     (tiny) error.
+    ///     elements at the Nyquist frequencies (the ones on the central axes, e.g. x=0) and incorrectly weights
+    ///     the interpolated values towards zero. This option is here to turn off early flipping and therefore removes
+    ///     this (tiny) error.
     /// \tparam OPTIMISTIC_INBOUND_CHECK:
     ///     Check for is_interpolation_spectrum_window_inbound(bounds, frequency) once and if true, disable the bound
     ///     checks for all elements in the interpolation window. If ASSUME_INBOUND=true, this option is ignored.
@@ -901,12 +901,12 @@ namespace noa::xform {
     ///     is exactly in between the first and second element. As such, the fractional part of the coordinate
     ///     corresponds to the ratio/weight used by the interpolation functions. In other words, the coordinate system
     ///     locates the data between -0.5 and N-1 + 0.5.
-    template<Interp INTERP_, Border BORDER_, typename T, usize N, nt::integer I, bool NO_SHAPE = false, bool TEXTURE_ONLY = false>
+    template<Interp INTERP_, Border BORDER_, usize N, nt::integer I, typename V = Empty, bool NO_SHAPE = false, bool TEXTURE_ONLY = false>
     class Interpolator {
     public:
-        using value_type = T;
+        using cvalue_type = V;
+        using mutable_cvalue_type = std::remove_const_t<cvalue_type>;
         using offset_type = I;
-        using mutable_value_type = std::remove_const_t<T>;
         using index_type = std::make_signed_t<offset_type>;
 
         static constexpr Interp INTERP = INTERP_;
@@ -923,7 +923,7 @@ namespace noa::xform {
 
         using shape_nd_type = Shape<index_type, N>;
         using shape_nd_or_empty_type = std::conditional_t<NO_SHAPE or TEXTURE_ONLY, Empty, shape_nd_type>;
-        using value_or_empty_type = std::conditional_t<not TEXTURE_ONLY and BORDER == Border::VALUE, mutable_value_type, Empty>;
+        using cvalue_or_empty_type = std::conditional_t<not TEXTURE_ONLY and BORDER == Border::VALUE, mutable_cvalue_type, Empty>;
 
     public:
         /// Unsafe default construction...
@@ -935,12 +935,12 @@ namespace noa::xform {
         template<usize A>
         NOA_HD constexpr Interpolator(
             const Shape<index_type, N, A>& shape,
-            mutable_value_type cvalue = mutable_value_type{}
+            mutable_cvalue_type cvalue = mutable_cvalue_type{}
         ) noexcept {
             if constexpr (not TEXTURE_ONLY) {
                 if constexpr (not NO_SHAPE)
                     m_shape = shape_nd_type::from_shape(shape);
-                if constexpr (not std::is_empty_v<value_or_empty_type>)
+                if constexpr (not std::is_empty_v<cvalue_or_empty_type>)
                     m_cvalue = cvalue;
             }
         }
@@ -956,7 +956,7 @@ namespace noa::xform {
         [[nodiscard]] NOA_HD constexpr auto get(
             const Input& input,
             const Vec<C, N, A>& coordinates
-        ) const -> mutable_value_type {
+        ) const -> nt::mutable_value_type_t<Input> {
             if constexpr (nt::textureable_nd<Input, BORDER, N>) {
                 return nx::interpolate_using_texture<INTERP, BORDER>(input, coordinates);
             } else if constexpr (not TEXTURE_ONLY) {
@@ -990,7 +990,7 @@ namespace noa::xform {
             const Input& input,
             const Vec<C, N, A1>& coordinates,
             const Shape<index_type, N, A2>& shape
-        ) const -> mutable_value_type {
+        ) const -> nt::mutable_value_type_t<Input> {
             if constexpr (nt::textureable_nd<Input, BORDER, N>) {
                 return nx::interpolate_using_texture<INTERP, BORDER>(input, coordinates);
             } else if constexpr (not TEXTURE_ONLY) {
@@ -1008,17 +1008,15 @@ namespace noa::xform {
 
     private:
         NOA_NO_UNIQUE_ADDRESS shape_nd_or_empty_type m_shape{};
-        NOA_NO_UNIQUE_ADDRESS value_or_empty_type m_cvalue{};
+        NOA_NO_UNIQUE_ADDRESS cvalue_or_empty_type m_cvalue{};
     };
 
     /// Interpolates {1|2|3}d (power) spectra with a given FFT layout, using a given interpolation.
     /// \tparam REMAP: FFT layout of the input. The output layout is ignored.
     /// See Interpolator for more details.
-    template<nf::Layout REMAP, Interp INTERP_, typename T, usize N, nt::integer I, bool NO_SHAPE = false, bool TEXTURE_ONLY = false>
+    template<nf::Layout REMAP, Interp INTERP_, usize N, nt::integer I, bool NO_SHAPE = false, bool TEXTURE_ONLY = false>
     class InterpolatorSpectrum {
     public:
-        using value_type = T;
-        using mutable_value_type = std::remove_const_t<T>;
         using offset_type = I;
         using index_type = std::make_signed_t<offset_type>;
         using shape_nd_type = Shape<index_type, N>;
@@ -1059,7 +1057,7 @@ namespace noa::xform {
         [[nodiscard]] NOA_HD constexpr auto get(
             const Input& input,
             const Vec<C, N, A>& frequency
-        ) const -> mutable_value_type {
+        ) const -> nt::mutable_value_type_t<Input> {
             if constexpr (nt::textureable_nd<Input, BORDER, N>) {
                 return nx::interpolate_spectrum_using_texture<
                     REMAP, INTERP, ALWAYS_FLIP_PER_INDEX
@@ -1088,7 +1086,7 @@ namespace noa::xform {
             const Vec<C, N, A1>& frequency,
             const Shape<index_type, N, A2>& shape,
             const Bounds& bounds
-        ) const -> mutable_value_type {
+        ) const -> nt::mutable_value_type_t<Input> {
             if constexpr (nt::textureable_nd<Input, BORDER, N>) {
                 return nx::interpolate_spectrum_using_texture<
                     REMAP, INTERP, ALWAYS_FLIP_PER_INDEX
@@ -1113,15 +1111,15 @@ namespace noa::xform {
 }
 
 namespace noa::traits {
-    template<nx::Interp INTERP, Border BORDER, typename T, usize N, typename I, bool A, bool B>
-    struct proclaim_is_interpolator<nx::Interpolator<INTERP, BORDER, T, N, I, A, B>> : std::true_type {};
+    template<nx::Interp INTERP, Border BORDER, usize N, typename I,  typename V, bool A, bool B>
+    struct proclaim_is_interpolator<nx::Interpolator<INTERP, BORDER, N, I, V, A, B>> : std::true_type {};
 
-    template<nx::Interp INTERP, Border BORDER, typename T, usize N, typename I, bool A, bool B, usize S>
-    struct proclaim_is_interpolator_nd<nx::Interpolator<INTERP, BORDER, T, N, I, A, B>, S> : std::bool_constant<N == S> {};
+    template<nx::Interp INTERP, Border BORDER, usize N, typename I,  typename V, bool A, bool B, usize S>
+    struct proclaim_is_interpolator_nd<nx::Interpolator<INTERP, BORDER, N, I, V, A, B>, S> : std::bool_constant<N == S> {};
 
-    template<nf::Layout REMAP, nx::Interp INTERP, typename T, usize N, typename I, bool A, bool B>
-    struct proclaim_is_interpolator_spectrum<nx::InterpolatorSpectrum<REMAP, INTERP, T, N, I, A, B>> : std::true_type {};
+    template<nf::Layout REMAP, nx::Interp INTERP, usize N, typename I, bool A, bool B>
+    struct proclaim_is_interpolator_spectrum<nx::InterpolatorSpectrum<REMAP, INTERP, N, I, A, B>> : std::true_type {};
 
-    template<nf::Layout REMAP, nx::Interp INTERP, typename T, usize N, typename I, bool A, bool B, usize S>
-    struct proclaim_is_interpolator_spectrum_nd<nx::InterpolatorSpectrum<REMAP, INTERP, T, N, I, A, B>, S> : std::bool_constant<N == S> {};
+    template<nf::Layout REMAP, nx::Interp INTERP, usize N, typename I, bool A, bool B, usize S>
+    struct proclaim_is_interpolator_spectrum_nd<nx::InterpolatorSpectrum<REMAP, INTERP, N, I, A, B>, S> : std::bool_constant<N == S> {};
 }
