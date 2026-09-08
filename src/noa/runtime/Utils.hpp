@@ -187,22 +187,6 @@ namespace noa::details {
         return input_strides;
     }
 
-    template<bool ALLOW_EMPTY = false, typename T>
-    constexpr auto to_batch(const T& value) {
-        using value_t = nt::const_value_type_t<T>;
-        if constexpr (nt::empty<T>) {
-            if constexpr (ALLOW_EMPTY)
-                return AccessorValue<Empty>{};
-            else
-                static_assert(nt::always_false<T>);
-        } else if constexpr (nt::array<T>) {
-            NOA_ASSERT(value.is_contiguous());
-            return AccessorRestrictContiguous<value_t, 1>{value.get()};
-        } else {
-            return AccessorValue{value};
-        }
-    }
-
     template<nt::array_decay... T>
     constexpr bool are_arrays_valid(const T&... inputs) {
         return (not inputs.is_empty() and ...);
