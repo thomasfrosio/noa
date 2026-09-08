@@ -19,7 +19,7 @@ include(${PROJECT_SOURCE_DIR}/src/noa/runtime/Append.cmake)
 include(${PROJECT_SOURCE_DIR}/src/noa/fft/Append.cmake)
 include(${PROJECT_SOURCE_DIR}/src/noa/io/Append.cmake)
 include(${PROJECT_SOURCE_DIR}/src/noa/signal/Append.cmake)
-#include(${PROJECT_SOURCE_DIR}/src/noa/xform/Append.cmake)
+include(${PROJECT_SOURCE_DIR}/src/noa/xform/Append.cmake)
 
 # Create the target.
 include(${PROJECT_SOURCE_DIR}/cmake/targets/noa.cmake)

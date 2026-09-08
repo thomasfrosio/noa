@@ -11,7 +11,7 @@ TEST_CASE("xform::Interpolator") {
     auto buffer = test::random<f32>(shape.n_elements(), test::Randomizer<f32>(-10, 10));
     auto data = Span<f32, 3>{buffer.get(), shape};
 
-    using interpolator_t = const nx::Interpolator<nx::Interp::CUBIC, Border::ZERO, f64, 2, isize>;
+    using interpolator_t = const nx::Interpolator<nx::Interp::CUBIC, Border::ZERO, 2, isize>;
     auto op = interpolator_t(data.shape().pop_front());
 
     [[maybe_unused]] auto coordinate = Vec<f64, 2>{1, 1};
