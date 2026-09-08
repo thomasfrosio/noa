@@ -7,18 +7,19 @@
 #include "noa/runtime/Factory.hpp"
 
 #include "noa/fft/core/Frequency.hpp"
-#include "noa/signal/core/CTF.hpp" // FIXME can be removed
 #include "noa/xform/Utils.hpp"
 
 namespace noa::xform::details {
-    struct RotationalAverageUtils {
+    struct LerpAndAddAtomicallyToOutput {
         template<typename G, typename T, typename U, typename C, typename I>
-        NOA_FHD static void lerp_to_output(const G& cg, const T& op, const U& value, C fftfreq, I batch) noexcept {
+        NOA_FHD static void call(
+            const G& cg, const T& op, const U& value, C fftfreq, I batches
+        ) noexcept {
             // fftfreq to output index.
             const C scaled_fftfreq = (fftfreq - op.m_output_fftfreq_start) / op.m_output_fftfreq_span;
             const C radius = scaled_fftfreq * static_cast<C>(op.m_max_shell_index);
             const C radius_floor = floor(radius);
-            const auto shell_low = static_cast<T::index_type>(radius_floor);
+            const auto shell_low = static_cast<nt::value_type_t<I>>(radius_floor);
             const auto shell_high = shell_low + 1; // shell_low can be the last index
 
             // Compute lerp weights.
@@ -26,93 +27,82 @@ namespace noa::xform::details {
             const C fraction_low = 1 - fraction_high;
 
             // TODO In CUDA, we could do the atomic reduction in shared memory to reduce global memory transfers?
+            // TODO Add option for nearest interp.
+
+            auto output = op.m_output[batches];
+            auto weight = op.m_weight[batches];
             if (shell_low >= 0 and shell_low <= op.m_max_shell_index) {
-                cg.atomic_add(value * static_cast<T::output_real_type>(fraction_low), op.m_output, batch, shell_low);
+                cg.atomic_add(value * static_cast<T::output_real_type>(fraction_low), output, shell_low);
                 if (op.m_weight)
-                    cg.atomic_add(static_cast<T::weight_value_type>(fraction_low), op.m_weight, batch, shell_low);
+                    cg.atomic_add(static_cast<T::weight_value_type>(fraction_low), weight, shell_low);
             }
 
             if (shell_high >= 0 and shell_high <= op.m_max_shell_index) {
-                cg.atomic_add(value * static_cast<T::output_real_type>(fraction_high), op.m_output, batch, shell_high);
+                cg.atomic_add(value * static_cast<T::output_real_type>(fraction_high), output, shell_high);
                 if (op.m_weight)
-                    cg.atomic_add(static_cast<T::weight_value_type>(fraction_high), op.m_weight, batch, shell_high);
+                    cg.atomic_add(static_cast<T::weight_value_type>(fraction_high), weight, shell_high);
             }
         }
     };
 
-    /// 3d or 4d iwise operator to compute a rotational average of 2d or 3d array(s).
-    /// - The output layout is noted "H", since often the number of output shells is min(shape) // 2 + 1
-    ///   Otherwise, the input can be any of the for layouts (H, HC, F or FC).
-    /// - A lerp is used to add frequencies in its two neighbor shells, instead of rounding to the nearest shell.
-    /// - The frequencies are normalized, so input dimensions don't have to be equal.
-    /// - The user sets the number of output shells, as well as the output frequency range.
-    /// - If input is complex and output real, the input is preprocessed to abs(input)^2.
-    /// - The 2d distortion from the anisotropic ctf can be corrected.
     template<nf::Layout REMAP,
-             usize N,
+             usize B, usize R,
              nt::real Coord,
              nt::sinteger Index,
-             nt::readable_nd<N + 1> Input,
-             nt::atomic_addable_nd<2> Output,
-             nt::atomic_addable_nd_optional<2> Weight,
-             nt::batched_parameter Ctf>
+             nt::readable_nd<B + R> Input,
+             nt::readable_nd<B> InputCtf,
+             nt::atomic_addable_nd<B + 1> Output,
+             nt::atomic_addable_nd_optional<B + 1> Weight>
     class RotationalAverage {
     public:
-        static_assert((N == 2 or N == 3) and REMAP.is_xx2h());
+        static_assert((R == 2 or R == 3) and REMAP.is_xx2h());
         static constexpr bool IS_CENTERED = REMAP.is_xc2xx();
         static constexpr bool IS_RFFT = REMAP.is_hx2xx();
 
-        using index_type = Index;
-        using coord_type = Coord;
-        using shape_type = Shape<index_type, N - IS_RFFT>;
-        using coord_nd_type = Vec<coord_type, N>;
-        using coord2_type = Vec<coord_type, 2>;
-        using shape_nd_type = Shape<index_type, N>;
+        using coord_rd_type = Vec<Coord, R>;
+        using coord_2d_type = Vec<Coord, 2>;
+        using shape_rd_truncated_type = Shape<Index, R - IS_RFFT>;
 
-        using input_type = Input;
-        using output_type = Output;
-        using weight_type = Weight;
-        using output_value_type = nt::value_type_t<output_type>;
+        using output_value_type = nt::value_type_t<Output>;
         using output_real_type = nt::value_type_t<output_value_type>;
-        using weight_value_type = nt::value_type_t<weight_type>;
-        static_assert(nt::spectrum_types<nt::value_type_t<input_type>, output_value_type>);
+        using weight_value_type = nt::value_type_t<Weight>;
+        static_assert(nt::spectrum_types<nt::value_type_t<Input>, output_value_type>);
         static_assert(nt::same_as<weight_value_type, output_real_type>);
 
-        using batched_ctf_type = Ctf;
-        using ctf_type = nt::mutable_value_type_t<batched_ctf_type>;
-        static_assert(nt::empty<ctf_type> or (N == 2 and nt::ctf_anisotropic<ctf_type>));
+        using ctf_type = nt::mutable_value_type_t<InputCtf>;
+        static_assert(nt::empty<ctf_type> or (R == 2 and nt::ctf_anisotropic<ctf_type>));
 
-        friend RotationalAverageUtils;
+        friend LerpAndAddAtomicallyToOutput;
 
     public:
         constexpr RotationalAverage(
-            const input_type& input,
-            const shape_nd_type& input_shape,
-            const batched_ctf_type& input_ctf,
-            const output_type& output,
-            const weight_type& weight,
-            index_type n_shells,
-            Linspace<coord_type> input_fftfreq,
-            Linspace<coord_type> output_fftfreq
+            const Input& input,
+            const Shape<Index, R>& input_shape,
+            const InputCtf& input_ctf,
+            const Output& output,
+            const Weight& weight,
+            Index n_shells,
+            Linspace<Coord> input_fftfreq,
+            Linspace<Coord> output_fftfreq
         ) :
             m_input(input),
             m_output(output),
             m_weight(weight),
-            m_ctf(input_ctf),
+            m_input_ctf(input_ctf),
             m_shape(input_shape.template pop_back<IS_RFFT>())
         {
             // If input_fftfreq.stop is negative, defaults to the highest frequency.
             // In this case, and if the frequency.start is 0, this results in the full frequency range.
-            // The input is N-d, so we have to handle each axis separately.
-            coord_type max_input_fftfreq{-1};
-            for (usize i{}; i < N; ++i) {
+            // The input is R-d, so we have to handle each axis separately.
+            Coord max_input_fftfreq{-1};
+            for (usize i{}; i < R; ++i) {
                 const auto max_sample_size = input_shape[i] / 2 + 1;
                 const auto fftfreq_end =
                     input_fftfreq.stop <= 0 ?
-                    nf::highest_fftfreq<coord_type>(input_shape[i]) :
+                    nf::highest_fftfreq<Coord>(input_shape[i]) :
                     input_fftfreq.stop;
                 max_input_fftfreq = max(max_input_fftfreq, fftfreq_end);
-                m_input_fftfreq_step[i] = Linspace<coord_type>{
+                m_input_fftfreq_step[i] = Linspace<Coord>{
                     .start = 0,
                     .stop = fftfreq_end,
                     .endpoint = input_fftfreq.endpoint
@@ -137,97 +127,87 @@ namespace noa::xform::details {
             // To shortcut early, compute the fftfreq cutoffs where we know the output isn't affected.
             auto output_fftfreq_step = output_fftfreq.for_size(n_shells).step;
             m_fftfreq_cutoff[0] = output_fftfreq.start + -1 * output_fftfreq_step;
-            m_fftfreq_cutoff[1] = output_fftfreq.stop + static_cast<coord_type>(m_max_shell_index) * output_fftfreq_step;
+            m_fftfreq_cutoff[1] = output_fftfreq.stop + static_cast<Coord>(m_max_shell_index) * output_fftfreq_step;
         }
 
         // 2d or 3d rotational average, with an optional anisotropic field correction.
-        template<nt::compute_handle C, nt::same_as<index_type>... I> requires (N == sizeof...(I))
-        NOA_HD void operator()(const C& ch, index_type batch, I... indices) const noexcept {
+        template<nt::compute_handle C>
+        NOA_HD void operator()(const C& ch, const Vec<Index, B + R>& batched_indices) const noexcept {
             // Input indices to fftfreq.
-            const auto frequency = nf::index2frequency<IS_CENTERED, IS_RFFT>(Vec{indices...}, m_shape);
-            const auto fftfreq_nd = coord_nd_type::from_vec(frequency) * m_input_fftfreq_step;
+            const auto& [batches, indices] = batched_indices.template split<B>();
+            const auto frequency = nf::index2frequency<IS_CENTERED, IS_RFFT>(indices, m_shape);
+            const auto fftfreq_nd = coord_rd_type::from_vec(frequency) * m_input_fftfreq_step;
 
-            coord_type fftfreq;
+            Coord fftfreq;
             if constexpr (nt::empty<ctf_type>) {
                 fftfreq = sqrt(dot(fftfreq_nd, fftfreq_nd));
             } else {
                 // Correct for anisotropic field (pixel size and defocus).
-                fftfreq = static_cast<coord_type>(m_ctf[batch].isotropic_fftfreq(fftfreq_nd));
+                fftfreq = static_cast<Coord>(m_input_ctf[batches].isotropic_fftfreq(fftfreq_nd));
             }
 
             // Remove most out-of-bounds asap.
             if (fftfreq < m_fftfreq_cutoff[0] or fftfreq > m_fftfreq_cutoff[1])
                 return;
 
-            const auto value = cast_or_abs_squared<output_value_type>(m_input(batch, indices...));
-            RotationalAverageUtils::lerp_to_output(ch.grid(), *this, value, fftfreq, batch);
+            const auto value = cast_or_abs_squared<output_value_type>(m_input[batched_indices]);
+            LerpAndAddAtomicallyToOutput::call(ch.grid(), *this, value, fftfreq, batches);
         }
 
     private:
-        input_type m_input;
-        output_type m_output;
-        weight_type m_weight;
-        NOA_NO_UNIQUE_ADDRESS batched_ctf_type m_ctf;
+        Input m_input;
+        Output m_output;
+        Weight m_weight;
+        NOA_NO_UNIQUE_ADDRESS InputCtf m_input_ctf;
 
-        shape_type m_shape;
-        coord_nd_type m_input_fftfreq_step;
-        coord2_type m_fftfreq_cutoff;
-        coord_type m_output_fftfreq_start;
-        coord_type m_output_fftfreq_span;
-        index_type m_max_shell_index;
+        shape_rd_truncated_type m_shape;
+        coord_rd_type m_input_fftfreq_step;
+        coord_2d_type m_fftfreq_cutoff;
+        Coord m_output_fftfreq_start;
+        Coord m_output_fftfreq_span;
+        Index m_max_shell_index;
     };
 
-    template<nt::real Coord,
-             nt::sinteger Index,
-             nt::readable_nd<2> Input,
-             nt::atomic_addable_nd<2> Output,
-             nt::atomic_addable_nd_optional<2> Weight,
-             nt::batched_parameter InputCtf,
-             nt::batched_parameter OutputCtf>
-    class FuseSpectra {
+    template<usize B, usize R, nt::real Coord, nt::sinteger Index,
+             nt::readable_nd<B + R> Input,
+             nt::atomic_addable_nd<B + R> Output,
+             nt::atomic_addable_nd_optional<B + R> Weight,
+             nt::readable_nd<B> InputCtf,
+             nt::readable_nd<B> OutputCtf>
+    class EquiphaseRescaleAndAverage {
     public:
-        using index_type = Index;
-        using coord_type = Coord;
-        using coord_nd_type = Vec<coord_type, 1>;
-        using coord2_type = Vec<coord_type, 2>;
+        static_assert(R == 1); // TODO Add support for higher ranks
 
-        using input_type = Input;
-        using output_type = Output;
-        using weight_type = Weight;
-        using output_value_type = nt::value_type_t<output_type>;
+        using output_value_type = nt::value_type_t<Output>;
         using output_real_type = nt::value_type_t<output_value_type>;
-        using weight_value_type = nt::value_type_t<weight_type>;
-        static_assert(nt::spectrum_types<nt::value_type_t<input_type>, output_value_type>);
+        using weight_value_type = nt::value_type_t<Weight>;
+        static_assert(nt::spectrum_types<nt::value_type_t<Input>, output_value_type>);
         static_assert(nt::same_as<weight_value_type, output_real_type>);
 
-        using batched_input_ctf_type = InputCtf;
-        using input_ctf_type = nt::mutable_value_type_t<batched_input_ctf_type>;
-        using batched_output_ctf_type = OutputCtf;
-        using output_ctf_type = nt::mutable_value_type_t<batched_output_ctf_type>;
+        using input_ctf_type = nt::mutable_value_type_t<InputCtf>;
+        using output_ctf_type = nt::mutable_value_type_t<OutputCtf>;
         static_assert(nt::ctf_isotropic<input_ctf_type, output_ctf_type>);
 
-        friend RotationalAverageUtils;
+        friend LerpAndAddAtomicallyToOutput;
 
     public:
-        constexpr FuseSpectra(
-            const input_type& input,
-            const Linspace<coord_type>& input_fftfreq,
-            const batched_input_ctf_type& input_ctf,
-            index_type n_input_shells,
-            const output_type& output,
-            Linspace<coord_type> output_fftfreq,
-            const batched_output_ctf_type& output_ctf,
-            index_type n_output_shells,
-            const weight_type& weight,
-            index_type chunk_size
+        constexpr EquiphaseRescaleAndAverage(
+            const Input& input,
+            const Linspace<Coord>& input_fftfreq,
+            const InputCtf& input_ctf,
+            Index n_input_shells,
+            const Output& output,
+            Linspace<Coord> output_fftfreq,
+            const OutputCtf& output_ctf,
+            Index n_output_shells,
+            const Weight& weight
         ) :
             m_input(input),
             m_output(output),
             m_weight(weight),
             m_input_ctf(input_ctf),
             m_output_ctf(output_ctf),
-            m_max_shell_index(n_output_shells - 1),
-            m_chunk_size(chunk_size)
+            m_max_shell_index(n_output_shells - 1)
         {
             m_input_fftfreq_start = input_fftfreq.start;
             m_input_fftfreq_step = input_fftfreq.for_size(n_input_shells).step;
@@ -243,188 +223,185 @@ namespace noa::xform::details {
             // To shortcut early, compute the fftfreq cutoffs where we know the output isn't affected.
             auto output_fftfreq_step = output_fftfreq.for_size(n_output_shells).step;
             m_fftfreq_cutoff[0] = output_fftfreq.start + -1 * output_fftfreq_step;
-            m_fftfreq_cutoff[1] = output_fftfreq.stop + static_cast<coord_type>(m_max_shell_index) * output_fftfreq_step;
+            m_fftfreq_cutoff[1] = output_fftfreq.stop + static_cast<Coord>(m_max_shell_index) * output_fftfreq_step;
         }
 
-        NOA_HD void operator()(nt::compute_handle auto& ch, index_type batch, index_type index) const noexcept {
-            const auto output_batch = batch / m_chunk_size;
-            const auto input_fftfreq = m_input_fftfreq_start + static_cast<coord_type>(index) * m_input_fftfreq_step;
-            const auto input_phase = m_input_ctf[batch].phase_at(input_fftfreq);
-            const auto fftfreq = m_output_ctf[output_batch].template fftfreq_at<coord_type>(input_phase);
+        NOA_HD void operator()(nt::compute_handle auto& ch, const Vec<Index, B + 1>& batched_indices) const noexcept {
+            const auto& [batches, index] = batched_indices.template split<B>();
+            const auto input_fftfreq = m_input_fftfreq_start + static_cast<Coord>(index[0]) * m_input_fftfreq_step;
+            const auto input_phase = m_input_ctf[batches].phase_at(input_fftfreq);
+            const auto fftfreq = m_output_ctf[batches].template fftfreq_at<Coord>(input_phase);
 
             // Remove most out-of-bounds asap.
             if (not fftfreq.has_value() or *fftfreq < m_fftfreq_cutoff[0] or *fftfreq > m_fftfreq_cutoff[1])
                 return;
 
-            const auto value = cast_or_abs_squared<output_value_type>(m_input(batch, index));
-            const auto weight = static_cast<output_real_type>(m_input_ctf[batch].scale());
-            RotationalAverageUtils::lerp_to_output(ch.grid(), *this, value * weight, *fftfreq, output_batch);
+            const auto value = cast_or_abs_squared<output_value_type>(m_input[batched_indices]);
+            const auto weight = static_cast<output_real_type>(m_input_ctf[batches].scale());
+            LerpAndAddAtomicallyToOutput::call(ch.grid(), *this, value * weight, *fftfreq, batches);
         }
 
     private:
-        input_type m_input;
-        output_type m_output;
-        weight_type m_weight;
-        batched_input_ctf_type m_input_ctf;
-        batched_output_ctf_type m_output_ctf;
+        Input m_input;
+        Output m_output;
+        Weight m_weight;
+        InputCtf m_input_ctf;
+        OutputCtf m_output_ctf;
 
-        coord2_type m_fftfreq_cutoff;
-        coord_type m_input_fftfreq_start;
-        coord_type m_input_fftfreq_step;
-        coord_type m_output_fftfreq_start;
-        coord_type m_output_fftfreq_span;
-        index_type m_max_shell_index;
-        index_type m_chunk_size;
+        Vec<Coord, 2> m_fftfreq_cutoff;
+        Coord m_input_fftfreq_start;
+        Coord m_input_fftfreq_step;
+        Coord m_output_fftfreq_start;
+        Coord m_output_fftfreq_span;
+        Index m_max_shell_index;
+        Index m_chunk_size;
     };
 
-    template<nt::real Coord,
+    template<usize B, usize R,
+             nt::real Coord,
              nt::sinteger Index,
-             nt::interpolator_spectrum_nd<1> Input,
-             nt::writable_nd<2> Output,
-             nt::batched_parameter InputCtf,
-             nt::batched_parameter OutputCtf>
-    class PhaseSpectra {
+             nt::interpolator_spectrum_nd<R> Interpolator,
+             nt::readable_nd<B + R> Input,
+             nt::writable_nd<B + R> Output,
+             nt::readable_nd<B> InputCtf,
+             nt::readable_nd<B> OutputCtf>
+    class EquiphaseRescale {
     public:
-        using index_type = Index;
-        using coord_type = Coord;
+        static_assert(R == 1); // TODO Add support for higher ranks
 
-        using input_type = Input;
-        using output_type = Output;
-        using output_value_type = nt::value_type_t<output_type>;
-        static_assert(nt::spectrum_types<nt::value_type_t<input_type>, output_value_type>);
+        using output_value_type = nt::value_type_t<Output>;
+        static_assert(nt::spectrum_types<nt::value_type_t<Input>, output_value_type>);
 
-        using batched_input_ctf_type = InputCtf;
-        using batched_output_ctf_type = OutputCtf;
-        using input_ctf_type = nt::mutable_value_type_t<batched_input_ctf_type>;
-        using output_ctf_type = nt::mutable_value_type_t<batched_output_ctf_type>;
+        using input_ctf_type = nt::mutable_value_type_t<InputCtf>;
+        using output_ctf_type = nt::mutable_value_type_t<OutputCtf>;
         static_assert(nt::ctf_isotropic<input_ctf_type, output_ctf_type>);
 
     public:
-        constexpr PhaseSpectra(
-            const input_type& input,
-            const Linspace<coord_type>& input_fftfreq,
-            const batched_input_ctf_type& input_ctf,
-            index_type n_input_shells,
-            const output_type& output,
-            Linspace<coord_type> output_fftfreq,
-            const batched_output_ctf_type& output_ctf,
-            index_type n_output_shells
+        constexpr EquiphaseRescale(
+            const Input& input,
+            const Interpolator& interpolator,
+            const Linspace<Coord>& input_fftfreq,
+            const InputCtf& input_ctf,
+            Index n_input_shells,
+            const Output& output,
+            Linspace<Coord> output_fftfreq,
+            const OutputCtf& output_ctf,
+            Index n_output_shells
         ) :
             m_input{input},
             m_output{output},
             m_input_ctf{input_ctf},
             m_output_ctf{output_ctf},
+            m_interpolator{interpolator},
             m_input_fftfreq_start{input_fftfreq.start},
             m_input_fftfreq_step{input_fftfreq.for_size(n_input_shells).step},
             m_output_fftfreq_start{output_fftfreq.start},
             m_output_fftfreq_step{output_fftfreq.for_size(n_output_shells).step}
         {}
 
-        NOA_HD void operator()(index_type batch, index_type index) const noexcept {
-            const auto output_fftfreq = m_output_fftfreq_start + static_cast<coord_type>(index) * m_output_fftfreq_step;
-            const auto phase = m_output_ctf[batch].phase_at(output_fftfreq);
-            const auto input_fftfreq = m_input_ctf[batch].template fftfreq_at<coord_type>(phase);
+        NOA_HD void operator()(const Vec<Index, B + R>& batched_indices) const noexcept {
+            const auto& [batches, index] = batched_indices.template split<B>();
+            const auto output_fftfreq = m_output_fftfreq_start + static_cast<Coord>(index[0]) * m_output_fftfreq_step;
+            const auto phase = m_output_ctf[batches].phase_at(output_fftfreq);
+            const auto input_fftfreq = m_input_ctf[batches].template fftfreq_at<Coord>(phase);
             if (not input_fftfreq.has_value()) {
-                m_output(batch, index) = 0;
+                m_output[batched_indices] = 0;
                 return;
             }
 
             const auto input_frequency = (*input_fftfreq - m_input_fftfreq_start) / m_input_fftfreq_step;
-            const auto interpolated_value = m_input.interpolate_spectrum_at(Vec{input_frequency}, batch);
-            m_output(batch, index) = cast_or_abs_squared<output_value_type>(interpolated_value);
+            const auto interpolated_value = m_interpolator.get(m_input[batches], Vec{input_frequency});
+            m_output[batched_indices] = cast_or_abs_squared<output_value_type>(interpolated_value);
         }
 
     private:
-        input_type m_input;
-        output_type m_output;
-        batched_input_ctf_type m_input_ctf;
-        batched_output_ctf_type m_output_ctf;
+        Input m_input;
+        Output m_output;
+        InputCtf m_input_ctf;
+        OutputCtf m_output_ctf;
+        NOA_NO_UNIQUE_ADDRESS Interpolator m_interpolator;
 
-        coord_type m_input_fftfreq_start;
-        coord_type m_input_fftfreq_step;
-        coord_type m_output_fftfreq_start;
-        coord_type m_output_fftfreq_step;
+        Coord m_input_fftfreq_start;
+        Coord m_input_fftfreq_step;
+        Coord m_output_fftfreq_start;
+        Coord m_output_fftfreq_step;
     };
 
-    template<typename T>
+    template<bool CONTIGUOUS = true, typename T, usize B>
     auto check_parameters_ctf(
-        const T& ctf, isize batch, Device device,
+        const T& ctf, const Shape<isize, B>& shape_b, Device device,
         const std::source_location& location = std::source_location::current()
     ) {
-        if constexpr (nt::varray<T>) {
+        if constexpr (nt::array<T>) {
             check_at_location(
-                location, is_contiguous_vector(ctf) and ctf.n_elements() == batch,
-                "The CTFs, specified as a contiguous vector, should have the same size "
-                "as the corresponding array batch size. Got ctf:strides={}, ctf:shape={}, batch={}",
-                ctf.strides(), ctf.shape(), batch
+                location, (not CONTIGUOUS or ctf.is_contiguous()) and ctf.shape() == shape_b,
+                "The CTFs, specified as a array, should have a shape matching the corresponding array batch axes. Got ctf:strides={}, ctf:shape={}, batches={}",
+                ctf.strides(), ctf.shape(), shape_b
             );
-            check(ctf.device() == device,
-                  "The input and output arrays must be on the same device, "
-                  "but got ctf:device={} and output:device={}",
-                  ctf.device(), device);
+            check_at_location(
+                location, ctf.device() == device,
+                "The input and output arrays must be on the same device, but got ctf:device={} and output:device={}",
+                ctf.device(), device
+            );
         }
     }
 
-    template<nf::Layout REMAP, typename Input, typename Output, typename Weight, typename Ctf = Empty>
-    auto check_parameters_rotational_average(
+    template<nf::Layout REMAP, typename Input, usize N, typename InputCtf, typename Output, typename Weight>
+    void check_parameters_rotational_average(
         const Input& input,
-        const Shape4& shape,
-        const Ctf& input_ctf,
+        const Shape<isize, N>& shape,
+        const InputCtf& input_ctf,
         const Output& output,
         const Weight& weights,
         const Linspace<f64>& input_fftfreq
-    ) -> isize {
+    ) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
-        const bool weights_is_empty = weights.is_empty();
 
         check(input.shape() == (REMAP.is_hx2xx() ? shape.rfft() : shape),
               "The input array does not match the logical shape. Got input:shape={}, shape={}, remap={}",
               input.shape(), shape, REMAP);
+        check(input.device() == output.device(),
+              "The arrays must be on the same device, but got input:device={}, output:device={}",
+              input.device(), output.device());
 
-        check(shape[0] == output.shape()[0] and
-              (weights_is_empty or shape[0] == weights.shape()[0]),
-              "The numbers of batches between arrays do not match. Got batch={}, output:batch={}{}",
-              shape[0], output.shape()[0],
-              weights_is_empty ? "" : fmt::format(" and weights:batch={}", weights.shape()[0]));
+        // Check for batch axes match.
+        constexpr auto B = nt::array_size_v<Output> - 1;
+        constexpr auto R = N - B;
+        auto input_shape_b = input.shape().template pop_back<R>();
+        auto output_shape_b = output.shape().template pop_back<1>();
+        if constexpr (B >= 1) {
+            for (usize i{}; i < B; ++i)
+                if (output_shape_b[i] == 1)
+                    output_shape_b[i] = input_shape_b[i];
+            check(input_shape_b == output_shape_b,
+                  "Each output batch axis should match the corresponding input batch axis or be 1, but got input:batches={}, output:batches={}",
+                  input_shape_b, output.shape().template pop_back<1>());
+        }
 
-        check(is_contiguous_vector_batched_strided(output),
-              "The output must be a (batch of) contiguous vector(s), but got output:shape={} and output:strides={}",
+        check(output.contiguity()[B] == true,
+              "The output must be an array of contiguous vector(s), but got output:shape={} and output:strides={}",
               output.shape(), output.strides());
 
-        const isize n_shells = output.shape().pop_front().n_elements();
-        if (not weights_is_empty) {
-            check(is_contiguous_vector_batched_strided(weights),
-                  "The weights must be a (batch of) contiguous vector(s), "
-                  "but got weights:shape={} and weights:strides={}",
-                  weights.shape(), weights.strides());
-
-            const isize weights_n_shells = weights.shape().pop_front().n_elements();
-            check(n_shells == weights_n_shells,
-                  "The number of shells does not match the output shape. "
-                  "Got output:n_shells={} and weights:n_shells={}",
-                  n_shells, weights_n_shells);
+        if constexpr (not nt::empty<Weight>) {
+            if (not weights.is_empty()) {
+                check(weights.contiguity()[B] == true,
+                      "The weights must be an array of contiguous vector(s), but got weights:shape={} and weights:strides={}",
+                      weights.shape(), weights.strides());
+                check(weights.shape() == output.shape(),
+                      "The weights should have the same shape as the output array, but got weights:shape={} and output:shape={}",
+                      weights.shape(), output.shape());
+                check(input.device() == weights.device(),
+                      "The arrays must be on the same device, but got input:device={}, weights:device={}",
+                      input.device(), weights.device());
+            }
         }
 
-        check(input.device() == output.device() and
-              (weights_is_empty or weights.device() == output.device()),
-              "The arrays must be on the same device, but got input:device={}, output:device={}{}",
-              input.device(), output.device(),
-              weights_is_empty ? "" : fmt::format(" and weights:device={}", weights.device()));
-
-        if constexpr (not nt::empty<Ctf>) {
-            check(shape.ndim() == 2,
-                  "Only (batched) 2d arrays are supported with anisotropic CTFs, but got shape={}",
-                  shape);
-        }
-        check_parameters_ctf(input_ctf, shape[0], output.device());
-
+        check_parameters_ctf<true>(input_ctf, input_shape_b, input.device());
         check(allclose(input_fftfreq.start, 0.), "The starting fftfreq should be 0, but got {}", input_fftfreq.start);
-
-        return n_shells;
     }
 
-    template<bool REDUCE, typename Input, typename Output, typename Weight = Empty, typename InputCtf, typename OutputCtf>
-    void check_parameters_fuse_spectra(
+    template<bool REDUCE, typename Input, typename InputCtf, typename Output, typename OutputCtf, typename Weight = Empty>
+    void check_parameters_equiphase_rescale(
         const Input& input,
         const Linspace<f64>& input_fftfreq,
         const InputCtf& input_ctf,
@@ -440,19 +417,34 @@ namespace noa::xform::details {
               "Invalid input/output fftfreq range");
 
         // For simplicity, enforce contiguous row vectors for now.
-        const auto [ib, id, ih, iw] = input.shape();
-        const auto [ob, od, oh, ow] = output.shape();
-        check(is_contiguous_vector_batched_strided(input) and id == 1 and ih == 1,
-              "The input must be a (batch of) contiguous row vector(s), but got input:shape={} and input:strides={}",
+        constexpr auto B = nt::array_size_v<Output> - 1;
+        constexpr auto R = 1;
+        check(input.contiguity()[B] == true,
+              "The input must be contiguous vector(s), but got input:shape={} and input:strides={}",
               input.shape(), input.strides());
-        check(is_contiguous_vector_batched_strided(output) and od == 1 and oh == 1,
-              "The output must be a (batch of) contiguous row vector(s), but got output:shape={} and output:strides={}",
+        check(output.contiguity()[B] == true,
+              "The output must be contiguous vector(s), but got output:shape={} and output:strides={}",
               output.shape(), output.strides());
-        if constexpr (REDUCE) {
-            check(is_multiple_of(ib, ob), "Invalid reduction. input:batch={}, output:batch={}", ib, ob);
-        } else {
-            check(ib == 1 or ib == ob,
-                  "Cannot broadcast an array with input:batch={} into an array with output:batch={}", ib, ob);
+
+        // Check for batch axes match.
+        auto input_shape_b = input.shape().template pop_back<R>();
+        auto output_shape_b = output.shape().template pop_back<R>();
+        if constexpr (B >= 1) {
+            if constexpr (REDUCE) {
+                for (usize i{}; i < B; ++i)
+                    if (output_shape_b[i] == 1)
+                        output_shape_b[i] = input_shape_b[i];
+                check(input_shape_b == output_shape_b,
+                      "Each output batch axis should match the corresponding input batch axis or be 1, but got input:batches={}, output:batches={}",
+                      input_shape_b, output.shape().template pop_back<1>());
+            } else {
+                for (usize i{}; i < B; ++i)
+                    if (input_shape_b[i] == 1)
+                        input_shape_b[i] = output_shape_b[i];
+                check(input_shape_b == output_shape_b,
+                      "Each input batch axis should match the corresponding output batch axis or be 1, but got input:batches={}, output:batches={}",
+                      input.shape().template pop_back<R>(), output_shape_b);
+            }
         }
 
         check(input.device() == output.device(),
@@ -461,34 +453,59 @@ namespace noa::xform::details {
 
         if constexpr (not nt::empty<Weight>) {
             if (not weights.is_empty()) {
-                const auto [wb, wd, wh, ww] = weights.shape();
-                check(is_contiguous_vector_batched_strided(weights) and wd == 1 and wh == 1,
-                      "The weights must be a contiguous row vector, but got weights:shape={} and weights:strides={}",
+                check(weights.contiguity()[B] == true,
+                      "The weights must be an array of contiguous vector(s), but got weights:shape={} and weights:strides={}",
                       weights.shape(), weights.strides());
-                check(ob == wb and ow == ww,
-                      "The output and weights should have the same shape, but got output:shape={} and weights:shape={}",
-                      output.shape(), weights.shape());
+                check(weights.shape() == output.shape(),
+                      "The weights should have the same shape as the output array, but got weights:shape={} and output:shape={}",
+                      weights.shape(), output.shape());
                 check(input.device() == weights.device(),
                       "The arrays must be on the same device, but got input:device={}, weights:device={}",
                       input.device(), weights.device());
             }
         }
 
-        check_parameters_ctf(input_ctf, ib, output.device());
-        check_parameters_ctf(output_ctf, ob, output.device());
+        check_parameters_ctf<REDUCE>(input_ctf, input_shape_b, output.device());
+        check_parameters_ctf<not REDUCE>(output_ctf, output_shape_b, output.device());
+    }
+
+    template<bool ALLOW_EMPTY = false, bool CONTIGUOUS = true, typename T>
+    constexpr auto ctf_to_accessor(const T& value) {
+        using value_t = nt::const_value_type_t<T>;
+        if constexpr (nt::empty<T>) {
+            if constexpr (ALLOW_EMPTY)
+                return AccessorValue<Empty>{};
+            else
+                static_assert(nt::always_false<T>);
+        } else if constexpr (nt::array<T>) {
+            NOA_ASSERT(value.is_contiguous());
+            constexpr auto B = nt::array_size_v<T>;
+            constexpr auto STRIDE_TRAIT = CONTIGUOUS ? StridesTraits::CONTIGUOUS : StridesTraits::CONTIGUOUS;
+            auto strides = value.strides();
+            if constexpr (CONTIGUOUS and B >= 1)
+                for (usize i{}; i < B; ++i)
+                    if (value.shape()[i] == 1)
+                        strides[i] = 0;
+            return AccessorRestrict<value_t, B, isize, STRIDE_TRAIT>{value.get(), strides};
+        } else {
+            return AccessorValue{value};
+        }
     }
 
     template<nf::Layout REMAP,
-             typename Input, typename Index, typename Ctf,
+             typename Input, typename Index, typename Ctf, usize N,
              typename Output, typename Weight, typename Options>
     void launch_rotational_average(
-        Input&& input, const Shape<Index, 4>& input_shape, Ctf&& input_ctf,
-        Output&& output, Weight&& weight, isize n_shells, const Options& options
+        Input&& input, const Shape<Index, N>& input_shape, Ctf&& input_ctf,
+        Output&& output, Weight&& weight, const Options& options
     ) {
         using input_value_t = nt::const_value_type_t<Input>;
         using output_value_t = nt::value_type_t<Output>;
-        using weight_value_t = nt::value_type_t<Weight>;
+        using weight_value_t = nt::value_type_t<output_value_t>;
         using coord_t = nt::largest_type_t<f32, nt::value_type_t<output_value_t>>;
+
+        constexpr usize B = nt::array_size_v<Output> - 1;
+        constexpr usize R = nt::array_size_v<Input> - B;
 
         // Output must be zeroed out.
         const auto output_view = output.view();
@@ -496,57 +513,69 @@ namespace noa::xform::details {
             ewise({}, output_view, Zero{});
 
         // When computing the average, the weights must be valid.
-        auto weight_view = weight.view();
-        Array<weight_value_t> weight_buffer;
+        using weight_view_t = Array<weight_value_t, B + 1, ArrayOwnership::VIEW>;
+        constexpr bool HAS_WEIGHT = not nt::empty<std::decay_t<Weight>>;
+        auto weight_view = weight_view_t{};
+        if constexpr (HAS_WEIGHT)
+            weight_view = weight.view();
+
+        auto weight_buffer = Array<weight_value_t, B + 1>{};
         if (options.average) {
             if (weight_view.is_empty()) {
-                weight_buffer = zeros<weight_value_t>(output_view.shape(), ArrayOption{output.device(), Allocator::DEFAULT_ASYNC});
+                weight_buffer = zeros<weight_value_t>(output_view.shape(), {
+                    .device = output.device(),
+                    .allocator = Allocator::DEFAULT_ASYNC,
+                });
                 weight_view = weight_buffer.view();
             } else if (not options.add_to_output) {
                 ewise({}, weight_view, Zero{});
             }
         }
 
-        using output_accessor_t = AccessorRestrictContiguous<output_value_t, 2, Index>;
-        using weight_accessor_t = AccessorRestrictContiguous<weight_value_t, 2, Index>;
-        auto output_accessor = output_accessor_t(output_view.get(), Strides<Index, 1>::from_value(output_view.strides()[0]));
-        auto weight_accessor = weight_accessor_t(weight_view.get(), Strides<Index, 1>::from_value(weight_view.strides()[0]));
-
-        const auto input_fftfreq = options.input_fftfreq.template as<coord_t>();
-        const auto output_fftfreq = options.output_fftfreq.template as<coord_t>();
-        const auto iwise_shape = input.shape().template as<Index>();
-        const auto input_strides = input.strides().template as<Index>();
-
-        if (input_shape.ndim() == 2) {
-            auto ctf = nd::to_batch<true>(input_ctf);
-
-            using input_accessor_t = AccessorRestrict<input_value_t, 3, Index>;
-            auto op = RotationalAverage
-                <REMAP, 2, coord_t, Index, input_accessor_t, output_accessor_t, weight_accessor_t, decltype(ctf)>(
-                    input_accessor_t(input.get(), input_strides.filter(0, 2, 3)), input_shape.filter(2, 3),
-                    ctf, output_accessor, weight_accessor, static_cast<Index>(n_shells),
-                    input_fftfreq, output_fftfreq
-                );
-            iwise(
-                iwise_shape.filter(0, 2, 3), output.device(), op,
-                std::forward<Input>(input), output, weight, std::forward<Ctf>(input_ctf)
-            );
-        } else {
-            using input_accessor_t = AccessorRestrict<input_value_t, 4, Index>;
-            auto op = RotationalAverage
-                <REMAP, 3, coord_t, Index, input_accessor_t, output_accessor_t, weight_accessor_t, nd::BatchedParameter<Empty>>(
-                    input_accessor_t(input.get(), input_strides), input_shape.filter(1, 2, 3), {},
-                    output_accessor, weight_accessor, static_cast<Index>(n_shells), input_fftfreq, output_fftfreq
-                );
-            iwise(iwise_shape, output.device(), op, std::forward<Input>(input), output, weight);
+        // Allow reduction of output batch axes by broadcasting them.
+        auto output_strides = output_view.strides().template as<Index>();
+        auto weight_strides = weight_view.strides().template as<Index>();
+        if constexpr (B >= 1) {
+            for (usize i{}; i < B; ++i) {
+                if (output.shape()[i] == 1) {
+                    output_strides[i] = 0;
+                    weight_strides[i] = 0;
+                }
+            }
         }
+
+        using input_accessor_t = AccessorRestrict<input_value_t, N, Index>;
+        using output_accessor_t = AccessorRestrictContiguous<output_value_t, B + 1, Index>;
+        using weight_accessor_t = AccessorRestrictContiguous<weight_value_t, B + 1, Index>;
+        auto input_accessor = input_accessor_t(input.get(), input.strides().template as<Index>());
+        auto output_accessor = output_accessor_t(output_view.get(), output_strides);
+        auto weight_accessor = weight_accessor_t(weight_view.get(), weight_strides);
+        auto input_ctf_accessor = ctf_to_accessor<true, true>(input_ctf);
+        using input_ctf_accessor_t = decltype(input_ctf_accessor);
+
+        using op_t = RotationalAverage<
+            REMAP, B, R, coord_t, Index,
+            input_accessor_t, input_ctf_accessor_t,
+            output_accessor_t, weight_accessor_t>;
+
+        const auto input_shape_br = input.shape().template as<Index>();
+        const auto input_shape_r = input_shape.template pop_front<B>();
+        const auto n_output_shells = output_view.shape()[B];
+        auto op = op_t(
+            input_accessor, input_shape_r, input_ctf_accessor,
+            output_accessor, weight_accessor, static_cast<Index>(n_output_shells),
+            options.input_fftfreq.template as<coord_t>(),
+            options.output_fftfreq.template as<coord_t>()
+        );
+        iwise(input_shape_br, output.device(), op, NOA_FWD(input), output, weight, NOA_FWD(input_ctf));
 
         // Some shells can be 0, so use DivideSafe.
         if (options.average) {
             if (weight_buffer.is_empty()) {
-                ewise(wrap(output_view, weight), std::forward<Output>(output), DivideSafe{});
+                if constexpr (HAS_WEIGHT)
+                    ewise(wrap(output_view, weight), NOA_FWD(output), DivideSafe{});
             } else {
-                ewise(wrap(output_view, std::move(weight_buffer)), std::forward<Output>(output), DivideSafe{});
+                ewise(wrap(output_view, std::move(weight_buffer)), NOA_FWD(output), DivideSafe{});
             }
         }
     }
@@ -554,15 +583,19 @@ namespace noa::xform::details {
     template<typename Index,
              typename Input, typename Output, typename Weight,
              typename InputCtf, typename OutputCtf, typename Options>
-    void launch_fuse_spectra(
+    void launch_equiphase_rescale_and_average(
         Input&& input, const Linspace<f64>& input_fftfreq, InputCtf&& input_ctf,
         Output&& output, const Linspace<f64>& output_fftfreq, OutputCtf&& output_ctf,
         Weight&& weight, const Options& options
     ) {
         using input_value_t = nt::const_value_type_t<Input>;
         using output_value_t = nt::value_type_t<Output>;
-        using weight_value_t = nt::value_type_t<Weight>;
+        using weight_value_t = nt::value_type_t<output_value_t>;
         using coord_t = nt::largest_type_t<f32, nt::value_type_t<output_value_t>>;
+
+        constexpr usize B = nt::array_size_v<Output> - 1;
+        constexpr usize R = nt::array_size_v<Input> - B;
+        static_assert(R == 1);
 
         // Output must be zeroed out.
         const auto output_view = output.view();
@@ -570,54 +603,71 @@ namespace noa::xform::details {
             ewise({}, output_view, Zero{});
 
         // When computing the average, the weights must be valid.
-        auto weight_view = weight.view();
-        Array<weight_value_t> weight_buffer;
+        using weight_view_t = Array<weight_value_t, B + 1, ArrayOwnership::VIEW>;
+        constexpr bool HAS_WEIGHT = not nt::empty<std::decay_t<Weight>>;
+        auto weight_view = weight_view_t{};
+        if constexpr (HAS_WEIGHT)
+            weight_view = weight.view();
+
+        auto weight_buffer = Array<weight_value_t, B + 1>{};
         if (options.average) {
             if (weight_view.is_empty()) {
-                weight_buffer = zeros<weight_value_t>(output_view.shape(), ArrayOption{output.device(), Allocator::DEFAULT_ASYNC});
+                weight_buffer = zeros<weight_value_t>(output_view.shape(), {
+                    .device = output.device(),
+                    .allocator = Allocator::DEFAULT_ASYNC,
+                });
                 weight_view = weight_buffer.view();
             } else if (not options.add_to_output) {
                 ewise({}, weight_view, Zero{});
             }
         }
 
-        using input_accessor_t = AccessorRestrictContiguous<input_value_t, 2, Index>;
-        using output_accessor_t = AccessorRestrictContiguous<output_value_t, 2, Index>;
-        using weight_accessor_t = AccessorRestrictContiguous<weight_value_t, 2, Index>;
-        auto input_accessor = input_accessor_t(input.get(), input.strides().filter(0).template as<Index>());
-        auto output_accessor = output_accessor_t(output_view.get(), output_view.strides().filter(0).template as<Index>());
-        auto weight_accessor = weight_accessor_t(weight_view.get(), weight_view.strides().filter(0).template as<Index>());
+        // Allow reduction of output batch axes by broadcasting them.
+        auto output_strides = output_view.strides().template as<Index>();
+        auto weight_strides = weight_view.strides().template as<Index>();
+        if constexpr (B >= 1) {
+            for (usize i{}; i < B; ++i) {
+                if (output.shape()[i] == 1) {
+                    output_strides[i] = 0;
+                    weight_strides[i] = 0;
+                }
+            }
+        }
 
-        const auto input_fftfreq_f = input_fftfreq.as<coord_t>();
-        const auto output_fftfreq_f = output_fftfreq.as<coord_t>();
-        const auto n_input_shells = static_cast<Index>(input.shape()[3]);
-        const auto n_output_shells = static_cast<Index>(output.shape()[3]);
-        const auto iwise_shape = Shape{static_cast<Index>(input.shape()[0]), n_input_shells};
-        const auto chunk_size = static_cast<Index>(input.shape()[0]) / static_cast<Index>(output.shape()[0]);
+        using input_accessor_t = AccessorRestrictContiguous<input_value_t, B + 1, Index>;
+        using output_accessor_t = AccessorRestrictContiguous<output_value_t, B + 1, Index>;
+        using weight_accessor_t = AccessorRestrictContiguous<weight_value_t, B + 1, Index>;
+        auto input_accessor = input_accessor_t(input.get(), input.strides().template as<Index>());
+        auto output_accessor = output_accessor_t(output_view.get(), output_strides);
+        auto weight_accessor = weight_accessor_t(weight_view.get(), weight_strides);
+        auto input_ctf_accessor = ctf_to_accessor<false, true>(input_ctf);
+        auto output_ctf_accessor = ctf_to_accessor<false, false>(output_ctf); // strided for broadcasting
+        using input_ctf_accessor_t = decltype(input_ctf_accessor);
+        using output_ctf_accessor_t = decltype(output_ctf_accessor);
 
-        auto batched_input_ctf = nd::to_batch(input_ctf);
-        auto batched_output_ctf = nd::to_batch(output_ctf);
+        const auto n_input_shells = static_cast<Index>(input.shape()[B]);
+        const auto n_output_shells = static_cast<Index>(output.shape()[B]);
 
-        using op_t = FuseSpectra<
-            coord_t, Index, input_accessor_t, output_accessor_t,
-            weight_accessor_t, decltype(batched_input_ctf), decltype(batched_output_ctf)>;
+        using op_t = EquiphaseRescaleAndAverage<
+            B, R, coord_t, Index, input_accessor_t, output_accessor_t,
+            weight_accessor_t, input_ctf_accessor_t, output_ctf_accessor_t>;
         auto op = op_t(
-            input_accessor, input_fftfreq_f, batched_input_ctf, n_input_shells,
-            output_accessor, output_fftfreq_f, batched_output_ctf, n_output_shells, weight_accessor, chunk_size
+            input_accessor, input_fftfreq.as<coord_t>(), input_ctf_accessor, n_input_shells,
+            output_accessor, output_fftfreq.as<coord_t>(), output_ctf_accessor, n_output_shells,
+            weight_accessor
         );
         iwise(
-            iwise_shape, output.device(), op,
-            std::forward<Input>(input), output, weight,
-            std::forward<InputCtf>(input_ctf),
-            std::forward<OutputCtf>(output_ctf)
+            input.shape().template as<Index>(), output.device(), op,
+            NOA_FWD(input), output, weight, NOA_FWD(input_ctf), NOA_FWD(output_ctf)
         );
 
         // Some shells can be 0, so use DivideSafe.
         if (options.average) {
             if (weight_buffer.is_empty()) {
-                ewise(wrap(output_view, weight), std::forward<Output>(output), DivideSafe{});
+                if constexpr (HAS_WEIGHT)
+                    ewise(wrap(output_view, weight), NOA_FWD(output), DivideSafe{});
             } else {
-                ewise(wrap(output_view, std::move(weight_buffer)), std::forward<Output>(output), DivideSafe{});
+                ewise(wrap(output_view, std::move(weight_buffer)), NOA_FWD(output), DivideSafe{});
             }
         }
     }
@@ -625,7 +675,7 @@ namespace noa::xform::details {
     template<typename Index,
              typename Input, typename Output,
              typename InputCtf, typename OutputCtf, typename Options>
-    void launch_phase_spectra(
+    void launch_equiphase_rescale(
         Input&& input, const Linspace<f64>& input_fftfreq, InputCtf&& input_ctf,
         Output&& output, const Linspace<f64>& output_fftfreq, OutputCtf&& output_ctf,
         const Options& options
@@ -633,33 +683,43 @@ namespace noa::xform::details {
         using output_value_t = nt::value_type_t<Output>;
         using coord_t = nt::largest_type_t<f32, nt::value_type_t<output_value_t>>;
 
-        const auto input_fftfreq_f = input_fftfreq.as<coord_t>();
-        const auto output_fftfreq_f = output_fftfreq.as<coord_t>();
-        const auto n_input_shells = static_cast<Index>(input.shape()[3]);
-        const auto n_output_shells = static_cast<Index>(output.shape()[3]);
-        const auto logical_shape = Shape<Index, 4>{1, 1, 1, (n_input_shells - 1) * 2};
-        const auto iwise_shape = Shape{static_cast<Index>(output.shape()[0]), n_output_shells};
+        constexpr usize B = nt::array_size_v<Output> - 1;
+        constexpr usize R = nt::array_size_v<Input> - B;
+        static_assert(R == 1);
+
+        const auto n_input_shells = static_cast<Index>(input.shape()[B]);
+        const auto n_output_shells = static_cast<Index>(output.shape()[B]);
 
         using output_accessor_t = AccessorRestrictContiguous<output_value_t, 2, Index>;
-        auto output_accessor = output_accessor_t(output.get(), output.strides().filter(0).template as<Index>());
+        auto output_accessor = output_accessor_t(output.get(), output.strides().template as<Index>());
 
-        auto batched_input_ctf = nd::to_batch(input_ctf);
-        auto batched_output_ctf = nd::to_batch(output_ctf);
+        auto input_ctf_accessor = ctf_to_accessor<false, false>(input_ctf); // strided for broadcasting
+        auto output_ctf_accessor = ctf_to_accessor<false, true>(output_ctf);
+        using input_ctf_accessor_t = decltype(input_ctf_accessor);
+        using output_ctf_accessor_t = decltype(output_ctf_accessor);
 
         auto launch_iwise = [&](auto interp) {
-            auto interpolator = to_interpolator_spectrum<1, "h2h", interp(), coord_t, false>(input, logical_shape);
-            using op_t = PhaseSpectra<
-                coord_t, Index, decltype(interpolator), output_accessor_t,
-                decltype(batched_input_ctf), decltype(batched_output_ctf)>;
+            // Because it is 1D and RFFT, this logical shape is correct even for odd logical sizes.
+            // frequency_bounds returns [0, logical_size / 2], so for:
+            //  n_shells=5 -> logical=(5-1)*2=8  -> bond=8/2=4 (expected=5-1=4).
+            //  n_shells=6 -> logical=(6-1)*2=10 -> bound=10/2=5 (expected=6-1=5).
+            const auto logical_shape_r = Shape<Index, 1>{(n_input_shells - 1) * 2};
+            auto result = prepare_interpolation_spectrum_inputs<1, nf::Layout::H2H, interp(), false, coord_t, false>(
+                input.span_contiguous(), logical_shape_r);
+            using interpolator_t = decltype(result)::interpolator_type;
+            using input_accessor_t = decltype(result)::accessor_type;
+
+            using op_t = EquiphaseRescale<
+                B, R, coord_t, Index,
+                interpolator_t, input_accessor_t, output_accessor_t,
+                input_ctf_accessor_t, output_ctf_accessor_t>;
             auto op = op_t(
-                interpolator, input_fftfreq_f, batched_input_ctf, n_input_shells,
-                output_accessor, output_fftfreq_f, batched_output_ctf, n_output_shells
+                result.accessor, result.interpolator, input_fftfreq.as<coord_t>(), input_ctf_accessor, n_input_shells,
+                output_accessor, output_fftfreq.as<coord_t>(), output_ctf_accessor, n_output_shells
             );
             iwise(
-                iwise_shape, output.device(), op,
-                std::forward<Input>(input), output,
-                std::forward<InputCtf>(input_ctf),
-                std::forward<OutputCtf>(output_ctf)
+                output.shape().template as<Index>(), output.device(), op,
+                NOA_FWD(input), output, NOA_FWD(input_ctf), NOA_FWD(output_ctf)
             );
         };
 
@@ -676,15 +736,44 @@ namespace noa::xform::details {
         }
     }
 
-    template<typename Ctf>
-    concept rotational_average_anisotropic_ctf =
-        nt::ctf_anisotropic<std::decay_t<Ctf>> or
-        (nt::varray_decay<Ctf> and nt::ctf_anisotropic<nt::value_type_t<Ctf>>);
+    template<nf::Layout REMAP, typename Input, typename Output, typename Weight, usize N,
+             usize NO = nt::array_size_v<Output>>
+    concept rotational_averageable = REMAP.is_xx2h() and
+        nt::readable_array_decay<Input> and nt::writable_array_decay<Output> and
+        nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>> and
+        nt::array_size_v<Input> == N and N > NO and is_within(N - (NO - 1), 2, 3) and
+        (nt::empty<std::decay_t<Weight>> or (
+            nt::writable_array_decay_of_any<Weight, nt::value_type_twice_t<Output>> and
+            nt::array_size_v<Weight> == NO));
 
-    template<typename Ctf>
-    concept rotational_average_isotropic_ctf =
+    template<typename Ctf, usize B, usize R>
+    concept equiphase_average_anisotropic_ctf =
+        R == 2 and
+        (nt::ctf_anisotropic<std::decay_t<Ctf>> or
+         (nt::array_decay_nd<Ctf, B> and nt::ctf_anisotropic<nt::value_type_t<Ctf>>));
+
+    template<nf::Layout REMAP, typename Input, typename InputCtf, typename Output, typename Weight, usize N,
+             usize NO = nt::array_size_v<Output>>
+    concept equiphase_averageable =
+        rotational_averageable<REMAP, Input, Output, Weight, N> and
+        equiphase_average_anisotropic_ctf<InputCtf, NO - 1, N + 1 - NO>; // rank 2 only
+
+    template<typename Ctf, usize B>
+    concept equiphase_rescale_isotropic_ctf =
         nt::ctf_isotropic<std::decay_t<Ctf>> or
-        (nt::varray_decay<Ctf> and nt::ctf_isotropic<nt::value_type_t<Ctf>>);
+        (nt::array_decay_nd<Ctf, B> and nt::ctf_isotropic<nt::value_type_t<Ctf>>);
+
+    template<typename Input, typename InputCtf, typename Output, typename OutputCtf, typename Weight,
+             usize N = nt::array_size_v<Output>>
+    concept equiphase_rescale_and_averageable =
+        nt::readable_array_decay<Input> and nt::writable_array_decay<Output> and
+        nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>> and
+        N == nt::array_size_v<Output> and
+        (nt::empty<std::decay_t<Weight>> or (
+            nt::writable_array_decay_of_any<Weight, nt::value_type_twice_t<Output>> and
+            N == nt::array_size_v<Output>)) and
+        equiphase_rescale_isotropic_ctf<InputCtf, N - 1> and
+        equiphase_rescale_isotropic_ctf<OutputCtf, N - 1>;
 }
 
 // TODO Add rotation_average() for 2d only with frequency and angle range.
@@ -716,79 +805,119 @@ namespace noa::xform {
     };
 
     /// Computes the rotational sum/average of a 2d or 3d spectrum.
-    /// \tparam REMAP           Should be either H2H, HC2H, F2H or FC2H. The output layout is "H" for no particular
-    ///                         good reasons other than the number of output shells is often (but not limited to) equal
-    ///                         to the half-dimension, i.e. min(shape) // 2 + 1.
-    /// \param[in] input        Input spectrum to reduce. Can be real or complex.
-    /// \param input_shape      BDHW logical shape of input.
-    /// \param[in,out] output   Rotational sum/average. Should be a (batch of) contiguous vector(s).
-    ///                         If real, and the input is complex, the power spectrum is computed.
-    /// \param[in,out] weights  Rotational weights. Can be empty, or be a (batch of) contiguous vector(s) with the same
-    ///                         shape as the output. If valid, the output weights are also saved in this array. If empty
-    ///                         and options.average is true, a temporary vector like output is allocated.
-    /// \param options          Rotational average and frequency range options.
-    template<
-        nf::Layout REMAP,
-        nt::readable_varray_decay Input,
-        nt::writable_varray_decay Output,
-        nt::writable_varray_decay_of_any<nt::value_type_twice_t<Output>> Weight = View<nt::value_type_twice_t<Output>>>
-    requires (REMAP.is_xx2h() and nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
-    NOA_NOINLINE void rotational_average(
+    /// \tparam REMAP:
+    ///     Should be either H2H, HC2H, F2H or FC2H.
+    ///     The output layout is "H" for no particular good reasons other than the number of output shells is often
+    ///     (but not limited to) equal to the half-dimension, i.e. min(shape) // 2 + 1.
+    /// \param[in] input:
+    ///     2D: ((Bi..,)Hi,Wi) or 3D: ((Bi..,)Di,Hi,Wi).
+    ///     Input spectrum to reduce. Can be real or complex.
+    /// \param input_shape:
+    ///     Logical shape of the input.
+    /// \param[in,out] output:
+    ///     ((Bo..,)Wo). Rotational sum/average(s).
+    ///     The number of batch axes sets the rank of the input.
+    ///     Each (Bo..) axis should match the corresponding input (Bi..) or be 1, in which case the axis is reduced.
+    ///     Should be contiguous vector(s). If real, and the input is complex, the power spectrum is computed.
+    /// \param[in,out] weights:
+    ///     Rotational weights.
+    ///     Can be empty, or be contiguous vector(s) with the same shape as the output.
+    ///     If valid, the output weights are also saved in this array.
+    ///     If empty and options.average is true, a temporary array is allocated.
+    /// \param options:
+    ///     Rotational average and frequency range options.
+    template<nf::Layout REMAP, typename Input, typename Output, typename Weight = Empty, usize N>
+        requires details::rotational_averageable<REMAP, Input, Output, Weight, N>
+    void rotational_average(
         Input&& input,
-        const Shape4& input_shape,
+        const Shape<isize, N>& input_shape,
         Output&& output,
         Weight&& weights = {},
-        RotationalAverageOptions options = {}
+        const RotationalAverageOptions& options = {}
     ) {
-        const auto n_shells = details::check_parameters_rotational_average<REMAP>(
-            input, input_shape, Empty{}, output, weights, options.input_fftfreq);
+        details::check_parameters_rotational_average<REMAP>(
+            input, input_shape, Empty{}, output, weights, options.input_fftfreq
+        );
         details::launch_rotational_average<REMAP>(
-            std::forward<Input>(input), input_shape.as<isize>(), Empty{},
-            std::forward<Output>(output),
-            std::forward<Weight>(weights),
-            n_shells, options
+            NOA_FWD(input), input_shape, Empty{},
+            NOA_FWD(output), NOA_FWD(weights), options
         );
     }
 
-    /// Computes the rotational sum/average of a 2d DFT, while correcting for the distortion from the anisotropic ctf.
-    /// \tparam REMAP       Should be either H2H, HC2H, F2H or FC2H. The output layout is "H" for no particularly good
-    ///                     reasons other than the fact that the number of output shells is often (but not limited to)
-    ///                     the half-dimension size, i.e. min(shape) // 2 + 1.
-    /// \param[in] input    Input spectrum to reduce. Can be real or complex.
-    /// \param input_shape  BDHW logical shape of input.
-    /// \param input_ctf    Anisotropic CTF(s). The anisotropic sampling rate and astigmatic field of the defocus are
-    ///                     accounted for, resulting in an isotropic rotational average(s). If a varray is passed,
-    ///                     there should be one CTF per input batch. Otherwise, the same CTF is assigned to every batch.
-    /// \param[out] output  Rotational sum/average. Should be a (batch of) contiguous vector(s).
-    ///                     If real and input is complex, the power spectrum is computed.
-    /// \param[out] weights Rotational weights. Can be empty, or be a (batch of) contiguous vector(s) with the same
-    ///                     shape as the output. If valid, the output weights are also saved in this array.
-    /// \param options      Rotational average options.
-    /// \note If weights is empty and options.average is true, a temporary vector like output is allocated.
-    template<
-        nf::Layout REMAP,
-        nt::readable_varray_decay Input,
-        nt::writable_varray_decay Output,
-        details::rotational_average_anisotropic_ctf Ctf,
-        nt::writable_varray_decay_of_any<nt::value_type_twice_t<Output>> Weight =
-        View<nt::value_type_twice_t<Output>>>
-    requires (REMAP.is_xx2h() and nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
-    NOA_NOINLINE void rotational_average_anisotropic(
+    template<nf::Layout REMAP, typename Input, typename Output, typename Weight = Empty>
+    void rotational_average_2d(
         Input&& input,
-        const Shape4& input_shape,
-        Ctf&& input_ctf,
+        const Shape<isize, 2>& input_shape,
         Output&& output,
         Weight&& weights = {},
-        RotationalAverageOptions options = {}
+        const RotationalAverageOptions& options = {}
     ) {
-        const auto n_shells = details::check_parameters_rotational_average<REMAP>(
-            input, input_shape, input_ctf, output, weights, options.input_fftfreq);
+        rotational_average<REMAP>(NOA_FWD(input), input_shape, NOA_FWD(output), NOA_FWD(weights), options);
+    }
+    template<nf::Layout REMAP, typename Input, typename Output, typename Weight = Empty>
+    void rotational_average_3d(
+        Input&& input,
+        const Shape<isize, 3>& input_shape,
+        Output&& output,
+        Weight&& weights = {},
+        const RotationalAverageOptions& options = {}
+    ) {
+        rotational_average<REMAP>(NOA_FWD(input), input_shape, NOA_FWD(output), NOA_FWD(weights), options);
+    }
+
+    /// Computes the rotational sum/average of a 2d DFT, while correcting for the distortion from the anisotropic ctf.
+    /// \tparam REMAP:
+    ///     Should be either H2H, HC2H, F2H or FC2H.
+    ///     Same as rotational_average.
+    /// \param[in] input:
+    ///     ((Bi..,)Hi,Wi) Input spectrum to reduce.
+    ///     Same as rotational_average.
+    /// \param input_shape:
+    ///     Logical shape of input.
+    /// \param input_ctf:
+    ///     Anisotropic CTF(s).
+    ///     A contiguous (Bi..) array, or a single value, in which case the CTF is assigned to every input batch.
+    ///     The anisotropic sampling rate and astigmatic field of the defocus are accounted for, resulting in an
+    ///     isotropic rotational average(s).
+    /// \param[out] output:
+    ///     Rotational sum/average.
+    ///     Same as rotational_average.
+    /// \param[out] weights:
+    ///     Rotational weights.
+    ///     Same as rotational_average.
+    /// \param options:
+    ///     Rotational average options.
+    template<nf::Layout REMAP, typename Input, typename InputCtf, typename Output, typename Weight = Empty, usize N>
+        requires (details::equiphase_averageable<REMAP, Input, InputCtf, Output, Weight, N>)
+    void equiphase_average(
+        Input&& input,
+        const Shape<isize, N>& input_shape,
+        InputCtf&& input_ctf,
+        Output&& output,
+        Weight&& weights = {},
+        const RotationalAverageOptions& options = {}
+    ) {
+        details::check_parameters_rotational_average<REMAP>(
+            input, input_shape, input_ctf, output, weights, options.input_fftfreq
+        );
         details::launch_rotational_average<REMAP>(
-            std::forward<Input>(input), input_shape.as<isize>(),
-            std::forward<Ctf>(input_ctf),
-            std::forward<Output>(output),
-            std::forward<Weight>(weights),
-            n_shells, options
+            NOA_FWD(input), input_shape, NOA_FWD(input_ctf),
+            NOA_FWD(output), NOA_FWD(weights), options
+        );
+    }
+
+    template<nf::Layout REMAP, typename Input, typename InputCtf, typename Output, typename Weight = Empty>
+    void equiphase_average_2d(
+        Input&& input,
+        const Shape<isize, 2>& input_shape,
+        InputCtf&& input_ctf,
+        Output&& output,
+        Weight&& weights = {},
+        const RotationalAverageOptions& options = {}
+    ) {
+        equiphase_average<REMAP>(
+            NOA_FWD(input), input_shape, NOA_FWD(input_ctf),
+            NOA_FWD(output), NOA_FWD(weights), options
         );
     }
 
@@ -802,33 +931,33 @@ namespace noa::xform {
     };
 
     /// Scale 1d rfft spectra so that their CTF phases match with the target CTF, then, average them.
-    /// \details The reduction is done in chunks:
-    ///          B=C*N -> N: C*N input spectra are given, and they will be reduced to N outputs.
-    ///          If N==1, the input spectra are fused into one output spectrum. Otherwise, the input spectra are
-    ///          divided into N chunks of size C, and each chunk is fused into one spectrum.
-    ///
-    /// \param[in] input        Input 1d spectra to reduce. Can be real or complex.
-    /// \param input_fftfreq    Frequency range of the input spectra.
-    /// \param[in] input_ctf    Isotropic CTFs of the 1d input spectra. One per spectrum.
-    ///                         The CTF scale is used to assign a weight to each input spectrum.
-    /// \param[out] output      Output spectra. If real, and the input is complex, the power spectrum is computed.
-    /// \param output_fftfreq   Frequency range of the output spectra.
-    /// \param[in] output_ctf   Target isotropic CTFs. Inputs are rescaled to match the phases of these CTFs.
-    /// \param[out] weights     Averaging weights.
-    ///                         Can be empty, or be a contiguous vector with the same shape as the output.
-    ///                         If valid, the output weights are saved in this array.
-    ///                         If empty and options.average is true, a temporary vector is allocated.
-    /// \param options          Spectrum and averaging options.
-    ///
-    /// \note While the C=1 case is supported (no reduction), in this case, one should use phase_spectra instead.
-    template<
-        nt::readable_varray_decay Input,
-        nt::writable_varray_decay Output,
-        details::rotational_average_isotropic_ctf InputCtf,
-        details::rotational_average_isotropic_ctf OutputCtf,
-        nt::writable_varray_decay_of_any<nt::value_type_twice_t<Output>> Weight = View<nt::value_type_twice_t<Output>>>
-    requires (nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
-    NOA_NOINLINE void fuse_spectra(
+    /// \param[in] input:
+    ///     ((Bi..,)Wi) Input 1d spectra of contiguous vectors to reduce. Can be real or complex.
+    /// \param input_fftfreq:
+    ///     Frequency range of the input spectra.
+    /// \param[in] input_ctf:
+    ///     Isotropic CTF(s) of the 1d input spectra.
+    ///     A contiguous (Bi..) array, or a single value, in which case the CTF is assigned to every input batch.
+    ///     The CTF scale is used to assign a weight to each input spectrum.
+    /// \param[out] output:
+    ///     ((Bo..,)Wo) Output spectra.
+    ///     Each (Bo..) axis should match the corresponding input (Bi..) or be 1, in which case the axis is reduced
+    ///     by averaging (or summing) the corresponding rescaled input spectra. If (Bi..) == (Bo..), no reduction
+    ///     is computed. In this case, using equiphase_rescale_1d instead is best.
+    ///     Should be contiguous vector(s). If real, and the input is complex, the power spectrum is computed.
+    /// \param output_fftfreq:
+    ///     Frequency range of the output spectra.
+    /// \param[in] output_ctf:
+    ///     Target isotropic CTFs. Inputs are rescaled to match the phases of these CTFs.
+    ///     A contiguous (Bo..) array, or a single value, in which case the CTF is assigned to every output batch.
+    /// \param[out] weights:
+    ///     Averaging weights.
+    ///     Same as rotational_average.
+    /// \param options:
+    ///     Spectrum and averaging options.
+    template<typename Input, typename Output, typename InputCtf, typename OutputCtf, typename Weight = Empty>
+        requires details::equiphase_rescale_and_averageable<Input, InputCtf, Output, OutputCtf, Weight>
+    void equiphase_rescale_and_average_1d(
         Input&& input,
         const Linspace<f64>& input_fftfreq,
         InputCtf&& input_ctf,
@@ -836,15 +965,15 @@ namespace noa::xform {
         const Linspace<f64>& output_fftfreq,
         OutputCtf&& output_ctf,
         Weight&& weights = {},
-        FuseSpectraOptions options = {}
+        const FuseSpectraOptions& options = {}
     ) {
-        details::check_parameters_fuse_spectra<true>(
+        details::check_parameters_equiphase_rescale<true>(
             input, input_fftfreq, input_ctf, output, output_fftfreq, output_ctf, weights
         );
-        details::launch_fuse_spectra<isize>(
-            std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
-            std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
-            std::forward<Weight>(weights), options
+        details::launch_equiphase_rescale_and_average<isize>(
+            NOA_FWD(input), input_fftfreq, NOA_FWD(input_ctf),
+            NOA_FWD(output), output_fftfreq, NOA_FWD(output_ctf),
+            NOA_FWD(weights), options
         );
     }
 
@@ -854,20 +983,29 @@ namespace noa::xform {
     };
 
     /// Scale 1d rfft spectra so that their CTF phases match with the target CTF.
-    /// \param[in] input        Input 1d spectra to scale. Can be real or complex.
-    /// \param input_fftfreq    Frequency range of the input spectra.
-    /// \param[in] input_ctf    Isotropic CTFs of the 1d input spectra. One per spectrum.
-    /// \param[out] output      Output spectra. If real, and the input is complex, the power spectrum is computed.
-    /// \param output_fftfreq   Frequency range of the output spectra.
-    /// \param[in] output_ctf   Target isotropic CTFs. Inputs are rescaled to match the phases of these CTFs.
-    /// \param options          Spectrum options.
-    template<
-        nt::readable_varray_decay Input,
-        nt::writable_varray_decay Output,
-        details::rotational_average_isotropic_ctf InputCtf,
-        details::rotational_average_isotropic_ctf OutputCtf>
-    requires (nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>>)
-    NOA_NOINLINE void phase_spectra(
+    /// \param[in] input:
+    ///     ((Bi..,)Wi) Input 1d spectra. Can be real or complex.
+    ///     Batch axes are broadcast to the output batches.
+    /// \param input_fftfreq:
+    ///     Frequency range of the input spectra.
+    /// \param[in] input_ctf:
+    ///     Isotropic CTF(s) of the 1d input spectra.
+    ///     A (Bi..) array, or a single value, in which case the CTF is assigned to every input batch.
+    ///     The CTF scale is used to assign a weight to each input spectrum.
+    /// \param[out] output:
+    ///     ((Bo..,)Wo) Output spectra as contiguous vectors.
+    ///     If real, and the input is complex, the power spectrum is computed.
+    /// \param output_fftfreq:
+    ///     Frequency range of the output spectra.
+    /// \param[in] output_ctf:
+    ///     Target isotropic CTFs. Inputs are rescaled to match the phases of these CTFs.
+    ///     A contiguous (Bo..) array, or a single value, in which case the CTF is assigned to every output batch.
+    /// \param options:
+    ///     Spectrum options.
+    ///     options.average is unused.
+    template<typename Input, typename Output, typename InputCtf, typename OutputCtf>
+        requires details::equiphase_rescale_and_averageable<Input, InputCtf, Output, OutputCtf, Empty>
+    void equiphase_rescale_1d(
         Input&& input,
         const Linspace<f64>& input_fftfreq,
         InputCtf&& input_ctf,
@@ -876,12 +1014,12 @@ namespace noa::xform {
         OutputCtf&& output_ctf,
         const PhaseSpectraOptions& options = {}
     ) {
-        details::check_parameters_fuse_spectra<false>(
+        details::check_parameters_equiphase_rescale<false>(
             input, input_fftfreq, input_ctf, output, output_fftfreq, output_ctf
         );
-        details::launch_phase_spectra<isize>(
-            std::forward<Input>(input), input_fftfreq, std::forward<InputCtf>(input_ctf),
-            std::forward<Output>(output), output_fftfreq, std::forward<OutputCtf>(output_ctf),
+        details::launch_equiphase_rescale<isize>(
+            NOA_FWD(input), input_fftfreq, NOA_FWD(input_ctf),
+            NOA_FWD(output), output_fftfreq, NOA_FWD(output_ctf),
             options
         );
     }
