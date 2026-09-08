@@ -394,25 +394,11 @@ namespace noa::signal {
     }
 
     template<nf::Layout REMAP, typename Input = Empty, typename Output, usize N, typename CTF>
-    void ctf_anisotropic_1d(
-        Input&& input, Output&& output, const Shape<isize, N>& shape, CTF&& ctf, CTFOptions options = {}
-    ) {
-        options.rank = 1;
-        details::launch_ctf<REMAP, 1, false>(NOA_FWD(input), NOA_FWD(output), shape, NOA_FWD(ctf), options);
-    }
-    template<nf::Layout REMAP, typename Input = Empty, typename Output, usize N, typename CTF>
     void ctf_anisotropic_2d(
         Input&& input, Output&& output, const Shape<isize, N>& shape, CTF&& ctf, CTFOptions options = {}
     ) {
         options.rank = 2;
         details::launch_ctf<REMAP, 2, false>(NOA_FWD(input), NOA_FWD(output), shape, NOA_FWD(ctf), options);
-    }
-    template<nf::Layout REMAP, typename Input = Empty, typename Output, usize N, typename CTF>
-    void ctf_anisotropic_3d(
-        Input&& input, Output&& output, const Shape<isize, N>& shape, CTF&& ctf, CTFOptions options = {}
-    ) {
-        options.rank = 3;
-        details::launch_ctf<REMAP, 3, false>(NOA_FWD(input), NOA_FWD(output), shape, NOA_FWD(ctf), options);
     }
 
     /// Computes anisotropic CTF(s) over entire FFT or rFFT spectra, or over a specific frequency range (see options).
@@ -428,16 +414,6 @@ namespace noa::signal {
     }
 
     template<nf::Layout REMAP, typename Output, usize N, typename CTF>
-    void ctf_anisotropic_1d(
-        Output&& output,
-        const Shape<isize, N>& shape,
-        CTF&& ctf,
-        CTFOptions options = {}
-    ) {
-        options.rank = 1;
-        details::launch_ctf<REMAP, 1, false, Empty>({}, NOA_FWD(output), shape, NOA_FWD(ctf), options);
-    }
-    template<nf::Layout REMAP, typename Output, usize N, typename CTF>
     void ctf_anisotropic_2d(
         Output&& output,
         const Shape<isize, N>& shape,
@@ -446,15 +422,5 @@ namespace noa::signal {
     ) {
         options.rank = 2;
         details::launch_ctf<REMAP, 2, false, Empty>({}, NOA_FWD(output), shape, NOA_FWD(ctf), options);
-    }
-    template<nf::Layout REMAP, typename Output, usize N, typename CTF>
-    void ctf_anisotropic_3d(
-        Output&& output,
-        const Shape<isize, N>& shape,
-        CTF&& ctf,
-        CTFOptions options = {}
-    ) {
-        options.rank = 3;
-        details::launch_ctf<REMAP, 3, false, Empty>({}, NOA_FWD(output), shape, NOA_FWD(ctf), options);
     }
 }
