@@ -131,6 +131,11 @@ namespace noa::xform {
         static constexpr bool IS_VIEW = O == ArrayOwnership::VIEW;
         static constexpr bool IS_CONST = std::is_const_v<T>;
 
+        static constexpr StridesTraits STRIDES_TRAIT = StridesTraits::STRIDED;
+        static constexpr PointerTraits POINTER_TRAIT = PointerTraits::DEFAULT;
+        static constexpr bool IS_CONTIGUOUS = false;
+        static constexpr bool IS_RESTRICT = false;
+
         using value_type = T;
         using mutable_value_type = std::remove_const_t<T>;
         using const_value_type = std::add_const_t<mutable_value_type>;

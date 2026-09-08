@@ -8,10 +8,10 @@
 #endif
 
 namespace noa::xform::details {
-    /// Returns the input type for interpolation given an array or texture.
+    /// Returns the input type for interpolation given a span, array or texture.
     /// For GPU textures, EXTRACT_GPU_TEXTURE must be true, otherwise a runtime error is raised.
     /// Automatically broadcasts the batch axes if the corresponding input axes are 1.
-    template<usize R, typename Index, typename Coord, Interp INTERP, Border BORDER, bool EXTRACT_GPU_TEXTURE, nt::array_or_texture T>
+    template<usize R, typename Index, typename Coord, Interp INTERP, Border BORDER, bool EXTRACT_GPU_TEXTURE, typename T>
     constexpr auto to_interpolator_input(const T& input) {
         constexpr usize N = T::SIZE;
         constexpr usize B = N > R ? N - R : 0;
@@ -38,7 +38,7 @@ namespace noa::xform::details {
             #else
             panic_no_gpu_backend();
             #endif
-        } else if constexpr (nt::array_or_texture<T>) {
+        } else if constexpr (nt::array_or_texture<T> or nt::span<T>) {
             value_t* ptr;
             if constexpr (nt::texture<T>) {
                 check(input.device().is_cpu(), "Trying to construct a CPU accessor from a GPU texture");
@@ -47,7 +47,9 @@ namespace noa::xform::details {
                 ptr = input.data();
             }
             auto strides = strides_b.push_back(strides_r.vec);
-            return Accessor<value_t, N, Index>(ptr, strides);
+            constexpr auto STRIDES_TRAIT = T::STRIDES_TRAIT;
+            constexpr auto POINTER_TRAIT = T::POINTER_TRAIT;
+            return Accessor<value_t, N, Index, STRIDES_TRAIT, POINTER_TRAIT>(ptr, strides);
         } else {
             static_assert(nt::always_false<T>);
         }
@@ -86,7 +88,7 @@ namespace noa::xform::details {
 
         return ToInterpolatorResult{
             .accessor = to_interpolator_input<R, Index, Coord, INTERP_, BORDER, IS_GPU>(input),
-            .interpolator = Interpolator<INTERP_, BORDER, const_value_t, R, Index, NO_SHAPE_, TEXTURE_ONLY>(
+            .interpolator = Interpolator<INTERP_, BORDER, R, Index, const_value_t, NO_SHAPE_, TEXTURE_ONLY>(
                 input.shape().template pop_front<B>().template as<Index>(), cvalue),
         };
     }
@@ -98,12 +100,11 @@ namespace noa::xform::details {
         constexpr usize B = N > R ? N - R : 0;
         using accessor_t = decltype(to_interpolator_input<R, Index, Coord, INTERP_, Border::ZERO, IS_GPU>(input));
         using accessor_r_t = std::decay_t<decltype(std::declval<const accessor_t&>()[Vec<i32, B>{}])>;
-        using const_value_t = nt::const_value_type_t<T>;
         constexpr bool TEXTURE_ONLY = nt::textureable_nd<accessor_r_t, Border::ZERO, R>;
 
         return ToInterpolatorResult{
             .accessor = to_interpolator_input<R, Index, Coord, INTERP_, Border::ZERO, IS_GPU>(input),
-            .interpolator = InterpolatorSpectrum<REMAP, INTERP_, const_value_t, R, Index, NO_SHAPE, TEXTURE_ONLY>(logical_shape),
+            .interpolator = InterpolatorSpectrum<REMAP, INTERP_, R, Index, NO_SHAPE, TEXTURE_ONLY>(logical_shape),
         };
     }
 
