@@ -276,9 +276,9 @@ namespace noa::fft {
     }
 
     /// Whether the (unnormalized) frequency is within bounds.
-    /// TODO do IS_RFFT and IS_FLIPPED
+    /// TODO do optimization for IS_RFFT (rightmost left bound is 0) and IS_FLIPPED (rightmost only check right bound).
     template<bool IS_RFFT, bool IS_FLIPPED = false, nt::sinteger T, usize N, usize A, nt::pair U>
-    requires (N >= 1 and N <= 3)
+        requires (N >= 1 and N <= 3)
     [[nodiscard]] constexpr auto is_inbound(const U& bounds, const Vec<T, N, A>& frequency) noexcept {
         for (usize i{}; i < N; ++i) {
             if (frequency[i] < bounds.first[i] or frequency[i] > bounds.second[i])

@@ -369,11 +369,11 @@ namespace noa::xform {
     ///     Vec<Coord, 3>, a array of that type, or Empty.
     /// \param[in] input:
     ///     3D (r)FFT(s) to transform.
-    ///     ((Bi..,)Di,Hi,Wi) Input 3D array(s) or 3D texture(s), of type f16, f32, f64, c16, c32, c64.
+    ///     ((Bi..,)D,H,Wi) Input 3D array(s) or 3D texture(s), of type f16, f32, f64, c16, c32, c64.
     ///     The batch axes are broadcast to the output batch axes.
     /// \param[out] output:
     ///     3D transformed (r)FFT(s).
-    ///     ((Bo..,)Do,Ho,Wo) Output 3D array(s).
+    ///     ((Bo..,)D,H,Wo) Output 3D array(s).
     /// \param shape:
     ///     Logical shape of input and output.
     /// \param[in] inverse_rotations:
@@ -388,10 +388,6 @@ namespace noa::xform {
     ///     Transformation options.
     ///
     /// \note For more details, see InterpolatorSpectrum.
-    /// \note
-    ///     The input and output array can have different shapes ((Di,Hi,Wi) vs (Do,Ho,Wo)). The output window starts at
-    ///     the same index as the input window, so by entering a translation in inverse_matrices, one can move the
-    ///     center of the output window relative to the input window, e.g., to render only a specific subregion.
     template<nf::Layout REMAP, typename Input, typename Output, typename Rotation, typename Shift = Empty, usize N>
         requires details::transformable_spectrum_nd<3, REMAP, Input, Output, Rotation, Shift, N>
     void transform_spectrum_3d(

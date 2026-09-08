@@ -217,7 +217,7 @@ namespace noa::xform {
         details::polar_check_parameters(spectrum, polar);
 
         check(spectrum.shape() == (REMAP.is_hx2xx() ? spectrum_shape.rfft() : spectrum_shape),
-              "The logical shape {} does not match the spectrum shape. Got logical_shape={}, spectrum:shape={}, REMAP={}",
+              "The logical shape does not match the spectrum shape. Got logical_shape={}, spectrum:shape={}, REMAP={}",
               spectrum_shape, spectrum.shape(), REMAP);
         check(allclose(options.spectrum_fftfreq.start, 0.),
               "For multidimensional cases, the starting fftfreq should be 0, but got {}",

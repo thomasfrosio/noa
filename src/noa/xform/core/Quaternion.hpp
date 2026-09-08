@@ -46,17 +46,17 @@ namespace noa::xform {
 
         template<typename U, usize A>
         [[nodiscard]] NOA_HD static constexpr auto from_coefficients(const Vec<U, 4, A>& zyxw) noexcept -> Quaternion {
-            return {static_cast<value_type>(zyxw[0]),
-                    static_cast<value_type>(zyxw[1]),
-                    static_cast<value_type>(zyxw[2]),
-                    static_cast<value_type>(zyxw[3])};
+            return {.z = static_cast<value_type>(zyxw[0]),
+                    .y = static_cast<value_type>(zyxw[1]),
+                    .x = static_cast<value_type>(zyxw[2]),
+                    .w = static_cast<value_type>(zyxw[3])};
         }
 
         [[nodiscard]] NOA_HD static constexpr auto from_coefficients(auto z, auto y, auto x, auto w) noexcept -> Quaternion {
-            return {static_cast<value_type>(z),
-                    static_cast<value_type>(y),
-                    static_cast<value_type>(x),
-                    static_cast<value_type>(w)};
+            return {.z = static_cast<value_type>(z),
+                    .y = static_cast<value_type>(y),
+                    .x = static_cast<value_type>(x),
+                    .w = static_cast<value_type>(w)};
         }
 
     public: // Access
@@ -185,11 +185,11 @@ namespace noa::xform {
         }
 
         [[nodiscard]] NOA_HD constexpr auto normalize() const noexcept -> Quaternion {
-            return from_coefficients(noa::normalize(to_vec())); // FIXME
+            return from_coefficients(noa::normalize(to_vec())); // FIXME?
         }
 
         [[nodiscard]] NOA_HD constexpr auto conj() const noexcept -> Quaternion {
-            return {-z, -y, -x, w};
+            return {.z = -z, .y = -y, .x = -x, .w = w};
         }
 
         template<nt::real U>

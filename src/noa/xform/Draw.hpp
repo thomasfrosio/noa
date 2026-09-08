@@ -172,7 +172,6 @@ namespace noa::xform::details {
         constexpr usize B = N - RANK;
 
         // TODO Reorder to rightmost? Only possible with zero or one transform.
-        // TODO Broadcast input batches.
 
         // Prepare the input/output accessors.
         using input_accessor_t = Accessor<nt::const_value_type_t<Input>, N, Index>;
@@ -224,20 +223,16 @@ namespace noa::xform::details {
             using transform_t = decltype(inverse_transform_accessor);
             using op_t = Draw<B, RANK, Index, drawable_t, BinaryOp, transform_t, input_accessor_t, output_accessor_t>;
             auto op = op_t(input_accessor, output_accessor, drawable_accessor, inverse_transform_accessor, binary_op);
-            return iwise<OPTIONS>(
+            iwise<OPTIONS>(
                 output.shape().template as<Index>(), output.device(), std::move(op),
-                std::forward<Input>(input),
-                std::forward<Output>(output),
-                std::forward<Transform>(inverse_transform)
+                NOA_FWD(input), NOA_FWD(output), NOA_FWD(inverse_transform)
             );
         } else {
             using op_t = Draw<B, RANK, Index, drawable_t, BinaryOp, AccessorValue<Empty>, input_accessor_t, output_accessor_t>;
             auto op = op_t(input_accessor, output_accessor, drawable_accessor, {}, binary_op);
-            return iwise<OPTIONS>(
+            iwise<OPTIONS>(
                 output.shape().template as<Index>(), output.device(), std::move(op),
-                std::forward<Input>(input),
-                std::forward<Output>(output),
-                std::forward<Transform>(inverse_transform)
+                NOA_FWD(input), NOA_FWD(output), NOA_FWD(inverse_transform)
             );
         }
     }
@@ -253,20 +248,21 @@ namespace noa::xform {
     /// \tparam RANK:
     ///     Rank of the arrays.
     /// \tparam Transform:
-    ///     2D case: Mat22, Mat23, Mat33, a array of these types, or Empty.
-    ///     3D case: Mat33, Mat34, Mat44, Quaternion, a array of these types, or Empty.
+    ///     2D case: Mat22, Mat23, Mat33, an array of these types, or Empty.
+    ///     3D case: Mat33, Mat34, Mat44, Quaternion, an array of these types, or Empty.
     /// \param[in] input:
-    ///     1D: ((B..,)W), 2D: ((B..,)H,W), or 3D: ((B..,)D,H,W) arrays.
+    ///     1D: ((Bi..,)W), 2D: ((Bi..,)H,W), or 3D: ((Bi..,)D,H,W) arrays.
     ///     If empty array, write directly in the output.
     ///     The batch axes are broadcasted to the output batches.
     /// \param[out] output:
+    ///     1D: ((Bo..,)W), 2D: ((Bo..,)H,W), or 3D: ((Bo..,)D,H,W) arrays.
     ///     Output array(s) matching the input ranked axes.
     ///     Can be equal to the input for in-place drawing.
     /// \param drawing_op:
     ///     Drawing operator(s).
-    ///     A (B..) array of drawing operators or a single operator.
+    ///     A (Bo..) array of drawing operators or a single operator.
     /// \param inverse_transforms:
-    ///     A (B..) array of inverse ((D)H)W (affine) matrices or quaternions (if 3D) to apply to the coordinates that
+    ///     A (Bo..) array of inverse ((D)H)W (affine) matrices or quaternions (if 3D) to apply to the coordinates that
     ///     will be subsequently given to the corresponding drawing operator. For non-affine matrices and quaternion(s),
     ///     the rotation center is the center returned by the drawing operator.
     ///     Passing a single transform is allowed, in which case all batches are assigned to it.
@@ -285,7 +281,7 @@ namespace noa::xform {
     /// // Draw a sphere into the output.
     /// nd::draw({}, output_2d, nd::Sphere{.center=Vec{64.,64.}, .radius=10.}.get());
     ///
-    /// // Add an ellipse rotated by 10 degrees onto the input.
+    /// // Add an ellipse rotated by 10 degrees CCW onto the input.
     /// const auto ellipse = nd::Ellipse{.center=Vec{64.,64.}, .radius=Vec{10.,20.};
     /// const auto ellipse_rotation = nd::rotate(noa::deg2rad(10.));
     /// nd::draw(input_2d, output_2d, ellipse.get(), ellipse_rotation.inverse(), noa::Plus{});
