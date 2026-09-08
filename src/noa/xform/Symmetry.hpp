@@ -55,7 +55,7 @@ namespace noa::xform {
 
         /// Imports existing matrices. No validation is done.
         /// The identity matrix should not be included as it is implicitly applied by the "symmetrize" functions.
-        constexpr explicit Symmetry(Array<T, N, O> matrices, const SymmetryCode& code) :
+        constexpr explicit Symmetry(array_type matrices, const SymmetryCode& code) :
             m_array(std::move(matrices)),
             m_code(code)
         {
@@ -183,6 +183,9 @@ namespace noa::xform::details {
             const auto& [batches, indices] = batched_indices.template split<B>();
             auto coordinates = indices.template as<coord_type>();
 
+            const auto& pre_inverse_affine_matrix = m_pre_inverse_affine_matrices[batches];
+            const auto input_rd = m_input[batches];
+
             input_value_type value;
             if constexpr (nt::empty<post_inverse_affine_type> and nt::empty<pre_inverse_affine_type>) {
                 value = m_input[batched_indices]; // skip interpolation if possible
@@ -191,16 +194,16 @@ namespace noa::xform::details {
 
                 auto i_coord = coordinates;
                 if constexpr (not nt::empty<pre_inverse_affine_type>)
-                    i_coord = transform_vector(m_pre_inverse_affine_matrices[batches], i_coord);
-                value = m_interpolator.get(m_input[batches], i_coord);
+                    i_coord = transform_vector(pre_inverse_affine_matrix, i_coord);
+                value = m_interpolator.get(input_rd, i_coord);
             }
 
             coordinates -= m_symmetry_center;
             for (const auto& symmetry_matrix: m_symmetry_matrices) {
                 auto i_coord = symmetry_matrix * coordinates + m_symmetry_center;
                 if constexpr (not nt::empty<pre_inverse_affine_type>)
-                    i_coord = transform_vector(m_pre_inverse_affine_matrices[batches], i_coord);
-                value += m_interpolator.get(m_input, i_coord);
+                    i_coord = transform_vector(pre_inverse_affine_matrix, i_coord);
+                value += m_interpolator.get(input_rd, i_coord);
             }
             value *= m_symmetry_scaling;
 
