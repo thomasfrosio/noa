@@ -17,7 +17,7 @@ namespace noa {
 In its simplest form, the operator needs an `operator()` taking the nd-indices as argument. For instance:
 
 ```c++
-auto array = Array<f64>(/*...*/);
+auto array = Array<f64, 4>(/*...*/);
 
 // This sets all elements of the array to 2.
 noa::iwise(
@@ -193,8 +193,8 @@ The element-wise interface is defined as the following:
 // Arguments are passed to the operator as lvalue references,
 // the constness is preserved (const outputs are not allowed).
 // As such, any of the following would work.
-auto a = View<const f32>(/*...*/);
-auto b = View<f64>(/*...*/);
+auto a = View<const f32, N>(/*...*/);
+auto b = View<f64, N>(/*...*/);
 noa::ewise(a, b, [](const f32&, f64&) {/*...*/});
 noa::ewise(a, b, [](f32, f64&) {/*...*/});
 noa::ewise(b, b, [](f64&, f64&) {/*...*/});
@@ -211,10 +211,10 @@ noa::ewise({}, b, [](f64&) {/*...*/});
 // noa::fuse encodes that the arguments should be fused into a Tuple. As mentionned above,
 // the arguments are passed as lvalue references. The Tuple itself is also passed as a
 // lvalue reference.
-auto a = View<const f32>(/*...*/);
-auto b = View<const i32>(/*...*/);
-auto c = View<f64>(/*...*/);
-auto d = View<i64>(/*...*/);
+auto a = View<const f32, N>(/*...*/);
+auto b = View<const i32, N>(/*...*/);
+auto c = View<f64, N>(/*...*/);
+auto d = View<i64, N>(/*...*/);
 noa::ewise(noa::wrap(a, b), noa::wrap(c, d), [](const f32&, const i32&, f64&, i64&) {/*...*/});
 noa::ewise(noa::wrap(a, b), noa::wrap(c, d), [](f32, i32, f64&, i64&) {/*...*/}); // inputs by value
 noa::ewise(noa::fuse(a, b), noa::fuse(c, d),
@@ -240,13 +240,13 @@ Here's a _slightly_ more real example:
 ```c++
 using namespace ::noa::types; // to imports i32, f32, Tuple and Array
 
-const auto buffer = noa::arange<f32>(300).reshape({3,1,10,10});
-const auto lhs = buffer.view().subregion(0); // shape=(1,1,10,10)
+const auto buffer = noa::arange<f32>(300).reshape(Shape3{3,10,10});
+const auto lhs = buffer.view().subregion(0); // shape=(1,10,10)
 const auto mhs = buffer.view().subregion(1); // same shape
 const auto rhs = buffer.view().subregion(2); // same shape
 
-const auto output_0 = Array<f32>({1, 1, 10, 10});
-const auto output_1 = noa::like(output_1);
+const auto output_0 = Array<f32, 3>({1, 10, 10});
+const auto output_1 = noa::empty_like(output_1);
 
 // All inputs and outputs should be on the same device and have compatible shapes.
 // Also note that Array and View can be used interchangeably, as always.
@@ -334,13 +334,13 @@ And here's the full `reduce_(axes_)iwise`operator interface (for more details, l
 
 Here's what a simple sum-reduction could look like:
 ```c++
-auto src = Array<f64>(/*...input...*/);
+auto src = Array<f64, 6>(/*...input...*/);
 
 f64 sum{};
 struct MySum {
-    Span<f64, 4> src;
-    constexpr void operator()(const Vec<isize, 4>& indices, f64& sum) {
-        sum += src(indices);
+    Span<f64, 6> src;
+    constexpr void operator()(const Vec<isize, 6>& indices, f64& sum) {
+        sum += src[indices];
     }
     constexpr void join(f64 isum, f64& sum) {
         sum += isum;
@@ -355,18 +355,18 @@ noa::reduce_iwise(src.shape(), array.device(), f64{}, sum, MySum{
 noa::reduce_ewise(src, f64{}, sum, [](auto value, auto& sum) { sum += value; });
 
 // Here's a more complex example.
-const Array<f32> array; // an array we want to reduce
-const Array<i32> mask; // a binary mask
+const Array<f32, 6> array; // a 6D array we want to reduce
+const Array<i32, 6> mask; // a binary mask
 f64 sum_inside_mask; // the wanted sum inside the mask...
 f32 max_inside_mask; // and the maximum value inside the mask
 
 struct ReduceMaskIwise {
-    Span<const f32, 4> array;
-    Span<const i32, 4> mask;
+    Span<const f32, 6> array;
+    Span<const i32, 6> mask;
 
-    constexpr void init(const Vec4<i32>& indices, f64& sum, f32& max) {
+    constexpr void init(const Vec<i32, 6>& indices, f64& sum, f32& max) {
         if (mask(indices) > 0) {
-            const auto& value = array(indices);
+            const auto& value = array[indices];
             sum += static_cast<f64>(value);
             max = std::max(max, value);
         }
@@ -436,8 +436,8 @@ struct Histogram {
 };
 
 constexpr isize HISTOGRAM_SIZE = 128;
-auto inputs = Array<f32>(/*...B*WIDTH array*/);
-auto histograms = Array<f32>(/*...B*HISTOGRAM_SIZE array*/);
+auto inputs = Array<f32, 2>(/*...B*WIDTH array*/);
+auto histograms = Array<f32, 2>(/*...B*HISTOGRAM_SIZE array*/);
 
 constexpr auto OPTIONS = noa::ReduceIwiseOptions{
     .gpu_block_shape = {1, HISTOGRAM_SIZE * 4}, // 1d block
@@ -445,7 +445,7 @@ constexpr auto OPTIONS = noa::ReduceIwiseOptions{
     .gpu_number_of_indices_per_threads = {1, 4}, // increase the value of the per-block histogram by working on it more
     .gpu_scratch_size = HISTOGRAM_SIZE * sizeof(i32), // per block histogram
 };
-noa::reduce_axes_iwise<OPTIONS>(shape, inputs_gpu.device(), {}, reduce_width, Histogram{
+noa::reduce_axes_iwise<OPTIONS>(inputs.shape(), inputs_gpu.device(), {}, reduce_width, Histogram{
     .inputs = inputs.span<const f32, 2, i32>(),
     .histograms = histograms.span<i32, 2, i32>(),
 });

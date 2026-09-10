@@ -74,7 +74,7 @@ using namespace ::noa::types;
 // "random" enqueue an operator (Randomizer<Uniform>) to initialise
 // the values with random numbers with an uniform distribution,
 // between -1 and 1.
-const auto shape = Shape4{1, 256, 256, 256};
+const auto shape = Shape3{256, 256, 256};
 const Array array = noa::random(noa::Uniform{-1., 1.}, shape, {
     .device = "gpu:0", .allocator = Allocator::ASYNC,
 });

@@ -1,22 +1,21 @@
 ## `Span`
 
-`Array` and `View` provide an operator() taking 4d-indices, which can be used to access the underlying values of the nd-arrays. However, this is not the preferred way to access data. First, this may not be the most efficient way to access the data, for instance, 1d contiguous arrays can be accessed using a single index and a fixed stride of 1 (known at compile time). Second, depending on the device and memory resource, direct access from CPU threads may not be safe or even allowed.
+`Array` does not provide a way to directly access its elements because depending on the device and memory resource, direct access from CPU threads may not be safe or even allowed.
 
-`Span`, i.e. a view over multidimensional data, should be used instead. The library comes with its own Span ([Span.hpp](../src/noa/core/types/Span.hpp)), which is similar to C++23 `std::mdspan`.
+Instead, `Span`, i.e., a view over multidimensional data, should be used instead. The library comes with its own Span ([Span.hpp](../src/noa/runtime/core/Span.hpp)), which is similar to C++23 `std::mdspan`.
 
 ```c++
-template<typename T,        // type, can be const
-         size_t N = 1,      // number of dimensions
-         typename I = i64,  // integral type used for the strides and shape
-         StridesTraits StridesTrait = StridesTraits::STRIDED>
-class Span {
+template<typename T, usize N = 1, typename I = isize,
+         StridesTraits StridesTrait = StridesTraits::STRIDED,
+         PointerTraits PointerTrait = PointerTraits::DEFAULT>
+class Span{
     T* pointer;
     Shape<I, N> shape;
     Strides<I, N - StridesTrait == StridesTraits::CONTIGUOUS> strides;
 };
 ```
 
-Strides are fully dynamic (one dynamic stride per dimension) by default, but the rightmost dimension can be marked contiguous. `Span` (as well as `Accessor` and the library internals) uses the rightmost convention, so that the innermost dimension is the rightmost dimension. As such, `StridesTraits::CONTIGUOUS` implies C-contiguous. F-contiguous layouts are only supported in `StridesTraits::STRIDED` mode.
+Strides are fully dynamic (one dynamic stride per dimension) by default, but the rightmost dimension can be marked contiguous. `Span` (as well as `Accessor` and the library internals) uses the rightmost convention, so that the innermost dimension is the rightmost dimension. As such, `StridesTraits::CONTIGUOUS` implies C-contiguous. F-contiguous layouts are only supported in `StridesTraits::STRIDED` mode (see [shape_and_strides.md](021_shape_and_strides.md) for more info).
 With `StridesTraits::CONTIGUOUS`, the innermost/rightmost stride is fixed to 1 and is not stored, resulting in the strides being truncated by 1 (`Strides<I,N-1>`). In case of a 1d contiguous span, this means that the strides are empty (`Strides<I,0>`) and the indexing is equivalent to pointer/array indexing.
 
 ```c++
@@ -57,21 +56,27 @@ auto s1 = span_1d.as_const().as_contiguous();
 f64 sum{};
 for (i64 i{}; i < shape.n_elements(); ++i)
     sum += s1(i);
+
+// 1d spans are also iterators:
+f64 sum2{};
+for (auto e: span_4d.as_1d())
+    sum_2 += e;
 ```
 
-`Span`, as well as `Array` and `View`, has many other utility functions making it easy to manipulate multidimensional data (e.g. `reshape`, `subregion`, `permute`, `filter`, `flat`, etc.). It is also straightforward to get a span from an `Array` or `View`.
+`Span`, as well as `Array`, has many other utility functions making it easy to manipulate multidimensional data (e.g. `reshape`, `subregion`, `permute`, `filter`, `flat`, etc.). It is also straightforward to get a span from an `Array`.
 
 ```c++
 using namespace ::noa::types; // f64, i64, i32, View, Array
 using namespace ::noa::indexing; // Ellipsis and Slice
 
-// This is similar to noa::fill<f64>({4, 1, 64, 64}, 3.);
-const auto array = Array<f64>({4, 1, 64, 64});
+// This is similar to noa::fill<f64, 4>({4, 1, 64, 64}, 3.);
+const auto array = Array<f64, 4>({4, 1, 64, 64});
 for (f64& e: array.span_1d()) // or equivalently: array.span<f64, 1>()
     e = 3.;
 
 // Extract the 32x32 center.
-// This is be equivalent to array[..., 16:48, 16:48] in NumPy.
+// This is be equivalent to array[..., 16:48, 16:48] in NumPy,
+// or array.subregion(Ellipsis{}, Slices<2>{.start={16, 16}, .end={48, 48}})
 Array center = array.subregion(Ellipsis{}, Slice{16, 48}, Slice{16, 48});
 
 // Array::span_1d() throws an error here, because "center"
@@ -120,5 +125,3 @@ class Accessor {
     Strides<I, N - StridesTrait == StridesTraits::CONTIGUOUS> strides;
 };
 ```
-
-One other difference with `Span` is the `PointerTraits` template parameter. By default, the pointer is not marked with any attributes, but the ”restrict” traits can be added with `PointerTraits::RESTRICT`. This is useful to indicate that pointers don’t alias, which may help to generate better code.

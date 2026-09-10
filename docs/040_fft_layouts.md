@@ -27,7 +27,7 @@ namespace ns = ::noa::signal;
 // This is a special factory function to generate arrays for
 // in-place rffts. "images" is real, "images_rfft" is complex,
 // both point to the same memory.
-auto [images, images_rfft] = nf::empty<f32>({1, 1, 64, 64});
+auto [images, images_rfft] = nf::empty<f32, 2>({64, 64});
 
  // ...initialise images...
 
@@ -40,28 +40,28 @@ auto [images, images_rfft] = nf::empty<f32>({1, 1, 64, 64});
 // - Note that bandpass, as many other functions capable
 //   of operating on rffts, needs the logical-shape of
 //   the transform, i.e. the shape of the real array.
-nf::r2c(images, images_rfft);
-ns::bandpass<"h">( // no remap
+nf::rfft2(images, images_rfft);
+ns::bandpass_2d<"h">( // no remap
     images_rfft, images_rfft, images.shape(),
     {.highpass_cutoff=0.05, .highpass_width=0.04,
      .lowpass_cutoff=0.4, .lowpass_width=0.1}
 );
-nf::c2r(images_rfft, images);
+nf::irfft2(images_rfft, images);
 
 // Another example, with out-of-place filtering and FFT remapping:
 
 // In-place rfft, then in-place centering, i.e. fftshift.
-nf::r2c(images, images_rfft);
-nf::remap(nf::Remap::H2HC, images_rfft, images_rfft, images.shape());
-// or equivalently: nf::remap("h2hc", images_rfft, images_rfft, images.shape());
+nf::rfft2(images, images_rfft);
+nf::remap_2d(nf::Remap::H2HC, images_rfft, images_rfft, images.shape());
+// or equivalently: nf::remap_2d("h2hc", images_rfft, images_rfft, images.shape());
 
 // ...do something that needs the centered images_rfft...
 
 // Then do the out-of-place filtering.
 // Notice the on-the-fly remapping hc2h, aka irfftshift,
 // anticipating the c2r transform.
-const auto filtered_rfft = noa::like(images_rfft);
-ns::lowpass<"hc2h">(
+const auto filtered_rfft = noa::empty_like(images_rfft);
+ns::lowpass_2d<"hc2h">(
     images_rfft, filtered_rfft, images.shape(),
     {.cutoff=0.5, .width=0.});
 nf::c2r(filtered_rfft, images);

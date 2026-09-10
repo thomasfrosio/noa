@@ -89,7 +89,7 @@ struct my_special_operator {
 };
 
 noa::Array array = noa::random(noa::Uniform{-1., 1.}, 1024, {.device="gpu:0"});
-noa::Array output = noa::like<my_type>(array);
+noa::Array output = noa::empty_like<my_type>(array);
 double random = noa::random_value(noa::Uniform{0., 1.});
 
 noa::ewise(array, output, my_special_operator{random});

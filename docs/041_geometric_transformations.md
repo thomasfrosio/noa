@@ -52,38 +52,38 @@ namespace ni = ::noa::indexing;
 // for matrices too. If the user comes with their own leftmost
 // matrices, the library provides utilities to convert them to
 // rightmost matrices:
-Mat44 rightmost = ng::translate(Vec{0., 0., 1.}); // zyx
+Mat44 rightmost = nx::translate(Vec{0., 0., 1.}); // zyx
 Mat44 leftmost = ni::reorder(rightmost_matrix, Vec{2, 1, 0, 3});
 
 // Transform a vector.
 const auto vector = Vec{0., 0., 1.}; // unit vector x
-const auto rotation_z = ng::rotate_z(noa::deg2rad(45.));
+const auto rotation_z = nx::rotate_z(noa::deg2rad(45.));
 const auto rotated_vector = rotation_z * vector;
 
 // Here's a more complex example: rotating a 3d volume
 // around z by 45 degrees.
 i64 z = 64, y = 64, x = 64;
-Shape<i64, 4> shape{1, z, y, x};
-Vec<f64, 3> rotation_center = (shape.pop_front().vec / 2).as<f64>{};
+Shape<i64, 3> shape{z, y, x};
+Vec<f64, 3> rotation_center = (shape.vec / 2).as<f64>{};
 // ... which is equivalent to Vec<f64, 3>::from_values(z/2, y/2, x/2)
-Mat<f64, 3, 3> rotation_z = ng::rotate_z(noa::deg2rad(45.));
+Mat<f64, 3, 3> rotation_z = nx::rotate_z(noa::deg2rad(45.));
 Mat<f32, 4, 4> inverse_transform = (
-    ng::translate(rotation_center) *
-    ng::linear2affine(rotation_z) *
-    ng::translate(-rotation_center)
+    nx::translate(rotation_center) *
+    nx::linear2affine(rotation_z) *
+    nx::translate(-rotation_center)
 ).inverse().as<f32>();
 
-Array<f32> input, output; // ...initialise the arrays...
+Array<f32, 3> input, output; // ...initialise the arrays...
 
 // Compute the affine transformation.
-ng::transform_3d(input, output, inverse_transform);
+nx::transform_3d(input, output, inverse_transform);
 
 // Internally, the index-wise operator looks something like:
-// operator()(i64 batch, i64 z, i64 y, i64 x) {
+// operator()(i64 z, i64 y, i64 x) {
 //     auto coordinates = Vec<f32, 3>::from_values(z, y, x);
 //     coordinates = inverse_transform * coordinates;
-//     auto interpolated_value = interpolator.interpolate_at(coordinates, batch);
-//     output_accessor(batch, z, y, x) = interpolated_value;
+//     auto interpolated_value = interpolator.get(input, coordinates);
+//     output_accessor(z, y, x) = interpolated_value;
 // }
 ```
 
@@ -91,13 +91,13 @@ Here's another example using the textures:
 ```c++
 // Import f32, Mat33, Interp, Array and Texture.
 using namespace ::noa::types;
-Array<f32> input, output; // to initialise...
-Array<Mat33<f32>> inverse_transforms; // to initialise...
+Array<f32, 3> input, output; // to initialise...
+Array<Mat33<f32>, 3> inverse_transforms; // to initialise...
 
 // If output is on the GPU, a GPU texture is created from input.
 // If output is on the CPU, Texture is a simple wrapper of the
 // existing array.
-auto texture = Texture<f32>(input, outputs.device(), Interp::LANCZOS6_FAST);
+auto texture = nx::Texture2D<f32, 3>(input, outputs.device(), Interp::LANCZOS6_FAST);
 
 // Make sure the matrices are on the compute-device.
 if (inverse_transforms.device() != outputs.device())
@@ -105,5 +105,5 @@ if (inverse_transforms.device() != outputs.device())
 
 // Compute the affine transformation. On the GPU, this uses
 // hardware interpolation.
-noa::geometry::transform_2d(texture, outputs, inverse_transforms);
+nx::transform_2d(texture, outputs, inverse_transforms);
 ```
