@@ -38,10 +38,10 @@ namespace nx = noa::xform;
 
 int main() {
     // Create an array of uninitialized values of two 1024x1024 images on the GPU.
-    auto images = noa::Array<float>({2, 1, 1024, 1024}, {.device = "gpu"});
+    auto images = noa::Array<float, 3>({2, 1024, 1024}, {.device = "gpu"});
 
     // .. initialize the images... or for instance get the images from an MRC file:
-    // auto images = noa::read_image<float>("image.mrc"));
+    // auto images = noa::read_image<float, 3>("image.mrc"));
 
     // Create the affine matrix, rotating the images around their center by 45deg.
     const auto rotation_center = noa::Vec{512., 512.};
@@ -54,7 +54,7 @@ int main() {
     ).inverse(); // transform_2d expects the inverse transform
 
     // Compute the affine transformation.
-    noa::Array<float> output = noa::like(images);
+    noa::Array<float, 3> output = noa::empty_like(images);
     nx::transform_2d(images, output, inverse_transform, {
         .interp = nx::Interp::LINEAR, // optional
         .border = noa::Border::ZERO,  // optional
@@ -100,27 +100,23 @@ struct MyAffineTransform {
 };
 
 void my_transform_2d(
-    const noa::Array<float>& input,
-    const noa::Array<float>& output,
+    const noa::Array<float, 3>& input,
+    const noa::Array<float, 3>& output,
     const noa::Mat<double, 3, 3>& inverse_transform
 ) {
     // A bit of sanity check. We all make mistakes.
     noa::check(not input.is_empty() and not output.is_empty());
     noa::check(input.device() == output.device());
-    noa::check(input.shape()[1] == output.shape()[1] == 1,
-               "Only 2d array are supported, but got shape {} and {}",
-               input.shape(), output.shape());
 
     // Construct the operator.
     auto op = MyAffineTransform{
-        .input = input.span().filter(0, 2, 3),   // bdhw -> bhw
-        .output = output.span().filter(0, 2, 3), // bdhw -> bhw
+        .input = input.span(),
+        .output = output.span(),
         .inverse_transform = inverse_transform,
     };
 
     // Call op from the output device, for every bhw indices.
-    auto shape = output.shape().filter(0, 2, 3); // bdhw -> bhw
-    noa::iwise(shape, output.device(), op);
+    noa::iwise(output.shape(), output.device(), op);
 }
 ```
 
