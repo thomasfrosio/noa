@@ -16,11 +16,11 @@ namespace nx = noa::xform;
 using Interp = nx::Interp;
 
 TEST_CASE("xform::insert_central_slices_3d", "[asset]") {
-    const Path path = test::NOA_DATA_PATH / "xform";
+    const Path path = test::noa_data_path() / "xform";
     const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["insert_central_slices_3d"];
     constexpr bool COMPUTE_ASSETS = false;
 
-    std::vector<Device> devices{"cpu"};
+    auto devices = std::vector<Device>{"cpu"};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
         devices.emplace_back("gpu");
 
@@ -28,9 +28,9 @@ TEST_CASE("xform::insert_central_slices_3d", "[asset]") {
         INFO("test number = " << nb);
 
         const YAML::Node& parameters = tests["tests"][nb];
-        const auto slice_shape = parameters["slice_shape"].as<Shape4>();
-        const auto volume_shape = parameters["volume_shape"].as<Shape4>();
-        const auto target_shape = parameters["target_shape"].as<Shape4>();
+        const auto slice_shape = parameters["slice_shape"].as<Shape3>();
+        const auto volume_shape = parameters["volume_shape"].as<Shape3>();
+        const auto target_shape = parameters["target_shape"].as<Shape3>();
         const auto scale = Vec<f32, 2>::from_value(parameters["scale"].as<f32>());
         const auto rotate = parameters["rotate"].as<std::vector<f32>>();
         const auto fftfreq_cutoff = parameters["fftfreq_cutoff"].as<f64>();
@@ -41,16 +41,16 @@ TEST_CASE("xform::insert_central_slices_3d", "[asset]") {
 
         const auto fwd_scaling_matrix = nx::scale(scale);
         auto inv_rotation_matrices = noa::empty<Mat33<f32>>(std::ssize(rotate));
-        for (size_t i{}; auto& inv_rotation_matrix: inv_rotation_matrices.span_1d_contiguous())
+        for (size_t i{}; auto& inv_rotation_matrix: inv_rotation_matrices.span())
             inv_rotation_matrix = nx::rotate_y(noa::deg2rad(-rotate[i++]));
 
         for (auto& device: devices) {
             const auto stream = StreamGuard(device);
-            const auto options = ArrayOption{device, Allocator::MANAGED};
+            const auto options = ArrayOption{.device = device, .allocator = Allocator::MANAGED};
             INFO(device);
 
             if (inv_rotation_matrices.device() != device)
-                inv_rotation_matrices = std::move(inv_rotation_matrices).to({device});
+                inv_rotation_matrices = std::move(inv_rotation_matrices).to({.device = device});
 
             // Backward project.
             const Array slice_fft = noa::linspace(slice_shape.rfft(), noa::Linspace{1.f, 10.f, true}, options);
@@ -70,97 +70,97 @@ TEST_CASE("xform::insert_central_slices_3d", "[asset]") {
                 continue;
             }
 
-            const Array asset_volume_fft = noa::read_image<f32>(volume_filename).data;
+            const Array asset_volume_fft = noa::read_image<f32, 3>(volume_filename).data;
             REQUIRE(test::allclose_abs_safe(asset_volume_fft, volume_fft, 5e-5));
         }
     }
 }
 
-// TEMPLATE_TEST_CASE("xform::insert_central_slices_3d, weights", "", f32, f64) {
-//     std::vector<Device> devices{"cpu"};
-//     if (Device::is_any_gpu())
-//         devices.emplace_back("gpu");
-//
-//     constexpr auto slice_shape = Shape<i64, 4>{20, 1, 64, 64};
-//     constexpr auto grid_shape = Shape<i64, 4>{1, 64, 64, 64};
-//
-//     auto fwd_rotation_matrices = noa::empty<Mat33<f32>>(slice_shape[0]);
-//     for (i64 i{}; auto& fwd_rotation_matrix: fwd_rotation_matrices.span_1d_contiguous())
-//         fwd_rotation_matrix = nx::rotate_y(noa::deg2rad(static_cast<f32>(i++ * 2)));
-//
-//     for (auto& device: devices) {
-//         const auto stream = StreamGuard(device);
-//         const auto options = ArrayOption{device, Allocator::MANAGED};
-//         INFO(device);
-//
-//         if (fwd_rotation_matrices.device() != device)
-//             fwd_rotation_matrices = fwd_rotation_matrices.to({device});
-//
-//         const Array slice_fft = noa::random(noa::Uniform<TestType>{-10, 10}, slice_shape.rfft(), options);
-//         const Array grid_fft0 = noa::zeros<TestType>(grid_shape.rfft(), options);
-//         const Array grid_fft1 = grid_fft0.copy();
-//
-//         nx::insert_central_slices_3d<"hc2hc">(
-//             slice_fft, slice_fft.copy(), slice_shape,
-//             grid_fft0, grid_fft1, grid_shape,
-//             {}, fwd_rotation_matrices, {
-//                 .windowed_sinc = {.fftfreq_sinc = 0.02, .fftfreq_blackman = 0.06},
-//                 .fftfreq_cutoff = 0.45
-//             });
-//         REQUIRE(test::allclose_abs_safe(grid_fft0, grid_fft1, 5e-5));
-//     }
-// }
-//
-// TEMPLATE_TEST_CASE("xform::insert_central_slices_3d, texture/remap", "", f32, c32) {
-//     std::vector<Device> devices{"cpu"};
-//     if (Device::is_any_gpu())
-//         devices.emplace_back("gpu");
-//
-//     const i64 slice_count = GENERATE(1, 20);
-//     const auto slice_shape = Shape<i64, 4>{slice_count, 1, 64, 64};
-//     constexpr auto grid_shape = Shape<i64, 4>{1, 128, 128, 128};
-//     constexpr auto windowed_sinc = nx::WindowedSinc{0.02, 0.06};
-//
-//     auto inv_rotation_matrices = noa::empty<Mat33<f32>>(slice_shape[0]);
-//     for (i64 i{}; auto& inv_rotation_matrix: inv_rotation_matrices.span_1d_contiguous())
-//         inv_rotation_matrix = nx::rotate_y(noa::deg2rad(-static_cast<f32>(i++) * 2));
-//
-//     for (auto& device: devices) {
-//         const auto stream = StreamGuard(device);
-//         const auto options = ArrayOption{device, Allocator::MANAGED};
-//         INFO(device);
-//
-//         if (inv_rotation_matrices.device() != device)
-//             inv_rotation_matrices = inv_rotation_matrices.to({device});
-//
-//         const Array slice_fft = noa::linspace(slice_shape.rfft(), noa::Linspace<TestType>{1, 10, true}, options);
-//         const Array grid_fft0 = noa::zeros<TestType>(grid_shape.rfft(), options);
-//         const Array grid_fft1 = grid_fft0.copy();
-//         const Array grid_fft2 = grid_fft0.copy();
-//
-//         { // Texture
-//             const auto texture_slice_fft = Texture<TestType>{slice_fft, device, Interp::LINEAR};
-//             nx::insert_central_slices_3d<"hc2h">(
-//                 slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
-//                 {}, inv_rotation_matrices, {.windowed_sinc=windowed_sinc, .fftfreq_cutoff=0.45});
-//             nx::insert_central_slices_3d<"hc2h">(
-//                 texture_slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
-//                 {}, inv_rotation_matrices, {.windowed_sinc=windowed_sinc, .fftfreq_cutoff=0.45});
-//
-//             REQUIRE(test::allclose_abs_safe(grid_fft0, grid_fft1, 5e-5));
-//         }
-//
-//         { // Remap
-//             noa::fill(grid_fft0, {});
-//             noa::fill(grid_fft1, {});
-//             nx::insert_central_slices_3d<"hc2hc">(
-//                 slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
-//                 {}, inv_rotation_matrices, {.windowed_sinc = windowed_sinc, .fftfreq_cutoff = 0.5});
-//             nx::insert_central_slices_3d<"hc2h">(
-//                 slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
-//                 {}, inv_rotation_matrices, {.windowed_sinc = windowed_sinc, .fftfreq_cutoff = 0.5});
-//             noa::fft::remap("h2hc", grid_fft1, grid_fft2, grid_shape);
-//             REQUIRE(test::allclose_abs_safe(grid_fft0, grid_fft2, 5e-5));
-//         }
-//     }
-// }
+TEMPLATE_TEST_CASE("xform::insert_central_slices_3d, weights", "", f32, f64) {
+    auto devices = std::vector<Device> {"cpu"};
+    if (Device::is_any_gpu())
+        devices.emplace_back("gpu");
+
+    constexpr auto slice_shape = Shape<isize, 4>{2, 20, 64, 64};
+    constexpr auto grid_shape = Shape<isize, 4>{2, 64, 64, 64};
+
+    auto fwd_rotation_matrices = noa::empty<Mat33<f32>>(slice_shape.pop_back<2>());
+    for (isize i{}; auto& fwd_rotation_matrix: fwd_rotation_matrices.span_1d())
+        fwd_rotation_matrix = nx::rotate_y(noa::deg2rad(static_cast<f32>(i++ * 2)));
+
+    for (auto& device: devices) {
+        const auto stream = StreamGuard(device);
+        const auto options = ArrayOption{.device = device, .allocator = Allocator::MANAGED};
+        INFO(device);
+
+        if (fwd_rotation_matrices.device() != device)
+            fwd_rotation_matrices = fwd_rotation_matrices.to({.device = device});
+
+        const Array slice_fft = noa::random(noa::Uniform<TestType>{-10, 10}, slice_shape.rfft(), options);
+        const Array grid_fft0 = noa::zeros<TestType>(grid_shape.rfft(), options);
+        const Array grid_fft1 = grid_fft0.copy();
+
+        nx::insert_central_slices_3d<"hc2hc">(
+            slice_fft, slice_fft.copy(), slice_shape,
+            grid_fft0, grid_fft1, grid_shape,
+            {}, fwd_rotation_matrices, {
+                .windowed_sinc = {.fftfreq_sinc = 0.02, .fftfreq_blackman = 0.06},
+                .fftfreq_cutoff = 0.45
+            });
+        REQUIRE(test::allclose_abs_safe(grid_fft0, grid_fft1, 5e-5));
+    }
+}
+
+TEMPLATE_TEST_CASE("xform::insert_central_slices_3d, texture/remap", "", f32, c32) {
+    auto devices = std::vector<Device>{"cpu"};
+    if (Device::is_any_gpu())
+        devices.emplace_back("gpu");
+
+    constexpr auto slice_shape = Shape<isize, 3>{15, 64, 64};
+    constexpr auto grid_shape = Shape<isize, 3>{128, 128, 128};
+    constexpr auto windowed_sinc = nx::WindowedSinc{.fftfreq_sinc = 0.02, .fftfreq_blackman = 0.06};
+
+    auto inv_rotation_matrices = noa::empty<Mat33<f32>>(slice_shape[0]);
+    for (i64 i{}; auto& inv_rotation_matrix: inv_rotation_matrices.span())
+        inv_rotation_matrix = nx::rotate_y(noa::deg2rad(-static_cast<f32>(i++) * 2));
+
+    for (auto& device: devices) {
+        const auto stream = StreamGuard(device);
+        const auto options = ArrayOption{.device = device, .allocator = Allocator::MANAGED};
+        INFO(device);
+
+        if (inv_rotation_matrices.device() != device)
+            inv_rotation_matrices = inv_rotation_matrices.to({device});
+
+        auto linspace = noa::Linspace{.start = TestType{1}, .stop = TestType{10}, .endpoint = true};
+        const Array slice_fft = noa::linspace(slice_shape.rfft(), linspace, options);
+        const Array grid_fft0 = noa::zeros<TestType>(grid_shape.rfft(), options);
+        const Array grid_fft1 = grid_fft0.copy();
+        const Array grid_fft2 = grid_fft0.copy();
+
+        { // Texture
+            const auto texture_slice_fft = nx::Texture2D<TestType, 3>{slice_fft, device, Interp::LINEAR};
+            nx::insert_central_slices_3d<"hc2h">(
+                slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
+                {}, inv_rotation_matrices, {.windowed_sinc=windowed_sinc, .fftfreq_cutoff=0.45});
+            nx::insert_central_slices_3d<"hc2h">(
+                texture_slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
+                {}, inv_rotation_matrices, {.windowed_sinc=windowed_sinc, .fftfreq_cutoff=0.45});
+
+            REQUIRE(test::allclose_abs_safe(grid_fft0, grid_fft1, 5e-5));
+        }
+
+        { // Remap
+            noa::fill(grid_fft0, {});
+            noa::fill(grid_fft1, {});
+            nx::insert_central_slices_3d<"hc2hc">(
+                slice_fft, {}, slice_shape, grid_fft0, {}, grid_shape,
+                {}, inv_rotation_matrices, {.windowed_sinc = windowed_sinc, .fftfreq_cutoff = 0.5});
+            nx::insert_central_slices_3d<"hc2h">(
+                slice_fft, {}, slice_shape, grid_fft1, {}, grid_shape,
+                {}, inv_rotation_matrices, {.windowed_sinc = windowed_sinc, .fftfreq_cutoff = 0.5});
+            noa::fft::remap_3d("h2hc", grid_fft1, grid_fft2, grid_shape);
+            REQUIRE(test::allclose_abs_safe(grid_fft0, grid_fft2, 5e-5));
+        }
+    }
+}

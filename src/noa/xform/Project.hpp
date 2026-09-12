@@ -132,71 +132,61 @@ namespace noa::xform::details {
              nt::readable_nd<B + 1> Matrix>
     class ForwardProject {
     public:
-        using index_type = Index;
-        using input_type = Input;
-        using output_type = Output;
-        using interpolator_type = Interpolator;
-        using output_value_type = nt::value_type_t<output_type>;
-
-        using batched_matrix_type = Matrix;
-        using matrix_type = nt::mutable_value_type_t<batched_matrix_type>;
+        using output_value_type = nt::value_type_t<Output>;
+        using matrix_type = nt::mutable_value_type_t<Matrix>;
         using coord_type = nt::value_type_t<matrix_type>;
-        using coord_3d_type = Vec<coord_type, 3>;
-        using shape_3d_type = Shape<index_type, 3>;
 
         static_assert(nt::any_of<matrix_type, Mat<coord_type, 4, 4>, Mat<coord_type, 3, 4>>);
-        static_assert(input_type::BORDER == Border::ZERO);
+        static_assert(Interpolator::BORDER == Border::ZERO);
 
     public:
         constexpr ForwardProject(
-            const input_type& input,
-            const interpolator_type& interpolator,
-            const output_type& output,
-            const shape_3d_type& volume_shape,
-            const batched_matrix_type& batched_forward_matrices,
-            index_type projection_window_size
+            const Input& input,
+            const Interpolator& interpolator,
+            const Output& output,
+            const Shape<Index, 3>& volume_shape,
+            const Matrix& batched_forward_matrices,
+            Index projection_window_size
         ) :
             m_input(input),
             m_output(output),
             m_interpolator(interpolator),
             m_batched_forward_matrices(batched_forward_matrices),
-            m_volume_shape(volume_shape),
             m_volume_center((volume_shape.vec / 2).template as<coord_type>()),
             m_projection_window_radius(projection_window_size / 2) {}
 
         // indices: (b..n,z,y,x)
         // For every pixel (y,x) of the forward projected output image n.
         // z is the extra dimension for the projection window (the longest diagonal).
-        constexpr void operator()(nt::compute_handle auto& ch, const Vec<index_type, B + 4>& indices) const {
+        constexpr void operator()(nt::compute_handle auto& ch, const Vec<Index, B + 4>& indices) const {
             const auto batches_n = indices.template pop_back<3>();
             const auto& z = indices[B + 1];
             const auto& y = indices[B + 2];
             const auto& x = indices[B + 3];
 
             const auto affine = m_batched_forward_matrices[batches_n].filter_rows(0, 1, 2); // truncated
-            const auto image_coordinates = coord_3d_type::from_values(z - m_projection_window_radius, y, x);
+            const auto image_coordinates = Vec<coord_type, 3>::from_values(z - m_projection_window_radius, y, x);
             const auto volume_coordinates = forward_projection_transform_vector(
                 image_coordinates, m_volume_center, affine);
 
             // The interpolator handles OOB coordinates using Border::ZERO, so we could skip that.
             // However, we do expect a significant number of cases where the volume_coordinates are OOB,
             // so try to shortcut here directly.
-            if (is_interpolation_window_outbound<input_type::INTERP>(m_volume_shape, volume_coordinates))
+            if (is_interpolation_window_outbound<Interpolator::INTERP>(m_interpolator.shape(), volume_coordinates))
                 return;
 
             const auto value = static_cast<output_value_type>(
-                m_interpolator.get(m_input[batches_n.pop_back()], m_volume_shape, volume_coordinates));
+                m_interpolator.get(m_input[batches_n.pop_back()], volume_coordinates));
             ch.grid().atomic_add(value, m_output, batches_n.push_back(Vec{y, x})); // remove z, sum along z
         }
 
     private:
-        input_type m_input;
-        output_type m_output;
-        interpolator_type m_interpolator;
-        batched_matrix_type m_batched_forward_matrices;
-        shape_3d_type m_volume_shape{};
-        coord_3d_type m_volume_center{};
-        index_type m_projection_window_radius{};
+        Input m_input;
+        Output m_output;
+        Interpolator m_interpolator;
+        Matrix m_batched_forward_matrices;
+        Vec<coord_type, 3> m_volume_center{};
+        Index m_projection_window_radius{};
     };
 
     template<usize B, nt::sinteger Index,
@@ -299,8 +289,8 @@ namespace noa::xform::details {
 
     private:
         input_type m_input;
-        output_type m_output;
         interpolator_type m_interpolator;
+        output_type m_output;
         batched_input_matrix_type m_batched_backward_matrices;
         batched_output_matrix_type m_batched_forward_matrices;
         coord_3d_type m_volume_shape{};
@@ -433,7 +423,7 @@ namespace noa::xform::details {
 
         auto launch_iwise = [&](auto interp) {
             using coord_t = nt::mutable_value_type_twice_t<Transform>;
-            auto result = prepare_interpolation_inputs<3, interp(), Border::ZERO, IS_GPU, Index, coord_t, true>(input);
+            auto result = prepare_interpolation_inputs<3, interp(), Border::ZERO, IS_GPU, Index, coord_t, false>(input);
             using interpolator_t = decltype(result)::interpolator_type;
             using accessor_t = decltype(result)::accessor_type;
             using op_t = ForwardProject<B, Index, interpolator_t, accessor_t, output_accessor_t, xform_accessor_t>;

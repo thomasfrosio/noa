@@ -38,23 +38,23 @@ namespace noa::xform::details {
     // Transforms a 3d fftfreq representing the slice, to its 3d fftfreq in the grid.
     // This is a forward transformation of the frequency, but because it is in Fourier-space,
     // the real-space scaling is inverted.
-    template<nt::real Coord, usize N,
-             nt::readable_nd<N> ScaleOrEmpty,
-             nt::readable_nd<N> Rotate,
-             nt::integer Integer,
-             typename EWSOrEmpty>
+    template<nt::real Coord, nt::integer Index, usize N,
+             typename ScaleOrEmpty, typename Rotate, typename EWSOrEmpty>
     NOA_IHD constexpr auto fourier_slice2grid(
         Vec<Coord, 2> fftfreq,
         const ScaleOrEmpty& inv_scaling,
         const Rotate& fwd_rotation,
-        const Vec<Integer, N>& batches,
+        const Vec<Index, N>& batches,
         EWSOrEmpty inv_ews_diameter
     ) -> Vec<Coord, 3> {
         // If we apply the EWS curvature, the scaling factors should be corrected
         // before applying the curvature, and therefore before applying the rotation.
         // That way, we use the correct frequencies to compute the EWS, e.g., resulting
         // in a spherical EWS even under anisotropic magnification.
-        fftfreq = transform_vector(inv_scaling[batches], fftfreq);
+        if constexpr (nt::accessor_nd<ScaleOrEmpty, N>)
+            fftfreq = transform_vector(inv_scaling[batches], fftfreq);
+        else
+            fftfreq = transform_vector(inv_scaling, fftfreq);
 
         // TODO We use the Small Angle Approximation to compute the EWS curvature,
         //      so the frequency (u,v) is unchanged. Look at the cisTEM implementation
@@ -64,23 +64,26 @@ namespace noa::xform::details {
         if constexpr (not nt::empty<EWSOrEmpty>)
             fftfreq_3d[0] = sum(inv_ews_diameter * fftfreq * fftfreq);
 
-        return transform_vector(fwd_rotation[batches], fftfreq_3d);
+        if constexpr (nt::accessor_nd<Rotate, N>)
+            return transform_vector(fwd_rotation[batches], fftfreq_3d);
+        else
+            return transform_vector(fwd_rotation, fftfreq_3d);
     }
 
     // Same as above, but in the other direction.
-    template<nt::real Coord, usize N,
-             nt::readable_nd<N> ScaleOrEmpty,
-             nt::readable_nd<N> Rotate,
-             nt::integer Integer,
-             typename EWSOrEmpty>
+    template<nt::real Coord, nt::integer Index, usize N,
+             typename ScaleOrEmpty, typename Rotate, typename EWSOrEmpty>
     NOA_IHD constexpr auto fourier_grid2slice(
         Vec<Coord, 3> frequency,
         const ScaleOrEmpty& fwd_scaling_matrices,
         const Rotate& inv_rotation,
-        const Vec<Integer, N>& batches,
+        const Vec<Index, N>& batches,
         EWSOrEmpty inv_ews_diameter
     ) -> Pair<Coord, Vec<Coord, 2>> {
-        frequency = transform_vector(inv_rotation[batches], frequency);
+        if constexpr (nt::accessor_nd<Rotate, N>)
+            frequency = transform_vector(inv_rotation[batches], frequency);
+        else
+            frequency = transform_vector(inv_rotation, frequency);
 
         Vec<Coord, 2> freq_2d{frequency[1], frequency[2]};
         Coord freq_z = frequency[0];
@@ -90,7 +93,10 @@ namespace noa::xform::details {
         // Same reason as for the forward transformation.
         // Here the grid is correct, so rotate the EWS, then compute
         // the curvature and only then we can scale the slice.
-        freq_2d = transform_vector(fwd_scaling_matrices[batches], freq_2d);
+        if constexpr (nt::accessor_nd<ScaleOrEmpty, N>)
+            freq_2d = transform_vector(fwd_scaling_matrices[batches], freq_2d);
+        else
+            freq_2d = transform_vector(fwd_scaling_matrices, freq_2d);
         return {freq_z, freq_2d};
     }
 
@@ -172,42 +178,30 @@ namespace noa::xform::details {
         static constexpr bool ARE_SLICES_CENTERED = REMAP.is_xc2xx();
         static constexpr bool IS_VOLUME_CENTERED = REMAP.is_xx2xc();
 
-        using index_type = Index;
-        using scale_type = Scale;
-        using rotate_type = Rotate;
-        using ews_type = EWSCurvature;
-        using coord_type = nt::value_type_twice_t<rotate_type>;
-        using coord2_type = Vec<coord_type, 2>;
-        using coord3_type = Vec<coord_type, 3>;
-        using shape3_type = Shape<index_type, 3>;
-
-        using input_type = InputSlice;
-        using output_type = OutputVolume;
-        using input_weight_type = InputWeight;
-        using output_weight_type = OutputWeight;
-        using input_value_type = nt::mutable_value_type_t<input_type>;
+        using coord_type = nt::value_type_twice_t<Rotate>;
+        using input_value_type = nt::mutable_value_type_t<InputSlice>;
         using input_real_type = nt::value_type_t<input_value_type>;
-        using output_value_type = nt::value_type_t<output_type>;
+        using output_value_type = nt::value_type_t<OutputVolume>;
         using output_real_type = nt::value_type_t<output_value_type>;
-        using output_weight_value_type = nt::value_type_t<output_weight_type>;
+        using output_weight_value_type = nt::value_type_t<OutputWeight>;
 
-        static_assert(fourier_projection_transform_types<scale_type, rotate_type, ews_type> and
-                      fourier_projection_types<input_type, output_type> and
-                      fourier_projection_weight_types<input_weight_type, output_weight_type>);
+        static_assert(fourier_projection_transform_types<Scale, Rotate, EWSCurvature> and
+                      fourier_projection_types<InputSlice, OutputVolume> and
+                      fourier_projection_weight_types<InputWeight, OutputWeight>);
 
     public:
         constexpr FourierInsertRasterize(
-            const input_type& input_slices,
-            const input_weight_type& input_weights,
-            const Shape<index_type, 2>& input_slice_shape,
-            const output_type& output_volume,
-            const output_weight_type& output_weights,
-            const Shape<index_type, 3>& output_volume_shape,
-            const scale_type& inv_scaling,
-            const rotate_type& fwd_rotation,
+            const InputSlice& input_slices,
+            const InputWeight& input_weights,
+            const Shape<Index, 2>& input_slice_shape,
+            const OutputVolume& output_volume,
+            const OutputWeight& output_weights,
+            const Shape<Index, 3>& output_volume_shape,
+            const Scale& inv_scaling,
+            const Rotate& fwd_rotation,
             coord_type fftfreq_cutoff,
-            const Shape<index_type, 3>& target_shape,
-            const ews_type& ews_radius
+            const Shape<Index, 3>& target_shape,
+            const EWSCurvature& ews_radius
         ) :
             m_input_slices(input_slices),
             m_output_volume(output_volume),
@@ -218,33 +212,32 @@ namespace noa::xform::details {
             m_inv_scaling(inv_scaling)
         {
             m_slice_size_y = input_slice_shape[0];
-            m_f_slice_shape = coord2_type::from_vec(input_slice_shape.vec);
+            m_f_slice_shape = Vec<coord_type, 2>::from_vec(input_slice_shape.vec);
 
             // Use the grid shape as backup.
             const auto target_shape_3d = target_shape.any_eq(0) ? m_grid_shape : target_shape;
-            m_f_target_shape = coord3_type::from_vec(target_shape_3d.vec);
+            m_f_target_shape = Vec<coord_type, 3>::from_vec(target_shape_3d.vec);
 
             // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
             // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
-            if constexpr (not nt::empty<ews_type>)
-                m_ews_diam_inv = ews_radius != 0 ? 1 / (2 * ews_radius) : ews_type{};
+            if constexpr (not nt::empty<EWSCurvature>)
+                m_ews_diam_inv = ews_radius != 0 ? 1 / (2 * ews_radius) : EWSCurvature{};
 
             m_fftfreq_cutoff_sqd = max(fftfreq_cutoff, coord_type{});
             m_fftfreq_cutoff_sqd *= m_fftfreq_cutoff_sqd;
         }
 
         // For every pixel of every central slice to insert.
-        NOA_HD void operator()(nt::compute_handle auto& ch, const Vec<index_type, B + 3>& batched_indices) const {
+        NOA_HD void operator()(nt::compute_handle auto& ch, const Vec<Index, B + 3>& batched_indices) const { // (b..,n,h,w)
             auto batches = batched_indices.template pop_back<2>();
             const auto& y = batched_indices[B + 1];
             const auto& u = batched_indices[B + 2]; // x == u
 
             // We compute the forward transformation and use normalized frequencies.
             // The oversampling is implicitly handled when scaling back to the target shape.
-            const index_type v = nf::index2frequency<ARE_SLICES_CENTERED>(y, m_slice_size_y);
-            const auto fftfreq_2d = coord2_type::from_values(v, u) / m_f_slice_shape;
-            coord3_type fftfreq_3d = fourier_slice2grid(
-                fftfreq_2d, m_inv_scaling, m_fwd_rotation, batches, m_ews_diam_inv);
+            const Index v = nf::index2frequency<ARE_SLICES_CENTERED>(y, m_slice_size_y);
+            const auto fftfreq_2d = Vec<coord_type, 2>::from_values(v, u) / m_f_slice_shape;
+            auto fftfreq_3d = fourier_slice2grid(fftfreq_2d, m_inv_scaling, m_fwd_rotation, batches, m_ews_diam_inv);
 
             // The frequency rate won't change from that point, so check for the cutoff.
             if (dot(fftfreq_3d, fftfreq_3d) > m_fftfreq_cutoff_sqd)
@@ -270,7 +263,7 @@ namespace noa::xform::details {
         }
 
     private:
-        NOA_HD constexpr auto get_input_value_(input_real_type conjugate, const Vec<index_type, B + 3>& batched_indices) const {
+        NOA_HD constexpr auto get_input_value_(input_real_type conjugate, const Vec<Index, B + 3>& batched_indices) const {
             auto value = m_input_slices[batched_indices];
             if constexpr (nt::complex<input_value_type, output_value_type>) {
                 return static_cast<output_value_type>(value * conjugate);
@@ -279,10 +272,10 @@ namespace noa::xform::details {
             }
         }
 
-        NOA_HD constexpr auto get_input_weight_(const Vec<index_type, B + 3>& batched_indices) const {
-            if constexpr (nt::empty<output_weight_type>)
+        NOA_HD constexpr auto get_input_weight_(const Vec<Index, B + 3>& batched_indices) const {
+            if constexpr (nt::empty<OutputWeight>)
                 return output_weight_value_type{}; // no weights
-            else if constexpr (nt::empty<input_weight_type>)
+            else if constexpr (nt::empty<InputWeight>)
                 return output_weight_value_type{1}; // default weights
             else
                 return static_cast<output_weight_value_type>(m_input_weights[batched_indices]);
@@ -291,7 +284,7 @@ namespace noa::xform::details {
         // The gridding/rasterization kernel is a trilinear pulse.
         // The total weight within the 2x2x2 cube is 1.
         NOA_HD static constexpr void set_rasterization_weights_(
-            const Vec<index_type, 3>& base0,
+            const Vec<Index, 3>& base0,
             const Vec<coord_type, 3>& freq,
             coord_type o_weights[2][2][2]
         ) noexcept {
@@ -300,9 +293,9 @@ namespace noa::xform::details {
             Vec<coord_type, 3> fraction[2];
             fraction[1] = freq - base0.template as<coord_type>();
             fraction[0] = 1 - fraction[1];
-            for (index_type w{}; w < 2; ++w)
-                for (index_type v{}; v < 2; ++v)
-                    for (index_type u{}; u < 2; ++u)
+            for (Index w{}; w < 2; ++w)
+                for (Index v{}; v < 2; ++v)
+                    for (Index u{}; u < 2; ++u)
                         o_weights[w][v][u] = fraction[w][0] * fraction[v][1] * fraction[u][2];
         }
 
@@ -315,20 +308,20 @@ namespace noa::xform::details {
             const output_weight_value_type& weight,
             const Vec<coord_type, 3>& frequency // in samples
         ) const noexcept {
-            const auto base0 = floor(frequency).template as<index_type>();
+            const auto base0 = floor(frequency).template as<Index>();
 
             coord_type kernel[2][2][2]; // 2x2x2 trilinear weights
             set_rasterization_weights_(base0, frequency, kernel);
 
             using namespace ::noa::fft;
-            constexpr bool has_weights = not nt::empty<output_weight_type>;
+            constexpr bool has_weights = not nt::empty<OutputWeight>;
 
-            for (index_type w{}; w < 2; ++w) {
-                for (index_type v{}; v < 2; ++v) {
-                    for (index_type u{}; u < 2; ++u) {
-                        const index_type idx_w = frequency2index<IS_VOLUME_CENTERED>(base0[0] + w, m_grid_shape[0]);
-                        const index_type idx_v = frequency2index<IS_VOLUME_CENTERED>(base0[1] + v, m_grid_shape[1]);
-                        const index_type idx_u = base0[2] + u;
+            for (Index w{}; w < 2; ++w) {
+                for (Index v{}; v < 2; ++v) {
+                    for (Index u{}; u < 2; ++u) {
+                        const Index idx_w = frequency2index<IS_VOLUME_CENTERED>(base0[0] + w, m_grid_shape[0]);
+                        const Index idx_v = frequency2index<IS_VOLUME_CENTERED>(base0[1] + v, m_grid_shape[1]);
+                        const Index idx_u = base0[2] + u;
 
                         if (idx_w >= 0 and idx_w < m_grid_shape[0] and
                             idx_v >= 0 and idx_v < m_grid_shape[1] and
@@ -353,21 +346,21 @@ namespace noa::xform::details {
                 if constexpr (nt::complex<output_value_type>)
                     value.imag = -value.imag;
 
-                for (index_type w{}; w < 2; ++w) {
-                    for (index_type v{}; v < 2; ++v) {
-                        const index_type idx_w = frequency2index<IS_VOLUME_CENTERED>(-(base0[0] + w), m_grid_shape[0]);
-                        const index_type idx_v = frequency2index<IS_VOLUME_CENTERED>(-(base0[1] + v), m_grid_shape[1]);
+                for (Index w{}; w < 2; ++w) {
+                    for (Index v{}; v < 2; ++v) {
+                        const Index idx_w = frequency2index<IS_VOLUME_CENTERED>(-(base0[0] + w), m_grid_shape[0]);
+                        const Index idx_v = frequency2index<IS_VOLUME_CENTERED>(-(base0[1] + v), m_grid_shape[1]);
 
                         if (idx_w >= 0 and idx_w < m_grid_shape[0] and
                             idx_v >= 0 and idx_v < m_grid_shape[1]) {
                             const auto fraction = kernel[w][v][0];
                             ch_grid.atomic_add(
                                 value * static_cast<output_real_type>(fraction),
-                                m_output_volume, idx_w, idx_v, index_type{});
+                                m_output_volume, idx_w, idx_v, Index{});
                             if constexpr (has_weights) {
                                 ch_grid.atomic_add(
                                     weight * static_cast<output_weight_value_type>(fraction),
-                                    m_output_weights, idx_w, idx_v, index_type{});
+                                    m_output_weights, idx_w, idx_v, Index{});
                             }
                         }
                     }
@@ -376,20 +369,20 @@ namespace noa::xform::details {
         }
 
     private:
-        input_type m_input_slices;
-        output_type m_output_volume;
+        InputSlice m_input_slices;
+        OutputVolume m_output_volume;
 
-        rotate_type m_fwd_rotation;
-        shape3_type m_grid_shape;
-        index_type m_slice_size_y;
-        coord3_type m_f_target_shape;
-        coord2_type m_f_slice_shape;
+        Rotate m_fwd_rotation;
+        Shape<Index, 3> m_grid_shape;
+        Index m_slice_size_y;
+        Vec<coord_type, 3> m_f_target_shape;
+        Vec<coord_type, 2> m_f_slice_shape;
         coord_type m_fftfreq_cutoff_sqd;
 
-        NOA_NO_UNIQUE_ADDRESS input_weight_type m_input_weights;
-        NOA_NO_UNIQUE_ADDRESS output_weight_type m_output_weights;
-        NOA_NO_UNIQUE_ADDRESS scale_type m_inv_scaling;
-        NOA_NO_UNIQUE_ADDRESS ews_type m_ews_diam_inv{};
+        NOA_NO_UNIQUE_ADDRESS InputWeight m_input_weights;
+        NOA_NO_UNIQUE_ADDRESS OutputWeight m_output_weights;
+        NOA_NO_UNIQUE_ADDRESS Scale m_inv_scaling;
+        NOA_NO_UNIQUE_ADDRESS EWSCurvature m_ews_diam_inv{};
     };
 
     template<nf::Layout REMAP,
@@ -397,7 +390,7 @@ namespace noa::xform::details {
              nt::readable_nd<B + 1> Scale,
              nt::readable_nd<B + 1> Rotate,
              typename EWSCurvature,
-             nt::readable_nd<B + 2> InputSlice,
+             nt::readable_nd<B + 3> InputSlice,
              nt::interpolator_spectrum_nd<2> InputSliceInterpolator,
              nt::readable_nd_or_empty<B + 3> InputSliceWeight,
              nt::interpolator_spectrum_nd_or_empty<2> InputSliceWeightInterpolator,
@@ -407,52 +400,40 @@ namespace noa::xform::details {
         static constexpr bool IS_VOLUME_CENTERED = REMAP.is_xx2xc();
         static constexpr bool IS_VOLUME_RFFT = REMAP.is_xx2hx();
 
-        using index_type = Index;
-        using scale_type = Scale;
-        using rotate_type = Rotate;
-        using ews_type = EWSCurvature;
-        using coord_type = nt::value_type_twice_t<rotate_type>;
-        using coord2_type = Vec<coord_type, 2>;
-        using coord3_type = Vec<coord_type, 3>;
-        using shape_nd_type = Shape<index_type, 3 - IS_VOLUME_RFFT>;
+        using coord_type = nt::value_type_twice_t<Rotate>;
+        using shape_3d_truncated_type = Shape<Index, 3 - IS_VOLUME_RFFT>;
 
-        using input_type = InputSlice;
-        using input_interpolator_type = InputSliceInterpolator;
-        using input_weight_type = InputSliceWeight;
-        using input_weight_interpolator_type = InputSliceWeightInterpolator;
-        using output_type = OutputVolume;
-        using output_weight_type = OutputVolumeWeight;
-        using input_value_type = nt::mutable_value_type_t<input_type>;
+        using input_value_type = nt::mutable_value_type_t<InputSlice>;
         using input_real_type = nt::value_type_t<input_value_type>;
-        using output_value_type = nt::value_type_t<output_type>;
-        static constexpr bool has_input_weights = not nt::empty<input_weight_type>;
-        static constexpr bool has_output_weights = not nt::empty<output_weight_type>;
-        using output_weight_value_type = nt::value_type_t<output_weight_type>;
+        using output_value_type = nt::value_type_t<OutputVolume>;
+        static constexpr bool has_input_weights = not nt::empty<InputSliceWeight>;
+        static constexpr bool has_output_weights = not nt::empty<OutputVolumeWeight>;
+        using output_weight_value_type = nt::value_type_t<OutputVolumeWeight>;
         using input_weight_value_type = std::conditional_t<
-            has_input_weights, nt::mutable_value_type_t<input_weight_type>, output_weight_value_type>;
+            has_input_weights, nt::mutable_value_type_t<InputSliceWeight>, output_weight_value_type>;
 
-        static_assert(fourier_projection_transform_types<scale_type, rotate_type, ews_type> and
-                      fourier_projection_types<input_type, output_type> and
-                      fourier_projection_weight_types<input_weight_type, output_weight_type>);
+        static_assert(fourier_projection_transform_types<Scale, Rotate, EWSCurvature> and
+                      fourier_projection_types<InputSlice, OutputVolume> and
+                      fourier_projection_weight_types<InputSliceWeight, OutputVolumeWeight>);
 
     public:
         FourierInsertInterpolate(
-            const input_type& input_slices,
-            const input_interpolator_type& input_slices_interpolator,
-            const input_weight_type& input_weights,
-            const input_weight_interpolator_type& input_weights_interpolator,
-            const Shape<index_type, 2>& input_slice_shape,
-            index_type slice_count,
-            const output_type& output_volume,
-            const output_weight_type& output_weights,
-            const Shape<index_type, 3>& output_volume_shape,
-            const scale_type& fwd_scaling,
-            const rotate_type& inv_rotation,
+            const InputSlice& input_slices,
+            const InputSliceInterpolator& input_slices_interpolator,
+            const InputSliceWeight& input_weights,
+            const InputSliceWeightInterpolator& input_weights_interpolator,
+            const Shape<Index, 2>& input_slice_shape,
+            Index slice_count,
+            const OutputVolume& output_volume,
+            const OutputVolumeWeight& output_weights,
+            const Shape<Index, 3>& output_volume_shape,
+            const Scale& fwd_scaling,
+            const Rotate& inv_rotation,
             coord_type fftfreq_sinc,
             coord_type fftfreq_blackman,
             coord_type fftfreq_cutoff,
-            const Shape<index_type, 3>& target_shape,
-            const ews_type& ews_radius
+            const Shape<Index, 3>& target_shape,
+            const EWSCurvature& ews_radius
         ) :
             m_input_slices(input_slices),
             m_input_slices_interpolator(input_slices_interpolator),
@@ -464,16 +445,16 @@ namespace noa::xform::details {
             m_output_weights(output_weights),
             m_fwd_scaling(fwd_scaling)
         {
-            m_f_slice_shape = coord2_type::from_vec(input_slice_shape.vec);
+            m_f_slice_shape = Vec<coord_type, 2>::from_vec(input_slice_shape.vec);
 
             const auto l_target_shape = target_shape.any_eq(0) ? output_volume_shape : target_shape;
             m_grid_shape = output_volume_shape.template pop_back<IS_VOLUME_RFFT>();
-            m_f_target_shape = coord3_type::from_vec(l_target_shape.vec);
+            m_f_target_shape = Vec<coord_type, 3>::from_vec(l_target_shape.vec);
 
             // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
             // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
-            if constexpr (not nt::empty<ews_type>)
-                m_ews_diam_inv = ews_radius != 0 ? 1 / (2 * ews_radius) : ews_type{};
+            if constexpr (not nt::empty<EWSCurvature>)
+                m_ews_diam_inv = ews_radius != 0 ? 1 / (2 * ews_radius) : EWSCurvature{};
 
             m_fftfreq_cutoff_sqd = max(fftfreq_cutoff, coord_type{});
             m_fftfreq_cutoff_sqd *= m_fftfreq_cutoff_sqd;
@@ -485,10 +466,10 @@ namespace noa::xform::details {
         }
 
         // For every voxel of the grid.
-        NOA_HD void operator()(const Vec<index_type, B + 3>& output_batched_indices) const noexcept {
-            const auto& [batches, output_indices] = output_batched_indices.template split_at<B>();
+        NOA_HD void operator()(const Vec<Index, B + 3>& output_batched_indices) const noexcept { // (b..,d,h,w)
+            const auto& [batches, output_indices] = output_batched_indices.template split<B>();
             const auto frequency = nf::index2frequency<IS_VOLUME_CENTERED, IS_VOLUME_RFFT>(output_indices, m_grid_shape);
-            const auto fftfreq = coord3_type::from_vec(frequency) / m_f_target_shape;
+            const auto fftfreq = Vec<coord_type, 3>::from_vec(frequency) / m_f_target_shape;
             if (dot(fftfreq, fftfreq) > m_fftfreq_cutoff_sqd)
                 return;
 
@@ -505,9 +486,9 @@ namespace noa::xform::details {
                     return Empty{};
             }();
 
-            for (index_type i{}; i < m_slice_count; ++i) {
+            for (Index i{}; i < m_slice_count; ++i) {
                 const auto [fftfreq_z, fftfreq_2d] = fourier_grid2slice(
-                    fftfreq, fwd_scaling, inv_rotation, i, m_ews_diam_inv);
+                    fftfreq, fwd_scaling, inv_rotation, Vec{i}, m_ews_diam_inv);
 
                 input_value_type i_value{};
                 input_weight_value_type i_weights{};
@@ -539,25 +520,25 @@ namespace noa::xform::details {
         }
 
     private:
-        input_type m_input_slices;
-        input_interpolator_type m_input_slices_interpolator;
-        output_type m_output_volume;
+        InputSlice m_input_slices;
+        InputSliceInterpolator m_input_slices_interpolator;
+        OutputVolume m_output_volume;
 
-        rotate_type m_inv_rotation;
-        shape_nd_type m_grid_shape;
-        coord3_type m_f_target_shape;
-        coord2_type m_f_slice_shape;
-        index_type m_slice_count;
+        Rotate m_inv_rotation;
+        shape_3d_truncated_type m_grid_shape;
+        Vec<coord_type, 3> m_f_target_shape;
+        Vec<coord_type, 2> m_f_slice_shape;
+        Index m_slice_count;
 
         coord_type m_fftfreq_cutoff_sqd;
         coord_type m_fftfreq_sinc;
         coord_type m_fftfreq_blackman;
 
-        NOA_NO_UNIQUE_ADDRESS input_weight_type m_input_weights;
-        NOA_NO_UNIQUE_ADDRESS input_weight_interpolator_type m_input_weights_interpolator;
-        NOA_NO_UNIQUE_ADDRESS output_weight_type m_output_weights;
-        NOA_NO_UNIQUE_ADDRESS scale_type m_fwd_scaling;
-        NOA_NO_UNIQUE_ADDRESS ews_type m_ews_diam_inv{};
+        NOA_NO_UNIQUE_ADDRESS InputSliceWeight m_input_weights;
+        NOA_NO_UNIQUE_ADDRESS InputSliceWeightInterpolator m_input_weights_interpolator;
+        NOA_NO_UNIQUE_ADDRESS OutputVolumeWeight m_output_weights;
+        NOA_NO_UNIQUE_ADDRESS Scale m_fwd_scaling;
+        NOA_NO_UNIQUE_ADDRESS EWSCurvature m_ews_diam_inv{};
     };
 
     template<nf::Layout REMAP,
@@ -575,53 +556,39 @@ namespace noa::xform::details {
         static constexpr bool ARE_SLICES_CENTERED = REMAP.is_xx2xc();
         static constexpr bool ARE_SLICES_RFFT = REMAP.is_xx2hx();
 
-        using index_type = Index;
-        using shape_nd_type = Shape<index_type, 2 - ARE_SLICES_RFFT>;
-
-        using input_type = InputVolume;
-        using input_interpolator_type = InputVolumeInterpolator;
-        using input_weight_type = InputWeight;
-        using input_weight_interpolator_type = InputWeightInterpolator;
-        using output_type = OutputSlice;
-        using output_weight_type = OutputWeight;
-        using input_value_type = nt::mutable_value_type_t<input_type>;
-        using output_value_type = nt::value_type_t<output_type>;
+        using shape_2d_truncated_type = Shape<Index, 2 - ARE_SLICES_RFFT>;
+        using input_value_type = nt::mutable_value_type_t<InputVolume>;
+        using output_value_type = nt::value_type_t<OutputSlice>;
         using output_real_type = nt::value_type_t<output_value_type>;
-        using output_weight_value_type = nt::value_type_t<output_weight_type>;
+        using output_weight_value_type = nt::value_type_t<OutputWeight>;
+        using coord_type = nt::value_type_twice_t<Rotate>;
 
-        using batched_scale_type = Scale;
-        using batched_rotate_type = Rotate;
-        using ews_type = EWSCurvature;
-        using coord_type = nt::value_type_twice_t<batched_rotate_type>;
-        using coord2_type = Vec<coord_type, 2>;
-        using coord3_type = Vec<coord_type, 3>;
-
-        static_assert(fourier_projection_transform_types<batched_scale_type, batched_rotate_type, ews_type> and
-                      fourier_projection_types<input_type, output_type> and
-                      fourier_projection_weight_types<input_weight_type, output_weight_type>);
+        static_assert(fourier_projection_transform_types<Scale, Rotate, EWSCurvature> and
+                      fourier_projection_types<InputVolume, OutputSlice> and
+                      fourier_projection_weight_types<InputWeight, OutputWeight>);
 
         // Optional operator requires atomic_add.
         static constexpr bool are_outputs_atomic =
-            nt::atomic_addable_nd<output_type, 3> and
-            nt::atomic_addable_nd_or_empty<output_weight_type, 3>;
+            nt::atomic_addable_nd<OutputSlice, 3> and
+            nt::atomic_addable_nd_or_empty<OutputWeight, 3>;
 
     public:
         FourierExtract(
-            const input_type& input_volume,
-            const input_interpolator_type& input_volume_interpolator,
-            const input_weight_type& input_weights,
-            const input_weight_interpolator_type& input_weight_interpolator,
-            const Shape<index_type, 3>& input_volume_shape,
-            const output_type& output_slices,
-            const output_weight_type& output_weights,
-            const Shape<index_type, 2>& output_slice_shape,
-            const batched_scale_type& inv_scaling,
-            const batched_rotate_type& fwd_rotation,
+            const InputVolume& input_volume,
+            const InputVolumeInterpolator& input_volume_interpolator,
+            const InputWeight& input_weights,
+            const InputWeightInterpolator& input_weight_interpolator,
+            const Shape<Index, 3>& input_volume_shape,
+            const OutputSlice& output_slices,
+            const OutputWeight& output_weights,
+            const Shape<Index, 2>& output_slice_shape,
+            const Scale& inv_scaling,
+            const Rotate& fwd_rotation,
             coord_type fftfreq_sinc,
             coord_type fftfreq_blackman,
             coord_type fftfreq_cutoff,
-            const Shape<index_type, 3>& target_shape,
-            const ews_type& ews_radius
+            const Shape<Index, 3>& target_shape,
+            const EWSCurvature& ews_radius
         ) :
             m_input_volume(input_volume),
             m_input_volume_interpolator(input_volume_interpolator),
@@ -633,16 +600,16 @@ namespace noa::xform::details {
             m_inv_scaling(inv_scaling)
         {
             m_slice_shape = output_slice_shape.template pop_back<ARE_SLICES_RFFT>();
-            m_f_slice_shape = coord2_type::from_vec(output_slice_shape.vec);
+            m_f_slice_shape = Vec<coord_type, 2>::from_vec(output_slice_shape.vec);
 
             // Use the grid shape as backup.
             const auto target_shape_3d = target_shape.any_eq(0) ? input_volume_shape : target_shape;
-            m_f_target_shape = coord3_type::from_vec(target_shape_3d.vec);
+            m_f_target_shape = Vec<coord_type, 3>::from_vec(target_shape_3d.vec);
 
             // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
             // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
-            if constexpr (not nt::empty<ews_type>)
-                m_ews_diam_inv = ews_radius != 0 ? 1 / (2 * ews_radius) : ews_type{};
+            if constexpr (not nt::empty<EWSCurvature>)
+                m_ews_diam_inv = ews_radius != 0 ? 1 / (2 * ews_radius) : EWSCurvature{};
 
             m_fftfreq_cutoff_sqd = max(fftfreq_cutoff, coord_type{0});
             m_fftfreq_cutoff_sqd *= m_fftfreq_cutoff_sqd;
@@ -650,30 +617,31 @@ namespace noa::xform::details {
             // This is along the w of the grid.
             m_fftfreq_sinc = max(fftfreq_sinc, 1 / m_f_target_shape[0]);
             m_fftfreq_blackman = max(fftfreq_blackman, 1 / m_f_target_shape[0]);
-            m_blackman_size = details::z_window_spec<index_type>(
+            m_blackman_size = details::z_window_spec<Index>(
                 m_fftfreq_sinc, m_fftfreq_blackman, m_f_target_shape[0]).first;
         }
 
-        [[nodiscard]] constexpr index_type windowed_sinc_size() const noexcept { return m_blackman_size; }
+        [[nodiscard]] constexpr Index windowed_sinc_size() const noexcept { return m_blackman_size; }
 
         // For every pixel of every slice to extract.
-        NOA_HD constexpr void operator()(const Vec<index_type, B + 3>& batched_indices) const {
-            const auto& [batches, indices] = batched_indices.template split_at<B>();
-            const coord3_type fftfreq_3d = compute_fftfreq_in_volume_(batches, indices);
+        NOA_HD constexpr void operator()(const Vec<Index, B + 3>& batched_indices) const { // (b..,n,h,w)
+            const auto& [bn, hw] = batched_indices.template split<B + 1>();
+            const Vec<coord_type, 3> fftfreq_3d = compute_fftfreq_in_volume_(bn, hw);
 
             output_value_type value{};
             output_weight_value_type weight{};
 
+            const auto b = bn.pop_back();
             if (dot(fftfreq_3d, fftfreq_3d) <= m_fftfreq_cutoff_sqd) {
                 const auto frequency_3d = fftfreq_3d * m_f_target_shape;
                 value = cast_or_abs_squared<output_value_type>(
-                        m_input_volume_interpolator.get(m_input_volume[batches], frequency_3d));
+                        m_input_volume_interpolator.get(m_input_volume[b], frequency_3d));
 
                 // Passing no input weights is technically allowed, but does nothing other than returning ones.
-                if constexpr (not nt::empty<output_weight_type>) {
-                    if constexpr (not nt::empty<input_weight_type>) {
+                if constexpr (not nt::empty<OutputWeight>) {
+                    if constexpr (not nt::empty<InputWeight>) {
                         weight = static_cast<output_weight_value_type>(
-                                m_input_weights_interpolator.get(m_input_weights[batches], frequency_3d));
+                                m_input_weights_interpolator.get(m_input_weights[b], frequency_3d));
                     } else {
                         weight = 1;
                     }
@@ -681,24 +649,24 @@ namespace noa::xform::details {
             }
 
             m_output_slices[batched_indices] = value;
-            if constexpr (not nt::empty<output_weight_type>)
+            if constexpr (not nt::empty<OutputWeight>)
                 m_output_weights[batched_indices] = weight;
         }
 
         // For every pixel of every slice to extract.
-        // w is the index within the windowed-sinc convolution along the z of the grid.
+        // s is the index within the windowed-sinc convolution along the z of the grid.
         NOA_HD constexpr void operator()(
             nt::compute_handle auto& ch,
-            const Vec<index_type, B + 4>& batched_indices // (b..,ow,oy,ou)
+            const Vec<Index, B + 4>& batched_indices // (b..,n,s,h,w)
         ) const requires are_outputs_atomic {
-            const auto batches = batched_indices.template pop_back<4>();
-            const auto& ow = batched_indices[B];
-            const auto indices = batched_indices.template pop_front<B + 1>();
+            const auto batches_n = batched_indices.template pop_back<3>(); // (b..,n)
+            const auto s = batched_indices[B + 1];
+            const auto indices = batched_indices.template pop_front<B + 2>(); // (h,w)
 
-            coord3_type fftfreq_3d = compute_fftfreq_in_volume_(batches, indices);
+            Vec<coord_type, 3> fftfreq_3d = compute_fftfreq_in_volume_(batches_n, indices);
 
             // Additional z component, within the grid coordinate system.
-            const auto fftfreq_z_offset = details::w_index_to_fftfreq_offset(ow, m_blackman_size, m_f_target_shape[0]);
+            const auto fftfreq_z_offset = details::w_index_to_fftfreq_offset(s, m_blackman_size, m_f_target_shape[0]);
             fftfreq_3d[0] += fftfreq_z_offset;
 
             if (dot(fftfreq_3d, fftfreq_3d) > m_fftfreq_cutoff_sqd)
@@ -707,14 +675,15 @@ namespace noa::xform::details {
             const auto frequency_3d = fftfreq_3d * m_f_target_shape;
             const auto convolution_weight = details::windowed_sinc(fftfreq_z_offset, m_fftfreq_sinc, m_fftfreq_blackman);
 
+            const auto batches = batches_n.pop_back();
             const auto value = m_input_volume_interpolator.get(m_input_volume[batches], frequency_3d);
             ch.grid().atomic_add(
                 cast_or_abs_squared<output_value_type>(value) * static_cast<output_real_type>(convolution_weight),
-                m_output_slices[batches], indices);
+                m_output_slices[batches_n], indices);
 
-            if constexpr (not nt::empty<output_weight_type>) {
+            if constexpr (not nt::empty<OutputWeight>) {
                 output_weight_value_type weight;
-                if constexpr (not nt::empty<input_weight_type>) {
+                if constexpr (not nt::empty<InputWeight>) {
                     weight = static_cast<output_weight_value_type>(
                         m_input_weights_interpolator.get(m_input_weights[batches], frequency_3d));
                 } else {
@@ -722,39 +691,42 @@ namespace noa::xform::details {
                 }
                 ch.grid().atomic_add(
                     weight * static_cast<output_weight_value_type>(convolution_weight),
-                    m_output_weights[batches], indices);
+                    m_output_weights[batches_n], indices);
             }
         }
 
     private:
         // The indexes give us the fftfreq in the coordinate system of the slice to extract.
         // This function transforms this fftfreq to the coordinate system of the volume.
-        NOA_HD coord3_type compute_fftfreq_in_volume_(const Vec<index_type, B>& batches, const Vec<index_type, 2>& indices) const {
+        NOA_HD auto compute_fftfreq_in_volume_(
+            const Vec<Index, B + 1>& batches_n,
+            const Vec<Index, 2>& indices
+        ) const -> Vec<coord_type, 3> {
             const auto frequency_2d = nf::index2frequency<ARE_SLICES_CENTERED, ARE_SLICES_RFFT>(indices, m_slice_shape);
-            const auto fftfreq_2d = coord2_type::from_vec(frequency_2d) / m_f_slice_shape;
-            return fourier_slice2grid(fftfreq_2d, m_inv_scaling, m_fwd_rotation, batches, m_ews_diam_inv);
+            const auto fftfreq_2d = Vec<coord_type, 2>::from_vec(frequency_2d) / m_f_slice_shape;
+            return fourier_slice2grid(fftfreq_2d, m_inv_scaling, m_fwd_rotation, batches_n, m_ews_diam_inv);
         }
 
     private:
-        input_type m_input_volume;
-        input_interpolator_type m_input_volume_interpolator;
-        output_type m_output_slices;
+        InputVolume m_input_volume;
+        InputVolumeInterpolator m_input_volume_interpolator;
+        OutputSlice m_output_slices;
 
-        batched_rotate_type m_fwd_rotation;
-        coord3_type m_f_target_shape;
-        coord2_type m_f_slice_shape;
-        shape_nd_type m_slice_shape;
+        Rotate m_fwd_rotation;
+        Vec<coord_type, 3> m_f_target_shape;
+        Vec<coord_type, 2> m_f_slice_shape;
+        shape_2d_truncated_type m_slice_shape;
 
         coord_type m_fftfreq_cutoff_sqd;
         coord_type m_fftfreq_sinc;
         coord_type m_fftfreq_blackman;
-        index_type m_blackman_size;
+        Index m_blackman_size;
 
-        NOA_NO_UNIQUE_ADDRESS input_weight_type m_input_weights;
-        NOA_NO_UNIQUE_ADDRESS input_weight_interpolator_type m_input_weights_interpolator;
-        NOA_NO_UNIQUE_ADDRESS output_weight_type m_output_weights;
-        NOA_NO_UNIQUE_ADDRESS batched_scale_type m_inv_scaling;
-        NOA_NO_UNIQUE_ADDRESS ews_type m_ews_diam_inv{};
+        NOA_NO_UNIQUE_ADDRESS InputWeight m_input_weights;
+        NOA_NO_UNIQUE_ADDRESS InputWeightInterpolator m_input_weights_interpolator;
+        NOA_NO_UNIQUE_ADDRESS OutputWeight m_output_weights;
+        NOA_NO_UNIQUE_ADDRESS Scale m_inv_scaling;
+        NOA_NO_UNIQUE_ADDRESS EWSCurvature m_ews_diam_inv{};
     };
 
     template<nf::Layout REMAP,
@@ -774,66 +746,48 @@ namespace noa::xform::details {
         static constexpr bool ARE_OUTPUT_SLICES_CENTERED = REMAP.is_xx2xc();
         static constexpr bool ARE_OUTPUT_SLICES_RFFT = REMAP.is_xx2hx();
 
-        using index_type = Index;
-        using shape_nd_type = Shape<index_type, 2 - ARE_OUTPUT_SLICES_RFFT>;
-
-        // Transformations:
-        using input_scale_type = InputScale;
-        using input_rotate_type = InputRotate;
-        using output_scale_type = OutputScale;
-        using output_rotate_type = OutputRotate;
-        using ews_type = EWSCurvature;
-        using coord_type = nt::value_type_twice_t<input_rotate_type>;
-        using coord2_type = Vec<coord_type, 2>;
-        using coord3_type = Vec<coord_type, 3>;
-
-        // Input/Output value types:
-        using input_type = InputSlice;
-        using input_interpolator_type = InputSliceInterpolator;
-        using input_weight_type = InputSliceWeight;
-        using input_weight_interpolator_type = InputSliceWeightInterpolator;
-        using output_type = OutputSlice;
-        using output_weight_type = OutputSliceWeight;
-        using input_value_type = nt::mutable_value_type_t<input_type>;
-        using output_value_type = nt::value_type_t<output_type>;
+        using shape_2d_truncated_type = Shape<Index, 2 - ARE_OUTPUT_SLICES_RFFT>;
+        using coord_type = nt::value_type_twice_t<InputRotate>;
+        using input_value_type = nt::mutable_value_type_t<InputSlice>;
+        using output_value_type = nt::value_type_t<OutputSlice>;
         using input_real_type = nt::value_type_t<input_value_type>;
         using output_real_type = nt::value_type_t<output_value_type>;
-        using output_weight_value_type = nt::value_type_t<output_weight_type>;
-        static constexpr bool has_input_weights = not nt::empty<input_weight_type>;
-        static constexpr bool has_output_weights = not nt::empty<output_weight_type>;
+        using output_weight_value_type = nt::value_type_t<OutputSliceWeight>;
+        static constexpr bool has_input_weights = not nt::empty<InputSliceWeight>;
+        static constexpr bool has_output_weights = not nt::empty<OutputSliceWeight>;
 
-        static_assert(fourier_projection_transform_types<input_scale_type, input_rotate_type, ews_type> and
-                      fourier_projection_transform_types<output_scale_type, output_rotate_type, ews_type> and
-                      fourier_projection_types<input_type, output_type> and
-                      fourier_projection_weight_types<input_weight_type, output_weight_type>);
+        static_assert(fourier_projection_transform_types<InputScale, InputRotate, EWSCurvature> and
+                      fourier_projection_transform_types<OutputScale, OutputRotate, EWSCurvature> and
+                      fourier_projection_types<InputSlice, OutputSlice> and
+                      fourier_projection_weight_types<InputSliceWeight, OutputSliceWeight>);
 
         // Optional operator requires atomic_add.
         static constexpr bool are_outputs_atomic =
-            nt::atomic_addable_nd<output_type, 3> and
-            nt::atomic_addable_nd_or_empty<output_weight_type, 3>;
+            nt::atomic_addable_nd<OutputSlice, 3> and
+            nt::atomic_addable_nd_or_empty<OutputSliceWeight, 3>;
 
     public:
         FourierInsertExtract(
-            const input_type& input_slices,
-            const input_interpolator_type& input_slices_interpolator,
-            const input_weight_type& input_weights,
-            const input_weight_interpolator_type& input_weights_interpolator,
-            const Shape<index_type, 2>& input_shape,
-            index_type input_slice_count,
-            const output_type& output_slices,
-            const output_weight_type& output_weights,
-            const Shape<index_type, 2>& output_shape,
-            const input_scale_type& insert_fwd_scaling,
-            const input_rotate_type& insert_inv_rotation,
-            const output_scale_type& extract_inv_scaling,
-            const output_rotate_type& extract_fwd_rotation,
+            const InputSlice& input_slices,
+            const InputSliceInterpolator& input_slices_interpolator,
+            const InputSliceWeight& input_weights,
+            const InputSliceWeightInterpolator& input_weights_interpolator,
+            const Shape<Index, 2>& input_shape,
+            Index input_slice_count,
+            const OutputSlice& output_slices,
+            const OutputSliceWeight& output_weights,
+            const Shape<Index, 2>& output_shape,
+            const InputScale& insert_fwd_scaling,
+            const InputRotate& insert_inv_rotation,
+            const OutputScale& extract_inv_scaling,
+            const OutputRotate& extract_fwd_rotation,
             coord_type insert_fftfreq_sinc,
             coord_type insert_fftfreq_blackman,
             coord_type extract_fftfreq_sinc,
             coord_type extract_fftfreq_blackman,
             coord_type fftfreq_cutoff,
             bool add_to_output, bool correct_weights,
-            const ews_type& ews_radius
+            const EWSCurvature& ews_radius
         ) :
             m_input_slices(input_slices),
             m_input_slices_interpolator(input_slices_interpolator),
@@ -849,14 +803,14 @@ namespace noa::xform::details {
             m_add_to_output(add_to_output),
             m_correct_weights(correct_weights)
         {
-            m_f_input_shape = coord2_type::from_vec(input_shape.vec);
-            m_f_output_shape = coord2_type::from_vec(output_shape.vec);
+            m_f_input_shape = Vec<coord_type, 2>::from_vec(input_shape.vec);
+            m_f_output_shape = Vec<coord_type, 2>::from_vec(output_shape.vec);
             m_output_shape = output_shape.template pop_back<ARE_OUTPUT_SLICES_RFFT>();
 
             // Using the small-angle approximation, Z = wavelength / 2 * (X^2 + Y^2).
             // See doi:10.1016/S0304-3991(99)00120-5 for a derivation.
-            if constexpr (not nt::empty<ews_type>)
-                m_ews_diam_inv = ews_radius != 0 ? 1 / (2 * ews_radius) : ews_type{};
+            if constexpr (not nt::empty<EWSCurvature>)
+                m_ews_diam_inv = ews_radius != 0 ? 1 / (2 * ews_radius) : EWSCurvature{};
 
             m_fftfreq_cutoff_sqd = max(fftfreq_cutoff, coord_type{0});
             m_fftfreq_cutoff_sqd *= m_fftfreq_cutoff_sqd;
@@ -867,19 +821,19 @@ namespace noa::xform::details {
             m_insert_fftfreq_blackman = max(insert_fftfreq_blackman, 1 / m_volume_z);
             m_extract_fftfreq_sinc = max(extract_fftfreq_sinc, 1 / m_volume_z);
             m_extract_fftfreq_blackman = max(extract_fftfreq_blackman, 1 / m_volume_z);
-            m_extract_blackman_size = details::z_window_spec<index_type>(
+            m_extract_blackman_size = details::z_window_spec<Index>(
                 m_extract_fftfreq_sinc, m_extract_fftfreq_blackman, m_volume_z).first;
         }
 
         // Returns the size of the output (depth) window.
-        [[nodiscard]] constexpr auto output_window_size() const noexcept -> index_type {
+        [[nodiscard]] constexpr auto output_window_size() const noexcept -> Index {
             return m_extract_blackman_size;
         }
 
         // Should be called for every pixel of every slice to extract.
-        NOA_HD constexpr void operator()(const Vec<index_type, B + 3>& batched_indices) const {
-            const auto& [batches, indices] = batched_indices.template split_at<B + 1>(); // (b..,n)
-            const coord3_type fftfreq_3d = compute_fftfreq_in_volume_(batches, indices);
+        NOA_HD constexpr void operator()(const Vec<Index, B + 3>& batched_indices) const { // (b..,n,h,w)
+            const auto& [batches_n, indices] = batched_indices.template split<B + 1>(); // (b..,n), (h,w)
+            const auto fftfreq_3d = compute_fftfreq_in_volume_(batches_n, indices);
 
             if (dot(fftfreq_3d, fftfreq_3d) > m_fftfreq_cutoff_sqd) {
                 if (not m_add_to_output) {
@@ -890,7 +844,7 @@ namespace noa::xform::details {
                 return;
             }
 
-            const auto value_and_weight = sample_virtual_volume_(fftfreq_3d, m_correct_weights);
+            const auto value_and_weight = sample_virtual_volume_(fftfreq_3d, batches_n.pop_back(), m_correct_weights);
 
             auto& output = m_output_slices[batched_indices];
             if (m_add_to_output)
@@ -912,13 +866,13 @@ namespace noa::xform::details {
         // the caller may have to fill it with zeros first, depending on add_to_output.
         NOA_HD constexpr void operator()(
             nt::compute_handle auto& ch,
-            const Vec<index_type, B + 4>& batched_indices // (b..,on,ow,oy,ou)
+            const Vec<Index, B + 4>& batched_indices // (b..,on,ow,oy,ou)
         ) const requires are_outputs_atomic {
             const auto batches_n = batched_indices.template pop_back<3>();
             const auto indices = batched_indices.filter(B + 2, B + 3);
             const auto& ow = batched_indices[B + 1];
 
-            coord3_type fftfreq_3d = compute_fftfreq_in_volume_(batches_n, indices);
+            Vec<coord_type, 3> fftfreq_3d = compute_fftfreq_in_volume_(batches_n, indices);
 
             // Get and add the volume z-offset for the z-windowed-sinc.
             const auto fftfreq_z_offset = details::w_index_to_fftfreq_offset(ow, m_extract_blackman_size, m_volume_z);
@@ -952,23 +906,23 @@ namespace noa::xform::details {
         // The indexes give us the fftfreq in the coordinate system of the slice to extract.
         // This function transforms this fftfreq to the coordinate system of the virtual volume.
         NOA_HD auto compute_fftfreq_in_volume_(
-            const Vec<index_type, B + 1>& batches_n,
-            const Vec<index_type, 2>& indices
-        ) const noexcept -> coord3_type {
+            const Vec<Index, B + 1>& batches_n,
+            const Vec<Index, 2>& indices
+        ) const noexcept -> Vec<coord_type, 3> {
             const auto frequency_2d = nf::index2frequency<ARE_OUTPUT_SLICES_CENTERED, ARE_OUTPUT_SLICES_RFFT>(
                 indices, m_output_shape);
-            const auto fftfreq_2d = coord2_type::from_vec(frequency_2d) / m_f_output_shape;
+            const auto fftfreq_2d = Vec<coord_type, 2>::from_vec(frequency_2d) / m_f_output_shape;
             return details::fourier_slice2grid(
                 fftfreq_2d, m_extract_inv_scaling, m_extract_fwd_rotation, batches_n, m_ews_diam_inv);
         }
 
         NOA_HD auto sample_virtual_volume_(
-            const coord3_type& fftfreq_3d,
-            const Vec<index_type, B>& batches,
+            const Vec<coord_type, 3>& fftfreq_3d,
+            const Vec<Index, B>& batches,
             bool correct_weights
         ) const noexcept {
             using input_weight_value_type =
-                std::conditional_t<has_input_weights, nt::mutable_value_type_t<input_weight_type>,
+                std::conditional_t<has_input_weights, nt::mutable_value_type_t<InputSliceWeight>,
                 std::conditional_t<has_output_weights, output_weight_value_type, input_real_type>>;
 
             input_value_type value{};
@@ -985,7 +939,7 @@ namespace noa::xform::details {
             };
 
             // For every slice to insert...
-            for (index_type i{}; i < m_input_count; ++i) {
+            for (Index i{}; i < m_input_count; ++i) {
                 // Project the 3d frequency onto that input-slice.
                 // fftfreq_z is along the normal of that input-slice.
                 const auto [fftfreq_z, fftfreq_yx] = details::fourier_grid2slice(
@@ -1021,16 +975,16 @@ namespace noa::xform::details {
         }
 
     private:
-        input_type m_input_slices;
-        input_interpolator_type m_input_slices_interpolator;
-        output_type m_output_slices;
+        InputSlice m_input_slices;
+        InputSliceInterpolator m_input_slices_interpolator;
+        OutputSlice m_output_slices;
 
-        input_rotate_type m_insert_inv_rotation;
-        output_rotate_type m_extract_fwd_rotation;
-        coord2_type m_f_output_shape;
-        coord2_type m_f_input_shape;
-        shape_nd_type m_output_shape;
-        index_type m_input_count;
+        InputRotate m_insert_inv_rotation;
+        OutputRotate m_extract_fwd_rotation;
+        Vec<coord_type, 2> m_f_output_shape;
+        Vec<coord_type, 2> m_f_input_shape;
+        shape_2d_truncated_type m_output_shape;
+        Index m_input_count;
 
         coord_type m_volume_z;
         coord_type m_fftfreq_cutoff_sqd;
@@ -1038,57 +992,53 @@ namespace noa::xform::details {
         coord_type m_insert_fftfreq_blackman;
         coord_type m_extract_fftfreq_sinc;
         coord_type m_extract_fftfreq_blackman;
-        index_type m_extract_blackman_size;
+        Index m_extract_blackman_size;
 
-        NOA_NO_UNIQUE_ADDRESS input_weight_type m_input_weights;
-        NOA_NO_UNIQUE_ADDRESS input_weight_interpolator_type m_input_weights_interpolator;
-        NOA_NO_UNIQUE_ADDRESS output_weight_type m_output_weights;
-        NOA_NO_UNIQUE_ADDRESS input_scale_type m_insert_fwd_scaling;
-        NOA_NO_UNIQUE_ADDRESS output_scale_type m_extract_inv_scaling;
-        NOA_NO_UNIQUE_ADDRESS ews_type m_ews_diam_inv{};
+        NOA_NO_UNIQUE_ADDRESS InputSliceWeight m_input_weights;
+        NOA_NO_UNIQUE_ADDRESS InputSliceWeightInterpolator m_input_weights_interpolator;
+        NOA_NO_UNIQUE_ADDRESS OutputSliceWeight m_output_weights;
+        NOA_NO_UNIQUE_ADDRESS InputScale m_insert_fwd_scaling;
+        NOA_NO_UNIQUE_ADDRESS OutputScale m_extract_inv_scaling;
+        NOA_NO_UNIQUE_ADDRESS EWSCurvature m_ews_diam_inv{};
 
         bool m_add_to_output;
         bool m_correct_weights;
     };
 
-    /// Pre/post gridding correction, assuming linear interpolation.
     template<bool POST_CORRECTION,
              usize B, usize R,
              nt::real Coord,
              nt::readable_nd<B + R> Input,
              nt::writable_nd<B + R> Output>
-    class GriddingCorrection {
-        using coord_type = Coord;
-        using coordr_type = Vec<coord_type, R>;
-        using input_type = Input;
-        using output_type = Output;
-        using output_value_type = nt::value_type_t<output_type>;
-        using input_value_type = nt::value_type_t<input_type>;
+    class FourierInterpolationCorrection {
+        using output_value_type = nt::value_type_t<Output>;
+        using input_value_type = nt::value_type_t<Input>;
         static_assert(nt::real<input_value_type, output_value_type>);
+        // TODO Add more interpolation methods
 
     public:
         template<typename T>
-        constexpr GriddingCorrection(
-            const input_type& input,
-            const output_type& output,
+        constexpr FourierInterpolationCorrection(
+            const Input& input,
+            const Output& output,
             const Shape<T, R>& shape
         ) :
             m_input(input),
             m_output(output)
         {
-            m_f_shape = coordr_type::from_vec(shape.vec);
-            m_half = m_f_shape / 2 * coordr_type::from_vec(shape != 1); // if size == 1, half should be 0
+            m_f_shape = Vec<Coord, R>::from_vec(shape.vec);
+            m_half = m_f_shape / 2 * Vec<Coord, R>::from_vec(shape != 1); // if size == 1, half should be 0
         }
 
         template<nt::integer T>
         NOA_HD void operator()(const Vec<T, B + R>& batched_indices) const noexcept {
-            auto dist = batched_indices.template pop_front<B>().template as<coord_type>();
+            auto dist = batched_indices.template pop_front<B>().template as<Coord>();
             dist -= m_half;
             dist /= m_f_shape;
 
-            constexpr coord_type PI = Constant<coord_type>::PI;
-            const coord_type radius = sqrt(dot(dist, dist));
-            const coord_type sinc = noa::sinc(PI * radius);
+            constexpr Coord PI = Constant<Coord>::PI;
+            const Coord radius = sqrt(dot(dist, dist));
+            const Coord sinc = noa::sinc(PI * radius);
             const auto sinc2 = static_cast<input_value_type>(sinc * sinc); // > 0.05
 
             const auto value = m_input[batched_indices];
@@ -1100,10 +1050,10 @@ namespace noa::xform::details {
         }
 
     private:
-        input_type m_input;
-        output_type m_output;
-        coordr_type m_f_shape;
-        coordr_type m_half;
+        Input m_input;
+        Output m_output;
+        Vec<Coord, R> m_f_shape;
+        Vec<Coord, R> m_half;
     };
 
     template<bool AllowTexture, bool AllowValue, usize R, usize N,
@@ -1126,6 +1076,7 @@ namespace noa::xform::details {
     template<bool AllowTexture, bool AllowValue, usize R, usize N,
              typename Input, typename Output, typename InputWeight, typename OutputWeight>
     concept fourier_projection_input_output =
+        N >= 3 and
         fourier_projection_input_output_value<AllowTexture, AllowValue, R, N, std::decay_t<Input>, std::decay_t<Output>> and
         fourier_projection_input_output_weight<AllowTexture, AllowValue, R, N, std::decay_t<InputWeight>, std::decay_t<OutputWeight>>;
 
@@ -1149,7 +1100,6 @@ namespace noa::xform::details {
     void fourier_projection_check_parameters(
         const Input& input, const InputWeight& input_weight, const Shape<isize, N>& input_shape,
         const Output& output, const OutputWeight& output_weight, const Shape<isize, N>& output_shape,
-        const Shape<isize, N>& target_shape,
         const InputScale& input_scaling,
         const InputRotate& input_rotation,
         const OutputScale& output_scaling = {},
@@ -1158,7 +1108,7 @@ namespace noa::xform::details {
         check(not output.is_empty(), "Empty array detected");
         const Device output_device = output.device();
         check(output.shape() == output_shape.rfft(),
-              "The shape of the rfft output does not match the expected shape. Got output:shape={} and expected:shape={}",
+              "The shape of the rfft output does not match the logical shape. Got output:shape={} and shape_rfft={}",
               output.shape(), output_shape.rfft());
 
         auto check_input = [&]<typename T>(const T& array, std::string_view name) {
@@ -1166,27 +1116,25 @@ namespace noa::xform::details {
                 check(not array.is_empty(), "Empty array detected");
                 if constexpr (nt::array<Input>)
                     check(not are_overlapped(array, output), "Input and output arrays should not overlap");
-
-                if constexpr (nt::texture<Input>) {
+                else if constexpr (nt::texture<Input>) {
                     check(array.border() == Border::ZERO,
                           "The texture border mode should be {}, but got {}",
                           Border::ZERO, array.border());
                     check(array.device().is_gpu() or not are_overlapped(array.cpu(), output),
                           "Input and output arrays should not overlap");
                 }
+
                 const Device device = array.device();
                 check(device == output_device,
                       "The arrays should be on the same device, but got {}:device={} and output:device={}",
                       name, device, output_device);
                 check(array.shape() == input_shape.rfft(),
-                      "The shape of the rfft does not match the expected shape. Got {}:shape={} and shape={}",
+                      "The shape of the rfft does not match the logical shape. Got {}:shape={} and shape_rfft={}",
                       name, array.shape(), input_shape.rfft());
             }
         };
         check_input(input, "input");
         check_input(input_weight, "input_weight");
-
-        // TODO broadcast batches?
 
         if constexpr (not nt::empty<OutputWeight>) {
             check(not output_weight.is_empty(), "Empty array detected");
@@ -1195,14 +1143,14 @@ namespace noa::xform::details {
                   "The arrays should be on the same device, but got output_weight:device={} and output:device={}",
                   output_weight.device(), output_device);
             check(output_weight.shape() == output_shape.rfft(),
-                  "The shape of the rfft does not match the expected shape. Got output_weight:shape={} and shape={}",
+                  "The shape of the rfft does not match the logical shape. Got output_weight:shape={} and shape_rfft={}",
                   output_weight.shape(), output_shape.rfft());
         }
 
         auto check_transform = [&](const auto& transform, const Shape<isize, N - 2>& required_shape, std::string_view name) {
             check(not transform.is_empty(), "{} should not be empty", name);
             check(transform.is_contiguous() and transform.shape() == required_shape,
-                  "{} should be a contiguous vector with shape {}, but got {}:shape={}, {}:strides={}",
+                  "{} should be a contiguous array with shape {}, but got {}:shape={}, {}:strides={}",
                   name, required_shape, name, transform.shape(), name, transform.strides());
             check(transform.device() == output_device, "{} should be on the compute device", name);
         };
@@ -1259,10 +1207,10 @@ namespace noa::xform::details {
         if constexpr (nt::array_or_texture<T>) {
             return details::prepare_interpolation_spectrum_inputs<R, REMAP, INTERP, IS_GPU, Coord, false>(input, shape);
         } else if constexpr (nt::empty<T>) {
-            return input;
+            return ToInterpolatorResult<Empty, Empty>{};
         } else { // real or complex
             using accessor_t = AccessorValue<const T, Index>;
-            using interpolator_t = InterpolatorSpectrum<REMAP, INTERP.erase_fast(), T, R, Index>;
+            using interpolator_t = InterpolatorSpectrum<REMAP, INTERP.erase_fast(), R, Index>;
             return ToInterpolatorResult{
                 .input_accessor = accessor_t(input),
                 .interpolator = interpolator_t(shape),
@@ -1296,51 +1244,53 @@ namespace noa::xform::details {
         consteval auto operator()() const -> bool { return VALUE;}
     };
 
-    template<nf::Layout REMAP, typename Index,
+    template<nf::Layout REMAP, typename Index, usize N,
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
              typename Scale, typename Rotate>
     void launch_rasterize_central_slices_3d(
-        Input&& slice, InputWeight&& slice_weight, const Shape4& slice_shape,
-        Output&& volume, OutputWeight&& volume_weight, const Shape4& volume_shape,
+        Input&& slice, InputWeight&& slice_weight, const Shape<isize, N>& slice_shape,
+        Output&& volume, OutputWeight&& volume_weight, const Shape<isize, N>& volume_shape,
         Scale&& scaling, Rotate&& rotation, const auto& options
     ) {
-        constexpr auto input_accessor_config = nd::AccessorConfig{
+        constexpr auto INPUT_CONFIG = nd::AccessorConfig{
             .enforce_const=true,
             .enforce_restrict=true,
             .allow_empty=true,
         };
-        constexpr auto output_accessor_config = nd::AccessorConfig{
+        constexpr auto OUTPUT_CONFIG = nd::AccessorConfig{
             .enforce_restrict=true,
             .allow_empty=true,
         };
-        auto slice_accessor = nd::to_accessor<input_accessor_config, Index>(slice);
-        auto slice_weight_accessor = nd::to_accessor<input_accessor_config, Index>(slice_weight);
-        auto volume_accessor = nd::to_accessor<output_accessor_config, Index>(volume);
-        auto volume_weight_accessor = nd::to_accessor<output_accessor_config, Index>(volume_weight);
+        auto slice_accessor = nd::to_accessor<INPUT_CONFIG, Index>(slice);
+        auto slice_weight_accessor = nd::to_accessor<INPUT_CONFIG, Index>(slice_weight);
+        auto volume_accessor = nd::to_accessor<OUTPUT_CONFIG, Index>(volume);
+        auto volume_weight_accessor = nd::to_accessor<OUTPUT_CONFIG, Index>(volume_weight);
 
-        const auto s_input_slice_shape = slice_shape.as<Index>();
-        const auto s_volume_shape = volume_shape.as<Index>();
-        auto batched_rotation = to_batched_transform(rotation);
+        constexpr usize B = N - 3; // b..dhw
+        const auto s_input_slice_shape = slice_shape.filter(N - 2, N - 1).template as<Index>();
+        const auto s_volume_shape = volume_shape.filter(N - 3, N - 2, N - 1).template as<Index>();
+        const auto s_target_shape = options.target_shape.template as<Index>();
+        auto rotation_accessor = xform_into_accessor(rotation);
         using coord_t = nt::value_type_twice_t<Rotate>;
 
         auto launch = [&](auto no_ews_and_scale) {
             auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
-            auto batched_scaling = to_batched_transform<true, no_ews_and_scale()>(scaling);
+            auto scaling_accessor = xform_into_accessor<true, no_ews_and_scale()>(scaling);
 
             using op_t = FourierInsertRasterize<
-                REMAP, Index,
-                decltype(batched_scaling), decltype(batched_rotation), decltype(ews),
+                REMAP, Index, B,
+                decltype(scaling_accessor), decltype(rotation_accessor), decltype(ews),
                 decltype(slice_accessor), decltype(slice_weight_accessor),
                 decltype(volume_accessor), decltype(volume_weight_accessor)>;
             auto op = op_t(
                 slice_accessor, slice_weight_accessor, s_input_slice_shape,
                 volume_accessor, volume_weight_accessor, s_volume_shape,
-                batched_scaling, batched_rotation,
+                scaling_accessor, rotation_accessor,
                 static_cast<coord_t>(options.fftfreq_cutoff),
-                options.target_shape.template as<Index>(), ews);
+                s_target_shape, ews);
 
-            iwise(s_input_slice_shape.filter(0, 2, 3).rfft(), volume.device(), op,
+            iwise(slice.shape().template as<Index>(), volume.device(), op,
                   NOA_FWD(slice), NOA_FWD(slice_weight),
                   NOA_FWD(volume), NOA_FWD(volume_weight),
                   NOA_FWD(scaling), NOA_FWD(rotation));
@@ -1353,50 +1303,53 @@ namespace noa::xform::details {
         return launch(WrapNoEwaldAndScale<true>{});
     }
 
-    template<nf::Layout REMAP, typename Index, bool IS_GPU,
+    template<nf::Layout REMAP, typename Index, bool IS_GPU, usize N,
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
              typename Scale, typename Rotate>
     void launch_insert_central_slices_3d(
-        Input&& slice, InputWeight&& slice_weight, const Shape4& slice_shape,
-        Output&& volume, OutputWeight&& volume_weight, const Shape4& volume_shape,
+        Input&& slice, InputWeight&& slice_weight, const Shape<isize, N>& slice_shape,
+        Output&& volume, OutputWeight&& volume_weight, const Shape<isize, N>& volume_shape,
         Scale&& scaling, Rotate&& rotation, const auto& options
     ) {
-        constexpr auto accessor_config = nd::AccessorConfig{
+        constexpr auto CONFIG = nd::AccessorConfig{
             .enforce_restrict = true,
             .allow_empty = true,
         };
-        auto volume_accessor = nd::to_accessor<accessor_config, Index>(volume);
-        auto volume_weight_accessor = nd::to_accessor<accessor_config, Index>(volume_weight);
+        auto volume_accessor = nd::to_accessor<CONFIG, Index>(volume);
+        auto volume_weight_accessor = nd::to_accessor<CONFIG, Index>(volume_weight);
 
-        const auto s_slice_shape = slice_shape.as<Index>();
-        const auto s_volume_shape = volume_shape.as<Index>();
-        auto batched_rotation = to_batched_transform<false>(rotation);
+        constexpr usize B = N - 3; // b..dhw
+        const auto n_slices = static_cast<Index>(slice_shape[N - 3]);
+        const auto s_slice_shape = slice_shape.filter(N - 2, N - 1).template as<Index>();
+        const auto s_volume_shape = volume_shape.filter(N - 3, N - 2, N - 1).template as<Index>();
+        const auto s_target_shape = options.target_shape.template as<Index>();
+        auto rotation_accessor = xform_into_accessor<false>(rotation);
         using coord_t = nt::value_type_twice_t<Rotate>;
 
         auto launch = [&](auto no_ews_and_scale, auto interp) {
-            auto slice_interpolator = fourier_projection_to_interpolator
-                <2, REMAP, IS_GPU, interp(), coord_t>(slice, s_slice_shape);
-            auto slice_weight_interpolator = fourier_projection_to_interpolator
-                <2, REMAP, IS_GPU, interp(), coord_t>(slice_weight, s_slice_shape);
-
-            auto batched_scaling = to_batched_transform<true, no_ews_and_scale()>(scaling);
+            auto slice_r = fourier_projection_to_interpolator<2, REMAP, IS_GPU, interp(), coord_t>(slice, s_slice_shape);
+            auto slice_weight_r = fourier_projection_to_interpolator<2, REMAP, IS_GPU, interp(), coord_t>(slice_weight, s_slice_shape);
+            auto scaling_accessor = xform_into_accessor<true, no_ews_and_scale()>(scaling);
             auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
 
             using op_t = FourierInsertInterpolate<
-                REMAP, Index, decltype(batched_scaling), decltype(batched_rotation), decltype(ews),
-                decltype(slice_interpolator), decltype(slice_weight_interpolator),
+                REMAP, Index, B, decltype(scaling_accessor), decltype(rotation_accessor), decltype(ews),
+                typename decltype(slice_r)::accessor_type, typename decltype(slice_r)::interpolator_type,
+                typename decltype(slice_weight_r)::accessor_type, typename decltype(slice_weight_r)::interpolator_type,
                 decltype(volume_accessor), decltype(volume_weight_accessor)>;
             auto op = op_t(
-                slice_interpolator, slice_weight_interpolator, s_slice_shape,
+                slice_r.accessor, slice_r.interpolator,
+                slice_weight_r.accessor, slice_weight_r.interpolator,
+                s_slice_shape, n_slices,
                 volume_accessor, volume_weight_accessor, s_volume_shape,
-                batched_scaling, batched_rotation,
+                scaling_accessor, rotation_accessor,
                 static_cast<coord_t>(options.windowed_sinc.fftfreq_sinc),
                 static_cast<coord_t>(options.windowed_sinc.fftfreq_blackman),
                 static_cast<coord_t>(options.fftfreq_cutoff),
-                options.target_shape.template as<Index>(), ews);
+                s_target_shape, ews);
 
-            iwise(s_volume_shape.filter(1, 2, 3).rfft(), volume.device(), op,
+            iwise(volume.shape().template as<Index>(), volume.device(), op,
                   NOA_FWD(slice), NOA_FWD(slice_weight),
                   NOA_FWD(volume), NOA_FWD(volume_weight),
                   NOA_FWD(scaling), NOA_FWD(rotation));
@@ -1429,65 +1382,65 @@ namespace noa::xform::details {
         }
     }
 
-    template<nf::Layout REMAP, typename Index, bool IS_GPU,
+    template<nf::Layout REMAP, typename Index, bool IS_GPU, usize N,
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
              typename Scale, typename Rotate>
     void launch_extract_central_slices_3d(
-        Input&& volume, InputWeight&& volume_weight, const Shape4& volume_shape,
-        Output&& slice, OutputWeight&& slice_weight, const Shape4& slice_shape,
+        Input&& volume, InputWeight&& volume_weight, const Shape<isize, N>& volume_shape,
+        Output&& slice, OutputWeight&& slice_weight, const Shape<isize, N>& slice_shape,
         Scale&& scaling, Rotate&& rotation, const auto& options
     ) {
-        constexpr auto accessor_config = nd::AccessorConfig{
+        constexpr auto CONFIG = nd::AccessorConfig{
             .enforce_restrict = true,
             .allow_empty = true,
         };
-        auto slice_accessor = nd::to_accessor<accessor_config, Index>(slice);
-        auto slice_weight_accessor = nd::to_accessor<accessor_config, Index>(slice_weight);
-        auto batched_rotation = to_batched_transform(rotation);
+        auto slice_accessor = nd::to_accessor<CONFIG, Index>(slice);
+        auto slice_weight_accessor = nd::to_accessor<CONFIG, Index>(slice_weight);
+        auto rotation_accessor = xform_into_accessor(rotation);
 
-        const auto s_slice_shape = slice_shape.as<Index>();
-        const auto s_volume_shape = volume_shape.as<Index>();
+        constexpr usize B = N - 3; // b..dhw
+        const auto s_slice_shape = slice_shape.filter(N - 2, N - 1).template as<Index>();
+        const auto s_volume_shape = volume_shape.filter(N - 3, N - 2, N - 1).template as<Index>();
         const auto s_target_shape = options.target_shape.template as<Index>();
 
         auto launch = [&](auto no_ews_and_scale, auto interp) {
             using coord_t = nt::value_type_twice_t<Rotate>;
-            auto volume_interpolator = fourier_projection_to_interpolator
-                <3, REMAP, IS_GPU, interp(), coord_t>(volume, s_volume_shape);
-            auto volume_weight_interpolator = fourier_projection_to_interpolator
-                <3, REMAP, IS_GPU, interp(), coord_t>(volume_weight, s_volume_shape);
-
-            auto batched_scale = to_batched_transform<true, no_ews_and_scale()>(scaling);
+            auto volume_r = fourier_projection_to_interpolator<3, REMAP, IS_GPU, interp(), coord_t>(volume, s_volume_shape);
+            auto volume_weight_r = fourier_projection_to_interpolator<3, REMAP, IS_GPU, interp(), coord_t>(volume_weight, s_volume_shape);
+            auto scale_accessor = xform_into_accessor<true, no_ews_and_scale()>(scaling);
             auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
 
             using op_t = FourierExtract<
-                REMAP, Index,
-                decltype(batched_scale), decltype(batched_rotation), decltype(ews),
-                decltype(volume_interpolator), decltype(volume_weight_interpolator),
+                REMAP, Index, B,
+                decltype(scale_accessor), decltype(rotation_accessor), decltype(ews),
+                typename decltype(volume_r)::accessor_type, typename decltype(volume_r)::interpolator_type,
+                typename decltype(volume_weight_r)::accessor_type, typename decltype(volume_weight_r)::interpolator_type,
                 decltype(slice_accessor), decltype(slice_weight_accessor)>;
             auto op = op_t(
-                volume_interpolator, volume_weight_interpolator, s_volume_shape,
+                volume_r.accessor, volume_r.interpolator,
+                volume_weight_r.accessor, volume_weight_r.interpolator, s_volume_shape,
                 slice_accessor, slice_weight_accessor, s_slice_shape,
-                batched_scale, batched_rotation,
+                scale_accessor, rotation_accessor,
                 static_cast<coord_t>(options.w_windowed_sinc.fftfreq_sinc),
                 static_cast<coord_t>(options.w_windowed_sinc.fftfreq_blackman),
                 static_cast<coord_t>(options.fftfreq_cutoff),
                 s_target_shape, ews);
 
-            if (op.windowed_sinc_size() > 1) {
+            const auto ow = op.windowed_sinc_size();
+            if (ow > 1) {
                 if constexpr (nt::empty<OutputWeight>)
                     ewise({}, wrap(slice), Zero{});
                 else
                     ewise({}, wrap(slice, slice_weight), Zero{});
 
-                const auto iwise_shape = s_slice_shape.template set<1>(op.windowed_sinc_size()).rfft();
+                const auto iwise_shape = slice.shape().template as<Index>().template insert<B + 1>(ow); // (b..,n,w,h,w)
                 iwise(iwise_shape, volume.device(), op,
                       NOA_FWD(volume), NOA_FWD(volume_weight),
                       NOA_FWD(slice), NOA_FWD(slice_weight),
                       NOA_FWD(scaling), NOA_FWD(rotation));
             } else {
-                const auto iwise_shape = s_slice_shape.filter(0, 2, 3).rfft();
-                iwise(iwise_shape, volume.device(), op,
+                iwise(slice.shape().template as<Index>(), volume.device(), op,
                       NOA_FWD(volume), NOA_FWD(volume_weight),
                       NOA_FWD(slice), NOA_FWD(slice_weight),
                       NOA_FWD(scaling), NOA_FWD(rotation));
@@ -1533,12 +1486,12 @@ namespace noa::xform::details {
         OutputScale&& output_scaling, OutputRotate&& output_rotation,
         const auto& options
     ) {
-        constexpr auto output_config = nd::AccessorConfig{
+        constexpr auto CONFIG = nd::AccessorConfig{
             .enforce_restrict = true,
             .allow_empty = true,
         };
-        auto output_slice_accessor = nd::to_accessor<output_config, Index>(output_slice);
-        auto output_weight_accessor = nd::to_accessor<output_config, Index>(output_weight);
+        auto output_slice_accessor = nd::to_accessor<CONFIG, Index>(output_slice);
+        auto output_weight_accessor = nd::to_accessor<CONFIG, Index>(output_weight);
         auto input_rotation_accessor = xform_into_accessor(input_rotation);
         auto output_rotation_accessor = xform_into_accessor(output_rotation);
 
@@ -1549,16 +1502,8 @@ namespace noa::xform::details {
 
         auto launch = [&](auto no_ews_and_scale, auto interp) {
             using coord_t = nt::value_type_twice_t<InputRotate>;
-            auto input_result = fourier_projection_to_interpolator<2, REMAP, IS_GPU, interp(), coord_t>(
-                input_slice, s_input_shape_rd);
-            using input_interpolator_t = decltype(input_result)::interpolator_type;
-            using accessor_t = decltype(input_result)::accessor_type;
-
-            auto input_weight_result = fourier_projection_to_interpolator<2, REMAP, IS_GPU, interp(), coord_t>(
-                input_weight, s_input_shape_rd);
-            using input_weight_interpolator_t = decltype(input_weight_result)::interpolator_type;
-            using input_weight_accessor_t = decltype(input_weight_result)::accessor_type;
-
+            auto input_r = fourier_projection_to_interpolator<2, REMAP, IS_GPU, interp(), coord_t>(input_slice, s_input_shape_rd);
+            auto input_weight_r = fourier_projection_to_interpolator<2, REMAP, IS_GPU, interp(), coord_t>(input_weight, s_input_shape_rd);
             auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
             auto input_scaling_accessor = xform_into_accessor<true, no_ews_and_scale()>(input_scaling);
             auto output_scaling_accessor = xform_into_accessor<true, no_ews_and_scale()>(output_scaling);
@@ -1567,11 +1512,12 @@ namespace noa::xform::details {
                 REMAP, Index, N - 3,
                 decltype(input_scaling_accessor), decltype(input_rotation_accessor),
                 decltype(output_scaling_accessor), decltype(output_rotation_accessor), decltype(ews),
-                accessor_t, input_interpolator_t, input_weight_accessor_t, input_weight_interpolator_t,
+                typename decltype(input_r)::accessor_type, typename decltype(input_r)::interpolator_type,
+                typename decltype(input_weight_r)::accessor_type, typename decltype(input_weight_r)::interpolator_type,
                 decltype(output_slice_accessor), decltype(output_weight_accessor)>;
             auto op = op_t(
-                input_result.accessor, input_result.interpolator,
-                input_weight_result.accessor, input_weight_result.interpolator, s_input_shape_rd,
+                input_r.accessor, input_r.interpolator,
+                input_weight_r.accessor, input_weight_r.interpolator, s_input_shape_rd, s_input_shape[N - 3],
                 output_slice_accessor, output_weight_accessor, s_output_shape_rd,
                 input_scaling_accessor, input_rotation_accessor,
                 output_scaling_accessor, output_rotation_accessor,
@@ -1591,7 +1537,7 @@ namespace noa::xform::details {
                     else
                         ewise({}, wrap(output_slice, output_weight), Zero{});
                 }
-                iwise(s_output_shape.insert<N - 2>(ow).rfft(), output_slice.device(), op,
+                iwise(s_output_shape.template insert<N - 2>(ow).rfft(), output_slice.device(), op,
                       NOA_FWD(input_slice),
                       NOA_FWD(input_weight),
                       NOA_FWD(output_slice),
@@ -1642,20 +1588,19 @@ namespace noa::xform::details {
 }
 
 namespace noa::xform {
-    template<usize N>
     struct RasterizeCentralSlicesOptions {
         /// Frequency cutoff of the output volume, in cycle/pix.
         /// Frequencies above this are left unchanged.
         f64 fftfreq_cutoff{0.5};
 
-        /// Actual ((B..,)DHW) logical shape of the 3d volume.
-        /// The function normalizes the slice and volume dimensions, and works with normalized frequencies.
+        /// Actual DHW logical shape of the 3d volume.
+        /// The insertion function normalizes the slice and volume dimensions, and works with normalized frequencies.
         /// As such, if the volume is larger than the slices, the slices are implicitly stretched (over-sampling case).
         /// Similarly, if the volume is smaller than the slices, the slices are shrunk (under-sampling case).
         /// This parameter specifies the size of the volume onto which the slice frequencies should be mapped against.
-        /// By default, i.e. empty target_shape or target_shape == volume_shape, the slice frequencies are mapped onto
-        /// the volume frequencies, as mentioned above.
-        Shape<isize, N> target_shape{};
+        /// By default, i.e., empty target_shape or target_shape == volume_shape, the slice frequencies are mapped onto
+        /// the volume frequencies, as mentioned above (over- or under-sampling cases).
+        Shape<isize, 3> target_shape{};
 
         /// HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
         /// If negative, the negative curve is computed. If {0,0}, the slices are projections.
@@ -1697,11 +1642,11 @@ namespace noa::xform {
     /// \param volume_shape:
     ///     ((B..,)Do,Ho,Wol) logical shape of volume(s).
     /// \param[in] inv_scaling:
-    ///     ((B..,)Ni) array of 2x2 HW inverse scaling matrix to apply to the slices before the rotation, or Empty.
-    ///     A single matrix can also be passed, in which case all slices are assigned to it.
+    ///     ((B..,)Ni) contiguous array of 2x2 HW inverse scaling matrix to apply to the slices before the rotation,
+    ///     or Empty. A single matrix can also be passed, in which case all slices are assigned to it.
     /// \param[in] fwd_rotation:
-    ///     ((B..,)Ni) array of 3x3 DHW forward rotation-matrices or quaternions to apply to the slices, or Empty.
-    ///     A single matrix or quaternion can also be passed, in which case all slices are assigned to it.
+    ///     ((B..,)Ni) contiguous array of 3x3 DHW forward rotation-matrices or quaternions to apply to the slices,
+    ///     or Empty. A single matrix or quaternion can also be passed, in which case all slices are assigned to it.
     ///     Sets the floating-point precision of the transformation.
     /// \param options:
     ///     Insertion options.
@@ -1721,11 +1666,10 @@ namespace noa::xform {
         const Shape<isize, N>& volume_shape,
         Scale&& inv_scaling,
         Rotate&& fwd_rotation,
-        const RasterizeCentralSlicesOptions<N>& options = {}
+        const RasterizeCentralSlicesOptions& options = {}
     ) {
         details::fourier_projection_check_parameters<details::FourierProjectionType::INSERT_RASTERIZE>(
-            slice, slice_weight, slice_shape, volume, volume_weight, volume_shape,
-            options.target_shape, inv_scaling, fwd_rotation);
+            slice, slice_weight, slice_shape, volume, volume_weight, volume_shape, inv_scaling, fwd_rotation);
 
         if (volume.device().is_gpu()) {
             #ifdef NOA_ENABLE_GPU
@@ -1751,10 +1695,10 @@ namespace noa::xform {
     /// the windowed-sinc that is convolved along the normal of the perfectly thin slice(s) to insert.\n
     /// \b Fourier-extraction: Central slices are extracted from a (virtual) volume. This parameter defines the
     /// windowed-sinc that is convolved, along the z of the reconstruction, with the perfectly thin slice(s) to
-    /// extract. This is used to effectively apply a horizontal (smooth) rectangular mask centered on the object
+    /// extract. This is used to effectively apply a horizontal (smooth) rectangular mask centered on the reconstruction
     /// _before_ the forward projection. The current API doesn't allow changing the orientation of this sinc
-    /// (it is always along z) since its only purpose was originally to improve projections from tomograms by
-    /// masking out the noise from above and below the sample.
+    /// (it is always along z) since its original purpose was to improve projections from tomograms by
+    /// masking out the projection noise from above and below the specimen.
     struct WindowedSinc {
         /// Frequency, in cycle/pix, of the first zero of the sinc.
         /// This is clamped to ensure a minimum of 1 pixel diameter,
@@ -1772,7 +1716,6 @@ namespace noa::xform {
         f64 fftfreq_blackman{-1};
     };
 
-    template<usize N>
     struct InsertCentralSlicesOptions {
         /// Interpolation method.
         /// This is ignored if the input(_weights) is a texture.
@@ -1785,9 +1728,9 @@ namespace noa::xform {
         /// The frequencies above this are left unchanged.
         f64 fftfreq_cutoff{0.5};
 
-        /// Actual BDHW logical shape of the 3d volume.
+        /// Actual DHW logical shape of the 3d volume.
         /// See RasterizeCentralSlicesOptions for more details.
-        Shape<isize, N> target_shape{};
+        Shape<isize, 3> target_shape{};
 
         /// HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
         /// See RasterizeCentralSlicesOptions for more details.
@@ -1795,34 +1738,44 @@ namespace noa::xform {
     };
 
     /// Fourier-insertion using 2d-interpolation to insert central-slices in the volume.
-    /// \details This method is the more accurate than rasterizationm but can be slower. Here, instead of
+    /// \details This method is the more accurate than rasterization but can be slower. Here, instead of
     ///          calling every pixel in the central-slices for rasterization, every voxel in the volume is sampled
     ///          by collecting the contribution of every central-slice for each output voxel. The advantage is that
     ///          it allows to use a more accurate model for the central-slices, i.e., a windowed-sinc. Indeed, slices
     ///          are now effectively convolved with a windowed-sinc (both the sinc frequency and window size can be
     ///          controlled) along their normal before the insertion. Note that this (windowed) sinc translates to
     ///          a (smooth) rectangular mask in real-space, along the normal of the slice (an interesting property
-    ///          that can be useful for some applications).
-    /// \warning This function computes the inverse transformation compared to the overload above using rasterization.
+    ///          which can be useful for some applications).
     ///
     /// \tparam REMAP               Remapping. Should be HX2HX.
-    /// \tparam Input               A array|texture of (const) f32|f64|c32|c64.
-    /// \tparam InputWeight         A array|texture of (const) f32|f64, or Empty.
+    /// \tparam Input               A array|texture|value of (const) f32|f64|c32|c64.
+    /// \tparam InputWeight         A array|texture|value of (const) f32|f64, or Empty.
     /// \tparam Output              Array of type f32|f64|c32|c64.
     /// \tparam OutputWeight        Array of type f32|f64, or Empty.
     /// \tparam Scale               Mat22, a array of Mat22, or Empty.
     /// \tparam Rotate              Mat33|Quaternion, or a array of this type.
-    ///                             Sets the floating-point precision of the transformation.
     ///
-    /// \param[in] slice            2d-rFFT central-slice(s) to insert.
-    /// \param[in] slice_weight     Optional weights associated with slice. Default to ones.
-    /// \param slice_shape          BDHW logical shape of slice.
-    /// \param[out] volume          3d-rFFT volume inside which the slices are to be inserted.
-    /// \param[out] volume_weight   Optional weights associated with volume.
-    /// \param volume_shape         BDHW logical shape of volume.
-    /// \param[in] fwd_scaling      2x2 HW forward scaling matrix to apply to the slices before the rotation.
-    /// \param[in] inv_rotation     3x3 DHW inverse rotation-matrices or quaternions to apply to the slices.
-    /// \param options              Insertion options.
+    /// \param[in] slice:
+    ///     ((B..,)Ni,Hi,Wi) 2d-rFFT central-slice(s) to insert, or a single value.
+    /// \param[in] slice_weight:
+    ///     ((B..,)Ni,Hi,Wi) array of weights associated with the slices, a single value, or Empty (defaulting to ones).
+    /// \param slice_shape:
+    ///     ((B..,)Ni,Hi,Wil) logical shape of slice(s).
+    /// \param[out] volume:
+    ///     ((B..,)Do,Ho,Wo) 3d-rfft volume(s) inside which the Ni slices are inserted.
+    /// \param[out] volume_weight:
+    ///     ((B..,)Do,Ho,Wo) Optional weights associated with volume, or Empty (sampling weights are not saved).
+    /// \param volume_shape:
+    ///     ((B..,)Do,Ho,Wol) logical shape of volume(s).
+    /// \param[in] fwd_scaling:
+    ///     ((B..,)Ni) contiguous array of 2x2 HW forward scaling matrix to apply to the slices before the rotation,
+    ///     or Empty. A single matrix can also be passed, in which case all slices are assigned to it.
+    /// \param[in] inv_rotation:
+    ///     ((B..,)Ni) contiguous array of 3x3 DHW inverse rotation-matrices or quaternions to apply to the slices,
+    ///     or Empty. A single matrix or quaternion can also be passed, in which case all slices are assigned to it.
+    ///     Sets the floating-point precision of the transformation.
+    /// \param options:
+    ///     Insertion options.
     template<nf::Layout REMAP,
              typename Input, typename InputWeight = Empty,
              typename Output, typename OutputWeight = Empty,
@@ -1839,11 +1792,10 @@ namespace noa::xform {
         const Shape<isize, N>& volume_shape,
         Scale&& fwd_scaling,
         Rotate&& inv_rotation,
-        const InsertCentralSlicesOptions<N>& options = {}
+        const InsertCentralSlicesOptions& options = {}
     ) {
         details::fourier_projection_check_parameters<details::FourierProjectionType::INSERT_INTERPOLATE>(
-            slice, slice_weight, slice_shape, volume, volume_weight, volume_shape,
-            options.target_shape, fwd_scaling, inv_rotation);
+            slice, slice_weight, slice_shape, volume, volume_weight, volume_shape, fwd_scaling, inv_rotation);
 
         if (volume.device().is_gpu()) {
             #ifdef NOA_ENABLE_GPU
@@ -1870,7 +1822,6 @@ namespace noa::xform {
             NOA_FWD(fwd_scaling), NOA_FWD(inv_rotation), options);
     }
 
-    template<usize N>
     struct ExtractCentralSlicesOptions {
         /// Interpolation method.
         /// This is ignored if the input(_weights) is a texture.
@@ -1885,9 +1836,9 @@ namespace noa::xform {
         /// The frequencies above this cutoff are assumed to be zero.
         f64 fftfreq_cutoff{0.5};
 
-        /// Actual BDHW logical shape of the 3d volume.
+        /// Actual DHW logical shape of the 3d volume.
         /// See RasterizeCentralSlicesOptions for more details.
-        Shape<isize, N> target_shape{};
+        Shape<isize, 3> target_shape{};
 
         /// HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
         /// See RasterizeCentralSlicesOptions for more details.
@@ -1912,17 +1863,28 @@ namespace noa::xform {
     /// \tparam OutputWeight        Array of type f32|f64, or Empty.
     /// \tparam Scale               Mat22, a array of Mat22, or Empty.
     /// \tparam Rotate              Mat33|Quaternion, or a array of this type.
-    ///                             Sets the floating-point precision of the transformation.
     ///
-    /// \param[in] volume           3d-rFFT volume from which to extract the slices.
-    /// \param[in] volume_weight    Optional weights associated with volume.
-    /// \param volume_shape         BDHW logical shape of volume.
-    /// \param[out] slice           2d-rFFT central-slice(s) to extract.
-    /// \param[out] slice_weight    Optional weights associated with slice.
-    /// \param slice_shape          BDHW logical shape of slice.
-    /// \param[in] inv_scaling      2x2 HW inverse scaling to apply to the slices before the rotation.
-    /// \param[in] fwd_rotation     3x3 DHW forward rotation-matrices or quaternions to apply to the slices.
-    /// \param options              Extraction options.
+    /// \param[in] volume:
+    ///     ((B..,)Di,Hi,Wi) 3d-rFFT volume(s) from which to extract the slices.
+    /// \param[in] volume_weight:
+    ///     ((B..,)Di,Hi,Wi) array of weights associated with volume(s), or Empty (defaulting to ones).
+    /// \param volume_shape:
+    ///     ((B..,)Di,Hi,Wil) logical shape of volume(s).
+    /// \param[out] slice:
+    ///     ((B..,)No,Ho,Wo) 2d-rFFT central-slice(s) to extract.
+    /// \param[out] slice_weight:
+    ///     ((B..,)No,Ho,Wo) Weights associated with the slices, or Empty (sampling weights are not saved).
+    /// \param slice_shape:
+    ///     ((B..,)No,Ho,Wol) logical shape of the slice(s).
+    /// \param[in] inv_scaling:
+    ///     ((B..,)No) contiguous array of 2x2 HW inverse scaling matrix to apply to the slices before the rotation,
+    ///     or Empty. A single matrix can also be passed, in which case all slices are assigned to it.
+    /// \param[in] fwd_rotation:
+    ///     ((B..,)No) contiguous array of 3x3 DHW forward rotation-matrices or quaternions to apply to the slices,
+    ///     or Empty. A single matrix or quaternion can also be passed, in which case all slices are assigned to it.
+    ///     Sets the floating-point precision of the transformation.
+    /// \param options:
+    ///     Extraction options.
     template<nf::Layout REMAP,
              typename Input, typename InputWeight = Empty,
              typename Output, typename OutputWeight = Empty,
@@ -1939,11 +1901,10 @@ namespace noa::xform {
         const Shape<isize, N>& slice_shape,
         Scale&& inv_scaling,
         Rotate&& fwd_rotation,
-        const ExtractCentralSlicesOptions<N>& options = {}
+        const ExtractCentralSlicesOptions& options = {}
     ) {
         details::fourier_projection_check_parameters<details::FourierProjectionType::EXTRACT>(
-            volume, volume_weight, volume_shape, slice, slice_weight, slice_shape,
-            options.target_shape, inv_scaling, fwd_rotation);
+            volume, volume_weight, volume_shape, slice, slice_weight, slice_shape, inv_scaling, fwd_rotation);
 
         if (volume.device().is_gpu()) {
             #ifdef NOA_ENABLE_GPU
@@ -2030,17 +1991,32 @@ namespace noa::xform {
     /// \tparam OutputScale             Mat22 or a array of this type, or Empty
     /// \tparam OutputRotate            Mat33|Quaternion, or a array of this type.
     ///
-    /// \param[in] input_slice          ((B..,)Si,H,W) 2d central-slice(s) to insert.
-    /// \param[in] input_weight         ((B..,)Si,H,W) Optional weights associated with input_slice. Defaults to ones.
-    /// \param input_slice_shape        BDHW logical shape of input_slice.
-    /// \param[in,out] output_slice     2d central-slice(s) to extract. See options.add_to_output. ((B..,)So,H,W)
-    /// \param[in,out] output_weight    Optional weights associated with output_slice.
-    /// \param output_slice_shape       BDHW logical shape of output_slice.
-    /// \param[in] input_fwd_scaling    2x2 HW forward scaling matrices to apply to the input slices before the rotation. ((B..,)Si)
-    /// \param[in] input_inv_rotation   3x3 DHW inverse rotation-matrices or quaternions to apply to the input slices. ((B..,)Si)
-    /// \param[in] output_inv_scaling   2x2 HW inverse scaling matrix to apply to the output slices before the rotation. ((B..,)So)
-    /// \param[in] output_fwd_rotation  3x3 DHW forward rotation-matrices or quaternions to apply to the output slices. ((B..,)So)
-    /// \param options                  Operator options.
+    /// \param[in] input_slice:
+    ///     ((B..,)Ni,Hi,Wi) 2d central-slice(s) to insert, a single value, or Empty (defaulting to ones).
+    /// \param[in] input_weight:
+    ///     ((B..,)Ni,Hi,Wi) array of weights associated with the input slice(s), a single value, or Empty (defaulting to ones).
+    /// \param input_slice_shape:
+    ///     ((B..,)Ni,Hi,Wil) logical shape of the input slice(s).
+    /// \param[in,out] output_slice:
+    ///     ((B..,)No,Ho,Wo) 2d central-slice(s) to extract. See options.add_to_output.
+    /// \param[in,out] output_weight:
+    ///     ((B..,)No,Ho,Wo) Optional weights associated with output_slice.
+    /// \param output_slice_shape:
+    ///     ((B..,)No,Ho,Wol) logical shape of output_slice.
+    /// \param[in] input_fwd_scaling:
+    ///     ((B..,)Ni) contiguous array of 2x2 HW forward scaling matrices to apply to the input slices before the
+    ///     rotation, or Empty. A single matrix can also be passed, in which case all slices are assigned to it.
+    /// \param[in] input_inv_rotation:
+    ///     ((B..,)Ni) contiguous array of 3x3 DHW inverse rotation-matrices or quaternions to apply to the input
+    ///     slices, or Empty. A single matrix can also be passed, in which case all slices are assigned to it.
+    /// \param[in] output_inv_scaling:
+    ///     ((B..,)No) contiguous array of 2x2 HW inverse scaling matrix to apply to the output slices before the
+    ///     rotation, or Empty. A single matrix can also be passed, in which case all slices are assigned to it.
+    /// \param[in] output_fwd_rotation:
+    ///     ((B..,)No) contiguous array of 3x3 DHW forward rotation-matrices or quaternions to apply to the output
+    ///     slices, or Empty. A single matrix can also be passed, in which case all slices are assigned to it.
+    /// \param options:
+    ///     Operator options.
     template<nf::Layout REMAP,
              typename Input, typename InputWeight = Empty,
              typename Output, typename OutputWeight = Empty,
@@ -2065,10 +2041,10 @@ namespace noa::xform {
     ) {
         details::fourier_projection_check_parameters<details::FourierProjectionType::INSERT_EXTRACT>(
             input_slice, input_weight, input_slice_shape, output_slice, output_weight, output_slice_shape,
-            {}, input_fwd_scaling, input_inv_rotation, output_inv_scaling, output_fwd_rotation);
+            input_fwd_scaling, input_inv_rotation, output_inv_scaling, output_fwd_rotation);
 
         using coord_t = nt::value_type_twice_t<OutputRotate>;
-        const auto volume_z = static_cast<coord_t>(min(output_slice_shape.filter(2, 3)));
+        const auto volume_z = static_cast<coord_t>(min(output_slice_shape.filter(N - 2, N - 1)));
         const auto fftfreq_blackman = static_cast<coord_t>(options.w_windowed_sinc.fftfreq_blackman);
         const auto w_blackman_size = details::blackman_window_size<isize>(fftfreq_blackman, volume_z);
         check(not options.correct_weights or (not options.add_to_output and w_blackman_size == 1),
@@ -2161,17 +2137,18 @@ namespace noa::xform {
         auto output_accessor = Accessor<output_value_t, BR, isize>(output_br.get(), output_br.strides());
 
         if (options.post_correction) {
-            const auto op = details::GriddingCorrection
+            const auto op = details::FourierInterpolationCorrection
                 <true, B, R, coord_t, decltype(input_accessor), decltype(output_accessor)>(
                     input_accessor, output_accessor, shape_r);
             iwise(output_br.shape(), output.device(), op, NOA_FWD(input), NOA_FWD(output));
         } else {
-            const auto op = details::GriddingCorrection
+            const auto op = details::FourierInterpolationCorrection
                 <false, B, R, coord_t, decltype(input_accessor), decltype(output_accessor)>(
                     input_accessor, output_accessor, shape_r);
             iwise(output_br.shape(), output.device(), op, NOA_FWD(input), NOA_FWD(output));
         }
     }
+
     template<typename Input, typename Output>
     void fourier_interpolation_correction_2d(
         Input&& input,

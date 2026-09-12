@@ -7,6 +7,7 @@
 #include <noa/IO.hpp>
 #include <noa/Signal.hpp>
 #include <noa/FFT.hpp>
+#include <noa/base/Zip.hpp>
 
 #include "Assets.hpp"
 #include "Catch.hpp"
@@ -17,7 +18,7 @@ namespace nx = noa::xform;
 using Interp = nx::Interp;
 
 TEST_CASE("xform::project_3d, project sphere", "[asset]") {
-    const Path path_base = test::NOA_DATA_PATH / "xform";
+    const Path path_base = test::noa_data_path() / "xform";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["project_3d"][0];
     const auto input_filename = path_base / param["input_images"].as<Path>();
     const auto output_volume_filename = path_base / param["output_volume"].as<Path>();
@@ -36,12 +37,12 @@ TEST_CASE("xform::project_3d, project sphere", "[asset]") {
     constexpr bool COMPUTE_ASSETS = false;
     if constexpr (COMPUTE_ASSETS) {
         const auto inverse_matrices = noa::empty<Mat<f64, 2, 3>>(n_images);
-        for (auto&& [matrix, shift]: noa::zip(inverse_matrices.span_1d(), shifts))
+        for (auto&& [matrix, shift]: noa::zip(inverse_matrices.span(), shifts))
             matrix = nx::translate(-shift).pop_back();
 
         constexpr auto circle = nx::Sphere{.center = Vec{128., 128.}, .radius = 32., .smoothness = 5.};
-        const auto asset = noa::empty<f32>({n_images, 1, 256, 256});
-        nx::draw({}, asset, circle.draw(), inverse_matrices);
+        const auto asset = noa::empty<f32, 3>({n_images, 256, 256});
+        nx::draw_2d({}, asset, circle.get(), inverse_matrices);
         noa::write_image(asset, input_filename);
     }
 
@@ -53,9 +54,9 @@ TEST_CASE("xform::project_3d, project sphere", "[asset]") {
     isize projection_window_size{};
 
     for (auto&& [backward_matrix, forward_matrix, shift, tilt]: noa::zip(
-             backward_projection_matrices.span_1d(),
-             forward_projection_matrices.span_1d(),
-             shifts, tilts))
+        backward_projection_matrices.span(),
+        forward_projection_matrices.span(),
+        shifts, tilts))
     {
         auto matrix =
             nx::translate((center.pop_front() + shift).push_front(0)) *
@@ -71,7 +72,7 @@ TEST_CASE("xform::project_3d, project sphere", "[asset]") {
         );
     }
 
-    std::vector<Device> devices{"cpu"};
+    auto devices = std::vector<Device>{"cpu"};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
         devices.emplace_back("gpu");
 
@@ -85,23 +86,23 @@ TEST_CASE("xform::project_3d, project sphere", "[asset]") {
 
         // Backward project.
         {
-            auto images = noa::read_image<f32>(input_filename, {}, options).data;
-            auto volume = noa::empty<f32>(volume_shape.push_front(1), options);
+            auto images = noa::read_image<f32, 3>(input_filename, {.rank = 2}, options).data;
+            auto volume = noa::empty<f32>(volume_shape, options);
             nx::backward_project_3d(images, volume, backward_projection_matrices);
             if constexpr (COMPUTE_ASSETS) {
                 noa::write_image(volume, output_volume_filename);
             } else {
-                auto asset_volume = noa::read_image<f32>(output_volume_filename, {}, options).data;
+                auto asset_volume = noa::read_image<f32, 3>(output_volume_filename, {.rank = 3}, options).data;
                 REQUIRE(test::allclose_abs(volume, asset_volume, 1e-4));
             }
         }
 
         // Forward project.
         {
-            const auto volume = noa::empty<f32>(volume_shape.push_front(1), options);
-            nx::draw({}, volume, nx::Sphere{.center = center, .radius = 32., .smoothness = 0.}.draw());
+            const auto volume = noa::empty<f32>(volume_shape, options);
+            nx::draw_3d({}, volume, nx::Sphere{.center = center, .radius = 32., .smoothness = 0.}.get());
 
-            auto images = noa::zeros<f32>({n_images, 1, 256, 256}, options);
+            auto images = noa::zeros<f32, 3>({n_images, 256, 256}, options);
             nx::forward_project_3d(
                 volume, images, forward_projection_matrices,
                 projection_window_size, {.add_to_output = true}
@@ -109,7 +110,7 @@ TEST_CASE("xform::project_3d, project sphere", "[asset]") {
             if constexpr (COMPUTE_ASSETS) {
                 noa::write_image(images, output_images_filename);
             } else {
-                auto asset_images = noa::read_image<f32>(output_images_filename, {}, options).data;
+                auto asset_images = noa::read_image<f32, 3>(output_images_filename, {.rank = 2}, options).data;
                 REQUIRE(test::allclose_abs(images, asset_images, 1e-4));
             }
         }
@@ -117,7 +118,7 @@ TEST_CASE("xform::project_3d, project sphere", "[asset]") {
 }
 
 TEST_CASE("xform::project_3d, fused", "[asset]") {
-    const Path path_base = test::NOA_DATA_PATH / "xform";
+    const Path path_base = test::noa_data_path() / "xform";
     const YAML::Node param = YAML::LoadFile(path_base / "tests.yaml")["project_3d"][1];
     const auto image_normal = path_base / param["image_normal"].as<Path>();
     const auto image_fused = path_base / param["image_fused"].as<Path>();
@@ -129,7 +130,7 @@ TEST_CASE("xform::project_3d, fused", "[asset]") {
     constexpr auto tilts = std::array{-60., -30., 0., 30., 60.};
 
     auto backward_projection_matrices = noa::empty<Mat<f64, 2, 4>>(n_images);
-    for (auto&& [backward_matrix, tilt]: noa::zip(backward_projection_matrices.span_1d(), tilts)) {
+    for (auto&& [backward_matrix, tilt]: noa::zip(backward_projection_matrices.span(), tilts)) {
         backward_matrix = (
             nx::translate((center.pop_front()).push_front(0)) *
             nx::affine(nx::rotate_y(noa::deg2rad(tilt))) *
@@ -146,10 +147,10 @@ TEST_CASE("xform::project_3d, fused", "[asset]") {
     REQUIRE(projection_window_size == 259);
 
     constexpr auto circle = nx::Sphere{.center = Vec{128., 128.}, .radius = 32., .smoothness = 5.};
-    auto images = noa::empty<f32>({n_images, 1, 256, 256});
-    nx::draw({}, images, circle.draw());
+    auto images = noa::empty<f32, 3>({n_images, 256, 256});
+    nx::draw_2d({}, images, circle.get());
 
-    std::vector<Device> devices{"cpu"};
+    auto devices = std::vector<Device>{"cpu"};
     if (not COMPUTE_ASSETS and Device::is_any_gpu())
         devices.emplace_back("gpu");
 
@@ -157,14 +158,14 @@ TEST_CASE("xform::project_3d, fused", "[asset]") {
         INFO(device);
         auto options = ArrayOption{.device = device, .allocator = Allocator::MANAGED};
 
-        auto projected_image = noa::zeros<f32>({1, 1, 256, 256}, options);
+        auto projected_image = noa::zeros<f32, 3>({1, 256, 256}, options);
         if (options.device != Device()) {
             backward_projection_matrices = std::move(backward_projection_matrices).to(options);
             images = std::move(images).to(options);
         }
 
         { // normal
-            auto volume = noa::empty<f32>(volume_shape.push_front(1), options);
+            auto volume = noa::empty<f32>(volume_shape, options);
             nx::backward_project_3d(images, volume, backward_projection_matrices, {.interp = Interp::CUBIC});
             nx::forward_project_3d(
                 volume, projected_image, forward_projection_matrix,
@@ -173,7 +174,7 @@ TEST_CASE("xform::project_3d, fused", "[asset]") {
             if constexpr (COMPUTE_ASSETS) {
                 noa::write_image(projected_image, image_normal);
             } else {
-                auto asset_image = noa::read_image<f32>(image_normal, {}, options).data;
+                auto asset_image = noa::read_image<f32, 3>(image_normal, {.rank = 2}, options).data;
                 REQUIRE(test::allclose_abs(projected_image, asset_image, 5e-4));
             }
         }
@@ -187,31 +188,31 @@ TEST_CASE("xform::project_3d, fused", "[asset]") {
             if constexpr (COMPUTE_ASSETS) {
                 noa::write_image(projected_image, image_fused);
             } else {
-                auto asset_image = noa::read_image<f32>(image_fused, {}, options).data;
+                auto asset_image = noa::read_image<f32, 3>(image_fused, {.rank = 2}, options).data;
                 REQUIRE(test::allclose_abs(projected_image, asset_image, 5e-4));
             }
         }
     }
 }
 
-TEST_CASE("xform::project_3d, projection window", "[.]") {
-    const Path path_base = test::NOA_DATA_PATH / "xform";
-
-    constexpr auto volume_shape = Shape<isize, 3>{64, 256, 256};
-    constexpr auto center = (volume_shape.vec / 2).as<f64>();
-
-    const auto volume = noa::ones<f32>(volume_shape.push_front(1));
-    auto images = noa::zeros<f32>({1, 1, 256, 256});
-
-    for (auto tilt: std::array{60.}) {
-        auto forward_matrix = (
-            nx::translate(center) *
-            nx::affine(nx::rotate_y(noa::deg2rad(tilt + 180))) *
-            nx::translate(-center)
-        ).inverse().pop_back();
-
-        auto projection_window_size = nx::forward_projection_window_size(volume_shape, forward_matrix);
-        nx::forward_project_3d(volume, images, forward_matrix, projection_window_size, {.interp = Interp::CUBIC});
-        noa::write_image(images, path_base / "test_image.mrc");
-    }
-}
+// TEST_CASE("xform::project_3d, projection window", "[.]") {
+//     const Path path_base = test::noa_data_path() / "xform";
+//
+//     constexpr auto volume_shape = Shape<isize, 3>{64, 256, 256};
+//     constexpr auto center = (volume_shape.vec / 2).as<f64>();
+//
+//     const auto volume = noa::ones<f32>(volume_shape.push_front(1));
+//     auto images = noa::zeros<f32>({1, 1, 256, 256});
+//
+//     for (auto tilt: std::array{60.}) {
+//         auto forward_matrix = (
+//             nx::translate(center) *
+//             nx::affine(nx::rotate_y(noa::deg2rad(tilt + 180))) *
+//             nx::translate(-center)
+//         ).inverse().pop_back();
+//
+//         auto projection_window_size = nx::forward_projection_window_size(volume_shape, forward_matrix);
+//         nx::forward_project_3d(volume, images, forward_matrix, projection_window_size, {.interp = Interp::CUBIC});
+//         noa::write_image(images, path_base / "test_image.mrc");
+//     }
+// }
