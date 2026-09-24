@@ -34,7 +34,7 @@ namespace noa {
 
 // Static for each
 namespace noa {
-    template<usize... I, typename Integer = usize, typename Op, typename... Args>
+    template<typename Integer, Integer... I, typename Op, typename... Args>
     void static_for_each(std::integer_sequence<Integer, I...>, Op&& op, Args&&... args) {
         (op.template operator()<I>(args...), ...);
     }
