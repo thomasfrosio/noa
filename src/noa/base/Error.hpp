@@ -82,14 +82,14 @@ namespace noa {
     ) {
         if constexpr (config::error_policy == config::error_policy_type::TERMINATE) {
             fmt::print(stderr, "ERROR: {}:{}: {}: ", location.file_name(), location.line(), location.function_name());
-            fmt::println(stderr, fmt::runtime(fmt), std::forward<Ts>(args)...);
+            fmt::println(stderr, fmt::runtime(fmt.str), std::forward<Ts>(args)...);
             std::terminate();
 
         } else if constexpr (config::error_policy == config::error_policy_type::THROW) {
             auto buffer = fmt::memory_buffer();
             auto it = std::back_inserter(buffer);
             fmt::format_to(it, "ERROR: {}:{}: {}: ", location.file_name(), location.line(), location.function_name());
-            fmt::format_to(it, fmt::runtime(fmt), std::forward<Ts>(args)...);
+            fmt::format_to(it, fmt::runtime(fmt.str), std::forward<Ts>(args)...);
             std::throw_with_nested(Exception(fmt::to_string(buffer)));
 
         } else { // config::error_policy_type::ABORT
