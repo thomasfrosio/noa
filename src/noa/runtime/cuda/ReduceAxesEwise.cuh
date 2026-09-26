@@ -95,7 +95,7 @@ namespace noa::cuda::details {
 
         auto input_row = std::move(input).map([&gid]<typename T>(T&& accessor) {
             if constexpr (nt::is_accessor_value_v<T>)
-                return std::forward<T>(accessor);
+                return NOA_FWD(accessor);
             else
                 return accessor[gid.pop_back()]; // 1D accessor
         });
@@ -231,7 +231,7 @@ namespace noa::cuda::details {
         // Process every row.
         auto input_rows = std::move(input).map([&gid]<typename T>(T&& accessor) {
             if constexpr (nt::is_accessor_value_v<T> or nt::accessor_pure_nd<T, 2>)
-                return std::forward<T>(accessor);
+                return NOA_FWD(accessor);
             else
                 return accessor[gid.template pop_back<2>()]; // 2D accessor
         });
@@ -300,14 +300,14 @@ namespace noa::cuda::details {
         dim3 n_threads
     ) {
         // The width of the output is empty/reduced, remove it.
-        auto output_no_width = nd::reconfig_accessors(std::forward<Output>(output), Vec<usize, N - 1>::arange());
+        auto output_no_width = nd::reconfig_accessors(NOA_FWD(output), Vec<usize, N - 1>::arange());
         using OutputNoWidth = decltype(output_no_width);
 
         // Prepare the input for vectorization.
         constexpr size_t VEC_SIZE = maximum_allowed_aligned_buffer_size<ALIGNMENT, Input>();
         using InputVec = to_aligned_buffer_t<Input, ALIGNMENT, VEC_SIZE>;
         constexpr auto CONFIG = nd::AccessorConfig{.enforce_contiguous = is_vectorized<InputVec>()};
-        auto input_nd = nd::reconfig_accessors<CONFIG>(std::forward<Input>(input));
+        auto input_nd = nd::reconfig_accessors<CONFIG>(NOA_FWD(input));
         using InputND = decltype(input_nd);
 
         // Grid shape. Exclude the width, each block line reduces its row.
@@ -369,68 +369,56 @@ namespace noa::cuda::details {
             if (n_threads_x == 256) {
                 if (alignment == 16) {
                     launch_reduce_ewise_width_<256, 16, Config>(
-                        shape, op, std::forward<Input>(input), std::forward<Reduced>(reduced),
-                        std::forward<Output>(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
                     );
                 } else if (alignment == 8) {
                     launch_reduce_ewise_width_<256, 8, Config>(
-                        shape, op, std::forward<Input>(input), std::forward<Reduced>(reduced),
-                        std::forward<Output>(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
                     );
                 } else if (alignment == 4) {
                     launch_reduce_ewise_width_<256, 4, Config>(
-                        shape, op, std::forward<Input>(input), std::forward<Reduced>(reduced),
-                        std::forward<Output>(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
                     );
                 } else if (alignment == 2) {
                     launch_reduce_ewise_width_<256, 2, Config>(
-                        shape, op, std::forward<Input>(input), std::forward<Reduced>(reduced),
-                        std::forward<Output>(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
                     );
                 } else {
                     launch_reduce_ewise_width_<256, 1, Config>(
-                        shape, op, std::forward<Input>(input), std::forward<Reduced>(reduced),
-                        std::forward<Output>(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
                     );
                 }
             } else {
                 if (alignment == 16) {
                     launch_reduce_ewise_width_<64, 16, Config>(
-                        shape, op, std::forward<Input>(input), std::forward<Reduced>(reduced),
-                        std::forward<Output>(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
                     );
                 } else if (alignment == 8) {
                     launch_reduce_ewise_width_<64, 8, Config>(
-                        shape, op, std::forward<Input>(input), std::forward<Reduced>(reduced),
-                        std::forward<Output>(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
                     );
                 } else if (alignment == 4) {
                     launch_reduce_ewise_width_<64, 4, Config>(
-                        shape, op, std::forward<Input>(input), std::forward<Reduced>(reduced),
-                        std::forward<Output>(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
                     );
                 } else if (alignment == 2) {
                     launch_reduce_ewise_width_<64, 2, Config>(
-                        shape, op, std::forward<Input>(input), std::forward<Reduced>(reduced),
-                        std::forward<Output>(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
                     );
                 } else {
                     launch_reduce_ewise_width_<64, 1, Config>(
-                        shape, op, std::forward<Input>(input), std::forward<Reduced>(reduced),
-                        std::forward<Output>(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
                     );
                 }
             }
         } else {
             if (n_threads_x == 256) {
                 launch_reduce_ewise_width_<256, 1, Config>(
-                    shape, op, std::forward<Input>(input), std::forward<Reduced>(reduced),
-                    std::forward<Output>(output), stream, n_threads
+                    shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
                 );
             } else {
                 launch_reduce_ewise_width_<64, 1, Config>(
-                    shape, op, std::forward<Input>(input), std::forward<Reduced>(reduced),
-                    std::forward<Output>(output), stream, n_threads
+                    shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
                 );
             }
         }
@@ -448,8 +436,8 @@ namespace noa::cuda::details {
         Stream& stream
     ) {
         // First copy|move the input and output since they'll need to be reordered.
-        auto input_ = std::forward<Input>(input);
-        auto output_ = std::forward<Output>(output);
+        auto input_ = NOA_FWD(input);
+        auto output_ = NOA_FWD(output);
 
         // The kernel needs the axis to reduce at the "height" position.
         // The width should still be at the rightmost dimension.
@@ -527,7 +515,11 @@ namespace noa::cuda {
         const auto axes_to_reduce = input_shape.cmp_ne(output_shape);
         const auto axes_empty_or_to_reduce = output_shape.cmp_eq(1) or axes_to_reduce;
 
-        // Find the first non-empty axis.
+        // Note that usually we check for the special case where all axes are reduced and if so we call reduce_ewise.
+        // In this case, however, because the underlying functions are the same (launch_reduce_ewise*), we can directly
+        // handle this special case in the batch reduction block.
+
+        // Find the first non-empty axis in the input.
         usize first_non_empty{N - 1};
         if constexpr (N > 1) {
             for (usize i = 0; i < N - 1; ++i) {
@@ -539,6 +531,7 @@ namespace noa::cuda {
         }
 
         // Batch reduction is when all axes after first non-empty axis are empty or reduced.
+        // In this case, the batch axis MAY be reduced too.
         bool batched_reduction{true};
         for (usize i = first_non_empty + 1; i < N; ++i)
             if (not axes_empty_or_to_reduce[i])
@@ -546,45 +539,51 @@ namespace noa::cuda {
 
         if (batched_reduction) {
             constexpr auto SMALL_THRESHOLD = Config::block_work_size * 4;
-            auto output_1d = nd::reconfig_accessors(std::forward<Output>(output), first_non_empty);
+            auto output_1d = nd::reconfig_accessors(NOA_FWD(output), first_non_empty);
 
-            // Use the row kernels if the reduction is along a single axis.
-            // Given that the shapes are collapsed, this means the first non-empty input axis
-            // is N-2 (batched reduction) or N-1 (batch=1, single reduction).
-            if (N <= 2 or first_non_empty >= N - 2) {
+            NOA_NV_DIAG_SUPPRESS(186) // N=0 triggers unnecessary comparison
+            // Use the row kernels if the reduction is along a single axis, meaning:
+            //  - first_non_empty is N-2 (batched reduction) or N-1 (batch=1, single reduction).
+            //  - if first_non_empty is N-2, it should not be reduced.
+            if (N == 1 or (first_non_empty >= N - 2 and sum(axes_to_reduce) == 1)) {
                 const auto batch = N == 1 ? u32{1} : safe_cast<u32>(output_shape[N - 2]);
                 const auto width = safe_cast<Index>(input_shape[N - 1]);
                 if (width <= SMALL_THRESHOLD) {
                     details::launch_reduce_ewise_small_rows<Config, N>(
-                        std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),
+                        NOA_FWD(op), NOA_FWD(input), NOA_FWD(reduced),
                         std::move(output_1d), batch, width, stream
                     );
                 } else {
                     details::launch_reduce_ewise_large_rows<Config, N>(
-                        std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),
+                        NOA_FWD(op), NOA_FWD(input), NOA_FWD(reduced),
                         std::move(output_1d), batch, width, stream
                     );
                 }
                 return;
             }
+            NOA_NV_DIAG_DEFAULT(186)
             if constexpr (N >= 2) {
-                // The batch should be the leftmost dimensions. In cases with empty dimensions before the first
-                // non-empty axis, the input and input shape should be reordered.
-                auto order_to_batch = Vec<usize, N>::arange();
-                std::swap(order_to_batch[0], order_to_batch[first_non_empty]);
-                auto input_nd = std::forward<Input>(input);
-                nd::permute_accessors(order_to_batch, input_nd);
-                auto input_shape_nd = input_shape.filter(order_to_batch);
+                // The following function need the batch axis to be the leftmost/outermost axis.
+                // So for case with empty dimensions before the first non-empty axis, swap the
+                // first non-empty to the leftmost position.
+                auto batch_to_leftmost = Vec<usize, N>::arange();
+                std::swap(batch_to_leftmost[0], batch_to_leftmost[first_non_empty]);
+                auto input_nd = NOA_FWD(input);
+                nd::permute_accessors(batch_to_leftmost, input_nd);
+                auto input_shape_nd = input_shape.filter(batch_to_leftmost);
+
+                // Only reduce the batch axis if needed.
+                const bool keep_outermost = output_shape[first_non_empty] != 1;
 
                 if (input_shape.template as<isize>().n_elements() <= SMALL_THRESHOLD) {
                     details::launch_reduce_ewise_small_nd<Config>(
-                        std::forward<Op>(op), std::move(input_nd), std::forward<Reduced>(reduced),
-                        std::move(output_1d), input_shape_nd, true, stream
+                        NOA_FWD(op), std::move(input_nd), NOA_FWD(reduced),
+                        std::move(output_1d), input_shape_nd, keep_outermost, stream
                     );
                 } else {
                     details::launch_reduce_ewise_large_nd<Config>(
-                        std::forward<Op>(op), std::move(input_nd), std::forward<Reduced>(reduced),
-                        std::move(output_1d), input_shape_nd, true, stream
+                        NOA_FWD(op), std::move(input_nd), NOA_FWD(reduced),
+                        std::move(output_1d), input_shape_nd, keep_outermost, stream
                     );
                 }
             }
@@ -594,24 +593,14 @@ namespace noa::cuda {
         if constexpr (N >= 3) {
             if (axes_to_reduce[N - 1]) {
                 details::launch_reduce_ewise_width<Config>(
-                    input_shape,
-                    std::forward<Op>(op),
-                    std::forward<Input>(input),
-                    std::forward<Reduced>(reduced),
-                    std::forward<Output>(output),
-                    stream
+                    input_shape, NOA_FWD(op), NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream
                 );
                 return;
             }
         }
         if constexpr (N >= 2) {
             details::launch_reduce_ewise_height<Config>(
-                input_shape, axes_to_reduce,
-                std::forward<Op>(op),
-                std::forward<Input>(input),
-                std::forward<Reduced>(reduced),
-                std::forward<Output>(output),
-                stream
+                input_shape, axes_to_reduce, NOA_FWD(op), NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream
             );
         }
     }
