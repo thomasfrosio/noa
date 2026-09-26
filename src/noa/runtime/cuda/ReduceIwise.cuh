@@ -360,7 +360,7 @@ namespace noa::cuda {
                 config.n_threads = dim3(Block::block_size, 1, 1);
                 stream.enqueue(
                     details::reduce_iwise_nd_small<Block, Interface, OpDecay, Index, N, ReducedDecay, OutputDecay>,
-                    config, std::forward<Op>(op), std::forward<Reduced>(reduced), output, shape,
+                    config, NOA_FWD(op), NOA_FWD(reduced), output, shape,
                     static_cast<u32>(scratch_size)
                 );
             } else if constexpr (N >= 2) {
@@ -368,7 +368,7 @@ namespace noa::cuda {
                 config.n_threads = dim3(Block::block_size_x, Block::block_size_y, 1);
                 stream.enqueue(
                     details::reduce_iwise_nd_small<Block, Interface, OpDecay, Index, N, ReducedDecay, OutputDecay>,
-                    config, std::forward<Op>(op), std::forward<Reduced>(reduced), output, shape,
+                    config, NOA_FWD(op), NOA_FWD(reduced), output, shape,
                     static_cast<u32>(scratch_size)
                 );
             } else {
@@ -432,7 +432,7 @@ namespace noa::cuda {
             stream.enqueue(
                 details::reduce_iwise_second<Config::block_size, Interface, OpDecay, Index, ReducedDecay, OutputDecay>,
                 LaunchConfig{.n_blocks = 1, .n_threads = HAS_REDUCED ? Config::block_size : 1},
-                std::forward<Op>(op), joined.get(), n_joined, std::forward<Reduced>(reduced), output
+                NOA_FWD(op), joined.get(), n_joined, NOA_FWD(reduced), output
             );
         }
     }

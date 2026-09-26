@@ -720,7 +720,7 @@ namespace noa::cuda {
             constexpr auto CONTIGUOUS = nd::AccessorConfig{.enforce_contiguous = true};
             const auto output_1d = nd::reconfig_accessors<CONTIGUOUS>(output, 0);
             return reduce_iwise<Config>(
-                input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced),
+                input_shape, NOA_FWD(op), NOA_FWD(reduced),
                 output_1d, stream, scratch_size
             );
         }
@@ -757,7 +757,7 @@ namespace noa::cuda {
                     };
                     stream.enqueue(
                         details::reduce_axes_iwise_nd_small<Block, Interface, OpDecay, Index, N, ReducedDecay, Output1d>,
-                        config, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, shape_to_reduce.vec,
+                        config, NOA_FWD(op), NOA_FWD(reduced), output_1d, shape_to_reduce.vec,
                         static_cast<u32>(scratch_size)
                     );
                 } else {
@@ -805,8 +805,7 @@ namespace noa::cuda {
                     stream.enqueue(
                         details::reduce_axes_iwise_second<Config::block_size, Interface, OpDecay, Index, Joined, ReducedDecay, Output1d>,
                         LaunchConfig{.n_blocks = batch, .n_threads = HAS_REDUCED ? Config::block_size : 1},
-                        std::forward<Op>(op), joined, static_cast<Index>(n_blocks_per_batch),
-                        std::forward<Reduced>(reduced), output_1d
+                        NOA_FWD(op), joined, static_cast<Index>(n_blocks_per_batch), NOA_FWD(reduced), output_1d
                     );
                 }
                 return;
@@ -814,8 +813,8 @@ namespace noa::cuda {
 
             // Reduce one axis.
             details::launch_reduce_axes_iwise_single_axis<Config>(
-                input_shape, axes_to_reduce, std::forward<Op>(op),
-                std::forward<Reduced>(reduced), output, stream,
+                input_shape, axes_to_reduce, NOA_FWD(op),
+                NOA_FWD(reduced), output, stream,
                 scratch_size
             );
         }

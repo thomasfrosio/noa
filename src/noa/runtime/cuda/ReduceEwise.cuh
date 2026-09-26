@@ -66,7 +66,7 @@ namespace noa::cuda::details {
 
         auto input_1d = std::move(input).map([row]<typename T>(T&& accessor) {
             if constexpr (nt::is_accessor_value_v<T>) {
-                return std::forward<T>(accessor);
+                return NOA_FWD(accessor);
             } else if constexpr (nt::is_accessor_nd_v<T, 2>) {
                 // Offset the input accessor to the current row,
                 // so that it can be used later to reset the pointer.
@@ -138,7 +138,7 @@ namespace noa::cuda::details {
 
         auto input_1d = std::move(input).map([batch]<typename T>(T&& accessor) {
             if constexpr (nt::is_accessor_value_v<T>) {
-                return std::forward<T>(accessor);
+                return NOA_FWD(accessor);
             } else {
                 // Offset the input accessor to the current batch,
                 // so that it can be used later to reset the pointer.
@@ -242,7 +242,7 @@ namespace noa::cuda::details {
             .enforce_restrict = false,
         };
 
-        auto input_rows = nd::reconfig_accessors<CONFIG>(std::forward<Input>(input_collapsed), AXES);
+        auto input_rows = nd::reconfig_accessors<CONFIG>(NOA_FWD(input_collapsed), AXES);
         const auto grid_x = GridX(n_rows, 1);
         check(grid_x.n_launches() == 1);
         const auto config = LaunchConfig{
@@ -283,47 +283,27 @@ namespace noa::cuda::details {
 
             if (alignment == 16) {
                 return launch_reduce_ewise_small_rows_<16, N, Config>(
-                    std::forward<Op>(op),
-                    std::forward<Input>(input_collapsed),
-                    std::forward<Reduced>(reduced),
-                    std::forward<Output>(output),
-                    n_rows, width, stream
+                    NOA_FWD(op), NOA_FWD(input_collapsed), NOA_FWD(reduced), NOA_FWD(output),n_rows, width, stream
                 );
             }
             if (alignment == 8) {
                 return launch_reduce_ewise_small_rows_<8, N, Config>(
-                    std::forward<Op>(op),
-                    std::forward<Input>(input_collapsed),
-                    std::forward<Reduced>(reduced),
-                    std::forward<Output>(output),
-                    n_rows, width, stream
+                    NOA_FWD(op), NOA_FWD(input_collapsed), NOA_FWD(reduced), NOA_FWD(output), n_rows, width, stream
                 );
             }
             if (alignment == 4) {
                 return launch_reduce_ewise_small_rows_<4, N, Config>(
-                    std::forward<Op>(op),
-                    std::forward<Input>(input_collapsed),
-                    std::forward<Reduced>(reduced),
-                    std::forward<Output>(output),
-                    n_rows, width, stream
+                    NOA_FWD(op), NOA_FWD(input_collapsed), NOA_FWD(reduced), NOA_FWD(output), n_rows, width, stream
                 );
             }
             if (alignment == 2) {
                 return launch_reduce_ewise_small_rows_<2, N, Config>(
-                    std::forward<Op>(op),
-                    std::forward<Input>(input_collapsed),
-                    std::forward<Reduced>(reduced),
-                    std::forward<Output>(output),
-                    n_rows, width, stream
+                    NOA_FWD(op), NOA_FWD(input_collapsed), NOA_FWD(reduced), NOA_FWD(output), n_rows, width, stream
                 );
             }
         }
         details::launch_reduce_ewise_small_rows_<1, N, Config>(
-            std::forward<Op>(op),
-            std::forward<Input>(input_collapsed),
-            std::forward<Reduced>(reduced),
-            std::forward<Output>(output),
-            n_rows, width, stream
+            NOA_FWD(op), NOA_FWD(input_collapsed), NOA_FWD(reduced), NOA_FWD(output), n_rows, width, stream
         );
     }
 
@@ -347,7 +327,7 @@ namespace noa::cuda::details {
         using InputVec = to_aligned_buffer_t<Input, ALIGNMENT, VEC_SIZE>;
 
         constexpr auto CONFIG = nd::AccessorConfig{.enforce_contiguous = is_vectorized<InputVec>()};
-        auto input_nd = nd::reconfig_accessors<CONFIG>(std::forward<Input>(input));
+        auto input_nd = nd::reconfig_accessors<CONFIG>(NOA_FWD(input));
 
         // One 2D block to reduce n_rows.
         // GridX for one block per reduction (batch).
@@ -394,47 +374,27 @@ namespace noa::cuda::details {
             const auto alignment = min_address_alignment(input, shape.pop_back());
             if (alignment == 16) {
                 return launch_reduce_ewise_small_nd_<16, Config>(
-                    std::forward<Op>(op),
-                    std::forward<Input>(input),
-                    std::forward<Reduced>(reduced),
-                    std::forward<Output>(output),
-                    shape, keep_outermost, stream
+                    NOA_FWD(op), NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), shape, keep_outermost, stream
                 );
             }
             if (alignment == 8) {
                 return launch_reduce_ewise_small_nd_<8, Config>(
-                    std::forward<Op>(op),
-                    std::forward<Input>(input),
-                    std::forward<Reduced>(reduced),
-                    std::forward<Output>(output),
-                    shape, keep_outermost, stream
+                    NOA_FWD(op), NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), shape, keep_outermost, stream
                 );
             }
             if (alignment == 4) {
                 return launch_reduce_ewise_small_nd_<4, Config>(
-                    std::forward<Op>(op),
-                    std::forward<Input>(input),
-                    std::forward<Reduced>(reduced),
-                    std::forward<Output>(output),
-                    shape, keep_outermost, stream
+                    NOA_FWD(op), NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), shape, keep_outermost, stream
                 );
             }
             if (alignment == 2) {
                 return launch_reduce_ewise_small_nd_<2, Config>(
-                    std::forward<Op>(op),
-                    std::forward<Input>(input),
-                    std::forward<Reduced>(reduced),
-                    std::forward<Output>(output),
-                    shape, keep_outermost, stream
+                    NOA_FWD(op), NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), shape, keep_outermost, stream
                 );
             }
         }
         details::launch_reduce_ewise_small_nd_<1, Config>(
-            std::forward<Op>(op),
-            std::forward<Input>(input),
-            std::forward<Reduced>(reduced),
-            std::forward<Output>(output),
-            shape, keep_outermost, stream
+            NOA_FWD(op), NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), shape, keep_outermost, stream
         );
     }
 
@@ -475,7 +435,7 @@ namespace noa::cuda::details {
             .enforce_restrict = false,
         };
 
-        auto input_rows = nd::reconfig_accessors<CONFIG>(std::forward<Input>(input_collapsed), AXES);
+        auto input_rows = nd::reconfig_accessors<CONFIG>(NOA_FWD(input_collapsed), AXES);
         auto grid_size = Vec<u32, ACTUAL_N - 1>{};
         auto grid_offset = Vec<u32, ACTUAL_N - 1>{};
         if constexpr (N > 1)
@@ -539,28 +499,28 @@ namespace noa::cuda::details {
 
             if (alignment == 16) {
                 launch_reduce_ewise_large_rows_<16, N, Config>(
-                    op, std::forward<Input>(input_collapsed), reduced, joined, stream, width, n_blocks_x, grid_y
+                    op, NOA_FWD(input_collapsed), reduced, joined, stream, width, n_blocks_x, grid_y
                 );
             } else if (alignment == 8) {
                 launch_reduce_ewise_large_rows_<8, N, Config>(
-                    op, std::forward<Input>(input_collapsed), reduced, joined, stream, width, n_blocks_x, grid_y
+                    op, NOA_FWD(input_collapsed), reduced, joined, stream, width, n_blocks_x, grid_y
                 );
             } else if (alignment == 4) {
                 launch_reduce_ewise_large_rows_<4, N, Config>(
-                    op, std::forward<Input>(input_collapsed), reduced, joined, stream, width, n_blocks_x, grid_y
+                    op, NOA_FWD(input_collapsed), reduced, joined, stream, width, n_blocks_x, grid_y
                 );
             } else if (alignment == 2) {
                 launch_reduce_ewise_large_rows_<2, N, Config>(
-                    op, std::forward<Input>(input_collapsed), reduced, joined, stream, width, n_blocks_x, grid_y
+                    op, NOA_FWD(input_collapsed), reduced, joined, stream, width, n_blocks_x, grid_y
                 );
             } else {
                 launch_reduce_ewise_large_rows_<1, N, Config>(
-                    op, std::forward<Input>(input_collapsed), reduced, joined, stream, width, n_blocks_x, grid_y
+                    op, NOA_FWD(input_collapsed), reduced, joined, stream, width, n_blocks_x, grid_y
                 );
             }
         } else {
             launch_reduce_ewise_large_rows_<1, N, Config>(
-                op, std::forward<Input>(input_collapsed), reduced, joined, stream, width, n_blocks_x, grid_y
+                op, NOA_FWD(input_collapsed), reduced, joined, stream, width, n_blocks_x, grid_y
             );
         }
 
@@ -575,7 +535,7 @@ namespace noa::cuda::details {
         stream.enqueue(
             reduce_ewise_second<SecondBlock, Interface, OpDecay, Index, Joined, JoinedVec, ReducedDecay, OutputDecay>,
             LaunchConfig{.n_blocks = n_blocks_y, .n_threads = HAS_REDUCED ? Config::block_size : 1},
-            std::forward<Op>(op), joined, n_blocks_x, std::forward<Reduced>(reduced), std::forward<Output>(output)
+            NOA_FWD(op), joined, n_blocks_x, NOA_FWD(reduced), NOA_FWD(output)
         );
     }
 
@@ -599,7 +559,7 @@ namespace noa::cuda::details {
         constexpr size_t VEC_SIZE = maximum_allowed_aligned_buffer_size<ALIGNMENT, Input>();
         using InputVec = to_aligned_buffer_t<Input, ALIGNMENT, VEC_SIZE>;
         constexpr auto CONFIG = nd::AccessorConfig{.enforce_contiguous = is_vectorized<InputVec>()};
-        auto input_nd = nd::reconfig_accessors<CONFIG>(std::forward<Input>(input));
+        auto input_nd = nd::reconfig_accessors<CONFIG>(NOA_FWD(input));
 
         // Launch the kernel.
         using Block = ReduceEwiseNdConfig<Config, BLOCK_SIZE_X, VEC_SIZE>;
@@ -674,54 +634,54 @@ namespace noa::cuda::details {
             if (n_threads_x == 256) {
                 if (alignment == 16) {
                     launch_reduce_ewise_large_nd_<256, 16, Config>(
-                        op, std::forward<Input>(input), reduced, joined, shape, stream,
+                        op, NOA_FWD(input), reduced, joined, shape, stream,
                         n_rows, n_threads, n_blocks_x, grid_y
                     );
                 } else if (alignment == 8) {
                     launch_reduce_ewise_large_nd_<256, 8, Config>(
-                        op, std::forward<Input>(input), reduced, joined, shape, stream,
+                        op, NOA_FWD(input), reduced, joined, shape, stream,
                         n_rows, n_threads, n_blocks_x, grid_y
                     );
                 } else if (alignment == 4) {
                     launch_reduce_ewise_large_nd_<256, 4, Config>(
-                        op, std::forward<Input>(input), reduced, joined, shape, stream,
+                        op, NOA_FWD(input), reduced, joined, shape, stream,
                         n_rows, n_threads, n_blocks_x, grid_y
                     );
                 } else if (alignment == 2) {
                     launch_reduce_ewise_large_nd_<256, 2, Config>(
-                        op, std::forward<Input>(input), reduced, joined, shape, stream,
+                        op, NOA_FWD(input), reduced, joined, shape, stream,
                         n_rows, n_threads, n_blocks_x, grid_y
                     );
                 } else {
                     launch_reduce_ewise_large_nd_<256, 1, Config>(
-                        op, std::forward<Input>(input), reduced, joined, shape, stream,
+                        op, NOA_FWD(input), reduced, joined, shape, stream,
                         n_rows, n_threads, n_blocks_x, grid_y
                     );
                 }
             } else {
                 if (alignment == 16) {
                     launch_reduce_ewise_large_nd_<64, 16, Config>(
-                        op, std::forward<Input>(input), reduced, joined, shape, stream,
+                        op, NOA_FWD(input), reduced, joined, shape, stream,
                         n_rows, n_threads, n_blocks_x, grid_y
                     );
                 } else if (alignment == 8) {
                     launch_reduce_ewise_large_nd_<64, 8, Config>(
-                        op, std::forward<Input>(input), reduced, joined, shape, stream,
+                        op, NOA_FWD(input), reduced, joined, shape, stream,
                         n_rows, n_threads, n_blocks_x, grid_y
                     );
                 } else if (alignment == 4) {
                     launch_reduce_ewise_large_nd_<64, 4, Config>(
-                        op, std::forward<Input>(input), reduced, joined, shape, stream,
+                        op, NOA_FWD(input), reduced, joined, shape, stream,
                         n_rows, n_threads, n_blocks_x, grid_y
                     );
                 } else if (alignment == 2) {
                     launch_reduce_ewise_large_nd_<64, 2, Config>(
-                        op, std::forward<Input>(input), reduced, joined, shape, stream,
+                        op, NOA_FWD(input), reduced, joined, shape, stream,
                         n_rows, n_threads, n_blocks_x, grid_y
                     );
                 } else {
                     launch_reduce_ewise_large_nd_<64, 1, Config>(
-                        op, std::forward<Input>(input), reduced, joined, shape, stream,
+                        op, NOA_FWD(input), reduced, joined, shape, stream,
                         n_rows, n_threads, n_blocks_x, grid_y
                     );
                 }
@@ -729,12 +689,12 @@ namespace noa::cuda::details {
         } else {
             if (n_threads_x == 256) {
                 launch_reduce_ewise_large_nd_<256, 1, Config>(
-                    op, std::forward<Input>(input), reduced, joined, shape, stream,
+                    op, NOA_FWD(input), reduced, joined, shape, stream,
                     n_rows, n_threads, n_blocks_x, grid_y
                 );
             } else {
                 launch_reduce_ewise_large_nd_<64, 1, Config>(
-                    op, std::forward<Input>(input), reduced, joined, shape, stream,
+                    op, NOA_FWD(input), reduced, joined, shape, stream,
                     n_rows, n_threads, n_blocks_x, grid_y
                 );
             }
@@ -752,7 +712,7 @@ namespace noa::cuda::details {
         stream.enqueue(
             reduce_ewise_second<SecondBlock, Interface, OpDecay, Index, Joined, JoinedVec, ReducedDecay, OutputDecay>,
             LaunchConfig{.n_blocks = n_blocks_y, .n_threads = HAS_REDUCED ? Config::block_size : 1},
-            std::forward<Op>(op), joined, n_blocks_x, std::forward<Reduced>(reduced), output
+            NOA_FWD(op), joined, n_blocks_x, NOA_FWD(reduced), output
         );
     }
 }
@@ -804,13 +764,13 @@ namespace noa::cuda {
             const auto width = safe_cast<Index>(shape[N - 1]);
             if (width <= SMALL_THRESHOLD) {
                 details::launch_reduce_ewise_small_rows<Config, N>(
-                    std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),
-                    std::forward<Output>(output), 1, width, stream
+                    NOA_FWD(op), NOA_FWD(input), NOA_FWD(reduced),
+                    NOA_FWD(output), 1, width, stream
                 );
             } else {
                 details::launch_reduce_ewise_large_rows<Config, N>(
-                    std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),
-                    std::forward<Output>(output), 1, width, stream
+                    NOA_FWD(op), NOA_FWD(input), NOA_FWD(reduced),
+                    NOA_FWD(output), 1, width, stream
                 );
             }
             return;
@@ -819,13 +779,13 @@ namespace noa::cuda {
         if constexpr (N >= 2) {
             if (shape.template as<isize>().n_elements() <= SMALL_THRESHOLD) {
                 details::launch_reduce_ewise_small_nd<Config>(
-                    std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),
-                    std::forward<Output>(output), shape, false, stream
+                    NOA_FWD(op), NOA_FWD(input), NOA_FWD(reduced),
+                    NOA_FWD(output), shape, false, stream
                 );
             } else {
                 details::launch_reduce_ewise_large_nd<Config>(
-                    std::forward<Op>(op), std::forward<Input>(input), std::forward<Reduced>(reduced),
-                    std::forward<Output>(output), shape, false, stream
+                    NOA_FWD(op), NOA_FWD(input), NOA_FWD(reduced),
+                    NOA_FWD(output), shape, false, stream
                 );
             }
         }

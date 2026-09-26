@@ -54,13 +54,17 @@ namespace noa::cuda {
     };
 
     /// Returns the minimum address alignment of any given row for the given accessors.
-    /// \warning The block size and number of elements per thread is assumed to be a power of two.
-    ///          This guarantees that if the rows are aligned, the beginning of every block will be too.
-    /// \param accessors
+    /// \warning
+    ///     The block size and number of elements per thread is assumed to be a power of two.
+    ///     This guarantees that if the rows are aligned, the beginning of every block will be too.
+    /// \note
+    ///     If the returned alignment is > 1, the accessors can safely be set to StridesTraits::CONTIGUOUS.
+    ///     Indeed, if the width is not contiguous, vectorization isn't possible and 1 is returned.
+    /// \param accessors:
     ///     Tuple of rightmost accessors.
     ///     AccessorValue is supported and preserves the vector size.
     ///     Passing an empty tuple returns the maximum alignment of 16 bytes (for global memory word-count).
-    /// \param shape_without_width
+    /// \param shape_without_width:
     ///     Rightmost shape, without the width.
     ///     Empty dimensions do not affect the alignment, so if certain dimensions are known to be contiguous,
     ///     the dimension size can be set to 1 to skip it.
