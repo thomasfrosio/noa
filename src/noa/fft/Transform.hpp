@@ -138,7 +138,7 @@ namespace noa::fft {
         check(buffer.is_contiguous(), "The workspace should be a contiguous array");
         return details::set_workspace(
             device,
-            std::reinterpret_pointer_cast<std::byte[]>(std::forward<T>(buffer).share()),
+            std::reinterpret_pointer_cast<std::byte[]>(NOA_FWD(buffer).share()),
             buffer.ssize() * static_cast<isize>(sizeof(nt::value_type_t<T>))
         );
     }
@@ -167,7 +167,7 @@ namespace noa::fft::details {
         const auto scale = norm == Norm::ORTHO ? sqrt(count) : count;
         if ((sign == Sign::FORWARD and (norm == Norm::FORWARD or norm == Norm::ORTHO)) or
             (sign == Sign::BACKWARD and (norm == Norm::BACKWARD or norm == Norm::ORTHO))) {
-            ewise({}, std::forward<T>(array), Scale{1 / scale});
+            ewise({}, NOA_FWD(array), Scale{1 / scale});
         }
     }
 }
@@ -209,8 +209,7 @@ namespace noa::fft {
             const auto n_threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=, handles =
                 nd::extract_shared_handle_from_arrays(
-                    noa::forward_as_tuple(
-                        std::forward<Input>(input), std::forward<Output>(output)))] {
+                    noa::forward_as_tuple(NOA_FWD(input), output))] {
                 constexpr auto flags = noa::fft::cpu::ESTIMATE | noa::fft::cpu::PRESERVE_INPUT;
                 noa::fft::cpu::r2c(
                     input_4d.get(), input_4d.strides(),
@@ -228,33 +227,33 @@ namespace noa::fft {
                 options.cache_plan, options.plan_only, options.record_and_share_workspace,
                 cuda_stream
             );
-            cuda_stream.enqueue_attach(std::forward<Input>(input), output);
+            cuda_stream.enqueue_attach(NOA_FWD(input), output);
             #else
             panic_no_gpu_backend();
             #endif
         }
         if (not options.plan_only and not options.record_and_share_workspace)
-            details::normalize(std::forward<Output>(output), shape_4d, Sign::FORWARD, options.norm);
+            details::normalize(NOA_FWD(output), shape_4d, Sign::FORWARD, options.norm);
     }
 
     template<typename Input, typename Output>
     void rfft(Input&& input, Output&& output, FFTOptions options = {}) {
-        r2c(std::forward<Input>(input), std::forward<Output>(output), options);
+        r2c(NOA_FWD(input), NOA_FWD(output), options);
     }
     template<typename Input, typename Output>
     void rfft1(Input&& input, Output&& output, FFTOptions options = {}) {
         options.rank = 1;
-        r2c(std::forward<Input>(input), std::forward<Output>(output), options);
+        r2c(NOA_FWD(input), NOA_FWD(output), options);
     }
     template<typename Input, typename Output>
     void rfft2(Input&& input, Output&& output, FFTOptions options = {}) {
         options.rank = 2;
-        r2c(std::forward<Input>(input), std::forward<Output>(output), options);
+        r2c(NOA_FWD(input), NOA_FWD(output), options);
     }
     template<typename Input, typename Output>
     void rfft3(Input&& input, Output&& output, FFTOptions options = {}) {
         options.rank = 3;
-        r2c(std::forward<Input>(input), std::forward<Output>(output), options);
+        r2c(NOA_FWD(input), NOA_FWD(output), options);
     }
 
     /// Computes the forward r2c transform of (batched) 1d/2d/3d array(s).
@@ -266,28 +265,28 @@ namespace noa::fft {
     [[nodiscard]] auto r2c(Input&& input, FFTOptions options = {}) {
         using real_t = nt::mutable_value_type_twice_t<Input>;
         auto output = Array<Complex<real_t>, nt::array_size_v<Input>>(input.shape().rfft(), input.options());
-        r2c(std::forward<Input>(input), output, options);
+        r2c(NOA_FWD(input), output, options);
         return output;
     }
 
     template<typename Input>
     auto rfft(Input&& input,  FFTOptions options = {}) {
-        return r2c(std::forward<Input>(input), options);
+        return r2c(NOA_FWD(input), options);
     }
     template<typename Input>
     auto rfft1(Input&& input, FFTOptions options = {}) {
         options.rank = 1;
-        return r2c(std::forward<Input>(input), options);
+        return r2c(NOA_FWD(input), options);
     }
     template<typename Input>
     auto rfft2(Input&& input, FFTOptions options = {}) {
         options.rank = 2;
-        return r2c(std::forward<Input>(input), options);
+        return r2c(NOA_FWD(input), options);
     }
     template<typename Input>
     auto rfft3(Input&& input, FFTOptions options = {}) {
         options.rank = 3;
-        return r2c(std::forward<Input>(input), options);
+        return r2c(NOA_FWD(input), options);
     }
 
     /// Computes the backward c2r transform of (batched) 1d/2d/3d array(s).
@@ -324,8 +323,7 @@ namespace noa::fft {
             const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=, handles =
                 nd::extract_shared_handle_from_arrays(
-                    noa::forward_as_tuple(
-                        std::forward<Input>(input), std::forward<Output>(output)))] {
+                    noa::forward_as_tuple(NOA_FWD(input), output))] {
                 constexpr auto flags = noa::fft::cpu::ESTIMATE;
                 noa::fft::cpu::c2r(
                     input_4d.get(), input_4d.strides(),
@@ -343,33 +341,33 @@ namespace noa::fft {
                 options.cache_plan, options.plan_only, options.record_and_share_workspace,
                 cuda_stream
             );
-            cuda_stream.enqueue_attach(std::forward<Input>(input), output);
+            cuda_stream.enqueue_attach(NOA_FWD(input), output);
             #else
             panic_no_gpu_backend();
             #endif
         }
         if (not options.plan_only and not options.record_and_share_workspace)
-            details::normalize(std::forward<Output>(output), shape_4d, Sign::BACKWARD, options.norm);
+            details::normalize(NOA_FWD(output), shape_4d, Sign::BACKWARD, options.norm);
     }
 
     template<typename Input, typename Output>
     void irfft(Input&& input, Output&& output, FFTOptions options = {}) {
-        c2r(std::forward<Input>(input), std::forward<Output>(output), options);
+        c2r(NOA_FWD(input), NOA_FWD(output), options);
     }
     template<typename Input, typename Output>
     void irfft1(Input&& input, Output&& output, FFTOptions options = {}) {
         options.rank = 1;
-        c2r(std::forward<Input>(input), std::forward<Output>(output), options);
+        c2r(NOA_FWD(input), NOA_FWD(output), options);
     }
     template<typename Input, typename Output>
     void irfft2(Input&& input, Output&& output, FFTOptions options = {}) {
         options.rank = 2;
-        c2r(std::forward<Input>(input), std::forward<Output>(output), options);
+        c2r(NOA_FWD(input), NOA_FWD(output), options);
     }
     template<typename Input, typename Output>
     void irfft3(Input&& input, Output&& output, FFTOptions options = {}) {
         options.rank = 3;
-        c2r(std::forward<Input>(input), std::forward<Output>(output), options);
+        c2r(NOA_FWD(input), NOA_FWD(output), options);
     }
 
     /// Computes and returns the backward c2r transform of (batched) 1d/2d/3d array(s).
@@ -385,28 +383,28 @@ namespace noa::fft {
     [[nodiscard]] auto c2r(Input&& input, const Shape<isize, N> shape, FFTOptions options = {}) {
         using real_t = nt::mutable_value_type_twice_t<Input>;
         auto output = Array<real_t, nt::array_size_v<Input>>(shape, input.options());
-        c2r(std::forward<Input>(input), output, options);
+        c2r(NOA_FWD(input), output, options);
         return output;
     }
 
     template<typename Input>
     auto irfft(Input&& input,  FFTOptions options = {}) {
-        return c2r(std::forward<Input>(input), options);
+        return c2r(NOA_FWD(input), options);
     }
     template<typename Input>
     auto irfft1(Input&& input, FFTOptions options = {}) {
         options.rank = 1;
-        return c2r(std::forward<Input>(input), options);
+        return c2r(NOA_FWD(input), options);
     }
     template<typename Input>
     auto irfft2(Input&& input, FFTOptions options = {}) {
         options.rank = 2;
-        return c2r(std::forward<Input>(input), options);
+        return c2r(NOA_FWD(input), options);
     }
     template<typename Input>
     auto irfft3(Input&& input, FFTOptions options = {}) {
         options.rank = 3;
-        return c2r(std::forward<Input>(input), options);
+        return c2r(NOA_FWD(input), options);
     }
 
     /// Computes the c2c transform of (batched) 1d/2d/3d array(s).
@@ -443,8 +441,7 @@ namespace noa::fft {
             const auto threads = cpu_stream.thread_limit();
             cpu_stream.enqueue([=, handles =
                 nd::extract_shared_handle_from_arrays(
-                    noa::forward_as_tuple(
-                        std::forward<Input>(input), std::forward<Output>(output)))] {
+                    noa::forward_as_tuple(NOA_FWD(input), output))] {
                 constexpr auto flags = noa::fft::cpu::ESTIMATE | noa::fft::cpu::PRESERVE_INPUT;
                 noa::fft::cpu::c2c(
                     input_4d.get(), input_4d.strides(),
@@ -462,52 +459,52 @@ namespace noa::fft {
                 options.cache_plan, options.plan_only, options.record_and_share_workspace,
                 cuda_stream
             );
-            cuda_stream.enqueue_attach(std::forward<Input>(input), output);
+            cuda_stream.enqueue_attach(NOA_FWD(input), output);
             #else
             panic_no_gpu_backend();
             #endif
         }
         if (not options.plan_only and not options.record_and_share_workspace)
-            details::normalize(std::forward<Output>(output), shape_4d, sign, options.norm);
+            details::normalize(NOA_FWD(output), shape_4d, sign, options.norm);
     }
 
     template<typename Input, typename Output>
     void fft(Input&& input, Output&& output, FFTOptions options = {}) {
-        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::FORWARD, options);
+        c2c(NOA_FWD(input), NOA_FWD(output), Sign::FORWARD, options);
     }
     template<typename Input, typename Output>
     void fft1(Input&& input, Output&& output, FFTOptions options = {}) {
         options.rank = 1;
-        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::FORWARD, options);
+        c2c(NOA_FWD(input), NOA_FWD(output), Sign::FORWARD, options);
     }
     template<typename Input, typename Output>
     void fft2(Input&& input, Output&& output, FFTOptions options = {}) {
         options.rank = 2;
-        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::FORWARD, options);
+        c2c(NOA_FWD(input), NOA_FWD(output), Sign::FORWARD, options);
     }
     template<typename Input, typename Output>
     void fft3(Input&& input, Output&& output, FFTOptions options = {}) {
         options.rank = 3;
-        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::FORWARD, options);
+        c2c(NOA_FWD(input), NOA_FWD(output), Sign::FORWARD, options);
     }
     template<typename Input, typename Output>
     void ifft(Input&& input, Output&& output, FFTOptions options = {}) {
-        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::BACKWARD, options);
+        c2c(NOA_FWD(input), NOA_FWD(output), Sign::BACKWARD, options);
     }
     template<typename Input, typename Output>
     void ifft1(Input&& input, Output&& output, FFTOptions options = {}) {
         options.rank = 1;
-        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::BACKWARD, options);
+        c2c(NOA_FWD(input), NOA_FWD(output), Sign::BACKWARD, options);
     }
     template<typename Input, typename Output>
     void ifft2(Input&& input, Output&& output, FFTOptions options = {}) {
         options.rank = 2;
-        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::BACKWARD, options);
+        c2c(NOA_FWD(input), NOA_FWD(output), Sign::BACKWARD, options);
     }
     template<typename Input, typename Output>
     void ifft3(Input&& input, Output&& output, FFTOptions options = {}) {
         options.rank = 3;
-        c2c(std::forward<Input>(input), std::forward<Output>(output), Sign::BACKWARD, options);
+        c2c(NOA_FWD(input), NOA_FWD(output), Sign::BACKWARD, options);
     }
 
     /// Computes and returns the c2c transform 1d/2d/3d array(s).
@@ -521,46 +518,46 @@ namespace noa::fft {
     [[nodiscard]] auto c2c(Input&& input, Sign sign, FFTOptions options = {}) {
         using complex_t = nt::mutable_value_type_t<Input>;
         auto output = Array<complex_t, nt::array_size_v<Input>>(input.shape(), input.options());
-        c2c(std::forward<Input>(input), output, sign, options);
+        c2c(NOA_FWD(input), output, sign, options);
         return output;
     }
 
     template<typename Input>
     auto fft(Input&& input, FFTOptions options = {}) {
-        return c2c(std::forward<Input>(input), Sign::FORWARD, options);
+        return c2c(NOA_FWD(input), Sign::FORWARD, options);
     }
     template<typename Input>
     auto fft1(Input&& input, FFTOptions options = {}) {
         options.rank = 1;
-        return c2c(std::forward<Input>(input), Sign::FORWARD, options);
+        return c2c(NOA_FWD(input), Sign::FORWARD, options);
     }
     template<typename Input>
     auto fft2(Input&& input, FFTOptions options = {}) {
         options.rank = 2;
-        return c2c(std::forward<Input>(input), Sign::FORWARD, options);
+        return c2c(NOA_FWD(input), Sign::FORWARD, options);
     }
     template<typename Input>
     auto fft3(Input&& input, FFTOptions options = {}) {
         options.rank = 3;
-        return c2c(std::forward<Input>(input), Sign::FORWARD, options);
+        return c2c(NOA_FWD(input), Sign::FORWARD, options);
     }
     template<typename Input>
     auto ifft(Input&& input, FFTOptions options = {}) {
-        return c2c(std::forward<Input>(input), Sign::BACKWARD, options);
+        return c2c(NOA_FWD(input), Sign::BACKWARD, options);
     }
     template<typename Input>
     auto ifft1(Input&& input, FFTOptions options = {}) {
         options.rank = 1;
-        return c2c(std::forward<Input>(input), Sign::BACKWARD, options);
+        return c2c(NOA_FWD(input), Sign::BACKWARD, options);
     }
     template<typename Input>
     auto ifft2(Input&& input, FFTOptions options = {}) {
         options.rank = 2;
-        return c2c(std::forward<Input>(input), Sign::BACKWARD, options);
+        return c2c(NOA_FWD(input), Sign::BACKWARD, options);
     }
     template<typename Input>
     auto ifft3(Input&& input, FFTOptions options = {}) {
         options.rank = 3;
-        return c2c(std::forward<Input>(input), Sign::BACKWARD, options);
+        return c2c(NOA_FWD(input), Sign::BACKWARD, options);
     }
 }
