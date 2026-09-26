@@ -538,7 +538,7 @@ namespace noa::details {
 
             Strides<index_t, tmp_ndim> strides;
             if constexpr (axes_ndim == 0)
-                strides = input.strides_full();
+                strides = input.strides_full().template as<index_t>();
             else
                 strides = input.strides_full().filter(axes...);
             return accessor_t(input.get(), strides.template as<index_t>().template push_front<new_ndim - tmp_ndim>(0));
