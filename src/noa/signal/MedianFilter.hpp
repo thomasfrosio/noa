@@ -72,7 +72,7 @@ namespace noa::signal {
             auto& cuda_stream = stream.cuda();
             noa::signal::cuda::median_filter_1d(
                 input.get(), input_strides.template as<i32>(),
-                output.get(), output.strides().template as<i32>(), output.shape(),
+                output.get(), output.strides().template as<i32>(), output.shape().template as<i32>(),
                 options.border_mode, options.window_size, cuda_stream);
             cuda_stream.enqueue_attach(NOA_FWD(input), NOA_FWD(output));
             #else
@@ -132,7 +132,7 @@ namespace noa::signal {
             auto& cuda_stream = stream.cuda();
             noa::signal::cuda::median_filter_2d(
                 input.get(), input_strides.template as<i32>(),
-                output.get(), output.strides().template as<i32>(), output.shape(),
+                output.get(), output.strides().template as<i32>(), output.shape().template as<i32>(),
                 options.border_mode, options.window_size, cuda_stream);
             cuda_stream.enqueue_attach(NOA_FWD(input), NOA_FWD(output));
             #else
@@ -191,7 +191,7 @@ namespace noa::signal {
             auto& cuda_stream = stream.cuda();
             noa::signal::cuda::median_filter_3d(
                 input.get(), input_strides.template as<i32>(),
-                output.get(), output.strides().template as<i32>(), output.shape(),
+                output.get(), output.strides().template as<i32>(), output.shape().template as<i32>(),
                 options.border_mode, options.window_size, cuda_stream);
             cuda_stream.enqueue_attach(NOA_FWD(input), NOA_FWD(output));
             #else

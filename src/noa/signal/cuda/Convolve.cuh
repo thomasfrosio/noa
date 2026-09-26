@@ -22,7 +22,7 @@ namespace noa::signal::cuda::details {
     ) {
         const auto gid = noa::cuda::details::global_indices<isize, N, Block>(grid_fused_shape_in_x_unbatched, grid_outer_offset);
         const auto tid = noa::cuda::details::thread_indices<i32, 2>();
-        const auto input_2d = input[gid.template pop_front<2>()];
+        const auto input_2d = input[gid.template pop_back<2>()];
 
         const auto OFFSET = static_cast<i32>(Block::block_size_x);
         const auto PADDING = Vec<i32, 2>::from_vec(filter_shape.vec - 1);
@@ -50,7 +50,7 @@ namespace noa::signal::cuda::details {
                     const auto ix_reflected = index_at<Border::REFLECT>(shape[1], ix);
                     value = static_cast<filter_value_t>(input_2d(iy_reflected, ix_reflected));
                 }
-                shared[ly * SHARED_LEN[1] + lx] = value;
+                shared[ly * SHARED_LEN[1] + lx] = value; // segfault
             }
         }
         noa::cuda::details::block_synchronize();
@@ -83,7 +83,7 @@ namespace noa::signal::cuda::details {
 
         const auto gid = noa::cuda::details::global_indices<isize, N, Block>(grid_fused_shape_in_x_unbatched, grid_outer_offset);
         const auto tid = noa::cuda::details::thread_indices<i32, 2>();
-        const auto input_3d = input[gid.template pop_front<3>()];
+        const auto input_3d = input[gid.template pop_back<3>()];
 
         using output_value_t = nt::value_type_t<Output>;
         using filter_value_t = nt::mutable_value_type_t<Filter>;
@@ -144,7 +144,7 @@ namespace noa::signal::cuda::details {
 
         const auto gid = noa::cuda::details::global_indices<isize, N, Block>(grid_fused_shape_in_x_unbatched, grid_outer_offset);
         const auto tid = noa::cuda::details::thread_indices<i32, 2>();
-        const auto input_3d = input[gid.template pop_front<3>()];
+        const auto input_3d = input[gid.template pop_back<3>()];
 
         using output_value_t = nt::value_type_t<Output>;
         using filter_value_t = nt::mutable_value_type_t<Filter>;
@@ -153,7 +153,7 @@ namespace noa::signal::cuda::details {
         // Load shared memory. Loop to take into account padding.
         i32 lz, ly, lx;
         isize gz, gy, gx;
-        for (lz = 0, gz = gid[N - 1]; lz < shared_shape[0]; ++lz, ++gz) {
+        for (lz = 0, gz = gid[N - 3]; lz < shared_shape[0]; ++lz, ++gz) {
             for (ly = tid[0], gy = gid[N - 2]; ly < shared_shape[1]; ly += Block::block_size_y, gy += Block::block_size_y) {
                 for (lx = tid[1], gx = gid[N - 1]; lx < shared_shape[2]; lx += Block::block_size_x, gx += Block::block_size_x) {
                     const isize iz = gz - halo[0];
@@ -307,8 +307,10 @@ namespace noa::signal::cuda::details {
         auto iaccessor = input_t(input, input_strides);
         auto oaccessor = output_t(output, output_strides);
         if constexpr (N >= 3 and I == N - 3) {
+            // Move the depth to the height.
             shape = shape.swap(N - 3, N - 2);
-            nd::permute_accessors(Vec<u32, N>::arange().swap(N - 3, N - 2), iaccessor, oaccessor);
+            iaccessor.strides() = iaccessor.strides().swap(N - 3, N - 2);
+            oaccessor.strides() = oaccessor.strides().swap(N - 3, N - 2);
         }
 
         // To simplify things, treat 1D has 2D with a 1D block.
@@ -338,7 +340,7 @@ namespace noa::signal::cuda::details {
         else
             shape_hw = shape.filter(N - 1);
 
-        const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().pop_back();
+        const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().vec.pop_front();
         for (u32 z{}; z < grid.n_launches_z(); ++z) {
             for (u32 y{}; y < grid.n_launches_y(); ++y) {
                 const auto config = noa::cuda::LaunchConfig{
@@ -407,7 +409,8 @@ namespace noa::signal::cuda {
         }
 
         if constexpr (R >= 2) {
-            const auto rank = filter_shape.rank(); // 2 or 3
+            const auto rank = filter_shape.rank();
+            check(rank == 2 or rank == 3);
 
             auto block_shape = Shape<isize, N>::from_value(1);
             block_shape[N - 2] = static_cast<isize>(ConvolveBlock2D::block_size_y);
@@ -415,7 +418,7 @@ namespace noa::signal::cuda {
             const auto grid = noa::cuda::GridND(shape, block_shape);
             check(grid.n_launches() == 1);
 
-            const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().pop_back();
+            const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().vec.pop_front();
             const auto filter_shape_i32 = filter_shape.template as<i32>();
 
             for (u32 z{}; z < grid.n_launches_z(); ++z) {
@@ -429,9 +432,10 @@ namespace noa::signal::cuda {
                         const auto shape_hw = shape.filter(N - 2, N - 1);
                         config.n_bytes_of_shared_memory =
                             (ConvolveBlock2D::block_size_x + static_cast<u32>(filter_shape[R - 1]) - 1) *
-                            (ConvolveBlock2D::block_size_y + static_cast<u32>(filter_shape[R - 2]) - 1);
+                            (ConvolveBlock2D::block_size_y + static_cast<u32>(filter_shape[R - 2]) - 1) *
+                            static_cast<u32>(sizeof(V));
                         stream.enqueue(
-                            convolve_2d<BORDER_ZERO, ConvolveBlock2D, input_accessor_t, output_accessor_t, filter_accessor_t>,
+                            convolve_2d<BORDER_ZERO, N, ConvolveBlock2D, input_accessor_t, output_accessor_t, filter_accessor_t>,
                             config, input_accessor_t(input, input_strides), output_accessor_t(output, output_strides),
                             filter_accessor_t(filter), shape_hw, filter_shape_i32.pop_front(), grid_offset, grid_fused_shape_in_x_unbatched
                         );
@@ -441,13 +445,13 @@ namespace noa::signal::cuda {
                             const auto shape_bhw = shape.filter(N - 3, N - 2, N - 1);
                             if (filter_shape == 5) {
                                 stream.enqueue(
-                                    convolve_3d_square<BORDER_ZERO, ConvolveBlock2D, input_accessor_t, output_accessor_t, filter_accessor_t, 5>,
+                                    convolve_3d_square<BORDER_ZERO, N, ConvolveBlock2D, input_accessor_t, output_accessor_t, filter_accessor_t, 5>,
                                     config, input_accessor_t(input, input_strides), output_accessor_t(output, output_strides),
                                     filter_accessor_t(filter), shape_bhw, grid_offset, grid_fused_shape_in_x_unbatched
                                 );
                             } else if (filter_shape == 3) {
                                 stream.enqueue(
-                                    convolve_3d_square<BORDER_ZERO, ConvolveBlock2D, input_accessor_t, output_accessor_t, filter_accessor_t, 3>,
+                                    convolve_3d_square<BORDER_ZERO, N, ConvolveBlock2D, input_accessor_t, output_accessor_t, filter_accessor_t, 3>,
                                     config, input_accessor_t(input, input_strides), output_accessor_t(output, output_strides),
                                     filter_accessor_t(filter), shape_bhw, grid_offset, grid_fused_shape_in_x_unbatched
                                 );
@@ -455,9 +459,9 @@ namespace noa::signal::cuda {
                                 config.n_bytes_of_shared_memory =
                                     (ConvolveBlock2D::block_size_x + static_cast<u32>(filter_shape[R - 1]) - 1) *
                                     (ConvolveBlock2D::block_size_y + static_cast<u32>(filter_shape[R - 2]) - 1) *
-                                    static_cast<u32>(filter_shape[R - 3]) * sizeof(V);
+                                    static_cast<u32>(filter_shape[R - 3]) * static_cast<u32>(sizeof(V));
                                 stream.enqueue(
-                                    convolve_3d<BORDER_ZERO, ConvolveBlock2D, input_accessor_t, output_accessor_t, filter_accessor_t>,
+                                    convolve_3d<BORDER_ZERO, N, ConvolveBlock2D, input_accessor_t, output_accessor_t, filter_accessor_t>,
                                     config, input_accessor_t(input, input_strides), output_accessor_t(output, output_strides),
                                     filter_accessor_t(filter), shape_bhw,
                                     filter_shape_i32, grid_offset, grid_fused_shape_in_x_unbatched
@@ -468,7 +472,6 @@ namespace noa::signal::cuda {
                 }
             }
         }
-        panic("unreachable");
     }
 
     template<Border BORDER, typename T, typename U, typename V, usize N>

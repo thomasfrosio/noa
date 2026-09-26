@@ -145,7 +145,7 @@ namespace noa::signal::cpu::details {
             const Input& input,
             const Output& output,
             const Buffer& buffer,
-            const Shape4& shape,
+            const Shape<isize, N>& shape,
             isize window
         ) : m_input(input), m_output(output), m_buffer(buffer),
             m_shape(shape.filter(I, J, K)),

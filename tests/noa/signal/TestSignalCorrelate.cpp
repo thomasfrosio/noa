@@ -167,6 +167,7 @@ TEMPLATE_TEST_CASE("signal::correlation_map/peak batched", "", (Vec<f32, 2>), (V
         for (auto& device: devices) {
             const auto stream = StreamGuard(device, Stream::SYNC);
             const auto options = ArrayOption(device, Allocator::MANAGED);
+            INFO(device);
 
             auto [lhs, lhs_rfft] = nf::empty<value_t>(shape, options);
             auto [rhs, rhs_rfft] = nf::empty<value_t>(shape, options);
@@ -191,7 +192,7 @@ TEMPLATE_TEST_CASE("signal::correlation_map/peak batched", "", (Vec<f32, 2>), (V
                 constexpr auto REMAP_ = REMAP.flip().erase_output();
                 ns::cross_correlation_peaks<REMAP_>(xmap, shifts, values, xpeak_options);
 
-                auto xmap_br = xmap.reshape(Shape{shape_b.n_elements(), shape_r.n_elements()});
+                auto xmap_br = xmap.reshape(Shape{shape_b.n_elements(), shape_r.n_elements()}).eval();
                 for (usize i{}; auto&& [data, shift, value]: noa::zip(
                     data_batched.span_1d(),
                     shifts.span_1d(),

@@ -161,8 +161,8 @@ TEST_CASE("signal::ctf_isotropic, batches, cpu vs gpu") {
             offset += 0.05;
         }
 
-        const auto cpu_output = noa::empty<f32>(shape, {.device = "cpu"});
-        const auto gpu_output = noa::empty<f32>(shape, {.device = "gpu", .allocator = Allocator::MANAGED});
+        const auto cpu_output = noa::empty<f32>(shape.rfft(), {.device = "cpu"});
+        const auto gpu_output = noa::empty<f32>(shape.rfft(), {.device = "gpu", .allocator = Allocator::MANAGED});
         const auto gpu_ctfs = cpu_ctfs.to(gpu_output.options());
 
         noa::signal::ctf_isotropic<"h">({}, cpu_output, shape, cpu_ctfs, {.rank = R}); // runtime rank

@@ -387,7 +387,7 @@ namespace noa::signal::cuda {
         else
             shape_2d = shape.filter(N - 1);
 
-        const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().pop_back();
+        const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().vec.pop_front();
         for (u32 z{}; z < grid.n_launches_z(); ++z) {
             for (u32 y{}; y < grid.n_launches_y(); ++y) {
                 const auto config = noa::cuda::LaunchConfig{
@@ -482,7 +482,7 @@ namespace noa::signal::cuda {
         const auto output_accessor = output_t(output, output_strides);
 
         const auto shape_2d = shape.filter(N - 2, N - 1);
-        const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().pop_back();
+        const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().vec.pop_front();
         for (u32 z{}; z < grid.n_launches_z(); ++z) {
             for (u32 y{}; y < grid.n_launches_y(); ++y) {
                 const auto config = noa::cuda::LaunchConfig{
@@ -547,7 +547,7 @@ namespace noa::signal::cuda {
         const auto output_accessor = output_t(output, output_strides);
 
         const auto shape_3d = shape.filter(N - 3, N - 2, N - 1);
-        const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().pop_back();
+        const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().vec.pop_front();
         for (u32 z{}; z < grid.n_launches_z(); ++z) {
             for (u32 y{}; y < grid.n_launches_y(); ++y) {
                 const auto config = noa::cuda::LaunchConfig{

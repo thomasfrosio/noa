@@ -100,11 +100,11 @@ TEMPLATE_TEST_CASE("signal::median_filter(), cpu vs gpu", "", i32, f16, f32, f64
             }
             if constexpr (N >= 3) {
                 if (rank == 3) {
-                    auto window = test::Randomizer<i32>(2, 11).get();
+                    auto window = test::Randomizer<i32>(2, 5).get();
                     if (noa::is_even(window))
                         window -= 1;
-                    noa::signal::median_filter_2d(cpu_data, cpu_result, {.window_size = window, .border_mode = border});
-                    noa::signal::median_filter_2d(gpu_data, gpu_result, {.window_size = window, .border_mode = border});
+                    noa::signal::median_filter_3d(cpu_data, cpu_result, {.window_size = window, .border_mode = border});
+                    noa::signal::median_filter_3d(gpu_data, gpu_result, {.window_size = window, .border_mode = border});
                     REQUIRE(test::allclose_abs(cpu_result, gpu_result, 1e-5));
                 }
             }

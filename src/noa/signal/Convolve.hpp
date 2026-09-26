@@ -7,6 +7,24 @@
 
 #include "noa/runtime/Array.hpp"
 
+namespace noa::signal::details {
+    template<typename T>
+    auto check_separable_filter(
+        const T& filter, Device device, std::source_location location = std::source_location::current()
+    ) {
+        if (filter.is_empty())
+            return;
+        check_at_location(
+            location, filter.is_contiguous() and is_odd(filter.n_elements()),
+            "The input filters should be contiguous vectors with an odd number of elements, but got a filter:shape={} and filter:strides={}",
+            filter.shape(), filter.strides());
+        check_at_location(
+            location, filter.device() == device,
+            "The input filters must be on the same device as the compute device, but got output:device={}, filter:device={}",
+            device, filter.device());
+    }
+}
+
 namespace noa::signal {
     struct ConvolveOptions {
         /// Border mode used for the convolution.
@@ -148,23 +166,9 @@ namespace noa::signal {
               "The input and output arrays must be on the same device, but got input={}, output={}",
               input.device(), device);
 
-        auto check_separable_filter = [&]<typename T>(
-            const T& filter, std::source_location location = std::source_location::current()
-        ) {
-            if (filter.is_empty())
-                return;
-            check_at_location(
-                location, filter.is_contiguous() and is_odd(filter.n_elements()),
-                "The input filters should be contiguous vectors with an odd number of elements, but got a filter:shape={} and filter:strides={}",
-                filter.shape(), filter.strides());
-            check_at_location(
-                location, filter.device() == device,
-                "The input filters must be on the same device as the compute device, but got output:device={}, filter:device={}",
-                device, filter.device());
-        };
-        check_separable_filter(filter_depth);
-        check_separable_filter(filter_height);
-        check_separable_filter(filter_width);
+        details::check_separable_filter(filter_depth, device);
+        details::check_separable_filter(filter_height, device);
+        details::check_separable_filter(filter_width, device);
 
         if (not buffer.is_empty()) {
             check(buffer.shape() == output.shape() and nd::are_elements_unique(buffer.strides(), output.shape()),

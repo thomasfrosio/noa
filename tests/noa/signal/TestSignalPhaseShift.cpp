@@ -262,7 +262,7 @@ TEMPLATE_TEST_CASE("signal::phase_shift{2|3}d(), cpu vs gpu", "", c32, c64) {
     const auto shapes = noa::make_tuple(
         test::random_shape_batched<isize, 2>(2, shape_options),
         test::random_shape_batched<isize, 3>(3, shape_options),
-        test::random_shape_batched<isize, 4>(4, shape_options),
+        test::random_shape_batched<isize, 4>(3, shape_options),
         test::random_shape_batched<isize, 5>(3, shape_options),
         test::random_shape_batched<isize, 6>(3, shape_options)
     );
