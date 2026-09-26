@@ -659,10 +659,11 @@ namespace noa::inline types {
             NOA_ASSERT(index < N);
             Vec<value_type, N - 1, A1> output;
             if constexpr (N > 1) {
-                for (usize i{}; i < static_cast<usize>(index); ++i)
-                    output[i] = (*this)[i];
-                for (auto i = static_cast<usize>(index); i < N - 1; ++i)
-                    output[i] = (*this)[i + 1];
+                for (usize i{}, j{}; i < N - 1; ++i, ++j) {
+                    if (i == static_cast<usize>(index))
+                        j += 1;
+                    output[i] = (*this)[j];
+                }
             }
             return output;
         }

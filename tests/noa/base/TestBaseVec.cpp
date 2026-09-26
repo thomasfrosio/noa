@@ -309,5 +309,26 @@ TEMPLATE_TEST_CASE("base::Vec", "", i32, i64, u32, u64, f32, f64) {
 
         const std::array<TestType, 4> b_array = {123, 43, 32, 12};
         REQUIRE(fmt::format("{}", b) == fmt::format("{}", b_array));
+
+        REQUIRE(Vec<i32, 2>::arange().exclude(0) == Vec{1});
+        REQUIRE(Vec<i32, 2>::arange().exclude(1) == Vec{0});
+        REQUIRE(Vec<i32, 4>::arange().exclude(0) == Vec{1, 2, 3});
+        REQUIRE(Vec<i32, 4>::arange().exclude(1) == Vec{0, 2, 3});
+        REQUIRE(Vec<i32, 4>::arange().exclude(2) == Vec{0, 1, 3});
+        REQUIRE(Vec<i32, 4>::arange().exclude(3) == Vec{0, 1, 2});
+
+        REQUIRE(Vec<i32, 0>::arange().insert<0>(9) == Vec{9});
+        REQUIRE(Vec<i32, 2>::arange().insert<0>(9) == Vec{9, 0, 1});
+        REQUIRE(Vec<i32, 2>::arange().insert<1>(9) == Vec{0, 9, 1});
+        REQUIRE(Vec<i32, 2>::arange().insert<2>(9) == Vec{0, 1, 9});
+        REQUIRE(Vec<i32, 4>::arange().insert<4>(9) == Vec{0, 1, 2, 3, 9});
+
+        REQUIRE(Vec<i32, 0>::arange().insert<0>(Vec{8, 9}) == Vec{8, 9});
+        REQUIRE(Vec<i32, 1>::arange().insert<0>(Vec{8, 9}) == Vec{8, 9, 0});
+        REQUIRE(Vec<i32, 1>::arange().insert<1>(Vec{8, 9}) == Vec{0, 8, 9});
+        REQUIRE(Vec<i32, 3>::arange().insert<0>(Vec{8, 9}) == Vec{8, 9, 0, 1, 2});
+        REQUIRE(Vec<i32, 3>::arange().insert<1>(Vec{8, 9}) == Vec{0, 8, 9, 1, 2});
+        REQUIRE(Vec<i32, 3>::arange().insert<2>(Vec{8, 9}) == Vec{0, 1, 8, 9, 2});
+        REQUIRE(Vec<i32, 3>::arange().insert<3>(Vec{8, 9}) == Vec{0, 1, 2, 8, 9});
     }
 }
