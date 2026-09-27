@@ -656,7 +656,6 @@ namespace noa::inline types {
 
         template<usize A1 = 0, nt::integer I> requires (N >= 1)
         [[nodiscard]] NOA_FHD constexpr auto exclude(I index) const noexcept {
-            NOA_ASSERT(index < N);
             Vec<value_type, N - 1, A1> output;
             if constexpr (N > 1) {
                 for (usize i{}, j{}; i < N - 1; ++i, ++j) {
