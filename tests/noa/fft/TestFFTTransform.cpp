@@ -99,20 +99,24 @@ TEMPLATE_TEST_CASE("fft::r2c(), c2r()", "", f32, f64) {
 TEMPLATE_TEST_CASE("fft::r2c/c2r(), cpu vs gpu", "", f32, f64) {
     if (not Device::is_any_gpu())
         return;
+    const auto gpu = Device("gpu");
 
     // most are okay at 1e-5 but there are some outliers...
     const f64 abs_epsilon = std::is_same_v<TestType, f32> ? 1e-3 : 1e-9;
 
+    constexpr auto SIZE_RANGE = Pair{32, 64};
+    constexpr auto BATCH_RANGE = Pair{1, 4};
+    constexpr auto SHAPE_RANGE = test::RandomShapeOptions{.size_range = SIZE_RANGE, .batch_range = BATCH_RANGE};
     const auto shapes = noa::make_tuple(
-        Pair{test::random_shape_batched<isize, 1>(1), usize{1}},
-        Pair{test::random_shape_batched<isize, 2>(1), usize{1}},
-        Pair{test::random_shape_batched<isize, 2>(2), usize{2}},
-        Pair{test::random_shape_batched<isize, 3>(1), usize{1}},
-        Pair{test::random_shape_batched<isize, 3>(2), usize{2}},
-        Pair{test::random_shape_batched<isize, 3>(3), usize{3}},
-        Pair{test::random_shape_batched<isize, 4>(3), usize{3}},
-        Pair{test::random_shape_batched<isize, 5>(3), usize{3}},
-        Pair{test::random_shape_batched<isize, 6>(3), usize{3}}
+        Pair{test::random_shape_batched<isize, 1>(1, SHAPE_RANGE), usize{1}},
+        Pair{test::random_shape_batched<isize, 2>(1, SHAPE_RANGE), usize{1}},
+        Pair{test::random_shape_batched<isize, 2>(2, SHAPE_RANGE), usize{2}},
+        Pair{test::random_shape_batched<isize, 3>(1, SHAPE_RANGE), usize{1}},
+        Pair{test::random_shape_batched<isize, 3>(2, SHAPE_RANGE), usize{2}},
+        Pair{test::random_shape_batched<isize, 3>(3, SHAPE_RANGE), usize{3}},
+        Pair{test::random_shape_batched<isize, 4>(3, SHAPE_RANGE), usize{3}},
+        Pair{test::random_shape_batched<isize, 5>(3, SHAPE_RANGE), usize{3}},
+        Pair{test::random_shape_batched<isize, 6>(3, SHAPE_RANGE), usize{3}}
     );
 
     shapes.for_each([&]<usize N>(const Pair<Shape<isize, N>, usize>& pair) {
@@ -123,11 +127,11 @@ TEMPLATE_TEST_CASE("fft::r2c/c2r(), cpu vs gpu", "", f32, f64) {
             if (pad) {
                 shape[N - 1] += 13;
                 if constexpr (N >= 2)
-                    if (shape[N - 1] > 1)
-                        shape[N - 1] += 13;
-                if constexpr (N >= 3)
-                    if (shape[N - 2] > 1)
+                    if (rank >= 2)
                         shape[N - 2] += 13;
+                if constexpr (N >= 3)
+                    if (rank == 3)
+                        shape[N - 3] += 13;
             }
             auto subregion_shape = nf::next_fast_shape(original_shape, rank);
             shape = nf::next_fast_shape(shape, rank);
@@ -140,7 +144,7 @@ TEMPLATE_TEST_CASE("fft::r2c/c2r(), cpu vs gpu", "", f32, f64) {
 
             { // SECTION("out-of-place")
                 const auto cpu_real = noa::random(noa::Uniform<TestType>{-5, 5}, subregion_shape);
-                const auto gpu_buffer = noa::empty<TestType>(shape, ArrayOption("gpu", Allocator::MANAGED));
+                const auto gpu_buffer = noa::empty<TestType>(shape, ArrayOption(gpu, Allocator::MANAGED));
                 const auto gpu_real = gpu_buffer.view().subregion(noa::Slices{.end=subregion_shape.vec});
                 cpu_real.to(gpu_real);
 
@@ -149,7 +153,7 @@ TEMPLATE_TEST_CASE("fft::r2c/c2r(), cpu vs gpu", "", f32, f64) {
                 REQUIRE(test::allclose_abs_safe(cpu_rfft, gpu_rfft, abs_epsilon));
 
                 // c2r:
-                gpu_rfft = cpu_rfft.to(ArrayOption("gpu", Allocator::MANAGED)).eval(); // wait because c2r overwrites cpu_rfft
+                gpu_rfft = cpu_rfft.to(ArrayOption(gpu, Allocator::MANAGED)).eval(); // wait because c2r overwrites cpu_rfft
                 const auto cpu_result = nf::c2r(cpu_rfft, cpu_real.shape(), {.rank = rank});
                 const auto gpu_result = nf::c2r(gpu_rfft, cpu_real.shape(), {.rank = rank});
                 REQUIRE(test::allclose_abs_safe(cpu_result, gpu_result, abs_epsilon));
@@ -157,7 +161,7 @@ TEMPLATE_TEST_CASE("fft::r2c/c2r(), cpu vs gpu", "", f32, f64) {
 
             { // SECTION("in-place")
                 const auto [cpu_real, cpu_fft] = nf::empty<TestType>(shape);
-                const auto [gpu_real, gpu_fft] = nf::empty<TestType>(shape, {"gpu", Allocator::MANAGED});
+                const auto [gpu_real, gpu_fft] = nf::empty<TestType>(shape, {gpu, Allocator::MANAGED});
                 noa::randomize(noa::Uniform<TestType>{-5, 5}, cpu_real);
                 cpu_real.to(gpu_real);
 

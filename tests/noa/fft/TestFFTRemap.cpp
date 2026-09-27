@@ -134,13 +134,16 @@ TEMPLATE_TEST_CASE("fft::remap(), cpu vs gpu", "", f32, f64, c32, c64) {
         nf::Layout::HC2H, nf::Layout::H2F, nf::Layout::F2H, nf::Layout::F2FC, nf::Layout::FC2F, nf::Layout::HC2F,
         nf::Layout::F2HC, nf::Layout::FC2H, nf::Layout::FC2HC, nf::Layout::HC2FC, nf::Layout::H2FC);
 
+    constexpr auto SIZE_RANGE = Pair{32, 64};
+    constexpr auto BATCH_RANGE = Pair{1, 4};
+    constexpr auto SHAPE_RANGE = test::RandomShapeOptions{.size_range = SIZE_RANGE, .batch_range = BATCH_RANGE};
     const auto shapes = noa::make_tuple(
-        test::random_shape_batched<isize, 1>(1),
-        test::random_shape_batched<isize, 2>(2),
-        test::random_shape_batched<isize, 3>(3),
-        test::random_shape_batched<isize, 4>(3),
-        test::random_shape_batched<isize, 5>(3),
-        test::random_shape_batched<isize, 6>(3)
+        test::random_shape_batched<isize, 1>(1, SHAPE_RANGE),
+        test::random_shape_batched<isize, 2>(2, SHAPE_RANGE),
+        test::random_shape_batched<isize, 3>(3, SHAPE_RANGE),
+        test::random_shape_batched<isize, 4>(3, SHAPE_RANGE),
+        test::random_shape_batched<isize, 5>(3, SHAPE_RANGE),
+        test::random_shape_batched<isize, 6>(3, SHAPE_RANGE)
     );
 
     INFO(remap);

@@ -81,16 +81,19 @@ TEMPLATE_TEST_CASE("fft::resize and remap", "", f32, f64, c32, c64) {
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
+    constexpr auto SIZE_RANGE = Pair{32, 64};
+    constexpr auto BATCH_RANGE = Pair{1, 4};
+    constexpr auto SHAPE_RANGE = test::RandomShapeOptions{.size_range = SIZE_RANGE, .batch_range = BATCH_RANGE};
     const auto shapes = noa::make_tuple(
-        Pair{test::random_shape_batched<isize, 1>(1), usize{1}},
-        Pair{test::random_shape_batched<isize, 2>(1), usize{1}},
-        Pair{test::random_shape_batched<isize, 2>(2), usize{2}},
-        Pair{test::random_shape_batched<isize, 3>(1), usize{1}},
-        Pair{test::random_shape_batched<isize, 3>(2), usize{2}},
-        Pair{test::random_shape_batched<isize, 3>(3), usize{3}},
-        Pair{test::random_shape_batched<isize, 4>(3), usize{3}},
-        Pair{test::random_shape_batched<isize, 5>(3), usize{3}},
-        Pair{test::random_shape_batched<isize, 6>(3), usize{3}}
+        Pair{test::random_shape_batched<isize, 1>(1, SHAPE_RANGE), usize{1}},
+        Pair{test::random_shape_batched<isize, 2>(1, SHAPE_RANGE), usize{1}},
+        Pair{test::random_shape_batched<isize, 2>(2, SHAPE_RANGE), usize{2}},
+        Pair{test::random_shape_batched<isize, 3>(1, SHAPE_RANGE), usize{1}},
+        Pair{test::random_shape_batched<isize, 3>(2, SHAPE_RANGE), usize{2}},
+        Pair{test::random_shape_batched<isize, 3>(3, SHAPE_RANGE), usize{3}},
+        Pair{test::random_shape_batched<isize, 4>(3, SHAPE_RANGE), usize{3}},
+        Pair{test::random_shape_batched<isize, 5>(3, SHAPE_RANGE), usize{3}},
+        Pair{test::random_shape_batched<isize, 6>(3, SHAPE_RANGE), usize{3}}
     );
 
     shapes.for_each([&]<usize N>(const Pair<Shape<isize, N>, usize>& pair) {
