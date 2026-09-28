@@ -81,15 +81,21 @@ TEST_CASE("runtime::cuda::reduce_ewise") {
                     buffer_shape[N - 1] *= 2;
                 }
 
-                INFO("shape=" << shape << "is_strided=" << is_strided);
+                INFO("shape=" << shape << " is_strided=" << is_strided);
 
                 const auto b0 = AllocatorManaged::allocate<isize>(buffer_shape.n_elements(), stream);
                 test::fill(b0.get(), buffer_shape.n_elements(), 1);
                 test::arange(Span<isize, N>(b0.get(), shape, strides));
 
                 const auto n_elements = shape.n_elements();
-                const auto expected_sum = static_cast<isize>(noa::round(
-                    (static_cast<f64>(n_elements) / 2) * static_cast<f64>(n_elements - 1)));
+                const auto expected_sum = [&]{
+                    // This starts to fail for large arrays due to the floating-point representation.
+                    // static_cast<isize>(noa::round((static_cast<f64>(n_elements) / 2) * static_cast<f64>(n_elements - 1)));
+                    isize sum{};
+                    for (isize i{}; i < n_elements; ++i)
+                        sum += i;
+                    return sum;
+                }();
 
                 const auto b1 = AllocatorManaged::allocate<isize>(1, stream);
                 auto reduced = noa::make_tuple(noa::AccessorValue<isize>(0.));
@@ -117,12 +123,13 @@ TEST_CASE("runtime::cuda::reduce_ewise") {
         );
         shapes.for_each([&]<typename T, usize N>(const Shape<T, N>& shape) {
             const auto n_elements = shape.n_elements();
+            INFO("shape=" << shape);
 
             const auto b0 = AllocatorManaged::allocate<f32>(n_elements, stream);
             const auto b1 = AllocatorManaged::allocate<f64>(1, stream);
             const auto b2 = AllocatorManaged::allocate<i32>(1, stream);
             std::fill_n(b0.get(), n_elements, 1);
-            b0[234] += 12.f;
+            b0[static_cast<usize>(n_elements) / 2] += 12.f;
             auto input = noa::make_tuple(noa::Accessor<f32, N>(b0.get(), shape.strides()));
             auto reduced = noa::make_tuple(noa::AccessorValue(0.), noa::AccessorValue(0.f));
             auto output = noa::make_tuple(
