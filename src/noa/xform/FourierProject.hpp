@@ -936,7 +936,7 @@ namespace noa::xform::details {
                     return m_input_weights[batches];
                 else
                     return Empty{};
-            };
+            }();
 
             // For every slice to insert...
             for (Index i{}; i < m_input_count; ++i) {

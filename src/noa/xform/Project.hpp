@@ -412,11 +412,7 @@ namespace noa::xform::details {
         auto xform_accessor = xform_into_accessor(xform);
         using xform_accessor_t = decltype(xform_accessor);
         auto volume_shape = input.shape().filter(N - 3, N - 2, N - 1).template as<Index>();
-        auto dhw = Vec<Index, 3>::from_values(
-            projection_window_size,
-            output_span.shape()[N - 2],
-            output_span.shape()[N - 3]
-        );
+        auto output_z = static_cast<Index>(projection_window_size);
 
         if constexpr (nt::texture_decay<Input>)
             options.interp = input.interp();
@@ -429,10 +425,10 @@ namespace noa::xform::details {
             using op_t = ForwardProject<B, Index, interpolator_t, accessor_t, output_accessor_t, xform_accessor_t>;
             auto op = op_t(
                 result.accessor, result.interpolator, output_accessor,
-                volume_shape, xform_accessor, dhw[0]
+                volume_shape, xform_accessor, output_z
             );
 
-            auto iwise_shape = output_span.shape().template pop_back<2>().push_back(dhw); // (b..,n,h,w)->(b..,n,z,h,w)
+            auto iwise_shape = output_span.shape().template insert<B + 1>(output_z); // (b..,n,h,w)->(b..,n,z,h,w)
             iwise<IwiseOptions{
                 .generate_cpu = not IS_GPU,
                 .generate_gpu = IS_GPU,
@@ -478,11 +474,7 @@ namespace noa::xform::details {
         using fwd_xform_accessor_t = decltype(fwd_xform_accessor);
 
         auto n_input_images = static_cast<Index>(input.shape()[N - 3]); // (b..,n,h,w)
-        auto dhw = Vec<Index, 3>::from_values(
-            projection_window_size,
-            output_span.shape()[N - 2],
-            output_span.shape()[N - 3]
-        );
+        auto output_z = static_cast<Index>(projection_window_size);
 
         if constexpr (nt::texture_decay<Input>)
             options.interp = input.interp();
@@ -498,10 +490,10 @@ namespace noa::xform::details {
                 bwd_xform_accessor_t, fwd_xform_accessor_t>;
             auto op = op_t(
                 result.accessor, result.interpolator, output_accessor, volume_shape.as<Index>(),
-                bwd_xform_accessor, fwd_xform_accessor, dhw[0], n_input_images
+                bwd_xform_accessor, fwd_xform_accessor, output_z, n_input_images
             );
 
-            auto iwise_shape = output_span.shape().template pop_back<2>().push_back(dhw); // (b..,n,h,w)->(b..,n,z,h,w)
+            auto iwise_shape = output_span.shape().template insert<B + 1>(output_z); // (b..,n,h,w)->(b..,n,z,h,w)
             iwise<IwiseOptions{
                 .generate_cpu = not IS_GPU,
                 .generate_gpu = IS_GPU,

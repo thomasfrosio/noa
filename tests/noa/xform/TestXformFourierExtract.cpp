@@ -108,7 +108,9 @@ TEST_CASE("xform::extract_central_slices_3d", "[asset]") {
             }
 
             const Array asset_slice_fft = noa::read_image<f32, 3>(slice_filename).data;
-            REQUIRE(test::allclose_abs_safe(asset_slice_fft, slice_fft, 5e-5)); // FIXME update asset
+            REQUIRE(test::allclose_abs_safe(asset_slice_fft, slice_fft, 5e-5));
+            // FIXME update asset for test 3. Fails:
+            //       Match: failed at indices=[0, 0, 0], lhs=0.34067425, rhs=0.9999999, shape=[1, 128, 65], mode=Absolute, epsilon=0, total_abs_diff=110651.61, max_abs_diff=32.093998
         }
     }
 }
@@ -118,8 +120,8 @@ TEMPLATE_TEST_CASE("xform::extract_central_slices_3d, using texture API and rema
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    constexpr auto slice_shape = Shape5{2, 2, 10, 128, 128};
-    constexpr auto grid_shape = Shape5{2, 2, 128, 128, 128};
+    constexpr auto slice_shape = Shape5{5, 3, 10, 128, 128};
+    constexpr auto grid_shape = Shape5{1, 1, 128, 128, 128}; // 3d GPU texture should be unchatched
 
     Array fwd_rotation_matrices = noa::empty<Mat33<f32>>(slice_shape.pop_back<2>());
     for (i64 i{}; auto& fwd_rotation_matrix: fwd_rotation_matrices.span_1d())
@@ -147,7 +149,7 @@ TEMPLATE_TEST_CASE("xform::extract_central_slices_3d, using texture API and rema
         nx::extract_central_slices_3d<"hc2h">(
             grid_fft, {}, grid_shape, slice_fft1, {}, slice_shape,
             {}, fwd_rotation_matrices, {.fftfreq_cutoff = 0.45});
-        noa::fft::remap("h2hc", slice_fft1, slice_fft2, slice_shape);
+        noa::fft::remap_2d("h2hc", slice_fft1, slice_fft2, slice_shape);
         REQUIRE(test::allclose_abs_safe(slice_fft0, slice_fft2, 5e-5));
     }
 }

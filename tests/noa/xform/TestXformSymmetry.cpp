@@ -228,13 +228,13 @@ TEST_CASE("xform::symmetrize batched - cpu vs gpu") {
         const auto gpu_output = noa::empty_like(gpu_input);
 
         if constexpr (R == 2) {
-            nx::symmetrize_2d(cpu_input, cpu_output, gpu_symmetry);
+            nx::symmetrize_2d(cpu_input, cpu_output, cpu_symmetry);
             nx::symmetrize_2d(gpu_input, gpu_output, gpu_symmetry);
         } else {
-            nx::symmetrize_3d(cpu_input, cpu_output, gpu_symmetry);
+            nx::symmetrize_3d(cpu_input, cpu_output, cpu_symmetry);
             nx::symmetrize_3d(gpu_input, gpu_output, gpu_symmetry);
         }
 
-        REQUIRE(test::allclose_abs_safe(cpu_input, cpu_output, 5e-4));
+        REQUIRE(test::allclose_abs_safe(gpu_output, cpu_output, 5e-4));
     });
 }
