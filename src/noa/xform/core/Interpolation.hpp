@@ -620,20 +620,20 @@ namespace noa::xform {
             ) {
                 constexpr bool FLIP_PER_INDEX = IS_RFFT and (ALWAYS_FLIP_PER_INDEX or SIZE > 2);
                 real_t conjugate_sign;
+                (void) conjugate_sign; // unused nvcc warning for real types
                 if constexpr (FLIP_PER_INDEX)
                     conjugate_sign = details::flip_frequency<real_t>(int_frequency);
                 if (ASSUME_INBOUND or INBOUND or nf::is_inbound<IS_RFFT, true>(bounds, int_frequency)) {
                     auto indices = nf::frequency2index<IS_CENTERED, IS_RFFT>(int_frequency, shape);
                     auto value = input[indices];
                     NOA_NV_DIAG_SUPPRESS(549);
-                    if constexpr (FLIP_PER_INDEX and nt::complex<value_t>)
+                    if constexpr (FLIP_PER_INDEX and nt::is_complex_v<value_t>) // nvcc bug with nt::complex concept
                         value.imag *= conjugate_sign;
                     NOA_NV_DIAG_DEFAULT(549);
                     output += value * weight;
                 }
             };
 
-            // return value_t{};
             // Handle non-redundant inputs by switching to the complex conjugate.
             constexpr bool FLIP_EARLY = IS_RFFT and (not ALWAYS_FLIP_PER_INDEX and SIZE <= 2);
             real_t early_conjugate_sign;
