@@ -480,7 +480,7 @@ namespace noa::xform::details {
         } else if constexpr (nt::array<T>) {
             NOA_ASSERT(value.is_contiguous());
             constexpr auto B = nt::array_size_v<T>;
-            constexpr auto STRIDE_TRAIT = CONTIGUOUS ? StridesTraits::CONTIGUOUS : StridesTraits::CONTIGUOUS;
+            constexpr auto STRIDE_TRAIT = CONTIGUOUS ? StridesTraits::CONTIGUOUS : StridesTraits::STRIDED;
             auto strides = value.strides();
             if constexpr (CONTIGUOUS and B >= 1)
                 for (usize i{}; i < B; ++i)
