@@ -228,9 +228,9 @@ namespace noa {
         U... indices
     ) noexcept {
         Vec<T, N, A0> out;
-        [&]<usize... I>(std::index_sequence<I...>) {
-            ((out[I] = index_at<MODE>(shape[I], indices)), ...);
-        }(std::make_index_sequence<N>{});
+        [&shape, &out]<usize... I>(std::index_sequence<I...>, auto&... indices_) {
+            ((out[I] = index_at<MODE>(shape[I], indices_)), ...);
+        }(std::make_index_sequence<N>{}, indices...); // nvcc bug - capture indices fails
         return out;
     }
 
