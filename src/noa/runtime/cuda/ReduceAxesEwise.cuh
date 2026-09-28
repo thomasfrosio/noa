@@ -315,7 +315,7 @@ namespace noa::cuda::details {
         // N==4 -> 3D grid.
         // N>=5 -> 3D grid (with fused axes in X).
         constexpr usize GRID_POP_FRONT = N <= 3 ? 1 : 0;
-        const auto grid = GridND(shape.pop_back(), Shape<Index, N - 1>::from_value(1).template set<N - 2>(n_threads.y));
+        const auto grid = GridND(shape.pop_back(), Shape<u32, N - 1>::from_value(1).template set<N - 2>(n_threads.y));
         const auto grid_outer_shape = grid.outer_shape().vec.template pop_front<GRID_POP_FRONT>();
         const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().vec.pop_front();
         check(grid.n_launches_x() == 1);
@@ -469,7 +469,7 @@ namespace noa::cuda::details {
         // Grid shape.
         const auto grid = GridND(
             reordered_shape_no_height,
-            Shape<isize, N - 1>::from_value(1).template set<N - 2>(N_THREADS_X)
+            Shape<u32, N - 1>::from_value(1).template set<N - 2>(N_THREADS_X)
         );
         check(grid.n_launches_x() == 1);
 

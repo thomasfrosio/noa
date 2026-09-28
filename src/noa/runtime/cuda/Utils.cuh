@@ -285,43 +285,6 @@ namespace noa::cuda {
         u32 m_n_launches;
         u32 m_n_blocks_x;
     };
-    //
-    // template<isize S, usize N>
-    // class GridFused2 {
-    // public:
-    //     constexpr GridFused2(
-    //         Shape<isize, N> shape,
-    //         Shape<isize, N> block_work_shape
-    //     ) {
-    //         m_n_blocks = divide_up(shape, block_work_shape).as_safe<u32>();
-    //         m_n_blocks_total = product(m_n_blocks);
-    //         m_n_blocks_per_launch = min(m_n_blocks_total, S);
-    //         m_n_launches = safe_cast<u32>(divide_up(m_n_blocks_total, m_n_blocks_per_launch));
-    //
-    //         const auto max_offset = m_n_blocks_per_launch * static_cast<isize>(m_n_launches - 1);
-    //         check(is_safe_cast<u32>(max_offset),
-    //               "The grid offset is larger than the maximum supported offset. "
-    //               "shape={},block_work_shape={}, max_grid_size={}",
-    //               shape, block_work_shape, S);
-    //     }
-    //     [[nodiscard]] constexpr auto n_launches() const -> u32 { return m_n_launches; }
-    //     [[nodiscard]] constexpr auto nested_shape() const -> const Vec<u32, N>& { return m_n_blocks; }
-    //     [[nodiscard]] constexpr auto n_blocks_total() const -> isize { return m_n_blocks_total; }
-    //     [[nodiscard]] constexpr auto n_blocks_for_launch(u32 launch) const -> u32 {
-    //         auto offset = m_n_blocks_per_launch * static_cast<isize>(launch);
-    //         auto left = m_n_blocks_total - offset;
-    //         return static_cast<u32>(std::min(left, m_n_blocks_per_launch));
-    //     }
-    //     [[nodiscard]] constexpr auto n_block_already_computed_for_launch(u32 launch) const -> u32 {
-    //         return static_cast<u32>(m_n_blocks_per_launch * static_cast<isize>(launch));
-    //     }
-    //
-    // private:
-    //     isize m_n_blocks_per_launch;
-    //     isize m_n_blocks_total;
-    //     u32 m_n_launches;
-    //     Vec<u32, N> m_n_blocks;
-    // };
 
     using GridX = Grid<2'147'483'647>;
     using GridY = Grid<65'535>;
@@ -337,12 +300,12 @@ namespace noa::cuda {
         template<typename T>
         constexpr GridND(
             Shape<T, N> shape,
-            Shape<T, N> block_work_shape
+            Shape<u32, N> block_work_shape
         ) {
             auto n_blocks = Vec<u32, N>{};
             for (usize i{}; i < N; ++i)
                 n_blocks[i] = safe_cast<u32>(divide_up(
-                    safe_cast<isize>(shape[i]), safe_cast<isize>(block_work_shape[i])));
+                    safe_cast<usize>(shape[i]), static_cast<usize>(block_work_shape[i])));
 
             if constexpr (N == 1) {
                 m_fused_shape = n_blocks[0];

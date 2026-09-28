@@ -151,7 +151,7 @@ namespace noa::cuda {
         const auto input_accessor = AccessorRestrict<const T, N, u32>(input, input_strides.template as_safe<u32>());
         const auto output_accessor = AccessorRestrict<T, N, u32>(output, output_strides.template as_safe<u32>());
 
-        auto block_shape = Shape<isize, N>::from_value(1);
+        auto block_shape = Shape<u32, N>::from_value(1);
         block_shape[N - 2] = details::PermuteConfig::tile_size;
         block_shape[N - 1] = details::PermuteConfig::tile_size;
         const auto grid = GridND(input_shape, block_shape);

@@ -22,7 +22,7 @@ namespace noa::cuda::details {
         static constexpr NOA_FD auto is_gpu() -> bool { return true; }
 
     public:
-        NOA_FD explicit ComputeHandle()
+        explicit ComputeHandle()
             requires (not IsUsingDynamicSharedMemory and not IsMultiGridKernel) = default;
 
         NOA_FD explicit ComputeHandle(u32 scratch_size)

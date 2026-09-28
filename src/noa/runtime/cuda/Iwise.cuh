@@ -121,7 +121,7 @@ namespace noa::cuda {
             block_work_shape[N - 2] = Block::block_work_size_y;
             block_work_shape[N - 1] = Block::block_work_size_x;
 
-            auto grid = GridND(shape, block_work_shape.template as<Index>());
+            auto grid = GridND(shape, block_work_shape);
             check(grid.n_launches_x() == 1);
 
             // Launch the grid.
@@ -151,7 +151,7 @@ namespace noa::cuda {
                         .n_threads = dim3(Block::block_size_x, Block::block_size_y, Block::block_size_z),
                         .n_bytes_of_shared_memory = scratch_size,
                     };
-                    const auto grid_size = Vec{grid_z.n_blocks_total(), grid_y.n_blocks_total()}.template as<u32>();;
+                    const auto grid_size = Vec{grid_z.n_blocks_total(), grid_y.n_blocks_total()}.template as<u32>();
                     const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
                     stream.enqueue(
                         details::iwise_3d_static<Block, Interface, std::decay_t<Op>, Index>,

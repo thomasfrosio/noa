@@ -357,7 +357,7 @@ namespace noa::cuda {
             block_work_shape[N - 2] = Block::block_work_size_y;
             block_work_shape[N - 1] = Block::block_work_size_x;
 
-            auto grid = GridND(shape, block_work_shape.template as<isize>());
+            auto grid = GridND(shape, block_work_shape);
             check(grid.n_launches_x() == 1);
             using Interface = Config::interface;
 
