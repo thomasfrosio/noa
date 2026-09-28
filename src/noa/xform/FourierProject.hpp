@@ -1155,20 +1155,20 @@ namespace noa::xform::details {
             check(transform.device() == output_device, "{} should be on the compute device", name);
         };
 
-        const auto required_shape =
-            DIRECTION == FourierProjectionType::EXTRACT or DIRECTION == FourierProjectionType::INSERT_EXTRACT ?
+        const auto input_shape_b =
+            DIRECTION == FourierProjectionType::EXTRACT ?
             output_shape.template pop_back<2>() :
             input_shape.template pop_back<2>();
         if constexpr (nt::array<InputScale>)
-            check_transform(input_scaling, required_shape, "input_scaling");
+            check_transform(input_scaling, input_shape_b, "input_scaling");
         if constexpr (nt::array<InputRotate>)
-            check_transform(input_rotation, required_shape, "input_rotation");
+            check_transform(input_rotation, input_shape_b, "input_rotation");
 
         // Only for INSERT_EXTRACT.
         if constexpr (nt::array<OutputScale>)
-            check_transform(output_scaling, required_shape, "output_scaling");
+            check_transform(output_scaling, output_shape.template pop_back<2>(), "output_scaling");
         if constexpr (nt::array<OutputRotate>)
-            check_transform(output_rotation, required_shape, "output_rotation");
+            check_transform(output_rotation, output_shape.template pop_back<2>(), "output_rotation");
     }
 
     template<typename T, typename U, typename V, typename W>
