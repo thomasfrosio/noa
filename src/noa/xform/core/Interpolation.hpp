@@ -184,7 +184,7 @@ namespace noa::xform {
                 index = coordinates[i];
             else
                 index = static_cast<SInt>(floor(coordinates[i]));
-            if (index + END >= 0 or index + START < shape[i])
+            if (index + END < 0 or index + START >= shape[i])
                 return true;
         }
         return false;
