@@ -7,10 +7,10 @@ set(NOA_HEADERS
 
     noa/FFT.hpp
     noa/IO.hpp
-#    noa/Signal.hpp
-#    noa/Types.hpp
-#    noa/Version.hpp
-#    noa/Xform.hpp
+    noa/Signal.hpp
+    noa/Types.hpp
+    noa/Version.hpp
+    noa/Xform.hpp
 )
 set(NOA_SOURCES)
 
