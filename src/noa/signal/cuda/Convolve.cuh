@@ -315,10 +315,10 @@ namespace noa::signal::cuda::details {
 
         // To simplify things, treat 1D has 2D with a 1D block.
         using Block = ConvolveBlockND<N>;
-        auto block_shape = Shape<isize, N>::from_value(1);
+        auto block_shape = Shape<u32, N>::from_value(1);
         if constexpr (N >= 2)
-            block_shape[N - 2] = static_cast<isize>(Block::block_size_y);
-        block_shape[N - 1] = static_cast<isize>(Block::block_size_x);
+            block_shape[N - 2] = Block::block_size_y;
+        block_shape[N - 1] = Block::block_size_x;
         const auto grid = noa::cuda::GridND(shape, block_shape);
         check(grid.n_launches() == 1);
 
@@ -412,9 +412,9 @@ namespace noa::signal::cuda {
             const auto rank = filter_shape.rank();
             check(rank == 2 or rank == 3);
 
-            auto block_shape = Shape<isize, N>::from_value(1);
-            block_shape[N - 2] = static_cast<isize>(ConvolveBlock2D::block_size_y);
-            block_shape[N - 1] = static_cast<isize>(ConvolveBlock2D::block_size_x);
+            auto block_shape = Shape<u32, N>::from_value(1);
+            block_shape[N - 2] = ConvolveBlock2D::block_size_y;
+            block_shape[N - 1] = ConvolveBlock2D::block_size_x;
             const auto grid = noa::cuda::GridND(shape, block_shape);
             check(grid.n_launches() == 1);
 

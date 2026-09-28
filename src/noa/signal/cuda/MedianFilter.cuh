@@ -368,10 +368,10 @@ namespace noa::signal::cuda {
         const Shape<i32, N>& shape, Border border_mode, isize window_size, noa::cuda::Stream& stream
     ) {
         using Block = details::MedianFilterBlockND<N>;
-        auto block_shape = Shape<i32, N>::from_value(1);
+        auto block_shape = Shape<u32, N>::from_value(1);
         if constexpr (N >= 2)
-            block_shape[N - 2] = static_cast<i32>(Block::block_size_y);
-        block_shape[N - 1] = static_cast<i32>(Block::block_size_x);
+            block_shape[N - 2] = Block::block_size_y;
+        block_shape[N - 1] = Block::block_size_x;
         const auto grid = noa::cuda::GridND(shape, block_shape);
         check(grid.n_launches() == 1);
 
@@ -470,9 +470,9 @@ namespace noa::signal::cuda {
         const Shape<i32, N>& shape, Border border_mode, isize window_size, noa::cuda::Stream& stream
     ) {
         using Block = details::MedianFilterBlockND<N>;
-        auto block_shape = Shape<i32, N>::from_value(1);
-        block_shape[N - 2] = static_cast<i32>(Block::block_size_y);
-        block_shape[N - 1] = static_cast<i32>(Block::block_size_x);
+        auto block_shape = Shape<u32, N>::from_value(1);
+        block_shape[N - 2] = Block::block_size_y;
+        block_shape[N - 1] = Block::block_size_x;
         const auto grid = noa::cuda::GridND(shape, block_shape);
         check(grid.n_launches() == 1);
 
@@ -535,9 +535,9 @@ namespace noa::signal::cuda {
         const Shape<i32, N>& shape, Border border_mode, isize window_size, noa::cuda::Stream& stream
     ) {
         using Block = details::MedianFilterBlockND<N>;
-        auto block_shape = Shape<i32, N>::from_value(1);
-        block_shape[N - 2] = static_cast<i32>(Block::block_size_y);
-        block_shape[N - 1] = static_cast<i32>(Block::block_size_x);
+        auto block_shape = Shape<u32, N>::from_value(1);
+        block_shape[N - 2] = Block::block_size_y;
+        block_shape[N - 1] = Block::block_size_x;
         const auto grid = noa::cuda::GridND(shape, block_shape);
         check(grid.n_launches() == 1);
 
