@@ -59,81 +59,20 @@ namespace {
     };
 }
 
-TEST_CASE("runtime: histogram", "[asset]") {
-    // const auto path = test::noa_data_path() / "runtime";
-    // const YAML::Node tests = YAML::LoadFile(path / "tests.yaml")["reduce_to_stats"];
-    //
-    // const YAML::Node& input = tests["input"];
-    // const auto shape = input["shape"].as<Shape4>();
-    // const auto input_filename = path / input["path"].as<Path>();
-    // const auto output_filename = path / tests["all"]["output_path"].as<Path>();
-    //
-    // const YAML::Node expected = YAML::LoadFile(output_filename);
-    // const auto expected_max = expected["max"].as<f64>();
-    // const auto expected_min = expected["min"].as<f64>();
-    // const auto expected_median = expected["median"].as<f64>();
-    // const auto expected_mean = expected["mean"].as<f64>();
-    // const auto expected_norm = expected["norm"].as<f64>();
-    // const auto expected_std = expected["std"].as<f64>();
-    // const auto expected_sum = expected["sum"].as<f64>();
-    // const auto expected_var = expected["var"].as<f64>();
-    //
-    // auto data = noa::read_image<f64>(input_filename).data;
-    // REQUIRE(data.shape() == shape);
-    //
-    // std::vector<Device> devices{"cpu"};
-    // if (Device::is_any_gpu())
-    //     devices.emplace_back("gpu");
-    //
-    // for (auto& device: devices) {
-    //     const auto stream = StreamGuard(device);
-    //     const auto options = ArrayOption(device, "managed");
-    //     INFO(device);
-    //     data = device.is_cpu() ? data : data.to(options);
-    //
-    //     const auto min = noa::min(data);
-    //     const auto max = noa::max(data);
-    //     const auto min_max = noa::min_max(data);
-    //     const auto median = noa::median(data);
-    //     const auto sum = noa::sum(data);
-    //     const auto mean = noa::mean(data);
-    //     const auto norm = noa::l2_norm(data);
-    //     const auto var = noa::variance(data);
-    //     const auto std = noa::stddev(data);
-    //     const auto mean_var = noa::mean_variance(data);
-    //     const auto mean_std = noa::mean_stddev(data);
-    //
-    //     REQUIRE(noa::allclose(min, expected_min));
-    //     REQUIRE(noa::allclose(max, expected_max));
-    //     REQUIRE(noa::allclose(min_max.first, expected_min));
-    //     REQUIRE(noa::allclose(min_max.second, expected_max));
-    //     REQUIRE(noa::allclose(median, expected_median));
-    //     REQUIRE(noa::allclose(sum, expected_sum));
-    //     REQUIRE(noa::allclose(mean, expected_mean));
-    //     REQUIRE(noa::allclose(norm, expected_norm));
-    //     REQUIRE(noa::allclose(var, expected_var));
-    //     REQUIRE(noa::allclose(std, expected_std));
-    //     REQUIRE(noa::allclose(mean_var.first, expected_mean));
-    //     REQUIRE(noa::allclose(mean_var.second, expected_var));
-    //     REQUIRE(noa::allclose(mean_std.first, expected_mean));
-    //     REQUIRE(noa::allclose(mean_std.second, expected_std));
-    // }
-}
-
 TEST_CASE("runtime: histogram, cpu vs gpu") {
     if (not Device::is_any_gpu())
         return;
 
-    const auto inputs_cpu = noa::random<f32, 4>(noa::Normal(0.f, 1.f), {5, 1, 1, 100 * 100});
+    const auto inputs_cpu = noa::random<f32, 2>(noa::Normal(0.f, 1.f), {5, 100 * 100});
     noa::normalize_per_batch(inputs_cpu, inputs_cpu, {.mode = noa::Norm::MIN_MAX});
 
     const auto inputs_gpu = inputs_cpu.to({.device = "gpu", .allocator = "managed"});
 
     constexpr isize HISTOGRAM_SIZE = 128;
-    const auto histograms_cpu = Array<i32>({5, 1, 1, HISTOGRAM_SIZE});
-    const auto histograms_gpu = Array<i32>({5, 1, 1, HISTOGRAM_SIZE}, inputs_gpu.options());
+    const auto histograms_cpu = Array<i32, 2>({5, HISTOGRAM_SIZE});
+    const auto histograms_gpu = Array<i32, 2>({5, HISTOGRAM_SIZE}, inputs_gpu.options());
 
-    const auto shape = inputs_cpu.shape().filter(0, 3).as<i32>();
+    const auto shape = inputs_cpu.shape().as<i32>();
     const auto reduce_width = ReduceAxes<2>{}.reduce_axis(1);
 
     // 1. Same implementation.

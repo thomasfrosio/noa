@@ -1,6 +1,4 @@
 list(APPEND TEST_SOURCES
-#    noa/runtime/test.cpp
-
     noa/runtime/core/TestRuntimeCoreAccessor.cpp
     noa/runtime/core/TestRuntimeCoreIndexing.cpp
     noa/runtime/core/TestRuntimeCoreInterfaces.cpp
@@ -36,7 +34,7 @@ list(APPEND TEST_SOURCES
     noa/runtime/TestRuntimeSort.cpp
     noa/runtime/TestRuntimeStream.cpp
     noa/runtime/TestRuntimeSubregion.cpp
-#    noa/runtime/TestRuntimeHistogram.cpp
+    noa/runtime/TestRuntimeHistogram.cpp
 )
 
 if (NOA_ENABLE_CUDA)
