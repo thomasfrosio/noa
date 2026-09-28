@@ -154,7 +154,6 @@ TEST_CASE("xform::transform_2d(), others", "[asset]") {
             // It is usually around 2e-5, but there are some outliers...
             REQUIRE(test::allclose_abs_safe(expected, output, 1e-4f));
 
-
             // With textures:
             const auto input_texture = nx::Texture2D<f32, 4>(input, device, interp, {
                 .border = border,
@@ -256,7 +255,7 @@ TEMPLATE_TEST_CASE("xform::transform_2d(), texture interpolation", "", f32, c32)
     const auto value = test::Randomizer<TestType>(-3., 3.).get();
     const auto rotation = noa::deg2rad(test::Randomizer<f64>(-360., 360.).get());
     INFO(rotation);
-    auto shape = test::random_shape_batched<isize, 4>(2);
+    auto shape = test::random_shape_batched<isize, 4>(2, {.size_range = {32, 64}});
     const auto center = shape.filter(2, 3).vec.as<f64>() / test::Randomizer<f64>(1, 4).get();
     const auto inverse_rotation_matrix =
         nx::translate(center) *

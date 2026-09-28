@@ -39,7 +39,7 @@ TEST_CASE("xform::spectrum2polar") {
         INFO(device);
 
         const auto spectrum = noa::Array<f32, 2>(spectrum_shape.rfft(), options);
-        ns::ctf_isotropic<"h">(spectrum, spectrum_shape, ctf, {
+        ns::ctf_isotropic_2d<"h">(spectrum, spectrum_shape, ctf, {
             .fftfreq_range = noa::Linspace{.start = 0., .stop = 0.4, .endpoint = true},
         });
 
@@ -54,7 +54,7 @@ TEST_CASE("xform::spectrum2polar") {
         noa::reduce_axes_ewise(polar, f64{0}, polar_1d, noa::ReduceMean{static_cast<f64>(polar_shape[0])});
 
         auto spectrum_1d = noa::Array<f32, 1>(spectrum_1d_shape.rfft(), options);
-        ns::ctf_isotropic<"h">(spectrum_1d, spectrum_1d_shape, ctf, {
+        ns::ctf_isotropic_1d<"h">(spectrum_1d, spectrum_1d_shape, ctf, {
             .fftfreq_range = noa::Linspace{.start = 0.1, .stop = 0.35, .endpoint = true},
         });
 
@@ -159,7 +159,7 @@ TEST_CASE("xform::equiphase_average vs rotational_average") {
 
     // Needs to be the same size otherwise some signal close to the end
     // will not be present when rescaling the anisotropic field.
-    const auto shape = Shape2{512, 512};
+    const auto shape = Shape2{1024, 1024};
     const auto n_shells = noa::min(shape) / 2 + 1;
 
     using CTFIsotropic64 = ns::CTFIsotropic<f64>;
@@ -214,7 +214,7 @@ TEST_CASE("xform::equiphase_average vs rotational_average") {
         ns::ctf_anisotropic_2d<"H2H">(simulated_ctf, batched_shape, ctfs_array);
         nx::equiphase_average<"H2H">(simulated_ctf, batched_shape, ctfs_array, rotational_averages);
 
-        const auto expected = rotational_averages.subregion(0).as_1d();
+        const auto expected = rotational_averages.eval().subregion(0).as_1d();
         for (auto i: noa::irange(usize{1}, ctfs.size())) {
             REQUIRE(test::allclose_abs(expected, rotational_averages.subregion(i).as_1d(), 1e-3));
         }
