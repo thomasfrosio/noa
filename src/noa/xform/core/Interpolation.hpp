@@ -781,12 +781,13 @@ namespace noa::xform {
             auto value_at = [&shape, &input](auto freq) {
                 constexpr bool FLIP_PER_INDEX = IS_RFFT and (ALWAYS_FLIP_PER_INDEX or SIZE > 2);
                 real_t conjugate_sign;
+                (void) conjugate_sign; // unused nvcc warning for real types
                 if constexpr (FLIP_PER_INDEX)
                     conjugate_sign = details::flip_frequency<real_t>(freq);
                 freq = nf::frequency2index<IS_CENTERED, IS_RFFT>(freq, shape);
                 value_t fetched = input.fetch(static_cast<coordn_t>(freq));
                 NOA_NV_DIAG_SUPPRESS(549);
-                if constexpr (FLIP_PER_INDEX and nt::complex<value_t>)
+                if constexpr (FLIP_PER_INDEX and nt::is_complex_v<value_t>) // nvcc bug with nt::complex concept
                     fetched.imag *= conjugate_sign;
                 NOA_NV_DIAG_DEFAULT(549);
                 return fetched;
