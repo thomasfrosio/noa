@@ -1,6 +1,6 @@
 ## `Objectives`
 
-This is a `C++20` static library, aiming to provide basic signal and image processing tools for cryoEM software development. One goal is to retain reasonable efficiency so that it can be used in production code, while offering a relatively simple API.
+This is a C++20 static library to allow writing performant CPU and GPU applications for cryoEM, in a generic and device-agnostic way.
 
 ## `Documentation`
 
@@ -12,9 +12,9 @@ This is a `C++20` static library, aiming to provide basic signal and image proce
 
 - Getting started
   - [Execution model, `Stream`, `Allocator` and `Device`](docs/010_execution_model.md)
-  - [BDHW order, `Shape` and `Strides`](docs/021_shape_and_strides.md)
-  - [Multidimensional data: `Array` and `View`](docs/022_array_and_views.md)
-  - [Accessing multidimensional data: `Span` and `Accessor`](docs/023_accessor_and_span.md)
+  - [`Strides` and memory layouts](docs/021_shape_and_strides.md)
+  - [Multidimensional data: `Array`](docs/022_array_and_views.md)
+  - [Accessing multidimensional data: `Span`](docs/023_accessor_and_span.md)
   - [Core functions: `iwise`, `ewise`, `reduce(_axes)_iwise`, `reduce(_axes)_ewise`](docs/030_core_functions.md)
 
 - Other topics

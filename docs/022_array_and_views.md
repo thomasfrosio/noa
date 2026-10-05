@@ -1,4 +1,4 @@
-## `Array and View`
+## `Array`
 
 This library provides a ndarray called `Array`, such as `Array<T, N, O>`, where `T` is the data-type, `N` the number of dimensions, and `O` is the ownership (`ArrayOwnership::RC` for owned/reference-counted, and `ArrayOwnership::VIEW` for not-owned/view).
 
