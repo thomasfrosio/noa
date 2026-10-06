@@ -52,3 +52,22 @@ TEMPLATE_TEST_CASE("xform::interpolation_weight<LANCZOS>", "", float, double) {
         }
     }
 }
+
+TEST_CASE("xform::InterpSet") {
+    using namespace noa;
+
+    {
+        auto interps = nx::InterpSet::all();
+        REQUIRE(interps[nx::Interp::LINEAR] == true);
+        REQUIRE(interps.bits == 0xFF);
+        interps[nx::Interp::LINEAR] = false;
+        REQUIRE(interps[nx::Interp::LINEAR] == false);
+    }
+    {
+        constexpr auto interps = nx::InterpSet::none_but(nx::Interp::LINEAR, nx::Interp::CUBIC);
+        REQUIRE(interps[nx::Interp::LINEAR] == true);
+        REQUIRE(interps[nx::Interp::CUBIC] == true);
+        REQUIRE(interps[nx::Interp::NEAREST] == false);
+        REQUIRE(interps[nx::Interp::LINEAR_FAST] == false);
+    }
+}

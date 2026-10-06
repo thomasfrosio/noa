@@ -7,6 +7,26 @@
 #include "noa/xform/core/Transform.hpp"
 #include "noa/xform/Utils.hpp"
 
+namespace noa::xform {
+    struct TransformCompileOptions {
+        /// Interpolation methods to generate code for.
+        InterpSet interps{InterpSet::all()};
+
+        /// Border modes to generate code for.
+        BorderSet borders{BorderSet::all()};
+
+        /// Whether CPU code should be generated.
+        bool generate_cpu{true};
+
+        /// Whether GPU code should be generated.
+        bool generate_gpu{true};
+
+        /// Whether GPU code should be generated using isize indexing, instead of i32.
+        /// For large volumes (e.g. >1290^3), isize indexing might be required.
+        bool generate_gpu_isize{false};
+    };
+}
+
 namespace noa::xform::details {
     template<usize B, usize R,
              nt::integer Index,
@@ -17,22 +37,17 @@ namespace noa::xform::details {
     requires (R == 2 or R == 3)
     class Transform {
     public:
-        using index_type = Index;
-        using input_type = Input;
-        using output_type = Output;
-        using output_value_type = nt::value_type_t<output_type>;
-
-        using xform_parameter_type = Xform;
-        using xform_type = nt::value_type_t<xform_parameter_type>;
-        using coord_type = nt::value_type_t<xform_type>;
-        static_assert(nt::mat_of_shape<xform_type, R + 0, R + 1> or
-                      nt::mat_of_shape<xform_type, R + 1, R + 1>);
+        using output_value_type = nt::value_type_t<Output>;
+        using xform_accessor_type = nt::value_type_t<Xform>;
+        using coord_type = nt::value_type_t<xform_accessor_type>;
+        static_assert(nt::mat_of_shape<xform_accessor_type, R + 0, R + 1> or
+                      nt::mat_of_shape<xform_accessor_type, R + 1, R + 1>);
 
     public:
         Transform(
-            const input_type& input,
-            const output_type& output,
-            const xform_parameter_type& inverse_xform,
+            const Input& input,
+            const Output& output,
+            const Xform& inverse_xform,
             const Interpolator& interpolator
         ) :
             m_input(input),
@@ -40,7 +55,7 @@ namespace noa::xform::details {
             m_inverse_xform(inverse_xform),
             m_interpolator(interpolator) {}
 
-        NOA_HD constexpr void operator()(const Vec<index_type, B + R>& batched_indices) const {
+        NOA_HD constexpr void operator()(const Vec<Index, B + R>& batched_indices) const {
             const auto& [batches, indices] = batched_indices.template split<B>();
             auto coordinates = indices.template as<coord_type>();
             coordinates = transform_vector(m_inverse_xform[batches], coordinates);
@@ -48,9 +63,9 @@ namespace noa::xform::details {
         }
 
     private:
-        input_type m_input;
-        output_type m_output;
-        xform_parameter_type m_inverse_xform;
+        Input m_input;
+        Output m_output;
+        Xform m_inverse_xform;
         Interpolator m_interpolator;
     };
 
@@ -75,49 +90,7 @@ namespace noa::xform::details {
         }
     }
 
-    template<usize R, typename Input, typename Output, typename Matrix>
-    auto check_parameters_transform_nd(const Input& input, const Output& output, const Matrix& matrix) {
-        check(not input.is_empty() and not output.is_empty(), "Empty array detected");
-
-        // Check batch axes are compatible.
-        constexpr usize N = nt::array_size_v<Output>;
-        constexpr usize B = N - R;
-        auto input_shape_b = input.shape().template pop_back<R>();
-        auto output_shape_b = output.shape().template pop_back<R>();
-        if constexpr (B >= 1) {
-            for (usize i{}; i < B; ++i)
-                input_shape_b[i] = input_shape_b[i] == 1 ? output_shape_b[i] : input_shape_b[i];
-            check(input_shape_b == output_shape_b,
-                  "The batch axes are not compatible, input:batches={}, output:batches={}",
-                  input_shape_b, output_shape_b);
-        }
-
-        const Device device = output.device();
-        if constexpr (nt::array<Matrix>) {
-            check(matrix.is_contiguous() and matrix.shape() == output_shape_b,
-                  "The matrices, specified as a contiguous array, should match the output shape, but got inverse_matrices:shape={}, inverse_matrices:strides={} and output:batches={}",
-                  matrix.shape(), matrix.strides(), output_shape_b);
-            check(device == matrix.device(),
-                  "The transformation inverse_matrices should be on the same device as the output, but got inverse_matrices:device={} and output:device={}",
-                  matrix.device(), device);
-        }
-
-        check(input.device() == device,
-              "The input and output must be on the same device, but got input:device={} and output:device={}",
-              input.device(), device);
-        check(nd::are_elements_unique(output.strides(), output.shape()),
-              "The elements in the output should not overlap in memory, otherwise a data-race might occur. Got output:strides={} and output:shape={}",
-              output.strides(), output.shape());
-
-        if constexpr (nt::array<Input>) {
-            check(not are_overlapped(input, output), "The input and output arrays should not overlap");
-        } else {
-            check(input.device().is_gpu() or not are_overlapped(input.cpu(), output), "The input and output arrays should not overlap");
-        }
-    }
-
-    // GPU path instantiates 42 kernels with arrays and 54 kernels with textures...
-    template<usize R, typename Index, bool IS_GPU = false, typename Input, typename Output, typename Matrix>
+    template<usize R, TransformCompileOptions OPTIONS, typename Index, bool IS_GPU = false, typename Input, typename Output, typename Matrix>
     void launch_transform_nd(Input&& input, Output&& output, Matrix&& xform, auto options) {
         constexpr usize N = nt::array_size_v<Output>;
         constexpr usize B = N - R;
@@ -134,20 +107,22 @@ namespace noa::xform::details {
         }
 
         auto launch_iwise = [&](auto interp, auto border) {
-            using coord_t = nt::mutable_value_type_twice_t<Matrix>;
-            auto result = prepare_interpolation_inputs<R, interp(), border(), IS_GPU, Index, coord_t, false>(input, options.cvalue);
-            using interpolator_t = decltype(result)::interpolator_type;
-            using accessor_t = decltype(result)::accessor_type;
-            using op_t = Transform<B, R, Index, xform_accessor_t, interpolator_t, accessor_t, output_accessor_t>;
+            constexpr Interp INTERP = interp();
+            constexpr Border BORDER = border();
+            if constexpr (OPTIONS.interps[INTERP] and OPTIONS.borders[BORDER]) {
+                using coord_t = nt::mutable_value_type_twice_t<Matrix>;
+                auto result = prepare_interpolation_inputs<R, INTERP, BORDER, IS_GPU, Index, coord_t, false>(input, options.cvalue);
+                using interpolator_t = decltype(result)::interpolator_type;
+                using accessor_t = decltype(result)::accessor_type;
+                using op_t = Transform<B, R, Index, xform_accessor_t, interpolator_t, accessor_t, output_accessor_t>;
 
-            iwise<IwiseOptions{
-                .generate_cpu = not IS_GPU,
-                .generate_gpu = IS_GPU,
-            }>(output_span.shape(), output.device(),
-               op_t(result.accessor, output_accessor, xform_accessor, result.interpolator),
-               std::forward<Input>(input),
-               std::forward<Output>(output),
-               std::forward<Matrix>(xform));
+                iwise<IwiseOptions{
+                    .generate_cpu = not IS_GPU,
+                    .generate_gpu = IS_GPU,
+                }>(output_span.shape(), output.device(),
+                   op_t(result.accessor, output_accessor, xform_accessor, result.interpolator),
+                   NOA_FWD(input), NOA_FWD(output), NOA_FWD(xform));
+            }
         };
 
         auto launch_border = [&](auto interp) {
@@ -213,23 +188,122 @@ namespace noa::xform {
         T cvalue{};
     };
 
-    /// Applies one or multiple 2D affine transforms.
+    /// Applies one or multiple 2|3-D affine transforms.
+    /// \tparam RANK:
+    ///     Rank of the transform.
+    /// \tparam OPTIONS
+    ///     Compile time options (code generation).
     /// \param[in] input:
-    ///     ((Bi..,)Hi,Wi) Input 2D array(s) or 2D texture(s).
+    ///     2D: ((Bi..,)   Hi,Wi) Input 2D array(s) or 2D texture(s).
+    ///     3D: ((Bi..,)Di,Hi,Wi) Input 3D array(s) or 3D texture(s).
     ///     The batch axes are broadcast to the output batch axes.
     /// \param[out] output:
-    ///     ((Bo..,)Ho,Wo) Output 2D array(s).
+    ///     2D: ((Bo..,)   Ho,Wo) Output 2D array(s).
+    ///     3D: ((Bo..,)Do,Ho,Wo) Output 3D array(s).
     /// \param[in] inverse_matrices:
-    ///     2x3 or 3x3 inverse HW affine matrices.
+    ///     2D: 2x3 or 3x3 inverse HW affine matrices.
+    ///     3D: 3x4 or 4x4 inverse HW affine matrices.
     ///     One matrix, or a contiguous (Bo..) array matching the output batches.
     ///     Sets the floating-point precision of the transformation and interpolation.
     /// \param options:
     ///     Interpolation and border options.
     /// \note
-    ///     The input and output array can have different shapes ((Hi,Wi) vs (Ho,Wo)). The output window starts at
-    ///     the same index as the input window, so by entering a translation in inverse_matrices, one can move the
-    ///     center of the output window relative to the input window, e.g., to render only a specific subregion.
-    template<typename Input, typename Output, typename Matrix>
+    ///     The input and output array can have different shapes (((Di,)Hi,Wi) vs ((Do,)Ho,Wo)).
+    ///     The output window starts at the same index as the input window, so by entering a translation in
+    ///     inverse_matrices, one can move the center of the output window relative to the input window,
+    ///     e.g., to render only a specific subregion.
+    template<usize RANK, TransformCompileOptions OPTIONS = TransformCompileOptions{},
+             typename Input, typename Output, typename Matrix>
+        requires details::transformable_nd<2, Input, Output, Matrix>
+    void transform(
+        Input&& input,
+        Output&& output,
+        Matrix&& inverse_matrices,
+        const TransformOptions<nt::mutable_value_type_t<Input>>& options = {}
+    ) {
+        check(not input.is_empty() and not output.is_empty(), "Empty array detected");
+
+        // Check batch axes are compatible.
+        constexpr usize N = nt::array_size_v<Output>;
+        constexpr usize B = N - RANK;
+        auto input_shape_b = input.shape().template pop_back<RANK>();
+        auto output_shape_b = output.shape().template pop_back<RANK>();
+        if constexpr (B >= 1) {
+            for (usize i{}; i < B; ++i)
+                input_shape_b[i] = input_shape_b[i] == 1 ? output_shape_b[i] : input_shape_b[i];
+            check(input_shape_b == output_shape_b,
+                  "The batch axes are not compatible, input:batches={}, output:batches={}",
+                  input_shape_b, output_shape_b);
+        }
+
+        const Device device = output.device();
+        if constexpr (nt::array_decay<Matrix>) {
+            check(inverse_matrices.is_contiguous() and inverse_matrices.shape() == output_shape_b,
+                  "The matrices, specified as a contiguous array, should match the output shape, but got inverse_matrices:shape={}, inverse_matrices:strides={} and output:batches={}",
+                  inverse_matrices.shape(), inverse_matrices.strides(), output_shape_b);
+            check(device == inverse_matrices.device(),
+                  "The transformation inverse_matrices should be on the same device as the output, but got inverse_matrices:device={} and output:device={}",
+                  inverse_matrices.device(), device);
+        }
+
+        check(input.device() == device,
+              "The input and output must be on the same device, but got input:device={} and output:device={}",
+              input.device(), device);
+        check(nd::are_elements_unique(output.strides(), output.shape()),
+              "The elements in the output should not overlap in memory, otherwise a data-race might occur. Got output:strides={} and output:shape={}",
+              output.strides(), output.shape());
+
+        if constexpr (nt::array_decay<Input>) {
+            check(not are_overlapped(input, output), "The input and output arrays should not overlap");
+        } else {
+            check(input.device().is_gpu() or not are_overlapped(input.cpu(), output), "The input and output arrays should not overlap");
+        }
+
+        check(OPTIONS.interps[options.interp] and OPTIONS.borders[options.border]);
+
+        if constexpr (OPTIONS.generate_gpu) {
+            if (output.device().is_gpu()) {
+                #ifdef NOA_ENABLE_GPU
+                if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
+                    panic(); // unreachable
+                } else {
+                    if constexpr (OPTIONS.generate_gpu_isize) {
+                        details::launch_transform_nd<RANK, OPTIONS, isize, true>(
+                            NOA_FWD(input), NOA_FWD(output), NOA_FWD(inverse_matrices), options);
+                    } else {
+                        check(nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
+                              nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
+                              "isize indexing not instantiated for GPU devices, see generate_gpu_size option");
+                        details::launch_transform_nd<RANK, OPTIONS, i32, true>(
+                            NOA_FWD(input), NOA_FWD(output), NOA_FWD(inverse_matrices), options);
+                    }
+                }
+                return;
+                #else
+                panic_no_gpu_backend();
+                #endif
+            }
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(output.device().is_cpu());
+            #endif
+        }
+
+        if constexpr (OPTIONS.generate_cpu) {
+            details::launch_transform_nd<RANK, OPTIONS, isize>(
+                NOA_FWD(input), NOA_FWD(output), NOA_FWD(inverse_matrices), options);
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(output.device().is_gpu());
+            #else
+            static_assert(nt::always_false<Input>, "Function is always a no-op");
+            #endif
+        }
+    }
+
+    /// Applies one or multiple 2D affine transforms.
+    template<TransformCompileOptions OPTIONS = TransformCompileOptions{},
+             typename Input, typename Output, typename Matrix>
         requires details::transformable_nd<2, Input, Output, Matrix>
     void transform_2d(
         Input&& input,
@@ -237,52 +311,12 @@ namespace noa::xform {
         Matrix&& inverse_matrices,
         const TransformOptions<nt::mutable_value_type_t<Input>>& options = {}
     ) {
-        details::check_parameters_transform_nd<2>(input, output, inverse_matrices);
-
-        if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
-                panic(); // unreachable
-            } else {
-                check(nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
-                      nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
-                      "isize indexing not instantiated for GPU devices");
-
-                details::launch_transform_nd<2, i32, true>(
-                    std::forward<Input>(input),
-                    std::forward<Output>(output),
-                    std::forward<Matrix>(inverse_matrices),
-                    options);
-            }
-            return;
-            #else
-            panic_no_gpu_backend();
-            #endif
-        }
-        details::launch_transform_nd<2, isize>(
-            std::forward<Input>(input),
-            std::forward<Output>(output),
-            std::forward<Matrix>(inverse_matrices),
-            options);
+        transform<2, OPTIONS>(NOA_FWD(input), NOA_FWD(output), NOA_FWD(inverse_matrices), options);
     }
 
     /// Applies one or multiple 3D affine transforms.
-    /// \param[in] input:
-    ///     ((Bi..,)Di,Hi,Wi) Input 3D array(s) or 3D texture(s).
-    ///     The batch axes are broadcast to the output batch axes.
-    /// \param[out] output:
-    ///     ((Bo..,)Do,Ho,Wo) Output 3D array(s).
-    /// \param[in] inverse_matrices:
-    ///     3x4 or 4x4 inverse HW affine matrices.
-    ///     One matrix, or a contiguous (Bo..) array matching the output batches.
-    ///     Sets the floating-point precision of the transformation and interpolation.
-    /// \param options:
-    ///     Interpolation and border options.
-    /// \note
-    ///     The input and output array can have different shapes ((Di,Hi,Wi) vs (Do,Ho,Wo)). The output window starts at
-    ///     the same index as the input window, so by entering a translation in inverse_matrices, one can move the
-    ///     center of the output window relative to the input window, e.g., to render only a specific subregion.
-    template<typename Input, typename Output, typename Matrix>
+    template<TransformCompileOptions OPTIONS = TransformCompileOptions{},
+             typename Input, typename Output, typename Matrix>
         requires details::transformable_nd<3, Input, Output, Matrix>
     void transform_3d(
         Input&& input,
@@ -290,39 +324,6 @@ namespace noa::xform {
         Matrix&& inverse_matrices,
         const TransformOptions<nt::mutable_value_type_t<Input>>& options = {}
     ) {
-        details::check_parameters_transform_nd<3>(input, output, inverse_matrices);
-
-        if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
-                std::terminate(); // unreachable
-            } else {
-                if (nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
-                    nd::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
-                    details::launch_transform_nd<3, i32, true>(
-                        std::forward<Input>(input),
-                        std::forward<Output>(output),
-                        std::forward<Matrix>(inverse_matrices),
-                        options);
-                } else {
-                    // For large volumes (>1290^3), isize indexing is required.
-                    details::launch_transform_nd<3, isize, true>(
-                        std::forward<Input>(input),
-                        std::forward<Output>(output),
-                        std::forward<Matrix>(inverse_matrices),
-                        options);
-                }
-            }
-            return;
-            #else
-            panic_no_gpu_backend();
-            #endif
-        }
-
-        details::launch_transform_nd<3, isize>(
-            std::forward<Input>(input),
-            std::forward<Output>(output),
-            std::forward<Matrix>(inverse_matrices),
-            options);
+        transform<3, OPTIONS>(NOA_FWD(input), NOA_FWD(output), NOA_FWD(inverse_matrices), options);
     }
 }

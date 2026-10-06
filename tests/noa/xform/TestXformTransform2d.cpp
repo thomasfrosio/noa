@@ -288,3 +288,18 @@ TEMPLATE_TEST_CASE("xform::transform_2d(), texture interpolation", "", f32, c32)
         REQUIRE(results);
     }
 }
+
+TEST_CASE("xform::transform_2d(), compile") {
+    auto input = noa::arange<f32, 2>({64, 64});
+    auto output = noa::empty<f32, 2>({64, 64});
+    constexpr auto OPTIONS = nx::TransformCompileOptions{
+        .interps = nx::InterpSet::none_but(nx::Interp::LINEAR),
+        .borders = noa::BorderSet::none_but(noa::Border::ZERO)
+    };
+    nx::transform_2d<OPTIONS>(input, output, Mat33<f32>::eye(1));
+    // vs
+    // nx::transform_2d(input, output, Mat33<f32>::eye(1));
+
+    // cuobjdump --dump-sass noa_tests | grep 'Function :' | cu++filt
+    REQUIRE(test::allclose_abs(input, output));
+}

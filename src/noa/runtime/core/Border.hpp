@@ -6,6 +6,7 @@
 #include "noa/base/Error.hpp"
 #include "noa/base/Strings.hpp"
 #include "noa/base/Traits.hpp"
+#include "noa/base/Utils.hpp"
 
 namespace noa {
     /// Border mode, i.e. how out-of-bounds indices/coordinates are handled.
@@ -53,6 +54,62 @@ namespace noa {
 
         [[nodiscard]] NOA_HD constexpr bool is_finite() const noexcept {
             return is_any(ZERO, VALUE, NOTHING);
+        }
+    };
+
+    struct BorderSet {
+        using reference_type = BitReference<u8>;
+        u8 bits{};
+
+        static constexpr auto all() -> BorderSet { return {.bits = 0xFF}; }
+        static constexpr auto none() -> BorderSet { return {.bits = 0x00}; }
+
+        static constexpr auto all_but(auto... interps) -> BorderSet {
+            auto out = all();
+            out.disable(interps...);
+            return out;
+        }
+
+        static constexpr auto none_but(auto... interps) -> BorderSet {
+            auto out = none();
+            out.enable(interps...);
+            return out;
+        }
+
+        constexpr auto enable(auto... interps) noexcept -> BorderSet& {
+            (((*this)[interps] = true), ...);
+            return *this;
+        }
+
+        constexpr auto disable(auto... interps) noexcept -> BorderSet& {
+            (((*this)[interps] = false), ...);
+            return *this;
+        }
+
+        constexpr auto operator[](Border border) const noexcept -> bool {
+            switch (border.value) {
+                case Border::PERIODIC:  return reference_type::is_set(&bits, 0);
+                case Border::CLAMP:     return reference_type::is_set(&bits, 1);
+                case Border::MIRROR:    return reference_type::is_set(&bits, 2);
+                case Border::ZERO:      return reference_type::is_set(&bits, 3);
+                case Border::VALUE:     return reference_type::is_set(&bits, 4);
+                case Border::REFLECT:   return reference_type::is_set(&bits, 5);
+                case Border::NOTHING:   return reference_type::is_set(&bits, 6);
+            }
+            unreachable();
+        }
+
+        constexpr auto operator[](Border border) noexcept -> reference_type {
+            switch (border.value) {
+                case Border::PERIODIC:  return reference_type(&bits, 0);
+                case Border::CLAMP:     return reference_type(&bits, 1);
+                case Border::MIRROR:    return reference_type(&bits, 2);
+                case Border::ZERO:      return reference_type(&bits, 3);
+                case Border::VALUE:     return reference_type(&bits, 4);
+                case Border::REFLECT:   return reference_type(&bits, 5);
+                case Border::NOTHING:   return reference_type(&bits, 6);
+            }
+            unreachable();
         }
     };
 }
