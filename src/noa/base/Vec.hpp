@@ -778,7 +778,7 @@ namespace noa::inline types {
         if constexpr (nt::real_or_complex<T>)
             os << fmt::format("{::.3f}", v); // {fmt} ranges
         else
-            os << fmt::format("{}", v); // FIXME
+            os << fmt::format("{}", v); // FIXME?
         return os;
     }
 }
@@ -994,11 +994,11 @@ namespace noa {
             return vector[0];
         } else {
             #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
-            if constexpr (std::same_as<T, f16> && N == 4) {
+            if constexpr (std::same_as<T, f16> and N == 4) {
                 auto* alias = reinterpret_cast<const __half2*>(vector.data());
                 const __half2 tmp = __hmin2(alias[0], alias[1]);
                 return __hmin(tmp.x, tmp.y);
-            } else if constexpr (std::same_as<T, f16> && N == 8) {
+            } else if constexpr (std::same_as<T, f16> and N == 8) {
                 auto* alias = reinterpret_cast<const __half2*>(vector.data());
                 const __half2 tmp0 = __hmin2(alias[0], alias[1]);
                 const __half2 tmp1 = __hmin2(alias[2], alias[3]);

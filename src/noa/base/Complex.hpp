@@ -144,7 +144,7 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] NOA_HD friend constexpr auto operator-(Complex v) noexcept -> Complex {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
+            #ifdef NOA_ENABLE_CUDA
             if constexpr (std::is_same_v<value_type, f16>) {
                 auto* tmp = reinterpret_cast<__half2*>(&v);
                 *tmp = -(*tmp);
@@ -354,6 +354,7 @@ namespace noa {
     template<typename T>
     [[nodiscard]] NOA_FHD auto sqrt(Complex<T> x) noexcept -> Complex<T> {
         #if defined(__CUDA_ARCH__)
+        // TODO h2sqrt?
         T& r = x.real;
         T& i = x.imag;
         if (r == T{}) {
