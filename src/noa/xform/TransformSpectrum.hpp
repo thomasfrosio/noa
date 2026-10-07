@@ -8,6 +8,23 @@
 #include "noa/xform/Transform.hpp"
 #include "noa/xform/Utils.hpp"
 
+namespace noa::xform {
+    struct TransformSpectrumCompileOptions {
+        /// Interpolation methods to generate code for.
+        InterpSet interps{InterpSet::all()};
+
+        /// Whether CPU code should be generated.
+        bool generate_cpu{true};
+
+        /// Whether GPU code should be generated.
+        bool generate_gpu{true};
+
+        /// Whether GPU code should be generated using isize indexing, instead of i32.
+        /// For large volumes (e.g. >1290^3), isize indexing might be required.
+        bool generate_gpu_isize{false};
+    };
+}
+
 namespace noa::xform::details {
     template<usize B, usize R, nf::Layout REMAP,
              nt::integer Index,
@@ -20,38 +37,31 @@ namespace noa::xform::details {
     public:
         static constexpr bool IS_DST_CENTERED = REMAP.is_xx2xc();
         static constexpr bool IS_DST_RFFT = REMAP.is_xx2hx();
-        using index_type = Index;
-        using shape_type = Shape<index_type, R>;
 
-        using input_type = Input;
-        using output_type = Output;
-        using interpolator_type = Interpolator;
-        using input_value_type = nt::mutable_value_type_t<input_type>;
-        using output_value_type = nt::value_type_t<output_type>;
+        using input_value_type = nt::mutable_value_type_t<Input>;
+        using output_value_type = nt::value_type_t<Output>;
         static_assert(nt::spectrum_types<input_value_type, output_value_type>);
 
         // Xform:
-        using batched_rotation_type = Xform;
-        using rotation_type = nt::value_type_t<batched_rotation_type>;
+        using rotation_type = nt::value_type_t<Xform>;
         using coord_type = nt::value_type_t<rotation_type>;
         using vec_type = Vec<coord_type, R>;
         static_assert(nt::mat_of_shape<rotation_type, R, R> or (R == 3 and nt::quaternion<rotation_type>));
 
         // PostShift:
-        using batched_postshift_type = PostShift;
-        using postshift_type = nt::mutable_value_type_t<batched_postshift_type>;
+        using postshift_type = nt::mutable_value_type_t<PostShift>;
         static_assert(nt::empty<postshift_type> or
                       (nt::vec_of_type<postshift_type, coord_type> and
                        nt::vec_of_size<postshift_type, R>));
 
     public:
         TransformSpectrum(
-            const input_type& input,
-            const output_type& output,
-            const shape_type& output_shape,
+            const Input& input,
+            const Output& output,
+            const Shape<Index, R>& output_shape,
             const Interpolator& interpolator,
-            const batched_rotation_type& inverse_rotation,
-            const batched_postshift_type& post_forward_shift,
+            const Xform& inverse_rotation,
+            const PostShift& post_forward_shift,
             coord_type cutoff
         ) :
             m_input(input),
@@ -65,7 +75,7 @@ namespace noa::xform::details {
             m_cutoff_fftfreq_sqd *= m_cutoff_fftfreq_sqd;
         }
 
-        NOA_HD constexpr void operator()(const Vec<index_type, B + R>& batched_indices) const {
+        NOA_HD constexpr void operator()(const Vec<Index, B + R>& batched_indices) const {
             const auto& [batches, indices] = batched_indices.template split<B>();
 
             // Given the output indices, compute the corresponding fftfreq.
@@ -90,83 +100,14 @@ namespace noa::xform::details {
         }
 
     private:
-        input_type m_input;
-        output_type m_output;
-        batched_rotation_type m_inverse_rotation;
+        Input m_input;
+        Output m_output;
+        Xform m_inverse_rotation;
         vec_type m_f_shape;
         coord_type m_cutoff_fftfreq_sqd;
-        NOA_NO_UNIQUE_ADDRESS batched_postshift_type m_post_forward_shift;
-        NOA_NO_UNIQUE_ADDRESS interpolator_type m_interpolator;
+        NOA_NO_UNIQUE_ADDRESS PostShift m_post_forward_shift;
+        NOA_NO_UNIQUE_ADDRESS Interpolator m_interpolator;
     };
-
-    template<nf::Layout REMAP, usize R, typename Input, typename Output, typename Matrix, typename Shift, usize N>
-    void check_parameters_transform_spectrum_nd(
-        const Input& input, const Output& output, const Shape<isize, N>& shape,
-        const Matrix& inverse_rotation, const Shift& post_shifts
-    ) {
-        check(not input.is_empty() and not output.is_empty(), "Empty array detected");
-
-        // Check batch axes are compatible.
-        constexpr usize B = N - R;
-        auto input_shape_b = input.shape().template pop_back<R>();
-        auto output_shape_b = output.shape().template pop_back<R>();
-        auto shape_b = shape.template pop_back<R>();
-        if constexpr (B >= 1) {
-            for (usize i{}; i < B; ++i)
-                input_shape_b[i] = input_shape_b[i] == 1 ? output_shape_b[i] : input_shape_b[i];
-            check(input_shape_b == output_shape_b and output_shape_b == shape_b,
-                  "The batch axes are not compatible, input:batches={}, output:batches={}, logical_shape:batches={}",
-                  input_shape_b, output_shape_b, shape_b);
-        }
-
-        // Check the rank axes are compatible. No automatic broadcasting.
-        auto input_shape_r = input.shape().template pop_front<B>();
-        auto output_shape_r = output.shape().template pop_front<B>();
-        auto shape_r = shape.template pop_front<B>();
-        check((REMAP.is_hx2xx() ? shape_r.rfft() : shape_r) == input_shape_r,
-              "The input shape doesn't match the logical shape. Got input:shape={} and logical_shape={}, rfft={}",
-              input.shape(), shape, REMAP.is_hx2xx());
-        check((REMAP.is_xx2hx() ? shape_r.rfft() : shape_r) == output_shape_r,
-              "The input shape doesn't match the logical shape. Got input:shape={} and logical_shape={}, rfft={}",
-              output.shape(), shape, REMAP.is_xx2hx());
-
-        const Device device = output.device();
-        if constexpr (nt::array<Matrix>) {
-            check(inverse_rotation.is_contiguous() and inverse_rotation.shape() == output_shape_b,
-                  "The transformations, specified as a contiguous array, should match the output shape, but got inverse_rotations:shape={}, inverse_rotations:strides={} and output:batches={}",
-                  inverse_rotation.shape(), inverse_rotation.strides(), output_shape_b);
-            check(device == inverse_rotation.device(),
-                  "The transformations should be on the same device as the output, but got inverse_rotations:device={} and output:device={}",
-                  inverse_rotation.device(), device);
-        }
-        if constexpr (nt::array<Shift>) {
-            if (not post_shifts.is_empty()) {
-                check(post_shifts.is_contiguous() and post_shifts.shape() == output_shape_b,
-                  "The shifts, specified as a contiguous array, should match the output shape, but got post_shifts:shape={}, post_shifts:strides={} and output:batches={}",
-                  post_shifts.shape(), post_shifts.strides(), output_shape_b);
-                check(device == post_shifts.device(),
-                      "The shifts should be on the same device as the output, but got post_shifts:device={} and output:device={}",
-                      post_shifts.device(), device);
-            }
-        }
-
-        check(device == input.device(),
-              "The input and output arrays must be on the same device, but got input:device={} and output:device={}",
-              input.device(), device);
-        check(nd::are_elements_unique(output.strides(), output.shape()),
-              "The elements in the output should not overlap in memory, otherwise a data-race might occur. Got output:strides={} and output:shape={}",
-              output.strides(), output.shape());
-
-        if constexpr (nt::array<Input>) {
-            check(not are_overlapped(input, output), "The input and output arrays should not overlap");
-        } else {
-            check(input.device().is_gpu() or not are_overlapped(input.cpu(), output),
-                  "The input and output arrays should not overlap");
-            check(input.border() == Border::ZERO,
-                  "The texture addressing should be {}, but got {}",
-                  Border::ZERO, input.border());
-        }
-    }
 
     // nvcc struggles with C++20 template parameters in lambda, so use a worse C++17 syntax and create this type...
     template<bool VALUE>
@@ -174,7 +115,7 @@ namespace noa::xform::details {
         consteval auto operator()() const -> bool { return VALUE;}
     };
 
-    template<nf::Layout REMAP, usize R, typename Index, bool IS_GPU = false,
+    template<usize R, nf::Layout REMAP, TransformSpectrumCompileOptions OPTIONS, typename Index, bool IS_GPU = false,
              typename Input, typename Output, typename Matrix, typename Shift, usize N>
     void launch_transform_spectrum_nd(
         Input&& input,
@@ -196,27 +137,30 @@ namespace noa::xform::details {
             options.interp = input.interp();
 
         auto launch_iwise = [&](auto no_shift, auto interp) {
-            auto postshift_accessor = xform_into_accessor<true, no_shift()>(shifts);
-            using postshift_accessor_t = decltype(postshift_accessor);
+            constexpr Interp INTERP = interp();
+            if constexpr (OPTIONS.interps[INTERP]) {
+                auto postshift_accessor = xform_into_accessor<true, no_shift()>(shifts);
+                using postshift_accessor_t = decltype(postshift_accessor);
 
-            // Get the interpolator.
-            using coord_t = nt::mutable_value_type_twice_t<Matrix>;
-            auto result = prepare_interpolation_spectrum_inputs<R, REMAP, interp(), IS_GPU, coord_t, false>(input, logical_shape_r);
-            using interpolator_t = decltype(result)::interpolator_type;
-            using accessor_t = decltype(result)::accessor_type;
+                // Get the interpolator.
+                using coord_t = nt::mutable_value_type_twice_t<Matrix>;
+                auto result = prepare_interpolation_spectrum_inputs<R, REMAP, interp(), IS_GPU, coord_t, false>(input, logical_shape_r);
+                using interpolator_t = decltype(result)::interpolator_type;
+                using accessor_t = decltype(result)::accessor_type;
 
-            using op_t = TransformSpectrum<
-                B, R, REMAP, Index, xform_accessor_t, postshift_accessor_t,
-                interpolator_t, accessor_t, output_accessor_t>;
+                using op_t = TransformSpectrum<
+                    B, R, REMAP, Index, xform_accessor_t, postshift_accessor_t,
+                    interpolator_t, accessor_t, output_accessor_t>;
 
-            iwise<IwiseOptions{
-                .generate_cpu = not IS_GPU,
-                .generate_gpu = IS_GPU,
-            }>(output_span.shape(), output.device(),
-               op_t(result.accessor, output_accessor, logical_shape_r,
-                    result.interpolator, xform_accessor, postshift_accessor,
-                    static_cast<coord_t>(options.fftfreq_cutoff)),
-               NOA_FWD(input), NOA_FWD(output), NOA_FWD(xforms), NOA_FWD(shifts));
+                iwise<IwiseOptions{
+                    .generate_cpu = not IS_GPU,
+                    .generate_gpu = IS_GPU,
+                }>(output_span.shape(), output.device(),
+                   op_t(result.accessor, output_accessor, logical_shape_r,
+                        result.interpolator, xform_accessor, postshift_accessor,
+                        static_cast<coord_t>(options.fftfreq_cutoff)),
+                   NOA_FWD(input), NOA_FWD(output), NOA_FWD(xforms), NOA_FWD(shifts));
+            }
         };
 
         auto launch_interp = [&](auto no_shift) {
@@ -238,14 +182,13 @@ namespace noa::xform::details {
             }
         };
 
-        if constexpr (nt::complex<nt::value_type_t<Input>>) {
-            using shift_t = std::decay_t<Shift>;
+        using shift_t = std::decay_t<Shift>;
+        if constexpr (nt::complex<nt::value_type_t<Input>> or not nt::empty<shift_t>) {
             bool has_shift{};
             if constexpr (nt::array<shift_t>)
                 has_shift = not shifts.is_empty();
             else if constexpr (nt::vec<shift_t>)
                 has_shift = shifts.any_ne(0);
-
             if (has_shift)
                 launch_interp(WrapNoShift<false>{});
             else
@@ -295,35 +238,160 @@ namespace noa::xform {
         f64 fftfreq_cutoff{0.5};
     };
 
-    /// Applies one or multiple 2D transforms (rotation and scaling, followed by translation) on 2D (r)FFTs.
+    /// Applies one or multiple 2|3-D transforms (rotation and scaling, followed by translation) on 2|3-D (r)FFTs.
+    /// \tparam RANK:
+    ///     Rank of the transform.
     /// \tparam REMAP:
     ///     Remap operation. Every layout and remapping is supported.
+    /// \tparam OPTIONS
+    ///     Compile time options (code generation).
     /// \tparam Rotation:
-    ///     Mat22<Coord> or a array of that type.
+    ///     2D: Mat22<Coord> or a array of that type.
+    ///     3D: Mat33<Coord>, Quaternion<Coord>, or a array of these types.
     /// \tparam Shift:
-    ///     Vec<Coord, 2>, a array of that type, or Empty.
+    ///     2D: Vec<Coord, 2>, a array of that type, or Empty.
+    ///     3D: Vec<Coord, 3>, a array of that type, or Empty.
     /// \param[in] input:
-    ///     2D (r)FFT(s) to transform.
-    ///     ((Bi..,)H,Wi) Input 2D array(s) or 2D texture(s), of type f16, f32, f64, c16, c32, c64.
+    ///     (r)FFT(s) to transform, of type f16, f32, f64, c16, c32, c64.
+    ///     2D: ((Bi..,)  H,Wi) Input 2D array(s) or 2D texture(s),
+    ///     3D: ((Bi..,)D,H,Wi) Input 3D array(s) or 3D texture(s), of type f16, f32, f64, c16, c32, c64.
     ///     The batch axes are broadcast to the output batch axes.
     /// \param[out] output:
-    ///     2D transformed (r)FFT(s).
-    ///     ((Bo..,)H,Wo) Output 2D array(s).
+    ///     Transformed (r)FFT(s).
+    ///     2D: ((Bo..,)  H,Wo) Output 2D array(s).
+    ///     3D: ((Bo..,)D,H,Wo) Output 3D array(s).
     /// \param shape:
     ///     Logical shape of input and output.
     /// \param[in] inverse_rotations:
-    ///     2x2 inverse HW rotation/scaling matrix.
+    ///     2D: 2x2 inverse HW rotation/scaling matrix.
+    ///     3D: 3x3 inverse DHW rotation/scaling matrix.
     ///     One matrix, or a contiguous (Bo..) array matching the output batches.
     ///     Sets the floating-point precision of the transformation and interpolation.
     /// \param[in] post_shifts:
-    ///     2D real-space HW forward shift to apply (as phase shift) after the transformation.
+    ///     2|3-D real-space (D)HW forward shift to apply (as phase shift) after the transformation.
     ///     One, or a contiguous (Bo..) array matching the output batches.
     ///     If Empty, a zero vector, an empty array or if the input is real, it is ignored.
     /// \param options:
     ///     Transformation options.
-    ///
     /// \note For more details, see InterpolatorSpectrum.
-    template<nf::Layout REMAP, typename Input, typename Output, typename Rotation, typename Shift = Empty, usize N>
+    template<usize RANK, nf::Layout REMAP, TransformSpectrumCompileOptions OPTIONS = TransformSpectrumCompileOptions{},
+             typename Input, typename Output, typename Rotation, typename Shift = Empty, usize N>
+        requires details::transformable_spectrum_nd<RANK, REMAP, Input, Output, Rotation, Shift, N>
+    void transform_spectrum(
+        Input&& input,
+        Output&& output,
+        const Shape<isize, N>& shape,
+        Rotation&& inverse_rotations,
+        Shift&& post_shifts = {},
+        const TransformSpectrumOptions& options = {}
+    ) {
+        check(not input.is_empty() and not output.is_empty(), "Empty array detected");
+
+        // Check batch axes are compatible.
+        constexpr usize B = N - RANK;
+        auto input_shape_b = input.shape().template pop_back<RANK>();
+        auto output_shape_b = output.shape().template pop_back<RANK>();
+        auto shape_b = shape.template pop_back<RANK>();
+        if constexpr (B >= 1) {
+            for (usize i{}; i < B; ++i)
+                input_shape_b[i] = input_shape_b[i] == 1 ? output_shape_b[i] : input_shape_b[i];
+            check(input_shape_b == output_shape_b and output_shape_b == shape_b,
+                  "The batch axes are not compatible, input:batches={}, output:batches={}, logical_shape:batches={}",
+                  input_shape_b, output_shape_b, shape_b);
+        }
+
+        // Check the rank axes are compatible. No automatic broadcasting.
+        auto input_shape_r = input.shape().template pop_front<B>();
+        auto output_shape_r = output.shape().template pop_front<B>();
+        auto shape_r = shape.template pop_front<B>();
+        check((REMAP.is_hx2xx() ? shape_r.rfft() : shape_r) == input_shape_r,
+              "The input shape doesn't match the logical shape. Got input:shape={} and logical_shape={}, rfft={}",
+              input.shape(), shape, REMAP.is_hx2xx());
+        check((REMAP.is_xx2hx() ? shape_r.rfft() : shape_r) == output_shape_r,
+              "The input shape doesn't match the logical shape. Got input:shape={} and logical_shape={}, rfft={}",
+              output.shape(), shape, REMAP.is_xx2hx());
+
+        const Device device = output.device();
+        if constexpr (nt::array_decay<Rotation>) {
+            check(inverse_rotations.is_contiguous() and inverse_rotations.shape() == output_shape_b,
+                  "The transformations, specified as a contiguous array, should match the output shape, but got inverse_rotations:shape={}, inverse_rotations:strides={} and output:batches={}",
+                  inverse_rotations.shape(), inverse_rotations.strides(), output_shape_b);
+            check(device == inverse_rotations.device(),
+                  "The transformations should be on the same device as the output, but got inverse_rotations:device={} and output:device={}",
+                  inverse_rotations.device(), device);
+        }
+        if constexpr (nt::array_decay<Shift>) {
+            if (not post_shifts.is_empty()) {
+                check(post_shifts.is_contiguous() and post_shifts.shape() == output_shape_b,
+                  "The shifts, specified as a contiguous array, should match the output shape, but got post_shifts:shape={}, post_shifts:strides={} and output:batches={}",
+                  post_shifts.shape(), post_shifts.strides(), output_shape_b);
+                check(device == post_shifts.device(),
+                      "The shifts should be on the same device as the output, but got post_shifts:device={} and output:device={}",
+                      post_shifts.device(), device);
+            }
+        }
+
+        check(device == input.device(),
+              "The input and output arrays must be on the same device, but got input:device={} and output:device={}",
+              input.device(), device);
+        check(nd::are_elements_unique(output.strides(), output.shape()),
+              "The elements in the output should not overlap in memory, otherwise a data-race might occur. Got output:strides={} and output:shape={}",
+              output.strides(), output.shape());
+
+        if constexpr (nt::array_decay<Input>) {
+            check(not are_overlapped(input, output), "The input and output arrays should not overlap");
+        } else {
+            check(input.device().is_gpu() or not are_overlapped(input.cpu(), output),
+                  "The input and output arrays should not overlap");
+            check(input.border() == Border::ZERO,
+                  "The texture addressing should be {}, but got {}",
+                  Border::ZERO, input.border());
+        }
+
+        check(OPTIONS.interps[options.interp]);
+
+        if constexpr (OPTIONS.generate_cpu) {
+            if (output.device().is_gpu()) {
+                #ifdef NOA_ENABLE_GPU
+                if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
+                    std::terminate(); // unreachable
+                } else {
+                    if constexpr (OPTIONS.generate_gpu_isize) {
+                        details::launch_transform_spectrum_nd<REMAP, RANK, isize, true>(
+                        NOA_FWD(input), NOA_FWD(output), shape, NOA_FWD(inverse_rotations), NOA_FWD(post_shifts), options);
+                    } else {
+                        check(nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
+                              nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
+                              "isize indexing not instantiated for GPU devices, see generate_gpu_size option");
+                        details::launch_transform_spectrum_nd<REMAP, RANK, i32, true>(
+                            NOA_FWD(input), NOA_FWD(output), shape, NOA_FWD(inverse_rotations), NOA_FWD(post_shifts), options);
+                    }
+                    return;
+                }
+                #else
+                panic_no_gpu_backend();
+                #endif
+            }
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(output.device().is_cpu());
+            #endif
+        }
+        if constexpr (OPTIONS.generate_cpu) {
+            details::launch_transform_spectrum_nd<REMAP, RANK, isize>(
+                NOA_FWD(input), NOA_FWD(output), shape, NOA_FWD(inverse_rotations), NOA_FWD(post_shifts), options);
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(output.device().is_gpu());
+            #else
+            static_assert(nt::always_false<Input>, "Function is always a no-op");
+            #endif
+        }
+    }
+
+    /// Applies one or multiple 2D transforms (rotation and scaling, followed by translation) on 2D (r)FFTs.
+    template<nf::Layout REMAP, TransformSpectrumCompileOptions OPTIONS = TransformSpectrumCompileOptions{},
+             typename Input, typename Output, typename Rotation, typename Shift = Empty, usize N>
         requires details::transformable_spectrum_nd<2, REMAP, Input, Output, Rotation, Shift, N>
     void transform_spectrum_2d(
         Input&& input,
@@ -333,62 +401,12 @@ namespace noa::xform {
         Shift&& post_shifts = {},
         const TransformSpectrumOptions& options = {}
     ) {
-        details::check_parameters_transform_spectrum_nd<REMAP, 2>(input, output, shape, inverse_rotations, post_shifts);
-
-        if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
-                std::terminate(); // unreachable
-            } else {
-                check(nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
-                      nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
-                      "isize indexing not instantiated for GPU devices");
-                details::launch_transform_spectrum_nd<REMAP, 2, i32, true>(
-                    NOA_FWD(input), NOA_FWD(output), shape,
-                    NOA_FWD(inverse_rotations), NOA_FWD(post_shifts),
-                    options);
-                return;
-            }
-            #else
-            panic_no_gpu_backend();
-            #endif
-        }
-
-        details::launch_transform_spectrum_nd<REMAP, 2, isize>(
-            NOA_FWD(input), NOA_FWD(output), shape,
-            NOA_FWD(inverse_rotations), NOA_FWD(post_shifts),
-            options);
+        transform_spectrum<2, REMAP, OPTIONS>(NOA_FWD(input), NOA_FWD(output), shape, NOA_FWD(inverse_rotations), NOA_FWD(post_shifts), options);
     }
 
     /// Applies one or multiple 3D transforms (rotation and scaling, followed by translation) on 3D (r)FFTs.
-    /// \tparam REMAP:
-    ///     Remap operation. Every layout and remapping is supported.
-    /// \tparam Rotation:
-    ///     Mat33<Coord>, Quaternion<Coord>, or a array of these types.
-    /// \tparam Shift:
-    ///     Vec<Coord, 3>, a array of that type, or Empty.
-    /// \param[in] input:
-    ///     3D (r)FFT(s) to transform.
-    ///     ((Bi..,)D,H,Wi) Input 3D array(s) or 3D texture(s), of type f16, f32, f64, c16, c32, c64.
-    ///     The batch axes are broadcast to the output batch axes.
-    /// \param[out] output:
-    ///     3D transformed (r)FFT(s).
-    ///     ((Bo..,)D,H,Wo) Output 3D array(s).
-    /// \param shape:
-    ///     Logical shape of input and output.
-    /// \param[in] inverse_rotations:
-    ///     3x3 inverse DHW rotation/scaling matrix.
-    ///     One matrix, or a contiguous (Bo..) array matching the output batches.
-    ///     Sets the floating-point precision of the transformation and interpolation.
-    /// \param[in] post_shifts:
-    ///     3D real-space DHW forward shift to apply (as phase shift) after the transformation.
-    ///     One, or a contiguous (Bo..) array matching the output batches.
-    ///     If Empty, a zero vector, an empty array or if the input is real, it is ignored.
-    /// \param options:
-    ///     Transformation options.
-    ///
-    /// \note For more details, see InterpolatorSpectrum.
-    template<nf::Layout REMAP, typename Input, typename Output, typename Rotation, typename Shift = Empty, usize N>
+    template<nf::Layout REMAP, TransformSpectrumCompileOptions OPTIONS = TransformSpectrumCompileOptions{},
+             typename Input, typename Output, typename Rotation, typename Shift = Empty, usize N>
         requires details::transformable_spectrum_nd<3, REMAP, Input, Output, Rotation, Shift, N>
     void transform_spectrum_3d(
         Input&& input,
@@ -398,36 +416,6 @@ namespace noa::xform {
         Shift&& post_shifts = {},
         const TransformSpectrumOptions& options = {}
     ) {
-        details::check_parameters_transform_spectrum_nd<REMAP, 3>(input, output, shape, inverse_rotations, post_shifts);
-
-        if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
-                std::terminate(); // unreachable
-            } else {
-                if (nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
-                    nd::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
-                    details::launch_transform_spectrum_nd<REMAP, 3, i32, true>(
-                        NOA_FWD(input), NOA_FWD(output), shape,
-                        NOA_FWD(inverse_rotations), NOA_FWD(post_shifts),
-                        options);
-                } else {
-                    // For large volumes (>1290^3), isize indexing is required.
-                    details::launch_transform_spectrum_nd<REMAP, 3, isize, true>(
-                        NOA_FWD(input), NOA_FWD(output), shape,
-                        NOA_FWD(inverse_rotations), NOA_FWD(post_shifts),
-                        options);
-                }
-                return;
-            }
-            #else
-            panic_no_gpu_backend();
-            #endif
-        }
-
-        details::launch_transform_spectrum_nd<REMAP, 3, isize>(
-            NOA_FWD(input), NOA_FWD(output), shape,
-            NOA_FWD(inverse_rotations), NOA_FWD(post_shifts),
-            options);
+        transform_spectrum<3, REMAP, OPTIONS>(NOA_FWD(input), NOA_FWD(output), shape, NOA_FWD(inverse_rotations), NOA_FWD(post_shifts), options);
     }
 }

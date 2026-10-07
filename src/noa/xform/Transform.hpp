@@ -214,7 +214,7 @@ namespace noa::xform {
     ///     e.g., to render only a specific subregion.
     template<usize RANK, TransformCompileOptions OPTIONS = TransformCompileOptions{},
              typename Input, typename Output, typename Matrix>
-        requires details::transformable_nd<2, Input, Output, Matrix>
+        requires details::transformable_nd<RANK, Input, Output, Matrix>
     void transform(
         Input&& input,
         Output&& output,
@@ -277,8 +277,8 @@ namespace noa::xform {
                         details::launch_transform_nd<RANK, OPTIONS, i32, true>(
                             NOA_FWD(input), NOA_FWD(output), NOA_FWD(inverse_matrices), options);
                     }
+                    return;
                 }
-                return;
                 #else
                 panic_no_gpu_backend();
                 #endif
