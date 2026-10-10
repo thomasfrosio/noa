@@ -292,7 +292,7 @@ TEMPLATE_TEST_CASE("xform::transform_2d(), texture interpolation", "", f32, c32)
 TEST_CASE("xform::transform_2d(), compile") {
     auto input = noa::arange<f32, 2>({64, 64});
     auto output = noa::empty<f32, 2>({64, 64});
-    constexpr auto OPTIONS = nx::TransformCompileOptions{
+    constexpr auto OPTIONS = nx::CompileOptions{
         .interps = nx::InterpSet::none_but(nx::Interp::LINEAR),
         .borders = noa::BorderSet::none_but(noa::Border::ZERO)
     };

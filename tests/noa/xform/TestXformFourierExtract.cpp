@@ -96,7 +96,7 @@ TEST_CASE("xform::extract_central_slices_3d", "[asset]") {
             // Forward project.
             nx::extract_central_slices_3d<"hc">(
                 volume_fft, {}, volume_shape, slice_fft, {}, slice_shape,
-                inv_scaling_matrix, fwd_rotation_matrices, {
+                inv_scaling_matrix, fwd_rotation_matrices, nx::ExtractCentralSlicesEWSOptions{
                     .w_windowed_sinc = {fftfreq_z_sinc, fftfreq_z_blackman},
                     .fftfreq_cutoff = fftfreq_cutoff,
                     .ews_radius = ews_radius

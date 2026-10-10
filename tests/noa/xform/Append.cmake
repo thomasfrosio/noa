@@ -6,6 +6,7 @@ list(APPEND TEST_SOURCES
     noa/xform/TestXformFourierInsertInterpolate.cpp
     noa/xform/TestXformFourierInsertInterpolateExtract.cpp
     noa/xform/TestXformFourierInsertRasterize.cpp
+    noa/xform/TestXformFourierInterpolationCorrection.cpp
     noa/xform/TestXformPolar.cpp
     noa/xform/TestXformPolarSpectrum.cpp
     noa/xform/TestXformProject.cpp

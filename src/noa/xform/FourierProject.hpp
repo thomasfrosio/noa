@@ -1005,57 +1005,6 @@ namespace noa::xform::details {
         bool m_correct_weights;
     };
 
-    template<bool POST_CORRECTION,
-             usize B, usize R,
-             nt::real Coord,
-             nt::readable_nd<B + R> Input,
-             nt::writable_nd<B + R> Output>
-    class FourierInterpolationCorrection {
-        using output_value_type = nt::value_type_t<Output>;
-        using input_value_type = nt::value_type_t<Input>;
-        static_assert(nt::real<input_value_type, output_value_type>);
-        // TODO Add more interpolation methods
-
-    public:
-        template<typename T>
-        constexpr FourierInterpolationCorrection(
-            const Input& input,
-            const Output& output,
-            const Shape<T, R>& shape
-        ) :
-            m_input(input),
-            m_output(output)
-        {
-            m_f_shape = Vec<Coord, R>::from_vec(shape.vec);
-            m_half = m_f_shape / 2 * Vec<Coord, R>::from_vec(shape != 1); // if size == 1, half should be 0
-        }
-
-        template<nt::integer T>
-        NOA_HD void operator()(const Vec<T, B + R>& batched_indices) const noexcept {
-            auto dist = batched_indices.template pop_front<B>().template as<Coord>();
-            dist -= m_half;
-            dist /= m_f_shape;
-
-            constexpr Coord PI = Constant<Coord>::PI;
-            const Coord radius = sqrt(dot(dist, dist));
-            const Coord sinc = noa::sinc(PI * radius);
-            const auto sinc2 = static_cast<input_value_type>(sinc * sinc); // > 0.05
-
-            const auto value = m_input[batched_indices];
-            if constexpr (POST_CORRECTION) {
-                m_output[batched_indices] = static_cast<output_value_type>(value / sinc2);
-            } else {
-                m_output[batched_indices] = static_cast<output_value_type>(value * sinc2);
-            }
-        }
-
-    private:
-        Input m_input;
-        Output m_output;
-        Vec<Coord, R> m_f_shape;
-        Vec<Coord, R> m_half;
-    };
-
     template<bool AllowTexture, bool AllowValue, usize R, usize N,
              typename Input, typename Output,
              typename InputValue = nt::value_type_t<Input>,
@@ -1219,6 +1168,16 @@ namespace noa::xform::details {
     }
 
     template<typename T>
+    constexpr bool fourier_project_has_ews(const T& ews) {
+        if constexpr (nt::same_as<T, Vec<f64, 2>>)
+            return ews != 0;
+        else if constexpr (nt::empty<T>)
+            return false;
+        else
+            static_assert(nt::always_false<T>);
+    }
+
+    template<typename T>
     constexpr bool fourier_project_has_scale(const T& scale) {
         if constexpr (nt::mat22<T>)
             return scale != T::eye(1);
@@ -1230,12 +1189,12 @@ namespace noa::xform::details {
             static_assert(nt::always_false<T>);
     }
 
-    template<bool ENFORCE_EMPTY, typename Coord>
-    constexpr auto fourier_projection_to_ews(const Vec<f64, 2>& ews) {
-        if constexpr (ENFORCE_EMPTY)
+    template<bool ENFORCE_EMPTY, typename Coord, typename EWS>
+    constexpr auto fourier_projection_to_ews(const EWS& ews) {
+        if constexpr (ENFORCE_EMPTY or nt::same_as<EWS, Empty>)
             return Empty{};
         else
-            return ews.as<Coord>();
+            return ews.template as<Coord>();
     }
 
     // nvcc struggles with C++20 template parameters in lambda, so use a worse C++17 syntax and create this type...
@@ -1247,11 +1206,11 @@ namespace noa::xform::details {
     template<nf::Layout REMAP, typename Index, usize N,
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
-             typename Scale, typename Rotate>
+             typename Scale, typename Rotate, typename Options>
     void launch_rasterize_central_slices_3d(
         Input&& slice, InputWeight&& slice_weight, const Shape<isize, N>& slice_shape,
         Output&& volume, OutputWeight&& volume_weight, const Shape<isize, N>& volume_shape,
-        Scale&& scaling, Rotate&& rotation, const auto& options
+        Scale&& scaling, Rotate&& rotation, const Options& options
     ) {
         constexpr auto INPUT_CONFIG = nd::AccessorConfig{
             .enforce_const=true,
@@ -1296,21 +1255,21 @@ namespace noa::xform::details {
                   NOA_FWD(scaling), NOA_FWD(rotation));
         };
 
-        const auto has_ews = options.ews_radius != 0;
+        const auto has_ews = fourier_project_has_ews(options.ews_radius);
         const bool has_scale = fourier_project_has_scale(scaling);
         if (has_ews or has_scale)
             return launch(WrapNoEwaldAndScale<false>{});
         return launch(WrapNoEwaldAndScale<true>{});
     }
 
-    template<nf::Layout REMAP, typename Index, bool IS_GPU, usize N,
+    template<nf::Layout REMAP, CompileOptions OPTIONS, typename Index, bool IS_GPU, usize N,
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
-             typename Scale, typename Rotate>
+             typename Scale, typename Rotate, typename Options>
     void launch_insert_central_slices_3d(
         Input&& slice, InputWeight&& slice_weight, const Shape<isize, N>& slice_shape,
         Output&& volume, OutputWeight&& volume_weight, const Shape<isize, N>& volume_shape,
-        Scale&& scaling, Rotate&& rotation, const auto& options
+        Scale&& scaling, Rotate&& rotation, const Options& options
     ) {
         constexpr auto CONFIG = nd::AccessorConfig{
             .enforce_restrict = true,
@@ -1328,34 +1287,37 @@ namespace noa::xform::details {
         using coord_t = nt::value_type_twice_t<Rotate>;
 
         auto launch = [&](auto no_ews_and_scale, auto interp) {
-            auto slice_r = fourier_projection_to_interpolator<2, REMAP, IS_GPU, interp(), coord_t>(slice, s_slice_shape);
-            auto slice_weight_r = fourier_projection_to_interpolator<2, REMAP, IS_GPU, interp(), coord_t>(slice_weight, s_slice_shape);
-            auto scaling_accessor = xform_into_accessor<true, no_ews_and_scale()>(scaling);
-            auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
+            constexpr Interp INTERP = interp();
+            if constexpr (OPTIONS.interps[INTERP]) {
+                auto slice_r = fourier_projection_to_interpolator<2, REMAP, IS_GPU, INTERP, coord_t>(slice, s_slice_shape);
+                auto slice_weight_r = fourier_projection_to_interpolator<2, REMAP, IS_GPU, INTERP, coord_t>(slice_weight, s_slice_shape);
+                auto scaling_accessor = xform_into_accessor<true, no_ews_and_scale()>(scaling);
+                auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
 
-            using op_t = FourierInsertInterpolate<
-                REMAP, Index, B, decltype(scaling_accessor), decltype(rotation_accessor), decltype(ews),
-                typename decltype(slice_r)::accessor_type, typename decltype(slice_r)::interpolator_type,
-                typename decltype(slice_weight_r)::accessor_type, typename decltype(slice_weight_r)::interpolator_type,
-                decltype(volume_accessor), decltype(volume_weight_accessor)>;
-            auto op = op_t(
-                slice_r.accessor, slice_r.interpolator,
-                slice_weight_r.accessor, slice_weight_r.interpolator,
-                s_slice_shape, n_slices,
-                volume_accessor, volume_weight_accessor, s_volume_shape,
-                scaling_accessor, rotation_accessor,
-                static_cast<coord_t>(options.windowed_sinc.fftfreq_sinc),
-                static_cast<coord_t>(options.windowed_sinc.fftfreq_blackman),
-                static_cast<coord_t>(options.fftfreq_cutoff),
-                s_target_shape, ews);
+                using op_t = FourierInsertInterpolate<
+                    REMAP, Index, B, decltype(scaling_accessor), decltype(rotation_accessor), decltype(ews),
+                    typename decltype(slice_r)::accessor_type, typename decltype(slice_r)::interpolator_type,
+                    typename decltype(slice_weight_r)::accessor_type, typename decltype(slice_weight_r)::interpolator_type,
+                    decltype(volume_accessor), decltype(volume_weight_accessor)>;
+                auto op = op_t(
+                    slice_r.accessor, slice_r.interpolator,
+                    slice_weight_r.accessor, slice_weight_r.interpolator,
+                    s_slice_shape, n_slices,
+                    volume_accessor, volume_weight_accessor, s_volume_shape,
+                    scaling_accessor, rotation_accessor,
+                    static_cast<coord_t>(options.windowed_sinc.fftfreq_sinc),
+                    static_cast<coord_t>(options.windowed_sinc.fftfreq_blackman),
+                    static_cast<coord_t>(options.fftfreq_cutoff),
+                    s_target_shape, ews);
 
-            iwise(volume.shape().template as<Index>(), volume.device(), op,
-                  NOA_FWD(slice), NOA_FWD(slice_weight),
-                  NOA_FWD(volume), NOA_FWD(volume_weight),
-                  NOA_FWD(scaling), NOA_FWD(rotation));
+                iwise(volume.shape().template as<Index>(), volume.device(), op,
+                      NOA_FWD(slice), NOA_FWD(slice_weight),
+                      NOA_FWD(volume), NOA_FWD(volume_weight),
+                      NOA_FWD(scaling), NOA_FWD(rotation));
+            }
         };
 
-        const auto has_ews = options.ews_radius != 0;
+        const auto has_ews = fourier_project_has_ews(options.ews_radius);
         const bool has_scale = fourier_project_has_scale(scaling);
         auto launch_scale = [&](auto interp) {
             if (has_ews or has_scale)
@@ -1364,6 +1326,7 @@ namespace noa::xform::details {
         };
 
         const Interp interp = details::fourier_insert_extract_interp_mode(slice, slice_weight, options.interp);
+        check(OPTIONS.interps[interp], "Interpolation method is not generated");
         switch (interp) {
             case Interp::NEAREST:            return launch_scale(WrapInterp<Interp::NEAREST>{});
             case Interp::NEAREST_FAST:       return launch_scale(WrapInterp<Interp::NEAREST_FAST>{});
@@ -1382,14 +1345,14 @@ namespace noa::xform::details {
         }
     }
 
-    template<nf::Layout REMAP, typename Index, bool IS_GPU, usize N,
+    template<nf::Layout REMAP, CompileOptions OPTIONS, typename Index, bool IS_GPU, usize N,
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
-             typename Scale, typename Rotate>
+             typename Scale, typename Rotate, typename Options>
     void launch_extract_central_slices_3d(
         Input&& volume, InputWeight&& volume_weight, const Shape<isize, N>& volume_shape,
         Output&& slice, OutputWeight&& slice_weight, const Shape<isize, N>& slice_shape,
-        Scale&& scaling, Rotate&& rotation, const auto& options
+        Scale&& scaling, Rotate&& rotation, const Options& options
     ) {
         constexpr auto CONFIG = nd::AccessorConfig{
             .enforce_restrict = true,
@@ -1405,49 +1368,52 @@ namespace noa::xform::details {
         const auto s_target_shape = options.target_shape.template as<Index>();
 
         auto launch = [&](auto no_ews_and_scale, auto interp) {
-            using coord_t = nt::value_type_twice_t<Rotate>;
-            auto volume_r = fourier_projection_to_interpolator<3, REMAP, IS_GPU, interp(), coord_t>(volume, s_volume_shape);
-            auto volume_weight_r = fourier_projection_to_interpolator<3, REMAP, IS_GPU, interp(), coord_t>(volume_weight, s_volume_shape);
-            auto scale_accessor = xform_into_accessor<true, no_ews_and_scale()>(scaling);
-            auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
+            constexpr Interp INTERP = interp();
+            if constexpr (OPTIONS.interps[INTERP]) {
+                using coord_t = nt::value_type_twice_t<Rotate>;
+                auto volume_r = fourier_projection_to_interpolator<3, REMAP, IS_GPU, INTERP, coord_t>(volume, s_volume_shape);
+                auto volume_weight_r = fourier_projection_to_interpolator<3, REMAP, IS_GPU, INTERP, coord_t>(volume_weight, s_volume_shape);
+                auto scale_accessor = xform_into_accessor<true, no_ews_and_scale()>(scaling);
+                auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
 
-            using op_t = FourierExtract<
-                REMAP, Index, B,
-                decltype(scale_accessor), decltype(rotation_accessor), decltype(ews),
-                typename decltype(volume_r)::accessor_type, typename decltype(volume_r)::interpolator_type,
-                typename decltype(volume_weight_r)::accessor_type, typename decltype(volume_weight_r)::interpolator_type,
-                decltype(slice_accessor), decltype(slice_weight_accessor)>;
-            auto op = op_t(
-                volume_r.accessor, volume_r.interpolator,
-                volume_weight_r.accessor, volume_weight_r.interpolator, s_volume_shape,
-                slice_accessor, slice_weight_accessor, s_slice_shape,
-                scale_accessor, rotation_accessor,
-                static_cast<coord_t>(options.w_windowed_sinc.fftfreq_sinc),
-                static_cast<coord_t>(options.w_windowed_sinc.fftfreq_blackman),
-                static_cast<coord_t>(options.fftfreq_cutoff),
-                s_target_shape, ews);
+                using op_t = FourierExtract<
+                    REMAP, Index, B,
+                    decltype(scale_accessor), decltype(rotation_accessor), decltype(ews),
+                    typename decltype(volume_r)::accessor_type, typename decltype(volume_r)::interpolator_type,
+                    typename decltype(volume_weight_r)::accessor_type, typename decltype(volume_weight_r)::interpolator_type,
+                    decltype(slice_accessor), decltype(slice_weight_accessor)>;
+                auto op = op_t(
+                    volume_r.accessor, volume_r.interpolator,
+                    volume_weight_r.accessor, volume_weight_r.interpolator, s_volume_shape,
+                    slice_accessor, slice_weight_accessor, s_slice_shape,
+                    scale_accessor, rotation_accessor,
+                    static_cast<coord_t>(options.w_windowed_sinc.fftfreq_sinc),
+                    static_cast<coord_t>(options.w_windowed_sinc.fftfreq_blackman),
+                    static_cast<coord_t>(options.fftfreq_cutoff),
+                    s_target_shape, ews);
 
-            const auto ow = op.windowed_sinc_size();
-            if (ow > 1) {
-                if constexpr (nt::empty<OutputWeight>)
-                    ewise({}, wrap(slice), Zero{});
-                else
-                    ewise({}, wrap(slice, slice_weight), Zero{});
+                const auto ow = op.windowed_sinc_size();
+                if (ow > 1) {
+                    if constexpr (nt::empty<OutputWeight>)
+                        ewise({}, wrap(slice), Zero{});
+                    else
+                        ewise({}, wrap(slice, slice_weight), Zero{});
 
-                const auto iwise_shape = slice.shape().template as<Index>().template insert<B + 1>(ow); // (b..,n,w,h,w)
-                iwise(iwise_shape, volume.device(), op,
-                      NOA_FWD(volume), NOA_FWD(volume_weight),
-                      NOA_FWD(slice), NOA_FWD(slice_weight),
-                      NOA_FWD(scaling), NOA_FWD(rotation));
-            } else {
-                iwise(slice.shape().template as<Index>(), volume.device(), op,
-                      NOA_FWD(volume), NOA_FWD(volume_weight),
-                      NOA_FWD(slice), NOA_FWD(slice_weight),
-                      NOA_FWD(scaling), NOA_FWD(rotation));
+                    const auto iwise_shape = slice.shape().template as<Index>().template insert<B + 1>(ow); // (b..,n,w,h,w)
+                    iwise(iwise_shape, volume.device(), op,
+                          NOA_FWD(volume), NOA_FWD(volume_weight),
+                          NOA_FWD(slice), NOA_FWD(slice_weight),
+                          NOA_FWD(scaling), NOA_FWD(rotation));
+                } else {
+                    iwise(slice.shape().template as<Index>(), volume.device(), op,
+                          NOA_FWD(volume), NOA_FWD(volume_weight),
+                          NOA_FWD(slice), NOA_FWD(slice_weight),
+                          NOA_FWD(scaling), NOA_FWD(rotation));
+                }
             }
         };
 
-        const auto has_ews = options.ews_radius != 0;
+        const auto has_ews = fourier_project_has_ews(options.ews_radius);
         const bool has_scale = fourier_project_has_scale(scaling);
         auto launch_scale = [&] (auto interp){
             if (has_ews or has_scale)
@@ -1456,6 +1422,7 @@ namespace noa::xform::details {
         };
 
         const Interp interp = details::fourier_insert_extract_interp_mode(volume, volume_weight, options.interp);
+        check(OPTIONS.interps[interp], "Interpolation method is not generated");
         switch (interp) {
             case Interp::NEAREST:            return launch_scale(WrapInterp<Interp::NEAREST>{});
             case Interp::NEAREST_FAST:       return launch_scale(WrapInterp<Interp::NEAREST_FAST>{});
@@ -1474,17 +1441,17 @@ namespace noa::xform::details {
         }
     }
 
-    template<nf::Layout REMAP, typename Index, bool IS_GPU = false, usize N,
+    template<nf::Layout REMAP, CompileOptions OPTIONS, typename Index, bool IS_GPU = false, usize N,
              typename Input, typename InputWeight,
              typename Output, typename OutputWeight,
              typename InputScale, typename InputRotate,
-             typename OutputScale, typename OutputRotate>
+             typename OutputScale, typename OutputRotate, typename Options>
     void launch_insert_and_extract_central_slices_3d(
         Input&& input_slice, InputWeight&& input_weight, const Shape<isize, N>& input_shape,
         Output&& output_slice, OutputWeight&& output_weight, const Shape<isize, N>& output_shape,
         InputScale&& input_scaling, InputRotate&& input_rotation,
         OutputScale&& output_scaling, OutputRotate&& output_rotation,
-        const auto& options
+        const Options& options
     ) {
         constexpr auto CONFIG = nd::AccessorConfig{
             .enforce_restrict = true,
@@ -1501,65 +1468,60 @@ namespace noa::xform::details {
         const auto s_output_shape_rd = s_output_shape.filter(N - 2, N - 1);
 
         auto launch = [&](auto no_ews_and_scale, auto interp) {
-            using coord_t = nt::value_type_twice_t<InputRotate>;
-            auto input_r = fourier_projection_to_interpolator<2, REMAP, IS_GPU, interp(), coord_t>(input_slice, s_input_shape_rd);
-            auto input_weight_r = fourier_projection_to_interpolator<2, REMAP, IS_GPU, interp(), coord_t>(input_weight, s_input_shape_rd);
-            auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
-            auto input_scaling_accessor = xform_into_accessor<true, no_ews_and_scale()>(input_scaling);
-            auto output_scaling_accessor = xform_into_accessor<true, no_ews_and_scale()>(output_scaling);
+            constexpr Interp INTERP = interp();
+            if constexpr (OPTIONS.interps[INTERP]) {
+                using coord_t = nt::value_type_twice_t<InputRotate>;
+                auto input_r = fourier_projection_to_interpolator<2, REMAP, IS_GPU, INTERP, coord_t>(input_slice, s_input_shape_rd);
+                auto input_weight_r = fourier_projection_to_interpolator<2, REMAP, IS_GPU, INTERP, coord_t>(input_weight, s_input_shape_rd);
+                auto ews = fourier_projection_to_ews<no_ews_and_scale(), coord_t>(options.ews_radius);
+                auto input_scaling_accessor = xform_into_accessor<true, no_ews_and_scale()>(input_scaling);
+                auto output_scaling_accessor = xform_into_accessor<true, no_ews_and_scale()>(output_scaling);
 
-            using op_t = FourierInsertExtract<
-                REMAP, Index, N - 3,
-                decltype(input_scaling_accessor), decltype(input_rotation_accessor),
-                decltype(output_scaling_accessor), decltype(output_rotation_accessor), decltype(ews),
-                typename decltype(input_r)::accessor_type, typename decltype(input_r)::interpolator_type,
-                typename decltype(input_weight_r)::accessor_type, typename decltype(input_weight_r)::interpolator_type,
-                decltype(output_slice_accessor), decltype(output_weight_accessor)>;
-            auto op = op_t(
-                input_r.accessor, input_r.interpolator,
-                input_weight_r.accessor, input_weight_r.interpolator, s_input_shape_rd, s_input_shape[N - 3],
-                output_slice_accessor, output_weight_accessor, s_output_shape_rd,
-                input_scaling_accessor, input_rotation_accessor,
-                output_scaling_accessor, output_rotation_accessor,
-                static_cast<coord_t>(options.input_windowed_sinc.fftfreq_sinc),
-                static_cast<coord_t>(options.input_windowed_sinc.fftfreq_blackman),
-                static_cast<coord_t>(options.w_windowed_sinc.fftfreq_sinc),
-                static_cast<coord_t>(options.w_windowed_sinc.fftfreq_blackman),
-                static_cast<coord_t>(options.fftfreq_cutoff),
-                options.add_to_output, options.correct_weights, ews);
+                using op_t = FourierInsertExtract<
+                    REMAP, Index, N - 3,
+                    decltype(input_scaling_accessor), decltype(input_rotation_accessor),
+                    decltype(output_scaling_accessor), decltype(output_rotation_accessor), decltype(ews),
+                    typename decltype(input_r)::accessor_type, typename decltype(input_r)::interpolator_type,
+                    typename decltype(input_weight_r)::accessor_type, typename decltype(input_weight_r)::interpolator_type,
+                    decltype(output_slice_accessor), decltype(output_weight_accessor)>;
+                auto op = op_t(
+                    input_r.accessor, input_r.interpolator,
+                    input_weight_r.accessor, input_weight_r.interpolator, s_input_shape_rd, s_input_shape[N - 3],
+                    output_slice_accessor, output_weight_accessor, s_output_shape_rd,
+                    input_scaling_accessor, input_rotation_accessor,
+                    output_scaling_accessor, output_rotation_accessor,
+                    static_cast<coord_t>(options.input_windowed_sinc.fftfreq_sinc),
+                    static_cast<coord_t>(options.input_windowed_sinc.fftfreq_blackman),
+                    static_cast<coord_t>(options.w_windowed_sinc.fftfreq_sinc),
+                    static_cast<coord_t>(options.w_windowed_sinc.fftfreq_blackman),
+                    static_cast<coord_t>(options.fftfreq_cutoff),
+                    options.add_to_output, options.correct_weights, ews);
 
-            const auto ow = op.output_window_size();
-            if (ow > 1) {
-                check(not options.correct_weights);
-                if (not options.add_to_output) {
-                    if constexpr (nt::empty<OutputWeight>)
-                        ewise({}, wrap(output_slice), Zero{});
-                    else
-                        ewise({}, wrap(output_slice, output_weight), Zero{});
+                const auto ow = op.output_window_size();
+                if (ow > 1) {
+                    check(not options.correct_weights);
+                    if (not options.add_to_output) {
+                        if constexpr (nt::empty<OutputWeight>)
+                            ewise({}, wrap(output_slice), Zero{});
+                        else
+                            ewise({}, wrap(output_slice, output_weight), Zero{});
+                    }
+                    iwise(s_output_shape.template insert<N - 2>(ow).rfft(), output_slice.device(), op,
+                          NOA_FWD(input_slice), NOA_FWD(input_weight),
+                          NOA_FWD(output_slice), NOA_FWD(output_weight),
+                          NOA_FWD(input_scaling), NOA_FWD(input_rotation),
+                          NOA_FWD(output_scaling), NOA_FWD(output_rotation));
+                } else {
+                    iwise(s_output_shape.rfft(), output_slice.device(), op,
+                          NOA_FWD(input_slice), NOA_FWD(input_weight),
+                          NOA_FWD(output_slice), NOA_FWD(output_weight),
+                          NOA_FWD(input_scaling), NOA_FWD(input_rotation),
+                          NOA_FWD(output_scaling), NOA_FWD(output_rotation));
                 }
-                iwise(s_output_shape.template insert<N - 2>(ow).rfft(), output_slice.device(), op,
-                      NOA_FWD(input_slice),
-                      NOA_FWD(input_weight),
-                      NOA_FWD(output_slice),
-                      NOA_FWD(output_weight),
-                      NOA_FWD(input_scaling),
-                      NOA_FWD(input_rotation),
-                      NOA_FWD(output_scaling),
-                      NOA_FWD(output_rotation));
-            } else {
-                iwise(s_output_shape.rfft(), output_slice.device(), op,
-                      NOA_FWD(input_slice),
-                      NOA_FWD(input_weight),
-                      NOA_FWD(output_slice),
-                      NOA_FWD(output_weight),
-                      NOA_FWD(input_scaling),
-                      NOA_FWD(input_rotation),
-                      NOA_FWD(output_scaling),
-                      NOA_FWD(output_rotation));
             }
         };
 
-        const auto has_ews = options.ews_radius != 0;
+        const auto has_ews = fourier_project_has_ews(options.ews_radius);
         const bool has_scale = fourier_project_has_scale(input_scaling) or fourier_project_has_scale(output_scaling);
         auto launch_scale = [&](auto interp) {
             if (has_ews or has_scale)
@@ -1568,6 +1530,7 @@ namespace noa::xform::details {
         };
 
         const Interp interp = details::fourier_insert_extract_interp_mode(input_slice, input_weight, options.interp);
+        check(OPTIONS.interps[interp], "Interpolation method is not generated");
         switch (interp) {
             case Interp::NEAREST:            return launch_scale(WrapInterp<Interp::NEAREST>{});
             case Interp::NEAREST_FAST:       return launch_scale(WrapInterp<Interp::NEAREST_FAST>{});
@@ -1588,6 +1551,7 @@ namespace noa::xform::details {
 }
 
 namespace noa::xform {
+    template<nt::any_of<Empty, Vec<f64, 2>> EWS = Empty>
     struct RasterizeCentralSlicesOptions {
         /// Frequency cutoff of the output volume, in cycle/pix.
         /// Frequencies above this are left unchanged.
@@ -1602,7 +1566,7 @@ namespace noa::xform {
         /// the volume frequencies, as mentioned above (over- or under-sampling cases).
         Shape<isize, 3> target_shape{};
 
-        /// HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
+        /// HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength), or Empty.
         /// If negative, the negative curve is computed. If {0,0}, the slices are projections.
         /// To have both left and right beams assigned to different values, the function only computes one
         /// "side" of the EWS, as specified by ews_radius. To insert the other side, one has to call the function
@@ -1612,8 +1576,9 @@ namespace noa::xform {
         /// EWS is computed using the original frequencies (from the scattering) and is therefore spherical even
         /// under anisotropic magnification. If ews_radius is 0, the scaling factors can be merged with the rotation
         /// matrices.
-        Vec<f64, 2> ews_radius{};
+        EWS ews_radius{};
     };
+    using RasterizeCentralSlicesWithEWSOptions = RasterizeCentralSlicesOptions<Vec<f64, 2>>;
 
     /// Inserts 2d Fourier central-slice(s) into a 3d Fourier volume, using tri-linear rasterization.
     /// \details Fourier-insertion using rasterization to insert central-slices in a volume.
@@ -1621,13 +1586,14 @@ namespace noa::xform {
     ///          Indeed, this method is not very accurate as central-slices are modeled using a simple trilinear-pulse
     ///          for rasterization.
     ///
-    /// \tparam REMAP               Remapping. Should be HX2HX.
-    /// \tparam Input               A array|value of (const) f32|f64|c32|c64.
-    /// \tparam InputWeight         A array|value of (const) f32|f64, or Empty.
-    /// \tparam Output              Array of type f32|f64|c32|c64.
-    /// \tparam OutputWeight        Array of type f32|f64, or Empty.
-    /// \tparam Scale               Mat22, a array of Mat22, or Empty.
-    /// \tparam Rotate              Mat33|Quaternion, or a array of this type.
+    /// \tparam REMAP           Remapping. Should be HX2HX.
+    /// \tparam OPTIONS         Code generation options.
+    /// \tparam Input           A array|value of (const) f32|f64|c32|c64.
+    /// \tparam InputWeight     A array|value of (const) f32|f64, or Empty.
+    /// \tparam Output          Array of type f32|f64|c32|c64.
+    /// \tparam OutputWeight    Array of type f32|f64, or Empty.
+    /// \tparam Scale           Mat22, a array of Mat22, or Empty.
+    /// \tparam Rotate          Mat33|Quaternion, or a array of this type.
     ///
     /// \param[in] slice:
     ///     ((B..,)Ni,Hi,Wi) 2d-rfft central-slice(s) to insert, or a single value.
@@ -1650,10 +1616,11 @@ namespace noa::xform {
     ///     Sets the floating-point precision of the transformation.
     /// \param options:
     ///     Insertion options.
-    template<nf::Layout REMAP,
+    template<nf::Layout REMAP, CompileOptions OPTIONS = CompileOptions{},
              typename Input, typename InputWeight = Empty,
              typename Output, typename OutputWeight = Empty,
-             typename Scale = Empty, typename Rotate, usize N>
+             typename Scale = Empty, typename Rotate,
+             typename EWS = Empty, usize N>
     requires (details::fourier_projection_input_output<false, true, 2, N, Input, Output, InputWeight, OutputWeight> and
               details::fourier_projection_transform<Scale, Rotate, N> and
               REMAP.is_hx2hx())
@@ -1666,28 +1633,50 @@ namespace noa::xform {
         const Shape<isize, N>& volume_shape,
         Scale&& inv_scaling,
         Rotate&& fwd_rotation,
-        const RasterizeCentralSlicesOptions& options = {}
+        const RasterizeCentralSlicesOptions<EWS>& options = {}
     ) {
         details::fourier_projection_check_parameters<details::FourierProjectionType::INSERT_RASTERIZE>(
             slice, slice_weight, slice_shape, volume, volume_weight, volume_shape, inv_scaling, fwd_rotation);
 
-        if (volume.device().is_gpu()) {
+        if constexpr (OPTIONS.generate_gpu) {
+            if (volume.device().is_gpu()) {
+                #ifdef NOA_ENABLE_GPU
+                if constexpr (OPTIONS.generate_gpu_isize) {
+                    details::launch_rasterize_central_slices_3d<REMAP, isize>(
+                        NOA_FWD(slice), NOA_FWD(slice_weight), slice_shape,
+                        NOA_FWD(volume), NOA_FWD(volume_weight), volume_shape,
+                        NOA_FWD(inv_scaling), NOA_FWD(fwd_rotation), options);
+                } else {
+                    check(details::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
+                          "isize indexing not instantiated for GPU devices, see generate_gpu_size option");
+                    details::launch_rasterize_central_slices_3d<REMAP, i32>(
+                        NOA_FWD(slice), NOA_FWD(slice_weight), slice_shape,
+                        NOA_FWD(volume), NOA_FWD(volume_weight), volume_shape,
+                        NOA_FWD(inv_scaling), NOA_FWD(fwd_rotation), options);
+                }
+                return;
+                #else
+                panic_no_gpu_backend();
+                #endif
+            }
+        } else {
             #ifdef NOA_ENABLE_GPU
-            check(details::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
-                  "isize indexing not instantiated for GPU devices");
-            return details::launch_rasterize_central_slices_3d<REMAP, i32>(
-                NOA_FWD(slice), NOA_FWD(slice_weight), slice_shape,
-                NOA_FWD(volume), NOA_FWD(volume_weight), volume_shape,
-                NOA_FWD(inv_scaling), NOA_FWD(fwd_rotation), options);
-            #else
-            panic_no_gpu_backend();
+            check(volume.device().is_cpu());
             #endif
         }
 
-        details::launch_rasterize_central_slices_3d<REMAP, isize>(
-            NOA_FWD(slice), NOA_FWD(slice_weight), slice_shape,
-            NOA_FWD(volume), NOA_FWD(volume_weight), volume_shape,
-            NOA_FWD(inv_scaling), NOA_FWD(fwd_rotation), options);
+        if constexpr (OPTIONS.generate_cpu) {
+            details::launch_rasterize_central_slices_3d<REMAP, isize>(
+                NOA_FWD(slice), NOA_FWD(slice_weight), slice_shape,
+                NOA_FWD(volume), NOA_FWD(volume_weight), volume_shape,
+                NOA_FWD(inv_scaling), NOA_FWD(fwd_rotation), options);
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(volume.device().is_gpu());
+            #else
+            static_assert(nt::always_false<Input>, "CPU-only builds must generate the CPU codepath");
+            #endif
+        }
     }
 
     /// Settings for the windowed-sinc convolution of the central-slice.\n
@@ -1716,6 +1705,7 @@ namespace noa::xform {
         f64 fftfreq_blackman{-1};
     };
 
+    template<nt::any_of<Empty, Vec<f64, 2>> EWS = Empty>
     struct InsertCentralSlicesOptions {
         /// Interpolation method.
         /// This is ignored if the input(_weights) is a texture.
@@ -1734,8 +1724,10 @@ namespace noa::xform {
 
         /// HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
         /// See RasterizeCentralSlicesOptions for more details.
-        Vec<f64, 2> ews_radius{};
+        EWS ews_radius{};
     };
+    using InsertCentralSlicesEWSOptions = InsertCentralSlicesOptions<Vec<f64, 2>>;
+
 
     /// Fourier-insertion using 2d-interpolation to insert central-slices in the volume.
     /// \details This method is the more accurate than rasterization but can be slower. Here, instead of
@@ -1747,13 +1739,14 @@ namespace noa::xform {
     ///          a (smooth) rectangular mask in real-space, along the normal of the slice (an interesting property
     ///          which can be useful for some applications).
     ///
-    /// \tparam REMAP               Remapping. Should be HX2HX.
-    /// \tparam Input               A array|texture|value of (const) f32|f64|c32|c64.
-    /// \tparam InputWeight         A array|texture|value of (const) f32|f64, or Empty.
-    /// \tparam Output              Array of type f32|f64|c32|c64.
-    /// \tparam OutputWeight        Array of type f32|f64, or Empty.
-    /// \tparam Scale               Mat22, a array of Mat22, or Empty.
-    /// \tparam Rotate              Mat33|Quaternion, or a array of this type.
+    /// \tparam REMAP           Remapping. Should be HX2HX.
+    /// \tparam OPTIONS         Code generation options.
+    /// \tparam Input           A array|texture|value of (const) f32|f64|c32|c64.
+    /// \tparam InputWeight     A array|texture|value of (const) f32|f64, or Empty.
+    /// \tparam Output          Array of type f32|f64|c32|c64.
+    /// \tparam OutputWeight    Array of type f32|f64, or Empty.
+    /// \tparam Scale           Mat22, a array of Mat22, or Empty.
+    /// \tparam Rotate          Mat33|Quaternion, or a array of this type.
     ///
     /// \param[in] slice:
     ///     ((B..,)Ni,Hi,Wi) 2d-rFFT central-slice(s) to insert, or a single value.
@@ -1776,10 +1769,11 @@ namespace noa::xform {
     ///     Sets the floating-point precision of the transformation.
     /// \param options:
     ///     Insertion options.
-    template<nf::Layout REMAP,
+    template<nf::Layout REMAP, CompileOptions OPTIONS = CompileOptions{},
              typename Input, typename InputWeight = Empty,
              typename Output, typename OutputWeight = Empty,
-             typename Scale = Empty, typename Rotate, usize N>
+             typename Scale = Empty, typename Rotate,
+             typename EWS = Empty, usize N>
     requires (details::fourier_projection_input_output<true, true, 2, N, Input, Output, InputWeight, OutputWeight> and
               details::fourier_projection_transform<Scale, Rotate, N> and
               REMAP.is_hx2hx())
@@ -1792,36 +1786,60 @@ namespace noa::xform {
         const Shape<isize, N>& volume_shape,
         Scale&& fwd_scaling,
         Rotate&& inv_rotation,
-        const InsertCentralSlicesOptions& options = {}
+        const InsertCentralSlicesOptions<EWS>& options = {}
     ) {
         details::fourier_projection_check_parameters<details::FourierProjectionType::INSERT_INTERPOLATE>(
             slice, slice_weight, slice_shape, volume, volume_weight, volume_shape, fwd_scaling, inv_rotation);
 
-        if (volume.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            if constexpr (
-                (nt::texture_decay<Input> and nt::any_of<nt::mutable_value_type_t<Input>, f64, c64>) or
-                (nt::texture_decay<InputWeight> and nt::any_of<nt::mutable_value_type_t<InputWeight>, f64, c64>)) {
-                std::terminate(); // unreachable
-            } else {
-                check(details::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
-                      "isize indexing not instantiated for GPU devices");
-                return details::launch_insert_central_slices_3d<REMAP, i32, true>(
-                    NOA_FWD(slice), NOA_FWD(slice_weight), slice_shape,
-                    NOA_FWD(volume), NOA_FWD(volume_weight), volume_shape,
-                    NOA_FWD(fwd_scaling), NOA_FWD(inv_rotation), options);
+        if constexpr (OPTIONS.generate_gpu) {
+            if (volume.device().is_gpu()) {
+                #ifdef NOA_ENABLE_GPU
+                if constexpr (
+                    (nt::texture_decay<Input> and nt::any_of<nt::mutable_value_type_t<Input>, f64, c64>) or
+                    (nt::texture_decay<InputWeight> and nt::any_of<nt::mutable_value_type_t<InputWeight>, f64, c64>)) {
+                    std::terminate(); // unreachable
+                } else {
+                    if constexpr (OPTIONS.generate_gpu_isize) {
+                        details::launch_insert_central_slices_3d<REMAP, OPTIONS, isize, true>(
+                            NOA_FWD(slice), NOA_FWD(slice_weight), slice_shape,
+                            NOA_FWD(volume), NOA_FWD(volume_weight), volume_shape,
+                            NOA_FWD(fwd_scaling), NOA_FWD(inv_rotation), options);
+                    } else {
+                        check(
+                            details::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
+                            "isize indexing not instantiated for GPU devices, see generate_gpu_isize option");
+                        details::launch_insert_central_slices_3d<REMAP, OPTIONS, i32, true>(
+                            NOA_FWD(slice), NOA_FWD(slice_weight), slice_shape,
+                            NOA_FWD(volume), NOA_FWD(volume_weight), volume_shape,
+                            NOA_FWD(fwd_scaling), NOA_FWD(inv_rotation), options);
+                    }
+                    return;
+                }
+                #else
+                panic_no_gpu_backend();
+                #endif
             }
-            #else
-            panic_no_gpu_backend();
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(volume.device().is_cpu());
             #endif
         }
 
-        details::launch_insert_central_slices_3d<REMAP, isize, false>(
-            NOA_FWD(slice), NOA_FWD(slice_weight), slice_shape,
-            NOA_FWD(volume), NOA_FWD(volume_weight), volume_shape,
-            NOA_FWD(fwd_scaling), NOA_FWD(inv_rotation), options);
+        if constexpr (OPTIONS.generate_cpu) {
+            details::launch_insert_central_slices_3d<REMAP, OPTIONS, isize, false>(
+                NOA_FWD(slice), NOA_FWD(slice_weight), slice_shape,
+                NOA_FWD(volume), NOA_FWD(volume_weight), volume_shape,
+                NOA_FWD(fwd_scaling), NOA_FWD(inv_rotation), options);
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(volume.device().is_gpu());
+            #else
+            static_assert(nt::always_false<Input>, "CPU-only builds must generate the CPU codepath");
+            #endif
+        }
     }
 
+    template<nt::any_of<Empty, Vec<f64, 2>> EWS = Empty>
     struct ExtractCentralSlicesOptions {
         /// Interpolation method.
         /// This is ignored if the input(_weights) is a texture.
@@ -1842,8 +1860,9 @@ namespace noa::xform {
 
         /// HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
         /// See RasterizeCentralSlicesOptions for more details.
-        Vec<f64, 2> ews_radius{};
+        EWS ews_radius{};
     };
+    using ExtractCentralSlicesEWSOptions = ExtractCentralSlicesOptions<Vec<f64, 2>>;
 
     /// Extracts 2d central-slice(s) from a volume.
     /// \details This is the reverse operation of the Fourier insertion. There are two main behaviors (both
@@ -1856,13 +1875,14 @@ namespace noa::xform {
     ///          volume. This windowed-sinc convolution translates to a (smooth) centered rectangular mask along the
     ///          z-axis of the reconstruction.
     ///
-    /// \tparam REMAP               Remapping. Should be HX2HX.
-    /// \tparam Input               A array|texture of (const) f32|f64|c32|c64.
-    /// \tparam InputWeight         A array|texture of (const) f32|f64, or Empty.
-    /// \tparam Output              Array of type f32|f64|c32|c64.
-    /// \tparam OutputWeight        Array of type f32|f64, or Empty.
-    /// \tparam Scale               Mat22, a array of Mat22, or Empty.
-    /// \tparam Rotate              Mat33|Quaternion, or a array of this type.
+    /// \tparam REMAP           Remapping. Should be HX2HX.
+    /// \tparam OPTIONS         Code generation options.
+    /// \tparam Input           A array|texture of (const) f32|f64|c32|c64.
+    /// \tparam InputWeight     A array|texture of (const) f32|f64, or Empty.
+    /// \tparam Output          Array of type f32|f64|c32|c64.
+    /// \tparam OutputWeight    Array of type f32|f64, or Empty.
+    /// \tparam Scale           Mat22, a array of Mat22, or Empty.
+    /// \tparam Rotate          Mat33|Quaternion, or a array of this type.
     ///
     /// \param[in] volume:
     ///     ((B..,)Di,Hi,Wi) 3d-rFFT volume(s) from which to extract the slices.
@@ -1885,10 +1905,11 @@ namespace noa::xform {
     ///     Sets the floating-point precision of the transformation.
     /// \param options:
     ///     Extraction options.
-    template<nf::Layout REMAP,
+    template<nf::Layout REMAP, CompileOptions OPTIONS = CompileOptions{},
              typename Input, typename InputWeight = Empty,
              typename Output, typename OutputWeight = Empty,
-             typename Scale = Empty, typename Rotate, usize N>
+             typename Scale = Empty, typename Rotate,
+             typename EWS = Empty, usize N>
     requires (details::fourier_projection_input_output<true, false, 3, N, Input, Output, InputWeight, OutputWeight> and
               details::fourier_projection_transform<Scale, Rotate, N> and
               REMAP.is_hx2hx())
@@ -1901,36 +1922,58 @@ namespace noa::xform {
         const Shape<isize, N>& slice_shape,
         Scale&& inv_scaling,
         Rotate&& fwd_rotation,
-        const ExtractCentralSlicesOptions& options = {}
+        const ExtractCentralSlicesOptions<EWS>& options = {}
     ) {
         details::fourier_projection_check_parameters<details::FourierProjectionType::EXTRACT>(
             volume, volume_weight, volume_shape, slice, slice_weight, slice_shape, inv_scaling, fwd_rotation);
 
-        if (volume.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            if constexpr (
-                (nt::texture_decay<Input> and nt::any_of<nt::mutable_value_type_t<Input>, f64, c64>) or
-                (nt::texture_decay<InputWeight> and nt::any_of<nt::mutable_value_type_t<InputWeight>, f64, c64>)) {
-                std::terminate(); // unreachable
-            } else {
-                check(details::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
-                      "isize indexing not instantiated for GPU devices");
-                return details::launch_extract_central_slices_3d<REMAP, i32, true>(
-                    NOA_FWD(volume), NOA_FWD(volume_weight), volume_shape,
-                    NOA_FWD(slice), NOA_FWD(slice_weight), slice_shape,
-                    NOA_FWD(inv_scaling), NOA_FWD(fwd_rotation), options);
+        if constexpr (OPTIONS.generate_gpu) {
+            if (volume.device().is_gpu()) {
+                #ifdef NOA_ENABLE_GPU
+                if constexpr (
+                    (nt::texture_decay<Input> and nt::any_of<nt::mutable_value_type_t<Input>, f64, c64>) or
+                    (nt::texture_decay<InputWeight> and nt::any_of<nt::mutable_value_type_t<InputWeight>, f64, c64>)) {
+                    std::terminate(); // unreachable
+                } else {
+                    if constexpr (OPTIONS.generate_gpu_isize) {
+                        details::launch_extract_central_slices_3d<REMAP, OPTIONS, isize, true>(
+                            NOA_FWD(volume), NOA_FWD(volume_weight), volume_shape,
+                            NOA_FWD(slice), NOA_FWD(slice_weight), slice_shape,
+                            NOA_FWD(inv_scaling), NOA_FWD(fwd_rotation), options);
+                    } else {
+                        check(
+                            details::fourier_projection_is_i32_safe_access(slice, slice_weight, volume, volume_weight),
+                            "isize indexing not instantiated for GPU devices");
+                        details::launch_extract_central_slices_3d<REMAP, OPTIONS, i32, true>(
+                            NOA_FWD(volume), NOA_FWD(volume_weight), volume_shape,
+                            NOA_FWD(slice), NOA_FWD(slice_weight), slice_shape,
+                            NOA_FWD(inv_scaling), NOA_FWD(fwd_rotation), options);
+                    }
+                    return;
+                }
+                #else
+                panic_no_gpu_backend();
+                #endif
             }
-            #else
-            panic_no_gpu_backend();
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(slice.device().is_cpu());
             #endif
         }
 
-        details::launch_extract_central_slices_3d<REMAP, isize, false>(
-            NOA_FWD(volume), NOA_FWD(volume_weight), volume_shape,
-            NOA_FWD(slice), NOA_FWD(slice_weight), slice_shape,
-            NOA_FWD(inv_scaling), NOA_FWD(fwd_rotation), options);
+        if constexpr (OPTIONS.generate_cpu) {
+            details::launch_extract_central_slices_3d<REMAP, OPTIONS, isize, false>(
+                NOA_FWD(volume), NOA_FWD(volume_weight), volume_shape,
+                NOA_FWD(slice), NOA_FWD(slice_weight), slice_shape,
+                NOA_FWD(inv_scaling), NOA_FWD(fwd_rotation), options);
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(slice.device().is_cpu());
+            #endif
+        }
     }
 
+    template<nt::any_of<Empty, Vec<f64, 2>> EWS = Empty>
     struct InsertAndExtractCentralSlicesOptions {
         /// Interpolation method.
         /// This is ignored if input(_weights) is a texture.
@@ -1965,8 +2008,9 @@ namespace noa::xform {
 
         /// HW Ewald sphere radius, in 1/pixels (i.e. pixel_size / wavelength).
         /// See RasterizeCentralSlicesOptions for more details.
-        Vec<f64, 2> ews_radius{};
+        EWS ews_radius{};
     };
+    using InsertAndExtractCentralSlicesEWSOptions = InsertAndExtractCentralSlicesOptions<Vec<f64, 2>>;
 
     /// Extracts 2d central-slice(s) from a virtual volume filled by other central-slices.
     /// \details This function effectively combines the insertion and extraction, but instead of actually inserting
@@ -1981,15 +2025,16 @@ namespace noa::xform {
     ///          extract method, where the volume is already sampled, making the extraction much cheaper (and constant
     ///          cost: it's a simple 3d-interpolation).
     ///
-    /// \tparam REMAP                   Remapping. Should be HX2HX.
-    /// \tparam Input                   A array|texture|value of (const) f32|f64|c32|c64.
-    /// \tparam InputWeight             A array|texture|value of (const) f32|f64, or Empty.
-    /// \tparam Output                  Array of type f32|f64|c32|c64.
-    /// \tparam OutputWeight            Array of type f32|f64, or Empty.
-    /// \tparam InputScale              Mat22 or a array of this type, or Empty
-    /// \tparam InputRotate             Mat33|Quaternion, or a array of this type.
-    /// \tparam OutputScale             Mat22 or a array of this type, or Empty
-    /// \tparam OutputRotate            Mat33|Quaternion, or a array of this type.
+    /// \tparam REMAP           Remapping. Should be HX2HX.
+    /// \tparam OPTIONS         Code generation options.
+    /// \tparam Input           A array|texture|value of (const) f32|f64|c32|c64.
+    /// \tparam InputWeight     A array|texture|value of (const) f32|f64, or Empty.
+    /// \tparam Output          Array of type f32|f64|c32|c64.
+    /// \tparam OutputWeight    Array of type f32|f64, or Empty.
+    /// \tparam InputScale      Mat22 or a array of this type, or Empty
+    /// \tparam InputRotate     Mat33|Quaternion, or a array of this type.
+    /// \tparam OutputScale     Mat22 or a array of this type, or Empty
+    /// \tparam OutputRotate    Mat33|Quaternion, or a array of this type.
     ///
     /// \param[in] input_slice:
     ///     ((B..,)Ni,Hi,Wi) 2d central-slice(s) to insert, a single value, or Empty (defaulting to ones).
@@ -2017,11 +2062,12 @@ namespace noa::xform {
     ///     slices, or Empty. A single matrix can also be passed, in which case all slices are assigned to it.
     /// \param options:
     ///     Operator options.
-    template<nf::Layout REMAP,
+    template<nf::Layout REMAP, CompileOptions OPTIONS = CompileOptions{},
              typename Input, typename InputWeight = Empty,
              typename Output, typename OutputWeight = Empty,
              typename InputScale = Empty, typename InputRotate,
-             typename OutputScale = Empty, typename OutputRotate, usize N>
+             typename OutputScale = Empty, typename OutputRotate,
+             typename EWS = Empty, usize N>
     requires (details::fourier_projection_input_output<true, true, 2, N, Input, Output, InputWeight, OutputWeight> and
               details::fourier_projection_transform<InputScale, InputRotate, N> and
               details::fourier_projection_transform<OutputScale, OutputRotate, N> and
@@ -2037,7 +2083,7 @@ namespace noa::xform {
         InputRotate&& input_inv_rotation,
         OutputScale&& output_inv_scaling,
         OutputRotate&& output_fwd_rotation,
-        const InsertAndExtractCentralSlicesOptions& options = {}
+        const InsertAndExtractCentralSlicesOptions<EWS>& options = {}
     ) {
         details::fourier_projection_check_parameters<details::FourierProjectionType::INSERT_EXTRACT>(
             input_slice, input_weight, input_slice_shape, output_slice, output_weight, output_slice_shape,
@@ -2052,117 +2098,52 @@ namespace noa::xform {
               "options.add_to_output=true and options.w_windowed_sinc.fftfreq_blackman={} (={} pixels)",
               options.w_windowed_sinc.fftfreq_blackman, w_blackman_size);
 
-        if (output_slice.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            if constexpr (
-                (nt::texture_decay<Input> and nt::any_of<nt::mutable_value_type_t<Input>, f64, c64>) or
-                (nt::texture_decay<InputWeight> and nt::any_of<nt::mutable_value_type_t<InputWeight>, f64, c64>)) {
-                std::terminate(); // unreachable
-            } else {
-                check(details::fourier_projection_is_i32_safe_access(input_slice, input_weight, output_slice, output_weight),
-                      "isize indexing not instantiated for GPU devices");
-                return details::launch_insert_and_extract_central_slices_3d<REMAP, i32, true>(
-                    NOA_FWD(input_slice), NOA_FWD(input_weight), input_slice_shape,
-                    NOA_FWD(output_slice), NOA_FWD(output_weight), output_slice_shape,
-                    NOA_FWD(input_fwd_scaling), NOA_FWD(input_inv_rotation),
-                    NOA_FWD(output_inv_scaling), NOA_FWD(output_fwd_rotation),
-                    options);
+        if constexpr (OPTIONS.generate_gpu) {
+            if (output_slice.device().is_gpu()) {
+                #ifdef NOA_ENABLE_GPU
+                if constexpr (
+                    (nt::texture_decay<Input> and nt::any_of<nt::mutable_value_type_t<Input>, f64, c64>) or
+                    (nt::texture_decay<InputWeight> and nt::any_of<nt::mutable_value_type_t<InputWeight>, f64, c64>)) {
+                    std::terminate(); // unreachable
+                } else {
+                    if constexpr (OPTIONS.generate_gpu_isize) {
+                        details::launch_insert_and_extract_central_slices_3d<REMAP, OPTIONS, isize, true>(
+                            NOA_FWD(input_slice), NOA_FWD(input_weight), input_slice_shape,
+                            NOA_FWD(output_slice), NOA_FWD(output_weight), output_slice_shape,
+                            NOA_FWD(input_fwd_scaling), NOA_FWD(input_inv_rotation),
+                            NOA_FWD(output_inv_scaling), NOA_FWD(output_fwd_rotation), options);
+                    } else {
+                        check(details::fourier_projection_is_i32_safe_access(
+                                  input_slice, input_weight, output_slice, output_weight),
+                              "isize indexing not instantiated for GPU devices, see generate_gpu_size option");
+                        details::launch_insert_and_extract_central_slices_3d<REMAP, OPTIONS, i32, true>(
+                            NOA_FWD(input_slice), NOA_FWD(input_weight), input_slice_shape,
+                            NOA_FWD(output_slice), NOA_FWD(output_weight), output_slice_shape,
+                            NOA_FWD(input_fwd_scaling), NOA_FWD(input_inv_rotation),
+                            NOA_FWD(output_inv_scaling), NOA_FWD(output_fwd_rotation), options);
+                    }
+                    return;
+                }
+                #else
+                panic_no_gpu_backend();
+                #endif
             }
-            #else
-            panic_no_gpu_backend();
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(output_slice.device().is_cpu());
             #endif
         }
 
-        details::launch_insert_and_extract_central_slices_3d<REMAP, isize>(
-            NOA_FWD(input_slice), NOA_FWD(input_weight), input_slice_shape,
-            NOA_FWD(output_slice), NOA_FWD(output_weight), output_slice_shape,
-            NOA_FWD(input_fwd_scaling), NOA_FWD(input_inv_rotation),
-            NOA_FWD(output_inv_scaling), NOA_FWD(output_fwd_rotation),
-            options);
-    }
-
-    struct FourierInterpolationCorrectionOption {
-        /// Rank of the inverse Fourier transforms.
-        /// See Shape::rank_checked for more details.
-        usize rank{};
-
-        /// Method used for the Fourier interpolation.
-        Interp interp;
-
-        /// Whether the correction is the post- or pre-correction. Post-correction is meant to be applied to the
-        /// interpolated output, whereas pre-correction is meant to be applied to the input about to be interpolated.
-        bool post_correction;
-    };
-
-    /// Corrects for the interpolation kernel applied to Fourier transforms.
-    /// \details When interpolating Fourier transforms, we effectively convolve the input Fourier components with
-    ///          an interpolation kernel. As such, the resulting iFT of the interpolated output is the product of the
-    ///          final wanted output and the iFT of the interpolation kernel. This function corrects for the effect of
-    ///          the interpolation kernel in real-space.
-    /// \param[in] input    Inverse Fourier transform(s).
-    /// \param[out] output  Corrected output. Can be equal to the input.
-    /// \param[in] options  Correction options.
-    template<usize RANK = 0,
-             nt::array_decay_of_almost_any<f32, f64> Input,
-             nt::array_decay_of_any<f32, f64> Output>
-        requires (nt::array_decay_with_same_nd<Input, Output> and nt::array_size_v<Output> >= RANK)
-    void fourier_interpolation_correction(
-        Input&& input,
-        Output&& output,
-        const FourierInterpolationCorrectionOption& options
-    ) {
-        /// TODO Add correction for other interpolation methods.
-        check(options.interp.is_almost_any(Interp::LINEAR), "{} is currently not supported", options.interp);
-
-        constexpr usize N = nt::array_size_v<Input>;
-        constexpr bool RUNTIME_RANK = RANK == 0;
-        constexpr usize R = RUNTIME_RANK ? 3 : RANK;
-        constexpr usize B = RUNTIME_RANK ? 1 : N - RANK;
-        constexpr usize BR = B + R;
-        const usize rank = RUNTIME_RANK ? output.shape().rank_checked(options.rank) : R;
-
-        const auto input_br = input.span().reshape(input.shape().template as_nd<BR>().ranked(rank));
-        const auto output_br = output.span().reshape(output.shape().template as_nd<BR>().ranked(rank));
-        const auto shape_r = output_br.shape().template pop_front<B>();
-
-        auto input_strides_br = Strides<isize, BR>{};
-        check(broadcast(input_br.shape(), input_strides_br, output_br.shape()),
-              "Cannot broadcast an array of shape {} into an array of shape {}",
-              input_br.shape(), output_br.shape());
-
-        using input_value_t = nt::mutable_value_type_t<Input>;
-        using output_value_t = nt::value_type_t<Output>;
-        using coord_t = std::conditional_t<nt::any_of<f64, input_value_t, output_value_t>, f64, f32>;
-        auto input_accessor = Accessor<const input_value_t, BR, isize>(input_br.get(), input_strides_br);
-        auto output_accessor = Accessor<output_value_t, BR, isize>(output_br.get(), output_br.strides());
-
-        if (options.post_correction) {
-            const auto op = details::FourierInterpolationCorrection
-                <true, B, R, coord_t, decltype(input_accessor), decltype(output_accessor)>(
-                    input_accessor, output_accessor, shape_r);
-            iwise(output_br.shape(), output.device(), op, NOA_FWD(input), NOA_FWD(output));
+        if constexpr (OPTIONS.generate_cpu) {
+            details::launch_insert_and_extract_central_slices_3d<REMAP, OPTIONS, isize>(
+                NOA_FWD(input_slice), NOA_FWD(input_weight), input_slice_shape,
+                NOA_FWD(output_slice), NOA_FWD(output_weight), output_slice_shape,
+                NOA_FWD(input_fwd_scaling), NOA_FWD(input_inv_rotation),
+                NOA_FWD(output_inv_scaling), NOA_FWD(output_fwd_rotation), options);
         } else {
-            const auto op = details::FourierInterpolationCorrection
-                <false, B, R, coord_t, decltype(input_accessor), decltype(output_accessor)>(
-                    input_accessor, output_accessor, shape_r);
-            iwise(output_br.shape(), output.device(), op, NOA_FWD(input), NOA_FWD(output));
+            #ifdef NOA_ENABLE_GPU
+            check(output_slice.device().is_cpu());
+            #endif
         }
-    }
-
-    template<typename Input, typename Output>
-    void fourier_interpolation_correction_2d(
-        Input&& input,
-        Output&& output,
-        const FourierInterpolationCorrectionOption& options
-    ) {
-        fourier_interpolation_correction<2>(NOA_FWD(input), NOA_FWD(output), options);
-    }
-    template<typename Input, typename Output>
-    void fourier_interpolation_correction_3d(
-        Input&& input,
-        Output&& output,
-        const FourierInterpolationCorrectionOption& options
-    ) {
-        fourier_interpolation_correction<3>(NOA_FWD(input), NOA_FWD(output), options);
     }
 }

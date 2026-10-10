@@ -16,23 +16,16 @@ namespace noa::xform::details {
     requires (R == 2 or R == 3)
     class Draw {
     public:
-        using index_type = Index;
-        using input_type = Input;
-        using output_type = Output;
-        using draw_op_type = DrawOp;
-        using binary_op_type = BinaryOp;
-        using xform_type = Xform;
-
-        using output_value_type = nt::value_type_t<output_type>;
-        using draw_vec_type = Vec<nt::value_type_twice_t<draw_op_type>, R>;
+        using output_value_type = nt::value_type_t<Output>;
+        using draw_vec_type = Vec<nt::value_type_twice_t<DrawOp>, R>;
 
     public:
         constexpr Draw(
-            const input_type& input,
-            const output_type& output,
-            const draw_op_type& drawable,
-            const xform_type& inverse_xform,
-            const binary_op_type& binary_op
+            const Input& input,
+            const Output& output,
+            const DrawOp& drawable,
+            const Xform& inverse_xform,
+            const BinaryOp& binary_op
         ) :
             m_input(input),
             m_output(output),
@@ -40,7 +33,7 @@ namespace noa::xform::details {
             m_inverse_xform(inverse_xform),
             m_binary_op(binary_op) {}
 
-        NOA_HD constexpr void operator()(const Vec<index_type, B + R>& batched_indices) const {
+        NOA_HD constexpr void operator()(const Vec<Index, B + R>& batched_indices) const {
             draw_(batched_indices);
         }
 
@@ -59,7 +52,7 @@ namespace noa::xform::details {
             }
         }
 
-        NOA_HD constexpr auto draw_(const Vec<index_type, B + R>& batched_indices) const {
+        NOA_HD constexpr auto draw_(const Vec<Index, B + R>& batched_indices) const {
             const auto& [batches, indices] = batched_indices.template split<B>();
             const auto shape = m_drawable[batches].draw_at(draw_vec_type::from_vec(indices), m_inverse_xform[batches]);
             if (m_input) {
@@ -75,11 +68,11 @@ namespace noa::xform::details {
         }
 
     private:
-        input_type m_input;
-        output_type m_output;
-        draw_op_type m_drawable;
-        NOA_NO_UNIQUE_ADDRESS xform_type m_inverse_xform;
-        NOA_NO_UNIQUE_ADDRESS binary_op_type m_binary_op;
+        Input m_input;
+        Output m_output;
+        DrawOp m_drawable;
+        NOA_NO_UNIQUE_ADDRESS Xform m_inverse_xform;
+        NOA_NO_UNIQUE_ADDRESS BinaryOp m_binary_op;
     };
 
     template<usize R, typename Input, typename Output, typename DrawingOp, typename Transform>

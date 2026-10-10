@@ -59,9 +59,22 @@ TEST_CASE("xform::InterpSet") {
     {
         auto interps = nx::InterpSet::all();
         REQUIRE(interps[nx::Interp::LINEAR] == true);
-        REQUIRE(interps.bits == 0xFF);
+        REQUIRE(interps[nx::Interp::LANCZOS8_FAST] == true);
+        REQUIRE(interps.bits == 0xFFFF);
         interps[nx::Interp::LINEAR] = false;
         REQUIRE(interps[nx::Interp::LINEAR] == false);
+    }
+    {
+        auto interps = nx::InterpSet::none().enable_fasts();
+        REQUIRE(interps[nx::Interp::NEAREST] == false);
+        REQUIRE(interps[nx::Interp::LANCZOS8] == false);
+        REQUIRE(interps[nx::Interp::NEAREST_FAST] == true);
+        REQUIRE(interps[nx::Interp::LANCZOS8_FAST] == true);
+        interps = nx::InterpSet::all().disable_fasts();
+        REQUIRE(interps[nx::Interp::NEAREST] == true);
+        REQUIRE(interps[nx::Interp::LANCZOS8] == true);
+        REQUIRE(interps[nx::Interp::NEAREST_FAST] == false);
+        REQUIRE(interps[nx::Interp::LANCZOS8_FAST] == false);
     }
     {
         constexpr auto interps = nx::InterpSet::none_but(nx::Interp::LINEAR, nx::Interp::CUBIC);

@@ -132,26 +132,17 @@ namespace noa::xform::details {
     requires (R == 2 or R == 3)
     class Symmetrize {
     public:
-        using index_type = Index;
-        using symmetry_matrices_type = SymmetryMatrices;
-        using interpolator_type = Interpolator;
-        using input_type = Input;
-        using output_type = Output;
-        using batched_pre_inverse_affine_type = PreInvAffine;
-        using batched_post_inverse_affine_type = PostInvAffine;
-
-        using input_value_type = nt::mutable_value_type_t<input_type>;
+        using input_value_type = nt::mutable_value_type_t<Input>;
         using input_real_type = nt::value_type_t<input_value_type>;
-        using output_value_type = nt::value_type_t<output_type>;
+        using output_value_type = nt::value_type_t<Output>;
 
-        using symmetry_matrix_type = nt::value_type_t<symmetry_matrices_type>;
+        using symmetry_matrix_type = nt::value_type_t<SymmetryMatrices>;
         static_assert(nt::mat_of_shape<symmetry_matrix_type, R, R>);
         using coord_type = nt::value_type_t<symmetry_matrix_type>;
-        using vec_type = Vec<coord_type, R>;
 
         // Expect the (truncated) affine with the same precision as symmetry matrices.
-        using pre_inverse_affine_type = nt::value_type_t<batched_pre_inverse_affine_type>;
-        using post_inverse_affine_type = nt::value_type_t<batched_post_inverse_affine_type>;
+        using pre_inverse_affine_type = nt::value_type_t<PreInvAffine>;
+        using post_inverse_affine_type = nt::value_type_t<PostInvAffine>;
         static_assert(nt::empty<pre_inverse_affine_type> or
                       (nt::same_as<coord_type, nt::value_type_t<pre_inverse_affine_type>> and
                        (nt::mat_of_shape<pre_inverse_affine_type, R, R + 1> or
@@ -163,14 +154,14 @@ namespace noa::xform::details {
 
     public:
         constexpr Symmetrize(
-            const input_type& input,
-            const output_type& output,
-            const interpolator_type& interpolator,
-            symmetry_matrices_type symmetry_inverse_rotation_matrices,
-            const vec_type& symmetry_center,
+            const Input& input,
+            const Output& output,
+            const Interpolator& interpolator,
+            SymmetryMatrices symmetry_inverse_rotation_matrices,
+            const Vec<coord_type, R>& symmetry_center,
             input_real_type symmetry_scaling,
-            const batched_pre_inverse_affine_type& pre_inverse_affine_matrices,
-            const batched_post_inverse_affine_type& post_inverse_affine_matrices
+            const PreInvAffine& pre_inverse_affine_matrices,
+            const PostInvAffine& post_inverse_affine_matrices
         ) noexcept :
             m_input(input), m_output(output), m_interpolator(interpolator),
             m_symmetry_matrices(symmetry_inverse_rotation_matrices),
@@ -179,7 +170,7 @@ namespace noa::xform::details {
             m_pre_inverse_affine_matrices(pre_inverse_affine_matrices),
             m_post_inverse_affine_matrices(post_inverse_affine_matrices) {}
 
-        NOA_HD constexpr void operator()(const Vec<index_type, B + R>& batched_indices) const {
+        NOA_HD constexpr void operator()(const Vec<Index, B + R>& batched_indices) const {
             const auto& [batches, indices] = batched_indices.template split<B>();
             auto coordinates = indices.template as<coord_type>();
 
@@ -211,14 +202,14 @@ namespace noa::xform::details {
         }
 
     private:
-        input_type m_input;
-        output_type m_output;
-        interpolator_type m_interpolator;
-        symmetry_matrices_type m_symmetry_matrices;
-        vec_type m_symmetry_center;
+        Input m_input;
+        Output m_output;
+        Interpolator m_interpolator;
+        SymmetryMatrices m_symmetry_matrices;
+        Vec<coord_type, R> m_symmetry_center;
         input_real_type m_symmetry_scaling;
-        NOA_NO_UNIQUE_ADDRESS batched_pre_inverse_affine_type m_pre_inverse_affine_matrices;
-        NOA_NO_UNIQUE_ADDRESS batched_post_inverse_affine_type m_post_inverse_affine_matrices;
+        NOA_NO_UNIQUE_ADDRESS PreInvAffine m_pre_inverse_affine_matrices;
+        NOA_NO_UNIQUE_ADDRESS PostInvAffine m_post_inverse_affine_matrices;
     };
 
     template<typename>
@@ -229,44 +220,7 @@ namespace noa::xform::details {
     template<typename T, usize N>
     concept symmetry_nd = is_symmetry<std::decay_t<T>>::value and std::decay_t<T>::SIZE == N;
 
-    template<typename Input, typename Output, typename Coord, usize R>
-    void check_parameters_symmetrize_nd(const Input& input, const Output& output, const Symmetry<Coord, R>& symmetry) {
-        check(not input.is_empty() and not output.is_empty() and not symmetry.is_empty(), "Empty array detected");
-
-        // Check batch axes are compatible.
-        constexpr usize N = nt::array_size_v<Output>;
-        constexpr usize B = N - R;
-        auto input_shape_b = input.shape().template pop_back<R>();
-        auto output_shape_b = output.shape().template pop_back<R>();
-        if constexpr (B >= 1) {
-            for (usize i{}; i < B; ++i)
-                input_shape_b[i] = input_shape_b[i] == 1 ? output_shape_b[i] : input_shape_b[i];
-            check(input_shape_b == output_shape_b,
-                  "The batch axes are not compatible, input:batches={}, output:batches={}",
-                  input_shape_b, output_shape_b);
-        }
-
-        const Device device = output.device();
-        check(input.device() == device and symmetry.device() == device,
-              "The input array/texture, output array and symmetry matrices must be on the same device, but got input:device={} and output:device={}, symmetry:device={}",
-              input.device(), device, symmetry.device());
-        check(nd::are_elements_unique(output.strides(), output.shape()),
-              "The elements in the output should not overlap in memory, otherwise a data-race might occur. Got output:strides={} and output:shape={}",
-              output.strides(), output.shape());
-
-        if constexpr (nt::array<Input>) {
-            check(not are_overlapped(input, output),
-                  "The input and output arrays should not overlap");
-        } else {
-            check(input.device().is_gpu() or not are_overlapped(input.cpu(), output),
-                  "The input and output arrays should not overlap");
-            check(input.border() == Border::ZERO,
-                  "Texture border mode is expected to be {}, but got {}",
-                  Border::ZERO, input.border());
-        }
-    }
-
-    template<usize R, typename Index, bool IS_GPU = false,
+    template<usize R,CompileOptions OPTIONS, typename Index, bool IS_GPU = false,
              typename Input, typename Output, typename Symmetry, typename PreMatrix, typename PostMatrix>
     void launch_symmetrize_nd(
         Input&& input, Output&& output, Symmetry&& symmetry,
@@ -300,26 +254,26 @@ namespace noa::xform::details {
                 center = static_cast<f64>(size / 2);
 
         auto launch_iwise = [&](auto interp) {
-            auto result = prepare_interpolation_inputs<R, interp(), Border::ZERO, IS_GPU, Index, coord_t, false>(input);
-            using interpolator_t = decltype(result)::interpolator_type;
-            using accessor_t = decltype(result)::accessor_type;
+            constexpr Interp INTERP = interp();
+            if constexpr (OPTIONS.interps[INTERP]) {
+                auto result = prepare_interpolation_inputs<R, INTERP, Border::ZERO, IS_GPU, Index, coord_t, false>(input);
+                using interpolator_t = decltype(result)::interpolator_type;
+                using accessor_t = decltype(result)::accessor_type;
 
-            using op_t = Symmetrize<
-                B, R, Index, symmetry_matrices_t, interpolator_t, accessor_t, output_accessor_t,
-                pre_inverse_matrices_accessor_t, post_inverse_matrices_accessor_t>;
+                using op_t = Symmetrize<
+                    B, R, Index, symmetry_matrices_t, interpolator_t, accessor_t, output_accessor_t,
+                    pre_inverse_matrices_accessor_t, post_inverse_matrices_accessor_t>;
 
-            iwise<IwiseOptions{
-                .generate_cpu = not IS_GPU,
-                .generate_gpu = IS_GPU,
-            }>(output_span.shape(), output.device(),
-               op_t(result.accessor, output_accessor, result.interpolator,
-                    symmetry_matrices, options.symmetry_center.template as<coord_t>(), symmetry_scaling,
-                    pre_inverse_matrices_accessor, post_inverse_matrices_accessor),
-               std::forward<Input>(input),
-               std::forward<Output>(output),
-               std::forward<Symmetry>(symmetry),
-               std::forward<PreMatrix>(pre_inverse_matrices),
-               std::forward<PostMatrix>(post_inverse_matrices));
+                iwise<IwiseOptions{
+                    .generate_cpu = not IS_GPU,
+                    .generate_gpu = IS_GPU,
+                }>(output_span.shape(), output.device(),
+                   op_t(result.accessor, output_accessor, result.interpolator,
+                        symmetry_matrices, options.symmetry_center.template as<coord_t>(), symmetry_scaling,
+                        pre_inverse_matrices_accessor, post_inverse_matrices_accessor),
+                   NOA_FWD(input), NOA_FWD(output), NOA_FWD(symmetry),
+                   NOA_FWD(pre_inverse_matrices), NOA_FWD(post_inverse_matrices));
+            }
         };
 
         if constexpr (nt::texture_decay<Input>)
@@ -349,7 +303,7 @@ namespace noa::xform::details {
              typename Coord = nt::value_type_t<Symmetry>,
              usize N = nt::array_size_v<Output>>
     concept symmetry_matrix_parameter_nd =
-        nt::empty<T> or
+        nt::empty<U> or
         (nt::same_as<Coord, MatrixValue> and (
             nt::mat_of_shape<U, N, N + 1> or
             nt::mat_of_shape<U, N + 1, N + 1> or
@@ -385,131 +339,152 @@ namespace noa::xform {
         bool normalize{true};
     };
 
-    /// Symmetrizes 2D array(s).
+    /// Symmetrizes 2|3-D array(s).
+    /// \tparam RANK:
+    ///     Rank of the arrays.
+    /// \tparam OPTIONS:
+    ///     Code generation options.
     /// \param[in] input:
-    ///     ((Bi..,)Hi,Wi) Input 2D array(s) or 2D texture(s).
+    ///     2D: ((Bi..,)   Hi,Wi) Input 2D array(s) or 2D texture(s).
+    ///     3D: ((Bi..,)Di,Hi,Wi) Input 3D array(s) or 3D texture(s).
     ///     The batch axes are broadcast to the output batch axes.
     /// \param[out] output:
-    ///     ((Bo..,)Ho,Wo) Output 2D array(s).
+    ///     2D: ((Bo..,)   Ho,Wo) Output 2D array(s).
+    ///     3D: ((Bo..,)Do,Ho,Wo) Output 3D array(s).
     /// \param[in] symmetry:
     ///     Symmetry operator.
     /// \param[in] options:
     ///     Symmetry and interpolation options.
     ///     During transformation, out-of-bound elements are set to 0, i.e., Border::ZERO is used.
     /// \param[in] pre_inverse_matrices:
-    ///     Mat23, Mat33, a contiguous (Bo..) array of these types matching the output batches array, or Empty.
-    ///     HW inverse affine matrices to apply before the symmetry.
+    ///     2D: Mat23, Mat33, a contiguous (Bo..) array of these types matching the output batches array, or Empty.
+    ///     3D: Mat34, Mat44, a contiguous (Bo..) array of these types matching the output batches array, or Empty.
+    ///     (D)HW inverse affine matrices to apply before the symmetry.
     ///     This is used to align the input with the symmetry axis/center.
     ///     This needs to be applied for each symmetry count as opposed to the post-transformation which
-    ///     is applied once per pixel, so it may be more efficient to apply it separately using transform_2d.
+    ///     is applied once per pixel, so it may be more efficient to apply it separately using transform_2|3d.
     /// \param[in] post_inverse_matrices:
-    ///     Mat23, Mat33, a contiguous (Bo..) array of these types matching the output batches array, or Empty.
-    ///     HW inverse affine matrix to apply after the symmetry.
+    ///     2D: Mat23, Mat33, a contiguous (Bo..) array of these types matching the output batches array, or Empty.
+    ///     3D: Mat34, Mat44, a contiguous (Bo..) array of these types matching the output batches array, or Empty.
+    ///     (D)HW inverse affine matrix to apply after the symmetry.
     ///     This is often used to move the symmetrized output to the original input location,
     ///     as if the symmetry was applied in-place.
     /// \note
-    ///     The input and output array can have different shapes ((Hi,Wi) vs (Ho,Wo)). The output window starts at
+    ///     The input and output array can have different shapes (((Di,)Hi,Wi) vs ((Do,)Ho,Wo)). The output window starts at
     ///     the same index as the input window, so by entering a translation in pre_/post_inverse_matrices, one can
     ///     move the center of the output window relative to the input window, e.g., to render only a specific subregion.
-    template<typename Input, typename Output, typename Symmetry, typename PreMatrix = Empty, typename PostMatrix = Empty>
-        requires details::symmetrizable_nd<2, Input, Output, Symmetry, PreMatrix, PostMatrix>
+    template<usize RANK, CompileOptions OPTIONS = CompileOptions{},
+             typename Input, typename Output, typename Symmetry, typename PreMatrix = Empty, typename PostMatrix = Empty>
+    requires details::symmetrizable_nd<RANK, Input, Output, Symmetry, PreMatrix, PostMatrix>
+    void symmetrize(
+        Input&& input, Output&& output, Symmetry&& symmetry,
+        const SymmetrizeOptions<RANK>& options = {},
+        PreMatrix&& pre_inverse_matrices = {},
+        PostMatrix&& post_inverse_matrices = {}
+    ) {
+        check(not input.is_empty() and not output.is_empty() and not symmetry.is_empty(), "Empty array detected");
+
+        // Check batch axes are compatible.
+        constexpr usize N = nt::array_size_v<Output>;
+        constexpr usize B = N - RANK;
+        auto input_shape_b = input.shape().template pop_back<RANK>();
+        auto output_shape_b = output.shape().template pop_back<RANK>();
+        if constexpr (B >= 1) {
+            for (usize i{}; i < B; ++i)
+                input_shape_b[i] = input_shape_b[i] == 1 ? output_shape_b[i] : input_shape_b[i];
+            check(input_shape_b == output_shape_b,
+                  "The batch axes are not compatible, input:batches={}, output:batches={}",
+                  input_shape_b, output_shape_b);
+        }
+
+        const Device device = output.device();
+        check(input.device() == device and symmetry.device() == device,
+              "The input array/texture, output array and symmetry matrices must be on the same device, but got input:device={} and output:device={}, symmetry:device={}",
+              input.device(), device, symmetry.device());
+        check(nd::are_elements_unique(output.strides(), output.shape()),
+              "The elements in the output should not overlap in memory, otherwise a data-race might occur. Got output:strides={} and output:shape={}",
+              output.strides(), output.shape());
+
+        if constexpr (nt::array_decay<Input>) {
+            check(not are_overlapped(input, output),
+                  "The input and output arrays should not overlap");
+        } else {
+            check(input.device().is_gpu() or not are_overlapped(input.cpu(), output),
+                  "The input and output arrays should not overlap");
+            check(input.border() == Border::ZERO,
+                  "Texture border mode is expected to be {}, but got {}",
+                  Border::ZERO, input.border());
+        }
+
+        check(OPTIONS.interps[options.interp], "Interpolation method is not generated");
+
+        if constexpr (OPTIONS.generate_gpu) {
+            if (output.device().is_gpu()) {
+                #ifdef NOA_ENABLE_GPU
+                if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
+                    panic(); // unreachable
+                } else {
+                    if constexpr (OPTIONS.generate_gpu_isize) {
+                        details::launch_symmetrize_nd<RANK, OPTIONS, isize, true>(
+                            NOA_FWD(input), NOA_FWD(output), NOA_FWD(symmetry),
+                            NOA_FWD(pre_inverse_matrices), NOA_FWD(post_inverse_matrices),
+                            options);
+                    } else {
+                        check(nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
+                              nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
+                              "isize indexing not instantiated for GPU devices, see generate_gpu_size option");
+                        details::launch_symmetrize_nd<RANK, OPTIONS, i32, true>(
+                            NOA_FWD(input), NOA_FWD(output), NOA_FWD(symmetry),
+                            NOA_FWD(pre_inverse_matrices), NOA_FWD(post_inverse_matrices),
+                            options);
+                    }
+                    return;
+                }
+                #else
+                panic_no_gpu_backend();
+                #endif
+            }
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(output.device().is_cpu());
+            #endif
+        }
+
+        if constexpr (OPTIONS.generate_cpu) {
+            details::launch_symmetrize_nd<RANK, OPTIONS, isize>(
+                NOA_FWD(input), NOA_FWD(output), NOA_FWD(symmetry),
+                NOA_FWD(pre_inverse_matrices), NOA_FWD(post_inverse_matrices),
+                options);
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(output.device().is_gpu());
+            #else
+            static_assert(nt::always_false<Input>, "CPU-only builds must generate the CPU codepath");
+            #endif
+        }
+    }
+
+    /// Symmetrizes 2D array(s).
+    template<CompileOptions OPTIONS = CompileOptions{},
+             typename Input, typename Output, typename Symmetry, typename PreMatrix = Empty, typename PostMatrix = Empty>
     void symmetrize_2d(
         Input&& input, Output&& output, Symmetry&& symmetry,
         const SymmetrizeOptions<2>& options = {},
         PreMatrix&& pre_inverse_matrices = {},
         PostMatrix&& post_inverse_matrices = {}
     ) {
-        details::check_parameters_symmetrize_nd(input, output, symmetry);
-
-        if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::mutable_value_type_t<Input>, f32, c32>) {
-                std::terminate(); // unreachable
-            } else {
-                check(nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
-                      nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
-                      "isize indexing not instantiated for GPU devices");
-                details::launch_symmetrize_nd<2, i32, true>(
-                    std::forward<Input>(input), std::forward<Output>(output),
-                    std::forward<Symmetry>(symmetry),
-                    std::forward<PreMatrix>(pre_inverse_matrices),
-                    std::forward<PostMatrix>(post_inverse_matrices),
-                    options);
-                return;
-            }
-            #else
-            panic_no_gpu_backend();
-            #endif
-        }
-        details::launch_symmetrize_nd<2, isize>(
-            std::forward<Input>(input), std::forward<Output>(output),
-            std::forward<Symmetry>(symmetry),
-            std::forward<PreMatrix>(pre_inverse_matrices),
-            std::forward<PostMatrix>(post_inverse_matrices),
-            options);
+        symmetrize<2, OPTIONS>(NOA_FWD(input), NOA_FWD(output), NOA_FWD(symmetry), options, NOA_FWD(pre_inverse_matrices), NOA_FWD(post_inverse_matrices));
     }
 
     /// Symmetrizes 3D array(s).
-    /// \param[in] input:
-    ///     ((Bi..,)Di,Hi,Wi) Input 3D array(s) or 3D texture(s).
-    ///     The batch axes are broadcast to the output batch axes.
-    /// \param[out] output:
-    ///     ((Bo..,)Do,Ho,Wo) Output 3D array(s).
-    /// \param[in] symmetry:
-    ///     Symmetry operator.
-    /// \param[in] options:
-    ///     Symmetry and interpolation options.
-    ///     During transformation, out-of-bound elements are set to 0, i.e., Border::ZERO is used.
-    /// \param[in] pre_inverse_matrices:
-    ///     Mat34, Mat44, a contiguous (Bo..) array of these types matching the output batches array, or Empty.
-    ///     DHW inverse affine matrices to apply before the symmetry.
-    ///     This is used to align the input with the symmetry axis/center.
-    ///     This needs to be applied for each symmetry count as opposed to the post-transformation which
-    ///     is applied once per pixel, so it may be more efficient to apply it separately using transform_2d.
-    /// \param[in] post_inverse_matrices:
-    ///     Mat34, Mat44, a contiguous (Bo..) array of these types matching the output batches array, or Empty.
-    ///     DHW inverse affine matrix to apply after the symmetry.
-    ///     This is often used to move the symmetrized output to the original input location,
-    ///     as if the symmetry was applied in-place.
-    /// \note
-    ///     The input and output array can have different shapes ((Di,Hi,Wi) vs (Do,Ho,Wo)). The output window starts at
-    ///     the same index as the input window, so by entering a translation in pre_/post_inverse_matrices, one can
-    ///     move the center of the output window relative to the input window, e.g., to render only a specific subregion.
-    template<typename Input, typename Output, typename Symmetry, typename PreMatrix = Empty, typename PostMatrix = Empty>
-        requires details::symmetrizable_nd<3, Input, Output, Symmetry, PreMatrix, PostMatrix>
+    template<CompileOptions OPTIONS = CompileOptions{},
+             typename Input, typename Output, typename Symmetry, typename PreMatrix = Empty, typename PostMatrix = Empty>
     void symmetrize_3d(
         Input&& input, Output&& output, Symmetry&& symmetry,
         const SymmetrizeOptions<3>& options = {},
         PreMatrix&& pre_inverse_matrices = {},
         PostMatrix&& post_inverse_matrices = {}
     ) {
-        details::check_parameters_symmetrize_nd(input, output, symmetry);
-
-        if (output.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::mutable_value_type_t<Input>, f32, c32>) {
-                std::terminate(); // unreachable
-            } else {
-                check(nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
-                      nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
-                      "isize indexing not instantiated for GPU devices");
-                details::launch_symmetrize_nd<3, i32, true>(
-                    std::forward<Input>(input), std::forward<Output>(output),
-                    std::forward<Symmetry>(symmetry),
-                    std::forward<PreMatrix>(pre_inverse_matrices),
-                    std::forward<PostMatrix>(post_inverse_matrices),
-                    options);
-                return;
-            }
-            #else
-            panic_no_gpu_backend();
-            #endif
-        }
-        details::launch_symmetrize_nd<3, isize>(
-            std::forward<Input>(input), std::forward<Output>(output),
-            std::forward<Symmetry>(symmetry),
-            std::forward<PreMatrix>(pre_inverse_matrices),
-            std::forward<PostMatrix>(post_inverse_matrices),
-            options);
+        symmetrize<3, OPTIONS>(NOA_FWD(input), NOA_FWD(output), NOA_FWD(symmetry), options, NOA_FWD(pre_inverse_matrices), NOA_FWD(post_inverse_matrices));
     }
 }

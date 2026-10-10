@@ -104,8 +104,8 @@ namespace noa::xform {
         using reference_type = BitReference<u16>;
         u16 bits{};
 
-        static constexpr auto all() -> InterpSet { return {.bits = 0xFF}; }
-        static constexpr auto none() -> InterpSet { return {.bits = 0x00}; }
+        static constexpr auto all() -> InterpSet { return {.bits = 0xFFFF}; }
+        static constexpr auto none() -> InterpSet { return {.bits = 0x0000}; }
 
         static constexpr auto all_but(auto... interps) -> InterpSet {
             auto out = all();
@@ -129,19 +129,35 @@ namespace noa::xform {
             return *this;
         }
 
+        constexpr auto enable_fasts() noexcept -> InterpSet& {
+            constexpr auto mask = u32{0xFFFF} << 7; // offset to first fast
+            auto result = static_cast<u32>(bits);
+            result |= mask;
+            bits = static_cast<u16>(result);
+            return *this;
+        }
+
+        constexpr auto disable_fasts() noexcept -> InterpSet& {
+            constexpr auto mask = u32{0xFFFF} << 7; // offset to first fast
+            auto result = static_cast<u32>(bits);
+            result &= ~mask;
+            bits = static_cast<u16>(result);
+            return *this;
+        }
+
         constexpr auto operator[](Interp interp) const noexcept -> bool {
             switch (interp.value) {
                 case Interp::NEAREST:               return reference_type::is_set(&bits, 0);
-                case Interp::NEAREST_FAST:          return reference_type::is_set(&bits, 1);
-                case Interp::LINEAR:                return reference_type::is_set(&bits, 2);
-                case Interp::LINEAR_FAST:           return reference_type::is_set(&bits, 3);
-                case Interp::CUBIC:                 return reference_type::is_set(&bits, 4);
-                case Interp::CUBIC_FAST:            return reference_type::is_set(&bits, 5);
-                case Interp::CUBIC_BSPLINE:         return reference_type::is_set(&bits, 6);
-                case Interp::CUBIC_BSPLINE_FAST:    return reference_type::is_set(&bits, 7);
-                case Interp::LANCZOS4:              return reference_type::is_set(&bits, 8);
-                case Interp::LANCZOS6:              return reference_type::is_set(&bits, 9);
-                case Interp::LANCZOS8:              return reference_type::is_set(&bits, 10);
+                case Interp::LINEAR:                return reference_type::is_set(&bits, 1);
+                case Interp::CUBIC:                 return reference_type::is_set(&bits, 2);
+                case Interp::CUBIC_BSPLINE:         return reference_type::is_set(&bits, 3);
+                case Interp::LANCZOS4:              return reference_type::is_set(&bits, 4);
+                case Interp::LANCZOS6:              return reference_type::is_set(&bits, 5);
+                case Interp::LANCZOS8:              return reference_type::is_set(&bits, 6);
+                case Interp::NEAREST_FAST:          return reference_type::is_set(&bits, 7);
+                case Interp::LINEAR_FAST:           return reference_type::is_set(&bits, 8);
+                case Interp::CUBIC_FAST:            return reference_type::is_set(&bits, 9);
+                case Interp::CUBIC_BSPLINE_FAST:    return reference_type::is_set(&bits, 10);
                 case Interp::LANCZOS4_FAST:         return reference_type::is_set(&bits, 11);
                 case Interp::LANCZOS6_FAST:         return reference_type::is_set(&bits, 12);
                 case Interp::LANCZOS8_FAST:         return reference_type::is_set(&bits, 13);
@@ -152,16 +168,16 @@ namespace noa::xform {
         constexpr auto operator[](Interp interp) noexcept -> reference_type {
             switch (interp.value) {
                 case Interp::NEAREST:               return reference_type(&bits, 0);
-                case Interp::NEAREST_FAST:          return reference_type(&bits, 1);
-                case Interp::LINEAR:                return reference_type(&bits, 2);
-                case Interp::LINEAR_FAST:           return reference_type(&bits, 3);
-                case Interp::CUBIC:                 return reference_type(&bits, 4);
-                case Interp::CUBIC_FAST:            return reference_type(&bits, 5);
-                case Interp::CUBIC_BSPLINE:         return reference_type(&bits, 6);
-                case Interp::CUBIC_BSPLINE_FAST:    return reference_type(&bits, 7);
-                case Interp::LANCZOS4:              return reference_type(&bits, 8);
-                case Interp::LANCZOS6:              return reference_type(&bits, 9);
-                case Interp::LANCZOS8:              return reference_type(&bits, 10);
+                case Interp::LINEAR:                return reference_type(&bits, 1);
+                case Interp::CUBIC:                 return reference_type(&bits, 2);
+                case Interp::CUBIC_BSPLINE:         return reference_type(&bits, 3);
+                case Interp::LANCZOS4:              return reference_type(&bits, 4);
+                case Interp::LANCZOS6:              return reference_type(&bits, 5);
+                case Interp::LANCZOS8:              return reference_type(&bits, 6);
+                case Interp::NEAREST_FAST:          return reference_type(&bits, 7);
+                case Interp::LINEAR_FAST:           return reference_type(&bits, 8);
+                case Interp::CUBIC_FAST:            return reference_type(&bits, 9);
+                case Interp::CUBIC_BSPLINE_FAST:    return reference_type(&bits, 10);
                 case Interp::LANCZOS4_FAST:         return reference_type(&bits, 11);
                 case Interp::LANCZOS6_FAST:         return reference_type(&bits, 12);
                 case Interp::LANCZOS8_FAST:         return reference_type(&bits, 13);

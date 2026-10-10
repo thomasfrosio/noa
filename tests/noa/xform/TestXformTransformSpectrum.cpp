@@ -72,7 +72,6 @@ TEST_CASE("xform::transform_spectrum_2d, vs scipy", "[asset]") {
             // FIXME update asset
             //       Match: failed at indices=[0, 59, 224], lhs=0.011315661, rhs=0.011420267, shape=[1, 255, 395], mode=Absolute, epsilon=0, total_abs_diff=14.724561, max_abs_diff=0.009894252
 
-
             ++count;
 
             // With textures:

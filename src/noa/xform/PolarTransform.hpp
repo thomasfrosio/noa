@@ -18,26 +18,19 @@ namespace noa::xform::details {
              nt::writable_nd<B + 2> Output>
     class Polar2Cartesian {
     public:
-        using index_type = Index;
-        using input_type = Input;
-        using interpolator_type = Interpolator;
-        using output_type = Output;
-        using input_value_type = nt::mutable_value_type_t<input_type>;
-        using output_value_type = nt::value_type_t<output_type>;
-        using coord_type = Coord;
-        using coord2_type = Vec<coord_type, 2>;
-        using shape2_type = Shape<index_type, 2>;
+        using input_value_type = nt::mutable_value_type_t<Input>;
+        using output_value_type = nt::value_type_t<Output>;
         static_assert(nt::spectrum_types<input_value_type, output_value_type>);
 
     public:
         Polar2Cartesian(
-            const input_type& polar,
-            const interpolator_type& interpolator,
-            const shape2_type& polar_shape,
-            const output_type& cartesian,
-            const coord2_type& cartesian_center,
-            const Linspace<coord_type>& radius_range,
-            const Linspace<coord_type>& angle_range
+            const Input& polar,
+            const Interpolator& interpolator,
+            const Shape<Index, 2>& polar_shape,
+            const Output& cartesian,
+            const Vec<Coord, 2>& cartesian_center,
+            const Linspace<Coord>& radius_range,
+            const Linspace<Coord>& angle_range
         ) :
             m_polar(polar),
             m_interpolator(interpolator),
@@ -51,14 +44,14 @@ namespace noa::xform::details {
             m_step_radius = radius_range.for_size(polar_shape[1]).step;
         }
 
-        NOA_HD constexpr void operator()(const Vec<index_type, B + 2>& batched_indices) const {
+        NOA_HD constexpr void operator()(const Vec<Index, B + 2>& batched_indices) const {
             const auto& [batches, indices] = batched_indices.template split<B>();
-            auto cartesian_coordinate = indices.template as<coord_type>();
+            auto cartesian_coordinate = indices.template as<Coord>();
             cartesian_coordinate -= m_center;
 
-            const coord_type phi = cartesian2phi(cartesian_coordinate);
-            const coord_type rho = cartesian2rho(cartesian_coordinate);
-            const coord2_type polar_coordinate{
+            const Coord phi = cartesian2phi(cartesian_coordinate);
+            const Coord rho = cartesian2rho(cartesian_coordinate);
+            const Vec<Coord, 2> polar_coordinate{
                 (phi - m_start_angle) / m_step_angle,
                 (rho - m_start_radius) / m_step_radius
             };
@@ -68,14 +61,14 @@ namespace noa::xform::details {
         }
 
     private:
-        input_type m_polar;
-        interpolator_type m_interpolator;
-        output_type m_cartesian;
-        coord2_type m_center;
-        coord_type m_step_angle;
-        coord_type m_step_radius;
-        coord_type m_start_angle;
-        coord_type m_start_radius;
+        Input m_polar;
+        Interpolator m_interpolator;
+        Output m_cartesian;
+        Vec<Coord, 2> m_center;
+        Coord m_step_angle;
+        Coord m_step_radius;
+        Coord m_start_angle;
+        Coord m_start_radius;
     };
 
     /// 3d iwise operator to compute 2d polar->cartesian transformation(s).
@@ -87,26 +80,19 @@ namespace noa::xform::details {
              nt::writable_nd<B + 2> Output>
     class Cartesian2Polar {
     public:
-        using index_type = Index;
-        using input_type = Input;
-        using interpolator_type = Interpolator;
-        using output_type = Output;
-        using input_value_type = nt::mutable_value_type_t<input_type>;
-        using output_value_type = nt::value_type_t<output_type>;
-        using coord_type = Coord;
-        using coord2_type = Vec<coord_type, 2>;
-        using shape2_type = Shape<index_type, 2>;
+        using input_value_type = nt::mutable_value_type_t<Input>;
+        using output_value_type = nt::value_type_t<Output>;
         static_assert(nt::spectrum_types<input_value_type, output_value_type>);
 
     public:
         Cartesian2Polar(
-            const input_type& cartesian,
-            const interpolator_type& interpolator,
-            const output_type& polar,
-            const shape2_type& polar_shape,
-            const coord2_type& cartesian_center,
-            const Linspace<coord_type>& radius_range,
-            const Linspace<coord_type>& angle_range
+            const Input& cartesian,
+            const Interpolator& interpolator,
+            const Output& polar,
+            const Shape<Index, 2>& polar_shape,
+            const Vec<Coord, 2>& cartesian_center,
+            const Linspace<Coord>& radius_range,
+            const Linspace<Coord>& angle_range
         ) :
             m_cartesian(cartesian),
             m_interpolator(interpolator),
@@ -122,13 +108,13 @@ namespace noa::xform::details {
             m_step_radius = radius_range.for_size(polar_shape[1]).step;
         }
 
-        NOA_HD constexpr void operator()(const Vec<index_type, B + 2>& batched_indices) const {
+        NOA_HD constexpr void operator()(const Vec<Index, B + 2>& batched_indices) const {
             const auto& [batches, indices] = batched_indices.template split<B>();
-            const auto polar_coordinate = indices.template as<coord_type>();
-            const coord_type phi = polar_coordinate[0] * m_step_angle + m_start_angle;
-            const coord_type rho = polar_coordinate[1] * m_step_radius + m_start_radius;
+            const auto polar_coordinate = indices.template as<Coord>();
+            const Coord phi = polar_coordinate[0] * m_step_angle + m_start_angle;
+            const Coord rho = polar_coordinate[1] * m_step_radius + m_start_radius;
 
-            coord2_type cartesian_coordinate = sincos(phi);
+            Vec<Coord, 2> cartesian_coordinate = sincos(phi);
             cartesian_coordinate *= rho;
             cartesian_coordinate += m_center;
 
@@ -137,14 +123,14 @@ namespace noa::xform::details {
         }
 
     private:
-        input_type m_cartesian;
-        interpolator_type m_interpolator;
-        output_type m_polar;
-        coord2_type m_center;
-        coord_type m_step_angle;
-        coord_type m_step_radius;
-        coord_type m_start_angle;
-        coord_type m_start_radius;
+        Input m_cartesian;
+        Interpolator m_interpolator;
+        Output m_polar;
+        Vec<Coord, 2> m_center;
+        Coord m_step_angle;
+        Coord m_step_radius;
+        Coord m_start_angle;
+        Coord m_start_radius;
     };
 
     template<usize N>
@@ -160,8 +146,8 @@ namespace noa::xform::details {
             angle_range.stop = 2 * Constant<f64>::PI;
     }
 
-    template<typename Input, typename Output>
-    void polar_check_parameters(const Input& input, const Output& output) {
+    template<CompileOptions OPTIONS, typename Input, typename Output>
+    void polar_check_parameters(const Input& input, const Output& output, Interp interp) {
         check(not input.is_empty() and not output.is_empty(), "Empty array detected");
 
         // Check batch axes are compatible.
@@ -194,9 +180,11 @@ namespace noa::xform::details {
                   "The input border mode should be {}, but got {}",
                   Border::ZERO, input.border());
         }
+
+        check(OPTIONS.interps[interp], "Interpolation method is not generated");
     }
 
-    template<bool CARTESIAN_TO_POLAR, bool IS_GPU = false,
+    template<CompileOptions OPTIONS, bool CARTESIAN_TO_POLAR, bool IS_GPU = false,
              typename Index, typename Input, typename Output, typename Options>
     void launch_cartesian_polar(
         Input&& input,
@@ -215,30 +203,32 @@ namespace noa::xform::details {
         const auto output_accessor = output_accessor_t(output_span.get(), output_span.strides());
 
         auto launch_iwise = [&](auto interp) {
-            auto result = prepare_interpolation_inputs<2, interp(), Border::ZERO, IS_GPU, Index, coord_t, false>(input);
-            using interpolator_t = decltype(result)::interpolator_type;
-            using accessor_t = decltype(result)::accessor_type;
+            constexpr Interp INTERP = interp();
+            if constexpr (OPTIONS.interps[INTERP]) {
+                auto result = prepare_interpolation_inputs<2, INTERP, Border::ZERO, IS_GPU, Index, coord_t, false>(input);
+                using interpolator_t = decltype(result)::interpolator_type;
+                using accessor_t = decltype(result)::accessor_type;
 
-            auto op = [&]{
-                if constexpr (CARTESIAN_TO_POLAR) {
-                    const auto polar_shape_r = output_span.shape().template pop_front<B>();
-                    return Cartesian2Polar<B, Index, coord_t, interpolator_t, accessor_t, output_accessor_t>(
-                        result.accessor, result.interpolator,
-                        output_accessor, polar_shape_r, cartesian_center.as<coord_t>(),
-                        rho_range, phi_range);
-                } else {
-                    const auto polar_shape_r = input.shape().template pop_front<B>().template as<Index>();
-                    return Polar2Cartesian<B, Index, coord_t, interpolator_t, accessor_t, output_accessor_t>(
-                        result.accessor, result.interpolator, polar_shape_r,
-                        output_accessor, cartesian_center.as<coord_t>(),
-                        rho_range, phi_range);
-                }
-            }();
-            return iwise<IwiseOptions{
-                .generate_cpu = not IS_GPU,
-                .generate_gpu = IS_GPU,
-            }>(output_span.shape(), output.device(), op,
-               std::forward<Input>(input), std::forward<Output>(output));
+                auto op = [&]{
+                    if constexpr (CARTESIAN_TO_POLAR) {
+                        const auto polar_shape_r = output_span.shape().template pop_front<B>();
+                        return Cartesian2Polar<B, Index, coord_t, interpolator_t, accessor_t, output_accessor_t>(
+                            result.accessor, result.interpolator,
+                            output_accessor, polar_shape_r, cartesian_center.as<coord_t>(),
+                            rho_range, phi_range);
+                    } else {
+                        const auto polar_shape_r = input.shape().template pop_front<B>().template as<Index>();
+                        return Polar2Cartesian<B, Index, coord_t, interpolator_t, accessor_t, output_accessor_t>(
+                            result.accessor, result.interpolator, polar_shape_r,
+                            output_accessor, cartesian_center.as<coord_t>(),
+                            rho_range, phi_range);
+                    }
+                }();
+                iwise<IwiseOptions{
+                    .generate_cpu = not IS_GPU,
+                    .generate_gpu = IS_GPU,
+                }>(output_span.shape(), output.device(), op, NOA_FWD(input), NOA_FWD(output));
+            }
         };
 
         Interp interp = options.interp;
@@ -290,6 +280,8 @@ namespace noa::xform {
     };
 
     /// Transforms 2D array(s) from cartesian to polar coordinates.
+    /// \tparam OPTIONS:
+    ///     Code generation options.
     /// \param[in] cartesian:
     ///     ((Bi..,)Hi,Wi) Input 2D cartesian array|texture to interpolate onto the new coordinate system.
     ///     The batch axes are broadcast to the output batch axes.
@@ -299,7 +291,7 @@ namespace noa::xform {
     ///     HW transformation center.
     /// \param options:
     ///     Transformation options.
-    template<typename Input, typename Output>
+    template<CompileOptions OPTIONS = CompileOptions{}, typename Input, typename Output>
         requires details::polar_transformable<Input, Output>
     void cartesian2polar(
         Input&& cartesian,
@@ -307,36 +299,53 @@ namespace noa::xform {
         const Vec<f64, 2>& cartesian_center,
         PolarTransformOptions options = {}
     ) {
-        details::polar_check_parameters(cartesian, polar);
+        details::polar_check_parameters<OPTIONS>(cartesian, polar, options.interp);
         details::set_polar_window_range_to_default(
             cartesian.shape(), cartesian_center,
             options.rho_range, options.phi_range);
 
-        if (polar.device().is_gpu()) {
-            #ifdef NOA_ENABLE_CUDA
-            if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
-                std::terminate(); // unreachable
-            } else {
-                check(nd::is_accessor_access_safe<i32>(cartesian, cartesian.shape()) and
-                      nd::is_accessor_access_safe<i32>(polar, polar.shape()),
-                      "isize indexing not instantiated for GPU devices");
-                details::launch_cartesian_polar<true, true, i32>(
-                    std::forward<Input>(cartesian),
-                    std::forward<Output>(polar),
-                    cartesian_center, options);
+        if constexpr (OPTIONS.generate_gpu) {
+            if (polar.device().is_gpu()) {
+                #ifdef NOA_ENABLE_CUDA
+                if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
+                    std::terminate(); // unreachable
+                } else {
+                    if constexpr (OPTIONS.generate_gpu_isize) {
+                        details::launch_cartesian_polar<OPTIONS, true, true, isize>(
+                            NOA_FWD(cartesian), NOA_FWD(polar), cartesian_center, options);
+                    } else {
+                        check(nd::is_accessor_access_safe<i32>(cartesian, cartesian.shape()) and
+                              nd::is_accessor_access_safe<i32>(polar, polar.shape()),
+                              "isize indexing not instantiated for GPU devices, see generate_gpu_size option");
+                        details::launch_cartesian_polar<OPTIONS, true, true, i32>(
+                            NOA_FWD(cartesian), NOA_FWD(polar), cartesian_center, options);
+                    }
+                    return;
+                }
+                #else
+                panic_no_gpu_backend(); // unreachable
+                #endif
             }
-            #else
-            panic_no_gpu_backend(); // unreachable
-            #endif
         } else {
-            details::launch_cartesian_polar<true, false, isize>(
-                std::forward<Input>(cartesian),
-                std::forward<Output>(polar),
-                cartesian_center, options);
+            #ifdef NOA_ENABLE_GPU
+            check(polar.device().is_cpu());
+            #endif
+        }
+        if constexpr (OPTIONS.generate_cpu) {
+            details::launch_cartesian_polar<OPTIONS, true, false, isize>(
+                NOA_FWD(cartesian), NOA_FWD(polar), cartesian_center, options);
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(polar.device().is_gpu());
+            #else
+            static_assert(nt::always_false<Input>, "CPU-only builds must generate the CPU codepath");
+            #endif
         }
     }
 
     /// Transforms 2D array(s) from polar to cartesian coordinates.
+    /// \tparam OPTIONS:
+    ///     Code generation options.
     /// \param[in] polar:
     ///     ((Bi..,)Hi,Wi) Input 2D polar array|texture to interpolate onto the new coordinate system.
     ///     The batch axes are broadcast to the output batch axes.
@@ -346,7 +355,7 @@ namespace noa::xform {
     ///     HW transformation center.
     /// \param options:
     ///     Transformation options.
-    template<typename Input, typename Output>
+    template<CompileOptions OPTIONS = CompileOptions{}, typename Input, typename Output>
         requires details::polar_transformable<Input, Output>
     void polar2cartesian(
         Input&& polar,
@@ -354,32 +363,47 @@ namespace noa::xform {
         const Vec<f64, 2>& cartesian_center,
         PolarTransformOptions options = {}
     ) {
-        details::polar_check_parameters(polar, cartesian);
+        details::polar_check_parameters<OPTIONS>(polar, cartesian, options.interp);
         details::set_polar_window_range_to_default(
             cartesian.shape(), cartesian_center,
             options.rho_range, options.phi_range);
 
-        if (cartesian.device().is_gpu()) {
-            #ifdef NOA_ENABLE_CUDA
-            if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
-                std::terminate(); // unreachable
-            } else {
-                check(nd::is_accessor_access_safe<i32>(cartesian, cartesian.shape()) and
-                      nd::is_accessor_access_safe<i32>(polar, polar.shape()),
-                      "isize indexing not instantiated for GPU devices");
-                details::launch_cartesian_polar<false, true, i32>(
-                    std::forward<Input>(cartesian),
-                    std::forward<Output>(polar),
-                    cartesian_center, options);
+        if constexpr (OPTIONS.generate_gpu) {
+            if (cartesian.device().is_gpu()) {
+                #ifdef NOA_ENABLE_CUDA
+                if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
+                    std::terminate(); // unreachable
+                } else {
+                    if constexpr (OPTIONS.generate_gpu_isize) {
+                        details::launch_cartesian_polar<OPTIONS, false, true, isize>(
+                            NOA_FWD(cartesian), NOA_FWD(polar), cartesian_center, options);
+                    } else {
+                        check(nd::is_accessor_access_safe<i32>(cartesian, cartesian.shape()) and
+                              nd::is_accessor_access_safe<i32>(polar, polar.shape()),
+                              "isize indexing not instantiated for GPU devices, see generate_gpu_size option");
+                        details::launch_cartesian_polar<OPTIONS, false, true, i32>(
+                            NOA_FWD(cartesian), NOA_FWD(polar), cartesian_center, options);
+                    }
+                    return;
+                }
+                #else
+                panic_no_gpu_backend(); // unreachable
+                #endif
             }
-            #else
-            panic_no_gpu_backend(); // unreachable
-            #endif
         } else {
-            details::launch_cartesian_polar<false, false, isize>(
-                std::forward<Input>(polar),
-                std::forward<Output>(cartesian),
-                cartesian_center, options);
+            #ifdef NOA_ENABLE_GPU
+            check(polar.device().is_cpu());
+            #endif
+        }
+        if constexpr (OPTIONS.generate_cpu) {
+            details::launch_cartesian_polar<OPTIONS, false, false, isize>(
+                NOA_FWD(polar), NOA_FWD(cartesian), cartesian_center, options);
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(polar.device().is_gpu());
+            #else
+            static_assert(nt::always_false<Input>, "CPU-only builds must generate the CPU codepath");
+            #endif
         }
     }
 }

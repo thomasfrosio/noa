@@ -56,7 +56,7 @@ TEST_CASE("xform::rasterize_central_slices_3d", "[asset]") {
             const Array volume_fft = noa::zeros<f32>(volume_shape.rfft(), options);
             nx::rasterize_central_slices_3d<"HC2HC">(
                 slice_fft, {}, slice_shape, volume_fft, {}, volume_shape,
-                inv_scaling_matrix, fwd_rotation_matrices, {
+                inv_scaling_matrix, fwd_rotation_matrices, nx::RasterizeCentralSlicesWithEWSOptions{
                     .fftfreq_cutoff = fftfreq_cutoff,
                     .target_shape = target_shape,
                     .ews_radius = ews_radius,

@@ -8,23 +8,6 @@
 #include "noa/xform/Transform.hpp"
 #include "noa/xform/Utils.hpp"
 
-namespace noa::xform {
-    struct TransformSpectrumCompileOptions {
-        /// Interpolation methods to generate code for.
-        InterpSet interps{InterpSet::all()};
-
-        /// Whether CPU code should be generated.
-        bool generate_cpu{true};
-
-        /// Whether GPU code should be generated.
-        bool generate_gpu{true};
-
-        /// Whether GPU code should be generated using isize indexing, instead of i32.
-        /// For large volumes (e.g. >1290^3), isize indexing might be required.
-        bool generate_gpu_isize{false};
-    };
-}
-
 namespace noa::xform::details {
     template<usize B, usize R, nf::Layout REMAP,
              nt::integer Index,
@@ -115,7 +98,7 @@ namespace noa::xform::details {
         consteval auto operator()() const -> bool { return VALUE;}
     };
 
-    template<usize R, nf::Layout REMAP, TransformSpectrumCompileOptions OPTIONS, typename Index, bool IS_GPU = false,
+    template<usize R, nf::Layout REMAP, CompileOptions OPTIONS, typename Index, bool IS_GPU = false,
              typename Input, typename Output, typename Matrix, typename Shift, usize N>
     void launch_transform_spectrum_nd(
         Input&& input,
@@ -244,7 +227,7 @@ namespace noa::xform {
     /// \tparam REMAP:
     ///     Remap operation. Every layout and remapping is supported.
     /// \tparam OPTIONS
-    ///     Compile time options (code generation).
+    ///     Code generation options.
     /// \tparam Rotation:
     ///     2D: Mat22<Coord> or a array of that type.
     ///     3D: Mat33<Coord>, Quaternion<Coord>, or a array of these types.
@@ -274,7 +257,7 @@ namespace noa::xform {
     /// \param options:
     ///     Transformation options.
     /// \note For more details, see InterpolatorSpectrum.
-    template<usize RANK, nf::Layout REMAP, TransformSpectrumCompileOptions OPTIONS = TransformSpectrumCompileOptions{},
+    template<usize RANK, nf::Layout REMAP, CompileOptions OPTIONS = CompileOptions{},
              typename Input, typename Output, typename Rotation, typename Shift = Empty, usize N>
         requires details::transformable_spectrum_nd<RANK, REMAP, Input, Output, Rotation, Shift, N>
     void transform_spectrum(
@@ -348,7 +331,7 @@ namespace noa::xform {
                   Border::ZERO, input.border());
         }
 
-        check(OPTIONS.interps[options.interp]);
+        check(OPTIONS.interps[options.interp], "Interpolation method is not generated");
 
         if constexpr (OPTIONS.generate_cpu) {
             if (output.device().is_gpu()) {
@@ -357,13 +340,13 @@ namespace noa::xform {
                     std::terminate(); // unreachable
                 } else {
                     if constexpr (OPTIONS.generate_gpu_isize) {
-                        details::launch_transform_spectrum_nd<REMAP, RANK, isize, true>(
+                        details::launch_transform_spectrum_nd<RANK, REMAP, OPTIONS, isize, true>(
                         NOA_FWD(input), NOA_FWD(output), shape, NOA_FWD(inverse_rotations), NOA_FWD(post_shifts), options);
                     } else {
                         check(nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
                               nd::is_accessor_access_safe<i32>(output.strides(), output.shape()),
                               "isize indexing not instantiated for GPU devices, see generate_gpu_size option");
-                        details::launch_transform_spectrum_nd<REMAP, RANK, i32, true>(
+                        details::launch_transform_spectrum_nd<RANK, REMAP, OPTIONS, i32, true>(
                             NOA_FWD(input), NOA_FWD(output), shape, NOA_FWD(inverse_rotations), NOA_FWD(post_shifts), options);
                     }
                     return;
@@ -378,21 +361,20 @@ namespace noa::xform {
             #endif
         }
         if constexpr (OPTIONS.generate_cpu) {
-            details::launch_transform_spectrum_nd<REMAP, RANK, isize>(
+            details::launch_transform_spectrum_nd<RANK, REMAP, OPTIONS, isize>(
                 NOA_FWD(input), NOA_FWD(output), shape, NOA_FWD(inverse_rotations), NOA_FWD(post_shifts), options);
         } else {
             #ifdef NOA_ENABLE_GPU
             check(output.device().is_gpu());
             #else
-            static_assert(nt::always_false<Input>, "Function is always a no-op");
+            static_assert(nt::always_false<Input>, "CPU-only builds must generate the CPU codepath");
             #endif
         }
     }
 
     /// Applies one or multiple 2D transforms (rotation and scaling, followed by translation) on 2D (r)FFTs.
-    template<nf::Layout REMAP, TransformSpectrumCompileOptions OPTIONS = TransformSpectrumCompileOptions{},
+    template<nf::Layout REMAP, CompileOptions OPTIONS = CompileOptions{},
              typename Input, typename Output, typename Rotation, typename Shift = Empty, usize N>
-        requires details::transformable_spectrum_nd<2, REMAP, Input, Output, Rotation, Shift, N>
     void transform_spectrum_2d(
         Input&& input,
         Output&& output,
@@ -405,9 +387,8 @@ namespace noa::xform {
     }
 
     /// Applies one or multiple 3D transforms (rotation and scaling, followed by translation) on 3D (r)FFTs.
-    template<nf::Layout REMAP, TransformSpectrumCompileOptions OPTIONS = TransformSpectrumCompileOptions{},
+    template<nf::Layout REMAP, CompileOptions OPTIONS = CompileOptions{},
              typename Input, typename Output, typename Rotation, typename Shift = Empty, usize N>
-        requires details::transformable_spectrum_nd<3, REMAP, Input, Output, Rotation, Shift, N>
     void transform_spectrum_3d(
         Input&& input,
         Output&& output,

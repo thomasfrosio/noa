@@ -145,7 +145,7 @@ namespace noa::xform::details {
                 .input = input.accessor(),
                 .output = output.accessor(),
                 .width = width,
-            }, std::forward<A>(arrays)...);
+            }, NOA_FWD(arrays)...);
     }
 
     template<typename T, usize N, typename... A>
@@ -163,7 +163,7 @@ namespace noa::xform::details {
             BSplinePrefilterInplace<N, Accessor<T, N, isize>>{
                 .output = output.accessor(),
                 .width = width,
-            }, std::forward<A>(arrays)...);
+            }, NOA_FWD(arrays)...);
     }
 }
 
@@ -222,25 +222,16 @@ namespace noa::xform {
 
         // TODO For width in CUDA, a single thread to go through the each line. Obviously, this leeds to poor performance.
         if (input.data() == output.data()) {
-            details::cubic_bspline_prefilter_width_inplace(
-                output_br, device,
-                std::forward<Input>(input), std::forward<Output>(output)
-            );
+            details::cubic_bspline_prefilter_width_inplace(output_br, device, NOA_FWD(input), NOA_FWD(output));
         } else {
-            details::cubic_bspline_prefilter_width(
-                input_br, output_br, device,
-                std::forward<Input>(input), std::forward<Output>(output)
-            );
+            details::cubic_bspline_prefilter_width(input_br, output_br, device, NOA_FWD(input), NOA_FWD(output));
         }
         if constexpr (BR >= 2) {
             if (rank >= 2) {
                 // Move the height to the rightmost position.
                 auto permutation = Vec<usize, BR>::arange().swap(BR - 2, BR - 1);
                 auto output_br_wh = output_br.permute(permutation);
-                details::cubic_bspline_prefilter_width_inplace(
-                    output_br_wh, device,
-                    std::forward<Input>(input), std::forward<Output>(output)
-                );
+                details::cubic_bspline_prefilter_width_inplace(output_br_wh, device, NOA_FWD(input), NOA_FWD(output));
             }
         }
         if constexpr (BR >= 3) {
@@ -248,23 +239,20 @@ namespace noa::xform {
                 // Move the depth to the rightmost position.
                 auto permutation = Vec<usize, BR>::arange().exclude(BR - 3).push_back(BR - 3);
                 auto output_br_hwd = output_br.permute(permutation);
-                details::cubic_bspline_prefilter_width_inplace(
-                    output_br_hwd, device,
-                    std::forward<Input>(input), std::forward<Output>(output)
-                );
+                details::cubic_bspline_prefilter_width_inplace(output_br_hwd, device, NOA_FWD(input), NOA_FWD(output));
             }
         }
     }
     template<typename Input, typename Output>
     void cubic_bspline_prefilter_1d(Input&& input, Output&& output, const CubicBSplinePrefilterOptions& options = {}) {
-        cubic_bspline_prefilter<1>(std::forward<Input>(input), std::forward<Output>(output), options);
+        cubic_bspline_prefilter<1>(NOA_FWD(input), NOA_FWD(output), options);
     }
     template<typename Input, typename Output>
     void cubic_bspline_prefilter_2d(Input&& input, Output&& output, const CubicBSplinePrefilterOptions& options = {}) {
-        cubic_bspline_prefilter<2>(std::forward<Input>(input), std::forward<Output>(output), options);
+        cubic_bspline_prefilter<2>(NOA_FWD(input), NOA_FWD(output), options);
     }
     template<typename Input, typename Output>
     void cubic_bspline_prefilter_3d(Input&& input, Output&& output, const CubicBSplinePrefilterOptions& options = {}) {
-        cubic_bspline_prefilter<3>(std::forward<Input>(input), std::forward<Output>(output), options);
+        cubic_bspline_prefilter<3>(NOA_FWD(input), NOA_FWD(output), options);
     }
 }

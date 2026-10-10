@@ -1,6 +1,5 @@
 #pragma once
 
-#include "noa/xform/core/CubicBSplinePrefilter.hpp"
 #include "noa/xform/core/Draw.hpp"
 #include "noa/xform/core/Euler.hpp"
 #include "noa/xform/core/Interp.hpp"
@@ -8,10 +7,12 @@
 #include "noa/xform/core/Polar.hpp"
 #include "noa/xform/core/Quaternion.hpp"
 #include "noa/xform/core/Symmetry.hpp"
+#include "noa/xform/core/Traits.hpp"
 #include "noa/xform/core/Transform.hpp"
 
 #include "noa/xform/CubicBSplinePrefilter.hpp"
 #include "noa/xform/Draw.hpp"
+#include "noa/xform/FourierInterpolationCorrection.hpp"
 #include "noa/xform/FourierProject.hpp"
 #include "noa/xform/PolarTransform.hpp"
 #include "noa/xform/PolarTransformSpectrum.hpp"

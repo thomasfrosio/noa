@@ -7,6 +7,7 @@
 #include "noa/runtime/Factory.hpp"
 
 #include "noa/fft/core/Frequency.hpp"
+#include "noa/signal/core/Traits.hpp"
 #include "noa/xform/Utils.hpp"
 
 namespace noa::xform::details {

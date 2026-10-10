@@ -7,6 +7,27 @@
 #include "noa/xform/cuda/Texture.cuh"
 #endif
 
+namespace noa::xform {
+    struct CompileOptions {
+        /// Interpolation methods to generate code for.
+        InterpSet interps{InterpSet::all()};
+
+        /// Border modes to generate code for.
+        BorderSet borders{BorderSet::all()};
+
+        /// Whether CPU code should be generated.
+        bool generate_cpu{true};
+
+        /// Whether GPU code should be generated.
+        bool generate_gpu{true};
+
+        /// Whether GPU code should be generated using isize indexing, instead of i32.
+        /// For large volumes (e.g. >1290^3), isize indexing might be required.
+        /// If the indexing type is too small for the input/output strides, a runtime error is thrown.
+        bool generate_gpu_isize{false};
+    };
+}
+
 namespace noa::xform::details {
     /// Returns the input type for interpolation given a span, array or texture.
     /// For GPU textures, EXTRACT_GPU_TEXTURE must be true, otherwise a runtime error is raised.

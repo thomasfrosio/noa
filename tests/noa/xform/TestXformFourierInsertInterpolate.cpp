@@ -57,7 +57,7 @@ TEST_CASE("xform::insert_central_slices_3d", "[asset]") {
             const Array volume_fft = noa::zeros<f32>(volume_shape.rfft(), options);
             nx::insert_central_slices_3d<"hc2hc">(
                 slice_fft.eval(), {}, slice_shape, volume_fft, {}, volume_shape,
-                fwd_scaling_matrix, inv_rotation_matrices, {
+                fwd_scaling_matrix, inv_rotation_matrices, nx::InsertCentralSlicesEWSOptions{
                     .interp = Interp::LINEAR,
                     .windowed_sinc = {fftfreq_sinc, fftfreq_blackman},
                     .fftfreq_cutoff = fftfreq_cutoff,

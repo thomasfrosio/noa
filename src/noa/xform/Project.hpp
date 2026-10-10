@@ -70,27 +70,19 @@ namespace noa::xform::details {
              nt::readable_nd<B + 1> Matrix>
     class BackwardProject {
     public:
-        using index_type = Index;
-        using input_type = Input;
-        using output_type = Output;
-        using interpolator_type = Interpolator;
-        using input_value_type = nt::mutable_value_type_t<input_type>;
-        using output_value_type = nt::value_type_t<output_type>;
-
-        using batched_matrix_type = Matrix;
-        using matrix_type = nt::mutable_value_type_t<batched_matrix_type>;
+        using input_value_type = nt::mutable_value_type_t<Input>;
+        using output_value_type = nt::value_type_t<Output>;
+        using matrix_type = nt::mutable_value_type_t<Matrix>;
         using coord_type = nt::value_type_t<matrix_type>;
-        using coord_4d_type = Vec<coord_type, 4>;
-
         static_assert(nt::any_of<matrix_type, Mat<coord_type, 4, 4>, Mat<coord_type, 2, 4>>);
 
     public:
         constexpr BackwardProject(
-            const input_type& input,
-            const interpolator_type& interpolator,
-            const output_type& output,
-            const batched_matrix_type& inverse_matrices,
-            index_type n_inputs,
+            const Input& input,
+            const Interpolator& interpolator,
+            const Output& output,
+            const Matrix& inverse_matrices,
+            Index n_inputs,
             bool add_to_output
         ) :
             m_input(input),
@@ -100,14 +92,14 @@ namespace noa::xform::details {
             m_n_inputs(n_inputs),
             m_add_to_output(add_to_output) {}
 
-        constexpr void operator()(const Vec<index_type, B + 3>& batched_indices) const {
+        constexpr void operator()(const Vec<Index, B + 3>& batched_indices) const {
             const auto& [batches, indices] = batched_indices.template split<B>();
-            const auto output_coordinates = coord_4d_type::from_values(indices[0], indices[1], indices[2], 1);
+            const auto output_coordinates = Vec<coord_type, 4>::from_values(indices[0], indices[1], indices[2], 1);
 
             input_value_type value{};
             auto inverse_matrices = m_inverse_matrices[batches];
             auto input = m_input[batches];
-            for (index_type i{}; i < m_n_inputs; ++i) {
+            for (Index i{}; i < m_n_inputs; ++i) {
                 const auto input_coordinates = project_vector(inverse_matrices[i], output_coordinates);
                 value += static_cast<output_value_type>(m_interpolator.get(input[i], input_coordinates));
             }
@@ -117,11 +109,11 @@ namespace noa::xform::details {
         }
 
     private:
-        input_type m_input;
-        output_type m_output;
-        interpolator_type m_interpolator;
-        batched_matrix_type m_inverse_matrices;
-        index_type m_n_inputs;
+        Input m_input;
+        Output m_output;
+        Interpolator m_interpolator;
+        Matrix m_inverse_matrices;
+        Index m_n_inputs;
         bool m_add_to_output;
     };
 
@@ -197,35 +189,27 @@ namespace noa::xform::details {
              nt::readable_nd<B + 1> BatchedOutputMatrix>
     class BackwardForwardProject {
     public:
-        using index_type = Index;
-        using input_type = Input;
-        using output_type = Output;
-        using interpolator_type = Interpolator;
-        using input_value_type = nt::mutable_value_type_t<input_type>;
-        using output_value_type = nt::value_type_t<output_type>;
+        using input_value_type = nt::mutable_value_type_t<Input>;
+        using output_value_type = nt::value_type_t<Output>;
         using output_real_type = nt::value_type_t<output_value_type>;
 
-        using batched_input_matrix_type = BatchedInputMatrix;
-        using batched_output_matrix_type = BatchedOutputMatrix;
-        using input_matrix_type = nt::mutable_value_type_t<batched_input_matrix_type>;
-        using output_matrix_type = nt::mutable_value_type_t<batched_output_matrix_type>;
+        using input_matrix_type = nt::mutable_value_type_t<BatchedInputMatrix>;
+        using output_matrix_type = nt::mutable_value_type_t<BatchedOutputMatrix>;
         using coord_type = nt::value_type_t<input_matrix_type>;
-        using coord_3d_type = Vec<coord_type, 3>;
-        using shape_3d_type = Shape<index_type, 3>;
 
         static_assert(nt::any_of<input_matrix_type, Mat<coord_type, 4, 4>, Mat<coord_type, 2, 4>>);
         static_assert(nt::any_of<output_matrix_type, Mat<coord_type, 4, 4>, Mat<coord_type, 3, 4>>);
 
     public:
         constexpr BackwardForwardProject(
-            const input_type& input,
-            const interpolator_type& interpolator,
-            const output_type& output,
-            const shape_3d_type& volume_shape,
-            const batched_input_matrix_type& batched_backward_matrices,
-            const batched_output_matrix_type& batched_forward_matrices,
-            index_type projection_window_size,
-            index_type n_inputs
+            const Input& input,
+            const Interpolator& interpolator,
+            const Output& output,
+            const Shape<Index, 3>& volume_shape,
+            const BatchedInputMatrix& batched_backward_matrices,
+            const BatchedOutputMatrix& batched_forward_matrices,
+            Index projection_window_size,
+            Index n_inputs
         ) :
             m_input(input),
             m_interpolator(interpolator),
@@ -241,14 +225,14 @@ namespace noa::xform::details {
         // indices: (b..,n,z,y,x)
         // For every pixel (y,x) of the forward projected output image n.
         // z is the extra dimension for the projection window (the longest diagonal).
-        constexpr void operator()(nt::compute_handle auto& ch, const Vec<index_type, B + 4>& indices) const {
+        constexpr void operator()(nt::compute_handle auto& ch, const Vec<Index, B + 4>& indices) const {
             const auto batches_n = indices.template pop_back<3>();
             const auto& z = indices[B + 1];
             const auto& y = indices[B + 2];
             const auto& x = indices[B + 3];
 
             const auto affine = m_batched_forward_matrices[batches_n].filter_rows(0, 1, 2);
-            const auto image_coordinates = coord_3d_type::from_values(z - m_projection_window_radius, y, x);
+            const auto image_coordinates = Vec<coord_type, 3>::from_values(z - m_projection_window_radius, y, x);
             const auto volume_coordinates = forward_projection_transform_vector(
                 image_coordinates, m_volume_center, affine);
 
@@ -267,7 +251,7 @@ namespace noa::xform::details {
             auto batched_backward_matrices = m_batched_backward_matrices[batches];
             auto input = m_input[batches];
             input_value_type value{};
-            for (index_type i{}; i < m_n_input_images; ++i) {
+            for (Index i{}; i < m_n_input_images; ++i) {
                 const auto input_coordinates = project_vector(
                     batched_backward_matrices[i], volume_coordinates.push_back(1));
                 value += static_cast<output_value_type>(m_interpolator.get(input[i], input_coordinates));
@@ -288,24 +272,26 @@ namespace noa::xform::details {
         }
 
     private:
-        input_type m_input;
-        interpolator_type m_interpolator;
-        output_type m_output;
-        batched_input_matrix_type m_batched_backward_matrices;
-        batched_output_matrix_type m_batched_forward_matrices;
-        coord_3d_type m_volume_shape{};
-        coord_3d_type m_volume_center{};
-        index_type m_projection_window_radius{};
-        index_type m_n_input_images;
+        Input m_input;
+        Interpolator m_interpolator;
+        Output m_output;
+        BatchedInputMatrix m_batched_backward_matrices;
+        BatchedOutputMatrix m_batched_forward_matrices;
+        Vec<coord_type, 3> m_volume_shape{};
+        Vec<coord_type, 3> m_volume_center{};
+        Index m_projection_window_radius{};
+        Index m_n_input_images;
     };
 
-    template<typename Input, typename Output,
+    template<CompileOptions OPTIONS,
+             typename Input, typename Output,
              typename BackwardTransform = Empty,
              typename ForwardTransform = Empty>
     void check_projection_parameters(
         const Input& input, const Output& output,
         const BackwardTransform& backward_transforms,
-        const ForwardTransform& forward_transforms
+        const ForwardTransform& forward_transforms,
+        Interp interp
     ) {
         check(not output.is_empty(), "Empty array detected");
         const Device output_device = output.device();
@@ -346,9 +332,11 @@ namespace noa::xform::details {
             check_xform(backward_transforms, input.shape().template pop_back<2>(), "backward_projection_matrices");
         if constexpr (nt::array<ForwardTransform>)
             check_xform(forward_transforms, output.shape().template pop_back<2>(), "forward_projection_matrices");
+
+        check(OPTIONS.interps[interp], "Interpolation method is not generated");
     }
 
-    template<typename Index, bool IS_GPU = false, typename Input, typename Output, typename Transform>
+    template<CompileOptions OPTIONS, typename Index, bool IS_GPU = false, typename Input, typename Output, typename Transform>
     void launch_backward_projection(Input&& input, Output&& output, Transform&& xform, auto options) {
         constexpr usize N = nt::array_size_v<Output>;
         constexpr usize R = 3;
@@ -365,21 +353,21 @@ namespace noa::xform::details {
             options.interp = input.interp();
 
         auto launch_iwise = [&](auto interp) {
-            using coord_t = nt::mutable_value_type_twice_t<Transform>;
-            auto result = prepare_interpolation_inputs<2, interp(), Border::ZERO, IS_GPU, Index, coord_t, false>(input);
-            using interpolator_t = decltype(result)::interpolator_type;
-            using accessor_t = decltype(result)::accessor_type;
-            using op_t = BackwardProject<B, Index, interpolator_t, accessor_t, output_accessor_t, xform_accessor_t>;
-            auto op = op_t(result.accessor, result.interpolator, output_accessor, xform_accessor,
-                           n_images, options.add_to_output);
+            constexpr Interp INTERP = interp();
+            if constexpr (OPTIONS.interps[INTERP]) {
+                using coord_t = nt::mutable_value_type_twice_t<Transform>;
+                auto result = prepare_interpolation_inputs<2, INTERP, Border::ZERO, IS_GPU, Index, coord_t, false>(input);
+                using interpolator_t = decltype(result)::interpolator_type;
+                using accessor_t = decltype(result)::accessor_type;
+                using op_t = BackwardProject<B, Index, interpolator_t, accessor_t, output_accessor_t, xform_accessor_t>;
+                auto op = op_t(result.accessor, result.interpolator, output_accessor, xform_accessor,
+                               n_images, options.add_to_output);
 
-            iwise<IwiseOptions{
-                .generate_cpu = not IS_GPU,
-                .generate_gpu = IS_GPU,
-            }>(output_span.shape(), output.device(), op,
-               std::forward<Input>(input),
-               std::forward<Output>(output),
-               std::forward<Transform>(xform));
+                iwise<IwiseOptions{
+                    .generate_cpu = not IS_GPU,
+                    .generate_gpu = IS_GPU,
+                }>(output_span.shape(), output.device(), op, NOA_FWD(input), NOA_FWD(output), NOA_FWD(xform));
+            }
         };
 
         switch (options.interp) {
@@ -395,7 +383,7 @@ namespace noa::xform::details {
         }
     }
 
-    template<typename Index, bool IS_GPU = false, typename Input, typename Output, typename Transform>
+    template<CompileOptions OPTIONS, typename Index, bool IS_GPU = false, typename Input, typename Output, typename Transform>
     void launch_forward_projection(
         Input&& input, Output&& output, Transform&& xform,
         isize projection_window_size, auto options
@@ -418,24 +406,24 @@ namespace noa::xform::details {
             options.interp = input.interp();
 
         auto launch_iwise = [&](auto interp) {
-            using coord_t = nt::mutable_value_type_twice_t<Transform>;
-            auto result = prepare_interpolation_inputs<3, interp(), Border::ZERO, IS_GPU, Index, coord_t, false>(input);
-            using interpolator_t = decltype(result)::interpolator_type;
-            using accessor_t = decltype(result)::accessor_type;
-            using op_t = ForwardProject<B, Index, interpolator_t, accessor_t, output_accessor_t, xform_accessor_t>;
-            auto op = op_t(
-                result.accessor, result.interpolator, output_accessor,
-                volume_shape, xform_accessor, output_z
-            );
+            constexpr Interp INTERP = interp();
+            if constexpr (OPTIONS.interps[INTERP]) {
+                using coord_t = nt::mutable_value_type_twice_t<Transform>;
+                auto result = prepare_interpolation_inputs<3, INTERP, Border::ZERO, IS_GPU, Index, coord_t, false>(input);
+                using interpolator_t = decltype(result)::interpolator_type;
+                using accessor_t = decltype(result)::accessor_type;
+                using op_t = ForwardProject<B, Index, interpolator_t, accessor_t, output_accessor_t, xform_accessor_t>;
+                auto op = op_t(
+                    result.accessor, result.interpolator, output_accessor,
+                    volume_shape, xform_accessor, output_z
+                );
 
-            auto iwise_shape = output_span.shape().template insert<B + 1>(output_z); // (b..,n,h,w)->(b..,n,z,h,w)
-            iwise<IwiseOptions{
-                .generate_cpu = not IS_GPU,
-                .generate_gpu = IS_GPU,
-            }>(iwise_shape, output.device(), op,
-               std::forward<Input>(input),
-               std::forward<Output>(output),
-               std::forward<Transform>(xform));
+                auto iwise_shape = output_span.shape().template insert<B + 1>(output_z); // (b..,n,h,w)->(b..,n,z,h,w)
+                iwise<IwiseOptions{
+                    .generate_cpu = not IS_GPU,
+                    .generate_gpu = IS_GPU,
+                }>(iwise_shape, output.device(), op, NOA_FWD(input), NOA_FWD(output), NOA_FWD(xform));
+            }
         };
 
         switch (options.interp) {
@@ -451,7 +439,7 @@ namespace noa::xform::details {
         }
     }
 
-    template<typename Index, bool IS_GPU = false, typename Input, typename Output,
+    template<CompileOptions OPTIONS, typename Index, bool IS_GPU = false, typename Input, typename Output,
              typename BackwardTransform, typename ForwardTransform>
     void launch_fused_projection(
         Input&& input, Output&& output, const Shape<isize, 3>& volume_shape,
@@ -480,28 +468,28 @@ namespace noa::xform::details {
             options.interp = input.interp();
 
         auto launch_iwise = [&](auto interp) {
-            using coord_t = nt::mutable_value_type_twice_t<BackwardTransform>;
-            auto result = prepare_interpolation_inputs<2, interp(), Border::ZERO, IS_GPU, Index, coord_t, false>(input);
-            using interpolator_t = decltype(result)::interpolator_type;
-            using accessor_t = decltype(result)::accessor_type;
+            constexpr Interp INTERP = interp();
+            if constexpr (OPTIONS.interps[INTERP]) {
+                using coord_t = nt::mutable_value_type_twice_t<BackwardTransform>;
+                auto result = prepare_interpolation_inputs<2, INTERP, Border::ZERO, IS_GPU, Index, coord_t, false>(input);
+                using interpolator_t = decltype(result)::interpolator_type;
+                using accessor_t = decltype(result)::accessor_type;
 
-            using op_t = BackwardForwardProject<
-                B, Index, interpolator_t, accessor_t, output_accessor_t,
-                bwd_xform_accessor_t, fwd_xform_accessor_t>;
-            auto op = op_t(
-                result.accessor, result.interpolator, output_accessor, volume_shape.as<Index>(),
-                bwd_xform_accessor, fwd_xform_accessor, output_z, n_input_images
-            );
+                using op_t = BackwardForwardProject<
+                    B, Index, interpolator_t, accessor_t, output_accessor_t,
+                    bwd_xform_accessor_t, fwd_xform_accessor_t>;
+                auto op = op_t(
+                    result.accessor, result.interpolator, output_accessor, volume_shape.as<Index>(),
+                    bwd_xform_accessor, fwd_xform_accessor, output_z, n_input_images
+                );
 
-            auto iwise_shape = output_span.shape().template insert<B + 1>(output_z); // (b..,n,h,w)->(b..,n,z,h,w)
-            iwise<IwiseOptions{
-                .generate_cpu = not IS_GPU,
-                .generate_gpu = IS_GPU,
-            }>(iwise_shape, output.device(), op,
-               std::forward<Input>(input),
-               std::forward<Output>(output),
-               std::forward<BackwardTransform>(backward_xform),
-               std::forward<ForwardTransform>(forward_xform));
+                auto iwise_shape = output_span.shape().template insert<B + 1>(output_z); // (b..,n,h,w)->(b..,n,z,h,w)
+                iwise<IwiseOptions{
+                    .generate_cpu = not IS_GPU,
+                    .generate_gpu = IS_GPU,
+                }>(iwise_shape, output.device(), op,
+                   NOA_FWD(input), NOA_FWD(output), NOA_FWD(backward_xform), NOA_FWD(forward_xform));
+            }
         };
 
         switch (options.interp) {
@@ -606,6 +594,8 @@ namespace noa::xform {
     };
 
     /// Backward project 2d images into a 3d volume using real space backprojection.
+    /// \tparam OPTIONS:
+    ///     Code generation options.
     /// \tparam Transform:
     ///     Mat44, Mat24, or a array of these types.
     /// \param[in] input_images:
@@ -621,7 +611,7 @@ namespace noa::xform {
     ///     Affine matrices allows complete control on the projection center and axis.
     /// \param options:
     ///     Projection options.
-    template<typename Input, typename Output, typename Transform>
+    template<CompileOptions OPTIONS = CompileOptions{}, typename Input, typename Output, typename Transform>
         requires details::backward_projectable<Input, Output, Transform>
     void backward_project_3d(
         Input&& input_images,
@@ -629,35 +619,50 @@ namespace noa::xform {
         Transform&& projection_matrices,
         ProjectionOptions options = {}
     ) {
-        details::check_projection_parameters(input_images, output_volume, projection_matrices, {});
+        details::check_projection_parameters<OPTIONS>(input_images, output_volume, projection_matrices, {}, options.interp);
 
-        if (output_volume.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
-                std::terminate(); // unreachable
-            } else {
-                check(nd::is_accessor_access_safe<i32>(input_images.strides(), input_images.shape()) and
-                      nd::is_accessor_access_safe<i32>(output_volume.strides(), output_volume.shape()),
-                      "isize indexing not instantiated for GPU devices");
-                details::launch_backward_projection<i32, true>(
-                    std::forward<Input>(input_images),
-                    std::forward<Output>(output_volume),
-                    std::forward<Transform>(projection_matrices),
-                    options);
+        if constexpr (OPTIONS.generate_gpu) {
+            if (output_volume.device().is_gpu()) {
+                #ifdef NOA_ENABLE_GPU
+                if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
+                    std::terminate(); // unreachable
+                } else {
+                    if constexpr (OPTIONS.generate_gpu_isize) {
+                        details::launch_backward_projection<OPTIONS, isize, true>(
+                            NOA_FWD(input_images), NOA_FWD(output_volume), NOA_FWD(projection_matrices), options);
+                    } else {
+                        check(nd::is_accessor_access_safe<i32>(input_images.strides(), input_images.shape()) and
+                              nd::is_accessor_access_safe<i32>(output_volume.strides(), output_volume.shape()),
+                              "isize indexing not instantiated for GPU devices, see generate_gpu_size option");
+                        details::launch_backward_projection<OPTIONS, i32, true>(
+                            NOA_FWD(input_images), NOA_FWD(output_volume), NOA_FWD(projection_matrices), options);
+                    }
+                    return;
+                }
+                #else
+                panic_no_gpu_backend();
+                #endif
             }
-            return;
-            #else
-            panic_no_gpu_backend();
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(output_volume.device().is_cpu());
             #endif
         }
-        details::launch_backward_projection<isize>(
-            std::forward<Input>(input_images),
-            std::forward<Output>(output_volume),
-            std::forward<Transform>(projection_matrices),
-            options);
+        if constexpr (OPTIONS.generate_cpu) {
+            details::launch_backward_projection<OPTIONS, isize>(
+                NOA_FWD(input_images), NOA_FWD(output_volume), NOA_FWD(projection_matrices), options);
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(output_volume.device().is_gpu());
+            #else
+            static_assert(nt::always_false<Input>, "CPU-only builds must generate the CPU codepath");
+            #endif
+        }
     }
 
     /// Forward project a 3d volume onto 2d images using real space backprojection.
+    /// \tparam OPTIONS:
+    ///     Code generation options.
     /// \tparam Transform:
     ///     Mat44, Mat34, or a array of these types.
     /// \param[in] input_volume:
@@ -675,7 +680,7 @@ namespace noa::xform {
     ///     Size of the projection window, as defined by forward_projection_window_size.
     /// \param[in] options:
     ///     Projection options.
-    template<typename Input, typename Output, typename Transform>
+    template<CompileOptions OPTIONS = CompileOptions{}, typename Input, typename Output, typename Transform>
         requires details::forward_projectable<Input, Output, Transform>
     void forward_project_3d(
         Input&& input_volume,
@@ -684,37 +689,54 @@ namespace noa::xform {
         isize projection_window_size,
         const ProjectionOptions& options = {}
     ) {
-        details::check_projection_parameters(input_volume, output_images, {}, projection_matrices);
+        details::check_projection_parameters<OPTIONS>(input_volume, output_images, {}, projection_matrices, options.interp);
 
-        if (output_images.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
-                std::terminate(); // unreachable
-            } else {
-                check(nd::is_accessor_access_safe<i32>(input_volume.strides(), input_volume.shape()) and
-                      nd::is_accessor_access_safe<i32>(output_images.strides(), output_images.shape()),
-                      "isize indexing not instantiated for GPU devices");
-                details::launch_forward_projection<i32, true>(
-                    std::forward<Input>(input_volume),
-                    std::forward<Output>(output_images),
-                    std::forward<Transform>(projection_matrices),
-                    projection_window_size, options);
+        if constexpr (OPTIONS.generate_gpu) {
+            if (output_images.device().is_gpu()) {
+                #ifdef NOA_ENABLE_GPU
+                if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
+                    std::terminate(); // unreachable
+                } else {
+                    if constexpr (OPTIONS.generate_gpu_isize) {
+                        details::launch_forward_projection<OPTIONS, isize, true>(
+                            NOA_FWD(input_volume), NOA_FWD(output_images),
+                            NOA_FWD(projection_matrices), projection_window_size, options);
+                    } else {
+                        check(nd::is_accessor_access_safe<i32>(input_volume.strides(), input_volume.shape()) and
+                              nd::is_accessor_access_safe<i32>(output_images.strides(), output_images.shape()),
+                              "isize indexing not instantiated for GPU devices, see generate_gpu_size option");
+                        details::launch_forward_projection<OPTIONS, i32, true>(
+                            NOA_FWD(input_volume), NOA_FWD(output_images),
+                            NOA_FWD(projection_matrices), projection_window_size, options);
+                    }
+                    return;
+                }
+                #else
+                panic_no_gpu_backend();
+                #endif
             }
-            return;
-            #else
-            panic_no_gpu_backend();
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(output_images.device().is_cpu());
             #endif
         }
-        details::launch_forward_projection<isize>(
-            std::forward<Input>(input_volume),
-            std::forward<Output>(output_images),
-            std::forward<Transform>(projection_matrices),
-            projection_window_size, options);
+        if constexpr (OPTIONS.generate_cpu) {
+            details::launch_forward_projection<OPTIONS, isize>(
+                NOA_FWD(input_volume), NOA_FWD(output_images),
+                NOA_FWD(projection_matrices), projection_window_size, options);
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(output_images.device().is_gpu());
+            #else
+            static_assert(nt::always_false<Input>, "CPU-only builds must generate the CPU codepath");
+            #endif
+        }
     }
 
     /// Backward project 2d images into a 3d virtual volume and immediately forward project
     /// this volume onto 2d images, using real space backprojection.
-    ///
+    /// \tparam OPTIONS:
+    ///     Code generation options.
     /// \tparam InputTransform:
     ///     Mat44, Mat24, or a array of these types.
     /// \tparam OutputTransform:
@@ -747,7 +769,8 @@ namespace noa::xform {
     ///       within the volume_shape, plus adds a linear antialiasing at the edges to remove sharp edges. As such,
     ///       while the elements within the volume_shape are unaffected, due to this divergence in handling elements at
     ///       the edges, these output images can be slightly different from the forward_project_3d output images.
-    template<typename Input, typename Output, typename InputTransform, typename OutputTransform>
+    template<CompileOptions OPTIONS = CompileOptions{},
+             typename Input, typename Output, typename InputTransform, typename OutputTransform>
         requires details::backward_and_forward_projectable<Input, Output, InputTransform, OutputTransform>
     void backward_and_forward_project_3d(
         Input&& input_images,
@@ -758,36 +781,54 @@ namespace noa::xform {
         isize projection_window_size,
         const ProjectionOptions& options = {}
     ) {
-        details::check_projection_parameters(
+        details::check_projection_parameters<OPTIONS>(
             input_images, output_images,
-            backward_projection_matrices, forward_projection_matrices
+            backward_projection_matrices, forward_projection_matrices,
+            options.interp
         );
 
-        if (output_images.device().is_gpu()) {
-            #ifdef NOA_ENABLE_GPU
-            if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
-                std::terminate(); // unreachable
-            } else {
-                check(nd::is_accessor_access_safe<i32>(input_images.strides(), input_images.shape()) and
-                      nd::is_accessor_access_safe<i32>(output_images.strides(), output_images.shape()),
-                      "isize indexing not instantiated for GPU devices");
-                details::launch_fused_projection<i32, true>(
-                    std::forward<Input>(input_images),
-                    std::forward<Output>(output_images), volume_shape,
-                    std::forward<InputTransform>(backward_projection_matrices),
-                    std::forward<OutputTransform>(forward_projection_matrices),
-                    projection_window_size, options);
+        if constexpr (OPTIONS.generate_gpu) {
+            if (output_images.device().is_gpu()) {
+                #ifdef NOA_ENABLE_GPU
+                if constexpr (nt::texture_decay<Input> and not nt::any_of<nt::value_type_t<Input>, f32, c32>) {
+                    std::terminate(); // unreachable
+                } else {
+                    if constexpr (OPTIONS.generate_gpu_isize) {
+                        details::launch_fused_projection<OPTIONS, isize, true>(
+                            NOA_FWD(input_images), NOA_FWD(output_images), volume_shape,
+                            NOA_FWD(backward_projection_matrices), NOA_FWD(forward_projection_matrices),
+                            projection_window_size, options);
+                    } else {
+                        check(nd::is_accessor_access_safe<i32>(input_images.strides(), input_images.shape()) and
+                              nd::is_accessor_access_safe<i32>(output_images.strides(), output_images.shape()),
+                              "isize indexing not instantiated for GPU devices, see generate_gpu_size option");
+                        details::launch_fused_projection<OPTIONS, i32, true>(
+                            NOA_FWD(input_images), NOA_FWD(output_images), volume_shape,
+                            NOA_FWD(backward_projection_matrices), NOA_FWD(forward_projection_matrices),
+                            projection_window_size, options);
+                    }
+                    return;
+                }
+                #else
+                panic_no_gpu_backend();
+                #endif
             }
-            return;
-            #else
-            panic_no_gpu_backend();
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(output_images.device().is_cpu());
             #endif
         }
-        details::launch_fused_projection<isize>(
-            std::forward<Input>(input_images),
-            std::forward<Output>(output_images), volume_shape,
-            std::forward<InputTransform>(backward_projection_matrices),
-            std::forward<OutputTransform>(forward_projection_matrices),
-            projection_window_size, options);
+        if constexpr (OPTIONS.generate_cpu) {
+            details::launch_fused_projection<OPTIONS, isize>(
+                NOA_FWD(input_images), NOA_FWD(output_images), volume_shape,
+                NOA_FWD(backward_projection_matrices), NOA_FWD(forward_projection_matrices),
+                projection_window_size, options);
+        } else {
+            #ifdef NOA_ENABLE_GPU
+            check(output_images.device().is_gpu());
+            #else
+            static_assert(nt::always_false<Input>, "CPU-only builds must generate the CPU codepath");
+            #endif
+        }
     }
 }

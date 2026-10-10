@@ -68,7 +68,7 @@ TEST_CASE("xform::insert_and_extract_central_slices_3d", "[asset]") {
                 input_slice_fft, {}, input_slice_shape,
                 output_slice_fft, {}, output_slice_shape,
                 {}, input_inv_rotation_matrices,
-                {}, output_fwd_rotation_matrices, {
+                {}, output_fwd_rotation_matrices, nx::InsertAndExtractCentralSlicesEWSOptions{
                     .input_windowed_sinc = {fftfreq_input_sinc, fftfreq_input_blackman},
                     .w_windowed_sinc = {fftfreq_z_sinc, fftfreq_z_blackman},
                     .fftfreq_cutoff = fftfreq_cutoff,

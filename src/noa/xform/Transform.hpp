@@ -7,26 +7,6 @@
 #include "noa/xform/core/Transform.hpp"
 #include "noa/xform/Utils.hpp"
 
-namespace noa::xform {
-    struct TransformCompileOptions {
-        /// Interpolation methods to generate code for.
-        InterpSet interps{InterpSet::all()};
-
-        /// Border modes to generate code for.
-        BorderSet borders{BorderSet::all()};
-
-        /// Whether CPU code should be generated.
-        bool generate_cpu{true};
-
-        /// Whether GPU code should be generated.
-        bool generate_gpu{true};
-
-        /// Whether GPU code should be generated using isize indexing, instead of i32.
-        /// For large volumes (e.g. >1290^3), isize indexing might be required.
-        bool generate_gpu_isize{false};
-    };
-}
-
 namespace noa::xform::details {
     template<usize B, usize R,
              nt::integer Index,
@@ -90,7 +70,7 @@ namespace noa::xform::details {
         }
     }
 
-    template<usize R, TransformCompileOptions OPTIONS, typename Index, bool IS_GPU = false, typename Input, typename Output, typename Matrix>
+    template<usize R, CompileOptions OPTIONS, typename Index, bool IS_GPU = false, typename Input, typename Output, typename Matrix>
     void launch_transform_nd(Input&& input, Output&& output, Matrix&& xform, auto options) {
         constexpr usize N = nt::array_size_v<Output>;
         constexpr usize B = N - R;
@@ -192,7 +172,7 @@ namespace noa::xform {
     /// \tparam RANK:
     ///     Rank of the transform.
     /// \tparam OPTIONS
-    ///     Compile time options (code generation).
+    ///     Code generation options.
     /// \param[in] input:
     ///     2D: ((Bi..,)   Hi,Wi) Input 2D array(s) or 2D texture(s).
     ///     3D: ((Bi..,)Di,Hi,Wi) Input 3D array(s) or 3D texture(s).
@@ -212,8 +192,7 @@ namespace noa::xform {
     ///     The output window starts at the same index as the input window, so by entering a translation in
     ///     inverse_matrices, one can move the center of the output window relative to the input window,
     ///     e.g., to render only a specific subregion.
-    template<usize RANK, TransformCompileOptions OPTIONS = TransformCompileOptions{},
-             typename Input, typename Output, typename Matrix>
+    template<usize RANK, CompileOptions OPTIONS = CompileOptions{}, typename Input, typename Output, typename Matrix>
         requires details::transformable_nd<RANK, Input, Output, Matrix>
     void transform(
         Input&& input,
@@ -259,7 +238,8 @@ namespace noa::xform {
             check(input.device().is_gpu() or not are_overlapped(input.cpu(), output), "The input and output arrays should not overlap");
         }
 
-        check(OPTIONS.interps[options.interp] and OPTIONS.borders[options.border]);
+        check(OPTIONS.interps[options.interp], "Interpolation method is not generated");
+        check(OPTIONS.borders[options.border], "Border mode is not generated");
 
         if constexpr (OPTIONS.generate_gpu) {
             if (output.device().is_gpu()) {
@@ -296,15 +276,13 @@ namespace noa::xform {
             #ifdef NOA_ENABLE_GPU
             check(output.device().is_gpu());
             #else
-            static_assert(nt::always_false<Input>, "Function is always a no-op");
+            static_assert(nt::always_false<Input>, "CPU-only builds must generate the CPU codepath");
             #endif
         }
     }
 
     /// Applies one or multiple 2D affine transforms.
-    template<TransformCompileOptions OPTIONS = TransformCompileOptions{},
-             typename Input, typename Output, typename Matrix>
-        requires details::transformable_nd<2, Input, Output, Matrix>
+    template<CompileOptions OPTIONS = CompileOptions{}, typename Input, typename Output, typename Matrix>
     void transform_2d(
         Input&& input,
         Output&& output,
@@ -315,9 +293,7 @@ namespace noa::xform {
     }
 
     /// Applies one or multiple 3D affine transforms.
-    template<TransformCompileOptions OPTIONS = TransformCompileOptions{},
-             typename Input, typename Output, typename Matrix>
-        requires details::transformable_nd<3, Input, Output, Matrix>
+    template<CompileOptions OPTIONS = CompileOptions{}, typename Input, typename Output, typename Matrix>
     void transform_3d(
         Input&& input,
         Output&& output,
