@@ -90,10 +90,6 @@ assert(b.contiguity() == Vec{false, true, true, true});
 
 ## `Rank`
 
-The library was designed using the
-
-The library often names axes using the `Batch`-`Depth`-`Height`-`Width` (`BDHW` or `B..DHW`) order. 
-
 Some functions need to assign logical meaning to axes. For instance, computing an FFT on an array with 3 dimensions is ambiguous: should we compute the transform only on the width and treat the last two dimensions as batch axes (1D arrays, aka `BBW`), or should it be on the height and width (2d arrays, aka `BHW`), or on all axes (a single 3d array, aka `DHW`)?
 
 We refer to this problem as ranking the array, i.e., assigning the rank of an array. There are 4 possible scenarios:
