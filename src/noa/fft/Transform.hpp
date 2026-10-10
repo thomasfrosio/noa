@@ -270,7 +270,7 @@ namespace noa::fft {
     }
 
     template<typename Input>
-    auto rfft(Input&& input,  FFTOptions options = {}) {
+    auto rfft(Input&& input, FFTOptions options = {}) {
         return r2c(NOA_FWD(input), options);
     }
     template<typename Input>
@@ -380,31 +380,31 @@ namespace noa::fft {
     ///     For multidimensional c2r transforms, the input is not preserved.
     template<nt::array_decay_of_almost_any<c32, c64> Input, usize N>
         requires (nt::array_decay_nd<Input, N>)
-    [[nodiscard]] auto c2r(Input&& input, const Shape<isize, N> shape, FFTOptions options = {}) {
+    [[nodiscard]] auto c2r(Input&& input, const Shape<isize, N>& shape, FFTOptions options = {}) {
         using real_t = nt::mutable_value_type_twice_t<Input>;
         auto output = Array<real_t, nt::array_size_v<Input>>(shape, input.options());
         c2r(NOA_FWD(input), output, options);
         return output;
     }
 
-    template<typename Input>
-    auto irfft(Input&& input,  FFTOptions options = {}) {
-        return c2r(NOA_FWD(input), options);
+    template<typename Input, usize N>
+    auto irfft(Input&& input, const Shape<isize, N>& shape, FFTOptions options = {}) {
+        return c2r(NOA_FWD(input), shape, options);
     }
     template<typename Input>
-    auto irfft1(Input&& input, FFTOptions options = {}) {
+    auto irfft1(Input&& input, const Shape<isize, 1>& shape, FFTOptions options = {}) {
         options.rank = 1;
-        return c2r(NOA_FWD(input), options);
+        return c2r(NOA_FWD(input), shape, options);
     }
     template<typename Input>
-    auto irfft2(Input&& input, FFTOptions options = {}) {
+    auto irfft2(Input&& input, const Shape<isize, 2>& shape, FFTOptions options = {}) {
         options.rank = 2;
-        return c2r(NOA_FWD(input), options);
+        return c2r(NOA_FWD(input), shape, options);
     }
     template<typename Input>
-    auto irfft3(Input&& input, FFTOptions options = {}) {
+    auto irfft3(Input&& input, const Shape<isize, 3>& shape, FFTOptions options = {}) {
         options.rank = 3;
-        return c2r(NOA_FWD(input), options);
+        return c2r(NOA_FWD(input), shape, options);
     }
 
     /// Computes the c2c transform of (batched) 1d/2d/3d array(s).
