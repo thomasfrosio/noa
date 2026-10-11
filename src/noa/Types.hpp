@@ -20,4 +20,3 @@
 #include "noa/runtime/Event.hpp"
 #include "noa/runtime/Session.hpp"
 #include "noa/runtime/Stream.hpp"
-#include "noa/runtime/View.hpp"

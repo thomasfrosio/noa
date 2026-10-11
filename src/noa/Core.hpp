@@ -27,7 +27,6 @@
 #include "noa/signal/core/LeastSquare.hpp"
 #include "noa/signal/core/Window.hpp"
 
-#include "noa/xform/core/CubicBSplinePrefilter.hpp"
 #include "noa/xform/core/Draw.hpp"
 #include "noa/xform/core/Euler.hpp"
 #include "noa/xform/core/Interp.hpp"
