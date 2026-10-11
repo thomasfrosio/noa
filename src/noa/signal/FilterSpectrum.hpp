@@ -268,7 +268,7 @@ namespace noa::signal {
     /// Filters 1d spectrum(s).
     template<nf::Layout REMAP,
              typename Output, typename Filter, usize N,
-             typename Input = Array<nt::value_type_t<Output>, N, ArrayOwnership::VIEW>>
+             typename Input = ArrayView<nt::value_type_t<Output>, N>>
     void filter_spectrum_1d(
         Input&& input,
         Output&& output,
@@ -282,7 +282,7 @@ namespace noa::signal {
     /// Filters 1|2d spectrum(s).
     template<nf::Layout REMAP,
              typename Output, typename Filter, usize N,
-             typename Input = Array<nt::value_type_t<Output>, N, ArrayOwnership::VIEW>>
+             typename Input = ArrayView<nt::value_type_t<Output>, N>>
     void filter_spectrum_2d(
         Input&& input,
         Output&& output,
@@ -296,7 +296,7 @@ namespace noa::signal {
     /// Filters 1|2|3d spectrum(s).
     template<nf::Layout REMAP,
              typename Output, typename Filter, usize N,
-             typename Input = Array<nt::value_type_t<Output>, N, ArrayOwnership::VIEW>>
+             typename Input = ArrayView<nt::value_type_t<Output>, N>>
     void filter_spectrum_3d(
         Input&& input,
         Output&& output,

@@ -656,7 +656,7 @@ namespace noa::signal {
         const auto rank = output.shape().rank_checked(options.rank);
 
         const auto expected_shape = output.shape().rfft();
-        Array<complex_t, N, ArrayOwnership::VIEW> tmp;
+        ArrayView<complex_t, N> tmp;
         bool buffer_is_empty{true};
         if constexpr (nt::array_decay<Buffer>) {
             buffer_is_empty = buffer.is_empty();
@@ -945,8 +945,8 @@ namespace noa::signal {
         using value_t = nt::mutable_value_type_t<Input>;
         using coord_t = Vec<f64, R>;
         using pair_t = Pair<coord_t, value_t>;
-        using coord_view_t = Array<coord_t, 1, ArrayOwnership::VIEW>;
-        using value_view_t = Array<value_t, 1, ArrayOwnership::VIEW>;
+        using coord_view_t = ArrayView<coord_t, 1>;
+        using value_view_t = ArrayView<value_t, 1>;
 
         auto cross_correlation_map_batched = cross_correlation_map.view().template as_nd<R + 1>();
         if (cross_correlation_map.device().is_cpu()) {

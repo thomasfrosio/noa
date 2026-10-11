@@ -514,7 +514,7 @@ namespace noa::xform::details {
             ewise({}, output_view, Zero{});
 
         // When computing the average, the weights must be valid.
-        using weight_view_t = Array<weight_value_t, B + 1, ArrayOwnership::VIEW>;
+        using weight_view_t = ArrayView<weight_value_t, B + 1>;
         constexpr bool HAS_WEIGHT = not nt::empty<std::decay_t<Weight>>;
         auto weight_view = weight_view_t{};
         if constexpr (HAS_WEIGHT)
@@ -604,7 +604,7 @@ namespace noa::xform::details {
             ewise({}, output_view, Zero{});
 
         // When computing the average, the weights must be valid.
-        using weight_view_t = Array<weight_value_t, B + 1, ArrayOwnership::VIEW>;
+        using weight_view_t = ArrayView<weight_value_t, B + 1>;
         constexpr bool HAS_WEIGHT = not nt::empty<std::decay_t<Weight>>;
         auto weight_view = weight_view_t{};
         if constexpr (HAS_WEIGHT)

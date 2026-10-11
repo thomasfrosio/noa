@@ -1192,6 +1192,9 @@ namespace noa::inline types {
         ArrayOption m_options{};
     };
 
+    template<typename T, usize N>
+    using ArrayView = Array<T, N, ArrayOwnership::VIEW>;
+
     /// Deduction guides for ctor encapsulating data.
     template<typename T, nt::integer I>
     Array(T*, I, ArrayOption a = {}) -> Array<T, 1, ArrayOwnership::VIEW>;

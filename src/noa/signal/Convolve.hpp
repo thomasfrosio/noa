@@ -137,10 +137,10 @@ namespace noa::signal {
     ///     Convolution options.
     template<nt::readable_array_decay_of_real Input,
              nt::writable_array_decay_of_real Output,
-             nt::readable_array_decay_of_real FilterDepth = Array<nt::const_value_type_t<Input>, 1, ArrayOwnership::VIEW>,
-             nt::readable_array_decay_of_real FilterHeight = Array<nt::const_value_type_t<Input>, 1, ArrayOwnership::VIEW>,
-             nt::readable_array_decay_of_real FilterWidth = Array<nt::const_value_type_t<Input>, 1, ArrayOwnership::VIEW>,
-             nt::writable_array_decay_of_real Buffer = Array<nt::value_type_t<Output>, nt::array_size_v<Output>, ArrayOwnership::VIEW>>
+             nt::readable_array_decay_of_real FilterDepth = ArrayView<nt::const_value_type_t<Input>, 1>,
+             nt::readable_array_decay_of_real FilterHeight = ArrayView<nt::const_value_type_t<Input>, 1>,
+             nt::readable_array_decay_of_real FilterWidth = ArrayView<nt::const_value_type_t<Input>, 1>,
+             nt::writable_array_decay_of_real Buffer = ArrayView<nt::value_type_t<Output>, nt::array_size_v<Output>>>
         requires (nt::array_decay_with_same_nd<Input, Output, Buffer> and
                   nt::array_size_v<Output> >= 3 and
                   nt::array_decay_of_almost_same_type<FilterDepth, FilterHeight, FilterWidth, Buffer>)

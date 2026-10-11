@@ -280,7 +280,7 @@ namespace noa::xform {
     /// nd::draw(input_2d, output_2d, ellipse.get(), ellipse_rotation.inverse(), noa::Plus{});
     /// \endcode
     template<usize RANK, typename Output, typename Drawable,
-             typename Input = Array<nt::value_type_t<Output>, nt::array_size_v<Output>, ArrayOwnership::VIEW>,
+             typename Input = ArrayView<nt::value_type_t<Output>, nt::array_size_v<Output>>,
              typename Transform = Empty,
              typename BinaryOp = Empty>
         requires details::drawable_nd<RANK, Input, Output, Drawable, Transform, BinaryOp>
@@ -310,7 +310,7 @@ namespace noa::xform {
         );
     }
     template<typename Output, typename Drawable,
-             typename Input = Array<nt::value_type_t<Output>, nt::array_size_v<Output>, ArrayOwnership::VIEW>,
+             typename Input = ArrayView<nt::value_type_t<Output>, nt::array_size_v<Output>>,
              typename Transform = Empty,
              typename BinaryOp = Empty>
     void draw_2d(
@@ -321,7 +321,7 @@ namespace noa::xform {
         draw<2>(NOA_FWD(input), NOA_FWD(output), NOA_FWD(drawable), NOA_FWD(inverse_transforms), NOA_FWD(binary_op));
     }
     template<typename Output, typename Drawable,
-             typename Input = Array<nt::value_type_t<Output>, nt::array_size_v<Output>, ArrayOwnership::VIEW>,
+             typename Input = ArrayView<nt::value_type_t<Output>, nt::array_size_v<Output>>,
              typename Transform = Empty,
              typename BinaryOp = Empty>
     void draw_3d(

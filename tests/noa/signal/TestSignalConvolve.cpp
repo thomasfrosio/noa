@@ -74,9 +74,9 @@ TEST_CASE("signal::convolve_separable()", "[asset]") {
             const auto filter = noa::read_image<f32, 4>(filename_filter, {}, options).data.subregion(0, 0, 0, Full{}).as_1d();
             const auto expected = noa::read_image<f32, 4>(filename_expected, {}, options).data;
 
-            Array<const f32, 1, ArrayOwnership::VIEW> filter0;
-            Array<const f32, 1, ArrayOwnership::VIEW> filter1;
-            Array<const f32, 1, ArrayOwnership::VIEW> filter2;
+            ArrayView<const f32, 1> filter0;
+            ArrayView<const f32, 1> filter1;
+            ArrayView<const f32, 1> filter2;
             for (auto i: dim) {
                 if (i == 0)
                     filter0 = filter.view();
