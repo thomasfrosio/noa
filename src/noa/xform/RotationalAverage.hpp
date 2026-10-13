@@ -700,42 +700,47 @@ namespace noa::xform::details {
         using output_ctf_accessor_t = decltype(output_ctf_accessor);
 
         auto launch_iwise = [&](auto interp) {
+            // Because it is 1D and RFFT, this logical shape is correct even for odd logical sizes.
+            // frequency_bounds returns [0, logical_size / 2], so for:
+            //  n_shells=5 -> logical=(5-1)*2=8  -> bond=8/2=4 (expected=5-1=4).
+            //  n_shells=6 -> logical=(6-1)*2=10 -> bound=10/2=5 (expected=6-1=5).
+            const auto logical_shape_r = Shape<Index, 1>{(n_input_shells - 1) * 2};
+            auto result = prepare_interpolation_spectrum_inputs<1, nf::Layout::H2H, interp(), false, coord_t, false>(
+                input.span_contiguous(), logical_shape_r);
+            using interpolator_t = decltype(result)::interpolator_type;
+            using input_accessor_t = decltype(result)::accessor_type;
+
+            using op_t = EquiphaseRescale<
+                B, R, coord_t, Index,
+                interpolator_t, input_accessor_t, output_accessor_t,
+                input_ctf_accessor_t, output_ctf_accessor_t>;
+            auto op = op_t(
+                result.accessor, result.interpolator, input_fftfreq.as<coord_t>(), input_ctf_accessor, n_input_shells,
+                output_accessor, output_fftfreq.as<coord_t>(), output_ctf_accessor, n_output_shells
+            );
+            iwise(
+                output.shape().template as<Index>(), output.device(), op,
+                NOA_FWD(input), output, NOA_FWD(input_ctf), NOA_FWD(output_ctf)
+            );
+        };
+
+        // Split to separate lambda to circumvent nvcc internal compiler error.
+        auto launch = [launch_iwise](auto interp) {
             constexpr Interp INTERP = interp();
             if constexpr (OPTIONS.interps[INTERP]) {
-                // Because it is 1D and RFFT, this logical shape is correct even for odd logical sizes.
-                // frequency_bounds returns [0, logical_size / 2], so for:
-                //  n_shells=5 -> logical=(5-1)*2=8  -> bond=8/2=4 (expected=5-1=4).
-                //  n_shells=6 -> logical=(6-1)*2=10 -> bound=10/2=5 (expected=6-1=5).
-                const auto logical_shape_r = Shape<Index, 1>{(n_input_shells - 1) * 2};
-                auto result = prepare_interpolation_spectrum_inputs<1, nf::Layout::H2H, interp(), false, coord_t, false>(
-                    input.span_contiguous(), logical_shape_r);
-                using interpolator_t = decltype(result)::interpolator_type;
-                using input_accessor_t = decltype(result)::accessor_type;
-
-                using op_t = EquiphaseRescale<
-                    B, R, coord_t, Index,
-                    interpolator_t, input_accessor_t, output_accessor_t,
-                    input_ctf_accessor_t, output_ctf_accessor_t>;
-                auto op = op_t(
-                    result.accessor, result.interpolator, input_fftfreq.as<coord_t>(), input_ctf_accessor, n_input_shells,
-                    output_accessor, output_fftfreq.as<coord_t>(), output_ctf_accessor, n_output_shells
-                );
-                iwise(
-                    output.shape().template as<Index>(), output.device(), op,
-                    NOA_FWD(input), output, NOA_FWD(input_ctf), NOA_FWD(output_ctf)
-                );
+                launch_iwise(interp);
             }
         };
 
         auto interp = options.interp.erase_fast();
         switch (options.interp) {
-            case Interp::NEAREST:       return launch_iwise(WrapInterp<Interp::NEAREST>{});
-            case Interp::LINEAR:        return launch_iwise(WrapInterp<Interp::LINEAR>{});
-            case Interp::CUBIC:         return launch_iwise(WrapInterp<Interp::CUBIC>{});
-            case Interp::CUBIC_BSPLINE: return launch_iwise(WrapInterp<Interp::CUBIC_BSPLINE>{});
-            case Interp::LANCZOS4:      return launch_iwise(WrapInterp<Interp::LANCZOS4>{});
-            case Interp::LANCZOS6:      return launch_iwise(WrapInterp<Interp::LANCZOS6>{});
-            case Interp::LANCZOS8:      return launch_iwise(WrapInterp<Interp::LANCZOS8>{});
+            case Interp::NEAREST:       return launch(WrapInterp<Interp::NEAREST>{});
+            case Interp::LINEAR:        return launch(WrapInterp<Interp::LINEAR>{});
+            case Interp::CUBIC:         return launch(WrapInterp<Interp::CUBIC>{});
+            case Interp::CUBIC_BSPLINE: return launch(WrapInterp<Interp::CUBIC_BSPLINE>{});
+            case Interp::LANCZOS4:      return launch(WrapInterp<Interp::LANCZOS4>{});
+            case Interp::LANCZOS6:      return launch(WrapInterp<Interp::LANCZOS6>{});
+            case Interp::LANCZOS8:      return launch(WrapInterp<Interp::LANCZOS8>{});
             default: panic("interp={} is not supported", interp);
         }
     }
