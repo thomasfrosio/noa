@@ -1151,18 +1151,12 @@ namespace noa::inline types {
         template<typename... U>
         [[nodiscard]] constexpr auto subregion(const Subregion<U...>& subregion) const& -> Array {
             auto [new_shape, new_strides, offset] = subregion.extract_from(shape(), strides());
-            if constexpr (IS_VIEW)
-                return Array(get() + offset, new_shape, new_strides, options(), Unchecked{});
-            else
-                return Array(shared_type(m_shared, get() + offset), new_shape, new_strides, options(), Unchecked{});
+            return Array(offset_pointer(m_shared, offset), new_shape, new_strides, options(), Unchecked{});
         }
         template<typename... U>
         [[nodiscard]] constexpr auto subregion(const Subregion<U...>& subregion) && -> Array {
             auto [new_shape, new_strides, offset] = subregion.extract_from(shape(), strides());
-            if constexpr (IS_VIEW)
-                return Array(get() + offset, new_shape, new_strides, options(), Unchecked{});
-            else
-                return Array(shared_type(std::move(m_shared), get() + offset), new_shape, new_strides, options(), Unchecked{});
+            return Array(offset_pointer(std::move(m_shared), offset), new_shape, new_strides, options(), Unchecked{});
         }
 
         /// Subregion indexing. Extracts a subregion from the current array.
@@ -1176,12 +1170,42 @@ namespace noa::inline types {
             return std::move(*this).subregion(Subregion<U...>(access_sequence...));
         }
 
+        /// Index within the leftmost axis and remove it.
+        [[nodiscard]] constexpr auto operator[](nt::integer auto index) const& -> Array<T, N - 1, O> requires (N > 1) {
+            noa::bounds_check_always(shape()[0], index);
+            const auto offset = noa::offset_at(strides()[0], index);
+            return Array<T, N - 1, O>(
+                offset_pointer(m_shared, offset),
+                shape().pop_front(), strides().pop_front(),
+                options(), Unchecked{}
+            );
+        }
+        [[nodiscard]] constexpr auto operator[](nt::integer auto index) && -> Array<T, N - 1, O> requires (N > 1) {
+            noa::bounds_check_always(shape()[0], index);
+            const auto offset = noa::offset_at(strides()[0], index);
+            return Array<T, N - 1, O>(
+                offset_pointer(std::move(m_shared), offset),
+                shape().pop_front(), strides().pop_front(),
+                options(), Unchecked{}
+            );
+        }
+
     private:
         void allocate_() {
             if (allocator() == Allocator::PITCHED) {
                 noa::tie(m_shared, m_strides) = allocator().template allocate_pitched<value_type>(shape(), device());
             } else {
                 m_shared = allocator().template allocate<value_type>(n_elements(), device());
+            }
+        }
+
+        template<typename U, typename V>
+        static constexpr auto offset_pointer(U&& ptr, V offset) {
+            if constexpr (std::is_pointer_v<std::remove_reference_t<U>>) {
+                return ptr + offset;
+            } else {
+                auto raw_ptr = ptr.get();
+                return shared_type(NOA_FWD(ptr), raw_ptr + offset);
             }
         }
 

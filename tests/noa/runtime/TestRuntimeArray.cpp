@@ -289,3 +289,33 @@ TEST_CASE("runtime::Array, to const / view") {
     static_assert(std::is_const_v<typename decltype(c)::value_type>);
     REQUIRE(c.data() == b.data());
 }
+
+TEST_CASE("runtime::Array, operator[]") {
+    auto a = Array<i32, 6>({2, 3, 4, 5, 6, 7});
+    i32 c{};
+    for (i64 i{}; i < a.shape()[0]; ++i) {
+        auto a5 = a[i];
+        for (i64 j{}; j < a.shape()[1]; ++j) {
+            auto a4 = a5[j];
+            for (i64 k{}; k < a.shape()[2]; ++k) {
+                auto a3 = a4[k];
+                for (i64 l{}; l < a.shape()[3]; ++l) {
+                    auto a2 = a3[l];
+                    for (i64 m{}; m < a.shape()[4]; ++m) {
+                        auto a1 = a2[m];
+                        for (i64 n{}; n < a.shape()[5]; ++n) {
+                            a1.span()[n] = c++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    auto b = Array<i32, 1>(a.ssize());
+    c = 0;
+    for (auto& e: b.span())
+        e = c++;
+
+    REQUIRE(test::allclose_abs(a.as_1d(), b));
+}
