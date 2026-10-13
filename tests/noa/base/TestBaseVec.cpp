@@ -330,5 +330,18 @@ TEMPLATE_TEST_CASE("base::Vec", "", i32, i64, u32, u64, f32, f64) {
         REQUIRE(Vec<i32, 3>::arange().insert<1>(Vec{8, 9}) == Vec{0, 8, 9, 1, 2});
         REQUIRE(Vec<i32, 3>::arange().insert<2>(Vec{8, 9}) == Vec{0, 1, 8, 9, 2});
         REQUIRE(Vec<i32, 3>::arange().insert<3>(Vec{8, 9}) == Vec{0, 1, 2, 8, 9});
+
+        {
+            auto v0 = Vec{1, 2};
+            REQUIRE((v0.front() == 1 and v0.back() == 2));
+        }
+        {
+            auto v0 = Vec{0, 1, 2, 3};
+            REQUIRE((v0.front() == 0 and v0.back() == 3));
+        }
+        {
+            auto v0 = Vec{3};
+            REQUIRE((v0.front() == 3 and v0.back() == 3));
+        }
     }
 }
