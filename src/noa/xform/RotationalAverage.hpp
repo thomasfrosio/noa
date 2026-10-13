@@ -673,7 +673,7 @@ namespace noa::xform::details {
         }
     }
 
-    template<typename Index,
+    template<CompileOptions OPTIONS, typename Index,
              typename Input, typename Output,
              typename InputCtf, typename OutputCtf, typename Options>
     void launch_equiphase_rescale(
@@ -691,7 +691,7 @@ namespace noa::xform::details {
         const auto n_input_shells = static_cast<Index>(input.shape()[B]);
         const auto n_output_shells = static_cast<Index>(output.shape()[B]);
 
-        using output_accessor_t = AccessorRestrictContiguous<output_value_t, 2, Index>;
+        using output_accessor_t = AccessorRestrictContiguous<output_value_t, B + 1, Index>;
         auto output_accessor = output_accessor_t(output.get(), output.strides().template as<Index>());
 
         auto input_ctf_accessor = ctf_to_accessor<false, false>(input_ctf); // strided for broadcasting
@@ -700,28 +700,31 @@ namespace noa::xform::details {
         using output_ctf_accessor_t = decltype(output_ctf_accessor);
 
         auto launch_iwise = [&](auto interp) {
-            // Because it is 1D and RFFT, this logical shape is correct even for odd logical sizes.
-            // frequency_bounds returns [0, logical_size / 2], so for:
-            //  n_shells=5 -> logical=(5-1)*2=8  -> bond=8/2=4 (expected=5-1=4).
-            //  n_shells=6 -> logical=(6-1)*2=10 -> bound=10/2=5 (expected=6-1=5).
-            const auto logical_shape_r = Shape<Index, 1>{(n_input_shells - 1) * 2};
-            auto result = prepare_interpolation_spectrum_inputs<1, nf::Layout::H2H, interp(), false, coord_t, false>(
-                input.span_contiguous(), logical_shape_r);
-            using interpolator_t = decltype(result)::interpolator_type;
-            using input_accessor_t = decltype(result)::accessor_type;
+            constexpr Interp INTERP = interp();
+            if constexpr (OPTIONS.interps[INTERP]) {
+                // Because it is 1D and RFFT, this logical shape is correct even for odd logical sizes.
+                // frequency_bounds returns [0, logical_size / 2], so for:
+                //  n_shells=5 -> logical=(5-1)*2=8  -> bond=8/2=4 (expected=5-1=4).
+                //  n_shells=6 -> logical=(6-1)*2=10 -> bound=10/2=5 (expected=6-1=5).
+                const auto logical_shape_r = Shape<Index, 1>{(n_input_shells - 1) * 2};
+                auto result = prepare_interpolation_spectrum_inputs<1, nf::Layout::H2H, interp(), false, coord_t, false>(
+                    input.span_contiguous(), logical_shape_r);
+                using interpolator_t = decltype(result)::interpolator_type;
+                using input_accessor_t = decltype(result)::accessor_type;
 
-            using op_t = EquiphaseRescale<
-                B, R, coord_t, Index,
-                interpolator_t, input_accessor_t, output_accessor_t,
-                input_ctf_accessor_t, output_ctf_accessor_t>;
-            auto op = op_t(
-                result.accessor, result.interpolator, input_fftfreq.as<coord_t>(), input_ctf_accessor, n_input_shells,
-                output_accessor, output_fftfreq.as<coord_t>(), output_ctf_accessor, n_output_shells
-            );
-            iwise(
-                output.shape().template as<Index>(), output.device(), op,
-                NOA_FWD(input), output, NOA_FWD(input_ctf), NOA_FWD(output_ctf)
-            );
+                using op_t = EquiphaseRescale<
+                    B, R, coord_t, Index,
+                    interpolator_t, input_accessor_t, output_accessor_t,
+                    input_ctf_accessor_t, output_ctf_accessor_t>;
+                auto op = op_t(
+                    result.accessor, result.interpolator, input_fftfreq.as<coord_t>(), input_ctf_accessor, n_input_shells,
+                    output_accessor, output_fftfreq.as<coord_t>(), output_ctf_accessor, n_output_shells
+                );
+                iwise(
+                    output.shape().template as<Index>(), output.device(), op,
+                    NOA_FWD(input), output, NOA_FWD(input_ctf), NOA_FWD(output_ctf)
+                );
+            }
         };
 
         auto interp = options.interp.erase_fast();
@@ -769,10 +772,10 @@ namespace noa::xform::details {
     concept equiphase_rescale_and_averageable =
         nt::readable_array_decay<Input> and nt::writable_array_decay<Output> and
         nt::spectrum_types<nt::value_type_t<Input>, nt::value_type_t<Output>> and
-        N == nt::array_size_v<Output> and
+        N == nt::array_size_v<Input> and
         (nt::empty<std::decay_t<Weight>> or (
             nt::writable_array_decay_of_any<Weight, nt::value_type_twice_t<Output>> and
-            N == nt::array_size_v<Output>)) and
+            N == nt::array_size_v<Weight>)) and
         equiphase_rescale_isotropic_ctf<InputCtf, N - 1> and
         equiphase_rescale_isotropic_ctf<OutputCtf, N - 1>;
 }
@@ -1004,7 +1007,7 @@ namespace noa::xform {
     /// \param options:
     ///     Spectrum options.
     ///     options.average is unused.
-    template<typename Input, typename Output, typename InputCtf, typename OutputCtf>
+    template<CompileOptions OPTIONS = {}, typename Input, typename Output, typename InputCtf, typename OutputCtf>
         requires details::equiphase_rescale_and_averageable<Input, InputCtf, Output, OutputCtf, Empty>
     void equiphase_rescale_1d(
         Input&& input,
@@ -1018,7 +1021,8 @@ namespace noa::xform {
         details::check_parameters_equiphase_rescale<false>(
             input, input_fftfreq, input_ctf, output, output_fftfreq, output_ctf
         );
-        details::launch_equiphase_rescale<isize>(
+        check(OPTIONS.interps[options.interp], "Interpolation method is not generated");
+        details::launch_equiphase_rescale<OPTIONS, isize>(
             NOA_FWD(input), input_fftfreq, NOA_FWD(input_ctf),
             NOA_FWD(output), output_fftfreq, NOA_FWD(output_ctf),
             options
