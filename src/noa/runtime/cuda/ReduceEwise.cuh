@@ -1,5 +1,4 @@
 #pragma once
-#include "catch2/internal/catch_decomposer.hpp"
 #include "noa/runtime/cuda/IncludeGuard.cuh"
 
 #include "noa/base/Config.hpp"
