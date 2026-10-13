@@ -1007,7 +1007,7 @@ namespace noa::xform {
     /// \param options:
     ///     Spectrum options.
     ///     options.average is unused.
-    template<CompileOptions OPTIONS = {}, typename Input, typename Output, typename InputCtf, typename OutputCtf>
+    template<CompileOptions OPTIONS = CompileOptions{}, typename Input, typename Output, typename InputCtf, typename OutputCtf>
         requires details::equiphase_rescale_and_averageable<Input, InputCtf, Output, OutputCtf, Empty>
     void equiphase_rescale_1d(
         Input&& input,
