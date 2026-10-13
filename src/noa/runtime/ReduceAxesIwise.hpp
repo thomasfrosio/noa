@@ -33,6 +33,16 @@ namespace noa::inline types {
             return out;
         }
 
+        static constexpr auto none() -> ReduceAxes {
+            return {.axes = Vec<bool, N>::from_value(false)};
+        }
+
+        static constexpr auto none_but(nt::integer auto i) -> ReduceAxes {
+            auto out = none();
+            out[i] = true;
+            return out;
+        }
+
         static constexpr auto from_vec(const Vec<bool, N>& reduce_axes) -> ReduceAxes {
             return {.axes = reduce_axes};
         }
