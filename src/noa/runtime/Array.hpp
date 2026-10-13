@@ -1221,19 +1221,25 @@ namespace noa::inline types {
 
     /// Deduction guides for ctor encapsulating data.
     template<typename T, nt::integer I>
-    Array(T*, I, ArrayOption a = {}) -> Array<T, 1, ArrayOwnership::VIEW>;
+    Array(T*, I, ArrayOption options = {}) -> Array<T, 1, ArrayOwnership::VIEW>;
+
+    template<typename T, nt::integer I, usize N>
+    Array(T*, Shape<I, N>, ArrayOption options = {}) -> Array<T, N, ArrayOwnership::VIEW>;
+
+    template<typename T, nt::integer I, usize N>
+    Array(T*, Shape<I, N>, Strides<I, N>, ArrayOption options = {}) -> Array<T, N, ArrayOwnership::VIEW>;
+
+    template<typename T, usize N, nt::integer I, StridesTraits S>
+    Array(Span<T, N, I, S> span, ArrayOption options = {}) -> Array<T, N, ArrayOwnership::VIEW>;
+
     template<typename T, nt::integer I>
-    Array(std::shared_ptr<T[]>, I, ArrayOption a = {}) -> Array<T, 1, ArrayOwnership::RC>;
+    Array(std::shared_ptr<T[]>, I, ArrayOption options = {}) -> Array<T, 1, ArrayOwnership::RC>;
 
     template<typename T, nt::integer I, usize N>
-    Array(T*, Shape<I, N>, ArrayOption a = {}) -> Array<T, N, ArrayOwnership::VIEW>;
-    template<typename T, nt::integer I, usize N>
-    Array(std::shared_ptr<T[]>, Shape<I, N>, ArrayOption a = {}) -> Array<T, N, ArrayOwnership::RC>;
+    Array(std::shared_ptr<T[]>, Shape<I, N>, ArrayOption options = {}) -> Array<T, N, ArrayOwnership::RC>;
 
     template<typename T, nt::integer I, usize N>
-    Array(T*, Shape<I, N>, Strides<I, N>, ArrayOption a = {}) -> Array<T, N, ArrayOwnership::VIEW>;
-    template<typename T, nt::integer I, usize N>
-    Array(std::shared_ptr<T[]>, Shape<I, N>, Strides<I, N>, ArrayOption a = {}) -> Array<T, N, ArrayOwnership::RC>;
+    Array(std::shared_ptr<T[]>, Shape<I, N>, Strides<I, N>, ArrayOption options = {}) -> Array<T, N, ArrayOwnership::RC>;
 }
 
 namespace noa::traits {
