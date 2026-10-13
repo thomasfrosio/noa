@@ -427,6 +427,11 @@ namespace noa::inline types {
         [[nodiscard]] NOA_FHD static constexpr auto size() noexcept -> usize { return SIZE; };
         [[nodiscard]] NOA_FHD static constexpr auto ssize() noexcept -> isize { return SSIZE; };
 
+        [[nodiscard]] NOA_FHD constexpr auto front() noexcept -> value_type& requires (N > 0) { return *data(); }
+        [[nodiscard]] NOA_FHD constexpr auto front() const noexcept -> const value_type& requires (N > 0) { return *data(); }
+        [[nodiscard]] NOA_FHD constexpr auto back() noexcept -> value_type& requires (N > 0) { return *(data() + N - 1); }
+        [[nodiscard]] NOA_FHD constexpr auto back() const noexcept -> const value_type& requires (N > 0) { return *(data() + N - 1); }
+
     public: // Iterators -- support for range loops
         [[nodiscard]] NOA_FHD constexpr auto begin() noexcept -> value_type* { return data(); }
         [[nodiscard]] NOA_FHD constexpr auto begin() const noexcept -> const value_type* { return data(); }
