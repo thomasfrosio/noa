@@ -576,6 +576,8 @@ namespace noa::inline types {
             return Vec<value_type, N - P, A1>::from_pointer(data());
         }
 
+        NOA_NV_DIAG_SUPPRESS(549)
+
         template<usize P = 1, usize A1 = 0>
         [[nodiscard]] NOA_FHD constexpr auto push_front(const value_type& value) const noexcept {
             Vec<value_type, N + P, A1> output;
@@ -742,6 +744,8 @@ namespace noa::inline types {
                     pair.second[i] = (*this)[N1 + i];
             return pair;
         }
+
+        NOA_NV_DIAG_DEFAULT(549)
 
         // Circular shifts the vector by a given amount.
         // If "count" is positive, shift to the right, otherwise, shift to the left.

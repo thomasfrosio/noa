@@ -293,7 +293,20 @@ TEMPLATE_TEST_CASE("base::Vec", "", i32, i64, u32, u64, f32, f64) {
             auto [b1, b2] = b.template split<4>();
             REQUIRE(b1 == Vec<TestType, 4>::from_values(123, 43, 32, 12));
             static_assert(std::is_same_v<decltype(b2), Vec<TestType, 0>>);
-
+        }
+        {
+            auto a = Vec<i32, 0>{};
+            REQUIRE(Vec{1} == a.push_back(1));
+            REQUIRE(Vec{1} == a.push_front(1));
+            auto [a0, a1] = a.split<0>();
+            REQUIRE((a0.size() == 0 and a1.size() == 0));
+        }
+        {
+            auto a = Vec{1};
+            REQUIRE(Vec{1, 2} == a.push_back(2));
+            REQUIRE(Vec{2, 1} == a.push_front(2));
+            auto [a0, a1] = a.split<0>();
+            REQUIRE((a0.size() == 0 and a1 == Vec{1}));
         }
 
         REQUIRE(b.push_front(1) == vec5_t{1, 123, 43, 32, 12});
