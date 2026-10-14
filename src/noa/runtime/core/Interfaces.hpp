@@ -220,13 +220,6 @@ namespace noa::traits {
     ///     { thread.gid() } -> same_as<typename T::index_type>;
     ///     { thread.template gid<I>() } -> same_as<I>;
     /// }
-    ///
-    /// \warning
-    /// Note that certain implementations (CUDA) may launch multi-grid kernels. At the moment, the compute handle
-    /// doesn't support this except thread().gid() which correctly computes the global multi-grid index thereby
-    /// ensuring a unique ID per-thread. The other member functions query the current grid. We could correct this
-    /// by tracking the grid shape (we already track the offset of the block indices), but the usefullness/cost ratio
-    /// seems quite low.
     template<typename T>
     concept compute_handle = proclaim_is_compute_handle<std::decay_t<T>>::value;
 
