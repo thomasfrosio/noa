@@ -69,15 +69,15 @@ TEMPLATE_TEST_CASE("runtime::ewise - broadcast", "", i32, f32, f64, c32) {
             const auto stream = StreamGuard(device, Stream::DEFAULT);
             const auto options = ArrayOption(device, "managed");
 
-            const Array<TestType> lhs(shape, options);
-            const Array<TestType> rhs(shape, options);
+            const Array<TestType, 4> lhs(shape, options);
+            const Array<TestType, 4> rhs(shape, options);
             test::fill(lhs.get(), lhs.n_elements(), lhs_value);
             test::fill(rhs.get(), rhs.n_elements(), rhs_value);
             const auto expected = noa::empty_like(lhs);
             noa::ewise(noa::wrap(lhs, rhs), expected, noa::Minus{});
 
             // Test passing a single value.
-            const Array<TestType> output(shape, options);
+            const Array<TestType, 4> output(shape, options);
             noa::ewise(noa::wrap(lhs, rhs_value), output, noa::Minus{});
             REQUIRE(test::allclose_abs(expected, output, 1e-6));
             test::fill(output.get(), output.n_elements(), value_t{});
@@ -93,7 +93,7 @@ TEMPLATE_TEST_CASE("runtime::ewise - broadcast", "", i32, f32, f64, c32) {
             test::fill(output.get(), output.n_elements(), value_t{});
 
             // Test broadcasting all dimensions.
-            const Array<TestType> lhs_(1, options);
+            const Array<TestType, 4> lhs_(1, options);
             lhs_.get()[0] = lhs_value;
             noa::ewise(noa::wrap(lhs_.view(), rhs), output, noa::Minus{});
             REQUIRE(test::allclose_abs(expected, output, 1e-6));

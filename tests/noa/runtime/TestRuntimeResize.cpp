@@ -122,7 +122,7 @@ TEMPLATE_TEST_CASE("runtime::resize(), borders", "", i32, f32, f64) {
     const auto output_shape = Shape{shape.vec + border_left + border_right};
 
     auto data = noa::random(noa::Uniform<TestType>{-5, 5}, shape);
-    const auto expected = Array<TestType>(output_shape);
+    const auto expected = Array<TestType, 4>(output_shape);
     noa::resize(data, expected, border_left, border_right, border_mode, border_value);
     expected.eval();
 

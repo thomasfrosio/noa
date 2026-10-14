@@ -138,7 +138,7 @@ TEMPLATE_TEST_CASE("runtime::reduce - cpu vs gpu", "", f32, c32, c64) {
     }
     INFO(pad);
 
-    Array<TestType> cpu_data(shape);
+    Array<TestType, 4> cpu_data(shape);
     test::Randomizer<TestType> randomizer(-50, 50);
     test::randomize(cpu_data.get(), cpu_data.n_elements(), randomizer);
     auto gpu_data = cpu_data.to({.device="gpu", .allocator="managed"});

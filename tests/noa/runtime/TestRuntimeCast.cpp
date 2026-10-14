@@ -24,7 +24,7 @@ TEMPLATE_TEST_CASE("runtime::cast", "", i32, f32, f64) {
         const auto stream = StreamGuard(device);
         const auto options = ArrayOption(device, "unified");
 
-        auto results = Array<TestType>(shape, options);
+        auto results = Array<TestType, 4>(shape, options);
         results = results.subregion(
             Ellipsis{},
             Slice{0, subregion_shape[1]},

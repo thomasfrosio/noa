@@ -146,11 +146,11 @@ TEST_CASE("runtime::permute, broadcast") {
         for (const auto& permutation: permutations) {
             INFO(permutation);
             const auto permuted_shape = shape.permute(permutation);
-            const Array<f32> result0(permuted_shape, options);
-            const Array<f32> result1(permuted_shape, options);
+            const Array<f32, 4> result0(permuted_shape, options);
+            const Array<f32, 4> result1(permuted_shape, options);
 
-            const Array<f32> data0 = noa::arange<f32, 4>({1, 1, 50, 60}, noa::Arange{0, 1}, options);
-            const Array<f32> data1({1, 20, 50, 60}, options);
+            const Array<f32, 4> data0 = noa::arange<f32, 4>({1, 1, 50, 60}, noa::Arange{0, 1}, options);
+            const Array<f32, 4> data1({1, 20, 50, 60}, options);
             noa::copy(data0, data1);
 
             noa::permute_copy(data0, result0, permutation);

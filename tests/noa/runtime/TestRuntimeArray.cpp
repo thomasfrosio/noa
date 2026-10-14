@@ -175,12 +175,12 @@ TEST_CASE("runtime::Array, encapsulate") {
 TEMPLATE_TEST_CASE("runtime::Array, shape manipulation", "", i32, u64, f32, f64, c32, c64) {
     StreamGuard guard(Device{}, Stream::DEFAULT);
     AND_THEN("as another type") {
-        Array<f64> c({2, 3, 4, 5});
-        Array<unsigned char> d = c.as<unsigned char>();
+        Array<f64, 4> c({2, 3, 4, 5});
+        Array<unsigned char, 4> d = c.as<unsigned char>();
         REQUIRE(d.shape() == Shape4{2, 3, 4, 40});
         REQUIRE(d.strides() == Strides4{480, 160, 40, 1});
 
-        Array<c64> e({2, 3, 4, 5});
+        Array<c64, 4> e({2, 3, 4, 5});
         Array f = e.as<f64>();
         REQUIRE(f.shape() == Shape4{2, 3, 4, 10});
         REQUIRE(f.strides() == Strides4{120, 40, 10, 1});
@@ -191,7 +191,7 @@ TEMPLATE_TEST_CASE("runtime::Array, shape manipulation", "", i32, u64, f32, f64,
     }
 
     AND_THEN("reshape") {
-        Array<TestType> a({4, 10, 50, 30});
+        Array<TestType, 4> a({4, 10, 50, 30});
         a = a.flat();
         REQUIRE(a.strides() == a.shape().strides());
         REQUIRE((a.shape() == Shape4{1, 1, 1, 4 * 10 * 50 * 30}));
@@ -203,8 +203,8 @@ TEMPLATE_TEST_CASE("runtime::Array, shape manipulation", "", i32, u64, f32, f64,
     }
 
     AND_THEN("permute") {
-        Array<TestType> a({4, 10, 50, 30});
-        Array<TestType> b = a.permute({0, 1, 2, 3});
+        Array<TestType, 4> a({4, 10, 50, 30});
+        Array<TestType, 4> b = a.permute({0, 1, 2, 3});
         REQUIRE(b.shape() == Shape4{4, 10, 50, 30});
         REQUIRE(b.strides() == Strides4{15000, 1500, 30, 1});
 
@@ -219,14 +219,14 @@ TEMPLATE_TEST_CASE("runtime::Array, shape manipulation", "", i32, u64, f32, f64,
 }
 
 TEST_CASE("runtime::Array, overlap") {
-    Array<f32> lhs;
-    Array<f32> rhs;
+    Array<f32, 1> lhs;
+    Array<f32, 1> rhs;
 
     REQUIRE_FALSE(noa::are_overlapped(lhs, rhs));
 
-    lhs = Array<f32>(4);
+    lhs = Array<f32, 1>(4);
     REQUIRE_FALSE(noa::are_overlapped(lhs, rhs));
-    rhs = Array<f32>(4);
+    rhs = Array<f32, 1>(4);
     REQUIRE_FALSE(noa::are_overlapped(lhs, rhs));
 
     rhs = lhs.subregion(noa::Ellipsis{}, 1);
@@ -258,7 +258,7 @@ TEST_CASE("runtime::Array, nd and span") {
 }
 
 TEST_CASE("runtime::Array, drop") {
-    auto a = Array<f32>(10);
+    auto a = Array<f32, 1>(10);
     auto b = a.drop();
 
     REQUIRE(a.is_empty());

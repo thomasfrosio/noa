@@ -48,10 +48,10 @@ TEST_CASE("runtime::iwise") {
         const auto stream = StreamGuard(device, Stream::ASYNC);
         const auto options = ArrayOption{device, "managed"};
 
-        const auto a0 = Array<f32>(shape, options);
+        const auto a0 = Array<f32, 4>(shape, options);
         noa::iwise(a0.shape(), a0.device(), Arange4d{a0.span()}, a0);
 
-        const auto a1 = Array<f32>(shape, options);
+        const auto a1 = Array<f32, 4>(shape, options);
         test::arange(a1.get(), a1.n_elements());
 
         REQUIRE(test::allclose_abs(a0, a1, 1e-6));

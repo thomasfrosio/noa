@@ -10,8 +10,8 @@ TEMPLATE_TEST_CASE("runtime::arange(), cpu", "", i32, i64, u32, u64, f32, f64, c
 
     {
         constexpr i64 n_elements = 100;
-        const Array<TestType> results(n_elements);
-        const Array<TestType> expected(n_elements);
+        const Array<TestType, 4> results(n_elements);
+        const Array<TestType, 4> expected(n_elements);
 
         c32 a;
         a = 1;
@@ -25,8 +25,8 @@ TEMPLATE_TEST_CASE("runtime::arange(), cpu", "", i32, i64, u32, u64, f32, f64, c
 
     {
         constexpr i64 n_elements = 55;
-        const Array<TestType> results(n_elements);
-        const Array<TestType> expected(n_elements);
+        const Array<TestType, 4> results(n_elements);
+        const Array<TestType, 4> expected(n_elements);
 
         noa::arange(results, noa::Arange{.start=TestType{3}, .step=TestType{5}});
         for (i64 i{}; auto& e: expected.span_1d_contiguous())
@@ -37,8 +37,8 @@ TEMPLATE_TEST_CASE("runtime::arange(), cpu", "", i32, i64, u32, u64, f32, f64, c
 
     {
         const auto shape = test::random_shape_batched(3);
-        const Array<TestType> results(shape);
-        const Array<TestType> expected(shape);
+        const Array<TestType, 4> results(shape);
+        const Array<TestType, 4> expected(shape);
 
         noa::arange(results, noa::Arange{.start=TestType{3}, .step=TestType{5}});
         for (i64 i{}; auto& e: expected.span_1d_contiguous())
@@ -66,7 +66,7 @@ TEST_CASE("runtime::linspace()") {
 
         {
             constexpr i64 n_elements = 5;
-            const Array<f64> results(n_elements, options);
+            const Array<f64, 4> results(n_elements, options);
             const f64 step = noa::linspace(results.view(), noa::Linspace{0., 5.});
             constexpr std::array expected = {0., 1.25, 2.5, 3.75, 5.};
             REQUIRE(step == 1.25);
@@ -75,7 +75,7 @@ TEST_CASE("runtime::linspace()") {
 
         {
             constexpr i64 n_elements = 8;
-            const Array<f64> results(n_elements);
+            const Array<f64, 4> results(n_elements);
             const f64 step = noa::linspace(results, noa::Linspace{0., 1.});
             constexpr std::array expected = {
                 0., 0.14285714, 0.28571429, 0.42857143,
@@ -87,7 +87,7 @@ TEST_CASE("runtime::linspace()") {
 
         {
             constexpr i64 n_elements = 8;
-            const Array<f64> results(n_elements, options);
+            const Array<f64, 4> results(n_elements, options);
             const f64 step = noa::linspace(results, noa::Linspace{0., 1., false});
             constexpr std::array expected = {0., 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875};
             REQUIRE(step == 0.125);
@@ -96,7 +96,7 @@ TEST_CASE("runtime::linspace()") {
 
         {
             constexpr i64 n_elements = 9;
-            const Array<f64> results(n_elements, options);
+            const Array<f64, 4> results(n_elements, options);
             const f64 step = noa::linspace(results, noa::Linspace{3., 40.});
             constexpr std::array expected = {3., 7.625, 12.25, 16.875, 21.5, 26.125, 30.75, 35.375, 40.};
             REQUIRE(step == 4.625);
@@ -105,7 +105,7 @@ TEST_CASE("runtime::linspace()") {
 
         {
             constexpr i64 n_elements = 1;
-            const Array<f64> results(n_elements, options);
+            const Array<f64, 4> results(n_elements, options);
             const f64 step = noa::linspace(results, noa::Linspace{0., 1., false});
             constexpr std::array expected = {0.};
             REQUIRE(step == 1.);
@@ -133,7 +133,7 @@ TEMPLATE_TEST_CASE("runtime:: factories, cpu vs gpu", "", i32, i64, u32, u64, f6
     const auto options = ArrayOption(Device(type), Allocator::MANAGED);
     INFO(options.device);
 
-    auto results = Array<TestType>(shape, options);
+    auto results = Array<TestType, 4>(shape, options);
     results = results.subregion(
         Ellipsis{},
         Slice{0, subregion_shape[1]},
@@ -145,7 +145,7 @@ TEMPLATE_TEST_CASE("runtime:: factories, cpu vs gpu", "", i32, i64, u32, u64, f6
         const TestType step = test::Randomizer<TestType>(1, 2).get();
         noa::arange(results, noa::Arange{start, step});
 
-        const auto expected = Array<TestType>(results.shape());
+        const auto expected = Array<TestType, 4>(results.shape());
         test::arange(expected.get(), expected.n_elements(), start, step);
 
         REQUIRE(test::allclose_abs_safe(results, expected, 1e-5));

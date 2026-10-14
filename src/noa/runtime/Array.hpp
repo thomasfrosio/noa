@@ -30,7 +30,7 @@ namespace noa::inline types {
         RC, VIEW
     };
 
-    template<typename T, usize N = 4, ArrayOwnership O = ArrayOwnership::RC>
+    template<typename T, usize N, ArrayOwnership O = ArrayOwnership::RC>
     class Array;
 }
 

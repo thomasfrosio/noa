@@ -12,7 +12,7 @@ using namespace ::noa::types;
 
 namespace {
     template<typename T>
-    void naive_matmul_(const Array<T>& lhs, const Array<T>& rhs, const Array<T>& out) {
+    void naive_matmul_(const Array<T, 4>& lhs, const Array<T, 4>& rhs, const Array<T, 4>& out) {
         const auto span_lhs = lhs.template span<const T, 3>();
         const auto span_rhs = rhs.template span<const T, 3>();
         const auto span_out = out.template span<T, 3>();

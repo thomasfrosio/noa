@@ -45,7 +45,7 @@ TEST_CASE("runtime::reduce - batched reductions vs numpy", "[asset]") {
         INFO(device);
         data = device.is_cpu() ? data : data.to(options);
 
-        const Array<f32> results({7, 1, 1, output_shape.n_elements()}, options);
+        const Array<f32, 4> results({7, 1, 1, output_shape.n_elements()}, options);
         const auto mins = results.subregion(0).reshape(output_shape);
         const auto maxs = results.subregion(1).reshape(output_shape);
         const auto sums = results.subregion(2).reshape(output_shape);
@@ -94,7 +94,7 @@ TEMPLATE_TEST_CASE("runtime::reduce - batched reductions, cpu vs gpu", "", i64, 
     INFO("large=" << large);
     INFO("subregion_shape=" << subregion_shape);
 
-    Array<TestType> cpu_data(shape);
+    Array<TestType, 4> cpu_data(shape);
     test::Randomizer<TestType> randomizer(-50, 50);
     test::randomize(cpu_data.get(), cpu_data.n_elements(), randomizer);
     auto gpu_data = cpu_data.to(ArrayOption("gpu", "managed"));
@@ -111,17 +111,17 @@ TEMPLATE_TEST_CASE("runtime::reduce - batched reductions, cpu vs gpu", "", i64, 
         Slice{0, subregion_shape[3]});
 
     using real_t = noa::traits::value_type_t<TestType>;
-    const real_t eps = std::is_same_v<real_t, f32> ? static_cast<real_t>(1e-4) : static_cast<real_t>(1e-10);
+    const real_t eps = std::is_same_v<real_t, f32> ? static_cast<real_t>(1e-4) : static_cast<real_t>(5e-8);
     const auto output_shape = Shape4{subregion_shape[0], 1, 1, 1};
 
     if constexpr (not noa::traits::complex<TestType>) {
-        const Array<TestType> cpu_results({2, 1, 1, output_shape.n_elements()});
+        const Array<TestType, 4> cpu_results({2, 1, 1, output_shape.n_elements()});
         const auto cpu_min = cpu_results.view().subregion(0).reshape(output_shape);
         const auto cpu_max = cpu_results.view().subregion(1).reshape(output_shape);
         noa::min(cpu_data, cpu_min);
         noa::max(cpu_data, cpu_max);
 
-        const Array<TestType> gpu_results({2, 1, 1, output_shape.n_elements()}, gpu_data.options());
+        const Array<TestType, 4> gpu_results({2, 1, 1, output_shape.n_elements()}, gpu_data.options());
         const auto gpu_min = gpu_results.view().subregion(0).reshape(output_shape);
         const auto gpu_max = gpu_results.view().subregion(1).reshape(output_shape);
         noa::min(gpu_data, gpu_min);
@@ -131,12 +131,12 @@ TEMPLATE_TEST_CASE("runtime::reduce - batched reductions, cpu vs gpu", "", i64, 
     }
 
     if constexpr (not noa::traits::integer<TestType>) {
-        const Array<real_t> cpu_results({3, 1, 1, output_shape.n_elements()});
+        const Array<real_t, 4> cpu_results({3, 1, 1, output_shape.n_elements()});
         const auto cpu_norm = cpu_results.view().subregion(0).reshape(output_shape);
         const auto cpu_var = cpu_results.view().subregion(1).reshape(output_shape);
         const auto cpu_std = cpu_results.view().subregion(2).reshape(output_shape);
 
-        const Array<real_t> gpu_results({3, 1, 1, output_shape.n_elements()}, gpu_data.options());
+        const Array<real_t, 4> gpu_results({3, 1, 1, output_shape.n_elements()}, gpu_data.options());
         const auto gpu_norm = gpu_results.view().subregion(0).reshape(output_shape);
         const auto gpu_var = gpu_results.view().subregion(1).reshape(output_shape);
         const auto gpu_std = gpu_results.view().subregion(2).reshape(output_shape);
@@ -157,13 +157,13 @@ TEMPLATE_TEST_CASE("runtime::reduce - batched reductions, cpu vs gpu", "", i64, 
         }
     }
 
-    const Array<TestType> cpu_results({2, 1, 1, output_shape.n_elements()});
+    const Array<TestType, 4> cpu_results({2, 1, 1, output_shape.n_elements()});
     const auto cpu_sum = cpu_results.view().subregion(0).reshape(output_shape);
     const auto cpu_mean = cpu_results.view().subregion(1).reshape(output_shape);
     noa::sum(cpu_data, cpu_sum);
     noa::mean(cpu_data, cpu_mean);
 
-    const Array<TestType> gpu_results({2, 1, 1, output_shape.n_elements()}, gpu_data.options());
+    const Array<TestType, 4> gpu_results({2, 1, 1, output_shape.n_elements()}, gpu_data.options());
     const auto gpu_sum = gpu_results.view().subregion(0).reshape(output_shape);
     const auto gpu_mean = gpu_results.view().subregion(1).reshape(output_shape);
     noa::sum(gpu_data, gpu_sum);

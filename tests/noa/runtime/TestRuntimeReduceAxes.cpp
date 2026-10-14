@@ -43,7 +43,7 @@ TEST_CASE("runtime::reduce - axis reductions vs numpy", "[assets]") {
             INFO(device);
             data = device == data.device() ? data : data.to(options);
 
-            const Array<f32> output(output_shape, options);
+            const Array<f32, 4> output(output_shape, options);
 
             auto expected = noa::read_image<f32>(output_path_min).data;
             noa::min(data, output);
@@ -73,7 +73,7 @@ TEST_CASE("runtime::reduce - axis reductions vs numpy", "[assets]") {
             noa::variance(data, output);
             REQUIRE(test::allclose_abs_safe(expected_variance, output, 1e-5));
 
-            const Array<f32> mean(output_shape, options);
+            const Array<f32, 4> mean(output_shape, options);
             noa::mean_variance(data, mean, output);
             REQUIRE(test::allclose_abs_safe(expected_mean, mean, 1e-5));
             REQUIRE(test::allclose_abs_safe(expected_variance, output, 1e-5));
@@ -104,7 +104,7 @@ TEMPLATE_TEST_CASE("runtime::reduce - axis reductions, cpu vs gpu", "[noa]", i64
     INFO("large: " << large);
     INFO("subregion_shape: " << subregion_shape);
 
-    Array<TestType> cpu_data(shape);
+    Array<TestType, 4> cpu_data(shape);
     test::Randomizer<TestType> randomizer(-50, 50);
     test::randomize(cpu_data.get(), cpu_data.n_elements(), randomizer);
     auto gpu_data = cpu_data.to(ArrayOption("gpu", "managed"));
@@ -131,13 +131,13 @@ TEMPLATE_TEST_CASE("runtime::reduce - axis reductions, cpu vs gpu", "[noa]", i64
         output_shape[axis] = 1;
 
         if constexpr (not noa::traits::complex<TestType>) {
-            const Array<TestType> cpu_results({2, 1, 1, output_shape.n_elements()});
+            const Array<TestType, 4> cpu_results({2, 1, 1, output_shape.n_elements()});
             const auto cpu_min = cpu_results.view().subregion(0).reshape(output_shape);
             const auto cpu_max = cpu_results.view().subregion(1).reshape(output_shape);
             noa::min(cpu_data, cpu_min);
             noa::max(cpu_data, cpu_max);
 
-            const Array<TestType> gpu_results({2, 1, 1, output_shape.n_elements()}, gpu_data.options());
+            const Array<TestType, 4> gpu_results({2, 1, 1, output_shape.n_elements()}, gpu_data.options());
             const auto gpu_min = gpu_results.view().subregion(0).reshape(output_shape);
             const auto gpu_max = gpu_results.view().subregion(1).reshape(output_shape);
             noa::min(gpu_data, gpu_min);
@@ -153,13 +153,13 @@ TEMPLATE_TEST_CASE("runtime::reduce - axis reductions, cpu vs gpu", "[noa]", i64
 
             for (i32 ddof = 0; ddof < 2; ++ddof) {
                 INFO("ddof: " << ddof);
-                const Array<real_t> cpu_results({2, 1, 1, output_shape.n_elements()});
+                const Array<real_t, 4> cpu_results({2, 1, 1, output_shape.n_elements()});
                 const auto cpu_var = cpu_results.view().subregion(0).reshape(output_shape);
                 const auto cpu_std = cpu_results.view().subregion(1).reshape(output_shape);
                 noa::variance(cpu_data, cpu_var, {.ddof = ddof});
                 noa::stddev(cpu_data, cpu_std, {.ddof = ddof});
 
-                const Array<real_t> gpu_results({2, 1, 1, output_shape.n_elements()}, gpu_data.options());
+                const Array<real_t, 4> gpu_results({2, 1, 1, output_shape.n_elements()}, gpu_data.options());
                 const auto gpu_var = gpu_results.view().subregion(0).reshape(output_shape);
                 const auto gpu_std = gpu_results.view().subregion(1).reshape(output_shape);
                 noa::variance(gpu_data, gpu_var, {.ddof = ddof});
@@ -167,10 +167,10 @@ TEMPLATE_TEST_CASE("runtime::reduce - axis reductions, cpu vs gpu", "[noa]", i64
 
                 REQUIRE(test::allclose_abs_safe(cpu_results, gpu_results, eps));
 
-                const Array<TestType> cpu_mean(output_shape);
-                const Array<real_t> cpu_variance(output_shape);
-                const Array<TestType> gpu_mean(output_shape, gpu_data.options());
-                const Array<real_t> gpu_variance(output_shape, gpu_data.options());
+                const Array<TestType, 4> cpu_mean(output_shape);
+                const Array<real_t, 4> cpu_variance(output_shape);
+                const Array<TestType, 4> gpu_mean(output_shape, gpu_data.options());
+                const Array<real_t, 4> gpu_variance(output_shape, gpu_data.options());
 
                 noa::mean_variance(cpu_data, cpu_mean, cpu_variance);
                 noa::mean_variance(gpu_data, gpu_mean, gpu_variance);
@@ -184,13 +184,13 @@ TEMPLATE_TEST_CASE("runtime::reduce - axis reductions, cpu vs gpu", "[noa]", i64
             }
         }
 
-        const Array<TestType> cpu_results({2, 1, 1, output_shape.n_elements()});
+        const Array<TestType, 4> cpu_results({2, 1, 1, output_shape.n_elements()});
         const auto cpu_sum = cpu_results.view().subregion(0).reshape(output_shape);
         const auto cpu_mean = cpu_results.view().subregion(1).reshape(output_shape);
         noa::sum(cpu_data, cpu_sum);
         noa::mean(cpu_data, cpu_mean);
 
-        const Array<TestType> gpu_results({2, 1, 1, output_shape.n_elements()}, gpu_data.options());
+        const Array<TestType, 4> gpu_results({2, 1, 1, output_shape.n_elements()}, gpu_data.options());
         const auto gpu_sum = gpu_results.view().subregion(0).reshape(output_shape);
         const auto gpu_mean = gpu_results.view().subregion(1).reshape(output_shape);
         noa::sum(gpu_data, gpu_sum);
@@ -210,7 +210,7 @@ TEST_CASE("runtime::reduce - argmax/argmin()", "[noa]") {
         devices.emplace_back("gpu");
 
     SECTION("reduce entire array") {
-        Array<f32> input(shape);
+        Array<f32, 4> input(shape);
         test::randomize(input.get(), input.n_elements(), test::Randomizer<f32>(-100., 100.));
 
         auto expected_min_offset = test::Randomizer<u32>(0, input.n_elements() - 2).get();
@@ -233,7 +233,7 @@ TEST_CASE("runtime::reduce - argmax/argmin()", "[noa]") {
     }
 
     SECTION("per batch") {
-        Array<f32> input(shape);
+        Array<f32, 4> input(shape);
         test::randomize(input.get(), input.n_elements(), test::Randomizer<f32>(-100., 100.));
 
         Array expected_min_values = noa::empty<f32, 4>({shape[0], 1, 1, 1});

@@ -12,10 +12,10 @@ TEMPLATE_TEST_CASE("runtime::copy", "", i32, f32, f64, c32) {
     const auto stream = StreamGuard(cpu, Stream::DEFAULT); // CPU queue is synchronous
 
     AND_THEN("cpu -> cpu") {
-        Array<TestType> a(shape);
+        Array<TestType, 4> a(shape);
         noa::fill(a, {3});
 
-        Array<TestType> b(shape);
+        Array<TestType, 4> b(shape);
         noa::copy(a, b);
         REQUIRE(test::allclose_abs(a, b, 1e-8));
 
@@ -28,16 +28,16 @@ TEMPLATE_TEST_CASE("runtime::copy", "", i32, f32, f64, c32) {
         return;
 
     AND_THEN("cpu -> gpu -> gpu -> cpu") {
-        const Array<TestType> a(shape);
+        const Array<TestType, 4> a(shape);
         noa::fill(a, {3});
 
         const Device gpu("gpu");
-        const Array<TestType> b(shape, {gpu, Allocator::ASYNC});
-        const Array<TestType> c(shape, {gpu, Allocator::PITCHED});
+        const Array<TestType, 4> b(shape, {gpu, Allocator::ASYNC});
+        const Array<TestType, 4> c(shape, {gpu, Allocator::PITCHED});
         noa::copy(a, b);
         noa::copy(b, c);
 
-        const Array<TestType> d = c.to({.device=cpu});
+        const Array<TestType, 4> d = c.to({.device=cpu});
         REQUIRE(test::allclose_abs(a, d, 1e-7));
     }
 }

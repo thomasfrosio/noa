@@ -15,7 +15,7 @@ using namespace noa::types;
 TEST_CASE("io::ImageFile") {
     const auto cwd = fs::current_path() / "test_image_file" / "test0.mrc";
 
-    auto a0 = Array<f32>({10, 1, 64, 64});
+    auto a0 = Array<f32, 4>({10, 1, 64, 64});
     auto s0 = Vec{1., 2., 3.};
     auto randomizer = test::Randomizer<f32>(-128, 128);
     for (auto& e: a0.span_1d_contiguous())

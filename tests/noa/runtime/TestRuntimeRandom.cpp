@@ -21,7 +21,7 @@ TEMPLATE_TEST_CASE("runtime::randomize()", "", f32, f64) {
     if (Device::is_any_gpu())
         devices.emplace_back("gpu");
 
-    auto data = Array<TestType>(shape);
+    auto data = Array<TestType, 4>(shape);
     test::fill(data.get(), data.n_elements(), 20);
 
     for (auto& device: devices) {

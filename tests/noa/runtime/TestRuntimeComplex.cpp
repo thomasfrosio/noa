@@ -21,7 +21,7 @@ TEMPLATE_TEST_CASE("runtime::decompose() and complex()", "", f32, f64) {
         devices.emplace_back("gpu");
 
     using complex_t = Complex<TestType>;
-    auto data = Array<complex_t>(shape);
+    auto data = Array<complex_t, 4>(shape);
     test::Randomizer<complex_t> randomizer(-10, 10);
     test::randomize(data.get(), data.n_elements(), randomizer);
 

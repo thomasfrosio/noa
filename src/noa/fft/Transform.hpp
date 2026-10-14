@@ -147,7 +147,7 @@ namespace noa::fft {
     /// \see set_workspace for more details.
     inline auto allocate_workspace(Device device, Allocator allocator) -> i32 {
         if (const auto n_bytes = workspace_left_to_allocate(device); n_bytes > 0)
-            return set_workspace(device, Array<std::byte>(n_bytes, {.device = device, .allocator = allocator}));
+            return set_workspace(device, Array<std::byte, 1>(n_bytes, {.device = device, .allocator = allocator}));
         return 0;
     }
 }

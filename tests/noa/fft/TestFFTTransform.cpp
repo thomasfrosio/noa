@@ -226,8 +226,8 @@ TEST_CASE("fft, caching plans, shared workspace") {
 
         auto a0 = noa::random<f32>(noa::Uniform{-1.f, 1.f}, shape, {.device = device});
         auto a1 = a0.copy();
-        auto b0 = Array<c32>(shape.rfft(), {.device = device});
-        auto b1 = Array<c32>(shape.rfft(), {.device = device});
+        auto b0 = Array<c32, 4>(shape.rfft(), {.device = device});
+        auto b1 = Array<c32, 4>(shape.rfft(), {.device = device});
         nf::set_cache_limit(50, device);
 
         // auto print_memory_usage = [init = device.memory_capacity().free, previous = device.memory_capacity().free, device] () mutable {
@@ -278,7 +278,7 @@ TEST_CASE("fft, caching plans, shared workspace") {
         auto n_bytes = nf::workspace_left_to_allocate(device);
         if (n_bytes == 0)
             return;
-        auto buffer = Array<std::byte>(n_bytes, {.device = device, .allocator = Allocator::DEFAULT});
+        auto buffer = Array<std::byte, 1>(n_bytes, {.device = device, .allocator = Allocator::DEFAULT});
         nf::set_workspace(device, buffer);
         REQUIRE(nf::workspace_left_to_allocate(device) == 0);
     }

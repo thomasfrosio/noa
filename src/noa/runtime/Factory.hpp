@@ -271,7 +271,7 @@ namespace noa {
     ///                 this is equivalent to `arange` with a start of 0 and step of 1.
     /// \param option   Options of the created array.
     template<typename T, usize N, nt::integer U>
-    [[nodiscard]] auto iota(const Shape<isize, N>& shape, const Vec<U, N>& tile, ArrayOption option = {}) -> Array<T> {
+    [[nodiscard]] auto iota(const Shape<isize, N>& shape, const Vec<U, N>& tile, ArrayOption option = {}) -> Array<T, N> {
         auto out = Array<T, N>(shape, option);
         iota(out, tile);
         return out;
@@ -284,7 +284,7 @@ namespace noa {
     ///                     this is equivalent to `arange` with a start of 0 and step of 1.
     /// \param option       Options of the created array.
     template<typename T, usize N = 1, nt::integer U>
-    [[nodiscard]] auto iota(isize n_elements, U tile, ArrayOption option = {}) -> Array<T> {
+    [[nodiscard]] auto iota(isize n_elements, U tile, ArrayOption option = {}) -> Array<T, N> {
         auto out = Array<T, N>(n_elements, option);
         iota(out, Vec{tile}.template extend_front<N>(1));
         return out;
