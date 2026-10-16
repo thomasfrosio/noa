@@ -5,7 +5,7 @@ if (TARGET Eigen3::Eigen)
     message(STATUS "Target already exists: Eigen3::Eigen")
 else ()
     set(Eigen3_REPOSITORY https://gitlab.com/libeigen/eigen.git)
-    set(Eigen3_TAG e67c494cba7180066e73b9f6234d0b2129f1cdf5)
+    set(Eigen3_TAG 5.0.1)
 
     message(STATUS "Repository: ${Eigen3_REPOSITORY}")
     message(STATUS "Git tag: ${Eigen3_TAG}")
@@ -15,7 +15,7 @@ else ()
         Eigen
         GIT_REPOSITORY ${Eigen3_REPOSITORY}
         GIT_TAG ${Eigen3_TAG}
-#        GIT_SHALLOW TRUE
+        GIT_SHALLOW TRUE
         GIT_PROGRESS TRUE
         EXCLUDE_FROM_ALL # no install
     )

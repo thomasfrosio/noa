@@ -15,6 +15,7 @@ else ()
         Catch2
         GIT_REPOSITORY ${Catch2_REPOSITORY}
         GIT_TAG ${Catch2_TAG}
+        GIT_SHALLOW ON
         EXCLUDE_FROM_ALL # no install
     )
     FetchContent_MakeAvailable(Catch2)

@@ -15,6 +15,7 @@ else ()
         benchmark
         GIT_REPOSITORY ${google-benchmark_REPOSITORY}
         GIT_TAG ${google-benchmark_TAG}
+        GIT_SHALLOW ON
         EXCLUDE_FROM_ALL # no install
     )
 
