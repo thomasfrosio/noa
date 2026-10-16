@@ -37,8 +37,8 @@ namespace noa {
         /// The width of the block always maps to the width of the nd-shape. The height of the block can map any
         /// (or all) of the other dimensions depending on the nd-shape and type of reductions. As a  consequence,
         /// 1d-shapes require 1d-blocks (except if gpu_optimize_block_shape=true, in which case 2d blocks are reshaped
-        /// to 1d). The block size needs to be a multiple of gpu::WARP_SIZE. For the two-kernel reductions, the second
-        /// kernel has a 1d block of gpu_block_shape.n_elements() threads.
+        /// to 1d). The block size needs to be a multiple of gpu::Constant::WARP_SIZE. For the two-kernel reductions,
+        /// the second kernel has a 1d block of gpu_block_shape.n_elements() threads.
         /// Increasing the block size might increase performance for some large reductions, but it also increases
         /// the size threshold above which the two-kernel reduction is used, so predicting the performance impact
         /// is challenging. This value often goes hand in hand with .gpu_scratch_size.
@@ -52,7 +52,7 @@ namespace noa {
         /// reductions assign one block per output element, and the block loops through the reduced dimension(s).
         /// Increasing this value decreases the parallelism (the number of blocks launched), but may still be
         /// beneficial for operators doing little work per iteration.
-        Vec<u32, 2> gpu_number_of_indices_per_threads{Vec<u32, 2>{1, 1}};
+        Vec<u32, 2> gpu_number_of_indices_per_thread{Vec<u32, 2>{1, 1}};
 
         /// The maximum number of blocks to launch per output element.
         /// This is only relevant for the two-kernel reductions, i.e., for large reductions, as it limits the size of
@@ -256,8 +256,8 @@ namespace noa::details {
                     ZIP_REDUCED, ZIP_OUTPUT,
                     OPTIONS.gpu_block_shape[1],
                     OPTIONS.gpu_block_shape[0],
-                    OPTIONS.gpu_number_of_indices_per_threads[1],
-                    OPTIONS.gpu_number_of_indices_per_threads[0],
+                    OPTIONS.gpu_number_of_indices_per_thread[1],
+                    OPTIONS.gpu_number_of_indices_per_thread[0],
                     OPTIONS.gpu_max_grid_size,
                     OPTIONS.gpu_optimize_block_shape,
                     OPTIONS.gpu_allow_two_kernels

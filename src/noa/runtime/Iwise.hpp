@@ -37,6 +37,7 @@ namespace noa {
         isize cpu_number_of_indices_per_threads{1'048'576}; // 2^20
 
         /// GPU thread-block shape.
+        /// The number of threads in a block should be a multiple of gpu::Constant::WARP_SIZE.
         /// Blocks are 1d, 2d, or 3d and are mapping the nd-shape exactly:
         ///     N>=4 -> (1..)DHW    (batch dimensions are assigned different blocks)
         ///     N=3  -> DHW
@@ -45,12 +46,22 @@ namespace noa {
         Shape<u32, 3> gpu_block_shape{Shape<u32, 3>{1, 1, 512}};
 
         /// Whether the block can be reshaped (keeping the overall block size) for better performance.
+        /// In practice, if N == 1, the block is reshaped to 1D, otherwise, it is reshaped to
+        /// Shape{1, BLOCK_SIZE/WARP_SIZE, WARP_SIZE}.
         bool gpu_optimize_block_shape{true};
 
         /// Sets the number of iterations done by each thread for each block dimension.
         /// Increasing this value decreases the parallelism (the number of blocks launched),
         /// but may still be beneficial for operators doing little work per iteration.
-        Vec<u32, 3> gpu_number_of_indices_per_threads{Vec<u32, 3>{1, 1, 1}};
+        Vec<u32, 3> gpu_number_of_indices_per_thread{Vec<u32, 3>{1, 1, 1}};
+
+        /// Whether the bound checking should be enabled.
+        /// Disabling the bound checking requires gpu_optimize_block_shape == false.
+        /// If false, the (((D)H)W) should be a multiple of the corresponding block work size:
+        ///     N>=3 -> is_multiple_of(D, gpu_block_shape[0] * gpu_number_of_indices_per_thread[0])
+        ///     N>=2 -> is_multiple_of(H, gpu_block_shape[1] * gpu_number_of_indices_per_thread[1])
+        ///     N>=1 -> is_multiple_of(W, gpu_block_shape[2] * gpu_number_of_indices_per_thread[2])
+        bool gpu_enable_block_bound_check{true};
 
         /// Allocate the specified number of bytes for the per-block scratch (shared memory in CUDA).
         /// The maximum alignment is std::max_align_t (16 in CUDA), which should be fine for most cases.
@@ -136,6 +147,20 @@ namespace noa {
         if constexpr (OPTIONS.generate_gpu) {
             if (device.is_gpu()) {
                 #ifdef NOA_ENABLE_CUDA
+                if constexpr (not OPTIONS.gpu_enable_block_bound_check) {
+                    static_assert(OPTIONS.gpu_optimize_block_shape == false, "Bound checking is disabled. The block shape should be set and fixed");
+                    bool is_valid{true};
+                    const auto shape_3d = shape.template extend_front<max(N, usize{3})>(0).filter(N - 3, N - 2, N - 1).template as_safe<u32>();
+                    for (usize i{}; i < 3; ++i) {
+                        if (not is_multiple_of(shape_3d[i], OPTIONS.gpu_block_shape[i] * OPTIONS.gpu_number_of_indices_per_thread[i])) {
+                            is_valid = false;
+                            break;
+                        }
+                    }
+                    check(is_valid, "Bound checking is disabled. The shape should be a multiple of the block work shape, but got shape_3d={} and block_work_shape={}",
+                          shape_3d, OPTIONS.gpu_block_shape.vec * OPTIONS.gpu_number_of_indices_per_thread);
+                }
+
                 namespace nc = noa::cuda;
                 constexpr auto BLOCK_SIZE = OPTIONS.gpu_block_shape.n_elements();
                 constexpr auto WARP_SIZE = nc::Constant::WARP_SIZE;
@@ -145,21 +170,24 @@ namespace noa {
                     OPTIONS.gpu_block_shape[2],
                     OPTIONS.gpu_block_shape[1],
                     OPTIONS.gpu_block_shape[0],
-                    OPTIONS.gpu_number_of_indices_per_threads[2],
-                    OPTIONS.gpu_number_of_indices_per_threads[1],
-                    OPTIONS.gpu_number_of_indices_per_threads[0]
+                    OPTIONS.gpu_number_of_indices_per_thread[2],
+                    OPTIONS.gpu_number_of_indices_per_thread[1],
+                    OPTIONS.gpu_number_of_indices_per_thread[0],
+                    OPTIONS.gpu_enable_block_bound_check
                 >;
                 using default_block_1d = nc::StaticBlock<
                     BLOCK_SIZE, 1, 1,
-                    OPTIONS.gpu_number_of_indices_per_threads[2],
-                    OPTIONS.gpu_number_of_indices_per_threads[1],
-                    OPTIONS.gpu_number_of_indices_per_threads[0]
+                    OPTIONS.gpu_number_of_indices_per_thread[2],
+                    OPTIONS.gpu_number_of_indices_per_thread[1],
+                    OPTIONS.gpu_number_of_indices_per_thread[0],
+                    OPTIONS.gpu_enable_block_bound_check
                 >;
                 using default_block_2d = nc::StaticBlock<
                     WARP_SIZE, BLOCK_SIZE / WARP_SIZE, 1,
-                    OPTIONS.gpu_number_of_indices_per_threads[2],
-                    OPTIONS.gpu_number_of_indices_per_threads[1],
-                    OPTIONS.gpu_number_of_indices_per_threads[0]
+                    OPTIONS.gpu_number_of_indices_per_thread[2],
+                    OPTIONS.gpu_number_of_indices_per_thread[1],
+                    OPTIONS.gpu_number_of_indices_per_thread[0],
+                    OPTIONS.gpu_enable_block_bound_check
                 >;
                 using block =
                     std::conditional_t<not OPTIONS.gpu_optimize_block_shape, exact_block,

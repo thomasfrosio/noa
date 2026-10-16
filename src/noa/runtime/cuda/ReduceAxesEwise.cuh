@@ -16,11 +16,31 @@
 namespace noa::cuda::details {
     template<typename Config, u32 BlockSizeX, u32 MaxVectorSize>
     struct ReduceAxesEwiseWidthConfig {
-        static constexpr u32 block_size = max(BlockSizeX, Config::block_size);
-        static constexpr u32 block_size_x = BlockSizeX;
+        static_assert(is_power_of_2(Config::n_elements_per_thread));
+        static_assert(
+            is_power_of_2(Config::block_size) and
+            Constant::WARP_SIZE <= Config::block_size and
+            Config::block_size <= Limits::MAX_THREADS);
+
+        static constexpr u32 block_size = Config::block_size;
+        static constexpr u32 block_size_x = is_multiple_of(Config::block_size, BlockSizeX) ? min(BlockSizeX, Config::block_size) : Constant::WARP_SIZE;
         static constexpr u32 block_size_y = block_size / block_size_x;
+        static constexpr u32 block_size_z = 1;
         static constexpr u32 n_elements_per_thread_x = max(MaxVectorSize, Config::n_elements_per_thread);
         static constexpr u32 block_work_size_x = block_size_x * n_elements_per_thread_x;
+    };
+
+    template<typename Config>
+    struct ReduceAxesEwiseHeightConfig {
+        static_assert(
+            is_power_of_2(Config::block_size) and
+            Constant::WARP_SIZE <= Config::block_size and
+            Config::block_size <= Limits::MAX_THREADS);
+
+        static constexpr u32 block_size = Config::block_size;
+        static constexpr u32 block_size_x = Constant::WARP_SIZE;
+        static constexpr u32 block_size_y =  block_size / block_size_x;
+        static constexpr u32 block_size_z = 1;
     };
 
     template<typename Block, typename Interface, typename Op, typename Index, usize N,
@@ -81,7 +101,7 @@ namespace noa::cuda::details {
             static_assert(nt::always_false<Interface>);
         }
 
-        const auto ci = ComputeHandle<Index, GRID_NDIM, 2, true, false, false>(grid_outer_shape, grid_outer_offset);
+        const auto ci = ComputeHandle<Index, GRID_NDIM, Block, true, false, false>(grid_outer_shape, grid_outer_offset);
         if constexpr (N == 2)
             Interface::init(ci, op, gid[0]);
         else if constexpr (N == 3)
@@ -148,13 +168,6 @@ namespace noa::cuda::details {
         }
     }
 
-    template<typename Config, u32 BlockSizeX>
-    struct ReduceAxesEwiseHeightConfig {
-        static constexpr u32 block_size = max(BlockSizeX, Config::block_size);
-        static constexpr u32 block_size_x = BlockSizeX;
-        static constexpr u32 block_size_y = block_size / block_size_x;
-    };
-
     template<typename Block, typename Interface, typename Op, typename Index, usize N, typename Input, typename Reduced, typename Output>
     __global__ __launch_bounds__(Block::block_size)
     void reduce_height_ewise(
@@ -214,7 +227,7 @@ namespace noa::cuda::details {
             static_assert(nt::always_false<Interface>);
         }
 
-        const auto ci = ComputeHandle<Index, GRID_NDIM, 2, true, false, false>(grid_outer_shape, grid_outer_offset);
+        const auto ci = ComputeHandle<Index, GRID_NDIM, Block, true, false, false>(grid_outer_shape, grid_outer_offset);
         if constexpr (N == 2)
             Interface::init(ci, op, gid[1]);
         else if constexpr (N == 3)
@@ -296,8 +309,7 @@ namespace noa::cuda::details {
         Input&& input,
         Reduced&& reduced,
         Output&& output,
-        Stream& stream,
-        dim3 n_threads
+        Stream& stream
     ) {
         // The width of the output is empty/reduced, remove it.
         auto output_no_width = nd::reconfig_accessors(NOA_FWD(output), Vec<usize, N - 1>::arange());
@@ -310,12 +322,15 @@ namespace noa::cuda::details {
         auto input_nd = nd::reconfig_accessors<CONFIG>(NOA_FWD(input));
         using InputND = decltype(input_nd);
 
+        // Block.
+        using Block = ReduceAxesEwiseWidthConfig<Config, BLOCK_SIZE_X, VEC_SIZE>;
+
         // Grid shape. Exclude the width, each block line reduces its row.
         // N==3 -> 2D grid.
         // N==4 -> 3D grid.
         // N>=5 -> 3D grid (with fused axes in X).
         constexpr usize GRID_POP_FRONT = N <= 3 ? 1 : 0;
-        const auto grid = GridND(shape.pop_back(), Shape<u32, N - 1>::from_value(1).template set<N - 2>(n_threads.y));
+        const auto grid = GridND(shape.pop_back(), Shape<u32, N - 1>::from_value(1).template set<N - 2>(Block::block_size_y));
         const auto grid_outer_shape = grid.outer_shape().vec.template pop_front<GRID_POP_FRONT>();
         const auto grid_fused_shape_in_x_unbatched = grid.fused_shape().vec.pop_front();
         check(grid.n_launches_x() == 1);
@@ -323,14 +338,13 @@ namespace noa::cuda::details {
         // Launch the kernel(s).
         using OpDecay = std::decay_t<Op>;
         using ReducedDecay = std::decay_t<Reduced>;
-        using Block = ReduceAxesEwiseWidthConfig<Config, BLOCK_SIZE_X, VEC_SIZE>;
         using Interface = Config::interface;
 
         for (u32 z{}; z < grid.n_launches_z(); z++) {
             for (u32 y{}; y < grid.n_launches_y(); y++) {
                 const auto config = LaunchConfig{
                     .n_blocks = grid.dim3_shape_for_launch(z, y, 0),
-                    .n_threads = n_threads,
+                    .n_threads = dim3_block_shape<Block>(),
                 };
                 const auto grid_outer_offset = grid.block_offset_for_launch(z, y).template pop_front<GRID_POP_FRONT>();
                 stream.enqueue(
@@ -352,12 +366,7 @@ namespace noa::cuda::details {
         Output&& output,
         Stream& stream
     ) {
-        // Block shape.
-        u32 n_threads_x = shape[N - 1] > 512 ? 256u : 64u;
-        if (not noa::is_multiple_of(Config::block_size, n_threads_x))
-            n_threads_x = Constant::WARP_SIZE;
-        const u32 n_threads_y = max(Config::block_size, n_threads_x) / n_threads_x;
-        const auto n_threads = dim3(n_threads_x, n_threads_y);
+        const bool large_row = shape[N - 1] > 512;
 
         // TODO Reduce the number of instantiations by adding support of a runtime block_size_x.
         //      That would mean using dynamic shared memory in block_reduce, which is fine...
@@ -366,59 +375,59 @@ namespace noa::cuda::details {
         // The worst case is when the smallest type is aligned to only one byte, in which case 10 kernels are created.
         if constexpr (Config::enable_vectorization and nt::enable_vectorization_v<Op>) {
             const size_t alignment = min_address_alignment(input, shape.pop_back());
-            if (n_threads_x == 256) {
+            if (large_row) {
                 if (alignment == 16) {
                     launch_reduce_ewise_width_<256, 16, Config>(
-                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream
                     );
                 } else if (alignment == 8) {
                     launch_reduce_ewise_width_<256, 8, Config>(
-                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream
                     );
                 } else if (alignment == 4) {
                     launch_reduce_ewise_width_<256, 4, Config>(
-                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream
                     );
                 } else if (alignment == 2) {
                     launch_reduce_ewise_width_<256, 2, Config>(
-                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream
                     );
                 } else {
                     launch_reduce_ewise_width_<256, 1, Config>(
-                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream
                     );
                 }
             } else {
                 if (alignment == 16) {
                     launch_reduce_ewise_width_<64, 16, Config>(
-                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream
                     );
                 } else if (alignment == 8) {
                     launch_reduce_ewise_width_<64, 8, Config>(
-                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream
                     );
                 } else if (alignment == 4) {
                     launch_reduce_ewise_width_<64, 4, Config>(
-                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream
                     );
                 } else if (alignment == 2) {
                     launch_reduce_ewise_width_<64, 2, Config>(
-                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream
                     );
                 } else {
                     launch_reduce_ewise_width_<64, 1, Config>(
-                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
+                        shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream
                     );
                 }
             }
         } else {
-            if (n_threads_x == 256) {
+            if (large_row) {
                 launch_reduce_ewise_width_<256, 1, Config>(
-                    shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
+                    shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream
                 );
             } else {
                 launch_reduce_ewise_width_<64, 1, Config>(
-                    shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream, n_threads
+                    shape, op, NOA_FWD(input), NOA_FWD(reduced), NOA_FWD(output), stream
                 );
             }
         }
@@ -460,16 +469,13 @@ namespace noa::cuda::details {
         using ReducedDecay = std::decay_t<Reduced>;
         using Interface = Config::interface;
 
-        // Block shape.
-        constexpr u32 N_THREADS_X = Constant::WARP_SIZE;
-        constexpr u32 N_THREADS_Y = max(Config::block_size, N_THREADS_X) / N_THREADS_X;
-        constexpr auto N_THREADS = dim3(N_THREADS_X, N_THREADS_Y);
-        using Block = ReduceAxesEwiseHeightConfig<Config, N_THREADS_X>;
+        // Block.
+        using Block = ReduceAxesEwiseHeightConfig<Config>;
 
         // Grid shape.
         const auto grid = GridND(
             reordered_shape_no_height,
-            Shape<u32, N - 1>::from_value(1).template set<N - 2>(N_THREADS_X)
+            Shape<u32, N - 1>::from_value(1).template set<N - 2>(Block::block_size_x)
         );
         check(grid.n_launches_x() == 1);
 
@@ -483,7 +489,7 @@ namespace noa::cuda::details {
             for (u32 y{}; y < grid.n_launches_y(); y++) {
                 const auto config = LaunchConfig{
                     .n_blocks = grid.dim3_shape_for_launch(z, y, 0),
-                    .n_threads = N_THREADS,
+                    .n_threads = dim3_block_shape<Block>(),
                 };
                 const auto grid_outer_offset = grid.block_offset_for_launch(z, y).template pop_front<GRID_POP_FRONT>();
                 stream.enqueue(

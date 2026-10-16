@@ -66,14 +66,14 @@ namespace noa::cuda::details {
              typename Output, typename OutputAlignedBuffer>
     __global__ __launch_bounds__(Block::block_size)
     void ewise_1d_vectorized(Op op, Input input, Output output, Index width) {
-        const auto ci = ComputeHandle<Index, 1, 1, false, false, false>();
+        const auto ci = ComputeHandle<Index, 1, Block, false, false, false>();
         ewise_vectorized<Block, Interface, InputAlignedBuffer, OutputAlignedBuffer>(op, input, output, width, ci);
     }
 
     template<typename Block, typename Interface, typename Op, typename Input, typename Output, typename Index>
     __global__ __launch_bounds__(Block::block_size)
     void ewise_1d(Op op, Input input, Output output, Index width) {
-        const auto ci = ComputeHandle<Index, 1, 1, false, false, false>();
+        const auto ci = ComputeHandle<Index, 1, Block, false, false, false>();
         Interface::init(ci, op);
 
         const auto gid = global_indices_1d<Index, Block>();
@@ -93,7 +93,7 @@ namespace noa::cuda::details {
         Op op, Input input, Output output, Index width,
         Vec<u32, 1> grid_outer_size, Vec<u32, 1> grid_outer_offset
     ) {
-        const auto ci = ComputeHandle<Index, 2, 1, true, false, false>(grid_outer_size, grid_outer_offset);
+        const auto ci = ComputeHandle<Index, 2, Block, true, false, false>(grid_outer_size, grid_outer_offset);
 
         // Offset to the current row.
         // AccessorValue(s) are simply moved, and 2d Accessor(s) return 1d AccessorReference(s).
@@ -117,7 +117,7 @@ namespace noa::cuda::details {
         Op op, Input input, Output output, Index width,
         Vec<u32, 1> grid_outer_size, Vec<u32, 1> grid_outer_offset
     ) {
-        const auto ci = ComputeHandle<Index, 2, 1, true, false, false>(grid_outer_size, grid_outer_offset);
+        const auto ci = ComputeHandle<Index, 2, Block, true, false, false>(grid_outer_size, grid_outer_offset);
         Interface::init(ci, op);
 
         const auto gid = global_indices_2d<Index, Block>();
@@ -138,7 +138,7 @@ namespace noa::cuda::details {
         Vec<u32, 2> grid_outer_offset,
         Vec<u32, N - 3> grid_fused_shape_in_x_unbatched
     ) {
-        const auto ci = ComputeHandle<Index, 3, Block::block_ndim, true, false, false>(grid_outer_shape, grid_outer_offset);
+        const auto ci = ComputeHandle<Index, 3, Block, true, false, false>(grid_outer_shape, grid_outer_offset);
         Interface::init(ci, op);
 
         // Compute the global indices.
@@ -194,7 +194,7 @@ namespace noa::cuda::details {
             check(grid_x.n_launches() == 1);
             const auto config = LaunchConfig{
                 .n_blocks = dim3(grid_x.n_blocks(0), 1, 1),
-                .n_threads = dim3(Block::block_size, 1, 1),
+                .n_threads = dim3_block_shape<Block>(),
             };
             if constexpr (VECTORIZE) {
                 stream.enqueue(
@@ -228,7 +228,7 @@ namespace noa::cuda::details {
 
                 const auto config = LaunchConfig{
                     .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y)),
-                    .n_threads = dim3(Block::block_size, 1),
+                    .n_threads = dim3_block_shape<Block>(),
                 };
                 const auto grid_outer_size = Vec{grid_y.n_blocks_total()}.template as<u32>();
                 const auto grid_outer_offset = Vec{grid_y.offset(y)};
@@ -258,9 +258,6 @@ namespace noa::cuda {
              u32 ElementsPerThread = 4,
              bool EnableVectorization = true>
     struct EwiseConfig {
-        static_assert(is_power_of_2(ElementsPerThread));
-        static_assert(is_power_of_2(BlockSize) and BlockSize >= Constant::WARP_SIZE and BlockSize <= Limits::MAX_THREADS);
-
         using interface = nd::EwiseInterface<ZipInput, ZipOutput>;
         static constexpr u32 block_size = BlockSize;
         static constexpr u32 n_elements_per_thread = ElementsPerThread;
@@ -279,6 +276,9 @@ namespace noa::cuda {
         Output&& output,
         Stream& stream
     ) {
+        static_assert(is_power_of_2(Config::n_elements_per_thread));
+        static_assert(is_power_of_2(Config::block_size) and Config::block_size >= Constant::WARP_SIZE);
+
         // Assume layout is optimized and shape is collapsed.
         bool use_row_kernels{true};
         if constexpr (N >= 3) {
@@ -366,7 +366,7 @@ namespace noa::cuda {
                 for (u32 y{}; y < grid.n_launches_y(); ++y) {
                     const auto config = LaunchConfig{
                         .n_blocks = grid.dim3_shape_for_launch(z, y, 0),
-                        .n_threads = dim3(Block::block_size_x, Block::block_size_y, 1),
+                        .n_threads = details::dim3_block_shape<Block>(),
                     };
                     stream.enqueue(
                         details::ewise_nd<N, Block, Interface, std::decay_t<Op>, std::decay_t<Input>, std::decay_t<Output>, Index>,

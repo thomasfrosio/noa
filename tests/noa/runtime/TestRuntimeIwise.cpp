@@ -8,11 +8,12 @@ using namespace ::noa::types;
 namespace nt = noa::traits;
 
 namespace {
-    struct Arange4d {
-        Span<f32, 4> span;
+    template<typename T, usize N>
+    struct ArangeNd {
+        Span<T, N> span;
 
-        constexpr void operator()(const Vec<isize, 4>& indices) {
-            span(indices) = static_cast<f32>(noa::offset_at(span.strides(), indices));
+        constexpr void operator()(const Vec<isize, N>& indices) {
+            span(indices) = static_cast<T>(noa::offset_at(span.strides(), indices));
         }
     };
 
@@ -49,7 +50,7 @@ TEST_CASE("runtime::iwise") {
         const auto options = ArrayOption{device, "managed"};
 
         const auto a0 = Array<f32, 4>(shape, options);
-        noa::iwise(a0.shape(), a0.device(), Arange4d{a0.span()}, a0);
+        noa::iwise(a0.shape(), a0.device(), ArangeNd{.span = a0.span()}, a0);
 
         const auto a1 = Array<f32, 4>(shape, options);
         test::arange(a1.get(), a1.n_elements());
@@ -80,4 +81,28 @@ TEST_CASE("runtime::iwise - threadpool-like") {
     noa::iwise<OPTIONS2>(Shape{4}, stream.device(), op);
     REQUIRE((iwise_init == 4 and iwise_deinit == 4));
     REQUIRE(data == Vec{0, 1, 2, 3});
+}
+
+TEST_CASE("runtime::iwise - no bound check") {
+    if (not Device::is_any_gpu())
+        return;
+
+    constexpr auto OPTIONS = noa::IwiseOptions{
+        .gpu_block_shape = {4, 4, 32},
+        .gpu_optimize_block_shape = false,
+        .gpu_enable_block_bound_check = false,
+    };
+    auto a = noa::Array<i32, 6>({2, 2, 2, 4, 4, 32}, {.device = "gpu", .allocator = "unified"});
+    noa::iwise<OPTIONS>(a.shape(), a.device(), ArangeNd{.span = a.span()});
+
+    bool valid = true;
+    i32 counter = 0;
+    for (auto e: a.eval().span_1d()) {
+        if (e != counter) {
+            valid = false;
+            break;
+        }
+        counter++;
+    }
+    REQUIRE(valid);
 }

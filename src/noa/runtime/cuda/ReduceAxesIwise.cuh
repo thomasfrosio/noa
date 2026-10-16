@@ -9,22 +9,15 @@
 namespace noa::cuda::details {
     template<typename Config, u32 WarpCountBlockSizeX>
     struct ReduceIwiseSingleAxisBlock {
-        // Get a warp count that makes block_size_x a multiple of block_size.
-        static consteval auto best_block_size_x() {
-            u32 c = max(1u, WarpCountBlockSizeX);
-            for (;;) {
-                if (Constant::WARP_SIZE * c <= Config::block_size and
-                    is_multiple_of(Config::block_size, Constant::WARP_SIZE * c)) {
-                    break;
-                }
-                --c; // try a block size smaller by one warp
-            }
-            return Constant::WARP_SIZE * c;
-        }
+        static_assert(
+            is_multiple_of(Config::block_size, Constant::WARP_SIZE) and
+            Constant::WARP_SIZE <= Config::block_size and
+            Config::block_size <= Limits::MAX_THREADS);
 
         static constexpr u32 block_size = Config::block_size; // is multiple of WARP_SIZE
-        static constexpr u32 block_size_x = Config::allow_block_reshape ? best_block_size_x() : Config::block_size_x;
+        static constexpr u32 block_size_x = Config::allow_block_reshape ? best_block_size_x<Config, WarpCountBlockSizeX>() : Config::block_size_x;
         static constexpr u32 block_size_y = Config::allow_block_reshape ? block_size / block_size_x : Config::block_size_y;
+        static constexpr u32 block_size_z = 1;
         static constexpr u32 block_ndim = block_size_y > 1 ? 2 : 1;
     };
 
@@ -87,7 +80,7 @@ namespace noa::cuda::details {
 
         const bool is_valid_row = gid[N - 2] < shape_hw[0];
 
-        const auto ci = ComputeHandle<Index, GRID_NDIM, 2, true, true, false>(scratch_size, grid_outer_shape, grid_outer_offset);
+        const auto ci = ComputeHandle<Index, GRID_NDIM, Block, true, true, false>(scratch_size, grid_outer_shape, grid_outer_offset);
         if constexpr (N == 3)
             Interface::init(ci, op, gid[0], gid[1]);
         else if constexpr (N == 4)
@@ -208,7 +201,7 @@ namespace noa::cuda::details {
             static_assert(nt::always_false<Interface>);
         }
 
-        const auto ci = ComputeHandle<Index, GRID_NDIM, 2, true, true, false>(scratch_size, grid_outer_shape, grid_outer_offset);
+        const auto ci = ComputeHandle<Index, GRID_NDIM, Block, true, true, false>(scratch_size, grid_outer_shape, grid_outer_offset);
         if constexpr (N == 2)
             Interface::init(ci, op, gid[1]);
         else if constexpr (N == 3)
@@ -330,7 +323,7 @@ namespace noa::cuda::details {
         u32 block_index_offset_z
     ) {
         static_assert(Block::block_ndim == 2);
-        const auto ci = ComputeHandle<Index, 3, Block::block_ndim, true, true, true>(
+        const auto ci = ComputeHandle<Index, 3, Block, true, true, true>(
             scratch_size, Vec<u32, 2>{grid_size_z, 1}, Vec<u32, 2>{block_index_offset_z, 0});
 
         // Get the position within the span.
@@ -407,7 +400,7 @@ namespace noa::cuda::details {
             Block::block_size_x * blockIdx.x + threadIdx.x
         );
 
-        const auto ci = ComputeHandle<Index, 3, 2, true, true, true>(
+        const auto ci = ComputeHandle<Index, 3, Block, true, true, true>(
             scratch_size, Vec<u32, 2>{grid_size_z, 1}, Vec<u32, 2>{block_index_offset_z, 0});
         Interface::init(ci, op, cd);
 
@@ -437,7 +430,7 @@ namespace noa::cuda::details {
         const Index ch = blockIdx.z + block_index_offset_z;
         const Index gid = Block::block_size_x * blockIdx.x + threadIdx.x;
 
-        const auto ci = ComputeHandle<Index, 3, 1, true, true, true>(
+        const auto ci = ComputeHandle<Index, 3, Block, true, true, true>(
             scratch_size, Vec<u32, 2>{grid_size_z, 1}, Vec<u32, 2>{block_index_offset_z, 0});
         Interface::init(ci, op, ch);
 
@@ -475,7 +468,7 @@ namespace noa::cuda::details {
         static_assert(N > 2 or Block::block_size_y == 1);
         const Index batch = blockIdx.x;
 
-        const auto ci = ComputeHandle<Index, 1, Block::block_ndim, false, true, false>(scratch_size);
+        const auto ci = ComputeHandle<Index, 1, Block, false, true, false>(scratch_size);
         Interface::init(ci, op, batch);
 
         if constexpr (N == 2) {
@@ -552,7 +545,6 @@ namespace noa::cuda::details {
                 using block_big_x = ReduceIwiseSingleAxisBlock<Config, 8>;
                 using block_small_x = ReduceIwiseSingleAxisBlock<Config, 2>;
                 const bool is_big_x = safe_cast<u32>(input_shape[N - 1]) > 512;
-                const auto n_threads_x = is_big_x ? block_big_x::block_size_x : block_small_x::block_size_x;
                 const auto n_threads_y = is_big_x ? block_big_x::block_size_y : block_small_x::block_size_y;
                 const auto shape_hw = input_shape.filter(N - 2, N - 1);
 
@@ -571,20 +563,21 @@ namespace noa::cuda::details {
 
                 for (u32 z{}; z < grid.n_launches_z(); ++z) {
                     for (u32 y{}; y < grid.n_launches_y(); ++y) {
-                        const auto config = LaunchConfig{
+                        auto config = LaunchConfig{
                             .n_blocks = grid.dim3_shape_for_launch(z, y, 0),
-                            .n_threads = dim3(n_threads_x, n_threads_y, 1),
                             .n_bytes_of_shared_memory = n_bytes_of_shared_memory,
                         };
 
                         const auto grid_outer_offset = grid.block_offset_for_launch(z, y).template pop_front<POP_COUNT_FOR_OUTER_GRID>();
                         if (is_big_x) {
+                            config.n_threads = dim3_block_shape<block_big_x>();
                             stream.enqueue(
                                 reduce_width_iwise<N, block_big_x, Interface, OpDecay, Index, ReducedDecay, OutputNoWidth>,
                                 config, op, shape_hw, reduced, output_no_width,
                                 static_cast<u32>(scratch_size), grid_outer_shape, grid_outer_offset, grid_fused_shape_in_x_unbatched
                             );
                         } else {
+                            config.n_threads = dim3_block_shape<block_small_x>();
                             stream.enqueue(
                                 reduce_width_iwise<N, block_small_x, Interface, OpDecay, Index, ReducedDecay, OutputNoWidth>,
                                 config, op, shape_hw, reduced, output_no_width,
@@ -616,9 +609,8 @@ namespace noa::cuda::details {
         auto reordered_output_no_height = nd::reconfig_accessors(reordered_output, order_output_dim);
         using ReorderedOutputNoHeight = decltype(reordered_output_no_height);
 
-        // Block shape.
+        // Block.
         using Block = ReduceIwise2dBlock<Config>;
-        const auto n_threads = dim3(Block::block_size_x, Block::block_size_y);
 
         // Grid shape.
         // N==2 -> 1D grid.
@@ -639,7 +631,7 @@ namespace noa::cuda::details {
             for (u32 y{}; y < grid.n_launches_y(); ++y) {
                 const auto config = LaunchConfig{
                     .n_blocks = grid.dim3_shape_for_launch(z, y, 0),
-                    .n_threads = n_threads,
+                    .n_threads = dim3_block_shape<Block>(),
                     .n_bytes_of_shared_memory = n_bytes_of_shared_memory,
                 };
                 const auto grid_outer_offset = grid.block_offset_for_launch(z, y).template pop_front<POP_COUNT_FOR_OUTER_GRID>();
@@ -752,7 +744,7 @@ namespace noa::cuda {
                 if (not Config::allow_two_kernels or n_elements <= SMALL_THRESHOLD) {
                     const auto config = LaunchConfig{
                         .n_blocks = batch,
-                        .n_threads = dim3(Block::block_size_x, Block::block_size_y, 1),
+                        .n_threads = details::dim3_block_shape<Block>(),
                         .n_bytes_of_shared_memory = n_bytes_of_shared_memory,
                     };
                     stream.enqueue(

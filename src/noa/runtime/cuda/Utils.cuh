@@ -428,6 +428,25 @@ namespace noa::cuda::details {
 
 // TODO Some of these functions could be moved to ComputeHandle.
 namespace noa::cuda::details {
+    // Get a warp count that makes block_size_x a multiple of block_size.
+    template<typename Config, u32 WarpCountBlockSizeX>
+    constexpr auto best_block_size_x() {
+        u32 c = max(1u, WarpCountBlockSizeX);
+        for (;;) {
+            if (Constant::WARP_SIZE * c <= Config::block_size and
+                is_multiple_of(Config::block_size, Constant::WARP_SIZE * c)) {
+                break;
+                }
+            --c; // try a block size smaller by one warp
+        }
+        return Constant::WARP_SIZE * c;
+    }
+
+    template<typename Block>
+    constexpr auto dim3_block_shape() {
+        return dim3(Block::block_size_x, Block::block_size_y, Block::block_size_z);
+    }
+
     /// Synchronizes the block.
     /// TODO Cooperative groups may be the way to go and do offer more granularity.
     NOA_FD void block_synchronize() {
@@ -488,11 +507,11 @@ namespace noa::cuda::details {
         }
 
         if constexpr (AddThreadIndices) {
-            if constexpr (Block::block_ndim == 3)
+            if constexpr (Block::block_size_z > 1)
                 gid[N - 3] += static_cast<T>(threadIdx.z);
-            if constexpr (Block::block_ndim >= 2)
+            if constexpr (Block::block_size_y > 1)
                 gid[N - 2] += static_cast<T>(threadIdx.y);
-            if constexpr (Block::block_ndim >= 1)
+            if constexpr (Block::block_size_x > 1)
                 gid[N - 1] += static_cast<T>(threadIdx.x);
         }
         return gid;
@@ -512,11 +531,11 @@ namespace noa::cuda::details {
             static_cast<T>(Block::block_work_size_x) * bid_yx[1],
         };
         if constexpr (AddThreadIndices) {
-            if constexpr (Block::block_ndim == 3)
+            if constexpr (Block::block_size_z > 1)
                 gid[1] += static_cast<T>(threadIdx.z);
-            if constexpr (Block::block_ndim >= 2)
+            if constexpr (Block::block_size_y > 1)
                 gid[2] += static_cast<T>(threadIdx.y);
-            if constexpr (Block::block_ndim >= 1)
+            if constexpr (Block::block_size_x > 1)
                 gid[3] += static_cast<T>(threadIdx.x);
         }
         return gid;

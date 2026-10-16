@@ -14,7 +14,8 @@
 
 namespace noa::cuda {
     template<u32 BlockSizeX, u32 BlockSizeY, u32 BlockSizeZ,
-             u32 ElementsPerThreadX = 1, u32 ElementsPerThreadY = 1, u32 ElementsPerThreadZ = 1>
+             u32 ElementsPerThreadX = 1, u32 ElementsPerThreadY = 1, u32 ElementsPerThreadZ = 1,
+             bool EnableBoundCheck = true>
     struct StaticBlock {
         static constexpr u32 block_size_x = BlockSizeX;
         static constexpr u32 block_size_y = BlockSizeY;
@@ -22,7 +23,7 @@ namespace noa::cuda {
         static constexpr u32 block_size = block_size_x * block_size_y * block_size_z;
         static constexpr u32 block_ndim = block_size_z > 1 ? 3 : block_size_y > 1 ? 2 : 1;
 
-        static_assert(block_size > 0 and block_size < Limits::MAX_THREADS);
+        static_assert(block_size > 0 and block_size <= Limits::MAX_THREADS);
 
         static constexpr u32 n_elements_per_thread_x = ElementsPerThreadX;
         static constexpr u32 n_elements_per_thread_y = ElementsPerThreadY;
@@ -31,6 +32,8 @@ namespace noa::cuda {
         static constexpr u32 block_work_size_x = block_size_x * n_elements_per_thread_x;
         static constexpr u32 block_work_size_y = block_size_y * n_elements_per_thread_y;
         static constexpr u32 block_work_size_z = block_size_z * n_elements_per_thread_z;
+
+        static constexpr bool enable_bound_check = EnableBoundCheck;
     };
 }
 

@@ -2,13 +2,12 @@
 #include "noa/runtime/cuda/IncludeGuard.cuh"
 
 #include "noa/base/Config.hpp"
-#include "noa/base/Complex.hpp"
 #include "noa/runtime/core/Span.hpp"
 #include "noa/runtime/cuda/Utils.cuh"
 
 namespace noa::cuda::details {
     template<typename Index,
-             u32 GridNDim, u32 BlockNDim,
+             u32 GridNDim, typename Block_,
              bool IsMultiGridKernel,
              bool IsUsingDynamicSharedMemory,
              bool IsTwoPartReduction>
@@ -16,6 +15,7 @@ namespace noa::cuda::details {
         using vec_zy_type = std::conditional_t<IsMultiGridKernel, Vec<u32, GridNDim - 1>, Empty>;
         using scratch_size_type = std::conditional_t<IsUsingDynamicSharedMemory, u32, Empty>;
         using index_type = Index;
+        static constexpr u32 BlockNDim = Block_::block_size_z > 1 ? 3 : Block_::block_size_y > 1 ? 2 : 1;
 
     public:
         static constexpr NOA_FD auto is_cpu() -> bool { return false; }
@@ -99,12 +99,12 @@ namespace noa::cuda::details {
             }
 
             template<typename T, usize N> requires (1 <= N and N <= 3)
-            static NOA_FD auto shape() -> Shape<T, N> {
+            static constexpr NOA_FD auto shape() -> Shape<T, N> {
                 return block_shape<T, N>();
             }
 
             template<typename T = index_type>
-            static NOA_FD auto size() -> T {
+            static constexpr NOA_FD auto size() -> T {
                 return block_size<T>();
             }
 
@@ -147,7 +147,7 @@ namespace noa::cuda::details {
 
     private: // implementation
         template<i32 i>
-        NOA_FD auto get_grid_size() const -> u32 {
+        constexpr NOA_FD auto get_grid_size() const -> u32 {
             if constexpr (IsMultiGridKernel)
                 return m_grid_size_zy[i];
             else
@@ -155,7 +155,7 @@ namespace noa::cuda::details {
         }
 
         template<i32 i>
-        NOA_FD auto get_block_index_offset() const -> u32 {
+        constexpr NOA_FD auto get_block_index_offset() const -> u32 {
             if constexpr (IsMultiGridKernel)
                 return m_block_index_offset_zy[i];
             else
@@ -199,25 +199,25 @@ namespace noa::cuda::details {
         }
 
         template<typename T, usize N> requires (1 <= N and N <= 3)
-        static NOA_FD auto block_shape() -> Shape<T, N> {
+        static constexpr NOA_FD auto block_shape() -> Shape<T, N> {
             if constexpr (N == 1)
-                return Shape<T, N>::from_values(blockDim.x);
+                return Shape<T, N>::from_values(Block_::block_size_x);
             else if constexpr (N == 2)
-                return Shape<T, N>::from_values(blockDim.y, blockDim.y);
+                return Shape<T, N>::from_values(Block_::block_size_y, Block_::block_size_y);
             else if constexpr (N == 3)
-                return Shape<T, N>::from_values(blockDim.z, blockDim.y, blockDim.x);
+                return Shape<T, N>::from_values(Block_::block_size_z, Block_::block_size_y, Block_::block_size_x);
             else
                 static_assert(nt::always_false<T>);
         }
 
         template<typename T>
-        static NOA_FD auto block_size() -> T {
+        static constexpr NOA_FD auto block_size() -> T {
             if constexpr (BlockNDim == 1)
-                return static_cast<T>(blockDim.x);
+                return static_cast<T>(Block_::block_size_x);
             else if constexpr (BlockNDim == 2)
-                return static_cast<T>(blockDim.y * blockDim.x);
+                return static_cast<T>(Block_::block_size_y * Block_::block_size_x);
             else if constexpr (BlockNDim == 3)
-                return static_cast<T>(blockDim.z * blockDim.y * blockDim.x);
+                return static_cast<T>(Block_::block_size_z * Block_::block_size_y * Block_::block_size_x);
             else
                 static_assert(nt::always_false<T>);
         }
@@ -264,9 +264,9 @@ namespace noa::cuda::details {
             if constexpr (BlockNDim == 1)
                 return static_cast<T>(threadIdx.x);
             else if constexpr (BlockNDim == 2)
-                return static_cast<T>(threadIdx.y * blockDim.x + threadIdx.x);
+                return static_cast<T>(threadIdx.y * Block_::block_size_x + threadIdx.x);
             else if constexpr (BlockNDim == 3)
-                return static_cast<T>((threadIdx.z * blockDim.y + threadIdx.y) * blockDim.x + threadIdx.x);
+                return static_cast<T>((threadIdx.z * Block_::block_size_y + threadIdx.y) * Block_::block_size_x + threadIdx.x);
             else
                 static_assert(nt::always_false<T>);
         }
@@ -287,63 +287,63 @@ namespace noa::cuda::details {
         NOA_FD auto thread_gid() const -> T {
             if constexpr (GridNDim == 1) {
                 if constexpr (BlockNDim == 1) {
-                    const u32 index_x = blockIdx.x * blockDim.x + threadIdx.x;
+                    const u32 index_x = blockIdx.x * Block_::block_size_x + threadIdx.x;
                     return static_cast<T>(index_x);
                 } else if constexpr (BlockNDim == 2) {
-                    const u32 index_x = blockIdx.x * blockDim.x + threadIdx.x;
+                    const u32 index_x = blockIdx.x * Block_::block_size_x + threadIdx.x;
                     const u32 index_y = threadIdx.y;
-                    const u32 size_x = gridDim.x * blockDim.x;
+                    const u32 size_x = gridDim.x * Block_::block_size_x;
                     return static_cast<T>(index_y * size_x + index_x);
                 } else {
-                    const u32 index_x = blockIdx.x * blockDim.x + threadIdx.x;
+                    const u32 index_x = blockIdx.x * Block_::block_size_x + threadIdx.x;
                     const u32 index_y = threadIdx.y;
                     const u32 index_z = threadIdx.z;
-                    const u32 size_x = gridDim.x * blockDim.x;
-                    const u32 size_y = blockDim.y;
+                    const u32 size_x = gridDim.x * Block_::block_size_x;
+                    const u32 size_y = Block_::block_size_y;
                     return static_cast<T>((index_z * size_y + index_y) * size_x + index_x);
                 }
 
             } else if constexpr (GridNDim == 2) {
                 if constexpr (BlockNDim == 1) {
-                    const u32 index_x = blockIdx.x * blockDim.x + threadIdx.x;
+                    const u32 index_x = blockIdx.x * Block_::block_size_x + threadIdx.x;
                     const u32 index_y = blockIdx.y + get_block_index_offset<0>();
-                    const u32 size_x = gridDim.x * blockDim.x;
+                    const u32 size_x = gridDim.x * Block_::block_size_x;
                     return static_cast<T>(index_y * size_x + index_x);
                 } else if constexpr (BlockNDim == 2) {
-                    const u32 index_x = blockIdx.x * blockDim.x + threadIdx.x;
-                    const u32 index_y = (blockIdx.y + get_block_index_offset<0>()) * blockDim.y + threadIdx.y;
-                    const u32 size_x = gridDim.x * blockDim.x;
+                    const u32 index_x = blockIdx.x * Block_::block_size_x + threadIdx.x;
+                    const u32 index_y = (blockIdx.y + get_block_index_offset<0>()) * Block_::block_size_y + threadIdx.y;
+                    const u32 size_x = gridDim.x * Block_::block_size_x;
                     return static_cast<T>(index_y * size_x + index_x);
                 } else {
-                    const u32 index_x = blockIdx.x * blockDim.x + threadIdx.x;
-                    const u32 index_y = (blockIdx.y + get_block_index_offset<0>()) * blockDim.y + threadIdx.y;
+                    const u32 index_x = blockIdx.x * Block_::block_size_x + threadIdx.x;
+                    const u32 index_y = (blockIdx.y + get_block_index_offset<0>()) * Block_::block_size_y + threadIdx.y;
                     const u32 index_z = threadIdx.z;
-                    const u32 size_x = gridDim.x * blockDim.x;
-                    const u32 size_y = blockDim.y;
+                    const u32 size_x = gridDim.x * Block_::block_size_x;
+                    const u32 size_y = Block_::block_size_y;
                     return static_cast<T>((index_z * size_y + index_y) * size_x + index_x);
                 }
 
             } else {
                 if constexpr (BlockNDim == 1) {
-                    const u32 index_x = blockIdx.x * blockDim.x + threadIdx.x;
+                    const u32 index_x = blockIdx.x * Block_::block_size_x + threadIdx.x;
                     const u32 index_y = blockIdx.y + get_block_index_offset<1>();
                     const u32 index_z = blockIdx.z + get_block_index_offset<0>();
-                    const u32 size_x = gridDim.x * blockDim.x;
+                    const u32 size_x = gridDim.x * Block_::block_size_x;
                     const u32 size_y = get_grid_size<1>();
                     return static_cast<T>((index_z * size_y + index_y) * size_x + index_x);
                 } else if constexpr (BlockNDim == 2) {
-                    const u32 index_x = blockIdx.x * blockDim.x + threadIdx.x;
-                    const u32 index_y = (blockIdx.y + get_block_index_offset<1>()) * blockDim.y + threadIdx.y;
+                    const u32 index_x = blockIdx.x * Block_::block_size_x + threadIdx.x;
+                    const u32 index_y = (blockIdx.y + get_block_index_offset<1>()) * Block_::block_size_y + threadIdx.y;
                     const u32 index_z = blockIdx.z + get_block_index_offset<0>();
-                    const u32 size_x = gridDim.x * blockDim.x;
-                    const u32 size_y = get_grid_size<1>() * blockDim.y;
+                    const u32 size_x = gridDim.x * Block_::block_size_x;
+                    const u32 size_y = get_grid_size<1>() * Block_::block_size_y;
                     return static_cast<T>((index_z * size_y + index_y) * size_x + index_x);
                 } else {
-                    const u32 index_x = blockIdx.x * blockDim.x + threadIdx.x;
-                    const u32 index_y = (blockIdx.y + get_block_index_offset<1>()) * blockDim.y + threadIdx.y;
-                    const u32 index_z = (blockIdx.z + get_block_index_offset<0>()) * blockDim.z + threadIdx.z;
-                    const u32 size_x = gridDim.x * blockDim.x;
-                    const u32 size_y = get_grid_size<1>() * blockDim.y;
+                    const u32 index_x = blockIdx.x * Block_::block_size_x + threadIdx.x;
+                    const u32 index_y = (blockIdx.y + get_block_index_offset<1>()) * Block_::block_size_y + threadIdx.y;
+                    const u32 index_z = (blockIdx.z + get_block_index_offset<0>()) * Block_::block_size_z + threadIdx.z;
+                    const u32 size_x = gridDim.x * Block_::block_size_x;
+                    const u32 size_y = get_grid_size<1>() * Block_::block_size_y;
                     return static_cast<T>((index_z * size_y + index_y) * size_x + index_x);
                 }
             }
@@ -376,6 +376,6 @@ namespace noa::cuda::details {
 }
 
 namespace noa::traits {
-    template<typename T, u32 G, u32 B, bool F0, bool F1, bool F2>
+    template<typename T, u32 G, typename B, bool F0, bool F1, bool F2>
     struct proclaim_is_compute_handle<noa::cuda::details::ComputeHandle<T, G, B, F0, F1, F2>> : std::true_type {};
 }

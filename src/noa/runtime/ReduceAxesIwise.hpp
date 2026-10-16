@@ -260,8 +260,8 @@ namespace noa::details {
                     ZIP_REDUCED, ZIP_OUTPUT,
                     OPTIONS.gpu_block_shape[1],
                     OPTIONS.gpu_block_shape[0],
-                    OPTIONS.gpu_number_of_indices_per_threads[1],
-                    OPTIONS.gpu_number_of_indices_per_threads[0],
+                    OPTIONS.gpu_number_of_indices_per_thread[1],
+                    OPTIONS.gpu_number_of_indices_per_thread[0],
                     OPTIONS.gpu_max_grid_size,
                     OPTIONS.gpu_optimize_block_shape,
                     OPTIONS.gpu_allow_two_kernels

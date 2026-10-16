@@ -8,16 +8,70 @@
 #include "noa/runtime/cuda/ComputeHandle.cuh"
 
 namespace noa::cuda::details {
+    template<typename Block, typename Index>
+    struct IwiseBounds {
+        static constexpr bool BOUND_CHECK_Z = Block::enable_bound_check ? Block::block_size_z > 1 or Block::n_elements_per_thread_z > 1 : false;
+        static constexpr bool BOUND_CHECK_Y = Block::enable_bound_check ? Block::block_size_y > 1 or Block::n_elements_per_thread_y > 1 : false;
+        static constexpr bool BOUND_CHECK_X = Block::enable_bound_check ? Block::block_size_x > 1 or Block::n_elements_per_thread_x > 1 : false;
+
+        static constexpr usize NB_AXES_NEED_BOUND_CHECK =
+            static_cast<usize>(BOUND_CHECK_Z) +
+            static_cast<usize>(BOUND_CHECK_Y) +
+            static_cast<usize>(BOUND_CHECK_X);
+
+        template<usize N>
+        constexpr explicit IwiseBounds(const Shape<Index, N>& shape) {
+            if constexpr (BOUND_CHECK_Z and N >= 3) {
+                bounds[0] = shape[N - 3];
+            }
+            if constexpr (BOUND_CHECK_Y and N >= 2) {
+                bounds[BOUND_CHECK_Z] = shape[N - 2];
+            }
+            if constexpr (BOUND_CHECK_X) {
+                bounds[BOUND_CHECK_Z + BOUND_CHECK_Y] = shape[N - 1];
+            }
+        }
+
+        // I: {z,y,x}
+        template<usize I> requires (I < 3)
+        NOA_FD auto is_within_upper_bound(Index index) -> bool {
+            if constexpr (Block::enable_bound_check) {
+                if constexpr (I == 0) {
+                    if constexpr (BOUND_CHECK_Z) {
+                        return index < bounds[0];
+                    } else {
+                        return true;
+                    }
+                } else if constexpr (I == 1) {
+                    if constexpr (BOUND_CHECK_Y) {
+                        return index < bounds[BOUND_CHECK_Z];
+                    } else {
+                        return true;
+                    }
+                } else if constexpr (I == 2) {
+                    if constexpr (BOUND_CHECK_X) {
+                        return index < bounds[BOUND_CHECK_Z + BOUND_CHECK_Y];
+                    } else {
+                        return true;
+                    }
+                }
+            }
+            return true;
+        }
+
+        NOA_NO_UNIQUE_ADDRESS Vec<Index, NB_AXES_NEED_BOUND_CHECK> bounds{};
+    };
+
     template<typename Block, typename Interface, typename Op, typename Index, usize N>
     __global__ __launch_bounds__(Block::block_size)
     void iwise_nd_static(
         Op op,
-        Vec<Index, 3> shape,
+        IwiseBounds<Block, Index> bounds,
         Vec<u32, 2> grid_outer_shape,
         Vec<u32, 2> grid_outer_offset,
         Vec<u32, N - 3> grid_fused_shape_in_x_unbatched
     ) {
-        const auto ci = ComputeHandle<Index, 3, Block::block_ndim, true, false, false>(grid_outer_shape, grid_outer_offset);
+        const auto ci = ComputeHandle<Index, 3, Block, true, false, false>(grid_outer_shape, grid_outer_offset);
         Interface::init(ci, op);
 
         const auto gid = global_indices<Index, N, Block>(grid_fused_shape_in_x_unbatched, grid_outer_offset);
@@ -27,7 +81,9 @@ namespace noa::cuda::details {
                     const Index id = gid[N - 3] + Block::block_size_z * d;
                     const Index ih = gid[N - 2] + Block::block_size_y * h;
                     const Index iw = gid[N - 1] + Block::block_size_x * w;
-                    if (id < shape[0] and ih < shape[1] and iw < shape[2]) {
+                    if (bounds.is_within_upper_bound<0>(id) and
+                        bounds.is_within_upper_bound<1>(ih) and
+                        bounds.is_within_upper_bound<2>(iw)) {
                         if constexpr (N == 4)
                             Interface::call(ci, op, gid[0], id, ih, iw);
                         else if constexpr (N == 5)
@@ -45,8 +101,8 @@ namespace noa::cuda::details {
 
     template<typename Block, typename Interface, typename Op, typename Index>
     __global__ __launch_bounds__(Block::block_size)
-    void iwise_3d_static(Op op, Vec<Index, 3> shape, Vec<u32, 2> grid_size_zy, Vec<u32, 2> grid_outer_offset) {
-        const auto ci = ComputeHandle<Index, 3, Block::block_ndim, true, false, false>(grid_size_zy, grid_outer_offset);
+    void iwise_3d_static(Op op, IwiseBounds<Block, Index> bounds, Vec<u32, 2> grid_size_zy, Vec<u32, 2> grid_outer_offset) {
+        const auto ci = ComputeHandle<Index, 3, Block, true, false, false>(grid_size_zy, grid_outer_offset);
         Interface::init(ci, op);
 
         const auto gid = global_indices_3d<Index, Block>(grid_outer_offset);
@@ -56,7 +112,9 @@ namespace noa::cuda::details {
                     const Index id = gid[0] + Block::block_size_z * d;
                     const Index ih = gid[1] + Block::block_size_y * h;
                     const Index iw = gid[2] + Block::block_size_x * w;
-                    if (id < shape[0] and ih < shape[1] and iw < shape[2])
+                    if (bounds.is_within_upper_bound<0>(id) and
+                        bounds.is_within_upper_bound<1>(ih) and
+                        bounds.is_within_upper_bound<2>(iw))
                         Interface::call(ci, op, id, ih, iw);
                 }
             }
@@ -66,8 +124,8 @@ namespace noa::cuda::details {
 
     template<typename Block, typename Interface, typename Op, typename Index>
     __global__ __launch_bounds__(Block::block_size)
-    void iwise_2d_static(Op op, Vec<Index, 2> shape, Vec<u32, 1> n_blocks_y, Vec<u32, 1> block_offset_y) {
-        const auto ci = ComputeHandle<Index, 2, Block::block_ndim, true, false, false>(n_blocks_y, block_offset_y);
+    void iwise_2d_static(Op op, IwiseBounds<Block, Index> bounds, Vec<u32, 1> n_blocks_y, Vec<u32, 1> block_offset_y) {
+        const auto ci = ComputeHandle<Index, 2, Block, true, false, false>(n_blocks_y, block_offset_y);
         Interface::init(ci, op);
 
         const auto gid = global_indices_2d<Index, Block>(block_offset_y);
@@ -75,7 +133,8 @@ namespace noa::cuda::details {
             for (Index w = 0; w < Block::n_elements_per_thread_x; ++w) {
                 const Index ih = gid[0] + Block::block_size_y * h;
                 const Index iw = gid[1] + Block::block_size_x * w;
-                if (ih < shape[0] and iw < shape[1])
+                if (bounds.is_within_upper_bound<1>(ih) and
+                    bounds.is_within_upper_bound<2>(iw))
                     Interface::call(ci, op, ih, iw);
             }
         }
@@ -84,14 +143,14 @@ namespace noa::cuda::details {
 
     template<typename Block, typename Interface, typename Op, typename Index>
     __global__ __launch_bounds__(Block::block_size)
-    void iwise_1d_static(Op op, Vec<Index, 1> shape) {
-        const auto ci = ComputeHandle<Index, 1, Block::block_ndim, false, false, false>{};
+    void iwise_1d_static(Op op, IwiseBounds<Block, Index> bounds) {
+        const auto ci = ComputeHandle<Index, 1, Block, false, false, false>{};
         Interface::init(ci, op);
 
         const auto gid = global_indices_1d<Index, Block>();
         for (Index w = 0; w < Block::n_elements_per_thread_x; ++w) {
             const Index iw = gid[0] + Block::block_size_x * w;
-            if (iw < shape[0])
+            if (bounds.is_within_upper_bound<2>(iw))
                 Interface::call(ci, op, iw);
         }
         Interface::deinit(ci, op);
@@ -115,6 +174,7 @@ namespace noa::cuda {
         static_assert(N >= Block::block_ndim, "Shape n-dimensions must be greater than thread-block n-dimensions");
         using Interface = nd::IwiseInterface;
 
+        const auto bounds = details::IwiseBounds<Block, Index>(shape);
         if constexpr (N >= 4) {
             auto block_work_shape = Shape<u32, N>::from_value(1);
             block_work_shape[N - 3] = Block::block_work_size_z;
@@ -129,12 +189,12 @@ namespace noa::cuda {
                 for (u32 y{}; y < grid.n_launches_y(); ++y) {
                     const auto config = LaunchConfig{
                         .n_blocks = grid.dim3_shape_for_launch(z, y, 0),
-                        .n_threads = dim3(Block::block_size_x, Block::block_size_y, Block::block_size_z),
+                        .n_threads = details::dim3_block_shape<Block>(),
                         .n_bytes_of_shared_memory = scratch_size,
                     };
                     stream.enqueue(
                         details::iwise_nd_static<Block, Interface, std::decay_t<Op>, Index, N>,
-                        config, op, shape.vec.template pop_front<N - 3>(),
+                        config, op, bounds,
                         grid.outer_shape().vec, grid.block_offset_for_launch(z, y), grid.fused_shape().vec.pop_front()
                     );
                 }
@@ -148,14 +208,14 @@ namespace noa::cuda {
                 for (u32 y{}; y < grid_y.n_launches(); ++y) {
                     const auto config = LaunchConfig{
                         .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y), grid_z.n_blocks(z)),
-                        .n_threads = dim3(Block::block_size_x, Block::block_size_y, Block::block_size_z),
+                        .n_threads = details::dim3_block_shape<Block>(),
                         .n_bytes_of_shared_memory = scratch_size,
                     };
                     const auto grid_size = Vec{grid_z.n_blocks_total(), grid_y.n_blocks_total()}.template as<u32>();
                     const auto grid_offset = Vec{grid_z.offset(z), grid_y.offset(y)};
                     stream.enqueue(
                         details::iwise_3d_static<Block, Interface, std::decay_t<Op>, Index>,
-                        config, op, shape.vec, grid_size, grid_offset
+                        config, op, bounds, grid_size, grid_offset
                     );
                 }
             }
@@ -166,14 +226,14 @@ namespace noa::cuda {
             for (u32 y{}; y < grid_y.n_launches(); ++y) {
                 const auto config = LaunchConfig{
                     .n_blocks = dim3(grid_x.n_blocks(0), grid_y.n_blocks(y)),
-                    .n_threads = dim3(Block::block_size_x, Block::block_size_y),
+                    .n_threads = details::dim3_block_shape<Block>(),
                     .n_bytes_of_shared_memory = scratch_size,
                 };
                 const auto grid_size = Vec{grid_y.n_blocks_total()}.template as<u32>();;
                 const auto grid_offset = Vec{grid_y.offset(y)};
                 stream.enqueue(
                     details::iwise_2d_static<Block, Interface, std::decay_t<Op>, Index>,
-                    config, op, shape.vec, grid_size, grid_offset
+                    config, op, bounds, grid_size, grid_offset
                 );
             }
         } else if constexpr (N == 1) {
@@ -181,12 +241,12 @@ namespace noa::cuda {
             check(grid_x.n_launches() == 1);
             const auto config = LaunchConfig{
                 .n_blocks = dim3(grid_x.n_blocks(0)),
-                .n_threads = dim3(Block::block_size_x),
+                .n_threads = details::dim3_block_shape<Block>(),
                 .n_bytes_of_shared_memory = scratch_size,
             };
             stream.enqueue(
                 details::iwise_1d_static<Block, Interface, std::decay_t<Op>, Index>,
-                config, op, shape.vec
+                config, op, bounds
             );
         }
     }
