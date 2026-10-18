@@ -203,6 +203,7 @@ namespace {
 
         const isize n_elements = input.ssize();
         const isize n_bytes = std::same_as<Output, u4_encoding> ? n_elements / 2 : n_elements * N_BYTES_PER_ELEMENT;
+        const bool input_is_contiguous = input.is_contiguous();
 
         // Allocate two double-buffers to encode and write in parallel.
         constexpr usize ALIGNMENT = 64;
@@ -233,7 +234,7 @@ namespace {
                 #pragma omp task firstprivate(encoding_buffer, encoding_offset, encoding_elements) depend(out: encoding_buffer[0])
                 {
                     const isize n_elements_offset = encoding_offset / N_BYTES_PER_ELEMENT;
-                    if constexpr (N == 1) {
+                    if (input_is_contiguous) {
                         #pragma omp taskloop num_tasks(encode_threads) shared(input)
                         for (isize i = 0; i < encoding_elements; ++i) {
                             const Input* input_ptr = input.get() + n_elements_offset;
@@ -302,6 +303,7 @@ namespace {
 
         const isize n_elements = output.ssize();
         const isize n_bytes = std::same_as<Input, u4_encoding> ? n_elements / 2 : n_elements * N_BYTES_PER_ELEMENT;
+        const bool output_is_contiguous = output.is_contiguous();
 
         // Allocate two double-buffers to read and decode in parallel.
         constexpr usize ALIGNMENT = 64;
@@ -334,7 +336,7 @@ namespace {
                 #pragma omp task firstprivate(decoding_buffer, decoding_offset, decoding_elements) depend(out: decoding_buffer[0])
                 {
                     const isize n_elements_offset = decoding_offset / N_BYTES_PER_ELEMENT;
-                    if constexpr (N == 1) {
+                    if (output_is_contiguous) {
                         #pragma omp taskloop num_tasks(decode_threads) shared(output)
                         for (isize i = 0; i < decoding_elements; ++i) {
                             Output* output_ptr = output.get() + n_elements_offset;
