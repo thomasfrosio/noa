@@ -1109,22 +1109,22 @@ namespace noa::inline types {
         template<nt::integer... U>
         [[nodiscard]] constexpr auto filter(U... axes) const& {
             return Array<value_type, sizeof...(U), ARRAY_OWNERSHIP>(
-                m_shared, shape().filter(axes...), strides().filter(axes...));
+                m_shared, shape().filter(axes...), strides().filter(axes...), options(), Unchecked{});
         }
         template<nt::integer... U>
         [[nodiscard]] constexpr auto filter(U... axes) && {
             return Array<value_type, sizeof...(U), ARRAY_OWNERSHIP>(
-                std::move(m_shared), shape().filter(axes...), strides().filter(axes...));
+                std::move(m_shared), shape().filter(axes...), strides().filter(axes...), options(), Unchecked{});
         }
         template<nt::integer U, usize M>
         [[nodiscard]] constexpr auto filter(const Vec<U, M>& axes) const& {
             return Array<value_type, M, ARRAY_OWNERSHIP>(
-                m_shared, shape().filter(axes), strides().filter(axes));
+                m_shared, shape().filter(axes), strides().filter(axes), options(), Unchecked{});
         }
         template<nt::integer U, usize M>
         [[nodiscard]] constexpr auto filter(const Vec<U, M>& axes) && {
             return Array<value_type, M, ARRAY_OWNERSHIP>(
-                std::move(m_shared), shape().filter(axes), strides().filter(axes));
+                std::move(m_shared), shape().filter(axes), strides().filter(axes), options(), Unchecked{});
         }
 
     public:
