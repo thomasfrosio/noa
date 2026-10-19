@@ -131,7 +131,7 @@ namespace noa::xform {
 
         const auto op = details::FourierInterpolationCorrection<B, R, coord_t, input_accessor_t, output_accessor_t>(
             input_accessor, output_accessor, shape_r, options.interp.erase_fast());
-        iwise(output_br.shape(), output.device(), op, NOA_FWD(input), NOA_FWD(output));
+        iwise(output_br.shape(), output.device(), op, {}, NOA_FWD(input), NOA_FWD(output));
     }
 
     template<typename Input, typename Output>

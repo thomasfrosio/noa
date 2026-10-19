@@ -73,8 +73,8 @@ namespace noa::traits {
 }
 
 namespace noa::details {
-    template<ReduceIwiseOptions, bool, bool, bool, typename Index, usize N, typename Reduced, typename Outputs, typename Op, typename... Ts>
-    constexpr void reduce_axes_iwise(const Shape<Index, N>&, Device, Reduced&&, Outputs&&, Op&&, ReduceAxes<N>, Ts&&...);
+    template<ReduceIwiseCompileOptions, bool, bool, bool, typename Index, usize N, typename Reduced, typename Outputs, typename Op, typename... Ts>
+    constexpr void reduce_axes_iwise(const Shape<Index, N>&, Device, Reduced&&, Outputs&&, Op&&, ReduceAxes<N>, const ReduceIwiseOptions&, Ts&&...);
 }
 
 namespace noa {
@@ -94,8 +94,9 @@ namespace noa {
     ///
     /// \param[in] reduced:     Same as reduce-iwise.
     /// \param[in] op:          Same as reduce-iwise.
+    /// \param[in] options:     Same as reduce-iwise.
     /// \param[in] attachments: Same as iwise.
-    template<ReduceIwiseOptions OPTIONS = ReduceIwiseOptions{},
+    template<ReduceIwiseCompileOptions OPTIONS = ReduceIwiseCompileOptions{},
              typename Index, usize N,
              typename Reduced = nd::AdaptorUnzip<>,
              typename Outputs = nd::AdaptorUnzip<>,
@@ -107,42 +108,43 @@ namespace noa {
         Reduced&& reduced,
         Outputs&& outputs,
         Operator&& op,
+        const ReduceIwiseOptions& options = {},
         Ts&&... attachments
     ) {
         if constexpr (nd::adaptor_decay<Reduced, Outputs>) {
             nd::reduce_axes_iwise<OPTIONS, std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP, false>(
                 shape, device,
-                std::forward<Reduced>(reduced).tuple,
-                std::forward<Outputs>(outputs).tuple,
-                std::forward<Operator>(op), ReduceAxes<N>{},
-                std::forward<Ts>(attachments)...);
+                NOA_FWD(reduced).tuple,
+                NOA_FWD(outputs).tuple,
+                NOA_FWD(op), ReduceAxes<N>{},
+                options, NOA_FWD(attachments)...);
         } else if constexpr (nd::adaptor_decay<Reduced>) {
             nd::reduce_axes_iwise<OPTIONS, std::decay_t<Reduced>::ZIP, false, false>(
                 shape, device,
-                std::forward<Reduced>(reduced).tuple,
-                noa::forward_as_tuple(std::forward<Outputs>(outputs)),
-                std::forward<Operator>(op), ReduceAxes<N>{},
-                std::forward<Ts>(attachments)...);
+                NOA_FWD(reduced).tuple,
+                noa::forward_as_tuple(NOA_FWD(outputs)),
+                NOA_FWD(op), ReduceAxes<N>{},
+                options, NOA_FWD(attachments)...);
         } else if constexpr (nd::adaptor_decay<Outputs>) {
             nd::reduce_axes_iwise<OPTIONS, false, std::decay_t<Outputs>::ZIP, false>(
                 shape, device,
-                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
-                std::forward<Outputs>(outputs).tuple,
-                std::forward<Operator>(op), ReduceAxes<N>{},
-                std::forward<Ts>(attachments)...);
+                noa::forward_as_tuple(NOA_FWD(reduced)),
+                NOA_FWD(outputs).tuple,
+                NOA_FWD(op), ReduceAxes<N>{},
+                options, NOA_FWD(attachments)...);
         } else {
             nd::reduce_axes_iwise<OPTIONS, false, false, false>(
                 shape, device,
-                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
-                noa::forward_as_tuple(std::forward<Outputs>(outputs)),
-                std::forward<Operator>(op), ReduceAxes<N>{},
-                std::forward<Ts>(attachments)...);
+                noa::forward_as_tuple(NOA_FWD(reduced)),
+                noa::forward_as_tuple(NOA_FWD(outputs)),
+                NOA_FWD(op), ReduceAxes<N>{},
+                options, NOA_FWD(attachments)...);
         }
     }
 
     /// Computes an index-wise reduction along one or multiple axes.
     /// \details This overload does not have output array(s), and the axes to reduce are specified explicitly.
-    template<ReduceIwiseOptions OPTIONS = ReduceIwiseOptions{},
+    template<ReduceIwiseCompileOptions OPTIONS = ReduceIwiseCompileOptions{},
              typename Index, usize N,
              typename Reduced = nd::AdaptorUnzip<>,
              typename Operator, typename... Ts>
@@ -153,28 +155,29 @@ namespace noa {
         Reduced&& reduced,
         ReduceAxes<N> reduce_axes,
         Operator&& op,
+        const ReduceIwiseOptions& options = {},
         Ts&&... attachments
     ) {
         if constexpr (nd::adaptor_decay<Reduced>) {
             nd::reduce_axes_iwise<OPTIONS, std::decay_t<Reduced>::ZIP, false, true>(
                 shape, device,
-                std::forward<Reduced>(reduced).tuple,
+                NOA_FWD(reduced).tuple,
                 Tuple{},
-                std::forward<Operator>(op), reduce_axes,
-                std::forward<Ts>(attachments)...);
+                NOA_FWD(op), reduce_axes,
+                options, NOA_FWD(attachments)...);
         } else {
             nd::reduce_axes_iwise<OPTIONS, false, false, true>(
                 shape, device,
-                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
+                noa::forward_as_tuple(NOA_FWD(reduced)),
                 Tuple{},
-                std::forward<Operator>(op), reduce_axes,
-                std::forward<Ts>(attachments)...);
+                NOA_FWD(op), reduce_axes,
+                options, NOA_FWD(attachments)...);
         }
     }
 }
 
 namespace noa::details {
-    template<ReduceIwiseOptions OPTIONS, bool ZIP_REDUCED, bool ZIP_OUTPUT, bool ALLOW_NO_OUTPUTS,
+    template<ReduceIwiseCompileOptions OPTIONS, bool ZIP_REDUCED, bool ZIP_OUTPUT, bool ALLOW_NO_OUTPUTS,
              typename Index, usize N, typename Reduced, typename Outputs, typename Op, typename... Ts>
     constexpr void reduce_axes_iwise(
         const Shape<Index, N>& input_shape,
@@ -183,6 +186,7 @@ namespace noa::details {
         Outputs&& outputs,
         Op&& reduce_operator,
         ReduceAxes<N> reduce_axes,
+        const ReduceIwiseOptions& options,
         Ts&&... attachments
     ) {
         Shape<Index, N> output_shape;
@@ -219,12 +223,13 @@ namespace noa::details {
               "Reducing more than one axis at a time is currently limited to a reduction that would result in the leftmost axis, i.e., all dimensions except the leftmost dimension should empty after reduction. Got input_shape={}, output_shape={}, axes_to_reduce={}",
               input_shape, output_shape, axes_to_reduce);
 
-        Tuple reduced_accessors = nd::to_tuple_of_accessor_values(std::forward<Reduced>(reduced));
+        Tuple reduced_accessors = nd::to_tuple_of_accessor_values(NOA_FWD(reduced));
         Tuple output_accessors = nd::to_tuple_of_accessors(outputs);
 
         Stream& stream = Stream::current(device);
         if constexpr (OPTIONS.generate_cpu) {
             if (device.is_cpu()) {
+                (void) options;
                 auto& cpu_stream = stream.cpu();
                 auto n_threads = cpu_stream.thread_limit();
                 using config = noa::cpu::ReduceAxesIwiseConfig<ZIP_REDUCED, ZIP_OUTPUT>;
@@ -232,17 +237,17 @@ namespace noa::details {
                 if (cpu_stream.is_sync()) {
                     noa::cpu::reduce_axes_iwise<config>(
                         input_shape, output_shape,
-                        std::forward<Op>(reduce_operator),
+                        NOA_FWD(reduce_operator),
                         std::move(reduced_accessors),
                         output_accessors,
                         n_threads);
                 } else {
                     cpu_stream.enqueue(
                         [=,
-                            op = std::forward<Op>(reduce_operator),
+                            op = NOA_FWD(reduce_operator),
                             ra = std::move(reduced_accessors),
-                            oh = nd::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs)),
-                            ah = nd::extract_shared_handle(noa::forward_as_tuple(std::forward<Ts>(attachments)...))
+                            oh = nd::extract_shared_handle_from_arrays(NOA_FWD(outputs)),
+                            ah = nd::extract_shared_handle(noa::forward_as_tuple(NOA_FWD(attachments)...))
                         ] {
                             noa::cpu::reduce_axes_iwise<config>(
                                 input_shape, output_shape, std::move(op),
@@ -268,17 +273,17 @@ namespace noa::details {
                 >;
                 noa::cuda::reduce_axes_iwise<config>(
                     input_shape, output_shape,
-                    std::forward<Op>(reduce_operator),
+                    NOA_FWD(reduce_operator),
                     std::move(reduced_accessors),
                     output_accessors,
                     cuda_stream,
-                    OPTIONS.gpu_scratch_size
+                    options.gpu_scratch_size
                 );
 
                 // Enqueue the shared handles. See ewise() for more details.
                 [&]<usize... O>(std::index_sequence<O...>) {
-                    auto oh = nd::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs));
-                    cuda_stream.enqueue_attach(std::move(oh)[Tag<O>{}]..., std::forward<Ts>(attachments)...);
+                    auto oh = nd::extract_shared_handle_from_arrays(NOA_FWD(outputs));
+                    cuda_stream.enqueue_attach(std::move(oh)[Tag<O>{}]..., NOA_FWD(attachments)...);
 
                     // Work-around to remove spurious warning of set but unused variable (g++11).
                     if constexpr (sizeof...(O) == 0) (void) oh;

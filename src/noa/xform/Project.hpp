@@ -363,10 +363,10 @@ namespace noa::xform::details {
                 auto op = op_t(result.accessor, result.interpolator, output_accessor, xform_accessor,
                                n_images, options.add_to_output);
 
-                iwise<IwiseOptions{
+                iwise<IwiseCompileOptions{
                     .generate_cpu = not IS_GPU,
                     .generate_gpu = IS_GPU,
-                }>(output_span.shape(), output.device(), op, NOA_FWD(input), NOA_FWD(output), NOA_FWD(xform));
+                }>(output_span.shape(), output.device(), op, {}, NOA_FWD(input), NOA_FWD(output), NOA_FWD(xform));
             }
         };
 
@@ -419,10 +419,10 @@ namespace noa::xform::details {
                 );
 
                 auto iwise_shape = output_span.shape().template insert<B + 1>(output_z); // (b..,n,h,w)->(b..,n,z,h,w)
-                iwise<IwiseOptions{
+                iwise<IwiseCompileOptions{
                     .generate_cpu = not IS_GPU,
                     .generate_gpu = IS_GPU,
-                }>(iwise_shape, output.device(), op, NOA_FWD(input), NOA_FWD(output), NOA_FWD(xform));
+                }>(iwise_shape, output.device(), op, {}, NOA_FWD(input), NOA_FWD(output), NOA_FWD(xform));
             }
         };
 
@@ -484,10 +484,10 @@ namespace noa::xform::details {
                 );
 
                 auto iwise_shape = output_span.shape().template insert<B + 1>(output_z); // (b..,n,h,w)->(b..,n,z,h,w)
-                iwise<IwiseOptions{
+                iwise<IwiseCompileOptions{
                     .generate_cpu = not IS_GPU,
                     .generate_gpu = IS_GPU,
-                }>(iwise_shape, output.device(), op,
+                }>(iwise_shape, output.device(), op, {},
                    NOA_FWD(input), NOA_FWD(output), NOA_FWD(backward_xform), NOA_FWD(forward_xform));
             }
         };

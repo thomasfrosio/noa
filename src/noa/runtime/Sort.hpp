@@ -98,14 +98,14 @@ namespace noa {
         Stream& stream = Stream::current(device);
         if (device.is_cpu()) {
             auto& cpu_stream = stream.cpu();
-            cpu_stream.enqueue([=, a = std::forward<Input>(array).share()]{
+            cpu_stream.enqueue([=, a = NOA_FWD(array).share()]{
                 noa::cpu::sort(accessor.data(), accessor.strides(), shape, options.ascending, options.axis);
             });
         } else {
             #ifdef NOA_ENABLE_CUDA
             auto& cuda_stream = stream.cuda();
             noa::cuda::sort(accessor.data(), accessor.strides(), shape, options.ascending, options.axis, cuda_stream);
-            cuda_stream.enqueue_attach(std::forward<Input>(array));
+            cuda_stream.enqueue_attach(NOA_FWD(array));
             #else
             panic_no_gpu_backend();
             #endif

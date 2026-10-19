@@ -354,9 +354,9 @@ namespace noa::signal::fft {
                 output_accessor_t(fsc.get(), fsc.strides().filter(0, 3).template as_safe<i32>()),
                 output_accessor_t(denominator_lhs.get(), denominator_lhs.strides().filter(0, 3).template as_safe<i32>()),
                 output_accessor_t(denominator_rhs.get(), denominator_rhs.strides().filter(0, 3).template as_safe<i32>()));
-        iwise(shape.rfft(), fsc.device(), reduction_op, std::forward<Lhs>(lhs), std::forward<Rhs>(rhs));
+        iwise(shape.rfft(), fsc.device(), reduction_op, {}, NOA_FWD(lhs), NOA_FWD(rhs));
         ewise(wrap(std::move(denominator_lhs), std::move(denominator_rhs)),
-              std::forward<Output>(fsc),
+              NOA_FWD(fsc),
               details::FSCNormalization{});
     }
 
@@ -377,7 +377,7 @@ namespace noa::signal::fft {
     ) {
         using value_t = nt::mutable_value_type_t<Lhs>;
         auto fsc = Array<value_t>({shape[0], 1, 1, n_shells(rhs.shape())}, rhs.options());
-        fsc_isotropic<REMAP>(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), fsc, shape);
+        fsc_isotropic<REMAP>(NOA_FWD(lhs), NOA_FWD(rhs), fsc, shape);
         return fsc;
     }
 
@@ -430,12 +430,12 @@ namespace noa::signal::fft {
             direction_accessor_t(cone_directions.get()),
             cone_directions.ssize(),
             static_cast<coord_t>(cone_aperture));
-        iwise(shape.rfft(), fsc.device(), reduction_op,
-              std::forward<Lhs>(lhs),
-              std::forward<Rhs>(rhs),
-              std::forward<Cones>(cone_directions));
+        iwise(shape.rfft(), fsc.device(), reduction_op, {},
+              NOA_FWD(lhs),
+              NOA_FWD(rhs),
+              NOA_FWD(cone_directions));
         ewise(wrap(std::move(denominator_lhs), std::move(denominator_rhs)),
-              std::forward<Output>(fsc),
+              NOA_FWD(fsc),
               details::FSCNormalization{});
     }
 
@@ -466,8 +466,8 @@ namespace noa::signal::fft {
     ) {
         using value_t = nt::mutable_value_type_t<Lhs>;
         auto fsc = Array<value_t>({shape[0], 1, cone_directions.ssize(), n_shells(lhs.shape())}, rhs.options());
-        fsc_anisotropic<REMAP>(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), fsc, shape,
-                               std::forward<Cones>(cone_directions), cone_aperture);
+        fsc_anisotropic<REMAP>(NOA_FWD(lhs), NOA_FWD(rhs), fsc, shape,
+                               NOA_FWD(cone_directions), cone_aperture);
         return fsc;
     }
 }

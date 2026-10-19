@@ -50,7 +50,7 @@ TEST_CASE("runtime::iwise") {
         const auto options = ArrayOption{device, "managed"};
 
         const auto a0 = Array<f32, 4>(shape, options);
-        noa::iwise(a0.shape(), a0.device(), ArangeNd{.span = a0.span()}, a0);
+        noa::iwise(a0.shape(), a0.device(), ArangeNd{.span = a0.span()}, {}, a0);
 
         const auto a1 = Array<f32, 4>(shape, options);
         test::arange(a1.get(), a1.n_elements());
@@ -68,14 +68,14 @@ TEST_CASE("runtime::iwise - threadpool-like") {
     stream.set_thread_limit(2);
 
     // By default, only one thread should be launched for this shape.
-    constexpr auto OPTIONS1 = noa::IwiseOptions{.generate_gpu = false};
+    constexpr auto OPTIONS1 = noa::IwiseCompileOptions{.generate_gpu = false};
     REQUIRE((iwise_init == 0 and iwise_deinit == 0));
     noa::iwise<OPTIONS1>(Shape{4}, stream.device(), op);
     REQUIRE((iwise_init == 1 and iwise_deinit == 1));
     REQUIRE(data == 0);
 
     // But we can enforce the number of threads.
-    constexpr auto OPTIONS2 = noa::IwiseOptions{.generate_gpu = false, .cpu_launch_n_threads = 4};
+    constexpr auto OPTIONS2 = noa::IwiseCompileOptions{.generate_gpu = false, .cpu_launch_n_threads = 4};
     iwise_init = 0;
     iwise_deinit = 0;
     noa::iwise<OPTIONS2>(Shape{4}, stream.device(), op);
@@ -87,7 +87,7 @@ TEST_CASE("runtime::iwise - no bound check") {
     if (not Device::is_any_gpu())
         return;
 
-    constexpr auto OPTIONS = noa::IwiseOptions{
+    constexpr auto OPTIONS = noa::IwiseCompileOptions{
         .gpu_block_shape = {4, 4, 32},
         .gpu_optimize_block_shape = false,
         .gpu_enable_block_bound_check = false,

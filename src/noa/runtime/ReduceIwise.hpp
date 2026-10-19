@@ -13,7 +13,7 @@
 #endif
 
 namespace noa {
-    struct ReduceIwiseOptions {
+    struct ReduceIwiseCompileOptions {
         /// Whether to compile for the CPU compute device.
         bool generate_cpu{true};
 
@@ -41,8 +41,8 @@ namespace noa {
         /// the second kernel has a 1d block of gpu_block_shape.n_elements() threads.
         /// Increasing the block size might increase performance for some large reductions, but it also increases
         /// the size threshold above which the two-kernel reduction is used, so predicting the performance impact
-        /// is challenging. This value often goes hand in hand with .gpu_scratch_size.
-        Shape<u32, 2> gpu_block_shape{Shape<u32, 2>{1, 512}};
+        /// is challenging. This value often goes hand in hand with ReduceIwiseOptions::gpu_scratch_size.
+        Shape<u32, 2> gpu_block_shape{1, 512};
 
         /// Whether the block can be reshaped (keeping the overall block size) for better performance.
         bool gpu_optimize_block_shape{true};
@@ -52,7 +52,7 @@ namespace noa {
         /// reductions assign one block per output element, and the block loops through the reduced dimension(s).
         /// Increasing this value decreases the parallelism (the number of blocks launched), but may still be
         /// beneficial for operators doing little work per iteration.
-        Vec<u32, 2> gpu_number_of_indices_per_thread{Vec<u32, 2>{1, 1}};
+        Vec<u32, 2> gpu_number_of_indices_per_thread{1, 1};
 
         /// The maximum number of blocks to launch per output element.
         /// This is only relevant for the two-kernel reductions, i.e., for large reductions, as it limits the size of
@@ -61,7 +61,9 @@ namespace noa {
         /// is a single thread kernel calling op::post. In this case, it may be good to increase the grid size to
         /// increase the parallelism of the first kernel, but even then the default value is usually fine.
         u32 gpu_max_grid_size{4096};
+    };
 
+    struct ReduceIwiseOptions {
         /// Allocate the specified number of bytes for the per-block scratch (shared memory in CUDA).
         /// The maximum alignment is std::max_align_t (16 in CUDA), which should be fine for most cases.
         /// The scratch is available from the reduction operators via the compute handle during init/call/deinit
@@ -71,8 +73,8 @@ namespace noa {
 }
 
 namespace noa::details {
-    template<ReduceIwiseOptions OPTIONS, bool, bool, typename Op, typename Reduced, typename Output, typename I, usize N>
-    constexpr void reduce_iwise(const Shape<I, N>&, Device, Op&&, Reduced&&, Output&&);
+    template<ReduceIwiseCompileOptions OPTIONS, bool, bool, typename Op, typename Reduced, typename Output, typename I, usize N>
+    constexpr void reduce_iwise(const Shape<I, N>&, Device, Op&&, Reduced&&, Output&&, const ReduceIwiseOptions&);
 }
 
 namespace noa {
@@ -143,7 +145,10 @@ namespace noa {
     ///         (or empty tuples) will be passed. If not defined, this defaults to a copy. As such, the following
     ///         expression must be valid: ((outputs = static_cast<Outputs>(reduced)), ...).
     ///         This default copy can be removed by defining the type Op::remove_default_post.
-    template<ReduceIwiseOptions OPTIONS = ReduceIwiseOptions{},
+    ///
+    /// \param[in] options:
+    ///     Runtime options.
+    template<ReduceIwiseCompileOptions OPTIONS = ReduceIwiseCompileOptions{},
              typename Reduced = nd::AdaptorUnzip<>,
              typename Outputs = nd::AdaptorUnzip<>,
              typename Operator, typename Index, usize N>
@@ -153,53 +158,56 @@ namespace noa {
         Device device,
         Reduced&& reduced,
         Outputs&& outputs,
-        Operator&& op
+        Operator&& op,
+        const ReduceIwiseOptions& options = {}
     ) {
         static_assert(nd::adaptor_decay<Outputs> or std::is_lvalue_reference_v<Outputs>,
                       "Output values should be references");
 
         if constexpr (nd::adaptor_decay<Reduced, Outputs>) {
             nd::reduce_iwise<OPTIONS, std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP>(
-                shape, device, std::forward<Operator>(op),
-                std::forward<Reduced>(reduced).tuple,
-                std::forward<Outputs>(outputs).tuple);
+                shape, device, NOA_FWD(op),
+                NOA_FWD(reduced).tuple,
+                NOA_FWD(outputs).tuple, options);
 
         } else if constexpr (nd::adaptor_decay<Reduced>) {
             nd::reduce_iwise<OPTIONS, std::decay_t<Reduced>::ZIP, false>(
-                shape, device, std::forward<Operator>(op),
-                std::forward<Reduced>(reduced).tuple,
-                noa::forward_as_tuple(std::forward<Outputs>(outputs)));
+                shape, device, NOA_FWD(op),
+                NOA_FWD(reduced).tuple,
+                noa::forward_as_tuple(NOA_FWD(outputs)), options);
 
         } else if constexpr (nd::adaptor_decay<Outputs>) {
             nd::reduce_iwise<OPTIONS, false, std::decay_t<Outputs>::ZIP>(
-                shape, device, std::forward<Operator>(op),
-                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
-                std::forward<Outputs>(outputs).tuple);
+                shape, device, NOA_FWD(op),
+                noa::forward_as_tuple(NOA_FWD(reduced)),
+                NOA_FWD(outputs).tuple, options);
         } else {
             nd::reduce_iwise<OPTIONS, false, false>(
-                shape, device, std::forward<Operator>(op),
-                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
-                noa::forward_as_tuple(std::forward<Outputs>(outputs)));
+                shape, device, NOA_FWD(op),
+                noa::forward_as_tuple(NOA_FWD(reduced)),
+                noa::forward_as_tuple(NOA_FWD(outputs)), options);
         }
     }
 }
 
 namespace noa::details {
-    template<ReduceIwiseOptions OPTIONS, bool ZIP_REDUCED, bool ZIP_OUTPUT,
+    template<ReduceIwiseCompileOptions OPTIONS, bool ZIP_REDUCED, bool ZIP_OUTPUT,
              typename Op, typename Reduced, typename Output, typename I, usize N>
     constexpr void reduce_iwise(
         const Shape<I, N>& shape,
         Device device,
         Op&& op,
         Reduced&& reduced,
-        Output&& outputs
+        Output&& outputs,
+        const ReduceIwiseOptions& options
     ) {
         static_assert(nd::are_all_not_arrays_and_mutable<Reduced, Output>(), "The initial reduction and output values should be mutable and not arrays");
-        Tuple reduced_accessors = details::to_tuple_of_accessor_values(std::forward<Reduced>(reduced));
+        Tuple reduced_accessors = details::to_tuple_of_accessor_values(NOA_FWD(reduced));
         Stream& stream = Stream::current(device);
 
         if constexpr (OPTIONS.generate_cpu) {
             if (device.is_cpu()) {
+                (void) options;
                 auto& cpu_stream = stream.cpu();
                 Tuple output_accessors = outputs.map([]<typename U>(U& v) {
                     return AccessorRestrictContiguous<U, 1, I>(&v);
@@ -207,7 +215,7 @@ namespace noa::details {
                 cpu_stream.synchronize();
                 using config_t = noa::cpu::ReduceIwiseConfig<ZIP_REDUCED, ZIP_OUTPUT>;
                 noa::cpu::reduce_iwise<config_t>(
-                    shape, std::forward<Op>(op),
+                    shape, NOA_FWD(op),
                     std::move(reduced_accessors), output_accessors,
                     cpu_stream.thread_limit()
                 );
@@ -263,10 +271,10 @@ namespace noa::details {
                     OPTIONS.gpu_allow_two_kernels
                 >;
                 noa::cuda::reduce_iwise<config>(
-                    shape, std::forward<Op>(op),
+                    shape, NOA_FWD(op),
                     std::move(reduced_accessors),
                     output_accessors, cuda_stream,
-                    OPTIONS.gpu_scratch_size
+                    options.gpu_scratch_size
                 );
 
                 if constexpr (not use_device_memory)

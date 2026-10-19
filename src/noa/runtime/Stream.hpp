@@ -150,7 +150,7 @@ namespace noa::inline types {
     public:
         template<typename ... Args>
         explicit StreamGuard(Args&& ...args) :
-            Stream(std::forward<Args>(args)...),
+            Stream(NOA_FWD(args)...),
             m_previous_current(current(this->device()))
         {
             set_current(*static_cast<Stream*>(this));

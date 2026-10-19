@@ -78,7 +78,7 @@ namespace noa {
             auto buffer = Array<nt::value_type_t<Indices>, 1>{};
             auto buffer_ptr = batch_indices.data();
             if (batch_indices.device() != output.device()) {
-                buffer = std::forward<Indices>(batch_indices)
+                buffer = NOA_FWD(batch_indices)
                     .to(ArrayOption{.device = output.device(), .allocator = Allocator::ASYNC});
                 buffer_ptr = buffer.data();
             }
@@ -93,16 +93,16 @@ namespace noa {
                 .input = input_,
                 .output = output_,
                 .batch_indices = batch_indices_,
-            }, std::forward<Input>(input), std::forward<Output>(output), std::move(buffer));
+            }, {}, NOA_FWD(input), NOA_FWD(output), std::move(buffer));
             return;
         }
 
         // Make sure the indices are ready and dereferenceable.
         auto buffer = Array<nt::value_type_t<Indices>, 1>{};
         if (not batch_indices.device().is_cpu())
-            buffer = std::forward<Indices>(batch_indices).to(ArrayOption{.device = Device{}});
+            buffer = NOA_FWD(batch_indices).to(ArrayOption{.device = Device{}});
         else
-            buffer = std::forward<Indices>(batch_indices);
+            buffer = NOA_FWD(batch_indices);
         const auto batch_indices_1d = buffer.eval().span_1d();
 
         // If the batches to copy to the output are next to each other, this becomes a slice operation.
@@ -118,17 +118,15 @@ namespace noa {
             ++index;
         }
         if (is_sequence) {
-            std::forward<Input>(input)
-                .subregion(Slice{batch_indices_1d[0], index})
-                .to(std::forward<Output>(output));
+            NOA_FWD(input).subregion(Slice{batch_indices_1d[0], index}).to(NOA_FWD(output));
             return;
         }
 
         // Worst case scenario, copy batches one by one across devices.
         for (isize i{}; i < n - 1; ++i)
             input.view().subregion(batch_indices_1d[i]).to(output.view().subregion(i));
-        std::forward<Input>(input)
+        NOA_FWD(input)
             .subregion(batch_indices_1d[n - 1])
-            .to(std::forward<Output>(output).subregion(n - 1));
+            .to(NOA_FWD(output).subregion(n - 1));
     }
 }

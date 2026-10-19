@@ -224,10 +224,10 @@ namespace noa::xform::details {
                             rho_range, phi_range);
                     }
                 }();
-                iwise<IwiseOptions{
+                iwise<IwiseCompileOptions{
                     .generate_cpu = not IS_GPU,
                     .generate_gpu = IS_GPU,
-                }>(output_span.shape(), output.device(), op, NOA_FWD(input), NOA_FWD(output));
+                }>(output_span.shape(), output.device(), op, {}, NOA_FWD(input), NOA_FWD(output));
             }
         };
 

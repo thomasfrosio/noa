@@ -134,7 +134,7 @@ namespace noa::xform::details {
         Device device,
         A&&... arrays
     ) {
-        constexpr auto OPTIONS = noa::IwiseOptions{
+        constexpr auto OPTIONS = noa::IwiseCompileOptions{
             .gpu_block_shape = {1, 1, 128},
             .gpu_optimize_block_shape = true,
         };
@@ -145,7 +145,7 @@ namespace noa::xform::details {
                 .input = input.accessor(),
                 .output = output.accessor(),
                 .width = width,
-            }, NOA_FWD(arrays)...);
+            }, {}, NOA_FWD(arrays)...);
     }
 
     template<typename T, usize N, typename... A>
@@ -154,7 +154,7 @@ namespace noa::xform::details {
         Device device,
         A&&... arrays
     ) {
-        constexpr auto OPTIONS = noa::IwiseOptions{
+        constexpr auto OPTIONS = noa::IwiseCompileOptions{
             .gpu_block_shape = {1, 1, 128}, // FIXME
             .gpu_optimize_block_shape = true,
         };
@@ -163,7 +163,7 @@ namespace noa::xform::details {
             BSplinePrefilterInplace<N, Accessor<T, N, isize>>{
                 .output = output.accessor(),
                 .width = width,
-            }, NOA_FWD(arrays)...);
+            }, {}, NOA_FWD(arrays)...);
     }
 }
 

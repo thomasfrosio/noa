@@ -135,14 +135,14 @@ namespace noa::xform::details {
                     B, R, REMAP, Index, xform_accessor_t, postshift_accessor_t,
                     interpolator_t, accessor_t, output_accessor_t>;
 
-                iwise<IwiseOptions{
+                iwise<IwiseCompileOptions{
                     .generate_cpu = not IS_GPU,
                     .generate_gpu = IS_GPU,
                 }>(output_span.shape(), output.device(),
                    op_t(result.accessor, output_accessor, logical_shape_r,
                         result.interpolator, xform_accessor, postshift_accessor,
                         static_cast<coord_t>(options.fftfreq_cutoff)),
-                   NOA_FWD(input), NOA_FWD(output), NOA_FWD(xforms), NOA_FWD(shifts));
+                   {}, NOA_FWD(input), NOA_FWD(output), NOA_FWD(xforms), NOA_FWD(shifts));
             }
         };
 

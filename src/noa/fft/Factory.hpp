@@ -55,7 +55,7 @@ namespace noa::fft {
               "Given the {} logical shape, the rfft should have a shape of {}, but got {}",
               shape, shape.rfft(), rfft.shape());
         using real_t = nt::value_type_twice_t<Complex>;
-        auto tmp = std::forward<Complex>(rfft).template as<real_t>();
+        auto tmp = NOA_FWD(rfft).template as<real_t>();
         auto strides = tmp.strides();
         auto options = tmp.options();
         return decltype(tmp)(std::move(tmp).share(), shape, strides, options);

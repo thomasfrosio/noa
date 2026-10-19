@@ -11,7 +11,7 @@
 #endif
 
 namespace noa {
-    struct IwiseOptions {
+    struct IwiseCompileOptions {
         /// Whether the CPU code path should be generated.
         bool generate_cpu{true};
 
@@ -43,7 +43,7 @@ namespace noa {
         ///     N=3  -> DHW
         ///     N=2  -> HW          (D must be 1, except if gpu_optimize_block_shape=true)
         ///     N=1  -> W           (DH must be 1, except if gpu_optimize_block_shape=true)
-        Shape<u32, 3> gpu_block_shape{Shape<u32, 3>{1, 1, 512}};
+        Shape<u32, 3> gpu_block_shape{1, 1, 512};
 
         /// Whether the block can be reshaped (keeping the overall block size) for better performance.
         /// In practice, if N == 1, the block is reshaped to 1D, otherwise, it is reshaped to
@@ -53,7 +53,7 @@ namespace noa {
         /// Sets the number of iterations done by each thread for each block dimension.
         /// Increasing this value decreases the parallelism (the number of blocks launched),
         /// but may still be beneficial for operators doing little work per iteration.
-        Vec<u32, 3> gpu_number_of_indices_per_thread{Vec<u32, 3>{1, 1, 1}};
+        Vec<u32, 3> gpu_number_of_indices_per_thread{1, 1, 1};
 
         /// Whether the bound checking should be enabled.
         /// Disabling the bound checking requires gpu_optimize_block_shape == false.
@@ -62,11 +62,12 @@ namespace noa {
         ///     N>=2 -> is_multiple_of(H, gpu_block_shape[1] * gpu_number_of_indices_per_thread[1])
         ///     N>=1 -> is_multiple_of(W, gpu_block_shape[2] * gpu_number_of_indices_per_thread[2])
         bool gpu_enable_block_bound_check{true};
+    };
 
+    struct IwiseOptions {
         /// Allocate the specified number of bytes for the per-block scratch (shared memory in CUDA).
         /// The maximum alignment is std::max_align_t (16 in CUDA), which should be fine for most cases.
         /// The scratch is available from the operators via the compute handle during init/call/deinit.
-        /// TODO The CUDA backend has this as a runtime option. This should be a runtime option too.
         usize gpu_scratch_size{0};
     };
 
@@ -101,6 +102,9 @@ namespace noa {
     ///     and is often used to save some state or save the per-block scratch to a permanent location.
     ///     The default no-op can be removed by defining the type Op::remove_default_deinit.
     ///
+    /// \param[in] options:
+    ///     Runtime options.
+    ///
     /// \param[in] attachments:
     ///     Resources that should be kept alive (at least) until the stream is done computing the iwise loop.
     ///     A resource is anything that is convertible to `std::shared_ptr<const void>` or a type that has a .share()
@@ -110,9 +114,9 @@ namespace noa {
     ///     deleted. The CPU backend deletes the shared_ptr immediately, but note that other backends (e.g. CUDA)
     ///     may not destroy these shared_ptr right away and instead delay the destruction to the next synchronization
     ///     or enqueueing call.
-    template<IwiseOptions OPTIONS = IwiseOptions{}, typename Op, typename I, usize N, typename... Ts>
+    template<IwiseCompileOptions OPTIONS = IwiseCompileOptions{}, typename Op, typename I, usize N, typename... Ts>
         requires (N >= 1 and N <= 6)
-    void iwise(const Shape<I, N>& shape, const Device& device, Op&& op, Ts&&... attachments) {
+    void iwise(const Shape<I, N>& shape, const Device& device, Op&& op, const IwiseOptions& options = {}, Ts&&... attachments) {
         Stream& stream = Stream::current(device);
 
         if constexpr (OPTIONS.generate_cpu) {
@@ -124,17 +128,18 @@ namespace noa {
                 constexpr isize N_ELEMENTS_PER_THREAD = LAUNCH_EXACT ? 1 : OPTIONS.cpu_number_of_indices_per_threads;
                 const auto n_threads = LAUNCH_EXACT ? OPTIONS.cpu_launch_n_threads : cpu_stream.thread_limit();
                 using config_t = nc::IwiseConfig<N_ELEMENTS_PER_THREAD>;
+                (void) options;
 
                 if constexpr (sizeof...(Ts) == 0) {
-                    cpu_stream.enqueue(nc::iwise<config_t, N, I, Op>, shape, std::forward<Op>(op), n_threads);
+                    cpu_stream.enqueue(nc::iwise<config_t, N, I, Op>, shape, NOA_FWD(op), n_threads);
                 } else {
                     if (cpu_stream.is_sync()) {
-                        nc::iwise<config_t>(shape, std::forward<Op>(op), n_threads);
+                        nc::iwise<config_t>(shape, NOA_FWD(op), n_threads);
                     } else {
                         cpu_stream.enqueue(
                             [shape, n_threads,
-                                op_ = std::forward<Op>(op),
-                                h = nd::extract_shared_handle(noa::forward_as_tuple(std::forward<Ts>(attachments)...))
+                                op_ = NOA_FWD(op),
+                                h = nd::extract_shared_handle(noa::forward_as_tuple(NOA_FWD(attachments)...))
                             ] {
                                 nc::iwise<config_t>(shape, std::move(op_), n_threads);
                             });
@@ -194,8 +199,8 @@ namespace noa {
                     std::conditional_t<N == 1, default_block_1d, default_block_2d>>;
 
                 auto& cuda_stream = stream.cuda();
-                nc::iwise<N, block>(shape, std::forward<Op>(op), cuda_stream, OPTIONS.gpu_scratch_size);
-                cuda_stream.enqueue_attach(std::forward<Ts>(attachments)...);
+                nc::iwise<N, block>(shape, NOA_FWD(op), cuda_stream, options.gpu_scratch_size);
+                cuda_stream.enqueue_attach(NOA_FWD(attachments)...);
                 #else
                 panic_no_gpu_backend();
                 #endif

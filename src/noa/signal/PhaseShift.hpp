@@ -273,7 +273,7 @@ namespace noa::signal {
                     using op_t = details::PhaseShiftHalf<REMAP, B, R, isize, iaccessor_t, oaccessor_t>;
                     return noa::iwise(
                         iwise_shape, output.device(), op_t(iaccessor, oaccessor, shape_r),
-                        NOA_FWD(input), NOA_FWD(output)
+                        {}, NOA_FWD(input), NOA_FWD(output)
                     );
                 }
             }
@@ -283,7 +283,7 @@ namespace noa::signal {
         using saccessor_t = decltype(saccessor);
         using op_t = details::PhaseShift<REMAP, isize, B, R, saccessor_t, iaccessor_t, oaccessor_t>;
         auto op = op_t(iaccessor, oaccessor, shape_r, saccessor, static_cast<coord_t>(fftfreq_cutoff));
-        noa::iwise(iwise_shape, output.device(), op, NOA_FWD(input), NOA_FWD(output), NOA_FWD(shifts));
+        noa::iwise(iwise_shape, output.device(), op, {}, NOA_FWD(input), NOA_FWD(output), NOA_FWD(shifts));
     }
 
     template<nf::Layout REMAP, typename Output, typename Input = Output, usize N, typename Shift>

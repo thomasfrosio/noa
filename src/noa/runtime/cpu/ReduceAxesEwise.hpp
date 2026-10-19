@@ -223,9 +223,9 @@ namespace noa::cpu {
             auto output_1d = nd::reconfig_accessors<nd::AccessorConfig{.enforce_contiguous = true}>(output, 0);
             reduce_ewise(
                 input_shape,
-                std::forward<Op>(op),
-                std::forward<Input>(input),
-                std::forward<Reduced>(reduced),
+                NOA_FWD(op),
+                NOA_FWD(input),
+                NOA_FWD(reduced),
                 output_1d, n_threads
             );
             return;
@@ -255,7 +255,7 @@ namespace noa::cpu {
                 for (usize i = first_non_empty + 1; i < N; ++i)
                     n_elements_per_reduction *= static_cast<isize>(input_shape[i]);
 
-                auto output_1d = nd::reconfig_accessors(std::forward<Output>(output), first_non_empty);
+                auto output_1d = nd::reconfig_accessors(NOA_FWD(output), first_non_empty);
                 const bool parallel_reduction =
                     n_elements_per_reduction > Config::n_elements_per_thread and
                     clamp_cast<i32>(n_reductions) < n_threads;
@@ -284,46 +284,46 @@ namespace noa::cpu {
                 if (parallel_reduction) {
                     if (is_2d and is_contiguous and is_restrict) {
                         auto input_2d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT>(
-                            std::forward<Input>(input), N - 2, N - 1);
+                            NOA_FWD(input), N - 2, N - 1);
                         reduce_axes_ewise_t::template run<3>(
                             shape_2d,
-                            std::forward<Op>(op),
+                            NOA_FWD(op),
                             std::move(input_2d),
-                            std::forward<Reduced>(reduced),
+                            NOA_FWD(reduced),
                             std::move(output_1d),
                             actual_n_threads);
                     } else {
-                        auto input_nd = std::forward<Input>(input);
+                        auto input_nd = NOA_FWD(input);
                         nd::permute_accessors(order_to_batch, input_nd);
                         auto input_shape_nd = input_shape.filter(order_to_batch);
                         reduce_axes_ewise_t::template run<3>(
                             input_shape_nd,
-                            std::forward<Op>(op),
+                            NOA_FWD(op),
                             std::move(input_nd),
-                            std::forward<Reduced>(reduced),
+                            NOA_FWD(reduced),
                             std::move(output_1d),
                             actual_n_threads);
                     }
                 } else {
                     if (is_2d and is_contiguous and is_restrict) {
                         auto input_2d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT>(
-                            std::forward<Input>(input), N - 2, N - 1);
+                            NOA_FWD(input), N - 2, N - 1);
                         reduce_axes_ewise_t::template run<2>(
                             shape_2d,
-                            std::forward<Op>(op),
+                            NOA_FWD(op),
                             std::move(input_2d),
-                            std::forward<Reduced>(reduced),
+                            NOA_FWD(reduced),
                             std::move(output_1d),
                             actual_n_threads);
                     } else {
-                        auto input_nd = std::forward<Input>(input);
+                        auto input_nd = NOA_FWD(input);
                         nd::permute_accessors(order_to_batch, input_nd);
                         auto input_shape_nd = input_shape.filter(order_to_batch);
                         reduce_axes_ewise_t::template run<2>(
                             input_shape_nd,
-                            std::forward<Op>(op),
+                            NOA_FWD(op),
                             std::move(input_nd),
-                            std::forward<Reduced>(reduced),
+                            NOA_FWD(reduced),
                             std::move(output_1d),
                             actual_n_threads);
                     }
@@ -334,8 +334,8 @@ namespace noa::cpu {
 
             // Single axis reduction.
             // First copy|move the input and output since they'll need to be reordered.
-            auto input_ = std::forward<Input>(input);
-            auto output_ = std::forward<Output>(output);
+            auto input_ = NOA_FWD(input);
+            auto output_ = NOA_FWD(output);
 
             // Move the reduced dimension to the rightmost dimension (width).
             const auto order = noa::squeeze_empty_dimensions_left(axes_to_reduce.template as<i32>() + 1);
@@ -351,9 +351,9 @@ namespace noa::cpu {
             const auto actual_n_threads = min(clamp_cast<i32>(n_reductions), n_threads);
             reduce_axes_ewise_t::template run<1>(
                 reordered_shape,
-                std::forward<Op>(op),
+                NOA_FWD(op),
                 std::move(input_),
-                std::forward<Reduced>(reduced),
+                NOA_FWD(reduced),
                 std::move(output_nd),
                 actual_n_threads
             );

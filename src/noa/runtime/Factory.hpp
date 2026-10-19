@@ -21,7 +21,7 @@ namespace noa {
             }
         }
         #endif
-        ewise({}, std::forward<Output>(output), Fill{value});
+        ewise({}, NOA_FWD(output), Fill{value});
     }
 
     /// Returns an array filled with a given value.
@@ -127,14 +127,14 @@ namespace noa {
             using op_t = nd::IwiseRange<1, decltype(accessor), isize, Arange<T>>;
             iwise(Shape{output.n_elements()}, output.device(),
                   op_t(accessor, Shape<isize, 1>{}, params),
-                  std::forward<Output>(output));
+                  {}, NOA_FWD(output));
         } else {
             constexpr usize N = std::remove_reference_t<Output>::SIZE;
             auto accessor = nd::to_accessor(output);
             using op_t = nd::IwiseRange<N, decltype(accessor), isize, Arange<T>>;
             iwise(output.shape(), output.device(),
                   op_t(accessor, output.shape(), params),
-                  std::forward<Output>(output));
+                  {}, NOA_FWD(output));
         }
     }
 
@@ -190,14 +190,14 @@ namespace noa {
             using op_t = nd::IwiseRange<1, decltype(accessor), isize, decltype(linspace)>;
             iwise(Shape{n_elements}, output.device(),
                   op_t(accessor, Shape<isize, 1>{}, linspace),
-                  std::forward<Output>(output));
+                  {}, NOA_FWD(output));
         } else {
             constexpr usize N = std::remove_reference_t<Output>::SIZE;
             auto accessor = nd::to_accessor(output);
             using op_t = nd::IwiseRange<N, decltype(accessor), isize, decltype(linspace)>;
             iwise(output.shape(), output.device(),
                   op_t(accessor, output.shape(), linspace),
-                  std::forward<Output>(output));
+                  {}, NOA_FWD(output));
         }
         return static_cast<nt::mutable_value_type_t<Output>>(linspace.step);
     }
@@ -254,13 +254,13 @@ namespace noa {
             using op_t = nd::Iota<N, decltype(accessor), T>;
             iwise(shape, output.device(),
                   op_t(accessor, shape, tile),
-                  std::forward<Output>(output));
+                  {}, NOA_FWD(output));
         } else {
             auto accessor = nd::to_accessor(output);
             using op_t = nd::Iota<N, decltype(accessor), T>;
             iwise(shape, output.device(),
                   op_t(accessor, shape, tile),
-                  std::forward<Output>(output));
+                  {}, NOA_FWD(output));
         }
     }
 

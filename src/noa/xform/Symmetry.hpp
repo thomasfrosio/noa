@@ -264,14 +264,14 @@ namespace noa::xform::details {
                     B, R, Index, symmetry_matrices_t, interpolator_t, accessor_t, output_accessor_t,
                     pre_inverse_matrices_accessor_t, post_inverse_matrices_accessor_t>;
 
-                iwise<IwiseOptions{
+                iwise<IwiseCompileOptions{
                     .generate_cpu = not IS_GPU,
                     .generate_gpu = IS_GPU,
                 }>(output_span.shape(), output.device(),
                    op_t(result.accessor, output_accessor, result.interpolator,
                         symmetry_matrices, options.symmetry_center.template as<coord_t>(), symmetry_scaling,
                         pre_inverse_matrices_accessor, post_inverse_matrices_accessor),
-                   NOA_FWD(input), NOA_FWD(output), NOA_FWD(symmetry),
+                   {}, NOA_FWD(input), NOA_FWD(output), NOA_FWD(symmetry),
                    NOA_FWD(pre_inverse_matrices), NOA_FWD(post_inverse_matrices));
             }
         };
@@ -328,7 +328,7 @@ namespace noa::xform {
     struct SymmetrizeOptions {
         /// (D)HW coordinates of the symmetry center.
         /// By default, use the input center, defined as `shape//2` (integer division).
-        Vec<f64, N> symmetry_center = Vec<f64, N>::from_value(std::numeric_limits<f64>::max());
+        Vec<f64, N> symmetry_center{Vec<f64, N>::from_value(std::numeric_limits<f64>::max())};
 
         /// Interpolation method. All interpolation modes are supported.
         /// This is ignored if the input is a texture.

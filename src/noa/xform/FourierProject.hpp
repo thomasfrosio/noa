@@ -1249,7 +1249,7 @@ namespace noa::xform::details {
                 static_cast<coord_t>(options.fftfreq_cutoff),
                 s_target_shape, ews);
 
-            iwise(slice.shape().template as<Index>(), volume.device(), op,
+            iwise(slice.shape().template as<Index>(), volume.device(), op, {},
                   NOA_FWD(slice), NOA_FWD(slice_weight),
                   NOA_FWD(volume), NOA_FWD(volume_weight),
                   NOA_FWD(scaling), NOA_FWD(rotation));
@@ -1310,7 +1310,7 @@ namespace noa::xform::details {
                     static_cast<coord_t>(options.fftfreq_cutoff),
                     s_target_shape, ews);
 
-                iwise(volume.shape().template as<Index>(), volume.device(), op,
+                iwise(volume.shape().template as<Index>(), volume.device(), op, {},
                       NOA_FWD(slice), NOA_FWD(slice_weight),
                       NOA_FWD(volume), NOA_FWD(volume_weight),
                       NOA_FWD(scaling), NOA_FWD(rotation));
@@ -1400,12 +1400,12 @@ namespace noa::xform::details {
                         ewise({}, wrap(slice, slice_weight), Zero{});
 
                     const auto iwise_shape = slice.shape().template as<Index>().template insert<B + 1>(ow); // (b..,n,w,h,w)
-                    iwise(iwise_shape, volume.device(), op,
+                    iwise(iwise_shape, volume.device(), op, {},
                           NOA_FWD(volume), NOA_FWD(volume_weight),
                           NOA_FWD(slice), NOA_FWD(slice_weight),
                           NOA_FWD(scaling), NOA_FWD(rotation));
                 } else {
-                    iwise(slice.shape().template as<Index>(), volume.device(), op,
+                    iwise(slice.shape().template as<Index>(), volume.device(), op, {},
                           NOA_FWD(volume), NOA_FWD(volume_weight),
                           NOA_FWD(slice), NOA_FWD(slice_weight),
                           NOA_FWD(scaling), NOA_FWD(rotation));
@@ -1506,13 +1506,13 @@ namespace noa::xform::details {
                         else
                             ewise({}, wrap(output_slice, output_weight), Zero{});
                     }
-                    iwise(s_output_shape.template insert<N - 2>(ow).rfft(), output_slice.device(), op,
+                    iwise(s_output_shape.template insert<N - 2>(ow).rfft(), output_slice.device(), op, {},
                           NOA_FWD(input_slice), NOA_FWD(input_weight),
                           NOA_FWD(output_slice), NOA_FWD(output_weight),
                           NOA_FWD(input_scaling), NOA_FWD(input_rotation),
                           NOA_FWD(output_scaling), NOA_FWD(output_rotation));
                 } else {
-                    iwise(s_output_shape.rfft(), output_slice.device(), op,
+                    iwise(s_output_shape.rfft(), output_slice.device(), op, {},
                           NOA_FWD(input_slice), NOA_FWD(input_weight),
                           NOA_FWD(output_slice), NOA_FWD(output_weight),
                           NOA_FWD(input_scaling), NOA_FWD(input_rotation),

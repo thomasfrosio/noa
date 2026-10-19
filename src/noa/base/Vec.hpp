@@ -1185,25 +1185,25 @@ namespace noa {
 
     template<typename T, usize N, usize A, typename Op = Less> requires (N <= 8)
     [[nodiscard]] constexpr auto stable_sort(Vec<T, N, A> vector, Op&& comp = {}) noexcept {
-        details::small_stable_sort<N>(vector.data(), std::forward<Op>(comp));
+        details::small_stable_sort<N>(vector.data(), NOA_FWD(comp));
         return vector;
     }
 
     template<typename T, usize N, usize A, typename Op = Less> requires (N <= 8)
     [[nodiscard]] constexpr auto sort(Vec<T, N, A> vector, Op&& comp = {}) noexcept {
-        details::small_stable_sort<N>(vector.data(), std::forward<Op>(comp));
+        details::small_stable_sort<N>(vector.data(), NOA_FWD(comp));
         return vector;
     }
 
     template<typename T, usize N, usize A, typename Op = Less> requires (N > 8)
     [[nodiscard]] auto stable_sort(Vec<T, N, A> vector, Op&& comp = {}) noexcept {
-        std::stable_sort(vector.begin(), vector.end(), std::forward<Op>(comp));
+        std::stable_sort(vector.begin(), vector.end(), NOA_FWD(comp));
         return vector;
     }
 
     template<typename T, usize N, usize A, typename Op = Less> requires (N > 8)
     [[nodiscard]] auto sort(Vec<T, N, A> vector, Op&& comp = {}) noexcept {
-        std::sort(vector.begin(), vector.end(), std::forward<Op>(comp));
+        std::sort(vector.begin(), vector.end(), NOA_FWD(comp));
         return vector;
     }
 }

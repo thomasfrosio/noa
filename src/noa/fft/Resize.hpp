@@ -316,14 +316,14 @@ namespace noa::fft {
                 input_accessor, output_accessor, input_shape_r, output_shape_r);
             noa::iwise(
                 IS_FULL ? output_shape_br : output_shape_br.rfft(),
-                device, op, NOA_FWD(input), output
+                device, op, {}, NOA_FWD(input), output
             );
         } else {
             auto op = details::FourierResize<LAYOUT, false, isize, B, R, input_accessor_t, output_accessor_t>(
                 input_accessor, output_accessor, input_shape_r, output_shape_r);
             noa::iwise(
                 IS_FULL ? input_shape_br : input_shape_br.rfft(),
-                device, op, NOA_FWD(input), output
+                device, op, {}, NOA_FWD(input), output
             );
         }
 
@@ -358,7 +358,7 @@ namespace noa::fft {
                     //  - The third correction fixes the YX plane at Z=nyquist.
                     //      Because ZY and ZX are already corrected, we don't need to iterate through X, only through Y.
                     iwise_shape[R - 2] = IS_NEW_RIGHTMOST_FULL_LENGTH ? iwise_shape[R - 2] / 2 + 1 : 1;
-                    noa::iwise(iwise_shape.push_front(output_shape_b.vec), device, op, output);
+                    noa::iwise(iwise_shape.push_front(output_shape_b.vec), device, op, {}, output);
                 };
 
                 if (is_even(output_shape_r[R - 1]) and input_shape_r[R - 1] > output_shape_r[R - 1]) {

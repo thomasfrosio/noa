@@ -109,6 +109,6 @@ namespace noa {
     [[nodiscard]] constexpr To safe_cast(const From& src, details::FormatWithLocation<std::type_identity_t<Ts>...> fmt, Ts&&... fmt_args) {
         if (is_safe_cast<To>(src))
             return static_cast<To>(src);
-        panic_at_location(fmt.location, fmt.fmt, std::forward<Ts>(fmt_args)...);
+        panic_at_location(fmt.location, fmt.fmt, NOA_FWD(fmt_args)...);
     }
 }

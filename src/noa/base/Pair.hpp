@@ -89,15 +89,15 @@ namespace noa::inline types {
         template<typename T> requires (not nt::almost_same_as<Pair, T>)
         constexpr auto& operator=(T&& tup) { // TODO noexcept
             static_assert(std::decay_t<T>::SIZE == 2);
-            first = std::forward<T>(tup)[Tag<0>{}];
-            second = std::forward<T>(tup)[Tag<1>{}];
+            first = NOA_FWD(tup)[Tag<0>{}];
+            second = NOA_FWD(tup)[Tag<1>{}];
             return *this;
         }
 
         template<typename F2, typename S2>
         constexpr auto& assign(F2&& f, S2&& s) {
-            first = std::forward<F2>(f);
-            second = std::forward<S2>(s);
+            first = NOA_FWD(f);
+            second = NOA_FWD(s);
             return *this;
         }
     };
@@ -110,7 +110,7 @@ namespace noa {
     template<usize I, typename Tup>
     requires (nt::tuple<std::decay_t<Tup>> or nt::pair<std::decay_t<Tup>>)
     constexpr auto get(Tup&& tup) -> decltype(auto) {
-        return std::forward<Tup>(tup)[Tag<I>{}];
+        return NOA_FWD(tup)[Tag<I>{}];
     }
 
     template<typename A, typename B>

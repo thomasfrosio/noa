@@ -197,7 +197,7 @@ namespace noa::signal::details {
                 options.ctf_abs, options.ctf_squared,
                 options.fftfreq_range.template as<coord_t>()
             );
-            return iwise(accessor_n.shape(), output.device(), op, NOA_FWD(output), NOA_FWD(ctf));
+            return iwise(accessor_n.shape(), output.device(), op, {}, NOA_FWD(output), NOA_FWD(ctf));
         }
     }
 

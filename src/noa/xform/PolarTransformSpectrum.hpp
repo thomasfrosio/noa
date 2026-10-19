@@ -124,10 +124,10 @@ namespace noa::xform::details {
                     output_accessor, output_span.shape().template pop_front<B>(),
                     rho_range, phi_range
                 );
-                iwise<IwiseOptions{
+                iwise<IwiseCompileOptions{
                     .generate_cpu = not IS_GPU,
                     .generate_gpu = IS_GPU,
-                }>(output_span.shape(), polar.device(), op, NOA_FWD(spectrum), NOA_FWD(polar));
+                }>(output_span.shape(), polar.device(), op, {}, NOA_FWD(spectrum), NOA_FWD(polar));
             }
         };
 

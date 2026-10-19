@@ -351,7 +351,7 @@ namespace noa {
     void min(Input&& input, Output&& output) {
         using value_type = nt::mutable_value_type_t<Input>;
         auto init = std::numeric_limits<value_type>::max();
-        reduce_axes_ewise(std::forward<Input>(input), init, std::forward<Output>(output), ReduceMin{});
+        reduce_axes_ewise(NOA_FWD(input), init, NOA_FWD(output), ReduceMin{});
     }
 
     /// Reduces an array along some dimension by taking the minimum value.
@@ -361,7 +361,7 @@ namespace noa {
     [[nodiscard]] auto min(Input&& input, ReduceAxes<N> axes) {
         using value_t = nt::mutable_value_type_t<Input>;
         auto output = Array<value_t, N>(axes.to_reduced_shape(input.shape()), input.options());
-        min(std::forward<Input>(input), output);
+        min(NOA_FWD(input), output);
         return output;
     }
 
@@ -372,7 +372,7 @@ namespace noa {
     void max(Input&& input, Output&& output) {
         using value_type = nt::mutable_value_type_t<Input>;
         auto init = std::numeric_limits<value_type>::lowest();
-        reduce_axes_ewise(std::forward<Input>(input), init, std::forward<Output>(output), ReduceMax{});
+        reduce_axes_ewise(NOA_FWD(input), init, NOA_FWD(output), ReduceMax{});
     }
 
     /// Reduces an array along some dimension by taking the maximum value.
@@ -382,7 +382,7 @@ namespace noa {
     [[nodiscard]] auto max(Input&& input, ReduceAxes<N> axes) {
         using value_t = nt::mutable_value_type_t<Input>;
         auto output = Array<value_t, N>(axes.to_reduced_shape(input.shape()), input.options());
-        max(std::forward<Input>(input), output);
+        max(NOA_FWD(input), output);
         return output;
     }
 
@@ -396,9 +396,9 @@ namespace noa {
         auto init_min = std::numeric_limits<value_type>::max();
         auto init_max = std::numeric_limits<value_type>::lowest();
         reduce_axes_ewise(
-            std::forward<Input>(input),
+            NOA_FWD(input),
             wrap(init_min, init_max),
-            wrap(std::forward<Min>(min), std::forward<Max>(max)),
+            wrap(NOA_FWD(min), NOA_FWD(max)),
             ReduceMinMax{}
         );
     }
@@ -414,7 +414,7 @@ namespace noa {
             Array<value_t, N>(output_shape, input.options()),
             Array<value_t, N>(output_shape, input.options()),
         };
-        min_max(std::forward<Input>(input), output.first, output.second);
+        min_max(NOA_FWD(input), output.first, output.second);
         return output;
     }
 
@@ -436,14 +436,14 @@ namespace noa {
         if constexpr (nt::real_or_complex<value_t>) {
             if (options.accurate) {
                 return reduce_axes_ewise(
-                    std::forward<Input>(input), Vec<reduce_t, 2>{},
-                    std::forward<Output>(output), ReduceSumKahan{}
+                    NOA_FWD(input), Vec<reduce_t, 2>{},
+                    NOA_FWD(output), ReduceSumKahan{}
                 );
             }
         }
         reduce_axes_ewise(
-            std::forward<Input>(input), reduce_t{},
-            std::forward<Output>(output), ReduceSum{}
+            NOA_FWD(input), reduce_t{},
+            NOA_FWD(output), ReduceSum{}
         );
     }
 
@@ -454,7 +454,7 @@ namespace noa {
     [[nodiscard]] auto sum(Input&& input, ReduceAxes<N> axes, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         auto output = Array<value_t, N>(axes.to_reduced_shape(input.shape()), input.options());
-        sum(std::forward<Input>(input), output, options);
+        sum(NOA_FWD(input), output, options);
         return output;
     }
 
@@ -475,14 +475,14 @@ namespace noa {
         if constexpr (nt::real_or_complex<value_t>) {
             if (options.accurate) {
                 return reduce_axes_ewise(
-                    std::forward<Input>(input), Vec<reduce_t, 2>{},
-                    std::forward<Output>(output), ReduceMeanKahan{size}
+                    NOA_FWD(input), Vec<reduce_t, 2>{},
+                    NOA_FWD(output), ReduceMeanKahan{size}
                 );
             }
         }
         reduce_axes_ewise(
-            std::forward<Input>(input), reduce_t{},
-            std::forward<Output>(output), ReduceMean{size}
+            NOA_FWD(input), reduce_t{},
+            NOA_FWD(output), ReduceMean{size}
         );
     }
 
@@ -493,7 +493,7 @@ namespace noa {
     [[nodiscard]] auto mean(Input&& input, ReduceAxes<N> axes, const SumOptions& options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         auto output = Array<value_t, N>(axes.to_reduced_shape(input.shape()), input.options());
-        mean(std::forward<Input>(input), output, options);
+        mean(NOA_FWD(input), output, options);
         return output;
     }
 
@@ -508,14 +508,14 @@ namespace noa {
         if constexpr (nt::real_or_complex<value_t>) {
             if (options.accurate) {
                 return reduce_axes_ewise(
-                    std::forward<Input>(input), Vec<reduce_t, 2>{},
-                    std::forward<Output>(output), ReduceL2NormKahan{}
+                    NOA_FWD(input), Vec<reduce_t, 2>{},
+                    NOA_FWD(output), ReduceL2NormKahan{}
                 );
             }
         }
         reduce_axes_ewise(
-            std::forward<Input>(input), reduce_t{},
-            std::forward<Output>(output), ReduceL2Norm{}
+            NOA_FWD(input), reduce_t{},
+            NOA_FWD(output), ReduceL2Norm{}
         );
     }
 
@@ -526,7 +526,7 @@ namespace noa {
     [[nodiscard]] auto l2_norm(Input&& input, ReduceAxes<N> axes, const SumOptions& options = {}) {
         using real_t = nt::mutable_value_type_twice_t<Input>;
         auto output = Array<real_t, N>(axes.to_reduced_shape(input.shape()), input.options());
-        l2_norm(std::forward<Input>(input), output, options);
+        l2_norm(NOA_FWD(input), output, options);
         return output;
     }
 
@@ -550,17 +550,17 @@ namespace noa {
                 using sum_error_t = Vec<sum_t, 2>;
                 using sum_sqd_error_t = Vec<sum_sqd_t, 2>;
                 reduce_axes_ewise(
-                    std::forward<Input>(input),
+                    NOA_FWD(input),
                     wrap(sum_error_t{}, sum_sqd_error_t{}),
-                    wrap(std::forward<Mean>(means), std::forward<Norm>(norms)),
+                    wrap(NOA_FWD(means), NOA_FWD(norms)),
                     ReduceMeanL2NormKahan<f64>{size}
                 );
             }
         }
         reduce_axes_ewise(
-            std::forward<Input>(input),
+            NOA_FWD(input),
             wrap(sum_t{}, sum_sqd_t{}),
-            wrap(std::forward<Mean>(means), std::forward<Norm>(norms)),
+            wrap(NOA_FWD(means), NOA_FWD(norms)),
             ReduceMeanL2Norm<f64>{size}
         );
     }
@@ -577,7 +577,7 @@ namespace noa {
             Array<mean_t, N>(output_shape, input.options()),
             Array<norm_t, N>(output_shape, input.options()),
         };
-        mean_l2_norm(std::forward<Input>(input), output.first, output.second, options);
+        mean_l2_norm(NOA_FWD(input), output.first, output.second, options);
         return output;
     }
 
@@ -607,16 +607,16 @@ namespace noa {
                     using sum_sqd_error_t = Vec<sum_sqd_t, 2>;
                     if constexpr (HAS_MEAN) {
                         reduce_axes_ewise(
-                            std::forward<Input>(input),
+                            NOA_FWD(input),
                             wrap(sum_error_t{}, sum_sqd_error_t{}),
-                            wrap(std::forward<Mean>(means), std::forward<Variance>(variances)),
+                            wrap(NOA_FWD(means), NOA_FWD(variances)),
                             ReduceMeanVarianceKahan<f64, STDDEV>{size, ddof}
                         );
                     } else {
                         reduce_axes_ewise(
-                            std::forward<Input>(input),
+                            NOA_FWD(input),
                             wrap(sum_error_t{}, sum_sqd_error_t{}),
-                            std::forward<Variance>(variances),
+                            NOA_FWD(variances),
                             ReduceMeanVarianceKahan<f64, STDDEV>{size, ddof}
                         );
                     }
@@ -624,16 +624,16 @@ namespace noa {
             }
             if constexpr (HAS_MEAN) {
                 reduce_axes_ewise(
-                    std::forward<Input>(input),
+                    NOA_FWD(input),
                     wrap(sum_t{}, sum_sqd_t{}),
-                    wrap(std::forward<Mean>(means), std::forward<Variance>(variances)),
+                    wrap(NOA_FWD(means), NOA_FWD(variances)),
                     ReduceMeanVariance<f64, STDDEV>{size, ddof}
                 );
             } else {
                 reduce_axes_ewise(
-                    std::forward<Input>(input),
+                    NOA_FWD(input),
                     wrap(sum_t{}, sum_sqd_t{}),
-                    std::forward<Variance>(variances),
+                    NOA_FWD(variances),
                     ReduceMeanVariance<f64, STDDEV>{size, ddof}
                 );
             }
@@ -648,12 +648,7 @@ namespace noa {
     requires ((nt::array_decay_of_complex<Input, Mean> and nt::array_decay_of_real<Variance>) or
                nt::array_decay_of_scalar<Input, Mean, Variance>)
     void mean_variance(Input&& input, Mean&& means, Variance&& variances, const VarianceOptions options = {}) {
-        nd::mean_variance_or_stddev<false>(
-            std::forward<Input>(input),
-            std::forward<Mean>(means),
-            std::forward<Variance>(variances),
-            options
-        );
+        nd::mean_variance_or_stddev<false>(NOA_FWD(input), NOA_FWD(means), NOA_FWD(variances), options);
     }
 
     /// Reduces an array along some dimensions by taking the mean and variance.
@@ -668,7 +663,7 @@ namespace noa {
             Array<mean_t, N>(output_shape, input.options()),
             Array<variance_t, N>(output_shape, input.options()),
         };
-        mean_variance(std::forward<Input>(input), output.first, output.second, options);
+        mean_variance(NOA_FWD(input), output.first, output.second, options);
         return output;
     }
 
@@ -680,12 +675,7 @@ namespace noa {
     requires ((nt::array_decay_of_complex<Input, Mean> and nt::array_decay_of_real<Stddev>) or
                nt::array_decay_of_scalar<Input, Mean, Stddev>)
     void mean_stddev(Input&& input, Mean&& means, Stddev&& stddevs, const VarianceOptions options = {}) {
-        nd::mean_variance_or_stddev<true>(
-           std::forward<Input>(input),
-           std::forward<Mean>(means),
-           std::forward<Stddev>(stddevs),
-           options
-       );
+        nd::mean_variance_or_stddev<true>(NOA_FWD(input), NOA_FWD(means), NOA_FWD(stddevs), options);
     }
 
     /// Reduces an array along some dimensions by taking the mean and standard deviation.
@@ -700,7 +690,7 @@ namespace noa {
             Array<mean_t, N>(output_shape, input.options()),
             Array<variance_t, N>(output_shape, input.options()),
         };
-        mean_stddev(std::forward<Input>(input), output.first, output.second, options);
+        mean_stddev(NOA_FWD(input), output.first, output.second, options);
         return output;
     }
 
@@ -709,12 +699,7 @@ namespace noa {
     template<nt::readable_array_decay_of_numeric Input,
              nt::writable_array_decay_of_real Output>
     void variance(Input&& input, Output&& output, const VarianceOptions options = {}) {
-        nd::mean_variance_or_stddev<false>(
-            std::forward<Input>(input),
-            Empty{},
-            std::forward<Output>(output),
-            options
-        );
+        nd::mean_variance_or_stddev<false>(NOA_FWD(input), Empty{}, NOA_FWD(output), options);
     }
 
     /// Reduces an array along some dimensions by taking the variance.
@@ -725,7 +710,7 @@ namespace noa {
         using value_t = nt::mutable_value_type_t<Input>;
         using variance_t = nt::value_type_t<value_t>;
         auto variances = Array<variance_t, N>(axes.to_reduced_shape(input.shape()), input.options());
-        variance(std::forward<Input>(input), variances, options);
+        variance(NOA_FWD(input), variances, options);
         return variances;
     }
 
@@ -734,12 +719,7 @@ namespace noa {
     template<nt::readable_array_decay_of_numeric Input,
              nt::writable_array_decay_of_real Output>
     void stddev(Input&& input, Output&& output, const VarianceOptions options = {}) {
-        nd::mean_variance_or_stddev<true>(
-            std::forward<Input>(input),
-            Empty{},
-            std::forward<Output>(output),
-            options
-        );
+        nd::mean_variance_or_stddev<true>(NOA_FWD(input), Empty{}, NOA_FWD(output), options);
     }
 
     /// Reduces an array along some dimensions by taking the standard-deviation.
@@ -750,7 +730,7 @@ namespace noa {
         using value_t = nt::mutable_value_type_t<Input>;
         using stddev_t = nt::value_type_t<value_t>;
         auto stddevs = Array<stddev_t, N>(axes.to_reduced_shape(input.shape()), input.options());
-        stddev(std::forward<Input>(input), stddevs, options);
+        stddev(NOA_FWD(input), stddevs, options);
         return stddevs;
     }
 
@@ -798,16 +778,13 @@ namespace noa {
                 reduce_axes_iwise(
                     shape, device, reduced, wrap(output_values.view(), output_offsets.view()),
                     ReduceFirstMax<accessor_t, pair_t, true, true>{{accessor}},
-                    std::forward<Input>(input),
-                    std::forward<Values>(output_values),
-                    std::forward<Offsets>(output_offsets));
+                    {}, NOA_FWD(input), NOA_FWD(output_values), NOA_FWD(output_offsets));
 
             } else if constexpr (has_offsets) {
                 reduce_axes_iwise(
                     shape, device, reduced, output_offsets.view(),
                     ReduceFirstMax<accessor_t, pair_t, false, true>{{accessor}},
-                    std::forward<Input>(input),
-                    std::forward<Offsets>(output_offsets));
+                    {}, NOA_FWD(input), NOA_FWD(output_offsets));
 
             } else {
                 auto arg_values = output_values.view();
@@ -815,8 +792,7 @@ namespace noa {
                 reduce_axes_iwise(
                     shape, device, reduced, arg_values,
                     ReduceFirstMax<accessor_t, pair_t, true, false>{{accessor}},
-                    std::forward<Input>(input),
-                    std::forward<Values>(output_values));
+                    {}, NOA_FWD(input), NOA_FWD(output_values));
             }
         }
     }
@@ -865,16 +841,13 @@ namespace noa {
                 reduce_axes_iwise(
                     shape, device, reduced, wrap(output_values.view(), output_offsets.view()),
                     ReduceFirstMin<accessor_t, pair_t, true, true>{{accessor}},
-                    std::forward<Input>(input),
-                    std::forward<Values>(output_values),
-                    std::forward<Offsets>(output_offsets));
+                    {}, NOA_FWD(input), NOA_FWD(output_values), NOA_FWD(output_offsets));
 
             } else if constexpr (has_offsets) {
                 reduce_axes_iwise(
                     shape, device, reduced, output_offsets.view(),
                     ReduceFirstMin<accessor_t, pair_t, false, true>{{accessor}},
-                    std::forward<Input>(input),
-                    std::forward<Offsets>(output_offsets));
+                    {}, NOA_FWD(input), NOA_FWD(output_offsets));
 
             } else {
                 auto arg_values = output_values.view();
@@ -882,8 +855,7 @@ namespace noa {
                 reduce_axes_iwise(
                     shape, device, reduced, arg_values,
                     ReduceFirstMin<accessor_t, pair_t, true, false>{{accessor}},
-                    std::forward<Input>(input),
-                    std::forward<Values>(output_values));
+                    {}, NOA_FWD(input), NOA_FWD(output_values));
             }
         }
     }
@@ -949,25 +921,21 @@ namespace noa {
         switch (options.mode) {
             case Norm::MIN_MAX: {
                 const auto [min, max] = min_max(input);
-                return ewise(wrap(std::forward<Input>(input), min, max),
-                             std::forward<Output>(output), NormalizeMinMax{});
+                return ewise(wrap(NOA_FWD(input), min, max), NOA_FWD(output), NormalizeMinMax{});
             }
             case Norm::MEAN_STD: {
                 const auto [mean, stddev] = mean_stddev(input, {.accurate = options.accurate, .ddof = options.ddof});
-                return ewise(wrap(std::forward<Input>(input), mean, stddev),
-                             std::forward<Output>(output), NormalizeMeanStddev{});
+                return ewise(wrap(NOA_FWD(input), mean, stddev), NOA_FWD(output), NormalizeMeanStddev{});
             }
             case Norm::L2: {
                 const auto norm = l2_norm(input, {.accurate = options.accurate});
                 using norm_t = std::remove_const_t<decltype(norm)>;
                 using tmp_t = std::conditional_t<nt::complex<nt::value_type_t<Input>>, Complex<norm_t>, norm_t>;
-                return ewise(wrap(std::forward<Input>(input), norm),
-                             std::forward<Output>(output), NormalizeNorm<tmp_t>{});
+                return ewise(wrap(NOA_FWD(input), norm), NOA_FWD(output), NormalizeNorm<tmp_t>{});
             }
             case Norm::MEAN_L2: {
                 const auto [mean, norm] = mean_l2_norm(input, {.accurate = options.accurate});
-                return ewise(wrap(std::forward<Input>(input), mean, norm),
-                             std::forward<Output>(output), NormalizeMeanNorm{});
+                return ewise(wrap(NOA_FWD(input), mean, norm), NOA_FWD(output), NormalizeMeanNorm{});
             }
         }
     }
@@ -991,28 +959,24 @@ namespace noa {
         switch (options.mode) {
             case Norm::MIN_MAX: {
                 const auto mins_maxs = min_max(input, axes);
-                ewise(wrap(std::forward<Input>(input), mins_maxs.first, mins_maxs.second),
-                      std::forward<Output>(output), NormalizeMinMax{});
+                ewise(wrap(NOA_FWD(input), mins_maxs.first, mins_maxs.second), NOA_FWD(output), NormalizeMinMax{});
                 break;
             }
             case Norm::MEAN_STD: {
                 const auto [means, stddevs] = mean_stddev(input, axes, {.accurate = options.accurate, .ddof = options.ddof});
-                ewise(wrap(std::forward<Input>(input), means, stddevs),
-                      std::forward<Output>(output), NormalizeMeanStddev{});
+                ewise(wrap(NOA_FWD(input), means, stddevs), NOA_FWD(output), NormalizeMeanStddev{});
                 break;
             }
             case Norm::L2: {
                 const auto l2_norms = l2_norm(input, axes, {.accurate = options.accurate});
                 using norm_t = nt::mutable_value_type_t<decltype(l2_norms)>;
                 using tmp_t = std::conditional_t<nt::complex<nt::value_type_t<Input>>, Complex<norm_t>, norm_t>;
-                ewise(wrap(std::forward<Input>(input), l2_norms),
-                      std::forward<Output>(output), NormalizeNorm<tmp_t>{});
+                ewise(wrap(NOA_FWD(input), l2_norms), NOA_FWD(output), NormalizeNorm<tmp_t>{});
                 break;
             }
             case Norm::MEAN_L2: {
                 const auto [means, l2_norms] = mean_l2_norm(input, axes, {.accurate = options.accurate});
-                ewise(wrap(std::forward<Input>(input), means, l2_norms),
-                      std::forward<Output>(output), NormalizeMeanNorm{});
+                ewise(wrap(NOA_FWD(input), means, l2_norms), NOA_FWD(output), NormalizeMeanNorm{});
                 break;
             }
         }
@@ -1028,7 +992,6 @@ namespace noa {
         Output&& output,
         const NormalizeOptions& options = {}
     ) {
-        normalize(std::forward<Input>(input), std::forward<Output>(output),
-                  ReduceAxes<nt::array_size_v<Input>>::all_but(0), options);
+        normalize(NOA_FWD(input), NOA_FWD(output), ReduceAxes<nt::array_size_v<Input>>::all_but(0), options);
     }
 }

@@ -96,52 +96,52 @@ namespace noa::details {
 namespace noa::details {
     template<typename Tup, typename F, usize... B>
     constexpr void tuple_for_each(Tup&& t, F&& f, std::index_sequence<B...>) {
-        ((std::forward<F>(f)(std::forward<Tup>(t)[Tag<B>{}])), ...);
+        ((NOA_FWD(f)(NOA_FWD(t)[Tag<B>{}])), ...);
     }
 
     template<typename Tup, typename F, usize... B>
     constexpr void tuple_for_each_enumerate(Tup&& t, F&& f, std::index_sequence<B...>) {
-        ((std::forward<F>(f).template operator()<B>(std::forward<Tup>(t)[Tag<B>{}])), ...);
+        ((NOA_FWD(f).template operator()<B>(NOA_FWD(t)[Tag<B>{}])), ...);
     }
 
     template<typename Tup, typename F, usize... B>
     constexpr bool tuple_any(Tup&& t, F&& f, std::index_sequence<B...>) {
-        return (static_cast<bool>(std::forward<F>(f)(std::forward<Tup>(t)[Tag<B>{}])) || ...);
+        return (static_cast<bool>(NOA_FWD(f)(NOA_FWD(t)[Tag<B>{}])) || ...);
     }
 
     template<typename Tup, typename F, usize... B>
     constexpr bool tuple_any_enumerate(Tup&& t, F&& f, std::index_sequence<B...>) {
-        return (static_cast<bool>(std::forward<F>(f).template operator()<B>(std::forward<Tup>(t)[Tag<B>{}])) || ...);
+        return (static_cast<bool>(NOA_FWD(f).template operator()<B>(NOA_FWD(t)[Tag<B>{}])) || ...);
     }
 
     template<typename Tup, typename F, usize... B>
     constexpr bool tuple_all(Tup&& t, F&& f, std::index_sequence<B...>) {
-        return (static_cast<bool>(std::forward<F>(f)(std::forward<Tup>(t)[Tag<B>{}])) && ...);
+        return (static_cast<bool>(NOA_FWD(f)(NOA_FWD(t)[Tag<B>{}])) && ...);
     }
 
     template<typename Tup, typename F, usize... B>
     constexpr bool tuple_all_enumerate(Tup&& t, F&& f, std::index_sequence<B...>) {
-        return (static_cast<bool>(std::forward<F>(f).template operator()<B>(std::forward<Tup>(t)[Tag<B>{}])) && ...);
+        return (static_cast<bool>(NOA_FWD(f).template operator()<B>(NOA_FWD(t)[Tag<B>{}])) && ...);
     }
 
     template<typename Tup, typename F, usize... B>
     constexpr auto tuple_map(Tup&& t, F&& f, std::index_sequence<B...>) {
-        return Tuple{std::forward<F>(f)(std::forward<Tup>(t)[Tag<B>{}])...};
+        return Tuple{NOA_FWD(f)(NOA_FWD(t)[Tag<B>{}])...};
     }
 
     template<typename Tup, typename F, usize... B>
     constexpr auto tuple_map_enumerate(Tup&& t, F&& f, std::index_sequence<B...>) {
-        return Tuple{std::forward<F>(f).template operator()<B>(std::forward<Tup>(t)[Tag<B>{}])...};
+        return Tuple{NOA_FWD(f).template operator()<B>(NOA_FWD(t)[Tag<B>{}])...};
     }
 
     template<typename Tup, typename F, usize... B>
     constexpr decltype(auto) tuple_apply(Tup&& t, F&& f, std::index_sequence<B...>) {
-        return std::forward<F>(f)(std::forward<Tup>(t)[Tag<B>{}]...);
+        return NOA_FWD(f)(NOA_FWD(t)[Tag<B>{}]...);
     }
 
     template<typename U, typename Tup, usize... B>
     constexpr U tuple_convert(Tup&& t, std::index_sequence<B...>) {
-        return U{std::forward<Tup>(t)[Tag<B>{}]...};
+        return U{NOA_FWD(t)[Tag<B>{}]...};
     }
 }
 
@@ -165,13 +165,13 @@ namespace noa::inline types {
     public:
         template<typename U> requires (not nt::almost_same_as<Tuple, U>) // preserves default assignments
         constexpr auto& operator=(U&& tup) { // TODO noexcept
-            assign_tuple_(std::forward<U>(tup), index_list{});
+            assign_tuple_(NOA_FWD(tup), index_list{});
             return *this;
         }
 
         template<typename... U>
         constexpr auto& assign(U&&... values) {
-            assign_value_(index_list{}, std::forward<U>(values)...);
+            assign_value_(index_list{}, NOA_FWD(values)...);
             return *this;
         }
 
@@ -181,10 +181,10 @@ namespace noa::inline types {
 
     public: // Utility functions
         #define NOA_MAKE_TUPLE_UTILITY_FUNCS(name) \
-        template<typename F> constexpr decltype(auto) name(F&& f) &        { return details::tuple_##name(*this, std::forward<F>(f), index_list{}); }             \
-        template<typename F> constexpr decltype(auto) name(F&& f) const&   { return details::tuple_##name(*this, std::forward<F>(f), index_list{}); }             \
-        template<typename F> constexpr decltype(auto) name(F&& f) &&       { return details::tuple_##name(std::move(*this), std::forward<F>(f), index_list{}); }  \
-        template<typename F> constexpr decltype(auto) name(F&& f) const && { return details::tuple_##name(std::move(*this), std::forward<F>(f), index_list{}); }
+        template<typename F> constexpr decltype(auto) name(F&& f) &        { return details::tuple_##name(*this, NOA_FWD(f), index_list{}); }             \
+        template<typename F> constexpr decltype(auto) name(F&& f) const&   { return details::tuple_##name(*this, NOA_FWD(f), index_list{}); }             \
+        template<typename F> constexpr decltype(auto) name(F&& f) &&       { return details::tuple_##name(std::move(*this), NOA_FWD(f), index_list{}); }  \
+        template<typename F> constexpr decltype(auto) name(F&& f) const && { return details::tuple_##name(std::move(*this), NOA_FWD(f), index_list{}); }
 
         /// Applies a function to every element of the tuple. The order is the declaration order, so first the
         /// function will be applied to element 0, then element 1, then element 2, and so on, where element N
@@ -250,12 +250,12 @@ namespace noa::inline types {
 
         template<typename U, usize... I>
         constexpr void assign_tuple_(U&& tuple, std::index_sequence<I...>) {
-            (((*this)[Tag<I>{}] = std::forward<U>(tuple)[Tag<I>{}]), ...);
+            (((*this)[Tag<I>{}] = NOA_FWD(tuple)[Tag<I>{}]), ...);
         }
 
         template<usize... I, class... U>
         constexpr void assign_value_(std::index_sequence<I...>, U&&... values) {
-            (((*this)[Tag<I>{}] = std::forward<U>(values)), ...);
+            (((*this)[Tag<I>{}] = NOA_FWD(values)), ...);
         }
     };
 
@@ -308,7 +308,7 @@ namespace noa {
         template<typename U>
         constexpr /* implicit */ operator U()&& {
             using index_list = typename std::decay_t<Tuple>::index_list;
-            return details::tuple_convert<U>(std::forward<Tuple>(tuple), index_list{});
+            return details::tuple_convert<U>(NOA_FWD(tuple), index_list{});
         }
     };
 
@@ -327,7 +327,7 @@ namespace noa {
 
     template<typename F, typename Tup>
     constexpr decltype(auto) apply(F&& func, Tup&& tup) { // works for Pair too
-        return details::tuple_apply(std::forward<Tup>(tup), std::forward<F>(func), nt::index_list_t<Tup>{});
+        return details::tuple_apply(NOA_FWD(tup), NOA_FWD(func), nt::index_list_t<Tup>{});
     }
 
     template<typename... T>
@@ -348,7 +348,7 @@ namespace noa {
     /// \endcode
     template<typename... Ts>
     constexpr auto make_tuple(Ts&&... args) {
-        return Tuple<nt::unwrap_reference_decay_t<Ts>...>{std::forward<Ts>(args)...};
+        return Tuple<nt::unwrap_reference_decay_t<Ts>...>{NOA_FWD(args)...};
     }
 
     /// Saves references of arguments in a tuple (see lifetime extension).
@@ -361,7 +361,7 @@ namespace noa {
     /// \endcode
     template<typename... Ts>
     constexpr auto forward_as_tuple(Ts&&... args) noexcept {
-        return Tuple<Ts&&...>{std::forward<Ts>(args)...};
+        return Tuple<Ts&&...>{NOA_FWD(args)...};
     }
 
     /// Saves rvalue references as value and preserves lvalue references.
@@ -373,8 +373,8 @@ namespace noa {
     /// \endcode
     template<typename... T>
     constexpr auto forward_as_final_tuple(T&&... v) {
-        // Tuple<T...>{std::forward<T>(v)...} is almost ok, but passing T const&& saves const T.
-        return Tuple<std::conditional_t<std::is_lvalue_reference_v<T>, T, std::decay_t<T>>...>{std::forward<T>(v)...};
+        // Tuple<T...>{NOA_FWD(v)...} is almost ok, but passing T const&& saves const T.
+        return Tuple<std::conditional_t<std::is_lvalue_reference_v<T>, T, std::decay_t<T>>...>{NOA_FWD(v)...};
     }
 }
 
@@ -414,7 +414,7 @@ namespace noa {
             using outer_elements = nt::element_list_t<big_tuple>;
             constexpr auto outer = details::tuple_get_outer_elements(outer_elements{});
             constexpr auto inner = details::tuple_get_inner_elements(outer_elements{});
-            return details::tuple_cat(big_tuple{std::forward<T>(ts)...}, outer, inner);
+            return details::tuple_cat(big_tuple{NOA_FWD(ts)...}, outer, inner);
         }
     }
 
@@ -429,18 +429,18 @@ namespace noa {
                 []<typename F, typename...R>(F&& first, R&& ... rest) {
                     auto filtered_rest = [&rest...] {
                         if constexpr (sizeof...(rest)) {
-                            return noa::tuple_filter<Predicate, Transform>(noa::forward_as_tuple(std::forward<R>(rest)..., 0));
+                            return noa::tuple_filter<Predicate, Transform>(noa::forward_as_tuple(NOA_FWD(rest)..., 0));
                         } else {
                             return Tuple{};
                         }
                     }();
 
                     if constexpr (Predicate{}.template operator()<T>()) { // FIXME loop through TupleElement to pass exact type
-                        return noa::tuple_cat(Transform{}(std::forward<T>(first)), std::move(filtered_rest));
+                        return noa::tuple_cat(Transform{}(NOA_FWD(first)), std::move(filtered_rest));
                     } else {
                         return filtered_rest;
                     }
-                }, std::forward<T>(tuple));
+                }, NOA_FWD(tuple));
     }
 }
 

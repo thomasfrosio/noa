@@ -27,8 +27,8 @@ namespace noa {
               lhs.shape(), rhs.shape());
 
         auto inputs = noa::wrap(
-            std::forward<Lhs>(lhs).template as_nd<1>(),
-            std::forward<Rhs>(rhs).template as_nd<1>()
+            NOA_FWD(lhs).template as_nd<1>(),
+            NOA_FWD(rhs).template as_nd<1>()
         );
         using value_t = nt::mutable_value_type_t<Lhs>;
         using reduce_t = std::conditional_t<nt::real<value_t>, f64,
@@ -90,10 +90,10 @@ namespace noa {
 
         const auto shape_2d = Shape2{b, lhs_bn[1]};
         auto inputs = noa::wrap(
-            std::forward<Lhs>(lhs).reshape(shape_2d),
-            std::forward<Rhs>(rhs).reshape(shape_2d)
+            NOA_FWD(lhs).reshape(shape_2d),
+            NOA_FWD(rhs).reshape(shape_2d)
         );
-        auto output_2d = std::forward<Output>(output).reshape(Shape2{b, 1});
+        auto output_2d = NOA_FWD(output).reshape(Shape2{b, 1});
 
         using value_t = nt::mutable_value_type_t<Lhs>;
         using reduce_t = std::conditional_t<nt::real<value_t>, f64,
@@ -182,7 +182,7 @@ namespace noa {
             cpu_stream.enqueue([=,
                 handles = nd::extract_shared_handle_from_arrays(
                     noa::forward_as_tuple(
-                        std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), std::forward<Output>(output)))
+                        NOA_FWD(lhs), NOA_FWD(rhs), NOA_FWD(output)))
             ] {
                 noa::cpu::matmul(
                     lhs_span.get(), lhs_span.strides(), lhs_span.shape(),
@@ -200,7 +200,7 @@ namespace noa {
                 options.alpha, options.beta, options.lhs_transpose, options.rhs_transpose,
                 output_span.get(), output_span.strides(), output_span.shape(),
                 cuda_stream);
-            cuda_stream.enqueue_attach(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), std::forward<Output>(output));
+            cuda_stream.enqueue_attach(NOA_FWD(lhs), NOA_FWD(rhs), NOA_FWD(output));
             #else
             panic_no_gpu_backend();
             #endif

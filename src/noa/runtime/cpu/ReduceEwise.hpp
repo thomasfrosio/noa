@@ -172,20 +172,20 @@ namespace noa::cpu {
                     .enforce_contiguous = true,
                     .enforce_restrict = true,
                 };
-                auto input_1d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT>(std::forward<Input>(input), N - 1);
+                auto input_1d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT>(NOA_FWD(input), N - 1);
                 if (actual_n_threads > 1) {
                     reduce_ewise_t::parallel(
                         shape_1d,
-                        std::forward<Op>(op),
+                        NOA_FWD(op),
                         std::move(input_1d),
-                        std::forward<Reduced>(reduced),
+                        NOA_FWD(reduced),
                         output, actual_n_threads);
                 } else {
                     reduce_ewise_t::serial(
                         shape_1d,
-                        std::forward<Op>(op),
+                        NOA_FWD(op),
                         std::move(input_1d),
-                        std::forward<Reduced>(reduced),
+                        NOA_FWD(reduced),
                         output);
                 }
             } else {
@@ -193,20 +193,20 @@ namespace noa::cpu {
                     .enforce_contiguous = true,
                     .enforce_restrict = false,
                 };
-                auto input_1d = nd::reconfig_accessors<CONTIGUOUS>(std::forward<Input>(input), N - 1);
+                auto input_1d = nd::reconfig_accessors<CONTIGUOUS>(NOA_FWD(input), N - 1);
                 if (actual_n_threads > 1) {
                     reduce_ewise_t::parallel(
                         shape_1d,
-                        std::forward<Op>(op),
+                        NOA_FWD(op),
                         std::move(input_1d),
-                        std::forward<Reduced>(reduced),
+                        NOA_FWD(reduced),
                         output, actual_n_threads);
                 } else {
                     reduce_ewise_t::serial(
                         shape_1d,
-                        std::forward<Op>(op),
+                        NOA_FWD(op),
                         std::move(input_1d),
-                        std::forward<Reduced>(reduced),
+                        NOA_FWD(reduced),
                         output);
                 }
             }
@@ -214,16 +214,16 @@ namespace noa::cpu {
             if (actual_n_threads > 1) {
                 reduce_ewise_t::parallel(
                     shape,
-                    std::forward<Op>(op),
-                    std::forward<Input>(input),
-                    std::forward<Reduced>(reduced),
+                    NOA_FWD(op),
+                    NOA_FWD(input),
+                    NOA_FWD(reduced),
                     output, actual_n_threads);
             } else {
                 reduce_ewise_t::serial(
                     shape,
-                    std::forward<Op>(op),
-                    std::forward<Input>(input),
-                    std::forward<Reduced>(reduced),
+                    NOA_FWD(op),
+                    NOA_FWD(input),
+                    NOA_FWD(reduced),
                     output);
             }
         }

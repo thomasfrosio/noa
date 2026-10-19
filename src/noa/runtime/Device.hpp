@@ -314,7 +314,7 @@ namespace noa::inline types {
     public:
         template<typename ... Args>
         explicit DeviceGuard(Args&& ...args) :
-            Device(std::forward<Args>(args)...),
+            Device(NOA_FWD(args)...),
             m_previous_current(current(this->type()))
         {
             set_current(*static_cast<Device*>(this));

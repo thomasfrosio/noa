@@ -151,7 +151,7 @@ namespace noa::xform::details {
          (nt::array_nd<TransformDecay, B> and nt::drawable<DrawableDecay, RANK, DrawValue, nt::value_type_t<Transform>>) or
          (nt::drawable<DrawableDecay, RANK, DrawValue, TransformDecay>));
 
-    template<usize RANK, IwiseOptions OPTIONS,
+    template<usize RANK, IwiseCompileOptions OPTIONS,
              typename Index, typename Input, typename Output,
              typename Drawable, typename Transform, typename BinaryOp>
     void launch_draw(
@@ -218,14 +218,14 @@ namespace noa::xform::details {
             auto op = op_t(input_accessor, output_accessor, drawable_accessor, inverse_transform_accessor, binary_op);
             iwise<OPTIONS>(
                 output.shape().template as<Index>(), output.device(), std::move(op),
-                NOA_FWD(input), NOA_FWD(output), NOA_FWD(inverse_transform)
+                {}, NOA_FWD(input), NOA_FWD(output), NOA_FWD(inverse_transform)
             );
         } else {
             using op_t = Draw<B, RANK, Index, drawable_t, BinaryOp, AccessorValue<Empty>, input_accessor_t, output_accessor_t>;
             auto op = op_t(input_accessor, output_accessor, drawable_accessor, {}, binary_op);
             iwise<OPTIONS>(
                 output.shape().template as<Index>(), output.device(), std::move(op),
-                NOA_FWD(input), NOA_FWD(output), NOA_FWD(inverse_transform)
+                {}, NOA_FWD(input), NOA_FWD(output), NOA_FWD(inverse_transform)
             );
         }
     }
@@ -297,14 +297,14 @@ namespace noa::xform {
             nd::is_accessor_access_safe<i32>(input.strides(), input.shape()) and
             nd::is_accessor_access_safe<i32>(output.strides(), output.shape())) {
             #ifdef NOA_ENABLE_CUDA
-            return details::launch_draw<RANK, IwiseOptions{.generate_cpu = false}, i32>(
+            return details::launch_draw<RANK, IwiseCompileOptions{.generate_cpu = false}, i32>(
                 NOA_FWD(input), NOA_FWD(output), NOA_FWD(drawing_op), NOA_FWD(inverse_transforms),
                 binary_op);
             #else
             std::terminate(); // unreachable
             #endif
         }
-        return details::launch_draw<RANK, IwiseOptions{}, isize>(
+        return details::launch_draw<RANK, IwiseCompileOptions{}, isize>(
             NOA_FWD(input), NOA_FWD(output), NOA_FWD(drawing_op), NOA_FWD(inverse_transforms),
             binary_op
         );

@@ -237,7 +237,7 @@ namespace {
                     check(::cufftSetWorkArea(plan->handle, pointer));
                     plan->has_workspace = true;
                     if (buffer)
-                        plan->workspace = std::forward<T>(buffer);
+                        plan->workspace = NOA_FWD(buffer);
                     ++count;
                 }
             }

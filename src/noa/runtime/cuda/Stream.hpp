@@ -66,11 +66,11 @@ namespace noa::cuda::details {
                 }();
                 ([&, this]<typename T>(T&& arg) {
                     if constexpr (nt::shareable<T>)
-                        m_registry.emplace_back(key, std::forward<T>(arg));
+                        m_registry.emplace_back(key, NOA_FWD(arg));
                     else if constexpr (nt::shareable_using_share<T>)
-                        m_registry.emplace_back(key, std::forward<T>(arg).share());
+                        m_registry.emplace_back(key, NOA_FWD(arg).share());
                     // else: do nothing
-                }(std::forward<Args>(args)), ...);
+                }(NOA_FWD(args)), ...);
                 return true;
             } else {
                 return false;
@@ -213,7 +213,7 @@ namespace noa::cuda {
             if (config.is_cooperative) {
                 panic("Cooperative kernels are not supported yet");
             } else {
-                kernel<<<config.n_blocks, config.n_threads, config.n_bytes_of_shared_memory, m_core->stream_handle>>>(::std::forward<Args>(args)...);
+                kernel<<<config.n_blocks, config.n_threads, config.n_bytes_of_shared_memory, m_core->stream_handle>>>(::NOA_FWD(args)...);
                 check(cudaGetLastError());
             }
             #endif
@@ -233,7 +233,7 @@ namespace noa::cuda {
         template<typename ...Args>
         void enqueue_attach(Args&& ... args) {
             NOA_ASSERT(m_core);
-            if (m_core->resource_registry.try_insert(std::forward<Args>(args)...)) {
+            if (m_core->resource_registry.try_insert(NOA_FWD(args)...)) {
                 // Something was inserted, so enqueue a "cleaning" callback.
                 void (* fun_ptr)(void*) = &update_registry_callback_;
                 check(cudaLaunchHostFunc(m_core->stream_handle, fun_ptr, &m_core->resource_registry));

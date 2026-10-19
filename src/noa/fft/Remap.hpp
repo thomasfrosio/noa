@@ -329,120 +329,120 @@ namespace noa::fft {
             case Layout::H2HC: {
                 if (is_inplace) {
                     auto op = FourierRemapInplace<Layout::H2HC, B, R, isize, output_t>(oaccessor, shape_r);
-                    return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
+                    return iwise(iwise_shape, device, op, {}, NOA_FWD(input), NOA_FWD(output));
                 }
                 auto op = FourierRemap<Layout::H2HC, B, R, isize, input_t, output_t>(iaccessor, oaccessor, shape_r);
-                return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
+                return iwise(iwise_shape, device, op, {}, NOA_FWD(input), NOA_FWD(output));
             }
             case Layout::HC2H: {
                 if (is_inplace) {
                     auto op = FourierRemapInplace<Layout::HC2H, B, R, isize, output_t>(oaccessor, shape_r);
-                    return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
+                    return iwise(iwise_shape, device, op, {}, NOA_FWD(input), NOA_FWD(output));
                 }
                 auto op = FourierRemap<Layout::HC2H, B, R, isize, input_t, output_t>(iaccessor, oaccessor, shape_r);
-                return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
+                return iwise(iwise_shape, device, op, {}, NOA_FWD(input), NOA_FWD(output));
             }
             case Layout::H2F: {
                 auto op = FourierRemap<Layout::H2F, B, R, isize, input_t, output_t>(iaccessor, oaccessor, shape_r);
-                return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
+                return iwise(iwise_shape, device, op, {}, NOA_FWD(input), NOA_FWD(output));
             }
             case Layout::F2H: {
                 auto op = FourierRemap<Layout::F2H, B, R, isize, input_t, output_t>(iaccessor, oaccessor, shape_r);
-                return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
+                return iwise(iwise_shape, device, op, {}, NOA_FWD(input), NOA_FWD(output));
             }
             case Layout::F2FC: {
                 auto op = FourierRemap<Layout::F2FC, B, R, isize, input_t, output_t>(iaccessor, oaccessor, shape_r);
-                return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
+                return iwise(iwise_shape, device, op, {}, NOA_FWD(input), NOA_FWD(output));
             }
             case Layout::FC2F: {
                 auto op = FourierRemap<Layout::FC2F, B, R, isize, input_t, output_t>(iaccessor, oaccessor, shape_r);
-                return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
+                return iwise(iwise_shape, device, op, {}, NOA_FWD(input), NOA_FWD(output));
             }
             case Layout::HC2F: {
                 auto op = FourierRemap<Layout::HC2F, B, R, isize, input_t, output_t>(iaccessor, oaccessor, shape_r);
-                return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
+                return iwise(iwise_shape, device, op, {}, NOA_FWD(input), NOA_FWD(output));
             }
             case Layout::F2HC: {
                 auto op = FourierRemap<Layout::F2HC, B, R, isize, input_t, output_t>(iaccessor, oaccessor, shape_r);
-                return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
+                return iwise(iwise_shape, device, op, {}, NOA_FWD(input), NOA_FWD(output));
             }
             case Layout::FC2H: {
                 auto op = FourierRemap<Layout::FC2H, B, R, isize, input_t, output_t>(iaccessor, oaccessor, shape_r);
-                return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
+                return iwise(iwise_shape, device, op, {}, NOA_FWD(input), NOA_FWD(output));
             }
             case Layout::FC2HC: {
                 auto op = FourierRemap<Layout::FC2HC, B, R, isize, input_t, output_t>(iaccessor, oaccessor, shape_r);
-                return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
+                return iwise(iwise_shape, device, op, {}, NOA_FWD(input), NOA_FWD(output));
             }
             case Layout::HC2FC: {
                 auto op = FourierRemap<Layout::HC2FC, B, R, isize, input_t, output_t>(iaccessor, oaccessor, shape_r);
-                return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
+                return iwise(iwise_shape, device, op, {}, NOA_FWD(input), NOA_FWD(output));
             }
             case Layout::H2FC: {
                 auto op = FourierRemap<Layout::H2FC, B, R, isize, input_t, output_t>(iaccessor, oaccessor, shape_r);
-                return iwise(iwise_shape, device, op, std::forward<Input>(input), std::forward<Output>(output));
+                return iwise(iwise_shape, device, op, {}, NOA_FWD(input), NOA_FWD(output));
             }
         }
     }
     template<typename Input, typename Output, usize N>
     void remap_1d(Layout remap, Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<1>(remap, std::forward<Input>(input), std::forward<Output>(output), shape, options);
+        noa::fft::remap<1>(remap, NOA_FWD(input), NOA_FWD(output), shape, options);
     }
     template<typename Input, typename Output, usize N>
     void remap_2d(Layout remap, Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<2>(remap, std::forward<Input>(input), std::forward<Output>(output), shape, options);
+        noa::fft::remap<2>(remap, NOA_FWD(input), NOA_FWD(output), shape, options);
     }
     template<typename Input, typename Output, usize N>
     void remap_3d(Layout remap, Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<3>(remap, std::forward<Input>(input), std::forward<Output>(output), shape, options);
+        noa::fft::remap<3>(remap, NOA_FWD(input), NOA_FWD(output), shape, options);
     }
     template<typename Input, typename Output, usize N>
     void fftshift_1d(Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<1>(Layout::F2FC, std::forward<Input>(input), std::forward<Output>(output), shape, options);
+        noa::fft::remap<1>(Layout::F2FC, NOA_FWD(input), NOA_FWD(output), shape, options);
     }
     template<typename Input, typename Output, usize N>
     void fftshift_2d(Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<2>(Layout::F2FC, std::forward<Input>(input), std::forward<Output>(output), shape, options);
+        noa::fft::remap<2>(Layout::F2FC, NOA_FWD(input), NOA_FWD(output), shape, options);
     }
     template<typename Input, typename Output, usize N>
     void fftshift_3d(Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<3>(Layout::F2FC, std::forward<Input>(input), std::forward<Output>(output), shape, options);
+        noa::fft::remap<3>(Layout::F2FC, NOA_FWD(input), NOA_FWD(output), shape, options);
     }
     template<typename Input, typename Output, usize N>
     void rfftshift_1d(Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<1>(Layout::H2HC, std::forward<Input>(input), std::forward<Output>(output), shape, options);
+        noa::fft::remap<1>(Layout::H2HC, NOA_FWD(input), NOA_FWD(output), shape, options);
     }
     template<typename Input, typename Output, usize N>
     void rfftshift_2d(Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<2>(Layout::H2HC, std::forward<Input>(input), std::forward<Output>(output), shape, options);
+        noa::fft::remap<2>(Layout::H2HC, NOA_FWD(input), NOA_FWD(output), shape, options);
     }
     template<typename Input, typename Output, usize N>
     void rfftshift_3d(Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<3>(Layout::H2HC, std::forward<Input>(input), std::forward<Output>(output), shape, options);
+        noa::fft::remap<3>(Layout::H2HC, NOA_FWD(input), NOA_FWD(output), shape, options);
     }
     template<typename Input, typename Output, usize N>
     void ifftshift_1d(Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<1>(Layout::FC2F, std::forward<Input>(input), std::forward<Output>(output), shape, options);
+        noa::fft::remap<1>(Layout::FC2F, NOA_FWD(input), NOA_FWD(output), shape, options);
     }
     template<typename Input, typename Output, usize N>
     void ifftshift_2d(Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<2>(Layout::FC2F, std::forward<Input>(input), std::forward<Output>(output), shape, options);
+        noa::fft::remap<2>(Layout::FC2F, NOA_FWD(input), NOA_FWD(output), shape, options);
     }
     template<typename Input, typename Output, usize N>
     void ifftshift_3d(Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<3>(Layout::FC2F, std::forward<Input>(input), std::forward<Output>(output), shape, options);
+        noa::fft::remap<3>(Layout::FC2F, NOA_FWD(input), NOA_FWD(output), shape, options);
     }
     template<typename Input, typename Output, usize N>
     void irfftshift_1d(Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<1>(Layout::HC2H, std::forward<Input>(input), std::forward<Output>(output), shape, options);
+        noa::fft::remap<1>(Layout::HC2H, NOA_FWD(input), NOA_FWD(output), shape, options);
     }
     template<typename Input, typename Output, usize N>
     void irfftshift_2d(Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<2>(Layout::HC2H, std::forward<Input>(input), std::forward<Output>(output), shape, options);
+        noa::fft::remap<2>(Layout::HC2H, NOA_FWD(input), NOA_FWD(output), shape, options);
     }
     template<typename Input, typename Output, usize N>
     void irfftshift_3d(Input&& input, Output&& output, Shape<isize, N> shape, RemapOptions options = {}) {
-        noa::fft::remap<3>(Layout::HC2H, std::forward<Input>(input), std::forward<Output>(output), shape, options);
+        noa::fft::remap<3>(Layout::HC2H, NOA_FWD(input), NOA_FWD(output), shape, options);
     }
 
     /// Remaps fft(s).
@@ -451,67 +451,67 @@ namespace noa::fft {
     [[nodiscard]] auto remap(Layout remap, Input&& input, const Shape<isize, N>& shape, RemapOptions options = {}) {
         using value_t = nt::mutable_value_type_t<Input>;
         auto output = Array<value_t, N>(remap.is_xx2fx() ? shape : shape.rfft(), input.options());
-        nf::remap<RANK>(remap, std::forward<Input>(input), output, shape, options);
+        nf::remap<RANK>(remap, NOA_FWD(input), output, shape, options);
         return output;
     }
     template<typename Input, usize N>
     auto remap_1d(Layout remap, Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        return noa::fft::remap<1>(remap, std::forward<Input>(input), shape, options);
+        return noa::fft::remap<1>(remap, NOA_FWD(input), shape, options);
     }
     template<typename Input, usize N>
     auto remap_2d(Layout remap, Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        return noa::fft::remap<2>(remap, std::forward<Input>(input), shape, options);
+        return noa::fft::remap<2>(remap, NOA_FWD(input), shape, options);
     }
     template<typename Input, usize N>
     auto remap_3d(Layout remap, Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        return noa::fft::remap<3>(remap, std::forward<Input>(input), shape, options);
+        return noa::fft::remap<3>(remap, NOA_FWD(input), shape, options);
     }
     template<typename Input, usize N>
     auto fftshift_1d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        return noa::fft::remap<1>(Layout::F2FC, std::forward<Input>(input), shape, options);
+        return noa::fft::remap<1>(Layout::F2FC, NOA_FWD(input), shape, options);
     }
     template<typename Input, usize N>
     auto fftshift_2d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        return noa::fft::remap<2>(Layout::F2FC, std::forward<Input>(input), shape, options);
+        return noa::fft::remap<2>(Layout::F2FC, NOA_FWD(input), shape, options);
     }
     template<typename Input, usize N>
     auto fftshift_3d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        return noa::fft::remap<3>(Layout::F2FC, std::forward<Input>(input), shape, options);
+        return noa::fft::remap<3>(Layout::F2FC, NOA_FWD(input), shape, options);
     }
     template<typename Input, usize N>
     auto rfftshift_1d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        return noa::fft::remap<1>(Layout::H2HC, std::forward<Input>(input), shape, options);
+        return noa::fft::remap<1>(Layout::H2HC, NOA_FWD(input), shape, options);
     }
     template<typename Input, usize N>
     auto rfftshift_2d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        return noa::fft::remap<2>(Layout::H2HC, std::forward<Input>(input), shape, options);
+        return noa::fft::remap<2>(Layout::H2HC, NOA_FWD(input), shape, options);
     }
     template<typename Input, usize N>
     auto rfftshift_3d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        return noa::fft::remap<3>(Layout::H2HC, std::forward<Input>(input), shape, options);
+        return noa::fft::remap<3>(Layout::H2HC, NOA_FWD(input), shape, options);
     }
     template<typename Input, usize N>
     auto ifftshift_1d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        return noa::fft::remap<1>(Layout::FC2F, std::forward<Input>(input), shape, options);
+        return noa::fft::remap<1>(Layout::FC2F, NOA_FWD(input), shape, options);
     }
     template<typename Input, usize N>
     auto ifftshift_2d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        return noa::fft::remap<2>(Layout::FC2F, std::forward<Input>(input), shape, options);
+        return noa::fft::remap<2>(Layout::FC2F, NOA_FWD(input), shape, options);
     }
     template<typename Input, usize N>
     auto ifftshift_3d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        return noa::fft::remap<3>(Layout::FC2F, std::forward<Input>(input), shape, options);
+        return noa::fft::remap<3>(Layout::FC2F, NOA_FWD(input), shape, options);
     }
     template<typename Input, usize N>
     auto irfftshift_1d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        return noa::fft::remap<1>(Layout::HC2H, std::forward<Input>(input), shape, options);
+        return noa::fft::remap<1>(Layout::HC2H, NOA_FWD(input), shape, options);
     }
     template<typename Input, usize N>
     auto irfftshift_2d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        return noa::fft::remap<2>(Layout::HC2H, std::forward<Input>(input), shape, options);
+        return noa::fft::remap<2>(Layout::HC2H, NOA_FWD(input), shape, options);
     }
     template<typename Input, usize N>
     auto irfftshift_3d(Input&& input, Shape<isize, N> shape, RemapOptions options = {}) {
-        return noa::fft::remap<3>(Layout::HC2H, std::forward<Input>(input), shape, options);
+        return noa::fft::remap<3>(Layout::HC2H, NOA_FWD(input), shape, options);
     }
 }

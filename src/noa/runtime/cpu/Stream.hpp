@@ -47,13 +47,13 @@ namespace noa::cpu::details {
         template<typename F, typename... Args>
         void enqueue(F&& func, Args&&... args) {
             if (is_sync()) {
-                std::forward<F>(func)(std::forward<Args>(args)...);
+                NOA_FWD(func)(NOA_FWD(args)...);
                 return;
             }
 
             // Copy/Move both the func and args into this lambda, thereby ensuring
             // that these objects will stay alive until the task is completed.
-            auto no_args_func = [f = std::forward<F>(func), ...a = std::forward<Args>(args)]() mutable {
+            auto no_args_func = [f = NOA_FWD(func), ...a = NOA_FWD(args)]() mutable {
                 forward_like<F>(f)(forward_like<Args>(a)...);
             };
 
@@ -224,7 +224,7 @@ namespace noa::cpu {
         // where the function becomes the last owner of the stream, which may result in a segfault.
         template<typename F, typename... Args>
         constexpr void enqueue(F&& func, Args&&... args) {
-            m_core->worker.enqueue(std::forward<F>(func), std::forward<Args>(args)...);
+            m_core->worker.enqueue(NOA_FWD(func), NOA_FWD(args)...);
         }
 
         [[nodiscard]] auto is_sync() const -> bool { return m_core->worker.is_sync(); }

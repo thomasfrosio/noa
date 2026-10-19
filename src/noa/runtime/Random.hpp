@@ -11,7 +11,7 @@ namespace noa {
     /// \param[out] output      Array to randomize.
     template<nt::distribution Distribution, nt::writable_array_decay Output>
     void randomize(const Distribution& distribution, Output&& output) {
-        ewise({}, std::forward<Output>(output), Randomizer(distribution, std::random_device{}()));
+        ewise({}, NOA_FWD(output), Randomizer(distribution, std::random_device{}()));
     }
 
     /// Returns an array initialized with random values.

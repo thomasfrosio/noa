@@ -41,7 +41,7 @@ namespace noa {
 
     template<usize N, typename Integer = usize, typename Op, typename... Args>
     void static_for_each(Op&& op, Args&&... args) {
-        static_for_each(std::make_integer_sequence<Integer, N>{}, std::forward<Op>(op), args...);
+        static_for_each(std::make_integer_sequence<Integer, N>{}, NOA_FWD(op), args...);
     }
 }
 

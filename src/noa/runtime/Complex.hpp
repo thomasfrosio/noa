@@ -13,7 +13,7 @@ namespace noa {
              nt::writable_array_decay_of_real I>
     void decompose(C&& input, R&& real, I&& imag) {
         check(not are_overlapped(real, imag), "The output arrays should not overlap");
-        ewise(std::forward<C>(input), wrap(std::forward<R>(real), std::forward<I>(imag)), ComplexDecompose{});
+        ewise(NOA_FWD(input), wrap(NOA_FWD(real), NOA_FWD(imag)), ComplexDecompose{});
     }
 
     /// Extracts the real part of complex numbers.
@@ -22,7 +22,7 @@ namespace noa {
     template<nt::readable_array_decay_of_complex C,
              nt::writable_array_decay_of_real R>
     void real(C&& input, R&& real) {
-        ewise(std::forward<C>(input), std::forward<R>(real), Real{});
+        ewise(NOA_FWD(input), NOA_FWD(real), Real{});
     }
 
     /// Extracts the imaginary part of complex numbers.
@@ -31,7 +31,7 @@ namespace noa {
     template<nt::readable_array_decay_of_complex C,
              nt::writable_array_decay_of_real I>
     void imag(C&& input, I&& imag) {
-        ewise(std::forward<C>(input), std::forward<I>(imag), Imag{});
+        ewise(NOA_FWD(input), NOA_FWD(imag), Imag{});
     }
 
     /// Fuses the real and imaginary components.
@@ -42,7 +42,7 @@ namespace noa {
              nt::readable_array_decay_of_real I,
              nt::writable_array_decay_of_complex C>
     void complex(R&& real, I&& imag, C&& output) {
-        ewise(wrap(std::forward<R>(real), std::forward<I>(imag)), std::forward<C>(output), ComplexFuse{});
+        ewise(wrap(NOA_FWD(real), NOA_FWD(imag)), NOA_FWD(output), ComplexFuse{});
     }
 }
 
@@ -54,7 +54,7 @@ namespace noa {
         constexpr auto N = std::remove_reference_t<C>::SIZE;
         Pair output{Array<real_t, N>(input.shape(), input.options()),
                     Array<real_t, N>(input.shape(), input.options())};
-        decompose(std::forward<C>(input), output.first, output.second);
+        decompose(NOA_FWD(input), output.first, output.second);
         return output;
     }
 
@@ -64,7 +64,7 @@ namespace noa {
         using real_t = nt::value_type_twice_t<C>;
         constexpr auto N = std::remove_reference_t<C>::SIZE;
         Array<real_t, N> output(input.shape(), input.options());
-        real(std::forward<C>(input), output);
+        real(NOA_FWD(input), output);
         return output;
     }
 
@@ -74,7 +74,7 @@ namespace noa {
         using real_t = nt::value_type_twice_t<C>;
         constexpr auto N = std::remove_reference_t<C>::SIZE;
         Array<real_t, N> output(input.shape(), input.options());
-        imag(std::forward<C>(input), output);
+        imag(NOA_FWD(input), output);
         return output;
     }
 
@@ -86,7 +86,7 @@ namespace noa {
         using complex_t = Complex<real_t>;
         constexpr auto N = nd::maximum_nd_axes_of_arrays<R, I>();
         Array<complex_t, N> output(real.shape(), real.options());
-        complex(std::forward<R>(real), std::forward<I>(imag), output);
+        complex(NOA_FWD(real), NOA_FWD(imag), output);
         return output;
     }
 }

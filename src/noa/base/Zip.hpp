@@ -59,7 +59,7 @@ namespace noa::details {
     class ZipRange {
     public:
         template<typename... U>
-        explicit constexpr ZipRange(U&&... ranges) : m_ranges{std::forward<U>(ranges)...} {}
+        explicit constexpr ZipRange(U&&... ranges) : m_ranges{NOA_FWD(ranges)...} {}
 
         constexpr auto begin() {
             return m_ranges.apply([](auto&... ranges) {
@@ -81,7 +81,7 @@ namespace noa {
     /// Zip ranges ala std::views::zip (C++23).
     template<typename... T>
     constexpr auto zip(T&&... r) {
-        return details::ZipRange<T...>(std::forward<T>(r)...);
+        return details::ZipRange<T...>(NOA_FWD(r)...);
     }
 }
 

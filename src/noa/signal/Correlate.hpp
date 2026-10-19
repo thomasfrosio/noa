@@ -859,7 +859,7 @@ namespace noa::signal {
                     shape_r, options.registration_radius
                 );
                 iwise(
-                    shape_b1, device, op,
+                    shape_b1, device, op, {},
                     NOA_FWD(cross_correlation_maps),
                     NOA_FWD(peak_coordinates),
                     NOA_FWD(peak_values)
@@ -900,9 +900,7 @@ namespace noa::signal {
                 reducer_t(input_accessor, peak_coordinates_accessor, peak_values_accessor,
                           shape_b1, shape_r, options.registration_radius,
                           subregion_offset, maximum_lag, apply_ellipse),
-                NOA_FWD(cross_correlation_maps),
-                NOA_FWD(peak_coordinates),
-                NOA_FWD(peak_values)
+                {}, NOA_FWD(cross_correlation_maps), NOA_FWD(peak_coordinates), NOA_FWD(peak_values)
             );
         }
     }

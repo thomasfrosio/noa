@@ -438,7 +438,7 @@ namespace noa::cpu {
 
         if (axes_empty_or_to_reduce == true) { // reduce to a single value
             auto output_1d = nd::reconfig_accessors<nd::AccessorConfig{.enforce_contiguous = true}>(output, 0);
-            return reduce_iwise<Config>(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, n_threads);
+            return reduce_iwise<Config>(input_shape, NOA_FWD(op), NOA_FWD(reduced), output_1d, n_threads);
         }
         NOA_ASSERT(N >= 2);
 
@@ -457,13 +457,13 @@ namespace noa::cpu {
             if (axes_empty_or_to_reduce.pop_front() == true) {
                 auto output_1d = nd::reconfig_accessors(output, 0);
                 if (is_small) {
-                    reduce_axes_iwise_t::batch_reduction_nd_serial(input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d);
+                    reduce_axes_iwise_t::batch_reduction_nd_serial(input_shape, NOA_FWD(op), NOA_FWD(reduced), output_1d);
                 } else if (n_batches < actual_n_threads) {
                     reduce_axes_iwise_t::template batch_reduction_nd_parallel<reduce_axes_iwise_t::ParallelReduction>(
-                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, actual_n_threads);
+                        input_shape, NOA_FWD(op), NOA_FWD(reduced), output_1d, actual_n_threads);
                 } else {
                     reduce_axes_iwise_t::template batch_reduction_nd_parallel<reduce_axes_iwise_t::SerialReduction>(
-                        input_shape, std::forward<Op>(op), std::forward<Reduced>(reduced), output_1d, actual_n_threads);
+                        input_shape, NOA_FWD(op), NOA_FWD(reduced), output_1d, actual_n_threads);
                 }
                 return;
             }
@@ -473,106 +473,106 @@ namespace noa::cpu {
                 if (axes_to_reduce[5]) {
                     auto output_5d = nd::reconfig_accessors(output, 0, 1, 2, 3, 4);
                     reduce_axes_iwise_t::template single_axis<5>(
-                        input_shape.filter(0, 1, 2, 3, 4, 5), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_5d, actual_n_threads);
+                        input_shape.filter(0, 1, 2, 3, 4, 5), NOA_FWD(op),
+                        NOA_FWD(reduced), output_5d, actual_n_threads);
                 } else if (axes_to_reduce[4]) {
                     auto output_5d = nd::reconfig_accessors(output, 0, 1, 2, 3, 5);
                     reduce_axes_iwise_t::template single_axis<4>(
-                        input_shape.filter(0, 1, 2, 3, 5, 4), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_5d, actual_n_threads);
+                        input_shape.filter(0, 1, 2, 3, 5, 4), NOA_FWD(op),
+                        NOA_FWD(reduced), output_5d, actual_n_threads);
                 } else if (axes_to_reduce[3]) {
                     auto output_5d = nd::reconfig_accessors(output, 0, 1, 2, 4, 5);
                     reduce_axes_iwise_t::template single_axis<3>(
-                        input_shape.filter(0, 1, 2, 4, 5, 3), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_5d, actual_n_threads);
+                        input_shape.filter(0, 1, 2, 4, 5, 3), NOA_FWD(op),
+                        NOA_FWD(reduced), output_5d, actual_n_threads);
                 } else if (axes_to_reduce[2]) {
                     auto output_5d = nd::reconfig_accessors(output, 0, 1, 3, 4, 5);
                     reduce_axes_iwise_t::template single_axis<2>(
-                        input_shape.filter(0, 1, 3, 4, 5, 2), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_5d, actual_n_threads);
+                        input_shape.filter(0, 1, 3, 4, 5, 2), NOA_FWD(op),
+                        NOA_FWD(reduced), output_5d, actual_n_threads);
                 } else if (axes_to_reduce[1]) {
                     auto output_5d = nd::reconfig_accessors(output, 0, 2, 3, 4, 5);
                     reduce_axes_iwise_t::template single_axis<1>(
-                        input_shape.filter(0, 2, 3, 4, 5, 1), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_5d, actual_n_threads);
+                        input_shape.filter(0, 2, 3, 4, 5, 1), NOA_FWD(op),
+                        NOA_FWD(reduced), output_5d, actual_n_threads);
                 } else {
                     auto output_5d = nd::reconfig_accessors(output, 1, 2, 3, 4, 5);
                     reduce_axes_iwise_t::template single_axis<0>(
-                        input_shape.filter(1, 2, 3, 4, 5, 0), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_5d, actual_n_threads);
+                        input_shape.filter(1, 2, 3, 4, 5, 0), NOA_FWD(op),
+                        NOA_FWD(reduced), output_5d, actual_n_threads);
                 }
             } else if constexpr (N == 5) {
                 if (axes_to_reduce[4]) {
                     auto output_4d = nd::reconfig_accessors(output, 0, 1, 2, 3);
                     reduce_axes_iwise_t::template single_axis<4>(
-                        input_shape.filter(0, 1, 2, 3, 4), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_4d, actual_n_threads);
+                        input_shape.filter(0, 1, 2, 3, 4), NOA_FWD(op),
+                        NOA_FWD(reduced), output_4d, actual_n_threads);
                 } else if (axes_to_reduce[3]) {
                     auto output_4d = nd::reconfig_accessors(output, 0, 1, 2, 4);
                     reduce_axes_iwise_t::template single_axis<3>(
-                        input_shape.filter(0, 1, 2, 4, 3), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_4d, actual_n_threads);
+                        input_shape.filter(0, 1, 2, 4, 3), NOA_FWD(op),
+                        NOA_FWD(reduced), output_4d, actual_n_threads);
                 } else if (axes_to_reduce[2]) {
                     auto output_4d = nd::reconfig_accessors(output, 0, 1, 3, 4);
                     reduce_axes_iwise_t::template single_axis<2>(
-                        input_shape.filter(0, 1, 3, 4, 2), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_4d, actual_n_threads);
+                        input_shape.filter(0, 1, 3, 4, 2), NOA_FWD(op),
+                        NOA_FWD(reduced), output_4d, actual_n_threads);
                 } else if (axes_to_reduce[1]) {
                     auto output_4d = nd::reconfig_accessors(output, 0, 2, 3, 4);
                     reduce_axes_iwise_t::template single_axis<1>(
-                        input_shape.filter(0, 2, 3, 4, 1), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_4d, actual_n_threads);
+                        input_shape.filter(0, 2, 3, 4, 1), NOA_FWD(op),
+                        NOA_FWD(reduced), output_4d, actual_n_threads);
                 } else {
                     auto output_4d = nd::reconfig_accessors(output, 1, 2, 3, 4);
                     reduce_axes_iwise_t::template single_axis<0>(
-                        input_shape.filter(1, 2, 3, 4, 0), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_4d, actual_n_threads);
+                        input_shape.filter(1, 2, 3, 4, 0), NOA_FWD(op),
+                        NOA_FWD(reduced), output_4d, actual_n_threads);
                 }
             } else if constexpr (N == 4) {
                 if (axes_to_reduce[3]) {
                     auto output_3d = nd::reconfig_accessors(output, 0, 1, 2);
                     reduce_axes_iwise_t::template single_axis<3>(
-                        input_shape, std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_3d, actual_n_threads);
+                        input_shape, NOA_FWD(op),
+                        NOA_FWD(reduced), output_3d, actual_n_threads);
                 } else if (axes_to_reduce[2]) {
                     auto output_3d = nd::reconfig_accessors(output, 0, 1, 3);
                     reduce_axes_iwise_t::template single_axis<2>(
-                        input_shape.filter(0, 1, 3, 2), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_3d, actual_n_threads);
+                        input_shape.filter(0, 1, 3, 2), NOA_FWD(op),
+                        NOA_FWD(reduced), output_3d, actual_n_threads);
                 } else if (axes_to_reduce[1]) {
                     auto output_3d = nd::reconfig_accessors(output, 0, 2, 3);
                     reduce_axes_iwise_t::template single_axis<1>(
-                        input_shape.filter(0, 2, 3, 1), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_3d, actual_n_threads);
+                        input_shape.filter(0, 2, 3, 1), NOA_FWD(op),
+                        NOA_FWD(reduced), output_3d, actual_n_threads);
                 } else {
                     auto output_3d = nd::reconfig_accessors(output, 1, 2, 3);
                     reduce_axes_iwise_t::template single_axis<0>(
-                        input_shape.filter(1, 2, 3, 0), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_3d, actual_n_threads);
+                        input_shape.filter(1, 2, 3, 0), NOA_FWD(op),
+                        NOA_FWD(reduced), output_3d, actual_n_threads);
                 }
             } else if constexpr (N == 3) {
                 if (axes_to_reduce[2]) {
                     auto output_2d = nd::reconfig_accessors(output, 0, 1);
                     reduce_axes_iwise_t::template single_axis<2>(
-                        input_shape, std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_2d, actual_n_threads);
+                        input_shape, NOA_FWD(op),
+                        NOA_FWD(reduced), output_2d, actual_n_threads);
                 } else if (axes_to_reduce[1]) {
                     auto output_2d = nd::reconfig_accessors(output, 0, 2);
                     reduce_axes_iwise_t::template single_axis<1>(
-                        input_shape.filter(0, 2, 1), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_2d, actual_n_threads);
+                        input_shape.filter(0, 2, 1), NOA_FWD(op),
+                        NOA_FWD(reduced), output_2d, actual_n_threads);
                 } else {
                     auto output_2d = nd::reconfig_accessors(output, 1, 2);
                     reduce_axes_iwise_t::template single_axis<0>(
-                        input_shape.filter(1, 2, 0), std::forward<Op>(op),
-                        std::forward<Reduced>(reduced), output_2d, actual_n_threads);
+                        input_shape.filter(1, 2, 0), NOA_FWD(op),
+                        NOA_FWD(reduced), output_2d, actual_n_threads);
                 }
             } else if constexpr (N == 2) {
                 // axes_to_reduce[1] == false and axes_to_reduce[0] == true
                 auto output_1d = nd::reconfig_accessors(output, 1);
                 reduce_axes_iwise_t::template single_axis<0>(
-                    input_shape.filter(1, 0), std::forward<Op>(op),
-                    std::forward<Reduced>(reduced), output_1d, actual_n_threads);
+                    input_shape.filter(1, 0), NOA_FWD(op),
+                    NOA_FWD(reduced), output_1d, actual_n_threads);
             } else {
                 static_assert(nt::always_false<Op>);
             }

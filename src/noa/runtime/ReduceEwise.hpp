@@ -13,7 +13,7 @@
 #endif
 
 namespace noa {
-    struct ReduceEwiseOptions {
+    struct ReduceEwiseCompileOptions {
         /// Whether to compile for the CPU compute device.
         bool generate_cpu{true};
 
@@ -39,7 +39,7 @@ namespace noa {
 }
 
 namespace noa::details {
-    template<ReduceEwiseOptions, bool, bool, bool, typename Inputs, typename Reduced, typename Outputs, typename Op>
+    template<ReduceEwiseCompileOptions, bool, bool, bool, typename Inputs, typename Reduced, typename Outputs, typename Op>
     constexpr void reduce_ewise(Inputs&&, Reduced&&, Outputs&&, Op&&);
 }
 
@@ -76,7 +76,7 @@ namespace noa {
     ///         where the input type(s) are the same as the reduced type(s).
     ///
     /// ->  op.post(...): Same as reduce-iwise.
-    template<ReduceEwiseOptions OPTIONS = ReduceEwiseOptions{},
+    template<ReduceEwiseCompileOptions OPTIONS = ReduceEwiseCompileOptions{},
              typename Inputs = nd::AdaptorUnzip<>,
              typename Reduced = nd::AdaptorUnzip<>,
              typename Outputs = nd::AdaptorUnzip<>,
@@ -92,58 +92,58 @@ namespace noa {
 
         if constexpr (nd::adaptor_decay<Inputs, Reduced, Outputs>) {
             nd::reduce_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP>(
-                std::forward<Inputs>(inputs).tuple,
-                std::forward<Reduced>(reduced).tuple,
-                std::forward<Outputs>(outputs).tuple,
-                std::forward<Operator>(op));
+                NOA_FWD(inputs).tuple,
+                NOA_FWD(reduced).tuple,
+                NOA_FWD(outputs).tuple,
+                NOA_FWD(op));
         } else if constexpr (nd::adaptor_decay<Inputs, Reduced>) {
             nd::reduce_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, std::decay_t<Reduced>::ZIP, false>(
-                std::forward<Inputs>(inputs).tuple,
-                std::forward<Reduced>(reduced).tuple,
-                noa::forward_as_tuple(std::forward<Outputs>(outputs)),
-                std::forward<Operator>(op));
+                NOA_FWD(inputs).tuple,
+                NOA_FWD(reduced).tuple,
+                noa::forward_as_tuple(NOA_FWD(outputs)),
+                NOA_FWD(op));
         } else if constexpr (nd::adaptor_decay<Inputs, Outputs>) {
             nd::reduce_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, false, std::decay_t<Outputs>::ZIP>(
-                std::forward<Inputs>(inputs).tuple,
-                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
-                std::forward<Outputs>(outputs).tuple,
-                std::forward<Operator>(op));
+                NOA_FWD(inputs).tuple,
+                noa::forward_as_tuple(NOA_FWD(reduced)),
+                NOA_FWD(outputs).tuple,
+                NOA_FWD(op));
         } else if constexpr (nd::adaptor_decay<Reduced, Outputs>) {
             nd::reduce_ewise<OPTIONS, false, std::decay_t<Reduced>::ZIP, std::decay_t<Outputs>::ZIP>(
-                noa::forward_as_tuple(std::forward<Inputs>(inputs)),
-                std::forward<Reduced>(reduced).tuple,
-                std::forward<Outputs>(outputs).tuple,
-                std::forward<Operator>(op));
+                noa::forward_as_tuple(NOA_FWD(inputs)),
+                NOA_FWD(reduced).tuple,
+                NOA_FWD(outputs).tuple,
+                NOA_FWD(op));
         } else if constexpr (nd::adaptor_decay<Outputs>) {
             nd::reduce_ewise<OPTIONS, false, false, std::decay_t<Outputs>::ZIP>(
-                noa::forward_as_tuple(std::forward<Inputs>(inputs)),
-                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
-                std::forward<Outputs>(outputs).tuple,
-                std::forward<Operator>(op));
+                noa::forward_as_tuple(NOA_FWD(inputs)),
+                noa::forward_as_tuple(NOA_FWD(reduced)),
+                NOA_FWD(outputs).tuple,
+                NOA_FWD(op));
         } else if constexpr (nd::adaptor_decay<Reduced>) {
             nd::reduce_ewise<OPTIONS, false, std::decay_t<Reduced>::ZIP, false>(
-                noa::forward_as_tuple(std::forward<Inputs>(inputs)),
-                std::forward<Reduced>(reduced).tuple,
-                noa::forward_as_tuple(std::forward<Outputs>(outputs)),
-                std::forward<Operator>(op));
+                noa::forward_as_tuple(NOA_FWD(inputs)),
+                NOA_FWD(reduced).tuple,
+                noa::forward_as_tuple(NOA_FWD(outputs)),
+                NOA_FWD(op));
         } else if constexpr (nd::adaptor_decay<Inputs>) {
             nd::reduce_ewise<OPTIONS, std::decay_t<Inputs>::ZIP, false, false>(
-                std::forward<Inputs>(inputs).tuple,
-                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
-                noa::forward_as_tuple(std::forward<Outputs>(outputs)),
-                std::forward<Operator>(op));
+                NOA_FWD(inputs).tuple,
+                noa::forward_as_tuple(NOA_FWD(reduced)),
+                noa::forward_as_tuple(NOA_FWD(outputs)),
+                NOA_FWD(op));
         } else {
             nd::reduce_ewise<OPTIONS, false, false, false>(
-                noa::forward_as_tuple(std::forward<Inputs>(inputs)),
-                noa::forward_as_tuple(std::forward<Reduced>(reduced)),
-                noa::forward_as_tuple(std::forward<Outputs>(outputs)),
-                std::forward<Operator>(op));
+                noa::forward_as_tuple(NOA_FWD(inputs)),
+                noa::forward_as_tuple(NOA_FWD(reduced)),
+                noa::forward_as_tuple(NOA_FWD(outputs)),
+                NOA_FWD(op));
         }
     }
 }
 
 namespace noa::details {
-    template<ReduceEwiseOptions OPTIONS, bool ZIP_INPUTS, bool ZIP_REDUCED, bool ZIP_OUTPUTS,
+    template<ReduceEwiseCompileOptions OPTIONS, bool ZIP_INPUTS, bool ZIP_REDUCED, bool ZIP_OUTPUTS,
              typename Inputs, typename Reduced, typename Outputs, typename Op>
     constexpr void reduce_ewise(
         Inputs&& inputs,
@@ -159,8 +159,8 @@ namespace noa::details {
 
         static_assert(nd::are_all_not_arrays_and_mutable<Reduced, Outputs>(), "The initial reduction and output values should be mutable and not arrays");
         constexpr auto NDIM = nd::maximum_nd_axes_of_arrays<Inputs>();
-        Tuple input_accessors = nd::to_tuple_of_accessors_nd<NDIM>(std::forward<Inputs>(inputs));
-        Tuple reduced_accessors = nd::to_tuple_of_accessor_values(std::forward<Reduced>(reduced));
+        Tuple input_accessors = nd::to_tuple_of_accessors_nd<NDIM>(NOA_FWD(inputs));
+        Tuple reduced_accessors = nd::to_tuple_of_accessor_values(NOA_FWD(reduced));
 
         const auto& first_input_array = inputs[Tag<INDEX_OF_FIRST_ARRAY>{}];
         auto shape = first_input_array.shape().template extend_front<NDIM>(1);
@@ -192,7 +192,7 @@ namespace noa::details {
                 });
                 cpu_stream.synchronize();
                 noa::cpu::reduce_ewise<config>(
-                    shape, std::forward<Op>(op),
+                    shape, NOA_FWD(op),
                     std::move(input_accessors),
                     std::move(reduced_accessors),
                     output_accessors,
@@ -245,7 +245,7 @@ namespace noa::details {
                     OPTIONS.gpu_max_grid_size,
                     OPTIONS.gpu_enable_vectorization>;
                 noa::cuda::reduce_ewise<config>(
-                    shape, std::forward<Op>(op),
+                    shape, NOA_FWD(op),
                     std::move(input_accessors),
                     std::move(reduced_accessors),
                     output_accessors,

@@ -74,7 +74,7 @@ namespace noa {
             using return_type = std::invoke_result_t<F, Args...>;
 
             std::packaged_task<return_type()> task(
-                [f_ = std::forward<F>(f), ...args_ = std::forward<Args>(args)]()
+                [f_ = NOA_FWD(f), ...args_ = NOA_FWD(args)]()
                     mutable { return forward_like<F>(f_)(forward_like<Args>(args_)...); }
             );
 

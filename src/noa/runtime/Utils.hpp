@@ -27,31 +27,31 @@ namespace noa::details {
     /// For types other than arrays, forward the object into an AccessorValue.
     template<bool EnforceConst = false, nt::tuple_decay T>
     [[nodiscard]] constexpr auto to_tuple_of_accessors(T&& tuple) {
-        return std::forward<T>(tuple).map([]<typename U>(U&& v) {
+        return NOA_FWD(tuple).map([]<typename U>(U&& v) {
             if constexpr (nt::array_decay<U>) {
                 return to_accessor<AccessorConfig{.enforce_const = EnforceConst}>(v);
             } else {
-                return to_accessor_value<EnforceConst>(std::forward<U>(v));
+                return to_accessor_value<EnforceConst>(NOA_FWD(v));
             }
         });
     }
     template<usize N, bool EnforceConst = false, nt::tuple_decay T>
     [[nodiscard]] constexpr auto to_tuple_of_accessors_nd(T&& tuple) {
-        return std::forward<T>(tuple).map([]<typename U>(U&& v) {
+        return NOA_FWD(tuple).map([]<typename U>(U&& v) {
             if constexpr (nt::array_decay<U>) {
                 return to_accessor<AccessorConfig{.enforce_const = EnforceConst, .minimum_nd_axes = N}>(v);
             } else {
-                return to_accessor_value<EnforceConst>(std::forward<U>(v));
+                return to_accessor_value<EnforceConst>(NOA_FWD(v));
             }
         });
     }
     template<bool EnforceConst = false, nt::tuple_decay T>
     [[nodiscard]] constexpr auto to_tuple_of_accessor_values(T&& tuple) {
-        return std::forward<T>(tuple).map([]<typename U>(U&& v) {
+        return NOA_FWD(tuple).map([]<typename U>(U&& v) {
             if constexpr (nt::array_decay<U>) {
                 static_assert(nt::always_false<U>);
             } else {
-                return to_accessor_value<EnforceConst>(std::forward<U>(v));
+                return to_accessor_value<EnforceConst>(NOA_FWD(v));
             }
         });
     }
@@ -113,11 +113,11 @@ namespace noa::details {
     /// Extracts the shareable handles of various objects (mostly intended for View and Array).
     template<nt::tuple_decay T>
     [[nodiscard]] auto extract_shared_handle(T&& tuple) {
-        return std::forward<T>(tuple).map([]<typename U>(U&& value) {
+        return NOA_FWD(tuple).map([]<typename U>(U&& value) {
             if constexpr (nt::shareable<U>)
-                return std::forward<U>(value);
+                return NOA_FWD(value);
             else if constexpr (nt::shareable_using_share<U>)
-                return std::forward<U>(value).share();
+                return NOA_FWD(value).share();
             else
                 return Empty{};
         });
@@ -126,9 +126,9 @@ namespace noa::details {
     /// Extracts the shared handles from Arrays.
     template<nt::tuple_decay T>
     [[nodiscard]] auto extract_shared_handle_from_arrays(T&& tuple) {
-        return std::forward<T>(tuple).map([]<typename U>(U&& value) {
+        return NOA_FWD(tuple).map([]<typename U>(U&& value) {
             if constexpr (nt::array_rc_decay<U>) {
-                return std::forward<U>(value).share();
+                return NOA_FWD(value).share();
             } else {
                 return Empty{};
             }

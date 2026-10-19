@@ -262,7 +262,7 @@ namespace noa::signal {
         using op_t = details::FilterSpectrum<REMAP, index_t, coord_t, B, R, input_t, output_t, std::decay_t<Filter>>;
         auto op = op_t(input_br, output_br, shape_r, NOA_FWD(filter), options.fftfreq_range.as<coord_t>());
 
-        iwise(output.shape(), output.device(), std::move(op), NOA_FWD(input), NOA_FWD(output));
+        iwise(output.shape(), output.device(), std::move(op), {}, NOA_FWD(input), NOA_FWD(output));
     }
 
     /// Filters 1d spectrum(s).

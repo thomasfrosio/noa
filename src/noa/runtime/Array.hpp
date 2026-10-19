@@ -50,7 +50,7 @@ namespace noa {
         auto strides = input.strides();
         if (not broadcast(input.shape(), strides, shape))
             panic("Cannot broadcast shape={} into a shape={}", input.shape(), shape);
-        return std::decay_t<T>(std::forward<T>(input).share(), shape, strides, input.options());
+        return std::decay_t<T>(NOA_FWD(input).share(), shape, strides, input.options());
     }
 
     /// Whether lhs and rhs overlap in memory.
@@ -123,8 +123,8 @@ namespace noa {
                     [=,
                      input_ptr = input.data(),
                      output_ptr = output.data(),
-                     input_handle = std::forward<Input>(input).share(),
-                     output_handle = std::forward<Output>(output).share()
+                     input_handle = NOA_FWD(input).share(),
+                     output_handle = NOA_FWD(output).share()
                     ] {
                         noa::cpu::copy(
                             input_ptr, input_strides,
@@ -148,7 +148,7 @@ namespace noa {
                 output.get(), output_strides,
                 output_shape, cuda_stream
             );
-            cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
+            cuda_stream.enqueue_attach(NOA_FWD(input), NOA_FWD(output));
             if (options.sync_gpu_to_cpu)
                 cuda_stream.synchronize();
             #else
@@ -165,7 +165,7 @@ namespace noa {
                 output.get(), output_strides,
                 output_shape, cuda_stream
             );
-            cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
+            cuda_stream.enqueue_attach(NOA_FWD(input), NOA_FWD(output));
             #else
             panic_no_gpu_backend();
             #endif
@@ -180,7 +180,7 @@ namespace noa {
               "Permutation {} is not valid for an array with {} dimension(s)", permutation, N);
         auto permuted_shape = input.shape().permute(permutation);
         auto permuted_strides = input.strides().permute(permutation);
-        return std::decay_t<Input>(std::forward<Input>(input).share(), permuted_shape, permuted_strides, input.options());
+        return std::decay_t<Input>(NOA_FWD(input).share(), permuted_shape, permuted_strides, input.options());
     }
 
     namespace details {
@@ -218,7 +218,7 @@ namespace noa {
         if (permutation == Vec<i32, N>::arange()) {
             if (is_inplace)
                 return;
-            noa::copy(std::forward<Input>(input), std::forward<Output>(output));
+            noa::copy(NOA_FWD(input), NOA_FWD(output));
             return;
         }
 
@@ -279,13 +279,13 @@ namespace noa {
                     noa::iwise(
                         output_nd_with_correct_dh.shape(), device,
                         nd::PermuteInplaceDH<value_t, N>{output_nd_with_correct_dh.accessor()},
-                        std::forward<Input>(input), std::forward<Output>(output)
+                        {}, NOA_FWD(input), NOA_FWD(output)
                     );
                 } else {
                     input_nd = input_nd.permute(permutation);
                     auto input_broadcast_permuted = std::decay_t<Input>(
-                        std::forward<Input>(input).share(), input_nd.shape(), input_nd.strides(), input.options());
-                    noa::copy(std::move(input_broadcast_permuted), std::forward<Output>(output));
+                        NOA_FWD(input).share(), input_nd.shape(), input_nd.strides(), input.options());
+                    noa::copy(std::move(input_broadcast_permuted), NOA_FWD(output));
                 }
                 return;
             } else {
@@ -340,7 +340,7 @@ namespace noa {
                 const auto n_threads = cpu_stream.thread_limit();
                 cpu_stream.enqueue(
                     [=, handles = nd::extract_shared_handle_from_arrays(
-                        noa::forward_as_tuple(std::forward<Input>(input), std::forward<Output>(output)))] {
+                        noa::forward_as_tuple(NOA_FWD(input), NOA_FWD(output)))] {
                         noa::cpu::permute_copy_hw(
                             input_nd.get(), input_nd.strides(), input_nd.shape(),
                             output_nd.get(), output_nd.strides(), n_threads);
@@ -351,7 +351,7 @@ namespace noa {
                 noa::cuda::permute_copy_hw(
                     input_nd.get(), input_nd.strides(), input_nd.shape(),
                     output_nd.get(), output_nd.strides(), cuda_stream);
-                cuda_stream.enqueue_attach(std::forward<Input>(input), std::forward<Output>(output));
+                cuda_stream.enqueue_attach(NOA_FWD(input), NOA_FWD(output));
                 #else
                 panic_no_gpu_backend();
                 #endif
@@ -367,7 +367,7 @@ namespace noa {
         auto permuted_shape = input.shape().permute(permutation);
         using array_t = std::remove_reference_t<Input>::array_type;
         auto output = array_t(permuted_shape, input.options());
-        permute_copy(std::forward<Input>(input), output, permutation);
+        permute_copy(NOA_FWD(input), output, permutation);
         return output;
     }
 
@@ -380,7 +380,7 @@ namespace noa {
         requires nt::array_decay_with_compatible_or_spectrum_types<Input, Output>
     void cast(Input&& input, Output&& output, bool clamp = false) {
         check(not noa::are_overlapped(input, output), "The input and output arrays should not overlap");
-        ewise(std::forward<Input>(input), std::forward<Output>(output), Cast{clamp});
+        ewise(NOA_FWD(input), NOA_FWD(output), Cast{clamp});
     }
 
     struct ReinterpretAsOptions {
@@ -481,7 +481,7 @@ namespace noa {
             #endif
         }
 
-        return input_t(std::forward<Input>(input).share(), input.shape(), input.strides(), options);
+        return input_t(NOA_FWD(input).share(), input.shape(), input.strides(), options);
     }
 }
 
@@ -566,7 +566,7 @@ namespace noa::inline types {
         constexpr static auto from_values(Ts&&... a) -> Array {
             auto output = Array(sizeof...(Ts));
             [&]<usize...I>(std::index_sequence<I...>) {
-                (std::construct_at(output.data() + I, std::forward<Ts>(a)), ...);
+                (std::construct_at(output.data() + I, NOA_FWD(a)), ...);
             }(std::make_index_sequence<sizeof...(Ts)>{});
             return output;
         }
@@ -843,13 +843,13 @@ namespace noa::inline types {
             requires nt::array_decay_of_almost_same_type<Array, Output>
         auto to(Output&& output) const& -> decltype(auto) {
             noa::copy(*this, output);
-            return std::forward<Output>(output);
+            return NOA_FWD(output);
         }
         template<nt::writable_array_decay Output>
             requires nt::array_decay_of_almost_same_type<Array, Output>
         auto to(Output&& output) && -> decltype(auto) {
             noa::copy(std::move(*this), output);
-            return std::forward<Output>(output);
+            return NOA_FWD(output);
         }
 
         /// Performs a deep copy of the array according \p option.

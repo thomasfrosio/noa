@@ -519,7 +519,7 @@ namespace noa::details {
         if constexpr (config.allow_empty and nt::empty<input_t>) {
             return input;
         } else if constexpr (nt::accessor_value<input_t>) {
-            return input_t{std::forward<T>(input).ref()};
+            return input_t{NOA_FWD(input).ref()};
         } else { // Span, Accessor(Reference), View, Array, Texture
             using index_t = std::conditional_t<std::is_void_v<Index>, nt::index_type_t<input_t>, Index>;
             using value_t = std::conditional_t<config.enforce_const, nt::const_value_type_t<input_t>, nt::value_type_t<input_t>>;
@@ -548,7 +548,7 @@ namespace noa::details {
     template<AccessorConfig config = AccessorConfig{}, typename Index = void, typename T, nt::integer I, usize N>
     [[nodiscard]] constexpr auto to_accessor(T&& input, const Vec<I, N>& axes) {
         return [&]<usize... J>(std::index_sequence<J...>) {
-            return to_accessor<config, Index>(std::forward<T>(input), axes[J]...);
+            return to_accessor<config, Index>(NOA_FWD(input), axes[J]...);
         }(std::make_index_sequence<N>{});
     }
 
@@ -574,16 +574,16 @@ namespace noa::details {
     [[nodiscard]] constexpr auto to_accessor_value(T&& v) {
         using decay_t = std::decay_t<T>;
         using value_t = std::conditional_t<ENFORCE_CONST, const decay_t, decay_t>;
-        return AccessorValue<value_t>(std::forward<T>(v));
+        return AccessorValue<value_t>(NOA_FWD(v));
     }
 
     /// Reconfigures the Accessor(s).
     template<AccessorConfig config = AccessorConfig{}, typename Index = void, typename T, typename... I>
         requires nt::tuple_of_accessor_or_empty<std::decay_t<T>>
     [[nodiscard]] constexpr auto reconfig_accessors(T&& accessors, I... axes) {
-        return std::forward<T>(accessors).map(
+        return NOA_FWD(accessors).map(
             [&]<typename U>(U&& accessor) {
-                return to_accessor<config, Index>(std::forward<U>(accessor), axes...);
+                return to_accessor<config, Index>(NOA_FWD(accessor), axes...);
             });
     }
 

@@ -90,16 +90,16 @@ TEST_CASE("runtime: histogram, cpu vs gpu") {
 
     // 2. Use scratch implementation for GPU.
     noa::fill(histograms_gpu, 0);
-    constexpr auto OPTIONS = noa::ReduceIwiseOptions{
+    constexpr auto COMPILE_OPTIONS = noa::ReduceIwiseCompileOptions{
         .generate_cpu = false,
         .gpu_block_shape = {1, HISTOGRAM_SIZE * 4}, // 1d block
         .gpu_optimize_block_shape = false, // enforce the block shape
         .gpu_number_of_indices_per_thread = {1, 4}, // increase the value of the per-block histogram by working on it more
-        .gpu_scratch_size = HISTOGRAM_SIZE * sizeof(i32), // per block histogram
     };
-    noa::reduce_axes_iwise<OPTIONS>(shape, inputs_gpu.device(), {}, reduce_width, Histogram{
+    constexpr auto options = noa::ReduceIwiseOptions{.gpu_scratch_size = HISTOGRAM_SIZE * sizeof(i32)}; // per block histogram
+    noa::reduce_axes_iwise<COMPILE_OPTIONS>(shape, inputs_gpu.device(), {}, reduce_width, Histogram{
         .inputs = inputs_gpu.span_contiguous<const f32, 2, i32>(),
         .histograms = histograms_gpu.span_contiguous<i32, 2, i32>(),
-    });
+    }, options);
     REQUIRE(test::allclose_abs(histograms_cpu, histograms_gpu));
 }

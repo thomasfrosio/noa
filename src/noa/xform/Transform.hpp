@@ -96,12 +96,12 @@ namespace noa::xform::details {
                 using accessor_t = decltype(result)::accessor_type;
                 using op_t = Transform<B, R, Index, xform_accessor_t, interpolator_t, accessor_t, output_accessor_t>;
 
-                iwise<IwiseOptions{
+                iwise<IwiseCompileOptions{
                     .generate_cpu = not IS_GPU,
                     .generate_gpu = IS_GPU,
                 }>(output_span.shape(), output.device(),
                    op_t(result.accessor, output_accessor, xform_accessor, result.interpolator),
-                   NOA_FWD(input), NOA_FWD(output), NOA_FWD(xform));
+                   {}, NOA_FWD(input), NOA_FWD(output), NOA_FWD(xform));
             }
         };
 

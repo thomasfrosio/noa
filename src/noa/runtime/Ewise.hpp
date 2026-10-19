@@ -11,7 +11,7 @@
 #endif
 
 namespace noa {
-    struct EwiseOptions {
+    struct EwiseCompileOptions {
         /// Whether to compile for the CPU compute device.
         bool generate_cpu{true};
 
@@ -38,7 +38,7 @@ namespace noa {
 }
 
 namespace noa::details {
-    template<EwiseOptions, bool, bool, typename Inputs, typename Outputs, typename EwiseOp>
+    template<EwiseCompileOptions, bool, bool, typename Inputs, typename Outputs, typename EwiseOp>
     void ewise(Inputs&&, Outputs&&, EwiseOp&&);
 }
 
@@ -84,37 +84,37 @@ namespace noa {
     ///       (strides of zeros are not allowed). In this case, the array inputs will need to match the output shape
     ///       or be broadcastable to the output shape. If the outputs have the same strid order and if it is not the
     ///       rightmost order, axes are reordered to the rightmost order.
-    template<EwiseOptions OPTIONS = EwiseOptions{},
+    template<EwiseCompileOptions OPTIONS = EwiseCompileOptions{},
              typename Input = nd::AdaptorUnzip<>,
              typename Output = nd::AdaptorUnzip<>,
              typename EwiseOperator> // TODO EwiseChecker
     void ewise(Input&& inputs, Output&& outputs, EwiseOperator&& op) {
         if constexpr (nd::adaptor_decay<Input, Output>) {
             nd::ewise<OPTIONS, std::decay_t<Input>::ZIP, std::decay_t<Output>::ZIP>(
-                std::forward<Input>(inputs).tuple,
-                std::forward<Output>(outputs).tuple,
-                std::forward<EwiseOperator>(op));
+                NOA_FWD(inputs).tuple,
+                NOA_FWD(outputs).tuple,
+                NOA_FWD(op));
         } else if constexpr (nd::adaptor_decay<Input>) {
             nd::ewise<OPTIONS, std::decay_t<Input>::ZIP, false>(
-                std::forward<Input>(inputs).tuple,
-                noa::forward_as_tuple(std::forward<Output>(outputs)), // wrap
-                std::forward<EwiseOperator>(op));
+                NOA_FWD(inputs).tuple,
+                noa::forward_as_tuple(NOA_FWD(outputs)), // wrap
+                NOA_FWD(op));
         } else if constexpr (nd::adaptor_decay<Output>) {
             nd::ewise<OPTIONS, false, std::decay_t<Output>::ZIP>(
-                noa::forward_as_tuple(std::forward<Input>(inputs)), // wrap
-                std::forward<Output>(outputs).tuple,
-                std::forward<EwiseOperator>(op));
+                noa::forward_as_tuple(NOA_FWD(inputs)), // wrap
+                NOA_FWD(outputs).tuple,
+                NOA_FWD(op));
         } else {
             nd::ewise<OPTIONS, false, false>(
-                noa::forward_as_tuple(std::forward<Input>(inputs)), // wrap
-                noa::forward_as_tuple(std::forward<Output>(outputs)), // wrap
-                std::forward<EwiseOperator>(op));
+                noa::forward_as_tuple(NOA_FWD(inputs)), // wrap
+                noa::forward_as_tuple(NOA_FWD(outputs)), // wrap
+                NOA_FWD(op));
         }
     }
 }
 
 namespace noa::details {
-    template<EwiseOptions OPTIONS, bool ZIP_INPUT, bool ZIP_OUTPUT, typename Inputs, typename Outputs, typename EwiseOp>
+    template<EwiseCompileOptions OPTIONS, bool ZIP_INPUT, bool ZIP_OUTPUT, typename Inputs, typename Outputs, typename EwiseOp>
     void ewise(Inputs&& inputs, Outputs&& outputs, EwiseOp&& ewise_op) {
         constexpr usize N_INPUTS = std::tuple_size_v<std::decay_t<Inputs>>;
         constexpr usize N_OUTPUTS = std::tuple_size_v<std::decay_t<Outputs>>;
@@ -124,8 +124,8 @@ namespace noa::details {
             // SAFETY: While these are forwarded, to_tuple_of_accessors doesn't actually move arrays.
             // For anything other than arrays, however, objects can be moved, thus left in an unspecified state.
             constexpr auto N = nd::maximum_nd_axes_of_arrays<Inputs, Outputs>();
-            Tuple input_accessors = nd::to_tuple_of_accessors_nd<N>(std::forward<Inputs>(inputs));
-            Tuple output_accessors = nd::to_tuple_of_accessors_nd<N>(std::forward<Outputs>(outputs));
+            Tuple input_accessors = nd::to_tuple_of_accessors_nd<N>(NOA_FWD(inputs));
+            Tuple output_accessors = nd::to_tuple_of_accessors_nd<N>(NOA_FWD(outputs));
 
             Shape<isize, N> shape;
             Device device;
@@ -211,17 +211,17 @@ namespace noa::details {
 
                     if (cpu_stream.is_sync()) {
                         noa::cpu::ewise<config>(
-                            shape, std::forward<EwiseOp>(ewise_op),
+                            shape, NOA_FWD(ewise_op),
                             std::move(input_accessors),
                             std::move(output_accessors),
                             n_threads);
                     } else {
                         cpu_stream.enqueue([=,
-                            op = std::forward<EwiseOp>(ewise_op),
+                            op = NOA_FWD(ewise_op),
                             ia = std::move(input_accessors),
                             oa = std::move(output_accessors),
-                            ih = nd::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs)),
-                            oh = nd::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs))
+                            ih = nd::extract_shared_handle_from_arrays(NOA_FWD(inputs)),
+                            oh = nd::extract_shared_handle_from_arrays(NOA_FWD(outputs))
                         ] {
                             noa::cpu::ewise<config>(shape, std::move(op), std::move(ia), std::move(oa), n_threads);
                         });
@@ -239,7 +239,7 @@ namespace noa::details {
                         OPTIONS.gpu_n_elements_per_thread,
                         OPTIONS.gpu_enable_vectorization>;
                     noa::cuda::ewise<config>(
-                        shape, std::forward<EwiseOp>(ewise_op),
+                        shape, NOA_FWD(ewise_op),
                         std::move(input_accessors),
                         std::move(output_accessors),
                         cuda_stream);
@@ -251,8 +251,8 @@ namespace noa::details {
                         // a shared_ptr, and ignores everything else. As such, we could directly pass the values
                         // of "inputs" and "outputs", but here we explicitly only want to save the shared_ptr
                         // from arrays.
-                        auto ih = details::extract_shared_handle_from_arrays(std::forward<Inputs>(inputs));
-                        auto oh = details::extract_shared_handle_from_arrays(std::forward<Outputs>(outputs));
+                        auto ih = details::extract_shared_handle_from_arrays(NOA_FWD(inputs));
+                        auto oh = details::extract_shared_handle_from_arrays(NOA_FWD(outputs));
                         cuda_stream.enqueue_attach(std::move(ih)[Tag<I>{}]..., std::move(oh)[Tag<O>{}]...);
 
                         // Work-around to remove spurious "set but unused variable" warning (g++11).

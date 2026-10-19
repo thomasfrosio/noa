@@ -162,20 +162,20 @@ namespace noa {
         if (border_left == 0 and border_right == 0) {
             // Nothing to pad or crop.
             if constexpr (nt::same_mutable_value_type<Input, Output>)
-                return copy(std::forward<Input>(input), std::forward<Output>(output));
+                return copy(NOA_FWD(input), NOA_FWD(output));
             else
-                return cast(std::forward<Input>(input), std::forward<Output>(output));
+                return cast(NOA_FWD(input), NOA_FWD(output));
         }
         if (border_mode == Border::NOTHING) {
             // Special case. We can simply copy the input subregion into the output subregion.
             const auto [cropped_input, cropped_output] = nd::extract_common_subregion(
                     input_shape, output_shape, border_left, border_right);
             if constexpr (nt::same_mutable_value_type<Input, Output>) {
-                return copy(std::forward<Input>(input).subregion(cropped_input),
-                            std::forward<Output>(output).subregion(cropped_output));
+                return copy(NOA_FWD(input).subregion(cropped_input),
+                            NOA_FWD(output).subregion(cropped_output));
             } else {
-                return cast(std::forward<Input>(input).subregion(cropped_input),
-                            std::forward<Output>(output).subregion(cropped_output));
+                return cast(NOA_FWD(input).subregion(cropped_input),
+                            NOA_FWD(output).subregion(cropped_output));
             }
         }
 
@@ -194,9 +194,7 @@ namespace noa {
                 const auto op = nd::Resize<border, isize, N, input_accessor_t, output_accessor_t>(  \
                     input_accessor, output_accessor, input_shape, output_shape,                     \
                     border_left, border_right, border_value);                                       \
-                return iwise(output_shape, device, op,                                              \
-                             std::forward<Input>(input),                                            \
-                             std::forward<Output>(output));                                         \
+                return iwise(output_shape, device, op, {}, NOA_FWD(input), NOA_FWD(output));        \
             }
             NOA_GENERATE_RESIZE_(Border::ZERO)
             NOA_GENERATE_RESIZE_(Border::VALUE)
@@ -234,7 +232,7 @@ namespace noa {
 
         constexpr auto N = std::remove_reference_t<Input>::SIZE;
         auto output = Array<decltype(border_value), N>(output_shape, input.options());
-        resize(std::forward<Input>(input), output, border_left, border_right, border_mode, border_value);
+        resize(NOA_FWD(input), output, border_left, border_right, border_mode, border_value);
         return output;
     }
 
@@ -253,8 +251,7 @@ namespace noa {
         nt::value_type_t<Output> border_value = {}
     ) {
         const auto [border_left, border_right] = shape2borders(input.shape(), output.shape());
-        resize(std::forward<Input>(input), std::forward<Output>(output),
-               border_left, border_right, border_mode, border_value);
+        resize(NOA_FWD(input), NOA_FWD(output), border_left, border_right, border_mode, border_value);
     }
 
     /// Resizes the input array(s) to the desired shape while keeping the center (defined as shape / 2) aligned.
@@ -270,7 +267,7 @@ namespace noa {
         nt::mutable_value_type_t<Input> border_value = {}
     ) {
         auto output = Array<decltype(border_value), nt::array_size_v<Input>>(output_shape, input.options());
-        resize(std::forward<Input>(input), output, border_mode, border_value);
+        resize(NOA_FWD(input), output, border_mode, border_value);
         return output;
     }
 }

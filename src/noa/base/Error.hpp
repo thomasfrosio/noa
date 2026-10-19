@@ -82,14 +82,14 @@ namespace noa {
     ) {
         if constexpr (config::error_policy == config::error_policy_type::TERMINATE) {
             fmt::print(stderr, "ERROR: {}:{}: {}: ", location.file_name(), location.line(), location.function_name());
-            fmt::println(stderr, fmt::runtime(fmt.str), std::forward<Ts>(args)...);
+            fmt::println(stderr, fmt::runtime(fmt.str), NOA_FWD(args)...);
             std::terminate();
 
         } else if constexpr (config::error_policy == config::error_policy_type::THROW) {
             auto buffer = fmt::memory_buffer();
             auto it = std::back_inserter(buffer);
             fmt::format_to(it, "ERROR: {}:{}: {}: ", location.file_name(), location.line(), location.function_name());
-            fmt::format_to(it, fmt::runtime(fmt.str), std::forward<Ts>(args)...);
+            fmt::format_to(it, fmt::runtime(fmt.str), NOA_FWD(args)...);
             std::throw_with_nested(Exception(fmt::to_string(buffer)));
 
         } else { // config::error_policy_type::ABORT
@@ -119,7 +119,7 @@ namespace noa {
     /// Throws an Exception with an error message and the current source location.
     template<typename... Ts>
     [[noreturn]] constexpr void panic(details::FormatWithLocation<std::type_identity_t<Ts>...> fmt, Ts&&... args) {
-        panic_at_location(fmt.location, fmt.fmt, std::forward<Ts>(args)...);
+        panic_at_location(fmt.location, fmt.fmt, NOA_FWD(args)...);
     }
 
     [[noreturn]] inline void panic_no_gpu_backend(const std::source_location& location = std::source_location::current()) {
@@ -136,7 +136,7 @@ namespace noa {
         if (expression) {
             return;
         } else {
-            panic_at_location(location, fmt, std::forward<Ts>(args)...);
+            panic_at_location(location, fmt, NOA_FWD(args)...);
         }
     }
 
@@ -169,7 +169,7 @@ namespace noa {
         if (expression) {
             return;
         } else {
-            panic_at_location(fmt.location, fmt.fmt, std::forward<Ts>(args)...);
+            panic_at_location(fmt.location, fmt.fmt, NOA_FWD(args)...);
         }
     }
 

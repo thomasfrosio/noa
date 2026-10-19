@@ -35,7 +35,7 @@ namespace noa {
     ///   See forward_as_final_tuple for more details.
     template<typename... T>
     constexpr auto fuse(T&&... a) noexcept {
-        return nd::AdaptorZip{.tuple = noa::forward_as_final_tuple(std::forward<T>(a)...)};
+        return nd::AdaptorZip{.tuple = noa::forward_as_final_tuple(NOA_FWD(a)...)};
     }
 
     /// Core functions utility used to wrap arguments.
@@ -47,7 +47,7 @@ namespace noa {
     ///   See forward_as_final_tuple for more details.
     template<typename... T>
     constexpr auto wrap(T&&... a) noexcept {
-        return nd::AdaptorUnzip{.tuple=noa::forward_as_final_tuple(std::forward<T>(a)...)};
+        return nd::AdaptorUnzip{.tuple=noa::forward_as_final_tuple(NOA_FWD(a)...)};
     }
 }
 

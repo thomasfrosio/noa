@@ -184,9 +184,7 @@ namespace noa {
                 auto op = nd::ExtractSubregion<border, isize, N, input_accessor_t, subregion_accessor_t, origin_accessor_t>(    \
                         input_accessor, subregion_accessor, origin_accessor, input.shape(), border_value);                      \
                 return iwise(subregions.shape(), device, std::move(op),                                                         \
-                             std::forward<Input>(input),                                                                        \
-                             std::forward<Subregion>(subregions),                                                               \
-                             std::forward<Origin>(origins));                                                                    \
+                             {}, NOA_FWD(input), NOA_FWD(subregions), NOA_FWD(origins));                                        \
             }
             NOA_GENERATE_SUBREGION_(Border::NOTHING)
             NOA_GENERATE_SUBREGION_(Border::ZERO)
@@ -247,9 +245,7 @@ namespace noa {
         auto op = nd::InsertSubregion<isize, N, subregion_accessor_t, output_accessor_t, origin_accessor_t>(
             subregion_accessor, output_accessor, origin_accessor, output.shape());
         iwise(subregions.shape(), device, std::move(op),
-              std::forward<Subregion>(subregions),
-              std::forward<Output>(output),
-              std::forward<Origin>(origins));
+              {}, NOA_FWD(subregions), NOA_FWD(output), NOA_FWD(origins));
     }
 
     /// Given a set of ND subregions (N >= 2), compute an atlas layout (atlas shape + subregion origins).

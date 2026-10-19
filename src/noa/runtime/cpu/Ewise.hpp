@@ -150,12 +150,12 @@ namespace noa::cpu {
                         .enforce_contiguous=true,
                         .enforce_restrict=true,
                     };
-                    auto input_1d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT>(std::forward<Input>(input), N - 1);
+                    auto input_1d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT>(NOA_FWD(input), N - 1);
                     auto output_1d = nd::reconfig_accessors<CONTIGUOUS_RESTRICT>(output, N - 1);
                     if (actual_n_threads > 1)
-                        ewise_t::parallel(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d, actual_n_threads);
+                        ewise_t::parallel(shape_1d, NOA_FWD(op), std::move(input_1d), output_1d, actual_n_threads);
                     else
-                        ewise_t::serial(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d);
+                        ewise_t::serial(shape_1d, NOA_FWD(op), std::move(input_1d), output_1d);
                     return;
                 }
             }
@@ -163,17 +163,17 @@ namespace noa::cpu {
                 .enforce_contiguous=true,
                 .enforce_restrict=false,
             };
-            auto input_1d = nd::reconfig_accessors<CONTIGUOUS>(std::forward<Input>(input), N - 1);
+            auto input_1d = nd::reconfig_accessors<CONTIGUOUS>(NOA_FWD(input), N - 1);
             auto output_1d = nd::reconfig_accessors<CONTIGUOUS>(output, N - 1);
             if (actual_n_threads > 1)
-                ewise_t::parallel(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d, actual_n_threads);
+                ewise_t::parallel(shape_1d, NOA_FWD(op), std::move(input_1d), output_1d, actual_n_threads);
             else
-                ewise_t::serial(shape_1d, std::forward<Op>(op), std::move(input_1d), output_1d);
+                ewise_t::serial(shape_1d, NOA_FWD(op), std::move(input_1d), output_1d);
         } else {
             if (actual_n_threads > 1)
-                ewise_t::parallel(shape, std::forward<Op>(op), std::forward<Input>(input), output, actual_n_threads);
+                ewise_t::parallel(shape, NOA_FWD(op), NOA_FWD(input), output, actual_n_threads);
             else
-                ewise_t::serial(shape, std::forward<Op>(op), std::forward<Input>(input), output);
+                ewise_t::serial(shape, NOA_FWD(op), NOA_FWD(input), output);
         }
     }
 }

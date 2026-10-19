@@ -150,8 +150,8 @@ namespace noa::cpu {
                 actual_n_threads = min(n_threads, clamp_cast<i32>(n_elements / Config::n_elements_per_thread));
 
             if (actual_n_threads > 1)
-                return details::Iwise::parallel(shape, std::forward<Op>(op), actual_n_threads);
+                return details::Iwise::parallel(shape, NOA_FWD(op), actual_n_threads);
         }
-        details::Iwise::serial(shape, std::forward<Op>(op));
+        details::Iwise::serial(shape, NOA_FWD(op));
     }
 }

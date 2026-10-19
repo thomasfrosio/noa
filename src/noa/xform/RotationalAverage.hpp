@@ -568,7 +568,7 @@ namespace noa::xform::details {
             options.input_fftfreq.template as<coord_t>(),
             options.output_fftfreq.template as<coord_t>()
         );
-        iwise(input_shape_br, output.device(), op, NOA_FWD(input), output, weight, NOA_FWD(input_ctf));
+        iwise(input_shape_br, output.device(), op, {}, NOA_FWD(input), output, weight, NOA_FWD(input_ctf));
 
         // Some shells can be 0, so use DivideSafe.
         if (options.average) {
@@ -659,7 +659,7 @@ namespace noa::xform::details {
         );
         iwise(
             input.shape().template as<Index>(), output.device(), op,
-            NOA_FWD(input), output, weight, NOA_FWD(input_ctf), NOA_FWD(output_ctf)
+            {}, NOA_FWD(input), output, weight, NOA_FWD(input_ctf), NOA_FWD(output_ctf)
         );
 
         // Some shells can be 0, so use DivideSafe.
@@ -720,7 +720,7 @@ namespace noa::xform::details {
             );
             iwise(
                 output.shape().template as<Index>(), output.device(), op,
-                NOA_FWD(input), output, NOA_FWD(input_ctf), NOA_FWD(output_ctf)
+                {}, NOA_FWD(input), output, NOA_FWD(input_ctf), NOA_FWD(output_ctf)
             );
         };
 

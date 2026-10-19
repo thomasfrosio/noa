@@ -163,9 +163,9 @@ namespace noa::cpu {
 
             if (actual_n_threads > 1) {
                 return reduce_iwise_t::parallel(
-                    shape.vec, std::forward<Op>(op), std::forward<Reduced>(reduced), output, actual_n_threads);
+                    shape.vec, NOA_FWD(op), NOA_FWD(reduced), output, actual_n_threads);
             }
         }
-        reduce_iwise_t::serial(shape.vec, std::forward<Op>(op), std::forward<Reduced>(reduced), output);
+        reduce_iwise_t::serial(shape.vec, NOA_FWD(op), NOA_FWD(reduced), output);
     }
 }

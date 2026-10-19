@@ -101,7 +101,7 @@ namespace noa::cuda::details {
         // the move is non-destructive (it's just a cast here), everything is fine.
         auto to_1d = []<typename T>(T&& accessor) {
             if constexpr (nt::is_accessor_value_v<T>)
-                return std::forward<T>(accessor);
+                return NOA_FWD(accessor);
             else
                 return accessor[blockIdx.y];
         };
@@ -148,7 +148,7 @@ namespace noa::cuda::details {
 
         auto to_2d = [&gid]<typename T>(T&& accessor) {
             if constexpr (nt::is_accessor_value_v<T>) {
-                return std::forward<T>(accessor);
+                return NOA_FWD(accessor);
             } else if constexpr (N >= 3) {
                 // Index the outer dimensions, leaving HW.
                 return accessor[gid.template pop_back<2>()];
@@ -199,12 +199,12 @@ namespace noa::cuda::details {
             if constexpr (VECTORIZE) {
                 stream.enqueue(
                     details::ewise_1d_vectorized<Block, Interface, OpDecay, Index, std::decay_t<Input>, InputVec, std::decay_t<Output>, OutputVec>,
-                    config, op, std::forward<Input>(input), std::forward<Output>(output), n_elements
+                    config, op, NOA_FWD(input), NOA_FWD(output), n_elements
                 );
             } else {
                 stream.enqueue(
                     details::ewise_1d<Block, Interface, OpDecay, std::decay_t<Input>, std::decay_t<Output>, Index>,
-                    config, op, std::forward<Input>(input), std::forward<Output>(output), n_elements
+                    config, op, NOA_FWD(input), NOA_FWD(output), n_elements
                 );
             }
         } else {
@@ -212,8 +212,8 @@ namespace noa::cuda::details {
                 .enforce_contiguous = VECTORIZE,
                 .enforce_restrict = false,
             };
-            auto input_2d = nd::reconfig_accessors<CONFIG>(std::forward<Input>(input), N - 2, N - 1);
-            auto output_2d = nd::reconfig_accessors<CONFIG>(std::forward<Output>(output), N - 2, N - 1);
+            auto input_2d = nd::reconfig_accessors<CONFIG>(NOA_FWD(input), N - 2, N - 1);
+            auto output_2d = nd::reconfig_accessors<CONFIG>(NOA_FWD(output), N - 2, N - 1);
             using Input2D = decltype(input_2d);
             using Output2D = decltype(output_2d);
 
@@ -301,41 +301,41 @@ namespace noa::cuda {
                 );
                 if (alignment == 16) {
                     return details::launch_ewise_1d_or_2d<16, N, Config>(
-                        std::forward<Op>(op),
-                        std::forward<Input>(input),
-                        std::forward<Output>(output),
+                        NOA_FWD(op),
+                        NOA_FWD(input),
+                        NOA_FWD(output),
                         stream, width, n_rows
                     );
                 }
                 if (alignment == 8) {
                     return details::launch_ewise_1d_or_2d<8, N, Config>(
-                        std::forward<Op>(op),
-                        std::forward<Input>(input),
-                        std::forward<Output>(output),
+                        NOA_FWD(op),
+                        NOA_FWD(input),
+                        NOA_FWD(output),
                         stream, width, n_rows
                     );
                 }
                 if (alignment == 4) {
                     return details::launch_ewise_1d_or_2d<4, N, Config>(
-                        std::forward<Op>(op),
-                        std::forward<Input>(input),
-                        std::forward<Output>(output),
+                        NOA_FWD(op),
+                        NOA_FWD(input),
+                        NOA_FWD(output),
                         stream, width, n_rows
                     );
                 }
                 if (alignment == 2) {
                     return details::launch_ewise_1d_or_2d<2, N, Config>(
-                        std::forward<Op>(op),
-                        std::forward<Input>(input),
-                        std::forward<Output>(output),
+                        NOA_FWD(op),
+                        NOA_FWD(input),
+                        NOA_FWD(output),
                         stream, width, n_rows
                     );
                 }
             }
             return details::launch_ewise_1d_or_2d<1, N, Config>(
-                std::forward<Op>(op),
-                std::forward<Input>(input),
-                std::forward<Output>(output),
+                NOA_FWD(op),
+                NOA_FWD(input),
+                NOA_FWD(output),
                 stream, width, n_rows
             );
         }

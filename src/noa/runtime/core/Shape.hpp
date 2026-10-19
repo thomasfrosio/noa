@@ -1207,13 +1207,13 @@ namespace noa {
 
     template<nt::shape_or_strides T, typename Op = Less>
     [[nodiscard]] NOA_IHD constexpr auto stable_sort(const T& shape, Op&& comp = {}) noexcept {
-        stable_sort(shape.vec, std::forward<Op>(comp));
+        stable_sort(shape.vec, NOA_FWD(comp));
         return shape;
     }
 
     template<nt::shape_or_strides T, typename Op = Less>
     [[nodiscard]] NOA_IHD constexpr auto sort(const T& shape, Op&& comp = {}) noexcept {
-        stable_sort(shape.vec, std::forward<Op>(comp));
+        stable_sort(shape.vec, NOA_FWD(comp));
         return shape;
     }
 }

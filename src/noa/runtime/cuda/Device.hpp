@@ -214,7 +214,7 @@ namespace noa::cuda {
     public:
         template<typename ... Args>
         explicit DeviceGuard(Args&& ...args) :
-            Device(std::forward<Args>(args)...),
+            Device(NOA_FWD(args)...),
             m_previous_current(current())
         {
             set_current(*static_cast<Device*>(this));
