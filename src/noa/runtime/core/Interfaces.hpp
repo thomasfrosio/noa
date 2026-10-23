@@ -202,7 +202,7 @@ namespace noa::traits {
     /// }
     ///
     /// \details Thread
-    /// compute_handle.threads() -> {
+    /// compute_handle.thread() -> {
     ///     /// Integer type used for indexing.
     ///     { T::index_type } -> integer;
     ///

@@ -19,14 +19,12 @@ list(APPEND NOA_HEADERS
 
 if (NOA_ENABLE_CPU)
     list(APPEND NOA_HEADERS
-        noa/signal/cpu/Convolve.hpp
         noa/signal/cpu/MedianFilter.hpp
     )
 endif ()
 
 if (NOA_ENABLE_CUDA)
     list(APPEND NOA_HEADERS
-        noa/signal/cuda/Convolve.cuh
         noa/signal/cuda/MedianFilter.cuh
     )
 endif ()

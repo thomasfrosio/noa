@@ -39,8 +39,20 @@ TEST_CASE("signal::convolve()", "[asset]") {
                 filter = filter.subregion(0, 0, Full{});
 
             const auto result = noa::empty_like(data);
-            noa::signal::convolve(data, result, filter);
-            REQUIRE(test::allclose_abs_safe(expected, result, 1e-5));
+
+            const auto rank = filter.shape().rank();
+            if (rank == 1) {
+                noa::signal::convolve_1d(data, result, filter[0][0]);
+                REQUIRE(test::allclose_abs_safe(expected, result, 1e-5));
+            }
+            if (rank <= 2) {
+                noa::signal::convolve_2d(data, result, filter[0]);
+                REQUIRE(test::allclose_abs_safe(expected, result, 1e-5));
+            }
+            if (rank <= 3) {
+                noa::signal::convolve_3d(data, result, filter);
+                REQUIRE(test::allclose_abs_safe(expected, result, 1e-5));
+            }
         }
     }
 }

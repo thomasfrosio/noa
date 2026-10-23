@@ -8,3 +8,7 @@ list(APPEND TEST_SOURCES
     noa/signal/TestSignalStandardize.cpp
     noa/signal/TestSignalWindows.cpp
 )
+
+list(APPEND BENCH_SOURCES
+    noa/signal/BenchSignalConvolve.cpp
+)
