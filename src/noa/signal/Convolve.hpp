@@ -114,7 +114,7 @@ namespace noa::signal::details {
             }
         }
 
-        constexpr void operator()(nt::compute_handle_gpu auto const& handle, const Vec<Index, N>& gid) const requires ALONG_Y {
+        NOA_FD constexpr void operator()(nt::compute_handle_gpu auto const& handle, const Vec<Index, N>& gid) const requires ALONG_Y {
             const auto tid = handle.thread().template id<i32, 2>();
             auto* shared = handle.block().template scratch_pointer<filter_value_type>();
 
@@ -151,13 +151,13 @@ namespace noa::signal::details {
             }
         }
 
-        constexpr void operator()(nt::compute_handle_cpu auto const&, const Vec<Index, N>& gid) const {
+        NOA_FH constexpr void operator()(nt::compute_handle_cpu auto const&, const Vec<Index, N>& gid) const {
             filter_value_type conv{};
             auto input_indices = gid;
             auto size = convolution_axis_size();
             auto filter_1d = filter(gid);
 
-            constexpr Index I = ALONG_X ? N - 1 : N - 2;
+            constexpr auto I = static_cast<Index>(ALONG_X ? N - 1 : N - 2);
             for (Index i{}; i < static_cast<Index>(m_filter_size); ++i) {
                 input_indices[I] = gid[I] - m_halo + i;
                 if constexpr (BORDER == Border::ZERO) {
@@ -458,7 +458,7 @@ namespace noa::signal::details {
             }
         }
 
-        constexpr auto halo(usize i) const -> isize {
+        NOA_FHD constexpr auto halo(usize i) const -> isize {
             if constexpr (STATIC_FILTER_LENGTH) {
                 return static_cast<isize>(FILTER_LENGTH / 2);
             } else {
@@ -467,7 +467,7 @@ namespace noa::signal::details {
         }
 
         template<usize I>
-        constexpr auto scratch_size() const -> i32 requires HAS_SCRATCH {
+        NOA_FHD constexpr auto scratch_size() const -> i32 requires HAS_SCRATCH {
             if constexpr (STATIC_FILTER_LENGTH) {
                 if constexpr (I == 0 and R == 3) {
                     return static_cast<i32>(FILTER_LENGTH);
@@ -484,7 +484,7 @@ namespace noa::signal::details {
         }
 
         template<typename I>
-        constexpr auto filter_shape(usize i) const {
+        NOA_FHD constexpr auto filter_shape(usize i) const {
             if constexpr (STATIC_FILTER_LENGTH) {
                 return static_cast<I>(FILTER_LENGTH);
             } else {
@@ -492,7 +492,7 @@ namespace noa::signal::details {
             }
         }
 
-        constexpr auto filter(const Vec<isize, B + R>& gid) const {
+        NOA_FHD constexpr auto filter(const Vec<isize, B + R>& gid) const {
             if constexpr (Filter::SIZE == 1) {
                 return m_filter;
             } else {
@@ -500,7 +500,7 @@ namespace noa::signal::details {
             }
         }
 
-        constexpr void operator()(nt::compute_handle_gpu auto& handle, const Vec<isize, B + R>& gid) const requires (R == 2) {
+        NOA_FD constexpr void operator()(nt::compute_handle_gpu auto& handle, const Vec<isize, B + R>& gid) const requires (R == 2) {
             const auto tid = handle.thread().template id<i32, 2>();
             const auto input_2d = m_input[gid.template pop_back<2>()];
             auto* shared = handle.block().template scratch_pointer<filter_value_type>();
@@ -539,7 +539,7 @@ namespace noa::signal::details {
             }
         }
 
-        constexpr void operator()(nt::compute_handle_gpu auto& handle, const Vec<isize, B + R>& gid) const requires (R == 3) {
+        NOA_FD constexpr void operator()(nt::compute_handle_gpu auto& handle, const Vec<isize, B + R>& gid) const requires (R == 3) {
             const auto tid = handle.thread().template id<i32, 2>();
             const auto input_3d = m_input[gid.template pop_back<3>()];
             auto* shared = handle.block().template scratch_pointer<filter_value_type>();
@@ -584,7 +584,7 @@ namespace noa::signal::details {
             }
         }
 
-        constexpr void operator()(nt::compute_handle_cpu auto&, const Vec<isize, B + R>& gid) const {
+        NOA_FH constexpr void operator()(nt::compute_handle_cpu auto&, const Vec<isize, B + R>& gid) const {
             const auto [batches, indices] = gid.template split<B>();
             auto input_r = m_input[batches];
             auto filter_1d = filter(gid);
@@ -888,9 +888,11 @@ namespace noa::signal {
 
         // Broadcast input batches.
         auto input_strides = input.strides();
-        for (usize i{}; i < B; ++i)
-            if (input_shape_b[i] == 1)
-                input_strides[i] = 0;
+        if constexpr (B >= 1) {
+            for (usize i{}; i < B; ++i)
+                if (input_shape_b[i] == 1)
+                    input_strides[i] = 0;
+        }
 
         // Check input and output shapes are compatible.
         if constexpr (B >= 1) {
@@ -1034,9 +1036,11 @@ namespace noa::signal {
 
         // Broadcast input batches.
         auto input_strides = input.strides();
-        for (usize i{}; i < B; ++i)
-            if (input_shape_b[i] == 1)
-                input_strides[i] = 0;
+        if constexpr (B >= 1) {
+            for (usize i{}; i < B; ++i)
+                if (input_shape_b[i] == 1)
+                    input_strides[i] = 0;
+        }
 
         // Check input and output shapes are compatible.
         if constexpr (B >= 1) {

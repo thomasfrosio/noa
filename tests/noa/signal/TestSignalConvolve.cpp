@@ -44,13 +44,28 @@ TEST_CASE("signal::convolve()", "[asset]") {
             if (rank == 1) {
                 noa::signal::convolve_1d(data, result, filter[0][0]);
                 REQUIRE(test::allclose_abs_safe(expected, result, 1e-5));
+
+                for (isize i{}; i < data.shape()[0]; ++i)
+                    for (isize j{}; j < data.shape()[1]; ++j)
+                        for (isize k{}; k < data.shape()[1]; ++k)
+                            noa::signal::convolve_1d(data[i][j][k], result[i][j][k], filter[0][0]);
+                REQUIRE(test::allclose_abs_safe(expected, result, 1e-5));
             }
             if (rank <= 2) {
                 noa::signal::convolve_2d(data, result, filter[0]);
                 REQUIRE(test::allclose_abs_safe(expected, result, 1e-5));
+
+                for (isize i{}; i < data.shape()[0]; ++i)
+                    for (isize j{}; j < data.shape()[1]; ++j)
+                        noa::signal::convolve_2d(data[i][j], result[i][j], filter[0]);
+                REQUIRE(test::allclose_abs_safe(expected, result, 1e-5));
             }
             if (rank <= 3) {
                 noa::signal::convolve_3d(data, result, filter);
+                REQUIRE(test::allclose_abs_safe(expected, result, 1e-5));
+
+                for (isize i{}; i < data.shape()[0]; ++i)
+                    noa::signal::convolve_3d(data[i], result[i], filter);
                 REQUIRE(test::allclose_abs_safe(expected, result, 1e-5));
             }
         }
