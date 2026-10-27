@@ -155,7 +155,8 @@ namespace noa {
                 if constexpr (not OPTIONS.gpu_enable_block_bound_check) {
                     static_assert(OPTIONS.gpu_optimize_block_shape == false, "Bound checking is disabled. The block shape should be set and fixed");
                     bool is_valid{true};
-                    const auto shape_3d = shape.template extend_front<max(N, usize{3})>(0).filter(N - 3, N - 2, N - 1).template as_safe<u32>();
+                    constexpr usize N1 = max(N, usize{3});
+                    const auto shape_3d = shape.template extend_front<N1>(0).filter(N1 - 3, N1 - 2, N1 - 1).template as_safe<u32>();
                     for (usize i{}; i < 3; ++i) {
                         if (not is_multiple_of(shape_3d[i], OPTIONS.gpu_block_shape[i] * OPTIONS.gpu_number_of_indices_per_thread[i])) {
                             is_valid = false;
