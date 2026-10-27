@@ -2,19 +2,7 @@
 
 #include "noa/runtime/Array.hpp"
 #include "noa/runtime/Iwise.hpp"
-
-namespace noa::signal {
-    struct ConvolveCompileOptions {
-        /// Border modes to generate code for.
-        BorderSet borders{BorderSet::all()};
-
-        /// Whether CPU code should be generated.
-        bool generate_cpu{true};
-
-        /// Whether GPU code should be generated.
-        bool generate_gpu{true};
-    };
-}
+#include "noa/signal/core/Utils.hpp"
 
 namespace noa::signal::details {
     template<usize B, usize R, bool ALONG_X, Border BORDER,
@@ -180,7 +168,7 @@ namespace noa::signal::details {
         i32 m_filter_size;
     };
 
-    template<usize R, ConvolveCompileOptions OPTIONS, Border BORDER, usize I,
+    template<usize R, CompileOptions OPTIONS, Border BORDER, usize I,
              typename Input, typename Output, typename Index, usize N, typename Filter,
              typename... Buffers>
     void launch_convolve_separable_axis(
@@ -248,15 +236,15 @@ namespace noa::signal::details {
 
             // Use iwise as a generic kernel launch, launch the grid of blocks and
             // do the bound checking explicitly.
-            shape[N - 2] = next_multiple_of(shape[N - 2], WARP_SIZE);
-            shape[N - 1] = next_multiple_of(shape[N - 1], WARP_SIZE);
+            shape[N - 2] = next_multiple_of(shape[N - 2], BLOCK_SIZE_Y);
+            shape[N - 1] = next_multiple_of(shape[N - 1], BLOCK_SIZE_X);
             noa::iwise<IWISE_COMPILE_OPTIONS>(
                 shape, device, op, iwise_options, NOA_FWD(filter), NOA_FWD(buffers)...);
         }
         #endif
     }
 
-    template<usize R, ConvolveCompileOptions OPTIONS, Border BORDER,
+    template<usize R, CompileOptions OPTIONS, Border BORDER,
              typename Input, typename Index, usize N, typename Output,
              typename FilterDepth, typename FilterHeight, typename FilterWidth,
              typename Buffer>
@@ -662,7 +650,7 @@ namespace noa::signal::details {
         NOA_NO_UNIQUE_ADDRESS scratch_shape_type m_scratch_shape{};
     };
 
-    template<usize R, ConvolveCompileOptions OPTIONS, Border BORDER,
+    template<usize R, CompileOptions OPTIONS, Border BORDER,
              typename Input, typename Index, usize N, typename Output, typename Filter>
     void launch_convolve(Input&& input, const Strides<Index, N>& input_strides, Output&& output, Filter&& filter) {
         constexpr usize B = N - R;
@@ -772,8 +760,8 @@ namespace noa::signal::details {
                 // Use iwise as a generic kernel launch, launch the grid of blocks and
                 // do the bound checking explicitly.
                 auto iwise_shape = output.shape().template as<Index>();
-                iwise_shape[N - 2] = next_multiple_of(iwise_shape[N - 2], WARP_SIZE);
-                iwise_shape[N - 1] = next_multiple_of(iwise_shape[N - 1], WARP_SIZE);
+                iwise_shape[N - 2] = next_multiple_of(iwise_shape[N - 2], BLOCK_SIZE);
+                iwise_shape[N - 1] = next_multiple_of(iwise_shape[N - 1], BLOCK_SIZE);
 
                 if (filter_shape == 3) {
                     auto op = details::Convolution<B, R, BORDER, BLOCK_SIZE, BLOCK_SIZE, 3, input_t, output_t, filter_t>{
@@ -862,7 +850,7 @@ namespace noa::signal {
     ///     in which case a temporary array will be allocated internally.
     /// \param options:
     ///     Convolution options.
-    template<usize RANK = 3, ConvolveCompileOptions OPTIONS = ConvolveCompileOptions{},
+    template<usize RANK = 3, CompileOptions OPTIONS = CompileOptions{},
              typename Input, typename Output,
              typename FilterDepth = ArrayView<nt::const_value_type_t<Input>, 1>,
              typename FilterHeight = ArrayView<nt::const_value_type_t<Input>, 1>,
@@ -948,7 +936,7 @@ namespace noa::signal {
     }
 
     template<
-        ConvolveCompileOptions OPTIONS = ConvolveCompileOptions{},
+        CompileOptions OPTIONS = CompileOptions{},
         typename Input, typename Output,
         typename FilterWidth = ArrayView<nt::const_value_type_t<Input>, 1>,
         typename Buffer = ArrayView<nt::value_type_t<Output>, nt::array_size_v<Output>>>
@@ -962,7 +950,7 @@ namespace noa::signal {
         convolve_separable<1, OPTIONS>(NOA_FWD(input), NOA_FWD(output), {}, {}, NOA_FWD(filter_width), NOA_FWD(buffer), options);
     }
     template<
-        ConvolveCompileOptions OPTIONS = ConvolveCompileOptions{},
+        CompileOptions OPTIONS = CompileOptions{},
         typename Input, typename Output,
         typename FilterHeight = ArrayView<nt::const_value_type_t<Input>, 1>,
         typename FilterWidth = ArrayView<nt::const_value_type_t<Input>, 1>,
@@ -978,7 +966,7 @@ namespace noa::signal {
         convolve_separable<2, OPTIONS>(NOA_FWD(input), NOA_FWD(output), {}, NOA_FWD(filter_height), NOA_FWD(filter_width), NOA_FWD(buffer), options);
     }
     template<
-        ConvolveCompileOptions OPTIONS = ConvolveCompileOptions{},
+        CompileOptions OPTIONS = CompileOptions{},
         typename Input, typename Output,
         typename FilterDepth = ArrayView<nt::const_value_type_t<Input>, 1>,
         typename FilterHeight = ArrayView<nt::const_value_type_t<Input>, 1>,
@@ -1019,7 +1007,7 @@ namespace noa::signal {
     ///     and the result of the convolution is cast to the output type.
     /// \param options:
     ///     Convolution options.
-    template<usize RANK, ConvolveCompileOptions OPTIONS = ConvolveCompileOptions{},
+    template<usize RANK, CompileOptions OPTIONS = CompileOptions{},
              typename Input, typename Output, typename Filter>
         requires details::convolveable<RANK, Input, Output, Filter>
     void convolve(Input&& input, Output&& output, Filter&& filter, const ConvolveOptions& options = {}) {
@@ -1087,17 +1075,17 @@ namespace noa::signal {
         panic("The border mode should be {} or {}, but got {}", Border::ZERO, Border::REFLECT, options.border);
     }
 
-    template<ConvolveCompileOptions OPTIONS = ConvolveCompileOptions{},
+    template<CompileOptions OPTIONS = CompileOptions{},
              typename Input, typename Output, typename Filter>
     void convolve_1d(Input&& input, Output&& output, Filter&& filter, const ConvolveOptions& options = {}) {
         convolve<1, OPTIONS>(NOA_FWD(input), NOA_FWD(output), NOA_FWD(filter), options);
     }
-    template<ConvolveCompileOptions OPTIONS = ConvolveCompileOptions{},
+    template<CompileOptions OPTIONS = CompileOptions{},
              typename Input, typename Output, typename Filter>
     void convolve_2d(Input&& input, Output&& output, Filter&& filter, const ConvolveOptions& options = {}) {
         convolve<2, OPTIONS>(NOA_FWD(input), NOA_FWD(output), NOA_FWD(filter), options);
     }
-    template<ConvolveCompileOptions OPTIONS = ConvolveCompileOptions{},
+    template<CompileOptions OPTIONS = CompileOptions{},
              typename Input, typename Output, typename Filter>
     void convolve_3d(Input&& input, Output&& output, Filter&& filter, const ConvolveOptions& options = {}) {
         convolve<3, OPTIONS>(NOA_FWD(input), NOA_FWD(output), NOA_FWD(filter), options);
