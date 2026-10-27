@@ -17,15 +17,3 @@ list(APPEND NOA_HEADERS
     noa/signal/Standardize.hpp
     noa/signal/Window.hpp
 )
-
-if (NOA_ENABLE_CPU)
-    list(APPEND NOA_HEADERS
-        noa/signal/cpu/MedianFilter.hpp
-    )
-endif ()
-
-if (NOA_ENABLE_CUDA)
-    list(APPEND NOA_HEADERS
-        noa/signal/cuda/MedianFilter.cuh
-    )
-endif ()

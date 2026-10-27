@@ -11,4 +11,5 @@ list(APPEND TEST_SOURCES
 
 list(APPEND BENCH_SOURCES
     noa/signal/BenchSignalConvolve.cpp
+    noa/signal/BenchSignalMedianFilter.cpp
 )
