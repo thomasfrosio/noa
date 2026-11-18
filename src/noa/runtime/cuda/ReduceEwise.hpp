@@ -1,15 +1,15 @@
 #pragma once
-#include "noa/runtime/cuda/IncludeGuard.cuh"
+#include "noa/runtime/cuda/IncludeGuard.hpp"
 
 #include "noa/base/Config.hpp"
 #include "noa/base/Vec.hpp"
 #include "noa/runtime/core/Interfaces.hpp"
 #include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/cuda/Allocators.hpp"
-#include "noa/runtime/cuda/Block.cuh"
-#include "noa/runtime/cuda/ComputeHandle.cuh"
+#include "noa/runtime/cuda/Block.hpp"
+#include "noa/runtime/cuda/ComputeHandle.hpp"
 
-#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+#if defined(NOA_COMPILER_GCC)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wduplicated-branches"
 #elif defined(NOA_COMPILER_MSVC)
@@ -20,7 +20,7 @@
 //  - https://github.com/NVIDIA/cuda-samples/tree/master/Samples/reduction
 //  - https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
 
-namespace noa::cuda::details {
+namespace noa::gpu::details {
     // 1d grid of 1d blocks.
     // Each block writes one element in "joined", which should thus have as many elements as there are blocks.
     template<typename Config, u32 MaxVectorSize, bool IsFinal = false>
@@ -36,6 +36,7 @@ namespace noa::cuda::details {
         static constexpr u32 block_size_x = block_size;
         static constexpr u32 block_size_y = 1;
         static constexpr u32 block_size_z = 1;
+        static constexpr u32 block_ndim = 1;
         static constexpr u32 n_elements_per_thread = max(MaxVectorSize, Config::n_elements_per_thread);
         static constexpr u32 block_work_size = block_size * n_elements_per_thread;
         static constexpr bool is_final = IsFinal;
@@ -61,179 +62,203 @@ namespace noa::cuda::details {
         static constexpr bool is_final = IsFinal;
     };
 
-    // Reduce rows, each row is reduced individually..
-    // N=1: 1d accessors, 1 row to reduce, 1d grid.
-    // N=2: 2d accessors, n row(s) to reduce, 2d grid (y is n).
-    template<typename Block, typename Interface, typename Op, typename Index, usize GRID_NDIM,
+    template<u32 GRID_NDIM, bool IS_STATIC_SCRATCH_ENABLED,
+             typename Block, typename Interface, typename Op, typename Index,
              typename Input, typename InputAlignedBuffers, typename Reduced, typename Output>
-    __global__ __launch_bounds__(Block::block_size)
-    void reduce_ewise_rows(
-        Op op, Input input, Index width, Reduced reduced, Output output,
-        Vec<u32, GRID_NDIM - 1> grid_size_y,
-        Vec<u32, GRID_NDIM - 1> block_index_offset_y
-    ) {
-        constexpr bool SMALL_ROW = Block::is_final;
-        const Index row = SMALL_ROW ? blockIdx.x : blockIdx.y;
-        const Index bid = SMALL_ROW ? 0 : blockIdx.x;
-        const Index tid = threadIdx.x;
-        const Index starting_column_index = Block::block_work_size * bid;
-        const Index grid_work_size = Block::block_work_size * (SMALL_ROW ? 1 : gridDim.x);
+    struct ReduceEwiseRows {
+        static_assert(Block::block_ndim == 1 and (GRID_NDIM == 1 or GRID_NDIM == 2));
+        static constexpr bool SINGLE_PASS = Block::is_final;
+        static constexpr bool DOUBLE_PASS = not SINGLE_PASS;
+        using handle_type = ComputeHandle<Index, GRID_NDIM, Block, DOUBLE_PASS, false, DOUBLE_PASS>;
+        static constexpr auto BLOCK_WORK_SIZE = static_cast<Index>(Block::block_work_size);
 
-        auto input_1d = std::move(input).map([row]<typename T>(T&& accessor) {
-            if constexpr (nt::is_accessor_value_v<T>) {
-                return NOA_FWD(accessor);
-            } else if constexpr (nt::is_accessor_nd_v<T, 2>) {
-                // Offset the input accessor to the current row,
-                // so that it can be used later to reset the pointer.
-                accessor.offset_inplace(row);
-                return accessor[0]; // 1d AccessorReference
-            } else if constexpr (nt::is_accessor_nd_v<T, 1>) {
-                return AccessorReference(accessor);
-            } else {
-                static_assert(nt::always_false<T>);
-            }
-        });
+        NOA_NO_UNIQUE_ADDRESS Op op;
+        NOA_NO_UNIQUE_ADDRESS Input input;
+        NOA_NO_UNIQUE_ADDRESS Reduced reduced;
+        NOA_NO_UNIQUE_ADDRESS Output output;
+        Index width;
 
-        const auto ci = ComputeHandle<Index, GRID_NDIM, Block, true, false, not SMALL_ROW>(grid_size_y, block_index_offset_y);
-        Interface::init(ci, op, row);
+    public:
+        // Reduce rows, each row is reduced individually.
+        // N=1: 1d accessors, 1 row to reduce, 1d grid.
+        // N=2: 2d accessors, n row(s) to reduce, 2d grid (y is n).
+        NOA_FD void operator()(const handle_type& handle) {
+            const auto row = SINGLE_PASS ? handle.block_index_x() : handle.block_index_y();
+            const auto bid = SINGLE_PASS ? 0 :handle.block_index_x();
+            const auto tid = handle.template thread_index_x<i32>();
+            const auto starting_column_index = BLOCK_WORK_SIZE * bid;
+            const auto grid_work_size = BLOCK_WORK_SIZE * (SINGLE_PASS ? 1 : handle.grid_size_x());
 
-        for (Index cid = starting_column_index; cid < width; cid += grid_work_size) {
-            input_1d.for_each_enumerate([&input, cid]<size_t I>(auto& accessor) {
-                accessor.reset_pointer(input[Tag<I>{}].get());
-                accessor.offset_inplace(cid);
+            auto input_1d = std::move(input).map([row]<typename T>(T&& accessor) {
+                if constexpr (nt::is_accessor_value_v<T>) {
+                    return NOA_FWD(accessor);
+                } else if constexpr (nt::is_accessor_nd_v<T, 2>) {
+                    // Offset the input accessor to the current row,
+                    // so that it can be used later to reset the pointer.
+                    accessor.offset_inplace(row);
+                    return accessor[0]; // 1d AccessorReference
+                } else if constexpr (nt::is_accessor_nd_v<T, 1>) {
+                    return AccessorReference(accessor);
+                } else {
+                    static_assert(nt::always_false<T>);
+                }
             });
-            block_call_ewise_1d
-                <Block::block_size, Block::n_elements_per_thread, InputAlignedBuffers, Interface>
-                (ci, op, input_1d, width - cid, reduced, tid);
-        }
 
-        Interface::deinit(ci, op, row);
+            Interface::init(handle, op, row);
 
-        if constexpr (SMALL_ROW) {
-            // There's one block per row, so compute the reduced value for the block
-            // and save it in the output at the row index.
-            block_join_and_post<Interface, Block::block_size, true>(op, reduced, output, tid, row);
-        } else {
-            // The output is the "joined" buffer, which is a buffer with one value per block and per row.
-            // These values will then be reduced by the second reduction kernel (see below).
-            block_join<Interface, Block::block_size, true>(op, reduced, output, tid, row, bid);
-        }
-    }
-
-    // Here the input is organized has a series of rows. Given the original DHW shape of the input and the row index,
-    // we can derive the BDH indices. Each dimension can have an arbitrary stride, but if the rows themselves are
-    // contiguous (if the W stride is 1), then vectorized load/stores can be used to load/store elements from the rows.
-    //
-    // This kernel explicitly supports per-batch reductions (see reduce_axes_ewise), in which case the grid should be
-    // 2d (gridDim.x is the number of blocks to reduce the rows of a given batch and gridDim.y is the number of batches)
-    // and joined should be 2d Accessors, where the outer dimension is the batch.
-    template<typename Block, typename Interface, typename Op, typename Index, usize N, usize GRID_NDIM,
-             typename Input, typename InputAlignedBuffers, typename Reduced, typename Output>
-    __global__ __launch_bounds__(Block::block_size)
-    void reduce_ewise_nd(
-        Op op,
-        Input input,
-        Reduced reduced,
-        Index n_rows,
-        Index width,
-        Output output,
-        Vec<Index, N - 2> outer_shape_no_leftmost,
-        Vec<u32, GRID_NDIM - 1> grid_size_y,
-        Vec<u32, GRID_NDIM - 1> block_index_offset_y
-    ) {
-        constexpr bool SMALL_ND = Block::is_final;
-        static_assert(GRID_NDIM == (SMALL_ND ? 1 : 2));
-
-        const Index batch = SMALL_ND ? blockIdx.x : blockIdx.y;
-        const Index bid = SMALL_ND ? 0 : blockIdx.x;
-        const Index n_blocks_per_batch = SMALL_ND ? 1 : gridDim.x;
-        const Index n_rows_per_block = Block::block_ndim == 1 ? 1 : blockDim.y;
-        const Index n_rows_per_grid = n_blocks_per_batch * n_rows_per_block;
-        const Index initial_row = bid * n_rows_per_block + threadIdx.y;
-
-        auto input_1d = std::move(input).map([batch]<typename T>(T&& accessor) {
-            if constexpr (nt::is_accessor_value_v<T>) {
-                return NOA_FWD(accessor);
-            } else {
-                // Offset the input accessor to the current batch,
-                // so that it can be used later to reset the pointer.
-                accessor.offset_inplace(batch);
-
-                // Return the row accessors.
-                using value_t = nt::value_type_t<T>;
-                using index_t = nt::index_type_t<T>;
-                constexpr auto R = T::SIZE;
-                constexpr auto S = T::STRIDES_TRAIT;
-                constexpr auto P = T::POINTER_TRAIT;
-                return Accessor<value_t, 1, index_t, S, P>(accessor.get(), Strides{accessor.template stride<R - 1>()});
-            }
-        });
-
-        const auto ci = ComputeHandle<Index, GRID_NDIM, Block, true, false, not SMALL_ND>(grid_size_y, block_index_offset_y);
-        Interface::init(ci, op, batch);
-
-        for (Index row = initial_row; row < n_rows; row += n_rows_per_grid) { // for every row (within a batch)
-            Vec<Index, N - 1> outer_indices;
-            if constexpr (N == 2)
-                outer_indices = row;
-            else
-                outer_indices = noa::offset2index(row, outer_shape_no_leftmost);
-
-            for (Index cid = 0; cid < width; cid += Block::block_work_size_x) { // consume the row
-                input_1d.for_each_enumerate([&input, &outer_indices, &cid]<size_t I>(auto& accessor_1d) {
-                    if constexpr (not nt::is_accessor_value_v<decltype(accessor_1d)>) {
-                        auto& accessor = input[Tag<I>{}];
-                        auto new_pointer = accessor.offset_pointer(accessor.get(), outer_indices.push_back(cid));
-                        accessor_1d.reset_pointer(new_pointer);
-                    }
+            for (Index cid = starting_column_index; cid < width; cid += grid_work_size) {
+                input_1d.for_each_enumerate([this, cid]<usize I>(auto& accessor) {
+                    accessor.reset_pointer(input[Tag<I>{}].get());
+                    accessor.offset_inplace(cid);
                 });
-                block_call_ewise_1d
-                    <Block::block_size_x, Block::n_elements_per_thread_x, InputAlignedBuffers, Interface>
-                    (ci, op, input_1d, width - cid, reduced, static_cast<Index>(threadIdx.x));
+                block_call_ewise_1d<Block::block_size, Block::n_elements_per_thread, InputAlignedBuffers, Interface>(
+                    handle, op, input_1d, width - cid, reduced, tid);
+            }
+
+            Interface::deinit(handle, op, row);
+
+            if constexpr (SINGLE_PASS) {
+                // There's one block per row, so compute the reduced value for the block
+                // and save it in the output at the row index.
+                block_join_and_post<Interface, Block::block_size, IS_STATIC_SCRATCH_ENABLED>(
+                    handle, op, reduced, output, tid, row);
+            } else {
+                // The output is the "joined" buffer, which is a buffer with one value per block and per row.
+                // These values will then be reduced by the second reduction kernel (see below).
+                block_join<Interface, Block::block_size, IS_STATIC_SCRATCH_ENABLED>(
+                    handle, op, reduced, output, tid, row, bid);
             }
         }
+    };
 
-        Interface::deinit(ci, op, batch);
+    // Here the input is organized has a series of (H=B..)rows. Given the original (B..)W shape of the input and the row
+    // index, we can derive the (B..) indices. Each dimension can have an arbitrary stride, but if the rows themselves
+    // are contiguous (W stride is 1), then vectorized load/stores can be used to load/store elements from the rows.
+    // This kernel explicitly supports per-batch reductions (see reduce_axes_ewise).
+    template<usize N, bool IS_STATIC_SCRATCH_ENABLED,
+             typename Block, typename Interface, typename Op, typename Index,
+             typename Input, typename InputAlignedBuffers, typename Reduced, typename Output>
+    struct ReduceEwiseND {
+        // If SINGLE_PASS=true, the grid is always 1D, but the compute handle requires grid_ndim >= block_ndim,
+        // so use block_ndim (1 or 2). This has no effect in CUDA (grid_size_y is never retrieved), and in
+        // SYCL it simply bumps nd_item<1> to nd_item<2>. Since SINGLE_PASS isn't a multi-grid kernel, the handle
+        // ctor has no argument so the launch site doesn't need to be aware of this quirk.
+        static constexpr bool SINGLE_PASS = Block::is_final;
+        static constexpr bool DOUBLE_PASS = not SINGLE_PASS;
+        static constexpr u32 GRID_NDIM = DOUBLE_PASS ? 2 : Block::block_ndim;
+        using handle_type = ComputeHandle<Index, GRID_NDIM, Block, DOUBLE_PASS, false, DOUBLE_PASS>;
 
-        const Index tid = threadIdx.y * Block::block_size_x + threadIdx.x;
-        if constexpr (SMALL_ND)
-            block_join_and_post<Interface, Block::block_size, true>(op, reduced, output, tid, batch);
-        else
-            block_join<Interface, Block::block_size, true>(op, reduced, output, tid, batch, bid);
-    }
+        NOA_NO_UNIQUE_ADDRESS Op op;
+        NOA_NO_UNIQUE_ADDRESS Input input;
+        NOA_NO_UNIQUE_ADDRESS Reduced reduced;
+        NOA_NO_UNIQUE_ADDRESS Output output;
+        Index n_rows;
+        Index width;
+        Vec<Index, N - 2> outer_shape_no_leftmost;
+
+    public:
+        NOA_FD void operator()(const handle_type& handle) {
+            // SINGLE_PASS: 1D grid along x, one 1|2D block per batch. There's no "joined" buffer,  the output is
+            // passed directly. Otherwise, two passes: 2D grid (grid_size_x is the number of blocks along W to reduce
+            // a given batch, grid_size_y is the number of batches) and the output should be the "joined" 2d accessors,
+            // where the outer dimension is the batch.
+            const auto tid = handle.template thread_indices<i32, 2>();
+            const auto batch = SINGLE_PASS ? handle.block_index_x() : handle.block_index_y();
+            const auto bid = SINGLE_PASS ? 0 : handle.block_index_x();
+            const auto n_blocks_per_batch = SINGLE_PASS ? 1 : handle.grid_size_x();
+            const auto n_rows_per_block = static_cast<Index>(Block::block_size_y);
+            const auto n_rows_per_grid = n_blocks_per_batch * n_rows_per_block;
+            const auto initial_row = bid * n_rows_per_block + static_cast<Index>(tid[0]);
+
+            auto input_1d = std::move(input).map([batch]<typename T>(T&& accessor) {
+                if constexpr (nt::is_accessor_value_v<T>) {
+                    return NOA_FWD(accessor);
+                } else {
+                    // Offset the input accessor to the current batch,
+                    // so that it can be used later to reset the pointer.
+                    accessor.offset_inplace(batch);
+
+                    // Return the row accessors.
+                    using value_t = nt::value_type_t<T>;
+                    using index_t = nt::index_type_t<T>;
+                    constexpr auto R = T::SIZE;
+                    constexpr auto S = T::STRIDES_TRAIT;
+                    constexpr auto P = T::POINTER_TRAIT;
+                    return Accessor<value_t, 1, index_t, S, P>(accessor.get(), Strides{accessor.template stride<R - 1>()});
+                }
+            });
+
+            Interface::init(handle, op, batch);
+
+            for (Index row = initial_row; row < n_rows; row += n_rows_per_grid) { // for every row (within a batch)
+                Vec<Index, N - 1> outer_indices;
+                if constexpr (N == 2)
+                    outer_indices = row;
+                else
+                    outer_indices = noa::offset2index(row, outer_shape_no_leftmost);
+
+                for (Index cid = 0; cid < width; cid += Block::block_work_size_x) { // consume the row
+                    input_1d.for_each_enumerate([this, &outer_indices, &cid]<size_t I>(auto& accessor_1d) {
+                        if constexpr (not nt::is_accessor_value_v<decltype(accessor_1d)>) {
+                            auto& accessor = input[Tag<I>{}];
+                            auto new_pointer = accessor.offset_pointer(accessor.get(), outer_indices.push_back(cid));
+                            accessor_1d.reset_pointer(new_pointer);
+                        }
+                    });
+                    block_call_ewise_1d<Block::block_size_x, Block::n_elements_per_thread_x, InputAlignedBuffers, Interface>(
+                        handle, op, input_1d, width - cid, reduced, tid[1]);
+                }
+            }
+
+            Interface::deinit(handle, op, batch);
+
+            const auto linear_tid = tid[0] * static_cast<i32>(Block::block_size_x) + tid[1];
+            if constexpr (SINGLE_PASS)
+                block_join_and_post<Interface, Block::block_size, IS_STATIC_SCRATCH_ENABLED>(
+                    handle, op, reduced, output, linear_tid, batch);
+            else
+                block_join<Interface, Block::block_size, IS_STATIC_SCRATCH_ENABLED>(
+                    handle, op, reduced, output, linear_tid, batch, bid);
+        }
+    };
 
     // One 1d block per batch to finish joining the reduced values and compute the final output.
-    template<typename Block, typename Interface, typename Op, typename Index,
+    template<bool IS_STATIC_SCRATCH_ENABLED,
+             typename Block, typename Interface, typename Op, typename Index,
              typename Joined, typename JoinedAlignedBuffers, typename Reduced, typename Output>
-    __global__ __launch_bounds__(Block::block_size)
-    void reduce_ewise_second(
-        Op op,
-        Joined joined, // Tuple of 2d Accessor(s) corresponding to Reduced
-        Index n_elements,
-        Reduced reduced, // Tuple of AccessorValue(s)
-        Output output // Tuple of 1d Accessor(s)
-    ) {
-        const Index batch = blockIdx.x;
-        const Index tid = threadIdx.x;
+    struct ReduceEwiseSecond {
+        using handle_type = ComputeHandle<Index, 1, Block, false, false, true>;
 
-        if constexpr (not nt::empty_tuple<Reduced>) {
-            auto joined_1d = joined.map([&](auto& accessor) { return accessor[batch]; });
-            for (Index cid = 0; cid < n_elements; cid += Block::block_work_size) {
-                block_join_ewise_1d
-                    <Block::block_size, Block::n_elements_per_thread, JoinedAlignedBuffers, Interface>
-                    (op, joined_1d, n_elements - cid, reduced, tid);
-                joined_1d.for_each([](auto& accessor) {
-                    constexpr auto OFFSET = Block::block_work_size;
-                    accessor.offset_inplace(OFFSET);
-                });
+        NOA_NO_UNIQUE_ADDRESS Op op;
+        NOA_NO_UNIQUE_ADDRESS Joined joined; // Tuple of 2d Accessor(s) corresponding to Reduced
+        NOA_NO_UNIQUE_ADDRESS Reduced reduced; // Tuple of AccessorValue(s)
+        NOA_NO_UNIQUE_ADDRESS Output output; // Tuple of 1d Accessor(s)
+        Index n_elements;
+
+    public:
+        NOA_FD void operator()(const handle_type& handle) {
+            const Index batch = handle.block_index_x();
+            const auto tid = handle.template thread_index_x<i32>();
+
+            if constexpr (not nt::empty_tuple<Reduced>) {
+                auto joined_1d = joined.map([&](auto& accessor) { return accessor[batch]; });
+                for (Index cid = 0; cid < n_elements; cid += Block::block_work_size) {
+                    block_join_ewise_1d<Block::block_size, Block::n_elements_per_thread, JoinedAlignedBuffers, Interface>(
+                        op, joined_1d, n_elements - cid, reduced, tid);
+                    joined_1d.for_each([](auto& accessor) {
+                        constexpr auto OFFSET = Block::block_work_size;
+                        accessor.offset_inplace(OFFSET);
+                    });
+                }
             }
-        }
 
-        block_join_and_post<Interface, Block::block_size, true>(op, reduced, output, tid, batch);
-    }
+            block_join_and_post<Interface, Block::block_size, IS_STATIC_SCRATCH_ENABLED>(
+                handle, op, reduced, output, tid, batch);
+        }
+    };
 }
 
-namespace noa::cuda::details {
+namespace noa::gpu::details {
     // nvcc bug - this could be a lambda, but nvcc <=12.6 is broken...
     template<usize ALIGNMENT, usize N, typename Config,
              typename Op, typename Index,
@@ -260,22 +285,27 @@ namespace noa::cuda::details {
         auto input_rows = nd::reconfig_accessors<CONFIG>(NOA_FWD(input_collapsed), AXES);
         const auto grid_x = GridX(n_rows, 1);
         check(grid_x.n_launches() == 1);
+
+        using Reduced_ = std::decay_t<Reduced>;
+        static constexpr bool IS_STATIC_SCRATCH_ENABLED = is_static_scratch_enabled();
+        constexpr bool HAS_REDUCED = not nt::empty_tuple<Reduced_>;
         const auto config = LaunchConfig{
-            .n_blocks = dim3(grid_x.n_blocks(0), 1, 1),
-            .n_threads = dim3_block_shape<Block>(),
+            .grid_shape = Vec<u32, 3>{1, 1, grid_x.n_blocks(0)},
+            .block_shape = block_shape<Block>(),
+            .n_bytes_of_scratch =
+                IS_STATIC_SCRATCH_ENABLED or not HAS_REDUCED ?
+                0 : Block::block_size * sizeof(Reduced_),
         };
 
         using Interface = Config::interface;
         using InputRows = decltype(input_rows);
-        using OpDecay = std::decay_t<Op>;
-        using ReducedDecay = std::decay_t<Reduced>;
-        using OutputDecay = std::decay_t<Output>;
-
-        stream.enqueue(
-            reduce_ewise_rows<Block, Interface, OpDecay, Index, 1, InputRows, InputVec, ReducedDecay, OutputDecay>,
-            config, op, input_rows, width, reduced, output,
-            Vec<u32, 0>{}, Vec<u32, 0>{}
-        );
+        using Kernel = ReduceEwiseRows<
+            1, IS_STATIC_SCRATCH_ENABLED, Block, Interface,
+            std::decay_t<Op>, Index, InputRows, InputVec,
+            Reduced_, std::decay_t<Output>>;
+        auto handle = typename Kernel::handle_type{};
+        auto kernel = Kernel{op, input_rows, reduced, output, width};
+        stream.enqueue(config, handle, kernel);
     }
 
     template<typename Config, usize N,
@@ -346,30 +376,35 @@ namespace noa::cuda::details {
 
         // One 2D block to reduce n_rows.
         // GridX for one block per reduction (batch).
-        constexpr u32 N_THREADS_X = Constant::WARP_SIZE;
         const auto n_reductions = keep_outermost ? shape[0] : 1;
         Index n_rows{1};
         for (usize i = keep_outermost; i < N - 1; ++i)
             n_rows *= shape[i];
 
+        constexpr u32 N_THREADS_X = Constant::WARP_SIZE;
         using Block = ReduceEwiseNdConfig<Config, N_THREADS_X, VEC_SIZE, true>;
         using Interface = Config::interface;
-        using OpDecay = std::decay_t<Op>;
-        using ReducedDecay = std::decay_t<Reduced>;
-        using OutputDecay = std::decay_t<Output>;
-        using InputND = decltype(input_nd);
+        using Reduced_ = std::decay_t<Reduced>;
+        static constexpr bool IS_STATIC_SCRATCH_ENABLED = is_static_scratch_enabled();
+        constexpr bool HAS_REDUCED = not nt::empty_tuple<Reduced_>;
 
         const auto grid_x = GridX(n_reductions, 1);
         check(grid_x.n_launches() == 1);
         const auto config = LaunchConfig{
-            .n_blocks = dim3(grid_x.n_blocks(0), 1, 1),
-            .n_threads = dim3_block_shape<Block>(),
+            .grid_shape = Vec<u32, 3>{1, 1, grid_x.n_blocks(0)},
+            .block_shape = block_shape<Block>(),
+            .n_bytes_of_scratch =
+                IS_STATIC_SCRATCH_ENABLED or not HAS_REDUCED ?
+                0 : Block::block_size * sizeof(Reduced_),
         };
-        stream.enqueue(
-            reduce_ewise_nd<Block, Interface, OpDecay, Index, N, 1, InputND, InputVec, ReducedDecay, OutputDecay>,
-            config, op, input_nd, reduced, n_rows, shape[N - 1], output,
-            shape.vec.pop_front().pop_back(), Vec<u32, 0>{}, Vec<u32, 0>{}
-        );
+
+        using Kernel = ReduceEwiseND<
+            N, IS_STATIC_SCRATCH_ENABLED, Block, Interface,
+            std::decay_t<Op>, Index, decltype(input_nd), InputVec,
+            Reduced_, std::decay_t<Output>>;
+        auto handle = typename Kernel::handle_type{};
+        auto kernel = Kernel{op, input_nd, reduced, output, n_rows, shape[N - 1], shape.vec.pop_front().pop_back()};
+        stream.enqueue(config, handle, kernel);
     }
 
     template<typename Config,
@@ -455,21 +490,28 @@ namespace noa::cuda::details {
         if constexpr (N > 1)
             grid_size[0] = static_cast<u32>(grid_y.n_blocks_total());
 
+        static constexpr bool IS_STATIC_SCRATCH_ENABLED = is_static_scratch_enabled();
+        constexpr bool HAS_REDUCED = not nt::empty_tuple<Reduced>;
+
         for (u32 y{}; y < grid_y.n_launches(); ++y) {
             const auto config = LaunchConfig{
-                .n_blocks = dim3(n_blocks_x, grid_y.n_blocks(y)),
-                .n_threads = dim3_block_shape<Block>(),
+                .grid_shape = Vec<u32, 3>{1, grid_y.n_blocks(y), n_blocks_x},
+                .block_shape = block_shape<Block>(),
+                .n_bytes_of_scratch =
+                    IS_STATIC_SCRATCH_ENABLED or not HAS_REDUCED ?
+                    0 : Block::block_size * sizeof(Reduced),
             };
             if constexpr (N > 1) {
                 nd::offset_accessors(Vec{grid_y.offset_additive(y)}, input_rows, joined);
                 grid_offset[0] = grid_y.offset(y);
             }
 
-            stream.enqueue(
-                reduce_ewise_rows<Block, Interface, Op, Index, ACTUAL_N, decltype(input_rows), InputVec, Reduced, Joined>,
-                config, op, input_rows, width, reduced, joined,
-                grid_size, grid_offset
-            );
+            using Kernel = ReduceEwiseRows<
+                ACTUAL_N, IS_STATIC_SCRATCH_ENABLED, Block, Interface, Op, Index,
+                decltype(input_rows), InputVec, Reduced, Joined>;
+            auto handle = typename Kernel::handle_type(grid_size, grid_offset);
+            auto kernel = Kernel{op, input_rows, reduced, joined, width};
+            stream.enqueue(config, handle, kernel);
         }
     }
 
@@ -539,18 +581,25 @@ namespace noa::cuda::details {
         }
 
         // Second kernel.
-        using OpDecay = std::decay_t<Op>;
-        using ReducedDecay = std::decay_t<Reduced>;
-        using OutputDecay = std::decay_t<Output>;
+        // TODO If Reduced is an empty tuple, check op has a valid post, otherwise don't even run this.
         using SecondBlock = ReduceEwiseRowConfig<Config, JOINED_VEC_SIZE>;
         using Interface = Config::interface;
-        // TODO If Reduced is an empty tuple, check op has a valid post, otherwise don't even run this.
-        constexpr bool HAS_REDUCED = not nt::empty_tuple<Reduced>;
-        stream.enqueue(
-            reduce_ewise_second<SecondBlock, Interface, OpDecay, Index, Joined, JoinedVec, ReducedDecay, OutputDecay>,
-            LaunchConfig{.n_blocks = n_blocks_y, .n_threads = HAS_REDUCED ? Config::block_size : 1},
-            NOA_FWD(op), joined, n_blocks_x, NOA_FWD(reduced), NOA_FWD(output)
-        );
+        using Reduced_ = std::decay_t<Reduced>;
+        constexpr bool HAS_REDUCED = not nt::empty_tuple<Reduced_>;
+        static constexpr bool IS_STATIC_SCRATCH_ENABLED = is_static_scratch_enabled();
+        using Kernel = ReduceEwiseSecond<
+            IS_STATIC_SCRATCH_ENABLED, SecondBlock, Interface, std::decay_t<Op>,
+            Index, Joined, JoinedVec, Reduced_, std::decay_t<Output>>;
+        auto config = LaunchConfig{
+            .grid_shape = Vec<u32, 3>{1, 1, n_blocks_y},
+            .block_shape = Vec<u32, 3>{1, 1, HAS_REDUCED ? Config::block_size : 1},
+            .n_bytes_of_scratch =
+                IS_STATIC_SCRATCH_ENABLED or not HAS_REDUCED ?
+                0 : SecondBlock::block_size * sizeof(Reduced_),
+        };
+        auto handle = typename Kernel::handle_type{};
+        auto kernel = Kernel{NOA_FWD(op), joined, NOA_FWD(reduced), NOA_FWD(output), n_blocks_x};
+        stream.enqueue(config, handle, kernel);
     }
 
     // nvcc bug - this could be a lambda, but nvcc <=12.6 is broken...
@@ -577,20 +626,27 @@ namespace noa::cuda::details {
         // Launch the kernel.
         using Block = ReduceEwiseNdConfig<Config, BLOCK_SIZE_X, VEC_SIZE>;
         using Interface = Config::interface;
-        using Input4D = decltype(input_nd);
+        using InputND = decltype(input_nd);
+        constexpr bool HAS_REDUCED = not nt::empty_tuple<Reduced>;
+        static constexpr bool IS_STATIC_SCRATCH_ENABLED = is_static_scratch_enabled();
 
         for (u32 y{}; y < grid_y.n_launches(); y++) {
             nd::offset_accessors(Vec{grid_y.offset_additive(y)}, input_nd, joined);
 
             const auto config = LaunchConfig{
-                .n_blocks = dim3(n_blocks_x, grid_y.n_blocks(y)),
-                .n_threads = dim3_block_shape<Block>(),
+                .grid_shape = Vec<u32, 3>{1, grid_y.n_blocks(y), n_blocks_x},
+                .block_shape = block_shape<Block>(),
+                .n_bytes_of_scratch =
+                    IS_STATIC_SCRATCH_ENABLED or not HAS_REDUCED ?
+                    0 : Block::block_size * sizeof(Reduced),
             };
-            stream.enqueue(
-                reduce_ewise_nd<Block, Interface, Op, Index, N, 2, Input4D, InputVec, Reduced, Joined>,
-                config, op, input_nd, reduced, n_rows, shape[N - 1], joined,
-                shape.vec.pop_front().pop_back(), Vec{grid_y.n_blocks_total()}.as<u32>(), Vec{grid_y.offset(y)}
-            );
+
+            using Kernel = ReduceEwiseND<
+                N, IS_STATIC_SCRATCH_ENABLED, Block, Interface, Op,
+                Index, InputND, InputVec, Reduced, Joined>;
+            auto handle = typename Kernel::handle_type(Vec{grid_y.n_blocks_total()}.as<u32>(), Vec{grid_y.offset(y)});
+            auto kernel = Kernel{op, input_nd, reduced, joined, n_rows, shape[N - 1], shape.vec.pop_front().pop_back()};
+            stream.enqueue(config, handle, kernel);
         }
     }
 
@@ -708,23 +764,28 @@ namespace noa::cuda::details {
         }
 
         // Second kernel.
-        using OpDecay = std::decay_t<Op>;
-        using ReducedDecay = std::decay_t<Reduced>;
-        using OutputDecay = std::decay_t<Output>;
+        // TODO If Reduced is an empty tuple, check op has a valid post, otherwise don't even run this.
         using SecondBlock = ReduceEwiseRowConfig<Config, JOINED_VEC_SIZE>;
         using Interface = Config::interface;
-
-        // TODO If Reduced is an empty tuple, check op has a valid post, otherwise don't even run this.
         constexpr bool HAS_REDUCED = not nt::empty_tuple<Reduced>;
-        stream.enqueue(
-            reduce_ewise_second<SecondBlock, Interface, OpDecay, Index, Joined, JoinedVec, ReducedDecay, OutputDecay>,
-            LaunchConfig{.n_blocks = n_blocks_y, .n_threads = HAS_REDUCED ? Config::block_size : 1},
-            NOA_FWD(op), joined, n_blocks_x, NOA_FWD(reduced), output
-        );
+        static constexpr bool IS_STATIC_SCRATCH_ENABLED = is_static_scratch_enabled();
+        using Kernel = ReduceEwiseSecond<
+            IS_STATIC_SCRATCH_ENABLED, SecondBlock, Interface, std::decay_t<Op>,
+            Index, Joined, JoinedVec, std::decay_t<Reduced>, std::decay_t<Output>>;
+        auto config = LaunchConfig{
+            .grid_shape = Vec<u32, 3>{1, 1, n_blocks_y},
+            .block_shape = Vec<u32, 3>{1, 1, HAS_REDUCED ? Config::block_size : 1},
+            .n_bytes_of_scratch =
+                IS_STATIC_SCRATCH_ENABLED or not HAS_REDUCED ?
+                0 : SecondBlock::block_size * sizeof(Reduced),
+        };
+        auto handle = typename Kernel::handle_type{};
+        auto kernel = Kernel{NOA_FWD(op), joined, NOA_FWD(reduced), NOA_FWD(output), n_blocks_x};
+        stream.enqueue(config, handle, kernel);
     }
 }
 
-namespace noa::cuda {
+namespace noa::gpu {
     template<bool ZipInput = false,
              bool ZipReduced = false,
              bool ZipOutput = false,
@@ -796,7 +857,7 @@ namespace noa::cuda {
     }
 }
 
-#if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
+#if defined(NOA_COMPILER_GCC)
 #pragma GCC diagnostic pop
 #elif defined(NOA_COMPILER_MSVC)
 #pragma warning(pop)
