@@ -1,10 +1,5 @@
 #pragma once
 
-#include "noa/signal/cpu/MedianFilter.hpp"
-#ifdef NOA_ENABLE_CUDA
-#   include "noa/signal/cuda/MedianFilter.cuh"
-#endif
-
 #include "noa/runtime/Array.hpp"
 #include "noa/signal/core/Utils.hpp"
 
