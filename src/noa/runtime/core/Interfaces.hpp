@@ -91,6 +91,12 @@ namespace noa::traits {
     template<typename T> constexpr bool remove_default_deinit_v = remove_default_deinit<std::decay_t<T>>::value;
     template<typename T> constexpr bool remove_default_post_v = remove_default_post<std::decay_t<T>>::value;
     template<typename T> constexpr bool remove_compute_handle_v = remove_compute_handle<std::decay_t<T>>::value;
+
+    NOA_GENERATE_TYPE_ALIAS_DETECTION(init_type, T, T::init_type);
+    NOA_GENERATE_TYPE_ALIAS_DETECTION(call_type, T, T::call_type);
+    NOA_GENERATE_TYPE_ALIAS_DETECTION(deinit_type, T, T::deinit_type);
+    NOA_GENERATE_TYPE_ALIAS_DETECTION(join_type, T, T::join_type);
+    NOA_GENERATE_TYPE_ALIAS_DETECTION(post_type, T, T::post_type);
 }
 
 namespace noa::details {
@@ -104,8 +110,6 @@ namespace noa::details {
 #   if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #       pragma GCC diagnostic push
 #       pragma GCC diagnostic ignored "-Wattributes"
-#   elif defined(NOA_COMPILER_MSVC)
-#       pragma warning(push, 0)
 #   endif
 #endif
 
@@ -114,112 +118,7 @@ namespace noa::traits {
     template<typename> struct proclaim_is_compute_handle : std::false_type {};
 
     /// Compute handle.
-    ///
-    /// \note
-    /// The API description below is for documentation only. Use the proclaim_is_compute_handle to make a type actually
-    /// conform to the compute_handle concept. We unfortunately don't check for the API explicitly mostly because
-    /// 1) C++20 concepts and require expressions have a rather limited ability to exhaustively detect APIs (how to say
-    /// that a certain template function exists and test that, for instance, it can only accept integers?) and
-    /// 2) because some of the compute_handle might be device-only code and nvcc freaks out.
-    ///
-    /// \details Grid of thread-blocks. Grids are 1d, 2d, or 3d.
-    /// compute_handle.grid() -> {
-    ///     Integer type used for indexing.
-    ///     { T::index_type } -> integer;
-    ///
-    ///     Number of dimensions of the grid.
-    ///     { grid.ndim() } -> same_as<typename T::index_type>;
-    ///     { grid.template ndim<i32>() } -> same_as<i32>;
-    ///
-    ///     Grid size, i.e., number of blocks in the grid.
-    ///     { grid.size() } -> same_as<typename T::index_type>;
-    ///     { grid.template size<i32>() } -> same_as<i32>;
-    ///
-    ///     Grid shape, i.e., the number of blocks along the specified dimensions of the grid.
-    ///     If a shape with a higher dimension than the grid is requested, these higher dimensions have a size of 1.
-    ///     If a shape with a lower dimension than the grid is requested, the additional dimensions are simply ignored.
-    ///     { grid.template shape<integer, 3>() } -> same_as<Shape<I, 3>>;
-    ///
-    ///     Atomically adds a value.
-    ///     This function guarantees no data-races between the threads of the grid.
-    ///     { grid.atomic_add(value, accessor, indices...)
-    ///
-    ///     Whether the grid is part of a two-part reduction
-    ///     (and thus whether this is called from the first kernel).
-    ///     { grid.is_two_part_reduction() } -> same_as<bool>;
-    /// }
-    ///
-    /// \details Thread-blocks. Blocks are 1d, 2d, or 3d.
-    /// compute_handle.block() -> {
-    ///     Integer type used for indexing.
-    ///     { T::index_type } -> integer;
-    ///
-    ///     Number of dimensions of the block.
-    ///     { block.ndim() } -> same_as<typename T::index_type>;
-    ///     { block.template ndim<I>() } -> same_as<I>;
-    ///
-    ///     Block size, i.e., number of threads in the block.
-    ///     { block.size() } -> same_as<typename T::index_type>;
-    ///     { block.template size<I>() } -> same_as<I>;
-    ///
-    ///     Block shape, i.e., the number of threads along the specified dimensions of the block.
-    ///     If a shape with a higher dimension than the block is requested, these higher dimensions have a size of 1.
-    ///     If a shape with a lower dimension than the block is requested, the additional dimensions are simply ignored.
-    ///     { block.template shape<I, N>() } -> same_as<Shape<I, N>>;
-    ///
-    ///     Linear index of the block within the grid.
-    ///     { block.lid() } -> same_as<typename T::index_type>;
-    ///     { block.template lid<I>() } -> same_as<I>;
-    ///
-    ///     Returns the block nd-indices within the grid.
-    ///     If the grid has fewer dimensions than the requested indices, the extra indices are set to 0.
-    ///     If the grid has more dimensions than the requested indices, these higher dimensions are simply ignored.
-    ///     { block.template id<I, N>() } -> same_as<Vec<I, N>>;
-    ///
-    ///     Whether the block has some scratch memory available.
-    ///     In CUDA, the scratch is dynamic shared memory.
-    ///     { block.has_scratch() } -> same_as<bool>;
-    ///
-    ///     Returns the scratch span, which can be empty if the block doesn't have any scratch memory available
-    ///     { block.scratch() } -> details::scratch_span;
-    ///     { block.template scratch<T, I>() } -> details::scratch_span<T, I>;
-    ///
-    ///     Returns the scratch pointer, which can be null if the block doesn't have any scratch memory available
-    ///     { block.scratch_pointer() } -> same_as<std::byte*>;
-    ///     { block.template scratch_pointer<T>() } -> same_as<T*>;
-    ///
-    ///     Sets all bytes of the available scratch to zero and returns the scratch span.
-    ///     If the block doesn't have any scratch memory available, this does nothing and returns an empty span.
-    ///     { block.zeroed_scratch() } -> details::scratch_span;
-    ///     { block.template zeroed_scratch<T, I>() } -> details::scratch_span<T, I>;
-    ///
-    ///     Waits for all threads in the block to reach this point.
-    ///     After this point, memory writes are visible to other threads in the block.
-    ///     { block.synchronize() } -> same_as<void>;
-    ///
-    ///     Atomically adds a value, guarantees no data-races between the threads of the block.
-    ///     { block.atomic_add(value, accessor, indices...) }
-    /// }
-    ///
-    /// \details Thread
-    /// compute_handle.thread() -> {
-    ///     /// Integer type used for indexing.
-    ///     { T::index_type } -> integer;
-    ///
-    ///     Linear index of the thread within the block.
-    ///     { thread.lid() } -> same_as<typename T::index_type>;
-    ///     { thread.template lid<I>() } -> same_as<I>;
-    ///
-    ///     Returns the thread nd-indices within the block.
-    ///     If the block has fewer dimensions than the requested indices, the extra indices are set to 0.
-    ///     If the block has more dimensions than the requested indices, these higher dimensions are simply ignored.
-    ///     { thread.template id<I, N>() } -> same_as<Vec<I, N>>;
-    ///
-    ///     Returns the thread global index, i.e., the index within the grid of threads.
-    ///     This 1d-index is unique to each thread.
-    ///     { thread.gid() } -> same_as<typename T::index_type>;
-    ///     { thread.template gid<I>() } -> same_as<I>;
-    /// }
+    /// TODO Add API reference
     template<typename T>
     concept compute_handle = proclaim_is_compute_handle<std::decay_t<T>>::value;
 
@@ -229,108 +128,115 @@ namespace noa::traits {
 
 namespace noa::details {
     struct InitChecker {
-        template<typename CH, typename Op>
-        static consteval bool check_0() {
-            return requires { std::declval<Op&>().init(std::declval<const CH&>()); };
-        }
+        template<typename CH, typename Op> static consteval bool check_00() { return requires { std::declval<typename Op::init_type>()(std::declval<const CH&>()); }; }
+        template<typename Op>              static consteval bool check_01() { return requires { std::declval<typename Op::init_type>()(); }; }
+        template<typename CH, typename Op> static consteval bool check_02() { return requires { std::declval<Op&>().init(std::declval<const CH&>()); }; }
+        template<typename Op>              static consteval bool check_03() { return requires { std::declval<Op&>().init(); }; }
 
-        template<typename Op>
-        static consteval bool check_1() {
-            return requires { std::declval<Op&>().init(); };
-        }
-
-        template<typename CH, typename Op>
-        static consteval bool check_10() {
-            return requires { std::declval<Op&>().deinit(std::declval<const CH&>()); };
-        }
-
-        template<typename Op>
-        static consteval bool check_11() {
-            return requires { std::declval<Op&>().deinit(); };
-        }
+        template<typename CH, typename Op> static consteval bool check_10() { return requires { std::declval<typename Op::deinit_type>()(std::declval<const CH&>()); }; }
+        template<typename Op>              static consteval bool check_11() { return requires { std::declval<typename Op::deinit_type>()(); }; }
+        template<typename CH, typename Op> static consteval bool check_12() { return requires { std::declval<Op&>().deinit(std::declval<const CH&>()); }; }
+        template<typename Op>              static consteval bool check_13() { return requires { std::declval<Op&>().deinit(); }; }
     };
 
     struct InitInterface {
         template<nt::compute_handle CH, typename Op>
         static constexpr void init(const CH& ci, Op& op) {
-            if constexpr (not nt::remove_compute_handle_v<Op> and InitChecker::check_0<CH, Op>()) {
-                op.init(ci);
-            } else if constexpr (InitChecker::check_1<Op>()) {
-                op.init();
+            if constexpr (nt::has_init_type_v<Op>) {
+                using init_t = nt::init_type_t<Op>;
+                if constexpr (not nt::remove_compute_handle_v<init_t> and InitChecker::check_00<CH, Op>()) {
+                    init_t{}(ci);
+                } else if constexpr (InitChecker::check_01<Op>()) {
+                    init_t{}();
+                } else {
+                    static_assert(nt::always_false<Op>, "init_type does not have a valid operator() call");
+                }
             } else {
-                static_assert(
-                    not nt::remove_default_init_v<Op>,
-                    "Defaulted no-op .init() was removed using the remove_default_init type flag, but no explicit .init() was detected"
-                );
+                if constexpr (not nt::remove_compute_handle_v<Op> and InitChecker::check_02<CH, Op>()) {
+                    op.init(ci);
+                } else if constexpr (InitChecker::check_03<Op>()) {
+                    op.init();
+                } else {
+                    static_assert(not nt::remove_default_init_v<Op>, "the operator does not have a valid init call and the default init was disabled");
+                }
             }
         }
 
         template<nt::compute_handle CH, typename Op>
         static constexpr void deinit(const CH& ci, Op& op) {
-            if constexpr (not nt::remove_compute_handle_v<Op> and InitChecker::check_10<CH, Op>()) {
-                op.deinit(ci);
-            } else if constexpr (InitChecker::check_11<Op>()) {
-                op.deinit();
+            if constexpr (nt::has_deinit_type_v<Op>) {
+                using deinit_t = nt::deinit_type_t<Op>;
+                if constexpr (not nt::remove_compute_handle_v<deinit_t> and InitChecker::check_10<CH, Op>()) {
+                    deinit_t{}(ci);
+                } else if constexpr (InitChecker::check_11<Op>()) {
+                    deinit_t{}();
+                } else {
+                    static_assert(nt::always_false<Op>, "deinit_type does not have a valid operator() call");
+                }
             } else {
-                static_assert(
-                    not nt::remove_default_deinit_v<Op>,
-                    "Defaulted no-op .deinit() was removed using the remove_default_deinit type flag, but no explicit .deinit() was detected"
-                );
+                if constexpr (not nt::remove_compute_handle_v<Op> and InitChecker::check_12<CH, Op>()) {
+                    op.deinit(ci);
+                } else if constexpr (InitChecker::check_13<Op>()) {
+                    op.deinit();
+                } else {
+                    static_assert(not nt::remove_default_deinit_v<Op>, "the operator does not have a valid deinit call and the default deinit was disabled");
+                }
             }
         }
     };
 
     struct IwiseChecker{
-        template<typename CH, typename Op, typename... I>
-        static consteval bool check_10() {
-            return requires { std::declval<Op&>()(std::declval<const CH&>(), std::declval<decltype(Vec{std::declval<I>()...})&>()); };
-        }
-
-        template<typename CH, typename Op, typename... I>
-        static consteval bool check_11() {
-            return requires { std::declval<Op&>()(std::declval<const CH&>(), std::declval<I>()...); };
-        }
-
-        template<typename Op, typename... I>
-        static consteval bool check_12() {
-            return requires { std::declval<Op&>()(std::declval<decltype(Vec{std::declval<I>()...})&>()); };
-        }
-
-        template<typename Op, typename... I>
-        static consteval bool check_13() {
-            return requires { std::declval<Op&>()(std::declval<I>()...); };
-        }
+        template<typename CH, typename Op, typename... I> static consteval bool check_00() { return requires { std::declval<typename Op::call_type>()(std::declval<const CH&>(), std::declval<decltype(Vec{std::declval<I>()...})&>()); }; }
+        template<typename CH, typename Op, typename... I> static consteval bool check_01() { return requires { std::declval<typename Op::call_type>()(std::declval<const CH&>(), std::declval<I>()...); }; }
+        template<typename Op, typename... I>              static consteval bool check_02() { return requires { std::declval<typename Op::call_type>()(std::declval<decltype(Vec{std::declval<I>()...})&>()); }; }
+        template<typename Op, typename... I>              static consteval bool check_03() { return requires { std::declval<typename Op::call_type>()(std::declval<I>()...); }; }
+        template<typename CH, typename Op, typename... I> static consteval bool check_10() { return requires { std::declval<Op&>()(std::declval<const CH&>(), std::declval<decltype(Vec{std::declval<I>()...})&>()); }; }
+        template<typename CH, typename Op, typename... I> static consteval bool check_11() { return requires { std::declval<Op&>()(std::declval<const CH&>(), std::declval<I>()...); }; }
+        template<typename Op, typename... I>              static consteval bool check_12() { return requires { std::declval<Op&>()(std::declval<decltype(Vec{std::declval<I>()...})&>()); }; }
+        template<typename Op, typename... I>              static consteval bool check_13() { return requires { std::declval<Op&>()(std::declval<I>()...); }; }
     };
 
     struct IwiseInterface : InitInterface {
         template<nt::compute_handle CH, typename Op, nt::integer... Indices>
         static constexpr void call(const CH& ci, Op& op, Indices... indices) {
-            if constexpr (not nt::remove_compute_handle_v<Op> and IwiseChecker::check_10<CH, Op, Indices...>()) {
-                auto v = Vec{indices...};
-                op(ci, v);
-            } else if constexpr (not nt::remove_compute_handle_v<Op> and IwiseChecker::check_11<CH, Op, Indices...>()) {
-                op(ci, indices...);
-            } else if constexpr (IwiseChecker::check_12<Op, Indices...>()) {
-                auto v = Vec{indices...};
-                op(v);
-            } else if constexpr (IwiseChecker::check_13<Op, Indices...>()) {
-                op(indices...);
+            if constexpr (nt::has_call_type_v<Op>) {
+                using call_t = nt::call_type_t<Op>;
+                if constexpr (not nt::remove_compute_handle_v<Op> and IwiseChecker::check_00<CH, Op, Indices...>()) {
+                    auto v = Vec{indices...};
+                    call_t{}(ci, v);
+                } else if constexpr (not nt::remove_compute_handle_v<Op> and IwiseChecker::check_01<CH, Op, Indices...>()) {
+                    call_t{}(ci, indices...);
+                } else if constexpr (IwiseChecker::check_02<Op, Indices...>()) {
+                    auto v = Vec{indices...};
+                    call_t{}(v);
+                } else if constexpr (IwiseChecker::check_03<Op, Indices...>()) {
+                    call_t{}(indices...);
+                } else {
+                    static_assert(nt::always_false<Op>, "call_type does not have a valid operator() call");
+                }
             } else {
-                static_assert(nt::always_false<Op>, "op.operator(...) is not defined or is invalid");
+                if constexpr (not nt::remove_compute_handle_v<Op> and IwiseChecker::check_10<CH, Op, Indices...>()) {
+                    auto v = Vec{indices...};
+                    op(ci, v);
+                } else if constexpr (not nt::remove_compute_handle_v<Op> and IwiseChecker::check_11<CH, Op, Indices...>()) {
+                    op(ci, indices...);
+                } else if constexpr (IwiseChecker::check_12<Op, Indices...>()) {
+                    auto v = Vec{indices...};
+                    op(v);
+                } else if constexpr (IwiseChecker::check_13<Op, Indices...>()) {
+                    op(indices...);
+                } else {
+                    static_assert(nt::always_false<Op>, "the operator does not have a valid operator() call");
+                }
             }
         }
     };
 
     struct EwiseChecker {
-        template<typename CH, typename Op, typename... IO>
-        static consteval bool check_0 () {
-            return requires { std::declval<Op&>()(std::declval<const CH&>(), std::declval<IO&>()...); };
-        }
-
-        template<typename Op, typename... IO>
-        static consteval bool check_1 () {
-            return requires { std::declval<Op&>()(std::declval<IO&>()...); };
-        }
+        template<typename CH, typename Op, typename... IO> static consteval bool check_0 () { return requires { std::declval<typename Op::call_type>()(std::declval<const CH&>(), std::declval<IO&>()...); }; }
+        template<typename Op, typename... IO>              static consteval bool check_1 () { return requires { std::declval<typename Op::call_type>()(std::declval<IO&>()...); }; }
+        template<typename CH, typename Op, typename... IO> static consteval bool check_2 () { return requires { std::declval<Op&>()(std::declval<const CH&>(), std::declval<IO&>()...); }; }
+        template<typename Op, typename... IO>              static consteval bool check_3 () { return requires { std::declval<Op&>()(std::declval<IO&>()...); }; }
     };
 
     template<bool ZipInput, bool ZipOutput>
@@ -346,167 +252,211 @@ namespace noa::details {
             // "input" and "output" are accessors, so we know that the operator() returns a lvalue reference.
             // forward_as_tuple will create a tuple of these lvalue references; there's nothing being taken by value.
             // Also, the zipped parameters should not be passed as rvalues.
-            if constexpr (ZipInput and ZipOutput) {
-                auto pi = noa::forward_as_tuple(input[Tag<I>{}](indices...)...);
-                auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
-                if constexpr (not nt::remove_compute_handle_v<Op> and EwiseChecker::check_0<CH, Op, decltype(pi), decltype(po)>()) {
-                    op(ci, pi, po);
-                } else if constexpr (EwiseChecker::check_1<Op, decltype(pi), decltype(po)>()) {
-                    op(pi, po);
+            if constexpr (nt::has_call_type_v<Op>) {
+                using call_t = nt::call_type_t<Op>;
+                if constexpr (ZipInput and ZipOutput) {
+                    auto pi = noa::forward_as_tuple(input[Tag<I>{}](indices...)...);
+                    auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
+                    if constexpr (not nt::remove_compute_handle_v<Op> and EwiseChecker::check_0<CH, Op, decltype(pi), decltype(po)>()) {
+                        call_t{}(ci, pi, po);
+                    } else if constexpr (EwiseChecker::check_1<Op, decltype(pi), decltype(po)>()) {
+                        call_t{}(pi, po);
+                    } else {
+                        static_assert(nt::always_false<Op>, "call_type does not have a valid operator() call");
+                    }
+                } else if constexpr (ZipInput) {
+                    auto pi = noa::forward_as_tuple(input[Tag<I>{}](indices...)...);
+                    if constexpr (not nt::remove_compute_handle_v<Op> and EwiseChecker::check_0<CH, Op, decltype(pi), decltype(output[Tag<O>{}](indices...))...>()) {
+                        call_t{}(ci, pi, output[Tag<O>{}](indices...)...);
+                    } else if constexpr (EwiseChecker::check_1<Op, decltype(pi), decltype(output[Tag<O>{}](indices...))...>()) {
+                        call_t{}(pi, output[Tag<O>{}](indices...)...);
+                    } else {
+                        static_assert(nt::always_false<Op>, "call_type does not have a valid operator() call");
+                    }
+                } else if constexpr (ZipOutput) {
+                    auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
+                    if constexpr (not nt::remove_compute_handle_v<Op> and EwiseChecker::check_0<CH, Op, decltype(input[Tag<I>{}](indices...))..., decltype(po)>()) {
+                        call_t{}(ci, input[Tag<I>{}](indices...)..., po);
+                    } else if constexpr (EwiseChecker::check_1<Op, decltype(input[Tag<I>{}](indices...))..., decltype(po)>()) {
+                        call_t{}(input[Tag<I>{}](indices...)..., po);
+                    } else {
+                        static_assert(nt::always_false<Op>, "call_type does not have a valid operator() call");
+                    }
                 } else {
-                    static_assert(nt::always_false<Op>, "op(...) is not defined or is invalid");
-                }
-            } else if constexpr (ZipInput) {
-                auto pi = noa::forward_as_tuple(input[Tag<I>{}](indices...)...);
-                if constexpr (not nt::remove_compute_handle_v<Op> and EwiseChecker::check_0<CH, Op, decltype(pi), decltype(output[Tag<O>{}](indices...))...>()) {
-                    op(ci, pi, output[Tag<O>{}](indices...)...);
-                } else if constexpr (EwiseChecker::check_1<Op, decltype(pi), decltype(output[Tag<O>{}](indices...))...>()) {
-                    op(pi, output[Tag<O>{}](indices...)...);
-                } else {
-                    static_assert(nt::always_false<Op>, "op(...) is not defined or is invalid");
-                }
-            } else if constexpr (ZipOutput) {
-                auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
-                if constexpr (not nt::remove_compute_handle_v<Op> and EwiseChecker::check_0<CH, Op, decltype(input[Tag<I>{}](indices...))..., decltype(po)>()) {
-                    op(ci, input[Tag<I>{}](indices...)..., po);
-                } else if constexpr (EwiseChecker::check_1<Op, decltype(input[Tag<I>{}](indices...))..., decltype(po)>()) {
-                    op(input[Tag<I>{}](indices...)..., po);
-                } else {
-                    static_assert(nt::always_false<Op>, "op(...) is not defined or is invalid");
+                    if constexpr (not nt::remove_compute_handle_v<Op> and EwiseChecker::check_0<CH, Op, decltype(input[Tag<I>{}](indices...))..., decltype(output[Tag<O>{}](indices...))...>()) {
+                        call_t{}(ci, input[Tag<I>{}](indices...)..., output[Tag<O>{}](indices...)...);
+                    } else if constexpr (EwiseChecker::check_1<Op, decltype(input[Tag<I>{}](indices...))..., decltype(output[Tag<O>{}](indices...))...>()) {
+                        call_t{}(input[Tag<I>{}](indices...)..., output[Tag<O>{}](indices...)...);
+                    } else {
+                        static_assert(nt::always_false<Op>, "call_type does not have a valid operator() call");
+                    }
                 }
             } else {
-                if constexpr (not nt::remove_compute_handle_v<Op> and EwiseChecker::check_0<CH, Op, decltype(input[Tag<I>{}](indices...))..., decltype(output[Tag<O>{}](indices...))...>()) {
-                    op(ci, input[Tag<I>{}](indices...)..., output[Tag<O>{}](indices...)...);
-                } else if constexpr (EwiseChecker::check_1<Op, decltype(input[Tag<I>{}](indices...))..., decltype(output[Tag<O>{}](indices...))...>()) {
-                    op(input[Tag<I>{}](indices...)..., output[Tag<O>{}](indices...)...);
+                if constexpr (ZipInput and ZipOutput) {
+                    auto pi = noa::forward_as_tuple(input[Tag<I>{}](indices...)...);
+                    auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
+                    if constexpr (not nt::remove_compute_handle_v<Op> and EwiseChecker::check_2<CH, Op, decltype(pi), decltype(po)>()) {
+                        op(ci, pi, po);
+                    } else if constexpr (EwiseChecker::check_3<Op, decltype(pi), decltype(po)>()) {
+                        op(pi, po);
+                    } else {
+                        static_assert(nt::always_false<Op>, "the operator does not have a valid operator() call");
+                    }
+                } else if constexpr (ZipInput) {
+                    auto pi = noa::forward_as_tuple(input[Tag<I>{}](indices...)...);
+                    if constexpr (not nt::remove_compute_handle_v<Op> and EwiseChecker::check_2<CH, Op, decltype(pi), decltype(output[Tag<O>{}](indices...))...>()) {
+                        op(ci, pi, output[Tag<O>{}](indices...)...);
+                    } else if constexpr (EwiseChecker::check_3<Op, decltype(pi), decltype(output[Tag<O>{}](indices...))...>()) {
+                        op(pi, output[Tag<O>{}](indices...)...);
+                    } else {
+                        static_assert(nt::always_false<Op>, "the operator does not have a valid operator() call");
+                    }
+                } else if constexpr (ZipOutput) {
+                    auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
+                    if constexpr (not nt::remove_compute_handle_v<Op> and EwiseChecker::check_2<CH, Op, decltype(input[Tag<I>{}](indices...))..., decltype(po)>()) {
+                        op(ci, input[Tag<I>{}](indices...)..., po);
+                    } else if constexpr (EwiseChecker::check_3<Op, decltype(input[Tag<I>{}](indices...))..., decltype(po)>()) {
+                        op(input[Tag<I>{}](indices...)..., po);
+                    } else {
+                        static_assert(nt::always_false<Op>, "the operator does not have a valid operator() call");
+                    }
                 } else {
-                    static_assert(nt::always_false<Op>, "op(...) is not defined or is invalid");
+                    if constexpr (not nt::remove_compute_handle_v<Op> and EwiseChecker::check_2<CH, Op, decltype(input[Tag<I>{}](indices...))..., decltype(output[Tag<O>{}](indices...))...>()) {
+                        op(ci, input[Tag<I>{}](indices...)..., output[Tag<O>{}](indices...)...);
+                    } else if constexpr (EwiseChecker::check_3<Op, decltype(input[Tag<I>{}](indices...))..., decltype(output[Tag<O>{}](indices...))...>()) {
+                        op(input[Tag<I>{}](indices...)..., output[Tag<O>{}](indices...)...);
+                    } else {
+                        static_assert(nt::always_false<Op>, "the operator does not have a valid operator() call");
+                    }
                 }
             }
         }
     };
 
     struct ReduceInitChecker {
-        template<typename CH, typename Op, typename... I>
-        static consteval bool check_0() {
-            return requires { std::declval<Op&>().init(std::declval<const CH&>(), std::declval<decltype(Vec{std::declval<I>()...})&>()); };
-        }
+        template<typename CH, typename Op, typename... I> static consteval bool check_00() { return requires { std::declval<typename Op::init_type>()(std::declval<const CH&>(), std::declval<decltype(Vec{std::declval<I>()...})&>()); }; }
+        template<typename CH, typename Op, typename... I> static consteval bool check_01() { return requires { std::declval<typename Op::init_type>()(std::declval<const CH&>(), std::declval<I>()...); }; }
+        template<typename CH, typename Op>                static consteval bool check_02() { return requires { std::declval<typename Op::init_type>()(std::declval<const CH&>()); }; }
+        template<typename Op, typename... I>              static consteval bool check_03() { return requires { std::declval<typename Op::init_type>()(std::declval<decltype(Vec{std::declval<I>()...})&>()); }; }
+        template<typename Op, typename... I>              static consteval bool check_04() { return requires { std::declval<typename Op::init_type>()(std::declval<I>()...); }; }
+        template<typename Op>                             static consteval bool check_05() { return requires { std::declval<typename Op::init_type>()(); }; }
+        template<typename CH, typename Op, typename... I> static consteval bool check_06() { return requires { std::declval<Op&>().init(std::declval<const CH&>(), std::declval<decltype(Vec{std::declval<I>()...})&>()); }; }
+        template<typename CH, typename Op, typename... I> static consteval bool check_07() { return requires { std::declval<Op&>().init(std::declval<const CH&>(), std::declval<I>()...); }; }
+        template<typename CH, typename Op>                static consteval bool check_08() { return requires { std::declval<Op&>().init(std::declval<const CH&>()); }; }
+        template<typename Op, typename... I>              static consteval bool check_09() { return requires { std::declval<Op&>().init(std::declval<decltype(Vec{std::declval<I>()...})&>()); }; }
+        template<typename Op, typename... I>              static consteval bool check_10() { return requires { std::declval<Op&>().init(std::declval<I>()...); }; }
+        template<typename Op>                             static consteval bool check_11() { return requires { std::declval<Op&>().init(); }; }
 
-        template<typename CH, typename Op, typename... I>
-        static consteval bool check_1() {
-            return requires { std::declval<Op&>().init(std::declval<const CH&>(), std::declval<I>()...); };
-        }
-
-        template<typename CH, typename Op>
-        static consteval bool check_2() {
-            return requires { std::declval<Op&>().init(std::declval<const CH&>()); };
-        }
-
-        template<typename Op, typename... I>
-        static consteval bool check_3() {
-            return requires { std::declval<Op&>().init(std::declval<decltype(Vec{std::declval<I>()...})&>()); };
-        }
-
-        template<typename Op, typename... I>
-        static consteval bool check_4() {
-            return requires { std::declval<Op&>().init(std::declval<I>()...); };
-        }
-
-        template<typename Op>
-        static consteval bool check_5() {
-            return requires { std::declval<Op&>().init(); };
-        }
-
-        template<typename CH, typename Op, typename... I>
-        static consteval bool check_10() {
-            return requires { std::declval<Op&>().deinit(std::declval<const CH&>(), std::declval<decltype(Vec{std::declval<I>()...})&>()); };
-        }
-
-        template<typename CH, typename Op, typename... I>
-        static consteval bool check_11() {
-            return requires { std::declval<Op&>().deinit(std::declval<const CH&>(), std::declval<I>()...); };
-        }
-
-        template<typename CH, typename Op>
-        static consteval bool check_12() {
-            return requires { std::declval<Op&>().deinit(std::declval<const CH&>()); };
-        }
-
-        template<typename Op, typename... I>
-        static consteval bool check_13() {
-            return requires { std::declval<Op&>().deinit(std::declval<decltype(Vec{std::declval<I>()...})&>()); };
-        }
-
-        template<typename Op, typename... I>
-        static consteval bool check_14() {
-            return requires { std::declval<Op&>().deinit(std::declval<I>()...); };
-        }
-
-        template<typename Op>
-        static consteval bool check_15() {
-            return requires { std::declval<Op&>().deinit(); };
-        }
+        template<typename CH, typename Op, typename... I> static consteval bool check_100() { return requires { std::declval<typename Op::deinit_type>()(std::declval<const CH&>(), std::declval<decltype(Vec{std::declval<I>()...})&>()); }; }
+        template<typename CH, typename Op, typename... I> static consteval bool check_101() { return requires { std::declval<typename Op::deinit_type>()(std::declval<const CH&>(), std::declval<I>()...); }; }
+        template<typename CH, typename Op>                static consteval bool check_102() { return requires { std::declval<typename Op::deinit_type>()(std::declval<const CH&>()); }; }
+        template<typename Op, typename... I>              static consteval bool check_103() { return requires { std::declval<typename Op::deinit_type>()(std::declval<decltype(Vec{std::declval<I>()...})&>()); }; }
+        template<typename Op, typename... I>              static consteval bool check_104() { return requires { std::declval<typename Op::deinit_type>()(std::declval<I>()...); }; }
+        template<typename Op>                             static consteval bool check_105() { return requires { std::declval<typename Op::deinit_type>()(); }; }
+        template<typename CH, typename Op, typename... I> static consteval bool check_106() { return requires { std::declval<Op&>().deinit(std::declval<const CH&>(), std::declval<decltype(Vec{std::declval<I>()...})&>()); }; }
+        template<typename CH, typename Op, typename... I> static consteval bool check_107() { return requires { std::declval<Op&>().deinit(std::declval<const CH&>(), std::declval<I>()...); }; }
+        template<typename CH, typename Op>                static consteval bool check_108() { return requires { std::declval<Op&>().deinit(std::declval<const CH&>()); }; }
+        template<typename Op, typename... I>              static consteval bool check_109() { return requires { std::declval<Op&>().deinit(std::declval<decltype(Vec{std::declval<I>()...})&>()); }; }
+        template<typename Op, typename... I>              static consteval bool check_110() { return requires { std::declval<Op&>().deinit(std::declval<I>()...); }; }
+        template<typename Op>                             static consteval bool check_111() { return requires { std::declval<Op&>().deinit(); }; }
     };
 
     struct ReduceInitInterface {
         template<nt::compute_handle CH, typename Op, typename... Indices>
         static constexpr void init(const CH& ci, Op& op, Indices... indices) {
-            if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_0<CH, Op, Indices...>()) {
-                auto v = Vec{indices...};
-                op.init(ci, v);
-            } else if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_1<CH, Op, Indices...>()) {
-                op.init(ci, indices...);
-            } else if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_2<CH, Op>()) {
-                op.init(ci);
-            } else if constexpr (ReduceInitChecker::check_3<Op, Indices...>()) {
-                auto v = Vec{indices...};
-                op.init(v);
-            } else if constexpr (ReduceInitChecker::check_4<Op, Indices...>()) {
-                op.init(indices...);
-            } else if constexpr (ReduceInitChecker::check_5<Op>()) {
-                op.init();
+            if constexpr (nt::has_init_type_v<Op>) {
+                using init_t = nt::init_type_t<Op>;
+                if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_00<CH, Op, Indices...>()) {
+                    auto v = Vec{indices...};
+                    init_t{}(ci, v);
+                } else if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_01<CH, Op, Indices...>()) {
+                    init_t{}(ci, indices...);
+                } else if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_02<CH, Op>()) {
+                    init_t{}(ci);
+                } else if constexpr (ReduceInitChecker::check_03<Op, Indices...>()) {
+                    auto v = Vec{indices...};
+                    init_t{}(v);
+                } else if constexpr (ReduceInitChecker::check_04<Op, Indices...>()) {
+                    init_t{}(indices...);
+                } else if constexpr (ReduceInitChecker::check_05<Op>()) {
+                    init_t{}();
+                } else {
+                    static_assert(nt::always_false<Op>, "init_type does not have a valid operator() call");
+                }
             } else {
-                static_assert(
-                    not nt::remove_default_init_v<Op>,
-                    "Defaulted no-op .init() was removed using the remove_default_init type flag, but no explicit .init() was detected"
-                );
+                if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_06<CH, Op, Indices...>()) {
+                    auto v = Vec{indices...};
+                    op.init(ci, v);
+                } else if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_07<CH, Op, Indices...>()) {
+                    op.init(ci, indices...);
+                } else if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_08<CH, Op>()) {
+                    op.init(ci);
+                } else if constexpr (ReduceInitChecker::check_09<Op, Indices...>()) {
+                    auto v = Vec{indices...};
+                    op.init(v);
+                } else if constexpr (ReduceInitChecker::check_10<Op, Indices...>()) {
+                    op.init(indices...);
+                } else if constexpr (ReduceInitChecker::check_11<Op>()) {
+                    op.init();
+                } else {
+                    static_assert(
+                        not nt::remove_default_init_v<Op>,
+                        "the operator does not have a valid init call and the default init was disabled"
+                    );
+                }
             }
         }
 
         template<nt::compute_handle CH, typename Op, typename... Indices>
         static constexpr void deinit(const CH& ci, Op& op, Indices... indices) {
-            if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_10<CH, Op, Indices...>()) {
-                auto v = Vec{indices...};
-                op.deinit(ci, v);
-            } else if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_11<CH, Op, Indices...>()) {
-                op.deinit(ci, indices...);
-            } else if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_12<CH, Op>()) {
-                op.deinit(ci);
-            } else if constexpr (ReduceInitChecker::check_13<Op, Indices...>()) {
-                auto v = Vec{indices...};
-                op.deinit(v);
-            } else if constexpr (ReduceInitChecker::check_14<Op, Indices...>()) {
-                op.deinit(indices...);
-            } else if constexpr (ReduceInitChecker::check_15<Op>()) {
-                op.deinit();
+            if constexpr (nt::has_deinit_type_v<Op>) {
+                using deinit_t = nt::deinit_type_t<Op>;
+                if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_100<CH, Op, Indices...>()) {
+                    auto v = Vec{indices...};
+                    deinit_t{}(ci, v);
+                } else if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_101<CH, Op, Indices...>()) {
+                    deinit_t{}(ci, indices...);
+                } else if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_102<CH, Op>()) {
+                    deinit_t{}(ci);
+                } else if constexpr (ReduceInitChecker::check_103<Op, Indices...>()) {
+                    auto v = Vec{indices...};
+                    deinit_t{}(v);
+                } else if constexpr (ReduceInitChecker::check_104<Op, Indices...>()) {
+                    deinit_t{}(indices...);
+                } else if constexpr (ReduceInitChecker::check_105<Op>()) {
+                    deinit_t{}();
+                } else {
+                    static_assert(nt::always_false<Op>, "deinit_type does not have a valid operator() call");
+                }
             } else {
-                static_assert(
-                    not nt::remove_default_deinit_v<Op>,
-                    "Defaulted no-op .deinit() was removed using the remove_default_deinit type flag, but no explicit .deinit() was detected"
-                );
+                if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_106<CH, Op, Indices...>()) {
+                    auto v = Vec{indices...};
+                    op.deinit(ci, v);
+                } else if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_107<CH, Op, Indices...>()) {
+                    op.deinit(ci, indices...);
+                } else if constexpr (not nt::remove_compute_handle_v<Op> and ReduceInitChecker::check_108<CH, Op>()) {
+                    op.deinit(ci);
+                } else if constexpr (ReduceInitChecker::check_109<Op, Indices...>()) {
+                    auto v = Vec{indices...};
+                    op.deinit(v);
+                } else if constexpr (ReduceInitChecker::check_110<Op, Indices...>()) {
+                    op.deinit(indices...);
+                } else if constexpr (ReduceInitChecker::check_111<Op>()) {
+                    op.deinit();
+                } else {
+                    static_assert(
+                        not nt::remove_default_deinit_v<Op>,
+                        "the operator does not have a valid deinit call and the default deinit was disabled"
+                    );
+                }
             }
         }
     };
 
     struct ReduceJoinChecker {
-        template<typename Op, typename... IO>
-        static consteval bool check_0() {
-            return requires { std::declval<Op&>().join(std::declval<IO&>()...); };
-        }
-        template<typename Op, typename... IO>
-        static consteval bool check_1() {
-            return requires { std::declval<Op&>()(std::declval<IO&>()...); };
-        }
+        template<typename Op, typename... IO> static consteval bool check_0() { return requires { std::declval<typename Op::join_type>()(std::declval<IO&>()...); }; }
+        template<typename Op, typename... IO> static consteval bool check_1() { return requires { std::declval<Op&>().join(std::declval<IO&>()...); }; }
+        template<typename Op, typename... IO> static consteval bool check_2() { return requires { std::declval<Op&>()(std::declval<IO&>()...); }; }
     };
 
     template<bool ZipReduced, bool AllowCall>
@@ -519,33 +469,50 @@ namespace noa::details {
     private:
         template<typename Op, typename Reduced, usize... R>
         static constexpr void join_(Op& op, Reduced& to_reduce, Reduced& reduced, std::index_sequence<R...>) {
-            if constexpr (ZipReduced) {
-                auto pi = noa::forward_as_tuple(to_reduce[Tag<R>{}].ref()...);
-                auto po = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
-                if constexpr (ReduceJoinChecker::check_0<Op, decltype(pi), decltype(po)>()) {
-                    op.join(pi, po);
-                } else if constexpr (AllowCall and ReduceJoinChecker::check_1<Op, decltype(pi), decltype(po)>()) {
-                    op(pi, po);
+            if constexpr (nt::has_join_type_v<Op>) {
+                using joint_t = nt::join_type_t<Op>;
+                if constexpr (ZipReduced) {
+                    auto pi = noa::forward_as_tuple(to_reduce[Tag<R>{}].ref()...);
+                    auto po = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
+                    if constexpr (ReduceJoinChecker::check_0<Op, decltype(pi), decltype(po)>()) {
+                        joint_t{}(pi, po);
+                    } else {
+                        static_assert(nt::always_false<Op>, "join_type does not have a valid operator() call");
+                    }
                 } else {
-                    static_assert(nt::empty_tuple<Reduced>, "op.join(...) is not defined or is invalid");
+                    if constexpr (ReduceJoinChecker::check_0<Op, decltype(to_reduce[Tag<R>{}].ref())..., decltype(reduced[Tag<R>{}].ref())...>()) {
+                        joint_t{}(to_reduce[Tag<R>{}].ref()..., reduced[Tag<R>{}].ref()...);
+                    } else {
+                        static_assert(nt::always_false<Op>, "join_type does not have a valid operator() call");
+                    }
                 }
             } else {
-                if constexpr (ReduceJoinChecker::check_0<Op, decltype(to_reduce[Tag<R>{}].ref())..., decltype(reduced[Tag<R>{}].ref())...>()) {
-                    op.join(to_reduce[Tag<R>{}].ref()..., reduced[Tag<R>{}].ref()...);
-                } else if constexpr (AllowCall and ReduceJoinChecker::check_1<Op, decltype(to_reduce[Tag<R>{}].ref())..., decltype(reduced[Tag<R>{}].ref())...>()) {
-                    op(to_reduce[Tag<R>{}].ref()..., reduced[Tag<R>{}].ref()...);
+                if constexpr (ZipReduced) {
+                    auto pi = noa::forward_as_tuple(to_reduce[Tag<R>{}].ref()...);
+                    auto po = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
+                    if constexpr (ReduceJoinChecker::check_1<Op, decltype(pi), decltype(po)>()) {
+                        op.join(pi, po);
+                    } else if constexpr (AllowCall and ReduceJoinChecker::check_2<Op, decltype(pi), decltype(po)>()) {
+                        op(pi, po);
+                    } else {
+                        static_assert(nt::empty_tuple<Reduced>, "the operator does not have a valid join call");
+                    }
                 } else {
-                    static_assert(nt::empty_tuple<Reduced>, "op.join(...) is not defined or is invalid");
+                    if constexpr (ReduceJoinChecker::check_1<Op, decltype(to_reduce[Tag<R>{}].ref())..., decltype(reduced[Tag<R>{}].ref())...>()) {
+                        op.join(to_reduce[Tag<R>{}].ref()..., reduced[Tag<R>{}].ref()...);
+                    } else if constexpr (AllowCall and ReduceJoinChecker::check_2<Op, decltype(to_reduce[Tag<R>{}].ref())..., decltype(reduced[Tag<R>{}].ref())...>()) {
+                        op(to_reduce[Tag<R>{}].ref()..., reduced[Tag<R>{}].ref()...);
+                    } else {
+                        static_assert(nt::empty_tuple<Reduced>, "the operator does not have a valid join call");
+                    }
                 }
             }
         }
     };
 
     struct ReducePostChecker {
-        template<typename Op, typename... IO>
-        static consteval bool check_0 () {
-            return requires { std::declval<Op&>().post(std::declval<IO&>()...); };
-        }
+        template<typename Op, typename... IO> static consteval bool check_0 () { return requires { std::declval<typename Op::post_type>()(std::declval<IO&>()...); }; }
+        template<typename Op, typename... IO> static consteval bool check_1 () { return requires { std::declval<Op&>().post(std::declval<IO&>()...); }; }
     };
 
     template<bool ZipReduced, bool ZipOutput>
@@ -563,76 +530,124 @@ namespace noa::details {
             Indices... indices
         ) {
             using packed_indices_t = Vec<nt::first_t<Indices...>, sizeof...(Indices)>;
-            if constexpr (ZipReduced and ZipOutput) {
-                auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
-                auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
-                if constexpr (ReducePostChecker::check_0<Op, decltype(pr), decltype(po), packed_indices_t>()) {
-                    auto packed = Vec{indices...};
-                    op.post(pr, po, packed);
-                } else if constexpr (ReducePostChecker::check_0<Op, decltype(pr), decltype(po), Indices...>()) {
-                    op.post(pr, po, indices...);
-                } else if constexpr (ReducePostChecker::check_0<Op, decltype(pr), decltype(po)>()) {
-                    op.post(pr, po);
-                } else if constexpr (nt::remove_default_post_v<Op>) {
-                    static_assert(nt::always_false<Op>, "Defaulted copy of op.post(...) was removed using the remove_default_post type flag, but no explicit op.post() was detected");
-                } else if constexpr (not nt::empty_tuple<Output> and not nt::empty_tuple<Reduced>) {
-                    ((output[Tag<O>{}](indices...) = static_cast<T::mutable_value_type>(reduced[Tag<R>{}].ref())), ...);
-                }
-            } else if constexpr (ZipReduced) {
-                auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
-                if constexpr (ReducePostChecker::check_0<Op, decltype(pr), decltype(output[Tag<O>{}](indices...))..., packed_indices_t>()) {
-                    auto packed = Vec{indices...};
-                    op.post(pr, output[Tag<O>{}](indices...)..., packed);
-                } else if constexpr (ReducePostChecker::check_0<Op, decltype(pr), decltype(output[Tag<O>{}](indices...))..., Indices...>()) {
-                    op.post(pr, output[Tag<O>{}](indices...)..., indices...);
-                } else if constexpr (ReducePostChecker::check_0<Op, decltype(pr), decltype(output[Tag<O>{}](indices...))...>()) {
-                    op.post(pr, output[Tag<O>{}](indices...)...);
-                } else if constexpr (nt::remove_default_post_v<Op>) {
-                    static_assert(nt::always_false<Op>, "Defaulted copy of op.post(...) was removed using the remove_default_post type flag, but no explicit op.post() was detected");
-                } else if constexpr (not nt::empty_tuple<Output> and not nt::empty_tuple<Reduced>) {
-                    ((output[Tag<O>{}](indices...) = static_cast<T::mutable_value_type>(reduced[Tag<R>{}].ref())), ...);
-                }
-            } else if constexpr (ZipOutput) {
-                auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
-                if constexpr (ReducePostChecker::check_0<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(po), packed_indices_t>()) {
-                    auto packed = Vec{indices...};
-                    op.post(reduced[Tag<R>{}].ref()..., po, packed);
-                } else if constexpr (ReducePostChecker::check_0<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(po), Indices...>()) {
-                    op.post(reduced[Tag<R>{}].ref()..., po, indices...);
-                } else if constexpr (ReducePostChecker::check_0<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(po)>()) {
-                    op.post(reduced[Tag<R>{}].ref()..., po);
-                } else if constexpr (nt::remove_default_post_v<Op>) {
-                    static_assert(nt::always_false<Op>, "Defaulted copy of op.post(...) was removed using the remove_default_post type flag, but no explicit op.post() was detected");
-                } else if constexpr (not nt::empty_tuple<Output> and not nt::empty_tuple<Reduced>) {
-                    ((output[Tag<O>{}](indices...) = static_cast<T::mutable_value_type>(reduced[Tag<R>{}].ref())), ...);
+            if constexpr (nt::has_post_type_v<Op>) {
+                using post_t = nt::post_type_t<Op>;
+                if constexpr (ZipReduced and ZipOutput) {
+                    auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
+                    auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
+                    if constexpr (ReducePostChecker::check_0<Op, decltype(pr), decltype(po), packed_indices_t>()) {
+                        auto packed = Vec{indices...};
+                        post_t{}(pr, po, packed);
+                    } else if constexpr (ReducePostChecker::check_0<Op, decltype(pr), decltype(po), Indices...>()) {
+                        post_t{}(pr, po, indices...);
+                    } else if constexpr (ReducePostChecker::check_0<Op, decltype(pr), decltype(po)>()) {
+                        post_t{}(pr, po);
+                    } else {
+                        static_assert(nt::always_false<Op>, "post_type does not have a valid operator() call");
+                    }
+                } else if constexpr (ZipReduced) {
+                    auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
+                    if constexpr (ReducePostChecker::check_0<Op, decltype(pr), decltype(output[Tag<O>{}](indices...))..., packed_indices_t>()) {
+                        auto packed = Vec{indices...};
+                        post_t{}(pr, output[Tag<O>{}](indices...)..., packed);
+                    } else if constexpr (ReducePostChecker::check_0<Op, decltype(pr), decltype(output[Tag<O>{}](indices...))..., Indices...>()) {
+                        post_t{}(pr, output[Tag<O>{}](indices...)..., indices...);
+                    } else if constexpr (ReducePostChecker::check_0<Op, decltype(pr), decltype(output[Tag<O>{}](indices...))...>()) {
+                        post_t{}(pr, output[Tag<O>{}](indices...)...);
+                    } else {
+                        static_assert(nt::always_false<Op>, "post_type does not have a valid operator() call");
+                    }
+                } else if constexpr (ZipOutput) {
+                    auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
+                    if constexpr (ReducePostChecker::check_0<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(po), packed_indices_t>()) {
+                        auto packed = Vec{indices...};
+                        post_t{}(reduced[Tag<R>{}].ref()..., po, packed);
+                    } else if constexpr (ReducePostChecker::check_0<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(po), Indices...>()) {
+                        post_t{}(reduced[Tag<R>{}].ref()..., po, indices...);
+                    } else if constexpr (ReducePostChecker::check_0<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(po)>()) {
+                        post_t{}(reduced[Tag<R>{}].ref()..., po);
+                    } else {
+                        static_assert(nt::always_false<Op>, "post_type does not have a valid operator() call");
+                    }
+                } else {
+                    if constexpr (ReducePostChecker::check_0<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(output[Tag<O>{}](indices...))..., packed_indices_t>()) {
+                        auto packed = Vec{indices...};
+                        post_t{}(reduced[Tag<R>{}].ref()..., output[Tag<O>{}](indices...)..., packed);
+                    } else if constexpr (ReducePostChecker::check_0<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(output[Tag<O>{}](indices...))..., Indices...>()) {
+                        post_t{}(reduced[Tag<R>{}].ref()..., output[Tag<O>{}](indices...)..., indices...);
+                    } else if constexpr (ReducePostChecker::check_0<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(output[Tag<O>{}](indices...))...>()) {
+                        post_t{}(reduced[Tag<R>{}].ref()..., output[Tag<O>{}](indices...)...);
+                    } else {
+                        static_assert(nt::always_false<Op>, "post_type does not have a valid operator() call");
+                    }
                 }
             } else {
-                if constexpr (ReducePostChecker::check_0<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(output[Tag<O>{}](indices...))..., packed_indices_t>()) {
-                    auto packed = Vec{indices...};
-                    op.post(reduced[Tag<R>{}].ref()..., output[Tag<O>{}](indices...)..., packed);
-                } else if constexpr (ReducePostChecker::check_0<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(output[Tag<O>{}](indices...))..., Indices...>()) {
-                    op.post(reduced[Tag<R>{}].ref()..., output[Tag<O>{}](indices...)..., indices...);
-                } else if constexpr (ReducePostChecker::check_0<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(output[Tag<O>{}](indices...))...>()) {
-                    op.post(reduced[Tag<R>{}].ref()..., output[Tag<O>{}](indices...)...);
-                } else if constexpr (nt::remove_default_post_v<Op>) {
-                    static_assert(nt::always_false<Op>, "Defaulted copy of op.post(...) was removed using the remove_default_post type flag, but no explicit op.post() was detected");
-                } else if constexpr (not nt::empty_tuple<Output> and not nt::empty_tuple<Reduced>) {
-                    ((output[Tag<O>{}](indices...) = static_cast<T::mutable_value_type>(reduced[Tag<R>{}].ref())), ...);
+                if constexpr (ZipReduced and ZipOutput) {
+                    auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
+                    auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
+                    if constexpr (ReducePostChecker::check_1<Op, decltype(pr), decltype(po), packed_indices_t>()) {
+                        auto packed = Vec{indices...};
+                        op.post(pr, po, packed);
+                    } else if constexpr (ReducePostChecker::check_1<Op, decltype(pr), decltype(po), Indices...>()) {
+                        op.post(pr, po, indices...);
+                    } else if constexpr (ReducePostChecker::check_1<Op, decltype(pr), decltype(po)>()) {
+                        op.post(pr, po);
+                    } else if constexpr (nt::remove_default_post_v<Op>) {
+                        static_assert(nt::always_false<Op>, "the operator does not have a valid post call and the default post was disabled");
+                    } else if constexpr (not nt::empty_tuple<Output> and not nt::empty_tuple<Reduced>) {
+                        ((output[Tag<O>{}](indices...) = static_cast<T::mutable_value_type>(reduced[Tag<R>{}].ref())), ...);
+                    }
+                } else if constexpr (ZipReduced) {
+                    auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
+                    if constexpr (ReducePostChecker::check_1<Op, decltype(pr), decltype(output[Tag<O>{}](indices...))..., packed_indices_t>()) {
+                        auto packed = Vec{indices...};
+                        op.post(pr, output[Tag<O>{}](indices...)..., packed);
+                    } else if constexpr (ReducePostChecker::check_1<Op, decltype(pr), decltype(output[Tag<O>{}](indices...))..., Indices...>()) {
+                        op.post(pr, output[Tag<O>{}](indices...)..., indices...);
+                    } else if constexpr (ReducePostChecker::check_1<Op, decltype(pr), decltype(output[Tag<O>{}](indices...))...>()) {
+                        op.post(pr, output[Tag<O>{}](indices...)...);
+                    } else if constexpr (nt::remove_default_post_v<Op>) {
+                        static_assert(nt::always_false<Op>, "the operator does not have a valid post call and the default post was disabled");
+                    } else if constexpr (not nt::empty_tuple<Output> and not nt::empty_tuple<Reduced>) {
+                        ((output[Tag<O>{}](indices...) = static_cast<T::mutable_value_type>(reduced[Tag<R>{}].ref())), ...);
+                    }
+                } else if constexpr (ZipOutput) {
+                    auto po = noa::forward_as_tuple(output[Tag<O>{}](indices...)...);
+                    if constexpr (ReducePostChecker::check_1<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(po), packed_indices_t>()) {
+                        auto packed = Vec{indices...};
+                        op.post(reduced[Tag<R>{}].ref()..., po, packed);
+                    } else if constexpr (ReducePostChecker::check_1<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(po), Indices...>()) {
+                        op.post(reduced[Tag<R>{}].ref()..., po, indices...);
+                    } else if constexpr (ReducePostChecker::check_1<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(po)>()) {
+                        op.post(reduced[Tag<R>{}].ref()..., po);
+                    } else if constexpr (nt::remove_default_post_v<Op>) {
+                        static_assert(nt::always_false<Op>, "the operator does not have a valid post call and the default post was disabled");
+                    } else if constexpr (not nt::empty_tuple<Output> and not nt::empty_tuple<Reduced>) {
+                        ((output[Tag<O>{}](indices...) = static_cast<T::mutable_value_type>(reduced[Tag<R>{}].ref())), ...);
+                    }
+                } else {
+                    if constexpr (ReducePostChecker::check_1<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(output[Tag<O>{}](indices...))..., packed_indices_t>()) {
+                        auto packed = Vec{indices...};
+                        op.post(reduced[Tag<R>{}].ref()..., output[Tag<O>{}](indices...)..., packed);
+                    } else if constexpr (ReducePostChecker::check_1<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(output[Tag<O>{}](indices...))..., Indices...>()) {
+                        op.post(reduced[Tag<R>{}].ref()..., output[Tag<O>{}](indices...)..., indices...);
+                    } else if constexpr (ReducePostChecker::check_1<Op, decltype(reduced[Tag<R>{}].ref())..., decltype(output[Tag<O>{}](indices...))...>()) {
+                        op.post(reduced[Tag<R>{}].ref()..., output[Tag<O>{}](indices...)...);
+                    } else if constexpr (nt::remove_default_post_v<Op>) {
+                        static_assert(nt::always_false<Op>, "the operator does not have a valid post call and the default post was disabled");
+                    } else if constexpr (not nt::empty_tuple<Output> and not nt::empty_tuple<Reduced>) {
+                        ((output[Tag<O>{}](indices...) = static_cast<T::mutable_value_type>(reduced[Tag<R>{}].ref())), ...);
+                    }
                 }
             }
         }
     };
 
     struct ReduceCallChecker {
-        template<typename CH, typename Op, typename... IO>
-        static consteval bool check_0() {
-            return requires { std::declval<Op&>()(std::declval<const CH&>(), std::declval<IO&>()...); };
-        }
-
-        template<typename Op, typename... IO>
-        static consteval bool check_1() {
-            return requires { std::declval<Op&>()(std::declval<IO&>()...); };
-        }
+        template<typename CH, typename Op, typename... IO> static consteval bool check_0() { return requires { std::declval<typename Op::call_type>()(std::declval<const CH&>(), std::declval<IO&>()...); }; }
+        template<typename Op, typename... IO>              static consteval bool check_1() { return requires { std::declval<typename Op::call_type>()(std::declval<IO&>()...); }; }
+        template<typename CH, typename Op, typename... IO> static consteval bool check_2() { return requires { std::declval<Op&>()(std::declval<const CH&>(), std::declval<IO&>()...); }; }
+        template<typename Op, typename... IO>              static consteval bool check_3() { return requires { std::declval<Op&>()(std::declval<IO&>()...); }; }
     };
 
     template<bool ZipReduced, bool ZipOutput>
@@ -646,34 +661,68 @@ namespace noa::details {
         template<typename CH, typename Op, typename Reduced, usize... R, typename... Indices>
         static constexpr void call_(const CH& ci, Op& op, Reduced& reduced, std::index_sequence<R...>, Indices... indices) {
             using packed_indices_t = Vec<nt::first_t<Indices...>, sizeof...(indices)>;
-            if constexpr (ZipReduced) {
-                auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
-                if constexpr (ReduceCallChecker::check_0<CH, Op, packed_indices_t, decltype(pr)>()) {
-                    auto packed = packed_indices_t{indices...};
-                    op(ci, packed, pr);
-                } else if constexpr (ReduceCallChecker::check_0<CH, Op, Indices..., decltype(pr)>()) {
-                    op(ci, indices..., pr);
-                } else if constexpr (ReduceCallChecker::check_1<Op, packed_indices_t, decltype(pr)>()) {
-                    auto packed = packed_indices_t{indices...};
-                    op(packed, pr);
-                } else if constexpr (ReduceCallChecker::check_1<Op, Indices..., decltype(pr)>()) {
-                    op(indices..., pr);
+            if constexpr (nt::has_call_type_v<Op>) {
+                using call_t = nt::call_type_t<Op>;
+                if constexpr (ZipReduced) {
+                    auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
+                    if constexpr (ReduceCallChecker::check_0<CH, Op, packed_indices_t, decltype(pr)>()) {
+                        auto packed = packed_indices_t{indices...};
+                        call_t{}(ci, packed, pr);
+                    } else if constexpr (ReduceCallChecker::check_0<CH, Op, Indices..., decltype(pr)>()) {
+                        call_t{}(ci, indices..., pr);
+                    } else if constexpr (ReduceCallChecker::check_1<Op, packed_indices_t, decltype(pr)>()) {
+                        auto packed = packed_indices_t{indices...};
+                        call_t{}(packed, pr);
+                    } else if constexpr (ReduceCallChecker::check_1<Op, Indices..., decltype(pr)>()) {
+                        call_t{}(indices..., pr);
+                    } else {
+                        static_assert(nt::always_false<Op>, "call_type does not have a valid operator() call");
+                    }
                 } else {
-                    static_assert(nt::always_false<Op>, "op(...) is not defined or is invalid");
+                    if constexpr (ReduceCallChecker::check_0<CH, Op, packed_indices_t, decltype(reduced[Tag<R>{}].ref())...>()) {
+                        auto packed = packed_indices_t{indices...};
+                        call_t{}(ci, packed, reduced[Tag<R>{}].ref()...);
+                    } else if constexpr (ReduceCallChecker::check_0<CH, Op, Indices..., decltype(reduced[Tag<R>{}].ref())...>()) {
+                        call_t{}(ci, indices..., reduced[Tag<R>{}].ref()...);
+                    } else if constexpr (ReduceCallChecker::check_1<Op, packed_indices_t, decltype(reduced[Tag<R>{}].ref())...>()) {
+                        auto packed = packed_indices_t{indices...};
+                        call_t{}(packed, reduced[Tag<R>{}].ref()...);
+                    } else if constexpr (ReduceCallChecker::check_1<Op, Indices..., decltype(reduced[Tag<R>{}].ref())...>()) {
+                        call_t{}(indices..., reduced[Tag<R>{}].ref()...);
+                    } else {
+                        static_assert(nt::always_false<Op>, "call_type does not have a valid operator() call");
+                    }
                 }
             } else {
-                if constexpr (ReduceCallChecker::check_0<CH, Op, packed_indices_t, decltype(reduced[Tag<R>{}].ref())...>()) {
-                    auto packed = packed_indices_t{indices...};
-                    op(ci, packed, reduced[Tag<R>{}].ref()...);
-                } else if constexpr (ReduceCallChecker::check_0<CH, Op, Indices..., decltype(reduced[Tag<R>{}].ref())...>()) {
-                    op(ci, indices..., reduced[Tag<R>{}].ref()...);
-                } else if constexpr (ReduceCallChecker::check_1<Op, packed_indices_t, decltype(reduced[Tag<R>{}].ref())...>()) {
-                    auto packed = packed_indices_t{indices...};
-                    op(packed, reduced[Tag<R>{}].ref()...);
-                } else if constexpr (ReduceCallChecker::check_1<Op, Indices..., decltype(reduced[Tag<R>{}].ref())...>()) {
-                    op(indices..., reduced[Tag<R>{}].ref()...);
+                if constexpr (ZipReduced) {
+                    auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
+                    if constexpr (ReduceCallChecker::check_2<CH, Op, packed_indices_t, decltype(pr)>()) {
+                        auto packed = packed_indices_t{indices...};
+                        op(ci, packed, pr);
+                    } else if constexpr (ReduceCallChecker::check_2<CH, Op, Indices..., decltype(pr)>()) {
+                        op(ci, indices..., pr);
+                    } else if constexpr (ReduceCallChecker::check_3<Op, packed_indices_t, decltype(pr)>()) {
+                        auto packed = packed_indices_t{indices...};
+                        op(packed, pr);
+                    } else if constexpr (ReduceCallChecker::check_3<Op, Indices..., decltype(pr)>()) {
+                        op(indices..., pr);
+                    } else {
+                        static_assert(nt::always_false<Op>, "the operator does not have a valid operator() call");
+                    }
                 } else {
-                    static_assert(nt::always_false<Op>, "op(...) is not defined or is invalid");
+                    if constexpr (ReduceCallChecker::check_2<CH, Op, packed_indices_t, decltype(reduced[Tag<R>{}].ref())...>()) {
+                        auto packed = packed_indices_t{indices...};
+                        op(ci, packed, reduced[Tag<R>{}].ref()...);
+                    } else if constexpr (ReduceCallChecker::check_2<CH, Op, Indices..., decltype(reduced[Tag<R>{}].ref())...>()) {
+                        op(ci, indices..., reduced[Tag<R>{}].ref()...);
+                    } else if constexpr (ReduceCallChecker::check_3<Op, packed_indices_t, decltype(reduced[Tag<R>{}].ref())...>()) {
+                        auto packed = packed_indices_t{indices...};
+                        op(packed, reduced[Tag<R>{}].ref()...);
+                    } else if constexpr (ReduceCallChecker::check_3<Op, Indices..., decltype(reduced[Tag<R>{}].ref())...>()) {
+                        op(indices..., reduced[Tag<R>{}].ref()...);
+                    } else {
+                        static_assert(nt::always_false<Op>, "the operator does not have a valid operator() call");
+                    }
                 }
             }
         }
@@ -693,41 +742,82 @@ namespace noa::details {
             std::index_sequence<I...>, std::index_sequence<R...>,
             Indices... indices
         ) {
-            if constexpr (ZipInput and ZipReduced) {
-                auto pi = noa::forward_as_tuple(input[Tag<I>{}](indices...)...);
-                auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
-                if constexpr (not nt::remove_compute_handle_v<Op> and ReduceCallChecker::check_0<CH, Op, decltype(pi), decltype(pr)>()) {
-                    op(ci, pi, pr);
-                } else if constexpr (ReduceCallChecker::check_1<Op, decltype(pi), decltype(pr)>()) {
-                    op(pi, pr);
+            if constexpr (nt::has_call_type_v<Op>) {
+                using call_t = nt::call_type_t<Op>;
+                if constexpr (ZipInput and ZipReduced) {
+                    auto pi = noa::forward_as_tuple(input[Tag<I>{}](indices...)...);
+                    auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
+                    if constexpr (not nt::remove_compute_handle_v<Op> and ReduceCallChecker::check_0<CH, Op, decltype(pi), decltype(pr)>()) {
+                        call_t{}(ci, pi, pr);
+                    } else if constexpr (ReduceCallChecker::check_1<Op, decltype(pi), decltype(pr)>()) {
+                        call_t{}(pi, pr);
+                    } else {
+                        static_assert(nt::always_false<Op>, "call_type does not have a valid operator() call");
+                    }
+                } else if constexpr (ZipInput) {
+                    auto pi = noa::forward_as_tuple(input[Tag<I>{}](indices...)...);
+                    if constexpr (not nt::remove_compute_handle_v<Op> and ReduceCallChecker::check_0<CH, Op, decltype(pi), decltype(reduced[Tag<R>{}].ref())...>()) {
+                        call_t{}(ci, pi, reduced[Tag<R>{}].ref()...);
+                    } else if constexpr (ReduceCallChecker::check_1<Op, decltype(pi), decltype(reduced[Tag<R>{}].ref())...>()) {
+                        call_t{}(pi, reduced[Tag<R>{}].ref()...);
+                    } else {
+                        static_assert(nt::always_false<Op>, "call_type does not have a valid operator() call");
+                    }
+                } else if constexpr (ZipReduced) {
+                    auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
+                    if constexpr (not nt::remove_compute_handle_v<Op> and ReduceCallChecker::check_0<CH, Op, decltype(input[Tag<I>{}](indices...))..., decltype(pr)>()) {
+                        call_t{}(ci, input[Tag<I>{}](indices...)..., pr);
+                    } else if constexpr (ReduceCallChecker::check_1<Op, decltype(input[Tag<I>{}](indices...))..., decltype(pr)>()) {
+                        call_t{}(input[Tag<I>{}](indices...)..., pr);
+                    } else {
+                        static_assert(nt::always_false<Op>, "call_type does not have a valid operator() call");
+                    }
                 } else {
-                    static_assert(nt::always_false<Op>, "op(...) is not defined or is invalid");
-                }
-            } else if constexpr (ZipInput) {
-                auto pi = noa::forward_as_tuple(input[Tag<I>{}](indices...)...);
-                if constexpr (not nt::remove_compute_handle_v<Op> and ReduceCallChecker::check_0<CH, Op, decltype(pi), decltype(reduced[Tag<R>{}].ref())...>()) {
-                    op(ci, pi, reduced[Tag<R>{}].ref()...);
-                } else if constexpr (ReduceCallChecker::check_1<Op, decltype(pi), decltype(reduced[Tag<R>{}].ref())...>()) {
-                    op(pi, reduced[Tag<R>{}].ref()...);
-                } else {
-                    static_assert(nt::always_false<Op>, "op(...) is not defined or is invalid");
-                }
-            } else if constexpr (ZipReduced) {
-                auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
-                if constexpr (not nt::remove_compute_handle_v<Op> and ReduceCallChecker::check_0<CH, Op, decltype(input[Tag<I>{}](indices...))..., decltype(pr)>()) {
-                    op(ci, input[Tag<I>{}](indices...)..., pr);
-                } else if constexpr (ReduceCallChecker::check_1<Op, decltype(input[Tag<I>{}](indices...))..., decltype(pr)>()) {
-                    op(input[Tag<I>{}](indices...)..., pr);
-                } else {
-                    static_assert(nt::always_false<Op>, "op(...) is not defined or is invalid");
+                    if constexpr (not nt::remove_compute_handle_v<Op> and ReduceCallChecker::check_0<CH, Op, decltype(input[Tag<I>{}](indices...))..., decltype(reduced[Tag<R>{}].ref())...>()) {
+                        call_t{}(ci, input[Tag<I>{}](indices...)..., reduced[Tag<R>{}].ref()...);
+                    } else if constexpr (ReduceCallChecker::check_1<Op, decltype(input[Tag<I>{}](indices...))..., decltype(reduced[Tag<R>{}].ref())...>()) {
+                        call_t{}(input[Tag<I>{}](indices...)..., reduced[Tag<R>{}].ref()...);
+                    } else {
+                        static_assert(nt::always_false<Op>, "call_type does not have a valid operator() call");
+                    }
                 }
             } else {
-                if constexpr (not nt::remove_compute_handle_v<Op> and ReduceCallChecker::check_0<CH, Op, decltype(input[Tag<I>{}](indices...))..., decltype(reduced[Tag<R>{}].ref())...>()) {
-                    op(ci, input[Tag<I>{}](indices...)..., reduced[Tag<R>{}].ref()...);
-                } else if constexpr (ReduceCallChecker::check_1<Op, decltype(input[Tag<I>{}](indices...))..., decltype(reduced[Tag<R>{}].ref())...>()) {
-                    op(input[Tag<I>{}](indices...)..., reduced[Tag<R>{}].ref()...);
+                if constexpr (ZipInput and ZipReduced) {
+                    auto pi = noa::forward_as_tuple(input[Tag<I>{}](indices...)...);
+                    auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
+                    if constexpr (not nt::remove_compute_handle_v<Op> and ReduceCallChecker::check_2<CH, Op, decltype(pi), decltype(pr)>()) {
+                        op(ci, pi, pr);
+                    } else if constexpr (ReduceCallChecker::check_3<Op, decltype(pi), decltype(pr)>()) {
+                        op(pi, pr);
+                    } else {
+                        static_assert(nt::always_false<Op>, "the operator does not have a valid operator() call");
+                    }
+                } else if constexpr (ZipInput) {
+                    auto pi = noa::forward_as_tuple(input[Tag<I>{}](indices...)...);
+                    if constexpr (not nt::remove_compute_handle_v<Op> and ReduceCallChecker::check_2<CH, Op, decltype(pi), decltype(reduced[Tag<R>{}].ref())...>()) {
+                        op(ci, pi, reduced[Tag<R>{}].ref()...);
+                    } else if constexpr (ReduceCallChecker::check_3<Op, decltype(pi), decltype(reduced[Tag<R>{}].ref())...>()) {
+                        op(pi, reduced[Tag<R>{}].ref()...);
+                    } else {
+                        static_assert(nt::always_false<Op>, "the operator does not have a valid operator() call");
+                    }
+                } else if constexpr (ZipReduced) {
+                    auto pr = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
+                    if constexpr (not nt::remove_compute_handle_v<Op> and ReduceCallChecker::check_2<CH, Op, decltype(input[Tag<I>{}](indices...))..., decltype(pr)>()) {
+                        op(ci, input[Tag<I>{}](indices...)..., pr);
+                    } else if constexpr (ReduceCallChecker::check_3<Op, decltype(input[Tag<I>{}](indices...))..., decltype(pr)>()) {
+                        op(input[Tag<I>{}](indices...)..., pr);
+                    } else {
+                        static_assert(nt::always_false<Op>, "the operator does not have a valid operator() call");
+                    }
                 } else {
-                    static_assert(nt::always_false<Op>, "op(...) is not defined or is invalid");
+                    if constexpr (not nt::remove_compute_handle_v<Op> and ReduceCallChecker::check_2<CH, Op, decltype(input[Tag<I>{}](indices...))..., decltype(reduced[Tag<R>{}].ref())...>()) {
+                        op(ci, input[Tag<I>{}](indices...)..., reduced[Tag<R>{}].ref()...);
+                    } else if constexpr (ReduceCallChecker::check_3<Op, decltype(input[Tag<I>{}](indices...))..., decltype(reduced[Tag<R>{}].ref())...>()) {
+                        op(input[Tag<I>{}](indices...)..., reduced[Tag<R>{}].ref()...);
+                    } else {
+                        static_assert(nt::always_false<Op>, "the operator does not have a valid operator() call");
+                    }
                 }
             }
         }
@@ -737,7 +827,5 @@ namespace noa::details {
 #ifdef __CUDACC__
 #   if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #       pragma GCC diagnostic pop
-#   elif defined(NOA_COMPILER_MSVC)
-#       pragma warning(pop)
 #   endif
 #endif

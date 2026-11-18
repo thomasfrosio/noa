@@ -10,7 +10,7 @@
 namespace noa {
     struct ReduceSum {
         using enable_vectorization = bool;
-        using remove_default_post = bool;
+        using post_type = Copy;
 
         template<typename I, typename T>
         constexpr void operator()(const I& value, T& sum) {
@@ -24,10 +24,6 @@ namespace noa {
         template<typename T>
         static constexpr void join(const T& ireduced, T& reduced) {
             reduced += ireduced;
-        }
-        template<typename T, typename O>
-        static constexpr void post(const T& reduced, O& sum) {
-            sum = static_cast<O>(reduced);
         }
     };
 
@@ -136,20 +132,14 @@ namespace noa {
 
     struct ReduceMin {
         using enable_vectorization = bool;
-
-        template<typename T>
-        constexpr void operator()(const T& value, T& min) const {
-            min = noa::min(value, min);
-        }
+        using call_type = MinEq;
+        using join_type = MinEq;
     };
 
     struct ReduceMax {
         using enable_vectorization = bool;
-
-        template<typename T>
-        constexpr void operator()(const T& value, T& min) const {
-            min = noa::max(value, min);
-        }
+        using call_type = MaxEq;
+        using join_type = MaxEq;
     };
 
     struct ReduceMinMax {
@@ -444,8 +434,8 @@ namespace noa {
 
     template<typename Accessor, typename Reduced, bool SaveValue, bool SaveOffset>
     struct ReduceFirstMin : ReduceArg<Accessor, Reduced, SaveValue, SaveOffset, ReduceFirstMin<Accessor, Reduced, SaveValue, SaveOffset>> {
-        using remove_default_post = bool;
         using enable_vectorization = bool;
+        using remove_default_post = bool;
         using reduced_type = ReduceArg<Accessor, Reduced, SaveValue, SaveOffset, ReduceFirstMin>::reduced_type;
 
         static constexpr void join(const reduced_type& current, reduced_type& reduced) {
@@ -456,8 +446,8 @@ namespace noa {
 
     template<typename Accessor, typename Reduced, bool SaveValue, bool SaveOffset>
     struct ReduceFirstMax : ReduceArg<Accessor, Reduced, SaveValue, SaveOffset, ReduceFirstMax<Accessor, Reduced, SaveValue, SaveOffset>> {
-        using remove_default_post = bool;
         using enable_vectorization = bool;
+        using remove_default_post = bool;
         using reduced_type = ReduceArg<Accessor, Reduced, SaveValue, SaveOffset, ReduceFirstMax>::reduced_type;
 
         static constexpr void join(const reduced_type& current, reduced_type& reduced) {
@@ -468,8 +458,8 @@ namespace noa {
 
     template<typename Accessor, typename Reduced, bool SaveValue, bool SaveOffset>
     struct ReduceLastMin : ReduceArg<Accessor, Reduced, SaveValue, SaveOffset, ReduceLastMin<Accessor, Reduced, SaveValue, SaveOffset>> {
-        using remove_default_post = bool;
         using enable_vectorization = bool;
+        using remove_default_post = bool;
         using reduced_type = ReduceArg<Accessor, Reduced, SaveValue, SaveOffset, ReduceLastMin>::reduced_type;
 
         static constexpr void join(const reduced_type& current, reduced_type& reduced) {
@@ -480,8 +470,8 @@ namespace noa {
 
     template<typename Accessor, typename Reduced, bool SaveValue, bool SaveOffset>
     struct ReduceLastMax : ReduceArg<Accessor, Reduced, SaveValue, SaveOffset, ReduceLastMax<Accessor, Reduced, SaveValue, SaveOffset>> {
-        using remove_default_post = bool;
         using enable_vectorization = bool;
+        using remove_default_post = bool;
         using reduced_type = ReduceArg<Accessor, Reduced, SaveValue, SaveOffset, ReduceLastMax>::reduced_type;
 
         static constexpr void join(const reduced_type& current, reduced_type& reduced) {
