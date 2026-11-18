@@ -62,7 +62,7 @@ namespace noa {
 
     public: // Constructors
         /// Creates an empty accessor.
-        NOA_HD constexpr Accessor() = default;
+        constexpr Accessor() = default;
 
         /// Creates a strided or contiguous accessor.
         /// If the accessor is contiguous, the width stride (strides[SIZE-1]) is ignored and assumed to be 1.
@@ -169,6 +169,7 @@ namespace noa {
     private:
         // nvcc ignores __restrict__ when applied to member variables... https://godbolt.org/z/9GY5hGEzr
         // gcc/msvc optimizes it, but clang ignores it as well... https://godbolt.org/z/r869cb34s
+        // TODO https://adaptivecpp.github.io/AdaptiveCpp/extensions/#acpp_ext_restrict_ptr
         using storage_ptr_type = std::conditional_t<IS_RESTRICT, value_type* NOA_RESTRICT_ATTRIBUTE, value_type*>;
         storage_ptr_type m_ptr{};
         NOA_NO_UNIQUE_ADDRESS strides_type m_strides{};
@@ -285,8 +286,6 @@ namespace noa {
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wignored-qualifiers"
-#elif defined(NOA_COMPILER_MSVC)
-    #pragma warning(push, 0)
 #endif
 
     /// Stores a value and provide an accessor-like interface of that value.
@@ -338,7 +337,7 @@ namespace noa {
         using const_pointer_type = const mutable_value_type*;
 
     public: // Constructors
-        NOA_HD constexpr AccessorValue() = default;
+        constexpr AccessorValue() = default;
 
         NOA_HD constexpr explicit AccessorValue(mutable_value_type&& value) : // TODO noexcept
             m_value{std::move(value)} {}
@@ -417,8 +416,6 @@ namespace noa {
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #pragma GCC diagnostic pop
-#elif defined(NOA_COMPILER_MSVC)
-#pragma warning(pop)
 #endif
 
     template<typename T, usize N, typename I = isize, StridesTraits StridesTrait = StridesTraits::STRIDED>

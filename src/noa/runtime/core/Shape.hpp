@@ -1018,11 +1018,6 @@ namespace noa::inline types {
                 static_assert(nt::always_false<value_type>);
             }
         }
-
-        // [[nodiscard]] NOA_HD constexpr auto split_last() const noexcept
-        // -> Pair<value_type, Strides<value_type, N - 1>> requires (N >= 2) {
-        //     return {vec[0], pop_front()};
-        // }
     };
 
     /// Deduction guide.
