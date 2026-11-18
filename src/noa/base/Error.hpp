@@ -174,13 +174,8 @@ namespace noa {
     }
 
     [[noreturn]] NOA_IHD void unreachable() {
-        // Uses compiler specific extensions if possible.
-        // Even if no extension is used, undefined behavior is still raised by
-        // an empty function body and the noreturn attribute.
-        #if defined(NOA_COMPILER_MSVC) && !defined(NOA_COMPILER_CLANG) && !defined(NOA_IS_GPU_CODE) // MSVC
-        __assume(false);
-        #else // GCC, Clang
+        // This should work for host/device with any compiler.
+        // nvc++, nvcc (CUDA>=12), clang-based (clang, clang-cuda, hipcc, DPC++, AdaptiveCpp), gcc.
         __builtin_unreachable();
-        #endif
     }
 }

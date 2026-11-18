@@ -13,8 +13,6 @@
 #   if defined(NOA_COMPILER_GCC)
 #       pragma GCC diagnostic ignored "-Wstringop-overflow"
 #   endif
-#elif defined(NOA_COMPILER_MSVC)
-#   pragma warning(push, 0)
 #endif
 
 #include <fmt/chrono.h>
@@ -29,8 +27,6 @@
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #   pragma GCC diagnostic pop
-#elif defined(NOA_COMPILER_MSVC)
-#   pragma warning(pop)
 #endif
 
 #include <algorithm>

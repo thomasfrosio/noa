@@ -12,7 +12,9 @@ macro(noa_set_options)
     option(NOA_CPU_FFTW3_STATIC "Whether to link the FFTW3 libraries statically" ON)
 
     # CUDA backend:
-    option(NOA_ENABLE_CUDA "Build the CUDA backend. Requires a CUDA compiler and a CUDA Toolkit" ON)
+    option(NOA_ENABLE_GPU "Enable GPU backend" ${NOA_ENABLE_CUDA})
+    option(NOA_ENABLE_CUDA "Build the CUDA GPU backend. Requires a CUDA compiler and a CUDA Toolkit" OFF)
+    option(NOA_ENABLE_SYCL "Build the SYCL GPU backend. Requires a SYCL compiler (AdaptiveCpp or DPC++)" OFF)
     option(NOA_CUDA_STATIC "Link all of the necessary CUDA libraries statically" OFF)
 
     # Core:

@@ -8,8 +8,6 @@
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wmissing-braces"
-#elif defined(NOA_COMPILER_MSVC)
-    #pragma warning(push, 0)
 #endif
 
 /// Original implementation at https://github.com/codeinred/tuplet, plus some changes:
@@ -466,8 +464,6 @@ namespace noa::traits {
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
     #pragma GCC diagnostic pop
-#elif defined(NOA_COMPILER_MSVC)
-    #pragma warning(pop)
 #endif
 
 namespace fmt {

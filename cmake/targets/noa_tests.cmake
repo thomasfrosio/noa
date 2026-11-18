@@ -12,7 +12,7 @@ include(${PROJECT_SOURCE_DIR}/cmake/ext/yaml-cpp.cmake)
 if (NOA_ENABLE_CUDA)
     set_source_files_properties(${TEST_SOURCES} PROPERTIES LANGUAGE CUDA)
 
-    # The preprocessing in CUDA is super annoying because it generates a few useless casts.
+    # The preprocessing in CUDA-GCC is super annoying because it generates a few useless casts.
     # So turn this specific warning off. Note that for CPU only, we still want all warnings.
     set_source_files_properties(${TEST_SOURCES} PROPERTIES
         COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:CUDA>:-Wno-useless-cast>"
@@ -39,6 +39,19 @@ target_include_directories(noa_tests
 
 if (NOA_ENABLE_CUDA)
     set_target_properties(noa_tests PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+elseif(NOA_ENABLE_SYCL)
+    find_package(AdaptiveCpp CONFIG REQUIRED)
+    find_path(ACPP_SYCL_INCLUDE_DIR sycl/sycl.hpp
+        HINTS "${AdaptiveCpp_DIR}/../../../include/AdaptiveCpp"
+        REQUIRED)
+    message(STATUS "ACPP_SYCL_INCLUDE_DIR=${ACPP_SYCL_INCLUDE_DIR}")
+    # CMake classifies this acpp include path as implicit and drops it from the
+    # generated flags, so CLion never sees it. Un-implicit it, then add it explicitly.
+    list(REMOVE_ITEM CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES "${ACPP_SYCL_INCLUDE_DIR}")
+
+    set_target_properties(noa_tests PROPERTIES CXX_SCAN_FOR_MODULES OFF)
+    target_include_directories(noa_tests PRIVATE "${ACPP_SYCL_INCLUDE_DIR}")
+    add_sycl_to_target(TARGET noa_tests SOURCES ${TEST_SOURCES})
 endif()
 
 install(

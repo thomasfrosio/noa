@@ -68,6 +68,22 @@ if (NOA_ENABLE_CUDA)
         CUDA_SEPARABLE_COMPILATION ON
         CUDA_RESOLVE_DEVICE_SYMBOLS ON
     )
+elseif(NOA_ENABLE_SYCL)
+    find_package(AdaptiveCpp CONFIG REQUIRED)
+    find_path(ACPP_SYCL_INCLUDE_DIR sycl/sycl.hpp
+        HINTS "${AdaptiveCpp_DIR}/../../../include/AdaptiveCpp"
+        REQUIRED)
+
+    # CMake classifies this acpp include path as implicit and drops it from the
+    # generated flags, so CLion never sees it. Un-implicit it, then add it explicitly.
+    list(REMOVE_ITEM CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES "${ACPP_SYCL_INCLUDE_DIR}")
+
+    # AdaptiveCpp supplies the SYCL include paths during compilation.
+    # This example uses no C++ modules, so skip clang-scan-deps.
+    set_target_properties(noa PROPERTIES CXX_SCAN_FOR_MODULES OFF)
+
+    target_include_directories(noa PRIVATE "${ACPP_SYCL_INCLUDE_DIR}")
+    add_sycl_to_target(TARGET noa SOURCES ${NOA_SOURCES})
 endif ()
 
 # Set definitions.
@@ -76,7 +92,11 @@ target_compile_definitions(noa
     NOA_ERROR_POLICY=${NOA_ERROR_POLICY}
     $<$<CONFIG:Debug>:NOA_DEBUG>
     $<$<BOOL:${NOA_ENABLE_CPU}>:NOA_ENABLE_CPU>
+    $<$<BOOL:${NOA_ENABLE_GPU}>:NOA_ENABLE_GPU>
     $<$<BOOL:${NOA_ENABLE_CUDA}>:NOA_ENABLE_CUDA>
+    $<$<BOOL:${NOA_ENABLE_SYCL}>:NOA_ENABLE_SYCL>
+    $<$<BOOL:${NOA_ENABLE_SYCL}>:ACPP_EXT_FP_ATOMICS>    # floating-point atomics for AdaptiveCpp
+    $<$<BOOL:${NOA_ENABLE_SYCL}>:ACPP_EXT_PREFETCH_HOST> # add queue.prefetch_host
     $<$<BOOL:${NOA_ENABLE_TIFF}>:NOA_ENABLE_TIFF>
     $<$<BOOL:${NOA_CPU_OPENMP}>:NOA_ENABLE_OPENMP>
     $<$<BOOL:${NOA_CPU_FFTW3_MULTITHREADED}>:NOA_CPU_FFTW3_MULTITHREADED>
