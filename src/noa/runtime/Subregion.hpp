@@ -122,7 +122,6 @@ namespace noa::details {
         origins_type m_origins;
         shape_type m_output_shape;
     };
-
 }
 
 namespace noa {

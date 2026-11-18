@@ -1,6 +1,5 @@
 #pragma once
 
-#include "noa/runtime/Device.hpp"
 #include "noa/runtime/Traits.hpp"
 
 namespace noa::inline types {
@@ -30,11 +29,6 @@ namespace noa::inline types {
     /// In CUDA 11.7, CUDA module loading can be lazy, which can improves load times.
     /// See https://docs.nvidia.com/cuda/cuda-c-programming-guide/lazy-loading.html.
     /// Session can check that lazy loading is enabled (the default in CUDA 12.1) and can also enable it directly.
-    ///
-    /// \details \b CUDA's-cuBLAS:
-    /// The CUDA backend uses the cuBLAS library for matrix-matrix multiplication. The library caches cuBLAS
-    /// handles (one per device). While there's not much point to clear this cache, users can still explicitly
-    /// clear it.
     class Session {
     public:
         /// Sets the maximum number of internal threads used in this session.
@@ -60,12 +54,6 @@ namespace noa::inline types {
         ///          GPU driver, it doesn't load the library module nor does it call the GPU runtime.
         /// \return Whether lazy loading is actually enabled.
         static bool set_gpu_lazy_loading();
-
-        /// Clears the BLAS cache for a given device.
-        /// \warning This function doesn't synchronize before clearing the cache, so the caller should make sure
-        ///          that none of the plans are being used. This can be easily done by synchronizing the relevant
-        ///          streams or the device.
-        static void clear_blas_cache(Device device);
 
     private:
         static i32 m_thread_limit;
