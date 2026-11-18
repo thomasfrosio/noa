@@ -16,7 +16,7 @@ namespace noa::inline types {
 
     /// Complex number (aggregate type of two floating-point values).
     /// \details This type differs/expands on std::complex in the following ways:
-    ///     - it works on CUDA by default (although, std::complex is less of any issue with recent CUDA version).
+    ///     - it works on GPU with CUDA/HIP/SYCL (although, std::complex is less of any issue now compared to what it used to).
     ///     - it is an aggregate, with the member variables .real and .imag.
     ///     - it supports the subscript operator[] to access the real and imaginary components.
     /// \note While we could tend to prefer leaving this type uninitialized, in order to support direct initialization
@@ -144,24 +144,24 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] NOA_HD friend constexpr auto operator-(Complex v) noexcept -> Complex {
-            #ifdef NOA_ENABLE_CUDA
             if constexpr (std::is_same_v<value_type, f16>) {
-                auto* tmp = reinterpret_cast<__half2*>(&v);
-                *tmp = -(*tmp);
-                return v;
+                NOA_IF_TARGET_SM53((
+                    auto* tmp = reinterpret_cast<__half2*>(&v);
+                    *tmp = -(*tmp);
+                    return v;
+                ), ())
             }
-            #endif
             return {-v.real, -v.imag};
         }
 
         [[nodiscard]] NOA_HD friend constexpr auto operator+(Complex lhs, Complex rhs) noexcept -> Complex {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<value_type, f16>) {
-                auto* tmp = reinterpret_cast<__half2*>(&lhs);
-                *tmp += *reinterpret_cast<__half2*>(&rhs);
-                return lhs;
+                NOA_IF_TARGET_SM53((
+                    auto* tmp = reinterpret_cast<__half2*>(&lhs);
+                    *tmp += *reinterpret_cast<__half2*>(&rhs);
+                    return lhs;
+                ), ())
             }
-            #endif
             return {lhs.real + rhs.real, lhs.imag + rhs.imag};
         }
 
@@ -174,13 +174,13 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] NOA_HD friend constexpr auto operator-(Complex lhs, Complex rhs) noexcept -> Complex {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<value_type, f16>) {
-                auto* tmp = reinterpret_cast<__half2*>(&lhs);
-                *tmp -= *reinterpret_cast<__half2*>(&rhs);
-                return lhs;
+                NOA_IF_TARGET_SM53((
+                    auto* tmp = reinterpret_cast<__half2*>(&lhs);
+                    *tmp -= *reinterpret_cast<__half2*>(&rhs);
+                    return lhs;
+                ), ())
             }
-            #endif
             return {lhs.real - rhs.real, lhs.imag - rhs.imag};
         }
 
@@ -201,13 +201,13 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] NOA_HD friend constexpr auto operator*(value_type lhs, Complex rhs) noexcept -> Complex {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<value_type, f16>) {
-                auto* tmp = reinterpret_cast<__half2*>(&rhs);
-                *tmp *= __half2half2(lhs.native());
-                return rhs;
+                NOA_IF_TARGET_SM53((
+                    auto* tmp = reinterpret_cast<__half2*>(&rhs);
+                    *tmp *= __half2half2(lhs.native());
+                    return rhs;
+                ), ())
             }
-            #endif
             return {lhs * rhs.real, lhs * rhs.imag};
         }
 
@@ -244,22 +244,23 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] NOA_HD friend constexpr auto operator/(Complex lhs, value_type rhs) noexcept -> Complex {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
             if constexpr (std::is_same_v<value_type, f16>) {
-                auto* tmp = reinterpret_cast<__half2*>(&lhs);
-                *tmp /= __half2half2(rhs.native());
-                return lhs;
+                NOA_IF_TARGET_SM53((
+                    auto* tmp = reinterpret_cast<__half2*>(&lhs);
+                    *tmp /= __half2half2(rhs.native());
+                    return lhs;
+                ), ())
             }
-            #endif
             return {lhs.real / rhs, lhs.imag / rhs};
         }
 
         // -- Equality Operators -- //
         [[nodiscard]] NOA_HD friend constexpr auto operator==(Complex lhs, Complex rhs) noexcept -> bool {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, f16>)
-                return *reinterpret_cast<__half2*>(&lhs) == *reinterpret_cast<__half2*>(&rhs);
-            #endif
+            if constexpr (std::is_same_v<value_type, f16>) {
+                NOA_IF_TARGET_SM53((
+                    return *reinterpret_cast<__half2*>(&lhs) == *reinterpret_cast<__half2*>(&rhs);
+                ), ())
+            }
             return lhs.real == rhs.real && lhs.imag == rhs.imag;
         }
 
@@ -272,10 +273,6 @@ namespace noa::inline types {
         }
 
         [[nodiscard]] NOA_HD friend constexpr auto operator!=(Complex lhs, Complex rhs) noexcept -> bool {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::is_same_v<value_type, f16>)
-                return *reinterpret_cast<__half2*>(&lhs) != *reinterpret_cast<__half2*>(&rhs);
-            #endif
             return !(lhs == rhs);
         }
 
@@ -353,23 +350,27 @@ namespace noa {
 
     template<typename T>
     [[nodiscard]] NOA_FHD auto sqrt(Complex<T> x) noexcept -> Complex<T> {
-        #if defined(__CUDA_ARCH__)
-        // TODO h2sqrt?
-        T& r = x.real;
-        T& i = x.imag;
-        if (r == T{}) {
-            T t = sqrt(abs(i) / 2);
-            return Complex<T>{t, i < T{} ? -t : t};
-        } else {
-            T t = sqrt(2 * (abs(x) + abs(r)));
-            T u = t / 2;
-            return r > T{} ?
-                Complex<T>{u, i / t} :
-                Complex<T>{abs(i) / t, i < T{} ? -u : u};
-        }
+        #define NOA_COMPLEX_SQRT_MANUAL \
+            T& r = x.real; \
+            T& i = x.imag; \
+            if (r == T{}) { \
+                T t = sqrt(abs(i) / 2); \
+                return Complex<T>{t, i < T{} ? -t : t}; \
+            } else { \
+                T t = sqrt(2 * (abs(x) + abs(r))); \
+                T u = t / 2; \
+                return r > T{} ? Complex<T>{u, i / t} : Complex<T>{abs(i) / t, i < T{} ? -u : u}; \
+            }
+        #if defined(NOA_ENABLE_SYCL)
+        NOA_COMPLEX_SQRT_MANUAL
         #else
-        return Complex<T>::from_complex(std::sqrt(std::complex<f32>{x.real, x.imag}));
+        NOA_IF_TARGET_DEVICE(NOA_COMPLEX_SQRT_MANUAL)
+        using U = std::conditional_t<std::is_same_v<T, f16>, f32, T>;
+        NOA_IF_TARGET_HOST(
+            return Complex<T>::from_complex(std::sqrt(std::complex<U>{static_cast<U>(x.real), static_cast<U>(x.imag)}));
+        )
         #endif
+        #undef NOA_COMPLEX_SQRT_MANUAL
     }
 
     template<typename T>

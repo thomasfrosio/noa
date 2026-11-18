@@ -20,68 +20,57 @@
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wshadow"
-#elif defined(NOA_COMPILER_MSVC)
-#pragma warning(push, 0)
 #endif
 
-NOA_NV_DIAG_SUPPRESS(514)
-NOA_NV_DIAG_SUPPRESS(186)
-
-// Override half-precision host implementation to use this type for arithmetic operations
-// and math functions, since this can result in improved performance. For CUDA device
-// code, math functions not supported in half-precision are cast to this type.
+// Fallback to this type when half-precision implementation is not available
+// or not appropriate (too slow or too low precision).
 #ifndef HALF_ARITHMETIC_TYPE
 #define HALF_ARITHMETIC_TYPE float
 #endif
 
-// Use CUDA's fp16 library when building with CUDA.
-// When building for CPU only, use half_float::float.
-// We used to always use half_float::float for host code and rely on the compatibility between the two types
-// (both use u16 as the underlying type, thus can be used interchangeably). However, cuda_fp16 provides host
-// implementations for mostly everything, and when it does there's a good reason to and our Half type can easily
-// handle these edge cases. As such, and for portability with nvc++ (no __CUDA_ARCH__) or single-pass compilers,
-// use a single implementation for the build.
-#ifdef NOA_ENABLE_CUDA
-#include <cuda_runtime_api.h>
-#include <cuda_fp16.h>
+// Always share the underlying fp16 type between host and device passes.
+// When the provided fp16 doesn't support an operation, our Half type should handle it
+// (usually by upgrading to HALF_ARITHMETIC_TYPE behind the scene).
+#if defined(NOA_ENABLE_CUDA)
+    #include <cuda_runtime_api.h>
+    #include <cuda_fp16.h>
+#elif defined(NOA_ENABLE_HIP)
+    #include <hip/hip_runtime.h>
+    #include <hip/hip_fp16.h>
+#elif defined(NOA_ENABLE_SYCL)
+    #include <sycl/sycl.hpp>
+    #include <bit>
 #else
-#include <half/half.hpp>
+    #include <half/half.hpp>
 #endif
-
-NOA_NV_DIAG_DEFAULT(514)
-NOA_NV_DIAG_DEFAULT(186)
 
 #if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #pragma GCC diagnostic pop
-#elif defined(NOA_COMPILER_MSVC)
-#pragma warning(pop)
 #endif
 
 // TODO C++23 replace with std::float16_t and std::bfloat16_t?
 
 namespace noa::inline types {
     /// 16-bit precision float (IEEE-754-2008).
-    /// \details This structure implements the datatype for storing half-precision floating-point numbers. Compared to
-    ///          bfloat16, this type treads range for precision. There are 15361 representable numbers within the
-    ///          interval [0.0, 1.0]. Its range is [6.10e-5, -/+6.55e4], so be careful with overflows.
-    ///          Also note that, after passed -/+ 2048, not all integral values are representable in this format.
-    ///          For instance, int(half(int(2049)) == 2048. This behavior is also true for single and double precision
-    ///          floats, but for much larger values (see https://stackoverflow.com/a/3793950).
-    /// \note For device code, arithmetic operators and some math functions are only supported for devices with
-    ///       compute capability >= 5.3 or 8.0. For devices with compute capability lower than that, higher precision
-    ///       overloads are used internally (see HALF_ARITHMETIC_TYPE).
+    /// \details
+    ///     There are 15361 representable numbers within the interval [0.0, 1.0].
+    ///     Its range is [6.10e-5, -/+6.55e4], so be careful with overflows.
+    ///     After passed -/+ 2048, not all integral values are representable. For instance, int(half(int(2049)) == 2048.
+    ///     This behavior is also true for single and double precision floats, but for much larger values
+    ///     (see https://stackoverflow.com/a/3793950).
     class f16 {
     public: // --- typedefs --- //
         using arithmetic_type = HALF_ARITHMETIC_TYPE;
 
-        #ifdef NOA_ENABLE_CUDA
+        // in class f16:
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
         using native_type = __half;
+        #elif defined(NOA_ENABLE_SYCL)
+        using native_type = sycl::half;
         #else
         using native_type = half_float::half;
         #endif
 
-        // This can be dangerous to have different types between GPU and CPU, so check here that
-        // everything is defined as expected and that we can pass this type to the GPU and vice-versa.
         static_assert(std::is_standard_layout_v<native_type>);
         static_assert(std::is_nothrow_move_assignable_v<native_type>);
         static_assert(std::is_nothrow_move_constructible_v<native_type>);
@@ -109,11 +98,10 @@ namespace noa::inline types {
     public:
         [[nodiscard]] static NOA_HD constexpr f16 from_bits(u16 bits) noexcept { return f16(Empty{}, bits); }
 
-        // Cast to/from native_type. Most builtin types are supported.
-        // Clang < 15 required this function to be defined before the cast operator X().
+        // Cast built-in to/from native_type.
         template<typename T, typename U>
         [[nodiscard]] static NOA_HD constexpr T from_value(U value) {
-            #ifdef NOA_ENABLE_CUDA
+            #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
             if constexpr (std::is_same_v<T, U>) {
                 return value;
             } else if constexpr (std::is_same_v<T, native_type>) { // built-in -> native_type
@@ -170,6 +158,20 @@ namespace noa::inline types {
                 } else {
                     static_assert(nt::always_false<T>);
                 }
+            } else {
+                static_assert(nt::always_false<T>);
+            }
+            #elif defined(NOA_ENABLE_SYCL)
+            if constexpr (std::is_same_v<T, U>) {
+                return value;
+            } else if constexpr (std::is_same_v<T, native_type>) { // built-in -> native_type
+                return native_type(static_cast<float>(value));
+            } else if constexpr (std::is_same_v<U, native_type>) { // native_type -> built-in
+                const auto f = static_cast<float>(value);
+                if constexpr (std::is_same_v<T, bool>)
+                    return static_cast<short>(f) != 0; // same as the CUDA branch (round toward zero, then != 0)
+                else
+                    return static_cast<T>(f); // truncates toward zero (=_rz).
             } else {
                 static_assert(nt::always_false<T>);
             }
@@ -276,18 +278,26 @@ namespace noa::inline types {
         }
 
         NOA_HD f16& operator++() {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
-            m_data = __half(static_cast<f16::arithmetic_type>(m_data) + 1);
+            #if defined(__NVCOMPILER)
+            NV_IF_TARGET(NV_PROVIDES_SM_53,
+                (++m_data;),
+                (m_data = native_type(static_cast<f16::arithmetic_type>(m_data) + 1);))
+            #elif defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
+            m_data = native_type(static_cast<f16::arithmetic_type>(m_data) + 1);
             #else
-            ++m_data;
+            ++m_data; // CUDA (sm_53+ and host), SYCL
             #endif
             return *this;
         }
         NOA_HD f16& operator--() {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
-            m_data = __half(static_cast<f16::arithmetic_type>(m_data) - 1);
+            #if defined(__NVCOMPILER)
+            NV_IF_TARGET(NV_PROVIDES_SM_53,
+                (--m_data;),
+                (m_data = native_type(static_cast<f16::arithmetic_type>(m_data) - 1);))
+            #elif defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
+            m_data = native_type(static_cast<f16::arithmetic_type>(m_data) - 1);
             #else
-            --m_data;
+            --m_data; // CUDA (sm_53+ and host), SYCL
             #endif
             return *this;
         }
@@ -344,8 +354,10 @@ namespace noa::inline types {
 
     private:
         // Private constructor reinterpreting the bits. Used by f16::from_bits(u16).
-        #if defined(NOA_ENABLE_CUDA)
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
         constexpr f16(Empty, u16 bits) noexcept : m_data(__half_raw{bits}) {}
+        #elif defined(NOA_ENABLE_SYCL)
+        constexpr f16(Empty, u16 bits) noexcept : m_data(std::bit_cast<native_type>(bits)) {}
         #else
         constexpr f16(Empty, u16 bits) noexcept : m_data(half_float::reinterpret_as_half(bits)) {}
         // reinterpret_as_half is not native to the half_float namespace. It was added to our version
@@ -367,47 +379,52 @@ namespace noa::traits {
 
 namespace noa {
     [[nodiscard]] NOA_FHD f16 fma(f16 x, f16 y, f16 z) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(__hfma(x.native(), y.native(), z.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return f16(fma(static_cast<f16::arithmetic_type>(x),
-                       static_cast<f16::arithmetic_type>(y),
-                       static_cast<f16::arithmetic_type>(z)));
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM53((return f16(__hfma(x.native(), y.native(), z.native()));),
+                           (return f16(fma(static_cast<f16::arithmetic_type>(x),
+                               static_cast<f16::arithmetic_type>(y),
+                               static_cast<f16::arithmetic_type>(z)));))
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::fma(x.native(), y.native(), z.native()));
         #else
         return f16(half_float::fma(x.native(), y.native(), z.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 cos(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(hcos(x.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return f16(cos(static_cast<f16::arithmetic_type>(x)));
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM53((return f16(hcos(x.native()));),
+                           (return f16(cos(static_cast<f16::arithmetic_type>(x)));))
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::cos(x.native()));
         #else
         return f16(half_float::cos(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 sin(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(hsin(x.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return f16(sin(static_cast<f16::arithmetic_type>(x)));
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM53((return f16(hsin(x.native()));),
+                           (return f16(sin(static_cast<f16::arithmetic_type>(x)));))
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::sin(x.native()));
         #else
         return f16(half_float::sin(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 tan(f16 x) {
-        #if defined(NOA_ENABLE_CUDA)
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
         return f16(tan(static_cast<f16::arithmetic_type>(x)));
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::tan(x.native()));
         #else
         return f16(half_float::tan(x.native()));
         #endif
     }
 
     NOA_FHD void sincos(f16 x, f16* s, f16* c) {
-        #if defined(NOA_ENABLE_CUDA)
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP) || defined(NOA_ENABLE_SYCL)
         *s = sin(x);
         *c = cos(x);
         #else
@@ -420,83 +437,103 @@ namespace noa {
     }
 
     [[nodiscard]] NOA_FHD f16 cosh(f16 x) {
-        #if defined(NOA_ENABLE_CUDA)
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
         return f16(cosh(static_cast<f16::arithmetic_type>(x)));
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::cosh(x.native()));
         #else
         return f16(half_float::cosh(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 sinh(f16 x) {
-        #if defined(NOA_ENABLE_CUDA)
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
         return f16(sinh(static_cast<f16::arithmetic_type>(x)));
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::sinh(x.native()));
         #else
         return f16(half_float::sinh(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 tanh(f16 x) {
-        #if CUDART_VERSION >= 13000 && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(htanh(x.native()));
-        #elif defined(NOA_ENABLE_CUDA)
+        #if defined(NOA_ENABLE_CUDA) && CUDART_VERSION >= 13000
+        NOA_IF_TARGET_SM53((return f16(htanh(x.native()));),
+                           (return f16(tanh(static_cast<f16::arithmetic_type>(x)));))
+        #elif defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
         return f16(tanh(static_cast<f16::arithmetic_type>(x)));
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::tanh(x.native()));
         #else
         return f16(half_float::tanh(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 acos(f16 x) {
-        #if defined(NOA_ENABLE_CUDA)
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
         return f16(acos(static_cast<f16::arithmetic_type>(x)));
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::acos(x.native()));
         #else
         return f16(half_float::acos(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 asin(f16 x) {
-        #if defined(NOA_ENABLE_CUDA)
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
         return f16(asin(static_cast<f16::arithmetic_type>(x)));
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::asin(x.native()));
         #else
         return f16(half_float::asin(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 atan(f16 x) {
-        #if defined(NOA_ENABLE_CUDA)
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
         return f16(atan(static_cast<f16::arithmetic_type>(x)));
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::atan(x.native()));
         #else
         return f16(half_float::atan(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 acosh(f16 x) {
-        #if defined(NOA_ENABLE_CUDA)
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
         return f16(acosh(static_cast<f16::arithmetic_type>(x)));
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::acosh(x.native()));
         #else
         return f16(half_float::acosh(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 asinh(f16 x) {
-        #if defined(NOA_ENABLE_CUDA)
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
         return f16(asinh(static_cast<f16::arithmetic_type>(x)));
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::asinh(x.native()));
         #else
         return f16(half_float::asinh(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 atanh(f16 x) {
-        #if defined(NOA_ENABLE_CUDA)
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
         return f16(atanh(static_cast<f16::arithmetic_type>(x)));
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::atanh(x.native()));
         #else
         return f16(half_float::atanh(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 atan2(f16 y, f16 x) {
-        #if defined(NOA_ENABLE_CUDA)
-        return f16(atan2(static_cast<f16::arithmetic_type>(y),
-                         static_cast<f16::arithmetic_type>(x)));
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        return f16(atan2(static_cast<f16::arithmetic_type>(y), static_cast<f16::arithmetic_type>(x)));
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::atan2(y.native(), x.native()));
         #else
         return f16(half_float::atan2(y.native(), x.native()));
         #endif
@@ -511,172 +548,200 @@ namespace noa {
     }
 
     [[nodiscard]] NOA_FHD f16 pow(f16 x, f16 exp) {
-        #if defined(NOA_ENABLE_CUDA)
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
         return f16(pow(static_cast<f16::arithmetic_type>(x), static_cast<f16::arithmetic_type>(exp)));
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::pow(x.native(), exp.native()));
         #else
         return f16(half_float::pow(x.native(), exp.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 exp(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(hexp(x.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return f16(exp(static_cast<f16::arithmetic_type>(x)));
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM53((return f16(hexp(x.native()));),
+                           (return f16(exp(static_cast<f16::arithmetic_type>(x)));))
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::exp(x.native()));
         #else
         return f16(half_float::exp(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 log(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(hlog(x.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return f16(log(static_cast<f16::arithmetic_type>(x)));
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM53((return f16(hlog(x.native()));),
+                           (return f16(log(static_cast<f16::arithmetic_type>(x)));))
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::log(x.native()));
         #else
         return f16(half_float::log(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 log10(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(hlog10(x.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return f16(log10(static_cast<f16::arithmetic_type>(x)));
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM53((return f16(hlog10(x.native()));),
+                           (return f16(log10(static_cast<f16::arithmetic_type>(x)));))
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::log10(x.native()));
         #else
         return f16(half_float::log10(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 log1p(f16 x) {
-        #if defined(NOA_ENABLE_CUDA)
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
         return f16(log1p(static_cast<f16::arithmetic_type>(x)));
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::log1p(x.native()));
         #else
         return f16(half_float::log1p(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 hypot(f16 x, f16 y) {
+        #if defined(NOA_ENABLE_SYCL)
+        return f16(sycl::hypot(x.native(), y.native()));
+        #else
         return f16(hypot(static_cast<f16::arithmetic_type>(x), static_cast<f16::arithmetic_type>(y)));
+        #endif
     }
 
     [[nodiscard]] NOA_FHD f16 sqrt(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(hsqrt(x.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return f16(sqrt(static_cast<f16::arithmetic_type>(x)));
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM53((return f16(hsqrt(x.native()));),
+                           (return f16(sqrt(static_cast<f16::arithmetic_type>(x)));))
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::sqrt(x.native()));
         #else
         return f16(half_float::sqrt(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 rsqrt(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(hrsqrt(x.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return f16(rsqrt(static_cast<f16::arithmetic_type>(x)));
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM53((return f16(hrsqrt(x.native()));),
+                           (return f16(rsqrt(static_cast<f16::arithmetic_type>(x)));))
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::rsqrt(x.native()));
         #else
         return f16(half_float::rsqrt(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 round(f16 x) {
-        #if defined(NOA_ENABLE_CUDA)
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
         return f16(round(static_cast<f16::arithmetic_type>(x)));
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::round(x.native()));
         #else
         return f16(half_float::round(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 rint(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(hrint(x.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return f16(rint(static_cast<f16::arithmetic_type>(x)));
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM53((return f16(hrint(x.native()));),
+                           (return f16(rint(static_cast<f16::arithmetic_type>(x)));))
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::rint(x.native()));
         #else
         return f16(half_float::rint(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 ceil(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(hceil(x.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return f16(ceil(static_cast<f16::arithmetic_type>(x)));
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM53((return f16(hceil(x.native()));),
+                           (return f16(ceil(static_cast<f16::arithmetic_type>(x)));))
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::ceil(x.native()));
         #else
         return f16(half_float::ceil(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 floor(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(hfloor(x.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return f16(floor(static_cast<f16::arithmetic_type>(x)));
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM53((return f16(hfloor(x.native()));),
+                           (return f16(floor(static_cast<f16::arithmetic_type>(x)));))
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::floor(x.native()));
         #else
         return f16(half_float::floor(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 trunc(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(htrunc(x.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return f16(trunc(static_cast<f16::arithmetic_type>(x)));
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM53((return f16(htrunc(x.native()));),
+                           (return f16(trunc(static_cast<f16::arithmetic_type>(x)));))
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::trunc(x.native()));
         #else
         return f16(half_float::trunc(x.native()));
         #endif
     }
 
-    [[nodiscard]] NOA_FHD f16 is_nan(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(__hisnan(x.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return f16(is_nan(static_cast<f16::arithmetic_type>(x)));
+    [[nodiscard]] NOA_FHD bool is_nan(f16 x) {
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM53((return __hisnan(x.native());),
+                           (return is_nan(static_cast<f16::arithmetic_type>(x));))
+        #elif defined(NOA_ENABLE_SYCL)
+        return sycl::isnan(x.native());
         #else
-        return f16(half_float::isnan(x.native()));
+        return half_float::isnan(x.native());
         #endif
     }
 
-    [[nodiscard]] NOA_FHD f16 is_inf(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(__hisinf(x.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return f16(is_inf(static_cast<f16::arithmetic_type>(x)));
+    [[nodiscard]] NOA_FHD bool is_inf(f16 x) {
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM53((return __hisinf(x.native()) != 0;),
+                           (return is_inf(static_cast<f16::arithmetic_type>(x));))
+        #elif defined(NOA_ENABLE_SYCL)
+        return sycl::isinf(x.native());
         #else
-        return f16(half_float::isinf(x.native()));
+        return half_float::isinf(x.native());
         #endif
     }
 
     [[nodiscard]] NOA_FHD bool is_finite(f16 x) {
+        #if defined(NOA_ENABLE_SYCL)
+        return sycl::isfinite(x.native());
+        #else
         return !(is_inf(x) || is_nan(x));
+        #endif
     }
 
     [[nodiscard]] NOA_FHD f16 abs(f16 x) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        return f16(__habs(x.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return f16(abs(static_cast<f16::arithmetic_type>(x)));
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM53((return f16(__habs(x.native()));),
+                           (return f16(abs(static_cast<f16::arithmetic_type>(x)));))
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::fabs(x.native()));
         #else
         return f16(half_float::abs(x.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 min(f16 x, f16 y) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
-        return f16(__hmin(x.native(), y.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return x < y ? x : y;
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM80((return f16(__hmin(x.native(), y.native()));),
+                           (return x < y ? x : y;))
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::fmin(x.native(), y.native()));
         #else
         return f16(half_float::fmin(x.native(), y.native()));
         #endif
     }
 
     [[nodiscard]] NOA_FHD f16 max(f16 x, f16 y) {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
-        return f16(__hmax(x.native(), y.native()));
-        #elif defined(NOA_ENABLE_CUDA)
-        return y < x ? x : y;
+        #if defined(NOA_ENABLE_CUDA) || defined(NOA_ENABLE_HIP)
+        NOA_IF_TARGET_SM80((return f16(__hmax(x.native(), y.native()));),
+                           (return y < x ? x : y;))
+        #elif defined(NOA_ENABLE_SYCL)
+        return f16(sycl::fmax(x.native(), y.native()));
         #else
         return f16(half_float::fmax(x.native(), y.native()));
         #endif

@@ -43,7 +43,10 @@ static_assert(std::is_same_v<int32_t, signed int>);
 static_assert(std::is_same_v<uint32_t, unsigned int>);
 
 namespace noa::inline types {
-    struct Empty {};
+    struct Empty {
+        NOA_FHD constexpr auto operator()(auto&&...) const {}
+    };
+
     struct Unchecked {};
     using Byte = std::byte;
 
@@ -129,7 +132,7 @@ namespace noa::traits {
 }
 
 namespace noa::traits {
-    #define NOA_TRAITS_(name, default_type, special_type)       \
+    #define NOA_GENERATE_TYPE_ALIAS_DETECTION(name, default_type, special_type)\
     namespace details {                                         \
         template<typename T, typename = void>                   \
         struct name {                                           \
@@ -152,15 +155,14 @@ namespace noa::traits {
     template<typename T>                                        \
     constexpr bool has_##name##_v = details::name<std::decay_t<T>>::HAS_ALIAS;
 
-    NOA_TRAITS_(type_type, T, T::type);
-    NOA_TRAITS_(index_type, T, T::index_type);
-    NOA_TRAITS_(shared_type, T, T::shared_type);
-    NOA_TRAITS_(value_type, std::remove_pointer_t<T>, T::value_type);
-    NOA_TRAITS_(mutable_value_type, std::remove_const_t<value_type_t<T>>, T::mutable_value_type);
-    NOA_TRAITS_(const_value_type, std::add_const_t<mutable_value_type_t<T>>, T::const_value_type);
-    NOA_TRAITS_(reference_type, std::add_lvalue_reference_t<value_type_t<T>>, T::reference_type);
-    NOA_TRAITS_(pointer_type, std::add_pointer_t<value_type_t<T>>, T::pointer_type);
-    #undef NOA_TRAITS_
+    NOA_GENERATE_TYPE_ALIAS_DETECTION(type_type, T, T::type);
+    NOA_GENERATE_TYPE_ALIAS_DETECTION(index_type, T, T::index_type);
+    NOA_GENERATE_TYPE_ALIAS_DETECTION(shared_type, T, T::shared_type);
+    NOA_GENERATE_TYPE_ALIAS_DETECTION(value_type, std::remove_pointer_t<T>, T::value_type);
+    NOA_GENERATE_TYPE_ALIAS_DETECTION(mutable_value_type, std::remove_const_t<value_type_t<T>>, T::mutable_value_type);
+    NOA_GENERATE_TYPE_ALIAS_DETECTION(const_value_type, std::add_const_t<mutable_value_type_t<T>>, T::const_value_type);
+    NOA_GENERATE_TYPE_ALIAS_DETECTION(reference_type, std::add_lvalue_reference_t<value_type_t<T>>, T::reference_type);
+    NOA_GENERATE_TYPE_ALIAS_DETECTION(pointer_type, std::add_pointer_t<value_type_t<T>>, T::pointer_type);
     template<typename T> using value_type_twice_t         = value_type_t<value_type_t<T>>;
     template<typename T> using mutable_value_type_twice_t = mutable_value_type_t<mutable_value_type_t<T>>;
 
@@ -415,11 +417,6 @@ namespace noa::traits {
     NOA_GENERATE_PROCLAIM_FULL(trivial_zero);
     template<numeric T> struct proclaim_is_trivial_zero<T> : std::true_type {};
     template<vec T> struct proclaim_is_trivial_zero<T> : std::true_type {};
-}
-
-namespace noa::inline types {
-    template<typename, size_t, size_t>
-    class Vec;
 }
 
 namespace noa::traits {

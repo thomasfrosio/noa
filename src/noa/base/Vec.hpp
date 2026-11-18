@@ -52,42 +52,44 @@ namespace noa::details {
         template<typename I> NOA_FHD static constexpr auto ref(const type&, I) noexcept -> const T& { return *static_cast<const T*>(nullptr); }
         NOA_FHD static constexpr T* ptr(const type&) noexcept { return nullptr; }
     };
+}
 
+namespace noa::inline types {
+    template<typename T, usize N, usize A = 0>
+    class alignas(nd::vec_alignas<T, N, A>) Vec;
+}
+
+namespace noa::details {
     template<typename Op, typename Lhs, typename Rhs>
     NOA_FHD constexpr auto vec_op(Lhs lhs, const Rhs& rhs) {
         if constexpr (Rhs::SIZE > 0) {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::same_as<nt::value_type_t<Lhs>, f16> and is_even(Rhs::SIZE)) {
-                auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
-                const auto* alias1 = reinterpret_cast<const __half2*>(rhs.data());
-                for (usize i{}; i < Rhs::SIZE / 2; ++i) {
-                    if constexpr (nt::same_as<Op, Plus>)
-                        alias0[i] += alias1[i];
-                    else if constexpr (nt::same_as<Op, Minus>)
-                        alias0[i] -= alias1[i];
-                    else if constexpr (nt::same_as<Op, Multiply>)
-                        alias0[i] *= alias1[i];
-                    else if constexpr (nt::same_as<Op, Divide>)
-                        alias0[i] /= alias1[i];
-                    else
-                        static_assert(nt::always_false<Op>);
-                }
-                return lhs;
+            if constexpr (nt::same_as<nt::value_type_t<Lhs>, f16> and is_even(Rhs::SIZE) and
+                          alignof(Lhs) >= 4 and alignof(Rhs) >= 4 and not nt::same_as<Op, Modulo>) {
+                NOA_IF_TARGET_SM53((
+                    auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
+                    const auto* alias1 = reinterpret_cast<const __half2*>(rhs.data());
+                    for (usize i{}; i < Rhs::SIZE / 2; ++i) {
+                        if constexpr (nt::same_as<Op, Plus>)
+                            alias0[i] = __hadd2(alias0[i], alias1[i]);
+                        else if constexpr (nt::same_as<Op, Minus>)
+                            alias0[i] = __hsub2(alias0[i], alias1[i]);
+                        else if constexpr (nt::same_as<Op, Multiply>)
+                            alias0[i] = __hmul2(alias0[i], alias1[i]);
+                        else if constexpr (nt::same_as<Op, Divide>)
+                            alias0[i] = __h2div(alias0[i], alias1[i]);
+                        else
+                            static_assert(nt::always_false<Op>);
+                    }
+                    return lhs;
+                ), ())
             }
-            #endif
             for (usize i{}; i < Rhs::SIZE; ++i) {
-                if constexpr (nt::same_as<Op, Plus>)
-                    lhs[i] += rhs[i];
-                else if constexpr (nt::same_as<Op, Minus>)
-                    lhs[i] -= rhs[i];
-                else if constexpr (nt::same_as<Op, Multiply>)
-                    lhs[i] *= rhs[i];
-                else if constexpr (nt::same_as<Op, Divide>)
-                    lhs[i] /= rhs[i];
-                else if constexpr (nt::same_as<Op, Modulo>)
-                    lhs[i] %= rhs[i];
-                else
-                    static_assert(nt::always_false<Op>);
+                if constexpr (nt::same_as<Op, Plus>)          lhs[i] += rhs[i];
+                else if constexpr (nt::same_as<Op, Minus>)    lhs[i] -= rhs[i];
+                else if constexpr (nt::same_as<Op, Multiply>) lhs[i] *= rhs[i];
+                else if constexpr (nt::same_as<Op, Divide>)   lhs[i] /= rhs[i];
+                else if constexpr (nt::same_as<Op, Modulo>)   lhs[i] %= rhs[i];
+                else static_assert(nt::always_false<Op>);
             }
             return lhs;
         } else {
@@ -122,51 +124,36 @@ namespace noa::details {
         using bool_t = decltype(std::declval<nt::value_type_t<Lhs>>() == std::declval<nt::value_type_t<Lhs>>());
 
         if constexpr (N > 0) {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-            if constexpr (std::same_as<nt::value_type_t<Rhs>, f16> and is_even(N)) {
-                const auto* alias0 = reinterpret_cast<const __half2*>(lhs.data());
-                const auto* alias1 = reinterpret_cast<const __half2*>(rhs.data());
-                Vec<bool, N, 0> output;
-                for (usize i{}; i < N / 2; ++i) {
-                    __half2 tmp;
-                    if constexpr (nt::same_as<Op, Equal>) {
-                        tmp = __hgt2(alias0[i], alias1[i]);
-                    } else if constexpr (nt::same_as<Op, NotEqual>) {
-                        tmp = __hlt2(alias0[i], alias1[i]);
-                    } else if constexpr (nt::same_as<Op, Less>) {
-                        tmp = __hge2(alias0[i], alias1[i]);
-                    } else if constexpr (nt::same_as<Op, Greater>) {
-                        tmp = __hle2(alias0[i], alias1[i]);
-                    } else if constexpr (nt::same_as<Op, LessEqual>) {
-                        tmp = __heq2(alias0[i], alias1[i]);
-                    } else if constexpr (nt::same_as<Op, GreaterEqual>) {
-                        tmp = __hne2(alias0[i], alias1[i]);
-                    } else {
-                        static_assert(nt::always_false<Op>);
+            if constexpr (nt::same_as<nt::value_type_t<Rhs>, f16> and is_even(N) and
+                          alignof(Lhs) >= 4 and alignof(Rhs) >= 4) {
+                NOA_IF_TARGET_SM53((
+                    const auto* alias0 = reinterpret_cast<const __half2*>(lhs.data());
+                    const auto* alias1 = reinterpret_cast<const __half2*>(rhs.data());
+                    Vec<bool, N, 0> output;
+                    for (usize i{}; i < N / 2; ++i) {
+                        __half2 tmp;
+                        if constexpr (nt::same_as<Op, Equal>)             tmp = __heq2(alias0[i], alias1[i]);
+                        else if constexpr (nt::same_as<Op, NotEqual>)     tmp = __hneu2(alias0[i], alias1[i]);
+                        else if constexpr (nt::same_as<Op, Less>)         tmp = __hlt2(alias0[i], alias1[i]);
+                        else if constexpr (nt::same_as<Op, Greater>)      tmp = __hgt2(alias0[i], alias1[i]);
+                        else if constexpr (nt::same_as<Op, LessEqual>)    tmp = __hle2(alias0[i], alias1[i]);
+                        else if constexpr (nt::same_as<Op, GreaterEqual>) tmp = __hge2(alias0[i], alias1[i]);
+                        else static_assert(nt::always_false<Op>);
+                        output[i * 2 + 0] = static_cast<bool>(tmp.x);
+                        output[i * 2 + 1] = static_cast<bool>(tmp.y);
                     }
-                    output[i * 2 + 0] = static_cast<bool>(tmp.x);
-                    output[i * 2 + 1] = static_cast<bool>(tmp.y);
-                }
-                return output;
+                    return output;
+                ), ())
             }
-            #endif
             Vec<bool_t, N, 0> output;
             for (usize i{}; i < N; ++i) {
-                if constexpr (nt::same_as<Op, Equal>) {
-                    output[i] = lhs[i] == rhs[i];
-                } else if constexpr (nt::same_as<Op, NotEqual>) {
-                    output[i] = lhs[i] != rhs[i];
-                } else if constexpr (nt::same_as<Op, Less>) {
-                    output[i] = lhs[i] < rhs[i];
-                } else if constexpr (nt::same_as<Op, Greater>) {
-                    output[i] = lhs[i] > rhs[i];
-                } else if constexpr (nt::same_as<Op, LessEqual>) {
-                    output[i] = lhs[i] <= rhs[i];
-                } else if constexpr (nt::same_as<Op, GreaterEqual>) {
-                    output[i] = lhs[i] >= rhs[i];
-                } else {
-                    static_assert(nt::always_false<Op>);
-                }
+                if constexpr (nt::same_as<Op, Equal>)             output[i] = lhs[i] == rhs[i];
+                else if constexpr (nt::same_as<Op, NotEqual>)     output[i] = lhs[i] != rhs[i];
+                else if constexpr (nt::same_as<Op, Less>)         output[i] = lhs[i] < rhs[i];
+                else if constexpr (nt::same_as<Op, Greater>)      output[i] = lhs[i] > rhs[i];
+                else if constexpr (nt::same_as<Op, LessEqual>)    output[i] = lhs[i] <= rhs[i];
+                else if constexpr (nt::same_as<Op, GreaterEqual>) output[i] = lhs[i] >= rhs[i];
+                else static_assert(nt::always_false<Op>);
             }
             return output;
         } else {
@@ -196,7 +183,7 @@ namespace noa::details {
     }
 
     template<typename Op, typename Lhs> requires nt::vec<nt::value_type_t<Lhs>>
-    [[nodiscard]] NOA_HD constexpr auto vec_func(const Lhs& vector) noexcept {
+    [[nodiscard]] NOA_HD constexpr auto vec_func(Lhs vector) noexcept {
         for (usize i{}; i < Lhs::SIZE; ++i)
             vector[i] = vec_func<Op>(vector[i]);
         return vector;
@@ -204,38 +191,30 @@ namespace noa::details {
 
     template<typename Op, typename Lhs> requires (not nt::vec<nt::value_type_t<Lhs>>)
     [[nodiscard]] NOA_HD constexpr auto vec_func(Lhs vector) noexcept {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-        if constexpr (std::same_as<nt::value_type_t<Lhs>, f16> and is_even(Lhs::SIZE)) {
-            auto* alias = reinterpret_cast<__half2*>(vector.data());
-            for (usize i{}; i < Lhs::SIZE / 2; ++i) {
-                if constexpr (std::same_as<Op, Cos>)
-                    alias[i] = h2cos(alias[i]);
-                else if constexpr (std::same_as<Op, Sin>)
-                    alias[i] = h2sin(alias[i]);
-                else if constexpr (std::same_as<Op, Exp>)
-                    alias[i] = h2exp(alias[i]);
-                else if constexpr (std::same_as<Op, Log>)
-                    alias[i] = h2log(alias[i]);
-                else if constexpr (std::same_as<Op, Log10>)
-                    alias[i] = h2log10(alias[i]);
-                else if constexpr (std::same_as<Op, Sqrt>)
-                    alias[i] = h2sqrt(alias[i]);
-                else if constexpr (std::same_as<Op, Rsqrt>)
-                    alias[i] = h2rsqrt(alias[i]);
-                else if constexpr (nt::any_of<Op, Round, Rint>)
-                    alias[i] = h2rint(alias[i]);
-                else if constexpr (std::same_as<Op, Ceil>)
-                    alias[i] = h2ceil(alias[i]);
-                else if constexpr (std::same_as<Op, Floor>)
-                    alias[i] = h2floor(alias[i]);
-                else if constexpr (std::same_as<Op, Abs>)
-                    alias[i] = __habs2(alias[i]);
-                else
-                    static_assert(nt::always_false<Op>);
-            }
-            return vector;
+        if constexpr (nt::same_as<nt::value_type_t<Lhs>, f16> and is_even(Lhs::SIZE) and
+                      alignof(Lhs) >= 4 and not nt::same_as<Op, Round>) {
+            NOA_IF_TARGET_SM53((
+                auto* alias = reinterpret_cast<__half2*>(vector.data());
+                for (usize i{}; i < Lhs::SIZE / 2; ++i) {
+                    if constexpr (std::same_as<Op, Cos>)         alias[i] = h2cos(alias[i]);
+                    else if constexpr (nt::same_as<Op, Sin>)    alias[i] = h2sin(alias[i]);
+                    else if constexpr (nt::same_as<Op, Exp>)    alias[i] = h2exp(alias[i]);
+                    else if constexpr (nt::same_as<Op, Log>)    alias[i] = h2log(alias[i]);
+                    else if constexpr (nt::same_as<Op, Log10>)  alias[i] = h2log10(alias[i]);
+                    else if constexpr (nt::same_as<Op, Sqrt>)   alias[i] = h2sqrt(alias[i]);
+                    else if constexpr (nt::same_as<Op, Rsqrt>)  alias[i] = h2rsqrt(alias[i]);
+                    else if constexpr (nt::same_as<Op, Rint>)   alias[i] = h2rint(alias[i]);
+                    else if constexpr (nt::same_as<Op, Ceil>)   alias[i] = h2ceil(alias[i]);
+                    else if constexpr (nt::same_as<Op, Floor>)  alias[i] = h2floor(alias[i]);
+                    else if constexpr (nt::same_as<Op, Abs>)    alias[i] = __habs2(alias[i]);
+                    else {
+                        vector[i * 2]     = Op{}(vector[i * 2]);
+                        vector[i * 2 + 1] = Op{}(vector[i * 2 + 1]);
+                    }
+                }
+                return vector;
+            ), ())
         }
-        #endif
         for (usize i{}; i < Lhs::SIZE; ++i)
             vector[i] = Op{}(vector[i]);
         return vector;
@@ -308,7 +287,7 @@ namespace noa::inline types {
     /// \tparam T Numeric or Vec (nested vectors are allowed).
     /// \tparam N Size of the vector. Empty vectors (N=0) are allowed.
     /// \tparam A Alignment requirement of the vector.
-    template<typename T, usize N, usize A = 0>
+    template<typename T, usize N, usize A>
     class alignas(nd::vec_alignas<T, N, A>) Vec {
     public:
         static_assert(nt::numeric<T> or nt::vec<T>);
@@ -464,14 +443,14 @@ namespace noa::inline types {
 
         [[nodiscard]] friend NOA_FHD constexpr auto operator-(Vec v) noexcept -> Vec {
             if constexpr (SIZE > 0) {
-                #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
-                if constexpr (std::same_as<value_type, f16> and is_even(SSIZE)) {
-                    auto* alias = reinterpret_cast<__half2*>(v.data());
-                    for (usize i{}; i < SIZE / 2; ++i)
-                        alias[i] = -alias[i];
-                    return v;
+                if constexpr (nt::same_as<value_type, f16> and is_even(SSIZE) and alignof(Vec) >= 4) {
+                    NOA_IF_TARGET_SM53((
+                        auto* alias = reinterpret_cast<__half2*>(v.data());
+                        for (usize i{}; i < SIZE / 2; ++i)
+                            alias[i] = __hneg2(alias[i]);
+                        return v;
+                    ), ())
                 }
-                #endif
                 for (usize i{}; i < SIZE; ++i)
                     v[i] = -v[i];
                 return v;
@@ -749,7 +728,7 @@ namespace noa::inline types {
 
         // Circular shifts the vector by a given amount.
         // If "count" is positive, shift to the right, otherwise, shift to the left.
-        [[nodiscard]] NOA_FHD constexpr auto circular_shift(isize count) -> Vec {
+        [[nodiscard]] NOA_FHD constexpr auto circular_shift(isize count) const noexcept -> Vec {
             if constexpr (SIZE <= 1) {
                 return *this;
             } else {
@@ -884,8 +863,7 @@ namespace noa {
     [[nodiscard]] NOA_FHD constexpr auto atan(nt::vec_real_or_vec auto const& v) noexcept { return nd::vec_func<Atan>(v); }
     [[nodiscard]] NOA_FHD constexpr auto acosh(nt::vec_real_or_vec auto const& v) noexcept { return nd::vec_func<Acosh>(v); }
     [[nodiscard]] NOA_FHD constexpr auto asinh(nt::vec_real_or_vec auto const& v) noexcept { return nd::vec_func<Asinh>(v); }
-    [[nodiscard]] NOA_FHD constexpr auto atanh(nt::vec_real_or_vec auto const& v) noexcept { return nd::vec_func<Atan>(v); }
-    [[nodiscard]] NOA_FHD constexpr auto atan2(nt::vec_real_or_vec auto const& v) noexcept { return nd::vec_func<Atan2>(v); }
+    [[nodiscard]] NOA_FHD constexpr auto atanh(nt::vec_real_or_vec auto const& v) noexcept { return nd::vec_func<Atanh>(v); }
 
     [[nodiscard]] NOA_FHD constexpr auto rad2deg(nt::vec_real_or_vec auto const& v) noexcept { return nd::vec_func<Rad2Deg>(v); }
     [[nodiscard]] NOA_FHD constexpr auto deg2rad(nt::vec_real_or_vec auto const& v) noexcept { return nd::vec_func<Deg2Rad>(v); }
@@ -925,7 +903,7 @@ namespace noa {
     template<typename T, usize N, usize A> requires (N > 0)
     [[nodiscard]] NOA_HD constexpr auto sum(const Vec<T, N, A>& vector) noexcept {
         if constexpr (std::same_as<T, f16>)
-            return sum(vector.template as<typename T::arithmetic_type>()).template as<T, A>();
+            return static_cast<T>(sum(vector.template as<typename T::arithmetic_type>()));
 
         return [&vector]<usize...I>(std::index_sequence<I...>) {
             return (... + vector[I]);
@@ -935,14 +913,15 @@ namespace noa {
     template<nt::numeric T, usize N, usize A>
     [[nodiscard]] NOA_HD constexpr auto mean(const Vec<T, N, A>& vector) noexcept {
         if constexpr (std::same_as<T, f16>)
-            return mean(vector.template as<typename T::arithmetic_type>()).template as<T, A>();
+            return static_cast<T>(mean(vector.template as<typename T::arithmetic_type>()));
+
         return sum(vector) / static_cast<nt::value_type_twice_t<T>>(N);
     }
 
     template<typename T, usize N, usize A> requires (N > 0)
     [[nodiscard]] NOA_HD constexpr auto product(const Vec<T, N, A>& vector) noexcept {
         if constexpr (std::same_as<T, f16>)
-            return product(vector.template as<typename T::arithmetic_type>()).template as<T, A>();
+            return static_cast<T>(product(vector.template as<typename T::arithmetic_type>()));
 
         return [&vector]<usize...I>(std::index_sequence<I...>) {
             return (... * vector[I]);
@@ -952,8 +931,9 @@ namespace noa {
     template<typename T, usize N, usize A0, usize A1> requires (N > 0)
     [[nodiscard]] NOA_HD constexpr auto dot(const Vec<T, N, A0>& lhs, const Vec<T, N, A1>& rhs) noexcept {
         if constexpr (std::same_as<T, f16>) {
-            return static_cast<T>(dot(lhs.template as<typename T::arithmetic_type>(),
-                                      rhs.template as<typename T::arithmetic_type>()));
+            return static_cast<T>(dot(
+                lhs.template as<typename T::arithmetic_type>(),
+                rhs.template as<typename T::arithmetic_type>()));
         }
 
         return [&lhs, &rhs]<usize...I>(std::index_sequence<I...>) {
@@ -963,10 +943,8 @@ namespace noa {
 
     template<typename T, usize N, usize A> requires ((nt::real<T> or nt::vec<T>) and (N > 0))
     [[nodiscard]] NOA_HD constexpr auto norm(const Vec<T, N, A>& vector) noexcept {
-        if constexpr (std::same_as<T, f16>) {
-            const auto tmp = vector.template as<typename T::arithmetic_type>();
-            return norm(tmp).template as<T, A>();
-        }
+        if constexpr (std::same_as<T, f16>)
+            return static_cast<T>(vector.template as<typename T::arithmetic_type>());
 
         return sqrt(dot(vector, vector)); // euclidean norm
     }
@@ -984,9 +962,10 @@ namespace noa {
     template<nt::scalar T, usize A>
     [[nodiscard]] NOA_HD constexpr auto cross_product(const Vec<T, 3, A>& lhs, const Vec<T, 3, A>& rhs) noexcept {
         if constexpr (std::same_as<T, f16>) {
-            using arithmetic_type = typename T::arithmetic_type;
-            return cross_product(lhs.template as<arithmetic_type>(),
-                                 rhs.template as<arithmetic_type>()).template as<T, A>();
+            return cross_product(
+                lhs.template as<T::arithmetic_type>(),
+                rhs.template as<T::arithmetic_type>()
+            ).template as<T, A>();
         }
 
         return Vec<T, 3, A>{
@@ -1002,19 +981,20 @@ namespace noa {
         if constexpr (N == 1) {
             return vector[0];
         } else {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
-            if constexpr (std::same_as<T, f16> and N == 4) {
-                auto* alias = reinterpret_cast<const __half2*>(vector.data());
-                const __half2 tmp = __hmin2(alias[0], alias[1]);
-                return __hmin(tmp.x, tmp.y);
-            } else if constexpr (std::same_as<T, f16> and N == 8) {
-                auto* alias = reinterpret_cast<const __half2*>(vector.data());
-                const __half2 tmp0 = __hmin2(alias[0], alias[1]);
-                const __half2 tmp1 = __hmin2(alias[2], alias[3]);
-                const __half2 tmp2 = __hmin2(tmp0, tmp1);
-                return __hmin(tmp2.x, tmp2.y);
+            if constexpr (nt::same_as<T, f16> and (N == 4 or N == 8) and alignof(Vec<T, N, A>) >= 4) {
+                NOA_IF_TARGET_SM80((
+                    const auto* alias = reinterpret_cast<const __half2*>(vector.data());
+                    if constexpr (N == 4) {
+                        const __half2 tmp = __hmin2(alias[0], alias[1]);
+                        return T(__hmin(tmp.x, tmp.y));
+                    } else {
+                        const __half2 tmp0 = __hmin2(alias[0], alias[1]);
+                        const __half2 tmp1 = __hmin2(alias[2], alias[3]);
+                        const __half2 tmp2 = __hmin2(tmp0, tmp1);
+                        return T(__hmin(tmp2.x, tmp2.y));
+                    }
+                ), ())
             }
-            #endif
             auto element = min(vector[0], vector[1]);
             for (usize i = 2; i < N; ++i)
                 element = min(element, vector[i]);
@@ -1027,15 +1007,15 @@ namespace noa {
         Vec<T, N, A> lhs,
         const Vec<T, N, A>& rhs
     ) noexcept {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
-        if constexpr (std::same_as<T, f16> and is_even(N)) {
-            auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
-            auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
-            for (usize i{}; i < N / 2; ++i)
-                alias0[i] = __hmin2(alias0[i], alias1[i]);
-            return lhs;
+        if constexpr (nt::same_as<T, f16> and is_even(N) and alignof(Vec<T, N, A>) >= 4) {
+            NOA_IF_TARGET_SM80((
+                auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
+                const auto* alias1 = reinterpret_cast<const __half2*>(rhs.data());
+                for (usize i{}; i < N / 2; ++i)
+                    alias0[i] = __hmin2(alias0[i], alias1[i]);
+                return lhs;
+            ), ())
         }
-        #endif
         for (usize i{}; i < N; ++i)
             lhs[i] = min(lhs[i], rhs[i]);
         return lhs;
@@ -1048,19 +1028,20 @@ namespace noa {
         if constexpr (N == 1) {
             return vector[0];
         } else {
-            #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
-            if constexpr (std::same_as<T, f16> && N == 4) {
-                auto* alias = reinterpret_cast<const __half2*>(vector.data());
-                const __half2 tmp = __hmax2(alias[0], alias[1]);
-                return __hmax(tmp.x, tmp.y);
-            } else if constexpr (std::same_as<T, f16> && N == 8) {
-                auto* alias = reinterpret_cast<const __half2*>(vector.data());
-                const __half2 tmp0 = __hmax2(alias[0], alias[1]);
-                const __half2 tmp1 = __hmax2(alias[2], alias[3]);
-                const __half2 tmp2 = __hmax2(tmp0, tmp1);
-                return __hmax(tmp2.x, tmp2.y);
+            if constexpr (nt::same_as<T, f16> and (N == 4 or N == 8) and alignof(Vec<T, N, A>) >= 4) {
+                NOA_IF_TARGET_SM80((
+                    const auto* alias = reinterpret_cast<const __half2*>(vector.data());
+                    if constexpr (N == 4) {
+                        const __half2 tmp = __hmax2(alias[0], alias[1]);
+                        return T(__hmax(tmp.x, tmp.y));
+                    } else {
+                        const __half2 tmp0 = __hmax2(alias[0], alias[1]);
+                        const __half2 tmp1 = __hmax2(alias[2], alias[3]);
+                        const __half2 tmp2 = __hmax2(tmp0, tmp1);
+                        return T(__hmax(tmp2.x, tmp2.y));
+                    }
+                ), ())
             }
-            #endif
             auto element = max(vector[0], vector[1]);
             for (usize i = 2; i < N; ++i)
                 element = max(element, vector[i]);
@@ -1073,15 +1054,15 @@ namespace noa {
         Vec<T, N, A> lhs,
         const Vec<T, N, A>& rhs
     ) noexcept {
-        #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
-        if constexpr (std::same_as<T, f16> and is_even(N)) {
-            auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
-            auto* alias1 = reinterpret_cast<__half2*>(rhs.data());
-            for (usize i{}; i < N / 2; ++i)
+        if constexpr (nt::same_as<T, f16> and is_even(N) and alignof(Vec<T, N, A>) >= 4) {
+            NOA_IF_TARGET_SM80((
+                auto* alias0 = reinterpret_cast<__half2*>(lhs.data());
+                const auto* alias1 = reinterpret_cast<const __half2*>(rhs.data());
+                for (usize i{}; i < N / 2; ++i)
                 alias0[i] = __hmax2(alias0[i], alias1[i]);
             return lhs;
-        }
-        #endif
+        ), ())
+    }
         for (usize i{}; i < N; ++i)
             lhs[i] = max(lhs[i], rhs[i]);
         return lhs;
@@ -1095,13 +1076,13 @@ namespace noa {
         } else {
             auto compare = [&](I i, I j) { return vector[i] < vector[j] ? j : i; };
             auto index = compare(0, 1);
-            for (I i = 2; i < N; ++i)
+            for (I i = 2; i < static_cast<I>(N); ++i)
                 index = compare(index, i);
             return index;
         }
     }
 
-    /// Computes the argmax. Returns first occurrence if equal values are present.
+    /// Computes the argmin. Returns first occurrence if equal values are present.
     template<typename I = usize, nt::numeric T, usize N, usize A> requires (N > 0)
     [[nodiscard]] NOA_HD constexpr auto argmin(const Vec<T, N, A>& vector) noexcept -> I {
         if constexpr (N == 1) {
@@ -1109,7 +1090,7 @@ namespace noa {
         } else {
             auto compare = [&](I i, I j) { return vector[j] < vector[i] ? j : i; };
             auto index = compare(0, 1);
-            for (I i = 2; i < N; ++i)
+            for (I i = 2; i < static_cast<I>(N); ++i)
                 index = compare(index, i);
             return index;
         }

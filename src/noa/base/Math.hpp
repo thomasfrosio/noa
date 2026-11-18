@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef NOA_ENABLE_SYCL
+#   include <sycl/sycl.hpp>
+#endif
+
 #include <algorithm> // clamp
 #include <cstdlib>
 #include <cmath>
@@ -18,48 +22,64 @@ namespace noa {
     };
 }
 
-namespace noa {
-    [[nodiscard]] NOA_FHD auto cos(double x) noexcept -> double { return std::cos(x); }
-    [[nodiscard]] NOA_FHD auto cos(float x) noexcept -> float { return std::cos(x); }
+namespace noa::details {
+    #if defined(NOA_ENABLE_SYCL)
+    namespace cmath = ::sycl;
+    #else
+    namespace cmath = ::std;
+    #endif
+}
 
-    [[nodiscard]] NOA_FHD auto sin(double x) noexcept -> double { return std::sin(x); }
-    [[nodiscard]] NOA_FHD auto sin(float x) noexcept -> float { return std::sin(x); }
+namespace noa {
+    [[nodiscard]] NOA_FHD auto cos(double x) noexcept -> double { return nd::cmath::cos(x); }
+    [[nodiscard]] NOA_FHD auto cos(float x) noexcept -> float { return nd::cmath::cos(x); }
+
+    [[nodiscard]] NOA_FHD auto sin(double x) noexcept -> double { return nd::cmath::sin(x); }
+    [[nodiscard]] NOA_FHD auto sin(float x) noexcept -> float { return nd::cmath::sin(x); }
 
     [[nodiscard]] NOA_FHD auto sinc(double x) noexcept -> double { return x == 0 ? 1 : sin(x) / x; }
     [[nodiscard]] NOA_FHD auto sinc(float x) noexcept -> float { return x == 0 ? 1 : sin(x) / x; }
 
     NOA_FHD void sincos(double x, double* s, double* c) noexcept {
-        #ifdef __CUDA_ARCH__
-        ::sincos(x, s, c); // included by nvcc/nvrtc
+        #if defined(NOA_ENABLE_SYCL)
+        *s = sycl::sin(x);
+        *c = sycl::cos(x);
         #else
-        *s = std::sin(x);
-        *c = std::cos(x); // gcc calls its sincos
+        NOA_IF_TARGET_DEVICE(::sincos(x, s, c);)
+        NOA_IF_TARGET_HOST(
+            *s = std::sin(x);
+            *c = std::cos(x);
+        )
         #endif
     }
 
     NOA_FHD void sincos(float x, float* s, float* c) noexcept {
-        #ifdef __CUDA_ARCH__
-        ::sincosf(x, s, c); // included by nvcc/nvrtc
+        #if defined(NOA_ENABLE_SYCL)
+        *s = sycl::sin(x);
+        *c = sycl::cos(x);
         #else
-        *s = std::sin(x);
-        *c = std::cos(x); // gcc calls its sincos
+        NOA_IF_TARGET_DEVICE(::sincosf(x, s, c);)
+        NOA_IF_TARGET_HOST(
+            *s = std::sin(x);
+            *c = std::cos(x);
+        )
         #endif
     }
 
-    [[nodiscard]] NOA_FHD auto tan(double x) noexcept -> double { return std::tan(x); }
-    [[nodiscard]] NOA_FHD auto tan(float x) noexcept -> float { return std::tan(x); }
+    [[nodiscard]] NOA_FHD auto tan(double x) noexcept -> double { return nd::cmath::tan(x); }
+    [[nodiscard]] NOA_FHD auto tan(float x) noexcept -> float { return nd::cmath::tan(x); }
 
-    [[nodiscard]] NOA_FHD auto acos(double x) noexcept -> double { return std::acos(x); }
-    [[nodiscard]] NOA_FHD auto acos(float x) noexcept -> float { return std::acos(x); }
+    [[nodiscard]] NOA_FHD auto acos(double x) noexcept -> double { return nd::cmath::acos(x); }
+    [[nodiscard]] NOA_FHD auto acos(float x) noexcept -> float { return nd::cmath::acos(x); }
 
-    [[nodiscard]] NOA_FHD auto asin(double x) noexcept -> double { return std::asin(x); }
-    [[nodiscard]] NOA_FHD auto asin(float x) noexcept -> float { return std::asin(x); }
+    [[nodiscard]] NOA_FHD auto asin(double x) noexcept -> double { return nd::cmath::asin(x); }
+    [[nodiscard]] NOA_FHD auto asin(float x) noexcept -> float { return nd::cmath::asin(x); }
 
-    [[nodiscard]] NOA_FHD auto atan(double x) noexcept -> double { return std::atan(x); }
-    [[nodiscard]] NOA_FHD auto atan(float x) noexcept -> float { return std::atan(x); }
+    [[nodiscard]] NOA_FHD auto atan(double x) noexcept -> double { return nd::cmath::atan(x); }
+    [[nodiscard]] NOA_FHD auto atan(float x) noexcept -> float { return nd::cmath::atan(x); }
 
-    [[nodiscard]] NOA_FHD auto atan2(double y, double x) noexcept -> double { return std::atan2(y, x); }
-    [[nodiscard]] NOA_FHD auto atan2(float y, float x) noexcept -> float { return std::atan2(y, x); }
+    [[nodiscard]] NOA_FHD auto atan2(double y, double x) noexcept -> double { return nd::cmath::atan2(y, x); }
+    [[nodiscard]] NOA_FHD auto atan2(float y, float x) noexcept -> float { return nd::cmath::atan2(y, x); }
 
     [[nodiscard]] NOA_FHD auto constexpr rad2deg(double x) noexcept -> double { return x * (180. / Constant<double>::PI); }
     [[nodiscard]] NOA_FHD auto constexpr rad2deg(float x) noexcept -> float { return x * (180.f / Constant<float>::PI); }
@@ -67,84 +87,86 @@ namespace noa {
     [[nodiscard]] NOA_FHD auto constexpr deg2rad(double x) noexcept -> double { return x * (Constant<double>::PI / 180.); }
     [[nodiscard]] NOA_FHD auto constexpr deg2rad(float x) noexcept -> float { return x * (Constant<float>::PI / 180.f); }
 
-    [[nodiscard]] NOA_FHD auto cosh(double x) noexcept -> double { return std::cosh(x); }
-    [[nodiscard]] NOA_FHD auto cosh(float x) noexcept -> float { return std::cosh(x); }
+    [[nodiscard]] NOA_FHD auto cosh(double x) noexcept -> double { return nd::cmath::cosh(x); }
+    [[nodiscard]] NOA_FHD auto cosh(float x) noexcept -> float { return nd::cmath::cosh(x); }
 
-    [[nodiscard]] NOA_FHD auto sinh(double x) noexcept -> double { return std::sinh(x); }
-    [[nodiscard]] NOA_FHD auto sinh(float x) noexcept -> float { return std::sinh(x); }
+    [[nodiscard]] NOA_FHD auto sinh(double x) noexcept -> double { return nd::cmath::sinh(x); }
+    [[nodiscard]] NOA_FHD auto sinh(float x) noexcept -> float { return nd::cmath::sinh(x); }
 
-    [[nodiscard]] NOA_FHD auto tanh(double x) noexcept -> double { return std::tanh(x); }
-    [[nodiscard]] NOA_FHD auto tanh(float x) noexcept -> float { return std::tanh(x); }
+    [[nodiscard]] NOA_FHD auto tanh(double x) noexcept -> double { return nd::cmath::tanh(x); }
+    [[nodiscard]] NOA_FHD auto tanh(float x) noexcept -> float { return nd::cmath::tanh(x); }
 
-    [[nodiscard]] NOA_FHD auto acosh(double x) noexcept -> double { return std::acosh(x); }
-    [[nodiscard]] NOA_FHD auto acosh(float x) noexcept -> float { return std::acosh(x); }
+    [[nodiscard]] NOA_FHD auto acosh(double x) noexcept -> double { return nd::cmath::acosh(x); }
+    [[nodiscard]] NOA_FHD auto acosh(float x) noexcept -> float { return nd::cmath::acosh(x); }
 
-    [[nodiscard]] NOA_FHD auto asinh(double x) noexcept -> double { return std::asinh(x); }
-    [[nodiscard]] NOA_FHD auto asinh(float x) noexcept -> float { return std::asinh(x); }
+    [[nodiscard]] NOA_FHD auto asinh(double x) noexcept -> double { return nd::cmath::asinh(x); }
+    [[nodiscard]] NOA_FHD auto asinh(float x) noexcept -> float { return nd::cmath::asinh(x); }
 
-    [[nodiscard]] NOA_FHD auto atanh(double x) noexcept -> double { return std::atanh(x); }
-    [[nodiscard]] NOA_FHD auto atanh(float x) noexcept -> float { return std::atanh(x); }
+    [[nodiscard]] NOA_FHD auto atanh(double x) noexcept -> double { return nd::cmath::atanh(x); }
+    [[nodiscard]] NOA_FHD auto atanh(float x) noexcept -> float { return nd::cmath::atanh(x); }
 
-    [[nodiscard]] NOA_FHD auto exp(double x) noexcept -> double { return std::exp(x); }
-    [[nodiscard]] NOA_FHD auto exp(float x) noexcept -> float { return std::exp(x); }
+    [[nodiscard]] NOA_FHD auto exp(double x) noexcept -> double { return nd::cmath::exp(x); }
+    [[nodiscard]] NOA_FHD auto exp(float x) noexcept -> float { return nd::cmath::exp(x); }
 
-    [[nodiscard]] NOA_FHD auto log(double x) noexcept -> double { return std::log(x); }
-    [[nodiscard]] NOA_FHD auto log(float x) noexcept -> float { return std::log(x); }
+    [[nodiscard]] NOA_FHD auto log(double x) noexcept -> double { return nd::cmath::log(x); }
+    [[nodiscard]] NOA_FHD auto log(float x) noexcept -> float { return nd::cmath::log(x); }
 
-    [[nodiscard]] NOA_FHD auto log10(double x) noexcept -> double { return std::log10(x); }
-    [[nodiscard]] NOA_FHD auto log10(float x) noexcept -> float { return std::log10(x); }
+    [[nodiscard]] NOA_FHD auto log10(double x) noexcept -> double { return nd::cmath::log10(x); }
+    [[nodiscard]] NOA_FHD auto log10(float x) noexcept -> float { return nd::cmath::log10(x); }
 
-    [[nodiscard]] NOA_FHD auto log1p(double x) noexcept -> double { return std::log1p(x); }
-    [[nodiscard]] NOA_FHD auto log1p(float x) noexcept -> float { return std::log1p(x); }
+    [[nodiscard]] NOA_FHD auto log1p(double x) noexcept -> double { return nd::cmath::log1p(x); }
+    [[nodiscard]] NOA_FHD auto log1p(float x) noexcept -> float { return nd::cmath::log1p(x); }
 
-    [[nodiscard]] NOA_FHD auto hypot(double x, double y) noexcept -> double { return std::hypot(x, y); }
-    [[nodiscard]] NOA_FHD auto hypot(float x, float y) noexcept -> float { return std::hypot(x, y); }
+    [[nodiscard]] NOA_FHD auto hypot(double x, double y) noexcept -> double { return nd::cmath::hypot(x, y); }
+    [[nodiscard]] NOA_FHD auto hypot(float x, float y) noexcept -> float { return nd::cmath::hypot(x, y); }
 
-    [[nodiscard]] NOA_FHD auto pow(double base, double exponent) noexcept -> double { return std::pow(base, exponent); }
-    [[nodiscard]] NOA_FHD auto pow(float base, float exponent) noexcept -> float { return std::pow(base, exponent); }
+    [[nodiscard]] NOA_FHD auto pow(double base, double exponent) noexcept -> double { return nd::cmath::pow(base, exponent); }
+    [[nodiscard]] NOA_FHD auto pow(float base, float exponent) noexcept -> float { return nd::cmath::pow(base, exponent); }
 
-    [[nodiscard]] NOA_FHD auto sqrt(double x) noexcept -> double { return std::sqrt(x); }
-    [[nodiscard]] NOA_FHD auto sqrt(float x) noexcept -> float { return std::sqrt(x); }
+    [[nodiscard]] NOA_FHD auto sqrt(double x) noexcept -> double { return nd::cmath::sqrt(x); }
+    [[nodiscard]] NOA_FHD auto sqrt(float x) noexcept -> float { return nd::cmath::sqrt(x); }
 
     [[nodiscard]] NOA_FHD auto rsqrt(double x) noexcept -> double {
-        #ifdef __CUDA_ARCH__
-        return ::rsqrt(x);
+        #if defined(NOA_ENABLE_SYCL)
+        return sycl::rsqrt(x);
         #else
-        return 1. / sqrt(x);
+        NOA_IF_TARGET_DEVICE(return ::rsqrt(x);)
+        NOA_IF_TARGET_HOST(return 1. / std::sqrt(x);)
         #endif
     }
 
     [[nodiscard]] NOA_FHD auto rsqrt(float x) noexcept -> float {
-        #ifdef __CUDA_ARCH__
-        return ::rsqrtf(x);
+        #if defined(NOA_ENABLE_SYCL)
+        return sycl::rsqrt(x);
         #else
-        return 1.f / sqrt(x);
+        NOA_IF_TARGET_DEVICE(return ::rsqrtf(x);)
+        NOA_IF_TARGET_HOST(return 1.f / std::sqrt(x);)
         #endif
     }
 
-    [[nodiscard]] NOA_FHD auto round(double x) noexcept -> double { return std::round(x); }
-    [[nodiscard]] NOA_FHD auto round(float x) noexcept -> float { return std::round(x); }
+    [[nodiscard]] NOA_FHD auto round(double x) noexcept -> double { return nd::cmath::round(x); }
+    [[nodiscard]] NOA_FHD auto round(float x) noexcept -> float { return nd::cmath::round(x); }
 
-    [[nodiscard]] NOA_FHD auto rint(double x) noexcept -> double { return std::rint(x); }
-    [[nodiscard]] NOA_FHD auto rint(float x) noexcept -> float { return std::rint(x); }
+    [[nodiscard]] NOA_FHD auto rint(double x) noexcept -> double { return nd::cmath::rint(x); }
+    [[nodiscard]] NOA_FHD auto rint(float x) noexcept -> float { return nd::cmath::rint(x); }
 
-    [[nodiscard]] NOA_FHD auto ceil(double x) noexcept -> double { return std::ceil(x); }
-    [[nodiscard]] NOA_FHD auto ceil(float x) noexcept -> float { return std::ceil(x); }
+    [[nodiscard]] NOA_FHD auto ceil(double x) noexcept -> double { return nd::cmath::ceil(x); }
+    [[nodiscard]] NOA_FHD auto ceil(float x) noexcept -> float { return nd::cmath::ceil(x); }
 
-    [[nodiscard]] NOA_FHD auto floor(double x) noexcept -> double { return std::floor(x); }
-    [[nodiscard]] NOA_FHD auto floor(float x) noexcept -> float { return std::floor(x); }
+    [[nodiscard]] NOA_FHD auto floor(double x) noexcept -> double { return nd::cmath::floor(x); }
+    [[nodiscard]] NOA_FHD auto floor(float x) noexcept -> float { return nd::cmath::floor(x); }
 
-    [[nodiscard]] NOA_FHD auto trunc(double x) noexcept -> double { return std::trunc(x); }
-    [[nodiscard]] NOA_FHD auto trunc(float x) noexcept -> float { return std::trunc(x); }
+    [[nodiscard]] NOA_FHD auto trunc(double x) noexcept -> double { return nd::cmath::trunc(x); }
+    [[nodiscard]] NOA_FHD auto trunc(float x) noexcept -> float { return nd::cmath::trunc(x); }
 
-    [[nodiscard]] NOA_FHD auto copysign(double x, double y) noexcept -> double { return std::copysign(x, y); }
-    [[nodiscard]] NOA_FHD auto copysign(float x, float y) noexcept -> float { return std::copysign(x, y); }
+    [[nodiscard]] NOA_FHD auto copysign(double x, double y) noexcept -> double { return nd::cmath::copysign(x, y); }
+    [[nodiscard]] NOA_FHD auto copysign(float x, float y) noexcept -> float { return nd::cmath::copysign(x, y); }
 
-    [[nodiscard]] NOA_FHD constexpr auto signbit(double x) noexcept -> bool { return std::signbit(x); }
-    [[nodiscard]] NOA_FHD constexpr auto signbit(float x) noexcept -> bool { return std::signbit(x); }
+    [[nodiscard]] NOA_FHD constexpr auto signbit(double x) noexcept -> bool { return nd::cmath::signbit(x); }
+    [[nodiscard]] NOA_FHD constexpr auto signbit(float x) noexcept -> bool { return nd::cmath::signbit(x); }
 
-    [[nodiscard]] NOA_FHD auto fma(double x, double y, double z) noexcept -> double { return std::fma(x, y, z); }
-    [[nodiscard]] NOA_FHD auto fma(float x, float y, float z) noexcept -> float { return std::fma(x, y, z); }
+    [[nodiscard]] NOA_FHD auto fma(double x, double y, double z) noexcept -> double { return nd::cmath::fma(x, y, z); }
+    [[nodiscard]] NOA_FHD auto fma(float x, float y, float z) noexcept -> float { return nd::cmath::fma(x, y, z); }
 }
 
 namespace noa {
@@ -197,20 +219,16 @@ namespace noa {
         if constexpr (nt::uinteger<T>) {
             return x;
         } else if constexpr (nt::integer<T>) {
-            if constexpr (nt::almost_same_as<T, long>)
-                return std::labs(x);
-            else if constexpr (nt::almost_same_as<T, long long>)
-                return std::llabs(x);
-            else if constexpr (nt::almost_same_as<T, i8>)
-                return static_cast<i8>(::abs(x));
-            else if constexpr (nt::almost_same_as<T, i16>)
-                return static_cast<i16>(::abs(x));
-            else
-                return std::abs(x);
+            return static_cast<T>(x < 0 ? -x : x);
         } else {
+            #if defined(NOA_ENABLE_SYCL)
+            return sycl::fabs(x);
+            #else
             return std::abs(x);
+            #endif
         }
     }
+
     template<nt::scalar T>
     [[nodiscard]] NOA_FHD constexpr auto abs_squared(T x) noexcept {
         return x * x;
@@ -259,17 +277,17 @@ namespace noa {
 }
 
 namespace noa {
-    [[nodiscard]] NOA_FHD constexpr auto is_nan(double x) noexcept -> bool { return std::isnan(x); }
-    [[nodiscard]] NOA_FHD constexpr auto is_nan(float x) noexcept -> bool { return std::isnan(x); }
+    [[nodiscard]] NOA_FHD constexpr auto is_nan(double x) noexcept -> bool { return nd::cmath::isnan(x); }
+    [[nodiscard]] NOA_FHD constexpr auto is_nan(float x) noexcept -> bool { return nd::cmath::isnan(x); }
 
-    [[nodiscard]] NOA_FHD constexpr auto is_inf(double x) noexcept -> bool { return std::isinf(x); }
-    [[nodiscard]] NOA_FHD constexpr auto is_inf(float x) noexcept -> bool { return std::isinf(x); }
+    [[nodiscard]] NOA_FHD constexpr auto is_inf(double x) noexcept -> bool { return nd::cmath::isinf(x); }
+    [[nodiscard]] NOA_FHD constexpr auto is_inf(float x) noexcept -> bool { return nd::cmath::isinf(x); }
 
-    [[nodiscard]] NOA_FHD constexpr auto is_finite(double x) noexcept -> bool { return std::isfinite(x); }
-    [[nodiscard]] NOA_FHD constexpr auto is_finite(float x) noexcept -> bool { return std::isfinite(x); }
+    [[nodiscard]] NOA_FHD constexpr auto is_finite(double x) noexcept -> bool { return nd::cmath::isfinite(x); }
+    [[nodiscard]] NOA_FHD constexpr auto is_finite(float x) noexcept -> bool { return nd::cmath::isfinite(x); }
 
-    [[nodiscard]] NOA_FH constexpr auto is_normal(double x) noexcept -> bool { return std::isnormal(x); }
-    [[nodiscard]] NOA_FH constexpr auto is_normal(float x) noexcept -> bool { return std::isnormal(x); }
+    [[nodiscard]] NOA_FH constexpr auto is_normal(double x) noexcept -> bool { return nd::cmath::isnormal(x); }
+    [[nodiscard]] NOA_FH constexpr auto is_normal(float x) noexcept -> bool { return nd::cmath::isnormal(x); }
 
     template<nt::numeric T>
     [[nodiscard]] NOA_FHD constexpr auto min(T x, T y) noexcept -> T { return (y < x) ? y : x; }
@@ -279,11 +297,7 @@ namespace noa {
 
     template<nt::numeric T>
     [[nodiscard]] NOA_FHD constexpr auto clamp(T val, std::type_identity_t<T> low, std::type_identity_t<T> high) noexcept -> T {
-    #ifdef __CUDA_ARCH__
-        return min(high, max(val, low));
-    #else
         return std::clamp(val, low, high);
-    #endif
     }
 
     template<typename T>

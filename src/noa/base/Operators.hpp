@@ -3,18 +3,54 @@
 #include "noa/base/Math.hpp"
 #include "noa/base/ClampCast.hpp"
 
+namespace noa::details {
+    // Returns a reference to the I-th argument.
+    // FIXME decltype(auto) to preserve reference category
+    template<usize I, typename A, typename... Rest>
+    NOA_FHD constexpr auto& nth_arg(A&& a, Rest&&... rest) noexcept {
+        if constexpr (I == 0) return a; else return nth_arg<I - 1>(rest...);
+    }
+}
+
 namespace noa {
     #define NOA_UNARY_OP_(name, src_op)                                     \
     struct name {                                                           \
         using enable_vectorization = bool;                                  \
         using remove_compute_handle = bool;                                 \
         template<typename T>                                                \
-        NOA_HD constexpr auto operator()(const T& src) const {              \
+        NOA_FHD constexpr auto operator()(const T& src) const {             \
             src_op;                                                         \
         }                                                                   \
         template<typename T, typename U>                                    \
-        NOA_HD constexpr void operator()(const T& src, U& dst) const {      \
+        NOA_FHD constexpr void operator()(const T& src, U& dst) const {     \
             dst = static_cast<U>((*this)(src));                             \
+        }                                                                   \
+        template<typename T0, typename T1, typename U0, typename U1>        \
+        NOA_FHD constexpr void operator()(                                  \
+            const T0& src0, const T1& src1,                                 \
+            U0& dst0, U1& dst1                                              \
+        ) const {                                                           \
+            dst0 = static_cast<U0>((*this)(src0));                          \
+            dst1 = static_cast<U1>((*this)(src1));                          \
+        }                                                                   \
+        template<typename... Args>                                          \
+            requires (sizeof...(Args) >= 6 and sizeof...(Args) % 2 == 0)    \
+        NOA_FHD constexpr void operator()(Args&&... args) const {           \
+            apply_pairs_(                                                   \
+                std::make_index_sequence<sizeof...(Args) / 2>{}, args...);  \
+        }                                                                   \
+    private:                                                                \
+        template<usize... I, typename... Args>                              \
+        NOA_FHD constexpr void apply_pairs_(                                \
+            std::index_sequence<I...>, Args&... args                        \
+        ) const {                                                           \
+            (apply_one_<I, sizeof...(I)>(args...), ...);                    \
+        }                                                                   \
+        template<usize I, usize N, typename... Args>                        \
+        NOA_FHD constexpr void apply_one_(Args&... args) const {            \
+            auto& dst = ::noa::details::nth_arg<N + I>(args...);            \
+            dst = static_cast<std::remove_cvref_t<decltype(dst)>>(          \
+                (*this)(::noa::details::nth_arg<I>(args...)));              \
         }                                                                   \
     }
     NOA_UNARY_OP_(Copy, return src);
@@ -44,7 +80,6 @@ namespace noa {
     NOA_UNARY_OP_(Acosh, return acosh(src));
     NOA_UNARY_OP_(Asinh, return asinh(src));
     NOA_UNARY_OP_(Atanh, return atanh(src));
-    NOA_UNARY_OP_(Atan2, return atan2(src));
     NOA_UNARY_OP_(Sinc, return sinc(src));
     NOA_UNARY_OP_(Real, return real(src));
     NOA_UNARY_OP_(Imag, return imag(src));
@@ -73,16 +108,65 @@ namespace noa {
                   });
     #undef NOA_UNARY_OP_
 
+    #define NOA_ASSIGNMENT_OP_(name, src_op)                                \
+    struct name {                                                           \
+        using enable_vectorization = bool;                                  \
+        using remove_compute_handle = bool;                                 \
+        template<typename T, typename U>                                    \
+        NOA_FHD constexpr void operator()(const T& lhs, T& dst) const {     \
+            src_op;                                                         \
+        }                                                                   \
+        template<typename T0, typename T1, typename U0, typename U1>        \
+        NOA_FHD constexpr void operator()(                                  \
+            const T0& src0, const T1& src1,                                 \
+            U0& dst0, U1& dst1                                              \
+        ) const {                                                           \
+            (*this)(src0, dst0);                                            \
+            (*this)(src1, dst1);                                            \
+        }                                                                   \
+        template<typename... Args>                                          \
+            requires (sizeof...(Args) >= 6 and sizeof...(Args) % 2 == 0)    \
+        NOA_FHD constexpr void operator()(Args&&... args) const {           \
+            apply_pairs_(                                                   \
+                std::make_index_sequence<sizeof...(Args) / 2>{}, args...);  \
+        }                                                                   \
+    private:                                                                \
+        template<usize... I, typename... Args>                              \
+        NOA_FHD constexpr void apply_pairs_(                                \
+            std::index_sequence<I...>, Args&... args                        \
+        ) const {                                                           \
+            (apply_one_<I, sizeof...(I)>(args...), ...);                    \
+        }                                                                   \
+        template<usize I, usize N, typename... Args>                        \
+        NOA_FHD constexpr void apply_one_(Args&... args) const {            \
+            (*this)(                                                        \
+                ::noa::details::nth_arg<I>(args...),                        \
+                ::noa::details::nth_arg<N + I>(args...)                     \
+            );                                                              \
+        }                                                                   \
+    }
+    NOA_ASSIGNMENT_OP_(MinEq, dst = min(lhs, dst));
+    NOA_ASSIGNMENT_OP_(MaxEq, dst = max(lhs, dst));
+    NOA_ASSIGNMENT_OP_(PlusEq, dst += lhs);
+    NOA_ASSIGNMENT_OP_(MinusEq, dst -= lhs);
+    NOA_ASSIGNMENT_OP_(MultiplyEq, dst *= lhs);
+    NOA_ASSIGNMENT_OP_(DivideEq, dst /= lhs);
+    NOA_ASSIGNMENT_OP_(ModuloEq, dst %= lhs);
+    NOA_ASSIGNMENT_OP_(BitAndEq, dst &= lhs);
+    NOA_ASSIGNMENT_OP_(BitOrEq, dst |= lhs);
+    NOA_ASSIGNMENT_OP_(BitXOrEq, dst ^= lhs);
+    #undef NOA_ASSIGNMENT_OP_
+
     #define NOA_BINARY_OP_(name, src_op)                                                \
     struct name {                                                                       \
         using enable_vectorization = bool;                                              \
         using remove_compute_handle = bool;                                             \
         template<typename T, typename U>                                                \
-        NOA_HD constexpr auto operator()(const T& lhs, const U& rhs) const {            \
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& rhs) const {           \
             src_op;                                                                     \
         }                                                                               \
         template<typename T, typename U, typename V>                                    \
-        NOA_HD constexpr void operator()(const T& lhs, const U& rhs, V& dst) const {    \
+        NOA_FHD constexpr void operator()(const T& lhs, const U& rhs, V& dst) const {   \
             dst = static_cast<V>((*this)(lhs, rhs));                                    \
         }                                                                               \
     }
@@ -92,8 +176,11 @@ namespace noa {
     NOA_BINARY_OP_(LessEqual, return lhs <= rhs);
     NOA_BINARY_OP_(Greater, return lhs > rhs);
     NOA_BINARY_OP_(GreaterEqual, return lhs >= rhs);
-    NOA_BINARY_OP_(LogicalAnd, return lhs && rhs);  // TODO And
-    NOA_BINARY_OP_(LogicalOr, return lhs || rhs);   // TODO Or
+    NOA_BINARY_OP_(LogicalAnd, return lhs && rhs);
+    NOA_BINARY_OP_(LogicalOr, return lhs || rhs);
+    NOA_BINARY_OP_(BitAnd, return lhs & rhs);
+    NOA_BINARY_OP_(BitOr, return lhs | rhs);
+    NOA_BINARY_OP_(BitXOr, return lhs ^ rhs);
     NOA_BINARY_OP_(Min, return min(lhs, rhs));
     NOA_BINARY_OP_(Max, return max(lhs, rhs));
     NOA_BINARY_OP_(Plus, return lhs + rhs);
@@ -107,7 +194,7 @@ namespace noa {
     NOA_BINARY_OP_(Pow, return pow(lhs, rhs));
     NOA_BINARY_OP_(Hypot, return hypot(lhs, rhs));
     NOA_BINARY_OP_(Copysign, return copysign(lhs, rhs));
-
+    NOA_BINARY_OP_(Atan2, return atan2(lhs, rhs));
     #undef NOA_BINARY_OP_
 
     #define NOA_TRINARY_OP_(name, src_op)                                                           \
@@ -115,11 +202,11 @@ namespace noa {
         using enable_vectorization = bool;                                                          \
         using remove_compute_handle = bool;                                                         \
         template<typename T, typename U, typename V>                                                \
-        NOA_HD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {          \
+        NOA_FHD constexpr auto operator()(const T& lhs, const U& mhs, const V& rhs) const {         \
             src_op;                                                                                 \
         }                                                                                           \
         template<typename T, typename U, typename V, typename W>                                    \
-        NOA_HD constexpr void operator()(const T& lhs, const U& mhs, const V& rhs, W& dst) const {  \
+        NOA_FHD constexpr void operator()(const T& lhs, const U& mhs, const V& rhs, W& dst) const { \
             dst = static_cast<W>((*this)(lhs, mhs, rhs));                                           \
         }                                                                                           \
     }
@@ -149,7 +236,7 @@ namespace noa {
         T value;
 
         template<typename U>
-        NOA_HD constexpr void operator()(U& dst) const {
+        NOA_FHD constexpr void operator()(U& dst) const {
             dst = static_cast<U>(value);
         }
     };
@@ -160,7 +247,7 @@ namespace noa {
         T value;
 
         template<typename U>
-        NOA_HD constexpr void operator()(U& dst) const {
+        NOA_FHD constexpr void operator()(U& dst) const {
             dst *= value;
         }
     };
@@ -170,7 +257,7 @@ namespace noa {
         using remove_compute_handle = bool;
 
         template<typename... U>
-        NOA_HD constexpr void operator()(U&... dst) const {
+        NOA_FHD constexpr void operator()(U&... dst) const {
             ((dst = U{}), ...);
         }
     };
@@ -182,7 +269,7 @@ namespace noa {
 
         template<typename T, typename U>
             requires ((nt::complex<T> and nt::real<U>) or nt::static_castable_to<T, U>)
-        NOA_HD constexpr void operator()(const T& src, U& dst) const {
+        NOA_FHD constexpr void operator()(const T& src, U& dst) const {
             if constexpr (nt::complex<T> and nt::real<U>) {
                 auto ps = abs_squared(src);
                 dst = clamp ? clamp_cast<U>(ps) : static_cast<U>(ps);
@@ -197,7 +284,7 @@ namespace noa {
         using remove_compute_handle = bool;
 
         template<typename C>
-        NOA_HD constexpr void operator()(auto r, auto i, C& c) const {
+        NOA_FHD constexpr void operator()(auto r, auto i, C& c) const {
             c = C::from_values(r, i);
         }
     };
@@ -206,7 +293,7 @@ namespace noa {
         using remove_compute_handle = bool;
 
         template<typename R, typename I>
-        NOA_HD constexpr void operator()(const auto& c, R& r, I& i) const {
+        NOA_FHD constexpr void operator()(const auto& c, R& r, I& i) const {
             r = static_cast<R>(c.real);
             i = static_cast<I>(c.imag);
         }
@@ -217,11 +304,11 @@ namespace noa {
         using remove_compute_handle = bool;
 
         template<typename T>
-        NOA_HD constexpr auto operator()(const T& value, const T& min, const T& max) const {
+        NOA_FHD constexpr auto operator()(const T& value, const T& min, const T& max) const {
             return (value - min) / (max - min);
         }
         template<typename T, typename U>
-        NOA_HD constexpr void operator()(const T& value, const T& min, const T& max, U& output) const {
+        NOA_FHD constexpr void operator()(const T& value, const T& min, const T& max, U& output) const {
             output = static_cast<U>((*this)(value, min, max));
         }
     };
@@ -231,11 +318,11 @@ namespace noa {
         using remove_compute_handle = bool;
 
         template<typename T, typename U, typename V>
-        NOA_HD constexpr auto operator()(const T& value, const U& mean, const V& stddev) const {
+        NOA_FHD constexpr auto operator()(const T& value, const U& mean, const V& stddev) const {
             return (static_cast<U>(value) - mean) / stddev;
         }
         template<typename T, typename U, typename V, typename W>
-        NOA_HD constexpr void operator()(const T& value, const U& mean, const V& stddev, W& output) const {
+        NOA_FHD constexpr void operator()(const T& value, const U& mean, const V& stddev, W& output) const {
             output = static_cast<W>((*this)(value, mean, stddev));
         }
     };
@@ -246,11 +333,11 @@ namespace noa {
         using remove_compute_handle = bool;
 
         template<typename T, typename U>
-        NOA_HD constexpr auto operator()(const T& value, const U& norm) const {
+        NOA_FHD constexpr auto operator()(const T& value, const U& norm) const {
             return static_cast<C>(value) / norm;
         }
         template<typename T, typename U, typename V>
-        NOA_HD constexpr void operator()(const T& value, const U& norm, V& output) const {
+        NOA_FHD constexpr void operator()(const T& value, const U& norm, V& output) const {
             output = static_cast<V>((*this)(value, norm));
         }
     };
@@ -260,11 +347,11 @@ namespace noa {
         using remove_compute_handle = bool;
 
         template<typename T, typename U, typename V>
-        NOA_HD constexpr auto operator()(const T& value, const U& mean, const V& norm) const {
+        NOA_FHD constexpr auto operator()(const T& value, const U& mean, const V& norm) const {
             return (static_cast<U>(value) - mean) / norm;
         }
         template<typename T, typename U, typename V, typename W>
-        NOA_HD constexpr void operator()(const T& value, const U& mean, const V& norm, W& output) const {
+        NOA_FHD constexpr void operator()(const T& value, const U& mean, const V& norm, W& output) const {
             output = static_cast<W>((*this)(value, mean, norm));
         }
     };
