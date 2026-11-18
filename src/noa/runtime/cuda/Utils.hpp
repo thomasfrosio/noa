@@ -1,15 +1,15 @@
 #pragma once
-#include "noa/runtime/cuda/IncludeGuard.cuh"
+#include "noa/runtime/cuda/IncludeGuard.hpp"
 
 #include "noa/base/Config.hpp"
 #include "noa/base/Tuple.hpp"
 #include "noa/runtime/core/Accessor.hpp"
 #include "noa/runtime/core/Span.hpp"
 #include "noa/runtime/cuda/Pointers.hpp"
-#include "noa/runtime/cuda/Warp.cuh"
+#include "noa/runtime/cuda/Warp.hpp"
 #include "noa/runtime/cuda/Constants.hpp"
 
-namespace noa::cuda {
+namespace noa::gpu {
     /// Static initialization of shared variables is illegal in CUDA. Types that require an initialization
     /// cannot be used with the __shared__ attribute. This Uninitialized type bypasses this limit.
     /// \details Uninitialized<T> has the same size and alignment as T and is meant to be used for the
@@ -191,15 +191,23 @@ namespace noa::cuda {
         }
     }
 
+    constexpr auto is_static_scratch_enabled() -> bool {
+#ifdef NOA_ENABLE_SYCL
+        return false;
+#else
+        return true;
+#endif
+    }
+
     /// Returns the number of bytes of dynamic shared memory to allocate to statisfy the user (scratch size)
     /// and the internal block join (which needs block_size Reduced elements). The key here is that the lifetimes
     /// of these two do not overlap: init/call/deinit is where the scratch space is available, and it's only after
     /// that (during join) that we reduce the block behind the scene. As such, we can overlap the two buffers.
-    template<typename Reduced>
-    constexpr auto n_bytes_of_shared_memory_to_allocate_for_reduction(u32 block_size, usize scratch_size) {
+    template<typename Reduced, nt::any_of<u32, usize> T>
+    constexpr auto n_bytes_of_scratch_to_allocate_for_reduction(u32 block_size, T scratch_size) {
         constexpr bool HAS_REDUCED = not nt::empty_tuple<std::remove_reference_t<Reduced>>;
         const auto n_bytes_for_join = HAS_REDUCED ? static_cast<usize>(block_size) * sizeof(Reduced) : usize{};
-        return std::max(n_bytes_for_join, scratch_size);
+        return std::max(n_bytes_for_join, static_cast<usize>(scratch_size));
     }
 
     /// Sets up the grid necessary for the block to loop through the problem size.
@@ -353,8 +361,8 @@ namespace noa::cuda {
         [[nodiscard]] constexpr auto n_blocks_z(u32 launch) const -> u32 { return n_blocks<0>(launch); }
         [[nodiscard]] constexpr auto n_blocks_y(u32 launch) const -> u32 { return n_blocks<1>(launch); }
         [[nodiscard]] constexpr auto n_blocks_x(u32 launch) const -> u32 { return n_blocks<2>(launch); }
-        [[nodiscard]] constexpr auto dim3_shape_for_launch(u32 z, u32 y, u32 x) const -> dim3 {
-            return dim3(n_blocks_x(x), n_blocks_y(y), n_blocks_z(z));
+        [[nodiscard]] constexpr auto shape_for_launch(u32 z, u32 y, u32 x) const -> Vec<u32, 3> {
+            return Vec{n_blocks_z(z), n_blocks_y(y), n_blocks_x(x)};
         }
 
         [[nodiscard]] constexpr auto block_offset_for_launch(u32 z, u32 y) const -> Vec<u32, 2> {
@@ -395,7 +403,7 @@ namespace noa::cuda {
     };
 }
 
-namespace noa::cuda::details {
+namespace noa::gpu::details {
     template<typename Tup>
     struct vectorized_tuple { using type = Tup; };
 
@@ -427,7 +435,7 @@ namespace noa::cuda::details {
 }
 
 // TODO Some of these functions could be moved to ComputeHandle.
-namespace noa::cuda::details {
+namespace noa::gpu::details {
     // Get a warp count that makes block_size_x a multiple of block_size.
     template<typename Config, u32 WarpCountBlockSizeX>
     constexpr auto best_block_size_x() {
@@ -443,257 +451,7 @@ namespace noa::cuda::details {
     }
 
     template<typename Block>
-    constexpr auto dim3_block_shape() {
-        return dim3(Block::block_size_x, Block::block_size_y, Block::block_size_z);
-    }
-
-    /// Synchronizes the block.
-    /// TODO Cooperative groups may be the way to go and do offer more granularity.
-    NOA_FD void block_synchronize() {
-        __syncthreads();
-    }
-
-    template<nt::integer T = u32, usize N = 3>
-    NOA_FD auto block_indices() -> Vec<T, N> {
-        if constexpr (N == 3)
-            return Vec<T, N>::from_values(blockIdx.z, blockIdx.y, blockIdx.x);
-        else if constexpr (N == 2)
-            return Vec<T, N>::from_values(blockIdx.y, blockIdx.x);
-        else if constexpr (N == 1)
-            return Vec<T, N>::from_values(blockIdx.x);
-        else
-            return Vec<T, 0>{};
-    }
-
-    template<nt::integer T = u32, usize N = 3>
-    NOA_FD auto thread_indices() -> Vec<T, N> {
-        if constexpr (N == 3)
-            return Vec<T, N>::from_values(threadIdx.z, threadIdx.y, threadIdx.x);
-        else if constexpr (N == 2)
-            return Vec<T, N>::from_values(threadIdx.y, threadIdx.x);
-        else if constexpr (N == 1)
-            return Vec<T, N>::from_values(threadIdx.x);
-        else
-            return Vec<T, 0>{};
-    }
-
-    template<nt::integer T, usize N, typename Block, bool AddThreadIndices = true> requires (N >= 4)
-    NOA_FD auto global_indices_nd(Vec<u32, N - 3> fused_shape, const Vec<u32, 2>& block_offset_zy = Vec<u32, 2>{}) {
-        auto bid = block_indices<u32, 3>();
-        bid[0] += block_offset_zy[0];
-        bid[1] += block_offset_zy[1];
-
-        // N=4: fused_shape=W   -> bid_unrolled=HW
-        // N=5: fused_shape=HW  -> bid_unrolled=DHW
-        // N=6: fused_shape=DHW -> bid_unrolled=BDHW
-        const Vec<u32, N - 2> bid_unrolled = noa::offset2index(bid[2], fused_shape);
-        Vec<T, N> gid;
-        gid[0] = static_cast<T>(bid[0]);
-        if constexpr (N == 6) {
-            gid[1] = static_cast<T>(bid[1]);
-            gid[2] = static_cast<T>(bid_unrolled[0]);
-            gid[3] = static_cast<T>(Block::block_work_size_z) * static_cast<T>(bid_unrolled[1]);
-            gid[4] = static_cast<T>(Block::block_work_size_y) * static_cast<T>(bid_unrolled[2]);
-            gid[5] = static_cast<T>(Block::block_work_size_x) * static_cast<T>(bid_unrolled[3]);
-        } else if constexpr (N == 5) {
-            gid[1] = static_cast<T>(bid[1]);
-            gid[2] = static_cast<T>(Block::block_work_size_z) * static_cast<T>(bid_unrolled[0]);
-            gid[3] = static_cast<T>(Block::block_work_size_y) * static_cast<T>(bid_unrolled[1]);
-            gid[4] = static_cast<T>(Block::block_work_size_x) * static_cast<T>(bid_unrolled[2]);
-        } else if constexpr (N == 4) {
-            gid[1] = static_cast<T>(Block::block_work_size_z * bid[1]);
-            gid[2] = static_cast<T>(Block::block_work_size_y) * static_cast<T>(bid_unrolled[0]);
-            gid[3] = static_cast<T>(Block::block_work_size_x) * static_cast<T>(bid_unrolled[1]);
-        }
-
-        if constexpr (AddThreadIndices) {
-            if constexpr (Block::block_size_z > 1)
-                gid[N - 3] += static_cast<T>(threadIdx.z);
-            if constexpr (Block::block_size_y > 1)
-                gid[N - 2] += static_cast<T>(threadIdx.y);
-            if constexpr (Block::block_size_x > 1)
-                gid[N - 1] += static_cast<T>(threadIdx.x);
-        }
-        return gid;
-    }
-
-    template<nt::integer T, typename Block, bool AddThreadIndices = true>
-    NOA_FD auto global_indices_4d(u32 grid_size_x, const Vec<u32, 2>& block_offset_zy = Vec<u32, 2>{}) {
-        auto bid = block_indices<T, 3>();
-        bid[0] += block_offset_zy[0];
-        bid[1] += block_offset_zy[1];
-
-        const Vec<T, 2> bid_yx = offset2index(bid[2], static_cast<T>(grid_size_x));
-        auto gid = Vec{
-            bid[0],
-            static_cast<T>(Block::block_work_size_z) * bid[1],
-            static_cast<T>(Block::block_work_size_y) * bid_yx[0],
-            static_cast<T>(Block::block_work_size_x) * bid_yx[1],
-        };
-        if constexpr (AddThreadIndices) {
-            if constexpr (Block::block_size_z > 1)
-                gid[1] += static_cast<T>(threadIdx.z);
-            if constexpr (Block::block_size_y > 1)
-                gid[2] += static_cast<T>(threadIdx.y);
-            if constexpr (Block::block_size_x > 1)
-                gid[3] += static_cast<T>(threadIdx.x);
-        }
-        return gid;
-    }
-
-    template<nt::integer T, typename Config, bool AddThreadIndices = true>
-    NOA_FD auto global_indices_3d(const Vec<u32, 2>& block_offset_zy = Vec<u32, 2>{}) {
-        auto bid = block_indices<T, 3>();
-        bid[0] += block_offset_zy[0];
-        bid[1] += block_offset_zy[1];
-
-        auto gid = Vec{
-            static_cast<T>(Config::block_work_size_z) * static_cast<T>(bid[0]),
-            static_cast<T>(Config::block_work_size_y) * static_cast<T>(bid[1]),
-            static_cast<T>(Config::block_work_size_x) * static_cast<T>(bid[2]),
-        };
-        if constexpr (AddThreadIndices) {
-            if constexpr (Config::block_ndim == 3)
-                gid[0] += static_cast<T>(threadIdx.z);
-            if constexpr (Config::block_ndim >= 2)
-                gid[1] += static_cast<T>(threadIdx.y);
-            if constexpr (Config::block_ndim >= 1)
-                gid[2] += static_cast<T>(threadIdx.x);
-        }
-        return gid;
-    }
-
-    template<nt::integer T, typename Config, bool AddThreadIndices = true>
-    NOA_FD auto global_indices_2d(const Vec<u32, 1>& block_offset_y = Vec<u32, 1>{}) {
-        auto bid = block_indices<T, 2>();
-        bid[0] += block_offset_y[0];
-
-        auto gid = Vec{
-            static_cast<T>(Config::block_work_size_y) * bid[0],
-            static_cast<T>(Config::block_work_size_x) * bid[1],
-        };
-        if constexpr (AddThreadIndices) {
-            if constexpr (Config::block_ndim >= 2)
-                gid[0] += static_cast<T>(threadIdx.y);
-            if constexpr (Config::block_ndim >= 1)
-                gid[1] += static_cast<T>(threadIdx.x);
-        }
-        return gid;
-    }
-
-    template<nt::integer T, typename Config, bool AddThreadIndices = true>
-    NOA_FD auto global_indices_1d() {
-        auto gid = static_cast<T>(Config::block_work_size_x) * block_indices<T, 1>();
-        if constexpr (AddThreadIndices)
-            gid += thread_indices<T, 1>();
-        return gid;
-    }
-
-    /// Computes the indices within the grid.
-    /// \param grid_fused_shape_in_x_unbatched:
-    ///     Fused shape along grid.x, with the leftmost dimension popped out (see offset2index).
-    ///     If N <= 3, the 3d grid is enough to contain the original shape,
-    ///     no dimensions are fused, so Shape<u32, 0> is passed.
-    /// \param grid_outer_offset:
-    ///     (Z)Y block offset for this launch.
-    ///     We don't support multi launches along grid.x,
-    ///     so that block offset is assumed to be zero.
-    template<nt::integer T, usize N, typename Config, bool AddThreadIndices = true,
-             usize FusedShapePoppedN = (N <= 3 ? 0 : N - 3),
-             usize BlockOffsetN = (N <= 2 ? N - 1 : 2)>
-    NOA_FD auto global_indices(
-        const Vec<u32, FusedShapePoppedN>& grid_fused_shape_in_x_unbatched,
-        const Vec<u32, BlockOffsetN>& grid_outer_offset = Vec<u32, BlockOffsetN>{}
-    ) {
-        if constexpr (N == 1) {
-            return global_indices_1d<T, Config, AddThreadIndices>();
-        } else if constexpr (N == 2) {
-            return global_indices_2d<T, Config, AddThreadIndices>(grid_outer_offset);
-        } else if constexpr (N == 3) {
-            return global_indices_3d<T, Config, AddThreadIndices>(grid_outer_offset);
-        } else if constexpr (N >= 4) {
-            return global_indices_nd<T, N, Config, AddThreadIndices>(grid_fused_shape_in_x_unbatched, grid_outer_offset);
-        } else {
-            static_assert(nt::always_false<T>);
-        }
-    }
-
-    /// Returns a per-thread unique ID, i.e., each thread in the grid gets a unique value.
-    template<usize N = 0>
-    NOA_FD u32 thread_uid() {
-        if constexpr (N == 1) {
-            return blockIdx.x * blockDim.x + threadIdx.x;
-        } else if constexpr (N == 2) {
-            const auto bid_x = blockIdx.x * blockDim.x + threadIdx.x;
-            const auto bid_y = blockIdx.y * blockDim.y + threadIdx.y;
-            return bid_y * blockDim.x + bid_x;
-        } else {
-            const auto bid_x = blockIdx.x * blockDim.x + threadIdx.x;
-            const auto bid_y = blockIdx.y * blockDim.y + threadIdx.y;
-            const auto bid_z = blockIdx.z * blockDim.z + threadIdx.z;
-            return (bid_z * blockDim.y + bid_y) * blockDim.x + bid_x;
-        }
-    }
-
-    NOA_FD i32 atomic_add(i32* address, i32 val) {
-        return ::atomicAdd(address, val);
-    }
-
-    NOA_FD u32 atomic_add(u32* address, u32 val) {
-        return ::atomicAdd(address, val);
-    }
-
-    NOA_FD u64 atomic_add(u64* address, u64 val) {
-        return ::atomicAdd(reinterpret_cast<unsigned long long*>(address), val);
-    }
-
-    #if __CUDA_ARCH__ >= 700
-    NOA_FD f16 atomic_add(f16* address, f16 val) {
-        return f16(::atomicAdd(reinterpret_cast<__half*>(address), val.native()));
-        // atomicCAS for ushort requires 700 as well, so I don't think there's an easy way to do atomics
-        // on 16-bits values on 5.3 and 6.X devices...
-    }
-    #endif
-
-    NOA_FD f32 atomic_add(f32* address, f32 val) {
-        return ::atomicAdd(address, val);
-    }
-
-    NOA_ID f64 atomic_add(f64* address, f64 val) {
-        #if __CUDA_ARCH__ < 600
-        using ull = unsigned long long;
-        auto* address_as_ull = (ull*) address;
-        ull old = *address_as_ull;
-        ull assumed;
-
-        do {
-            assumed = old;
-            old = ::atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
-        } while (assumed != old); // uses integer comparison to avoid hanging in case of NaN (since NaN != NaN)
-
-        return __longlong_as_double(old); // like every other atomicAdd, return old
-        #else
-        return ::atomicAdd(address, val);
-        #endif
-    }
-
-    template<typename T>
-    NOA_FD Complex<T> atomic_add(Complex<T>* address, Complex<T> val) {
-        return {atomicAdd(&(address->real), val.real), atomicAdd(&(address->imag), val.imag)};
-    }
-
-    /// Returns the pointer to dynamic shared memory.
-    template<typename T = std::byte>
-    [[nodiscard]] NOA_FD auto dynamic_shared_memory_pointer() -> T* {
-        // This needs to be the only point in the program, otherwise nvcc complains.
-        extern __shared__  std::byte shared_memory alignas(std::max_align_t)[];
-        return reinterpret_cast<T*>(shared_memory);
-    }
-
-    /// Returns the number of bytes of shared memory.
-    [[nodiscard]] NOA_FD auto dynamic_shared_memory_size() -> u32 {
-        u32 ret;
-        asm volatile ("mov.u32 %0, %dynamic_smem_size;" : "=r" (ret)); // PTX 4.1
-        return ret;
+    constexpr auto block_shape() -> Vec<u32, 3> {
+        return Vec{Block::block_size_z, Block::block_size_y, Block::block_size_x};
     }
 }

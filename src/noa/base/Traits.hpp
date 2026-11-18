@@ -414,6 +414,18 @@ namespace noa::traits {
     template<typename... T> concept pair_decay = are_pair_decay_v<T...>;
     template<typename... T> concept tuple_decay = are_tuple_decay_v<T...>;
 
+    namespace details {
+        template<typename Tup, typename... T>
+        [[nodiscard]] consteval bool tuple_value_type_any_of_imp() {
+            return []<typename... U>(TypeList<U...>) {
+                return ((nt::any_of<U, T...>) and ...);
+            }(typename Tup::type_list{});
+        }
+    }
+
+    template<typename T, typename... U>
+    concept tuple_value_type_any_of = tuple<T> and details::tuple_value_type_any_of_imp<T, U...>();
+
     NOA_GENERATE_PROCLAIM_FULL(trivial_zero);
     template<numeric T> struct proclaim_is_trivial_zero<T> : std::true_type {};
     template<vec T> struct proclaim_is_trivial_zero<T> : std::true_type {};

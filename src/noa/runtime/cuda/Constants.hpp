@@ -2,9 +2,9 @@
 
 #include "noa/runtime/core/Traits.hpp"
 
-namespace noa::cuda {
+namespace noa::gpu {
     struct Constant {
-        static constexpr u32 WARP_SIZE = 32;
+        static constexpr u32 WARP_SIZE = 32; // TODO Make this build time option
     };
 
     struct Limits {
