@@ -51,14 +51,19 @@ namespace noa {
     ///     The operator is forwarded to the backend and ultimately copied to each compute thread.
     ///     The implementation calls the operator in the following manner:
     ///
-    /// -> op.init(...): Same as iwise.
+    /// -> Init: Same as iwise.
     ///
-    /// -> op(handle, inputs&..., outputs&...) or
-    ///    op(inputs&..., outputs&...):
-    ///     Called once per element, according to the provided input and output adaptors.
-    ///     Specifically, the fuse adaptor results in packing the elements in a tuple, e.g. Tuple<inputs&...>.
+    /// -> Call:
+    /// Sequence call (if Op::call_type is defined):
+    ///     Op::call_type{}(handle, inputs&..., outputs&...), or
+    ///     Op::call_type{}(inputs&..., outputs&...).
+    /// Sequence call (if Op::call_type is NOT defined):
+    ///     op(handle, inputs&..., outputs&...), or
+    ///     op(inputs&..., outputs&...).
+    /// Called once per element, according to the provided input and output adaptors.
+    /// Specifically, the fuse adaptor results in packing the elements in a tuple, e.g. Tuple<inputs&...>.
     ///
-    /// -> op.deinit(...): Same as iwise.
+    /// -> Deinit: Same as iwise.
     ///
     /// \note Compared to iwise, this function can analyze the inputs and outputs to deduce the most efficient way to
     ///       traverse the arrays. For instance, it can reorder dimensions, collapse contiguous dimensions together

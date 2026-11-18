@@ -84,23 +84,44 @@ namespace noa {
     ///     The operator is forwarded to the backend and ultimately copied to each compute thread.
     ///     The implementation calls the operator in the following manner:
     ///
-    /// -> op.init(handle) or
-    ///    op.init():
-    ///     Defaulted to no-op. If defined, each thread calls it. Since operators are per-thread,
-    ///     this can be used to perform some initialization of the operator or of the per-block scratch.
-    ///     The default no-op can be removed by defining the type Op::remove_default_init.
+    /// -> Init:
+    /// Sequence call (if Op::init_type is defined):
+    ///     Op::init_type{}(handle), or
+    ///     Op::init_type{}().
+    /// Sequence call (if Op::init_type is NOT defined):
+    ///     op.init(handle), or
+    ///     op.init() or
+    ///     <default to no-op, if Op::remove_default_init is NOT defined>.
+    /// Each thread calls it once.
+    /// Since operators are per-thread, this can be used to perform some initialization
+    /// of the operator or of the per-block scratch.
+    /// It is often explicitly skipped using Op::init_type = Empty.
     ///
-    /// -> op(handle, Vec{indices...}),
-    ///    op(handle, indices...),
-    ///    op(Vec{indices...}) or
-    ///    op(indices...):
-    ///     Called once per nd-index.
+    /// -> Call:
+    /// Sequence call (if Op::call_type is defined):
+    ///     Op::call_type{}(handle, Vec{indices...}), or
+    ///     Op::call_type{}(handle, indices...), or
+    ///     Op::call_type{}(Vec{indices...}), or
+    ///     Op::call_type{}(indices...).
+    /// Sequence call (if Op::call_type is NOT defined):
+    ///     op(handle, Vec{indices...}), or
+    ///     op(handle, indices...), or
+    ///     op(Vec{indices...}), or
+    ///     op(indices...).
+    /// Called once per nd-index.
     ///
-    /// -> op.deinit(handle) or
-    ///    op.deinit():
-    ///     Defaulted to no-op. If defined, each thread calls it. It is the mirror operation of op.init()
-    ///     and is often used to save some state or save the per-block scratch to a permanent location.
-    ///     The default no-op can be removed by defining the type Op::remove_default_deinit.
+    /// -> Deinit:
+    /// Sequence call (if Op::deinit_type is defined):
+    ///     Op::deinit_type{}(handle) or
+    ///     Op::deinit_type{}():
+    /// Sequence call (if Op::deinit_type is NOT defined):
+    ///     op.deinit(handle), or
+    ///     op.deinit(), or
+    ///     <default to no-op, if Op::remove_default_deinit is NOT defined>.
+    /// Each thread calls it once.
+    /// It is the mirror operation of init and is often used to save some state or
+    /// save the per-block scratch to a permanent location.
+    /// It is often explicitly skipped using Op::deinit_type = Empty.
     ///
     /// \param[in] options:
     ///     Runtime options.

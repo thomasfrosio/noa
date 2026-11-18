@@ -100,14 +100,14 @@ namespace noa {
              typename Index, usize N,
              typename Reduced = nd::AdaptorUnzip<>,
              typename Outputs = nd::AdaptorUnzip<>,
-             typename Operator, typename... Ts>
+             typename Op, typename... Ts>
         requires (not nt::reduce_axes<Outputs> and N >= 1 and N <= 6)
     void reduce_axes_iwise(
         const Shape<Index, N>& shape,
         Device device,
         Reduced&& reduced,
         Outputs&& outputs,
-        Operator&& op,
+        Op&& op,
         const ReduceIwiseOptions& options = {},
         Ts&&... attachments
     ) {
@@ -147,14 +147,14 @@ namespace noa {
     template<ReduceIwiseCompileOptions OPTIONS = ReduceIwiseCompileOptions{},
              typename Index, usize N,
              typename Reduced = nd::AdaptorUnzip<>,
-             typename Operator, typename... Ts>
+             typename Op, typename... Ts>
         requires (N >= 1 and N <= 6)
     void reduce_axes_iwise(
         const Shape<Index, N>& shape,
         Device device,
         Reduced&& reduced,
         ReduceAxes<N> reduce_axes,
-        Operator&& op,
+        Op&& op,
         const ReduceIwiseOptions& options = {},
         Ts&&... attachments
     ) {

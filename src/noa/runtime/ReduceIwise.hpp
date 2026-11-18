@@ -99,66 +99,106 @@ namespace noa {
     ///     The operator is forwarded to the backend and ultimately copied to each compute thread.
     ///     The implementation calls the operator in the following manner:
     ///
-    /// ->  op.init(handle, Vec{output-indices...}),
-    ///     op.init(handle, output-indices...),
-    ///     op.init(handle),
-    ///     op.init(Vec{output-indices...}),
-    ///     op.init(output-indices...) or
-    ///     op.init():
-    ///         Defaulted to no-op. If defined, each thread calls it when the reduction starts. Since operators are
-    ///         per-thread, this can be used to perform some initialization of the operator or of the per-block scratch,
-    ///         similar to iwise/ewise operators. The default no-op can be removed by defining the type Op::remove_default_init.
-    ///         Note that for reduce_iwise, output-indices is always zero, but they become more useful for the other
-    ///         reductions: reduce_axes_iwise, reduce_ewise, or reduce_axes_ewise.
+    /// -> Init:
+    /// Sequence call (if Operator::init_type is defined):
+    ///     Op::init_type{}(handle, Vec{output-indices...}), or
+    ///     Op::init_type{}(handle, output-indices...), or
+    ///     Op::init_type{}(handle), or
+    ///     Op::init_type{}(Vec{output-indices...}), or
+    ///     Op::init_type{}(output-indices...), or
+    ///     Op::init_type{}().
+    /// Sequence call (if Operator::init_type is NOT defined):
+    ///     op.init(handle, Vec{output-indices...}), or
+    ///     op.init(handle, output-indices...), or
+    ///     op.init(handle), or
+    ///     op.init(Vec{output-indices...}), or
+    ///     op.init(output-indices...), or
+    ///     op.init(), or
+    ///     <default to no-op, if Op::remove_default_init is NOT defined>
+    /// Each thread calls it when the reduction starts. Since operators are per-thread, this can be used to
+    /// perform some initialization of the operator or of the per-block scratch, similar to iwise/ewise operators.
+    /// It is often explicitly skipped using Op::init_type = Empty. Note that for reduce_iwise, output-indices
+    /// is always zero, but they become more useful for reduce_axes_iwise, reduce_ewise, or reduce_axes_ewise.
     ///
-    /// ->  op(handle, Vec{input-indices...}, reduced&...),
-    ///     op(handle, input-indices..., reduced&...),
-    ///     op(Vec{input-indices...}, reduced&...) or
-    ///     op(input-indices..., reduced&...):
-    ///         Main reduction step, called once per nd-index. The reduced values are initialized (using \p reduced) or
-    ///         already joined, and should be updated during this step. An empty adaptor can be passed to \p reduced,
-    ///         in which case no reduced values will be passed (an empty fuse adaptor will pass an empty tuple).
+    /// -> Call:
+    /// Sequence call (if Op::call_type is defined):
+    ///     Op::call_type{}(handle, Vec{input-indices...}, reduced&...), or
+    ///     Op::call_type{}(handle, input-indices..., reduced&...), or
+    ///     Op::call_type{}(Vec{input-indices...}, reduced&...), or
+    ///     Op::call_type{}(input-indices..., reduced&...).
+    /// Sequence call (if Op::call_type is NOT defined):
+    ///     op(handle, Vec{input-indices...}, reduced&...), or
+    ///     op(handle, input-indices..., reduced&...), or
+    ///     op(Vec{input-indices...}, reduced&...), or
+    ///     op(input-indices..., reduced&...).
+    /// Main reduction step, called once per nd-index. The reduced values are initialized (using \p reduced) or
+    /// already joined, and should be updated during this step. An empty adaptor can be passed to \p reduced,
+    /// in which case no reduced values will be passed (an empty fuse adaptor will pass an empty tuple).
     ///
-    /// ->  op.deinit(handle, Vec{output-indices...}),
-    ///     op.deinit(handle, output-indices...),
-    ///     op.deinit(handle),
-    ///     op.deinit(Vec{output-indices...}),
-    ///     op.deinit(output-indices...) or
-    ///     op.deinit():
-    ///         Defaulted to no-op. If defined, each thread calls it when its (partial) reduction ends.
-    ///         It is the mirror operation of op.init(...) and is often used to save some state or save the per-block
-    ///         scratch to a permanent location, similar to iwise- or ewise-operators. Importantly, the scratch becomes
-    ///         unavailable after this step. The default no-op can be removed by defining the type Op::remove_default_deinit.
+    /// -> Deinit:
+    /// Sequence call (if Op::deinit_type is defined):
+    ///     Op::deinit_type{}(handle, Vec{output-indices...}), or
+    ///     Op::deinit_type{}(handle, output-indices...), or
+    ///     Op::deinit_type{}(handle), or
+    ///     Op::deinit_type{}(Vec{output-indices...}), or
+    ///     Op::deinit_type{}(output-indices...), or
+    ///     Op::deinit_type{}().
+    /// Sequence call (if Op::deinit_type is NOT defined):
+    ///     op.deinit(handle, Vec{output-indices...}), or
+    ///     op.deinit(handle, output-indices...), or
+    ///     op.deinit(handle), or
+    ///     op.deinit(Vec{output-indices...}), or
+    ///     op.deinit(output-indices...), or
+    ///     op.deinit(), or
+    ///     <default to no-op, if Op::remove_default_deinit is NOT defined>.
+    /// Each thread calls it when its (partial) reduction ends. It is the mirror operation of init and
+    /// is often used to save some state or save the per-block scratch to a permanent location, similar to iwise-
+    /// or ewise-operators. Importantly, the scratch becomes unavailable after this step. It is often explicitly
+    /// skipped using Op::deinit_type = Empty.
     ///
-    /// ->  op.join(const reduced&..., reduced&...):
-    ///         To join the reduced values together. This is necessary for multithreaded/GPU reductions. Depending on the
-    ///         implementation, this may or may not be called. Similarly to the previous step, if an empty adaptor is
-    ///         passed to \p reduced, no reduced values (or two empty tuples) will be passed. In this case, join doesn't
-    ///         need to be defined and is defaulted to a no-op.
+    /// -> Join:
+    /// Sequence call (if Op::join_type is defined):
+    ///     Op::join_type{}(const reduced&..., reduced&...).
+    /// Sequence call (if Op::join_type is NOT defined):
+    ///     op.join(const reduced&..., reduced&...).
+    /// To join the reduced values together. This is necessary for multithreaded/GPU reductions. Depending on the
+    /// implementation, this may not be called. If an empty adaptor is passed to \p reduced, no reduced values
+    /// (or two empty tuples) will be passed. In this case, join is guaranteed to not be called and the operator does
+    /// not need to define it (or one may want to explicitly skip it using Op::join_type = Empty). It is often
+    /// explicitly set to Op::join_type = PlusEq.
+    /// Performance:
+    ///     Op::join_type triggers faster warp-level reductions if the reduced values are i32/u32 (CUDA) or integer/
+    ///     f32/f64 (SYCL), and if Op::join_type satisfies traits::warp_reduce_{add|min|max|bit_and|bit_or|bit_xor}.
+    ///     See ComputeHandle::warp_reduce for more details.
     ///
-    /// ->  op.post(const reduced&..., outputs&..., Vec{output-indices...}),
-    ///     op.post(const reduced&..., outputs&..., output-indices...) or
-    ///     op.post(const reduced&..., outputs&...):
-    ///         Defaulted to copy. If defined, it is called once per output element. This is called after the reduction
-    ///         and is meant as a post-processing step to transform the reduced value(s) into output value(s). As always,
-    ///         an empty adaptor to \p reduced or \p output can be passed, in which case no reduced/output values
-    ///         (or empty tuples) will be passed. If not defined, this defaults to a copy. As such, the following
-    ///         expression must be valid: ((outputs = static_cast<Outputs>(reduced)), ...).
-    ///         This default copy can be removed by defining the type Op::remove_default_post.
+    /// -> Post:
+    /// Sequence call (if Op::post_type is defined):
+    ///     Op::post_type{}(const reduced&..., outputs&..., Vec{output-indices...}), or
+    ///     Op::post_type{}(const reduced&..., outputs&..., output-indices...), or
+    ///     Op::post_type{}(const reduced&..., outputs&...).
+    /// Sequence call (if Op::post_type is NOT defined):
+    ///     op.post(const reduced&..., outputs&..., Vec{output-indices...}), or
+    ///     op.post(const reduced&..., outputs&..., output-indices...), or
+    ///     op.post(const reduced&..., outputs&...), or
+    ///     <default to copy ((outputs = static_cast<Outputs>(reduced)), ...), if Op::remove_default_post is NOT defined>
+    /// It is called once per output element. This is called after the reduction and is meant as a post-processing step
+    /// to transform the reduced value(s) into output value(s). As always, an empty adaptor to \p reduced or \p output
+    /// can be passed, in which case no reduced/output values (or empty tuples) will be passed. It is often defaulted
+    /// or explicitly set to Op::post_type = Copy.
     ///
     /// \param[in] options:
     ///     Runtime options.
     template<ReduceIwiseCompileOptions OPTIONS = ReduceIwiseCompileOptions{},
              typename Reduced = nd::AdaptorUnzip<>,
              typename Outputs = nd::AdaptorUnzip<>,
-             typename Operator, typename Index, usize N>
+             typename Op, typename Index, usize N>
     requires (N >= 1 and N <= 6)
     void reduce_iwise(
         const Shape<Index, N>& shape,
         Device device,
         Reduced&& reduced,
         Outputs&& outputs,
-        Operator&& op,
+        Op&& op,
         const ReduceIwiseOptions& options = {}
     ) {
         static_assert(nd::adaptor_decay<Outputs> or std::is_lvalue_reference_v<Outputs>,

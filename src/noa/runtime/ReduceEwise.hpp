@@ -59,23 +59,32 @@ namespace noa {
     ///     The operator is forwarded to the backend and ultimately copied to each compute thread.
     ///     The implementation calls the operator in the following manner:
     ///
-    /// ->  op.init(...): Same as reduce-iwise.
+    /// -> Init: Same as reduce-iwise.
     ///
-    /// ->  op(handle, inputs&..., reduced&...) or
-    ///     op(inputs&..., reduced&...):
-    ///         Main reduction step, called once per input element, according to the provided input and output adaptors.
-    ///         The reduced values are initialized (using \p reduced) or already joined, and should be updated during
-    ///         this step. An empty adaptor can be passed to \p reduced, in which case no reduced values will be passed
-    ///         (an empty fuse adaptor will pass an empty tuple).
+    /// -> Call:
+    /// Sequence call (if Op::call_type is defined):
+    ///     Op::call_type{}(handle, inputs&..., reduced&...), or
+    ///     Op::call_type{}(inputs&..., reduced&...).
+    /// Sequence call (if Op::call_type is NOT defined):
+    ///     op(handle, inputs&..., reduced&...), or
+    ///     op(inputs&..., reduced&...).
+    /// Main reduction step, called once per input element, according to the provided input and output adaptors.
+    /// The reduced values are initialized (using \p reduced) or already joined, and should be updated during
+    /// this step. An empty adaptor can be passed to \p reduced, in which case no reduced values will be passed
+    /// (an empty fuse adaptor will pass an empty tuple).
     ///
-    /// ->  op.deinit(...): Same as reduce-iwise.
+    /// -> Deinit: Same as reduce-iwise.
     ///
-    /// ->  op.join(reduced&..., reduced&...) or
-    ///     op(reduced&..., reduced&...):
-    ///         Same as reduce-iwise, except that it can default to operator(), which is useful for reductions
-    ///         where the input type(s) are the same as the reduced type(s).
+    /// -> Join:
+    /// Sequence call (if Op::join_type is defined):
+    ///      Op::join_type{}(reduced&..., reduced&...).
+    /// Sequence call (if Op::join_type is NOT defined):
+    ///     op.join(reduced&..., reduced&...), or
+    ///     op(reduced&..., reduced&...).
+    /// Same as reduce-iwise, except that it can default to operator(), which is useful
+    /// for reductions where the input type(s) are the same as the reduced type(s).
     ///
-    /// ->  op.post(...): Same as reduce-iwise.
+    /// -> Post: Same as reduce-iwise.
     template<ReduceEwiseCompileOptions OPTIONS = ReduceEwiseCompileOptions{},
              typename Inputs = nd::AdaptorUnzip<>,
              typename Reduced = nd::AdaptorUnzip<>,
