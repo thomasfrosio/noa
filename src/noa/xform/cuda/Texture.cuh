@@ -1,6 +1,6 @@
 #pragma once
-#include "noa/runtime/cuda/IncludeGuard.cuh"
-#include "noa/runtime/cuda/Allocators.hpp"
+#include "noa/runtime/gpu/IncludeGuard.cuh"
+#include "noa/runtime/gpu/Allocators.hpp"
 
 namespace noa::xform::cuda {
     /// Accessor interface and texture fetching used to interpolate data.

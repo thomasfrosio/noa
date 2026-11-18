@@ -1,6 +1,6 @@
 #include "noa/runtime/Allocator.hpp"
 #ifdef NOA_ENABLE_CUDA
-#   include "noa/runtime/cuda/Pointers.hpp"
+#   include "noa/runtime/gpu/Pointers.hpp"
 #endif
 
 namespace noa::inline types {

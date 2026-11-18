@@ -7,7 +7,7 @@
 
 #include "noa/runtime/cpu/Allocators.hpp"
 #if defined(NOA_ENABLE_CUDA)
-#   include "noa/runtime/cuda/Allocators.hpp"
+#   include "noa/runtime/gpu/Allocators.hpp"
 #endif
 
 #include "noa/runtime/Device.hpp"

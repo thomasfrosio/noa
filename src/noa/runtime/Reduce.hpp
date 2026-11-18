@@ -10,7 +10,7 @@
 
 #include "noa/runtime/cpu/Median.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/runtime/cuda/Median.cuh"
+#include "noa/runtime/gpu/Median.cuh"
 #endif
 
 namespace noa::details {

@@ -4,7 +4,7 @@
 
 #include "noa/runtime/cpu/Sort.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/runtime/cuda/Sort.cuh"
+#include "noa/runtime/gpu/Sort.cuh"
 #endif
 
 #include "noa/runtime/core/Accessor.hpp"

@@ -19,10 +19,10 @@
 #include "noa/runtime/Iwise.hpp"
 
 #ifdef NOA_ENABLE_CUDA
-#include "noa/runtime/cuda/Copy.cuh"
-#include "noa/runtime/cuda/Permute.cuh"
-#include "noa/runtime/cuda/Allocators.hpp"
-#include "noa/runtime/cuda/Pointers.hpp"
+#include "noa/runtime/gpu/Copy.cuh"
+#include "noa/runtime/gpu/Permute.cuh"
+#include "noa/runtime/gpu/Allocators.hpp"
+#include "noa/runtime/gpu/Pointers.hpp"
 #endif
 
 namespace noa::inline types {

@@ -39,15 +39,15 @@ list(APPEND TEST_SOURCES
 
 if (NOA_ENABLE_GPU)
     list(APPEND TEST_SOURCES
-        noa/runtime/cuda/TestRuntimeCUDAAlloc.cpp
-        noa/runtime/cuda/TestRuntimeCUDADevice.cpp
-        noa/runtime/cuda/TestRuntimeCUDAEwise.cpp
-        noa/runtime/cuda/TestRuntimeCUDAIwise.cpp
-        noa/runtime/cuda/TestRuntimeCUDAReduceAxesEwise.cpp
-        noa/runtime/cuda/TestRuntimeCUDAReduceAxesIwise.cpp
-        noa/runtime/cuda/TestRuntimeCUDAReduceEwise.cpp
-        noa/runtime/cuda/TestRuntimeCUDAReduceIwise.cpp
-        noa/runtime/cuda/TestRuntimeCUDAStream.cpp
-        noa/runtime/cuda/TestRuntimeCUDAVectorization.cpp
+        noa/runtime/gpu/TestRuntimeGPUAlloc.cpp
+        noa/runtime/gpu/TestRuntimeGPUDevice.cpp
+        noa/runtime/gpu/TestRuntimeGPUEwise.cpp
+        noa/runtime/gpu/TestRuntimeGPUIwise.cpp
+        noa/runtime/gpu/TestRuntimeGPUReduceAxesEwise.cpp
+        noa/runtime/gpu/TestRuntimeGPUReduceAxesIwise.cpp
+        noa/runtime/gpu/TestRuntimeGPUReduceEwise.cpp
+        noa/runtime/gpu/TestRuntimeGPUReduceIwise.cpp
+        noa/runtime/gpu/TestRuntimeGPUStream.cpp
+        noa/runtime/gpu/TestRuntimeGPUVectorization.cpp
     )
 endif ()

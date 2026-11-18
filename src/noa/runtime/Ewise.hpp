@@ -7,7 +7,7 @@
 
 #include "noa/runtime/cpu/Ewise.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/runtime/cuda/Ewise.cuh"
+#include "noa/runtime/gpu/Ewise.cuh"
 #endif
 
 namespace noa {

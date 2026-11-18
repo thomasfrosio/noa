@@ -1,6 +1,6 @@
 #pragma once
 
-#include "noa/runtime/cuda/Stream.hpp"
+#include "noa/runtime/gpu/Stream.hpp"
 #include "noa/fft/cuda/Plan.hpp"
 
 namespace noa::fft::cuda {

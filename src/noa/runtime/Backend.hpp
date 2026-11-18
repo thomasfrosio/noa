@@ -3,7 +3,7 @@
 #include "noa/base/Config.hpp"
 
 #ifdef NOA_ENABLE_CUDA
-#include "noa/runtime/cuda/Constants.hpp"
+#include "noa/runtime/gpu/Constants.hpp"
 #endif
 
 namespace noa::gpu {

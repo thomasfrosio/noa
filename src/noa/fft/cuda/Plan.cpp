@@ -4,8 +4,8 @@
 #include <ranges>
 
 #include "noa/base/Strings.hpp"
-#include "noa/runtime/cuda/Allocators.hpp"
-#include "noa/runtime/cuda/Error.hpp"
+#include "noa/runtime/gpu/Allocators.hpp"
+#include "noa/runtime/gpu/Error.hpp"
 #include "noa/fft/core/Transform.hpp"
 #include "noa/fft/cuda/Plan.hpp"
 

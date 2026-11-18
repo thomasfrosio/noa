@@ -7,7 +7,7 @@
 
 #include "noa/runtime/cpu/ReduceAxesIwise.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/runtime/cuda/ReduceAxesIwise.cuh"
+#include "noa/runtime/gpu/ReduceAxesIwise.cuh"
 #endif
 
 #include "noa/runtime/ReduceIwise.hpp"

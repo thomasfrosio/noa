@@ -4,7 +4,7 @@
 
 #include "noa/runtime/cpu/Blas.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/runtime/cuda/Blas.hpp"
+#include "noa/runtime/gpu/Blas.hpp"
 #endif
 
 #include "noa/runtime/Array.hpp"

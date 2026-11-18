@@ -9,9 +9,9 @@
 #include "noa/xform/Traits.hpp"
 
 #ifdef NOA_ENABLE_CUDA
-#include "noa/runtime/cuda/IncludeGuard.cuh"
-#include "noa/runtime/cuda/Allocators.hpp"
-#include "noa/runtime/cuda/Copy.cuh"
+#include "noa/runtime/gpu/IncludeGuard.cuh"
+#include "noa/runtime/gpu/Allocators.hpp"
+#include "noa/runtime/gpu/Copy.cuh"
 #include "noa/xform/cuda/Allocators.hpp"
 #include "noa/xform/cuda/Texture.cuh"
 namespace noa::xform::details {

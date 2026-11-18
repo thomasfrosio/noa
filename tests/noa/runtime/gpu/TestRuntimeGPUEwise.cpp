@@ -1,0 +1,327 @@
+#include <noa/base/Operators.hpp>
+#include <noa/runtime/gpu/Allocators.hpp>
+#include <noa/runtime/gpu/Ewise.hpp>
+
+#include "Catch.hpp"
+#include "Utils.hpp"
+
+namespace {
+    using namespace noa::types;
+
+    // struct Tracked {
+    //     Vec<i32, 2> count{};
+    //      constexpr Tracked() = default;
+    //      constexpr Tracked(const Tracked& t) : count(t.count) { count[0] += 1; }
+    //      constexpr Tracked(Tracked&& t) noexcept : count(t.count) { count[1] += 1; }
+    // };
+    //
+    // struct Op {
+    //     Tracked t1{};
+    //     constexpr void operator()(const Tracked& t0, Vec<i32, 2>& o0, Vec<i32, 2>& o1) const {
+    //         o0 = t0.count;
+    //         o1 = t1.count;
+    //     }
+    // };
+
+    struct Op1 {
+        using enable_vectorization = bool;
+        constexpr void operator()(const f32& i0, const f32& i1, Tuple<f32&, i32&> o) const {
+            auto& [lhs, rhs] = o;
+            lhs = i0 + i1;
+            rhs = static_cast<i32>(i0 - i1);
+        };
+    };
+
+    using noa::Accessor;
+    using noa::AccessorValue;
+}
+
+TEST_CASE("runtime::gpu::ewise") {
+    using namespace noa::types;
+    using noa::gpu::ewise;
+    using noa::gpu::EwiseConfig;
+    using noa::gpu::Stream;
+    using noa::gpu::Device;
+    using noa::gpu::AllocatorUnified;
+
+    auto stream = Stream(Device::current(), Stream::ASYNC, false);
+
+    // SECTION("check operator") {
+    //     constexpr auto shape = Shape4{1, 1, 1, 1};
+    //     auto value = AllocatorUnified::allocate<Vec<i32, 2>>(2, stream);
+    //     Tuple<AccessorValue<Tracked>> input{};
+    //     auto output_contiguous = noa::make_tuple(
+    //         Accessor<Vec<i32, 2>, 4, isize>(value.get() + 0, shape.strides()),
+    //         Accessor<Vec<i32, 2>, 4, isize>(value.get() + 1, shape.strides()));
+    //
+    //     auto op0 = Op{};
+    //     auto op1 = Op{};
+    //
+    //     // Operator is copied once to the kernel
+    //     ewise(shape, op0, input, output_contiguous, stream);
+    //     stream.synchronize();
+    //     REQUIRE((value[0][0] == 2 and value[0][1] == 0));
+    //     REQUIRE((value[1][0] == 1 and value[1][1] == 0));
+    //
+    //     ewise(shape, std::move(op0), std::move(input), output_contiguous, stream);
+    //     stream.synchronize();
+    //     REQUIRE((value[0][0] == 1 and value[0][1] == 1));
+    //     REQUIRE((value[1][0] == 1 and value[1][1] == 0));
+    //
+    //     // Create a non-contiguous case by broadcasting.
+    //     auto shape_strided = Shape4{1, 1, 2, 1};
+    //     auto output_strided = noa::make_tuple(
+    //         Accessor<Vec<i32, 2>, 4, isize>(value.get() + 0, Strides4{}),
+    //         Accessor<Vec<i32, 2>, 4, isize>(value.get() + 1, Strides4{}));
+    //
+    //     ewise(shape_strided, op1, input, output_strided, stream);
+    //     stream.synchronize();
+    //     REQUIRE((value[0][0] == 2 and value[0][1] == 1));
+    //     REQUIRE((value[1][0] == 1 and value[1][1] == 0));
+    //
+    //     ewise(shape_strided, std::move(op1), std::move(input), output_strided, stream);
+    //     stream.synchronize();
+    //     REQUIRE((value[0][0] == 1 and value[0][1] == 2));
+    //     REQUIRE((value[1][0] == 1 and value[1][1] == 0));
+    // }
+
+    SECTION("simply fill and copy") {
+        const auto shape = test::random_shape_batched<isize, 4>(3);
+        const auto elements = shape.n_elements();
+        const auto value = 3.1415;
+
+        const auto buffer = AllocatorUnified::allocate<f64>(elements, AllocatorUnified::STREAM, stream);
+        const auto expected = AllocatorUnified::allocate<f64>(elements, AllocatorUnified::STREAM, stream);
+        std::fill_n(expected.get(), elements, value);
+
+        {
+            // This is not vectorized.
+            const auto input = noa::make_tuple(Accessor<f64, 4>(buffer.get(), shape.strides()));
+            ewise(shape, [value]NOA_DEVICE(f64& i) { i = value; }, input, Tuple{}, stream);
+            stream.synchronize();
+            REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 1e-8));
+
+            std::fill_n(buffer.get(), elements, 0.);
+
+            // This is vectorized.
+            ewise(shape, noa::Fill{value}, Tuple{}, input, stream);
+            stream.synchronize();
+            REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 1e-8));
+        }
+
+        {
+            // This is vectorized.
+            const auto input = noa::make_tuple(Accessor<const f64, 4>(buffer.get(), shape.strides()));
+            const auto output = noa::make_tuple(Accessor<f64, 4>(expected.get(), shape.strides()));
+
+            std::fill_n(expected.get(), elements, 0.);
+            ewise(shape, noa::Copy{}, input, output, stream);
+            stream.synchronize();
+            REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 1e-8));
+        }
+
+        {
+            // Same as above, but not vectorized.
+            const auto input = noa::make_tuple(Accessor<const f64, 4>(buffer.get(), shape.strides()));
+            const auto output = noa::make_tuple(Accessor<f64, 4>(expected.get(), shape.strides()));
+
+            std::fill_n(expected.get(), elements, 0.);
+
+            using config = EwiseConfig<true, true>;
+            ewise<config>(shape, []NOA_DEVICE(Tuple<const f64&> i, Tuple<f64&> o) { o[Tag<0>{}] = i[Tag<0>{}]; }, input, output, stream);
+            stream.synchronize();
+            REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 1e-8));
+        }
+
+        {
+            constexpr auto input = noa::make_tuple(AccessorValue<const f64>(1.1));
+            const auto output = noa::make_tuple(Accessor<f64, 4>(buffer.get(), shape.strides()));
+
+            using config = EwiseConfig<true, false>;
+            ewise<config>(shape, []NOA_DEVICE(Tuple<const f64&> i, f64& o) { o = i[Tag<0>{}]; }, input, output, stream);
+            stream.synchronize();
+            REQUIRE(test::allclose_abs(buffer.get(), 1.1, elements, 1e-8));
+        }
+    }
+
+    SECTION("more complex example") {
+        const auto shape = test::random_shape_batched<isize, 4>(3);
+        const auto n_elements = shape.n_elements();
+
+        const auto b0 = AllocatorUnified::allocate<f32>(n_elements, AllocatorUnified::STREAM, stream);
+        const auto b1 = AllocatorUnified::allocate<f64>(n_elements, AllocatorUnified::STREAM, stream);
+        const auto b2 = AllocatorUnified::allocate<f16>(n_elements, AllocatorUnified::STREAM, stream);
+        test::randomize(b0.get(), n_elements, test::Randomizer<f32>(-10, 10));
+
+        // Generate expected.
+        const auto e1 = AllocatorUnified::allocate<f64>(n_elements, AllocatorUnified::STREAM, stream);
+        const auto e2 = AllocatorUnified::allocate<f16>(n_elements, AllocatorUnified::STREAM, stream);
+        for (size_t i{}; i < static_cast<size_t>(n_elements); ++i) {
+            e1[i] = static_cast<f64>(b0[i] + static_cast<f32>(7));
+            e2[i] = static_cast<f16>(e1[i]);
+        }
+
+        const auto input = noa::make_tuple(
+            noa::AccessorRestrictContiguous<f32, 4, i32>(b0.get(), shape.as<i32>().strides()),
+            AccessorValue<const i32>(7));
+        const auto output = noa::make_tuple(
+            Accessor<f64, 4>(b1.get(), shape.strides()),
+            Accessor<f16, 4>(b2.get(), shape.strides())
+        );
+
+        // lhs+rhs->output, lhs->zero
+        const auto op = []NOA_DEVICE(Tuple<f32&, const i32&> i, f64& o0, f16& o1) {
+            auto& [lhs, rhs] = i;
+            o0 = static_cast<f64>(lhs + static_cast<f32>(rhs));
+            o1 = static_cast<f16>(o0);
+            lhs = 0;
+        };
+
+        ewise<EwiseConfig<true, false>>(shape, op, input, output, stream);
+        stream.synchronize();
+
+        REQUIRE(test::allclose_abs(b0.get(), 0.f, n_elements, 1e-8));
+        REQUIRE(test::allclose_abs(b1.get(), e1.get(), n_elements, 1e-8));
+        REQUIRE(test::allclose_abs(b2.get(), e2.get(), n_elements, 1e-2));
+    }
+
+    SECTION("more complex example, vectorized") {
+        const auto shape = test::random_shape_batched<isize, 4>(3);
+        const auto strides_u32 = shape.as<u32>().strides();
+        const auto n_elements = shape.n_elements();
+
+        const auto b0 = AllocatorUnified::allocate<f32>(n_elements, AllocatorUnified::STREAM, stream);
+        const auto b1 = AllocatorUnified::allocate<f32>(n_elements, AllocatorUnified::STREAM, stream);
+        const auto b2 = AllocatorUnified::allocate<f32>(n_elements, AllocatorUnified::STREAM, stream);
+        const auto b3 = AllocatorUnified::allocate<i32>(n_elements, AllocatorUnified::STREAM, stream);
+        test::randomize(b0.get(), n_elements, test::Randomizer<f32>(-10, 10));
+        test::randomize(b1.get(), n_elements, test::Randomizer<f32>(-10, 10));
+
+        // Generate expected.
+        const auto e2 = AllocatorUnified::allocate<f32>(n_elements, AllocatorUnified::STREAM, stream);
+        const auto e3 = AllocatorUnified::allocate<i32>(n_elements, AllocatorUnified::STREAM, stream);
+        for (size_t i{}; i < static_cast<size_t>(n_elements); ++i) {
+            e2[i] = b0[i] + b1[i];
+            e3[i] = static_cast<i32>(b0[i] - b1[i]);
+        }
+
+        const auto input = noa::make_tuple(
+            noa::AccessorRestrictContiguous<const f32, 4, u32>(b0.get(), strides_u32),
+            noa::AccessorRestrictContiguous<const f32, 4, u32>(b1.get(), strides_u32)
+        );
+        const auto output = noa::make_tuple(
+            noa::AccessorRestrictContiguous<f32, 4, u32>(b2.get(), strides_u32),
+            noa::AccessorRestrictContiguous<i32, 4, u32>(b3.get(), strides_u32)
+        );
+
+        ewise<EwiseConfig<false, true>>(shape, Op1{}, input, output, stream); // expected vec size of 4
+        stream.synchronize();
+
+        REQUIRE(test::allclose_abs(b2.get(), e2.get(), n_elements, 1e-6));
+        REQUIRE(test::allclose_abs(b3.get(), e3.get(), n_elements, 1e-6));
+    }
+}
+
+TEMPLATE_TEST_CASE("runtime::gpu::ewise - copy", "", i8, i32, c16, c64) {
+    using namespace noa::types;
+    using noa::gpu::ewise;
+    using noa::gpu::EwiseConfig;
+    using noa::gpu::Stream;
+    using noa::gpu::Device;
+    using noa::gpu::AllocatorUnified;
+    using value_t = TestType;
+
+    auto stream = Stream(Device::current(), Stream::ASYNC, false);
+
+    const auto size_range = Pair{32, 64};
+    const auto batch_range = Pair{1, 4};
+    const auto shapes = noa::make_tuple(
+        test::random_shape<isize, 2>(1, {.size_range = size_range}),
+        test::random_shape<isize, 3>(1, {.size_range = size_range}),
+        test::random_shape<isize, 3>(2, {.size_range = size_range}),
+        test::random_shape<isize, 4>(1, {.size_range = size_range}),
+        test::random_shape<isize, 4>(2, {.size_range = size_range}),
+        test::random_shape<isize, 5>(1, {.size_range = size_range}),
+        test::random_shape<isize, 5>(2, {.size_range = size_range}),
+        test::random_shape<isize, 6>(1, {.size_range = size_range}),
+        test::random_shape<isize, 6>(2, {.size_range = size_range}),
+        test::random_shape<isize, 1>(1, {.size_range = size_range, .batch_range = batch_range}),
+        test::random_shape<isize, 2>(2, {.size_range = size_range, .batch_range = batch_range}),
+        test::random_shape<isize, 3>(3, {.size_range = size_range, .batch_range = batch_range}),
+        test::random_shape<isize, 4>(3, {.size_range = size_range, .batch_range = batch_range}),
+        test::random_shape<isize, 5>(3, {.size_range = size_range, .batch_range = batch_range}),
+        test::random_shape<isize, 6>(3, {.size_range = size_range, .batch_range = batch_range})
+    );
+    shapes.for_each([&]<usize N>(const Shape<isize, N>& shape) {
+        const auto n_elements = shape.n_elements();
+
+        const auto input_buffer = AllocatorUnified::allocate<value_t>(n_elements, AllocatorUnified::DEVICE, stream);
+        const auto output_buffer = AllocatorUnified::allocate<value_t>(n_elements, AllocatorUnified::DEVICE, stream);
+        test::randomize(input_buffer.get(), n_elements, test::Randomizer<value_t>(-128, 127));
+
+        auto input = noa::make_tuple(Accessor<const value_t, N>(input_buffer.get(), shape.strides()));
+        auto output = noa::make_tuple(Accessor<value_t, N>(output_buffer.get(), shape.strides()));
+
+        ewise(shape, noa::Copy{}, input, output, stream);
+        stream.synchronize();
+        REQUIRE(test::allclose_abs(input_buffer.get(), output_buffer.get(), n_elements, 1e-6));
+    });
+}
+
+TEST_CASE("runtime::gpu::ewise - multi-grid - 2d") {
+    using namespace noa::types;
+    using namespace noa::gpu;
+
+    const auto shape = Shape4{100, 1, 1, 512};
+    const auto n_elements = shape.n_elements();
+
+    auto stream = Stream(Device::current(), Stream::DEFAULT, false);
+    const auto buffer = AllocatorUnified::allocate<f32>(n_elements, AllocatorUnified::DEVICE, stream);
+    test::fill(buffer.get(), n_elements, 0.f);
+
+    const auto original = Span(buffer.get(), shape);
+
+    {
+        const auto strided = original.subregion(Slice{0, shape[0], 2});
+        const auto accessors = noa::make_tuple(Accessor<f32, 4>(strided.get(), strided.strides_full()));
+        ewise(strided.shape(), []NOA_DEVICE(f32& e){ e += 1; }, accessors, Tuple{}, stream);
+        stream.synchronize();
+    }
+    {
+        const auto strided = original.subregion(Slice{1, shape[0], 2});
+        const auto accessors = noa::make_tuple(Accessor<f32, 4>(strided.get(), strided.strides_full()));
+        ewise(strided.shape(), []NOA_DEVICE(f32& e){ e += 1; }, accessors, Tuple{}, stream);
+        stream.synchronize();
+    }
+
+    stream.synchronize();
+    REQUIRE(test::allclose_abs(buffer.get(), 1.f, n_elements, 1e-8));
+}
+
+TEST_CASE("runtime::gpu::ewise - multi-grid - 4d") {
+    using namespace noa::types;
+    using namespace noa::gpu;
+
+    const auto shape = Shape4{1, 250'000, 1, 512};
+    const auto n_elements = shape.n_elements();
+
+    auto stream = Stream(Device::current(), Stream::DEFAULT, false);
+    const auto buffer = AllocatorUnified::allocate<f32>(n_elements, AllocatorUnified::DEVICE, stream);
+    test::fill(buffer.get(), n_elements, 0.f);
+
+    const auto original = Span(buffer.get(), shape);
+
+    {
+        const auto strided = original.subregion(Full{}, Slice{0, shape[1], 2});
+        const auto accessors = noa::make_tuple(Accessor<f32, 4>(strided.get(), strided.strides_full()));
+        ewise(strided.shape(), []NOA_DEVICE(f32& e){ e += 1; }, accessors, Tuple{}, stream);
+    }
+    {
+        const auto strided = original.subregion(Full{}, Slice{1, shape[1], 2});
+        const auto accessors = noa::make_tuple(Accessor<f32, 4>(strided.get(), strided.strides_full()));
+        ewise(strided.shape(), []NOA_DEVICE(f32& e){ e += 1; }, accessors, Tuple{}, stream);
+    }
+
+    stream.synchronize();
+    REQUIRE(test::allclose_abs(buffer.get(), 1.f, n_elements, 1e-8));
+}

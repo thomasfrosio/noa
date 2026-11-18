@@ -5,8 +5,8 @@
 #include "noa/base/Complex.hpp"
 #include "noa/runtime/core/Shape.hpp"
 
-#include "noa/runtime/cuda/Device.hpp"
-#include "noa/runtime/cuda/Stream.hpp"
+#include "noa/runtime/gpu/Device.hpp"
+#include "noa/runtime/gpu/Stream.hpp"
 #include "noa/fft/core/Transform.hpp"
 
 // TODO Add f16/c16 support. https://docs.nvidia.com/cuda/cufft/index.html#half-precision-transforms

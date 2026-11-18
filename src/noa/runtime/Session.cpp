@@ -5,7 +5,7 @@
 #ifdef NOA_ENABLE_CUDA
 #include <cstdlib>
 #include <cuda.h>
-#include "noa/runtime/cuda/Blas.hpp"
+#include "noa/runtime/gpu/Blas.hpp"
 #endif
 
 #include "noa/base/Strings.hpp"

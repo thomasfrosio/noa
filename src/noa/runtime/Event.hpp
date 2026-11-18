@@ -8,7 +8,7 @@
 
 #include "noa/runtime/cpu/Event.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/runtime/cuda/Event.hpp"
+#include "noa/runtime/gpu/Event.hpp"
 #else
 namespace noa::gpu {
     class Event {

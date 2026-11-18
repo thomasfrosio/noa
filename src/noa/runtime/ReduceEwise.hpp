@@ -7,9 +7,9 @@
 
 #include "noa/runtime/cpu/ReduceEwise.hpp"
 #ifdef NOA_ENABLE_CUDA
-#include "noa/runtime/cuda/Allocators.hpp"
-#include "noa/runtime/cuda/Copy.cuh"
-#include "noa/runtime/cuda/ReduceEwise.cuh"
+#include "noa/runtime/gpu/Allocators.hpp"
+#include "noa/runtime/gpu/Copy.cuh"
+#include "noa/runtime/gpu/ReduceEwise.cuh"
 #endif
 
 namespace noa {

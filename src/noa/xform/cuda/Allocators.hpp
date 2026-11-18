@@ -1,9 +1,9 @@
 #pragma once
 
 #include "noa/base/Tuple.hpp"
-#include "noa/runtime/cuda/Error.hpp"
+#include "noa/runtime/gpu/Error.hpp"
 #include "noa/runtime/core/Border.hpp"
-#include "noa/runtime/cuda/Allocators.hpp"
+#include "noa/runtime/gpu/Allocators.hpp"
 #include "noa/xform/core/Interp.hpp"
 
 namespace noa::xform::cuda {
