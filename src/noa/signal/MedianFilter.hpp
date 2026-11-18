@@ -1,6 +1,7 @@
 #pragma once
 
 #include "noa/runtime/Array.hpp"
+#include "noa/runtime/Iwise.hpp"
 #include "noa/signal/core/Utils.hpp"
 
 // TODO permute rightmost, preserving groups (B..)/(((D)H)W)
