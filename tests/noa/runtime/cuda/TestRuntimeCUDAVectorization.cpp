@@ -1,13 +1,13 @@
 #include <noa/runtime/core/Accessor.hpp>
 #include <noa/runtime/cpu/Allocators.hpp>
 #include <noa/runtime/cuda/Pointers.hpp>
-#include <noa/runtime/cuda/Utils.cuh>
+#include <noa/runtime/cuda/Utils.hpp>
 
 #include "Catch.hpp"
 
-TEST_CASE("runtime::cuda::ewise vectorization") {
+TEST_CASE("runtime::gpu::ewise vectorization") {
     using namespace noa::types;
-    using namespace noa::cuda;
+    using namespace noa::gpu;
     using noa::Accessor;
     using noa::AccessorValue;
 

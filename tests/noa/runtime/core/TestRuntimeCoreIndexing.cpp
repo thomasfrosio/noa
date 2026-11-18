@@ -513,17 +513,17 @@ TEST_CASE("runtime::core::Subregion") {
     subregion = noa::Subregion(Ellipsis{}, 5, 2, Full<4>{}).extract_from(shape, strides, offset);
     REQUIRE(subregion.shape == Shape<i64, 6>{1, 1, 12, 13, 14, 15});
     REQUIRE(subregion.strides == strides);
-    REQUIRE(subregion.offset == offset + offset_at(strides, 5, 2));
+    REQUIRE(subregion.offset == offset + static_cast<usize>(offset_at(strides, 5, 2)));
 
     subregion = noa::Subregion(Ellipsis{}, 5, 2).extract_from(shape, strides, offset);
     REQUIRE(subregion.shape == Shape<i64, 6>{10, 11, 12, 13, 1, 1});
     REQUIRE(subregion.strides == strides);
-    REQUIRE(subregion.offset == offset + offset_at(strides, 0, 0, 0, 0, 5, 2));
+    REQUIRE(subregion.offset == offset + static_cast<usize>(offset_at(strides, 0, 0, 0, 0, 5, 2)));
 
     subregion = noa::Subregion(Slice{5, 20}, Full{}, Slice{2, 5}, Slices<2>{.start = {3, 4}, .end = {10, 10}}).extract_from(shape, strides, offset);
     REQUIRE(subregion.shape == Shape<i64, 6>{5, 11, 3, 7, 6, 15});
     REQUIRE(subregion.strides == strides);
-    REQUIRE(subregion.offset == offset + offset_at(strides, 5, 0, 2, 3, 4, 0));
+    REQUIRE(subregion.offset == offset + static_cast<usize>(offset_at(strides, 5, 0, 2, 3, 4, 0)));
 }
 
 TEST_CASE("runtime::core::collapse") {

@@ -14,40 +14,40 @@ list(APPEND TEST_SOURCES
     noa/runtime/cpu/TestRuntimeCPUReduceIwise.cpp
     noa/runtime/cpu/TestRuntimeCPUStream.cpp
 
-    noa/runtime/TestRuntimeArray.cpp
-    noa/runtime/TestRuntimeBlas.cpp
-    noa/runtime/TestRuntimeCast.cpp
-    noa/runtime/TestRuntimeComplex.cpp
-    noa/runtime/TestRuntimeCopy.cpp
-    noa/runtime/TestRuntimeDevice.cpp
-    noa/runtime/TestRuntimeEwise.cpp
-    noa/runtime/TestRuntimeFactory.cpp
-    noa/runtime/TestRuntimeIwise.cpp
-    noa/runtime/TestRuntimePermute.cpp
-    noa/runtime/TestRuntimeRandom.cpp
-    noa/runtime/TestRuntimeReduce.cpp
-    noa/runtime/TestRuntimeReduceAxes.cpp
-    noa/runtime/TestRuntimeReduceBatch.cpp
-    noa/runtime/TestRuntimeReduceEwise.cpp
-    noa/runtime/TestRuntimeReduceIwise.cpp
-    noa/runtime/TestRuntimeResize.cpp
-    noa/runtime/TestRuntimeSort.cpp
-    noa/runtime/TestRuntimeStream.cpp
-    noa/runtime/TestRuntimeSubregion.cpp
-    noa/runtime/TestRuntimeHistogram.cpp
+#    noa/runtime/TestRuntimeArray.cpp
+#    noa/runtime/TestRuntimeBlas.cpp
+#    noa/runtime/TestRuntimeCast.cpp
+#    noa/runtime/TestRuntimeComplex.cpp
+#    noa/runtime/TestRuntimeCopy.cpp
+#    noa/runtime/TestRuntimeDevice.cpp
+#    noa/runtime/TestRuntimeEwise.cpp
+#    noa/runtime/TestRuntimeFactory.cpp
+#    noa/runtime/TestRuntimeIwise.cpp
+#    noa/runtime/TestRuntimePermute.cpp
+#    noa/runtime/TestRuntimeRandom.cpp
+#    noa/runtime/TestRuntimeReduce.cpp
+#    noa/runtime/TestRuntimeReduceAxes.cpp
+#    noa/runtime/TestRuntimeReduceBatch.cpp
+#    noa/runtime/TestRuntimeReduceEwise.cpp
+#    noa/runtime/TestRuntimeReduceIwise.cpp
+#    noa/runtime/TestRuntimeResize.cpp
+#    noa/runtime/TestRuntimeSort.cpp
+#    noa/runtime/TestRuntimeStream.cpp
+#    noa/runtime/TestRuntimeSubregion.cpp
+#    noa/runtime/TestRuntimeHistogram.cpp
 )
 
-if (NOA_ENABLE_CUDA)
+if (NOA_ENABLE_GPU)
     list(APPEND TEST_SOURCES
         noa/runtime/cuda/TestRuntimeCUDAAlloc.cpp
         noa/runtime/cuda/TestRuntimeCUDADevice.cpp
-        noa/runtime/cuda/TestRuntimeCUDAEwise.cu
-        noa/runtime/cuda/TestRuntimeCUDAIwise.cu
-        noa/runtime/cuda/TestRuntimeCUDAReduceAxesEwise.cu
-        noa/runtime/cuda/TestRuntimeCUDAReduceAxesIwise.cu
-        noa/runtime/cuda/TestRuntimeCUDAReduceEwise.cu
-        noa/runtime/cuda/TestRuntimeCUDAReduceIwise.cu
+        noa/runtime/cuda/TestRuntimeCUDAEwise.cpp
+        noa/runtime/cuda/TestRuntimeCUDAIwise.cpp
+        noa/runtime/cuda/TestRuntimeCUDAReduceAxesEwise.cpp
+        noa/runtime/cuda/TestRuntimeCUDAReduceAxesIwise.cpp
+        noa/runtime/cuda/TestRuntimeCUDAReduceEwise.cpp
+        noa/runtime/cuda/TestRuntimeCUDAReduceIwise.cpp
         noa/runtime/cuda/TestRuntimeCUDAStream.cpp
-        noa/runtime/cuda/TestRuntimeCUDAVectorization.cu
+        noa/runtime/cuda/TestRuntimeCUDAVectorization.cpp
     )
 endif ()

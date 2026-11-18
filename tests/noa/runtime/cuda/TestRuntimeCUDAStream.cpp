@@ -34,7 +34,7 @@ namespace {
     static_assert(not shareable_using_share<TestCUDANonShareable>);
 }
 
-TEST_CASE("runtime::cuda::Stream") {
+TEST_CASE("runtime::gpu::Stream") {
     const std::shared_ptr resource = std::make_unique<float[]>(1);
     REQUIRE(resource.use_count() == 1);
     const TestCUDAShareable shareable{resource};
@@ -42,10 +42,16 @@ TEST_CASE("runtime::cuda::Stream") {
     const TestCUDANonShareable non_shareable{resource};
     REQUIRE(resource.use_count() == 3);
 
+    using namespace noa::gpu;
+
     // In this example, the stream is immediately calling the callback...
-    using namespace noa::cuda;
-    auto stream = Stream(Device(0));
+    auto stream = Stream(Device(0), Stream::ASYNC, true);
     auto event = Event();
+
+    // First record an event.
+    // Without this, in SYCL, the stream may know that nothing has been enqueued, thus that
+    // enqueue_attach calls can be ignored. While correct, this would mess with the registry counts below.
+    event.record(stream);
 
     stream.enqueue_attach(resource); // adds 1 to registry
     REQUIRE(resource.use_count() == 3 + 1);

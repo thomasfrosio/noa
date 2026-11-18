@@ -1,5 +1,5 @@
 #include <noa/runtime/core/Accessor.hpp>
-#include <noa/runtime/cuda/ReduceIwise.cuh>
+#include <noa/runtime/cuda/ReduceIwise.hpp>
 #include <noa/runtime/cuda/Allocators.hpp>
 
 #include "Catch.hpp"
@@ -34,15 +34,15 @@ namespace {
     };
 }
 
-TEST_CASE("runtime::cuda::reduce_iwise") {
+TEST_CASE("runtime::gpu::reduce_iwise") {
     using namespace noa::types;
-    using noa::cuda::reduce_iwise;
-    using noa::cuda::ReduceIwiseConfig;
-    using noa::cuda::Stream;
-    using noa::cuda::Device;
-    using noa::cuda::AllocatorManaged;
+    using noa::gpu::reduce_iwise;
+    using noa::gpu::ReduceIwiseConfig;
+    using noa::gpu::Stream;
+    using noa::gpu::Device;
+    using noa::gpu::AllocatorUnified;
 
-    Stream stream(Device::current());
+    auto stream = Stream(Device::current(), Stream::ASYNC, false);
 
     const Tuple shapes = noa::make_tuple(
         Shape1{2451}, Shape1{524289},
@@ -55,9 +55,9 @@ TEST_CASE("runtime::cuda::reduce_iwise") {
     shapes.for_each([&]<usize N>(const Shape<isize, N>& shape) {
         INFO("shape=" << shape);
         const auto n_elements = shape.n_elements();
-        const auto b0 = AllocatorManaged::allocate<f64>(n_elements, stream);
-        const auto b1 = AllocatorManaged::allocate<f64>(1, stream);
-        const auto b2 = AllocatorManaged::allocate<Pair<f64, i32>>(1, stream);
+        const auto b0 = AllocatorUnified::allocate<f64>(n_elements, AllocatorUnified::DEVICE, stream);
+        const auto b1 = AllocatorUnified::allocate<f64>(1, AllocatorUnified::DEVICE, stream);
+        const auto b2 = AllocatorUnified::allocate<Pair<f64, i32>>(1, AllocatorUnified::DEVICE, stream);
         test::randomize(b0.get(), n_elements, test::Randomizer<f64>(-5, 10));
 
         const i32 expected_index = static_cast<i32>(test::random_value(isize{}, n_elements - 1));

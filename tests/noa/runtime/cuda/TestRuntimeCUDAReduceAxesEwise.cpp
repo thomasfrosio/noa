@@ -1,20 +1,20 @@
-#include <noa/runtime/cuda/ReduceAxesEwise.cuh>
+#include <noa/runtime/cuda/ReduceAxesEwise.hpp>
 #include <noa/runtime/cuda/Allocators.hpp>
 
 #include "Catch.hpp"
 #include "Utils.hpp"
 
-TEST_CASE("runtime::cuda::reduce_axes_ewise") {
+TEST_CASE("runtime::gpu::reduce_axes_ewise") {
     using namespace noa::types;
-    using noa::cuda::reduce_axes_ewise;
-    using noa::cuda::ReduceEwiseConfig;
-    using noa::cuda::Stream;
-    using noa::cuda::Device;
-    using noa::cuda::AllocatorManaged;
+    using noa::gpu::reduce_axes_ewise;
+    using noa::gpu::ReduceEwiseConfig;
+    using noa::gpu::Stream;
+    using noa::gpu::Device;
+    using noa::gpu::AllocatorUnified;
     using noa::Accessor;
 
-    auto stream = Stream(Device::current());
-    const auto reduce_op = []__device__(auto to_reduce, auto& reduced) { reduced += to_reduce; };
+    auto stream = Stream(Device::current(), Stream::ASYNC, false);
+    const auto reduce_op = []NOA_DEVICE(auto to_reduce, auto& reduced) { reduced += to_reduce; };
 
     SECTION("sum over one axis") {
         auto input_shapes = noa::make_tuple(
@@ -28,7 +28,7 @@ TEST_CASE("runtime::cuda::reduce_axes_ewise") {
         input_shapes.for_each([&]<usize N>(const Shape<isize, N>& input_shape) {
             INFO("input_shape=" << input_shape);
             const auto input_n_elements = input_shape.n_elements();
-            const auto input_buffer = AllocatorManaged::allocate<f32>(input_n_elements, stream);
+            const auto input_buffer = AllocatorUnified::allocate<f32>(input_n_elements, AllocatorUnified::STREAM, stream);
             std::fill_n(input_buffer.get(), input_n_elements, 1);
 
             auto input = noa::make_tuple(Accessor<f32, N>(input_buffer.get(), input_shape.strides()));
@@ -39,7 +39,7 @@ TEST_CASE("runtime::cuda::reduce_axes_ewise") {
                 auto output_shape = input_shape;
                 output_shape[i] = 1;
                 const auto output_n_elements = output_shape.n_elements();
-                const auto output_buffer = AllocatorManaged::allocate<f32>(output_n_elements, stream);
+                const auto output_buffer = AllocatorUnified::allocate<f32>(output_n_elements, AllocatorUnified::STREAM, stream);
                 auto output = noa::make_tuple(Accessor<f32, N>(output_buffer.get(), output_shape.strides()));
 
                 reduce_axes_ewise(input_shape, output_shape, reduce_op, input, init, output, stream);
@@ -64,8 +64,8 @@ TEST_CASE("runtime::cuda::reduce_axes_ewise") {
             const auto output_n_elements = output_shape.n_elements();
             const f64 expected_value = static_cast<f64>(input_shape.pop_front().n_elements());
 
-            const auto input_buffer = AllocatorManaged::allocate<f64>(input_n_elements, stream);
-            const auto output_buffer = AllocatorManaged::allocate<f64>(output_n_elements, stream);
+            const auto input_buffer = AllocatorUnified::allocate<f64>(input_n_elements, AllocatorUnified::STREAM, stream);
+            const auto output_buffer = AllocatorUnified::allocate<f64>(output_n_elements, AllocatorUnified::STREAM, stream);
             std::fill_n(input_buffer.get(), input_n_elements, 1);
 
             auto output = noa::make_tuple(Accessor<f64, N>(output_buffer.get(), output_shape.strides()));

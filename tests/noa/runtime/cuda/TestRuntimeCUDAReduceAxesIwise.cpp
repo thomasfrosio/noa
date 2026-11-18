@@ -1,6 +1,6 @@
 #include <noa/runtime/core/Reduce.hpp>
 #include <noa/runtime/core/Accessor.hpp>
-#include <noa/runtime/cuda/ReduceAxesIwise.cuh>
+#include <noa/runtime/cuda/ReduceAxesIwise.hpp>
 #include <noa/runtime/cuda/Allocators.hpp>
 
 #include "Catch.hpp"
@@ -40,22 +40,22 @@ namespace {
     };
 }
 
-TEMPLATE_TEST_CASE("runtime::cuda::reduce_axes_iwise", "", Tag<1>, Tag<2>, Tag<3>, Tag<4>, Tag<5>, Tag<6>) {
+TEMPLATE_TEST_CASE("runtime::gpu::reduce_axes_iwise", "", Tag<1>, Tag<2>, Tag<3>, Tag<4>, Tag<5>, Tag<6>) {
     using namespace noa::types;
-    using noa::cuda::reduce_axes_iwise;
-    using noa::cuda::AllocatorManaged;
-    using noa::cuda::Device;
-    using noa::cuda::Stream;
+    using noa::gpu::reduce_axes_iwise;
+    using noa::gpu::AllocatorUnified;
+    using noa::gpu::Device;
+    using noa::gpu::Stream;
     constexpr usize N = TestType::value;;
 
-    Stream stream(Device{});
+    auto stream = Stream(Device{}, Stream::ASYNC, false);
 
     SECTION("sum one axis") {
         auto input_shape = test::random_shape_batched<isize, N>(3, {.batch_range = {2, 6}});
         const auto input_strides = input_shape.strides();
         const auto n_elements = input_shape.n_elements();
 
-        const auto buffer = AllocatorManaged::allocate<isize>(n_elements, stream);
+        const auto buffer = AllocatorUnified::allocate<isize>(n_elements, AllocatorUnified::STREAM, stream);
         test::arange(buffer.get(), n_elements);
 
         auto reduced = noa::make_tuple(noa::AccessorValue<isize>(0));
@@ -68,7 +68,7 @@ TEMPLATE_TEST_CASE("runtime::cuda::reduce_axes_iwise", "", Tag<1>, Tag<2>, Tag<3
             const auto output_strides = output_shape.strides();
             const auto output_elements = output_shape.n_elements();
 
-            const auto expected_buffer = AllocatorManaged::allocate<isize>(output_elements, stream);
+            const auto expected_buffer = AllocatorUnified::allocate<isize>(output_elements, AllocatorUnified::STREAM, stream);
             auto compute_expected_reduction = [](Shape<isize, N> shape, const auto& input, const auto& expected) {
                 auto reduce = [](const auto& src, auto& dst, isize n) {
                     isize tmp = 0;
@@ -118,7 +118,7 @@ TEMPLATE_TEST_CASE("runtime::cuda::reduce_axes_iwise", "", Tag<1>, Tag<2>, Tag<3
                 noa::Accessor<isize, (N == 1 ? 1 : N - 1)>(expected_buffer.get(), output_strides.filter(expected_order))
             );
 
-            const auto output_buffer = AllocatorManaged::allocate<isize>(output_elements, stream);
+            const auto output_buffer = AllocatorUnified::allocate<isize>(output_elements, AllocatorUnified::STREAM, stream);
             auto output = noa::make_tuple(noa::Accessor<isize, N>(output_buffer.get(), output_strides));
             std::fill_n(output_buffer.get(), output_elements, 1);
             reduce_axes_iwise(input_shape, output_shape, sum_op, reduced, output, stream);
@@ -140,13 +140,13 @@ TEMPLATE_TEST_CASE("runtime::cuda::reduce_axes_iwise", "", Tag<1>, Tag<2>, Tag<3
             const auto input_strides = input_shape.strides();
             const auto n_elements = input_shape.n_elements();
 
-            const auto buffer = AllocatorManaged::allocate<isize>(n_elements, stream);
+            const auto buffer = AllocatorUnified::allocate<isize>(n_elements, AllocatorUnified::STREAM, stream);
             test::arange(buffer.get(), n_elements);
 
             auto reduced = noa::make_tuple(noa::AccessorValue<isize>(0));
             auto sum_op = SumOp<N>{.accessor={buffer.get(), input_strides}};
 
-            const auto expected_buffer = AllocatorManaged::allocate<isize>(input_shape[0], stream);
+            const auto expected_buffer = AllocatorUnified::allocate<isize>(input_shape[0], AllocatorUnified::STREAM, stream);
             const auto per_batch_n_elements = input_shape.pop_front().n_elements();
             for (isize i = 0; i < input_shape[0]; ++i) {
                 const isize* input = buffer.get() + input_strides[0] * i;
@@ -158,7 +158,7 @@ TEMPLATE_TEST_CASE("runtime::cuda::reduce_axes_iwise", "", Tag<1>, Tag<2>, Tag<3
 
             const auto output_shape = Shape<isize, N>::from_value(1).template set<0>(input_shape[0]);
             const auto output_elements = output_shape.n_elements();
-            const auto output_buffer = AllocatorManaged::allocate<isize>(output_elements, stream);
+            const auto output_buffer = AllocatorUnified::allocate<isize>(output_elements, AllocatorUnified::STREAM, stream);
             const auto output = noa::make_tuple(noa::Accessor<isize, N>(output_buffer.get(), output_shape.strides()));
             INFO(input_shape);
 
@@ -173,14 +173,14 @@ TEMPLATE_TEST_CASE("runtime::cuda::reduce_axes_iwise", "", Tag<1>, Tag<2>, Tag<3
         const auto input_shape = Shape<isize, 3>{70000, 32, 64};
         const auto output_shape = input_shape.set<1>(1);
 
-        const auto input_buffer = AllocatorManaged::allocate<isize>(input_shape.n_elements(), stream);
+        const auto input_buffer = AllocatorUnified::allocate<isize>(input_shape.n_elements(), AllocatorUnified::STREAM, stream);
         const auto input = Span(input_buffer.get(), input_shape);
         const auto op = SumOp2{.span=input.as_const()};
         std::ranges::fill(input.as_1d(), 1);
 
         const auto reduced = noa::make_tuple(noa::AccessorValue<isize>(0));
 
-        const auto output_buffer = AllocatorManaged::allocate<isize>(output_shape.n_elements(), stream);
+        const auto output_buffer = AllocatorUnified::allocate<isize>(output_shape.n_elements(), AllocatorUnified::STREAM, stream);
         const auto output = noa::Accessor<isize, 3>(output_buffer.get(), output_shape.strides());
         const auto output_tuple = noa::make_tuple(output);
 

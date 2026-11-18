@@ -1,4 +1,4 @@
-#include <noa/runtime/cuda/ReduceEwise.cuh>
+#include <noa/runtime/cuda/ReduceEwise.hpp>
 #include <noa/runtime/cuda/Allocators.hpp>
 
 #include "Catch.hpp"
@@ -36,15 +36,15 @@ namespace {
     };
 }
 
-TEST_CASE("runtime::cuda::reduce_ewise") {
+TEST_CASE("runtime::gpu::reduce_ewise") {
     using namespace noa::types;
-    using noa::cuda::reduce_ewise;
-    using noa::cuda::ReduceEwiseConfig;
-    using noa::cuda::Stream;
-    using noa::cuda::Device;
-    using noa::cuda::AllocatorManaged;
+    using noa::gpu::reduce_ewise;
+    using noa::gpu::ReduceEwiseConfig;
+    using noa::gpu::Stream;
+    using noa::gpu::Device;
+    using noa::gpu::AllocatorUnified;
 
-    Stream stream(Device::current());
+    auto stream = Stream(Device::current(), Stream::ASYNC, false);
 
     SECTION("simple sum, contiguous") {
         const auto shapes = noa::make_tuple(
@@ -83,7 +83,7 @@ TEST_CASE("runtime::cuda::reduce_ewise") {
 
                 INFO("shape=" << shape << " is_strided=" << is_strided);
 
-                const auto b0 = AllocatorManaged::allocate<isize>(buffer_shape.n_elements(), stream);
+                const auto b0 = AllocatorUnified::allocate<isize>(buffer_shape.n_elements(), AllocatorUnified::STREAM, stream);
                 test::fill(b0.get(), buffer_shape.n_elements(), 1);
                 test::arange(Span<isize, N>(b0.get(), shape, strides));
 
@@ -97,7 +97,7 @@ TEST_CASE("runtime::cuda::reduce_ewise") {
                     return sum;
                 }();
 
-                const auto b1 = AllocatorManaged::allocate<isize>(1, stream);
+                const auto b1 = AllocatorUnified::allocate<isize>(1, AllocatorUnified::STREAM, stream);
                 auto reduced = noa::make_tuple(noa::AccessorValue<isize>(0.));
                 auto output = noa::make_tuple(noa::AccessorRestrictContiguous<isize, 1>(b1.get())); {
                     // no vectorization
@@ -125,9 +125,9 @@ TEST_CASE("runtime::cuda::reduce_ewise") {
             const auto n_elements = shape.n_elements();
             INFO("shape=" << shape);
 
-            const auto b0 = AllocatorManaged::allocate<f32>(n_elements, stream);
-            const auto b1 = AllocatorManaged::allocate<f64>(1, stream);
-            const auto b2 = AllocatorManaged::allocate<i32>(1, stream);
+            const auto b0 = AllocatorUnified::allocate<f32>(n_elements, AllocatorUnified::STREAM, stream);
+            const auto b1 = AllocatorUnified::allocate<f64>(1, AllocatorUnified::STREAM, stream);
+            const auto b2 = AllocatorUnified::allocate<i32>(1, AllocatorUnified::STREAM, stream);
             std::fill_n(b0.get(), n_elements, 1);
             b0[static_cast<usize>(n_elements) / 2] += 12.f;
             auto input = noa::make_tuple(noa::Accessor<f32, N>(b0.get(), shape.strides()));

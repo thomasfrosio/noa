@@ -9,6 +9,12 @@ namespace {
         Tracked(const Tracked& t) : count(t.count) { count[0] += 1; }
         Tracked(Tracked&& t)  noexcept : count(t.count) { count[1] += 1; }
     };
+
+    struct NoReduce {
+        constexpr void operator()(int) const {
+
+        }
+    };
 }
 
 using namespace noa::types;
@@ -53,4 +59,16 @@ TEST_CASE("runtime::cpu::reduce_iwise") {
         REQUIRE(((output1[Tag<0>{}](0).first == elements + 0) and
                  (output1[Tag<0>{}](0).second == elements + 1)));
     }
+}
+
+TEST_CASE("runtime::cpu::reduce_iwise no reduce") {
+    const auto shape = Shape<i64, 1>{100};
+    const auto elements = shape.n_elements();
+    const auto buffer = std::make_unique<f32[]>(static_cast<size_t>(elements));
+    std::fill_n(buffer.get(), elements, 1);
+
+    auto reduced = noa::make_tuple();
+    auto output0 = noa::make_tuple(AccessorValue<f32>());
+    using config_t = noa::cpu::ReduceIwiseConfig<false, false, 10>;
+    reduce_iwise<config_t>(shape.as<i32>(), NoReduce{}, reduced, output0, 10); // check that it compiles
 }

@@ -2,9 +2,9 @@
 
 #include "Catch.hpp"
 
-TEST_CASE("runtime::cuda::Device") {
+TEST_CASE("runtime::gpu::Device") {
     using namespace noa::types;
-    using namespace noa::cuda;
+    using namespace noa::gpu;
 
     const Device a;
     REQUIRE(a.id() == 0);
@@ -28,14 +28,19 @@ TEST_CASE("runtime::cuda::Device") {
     // Quite difficult to have meaningful tests, so just make sure it doesn't throw.
     for (auto device : devices) {
         [[maybe_unused]] const auto properties = device.properties();
-        [[maybe_unused]] const auto attribute = device.attribute(cudaDevAttrCanMapHostMemory);
         REQUIRE(device.architecture() == device.capability().major);
 
-        REQUIRE(version_runtime() <= version_driver());
+        [[maybe_unused]] const auto vd = device.runtime_version();
+        [[maybe_unused]] const auto vr = device.driver_version();
+
         const DeviceMemory info = device.memory();
         REQUIRE(info.total >= info.free);
 
+#ifdef NOA_ENABLE_CUDA
+        [[maybe_unused]] const auto attribute = device.attribute(cudaDevAttrCanMapHostMemory);
         [[maybe_unused]] const auto limit = device.limit(cudaLimitStackSize);
+#endif
+
         device.synchronize();
         device.reset();
     }

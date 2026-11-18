@@ -1,6 +1,6 @@
 #include <noa/base/Operators.hpp>
 #include <noa/runtime/cuda/Allocators.hpp>
-#include <noa/runtime/cuda/Ewise.cuh>
+#include <noa/runtime/cuda/Ewise.hpp>
 
 #include "Catch.hpp"
 #include "Utils.hpp"
@@ -36,19 +36,19 @@ namespace {
     using noa::AccessorValue;
 }
 
-TEST_CASE("runtime::cuda::ewise") {
+TEST_CASE("runtime::gpu::ewise") {
     using namespace noa::types;
-    using noa::cuda::ewise;
-    using noa::cuda::EwiseConfig;
-    using noa::cuda::Stream;
-    using noa::cuda::Device;
-    using noa::cuda::AllocatorManaged;
+    using noa::gpu::ewise;
+    using noa::gpu::EwiseConfig;
+    using noa::gpu::Stream;
+    using noa::gpu::Device;
+    using noa::gpu::AllocatorUnified;
 
-    Stream stream(Device::current());
+    auto stream = Stream(Device::current(), Stream::ASYNC, false);
 
     // SECTION("check operator") {
     //     constexpr auto shape = Shape4{1, 1, 1, 1};
-    //     auto value = AllocatorManaged::allocate<Vec<i32, 2>>(2, stream);
+    //     auto value = AllocatorUnified::allocate<Vec<i32, 2>>(2, stream);
     //     Tuple<AccessorValue<Tracked>> input{};
     //     auto output_contiguous = noa::make_tuple(
     //         Accessor<Vec<i32, 2>, 4, isize>(value.get() + 0, shape.strides()),
@@ -88,16 +88,16 @@ TEST_CASE("runtime::cuda::ewise") {
     SECTION("simply fill and copy") {
         const auto shape = test::random_shape_batched<isize, 4>(3);
         const auto elements = shape.n_elements();
-        constexpr auto value = 3.1415;
+        const auto value = 3.1415;
 
-        const auto buffer = AllocatorManaged::allocate<f64>(elements, stream);
-        const auto expected = AllocatorManaged::allocate<f64>(elements, stream);
+        const auto buffer = AllocatorUnified::allocate<f64>(elements, AllocatorUnified::STREAM, stream);
+        const auto expected = AllocatorUnified::allocate<f64>(elements, AllocatorUnified::STREAM, stream);
         std::fill_n(expected.get(), elements, value);
 
         {
             // This is not vectorized.
             const auto input = noa::make_tuple(Accessor<f64, 4>(buffer.get(), shape.strides()));
-            ewise(shape, [value]__device__(f64& i) { i = value; }, input, Tuple{}, stream);
+            ewise(shape, [value]NOA_DEVICE(f64& i) { i = value; }, input, Tuple{}, stream);
             stream.synchronize();
             REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 1e-8));
 
@@ -128,7 +128,7 @@ TEST_CASE("runtime::cuda::ewise") {
             std::fill_n(expected.get(), elements, 0.);
 
             using config = EwiseConfig<true, true>;
-            ewise<config>(shape, []__device__(Tuple<const f64&> i, Tuple<f64&> o) { o[Tag<0>{}] = i[Tag<0>{}]; }, input, output, stream);
+            ewise<config>(shape, []NOA_DEVICE(Tuple<const f64&> i, Tuple<f64&> o) { o[Tag<0>{}] = i[Tag<0>{}]; }, input, output, stream);
             stream.synchronize();
             REQUIRE(test::allclose_abs(buffer.get(), expected.get(), elements, 1e-8));
         }
@@ -138,7 +138,7 @@ TEST_CASE("runtime::cuda::ewise") {
             const auto output = noa::make_tuple(Accessor<f64, 4>(buffer.get(), shape.strides()));
 
             using config = EwiseConfig<true, false>;
-            ewise<config>(shape, []__device__(Tuple<const f64&> i, f64& o) { o = i[Tag<0>{}]; }, input, output, stream);
+            ewise<config>(shape, []NOA_DEVICE(Tuple<const f64&> i, f64& o) { o = i[Tag<0>{}]; }, input, output, stream);
             stream.synchronize();
             REQUIRE(test::allclose_abs(buffer.get(), 1.1, elements, 1e-8));
         }
@@ -148,14 +148,14 @@ TEST_CASE("runtime::cuda::ewise") {
         const auto shape = test::random_shape_batched<isize, 4>(3);
         const auto n_elements = shape.n_elements();
 
-        const auto b0 = AllocatorManaged::allocate<f32>(n_elements, stream);
-        const auto b1 = AllocatorManaged::allocate<f64>(n_elements, stream);
-        const auto b2 = AllocatorManaged::allocate<f16>(n_elements, stream);
+        const auto b0 = AllocatorUnified::allocate<f32>(n_elements, AllocatorUnified::STREAM, stream);
+        const auto b1 = AllocatorUnified::allocate<f64>(n_elements, AllocatorUnified::STREAM, stream);
+        const auto b2 = AllocatorUnified::allocate<f16>(n_elements, AllocatorUnified::STREAM, stream);
         test::randomize(b0.get(), n_elements, test::Randomizer<f32>(-10, 10));
 
         // Generate expected.
-        const auto e1 = AllocatorManaged::allocate<f64>(n_elements, stream);
-        const auto e2 = AllocatorManaged::allocate<f16>(n_elements, stream);
+        const auto e1 = AllocatorUnified::allocate<f64>(n_elements, AllocatorUnified::STREAM, stream);
+        const auto e2 = AllocatorUnified::allocate<f16>(n_elements, AllocatorUnified::STREAM, stream);
         for (size_t i{}; i < static_cast<size_t>(n_elements); ++i) {
             e1[i] = static_cast<f64>(b0[i] + static_cast<f32>(7));
             e2[i] = static_cast<f16>(e1[i]);
@@ -170,7 +170,7 @@ TEST_CASE("runtime::cuda::ewise") {
         );
 
         // lhs+rhs->output, lhs->zero
-        const auto op = []__device__(Tuple<f32&, const i32&> i, f64& o0, f16& o1) {
+        const auto op = []NOA_DEVICE(Tuple<f32&, const i32&> i, f64& o0, f16& o1) {
             auto& [lhs, rhs] = i;
             o0 = static_cast<f64>(lhs + static_cast<f32>(rhs));
             o1 = static_cast<f16>(o0);
@@ -190,16 +190,16 @@ TEST_CASE("runtime::cuda::ewise") {
         const auto strides_u32 = shape.as<u32>().strides();
         const auto n_elements = shape.n_elements();
 
-        const auto b0 = AllocatorManaged::allocate<f32>(n_elements, stream);
-        const auto b1 = AllocatorManaged::allocate<f32>(n_elements, stream);
-        const auto b2 = AllocatorManaged::allocate<f32>(n_elements, stream);
-        const auto b3 = AllocatorManaged::allocate<i32>(n_elements, stream);
+        const auto b0 = AllocatorUnified::allocate<f32>(n_elements, AllocatorUnified::STREAM, stream);
+        const auto b1 = AllocatorUnified::allocate<f32>(n_elements, AllocatorUnified::STREAM, stream);
+        const auto b2 = AllocatorUnified::allocate<f32>(n_elements, AllocatorUnified::STREAM, stream);
+        const auto b3 = AllocatorUnified::allocate<i32>(n_elements, AllocatorUnified::STREAM, stream);
         test::randomize(b0.get(), n_elements, test::Randomizer<f32>(-10, 10));
         test::randomize(b1.get(), n_elements, test::Randomizer<f32>(-10, 10));
 
         // Generate expected.
-        const auto e2 = AllocatorManaged::allocate<f32>(n_elements, stream);
-        const auto e3 = AllocatorManaged::allocate<i32>(n_elements, stream);
+        const auto e2 = AllocatorUnified::allocate<f32>(n_elements, AllocatorUnified::STREAM, stream);
+        const auto e3 = AllocatorUnified::allocate<i32>(n_elements, AllocatorUnified::STREAM, stream);
         for (size_t i{}; i < static_cast<size_t>(n_elements); ++i) {
             e2[i] = b0[i] + b1[i];
             e3[i] = static_cast<i32>(b0[i] - b1[i]);
@@ -222,39 +222,41 @@ TEST_CASE("runtime::cuda::ewise") {
     }
 }
 
-TEMPLATE_TEST_CASE("runtime::cuda::ewise - copy", "", i8, i32, c16, c64) {
+TEMPLATE_TEST_CASE("runtime::gpu::ewise - copy", "", i8, i32, c16, c64) {
     using namespace noa::types;
-    using noa::cuda::ewise;
-    using noa::cuda::EwiseConfig;
-    using noa::cuda::Stream;
-    using noa::cuda::Device;
-    using noa::cuda::AllocatorManaged;
+    using noa::gpu::ewise;
+    using noa::gpu::EwiseConfig;
+    using noa::gpu::Stream;
+    using noa::gpu::Device;
+    using noa::gpu::AllocatorUnified;
     using value_t = TestType;
 
-    Stream stream(Device::current());
+    auto stream = Stream(Device::current(), Stream::ASYNC, false);
 
+    const auto size_range = Pair{32, 64};
+    const auto batch_range = Pair{1, 4};
     const auto shapes = noa::make_tuple(
-        test::random_shape<isize, 2>(1),
-        test::random_shape<isize, 3>(1),
-        test::random_shape<isize, 3>(2),
-        test::random_shape<isize, 4>(1),
-        test::random_shape<isize, 4>(2),
-        test::random_shape<isize, 5>(1),
-        test::random_shape<isize, 5>(2),
-        test::random_shape<isize, 6>(1),
-        test::random_shape<isize, 6>(2),
-        test::random_shape_batched<isize, 1>(1),
-        test::random_shape_batched<isize, 2>(2),
-        test::random_shape_batched<isize, 3>(3),
-        test::random_shape_batched<isize, 4>(3),
-        test::random_shape_batched<isize, 5>(3),
-        test::random_shape_batched<isize, 6>(3)
+        test::random_shape<isize, 2>(1, {.size_range = size_range}),
+        test::random_shape<isize, 3>(1, {.size_range = size_range}),
+        test::random_shape<isize, 3>(2, {.size_range = size_range}),
+        test::random_shape<isize, 4>(1, {.size_range = size_range}),
+        test::random_shape<isize, 4>(2, {.size_range = size_range}),
+        test::random_shape<isize, 5>(1, {.size_range = size_range}),
+        test::random_shape<isize, 5>(2, {.size_range = size_range}),
+        test::random_shape<isize, 6>(1, {.size_range = size_range}),
+        test::random_shape<isize, 6>(2, {.size_range = size_range}),
+        test::random_shape<isize, 1>(1, {.size_range = size_range, .batch_range = batch_range}),
+        test::random_shape<isize, 2>(2, {.size_range = size_range, .batch_range = batch_range}),
+        test::random_shape<isize, 3>(3, {.size_range = size_range, .batch_range = batch_range}),
+        test::random_shape<isize, 4>(3, {.size_range = size_range, .batch_range = batch_range}),
+        test::random_shape<isize, 5>(3, {.size_range = size_range, .batch_range = batch_range}),
+        test::random_shape<isize, 6>(3, {.size_range = size_range, .batch_range = batch_range})
     );
     shapes.for_each([&]<usize N>(const Shape<isize, N>& shape) {
         const auto n_elements = shape.n_elements();
 
-        const auto input_buffer = AllocatorManaged::allocate<value_t>(n_elements, stream);
-        const auto output_buffer = AllocatorManaged::allocate<value_t>(n_elements, stream);
+        const auto input_buffer = AllocatorUnified::allocate<value_t>(n_elements, AllocatorUnified::DEVICE, stream);
+        const auto output_buffer = AllocatorUnified::allocate<value_t>(n_elements, AllocatorUnified::DEVICE, stream);
         test::randomize(input_buffer.get(), n_elements, test::Randomizer<value_t>(-128, 127));
 
         auto input = noa::make_tuple(Accessor<const value_t, N>(input_buffer.get(), shape.strides()));
@@ -266,15 +268,15 @@ TEMPLATE_TEST_CASE("runtime::cuda::ewise - copy", "", i8, i32, c16, c64) {
     });
 }
 
-TEST_CASE("runtime::cuda::ewise - multi-grid - 2d") {
+TEST_CASE("runtime::gpu::ewise - multi-grid - 2d") {
     using namespace noa::types;
-    using namespace noa::cuda;
+    using namespace noa::gpu;
 
     const auto shape = Shape4{100, 1, 1, 512};
     const auto n_elements = shape.n_elements();
 
-    auto stream = Stream(Device::current());
-    const auto buffer = AllocatorManaged::allocate<f32>(n_elements, stream);
+    auto stream = Stream(Device::current(), Stream::DEFAULT, false);
+    const auto buffer = AllocatorUnified::allocate<f32>(n_elements, AllocatorUnified::DEVICE, stream);
     test::fill(buffer.get(), n_elements, 0.f);
 
     const auto original = Span(buffer.get(), shape);
@@ -296,15 +298,15 @@ TEST_CASE("runtime::cuda::ewise - multi-grid - 2d") {
     REQUIRE(test::allclose_abs(buffer.get(), 1.f, n_elements, 1e-8));
 }
 
-TEST_CASE("runtime::cuda::ewise - multi-grid - 4d") {
+TEST_CASE("runtime::gpu::ewise - multi-grid - 4d") {
     using namespace noa::types;
-    using namespace noa::cuda;
+    using namespace noa::gpu;
 
     const auto shape = Shape4{1, 250'000, 1, 512};
     const auto n_elements = shape.n_elements();
 
-    auto stream = Stream(Device::current());
-    const auto buffer = AllocatorManaged::allocate<f32>(n_elements, stream);
+    auto stream = Stream(Device::current(), Stream::DEFAULT, false);
+    const auto buffer = AllocatorUnified::allocate<f32>(n_elements, AllocatorUnified::DEVICE, stream);
     test::fill(buffer.get(), n_elements, 0.f);
 
     const auto original = Span(buffer.get(), shape);

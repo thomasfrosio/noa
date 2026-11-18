@@ -13,38 +13,38 @@ list(APPEND NOA_HEADERS
     noa/runtime/core/Traits.hpp
     noa/runtime/core/Utils.hpp
 
-    noa/runtime/Allocator.hpp
-    noa/runtime/Array.hpp
-    noa/runtime/ArrayOption.hpp
-    noa/runtime/Backend.hpp
-    noa/runtime/Blas.hpp
-    noa/runtime/Complex.hpp
-    noa/runtime/CopyBatches.hpp
-    noa/runtime/Device.hpp
-    noa/runtime/Event.hpp
-    noa/runtime/Ewise.hpp
-    noa/runtime/Factory.hpp
-    noa/runtime/Iwise.hpp
-    noa/runtime/Random.hpp
-    noa/runtime/Reduce.hpp
-    noa/runtime/ReduceAxesEwise.hpp
-    noa/runtime/ReduceAxesIwise.hpp
-    noa/runtime/ReduceEwise.hpp
-    noa/runtime/ReduceIwise.hpp
-    noa/runtime/Resize.hpp
-    noa/runtime/Session.hpp
-    noa/runtime/Sort.hpp
-    noa/runtime/Stream.hpp
-    noa/runtime/Subregion.hpp
-    noa/runtime/Traits.hpp
-    noa/runtime/Utils.hpp
+#    noa/runtime/Allocator.hpp
+#    noa/runtime/Array.hpp
+#    noa/runtime/ArrayOption.hpp
+#    noa/runtime/Backend.hpp
+#    noa/runtime/Blas.hpp
+#    noa/runtime/Complex.hpp
+#    noa/runtime/CopyBatches.hpp
+#    noa/runtime/Device.hpp
+#    noa/runtime/Event.hpp
+#    noa/runtime/Ewise.hpp
+#    noa/runtime/Factory.hpp
+#    noa/runtime/Iwise.hpp
+#    noa/runtime/Random.hpp
+#    noa/runtime/Reduce.hpp
+#    noa/runtime/ReduceAxesEwise.hpp
+#    noa/runtime/ReduceAxesIwise.hpp
+#    noa/runtime/ReduceEwise.hpp
+#    noa/runtime/ReduceIwise.hpp
+#    noa/runtime/Resize.hpp
+#    noa/runtime/Session.hpp
+#    noa/runtime/Sort.hpp
+#    noa/runtime/Stream.hpp
+#    noa/runtime/Subregion.hpp
+#    noa/runtime/Traits.hpp
+#    noa/runtime/Utils.hpp
 )
 
 list(APPEND NOA_SOURCES
-    noa/runtime/Allocator.cpp
-    noa/runtime/Device.cpp
-    noa/runtime/Session.cpp
-    noa/runtime/Stream.cpp
+#    noa/runtime/Allocator.cpp
+#    noa/runtime/Device.cpp
+#    noa/runtime/Session.cpp
+#    noa/runtime/Stream.cpp
 )
 
 if (NOA_ENABLE_CPU)
@@ -74,38 +74,38 @@ if (NOA_ENABLE_CPU)
     )
 endif ()
 
-if (NOA_ENABLE_CUDA)
+if (NOA_ENABLE_GPU)
     list(APPEND NOA_HEADERS
         noa/runtime/cuda/Allocators.hpp
-        noa/runtime/cuda/Blas.hpp
-        noa/runtime/cuda/Block.cuh
-        noa/runtime/cuda/ComputeHandle.cuh
+#        noa/runtime/cuda/Blas.hpp
+#        noa/runtime/cuda/Block.hpp
+        noa/runtime/cuda/ComputeHandle.hpp
         noa/runtime/cuda/Constants.hpp
-        noa/runtime/cuda/Copy.cuh
+        noa/runtime/cuda/Copy.hpp
         noa/runtime/cuda/Device.hpp
         noa/runtime/cuda/Event.hpp
-        noa/runtime/cuda/Ewise.cuh
+        noa/runtime/cuda/Ewise.hpp
         noa/runtime/cuda/Error.hpp
-        noa/runtime/cuda/IncludeGuard.cuh
-        noa/runtime/cuda/Iwise.cuh
-        noa/runtime/cuda/Median.cuh
-        noa/runtime/cuda/MemoryPool.hpp
-        noa/runtime/cuda/Permute.cuh
-        noa/runtime/cuda/Pointers.hpp
-        noa/runtime/cuda/ReduceAxesEwise.cuh
-        noa/runtime/cuda/ReduceAxesIwise.cuh
-        noa/runtime/cuda/ReduceEwise.cuh
-        noa/runtime/cuda/ReduceIwise.cuh
+        noa/runtime/cuda/IncludeGuard.hpp
+        noa/runtime/cuda/Iwise.hpp
+#        noa/runtime/cuda/Median.hpp
+#        noa/runtime/cuda/MemoryPool.hpp
+#        noa/runtime/cuda/Permute.hpp
+#        noa/runtime/cuda/Pointers.hpp
+        noa/runtime/cuda/ReduceAxesEwise.hpp
+        noa/runtime/cuda/ReduceAxesIwise.hpp
+        noa/runtime/cuda/ReduceEwise.hpp
+        noa/runtime/cuda/ReduceIwise.hpp
         noa/runtime/cuda/Runtime.hpp
-        noa/runtime/cuda/Sort.cuh
+#        noa/runtime/cuda/Sort.hpp
         noa/runtime/cuda/Stream.hpp
-        noa/runtime/cuda/Utils.cuh
-        noa/runtime/cuda/Version.hpp
-        noa/runtime/cuda/Warp.cuh
+        noa/runtime/cuda/Utils.hpp
+        noa/runtime/cuda/Warp.hpp
     )
 
     list(APPEND NOA_SOURCES
         noa/runtime/cuda/Device.cpp
-        noa/runtime/cuda/Blas.cu
+        noa/runtime/cuda/Stream.cpp
+#        noa/runtime/cuda/Blas.cu
     )
 endif ()
