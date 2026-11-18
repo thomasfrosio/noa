@@ -39,8 +39,6 @@ namespace noa::cpu::details {
 #   if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #       pragma GCC diagnostic push
 #       pragma GCC diagnostic ignored "-Wattributes"
-#   elif defined(NOA_COMPILER_MSVC)
-#       pragma warning(push, 0)
 #   endif
 #endif
 
@@ -70,8 +68,6 @@ namespace noa::cpu::details {
 #ifdef __CUDACC__
 #   if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
 #       pragma GCC diagnostic pop
-#   elif defined(NOA_COMPILER_MSVC)
-#       pragma warning(pop)
 #   endif
 #endif
 
