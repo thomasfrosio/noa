@@ -10,25 +10,80 @@
 #include "noa/runtime/cuda/Error.hpp"
 #include "noa/runtime/cuda/Runtime.hpp"
 #include "noa/runtime/cuda/Stream.hpp"
+#include "noa/runtime/cuda/Pointers.hpp"
 
-// Add specialization for our complex types. Used for CUDA arrays and textures.
-template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::f16>() { return cudaCreateChannelDesc<half>(); }
-template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::c16>() { return cudaCreateChannelDesc<half2>(); }
-template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::c32>() { return cudaCreateChannelDesc<float2>(); }
+#ifdef NOA_ENABLE_SYCL
+namespace noa::gpu::details {
+    inline auto usm_allocate(sycl::usm::alloc kind, usize alignment, usize n_bytes, Device device) noexcept -> void* {
+        try {
+            const sycl::device d = device.get_sycl_device();
+            const sycl::context& ctx = sycl_device_context(device.id());
+            switch (kind) {
+                case sycl::usm::alloc::device:
+                    return sycl::aligned_alloc_device(alignment, n_bytes, d, ctx);
+                case sycl::usm::alloc::shared:
+                    if (not d.has(sycl::aspect::usm_shared_allocations))
+                        return nullptr;
+                    return sycl::aligned_alloc_shared(alignment, n_bytes, d, ctx);
+                case sycl::usm::alloc::host:
+                    return sycl::aligned_alloc_host(alignment, n_bytes, ctx);
+                case sycl::usm::alloc::unknown:
+                    return nullptr;
+            }
+        } catch (...) {}
+        return nullptr;
+    }
 
-namespace noa::cuda {
+    inline auto usm_free(void* ptr, const std::weak_ptr<Stream::Core>& stream, i32 device_id) {
+        // TODO Should we synchronize?
+        if (const auto stream_ = stream.lock())
+            stream_->queue->wait(); // TODO expose synchronize() to the Core?
+        sycl::free(ptr, sycl_device_context(device_id));
+    }
+}
+#endif
+
+namespace noa::gpu {
+    /// Allocation counter.
+    template<MemoryKind>
+    struct AllocatedBytes {
+        /// Add this many bytes to the counter.
+        /// A negative device id assigns the bytes to the global poll (memory available to every device).
+        /// Pinned memory always contributes to the global pool.
+        static constexpr i32 MAX_DEVICES = 64;
+        static void add(i32 device_id, isize n_bytes) noexcept {
+            if (device_id >= 0 and device_id < MAX_DEVICES)
+                m_bytes_currently_allocated[device_id] += n_bytes;
+            else
+                m_bytes_currently_allocated_globally += n_bytes;
+        }
+
+        /// Returns the number of bytes currently allocated on the device,
+        /// plus the memory allocated globally that is available to this device.
+        static auto get(i32 device_id) noexcept -> usize {
+            auto n_bytes = clamp_cast<usize>(m_bytes_currently_allocated_globally.load());
+            if (device_id >= 0 and device_id < MAX_DEVICES)
+                n_bytes += clamp_cast<usize>(m_bytes_currently_allocated[device_id].load());
+            return n_bytes;
+        }
+
+    private:
+        inline static std::atomic<isize> m_bytes_currently_allocated[MAX_DEVICES]{};
+        inline static std::atomic<isize> m_bytes_currently_allocated_globally{};
+    };
+
     /// Allocates (global) device memory, using either:
-    ///  1) device-wide allocations via cudaMalloc.
-    ///  2) stream-ordered allocations via cudaMallocAsync (recommended).
+    ///  1) device-wide allocations (CUDA: cudaMalloc, SYCL: usm::alloc::device).
+    ///  2) (recommended) stream-ordered allocations (CUDA: cudaMallocAsync, SYCL: same as device-wise).
     ///
-    /// Stream-ordered allocations: (since CUDA 11.2)
+    /// \note (CUDA) Stream-ordered allocations: (since CUDA 11.2)
     ///  - https://developer.nvidia.com/blog/using-cuda-stream-ordered-memory-allocator-part-1/
     ///  - Memory allocation and deallocation cannot fail asynchronously. Memory errors that occur because of a call to
     ///    cudaMallocAsync or cudaFreeAsync (for example, out of memory) are reported immediately through an error code
     ///    returned from the call. If cudaMallocAsync completes successfully, the returned pointer is guaranteed to be
     ///    a valid pointer to memory that is safe to access in the appropriate stream order.
     ///
-    /// Interoperability with cudaMalloc and cudaFree
+    /// \note (CUDA) Interoperability with cudaMalloc and cudaFree
     ///  - An application can use cudaFreeAsync to free a pointer allocated by cudaMalloc. The underlying memory is not
     ///    freed until the next synchronization of the stream passed to cudaFreeAsync.
     ///  - Similarly, an application can use cudaFree to free memory allocated using cudaMallocAsync. However, cudaFree
@@ -44,6 +99,7 @@ namespace noa::cuda {
             i32 device_id{};
 
             void operator()(void* ptr) const noexcept {
+                #if defined(NOA_ENABLE_CUDA)
                 if (const auto stream_ = stream.lock()) {
                     [[maybe_unused]] auto err = cudaFreeAsync(ptr, stream_->stream_handle);
                     NOA_ASSERT(err == cudaSuccess);
@@ -51,10 +107,13 @@ namespace noa::cuda {
                     // No stream, so the memory was allocated:
                     //  - with cudaMalloc, so cudaFree syncs the device
                     //  - with cudaMallocAsync, but the stream was deleted, so cudaFree instead
-                    [[maybe_unused]] auto err = cudaFree(ptr);
+                    [[maybe_unused]] auto err = cudaFree(ptr); // if nullptr, it does nothing
                     NOA_ASSERT(err == cudaSuccess);
                 }
-                add_bytes(device_id, -size);
+                #elif defined(NOA_ENABLE_SYCL)
+                details::usm_free(ptr, stream, device_id);
+                #endif
+                AllocatedBytes<MemoryKind::DEVICE>::add(device_id, -size);
             }
         };
 
@@ -62,6 +121,7 @@ namespace noa::cuda {
         using allocate_type = std::unique_ptr<T[], Deleter>;
 
     public:
+        /// Allocates device memory, with an alignment of at least MIN_ALIGNMENT bytes.
         template<nt::allocatable_type T>
         static auto try_allocate(isize n_elements, Device device = Device::current()) -> allocate_type<T> {
             if (n_elements <= 0)
@@ -69,113 +129,113 @@ namespace noa::cuda {
             const auto guard = DeviceGuard(device);
             void* tmp{nullptr}; // X** to void** is not allowed
             const auto n_bytes = n_elements * static_cast<isize>(sizeof(T));
+            #if defined(NOA_ENABLE_CUDA)
             if (cudaMalloc(&tmp, static_cast<usize>(n_bytes)) != cudaSuccess)
                 return {};
-            add_bytes(device.id(), n_bytes);
+            #elif defined(NOA_ENABLE_SYCL)
+            tmp = details::usm_allocate(sycl::usm::alloc::device, MIN_ALIGNMENT, n_bytes, device);
+            if (not tmp)
+                return {};
+            #endif
+            AllocatedBytes<MemoryKind::DEVICE>::add(device.id(), n_bytes);
             return {static_cast<T*>(tmp), Deleter{.size=n_bytes, .device_id=device.id()}};
         }
 
-        /// Allocates device memory using cudaMalloc, with an alignment of at least 256 bytes.
+        /// Allocates device memory, with an alignment of at least MIN_ALIGNMENT bytes.
         /// This function throws if the allocation fails.
         template<nt::allocatable_type T>
         static auto allocate(isize n_elements, Device device = Device::current()) -> allocate_type<T> {
             auto ptr = try_allocate<T>(n_elements, device);
-            check(ptr);
+            check(ptr, "Failed to allocate device memory (n_elements={}, device_id={})", n_elements, device.id());
             return ptr;
         }
 
-        /// Allocates device memory asynchronously using cudaMallocAsync, with an alignment of at least 256 bytes.
-        /// This function throws if the allocation fails.
+        /// Allocates device memory asynchronously, with an alignment of at least MIN_ALIGNMENT bytes.
         template<nt::allocatable_type T>
-        static auto allocate_async(isize n_elements, Stream& stream) -> allocate_type<T> {
+        static auto try_allocate_async(isize n_elements, Stream& stream) -> allocate_type<T> {
             if (n_elements <= 0)
                 return {};
             void* tmp{nullptr}; // X** to void** is not allowed
             const auto n_bytes = n_elements * static_cast<isize>(sizeof(T));
 
+            #if defined(NOA_ENABLE_CUDA)
             // We need to set the current device in case the stream is a null stream.
             const auto guard = DeviceGuard(stream.device());
-            check(cudaMallocAsync(&tmp, static_cast<usize>(n_bytes), stream.id()));
-            add_bytes(stream.device().id(), n_bytes);
-            return {static_cast<T*>(tmp), Deleter{.stream = stream.core(), .size=n_bytes, .device_id=stream.device().id()}};
+            if (cudaMallocAsync(&tmp, static_cast<usize>(n_bytes), stream.id()) != cudaSuccess)
+                return {};
+            #elif defined(NOA_ENABLE_SYCL)
+            // Async allocations are not supported in SYCL. TODO check compiler extensions
+            // The stream is still passed to the deleter to make sure we wait for the queue before freeing the memory.
+            tmp = details::usm_allocate(sycl::usm::alloc::device, MIN_ALIGNMENT, static_cast<usize>(n_bytes), stream.device());
+            if (not tmp)
+                return {};
+            #endif
+            AllocatedBytes<MemoryKind::DEVICE>::add(stream.device().id(), n_bytes);
+            return {static_cast<T*>(tmp), Deleter{
+                .stream = stream.core(),
+                .size=n_bytes,
+                .device_id=stream.device().id(),
+            }};
         }
 
-        /// Returns the stream handle used to allocate the resource.
-        /// If the data was created synchronously using allocate() or if it's empty, return the null stream.
+        /// Allocates device memory asynchronously, with an alignment of at least MIN_ALIGNMENT bytes.
+        /// This function throws if the allocation fails.
         template<nt::allocatable_type T>
-        [[nodiscard]] static auto attached_stream_handle(const allocate_type<T>& resource) -> cudaStream_t {
-            if (resource) {
-                if (auto stream = resource.get_deleter().stream.lock())
-                    return stream->stream_handle;
-            }
-            return nullptr;
+        static auto allocate_async(isize n_elements, Stream& stream) -> allocate_type<T> {
+            auto ptr = try_allocate_async<T>(n_elements, stream);
+            check(ptr, "Failed to allocate device memory (n_elements={}, device_id={})", n_elements, stream.device().id());
+            return ptr;
         }
 
-        /// Returns the number of bytes currently allocated on the device.
-        [[nodiscard]] static auto bytes_currently_allocated(i32 device_id) -> usize {
-            if (device_id >= 0 and device_id < MAX_DEVICES)
-                return clamp_cast<usize>(m_bytes_currently_allocated[device_id].load());
-            return 0;
+        template<nt::allocatable_type T, typename I, usize N> requires (N >= 2)
+        static auto padded_shape(const Shape<I, N>& shape, Device device = Device::current()) -> Shape<I, N> {
+            #if defined(NOA_ENABLE_CUDA)
+            auto pitch_alignment = static_cast<usize>(device.attribute(cudaDevAttrTexturePitchAlignment));
+            pitch_alignment = std::max(MIN_ALIGNMENT, pitch_alignment);
+            check(is_multiple_of(pitch_alignment, sizeof(T)),
+                  "pitch_alignment must be a multiple of sizeof({})={}, but got {}",
+                  nd::stringify<T>(), sizeof(T), pitch_alignment);
+            #elif defined(NOA_ENABLE_HIP)
+            auto pitch_alignment = MIN_ALIGNMENT; // TODO check available attribute
+            (void) device;
+            #elif defined(NOA_ENABLE_SYCL)
+            auto pitch_alignment = MIN_ALIGNMENT; // TODO check available access
+            (void) device;
+            #endif
+
+            auto width = next_multiple_of(shape[N - 1], safe_cast<I>(pitch_alignment / sizeof(T)));
+            return shape.template set<N - 1>(width);
         }
 
-    private:
-        static constexpr i32 MAX_DEVICES = 64;
-        static void add_bytes(i32 device_id, isize n_bytes) noexcept {
-            if (device_id >= 0 and device_id < MAX_DEVICES)
-                m_bytes_currently_allocated[device_id] += n_bytes;
-        }
-        inline static std::atomic<isize> m_bytes_currently_allocated[MAX_DEVICES]{};
-    };
-
-    /// Manages a device pointer.
-    /// Padded layouts / Pitch memory:
-    ///  - AllocatorDevice is allocating "linear" regions, as opposed to AllocatorDevicePadded, which allocates
-    ///    "padded" regions. This padding is on the right side of the innermost dimension (i.e. the height,
-    ///    in our case). The size of the innermost dimension, including the padding, is called the pitch.
-    ///    "Padded" layouts can be useful to minimize the number of memory accesses on a given row (but can increase
-    ///    the number of memory accesses for reading the whole array) and to reduce shared memory bank conflicts.
-    ///    It is highly recommended to use padded layouts when per-row accesses are necessary, e.g. when the array
-    ///    is logically treated as a series of rows, because the alignment at the beginning of every row is preserved.
-    ///    See https://stackoverflow.com/questions/16119943 and in https://stackoverflow.com/questions/15056842.
-    ///
-    /// Pitch:
-    ///  - As a result, AllocatorDevicePadded returns the strides (as always, this is in number of elements) of the
-    ///    allocated region, taking into account the pitch. Note that this could be an issue since CUDA does not
-    ///    guarantee the pitch (originally returned in bytes) to be divisible by the type alignment requirement.
-    ///    However, it looks like all devices will return a pitch divisible by at least 16 bytes (which makes sense),
-    ///    which is the maximum size allowed by AllocatorDevicePadded. To be safe, AllocatorDevicePadded::allocate()
-    ///    checks if this assumption holds.
-    ///
-    class AllocatorDevicePadded {
-    public:
-        static constexpr usize MIN_ALIGNMENT = 256; // this is guaranteed by cuda
-
-        struct Deleter {
-            isize size{};
-            i32 device_id{};
-            void operator()(void* ptr) const noexcept {
-                [[maybe_unused]] const auto err = cudaFree(ptr); // if nullptr, it does nothing
-                NOA_ASSERT(err == cudaSuccess);
-                add_bytes(device_id, -size);
-            }
-        };
-
-        template<typename T>
-        using allocate_type = std::unique_ptr<T[], Deleter>;
-
-    public:
-        /// Allocates device memory using cudaMalloc3D.
+        /// Allocates device memory, but adds padding for efficient per-row access.
         /// Returns 1: Unique pointer pointing to the device memory.
         ///         2: Strides describing the allocated layout.
+        ///
+        /// \note (CUDA): Padded layouts / Pitch memory:
+        ///  - AllocatorDevice is allocating "linear" regions, as opposed to AllocatorDevicePadded, which allocates
+        ///    "padded" regions. This padding is on the right side of the innermost dimension (i.e. the height,
+        ///    in our case). The size of the innermost dimension, including the padding, is called the pitch.
+        ///    "Padded" layouts can be useful to minimize the number of memory accesses on a given row (but can increase
+        ///    the number of memory accesses for reading the whole array) and to reduce shared memory bank conflicts.
+        ///    It is highly recommended to use padded layouts when per-row accesses are necessary, e.g. when the array
+        ///    is logically treated as a series of rows, because the alignment at the beginning of every row is preserved.
+        ///    See https://stackoverflow.com/questions/16119943 and in https://stackoverflow.com/questions/15056842.
+        ///  - As a result, AllocatorDevicePadded returns the strides (as always, this is in number of elements) of the
+        ///    allocated region, taking into account the pitch. Note that this could be an issue since CUDA does not
+        ///    guarantee the pitch (originally returned in bytes) to be divisible by the type alignment requirement.
+        ///    However, it looks like all devices will return a pitch divisible by at least 16 bytes (which makes sense),
+        ///    which is the maximum size allowed by AllocatorDevicePadded. To be safe, AllocatorDevicePadded::allocate()
+        ///    checks if this assumption holds.
         template<nt::allocatable_type T, typename I, usize N>
             requires (sizeof(T) <= 16 and N >= 2)
-        static auto allocate(
+        static auto allocate_padded(
             const Shape<I, N>& shape, // (B..W)
             Device device = Device::current()
         ) -> Pair<allocate_type<T>, Strides<I, N>> {
             if (shape.is_empty())
                 return {};
 
+            #if defined(NOA_ENABLE_CUDA)
             // Get the extents from the shape.
             const auto s_shape = shape.template as_safe<usize>();
             const auto extent = cudaExtent{s_shape[N - 1] * sizeof(T), s_shape.pop_back().n_elements(), 1};
@@ -186,7 +246,7 @@ namespace noa::cuda {
             check(cudaMalloc3D(&pitched_ptr, extent));
 
             if (not is_multiple_of(pitched_ptr.pitch, sizeof(T))) {
-                cudaFree(pitched_ptr.ptr); // ignore any error at this point
+                cudaFree(pitched_ptr.ptr); // result: ignore any error at this point
                 panic("The returned pitch is not divisible by sizeof({}): {} % {} != 0. Please report this issue",
                       nd::stringify<T>(), pitched_ptr.pitch, sizeof(T));
             }
@@ -196,45 +256,60 @@ namespace noa::cuda {
             const auto physical_shape = shape.template set<N - 1>(pitch);
             const auto strides = physical_shape.strides();
             const auto n_bytes = physical_shape.n_elements() * static_cast<isize>(sizeof(T));
-            add_bytes(device.id(), n_bytes);
-
-            return {allocate_type<T>(static_cast<T*>(pitched_ptr.ptr), Deleter{.size = n_bytes, .device_id = device.id()}), strides};
+            AllocatedBytes<MemoryKind::DEVICE>::add(device.id(), n_bytes);
+            return {
+                allocate_type<T>(
+                    static_cast<T*>(pitched_ptr.ptr),
+                    Deleter{.size = n_bytes, .device_id = device.id()}
+                ),
+                strides,
+            };
+            #elif defined(NOA_ENABLE_SYCL)
+            auto shape_ = padded_shape<T>(shape, device);
+            return {allocate<T>(shape_.n_elements(), device), shape_.strides()};
+            #endif
         }
 
-        /// Returns the number of bytes currently allocated on the device.
-        [[nodiscard]] static auto bytes_currently_allocated(i32 device_id) -> usize {
-            if (device_id >= 0 and device_id < MAX_DEVICES)
-                return clamp_cast<usize>(m_bytes_currently_allocated[device_id].load());
-            return 0;
+        template<nt::allocatable_type T, typename I, usize N>
+           requires (sizeof(T) <= 16 and N >= 2)
+        static auto allocate_padded_async(
+            const Shape<I, N>& shape, // (B..W)
+            Stream& stream
+        ) -> Pair<allocate_type<T>, Strides<I, N>> {
+            auto shape_ = padded_shape<T>(shape, stream.device());
+            return {allocate_async<T>(shape_.n_elements(), stream), shape_.strides()};
         }
 
-    private:
-        static constexpr i32 MAX_DEVICES = 64;
-        static void add_bytes(i32 device_id, isize n_bytes) noexcept {
-            if (device_id >= 0 and device_id < MAX_DEVICES)
-                m_bytes_currently_allocated[device_id] += n_bytes;
+        /// Returns the stream handle used to allocate the resource.
+        /// If the data was created synchronously using allocate() or if it's empty, return nullptr.
+        template<nt::allocatable_type T>
+        [[nodiscard]] static auto attached_stream_core(const allocate_type<T>& resource) -> std::shared_ptr<Stream::Core> {
+            return resource ? resource.get_deleter().stream.lock() : nullptr;
         }
-        inline static std::atomic<isize> m_bytes_currently_allocated[MAX_DEVICES]{};
     };
 
-    /// Unified memory:
-    ///  - Managed memory is interoperable and interchangeable with device-specific allocations, such as those created
-    ///    using the cudaMalloc() routine. All CUDA operations that are valid on device memory are also valid on managed
-    ///    memory; the primary difference is that the host portion of a program is able to reference and access the
-    ///    memory as well.
+    /// Unified memory (aka managed memory (CUDA) or shared memory (SYCL)).
     ///
+    /// \note (CUDA):
+    ///  - Managed memory is interoperable and interchangeable with device-specific allocations, such as those created
+    ///    using cudaMalloc. All operations that are valid on device memory are also valid on managed memory; the main
+    ///    difference is that the host portion of a program is able to reference and access the memory as well.
     ///  - If the stream used by cudaStreamAttachMemAsync is destroyed while data is associated with it, the association is
     ///    removed and the association reverts to the host visibility only. Since destroying a stream is an asynchronous
     ///    operation, the change to default association won't happen until all work in the stream has completed.
-    ///
-    ///  - Data movement still happens, of course. On compute capabilities >= 6.X, page faulting means that the CUDA
-    ///    system software doesn't need to synchronize all managed memory allocations to the GPU before each kernel
+    ///  - Data movement still happens behind the scene when necessary. On compute capabilities >= 6.X, page faulting
+    ///    means that CUDA doesn't need to synchronize all managed memory allocations to the GPU before each kernel
     ///    launch. If a kernel running on the GPU accesses a page that is not resident in its memory, it faults, allowing
     ///    the page to be automatically migrated to the GPU memory on-demand. The same thing occurs with CPU page faults.
-    ///
     ///  - GPU memory over-subscription: On compute capabilities >= 6.X, applications can allocate and access more
     ///    managed memory than the physical size of GPU memory.
-    class AllocatorManaged {
+    /// \note (SYCL):
+    ///  - Allocated shared memory is available on the host and kernels launched by streams created with that context.
+    ///    We assign one context per device, meaning that streams from the same device share the same context and
+    ///    that allocations a valid within the device of the stream used to do the allocation. As such, global
+    ///    allocations, where the same memory is shared across all devices, are not supported.
+    ///
+    class AllocatorUnified {
     public:
         struct Deleter {
             std::weak_ptr<Stream::Core> stream{};
@@ -242,155 +317,143 @@ namespace noa::cuda {
             i32 device_id{};
 
             void operator()(void* ptr) const noexcept {
+                #if defined(NOA_ENABLE_CUDA)
                 if (const auto stream_ = stream.lock()) {
                     [[maybe_unused]] auto err = cudaStreamSynchronize(stream_->stream_handle);
                     NOA_ASSERT(err == cudaSuccess);
                 }
                 [[maybe_unused]] auto err = cudaFree(ptr);
                 NOA_ASSERT(err == cudaSuccess);
-                add_bytes(device_id, -size);
+                #elif NOA_ENABLE_SYCL
+                details::usm_free(ptr, stream, device_id);
+                #endif
+                AllocatedBytes<MemoryKind::UNIFIED>::add(device_id, -size);
             }
         };
 
         template<typename T>
         using allocate_type = std::unique_ptr<T[], Deleter>;
 
-        static constexpr usize MIN_ALIGNMENT = 256; // this is guaranteed by cuda
+        static constexpr usize MIN_ALIGNMENT = AllocatorDevice::MIN_ALIGNMENT;
+
+        enum class Visibility {
+            /// Allocates unified memory, accessible from the host, and any stream and any device.
+            /// In SYCL, only per-device visibility is supported, so this always fails.
+            GLOBAL,
+
+            /// Allocates unified memory, accessible from the host and the stream's device used for the allocation.
+            /// In CUDA, this falls back to GLOBAL.
+            DEVICE,
+
+            /// Allocates unified memory, accessible from the host, and only from the stream used for the allocation.
+            /// In CUDA, if the device has cudaDevAttrConcurrentManagedAccess != 0 or the NULL stream is used, this
+            /// falls back to GLOBAL. In SYCL, only per-device visibility is supported, so this falls back to DEVICE.
+            STREAM,
+        };
+        using enum Visibility;
 
     public:
-        /// Allocates managed memory using cudaMallocManaged, accessible from any stream and any device.
+        // TODO Stream is unused for GLOBAL and DEVICE. Should there be an overload without the stream?
         template<nt::allocatable_type T>
-        static auto allocate_global(isize n_elements) -> allocate_type<T> {
+        static auto allocate(isize n_elements, Visibility visibility, Stream& stream) -> allocate_type<T> {
             if (n_elements <= 0)
                 return {};
-            void* tmp{nullptr}; // X** to void** is not allowed
-            const auto n_bytes = static_cast<usize>(n_elements) * sizeof(T);
-            check(cudaMallocManaged(&tmp, n_bytes, cudaMemAttachGlobal));
-            add_bytes(-1, static_cast<isize>(n_bytes));
-            return allocate_type<T>(static_cast<T*>(tmp), Deleter{
-                .size = static_cast<isize>(n_bytes),
-                .device_id = -1,
-            });
-        }
 
-        /// Allocates managed memory using cudaMallocManaged.
-        /// The allocation is initially invisible to devices, ensuring that there's no interaction with
-        /// thread's execution in the interval between the data allocation and when the data is acquired
-        /// by the stream. The program makes a guarantee that it will only access the memory on the device
-        /// from stream.
-        /// The stream on which to attach the memory should be passed. The returned memory should only be accessed
-        /// by the host, and the stream's device from kernels launched with this stream. Note that if the null stream
-        /// is passed, the allocation falls back to allocate_global() and the memory can be accessed by any stream
-        /// on any device.
-        template<nt::allocatable_type T>
-        static auto allocate(isize n_elements, Stream& stream) -> allocate_type<T> {
-            // cudaStreamAttachMemAsync: "It is illegal to attach singly to the NULL stream, because the NULL stream
-            // is a virtual global stream and not a specific stream. An error will be returned in this case".
-            if (not stream.id())
-                return allocate_global<T>(n_elements);
-            if (n_elements <= 0)
-                return {};
             void* tmp{nullptr}; // X** to void** is not allowed
             const auto n_bytes = static_cast<usize>(n_elements) * sizeof(T);
+            const auto device = stream.device();
+
+            #if defined(NOA_ENABLE_CUDA)
+            // 1. cudaStreamAttachMemAsync: "It is illegal to attach singly to the NULL stream, because the NULL
+            //    stream is a virtual global stream and not a specific stream. An error will be returned in this case".
+            // 2. If cudaDevAttrConcurrentManagedAccess != 0, restrictions from cudaStreamAttachMemAsync (with default
+            //    flag cudaMemAttachSingle) don't apply, the access is global. We still use the other path with
+            //    cudaMemAttachHost and cudaStreamAttachMemAsync to limit interactions with other host threads for
+            //    mixed systems where there's a cudaDevAttrConcurrentManagedAccess == 0 device.
+            if (visibility == GLOBAL or visibility == DEVICE or not stream.id()) {
+                check(cudaMallocManaged(&tmp, n_bytes, cudaMemAttachGlobal));
+                AllocatedBytes<MemoryKind::UNIFIED>::add(-1, static_cast<isize>(n_bytes));
+                return allocate_type<T>(static_cast<T*>(tmp), Deleter{
+                    .size = static_cast<isize>(n_bytes),
+                    .device_id = -1,
+                });
+            }
+
+            /// The allocation is initially invisible to devices, ensuring that there's no interaction with thread's
+            /// execution in the interval between the data allocation and when the data is acquired by the stream.
+            /// The program makes a guarantee that it will only access the memory on the device from the stream.
+            const auto guard = DeviceGuard(device);
             check(cudaMallocManaged(&tmp, n_bytes, cudaMemAttachHost));
+            check(cudaStreamAttachMemAsync(stream.id(), tmp, 0, cudaMemAttachSingle));
+            // FIXME We synchronize to wait for the attach to take effect, but is it necessary
+            //       since the memory access is required to be stream-ordered?
+            stream.synchronize();
+            #elif defined(NOA_ENABLE_SYCL)
+            check(visibility != GLOBAL, "Global visibility is not currently supported in SYCL");
+            tmp = details::usm_allocate(sycl::usm::alloc::shared, MIN_ALIGNMENT, n_bytes, device);
+            check(tmp != nullptr);
+            #endif
 
-            // We need to set the current device in case the stream is a null stream.
-            const auto guard = DeviceGuard(stream.device());
-            check(cudaStreamAttachMemAsync(stream.id(), tmp));
-            add_bytes(stream.device().id(), static_cast<isize>(n_bytes));
-            stream.synchronize(); // FIXME is this necessary since cudaMemAttachHost is used?
+            AllocatedBytes<MemoryKind::UNIFIED>::add(device.id(), static_cast<isize>(n_bytes));
             return allocate_type<T>(static_cast<T*>(tmp), Deleter{
                 .stream = stream.core(),
                 .size = static_cast<isize>(n_bytes),
-                .device_id = stream.device().id(),
+                .device_id = device.id(),
             });
         }
 
+        /// Allocates unified memory.
+        /// Returns 1: Unique pointer pointing to the unified memory.
+        ///         2: Strides describing the allocated layout.
+        template<nt::allocatable_type T, typename I, usize N> requires (N >= 2)
+        static auto allocate_padded(
+            const Shape<I, N>& shape,
+            Visibility visibility,
+            Stream& stream
+        ) -> Pair<allocate_type<T>, Strides<I, N>> {
+            if (shape.is_empty())
+                return {};
+            auto shape_ = AllocatorDevice::padded_shape<T>(shape, stream.device());
+            return {allocate<T>(shape_.n_elements(), visibility, stream), shape_.strides()};
+        }
+
         /// Returns the stream handle used to allocate the resource.
-        /// If the data was created synchronously using allocate() or if it's empty, return the null stream.
+        /// If the resource has effective global or device visibility, return nullptr.
         template<nt::allocatable_type T>
-        [[nodiscard]] auto attached_stream_handle(const allocate_type<T>& resource) const -> cudaStream_t {
-            if (resource) {
-                if (auto stream = resource.get_deleter().stream.lock())
-                    return stream->stream_handle;
-            }
-            return nullptr;
+        [[nodiscard]] static auto attached_stream_core(const allocate_type<T>& resource) -> std::shared_ptr<Stream::Core> {
+            return resource ? resource.get_deleter().stream.lock() : nullptr;
         }
 
         /// Prefetches the memory region to the stream's GPU.
         template<nt::allocatable_type T>
         static void prefetch_to_gpu(const T* pointer, isize n_elements, Stream& stream) {
             const auto n_bytes = static_cast<usize>(n_elements) * sizeof(T);
+            #if defined(NOA_ENABLE_CUDA)
             #if CUDART_VERSION < 13000
             check(cudaMemPrefetchAsync(pointer, n_bytes, stream.device().id(), stream.id()));
             #else
             auto location = cudaMemLocation{.type = cudaMemLocationTypeDevice, .id = stream.device().id()};
-            cudaMemPrefetchAsync(pointer, n_bytes, location, {}, stream.id());
+            check(cudaMemPrefetchAsync(pointer, n_bytes, location, {}, stream.id()));
+            #endif
+            #elif defined(NOA_ENABLE_SYCL)
+            stream.enqueue_sycl_prefetch_gpu(pointer, n_bytes);
             #endif
         }
 
-        /// Prefetches the memory region to the cpu.
+        /// Prefetches the memory region to the CPU.
         template<nt::allocatable_type T>
         static void prefetch_to_cpu(const T* pointer, isize n_elements, Stream& stream) {
             const auto n_bytes = static_cast<usize>(n_elements) * sizeof(T);
-            #if CUDART_VERSION < 13000
+            #if defined(NOA_ENABLE_CUDA)
+            #   if CUDART_VERSION < 13000
             check(cudaMemPrefetchAsync(pointer, n_bytes, cudaCpuDeviceId, stream.id()));
-            #else
+            #   else
             auto location = cudaMemLocation{.type = cudaMemLocationTypeHost, .id = 0};
-            cudaMemPrefetchAsync(pointer, n_bytes, location, {}, stream.id());
+            check(cudaMemPrefetchAsync(pointer, n_bytes, location, {}, stream.id()));
+            #   endif
+            #elif defined(NOA_ENABLE_SYCL)
+            stream.enqueue_sycl_prefetch_cpu(pointer, n_bytes);
             #endif
-        }
-
-        /// Returns the number of bytes currently allocated on the device.
-        /// Note that memory allocated using allocate_global is added to every device.
-        [[nodiscard]] static auto bytes_currently_allocated(i32 device_id) -> usize {
-            auto n_bytes = clamp_cast<usize>(m_bytes_currently_allocated_globally.load());
-            if (device_id >= 0 and device_id < MAX_DEVICES)
-                n_bytes += clamp_cast<usize>(m_bytes_currently_allocated[device_id].load());
-            return n_bytes;
-        }
-
-    private:
-        static constexpr i32 MAX_DEVICES = 64;
-        static void add_bytes(i32 device_id, isize n_bytes) noexcept {
-            if (device_id >= 0 and device_id < MAX_DEVICES)
-                m_bytes_currently_allocated[device_id] += n_bytes;
-            else
-                m_bytes_currently_allocated_globally += n_bytes;
-        }
-        inline static std::atomic<isize> m_bytes_currently_allocated[MAX_DEVICES]{};
-        inline static std::atomic<isize> m_bytes_currently_allocated_globally{};
-    };
-
-    class AllocatorManagedPadded {
-    public:
-        static constexpr usize ALIGNMENT = 256; // this is guaranteed by cuda
-
-        template<typename T>
-        using allocate_type = AllocatorManaged::allocate_type<T>;
-
-    public:
-        /// Allocates managed memory using AllocatorManaged::allocate<T>().
-        /// Returns 1: Unique pointer pointing to the managed memory.
-        ///         2: Strides describing the allocated layout.
-        template<nt::allocatable_type T, typename I, usize N> requires (N >= 2)
-        static auto allocate(
-            const Shape<I, N>& shape,
-            Stream& stream
-        ) -> Pair<allocate_type<T>, Strides<I, N>> {
-            if (shape.is_empty())
-                return {};
-
-            // Get the pitch from the device.
-            auto pitch = static_cast<usize>(stream.device().attribute(cudaDevAttrTexturePitchAlignment));
-            pitch = std::max(ALIGNMENT, pitch);
-            check(is_multiple_of(pitch, sizeof(T)),
-                  "The pitch must be a multiple of sizeof({})={}, but got {}",
-                  nd::stringify<T>(), sizeof(T), pitch);
-
-            auto width = next_multiple_of(shape[N - 1], safe_cast<I>(pitch / sizeof(T)));
-            auto padded_shape = shape.template set<N - 1>(width);
-            return {AllocatorManaged::allocate<T>(padded_shape.n_elements(), stream), padded_shape.strides()};
         }
     };
 
@@ -428,15 +491,19 @@ namespace noa::cuda {
     ///      restrict the use of pinned memory.
     class AllocatorPinned {
     public:
-        static constexpr usize ALIGNMENT = 256; // this is guaranteed by cuda
+        static constexpr usize MIN_ALIGNMENT = AllocatorDevice::MIN_ALIGNMENT;
 
         struct Deleter {
             isize size{};
             i32 device_id{};
             void operator()(void* ptr) const noexcept {
+                #if defined(NOA_ENABLE_CUDA)
                 [[maybe_unused]] const cudaError_t err = cudaFreeHost(ptr);
                 NOA_ASSERT(err == cudaSuccess);
-                add_bytes(device_id, -size);
+                #elif defined(NOA_ENABLE_SYCL)
+                details::usm_free(ptr, {}, device_id);
+                #endif
+                AllocatedBytes<MemoryKind::PINNED>::add(device_id, -size);
             }
         };
 
@@ -451,29 +518,25 @@ namespace noa::cuda {
                 return {};
             void* tmp{nullptr}; // T** to void** not allowed [-fpermissive]
             auto n_bytes = n_elements * static_cast<isize>(sizeof(T));
+
+            #if defined(NOA_ENABLE_CUDA)
             auto device_guard = DeviceGuard(device);
             check(cudaMallocHost(&tmp, static_cast<usize>(n_bytes)));
-            add_bytes(device_guard.id(), n_bytes);
-            return allocate_type<T>(static_cast<T*>(tmp), Deleter{.size = n_bytes, .device_id = device_guard.id()});
+            #elif defined(NOA_ENABLE_SYCL)
+            tmp = details::usm_allocate(sycl::usm::alloc::host, MIN_ALIGNMENT, static_cast<usize>(n_bytes), device);
+            #endif
+            AllocatedBytes<MemoryKind::PINNED>::add(device.id(), n_bytes);
+            return allocate_type<T>(static_cast<T*>(tmp), Deleter{.size = n_bytes, .device_id = device.id()});
         }
-
-        /// Returns the number of bytes currently allocated on the device.
-        /// Note that memory allocated using allocate_global is added to every device.
-        [[nodiscard]] static auto bytes_currently_allocated(i32 device_id) -> usize {
-            if (device_id >= 0 and device_id < MAX_DEVICES)
-                return clamp_cast<usize>(m_bytes_currently_allocated[device_id].load());
-            return 0;
-        }
-
-    private:
-        static constexpr i32 MAX_DEVICES = 64;
-        static void add_bytes(i32 device_id, isize n_bytes) noexcept {
-            if (device_id >= 0 and device_id < MAX_DEVICES)
-                m_bytes_currently_allocated[device_id] += n_bytes;
-        }
-        inline static std::atomic<isize> m_bytes_currently_allocated[MAX_DEVICES]{};
     };
+}
 
+#ifdef NOA_ENABLE_CUDA
+// Add specialization for our complex types. Used for CUDA arrays and textures.
+template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::f16>() { return cudaCreateChannelDesc<half>(); }
+template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::c16>() { return cudaCreateChannelDesc<half2>(); }
+template<> inline cudaChannelFormatDesc cudaCreateChannelDesc<noa::c32>() { return cudaCreateChannelDesc<float2>(); }
+namespace noa::gpu {
     /// Creates 1d, 2d, or 3d CUDA array.
     /// CUDA arrays:
     ///  - Data resides in global memory. The host can cudaMemcpy to it, and the device can only access it
@@ -706,3 +769,4 @@ namespace noa::cuda {
         inline static std::atomic<isize> m_bytes_currently_allocated[MAX_DEVICES]{};
     };
 }
+#endif
