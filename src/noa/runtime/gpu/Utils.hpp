@@ -432,10 +432,7 @@ namespace noa::gpu::details {
     /// the reduced AccessorValue(s) should not be const anyway.
     template<usize N, typename Index, typename T>
     using joined_tuple_t = joined_tuple<N, Index, std::decay_t<T>>::type;
-}
 
-// TODO Some of these functions could be moved to ComputeHandle.
-namespace noa::gpu::details {
     // Get a warp count that makes block_size_x a multiple of block_size.
     template<typename Config, u32 WarpCountBlockSizeX>
     constexpr auto best_block_size_x() {

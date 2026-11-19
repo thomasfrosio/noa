@@ -154,7 +154,6 @@ namespace noa::gpu::details {
 }
 #endif
 
-
 namespace noa::gpu {
     /// Compute handle for GPU code-paths.
     /// This offers a unified way to query various info about the compute kernel,
@@ -316,12 +315,12 @@ namespace noa::gpu {
         }
 
         template<nt::integer T = index_type>
-        NOA_FD auto grid_size_x() const {
+        NOA_FD auto grid_size_x() const -> T {
             return static_cast<T>(m_nd_item->get_group_range(GRID_NDIM - 1));
         }
 
         template<nt::integer T = index_type>
-        constexpr NOA_FD auto grid_size_y() const {
+        constexpr NOA_FD auto grid_size_y() const -> T {
             if constexpr (GRID_NDIM >= 2) {
                 if constexpr (IsMultiGridKernel)
                     return static_cast<T>(m_grid_size_zy[GRID_NDIM - 2]);
@@ -333,7 +332,7 @@ namespace noa::gpu {
         }
 
         template<nt::integer T = index_type>
-        constexpr NOA_FD auto grid_size_z() const {
+        constexpr NOA_FD auto grid_size_z() const -> T {
             if constexpr (GRID_NDIM == 3) {
                 if constexpr (IsMultiGridKernel)
                     return static_cast<T>(m_grid_size_zy[0]);
@@ -885,6 +884,63 @@ namespace noa::gpu {
             }
         }
 
+    public:
+        [[nodiscard]] NOA_FD auto total_scratch_size() const -> u32 {
+            #ifdef NOA_ENABLE_CUDA
+            u32 ret;
+            asm volatile ("mov.u32 %0, %dynamic_smem_size;" : "=r" (ret)); // PTX 4.1
+            return ret;
+            #else
+            // TODO Is there a register in HIP to get the size?
+            // TODO If SYCL backend is CUDA, use the PTX register?
+            return m_total_scratch_size;
+            #endif
+        }
+
+        [[nodiscard]] NOA_FD auto scratch_size() const -> u32 {
+            if constexpr (IsSharingScratch)
+                return m_user_scratch_size;
+            else
+                return total_scratch_size();
+        }
+
+        [[nodiscard]] NOA_FD auto has_scratch() const -> bool {
+            return scratch_size() > 0;
+        }
+
+        template<typename T = std::byte>
+        [[nodiscard]] NOA_FD auto scratch_pointer() const -> T* {
+            #ifdef NOA_ENABLE_SYCL
+            return reinterpret_cast<T*>(m_scratch);
+            #else
+            // This needs to be the only point in the program, otherwise nvcc (and hipcc?) complains.
+            extern __shared__  std::byte shared_memory alignas(16)[];
+            return reinterpret_cast<T*>(shared_memory);
+            #endif
+        }
+
+        template<typename T = std::byte, typename I = index_type>
+        [[nodiscard]] NOA_FD auto scratch() const -> SpanContiguous<T, 1, I> {
+            return SpanContiguous<T, 1, I>(scratch_pointer<T>(), static_cast<I>(scratch_size() / sizeof(T)));
+        }
+
+        template<typename T = std::byte, typename I = index_type>
+        NOA_FD auto zeroed_scratch_async() const -> SpanContiguous<T, 1, I> {
+            // TODO For trivial types, 32-bit bank accesses would be best,
+            //      but the scratch size might not be a multiple of 4 bytes.
+            auto span = scratch<T, I>();
+            for (I tid = thread_linear_index<I>(); tid < span.n_elements(); tid += block_size<I>())
+                span[tid] = T{};
+            return span;
+        }
+
+        template<typename... I, nt::atomic_addable_nd<sizeof...(I)> T>
+        static NOA_FD auto scratch_atomic_add(const nt::mutable_value_type_t<T>& value, const T& accessor, I... indices) {
+            auto* pointer = accessor.offset_pointer(accessor.get(), indices...);
+            return details::scratch_atomic_add(pointer, value);
+        }
+
+    public: // gpu-only
         /// Computes the ND indices within the grid.
         /// \param grid_fused_shape_in_x_unbatched:
         ///     Fused shape along grid.x, with the leftmost/outermost dimension popped out (see offset2index).
@@ -972,63 +1028,6 @@ namespace noa::gpu {
             return global_indices<T, N, AddThreadIndices>(Vec<u32, 0>{});
         }
 
-    public:
-        [[nodiscard]] NOA_FD auto total_scratch_size() const -> u32 {
-            #ifdef NOA_ENABLE_CUDA
-            u32 ret;
-            asm volatile ("mov.u32 %0, %dynamic_smem_size;" : "=r" (ret)); // PTX 4.1
-            return ret;
-            #else
-            // TODO Is there a register in HIP to get the size?
-            // TODO If SYCL backend is CUDA, use the PTX register?
-            return m_total_scratch_size;
-            #endif
-        }
-
-        [[nodiscard]] NOA_FD auto scratch_size() const -> u32 {
-            if constexpr (IsSharingScratch)
-                return m_user_scratch_size;
-            else
-                return total_scratch_size();
-        }
-
-        [[nodiscard]] NOA_FD auto has_scratch() const -> bool {
-            return scratch_size() > 0;
-        }
-
-        template<typename T = std::byte>
-        [[nodiscard]] NOA_FD auto scratch_pointer() const -> T* {
-            #ifdef NOA_ENABLE_SYCL
-            return reinterpret_cast<T*>(m_scratch);
-            #else
-            // This needs to be the only point in the program, otherwise nvcc (and hipcc?) complains.
-            extern __shared__  std::byte shared_memory alignas(16)[];
-            return reinterpret_cast<T*>(shared_memory);
-            #endif
-        }
-
-        template<typename T = std::byte, typename I = index_type>
-        [[nodiscard]] NOA_FD auto scratch() const -> SpanContiguous<T, 1, I> {
-            return SpanContiguous<T, 1, I>(scratch_pointer<T>(), static_cast<I>(scratch_size() / sizeof(T)));
-        }
-
-        template<typename T = std::byte, typename I = index_type>
-        NOA_FD auto zeroed_scratch_async() const -> SpanContiguous<T, 1, I> {
-            // TODO For trivial types, 32-bit bank accesses would be best,
-            //      but the scratch size might not be a multiple of 4 bytes.
-            auto span = scratch<T, I>();
-            for (I tid = thread_linear_index<I>(); tid < span.n_elements(); tid += block_size<I>())
-                span[tid] = T{};
-            return span;
-        }
-
-        template<typename... I, nt::atomic_addable_nd<sizeof...(I)> T>
-        static NOA_FD auto scratch_atomic_add(const nt::mutable_value_type_t<T>& value, const T& accessor, I... indices) {
-            auto* pointer = accessor.offset_pointer(accessor.get(), indices...);
-            return details::scratch_atomic_add(pointer, value);
-        }
-
-    public:
         [[nodiscard]] static constexpr auto warp_size() -> u32 {
             return Constant::WARP_SIZE;
         }
