@@ -78,7 +78,7 @@ if (NOA_ENABLE_GPU)
     list(APPEND NOA_HEADERS
         noa/runtime/gpu/Allocators.hpp
 #        noa/runtime/gpu/Blas.hpp
-#        noa/runtime/gpu/Block.hpp
+        noa/runtime/gpu/Block.hpp
         noa/runtime/gpu/ComputeHandle.hpp
         noa/runtime/gpu/Constants.hpp
         noa/runtime/gpu/Copy.hpp
@@ -89,9 +89,9 @@ if (NOA_ENABLE_GPU)
         noa/runtime/gpu/IncludeGuard.hpp
         noa/runtime/gpu/Iwise.hpp
 #        noa/runtime/gpu/Median.hpp
-#        noa/runtime/gpu/MemoryPool.hpp
-#        noa/runtime/gpu/Permute.hpp
-#        noa/runtime/gpu/Pointers.hpp
+        noa/runtime/gpu/MemoryPool.hpp
+        noa/runtime/gpu/Permute.hpp
+        noa/runtime/gpu/Pointers.hpp
         noa/runtime/gpu/ReduceAxesEwise.hpp
         noa/runtime/gpu/ReduceAxesIwise.hpp
         noa/runtime/gpu/ReduceEwise.hpp
