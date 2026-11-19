@@ -51,9 +51,6 @@ namespace noa {
     }
 }
 
-/// These define the expected interface for each type of operators, and provide the common functionalities
-/// of zip/unzip, optional member functions, and function redirections.
-
 namespace noa::traits {
     template<typename T, typename = void>
     struct enable_vectorization : std::false_type {};
@@ -61,32 +58,42 @@ namespace noa::traits {
     struct enable_vectorization<T, std::void_t<typename T::enable_vectorization>> : std::true_type {};
 
     /// By default, the element-wise interfaces (ewise, reduce_ewise and reduce_axes_ewise) allow the operators
-    /// to write from the inputs and read from the outputs. While this can be useful for some operations, it may also
-    /// constrain some backends when it comes to vectorization (e.g. vectorized load/write in CUDA). Operators can
-    /// define the optional type alias "enable_vectorization" to indicate that the input values are read-only and
-    /// that output values must be initialized by the operator.
+    /// to write from the inputs and read from the outputs. While this can be useful for some operations, it also
+    /// constrains GPU backends when it comes to vectorization (e.g. vectorized load/write on GPU). Operators can
+    /// define the optional type "enable_vectorization" (e.g. using enable_vectorization=bool) to indicate
+    /// that the input values are read-only and that output values are initialized by the operator.
     template<typename T>
     constexpr bool enable_vectorization_v = enable_vectorization<std::decay_t<T>>::value;
 
-    template<typename T, typename = void> struct remove_default_init : std::false_type {};
-    template<typename T, typename = void> struct remove_default_deinit : std::false_type {};
-    template<typename T, typename = void> struct remove_default_post : std::false_type {};
-    template<typename T, typename = void> struct remove_compute_handle : std::false_type {};
+    template<typename, typename = void> struct remove_default_init : std::false_type {};
+    template<typename, typename = void> struct remove_default_deinit : std::false_type {};
+    template<typename, typename = void> struct remove_default_post : std::false_type {};
+    template<typename, typename = void> struct remove_compute_handle : std::false_type {};
 
     template<typename T> struct remove_default_init<T, std::void_t<typename T::remove_default_init>> : std::true_type {};
     template<typename T> struct remove_default_deinit<T, std::void_t<typename T::remove_default_deinit>> : std::true_type {};
     template<typename T> struct remove_default_post<T, std::void_t<typename T::remove_default_post>> : std::true_type {};
     template<typename T> struct remove_compute_handle<T, std::void_t<typename T::remove_compute_handle>> : std::true_type {};
 
-    /// One issue with the default functions interface is that if the user provides a definition of (de)init but
-    /// makes an error in the input arguments (e.g. by specifying forgetting const/ref to a type), instead of giving
-    /// a compile-time error, the interface will skip it and fall back to the default implementation. This is a case
-    /// of "it's not a bug, it's a feature" because the user can use this to their advantage and provide specializations
-    /// for specific types. However, it is probably best to use function overloading in this case and explicitly write
-    /// the desired default case. Regardless, we need a way to make sure the user definitions get used. To do so,
-    /// operators can define type-aliases named "remove_default_{(de)init}" (e.g. using remove_default_init=bool) which
-    /// the interface detects. Then, if the operator doesn't implement the corresponding function or is not valid,
-    /// a compile-time error will be raised.
+    /// By default, if not defined, the init and deinit steps are defaulted to Empty (no-op), and post to Copy.
+    /// These defaults are genuinely useful and allows many operators to be defined as simple lambdas.
+    /// However, they make the interface more tricky to correctly defines because if an erroneous definition of
+    /// (de)init/post is written (e.g. by incorrectly specifying the argument types, or forgetting a const), instead of
+    /// giving a compile-time error, the interface falls back to the default implementation. While this behavior may be
+    /// actually useful to provide specialization for specific types, it introduces an uncertainty as whether the
+    /// implementation of defaultable steps will be picked.
+    ///
+    /// To remove these uncertainty, the operator can either:
+    /// 1. Define the type "remove_default_{(de)init|post}" (e.g. using remove_default_init=bool) to remove the default
+    ///    implementation. Then, if the operator doesn't implement the step (or the implementation is not valid)
+    ///    a compile-time error will be raised.
+    /// 2. Define the type <step>_type (where step is init, call, deinit, join, or post). This tells the interface
+    ///    to call this type for the corresponding step (after default initializing it) without any possible fallback.
+    ///    On top of making the operator interface more straightforward, it also improves composability.
+    ///
+    /// Note that while technically not a default, if not valid, the join step falls back to the call step for ewise and
+    /// reduce(_axis)_ewise. This enables many operators to be defined as simple lambdas. This fallback is less of issue
+    /// in practice compared to the (de)init/post defaults, but it can still be disabled by explicitly defining join_type.
     template<typename T> constexpr bool remove_default_init_v = remove_default_init<std::decay_t<T>>::value;
     template<typename T> constexpr bool remove_default_deinit_v = remove_default_deinit<std::decay_t<T>>::value;
     template<typename T> constexpr bool remove_default_post_v = remove_default_post<std::decay_t<T>>::value;
@@ -99,12 +106,6 @@ namespace noa::traits {
     NOA_GENERATE_TYPE_ALIAS_DETECTION(post_type, T, T::post_type);
 }
 
-namespace noa::details {
-    // nvcc (12.0-12.5) easily breaks (or worse, give wrong results) with `if constexpr (requires...)` statements,
-    // so we have to walk on eggshells and define "friendlier" structures to check these type substitutions...
-    // std::declval seems necessary, as using the name of variadics seem to freak out nvcc...
-}
-
 // Suppress spurious visibility warning with NVCC-GCC when a lambda captures anonymous types.
 #ifdef __CUDACC__
 #   if defined(NOA_COMPILER_GCC) || defined(NOA_COMPILER_CLANG)
@@ -114,17 +115,21 @@ namespace noa::details {
 #endif
 
 namespace noa::traits {
-    /// Hook to bypass the interface detection.
+    /// Hook to proclaim a type to compute handle.
     template<typename> struct proclaim_is_compute_handle : std::false_type {};
 
     /// Compute handle.
-    /// TODO Add API reference
+    /// \see cpu::ComputeHandle and gpu::ComputeHandle for API reference.
     template<typename T>
     concept compute_handle = proclaim_is_compute_handle<std::decay_t<T>>::value;
 
     template<typename T> concept compute_handle_cpu = compute_handle<T> and T::is_cpu();
     template<typename T> concept compute_handle_gpu = compute_handle<T> and T::is_gpu();
 }
+
+// nvcc (12.0-12.5) easily breaks (or worse, give wrong results) with `if constexpr (requires...)` statements,
+// so we have to walk on eggshells and define "friendlier" structures to check these type substitutions.
+// std::declval seems necessary, as using the name of variadics seem to break nvcc.
 
 namespace noa::details {
     struct InitChecker {
@@ -456,7 +461,8 @@ namespace noa::details {
     struct ReduceJoinChecker {
         template<typename Op, typename... IO> static consteval bool check_0() { return requires { std::declval<typename Op::join_type>()(std::declval<IO&>()...); }; }
         template<typename Op, typename... IO> static consteval bool check_1() { return requires { std::declval<Op&>().join(std::declval<IO&>()...); }; }
-        template<typename Op, typename... IO> static consteval bool check_2() { return requires { std::declval<Op&>()(std::declval<IO&>()...); }; }
+        template<typename Op, typename... IO> static consteval bool check_2() { return requires { std::declval<typename Op::call_type>()(std::declval<IO&>()...); }; }
+        template<typename Op, typename... IO> static consteval bool check_3() { return requires { std::declval<Op&>()(std::declval<IO&>()...); }; }
     };
 
     template<bool ZipReduced, bool AllowCall>
@@ -470,18 +476,18 @@ namespace noa::details {
         template<typename Op, typename Reduced, usize... R>
         static constexpr void join_(Op& op, Reduced& to_reduce, Reduced& reduced, std::index_sequence<R...>) {
             if constexpr (nt::has_join_type_v<Op>) {
-                using joint_t = nt::join_type_t<Op>;
+                using join_t = nt::join_type_t<Op>;
                 if constexpr (ZipReduced) {
                     auto pi = noa::forward_as_tuple(to_reduce[Tag<R>{}].ref()...);
                     auto po = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
                     if constexpr (ReduceJoinChecker::check_0<Op, decltype(pi), decltype(po)>()) {
-                        joint_t{}(pi, po);
+                        join_t{}(pi, po);
                     } else {
                         static_assert(nt::always_false<Op>, "join_type does not have a valid operator() call");
                     }
                 } else {
                     if constexpr (ReduceJoinChecker::check_0<Op, decltype(to_reduce[Tag<R>{}].ref())..., decltype(reduced[Tag<R>{}].ref())...>()) {
-                        joint_t{}(to_reduce[Tag<R>{}].ref()..., reduced[Tag<R>{}].ref()...);
+                        join_t{}(to_reduce[Tag<R>{}].ref()..., reduced[Tag<R>{}].ref()...);
                     } else {
                         static_assert(nt::always_false<Op>, "join_type does not have a valid operator() call");
                     }
@@ -492,16 +498,38 @@ namespace noa::details {
                     auto po = noa::forward_as_tuple(reduced[Tag<R>{}].ref()...);
                     if constexpr (ReduceJoinChecker::check_1<Op, decltype(pi), decltype(po)>()) {
                         op.join(pi, po);
-                    } else if constexpr (AllowCall and ReduceJoinChecker::check_2<Op, decltype(pi), decltype(po)>()) {
-                        op(pi, po);
+                    } else if constexpr (AllowCall) {
+                        if constexpr (nt::has_call_type_v<Op>) {
+                            using call_t = nt::call_type_t<Op>;
+                            if constexpr (ReduceJoinChecker::check_2<Op, decltype(pi), decltype(po)>())
+                                call_t{}(pi, po);
+                            else
+                                static_assert(nt::empty_tuple<Reduced>, "the operator does not have a valid join call and call_type does not have a valid operator() call");
+                        } else {
+                            if constexpr (ReduceJoinChecker::check_3<Op, decltype(pi), decltype(po)>())
+                                op(pi, po);
+                            else
+                                static_assert(nt::empty_tuple<Reduced>, "the operator does not have a valid join nor operator() call");
+                        }
                     } else {
                         static_assert(nt::empty_tuple<Reduced>, "the operator does not have a valid join call");
                     }
                 } else {
                     if constexpr (ReduceJoinChecker::check_1<Op, decltype(to_reduce[Tag<R>{}].ref())..., decltype(reduced[Tag<R>{}].ref())...>()) {
                         op.join(to_reduce[Tag<R>{}].ref()..., reduced[Tag<R>{}].ref()...);
-                    } else if constexpr (AllowCall and ReduceJoinChecker::check_2<Op, decltype(to_reduce[Tag<R>{}].ref())..., decltype(reduced[Tag<R>{}].ref())...>()) {
-                        op(to_reduce[Tag<R>{}].ref()..., reduced[Tag<R>{}].ref()...);
+                    } else if constexpr (AllowCall) {
+                        if constexpr (nt::has_call_type_v<Op>) {
+                            using call_t = nt::call_type_t<Op>;
+                            if constexpr (ReduceJoinChecker::check_2<Op, decltype(to_reduce[Tag<R>{}].ref())..., decltype(reduced[Tag<R>{}].ref())...>())
+                                call_t{}(to_reduce[Tag<R>{}].ref()..., reduced[Tag<R>{}].ref()...);
+                            else
+                                static_assert(nt::empty_tuple<Reduced>, "the operator does not have a valid join call and call_type does not have a valid operator() call");
+                        } else {
+                            if constexpr (ReduceJoinChecker::check_3<Op, decltype(to_reduce[Tag<R>{}].ref())..., decltype(reduced[Tag<R>{}].ref())...>())
+                                op(to_reduce[Tag<R>{}].ref()..., reduced[Tag<R>{}].ref()...);
+                            else
+                                static_assert(nt::empty_tuple<Reduced>, "the operator does not have a valid join nor operator() call");
+                        }
                     } else {
                         static_assert(nt::empty_tuple<Reduced>, "the operator does not have a valid join call");
                     }
