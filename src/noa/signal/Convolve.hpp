@@ -195,7 +195,6 @@ namespace noa::signal::details {
             shape_hw = shape.filter(N - 1);
 
         constexpr bool ALONG_X = I == N - 1;
-
         if constexpr (OPTIONS.generate_cpu) {
             if (device.is_cpu()) {
                 auto op = ConvolutionSeparable<N - R, R, ALONG_X, BORDER, 1, 1, Index, Input, Output, filter_t>(
@@ -232,11 +231,12 @@ namespace noa::signal::details {
             };
 
             auto op = ConvolutionSeparable<N - R, R, ALONG_X, BORDER, BLOCK_SIZE_X, BLOCK_SIZE_Y, Index, Input, Output, filter_t>(
-                    input, output, faccessor, shape_hw, filter_size);
+                input, output, faccessor, shape_hw, filter_size);
 
             // Use iwise as a generic kernel launch, launch the grid of blocks and
             // do the bound checking explicitly.
-            shape[N - 2] = next_multiple_of(shape[N - 2], BLOCK_SIZE_Y);
+            if constexpr (N > 1)
+                shape[N - 2] = next_multiple_of(shape[N - 2], BLOCK_SIZE_Y);
             shape[N - 1] = next_multiple_of(shape[N - 1], BLOCK_SIZE_X);
             noa::iwise<IWISE_COMPILE_OPTIONS>(
                 shape, device, op, iwise_options, NOA_FWD(filter), NOA_FWD(buffers)...);
